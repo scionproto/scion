@@ -14,11 +14,7 @@
 
 package class
 
-import (
-	"encoding/json"
-
-	"github.com/netsec-ethz/scion/go/lib/common"
-)
+import "encoding/json"
 
 var (
 	_ json.Marshaler   = (*Class)(nil)
@@ -50,26 +46,11 @@ func (c *Class) Eval(hpkt *Packet) bool {
 }
 
 func (c *Class) MarshalJSON() ([]byte, error) {
-	jc := make(jsonContainer)
-	err := jc.addTypedCond(c.Cond)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(jc)
+	return marshalInterface(c.Cond)
 }
 
 func (c *Class) UnmarshalJSON(b []byte) error {
-	var s condUnion
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-	c.Cond, err = s.extractCond()
-	if err != nil {
-		return err
-	}
-	if c.Cond == nil {
-		return common.NewCError("Class does not include condition")
-	}
-	return nil
+	var err error
+	c.Cond, err = unmarshalCond(b)
+	return err
 }

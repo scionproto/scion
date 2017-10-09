@@ -276,7 +276,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 					"src", c.laddr.IA, "dst", raddr.IA, "err", err)
 			}
 		}
-		pathSet = c.sp.Load()
+		pathSet = c.sp.Load().APS
 	}
 
 	if len(pathSet) == 0 {

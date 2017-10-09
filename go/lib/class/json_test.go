@@ -94,10 +94,10 @@ func TestMarshalJSONClass(t *testing.T) {
 			enc, err := json.MarshalIndent(cm, "", "    ")
 			SoMsg("Marshal err", err, ShouldBeNil)
 			SoMsg("Marshal enc", enc, ShouldNotBeNil)
+			fmt.Println(string(enc))
 			Convey("Unmarshal back", func() {
 				cmu := NewClassMap()
 				err = json.Unmarshal(enc, &cmu)
-				fmt.Println(string(enc))
 				SoMsg("Unmarshal err", err, ShouldBeNil)
 				Convey("Unmarshaled class-map should be the same as the initial one", func() {
 					So(cmu, ShouldResemble, cm)

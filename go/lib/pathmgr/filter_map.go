@@ -19,7 +19,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/class"
 )
 
-// filterMap maps IAKey(src, dst) to a filterSet, which is itself a map from a
+// filterMap maps iaKey(src, dst) to a filterSet, which is itself a map from a
 // string description of a path predicate to a *SyncPaths object. This allows
 // us to keep multiple active filters for the same source and destination ASes.
 // External code needs to call update on path changes (e.g., new replies from
@@ -46,8 +46,8 @@ func (fm filterMap) get(src, dst *addr.ISD_AS, pp *class.PathPredicate) (*SyncPa
 
 // set initializes a new *SyncPaths object for source src, destination dst and
 // path filter pp.  If one already exists, a reference to the existing one is
-// returned.  Path resolver code can use this object to store up to date paths
-// within it, and further expose it to user applications that want up to date
+// returned.  Path resolver code can use this object to store up-to-date paths
+// within it, and further expose it to user applications that want up-to-date
 // paths satisfying predicate pp.
 func (fm filterMap) set(src, dst *addr.ISD_AS, pp *class.PathPredicate) *SyncPaths {
 	var fs filterSet
@@ -83,48 +83,35 @@ func (fm filterMap) update(src, dst *addr.ISD_AS, aps AppPathSet) {
 		return
 	}
 
-	// Walk each PathFilter in this FilterSet and Update paths if needed
-	for _, pathFilter := range filterSet {
-		// Filter the paths according to the current predicate
-		newAPS := make(AppPathSet)
-		for _, appPath := range aps {
-			match := pathFilter.pp.Eval(appPath.Entry)
-			if match {
-				appPath.duplicateIn(newAPS)
-			}
-		}
-
-		// Check whether the paths need to be updated by computing the
-		// symmetric difference between the current path set and the new path
-		// set.
-		currentAPS := pathFilter.sp.Load()
-		toAdd := setSubtract(newAPS, currentAPS)
-		toRemove := setSubtract(currentAPS, newAPS)
-		if len(toAdd) > 0 || len(toRemove) > 0 {
-			// Some paths have changed, replace the old set with the new set
-			if len(newAPS) == 0 {
-				// Use nil map instead of empty map for consistency with Get
-				pathFilter.sp.Store(AppPathSet(nil))
-			} else {
-				pathFilter.sp.Store(newAPS)
-			}
-		}
-	}
+	filterSet.update(aps)
 }
 
 type filterSet map[string]*pathFilter
+
+// Function update changes all the pathFilters in fs to contain the paths in
+// aps that match their respective PathPredicates.
+func (fs filterSet) update(aps AppPathSet) {
+	// Walk each PathFilter in this FilterSet and Update paths if needed
+	for _, pathFilter := range fs {
+		pathFilter.update(aps)
+	}
+}
 
 type pathFilter struct {
 	sp *SyncPaths
 	pp *class.PathPredicate
 }
 
-func setSubtract(x, y AppPathSet) AppPathSet {
-	result := make(AppPathSet)
-	for _, ap := range x {
-		if _, ok := y[ap.Key()]; !ok {
-			ap.duplicateIn(result)
+// Function update changes paths within the SyncPaths object of pf to the ones
+// in aps that match the PathPredicate in pf.
+func (pf *pathFilter) update(aps AppPathSet) {
+	// Filter the paths according to the current predicate
+	newAPS := make(AppPathSet)
+	for _, appPath := range aps {
+		match := pf.pp.Eval(appPath.Entry)
+		if match {
+			appPath.duplicateIn(newAPS)
 		}
 	}
-	return result
+	pf.sp.Store(newAPS)
 }

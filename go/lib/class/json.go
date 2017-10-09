@@ -15,129 +15,158 @@
 package class
 
 import (
-	"fmt"
+	"encoding/json"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+type Typer interface {
+	Type() string
+}
+
 // This package makes extensive use of serialized interfaces. This requires
 // special handling during marshaling and unmarshaling to take concrete types
-// into account. During marshaling, addTyped* methods are used to populate a
-// jsonContainer, which is a map with concrete type names pointing to
-// actual structs. For example, when we marshal CondAnyOf which implements
-// interface Cond, we add to jsonContainer key "CondAnyOf" with the value
-// containing the actual struct.
+// into account. During marshaling, an object of type T that implements some
+// interface I is encoded as {"T": JSON(I)}, where JSON(I) is the normal
+// encoding of type T.
 //
-// During unmarshaling, whenever we expect an interface type we unmarshal to a
-// fake intermediate structure which contains fields for all possible concrete
-// types. For example, CondUnion includes a pointer to each type that implements
-// Cond. When unmarshaled, only one field is populated, and the Extract* method
-// is called to return an interface value containing the concrete type.
+// Marshaling uses a custom map with a single entry with key a string "T" and
+// value interface{} containing the object iself.
 //
-// Type embedding is used to unmarshal objects that contain multiple fields, at
-// least one of which is an interface. The Go JSON unmarshaler populates the
-// correct field of the embedded type, which we later use to construct the
-// actual object. For an example, see the unmarshalling code for Class.
-//
-// When *Union is unmarshaled (e.g., condUnion), only the field corresponding
-// to the correct type is populated. Then extract* (e.g., extratCond) is called
-// to retrieve the populated field.
+// Unmarshaling uses a custom map of type map[string]*json.RawMessage which
+// delays the unmarshaling of the object itself. After unmarshaling to this
+// map, it contains a single entry with key "T". Depending on T, the correct
+// concrete type is unmarshaled.
+
+// generic container for marshaling custom data
 type jsonContainer map[string]interface{}
 
-func (jc jsonContainer) addTypedCond(c Cond) error {
-	switch v := c.(type) {
-	case CondAllOf:
-		jc["CondAllOf"] = v
-	case CondAnyOf:
-		jc["CondAnyOf"] = v
-	case CondBool:
-		jc["CondBool"] = v
-	case *CondIPv4:
-		jc["CondIPv4"] = v
-	default:
-		return common.NewCError("Unknown cond type", "type", fmt.Sprintf("%T", c))
-	}
-	return nil
+func marshalInterface(t Typer) ([]byte, error) {
+	return json.Marshal(jsonContainer{t.Type(): t})
 }
 
-type condUnion struct {
-	CondAllOf *CondAllOf
-	CondAnyOf *CondAnyOf
-	CondIPv4  *CondIPv4
-	CondBool  *CondBool
+// unmarshalInterface receives a JSON encoded object with a single field whose
+// key is a type and value is the JSON encoding of an object of that type, and
+// returns an interface containing that concrete type.
+func unmarshalInterface(b []byte) (Typer, error) {
+	var container map[string]*json.RawMessage
+	err := json.Unmarshal(b, &container)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range container {
+		switch k {
+		case "CondAllOf":
+			var c CondAllOf
+			if v == nil {
+				return c, nil
+			}
+			err := json.Unmarshal(*v, &c)
+			return c, err
+		case "CondAnyOf":
+			var c CondAnyOf
+			if v == nil {
+				return c, nil
+			}
+			err := json.Unmarshal(*v, &c)
+			return c, err
+		case "CondBool":
+			var c CondBool
+			err := json.Unmarshal(*v, &c)
+			return c, err
+		case "CondIPv4":
+			var c CondIPv4
+			err := json.Unmarshal(*v, &c)
+			return &c, err
+		case "ActionFilterPaths":
+			var a ActionFilterPaths
+			err := json.Unmarshal(*v, &a)
+			return &a, err
+		case "MatchSource":
+			var p IPv4MatchSource
+			err := json.Unmarshal(*v, &p)
+			return &p, err
+		case "MatchDestination":
+			var p IPv4MatchDestination
+			err := json.Unmarshal(*v, &p)
+			return &p, err
+		case "MatchToS":
+			var p IPv4MatchToS
+			err := json.Unmarshal(*v, &p)
+			return &p, err
+		default:
+			return nil, common.NewCError("Unknown type", "type", k)
+		}
+	}
+	return nil, nil
 }
 
-func (u *condUnion) extractCond() (Cond, error) {
-	if u.CondAllOf != nil {
-		// Dereference to retrieve reference
-		return *u.CondAllOf, nil
+// unmarshalCond extracts a Cond from a JSON encoding
+func unmarshalCond(b []byte) (Cond, error) {
+	t, err := unmarshalInterface(b)
+	if err != nil {
+		return nil, err
 	}
-	if u.CondAnyOf != nil {
-		// Dereference to retrieve reference
-		return *u.CondAnyOf, nil
+	c, ok := t.(Cond)
+	if !ok {
+		return nil, common.NewCError("Unable to extract Cond from interface")
 	}
-	if u.CondIPv4 != nil {
-		// Return pointer directly
-		return u.CondIPv4, nil
-	}
-	if u.CondBool != nil {
-		// Dereference to retrieve bool
-		return *u.CondBool, nil
-	}
-	return nil, common.NewCError("No valid condition found")
+	return c, nil
 }
 
-func (jc jsonContainer) addTypedAction(a Action) error {
-	switch v := a.(type) {
-	case *ActionFilterPaths:
-		jc["ActionFilterPaths"] = v
-	default:
-		return common.NewCError("Unknown action type", "type", fmt.Sprintf("%T", a))
+// unmarshalAction extracts an Action from a JSON encoding
+func unmarshalAction(b []byte) (Action, error) {
+	t, err := unmarshalInterface(b)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	a, ok := t.(Action)
+	if !ok {
+		return nil, common.NewCError("Unable to extract Cond from interface")
+	}
+	return a, nil
 }
 
-type actionUnion struct {
-	ActionFilterPaths *ActionFilterPaths
+// unmarshal extracts an IPv4Predicate from a JSON encoding
+func unmarshalPredicate(b []byte) (IPv4Predicate, error) {
+	t, err := unmarshalInterface(b)
+	if err != nil {
+		return nil, err
+	}
+	p, ok := t.(IPv4Predicate)
+	if !ok {
+		return nil, common.NewCError("Unable to extract Cond from interface")
+	}
+	return p, nil
 }
 
-func (u *actionUnion) extractAction(name string) (Action, error) {
-	if u.ActionFilterPaths != nil {
-		u.ActionFilterPaths.Name = name
-		return u.ActionFilterPaths, nil
+// Special case slices because we only need them for Conds
+
+func marshalCondSlice(conds []Cond) ([]byte, error) {
+	var jsons []*json.RawMessage
+	for _, cond := range conds {
+		b, err := marshalInterface(cond)
+		if err != nil {
+			return nil, err
+		}
+		jsons = append(jsons, (*json.RawMessage)(&b))
 	}
-	return nil, common.NewCError("No valid action found")
+	return json.Marshal(jsons)
 }
 
-func (jc jsonContainer) addTypedPredicate(p IPv4Predicate) error {
-	switch v := p.(type) {
-	case *IPv4MatchSource:
-		jc["MatchSource"] = v
-	case *IPv4MatchDestination:
-		jc["MatchDestination"] = v
-	case *IPv4MatchToS:
-		jc["MatchTOS"] = v
-	default:
-		return common.NewCError("Unknown predicate type", "type", fmt.Sprintf("%T", p))
+func unmarshalCondSlice(b []byte) ([]Cond, error) {
+	var jsons []*json.RawMessage
+	err := json.Unmarshal(b, &jsons)
+	if err != nil {
+		return nil, err
 	}
-	return nil
-}
-
-type predicateUnion struct {
-	MatchTOS         *IPv4MatchToS
-	MatchDestination *IPv4MatchDestination
-	MatchSource      *IPv4MatchSource
-}
-
-func (u *predicateUnion) extractPredicate() IPv4Predicate {
-	if u.MatchTOS != nil {
-		return u.MatchTOS
+	var conds []Cond
+	for _, v := range jsons {
+		cond, err := unmarshalCond(*v)
+		if err != nil {
+			return nil, err
+		}
+		conds = append(conds, cond)
 	}
-	if u.MatchDestination != nil {
-		return u.MatchDestination
-	}
-	if u.MatchSource != nil {
-		return u.MatchSource
-	}
-	return nil
+	return conds, nil
 }

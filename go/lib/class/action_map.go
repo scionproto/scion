@@ -59,11 +59,13 @@ func (am *ActionMap) Remove(name string) error {
 }
 
 func (am *ActionMap) MarshalJSON() ([]byte, error) {
-	m := make(map[string]jsonContainer)
+	m := make(map[string]*json.RawMessage)
 	for k, v := range am.m {
-		jc := make(jsonContainer)
-		jc.addTypedAction(v)
-		m[k] = jc
+		b, err := marshalInterface(v)
+		if err != nil {
+			return nil, err
+		}
+		m[k] = (*json.RawMessage)(&b)
 	}
 	return json.Marshal(m)
 }
@@ -77,15 +79,11 @@ func (am *ActionMap) UnmarshalJSON(b []byte) error {
 
 	am.m = make(map[string]Action)
 	for k, v := range m {
-		var union actionUnion
-		err := json.Unmarshal(*v, &union)
+		action, err := unmarshalAction(*v)
 		if err != nil {
 			return err
 		}
-		action, err := union.extractAction(k)
-		if err != nil {
-			return err
-		}
+		action.setName(k)
 		am.m[k] = action
 	}
 	return nil

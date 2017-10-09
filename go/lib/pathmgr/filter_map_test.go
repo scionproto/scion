@@ -28,7 +28,7 @@ func TestFilterMap(t *testing.T) {
 	Convey("Compile path predicates", t, func() {
 		ppA, err := class.NewPathPredicate("2-21#69")
 		SoMsg("err A", err, ShouldBeNil)
-		ppB, err := class.NewPathPredicate("1-12#*,2-22#*")
+		ppB, err := class.NewPathPredicate("1-12#0,2-22#0")
 		SoMsg("err B", err, ShouldBeNil)
 		fm := make(filterMap)
 		src := &addr.ISD_AS{I: 1, A: 10}
@@ -56,12 +56,14 @@ func TestFilterMap(t *testing.T) {
 			sp := fm.set(src, dst, ppA)
 			after := time.Now()
 			SoMsg("sp", sp, ShouldNotBeNil)
-			SoMsg("sp pathset", sp.Load(), ShouldResemble, NewSyncPaths().Load())
-			SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
+			snapshot := sp.Load()
+			SoMsg("sp pathset", snapshot.APS, ShouldResemble, NewSyncPaths().Load().APS)
+			SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBetween, before, after)
+			SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 			Convey("Get filter object for 1-10.2-20, predicate A", func() {
 				sp, ok := fm.get(src, dst, ppA)
 				SoMsg("ok", ok, ShouldBeTrue)
-				SoMsg("sp", sp.Load(), ShouldResemble, NewSyncPaths().Load())
+				SoMsg("sp", sp.Load().APS, ShouldResemble, NewSyncPaths().Load().APS)
 			})
 
 			Convey("Get filter object for 1-10.2-20, missing predicate B", func() {
@@ -75,15 +77,19 @@ func TestFilterMap(t *testing.T) {
 				sp := fm.set(src, dst, ppB)
 				after := time.Now()
 				SoMsg("sp", sp, ShouldNotBeNil)
-				SoMsg("sp pathset", sp.Load(), ShouldResemble, NewSyncPaths().Load())
-				SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
+				snapshot := sp.Load()
+				SoMsg("sp pathset", snapshot.APS, ShouldResemble, NewSyncPaths().Load().APS)
+				SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBetween, before, after)
+				SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 
 				Convey("Get filter object for 1-20.2-20, predicate B", func() {
 					sp, ok := fm.get(src, dst, ppB)
 					SoMsg("ok", ok, ShouldBeTrue)
 					SoMsg("sp", sp, ShouldNotBeNil)
-					SoMsg("sp pathset", sp.Load(), ShouldResemble, NewSyncPaths().Load())
-					SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
+					snapshot := sp.Load()
+					SoMsg("sp pathset", snapshot.APS, ShouldResemble, NewSyncPaths().Load().APS)
+					SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBetween, before, after)
+					SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 				})
 
 				Convey("Update paths", func() {
@@ -94,25 +100,29 @@ func TestFilterMap(t *testing.T) {
 						sp, ok := fm.get(src, dst, ppA)
 						SoMsg("ok", ok, ShouldBeTrue)
 						SoMsg("sp", sp, ShouldNotBeNil)
-						SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
-						SoMsg("sp pathset", sp.Load(), ShouldResemble,
+						snapshot := sp.Load()
+						SoMsg("sp pathset", snapshot.APS, ShouldResemble,
 							AppPathSet{
 								pathsByID["1-19.2-25"].Key(): pathsByID["1-19.2-25"],
 								pathsByID["1-18.2-25"].Key(): pathsByID["1-18.2-25"],
 								pathsByID["2-21.2-26"].Key(): pathsByID["2-21.2-26"],
 								pathsByID["1-11.2-23"].Key(): pathsByID["1-11.2-23"],
 							})
+						SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBetween, before, after)
+						SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 					})
 
 					Convey("Get filter object for 1-10.2-20, predicate B", func() {
 						sp, ok := fm.get(src, dst, ppB)
 						SoMsg("ok", ok, ShouldBeTrue)
 						SoMsg("sp", sp, ShouldNotBeNil)
-						SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
-						SoMsg("sp pathset", sp.Load(), ShouldResemble,
+						snapshot := sp.Load()
+						SoMsg("sp pathset", snapshot.APS, ShouldResemble,
 							AppPathSet{
 								pathsByID["1-18.2-25"].Key(): pathsByID["1-18.2-25"],
 							})
+						SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBetween, before, after)
+						SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 					})
 
 					Convey("Update paths again with a different set, thus changing SyncPaths", func() {
@@ -128,48 +138,57 @@ func TestFilterMap(t *testing.T) {
 							sp, ok := fm.get(src, dst, ppA)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
-							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
-							SoMsg("sp pathset", sp.Load(), ShouldResemble,
+							snapshot := sp.Load()
+							SoMsg("sp pathset", snapshot.APS, ShouldResemble,
 								AppPathSet{
 									pathsByID["1-19.2-25"].Key(): pathsByID["1-19.2-25"],
 								})
+							SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBetween, before, after)
+							SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 						})
 
 						Convey("Get filter object for 1-10.2-20, predicate B", func() {
 							sp, ok := fm.get(src, dst, ppB)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
-							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBetween, before, after)
-							SoMsg("sp timestamp", sp.Load(), ShouldResemble, NewSyncPaths().Load())
+							snapshot := sp.Load()
+							SoMsg("sp pathset", snapshot.APS, ShouldResemble, NewSyncPaths().Load().APS)
+							SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBetween, before, after)
+							SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 						})
 					})
 
 					Convey("Update paths with the same set, thus leaving SyncPaths unchanged", func() {
 						before := time.Now()
 						fm.update(src, dst, aps)
+						after := time.Now()
 						Convey("Get filter object for 1-10.2-20, predicate A", func() {
 							sp, ok := fm.get(src, dst, ppA)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
-							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBefore, before)
-							SoMsg("sp pathset", sp.Load(), ShouldResemble,
+							snapshot := sp.Load()
+							SoMsg("sp pathset", snapshot.APS, ShouldResemble,
 								AppPathSet{
 									pathsByID["1-19.2-25"].Key(): pathsByID["1-19.2-25"],
 									pathsByID["1-18.2-25"].Key(): pathsByID["1-18.2-25"],
 									pathsByID["2-21.2-26"].Key(): pathsByID["2-21.2-26"],
 									pathsByID["1-11.2-23"].Key(): pathsByID["1-11.2-23"],
 								})
+							SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBefore, before)
+							SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 						})
 
 						Convey("Get filter object for 1-10.2-20, predicate B", func() {
 							sp, ok := fm.get(src, dst, ppB)
 							SoMsg("ok", ok, ShouldBeTrue)
 							SoMsg("sp", sp, ShouldNotBeNil)
-							SoMsg("sp timestamp", sp.Timestamp(), ShouldHappenBefore, before)
-							SoMsg("sp pathset", sp.Load(), ShouldResemble,
+							snapshot := sp.Load()
+							SoMsg("sp pathset", snapshot.APS, ShouldResemble,
 								AppPathSet{
 									pathsByID["1-18.2-25"].Key(): pathsByID["1-18.2-25"],
 								})
+							SoMsg("sp mod time", snapshot.ModifyTime, ShouldHappenBefore, before)
+							SoMsg("sp refresh time", snapshot.RefreshTime, ShouldHappenBetween, before, after)
 						})
 					})
 				})
