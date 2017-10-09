@@ -32,43 +32,6 @@ type TestCase struct {
 	expected bool
 }
 
-func TestClassMap(t *testing.T) {
-	Convey("Create class map", t, func() {
-		cm := NewClassMap()
-		Convey("Add element classA", func() {
-			classA := NewClass("classA", nil)
-			err := cm.Add(classA)
-			SoMsg("err", err, ShouldBeNil)
-
-			Convey("Retrieve classA should return the class", func() {
-				class, err := cm.Get("classA")
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("class", class, ShouldResemble, classA)
-			})
-
-			Convey("Retrieve classB should return error", func() {
-				_, err := cm.Get("classB")
-				SoMsg("err", err, ShouldNotBeNil)
-			})
-
-			Convey("Add classA again should return error", func() {
-				err := cm.Add(NewClass("classA", nil))
-				SoMsg("err", err, ShouldNotBeNil)
-			})
-
-			Convey("Remove classB should return error", func() {
-				err := cm.Remove("classB")
-				SoMsg("err", err, ShouldNotBeNil)
-			})
-
-			Convey("Remove classA should work", func() {
-				err := cm.Remove("classA")
-				SoMsg("err", err, ShouldBeNil)
-			})
-		})
-	})
-}
-
 func TestBasicConds(t *testing.T) {
 	Convey("Conditions", t, func() {
 		Convey("Any returns correct values on Eval", func() {
