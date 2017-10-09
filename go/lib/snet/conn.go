@@ -90,14 +90,13 @@ func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
 		c.readMutex.Lock()
 		n, a, appData, err := c.read(b)
 		c.readMutex.Unlock()
+		if err != nil {
+			return 0, nil, common.NewCError("Dispatcher error", "err", err)
+		}
 		if appData {
-			break
+			return n, a, err
 		}
 	}
-	if err != nil {
-		return 0, nil, common.NewCError("Dispatcher error", "err", err)
-	}
-	return n, a, err
 }
 
 func (c *Conn) ReadFrom(b []byte) (int, net.Addr, error) {
@@ -148,13 +147,13 @@ func (c *Conn) read(b []byte) (int, *Addr, bool, error) {
 			return n, remote, true, nil
 		case *scmp.Hdr:
 			c.handleSCMP(hdr, pkt)
-			// Recursively try to read again to give the application UDP data
 			return n, remote, false, nil
 		default:
-			return n, remote, false, common.NewCError("Unexpected SCION L4 protocol", "expected",
+			return n, remote, true, common.NewCError("Unexpected SCION L4 protocol", "expected",
 				"UDP or SCMP", "actual", pkt.L4.L4Type())
 		}
 	}
+	return 0, nil, true, common.NewCError("Unknown network", "net", c.net)
 }
 
 func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
@@ -172,7 +171,6 @@ func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	if !ok {
 		log.Error("Unable to type assert payload to SCMP payload")
 	}
-	log.Info("SCMP payload dump", "payload", scmpPayload.String())
 	info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
 	if !ok {
 		log.Error("Unable to type assert SCMP Info to SCMP Revocation Info")
