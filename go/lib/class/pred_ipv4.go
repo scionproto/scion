@@ -29,6 +29,7 @@ import (
 type IPv4Predicate interface {
 	// Eval returns true if the IPv4 packet matched the predicate
 	Eval(*layers.IPv4) bool
+	Typer
 }
 
 var _ IPv4Predicate = (*IPv4MatchSource)(nil)
@@ -36,6 +37,10 @@ var _ IPv4Predicate = (*IPv4MatchSource)(nil)
 // IPv4MatchSource checks whether the source IPv4 address is contained in Net.
 type IPv4MatchSource struct {
 	Net *net.IPNet
+}
+
+func (m *IPv4MatchSource) Type() string {
+	return "MatchSource"
 }
 
 func (m *IPv4MatchSource) Eval(p *layers.IPv4) bool {
@@ -81,6 +86,10 @@ type IPv4MatchDestination struct {
 	Net *net.IPNet
 }
 
+func (m *IPv4MatchDestination) Type() string {
+	return "MatchDestination"
+}
+
 func (m *IPv4MatchDestination) Eval(p *layers.IPv4) bool {
 	return m.Net.Contains(p.DstIP)
 }
@@ -120,6 +129,10 @@ var _ IPv4Predicate = (*IPv4MatchToS)(nil)
 // IPv4MatchToS checks whether the ToS field matches.
 type IPv4MatchToS struct {
 	TOS uint8
+}
+
+func (m *IPv4MatchToS) Type() string {
+	return "MatchToS"
 }
 
 func (m *IPv4MatchToS) Eval(p *layers.IPv4) bool {

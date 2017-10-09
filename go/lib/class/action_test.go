@@ -159,7 +159,7 @@ func TestPathPredicateString(t *testing.T) {
 	})
 }
 
-func IA(iaStr string) uint32 {
+func IA(iaStr string) addr.IAInt {
 	ia, _ := addr.IAFromString(iaStr)
-	return ia.Uint32()
+	return ia.IAInt()
 }

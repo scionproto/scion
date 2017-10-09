@@ -15,7 +15,6 @@
 package class
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/google/gopacket/layers"
@@ -26,6 +25,7 @@ import (
 // and add the Class to a ClassMap; finally, marshal the entire ClassMap.
 type Cond interface {
 	Eval(*Packet) bool
+	Typer
 }
 
 var _ Cond = CondAnyOf(nil)
@@ -58,34 +58,18 @@ func (c CondAnyOf) String() string {
 	return s
 }
 
+func (c CondAnyOf) Type() string {
+	return "CondAnyOf"
+}
+
 func (c CondAnyOf) MarshalJSON() ([]byte, error) {
-	// A 0 length slice serializes to an empty JSON list, as opposed to JSON
-	// null. When unmarshaling, this will yield an empty slice as opposed to
-	// nil. We will use this in union structs to distinguish between concrete
-	// types, as only one type will be different from nil.
-	childConds := make([]jsonContainer, 0)
-	for _, cond := range c {
-		jc := make(jsonContainer)
-		jc.addTypedCond(cond)
-		childConds = append(childConds, jc)
-	}
-	return json.Marshal(childConds)
+	return marshalCondSlice(c)
 }
 
 func (c *CondAnyOf) UnmarshalJSON(b []byte) error {
-	var s []condUnion
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-	for _, union := range s {
-		cond, err := union.extractCond()
-		if err != nil {
-			return err
-		}
-		*c = append(*c, cond)
-	}
-	return nil
+	var err error
+	*c, err = unmarshalCondSlice(b)
+	return err
 }
 
 var _ Cond = CondAllOf(nil)
@@ -115,34 +99,18 @@ func (c CondAllOf) String() string {
 	return s
 }
 
+func (c CondAllOf) Type() string {
+	return "CondAllOf"
+}
+
 func (c CondAllOf) MarshalJSON() ([]byte, error) {
-	// A 0 length slice serializes to an empty JSON list, as opposed to JSON
-	// null. When unmarshaling, this will yield an empty slice as opposed to
-	// nil. We will use this in union structs to distinguish between concrete
-	// types, as only one type will be different from nil.
-	childConds := make([]jsonContainer, 0)
-	for _, cond := range c {
-		jc := make(jsonContainer)
-		jc.addTypedCond(cond)
-		childConds = append(childConds, jc)
-	}
-	return json.Marshal(childConds)
+	return marshalCondSlice(c)
 }
 
 func (c *CondAllOf) UnmarshalJSON(b []byte) error {
-	var s []condUnion
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return err
-	}
-	for _, union := range s {
-		cond, err := union.extractCond()
-		if err != nil {
-			return err
-		}
-		*c = append(*c, cond)
-	}
-	return nil
+	var err error
+	*c, err = unmarshalCondSlice(b)
+	return err
 }
 
 var _ Cond = CondBool(true)
@@ -159,6 +127,10 @@ var _ Cond = (*CondIPv4)(nil)
 
 func (c CondBool) Eval(v *Packet) bool {
 	return bool(c)
+}
+
+func (c CondBool) Type() string {
+	return "CondBool"
 }
 
 // CondIPv4 conditions return true if the embedded IPv4 predicate returns true.
@@ -181,21 +153,16 @@ func (c *CondIPv4) Eval(v *Packet) bool {
 	return c.Predicate.Eval(pkt)
 }
 
+func (c *CondIPv4) Type() string {
+	return "CondIPv4"
+}
+
 func (c *CondIPv4) MarshalJSON() ([]byte, error) {
-	jc := make(jsonContainer)
-	err := jc.addTypedPredicate(c.Predicate)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(jc)
+	return marshalInterface(c.Predicate)
 }
 
 func (c *CondIPv4) UnmarshalJSON(b []byte) error {
-	var u predicateUnion
-	err := json.Unmarshal(b, &u)
-	if err != nil {
-		return err
-	}
-	c.Predicate = u.extractPredicate()
-	return nil
+	var err error
+	c.Predicate, err = unmarshalPredicate(b)
+	return err
 }

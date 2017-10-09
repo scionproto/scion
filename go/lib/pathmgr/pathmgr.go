@@ -62,7 +62,7 @@ type PR struct {
 	sync.Mutex
 	sciondPath string
 	sciond     *sciond.Connector
-	// Path map for continuously updated queries, Key is IAKey(src,dst)
+	// Path map for continuously updated queries, map key is iaKey(src,dst)
 	regMap map[string]*SyncPaths
 	// Path map for continuously updated sets of filters
 	filterMap filterMap
@@ -171,7 +171,7 @@ func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *class.PathPredicate) 
 
 	// Register filter and populate initial paths
 	filterSP := r.filterMap.set(src, dst, filter)
-	r.filterMap.update(src, dst, sp.Load())
+	r.filterMap.update(src, dst, sp.Load().APS)
 
 	return filterSP, nil
 }
