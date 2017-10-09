@@ -53,6 +53,8 @@ type PathPolicy struct {
 	// Metrics per set of path hops, entries added/removed whenever pool changes.
 	PathsMetrics map[pathmgr.PathKey]PathMetrics
 	ring         *ringbuf.Ring
+	// FIXME(scrye): Remove the below when policies are implemented
+	prefPathKey pathmgr.PathKey
 }
 
 func NewPathPolicy(dstIA *addr.ISD_AS, currSig *SIGEntry, policy interface{}) (*PathPolicy, error) {
@@ -70,6 +72,7 @@ func NewPathPolicy(dstIA *addr.ISD_AS, currSig *SIGEntry, policy interface{}) (*
 		ap := aps.GetAppPath("")
 		if ap != nil {
 			pathEntry = ap.Entry
+			pp.prefPathKey = ap.Key()
 		}
 	}
 	pp.currPath.Store(pathEntry)
@@ -80,7 +83,14 @@ func NewPathPolicy(dstIA *addr.ISD_AS, currSig *SIGEntry, policy interface{}) (*
 }
 
 func (pp *PathPolicy) CurrPath() *sciond.PathReplyEntry {
-	return pp.currPath.Load().(*sciond.PathReplyEntry)
+	// FIXME(scrye) (HACK!, REMOVE THIS)
+	// OLD CODE: return pp.currPath.Load().(*sciond.PathReplyEntry)
+	aps := pp.pool.Load()
+	ap := aps.GetAppPath(pp.prefPathKey)
+	if ap != nil {
+		return ap.Entry
+	}
+	return nil
 }
 
 func (pp *PathPolicy) CurrSig() *SIGEntry {

@@ -161,7 +161,9 @@ func (e *EgressWorker) Write(f *frame) error {
 	defer e.resetFrame(f)
 	if e.currPath == nil {
 		// FIXME(kormat): add some metrics to track this.
-		return nil
+
+		// FIXME(scrye): return an error for tracking purposes for now
+		return common.NewCError("No path found")
 	}
 	sig := e.pol.CurrSig()
 	if sig == nil {
