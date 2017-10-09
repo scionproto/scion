@@ -85,7 +85,15 @@ func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
 	if c.scionNet == nil {
 		return 0, nil, common.NewCError("SCION network not initialized")
 	}
-	n, a, err := c.read(b)
+	// Loop until we have a data packet
+	for {
+		c.readMutex.Lock()
+		n, a, appData, err := c.read(b)
+		c.readMutex.Unlock()
+		if appData {
+			break
+		}
+	}
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher error", "err", err)
 	}
@@ -103,14 +111,15 @@ func (c *Conn) Read(b []byte) (int, error) {
 	return n, err
 }
 
-func (c *Conn) read(b []byte) (int, *Addr, error) {
-	c.readMutex.Lock()
-	defer c.readMutex.Unlock()
+// read returns the number of bytes read, the address that sent the bytes,
+// whether the message should be delivered to an application or if an error
+// occurred.
+func (c *Conn) read(b []byte) (int, *Addr, bool, error) {
 	var err error
 	var remote *Addr
 	n, err := c.conn.Read(c.recvBuffer)
 	if err != nil {
-		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
+		return 0, nil, false, common.NewCError("Dispatcher read error", "err", err)
 	}
 	pkt := &spkt.ScnPkt{
 		DstIA: &addr.ISD_AS{},
@@ -119,12 +128,12 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	}
 	err = hpkt.ParseScnPkt(pkt, c.recvBuffer[:n])
 	if err != nil {
-		return 0, nil, common.NewCError("SCION packet parse error", "err", err)
+		return 0, nil, false, common.NewCError("SCION packet parse error", "err", err)
 	}
 	// Copy data, extract address
 	n, err = pkt.Pld.WritePld(b)
 	if err != nil {
-		return 0, nil, common.NewCError("Unable to copy payload", "err", err)
+		return 0, nil, false, common.NewCError("Unable to copy payload", "err", err)
 	}
 	// On UDP4 network we can get either UDP traffic or SCMP messages
 	if c.net == "udp4" {
@@ -136,16 +145,16 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 				Host:   pkt.SrcHost,
 				L4Port: hdr.SrcPort,
 			}
+			return n, remote, true, nil
 		case *scmp.Hdr:
 			c.handleSCMP(hdr, pkt)
 			// Recursively try to read again to give the application UDP data
-			return c.read(b)
+			return n, remote, false, nil
 		default:
-			log.Error("Received unexpected SCION L4 protocol", "expected", "UDP or SCMP",
-				"actual", pkt.L4.L4Type())
+			return n, remote, false, common.NewCError("Unexpected SCION L4 protocol", "expected",
+				"UDP or SCMP", "actual", pkt.L4.L4Type())
 		}
 	}
-	return n, remote, nil
 }
 
 func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
@@ -178,7 +187,9 @@ func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 	if c.conn == nil {
 		return 0, common.NewCError("Connection not initialized")
 	}
+	c.writeMutex.Lock()
 	n, err := c.write(b, raddr)
+	c.writeMutex.Unlock()
 	if err != nil {
 		return 0, common.NewCError("Dispatcher error", "err", err)
 	}
@@ -207,8 +218,6 @@ func (c *Conn) Write(b []byte) (int, error) {
 }
 
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
-	c.writeMutex.Lock()
-	defer c.writeMutex.Unlock()
 	var err error
 	var path *spath.Path
 	pathEntry := raddr.PathEntry
