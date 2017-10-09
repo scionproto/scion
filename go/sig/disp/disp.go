@@ -47,6 +47,7 @@ func (rt RegType) String() string {
 }
 
 type RegPld struct {
+	Id   mgmt.MsgIdType
 	P    interface{}
 	Addr *snet.Addr
 }
@@ -104,11 +105,12 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 		log.Error("Unable to extract SIG ctrl union", "err", err, "src", addr)
 		return
 	}
+	msgId := pld.Id
 	switch pld := u.(type) {
 	case *mgmt.PollReq:
-		dm.pollReq <- &RegPld{P: pld, Addr: addr}
+		dm.pollReq <- &RegPld{Id: msgId, P: pld, Addr: addr}
 	case *mgmt.PollRep:
-		regPld := &RegPld{P: pld, Addr: addr}
+		regPld := &RegPld{Id: msgId, P: pld, Addr: addr}
 		if pld.Addr == nil || pld.Addr.Ctrl == nil {
 			log.Error("Incomplete SIG PollRep received", "src", addr, "pld", pld)
 			return

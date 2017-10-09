@@ -22,6 +22,12 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+type MsgIdType uint64
+
+func (m MsgIdType) String() string {
+	return fmt.Sprintf("0x%016x", uint64(m))
+}
+
 // union represents the contents of the unnamed capnp union.
 type union struct {
 	Which   proto.SIGCtrl_Which
@@ -56,12 +62,13 @@ func (u *union) get() (proto.Cerealizable, error) {
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
+	Id MsgIdType
 	union
 }
 
 // NewPld creates a new SIG ctrl payload, containing the supplied Cerealizable instance.
-func NewPld(u proto.Cerealizable) (*Pld, error) {
-	p := &Pld{}
+func NewPld(id MsgIdType, u proto.Cerealizable) (*Pld, error) {
+	p := &Pld{Id: id}
 	return p, p.union.set(u)
 }
 
@@ -74,7 +81,7 @@ func (p *Pld) ProtoId() proto.ProtoIdType {
 }
 
 func (p *Pld) String() string {
-	desc := []string{"SIGCtrl: Union:"}
+	desc := []string{fmt.Sprintf("SIGCtrl: Id: %s Union:", p.Id)}
 	u, err := p.Union()
 	if err != nil {
 		desc = append(desc, err.Error())

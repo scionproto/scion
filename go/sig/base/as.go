@@ -17,56 +17,48 @@ package base
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"sync"
+	"time"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/vishvananda/netlink"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/sig/egress"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
+const sigMgrTick = time.Second
+
 // ASEntry contains all of the information required to interact with a remote AS.
 type ASEntry struct {
 	sync.RWMutex
-	IA       *addr.ISD_AS
-	IAString string
-	Nets     map[string]*NetEntry
-	Sigs     map[string]*siginfo.Sig
-	Sessions *egress.SyncSession
-	DevName  string
-	tunLink  netlink.Link
-	tunIO    io.ReadWriteCloser
+	IA         *addr.ISD_AS
+	IAString   string
+	Nets       map[string]*NetEntry
+	Sigs       siginfo.SigMap
+	Sessions   *egress.SyncSession
+	DevName    string
+	tunLink    netlink.Link
+	tunIO      io.ReadWriteCloser
+	sigMgrStop chan struct{}
 }
 
 func newASEntry(ia *addr.ISD_AS) *ASEntry {
 	return &ASEntry{
-		IA:       ia,
-		IAString: ia.String(),
-		Nets:     make(map[string]*NetEntry),
-		Sigs:     make(map[string]*siginfo.Sig),
-		Sessions: egress.NewSyncSession(),
-		DevName:  fmt.Sprintf("scion-%s", ia),
+		IA:         ia,
+		IAString:   ia.String(),
+		Nets:       make(map[string]*NetEntry),
+		Sigs:       make(siginfo.SigMap),
+		Sessions:   egress.NewSyncSession(),
+		DevName:    fmt.Sprintf("scion-%s", ia),
+		sigMgrStop: make(chan struct{}),
 	}
-}
-
-// TunIO returns the io.ReadWriteCloser for the TUN interface for the remote AS,
-// doing the required setup first if necessary.
-func (ae *ASEntry) TunIO() (io.ReadWriteCloser, error) {
-	ae.Lock()
-	defer ae.Unlock()
-	if ae.tunLink == nil {
-		if err := ae.setupNet(); err != nil {
-			return nil, err
-		}
-	}
-	return ae.tunIO, nil
 }
 
 func (ae *ASEntry) setupNet() error {
@@ -117,8 +109,9 @@ func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
 	return ne.Cleanup()
 }
 
-// AddNet idempotently adds a SIG for the remote IA.
-func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static bool) error {
+// AddSig idempotently adds a SIG for the remote IA.
+func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP,
+	ctrlPort, encapPort int, static bool) error {
 	ae.Lock()
 	defer ae.Unlock()
 	if len(id) == 0 {
@@ -145,7 +138,7 @@ func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static 
 }
 
 // DelSIG removes an SIG for the remote IA.
-func (ae *ASEntry) DelSig(id string) error {
+func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 	ae.Lock()
 	se, ok := ae.Sigs[id]
 	if !ok {
@@ -155,30 +148,24 @@ func (ae *ASEntry) DelSig(id string) error {
 	delete(ae.Sigs, id)
 	ae.Unlock() // Do cleanup outside the lock.
 	log.Info("Removed SIG", "ia", ae.IA, "id", id)
-	// TODO(kormat): notify keepalive thread to reevaluate SIGs.
 	return se.Cleanup()
 }
 
-// Internal method to return an arbitrary active SIG
-func (ae *ASEntry) GetSig() *siginfo.Sig {
+// Internal method to return a *copy* of the ASEntry's SigMap
+func (ae *ASEntry) SigMap() siginfo.SigMap {
 	ae.Lock()
 	defer ae.Unlock()
-	if len(ae.Sigs) == 0 {
-		return nil
+	smap := make(siginfo.SigMap)
+	for k, v := range ae.Sigs {
+		smap[k] = v
 	}
-	sigs := make([]*siginfo.Sig, 0, len(ae.Sigs))
-	for _, se := range ae.Sigs {
-		if se.Active {
-			sigs = append(sigs, se)
-		}
-	}
-	return sigs[rand.Intn(len(sigs))]
+	return smap
 }
 
 func (ae *ASEntry) AddSession(sessId sigcmn.SessionType, polName string, policy interface{}) error {
 	ae.Lock()
 	defer ae.Unlock()
-	s, err := egress.NewSession(ae.IA, sessId, polName, policy)
+	s, err := egress.NewSession(ae.IA, sessId, polName, policy, ae.SigMap)
 	if err != nil {
 		return err
 	}
@@ -188,16 +175,38 @@ func (ae *ASEntry) AddSession(sessId sigcmn.SessionType, polName string, policy 
 	if len(ss) == 1 {
 		log.Info("Starting egress dispatcher", "ia", ae.IA, "dev", ae.DevName)
 		go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.Sessions).Run()
+		go ae.sigMgr()
 	}
-	s.Start(ae.GetSig)
+	s.Start()
 	return nil
 }
 
-// TODO: add DelSession, and close the tun device if there's no sessions left.
+// TODO(kormat): add DelSession, and close the tun device if there's no sessions left.
+
+// manage the Sig map
+func (ae *ASEntry) sigMgr() {
+	defer liblog.LogPanicAndExit()
+	ticker := time.NewTicker(sigMgrTick)
+	defer ticker.Stop()
+	for {
+		// TODO(kormat): handle adding new SIGs from discovery, and updating existing ones.
+		select {
+		case <-ae.sigMgrStop:
+			break
+		case <-ticker.C:
+			smap := ae.SigMap()
+			for _, sig := range smap {
+				sig.ExpireFails()
+			}
+		}
+	}
+}
 
 func (ae *ASEntry) Cleanup() error {
 	ae.Lock()
 	defer ae.Unlock()
+	// Clean up sigMgr goroutine.
+	ae.sigMgrStop <- struct{}{}
 	// Clean up the egress dispatcher.
 	if err := ae.tunIO.Close(); err != nil {
 		log.Error("Error closing TUN io", "ia", ae.IA, "dev", ae.DevName, "err", err)

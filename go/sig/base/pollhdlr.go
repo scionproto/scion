@@ -35,11 +35,11 @@ func PollReqHdlr() {
 		req, ok := rpld.P.(*mgmt.PollReq)
 		if !ok {
 			log.Error("PollReqHdlr: non-SIGPollReq payload received",
-				"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
+				"src", rpld.Addr, "type", common.TypeOf(rpld.P), "Id", rpld.Id, "pld", rpld.P)
 			continue
 		}
-		log.Debug("PollReqHdlr: got PollReq", "src", rpld.Addr, "pld", req)
-		spld, err := mgmt.NewPld(mgmt.NewPollRep(req.Session))
+		//log.Debug("PollReqHdlr: got PollReq", "src", rpld.Addr, "pld", req)
+		spld, err := mgmt.NewPld(rpld.Id, mgmt.NewPollRep(req.Session))
 		if err != nil {
 			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", err)
 			break
@@ -54,6 +54,7 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error packing Ctrl payload", "err", err)
 			break
 		}
+		// The default is to just reply with the local SIG's address.
 		sigCtrlAddr := &snet.Addr{IA: rpld.Addr.IA, Host: req.Addr.Ctrl.Host(),
 			L4Port: req.Addr.Ctrl.Port}
 		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)

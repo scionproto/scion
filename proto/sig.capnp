@@ -6,10 +6,11 @@ $Go.import("github.com/netsec-ethz/scion/go/proto");
 using Sciond = import "sciond.capnp";
 
 struct SIGCtrl {
+    id @0 :UInt64;
     union {
-        unset @0 :Void;
-        pollReq @1 :SIGPoll;
-        pollRep @2 :SIGPoll;
+        unset @1 :Void;
+        pollReq @2 :SIGPoll;
+        pollRep @3 :SIGPoll;
     }
 }
 

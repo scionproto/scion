@@ -28,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -54,6 +55,7 @@ const (
 type worker struct {
 	iaString string
 	pp       *Session
+	currSig  *siginfo.Sig
 	currPath *sciond.PathReplyEntry
 
 	epoch uint16
@@ -62,7 +64,7 @@ type worker struct {
 }
 
 func NewEgressWorker(pol *Session) *worker {
-	return &worker{iaString: pol.IA.String(), pp: pol, currPath: pol.CurrPath(),
+	return &worker{iaString: pol.IA.String(), pp: pol,
 		pkts: make(ringbuf.EntryList, 0, egressBufPkts)}
 }
 
@@ -146,12 +148,11 @@ func (e *worker) Write(f *frame) error {
 		// FIXME(kormat): add some metrics to track this.
 		return nil
 	}
-	ppinfo := e.pp.Info()
-	if ppinfo.Sig == nil {
+	if e.currSig == nil {
 		// FIXME(kormat): add some metrics to track this.
 		return nil
 	}
-	snetAddr := ppinfo.Sig.EncapSnetAddr()
+	snetAddr := e.currSig.EncapSnetAddr()
 	snetAddr.PathEntry = e.currPath
 
 	if e.seq == 0 {
@@ -173,10 +174,20 @@ func (e *worker) Write(f *frame) error {
 }
 
 func (e *worker) resetFrame(f *frame) {
-	e.currPath = e.pp.CurrPath()
+	var mtu uint16 = common.MinMTU
+	remote := e.pp.Remote()
+	if remote != nil {
+		e.currSig = remote.Sig
+		if remote.sessPath != nil {
+			e.currPath = remote.sessPath.pathEntry
+		}
+		if e.currPath != nil {
+			mtu = e.currPath.Path.Mtu
+		}
+	}
 	// FIXME(kormat): to do this properly, need to calculate the address header size,
 	// and account for any ext headers.
-	f.reset(e.currPath.Path.Mtu - spkt.CmnHdrLen - 40 - l4.UDPLen)
+	f.reset(mtu - spkt.CmnHdrLen - 40 - l4.UDPLen)
 }
 
 type frame struct {

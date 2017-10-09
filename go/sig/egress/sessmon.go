@@ -22,89 +22,178 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/sig/disp"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
+const (
+	tickLen = 500 * time.Millisecond
+	tout    = 1 * time.Second
+)
+
 type sessMonitor struct {
 	log.Logger
-	pp     *Session
-	getSig func() *siginfo.Sig
+	sess     *Session
+	sigMap   siginfo.SigMap
+	pool     *pathmgr.SyncPaths
+	sessPool sessPathPool
+	// Used for sending polls
+	smRemote    *RemoteInfo
+	needUpdate  bool
+	updateMsgId mgmt.MsgIdType
+	lastReply   time.Time
 }
 
-func newSessMonitor(pp *Session, getSig func() *siginfo.Sig) *sessMonitor {
-	return &sessMonitor{pp: pp, getSig: getSig,
-		Logger: log.New("ia", pp.IA, "sessId", pp.SessId, "policy", pp.PolName)}
+func newSessMonitor(sess *Session) *sessMonitor {
+	return &sessMonitor{
+		Logger: sess.Logger, sess: sess, pool: sess.pool, sessPool: make(sessPathPool),
+	}
 }
 
-func (pm *sessMonitor) run() {
+func (sm *sessMonitor) run() {
 	defer liblog.LogPanicAndExit()
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer close(pm.pp.polMonStopped)
-	defer ticker.Stop()
-	// Initialise currSig.
-	pm.pp.setSig(pm.getSig())
-	pm.Info("sessMonitor: starting")
+	defer close(sm.sess.sessMonStopped)
+	// Setup timers
+	reqTick := time.NewTicker(tickLen)
+	defer reqTick.Stop()
+	// Register with SIG ctrl dispatcher
 	regc := make(disp.RegPldChan, 1)
-	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(pm.pp.IA, pm.pp.SessId), regc)
+	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA, sm.sess.SessId), regc)
+	sm.lastReply = time.Now()
+	sm.Info("sessMonitor: starting")
 Top:
 	for {
 		select {
-		case <-pm.pp.polMonStop:
-			pm.Info("sessMonitor: graceful shutdown")
+		case <-sm.sess.sessMonStop:
+			sm.Info("sessMonitor: stopping")
 			break Top
-		case <-ticker.C:
-			pm.sendReq()
+		case <-reqTick.C:
+			// Update paths and sigs
+			sm.sessPool.update(sm.pool.Load())
+			sm.sigMap = sm.sess.sigMapF()
+			sm.checkRemote()
+			sm.sendReq()
 		case rpld := <-regc:
-			pm.handleRep(rpld)
+			sm.handleRep(rpld)
 		}
 	}
-	pm.Info("sessMonitor: stopped")
+	sm.Info("sessMonitor: stopped")
 }
 
-func (pm *sessMonitor) sendReq() {
-	info := pm.pp.Info()
-	sig := info.Sig
-	if sig == nil {
-		sig = pm.getSig()
+func (sm *sessMonitor) checkRemote() {
+	now := time.Now()
+	remote := sm.sess.Remote()
+	if remote == nil {
+		sm.Debug("No remote info")
+		remote = &RemoteInfo{}
+		sm.needUpdate = true
 	}
-	if sig == nil {
-		pm.Error("sessMonitor: No remote sigs found")
+	since := now.Sub(sm.lastReply)
+	if since > tout {
+		sm.Debug("Timeout", "remote", remote, "duration", since)
+		remote.Sig = sm.updateSig(remote.Sig)
+		remote.sessPath = sm.updatePath(remote.sessPath)
+		sm.needUpdate = true
+	} else {
+		if remote.Sig == nil {
+			// No remote SIG
+			sm.Debug("No remote SIG", "remote", remote)
+			remote.Sig = sm.updateSig(nil)
+			sm.needUpdate = true
+		} else if _, ok := sm.sigMap[remote.Sig.Id]; !ok {
+			// Current SIG is no longer listed, need to switch to a new one.
+			sm.Debug("Current SIG invalid", "remote", remote)
+			remote.Sig = sm.updateSig(nil)
+			sm.needUpdate = true
+		}
+		poolPaths := sm.pool.Load()
+		if remote.sessPath == nil {
+			sm.needUpdate = true
+			sm.Debug("No path", "remote", remote)
+			remote.sessPath = sm.updatePath(nil)
+			sm.needUpdate = true
+		} else if _, ok := poolPaths[remote.sessPath.key]; !ok {
+			// Current path is no longer in pool, need to switch to a new one.
+			sm.needUpdate = true
+			sm.Debug("Current path invalid", "remote", remote)
+			remote.sessPath = sm.updatePath(nil)
+			sm.needUpdate = true
+		}
+	}
+	sm.smRemote = remote
+}
+
+func (sm *sessMonitor) updateSig(old *siginfo.Sig) *siginfo.Sig {
+	if old != nil {
+		// Try to get a different SIG, if possible.
+		if sig := sm.sigMap.GetSig(old.Id); sig != nil {
+			return sig
+		}
+	}
+	// Get SIG with lowest failure count.
+	return sm.sigMap.GetSig("")
+}
+
+func (sm *sessMonitor) updatePath(old *sessPath) *sessPath {
+	if old != nil {
+		// Try to get a different path, if possible.
+		if sp := sm.sessPool.get(old.key); sp != nil {
+			return sp
+		}
+	}
+	// Get path with lowest failure count
+	return sm.sessPool.get("")
+}
+
+func (sm *sessMonitor) sendReq() {
+	if sm.smRemote == nil || sm.smRemote.Sig == nil || sm.smRemote.sessPath == nil {
 		return
 	}
-	spld, err := mgmt.NewPld(mgmt.NewPollReq(pm.pp.SessId))
+	msgId := mgmt.MsgIdType(time.Now().UnixNano())
+	if sm.needUpdate {
+		sm.updateMsgId = msgId
+	}
+	spld, err := mgmt.NewPld(msgId, mgmt.NewPollReq(sm.sess.SessId))
 	if err != nil {
-		pm.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
+		sm.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
 		return
 	}
 	cpld, err := ctrl.NewPld(spld)
 	if err != nil {
-		pm.Error("sessMonitor: Error creating Ctrl payload", "err", err)
+		sm.Error("sessMonitor: Error creating Ctrl payload", "err", err)
 		return
 	}
 	raw, err := cpld.PackPld()
 	if err != nil {
-		pm.Error("sessMonitor: Error packing Ctrl payload", "err", err)
+		sm.Error("sessMonitor: Error packing Ctrl payload", "err", err)
 		return
 	}
-	_, err = pm.pp.conn.WriteToSCION(raw, sig.CtrlSnetAddr())
+	_, err = sm.sess.conn.WriteToSCION(raw, sm.smRemote.Sig.CtrlSnetAddr())
 	if err != nil {
-		pm.Error("sessMonitor: Error sending Ctrl payload", "err", err)
+		sm.Error("sessMonitor: Error sending Ctrl payload", "err", err)
 	}
 }
 
-func (pm *sessMonitor) handleRep(rpld *disp.RegPld) {
+func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 	_, ok := rpld.P.(*mgmt.PollRep)
 	if !ok {
 		log.Error("sessMonitor: non-SIGPollRep payload received",
 			"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
 		return
 	}
-	if !pm.pp.IA.Eq(rpld.Addr.IA) {
+	if !sm.sess.IA.Eq(rpld.Addr.IA) {
 		log.Error("sessMonitor: SIGPollRep from wrong IA",
-			"expected", pm.pp.IA, "actual", rpld.Addr.IA)
+			"expected", sm.sess.IA, "actual", rpld.Addr.IA)
 		return
 	}
-	pm.Info("Got SIGPollRep!", "src", rpld.Addr, "pld", rpld)
+	sm.lastReply = time.Now()
+	if sm.needUpdate && sm.updateMsgId == rpld.Id {
+		// Only update the session's RemoteInfo if we get a response matching
+		// the last poll we sent.
+		sm.Info("sessMonitor: updating remote Info", "pld", rpld)
+		sm.sess.currRemote.Store(sm.smRemote)
+		sm.needUpdate = false
+	}
 }
