@@ -21,7 +21,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
-type SIGEntry struct {
+type Sig struct {
 	IA          *addr.ISD_AS
 	Id          string
 	Host        addr.HostAddr
@@ -31,23 +31,23 @@ type SIGEntry struct {
 	Static      bool // If from local config file true, else from discovery, so false.
 }
 
-func NewSIGInfo(ia *addr.ISD_AS, id string, host addr.HostAddr,
-	ctrlPort, encapPort int, static bool) *SIGEntry {
-	return &SIGEntry{
+func NewSig(ia *addr.ISD_AS, id string, host addr.HostAddr,
+	ctrlPort, encapPort int, static bool) *Sig {
+	return &Sig{
 		IA: ia, Id: id, Host: host, CtrlL4Port: ctrlPort,
 		EncapL4Port: encapPort, Active: true, Static: static,
 	}
 }
 
-func (se *SIGEntry) CtrlSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: se.IA, Host: se.Host, L4Port: uint16(se.CtrlL4Port)}
+func (s *Sig) CtrlSnetAddr() *snet.Addr {
+	return &snet.Addr{IA: s.IA, Host: s.Host, L4Port: uint16(s.CtrlL4Port)}
 }
 
-func (se *SIGEntry) EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: se.IA, Host: se.Host, L4Port: uint16(se.EncapL4Port)}
+func (s *Sig) EncapSnetAddr() *snet.Addr {
+	return &snet.Addr{IA: s.IA, Host: s.Host, L4Port: uint16(s.EncapL4Port)}
 }
 
-func (se *SIGEntry) Cleanup() error {
+func (s *Sig) Cleanup() error {
 	// Nothing to do, currently.
 	return nil
 }

@@ -51,9 +51,9 @@ const (
 	SigHdrLen  = 8
 )
 
-type EgressWorker struct {
+type worker struct {
 	iaString string
-	pp       *PathPolicy
+	pp       *Session
 	currPath *sciond.PathReplyEntry
 
 	epoch uint16
@@ -61,12 +61,12 @@ type EgressWorker struct {
 	pkts  ringbuf.EntryList
 }
 
-func NewEgressWorker(pol *PathPolicy) *EgressWorker {
-	return &EgressWorker{iaString: pol.IA.String(), pp: pol, currPath: pol.CurrPath(),
+func NewEgressWorker(pol *Session) *worker {
+	return &worker{iaString: pol.IA.String(), pp: pol, currPath: pol.CurrPath(),
 		pkts: make(ringbuf.EntryList, 0, egressBufPkts)}
 }
 
-func (e *EgressWorker) Run() {
+func (e *worker) Run() {
 	defer liblog.LogPanicAndExit()
 	f := newFrame()
 
@@ -105,7 +105,7 @@ TopLoop:
 	close(e.pp.workerStopped)
 }
 
-func (e *EgressWorker) processPkt(f *frame, pkt common.RawBytes) error {
+func (e *worker) processPkt(f *frame, pkt common.RawBytes) error {
 	f.startPkt(uint16(len(pkt)))
 	pktOff := 0
 	// Write chunks of the packet to frames, sending off frames as they fill up.
@@ -127,7 +127,7 @@ func (e *EgressWorker) processPkt(f *frame, pkt common.RawBytes) error {
 }
 
 // Return false if the ringbuf is closed.
-func (e *EgressWorker) Read(block bool) bool {
+func (e *worker) Read(block bool) bool {
 	e.pkts = e.pkts[:cap(e.pkts)]
 	n, _ := e.pp.ring.Read(e.pkts, block)
 	if n < 0 {
@@ -138,7 +138,7 @@ func (e *EgressWorker) Read(block bool) bool {
 	return true
 }
 
-func (e *EgressWorker) Write(f *frame) error {
+func (e *worker) Write(f *frame) error {
 	// TODO(kormat): consider looking for an updated path here, and switching
 	// to it if the mtu isn't smaller than the current one.
 	defer e.resetFrame(f)
@@ -172,7 +172,7 @@ func (e *EgressWorker) Write(f *frame) error {
 	return nil
 }
 
-func (e *EgressWorker) resetFrame(f *frame) {
+func (e *worker) resetFrame(f *frame) {
 	e.currPath = e.pp.CurrPath()
 	// FIXME(kormat): to do this properly, need to calculate the address header size,
 	// and account for any ext headers.

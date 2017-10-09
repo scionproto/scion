@@ -141,8 +141,8 @@ func loadConfig(path string) bool {
 				continue
 			}
 		}
-		// TODO(kormat): add policies here FIXME(kormat): this is probably the wrong ordering.
-		ae.AddPolicy("placeholder", 11, nil)
+		// TODO(kormat): add sessions here FIXME(kormat): this is probably the wrong ordering.
+		ae.AddSession(11, "placeholder", nil)
 	}
 	return success
 }

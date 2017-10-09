@@ -39,17 +39,17 @@ var (
 func Init() {
 	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
 		return make(common.RawBytes, common.MaxMTU)
-	}, "egress", prometheus.Labels{"ringId": "freePkts"})
+	}, "egress", prometheus.Labels{"ringId": "freePkts", "sessId": ""})
 }
 
 type egressDispatcher struct {
 	devName string
 	devIO   io.ReadWriteCloser
-	spp     *SyncPathPolicies
+	spp     *SyncSession
 }
 
 func NewDispatcher(devName string, devIO io.ReadWriteCloser,
-	spp *SyncPathPolicies) *egressDispatcher {
+	spp *SyncSession) *egressDispatcher {
 	return &egressDispatcher{devName: devName, devIO: devIO, spp: spp}
 }
 
@@ -59,7 +59,7 @@ func (ed *egressDispatcher) Run() {
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
 	pps := ed.spp.Load()
-	var pp *PathPolicy
+	var pp *Session
 	for _, pp = range pps {
 		break
 	}

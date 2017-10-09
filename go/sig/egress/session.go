@@ -29,32 +29,34 @@ import (
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
-type SyncPathPolicies struct {
+type SyncSession struct {
 	atomic.Value
 }
 
-func NewSyncPathPolicies() *SyncPathPolicies {
-	spp := &SyncPathPolicies{}
-	spp.Store(([]*PathPolicy)(nil))
-	return spp
+func NewSyncSession() *SyncSession {
+	ss := &SyncSession{}
+	ss.Store(([]*Session)(nil))
+	return ss
 }
 
-func (spp *SyncPathPolicies) Load() []*PathPolicy {
-	return spp.Value.Load().([]*PathPolicy)
+func (ss *SyncSession) Load() []*Session {
+	return ss.Value.Load().([]*Session)
 }
 
-// PathPolicy contains the path policy for a given remote AS. This means having
+// FIXME(kormat): update
+// Session contains the path policy for a given remote AS. This means having
 // a pool of paths that match the specified policy, metrics about those paths,
 // as well as maintaining the currently favoured path and remote SIG to use.
-type PathPolicy struct {
+type Session struct {
 	IA      *addr.ISD_AS
-	Name    string
-	Session sigcmn.SessionType
+	SessId  sigcmn.SessionType
+	PolName string
 	// FIXME(kormat): not implemented yet :P contstrains what interfaces to route through.
 	policy interface{}
 	// pool of paths that meet the policy requirement, managed by pathmgr
 	pool *pathmgr.SyncPaths
-	info atomic.Value // PathPolicyInfo
+	// sessionInfo
+	sessInfo atomic.Value
 	// Metrics per set of path hops, entries added/removed whenever pool changes.
 	PathsMetrics  map[pathmgr.PathKey]PathMetrics
 	ring          *ringbuf.Ring
@@ -64,73 +66,74 @@ type PathPolicy struct {
 	workerStopped chan struct{}
 }
 
-func NewPathPolicy(dstIA *addr.ISD_AS, name string,
-	sess sigcmn.SessionType, policy interface{}) (*PathPolicy, error) {
+func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType, polName string,
+	policy interface{}) (*Session, error) {
 	var err error
+	s := &Session{IA: dstIA, SessId: sessId, PolName: polName, policy: policy}
 	// FIXME(kormat): change to `RegisterFilter once pathmgr supports policies.
-	pp := &PathPolicy{IA: dstIA, Name: name, Session: sess, policy: policy}
-	pp.pool, err = sigcmn.PathMgr.Register(sigcmn.IA, dstIA)
+	s.pool, err = sigcmn.PathMgr.Register(sigcmn.IA, dstIA)
 	if err != nil {
 		return nil, err
 	}
-	// Initialize currPath
+	// Initalize session info
 	var pathEntry *sciond.PathReplyEntry
-	aps := pp.pool.Load()
+	aps := s.pool.Load()
 	if aps != nil {
 		ap := aps.GetAppPath()
 		if ap != nil {
 			pathEntry = ap.Entry
 		}
 	}
-	pp.info.Store(PathPolicyInfo{Path: pathEntry})
-	pp.ring = ringbuf.New(64, nil, "egress", prometheus.Labels{"ringId": dstIA.String()})
+	s.sessInfo.Store(SessionInfo{Path: pathEntry})
+	s.ring = ringbuf.New(64, nil, "egress",
+		prometheus.Labels{"ringId": dstIA.String(), "sessId": sessId.String()})
 	// Not using a fixed local port, as this is for outgoing data only.
-	pp.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
-	pp.polMonStop = make(chan struct{})
-	pp.polMonStopped = make(chan struct{})
-	pp.workerStopped = make(chan struct{})
-	return pp, err
+	s.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
+	s.polMonStop = make(chan struct{})
+	s.polMonStopped = make(chan struct{})
+	s.workerStopped = make(chan struct{})
+	return s, err
 }
 
-func (pp *PathPolicy) Start(getSig func() *siginfo.SIGEntry) {
-	go newPolicyMonitor(pp, getSig).run()
-	go NewEgressWorker(pp).Run()
+func (s *Session) Start(getSig func() *siginfo.Sig) {
+	go newSessMonitor(s, getSig).run()
+	go NewEgressWorker(s).Run()
 }
 
-func (pp *PathPolicy) Info() PathPolicyInfo {
-	return pp.info.Load().(PathPolicyInfo)
+func (s *Session) Info() SessionInfo {
+	return s.sessInfo.Load().(SessionInfo)
 }
 
-func (pp *PathPolicy) CurrPath() *sciond.PathReplyEntry {
-	info := pp.Info()
+func (s *Session) CurrPath() *sciond.PathReplyEntry {
+	info := s.Info()
 	return info.Path
 }
 
-func (pp *PathPolicy) setPath(path *sciond.PathReplyEntry) {
-	info := pp.Info()
+func (s *Session) setPath(path *sciond.PathReplyEntry) {
+	info := s.Info()
 	info.Path = path
-	pp.info.Store(info)
+	s.sessInfo.Store(info)
 }
 
-func (pp *PathPolicy) setSig(se *siginfo.SIGEntry) {
-	info := pp.Info()
+func (s *Session) setSig(se *siginfo.Sig) {
+	info := s.Info()
 	info.Sig = se
-	pp.info.Store(info)
+	s.sessInfo.Store(info)
 }
 
-func (pp *PathPolicy) Cleanup() error {
-	pp.ring.Close()
-	close(pp.polMonStop)
-	log.Debug("PathPolicy Cleanup: wait for worker")
-	<-pp.workerStopped
-	log.Debug("PathPolicy Cleanup: wait for poller")
-	<-pp.polMonStopped
-	log.Debug("PathPolicy Cleanup: closing conn")
-	return pp.conn.Close()
+func (s *Session) Cleanup() error {
+	s.ring.Close()
+	close(s.polMonStop)
+	log.Debug("egress.Session Cleanup: wait for worker")
+	<-s.workerStopped
+	log.Debug("egress.Session Cleanup: wait for poller")
+	<-s.polMonStopped
+	log.Debug("egress.Session Cleanup: closing conn")
+	return s.conn.Close()
 }
 
-type PathPolicyInfo struct {
-	Sig  *siginfo.SIGEntry
+type SessionInfo struct {
+	Sig  *siginfo.Sig
 	Path *sciond.PathReplyEntry
 }
 

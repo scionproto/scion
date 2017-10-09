@@ -27,32 +27,32 @@ import (
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
-type policyMonitor struct {
+type sessMonitor struct {
 	log.Logger
-	pp     *PathPolicy
-	getSig func() *siginfo.SIGEntry
+	pp     *Session
+	getSig func() *siginfo.Sig
 }
 
-func newPolicyMonitor(pp *PathPolicy, getSig func() *siginfo.SIGEntry) *policyMonitor {
-	return &policyMonitor{pp: pp, getSig: getSig,
-		Logger: log.New("ia", pp.IA, "policy", pp.Name, "sessId", pp.Session)}
+func newSessMonitor(pp *Session, getSig func() *siginfo.Sig) *sessMonitor {
+	return &sessMonitor{pp: pp, getSig: getSig,
+		Logger: log.New("ia", pp.IA, "sessId", pp.SessId, "policy", pp.PolName)}
 }
 
-func (pm *policyMonitor) run() {
+func (pm *sessMonitor) run() {
 	defer liblog.LogPanicAndExit()
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer close(pm.pp.polMonStopped)
 	defer ticker.Stop()
 	// Initialise currSig.
 	pm.pp.setSig(pm.getSig())
-	pm.Info("PolicyMonitor: starting")
+	pm.Info("sessMonitor: starting")
 	regc := make(disp.RegPldChan, 1)
-	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(pm.pp.IA, pm.pp.Session), regc)
+	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(pm.pp.IA, pm.pp.SessId), regc)
 Top:
 	for {
 		select {
 		case <-pm.pp.polMonStop:
-			pm.Info("PolicyMonitor: graceful shutdown")
+			pm.Info("sessMonitor: graceful shutdown")
 			break Top
 		case <-ticker.C:
 			pm.sendReq()
@@ -60,49 +60,49 @@ Top:
 			pm.handleRep(rpld)
 		}
 	}
-	pm.Info("PolicyMonitor: stopped")
+	pm.Info("sessMonitor: stopped")
 }
 
-func (pm *policyMonitor) sendReq() {
+func (pm *sessMonitor) sendReq() {
 	info := pm.pp.Info()
 	sig := info.Sig
 	if sig == nil {
 		sig = pm.getSig()
 	}
 	if sig == nil {
-		pm.Error("PolicyMonitor: No remote sigs found")
+		pm.Error("sessMonitor: No remote sigs found")
 		return
 	}
-	spld, err := mgmt.NewPld(mgmt.NewPollReq(pm.pp.Session))
+	spld, err := mgmt.NewPld(mgmt.NewPollReq(pm.pp.SessId))
 	if err != nil {
-		pm.Error("PolicyMonitor: Error creating SIGCtrl payload", "err", err)
+		pm.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
 		return
 	}
 	cpld, err := ctrl.NewPld(spld)
 	if err != nil {
-		pm.Error("PolicyMonitor: Error creating Ctrl payload", "err", err)
+		pm.Error("sessMonitor: Error creating Ctrl payload", "err", err)
 		return
 	}
 	raw, err := cpld.PackPld()
 	if err != nil {
-		pm.Error("PolicyMonitor: Error packing Ctrl payload", "err", err)
+		pm.Error("sessMonitor: Error packing Ctrl payload", "err", err)
 		return
 	}
 	_, err = pm.pp.conn.WriteToSCION(raw, sig.CtrlSnetAddr())
 	if err != nil {
-		pm.Error("PolicyMonitor: Error sending Ctrl payload", "err", err)
+		pm.Error("sessMonitor: Error sending Ctrl payload", "err", err)
 	}
 }
 
-func (pm *policyMonitor) handleRep(rpld *disp.RegPld) {
+func (pm *sessMonitor) handleRep(rpld *disp.RegPld) {
 	_, ok := rpld.P.(*mgmt.PollRep)
 	if !ok {
-		log.Error("PolicyMonitor: non-SIGPollRep payload received",
+		log.Error("sessMonitor: non-SIGPollRep payload received",
 			"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
 		return
 	}
 	if !pm.pp.IA.Eq(rpld.Addr.IA) {
-		log.Error("PolicyMonitor: SIGPollRep from wrong IA",
+		log.Error("sessMonitor: SIGPollRep from wrong IA",
 			"expected", pm.pp.IA, "actual", rpld.Addr.IA)
 		return
 	}
