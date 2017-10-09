@@ -30,6 +30,7 @@ import (
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/config"
 	"github.com/netsec-ethz/scion/go/sig/disp"
+	"github.com/netsec-ethz/scion/go/sig/egress"
 	"github.com/netsec-ethz/scion/go/sig/ingress"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
@@ -70,7 +71,7 @@ func main() {
 	if err = sigcmn.Init(ia, ip); err != nil {
 		fatal("Error during initialization", "err", err)
 	}
-	base.Init()
+	egress.Init()
 	disp.Init(sigcmn.CtrlConn)
 	go base.PollReqHdlr()
 	// Parse config

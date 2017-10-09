@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package egress
 
 import (
 	"sync/atomic"
@@ -26,6 +26,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
 type SyncPathPolicies struct {
@@ -91,7 +92,7 @@ func NewPathPolicy(dstIA *addr.ISD_AS, name string,
 	return pp, err
 }
 
-func (pp *PathPolicy) Start(getSig func() *SIGEntry) {
+func (pp *PathPolicy) Start(getSig func() *siginfo.SIGEntry) {
 	go newPolicyMonitor(pp, getSig).run()
 	go NewEgressWorker(pp).Run()
 }
@@ -111,7 +112,7 @@ func (pp *PathPolicy) setPath(path *sciond.PathReplyEntry) {
 	pp.info.Store(info)
 }
 
-func (pp *PathPolicy) setSig(se *SIGEntry) {
+func (pp *PathPolicy) setSig(se *siginfo.SIGEntry) {
 	info := pp.Info()
 	info.Sig = se
 	pp.info.Store(info)
@@ -129,7 +130,7 @@ func (pp *PathPolicy) Cleanup() error {
 }
 
 type PathPolicyInfo struct {
-	Sig  *SIGEntry
+	Sig  *siginfo.SIGEntry
 	Path *sciond.PathReplyEntry
 }
 

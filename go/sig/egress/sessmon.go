@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package egress
 
 import (
 	"time"
@@ -22,19 +22,18 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/disp"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
 type policyMonitor struct {
 	log.Logger
 	pp     *PathPolicy
-	getSig func() *SIGEntry
+	getSig func() *siginfo.SIGEntry
 }
 
-func newPolicyMonitor(pp *PathPolicy, getSig func() *SIGEntry) *policyMonitor {
+func newPolicyMonitor(pp *PathPolicy, getSig func() *siginfo.SIGEntry) *policyMonitor {
 	return &policyMonitor{pp: pp, getSig: getSig,
 		Logger: log.New("ia", pp.IA, "policy", pp.Name, "sessId", pp.Session)}
 }
@@ -108,42 +107,4 @@ func (pm *policyMonitor) handleRep(rpld *disp.RegPld) {
 		return
 	}
 	pm.Info("Got SIGPollRep!", "src", rpld.Addr, "pld", rpld)
-}
-
-func PollReqHdlr() {
-	defer liblog.LogPanicAndExit()
-	log.Info("PollReqHdlr: starting")
-	for rpld := range disp.PollReqC {
-		// FIXME(kormat): poll replies _should_ go back over the path the requests arrived on,
-		// but snet doesn't support this yet. https://github.com/netsec-ethz/scion/issues/1277
-		req, ok := rpld.P.(*mgmt.PollReq)
-		if !ok {
-			log.Error("PollReqHdlr: non-SIGPollReq payload received",
-				"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
-			continue
-		}
-		log.Debug("PollReqHdlr: got PollReq", "src", rpld.Addr, "pld", req)
-		spld, err := mgmt.NewPld(mgmt.NewPollRep(req.Session))
-		if err != nil {
-			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", err)
-			break
-		}
-		cpld, err := ctrl.NewPld(spld)
-		if err != nil {
-			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", err)
-			break
-		}
-		raw, err := cpld.PackPld()
-		if err != nil {
-			log.Error("PollReqHdlr: Error packing Ctrl payload", "err", err)
-			break
-		}
-		sigCtrlAddr := &snet.Addr{IA: rpld.Addr.IA, Host: req.Addr.Ctrl.Host(),
-			L4Port: req.Addr.Ctrl.Port}
-		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
-		if err != nil {
-			log.Error("PollReqHdlr: Error sending Ctrl payload", "err", err, "desc", sigCtrlAddr)
-		}
-	}
-	log.Info("PollReqHdlr: stopped")
 }

@@ -26,7 +26,9 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/sig/egress"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
@@ -36,8 +38,8 @@ type ASEntry struct {
 	IA           *addr.ISD_AS
 	IAString     string
 	Nets         map[string]*NetEntry
-	Sigs         map[string]*SIGEntry
-	PathPolicies *SyncPathPolicies
+	Sigs         map[string]*siginfo.SIGEntry
+	PathPolicies *egress.SyncPathPolicies
 	DevName      string
 	tunLink      netlink.Link
 	tunIO        io.ReadWriteCloser
@@ -48,8 +50,8 @@ func newASEntry(ia *addr.ISD_AS) *ASEntry {
 		IA:           ia,
 		IAString:     ia.String(),
 		Nets:         make(map[string]*NetEntry),
-		Sigs:         make(map[string]*SIGEntry),
-		PathPolicies: NewSyncPathPolicies(),
+		Sigs:         make(map[string]*siginfo.SIGEntry),
+		PathPolicies: egress.NewSyncPathPolicies(),
 		DevName:      fmt.Sprintf("scion-%s", ia),
 	}
 }
@@ -137,7 +139,7 @@ func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static 
 		// FIXME(kormat): support updating SIG entry.
 		return nil
 	}
-	ae.Sigs[id] = NewSIGInfo(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
+	ae.Sigs[id] = siginfo.NewSIGInfo(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
 	log.Info("Added SIG", "ia", ae.IA, "sig", ae.Sigs[id])
 	return nil
 }
@@ -158,13 +160,13 @@ func (ae *ASEntry) DelSig(id string) error {
 }
 
 // Internal method to return an arbitrary active SIG
-func (ae *ASEntry) GetSig() *SIGEntry {
+func (ae *ASEntry) GetSig() *siginfo.SIGEntry {
 	ae.Lock()
 	defer ae.Unlock()
 	if len(ae.Sigs) == 0 {
 		return nil
 	}
-	sigs := make([]*SIGEntry, 0, len(ae.Sigs))
+	sigs := make([]*siginfo.SIGEntry, 0, len(ae.Sigs))
 	for _, se := range ae.Sigs {
 		if se.Active {
 			sigs = append(sigs, se)
@@ -176,7 +178,7 @@ func (ae *ASEntry) GetSig() *SIGEntry {
 func (ae *ASEntry) AddPolicy(name string, sessId sigcmn.SessionType, policy interface{}) error {
 	ae.Lock()
 	defer ae.Unlock()
-	pp, err := NewPathPolicy(ae.IA, name, sessId, policy)
+	pp, err := egress.NewPathPolicy(ae.IA, name, sessId, policy)
 	if err != nil {
 		return err
 	}
@@ -185,7 +187,7 @@ func (ae *ASEntry) AddPolicy(name string, sessId sigcmn.SessionType, policy inte
 	ae.PathPolicies.Store(pps)
 	if len(pps) == 1 {
 		log.Info("Starting egress dispatcher", "ia", ae.IA, "dev", ae.DevName)
-		go newEgressDispatcher(ae.DevName, ae.tunIO, ae.PathPolicies).Run()
+		go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.PathPolicies).Run()
 	}
 	pp.Start(ae.GetSig)
 	return nil

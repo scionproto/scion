@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package egress
 
 import (
 	"io"
@@ -48,7 +48,7 @@ type egressDispatcher struct {
 	spp     *SyncPathPolicies
 }
 
-func newEgressDispatcher(devName string, devIO io.ReadWriteCloser,
+func NewDispatcher(devName string, devIO io.ReadWriteCloser,
 	spp *SyncPathPolicies) *egressDispatcher {
 	return &egressDispatcher{devName: devName, devIO: devIO, spp: spp}
 }
