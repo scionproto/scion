@@ -15,6 +15,7 @@
 package pathmgr
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -29,33 +30,70 @@ import (
 //
 // A SyncPaths must never be copied.
 type SyncPaths struct {
-	value     atomic.Value
-	timestamp atomic.Value
+	value atomic.Value
+	// Used to avoid races between multiple writers
+	mutex sync.Mutex
+}
+
+// SyncPathsData is the atomic value inside a SyncPaths object. It provides a
+// snapshot of a SyncPaths object. Callers must not change APS.
+type SyncPathsData struct {
+	APS         AppPathSet
+	ModifyTime  time.Time
+	RefreshTime time.Time
 }
 
 // NewSyncPaths creates a new SyncPaths object and sets the timestamp to
 // current time.  A newly created SyncPaths contains a nil AppPathSet.
 func NewSyncPaths() *SyncPaths {
 	sp := &SyncPaths{}
-	sp.timestamp.Store(time.Now())
-	sp.Store(AppPathSet(nil))
+	now := time.Now()
+	sp.value.Store(
+		&SyncPathsData{
+			APS:         nil,
+			ModifyTime:  now,
+			RefreshTime: now,
+		},
+	)
 	return sp
 }
 
-// Store atomically updates the AppPathSet and refreshes the timestamp
-func (sp *SyncPaths) Store(aps AppPathSet) {
-	sp.value.Store(aps)
-	// This races with the above when multiple callers use Store, but the time
-	// will be close enough that we don't mind.
-	sp.timestamp.Store(time.Now())
+// update adds and removes paths in sp to match newAPS. If a path was added or
+// removed, the modified timestamp is updated. The refresh timestamp is always
+// updated.
+// FIXME(scrye): Add SCIOND support s.t. the refresh timestamp is changed only
+// when paths (including path metadata) change.
+func (sp *SyncPaths) Store(newAPS AppPathSet) {
+	sp.mutex.Lock()
+	defer sp.mutex.Unlock()
+	value := sp.value.Load().(*SyncPathsData)
+	value.RefreshTime = time.Now()
+	toAdd := setSubtract(newAPS, value.APS)
+	toRemove := setSubtract(value.APS, newAPS)
+	if len(toAdd) > 0 || len(toRemove) > 0 {
+		// Some paths have changed, replace the old set with the new set
+		if len(newAPS) == 0 {
+			// Use nil map instead of empty map for consistency with Get
+			value.APS = AppPathSet(nil)
+		} else {
+			value.APS = newAPS
+		}
+		value.ModifyTime = value.RefreshTime
+	}
+	sp.value.Store(value)
 }
 
-// Load returns a reference to the AppPathSet within.
-func (sp *SyncPaths) Load() AppPathSet {
-	return sp.value.Load().(AppPathSet)
+// Load returns a SyncPathsData snapshot of the data within sp.
+func (sp *SyncPaths) Load() *SyncPathsData {
+	return sp.value.Load().(*SyncPathsData)
 }
 
-// Timestamp returns the time of the last Store to sp
-func (sp *SyncPaths) Timestamp() time.Time {
-	return sp.timestamp.Load().(time.Time)
+func setSubtract(x, y AppPathSet) AppPathSet {
+	result := make(AppPathSet)
+	for _, ap := range x {
+		if _, ok := y[ap.Key()]; !ok {
+			ap.duplicateIn(result)
+		}
+	}
+	return result
 }

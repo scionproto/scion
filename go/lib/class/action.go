@@ -30,7 +30,10 @@ import (
 // marshaled to JSON directly; instead, first create an ActionMap, add the
 // desired actions to it and then marshal the entire ActionMap.
 type Action interface {
+	Act(interface{}) interface{}
 	GetName() string
+	setName(s string)
+	Typer
 }
 
 var _ Action = (*ActionFilterPaths)(nil)
@@ -45,8 +48,22 @@ func NewActionFilterPaths(name string, pp *PathPredicate) *ActionFilterPaths {
 	return &ActionFilterPaths{Name: name, Contains: pp}
 }
 
+// Act takes an AppPathSet and returns a new AppPathSet containing only the
+// paths permitted by the filter.
+func (a *ActionFilterPaths) Act(aps interface{}) interface{} {
+	return nil
+}
+
 func (a *ActionFilterPaths) GetName() string {
 	return a.Name
+}
+
+func (a *ActionFilterPaths) setName(name string) {
+	a.Name = name
+}
+
+func (a *ActionFilterPaths) Type() string {
+	return "ActionFilterPaths"
 }
 
 // A PathPredicate's Eval method returns true if the slice of interfaces in
@@ -132,35 +149,15 @@ func parseIface(str string) (sciond.PathInterface, error) {
 		return sciond.PathInterface{}, common.NewCError("Failed to parse interface spec", "value", str)
 	}
 	var iface sciond.PathInterface
-	isdas, err := parseIsdas(tokens[0])
+	ia, err := addr.IAFromString(tokens[0])
 	if err != nil {
 		return sciond.PathInterface{}, err
 	}
-	iface.RawIsdas = isdas.Uint32()
+	iface.RawIsdas = ia.IAInt()
 	ifid, err := strconv.ParseUint(tokens[1], 10, 64)
 	if err != nil {
 		return sciond.PathInterface{}, err
 	}
 	iface.IfID = ifid
 	return iface, nil
-}
-
-func parseIsdas(str string) (*addr.ISD_AS, error) {
-	tokens := strings.Split(str, "-")
-	if len(tokens) != 2 {
-		return nil, common.NewCError("Failed to parse ISDAS value", "value", str)
-	}
-	var isdas addr.ISD_AS
-	var err error
-	isd, err := strconv.ParseUint(tokens[0], 10, 12)
-	if err != nil {
-		return nil, err
-	}
-	isdas.I = int(isd)
-	as, err := strconv.ParseUint(tokens[1], 10, 24)
-	if err != nil {
-		return nil, err
-	}
-	isdas.A = int(as)
-	return &isdas, nil
 }
