@@ -103,7 +103,7 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	defer c.readMutex.Unlock()
 	var err error
 	var remote *Addr
-	n, err := c.conn.Read(c.recvBuffer)
+	n, lastHop, err := c.conn.ReadFrom(c.recvBuffer)
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
 	}
@@ -128,11 +128,19 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 			return 0, nil, common.NewCError("Invalid L4 protocol",
 				"expected", c.net, "actual", pkt.L4.L4Type())
 		}
-		// Extract remote address
+		// Extract remote address, path, and last hop
+		path := pkt.Path
+		if err = path.Reverse(); err != nil {
+			return 0, nil, common.NewCError("Unable to reverse path on received packet", "err", err)
+		}
 		remote = &Addr{
-			IA:     pkt.SrcIA,
-			Host:   pkt.SrcHost,
-			L4Port: udpHdr.SrcPort}
+			IA:          pkt.SrcIA,
+			Host:        pkt.SrcHost,
+			L4Port:      udpHdr.SrcPort,
+			Path:        path,
+			NextHopHost: lastHop.Addr,
+			NextHopPort: lastHop.Port,
+		}
 	}
 	return n, remote, nil
 }
@@ -175,16 +183,23 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	defer c.writeMutex.Unlock()
 	var err error
 	var path *spath.Path
-	pathEntry := raddr.PathEntry
-	if pathEntry == nil {
-		pathEntry, err = c.selectPathEntry(raddr)
-		if err != nil {
-			return 0, err
+	var nextHopHost addr.HostAddr
+	var nextHopPort uint16
+	// If src and dst are in the same AS, the path will be empty
+	if !c.laddr.IA.Eq(raddr.IA) {
+		if raddr.Path != nil && raddr.NextHopHost != nil && raddr.NextHopPort != 0 {
+			path = raddr.Path
+			nextHopHost = raddr.NextHopHost
+			nextHopPort = raddr.NextHopPort
+		} else {
+			pathEntry, err := c.selectPathEntry(raddr)
+			if err != nil {
+				return 0, err
+			}
+			path = spath.New(pathEntry.Path.FwdPath)
+			nextHopHost = pathEntry.HostInfo.Host()
+			nextHopPort = pathEntry.HostInfo.Port
 		}
-	}
-	if pathEntry != nil {
-		path = spath.New(pathEntry.Path.FwdPath)
-		// Create the path using initial IF/HF pointers
 		err = path.InitOffsets()
 		if err != nil {
 			return 0, common.NewCError("Unable to initialize path", "err", err)
@@ -219,9 +234,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 			Port: overlay.EndhostPort}
 	} else {
 		// Overlay next-hop is contained in path
-		appAddr = reliable.AppAddr{
-			Addr: addr.HostFromIP(pathEntry.HostInfo.Addrs.Ipv4),
-			Port: pathEntry.HostInfo.Port}
+		appAddr = reliable.AppAddr{Addr: nextHopHost, Port: nextHopPort}
 	}
 
 	// Send message
@@ -236,11 +249,6 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var err error
 	var pathSet pathmgr.AppPathSet
-	if c.laddr.IA.Eq(raddr.IA) {
-		// If src and dst are in the same AS, the path will be empty
-		return nil, nil
-	}
-
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
 	if c.raddr == nil {
