@@ -15,12 +15,14 @@
 package egress
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
@@ -91,6 +93,7 @@ func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType, polName string,
 func (s *Session) Start() {
 	go newSessMonitor(s).run()
 	go NewEgressWorker(s).Run()
+	go connReader(s.conn, "session")
 }
 
 func (s *Session) Cleanup() error {
@@ -111,4 +114,20 @@ func (s *Session) Remote() *RemoteInfo {
 type RemoteInfo struct {
 	Sig      *siginfo.Sig
 	sessPath *sessPath
+}
+
+func (r *RemoteInfo) String() string {
+	return fmt.Sprintf("RemoteInfo Sig: %v sessPath: %s", r.Sig, r.sessPath)
+}
+
+func connReader(conn *snet.Conn, name string) {
+	buf := make(common.RawBytes, common.MaxMTU)
+	for {
+		l, src, err := conn.ReadFromSCION(buf)
+		if err != nil {
+			log.Error("connReader error", "name", name, "err", err)
+			continue
+		}
+		log.Debug("connReader", "name", name, "src", src, "raw", buf[:l])
+	}
 }

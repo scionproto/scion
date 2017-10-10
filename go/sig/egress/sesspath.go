@@ -15,6 +15,7 @@
 package egress
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -93,4 +94,8 @@ func (sp *sessPath) expireFails() {
 	if time.Since(sp.lastFail) > pathFailExpiration {
 		sp.failCount /= 2
 	}
+}
+
+func (sp *sessPath) String() string {
+	return fmt.Sprintf("SessPath key: %s path: %s", sp.key, sp.pathEntry.Path)
 }

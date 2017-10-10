@@ -154,6 +154,7 @@ func (sm *sessMonitor) sendReq() {
 	msgId := mgmt.MsgIdType(time.Now().UnixNano())
 	if sm.needUpdate {
 		sm.updateMsgId = msgId
+		sm.Debug("sessMonitor: trying new remote", "remote", sm.smRemote)
 	}
 	spld, err := mgmt.NewPld(msgId, mgmt.NewPollReq(sm.sess.SessId))
 	if err != nil {
