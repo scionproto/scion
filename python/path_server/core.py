@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import random
 
 # External
 from external.expiring_dict import ExpiringDict
@@ -33,6 +32,7 @@ from lib.packet.path_mgmt.seg_recs import PathRecordsSync
 from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
 from lib.packet.svc import SVCType
 from lib.types import PathSegmentType as PST
+from lib.util import random_uint64
 from lib.zk.errors import ZkNoConnection
 from path_server.base import PathServer, REQS_TOTAL
 
@@ -231,8 +231,7 @@ class CorePathServer(PathServer):
         sflags = set(flags)
         sflags.add(PATH_FLAG_CACHEONLY)
         flags = tuple(sflags)
-        req_id = random.randint(0, 2**64 - 1)
-        req = PathSegmentReq.from_values(req_id, src_ia, dst_ia, flags=flags)
+        req = PathSegmentReq.from_values(random_uint64(), src_ia, dst_ia, flags=flags)
         logger.debug("Asking master (%s) for segment: %s" %
                      (self._master_id, req.short_desc()))
         self._send_to_master(req)
