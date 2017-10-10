@@ -78,45 +78,11 @@ from lib.types import (
     TypeBase,
 )
 from lib.util import SCIONTime
+from sciond.req import RequestState
 from scion_elem.scion_elem import SCIONElement
 
 
 _FLUSH_FLAG = "FLUSH"
-
-
-class _Request:
-    """_Request stores state about path requests issued by SCIOND to the local PS."""
-    def __init__(self, req, checkf):
-        self.req = req
-        self.reply = None
-        self.checkf = checkf
-        self.done = threading.Event()
-        self.ver_tout = None
-        self.segs_to_verif = 0
-
-    def wait(self, tout):
-        return self.done.wait(tout)
-
-    def set_reply(self, reply):
-        self.reply = reply
-        self.segs_to_verif = self.reply.recs().num_segs()
-        self.ver_tout = threading.Timer(0.3, self.check)
-        self.ver_tout.start()
-
-    def verified_segment(self):
-        if self.segs_to_verif == 0:
-            return
-        self.segs_to_verif -= 1
-        if self.segs_to_verif == 0:
-            # Cancel outstanding timer if there is one.
-            if self.ver_tout:
-                self.ver_tout.cancel()
-                self.ver_tout = None
-            self.check()
-
-    def check(self):
-        if self.checkf(self.req.dst_ia(), self.req.flags()):
-            self.done.set()
 
 
 class SCIONDaemon(SCIONElement):
@@ -523,20 +489,19 @@ class SCIONDaemon(SCIONElement):
                     req_id = random.randint(0, 2**64 - 1)
                     req = PathSegmentReq.from_values(
                         req_id, self.addr.isd_as, dst_ia, flags=flags)
-                    self.requested_paths[key] = _Request(req.copy(), self.path_resolution)
+                    self.requested_paths[key] = RequestState(req.copy(), self.path_resolution)
                     self._fetch_segments(req)
                 r = self.requested_paths[key]
             # Wait until event gets set.
-            timed_out = r.wait(PATH_REQ_TOUT)
+            r.wait()
             # Delete the request from requested_paths
-            if not timed_out:
-                with self.req_path_lock:
-                    if key in self.requested_paths:
-                        del self.requested_paths[key]
+            with self.req_path_lock:
+                if key in self.requested_paths:
+                    del self.requested_paths[key]
             # Check if we can fulfill the path request.
             paths = self.path_resolution(dst_ia, flags=flags)
             if not paths:
-                if timed_out:
+                if r.timed_out():
                     logging.error("Query timed out for %s", dst_ia)
                     error_code = SCIONDPathReplyError.PS_TIMEOUT
                 else:
