@@ -22,7 +22,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 var _ net.Addr = (*Addr)(nil)
@@ -30,10 +30,12 @@ var _ net.Addr = (*Addr)(nil)
 var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-\d+),\[(?P<host>[^\]]+)\]:(?P<port>\d+)$`)
 
 type Addr struct {
-	IA        *addr.ISD_AS
-	Host      addr.HostAddr
-	L4Port    uint16
-	PathEntry *sciond.PathReplyEntry
+	IA          *addr.ISD_AS
+	Host        addr.HostAddr
+	L4Port      uint16
+	Path        *spath.Path
+	NextHopHost addr.HostAddr
+	NextHopPort uint16
 }
 
 func (a *Addr) Network() string {
@@ -44,10 +46,7 @@ func (a *Addr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	s := fmt.Sprintf("%s,[%s]:%d", a.IA, a.Host, a.L4Port)
-	if a.PathEntry != nil {
-		s += fmt.Sprintf(" Path: %s", a.PathEntry.Path)
-	}
+	s := fmt.Sprintf("%s,[%s]:%d Path: %s", a.IA, a.Host, a.L4Port, a.Path != nil)
 	return s
 }
 
@@ -55,10 +54,12 @@ func (a *Addr) Copy() *Addr {
 	if a == nil {
 		return nil
 	}
+	// N.B.: Does not copy path.
 	return &Addr{
 		IA:     a.IA.Copy(),
 		Host:   a.Host.Copy(),
-		L4Port: a.L4Port}
+		L4Port: a.L4Port,
+	}
 }
 
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port
