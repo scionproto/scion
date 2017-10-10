@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Stdlib
-import logging
 import threading
 
 # SCIO
@@ -29,16 +28,15 @@ class RequestState:  # pragma: no cover
         self._e = threading.Event()
         self._ver_tout = None
         self._segs_to_verify = 0
-        self._timeout = threading.Timer(PATH_REQ_TOUT, self._done)
+        self._timeout = threading.Timer(PATH_REQ_TOUT, self._timeout_fired)
         self._wait = True
         self._timed_out = False
-        logging.debug("Start: %s", req.short_desc())
+        self._timeout.start()
 
     def wait(self):
         self._e.wait()
 
     def set_reply(self, reply):
-        logging.debug("SetReply: %s", reply.short_desc())
         self.reply = reply
         self._segs_to_verify = self.reply.recs().num_segs()
         self._ver_tout = threading.Timer(0.3, self._ver_tout_fired)
@@ -53,8 +51,6 @@ class RequestState:  # pragma: no cover
         if self._segs_to_verify == 0:
             return
         self._segs_to_verify -= 1
-        logging.debug("Verified Segment (%d oustanding): %s",
-            self._segs_to_verify, self.req.short_desc())
         if not self._wait:
             self._check()
             return
@@ -68,7 +64,6 @@ class RequestState:  # pragma: no cover
     def _check(self):
         """Checks if a request can be fulfilled."""
         if self.checkf(self.req.dst_ia(), self.req.flags()):
-            logging.debug("Can fulfill: %s", self.req.short_desc())
             self._done()
 
     def _ver_tout_fired(self):
@@ -76,19 +71,16 @@ class RequestState:  # pragma: no cover
         Gets called when the verification timer fired. From now on we try to immediately
         fullfil requests as new path segments get verified.
         """
-        logging.debug("Verification Timeout fired for: %s", self.req.short_desc())
         self._wait = False
         self.ver_tout = None
         self._check()
 
     def _timeout_fired(self):
-        logging.debug("Timeout fired for: %s", self.req.short_desc())
         self._timed_out = True
         self._timeout = None
         self._done()
 
     def _done(self):
-        logging.debug("Done: %s", self.req.short_desc())
         # Cancel outstanding timers if there are some.
         if self._ver_tout:
             self._ver_tout.cancel()
