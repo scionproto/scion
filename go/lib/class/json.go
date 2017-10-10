@@ -38,6 +38,17 @@ type Typer interface {
 // map, it contains a single entry with key "T". Depending on T, the correct
 // concrete type is unmarshaled.
 
+const (
+	TypeCondAllOf            = "CondAllOf"
+	TypeCondAnyOf            = "CondAnyOf"
+	TypeCondBool             = "CondBool"
+	TypeCondIPv4             = "CondIPv4"
+	TypeActionFilterPaths    = "ActionFilterPaths"
+	TypeIPv4MatchSource      = "MatchSource"
+	TypeIPv4MatchDestination = "MatchDestination"
+	TypeIPv4MatchToS         = "MatchToS"
+)
+
 // generic container for marshaling custom data
 type jsonContainer map[string]interface{}
 
@@ -56,41 +67,41 @@ func unmarshalInterface(b []byte) (Typer, error) {
 	}
 	for k, v := range container {
 		switch k {
-		case "CondAllOf":
+		case TypeCondAllOf:
 			var c CondAllOf
 			if v == nil {
 				return c, nil
 			}
 			err := json.Unmarshal(*v, &c)
 			return c, err
-		case "CondAnyOf":
+		case TypeCondAnyOf:
 			var c CondAnyOf
 			if v == nil {
 				return c, nil
 			}
 			err := json.Unmarshal(*v, &c)
 			return c, err
-		case "CondBool":
+		case TypeCondBool:
 			var c CondBool
 			err := json.Unmarshal(*v, &c)
 			return c, err
-		case "CondIPv4":
+		case TypeCondIPv4:
 			var c CondIPv4
 			err := json.Unmarshal(*v, &c)
 			return &c, err
-		case "ActionFilterPaths":
+		case TypeActionFilterPaths:
 			var a ActionFilterPaths
 			err := json.Unmarshal(*v, &a)
 			return &a, err
-		case "MatchSource":
+		case TypeIPv4MatchSource:
 			var p IPv4MatchSource
 			err := json.Unmarshal(*v, &p)
 			return &p, err
-		case "MatchDestination":
+		case TypeIPv4MatchDestination:
 			var p IPv4MatchDestination
 			err := json.Unmarshal(*v, &p)
 			return &p, err
-		case "MatchToS":
+		case TypeIPv4MatchToS:
 			var p IPv4MatchToS
 			err := json.Unmarshal(*v, &p)
 			return &p, err

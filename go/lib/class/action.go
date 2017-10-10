@@ -63,8 +63,13 @@ func (a *ActionFilterPaths) setName(name string) {
 }
 
 func (a *ActionFilterPaths) Type() string {
-	return "ActionFilterPaths"
+	return TypeActionFilterPaths
 }
+
+// FIXME(scrye): PathPredicate does not necessarily belong in this package.
+// Additionally, AppPathSet is needed to implement Actions on paths, but this
+// causes a circular dependency. Both should be refactored out to a single
+// package in the future.
 
 // A PathPredicate's Eval method returns true if the slice of interfaces in
 // Match is included in the AppPath parameter. Zero values in Match symbolize

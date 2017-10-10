@@ -37,6 +37,10 @@ func (fm filterMap) get(src, dst *addr.ISD_AS, pp *class.PathPredicate) (*SyncPa
 		return nil, false
 	}
 
+	// FIXME(scrye): multiple callers might register the same path predicate;
+	// if one of them decides to unregister the predicate, it would remove it
+	// for all callers. Fix this to take unique instances into account (e.g.,
+	// via names or reference counting)
 	pathFilter, ok := filterSet[pp.String()]
 	if !ok {
 		return nil, false
@@ -113,5 +117,5 @@ func (pf *pathFilter) update(aps AppPathSet) {
 			appPath.duplicateIn(newAPS)
 		}
 	}
-	pf.sp.Store(newAPS)
+	pf.sp.update(newAPS)
 }

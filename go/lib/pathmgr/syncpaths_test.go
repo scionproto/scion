@@ -32,7 +32,7 @@ func TestSyncPathsTimestamp(t *testing.T) {
 
 		Convey("Call store again without changing anything", func() {
 			beforeStore := time.Now()
-			sp.Store(AppPathSet(nil))
+			sp.update(AppPathSet(nil))
 			afterStore := time.Now()
 			data := sp.Load()
 			Convey("Modify timestamp should not change", func() {
