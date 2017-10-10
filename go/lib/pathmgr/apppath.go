@@ -84,13 +84,6 @@ func (ap *AppPath) duplicateIn(aps AppPathSet) {
 	aps[ap.Key()] = newAP
 }
 
-/*
-func (ap *AppPath) duplicateIn(aps AppPathSet) {
-	aps[ap.Key()] = ap
-	ap.parent = aps
-}
-*/
-
 // revoke removes ap from its parent path set.
 func (ap *AppPath) revoke() {
 	delete(ap.parent, ap.Key())

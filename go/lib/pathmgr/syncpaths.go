@@ -50,7 +50,7 @@ func NewSyncPaths() *SyncPaths {
 	now := time.Now()
 	sp.value.Store(
 		&SyncPathsData{
-			APS:         nil,
+			APS:         make(AppPathSet),
 			ModifyTime:  now,
 			RefreshTime: now,
 		},
@@ -63,7 +63,7 @@ func NewSyncPaths() *SyncPaths {
 // updated.
 // FIXME(scrye): Add SCIOND support s.t. the refresh timestamp is changed only
 // when paths (including path metadata) change.
-func (sp *SyncPaths) Store(newAPS AppPathSet) {
+func (sp *SyncPaths) update(newAPS AppPathSet) {
 	sp.mutex.Lock()
 	defer sp.mutex.Unlock()
 	value := sp.value.Load().(*SyncPathsData)
@@ -71,15 +71,9 @@ func (sp *SyncPaths) Store(newAPS AppPathSet) {
 	toAdd := setSubtract(newAPS, value.APS)
 	toRemove := setSubtract(value.APS, newAPS)
 	if len(toAdd) > 0 || len(toRemove) > 0 {
-		// Some paths have changed, replace the old set with the new set
-		if len(newAPS) == 0 {
-			// Use nil map instead of empty map for consistency with Get
-			value.APS = AppPathSet(nil)
-		} else {
-			value.APS = newAPS
-		}
 		value.ModifyTime = value.RefreshTime
 	}
+	value.APS = newAPS
 	sp.value.Store(value)
 }
 

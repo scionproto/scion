@@ -201,7 +201,7 @@ func (r *PR) register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 	// fails, sp will point to an empty slice.
 	q := query{src: src, dst: dst, sp: sp}
 	pathSet := r.lookup(q)
-	sp.Store(pathSet)
+	sp.update(pathSet)
 	r.revTableReg.updatePathSet(pathSet)
 
 	// Add ia to periodic lookup table
@@ -256,7 +256,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 			}
 			q := query{src: pair.src, dst: pair.dst, sp: sp}
 			pathSet := r.lookup(q)
-			sp.Store(pathSet)
+			sp.update(pathSet)
 			r.filterMap.update(pair.src, pair.dst, pathSet)
 			// Filter paths if something changed
 			r.revTableReg.updatePathSet(pathSet)
@@ -274,7 +274,7 @@ func (r *PR) resolver() {
 		pathSet := r.lookup(query)
 		if pathSet != nil {
 			// Store path slice atomically
-			query.sp.Store(pathSet)
+			query.sp.update(pathSet)
 			r.revTableReg.updatePathSet(pathSet)
 			// Filter paths if something changed
 			r.filterMap.update(query.src, query.dst, pathSet)

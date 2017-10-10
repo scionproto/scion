@@ -28,7 +28,7 @@ type Cond interface {
 	Typer
 }
 
-var _ Cond = CondAnyOf(nil)
+var _ Cond = CondAnyOf{}
 
 // CondAnyOf conditions return true if all subconditions return true.
 type CondAnyOf []Cond
@@ -59,7 +59,7 @@ func (c CondAnyOf) String() string {
 }
 
 func (c CondAnyOf) Type() string {
-	return "CondAnyOf"
+	return TypeCondAnyOf
 }
 
 func (c CondAnyOf) MarshalJSON() ([]byte, error) {
@@ -72,7 +72,7 @@ func (c *CondAnyOf) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-var _ Cond = CondAllOf(nil)
+var _ Cond = CondAllOf{}
 
 // CondAllOf conditions return true if at least one subcondition returns true.
 type CondAllOf []Cond
@@ -100,7 +100,7 @@ func (c CondAllOf) String() string {
 }
 
 func (c CondAllOf) Type() string {
-	return "CondAllOf"
+	return TypeCondAllOf
 }
 
 func (c CondAllOf) MarshalJSON() ([]byte, error) {
@@ -130,7 +130,7 @@ func (c CondBool) Eval(v *Packet) bool {
 }
 
 func (c CondBool) Type() string {
-	return "CondBool"
+	return TypeCondBool
 }
 
 // CondIPv4 conditions return true if the embedded IPv4 predicate returns true.
@@ -154,7 +154,7 @@ func (c *CondIPv4) Eval(v *Packet) bool {
 }
 
 func (c *CondIPv4) Type() string {
-	return "CondIPv4"
+	return TypeCondIPv4
 }
 
 func (c *CondIPv4) MarshalJSON() ([]byte, error) {
