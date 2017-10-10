@@ -61,6 +61,12 @@ class PathSegmentReq(Cerealizable):  # pragma: no cover
             flags.add(PATH_FLAG_CACHEONLY)
         return tuple(flags)
 
+    def __eq__(self, other):
+        return self.p.id == other.p.id
+
+    def __hash__(self):
+        return self.p.id
+
     def short_desc(self):
         return "Id: %08x %s -> %s  %s" % (self.req_id(), self.src_ia(), self.dst_ia(), self.flags())
 
@@ -70,15 +76,15 @@ class PathSegmentReply(Cerealizable):  # pragma: no cover
     P_CLS = P.SegReply
 
     @classmethod
-    def from_values(cls, req_id, recs):
-        p = cls.P_CLS.new_message(id=req_id, recs=recs.p)
+    def from_values(cls, req, recs):
+        p = cls.P_CLS.new_message(req=req.p, recs=recs.p)
         return cls(p)
 
-    def req_id(self):
-        return self.p.id
+    def req(self):
+        return PathSegmentReq(self.p.req)
 
     def recs(self):
         return PathSegmentRecords(self.p.recs)
 
     def short_desc(self):
-        return "Id: %08x\n%s" % (self.req_id(), self.recs())
+        return "Req: %s\n%s" % (self.req(), self.recs())

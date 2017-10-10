@@ -353,8 +353,7 @@ class CorePathServer(PathServer):
         This must not be executed for a pending request.
         """
         sibra = PATH_FLAG_SIBRA in flags
-        self.pending_req[(dst_ia, sibra)][seg_req.req_id()
-                                          ] = (seg_req, meta, logger)
+        self.pending_req[(dst_ia, sibra)][seg_req.req_id()] = (seg_req, meta, logger)
         if dst_ia[0] == self.addr.isd_as[0]:
             # Master may know down segment as dst is in local ISD.
             self._query_master(dst_ia, logger, flags=flags)
