@@ -213,17 +213,9 @@ class SCIONDaemon(SCIONElement):
             PST.CORE: self._handle_core_seg,
         }
         map_[type_](pcb)
-        # if not ret:
-        #     return
         r = seg_meta.params[0]
         if r:
             r.verified_segment()
-        # with self.req_path_lock:
-        #     # .items() makes a copy on an expiring dict, so deleting entries is safe.
-        #     for key, e in self.requested_paths.items():
-        #         if self.path_resolution(*key):
-        #             e.set()
-        #             del self.requested_paths[key]
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
