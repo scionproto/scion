@@ -42,6 +42,7 @@ from lib.defines import (
     PATH_SERVICE,
 )
 from lib.errors import (
+    SCIONBaseError,
     SCIONKeyError,
     SCIONParseError,
     SCIONPathPolicyViolated,
@@ -627,7 +628,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation via TCP/UDP: %s (from %s)", rev_info.short_desc(), meta)
-        if not self._validate_revocation(rev_info):
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
             return
         self._process_revocation(rev_info)
 

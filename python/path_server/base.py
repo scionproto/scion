@@ -34,6 +34,7 @@ from lib.defines import (
     PATH_REQ_TOUT,
     PATH_SERVICE,
 )
+from lib.errors import SCIONBaseError
 from lib.log import add_formatter, Rfc3339Formatter
 from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload
@@ -245,17 +246,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pmgt = cpld.union
         rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        if not self._validate_revocation(rev_info):
+
+        if rev_info in self.revocations:
+            return
+        logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
             return
         if meta.ia[0] != self.addr.isd_as[0]:
             logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
                          (meta, rev_info.short_desc()))
             return
-
-        if rev_info in self.revocations:
-            return False
         self.revocations.add(rev_info)
-        logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
         self._revs_to_zk[rev_info] = rev_info.copy().pack()  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)

@@ -222,6 +222,7 @@ class ConnectedHashTree(object):
         """
         proof = rev_info.p
         hash_func = hash_func_for_type(proof.hashType)
+        assert proof.treeTTL > 0, "proof.TreeTTL == 0"
         n_epochs = proof.treeTTL // HASHTREE_EPOCH_TIME
         # Calculate the hashes upwards till the tree root (of T).
         relative_epoch = proof.epoch % n_epochs

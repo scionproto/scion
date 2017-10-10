@@ -32,7 +32,7 @@ from lib.defines import (
     PATH_SERVICE,
     SCIOND_API_SOCKDIR,
 )
-from lib.errors import SCIONParseError, SCIONServiceLookupError
+from lib.errors import SCIONBaseError, SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
 from lib.path_seg_meta import PathSegMeta
@@ -367,10 +367,12 @@ class SCIONDaemon(SCIONElement):
         pmgt = cpld.union
         rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        if not self._validate_revocation(rev_info):
-            return SCIONDRevReplyStatus.INVALID
         logging.debug("Revocation info received: %s", rev_info)
-
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
+            return SCIONDRevReplyStatus.INVALID
         # Verify epoch information and on failure return directly
         epoch_status = ConnectedHashTree.verify_epoch(rev_info.p.epoch)
         if epoch_status == ConnectedHashTree.EPOCH_PAST:

@@ -1185,20 +1185,6 @@ class SCIONElement(object):
                 break
         return False
 
-    def _validate_revocation(self, rev_info):
-        """
-        Validates a revocation.
-
-        :param rev_info: The RevocationInfo object.
-        :returns: True, if the revocation should be processed further, False
-            otherwise.
-        """
-        if rev_info.p.ifID == 0:
-            logging.warning("Received revocation for ifID 0. Ignoring. %s" %
-                            rev_info.short_desc())
-            return False
-        return True
-
     def _build_meta(self, ia=None, host=None, path=None, port=0, reuse=False,
                     one_hop=False):
         if ia is None:
