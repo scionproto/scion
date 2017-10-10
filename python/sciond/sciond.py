@@ -497,6 +497,7 @@ class SCIONDaemon(SCIONElement):
             # Delete the request from requested_paths
             with self.req_path_lock:
                 if key in self.requested_paths:
+                    logging.debug("Removing request for: %s", key)
                     del self.requested_paths[key]
             # Check if we can fulfill the path request.
             paths = self.path_resolution(dst_ia, flags=flags)
