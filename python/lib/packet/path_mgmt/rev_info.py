@@ -22,8 +22,14 @@ import capnp  # noqa
 
 # SCION
 import proto.rev_info_capnp as P
+from lib.defines import HASHTREE_EPOCH_TIME
+from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
+
+
+class RevInfoValidationError(SCIONBaseError):
+    """Validation of RevInfo failed"""
 
 
 class RevocationInfo(Cerealizable):
@@ -63,6 +69,13 @@ class RevocationInfo(Cerealizable):
 
     def isd_as(self):
         return ISD_AS(self.p.isdas)
+
+    def validate(self):
+        if self.p.ifID == 0:
+            raise RevInfoValidationError("Invalid ifID: %d" % self.p.ifID)
+        if self.p.treeTTL == 0 or (self.p.treeTTL % HASHTREE_EPOCH_TIME != 0):
+            raise RevInfoValidationError("Invalid TreeTTL: %d" % self.p.treeTTL)
+        self.isd_as()
 
     def cmp_str(self):
         b = []
