@@ -84,6 +84,41 @@ from scion_elem.scion_elem import SCIONElement
 _FLUSH_FLAG = "FLUSH"
 
 
+class _Request:
+    """_Request stores state about path requests issued by SCIOND to the local PS."""
+    def __init__(self, req, checkf):
+        self.req = req
+        self.reply = None
+        self.checkf = checkf
+        self.done = threading.Event()
+        self.ver_tout = None
+        self.segs_to_verif = 0
+
+    def wait(self, tout):
+        return self.done.wait(tout)
+
+    def set_reply(self, reply):
+        self.reply = reply
+        self.segs_to_verif = self.reply.recs().num_segs()
+        self.ver_tout = threading.Timer(0.3, self.check)
+        self.ver_tout.start()
+
+    def verified_segment(self):
+        if self.segs_to_verif == 0:
+            return
+        self.segs_to_verif -= 1
+        if self.segs_to_verif == 0:
+            # Cancel outstanding timer if there is one.
+            if self.ver_tout:
+                self.ver_tout.cancel()
+                self.ver_tout = None
+            self.check()
+
+    def check(self):
+        if self.checkf(self.req.dst_ia(), self.req.flags()):
+            self.done.set()
+
+
 class SCIONDaemon(SCIONElement):
     """
     The SCION Daemon used for retrieving and combining paths.
@@ -147,11 +182,7 @@ class SCIONDaemon(SCIONElement):
     @classmethod
     def start(cls, conf_dir, addr, api_addr=None, run_local_api=False, port=0):
         """
-        Initializes, starts, and returns a SCIONDaemon object.
-
-        Example of usage:
-        sd = SCIONDaemon.start(conf_dir, addr)
-        paths = sd.get_paths(isd_as)
+        Initializes and starts a SCIOND instance.
         """
         inst = cls(conf_dir, addr, api_addr, run_local_api, port)
         name = "SCIONDaemon.run %s" % inst.addr.isd_as
@@ -159,7 +190,6 @@ class SCIONDaemon(SCIONElement):
             target=thread_safety_net, args=(inst.run,), name=name, daemon=True)
         inst.daemon_thread.start()
         logging.debug("sciond started with api_addr = %s", inst.api_addr)
-        return inst
 
     def _get_msg_meta(self, packet, addr, sock):
         if sock != self._udp_sock:
@@ -192,9 +222,14 @@ class SCIONDaemon(SCIONElement):
         for rev_info in recs.iter_rev_infos():
             self.peer_revs.add(rev_info)
 
+        req = path_reply.req()
+        key = req.dst_ia(), req.flags()
+        r = self.requested_paths.get(key)
+        if r:
+            r.set_reply(path_reply)
         for type_, pcb in recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
-                                   meta, type_)
+                                   meta, type_, params=(r,))
             self._process_path_seg(seg_meta)
 
     def continue_seg_processing(self, seg_meta):
@@ -211,15 +246,18 @@ class SCIONDaemon(SCIONElement):
             PST.DOWN: self._handle_down_seg,
             PST.CORE: self._handle_core_seg,
         }
-        ret = map_[type_](pcb)
-        if not ret:
-            return
-        with self.req_path_lock:
-            # .items() makes a copy on an expiring dict, so deleting entries is safe.
-            for key, e in self.requested_paths.items():
-                if self.path_resolution(*key):
-                    e.set()
-                    del self.requested_paths[key]
+        map_[type_](pcb)
+        # if not ret:
+        #     return
+        r = seg_meta.params[0]
+        if r:
+            r.verified_segment()
+        # with self.req_path_lock:
+        #     # .items() makes a copy on an expiring dict, so deleting entries is safe.
+        #     for key, e in self.requested_paths.items():
+        #         if self.path_resolution(*key):
+        #             e.set()
+        #             del self.requested_paths[key]
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
@@ -476,20 +514,34 @@ class SCIONDaemon(SCIONElement):
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
             return [empty_meta], SCIONDPathReplyError.OK
         paths = self.path_resolution(dst_ia, flags=flags)
+        error_code = SCIONDPathReplyError.OK
         if not paths:
             key = dst_ia, flags
             with self.req_path_lock:
                 if key not in self.requested_paths:
                     # No previous outstanding request
-                    self.requested_paths[key] = threading.Event()
-                    self._fetch_segments(key)
-                e = self.requested_paths[key]
-            if not e.wait(PATH_REQ_TOUT):
-                logging.error("Query timed out for %s", dst_ia)
-                return [], SCIONDPathReplyError.PS_TIMEOUT
+                    req_id = random.randint(0, 2**64 - 1)
+                    req = PathSegmentReq.from_values(
+                        req_id, self.addr.isd_as, dst_ia, flags=flags)
+                    self.requested_paths[key] = _Request(req.copy(), self.path_resolution)
+                    self._fetch_segments(req)
+                r = self.requested_paths[key]
+            # Wait until event gets set.
+            timed_out = r.wait(PATH_REQ_TOUT)
+            # Delete the request from requested_paths
+            if not timed_out:
+                with self.req_path_lock:
+                    if key in self.requested_paths:
+                        del self.requested_paths[key]
+            # Check if we can fulfill the path request.
             paths = self.path_resolution(dst_ia, flags=flags)
-        error_code = (SCIONDPathReplyError.OK if paths
-                      else SCIONDPathReplyError.NO_PATHS)
+            if not paths:
+                if timed_out:
+                    logging.error("Query timed out for %s", dst_ia)
+                    error_code = SCIONDPathReplyError.PS_TIMEOUT
+                else:
+                    logging.error("No paths found for %s", dst_ia)
+                    error_code = SCIONDPathReplyError.NO_PATHS
         return paths, error_code
 
     def path_resolution(self, dst_ia, flags=()):
@@ -648,19 +700,15 @@ class SCIONDaemon(SCIONElement):
                 count += 1
         return count
 
-    def _fetch_segments(self, key):
+    def _fetch_segments(self, req):
         """
         Called to fetch the requested path.
         """
-        dst_ia, flags = key
         try:
             addr, port = self.dns_query_topo(PATH_SERVICE)[0]
         except SCIONServiceLookupError:
             log_exception("Error querying path service:")
             return
-        req_id = random.randint(0, 2**64 - 1)
-        req = PathSegmentReq.from_values(
-            req_id, self.addr.isd_as, dst_ia, flags=flags)
         logging.debug(
             "Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
         meta = self._build_meta(host=addr, port=port)

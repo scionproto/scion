@@ -336,7 +336,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
             revs_to_add
         )
-        pld = PathSegmentReply.from_values(req.req_id(), recs)
+        pld = PathSegmentReply.from_values(req.copy(), recs)
         self.send_meta(CtrlPayload(PathMgmt(pld)), meta)
         logger.info("Sending PATH_REPLY with %d segment(s).", len(all_segs))
 

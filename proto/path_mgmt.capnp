@@ -24,7 +24,7 @@ struct SegRecs {
 }
 
 struct SegReply {
-    id @0 :UInt64;
+    req @0 :SegReq;
     recs @1 :SegRecs;
 }
 
