@@ -221,9 +221,9 @@ class ConnectedHashTree(object):
         Compute the hashes of the connected hash-tree roots given rev_info.
         """
         proof = rev_info.p
-        hash_func = hash_func_for_type(proof.hashType)
-        assert proof.treeTTL > 0, "proof.TreeTTL == 0"
+        assert proof.treeTTL > 0, "proof.TreeTTL <= 0 (%d)" % proof.treeTTL
         assert proof.treeTTL % 10 == 0, "proof.TreeTTL not multiple of 10 (%d)" % proof.treeTTL
+        hash_func = hash_func_for_type(proof.hashType)
         n_epochs = proof.treeTTL // HASHTREE_EPOCH_TIME
         # Calculate the hashes upwards till the tree root (of T).
         relative_epoch = proof.epoch % n_epochs
