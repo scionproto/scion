@@ -18,7 +18,6 @@
 # Stdlib
 import logging
 import os
-import random
 import threading
 from itertools import product
 
@@ -77,7 +76,7 @@ from lib.types import (
     ServiceType,
     TypeBase,
 )
-from lib.util import SCIONTime
+from lib.util import random_uint64, SCIONTime
 from sciond.req import RequestState
 from scion_elem.scion_elem import SCIONElement
 
@@ -478,9 +477,8 @@ class SCIONDaemon(SCIONElement):
             with self.req_path_lock:
                 if key not in self.requested_paths:
                     # No previous outstanding request
-                    req_id = random.randint(0, 2**64 - 1)
                     req = PathSegmentReq.from_values(
-                        req_id, self.addr.isd_as, dst_ia, flags=flags)
+                        random_uint64(), self.addr.isd_as, dst_ia, flags=flags)
                     self.requested_paths[key] = RequestState(req.copy(), self.path_resolution)
                     self._fetch_segments(req)
                 r = self.requested_paths[key]
