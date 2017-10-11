@@ -117,6 +117,10 @@ type RemoteInfo struct {
 	sessPath *sessPath
 }
 
+func (r *RemoteInfo) copy() *RemoteInfo {
+	return &RemoteInfo{Sig: r.Sig, sessPath: r.sessPath}
+}
+
 func (r *RemoteInfo) String() string {
 	return fmt.Sprintf("RemoteInfo Sig: %v sessPath: %s", r.Sig, r.sessPath)
 }

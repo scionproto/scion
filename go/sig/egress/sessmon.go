@@ -97,46 +97,44 @@ Top:
 }
 
 func (sm *sessMonitor) checkRemote() {
-	now := time.Now()
-	remote := sm.sess.Remote()
-	if remote == nil {
+	currRemote := sm.sess.Remote()
+	if currRemote == nil {
 		sm.Debug("No remote info")
-		remote = &RemoteInfo{}
-		sm.needUpdate = true
-	}
-	since := now.Sub(sm.lastReply)
-	if since > tout {
-		sm.Debug("Timeout", "remote", remote, "duration", since)
-		remote.Sig = sm.getNewSig(remote.Sig)
-		remote.sessPath = sm.getNewPath(remote.sessPath)
+		sm.smRemote = &RemoteInfo{}
 		sm.needUpdate = true
 	} else {
-		if remote.Sig == nil {
+		sm.smRemote = currRemote.copy()
+	}
+	since := time.Since(sm.lastReply)
+	if since > tout {
+		sm.Debug("Timeout", "remote", sm.smRemote, "duration", since)
+		sm.smRemote.Sig = sm.getNewSig(sm.smRemote.Sig)
+		sm.smRemote.sessPath = sm.getNewPath(sm.smRemote.sessPath)
+		sm.needUpdate = true
+	} else {
+		if sm.smRemote.Sig == nil {
 			// No remote SIG
-			sm.Debug("No remote SIG", "remote", remote)
-			remote.Sig = sm.getNewSig(nil)
+			sm.Debug("No remote SIG", "remote", sm.smRemote)
+			sm.smRemote.Sig = sm.getNewSig(nil)
 			sm.needUpdate = true
-		} else if _, ok := sm.sigMap[remote.Sig.Id]; !ok {
+		} else if _, ok := sm.sigMap[sm.smRemote.Sig.Id]; !ok {
 			// Current SIG is no longer listed, need to switch to a new one.
-			sm.Debug("Current SIG invalid", "remote", remote)
-			remote.Sig = sm.getNewSig(nil)
+			sm.Debug("Current SIG invalid", "remote", sm.smRemote)
+			sm.smRemote.Sig = sm.getNewSig(nil)
 			sm.needUpdate = true
 		}
 		poolPaths := sm.pool.Load()
-		if remote.sessPath == nil {
+		if sm.smRemote.sessPath == nil {
+			sm.Debug("No path", "remote", sm.smRemote)
+			sm.smRemote.sessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
-			sm.Debug("No path", "remote", remote)
-			remote.sessPath = sm.getNewPath(nil)
-			sm.needUpdate = true
-		} else if _, ok := poolPaths[remote.sessPath.key]; !ok {
+		} else if _, ok := poolPaths[sm.smRemote.sessPath.key]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
-			sm.needUpdate = true
-			sm.Debug("Current path invalid", "remote", remote)
-			remote.sessPath = sm.getNewPath(nil)
+			sm.Debug("Current path invalid", "remote", sm.smRemote)
+			sm.smRemote.sessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
 		}
 	}
-	sm.smRemote = remote
 }
 
 func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
@@ -168,7 +166,7 @@ func (sm *sessMonitor) sendReq() {
 	msgId := mgmt.MsgIdType(time.Now().UnixNano())
 	if sm.needUpdate {
 		sm.updateMsgId = msgId
-		sm.Debug("sessMonitor: trying new remote", "remote", sm.smRemote)
+		sm.Debug("sessMonitor: trying new remote", "msgId", msgId, "remote", sm.smRemote)
 	}
 	spld, err := mgmt.NewPld(msgId, mgmt.NewPollReq(sm.sess.SessId))
 	if err != nil {
@@ -207,7 +205,7 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 	if sm.needUpdate && sm.updateMsgId == rpld.Id {
 		// Only update the session's RemoteInfo if we get a response matching
 		// the last poll we sent.
-		sm.Info("sessMonitor: updating remote Info", "pld", rpld)
+		sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
 		sm.sess.currRemote.Store(sm.smRemote)
 		sm.needUpdate = false
 	}
