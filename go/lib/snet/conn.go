@@ -80,7 +80,7 @@ func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
 	if c.scionNet == nil {
 		return 0, nil, common.NewCError("SCION network not initialized")
 	}
-	n, a, err := c.read(b)
+	n, a, err := c.read(b, true)
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher error", "err", err)
 	}
@@ -94,11 +94,17 @@ func (c *Conn) ReadFrom(b []byte) (int, net.Addr, error) {
 // Read reads data into b from a connection with a fixed remote address. If the remote address
 // for the connection is unknown, Read returns an error.
 func (c *Conn) Read(b []byte) (int, error) {
-	n, _, err := c.ReadFromSCION(b)
+	if c.scionNet == nil {
+		return 0, common.NewCError("SCION network not initialized")
+	}
+	n, _, err := c.read(b, false)
+	if err != nil {
+		return 0, common.NewCError("Dispatcher error", "err", err)
+	}
 	return n, err
 }
 
-func (c *Conn) read(b []byte) (int, *Addr, error) {
+func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
 	var err error
@@ -106,6 +112,9 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 	n, lastHop, err := c.conn.ReadFrom(c.recvBuffer)
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
+	}
+	if !from {
+		lastHop = nil
 	}
 	pkt := &spkt.ScnPkt{
 		DstIA: &addr.ISD_AS{},
@@ -128,18 +137,22 @@ func (c *Conn) read(b []byte) (int, *Addr, error) {
 			return 0, nil, common.NewCError("Invalid L4 protocol",
 				"expected", c.net, "actual", pkt.L4.L4Type())
 		}
-		// Extract remote address, path, and last hop
-		path := pkt.Path
-		if err = path.Reverse(); err != nil {
-			return 0, nil, common.NewCError("Unable to reverse path on received packet", "err", err)
-		}
+		// Extract remote address
 		remote = &Addr{
-			IA:          pkt.SrcIA,
-			Host:        pkt.SrcHost,
-			L4Port:      udpHdr.SrcPort,
-			Path:        path,
-			NextHopHost: lastHop.Addr,
-			NextHopPort: lastHop.Port,
+			IA:     pkt.SrcIA,
+			Host:   pkt.SrcHost,
+			L4Port: udpHdr.SrcPort,
+		}
+		// Extract path and last hop
+		if lastHop != nil {
+			path := pkt.Path
+			if err = path.Reverse(); err != nil {
+				return 0, nil,
+					common.NewCError("Unable to reverse path on received packet", "err", err)
+			}
+			remote.Path = path
+			remote.NextHopHost = lastHop.Addr
+			remote.NextHopPort = lastHop.Port
 		}
 	}
 	return n, remote, nil
@@ -207,9 +220,9 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	}
 
 	// Prepare packet fields
-	udpHdr := &l4.UDP{SrcPort: c.laddr.L4Port,
-		DstPort:  raddr.L4Port,
-		TotalLen: uint16(l4.UDPLen + len(b))}
+	udpHdr := &l4.UDP{
+		SrcPort: c.laddr.L4Port, DstPort: raddr.L4Port, TotalLen: uint16(l4.UDPLen + len(b)),
+	}
 	pkt := &spkt.ScnPkt{
 		DstIA:   raddr.IA,
 		SrcIA:   c.laddr.IA,
@@ -217,7 +230,8 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 		SrcHost: c.laddr.Host,
 		Path:    path,
 		L4:      udpHdr,
-		Pld:     common.RawBytes(b)}
+		Pld:     common.RawBytes(b),
+	}
 
 	// Serialize packet to internal buffer
 	n, err := hpkt.WriteScnPkt(pkt, c.sendBuffer)
@@ -275,7 +289,15 @@ func (c *Conn) LocalAddr() net.Addr {
 	return c.laddr
 }
 
+func (c *Conn) LocalSnetAddr() *Addr {
+	return c.laddr
+}
+
 func (c *Conn) RemoteAddr() net.Addr {
+	return c.raddr
+}
+
+func (c *Conn) RemoteSnetAddr() *Addr {
 	return c.raddr
 }
 

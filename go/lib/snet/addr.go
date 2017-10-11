@@ -46,8 +46,30 @@ func (a *Addr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	s := fmt.Sprintf("%s,[%s]:%d Path: %s", a.IA, a.Host, a.L4Port, a.Path != nil)
+	s := fmt.Sprintf("%s,[%s]:%d", a.IA, a.Host, a.L4Port)
 	return s
+}
+
+func (a *Addr) Desc() string {
+	if a == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("%s Path: %t NextHop: [%v]:%d",
+		a, a.Path != nil, a.NextHopHost, a.NextHopPort)
+}
+
+// EqAddr compares the IA/Host/L4port values with the supplied Addr
+func (a *Addr) EqAddr(o *Addr) bool {
+	if a == nil || o == nil {
+		return a == o
+	}
+	if !a.IA.Eq(o.IA) {
+		return false
+	}
+	if !addr.HostEq(a.Host, o.Host) {
+		return false
+	}
+	return a.L4Port == o.L4Port
 }
 
 func (a *Addr) Copy() *Addr {
