@@ -100,41 +100,42 @@ func (sm *sessMonitor) checkRemote() {
 	currRemote := sm.sess.Remote()
 	if currRemote == nil {
 		sm.Debug("No remote info")
-		sm.smRemote = &RemoteInfo{}
+		currRemote = &RemoteInfo{}
 		sm.needUpdate = true
-	} else {
-		sm.smRemote = currRemote.copy()
 	}
+	currSig := currRemote.Sig
+	currSessPath := currRemote.sessPath
 	since := time.Since(sm.lastReply)
 	if since > tout {
-		sm.Debug("Timeout", "remote", sm.smRemote, "duration", since)
-		sm.smRemote.Sig = sm.getNewSig(sm.smRemote.Sig)
-		sm.smRemote.sessPath = sm.getNewPath(sm.smRemote.sessPath)
+		sm.Debug("Timeout", "remote", currRemote, "duration", since)
+		currSig = sm.getNewSig(currSig)
+		currSessPath = sm.getNewPath(currSessPath)
 		sm.needUpdate = true
 	} else {
-		if sm.smRemote.Sig == nil {
+		if currSig == nil {
 			// No remote SIG
-			sm.Debug("No remote SIG", "remote", sm.smRemote)
-			sm.smRemote.Sig = sm.getNewSig(nil)
+			sm.Debug("No remote SIG", "remote", currRemote)
+			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
-		} else if _, ok := sm.sigMap[sm.smRemote.Sig.Id]; !ok {
+		} else if _, ok := sm.sigMap[currSig.Id]; !ok {
 			// Current SIG is no longer listed, need to switch to a new one.
-			sm.Debug("Current SIG invalid", "remote", sm.smRemote)
-			sm.smRemote.Sig = sm.getNewSig(nil)
+			sm.Debug("Current SIG invalid", "remote", currRemote)
+			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
 		}
 		poolPaths := sm.pool.Load()
-		if sm.smRemote.sessPath == nil {
-			sm.Debug("No path", "remote", sm.smRemote)
-			sm.smRemote.sessPath = sm.getNewPath(nil)
+		if currSessPath == nil {
+			sm.Debug("No path", "remote", currRemote)
+			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
-		} else if _, ok := poolPaths[sm.smRemote.sessPath.key]; !ok {
+		} else if _, ok := poolPaths[currSessPath.key]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
-			sm.Debug("Current path invalid", "remote", sm.smRemote)
-			sm.smRemote.sessPath = sm.getNewPath(nil)
+			sm.Debug("Current path invalid", "remote", currRemote)
+			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
 		}
 	}
+	sm.smRemote = &RemoteInfo{Sig: currSig, sessPath: currSessPath}
 }
 
 func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
