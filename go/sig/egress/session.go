@@ -85,6 +85,7 @@ func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType, polName string,
 		prometheus.Labels{"ringId": dstIA.String(), "sessId": sessId.String()})
 	// Not using a fixed local port, as this is for outgoing data only.
 	s.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
+	go snet.PktDispatcher(s.conn, snet.DispLogger)
 	s.sessMonStop = make(chan struct{})
 	s.sessMonStopped = make(chan struct{})
 	s.workerStopped = make(chan struct{})
@@ -118,7 +119,7 @@ type RemoteInfo struct {
 }
 
 func (r *RemoteInfo) String() string {
-	return fmt.Sprintf("RemoteInfo Sig: %v sessPath: %s", r.Sig, r.sessPath)
+	return fmt.Sprintf("Sig: %s Path: %s", r.Sig, r.sessPath)
 }
 
 func connReader(conn *snet.Conn, name string) {

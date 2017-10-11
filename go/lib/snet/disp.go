@@ -47,3 +47,7 @@ func PktDispatcher(c *Conn, f DispatchFunc) {
 		f(dp)
 	}
 }
+
+func DispLogger(dp *DispPkt) {
+	log.Debug("DispLogger", "src", dp.Addr, "raw", dp.Raw)
+}

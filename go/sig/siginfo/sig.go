@@ -15,6 +15,7 @@
 package siginfo
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -107,4 +108,8 @@ func (s *Sig) ExpireFails() {
 func (s *Sig) Cleanup() error {
 	// Nothing to do, currently.
 	return nil
+}
+
+func (s *Sig) String() string {
+	return fmt.Sprintf("%s,[%s]:%d:%d", s.IA, s.Host, s.CtrlL4Port, s.EncapL4Port)
 }

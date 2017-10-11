@@ -23,6 +23,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/sig/disp"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
@@ -185,7 +186,11 @@ func (sm *sessMonitor) sendReq() {
 		sm.Error("sessMonitor: Error packing Ctrl payload", "err", err)
 		return
 	}
-	_, err = sm.sess.conn.WriteToSCION(raw, sm.smRemote.Sig.CtrlSnetAddr())
+	raddr := sm.smRemote.Sig.CtrlSnetAddr()
+	raddr.Path = spath.New(sm.smRemote.sessPath.pathEntry.Path.FwdPath)
+	raddr.NextHopHost = sm.smRemote.sessPath.pathEntry.HostInfo.Host()
+	raddr.NextHopPort = sm.smRemote.sessPath.pathEntry.HostInfo.Port
+	_, err = sm.sess.conn.WriteToSCION(raw, raddr)
 	if err != nil {
 		sm.Error("sessMonitor: Error sending Ctrl payload", "err", err)
 	}

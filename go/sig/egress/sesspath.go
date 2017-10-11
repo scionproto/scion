@@ -19,7 +19,7 @@ import (
 	"math"
 	"time"
 
-	//log "github.com/inconshreveable/log15"
+	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
@@ -97,5 +97,6 @@ func (sp *sessPath) expireFails() {
 }
 
 func (sp *sessPath) String() string {
-	return fmt.Sprintf("SessPath key: %s path: %s", sp.key, sp.pathEntry.Path)
+	return fmt.Sprintf("Key: %s %s lastFail: %s failCount: %d", sp.key,
+		sp.pathEntry.Path, sp.lastFail, sp.failCount)
 }
