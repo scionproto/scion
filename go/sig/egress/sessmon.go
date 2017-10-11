@@ -97,14 +97,15 @@ Top:
 }
 
 func (sm *sessMonitor) checkRemote() {
-	currRemote := sm.sess.Remote()
+	currRemote := sm.smRemote
+	var currSig *siginfo.Sig
+	var currSessPath *sessPath
 	if currRemote == nil {
-		sm.Debug("No remote info")
-		currRemote = &RemoteInfo{}
 		sm.needUpdate = true
+	} else {
+		currSig = currRemote.Sig
+		currSessPath = currRemote.sessPath
 	}
-	currSig := currRemote.Sig
-	currSessPath := currRemote.sessPath
 	since := time.Since(sm.lastReply)
 	if since > tout {
 		sm.Debug("Timeout", "remote", currRemote, "duration", since)
