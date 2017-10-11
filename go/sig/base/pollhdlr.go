@@ -20,7 +20,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/disp"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
@@ -30,8 +29,6 @@ func PollReqHdlr() {
 	defer liblog.LogPanicAndExit()
 	log.Info("PollReqHdlr: starting")
 	for rpld := range disp.PollReqC {
-		// FIXME(kormat): poll replies _should_ go back over the path the requests arrived on,
-		// but snet doesn't support this yet. https://github.com/netsec-ethz/scion/issues/1277
 		req, ok := rpld.P.(*mgmt.PollReq)
 		if !ok {
 			log.Error("PollReqHdlr: non-SIGPollReq payload received",
@@ -55,11 +52,9 @@ func PollReqHdlr() {
 			break
 		}
 		// The default is to just reply with the local SIG's address.
-		sigCtrlAddr := &snet.Addr{IA: rpld.Addr.IA, Host: req.Addr.Ctrl.Host(),
-			L4Port: req.Addr.Ctrl.Port}
-		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
+		_, err = sigcmn.CtrlConn.WriteToSCION(raw, rpld.Addr)
 		if err != nil {
-			log.Error("PollReqHdlr: Error sending Ctrl payload", "err", err, "desc", sigCtrlAddr)
+			log.Error("PollReqHdlr: Error sending Ctrl payload", "err", err, "desc", rpld.Addr)
 		}
 	}
 	log.Info("PollReqHdlr: stopped")
