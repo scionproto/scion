@@ -47,7 +47,7 @@ jobs:
 
     build:
         docker:
-            - image: ethznetsec/scion_base@sha256:10847e43692e21f67e08e1f0bbb1fe4361f276ae97986b48899ff7e1ed357235
+            - image: ethznetsec/scion_base@sha256:676afd17f1b15f3113d72beea1866ac6c468ebd89c658b5b969b0481a183c9dc
         <<: *job
         steps:
             - checkout
