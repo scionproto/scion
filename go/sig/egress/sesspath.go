@@ -19,7 +19,7 @@ import (
 	"math"
 	"time"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/sciond"

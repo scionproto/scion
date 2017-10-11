@@ -23,15 +23,15 @@
 package ifstate
 
 import (
-	"fmt"
+	//"fmt"
 	"sync"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/metrics"
+	//"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/proto"
+	//"github.com/netsec-ethz/scion/go/proto"
 )
 
 func init() {
@@ -60,36 +60,38 @@ var S *States
 func Process(ifStates *path_mgmt.IFStateInfos) {
 	// Convert IFState infos to map
 	m := make(map[common.IFIDType]State, len(ifStates.Infos))
-	for _, info := range ifStates.Infos {
-		var rawRev common.RawBytes
-		ifid := common.IFIDType(info.IfID)
-		if info.RevInfo != nil {
-			var err error
-			rawRev, err = proto.PackRoot(info.RevInfo)
-			if err != nil {
-				cerr := err.(*common.CError)
-				log.Error("Unable to pack RevInfo", cerr.Ctx...)
-				return
+	/*
+		for _, info := range ifStates.Infos {
+			var rawRev common.RawBytes
+			ifid := common.IFIDType(info.IfID)
+			if info.RevInfo != nil {
+				var err error
+				rawRev, err = proto.PackRoot(info.RevInfo)
+				if err != nil {
+					cerr := err.(*common.CError)
+					log.Error("Unable to pack RevInfo", cerr.Ctx...)
+					return
+				}
+			}
+			m[ifid] = State{Info: info, RawRev: rawRev}
+			gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
+			oldState, ok := S.M[ifid]
+			if !ok {
+				log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
+			}
+			if info.Active {
+				if ok && !oldState.Info.Active {
+					log.Info("IFState: intf activated", "ifid", ifid)
+				}
+				gauge.Set(1)
+			} else {
+				if ok && oldState.Info.Active {
+					log.Info("IFState: intf deactivated", "ifid", ifid)
+				}
+				gauge.Set(0)
 			}
 		}
-		m[ifid] = State{Info: info, RawRev: rawRev}
-		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
-		oldState, ok := S.M[ifid]
-		if !ok {
-			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
-		}
-		if info.Active {
-			if ok && !oldState.Info.Active {
-				log.Info("IFState: intf activated", "ifid", ifid)
-			}
-			gauge.Set(1)
-		} else {
-			if ok && oldState.Info.Active {
-				log.Info("IFState: intf deactivated", "ifid", ifid)
-			}
-			gauge.Set(0)
-		}
-	}
+	*/
 	// Lock IFState config for writing, and replace existing map
 	S.Lock()
 	S.M = m
