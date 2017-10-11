@@ -58,7 +58,6 @@ from lib.errors import (
 )
 from lib.log import log_exception
 from lib.msg_meta import (
-    MetadataBase,
     SCMPMetadata,
     SockOnlyMetadata,
     TCPMetadata,
@@ -858,7 +857,6 @@ class SCIONElement(object):
         return self._udp_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, msg, meta, next_hop_port=None):
-        assert isinstance(meta, MetadataBase), type(meta)
         if isinstance(meta, TCPMetadata):
             assert not next_hop_port, next_hop_port
             return self._send_meta_tcp(msg, meta)
