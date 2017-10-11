@@ -86,10 +86,6 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
         return "\n".join(s)
 
 
-class PathRecordsReply(PathSegmentRecords):
-    NAME = "PathRecordsReply"
-
-
 class PathRecordsReg(PathSegmentRecords):
     NAME = "PathRecordsReg"
 

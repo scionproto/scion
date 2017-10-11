@@ -48,12 +48,6 @@ func (s *SegRecs) String() string {
 	return strings.Join(desc, "\n")
 }
 
-var _ proto.Cerealizable = (*SegReply)(nil)
-
-type SegReply struct {
-	*SegRecs
-}
-
 var _ proto.Cerealizable = (*SegReg)(nil)
 
 type SegReg struct {
