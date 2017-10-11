@@ -22,26 +22,28 @@ import (
 )
 
 type DispPkt struct {
-	B    common.RawBytes
+	Raw  common.RawBytes
 	Addr *Addr
 }
 
 type DispatchFunc func(*DispPkt)
 
-// XXX(kormat): N.B. the DispPkt is reused, applications should make a copy if this is a problem.
+// PktDispatcher listens on c, and calls f for every packet read.
+// N.B. the DispPkt passed to f is reused, so applications should make a copy if
+// this is a problem.
 func PktDispatcher(c *Conn, f DispatchFunc) {
 	defer liblog.LogPanicAndExit()
 	var err error
 	var l int
-	dp := &DispPkt{B: make(common.RawBytes, common.MaxMTU)}
+	dp := &DispPkt{Raw: make(common.RawBytes, common.MaxMTU)}
 	for {
-		dp.B = dp.B[:cap(dp.B)]
-		l, dp.Addr, err = c.ReadFromSCION(dp.B)
+		dp.Raw = dp.Raw[:cap(dp.Raw)]
+		l, dp.Addr, err = c.ReadFromSCION(dp.Raw)
 		if err != nil {
 			log.Error("PktDispatcher: Error reading from connection", "err", err)
 			break
 		}
-		dp.B = dp.B[:l]
+		dp.Raw = dp.Raw[:l]
 		f(dp)
 	}
 }

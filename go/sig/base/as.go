@@ -33,7 +33,7 @@ import (
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
 
-const sigMgrTick = time.Second
+const sigMgrTick = 10 * time.Second
 
 // ASEntry contains all of the information required to interact with a remote AS.
 type ASEntry struct {

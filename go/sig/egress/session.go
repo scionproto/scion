@@ -56,9 +56,10 @@ type Session struct {
 	// FIXME(kormat): not implemented yet :P contstrains what interfaces to route through.
 	policy interface{}
 	// pool of paths that meet the policy requirement, managed by pathmgr
-	pool    *pathmgr.SyncPaths
+	pool *pathmgr.SyncPaths
+	// function pointer to return SigMap from parent ASEntry.
 	sigMapF func() siginfo.SigMap
-	// *RemoteInfo -
+	// *RemoteInfo
 	currRemote     atomic.Value
 	ring           *ringbuf.Ring
 	conn           *snet.Conn
@@ -92,7 +93,7 @@ func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType, polName string,
 
 func (s *Session) Start() {
 	go newSessMonitor(s).run()
-	go NewEgressWorker(s).Run()
+	go NewWorker(s).Run()
 	go connReader(s.conn, "session")
 }
 

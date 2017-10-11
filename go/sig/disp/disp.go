@@ -127,7 +127,7 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 }
 
 func dispFunc(dp *snet.DispPkt) {
-	cpld, err := ctrl.NewPldFromRaw(dp.B)
+	cpld, err := ctrl.NewPldFromRaw(dp.Raw)
 	if err != nil {
 		log.Error("Unable to parse ctrl payload", "err", err, "src", dp.Addr)
 		return

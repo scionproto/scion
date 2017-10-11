@@ -33,17 +33,32 @@ const (
 	tout    = 1 * time.Second
 )
 
+// sessMonitor is responsible for monitoring a session, polling remote SIGs, and switching
+// remote SIGs and paths as needed.
 type sessMonitor struct {
 	log.Logger
-	sess     *Session
-	sigMap   siginfo.SigMap
-	pool     *pathmgr.SyncPaths
+	// the Session this instance is monitoring.
+	sess *Session
+	// the current map of SIGs for the remote AS
+	sigMap siginfo.SigMap
+	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
+	pool *pathmgr.SyncPaths
+	// the pool of paths this session is currently using, frequently refreshed from pool.
 	sessPool sessPathPool
-	// Used for sending polls
-	smRemote    *RemoteInfo
-	needUpdate  bool
+	// the remote Info (remote SIG, and path) used for sending polls. This
+	// differs from the parent session's remote info when the session monitor
+	// is polling a new SIG or over a new path, and is waiting for a response.
+	smRemote *RemoteInfo
+	// this flag is set whenever sessMonitor is trying to switch SIGs/paths.
+	// When a successful response is received, this flag will cause the
+	// sessions remoteInfo to be updated from smRemote.
+	needUpdate bool
+	// when sessMonitor is trying to switch SIGs/paths, this is the id of the
+	// last PollReq sent, so that sessMonitor can correlate replies to the
+	// remoteInfo used for the request.
 	updateMsgId mgmt.MsgIdType
-	lastReply   time.Time
+	// the last time a PollRep was received.
+	lastReply time.Time
 }
 
 func newSessMonitor(sess *Session) *sessMonitor {
@@ -63,11 +78,11 @@ func (sm *sessMonitor) run() {
 	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA, sm.sess.SessId), regc)
 	sm.lastReply = time.Now()
 	sm.Info("sessMonitor: starting")
+	defer sm.Info("sessMonitor: stopped")
 Top:
 	for {
 		select {
 		case <-sm.sess.sessMonStop:
-			sm.Info("sessMonitor: stopping")
 			break Top
 		case <-reqTick.C:
 			// Update paths and sigs
@@ -79,7 +94,6 @@ Top:
 			sm.handleRep(rpld)
 		}
 	}
-	sm.Info("sessMonitor: stopped")
 }
 
 func (sm *sessMonitor) checkRemote() {
@@ -93,39 +107,39 @@ func (sm *sessMonitor) checkRemote() {
 	since := now.Sub(sm.lastReply)
 	if since > tout {
 		sm.Debug("Timeout", "remote", remote, "duration", since)
-		remote.Sig = sm.updateSig(remote.Sig)
-		remote.sessPath = sm.updatePath(remote.sessPath)
+		remote.Sig = sm.getNewSig(remote.Sig)
+		remote.sessPath = sm.getNewPath(remote.sessPath)
 		sm.needUpdate = true
 	} else {
 		if remote.Sig == nil {
 			// No remote SIG
 			sm.Debug("No remote SIG", "remote", remote)
-			remote.Sig = sm.updateSig(nil)
+			remote.Sig = sm.getNewSig(nil)
 			sm.needUpdate = true
 		} else if _, ok := sm.sigMap[remote.Sig.Id]; !ok {
 			// Current SIG is no longer listed, need to switch to a new one.
 			sm.Debug("Current SIG invalid", "remote", remote)
-			remote.Sig = sm.updateSig(nil)
+			remote.Sig = sm.getNewSig(nil)
 			sm.needUpdate = true
 		}
 		poolPaths := sm.pool.Load()
 		if remote.sessPath == nil {
 			sm.needUpdate = true
 			sm.Debug("No path", "remote", remote)
-			remote.sessPath = sm.updatePath(nil)
+			remote.sessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
 		} else if _, ok := poolPaths[remote.sessPath.key]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
 			sm.needUpdate = true
 			sm.Debug("Current path invalid", "remote", remote)
-			remote.sessPath = sm.updatePath(nil)
+			remote.sessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
 		}
 	}
 	sm.smRemote = remote
 }
 
-func (sm *sessMonitor) updateSig(old *siginfo.Sig) *siginfo.Sig {
+func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
 	if old != nil {
 		// Try to get a different SIG, if possible.
 		if sig := sm.sigMap.GetSig(old.Id); sig != nil {
@@ -136,7 +150,7 @@ func (sm *sessMonitor) updateSig(old *siginfo.Sig) *siginfo.Sig {
 	return sm.sigMap.GetSig("")
 }
 
-func (sm *sessMonitor) updatePath(old *sessPath) *sessPath {
+func (sm *sessMonitor) getNewPath(old *sessPath) *sessPath {
 	if old != nil {
 		// Try to get a different path, if possible.
 		if sp := sm.sessPool.get(old.key); sp != nil {

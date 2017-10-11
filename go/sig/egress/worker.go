@@ -54,7 +54,7 @@ const (
 
 type worker struct {
 	iaString string
-	pp       *Session
+	sess     *Session
 	currSig  *siginfo.Sig
 	currPath *sciond.PathReplyEntry
 
@@ -63,12 +63,12 @@ type worker struct {
 	pkts  ringbuf.EntryList
 }
 
-func NewEgressWorker(pol *Session) *worker {
-	return &worker{iaString: pol.IA.String(), pp: pol,
+func NewWorker(sess *Session) *worker {
+	return &worker{iaString: sess.IA.String(), sess: sess,
 		pkts: make(ringbuf.EntryList, 0, egressBufPkts)}
 }
 
-func (e *worker) Run() {
+func (w *worker) Run() {
 	defer liblog.LogPanicAndExit()
 	f := newFrame()
 
@@ -76,38 +76,38 @@ TopLoop:
 	for {
 		// If the frame is empty, block indefinitely for more packets.
 		fEmpty := f.offset == sigcmn.SIGHdrSize
-		if !e.Read(fEmpty) {
+		if !w.Read(fEmpty) {
 			break TopLoop
 		}
 		if fEmpty {
 			// Cover the case where no packets have arrived in a while, and the
 			// current path is stale.
-			e.resetFrame(f)
-		} else if len(e.pkts) == 0 {
+			w.resetFrame(f)
+		} else if len(w.pkts) == 0 {
 			// Didn't read any new packets, send partial frame.
-			if err := e.Write(f); err != nil {
+			if err := w.Write(f); err != nil {
 				log.Error("Error sending frame", "err", err)
 			}
 			continue TopLoop
 		}
 		// Process buffered packets.
-		for i := range e.pkts {
-			pkt := e.pkts[i].(common.RawBytes)
-			if err := e.processPkt(f, pkt); err != nil {
+		for i := range w.pkts {
+			pkt := w.pkts[i].(common.RawBytes)
+			if err := w.processPkt(f, pkt); err != nil {
 				log.Error("Error sending frame", "err", err)
 			}
 		}
 		// Return processed pkts to the free pool, and remove references.
-		egressFreePkts.Write(e.pkts, true)
-		for i := range e.pkts {
-			e.pkts[i] = nil
+		egressFreePkts.Write(w.pkts, true)
+		for i := range w.pkts {
+			w.pkts[i] = nil
 		}
 	}
-	log.Info("EgressWorker: stopping", "ia", e.iaString)
-	close(e.pp.workerStopped)
+	log.Info("EgressWorker: stopping", "ia", w.iaString)
+	close(w.sess.workerStopped)
 }
 
-func (e *worker) processPkt(f *frame, pkt common.RawBytes) error {
+func (w *worker) processPkt(f *frame, pkt common.RawBytes) error {
 	f.startPkt(uint16(len(pkt)))
 	pktOff := 0
 	// Write chunks of the packet to frames, sending off frames as they fill up.
@@ -115,7 +115,7 @@ func (e *worker) processPkt(f *frame, pkt common.RawBytes) error {
 		pktOff += f.readFrom(pkt[pktOff:])
 		if f.isFull() {
 			// There's no point in trying to fit another packet into this frame.
-			if err := e.Write(f); err != nil {
+			if err := w.Write(f); err != nil {
 				// Skip the rest of this packet.
 				return err
 			}
@@ -129,60 +129,60 @@ func (e *worker) processPkt(f *frame, pkt common.RawBytes) error {
 }
 
 // Return false if the ringbuf is closed.
-func (e *worker) Read(block bool) bool {
-	e.pkts = e.pkts[:cap(e.pkts)]
-	n, _ := e.pp.ring.Read(e.pkts, block)
+func (w *worker) Read(block bool) bool {
+	w.pkts = w.pkts[:cap(w.pkts)]
+	n, _ := w.sess.ring.Read(w.pkts, block)
 	if n < 0 {
 		return false
 	}
-	e.pkts = e.pkts[:n]
+	w.pkts = w.pkts[:n]
 	// FIXME(kormat): add worker read metrics here.
 	return true
 }
 
-func (e *worker) Write(f *frame) error {
+func (w *worker) Write(f *frame) error {
 	// TODO(kormat): consider looking for an updated path here, and switching
 	// to it if the mtu isn't smaller than the current one.
-	defer e.resetFrame(f)
-	if e.currPath == nil {
+	defer w.resetFrame(f)
+	if w.currPath == nil {
 		// FIXME(kormat): add some metrics to track this.
 		return nil
 	}
-	if e.currSig == nil {
+	if w.currSig == nil {
 		// FIXME(kormat): add some metrics to track this.
 		return nil
 	}
-	snetAddr := e.currSig.EncapSnetAddr()
-	snetAddr.PathEntry = e.currPath
+	snetAddr := w.currSig.EncapSnetAddr()
+	snetAddr.PathEntry = w.currPath
 
-	if e.seq == 0 {
-		e.epoch = uint16(time.Now().Unix() & 0xFFFF)
+	if w.seq == 0 {
+		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
 	// FIXME(kormat): use ppinfo.Session here.
-	f.writeHdr(e.epoch, e.seq)
+	f.writeHdr(w.epoch, w.seq)
 	//log.Debug("EgressWorker.Write", "len", f.offset, "epoch", e.epoch,
 	// "seq", e.seq, "index", f.idx, "raw", f.raw())
 	// Update metadata
-	e.seq += 1
-	bytesWritten, err := e.pp.conn.WriteToSCION(f.raw(), snetAddr)
+	w.seq += 1
+	bytesWritten, err := w.sess.conn.WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewCError("Egress write error", "err", err)
 	}
-	metrics.FramesSent.WithLabelValues(e.iaString).Inc()
-	metrics.FrameBytesSent.WithLabelValues(e.iaString).Add(float64(bytesWritten))
+	metrics.FramesSent.WithLabelValues(w.iaString).Inc()
+	metrics.FrameBytesSent.WithLabelValues(w.iaString).Add(float64(bytesWritten))
 	return nil
 }
 
-func (e *worker) resetFrame(f *frame) {
+func (w *worker) resetFrame(f *frame) {
 	var mtu uint16 = common.MinMTU
-	remote := e.pp.Remote()
+	remote := w.sess.Remote()
 	if remote != nil {
-		e.currSig = remote.Sig
+		w.currSig = remote.Sig
 		if remote.sessPath != nil {
-			e.currPath = remote.sessPath.pathEntry
+			w.currPath = remote.sessPath.pathEntry
 		}
-		if e.currPath != nil {
-			mtu = e.currPath.Path.Mtu
+		if w.currPath != nil {
+			mtu = w.currPath.Path.Mtu
 		}
 	}
 	// FIXME(kormat): to do this properly, need to calculate the address header size,

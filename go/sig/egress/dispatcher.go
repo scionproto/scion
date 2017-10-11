@@ -43,14 +43,14 @@ func Init() {
 }
 
 type egressDispatcher struct {
-	devName string
-	devIO   io.ReadWriteCloser
-	spp     *SyncSession
+	devName  string
+	devIO    io.ReadWriteCloser
+	syncSess *SyncSession
 }
 
 func NewDispatcher(devName string, devIO io.ReadWriteCloser,
-	spp *SyncSession) *egressDispatcher {
-	return &egressDispatcher{devName: devName, devIO: devIO, spp: spp}
+	syncSess *SyncSession) *egressDispatcher {
+	return &egressDispatcher{devName: devName, devIO: devIO, syncSess: syncSess}
 }
 
 func (ed *egressDispatcher) Run() {
@@ -58,9 +58,8 @@ func (ed *egressDispatcher) Run() {
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
-	pps := ed.spp.Load()
-	var pp *Session
-	for _, pp = range pps {
+	var sess *Session
+	for _, sess = range ed.syncSess.Load() {
 		break
 	}
 	for {
@@ -79,7 +78,7 @@ func (ed *egressDispatcher) Run() {
 				continue
 			}
 			buf = buf[:length]
-			pp.ring.Write(ringbuf.EntryList{buf}, true)
+			sess.ring.Write(ringbuf.EntryList{buf}, true)
 			pktsRecv.Inc()
 			pktBytesRecv.Add(float64(length))
 		}
