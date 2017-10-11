@@ -31,6 +31,7 @@ class RequestState:  # pragma: no cover
         self._segs_to_verify = 0
         self._wait = True
         self._timed_out = False
+        self._lock = threading.Lock()
         self._timer = threading.Timer(_WAIT_TIME, self._first_timer_fired)
         self._timer.start()
 
@@ -38,8 +39,9 @@ class RequestState:  # pragma: no cover
         self._e.wait()
 
     def set_reply(self, reply):
-        self.reply = reply
-        self._segs_to_verify = self.reply.recs().num_segs()
+        with self._lock:
+            self.reply = reply
+            self._segs_to_verify = self.reply.recs().num_segs()
 
     def verified_segment(self):
         """
@@ -47,18 +49,41 @@ class RequestState:  # pragma: no cover
         Immediately try to fulfill a request if self._wait is False. Otherwise,
         wait for more verifications.
         """
-        if self._segs_to_verify == 0:
-            return
-        self._segs_to_verify -= 1
-        if not self._wait:
-            self._check()
-            return
-        # If we have verified all received path segments we can wake up all waiters.
-        if self._segs_to_verify == 0:
-            self._done()
+        with self._lock:
+            if self._segs_to_verify == 0:
+                return
+            self._segs_to_verify -= 1
+            if not self._wait:
+                self._check()
+                return
+            # If we have verified all received path segments we can wake up all waiters.
+            if self._segs_to_verify == 0:
+                self._done()
 
     def timed_out(self):
-        return self._timed_out
+        with self._lock:
+            return self._timed_out
+
+    def _first_timer_fired(self):
+        """
+        Gets called when the first timer fired. From now on we try to immediately
+        fulfill requests as new path segments get verified.
+        """
+        with self._lock:
+            self._wait = False
+            if not self._check():
+                self._timer = threading.Timer(PATH_REQ_TOUT - _WAIT_TIME, self._second_timer_fired)
+                self._timer.start()
+
+    def _second_timer_fired(self):
+        """
+        Gets called when the second timer fired. Wake up all waiters and do not
+        bother waiting any longer for a reply or verifications.
+        """
+        with self._lock:
+            self._timed_out = True
+            self._timer = None
+            self._done()
 
     def _check(self):
         """Checks if a request can be fulfilled."""
@@ -66,25 +91,6 @@ class RequestState:  # pragma: no cover
             self._done()
             return True
         return False
-
-    def _first_timer_fired(self):
-        """
-        Gets called when the first timer fired. From now on we try to immediately
-        fulfill requests as new path segments get verified.
-        """
-        self._wait = False
-        if not self._check():
-            self._timer = threading.Timer(PATH_REQ_TOUT - _WAIT_TIME, self._second_timer_fired)
-            self._timer.start()
-
-    def _second_timer_fired(self):
-        """
-        Gets called when the second timer fired. Wake up all waiters and do not
-        bother waiting any longer for a reply or verifications.
-        """
-        self._timed_out = True
-        self._timer = None
-        self._done()
 
     def _done(self):
         """Wake up all waiters."""
