@@ -20,6 +20,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/disp"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
@@ -51,8 +52,12 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error packing Ctrl payload", "err", err)
 			break
 		}
-		// The default is to just reply with the local SIG's address.
-		_, err = sigcmn.CtrlConn.WriteToSCION(raw, rpld.Addr)
+		sigCtrlAddr := &snet.Addr{
+			IA: rpld.Addr.IA, Host: req.Addr.Ctrl.Host(), L4Port: req.Addr.Ctrl.Port,
+			Path: rpld.Addr.Path, NextHopHost: rpld.Addr.NextHopHost,
+			NextHopPort: rpld.Addr.NextHopPort,
+		}
+		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
 		if err != nil {
 			log.Error("PollReqHdlr: Error sending Ctrl payload", "err", err, "desc", rpld.Addr)
 		}
