@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import os
+import random
 import threading
 from itertools import product
 
@@ -40,8 +41,7 @@ from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.packet.path_mgmt.seg_req import PathSegmentReq
-from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
+from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
@@ -97,13 +97,19 @@ class SCIONDaemon(SCIONElement):
         """
         Initialize an instance of the class SCIONDaemon.
         """
-        super().__init__("sciond", conf_dir, prom_export=prom_export, public=[(addr, port)])
+        super().__init__("sciond", conf_dir,
+                         prom_export=prom_export, public=[(addr, port)])
         up_labels = {**self._labels, "type": "up"} if self._labels else None
-        down_labels = {**self._labels, "type": "down"} if self._labels else None
-        core_labels = {**self._labels, "type": "core"} if self._labels else None
-        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=up_labels)
-        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=down_labels)
-        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=core_labels)
+        down_labels = {**self._labels,
+                       "type": "down"} if self._labels else None
+        core_labels = {**self._labels,
+                       "type": "core"} if self._labels else None
+        self.up_segments = PathSegmentDB(
+            segment_ttl=self.SEGMENT_TTL, labels=up_labels)
+        self.down_segments = PathSegmentDB(
+            segment_ttl=self.SEGMENT_TTL, labels=down_labels)
+        self.core_segments = PathSegmentDB(
+            segment_ttl=self.SEGMENT_TTL, labels=core_labels)
         self.peer_revs = RevCache()
         # Keep track of requested paths.
         self.requested_paths = ExpiringDict(self.MAX_REQS, PATH_REQ_TOUT)
@@ -134,7 +140,8 @@ class SCIONDaemon(SCIONElement):
         }
 
         if run_local_api:
-            self._api_sock = ReliableSocket(bind_unix=(self.api_addr, "sciond"))
+            self._api_sock = ReliableSocket(
+                bind_unix=(self.api_addr, "sciond"))
             self._socks.add(self._api_sock, self.handle_accept)
 
     @classmethod
@@ -180,11 +187,12 @@ class SCIONDaemon(SCIONElement):
         """
         pmgt = cpld.union
         path_reply = pmgt.union
-        assert isinstance(path_reply, PathSegmentRecords), type(path_reply)
-        for rev_info in path_reply.iter_rev_infos():
+        assert isinstance(path_reply, PathSegmentReply), type(path_reply)
+        recs = path_reply.recs()
+        for rev_info in recs.iter_rev_infos():
             self.peer_revs.add(rev_info)
 
-        for type_, pcb in path_reply.iter_pcbs():
+        for type_, pcb in recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                    meta, type_)
             self._process_path_seg(seg_meta)
@@ -279,8 +287,7 @@ class SCIONDaemon(SCIONElement):
         paths, error = self.get_paths(dst_ia, flush=request.p.flags.flush)
         if request.p.maxPaths:
             paths = paths[:request.p.maxPaths]
-        logging.debug("Replying to api request for %s with %d paths",
-                      dst_ia, len(paths))
+
         reply_entries = []
         for path_meta in paths:
             fwd_if = path_meta.fwd_path().get_fwd_if()
@@ -295,10 +302,13 @@ class SCIONDaemon(SCIONElement):
             reply_entry = SCIONDPathReplyEntry.from_values(
                 path_meta, first_hop)
             reply_entries.append(reply_entry)
+        logging.debug("Replying to api request for %s with %d paths:\n%s",
+                      dst_ia, len(paths), "\n".join([p.short_desc() for p in paths]))
         self._send_path_reply(req_id, reply_entries, error, meta)
 
     def _send_path_reply(self, req_id, reply_entries, error, meta):
-        path_reply = SCIONDMsg(SCIONDPathReply.from_values(reply_entries, error), req_id)
+        path_reply = SCIONDMsg(SCIONDPathReply.from_values(
+            reply_entries, error), req_id)
         self.send_meta(path_reply.pack(), meta)
 
     def _api_handle_as_request(self, pld, meta):
@@ -311,7 +321,8 @@ class SCIONDaemon(SCIONElement):
         else:
             reply_entry = SCIONDASInfoReplyEntry.from_values(
                 self.addr.isd_as, self.is_core_as(), self.topology.mtu)
-        as_reply = SCIONDMsg(SCIONDASInfoReply.from_values([reply_entry]), pld.id)
+        as_reply = SCIONDMsg(
+            SCIONDASInfoReply.from_values([reply_entry]), pld.id)
         self.send_meta(as_reply.pack(), meta)
 
     def _api_handle_if_request(self, pld, meta):
@@ -349,13 +360,15 @@ class SCIONDaemon(SCIONElement):
                 reply_entry = SCIONDServiceInfoReplyEntry.from_values(
                     svc_type, host_infos)
                 svc_entries.append(reply_entry)
-        svc_reply = SCIONDMsg(SCIONDServiceInfoReply.from_values(svc_entries), pld.id)
+        svc_reply = SCIONDMsg(
+            SCIONDServiceInfoReply.from_values(svc_entries), pld.id)
         self.send_meta(svc_reply.pack(), meta)
 
     def _api_handle_rev_notification(self, pld, meta):
         request = pld.union
         assert isinstance(request, SCIONDRevNotification), type(request)
-        status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
+        status = self.handle_revocation(
+            CtrlPayload(PathMgmt(request.rev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
         self.send_meta(rev_reply.pack(), meta)
 
@@ -367,7 +380,7 @@ class SCIONDaemon(SCIONElement):
         pmgt = cpld.union
         rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        logging.debug("Revocation info received: %s", rev_info)
+        logging.debug("Revocation info received: %s", rev_info.short_desc())
         try:
             rev_info.validate()
         except SCIONBaseError as e:
@@ -437,7 +450,8 @@ class SCIONDaemon(SCIONElement):
         for segment in db(full=True):
             for asm in segment.iter_asms():
                 if self._verify_revocation_for_asm(rev_info, asm):
-                    logging.debug("Removing segment: %s" % segment.short_desc())
+                    logging.debug("Removing segment: %s" %
+                                  segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
 
@@ -504,7 +518,7 @@ class SCIONDaemon(SCIONElement):
         res = set()
         for cseg in self.core_segments(last_ia=self.addr.isd_as, sibra=sibra,
                                        **dst_ia.params()):
-                res.add((None, cseg, None))
+            res.add((None, cseg, None))
         if sibra:
             return res
         return tuples_to_full_paths(res)
@@ -515,7 +529,7 @@ class SCIONDaemon(SCIONElement):
         # First check whether there is a direct path.
         for dseg in self.down_segments(
                 first_ia=self.addr.isd_as, last_ia=dst_ia, sibra=sibra):
-                res.add((None, None, dseg))
+            res.add((None, None, dseg))
         # Check core-down combination.
         for dseg in self.down_segments(last_ia=dst_ia, sibra=sibra):
             dseg_ia = dseg.first_ia()
@@ -644,8 +658,11 @@ class SCIONDaemon(SCIONElement):
         except SCIONServiceLookupError:
             log_exception("Error querying path service:")
             return
-        req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
-        logging.debug("Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
+        req_id = random.randint(0, 2**64 - 1)
+        req = PathSegmentReq.from_values(
+            req_id, self.addr.isd_as, dst_ia, flags=flags)
+        logging.debug(
+            "Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
         meta = self._build_meta(host=addr, port=port)
         self.send_meta(CtrlPayload(PathMgmt(req)), meta)
 
