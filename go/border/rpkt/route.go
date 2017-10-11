@@ -158,7 +158,11 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
+	// FIXME(kormat): this needs to be cleaner, as it won't work with
+	// extensions that replace the path header.
+	var onLastSeg = rp.CmnHdr.InfoFOffBytes()+int(rp.infoF.Hops+1)*common.LineLen ==
+		rp.CmnHdr.HdrLenBytes()
+	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
 		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
 			return HookError, common.NewCError("BUG: Delivery forbidden for Forward-only HopF",

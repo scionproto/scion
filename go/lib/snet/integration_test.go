@@ -86,7 +86,7 @@ func TestIntegration(t *testing.T) {
 }
 
 func ClientServer(idx int, tc TestCase) {
-	Convey(fmt.Sprintf("Test %v: (%v,%v,%v):%v <-> (%v,%v,%v):%v", idx, tc.srcIA.I,
+	Convey(fmt.Sprintf("Test %v: (%v-%v,%v):%v <-> (%v-%v,%v):%v", idx, tc.srcIA.I,
 		tc.srcIA.A, tc.srcLocal, tc.srcPort, tc.dstIA.I, tc.dstIA.A, tc.dstLocal,
 		tc.dstPort), func(c C) {
 		b := make([]byte, 128)
@@ -120,12 +120,12 @@ func ClientServer(idx int, tc TestCase) {
 		SoMsg("Client write error", err, ShouldBeNil)
 		SoMsg("Client written bytes", n, ShouldEqual, len("Hello!"))
 
-		n, raddr, err := sconn.ReadFrom(b)
+		n, raddr, err := sconn.ReadFromSCION(b)
 		SoMsg("Server read error", err, ShouldBeNil)
-		SoMsg("Server remote addr", raddr.String(), ShouldResemble, clientAddr.String())
+		SoMsg("Server remote addr", clientAddr.EqAddr(raddr), ShouldBeTrue)
 		SoMsg("Server read message", b[:n], ShouldResemble, []byte("Hello!"))
 
-		n, err = sconn.WriteTo([]byte("Bye!"), raddr)
+		n, err = sconn.WriteToSCION([]byte("Bye!"), raddr)
 		SoMsg("Server write error", err, ShouldBeNil)
 		SoMsg("Server written bytes", n, ShouldEqual, len("Bye!"))
 
@@ -147,17 +147,15 @@ func TestListen(t *testing.T) {
 	a, _ := AddrFromString(aStr)
 	z, _ := AddrFromString(zStr)
 	tests := []struct {
-		desc        string
-		isError     bool
-		proto       string
-		laddr       *Addr
-		laddrResult string
-		raddrResult string
+		desc    string
+		isError bool
+		proto   string
+		laddr   *Addr
 	}{
-		{"connect to tcp", true, "tcp", nil, "", ""},
-		{"bind to nil laddr", true, "udp4", nil, "", ""},
-		{"bind to 0.0.0.0 laddr", true, "udp4", z, "", ""},
-		{fmt.Sprintf("bind to %v", a), false, "udp4", a, aStr, "<nil>"},
+		{"connect to tcp", true, "tcp", nil},
+		{"bind to nil laddr", true, "udp4", nil},
+		{"bind to 0.0.0.0 laddr", true, "udp4", z},
+		{fmt.Sprintf("bind to %v", a), false, "udp4", a},
 	}
 	Convey("Method Listen", t, func() {
 		for _, test := range tests {
@@ -167,12 +165,10 @@ func TestListen(t *testing.T) {
 					SoMsg("Error", err, ShouldNotBeNil)
 				} else {
 					SoMsg("Error", err, ShouldBeNil)
-					laddr := conn.LocalAddr()
-					raddr := conn.RemoteAddr()
-					SoMsg("Local address", laddr.String(),
-						ShouldResemble, test.laddrResult)
-					SoMsg("Remote address", raddr.String(),
-						ShouldResemble, test.raddrResult)
+					laddr := conn.LocalSnetAddr()
+					raddr := conn.RemoteSnetAddr()
+					SoMsg("Local address", laddr.EqAddr(test.laddr), ShouldBeTrue)
+					SoMsg("Remote address", raddr, ShouldBeNil)
 				}
 			})
 		}

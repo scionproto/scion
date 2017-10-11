@@ -35,16 +35,15 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	pcerr := perr.(*common.CError)
 	sdata, ok := pcerr.Data.(*scmp.ErrData)
 	if ok {
-		pcerr.Ctx = append(pcerr.Ctx, "SCMP", sdata.CT)
+		pcerr.AddCtx("SCMP", sdata.CT)
 	}
 	// XXX(kormat): uncomment for debugging:
-	// pcerr.Ctx = append(pcerr.Ctx, "raw", rp.Raw)
-	rp.Error(desc, pcerr.Ctx...)
+	// pcerr.AddCtx("raw", rp.Raw)
+	rp.Error(desc, "err", pcerr)
 	if !ok || pcerr.Data == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}
-
 	switch sdata.CT.Class {
 	case scmp.C_CmnHdr:
 		switch sdata.CT.Type {

@@ -25,6 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
@@ -153,7 +154,9 @@ func (e *EgressWorker) Write(f *frame) error {
 		return nil
 	}
 	snetAddr := sig.EncapSnetAddr()
-	snetAddr.PathEntry = e.currPath
+	snetAddr.Path = spath.New(e.currPath.Path.FwdPath)
+	snetAddr.NextHopHost = e.currPath.HostInfo.Host()
+	snetAddr.NextHopPort = e.currPath.HostInfo.Port
 
 	if e.seq == 0 {
 		e.epoch = uint16(time.Now().Unix() & 0xFFFF)

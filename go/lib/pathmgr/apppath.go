@@ -28,8 +28,8 @@ type AppPathSet map[PathKey]*AppPath
 // NewAppPathSet creates a new set of paths from a SCIOND path reply.
 func NewAppPathSet(reply *sciond.PathReply) AppPathSet {
 	aps := make(AppPathSet)
-	for _, entry := range reply.Entries {
-		aps.addChildAppPath(&entry)
+	for i := range reply.Entries {
+		aps.addChildAppPath(&reply.Entries[i])
 	}
 	return aps
 }
