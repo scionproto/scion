@@ -15,7 +15,7 @@
 // Go implementation of the certificate.
 // To create JSON strings, either json.Marshal or json.MarshalIndent
 
-package crypto
+package cert
 
 import (
 	"encoding/binary"
@@ -24,17 +24,23 @@ import (
 
 	"github.com/pierrec/lz4"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const MaxChainByteLength uint32 = 1 << 20
 
-type CertificateChain struct {
+type Key struct {
+	IA  addr.ISD_AS
+	Ver int
+}
+
+type Chain struct {
 	Leave Certificate `json:"0"`
 	Core  Certificate `json:"1"`
 }
 
-func CertificateChainFromRaw(raw common.RawBytes, lz4_ bool) (*CertificateChain, error) {
+func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	if lz4_ {
 		byteLen := binary.LittleEndian.Uint32(raw[:4])
 		if byteLen > MaxChainByteLength {
@@ -48,14 +54,14 @@ func CertificateChainFromRaw(raw common.RawBytes, lz4_ bool) (*CertificateChain,
 		}
 		raw = buf[:n]
 	}
-	chain := &CertificateChain{}
-	if err := json.Unmarshal(raw, chain); err != nil {
+	c := &Chain{}
+	if err := json.Unmarshal(raw, c); err != nil {
 		return nil, err
 	}
-	return chain, nil
+	return c, nil
 }
 
-func (c *CertificateChain) Verify(subject string) error {
+func (c *Chain) Verify(subject *addr.ISD_AS, trc *trc.TRC) error {
 	if err := c.Leave.Verify(subject, c.Core.SubjectSigKey, c.Core.SignAlgorithm); err != nil {
 		return err
 	}
@@ -65,7 +71,7 @@ func (c *CertificateChain) Verify(subject string) error {
 
 // Compress compresses the JSON generated from the certificate chain using lz4 and
 // prepends the original length. (4 bytes, little endian, unsigned)
-func (c *CertificateChain) Compress() (common.RawBytes, error) {
+func (c *Chain) Compress() (common.RawBytes, error) {
 	raw, err := json.Marshal(c)
 	if err != nil {
 		return nil, err
@@ -79,10 +85,18 @@ func (c *CertificateChain) Compress() (common.RawBytes, error) {
 	return comp[:n+4], err
 }
 
-func (c *CertificateChain) String() string {
+func (c *Chain) String() string {
 	j, err := json.Marshal(c)
 	if err != nil {
 		return fmt.Sprintf("Certificate Chain not printable. Error: %s", err)
 	}
 	return string(j)
+}
+
+func (c *Chain) IAVer() (*addr.ISD_AS, int) {
+	return c.Leave.Subject, c.Leave.Version
+}
+
+func (c *Chain) Key() Key {
+	return Key{IA:*c.Leave.Subject, Ver:c.Leave.Version}
 }

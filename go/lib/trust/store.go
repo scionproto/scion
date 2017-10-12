@@ -21,21 +21,10 @@ import (
 	"path/filepath"
 	"sync"
 
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/crypto"
+	"github.com/netsec-ethz/scion/go/lib/crypto/cert"
 )
-
-// keyTRC is the key type for trcMap.
-type keyTRC struct {
-	isd int
-	ver int
-}
-
-// keyChain is the key type for chainMap.
-type keyChain struct {
-	ia  addr.ISD_AS
-	ver int
-}
 
 const CertDir string = "certs"
 
@@ -47,7 +36,7 @@ type TrustStore struct {
 	// eName is the element name, used to generate cache file names.
 	eName string
 	// chainMap is a mapping form (ISD-AS, version) to certificate chain
-	chainMap map[keyChain]*crypto.CertificateChain
+	chainMap map[cert.Key]*cert.Chain
 	// maxChainMap is a mapping from (ISD-AS) to max version.
 	maxChainMap map[addr.ISD_AS]int
 	// chainLock guards chainMap and maxChainMap.
@@ -57,7 +46,7 @@ type TrustStore struct {
 func NewTrustStore(confDir, cacheDir, eName string) (*TrustStore, error) {
 	dir := filepath.Join(confDir, CertDir)
 	t := &TrustStore{dir: dir, cacheDir: cacheDir, eName: eName,
-		chainMap:    make(map[keyChain]*crypto.CertificateChain),
+		chainMap:    make(map[cert.Key]*cert.Chain),
 		maxChainMap: make(map[addr.ISD_AS]int)}
 	t.initChains()
 	return t, nil
@@ -81,7 +70,7 @@ func (t *TrustStore) initChains() error {
 		if err != nil {
 			return err
 		}
-		chain, err := crypto.CertificateChainFromRaw(raw, false)
+		chain, err := cert.ChainFromRaw(raw, false)
 		if err != nil {
 			return err
 		}
@@ -94,14 +83,10 @@ func (t *TrustStore) initChains() error {
 
 // AddChain adds a trusted certificate chain to the store. If write is true, the TRC is written
 // to the filesystem.
-func (t *TrustStore) AddChain(chain *crypto.CertificateChain, write bool) error {
-	ia, ver, err := chain.Leave.IsdAsVer()
-	if err != nil {
-		return err
-	}
-	key := keyChain{ia: *ia, ver: ver}
+func (t *TrustStore) AddChain(chain *cert.Chain, write bool) error {
+	ia, ver := chain.IAVer()
 	t.chainLock.Lock()
-	t.chainMap[key] = chain
+	t.chainMap[chain.Key()] = chain
 	v, ok := t.maxChainMap[*ia]
 	if ver > v || !ok {
 		t.maxChainMap[*ia] = ver
@@ -114,26 +99,28 @@ func (t *TrustStore) AddChain(chain *crypto.CertificateChain, write bool) error 
 			return err
 		}
 		name := fmt.Sprintf("%s-ISD%d-AS%d-V%d.crt", t.eName, ia.I, ia.A, ver)
-		ioutil.WriteFile(filepath.Join(t.cacheDir, name), j, 0644)
+		if err = ioutil.WriteFile(filepath.Join(t.cacheDir, name), j, 0644); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // GetChain returns the certificate chain for the specified values or nil, if it is not present.
-func (t *TrustStore) GetChain(ia *addr.ISD_AS, ver int) *crypto.CertificateChain {
+func (t *TrustStore) GetChain(ia *addr.ISD_AS, ver int) *cert.Chain {
 	t.chainLock.RLock()
-	chain := t.chainMap[keyChain{*ia, ver}]
+	chain := t.chainMap[cert.Key{IA:*ia, Ver:ver}]
 	t.chainLock.RUnlock()
 	return chain
 }
 
 // GetMaxChain the certificate chain with the highest version for the specified ISD-AS.
-func (t *TrustStore) GetMaxChain(ia *addr.ISD_AS) *crypto.CertificateChain {
+func (t *TrustStore) GetMaxChain(ia *addr.ISD_AS) *cert.Chain {
 	t.chainLock.RLock()
-	var chain *crypto.CertificateChain
+	var chain *cert.Chain
 	ver, ok := t.maxChainMap[*ia]
 	if ok {
-		chain = t.chainMap[keyChain{*ia, ver}]
+		chain = t.chainMap[cert.Key{IA:*ia, Ver:ver}]
 	}
 	t.chainLock.RUnlock()
 	return chain
