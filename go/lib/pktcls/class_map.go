@@ -24,50 +24,48 @@ import (
 // to add a Class with the same name twice returns an error. ClassMap can be
 // used to marshal Classes to JSON. Unmarshaling back to ClassMap is guaranteed
 // to yield an object that is identical to the initial one.
-type ClassMap struct {
-	m map[string]*Class
+type ClassMap map[string]*Class
+
+func NewClassMap() ClassMap {
+	return make(map[string]*Class)
 }
 
-func NewClassMap() *ClassMap {
-	return &ClassMap{m: make(map[string]*Class)}
-}
-
-func (cm *ClassMap) Add(c *Class) error {
-	_, ok := cm.m[c.name]
+func (cm ClassMap) Add(c *Class) error {
+	_, ok := cm[c.name]
 	if ok {
 		return common.NewCError("Class name exists", "name", c.name)
 	}
-	cm.m[c.name] = c
+	cm[c.name] = c
 	return nil
 }
 
-func (cm *ClassMap) Get(name string) (*Class, error) {
-	class, ok := cm.m[name]
+func (cm ClassMap) Get(name string) (*Class, error) {
+	class, ok := cm[name]
 	if !ok {
 		return nil, common.NewCError("Class not found", "name", name)
 	}
 	return class, nil
 }
 
-func (cm *ClassMap) Remove(name string) error {
-	_, ok := cm.m[name]
+func (cm ClassMap) Remove(name string) error {
+	_, ok := cm[name]
 	if !ok {
 		return common.NewCError("Class not found", "name", name)
 	}
-	delete(cm.m, name)
+	delete(cm, name)
 	return nil
 }
 
-func (cm *ClassMap) MarshalJSON() ([]byte, error) {
-	return json.MarshalIndent(cm.m, "", "    ")
+func (cm ClassMap) MarshalJSON() ([]byte, error) {
+	return json.MarshalIndent((map[string]*Class)(cm), "", "    ")
 }
 
 func (cm *ClassMap) UnmarshalJSON(b []byte) error {
-	err := json.Unmarshal(b, &cm.m)
+	err := json.Unmarshal(b, (*map[string]*Class)(cm))
 	if err != nil {
 		return err
 	}
-	for className, class := range cm.m {
+	for className, class := range *cm {
 		class.name = className
 	}
 	return nil
