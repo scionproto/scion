@@ -24,43 +24,41 @@ import (
 // to add an Action with the same name twice returns an error. ActionMap can be
 // used to marshal Actions to JSON. Unmarshaling back to ActionMap is
 // guaranteed to yield an object that is identical to the initial one.
-type ActionMap struct {
-	m map[string]Action
+type ActionMap map[string]Action
+
+func NewActionMap() ActionMap {
+	return make(ActionMap)
 }
 
-func NewActionMap() *ActionMap {
-	return &ActionMap{m: make(map[string]Action)}
-}
-
-func (am *ActionMap) Add(c Action) error {
-	_, ok := am.m[c.GetName()]
+func (am ActionMap) Add(c Action) error {
+	_, ok := am[c.GetName()]
 	if ok {
 		return common.NewCError("Action name exists", "name", c.GetName())
 	}
-	am.m[c.GetName()] = c
+	am[c.GetName()] = c
 	return nil
 }
 
-func (am *ActionMap) Get(name string) (Action, error) {
-	class, ok := am.m[name]
+func (am ActionMap) Get(name string) (Action, error) {
+	class, ok := am[name]
 	if !ok {
 		return nil, common.NewCError("Action not found", "name", name)
 	}
 	return class, nil
 }
 
-func (am *ActionMap) Remove(name string) error {
-	_, ok := am.m[name]
+func (am ActionMap) Remove(name string) error {
+	_, ok := am[name]
 	if !ok {
 		return common.NewCError("Action not found", "name", name)
 	}
-	delete(am.m, name)
+	delete(am, name)
 	return nil
 }
 
-func (am *ActionMap) MarshalJSON() ([]byte, error) {
+func (am ActionMap) MarshalJSON() ([]byte, error) {
 	m := make(map[string]*json.RawMessage)
-	for k, v := range am.m {
+	for k, v := range am {
 		b, err := marshalInterface(v)
 		if err != nil {
 			return nil, err
@@ -77,14 +75,14 @@ func (am *ActionMap) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	am.m = make(map[string]Action)
+	*am = make(map[string]Action)
 	for k, v := range m {
 		action, err := unmarshalAction(*v)
 		if err != nil {
 			return err
 		}
 		action.setName(k)
-		am.m[k] = action
+		(*am)[k] = action
 	}
 	return nil
 }
