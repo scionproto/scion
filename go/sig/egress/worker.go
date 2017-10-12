@@ -77,7 +77,7 @@ TopLoop:
 	for {
 		// If the frame is empty, block indefinitely for more packets.
 		fEmpty := f.offset == sigcmn.SIGHdrSize
-		if !w.Read(fEmpty) {
+		if !w.read(fEmpty) {
 			break TopLoop
 		}
 		if fEmpty {
@@ -86,7 +86,7 @@ TopLoop:
 			w.resetFrame(f)
 		} else if len(w.pkts) == 0 {
 			// Didn't read any new packets, send partial frame.
-			if err := w.Write(f); err != nil {
+			if err := w.write(f); err != nil {
 				log.Error("Error sending frame", "err", err)
 			}
 			continue TopLoop
@@ -116,7 +116,7 @@ func (w *worker) processPkt(f *frame, pkt common.RawBytes) error {
 		pktOff += f.readFrom(pkt[pktOff:])
 		if f.isFull() {
 			// There's no point in trying to fit another packet into this frame.
-			if err := w.Write(f); err != nil {
+			if err := w.write(f); err != nil {
 				// Skip the rest of this packet.
 				return err
 			}
@@ -130,7 +130,7 @@ func (w *worker) processPkt(f *frame, pkt common.RawBytes) error {
 }
 
 // Return false if the ringbuf is closed.
-func (w *worker) Read(block bool) bool {
+func (w *worker) read(block bool) bool {
 	w.pkts = w.pkts[:cap(w.pkts)]
 	n, _ := w.sess.ring.Read(w.pkts, block)
 	if n < 0 {
@@ -141,7 +141,7 @@ func (w *worker) Read(block bool) bool {
 	return true
 }
 
-func (w *worker) Write(f *frame) error {
+func (w *worker) write(f *frame) error {
 	// TODO(kormat): consider looking for an updated path here, and switching
 	// to it if the mtu isn't smaller than the current one.
 	defer w.resetFrame(f)

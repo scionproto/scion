@@ -45,7 +45,7 @@ type sessMonitor struct {
 	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
 	pool *pathmgr.SyncPaths
 	// the pool of paths this session is currently using, frequently refreshed from pool.
-	sessPool sessPathPool
+	sessPathPool sessPathPool
 	// the remote Info (remote SIG, and path) used for sending polls. This
 	// differs from the parent session's remote info when the session monitor
 	// is polling a new SIG or over a new path, and is waiting for a response.
@@ -64,7 +64,7 @@ type sessMonitor struct {
 
 func newSessMonitor(sess *Session) *sessMonitor {
 	return &sessMonitor{
-		Logger: sess.Logger, sess: sess, pool: sess.pool, sessPool: make(sessPathPool),
+		Logger: sess.Logger, sess: sess, pool: sess.pool, sessPathPool: make(sessPathPool),
 	}
 }
 
@@ -87,9 +87,9 @@ Top:
 			break Top
 		case <-reqTick.C:
 			// Update paths and sigs
-			sm.sessPool.update(sm.pool.Load())
+			sm.sessPathPool.update(sm.pool.Load())
 			sm.sigMap = sm.sess.sigMapF()
-			sm.checkRemote()
+			sm.updateRemote()
 			sm.sendReq()
 		case rpld := <-regc:
 			sm.handleRep(rpld)
@@ -97,7 +97,7 @@ Top:
 	}
 }
 
-func (sm *sessMonitor) checkRemote() {
+func (sm *sessMonitor) updateRemote() {
 	currRemote := sm.smRemote
 	var currSig *siginfo.Sig
 	var currSessPath *sessPath
@@ -125,12 +125,11 @@ func (sm *sessMonitor) checkRemote() {
 			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
 		}
-		poolPaths := sm.pool.Load()
 		if currSessPath == nil {
 			sm.Debug("No path", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
-		} else if _, ok := poolPaths[currSessPath.key]; !ok {
+		} else if _, ok := sm.sessPathPool[currSessPath.key]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
 			sm.Debug("Current path invalid", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
@@ -154,12 +153,12 @@ func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
 func (sm *sessMonitor) getNewPath(old *sessPath) *sessPath {
 	if old != nil {
 		// Try to get a different path, if possible.
-		if sp := sm.sessPool.get(old.key); sp != nil {
+		if sp := sm.sessPathPool.get(old.key); sp != nil {
 			return sp
 		}
 	}
 	// Get path with lowest failure count
-	return sm.sessPool.get("")
+	return sm.sessPathPool.get("")
 }
 
 func (sm *sessMonitor) sendReq() {

@@ -47,27 +47,20 @@ func (spp sessPathPool) get(currKey pathmgr.PathKey) *sessPath {
 }
 
 func (spp sessPathPool) update(aps pathmgr.AppPathSet) {
-	entryMap := make(map[pathmgr.PathKey]*sciond.PathReplyEntry)
-	// Make a map of the new entries
-	for i := range aps {
-		ap := aps[i]
-		entryMap[ap.Key()] = ap.Entry
-	}
 	// Remove any old entries that aren't present in the update.
 	for key := range spp {
-		if _, ok := entryMap[key]; !ok {
+		if _, ok := aps[key]; !ok {
 			delete(spp, key)
 		}
 	}
-	for key, entry := range entryMap {
+	for key, ap := range aps {
 		e, ok := spp[key]
 		if !ok {
 			// This is a new path, add an entry.
-			e = newSessPath(key, entry)
-			spp[key] = e
+			spp[key] = newSessPath(key, ap.Entry)
 		} else {
 			// This path already exists, update it.
-			e.pathEntry = entry
+			e.pathEntry = ap.Entry
 		}
 	}
 }

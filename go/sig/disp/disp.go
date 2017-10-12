@@ -35,7 +35,7 @@ func Init(conn *snet.Conn) {
 type RegType int
 
 const (
-	RegPollRep = iota
+	RegPollRep RegType = iota
 )
 
 func (rt RegType) String() string {
@@ -55,24 +55,23 @@ type RegPld struct {
 type RegPldChan chan *RegPld
 
 var (
-	PollReqC   = make(RegPldChan, 1)
-	Dispatcher = newDispReg(PollReqC)
+	Dispatcher = newDispReg()
 )
 
 type dispRegistry struct {
 	sync.RWMutex
-	pollReq RegPldChan
-	pollRep map[string]RegPldChan
+	PollReqC RegPldChan
+	pollRep  map[RegPollKey]RegPldChan
 }
 
-func newDispReg(defPollReq chan *RegPld) *dispRegistry {
+func newDispReg() *dispRegistry {
 	return &dispRegistry{
-		pollReq: defPollReq,
-		pollRep: make(map[string]RegPldChan),
+		PollReqC: make(RegPldChan, 16),
+		pollRep:  make(map[RegPollKey]RegPldChan),
 	}
 }
 
-func (dm *dispRegistry) Register(regType RegType, key string, c RegPldChan) error {
+func (dm *dispRegistry) Register(regType RegType, key RegPollKey, c RegPldChan) error {
 	dm.Lock()
 	defer dm.Unlock()
 	switch regType {
@@ -84,7 +83,7 @@ func (dm *dispRegistry) Register(regType RegType, key string, c RegPldChan) erro
 	return nil
 }
 
-func (dm *dispRegistry) Unregister(regType RegType, key string) error {
+func (dm *dispRegistry) Unregister(regType RegType, key RegPollKey) error {
 	dm.Lock()
 	defer dm.Unlock()
 	switch regType {
@@ -99,7 +98,6 @@ func (dm *dispRegistry) Unregister(regType RegType, key string) error {
 func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 	dm.Lock()
 	defer dm.Unlock()
-	//log.Debug("Got sig ctrl packet", "pld", pld)
 	u, err := pld.Union()
 	if err != nil {
 		log.Error("Unable to extract SIG ctrl union", "err", err, "src", addr)
@@ -108,7 +106,7 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 	msgId := pld.Id
 	switch pld := u.(type) {
 	case *mgmt.PollReq:
-		dm.pollReq <- &RegPld{Id: msgId, P: pld, Addr: addr}
+		dm.PollReqC <- &RegPld{Id: msgId, P: pld, Addr: addr}
 	case *mgmt.PollRep:
 		regPld := &RegPld{Id: msgId, P: pld, Addr: addr}
 		if pld.Addr == nil || pld.Addr.Ctrl == nil {
@@ -137,7 +135,6 @@ func dispFunc(dp *snet.DispPkt) {
 		log.Error("Unable to extract ctrl payload union", "err", err, "src", dp.Addr)
 		return
 	}
-	//log.Debug("Got a packet", "type", common.TypeOf(u))
 	switch pld := u.(type) {
 	case *mgmt.Pld:
 		Dispatcher.sigCtrl(pld, dp.Addr)
@@ -146,6 +143,8 @@ func dispFunc(dp *snet.DispPkt) {
 	}
 }
 
-func MkRegPollKey(ia *addr.ISD_AS, session sigcmn.SessionType) string {
-	return fmt.Sprintf("%s-%s", ia, session)
+type RegPollKey string
+
+func MkRegPollKey(ia *addr.ISD_AS, session sigcmn.SessionType) RegPollKey {
+	return RegPollKey(fmt.Sprintf("%s-%s", ia, session))
 }

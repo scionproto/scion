@@ -23,6 +23,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
@@ -122,7 +123,11 @@ func (r *RemoteInfo) String() string {
 	return fmt.Sprintf("Sig: %s Path: %s", r.Sig, r.sessPath)
 }
 
+// connReader logs everything read from conn. This is used to make sure the
+// dispatcher doesn't block if it tries to deliver unexpected messages to a
+// write-only connection.
 func connReader(conn *snet.Conn, name string) {
+	defer liblog.LogPanicAndExit()
 	buf := make(common.RawBytes, common.MaxMTU)
 	for {
 		l, src, err := conn.ReadFromSCION(buf)

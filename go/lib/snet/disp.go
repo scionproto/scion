@@ -34,16 +34,16 @@ type DispatchFunc func(*DispPkt)
 func PktDispatcher(c *Conn, f DispatchFunc) {
 	defer liblog.LogPanicAndExit()
 	var err error
-	var l int
+	var n int
 	dp := &DispPkt{Raw: make(common.RawBytes, common.MaxMTU)}
 	for {
 		dp.Raw = dp.Raw[:cap(dp.Raw)]
-		l, dp.Addr, err = c.ReadFromSCION(dp.Raw)
+		n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
 		if err != nil {
 			log.Error("PktDispatcher: Error reading from connection", "err", err)
 			break
 		}
-		dp.Raw = dp.Raw[:l]
+		dp.Raw = dp.Raw[:n]
 		f(dp)
 	}
 }
