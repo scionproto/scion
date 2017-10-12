@@ -15,7 +15,7 @@
 // Go implementation of the certificate.
 // To create JSON strings, either json.Marshal or json.MarshalIndent
 
-package crypto
+package cert
 
 import (
 	"encoding/json"
@@ -24,6 +24,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/crypto"
 )
 
 type Certificate struct {
@@ -38,7 +39,7 @@ type Certificate struct {
 	// ExpirationTime is the time at which the certificate expires.
 	ExpirationTime int64
 	// Issuer is the certificate issuer. It can only be a core AS.
-	Issuer string
+	Issuer *addr.ISD_AS
 	// IssuingTime is the time at which the certificate was created.
 	IssuingTime int64
 	// SignAlgorithm is the algorithm used to sign the certificate.
@@ -46,7 +47,7 @@ type Certificate struct {
 	// Signature is the certificate signature. It is computed over the rest of the certificate.
 	Signature common.RawBytes `json:",omitempty"`
 	// Subject is the certificate subject.
-	Subject string
+	Subject *addr.ISD_AS
 	// SubjectEncKey is the public key used for encryption.
 	SubjectEncKey common.RawBytes
 	// SubjectSigKey the public key used for signature verification.
@@ -65,18 +66,10 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 	return cert, nil
 }
 
-func (c *Certificate) IsdAsVer() (*addr.ISD_AS, int, error) {
-	ia, err := addr.IAFromString(c.Subject)
-	if err != nil {
-		return nil, -1, err
-	}
-	return ia, c.Version, err
-}
-
 // Verify checks the signature of the certificate based on a trusted verifying key,
 // and further verifies, that the certificate belongs to the given subject.
-func (c *Certificate) Verify(subject string, verifyKey common.RawBytes, signAlgo string) error {
-	if subject != c.Subject {
+func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, signAlgo string) error {
+	if subject.Eq(c.Subject) {
 		return common.NewCError("Subject does not match", "expected", c.Subject, "actual", subject)
 	}
 	t := time.Now()
@@ -92,7 +85,7 @@ func (c *Certificate) Verify(subject string, verifyKey common.RawBytes, signAlgo
 	if err != nil {
 		return common.NewCError("Signature input creation faild", "error", err)
 	}
-	return Verify(sigInput, c.Signature, verifyKey, signAlgo)
+	return crypto.Verify(sigInput, c.Signature, verifyKey, signAlgo)
 }
 
 // Sign adds signature to the certificate. The signature is computed over the certificate
@@ -102,7 +95,7 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 	if err != nil {
 		return err
 	}
-	sig, err := Sign(sigInput, signKey, signAlgo)
+	sig, err := crypto.Sign(sigInput, signKey, signAlgo)
 	if err != nil {
 		return err
 	}
