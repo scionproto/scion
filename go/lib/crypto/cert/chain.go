@@ -35,6 +35,10 @@ type Key struct {
 	Ver int
 }
 
+func (k *Key) String() string {
+	return fmt.Sprintf("%s.%d", k.IA, k.Ver)
+}
+
 type Chain struct {
 	Leave Certificate `json:"0"`
 	Core  Certificate `json:"1"`
@@ -61,7 +65,7 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	return c, nil
 }
 
-func (c *Chain) Verify(subject *addr.ISD_AS, trc *trc.TRC) error {
+func (c *Chain) Verify(subject *addr.ISD_AS, trc int) error {
 	if err := c.Leave.Verify(subject, c.Core.SubjectSigKey, c.Core.SignAlgorithm); err != nil {
 		return err
 	}
@@ -97,6 +101,6 @@ func (c *Chain) IAVer() (*addr.ISD_AS, int) {
 	return c.Leave.Subject, c.Leave.Version
 }
 
-func (c *Chain) Key() Key {
-	return Key{IA:*c.Leave.Subject, Ver:c.Leave.Version}
+func (c *Chain) Key() *Key {
+	return &Key{IA: *c.Leave.Subject, Ver: c.Leave.Version}
 }
