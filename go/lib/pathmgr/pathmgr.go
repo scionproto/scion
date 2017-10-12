@@ -44,9 +44,9 @@ import (
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/class"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
+	"github.com/netsec-ethz/scion/go/lib/pktcls"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
@@ -159,7 +159,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 //
 // RegisterFilter also adds pair src-dst to the list of tracked paths (if it
 // wasn't already tracked).
-func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *class.PathPredicate) (*SyncPaths, error) {
+func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *pktcls.PathPredicate) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -213,7 +213,7 @@ func (r *PR) register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 }
 
 // UnregisterFilter deletes a previously registered filter.
-func (r *PR) UnregisterFilter(src, dst *addr.ISD_AS, filter *class.PathPredicate) error {
+func (r *PR) UnregisterFilter(src, dst *addr.ISD_AS, filter *pktcls.PathPredicate) error {
 	// TODO(scrye): implement this
 	return common.NewCError("Not implemented")
 }
