@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package class
+package pktcls
 
 import (
 	"encoding/json"
@@ -103,7 +103,6 @@ func TestMarshalClassMap(t *testing.T) {
 			enc, err := json.MarshalIndent(cm, "", "    ")
 			SoMsg("Marshal err", err, ShouldBeNil)
 			SoMsg("Marshal enc", enc, ShouldNotBeNil)
-			fmt.Println(string(enc))
 			Convey("Unmarshal back", func() {
 				cmu := NewClassMap()
 				err = json.Unmarshal(enc, &cmu)

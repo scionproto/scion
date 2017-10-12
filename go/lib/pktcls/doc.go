@@ -49,4 +49,4 @@
 // be done by first adding the classes and actions to a ClassMap or ActionMap,
 // respectively. Unmarshaling back to the Map is guaranteed to yield an object
 // that is identical to the initial one.
-package class
+package pktcls
