@@ -27,7 +27,7 @@ import (
 type ActionMap map[string]Action
 
 func NewActionMap() ActionMap {
-	return make(map[string]Action)
+	return make(ActionMap)
 }
 
 func (am ActionMap) Add(c Action) error {

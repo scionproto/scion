@@ -27,7 +27,7 @@ import (
 type ClassMap map[string]*Class
 
 func NewClassMap() ClassMap {
-	return make(map[string]*Class)
+	return make(ClassMap)
 }
 
 func (cm ClassMap) Add(c *Class) error {
