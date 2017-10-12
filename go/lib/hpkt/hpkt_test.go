@@ -95,7 +95,6 @@ func Test_ParseScnPkt(t *testing.T) {
 		s := &spkt.ScnPkt{
 			DstIA: &addr.ISD_AS{},
 			SrcIA: &addr.ISD_AS{},
-			Path:  &spath.Path{},
 		}
 		err := ParseScnPkt(s, common.RawBytes(testParsePkt))
 
@@ -109,9 +108,7 @@ func Test_ParseScnPkt(t *testing.T) {
 		SoMsg("AddrHdr.DstHostAddr", s.DstHost.IP(), ShouldResemble, net.IP{169, 254, 1, 2})
 		SoMsg("AddrHdr.SrcHostAddr", s.SrcHost.IP(), ShouldResemble, net.IP{169, 254, 2, 2})
 
-		SoMsg("Path", s.Path.Raw, ShouldResemble, common.RawBytes{})
-		SoMsg("Path.InfOff", s.Path.InfOff, ShouldEqual, 0)
-		SoMsg("Path.HopOff", s.Path.HopOff, ShouldEqual, 0)
+		SoMsg("Path", s.Path, ShouldBeNil)
 
 		udpHdr, ok := s.L4.(*l4.UDP)
 		SoMsg("L4Hdr", ok, ShouldEqual, true)

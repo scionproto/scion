@@ -50,7 +50,10 @@ func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
 	if ok {
 		return ae, nil
 	}
-	ae = newASEntry(ia)
+	ae, err := newASEntry(ia)
+	if err != nil {
+		return nil, err
+	}
 	am.t[key] = ae
 	log.Info("Added IA", "ia", ia)
 	return ae, nil

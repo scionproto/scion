@@ -43,25 +43,27 @@ func Init() {
 }
 
 type egressDispatcher struct {
-	devName  string
-	devIO    io.ReadWriteCloser
-	syncSess *SyncSession
+	log.Logger
+	devName string
+	devIO   io.ReadWriteCloser
+	sess    *Session
 }
 
-func NewDispatcher(devName string, devIO io.ReadWriteCloser,
-	syncSess *SyncSession) *egressDispatcher {
-	return &egressDispatcher{devName: devName, devIO: devIO, syncSess: syncSess}
+func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egressDispatcher {
+	return &egressDispatcher{
+		Logger:  log.New("dev", devName),
+		devName: devName,
+		devIO:   devIO,
+		sess:    sess,
+	}
 }
 
 func (ed *egressDispatcher) Run() {
 	defer liblog.LogPanicAndExit()
+	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
-	var sess *Session
-	for _, sess = range ed.syncSess.Load() {
-		break
-	}
 	for {
 		n, _ := egressFreePkts.Read(bufs, true)
 		if n < 0 {
@@ -73,15 +75,24 @@ func (ed *egressDispatcher) Run() {
 			buf = buf[:cap(buf)]
 			length, err := ed.devIO.Read(buf)
 			if err != nil {
-				log.Error("EgressDispatcher: error reading from devIO",
-					"dev", ed.devName, "err", err)
+				ed.Error("EgressDispatcher: error reading from devIO", "err", err)
 				continue
 			}
 			buf = buf[:length]
-			sess.ring.Write(ringbuf.EntryList{buf}, true)
+			sess := ed.chooseSess()
+			if sess == nil {
+				// FIXME(kormat): replace with metric.
+				log.Debug("Unable to find session")
+				continue
+			}
+			ed.sess.ring.Write(ringbuf.EntryList{buf}, true)
 			pktsRecv.Inc()
 			pktBytesRecv.Add(float64(length))
 		}
 	}
-	log.Info("EgressDispatcher: stopping", "dev", ed.devName)
+	ed.Info("EgressDispatcher: stopping")
+}
+
+func (ed *egressDispatcher) chooseSess() *Session {
+	return ed.sess
 }

@@ -38,27 +38,33 @@ const sigMgrTick = 10 * time.Second
 // ASEntry contains all of the information required to interact with a remote AS.
 type ASEntry struct {
 	sync.RWMutex
+	log.Logger
 	IA         *addr.ISD_AS
 	IAString   string
 	Nets       map[string]*NetEntry
 	Sigs       siginfo.SigMap
-	Sessions   *egress.SyncSession
+	Session    *egress.Session
 	DevName    string
 	tunLink    netlink.Link
 	tunIO      io.ReadWriteCloser
 	sigMgrStop chan struct{}
 }
 
-func newASEntry(ia *addr.ISD_AS) *ASEntry {
-	return &ASEntry{
+func newASEntry(ia *addr.ISD_AS) (*ASEntry, error) {
+	ae := &ASEntry{
+		Logger:     log.New("ia", ia),
 		IA:         ia,
 		IAString:   ia.String(),
 		Nets:       make(map[string]*NetEntry),
 		Sigs:       make(siginfo.SigMap),
-		Sessions:   egress.NewSyncSession(),
 		DevName:    fmt.Sprintf("scion-%s", ia),
 		sigMgrStop: make(chan struct{}),
 	}
+	var err error
+	if ae.Session, err = egress.NewSession(ia, 0, ae.SigMap, ae.Logger); err != nil {
+		return nil, err
+	}
+	return ae, nil
 }
 
 func (ae *ASEntry) setupNet() error {
@@ -67,7 +73,10 @@ func (ae *ASEntry) setupNet() error {
 	if err != nil {
 		return err
 	}
-	log.Info("Network setup done", "ia", ae.IA)
+	ae.Info("Network setup done")
+	go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.Session).Run()
+	go ae.sigMgr()
+	ae.Session.Start()
 	return nil
 }
 
@@ -90,7 +99,7 @@ func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
 		return err
 	}
 	ae.Nets[key] = ne
-	log.Info("Added network", "ia", ae.IA, "net", ipnet)
+	ae.Info("Added network", "net", ipnet)
 	return nil
 }
 
@@ -105,7 +114,7 @@ func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
 	}
 	delete(ae.Nets, key)
 	ae.Unlock() // Do cleanup outside the lock.
-	log.Info("Removed network", "ia", ae.IA, "net", ipnet)
+	ae.Info("Removed network", "net", ipnet)
 	return ne.Cleanup()
 }
 
@@ -133,7 +142,7 @@ func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP,
 		return nil
 	}
 	ae.Sigs[id] = siginfo.NewSig(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
-	log.Info("Added SIG", "ia", ae.IA, "sig", ae.Sigs[id])
+	ae.Info("Added SIG", "sig", ae.Sigs[id])
 	return nil
 }
 
@@ -147,7 +156,7 @@ func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 	}
 	delete(ae.Sigs, id)
 	ae.Unlock() // Do cleanup outside the lock.
-	log.Info("Removed SIG", "ia", ae.IA, "id", id)
+	ae.Info("Removed SIG", "id", id)
 	return se.Cleanup()
 }
 
@@ -161,27 +170,6 @@ func (ae *ASEntry) SigMap() siginfo.SigMap {
 	}
 	return smap
 }
-
-func (ae *ASEntry) AddSession(sessId sigcmn.SessionType, polName string, policy interface{}) error {
-	ae.Lock()
-	defer ae.Unlock()
-	s, err := egress.NewSession(ae.IA, sessId, polName, policy, ae.SigMap)
-	if err != nil {
-		return err
-	}
-	ss := ae.Sessions.Load()
-	ss = append(ss, s)
-	ae.Sessions.Store(ss)
-	if len(ss) == 1 {
-		log.Info("Starting egress dispatcher", "ia", ae.IA, "dev", ae.DevName)
-		go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.Sessions).Run()
-		go ae.sigMgr()
-	}
-	s.Start()
-	return nil
-}
-
-// TODO(kormat): add DelSession, and close the tun device if there's no sessions left.
 
 // manage the Sig map
 func (ae *ASEntry) sigMgr() {
@@ -209,20 +197,16 @@ func (ae *ASEntry) Cleanup() error {
 	ae.sigMgrStop <- struct{}{}
 	// Clean up the egress dispatcher.
 	if err := ae.tunIO.Close(); err != nil {
-		log.Error("Error closing TUN io", "ia", ae.IA, "dev", ae.DevName, "err", err)
+		ae.Error("Error closing TUN io", "dev", ae.DevName, "err", err)
 	}
-	// Clean up path policies, and their associated workers.
-	ss := ae.Sessions.Load()
-	for _, s := range ss {
-		if err := s.Cleanup(); err != nil {
-			log.Error("Error cleaning up session",
-				"ia", ae.IA, "id", s.SessId, "policy", s.PolName, "err", err)
-		}
+	// Clean up session, and its associated workers.
+	if err := ae.Session.Cleanup(); err != nil {
+		ae.Session.Error("Error cleaning up session", "err", err)
 	}
 	for _, ne := range ae.Nets {
 		if err := ne.Cleanup(); err != nil {
 			cerr := err.(*common.CError)
-			log.Error(cerr.Desc, cerr.Ctx...)
+			ae.Error(cerr.Desc, cerr.Ctx...)
 		}
 	}
 	if err := netlink.LinkDel(ae.tunLink); err != nil {

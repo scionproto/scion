@@ -15,6 +15,8 @@
 package egress
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -39,10 +41,10 @@ import (
 //   sequence number wrapping. The epoch values are the lowest 16b of the unix
 //   timestamp at the reset point.
 //
-//      0B       1        2        3        4        5        6        7
-//  +--------+--------+--------+--------+--------+--------+--------+--------+
-//  |         Sequence number           |     Index       |      Epoch      |
-//  +--------+--------+--------+--------+--------+--------+--------+--------+
+//   0B       1        2        3        4        5        6        7
+//   +--------+--------+--------+--------+--------+--------+--------+--------+
+//   | Sess Id|      Epoch      |    Sequence number       |     Index       |
+//   +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 //   Inside the frame, all encapsulated packets are preceeded by a 2B length
 //   field, and then padded to an 8B boundary
@@ -54,6 +56,7 @@ const (
 )
 
 type worker struct {
+	log.Logger
 	iaString      string
 	sess          *Session
 	currSig       *siginfo.Sig
@@ -64,13 +67,18 @@ type worker struct {
 	pkts  ringbuf.EntryList
 }
 
-func NewWorker(sess *Session) *worker {
-	return &worker{iaString: sess.IA.String(), sess: sess,
-		pkts: make(ringbuf.EntryList, 0, egressBufPkts)}
+func NewWorker(sess *Session, logger log.Logger) *worker {
+	return &worker{
+		Logger:   logger,
+		iaString: sess.IA.String(),
+		sess:     sess,
+		pkts:     make(ringbuf.EntryList, 0, egressBufPkts),
+	}
 }
 
 func (w *worker) Run() {
 	defer liblog.LogPanicAndExit()
+	w.Info("EgressWorker: starting")
 	f := newFrame()
 
 TopLoop:
@@ -87,7 +95,7 @@ TopLoop:
 		} else if len(w.pkts) == 0 {
 			// Didn't read any new packets, send partial frame.
 			if err := w.write(f); err != nil {
-				log.Error("Error sending frame", "err", err)
+				w.Error("Error sending frame", "err", err)
 			}
 			continue TopLoop
 		}
@@ -95,7 +103,7 @@ TopLoop:
 		for i := range w.pkts {
 			pkt := w.pkts[i].(common.RawBytes)
 			if err := w.processPkt(f, pkt); err != nil {
-				log.Error("Error sending frame", "err", err)
+				w.Error("Error sending frame", "err", err)
 			}
 		}
 		// Return processed pkts to the free pool, and remove references.
@@ -104,7 +112,7 @@ TopLoop:
 			w.pkts[i] = nil
 		}
 	}
-	log.Info("EgressWorker: stopping", "ia", w.iaString)
+	w.Info("EgressWorker: stopping")
 	close(w.sess.workerStopped)
 }
 
@@ -155,16 +163,16 @@ func (w *worker) write(f *frame) error {
 	}
 	snetAddr := w.currSig.EncapSnetAddr()
 	snetAddr.Path = spath.New(w.currPathEntry.Path.FwdPath)
+	if err := snetAddr.Path.InitOffsets(); err != nil {
+		return common.NewCError("Error initializing path offsets", "err", err)
+	}
 	snetAddr.NextHopHost = w.currPathEntry.HostInfo.Host()
 	snetAddr.NextHopPort = w.currPathEntry.HostInfo.Port
 
 	if w.seq == 0 {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
-	// FIXME(kormat): use ppinfo.Session here.
-	f.writeHdr(w.epoch, w.seq)
-	//log.Debug("EgressWorker.Write", "len", f.offset, "epoch", e.epoch,
-	// "seq", e.seq, "index", f.idx, "raw", f.raw())
+	f.writeHdr(w.sess.SessId, w.epoch, w.seq)
 	// Update metadata
 	w.seq += 1
 	bytesWritten, err := w.sess.conn.WriteToSCION(f.raw(), snetAddr)
@@ -234,8 +242,12 @@ func (f *frame) startPkt(pktLen uint16) {
 	f.offset += PktLenSize
 }
 
-func (f *frame) writeHdr(epoch uint16, seq uint32) {
-	common.Order.PutUint32(f.b[:4], seq)
-	common.Order.PutUint16(f.b[4:6], f.idx)
-	common.Order.PutUint16(f.b[6:8], epoch)
+func (f *frame) writeHdr(sessId sigcmn.SessionType, epoch uint16, seq uint32) {
+	var buf bytes.Buffer
+	binary.Write(&buf, common.Order, seq)
+
+	f.b[0] = uint8(sessId)
+	common.Order.PutUint16(f.b[1:3], epoch)
+	copy(f.b[3:6], buf.Bytes()[1:])
+	common.Order.PutUint16(f.b[6:8], f.idx)
 }

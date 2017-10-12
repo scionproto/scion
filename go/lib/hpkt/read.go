@@ -19,6 +19,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 )
@@ -255,10 +256,15 @@ func (p *parseCtx) DefaultAddrHdrParser() error {
 func (p *parseCtx) DefaultFwdPathParser() error {
 	p.fwdPathOffsets.start = p.offset
 	pathLen := p.cmnHdr.HdrLenBytes() - p.offset
-	p.s.Path.Raw = p.b[p.offset : p.offset+pathLen]
-	p.s.Path.InfOff = p.cmnHdr.InfoFOffBytes()
-	p.s.Path.HopOff = p.cmnHdr.HopFOffBytes()
-	p.offset += pathLen
+	if pathLen > 0 {
+		if p.s.Path == nil {
+			p.s.Path = &spath.Path{}
+		}
+		p.s.Path.Raw = p.b[p.offset : p.offset+pathLen]
+		p.s.Path.InfOff = p.cmnHdr.InfoFOffBytes() - p.offset
+		p.s.Path.HopOff = p.cmnHdr.HopFOffBytes() - p.offset
+		p.offset += pathLen
+	}
 	p.fwdPathOffsets.end = p.offset
 	return nil
 }

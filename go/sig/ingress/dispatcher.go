@@ -110,8 +110,6 @@ func (d *Dispatcher) read() {
 // exist yet. Dispatching is done based on source ISD-AS -> source host Addr -> Sess Id.
 func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 	sessId := sigcmn.SessionType((frame.raw[0]))
-	// FIXME(shitz): Remove as soon as egress sets session id correctly.
-	sessId = 0
 	dispatchStr := fmt.Sprintf("%s/%s/%s", src.IA, src.Host, sessId)
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]

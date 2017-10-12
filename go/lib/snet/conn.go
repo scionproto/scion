@@ -214,10 +214,10 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 			path = spath.New(pathEntry.Path.FwdPath)
 			nextHopHost = pathEntry.HostInfo.Host()
 			nextHopPort = pathEntry.HostInfo.Port
-		}
-		err = path.InitOffsets()
-		if err != nil {
-			return 0, common.NewCError("Unable to initialize path", "err", err)
+			err = path.InitOffsets()
+			if err != nil {
+				return 0, common.NewCError("Unable to initialize path", "err", err)
+			}
 		}
 	}
 
