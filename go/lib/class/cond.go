@@ -123,8 +123,6 @@ var (
 	CondFalse CondBool = false
 )
 
-var _ Cond = (*CondIPv4)(nil)
-
 func (c CondBool) Eval(v *Packet) bool {
 	return bool(c)
 }
@@ -132,6 +130,8 @@ func (c CondBool) Eval(v *Packet) bool {
 func (c CondBool) Type() string {
 	return TypeCondBool
 }
+
+var _ Cond = (*CondIPv4)(nil)
 
 // CondIPv4 conditions return true if the embedded IPv4 predicate returns true.
 type CondIPv4 struct {

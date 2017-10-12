@@ -21,7 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestMarshalActionMap(t *testing.T) {
+func TestActionMap(t *testing.T) {
 	Convey("Compile path predicates", t, func() {
 		pp, err := NewPathPredicate("1-11#18,1-11#87")
 		SoMsg("err", err, ShouldBeNil)
