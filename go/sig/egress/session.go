@@ -135,6 +135,6 @@ func connReader(conn *snet.Conn, name string) {
 			log.Error("connReader error", "name", name, "err", err)
 			continue
 		}
-		log.Debug("connReader", "name", name, "src", src, "raw", buf[:l])
+		log.Warn("connReader", "name", name, "src", src, "raw", buf[:l])
 	}
 }
