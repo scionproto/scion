@@ -15,6 +15,8 @@
 package crypto
 
 import (
+	"strings"
+
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -23,7 +25,7 @@ import (
 // Sign takes a signature input and a signing key to create a signature. Currently only
 // ed25519 is supported
 func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, error) {
-	switch signAlgo {
+	switch strings.ToLower(signAlgo) {
 	case "ed25519":
 		if len(signKey) != ed25519.PrivateKeySize {
 			return nil, common.NewCError("Invalid key size", "expected",
@@ -38,7 +40,7 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 // Verify takes a signature input and a verifying key and returns an error, if the
 // signature does not match. Currently only ed25519 is supported.
 func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
-	switch signAlgo {
+	switch strings.ToLower(signAlgo) {
 	case "ed25519":
 		if len(verifyKey) != ed25519.PublicKeySize {
 			return common.NewCError("Invalid key size", "expected",
