@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package egress
 
 import (
 	"io"
@@ -39,18 +39,18 @@ var (
 func Init() {
 	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
 		return make(common.RawBytes, common.MaxMTU)
-	}, "egress", prometheus.Labels{"ringId": "freePkts"})
+	}, "egress", prometheus.Labels{"ringId": "freePkts", "sessId": ""})
 }
 
 type egressDispatcher struct {
-	devName string
-	devIO   io.ReadWriteCloser
-	spp     *SyncPathPolicies
+	devName  string
+	devIO    io.ReadWriteCloser
+	syncSess *SyncSession
 }
 
-func newEgressDispatcher(devName string, devIO io.ReadWriteCloser,
-	spp *SyncPathPolicies) *egressDispatcher {
-	return &egressDispatcher{devName: devName, devIO: devIO, spp: spp}
+func NewDispatcher(devName string, devIO io.ReadWriteCloser,
+	syncSess *SyncSession) *egressDispatcher {
+	return &egressDispatcher{devName: devName, devIO: devIO, syncSess: syncSess}
 }
 
 func (ed *egressDispatcher) Run() {
@@ -58,9 +58,8 @@ func (ed *egressDispatcher) Run() {
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
-	pps := ed.spp.Load()
-	var pp *PathPolicy
-	for _, pp = range pps {
+	var sess *Session
+	for _, sess = range ed.syncSess.Load() {
 		break
 	}
 	for {
@@ -79,7 +78,7 @@ func (ed *egressDispatcher) Run() {
 				continue
 			}
 			buf = buf[:length]
-			pp.ring.Write(ringbuf.EntryList{buf}, true)
+			sess.ring.Write(ringbuf.EntryList{buf}, true)
 			pktsRecv.Inc()
 			pktBytesRecv.Add(float64(length))
 		}

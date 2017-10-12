@@ -18,9 +18,8 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"time"
 
-	log "github.com/inconshreveable/log15"
+	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -44,9 +43,10 @@ var (
 )
 
 var (
-	IA      *addr.ISD_AS
-	Host    addr.HostAddr
-	PathMgr *pathmgr.PR
+	IA       *addr.ISD_AS
+	Host     addr.HostAddr
+	PathMgr  *pathmgr.PR
+	CtrlConn *snet.Conn
 )
 
 func Init(ia *addr.ISD_AS, ip net.IP) error {
@@ -67,8 +67,11 @@ func Init(ia *addr.ISD_AS, ip net.IP) error {
 	if err != nil {
 		return common.NewCError("Error creating local SCION Network context", "err", err)
 	}
-	if PathMgr, err = pathmgr.New(*sciondPath, time.Minute, log.Root()); err != nil {
-		return common.NewCError("Error creating path manager", "err", err)
+	PathMgr = snet.DefNetwork.PathResolver()
+	CtrlConn, err = snet.ListenSCION(
+		"udp4", &snet.Addr{IA: IA, Host: Host, L4Port: uint16(*CtrlPort)})
+	if err != nil {
+		return common.NewCError("Error creating ctrl socket", "err", err)
 	}
 	return nil
 }
@@ -91,4 +94,10 @@ func ValidatePort(desc string, port int) error {
 			"min", 1, "max", MaxPort, "actual", port)
 	}
 	return nil
+}
+
+type SessionType uint8
+
+func (st SessionType) String() string {
+	return fmt.Sprintf("0x%02x", uint8(st))
 }

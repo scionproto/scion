@@ -29,6 +29,8 @@ import (
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/config"
+	"github.com/netsec-ethz/scion/go/sig/disp"
+	"github.com/netsec-ethz/scion/go/sig/egress"
 	"github.com/netsec-ethz/scion/go/sig/ingress"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
@@ -69,7 +71,9 @@ func main() {
 	if err = sigcmn.Init(ia, ip); err != nil {
 		fatal("Error during initialization", "err", err)
 	}
-	base.Init()
+	egress.Init()
+	disp.Init(sigcmn.CtrlConn)
+	go base.PollReqHdlr()
 	// Parse config
 	if loadConfig(*cfgPath) != true {
 		fatal("Unable to load config on startup")
@@ -137,8 +141,8 @@ func loadConfig(path string) bool {
 				continue
 			}
 		}
-		// TODO(kormat): add policies here FIXME(kormat): this is probably the wrong ordering.
-		ae.AddPolicy("placeholder", nil)
+		// TODO(kormat): add sessions here FIXME(kormat): this is probably the wrong ordering.
+		ae.AddSession(11, "placeholder", nil)
 	}
 	return success
 }

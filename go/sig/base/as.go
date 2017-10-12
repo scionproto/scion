@@ -17,81 +17,53 @@ package base
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"sync"
+	"time"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/vishvananda/netlink"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/snet"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/sig/egress"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
+
+const sigMgrTick = 10 * time.Second
 
 // ASEntry contains all of the information required to interact with a remote AS.
 type ASEntry struct {
 	sync.RWMutex
-	IA           *addr.ISD_AS
-	IAString     string
-	Nets         map[string]*NetEntry
-	Sigs         map[string]*SIGEntry
-	PathPolicies *SyncPathPolicies
-	DevName      string
-	tunLink      netlink.Link
-	tunIO        io.ReadWriteCloser
-	// FIXME(kormat): Having the conn object here is temporary, it will live
-	// inside the policy objects when they are implemented.
-	conn *snet.Conn
+	IA         *addr.ISD_AS
+	IAString   string
+	Nets       map[string]*NetEntry
+	Sigs       siginfo.SigMap
+	Sessions   *egress.SyncSession
+	DevName    string
+	tunLink    netlink.Link
+	tunIO      io.ReadWriteCloser
+	sigMgrStop chan struct{}
 }
 
 func newASEntry(ia *addr.ISD_AS) *ASEntry {
 	return &ASEntry{
-		IA:           ia,
-		IAString:     ia.String(),
-		Nets:         make(map[string]*NetEntry),
-		Sigs:         make(map[string]*SIGEntry),
-		PathPolicies: NewSyncPathPolicies(),
-		DevName:      fmt.Sprintf("scion-%s", ia),
+		IA:         ia,
+		IAString:   ia.String(),
+		Nets:       make(map[string]*NetEntry),
+		Sigs:       make(siginfo.SigMap),
+		Sessions:   egress.NewSyncSession(),
+		DevName:    fmt.Sprintf("scion-%s", ia),
+		sigMgrStop: make(chan struct{}),
 	}
-}
-
-// TunIO returns the io.ReadWriteCloser for the TUN interface for the remote AS,
-// doing the required setup first if necessary.
-func (ae *ASEntry) TunIO() (io.ReadWriteCloser, error) {
-	ae.Lock()
-	defer ae.Unlock()
-	if ae.tunLink == nil {
-		if err := ae.setupNet(); err != nil {
-			return nil, err
-		}
-	}
-	return ae.tunIO, nil
-}
-
-// Conn returns the snet.Conn for sending traffic to the remote AS,
-// doing the required setup first if necessary.
-func (ae *ASEntry) Conn() (*snet.Conn, error) {
-	ae.Lock()
-	defer ae.Unlock()
-	if ae.tunLink == nil {
-		if err := ae.setupNet(); err != nil {
-			return nil, err
-		}
-	}
-	return ae.conn, nil
 }
 
 func (ae *ASEntry) setupNet() error {
 	var err error
 	ae.tunLink, ae.tunIO, err = xnet.ConnectTun(ae.DevName)
-	if err != nil {
-		return err
-	}
-	// Not using a fixed local port, as this is for outgoing data only.
-	ae.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
 	if err != nil {
 		return err
 	}
@@ -137,8 +109,9 @@ func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
 	return ne.Cleanup()
 }
 
-// AddNet idempotently adds a SIG for the remote IA.
-func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static bool) error {
+// AddSig idempotently adds a SIG for the remote IA.
+func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP,
+	ctrlPort, encapPort int, static bool) error {
 	ae.Lock()
 	defer ae.Unlock()
 	if len(id) == 0 {
@@ -159,13 +132,13 @@ func (ae *ASEntry) AddSig(id string, ip net.IP, ctrlPort, encapPort int, static 
 		// FIXME(kormat): support updating SIG entry.
 		return nil
 	}
-	ae.Sigs[id] = NewSIGInfo(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
+	ae.Sigs[id] = siginfo.NewSig(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
 	log.Info("Added SIG", "ia", ae.IA, "sig", ae.Sigs[id])
 	return nil
 }
 
 // DelSIG removes an SIG for the remote IA.
-func (ae *ASEntry) DelSig(id string) error {
+func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 	ae.Lock()
 	se, ok := ae.Sigs[id]
 	if !ok {
@@ -175,56 +148,75 @@ func (ae *ASEntry) DelSig(id string) error {
 	delete(ae.Sigs, id)
 	ae.Unlock() // Do cleanup outside the lock.
 	log.Info("Removed SIG", "ia", ae.IA, "id", id)
-	// TODO(kormat): notify keepalive thread to reevaluate SIGs.
 	return se.Cleanup()
 }
 
-// Internal method to return an arbitrary SIG
-func (ae *ASEntry) getSig() *SIGEntry {
-	if len(ae.Sigs) == 0 {
-		return nil
-	}
-	sigs := make([]*SIGEntry, 0, len(ae.Sigs))
-	for _, se := range ae.Sigs {
-		if se.Active {
-			sigs = append(sigs, se)
-		}
-	}
-	return sigs[rand.Intn(len(sigs))]
-}
-
-func (ae *ASEntry) AddPolicy(name string, policy interface{}) error {
+// Internal method to return a *copy* of the ASEntry's SigMap
+func (ae *ASEntry) SigMap() siginfo.SigMap {
 	ae.Lock()
 	defer ae.Unlock()
-	pp, err := NewPathPolicy(ae.IA, ae.getSig(), policy)
+	smap := make(siginfo.SigMap)
+	for k, v := range ae.Sigs {
+		smap[k] = v
+	}
+	return smap
+}
+
+func (ae *ASEntry) AddSession(sessId sigcmn.SessionType, polName string, policy interface{}) error {
+	ae.Lock()
+	defer ae.Unlock()
+	s, err := egress.NewSession(ae.IA, sessId, polName, policy, ae.SigMap)
 	if err != nil {
 		return err
 	}
-	pps := ae.PathPolicies.Load()
-	pps = append(pps, pp)
-	ae.PathPolicies.Store(pps)
-	go NewEgressWorker(ae, pp, ae.conn).Run()
-	if len(pps) == 1 {
+	ss := ae.Sessions.Load()
+	ss = append(ss, s)
+	ae.Sessions.Store(ss)
+	if len(ss) == 1 {
 		log.Info("Starting egress dispatcher", "ia", ae.IA, "dev", ae.DevName)
-		go newEgressDispatcher(ae.DevName, ae.tunIO, ae.PathPolicies).Run()
+		go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.Sessions).Run()
+		go ae.sigMgr()
 	}
+	s.Start()
 	return nil
 }
 
-// TODO: add DelPolicy, and close the tun device if there's no policies left.
+// TODO(kormat): add DelSession, and close the tun device if there's no sessions left.
+
+// manage the Sig map
+func (ae *ASEntry) sigMgr() {
+	defer liblog.LogPanicAndExit()
+	ticker := time.NewTicker(sigMgrTick)
+	defer ticker.Stop()
+	for {
+		// TODO(kormat): handle adding new SIGs from discovery, and updating existing ones.
+		select {
+		case <-ae.sigMgrStop:
+			break
+		case <-ticker.C:
+			smap := ae.SigMap()
+			for _, sig := range smap {
+				sig.ExpireFails()
+			}
+		}
+	}
+}
 
 func (ae *ASEntry) Cleanup() error {
 	ae.Lock()
 	defer ae.Unlock()
+	// Clean up sigMgr goroutine.
+	ae.sigMgrStop <- struct{}{}
 	// Clean up the egress dispatcher.
 	if err := ae.tunIO.Close(); err != nil {
 		log.Error("Error closing TUN io", "ia", ae.IA, "dev", ae.DevName, "err", err)
 	}
 	// Clean up path policies, and their associated workers.
-	pps := ae.PathPolicies.Load()
-	for _, pp := range pps {
-		if err := pp.Cleanup(); err != nil {
-			log.Error("Error cleaning up path policy", "ia", ae.IA, "err", err)
+	ss := ae.Sessions.Load()
+	for _, s := range ss {
+		if err := s.Cleanup(); err != nil {
+			log.Error("Error cleaning up session",
+				"ia", ae.IA, "id", s.SessId, "policy", s.PolName, "err", err)
 		}
 	}
 	for _, ne := range ae.Nets {
@@ -238,5 +230,5 @@ func (ae *ASEntry) Cleanup() error {
 		return common.NewCError("Error removing TUN link",
 			"ia", ae.IA, "dev", ae.DevName, "err", err)
 	}
-	return ae.conn.Close()
+	return nil
 }

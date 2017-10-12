@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	//log "github.com/inconshreveable/log15"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/hpkt"
@@ -59,18 +61,18 @@ type Conn struct {
 
 // DialSCION calls DialSCION on the default networking context.
 func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
-	if pkgNetwork == nil {
+	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
-	return pkgNetwork.DialSCION(network, laddr, raddr)
+	return DefNetwork.DialSCION(network, laddr, raddr)
 }
 
 // ListenSCION calls ListenSCION on the default networking context.
 func ListenSCION(network string, laddr *Addr) (*Conn, error) {
-	if pkgNetwork == nil {
+	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
-	return pkgNetwork.ListenSCION(network, laddr)
+	return DefNetwork.ListenSCION(network, laddr)
 }
 
 // ReadFromSCION reads data into b, returning the length of copied data and the

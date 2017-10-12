@@ -57,7 +57,7 @@ type Dispatcher struct {
 func Init() error {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
-	}, "ingress", prometheus.Labels{"ringId": "freeFrames"})
+	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
 	d := &Dispatcher{
 		laddr:   sigcmn.EncapSnetAddr(),
 		workers: make(map[string]*Worker),
@@ -109,14 +109,14 @@ func (d *Dispatcher) read() {
 // dispatch dispatches a frame to the corresponding worker, spawning one if none
 // exist yet. Dispatching is done based on source ISD-AS -> source host Addr -> Sess Id.
 func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
-	session := int(frame.raw[1])
+	sessId := sigcmn.SessionType((frame.raw[0]))
 	// FIXME(shitz): Remove as soon as egress sets session id correctly.
-	session = 0
-	dispatchStr := fmt.Sprintf("%s/%s/%d", src.IA, src.Host, session)
+	sessId = 0
+	dispatchStr := fmt.Sprintf("%s/%s/%s", src.IA, src.Host, sessId)
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
-		worker = NewWorker(src, session)
+		worker = NewWorker(src, sessId)
 		worker.Start()
 		d.workers[dispatchStr] = worker
 	}

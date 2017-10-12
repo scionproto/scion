@@ -55,12 +55,12 @@ import (
 
 var (
 	// Default SCION networking context for package-level Dial and Listen
-	pkgNetwork *Network
+	DefNetwork *Network
 )
 
 // Init initializes the default SCION networking context.
 func Init(ia *addr.ISD_AS, sPath string, dPath string) error {
-	if pkgNetwork != nil {
+	if DefNetwork != nil {
 		return common.NewCError("Cannot initialize global SCION network twice")
 	}
 
@@ -68,16 +68,16 @@ func Init(ia *addr.ISD_AS, sPath string, dPath string) error {
 	if err != nil {
 		return err
 	}
-	pkgNetwork = network
+	DefNetwork = network
 	return nil
 }
 
 // IA returns the default ISD-AS
 func IA() *addr.ISD_AS {
-	if pkgNetwork == nil {
+	if DefNetwork == nil {
 		return nil
 	}
-	return pkgNetwork.localIA.Copy()
+	return DefNetwork.localIA.Copy()
 }
 
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
@@ -97,7 +97,7 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 		sciondPath:     sPath,
 		dispatcherPath: dPath,
 		localIA:        ia}
-	pathResolver, err := pathmgr.New(sPath, time.Minute, log.Root())
+	pathResolver, err := pathmgr.New(sPath, 10*time.Second, log.Root())
 	if err != nil {
 		return nil, common.NewCError("Unable to initialize path resolver", "err", err)
 	}
@@ -189,6 +189,11 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	conn.laddr.L4Port = port
 	conn.conn = rconn
 	return conn, nil
+}
+
+// PathResolver returns the pathmgr.PR that the network is using.
+func (n *Network) PathResolver() *pathmgr.PR {
+	return n.pathResolver
 }
 
 // IA returns a copy of the ISD-AS assigned to n
