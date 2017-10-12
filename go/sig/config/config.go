@@ -25,14 +25,16 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/pktcls"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
 // Cfg is a direct Go representation of the JSON file format.
 type Cfg struct {
-	ASes map[addr.ISD_AS]*ASEntry
-	//PktClasses map[string]*PktClassifier
-	//PathPolicies map[string]*PathPolicy
+	ASes    map[addr.ISD_AS]*ASEntry
+	Classes pktcls.ClassMap
+	Actions pktcls.ActionMap
 }
 
 // Load a JSON config file from path and parse it into a Cfg struct.
@@ -49,6 +51,29 @@ func LoadFromFile(path string) (*Cfg, error) {
 		return nil, common.NewCError("Empty ASTable in config")
 	}
 	// TODO(kormat): Also ensure that class/action references are valid when those are added.
+	for ia, ae := range cfg.ASes {
+		for sessId, actName := range ae.Sessions {
+			if actName == "" {
+				continue
+			}
+			if _, ok := cfg.Actions[actName]; !ok {
+				return nil, common.NewCError("Unknown action name", "ia", ia, "sessId", sessId,
+					"action", actName)
+			}
+		}
+		for i, pol := range ae.PktPolicies {
+			if _, ok := cfg.Classes[pol.ClassName]; !ok {
+				return nil, common.NewCError("Unknown class name", "ia", ia, "polIdx", i,
+					"class", pol.ClassName)
+			}
+			for _, sessId := range pol.SessIds {
+				if _, ok := ae.Sessions[sessId]; !ok {
+					return nil, common.NewCError("Unknown session id", "ia", ia, "polIdx", i,
+						"class", pol.ClassName, "sessId", sessId)
+				}
+			}
+		}
+	}
 	return cfg, nil
 }
 
@@ -62,8 +87,10 @@ func Parse(b common.RawBytes) (*Cfg, error) {
 }
 
 type ASEntry struct {
-	Nets []*IPNet
-	Sigs map[siginfo.SigIdType]*SIG
+	Nets        []*IPNet
+	Sigs        map[siginfo.SigIdType]*SIG
+	Sessions    map[sigcmn.SessionType]string
+	PktPolicies []*PktPolicy
 }
 
 // IPNet is custom type of net.IPNet, to allow custom unmarshalling.
@@ -92,4 +119,10 @@ type SIG struct {
 	Addr      net.IP
 	CtrlPort  uint16
 	EncapPort uint16
+}
+
+type PktPolicy struct {
+	SessionId sigcmn.SessionType
+	ClassName string
+	SessIds   []sigcmn.SessionType
 }

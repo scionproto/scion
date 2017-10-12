@@ -22,6 +22,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/pktcls"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 )
@@ -43,14 +44,14 @@ func Init() {
 }
 
 type egressDispatcher struct {
-	devName  string
-	devIO    io.ReadWriteCloser
-	syncSess *SyncSession
+	devName     string
+	devIO       io.ReadWriteCloser
+	syncPktPols *SyncPktPols
 }
 
 func NewDispatcher(devName string, devIO io.ReadWriteCloser,
-	syncSess *SyncSession) *egressDispatcher {
-	return &egressDispatcher{devName: devName, devIO: devIO, syncSess: syncSess}
+	spp *SyncPktPols) *egressDispatcher {
+	return &egressDispatcher{devName: devName, devIO: devIO, syncPktPols: spp}
 }
 
 func (ed *egressDispatcher) Run() {
@@ -58,10 +59,6 @@ func (ed *egressDispatcher) Run() {
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
-	var sess *Session
-	for _, sess = range ed.syncSess.Load() {
-		break
-	}
 	for {
 		n, _ := egressFreePkts.Read(bufs, true)
 		if n < 0 {
@@ -78,6 +75,25 @@ func (ed *egressDispatcher) Run() {
 				continue
 			}
 			buf = buf[:length]
+			var sess *Session
+			ppols := ed.syncPktPols.Load()
+			clsPkt := pktcls.NewPacket(buf)
+		TopPols:
+			for _, ppol := range ppols {
+				if ppol.Class.Eval(clsPkt) {
+					for _, sess = range ppol.Sessions {
+						if sess.Healthy() {
+							break TopPols
+						}
+						// XXX(kormat): If all sessions are unhealthy, the last
+						// one will be chosen.
+					}
+				}
+			}
+			if sess == nil {
+				log.Debug("Unable to find session", "len(ppols)", len(ppols))
+				continue
+			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
 			pktsRecv.Inc()
 			pktBytesRecv.Add(float64(length))

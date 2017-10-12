@@ -256,8 +256,8 @@ func (p *parseCtx) DefaultFwdPathParser() error {
 	p.fwdPathOffsets.start = p.offset
 	pathLen := p.cmnHdr.HdrLenBytes() - p.offset
 	p.s.Path.Raw = p.b[p.offset : p.offset+pathLen]
-	p.s.Path.InfOff = p.cmnHdr.InfoFOffBytes()
-	p.s.Path.HopOff = p.cmnHdr.HopFOffBytes()
+	p.s.Path.InfOff = p.cmnHdr.InfoFOffBytes() - p.offset
+	p.s.Path.HopOff = p.cmnHdr.HopFOffBytes() - p.offset
 	p.offset += pathLen
 	p.fwdPathOffsets.end = p.offset
 	return nil

@@ -104,9 +104,9 @@ func (w *Worker) run() {
 // packets to the wire and then adding the frame to the corresponding reassembly
 // list if needed.
 func (w *Worker) processFrame(frame *FrameBuf) {
-	seqNr := int(common.Order.Uint32(frame.raw[:4]))
-	index := int(common.Order.Uint16(frame.raw[4:6]))
-	epoch := int(common.Order.Uint16(frame.raw[6:8]))
+	epoch := int(common.Order.Uint16(frame.raw[1:3]))
+	seqNr := int(common.Order.Uint32(frame.raw[2:6]) & 0x00FFFFFF)
+	index := int(common.Order.Uint16(frame.raw[6:8]))
 	frame.seqNr = seqNr
 	frame.index = index
 	//log.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,

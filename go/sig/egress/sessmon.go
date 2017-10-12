@@ -110,6 +110,12 @@ func (sm *sessMonitor) updateRemote() {
 	}
 	since := time.Since(sm.lastReply)
 	if since > tout {
+		if currSig != nil {
+			currSig.Fail()
+		}
+		if currSessPath != nil {
+			currSessPath.fail()
+		}
 		sm.Debug("Timeout", "remote", currRemote, "duration", since)
 		currSig = sm.getNewSig(currSig)
 		currSessPath = sm.getNewPath(currSessPath)
@@ -137,6 +143,7 @@ func (sm *sessMonitor) updateRemote() {
 			sm.needUpdate = true
 		}
 	}
+	sm.sess.healthy.Store(!sm.needUpdate)
 	sm.smRemote = &RemoteInfo{Sig: currSig, sessPath: currSessPath}
 }
 
@@ -189,6 +196,9 @@ func (sm *sessMonitor) sendReq() {
 	}
 	raddr := sm.smRemote.Sig.CtrlSnetAddr()
 	raddr.Path = spath.New(sm.smRemote.sessPath.pathEntry.Path.FwdPath)
+	if err := raddr.Path.InitOffsets(); err != nil {
+		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
+	}
 	raddr.NextHopHost = sm.smRemote.sessPath.pathEntry.HostInfo.Host()
 	raddr.NextHopPort = sm.smRemote.sessPath.pathEntry.HostInfo.Port
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
@@ -219,5 +229,6 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 		sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
 		sm.sess.currRemote.Store(sm.smRemote)
 		sm.needUpdate = false
+		sm.sess.healthy.Store(true)
 	}
 }

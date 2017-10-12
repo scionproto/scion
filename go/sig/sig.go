@@ -27,6 +27,8 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/pktcls"
 	"github.com/netsec-ethz/scion/go/sig/base"
 	"github.com/netsec-ethz/scion/go/sig/config"
 	"github.com/netsec-ethz/scion/go/sig/disp"
@@ -124,15 +126,13 @@ func loadConfig(path string) bool {
 			if encapPort == 0 {
 				encapPort = sigcmn.DefaultEncapPort
 			}
-			err := ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true)
-			if err != nil {
+			if err := ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true); err != nil {
 				cerr := err.(*common.CError)
 				log.Error(cerr.Desc, cerr.Ctx...)
 				success = false
 				continue
 			}
 		}
-		// TODO(kormat): add classes here
 		for _, netw := range cfgEntry.Nets {
 			if err := ae.AddNet(netw.IPNet()); err != nil {
 				cerr := err.(*common.CError)
@@ -141,8 +141,28 @@ func loadConfig(path string) bool {
 				continue
 			}
 		}
-		// TODO(kormat): add sessions here FIXME(kormat): this is probably the wrong ordering.
-		ae.AddSession(11, "placeholder", nil)
+		for sessId, actName := range cfgEntry.Sessions {
+			act := cfg.Actions[actName]
+			var pred *pathmgr.PathPredicate
+			if afp, ok := act.(*pktcls.ActionFilterPaths); ok {
+				pred = afp.Contains
+			}
+			if err := ae.AddSession(sessId, actName, pred); err != nil {
+				cerr := err.(*common.CError)
+				log.Error(cerr.Desc, cerr.Ctx...)
+				success = false
+				continue
+			}
+		}
+		for _, pol := range cfgEntry.PktPolicies {
+			cls := cfg.Classes[pol.ClassName]
+			if err := ae.AddPktPolicy(pol.ClassName, cls, pol.SessIds); err != nil {
+				cerr := err.(*common.CError)
+				log.Error(cerr.Desc, cerr.Ctx...)
+				success = false
+				continue
+			}
+		}
 	}
 	return success
 }
