@@ -22,6 +22,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 )

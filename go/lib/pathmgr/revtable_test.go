@@ -35,14 +35,14 @@ func TestRevTable(t *testing.T) {
 
 			Convey("Revoke non-existing UIFID 1-18#42", func() {
 				ia, _ := addr.IAFromString("1-18")
-				uifid := UIFIDFromValues(ia, 42)
+				uifid := uifidFromValues(ia, 42)
 				rt.revoke(uifid)
 				SoMsg("revocation table size", len(rt.m), ShouldEqual, 12)
 			})
 
 			Convey("Revoke existing UIFID 2-25#74", func() {
 				ia, _ := addr.IAFromString("2-25")
-				uifid := UIFIDFromValues(ia, 74)
+				uifid := uifidFromValues(ia, 74)
 				rt.revoke(uifid)
 				SoMsg("revocation table size", len(rt.m), ShouldEqual, 0)
 				// Revoking from RevTable also deletes from aps
@@ -56,7 +56,7 @@ func TestRevTable(t *testing.T) {
 
 				Convey("Revoke UIFID that is member of 1 out of 2 path sets", func() {
 					ia, _ := addr.IAFromString("2-21")
-					uifid := UIFIDFromValues(ia, 97)
+					uifid := uifidFromValues(ia, 97)
 					rt.revoke(uifid)
 					SoMsg("revocation table size", len(rt.m), ShouldEqual, 8)
 					SoMsg("aps 1-19.2-25 size", len(aps1), ShouldEqual, 0)
@@ -65,7 +65,7 @@ func TestRevTable(t *testing.T) {
 
 				Convey("Revoke UIFID that is member of both path sets", func() {
 					ia, _ := addr.IAFromString("1-19")
-					uifid := UIFIDFromValues(ia, 60)
+					uifid := uifidFromValues(ia, 60)
 					rt.revoke(uifid)
 					SoMsg("revocation table size", len(rt.m), ShouldEqual, 0)
 					SoMsg("aps 1-19.2-25 size", len(aps1), ShouldEqual, 0)
@@ -86,7 +86,7 @@ func TestRevTable(t *testing.T) {
 					"1-19.2-25": 1, "1-10.1-18": 1, "2-24.1-17": 1, "2-22.1-16": 1,
 					"1-18.2-25": 1, "2-21.2-26": 1, "1-11.2-23": 1, "1-13.1-18": 1}
 				ia, _ := addr.IAFromString("1-14")
-				uifid := UIFIDFromValues(ia, 91)
+				uifid := uifidFromValues(ia, 91)
 				rt.revoke(uifid)
 				for srcdst, ap := range m {
 					SoMsg(fmt.Sprintf("paths remaining for %v", srcdst), len(ap),
@@ -99,7 +99,7 @@ func TestRevTable(t *testing.T) {
 					"1-19.2-25": 1, "1-10.1-18": 0, "2-24.1-17": 1, "2-22.1-16": 1,
 					"1-18.2-25": 1, "2-21.2-26": 1, "1-11.2-23": 1, "1-13.1-18": 1}
 				ia, _ := addr.IAFromString("1-15")
-				uifid := UIFIDFromValues(ia, 35)
+				uifid := uifidFromValues(ia, 35)
 				rt.revoke(uifid)
 				for srcdst, ap := range m {
 					SoMsg(fmt.Sprintf("paths remaining for %v", srcdst), len(ap),
@@ -112,10 +112,10 @@ func TestRevTable(t *testing.T) {
 					"1-19.2-25": 0, "1-10.1-18": 0, "2-24.1-17": 1, "2-22.1-16": 1,
 					"1-18.2-25": 1, "2-21.2-26": 1, "1-11.2-23": 0, "1-13.1-18": 1}
 				ia, _ := addr.IAFromString("1-15")
-				uifid := UIFIDFromValues(ia, 35)
+				uifid := uifidFromValues(ia, 35)
 				rt.revoke(uifid)
 				ia, _ = addr.IAFromString("2-21")
-				uifid = UIFIDFromValues(ia, 97)
+				uifid = uifidFromValues(ia, 97)
 				rt.revoke(uifid)
 				for srcdst, ap := range m {
 					SoMsg(fmt.Sprintf("paths remaining for %v", srcdst), len(ap),

@@ -70,6 +70,20 @@ func (ap *AppPath) Key() PathKey {
 	return PathKey(h.Sum(nil))
 }
 
+// duplicateIn adds a shallow copy of ap to aps without setting the parent link.
+// FIXME(scrye): The pathmgr revocation mechanism currently uses parent links to
+// efficiently revoke paths. However, filtered path sets are updated by (1)
+// iterating through the list of revoked paths, (2) grabbing the source and
+// destination IA of each revoked path, (3) retrieving the set of available
+// paths for the src-dst pair and (4) updating the set of filtered paths to
+// match the remaining ones. Parent links are not needed in this case. The path
+// manager will be refactored to use a similar approach for all paths, thus
+// making parent links no longer needed throughout the path manager.
+func (ap *AppPath) duplicateIn(aps AppPathSet) {
+	newAP := &AppPath{Entry: ap.Entry}
+	aps[ap.Key()] = newAP
+}
+
 // revoke removes ap from its parent path set.
 func (ap *AppPath) revoke() {
 	delete(ap.parent, ap.Key())

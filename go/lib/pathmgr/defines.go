@@ -15,7 +15,6 @@
 package pathmgr
 
 import (
-	"sync/atomic"
 	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -44,20 +43,6 @@ type query struct {
 	sp       *SyncPaths
 }
 
-// SyncPaths contains a concurrency-safe reference to an AppPathSet.  Callers
-// can safely `Load` the reference and use the paths within. At any moment, the
-// path resolver can change the value of the reference within a SyncPaths to a
-// different slice containing new paths. Calling code should reload the
-// reference often to make sure the paths are fresh.
-type SyncPaths struct {
-	atomic.Value
-}
-
-// Overwrite Load to avoid external type assertions
-func (sp *SyncPaths) Load() AppPathSet {
-	return sp.Value.Load().(AppPathSet)
-}
-
 // sciondState is used to track the health of the connection to SCIOND
 type sciondState uint64
 
@@ -79,6 +64,6 @@ func (state sciondState) String() string {
 	}
 }
 
-func IAKey(src, dst *addr.ISD_AS) string {
+func iaKey(src, dst *addr.ISD_AS) string {
 	return src.String() + "." + dst.String()
 }
