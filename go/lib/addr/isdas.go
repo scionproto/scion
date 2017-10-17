@@ -82,6 +82,10 @@ func (ia *ISD_AS) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func (ia *ISD_AS) MarshalText() ([]byte, error){
+	return []byte(ia.String()), nil
+}
+
 func (ia *ISD_AS) Parse(b common.RawBytes) {
 	newIA := IAInt(common.Order.Uint32(b)).IA()
 	*ia = *newIA
