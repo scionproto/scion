@@ -38,6 +38,12 @@
 			"revisionTime": "2016-08-04T10:47:26Z"
 		},
 		{
+			"checksumSHA1": "bBPshqRUvW7MtZp8UcjRxdD2KJ0=",
+			"path": "github.com/bouk/monkey",
+			"revision": "b96e337f6e5b36906584cd0cf9803bbab09284f7",
+			"revisionTime": "2017-09-01T20:25:51Z"
+		},
+		{
 			"checksumSHA1": "s8t6UaijV8WMK0RMdX00OPI5z0o=",
 			"path": "github.com/dchest/cmac",
 			"revision": "62ff55a1048c485e83f1882466f535da624e944a",

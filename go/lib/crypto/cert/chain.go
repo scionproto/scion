@@ -40,8 +40,10 @@ func (k *Key) String() string {
 }
 
 type Chain struct {
+	// Leave is the leave certificate of the chain. It is signed by the Core certificate.
 	Leave Certificate `json:"0"`
-	Core  Certificate `json:"1"`
+	// Core is the core AS certificate of the chain. It is signed by the TRC of the ISD.
+	Core Certificate `json:"1"`
 }
 
 func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
@@ -65,7 +67,7 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	return c, nil
 }
 
-func (c *Chain) Verify(subject *addr.ISD_AS, trc int) error {
+func (c *Chain) Verify(subject *addr.ISD_AS, trc interface{}) error {
 	if err := c.Leave.Verify(subject, c.Core.SubjectSigKey, c.Core.SignAlgorithm); err != nil {
 		return err
 	}

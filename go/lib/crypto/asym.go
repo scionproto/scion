@@ -22,11 +22,15 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+const (
+	Ed25519 string = "ed25519"
+)
+
 // Sign takes a signature input and a signing key to create a signature. Currently only
 // ed25519 is supported
 func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, error) {
 	switch strings.ToLower(signAlgo) {
-	case "ed25519":
+	case Ed25519:
 		if len(signKey) != ed25519.PrivateKeySize {
 			return nil, common.NewCError("Invalid key size", "expected",
 				ed25519.PrivateKeySize, "actual", len(signKey))
@@ -41,7 +45,7 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 // signature does not match. Currently only ed25519 is supported.
 func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	switch strings.ToLower(signAlgo) {
-	case "ed25519":
+	case Ed25519:
 		if len(verifyKey) != ed25519.PublicKeySize {
 			return common.NewCError("Invalid key size", "expected",
 				ed25519.PublicKeySize, "actual", len(verifyKey))

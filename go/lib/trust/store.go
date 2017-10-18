@@ -19,17 +19,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/crypto/cert"
 )
 
-const CertDir string = "certs"
-
 type Store struct {
-	// dir is the configuration directory.
-	dir string
+	// certDir is the certificate directory.
+	certDir string
 	// certDir is the directory to cache TRCs and certs in.
 	cacheDir string
 	// eName is the element name, used to generate cache file names.
@@ -42,9 +41,8 @@ type Store struct {
 	chainLock sync.RWMutex
 }
 
-func NewTrustStore(confDir, cacheDir, eName string) (*Store, error) {
-	dir := filepath.Join(confDir, CertDir)
-	s := &Store{dir: dir, cacheDir: cacheDir, eName: eName,
+func NewStore(certDir, cacheDir, eName string) (*Store, error) {
+	s := &Store{certDir: certDir, cacheDir: cacheDir, eName: eName,
 		chainMap:    make(map[cert.Key]*cert.Chain),
 		maxChainMap: make(map[addr.ISD_AS]int)}
 	s.initChains()
@@ -54,7 +52,7 @@ func NewTrustStore(confDir, cacheDir, eName string) (*Store, error) {
 // initChains loads the certificate chain files from dir and cacheDir and populates chainMap
 // as well as maxChainMap.
 func (s *Store) initChains() error {
-	files, err := filepath.Glob(fmt.Sprintf("%s/*.crt", s.dir))
+	files, err := filepath.Glob(fmt.Sprintf("%s/*.crt", s.certDir))
 	if err != nil {
 		return err
 	}
@@ -87,13 +85,13 @@ func (s *Store) AddChain(chain *cert.Chain, write bool) error {
 	s.chainLock.Lock()
 	s.chainMap[*chain.Key()] = chain
 	v, ok := s.maxChainMap[*ia]
-	if ver > v || !ok {
+	if !ok || ver > v {
 		s.maxChainMap[*ia] = ver
 		ok = false
 	}
 	s.chainLock.Unlock()
 	if write && !ok {
-		j, err := json.MarshalIndent(chain, "", "    ")
+		j, err := json.MarshalIndent(chain, "", strings.Repeat(" ", 4))
 		if err != nil {
 			return err
 		}
@@ -108,19 +106,19 @@ func (s *Store) AddChain(chain *cert.Chain, write bool) error {
 // GetChain returns the certificate chain for the specified values or nil, if it is not present.
 func (s *Store) GetChain(ia *addr.ISD_AS, ver int) *cert.Chain {
 	s.chainLock.RLock()
+	defer s.chainLock.RUnlock()
 	chain := s.chainMap[cert.Key{IA: *ia, Ver: ver}]
-	s.chainLock.RUnlock()
 	return chain
 }
 
 // GetMaxChain the certificate chain with the highest version for the specified ISD-AS.
-func (s *Store) GetMaxChain(ia *addr.ISD_AS) *cert.Chain {
+func (s *Store) GetNewestChain(ia *addr.ISD_AS) *cert.Chain {
 	s.chainLock.RLock()
+	defer s.chainLock.RUnlock()
 	var chain *cert.Chain
 	ver, ok := s.maxChainMap[*ia]
 	if ok {
 		chain = s.chainMap[cert.Key{IA: *ia, Ver: ver}]
 	}
-	s.chainLock.RUnlock()
 	return chain
 }
