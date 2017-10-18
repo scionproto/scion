@@ -82,7 +82,7 @@ func (ia *ISD_AS) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (ia *ISD_AS) MarshalText() ([]byte, error){
+func (ia *ISD_AS) MarshalText() ([]byte, error) {
 	return []byte(ia.String()), nil
 }
 
