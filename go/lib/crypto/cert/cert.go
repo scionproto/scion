@@ -28,7 +28,8 @@ import (
 )
 
 type Certificate struct {
-	// The following fields need to be sorted
+	// All fields in this struct need to be sorted to create a sorted JSON.
+	// This is important for the creation of signature input.
 
 	// CanIssue describes wheter the subject is able to issue certificates.
 	CanIssue bool
@@ -66,10 +67,11 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 	return cert, nil
 }
 
-// Verify checks the signature of the certificate based on a trusted verifying key,
-// and further verifies, that the certificate belongs to the given subject.
+// Verify checks the signature of the certificate based on a trusted verifying key and the
+// associated signature algorithm. Further, it verifies that the certificate belongs to the given subject,
+// and that it is valid at the current time.
 func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, signAlgo string) error {
-	if subject.Eq(c.Subject) {
+	if !subject.Eq(c.Subject) {
 		return common.NewCError("Subject does not match", "expected", c.Subject, "actual", subject)
 	}
 	t := time.Now()
@@ -81,7 +83,7 @@ func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, si
 		return common.NewCError("Certificate expired", "Expiration Time",
 			time.Unix(c.ExpirationTime, 0), "current", t)
 	}
-	sigInput, err := c.signatureInput()
+	sigInput, err := c.sigPack()
 	if err != nil {
 		return common.NewCError("Signature input creation faild", "error", err)
 	}
@@ -91,7 +93,7 @@ func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, si
 // Sign adds signature to the certificate. The signature is computed over the certificate
 // without the signature field.
 func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
-	sigInput, err := c.signatureInput()
+	sigInput, err := c.sigPack()
 	if err != nil {
 		return err
 	}
@@ -101,11 +103,10 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 	}
 	c.Signature = sig
 	return nil
-
 }
 
-// signatureInput creates a sorted json object of all fields, except for the signature field.
-func (c *Certificate) signatureInput() (common.RawBytes, error) {
+// sigPack creates a sorted json object of all fields, except for the signature field.
+func (c *Certificate) sigPack() (common.RawBytes, error) {
 	l := len(c.Signature)
 	c.Signature = c.Signature[:0]
 	sigInput, err := json.Marshal(c)
