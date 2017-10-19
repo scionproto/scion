@@ -33,6 +33,13 @@ from lib.util import read_file
 
 def get_sig_key_file_path(conf_dir):
     """
+    Return the signing key seed file path.
+    """
+    return os.path.join(conf_dir, KEYS_DIR, "as-sig.seed")
+
+
+def get_sig_key_raw_file_path(conf_dir):
+    """
     Return the signing key file path.
     """
     return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
