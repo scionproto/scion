@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/pierrec/lz4"
 
@@ -39,11 +40,13 @@ func (k *Key) String() string {
 	return fmt.Sprintf("%s.%d", k.IA, k.Ver)
 }
 
+// Chain contains two certificates, one fore the leave and one for the core. The leave certificate
+// is signed by the core certificate, which is signed by the TRC of the corresponding ISD.
 type Chain struct {
 	// Leave is the leave certificate of the chain. It is signed by the Core certificate.
-	Leave Certificate `json:"0"`
+	Leave *Certificate `json:"0"`
 	// Core is the core AS certificate of the chain. It is signed by the TRC of the ISD.
-	Core Certificate `json:"1"`
+	Core *Certificate `json:"1"`
 }
 
 func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
@@ -92,11 +95,18 @@ func (c *Chain) Compress() (common.RawBytes, error) {
 }
 
 func (c *Chain) String() string {
-	j, err := json.Marshal(c)
-	if err != nil {
-		return fmt.Sprintf("Certificate Chain not printable. Error: %s", err)
+	return fmt.Sprintf("CertificateChain %sv%d", c.Leave.Subject, c.Leave.Version)
+}
+
+func (c *Chain) JSON(indent bool) ([]byte, error) {
+	if indent {
+		return json.MarshalIndent(c, "", strings.Repeat(" ", 4))
 	}
-	return string(j)
+	return json.Marshal(c)
+}
+
+func (c *Chain) Eq(o *Chain) bool {
+	return c.Leave.Eq(o.Leave) && c.Core.Eq(o.Core)
 }
 
 func (c *Chain) IAVer() (*addr.ISD_AS, int) {

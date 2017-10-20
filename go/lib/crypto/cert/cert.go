@@ -18,8 +18,10 @@
 package cert
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -29,13 +31,15 @@ import (
 
 type Certificate struct {
 	// All fields in this struct need to be sorted to create a sorted JSON.
-	// This is important for the creation of signature input.
+	// They need to be sorted in alphabetic order of the field names,
+	// since MarshalJSON marshals struct fields in order of declaration.
+	// This is important for a consistent creation of signature input.
 
 	// CanIssue describes wheter the subject is able to issue certificates.
 	CanIssue bool
 	// Comment is an arbitrary and optional string used by the subject to describe the certificate.
 	Comment string
-	// EncAlgorithm is the algorithm used to encrypt messages.
+	// EncAlgorithm is the algorithm associated with SubjectEncKey.
 	EncAlgorithm string
 	// ExpirationTime is the time at which the certificate expires.
 	ExpirationTime int64
@@ -43,7 +47,7 @@ type Certificate struct {
 	Issuer *addr.ISD_AS
 	// IssuingTime is the time at which the certificate was created.
 	IssuingTime int64
-	// SignAlgorithm is the algorithm used to sign the certificate.
+	// SignAlgorithm is the algorithm associated with SubjectSigKey.
 	SignAlgorithm string
 	// Signature is the certificate signature. It is computed over the rest of the certificate.
 	Signature common.RawBytes `json:",omitempty"`
@@ -118,9 +122,28 @@ func (c *Certificate) sigPack() (common.RawBytes, error) {
 }
 
 func (c *Certificate) String() string {
-	j, err := json.Marshal(c)
-	if err != nil {
-		return fmt.Sprintf("Certificate for %s not printable. Error: %s", c.Issuer, err)
+	return fmt.Sprintf("Certificate %sv%d", c.Subject, c.Version)
+}
+
+func (c *Certificate) JSON(indent bool) ([]byte, error) {
+	if indent {
+		return json.MarshalIndent(c, "", strings.Repeat(" ", 4))
 	}
-	return string(j)
+	return json.Marshal(c)
+}
+
+func (c *Certificate) Eq(o *Certificate) bool {
+	return c.CanIssue == o.CanIssue &&
+		c.Comment == o.Comment &&
+		c.ExpirationTime == o.ExpirationTime &&
+		c.IssuingTime == o.IssuingTime &&
+		c.TRCVersion == o.TRCVersion &&
+		c.Version == o.Version &&
+		c.Issuer.Eq(o.Issuer) &&
+		c.Subject.Eq(o.Subject) &&
+		c.SignAlgorithm == o.SignAlgorithm &&
+		c.EncAlgorithm == o.EncAlgorithm &&
+		bytes.Equal(c.SubjectEncKey, o.SubjectEncKey) &&
+		bytes.Equal(c.SubjectSigKey, o.SubjectSigKey) &&
+		bytes.Equal(c.Signature, o.Signature)
 }
