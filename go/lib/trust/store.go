@@ -26,10 +26,11 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/crypto/cert"
 )
 
+// Store handles storage and management of trust objects (certificate chains and TRCs)
 type Store struct {
 	// certDir is the certificate directory.
 	certDir string
-	// certDir is the directory to cache TRCs and certs in.
+	// cacheDir is the directory to cache TRCs and certs in.
 	cacheDir string
 	// eName is the element name, used to generate cache file names.
 	eName string

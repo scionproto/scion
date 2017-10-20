@@ -21,10 +21,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"golang.org/x/crypto/ed25519"
+
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/crypto"
 )
 
 // Interface assertions
@@ -159,12 +161,16 @@ func Test_ChainFromRaw(t *testing.T) {
 func Test_Chain_Verify(t *testing.T) {
 	Convey("Chain is verifiable", t, func() {
 		// FIXME(roosd): Update with TRC implementation
-		valid := time.Date(2017, 10, 19, 0, 0, 0, 0, time.UTC)
-		monkey.Patch(time.Now, func() time.Time { return valid })
 		chain, _ := ChainFromRaw(rawChain, false)
+		pub, priv, _ := ed25519.GenerateKey(nil)
+		pubRaw, privRaw := []byte(pub), []byte(priv)
+
+		chain.Leave.IssuingTime = time.Now().Unix()
+		chain.Leave.ExpirationTime = chain.Leave.IssuingTime + 1<<20
+		chain.Leave.Sign(privRaw, crypto.Ed25519)
+		chain.Core.SubjectSigKey = pubRaw
 		err := chain.Verify(&addr.ISD_AS{I: 1, A: 10}, nil)
 		SoMsg("err", err, ShouldBeNil)
-		monkey.UnpatchAll()
 	})
 }
 
@@ -174,16 +180,25 @@ func Test_Chain_Compress(t *testing.T) {
 		comp, err := chain.Compress()
 		SoMsg("err", err, ShouldBeNil)
 		pChain, _ := ChainFromRaw(comp, true)
-		SoMsg("Compare", pChain.String(), ShouldEqual, chain.String())
+		SoMsg("Compare", pChain.Eq(chain), ShouldBeTrue)
 	})
 }
 
 func Test_Chain_String(t *testing.T) {
-	Convey("Certificate is returned as String correctly", t, func() {
+	Convey("Chain is returned as String correctly", t, func() {
 		chain, err := ChainFromRaw(rawChain, false)
-		s := `{"0":{"CanIssue":false,"Comment":"AS Certificate☂☂☂☂","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"/hoJBGTQ0F2+4OqpfCTrPgZjAEX7/3XuqTLbPhmZpsVhX4E+gLHKVG0/+/ASyq6PZjF97WtzApPjVw5jOIEtAg==","Subject":"1-10","SubjectEncKey":"nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=","SubjectSigKey":"5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=","TRCVersion":2,"Version":1},"1":{"CanIssue":true,"Comment":"Core AS Certificate","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"22iMWzSgocC1MRJ64ZRH2rL2sLxT9+sJWa4a2VbQ8R7MdXlOM/b7cjzSCLZqNXpVOXf8cQ1yGmhypFQTxUEJCA==","Subject":"1-13","SubjectEncKey":"MxxFIP+KlhIyqxsv6B0Um72D+NPoLKGuBPNt8b14/RI=","SubjectSigKey":"kqh9WJfVH10/apH278var5ec3AYIU5LjdS1n7SP5+p8=","TRCVersion":2,"Version":1}}`
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("Compare", chain.String(), ShouldEqual, s)
+		SoMsg("Compare", chain.String(), ShouldEqual, "CertificateChain 1-10v1")
+	})
+}
+
+func Test_Chain_JSON(t *testing.T) {
+	Convey("Chain is returned as Json correctly", t, func() {
+		s := `{"0":{"CanIssue":false,"Comment":"AS Certificate☂☂☂☂","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"/hoJBGTQ0F2+4OqpfCTrPgZjAEX7/3XuqTLbPhmZpsVhX4E+gLHKVG0/+/ASyq6PZjF97WtzApPjVw5jOIEtAg==","Subject":"1-10","SubjectEncKey":"nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=","SubjectSigKey":"5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=","TRCVersion":2,"Version":1},"1":{"CanIssue":true,"Comment":"Core AS Certificate","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"22iMWzSgocC1MRJ64ZRH2rL2sLxT9+sJWa4a2VbQ8R7MdXlOM/b7cjzSCLZqNXpVOXf8cQ1yGmhypFQTxUEJCA==","Subject":"1-13","SubjectEncKey":"MxxFIP+KlhIyqxsv6B0Um72D+NPoLKGuBPNt8b14/RI=","SubjectSigKey":"kqh9WJfVH10/apH278var5ec3AYIU5LjdS1n7SP5+p8=","TRCVersion":2,"Version":1}}`
+		cert, _ := ChainFromRaw(rawChain, false)
+		j, err := cert.JSON(false)
+		So(err, ShouldEqual, nil)
+		So(string(j), ShouldEqual, s)
 	})
 }
 
@@ -194,6 +209,25 @@ func Test_Chain_IAVer(t *testing.T) {
 		ia, ver := chain.IAVer()
 		SoMsg("IA", ia.Eq(&addr.ISD_AS{I: 1, A: 10}), ShouldBeTrue)
 		SoMsg("Ver", ver, ShouldEqual, 1)
+	})
+}
+
+func Test_Chain_Eq(t *testing.T) {
+	Convey("Load Certificate from Raw", t, func() {
+		c1, _ := ChainFromRaw(rawChain, false)
+		c2, _ := ChainFromRaw(rawChain, false)
+
+		Convey("Chains are equal", func() {
+			SoMsg("Eq", c1.Eq(c2), ShouldBeTrue)
+		})
+		Convey("Chains are unequal (Leave)", func() {
+			c1.Leave.CanIssue = true
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Chains are unequal (Core)", func() {
+			c1.Leave.CanIssue = true
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
 	})
 }
 
