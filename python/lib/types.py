@@ -99,23 +99,24 @@ class L4Proto(TypeBase):
 ############################
 # Payload class/types
 ############################
-class PayloadClass(object):
+class PayloadClass(TypeBase):
     PCB = "pcb"
     IFID = "ifid"
     CERT = "certMgmt"
     PATH = "pathMgmt"
     SIBRA = "sibra"
     DRKEY = "drkeyMgmt"
+    HPATH = "hpMgmt"
 
 
-class CertMgmtType(object):
+class CertMgmtType(TypeBase):
     CERT_CHAIN_REQ = "certChainReq"
     CERT_CHAIN_REPLY = "certChainRep"
     TRC_REQ = "trcReq"
     TRC_REPLY = "trcRep"
 
 
-class PathMgmtType(object):
+class PathMgmtType(TypeBase):
     REQUEST = "segReq"
     REPLY = "segReply"
     # Path registration (sent by Beacon Server).
@@ -125,6 +126,15 @@ class PathMgmtType(object):
     REVOCATION = "revInfo"
     IFSTATE_REQ = "ifStateReq"
     IFSTATE_INFOS = "ifStateInfos"
+
+
+class HPMgmtType(TypeBase):
+    CFG_REQ = "hpCfgReq"
+    CFG_REPLY = "hpCfgReply"
+    CFG_REG = "hpCfgReg"
+    SEG_REQ = "hpSegReq"
+    SEG_REPLY = "hpSegReply"
+    SEG_REG = "hpSegReg"
 
 
 class PathSegmentType(TypeBase):
@@ -137,7 +147,7 @@ class PathSegmentType(TypeBase):
     GENERIC = 3  # FIXME(PSz): experimental for now.
 
 
-class DRKeyMgmtType(object):
+class DRKeyMgmtType(TypeBase):
     FIRST_ORDER_REQUEST = "drkeyReq"
     FIRST_ORDER_REPLY = "drkeyRep"
 

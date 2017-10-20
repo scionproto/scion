@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 from socket import MSG_DONTWAIT
 
 # External packages
+import capnp
 import yaml
 from external.stacktracer import trace_start
 
@@ -298,6 +299,7 @@ class SCIONTime(object):
 
 class Raw(object):
     """A class to wrap raw bytes objects."""
+
     def __init__(self, data, desc="", len_=None,
                  min_=False):  # pragma: no cover
         self._data = data
@@ -389,3 +391,32 @@ class Raw(object):
 
     def __len__(self):
         return max(0, len(self._data) - self._offset)
+
+
+def proto_len(schema):
+    """Calculates the number of fields in a capnp schema."""
+    union_fields = schema.union_fields
+    # Add up all the fields in a union.
+    cnt = len(union_fields)
+    for name, field in schema.fields.items():
+        # Fields within unions are already accounted for. Skip.
+        if name in union_fields:
+            continue
+        try:
+            s = field.schema
+            if _is_group(s):
+                cnt += len(s.fields)
+            else:
+                cnt += 1
+        except capnp.lib.capnp.KjException:
+            cnt += 1
+    return cnt
+
+
+def _is_group(schema):
+    if not isinstance(schema, capnp.lib.capnp._StructSchema):
+        return False
+    # Simple heuristic to distinguish toplevel groups from toplevel structs:
+    # If schema name contains a '.' it's a group, otherwise a struct.
+    field_name = schema.node.displayName.split(":")[1]
+    return "." in field_name

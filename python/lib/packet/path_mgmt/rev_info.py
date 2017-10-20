@@ -22,10 +22,15 @@ import capnp  # noqa
 
 # SCION
 import proto.rev_info_capnp as P
+<<<<<<< HEAD
 from lib.defines import HASHTREE_EPOCH_TIME
 from lib.errors import SCIONBaseError
+=======
+from lib.errors import SCIONSigVerError
+>>>>>>> 0cb5c25... Added hidden path mgmt packet formats for Python
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
+from lib.util import proto_len
 
 
 class RevInfoValidationError(SCIONBaseError):
@@ -38,6 +43,7 @@ class RevocationInfo(Cerealizable):
     """
     NAME = "RevocationInfo"
     P_CLS = P.RevInfo
+    VER = proto_len(P.RevInfo.schema) - 1
 
     @classmethod
     def from_values(cls, isd_as, if_id, epoch, nonce, siblings, prev_root,
@@ -76,6 +82,23 @@ class RevocationInfo(Cerealizable):
         if self.p.treeTTL == 0 or (self.p.treeTTL % HASHTREE_EPOCH_TIME != 0):
             raise RevInfoValidationError("Invalid TreeTTL: %d" % self.p.treeTTL)
         self.isd_as()
+
+    def sig_pack(self):
+        if self.VER != 7:
+            raise SCIONSigVerError("RevocationInfo.sig_pack cannot support version %s",
+                                   self.Ver)
+        b = []
+        b.append(self.p.ifID.to_bytes(8, 'big'))
+        b.append(self.p.epoch.to_bytes(8, 'big'))
+        b.append(self.p.nonce)
+        for sib in self.iter_siblings():
+            b.append(sib.isLeft.to_bytes(1, 'big'))
+            b.append(sib.hash)
+        b.append(self.p.prevRoot)
+        b.append(self.p.nextRoot)
+        b.append(self.p.isdas.to_byptes(4, 'big'))
+        b.append(self.p.hashType.to_byptes(2, 'big'))
+        return b"".join(b)
 
     def cmp_str(self):
         b = []

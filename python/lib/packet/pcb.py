@@ -63,13 +63,14 @@ class PCBMarking(Cerealizable):
     def hof(self):  # pragma: no cover
         return HopOpaqueField(self.p.hof)
 
-    def sig_pack5(self):
+    def sig_pack(self):
         """
         Pack for signing version 5 (defined by highest field number).
         """
         b = []
         if self.VER != 5:
-            raise SCIONSigVerError("PCBMarking.sig_pack5 cannot support version %s", self.VER)
+            raise SCIONSigVerError(
+                "PCBMarking.sig_pack cannot support version %s", self.VER)
         b.append(self.p.inIA.to_bytes(4, 'big'))
         b.append(self.p.remoteInIF.to_bytes(8, 'big'))
         b.append(self.p.inMTU.to_bytes(2, 'big'))
@@ -129,24 +130,25 @@ class ASMarking(Cerealizable):
         d.setdefault('exts', []).append(ext)
         self.p.from_dict(d)
 
-    def sig_pack8(self):
+    def sig_pack(self):
         """
         Pack for signing version 8 (defined by highest field number).
         """
         b = []
         if self.VER != 8:
-            raise SCIONSigVerError("ASMarking.sig_pack8 cannot support version %s", self.VER)
+            raise SCIONSigVerError(
+                "ASMarking.sig_pack cannot support version %s", self.VER)
         b.append(self.p.isdas.to_bytes(4, 'big'))
         b.append(self.p.trcVer.to_bytes(4, 'big'))
         b.append(self.p.certVer.to_bytes(4, 'big'))
         b.append(self.p.ifIDSize.to_bytes(1, 'big'))
         for pcbm in self.iter_pcbms():
-            b.append(pcbm.sig_pack5())
+            b.append(pcbm.sig_pack())
         b.append(self.p.hashTreeRoot)
         b.append(self.p.mtu.to_bytes(2, 'big'))
         rpe = self.routing_pol_ext()
         if rpe:
-            b.append(rpe.sig_pack3())
+            b.append(rpe.sig_pack())
         # TODO(Sezer): handle other extensions here
         return b"".join(b)
 
@@ -201,23 +203,24 @@ class PathSegment(Cerealizable):
     def is_sibra(self):  # pragma: no cover
         return bool(self.p.exts.sibra.id)
 
-    def sig_pack3(self):
+    def sig_pack(self):
         """
         Pack for signing version 3 (defined by highest field number).
         """
         if self.VER != 3:
-            raise SCIONSigVerError("PathSegment.sig_pack3 cannot support version %s", self.VER)
+            raise SCIONSigVerError(
+                "PathSegment.sig_pack cannot support version %s", self.VER)
         b = []
         b.append(self.p.info)
         # ifID field is changed on the fly, and so is ignored.
         for asm in self.iter_asms():
-            b.append(asm.sig_pack8())
+            b.append(asm.sig_pack())
         if self.is_sibra():
-            b.append(self.sibra_ext.sig_pack3())
+            b.append(self.sibra_ext.sig_pack())
         return b"".join(b)
 
     def sign(self, key, set_=True):  # pragma: no cover
-        sig = sign(self.sig_pack3(), key)
+        sig = sign(self.sig_pack(), key)
         if set_:
             self.p.asms[-1].sig = sig
         return sig
@@ -344,7 +347,8 @@ class PathSegment(Cerealizable):
         truncated hash, the IOF timestamp, and the list of hops.
         """
         desc = []
-        desc.append("%s, %s, " % (self.short_id(), iso_timestamp(self.get_timestamp())))
+        desc.append("%s, %s, " %
+                    (self.short_id(), iso_timestamp(self.get_timestamp())))
         hops = []
         for asm in self.iter_asms():
             hop = []

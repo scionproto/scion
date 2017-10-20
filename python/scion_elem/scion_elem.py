@@ -658,7 +658,7 @@ class SCIONElement(object):
             trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
             chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
             ver_seg.add_asm(asm)
-            verify_sig_chain_trc(ver_seg.sig_pack3(), asm.p.sig, cert_ia, chain, trc)
+            verify_sig_chain_trc(ver_seg.sig_pack(), asm.p.sig, cert_ia, chain, trc)
 
     def _get_handler(self, pkt):
         # FIXME(PSz): needed only by python router.

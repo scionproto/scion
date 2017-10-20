@@ -38,13 +38,14 @@ class RoutingPolicyExt(Cerealizable):
             p.isdases[i] = int(isd_as)
         return cls(p)
 
-    def sig_pack3(self):
+    def sig_pack(self):
         """
         Pack for signing version 3 (defined by highest field number).
         """
         b = []
         if self.VER != 3:
-            raise SCIONSigVerError("RoutingPolicyExt.sig_pack3 cannot support version %s", self.VER)
+            raise SCIONSigVerError(
+                "RoutingPolicyExt.sig_pack cannot support version %s", self.VER)
         b.append(self.p.set.to_bytes(1, 'big'))
         b.append(self.p.polType.to_bytes(1, 'big'))
         b.append(self.p.ifID.to_bytes(4, 'big'))

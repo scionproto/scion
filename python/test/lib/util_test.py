@@ -45,6 +45,7 @@ from lib.util import (
     handle_signals,
     load_json_file,
     load_yaml_file,
+    proto_len,
     read_file,
     sleep_interval,
     trace,
@@ -145,6 +146,7 @@ class Loader(object):
     """
     Helper class for load_json_file and load_yaml_file tests.
     """
+
     def _basic(self, target, loader):
         loader.return_value = "loader dict"
         with patch.object(builtins, 'open', mock_open()) as open_:
@@ -206,6 +208,7 @@ class TestUpdateDict(object):
     """
     Unit tests for lib.util.update_dict
     """
+
     def test_basic(self):
         dictionary = {}
         dictionary['key'] = [1, 2]
@@ -228,6 +231,7 @@ class TestCalcPadding(object):
     """
     Unit tests for lib.util.calc_padding
     """
+
     def _check(self, length, expected):
         ntools.eq_(calc_padding(length, 8), expected)
 
@@ -260,6 +264,7 @@ class TestSleepInterval(object):
     """
     Unit tests for lib.util.sleep_interval
     """
+
     def test_basic(self, warning, time_, sleep_):
         time_.return_value = 3
         sleep_interval(3, 2, "desc")
@@ -352,6 +357,7 @@ class TestRawCheckType(object):
     """
     Unit tests for lib.util.Raw.check_type
     """
+
     def test_bytes(self):
         inst = MagicMock(spec_set=["_data"])
         inst._data = b"asdf"
@@ -367,6 +373,7 @@ class TestRawCheckLen(object):
     """
     Unit tests for lib.util.Raw.check_len
     """
+
     def test_no_len(self):
         inst = MagicMock(spec_set=["_len"])
         inst._len = None
@@ -403,6 +410,7 @@ class TestRawGet(object):
     """
     Unit tests for lib.util.Raw.get
     """
+
     def _check(self, count, start_off, expected):
         # Setup
         r = Raw(b"data")
@@ -467,6 +475,7 @@ class TestRawLen(object):
     """
     Unit tests for lib.util.Raw.__len__
     """
+
     def _check(self, start_off, expected):
         # Setup
         r = Raw(b"data")
@@ -479,6 +488,21 @@ class TestRawLen(object):
             (0, 4), (1, 3), (3, 1), (4, 0), (10, 0),
         ):
             yield self._check, start_off, expected
+
+
+class TestProtoLen(object):
+    """Unit test for lib.util.proto_len"""
+
+    def test(self):
+        import proto.path_mgmt_capnp as P
+        ntools.eq_(proto_len(P.SegReq.schema), 5)
+        ntools.eq_(proto_len(P.SegRecs.schema), 3)
+        ntools.eq_(proto_len(P.PathMgmt.schema), 8)
+        import proto.sciond_capnp as P
+        ntools.eq_(proto_len(P.SCIONDMsg.schema), 12)
+        ntools.eq_(proto_len(P.PathReq.schema), 5)
+        ntools.eq_(proto_len(P.PathReplyEntry.schema), 2)
+
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)

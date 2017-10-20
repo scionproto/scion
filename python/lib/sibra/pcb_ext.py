@@ -62,13 +62,13 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
     def exp_ts(self):
         return self.info.exp_ts()
 
-    def sig_pack3(self):
+    def sig_pack(self):
         """
         Pack for signing version 3 (defined by highest field number).
         """
         if self.VER != 3:
             raise SCIONSigVerError(
-                "SibraPCBExt.sig_pack3 cannot support version %s", self.VER)
+                "SibraPCBExt.sig_pack cannot support version %s", self.VER)
         b = []
         b.append(self.p.id)
         b.append(self.p.info)
