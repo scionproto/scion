@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	Ed25519 string = "ed25519"
+	Ed25519                    string = "ed25519"
+	Curve25519xSalsa20Poly1305 string = "curve25519xsalsa20poly1305"
 )
 
 // Sign takes a signature input and a signing key to create a signature. Currently only

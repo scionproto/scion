@@ -22,6 +22,7 @@ import (
 
 	"github.com/bouk/monkey"
 	. "github.com/smartystreets/goconvey/convey"
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/crypto"
@@ -68,10 +69,10 @@ func Test_CertificateFromRaw(t *testing.T) {
 		SoMsg("err", err, ShouldEqual, nil)
 		SoMsg("CanIssue", cert.CanIssue, ShouldEqual, false)
 		SoMsg("Comment", cert.Comment, ShouldEqual, "AS Certificate☂☂☂☂")
-		SoMsg("EncAlgo", cert.EncAlgorithm, ShouldEqual, "curve25519xsalsa20poly1305")
+		SoMsg("EncAlgo", cert.EncAlgorithm, ShouldEqual, crypto.Curve25519xSalsa20Poly1305)
 		SoMsg("ExpTime", cert.ExpirationTime, ShouldEqual, 1539868933)
 		SoMsg("IssueTime", cert.IssuingTime, ShouldEqual, 1508332933)
-		SoMsg("SignAlgo", cert.SignAlgorithm, ShouldEqual, "ed25519")
+		SoMsg("SignAlgo", cert.SignAlgorithm, ShouldEqual, crypto.Ed25519)
 		SoMsg("TRCVer", cert.TRCVersion, ShouldEqual, 2)
 		SoMsg("Ver", cert.Version, ShouldEqual, 1)
 		SoMsg("Issuer", cert.Issuer.String(), ShouldEqual, "1-13")
@@ -92,51 +93,54 @@ func Test_CertificateFromRaw(t *testing.T) {
 func Test_Certificate_Verify(t *testing.T) {
 	Convey("Load Certificate from Raw and init values", t, func() {
 		cert, _ := CertificateFromRaw(rawCert)
-		key := []byte{0x92, 0xa8, 0x7d, 0x58, 0x97, 0xd5, 0x1f, 0x5d, 0x3f, 0x6a, 0x91,
-			0xf6, 0xef, 0xcb, 0xda, 0xaf, 0x97, 0x9c, 0xdc, 0x06, 0x08, 0x53, 0x92,
-			0xe3, 0x75, 0x2d, 0x67, 0xed, 0x23, 0xf9, 0xfa, 0x9f}
+		pub, priv, _ := ed25519.GenerateKey(nil)
 		subject := &addr.ISD_AS{I: 1, A: 10}
+		pubRaw, privRaw := []byte(pub), []byte(priv)
 
-		valid := time.Date(2017, 10, 19, 0, 0, 0, 0, time.UTC)
-		monkey.Patch(time.Now, func() time.Time { return valid })
+		cert.IssuingTime = time.Now().Unix()
+		cert.ExpirationTime = cert.IssuingTime + 1<<20
+		cert.Sign(privRaw, crypto.Ed25519)
+
 		Convey("Certificate is verifyable", func() {
-			err := cert.Verify(subject, key, crypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldBeNil)
 		})
 
 		Convey("Wrong subject throws error", func() {
-			err := cert.Verify(&addr.ISD_AS{I: 1, A: 14}, key, crypto.Ed25519)
+			err := cert.Verify(&addr.ISD_AS{I: 1, A: 14}, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
-		Convey("Wrong key throws error", func() {
-			key[0] ^= 0xFF
-			err := cert.Verify(subject, key, crypto.Ed25519)
+		Convey("Wrong pub throws error", func() {
+			pubRaw[0] ^= 0xFF
+			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 		Convey("Wrong signature Algo throws error", func() {
-			err := cert.Verify(subject, key, "ECDSA-256")
+			err := cert.Verify(subject, pubRaw, "ECDSA-256")
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 		Convey("Wrong signature throws error", func() {
 			cert.Signature[0] ^= 0xFF
-			err := cert.Verify(subject, key, crypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 		Convey("Early usage throws error", func() {
-			early := time.Date(2016, 10, 19, 0, 0, 0, 0, time.UTC)
-			monkey.Patch(time.Now, func() time.Time { return early })
-			err := cert.Verify(subject, key, crypto.Ed25519)
+			cert.IssuingTime = time.Now().Unix() + 1<<20
+			cert.ExpirationTime = cert.IssuingTime + 1<<20
+			cert.Sign(privRaw, crypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 		Convey("Late usage throws error", func() {
-			late := time.Date(2019, 10, 19, 0, 0, 0, 0, time.UTC)
-			monkey.Patch(time.Now, func() time.Time { return late })
-			err := cert.Verify(subject, key, crypto.Ed25519)
+			cert.IssuingTime = time.Now().Unix() - 1<<20
+			cert.ExpirationTime = time.Now().Unix() - 1
+			cert.Sign(privRaw, crypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		monkey.UnpatchAll()
@@ -162,8 +166,80 @@ func Test_Certificate_Sign(t *testing.T) {
 func Test_Certificate_String(t *testing.T) {
 	Convey("Certificate is returned as String correctly", t, func() {
 		cert, err := CertificateFromRaw(rawCert)
-		s := `{"CanIssue":false,"Comment":"AS Certificate☂☂☂☂","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"/hoJBGTQ0F2+4OqpfCTrPgZjAEX7/3XuqTLbPhmZpsVhX4E+gLHKVG0/+/ASyq6PZjF97WtzApPjVw5jOIEtAg==","Subject":"1-10","SubjectEncKey":"nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=","SubjectSigKey":"5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=","TRCVersion":2,"Version":1}`
 		So(err, ShouldEqual, nil)
-		So(cert.String(), ShouldEqual, s)
+		So(cert.String(), ShouldEqual, "Certificate 1-10v1")
+	})
+}
+
+func Test_Certificate_JSON(t *testing.T) {
+	Convey("Certificate is returned as Json correctly", t, func() {
+		cert, err := CertificateFromRaw(rawCert)
+		s := `{"CanIssue":false,"Comment":"AS Certificate☂☂☂☂","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"/hoJBGTQ0F2+4OqpfCTrPgZjAEX7/3XuqTLbPhmZpsVhX4E+gLHKVG0/+/ASyq6PZjF97WtzApPjVw5jOIEtAg==","Subject":"1-10","SubjectEncKey":"nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=","SubjectSigKey":"5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=","TRCVersion":2,"Version":1}`
+		j, err := cert.JSON(false)
+		So(err, ShouldEqual, nil)
+		So(string(j), ShouldEqual, s)
+	})
+}
+
+func Test_Certificate_Eq(t *testing.T) {
+	Convey("Load Certificate from Raw", t, func() {
+		c1, _ := CertificateFromRaw(rawCert)
+		c2, _ := CertificateFromRaw(rawCert)
+
+		Convey("Certificates are equal", func() {
+			SoMsg("Eq", c1.Eq(c2), ShouldBeTrue)
+		})
+		Convey("Certificates are unequal (CanIssue)", func() {
+			c1.CanIssue = true
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (Comment)", func() {
+			c1.Comment = "Nope"
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (EncAlgorithm)", func() {
+			c1.EncAlgorithm = "Ceasar Cipher"
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (ExpirationTime)", func() {
+			c1.ExpirationTime = 0
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (Issuer)", func() {
+			c1.Issuer = &addr.ISD_AS{I: 13, A: 37}
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (IssuingTime)", func() {
+			c1.IssuingTime = 0
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (SignAlgorithm)", func() {
+			c1.SignAlgorithm = "ByHand"
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (Signature)", func() {
+			c1.Signature[0] ^= 0xFF
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (Subject)", func() {
+			c1.Subject = &addr.ISD_AS{I: 13, A: 37}
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (SubjectEncKey)", func() {
+			c1.SubjectEncKey[0] ^= 0xFF
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (SubjectSigKey)", func() {
+			c1.SubjectSigKey[0] ^= 0xFF
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (TRCVersion)", func() {
+			c1.TRCVersion = 10
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
+		Convey("Certificates are unequal (Version)", func() {
+			c1.Version = 10
+			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
+		})
 	})
 }
