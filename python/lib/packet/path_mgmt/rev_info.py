@@ -22,12 +22,8 @@ import capnp  # noqa
 
 # SCION
 import proto.rev_info_capnp as P
-<<<<<<< HEAD
 from lib.defines import HASHTREE_EPOCH_TIME
-from lib.errors import SCIONBaseError
-=======
-from lib.errors import SCIONSigVerError
->>>>>>> 0cb5c25... Added hidden path mgmt packet formats for Python
+from lib.errors import SCIONBaseError, SCIONSigVerError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.util import proto_len
