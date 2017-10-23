@@ -16,7 +16,6 @@ package pathmgr
 
 import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/pktcls"
 )
 
 // filterMap maps iaKey(src, dst) to a filterSet, which is itself a map from a
@@ -30,7 +29,7 @@ type filterMap map[string]filterSet
 
 // get returns the *SyncPaths object for source src, destination dst and path filter pp.
 // If the entry does not exist, the second returned value is false.
-func (fm filterMap) get(src, dst *addr.ISD_AS, pp *pktcls.PathPredicate) (*SyncPaths, bool) {
+func (fm filterMap) get(src, dst *addr.ISD_AS, pp *PathPredicate) (*SyncPaths, bool) {
 	key := iaKey(src, dst)
 	filterSet, ok := fm[key]
 	if !ok {
@@ -53,7 +52,7 @@ func (fm filterMap) get(src, dst *addr.ISD_AS, pp *pktcls.PathPredicate) (*SyncP
 // returned.  Path resolver code can use this object to store up-to-date paths
 // within it, and further expose it to user applications that want up-to-date
 // paths satisfying predicate pp.
-func (fm filterMap) set(src, dst *addr.ISD_AS, pp *pktcls.PathPredicate) *SyncPaths {
+func (fm filterMap) set(src, dst *addr.ISD_AS, pp *PathPredicate) *SyncPaths {
 	var fs filterSet
 	key := iaKey(src, dst)
 
@@ -103,7 +102,7 @@ func (fs filterSet) update(aps AppPathSet) {
 
 type pathFilter struct {
 	sp *SyncPaths
-	pp *pktcls.PathPredicate
+	pp *PathPredicate
 }
 
 // Function update changes paths within the SyncPaths object of pf to the ones

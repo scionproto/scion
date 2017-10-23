@@ -19,11 +19,13 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 )
 
 func TestActionMap(t *testing.T) {
 	Convey("Compile path predicates", t, func() {
-		pp, err := NewPathPredicate("1-11#18,1-11#87")
+		pp, err := pathmgr.NewPathPredicate("1-11#18,1-11#87")
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("pp", pp, ShouldNotBeNil)
 		Convey("Create action map", func() {
@@ -60,10 +62,10 @@ func TestActionMap(t *testing.T) {
 
 func TestMarshalJSONActions(t *testing.T) {
 	Convey("Initialize path predicates", t, func() {
-		ppA, err := NewPathPredicate("1-11#18,1-11#87")
+		ppA, err := pathmgr.NewPathPredicate("1-11#18,1-11#87")
 		SoMsg("ppA err", err, ShouldBeNil)
 		SoMsg("ppA", ppA, ShouldNotBeNil)
-		ppB, err := NewPathPredicate("2-0#0")
+		ppB, err := pathmgr.NewPathPredicate("2-0#0")
 		SoMsg("ppB err", err, ShouldBeNil)
 		SoMsg("ppB", ppB, ShouldNotBeNil)
 		Convey("Create action map", func() {
