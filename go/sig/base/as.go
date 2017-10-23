@@ -199,10 +199,8 @@ func (ae *ASEntry) Cleanup() error {
 	if err := ae.tunIO.Close(); err != nil {
 		ae.Error("Error closing TUN io", "dev", ae.DevName, "err", err)
 	}
-	// Clean up session, and its associated workers.
-	if err := ae.Session.Cleanup(); err != nil {
-		ae.Session.Error("Error cleaning up session", "err", err)
-	}
+	// Clean up sessions, and associated workers.
+	ae.cleanSess()
 	for _, ne := range ae.Nets {
 		if err := ne.Cleanup(); err != nil {
 			cerr := err.(*common.CError)
@@ -215,4 +213,10 @@ func (ae *ASEntry) Cleanup() error {
 			"ia", ae.IA, "dev", ae.DevName, "err", err)
 	}
 	return nil
+}
+
+func (ae *ASEntry) cleanSess() {
+	if err := ae.Session.Cleanup(); err != nil {
+		ae.Session.Error("Error cleaning up session", "err", err)
+	}
 }
