@@ -86,7 +86,7 @@ func setSubtract(x, y AppPathSet) AppPathSet {
 	result := make(AppPathSet)
 	for _, ap := range x {
 		if _, ok := y[ap.Key()]; !ok {
-			ap.duplicateIn(result)
+			result.Add(ap.Entry)
 		}
 	}
 	return result
