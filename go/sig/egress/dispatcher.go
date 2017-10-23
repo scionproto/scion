@@ -79,13 +79,13 @@ func (ed *egressDispatcher) Run() {
 				continue
 			}
 			buf = buf[:length]
-			sess := ed.chooseSess()
+			sess := ed.chooseSess(buf)
 			if sess == nil {
 				// FIXME(kormat): replace with metric.
 				log.Debug("Unable to find session")
 				continue
 			}
-			ed.sess.ring.Write(ringbuf.EntryList{buf}, true)
+			sess.ring.Write(ringbuf.EntryList{buf}, true)
 			pktsRecv.Inc()
 			pktBytesRecv.Add(float64(length))
 		}
@@ -93,6 +93,6 @@ func (ed *egressDispatcher) Run() {
 	ed.Info("EgressDispatcher: stopping")
 }
 
-func (ed *egressDispatcher) chooseSess() *Session {
+func (ed *egressDispatcher) chooseSess(b common.RawBytes) *Session {
 	return ed.sess
 }
