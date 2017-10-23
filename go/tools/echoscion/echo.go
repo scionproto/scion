@@ -24,8 +24,8 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/api/snet"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
 const (

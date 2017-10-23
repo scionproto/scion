@@ -20,10 +20,10 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/netsec-ethz/scion/go/lib/api/snet"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )

@@ -22,9 +22,9 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/api/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/api/snet"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/pathmgr"
-	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
 const (

@@ -19,10 +19,10 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/lib/api/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/sig/disp"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"

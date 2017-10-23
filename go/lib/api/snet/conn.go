@@ -22,11 +22,11 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/api/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/hpkt"
 	"github.com/netsec-ethz/scion/go/lib/l4"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/lib/spath"
