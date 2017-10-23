@@ -29,14 +29,14 @@ type AppPathSet map[PathKey]*AppPath
 func NewAppPathSet(reply *sciond.PathReply) AppPathSet {
 	aps := make(AppPathSet)
 	for i := range reply.Entries {
-		aps.addChildAppPath(&reply.Entries[i])
+		aps.Add(&reply.Entries[i])
 	}
 	return aps
 }
 
-// addChildAppPath converts the SCIOND path entry to an AppPath and adds it to the
-// set. The set is registered as the new AppPath's parent.
-func (aps AppPathSet) addChildAppPath(entry *sciond.PathReplyEntry) *AppPath {
+// Add converts the SCIOND path entry to an AppPath and adds it to the
+// set.
+func (aps AppPathSet) Add(entry *sciond.PathReplyEntry) *AppPath {
 	ap := &AppPath{
 		Entry:  entry,
 		parent: aps,
@@ -45,7 +45,6 @@ func (aps AppPathSet) addChildAppPath(entry *sciond.PathReplyEntry) *AppPath {
 	return ap
 }
 
-// GetAppPath returns an AppPath from the set.
 func (aps AppPathSet) GetAppPath() *AppPath {
 	for _, v := range aps {
 		return v
@@ -70,21 +69,9 @@ func (ap *AppPath) Key() PathKey {
 	return PathKey(h.Sum(nil))
 }
 
-// duplicateIn adds a shallow copy of ap to aps without setting the parent link.
-// FIXME(scrye): The pathmgr revocation mechanism currently uses parent links to
-// efficiently revoke paths. However, filtered path sets are updated by (1)
-// iterating through the list of revoked paths, (2) grabbing the source and
-// destination IA of each revoked path, (3) retrieving the set of available
-// paths for the src-dst pair and (4) updating the set of filtered paths to
-// match the remaining ones. Parent links are not needed in this case. The path
-// manager will be refactored to use a similar approach for all paths, thus
-// making parent links no longer needed throughout the path manager.
-func (ap *AppPath) duplicateIn(aps AppPathSet) {
-	newAP := &AppPath{Entry: ap.Entry}
-	aps[ap.Key()] = newAP
-}
+// Helper type for pretty printing of maps using paths as keys
+type PathKey string
 
-// revoke removes ap from its parent path set.
-func (ap *AppPath) revoke() {
-	delete(ap.parent, ap.Key())
+func (pk PathKey) String() string {
+	return common.RawBytes(pk).String()
 }

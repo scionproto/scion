@@ -27,8 +27,7 @@ import (
 
 // A PathPredicate's Eval method returns true if the slice of interfaces in
 // Match is included in the AppPath parameter. Zero values in Match symbolize
-// wildcard matches. For more information and examples, consult the pktcls
-// documentation.
+// wildcard matches.
 type PathPredicate struct {
 	Match []sciond.PathInterface
 }

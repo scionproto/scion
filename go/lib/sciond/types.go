@@ -164,6 +164,22 @@ type FwdPathMeta struct {
 	Interfaces []PathInterface
 }
 
+func (fpm FwdPathMeta) SrcIA() *addr.ISD_AS {
+	ifaces := fpm.Interfaces
+	if len(ifaces) == 0 {
+		return nil
+	}
+	return ifaces[0].ISD_AS()
+}
+
+func (fpm FwdPathMeta) DstIA() *addr.ISD_AS {
+	ifaces := fpm.Interfaces
+	if len(ifaces) == 0 {
+		return nil
+	}
+	return ifaces[len(ifaces)-1].ISD_AS()
+}
+
 func (fpm FwdPathMeta) String() string {
 	var hops []string
 	for _, intf := range fpm.Interfaces {
