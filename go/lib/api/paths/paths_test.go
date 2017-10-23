@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pathmgr
+package paths
 
 import (
 	"testing"
@@ -345,7 +345,7 @@ func TestAppPathSets(t *testing.T) {
 
 		Convey("Revoke removes the path", func() {
 			for _, v := range aps {
-				v.revoke()
+				v.Revoke()
 			}
 			SoMsg("len", len(aps), ShouldEqual, 0)
 
@@ -364,7 +364,7 @@ func TestAppPathSets(t *testing.T) {
 
 			Convey("Revoking one of them leaves the other two", func() {
 				for _, v := range aps {
-					v.revoke()
+					v.Revoke()
 					break
 				}
 				SoMsg("len", len(aps), ShouldEqual, 2)
