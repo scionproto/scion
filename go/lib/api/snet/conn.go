@@ -23,6 +23,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/api/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/api/paths"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/hpkt"
 	"github.com/netsec-ethz/scion/go/lib/l4"
@@ -264,7 +265,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 
 func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var err error
-	var pathSet pathmgr.AppPathSet
+	var pathSet paths.AppPathSet
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
 	if c.raddr == nil {

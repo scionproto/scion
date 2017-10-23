@@ -44,9 +44,9 @@ import (
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/api/paths"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/pktcls"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
@@ -115,7 +115,7 @@ func New(sciondPath string, refireInterval time.Duration, logger log.Logger) (*P
 // Query returns a slice of paths between src and dst. If the paths are not
 // found in the path resolver's cache, a query to SCIOND is issued and the
 // function blocks until the reply is received.
-func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
+func (r *PR) Query(src, dst *addr.ISD_AS) paths.AppPathSet {
 	r.Lock()
 	defer r.Unlock()
 
@@ -123,7 +123,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	key := iaKey(src, dst)
 	pathSetI, ok := r.pathMap.Get(key)
 	if ok {
-		return pathSetI.(AppPathSet)
+		return pathSetI.(paths.AppPathSet)
 	}
 
 	// We don't have a cached path list, so we ask SCIOND
@@ -159,7 +159,7 @@ func (r *PR) Register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 //
 // RegisterFilter also adds pair src-dst to the list of tracked paths (if it
 // wasn't already tracked).
-func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *pktcls.PathPredicate) (*SyncPaths, error) {
+func (r *PR) RegisterFilter(src, dst *addr.ISD_AS, filter *paths.PathPredicate) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -213,7 +213,7 @@ func (r *PR) register(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 }
 
 // UnregisterFilter deletes a previously registered filter.
-func (r *PR) UnregisterFilter(src, dst *addr.ISD_AS, filter *pktcls.PathPredicate) error {
+func (r *PR) UnregisterFilter(src, dst *addr.ISD_AS, filter *paths.PathPredicate) error {
 	// TODO(scrye): implement this
 	return common.NewCError("Not implemented")
 }
@@ -289,7 +289,7 @@ func (r *PR) resolver() {
 }
 
 // lookup queries SCIOND, blocking while waiting for the response
-func (r *PR) lookup(q query) AppPathSet {
+func (r *PR) lookup(q query) paths.AppPathSet {
 	if r.state == sciondDown {
 		// Cannot do lookups if SCIOND connection state is down
 		return nil
@@ -313,7 +313,7 @@ func (r *PR) lookup(q query) AppPathSet {
 		return nil
 	}
 
-	return NewAppPathSet(reply)
+	return paths.NewAppPathSet(reply)
 }
 
 // reconnect repeatedly tries to reconnect to SCIOND

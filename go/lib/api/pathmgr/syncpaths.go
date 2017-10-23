@@ -18,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/netsec-ethz/scion/go/lib/api/paths"
 )
 
 // SyncPaths contains a concurrency-safe reference to an AppPathSet that is
@@ -38,7 +40,7 @@ type SyncPaths struct {
 // SyncPathsData is the atomic value inside a SyncPaths object. It provides a
 // snapshot of a SyncPaths object. Callers must not change APS.
 type SyncPathsData struct {
-	APS         AppPathSet
+	APS         paths.AppPathSet
 	ModifyTime  time.Time
 	RefreshTime time.Time
 }
@@ -50,7 +52,7 @@ func NewSyncPaths() *SyncPaths {
 	now := time.Now()
 	sp.value.Store(
 		&SyncPathsData{
-			APS:         make(AppPathSet),
+			APS:         make(paths.AppPathSet),
 			ModifyTime:  now,
 			RefreshTime: now,
 		},
@@ -63,7 +65,7 @@ func NewSyncPaths() *SyncPaths {
 // updated.
 // FIXME(scrye): Add SCIOND support s.t. the refresh timestamp is changed only
 // when paths (including path metadata) change.
-func (sp *SyncPaths) update(newAPS AppPathSet) {
+func (sp *SyncPaths) update(newAPS paths.AppPathSet) {
 	sp.mutex.Lock()
 	defer sp.mutex.Unlock()
 	value := sp.value.Load().(*SyncPathsData)
@@ -82,11 +84,11 @@ func (sp *SyncPaths) Load() *SyncPathsData {
 	return sp.value.Load().(*SyncPathsData)
 }
 
-func setSubtract(x, y AppPathSet) AppPathSet {
-	result := make(AppPathSet)
+func setSubtract(x, y paths.AppPathSet) paths.AppPathSet {
+	result := make(paths.AppPathSet)
 	for _, ap := range x {
 		if _, ok := y[ap.Key()]; !ok {
-			ap.duplicateIn(result)
+			ap.DuplicateIn(result)
 		}
 	}
 	return result

@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
@@ -29,13 +28,6 @@ const (
 	// time between reconnection attempts if SCIOND fails
 	reconnectInterval = 3 * time.Second
 )
-
-// Helper type for pretty printing of maps using paths as keys
-type PathKey string
-
-func (pk PathKey) String() string {
-	return common.RawBytes(pk).String()
-}
 
 // query contains the context needed to issue and update a query
 type query struct {

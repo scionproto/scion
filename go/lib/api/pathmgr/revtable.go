@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/api/paths"
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
@@ -54,12 +55,12 @@ func (u *uifid) String() string {
 // and calling Revoke on each AppPath.
 type revTable struct {
 	// maps UIFID keys to sets of paths that contain that UIFID
-	m map[string]AppPathSet
+	m map[string]paths.AppPathSet
 }
 
 // newRevTable creats an empty revocation table.
 func newRevTable() *revTable {
-	return &revTable{m: make(map[string]AppPathSet)}
+	return &revTable{m: make(map[string]paths.AppPathSet)}
 }
 
 // updatePathSet updates the information for paths in aps. If a path is new,
@@ -68,23 +69,23 @@ func newRevTable() *revTable {
 // pointers are updated to track the new path object. This allows revocations
 // to always update the live, in-use paths and not old copies that will be soon
 // collected by the GC.
-func (rt *revTable) updatePathSet(aps AppPathSet) {
+func (rt *revTable) updatePathSet(aps paths.AppPathSet) {
 	for _, ap := range aps {
 		rt.updatePath(ap)
 	}
 }
 
-func (rt *revTable) updatePath(ap *AppPath) {
+func (rt *revTable) updatePath(ap *paths.AppPath) {
 	for _, iface := range ap.Entry.Path.Interfaces {
 		uifid := uifidFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
 		aps, ok := rt.m[uifid.key()]
 		if !ok {
 			// AppPathSet not initialized yet
-			aps = make(AppPathSet)
+			aps = make(paths.AppPathSet)
 			// Store reference to new map
 			rt.m[uifid.key()] = aps
 		}
-		aps[PathKey(ap.Key())] = ap
+		aps[paths.PathKey(ap.Key())] = ap
 	}
 }
 
@@ -93,12 +94,12 @@ func (rt *revTable) revoke(u *uifid) []*iaPair {
 	pairs := make([]*iaPair, 0)
 	aps := rt.m[u.key()]
 	for _, ap := range aps {
-		ap.revoke()
+		ap.Revoke()
 
 		// If the revocation caused all paths between a source and
 		// destination to be deleted, return the source and destination
 		// to allow callers to requery SCIOND immediately
-		if len(ap.parent) == 0 {
+		if len(ap.Parent) == 0 {
 			pairs = append(pairs, &iaPair{src: getSrcIA(ap), dst: getDstIA(ap)})
 		}
 
@@ -120,12 +121,12 @@ func (rt *revTable) revoke(u *uifid) []*iaPair {
 	return nil
 }
 
-func getSrcIA(ap *AppPath) *addr.ISD_AS {
+func getSrcIA(ap *paths.AppPath) *addr.ISD_AS {
 	iface := ap.Entry.Path.Interfaces[0]
 	return iface.ISD_AS()
 }
 
-func getDstIA(ap *AppPath) *addr.ISD_AS {
+func getDstIA(ap *paths.AppPath) *addr.ISD_AS {
 	length := len(ap.Entry.Path.Interfaces)
 	iface := ap.Entry.Path.Interfaces[length-1]
 	return iface.ISD_AS()
