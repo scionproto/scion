@@ -76,12 +76,19 @@ func (a *Addr) Copy() *Addr {
 	if a == nil {
 		return nil
 	}
-	// N.B.: Does not copy path.
-	return &Addr{
-		IA:     a.IA.Copy(),
-		Host:   a.Host.Copy(),
-		L4Port: a.L4Port,
+	newA := &Addr{
+		IA:          a.IA.Copy(),
+		Host:        a.Host.Copy(),
+		L4Port:      a.L4Port,
+		NextHopPort: a.NextHopPort,
 	}
+	if a.Path != nil {
+		newA.Path = a.Path.Copy()
+	}
+	if a.NextHopHost != nil {
+		newA.NextHopHost = a.NextHopHost.Copy()
+	}
+	return newA
 }
 
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port

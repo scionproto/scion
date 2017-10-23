@@ -31,8 +31,6 @@ import (
 // Cfg is a direct Go representation of the JSON file format.
 type Cfg struct {
 	ASes map[addr.ISD_AS]*ASEntry
-	//PktClasses map[string]*PktClassifier
-	//PathPolicies map[string]*PathPolicy
 }
 
 // Load a JSON config file from path and parse it into a Cfg struct.
@@ -48,7 +46,6 @@ func LoadFromFile(path string) (*Cfg, error) {
 	if len(cfg.ASes) == 0 {
 		return nil, common.NewCError("Empty ASTable in config")
 	}
-	// TODO(kormat): Also ensure that class/action references are valid when those are added.
 	return cfg, nil
 }
 

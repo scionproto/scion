@@ -124,15 +124,13 @@ func loadConfig(path string) bool {
 			if encapPort == 0 {
 				encapPort = sigcmn.DefaultEncapPort
 			}
-			err := ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true)
-			if err != nil {
+			if err := ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true); err != nil {
 				cerr := err.(*common.CError)
 				log.Error(cerr.Desc, cerr.Ctx...)
 				success = false
 				continue
 			}
 		}
-		// TODO(kormat): add classes here
 		for _, netw := range cfgEntry.Nets {
 			if err := ae.AddNet(netw.IPNet()); err != nil {
 				cerr := err.(*common.CError)
@@ -141,8 +139,6 @@ func loadConfig(path string) bool {
 				continue
 			}
 		}
-		// TODO(kormat): add sessions here FIXME(kormat): this is probably the wrong ordering.
-		ae.AddSession(11, "placeholder", nil)
 	}
 	return success
 }

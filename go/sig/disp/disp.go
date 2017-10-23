@@ -126,18 +126,19 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 
 func dispFunc(dp *snet.DispPkt) {
 	cpld, err := ctrl.NewPldFromRaw(dp.Raw)
+	src := dp.Addr.Copy()
 	if err != nil {
-		log.Error("Unable to parse ctrl payload", "err", err, "src", dp.Addr)
+		log.Error("Unable to parse ctrl payload", "err", err, "src", src)
 		return
 	}
 	u, err := cpld.Union()
 	if err != nil {
-		log.Error("Unable to extract ctrl payload union", "err", err, "src", dp.Addr)
+		log.Error("Unable to extract ctrl payload union", "err", err, "src", src)
 		return
 	}
 	switch pld := u.(type) {
 	case *mgmt.Pld:
-		Dispatcher.sigCtrl(pld, dp.Addr)
+		Dispatcher.sigCtrl(pld, src)
 	default:
 		log.Error("Unsupported ctrl payload type", common.TypeOf(pld))
 	}
