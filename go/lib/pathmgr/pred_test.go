@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pktcls
+package pathmgr
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
-var paths = map[string]*sciond.PathReplyEntry{
+var ppPaths = map[string]*sciond.PathReplyEntry{
 	"1-19->2-25": {
 		Path: sciond.FwdPathMeta{
 			Interfaces: []sciond.PathInterface{
@@ -131,7 +131,7 @@ func TestPathPredicates(t *testing.T) {
 				pp, err := NewPathPredicate(tc.predicateStr)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("pp", pp, ShouldNotBeNil)
-				match := pp.Eval(paths[tc.appPathStr])
+				match := pp.Eval(ppPaths[tc.appPathStr])
 				SoMsg("match", match, ShouldEqual, tc.expected)
 			})
 		}

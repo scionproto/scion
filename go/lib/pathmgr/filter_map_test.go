@@ -21,14 +21,13 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/pktcls"
 )
 
 func TestFilterMap(t *testing.T) {
 	Convey("Compile path predicates", t, func() {
-		ppA, err := pktcls.NewPathPredicate("2-21#69")
+		ppA, err := NewPathPredicate("2-21#69")
 		SoMsg("err A", err, ShouldBeNil)
-		ppB, err := pktcls.NewPathPredicate("1-12#0,2-22#0")
+		ppB, err := NewPathPredicate("1-12#0,2-22#0")
 		SoMsg("err B", err, ShouldBeNil)
 		fm := make(filterMap)
 		src := &addr.ISD_AS{I: 1, A: 10}
