@@ -15,14 +15,14 @@
 package pathmgr
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
-	// maximum number of IAs that can be registered for priority tracking
+	// maximum number of queries that can fit in the watch queue
 	queryChanCap uint64 = 1 << 10
 	// the number of max paths requested in each SCIOND query
 	numReqPaths = 5
@@ -30,40 +30,46 @@ const (
 	reconnectInterval = 3 * time.Second
 )
 
-// Helper type for pretty printing of maps using paths as keys
-type PathKey string
-
-func (pk PathKey) String() string {
-	return common.RawBytes(pk).String()
+type IAKey struct {
+	src addr.IAInt
+	dst addr.IAInt
 }
 
-// query contains the context needed to issue and update a query
-type query struct {
-	src, dst *addr.ISD_AS
-	sp       *SyncPaths
+func (k IAKey) String() string {
+	return fmt.Sprintf("%s.%s", k.src.IA(), k.dst.IA())
 }
 
-// sciondState is used to track the health of the connection to SCIOND
-type sciondState uint64
+type filterSet map[string]*pathFilter
 
-const (
-	// SCIOND is considered down due to a query failing at network level
-	sciondDown sciondState = iota
-	// SCIOND is considered up
-	sciondUp
-)
-
-func (state sciondState) String() string {
-	switch state {
-	case sciondDown:
-		return "down"
-	case sciondUp:
-		return "up"
-	default:
-		return "unknown"
+// Function update changes all the pathFilters in fs to contain the paths in
+// aps that match their respective PathPredicates.
+func (fs filterSet) update(aps AppPathSet) {
+	// Walk each PathFilter in this FilterSet and Update paths if needed
+	for _, pathFilter := range fs {
+		pathFilter.update(aps)
 	}
 }
 
-func iaKey(src, dst *addr.ISD_AS) string {
-	return src.String() + "." + dst.String()
+type pathFilter struct {
+	sp *SyncPaths
+	pp *PathPredicate
+}
+
+// Function update changes paths within the SyncPaths object of pf to the ones
+// in aps that match the PathPredicate in pf. If pf.pp is nil, then pf.sp is
+// updated to contain all the paths in aps..
+func (pf *pathFilter) update(aps AppPathSet) {
+	// Filter the paths according to the current predicate
+	newAPS := make(AppPathSet)
+	if pf.pp == nil {
+		newAPS = aps
+	} else {
+		for _, appPath := range aps {
+			match := pf.pp.Eval(appPath.Entry)
+			if match {
+				newAPS.Add(appPath.Entry)
+			}
+		}
+	}
+	pf.sp.update(newAPS)
 }

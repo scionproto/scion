@@ -72,7 +72,7 @@ func TestAPITimeout(t *testing.T) {
 		})
 
 		Convey("Connect to server", func() {
-			conn, err := ConnectTimeout(name, 0)
+			conn, err := connectTimeout(name, 0)
 			SoMsg("err", err, ShouldBeNil)
 			Reset(func() {
 				conn.Close()
