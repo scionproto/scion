@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bouk/monkey"
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/crypto/ed25519"
 
@@ -143,7 +142,6 @@ func Test_Certificate_Verify(t *testing.T) {
 			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
-		monkey.UnpatchAll()
 	})
 }
 
