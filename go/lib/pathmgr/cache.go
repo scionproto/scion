@@ -26,15 +26,18 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
+// cacheEntry contains path information for an IA src-dst pair.
 type cacheEntry struct {
 	// Set of currently available paths
 	aps AppPathSet
 	// Set of watched filters
 	fs filterSet
-	// Set to true if the paths are watched (i.e., periodically refreshed from SCIOND)
-	registered bool
 	// Time when paths were last changed
 	timestamp time.Time
+}
+
+func (ce *cacheEntry) isWatched() bool {
+	return len(ce.fs) != 0
 }
 
 // cache is a thread-safe collection of paths and filters.
@@ -42,7 +45,7 @@ type cache struct {
 	mutex sync.Mutex
 	// Keep one entry for each src-dst pair
 	m map[IAKey]*cacheEntry
-	// When an app reads a path older than maxAge, SCIOND is requeried to get fresh paths
+	// When an app reads a path older than maxAge, SCIOND is re-queried to get fresh paths
 	maxAge time.Duration
 	// Revocation table mapping uifid to paths that contain the uifid
 	revTable *revTable
@@ -87,34 +90,48 @@ func (c *cache) getAPS(src, dst *addr.ISD_AS) (AppPathSet, bool) {
 	return nil, false
 }
 
-// watch adds periodic lookups for paths between src and dst.
-func (c *cache) watch(src, dst *addr.ISD_AS) {
+// watch adds periodic lookups for paths between src and dst. If filter is non-nil,
+// the paths are filtered according to it.
+func (c *cache) watch(src, dst *addr.ISD_AS, filter *PathPredicate) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	var key string
+	if filter == nil {
+		key = matchAll
+	} else {
+		key = filter.String()
+	}
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
 		entry = c.addEntry(src, dst)
 	}
-	if !entry.registered {
-		entry.registered = true
+	if _, ok := entry.fs[key]; !ok {
 		pf := &pathFilter{
 			sp: NewSyncPaths(),
+			pp: filter,
 		}
-		// Add an entry for all available paths
-		entry.fs[matchAll] = pf
+		pf.update(entry.aps)
+		entry.fs[key] = pf
 	}
 }
 
-// getSP returns a pointer to a thread-safe object that contains paths between
-// src and dst. The object is shared between callers, so callers must never
-// write to it.
-func (c *cache) getSP(src, dst *addr.ISD_AS) (*SyncPaths, bool) {
+// getWatch returns a pointer to a thread-safe object that contains paths
+// between src and dst, filtered according to filter. If filter is nil, a
+// reference to an unfiltered object is returned. The object is shared between
+// callers, so callers must never write to it.
+func (c *cache) getWatch(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+	var key string
+	if filter == nil {
+		key = matchAll
+	} else {
+		key = filter.String()
+	}
 	if entry, ok := c.getEntry(src, dst); ok {
-		// Return the entry for all available paths
-		fs, ok := entry.fs[matchAll]
-		return fs.sp, ok
+		if pf, ok := entry.fs[key]; ok {
+			return pf.sp, true
+		}
 	}
 	return nil, false
 }
@@ -124,44 +141,31 @@ func (c *cache) isWatched(src, dst *addr.ISD_AS) bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if entry, ok := c.getEntry(src, dst); ok {
-		return entry.registered
+		return entry.isWatched()
 	}
 	return false
 }
 
-// addFilteredSP adds periodic lookups for paths between src and dst, filtered
-// according to filter.
-func (c *cache) addFilteredSP(src, dst *addr.ISD_AS, filter *PathPredicate) error {
+// removeWatch deletes a watch.
+func (c *cache) removeWatch(src, dst *addr.ISD_AS, filter *PathPredicate) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	if entry, ok := c.getEntry(src, dst); ok {
-		if !entry.registered {
-			return common.NewCError("Unable to add path filter, src and dst are not registered",
-				"src", src, "dst", dst)
-		}
-		pf := &pathFilter{
-			sp: NewSyncPaths(),
-			pp: filter,
-		}
-		pf.update(entry.aps)
-		entry.fs[filter.String()] = pf
+	var key string
+	if filter == nil {
+		key = matchAll
+	} else {
+		key = filter.String()
 	}
-	return common.NewCError("Unable to add path filter, src and dst are not registered",
+	if entry, ok := c.getEntry(src, dst); ok {
+		if _, ok := entry.fs[key]; !ok {
+			return common.NewCError("Unable to delete path filter, filter not found",
+				"src", src, "dst", dst, "filter", key)
+		}
+		delete(entry.fs, key)
+		return nil
+	}
+	return common.NewCError("Unable to delete path filter, src and dst are not watched",
 		"src", src, "dst", dst)
-}
-
-// getFilteredSP returns a pointer to a thread-safe object that contains paths
-// between src and dst, filtered according to filter. The object is shared
-// between callers, so callers must never write to it.
-func (c *cache) getFilteredSP(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, bool) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	if entry, ok := c.getEntry(src, dst); ok {
-		if pf, ok := entry.fs[filter.String()]; ok {
-			return pf.sp, true
-		}
-	}
-	return nil, false
 }
 
 // revoke all paths containing uifid from the cache.
@@ -184,7 +188,7 @@ func (c *cache) revoke(u uifid) {
 func (c *cache) remove(src, dst *addr.ISD_AS, ap *AppPath) {
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
-		log.Warn("Attempted to revoke known path, but no path set found", "path",
+		log.Warn("Attempted to removek known path, but no path set found", "path",
 			ap, "src", src, "dst", dst)
 		return
 	}

@@ -47,8 +47,19 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
+
+// Timers is used to customize the timers for a new Path Manager.
+type Timers struct {
+	// Wait time after a successful path lookup (for periodic lookups)
+	NormalRefire time.Duration
+	// Wait time after a failed (error or empty) path lookup (for periodic lookups)
+	ErrorRefire time.Duration
+	// Duration after which a path is considered stale
+	MaxAge time.Duration
+}
 
 type PR struct {
 	// Lookup, reconnect and Register acquire this lock as separate goroutines
@@ -67,7 +78,7 @@ type PR struct {
 // query for a path older than maxAge reaches the resolver, SCIOND is used to
 // refresh the path. New returns with an error if a connection to SCIOND could
 // not be established.
-func New(srvc sciond.Service, refire, maxAge time.Duration, logger log.Logger) (*PR, error) {
+func New(srvc sciond.Service, timers Timers, logger log.Logger) (*PR, error) {
 	sciondConn, err := srvc.Connect()
 	if err != nil {
 		// Let external code handle initial failure
@@ -77,16 +88,17 @@ func New(srvc sciond.Service, refire, maxAge time.Duration, logger log.Logger) (
 		sciondService: srvc,
 		requestQueue:  make(chan *resolverRequest, queryChanCap),
 		Logger:        logger.New("lib", "PathResolver"),
-		cache:         newCache(maxAge),
+		cache:         newCache(timers.MaxAge),
 	}
 	// Start resolver, which periodically refreshes paths for registered
 	// destinations
 	r := &resolver{
-		sciondService:  pr.sciondService,
-		sciondConn:     sciondConn,
-		cache:          pr.cache,
-		requestQueue:   pr.requestQueue,
-		refireInterval: refire,
+		sciondService: pr.sciondService,
+		sciondConn:    sciondConn,
+		cache:         pr.cache,
+		requestQueue:  pr.requestQueue,
+		normalRefire:  timers.NormalRefire,
+		errorRefire:   timers.ErrorRefire,
 	}
 	go r.run()
 	return pr, nil
@@ -101,14 +113,15 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	if aps, ok := r.cache.getAPS(src, dst); ok {
 		return aps
 	}
+	done := make(chan struct{})
 	request := &resolverRequest{
 		reqType: reqOneShot,
 		src:     src,
 		dst:     dst,
-		done:    make(chan struct{}),
+		done:    done,
 	}
 	r.requestQueue <- request
-	<-request.done
+	<-done
 	// Cache should be hot now; if we get a miss it means that either the entry
 	// expired between the retrieval above and the access (improbable), or no
 	// paths are available.
@@ -127,34 +140,11 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 //
 // On registration failure an error is returned.
 func (r *PR) Watch(src, dst *addr.ISD_AS) (*SyncPaths, error) {
-	r.Lock()
-	defer r.Unlock()
-	if r.cache.isWatched(src, dst) {
-		if sp, ok := r.cache.getSP(src, dst); ok {
-			return sp, nil
-		}
-		return nil, common.NewCError("Incoherent cache, src and dst watched but no path set found")
-	}
-	request := &resolverRequest{
-		reqType: reqMonitor,
-		src:     src,
-		dst:     dst,
-		done:    make(chan struct{}),
-	}
-	r.requestQueue <- request
-	<-request.done
-	// src-dst is surely registered, and cannot be unregistered at this point
-	// because we're holding the lock. If the retrieval below fails, it can
-	// only be due to a bug.
-	if sp, ok := r.cache.getSP(src, dst); ok {
-		return sp, nil
-	}
-	return nil, common.NewCError("Incoherent cache, src and dst registered but no path set found")
+	return r.WatchFilter(src, dst, nil)
 }
 
 func (r *PR) Unwatch(src, dst *addr.ISD_AS) error {
-	// FIXME(scrye): Implement this
-	return common.NewCError("Function Unwatch not implemented")
+	return r.UnwatchFilter(src, dst, nil)
 }
 
 // WatchFilter returns a pointer to a SyncPaths object that contains paths from
@@ -167,22 +157,25 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 	r.Lock()
 	defer r.Unlock()
 	// If the filter was registered previously, fetch it from the cache
-	if sp, ok := r.cache.getFilteredSP(src, dst, filter); ok {
+	if sp, ok := r.cache.getWatch(src, dst, filter); ok {
 		return sp, nil
 	}
 	// If the src and dst are not monitored yet, add the request to the resolver's queue
+	done := make(chan struct{})
 	if !r.cache.isWatched(src, dst) {
 		request := &resolverRequest{
 			reqType: reqMonitor,
 			src:     src,
 			dst:     dst,
-			done:    make(chan struct{}),
+			done:    done,
 		}
+		r.cache.watch(src, dst, filter)
 		r.requestQueue <- request
-		<-request.done
+		<-done
+	} else {
+		r.cache.watch(src, dst, filter)
 	}
-	r.cache.addFilteredSP(src, dst, filter)
-	sp, _ := r.cache.getFilteredSP(src, dst, filter)
+	sp, _ := r.cache.getWatch(src, dst, filter)
 	return sp, nil
 }
 
@@ -198,6 +191,7 @@ func (r *PR) Revoke(revInfo common.RawBytes) {
 	// Revoke asynchronously to prevent cases where waiting on SCIOND
 	// blocks the data plane receiver which got the SCMP packet.
 	go func() {
+		defer liblog.LogPanicAndExit()
 		r.Lock()
 		defer r.Unlock()
 		r.revoke(revInfo)
@@ -235,98 +229,4 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 	case sciond.RevInvalid:
 		log.Warn("Found invalid revocation notification", "revInfo", parsedRev)
 	}
-}
-
-// resolver receives requests from PR and answers them by contacting SCIOND.
-type resolver struct {
-	sciondService sciond.Service
-	sciondConn    sciond.Connector
-	// time between repeated queries to SCIOND
-	refireInterval time.Duration
-	// information about paths
-	cache *cache
-	// queue of outstanding requests
-	requestQueue chan *resolverRequest
-}
-
-// run is the asynchronous path resolver. It grabs requests from a channel, and
-// updates the path cache with the result. Periodic requests are readded to the
-// channel.
-func (r *resolver) run() {
-	for request := range r.requestQueue {
-		aps := r.lookup(request.src, request.dst)
-		switch request.reqType {
-		case reqOneShot:
-			r.cache.update(request.src, request.dst, aps)
-			// Unblock the waiting client
-			close(request.done)
-		case reqMonitor:
-			if !r.cache.isWatched(request.src, request.dst) {
-				r.cache.watch(request.src, request.dst)
-			}
-			r.cache.update(request.src, request.dst, aps)
-			// Create new request, without done channel
-			newRequest := &resolverRequest{
-				src:     request.src,
-				dst:     request.dst,
-				reqType: reqMonitor,
-			}
-			time.AfterFunc(r.refireInterval, func() {
-				r.requestQueue <- newRequest
-			})
-			// If someone's waiting for this request to be done, unblock them
-			if request.done != nil {
-				close(request.done)
-			}
-		default:
-			log.Warn("Unknown query type", "type", request.reqType)
-		}
-	}
-}
-
-// lookup queries SCIOND, blocking while waiting for the response.
-func (r *resolver) lookup(src, dst *addr.ISD_AS) AppPathSet {
-	reply, err := r.sciondConn.Paths(dst, src, numReqPaths, sciond.PathReqFlags{})
-	if err != nil {
-		log.Error("SCIOND network error", "err", err)
-		r.reconnect()
-	}
-	if reply.ErrorCode != sciond.ErrorOk {
-		// SCIOND internal error, return 0 paths set
-		log.Error("Unable to find path", "src", src, "dst", dst, "code", reply.ErrorCode)
-		return make(AppPathSet)
-	}
-	return NewAppPathSet(reply)
-}
-
-// reconnect repeatedly tries to reconnect to SCIOND.
-func (r *resolver) reconnect() {
-	for {
-		sciondConn, err := r.sciondService.Connect()
-		if err != nil {
-			log.Error("Unable to connect to sciond", "err", err)
-			// wait for three seconds before trying again
-			time.Sleep(reconnectInterval)
-			continue
-		}
-		r.sciondConn = sciondConn
-		break
-	}
-}
-
-type reqType uint
-
-const (
-	// Single shot query type, caching the result
-	reqOneShot reqType = iota
-	// Start periodic queries query type
-	reqMonitor
-)
-
-// resolverRequest describes the items contained in the resolver's request queue.
-type resolverRequest struct {
-	src     *addr.ISD_AS
-	dst     *addr.ISD_AS
-	reqType reqType
-	done    chan struct{}
 }
