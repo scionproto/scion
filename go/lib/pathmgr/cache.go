@@ -37,6 +37,7 @@ type cacheEntry struct {
 	timestamp time.Time
 }
 
+// cache is a thread-safe collection of paths and filters.
 type cache struct {
 	mutex sync.Mutex
 	// Keep one entry for each src-dst pair
@@ -53,6 +54,22 @@ func newCache(maxAge time.Duration) *cache {
 		maxAge:   maxAge,
 		revTable: newRevTable(),
 	}
+}
+
+// update the set of paths between src and dst to aps.
+func (c *cache) update(src, dst *addr.ISD_AS, aps AppPathSet) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	entry, ok := c.getEntry(src, dst)
+	if !ok {
+		entry = c.addEntry(src, dst)
+	}
+	entry.aps = aps
+	// Update all watches
+	entry.fs.update(entry.aps)
+	// Update revocation lists
+	c.revTable.updatePathSet(aps)
+	entry.timestamp = time.Now()
 }
 
 // getAPS returns the paths between src and dst. If the paths are stale or
@@ -83,8 +100,23 @@ func (c *cache) watch(src, dst *addr.ISD_AS) {
 		pf := &pathFilter{
 			sp: NewSyncPaths(),
 		}
-		entry.fs["*"] = pf
+		// Add an entry for all available paths
+		entry.fs[matchAll] = pf
 	}
+}
+
+// getSP returns a pointer to a thread-safe object that contains paths between
+// src and dst. The object is shared between callers, so callers must never
+// write to it.
+func (c *cache) getSP(src, dst *addr.ISD_AS) (*SyncPaths, bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if entry, ok := c.getEntry(src, dst); ok {
+		// Return the entry for all available paths
+		fs, ok := entry.fs[matchAll]
+		return fs.sp, ok
+	}
+	return nil, false
 }
 
 // isWatched returns true if src and dst are registered for periodic lookups.
@@ -95,19 +127,6 @@ func (c *cache) isWatched(src, dst *addr.ISD_AS) bool {
 		return entry.registered
 	}
 	return false
-}
-
-// getSP returns a pointer to a thread-safe object that contains paths between
-// src and dst. The object is shared between callers, so callers must never
-// write to it.
-func (c *cache) getSP(src, dst *addr.ISD_AS) (*SyncPaths, bool) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	if entry, ok := c.getEntry(src, dst); ok {
-		fs, ok := entry.fs["*"]
-		return fs.sp, ok
-	}
-	return nil, false
 }
 
 // addFilteredSP adds periodic lookups for paths between src and dst, filtered
@@ -145,23 +164,23 @@ func (c *cache) getFilteredSP(src, dst *addr.ISD_AS, filter *PathPredicate) (*Sy
 	return nil, false
 }
 
-// update the set of paths between src and dst to aps.
-func (c *cache) update(src, dst *addr.ISD_AS, aps AppPathSet) {
+// revoke all paths containing uifid from the cache.
+func (c *cache) revoke(u uifid) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	entry, ok := c.getEntry(src, dst)
-	if !ok {
-		entry = c.addEntry(src, dst)
+	aps := c.revTable.revoke(u)
+	for _, ap := range aps {
+		src := ap.Entry.Path.SrcIA()
+		dst := ap.Entry.Path.DstIA()
+		if src == nil || dst == nil {
+			log.Warn("Unable to extract src and dst IAs from path", "path", ap)
+			continue
+		}
+		c.remove(src, dst, ap)
 	}
-	entry.aps = aps
-	// Update all watches
-	entry.fs.update(entry.aps)
-	// Update revocation lists
-	c.revTable.updatePathSet(aps)
-	entry.timestamp = time.Now()
 }
 
-// remove one path from the set of paths between src and dst.
+// remove (internal) one path from the set of paths between src and dst.
 func (c *cache) remove(src, dst *addr.ISD_AS, ap *AppPath) {
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
@@ -173,21 +192,6 @@ func (c *cache) remove(src, dst *addr.ISD_AS, ap *AppPath) {
 	// Update all watches
 	for _, pf := range entry.fs {
 		pf.update(entry.aps)
-	}
-}
-
-// revoke all paths containing uifid from the cache.
-func (c *cache) revoke(u uifid) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	aps := c.revTable.revoke(u)
-	for _, ap := range aps {
-		src := ap.Entry.Path.SrcIA()
-		dst := ap.Entry.Path.DstIA()
-		if src == nil || dst == nil {
-			continue
-		}
-		c.remove(src, dst, ap)
 	}
 }
 

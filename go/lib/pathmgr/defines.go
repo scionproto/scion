@@ -28,6 +28,8 @@ const (
 	numReqPaths = 5
 	// time between reconnection attempts if SCIOND fails
 	reconnectInterval = 3 * time.Second
+	// wildcard filter key string
+	matchAll = "*"
 )
 
 type IAKey struct {
@@ -39,10 +41,13 @@ func (k IAKey) String() string {
 	return fmt.Sprintf("%s.%s", k.src.IA(), k.dst.IA())
 }
 
+// A filterSet contains all the thread safe objects for a source and
+// destination, indexed by their filter string. A filter string of "*" means no
+// filtering is done, and is used to keep a collection of all available paths.
 type filterSet map[string]*pathFilter
 
-// Function update changes all the pathFilters in fs to contain the paths in
-// aps that match their respective PathPredicates.
+// update all the pathFilters in fs to contain the paths in aps that match
+// their respective PathPredicates.
 func (fs filterSet) update(aps AppPathSet) {
 	// Walk each PathFilter in this FilterSet and Update paths if needed
 	for _, pathFilter := range fs {
@@ -55,9 +60,9 @@ type pathFilter struct {
 	pp *PathPredicate
 }
 
-// Function update changes paths within the SyncPaths object of pf to the ones
-// in aps that match the PathPredicate in pf. If pf.pp is nil, then pf.sp is
-// updated to contain all the paths in aps..
+// update paths within the SyncPaths object of pf to the ones in aps that match
+// the PathPredicate in pf. If pf.pp is nil, then pf.sp is updated to contain
+// all the paths in aps..
 func (pf *pathFilter) update(aps AppPathSet) {
 	// Filter the paths according to the current predicate
 	newAPS := make(AppPathSet)

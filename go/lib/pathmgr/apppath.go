@@ -44,6 +44,7 @@ func (aps AppPathSet) Add(entry *sciond.PathReplyEntry) *AppPath {
 	return ap
 }
 
+// GetAppPath returns an arbitrary path from aps.
 func (aps AppPathSet) GetAppPath() *AppPath {
 	for _, v := range aps {
 		return v
