@@ -20,7 +20,6 @@
 # Stdlib
 import logging
 import threading
-import time
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -88,26 +87,6 @@ class TestCertClient(TestClientBase):
             return ResponseRV.SUCCESS
         logging.error("TRC query failed")
         return ResponseRV.FAILURE
-
-    def run(self):
-        while not self.finished.is_set():
-            self._send()
-            start = time.time()
-            spkt = self._recv()
-            recv_dur = time.time() - start
-            if not spkt:
-                logging.info("Timeout waiting for response.")
-                self._retry_or_stop(flush=True)
-                continue
-            r_code = self._handle_response(spkt)
-            if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
-                self._stop(success=bool(r_code))
-            elif r_code == ResponseRV.CONTINUE:
-                continue
-            else:
-                # Rate limit retries to 1 request per second.
-                self._retry_or_stop(1.0 - recv_dur)
-        self._shutdown()
 
 
 class TestCertReq(TestClientServerBase):
