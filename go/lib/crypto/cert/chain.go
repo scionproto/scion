@@ -51,6 +51,10 @@ type Chain struct {
 
 func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	if lz4_ {
+		// The python lz4 library uses lz4 block mode. To know the length of the
+		// compressed block, it prepends the length of the original data as 4 bytes, little
+		// endian, unsigned integer. We need to make sure, that a malformed message does
+		// not exhaust the available memory.
 		byteLen := binary.LittleEndian.Uint32(raw[:4])
 		if byteLen > MaxChainByteLength {
 			return nil, common.NewCError("Exceeding byte length", "max",
@@ -78,8 +82,9 @@ func (c *Chain) Verify(subject *addr.ISD_AS, trc interface{}) error {
 	return nil
 }
 
-// Compress compresses the JSON generated from the certificate chain using lz4 and
-// prepends the original length. (4 bytes, little endian, unsigned)
+// Compress compresses the JSON generated from the certificate chain using lz4 block mode and
+// prepends the original length (4 bytes, little endian, unsigned). This is necessary, since
+// the python lz4 library expects this format.
 func (c *Chain) Compress() (common.RawBytes, error) {
 	raw, err := json.Marshal(c)
 	if err != nil {
