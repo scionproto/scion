@@ -17,6 +17,7 @@ package trust
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -77,28 +78,36 @@ func (s *Store) initChains() error {
 	return nil
 }
 
-// AddChain adds a trusted certificate chain to the store. If write is true, the TRC is written
-// to the filesystem.
+// AddChain adds a trusted certificate chain to the store. If write is true, the certificate chain
+// is written to the filesystem (in case it does not already exist).
 func (s *Store) AddChain(chain *cert.Chain, write bool) error {
 	ia, ver := chain.IAVer()
 	key := *chain.Key()
 	s.chainLock.Lock()
-	if _, ok := s.chainMap[key]; ok {
-		return nil
-	}
-	s.chainMap[key] = chain
-	v, ok := s.maxChainMap[*ia]
-	if !ok || ver > v {
-		s.maxChainMap[*ia] = ver
+	if _, ok := s.chainMap[key]; !ok {
+		s.chainMap[key] = chain
+		if v, ok := s.maxChainMap[*ia]; !ok || ver > v {
+			s.maxChainMap[*ia] = ver
+		}
 	}
 	s.chainLock.Unlock()
 	if write {
+		return s.writeChain(chain)
+	}
+	return nil
+}
+
+// writeChain writes certificate chain to the store, if it does not already exist.
+func (s *Store) writeChain(chain *cert.Chain) error {
+	ia, ver := chain.IAVer()
+	name := fmt.Sprintf("%s-ISD%d-AS%d-V%d.crt", s.eName, ia.I, ia.A, ver)
+	path := filepath.Join(s.cacheDir, name)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		j, err := chain.JSON(true)
 		if err != nil {
 			return err
 		}
-		name := fmt.Sprintf("%s-ISD%d-AS%d-V%d.crt", s.eName, ia.I, ia.A, ver)
-		if err = ioutil.WriteFile(filepath.Join(s.cacheDir, name), j, 0644); err != nil {
+		if err = ioutil.WriteFile(path, j, 0644); err != nil {
 			return err
 		}
 	}
