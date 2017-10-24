@@ -28,25 +28,6 @@
 // and ToS field match. Multiple predicates can be checked by enumerating them
 // under AllOf or AnyOf.
 //
-// Actions are marshalable objects that describe some process. Currently, the
-// only supported action is Path Filtering (ActionFilterPaths). A path filter
-// is just a container for a path predicate.  The predicate specifies which
-// consecutive sequence of ASes and interfaces the packet must travel through.
-// Wildcard ISDs, ASes and IFIDs are specified with 0. For example, a path
-// filtering predicate that only allows paths which pass through ISD1 can be
-// created with:
-//     pp, err = NewActionFilterPaths("PathsThroughISD1", "1-0#0")
-//
-// To allow paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
-// interface 95:
-//     pp, err = NewActionFilterPaths("PathsVia11-12", "1-11#27,1-12#95")
-//
-// Marshalable policies can be implemented by external code by mapping Cond
-// items to Action items.
-//
-// Package class supports JSON marshaling and unmarshaling of classes and
-// actions.  Due to the custom formatting of the JSON output, marshaling must
-// be done by first adding the classes and actions to a ClassMap or ActionMap,
-// respectively. Unmarshaling back to the Map is guaranteed to yield an object
-// that is identical to the initial one.
+// Actions are marshalable objects that describe a process. Currently, the
+// only supported action is Path Filtering (ActionFilterPaths).
 package pktcls

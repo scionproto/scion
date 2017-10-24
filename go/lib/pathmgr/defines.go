@@ -60,9 +60,8 @@ type pathFilter struct {
 	pp *PathPredicate
 }
 
-// update paths within the SyncPaths object of pf to the ones in aps that match
-// the PathPredicate in pf. If pf.pp is nil, then pf.sp is updated to contain
-// all the paths in aps..
+// update replaces the pathFilter's paths with those from aps, filtered by the
+// pathFilter's PathPredicate (if set).
 func (pf *pathFilter) update(aps AppPathSet) {
 	// Filter the paths according to the current predicate
 	newAPS := make(AppPathSet)

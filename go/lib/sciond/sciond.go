@@ -57,21 +57,21 @@ type Service interface {
 }
 
 type service struct {
-	name string
+	path string
 }
 
 func NewService(name string) Service {
 	return &service{
-		name: name,
+		path: name,
 	}
 }
 
 func (s *service) Connect() (Connector, error) {
-	return connect(s.name)
+	return connect(s.path)
 }
 
 func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
-	return connectTimeout(s.name, timeout)
+	return connectTimeout(s.path, timeout)
 }
 
 // A Connector is used to query SCIOND. The connector maintains an internal

@@ -185,7 +185,12 @@ func TestQuery(t *testing.T) {
 		},
 	}
 	Convey("Create path manager (path set max age = 1 second)", t, func() {
-		pm, err := New(api, 5*time.Second, time.Second, log.Root())
+		timers := Timers{
+			NormalRefire: 5 * time.Second,
+			ErrorRefire:  5 * time.Second,
+			MaxAge:       time.Second,
+		}
+		pm, err := New(api, timers, log.Root())
 		SoMsg("pm", pm, ShouldNotBeNil)
 		SoMsg("err", err, ShouldBeNil)
 		Convey("Query, receive 0 paths", func() {
@@ -227,7 +232,12 @@ func TestRegister(t *testing.T) {
 		},
 	}
 	Convey("Create path manager", t, func() {
-		pm, err := New(api, time.Second, time.Second, log.Root())
+		timers := Timers{
+			NormalRefire: time.Second,
+			ErrorRefire:  time.Second,
+			MaxAge:       time.Second,
+		}
+		pm, err := New(api, timers, log.Root())
 		SoMsg("pm", pm, ShouldNotBeNil)
 		SoMsg("err", err, ShouldBeNil)
 		Convey("Register for path, receive 0 responses", func() {
@@ -249,7 +259,12 @@ func TestRegisterFilter(t *testing.T) {
 		},
 	}
 	Convey("Create path manager", t, func() {
-		pm, err := New(api, time.Second, time.Second, log.Root())
+		timers := Timers{
+			NormalRefire: time.Second,
+			ErrorRefire:  time.Second,
+			MaxAge:       time.Second,
+		}
+		pm, err := New(api, timers, log.Root())
 		SoMsg("pm", pm, ShouldNotBeNil)
 		SoMsg("err", err, ShouldBeNil)
 		Convey("Register filter IFID42", func() {
@@ -280,7 +295,12 @@ func TestRevoke(t *testing.T) {
 		},
 	}
 	Convey("Create path manager", t, func() {
-		pm, err := New(api, time.Minute, time.Minute, log.Root())
+		timers := Timers{
+			NormalRefire: time.Minute,
+			ErrorRefire:  time.Minute,
+			MaxAge:       time.Minute,
+		}
+		pm, err := New(api, timers, log.Root())
 		SoMsg("pm", pm, ShouldNotBeNil)
 		SoMsg("err", err, ShouldBeNil)
 		Convey("Populate cache via Query, Watch, WatchFilter for different destinations", func() {

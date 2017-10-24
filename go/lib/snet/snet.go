@@ -100,7 +100,12 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 		localIA:        ia,
 	}
 	sd := sciond.NewService(sPath)
-	pathResolver, err := pathmgr.New(sd, 10*time.Second, time.Minute, log.Root())
+	timers := pathmgr.Timers{
+		NormalRefire: time.Minute,
+		ErrorRefire:  3 * time.Second,
+		MaxAge:       time.Hour,
+	}
+	pathResolver, err := pathmgr.New(sd, timers, log.Root())
 	if err != nil {
 		return nil, common.NewCError("Unable to initialize path resolver", "err", err)
 	}

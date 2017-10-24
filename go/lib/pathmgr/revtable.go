@@ -79,7 +79,7 @@ func (rt *revTable) updatePath(ap *AppPath) {
 	}
 }
 
-// RevokeUIFID deletes all the paths that include uifid
+// revoke deletes all the paths that include uifid
 func (rt *revTable) revoke(u uifid) AppPathSet {
 	aps := rt.m[u]
 	delete(rt.m, u)
