@@ -62,23 +62,23 @@ type PR struct {
 	log.Logger
 }
 
-// New connects to SCIOND and spawns the asynchronous path resolver. New
-// returns with an error if a connection to SCIOND could not be established.
-func New(sciondService sciond.Service, refireInterval, maxAge time.Duration, logger log.Logger) (*PR, error) {
-	// Connect to sciond
-	sciondConn, err := sciondService.Connect()
+// New connects to SCIOND and spawns the asynchronous path resolver. Parameter
+// refire specifies the time between periodic lookups for watched paths. When a
+// query for a path older than maxAge reaches the resolver, SCIOND is used to
+// refresh the path. New returns with an error if a connection to SCIOND could
+// not be established.
+func New(srvc sciond.Service, refire, maxAge time.Duration, logger log.Logger) (*PR, error) {
+	sciondConn, err := srvc.Connect()
 	if err != nil {
 		// Let external code handle initial failure
 		return nil, common.NewCError("Unable to connect to SCIOND", "err", err)
 	}
-
 	pr := &PR{
-		sciondService: sciondService,
-		requestQueue:  make(chan *resolverRequest, 5),
+		sciondService: srvc,
+		requestQueue:  make(chan *resolverRequest, queryChanCap),
 		Logger:        logger.New("lib", "PathResolver"),
 		cache:         newCache(maxAge),
 	}
-
 	// Start resolver, which periodically refreshes paths for registered
 	// destinations
 	r := &resolver{
@@ -86,7 +86,7 @@ func New(sciondService sciond.Service, refireInterval, maxAge time.Duration, log
 		sciondConn:     sciondConn,
 		cache:          pr.cache,
 		requestQueue:   pr.requestQueue,
-		refireInterval: refireInterval,
+		refireInterval: refire,
 	}
 	go r.run()
 	return pr, nil
@@ -115,7 +115,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	if aps, ok := r.cache.getAPS(src, dst); ok {
 		return aps
 	}
-	return make(AppPathSet)
+	return AppPathSet{}
 }
 
 // Watch adds pair src-dst to the list of watched paths.
@@ -133,7 +133,7 @@ func (r *PR) Watch(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 		if sp, ok := r.cache.getSP(src, dst); ok {
 			return sp, nil
 		}
-		return nil, common.NewCError("Incoherent cache, src and dst registered but no path set found")
+		return nil, common.NewCError("Incoherent cache, src and dst watched but no path set found")
 	}
 	request := &resolverRequest{
 		reqType: reqMonitor,
@@ -153,24 +153,23 @@ func (r *PR) Watch(src, dst *addr.ISD_AS) (*SyncPaths, error) {
 }
 
 func (r *PR) Unwatch(src, dst *addr.ISD_AS) error {
-	return common.NewCError("Function Unregister not implemented")
+	// FIXME(scrye): Implement this
+	return common.NewCError("Function Unwatch not implemented")
 }
 
-// WatchFilter returns a pointer to a SyncPaths object that contains
-// paths from src to dst that adhere to the specified filter. On path
-// changes the list is refreshed automatically.
+// WatchFilter returns a pointer to a SyncPaths object that contains paths from
+// src to dst that adhere to the specified filter. On path changes the list is
+// refreshed automatically.
 //
 // WatchFilter also adds pair src-dst to the list of tracked paths (if it
 // wasn't already tracked).
 func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
-
 	// If the filter was registered previously, fetch it from the cache
 	if sp, ok := r.cache.getFilteredSP(src, dst, filter); ok {
 		return sp, nil
 	}
-
 	// If the src and dst are not monitored yet, add the request to the resolver's queue
 	if !r.cache.isWatched(src, dst) {
 		request := &resolverRequest{
@@ -182,7 +181,6 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 		r.requestQueue <- request
 		<-request.done
 	}
-
 	r.cache.addFilteredSP(src, dst, filter)
 	sp, _ := r.cache.getFilteredSP(src, dst, filter)
 	return sp, nil
@@ -190,7 +188,8 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 
 // UnwatchFilter deletes a previously registered filter.
 func (r *PR) UnwatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) error {
-	return common.NewCError("Function UnregisterFilter not implemented")
+	// FIXME(scrye): Implement this
+	return common.NewCError("Function UnwatchFilter not implemented")
 }
 
 // Revoke asynchronously informs SCIOND about a revocation and flushes any
@@ -212,7 +211,6 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 			"revInfo", revInfo)
 		return
 	}
-
 	conn, err := r.sciondService.Connect()
 	if err != nil {
 		log.Error("Revocation failed, unable to connect to SCIOND", "err", err)
@@ -228,7 +226,6 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 		log.Error("Revocation error, unable to close SCIOND connection", "err", err)
 		// Continue with revocation
 	}
-
 	switch reply.Result {
 	case sciond.RevUnknown, sciond.RevValid:
 		uifid := uifidFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
@@ -252,12 +249,16 @@ type resolver struct {
 	requestQueue chan *resolverRequest
 }
 
+// run is the asynchronous path resolver. It grabs requests from a channel, and
+// updates the path cache with the result. Periodic requests are readded to the
+// channel.
 func (r *resolver) run() {
 	for request := range r.requestQueue {
 		aps := r.lookup(request.src, request.dst)
 		switch request.reqType {
 		case reqOneShot:
 			r.cache.update(request.src, request.dst, aps)
+			// Unblock the waiting client
 			close(request.done)
 		case reqMonitor:
 			if !r.cache.isWatched(request.src, request.dst) {

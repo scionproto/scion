@@ -22,7 +22,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
-// AppPathSet represents a set of SCIOND path entries, keyed by AppPath.Key()
+// AppPathSet represents a set of SCIOND path entries, keyed by AppPath.Key().
 type AppPathSet map[PathKey]*AppPath
 
 // NewAppPathSet creates a new set of paths from a SCIOND path reply.
@@ -38,8 +38,7 @@ func NewAppPathSet(reply *sciond.PathReply) AppPathSet {
 // set.
 func (aps AppPathSet) Add(entry *sciond.PathReplyEntry) *AppPath {
 	ap := &AppPath{
-		Entry:  entry,
-		parent: aps,
+		Entry: entry,
 	}
 	aps[ap.Key()] = ap
 	return ap
@@ -52,11 +51,9 @@ func (aps AppPathSet) GetAppPath() *AppPath {
 	return nil
 }
 
-// AppPath contains a SCIOND path entry, together with metadata needed for
-// revocations.
+// AppPath contains a SCIOND path entry.
 type AppPath struct {
-	Entry  *sciond.PathReplyEntry
-	parent AppPathSet
+	Entry *sciond.PathReplyEntry
 }
 
 // Key returns a unique PathKey that can be used for map indexing.
@@ -69,7 +66,7 @@ func (ap *AppPath) Key() PathKey {
 	return PathKey(h.Sum(nil))
 }
 
-// Helper type for pretty printing of maps using paths as keys
+// Helper type for pretty printing of maps using paths as keys.
 type PathKey string
 
 func (pk PathKey) String() string {
