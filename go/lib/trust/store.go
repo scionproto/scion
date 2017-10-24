@@ -15,18 +15,16 @@
 package trust
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/crypto/cert"
 )
 
-// Store handles storage and management of trust objects (certificate chains and TRCs)
+// Store handles storage and management of trust objects (certificate chains)
 type Store struct {
 	// certDir is the certificate directory.
 	certDir string
@@ -83,16 +81,19 @@ func (s *Store) initChains() error {
 // to the filesystem.
 func (s *Store) AddChain(chain *cert.Chain, write bool) error {
 	ia, ver := chain.IAVer()
+	key := *chain.Key()
 	s.chainLock.Lock()
-	s.chainMap[*chain.Key()] = chain
+	if _, ok := s.chainMap[key]; ok {
+		return nil
+	}
+	s.chainMap[key] = chain
 	v, ok := s.maxChainMap[*ia]
 	if !ok || ver > v {
 		s.maxChainMap[*ia] = ver
-		ok = false
 	}
 	s.chainLock.Unlock()
-	if write && !ok {
-		j, err := json.MarshalIndent(chain, "", strings.Repeat(" ", 4))
+	if write {
+		j, err := chain.JSON(true)
 		if err != nil {
 			return err
 		}
@@ -108,8 +109,7 @@ func (s *Store) AddChain(chain *cert.Chain, write bool) error {
 func (s *Store) GetChain(ia *addr.ISD_AS, ver int) *cert.Chain {
 	s.chainLock.RLock()
 	defer s.chainLock.RUnlock()
-	chain := s.chainMap[cert.Key{IA: *ia, Ver: ver}]
-	return chain
+	return s.chainMap[cert.Key{IA: *ia, Ver: ver}]
 }
 
 // GetMaxChain the certificate chain with the highest version for the specified ISD-AS.

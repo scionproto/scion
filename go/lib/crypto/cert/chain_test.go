@@ -17,7 +17,6 @@ package cert
 import (
 	"encoding/hex"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -86,7 +85,7 @@ var (
 		"41594955354c6a6453316e375350352b7038dc010663010f5f022eff1b4d78784649502b4b6c6849" +
 		"7971787376364230556d3732442b4e506f4c4b477542504e74386231342f525f02825020207d0a7d")
 
-	rawLeave = []byte(`
+	rawLeaf = []byte(`
 	{
 	    "SignAlgorithm": "ed25519",
 	    "SubjectSigKey": "5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=",
@@ -125,9 +124,9 @@ func Test_ChainFromRaw(t *testing.T) {
 		chain, err := ChainFromRaw(rawChain, false)
 		SoMsg("err", err, ShouldBeNil)
 
-		Convey("Leave Certifiacte is parsed correctly", func() {
-			cert, _ := CertificateFromRaw(rawLeave)
-			SoMsg("Leave", chain.Leave.String(), ShouldEqual, cert.String())
+		Convey("Leaf Certifiacte is parsed correctly", func() {
+			cert, _ := CertificateFromRaw(rawLeaf)
+			SoMsg("Leaf", chain.Leaf.String(), ShouldEqual, cert.String())
 		})
 
 		Convey("Core Certifiacte is parsed correctly", func() {
@@ -140,9 +139,9 @@ func Test_ChainFromRaw(t *testing.T) {
 		chain, err := ChainFromRaw(packChain, true)
 		SoMsg("err", err, ShouldBeNil)
 
-		Convey("Leave Certifiacte is parsed correctly", func() {
-			cert, _ := CertificateFromRaw(rawLeave)
-			SoMsg("Leave", chain.Leave.String(), ShouldEqual, cert.String())
+		Convey("Leaf Certifiacte is parsed correctly", func() {
+			cert, _ := CertificateFromRaw(rawLeaf)
+			SoMsg("Leaf", chain.Leaf.String(), ShouldEqual, cert.String())
 		})
 
 		Convey("Core Certifiacte is parsed correctly", func() {
@@ -165,9 +164,9 @@ func Test_Chain_Verify(t *testing.T) {
 		pub, priv, _ := ed25519.GenerateKey(nil)
 		pubRaw, privRaw := []byte(pub), []byte(priv)
 
-		chain.Leave.IssuingTime = time.Now().Unix()
-		chain.Leave.ExpirationTime = chain.Leave.IssuingTime + 1<<20
-		chain.Leave.Sign(privRaw, crypto.Ed25519)
+		chain.Leaf.IssuingTime = time.Now().Unix()
+		chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
+		chain.Leaf.Sign(privRaw, crypto.Ed25519)
 		chain.Core.SubjectSigKey = pubRaw
 		err := chain.Verify(&addr.ISD_AS{I: 1, A: 10}, nil)
 		SoMsg("err", err, ShouldBeNil)
@@ -220,12 +219,12 @@ func Test_Chain_Eq(t *testing.T) {
 		Convey("Chains are equal", func() {
 			SoMsg("Eq", c1.Eq(c2), ShouldBeTrue)
 		})
-		Convey("Chains are unequal (Leave)", func() {
-			c1.Leave.CanIssue = true
+		Convey("Chains are unequal (Leaf)", func() {
+			c1.Leaf.CanIssue = true
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Chains are unequal (Core)", func() {
-			c1.Leave.CanIssue = true
+			c1.Core.CanIssue = false
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 	})
@@ -236,7 +235,7 @@ func Test_Chain_Key(t *testing.T) {
 		chain, err := ChainFromRaw(rawChain, false)
 		SoMsg("err", err, ShouldBeNil)
 		key := *chain.Key()
-		SoMsg("Key", reflect.DeepEqual(key, Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1}), ShouldBeTrue)
+		SoMsg("Key", key, ShouldResemble, Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1})
 	})
 }
 
