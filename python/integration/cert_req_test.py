@@ -33,6 +33,7 @@ from lib.types import ServiceType
 from integration.base_cli_srv import (
     get_sciond_api_addr,
     setup_main,
+    ResponseRV,
     TestClientBase,
     TestClientServerBase,
 )
@@ -73,19 +74,19 @@ class TestCertClient(TestClientBase):
         pld = cmgt.union
         logging.debug("Got:\n%s", spkt)
         if not self.cert_done:
-            if (self.dst_ia, 0 == pld.chain.get_leaf_isd_as_ver()):
+            if (self.dst_ia, 0) == pld.chain.get_leaf_isd_as_ver():
                 logging.debug("Cert query success")
                 self.cert_done = True
-                return True
+                return ResponseRV.CONTINUE
             logging.error("Cert query failed")
-            return False
-        if (self.dst_ia[0], 0 == pld.trc.get_isd_ver()):
+            return ResponseRV.FAILURE
+        if (self.dst_ia[0], 0) == pld.trc.get_isd_ver():
             logging.debug("TRC query success")
             self.success = True
             self.finished.set()
-            return True
+            return ResponseRV.SUCCESS
         logging.error("TRC query failed")
-        return False
+        return ResponseRV.FAILURE
 
 
 class TestCertReq(TestClientServerBase):

@@ -58,6 +58,7 @@ class ResponseRV:
     FAILURE = 0
     SUCCESS = 1
     RETRY = 2
+    CONTINUE = 3
 
 
 class TestBase(object, metaclass=ABCMeta):
@@ -166,6 +167,8 @@ class TestClientBase(TestBase):
             r_code = self._handle_response(spkt)
             if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
                 self._stop(success=bool(r_code))
+            elif r_code == ResponseRV.CONTINUE:
+                continue
             else:
                 # Rate limit retries to 1 request per second.
                 self._retry_or_stop(1.0 - recv_dur)
