@@ -20,6 +20,7 @@
 # Stdlib
 import logging
 import threading
+import time
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -33,6 +34,7 @@ from lib.types import ServiceType
 from integration.base_cli_srv import (
     get_sciond_api_addr,
     setup_main,
+    ResponseRV,
     TestClientBase,
     TestClientServerBase,
 )
@@ -73,19 +75,39 @@ class TestCertClient(TestClientBase):
         pld = cmgt.union
         logging.debug("Got:\n%s", spkt)
         if not self.cert_done:
-            if (self.dst_ia, 0 == pld.chain.get_leaf_isd_as_ver()):
+            if (self.dst_ia, 0) == pld.chain.get_leaf_isd_as_ver():
                 logging.debug("Cert query success")
                 self.cert_done = True
-                return True
+                return ResponseRV.SUCCESS
             logging.error("Cert query failed")
-            return False
-        if (self.dst_ia[0], 0 == pld.trc.get_isd_ver()):
+            return ResponseRV.FAILURE
+        if (self.dst_ia[0], 0) == pld.trc.get_isd_ver():
             logging.debug("TRC query success")
             self.success = True
             self.finished.set()
-            return True
+            return ResponseRV.SUCCESS
         logging.error("TRC query failed")
-        return False
+        return ResponseRV.FAILURE
+
+    def run(self):
+        while not self.finished.is_set():
+            self._send()
+            start = time.time()
+            spkt = self._recv()
+            recv_dur = time.time() - start
+            if not spkt:
+                logging.info("Timeout waiting for response.")
+                self._retry_or_stop(flush=True)
+                continue
+            r_code = self._handle_response(spkt)
+            if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
+                if not self.success:
+                    continue
+                self._stop(success=bool(r_code))
+            else:
+                # Rate limit retries to 1 request per second.
+                self._retry_or_stop(1.0 - recv_dur)
+        self._shutdown()
 
 
 class TestCertReq(TestClientServerBase):
