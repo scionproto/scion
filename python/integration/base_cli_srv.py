@@ -58,6 +58,7 @@ class ResponseRV:
     FAILURE = 0
     SUCCESS = 1
     RETRY = 2
+    CONTINUE = 3
 
 
 class TestBase(object, metaclass=ABCMeta):

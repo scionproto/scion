@@ -78,7 +78,7 @@ class TestCertClient(TestClientBase):
             if (self.dst_ia, 0) == pld.chain.get_leaf_isd_as_ver():
                 logging.debug("Cert query success")
                 self.cert_done = True
-                return ResponseRV.SUCCESS
+                return ResponseRV.CONTINUE
             logging.error("Cert query failed")
             return ResponseRV.FAILURE
         if (self.dst_ia[0], 0) == pld.trc.get_isd_ver():
@@ -101,9 +101,9 @@ class TestCertClient(TestClientBase):
                 continue
             r_code = self._handle_response(spkt)
             if r_code in [ResponseRV.FAILURE, ResponseRV.SUCCESS]:
-                if not self.success:
-                    continue
                 self._stop(success=bool(r_code))
+            elif r_code == ResponseRV.CONTINUE:
+                continue
             else:
                 # Rate limit retries to 1 request per second.
                 self._retry_or_stop(1.0 - recv_dur)
