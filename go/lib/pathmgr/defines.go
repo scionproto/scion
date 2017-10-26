@@ -56,8 +56,9 @@ func (fs filterSet) update(aps AppPathSet) {
 }
 
 type pathFilter struct {
-	sp *SyncPaths
-	pp *PathPredicate
+	sp       *SyncPaths
+	pp       *PathPredicate
+	refCount int
 }
 
 // update replaces the pathFilter's paths with those from aps, filtered by the

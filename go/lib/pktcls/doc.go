@@ -28,6 +28,16 @@
 // and ToS field match. Multiple predicates can be checked by enumerating them
 // under AllOf or AnyOf.
 //
-// Actions are marshalable objects that describe a process. Currently, the
-// only supported action is Path Filtering (ActionFilterPaths).
+// Actions are marshalable objects that describe a process. Currently, the only
+// supported actions are Path Filters (ActionFilterPaths), which are containers
+// for a pathmgr.PathPredicate object.
+//
+// Marshalable policies can be implemented by external code by mapping Cond
+// items to Action items.
+//
+// Package class supports JSON marshaling and unmarshaling of classes and
+// actions.  Due to the custom formatting of the JSON output, marshaling must
+// be done by first adding the classes and actions to a ClassMap or ActionMap,
+// respectively. Unmarshaling back to the Map is guaranteed to yield an object
+// that is identical to the initial one.
 package pktcls

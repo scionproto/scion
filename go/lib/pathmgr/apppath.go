@@ -27,7 +27,10 @@ type AppPathSet map[PathKey]*AppPath
 
 // NewAppPathSet creates a new set of paths from a SCIOND path reply.
 func NewAppPathSet(reply *sciond.PathReply) AppPathSet {
-	aps := make(AppPathSet)
+	aps := AppPathSet{}
+	if reply == nil {
+		return aps
+	}
 	for i := range reply.Entries {
 		aps.Add(&reply.Entries[i])
 	}
@@ -42,6 +45,14 @@ func (aps AppPathSet) Add(entry *sciond.PathReplyEntry) *AppPath {
 	}
 	aps[ap.Key()] = ap
 	return ap
+}
+
+func (aps AppPathSet) Copy() AppPathSet {
+	newAPS := NewAppPathSet(nil)
+	for k := range aps {
+		newAPS[k] = aps[k].Copy()
+	}
+	return newAPS
 }
 
 // GetAppPath returns an arbitrary path from aps.
@@ -65,6 +76,13 @@ func (ap *AppPath) Key() PathKey {
 		binary.Write(h, common.Order, iface.IfID)
 	}
 	return PathKey(h.Sum(nil))
+}
+
+func (ap *AppPath) Copy() *AppPath {
+	// FIXME(scrye): this might need deep copying as well
+	return &AppPath{
+		Entry: ap.Entry,
+	}
 }
 
 // Helper type for pretty printing of maps using paths as keys.

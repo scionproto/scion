@@ -217,6 +217,26 @@ func TestQuery(t *testing.T) {
 	})
 }
 
+func TestQueryFilter(t *testing.T) {
+	api := &mockSCIONDService{
+		replies: []*sciond.PathReply{
+			buildSCIONDReply(pathXY1, pathXY2),
+		},
+	}
+	Convey("Create path manager", t, func() {
+		pm, err := New(api, Timers{}, log.Root())
+		SoMsg("pm", pm, ShouldNotBeNil)
+		SoMsg("err", err, ShouldBeNil)
+		Convey("Query with filter, only one path should remain", func() {
+			pp, err := NewPathPredicate("0-0#211")
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("pp", pp, ShouldNotBeNil)
+			aps := pm.QueryFilter(iaX, iaY, pp)
+			SoMsg("aps", aps, ShouldResemble, buildAPS(pathXY1))
+		})
+	})
+}
+
 func TestRegister(t *testing.T) {
 	// Watch a dst IA, refreshing paths every second. On the third request, the SCIOND mock
 	// returns a new set of paths.
