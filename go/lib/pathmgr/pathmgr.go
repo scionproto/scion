@@ -64,6 +64,27 @@ type Timers struct {
 	MaxAge time.Duration
 }
 
+const (
+	// Default wait time after a successful path lookup (for periodic lookups)
+	DefaultNormalRefire = time.Minute
+	// Default wait time after a failed path lookup (for periodic lookups)
+	DefaultErrorRefire = time.Second
+	// Default time after which a path is considered stale
+	DefaultMaxAge = 6 * time.Hour
+)
+
+func setDefaultTimers(timers *Timers) {
+	if timers.NormalRefire == 0 {
+		timers.NormalRefire = DefaultNormalRefire
+	}
+	if timers.ErrorRefire == 0 {
+		timers.ErrorRefire = DefaultErrorRefire
+	}
+	if timers.MaxAge == 0 {
+		timers.MaxAge = DefaultMaxAge
+	}
+}
+
 type PR struct {
 	// Lookup, reconnect and Register acquire this lock as separate goroutines
 	sync.Mutex
@@ -77,16 +98,18 @@ type PR struct {
 }
 
 // New connects to SCIOND and spawns the asynchronous path resolver. Parameter
-// refire specifies the time between periodic lookups for watched paths. When a
-// query for a path older than maxAge reaches the resolver, SCIOND is used to
-// refresh the path. New returns with an error if a connection to SCIOND could
-// not be established.
+// timers can be used to customize path manager behavior; if any timer is left
+// uninitialized, it is assigned the corresponding default value (see package
+// constants). When a query for a path older than maxAge reaches the resolver,
+// SCIOND is used to refresh the path. New returns with an error if a
+// connection to SCIOND could not be established.
 func New(srvc sciond.Service, timers Timers, logger log.Logger) (*PR, error) {
 	sciondConn, err := srvc.Connect()
 	if err != nil {
 		// Let external code handle initial failure
 		return nil, common.NewCError("Unable to connect to SCIOND", "err", err)
 	}
+	setDefaultTimers(&timers)
 	pr := &PR{
 		sciondService: srvc,
 		requestQueue:  make(chan *resolverRequest, queryChanCap),
@@ -129,9 +152,20 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	// expired between the retrieval above and the access (improbable), or no
 	// paths are available.
 	if aps, ok := r.cache.getAPS(src, dst); ok {
-		return aps
+		return aps.Copy()
 	}
 	return AppPathSet{}
+}
+
+func (r *PR) QueryFilter(src, dst *addr.ISD_AS, filter *PathPredicate) AppPathSet {
+	aps := r.Query(src, dst)
+	// Delete paths that do not match the predicate
+	for k, ap := range aps {
+		if !filter.Eval(ap.Entry) {
+			delete(aps, k)
+		}
+	}
+	return aps
 }
 
 // Watch adds pair src-dst to the list of watched paths.

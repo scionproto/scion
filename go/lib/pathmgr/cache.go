@@ -105,20 +105,24 @@ func (c *cache) watch(src, dst *addr.ISD_AS, filter *PathPredicate) {
 	if !ok {
 		entry = c.addEntry(src, dst)
 	}
-	if _, ok := entry.fs[key]; !ok {
-		pf := &pathFilter{
-			sp: NewSyncPaths(),
-			pp: filter,
+	if pf, ok := entry.fs[key]; !ok {
+		pf = &pathFilter{
+			sp:       NewSyncPaths(),
+			pp:       filter,
+			refCount: 1,
 		}
 		pf.update(entry.aps)
 		entry.fs[key] = pf
+	} else {
+		pf.refCount++
 	}
 }
 
-// getWatch returns a pointer to a thread-safe object that contains paths
-// between src and dst, filtered according to filter. If filter is nil, a
-// reference to an unfiltered object is returned. The object is shared between
-// callers, so callers must never write to it.
+// getWatch returns a pointer to the thread-safe object that contains the
+// filtered paths between src and dst. If the object has not been initialized
+// yet using watch, getWatch returns nil. If filter is nil, a reference to an
+// unfiltered object is returned. The object is shared between callers, so
+// callers must never write to it.
 func (c *cache) getWatch(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -157,11 +161,15 @@ func (c *cache) removeWatch(src, dst *addr.ISD_AS, filter *PathPredicate) error 
 		key = filter.String()
 	}
 	if entry, ok := c.getEntry(src, dst); ok {
-		if _, ok := entry.fs[key]; !ok {
+		pf, ok := entry.fs[key]
+		if !ok {
 			return common.NewCError("Unable to delete path filter, filter not found",
 				"src", src, "dst", dst, "filter", key)
 		}
-		delete(entry.fs, key)
+		pf.refCount--
+		if pf.refCount == 0 {
+			delete(entry.fs, key)
+		}
 		return nil
 	}
 	return common.NewCError("Unable to delete path filter, src and dst are not watched",
@@ -188,7 +196,7 @@ func (c *cache) revoke(u uifid) {
 func (c *cache) remove(src, dst *addr.ISD_AS, ap *AppPath) {
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
-		log.Warn("Attempted to removek known path, but no path set found", "path",
+		log.Warn("Attempted to remove known path, but no path set found", "path",
 			ap, "src", src, "dst", dst)
 		return
 	}
