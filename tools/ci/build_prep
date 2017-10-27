@@ -7,8 +7,8 @@ git submodule update --init --recursive
 # Restore the go dependency cache from scion_base
 tar xf ~/go_vendor.tar.gz -C go/vendor/
 # Ensure none of the dependency information has changed since scion_base was
-# last built. If any has, fail at the end of the build.
-./tools/ci/run ./docker/deps_check
+# last built. If any has, exit non-zero at the end of this step.
+./docker/deps_check || rt=1
 # Install any new dependencies, to test code that depends on them.
 APTARGS=-y ./env/deps
 # Syncing should be a no-op, just need installation to run
@@ -16,3 +16,4 @@ make -C go deps
 cp sub/web/web_scion/settings/private.dist.py sub/web/web_scion/settings/private.py
 ./sub/web/manage.py makemigrations
 ./scion.sh topology --pseg-ttl 1800
+exit $rt
