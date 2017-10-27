@@ -137,7 +137,8 @@ type mockSCIONDConn struct {
 	replies []*sciond.PathReply
 }
 
-func (m *mockSCIONDConn) Paths(dst, src *addr.ISD_AS, max uint16, f sciond.PathReqFlags) (*sciond.PathReply, error) {
+func (m *mockSCIONDConn) Paths(dst, src *addr.ISD_AS, max uint16,
+	f sciond.PathReqFlags) (*sciond.PathReply, error) {
 	if m.index >= len(m.replies) {
 		return buildSCIONDReply(), nil
 	}
@@ -206,7 +207,7 @@ func TestQuery(t *testing.T) {
 					SoMsg("aps", aps, ShouldResemble, buildAPS(pathXY1))
 					SoMsg("aps len", len(aps), ShouldEqual, 1)
 				})
-				Convey("Wait 2 seconds for paths to expire, then query again. New paths are received", func() {
+				Convey("Wait 2 seconds for paths to expire, then query and get new paths", func() {
 					<-time.After(2 * time.Second)
 					aps := pm.Query(iaX, iaY)
 					SoMsg("aps", aps, ShouldResemble, buildAPS(pathXY1, pathXY2))
@@ -287,7 +288,7 @@ func TestRegisterFilter(t *testing.T) {
 		pm, err := New(api, timers, log.Root())
 		SoMsg("pm", pm, ShouldNotBeNil)
 		SoMsg("err", err, ShouldBeNil)
-		Convey("Register filter IFID42", func() {
+		Convey("Register filter IFID 122", func() {
 			// Create a predicate that matches Y
 			pp, err := NewPathPredicate("0-0#122")
 			SoMsg("pp", pp, ShouldNotBeNil)
@@ -332,7 +333,8 @@ func TestRevoke(t *testing.T) {
 			SoMsg("err register", err, ShouldBeNil)
 			spd := sp.Load()
 			SoMsg("aps register", spd.APS, ShouldResemble, buildAPS(pathXZ, pathXYZ))
-			// Needs 0 queries to SCIOND (SyncPaths created for previous query), and the filter keeps only pathZ
+			// Needs 0 queries to SCIOND (SyncPaths created for previous
+			// query), and the filter keeps only pathXYZ
 			pp, err := NewPathPredicate("0-0#231")
 			SoMsg("err predicate", err, ShouldBeNil)
 			spf, err := pm.WatchFilter(iaX, iaZ, pp)
@@ -347,20 +349,17 @@ func TestRevoke(t *testing.T) {
 				SoMsg("aps", aps, ShouldResemble, buildAPS(pathXY1, pathXY2))
 			})
 			Convey("Revoke a path that's in Query, but not in Watch/WatchFilter path sets", func() {
-				// This removes an UIFID from pathY
+				// This removes an UIFID from pathXY2
 				pm.cache.revoke(uifidFromValues(iaY, 212))
 				aps := pm.Query(iaX, iaY)
 				SoMsg("aps", aps, ShouldResemble, buildAPS(pathXY1))
 			})
 			Convey("Revoke a path that's in Watch and WatchFilter, but not in Query", func() {
 				pm.cache.revoke(uifidFromValues(iaY, 231))
-				sp, err := pm.Watch(iaX, iaZ)
-				SoMsg("err register", err, ShouldBeNil)
 				spd := sp.Load()
-				// XYZ and XZ were in the path set, but now that XYZ's been filtered out only XZ remains
+				// XYZ and XZ were in the path set, but now that XYZ's been
+				// filtered out only XZ remains
 				SoMsg("aps register", spd.APS, ShouldResemble, buildAPS(pathXZ))
-				spf, err := pm.WatchFilter(iaX, iaZ, pp)
-				SoMsg("err register filter", err, ShouldBeNil)
 				spd = spf.Load()
 				// XYZ matched the filter, but now it's been revoked so nothing remains
 				SoMsg("aps register filter", spd.APS, ShouldResemble, buildAPS())
