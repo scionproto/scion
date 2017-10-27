@@ -27,8 +27,8 @@ func TestSyncPathsTimestamp(t *testing.T) {
 		sp := NewSyncPaths()
 		after := time.Now()
 		data := sp.Load()
-		SoMsg("timestamp", data.ModifyTime, ShouldHappenBetween, before, after)
-		SoMsg("timestamp", data.RefreshTime, ShouldHappenBetween, before, after)
+		SoMsg("timestamp", data.ModifyTime, ShouldHappenOnOrBetween, before, after)
+		SoMsg("timestamp", data.RefreshTime, ShouldHappenOnOrBetween, before, after)
 
 		Convey("Call store again without changing anything", func() {
 			beforeStore := time.Now()
@@ -36,10 +36,10 @@ func TestSyncPathsTimestamp(t *testing.T) {
 			afterStore := time.Now()
 			data := sp.Load()
 			Convey("Modify timestamp should not change", func() {
-				SoMsg("timestamp", data.ModifyTime, ShouldHappenBetween, before, after)
+				SoMsg("timestamp", data.ModifyTime, ShouldHappenOnOrBetween, before, after)
 			})
 			Convey("Refresh timestamp should change", func() {
-				SoMsg("timestamp", data.RefreshTime, ShouldHappenBetween, beforeStore, afterStore)
+				SoMsg("timestamp", data.RefreshTime, ShouldHappenOnOrBetween, beforeStore, afterStore)
 			})
 		})
 	})
