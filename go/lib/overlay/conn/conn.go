@@ -28,8 +28,8 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/assert"
 	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/nethack"
 	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/sockctrl"
 	"github.com/netsec-ethz/scion/go/lib/topology"
 )
 
@@ -94,35 +94,29 @@ type connUDPIPv4 struct {
 
 func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 	labels prometheus.Labels) (*connUDPIPv4, error) {
-	var err error
-	var fd int
-	// Get the underlying socket fd.
-	if fd, err = nethack.SocketOf(c); err != nil {
-		return nil, common.NewCError("Unable to get fd of net.UDPConn", "listen", listen,
-			"remote", remote, "err", err)
-	}
 	// Set reporting socket options
-	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
+	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1); err != nil {
 		return nil, common.NewCError("Error setting SO_RXQ_OVFL socket option", "listen", listen,
 			"remote", remote, "err", err)
 	}
-	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
+	if err := sockctrl.SetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_TIMESTAMPNS, 1); err != nil {
 		return nil, common.NewCError("Error setting SO_TIMESTAMPNS socket option", "listen", listen,
 			"remote", remote, "err", err)
 	}
 	// Set and confirm receive buffer size
-	var before, after int
-	if before, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF); err != nil {
-		return nil, common.NewCError("Error getting SO_RCVBUF socket option", "listen", listen,
-			"remote", remote, "err", err)
+	before, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	if err != nil {
+		return nil, common.NewCError("Error getting SO_RCVBUF socket option (before)",
+			"listen", listen, "remote", remote, "err", err)
 	}
 	if err = c.SetReadBuffer(recvBufSize); err != nil {
 		return nil, common.NewCError("Error setting recv buffer size", "listen", listen,
 			"remote", remote, "err", err)
 	}
-	if after, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF); err != nil {
-		return nil, common.NewCError("Error getting SO_RCVBUF socket option", "listen", listen,
-			"remote", remote, "err", err)
+	after, err := sockctrl.GetsockoptInt(c, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	if err != nil {
+		return nil, common.NewCError("Error getting SO_RCVBUF socket option (after)",
+			"listen", listen, "remote", remote, "err", err)
 	}
 	if after/2 != recvBufSize {
 		msg := "Receive buffer size smaller than requested"
