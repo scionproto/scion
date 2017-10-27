@@ -7,7 +7,7 @@
 
 #include "scion.h"
 
-uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP, L4_SSP};
+uint8_t L4PROTOCOLS[] = {L4_SCMP, L4_TCP, L4_UDP};
 
 spkt_t * build_spkt(saddr_t *dst, saddr_t *src, spath_t *path, exts_t *exts, l4_pld *l4)
 {

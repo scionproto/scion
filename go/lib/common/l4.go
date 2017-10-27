@@ -25,14 +25,13 @@ const (
 	L4SCMP L4ProtocolType = 1
 	L4TCP  L4ProtocolType = 6
 	L4UDP  L4ProtocolType = 17
-	L4SSP  L4ProtocolType = 152
 
 	HopByHopClass L4ProtocolType = 0
 	End2EndClass  L4ProtocolType = 222
 )
 
 var L4Protocols = map[L4ProtocolType]bool{
-	L4SCMP: true, L4TCP: true, L4UDP: true, L4SSP: true,
+	L4SCMP: true, L4TCP: true, L4UDP: true,
 }
 
 func (p L4ProtocolType) String() string {
@@ -45,8 +44,6 @@ func (p L4ProtocolType) String() string {
 		return "TCP"
 	case L4UDP:
 		return "UDP"
-	case L4SSP:
-		return "SSP"
 	case End2EndClass:
 		return "End2End"
 	}

@@ -660,16 +660,6 @@ class SCIONElement(object):
             ver_seg.add_asm(asm)
             verify_sig_chain_trc(ver_seg.sig_pack3(), asm.p.sig, cert_ia, chain, trc)
 
-    def _get_handler(self, pkt):
-        # FIXME(PSz): needed only by python router.
-        if pkt.l4_hdr.TYPE == L4Proto.UDP:
-            return self._get_ctrl_handler(pkt.get_payload())
-        elif pkt.l4_hdr.TYPE == L4Proto.SCMP:
-            return self._get_scmp_handler(pkt)
-        logging.error("L4 header type not supported: %s(%s)\n",
-                      pkt.l4_hdr.TYPE, L4Proto.to_str(pkt.l4_hdr.TYPE))
-        return None
-
     def _get_ctrl_handler(self, msg):
         pclass = msg.type()
         try:
@@ -1057,8 +1047,7 @@ class SCIONElement(object):
                 continue
 
     def _tcp_start(self):
-        # FIXME(PSz): hack to get python router working.
-        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
+        if not self.USE_TCP:
             return
         if not self._tcp_sock:
             logging.warning("TCP: accept socket is unset, port:%d", self._port)
@@ -1085,8 +1074,7 @@ class SCIONElement(object):
             log_exception("TCP: error on closing _tcp_sock")
 
     def _tcp_socks_update(self):
-        # FIXME(PSz): hack to get python router working.
-        if not hasattr(self, "_tcp_sock") or not self.USE_TCP:
+        if not self.USE_TCP:
             return
         self._socks.remove_inactive()
         self._tcp_add_waiting()

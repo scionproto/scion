@@ -101,13 +101,9 @@ typedef struct PingEntry {
     UT_hash_handle hh;
 } PingEntry;
 
-Entry *ssp_flow_list = NULL;
-Entry *ssp_wildcard_list = NULL;
 Entry *udp_port_list = NULL;
 Entry *poll_fd_list = NULL;
 
-Entry *bind_ssp_flow_list = NULL;
-Entry *bind_ssp_wildcard_list = NULL;
 Entry *bind_udp_port_list = NULL;
 
 SVCEntry *svc_list = NULL;
@@ -134,7 +130,6 @@ int bind_app_socket();
 int bind_data_sockets();
 
 void handle_app();
-void register_ssp(uint8_t *buf, int len, int sock);
 void register_udp(uint8_t *buf, int len, int sock);
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock);
 int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset);
@@ -144,7 +139,6 @@ static inline uint16_t get_next_port();
 
 void handle_data(int v6);
 void count_drops(int v6, uint32_t new_drops);
-void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from);
 void deliver_tcp(uint8_t *buf, int len, HostAddr *from);
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
@@ -495,57 +489,18 @@ void handle_app()
         unsigned char protocol = buf[1];
         zlog_info(zc, "received registration for proto: %d (%d bytes)", protocol, len);
         switch (protocol) {
-            case L4_SSP:
-                register_ssp(buf, len, sock);
-                break;
             case L4_UDP:
                 register_udp(buf, len, sock);
+                break;
+            default:
+                zlog_error(zc, "unsupported proto %d in registration", protocol);
+                close(sock);
                 break;
         }
     } else {
         zlog_error(zc, "invalid registration packet size");
         close(sock);
     }
-}
-
-void register_ssp(uint8_t *buf, int len, int sock)
-{
-    zlog_info(zc, "SSP registration request");
-    Entry *e = parse_request(buf, len, L4_SSP, sock);
-    if (!e)
-        return;
-    Entry *old = NULL;
-    if (e->l4_key.flow_id != 0) {
-        /* Find registered flow ID */
-        HASH_FIND(hh, ssp_flow_list, &e->l4_key, sizeof(L4Key), old);
-        if (old) {
-            zlog_error(zc, "address-flow already registered");
-            reply(sock, 1);
-            cleanup_socket(sock, num_sockets - 1, EINVAL);
-            return;
-        }
-        e->list = &ssp_flow_list;
-        HASH_ADD(hh, ssp_flow_list, l4_key, sizeof(L4Key), e);
-        if (IS_BIND_SOCKET(*buf)) {
-            e->bind_list = &bind_ssp_flow_list;
-            HASH_ADD(bindhh, bind_ssp_flow_list, bind_key, sizeof(L4Key), e);
-        }
-        zlog_info(zc, "flow registration success: %" PRIu64, e->l4_key.flow_id);
-    } else {
-        if (find_available_port(ssp_wildcard_list, &e->l4_key) < 0) {
-            reply(sock, 0);
-            cleanup_socket(sock, num_sockets - 1, EINVAL);
-            return;
-        }
-        e->list = &ssp_wildcard_list;
-        HASH_ADD(hh, ssp_wildcard_list, l4_key, sizeof(L4Key), e);
-        if (IS_BIND_SOCKET(*buf)) {
-            e->bind_list = &bind_ssp_wildcard_list;
-            HASH_ADD(bindhh, bind_ssp_wildcard_list, bind_key, sizeof(L4Key), e);
-        }
-        zlog_info(zc, "wildcard registration success: %d", e->l4_key.port);
-    }
-    reply(sock, e->l4_key.port);
 }
 
 void register_udp(uint8_t *buf, int len, int sock)
@@ -601,23 +556,9 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     }
 
     int addr_len = get_addr_len(type);
-    int flow_id_len = 8;
     int end;
 
-    if (proto == L4_SSP) {
-    /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | flow ID (8B) | addr (?B) | SVC (2B, optional) */
-        e->l4_key.flow_id = *(uint64_t *)(buf + common);
-        e->l4_key.port = port;
-        e->l4_key.isd_as = isd_as;
-        memcpy(e->l4_key.host, buf + common + flow_id_len, addr_len);
-        common = common + flow_id_len;
-        end = common + addr_len;
-        if (IS_BIND_SOCKET(*buf)) {
-            end = add_bind_addr(e, buf, isd_as, end);
-        }
-        zlog_info(zc, "registration for %s:%d:%" PRIu64,
-                addr_to_str(e->l4_key.host, type, NULL), e->l4_key.port, e->l4_key.flow_id);
-    } else if (proto == L4_UDP) {
+    if (proto == L4_UDP) {
         /* command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) | SVC (2B, optional) */
         e->l4_key.port = port;
         e->l4_key.isd_as = isd_as;
@@ -834,14 +775,14 @@ void handle_data(int v6)
         case L4_SCMP:
             process_scmp(buf, (SCMPL4Header *)l4ptr, len, &from);
             break;
-        case L4_SSP:
-            deliver_ssp(buf, l4ptr, len, &from);
-            break;
         case L4_UDP:
             deliver_udp(buf, len, &from, &dst);
             break;
         case L4_TCP:
             deliver_tcp(buf, len, &from);
+            break;
+        default:
+            zlog_error(zc, "delivery: unsupported L4 protocol %d", l4);
             break;
     }
 }
@@ -875,46 +816,6 @@ void count_drops(int v6, uint32_t new_drops) {
     }
 }
 
-
-void deliver_ssp(uint8_t *buf, uint8_t *l4ptr, int len, HostAddr *from)
-{
-    SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint8_t *dst_ptr = get_dst_addr(buf);
-    int dst_len = get_dst_len(buf);
-    uint8_t dst_type = DST_TYPE(sch);
-    Entry *e;
-    L4Key key;
-    memset(&key, 0, sizeof(key));
-    key.port = ntohs(*(uint16_t *)(l4ptr + 8));
-    key.isd_as = get_dst_isd_as(buf);
-    memcpy(key.host, dst_ptr, dst_len);
-    if (key.port != 0) {
-        HASH_FIND(hh, ssp_wildcard_list, &key, sizeof(key), e);
-        if (!e) {
-            HASH_FIND(bindhh, bind_ssp_wildcard_list, &key, sizeof(key), e);
-            if (!e) {
-                zlog_warn(zc, "no wildcard entry found for port %d at (%d-%d):%s",
-                        key.port, ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL));
-                return;
-            }
-        }
-    } else {
-        key.flow_id = be64toh(*(uint64_t *)l4ptr);
-        HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
-        if (!e) {
-            HASH_FIND(bindhh, bind_ssp_flow_list, &key, sizeof(key), e);
-            if (!e) {
-                zlog_warn(zc, "no flow entry found for (%d-%d):%s:%" PRIu64,
-                        ISD(key.isd_as), AS(key.isd_as), addr_to_str(key.host, dst_type, NULL), key.flow_id);
-                return;
-            }
-        }
-    }
-    zlog_debug(zc, "incoming ssp packet for %s:%d:%" PRIu64,
-               addr_to_str(dst_ptr, dst_type, NULL), key.port, key.flow_id);
-    send_dp_header(e->sock, from, len);
-    send_all(e->sock, buf, len);
-}
 
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
 {
@@ -1064,11 +965,6 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 {
     SCMPPayload *pld;
     pld = scmp_parse_payload(scmp);
-    if (pld->meta->l4_proto != L4_UDP && pld->meta->l4_proto != L4_SSP &&
-            pld->meta->l4_proto != L4_NONE) {
-        zlog_error(zc, "SCMP not supported for protocol %d", pld->meta->l4_proto);
-        goto cleanup;
-    }
     SCIONCommonHeader *sch = pld->cmnhdr;
     if (sch == NULL) {
         zlog_info(zc, "SCMP payload has no common header snippet, ignoring");
@@ -1084,32 +980,24 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     memset(&key, 0, sizeof(key));
     key.isd_as = ntohl(*(uint32_t *)(pld->addr + ISD_AS_LEN));
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
-    if (pld->meta->l4_proto == L4_SSP) {
-        // reverse direction bit in flow id as this is a packet returned to sender
-        key.flow_id = be64toh(*(uint64_t *)(pld->l4hdr)) ^ 1;
-        HASH_FIND(hh, ssp_flow_list, &key, sizeof(key), e);
-        if (!e) {
-            zlog_error(zc, "SCMP entry for %d-%d %s:%" PRIu64 " not found",
-                    ISD(key.isd_as), AS(key.isd_as),
-                    addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.flow_id);
-            goto cleanup;
-        }
-        zlog_debug(zc, "SCMP entry for %d-%d %s:%" PRIu64 " found",
-                ISD(key.isd_as), AS(key.isd_as),
-                addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.flow_id);
-    } else {
-        /* Find src info in payload */
-        key.port = ntohs(*(uint16_t *)(pld->l4hdr));
-        HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
-        if (!e) {
-            zlog_info(zc, "SCMP entry for %d-%d %s:%d not found",
+    switch (pld->meta->l4_proto) {
+        case L4_UDP:
+            /* Find src info in payload */
+            key.port = ntohs(*(uint16_t *)(pld->l4hdr));
+            HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
+            if (!e) {
+                zlog_info(zc, "SCMP entry for %d-%d %s:%d not found",
+                        ISD(key.isd_as), AS(key.isd_as),
+                        addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
+                goto cleanup;
+            }
+            zlog_debug(zc, "SCMP entry %d-%d for %s:%d found",
                     ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
+            break;
+        default:
+            zlog_error(zc, "SCMP not supported for protocol %d", pld->meta->l4_proto);
             goto cleanup;
-        }
-        zlog_debug(zc, "SCMP entry %d-%d for %s:%d found",
-                ISD(key.isd_as), AS(key.isd_as),
-                addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
     }
 
     send_dp_header(e->sock, from, len);

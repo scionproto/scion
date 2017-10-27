@@ -92,8 +92,7 @@ class L4Proto(TypeBase):
     SCMP = 1
     TCP = 6
     UDP = 17
-    SSP = 152
-    L4 = SCMP, TCP, UDP, SSP
+    L4 = SCMP, TCP, UDP
 
 
 ############################
