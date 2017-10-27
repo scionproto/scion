@@ -25,10 +25,15 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 )
 
-// A PathPredicate's Eval method returns true if the slice of interfaces in
-// Match is included in the AppPath parameter. Zero values in Match symbolize
-// wildcard matches. For more information and examples, consult the pktcls
-// documentation.
+// A PathPredicate specifies which sequence of ASes and interfaces the packet
+// must travel through; gaps in the matching are allowed.  Wildcard ISDs, ASes
+// and IFIDs are specified with 0. For example, a path filtering predicate that
+// only allows paths which pass through ISD1 can be created with:
+//     pp, err = NewPathPredicate("1-0#0")
+//
+// To allow paths passing through ISD-AS 1-11 interface 27 and then ISD-AS 1-12
+// interface 95:
+//     pp, err = NewPathPredicate("1-11#27,1-12#95")
 type PathPredicate struct {
 	Match []sciond.PathInterface
 }

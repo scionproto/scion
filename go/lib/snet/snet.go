@@ -50,6 +50,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 )
 
@@ -96,8 +97,15 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 	network := &Network{
 		sciondPath:     sPath,
 		dispatcherPath: dPath,
-		localIA:        ia}
-	pathResolver, err := pathmgr.New(sPath, 10*time.Second, log.Root())
+		localIA:        ia,
+	}
+	sd := sciond.NewService(sPath)
+	timers := pathmgr.Timers{
+		NormalRefire: time.Minute,
+		ErrorRefire:  3 * time.Second,
+		MaxAge:       time.Hour,
+	}
+	pathResolver, err := pathmgr.New(sd, timers, log.Root())
 	if err != nil {
 		return nil, common.NewCError("Unable to initialize path resolver", "err", err)
 	}
@@ -117,7 +125,7 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 		return nil, err
 	}
 	conn.raddr = raddr.Copy()
-	conn.sp, err = n.pathResolver.Register(conn.laddr.IA, conn.raddr.IA)
+	conn.sp, err = n.pathResolver.Watch(conn.laddr.IA, conn.raddr.IA)
 	if err != nil {
 		return nil, common.NewCError("Unable to establish path", "err", err)
 	}

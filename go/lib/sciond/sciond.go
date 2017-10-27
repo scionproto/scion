@@ -49,10 +49,46 @@ const (
 	SVCInfoTTL = 10 * time.Second
 )
 
-// A Connector is used to query SCIOND. The Connector maintains an internal
-// cache for interface, service and AS information. All Connector methods block until either
+// Service describes a SCIOND endpoint. New connections to SCIOND can be
+// initialized via Connect and ConnectTimeout.
+type Service interface {
+	Connect() (Connector, error)
+	ConnectTimeout(timeout time.Duration) (Connector, error)
+}
+
+type service struct {
+	path string
+}
+
+func NewService(name string) Service {
+	return &service{
+		path: name,
+	}
+}
+
+func (s *service) Connect() (Connector, error) {
+	return connect(s.path)
+}
+
+func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
+	return connectTimeout(s.path, timeout)
+}
+
+// A Connector is used to query SCIOND. The connector maintains an internal
+// cache for interface, service and AS information. All connector methods block until either
 // an error occurs, or the method successfully returns.
-type Connector struct {
+type Connector interface {
+	Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error)
+	ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error)
+	IFInfo(ifs []uint64) (*IFInfoReply, error)
+	SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error)
+	RevNotificationFromRaw(revInfo []byte) (*RevReply, error)
+	RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error)
+	Close() error
+	SetDeadline(t time.Time) error
+}
+
+type connector struct {
 	sync.Mutex
 	conn      net.Conn
 	requestID uint64
@@ -62,27 +98,27 @@ type Connector struct {
 	svcInfos *cache.Cache
 }
 
-// Connect connects to a SCIOND server listening on socketName. Future method calls on the
+// connect connects to a SCIOND server listening on socketName. Future method calls on the
 // returned Connector request information from SCIOND. The information is not
 // guaranteed to be fresh, as the returned connector caches ASInfo replies for ASInfoTTL time,
 // IFInfo replies for IFInfoTTL time and SVCInfo for SVCInfoTTL time.
-func Connect(socketName string) (*Connector, error) {
-	return ConnectTimeout(socketName, time.Duration(-1))
+func connect(socketName string) (*connector, error) {
+	return connectTimeout(socketName, time.Duration(-1))
 }
 
-// ConnectTimeout acts like Connect but takes a timeout.
+// connectTimeout acts like Connect but takes a timeout.
 //
 // A negative timeout means infinite timeout.
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func ConnectTimeout(socketName string, timeout time.Duration) (*Connector, error) {
+func connectTimeout(socketName string, timeout time.Duration) (*connector, error) {
 	conn, err := reliable.DialTimeout(socketName, timeout)
 	if err != nil {
 		return nil, err
 	}
 	rand.Seed(time.Now().UnixNano())
-	c := &Connector{conn: conn, requestID: uint64(rand.Uint32())}
+	c := &connector{conn: conn, requestID: uint64(rand.Uint32())}
 
 	cleanupInterval := time.Minute
 	c.asInfos = cache.New(ASInfoTTL, cleanupInterval)
@@ -92,11 +128,11 @@ func ConnectTimeout(socketName string, timeout time.Duration) (*Connector, error
 }
 
 // Self incrementing atomic counter for request IDs
-func (c *Connector) nextID() uint64 {
+func (c *connector) nextID() uint64 {
 	return atomic.AddUint64(&c.requestID, 1)
 }
 
-func (c *Connector) send(p *Pld) error {
+func (c *connector) send(p *Pld) error {
 	raw, err := proto.PackRoot(p)
 	if err != nil {
 		return tryExtractNetError(err)
@@ -105,7 +141,7 @@ func (c *Connector) send(p *Pld) error {
 	return err
 }
 
-func (c *Connector) receive() (*Pld, error) {
+func (c *connector) receive() (*Pld, error) {
 	p := &Pld{}
 	err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
 	if err != nil {
@@ -116,7 +152,7 @@ func (c *Connector) receive() (*Pld, error) {
 
 // Paths requests from SCIOND a set of end to end paths between src and dst. max specifices the
 // maximum number of paths returned.
-func (c *Connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error) {
+func (c *connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -139,7 +175,7 @@ func (c *Connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*P
 }
 
 // ASInfo requests from SCIOND information about AS ia.
-func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
+func (c *connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -169,7 +205,7 @@ func (c *Connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 // IFInfo requests from SCIOND addresses and ports of interfaces.
 // Slice ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached) answer containing
 // all interfaces is returned.
-func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
+func (c *connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -217,7 +253,7 @@ func (c *Connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 // SVCInfo requests from SCIOND information about addresses and ports of infrastructure services.
 // Slice svcTypes contains a list of desired service types. If unset, a fresh (i.e., uncached)
 // answer containing all service types is returned.
-func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
+func (c *connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -259,7 +295,7 @@ func (c *Connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 	return &reply.ServiceInfoReply, nil
 }
 
-func (c *Connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
+func (c *connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
 	// Extract information from notification
 	ri, err := path_mgmt.NewRevInfoFromRaw(revInfo)
 	if err != nil {
@@ -269,7 +305,7 @@ func (c *Connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
 }
 
 // RevNotification sends a RevocationInfo message to SCIOND.
-func (c *Connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
+func (c *connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -290,7 +326,7 @@ func (c *Connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, erro
 }
 
 // Close shuts down the connection to a SCIOND server.
-func (c *Connector) Close() error {
+func (c *connector) Close() error {
 	return c.conn.Close()
 }
 
@@ -305,7 +341,7 @@ func (c *Connector) Close() error {
 //
 // Following a timeout error the underlying protocol to SCIOND is probably
 // desynchronized. Establishing a fresh connection to SCIOND is recommended.
-func (c *Connector) SetDeadline(t time.Time) error {
+func (c *connector) SetDeadline(t time.Time) error {
 	return c.conn.SetDeadline(t)
 }
 

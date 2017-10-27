@@ -21,32 +21,21 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-type iaPair struct {
-	src *addr.ISD_AS
-	dst *addr.ISD_AS
-}
-
-// uifid (Unique IFID) is a IFID descriptor with global scope composed of ISDAS
-// and local IFID
+// uifid (Unique IFID) uniquely describes an interface
 type uifid struct {
-	isdas *addr.ISD_AS
-	ifid  common.IFIDType
+	ia   addr.IAInt
+	ifid common.IFIDType
 }
 
-func uifidFromValues(isdas *addr.ISD_AS, ifid common.IFIDType) *uifid {
-	return &uifid{
-		isdas: isdas.Copy(),
-		ifid:  ifid,
+func uifidFromValues(isdas *addr.ISD_AS, ifid common.IFIDType) uifid {
+	return uifid{
+		ia:   isdas.IAInt(),
+		ifid: ifid,
 	}
 }
 
-// key returns a unique key that can be used as a map index
-func (u *uifid) key() string {
-	return fmt.Sprintf("%s#%d", u.isdas, u.ifid)
-}
-
-func (u *uifid) String() string {
-	return u.key()
+func (u uifid) String() string {
+	return fmt.Sprintf("%s#%d", u.ia.IA().String(), u.ifid)
 }
 
 // revTable tracks for each UIFID the set of AppPaths that contain that UIFID.
@@ -54,12 +43,14 @@ func (u *uifid) String() string {
 // and calling Revoke on each AppPath.
 type revTable struct {
 	// maps UIFID keys to sets of paths that contain that UIFID
-	m map[string]AppPathSet
+	m map[uifid]AppPathSet
 }
 
-// newRevTable creats an empty revocation table.
+// newRevTable creates an empty revocation table.
 func newRevTable() *revTable {
-	return &revTable{m: make(map[string]AppPathSet)}
+	return &revTable{
+		m: make(map[uifid]AppPathSet),
+	}
 }
 
 // updatePathSet updates the information for paths in aps. If a path is new,
@@ -77,56 +68,34 @@ func (rt *revTable) updatePathSet(aps AppPathSet) {
 func (rt *revTable) updatePath(ap *AppPath) {
 	for _, iface := range ap.Entry.Path.Interfaces {
 		uifid := uifidFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
-		aps, ok := rt.m[uifid.key()]
+		aps, ok := rt.m[uifid]
 		if !ok {
 			// AppPathSet not initialized yet
 			aps = make(AppPathSet)
 			// Store reference to new map
-			rt.m[uifid.key()] = aps
+			rt.m[uifid] = aps
 		}
 		aps[PathKey(ap.Key())] = ap
 	}
 }
 
-// RevokeUIFID deletes all the paths that include uifid
-func (rt *revTable) revoke(u *uifid) []*iaPair {
-	pairs := make([]*iaPair, 0)
-	aps := rt.m[u.key()]
+// revoke deletes all the paths that include uifid
+func (rt *revTable) revoke(u uifid) AppPathSet {
+	aps := rt.m[u]
+	delete(rt.m, u)
 	for _, ap := range aps {
-		ap.revoke()
-
-		// If the revocation caused all paths between a source and
-		// destination to be deleted, return the source and destination
-		// to allow callers to requery SCIOND immediately
-		if len(ap.parent) == 0 {
-			pairs = append(pairs, &iaPair{src: getSrcIA(ap), dst: getDstIA(ap)})
-		}
-
 		// Delete all references from other UIFIDs to the revoked path,
 		// thus allowing the path to be garbage collected
 		for _, iface := range ap.Entry.Path.Interfaces {
 			ifaceUIFID := uifidFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
-			pathSet := rt.m[ifaceUIFID.key()]
+			pathSet := rt.m[ifaceUIFID]
 			delete(pathSet, ap.Key())
-
 			// If the last reference from a UIFID to a path was deleted, we can
 			// remove the UIFID from the revTable
 			if len(pathSet) == 0 {
-				delete(rt.m, ifaceUIFID.key())
+				delete(rt.m, ifaceUIFID)
 			}
 		}
 	}
-	delete(rt.m, u.key())
-	return nil
-}
-
-func getSrcIA(ap *AppPath) *addr.ISD_AS {
-	iface := ap.Entry.Path.Interfaces[0]
-	return iface.ISD_AS()
-}
-
-func getDstIA(ap *AppPath) *addr.ISD_AS {
-	length := len(ap.Entry.Path.Interfaces)
-	iface := ap.Entry.Path.Interfaces[length-1]
-	return iface.ISD_AS()
+	return aps
 }
