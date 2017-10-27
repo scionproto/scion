@@ -69,9 +69,6 @@ bin/topopruner
 bin/echoscion
 c/dispatcher/dispatcher
 c/lib/scion/checksum_bench
-c/ssp/test/*client
-c/ssp/test/*file
-c/ssp/test/*server
 
 # CTags
 ##########################

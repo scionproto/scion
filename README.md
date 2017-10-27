@@ -99,9 +99,8 @@ Notes about `topology/Default.topo`:
 
 * `core` (optional): specify if this is a core AS or not (defaults to 'false').
 
-* `beacon_servers`, `certificate_servers`, `path_servers`, `dns_servers` (all
-  optional): number of such servers in a specific AS (override the default
-  value 1).
+* `beacon_servers`, `certificate_servers`, `path_servers`, (all optional):
+  number of such servers in a specific AS (override the default value 1).
 
 * `links`: keys are `ISD_ID-AS_ID` (format also used for the keys of the JSON
   file itself) and values can either be `PARENT`, `CHILD`, `PEER`, or

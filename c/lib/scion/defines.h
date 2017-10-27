@@ -11,13 +11,12 @@
 #define SCION_FILTER_CMD_PORT  30042
 #define SCION_ROUTER_PORT      50000
 
-#define L4_PROTOCOL_COUNT 4
+#define L4_PROTOCOL_COUNT 3
 // L4 Protocols
 #define L4_NONE     0
 #define L4_SCMP     1
 #define L4_TCP      6
 #define L4_UDP      17
-#define L4_SSP      152
 
 #define MAX_HOST_ADDR_LEN 16
 

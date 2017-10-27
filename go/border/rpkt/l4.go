@@ -49,8 +49,6 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, error) {
 			rp.l4 = udp
 			rp.idxs.pld = rp.idxs.l4 + l4.UDPLen
 		/*
-			case common.L4SSP:
-				rp.l4 = &l4.SSP{}
 			case common.L4TCP:
 				rp.l4 = &l4.TCP{}
 		*/

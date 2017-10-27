@@ -93,7 +93,6 @@ void handle_filter(FilterSocket *fs)
      * No. of filter commands for SCMP (1B)
      * No. of filter commands for TCP  (1B)
      * No. of filter commands for UDP  (1B)
-     * No. of filter commands for SSP  (1B)
      */
     int len = recv_all(sock, buf, L4_PROTOCOL_COUNT);
     if (len < 0) {
@@ -199,8 +198,6 @@ int l4_index(uint8_t l4)
             return 1;
         case L4_UDP:
             return 2;
-        case L4_SSP:
-            return 3;
         default:
             return -1;
     }

@@ -13,12 +13,9 @@ Contents:
 
    beacon_server/index
    cert_server/index
-   dns_server/index
    path_server/index
    scion_elem/index
-   router/index
    lib/index
-   scion_proxy/index
    sciond/index
    topology/index
 
