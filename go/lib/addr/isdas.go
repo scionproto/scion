@@ -72,6 +72,10 @@ func IAFromString(s string) (*ISD_AS, error) {
 	return &ISD_AS{I: isd, A: as}, nil
 }
 
+func (ia *ISD_AS) MarshalText() ([]byte, error) {
+	return []byte(ia.String()), nil
+}
+
 // allows ISD_AS to be used as a map key in JSON.
 func (ia *ISD_AS) UnmarshalText(text []byte) error {
 	newIA, err := IAFromString(string(text))
