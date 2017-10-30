@@ -34,7 +34,7 @@ func SockControl(c *net.UDPConn, f func(int) error) error {
 		ctrlErr = f(int(fd))
 	})
 	if err != nil {
-		return common.NewCError("sockctrl: Control error", "err", err)
+		return common.NewCError("sockctrl: RawConn.Control error", "err", err)
 	}
 	if ctrlErr != nil {
 		return common.NewCError("sockctrl: control function error", "err", ctrlErr)
