@@ -81,7 +81,10 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int
 			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut[0], Dst: ai})
 		}
 	} else {
-		ifid := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]
+		ifid, ok := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]
+		if !ok {
+			return common.NewCError("genPkt: unable to find ifid for address", "addr", srcAddr)
+		}
 		rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	}
 	return rp.Route()
