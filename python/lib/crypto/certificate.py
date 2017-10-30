@@ -197,7 +197,10 @@ class Certificate(object):
 
     def _sig_input(self):
         d = self.dict(False)
-        j = json.dumps(d, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+        for k in d:
+            if self.FIELDS_MAP[k][1] == str:
+                d[k] = base64.b64encode(d[k].encode('utf-8')).decode('utf-8')
+        j = json.dumps(d, sort_keys=True, separators=(',', ':'))
         return j.encode('utf-8')
 
     def to_json(self, indent=4):
