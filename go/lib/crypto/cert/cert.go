@@ -19,6 +19,7 @@ package cert
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -30,12 +31,7 @@ import (
 )
 
 type Certificate struct {
-	// All fields in this struct need to be sorted to create a sorted JSON.
-	// They need to be sorted in alphabetic order of the field names,
-	// since MarshalJSON marshals struct fields in order of declaration.
-	// This is important for a consistent creation of signature input.
-
-	// CanIssue describes wheter the subject is able to issue certificates.
+	// CanIssue describes whether the subject is able to issue certificates.
 	CanIssue bool
 	// Comment is an arbitrary and optional string used by the subject to describe the certificate.
 	Comment string
@@ -50,7 +46,7 @@ type Certificate struct {
 	// SignAlgorithm is the algorithm associated with SubjectSigKey.
 	SignAlgorithm string
 	// Signature is the certificate signature. It is computed over the rest of the certificate.
-	Signature common.RawBytes `json:",omitempty"`
+	Signature common.RawBytes
 	// Subject is the certificate subject.
 	Subject *addr.ISD_AS
 	// SubjectEncKey is the public key used for encryption.
@@ -61,6 +57,27 @@ type Certificate struct {
 	TRCVersion int
 	// Version is the certificate version.
 	Version int
+}
+
+// sigIn is used to marshal the Certificate to JSON.
+type sigIn struct {
+	// All fields in this struct need to be sorted to create a sorted JSON.
+	// They need to be sorted in alphabetic order of the field names,
+	// since MarshalJSON marshals struct fields in order of declaration.
+	// This is important for a consistent creation of signature input.
+	// FIXME(roosd): This struct is only needed, as long as strings are encoded in base64
+	CanIssue       bool
+	Comment        string
+	EncAlgorithm   string
+	ExpirationTime int64
+	Issuer         string
+	IssuingTime    int64
+	SignAlgorithm  string
+	Subject        string
+	SubjectEncKey  common.RawBytes
+	SubjectSigKey  common.RawBytes
+	TRCVersion     int
+	Version        int
 }
 
 func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
@@ -111,14 +128,20 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 
 // sigPack creates a sorted json object of all fields, except for the signature field.
 func (c *Certificate) sigPack() (common.RawBytes, error) {
-	l := len(c.Signature)
-	c.Signature = c.Signature[:0]
-	sigInput, err := json.Marshal(c)
-	c.Signature = c.Signature[:l]
+	sigInput, err := json.Marshal(&sigIn{CanIssue: c.CanIssue, Comment: encode(c.Comment),
+		EncAlgorithm: encode(c.EncAlgorithm), ExpirationTime: c.ExpirationTime,
+		Issuer: encode(c.Issuer.String()), IssuingTime: c.IssuingTime,
+		SignAlgorithm: encode(c.SignAlgorithm), Subject: encode(c.Subject.String()),
+		SubjectEncKey: c.SubjectEncKey, SubjectSigKey: c.SubjectSigKey,
+		TRCVersion: c.TRCVersion, Version: c.Version})
 	if err != nil {
 		return nil, err
 	}
 	return sigInput, nil
+}
+
+func encode(in string) string {
+	return base64.StdEncoding.EncodeToString([]byte(in))
 }
 
 func (c *Certificate) String() string {
