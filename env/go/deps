@@ -35,16 +35,16 @@ go_install() {
     local src sum
     case "$(uname -m)" in
         x86_64)
-            src=https://storage.googleapis.com/golang/go1.8.3.linux-amd64.tar.gz
-            sum=1862f4c3d3907e59b04a757cfda0ea7aa9ef39274af99a784f5be843c80c6772
+            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz
+            sum=de874549d9a8d8d8062be05808509c09a88a248e77ec14eb77453530829ac02b
             ;;
         i?86)
-            src=https://storage.googleapis.com/golang/go1.8.3.linux-386.tar.gz
-            sum=ff4895eb68fb1daaec41c540602e8bb4c1e8bb2f0e7017367171913fc9995ed2
+            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-386.tar.gz
+            sum=574b2c4b1a248e58ef7d1f825beda15429610a2316d9cbd3096d8d3fa8c0bc1a
             ;;
         arm*|aarch*)
-            src=https://storage.googleapis.com/golang/go1.8.3.linux-armv6l.tar.gz
-            sum=3c30a3e24736ca776fc6314e5092fb8584bd3a4a2c2fa7307ae779ba2735e668
+            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-armv6l.tar.gz
+            sum=8a6758c8d390e28ef2bcea511f62dcb43056f38c1addc06a8bc996741987e7bb
             ;;
         *)
             echo "ERROR: unsupported architecture '$(uname -m)'"
@@ -54,7 +54,7 @@ go_install() {
     file="${tmpdir:?}/$(basename ${src:?})"
     echo "$sum  $file"  > "$tmpdir/SHA256SUM"
     echo "Downloading $src to $file"
-    curl -# "$src" -o "$file"
+    curl -L# "$src" -o "$file"
     echo "$sum $file" | sha256sum -c -
     echo "Installing to /usr/local/go. Ensure that /usr/local/go/bin is in your \$PATH"
     sudo tar -C /usr/local -xf "$file"
