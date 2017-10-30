@@ -230,6 +230,9 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr
 		}
 		return rpkt.HookFinish, nil
 	}
+	// FIXME(kormat): cases not currently handled:
+	// - a local addr moves idx
+	// - a local addr has its bind address change
 	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[pai.Key()]; !ok {
 		// New local address got added. Configure Posix I/O.
 		if err := addPosixLocal(r, ctx, idx, bai, labels); err != nil {
