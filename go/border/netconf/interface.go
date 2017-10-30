@@ -40,9 +40,9 @@ type NetConf struct {
 	LocAddr []*topology.TopoAddr
 	// IFs maps interface IDs to Interfaces.
 	IFs map[common.IFIDType]*Interface
-	// LocAddrMap maps local address strings to LocAddr indices.
+	// LocAddrMap maps local public address strings to LocAddr indices.
 	LocAddrMap map[string]int
-	// IFAddrMap maps external address strings to interface IDs.
+	// IFAddrMap maps external public address strings to interface IDs.
 	IFAddrMap map[string]common.IFIDType
 	// LocAddrIFIDMap maps local address strings to (potentially multiple)
 	// interface IDs.
@@ -91,7 +91,7 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	n.IFAddrMap = make(map[string]common.IFIDType, len(n.IFs))
 	for ifid, intf := range n.IFs {
 		var key string
-		// Add mapping of interface bind address to this interface ID.
+		// Add mapping of interface public address to this interface ID.
 		if intf.IFAddr.IPv4 != nil {
 			n.IFAddrMap[keyFromTopoAddr(intf.IFAddr, overlay.IPv4)] = ifid
 		}
@@ -163,7 +163,7 @@ func intfFromTopoIF(t *topology.IFInfo, ifid common.IFIDType) *Interface {
 // This format must be kept in sync with AddrInfo.Key() (from lib/topology/addr.go)
 func keyFromTopoAddr(t *topology.TopoAddr, ot overlay.Type) string {
 	if ot.IsIPv4() {
-		return fmt.Sprintf("%s:%d", t.IPv4.BindAddr(), t.IPv4.BindL4Port())
+		return fmt.Sprintf("%s:%d", t.IPv4.PublicAddr(), t.IPv4.PublicL4Port())
 	}
-	return fmt.Sprintf("%s:%d", t.IPv6.BindAddr(), t.IPv6.BindL4Port())
+	return fmt.Sprintf("%s:%d", t.IPv6.PublicAddr(), t.IPv6.PublicL4Port())
 }
