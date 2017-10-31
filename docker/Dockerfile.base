@@ -38,11 +38,6 @@ RUN env/pip3/deps && rm -r ~/.cache/pip
 COPY env/pip2 env/pip2
 RUN env/pip2/deps && rm -r ~/.cache/pip
 
-# scion-web pip3 packages
-COPY env/pip3web env/pip3web
-COPY sub/web/requirements.txt env/pip3web
-RUN env/pip3web/deps && rm -r ~/.cache/pip
-
 # zlog packages
 COPY env/zlog env/zlog
 RUN env/zlog/deps

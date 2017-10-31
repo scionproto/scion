@@ -13,7 +13,5 @@ tar xf ~/go_vendor.tar.gz -C go/vendor/
 APTARGS=-y ./env/deps
 # Syncing should be a no-op, just need installation to run
 make -C go deps
-cp sub/web/web_scion/settings/private.dist.py sub/web/web_scion/settings/private.py
-./sub/web/manage.py makemigrations
 ./scion.sh topology --pseg-ttl 1800
 exit $rt

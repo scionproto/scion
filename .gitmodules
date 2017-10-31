@@ -4,6 +4,3 @@
 [submodule "sub/lwip-contrib"]
 	path = sub/lwip-contrib
 	url = git@github.com:netsec-ethz/scion-lwip-contrib.git
-[submodule "sub/web"]
-	path = sub/web
-	url = git@github.com:netsec-ethz/scion-web.git

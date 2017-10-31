@@ -102,7 +102,7 @@ cmd_lint() {
 
 py_lint() {
     local ret=0
-    for i in python python/mininet sub/web; do
+    for i in python python/mininet; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       local cmd="flake8"
