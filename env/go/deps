@@ -42,9 +42,13 @@ go_install() {
             src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-386.tar.gz
             sum=574b2c4b1a248e58ef7d1f825beda15429610a2316d9cbd3096d8d3fa8c0bc1a
             ;;
-        arm*|aarch*)
+        arm*)
             src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-armv6l.tar.gz
             sum=8a6758c8d390e28ef2bcea511f62dcb43056f38c1addc06a8bc996741987e7bb
+            ;;
+        aarch64)
+            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-arm64.tar.gz
+            sum=0016ac65ad8340c84f51bc11dbb24ee8265b0a4597dbfdf8d91776fc187456fa
             ;;
         *)
             echo "ERROR: unsupported architecture '$(uname -m)'"
