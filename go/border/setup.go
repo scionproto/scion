@@ -222,20 +222,24 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr,
 	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	// No old context. This happens during startup of the router.
+	pai := ta.PublicAddrInfo(ctx.Conf.Topo.Overlay)
+	bai := ta.BindAddrInfo(ctx.Conf.Topo.Overlay)
 	if oldCtx == nil {
-		if err := addPosixLocal(r, ctx, idx, ta.BindAddrInfo(ctx.Conf.Topo.Overlay), labels); err != nil {
+		if err := addPosixLocal(r, ctx, idx, bai, labels); err != nil {
 			return rpkt.HookError, err
 		}
 		return rpkt.HookFinish, nil
 	}
-	ba := ta.BindAddrInfo(ctx.Conf.Topo.Overlay)
-	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[ba.Key()]; !ok {
+	// FIXME(kormat): cases not currently handled:
+	// - a local addr moves idx
+	// - a local addr has its bind address change
+	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[pai.Key()]; !ok {
 		// New local address got added. Configure Posix I/O.
-		if err := addPosixLocal(r, ctx, idx, ba, labels); err != nil {
+		if err := addPosixLocal(r, ctx, idx, bai, labels); err != nil {
 			return rpkt.HookError, err
 		}
 	} else {
-		log.Debug("No change detected for local socket.", "bindaddr", ba)
+		log.Debug("No change detected for local socket.", "pubAddr", pai)
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.LocSockIn[idx] = oldCtx.LocSockIn[oldIdx]
 		ctx.LocSockOut[idx] = oldCtx.LocSockOut[oldIdx]
