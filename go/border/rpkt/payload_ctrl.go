@@ -28,7 +28,11 @@ func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, error) {
 	if rp.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
-	cpld, err := ctrl.NewPldFromRaw(rp.Raw[rp.idxs.pld:])
+	cpldout, err := ctrl.NewPldOuterFromRaw(rp.Raw[rp.idxs.pld:])
+	if err != nil {
+		return HookError, nil, err
+	}
+	cpld, err := cpldout.Pld()
 	if err != nil {
 		return HookError, nil, err
 	}

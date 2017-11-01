@@ -18,6 +18,7 @@ var RootTypes = []string{
 	"PathSegment",
 	"RevInfo",
 	"CtrlPld",
+	"CtrlPldOuter",
 	"SCIONDMsg",
 }
 
