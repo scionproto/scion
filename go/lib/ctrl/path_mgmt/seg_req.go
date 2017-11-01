@@ -58,27 +58,5 @@ func (s *SegReq) Write(b common.RawBytes) (int, error) {
 }
 
 func (s *SegReq) String() string {
-	return fmt.Sprintf("Id: %08x %v -> %v, Flags: %v", s.Id, s.SrcIA(), s.DstIA(), s.Flags)
-}
-
-type SegReply struct {
-	Id   uint64
-	Recs *SegRecs
-}
-
-func NewSegReplyFromRaw(b common.RawBytes) (*SegReply, error) {
-	s := &SegReply{}
-	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
-}
-
-func (s *SegReply) ProtoId() proto.ProtoIdType {
-	return proto.SegReply_TypeID
-}
-
-func (s *SegReply) Write(b common.RawBytes) (int, error) {
-	return proto.WriteRoot(s, b)
-}
-
-func (s *SegReply) String() string {
-	return fmt.Sprintf("Id: %08x\n%s", s.Id, s.Recs)
+	return fmt.Sprintf("Id: %16x %s -> %s, Flags: %v", s.Id, s.SrcIA(), s.DstIA(), s.Flags)
 }

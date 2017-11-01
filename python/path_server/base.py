@@ -63,14 +63,11 @@ from scion_elem.scion_elem import SCIONElement
 
 
 # Exported metrics.
-REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", [
-                     "server_id", "isd_as"])
+REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_as"])
 REQS_PENDING = Gauge("ps_req_pending_total",
                      "# of pending path requests", ["server_id", "isd_as"])
-SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", [
-                   "server_id", "isd_as"])
-REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK", [
-                   "server_id", "isd_as"])
+SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", ["server_id", "isd_as"])
+REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK", ["server_id", "isd_as"])
 HT_ROOT_MAPPTINGS = Gauge("ps_ht_root_mappings_total", "# of hashtree root to segment mappings",
                           ["server_id", "isd_as"])
 IS_MASTER = Gauge("ps_is_master", "true if this process is the replication master",
@@ -103,25 +100,19 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param str prom_export: prometheus export address.
         """
         super().__init__(server_id, conf_dir, prom_export=prom_export)
-        down_labels = {**self._labels,
-                       "type": "down"} if self._labels else None
-        core_labels = {**self._labels,
-                       "type": "core"} if self._labels else None
-        self.down_segments = PathSegmentDB(
-            max_res_no=self.MAX_SEG_NO, labels=down_labels)
-        self.core_segments = PathSegmentDB(
-            max_res_no=self.MAX_SEG_NO, labels=core_labels)
+        down_labels = {**self._labels, "type": "down"} if self._labels else None
+        core_labels = {**self._labels, "type": "core"} if self._labels else None
+        self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=down_labels)
+        self.core_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=core_labels)
         # Dict of pending requests.
-        self.pending_req = defaultdict(
-            lambda: ExpiringDict(1000, PATH_REQ_TOUT))
+        self.pending_req = defaultdict(lambda: ExpiringDict(1000, PATH_REQ_TOUT))
         self.pen_req_lock = threading.Lock()
         self._request_logger = None
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache(labels=self._labels)
         # A mapping from (hash tree root of AS, IFID) to segments
-        self.htroot_if2seg = ExpiringDict(
-            1000, self.config.revocation_tree_ttl)
+        self.htroot_if2seg = ExpiringDict(1000, self.config.revocation_tree_ttl)
         self.htroot_if2seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -242,8 +233,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
-                self._handle_revocation(CtrlPayload(
-                    PathMgmt(info.rev_info())), meta)
+                self._handle_revocation(CtrlPayload(PathMgmt(info.rev_info())), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -509,8 +499,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         dst_ia = pcb.first_ia()
         if not self.is_core_as(dst_ia):
-            logging.warning(
-                "Invalid waiting target, not a core AS: %s", dst_ia)
+            logging.warning("Invalid waiting target, not a core AS: %s", dst_ia)
             return
         self._send_waiting_queries(dst_ia[0], pcb)
 
@@ -522,8 +511,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         src_ia = pcb.first_ia()
         while targets:
             (seg_req, logger) = targets.pop(0)
-            meta = self._build_meta(
-                ia=src_ia, path=path, host=SVCType.PS_A, reuse=True)
+            meta = self._build_meta(ia=src_ia, path=path, host=SVCType.PS_A, reuse=True)
             self.send_meta(CtrlPayload(PathMgmt(seg_req)), meta)
             logger.info("Waiting request (%s) sent to %s via %s",
                         seg_req.short_desc(), meta, pcb.short_desc())
@@ -570,8 +558,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Initializes the request logger.
         """
         self._request_logger = logging.getLogger("RequestLogger")
-        # Create new formatter to include the random request id and the request
-        # in the log.
+        # Create new formatter to include the request in the log.
         formatter = formatter = Rfc3339Formatter(
             "%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s "
             "{req=%(req)s, from=%(from)s}")

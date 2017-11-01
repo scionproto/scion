@@ -29,7 +29,6 @@ from lib.packet.scion_addr import ISD_AS
 class PathSegmentReq(Cerealizable):  # pragma: no cover
     """Describes a request for path segment(s)"""
     NAME = "PathSegmentReq"
-    LEN = 1 + 2 * ISD_AS.LEN
     P_CLS = P.SegReq
 
     @classmethod
@@ -62,13 +61,14 @@ class PathSegmentReq(Cerealizable):  # pragma: no cover
         return tuple(flags)
 
     def __eq__(self, other):
-        return self.p.id == other.p.id
+        return (self.p.id == other.p.id and self.p.srcIA == other.p.srcIA and
+            self.p.dstIA == other.p.dstIA and self.flags() == other.flags())
 
     def __hash__(self):
         return self.p.id
 
     def short_desc(self):
-        return "Id: %08x %s -> %s  %s" % (self.req_id(), self.src_ia(), self.dst_ia(), self.flags())
+        return "Id: %16x %s -> %s  %s" % (self.req_id(), self.src_ia(), self.dst_ia(), self.flags())
 
 
 class PathSegmentReply(Cerealizable):  # pragma: no cover
