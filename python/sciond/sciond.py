@@ -191,7 +191,9 @@ class SCIONDaemon(SCIONElement):
         key = req.dst_ia(), req.flags()
         r = self.requested_paths.get(key)
         if r:
-            r.set_reply(path_reply)
+            r.notify_reply(path_reply)
+        else:
+            logging.warning("No outstanding request found for %s", key)
         for type_, pcb in recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                    meta, type_, params=(r,))
@@ -479,24 +481,24 @@ class SCIONDaemon(SCIONElement):
                     # No previous outstanding request
                     req = PathSegmentReq.from_values(
                         random_uint64(), self.addr.isd_as, dst_ia, flags=flags)
-                    self.requested_paths[key] = RequestState(req.copy(), self.path_resolution)
+                    self.requested_paths[key] = RequestState(req.copy())
                     self._fetch_segments(req)
                 r = self.requested_paths[key]
             # Wait until event gets set.
-            r.wait()
-            # Delete the request from requested_paths
+            timeout = not r.e.wait(PATH_REQ_TOUT)
             with self.req_path_lock:
+                if timeout:
+                    r.done()
                 if key in self.requested_paths:
                     del self.requested_paths[key]
+            if timeout:
+                logging.error("Query timed out for %s", dst_ia)
+                return [], SCIONDPathReplyError.PS_TIMEOUT
             # Check if we can fulfill the path request.
             paths = self.path_resolution(dst_ia, flags=flags)
             if not paths:
-                if r.timed_out():
-                    logging.error("Query timed out for %s", dst_ia)
-                    error_code = SCIONDPathReplyError.PS_TIMEOUT
-                else:
-                    logging.error("No paths found for %s", dst_ia)
-                    error_code = SCIONDPathReplyError.NO_PATHS
+                logging.error("No paths found for %s", dst_ia)
+                return [], SCIONDPathReplyError.NO_PATHS
         return paths, error_code
 
     def path_resolution(self, dst_ia, flags=()):

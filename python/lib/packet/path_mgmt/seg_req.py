@@ -62,7 +62,7 @@ class PathSegmentReq(Cerealizable):  # pragma: no cover
 
     def __eq__(self, other):
         return (self.p.id == other.p.id and self.p.srcIA == other.p.srcIA and
-            self.p.dstIA == other.p.dstIA and self.flags() == other.flags())
+                self.p.dstIA == other.p.dstIA and self.flags() == other.flags())
 
     def __hash__(self):
         return self.p.id
