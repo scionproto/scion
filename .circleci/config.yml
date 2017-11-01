@@ -46,6 +46,9 @@ jobs:
 
 
     build:
+        branches:
+            ignore:
+                - /.*/
         docker:
             - image: ethznetsec/scion_base@sha256:90528bc3890e00820767d306587974dbf1e7a0b9ce193e8fce5218cffc1f562e
         <<: *job
