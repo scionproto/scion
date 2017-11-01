@@ -47,7 +47,7 @@ class TestCertClient(TestClientBase):
             [ServiceType.CS], connector=connector)[ServiceType.CS]
         cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
-        self.cert_done = False
+        self.cert = None
         super().__init__("", finished, addr, cs_addr, cs.p.port, retries=2)
         self.dst_ia = dst_ia
 
@@ -64,7 +64,7 @@ class TestCertClient(TestClientBase):
         return spkt
 
     def _create_payload(self, _):
-        if not self.cert_done:
+        if not self.cert:
             return CtrlPayload(CertMgmt(CertChainRequest.from_values(self.dst_ia, 0)))
         return CtrlPayload(CertMgmt(TRCRequest.from_values(self.dst_ia, 0)))
 
@@ -73,14 +73,15 @@ class TestCertClient(TestClientBase):
         cmgt = cpld.union
         pld = cmgt.union
         logging.debug("Got:\n%s", spkt)
-        if not self.cert_done:
+        if not self.cert:
             if (self.dst_ia, 0) == pld.chain.get_leaf_isd_as_ver():
                 logging.debug("Cert query success")
-                self.cert_done = True
+                self.cert = pld.chain
                 return ResponseRV.CONTINUE
             logging.error("Cert query failed")
             return ResponseRV.FAILURE
         if (self.dst_ia[0], 0) == pld.trc.get_isd_ver():
+            self.cert.verify(str(self.dst_ia), pld.trc)
             logging.debug("TRC query success")
             self.success = True
             self.finished.set()

@@ -40,20 +40,20 @@ from OpenSSL import crypto
 # SCION
 from lib.config import Config
 from lib.crypto.asymcrypto import (
-    generate_sign_keypair,
     generate_enc_keypair,
+    generate_sign_keypair,
     get_enc_key_file_path,
-    get_sig_key_file_path
+    get_sig_key_file_path,
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
 from lib.crypto.trc import (
-    get_trc_file_path,
     OFFLINE_KEY_ALG_STRING,
     OFFLINE_KEY_STRING,
     ONLINE_KEY_ALG_STRING,
     ONLINE_KEY_STRING,
     TRC,
+    get_trc_file_path,
 )
 from lib.crypto.util import (
     get_ca_cert_file_path,
@@ -123,7 +123,7 @@ SCION_SERVICE_NAMES = (
     "SibraService",
 )
 
-DEFAULT_KEYGEN_ALG = 'Ed25519'
+DEFAULT_KEYGEN_ALG = 'ed25519'
 
 GENERATE_BOTH_TOPOLOGY = True
 GENERATE_BIND_ADDRESS = False
@@ -396,28 +396,25 @@ class CertGenerator(object):
             self._create_trc(topo_id[0])
         trc = self.trcs[topo_id[0]]
         # Add public root online/offline key to TRC
-        core = {}
-        core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[ONLINE_KEY_STRING] = self.pub_online_root_keys[topo_id]
-        core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[OFFLINE_KEY_STRING] = self.pub_offline_root_keys[topo_id]
-        trc.core_ases[str(topo_id)] = core
-        ca_certs = {}
-        for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
-            ca_certs[ca_name] = crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
-        trc.root_cas = ca_certs
+
+        trc.core_ases[str(topo_id)] = self._populate_core(topo_id)
+
+    def _populate_core(self, topo_id):
+        return {ONLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                ONLINE_KEY_STRING: self.pub_online_root_keys[topo_id],
+                OFFLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                OFFLINE_KEY_STRING: self.pub_offline_root_keys[topo_id]}
 
     def _create_trc(self, isd):
-        self.trcs[isd] = TRC.from_values(
-            isd, "ISD %s" % isd, 0, {}, {},
-            {}, 2, 'dns_srv_addr', 2,
-            3, 18000, True, {})
+        validity_period = TRC.VALIDITY_PERIOD
+        self.trcs[isd] = TRC.from_values(isd, "ISD %s" % isd, INITIAL_TRC_VERSION, {}, {}, {}, 2,
+                                         {}, 2, 3, 18000, False, {}, validity_period)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):
             return
         trc = self.trcs[topo_id[0]]
-        trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
+        trc.sign(topo_id, self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
         trc = self.trcs[topo_id[0]]
