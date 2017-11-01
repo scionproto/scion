@@ -22,11 +22,15 @@ _WAIT_TIME = 0.5
 
 
 class RequestState:  # pragma: no cover
-    """RequestState stores state about path requests issued by SCIOND to the local PS."""
+    """
+    RequestState stores state about path requests issued by SCIOND to the local PS.
+
+
+    """
     def __init__(self, req, checkf):
         self.req = req
         self.reply = None
-        self.checkf = checkf
+        self._checkf = checkf
         self._e = threading.Event()
         self._segs_to_verify = 0
         self._wait = True
@@ -87,7 +91,7 @@ class RequestState:  # pragma: no cover
 
     def _check(self):
         """Checks if a request can be fulfilled."""
-        if self.checkf(self.req.dst_ia(), self.req.flags()):
+        if self._checkf(self.req.dst_ia(), self.req.flags()):
             self._done()
             return True
         return False
