@@ -10,7 +10,7 @@ using Blob = import "blobsign.capnp";
 struct PathSegment {
     signed @0 :Data;
     # asEntries[n].blob is a raw ASEntry. asEntries[n].sign is over signed + asEntries[:n]
-    asEntries @1 :List(Blob.Blob);
+    asEntries @1 :List(Blob.SignedBlob);
 }
 
 # Contains all top-level signed data for PathSegment
