@@ -108,7 +108,6 @@ DEFAULT_LINK_BW = 1000
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
-DEFAULT_SIBRA_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 
@@ -121,7 +120,6 @@ SCION_SERVICE_NAMES = (
     "CertificateService",
     "BorderRouters",
     "PathService",
-    "SibraService",
 )
 
 DEFAULT_KEYGEN_ALG = 'ed25519'
@@ -591,7 +589,6 @@ class TopoGenerator(object):
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateService"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
-            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraService"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -789,7 +786,6 @@ class SupervisorGenerator(object):
             ("BeaconService", "python/bin/beacon_server"),
             ("CertificateService", "python/bin/cert_server"),
             ("PathService", "python/bin/path_server"),
-            ("SibraService", "python/bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         entries.extend(self._br_entries(topo, "bin/border", base))

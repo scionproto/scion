@@ -67,10 +67,40 @@ func (s *SignS) Verify(key, message common.RawBytes) error {
 	return common.NewCError("SignS.Verify: Unsupported SignType", "type", s.Type)
 }
 
+func (s *SignS) Pack() common.RawBytes {
+	var raw common.RawBytes
+	raw = append(raw, common.RawBytes(s.Type.String())...)
+	raw = append(raw, s.Src...)
+	raw = append(raw, s.Signature...)
+	return raw
+}
+
 func (s *SignS) ProtoId() ProtoIdType {
 	return Sign_TypeID
 }
 
 func (s *SignS) String() string {
 	return fmt.Sprintf("SignType: %s SignSrc: %s Signature: %s", s.Type, s.Src, s.Signature)
+}
+
+var _ Cerealizable = (*SignedBlobS)(nil)
+
+type SignedBlobS struct {
+	Blob common.RawBytes
+	Sign *SignS
+}
+
+func (sbs *SignedBlobS) Pack() common.RawBytes {
+	var raw common.RawBytes
+	raw = append(raw, sbs.Blob...)
+	raw = append(raw, sbs.Sign.Pack()...)
+	return raw
+}
+
+func (sbs *SignedBlobS) ProtoId() ProtoIdType {
+	return SignedBlob_TypeID
+}
+
+func (sbs *SignedBlobS) String() string {
+	return fmt.Sprintf("Blob: %s Sign: %s", sbs.Blob[:20], sbs.Sign)
 }

@@ -33,8 +33,7 @@ from test.testcommon import assert_these_calls, create_mock, create_mock_full
 class PathCombinatorBase(object):
     def _mk_seg(self, asms):
         seg = create_mock(["p"])
-        seg.p = create_mock(["asms"])
-        seg.p.asms = asms
+        seg.p = create_mock_full({"asEntries": asms})
         return seg
 
     def _generate_none(self):
@@ -143,11 +142,10 @@ class TestPathCombinatorCopySegment(object):
 
     @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
-    @patch("lib.path_combinator.copy.deepcopy", autospec=True)
-    def test_copy_up(self, deepcopy, copy_hofs):
-        seg = create_mock(["iter_asms", "info"])
+    def test_copy_up(self, copy_hofs):
+        seg = create_mock(["iter_asms", "infoF"])
         info = create_mock(["up_flag"])
-        deepcopy.return_value = info
+        seg.infoF.return_value = info
         hofs = []
         for _ in range(3):
             hof = create_mock(["xover"])
@@ -158,7 +156,6 @@ class TestPathCombinatorCopySegment(object):
         ntools.eq_(path_combinator._copy_segment(seg, True, True),
                    (info, hofs, None))
         # Tests
-        deepcopy.assert_called_once_with(seg.info)
         ntools.eq_(info.up_flag, True)
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
                                           reverse=True)
@@ -168,11 +165,10 @@ class TestPathCombinatorCopySegment(object):
 
     @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
-    @patch("lib.path_combinator.copy.deepcopy", autospec=True)
-    def test_copy_down(self, deepcopy, copy_hofs):
-        seg = create_mock(["iter_asms", "info"])
+    def test_copy_down(self, copy_hofs):
+        seg = create_mock(["iter_asms", "infoF"])
         info = create_mock(["up_flag"])
-        deepcopy.return_value = info
+        seg.infoF.return_value = info
         copy_hofs.return_value = "hofs", None
         # Call
         ntools.eq_(path_combinator._copy_segment(seg, False, False, up=False),
@@ -449,7 +445,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
     """
     Unit tests for lib.path_combinator._copy_segment_shortcut
     """
-    def _setup(self, deepcopy, copy_hofs):
+    def _setup(self, copy_hofs):
         info = create_mock(["hops", "up_flag"])
         info.hops = 10
         upstream_hof = create_mock(["verify_only", "xover"])
@@ -457,25 +453,23 @@ class TestPathCombinatorCopySegmentShortcut(object):
         pcbm.hof.return_value = upstream_hof
         asm = create_mock(["pcbm"])
         asm.pcbm.return_value = pcbm
-        seg = create_mock(["asm", "info", "iter_asms"])
+        seg = create_mock(["asm", "infoF", "iter_asms"])
         seg.asm.return_value = asm
+        seg.infoF.return_value = info
         hofs = []
         for _ in range(6):
             hofs.append(create_mock(["xover"]))
         copy_hofs.return_value = hofs, "mtu"
-        deepcopy.side_effect = info, upstream_hof
         return seg, info, hofs, upstream_hof
 
     @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
-    @patch("lib.path_combinator.copy.deepcopy", new_callable=create_mock)
-    def test_up(self, deepcopy, copy_hofs):
-        seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+    def test_up(self, copy_hofs):
+        seg, info, hofs, upstream_hof = self._setup(copy_hofs)
         # Call
         ntools.eq_(path_combinator._copy_segment_shortcut(seg, 4),
                    (info, hofs, upstream_hof, "mtu"))
         # Tests
-        deepcopy.assert_called_once_with(seg.info)
         ntools.eq_(info.hops, 6)
         ntools.ok_(info.up_flag)
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
@@ -486,9 +480,8 @@ class TestPathCombinatorCopySegmentShortcut(object):
 
     @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
-    @patch("lib.path_combinator.copy.deepcopy", new_callable=create_mock)
-    def test_down(self, deepcopy, copy_hofs):
-        seg, info, hofs, upstream_hof = self._setup(deepcopy, copy_hofs)
+    def test_down(self, copy_hofs):
+        seg, info, hofs, upstream_hof = self._setup(copy_hofs)
         # Call
         ntools.eq_(path_combinator._copy_segment_shortcut(seg, 7, up=False),
                    (info, hofs, upstream_hof, "mtu"))

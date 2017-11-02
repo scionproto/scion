@@ -52,12 +52,13 @@ cmd_status() {
 }
 
 cmd_test(){
-    set -e
+    local ret=0
     case "$1" in
-        py) shift; py_test "$@";;
-        go) shift; go_test "$@";;
-        *) py_test; go_test;;
+        py) shift; py_test "$@"; ret=$((ret+$?));;
+        go) shift; go_test "$@"; ret=$((ret+$?));;
+        *) py_test; ret=$((ret+$?)); go_test; ret=$((ret+$?));;
     esac
+    return $ret
 }
 
 py_test() {

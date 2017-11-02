@@ -3,7 +3,7 @@ using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
-using PCB = import "pcb.capnp";
+using PSeg = import "path_seg.capnp";
 using IFState = import "if_state.capnp";
 using RevInfo = import "rev_info.capnp";
 
@@ -19,7 +19,7 @@ struct SegReq {
 }
 
 struct SegRecs {
-    recs @0 :List(PCB.PathSegMeta);
+    recs @0 :List(PSeg.PathSegMeta);
     revInfos @1 :List(RevInfo.RevInfo);
 }
 

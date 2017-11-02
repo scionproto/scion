@@ -7,7 +7,7 @@ LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
 LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go')
 GOTAGS = assert
 
-all: deps_proto bin
+all: deps_proto bin libs
 
 clean:
 	rm -f gocover.html vendor/.deps.stamp

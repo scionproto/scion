@@ -12,32 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of a hop entry in a AS entry
-
 package seg
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"fmt"
 )
 
-type HopEntry struct {
-	RawInIA     addr.IAInt `capnp:"inIA"`
-	RemoteInIF  uint64
-	InMTU       uint16     `capnp:"inMTU"`
-	RawOutIA    addr.IAInt `capnp:"outIA"`
-	RemoteOutIF uint64
-	RawHopField []byte `capnp:"hopF"`
+type Meta struct {
+	Type    Type
+	Segment PathSegment `capnp:"pcb"`
 }
 
-func (e *HopEntry) InIA() *addr.ISD_AS {
-	return e.RawInIA.IA()
+func (m *Meta) String() string {
+	return fmt.Sprintf("Type: %v, Segment: %v", m.Type, m.Segment)
 }
 
-func (e *HopEntry) OutIA() *addr.ISD_AS {
-	return e.RawOutIA.IA()
-}
+type Type uint8
 
-func (e *HopEntry) HopField() (*spath.HopField, error) {
-	return spath.HopFFromRaw(e.RawHopField)
+const (
+	UpSegment   Type = 0
+	DownSegment Type = 1
+	CoreSegment Type = 2
+)
+
+func (t Type) String() string {
+	switch t {
+	case UpSegment:
+		return "UP"
+	case DownSegment:
+		return "DOWN"
+	case CoreSegment:
+		return "CORE"
+	}
+	return fmt.Sprintf("UNKNOWN (%d)", t)
 }

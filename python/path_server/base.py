@@ -420,9 +420,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Handle beacon extensions.
         """
         # Handle PCB extensions:
-        if pcb.is_sibra():
-            # TODO(Sezer): Implement sibra extension handling
-            logging.debug("%s", pcb.sibra_ext)
         for asm in pcb.iter_asms():
             pol = asm.routing_pol_ext()
             if pol:
