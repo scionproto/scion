@@ -29,7 +29,8 @@ from lib.packet.cert_mgmt import CertMgmt
 from lib.packet.ifid import IFIDPayload
 from lib.packet.packet_base import CerealBox, Cerealizable
 from lib.packet.path_mgmt.base import PathMgmt
-from lib.packet.pcb import PathSegment
+from lib.packet.pcb import PCB
+from lib.packet.proto_sign import ProtoSign, ProtoSignType
 from lib.sibra.payload import SIBRAPayload
 from lib.types import PayloadClass
 from lib.util import Raw
@@ -38,6 +39,10 @@ from lib.util import Raw
 class SignedCtrlPayload(Cerealizable):
     NAME = "SignedCtrlPayload"
     P_CLS = P.SignedCtrlPld
+
+    def __init__(self, p):  # pragma: no cover
+        super().__init__(p)
+        self.psign = ProtoSign(self.p.sign)
 
     @classmethod
     def from_raw(cls, raw):
@@ -53,8 +58,15 @@ class SignedCtrlPayload(Cerealizable):
         return cls.from_proto(p)
 
     @classmethod
-    def from_values(cls, cpld_raw):
-        return cls(cls.P_CLS.new_message(blob=cpld_raw))
+    def from_values(cls, cpld_raw, sig_type=ProtoSignType.NONE, sig_src=b""):
+        s = ProtoSign.from_values(sig_type, sig_src)
+        return cls(cls.P_CLS.new_message(blob=cpld_raw, sign=s.p))
+
+    def sign(self, key):
+        return self.psign.sign(key, self.p.blob)
+
+    def verify(self, key):
+        return self.psign.verify(key, self.p.blob)
 
     def pack(self):  # pragma: no cover
         raw = self.proto().to_bytes_packed()
@@ -68,7 +80,7 @@ class CtrlPayload(CerealBox):
     NAME = "CtrlPayload"
     P_CLS = P.CtrlPld
     CLASS_FIELD_MAP = {
-        PathSegment: PayloadClass.PCB,
+        PCB: PayloadClass.PCB,
         IFIDPayload: PayloadClass.IFID,
         CertMgmt: PayloadClass.CERT,
         PathMgmt: PayloadClass.PATH,

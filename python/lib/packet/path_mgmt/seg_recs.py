@@ -50,7 +50,7 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
         p.init("recs", len(flat))
         for i, (type_, pcb) in enumerate(flat):
             p.recs[i].type = type_
-            p.recs[i].pcb = pcb.p
+            p.recs[i].pathSeg = pcb.p
         p.init("revInfos", len(rev_infos))
         for i, rev_info in enumerate(rev_infos):
             p.revInfos[i] = rev_info.p
@@ -58,7 +58,7 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
 
     def iter_pcbs(self):
         for rec in self.p.recs:
-            yield rec.type, PathSegment(rec.pcb)
+            yield rec.type, PathSegment(rec.pathSeg)
 
     def rev_info(self, idx):
         return RevocationInfo(self.p.revInfos[idx])
