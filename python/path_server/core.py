@@ -232,8 +232,7 @@ class CorePathServer(PathServer):
         sflags.add(PATH_FLAG_CACHEONLY)
         flags = tuple(sflags)
         req = PathSegmentReq.from_values(random_uint64(), src_ia, dst_ia, flags=flags)
-        logger.debug("Asking master (%s) for segment: %s" %
-                     (self._master_id, req.short_desc()))
+        logger.debug("Asking master (%s) for segment: %s" % (self._master_id, req.short_desc()))
         self._send_to_master(req)
 
     def _propagate_to_core_ases(self, pld):
@@ -288,8 +287,7 @@ class CorePathServer(PathServer):
                 logger.debug("Segs to %s not found." % dst_ia)
             return False
 
-        self._send_path_segments(
-            req, meta, logger, core=core_segs, down=down_segs)
+        self._send_path_segments(req, meta, logger, core=core_segs, down=down_segs)
         return True
 
     def _resolve_core(self, req, meta, dst_ia, new_request, flags, logger):
@@ -303,8 +301,7 @@ class CorePathServer(PathServer):
         core_segs = set(self.core_segments(**params))
         if not core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             # Segments not found and it is a new request.
-            self.pending_req[(dst_ia, sibra)][
-                req.req_id()] = (req, meta, logger)
+            self.pending_req[(dst_ia, sibra)][req.req_id()] = (req, meta, logger)
             # If dst is in remote ISD then a segment may be kept by master.
             if dst_ia[0] != self.addr.isd_as[0]:
                 self._query_master(dst_ia, logger, flags=flags)
@@ -335,8 +332,7 @@ class CorePathServer(PathServer):
                 first_ia=dseg_ia, last_ia=self.addr.isd_as, sibra=sibra)
             if not tmp_core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
                 # Core segment not found and it is a new request.
-                self.pending_req[(dseg_ia, sibra)][
-                    seg_req.req_id()] = (seg_req, meta, logger)
+                self.pending_req[(dseg_ia, sibra)][seg_req.req_id()] = (seg_req, meta, logger)
                 if dst_ia[0] != self.addr.isd_as[0]:
                     # Master may know a segment.
                     self._query_master(dseg_ia, logger, flags=flags)
@@ -403,6 +399,5 @@ class CorePathServer(PathServer):
     def _update_metrics(self):
         super()._update_metrics()
         if self._labels:
-            SEGS_TO_MASTER.labels(
-                **self._labels).set(len(self._segs_to_master))
+            SEGS_TO_MASTER.labels(**self._labels).set(len(self._segs_to_master))
             SEGS_TO_PROP.labels(**self._labels).set(len(self._segs_to_prop))

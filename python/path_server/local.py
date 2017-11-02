@@ -45,8 +45,7 @@ class LocalPathServer(PathServer):
         assert not self.topology.is_core_as, "This shouldn't be a core PS!"
         # Database of up-segments to the core.
         up_labels = {**self._labels, "type": "up"} if self._labels else None
-        self.up_segments = PathSegmentDB(
-            max_res_no=self.MAX_SEG_NO, labels=up_labels)
+        self.up_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=up_labels)
 
     def _handle_up_segment_record(self, pcb, from_zk=False):
         if not from_zk:
@@ -93,13 +92,11 @@ class LocalPathServer(PathServer):
         else:
             self._resolve_not_core(req, up_segs, core_segs, down_segs)
         if up_segs | core_segs | down_segs:
-            self._send_path_segments(
-                req, meta, logger, up_segs, core_segs, down_segs)
+            self._send_path_segments(req, meta, logger, up_segs, core_segs, down_segs)
             return True
         if new_request:
             self._request_paths_from_core(req, logger)
-            self.pending_req[(dst_ia, req.p.flags.sibra)][
-                req.req_id()] = (req, meta, logger)
+            self.pending_req[(dst_ia, req.p.flags.sibra)][req.req_id()] = (req, meta, logger)
 
         return False
 

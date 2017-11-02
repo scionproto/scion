@@ -104,12 +104,9 @@ class SCIONDaemon(SCIONElement):
                        "type": "down"} if self._labels else None
         core_labels = {**self._labels,
                        "type": "core"} if self._labels else None
-        self.up_segments = PathSegmentDB(
-            segment_ttl=self.SEGMENT_TTL, labels=up_labels)
-        self.down_segments = PathSegmentDB(
-            segment_ttl=self.SEGMENT_TTL, labels=down_labels)
-        self.core_segments = PathSegmentDB(
-            segment_ttl=self.SEGMENT_TTL, labels=core_labels)
+        self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=up_labels)
+        self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=down_labels)
+        self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=core_labels)
         self.peer_revs = RevCache()
         # Keep track of requested paths.
         self.requested_paths = ExpiringDict(self.MAX_REQS, PATH_REQ_TOUT)
@@ -140,8 +137,7 @@ class SCIONDaemon(SCIONElement):
         }
 
         if run_local_api:
-            self._api_sock = ReliableSocket(
-                bind_unix=(self.api_addr, "sciond"))
+            self._api_sock = ReliableSocket(bind_unix=(self.api_addr, "sciond"))
             self._socks.add(self._api_sock, self.handle_accept)
 
     @classmethod
@@ -304,8 +300,7 @@ class SCIONDaemon(SCIONElement):
         self._send_path_reply(req_id, reply_entries, error, meta)
 
     def _send_path_reply(self, req_id, reply_entries, error, meta):
-        path_reply = SCIONDMsg(SCIONDPathReply.from_values(
-            reply_entries, error), req_id)
+        path_reply = SCIONDMsg(SCIONDPathReply.from_values(reply_entries, error), req_id)
         self.send_meta(path_reply.pack(), meta)
 
     def _api_handle_as_request(self, pld, meta):
@@ -318,8 +313,7 @@ class SCIONDaemon(SCIONElement):
         else:
             reply_entry = SCIONDASInfoReplyEntry.from_values(
                 self.addr.isd_as, self.is_core_as(), self.topology.mtu)
-        as_reply = SCIONDMsg(
-            SCIONDASInfoReply.from_values([reply_entry]), pld.id)
+        as_reply = SCIONDMsg(SCIONDASInfoReply.from_values([reply_entry]), pld.id)
         self.send_meta(as_reply.pack(), meta)
 
     def _api_handle_if_request(self, pld, meta):
@@ -357,15 +351,13 @@ class SCIONDaemon(SCIONElement):
                 reply_entry = SCIONDServiceInfoReplyEntry.from_values(
                     svc_type, host_infos)
                 svc_entries.append(reply_entry)
-        svc_reply = SCIONDMsg(
-            SCIONDServiceInfoReply.from_values(svc_entries), pld.id)
+        svc_reply = SCIONDMsg(SCIONDServiceInfoReply.from_values(svc_entries), pld.id)
         self.send_meta(svc_reply.pack(), meta)
 
     def _api_handle_rev_notification(self, pld, meta):
         request = pld.union
         assert isinstance(request, SCIONDRevNotification), type(request)
-        status = self.handle_revocation(
-            CtrlPayload(PathMgmt(request.rev_info())), meta)
+        status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
         self.send_meta(rev_reply.pack(), meta)
 
@@ -447,8 +439,7 @@ class SCIONDaemon(SCIONElement):
         for segment in db(full=True):
             for asm in segment.iter_asms():
                 if self._verify_revocation_for_asm(rev_info, asm):
-                    logging.debug("Removing segment: %s" %
-                                  segment.short_desc())
+                    logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
 
@@ -473,7 +464,6 @@ class SCIONDaemon(SCIONElement):
             empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
             return [empty_meta], SCIONDPathReplyError.OK
         paths = self.path_resolution(dst_ia, flags=flags)
-        error_code = SCIONDPathReplyError.OK
         if not paths:
             key = dst_ia, flags
             with self.req_path_lock:
@@ -499,7 +489,7 @@ class SCIONDaemon(SCIONElement):
             if not paths:
                 logging.error("No paths found for %s", dst_ia)
                 return [], SCIONDPathReplyError.NO_PATHS
-        return paths, error_code
+        return paths, SCIONDPathReplyError.OK
 
     def path_resolution(self, dst_ia, flags=()):
         # dst as == 0 means any core AS in the specified ISD.

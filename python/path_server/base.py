@@ -64,8 +64,7 @@ from scion_elem.scion_elem import SCIONElement
 
 # Exported metrics.
 REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_as"])
-REQS_PENDING = Gauge("ps_req_pending_total",
-                     "# of pending path requests", ["server_id", "isd_as"])
+REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests", ["server_id", "isd_as"])
 SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", ["server_id", "isd_as"])
 REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK", ["server_id", "isd_as"])
 HT_ROOT_MAPPTINGS = Gauge("ps_ht_root_mappings_total", "# of hashtree root to segment mappings",
@@ -539,8 +538,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _zk_write(self, data):
         hash_ = crypto_hash(data).hex()
         try:
-            self.path_cache.store("%s-%s" %
-                                  (hash_, SCIONTime.get_time()), data)
+            self.path_cache.store("%s-%s" % (hash_, SCIONTime.get_time()), data)
         except ZkNoConnection:
             logging.warning("Unable to store segment(s) in shared path: "
                             "no connection to ZK")
@@ -561,7 +559,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Create new formatter to include the request in the log.
         formatter = formatter = Rfc3339Formatter(
             "%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s "
-            "{req=%(req)s, from=%(from)s}")
+            "{id=%(id)s, from=%(from)s}")
         add_formatter('RequestLogger', formatter)
 
     def get_request_logger(self, req, meta):
@@ -571,7 +569,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Create a logger for the request to log with context.
         return logging.LoggerAdapter(
             self._request_logger,
-            {"req": req.short_desc(), "from": str(meta)})
+            {"id": req.req_id(), "from": str(meta)})
 
     def _init_metrics(self):
         super()._init_metrics()
