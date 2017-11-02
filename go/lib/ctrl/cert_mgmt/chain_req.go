@@ -40,5 +40,5 @@ func (c *ChainReq) ProtoId() proto.ProtoIdType {
 }
 
 func (c *ChainReq) String() string {
-	return fmt.Sprintf("ISD-AS: %v Version: %v CacheOnly: %v", c.IA(), c.Version, c.CacheOnly)
+	return fmt.Sprintf("ISD-AS: %s Version: %v CacheOnly: %v", c.IA(), c.Version, c.CacheOnly)
 }
