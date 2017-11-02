@@ -28,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/lib/pathdb/query"
 	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/proto"
 )
 
 var (
@@ -90,16 +91,16 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 			},
 		},
 	}
-	info := spath.InfoField{
+	info := &spath.InfoField{
 		TsInt: expiration,
 		ISD:   1,
 		Hops:  3,
 	}
-	rawInfo := make(common.RawBytes, 8)
-	info.Write(rawInfo)
-	pseg := &seg.PathSegment{
-		RawInfo:   rawInfo,
-		ASEntries: ases,
+	pseg, _ := seg.NewSeg(info)
+	for _, ase := range ases {
+		if err := pseg.AddASEntry(ase, proto.SignType_none, nil); err != nil {
+			fmt.Printf("Error adding ASEntry: %v", err)
+		}
 	}
 	segID, _ := pseg.ID()
 	return pseg, segID
@@ -148,11 +149,11 @@ func checkSegments(t *testing.T, b *Backend, segRowID int, segID common.RawBytes
 	if err != nil {
 		t.Fatal("checkSegments: Call", "err", err)
 	}
-	pseg, err := seg.NewFromRaw(common.RawBytes(rawSeg))
+	pseg, err := seg.NewSegFromRaw(common.RawBytes(rawSeg))
 	if err != nil {
 		t.Fatal("checkSegments: Parse", "err", err)
 	}
-	info, _ := pseg.Info()
+	info, _ := pseg.InfoF()
 	SoMsg("RowID match", ID, ShouldEqual, segRowID)
 	SoMsg("Timestamps match", info.TsInt, ShouldEqual, ts)
 }

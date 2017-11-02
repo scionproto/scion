@@ -21,7 +21,7 @@ from collections import defaultdict
 
 # SCION
 from beacon_server.base import BeaconServer, BEACONS_PROPAGATED
-from lib.defines import PATH_SERVICE, SIBRA_SERVICE
+from lib.defines import PATH_SERVICE
 from lib.errors import SCIONServiceLookupError
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.opaque_field import InfoOpaqueField
@@ -73,7 +73,7 @@ class CoreBeaconServer(BeaconServer):
                 pcb.copy(), intf.isd_as, intf.if_id)
             if not new_pcb:
                 continue
-            self.send_meta(CtrlPayload(new_pcb), meta)
+            self.send_meta(CtrlPayload(new_pcb.pcb()), meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
             prop_cnt += 1
         if self._labels:
@@ -181,15 +181,13 @@ class CoreBeaconServer(BeaconServer):
             new_pcb = self._terminate_pcb(pcb)
             if not new_pcb:
                 continue
-            new_pcb.sign(self.signing_key)
-            for svc_type in [PATH_SERVICE, SIBRA_SERVICE]:
-                try:
-                    dst_meta = self.register_core_segment(new_pcb, svc_type)
-                except SCIONServiceLookupError as e:
-                    logging.warning("Unable to send core-segment registration: %s", e)
-                    continue
-                # Keep the ID of the not-terminated PCB to relate to previously received ones.
-                registered_paths[(str(dst_meta), svc_type)].append(pcb.short_id())
+            try:
+                dst_meta = self.register_core_segment(new_pcb, PATH_SERVICE)
+            except SCIONServiceLookupError as e:
+                logging.warning("Unable to send core-segment registration: %s", e)
+                continue
+            # Keep the ID of the not-terminated PCB to relate to previously received ones.
+            registered_paths[(str(dst_meta), PATH_SERVICE)].append(pcb.short_id())
         self._log_registrations(registered_paths, "core")
 
     def _remove_revoked_pcbs(self, rev_info):

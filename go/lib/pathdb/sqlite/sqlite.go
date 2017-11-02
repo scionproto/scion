@@ -183,8 +183,8 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 	}
 	if meta != nil {
 		// Check if the new segment is more recent.
-		newInfo, _ := pseg.Info()
-		curInfo, _ := meta.Seg.Info()
+		newInfo, _ := pseg.InfoF()
+		curInfo, _ := meta.Seg.InfoF()
 		if newInfo.Timestamp().After(curInfo.Timestamp()) {
 			// Update existing path segment.
 			meta.Seg = pseg
@@ -219,7 +219,7 @@ func (b *Backend) get(segID common.RawBytes) (*segMeta, error) {
 		}
 		meta.LastUpdated = time.Unix(int64(lastUpdated), 0)
 		var err error
-		meta.Seg, err = seg.NewFromRaw(common.RawBytes(rawSeg))
+		meta.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +329,7 @@ func (b *Backend) insertFull(pseg *seg.PathSegment,
 		return err
 	}
 	// Insert ISD-AS to EndsAt.
-	if err = b.insertStartOrEnd(pseg.ASEntries[len(pseg.ASEntries)-1],
+	if err = b.insertStartOrEnd(pseg.ASEntries[pseg.MaxAEIdx()],
 		segRowID, EndsAtTable); err != nil {
 		b.tx.Rollback()
 		return err
@@ -476,7 +476,7 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, error) {
 			}
 			curRes = &query.Result{}
 			var err error
-			curRes.Seg, err = seg.NewFromRaw(common.RawBytes(rawSeg))
+			curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
 			if err != nil {
 				return nil, common.NewCError("Error unmarshalling segment", "err", err)
 			}
