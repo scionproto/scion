@@ -15,7 +15,6 @@
 package liblog
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -35,8 +34,9 @@ var logLevel = flag.String("log.level", "debug", "Logging level")
 var logConsole = flag.String("log.console", "crit", "Console logging level")
 var logSize = flag.Int("log.size", 50, "Max size of log file in MiB")
 var logAge = flag.Int("log.age", 7, "Max age of log file in days")
+var logFlush = flag.Int("log.flush", 5, "How frequently to flush to the log file, in seconds")
 
-var logBuf *bufio.Writer
+var logBuf *syncBuf
 
 func init() {
 	os.Setenv("TZ", "UTC")
@@ -45,7 +45,7 @@ func init() {
 
 func Setup(name string) {
 	logLvl, consLvl := parseLvls()
-	logBuf = bufio.NewWriter(mkLogfile(name))
+	logBuf = newSyncBuf(mkLogfile(name))
 	handler := log.MultiHandler(
 		log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
 		log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
@@ -53,7 +53,7 @@ func Setup(name string) {
 	)
 	log.Root().SetHandler(handler)
 	go func() {
-		for range time.Tick(5 * time.Second) {
+		for range time.Tick(time.Duration(*logFlush) * time.Second) {
 			Flush()
 		}
 	}()
@@ -73,11 +73,11 @@ func parseLvls() (log.Lvl, log.Lvl) {
 	return logLvl, consLvl
 }
 
-func mkLogfile(name string) io.Writer {
+func mkLogfile(name string) io.WriteCloser {
 	return &lumberjack.Logger{
 		Filename: fmt.Sprintf("%s/%s.log", *logDir, name),
-		MaxSize:  50, // MiB
-		MaxAge:   7,  // days
+		MaxSize:  *logSize, // MiB
+		MaxAge:   *logAge,  // days
 	}
 }
 
