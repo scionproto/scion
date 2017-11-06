@@ -97,13 +97,10 @@ class SCIONDaemon(SCIONElement):
         """
         Initialize an instance of the class SCIONDaemon.
         """
-        super().__init__("sciond", conf_dir,
-                         prom_export=prom_export, public=[(addr, port)])
+        super().__init__("sciond", conf_dir, prom_export=prom_export, public=[(addr, port)])
         up_labels = {**self._labels, "type": "up"} if self._labels else None
-        down_labels = {**self._labels,
-                       "type": "down"} if self._labels else None
-        core_labels = {**self._labels,
-                       "type": "core"} if self._labels else None
+        down_labels = {**self._labels, "type": "down"} if self._labels else None
+        core_labels = {**self._labels, "type": "core"} if self._labels else None
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=up_labels)
         self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=down_labels)
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=core_labels)
@@ -467,13 +464,14 @@ class SCIONDaemon(SCIONElement):
         if not paths:
             key = dst_ia, flags
             with self.req_path_lock:
-                if key not in self.requested_paths:
+                r = self.requested_paths.get(key)
+                if r is None:
                     # No previous outstanding request
                     req = PathSegmentReq.from_values(
                         random_uint64(), self.addr.isd_as, dst_ia, flags=flags)
-                    self.requested_paths[key] = RequestState(req.copy())
+                    r = RequestState(req.copy())
+                    self.requested_paths[key] = r
                     self._fetch_segments(req)
-                r = self.requested_paths[key]
             # Wait until event gets set.
             timeout = not r.e.wait(PATH_REQ_TOUT)
             with self.req_path_lock:
@@ -656,8 +654,7 @@ class SCIONDaemon(SCIONElement):
         except SCIONServiceLookupError:
             log_exception("Error querying path service:")
             return
-        logging.debug(
-            "Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
+        logging.debug("Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
         meta = self._build_meta(host=addr, port=port)
         self.send_meta(CtrlPayload(PathMgmt(req)), meta)
 

@@ -62,8 +62,7 @@ class CorePathServer(PathServer):
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.
         self._segs_to_master = ExpiringDict(1000, 10)
-        self._segs_to_prop = ExpiringDict(
-            1000, 2 * self.config.propagation_time)
+        self._segs_to_prop = ExpiringDict(1000, 2 * self.config.propagation_time)
 
     def _update_master(self):
         """
