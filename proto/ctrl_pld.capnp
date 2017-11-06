@@ -12,8 +12,8 @@ using SIBRA = import "sibra.capnp";
 using DRKeyMgmt = import "drkey_mgmt.capnp";
 using SIG = import "sig.capnp";
 
-struct CtrlPldOuter {
-    blob @0 :Data;  # Raw CtrlPldUnion
+struct SignedCtrlPld {
+    blob @0 :Data;  # Raw CtrlPld
     sign @1 :Sign.Sign;
 }
 
