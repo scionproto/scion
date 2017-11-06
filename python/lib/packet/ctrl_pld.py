@@ -35,18 +35,17 @@ from lib.types import PayloadClass
 from lib.util import Raw
 
 
-class CtrlPayloadOuter(Cerealizable):
-    NAME = "CtrlPayloadOuter"
-    P_CLS = P.CtrlPldOuter
+class SignedCtrlPayload(Cerealizable):
+    NAME = "SignedCtrlPayload"
+    P_CLS = P.SignedCtrlPld
 
     @classmethod
     def from_raw(cls, raw):
         data = Raw(raw, "%s.from_raw" % cls.NAME)
         plen = struct.unpack("!I", data.pop(4))[0]
         if len(data) != plen:
-            raise SCIONParseError(
-                "Payload length mismatch. Expected: %s Actual: %s" %
-                (plen, len(data)))
+            raise SCIONParseError("Payload length mismatch. Expected: %s Actual: %s" %
+                                  (plen, len(data)))
         try:
             p = cls.P_CLS.from_bytes_packed(data.pop()).as_builder()
         except capnp.lib.capnp.KjException as e:
@@ -85,8 +84,8 @@ class CtrlPayload(CerealBox):
             raise SCIONParseError("Unable to parse %s capnp message: %s" % (cls.NAME, e)) from None
         return cls.from_proto(p)
 
-    def new_outer(self):
-        return CtrlPayloadOuter.from_values(self.proto().to_bytes_packed())
+    def new_signed_pld(self):
+        return SignedCtrlPayload.from_values(self.proto().to_bytes_packed())
 
     def pack(self):  # pragma: no cover
-        return self.new_outer().pack()
+        return self.new_signed_pld().pack()
