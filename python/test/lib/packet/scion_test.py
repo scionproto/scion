@@ -906,16 +906,16 @@ class TestSCIONL4PacketParsePayload(object):
         ntools.assert_raises(SCIONParseError, inst.parse_payload)
 
     @patch("lib.packet.scion.SCMPPayload", autospec=True)
-    @patch("lib.packet.scion.CtrlPayload", autospec=True)
-    def _check_l4(self, l4_type, ctrlp, scmpp):
+    @patch("lib.packet.scion.SignedCtrlPayload", autospec=True)
+    def _check_l4(self, l4_type, sctrl, scmpp):
         inst = self._setup(l4_type)
         inst._payload = create_mock_full({"pack()": b"praw"})
         # Call
         ret = inst.parse_payload()
         # Tests
         if l4_type == L4Proto.UDP:
-            expected = ctrlp.from_raw.return_value
-            ctrlp.from_raw.assert_called_once_with(b"praw")
+            expected = sctrl.from_raw.return_value.pld.return_value
+            sctrl.from_raw.assert_called_once_with(b"praw")
         elif l4_type == L4Proto.SCMP:
             expected = scmpp.return_value
             scmpp.assert_called_once_with(("scmp_class", "scmp_type", b"praw"))

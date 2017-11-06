@@ -15,10 +15,11 @@ import (
 
 // Any proto which will be marshalled as a single capnp message needs to be listed here.
 var RootTypes = []string{
+	"CtrlPld",
 	"PathSegment",
 	"RevInfo",
-	"CtrlPld",
 	"SCIONDMsg",
+	"SignedCtrlPld",
 }
 
 func main() {

@@ -24,67 +24,10 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
 	"github.com/netsec-ethz/scion/go/proto"
-	sigmgmt "github.com/netsec-ethz/scion/go/sig/mgmt"
 )
 
-const LenSize = 4
-
-// union represents the contents of the unnamed capnp union.
-type union struct {
-	Which       proto.CtrlPld_Which
-	PathSegment *seg.PathSegment `capnp:"pcb"`
-	IfID        *ifid.IFID       `capnp:"ifid"`
-	CertMgmt    *cert_mgmt.Pld
-	PathMgmt    *path_mgmt.Pld
-	Sibra       []byte `capnp:"-"` // Omit for now
-	DRKeyMgmt   []byte `capnp:"-"` // Omit for now
-	Sig         *sigmgmt.Pld
-}
-
-func (u *union) set(c proto.Cerealizable) error {
-	switch p := c.(type) {
-	case *seg.PathSegment:
-		u.Which = proto.CtrlPld_Which_pcb
-		u.PathSegment = p
-	case *ifid.IFID:
-		u.Which = proto.CtrlPld_Which_ifid
-		u.IfID = p
-	case *path_mgmt.Pld:
-		u.Which = proto.CtrlPld_Which_pathMgmt
-		u.PathMgmt = p
-	case *sigmgmt.Pld:
-		u.Which = proto.CtrlPld_Which_sig
-		u.Sig = p
-	case *cert_mgmt.Pld:
-		u.Which = proto.CtrlPld_Which_certMgmt
-		u.CertMgmt = p
-	default:
-		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
-	}
-	return nil
-}
-
-func (u *union) get() (proto.Cerealizable, error) {
-	switch u.Which {
-	case proto.CtrlPld_Which_pcb:
-		return u.PathSegment, nil
-	case proto.CtrlPld_Which_ifid:
-		return u.IfID, nil
-	case proto.CtrlPld_Which_pathMgmt:
-		return u.PathMgmt, nil
-	case proto.CtrlPld_Which_sig:
-		return u.Sig, nil
-	case proto.CtrlPld_Which_certMgmt:
-		return u.CertMgmt, nil
-	}
-	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", u.Which)
-}
-
-var _ common.Payload = (*Pld)(nil)
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
@@ -119,12 +62,7 @@ func NewCertMgmtPld(u proto.Cerealizable) (*Pld, error) {
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{}
-	n := common.Order.Uint32(b)
-	if int(n)+4 != len(b) {
-		return nil, common.NewCError("Invalid ctrl payload length",
-			"expected", n+4, "actual", len(b))
-	}
-	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b[4:])
+	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b)
 }
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
@@ -143,24 +81,30 @@ func (p *Pld) Copy() (common.Payload, error) {
 	return NewPldFromRaw(raw)
 }
 
+func (p *Pld) Write(b common.RawBytes) (int, error) {
+	return proto.WriteRoot(p, b)
+}
+
+func (p *Pld) NewSignedPld() (*SignedPld, error) {
+	sp := NewSignedPld()
+	err := sp.SetPld(p)
+	return sp, err
+}
+
 func (p *Pld) WritePld(b common.RawBytes) (int, error) {
-	n, err := proto.WriteRoot(p, b[4:])
-	common.Order.PutUint32(b, uint32(n))
-	return n + 4, err
+	sp, err := p.NewSignedPld()
+	if err != nil {
+		return 0, err
+	}
+	return sp.WritePld(b)
 }
 
 func (p *Pld) PackPld() (common.RawBytes, error) {
-	b, err := proto.PackRoot(p)
+	sp, err := p.NewSignedPld()
 	if err != nil {
 		return nil, err
 	}
-	// Make a larger buffer, to allow pre-pending of the length field.
-	full := make(common.RawBytes, LenSize+len(b))
-	// Write length field
-	common.Order.PutUint32(full, uint32(len(b)))
-	// Copy the encoded proto into the full buffer
-	copy(full[LenSize:], b)
-	return full, err
+	return sp.PackPld()
 }
 
 func (p *Pld) ProtoId() proto.ProtoIdType {

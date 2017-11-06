@@ -111,12 +111,14 @@ func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
 	cpld, err := ctrl.NewPld(&ifid.IFID{OrigIfID: uint64(ifID)})
 	if err != nil {
 		cerr := err.(*common.CError)
+		cerr.AddCtx("desc", cerr.Desc)
 		logger.Error("Error generating IFID payload", cerr.Ctx...)
 		return
 	}
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
 		intf.RemoteAddr.L4Port, srcAddr, cpld); err != nil {
 		cerr := err.(*common.CError)
+		cerr.AddCtx("desc", cerr.Desc)
 		logger.Error("Error generating IFID packet", cerr.Ctx...)
 	}
 }
@@ -145,11 +147,13 @@ func (r *Router) genIFStateReq() {
 	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{})
 	if err != nil {
 		cerr := err.(*common.CError)
+		cerr.AddCtx("desc", cerr.Desc)
 		log.Error("Error generating IFStateReq payload", cerr.Ctx...)
 		return
 	}
 	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, cpld); err != nil {
 		cerr := err.(*common.CError)
+		cerr.AddCtx("desc", cerr.Desc)
 		log.Error("Error generating IFStateReq packet", cerr.Ctx...)
 	}
 }
