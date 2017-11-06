@@ -4,7 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using PCB = import "pcb.capnp";
-using Blob = import "blobsign.capnp";
+using Sign = import "sign.capnp";
 using CertMgmt = import "cert_mgmt.capnp";
 using IFID = import "ifid.capnp";
 using PathMgmt = import "path_mgmt.capnp";
@@ -14,7 +14,7 @@ using SIG = import "sig.capnp";
 
 struct CtrlPldOuter {
     blob @0 :Data;  # Raw CtrlPldUnion
-    sign @1 :Blob.Sign;
+    sign @1 :Sign.Sign;
 }
 
 struct CtrlPld {

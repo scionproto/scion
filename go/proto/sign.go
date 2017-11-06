@@ -17,9 +17,8 @@ package proto
 import (
 	"fmt"
 
-	"golang.org/x/crypto/ed25519"
-
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/crypto"
 )
 
 var _ Cerealizable = (*SignS)(nil)
@@ -47,11 +46,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 	case SignType_none:
 		return nil, nil
 	case SignType_ed25519:
-		if len(key) != ed25519.PrivateKeySize {
-			return nil, common.NewCError("SignS: Illegal ed25519 key length", "expected",
-				ed25519.PrivateKeySize, "actual", len(key))
-		}
-		return ed25519.Sign(ed25519.PrivateKey(key), message), nil
+		return crypto.Sign(message, key, crypto.Ed25519)
 	}
 	return nil, common.NewCError("SignS.Sign: Unsupported SignType", "type", s.Type)
 }
@@ -62,18 +57,14 @@ func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 	return err
 }
 
-func (s *SignS) Verify(key, message common.RawBytes) (bool, error) {
+func (s *SignS) Verify(key, message common.RawBytes) error {
 	switch s.Type {
 	case SignType_none:
-		return true, nil
+		return nil
 	case SignType_ed25519:
-		if len(key) != ed25519.PublicKeySize {
-			return false, common.NewCError("SignS: Illegal ed25519 key length", "expected",
-				ed25519.PrivateKeySize, "actual", len(key))
-		}
-		return ed25519.Verify(ed25519.PublicKey(key), message, s.Signature), nil
+		return crypto.Verify(message, s.Signature, key, crypto.Ed25519)
 	}
-	return false, common.NewCError("SignS.Verify: Unsupported SignType", "type", s.Type)
+	return common.NewCError("SignS.Verify: Unsupported SignType", "type", s.Type)
 }
 
 func (s *SignS) ProtoId() ProtoIdType {
