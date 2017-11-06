@@ -23,6 +23,7 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
@@ -37,7 +38,7 @@ type union struct {
 	Which       proto.CtrlPld_Which
 	PathSegment *seg.PathSegment `capnp:"pcb"`
 	IfID        *ifid.IFID       `capnp:"ifid"`
-	CertMgmt    []byte           `capnp:"-"` // Omit for now
+	CertMgmt    *cert_mgmt.Pld
 	PathMgmt    *path_mgmt.Pld
 	Sibra       []byte `capnp:"-"` // Omit for now
 	DRKeyMgmt   []byte `capnp:"-"` // Omit for now
@@ -58,6 +59,9 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *sigmgmt.Pld:
 		u.Which = proto.CtrlPld_Which_sig
 		u.Sig = p
+	case *cert_mgmt.Pld:
+		u.Which = proto.CtrlPld_Which_certMgmt
+		u.CertMgmt = p
 	default:
 		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
 	}
@@ -74,6 +78,8 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.PathMgmt, nil
 	case proto.CtrlPld_Which_sig:
 		return u.Sig, nil
+	case proto.CtrlPld_Which_certMgmt:
+		return u.CertMgmt, nil
 	}
 	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", u.Which)
 }
@@ -99,6 +105,16 @@ func NewPathMgmtPld(u proto.Cerealizable) (*Pld, error) {
 		return nil, err
 	}
 	return NewPld(ppld)
+}
+
+// NewCertMgmtPld creates a new control payload, containing a new cert_mgmt payload,
+// which in turn contains the supplied Cerealizable instance.
+func NewCertMgmtPld(u proto.Cerealizable) (*Pld, error) {
+	cpld, err := cert_mgmt.NewPld(u)
+	if err != nil {
+		return nil, err
+	}
+	return NewPld(cpld)
 }
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
