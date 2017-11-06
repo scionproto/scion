@@ -118,7 +118,7 @@ class SCMPAuthDRKeyExtn(SCIONPacketSecurityBaseExtn):
         cls.check_validity(direction, mac)
         inst = cls()
         inst.sec_mode = SPSESecModes.SCMP_AUTH_DRKEY
-        inst._init_size(inst.bytes_to_hdr_len(SCMPAuthDRKeyLengths.DRKEY_TOTAL_LENGTH))
+        inst._init_size(inst.bytes_to_hdr_len(SCMPAuthDRKeyLengths.DRKEY_TOTAL_LENGTH)-1)
         inst.direction = direction
         inst.mac = mac or bytes(SCMPAuthDRKeyLengths.MAC)
         return inst
