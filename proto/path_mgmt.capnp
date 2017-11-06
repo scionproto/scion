@@ -8,12 +8,14 @@ using IFState = import "if_state.capnp";
 using RevInfo = import "rev_info.capnp";
 
 struct SegReq {
-    srcIA @0 :UInt32;
-    dstIA @1 :UInt32;
+    id @0 :UInt64;  # Request ID
+    srcIA @1 :UInt32;
+    dstIA @2 :UInt32;
     flags :group {
-        sibra @2 :Bool;
-        cacheOnly @3 :Bool;
+        sibra @3 :Bool;
+        cacheOnly @4 :Bool;
     }
+
 }
 
 struct SegRecs {
@@ -21,11 +23,16 @@ struct SegRecs {
     revInfos @1 :List(RevInfo.RevInfo);
 }
 
+struct SegReply {
+    req @0 :SegReq;
+    recs @1 :SegRecs;
+}
+
 struct PathMgmt {
     union {
         unset @0 :Void;
         segReq @1 :SegReq;
-        segReply @2 :SegRecs;
+        segReply @2 :SegReply;
         segReg @3 :SegRecs;
         segSync @4 :SegRecs;
         revInfo @5 :RevInfo.RevInfo;

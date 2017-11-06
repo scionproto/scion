@@ -41,7 +41,8 @@ from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.ifstate import IFStatePayload
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.packet.path_mgmt.seg_recs import PathRecordsReply, PathSegmentRecords
+from lib.packet.path_mgmt.seg_req import PathSegmentReply
+from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
@@ -116,10 +117,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             PayloadClass.PATH: {
                 PMT.IFSTATE_INFOS: self.handle_ifstate_infos,
                 PMT.REQUEST: self.path_resolution,
-                PMT.REPLY: self.handle_path_segment_record,
-                PMT.REG: self.handle_path_segment_record,
+                PMT.REPLY: self.handle_path_reply,
+                PMT.REG: self.handle_seg_recs,
                 PMT.REVOCATION: self._handle_revocation,
-                PMT.SYNC: self.handle_path_segment_record,
+                PMT.SYNC: self.handle_seg_recs,
             },
             PayloadClass.CERT: {
                 CertMgmtType.CERT_CHAIN_REQ: self.process_cert_chain_request,
@@ -320,10 +321,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                            (req.short_desc(), meta))
             return
         revs_to_add = self._peer_revs_for_segs(all_segs)
-        pld = PathRecordsReply.from_values(
+        recs = PathSegmentRecords.from_values(
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
             revs_to_add
         )
+        pld = PathSegmentReply.from_values(req.copy(), recs)
         self.send_meta(CtrlPayload(PathMgmt(pld)), meta)
         logger.info("Sending PATH_REPLY with %d segment(s).", len(all_segs))
 
@@ -351,7 +353,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for key in self.pending_req:
                 for req_id, (req, meta, logger) in self.pending_req[key].items():
                     if self.path_resolution(CtrlPayload(PathMgmt(req)), meta,
-                                            new_request=False, logger=logger, req_id=req_id):
+                                            new_request=False, logger=logger):
                         meta.close()
                         del self.pending_req[key][req_id]
                 if not self.pending_req[key]:
@@ -372,12 +374,21 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if raw_entries:
             logging.debug("Processed %s segments from ZK", len(raw_entries))
 
-    def handle_path_segment_record(self, cpld, meta):
+    def handle_path_reply(self, cpld, meta):
+        pmgt = cpld.union
+        reply = pmgt.union
+        assert isinstance(reply, PathSegmentReply), type(reply)
+        self._handle_seg_recs(reply.recs(), meta)
+
+    def handle_seg_recs(self, cpld, meta):
+        pmgt = cpld.union
+        seg_recs = pmgt.union
+        self._handle_seg_recs(seg_recs, meta)
+
+    def _handle_seg_recs(self, seg_recs, meta):
         """
         Handles paths received from the network.
         """
-        pmgt = cpld.union
-        seg_recs = pmgt.union
         assert isinstance(seg_recs, PathSegmentRecords), type(seg_recs)
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.
@@ -475,7 +486,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             yield(pcbs)
 
     @abstractmethod
-    def path_resolution(self, path_request, meta, new_request=True, logger=None, req_id=None):
+    def path_resolution(self, path_request, meta, new_request=True, logger=None):
         """
         Handles all types of path request.
         """
@@ -545,20 +556,20 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         Initializes the request logger.
         """
         self._request_logger = logging.getLogger("RequestLogger")
-        # Create new formatter to include the random request id and the request in the log.
+        # Create new formatter to include the request in the log.
         formatter = formatter = Rfc3339Formatter(
             "%(asctime)s [%(levelname)s] (%(threadName)s) %(message)s "
-            "{id=%(id)s, req=%(req)s, from=%(from)s}")
+            "{id=%(id)s, from=%(from)s}")
         add_formatter('RequestLogger', formatter)
 
-    def get_request_logger(self, req, req_id, meta):
+    def get_request_logger(self, req, meta):
         """
         Returns a logger adapter for 'req'.
         """
         # Create a logger for the request to log with context.
         return logging.LoggerAdapter(
             self._request_logger,
-            {"id": "%08x" % req_id, "req": req.short_desc(), "from": str(meta)})
+            {"id": req.req_id(), "from": str(meta)})
 
     def _init_metrics(self):
         super()._init_metrics()

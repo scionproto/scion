@@ -24,9 +24,16 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+type SegReqId uint64
+
+func (id SegReqId) String() string {
+	return fmt.Sprintf("%016x", uint64(id))
+}
+
 var _ proto.Cerealizable = (*SegReq)(nil)
 
 type SegReq struct {
+	Id       SegReqId
 	RawSrcIA addr.IAInt `capnp:"srcIA"`
 	RawDstIA addr.IAInt `capnp:"dstIA"`
 	Flags    struct {
@@ -57,5 +64,5 @@ func (s *SegReq) Write(b common.RawBytes) (int, error) {
 }
 
 func (s *SegReq) String() string {
-	return fmt.Sprintf("SrcIA: %v, DstIA: %d, Flags: %v", s.SrcIA(), s.DstIA(), s.Flags)
+	return fmt.Sprintf("Id: %s %s -> %s, Flags: %v", s.Id, s.SrcIA(), s.DstIA(), s.Flags)
 }

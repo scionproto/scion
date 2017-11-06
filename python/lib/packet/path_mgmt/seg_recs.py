@@ -31,6 +31,7 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
     Path Record class used for sending list of down/up-paths. Paths are
     represented as objects of the PathSegment class.
     """
+    NAME = "PathSegmentRecords"
     P_CLS = P.SegRecs
 
     @classmethod
@@ -84,10 +85,6 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             s.append("  %s" % rev_info.short_desc())
 
         return "\n".join(s)
-
-
-class PathRecordsReply(PathSegmentRecords):
-    NAME = "PathRecordsReply"
 
 
 class PathRecordsReg(PathSegmentRecords):

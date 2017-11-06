@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import random
 
 # External
 from external.expiring_dict import ExpiringDict
@@ -29,10 +28,11 @@ from prometheus_client import Gauge
 from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path_mgmt.base import PathMgmt
-from lib.packet.path_mgmt.seg_recs import PathRecordsReply
-from lib.packet.path_mgmt.seg_req import PathSegmentReq
+from lib.packet.path_mgmt.seg_recs import PathRecordsSync
+from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
 from lib.packet.svc import SVCType
 from lib.types import PathSegmentType as PST
+from lib.util import random_uint64
 from lib.zk.errors import ZkNoConnection
 from path_server.base import PathServer, REQS_TOTAL
 
@@ -50,6 +50,7 @@ class CorePathServer(PathServer):
     core segments and forwards inter-ISD path requests to the corresponding path
     server.
     """
+
     def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
@@ -161,7 +162,7 @@ class CorePathServer(PathServer):
 
     def _dispatch_params(self, pld, meta):
         params = {}
-        if meta.ia == self.addr.isd_as and isinstance(pld, PathRecordsReply):
+        if meta.ia == self.addr.isd_as and isinstance(pld, PathSegmentReply):
             params["from_master"] = True
         return params
 
@@ -179,8 +180,8 @@ class CorePathServer(PathServer):
         logging.debug("Propagating %d segment(s) to other core ASes",
                       len(self._segs_to_prop))
         for pcbs in self._gen_prop_recs(self._segs_to_prop):
-            reply = PathRecordsReply.from_values(pcbs)
-            self._propagate_to_core_ases(reply)
+            recs = PathRecordsSync.from_values(pcbs)
+            self._propagate_to_core_ases(recs)
 
     def _prop_to_master(self):
         assert not self.zk.have_lock()
@@ -192,8 +193,8 @@ class CorePathServer(PathServer):
         logging.debug("Propagating %d segment(s) to master PS: %s",
                       len(self._segs_to_master), self._master_id)
         for pcbs in self._gen_prop_recs(self._segs_to_master):
-            reply = PathRecordsReply.from_values(pcbs)
-            self._send_to_master(reply)
+            recs = PathRecordsSync.from_values(pcbs)
+            self._send_to_master(recs)
 
     def _send_to_master(self, pld):
         """
@@ -229,11 +230,11 @@ class CorePathServer(PathServer):
         sflags = set(flags)
         sflags.add(PATH_FLAG_CACHEONLY)
         flags = tuple(sflags)
-        req = PathSegmentReq.from_values(src_ia, dst_ia, flags=flags)
+        req = PathSegmentReq.from_values(random_uint64(), src_ia, dst_ia, flags=flags)
         logger.debug("Asking master (%s) for segment: %s" % (self._master_id, req.short_desc()))
         self._send_to_master(req)
 
-    def _propagate_to_core_ases(self, rep_recs):
+    def _propagate_to_core_ases(self, pld):
         """
         Propagate 'pkt' to other core ASes.
         """
@@ -244,14 +245,14 @@ class CorePathServer(PathServer):
                                        last_ia=self.addr.isd_as)
             if not csegs:
                 logging.warning("Cannot propagate %s to AS %s. No path available." %
-                                (rep_recs.NAME, isd_as))
+                                (pld.NAME, isd_as))
                 continue
             cseg = csegs[0].get_path(reverse_direction=True)
             meta = self._build_meta(ia=isd_as, path=cseg,
                                     host=SVCType.PS_A, reuse=True)
-            self.send_meta(CtrlPayload(PathMgmt(rep_recs.copy())), meta)
+            self.send_meta(CtrlPayload(PathMgmt(pld.copy())), meta)
 
-    def path_resolution(self, cpld, meta, new_request=True, logger=None, req_id=None):
+    def path_resolution(self, cpld, meta, new_request=True, logger=None):
         """
         Handle generic type of a path request.
         new_request informs whether a pkt is a new request (True), or is a
@@ -261,10 +262,8 @@ class CorePathServer(PathServer):
         pmgt = cpld.union
         req = pmgt.union
         assert isinstance(req, PathSegmentReq), type(req)
-        # Random ID for a request.
-        req_id = req_id or random.randint(0, 2**32 - 1)
         if logger is None:
-            logger = self.get_request_logger(req, req_id, meta)
+            logger = self.get_request_logger(req, meta)
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received")
@@ -276,11 +275,11 @@ class CorePathServer(PathServer):
         dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0
         if dst_is_core:
             core_segs = self._resolve_core(
-                req, req_id, meta, dst_ia, new_request, req.flags(), logger)
+                req, meta, dst_ia, new_request, req.flags(), logger)
             down_segs = set()
         else:
             core_segs, down_segs = self._resolve_not_core(
-                req, req_id, meta, dst_ia, new_request, req.flags(), logger)
+                req, meta, dst_ia, new_request, req.flags(), logger)
 
         if not (core_segs | down_segs):
             if new_request:
@@ -290,7 +289,7 @@ class CorePathServer(PathServer):
         self._send_path_segments(req, meta, logger, core=core_segs, down=down_segs)
         return True
 
-    def _resolve_core(self, req, req_id, meta, dst_ia, new_request, flags, logger):
+    def _resolve_core(self, req, meta, dst_ia, new_request, flags, logger):
         """
         Dst is core AS.
         """
@@ -301,13 +300,13 @@ class CorePathServer(PathServer):
         core_segs = set(self.core_segments(**params))
         if not core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             # Segments not found and it is a new request.
-            self.pending_req[(dst_ia, sibra)][req_id] = (req, meta, logger)
+            self.pending_req[(dst_ia, sibra)][req.req_id()] = (req, meta, logger)
             # If dst is in remote ISD then a segment may be kept by master.
             if dst_ia[0] != self.addr.isd_as[0]:
                 self._query_master(dst_ia, logger, flags=flags)
         return core_segs
 
-    def _resolve_not_core(self, seg_req, req_id, meta, dst_ia, new_request, flags, logger):
+    def _resolve_not_core(self, seg_req, meta, dst_ia, new_request, flags, logger):
         """
         Dst is regular AS.
         """
@@ -317,7 +316,7 @@ class CorePathServer(PathServer):
         # Check if there exists any down-segs to dst.
         tmp_down_segs = self.down_segments(last_ia=dst_ia, sibra=sibra)
         if not tmp_down_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
-            self._resolve_not_core_failed(seg_req, req_id, meta, dst_ia, flags, logger)
+            self._resolve_not_core_failed(seg_req, meta, dst_ia, flags, logger)
 
         for dseg in tmp_down_segs:
             dseg_ia = dseg.first_ia()
@@ -332,7 +331,7 @@ class CorePathServer(PathServer):
                 first_ia=dseg_ia, last_ia=self.addr.isd_as, sibra=sibra)
             if not tmp_core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
                 # Core segment not found and it is a new request.
-                self.pending_req[(dseg_ia, sibra)][req_id] = (seg_req, meta, logger)
+                self.pending_req[(dseg_ia, sibra)][seg_req.req_id()] = (seg_req, meta, logger)
                 if dst_ia[0] != self.addr.isd_as[0]:
                     # Master may know a segment.
                     self._query_master(dseg_ia, logger, flags=flags)
@@ -341,14 +340,14 @@ class CorePathServer(PathServer):
                 core_segs.update(tmp_core_segs)
         return core_segs, down_segs
 
-    def _resolve_not_core_failed(self, seg_req, req_id, meta, dst_ia, flags, logger):
+    def _resolve_not_core_failed(self, seg_req, meta, dst_ia, flags, logger):
         """
         Execute after _resolve_not_core() cannot resolve a new request, due to
         lack of corresponding down segment(s).
         This must not be executed for a pending request.
         """
         sibra = PATH_FLAG_SIBRA in flags
-        self.pending_req[(dst_ia, sibra)][req_id] = (seg_req, meta, logger)
+        self.pending_req[(dst_ia, sibra)][seg_req.req_id()] = (seg_req, meta, logger)
         if dst_ia[0] == self.addr.isd_as[0]:
             # Master may know down segment as dst is in local ISD.
             self._query_master(dst_ia, logger, flags=flags)
