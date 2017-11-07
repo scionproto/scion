@@ -319,10 +319,7 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var pathSet pathmgr.AppPathSet
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
-	// FIXME(scrye): Temporarily, while the SIG uses Listen for the data plane
-	// have all traffic use Register instead of one shot Query
-	// if c.raddr == nil {
-	if false {
+	if c.raddr == nil {
 		pathSet = c.scionNet.pathResolver.Query(c.laddr.IA, raddr.IA)
 	} else {
 		// Sanity check, as Dial already initializes this
