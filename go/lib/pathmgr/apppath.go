@@ -17,7 +17,6 @@ package pathmgr
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"fmt"
 	"strings"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -74,7 +73,7 @@ func (aps AppPathSet) GetAppPath(pref PathKey) *AppPath {
 func (aps AppPathSet) String() string {
 	var desc []string
 	for _, path := range aps {
-		desc = append(desc, fmt.Sprintf("%v", path.Entry.Path.Interfaces))
+		desc = append(desc, path.Entry.Path.String())
 	}
 	return "{" + strings.Join(desc, ";") + "}"
 }
