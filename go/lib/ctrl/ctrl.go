@@ -85,14 +85,12 @@ func (p *Pld) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(p, b)
 }
 
-func (p *Pld) NewSignedPld() (*SignedPld, error) {
-	sp := NewSignedPld()
-	err := sp.SetPld(p)
-	return sp, err
+func (p *Pld) SignedPld() (*SignedPld, error) {
+	return NewSignedPld(p)
 }
 
 func (p *Pld) WritePld(b common.RawBytes) (int, error) {
-	sp, err := p.NewSignedPld()
+	sp, err := p.SignedPld()
 	if err != nil {
 		return 0, err
 	}
@@ -100,7 +98,7 @@ func (p *Pld) WritePld(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) PackPld() (common.RawBytes, error) {
-	sp, err := p.NewSignedPld()
+	sp, err := p.SignedPld()
 	if err != nil {
 		return nil, err
 	}
