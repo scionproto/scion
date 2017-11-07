@@ -114,10 +114,10 @@ func (sm *sessMonitor) updateRemote() {
 			currSig.Fail()
 		}
 		if currSessPath != nil {
+			// FIXME(kormat): these debug statements should be converted to prom metrics.
+			sm.Debug("Timeout", "remote", currRemote, "duration", since)
 			currSessPath.fail()
 		}
-		// FIXME(kormat): these debug statements should be converted to prom metrics.
-		sm.Debug("Timeout", "remote", currRemote, "duration", since)
 		currSig = sm.getNewSig(currSig)
 		currSessPath = sm.getNewPath(currSessPath)
 		sm.needUpdate = true

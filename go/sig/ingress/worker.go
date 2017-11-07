@@ -37,11 +37,11 @@ const (
 
 // Worker handles decapsulation of SIG frames.
 type Worker struct {
+	log.Logger
 	Remote           *snet.Addr
 	SessId           sigcmn.SessionType
 	Ring             *ringbuf.Ring
 	reassemblyLists  map[int]*ReassemblyList
-	running          bool
 	markedForCleanup bool
 }
 
@@ -53,6 +53,7 @@ func NewWorker(remote *snet.Addr, sessId sigcmn.SessionType) *Worker {
 		"ringId": remote.IA.String(), "sessId": sessId.String(),
 	}
 	worker := &Worker{
+		Logger:          log.New("ingress", remote.String(), "sessId", sessId),
 		Remote:          remote,
 		SessId:          sessId,
 		Ring:            ringbuf.New(64, nil, "ingress", ringLabels),
@@ -61,23 +62,14 @@ func NewWorker(remote *snet.Addr, sessId sigcmn.SessionType) *Worker {
 	return worker
 }
 
-func (w *Worker) Start() {
-	if !w.running {
-		go w.run()
-		w.running = true
-	}
-}
-
 func (w *Worker) Stop() {
-	if w.running {
-		log.Info("IngressWorker stopping", "remote", w.Remote.String(), "sessId", w.SessId)
-		w.Ring.Close()
-		w.running = false
-	}
+	defer liblog.LogPanicAndExit()
+	w.Ring.Close()
 }
 
-func (w *Worker) run() {
+func (w *Worker) Run() {
 	defer liblog.LogPanicAndExit()
+	w.Info("IngressWorker starting")
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
 	for {
@@ -86,7 +78,7 @@ func (w *Worker) run() {
 		// to do any cleanup.
 		n, _ := w.Ring.Read(frames, true)
 		if n < 0 {
-			return
+			break
 		}
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
@@ -98,6 +90,7 @@ func (w *Worker) run() {
 			lastCleanup = time.Now()
 		}
 	}
+	w.Info("IngressWorker stopping")
 }
 
 // processFrame processes a SIG frame by first writing all completely contained
@@ -109,7 +102,7 @@ func (w *Worker) processFrame(frame *FrameBuf) {
 	index := int(common.Order.Uint16(frame.raw[6:8]))
 	frame.seqNr = seqNr
 	frame.index = index
-	//log.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
+	//w.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
 	//	"len", frame.frameLen)
 	// If index == 1 then we can be sure that there is no fragment at the beginning
 	// of the frame.
