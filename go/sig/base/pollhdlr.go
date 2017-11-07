@@ -42,12 +42,12 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", err)
 			break
 		}
-		cpld, err := ctrl.NewPld(spld)
+		scpld, err := ctrl.NewSignedPldFromUnion(spld)
 		if err != nil {
 			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", err)
 			break
 		}
-		raw, err := cpld.PackPld()
+		raw, err := scpld.PackPld()
 		if err != nil {
 			log.Error("PollReqHdlr: Error packing Ctrl payload", "err", err)
 			break

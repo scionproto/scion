@@ -33,8 +33,37 @@ type SignedPld struct {
 	Sign *proto.SignS
 }
 
-func NewSignedPld() *SignedPld {
-	return &SignedPld{Sign: &proto.SignS{}}
+func NewSignedPld(c *Pld) (*SignedPld, error) {
+	s := &SignedPld{Sign: &proto.SignS{}}
+	if c != nil {
+		return s, s.SetPld(c)
+	}
+	return s, nil
+}
+
+func NewSignedPldFromUnion(u proto.Cerealizable) (*SignedPld, error) {
+	cpld, err := NewPld(u)
+	if err != nil {
+		return nil, err
+	}
+	s := &SignedPld{Sign: &proto.SignS{}}
+	return s, s.SetPld(cpld)
+}
+
+func NewSignedPathMgmtPld(u proto.Cerealizable) (*SignedPld, error) {
+	cpld, err := NewPathMgmtPld(u)
+	if err != nil {
+		return nil, err
+	}
+	return NewSignedPld(cpld)
+}
+
+func NewSignedCertMgmtPld(u proto.Cerealizable) (*SignedPld, error) {
+	cpld, err := NewCertMgmtPld(u)
+	if err != nil {
+		return nil, err
+	}
+	return NewSignedPld(cpld)
 }
 
 func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
