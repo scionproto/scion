@@ -39,6 +39,25 @@ const (
 	BufSize = 1<<16 - 1
 )
 
+type Error interface {
+	error
+	SCMP() *scmp.Hdr
+}
+
+var _ Error = (*OpError)(nil)
+
+type OpError struct {
+	scmp *scmp.Hdr
+}
+
+func (e *OpError) SCMP() *scmp.Hdr {
+	return e.scmp
+}
+
+func (e *OpError) Error() string {
+	return e.scmp.String()
+}
+
 var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
 
@@ -85,17 +104,16 @@ func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
 	if c.scionNet == nil {
 		return 0, nil, common.NewCError("SCION network not initialized")
 	}
-	// Loop until we have a data packet
-	for {
-		c.readMutex.Lock()
-		n, a, appData, err := c.read(b, true)
-		c.readMutex.Unlock()
-		if err != nil {
-			return 0, nil, common.NewCError("Dispatcher error", "err", err)
-		}
-		if appData {
-			return n, a, err
-		}
+	c.readMutex.Lock()
+	n, a, scmp, err := c.read(b, true)
+	c.readMutex.Unlock()
+	if err != nil {
+		return 0, nil, common.NewCError("Unable to read", "err", err)
+	}
+	if scmp == nil {
+		return n, a, err
+	} else {
+		return 0, nil, &OpError{scmp: scmp}
 	}
 }
 
@@ -110,15 +128,15 @@ func (c *Conn) Read(b []byte) (int, error) {
 	return n, err
 }
 
-// read returns the number of bytes read, the address that sent the bytes,
-// whether the message should be delivered to an application or if an error
-// occurred.
-func (c *Conn) read(b []byte, from bool) (int, *Addr, bool, error) {
+// read returns the number of bytes read, the address that sent the bytes, the
+// SCMP header (if an SCMP message was received, or nil otherwise) and if an
+// error occurred.
+func (c *Conn) read(b []byte, from bool) (int, *Addr, *scmp.Hdr, error) {
 	var err error
 	var remote *Addr
 	n, lastHop, err := c.conn.ReadFrom(c.recvBuffer)
 	if err != nil {
-		return 0, nil, false, common.NewCError("Dispatcher read error", "err", err)
+		return 0, nil, nil, common.NewCError("Dispatcher read error", "err", err)
 	}
 	if !from {
 		lastHop = nil
@@ -130,12 +148,12 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, bool, error) {
 	}
 	err = hpkt.ParseScnPkt(pkt, c.recvBuffer[:n])
 	if err != nil {
-		return 0, nil, false, common.NewCError("SCION packet parse error", "err", err)
+		return 0, nil, nil, common.NewCError("SCION packet parse error", "err", err)
 	}
 	// Copy data, extract address
 	n, err = pkt.Pld.WritePld(b)
 	if err != nil {
-		return 0, nil, false, common.NewCError("Unable to copy payload", "err", err)
+		return 0, nil, nil, common.NewCError("Unable to copy payload", "err", err)
 	}
 	// On UDP4 network we can get either UDP traffic or SCMP messages
 	if c.net == "udp4" {
@@ -151,23 +169,23 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, bool, error) {
 			if lastHop != nil {
 				path := pkt.Path
 				if err = path.Reverse(); err != nil {
-					return 0, nil, true,
+					return 0, nil, nil,
 						common.NewCError("Unable to reverse path on received packet", "err", err)
 				}
 				remote.Path = path
 				remote.NextHopHost = lastHop.Addr
 				remote.NextHopPort = lastHop.Port
 			}
-			return n, remote, true, nil
+			return n, remote, nil, nil
 		case *scmp.Hdr:
 			c.handleSCMP(hdr, pkt)
-			return n, remote, false, nil
+			return n, remote, hdr, nil
 		default:
-			return n, remote, true, common.NewCError("Unexpected SCION L4 protocol", "expected",
+			return n, remote, nil, common.NewCError("Unexpected SCION L4 protocol", "expected",
 				"UDP or SCMP", "actual", pkt.L4.L4Type())
 		}
 	}
-	return 0, nil, true, common.NewCError("Unknown network", "net", c.net)
+	return 0, nil, nil, common.NewCError("Unknown network", "net", c.net)
 }
 
 func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {

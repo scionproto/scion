@@ -299,7 +299,10 @@ func (p *parseCtx) DefaultL4Parser() error {
 	case common.L4UDP:
 		p.s.Pld = common.RawBytes(p.b[p.offset : p.offset+pldLen])
 	case common.L4SCMP:
-		hdr, _ := p.s.L4.(*scmp.Hdr)
+		hdr, ok := p.s.L4.(*scmp.Hdr)
+		if !ok {
+			return common.NewCError("Unable to extract SCMP payload, type assertion failed.")
+		}
 		p.s.Pld, err = scmp.PldFromRaw(p.b[p.offset:p.offset+pldLen],
 			scmp.ClassType{Class: hdr.Class, Type: hdr.Type})
 		if err != nil {
