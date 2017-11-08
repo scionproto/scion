@@ -25,3 +25,4 @@ CAs:
 links:
   - {a: 1-11, b: 1-12, ltype: PARENT, mtu: 1280}
   - {a: 1-11, b: 1-13, ltype: PARENT, bw: 500}
+  - {a: 1-12, b: 1-13, ltype: PEER}
