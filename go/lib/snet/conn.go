@@ -115,9 +115,8 @@ func (c *Conn) Read(b []byte) (int, error) {
 	return n, err
 }
 
-// read returns the number of bytes read, the address that sent the bytes, the
-// SCMP header (if an SCMP message was received, or nil otherwise) and if an
-// error occurred.
+// read returns the number of bytes read, the address that sent the bytes and
+// an error (if one occurred).
 func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
@@ -149,25 +148,25 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	}
 	// On UDP4 network we can get either UDP traffic or SCMP messages
 	if c.net == "udp4" {
+		// Extract remote address
+		remote = &Addr{
+			IA:   pkt.SrcIA,
+			Host: pkt.SrcHost,
+		}
+		// Extract path and last hop
+		if lastHop != nil {
+			path := pkt.Path
+			if err = path.Reverse(); err != nil {
+				return 0, nil,
+					common.NewCError("Unable to reverse path on received packet", "err", err)
+			}
+			remote.Path = path
+			remote.NextHopHost = lastHop.Addr
+			remote.NextHopPort = lastHop.Port
+		}
 		switch hdr := pkt.L4.(type) {
 		case *l4.UDP:
-			// Extract remote address
-			remote = &Addr{
-				IA:     pkt.SrcIA,
-				Host:   pkt.SrcHost,
-				L4Port: hdr.SrcPort,
-			}
-			// Extract path and last hop
-			if lastHop != nil {
-				path := pkt.Path
-				if err = path.Reverse(); err != nil {
-					return 0, nil,
-						common.NewCError("Unable to reverse path on received packet", "err", err)
-				}
-				remote.Path = path
-				remote.NextHopHost = lastHop.Addr
-				remote.NextHopPort = lastHop.Port
-			}
+			remote.L4Port = hdr.SrcPort
 			return n, remote, nil
 		case *scmp.Hdr:
 			c.handleSCMP(hdr, pkt)
@@ -208,9 +207,7 @@ func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 	if c.conn == nil {
 		return 0, common.NewCError("Connection not initialized")
 	}
-	c.writeMutex.Lock()
 	n, err := c.write(b, raddr)
-	c.writeMutex.Unlock()
 	if err != nil {
 		return 0, common.NewCError("Dispatcher error", "err", err)
 	}
@@ -239,6 +236,8 @@ func (c *Conn) Write(b []byte) (int, error) {
 }
 
 func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
+	c.writeMutex.Lock()
+	defer c.writeMutex.Unlock()
 	var err error
 	var path *spath.Path
 	var nextHopHost addr.HostAddr
