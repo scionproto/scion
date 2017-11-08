@@ -15,24 +15,17 @@
 package trc
 
 import (
-	//"encoding/hex"
 	"fmt"
+	"net"
+	"sort"
 	"testing"
-	//"time"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	//"golang.org/x/crypto/ed25519"
-	//
-	//"github.com/netsec-ethz/scion/go/lib/addr"
-	//"github.com/netsec-ethz/scion/go/lib/crypto"
-	//"github.com/netsec-ethz/scion/go/lib/crypto/cert"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/crypto"
-	"net"
-	"sort"
-	"time"
 )
 
 // Interface assertions

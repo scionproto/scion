@@ -33,13 +33,13 @@ var _ fmt.Stringer = (*Certificate)(nil)
 var (
 	rawCert = []byte(`{
     "SignAlgorithm": "ed25519",
-    "SubjectSigKey": "5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=",
+    "SubjectSignKey": "5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=",
     "Version": 1,
     "EncAlgorithm": "curve25519xsalsa20poly1305",
     "SubjectEncKey": "nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=",
     "TRCVersion": 2,
     "ExpirationTime": 1539868933,
-    "Signature": "/hoJBGTQ0F2+4OqpfCTrPgZjAEX7/3XuqTLbPhmZpsVhX4E+gLHKVG0/+/ASyq6PZjF97WtzApPjVw5jOIEtAg==",
+    "Signature": "36dhobVsPBt6UlMCZtmYHoKJbuS3MbZNvu24nA+kt780bf4ZenIreuvnxphIxuI327cBoeDsB+Tg1EvSPnwEBg==",
     "Issuer": "1-13",
     "CanIssue": false,
     "Subject": "1-10",
@@ -47,11 +47,11 @@ var (
     "Comment": "AS Certificate\u2602\u2602\u2602\u2602"
 }`)
 
-	rawSignature = common.RawBytes{0xfe, 0x1a, 0x09, 0x04, 0x64, 0xd0, 0xd0, 0x5d, 0xbe, 0xe0, 0xea,
-		0xa9, 0x7c, 0x24, 0xeb, 0x3e, 0x06, 0x63, 0x00, 0x45, 0xfb, 0xff, 0x75, 0xee, 0xa9,
-		0x32, 0xdb, 0x3e, 0x19, 0x99, 0xa6, 0xc5, 0x61, 0x5f, 0x81, 0x3e, 0x80, 0xb1, 0xca,
-		0x54, 0x6d, 0x3f, 0xfb, 0xf0, 0x12, 0xca, 0xae, 0x8f, 0x66, 0x31, 0x7d, 0xed, 0x6b,
-		0x73, 0x02, 0x93, 0xe3, 0x57, 0x0e, 0x63, 0x38, 0x81, 0x2d, 0x02}
+	rawSignature = common.RawBytes{0xdf, 0xa7, 0x61, 0xa1, 0xb5, 0x6c, 0x3c, 0x1b, 0x7a, 0x52,
+		0x53, 0x02, 0x66, 0xd9, 0x98, 0x1e, 0x82, 0x89, 0x6e, 0xe4, 0xb7, 0x31, 0xb6, 0x4d,
+		0xbe, 0xed, 0xb8, 0x9c, 0x0f, 0xa4, 0xb7, 0xbf, 0x34, 0x6d, 0xfe, 0x19, 0x7a, 0x72,
+		0x2b, 0x7a, 0xeb, 0xe7, 0xc6, 0x98, 0x48, 0xc6, 0xe2, 0x37, 0xdb, 0xb7, 0x01, 0xa1,
+		0xe0, 0xec, 0x07, 0xe4, 0xe0, 0xd4, 0x4b, 0xd2, 0x3e, 0x7c, 0x04, 0x06}
 
 	rawEncKey = common.RawBytes{0x9c, 0xfd, 0x47, 0x91, 0x9c, 0x24, 0x5b, 0xcb, 0xa3, 0xa9, 0xe1, 0x0e,
 		0xf3, 0x64, 0x5b, 0xf5, 0xc3, 0x7a, 0x01, 0x5a, 0x85, 0x3c, 0xed, 0x54, 0x22, 0x2c,
@@ -78,7 +78,7 @@ func Test_CertificateFromRaw(t *testing.T) {
 		SoMsg("Subject", cert.Subject.String(), ShouldEqual, "1-10")
 		SoMsg("Signature", cert.Signature, ShouldResemble, rawSignature)
 		SoMsg("EncKey", cert.SubjectEncKey, ShouldResemble, rawEncKey)
-		SoMsg("SigKey", cert.SubjectSigKey, ShouldResemble, rawSigKey)
+		SoMsg("SigKey", cert.SubjectSignKey, ShouldResemble, rawSigKey)
 	})
 
 	Convey("CertificateFromRaw should throw error for invalid bytes", t, func() {
@@ -172,7 +172,7 @@ func Test_Certificate_String(t *testing.T) {
 func Test_Certificate_JSON(t *testing.T) {
 	Convey("Certificate is returned as Json correctly", t, func() {
 		cert, err := CertificateFromRaw(rawCert)
-		s := `{"CanIssue":false,"Comment":"AS Certificate☂☂☂☂","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"/hoJBGTQ0F2+4OqpfCTrPgZjAEX7/3XuqTLbPhmZpsVhX4E+gLHKVG0/+/ASyq6PZjF97WtzApPjVw5jOIEtAg==","Subject":"1-10","SubjectEncKey":"nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=","SubjectSigKey":"5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=","TRCVersion":2,"Version":1}`
+		s := `{"CanIssue":false,"Comment":"AS Certificate☂☂☂☂","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"36dhobVsPBt6UlMCZtmYHoKJbuS3MbZNvu24nA+kt780bf4ZenIreuvnxphIxuI327cBoeDsB+Tg1EvSPnwEBg==","Subject":"1-10","SubjectEncKey":"nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=","SubjectSignKey":"5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=","TRCVersion":2,"Version":1}`
 		j, err := cert.JSON(false)
 		So(err, ShouldEqual, nil)
 		So(string(j), ShouldEqual, s)
@@ -228,7 +228,7 @@ func Test_Certificate_Eq(t *testing.T) {
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (SubjectSigKey)", func() {
-			c1.SubjectSigKey[0] ^= 0xFF
+			c1.SubjectSignKey[0] ^= 0xFF
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (TRCVersion)", func() {
