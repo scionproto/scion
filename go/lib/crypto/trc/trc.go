@@ -143,8 +143,8 @@ func (t *TRC) sigPack() (common.RawBytes, error) {
 }
 
 // CheckActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
-// the newest TRC of the same ISD which we know of.
-func (t *TRC) CheckActive(maxTRC TRC) error {
+// the newest active TRC of the same ISD which we know of.
+func (t *TRC) CheckActive(maxTRC *TRC) error {
 	currTime := time.Now().Unix()
 	if currTime < t.CreationTime {
 		return common.NewCError("Current time before creation time", "expected",
