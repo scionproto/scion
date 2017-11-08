@@ -75,7 +75,7 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 }
 
 func (c *Chain) Verify(subject *addr.ISD_AS, trc interface{}) error {
-	if err := c.Leaf.Verify(subject, c.Core.SubjectSigKey, c.Core.SignAlgorithm); err != nil {
+	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
 		return err
 	}
 	// Fixme(roosd): Verify Core Certificate based on TRC

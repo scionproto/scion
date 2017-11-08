@@ -55,8 +55,8 @@ type Certificate struct {
 	Subject *addr.ISD_AS
 	// SubjectEncKey is the public key used for encryption.
 	SubjectEncKey common.RawBytes
-	// SubjectSigKey the public key used for signature verification.
-	SubjectSigKey common.RawBytes
+	// SubjectSignKey the public key used for signature verification.
+	SubjectSignKey common.RawBytes
 	// TRCVersion is the version of the issuing trc.
 	TRCVersion int
 	// Version is the certificate version.
@@ -144,6 +144,6 @@ func (c *Certificate) Eq(o *Certificate) bool {
 		c.SignAlgorithm == o.SignAlgorithm &&
 		c.EncAlgorithm == o.EncAlgorithm &&
 		bytes.Equal(c.SubjectEncKey, o.SubjectEncKey) &&
-		bytes.Equal(c.SubjectSigKey, o.SubjectSigKey) &&
+		bytes.Equal(c.SubjectSignKey, o.SubjectSignKey) &&
 		bytes.Equal(c.Signature, o.Signature)
 }
