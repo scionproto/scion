@@ -60,9 +60,11 @@ func (aps AppPathSet) Copy() AppPathSet {
 // a path with key pref; if one cannot be found, an arbitrary one
 // is returned.
 func (aps AppPathSet) GetAppPath(pref PathKey) *AppPath {
-	ap, ok := aps[pref]
-	if ok {
-		return ap
+	if len(pref) > 0 {
+		ap, ok := aps[pref]
+		if ok {
+			return ap
+		}
 	}
 	for _, v := range aps {
 		return v
@@ -75,7 +77,7 @@ func (aps AppPathSet) String() string {
 	for _, path := range aps {
 		desc = append(desc, path.Entry.Path.String())
 	}
-	return "{" + strings.Join(desc, ";") + "}"
+	return "{" + strings.Join(desc, "; ") + "}"
 }
 
 // AppPath contains a SCIOND path entry.

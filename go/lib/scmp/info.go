@@ -183,7 +183,7 @@ func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
 
 func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
 	var err error
-	p := &InfoRevocation{InfoPathOffsets: &InfoPathOffsets{}}
+	p := &InfoRevocation{}
 	p.InfoPathOffsets, err = InfoPathOffsetsFromRaw(b)
 	if err != nil {
 		return nil, common.NewCError("Unable to parse path offsets", "err", err)

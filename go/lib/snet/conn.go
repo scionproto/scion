@@ -101,42 +101,34 @@ func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 // address of the sender. If the remote address for the connection is already
 // known, ReadFromSCION returns an error.
 func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
-	if c.scionNet == nil {
-		return 0, nil, common.NewCError("SCION network not initialized")
-	}
-	c.readMutex.Lock()
-	n, a, scmp, err := c.read(b, true)
-	c.readMutex.Unlock()
-	if err != nil {
-		return 0, nil, common.NewCError("Unable to read", "err", err)
-	}
-	if scmp == nil {
-		return n, a, err
-	} else {
-		return 0, nil, &OpError{scmp: scmp}
-	}
+	return c.read(b, true)
 }
 
 func (c *Conn) ReadFrom(b []byte) (int, net.Addr, error) {
-	return c.ReadFromSCION(b)
+	return c.read(b, true)
 }
 
-// Read reads data into b from a connection with a fixed remote address. If the remote address
-// for the connection is unknown, Read returns an error.
+// Read reads data into b from a connection with a fixed remote address. If the
+// remote address for the connection is unknown, Read returns an error.
 func (c *Conn) Read(b []byte) (int, error) {
-	n, _, err := c.ReadFromSCION(b)
+	n, _, err := c.read(b, false)
 	return n, err
 }
 
 // read returns the number of bytes read, the address that sent the bytes, the
 // SCMP header (if an SCMP message was received, or nil otherwise) and if an
 // error occurred.
-func (c *Conn) read(b []byte, from bool) (int, *Addr, *scmp.Hdr, error) {
+func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
+	c.readMutex.Lock()
+	defer c.readMutex.Unlock()
 	var err error
 	var remote *Addr
+	if c.scionNet == nil {
+		return 0, nil, common.NewCError("SCION network not initialized")
+	}
 	n, lastHop, err := c.conn.ReadFrom(c.recvBuffer)
 	if err != nil {
-		return 0, nil, nil, common.NewCError("Dispatcher read error", "err", err)
+		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
 	}
 	if !from {
 		lastHop = nil
@@ -148,12 +140,12 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, *scmp.Hdr, error) {
 	}
 	err = hpkt.ParseScnPkt(pkt, c.recvBuffer[:n])
 	if err != nil {
-		return 0, nil, nil, common.NewCError("SCION packet parse error", "err", err)
+		return 0, nil, common.NewCError("SCION packet parse error", "err", err)
 	}
 	// Copy data, extract address
 	n, err = pkt.Pld.WritePld(b)
 	if err != nil {
-		return 0, nil, nil, common.NewCError("Unable to copy payload", "err", err)
+		return 0, nil, common.NewCError("Unable to copy payload", "err", err)
 	}
 	// On UDP4 network we can get either UDP traffic or SCMP messages
 	if c.net == "udp4" {
@@ -169,23 +161,23 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, *scmp.Hdr, error) {
 			if lastHop != nil {
 				path := pkt.Path
 				if err = path.Reverse(); err != nil {
-					return 0, nil, nil,
+					return 0, nil,
 						common.NewCError("Unable to reverse path on received packet", "err", err)
 				}
 				remote.Path = path
 				remote.NextHopHost = lastHop.Addr
 				remote.NextHopPort = lastHop.Port
 			}
-			return n, remote, nil, nil
+			return n, remote, nil
 		case *scmp.Hdr:
 			c.handleSCMP(hdr, pkt)
-			return n, remote, hdr, nil
+			return n, remote, &OpError{scmp: hdr}
 		default:
-			return n, remote, nil, common.NewCError("Unexpected SCION L4 protocol", "expected",
+			return n, remote, common.NewCError("Unexpected SCION L4 protocol", "expected",
 				"UDP or SCMP", "actual", pkt.L4.L4Type())
 		}
 	}
-	return 0, nil, nil, common.NewCError("Unknown network", "net", c.net)
+	return 0, nil, common.NewCError("Unknown network", "net", c.net)
 }
 
 func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
@@ -193,8 +185,7 @@ func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
 		c.handleSCMPRev(hdr, pkt)
 	} else {
-		log.Warn("Received unsupported SCMP message", "class", hdr.Class,
-			"type", hdr.Type)
+		log.Warn("Received unsupported SCMP message", "class", hdr.Class, "type", hdr.Type)
 	}
 }
 
