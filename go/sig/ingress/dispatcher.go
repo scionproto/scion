@@ -23,7 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
@@ -115,8 +114,8 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
 		worker = NewWorker(src, sessId)
-		worker.Start()
 		d.workers[dispatchStr] = worker
+		go worker.Run()
 	}
 	worker.markedForCleanup = false
 	worker.Ring.Write(ringbuf.EntryList{frame}, true)
@@ -124,22 +123,12 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 
 // cleanup periodically stops and releases idle workers.
 func (d *Dispatcher) cleanup() {
-	var toCleanup []*Worker
 	for key, worker := range d.workers {
 		if worker.markedForCleanup {
 			delete(d.workers, key)
-			toCleanup = append(toCleanup, worker)
+			go worker.Stop()
 		} else {
 			worker.markedForCleanup = true
 		}
-	}
-	// Perform the stopping in separate go-routine, since worker.Stop can block,
-	if len(toCleanup) > 0 {
-		go func() {
-			defer liblog.LogPanicAndExit()
-			for _, worker := range toCleanup {
-				worker.Stop()
-			}
-		}()
 	}
 }

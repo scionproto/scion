@@ -53,6 +53,7 @@ const (
 	PktLenSize = 2
 	MinSpace   = 16
 	SigHdrLen  = 8
+	MaxSeq     = (1 << 24) - 1
 )
 
 type worker struct {
@@ -173,8 +174,11 @@ func (w *worker) write(f *frame) error {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
 	f.writeHdr(w.sess.SessId, w.epoch, w.seq)
-	// Update metadata
+	// Update sequence number for next packet
 	w.seq += 1
+	if w.seq > MaxSeq {
+		w.seq = 0
+	}
 	bytesWritten, err := w.sess.conn.WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewCError("Egress write error", "err", err)
