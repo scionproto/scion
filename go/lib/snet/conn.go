@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	//log "github.com/inconshreveable/log15"
+	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
@@ -28,6 +28,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/overlay"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
 	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/lib/spkt"
@@ -37,6 +38,25 @@ const (
 	// Receive and send buffer sizes
 	BufSize = 1<<16 - 1
 )
+
+type Error interface {
+	error
+	SCMP() *scmp.Hdr
+}
+
+var _ Error = (*OpError)(nil)
+
+type OpError struct {
+	scmp *scmp.Hdr
+}
+
+func (e *OpError) SCMP() *scmp.Hdr {
+	return e.scmp
+}
+
+func (e *OpError) Error() string {
+	return e.scmp.String()
+}
 
 var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
@@ -57,6 +77,8 @@ type Conn struct {
 	sp *pathmgr.SyncPaths
 	// Reference to SCION networking context
 	scionNet *Network
+	// Key of last used path, used to select the same path for the next packet
+	prefPathKey pathmgr.PathKey
 }
 
 // DialSCION calls DialSCION on the default networking context.
@@ -79,38 +101,30 @@ func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 // address of the sender. If the remote address for the connection is already
 // known, ReadFromSCION returns an error.
 func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
-	if c.scionNet == nil {
-		return 0, nil, common.NewCError("SCION network not initialized")
-	}
-	n, a, err := c.read(b, true)
-	if err != nil {
-		return 0, nil, common.NewCError("Dispatcher error", "err", err)
-	}
-	return n, a, err
+	return c.read(b, true)
 }
 
 func (c *Conn) ReadFrom(b []byte) (int, net.Addr, error) {
-	return c.ReadFromSCION(b)
+	return c.read(b, true)
 }
 
-// Read reads data into b from a connection with a fixed remote address. If the remote address
-// for the connection is unknown, Read returns an error.
+// Read reads data into b from a connection with a fixed remote address. If the
+// remote address for the connection is unknown, Read returns an error.
 func (c *Conn) Read(b []byte) (int, error) {
-	if c.scionNet == nil {
-		return 0, common.NewCError("SCION network not initialized")
-	}
 	n, _, err := c.read(b, false)
-	if err != nil {
-		return 0, common.NewCError("Dispatcher error", "err", err)
-	}
 	return n, err
 }
 
+// read returns the number of bytes read, the address that sent the bytes and
+// an error (if one occurred).
 func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
 	var err error
 	var remote *Addr
+	if c.scionNet == nil {
+		return 0, nil, common.NewCError("SCION network not initialized")
+	}
 	n, lastHop, err := c.conn.ReadFrom(c.recvBuffer)
 	if err != nil {
 		return 0, nil, common.NewCError("Dispatcher read error", "err", err)
@@ -132,18 +146,12 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	if err != nil {
 		return 0, nil, common.NewCError("Unable to copy payload", "err", err)
 	}
-	// Assert L4 as UDP header if local net is udp4
+	// On UDP4 network we can get either UDP traffic or SCMP messages
 	if c.net == "udp4" {
-		udpHdr, ok := pkt.L4.(*l4.UDP)
-		if !ok {
-			return 0, nil, common.NewCError("Invalid L4 protocol",
-				"expected", c.net, "actual", pkt.L4.L4Type())
-		}
 		// Extract remote address
 		remote = &Addr{
-			IA:     pkt.SrcIA,
-			Host:   pkt.SrcHost,
-			L4Port: udpHdr.SrcPort,
+			IA:   pkt.SrcIA,
+			Host: pkt.SrcHost,
 		}
 		// Extract path and last hop
 		if lastHop != nil {
@@ -156,8 +164,42 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 			remote.NextHopHost = lastHop.Addr
 			remote.NextHopPort = lastHop.Port
 		}
+		switch hdr := pkt.L4.(type) {
+		case *l4.UDP:
+			remote.L4Port = hdr.SrcPort
+			return n, remote, nil
+		case *scmp.Hdr:
+			c.handleSCMP(hdr, pkt)
+			return n, remote, &OpError{scmp: hdr}
+		default:
+			return n, remote, common.NewCError("Unexpected SCION L4 protocol", "expected",
+				"UDP or SCMP", "actual", pkt.L4.L4Type())
+		}
 	}
-	return n, remote, nil
+	return 0, nil, common.NewCError("Unknown network", "net", c.net)
+}
+
+func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
+	// Only handle revocations for now
+	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
+		c.handleSCMPRev(hdr, pkt)
+	} else {
+		log.Warn("Received unsupported SCMP message", "class", hdr.Class, "type", hdr.Type)
+	}
+}
+
+func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
+	scmpPayload, ok := pkt.Pld.(*scmp.Payload)
+	if !ok {
+		log.Error("Unable to type assert payload to SCMP payload")
+	}
+	info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
+	if !ok {
+		log.Error("Unable to type assert SCMP Info to SCMP Revocation Info")
+	}
+	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
+	// Extract RevInfo buffer and send it to path manager
+	c.scionNet.pathResolver.Revoke(info.RevToken)
 }
 
 // WriteToSCION sends b to raddr.
@@ -284,7 +326,14 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	if len(pathSet) == 0 {
 		return nil, common.NewCError("Path not found", "srcIA", c.laddr.IA, "dstIA", raddr.IA)
 	}
-	return pathSet.GetAppPath().Entry, nil
+
+	// FIXME(scrye): A preferred path should be stored for each contacted
+	// destination. Currently the code below only supports one, which means
+	// that alternating sends between two remotes offers no guarantees on
+	// the path ever being the same.
+	path := pathSet.GetAppPath(c.prefPathKey)
+	c.prefPathKey = path.Key()
+	return path.Entry, nil
 }
 
 func (c *Conn) LocalAddr() net.Addr {

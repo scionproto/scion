@@ -134,9 +134,10 @@ type InfoPathOffsets struct {
 
 func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, error) {
 	p := &InfoPathOffsets{}
-	if err := restruct.Unpack(b, common.Order, p); err != nil {
-		return nil, common.NewCError("Failed to unpack SCMP Path Offsets info", "err", err)
-	}
+	p.InfoF = common.Order.Uint16(b[0:])
+	p.HopF = common.Order.Uint16(b[2:])
+	p.IfID = common.Order.Uint16(b[4:])
+	p.Ingress = (b[6] & 0x01) == 0x01
 	return p, nil
 }
 
@@ -181,9 +182,11 @@ func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
 }
 
 func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
-	p := &InfoRevocation{InfoPathOffsets: &InfoPathOffsets{}}
-	if err := restruct.Unpack(b, common.Order, &p.InfoPathOffsets); err != nil {
-		return nil, common.NewCError("Failed to unpack SCMP Revocation info", "err", err)
+	var err error
+	p := &InfoRevocation{}
+	p.InfoPathOffsets, err = InfoPathOffsetsFromRaw(b)
+	if err != nil {
+		return nil, common.NewCError("Unable to parse path offsets", "err", err)
 	}
 	p.RevToken = b[8:]
 	return p, nil
