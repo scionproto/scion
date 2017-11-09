@@ -218,8 +218,9 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 
 // UnwatchFilter deletes a previously registered filter.
 func (r *PR) UnwatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) error {
-	// FIXME(scrye): Implement this
-	return common.NewCError("Function UnwatchFilter not implemented")
+	r.Lock()
+	defer r.Unlock()
+	return r.cache.removeWatch(src, dst, filter)
 }
 
 // Revoke asynchronously informs SCIOND about a revocation and flushes any

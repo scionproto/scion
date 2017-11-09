@@ -22,6 +22,7 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/sig/config"
 )
 
 var Map = newASMap()
@@ -37,14 +38,71 @@ func newASMap() *ASMap {
 	return &ASMap{t: make(map[addr.IAInt]*ASEntry)}
 }
 
-// AddIA idempotently adds an entry for a remote IA.
+func (am *ASMap) ReloadConfig(cfg *config.Cfg) bool {
+	// Run this as a single transaction under lock to prevent races while
+	// iterating over the map of ASes during deletion
+	am.Lock()
+	defer am.Unlock()
+	success := true
+	if !am.addNewIAs(cfg) {
+		success = false
+	}
+	if !am.delOldIAs(cfg) {
+		success = false
+	}
+	return success
+}
+
+func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
+	success := true
+	for iaVal, cfgEntry := range cfg.ASes {
+		ia := &iaVal
+		log.Info("ReloadConfig: Adding AS...", "ia", ia)
+		ae, err := am.addIA(ia)
+		if err != nil {
+			cerr := err.(*common.CError)
+			log.Error(cerr.Desc, cerr.Ctx...)
+			success = false
+			continue
+		}
+		ae.ReloadConfig(cfgEntry)
+		log.Info("ReloadConfig: Added AS", "ia", ia)
+	}
+	return success
+}
+
+func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
+	success := true
+	for iaVal := range am.t {
+		ia := iaVal.IA()
+		if _, ok := cfg.ASes[*ia]; !ok {
+			log.Info("ReloadConfig: Deleting AS...", "ia", ia)
+			// Deletion also handles session/tun device cleanup
+			err := am.delIA(ia)
+			if err != nil {
+				cerr := err.(*common.CError)
+				log.Error(cerr.Desc, cerr.Ctx...)
+				success = false
+				continue
+			}
+			log.Info("ReloadConfig: Deleted AS", "ia", ia)
+		}
+	}
+	return success
+}
+
 func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
+	am.Lock()
+	defer am.Unlock()
+	return am.addIA(ia)
+}
+
+// AddIA idempotently adds an entry for a remote IA.
+func (am *ASMap) addIA(ia *addr.ISD_AS) (*ASEntry, error) {
 	if ia.I == 0 || ia.A == 0 {
 		// A 0 for either ISD or AS indicates a wildcard, and not a specific ISD-AS.
 		return nil, common.NewCError("AddIA: ISD and AS must not be 0", "ia", ia)
 	}
-	am.Lock()
-	defer am.Unlock()
 	key := ia.IAInt()
 	ae, ok := am.t[key]
 	if ok {
@@ -55,22 +113,23 @@ func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
 		return nil, err
 	}
 	am.t[key] = ae
-	log.Info("Added IA", "ia", ia)
 	return ae, nil
 }
 
-// DelIA removes an entry for a remote IA.
 func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
 	am.Lock()
+	defer am.Unlock()
+	return am.delIA(ia)
+}
+
+// DelIA removes an entry for a remote IA.
+func (am *ASMap) delIA(ia *addr.ISD_AS) error {
 	key := ia.IAInt()
 	ae, ok := am.t[key]
 	if !ok {
-		am.Unlock()
 		return common.NewCError("DelIA: No entry found", "ia", ia)
 	}
 	delete(am.t, key)
-	am.Unlock() // Do cleanup outside the lock.
-	log.Info("Removed IA", "ia", ia)
 	return ae.Cleanup()
 }
 

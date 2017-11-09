@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/pktdisp"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
@@ -90,7 +91,14 @@ func (s *Session) Cleanup() error {
 	s.Debug("egress.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
 	s.Debug("egress.Session Cleanup: closing conn")
-	return s.conn.Close()
+	if err := s.conn.Close(); err != nil {
+		return common.NewCError("Unable to close conn", "err", err)
+	}
+	if err := sigcmn.PathMgr.Unwatch(sigcmn.IA, s.IA); err != nil {
+		return common.NewCError("Unable to unwatch src-dst", "src", sigcmn.IA, "dst", s.IA,
+			"err", err)
+	}
+	return nil
 }
 
 func (s *Session) Remote() *RemoteInfo {

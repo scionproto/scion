@@ -16,6 +16,7 @@ package egress
 
 import (
 	"io"
+	"os"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
@@ -81,6 +82,13 @@ BatchLoop:
 				if err == io.EOF {
 					// This dispatcher is shutting down
 					break BatchLoop
+				}
+				// Sometimes we don't receive a clean EOF, so we check if the
+				// tunnel device is closed.
+				if pErr, ok := err.(*os.PathError); ok {
+					if pErr.Err == os.ErrClosed {
+						break BatchLoop
+					}
 				}
 				ed.Error("EgressDispatcher: error reading from devIO", "err", err)
 				continue
