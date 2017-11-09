@@ -245,7 +245,11 @@ end
 
 -- SCION packet on UDP/IP overlay.
 table_udp = DissectorTable.get("udp.port")
-table_udp:add(30041, scion_proto)
+-- intra-AS traffic
+for i = 30000, 32000, 1 do
+    table_udp:add(i, scion_proto)
+end
+-- inter-AS BR traffic
 for i = 50000, 50050, 1 do
-  table_udp:add(i, scion_proto)
+    table_udp:add(i, scion_proto)
 end
