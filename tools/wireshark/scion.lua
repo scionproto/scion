@@ -55,15 +55,15 @@ local scion_addr_padding = ProtoField.bytes("scion.addr.padding", "Padding")
 
 local scion_ch_ver_expert = ProtoExpert.new("scion.ch.version.expert",
     "Unsupported SCION version", expert.group.MALFORMED, expert.severity.ERROR)
-local scion_ch_addrtype_expert = ProtoExpert.new("scion.ch.addrtype.expert",
+local scion_ch_addrtype_expert = ProtoExpert.new("scion.ch.addr_type.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
-local scion_ch_totallen_expert = ProtoExpert.new("scion.ch.totallen.expert",
+local scion_ch_totallen_expert = ProtoExpert.new("scion.ch.total_len.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
-local scion_ch_hdrlen_expert = ProtoExpert.new("scion.ch.hdrlen.expert",
+local scion_ch_hdrlen_expert = ProtoExpert.new("scion.ch.hdr_len.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
-local scion_ch_infoff_expert = ProtoExpert.new("scion.ch.infoff.expert",
+local scion_ch_infoff_expert = ProtoExpert.new("scion.ch.inf_off.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
-local scion_ch_hopoff_expert = ProtoExpert.new("scion.ch.hopoff.expert",
+local scion_ch_hopoff_expert = ProtoExpert.new("scion.ch.hop_off.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
 
 scion_proto.fields={
@@ -245,7 +245,11 @@ end
 
 -- SCION packet on UDP/IP overlay.
 table_udp = DissectorTable.get("udp.port")
-table_udp:add(30041, scion_proto)
+-- intra-AS traffic
+for i = 30000, 32000, 1 do
+    table_udp:add(i, scion_proto)
+end
+-- inter-AS BR traffic
 for i = 50000, 50050, 1 do
-  table_udp:add(i, scion_proto)
+    table_udp:add(i, scion_proto)
 end
