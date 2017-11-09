@@ -43,7 +43,7 @@ func (ne *NetEntry) setup() error {
 
 func (ne *NetEntry) Cleanup() error {
 	if err := netlink.RouteDel(ne.Route); err != nil {
-		return common.NewCError("Unable to add route for remote network",
+		return common.NewCError("Unable to delete route for remote network",
 			"route", ne.Route, "err", err)
 	}
 	return nil

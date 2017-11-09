@@ -80,7 +80,6 @@ func (sm *sessMonitor) run() {
 	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA, sm.sess.SessId), regc)
 	sm.lastReply = time.Now()
 	sm.Info("sessMonitor: starting")
-	defer sm.Info("sessMonitor: stopped")
 Top:
 	for {
 		select {
@@ -96,6 +95,11 @@ Top:
 			sm.handleRep(rpld)
 		}
 	}
+	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA, sm.sess.SessId))
+	if err != nil {
+		log.Crit("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
+	}
+	sm.Info("sessMonitor: stopped")
 }
 
 func (sm *sessMonitor) updateRemote() {

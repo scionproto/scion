@@ -27,6 +27,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/sig/config"
 	"github.com/netsec-ethz/scion/go/sig/egress"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
@@ -67,7 +68,17 @@ func newASEntry(ia *addr.ISD_AS) (*ASEntry, error) {
 	return ae, nil
 }
 
-func (ae *ASEntry) setupNet() error {
+func (ae *ASEntry) ReloadConfig(cfg *config.ASEntry) error {
+	ae.Lock()
+	defer ae.Unlock()
+	ae.addNewSIGS(cfg.Sigs)
+	ae.delOldSIGS(cfg.Sigs)
+	ae.addNewNets(cfg.Nets)
+	ae.delOldNets(cfg.Nets)
+	return nil
+}
+
+func (ae *ASEntry) createTunDevice() error {
 	var err error
 	ae.tunLink, ae.tunIO, err = xnet.ConnectTun(ae.DevName)
 	if err != nil {
@@ -80,13 +91,46 @@ func (ae *ASEntry) setupNet() error {
 	return nil
 }
 
+func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) error {
+	for _, ipnet := range ipnets {
+		err := ae.addNet(ipnet.IPNet())
+		if err != nil {
+			log.Error("Unable to add network", "net", ipnet, "err", err)
+		}
+	}
+	return nil
+}
+
+func (ae *ASEntry) delOldNets(ipnets []*config.IPNet) error {
+	for _, ne := range ae.Nets {
+		found := false
+		for _, ipnet := range ipnets {
+			if ne.Net.String() == ipnet.IPNet().String() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			err := ae.delNet(ne.Net)
+			if err != nil {
+				log.Error("Unable to delete network", "NetEntry", ne, "err", err)
+			}
+		}
+	}
+	return nil
+}
+
 // AddNet idempotently adds a network for the remote IA.
 func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
 	ae.Lock()
 	defer ae.Unlock()
+	return ae.addNet(ipnet)
+}
+
+func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 	if ae.tunLink == nil {
 		// Ensure that the network setup is done, as otherwise route entries can't be added.
-		if err := ae.setupNet(); err != nil {
+		if err := ae.createTunDevice(); err != nil {
 			return err
 		}
 	}
@@ -106,6 +150,12 @@ func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
 // DelIA removes a network for the remote IA.
 func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
 	ae.Lock()
+	defer ae.Unlock()
+	return ae.delNet(ipnet)
+}
+
+// DelIA removes a network for the remote IA.
+func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
 	key := ipnet.String()
 	ne, ok := ae.Nets[key]
 	if !ok {
@@ -113,16 +163,48 @@ func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
 		return common.NewCError("DelNet: no network found", "ia", ae.IA, "net", ipnet)
 	}
 	delete(ae.Nets, key)
-	ae.Unlock() // Do cleanup outside the lock.
 	ae.Info("Removed network", "net", ipnet)
 	return ne.Cleanup()
 }
 
+func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) error {
+	for _, sig := range sigs {
+		ctrlPort := int(sig.CtrlPort)
+		if ctrlPort == 0 {
+			ctrlPort = sigcmn.DefaultCtrlPort
+		}
+		encapPort := int(sig.EncapPort)
+		if encapPort == 0 {
+			encapPort = sigcmn.DefaultEncapPort
+		}
+		err := ae.addSig(sig.Id, sig.Addr, ctrlPort, encapPort, true)
+		if err != nil {
+			log.Error("Unable to add SIG", "sig", sig, "err", err)
+		}
+	}
+	return nil
+}
+
+func (ae *ASEntry) delOldSIGS(sigs config.SIGSet) error {
+	for _, sig := range ae.Sigs {
+		if _, ok := sigs[sig.Id]; !ok {
+			err := ae.delSig(sig.Id)
+			if err != nil {
+				log.Error("Unable to delete SIG", "err", err)
+			}
+		}
+	}
+	return nil
+}
+
 // AddSig idempotently adds a SIG for the remote IA.
-func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP,
-	ctrlPort, encapPort int, static bool) error {
+func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP, ctrlPort, encapPort int, static bool) error {
 	ae.Lock()
 	defer ae.Unlock()
+	return ae.addSig(id, ip, ctrlPort, encapPort, static)
+}
+
+func (ae *ASEntry) addSig(id siginfo.SigIdType, ip net.IP, ctrlPort, encapPort int, static bool) error {
 	if len(id) == 0 {
 		return common.NewCError("AddSig: SIG id empty", "ia", ae.IA)
 	}
@@ -137,11 +219,11 @@ func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP,
 		cerr := err.(*common.CError)
 		return cerr.AddCtx(cerr.Ctx, "ia", ae.IA, "id", id)
 	}
-	if _, ok := ae.Sigs[id]; ok {
-		// FIXME(kormat): support updating SIG entry.
-		return nil
-	}
-	ae.Sigs[id] = siginfo.NewSig(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
+	// The fastpath grabs a copy of the new map after we release the mutex, so
+	// we can edit the new entry (including the reference in the map) without
+	// racing.
+	sig := siginfo.NewSig(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
+	ae.Sigs[id] = sig
 	ae.Info("Added SIG", "sig", ae.Sigs[id])
 	return nil
 }
@@ -149,13 +231,16 @@ func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP,
 // DelSIG removes an SIG for the remote IA.
 func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 	ae.Lock()
+	defer ae.Unlock()
+	return ae.delSig(id)
+}
+
+func (ae *ASEntry) delSig(id siginfo.SigIdType) error {
 	se, ok := ae.Sigs[id]
 	if !ok {
-		ae.Unlock()
 		return common.NewCError("DelSig: no SIG found", "ia", ae.IA, "id", id)
 	}
 	delete(ae.Sigs, id)
-	ae.Unlock() // Do cleanup outside the lock.
 	ae.Info("Removed SIG", "id", id)
 	return se.Cleanup()
 }
@@ -204,13 +289,8 @@ func (ae *ASEntry) Cleanup() error {
 	}
 	// Clean up sessions, and associated workers.
 	ae.cleanSessions()
-	for _, ne := range ae.Nets {
-		if err := ne.Cleanup(); err != nil {
-			cerr := err.(*common.CError)
-			ae.Error(cerr.Desc, cerr.Ctx...)
-		}
-	}
 	if err := netlink.LinkDel(ae.tunLink); err != nil {
+		// The operating system also removes the tun device and routes
 		// Only return this error, as it's the only critical one.
 		return common.NewCError("Error removing TUN link",
 			"ia", ae.IA, "dev", ae.DevName, "err", err)

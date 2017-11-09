@@ -21,8 +21,6 @@ import (
 	"io/ioutil"
 	"net"
 
-	//log "github.com/inconshreveable/log15"
-
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
@@ -60,7 +58,7 @@ func Parse(b common.RawBytes) (*Cfg, error) {
 
 type ASEntry struct {
 	Nets []*IPNet
-	Sigs map[siginfo.SigIdType]*SIG
+	Sigs SIGSet
 }
 
 // IPNet is custom type of net.IPNet, to allow custom unmarshalling.
@@ -89,4 +87,23 @@ type SIG struct {
 	Addr      net.IP
 	CtrlPort  uint16
 	EncapPort uint16
+}
+
+type SIGSet map[siginfo.SigIdType]*SIG
+
+func (ss *SIGSet) UnmarshalJSON(b []byte) error {
+	set := make(SIGSet)
+	m := make(map[string]*SIG)
+	err := json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+	// Populate IDs
+	for k, v := range m {
+		id := siginfo.SigIdType(k)
+		v.Id = id
+		set[id] = v
+	}
+	*ss = set
+	return nil
 }
