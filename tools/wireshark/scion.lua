@@ -65,6 +65,7 @@ local scion_path_info_flags_up = ProtoField.bool("scion.path.info.flags.up",
     "Up", 8, nil, 0x1)
 -- XXX(kormat): This *should* be base.UTC, but that seems to be bugged in ubuntu 16.04's
 -- version of wireshark. Amazingly, using the raw enum value works.
+-- https://github.com/wireshark/wireshark/blob/2832f4e97d77324b4e46aac40dae0ce898ae559d/epan/time_fmt.h#L44
 local scion_path_info_ts = ProtoField.absolute_time("scion.path.info.ts", "Timestamp", 1001)
 local scion_path_info_isd = ProtoField.uint16("scion.path.info.isd", "ISD", base.DEC)
 local scion_path_info_hops = ProtoField.uint8("scion.path.info.hops", "Hops", base.DEC)
