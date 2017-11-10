@@ -12,4 +12,4 @@ by making it accessible in the [wireshark plugin
 directory](https://www.wireshark.org/docs/wsug_html_chunked/ChPluginFolders.html)
 * On ubuntu 16.04, this is `~/.wireshark/plugins/`
 
-This has been tested with Wireshark 2.2.6, on ubuntu 16.04.
+This has been tested with Wireshark 2.2.6 on ubuntu 16.04, and Wireshark 2.4.2 on Windows 7.
