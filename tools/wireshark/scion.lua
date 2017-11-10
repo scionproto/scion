@@ -33,6 +33,8 @@ local svcTypes = {
 local chLen = 8
 local lineLen = 8
 local iaLen = 4
+local maxSegTTL = 12 * 60 * 60
+local segExpUnit = maxSegTTL / 2^8
 
 local scion_ch_version = ProtoField.uint8("scion.ch.version", "Version", base.HEX)
 local scion_ch_dsttype = ProtoField.uint8("scion.ch.dst_type", "Destination address type", base.HEX, addrTypes)
@@ -42,6 +44,7 @@ local scion_ch_hdrlen = ProtoField.uint8("scion.ch.hdr_len", "Header length", ba
 local scion_ch_infoff = ProtoField.uint8("scion.ch.inf_off", "Info Field offset", base.DEC)
 local scion_ch_hopoff = ProtoField.uint8("scion.ch.hop_off", "Hop Field offset", base.DEC)
 local scion_ch_nexthdr = ProtoField.uint8("scion.ch.next_hdr", "Next header", base.DEC, hdrTypes)
+
 local scion_addr_dst_isd = ProtoField.uint8("scion.addr.dst_isd", "Dest ISD", base.DEC)
 local scion_addr_dst_as = ProtoField.uint8("scion.addr.dst_as", "Dest AS", base.DEC)
 local scion_addr_src_isd = ProtoField.uint8("scion.addr.src_isd", "Src ISD", base.DEC)
@@ -52,6 +55,38 @@ local scion_addr_dst_svc = ProtoField.uint16("scion.addr.dst_svc", "Dest SVC", b
 local scion_addr_src_ipv4 = ProtoField.ipv4("scion.addr.src_ipv4", "Src IPv4")
 local scion_addr_src_ipv6 = ProtoField.ipv6("scion.addr.src_ipv6", "Src IPv6")
 local scion_addr_padding = ProtoField.bytes("scion.addr.padding", "Padding")
+
+local scion_path_info_flags = ProtoField.uint8("scion.path.info.flags", "Flags", base.HEX)
+local scion_path_info_flags_peer = ProtoField.bool("scion.path.info.flags.peer",
+    "Peer", 8, nil, 0x4)
+local scion_path_info_flags_shortcut = ProtoField.bool("scion.path.info.flags.shortcut",
+    "Shortcut", 8, nil, 0x2)
+local scion_path_info_flags_up = ProtoField.bool("scion.path.info.flags.up",
+    "Up", 8, nil, 0x1)
+-- XXX(kormat): This *should* be base.UTC, but that seems to be bugged in ubuntu 16.04's
+-- version of wireshark. Amazingly, using the raw enum value works.
+-- https://github.com/wireshark/wireshark/blob/2832f4e97d77324b4e46aac40dae0ce898ae559d/epan/time_fmt.h#L44
+local scion_path_info_ts = ProtoField.absolute_time("scion.path.info.ts", "Timestamp", 1001)
+local scion_path_info_isd = ProtoField.uint16("scion.path.info.isd", "ISD", base.DEC)
+local scion_path_info_hops = ProtoField.uint8("scion.path.info.hops", "Hops", base.DEC)
+
+local scion_path_hop_flags = ProtoField.uint8("scion.path.hop.flags", "Flags", base.HEX)
+local scion_path_hop_flags_recurse = ProtoField.bool("scion.path.hop.flags.recurse",
+    "Recurse", 8, nil, 0x8)
+local scion_path_hop_flags_fwdonly = ProtoField.bool("scion.path.hop.flags.fwdonly",
+    "Forward-Only", 8, nil, 0x4)
+local scion_path_hop_flags_verifyonly = ProtoField.bool("scion.path.hop.flags.verifyonly",
+    "Verify-Only", 8, nil, 0x2)
+local scion_path_hop_flags_xover = ProtoField.bool("scion.path.hop.flags.xover",
+    "Xover", 8, nil, 0x1)
+local scion_path_hop_exp_raw = ProtoField.uint8("scion.path.hop.expiry_raw", "Expiry (Raw)", base.DEC)
+local scion_path_hop_exp_rel = ProtoField.relative_time("scion.path.hop.expiry_rel", "Expiry (Relative)", 1001)
+local scion_path_hop_exp_abs = ProtoField.absolute_time("scion.path.hop.expiry_abs", "Expiry (Absolute)", 1001)
+local scion_path_hop_ingress_if = ProtoField.uint64("scion.path.hop.ingress_if",
+    "Ingress IFID", base.DEC)
+local scion_path_hop_egress_if = ProtoField.uint64("scion.path.hop.egress_if",
+    "Egress IFID", base.DEC)
+local scion_path_hop_mac = ProtoField.bytes("scion.path.hop.mac", "MAC", base.HEX)
 
 local scion_ch_ver_expert = ProtoExpert.new("scion.ch.version.expert",
     "Unsupported SCION version", expert.group.MALFORMED, expert.severity.ERROR)
@@ -85,6 +120,24 @@ scion_proto.fields={
     scion_addr_src_ipv4,
     scion_addr_src_ipv6,
     scion_addr_padding,
+    scion_path_info_flags,
+    scion_path_info_flags_peer,
+    scion_path_info_flags_shortcut,
+    scion_path_info_flags_up,
+    scion_path_info_ts,
+    scion_path_info_isd,
+    scion_path_info_hops,
+    scion_path_hop_flags,
+    scion_path_hop_flags_recurse,
+    scion_path_hop_flags_fwdonly,
+    scion_path_hop_flags_verifyonly,
+    scion_path_hop_flags_xover,
+    scion_path_hop_exp_raw,
+    scion_path_hop_exp_rel,
+    scion_path_hop_exp_abs,
+    scion_path_hop_ingress_if,
+    scion_path_hop_egress_if,
+    scion_path_hop_mac,
 }
 
 scion_proto.experts = {
@@ -105,6 +158,9 @@ function scion_proto.dissector(buffer, pinfo, root)
         return
     end
     parse_addr_hdr(buffer(chLen, meta.addrTotalLen), tree, meta)
+    if meta.pathLen > 0 then
+        parse_path_hdr(buffer(meta.pathOffset, meta.pathLen), tree, meta)
+    end
 end
 
 function parse_cmn_hdr(buffer, tree, pktlen)
@@ -233,6 +289,94 @@ function parse_addr_hdr(buffer, tree, meta)
     if meta.addrPadding > 0 then
         t:add(scion_addr_padding, buffer(meta.addrLen, meta.addrPadding))
     end
+end
+
+function parse_path_hdr(buffer, tree, meta)
+    local t = tree:add(buffer, string.format("Path header [%dB]", meta.pathLen))
+    local offset = 0
+    local segNr = 0
+    while offset < meta.pathLen do
+        offset = offset + parse_path_seg(buffer(offset), t, segNr)
+        segNr = segNr + 1
+    end
+end
+
+function parse_path_seg(buffer, tree, segNr)
+    local hops = buffer(7, 1):uint()
+    local segLen = (hops + 1) * lineLen
+    local t = tree:add(buffer, string.format("Segment %d [%dB]", segNr, segLen))
+    ts = parse_info_field(buffer(0, 8), t)
+    for i = 0, hops-1, 1 do
+        parse_hop_field(buffer((i+1) * lineLen, lineLen), t, i, ts)
+    end
+    return segLen
+end
+
+function parse_info_field(buffer, tree)
+    local t = tree:add(buffer, string.format("Info Field [%dB]", lineLen))
+    local flags = buffer(0, 1) 
+    flagsT = t:add(scion_path_info_flags, flags, flags:uint(), info_flag_desc(flags:uint()))
+    flagsT:add(scion_path_info_flags_peer, flags)
+    flagsT:add(scion_path_info_flags_shortcut, flags)
+    flagsT:add(scion_path_info_flags_up, flags)
+    local ts = buffer(1, 4):uint()
+    t:add(scion_path_info_ts, buffer(1, 4))
+    t:add(scion_path_info_isd, buffer(5, 2))
+    t:add(scion_path_info_hops, buffer(7, 1))
+    return ts
+end
+
+function info_flag_desc(flag)
+    local desc = {}
+    if bit.band(flag, 0x1) > 0 then
+        table.insert(desc, "UP")
+    else
+        table.insert(desc, "DOWN")
+    end
+    if bit.band(flag, 0x2) > 0 then
+        if bit.band(flag, 0x4) > 0 then
+            table.insert(desc, "SHORTCUT-PEER")
+        else
+            table.insert(desc, "SHORTCUT")
+        end
+    end
+    return string.format("0x%x [%s]", flag, table.concat(desc, ","))
+end
+
+function parse_hop_field(buffer, tree, hopNr, ts)
+    local t = tree:add(buffer, string.format("Hop Field %d [%dB]", hopNr, lineLen))
+    local flags = buffer(0, 1)
+    flagsT = t:add(scion_path_hop_flags, flags, flags:uint(), hop_flag_desc(flags:uint()))
+    flagsT:add(scion_path_hop_flags_recurse, flags)
+    flagsT:add(scion_path_hop_flags_fwdonly, flags)
+    flagsT:add(scion_path_hop_flags_verifyonly, flags)
+    flagsT:add(scion_path_hop_flags_xover, flags)
+    local rawExpTime = buffer(1, 1):uint()
+    local subt = t:add(scion_path_hop_exp_raw, buffer(1, 1), rawExpTime)
+    subt:add(scion_path_hop_exp_rel, buffer(1, 1), NSTime.new(rawExpTime * segExpUnit))
+    subt:add(scion_path_hop_exp_abs, buffer(1, 1), NSTime.new((rawExpTime * segExpUnit) + ts))
+    -- XXX(kormat): this assumes the "standard" hop field size and layout, 2x 12bit IFIDs in 3B.
+    t:add(scion_path_hop_ingress_if, buffer(2, 2), buffer(2, 2):uint64():rshift(4))
+    t:add(scion_path_hop_egress_if, buffer(3, 2), buffer(3, 2):uint64():band(0x0FFF))
+    -- XXX(kormat): this assumes the "standard" hop field mac length (3B).
+    t:add(scion_path_hop_mac, buffer(5, 3))
+end
+
+function hop_flag_desc(flag)
+    local desc = {}
+    if bit.band(flag, 0x1) > 0 then
+        table.insert(desc, "XOVER")
+    end
+    if bit.band(flag, 0x2) > 0 then
+        table.insert(desc, "VERIFY-ONLY")
+    end
+    if bit.band(flag, 0x4) > 0 then
+        table.insert(desc, "FORWARD-ONLY")
+    end
+    if bit.band(flag, 0x8) > 0 then
+        table.insert(desc, "RECURSE")
+    end
+    return string.format("0x%x [%s]", flag, table.concat(desc, ","))
 end
 
 function calc_padding(len, blkSize)
