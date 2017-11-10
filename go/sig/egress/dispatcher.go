@@ -64,6 +64,7 @@ func (ed *egressDispatcher) Run() {
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
+BatchLoop:
 	for {
 		n, _ := egressFreePkts.Read(bufs, true)
 		if n < 0 {
@@ -75,14 +76,22 @@ func (ed *egressDispatcher) Run() {
 			buf = buf[:cap(buf)]
 			length, err := ed.devIO.Read(buf)
 			if err != nil {
+				// Release buffer back to free buffer pool
+				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				if err == io.EOF {
+					// This dispatcher is shutting down
+					break BatchLoop
+				}
 				ed.Error("EgressDispatcher: error reading from devIO", "err", err)
 				continue
 			}
 			buf = buf[:length]
 			sess := ed.chooseSess(buf)
 			if sess == nil {
+				// Release buffer back to free buffer pool
+				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
-				log.Debug("Unable to find session")
+				ed.Debug("EgressDispatcher: unable to find session")
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
