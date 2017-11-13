@@ -68,40 +68,32 @@ func newASEntry(ia *addr.ISD_AS) (*ASEntry, error) {
 	return ae, nil
 }
 
-func (ae *ASEntry) ReloadConfig(cfg *config.ASEntry) error {
+func (ae *ASEntry) ReloadConfig(cfg *config.ASEntry) bool {
 	ae.Lock()
 	defer ae.Unlock()
-	ae.addNewSIGS(cfg.Sigs)
-	ae.delOldSIGS(cfg.Sigs)
-	ae.addNewNets(cfg.Nets)
-	ae.delOldNets(cfg.Nets)
-	return nil
+	// Method calls first to prevent skips due to logical short-circuit
+	s := ae.addNewSIGS(cfg.Sigs)
+	s = ae.delOldSIGS(cfg.Sigs) && s
+	s = ae.addNewNets(cfg.Nets) && s
+	return ae.delOldNets(cfg.Nets) && s
 }
 
-func (ae *ASEntry) createTunDevice() error {
-	var err error
-	ae.tunLink, ae.tunIO, err = xnet.ConnectTun(ae.DevName)
-	if err != nil {
-		return err
-	}
-	ae.Info("Network setup done")
-	go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.Session).Run()
-	go ae.sigMgr()
-	ae.Session.Start()
-	return nil
-}
-
-func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) error {
+// addNewNets adds the networks in ipnets that are not currently configured.
+func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) bool {
+	s := true
 	for _, ipnet := range ipnets {
 		err := ae.addNet(ipnet.IPNet())
 		if err != nil {
 			log.Error("Unable to add network", "net", ipnet, "err", err)
+			s = false
 		}
 	}
-	return nil
+	return s
 }
 
-func (ae *ASEntry) delOldNets(ipnets []*config.IPNet) error {
+// delOldNets deletes currently configured networks that are not in ipnets.
+func (ae *ASEntry) delOldNets(ipnets []*config.IPNet) bool {
+	s := true
 	for _, ne := range ae.Nets {
 		found := false
 		for _, ipnet := range ipnets {
@@ -114,10 +106,11 @@ func (ae *ASEntry) delOldNets(ipnets []*config.IPNet) error {
 			err := ae.delNet(ne.Net)
 			if err != nil {
 				log.Error("Unable to delete network", "NetEntry", ne, "err", err)
+				s = false
 			}
 		}
 	}
-	return nil
+	return s
 }
 
 // AddNet idempotently adds a network for the remote IA.
@@ -167,7 +160,9 @@ func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
 	return ne.Cleanup()
 }
 
-func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) error {
+// addNewSIGS adds the SIGs in sigs that are not currently configured.
+func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) bool {
+	s := true
 	for _, sig := range sigs {
 		ctrlPort := int(sig.CtrlPort)
 		if ctrlPort == 0 {
@@ -180,21 +175,28 @@ func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) error {
 		err := ae.addSig(sig.Id, sig.Addr, ctrlPort, encapPort, true)
 		if err != nil {
 			log.Error("Unable to add SIG", "sig", sig, "err", err)
+			s = false
 		}
 	}
-	return nil
+	return s
 }
 
-func (ae *ASEntry) delOldSIGS(sigs config.SIGSet) error {
+// delOldSIGS deletes the currently configured SIGs that are not in sigs.
+func (ae *ASEntry) delOldSIGS(sigs config.SIGSet) bool {
+	s := true
 	for _, sig := range ae.Sigs {
+		if sig.Static {
+			continue
+		}
 		if _, ok := sigs[sig.Id]; !ok {
 			err := ae.delSig(sig.Id)
 			if err != nil {
 				log.Error("Unable to delete SIG", "err", err)
+				s = false
 			}
 		}
 	}
-	return nil
+	return s
 }
 
 // AddSig idempotently adds a SIG for the remote IA.
@@ -289,8 +291,8 @@ func (ae *ASEntry) Cleanup() error {
 	}
 	// Clean up sessions, and associated workers.
 	ae.cleanSessions()
+	// The operating system also removes the routes when deleting the link.
 	if err := netlink.LinkDel(ae.tunLink); err != nil {
-		// The operating system also removes the tun device and routes
 		// Only return this error, as it's the only critical one.
 		return common.NewCError("Error removing TUN link",
 			"ia", ae.IA, "dev", ae.DevName, "err", err)
@@ -302,4 +304,17 @@ func (ae *ASEntry) cleanSessions() {
 	if err := ae.Session.Cleanup(); err != nil {
 		ae.Session.Error("Error cleaning up session", "err", err)
 	}
+}
+
+func (ae *ASEntry) createTunDevice() error {
+	var err error
+	ae.tunLink, ae.tunIO, err = xnet.ConnectTun(ae.DevName)
+	if err != nil {
+		return err
+	}
+	ae.Info("Network setup done")
+	go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.Session).Run()
+	go ae.sigMgr()
+	ae.Session.Start()
+	return nil
 }
