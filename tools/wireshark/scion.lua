@@ -19,6 +19,11 @@ local hdrTypes = {
     [17] = "UDP",
     [222] = "End2End",
 }
+local l4Types = {
+    [1] = "SCMP",
+    [6] = "TCP",
+    [17] = "UDP",
+}
 local svcTypes = {
     [0x0000] = "BS_A (Anycast)",
     [0x0001] = "PS_A (Anycast)",
@@ -29,6 +34,17 @@ local svcTypes = {
     [0x8002] = "CS_M (Multicast)",
     [0x8003] = "SB_M (Multicast)",
     [0xffff] = "None",
+}
+local hbhTypes = {
+    [0] = "Traceroute",
+    [1] = "SIBRA",
+    [2] = "SCMP",
+    [3] = "OneHopPath",
+}
+local e2eTypes = {
+    [0] = "PathTrans",
+    [1] = "PathProbe",
+    [2] = "SPSE",
 }
 local chLen = 8
 local lineLen = 8
@@ -88,6 +104,20 @@ local scion_path_hop_egress_if = ProtoField.uint64("scion.path.hop.egress_if",
     "Egress IFID", base.DEC)
 local scion_path_hop_mac = ProtoField.bytes("scion.path.hop.mac", "MAC", base.HEX)
 
+local scion_hdr_type_hbh = ProtoField.uint8("scion.hdr.type.hbh", "Type", nil, hbhTypes)
+local scion_hdr_type_e2e = ProtoField.uint8("scion.hdr.type.e2e", "Type", nil, e2eTypes)
+local scion_hdr_type_l4 = ProtoField.uint8("scion.hdr.type.l4", "L4 protocol", nil, l4Types)
+local scion_hdr_len = ProtoField.uint8("scion.hdr.len", "Header length", base.DEC)
+local scion_hdr_ext_type = ProtoField.uint8("scion.hdr.ext_type", "Extension type", base.DEC_HEX)
+
+local scion_udp_srcport = ProtoField.uint16("scion.udp.srcport", "Source Port", base.DEC)
+local scion_udp_dstport = ProtoField.uint16("scion.udp.dstport", "Destination Port", base.DEC)
+local scion_udp_length = ProtoField.uint16("scion.udp.length", "Length", base.DEC)
+local scion_udp_checksum = ProtoField.bytes("scion.udp.checksum", "Checksum")
+
+local scion_l4_pld = ProtoField.bytes("scion.l4.pld", "Payload")
+local scion_l4_pld_len = ProtoField.uint16("scion.l4.pld.len", "Length")
+
 local scion_ch_ver_expert = ProtoExpert.new("scion.ch.version.expert",
     "Unsupported SCION version", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_ch_addrtype_expert = ProtoExpert.new("scion.ch.addr_type.expert",
@@ -100,6 +130,9 @@ local scion_ch_infoff_expert = ProtoExpert.new("scion.ch.inf_off.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_ch_hopoff_expert = ProtoExpert.new("scion.ch.hop_off.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
+local scion_l4_type_expert = ProtoExpert.new("scion.l4.type.expert",
+    "Unsupported L4 protocol", expert.group.MALFORMED, expert.severity.ERROR)
+
 
 scion_proto.fields={
     scion_ch_version,
@@ -138,6 +171,17 @@ scion_proto.fields={
     scion_path_hop_ingress_if,
     scion_path_hop_egress_if,
     scion_path_hop_mac,
+    scion_hdr_type_hbh,
+    scion_hdr_type_e2e,
+    scion_hdr_type_l4,
+    scion_hdr_len,
+    scion_hdr_ext_type,
+    scion_udp_srcport,
+    scion_udp_dstport,
+    scion_udp_length,
+    scion_udp_checksum,
+    scion_l4_pld,
+    scion_l4_pld_len,
 }
 
 scion_proto.experts = {
@@ -147,13 +191,13 @@ scion_proto.experts = {
     scion_ch_hdrlen_expert,
     scion_ch_infoff_expert,
     scion_ch_hopoff_expert,
+    scion_l4_type_expert,
 }
 
 
-function scion_proto.dissector(buffer, pinfo, root)
-    pinfo.cols.protocol = "SCION"
-    local tree = root:add(scion_proto, buffer(), "SCION Protocol")
-    local ch, meta = parse_cmn_hdr(buffer(0, chLen), tree, buffer:len())
+function scion_proto.dissector(buffer, pinfo, tree)
+    local meta = {["pkt"] = buffer, ["protocol"] = "SCION"}  -- Metadata about the packet
+    local ch = parse_cmn_hdr(buffer(0, chLen), tree, meta)
     if ch == nil or meta == nil then
         return
     end
@@ -161,12 +205,29 @@ function scion_proto.dissector(buffer, pinfo, root)
     if meta.pathLen > 0 then
         parse_path_hdr(buffer(meta.pathOffset, meta.pathLen), tree, meta)
     end
+    if ch.totalLen == meta.hdrLen then
+        -- There's no extensions or l4 header.
+        return
+    end
+    parse_ext_hdrs(buffer(meta.hdrLen), tree, ch, meta)
+    if meta.rawL4Type == nil then
+        -- There's no l4 header
+        return
+    end
+    parse_l4_hdr(buffer(meta.l4Offset), tree, meta)
+    pinfo.cols.protocol:set(meta.protocol)
+    pinfo.cols.info:append(string.format(", %s -> %s", meta.srcStr, meta.dstStr))
+    if meta.pldOffset ~= nil then
+        local subt = tree:add(buffer(meta.pldOffset),
+            string.format("Payload [%dB]", buffer(meta.pldOffset):len()))
+        subt:add(scion_l4_pld, buffer(meta.pldOffset))
+        subt:add(scion_l4_pld_len, buffer(meta.pldOffset):len())
+    end
 end
 
-function parse_cmn_hdr(buffer, tree, pktlen)
+function parse_cmn_hdr(buffer, tree, meta)
     local ch = {}  -- Direct representation of Common Header
-    local meta = {}  -- Values derived from common header
-    local t = tree:add(buffer, "Common header [8B]")
+    local t = tree:add(buffer, "SCION Common header [8B]")
     -- scion version
     ch["ver"] = buffer(0, 1):bitfield(0, 4)
     local subt = t:add(scion_ch_version, buffer(0, 1), ch.ver)
@@ -198,7 +259,7 @@ function parse_cmn_hdr(buffer, tree, pktlen)
     -- total length
     ch["totalLen"] = buffer(2, 2):uint()
     subt = t:add(scion_ch_totallen, buffer(2, 2), ch.totalLen)
-    if ch.totalLen ~= pktlen then
+    if ch.totalLen ~= meta.pkt:len() then
         subt:add_tvb_expert_info(scion_ch_totallen_expert, buffer(2, 2),
             string.format("Total length field (%dB) != length of SCION packet (%dB)",
             ch.totalLen, pktlen))
@@ -251,12 +312,13 @@ function parse_cmn_hdr(buffer, tree, pktlen)
     end
     ch["rawNextHdr"] = buffer(7, 1):uint()
     meta["nextHdr"] = hdrTypes[ch.rawNextHdr]
+    meta["nextHdrTVB"] = buffer(7, 1)
     t:add(scion_ch_nexthdr, buffer(7, 1), ch.rawNextHdr)
-    return ch, meta
+    return ch
 end
 
 function parse_addr_hdr(buffer, tree, meta)
-    local t = tree:add(buffer, string.format("Address header [%dB]", meta.addrTotalLen))
+    local t = tree:add(buffer, string.format("SCION Address header [%dB]", meta.addrTotalLen))
     -- dst ISD-AS
     local dstIaT = t:add(buffer(0, iaLen), string.format("Destination ISD-AS [%dB]", iaLen))
     meta["dstIsd"] = buffer(0, 2):bitfield(0, 12)
@@ -271,34 +333,48 @@ function parse_addr_hdr(buffer, tree, meta)
     srcIaT:add(scion_addr_src_as, buffer(iaLen+1, iaLen-1), meta.srcAs)
     -- dst addr
     local dstBuf = buffer(iaLen * 2, addrLens[meta.dstType])
+    local dstProto, dstAddr
     if meta.dstType == "IPv4" then
-        t:add(scion_addr_dst_ipv4, dstBuf, dstBuf:ipv4())
+        dstProto = scion_addr_dst_ipv4
+        dstAddr = dstBuf:ipv4()
     elseif meta.dstType == "IPv6" then
-        t:add(scion_addr_dst_ipv6, dstBuf, dstBuf:ipv6())
+        dstProto = scion_addr_dst_ipv6
+        dstAddr = dstBuf:ipv6()
     elseif meta.dstType == "SVC" then
-        t:add(scion_addr_dst_svc, dstBuf, dstBuf:uint())
+        dstProto = scion_addr_dst_svc
+        dstAddr = dstBuf:uint()
     end
+    t:add(dstProto, dstBuf, dstAddr)
     -- src addr
     local srcBuf = buffer(iaLen * 2 + addrLens[meta.dstType], addrLens[meta.srcType])
+    local srcProto, srcAddr
     if meta.srcType == "IPv4" then
-        t:add(scion_addr_src_ipv4, srcBuf, srcBuf:ipv4())
+        srcProto = scion_addr_src_ipv4
+        srcAddr = srcBuf:ipv4()
     elseif meta.srcType == "IPv6" then
-        t:add(scion_addr_src_ipv6, srcBuf, srcBuf:ipv6())
+        srcProto = scion_addr_src_ipv6
+        srcAddr = srcBuf:ipv6()
     end
+    t:add(srcProto, srcBuf, srcAddr)
     -- padding
     if meta.addrPadding > 0 then
         t:add(scion_addr_padding, buffer(meta.addrLen, meta.addrPadding))
     end
+    meta["srcStr"] = string.format("%d-%d,[%s]", meta.srcIsd, meta.srcAs, srcAddr)
+    meta["dstStr"] = string.format("%d-%d,[%s]", meta.dstIsd, meta.dstAs, dstAddr)
+    t:append_text(string.format(", %s -> %s", meta.srcStr, meta.dstStr))
 end
 
 function parse_path_hdr(buffer, tree, meta)
-    local t = tree:add(buffer, string.format("Path header [%dB]", meta.pathLen))
+    local t = tree:add(buffer, string.format("SCION Path header [%dB]", meta.pathLen))
     local offset = 0
     local segNr = 0
     while offset < meta.pathLen do
         offset = offset + parse_path_seg(buffer(offset), t, segNr)
         segNr = segNr + 1
     end
+    t:append_text(string.format(", %d Segment(s), %d Hop fields",
+        segNr, (offset - (segNr * lineLen)) / lineLen))
 end
 
 function parse_path_seg(buffer, tree, segNr)
@@ -309,13 +385,15 @@ function parse_path_seg(buffer, tree, segNr)
     for i = 0, hops-1, 1 do
         parse_hop_field(buffer((i+1) * lineLen, lineLen), t, i, ts)
     end
+    local t = tree:add(buffer, string.format("Segment %d [%dB], %d Hop field(s)", segNr, segLen, hops))
     return segLen
 end
 
 function parse_info_field(buffer, tree)
     local t = tree:add(buffer, string.format("Info Field [%dB]", lineLen))
     local flags = buffer(0, 1) 
-    flagsT = t:add(scion_path_info_flags, flags, flags:uint(), info_flag_desc(flags:uint()))
+    flagsT = t:add(scion_path_info_flags, flags)
+    flagsT:append_text(", " .. info_flag_desc(flags:uint()))
     flagsT:add(scion_path_info_flags_peer, flags)
     flagsT:add(scion_path_info_flags_shortcut, flags)
     flagsT:add(scion_path_info_flags_up, flags)
@@ -323,6 +401,8 @@ function parse_info_field(buffer, tree)
     t:add(scion_path_info_ts, buffer(1, 4))
     t:add(scion_path_info_isd, buffer(5, 2))
     t:add(scion_path_info_hops, buffer(7, 1))
+    tree:append_text(string.format(", ISD: %s, Len: %d %s", buffer(5, 2):uint(), buffer(7, 1):uint(),
+        info_flag_desc(flags:uint())))
     return ts
 end
 
@@ -340,13 +420,14 @@ function info_flag_desc(flag)
             table.insert(desc, "SHORTCUT")
         end
     end
-    return string.format("0x%x [%s]", flag, table.concat(desc, ","))
+    return string.format("[%s]", table.concat(desc, ","))
 end
 
 function parse_hop_field(buffer, tree, hopNr, ts)
     local t = tree:add(buffer, string.format("Hop Field %d [%dB]", hopNr, lineLen))
     local flags = buffer(0, 1)
-    flagsT = t:add(scion_path_hop_flags, flags, flags:uint(), hop_flag_desc(flags:uint()))
+    flagsT = t:add(scion_path_hop_flags, flags)
+    flagsT:append_text(", " .. hop_flag_desc(flags:uint()))
     flagsT:add(scion_path_hop_flags_recurse, flags)
     flagsT:add(scion_path_hop_flags_fwdonly, flags)
     flagsT:add(scion_path_hop_flags_verifyonly, flags)
@@ -356,10 +437,13 @@ function parse_hop_field(buffer, tree, hopNr, ts)
     subt:add(scion_path_hop_exp_rel, buffer(1, 1), NSTime.new(rawExpTime * segExpUnit))
     subt:add(scion_path_hop_exp_abs, buffer(1, 1), NSTime.new((rawExpTime * segExpUnit) + ts))
     -- XXX(kormat): this assumes the "standard" hop field size and layout, 2x 12bit IFIDs in 3B.
-    t:add(scion_path_hop_ingress_if, buffer(2, 2), buffer(2, 2):uint64():rshift(4))
-    t:add(scion_path_hop_egress_if, buffer(3, 2), buffer(3, 2):uint64():band(0x0FFF))
+    local igIF = buffer(2, 2):uint64():rshift(4)
+    local egIF = buffer(3, 2):uint64():band(0x0FFF)
+    t:add(scion_path_hop_ingress_if, buffer(2, 2), igIF)
+    t:add(scion_path_hop_egress_if, buffer(3, 2), egIF)
     -- XXX(kormat): this assumes the "standard" hop field mac length (3B).
     t:add(scion_path_hop_mac, buffer(5, 3))
+    t:append_text(string.format(", Ig: #%s, Eg: #%s, %s", igIF, egIF, hop_flag_desc(flags:uint())))
 end
 
 function hop_flag_desc(flag)
@@ -376,7 +460,92 @@ function hop_flag_desc(flag)
     if bit.band(flag, 0x8) > 0 then
         table.insert(desc, "RECURSE")
     end
-    return string.format("0x%x [%s]", flag, table.concat(desc, ","))
+    if #desc == 0 then
+        return ""
+    end
+    return string.format("[%s]", table.concat(desc, ","))
+end
+
+function parse_ext_hdrs(buffer, tree, ch, meta)
+    local rawNextHdr = ch.rawNextHdr
+    local offset = 0
+    if (rawNextHdr == 0 and meta.hdrLen < ch.totalLen) or (rawNextHdr == 222) then
+        local t = tree:add("SCION Extensions")
+        while meta.hdrLen + offset < ch.totalLen do
+            if rawNextHdr ~= 0 then
+                -- Reached a non-e2e header
+                break
+            end
+            hdrLen, rawNextHdr = parse_hbh_ext(buffer(offset), t, meta)
+            offset = offset + hdrLen
+        end
+        while meta.hdrLen + offset < ch.totalLen do
+            if rawNextHdr ~= 222 then
+                -- Reached a non-hbh header.
+                break
+            end
+            hdrLen, rawNextHdr = parse_e2e_ext(buffer(offset), t, meta)
+            offset = offset + hdrLen
+        end
+    end
+    if meta.hdrLen + offset < ch.totalLen then
+        meta["rawL4Type"] = rawNextHdr
+        meta["l4Type"] = l4Types[rawNextHdr]
+        meta["l4Offset"] = meta.hdrLen + offset
+    end
+end
+
+function parse_hbh_ext(buffer, tree, meta)
+    local extLen = buffer(1, 1):uint() * lineLen
+    local extType = buffer(2, 1):uint()
+    local t = tree:add(buffer(0, extLen), string.format("HBH Ext %s [%dB]",
+        hbhTypes[extType], extLen))
+    t:add(scion_hdr_type_hbh, buffer(2, 1))
+    t:add(scion_hdr_len, buffer(1, 1), extLen)
+    meta.nextHdrTVB = buffer(0, 1)
+    return extLen, buffer(0, 1):uint()
+end
+
+function parse_e2e_ext(buffer, tree, meta)
+    local extLen = buffer(1, 1):uint() * lineLen
+    local extType = buffer(2, 1):uint()
+    local t = tree:add(buffer(0, extLen), string.format("E2E Ext: %s [%dB]",
+        e2eTypes[extType], extLen))
+    t:add(scion_hdr_type_e2e, buffer(2, 1))
+    t:add(scion_hdr_len, buffer(1, 1), extLen)
+    meta.nextHdrTVB = buffer(0, 1)
+    return extLen, buffer(0, 1):uint()
+end
+
+function parse_l4_hdr(buffer, tree, meta)
+    -- Add a l4 header type entry separately to the actual L4 header entry,
+    -- so that it can be associated with the source of the "next header" type.
+    local t = tree:add(scion_hdr_type_l4, meta.nextHdrTVB, meta.rawL4Type)
+    if meta.l4Type == nil then
+        t:add_tvb_expert_info(scion_l4_type_expert, meta.nextHdrTVB)
+    elseif meta.l4Type == "SCMP" then
+        meta.protocol = "SCMP/SCION"
+    elseif meta.l4Type == "UDP" then
+        parse_udp_hdr(buffer, tree, meta)
+        meta.protocol = "UDP/SCION"
+    else
+        meta.protocol = "?/SCION"
+    end
+end
+
+function parse_udp_hdr(buffer, tree, meta)
+    local t = tree:add(buffer(0, 8), "UDP/SCION [8B]")
+    t:add(scion_udp_srcport, buffer(0, 2))
+    t:add(scion_udp_dstport, buffer(2, 2))
+    t:add(scion_udp_length, buffer(4, 2))
+    t:add(scion_udp_checksum, buffer(6, 2))
+    -- TODO(kormat): add checksum validation (this will be a lot of work).
+    meta["pldOffset"] = meta.l4Offset + 8
+    local srcPort = buffer(0, 2):uint()
+    local dstPort = buffer(2, 2):uint()
+    t:append_text(string.format(", %d -> %d", srcPort, dstPort))
+    meta.srcStr = meta.srcStr .. ":" .. srcPort
+    meta.dstStr = meta.dstStr .. ":" .. dstPort
 end
 
 function calc_padding(len, blkSize)
