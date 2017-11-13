@@ -36,6 +36,10 @@ type Key struct {
 	Ver int
 }
 
+func NewKey(isd int, ver int) *Key {
+	return &Key{ISD: isd, Ver: ver}
+}
+
 func (k *Key) String() string {
 	return fmt.Sprintf("%d.%d", k.ISD, k.Ver)
 }
@@ -257,5 +261,5 @@ func (t *TRC) IsdVer() (int, int) {
 }
 
 func (t *TRC) Key() *Key {
-	return &Key{ISD: t.ISD, Ver: t.Version}
+	return NewKey(t.ISD, t.Version)
 }
