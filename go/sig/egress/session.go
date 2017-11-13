@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/disp"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
@@ -69,7 +70,7 @@ func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType,
 	// Not using a fixed local port, as this is for outgoing data only.
 	s.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
-	go snet.PktDispatcher(s.conn, snet.DispLogger)
+	go disp.PktDispatcher(s.conn, disp.DispLogger)
 	s.sessMonStop = make(chan struct{})
 	s.sessMonStopped = make(chan struct{})
 	s.workerStopped = make(chan struct{})
