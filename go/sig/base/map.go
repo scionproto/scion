@@ -40,21 +40,17 @@ func newASMap() *ASMap {
 
 func (am *ASMap) ReloadConfig(cfg *config.Cfg) bool {
 	// Run this as a single transaction under lock to prevent races while
-	// iterating over the map of ASes during deletion
+	// iterating over the map of ASes during deletion.
 	am.Lock()
 	defer am.Unlock()
-	success := true
-	if !am.addNewIAs(cfg) {
-		success = false
-	}
-	if !am.delOldIAs(cfg) {
-		success = false
-	}
-	return success
+	// Method calls first to prevent skips due to logical short-circuit
+	s := am.addNewIAs(cfg)
+	return am.delOldIAs(cfg) && s
 }
 
+// addNewIAs adds the ASes in cfg that are not currently configured.
 func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
-	success := true
+	s := true
 	for iaVal, cfgEntry := range cfg.ASes {
 		ia := &iaVal
 		log.Info("ReloadConfig: Adding AS...", "ia", ia)
@@ -62,17 +58,19 @@ func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 		if err != nil {
 			cerr := err.(*common.CError)
 			log.Error(cerr.Desc, cerr.Ctx...)
-			success = false
+			s = false
 			continue
 		}
-		ae.ReloadConfig(cfgEntry)
+		s = ae.ReloadConfig(cfgEntry) && s
 		log.Info("ReloadConfig: Added AS", "ia", ia)
 	}
-	return success
+	return s
 }
 
+// delOldIAs deletes the currently configured ASes that are not in cfg.
 func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
-	success := true
+	s := true
+	// Delete all ASes that currently exist but are not in cfg
 	for iaVal := range am.t {
 		ia := iaVal.IA()
 		if _, ok := cfg.ASes[*ia]; !ok {
@@ -82,13 +80,13 @@ func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 			if err != nil {
 				cerr := err.(*common.CError)
 				log.Error(cerr.Desc, cerr.Ctx...)
-				success = false
+				s = false
 				continue
 			}
 			log.Info("ReloadConfig: Deleted AS", "ia", ia)
 		}
 	}
-	return success
+	return s
 }
 
 func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
