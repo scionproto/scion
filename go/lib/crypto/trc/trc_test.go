@@ -182,8 +182,8 @@ func Test_TRC_CheckActive(t *testing.T) {
 
 		t1.CreationTime = time.Now().Unix()
 		t1.ExpirationTime = t1.CreationTime + 1<<20
-		t1.CreationTime = time.Now().Unix()
-		t1.ExpirationTime = t2.CreationTime + 1<<20
+		t2.CreationTime = time.Now().Unix()
+		t2.ExpirationTime = t2.CreationTime + 1<<20
 
 		Convey("TRC is active", func() {
 			err := t1.CheckActive(t2)
@@ -205,6 +205,7 @@ func Test_TRC_CheckActive(t *testing.T) {
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Grace period passed", func() {
+			t2.CreationTime -= 1
 			t2.GracePeriod = 0
 			err := t1.CheckActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)

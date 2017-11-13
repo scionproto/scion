@@ -35,7 +35,7 @@ type Certificate struct {
 	// since MarshalJSON marshals struct fields in order of declaration.
 	// This is important for a consistent creation of signature input.
 
-	// CanIssue describes wheter the subject is able to issue certificates.
+	// CanIssue describes whether the subject is able to issue certificates.
 	CanIssue bool
 	// Comment is an arbitrary and optional string used by the subject to describe the certificate.
 	Comment string
