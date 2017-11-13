@@ -15,11 +15,9 @@
 package main
 
 import (
-	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/patrickmn/go-cache"
 
 	"github.com/netsec-ethz/scion/go/cs/msg"
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -29,41 +27,10 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
-const (
-	// chainReqDelta is the minimal time between two requests for the same certificate chain.
-	chainReqDelta = 1 * time.Second
-)
-
 var (
 	// chainReqCache is an expiring cache for pending requests of certificate chains.
-	chainReqCache = cache.New(30*time.Second, 10*time.Minute)
-	// chainCacheLock is the lock for synchronizing access ot chainReqCache.
-	chainCacheLock sync.RWMutex
+	chainReqCache = NewReqCache(30*time.Second, 10*time.Minute, 100*time.Millisecond)
 )
-
-// CertReqSet is a struct holding the requester of an pending certificate chain request and
-// the timestamp, when the last request was sent for rate limiting.
-type CertReqSet struct {
-	// Addrs is a set of requester for an pending certificate chain request.
-	Addrs map[string]*snet.Addr
-	// LastReq is a timestamp when the last certificate chain request has been issued.
-	LastReq time.Time
-}
-
-// Put adds requester address to the set ouf pending requester.
-func (c *CertReqSet) Put(addr *snet.Addr) {
-	c.Addrs[addr.String()] = addr.Copy()
-}
-
-// SendNewReq returns a boolean, indicating, whether a new certificate chain request shall be
-// issued. If the return value is true, the timestamp of the last request is updated.
-func (c *CertReqSet) SendNewReq() bool {
-	if c.LastReq.Add(chainReqDelta).Before(time.Now()) {
-		c.LastReq = time.Now()
-		return true
-	}
-	return false
-}
 
 // HandleChainReq handles certificate chain requests. Non-local or cache-only requests are dropped,
 // if the certificate chain is not present.
@@ -102,15 +69,7 @@ func sendChainRep(addr *snet.Addr, chain *cert.Chain, conn *snet.Conn, pool *msg
 // fetchChain fetches certificate chain from the remote AS.
 func fetchChain(addr *snet.Addr, req *cert_mgmt.ChainReq, conn *snet.Conn, pool *msg.BufPool) error {
 	key := (&cert.Key{IA: *req.IA(), Ver: int(req.Version)}).String()
-	chainCacheLock.Lock()
-	val, ok := chainReqCache.Get(key)
-	if !ok {
-		val = &CertReqSet{Addrs: make(map[string]*snet.Addr)}
-		chainReqCache.SetDefault(key, val)
-	}
-	val.(*CertReqSet).Put(addr)
-	sendReq := val.(*CertReqSet).SendNewReq()
-	chainCacheLock.Unlock()
+	sendReq := chainReqCache.Put(key, addr)
 	if sendReq { // rate limit
 		return sendChainReq(req, conn, pool)
 	}
@@ -140,21 +99,16 @@ func HandleChainRep(addr *snet.Addr, rep *cert_mgmt.ChainRep, conn *snet.Conn, p
 		log.Error("Unable to store certificate chain", "err", err)
 		return
 	}
-	key := chain.Key().String()
-	chainCacheLock.Lock()
-	val, ok := chainReqCache.Get(key)
-	if !ok { // No pending requests
-		chainCacheLock.Unlock()
+	reqs := chainReqCache.Pop(chain.Key().String())
+	if reqs == nil { // No pending requests
 		return
 	}
-	chainReqCache.Delete(key)
-	chainCacheLock.Unlock()
 	cpld, err := ctrl.NewCertMgmtPld(rep)
 	if err != nil {
 		log.Error("Unable to create certificate chain reply", "err", err)
 		return
 	}
-	for _, dst := range val.(*CertReqSet).Addrs {
+	for _, dst := range reqs.Addrs {
 		if err := SendPayload(dst, cpld, conn, pool); err != nil {
 			log.Error("Unable to write certificate chain reply", "err", err)
 			continue
