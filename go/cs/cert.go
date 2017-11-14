@@ -43,7 +43,7 @@ func HandleChainReq(addr *snet.Addr, req *cert_mgmt.ChainReq, conn *snet.Conn, p
 			log.Error("Unable to send certificate chain reply", "addr", addr, "err", err)
 		}
 	} else if !local || req.CacheOnly {
-		log.Info("Dropping certificate chain requeset", "addr", addr, "req", req, "err",
+		log.Info("Dropping certificate chain request", "addr", addr, "req", req, "err",
 			"certificate chain not found")
 	} else {
 		if err := fetchChain(addr, req, conn, pool); err != nil {
@@ -63,14 +63,16 @@ func sendChainRep(addr *snet.Addr, chain *cert.Chain, conn *snet.Conn, pool *msg
 		return err
 	}
 	log.Debug("Send Chain reply", "chain", chain, "addr", addr)
-	return SendPayload(addr, cpld, conn, pool)
+	return SendPayload(conn, cpld, addr, pool)
 }
 
 // fetchChain fetches certificate chain from the remote AS.
 func fetchChain(addr *snet.Addr, req *cert_mgmt.ChainReq, conn *snet.Conn, pool *msg.BufPool) error {
-	key := (&cert.Key{IA: *req.IA(), Ver: int(req.Version)}).String()
+	key := cert.NewKey(req.IA(), int(req.Version)).String()
 	sendReq := chainReqCache.Put(key, addr)
 	if sendReq { // rate limit
+		log.Info("Dropping certificate chain fetch. Pending request and delta has not "+
+			"passed", "addr", addr, "req", req)
 		return sendChainReq(req, conn, pool)
 	}
 	return nil
@@ -84,8 +86,8 @@ func sendChainReq(req *cert_mgmt.ChainReq, conn *snet.Conn, pool *msg.BufPool) e
 		return err
 	}
 	a := &snet.Addr{IA: req.IA(), Host: addr.SvcCS, L4Port: 0}
-	log.Debug("Send Chain reply", "req", req, "addr", a)
-	return SendPayload(a, cpld, conn, pool)
+	log.Debug("Send Chain request", "req", req, "addr", a)
+	return SendPayload(conn, cpld, a, pool)
 }
 
 // HandleChainRep handles certificate chain replies. Pending requests are answered and removed.
@@ -109,7 +111,7 @@ func HandleChainRep(addr *snet.Addr, rep *cert_mgmt.ChainRep, conn *snet.Conn, p
 		return
 	}
 	for _, dst := range reqs.Addrs {
-		if err := SendPayload(dst, cpld, conn, pool); err != nil {
+		if err := SendPayload(conn, cpld, dst, pool); err != nil {
 			log.Error("Unable to write certificate chain reply", "err", err)
 			continue
 		}

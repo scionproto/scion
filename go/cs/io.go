@@ -46,7 +46,7 @@ func (d *Dispatcher) run() {
 		buf := d.bufPool.FetchBuf()
 		read, addr, err := d.conn.ReadFromSCION(buf.Raw)
 		if err != nil {
-			log.Error("Unable to read from External Ingress", "err", err)
+			log.Error("Unable to read from network", "err", err)
 			d.bufPool.PutBuf(buf)
 			continue
 		}
@@ -93,7 +93,7 @@ func (d *Dispatcher) dispatch(buf *msg.Buf) error {
 }
 
 // SendPayload is used to send payloads to the specified address using snet.
-func SendPayload(addr *snet.Addr, cpld *ctrl.Pld, conn *snet.Conn, pool *msg.BufPool) error {
+func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr, pool *msg.BufPool) error {
 	buf := pool.FetchBuf()
 	defer pool.PutBuf(buf)
 	n, err := cpld.WritePld(buf.Raw)

@@ -33,24 +33,35 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/trust"
 )
 
+const (
+	initAttempts = 100
+	initInterval = time.Second
+)
+
 var (
 	id             = flag.String("id", "", "Element ID (Required. E.g. 'cs1-10-1')")
 	sciondPath     = flag.String("sd", "", "SCIOND socket path (Optional if SCIOND_PATH is set)")
-	dispatcherPath = flag.String("disp", "/run/shm/dispatcher/default.sock", "SCION Dispatcher path (Optional)")
-	confDir        = flag.String("confd", "", "Configuration directory (Required)")
-	cacheDir       = flag.String("cached", "gen-cache", "Caching directory (Optional)")
-	prom           = flag.String("prom", "", "prom")
-	topo           *topology.Topo
-	store          *trust.Store
-	local          *snet.Addr
+	dispatcherPath = flag.String("disp", "/run/shm/dispatcher/default.sock",
+		"SCION Dispatcher path (Optional)")
+	confDir  = flag.String("confd", "", "Configuration directory (Required)")
+	cacheDir = flag.String("cached", "gen-cache", "Caching directory (Optional)")
+	prom     = flag.String("prom", "", "prom")
+	topo     *topology.Topo
+	store    *trust.Store
+	local    *snet.Addr
 )
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
 	flag.Parse()
-	checkFlags()
+	if *id == "" {
+		log.Crit("No element ID specified")
+		flag.Usage()
+		os.Exit(1)
+	}
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
+	checkFlags()
 	setupSignals()
 	loadTopo()
 
@@ -60,7 +71,7 @@ func main() {
 		fatal("Unable to initialize TrustStore", "err", err)
 	}
 	// initialize snet with retries
-	if err = initSNET(100, 100*time.Millisecond); err != nil {
+	if err = initSNET(initAttempts, initInterval); err != nil {
 		fatal("Unable to create local SCION Network context", "err", err)
 	}
 	// initialize dispatcher
@@ -74,19 +85,17 @@ func main() {
 
 // checkFlags checks that all required flags are set
 func checkFlags() {
-	if *id == "" {
-		log.Crit("No element ID specified")
-		os.Exit(1)
-	}
 	if *sciondPath == "" {
 		*sciondPath = os.Getenv("SCIOND_PATH")
 		if *sciondPath == "" {
 			log.Crit("No SCIOND path specified")
+			flag.Usage()
 			os.Exit(1)
 		}
 	}
 	if *confDir == "" {
 		log.Crit("No configuration directory specified")
+		flag.Usage()
 		os.Exit(1)
 	}
 }
@@ -94,14 +103,16 @@ func checkFlags() {
 // loadTopo loads topology from the configuration file and sets the local address.
 func loadTopo() (err error) {
 	if topo, err = topology.LoadFromFile(filepath.Join(*confDir, topology.CfgName)); err != nil {
-		return common.NewCError("Cannot load topology", "err", err)
+		return common.NewCError("Unable to load topology", "err", err)
 	}
-	topoId, ok := topo.CS[*id]
+	topoAddr, ok := topo.CS[*id]
 	if !ok {
-		return common.NewCError("Cannot load BindAddress. Element ID not found", "id", *id)
+		return common.NewCError("Unable to load BindAddress. Element ID not found",
+			"id", *id)
 	}
-	bindInfo := topoId.BindAddrInfo(topo.Overlay)
-	local = &snet.Addr{IA: topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP), L4Port: uint16(bindInfo.L4Port)}
+	bindInfo := topoAddr.BindAddrInfo(topo.Overlay)
+	local = &snet.Addr{IA: topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
+		L4Port: uint16(bindInfo.L4Port)}
 	return nil
 }
 
@@ -109,14 +120,12 @@ func loadTopo() (err error) {
 // This is needed, since supervisord might take some time, until sciond is initialized.
 func initSNET(attempts int, sleep time.Duration) (err error) {
 	// Initialize SCION local networking module
-	err = snet.Init(local.IA, *sciondPath, *dispatcherPath)
 	for i := 0; i < attempts; i++ {
-		if err == nil {
+		if err = snet.Init(local.IA, *sciondPath, *dispatcherPath); err == nil {
 			break
 		}
-		log.Crit("sleep", "i", i)
+		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", err)
 		time.Sleep(sleep)
-		err = snet.Init(local.IA, *sciondPath, *dispatcherPath)
 	}
 	return err
 }

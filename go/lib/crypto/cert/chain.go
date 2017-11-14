@@ -40,6 +40,10 @@ func NewKey(ia *addr.ISD_AS, ver uint64) *Key {
 	return &Key{IA: *ia, Ver: ver}
 }
 
+func NewKey(ia *addr.ISD_AS, ver int) *Key {
+	return &Key{IA: *ia, Ver: ver}
+}
+
 func (k *Key) String() string {
 	return fmt.Sprintf("%sv%d", k.IA, k.Ver)
 }
