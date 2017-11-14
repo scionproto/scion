@@ -25,10 +25,10 @@ import (
 
 // ReqCache keeps track of requester addresses associated with a certain request key.
 type ReqCache struct {
-	// cache is an expiring cache for pending requests.
-	cache *cache.Cache
 	// lock is the lock for synchronizing access cache.
 	lock sync.RWMutex
+	// cache is an expiring cache for pending requests.
+	cache *cache.Cache
 	// delta is the minimal time between two requests for the same key.
 	delta time.Duration
 }
@@ -40,7 +40,8 @@ func NewReqCache(expire, cleanup, delta time.Duration) *ReqCache {
 	return &ReqCache{cache: cache.New(expire, cleanup), delta: delta}
 }
 
-// Put adds an address to the expiring cache. The return value indicates whether a new request shall be issued.
+// Put adds an address to the expiring cache. The return value indicates whether the delta has
+// passed and the caller should issue a new request.
 func (c *ReqCache) Put(key string, addr *snet.Addr) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()

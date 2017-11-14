@@ -36,6 +36,10 @@ type Key struct {
 	Ver int
 }
 
+func NewKey(ia *addr.ISD_AS, ver int) *Key {
+	return &Key{IA: *ia, Ver: ver}
+}
+
 func (k *Key) String() string {
 	return fmt.Sprintf("%s.%d", k.IA, k.Ver)
 }
@@ -119,5 +123,5 @@ func (c *Chain) IAVer() (*addr.ISD_AS, int) {
 }
 
 func (c *Chain) Key() *Key {
-	return &Key{IA: *c.Leaf.Subject, Ver: c.Leaf.Version}
+	return NewKey(c.Leaf.Subject, c.Leaf.Version)
 }
