@@ -95,9 +95,10 @@ Top:
 			sm.handleRep(rpld)
 		}
 	}
-	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA, sm.sess.SessId))
+	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA,
+		sm.sess.SessId))
 	if err != nil {
-		log.Crit("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
+		log.Error("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
 	}
 	sm.Info("sessMonitor: stopped")
 }
