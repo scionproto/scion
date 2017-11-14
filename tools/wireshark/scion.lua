@@ -108,7 +108,7 @@ local lineLen = 8
 local iaLen = 4
 local maxSegTTL = 12 * 60 * 60
 local segExpUnit = maxSegTTL / 2^8
-local ns_in_s = UInt64.new(1e6)
+local us_in_s = UInt64.new(1e6)
 
 local scion_ch_version = ProtoField.uint8("scion.ch.version", "Version", base.HEX)
 local scion_ch_dsttype = ProtoField.uint8("scion.ch.dst_type", "Destination address type", base.HEX, addrTypes)
@@ -176,6 +176,7 @@ local scion_scmp_cls = ProtoField.uint16("scion.scmp.class", "Class", base.HEX)
 local scion_scmp_type = ProtoField.uint16("scion.scmp.type", "Type", base.HEX)
 local scion_scmp_len = ProtoField.uint16("scion.scmp.length", "Length", base.DEC)
 local scion_scmp_checksum = ProtoField.bytes("scion.scmp.checksum", "Checksum")
+-- XXX(kormat): see the explanation for scion.path.info.ts above for the 1001 magic number.
 local scion_scmp_ts = ProtoField.absolute_time("scion.scmp.ts", "Timestamp", 1001)
 
 local scion_udp_srcport = ProtoField.uint16("scion.udp.srcport", "Source Port", base.DEC)
@@ -590,7 +591,6 @@ function parse_hbh_ext(buffer, tree, meta)
     local extLen = buffer(1, 1):uint() * lineLen
     local extType = buffer(2, 1):uint()
     local t = tree:add(buffer(0, extLen), string.format("%s [%dB]", hbhTypes[extType], extLen))
-    -- string.format("%s [%dB, HBH]", hbhTypes[extType], extLen))
     t:add(scion_hdr_type_hbh, buffer(2, 1))
     t:add(scion_hdr_len, buffer(1, 1), extLen)
     if hbhTypes[extType] == "SCMP" then
@@ -673,9 +673,9 @@ function parse_scmp_hdr(buffer, tree, meta)
     -- TODO(kormat): add checksum validation (this will be a lot of work).
     t:add(scion_scmp_checksum, buffer(6, 2))
     local ts = buffer(8, 8):uint64()
-    local ts_s = ts / ns_in_s
-    local ts_ns = ts % ns_in_s
-    t:add(scion_scmp_ts, buffer(8, 8), NSTime.new(ts_s:tonumber(), ts_ns:tonumber()))
+    local ts_s = ts / us_in_s
+    local ts_us = ts % us_in_s
+    t:add(scion_scmp_ts, buffer(8, 8), NSTime.new(ts_s:tonumber(), ts_us:tonumber() * 1000))
 end
 
 function parse_udp_hdr(buffer, tree, meta)
