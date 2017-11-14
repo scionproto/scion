@@ -53,6 +53,12 @@ func Parse(b common.RawBytes) (*Cfg, error) {
 	if err := json.Unmarshal(b, cfg); err != nil {
 		return nil, common.NewCError("Unable to parse SIG config", "err", err)
 	}
+	// Populate IDs
+	for _, as := range cfg.ASes {
+		for id, sig := range as.Sigs {
+			sig.Id = id
+		}
+	}
 	return cfg, nil
 }
 
@@ -90,20 +96,3 @@ type SIG struct {
 }
 
 type SIGSet map[siginfo.SigIdType]*SIG
-
-func (ss *SIGSet) UnmarshalJSON(b []byte) error {
-	set := make(SIGSet)
-	m := make(map[string]*SIG)
-	err := json.Unmarshal(b, &m)
-	if err != nil {
-		return err
-	}
-	// Populate IDs
-	for k, v := range m {
-		id := siginfo.SigIdType(k)
-		v.Id = id
-		set[id] = v
-	}
-	*ss = set
-	return nil
-}
