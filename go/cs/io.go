@@ -27,8 +27,9 @@ import (
 
 // Dispatcher handles incoming SCION packets.
 type Dispatcher struct {
-	conn    *snet.Conn
-	bufPool *msg.BufPool
+	conn         *snet.Conn
+	bufPool      *msg.BufPool
+	chainHandler *ChainHandler
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
@@ -37,7 +38,9 @@ func NewDispatcher(addr *snet.Addr) (*Dispatcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Dispatcher{conn: conn, bufPool: msg.NewBufPool()}, nil
+	d := &Dispatcher{conn: conn, bufPool: msg.NewBufPool()}
+	d.chainHandler = NewChainHandler(d.conn, d.bufPool)
+	return d, nil
 }
 
 // run reads SCION packets from snet.
@@ -82,9 +85,9 @@ func (d *Dispatcher) dispatch(buf *msg.Buf) error {
 		}
 		switch pld.ProtoId() {
 		case proto.CertChainRep_TypeID:
-			HandleChainRep(buf.Addr, pld.(*cert_mgmt.ChainRep), d.conn, d.bufPool)
+			d.chainHandler.HandleRep(buf.Addr, pld.(*cert_mgmt.ChainRep))
 		case proto.CertChainReq_TypeID:
-			HandleChainReq(buf.Addr, pld.(*cert_mgmt.ChainReq), d.conn, d.bufPool)
+			d.chainHandler.HandleReq(buf.Addr, pld.(*cert_mgmt.ChainReq))
 		}
 	default:
 		return common.NewCError("Not implemented", "protoID", c.ProtoId())
@@ -100,6 +103,6 @@ func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr, pool *msg.Buf
 	if err != nil {
 		return err
 	}
-	_, err = conn.WriteToSCION(buf.Raw[:n], addr) // FIXME(roosd): handle incomplete writes
+	_, err = conn.WriteToSCION(buf.Raw[:n], addr)
 	return err
 }
