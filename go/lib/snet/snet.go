@@ -34,11 +34,15 @@
 //
 // Multiple networking contexts can share the same SCIOND and/or dispatcher.
 //
-// Known issues:
-//   - Apps do not have access to overlay ports. This means they cannot
-// communicate with SCION hosts behind legacy NAT or with border routers
-// directly
-//   - Each path lookup registers a persistent entry with the path resolver
+// Write calls never return SCMP errors directly. If a write call caused an
+// SCMP message to be received by the Conn, it can be inspected by calling
+// Read. In this case, the error value is non-nil and can be type asserted to
+// *OpError. Method SCMP() can be called on the error to extract the SCMP
+// header.
+//
+// Important: not draining SCMP errors via Read calls can cause the dispatcher
+// to block (see Issue #1278). To prevent this on a Conn object with only Write
+// calls, run a separate goroutine that continuously calls Read on the Conn.
 package snet
 
 import (
