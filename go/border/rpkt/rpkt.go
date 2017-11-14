@@ -21,6 +21,7 @@ package rpkt
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -126,7 +127,7 @@ type RtrPkt struct {
 	// The current router context to process this packet.
 	Ctx *rctx.Ctx
 	// Reference count
-	refCnt int
+	refCnt int32
 	// Called by Release when the reference count hits 0
 	Free func(*RtrPkt)
 }
@@ -138,12 +139,16 @@ func NewRtrPkt() *RtrPkt {
 	return r
 }
 
+func (rp *RtrPkt) refInc(val int) {
+	atomic.AddInt32(&rp.refCnt, int32(val))
+}
+
 func (rp *RtrPkt) Release() {
+	refCnt := atomic.AddInt32(&rp.refCnt, -1)
 	if assert.On {
-		assert.Mustf(rp.refCnt > 0, rp.ErrStr, "RtrPkt.refCnt be positive.")
+		assert.Mustf(refCnt >= 0, rp.ErrStr, "RtrPkt.refCnt be >= 0.")
 	}
-	rp.refCnt -= 1
-	if rp.refCnt == 0 && rp.Free != nil {
+	if refCnt == 0 && rp.Free != nil {
 		rp.Free(rp)
 	}
 }
