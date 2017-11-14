@@ -4,6 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 using RevInfo = import "rev_info.capnp";
+using PCB = import "pcb.capnp";
 
 struct SCIONDMsg {
     id @0 :UInt64;  # Request ID
@@ -19,6 +20,8 @@ struct SCIONDMsg {
         serviceInfoRequest @9 :ServiceInfoRequest;
         serviceInfoReply @10 :ServiceInfoReply;
         revReply @11 :RevReply;
+        segmentReq @12 :SegmentReq;
+        segmentReply @13 :SegmentReply;
     }
 }
 
@@ -116,4 +119,16 @@ struct ServiceInfoReplyEntry {
     serviceType @0 :ServiceInfoRequest.ServiceType;  # The service ID of the service.
     ttl @1 :UInt32;  # The TTL for the service record in seconds (currently unused).
     hostInfos @2 :List(HostInfo);  # The host infos of the service.
+}
+
+struct SegmentReq {
+    segmentType @0 :UInt16;  # SegmentType, UP=0, DOWN=1, CORE=2
+}
+
+struct SegmentReply {
+    entries @0 :List(SegmentReplyEntry);
+}
+
+struct SegmentReplyEntry {
+    segment @0 :PCB.PathSegment;
 }

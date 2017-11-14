@@ -42,9 +42,14 @@ from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoRequest
 from lib.sciond_api.path_req import SCIONDPathReplyError, SCIONDPathRequest
 from lib.sciond_api.revocation import SCIONDRevNotification
+from lib.sciond_api.segment_req import SCIONDSegmentRequest
 from lib.sciond_api.service_req import SCIONDServiceInfoRequest
 from lib.socket import ReliableSocket
-from lib.types import AddrType, SCIONDMsgType as SMT
+from lib.types import (
+    AddrType,
+    PathSegmentType as PST,
+    SCIONDMsgType as SMT,
+)
 
 
 # TTL for the ASInfo object (1 hour)
@@ -196,6 +201,17 @@ class SCIONDConnector:
         if if_id:
             return self._resolve_ifid(if_id)
         return self._resolve_dst_addr(spkt.addrs.src, spkt.addrs.dst)
+
+    def get_segments(self, seg_type):
+        req_id = self._req_id.inc()
+        if seg_type == PST.GENERIC:
+            raise ValueError('PathSegmentType %s is unrecognized.' % seg_type)
+        request = SCIONDMsg(SCIONDSegmentRequest.from_values(seg_type), req_id)
+        with closing(self._create_socket()) as socket:
+            if not socket.send(request.pack()):
+                raise SCIONDRequestError
+            response = self._get_response(socket, req_id, SMT.SEGMENT_REPLY)
+            return list(response.iter_entries())
 
     def _resolve_ifid(self, if_id):  # pragma: no cover
         if_infos = self.get_if_info([if_id])
@@ -394,3 +410,18 @@ def send_rev_notification(rev_info, connector=None):  # pragma: no cover
     if not connector:
         raise SCIONDLibNotInitializedError
     connector.send_rev_notification(rev_info)
+
+
+def get_segments(seg_type, connector=None):  # pragma: no cover
+    """
+    Request list of segments used to construct paths.
+
+    :param seg_type: The type of PathSegmentType requested.
+    :returns: List of SCIONDSegmentResponseEntry objects.
+    """
+    global _connector
+    if not connector:
+        connector = _connector
+    if not connector:
+        raise SCIONDLibNotInitializedError
+    return connector.get_segments(seg_type)

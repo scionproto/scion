@@ -60,6 +60,11 @@ from lib.sciond_api.path_req import (
     SCIONDPathReplyEntry,
 )
 from lib.sciond_api.revocation import SCIONDRevNotification
+from lib.sciond_api.segment_req import (
+    SCIONDSegmentRequest,
+    SCIONDSegmentReply,
+    SCIONDSegmentReplyEntry,
+)
 from lib.sciond_api.service_req import (
     SCIONDServiceInfoReply,
     SCIONDServiceInfoReplyEntry,
@@ -254,6 +259,8 @@ class SCIONDaemon(SCIONElement):
             self._api_handle_if_request(msg, meta)
         elif mtype == SMT.SERVICE_REQUEST:
             self._api_handle_service_request(msg, meta)
+        elif mtype == SMT.SEGMENT_REQUEST:
+            self._api_handle_segment_request(msg, meta)
         else:
             logging.warning(
                 "API: type %s not supported.", TypeBase.to_str(mtype))
@@ -358,6 +365,37 @@ class SCIONDaemon(SCIONElement):
         status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
         self.send_meta(rev_reply.pack(), meta)
+
+    def _api_handle_segment_request(self, pld, meta):
+        """
+        Segments require user to call get_paths() prior.
+        """
+        request = pld.union
+        assert isinstance(request, SCIONDSegmentRequest), type(request)
+        segmentType = request.p.segmentType
+        db = []
+        if segmentType == PST.CORE:
+            db = self.core_segments
+        elif segmentType == PST.UP:
+            db = self.up_segments
+        elif segmentType == PST.DOWN:
+            db = self.down_segments
+        else:  # error, user must ask for specific segments
+            raise ValueError('PathSegmentType %s is unrecognized.' % segmentType)
+
+        # test for failure to call get paths
+        total_segs = len(self.core_segments) + \
+            len(self.up_segments) + len(self.down_segments)
+        if total_segs == 0:
+            raise ValueError('No segments found, did you call get_paths() first?')
+
+        seg_entries = []
+        for segment in db(full=True):
+            reply_entry = SCIONDSegmentReplyEntry.from_values(segment.p)
+            seg_entries.append(reply_entry)
+        seg_reply = SCIONDMsg(
+            SCIONDSegmentReply.from_values(seg_entries), pld.id)
+        self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
