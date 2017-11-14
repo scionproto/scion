@@ -113,7 +113,7 @@ var typeNameMap = map[Class][]string{
 		"BAD_INFO_FIELD", "BAD_HOP_FIELD",
 	},
 	C_Ext:   {"TOO_MANY_HOPBYHOP", "BAD_EXT_ORDER", "BAD_HOPBYHOP", "BAD_END2END"},
-	C_Sibra: {"SIBRA_BAD_VERSION", "SIBRA_SETUP_NO_REQ"},
+	C_Sibra: {"BAD_VERSION", "SETUP_NO_REQ"},
 }
 
 func (t Type) Name(c Class) string {

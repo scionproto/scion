@@ -46,11 +46,69 @@ local e2eTypes = {
     [1] = "PathProbe",
     [2] = "SPSE",
 }
+local scmpClasses = {
+    [0] = "GENERAL",
+    [1] = "ROUTING",
+    [2] = "CMNHDR",
+    [3] = "PATH",
+    [4] = "EXT",
+    [5] = "SIBRA",
+}
+local scmpTypes = {
+    ["GENERAL"] = {
+        [0] = "UNSPECIFIED",
+        [1] = "ECHO_REQUEST",
+        [2] = "ECHO_REPLY",
+    },
+    ["ROUTING"] = {
+        [0] = "UNREACH_NET",
+        [1] = "UNREACH_HOST",
+        [2] = "L2_ERROR",
+        [3] = "UNREACH_PROTO",
+        [4] = "UNREACH_PORT",
+        [5] = "UNKNOWN_HOST",
+        [6] = "BAD_HOST",
+        [7] = "OVERSIZE_PKT",
+        [8] = "ADMIN_DENIED",
+    },
+    ["CMNHDR"] = {
+        [0] = "BAD_VERSION",
+        [1] = "BAD_DST_TYPE",
+        [2] = "BAD_SRC_TYPE",
+        [3] = "BAD_PKT_LEN",
+        [4] = "BAD_IOF_OFFSET",
+        [5] = "BAD_HOF_OFFSET",
+    },
+    ["PATH"] = {
+        [0] = "PATH_REQUIRED",
+        [1] = "BAD_MAC",
+        [2] = "EXPORED_HOPF",
+        [3] = "BAD_IF",
+        [4] = "REVOKED_IF",
+        [5] = "NON_ROUTING_HOPF",
+        [6] = "DELIVERY_FWD_ONLY",
+        [7] = "DELIVERY_NON_LOCAL",
+        [8] = "BAD_SEGMENT",
+        [9] = "BAD_INFO_FIELD",
+        [10] = "BAD_HOP_FIELD",
+    },
+    ["EXT"] = {
+        [0] = "TOO_MANY_HOPBYHOP",
+        [1] = "BAD_EXT_ORDER",
+        [2] = "BAD_HOPBYHOP",
+        [3] = "BAD_END2END",
+    },
+    ["SIBRA"] = {
+        [0] = "BAD_VERSION",
+        [1] = "SETUP_NO_REQ",
+    },
+}
 local chLen = 8
 local lineLen = 8
 local iaLen = 4
 local maxSegTTL = 12 * 60 * 60
 local segExpUnit = maxSegTTL / 2^8
+local us_in_s = UInt64.new(1e6)
 
 local scion_ch_version = ProtoField.uint8("scion.ch.version", "Version", base.HEX)
 local scion_ch_dsttype = ProtoField.uint8("scion.ch.dst_type", "Destination address type", base.HEX, addrTypes)
@@ -110,6 +168,17 @@ local scion_hdr_type_l4 = ProtoField.uint8("scion.hdr.type.l4", "L4 protocol", n
 local scion_hdr_len = ProtoField.uint8("scion.hdr.len", "Header length", base.DEC)
 local scion_hdr_ext_type = ProtoField.uint8("scion.hdr.ext_type", "Extension type", base.DEC_HEX)
 
+local scion_extn_scmp_flags = ProtoField.uint8("scion.extn.scmp.flags", "Flags", base.HEX)
+local scion_extn_scmp_flags_hbh = ProtoField.bool("scion.extn.scmp.flags.hbh", "HopByHop", 8, nil, 0x2)
+local scion_extn_scmp_flags_err = ProtoField.bool("scion.extn.scmp.flags.err", "Error", 8, nil, 0x1)
+
+local scion_scmp_cls = ProtoField.uint16("scion.scmp.class", "Class", base.HEX)
+local scion_scmp_type = ProtoField.uint16("scion.scmp.type", "Type", base.HEX)
+local scion_scmp_len = ProtoField.uint16("scion.scmp.length", "Length", base.DEC)
+local scion_scmp_checksum = ProtoField.bytes("scion.scmp.checksum", "Checksum")
+-- XXX(kormat): see the explanation for scion.path.info.ts above for the 1001 magic number.
+local scion_scmp_ts = ProtoField.absolute_time("scion.scmp.ts", "Timestamp", 1001)
+
 local scion_udp_srcport = ProtoField.uint16("scion.udp.srcport", "Source Port", base.DEC)
 local scion_udp_dstport = ProtoField.uint16("scion.udp.dstport", "Destination Port", base.DEC)
 local scion_udp_length = ProtoField.uint16("scion.udp.length", "Length", base.DEC)
@@ -132,6 +201,14 @@ local scion_ch_hopoff_expert = ProtoExpert.new("scion.ch.hop_off.expert",
     "", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_l4_type_expert = ProtoExpert.new("scion.l4.type.expert",
     "Unsupported L4 protocol", expert.group.MALFORMED, expert.severity.ERROR)
+local scion_scmp_cls_expert = ProtoExpert.new("scion.scmp.class.expert",
+    "Unsupported SCMP class", expert.group.MALFORMED, expert.severity.ERROR)
+local scion_scmp_type_expert = ProtoExpert.new("scion.scmp.type.expert",
+    "Unsupported SCMP type", expert.group.MALFORMED, expert.severity.ERROR)
+local scion_scmp_len_expert = ProtoExpert.new("scion.scmp.length.expert",
+    "", expert.group.MALFORMED, expert.severity.ERROR)
+local scion_udp_len_expert = ProtoExpert.new("scion.udp.length.expert",
+    "", expert.group.MALFORMED, expert.severity.ERROR)
 
 
 scion_proto.fields={
@@ -176,6 +253,14 @@ scion_proto.fields={
     scion_hdr_type_l4,
     scion_hdr_len,
     scion_hdr_ext_type,
+    scion_extn_scmp_flags,
+    scion_extn_scmp_flags_hbh,
+    scion_extn_scmp_flags_err,
+    scion_scmp_cls,
+    scion_scmp_type,
+    scion_scmp_len,
+    scion_scmp_checksum,
+    scion_scmp_ts,
     scion_udp_srcport,
     scion_udp_dstport,
     scion_udp_length,
@@ -192,6 +277,10 @@ scion_proto.experts = {
     scion_ch_infoff_expert,
     scion_ch_hopoff_expert,
     scion_l4_type_expert,
+    scion_scmp_cls_expert,
+    scion_scmp_type_expert,
+    scion_scmp_len_expert,
+    scion_udp_len_expert,
 }
 
 
@@ -392,7 +481,7 @@ end
 function parse_info_field(buffer, tree)
     local t = tree:add(buffer, string.format("Info Field [%dB]", lineLen))
     local flags = buffer(0, 1) 
-    flagsT = t:add(scion_path_info_flags, flags)
+    local flagsT = t:add(scion_path_info_flags, flags)
     flagsT:append_text(", " .. info_flag_desc(flags:uint()))
     flagsT:add(scion_path_info_flags_peer, flags)
     flagsT:add(scion_path_info_flags_shortcut, flags)
@@ -426,7 +515,7 @@ end
 function parse_hop_field(buffer, tree, hopNr, ts)
     local t = tree:add(buffer, string.format("Hop Field %d [%dB]", hopNr, lineLen))
     local flags = buffer(0, 1)
-    flagsT = t:add(scion_path_hop_flags, flags)
+    local flagsT = t:add(scion_path_hop_flags, flags)
     flagsT:append_text(", " .. hop_flag_desc(flags:uint()))
     flagsT:add(scion_path_hop_flags_recurse, flags)
     flagsT:add(scion_path_hop_flags_fwdonly, flags)
@@ -469,8 +558,8 @@ end
 function parse_ext_hdrs(buffer, tree, ch, meta)
     local rawNextHdr = ch.rawNextHdr
     local offset = 0
-    if (rawNextHdr == 0 and meta.hdrLen < ch.totalLen) or (rawNextHdr == 222) then
-        local t = tree:add("SCION Extensions")
+    if (rawNextHdr == 0 and meta.hdrLen < ch.totalLen) then
+        local t = tree:add("SCION Hop-By-Hop (HBH) Extensions")
         while meta.hdrLen + offset < ch.totalLen do
             if rawNextHdr ~= 0 then
                 -- Reached a non-e2e header
@@ -479,6 +568,9 @@ function parse_ext_hdrs(buffer, tree, ch, meta)
             hdrLen, rawNextHdr = parse_hbh_ext(buffer(offset), t, meta)
             offset = offset + hdrLen
         end
+    end
+    if rawNextHdr == 222 then
+        local t = tree:add("SCION End-To-End (E2E) Extensions")
         while meta.hdrLen + offset < ch.totalLen do
             if rawNextHdr ~= 222 then
                 -- Reached a non-hbh header.
@@ -498,12 +590,34 @@ end
 function parse_hbh_ext(buffer, tree, meta)
     local extLen = buffer(1, 1):uint() * lineLen
     local extType = buffer(2, 1):uint()
-    local t = tree:add(buffer(0, extLen), string.format("HBH Ext %s [%dB]",
-        hbhTypes[extType], extLen))
+    local t = tree:add(buffer(0, extLen), string.format("%s [%dB]", hbhTypes[extType], extLen))
     t:add(scion_hdr_type_hbh, buffer(2, 1))
     t:add(scion_hdr_len, buffer(1, 1), extLen)
+    if hbhTypes[extType] == "SCMP" then
+        parse_hbh_scmp(buffer(3, extLen - 3), t)
+    end
     meta.nextHdrTVB = buffer(0, 1)
     return extLen, buffer(0, 1):uint()
+end
+
+function parse_hbh_scmp(buffer, tree)
+    local flags = buffer(0, 1)
+    local flagsT = tree:add(scion_extn_scmp_flags, flags)
+    tree:append_text(", " .. hbh_scmp_flag_desc(flags:uint()))
+    flagsT:append_text(", " .. hbh_scmp_flag_desc(flags:uint()))
+    flagsT:add(scion_extn_scmp_flags_hbh, flags)
+    flagsT:add(scion_extn_scmp_flags_err, flags)
+end
+
+function hbh_scmp_flag_desc(flag)
+    local desc = {}
+    if bit.band(flag, 0x1) > 0 then
+        table.insert(desc, "ERROR")
+    end
+    if bit.band(flag, 0x2) > 0 then
+        table.insert(desc, "HBH")
+    end
+    return string.format("[%s]", table.concat(desc, ","))
 end
 
 function parse_e2e_ext(buffer, tree, meta)
@@ -524,6 +638,7 @@ function parse_l4_hdr(buffer, tree, meta)
     if meta.l4Type == nil then
         t:add_tvb_expert_info(scion_l4_type_expert, meta.nextHdrTVB)
     elseif meta.l4Type == "SCMP" then
+        parse_scmp_hdr(buffer, tree, meta)
         meta.protocol = "SCMP/SCION"
     elseif meta.l4Type == "UDP" then
         parse_udp_hdr(buffer, tree, meta)
@@ -533,11 +648,47 @@ function parse_l4_hdr(buffer, tree, meta)
     end
 end
 
+function parse_scmp_hdr(buffer, tree, meta)
+    local t = tree:add(buffer(0, 8), "SCMP/SCION [16B]")
+    local subt = t:add(scion_scmp_cls, buffer(0, 2))
+    local clsStr = scmpClasses[buffer(0, 2):uint()]
+    if clsStr == nil then
+        clsStr = "UNKNOWN"
+    end
+    t:append_text(", " .. clsStr)
+    subt:append_text(string.format(" (%s)", clsStr))
+    subt = t:add(scion_scmp_type, buffer(2, 2))
+    if clsStr ~= "UNKNOWN" then
+        local typeStr = scmpTypes[clsStr][buffer(2, 2):uint()]
+        t:append_text(":" .. typeStr)
+        subt:append_text(string.format(" (%s)", typeStr))
+    end
+    local scmpLen = buffer(4, 2):uint()
+    subt = t:add(scion_scmp_len, buffer(4, 2))
+    if scmpLen ~= buffer():len() then
+        subt:add_tvb_expert_info(scion_scmp_len_expert, buffer(4, 2),
+            string.format("SCMP length field (%dB) != L4 length (%dB)",
+            scmpLen, buffer():len()))
+    end
+    -- TODO(kormat): add checksum validation (this will be a lot of work).
+    t:add(scion_scmp_checksum, buffer(6, 2))
+    local ts = buffer(8, 8):uint64()
+    local ts_s = ts / us_in_s
+    local ts_us = ts % us_in_s
+    t:add(scion_scmp_ts, buffer(8, 8), NSTime.new(ts_s:tonumber(), ts_us:tonumber() * 1000))
+end
+
 function parse_udp_hdr(buffer, tree, meta)
     local t = tree:add(buffer(0, 8), "UDP/SCION [8B]")
     t:add(scion_udp_srcport, buffer(0, 2))
     t:add(scion_udp_dstport, buffer(2, 2))
-    t:add(scion_udp_length, buffer(4, 2))
+    local udpLen = buffer(4, 2):uint()
+    local subt = t:add(scion_udp_length, buffer(4, 2))
+    if udpLen ~= buffer():len() then
+        subt:add_tvb_expert_info(scion_udp_len_expert, buffer(4, 2),
+            string.format("UDP length field (%dB) != L4 length (%dB)",
+            udpLen, buffer():len()))
+    end
     t:add(scion_udp_checksum, buffer(6, 2))
     -- TODO(kormat): add checksum validation (this will be a lot of work).
     meta["pldOffset"] = meta.l4Offset + 8
