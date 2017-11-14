@@ -108,7 +108,7 @@ local lineLen = 8
 local iaLen = 4
 local maxSegTTL = 12 * 60 * 60
 local segExpUnit = maxSegTTL / 2^8
-local ns_in_s = UInt64.new(1e6)
+local us_in_s = UInt64.new(1e6)
 
 local scion_ch_version = ProtoField.uint8("scion.ch.version", "Version", base.HEX)
 local scion_ch_dsttype = ProtoField.uint8("scion.ch.dst_type", "Destination address type", base.HEX, addrTypes)
@@ -673,9 +673,9 @@ function parse_scmp_hdr(buffer, tree, meta)
     -- TODO(kormat): add checksum validation (this will be a lot of work).
     t:add(scion_scmp_checksum, buffer(6, 2))
     local ts = buffer(8, 8):uint64()
-    local ts_s = ts / ns_in_s
-    local ts_ns = ts % ns_in_s
-    t:add(scion_scmp_ts, buffer(8, 8), NSTime.new(ts_s:tonumber(), ts_ns:tonumber()))
+    local ts_s = ts / us_in_s
+    local ts_us = ts % us_in_s
+    t:add(scion_scmp_ts, buffer(8, 8), NSTime.new(ts_s:tonumber(), ts_us:tonumber() * 1000))
 end
 
 function parse_udp_hdr(buffer, tree, meta)
