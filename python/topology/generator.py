@@ -34,16 +34,18 @@ from string import Template
 # External packages
 import yaml
 
+from nacl.signing import SigningKey
 from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
 # SCION
 from lib.config import Config
 from lib.crypto.asymcrypto import (
-    generate_sign_keypair,
     generate_enc_keypair,
+    generate_sign_keypair,
     get_enc_key_file_path,
-    get_sig_key_file_path
+    get_sig_key_file_path,
+    get_sig_key_raw_file_path,
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
@@ -123,7 +125,7 @@ SCION_SERVICE_NAMES = (
     "SibraService",
 )
 
-DEFAULT_KEYGEN_ALG = 'Ed25519'
+DEFAULT_KEYGEN_ALG = 'ed25519'
 
 GENERATE_BOTH_TOPOLOGY = True
 GENERATE_BIND_ADDRESS = False
@@ -335,8 +337,11 @@ class CertGenerator(object):
         self.enc_priv_keys[topo_id] = enc_priv
         sig_path = get_sig_key_file_path("")
         enc_path = get_enc_key_file_path("")
+        sig_raw_path = get_sig_key_raw_file_path("")
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
         self.cert_files[topo_id][enc_path] = base64.b64encode(enc_priv).decode()
+        self.cert_files[topo_id][sig_raw_path] = base64.b64encode(
+            SigningKey(sig_priv)._signing_key).decode()
         if self.is_core(as_conf):
             # generate_sign_key_pair uses Ed25519
             on_root_pub, on_root_priv = generate_sign_keypair()
