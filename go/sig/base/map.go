@@ -27,22 +27,44 @@ import (
 
 var Map = newASMap()
 
-// ASMap is a RWMutex-protected map of ASEntries.
-type ASMap struct {
-	// FIXME(kormat): when we switch to go 1.9, consider replacing this with sync.Map.
-	sync.RWMutex
-	t map[addr.IAInt]*ASEntry
-}
+// ASMap is not concurrency safe against multiple writers.
+type ASMap sync.Map
 
 func newASMap() *ASMap {
-	return &ASMap{t: make(map[addr.IAInt]*ASEntry)}
+	return &ASMap{}
+}
+
+func (am *ASMap) Delete(key addr.IAInt) {
+	(*sync.Map)(am).Delete(key)
+}
+
+func (am *ASMap) Load(key addr.IAInt) (*ASEntry, bool) {
+	value, ok := (*sync.Map)(am).Load(key)
+	if value == nil {
+		return nil, ok
+	}
+	return value.(*ASEntry), ok
+}
+
+func (am *ASMap) LoadOrStore(key addr.IAInt, value *ASEntry) (*ASEntry, bool) {
+	actual, ok := (*sync.Map)(am).LoadOrStore(key, value)
+	if actual == nil {
+		return nil, ok
+	}
+	return actual.(*ASEntry), ok
+}
+
+func (am *ASMap) Store(key addr.IAInt, value *ASEntry) {
+	(*sync.Map)(am).Store(key, value)
+}
+
+func (am *ASMap) Range(f func(key addr.IAInt, value *ASEntry) bool) {
+	(*sync.Map)(am).Range(func(key, value interface{}) bool {
+		return f(key.(addr.IAInt), value.(*ASEntry))
+	})
 }
 
 func (am *ASMap) ReloadConfig(cfg *config.Cfg) bool {
-	// Run this as a single transaction under lock to prevent races while
-	// iterating over the map of ASes during deletion.
-	am.Lock()
-	defer am.Unlock()
 	// Method calls first to prevent skips due to logical short-circuit
 	s := am.addNewIAs(cfg)
 	return am.delOldIAs(cfg) && s
@@ -54,7 +76,7 @@ func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 	for iaVal, cfgEntry := range cfg.ASes {
 		ia := &iaVal
 		log.Info("ReloadConfig: Adding AS...", "ia", ia)
-		ae, err := am.addIA(ia)
+		ae, err := am.AddIA(ia)
 		if err != nil {
 			cerr := err.(*common.CError)
 			log.Error(cerr.Desc, cerr.Ctx...)
@@ -67,42 +89,36 @@ func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 	return s
 }
 
-// delOldIAs deletes the currently configured ASes that are not in cfg.
 func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 	s := true
 	// Delete all ASes that currently exist but are not in cfg
-	for iaVal := range am.t {
-		ia := iaVal.IA()
+	am.Range(func(iaInt addr.IAInt, as *ASEntry) bool {
+		ia := iaInt.IA()
 		if _, ok := cfg.ASes[*ia]; !ok {
 			log.Info("ReloadConfig: Deleting AS...", "ia", ia)
 			// Deletion also handles session/tun device cleanup
-			err := am.delIA(ia)
+			err := am.DelIA(ia)
 			if err != nil {
 				cerr := err.(*common.CError)
 				log.Error(cerr.Desc, cerr.Ctx...)
 				s = false
-				continue
+				return true
 			}
 			log.Info("ReloadConfig: Deleted AS", "ia", ia)
 		}
-	}
+		return true
+	})
 	return s
 }
 
-func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
-	am.Lock()
-	defer am.Unlock()
-	return am.addIA(ia)
-}
-
 // AddIA idempotently adds an entry for a remote IA.
-func (am *ASMap) addIA(ia *addr.ISD_AS) (*ASEntry, error) {
+func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
 	if ia.I == 0 || ia.A == 0 {
 		// A 0 for either ISD or AS indicates a wildcard, and not a specific ISD-AS.
 		return nil, common.NewCError("AddIA: ISD and AS must not be 0", "ia", ia)
 	}
 	key := ia.IAInt()
-	ae, ok := am.t[key]
+	ae, ok := am.Load(key)
 	if ok {
 		return ae, nil
 	}
@@ -110,30 +126,25 @@ func (am *ASMap) addIA(ia *addr.ISD_AS) (*ASEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	am.t[key] = ae
+	am.Store(key, ae)
 	return ae, nil
 }
 
-func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
-	am.Lock()
-	defer am.Unlock()
-	return am.delIA(ia)
-}
-
 // DelIA removes an entry for a remote IA.
-func (am *ASMap) delIA(ia *addr.ISD_AS) error {
+func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
 	key := ia.IAInt()
-	ae, ok := am.t[key]
+	ae, ok := am.Load(key)
 	if !ok {
 		return common.NewCError("DelIA: No entry found", "ia", ia)
 	}
-	delete(am.t, key)
+	am.Delete(key)
 	return ae.Cleanup()
 }
 
 // ASEntry returns the entry for the specified remote IA, or nil if not present.
 func (am *ASMap) ASEntry(ia *addr.ISD_AS) *ASEntry {
-	am.RLock()
-	defer am.RUnlock()
-	return am.t[ia.IAInt()]
+	if as, ok := am.Load(ia.IAInt()); ok {
+		return as
+	}
+	return nil
 }

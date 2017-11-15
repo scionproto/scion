@@ -55,7 +55,8 @@ func Parse(b common.RawBytes) (*Cfg, error) {
 	}
 	// Populate IDs
 	for _, as := range cfg.ASes {
-		for id, sig := range as.Sigs {
+		for id := range as.Sigs {
+			sig := as.Sigs[id]
 			sig.Id = id
 		}
 	}
