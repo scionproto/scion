@@ -40,7 +40,7 @@ type Session struct {
 	// pool of paths, managed by pathmgr
 	pool *pathmgr.SyncPaths
 	// function pointer to return SigMap from parent ASEntry.
-	sigMapF func() siginfo.SigMap
+	sigMapF func() *siginfo.SigMap
 	// *RemoteInfo
 	currRemote atomic.Value
 	// bool
@@ -53,7 +53,7 @@ type Session struct {
 }
 
 func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType,
-	sigMapF func() siginfo.SigMap, logger log.Logger) (*Session, error) {
+	sigMapF func() *siginfo.SigMap, logger log.Logger) (*Session, error) {
 	var err error
 	s := &Session{
 		Logger:  logger.New("sessId", sessId),

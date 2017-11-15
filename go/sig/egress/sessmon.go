@@ -42,7 +42,7 @@ type sessMonitor struct {
 	// the Session this instance is monitoring.
 	sess *Session
 	// the current map of SIGs for the remote AS
-	sigMap siginfo.SigMap
+	sigMap *siginfo.SigMap
 	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
 	pool *pathmgr.SyncPaths
 	// the pool of paths this session is currently using, frequently refreshed from pool.
@@ -132,7 +132,7 @@ func (sm *sessMonitor) updateRemote() {
 			sm.Debug("No remote SIG", "remote", currRemote)
 			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
-		} else if _, ok := sm.sigMap[currSig.Id]; !ok {
+		} else if _, ok := sm.sigMap.Load(currSig.Id); !ok {
 			// Current SIG is no longer listed, need to switch to a new one.
 			sm.Debug("Current SIG invalid", "remote", currRemote)
 			currSig = sm.getNewSig(nil)

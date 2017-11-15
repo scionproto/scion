@@ -32,23 +32,55 @@ const (
 )
 
 type SigIdType string
-type SigMap map[SigIdType]*Sig
+
+type SigMap sync.Map
+
+func (sm *SigMap) Delete(key SigIdType) {
+	(*sync.Map)(sm).Delete(key)
+}
+
+func (sm *SigMap) Load(key SigIdType) (*Sig, bool) {
+	value, ok := (*sync.Map)(sm).Load(key)
+	if value == nil {
+		return nil, ok
+	}
+	return value.(*Sig), ok
+}
+
+func (sm *SigMap) LoadOrStore(key SigIdType, value *Sig) (*Sig, bool) {
+	actual, ok := (*sync.Map)(sm).LoadOrStore(key, value)
+	if actual == nil {
+		return nil, ok
+	}
+	return actual.(*Sig), ok
+}
+
+func (sm *SigMap) Store(key SigIdType, value *Sig) {
+	(*sync.Map)(sm).Store(key, value)
+}
+
+func (sm *SigMap) Range(f func(key SigIdType, value *Sig) bool) {
+	(*sync.Map)(sm).Range(func(key, value interface{}) bool {
+		return f(key.(SigIdType), value.(*Sig))
+	})
+}
 
 // return the Sig with the lowest fail count.
-func (sm SigMap) GetSig(currSigId SigIdType) *Sig {
+func (sm *SigMap) GetSig(currSigId SigIdType) *Sig {
 	var s *Sig
 	var minFail uint16 = math.MaxUint16
-	for id, sig := range sm {
+	sm.Range(func(id SigIdType, sig *Sig) bool {
 		if id == currSigId {
 			// If a current Sig ID is supplied, don't reply with the same one.
-			continue
+			return true
 		}
 		failCount := sig.FailCount()
 		if failCount < minFail {
 			s = sig
 			minFail = failCount
 		}
-	}
+		return true
+	})
 	return s
 }
 
