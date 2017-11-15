@@ -69,23 +69,50 @@ ASes:
     cert_issuer: 2-22
 CAs:
   CA1-1:
-    ISD: 1
+    ISD-AS: 1-11
     commonName: CA1-1
+    trc_servers: 1
+    arpki_servers: 1
   CA1-2:
-    ISD: 1
+    ISD-AS: 1-12
     commonName: CA1-2
+    trc_servers: 1
+    arpki_servers: 2
   CA1-3:
-    ISD: 1
+    ISD-AS: 1-13
     commonName: CA1-3
+    trc_servers: 2
+    arpki_servers: 1
   CA2-1:
-    ISD: 2
+    ISD-AS: 2-21
     commonName: CA2-1
+    trc_servers: 2
+    arpki_servers: 2
   CA2-2:
-    ISD: 2
+    ISD-AS: 2-22
     commonName: CA2-2
+    trc_servers: 1
+    arpki_servers: 1
   CA2-3:
-    ISD: 2
+    ISD-AS: 2-22
     commonName: CA2-3
+    trc_servers: 1
+    arpki_servers: 1
+LogServers:
+  Log1:
+    ISD-AS: 1-11
+  Log2:
+    ISD-AS: 1-13
+  Log3:
+    ISD-AS: 2-21
+  Log4:
+    ISD-AS: 2-22
+RAINS:
+  1:
+    trc_servers: {1-11: 1, 1-12: 2}
+  2:
+    trc_servers: {2-21: 2}
+
 links:
   - {a: 1-11, b: 1-12, ltype: CORE}
   - {a: 1-11, b: 1-13, ltype: CORE}
