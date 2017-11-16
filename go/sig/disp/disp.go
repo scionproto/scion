@@ -23,13 +23,14 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	"github.com/netsec-ethz/scion/go/lib/pktdisp"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 func Init(conn *snet.Conn) {
-	go snet.PktDispatcher(conn, dispFunc)
+	go pktdisp.PktDispatcher(conn, dispFunc)
 }
 
 type RegType int
@@ -124,7 +125,7 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 	}
 }
 
-func dispFunc(dp *snet.DispPkt) {
+func dispFunc(dp *pktdisp.DispPkt) {
 	scpld, err := ctrl.NewSignedPldFromRaw(dp.Raw)
 	src := dp.Addr.Copy()
 	if err != nil {

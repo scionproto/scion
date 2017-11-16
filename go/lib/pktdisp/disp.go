@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snet
+package pktdisp
 
 import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
 type DispPkt struct {
 	Raw  common.RawBytes
-	Addr *Addr
+	Addr *snet.Addr
 }
 
 type DispatchFunc func(*DispPkt)
@@ -31,7 +32,7 @@ type DispatchFunc func(*DispPkt)
 // PktDispatcher listens on c, and calls f for every packet read.
 // N.B. the DispPkt passed to f is reused, so applications should make a copy if
 // this is a problem.
-func PktDispatcher(c *Conn, f DispatchFunc) {
+func PktDispatcher(c *snet.Conn, f DispatchFunc) {
 	defer liblog.LogPanicAndExit()
 	var err error
 	var n int
