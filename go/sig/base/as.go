@@ -62,7 +62,7 @@ func newASEntry(ia *addr.ISD_AS) (*ASEntry, error) {
 		sigMgrStop: make(chan struct{}),
 	}
 	var err error
-	if ae.Session, err = egress.NewSession(ia, 0, ae.SigMap, ae.Logger); err != nil {
+	if ae.Session, err = egress.NewSession(ia, 0, ae.Sigs, ae.Logger); err != nil {
 		return nil, err
 	}
 	return ae, nil
@@ -238,11 +238,6 @@ func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 	ae.Sigs.Delete(id)
 	ae.Info("Removed SIG", "id", id)
 	return se.Cleanup()
-}
-
-// Internal method to return a *copy* of the ASEntry's SigMap
-func (ae *ASEntry) SigMap() *siginfo.SigMap {
-	return ae.Sigs
 }
 
 // manage the Sig map
