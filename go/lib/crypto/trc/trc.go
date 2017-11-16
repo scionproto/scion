@@ -32,65 +32,64 @@ import (
 const MaxTRCByteLength uint32 = 1 << 20
 
 type Key struct {
-	ISD int
-	Ver int
+	ISD uint16
+	Ver uint32
 }
 
-func NewKey(isd int, ver int) *Key {
+func NewKey(isd uint16, ver uint32) *Key {
 	return &Key{ISD: isd, Ver: ver}
 }
 
 func (k *Key) String() string {
-	return fmt.Sprintf("%d.%d", k.ISD, k.Ver)
+	return fmt.Sprintf("%dv%d", k.ISD, k.Ver)
 }
 
 type TRC struct {
-	// All fields in this struct need to be sorted to create a sorted JSON.
-	// They need to be sorted in alphabetic order of the field names,
-	// since MarshalJSON marshals struct fields in order of declaration.
-	// This is important for a consistent creation of signature input.
-
-	// CertLogs is a map from end-entity certificate logs to their addresses and public-key certificate.
+	// CertLogs is a map from end-entity certificate logs to their addresses and public-key
+	// certificate.
 	CertLogs map[string]*CertLog
 	// CoreASes is a map from core ASes to their online and offline key.
 	CoreASes map[string]*CoreAS
-	// CreationTime is the time at which the TRC was created.
-	CreationTime int64
+	// CreationTime is the unix timestamp at which the TRC was created.
+	CreationTime uint64
 	// Description is an human-readable description of the ISD.
 	Description string
-	// ExpirationTime is the time at which the TRC expires.
-	ExpirationTime int64
-	// GracePeriod is the period during which the TRC is valid after creation of a new TRC.
-	GracePeriod int64
+	// ExpirationTime is the unix timestamp at which the TRC expires.
+	ExpirationTime uint64
+	// GracePeriod is the period during which the TRC is valid after creation of a new TRC in
+	// seconds.
+	GracePeriod uint64
 	// ISD is the integer identifier from 1 to 4095.
-	ISD int
+	ISD uint16
 	// Quarantine describes if the TRC is an early announcement (true) or valid (false).
 	Quarantine bool
-	// QuorumCAs is the quorum of root CAs required to change e RootCAs, CertLogs, ThresholdEEPKI, and QuorumCAs.
-	QuorumCAs int
+	// QuorumCAs is the quorum of root CAs required to change e RootCAs, CertLogs,
+	// ThresholdEEPKI, and QuorumCAs.
+	QuorumCAs uint32
 	// QuorumTRC is the quorum of core ASes required to sign a new TRC.
-	QuorumTRC int
+	QuorumTRC uint32
 	// Rains is the Rains entry.
 	RAINS *Rains
 	// RootCAs is a map from root CA names to their RootCA entry.
 	RootCAs map[string]*RootCA
 	// Signatures is a map from entity names to their signatures.
 	Signatures map[string]common.RawBytes `json:",omitempty"`
-	// ThresholdEEPKI is the threshold number of trusted parties (CAs and one log) required to assert a domain’s policy.
-	ThresholdEEPKI int
+	// ThresholdEEPKI is the threshold number of trusted parties (CAs and one log) required to
+	// assert a domain’s policy.
+	ThresholdEEPKI uint32
 	// Version is the version number of the TRC
-	Version int
+	Version uint32
 }
 
 func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 	if lz4_ {
 		// The python lz4 library uses lz4 block mode. To know the length of the
 		// compressed block, it prepends the length of the original data as 4 bytes, little
-		// endian, unsigned integer. We need to make sure, that a malformed message does
+		// endian, unsigned integer. We need to make sure that a malformed message does
 		// not exhaust the available memory.
 		bLen := binary.LittleEndian.Uint32(raw[:4])
 		if bLen > MaxTRCByteLength {
-			return nil, common.NewCError("Exceeding byte length", "max",
+			return nil, common.NewCError("TRC LZ4 block to large", "max",
 				MaxTRCByteLength, "actual", bLen)
 		}
 		buf := make([]byte, bLen)
@@ -136,12 +135,24 @@ func (t *TRC) Sign(name string, signKey common.RawBytes, signAlgo string) error 
 
 // sigPack creates a sorted json object of all fields, except for the signature map.
 func (t *TRC) sigPack() (common.RawBytes, error) {
-	m := t.Signatures
-	t.Signatures = nil
-	sigInput, err := json.Marshal(t)
-	t.Signatures = m
+	m := make(map[string]interface{})
+	m["CertLogs"] = t.CertLogs
+	m["CoreASes"] = t.CoreASes
+	m["CreationTime"] = t.CreationTime
+	m["Description"] = t.Description
+	m["ExpirationTime"] = t.ExpirationTime
+	m["GracePeriod"] = t.GracePeriod
+	m["ISD"] = t.ISD
+	m["Quarantine"] = t.Quarantine
+	m["QuorumCAs"] = t.QuorumCAs
+	m["QuorumTRC"] = t.QuorumTRC
+	m["RAINS"] = t.RAINS
+	m["RootCAs"] = t.RootCAs
+	m["ThresholdEEPKI"] = t.ThresholdEEPKI
+	m["Version"] = t.Version
+	sigInput, err := json.Marshal(m)
 	if err != nil {
-		return nil, common.NewCError("Unable to create signature input", "err", err)
+		return nil, common.NewCError("TRC: Unable to create signature input", "err", err)
 	}
 	return sigInput, nil
 }
@@ -149,20 +160,21 @@ func (t *TRC) sigPack() (common.RawBytes, error) {
 // CheckActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
 // the newest active TRC of the same ISD which we know of.
 func (t *TRC) CheckActive(maxTRC *TRC) error {
-	currTime := time.Now().Unix()
+	currTime := uint64(time.Now().Unix())
 	if currTime < t.CreationTime {
-		return common.NewCError("Current time before creation time", "expected",
-			t.CreationTime, "actual", currTime)
+		return common.NewCError("TRC Creation time in the future", "now",
+			timeToString(currTime), "creation", timeToString(t.CreationTime))
 	} else if currTime > t.ExpirationTime {
-		return common.NewCError("Current time after expiration time", "expected",
-			t.ExpirationTime, "actual", currTime)
+		return common.NewCError("TRC expired", "now", timeToString(currTime), "expiration",
+			timeToString(t.ExpirationTime))
 	} else if t.Version == maxTRC.Version {
 		return nil
 	} else if t.Version+1 != maxTRC.Version {
-		return common.NewCError("Invalid TRC version", "expected", fmt.Sprintf("%d or %d",
+		return common.NewCError("Inactive TRC version", "expected", fmt.Sprintf("%d or %d",
 			maxTRC.Version-1, maxTRC.Version), "actual", t.Version)
 	} else if currTime > maxTRC.CreationTime+maxTRC.GracePeriod {
-		return common.NewCError("Grace period has passed")
+		return common.NewCError("TRC grace period has passed", "now", timeToString(currTime),
+			"expiration", timeToString(maxTRC.CreationTime+maxTRC.GracePeriod))
 	}
 	return nil
 }
@@ -187,7 +199,8 @@ func (t *TRC) verifyUpdate(old *TRC) error {
 	}
 	if t.CreationTime < old.CreationTime+old.GracePeriod {
 		return common.NewCError("Invalid TRC creation time", "expected >",
-			old.CreationTime+old.GracePeriod, "actual", t.CreationTime)
+			timeToString(old.CreationTime+old.GracePeriod), "actual",
+			timeToString(t.CreationTime))
 	}
 	if t.Quarantine || old.Quarantine {
 		return common.NewCError("Early announcement")
@@ -199,9 +212,9 @@ func (t *TRC) verifyUpdate(old *TRC) error {
 func (t *TRC) verifySignatures(old *TRC) error {
 	sigInput, err := t.sigPack()
 	if err != nil {
-		return common.NewCError("Invalid TRC", "err", err)
+		return err
 	}
-	valCount := 0
+	var valCount uint32 = 0
 	// Only verify signatures which are from core ASes defined in old TRC
 	for signer, coreAS := range old.CoreASes {
 		sig, ok := t.Signatures[signer]
@@ -209,9 +222,8 @@ func (t *TRC) verifySignatures(old *TRC) error {
 			log.Info("Signature from past CoreAS not present", "AS", signer)
 			continue
 		}
-		if err = crypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
-			log.Info("Signature verification failed", "AS", signer, "err", err)
-		} else {
+		err = crypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
+		if err == nil {
 			valCount++
 		}
 	}
@@ -256,10 +268,14 @@ func (t *TRC) JSON(indent bool) ([]byte, error) {
 	return json.Marshal(t)
 }
 
-func (t *TRC) IsdVer() (int, int) {
+func (t *TRC) IsdVer() (uint16, uint32) {
 	return t.ISD, t.Version
 }
 
 func (t *TRC) Key() *Key {
 	return NewKey(t.ISD, t.Version)
+}
+
+func timeToString(t uint64) string {
+	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
 }
