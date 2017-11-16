@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/pktdisp"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
@@ -38,8 +39,8 @@ type Session struct {
 	SessId sigcmn.SessionType
 	// pool of paths, managed by pathmgr
 	pool *pathmgr.SyncPaths
-	// function pointer to return SigMap from parent ASEntry.
-	sigMapF func() siginfo.SigMap
+	// remote SIGs
+	sigMap *siginfo.SigMap
 	// *RemoteInfo
 	currRemote atomic.Value
 	// bool
@@ -52,13 +53,13 @@ type Session struct {
 }
 
 func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType,
-	sigMapF func() siginfo.SigMap, logger log.Logger) (*Session, error) {
+	sigMap *siginfo.SigMap, logger log.Logger) (*Session, error) {
 	var err error
 	s := &Session{
-		Logger:  logger.New("sessId", sessId),
-		IA:      dstIA,
-		SessId:  sessId,
-		sigMapF: sigMapF,
+		Logger: logger.New("sessId", sessId),
+		IA:     dstIA,
+		SessId: sessId,
+		sigMap: sigMap,
 	}
 	if s.pool, err = sigcmn.PathMgr.Watch(sigcmn.IA, s.IA); err != nil {
 		return nil, err
@@ -90,7 +91,14 @@ func (s *Session) Cleanup() error {
 	s.Debug("egress.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
 	s.Debug("egress.Session Cleanup: closing conn")
-	return s.conn.Close()
+	if err := s.conn.Close(); err != nil {
+		return common.NewCError("Unable to close conn", "err", err)
+	}
+	if err := sigcmn.PathMgr.Unwatch(sigcmn.IA, s.IA); err != nil {
+		return common.NewCError("Unable to unwatch src-dst", "src", sigcmn.IA, "dst", s.IA,
+			"err", err)
+	}
+	return nil
 }
 
 func (s *Session) Remote() *RemoteInfo {
