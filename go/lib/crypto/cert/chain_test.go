@@ -163,7 +163,7 @@ func Test_Chain_Verify(t *testing.T) {
 		pub, priv, _ := ed25519.GenerateKey(nil)
 		pubRaw, privRaw := []byte(pub), []byte(priv)
 
-		chain.Leaf.IssuingTime = time.Now().Unix()
+		chain.Leaf.IssuingTime = uint64(time.Now().Unix())
 		chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
 		chain.Leaf.Sign(privRaw, crypto.Ed25519)
 		chain.Core.SubjectSignKey = pubRaw
@@ -240,6 +240,6 @@ func Test_Chain_Key(t *testing.T) {
 
 func Test_Key_String(t *testing.T) {
 	Convey("Key represented as string correctly", t, func() {
-		SoMsg("Key", (&Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1}).String(), ShouldEqual, "1-10.1")
+		SoMsg("Key", (&Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1}).String(), ShouldEqual, "1-10v1")
 	})
 }

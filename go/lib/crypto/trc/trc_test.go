@@ -51,7 +51,7 @@ func Test_TRCFromRaw(t *testing.T) {
 			SoMsg("Log2", trc.CertLogs["Log2"], ShouldNotBeNil)
 			ip := net.ParseIP("127.0.0.75")
 			SoMsg("Log1 addr", trc.CertLogs["Log1"].Addr, ShouldResemble,
-				&Addr{IA: &addr.ISD_AS{I: 1, A: 11}, IP: &ip})
+				&Addr{IA: &addr.ISD_AS{I: 1, A: 11}, IP: ip})
 			SoMsg("Log1 cert", trc.CertLogs["Log1"].Certificate, ShouldResemble,
 				common.RawBytes{0xe3, 0x48, 0x78, 0xbc, 0xee, 0x40, 0x28, 0x71,
 					0x87, 0x93, 0x72, 0x31, 0xa3, 0x7d, 0xaf, 0xcb, 0xf0, 0x07,
@@ -89,7 +89,7 @@ func Test_TRCFromRaw(t *testing.T) {
 					0x8b, 0xdc, 0x0c, 0x78})
 			ip := net.ParseIP("127.0.0.107")
 			SoMsg("TRCSrv", trc.RAINS.TRCSrv[0], ShouldResemble,
-				&Addr{IA: &addr.ISD_AS{I: 1, A: 12}, IP: &ip})
+				&Addr{IA: &addr.ISD_AS{I: 1, A: 12}, IP: ip})
 			SoMsg("TRCSrv size", len(trc.RAINS.TRCSrv), ShouldEqual, 3)
 		})
 
@@ -109,8 +109,8 @@ func Test_TRCFromRaw(t *testing.T) {
 				0x1f, 0xad}
 			ipA := net.ParseIP("127.0.0.70")
 			ipT := net.ParseIP("127.0.0.71")
-			entry.ARPKISrv = []*Addr{{IA: &addr.ISD_AS{I: 1, A: 11}, IP: &ipA}}
-			entry.TRCSrv = []*Addr{{IA: &addr.ISD_AS{I: 1, A: 11}, IP: &ipT}}
+			entry.ARPKISrv = []*Addr{{IA: &addr.ISD_AS{I: 1, A: 11}, IP: ipA}}
+			entry.TRCSrv = []*Addr{{IA: &addr.ISD_AS{I: 1, A: 11}, IP: ipT}}
 			SoMsg("RootCA CA1-1", trc.RootCAs["CA1-1"], ShouldResemble, entry)
 		})
 
@@ -180,9 +180,9 @@ func Test_TRC_CheckActive(t *testing.T) {
 		t2, _ := TRCFromRaw(rawTRC, false)
 		t2.Version += 1
 
-		t1.CreationTime = time.Now().Unix()
+		t1.CreationTime = uint64(time.Now().Unix())
 		t1.ExpirationTime = t1.CreationTime + 1<<20
-		t2.CreationTime = time.Now().Unix()
+		t2.CreationTime = uint64(time.Now().Unix())
 		t2.ExpirationTime = t2.CreationTime + 1<<20
 
 		Convey("TRC is active", func() {
@@ -190,12 +190,12 @@ func Test_TRC_CheckActive(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Early usage", func() {
-			t1.CreationTime = time.Now().Unix() + 1<<20
+			t1.CreationTime = uint64(time.Now().Unix()) + 1<<20
 			err := t1.CheckActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Late usage", func() {
-			t1.ExpirationTime = time.Now().Unix() - 1<<20
+			t1.ExpirationTime = uint64(time.Now().Unix()) - 1<<20
 			err := t1.CheckActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})

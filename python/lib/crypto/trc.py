@@ -300,14 +300,17 @@ class TRC(object):
         """
         now = int(time.time())
         if not (self.create_time <= now <= self.exp_time):
-            raise SCIONVerificationError("Current time outside of validity period")
+            raise SCIONVerificationError("Current time outside of validity period. "
+                                         "Now %s Creation %s Expiration %s" %
+                                         (now, self.create_time, self.exp_time))
         if not max_trc or self.version == max_trc.version:
             return
         if self.version + 1 != max_trc.version:
-            raise SCIONVerificationError("Invalid TRC version: %s. Expected %s or %s" % (
+            raise SCIONVerificationError("Inactive TRC version: %s. Expected %s or %s" % (
                 self.version, max_trc.version, max_trc.version - 1))
         if now > max_trc.create_time + max_trc.grace_period:
-            raise SCIONVerificationError("Grace period has passed")
+            raise SCIONVerificationError("TRC grace period has passed. Now %s Expiration %s" % (
+                now, max_trc.create_time + max_trc.grace_period))
 
     def verify(self, trusted_trc):
         """
