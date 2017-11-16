@@ -88,7 +88,7 @@ Top:
 		case <-reqTick.C:
 			// Update paths and sigs
 			sm.sessPathPool.update(sm.pool.Load().APS)
-			sm.sigMap = sm.sess.sigMapF()
+			sm.sigMap = sm.sess.sigMap
 			sm.updateRemote()
 			sm.sendReq()
 		case rpld := <-regc:
