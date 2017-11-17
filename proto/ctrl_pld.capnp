@@ -27,5 +27,11 @@ struct CtrlPld {
         sibra @5 :SIBRA.SibraPayload;
         drkeyMgmt @6 :DRKeyMgmt.DRKeyMgmt;
         sig @7 :SIG.SIGCtrl;
+        extn @8 :List(ExtnData);
     }
+}
+
+struct ExtnData {
+    type @0 :Data;
+    data @1 :Data;
 }
