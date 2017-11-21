@@ -41,4 +41,4 @@ uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
 
 tags:
-	{ git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | grep -v sub/web/ad_manager/static/js/ | ctags -L -
+	{ git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | ctags -L -

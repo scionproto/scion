@@ -26,10 +26,6 @@ jobs:
                 command: ./scion.sh coverage |& tee logs/coverage.run
                 when: always
             - run:
-                name: scion-web
-                command: ./sub/web/manage.py test &> logs/sweb_test.run
-                when: always
-            - run:
                 name: Python documentation (sphinx)
                 command: make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
                 when: always
@@ -69,10 +65,6 @@ jobs:
             - run:
                 name: Unit tests & Coverage
                 command: ./scion.sh coverage |& tee logs/coverage.run
-                when: always
-            - run:
-                name: scion-web
-                command: ./sub/web/manage.py test &> logs/sweb_test.run
                 when: always
             - run:
                 name: Python documentation (sphinx)

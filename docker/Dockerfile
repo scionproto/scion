@@ -13,9 +13,5 @@ RUN docker/deps_check
 # Syncing should be a no-op, just need installation to run
 RUN make -C go deps
 
-# Setup scion-web
-RUN cp sub/web/web_scion/settings/private.dist.py sub/web/web_scion/settings/private.py
-RUN sub/web/manage.py makemigrations
-
 # Build topology files
 RUN ./scion.sh topology
