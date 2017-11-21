@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 export PYTHONPATH=python/:.
 
@@ -149,7 +149,7 @@ cmd_sciond() {
     GENDIR=gen/ISD${ISD}/AS${AS}/endhost
     [ -d "$GENDIR" ] || { echo "Topology directory for $ISD-$AS doesn't exist: $GENDIR"; exit 1; }
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
-    PYTHONPATH=python/:. bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR &
+    PYTHONPATH=python/:. python/bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR &
     echo "Sciond running for $ISD-$AS (pid $!)"
     wait
     exit $?

@@ -59,16 +59,12 @@ topology/mininet/*.pyc
 *.o
 *.so
 
-# Executable binaries
+# Generated executables
 ##########################
-bin/border
-bin/dispatcher
-bin/logdog
-bin/sig
-bin/topopruner
-bin/echoscion
-c/dispatcher/dispatcher
-c/lib/scion/checksum_bench
+/bin/*
+!/bin/.keepme
+/c/dispatcher/dispatcher
+/c/lib/scion/checksum_bench
 
 # CTags
 ##########################
