@@ -8,6 +8,6 @@ struct CtrlExtnDataList {
 }
 
 struct CtrlExtnData {
-    type @0 :UInt64;
+    type @0 :Data;
     data @1 :Data;
 }
