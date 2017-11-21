@@ -37,7 +37,7 @@ func PollReqHdlr() {
 			continue
 		}
 		//log.Debug("PollReqHdlr: got PollReq", "src", rpld.Addr, "pld", req)
-		spld, err := mgmt.NewPld(rpld.Id, mgmt.NewPollRep(req.Session))
+		spld, err := mgmt.NewPld(rpld.Id, mgmt.NewPollRep(sigcmn.MgmtAddr, req.Session))
 		if err != nil {
 			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", err)
 			break

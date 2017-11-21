@@ -26,6 +26,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spath"
 	"github.com/netsec-ethz/scion/go/sig/disp"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
@@ -182,7 +183,7 @@ func (sm *sessMonitor) sendReq() {
 		sm.updateMsgId = msgId
 		sm.Debug("sessMonitor: trying new remote", "msgId", msgId, "remote", sm.smRemote)
 	}
-	spld, err := mgmt.NewPld(msgId, mgmt.NewPollReq(sm.sess.SessId))
+	spld, err := mgmt.NewPld(msgId, mgmt.NewPollReq(sigcmn.MgmtAddr, sm.sess.SessId))
 	if err != nil {
 		sm.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
 		return
