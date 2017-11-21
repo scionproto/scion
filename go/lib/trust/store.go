@@ -36,7 +36,7 @@ type Store struct {
 	// chainMap is a mapping form (ISD-AS, version) to certificate chain
 	chainMap map[cert.Key]*cert.Chain
 	// maxChainMap is a mapping from (ISD-AS) to max version.
-	maxChainMap map[addr.ISD_AS]uint32
+	maxChainMap map[addr.ISD_AS]uint64
 	// chainLock guards chainMap and maxChainMap.
 	chainLock sync.RWMutex
 }
@@ -44,7 +44,7 @@ type Store struct {
 func NewStore(certDir, cacheDir, eName string) (*Store, error) {
 	s := &Store{certDir: certDir, cacheDir: cacheDir, eName: eName,
 		chainMap:    make(map[cert.Key]*cert.Chain),
-		maxChainMap: make(map[addr.ISD_AS]uint32)}
+		maxChainMap: make(map[addr.ISD_AS]uint64)}
 	s.initChains()
 	return s, nil
 }
@@ -115,7 +115,7 @@ func (s *Store) writeChain(chain *cert.Chain) error {
 }
 
 // GetChain returns the certificate chain for the specified values or nil, if it is not present.
-func (s *Store) GetChain(ia *addr.ISD_AS, ver uint32) *cert.Chain {
+func (s *Store) GetChain(ia *addr.ISD_AS, ver uint64) *cert.Chain {
 	s.chainLock.RLock()
 	defer s.chainLock.RUnlock()
 	return s.chainMap[*cert.NewKey(ia, ver)]

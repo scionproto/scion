@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/pierrec/lz4"
 
 	"github.com/netsec-ethz/scion/go/lib/addr"
@@ -33,10 +32,10 @@ const MaxTRCByteLength uint32 = 1 << 20
 
 type Key struct {
 	ISD uint16
-	Ver uint32
+	Ver uint64
 }
 
-func NewKey(isd uint16, ver uint32) *Key {
+func NewKey(isd uint16, ver uint64) *Key {
 	return &Key{ISD: isd, Ver: ver}
 }
 
@@ -50,11 +49,11 @@ type TRC struct {
 	CertLogs map[string]*CertLog
 	// CoreASes is a map from core ASes to their online and offline key.
 	CoreASes map[string]*CoreAS
-	// CreationTime is the unix timestamp at which the TRC was created.
+	// CreationTime is the unix timestamp in seconds at which the TRC was created.
 	CreationTime uint64
 	// Description is an human-readable description of the ISD.
 	Description string
-	// ExpirationTime is the unix timestamp at which the TRC expires.
+	// ExpirationTime is the unix timestamp in seconds at which the TRC expires.
 	ExpirationTime uint64
 	// GracePeriod is the period during which the TRC is valid after creation of a new TRC in
 	// seconds.
@@ -78,7 +77,7 @@ type TRC struct {
 	// assert a domain’s policy.
 	ThresholdEEPKI uint32
 	// Version is the version number of the TRC
-	Version uint32
+	Version uint64
 }
 
 func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
@@ -89,7 +88,7 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 		// not exhaust the available memory.
 		bLen := binary.LittleEndian.Uint32(raw[:4])
 		if bLen > MaxTRCByteLength {
-			return nil, common.NewCError("TRC LZ4 block to large", "max",
+			return nil, common.NewCError("TRC LZ4 block too large", "max",
 				MaxTRCByteLength, "actual", bLen)
 		}
 		buf := make([]byte, bLen)
@@ -219,7 +218,6 @@ func (t *TRC) verifySignatures(old *TRC) error {
 	for signer, coreAS := range old.CoreASes {
 		sig, ok := t.Signatures[signer]
 		if !ok {
-			log.Info("Signature from past CoreAS not present", "AS", signer)
 			continue
 		}
 		err = crypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
@@ -268,7 +266,7 @@ func (t *TRC) JSON(indent bool) ([]byte, error) {
 	return json.Marshal(t)
 }
 
-func (t *TRC) IsdVer() (uint16, uint32) {
+func (t *TRC) IsdVer() (uint16, uint64) {
 	return t.ISD, t.Version
 }
 

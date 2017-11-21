@@ -5,7 +5,7 @@ $Go.import("github.com/netsec-ethz/scion/go/proto");
 
 struct CertChainReq {
     isdas @0 :UInt32;
-    version @1 :UInt32;
+    version @1 :UInt64;
     cacheOnly @2 :Bool;
 }
 
@@ -15,7 +15,7 @@ struct CertChainRep {
 
 struct TRCReq {
     isdas @0 :UInt32;
-    version @1 :UInt32;
+    version @1 :UInt64;
     cacheOnly @2 :Bool;
 }
 
