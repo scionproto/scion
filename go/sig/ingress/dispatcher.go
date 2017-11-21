@@ -26,6 +26,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/xnet"
 )
@@ -108,7 +109,7 @@ func (d *Dispatcher) read() {
 // dispatch dispatches a frame to the corresponding worker, spawning one if none
 // exist yet. Dispatching is done based on source ISD-AS -> source host Addr -> Sess Id.
 func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
-	sessId := sigcmn.SessionType((frame.raw[0]))
+	sessId := mgmt.SessionType((frame.raw[0]))
 	dispatchStr := fmt.Sprintf("%s/%s/%s", src.IA, src.Host, sessId)
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]

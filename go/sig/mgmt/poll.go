@@ -21,18 +21,17 @@ import (
 
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/proto"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 var _ proto.Cerealizable = (*poll)(nil)
 
 type poll struct {
 	Addr    *Addr
-	Session sigcmn.SessionType
+	Session SessionType
 }
 
-func newPoll(s sigcmn.SessionType) *poll {
-	return &poll{Addr: newAddr(), Session: s}
+func newPoll(a *Addr, s SessionType) *poll {
+	return &poll{Addr: a, Session: s}
 }
 
 func (p *poll) ProtoId() proto.ProtoIdType {
@@ -51,14 +50,14 @@ type PollReq struct {
 	*poll
 }
 
-func NewPollReq(s sigcmn.SessionType) *PollReq {
-	return &PollReq{newPoll(s)}
+func NewPollReq(a *Addr, s SessionType) *PollReq {
+	return &PollReq{newPoll(a, s)}
 }
 
 type PollRep struct {
 	*poll
 }
 
-func NewPollRep(s sigcmn.SessionType) *PollRep {
-	return &PollRep{newPoll(s)}
+func NewPollRep(a *Addr, s SessionType) *PollRep {
+	return &PollRep{newPoll(a, s)}
 }

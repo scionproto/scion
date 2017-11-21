@@ -30,6 +30,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/spkt"
 	"github.com/netsec-ethz/scion/go/lib/util"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
@@ -246,7 +247,7 @@ func (f *frame) startPkt(pktLen uint16) {
 	f.offset += PktLenSize
 }
 
-func (f *frame) writeHdr(sessId sigcmn.SessionType, epoch uint16, seq uint32) {
+func (f *frame) writeHdr(sessId mgmt.SessionType, epoch uint16, seq uint32) {
 	var buf bytes.Buffer
 	binary.Write(&buf, common.Order, seq)
 

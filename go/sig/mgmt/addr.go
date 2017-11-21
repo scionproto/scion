@@ -17,10 +17,10 @@ package mgmt
 import (
 	"fmt"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/sciond"
 	"github.com/netsec-ethz/scion/go/proto"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 var _ proto.Cerealizable = (*Addr)(nil)
@@ -30,10 +30,10 @@ type Addr struct {
 	EncapPort uint16
 }
 
-func newAddr() *Addr {
+func NewAddr(host addr.HostAddr, ctrlPort, encapPort uint16) *Addr {
 	return &Addr{
-		Ctrl:      sciond.HostInfoFromHostAddr(sigcmn.Host, uint16(*sigcmn.CtrlPort)),
-		EncapPort: uint16(*sigcmn.EncapPort),
+		Ctrl:      sciond.HostInfoFromHostAddr(host, ctrlPort),
+		EncapPort: encapPort,
 	}
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/pktdisp"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion/go/sig/mgmt"
 	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
@@ -36,7 +37,7 @@ import (
 type Session struct {
 	log.Logger
 	IA     *addr.ISD_AS
-	SessId sigcmn.SessionType
+	SessId mgmt.SessionType
 	// pool of paths, managed by pathmgr
 	pool *pathmgr.SyncPaths
 	// remote SIGs
@@ -52,7 +53,7 @@ type Session struct {
 	workerStopped  chan struct{}
 }
 
-func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType,
+func NewSession(dstIA *addr.ISD_AS, sessId mgmt.SessionType,
 	sigMap *siginfo.SigMap, logger log.Logger) (*Session, error) {
 	var err error
 	s := &Session{

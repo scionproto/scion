@@ -25,7 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/mgmt"
 )
 
 const (
@@ -39,13 +39,13 @@ const (
 type Worker struct {
 	log.Logger
 	Remote           *snet.Addr
-	SessId           sigcmn.SessionType
+	SessId           mgmt.SessionType
 	Ring             *ringbuf.Ring
 	reassemblyLists  map[int]*ReassemblyList
 	markedForCleanup bool
 }
 
-func NewWorker(remote *snet.Addr, sessId sigcmn.SessionType) *Worker {
+func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 	// FIXME(kormat): these labels don't allow us to identify traffic from a
 	// specific remote sig, but adding the remote sig addr would cause a label
 	// explosion :/

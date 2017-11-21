@@ -25,6 +25,7 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/pathmgr"
 	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion/go/sig/mgmt"
 )
 
 const (
@@ -47,6 +48,7 @@ var (
 	Host     addr.HostAddr
 	PathMgr  *pathmgr.PR
 	CtrlConn *snet.Conn
+	MgmtAddr *mgmt.Addr
 )
 
 func Init(ia *addr.ISD_AS, ip net.IP) error {
@@ -59,6 +61,7 @@ func Init(ia *addr.ISD_AS, ip net.IP) error {
 	if err = ValidatePort("local encap", *EncapPort); err != nil {
 		return err
 	}
+	MgmtAddr = mgmt.NewAddr(Host, uint16(*CtrlPort), uint16(*EncapPort))
 	if *sciondPath == "" {
 		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia)
 	}
@@ -94,10 +97,4 @@ func ValidatePort(desc string, port int) error {
 			"min", 1, "max", MaxPort, "actual", port)
 	}
 	return nil
-}
-
-type SessionType uint8
-
-func (st SessionType) String() string {
-	return fmt.Sprintf("0x%02x", uint8(st))
 }

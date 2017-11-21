@@ -26,7 +26,6 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/pktdisp"
 	"github.com/netsec-ethz/scion/go/lib/snet"
 	"github.com/netsec-ethz/scion/go/sig/mgmt"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 func Init(conn *snet.Conn) {
@@ -152,6 +151,6 @@ func dispFunc(dp *pktdisp.DispPkt) {
 
 type RegPollKey string
 
-func MkRegPollKey(ia *addr.ISD_AS, session sigcmn.SessionType) RegPollKey {
+func MkRegPollKey(ia *addr.ISD_AS, session mgmt.SessionType) RegPollKey {
 	return RegPollKey(fmt.Sprintf("%s-%s", ia, session))
 }
