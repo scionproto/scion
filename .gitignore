@@ -61,7 +61,8 @@ topology/mininet/*.pyc
 
 # Generated executables
 ##########################
-/bin/
+/bin/*
+!/bin/.keepme
 /c/dispatcher/dispatcher
 /c/lib/scion/checksum_bench
 
