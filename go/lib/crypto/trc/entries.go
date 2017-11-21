@@ -113,12 +113,12 @@ type Addr struct {
 }
 
 func (a *Addr) String() string {
-	return fmt.Sprintf("%s %s", a.IA, a.IP)
+	return fmt.Sprintf("%s,%s", a.IA, a.IP)
 }
 
 // ParseString parses a string of the format "ISD-AS IP" and sets the struct fields accordingly.
 func (a *Addr) ParseString(addr_ string) error {
-	l := strings.Split(addr_, " ")
+	l := strings.Split(addr_, ",")
 	if len(l) != 2 {
 		return common.NewCError("Invalid address", "raw", addr_, "err", "wrong format")
 	}
@@ -136,9 +136,13 @@ func (a *Addr) ParseString(addr_ string) error {
 }
 
 func (a *Addr) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`"%s"`, a)), nil
+	return json.Marshal(fmt.Sprintf("%s", a))
 }
 
 func (a *Addr) UnmarshalJSON(b []byte) error {
-	return a.ParseString(strings.Replace(string(b), `"`, "", 2))
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	return a.ParseString(s)
 }

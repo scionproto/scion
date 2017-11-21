@@ -33,10 +33,10 @@ const MaxChainByteLength uint32 = 1 << 20
 
 type Key struct {
 	IA  addr.ISD_AS
-	Ver uint32
+	Ver uint64
 }
 
-func NewKey(ia *addr.ISD_AS, ver uint32) *Key {
+func NewKey(ia *addr.ISD_AS, ver uint64) *Key {
 	return &Key{IA: *ia, Ver: ver}
 }
 
@@ -61,7 +61,7 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 		// not exhaust the available memory.
 		byteLen := binary.LittleEndian.Uint32(raw[:4])
 		if byteLen > MaxChainByteLength {
-			return nil, common.NewCError("Certificate chain LZ4 block to large", "max",
+			return nil, common.NewCError("Certificate chain LZ4 block too large", "max",
 				MaxChainByteLength, "actual", byteLen)
 		}
 		buf := make([]byte, byteLen)
@@ -118,7 +118,7 @@ func (c *Chain) Eq(o *Chain) bool {
 	return c.Leaf.Eq(o.Leaf) && c.Core.Eq(o.Core)
 }
 
-func (c *Chain) IAVer() (*addr.ISD_AS, uint32) {
+func (c *Chain) IAVer() (*addr.ISD_AS, uint64) {
 	return c.Leaf.Subject, c.Leaf.Version
 }
 

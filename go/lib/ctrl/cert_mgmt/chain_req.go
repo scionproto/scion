@@ -27,7 +27,7 @@ var _ proto.Cerealizable = (*ChainReq)(nil)
 
 type ChainReq struct {
 	RawIA     addr.IAInt `capnp:"isdas"`
-	Version   uint32
+	Version   uint64
 	CacheOnly bool
 }
 

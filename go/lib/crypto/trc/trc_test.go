@@ -119,13 +119,13 @@ func Test_TRCFromRaw(t *testing.T) {
 			SoMsg("1-12", trc.Signatures["1-12"], ShouldNotBeNil)
 			SoMsg("1-13", trc.Signatures["1-13"], ShouldNotBeNil)
 			SoMsg("Signature 1-11", trc.Signatures["1-11"], ShouldResemble,
-				common.RawBytes{0x90, 0xf3, 0x9f, 0xc1, 0x71, 0x31, 0x19, 0xfa,
-					0xc0, 0xbb, 0xbe, 0xa0, 0x7c, 0x2e, 0x79, 0x03, 0x7f, 0x60,
-					0xa5, 0xc3, 0x02, 0xd8, 0xf1, 0xaa, 0x19, 0x3c, 0x66, 0x09,
-					0xa9, 0x2e, 0x87, 0xec, 0x18, 0x95, 0x95, 0x64, 0x0d, 0xd5,
-					0xf3, 0xe5, 0x64, 0x2c, 0x24, 0xfc, 0x3f, 0xa2, 0x8f, 0x63,
-					0xf5, 0xb8, 0x8d, 0x2a, 0xf9, 0x2c, 0xe7, 0x26, 0xf4, 0x97,
-					0x2a, 0xf8, 0x70, 0xf8, 0x0e, 0x0e})
+				common.RawBytes{0x4e, 0x93, 0xab, 0x42, 0xfe, 0x37, 0xbe, 0x6a,
+					0x4b, 0x7a, 0x14, 0xb0, 0xff, 0x33, 0xbd, 0x02, 0xe6, 0x5f,
+					0xdd, 0x9f, 0xa9, 0xe6, 0x9b, 0x72, 0x43, 0x3a, 0x32, 0x3c,
+					0xce, 0x4a, 0x7b, 0x8e, 0xcd, 0xdd, 0x6e, 0x3c, 0x16, 0xd5,
+					0x1e, 0x79, 0xfa, 0xf7, 0xf5, 0x19, 0xd7, 0x51, 0x31, 0xdd,
+					0xac, 0xaa, 0x2d, 0x37, 0xe9, 0x4d, 0x1f, 0x5a, 0x9d, 0x7c,
+					0x3a, 0xda, 0x52, 0xc9, 0xf8, 0x0a})
 		})
 
 	})
@@ -268,10 +268,10 @@ var (
 {
     "CertLogs": {
         "Log1": {
-            "1-11 127.0.0.75": "40h4vO5AKHGHk3Ixo32vy/AHdq7iO3dpcQxoNPf1Fw4="
+            "1-11,127.0.0.75": "40h4vO5AKHGHk3Ixo32vy/AHdq7iO3dpcQxoNPf1Fw4="
         },
         "Log2": {
-            "1-13 127.0.0.140": "psPiZHP9RRQ9zSkLf72/ESDMdNpzS7eviMLXimY8OfM="
+            "1-13,127.0.0.140": "psPiZHP9RRQ9zSkLf72/ESDMdNpzS7eviMLXimY8OfM="
         }
     },
     "CoreASes": {
@@ -307,55 +307,55 @@ var (
         "OnlineKeyAlg": "ed25519",
         "RootRAINSKey": "I75QUX1nenH+LBiR4lBej39yBXpnULZuTrR8wIvcDHg=",
         "TRCSrv": [
-            "1-12 127.0.0.107",
-            "1-12 127.0.0.108",
-            "1-12 127.0.0.79"
+            "1-12,127.0.0.107",
+            "1-12,127.0.0.108",
+            "1-12,127.0.0.79"
         ]
     },
     "RootCAs": {
         "CA1-1": {
             "ARPKIKey": "IIi+rNLXx2Y46H3wFit8JdojPcqK6hac1iQ+Ip4aY98=",
             "ARPKISrv": [
-                "1-11 127.0.0.70"
+                "1-11,127.0.0.70"
             ],
             "Certificate": "MIIC4DCCAcigAwIBAwIBATANBgkqhkiG9w0BAQsFADAQMQ4wDAYDVQQDDAVDQTEtMTAeFw0xNzExMDgxMzA5MTJaFw0yMjExMDcxMzA5MTJaMBAxDjAMBgNVBAMMBUNBMS0xMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA+H2CS/Hakr3CUQNd0doZBYDmgLk1ZUlPcGxVbL5/ojPXnG7d+VKjJcGJZBGVx04Wjv/7jYtDSvXhAA3n/KpQd/FWs9m/8za5AILZJL+EIBHiXQ6Td0mPzzdoDVwl0B6d/n+spYBgmwDnIVQmnJrdR6yXr2r3kSvz7lm+V1KIncbQ8OUYItkZXK2rIyhv1gks3IAsX4yGers8uDNhoX6m3UxifFTB2QQa4FpTS2vDKXm2OhZTuWUF9F6uhyX3oJRcu3Cn/d4MA2u9IMKaroFkerkJGvX4mYgPibKU9QAy8xfdE9oFScpRkmF3NnnFDWq3RQyzF2xRYLjJLVKp4urgZwIDAQABo0UwQzASBgNVHRMBAf8ECDAGAQH/AgEBMA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUZpjq6qLmTE1wCmfVFed/HiKjPBcwDQYJKoZIhvcNAQELBQADggEBANJ2E167Q0WDTrjJsB6QkjPRMPF4v0E7WfZuaerW+q1JHlWW7bTB2ENX7iKaDVrJkJEyaJcF1x7tOQ891JXC21PXBnWlk7IxZJzs1pAvBUWg0oLNcrxMoJhyqBfiU55kH46gYdwt1VJXguAxeab+zUxwdmE2heSQPVe9yaTO5AnmiEdJ75B4ND5qdm4L8mZuWgzQJVyYLsV/3gu7GKXnyZ7sT60UqdqTd20ecps0ecoNwLDLFU/C7+So1gFSLsNo/PLpaLlfyGtAygeuesrSWeplgAz+EQU9poppkPakOlorb70BjUV9gqj6IMRdld7nL3wy+8Znw58dRFkMbM+qHME=",
             "OnlineKey": "ti8S9rmcyHPgrOOXBGeQhmPP35gVqg8vUlNBtVVAH60=",
             "OnlineKeyAlg": "ed25519",
             "TRCSrv": [
-                "1-11 127.0.0.71"
+                "1-11,127.0.0.71"
             ]
         },
         "CA1-2": {
             "ARPKIKey": "Siqbe5E3GivoXBBZdILruUAcVVxGC25h13322kf6PLM=",
             "ARPKISrv": [
-                "1-12 127.0.0.102",
-                "1-12 127.0.0.103"
+                "1-12,127.0.0.102",
+                "1-12,127.0.0.103"
             ],
             "Certificate": "MIIC4DCCAcigAwIBAwIBATANBgkqhkiG9w0BAQsFADAQMQ4wDAYDVQQDDAVDQTEtMjAeFw0xNzExMDgxMzA5MTJaFw0yMjExMDcxMzA5MTJaMBAxDjAMBgNVBAMMBUNBMS0yMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0aSOf6Dc+Y/Gh4Gg5fNmVfkvVsbK6gNWVw6H4fl6Vpg71V+/47/FYpJCwShgJUl1TLRfOfAs//gyRF8M8rbQD6Q3lCkeGygwj3KFHM9iAWyLvz+kRbdVCSQ2qZCv6E6VhMOOB2TyAgRv//VpM+bNj7AnpAUafiZwyI7tS17MHf15FdasfzcYInn5EUTVq3MkhCD68ntsuUs5VXMiWpW8JVBAYtBq05eRChPfSFfbVCTV0T+k7KXSiDkuavvjf0tRqHT4sRjtCCPRMq7PcsHLGAXthWcD+kv67m+ILnV6Bt3fk+LHyyP/j7sXgQOjsx2yQpo0sQ4gTgONz/KJOu4WVQIDAQABo0UwQzASBgNVHRMBAf8ECDAGAQH/AgEBMA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUica3fEN9DVN+sQ+dqGue/7s4fTQwDQYJKoZIhvcNAQELBQADggEBAALGHshRda2sEyNfVCZhWWbft5m1MHhjDmgvBjyo/7GGsntos4r68CapK6heH+OAgjBtFXyG6xTSSwrLL8QfiL6V/DbZLfChnHV9ZlDnwyizaDt5pqJjjpNP3ozAfgRBrPcSjDSPGxjy4IFnGpg0aTQnSZ56ivQJOVVhjitHh5CmPq8CoO6RDaR6el4OuwR3m5m/gfu33YEW0qszhdtpWb+pJUO/ziEAUHw2nOjFw8yqeCsK9xO0Nh/f7e7JUu3kM76V+vZT4fgTPUe9f6/PXv84tIGw+gr4lBHC0+KsKVaYad5ZSfMlrb2qEoqFAZD4ItCycE8HaCViBp8sZXzK1bc=",
             "OnlineKey": "4PBYtsTZO9UpDo/VoobLNvrAR74Ijt1ORz+tX1vaDfU=",
             "OnlineKeyAlg": "ed25519",
             "TRCSrv": [
-                "1-12 127.0.0.104"
+                "1-12,127.0.0.104"
             ]
         },
         "CA1-3": {
             "ARPKIKey": "fKJ2KB0ZxpzAVHpLPTuY7rYtIo42v5JHvfr7YUhCzI8=",
             "ARPKISrv": [
-                "1-13 127.0.0.134"
+                "1-13,127.0.0.134"
             ],
             "Certificate": "MIIC4DCCAcigAwIBAwIBATANBgkqhkiG9w0BAQsFADAQMQ4wDAYDVQQDDAVDQTEtMzAeFw0xNzExMDgxMzA5MTJaFw0yMjExMDcxMzA5MTJaMBAxDjAMBgNVBAMMBUNBMS0zMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwRQXsaoJxp6Dr/ETKuZoSf4cBxOkSkw+gPgdahHDcUNTrEZ3z/U18UHsvTbAVsMBepU4SBy10VQp5VUnn9GfsfWqahvPDBh3hcTbP8dqVFnK3f9GSpFJKqFK1paJZW9DfBlrlKKRIKJMK5TC5Fobt3SpGa2OFJE9gSWNjYv1Be0EKyNKAlSVsuduS3Pcx38lkDQvk7WKqCXxxeIXDNbgACS9M9o9YaaiFI+Rb8XVpUVlqMVv9IKXm/DYfwoePA4rDjIc9BKYUo4bSWUersVBJqv0uxz7h0yI//O5jPXQCOXj/YrRaqV8Z5tjY1i9o6PdYOLoqWzfz8K/N3itfDEjkwIDAQABo0UwQzASBgNVHRMBAf8ECDAGAQH/AgEBMA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUcFqxwFO0iu6tO9WCl1LsmD8twU0wDQYJKoZIhvcNAQELBQADggEBABFA7c7xYnjWjSG7XzvDXUa64EMPbk27vhh2VAbM8dqkNT/etmWDQiy+xg1hW/PUUpK4+Bl935ELxI1uvvicXpV+/6uWQxLkYkYBbm0o9sJoDaVAHvZgwEa/lQqPrbULUFKslenxJ9xvQBO3jRMM3m6luz7E5TtbWKrtH/knEYwnJ+0KP2Y1JzhLFoobtHV1vztlGFWrjTxFROLhOrDBXE9OTRAWhHd/Hcdntl73V3Kw6s13NRGIW2Cah6513waF6QhszUnh6Pks/P82JPkHQyVwGWR5+fNtIpAjnKxiEA6y0nd2OLpukMIYI0yPnCg8P+QtOUcoMdFejQdoJpJPJSE=",
             "OnlineKey": "tqnJ1EDSGNqxnl5j9g/6j+/J5Bv/N/dz3Si+Qqp+Nek=",
             "OnlineKeyAlg": "ed25519",
             "TRCSrv": [
-                "1-13 127.0.0.135",
-                "1-13 127.0.0.136"
+                "1-13,127.0.0.135",
+                "1-13,127.0.0.136"
             ]
         }
     },
     "Signatures": {
-        "1-11": "kPOfwXExGfrAu76gfC55A39gpcMC2PGqGTxmCakuh+wYlZVkDdXz5WQsJPw/oo9j9biNKvks5yb0lyr4cPgODg==",
-        "1-12": "7J+ZcBRkIMUZqZZrHImOjBT+eM0sBZp4ItJaD+Tc0Ts3McJ98eLag/N5/b0ks2k5c/R/gGVHM7b2eytp/VICDQ==",
-        "1-13": "Nw+PaoyC4I7K2Sm36RUvEyzNhXYJt5UMj+QOO8j5gJcRj70/oxgPpPyEZ4J9CME5v4AwcUJnAf5aL/EbjNVwAg=="
+        "1-11": "TpOrQv43vmpLehSw/zO9AuZf3Z+p5ptyQzoyPM5Ke47N3W48FtUeefr39RnXUTHdrKotN+lNH1qdfDraUsn4Cg==",
+        "1-12": "BnnxUcaB7VrswHnQNVF4B5oZXHm9unyB2cSB0+rw+FC7ZLdlyjbqanHbOM3EgTyJqLR4gdDJaWPaC8Fjyjz2Dw==",
+        "1-13": "V/SKkJCYpbfCKR4G2RvP6NJurNnr1rliVEbiaFDQgpbDp9MvfaC7hsx0ap82ne2JmAjmLScd0AQCJBaiGsq1CA=="
     },
     "ThresholdEEPKI": 2,
     "Version": 0

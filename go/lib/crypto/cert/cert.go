@@ -36,11 +36,11 @@ type Certificate struct {
 	Comment string
 	// EncAlgorithm is the algorithm associated with SubjectEncKey.
 	EncAlgorithm string
-	// ExpirationTime is the unix time at which the certificate expires.
+	// ExpirationTime is the unix timestamp in seconds at which the certificate expires.
 	ExpirationTime uint64
 	// Issuer is the certificate issuer. It can only be a core AS.
 	Issuer *addr.ISD_AS
-	// IssuingTime is the unix time at which the certificate was created.
+	// IssuingTime is the unix timestamp in seconds at which the certificate was created.
 	IssuingTime uint64
 	// SignAlgorithm is the algorithm associated with SubjectSigKey.
 	SignAlgorithm string
@@ -53,9 +53,9 @@ type Certificate struct {
 	// SubjectSignKey the public key used for signature verification.
 	SubjectSignKey common.RawBytes
 	// TRCVersion is the version of the issuing trc.
-	TRCVersion uint32
+	TRCVersion uint64
 	// Version is the certificate version.
-	Version uint32
+	Version uint64
 }
 
 func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
@@ -77,11 +77,11 @@ func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, si
 	currTime := uint64(time.Now().Unix())
 	if currTime < c.IssuingTime {
 		return common.NewCError("Certificate used before IssuingTime", "IssuingTime",
-			c.IssuingTime, "current", currTime)
+			timeToString(c.IssuingTime), "current", timeToString(currTime))
 	}
 	if currTime > c.ExpirationTime {
-		return common.NewCError("Certificate expired", "Expiration Time", c.ExpirationTime,
-			"current", currTime)
+		return common.NewCError("Certificate expired", "Expiration Time",
+			timeToString(c.ExpirationTime), "current", timeToString(currTime))
 	}
 	sigInput, err := c.sigPack()
 	if err != nil {
@@ -152,4 +152,8 @@ func (c *Certificate) Eq(o *Certificate) bool {
 		bytes.Equal(c.SubjectEncKey, o.SubjectEncKey) &&
 		bytes.Equal(c.SubjectSignKey, o.SubjectSignKey) &&
 		bytes.Equal(c.Signature, o.Signature)
+}
+
+func timeToString(t uint64) string {
+	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
 }
