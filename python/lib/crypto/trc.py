@@ -19,7 +19,6 @@
 import base64
 import copy
 import json
-import logging
 import os
 import time
 
@@ -29,16 +28,19 @@ import lz4
 # SCION
 from lib.crypto.asymcrypto import verify, sign
 from lib.crypto.util import CERT_DIR
+from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.packet.scion_addr import ISD_AS
 
 ISDID_STRING = 'ISDID'
 DESCRIPTION_STRING = 'Description'
 VERSION_STRING = 'Version'
 CREATION_TIME_STRING = 'CreationTime'
+EXPIRATION_TIME_STRING = 'ExpirationTime'
 CORE_ASES_STRING = 'CoreCAs'
 ROOT_CAS_STRING = 'RootCAs'
 PKI_LOGS_STRING = 'PKILogs'
 QUORUM_EEPKI_STRING = 'QuorumEEPKI'
+RAINS_STRING = 'RAINS'
 ROOT_RAINS_KEY_STRING = 'RootRainsKey'
 QUORUM_OWN_TRC_STRING = 'QuorumOwnTRC'
 QUORUM_CAS_STRING = 'QuorumCAs'
@@ -49,6 +51,7 @@ ONLINE_KEY_ALG_STRING = 'OnlineKeyAlg'
 ONLINE_KEY_STRING = 'OnlineKey'
 OFFLINE_KEY_ALG_STRING = 'OfflineKeyAlg'
 OFFLINE_KEY_STRING = 'OfflineKey'
+CERTIFICATE_STRING = 'Certificate'
 
 
 def get_trc_file_path(conf_dir, isd, version):  # pragma: no cover
@@ -67,10 +70,11 @@ class TRC(object):
     :ivar str description: is a human readable description of an ISD.
     :ivar int version: the TRC file version.
     :ivar int creation_time: the TRC file creation timestamp.
+    :ivar int expiration_time: the time when TRC expires.
     :ivar dict core_ases: the set of core ASes and their certificates.
     :ivar dict root_cas: the set of root CAs and their certificates.
     :ivar dict pki_logs: is a dictionary of end entity certificate logs, and
-        their addresses and public key certificates
+        their addresses and public key certificates.
     :ivar int quroum_eepki: is a threshold number (nonnegative integer) of
         CAs that have to sign a domain’s policy
     :ivar str root_rains_key: the RAINS root public key.
@@ -88,17 +92,19 @@ class TRC(object):
         DESCRIPTION_STRING: ("description", str),
         VERSION_STRING: ("version", int),
         CREATION_TIME_STRING: ("time", int),
+        EXPIRATION_TIME_STRING: ("exp_time", int),
         CORE_ASES_STRING: ("core_ases", dict),
         ROOT_CAS_STRING: ("root_cas", dict),
         PKI_LOGS_STRING: ("pki_logs", dict),
         QUORUM_EEPKI_STRING: ("quorum_eepki", int),
-        ROOT_RAINS_KEY_STRING: ("root_rains_key", bytes),
+        RAINS_STRING: ("rains", dict),
         QUORUM_OWN_TRC_STRING: ("quorum_own_trc", int),
         QUORUM_CAS_STRING: ("quorum_cas", int),
         QUARANTINE_STRING: ("quarantine", bool),
         SIGNATURES_STRING: ("signatures", dict),
         GRACE_PERIOD_STRING: ("grace_period", int),
     }
+    DEFAULT_VALIDITY = 365 * 24 * 60 * 60
 
     def __init__(self, trc_dict):
         """
@@ -110,21 +116,27 @@ class TRC(object):
                 val = int(val)
             elif type_ in (dict, ):
                 val = copy.deepcopy(val)
+            elif type_ in (bytes, ):
+                val = base64.b64decode(val.encode('utf-8'))
             setattr(self, name, val)
         for subject in trc_dict[CORE_ASES_STRING]:
             key = trc_dict[CORE_ASES_STRING][subject][ONLINE_KEY_STRING]
-            self.core_ases[subject][ONLINE_KEY_STRING] = \
-                base64.b64decode(key.encode('utf-8'))
+            self.core_ases[subject][ONLINE_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
             key = trc_dict[CORE_ASES_STRING][subject][OFFLINE_KEY_STRING]
-            self.core_ases[subject][OFFLINE_KEY_STRING] = \
-                base64.b64decode(key.encode('utf-8'))
+            self.core_ases[subject][OFFLINE_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
         for subject in trc_dict[SIGNATURES_STRING]:
             sig = trc_dict[SIGNATURES_STRING][subject]
-            self.signatures[subject] = \
-                base64.b64decode(sig.encode('utf-8'))
+            self.signatures[subject] = base64.b64decode(sig.encode('utf-8'))
         for subject in trc_dict[ROOT_CAS_STRING]:
-            self.root_cas[subject] = base64.b64decode(
-                trc_dict[ROOT_CAS_STRING][subject].encode('utf-8'))
+            key = trc_dict[ROOT_CAS_STRING][subject][CERTIFICATE_STRING]
+            self.root_cas[subject][CERTIFICATE_STRING] = base64.b64decode(key.encode('utf-8'))
+            key = trc_dict[ROOT_CAS_STRING][subject][ONLINE_KEY_STRING]
+            self.root_cas[subject][ONLINE_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
+        if trc_dict[RAINS_STRING]:
+            key = trc_dict[RAINS_STRING][ROOT_RAINS_KEY_STRING]
+            self.rains[ROOT_RAINS_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
+            key = trc_dict[RAINS_STRING][ONLINE_KEY_STRING]
+            self.rains[ONLINE_KEY_STRING] = base64.b64decode(key.encode('utf-8'))
 
     def get_isd_ver(self):
         return self.isd, self.version
@@ -160,7 +172,7 @@ class TRC(object):
 
     @classmethod
     def from_values(cls, isd, description, version, core_ases, root_cas,
-                    pki_logs, quorum_eepki, root_rains_key, quorum_own_trc,
+                    pki_logs, quorum_eepki, rains, quorum_own_trc,
                     quorum_cas, grace_period, quarantine, signatures):
         """
         Generate a TRC instance.
@@ -171,11 +183,12 @@ class TRC(object):
             DESCRIPTION_STRING: description,
             VERSION_STRING: version,
             CREATION_TIME_STRING: now,
+            EXPIRATION_TIME_STRING: now + cls.DEFAULT_VALIDITY,
             CORE_ASES_STRING: core_ases,
             ROOT_CAS_STRING: root_cas,
             PKI_LOGS_STRING: pki_logs,
             QUORUM_EEPKI_STRING: quorum_eepki,
-            ROOT_RAINS_KEY_STRING: root_rains_key,
+            RAINS_STRING: rains,
             QUORUM_OWN_TRC_STRING: quorum_own_trc,
             QUORUM_CAS_STRING: quorum_cas,
             GRACE_PERIOD_STRING: grace_period,
@@ -195,32 +208,22 @@ class TRC(object):
         in old TRC.
 
         :param: old_trc: the previous TRC which has already been verified.
-        :returns: True if verification succeeds, false otherwise.
-        :rtype: bool
+        :raises: SCIONVerificationError if the verification fails.
         """
         # Only look at signatures which are from core ASes as defined in old TRC
         signatures = {k: self.signatures[k] for k in old_trc.core_ases.keys()}
-        # We have more signatures than the number of core ASes in old TRC
-        if len(signatures) < len(self.signatures):
-            logging.warning("TRC has more signatures than number of core ASes.")
         valid_signature_signers = set()
         # Add every signer to this set whose signature was verified successfully
         for signer in signatures:
             public_key = self.core_ases[signer].subject_sig_key_raw
-            if self._verify_signature(signatures[signer], public_key):
+            if self.verify_signature(signatures[signer], public_key):
                 valid_signature_signers.add(signer)
-            else:
-                logging.warning("TRC contains a signature which could not \
-                be verified.")
         # We have fewer valid signatrues for this TRC than quorum_own_trc
         if len(valid_signature_signers) < old_trc.quorum_own_trc:
-            logging.error("TRC does not have the number of required valid \
-            signatures")
-            return False
-        logging.debug("TRC verified.")
-        return True
+            raise SCIONVerificationError("TRC does not have the number of required valid"
+                                         "signatures: %s" % self)
 
-    def _verify_signature(self, signature, public_key):
+    def verify_signature(self, signature, public_key):
         """
         Checks if the signature can be verified with the given public key for a
         single signature
@@ -240,6 +243,8 @@ class TRC(object):
                 d[k] = base64.b64encode(d[k].encode('utf-8')).decode('utf-8')
             elif self.FIELDS_MAP[k][1] == dict:
                 d[k] = self._encode_dict(d[k])
+            elif self.FIELDS_MAP[k][1] == bytes:
+                d[k] = base64.b64encode(d[k]).decode('utf-8')
         j = json.dumps(d, sort_keys=True, separators=(',', ':'))
         return j.encode('utf-8')
 
@@ -247,8 +252,7 @@ class TRC(object):
         encoded_dict = {}
         for key_ in dict_:
             if type(dict_[key_]) is str:
-                encoded_dict[key_] = base64.b64encode(
-                    dict_[key_].encode('utf-8')).decode('utf-8')
+                encoded_dict[key_] = base64.b64encode(dict_[key_].encode('utf-8')).decode('utf-8')
         return encoded_dict
 
     def to_json(self, with_signatures=True):
@@ -256,6 +260,10 @@ class TRC(object):
         Convert the instance to json format.
         """
         trc_dict = copy.deepcopy(self.dict(with_signatures))
+        key = trc_dict[RAINS_STRING][ONLINE_KEY_STRING]
+        trc_dict[RAINS_STRING][ONLINE_KEY_STRING] = base64.b64encode(key).decode('utf-8')
+        key = trc_dict[RAINS_STRING][ROOT_RAINS_KEY_STRING]
+        trc_dict[RAINS_STRING][ROOT_RAINS_KEY_STRING] = base64.b64encode(key).decode('utf-8')
         core_ases = {}
         for subject in trc_dict[CORE_ASES_STRING]:
             d = trc_dict[CORE_ASES_STRING][subject]
@@ -265,8 +273,12 @@ class TRC(object):
             core_ases[subject] = d
         trc_dict[CORE_ASES_STRING] = core_ases
         root_cas = {}
-        for subject, cert_str in trc_dict[ROOT_CAS_STRING].items():
-            root_cas[subject] = base64.b64encode(cert_str).decode('utf-8')
+        for subject in trc_dict[ROOT_CAS_STRING]:
+            d = trc_dict[ROOT_CAS_STRING][subject]
+            for key in (ONLINE_KEY_STRING, CERTIFICATE_STRING, ):
+                key_ = trc_dict[ROOT_CAS_STRING][subject][key]
+                d[key] = base64.b64encode(key_).decode('utf-8')
+            root_cas[subject] = d
         trc_dict[ROOT_CAS_STRING] = root_cas
         if with_signatures:
             signatures = {}
@@ -278,11 +290,86 @@ class TRC(object):
         trc_str = json.dumps(trc_dict, sort_keys=True, indent=4)
         return trc_str
 
+    def get_sigs(self, sig_type):
+        """
+        Returns a list of tuples (isd, ca name, ca signature) for all signatures of
+        type sig_type on this TRC. ca_name is empty for sig_type AS and RAINS
+        """
+        assert sig_type in ("AS", "CA", "RAINS", )
+        sigs = []
+        for subject, signature in self.signatures.items():
+            try:
+                res = self._parse_subject_str(subject)
+            except SCIONParseError:
+                continue
+            type_, isd, ca_name = res
+            if type_ == sig_type:
+                sigs.append((int(isd), ca_name, signature))
+        return sigs
+
+    def get_neighbors(self):
+        """
+        Parses the signature subjects and returns a list of all
+        ISDs which signed this TRC.
+        """
+        neighbors = set()
+        for subject, signature in self.signatures.items():
+            try:
+                res = self._parse_subject_str(subject)
+            except SCIONParseError:
+                continue
+            _, isd, _ = res
+            if isinstance(isd, ISD_AS):
+                isd = isd[0]
+            neighbors.add(isd)
+        return neighbors
+
+    def _parse_subject_str(self, subject):
+        """
+        Parses the subject string only for cross signatures.
+
+        The subject strings have the different forms depending on subject.
+        CA entry begins with the string "ISD x, CA:", on which the CAs name follows.
+        RAINS entry begins with the string "ISD x, RAINS:"
+        Core AS entry contains the SCION name of the AS.
+
+        :raises: SCIONParseError if the subject parse fails.
+        """
+        sub = subject.split(',', 1)
+        # We have a CA or rains as subject
+        if sub[0].split(' ')[0] == "ISD":
+            isd = sub[0].split(' ')[1]
+            if not isd.isdigit() or len(sub) < 2:
+                raise SCIONParseError("Cannot parse subject: %s" % subject)
+            if sub[1].strip() == "RAINS":
+                return "RAINS", isd, ""
+            elif sub[1].strip().startswith('CA:'):
+                ca = sub[1].split(':')[1].strip()
+                return "CA", isd, ca
+            else:
+                raise SCIONParseError("Cannot parse subject: %s" % subject)
+        # We have any AS
+        else:
+            try:
+                isd_as = ISD_AS(sub[0])
+                return "AS", isd_as, ""
+            except:
+                raise SCIONParseError("Cannot parse subject: %s" % subject)
+
     def pack(self, lz4_=False):
         ret = self.to_json().encode('utf-8')
         if lz4_:
             return lz4.dumps(ret)
         return ret
+
+    def short_desc(self):
+        desc = "TRC("
+        for attr in (ISDID_STRING, VERSION_STRING, DESCRIPTION_STRING,
+                     CREATION_TIME_STRING, EXPIRATION_TIME_STRING):
+            desc += attr + ": " + str(getattr(self, self.FIELDS_MAP[attr][0])) + ", "
+        desc = desc[:-2]
+        desc += ")"
+        return desc
 
     def __str__(self):
         return self.to_json()
@@ -297,25 +384,145 @@ def verify_new_trc(old_trc, new_trc):
     is correct and checks if the new TRC has enough valid signatures as defined
     in the current TRC.
 
-    :returns: True if update is valid, False otherwise
+    :raises: SCIONVerificationError if the verification fails.
     """
     # Check if update is correct
     if old_trc.isd != new_trc.isd:
-        logging.error("TRC isdid mismatch")
-        return False
+        raise SCIONVerificationError("TRC isdid mismatch. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
     if old_trc.version + 1 != new_trc.version:
-        logging.error("TRC versions mismatch")
-        return False
+        raise SCIONVerificationError("TRC versions mismatch. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
     if new_trc.time < old_trc.time:
-        logging.error("New TRC timestamp is not valid")
-        return False
+        raise SCIONVerificationError("New TRC timestamp is not valid. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
+    if old_trc.exp_time >= time.time():
+        raise SCIONVerificationError("Current TRC expired: %s" % old_trc.short_desc())
+    if new_trc.exp_time >= time.time():
+        raise SCIONVerificationError("New TRC expired: %s" % new_trc.short_desc())
     if new_trc.quarantine or old_trc.quarantine:
-        logging.error("Early announcement")
-        return False
+        raise SCIONVerificationError("Early announcement. Current: %s, New: %s"
+                                     % (old_trc.short_desc(), new_trc.short_desc()))
     # Check if there are enough valid signatures for new TRC
-    if not new_trc.verify(old_trc):
-        logging.error("New TRC verification failed, missing or \
-        invalid signatures")
-        return False
-    logging.debug("New TRC verified")
-    return True
+    try:
+        new_trc.verify(old_trc)
+    except SCIONVerificationError:
+        raise SCIONVerificationError("New TRC verification failed, missing or invalid"
+                                     "signatures %s" % new_trc.short_desc())
+
+
+def verify_trc_chain(local_trc, verified_rem_trcs, rem_trc):
+    """
+    Checks if remote TRC can be verified using local TRC or already
+    verified remote TRCs. i.e. checks if there is a trust chain between
+    local TRC and remote TRC.
+
+    :param TRC local_trc: The local TRC to this ISD.
+    :param List(TRC) verified_rem_trcs: Already verified remote TRCs.
+    :param TRC rem_trc: Remote TRC to verify.
+    :raises: SCIONVerificationError if the verification fails.
+    """
+    # Get neighbors of remote TRC
+    rem_nbs = rem_trc.get_neighbors()
+    if local_trc.isd in rem_nbs:
+        # Try to verify with local TRC
+        if verify_trc_xsigs(local_trc, rem_trc) and verify_trc_xsigs(rem_trc, local_trc):
+            return True
+    # Only take TRCs that are neighbors of remote TRC
+    ver_trcs = [trc for trc in verified_rem_trcs if trc.isd in rem_nbs]
+    for trc in ver_trcs:
+        try:
+            verify_trc_xsigs(trc, rem_trc)
+            verify_trc_xsigs(rem_trc, trc)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("TRC chaiun verification between %s and %s failed."
+                                 % (local_trc.short_desc(), rem_trc.short_desc()))
+
+
+def verify_trc_xsigs(src_trc, dst_trc):
+    """
+    Check if dst_trc is signed correctly by the ISD src_trc belongs to.
+
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :raises: SCIONVerificationError if the verification fails.
+    """
+    assert isinstance(src_trc, TRC)
+    assert isinstance(dst_trc, TRC)
+    if src_trc.isd == dst_trc.isd:
+        raise SCIONVerificationError("TRCs are from the same ISD(%s)." % src_trc.isd)
+    try:
+        verify_core_as_xsigs(src_trc, dst_trc)
+        verify_rains_xsigs(src_trc, dst_trc)
+        verify_ca_xsigs(src_trc, dst_trc)
+    except SCIONVerificationError:
+        raise SCIONVerificationError("Cross signature verification between %s and %s failded."
+                                     % (src_trc.short_desc(), dst_trc.short_desc()))
+
+
+def verify_core_as_xsigs(src_trc, dst_trc):
+    """
+    Checks if dst_trc is signed by a core AS in src_trc.
+
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :raises: SCIONVerificationError if the verification fails.
+    """
+    as_sigs = dst_trc.get_sigs("AS")
+    for isd_as, _, signature in as_sigs:
+        if ISD_AS(isd_as)[0] != src_trc.isd:
+            continue
+        pub_key = src_trc.core_ases[str(ISD_AS(isd_as))][ONLINE_KEY_STRING]
+        try:
+            dst_trc.verify_signature(signature, pub_key)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("%s is not correctly signed by a core AS in %s"
+                                 % (src_trc.short_desc(), dst_trc.short_desc()))
+
+
+def verify_rains_xsigs(src_trc, dst_trc):
+    """
+    Checks if dst_trc is signed by RAINS in src_trc.
+
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :raises: SCIONVerificationError if the verification fails.
+    """
+    rains_sigs = dst_trc.get_sigs("RAINS")
+    for isd, _, signature in rains_sigs:
+        if isd != src_trc.isd:
+            continue
+        pub_key = src_trc.rains[ONLINE_KEY_STRING]
+        try:
+            dst_trc.verify_signature(signature, pub_key)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("%s is not correctly signed by RAINS in %s"
+                                 % (src_trc.short_desc(), dst_trc.short_desc()))
+
+
+def verify_ca_xsigs(src_trc, dst_trc):
+    """
+    Checks if dst_trc is signed by a CA in src_trc.
+
+    :param TRC src_trc: The signing ISD's TRC.
+    :param TRC dst_trc: The TRC whose signatures need to be checked.
+    :raises: SCIONVerificationError if the verification fails.
+    """
+    ca_sigs = dst_trc.get_sigs("CA")
+    for isd, ca_name, signature in ca_sigs:
+        if isd != src_trc.isd:
+            continue
+        pub_key = src_trc.root_cas[ca_name][ONLINE_KEY_STRING]
+        try:
+            dst_trc.verify_signature(signature, pub_key)
+            return
+        except SCIONVerificationError:
+            continue
+    raise SCIONVerificationError("%s is not correctly signed by a CA in %s"
+                                 % (src_trc.short_desc(), dst_trc.short_desc()))
