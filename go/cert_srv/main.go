@@ -39,13 +39,14 @@ const (
 )
 
 var (
-	id             = flag.String("id", "", "Element ID (Required. E.g. 'cs1-10-1')")
-	sciondPath     = flag.String("sd", "", "SCIOND socket path (Optional if SCIOND_PATH is set)")
-	dispatcherPath = flag.String("disp", "/run/shm/dispatcher/default.sock",
-		"SCION Dispatcher path (Optional)")
+	id         = flag.String("id", "", "Element ID (Required. E.g. 'cs1-10-1')")
+	sciondPath = flag.String("sciond", "",
+		"SCIOND socket path (Optional if SCIOND_PATH is set)")
+	dispPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+		"SCION Dispatcher path")
 	confDir  = flag.String("confd", "", "Configuration directory (Required)")
-	cacheDir = flag.String("cached", "gen-cache", "Caching directory (Optional)")
-	prom     = flag.String("prom", "", "prom")
+	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
+	prom     = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")
 	topo     *topology.Topo
 	store    *trust.Store
 	local    *snet.Addr
@@ -61,11 +62,14 @@ func main() {
 	}
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
-	checkFlags()
 	setupSignals()
-	loadTopo()
-
 	var err error
+	if err = checkFlags(); err != nil {
+		fatal(err.Error())
+	}
+	if err = loadTopo(); err != nil {
+		fatal(err.Error())
+	}
 	// initialize Trust Store
 	if store, err = trust.NewStore(filepath.Join(*confDir, "certs"), *cacheDir, *id); err != nil {
 		fatal("Unable to initialize TrustStore", "err", err)
@@ -83,21 +87,20 @@ func main() {
 
 }
 
-// checkFlags checks that all required flags are set
-func checkFlags() {
+// checkFlags checks that all required flags are set.
+func checkFlags() error {
 	if *sciondPath == "" {
 		*sciondPath = os.Getenv("SCIOND_PATH")
 		if *sciondPath == "" {
-			log.Crit("No SCIOND path specified")
 			flag.Usage()
-			os.Exit(1)
+			return common.NewCError("No SCIOND path specified")
 		}
 	}
 	if *confDir == "" {
-		log.Crit("No configuration directory specified")
 		flag.Usage()
-		os.Exit(1)
+		return common.NewCError("No configuration directory specified")
 	}
+	return nil
 }
 
 // loadTopo loads topology from the configuration file and sets the local address.
@@ -121,7 +124,7 @@ func loadTopo() (err error) {
 func initSNET(attempts int, sleep time.Duration) (err error) {
 	// Initialize SCION local networking module
 	for i := 0; i < attempts; i++ {
-		if err = snet.Init(local.IA, *sciondPath, *dispatcherPath); err == nil {
+		if err = snet.Init(local.IA, *sciondPath, *dispPath); err == nil {
 			break
 		}
 		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", err)

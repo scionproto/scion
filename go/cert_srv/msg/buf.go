@@ -22,7 +22,7 @@ import (
 )
 
 // MaxBufSize is the size of a pre-allocated frame buffer.
-var MaxBufSize = 2 << 16
+const MaxBufSize = 2 << 16
 
 // BufPool is a pool of message buffers.
 type BufPool struct {
@@ -30,19 +30,19 @@ type BufPool struct {
 }
 
 func NewBufPool() *BufPool {
-	return &BufPool{&sync.Pool{New: func() interface{} { return NewBuf() }}}
+	return &BufPool{&sync.Pool{New: func() interface{} { return newBuf() }}}
 }
 
-// FetchBuf fetches buffer. The caller shall return the buffer when no longer needed.
-func (p *BufPool) FetchBuf() *Buf {
-	msgBuf := p.Get().(*Buf)
-	msgBuf.Reset()
+// Get fetches buffer. The caller shall return the buffer when no longer needed.
+func (p *BufPool) Get() *Buf {
+	msgBuf := p.Pool.Get().(*Buf)
+	msgBuf.reset()
 	return msgBuf
 }
 
-// PutBuf returns the buffer to the buffer pool.
-func (p *BufPool) PutBuf(msgBuf *Buf) {
-	p.Put(msgBuf)
+// Put returns the buffer to the buffer pool.
+func (p *BufPool) Put(msgBuf *Buf) {
+	p.Pool.Put(msgBuf)
 }
 
 // Buf is a buffer for raw data and the corresponding snet address.
@@ -51,13 +51,13 @@ type Buf struct {
 	Addr *snet.Addr
 }
 
-func NewBuf() *Buf {
+func newBuf() *Buf {
 	buf := &Buf{Raw: make(common.RawBytes, MaxBufSize)}
-	buf.Reset()
+	buf.reset()
 	return buf
 }
 
-func (mb *Buf) Reset() {
+func (mb *Buf) reset() {
 	mb.Raw = mb.Raw[:cap(mb.Raw)]
 	mb.Addr = nil
 }
