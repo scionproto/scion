@@ -29,6 +29,13 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/crypto"
 )
 
+const (
+	EarlyUsage     = "Certificate IssuingTime in the future"
+	InvalidSubject = "Invalid subject"
+	Expired        = "Certificate expired"
+	UnableSigPack  = "Cert: Unable to create signature input"
+)
+
 type Certificate struct {
 	// CanIssue describes whether the subject is able to issue certificates.
 	CanIssue bool
@@ -71,21 +78,27 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 // subject, and that it is valid at the current time.
 func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, signAlgo string) error {
 	if !subject.Eq(c.Subject) {
-		return common.NewCError("Subject does not match", "expected", c.Subject,
+		return common.NewCError(InvalidSubject, "expected", c.Subject,
 			"actual", subject)
 	}
 	currTime := uint64(time.Now().Unix())
 	if currTime < c.IssuingTime {
-		return common.NewCError("Certificate used before IssuingTime", "IssuingTime",
+		return common.NewCError(EarlyUsage, "IssuingTime",
 			timeToString(c.IssuingTime), "current", timeToString(currTime))
 	}
 	if currTime > c.ExpirationTime {
-		return common.NewCError("Certificate expired", "Expiration Time",
+		return common.NewCError(Expired, "Expiration Time",
 			timeToString(c.ExpirationTime), "current", timeToString(currTime))
 	}
+	return c.VerifySignature(verifyKey, signAlgo)
+}
+
+// VerifySignature checks the signature of the certificate based on a trusted verifying key and the
+// associated signature algorithm.
+func (c *Certificate) VerifySignature(verifyKey common.RawBytes, signAlgo string) error {
 	sigInput, err := c.sigPack()
 	if err != nil {
-		return common.NewCError("Signature input creation faild", "error", err)
+		return common.NewCError(UnableSigPack, "error", err)
 	}
 	return crypto.Verify(sigInput, c.Signature, verifyKey, signAlgo)
 }
