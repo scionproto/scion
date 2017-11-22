@@ -26,7 +26,7 @@ import (
 // ReqCache keeps track of requester addresses associated with a certain request key.
 type ReqCache struct {
 	// lock is the lock for synchronizing access cache.
-	lock sync.RWMutex
+	lock sync.Mutex
 	// cache is an expiring cache for pending requests.
 	cache *cache.Cache
 	// delta is the minimal time between two requests for the same key.

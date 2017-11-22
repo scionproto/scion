@@ -17,7 +17,6 @@ package main
 import (
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/cs/msg"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
@@ -25,47 +24,47 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
+const MaxReadBufSize = 2 << 16
+
 // Dispatcher handles incoming SCION packets.
 type Dispatcher struct {
 	conn         *snet.Conn
-	bufPool      *msg.BufPool
+	buf          common.RawBytes
 	chainHandler *ChainHandler
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
 func NewDispatcher(addr *snet.Addr) (*Dispatcher, error) {
+	// FIXME(roosd): listen to SVC address after #1334 has been addressed
 	conn, err := snet.ListenSCION("udp4", addr)
 	if err != nil {
 		return nil, err
 	}
-	d := &Dispatcher{conn: conn, bufPool: msg.NewBufPool()}
-	d.chainHandler = NewChainHandler(d.conn, d.bufPool)
+	d := &Dispatcher{conn: conn, buf: make(common.RawBytes, MaxReadBufSize)}
+	d.chainHandler = NewChainHandler(d.conn)
 	return d, nil
 }
 
 // run reads SCION packets from snet.
 func (d *Dispatcher) run() {
 	for {
-		buf := d.bufPool.FetchBuf()
-		read, addr, err := d.conn.ReadFromSCION(buf.Raw)
+		read, addr, err := d.conn.ReadFromSCION(d.buf)
 		if err != nil {
 			log.Error("Unable to read from network", "err", err)
-			d.bufPool.PutBuf(buf)
 			continue
 		}
-		buf.Raw = buf.Raw[:read]
-		buf.Addr = addr
-		if err = d.dispatch(buf); err != nil {
+		buf := make(common.RawBytes, read)
+		copy(buf, d.buf[:read])
+		if err = d.dispatch(addr, buf); err != nil {
 			log.Error("Unable to dispatch", "err", err)
 		}
-		d.bufPool.PutBuf(buf)
 
 	}
 }
 
 // dispatch hands payload over tho the associated handlers.
-func (d *Dispatcher) dispatch(buf *msg.Buf) error {
-	signed, err := ctrl.NewSignedPldFromRaw(buf.Raw)
+func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
+	signed, err := ctrl.NewSignedPldFromRaw(buf)
 	if err != nil {
 		return err
 	}
@@ -85,9 +84,9 @@ func (d *Dispatcher) dispatch(buf *msg.Buf) error {
 		}
 		switch pld.ProtoId() {
 		case proto.CertChainRep_TypeID:
-			d.chainHandler.HandleRep(buf.Addr, pld.(*cert_mgmt.ChainRep))
+			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.ChainRep))
 		case proto.CertChainReq_TypeID:
-			d.chainHandler.HandleReq(buf.Addr, pld.(*cert_mgmt.ChainReq))
+			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq))
 		}
 	default:
 		return common.NewCError("Not implemented", "protoID", c.ProtoId())
@@ -96,13 +95,11 @@ func (d *Dispatcher) dispatch(buf *msg.Buf) error {
 }
 
 // SendPayload is used to send payloads to the specified address using snet.
-func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr, pool *msg.BufPool) error {
-	buf := pool.FetchBuf()
-	defer pool.PutBuf(buf)
-	n, err := cpld.WritePld(buf.Raw)
+func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
+	buf, err := cpld.PackPld()
 	if err != nil {
 		return err
 	}
-	_, err = conn.WriteToSCION(buf.Raw[:n], addr)
+	_, err = conn.WriteToSCION(buf, addr)
 	return err
 }

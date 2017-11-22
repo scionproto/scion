@@ -19,7 +19,6 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/cs/msg"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/crypto/cert"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
@@ -29,16 +28,15 @@ import (
 
 var (
 	// chainReqCache is an expiring cache for pending requests of certificate chains.
-	chainReqCache = NewReqCache(30*time.Second, 10*time.Minute, 100*time.Millisecond)
+	chainReqCache = NewReqCache(30*time.Second, 10*time.Minute, 1*time.Second)
 )
 
 type ChainHandler struct {
 	conn *snet.Conn
-	pool *msg.BufPool
 }
 
-func NewChainHandler(conn *snet.Conn, pool *msg.BufPool) *ChainHandler {
-	return &ChainHandler{conn: conn, pool: pool}
+func NewChainHandler(conn *snet.Conn) *ChainHandler {
+	return &ChainHandler{conn: conn}
 }
 
 // HandleReq handles certificate chain requests. Non-local or cache-only requests are dropped,
@@ -46,17 +44,18 @@ func NewChainHandler(conn *snet.Conn, pool *msg.BufPool) *ChainHandler {
 func (h *ChainHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainReq) {
 	log.Info("Received certificate chain request", "addr", addr, "req", req)
 	chain := store.GetChain(req.IA(), int(req.Version))
-	local := local.IA.Eq(addr.IA)
+	srcLocal := local.IA.Eq(addr.IA)
 	if chain != nil {
 		if err := h.sendChainRep(addr, chain); err != nil {
-			log.Error("Unable to send certificate chain reply", "addr", addr, "err", err)
+			log.Error("Unable to send certificate chain reply", "addr", addr, "req",
+				req, "err", err)
 		}
-	} else if !local || req.CacheOnly {
+	} else if !srcLocal || req.CacheOnly {
 		log.Info("Dropping certificate chain request", "addr", addr, "req", req, "err",
 			"certificate chain not found")
 	} else {
 		if err := h.fetchChain(addr, req); err != nil {
-			log.Error("Unable to fetch certificate chain", "err", err)
+			log.Error("Unable to fetch certificate chain", "req", req, "err", err)
 		}
 	}
 }
@@ -72,7 +71,7 @@ func (h *ChainHandler) sendChainRep(addr *snet.Addr, chain *cert.Chain) error {
 		return err
 	}
 	log.Debug("Send certificate chain reply", "chain", chain, "addr", addr)
-	return SendPayload(h.conn, cpld, addr, h.pool)
+	return SendPayload(h.conn, cpld, addr)
 }
 
 // fetchChain fetches certificate chain from the remote AS.
@@ -89,14 +88,13 @@ func (h *ChainHandler) fetchChain(addr *snet.Addr, req *cert_mgmt.ChainReq) erro
 
 // sendChainReq sends a certificate chain request to the specified remote AS.
 func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
-	req.CacheOnly = true
 	cpld, err := ctrl.NewCertMgmtPld(req)
 	if err != nil {
 		return err
 	}
-	a := &snet.Addr{IA: req.IA(), Host: addr.SvcCS, L4Port: 0}
+	a := &snet.Addr{IA: req.IA(), Host: addr.SvcCS}
 	log.Debug("Send certificate chain request", "req", req, "addr", a)
-	return SendPayload(h.conn, cpld, a, h.pool)
+	return SendPayload(h.conn, cpld, a)
 }
 
 // HandleChainRep handles certificate chain replies. Pending requests are answered and removed.
@@ -107,7 +105,7 @@ func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.ChainRep) {
 		log.Error("Unable to parse certificate reply", "err", err)
 	}
 	if err = store.AddChain(chain, true); err != nil {
-		log.Error("Unable to store certificate chain", "err", err)
+		log.Error("Unable to store certificate chain", "key", chain.Key(), "err", err)
 		return
 	}
 	reqs := chainReqCache.Pop(chain.Key().String())
@@ -116,12 +114,14 @@ func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.ChainRep) {
 	}
 	cpld, err := ctrl.NewCertMgmtPld(rep)
 	if err != nil {
-		log.Error("Unable to create certificate chain reply", "err", err)
+		log.Error("Unable to create certificate chain reply", "key", chain.Key(),
+			"err", err)
 		return
 	}
 	for _, dst := range reqs.Addrs {
-		if err := SendPayload(h.conn, cpld, dst, h.pool); err != nil {
-			log.Error("Unable to write certificate chain reply", "err", err)
+		if err := SendPayload(h.conn, cpld, dst); err != nil {
+			log.Error("Unable to write certificate chain reply", "key", chain.Key(),
+				"err", err)
 			continue
 		}
 	}
