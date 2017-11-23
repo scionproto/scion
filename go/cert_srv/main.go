@@ -46,7 +46,7 @@ var (
 		"SCION Dispatcher path")
 	confDir  = flag.String("confd", "", "Configuration directory (Required)")
 	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
-	prom     = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")
+	prom     = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
 	topo     *topology.Topo
 	store    *trust.Store
 	local    *snet.Addr
