@@ -131,6 +131,14 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 	return t, nil
 }
 
+func (t *TRC) IsdVer() (uint16, uint64) {
+	return t.ISD, t.Version
+}
+
+func (t *TRC) Key() *Key {
+	return NewKey(t.ISD, t.Version)
+}
+
 // CoreASList returns a list of core ASes' addresses.
 func (t *TRC) CoreASList() []*addr.ISD_AS {
 	l := make([]*addr.ISD_AS, 0, len(t.CoreASes))
@@ -138,29 +146,6 @@ func (t *TRC) CoreASList() []*addr.ISD_AS {
 		l = append(l, key.Copy())
 	}
 	return l
-}
-
-// Sign adds signature to the TRC. The signature is computed over the TRC without the signature map.
-func (t *TRC) Sign(name string, signKey common.RawBytes, signAlgo string) error {
-	sigInput, err := t.sigPack()
-	if err != nil {
-		return common.NewCError("Unable to create signature", "err", err)
-	}
-	sig, err := crypto.Sign(sigInput, signKey, signAlgo)
-	if err != nil {
-		return common.NewCError("Unable to create signature", "err", err)
-	}
-	t.Signatures[name] = sig
-	return nil
-}
-
-// sigPack creates a sorted json object of all fields, except for the signature map.
-func (t *TRC) sigPack() (common.RawBytes, error) {
-	sigInput, err := json.Marshal(t.jsonMap(false))
-	if err != nil {
-		return nil, common.NewCError(UnableSigPack, "err", err)
-	}
-	return sigInput, nil
 }
 
 // CheckActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
@@ -185,40 +170,54 @@ func (t *TRC) CheckActive(maxTRC *TRC) error {
 	return nil
 }
 
+// Sign adds signature to the TRC. The signature is computed over the TRC without the signature map.
+func (t *TRC) Sign(name string, signKey common.RawBytes, signAlgo string) error {
+	sigInput, err := t.sigPack()
+	if err != nil {
+		return common.NewCError("Unable to pack TRC for signing", "err", err)
+	}
+	sig, err := crypto.Sign(sigInput, signKey, signAlgo)
+	if err != nil {
+		return common.NewCError("Unable to create signature", "err", err)
+	}
+	t.Signatures[name] = sig
+	return nil
+}
+
 // Verify checks the validity of the TRC based on a trusted TRC. The trusted TRC can either be
 // the direct predecessor TRC or a cross signing TRC.
-func (t *TRC) Verify(trust *TRC) (error, *TRCVerResult) {
+func (t *TRC) Verify(trust *TRC) (*TRCVerResult, error) {
 	if t.ISD == trust.ISD {
 		return t.verifyUpdate(trust)
 	}
-	return t.verifyXSig(trust), nil
+	return nil, t.verifyXSig(trust)
 }
 
 // verifyUpdate checks the validity of a updated TRC.
-func (t *TRC) verifyUpdate(old *TRC) (error, *TRCVerResult) {
+func (t *TRC) verifyUpdate(old *TRC) (*TRCVerResult, error) {
 	if old.ISD != t.ISD {
-		return common.NewCError(InvalidISD, "expected", old.ISD, "actual", t.ISD), nil
+		return nil, common.NewCError(InvalidISD, "expected", old.ISD, "actual", t.ISD)
 	}
 	if old.Version+1 != t.Version {
-		return common.NewCError(InvalidVersion, "expected",
-			old.Version+1, "actual", t.Version), nil
+		return nil, common.NewCError(InvalidVersion, "expected",
+			old.Version+1, "actual", t.Version)
 	}
 	if t.CreationTime < old.CreationTime+old.GracePeriod {
-		return common.NewCError(InvalidCreationTime, "expected >",
+		return nil, common.NewCError(InvalidCreationTime, "expected >",
 			timeToString(old.CreationTime+old.GracePeriod), "actual",
-			timeToString(t.CreationTime)), nil
+			timeToString(t.CreationTime))
 	}
 	if t.Quarantine || old.Quarantine {
-		return common.NewCError(EarlyAnnouncement), nil
+		return nil, common.NewCError(EarlyAnnouncement)
 	}
 	return t.verifySignatures(old)
 }
 
 // verifySignatures checks the signatures of the updated TRC.
-func (t *TRC) verifySignatures(old *TRC) (error, *TRCVerResult) {
+func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
 	sigInput, err := t.sigPack()
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	var tvr = &TRCVerResult{}
 	// Only verify signatures which are from core ASes defined in old TRC
@@ -236,16 +235,40 @@ func (t *TRC) verifySignatures(old *TRC) (error, *TRCVerResult) {
 		}
 	}
 	if !tvr.QuorumOk() {
-		return common.NewCError(InvalidQuorum, "expected", old.QuorumTRC,
-			"actual", len(tvr.Verified)), tvr
+		return tvr, common.NewCError(InvalidQuorum, "expected", old.QuorumTRC,
+			"actual", len(tvr.Verified))
 	}
-	return nil, tvr
+	return tvr, nil
 }
 
 // verifyXSig checks the cross signatures of the updated TRC.
 func (t *TRC) verifyXSig(trust *TRC) error {
 	// FIXME(roosd): implement cross signatures
 	return nil
+}
+
+// sigPack creates a sorted json object of all fields, except for the signature map.
+func (t *TRC) sigPack() (common.RawBytes, error) {
+	m := make(map[string]interface{})
+	m["CertLogs"] = t.CertLogs
+	m["CreationTime"] = t.CreationTime
+	m["Description"] = t.Description
+	m["ExpirationTime"] = t.ExpirationTime
+	m["GracePeriod"] = t.GracePeriod
+	m["ISD"] = t.ISD
+	m["Quarantine"] = t.Quarantine
+	m["QuorumCAs"] = t.QuorumCAs
+	m["QuorumTRC"] = t.QuorumTRC
+	m["RAINS"] = t.RAINS
+	m["RootCAs"] = t.RootCAs
+	m["ThresholdEEPKI"] = t.ThresholdEEPKI
+	m["Version"] = t.Version
+	m["CoreASes"] = t.CoreASes
+	sigInput, err := json.Marshal(m)
+	if err != nil {
+		return nil, common.NewCError(UnableSigPack, "err", err)
+	}
+	return sigInput, nil
 }
 
 // Compress compresses the JSON generated from the TRC using lz4 block mode and
@@ -265,10 +288,6 @@ func (t *TRC) Compress() (common.RawBytes, error) {
 	return comp[:n+4], err
 }
 
-func (t *TRC) String() string {
-	return fmt.Sprintf("TRC %dv%d", t.ISD, t.Version)
-}
-
 func (t *TRC) JSON(indent bool) ([]byte, error) {
 	if indent {
 		return json.MarshalIndent(t, "", strings.Repeat(" ", 4))
@@ -276,42 +295,8 @@ func (t *TRC) JSON(indent bool) ([]byte, error) {
 	return json.Marshal(t)
 }
 
-func (t *TRC) IsdVer() (uint16, uint64) {
-	return t.ISD, t.Version
-}
-
-func (t *TRC) Key() *Key {
-	return NewKey(t.ISD, t.Version)
-}
-
-func (t *TRC) MarshalJSON() ([]byte, error) {
-	return json.Marshal(t.jsonMap(true))
-}
-
-func (t *TRC) jsonMap(withSignatures bool) map[string]interface{} {
-	m := make(map[string]interface{})
-	m["CertLogs"] = t.CertLogs
-	m["CreationTime"] = t.CreationTime
-	m["Description"] = t.Description
-	m["ExpirationTime"] = t.ExpirationTime
-	m["GracePeriod"] = t.GracePeriod
-	m["ISD"] = t.ISD
-	m["Quarantine"] = t.Quarantine
-	m["QuorumCAs"] = t.QuorumCAs
-	m["QuorumTRC"] = t.QuorumTRC
-	m["RAINS"] = t.RAINS
-	m["RootCAs"] = t.RootCAs
-	m["ThresholdEEPKI"] = t.ThresholdEEPKI
-	m["Version"] = t.Version
-	if withSignatures {
-		m["Signatures"] = t.Signatures
-	}
-	coreASes := make(map[string]interface{})
-	for key, val := range t.CoreASes {
-		coreASes[key.String()] = val
-	}
-	m["CoreASes"] = coreASes
-	return m
+func (t *TRC) String() string {
+	return fmt.Sprintf("TRC %dv%d", t.ISD, t.Version)
 }
 
 func timeToString(t uint64) string {

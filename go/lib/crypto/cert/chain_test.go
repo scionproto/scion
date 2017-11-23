@@ -32,39 +32,9 @@ import (
 var _ fmt.Stringer = (*Certificate)(nil)
 
 var (
-	rawChain = []byte(`
-	{
-	    "0": {
-		"SignAlgorithm": "ed25519",
-		"SubjectSignKey": "5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=",
-		"Version": 1,
-		"EncAlgorithm": "curve25519xsalsa20poly1305",
-		"SubjectEncKey": "nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=",
-		"TRCVersion": 2,
-		"ExpirationTime": 1539868933,
-		"Signature": "36dhobVsPBt6UlMCZtmYHoKJbuS3MbZNvu24nA+kt780bf4ZenIreuvnxphIxuI327cBoeDsB+Tg1EvSPnwEBg==",
-		"Issuer": "1-13",
-		"CanIssue": false,
-		"Subject": "1-10",
-		"IssuingTime": 1508332933,
-		"Comment": "AS Certificate\u2602\u2602\u2602\u2602"
-	    },
-	    "1": {
-		"SignAlgorithm": "ed25519",
-		"SubjectSignKey": "kqh9WJfVH10/apH278var5ec3AYIU5LjdS1n7SP5+p8=",
-		"Version": 1,
-		"EncAlgorithm": "curve25519xsalsa20poly1305",
-		"SubjectEncKey": "MxxFIP+KlhIyqxsv6B0Um72D+NPoLKGuBPNt8b14/RI=",
-		"TRCVersion": 2,
-		"ExpirationTime": 1539868933,
-		"Signature": "CbjEsqIe4LW7kjMsyMBim4RdRn0YwM4kCjED+1Lbja4o3lwQVHqxVzQ8Rx0CsmHdsm4mwPoNg++KKUlUxrRmCg==",
-		"Issuer": "1-13",
-		"CanIssue": true,
-		"Subject": "1-13",
-		"IssuingTime": 1508332933,
-		"Comment": "Core AS Certificate"
-	    }
-	}`)
+	fnChain       = "testdata/ISD1-AS10-V1.crt"
+	fnCore        = "testdata/ISD1-AS10-V1.core"
+	fnNoIndentCrt = "testdata/noindent.crt"
 
 	packChain, _ = hex.DecodeString("bb030000fe277b2230223a7b2243616e4973737565223a66616c7365" +
 		"2c22436f6d6d656e74223a2241532043657274696669636174655c75323630320600f24a222c2245" +
@@ -83,53 +53,19 @@ var (
 		"6d43d301001633940105d301ff1b4d78784649502b4b6c68497971787376364230556d3732442b4e" +
 		"506f4c4b477542504e74386231342f52d30103ff1c6b716839574a66564831302f61704832373876" +
 		"61723565633341594955354c6a6453316e375350352b7038d3010750223a317d7d")
-
-	rawLeaf = []byte(`
-	{
-	    "SignAlgorithm": "ed25519",
-	    "SubjectSignKey": "5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=",
-	    "Version": 1,
-	    "EncAlgorithm": "curve25519xsalsa20poly1305",
-	    "SubjectEncKey": "nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=",
-	    "TRCVersion": 2,
-	    "ExpirationTime": 1539868933,
-	    "Signature": "36dhobVsPBt6UlMCZtmYHoKJbuS3MbZNvu24nA+kt780bf4ZenIreuvnxphIxuI327cBoeDsB+Tg1EvSPnwEBg==",
-	    "Issuer": "1-13",
-	    "CanIssue": false,
-	    "Subject": "1-10",
-	    "IssuingTime": 1508332933,
-	    "Comment": "AS Certificate\u2602\u2602\u2602\u2602"
-	}`)
-	rawCore = []byte(`
-	{
-	    "SignAlgorithm": "ed25519",
-	    "SubjectSignKey": "kqh9WJfVH10/apH278var5ec3AYIU5LjdS1n7SP5+p8=",
-	    "Version": 1,
-	    "EncAlgorithm": "curve25519xsalsa20poly1305",
-	    "SubjectEncKey": "MxxFIP+KlhIyqxsv6B0Um72D+NPoLKGuBPNt8b14/RI=",
-	    "TRCVersion": 2,
-	    "ExpirationTime": 1539868933,
-	    "Signature": "CbjEsqIe4LW7kjMsyMBim4RdRn0YwM4kCjED+1Lbja4o3lwQVHqxVzQ8Rx0CsmHdsm4mwPoNg++KKUlUxrRmCg==",
-	    "Issuer": "1-13",
-	    "CanIssue": true,
-	    "Subject": "1-13",
-	    "IssuingTime": 1508332933,
-	    "Comment": "Core AS Certificate"
-	}`)
 )
 
 func Test_ChainFromRaw(t *testing.T) {
 	Convey("ChainFromRaw should parse bytes correctly", t, func() {
-		chain, err := ChainFromRaw(rawChain, false)
+		chain, err := ChainFromRaw(loadRaw(fnChain, t), false)
 		SoMsg("err", err, ShouldBeNil)
-
 		Convey("Leaf Certifiacte is parsed correctly", func() {
-			cert, _ := CertificateFromRaw(rawLeaf)
+			cert := loadCert(fnLeaf, t)
 			SoMsg("Leaf", chain.Leaf.Eq(cert), ShouldBeTrue)
 		})
 
 		Convey("Core Certifiacte is parsed correctly", func() {
-			cert, _ := CertificateFromRaw(rawCore)
+			cert := loadCert(fnCore, t)
 			SoMsg("Core", chain.Core.Eq(cert), ShouldBeTrue)
 		})
 	})
@@ -139,12 +75,12 @@ func Test_ChainFromRaw(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 
 		Convey("Leaf Certifiacte is parsed correctly", func() {
-			cert, _ := CertificateFromRaw(rawLeaf)
+			cert := loadCert(fnLeaf, t)
 			SoMsg("Leaf", chain.Leaf.Eq(cert), ShouldBeTrue)
 		})
 
 		Convey("Core Certifiacte is parsed correctly", func() {
-			cert, _ := CertificateFromRaw(rawCore)
+			cert := loadCert(fnCore, t)
 			SoMsg("Core", chain.Core.Eq(cert), ShouldBeTrue)
 		})
 	})
@@ -159,7 +95,7 @@ func Test_ChainFromRaw(t *testing.T) {
 func Test_Chain_Verify(t *testing.T) {
 	Convey("Chain is verifiable", t, func() {
 		// FIXME(roosd): Update with TRC implementation
-		chain, _ := ChainFromRaw(rawChain, false)
+		chain := loadChain(fnChain, t)
 		pub, priv, _ := ed25519.GenerateKey(nil)
 		pubRaw, privRaw := []byte(pub), []byte(priv)
 
@@ -174,7 +110,7 @@ func Test_Chain_Verify(t *testing.T) {
 
 func Test_Chain_Compress(t *testing.T) {
 	Convey("Chain is compressed correctly", t, func() {
-		chain, _ := ChainFromRaw(rawChain, false)
+		chain := loadChain(fnChain, t)
 		comp, err := chain.Compress()
 		SoMsg("err", err, ShouldBeNil)
 		pChain, _ := ChainFromRaw(comp, true)
@@ -184,26 +120,24 @@ func Test_Chain_Compress(t *testing.T) {
 
 func Test_Chain_String(t *testing.T) {
 	Convey("Chain is returned as String correctly", t, func() {
-		chain, err := ChainFromRaw(rawChain, false)
-		SoMsg("err", err, ShouldBeNil)
+		chain := loadChain(fnChain, t)
 		SoMsg("Compare", chain.String(), ShouldEqual, "CertificateChain 1-10v1")
 	})
 }
 
 func Test_Chain_JSON(t *testing.T) {
 	Convey("Chain is returned as Json correctly", t, func() {
-		s := `{"0":{"CanIssue":false,"Comment":"AS Certificate☂☂☂☂","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"36dhobVsPBt6UlMCZtmYHoKJbuS3MbZNvu24nA+kt780bf4ZenIreuvnxphIxuI327cBoeDsB+Tg1EvSPnwEBg==","Subject":"1-10","SubjectEncKey":"nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=","SubjectSignKey":"5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=","TRCVersion":2,"Version":1},"1":{"CanIssue":true,"Comment":"Core AS Certificate","EncAlgorithm":"curve25519xsalsa20poly1305","ExpirationTime":1539868933,"Issuer":"1-13","IssuingTime":1508332933,"SignAlgorithm":"ed25519","Signature":"CbjEsqIe4LW7kjMsyMBim4RdRn0YwM4kCjED+1Lbja4o3lwQVHqxVzQ8Rx0CsmHdsm4mwPoNg++KKUlUxrRmCg==","Subject":"1-13","SubjectEncKey":"MxxFIP+KlhIyqxsv6B0Um72D+NPoLKGuBPNt8b14/RI=","SubjectSignKey":"kqh9WJfVH10/apH278var5ec3AYIU5LjdS1n7SP5+p8=","TRCVersion":2,"Version":1}}`
-		cert, _ := ChainFromRaw(rawChain, false)
-		j, err := cert.JSON(false)
+		s := loadRaw(fnNoIndentCrt, t)
+		chain := loadChain(fnChain, t)
+		j, err := chain.JSON(false)
 		So(err, ShouldEqual, nil)
-		So(string(j), ShouldResemble, s)
+		So(string(j), ShouldResemble, string(s))
 	})
 }
 
 func Test_Chain_IAVer(t *testing.T) {
 	Convey("IA version tuple is returned correctly", t, func() {
-		chain, err := ChainFromRaw(rawChain, false)
-		SoMsg("err", err, ShouldBeNil)
+		chain := loadChain(fnChain, t)
 		ia, ver := chain.IAVer()
 		SoMsg("IA", ia.Eq(&addr.ISD_AS{I: 1, A: 10}), ShouldBeTrue)
 		SoMsg("Ver", ver, ShouldEqual, 1)
@@ -212,8 +146,8 @@ func Test_Chain_IAVer(t *testing.T) {
 
 func Test_Chain_Eq(t *testing.T) {
 	Convey("Load Certificate from Raw", t, func() {
-		c1, _ := ChainFromRaw(rawChain, false)
-		c2, _ := ChainFromRaw(rawChain, false)
+		c1 := loadChain(fnChain, t)
+		c2 := loadChain(fnChain, t)
 
 		Convey("Chains are equal", func() {
 			SoMsg("Eq", c1.Eq(c2), ShouldBeTrue)
@@ -231,8 +165,7 @@ func Test_Chain_Eq(t *testing.T) {
 
 func Test_Chain_Key(t *testing.T) {
 	Convey("Key is returned correctly", t, func() {
-		chain, err := ChainFromRaw(rawChain, false)
-		SoMsg("err", err, ShouldBeNil)
+		chain := loadChain(fnChain, t)
 		key := *chain.Key()
 		SoMsg("Key", key, ShouldResemble, Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1})
 	})
@@ -240,6 +173,15 @@ func Test_Chain_Key(t *testing.T) {
 
 func Test_Key_String(t *testing.T) {
 	Convey("Key represented as string correctly", t, func() {
-		SoMsg("Key", (&Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1}).String(), ShouldEqual, "1-10v1")
+		SoMsg("Key", (&Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1}).String(), ShouldEqual,
+			"1-10v1")
 	})
+}
+
+func loadChain(filename string, t *testing.T) *Chain {
+	trc, err := ChainFromRaw(loadRaw(filename, t), false)
+	if err != nil {
+		t.Fatalf("Error loading Certificate Chain from '%s': %v", filename, err)
+	}
+	return trc
 }

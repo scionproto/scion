@@ -1,0 +1,15 @@
+{
+    "SignAlgorithm": "ed25519",
+    "SubjectSignKey": "5YYo/Djor8KoUPbcG89m0sOXbhaxU/wserVf7X4w0W4=",
+    "Version": 1,
+    "EncAlgorithm": "curve25519xsalsa20poly1305",
+    "SubjectEncKey": "nP1HkZwkW8ujqeEO82Rb9cN6AVqFPO1UIiypdZU+dHI=",
+    "TRCVersion": 2,
+    "ExpirationTime": 1539868933,
+    "Signature": "36dhobVsPBt6UlMCZtmYHoKJbuS3MbZNvu24nA+kt780bf4ZenIreuvnxphIxuI327cBoeDsB+Tg1EvSPnwEBg==",
+    "Issuer": "1-13",
+    "CanIssue": false,
+    "Subject": "1-10",
+    "IssuingTime": 1508332933,
+    "Comment": "AS Certificate\u2602\u2602\u2602\u2602"
+}
