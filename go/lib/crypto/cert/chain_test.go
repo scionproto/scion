@@ -131,7 +131,7 @@ func Test_Chain_JSON(t *testing.T) {
 		chain := loadChain(fnChain, t)
 		j, err := chain.JSON(false)
 		So(err, ShouldEqual, nil)
-		So(string(j), ShouldResemble, string(s))
+		So(string(j)+"\n", ShouldResemble, string(s))
 	})
 }
 

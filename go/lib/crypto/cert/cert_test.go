@@ -162,7 +162,7 @@ func Test_Certificate_JSON(t *testing.T) {
 		s := loadRaw(fnNoIndentLeaf, t)
 		j, err := cert.JSON(false)
 		So(err, ShouldEqual, nil)
-		So(string(j), ShouldEqual, string(s))
+		So(string(j)+"\n", ShouldEqual, string(s))
 	})
 }
 
