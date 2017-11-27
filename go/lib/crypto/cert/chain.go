@@ -33,11 +33,15 @@ const MaxChainByteLength uint32 = 1 << 20
 
 type Key struct {
 	IA  addr.ISD_AS
-	Ver int
+	Ver uint64
+}
+
+func NewKey(ia *addr.ISD_AS, ver uint64) *Key {
+	return &Key{IA: *ia, Ver: ver}
 }
 
 func (k *Key) String() string {
-	return fmt.Sprintf("%s.%d", k.IA, k.Ver)
+	return fmt.Sprintf("%sv%d", k.IA, k.Ver)
 }
 
 // Chain contains two certificates, one fore the leaf and one for the core. The leaf certificate
@@ -53,11 +57,11 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	if lz4_ {
 		// The python lz4 library uses lz4 block mode. To know the length of the
 		// compressed block, it prepends the length of the original data as 4 bytes, little
-		// endian, unsigned integer. We need to make sure, that a malformed message does
+		// endian, unsigned integer. We need to make sure that a malformed message does
 		// not exhaust the available memory.
 		byteLen := binary.LittleEndian.Uint32(raw[:4])
 		if byteLen > MaxChainByteLength {
-			return nil, common.NewCError("Exceeding byte length", "max",
+			return nil, common.NewCError("Certificate chain LZ4 block too large", "max",
 				MaxChainByteLength, "actual", byteLen)
 		}
 		buf := make([]byte, byteLen)
@@ -75,7 +79,7 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 }
 
 func (c *Chain) Verify(subject *addr.ISD_AS, trc interface{}) error {
-	if err := c.Leaf.Verify(subject, c.Core.SubjectSigKey, c.Core.SignAlgorithm); err != nil {
+	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
 		return err
 	}
 	// Fixme(roosd): Verify Core Certificate based on TRC
@@ -114,10 +118,10 @@ func (c *Chain) Eq(o *Chain) bool {
 	return c.Leaf.Eq(o.Leaf) && c.Core.Eq(o.Core)
 }
 
-func (c *Chain) IAVer() (*addr.ISD_AS, int) {
+func (c *Chain) IAVer() (*addr.ISD_AS, uint64) {
 	return c.Leaf.Subject, c.Leaf.Version
 }
 
 func (c *Chain) Key() *Key {
-	return &Key{IA: *c.Leaf.Subject, Ver: c.Leaf.Version}
+	return NewKey(c.Leaf.Subject, c.Leaf.Version)
 }

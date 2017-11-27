@@ -25,6 +25,9 @@ import (
 const (
 	Ed25519                    = "ed25519"
 	Curve25519xSalsa20Poly1305 = "curve25519xsalsa20poly1305"
+	InvalidKeySize             = "Invalid key size"
+	UnsupportedSignAlgo        = "Unsupported signing algorithm"
+	InvalidSignature           = "Invalid signature"
 )
 
 // Sign takes a signature input and a signing key to create a signature. Currently only
@@ -33,12 +36,12 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(signKey) != ed25519.PrivateKeySize {
-			return nil, common.NewCError("Invalid key size", "expected",
+			return nil, common.NewCError(InvalidKeySize, "expected",
 				ed25519.PrivateKeySize, "actual", len(signKey))
 		}
 		return ed25519.Sign(ed25519.PrivateKey(signKey), sigInput), nil
 	default:
-		return nil, common.NewCError("Unknown signing algorithm", "algo", signAlgo)
+		return nil, common.NewCError(UnsupportedSignAlgo, "algo", signAlgo)
 	}
 }
 
@@ -48,14 +51,14 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(verifyKey) != ed25519.PublicKeySize {
-			return common.NewCError("Invalid key size", "expected",
+			return common.NewCError(InvalidKeySize, "expected",
 				ed25519.PublicKeySize, "actual", len(verifyKey))
 		}
 		if !ed25519.Verify(ed25519.PublicKey(verifyKey), sigInput, sig) {
-			return common.NewCError("Invalid signature")
+			return common.NewCError(InvalidSignature)
 		}
 		return nil
 	default:
-		return common.NewCError("Unknown signing algorithm", "algo", signAlgo)
+		return common.NewCError(UnsupportedSignAlgo, "algo", signAlgo)
 	}
 }
