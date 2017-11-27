@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of Certificate Chain requests.
+// This file contains the Go representation of TRC requests.
 
 package cert_mgmt
 
@@ -23,22 +23,22 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*ChainReq)(nil)
+var _ proto.Cerealizable = (*TRCReq)(nil)
 
-type ChainReq struct {
+type TRCReq struct {
 	RawIA     addr.IAInt `capnp:"isdas"`
 	Version   uint64
 	CacheOnly bool
 }
 
-func (c *ChainReq) IA() *addr.ISD_AS {
-	return c.RawIA.IA()
+func (t *TRCReq) ISD() int {
+	return t.RawIA.IA().I
 }
 
-func (c *ChainReq) ProtoId() proto.ProtoIdType {
-	return proto.CertChainReq_TypeID
+func (t *TRCReq) ProtoId() proto.ProtoIdType {
+	return proto.TRCReq_TypeID
 }
 
-func (c *ChainReq) String() string {
-	return fmt.Sprintf("ISD-AS: %s Version: %v CacheOnly: %v", c.IA(), c.Version, c.CacheOnly)
+func (t *TRCReq) String() string {
+	return fmt.Sprintf("ISD: %d Version: %d CacheOnly: %v", t.ISD(), t.Version, t.CacheOnly)
 }

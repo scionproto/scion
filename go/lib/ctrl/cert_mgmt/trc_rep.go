@@ -12,33 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of Certificate Chain requests.
-
 package cert_mgmt
 
 import (
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/crypto/trc"
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*ChainReq)(nil)
+var _ proto.Cerealizable = (*TRCRep)(nil)
 
-type ChainReq struct {
-	RawIA     addr.IAInt `capnp:"isdas"`
-	Version   uint64
-	CacheOnly bool
+type TRCRep struct {
+	RawTRC common.RawBytes `capnp:"trc"`
 }
 
-func (c *ChainReq) IA() *addr.ISD_AS {
-	return c.RawIA.IA()
+func (c *TRCRep) TRC() (*trc.TRC, error) {
+	return trc.TRCFromRaw(c.RawTRC, true)
 }
 
-func (c *ChainReq) ProtoId() proto.ProtoIdType {
-	return proto.CertChainReq_TypeID
+func (c *TRCRep) ProtoId() proto.ProtoIdType {
+	return proto.TRCRep_TypeID
 }
 
-func (c *ChainReq) String() string {
-	return fmt.Sprintf("ISD-AS: %s Version: %v CacheOnly: %v", c.IA(), c.Version, c.CacheOnly)
+func (c *TRCRep) String() string {
+	trc, err := c.TRC()
+	if err != nil {
+		return fmt.Sprintf("Invalid TRC: %v", err)
+	}
+	return trc.String()
 }
