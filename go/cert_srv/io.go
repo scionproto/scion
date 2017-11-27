@@ -32,6 +32,7 @@ type Dispatcher struct {
 	conn         *snet.Conn
 	buf          common.RawBytes
 	chainHandler *ChainHandler
+	trcHandler   *TRCHandler
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
@@ -42,6 +43,7 @@ func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
 	}
 	d := &Dispatcher{conn: conn, buf: make(common.RawBytes, MaxReadBufSize)}
 	d.chainHandler = NewChainHandler(d.conn)
+	d.trcHandler = NewTRCHandler(d.conn)
 	return d, nil
 }
 
@@ -87,6 +89,10 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.ChainRep))
 		case proto.CertChainReq_TypeID:
 			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq))
+		case proto.TRCRep_TypeID:
+			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRCRep))
+		case proto.TRCReq_TypeID:
+			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq))
 		}
 	default:
 		return common.NewCError("Not implemented", "protoID", c.ProtoId())
