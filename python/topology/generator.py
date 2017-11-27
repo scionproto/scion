@@ -106,6 +106,7 @@ ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 DEFAULT_LINK_BW = 1000
 
 DEFAULT_BEACON_SERVERS = 1
+DEFAULT_CERTIFICATE_SERVER = "py"
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
 INITIAL_CERT_VERSION = 0
@@ -135,7 +136,7 @@ class ConfigGenerator(object):
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
                  use_mininet=False, bind_addr=GENERATE_BIND_ADDRESS,
-                 pseg_ttl=DEFAULT_SEGMENT_TTL):
+                 pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -147,6 +148,7 @@ class ConfigGenerator(object):
             Network to create subnets in, of the form x.x.x.x/y
         :param bool use_mininet: Use Mininet
         :param int pseg_ttl: The TTL for path segments (in seconds)
+        :param string cs: Use go or python implementation of certificate server
         """
         self.out_dir = out_dir
         self.topo_config = load_yaml_file(topo_file)
@@ -158,6 +160,7 @@ class ConfigGenerator(object):
         self.gen_bind_addr = bind_addr
         self.pseg_ttl = pseg_ttl
         self._read_defaults(network)
+        self.cs = cs
 
     def _read_defaults(self, network):
         """
@@ -216,7 +219,7 @@ class ConfigGenerator(object):
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
         super_gen = SupervisorGenerator(
-            self.out_dir, topo_dicts, zookeepers, self.zk_config, self.mininet)
+            self.out_dir, topo_dicts, zookeepers, self.zk_config, self.mininet, self.cs)
         super_gen.generate()
 
     def _generate_zk_conf(self, zookeepers):
@@ -767,12 +770,13 @@ class PrometheusGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet):
+    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet, cs):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.zookeepers = zookeepers
         self.zk_config = zk_config
         self.mininet = mininet
+        self.cs = cs
 
     def generate(self):
         self._write_dispatcher_conf()
@@ -784,10 +788,10 @@ class SupervisorGenerator(object):
         base = self._get_base_path(topo_id)
         for key, cmd in (
             ("BeaconService", "python/bin/beacon_server"),
-            ("CertificateService", "python/bin/cert_server"),
             ("PathService", "python/bin/path_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
+        entries.extend(self._cs_entries(topo, base))
         entries.extend(self._br_entries(topo, "bin/border", base))
         entries.extend(self._zk_entries(topo_id))
         self._write_as_conf(topo_id, entries)
@@ -805,6 +809,16 @@ class SupervisorGenerator(object):
             conf_dir = os.path.join(base, k)
             entries.append((k, [cmd, "-id=%s" % k, "-confd=%s" % conf_dir,
                                 "-prom=%s" % _prom_addr_br(v)]))
+        return entries
+
+    def _cs_entries(self, topo, base):
+        if self.cs == "py":
+            return self._std_entries(topo, "CertificateService", "python/bin/cert_server", base)
+        entries = []
+        for k, v in topo.get("CertificateService", {}).items():
+            conf_dir = os.path.join(base, k)
+            entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
+                                "-prom=%s" % _prom_addr_infra(v)]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
@@ -1200,10 +1214,12 @@ def main():
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
                         help='Path segment TTL (in seconds)')
+    parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
+                        help='Certificate Server implementation to use ("go" or "py")')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.bind_addr, args.pseg_ttl)
+        args.network, args.mininet, args.bind_addr, args.pseg_ttl, args.cert_server)
     confgen.generate_all()
 
 
