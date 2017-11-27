@@ -25,8 +25,8 @@
 // conditions always return their internal value. IPv4 conditions include
 // predicates that compare the analyzed packet to preset values. Supported IPv4
 // conditions currently include destination network match, source network match
-// and ToS field match. Multiple predicates can be checked by enumerating them
-// under AllOf or AnyOf.
+// and ToS/DSCP fields match. Multiple predicates can be checked by enumerating
+// them under AllOf or AnyOf.
 //
 // Actions are marshalable objects that describe a process. Currently, the only
 // supported actions are Path Filters (ActionFilterPaths), which are containers
