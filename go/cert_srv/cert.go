@@ -97,7 +97,7 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 	return SendPayload(h.conn, cpld, a)
 }
 
-// HandleChainRep handles certificate chain replies. Pending requests are answered and removed.
+// HandleRep handles certificate chain replies. Pending requests are answered and removed.
 func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.ChainRep) {
 	log.Info("Received certificate chain reply", "addr", addr, "rep", rep)
 	chain, err := rep.Chain()
