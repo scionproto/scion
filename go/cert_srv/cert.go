@@ -43,7 +43,7 @@ func NewChainHandler(conn *snet.Conn) *ChainHandler {
 // if the certificate chain is not present.
 func (h *ChainHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainReq) {
 	log.Info("Received certificate chain request", "addr", addr, "req", req)
-	chain := store.GetChain(req.IA(), int(req.Version))
+	chain := store.GetChain(req.IA(), req.Version)
 	srcLocal := local.IA.Eq(addr.IA)
 	if chain != nil {
 		if err := h.sendChainRep(addr, chain); err != nil {
@@ -76,7 +76,7 @@ func (h *ChainHandler) sendChainRep(addr *snet.Addr, chain *cert.Chain) error {
 
 // fetchChain fetches certificate chain from the remote AS.
 func (h *ChainHandler) fetchChain(addr *snet.Addr, req *cert_mgmt.ChainReq) error {
-	key := cert.NewKey(req.IA(), int(req.Version)).String()
+	key := cert.NewKey(req.IA(), req.Version).String()
 	sendReq := chainReqCache.Put(key, addr)
 	if sendReq { // rate limit
 		return h.sendChainReq(req)
