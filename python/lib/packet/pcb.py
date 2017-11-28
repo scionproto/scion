@@ -131,7 +131,7 @@ class PathSegment(Cerealizable):
 
     @classmethod
     def from_values(cls, info):  # pragma: no cover
-        return cls(cls.P_CLS.new_message(signed=PathSegmentSignedData.from_values(info).pack()))
+        return cls(cls.P_CLS.new_message(sdata=PathSegmentSignedData.from_values(info).pack()))
 
     def pcb(self):
         return PCB.from_values(self, self.ifID)
