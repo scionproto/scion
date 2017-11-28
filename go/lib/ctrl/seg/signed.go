@@ -22,32 +22,32 @@ import (
 	"github.com/netsec-ethz/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*PathSegmentSigned)(nil)
+var _ proto.Cerealizable = (*PathSegmentSignedData)(nil)
 
-type PathSegmentSigned struct {
+type PathSegmentSignedData struct {
 	RawInfo common.RawBytes `capnp:"infoF"`
 }
 
-func newPathSegmentSigned(infoF *spath.InfoField) *PathSegmentSigned {
-	pss := &PathSegmentSigned{RawInfo: make(common.RawBytes, spath.InfoFieldLength)}
+func newPathSegmentSignedData(infoF *spath.InfoField) *PathSegmentSignedData {
+	pss := &PathSegmentSignedData{RawInfo: make(common.RawBytes, spath.InfoFieldLength)}
 	infoF.Write(pss.RawInfo)
 	return pss
 }
 
-func NewPathSegmentSignedFromRaw(b common.RawBytes) (*PathSegmentSigned, error) {
-	pss := &PathSegmentSigned{}
+func NewPathSegmentSignedFromRaw(b common.RawBytes) (*PathSegmentSignedData, error) {
+	pss := &PathSegmentSignedData{}
 	return pss, proto.ParseFromRaw(pss, pss.ProtoId(), b)
 }
 
-func (pss *PathSegmentSigned) InfoF() (*spath.InfoField, error) {
+func (pss *PathSegmentSignedData) InfoF() (*spath.InfoField, error) {
 	return spath.InfoFFromRaw(pss.RawInfo)
 }
 
-func (pss *PathSegmentSigned) ProtoId() proto.ProtoIdType {
-	return proto.PathSegmentSigned_TypeID
+func (pss *PathSegmentSignedData) ProtoId() proto.ProtoIdType {
+	return proto.PathSegmentSignedData_TypeID
 }
 
-func (pss *PathSegmentSigned) String() string {
+func (pss *PathSegmentSignedData) String() string {
 	info, err := pss.InfoF()
 	if err != nil {
 		return fmt.Sprintf("InfoF: %s (parse err: %s)", pss.RawInfo, err)
