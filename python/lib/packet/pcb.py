@@ -123,7 +123,7 @@ class PathSegment(Cerealizable):
         self.ifID = 0
 
     def _setup(self):
-        self.signed = PathSegmentSignedData.from_raw(self.p.signed)
+        self.sdata = PathSegmentSignedData.from_raw(self.p.sdata)
         self._asms = []
         for sblob in self.p.asEntries:
             self._asms.append(ASMarking.from_raw(sblob.blob))
@@ -137,7 +137,7 @@ class PathSegment(Cerealizable):
         return PCB.from_values(self, self.ifID)
 
     def infoF(self):
-        info = InfoOpaqueField(self.signed.p.infoF)
+        info = InfoOpaqueField(self.sdata.p.infoF)
         info.hops = len(self.p.asEntries)
         return info
 
@@ -172,7 +172,7 @@ class PathSegment(Cerealizable):
     def _sig_input(self, idx=None):
         if idx is None:
             idx = len(self.p.asEntries) - 1
-        b = [self.p.signed]
+        b = [self.p.sdata]
         for i in range(idx+1):
             sblob = self.p.asEntries[i]
             b.append(sblob.blob)

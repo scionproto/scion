@@ -30,8 +30,8 @@ import (
 var _ proto.Cerealizable = (*PathSegment)(nil)
 
 type PathSegment struct {
-	RawSigned    common.RawBytes        `capnp:"signed"`
-	Signed       *PathSegmentSignedData `capnp:"-"`
+	RawSData     common.RawBytes        `capnp:"sdata"`
+	SData        *PathSegmentSignedData `capnp:"-"`
 	RawASEntries []*proto.SignedBlobS   `capnp:"asEntries"`
 	ASEntries    []*ASEntry             `capnp:"-"`
 	id           common.RawBytes
@@ -43,7 +43,7 @@ func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps := &PathSegment{RawSigned: rawPss, Signed: pss}
+	ps := &PathSegment{RawSData: rawPss, SData: pss}
 	return ps, nil
 }
 
@@ -53,7 +53,7 @@ func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps.Signed, err = NewPathSegmentSignedFromRaw(ps.RawSigned)
+	ps.SData, err = NewPathSegmentSignedFromRaw(ps.RawSData)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (ps *PathSegment) ID() (common.RawBytes, error) {
 }
 
 func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
-	return ps.Signed.InfoF()
+	return ps.SData.InfoF()
 }
 
 func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,
@@ -125,7 +125,7 @@ func (ps *PathSegment) sigPack(idx int) (common.RawBytes, error) {
 	if err != nil {
 		return nil, err
 	}
-	data := append(common.RawBytes(nil), ps.RawSigned...)
+	data := append(common.RawBytes(nil), ps.RawSData...)
 	for i := 0; i < idx; i++ {
 		data = append(data, ps.RawASEntries[i].Pack()...)
 	}
