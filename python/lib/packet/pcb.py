@@ -16,25 +16,22 @@
 ===========================
 """
 # Stdlib
-from collections import defaultdict
 import struct
+from collections import defaultdict
 
 # External packages
 import capnp  # noqa
 
 # SCION
-import proto.pcb_capnp as P
-from lib.crypto.asymcrypto import sign
+import proto.path_seg_capnp as P
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import EXP_TIME_UNIT
-from lib.errors import SCIONSigVerError
-from lib.flagtypes import PathSegFlags as PSF
 from lib.packet.asm_exts import RoutingPolicyExt
 from lib.packet.opaque_field import HopOpaqueField, InfoOpaqueField
 from lib.packet.packet_base import Cerealizable
 from lib.packet.path import SCIONPath
+from lib.packet.proto_sign import ProtoSign, ProtoSignedBlob, ProtoSignType
 from lib.packet.scion_addr import ISD_AS
-from lib.sibra.pcb_ext import SibraPCBExt
 from lib.types import ASMExtType
 from lib.util import iso_timestamp
 
@@ -44,15 +41,14 @@ REV_TOKEN_LEN = 32
 
 class PCBMarking(Cerealizable):
     NAME = "PCBMarking"
-    P_CLS = P.PCBMarking
-    VER = len(P_CLS.schema.fields) - 1
+    P_CLS = P.HopEntry
 
     @classmethod
     def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia, remote_out_ifid,
                     hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
             inIA=int(in_ia), remoteInIF=remote_in_ifid, inMTU=in_mtu,
-            outIA=int(out_ia), remoteOutIF=remote_out_ifid, hof=hof.pack()))
+            outIA=int(out_ia), remoteOutIF=remote_out_ifid, hopF=hof.pack()))
 
     def inIA(self):  # pragma: no cover
         return ISD_AS(self.p.inIA)
@@ -61,22 +57,7 @@ class PCBMarking(Cerealizable):
         return ISD_AS(self.p.outIA)
 
     def hof(self):  # pragma: no cover
-        return HopOpaqueField(self.p.hof)
-
-    def sig_pack5(self):
-        """
-        Pack for signing version 5 (defined by highest field number).
-        """
-        b = []
-        if self.VER != 5:
-            raise SCIONSigVerError("PCBMarking.sig_pack5 cannot support version %s", self.VER)
-        b.append(self.p.inIA.to_bytes(4, 'big'))
-        b.append(self.p.remoteInIF.to_bytes(8, 'big'))
-        b.append(self.p.inMTU.to_bytes(2, 'big'))
-        b.append(self.p.outIA.to_bytes(4, 'big'))
-        b.append(self.p.remoteOutIF.to_bytes(8, 'big'))
-        b.append(self.p.hof)
-        return b"".join(b)
+        return HopOpaqueField(self.p.hopF)
 
     def short_desc(self):
         s = []
@@ -89,8 +70,7 @@ class PCBMarking(Cerealizable):
 
 class ASMarking(Cerealizable):
     NAME = "ASMarking"
-    P_CLS = P.ASMarking
-    VER = len(P_CLS.schema.fields) - 1
+    P_CLS = P.ASEntry
 
     @classmethod
     def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=(),
@@ -98,9 +78,9 @@ class ASMarking(Cerealizable):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
             ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu)
-        p.init("pcbms", len(pcbms))
+        p.init("hops", len(pcbms))
         for i, pm in enumerate(pcbms):
-            p.pcbms[i] = pm.p
+            p.hops[i] = pm.p
         for ext in exts:
             if ext.EXT_TYPE == ASMExtType.ROUTING_POLICY:
                 p.exts.routingPolicy = ext.p
@@ -110,45 +90,16 @@ class ASMarking(Cerealizable):
         return ISD_AS(self.p.isdas)
 
     def pcbm(self, idx):  # pragma: no cover
-        return PCBMarking(self.p.pcbms[idx])
+        return PCBMarking(self.p.hops[idx])
 
     def iter_pcbms(self, start=0):  # pragma: no cover
-        for i in range(start, len(self.p.pcbms)):
+        for i in range(start, len(self.p.hops)):
             yield self.pcbm(i)
 
     def routing_pol_ext(self):
         if self.p.exts.routingPolicy.set:
             return RoutingPolicyExt(self.p.exts.routingPolicy)
         return None
-
-    def add_ext(self, ext):  # pragma: no cover
-        """
-        Appends a new ASMarking extension.
-        """
-        d = self.p.to_dict()
-        d.setdefault('exts', []).append(ext)
-        self.p.from_dict(d)
-
-    def sig_pack8(self):
-        """
-        Pack for signing version 8 (defined by highest field number).
-        """
-        b = []
-        if self.VER != 8:
-            raise SCIONSigVerError("ASMarking.sig_pack8 cannot support version %s", self.VER)
-        b.append(self.p.isdas.to_bytes(4, 'big'))
-        b.append(self.p.trcVer.to_bytes(4, 'big'))
-        b.append(self.p.certVer.to_bytes(4, 'big'))
-        b.append(self.p.ifIDSize.to_bytes(1, 'big'))
-        for pcbm in self.iter_pcbms():
-            b.append(pcbm.sig_pack5())
-        b.append(self.p.hashTreeRoot)
-        b.append(self.p.mtu.to_bytes(2, 'big'))
-        rpe = self.routing_pol_ext()
-        if rpe:
-            b.append(rpe.sig_pack3())
-        # TODO(Sezer): handle other extensions here
-        return b"".join(b)
 
     def short_desc(self):
         desc = []
@@ -158,33 +109,42 @@ class ASMarking(Cerealizable):
             for line in pcbm.short_desc().splitlines():
                 desc.append("  %s" % line)
         desc.append("  hashTreeRoot=%s" % self.p.hashTreeRoot)
-        desc.append("  sig=%s" % self.p.sig)
         return "\n".join(desc)
 
 
 class PathSegment(Cerealizable):
     NAME = "PathSegment"
     P_CLS = P.PathSegment
-    VER = len(P_CLS.schema.fields) - 1
 
     def __init__(self, p):  # pragma: no cover
         super().__init__(p)
         self._min_exp = float("inf")
         self._setup()
+        self.ifID = 0
 
     def _setup(self):
-        self.info = InfoOpaqueField(self.p.info)
+        self.sdata = PathSegmentSignedData.from_raw(self.p.sdata)
+        self._asms = []
+        for sblob in self.p.asEntries:
+            self._asms.append(ASMarking.from_raw(sblob.blob))
         self._calc_min_exp()
-        self.sibra_ext = None
-        if self.is_sibra():
-            self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     @classmethod
-    def from_values(cls, info, sibra_ext=None):  # pragma: no cover
-        p = cls.P_CLS.new_message(info=info.pack())
-        if sibra_ext:
-            p.exts.sibra = sibra_ext.p
-        return cls(p)
+    def from_values(cls, info):  # pragma: no cover
+        return cls(cls.P_CLS.new_message(sdata=PathSegmentSignedData.from_values(info).pack()))
+
+    def pcb(self):
+        return PCB.from_values(self, self.ifID)
+
+    def infoF(self):
+        info = InfoOpaqueField(self.sdata.p.infoF)
+        info.hops = len(self.p.asEntries)
+        return info
+
+    def copy(self):
+        new = super().copy()
+        new.ifID = self.ifID
+        return new
 
     def _calc_min_exp(self):
         # NB: only the expiration time of the first pcbm is considered.
@@ -192,53 +152,44 @@ class PathSegment(Cerealizable):
             self._min_exp = min(self._min_exp, asm.pcbm(0).hof().exp_time)
 
     def asm(self, idx):  # pragma: no cover
-        return ASMarking(self.p.asms[idx])
+        return self._asms[idx]
 
     def iter_asms(self, start=0):  # pragma: no cover
-        for i in range(start, len(self.p.asms)):
-            yield self.asm(i)
+        for asm in self._asms[start:]:
+            yield asm
 
-    def is_sibra(self):  # pragma: no cover
-        return bool(self.p.exts.sibra.id)
+    def sign(self, key):  # pragma: no cover
+        assert len(self.p.asEntries) > 0, "No ASMarkings to sign"
+        s = ProtoSign(self.p.asEntries[-1].sign)
+        s.sign(key, self._sig_input())
 
-    def sig_pack3(self):
-        """
-        Pack for signing version 3 (defined by highest field number).
-        """
-        if self.VER != 3:
-            raise SCIONSigVerError("PathSegment.sig_pack3 cannot support version %s", self.VER)
-        b = []
-        b.append(self.p.info)
-        # ifID field is changed on the fly, and so is ignored.
-        for asm in self.iter_asms():
-            b.append(asm.sig_pack8())
-        if self.is_sibra():
-            b.append(self.sibra_ext.sig_pack3())
+    def verify(self, key, idx=None):
+        if idx is None:
+            idx = len(self.p.asEntries) - 1
+        s = ProtoSign(self.p.asEntries[idx].sign)
+        return s.verify(key, self._sig_input(idx))
+
+    def _sig_input(self, idx=None):
+        if idx is None:
+            idx = len(self.p.asEntries) - 1
+        b = [self.p.sdata]
+        for i in range(idx+1):
+            sblob = self.p.asEntries[i]
+            b.append(sblob.blob)
+            ssign = ProtoSign(sblob.sign)
+            b.append(ssign.sig_pack(i != idx))
         return b"".join(b)
 
-    def sign(self, key, set_=True):  # pragma: no cover
-        sig = sign(self.sig_pack3(), key)
-        if set_:
-            self.p.asms[-1].sig = sig
-        return sig
-
-    def add_asm(self, asm):  # pragma: no cover
+    def add_asm(self, asm, sig_type=ProtoSignType.NONE, sig_src=b""):  # pragma: no cover
         """
         Appends a new ASMarking block.
         """
         d = self.p.to_dict()
-        d.setdefault('asms', []).append(asm.p)
+        sblob = ProtoSignedBlob.from_values(asm.pack(), sig_type, sig_src)
+        d.setdefault('asEntries', []).append(sblob.p)
         self.p.from_dict(d)
-        self._update_info()
+        self._asms.append(asm)
         self._min_exp = min(self._min_exp, asm.pcbm(0).hof().exp_time)
-
-    def _update_info(self):  # pragma: no cover
-        self.info.hops = len(self.p.asms)
-        self.p.info = self.info.pack()
-
-    def add_sibra_ext(self, ext_p):  # pragma: no cover
-        self.p.exts.sibra = ext_p.copy()
-        self.sibra_ext = SibraPCBExt(self.p.exts.sibra)
 
     def get_trcs_certs(self):
         """
@@ -259,7 +210,7 @@ class PathSegment(Cerealizable):
         Returns the list of HopOpaqueFields in the path.
         """
         hofs = []
-        info = InfoOpaqueField(self.p.info)
+        info = self.infoF()
         asms = list(self.iter_asms())
         if reverse_direction:
             asms = reversed(asms)
@@ -275,7 +226,7 @@ class PathSegment(Cerealizable):
         return self.asm(-1).isd_as()
 
     def last_hof(self):  # pragma: no cover
-        if self.p.asms:
+        if self.p.asEntries:
             return self.asm(-1).pcbm(0).hof()
         return None
 
@@ -298,39 +249,26 @@ class PathSegment(Cerealizable):
     def get_n_peer_links(self):  # pragma: no cover
         """Return the total number of peer links in the PathSegment."""
         n = 0
-        for asm in self.p.asms:
-            n += len(asm.pcbms) - 1
+        for asm in self._asms:
+            n += len(asm.p.hops) - 1
         return n
 
     def get_n_hops(self):  # pragma: no cover
         """Return the number of hops in the PathSegment."""
-        return len(self.p.asms)
+        return len(self.p.asEntries)
 
     def get_timestamp(self):  # pragma: no cover
         """Returns the creation timestamp of this PathSegment."""
-        return self.info.timestamp
-
-    def set_timestamp(self, timestamp):  # pragma: no cover
-        """Updates the timestamp in the IOF."""
-        assert timestamp < 2 ** 32 - 1
-        self.info.timestamp = timestamp
-        self._update_info()
+        return self.infoF().timestamp
 
     def get_expiration_time(self):  # pragma: no cover
         """
         Returns the expiration time of the path segment in real time. If a PCB
-        extension in the last ASMarking supplies an expiration time, use that.
+        extension in the last ASMarking supplies an expiration time, use that
+        (XXX(kormat): not currently implemented).
         Otherwise fall-back to the standard expiration time calculation.
         """
-        if self.is_sibra():
-            return self.sibra_ext.exp_ts()
-        return self.info.timestamp + int(self._min_exp * EXP_TIME_UNIT)
-
-    def flags(self):  # pragma: no cover
-        f = 0
-        if self.is_sibra():
-            f |= PSF.SIBRA
-        return f
+        return self.infoF().timestamp + int(self._min_exp * EXP_TIME_UNIT)
 
     def short_id(self):  # pragma: no cover
         """
@@ -356,22 +294,20 @@ class PathSegment(Cerealizable):
                 hop.append(" %d" % hof.egress_if)
             hops.append("".join(hop))
         exts = []
-        if self.is_sibra():
-            exts.append("  %s" % self.sibra_ext.short_desc())
         desc.append(">".join(hops))
         if exts:
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
         return "".join(desc)
 
+    def is_sibra(self):
+        return False  # Nope! Kept for compatibility with path server.
+
     def __str__(self):
         s = []
         s.append("%s:" % self.NAME)
-        s.append("  %s" % self.info)
+        s.append("  %s" % self.infoF())
         for asm in self.iter_asms():
             for line in asm.short_desc().splitlines():
-                s.append("  %s" % line)
-        if self.sibra_ext:
-            for line in str(self.sibra_ext).splitlines():
                 s.append("  %s" % line)
         return "\n".join(s)
 
@@ -382,5 +318,27 @@ class PathSegment(Cerealizable):
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
 
-def parse_pcb_payload(p):  # pragma: no cover
-    return PathSegment(p)
+class PathSegmentSignedData(Cerealizable):
+    NAME = "PathSegmentSignedData"
+    P_CLS = P.PathSegmentSignedData
+
+    @classmethod
+    def from_values(cls, info):  # pragma: no cover
+        return cls(cls.P_CLS.new_message(infoF=info.pack()))
+
+    def sig_pack(self):
+        return self.p.infoF
+
+
+class PCB(Cerealizable):
+    NAME = "PCB"
+    P_CLS = P.PCB
+
+    @classmethod
+    def from_values(cls, pseg, ifid=0):  # pragma: no cover
+        return cls(cls.P_CLS.new_message(pathSeg=pseg.p, ifID=ifid))
+
+    def pseg(self):
+        p = PathSegment(self.p.pathSeg)
+        p.ifID = self.p.ifID
+        return p

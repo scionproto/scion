@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of IFState requests.
+// This file contains the Go representation of Certificate Chain requests.
 
 package cert_mgmt
 
@@ -27,7 +27,7 @@ var _ proto.Cerealizable = (*ChainReq)(nil)
 
 type ChainReq struct {
 	RawIA     addr.IAInt `capnp:"isdas"`
-	Version   uint32
+	Version   uint64
 	CacheOnly bool
 }
 

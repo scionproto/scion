@@ -108,7 +108,6 @@ DEFAULT_LINK_BW = 1000
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
-DEFAULT_SIBRA_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 
@@ -121,7 +120,6 @@ SCION_SERVICE_NAMES = (
     "CertificateService",
     "BorderRouters",
     "PathService",
-    "SibraService",
 )
 
 DEFAULT_KEYGEN_ALG = 'ed25519'
@@ -397,28 +395,25 @@ class CertGenerator(object):
             self._create_trc(topo_id[0])
         trc = self.trcs[topo_id[0]]
         # Add public root online/offline key to TRC
-        core = {}
-        core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[ONLINE_KEY_STRING] = self.pub_online_root_keys[topo_id]
-        core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[OFFLINE_KEY_STRING] = self.pub_offline_root_keys[topo_id]
-        trc.core_ases[str(topo_id)] = core
-        ca_certs = {}
-        for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
-            ca_certs[ca_name] = crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
-        trc.root_cas = ca_certs
+
+        trc.core_ases[str(topo_id)] = self._populate_core(topo_id)
+
+    def _populate_core(self, topo_id):
+        return {ONLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                ONLINE_KEY_STRING: self.pub_online_root_keys[topo_id],
+                OFFLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                OFFLINE_KEY_STRING: self.pub_offline_root_keys[topo_id]}
 
     def _create_trc(self, isd):
-        self.trcs[isd] = TRC.from_values(
-            isd, "ISD %s" % isd, 0, {}, {},
-            {}, 2, 'dns_srv_addr', 2,
-            3, 18000, True, {})
+        validity_period = TRC.VALIDITY_PERIOD
+        self.trcs[isd] = TRC.from_values(isd, "ISD %s" % isd, INITIAL_TRC_VERSION, {}, {}, {}, 2,
+                                         {}, 2, 3, 18000, False, {}, validity_period)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):
             return
         trc = self.trcs[topo_id[0]]
-        trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
+        trc.sign(topo_id, self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
         trc = self.trcs[topo_id[0]]
@@ -594,7 +589,6 @@ class TopoGenerator(object):
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateService"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
-            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraService"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -792,7 +786,6 @@ class SupervisorGenerator(object):
             ("BeaconService", "python/bin/beacon_server"),
             ("CertificateService", "python/bin/cert_server"),
             ("PathService", "python/bin/path_server"),
-            ("SibraService", "python/bin/sibra_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
         entries.extend(self._br_entries(topo, "bin/border", base))

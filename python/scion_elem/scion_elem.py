@@ -31,7 +31,7 @@ from prometheus_client import Counter, Gauge, start_http_server
 # SCION
 import lib.app.sciond as lib_sciond
 from lib.config import Config
-from lib.crypto.certificate_chain import verify_sig_chain_trc
+from lib.crypto.certificate_chain import verify_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.flagtypes import TCPFlags
@@ -99,7 +99,6 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
-from lib.packet.pcb import PathSegment
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net, kill_self
@@ -652,13 +651,12 @@ class SCIONElement(object):
         segment are available.
         """
         seg = seg_meta.seg
-        ver_seg = PathSegment.from_values(seg.info)
-        for asm in seg.iter_asms():
+        for i, asm in enumerate(seg.iter_asms()):
             cert_ia = asm.isd_as()
             trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
             chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
-            ver_seg.add_asm(asm)
-            verify_sig_chain_trc(ver_seg.sig_pack3(), asm.p.sig, cert_ia, chain, trc)
+            verify_chain_trc(cert_ia, chain, trc)
+            seg.verify(chain.as_cert.subject_sig_key_raw, i)
 
     def _get_ctrl_handler(self, msg):
         pclass = msg.type()

@@ -26,6 +26,8 @@ type union struct {
 	Which    proto.CertMgmt_Which
 	ChainReq *ChainReq `capnp:"certChainReq"`
 	ChainRep *ChainRep `capnp:"certChainRep"`
+	TRCReq   *TRCReq   `capnp:"trcReq"`
+	TRCRep   *TRCRep   `capnp:"trcRep"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -36,6 +38,12 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *ChainRep:
 		u.Which = proto.CertMgmt_Which_certChainRep
 		u.ChainRep = p
+	case *TRCReq:
+		u.Which = proto.CertMgmt_Which_trcReq
+		u.TRCReq = p
+	case *TRCRep:
+		u.Which = proto.CertMgmt_Which_trcRep
+		u.TRCRep = p
 	default:
 		return common.NewCError("Unsupported cert mgmt union type (set)", "type", common.TypeOf(c))
 	}
@@ -48,6 +56,10 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.ChainReq, nil
 	case proto.CertMgmt_Which_certChainRep:
 		return u.ChainRep, nil
+	case proto.CertMgmt_Which_trcReq:
+		return u.TRCReq, nil
+	case proto.CertMgmt_Which_trcRep:
+		return u.TRCRep, nil
 	}
 	return nil, common.NewCError("Unsupported cert mgmt union type (get)", "type", u.Which)
 }

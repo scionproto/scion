@@ -3,8 +3,8 @@ using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/netsec-ethz/scion/go/proto");
 
-using PCB = import "pcb.capnp";
 using Sign = import "sign.capnp";
+using PSeg = import "path_seg.capnp";
 using CertMgmt = import "cert_mgmt.capnp";
 using IFID = import "ifid.capnp";
 using PathMgmt = import "path_mgmt.capnp";
@@ -21,7 +21,7 @@ struct SignedCtrlPld {
 struct CtrlPld {
     union {
         unset @0 :Void;
-        pcb @1 :PCB.PathSegment;
+        pcb @1 :PSeg.PCB;
         ifid @2 :IFID.IFID;
         certMgmt @3 :CertMgmt.CertMgmt;
         pathMgmt @4 :PathMgmt.PathMgmt;

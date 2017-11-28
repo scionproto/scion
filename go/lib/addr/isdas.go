@@ -72,7 +72,7 @@ func IAFromString(s string) (*ISD_AS, error) {
 	return &ISD_AS{I: isd, A: as}, nil
 }
 
-func (ia *ISD_AS) MarshalText() ([]byte, error) {
+func (ia ISD_AS) MarshalText() ([]byte, error) {
 	return []byte(ia.String()), nil
 }
 

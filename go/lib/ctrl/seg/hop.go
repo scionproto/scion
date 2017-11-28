@@ -27,7 +27,7 @@ type HopEntry struct {
 	InMTU       uint16     `capnp:"inMTU"`
 	RawOutIA    addr.IAInt `capnp:"outIA"`
 	RemoteOutIF uint64
-	RawHopField []byte `capnp:"hof"`
+	RawHopField []byte `capnp:"hopF"`
 }
 
 func (e *HopEntry) InIA() *addr.ISD_AS {

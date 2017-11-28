@@ -29,24 +29,26 @@ import (
 	"github.com/netsec-ethz/scion/go/lib/crypto"
 )
 
-type Certificate struct {
-	// All fields in this struct need to be sorted to create a sorted JSON.
-	// They need to be sorted in alphabetic order of the field names,
-	// since MarshalJSON marshals struct fields in order of declaration.
-	// This is important for a consistent creation of signature input.
+const (
+	EarlyUsage     = "Certificate IssuingTime in the future"
+	InvalidSubject = "Invalid subject"
+	Expired        = "Certificate expired"
+	UnableSigPack  = "Cert: Unable to create signature input"
+)
 
-	// CanIssue describes wheter the subject is able to issue certificates.
+type Certificate struct {
+	// CanIssue describes whether the subject is able to issue certificates.
 	CanIssue bool
 	// Comment is an arbitrary and optional string used by the subject to describe the certificate.
 	Comment string
 	// EncAlgorithm is the algorithm associated with SubjectEncKey.
 	EncAlgorithm string
-	// ExpirationTime is the time at which the certificate expires.
-	ExpirationTime int64
+	// ExpirationTime is the unix timestamp in seconds at which the certificate expires.
+	ExpirationTime uint64
 	// Issuer is the certificate issuer. It can only be a core AS.
 	Issuer *addr.ISD_AS
-	// IssuingTime is the time at which the certificate was created.
-	IssuingTime int64
+	// IssuingTime is the unix timestamp in seconds at which the certificate was created.
+	IssuingTime uint64
 	// SignAlgorithm is the algorithm associated with SubjectSigKey.
 	SignAlgorithm string
 	// Signature is the certificate signature. It is computed over the rest of the certificate.
@@ -55,12 +57,12 @@ type Certificate struct {
 	Subject *addr.ISD_AS
 	// SubjectEncKey is the public key used for encryption.
 	SubjectEncKey common.RawBytes
-	// SubjectSigKey the public key used for signature verification.
-	SubjectSigKey common.RawBytes
+	// SubjectSignKey the public key used for signature verification.
+	SubjectSignKey common.RawBytes
 	// TRCVersion is the version of the issuing trc.
-	TRCVersion int
+	TRCVersion uint64
 	// Version is the certificate version.
-	Version int
+	Version uint64
 }
 
 func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
@@ -72,24 +74,31 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 }
 
 // Verify checks the signature of the certificate based on a trusted verifying key and the
-// associated signature algorithm. Further, it verifies that the certificate belongs to the given subject,
-// and that it is valid at the current time.
+// associated signature algorithm. Further, it verifies that the certificate belongs to the given
+// subject, and that it is valid at the current time.
 func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, signAlgo string) error {
 	if !subject.Eq(c.Subject) {
-		return common.NewCError("Subject does not match", "expected", c.Subject, "actual", subject)
+		return common.NewCError(InvalidSubject, "expected", c.Subject,
+			"actual", subject)
 	}
-	t := time.Now()
-	if t.Unix() < c.IssuingTime {
-		return common.NewCError("Certificate used before IssuingTime", "IssuingTime",
-			time.Unix(c.IssuingTime, 0), "current", t)
+	currTime := uint64(time.Now().Unix())
+	if currTime < c.IssuingTime {
+		return common.NewCError(EarlyUsage, "IssuingTime",
+			timeToString(c.IssuingTime), "current", timeToString(currTime))
 	}
-	if t.Unix() > c.ExpirationTime {
-		return common.NewCError("Certificate expired", "Expiration Time",
-			time.Unix(c.ExpirationTime, 0), "current", t)
+	if currTime > c.ExpirationTime {
+		return common.NewCError(Expired, "Expiration Time",
+			timeToString(c.ExpirationTime), "current", timeToString(currTime))
 	}
+	return c.VerifySignature(verifyKey, signAlgo)
+}
+
+// VerifySignature checks the signature of the certificate based on a trusted verifying key and the
+// associated signature algorithm.
+func (c *Certificate) VerifySignature(verifyKey common.RawBytes, signAlgo string) error {
 	sigInput, err := c.sigPack()
 	if err != nil {
-		return common.NewCError("Signature input creation faild", "error", err)
+		return common.NewCError(UnableSigPack, "error", err)
 	}
 	return crypto.Verify(sigInput, c.Signature, verifyKey, signAlgo)
 }
@@ -111,10 +120,20 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 
 // sigPack creates a sorted json object of all fields, except for the signature field.
 func (c *Certificate) sigPack() (common.RawBytes, error) {
-	l := len(c.Signature)
-	c.Signature = c.Signature[:0]
-	sigInput, err := json.Marshal(c)
-	c.Signature = c.Signature[:l]
+	m := make(map[string]interface{})
+	m["CanIssue"] = c.CanIssue
+	m["Comment"] = c.Comment
+	m["EncAlgorithm"] = c.EncAlgorithm
+	m["ExpirationTime"] = c.ExpirationTime
+	m["Issuer"] = c.Issuer
+	m["IssuingTime"] = c.IssuingTime
+	m["SignAlgorithm"] = c.SignAlgorithm
+	m["Subject"] = c.Subject
+	m["SubjectEncKey"] = c.SubjectEncKey
+	m["SubjectSignKey"] = c.SubjectSignKey
+	m["TRCVersion"] = c.TRCVersion
+	m["Version"] = c.Version
+	sigInput, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +163,10 @@ func (c *Certificate) Eq(o *Certificate) bool {
 		c.SignAlgorithm == o.SignAlgorithm &&
 		c.EncAlgorithm == o.EncAlgorithm &&
 		bytes.Equal(c.SubjectEncKey, o.SubjectEncKey) &&
-		bytes.Equal(c.SubjectSigKey, o.SubjectSigKey) &&
+		bytes.Equal(c.SubjectSignKey, o.SubjectSignKey) &&
 		bytes.Equal(c.Signature, o.Signature)
+}
+
+func timeToString(t uint64) string {
+	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
 }

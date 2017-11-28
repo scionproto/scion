@@ -41,6 +41,17 @@ def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
     return os.path.join(conf_dir, CERT_DIR, 'ISD%s-AS%s-V%s.crt' % (isd_as[0], isd_as[1], version))
 
 
+def verify_chain_trc(subject, chain, trc):
+    """
+    Verify the certificate chain for subject.
+    """
+    subject = str(subject)
+    try:
+        chain.verify(subject, trc)
+    except SCIONVerificationError as e:
+        raise SCIONVerificationError("The certificate chain verification failed:\n%s" % e)
+
+
 def verify_sig_chain_trc(msg, sig, subject, chain, trc):
     """
     Verify whether the packed message with attached signature is validly
@@ -56,11 +67,7 @@ def verify_sig_chain_trc(msg, sig, subject, chain, trc):
     """
     assert isinstance(chain, CertificateChain), type(chain)
     assert isinstance(trc, TRC), type(trc)
-    subject = str(subject)
-    try:
-        chain.verify(subject, trc)
-    except SCIONVerificationError as e:
-        raise SCIONVerificationError("The certificate chain verification failed:\n%s" % e)
+    verify_chain_trc(subject, chain, trc)
     verifying_key = chain.as_cert.subject_sig_key_raw
     if not verifying_key:
         raise SCIONVerificationError("Signer's public key has not been found: %s" % subject)
