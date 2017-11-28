@@ -33,6 +33,7 @@ type Dispatcher struct {
 	stop         chan struct{}
 	stopped      chan struct{}
 	chainHandler *ChainHandler
+	reissHandler *ReissHandler
 	trcHandler   *TRCHandler
 	closed       bool
 }
@@ -49,6 +50,7 @@ func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
 		stop:         make(chan struct{}),
 		stopped:      make(chan struct{}),
 		chainHandler: NewChainHandler(conn),
+		reissHandler: NewReissHandler(conn),
 		trcHandler:   NewTRCHandler(conn, public.IA),
 	}
 	return d, nil
@@ -73,7 +75,6 @@ func (d *Dispatcher) Run() {
 			if err = d.dispatch(addr, buf, config); err != nil {
 				log.Error("Unable to dispatch", "err", err)
 			}
-
 		}
 	}
 }
@@ -105,6 +106,10 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, config *conf
 			return common.NewBasicError("Unable to unpack cert_mgmt union", err)
 		}
 		switch pld.(type) {
+		case *cert_mgmt.ChainIssReq:
+			d.reissHandler.HandleReq(addr, pld.(*cert_mgmt.ChainIssReq), signed, config)
+		case *cert_mgmt.ChainIssRep:
+			d.reissHandler.HandleRep(addr, pld.(*cert_mgmt.ChainIssRep), config)
 		case *cert_mgmt.Chain:
 			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain), config)
 		case *cert_mgmt.ChainReq:
