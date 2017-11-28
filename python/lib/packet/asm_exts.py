@@ -18,7 +18,6 @@
 
 # SCION
 import proto.asm_exts_capnp as P
-from lib.errors import SCIONSigVerError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.types import ASMExtType, RoutingPolType
@@ -28,7 +27,6 @@ class RoutingPolicyExt(Cerealizable):
     NAME = "RoutingPolicyExt"
     EXT_TYPE = ASMExtType.ROUTING_POLICY
     P_CLS = P.RoutingPolicyExt
-    VER = len(P_CLS.schema.fields) - 1
 
     @classmethod
     def from_values(cls, type_, if_, isd_ases):
@@ -37,20 +35,6 @@ class RoutingPolicyExt(Cerealizable):
         for i, isd_as in enumerate(isd_ases):
             p.isdases[i] = int(isd_as)
         return cls(p)
-
-    def sig_pack3(self):
-        """
-        Pack for signing version 3 (defined by highest field number).
-        """
-        b = []
-        if self.VER != 3:
-            raise SCIONSigVerError("RoutingPolicyExt.sig_pack3 cannot support version %s", self.VER)
-        b.append(self.p.set.to_bytes(1, 'big'))
-        b.append(self.p.polType.to_bytes(1, 'big'))
-        b.append(self.p.ifID.to_bytes(4, 'big'))
-        for isd_as in self.p.isdases:
-            b.append(isd_as.to_bytes(4, 'big'))
-        return b"".join(b)
 
     def short_desc(self):
         a = []

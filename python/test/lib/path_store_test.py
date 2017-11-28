@@ -162,22 +162,20 @@ class TestPathStoreRecordUpdate(object):
     """
     Unit tests for lib.path_store.PathStoreRecord.update
     """
-    @patch("lib.path_store.copy.deepcopy", autospec=True)
     @patch("lib.path_store.SCIONTime.get_time", new_callable=create_mock)
     @patch("lib.path_store.PathStoreRecord.__init__", autospec=True,
            return_value=None)
-    def test(self, init, get_time, deepcopy):
+    def test(self, init, get_time):
         inst = PathStoreRecord("pcb")
         get_time.return_value = 100
-        pcb = create_mock(["get_hops_hash", "get_timestamp",
+        pcb = create_mock(["copy", "get_hops_hash", "get_timestamp",
                            "get_expiration_time"])
         inst.id = pcb.get_hops_hash.return_value
         pcb.get_timestamp.return_value = 95
         # Call
         inst.update(pcb)
         # Tests
-        deepcopy.assert_called_once_with(pcb)
-        ntools.eq_(inst.pcb, deepcopy.return_value)
+        pcb.copy.assert_called_once_with()
         ntools.eq_(inst.delay_time, 5)
         ntools.eq_(inst.last_seen_time, 100)
         ntools.eq_(inst.expiration_time, pcb.get_expiration_time.return_value)
