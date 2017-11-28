@@ -70,7 +70,8 @@ func NewSession(dstIA *addr.ISD_AS, sessId mgmt.SessionType,
 	s.ring = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": dstIA.String(), "sessId": sessId.String()})
 	// Not using a fixed local port, as this is for outgoing data only.
-	s.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
+	s.conn, err = snet.ListenSCION(
+		"udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host}, nil, addr.SvcNone)
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
 	go pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger)
 	s.sessMonStop = make(chan struct{})
