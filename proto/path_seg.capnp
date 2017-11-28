@@ -8,7 +8,7 @@ using Sibra = import "sibra.capnp";
 using Exts = import "asm_exts.capnp";
 
 struct PathSegment {
-    signed @0 :Data; # Raw PathSegmentSignedData
+    sdata @0 :Data; # Raw PathSegmentSignedData
     # asEntries[n].blob is a raw ASEntry. asEntries[n].sign is over signed + asEntries[:n]
     asEntries @1 :List(Sign.SignedBlob);
 }
