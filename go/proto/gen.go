@@ -18,7 +18,7 @@ var RootTypes = []string{
 	"ASEntry",
 	"CtrlPld",
 	"PathSegment",
-	"PathSegmentSigned",
+	"PathSegmentSignedData",
 	"RevInfo",
 	"SCIONDMsg",
 	"SignedBlob",

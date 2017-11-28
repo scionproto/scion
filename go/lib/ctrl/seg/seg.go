@@ -30,15 +30,15 @@ import (
 var _ proto.Cerealizable = (*PathSegment)(nil)
 
 type PathSegment struct {
-	RawSigned    common.RawBytes      `capnp:"signed"`
-	Signed       *PathSegmentSigned   `capnp:"-"`
-	RawASEntries []*proto.SignedBlobS `capnp:"asEntries"`
-	ASEntries    []*ASEntry           `capnp:"-"`
+	RawSigned    common.RawBytes        `capnp:"signed"`
+	Signed       *PathSegmentSignedData `capnp:"-"`
+	RawASEntries []*proto.SignedBlobS   `capnp:"asEntries"`
+	ASEntries    []*ASEntry             `capnp:"-"`
 	id           common.RawBytes
 }
 
 func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
-	pss := newPathSegmentSigned(infoF)
+	pss := newPathSegmentSignedData(infoF)
 	rawPss, err := proto.PackRoot(pss)
 	if err != nil {
 		return nil, err

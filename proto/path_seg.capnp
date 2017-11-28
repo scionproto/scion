@@ -8,13 +8,13 @@ using Sibra = import "sibra.capnp";
 using Exts = import "asm_exts.capnp";
 
 struct PathSegment {
-    signed @0 :Data; # Raw PathSegmentSigned
+    signed @0 :Data; # Raw PathSegmentSignedData
     # asEntries[n].blob is a raw ASEntry. asEntries[n].sign is over signed + asEntries[:n]
     asEntries @1 :List(Sign.SignedBlob);
 }
 
 # Contains all top-level signed data for PathSegment
-struct PathSegmentSigned {
+struct PathSegmentSignedData {
     infoF @0 :Data; # Raw InfoField
 }
 

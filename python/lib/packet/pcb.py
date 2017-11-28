@@ -123,7 +123,7 @@ class PathSegment(Cerealizable):
         self.ifID = 0
 
     def _setup(self):
-        self.signed = PathSegmentSigned.from_raw(self.p.signed)
+        self.signed = PathSegmentSignedData.from_raw(self.p.signed)
         self._asms = []
         for sblob in self.p.asEntries:
             self._asms.append(ASMarking.from_raw(sblob.blob))
@@ -131,7 +131,7 @@ class PathSegment(Cerealizable):
 
     @classmethod
     def from_values(cls, info):  # pragma: no cover
-        return cls(cls.P_CLS.new_message(signed=PathSegmentSigned.from_values(info).pack()))
+        return cls(cls.P_CLS.new_message(signed=PathSegmentSignedData.from_values(info).pack()))
 
     def pcb(self):
         return PCB.from_values(self, self.ifID)
@@ -318,9 +318,9 @@ class PathSegment(Cerealizable):
         return hash(self.get_hops_hash())  # FIMXE(PSz): should add timestamp?
 
 
-class PathSegmentSigned(Cerealizable):
-    NAME = "PathSegmentSigned"
-    P_CLS = P.PathSegmentSigned
+class PathSegmentSignedData(Cerealizable):
+    NAME = "PathSegmentSignedData"
+    P_CLS = P.PathSegmentSignedData
 
     @classmethod
     def from_values(cls, info):  # pragma: no cover
