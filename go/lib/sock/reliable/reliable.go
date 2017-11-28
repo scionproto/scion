@@ -77,6 +77,7 @@ var (
 )
 
 const (
+	regBindFlag     = 0x04 // Bind address flag (0x04)
 	regCommandField = 0x03 // Register command (0x01) with SCMP enabled (0x02)
 	defBufSize      = 1 << 18
 )
@@ -138,7 +139,7 @@ func newConn(c net.Conn) *Conn {
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
+func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a, bind *AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
 	if a.Addr.Type() == addr.HostTypeNone {
 		return nil, 0, common.NewCError("Cannot register with NoneType address")
@@ -154,25 +155,42 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	if timeout != 0 {
 		conn.SetDeadline(deadline)
 	}
-	request := make([]byte, regBaseHeaderLen+a.Addr.Size())
+	svcLen, bindLen := 0, 0
+	if bind != nil {
+		bindLen = 3 + bind.Addr.Size()
+	}
+	if svc != addr.SvcNone {
+		svcLen = svc.Size()
+	}
+	request := make([]byte, regBaseHeaderLen+a.Addr.Size()+bindLen+svcLen)
 	offset := 0
 	// Enable SCMP
 	request[offset] = regCommandField
+	if bind != nil {
+		request[offset] |= regBindFlag
+	}
 	offset++
 	request[offset] = byte(common.L4UDP)
 	offset++
 	ia.Write(request[offset : offset+4])
 	offset += 4
-	a.writePort(request[offset : offset+2])
-	offset += 2
-	if a.Addr.Type() == addr.HostTypeNone {
+	n, err := writeAppAddr(request[offset:], a)
+	if err != nil {
 		conn.Close()
-		return nil, 0, common.NewCError("Cannot register NoneType address")
+		return nil, 0, common.NewCError("Cannot register public address", "err", err)
 	}
-	request[offset] = byte(a.Addr.Type())
-	offset++
-	a.writeAddr(request[offset:])
-
+	offset += n
+	if bind != nil {
+		n, err = writeAppAddr(request[offset:], bind)
+		if err != nil {
+			conn.Close()
+			return nil, 0, common.NewCError("Cannot register bind address", "err", err)
+		}
+		offset += n
+	}
+	if svc != addr.SvcNone {
+		copy(request[offset:], svc.Pack())
+	}
 	_, err = conn.Write(request)
 	if err != nil {
 		conn.Close()
@@ -197,11 +215,26 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	return conn, replyPort, nil
 }
 
+func writeAppAddr(request []byte, a *AppAddr) (int, error) {
+	offset := 0
+	a.writePort(request[offset : offset+2])
+	offset += 2
+	if a.Addr.Type() == addr.HostTypeNone {
+		return offset, common.NewCError("Cannot register NoneType address")
+	}
+	request[offset] = byte(a.Addr.Type())
+	offset++
+	a.writeAddr(request[offset : offset+a.Addr.Size()])
+	offset += a.Addr.Size()
+	return offset, nil
+}
+
 // Register connects to a SCION Dispatcher's UNIX socket.
 // Future messages for address a in AS ia which arrive at the dispatcher can be read by
 // calling Read on the returned Conn structure.
-func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, error) {
-	return RegisterTimeout(dispatcher, ia, a, time.Duration(0))
+func Register(dispatcher string, ia *addr.ISD_AS, a, bind *AppAddr,
+	svc addr.HostSVC) (*Conn, uint16, error) {
+	return RegisterTimeout(dispatcher, ia, a, bind, svc, time.Duration(0))
 }
 
 // Read blocks until it reads the next framed message payload from conn and stores it in buf.

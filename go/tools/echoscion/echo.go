@@ -100,7 +100,7 @@ func Client() {
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	conn, err := snet.DialSCION("udp4", &local, &remote)
+	conn, err := snet.DialSCION("udp4", &local, &remote, nil, addr.SvcNone)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -149,7 +149,7 @@ func Server() {
 	initNetwork()
 
 	// Listen on SCION address
-	conn, err := snet.ListenSCION("udp4", &local)
+	conn, err := snet.ListenSCION("udp4", &local, nil, addr.SvcNone)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}

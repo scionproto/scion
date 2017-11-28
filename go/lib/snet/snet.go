@@ -120,11 +120,12 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
-func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
+func (n *Network) DialSCION(network string, laddr, raddr, baddr *Addr,
+	svc addr.HostSVC) (*Conn, error) {
 	if raddr == nil {
 		return nil, common.NewCError("Unable to dial to nil remote")
 	}
-	conn, err := n.ListenSCION(network, laddr)
+	conn, err := n.ListenSCION(network, laddr, baddr, svc)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +141,7 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 // not supported yet. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
-func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
+func (n *Network) ListenSCION(network string, laddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
 	if network != "udp4" {
 		return nil, common.NewCError("Network not implemented", "net", network)
 	}
@@ -165,10 +166,12 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 		net:        network,
 		scionNet:   n,
 		recvBuffer: make(common.RawBytes, BufSize),
-		sendBuffer: make(common.RawBytes, BufSize)}
+		sendBuffer: make(common.RawBytes, BufSize),
+		svc:        svc}
 
 	// Initialize local bind address
-	var regAddr reliable.AppAddr
+	regAddr := &reliable.AppAddr{}
+	var bindAddr *reliable.AppAddr
 	// NOTE: keep nil address logic for now, even though we do not support
 	// it yet
 	if laddr != nil {
@@ -187,11 +190,20 @@ func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
 
 	if !conn.laddr.IA.Eq(conn.scionNet.localIA) {
 		return nil, common.NewCError("Unable to listen on non-local IA",
-			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA)
+			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA, "type", "public")
+	}
+
+	if baddr != nil {
+		conn.baddr = baddr.Copy()
+		bindAddr = &reliable.AppAddr{Addr: conn.baddr.Host, Port: conn.baddr.L4Port}
+		if !conn.baddr.IA.Eq(conn.scionNet.localIA) {
+			return nil, common.NewCError("Unable to listen on non-local IA", "expected",
+				conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
+		}
 	}
 
 	rconn, port, err := reliable.Register(conn.scionNet.dispatcherPath,
-		conn.laddr.IA, regAddr)
+		conn.laddr.IA, regAddr, bindAddr, svc)
 	if err != nil {
 		return nil, common.NewCError("Unable to register with dispatcher",
 			"err", err)
