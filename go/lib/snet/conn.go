@@ -63,9 +63,12 @@ var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
 	conn *reliable.Conn
-	// Local and remote SCION addresses (IA, L3, L4)
+	// Local, remote and bind SCION addresses (IA, L3, L4)
 	laddr *Addr
 	raddr *Addr
+	baddr *Addr
+	// svc address
+	svc addr.HostSVC
 	// Describes L3 and L4 protocol; currently only udp4 is implemented
 	net        string
 	readMutex  sync.Mutex
@@ -82,19 +85,19 @@ type Conn struct {
 }
 
 // DialSCION calls DialSCION on the default networking context.
-func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
+func DialSCION(network string, laddr, raddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
-	return DefNetwork.DialSCION(network, laddr, raddr)
+	return DefNetwork.DialSCION(network, laddr, raddr, baddr, svc)
 }
 
 // ListenSCION calls ListenSCION on the default networking context.
-func ListenSCION(network string, laddr *Addr) (*Conn, error) {
+func ListenSCION(network string, laddr *Addr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
-	return DefNetwork.ListenSCION(network, laddr)
+	return DefNetwork.ListenSCION(network, laddr, baddr, svc)
 }
 
 // ReadFromSCION reads data into b, returning the length of copied data and the
