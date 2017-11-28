@@ -46,6 +46,9 @@ func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq, config *
 	var chain *cert.Chain
 	if req.Version == cert_mgmt.NewestVersion {
 		chain = config.Store.GetNewestChain(req.IA())
+		if chain != nil && chain.Leaf.VerifyTime(uint64(time.Now().Unix())) != nil {
+			chain = nil
+		}
 	} else {
 		chain = config.Store.GetChain(req.IA(), req.Version)
 	}
@@ -108,6 +111,7 @@ func (h *ChainHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.Chain, config *con
 	chain, err := rep.Chain()
 	if err != nil {
 		log.Error("Unable to parse certificate reply", "err", err)
+		return
 	}
 	if err = config.Store.AddChain(chain, true); err != nil {
 		log.Error("Unable to store certificate chain", "key", chain.Key(), "err", err)

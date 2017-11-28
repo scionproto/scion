@@ -43,6 +43,7 @@ var (
 	stateDir = flag.String("stated", "", "State directory (Defaults to confd)")
 	prom     = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
 	disp     *Dispatcher
+	reissReq *ReissRequester
 	sighup   chan os.Signal
 )
 
