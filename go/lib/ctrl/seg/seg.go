@@ -53,7 +53,7 @@ func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps.SData, err = NewPathSegmentSignedFromRaw(ps.RawSData)
+	ps.SData, err = NewPathSegmentSignedDataFromRaw(ps.RawSData)
 	if err != nil {
 		return nil, err
 	}
