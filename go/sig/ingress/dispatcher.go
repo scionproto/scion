@@ -22,7 +22,6 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ringbuf"
 	"github.com/netsec-ethz/scion/go/lib/snet"
@@ -68,7 +67,7 @@ func Init() error {
 
 func (d *Dispatcher) Run() error {
 	var err error
-	extConn, err = snet.ListenSCION("udp4", d.laddr, nil, addr.SvcNone)
+	extConn, err = snet.ListenSCION("udp4", d.laddr)
 	if err != nil {
 		return common.NewCError("Unable to initialize extConn", "err", err)
 	}

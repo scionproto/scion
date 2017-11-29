@@ -120,12 +120,19 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
-func (n *Network) DialSCION(network string, laddr, raddr, baddr *Addr,
+func (n *Network) DialSCION(network string, laddr *Addr, raddr *Addr) (*Conn, error) {
+	return n.DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone)
+}
+
+// DialSCIONWithBindSVC returns a SCION connection to raddr. Nil values for laddr are not
+// supported yet.  Parameter network must be "udp4". The returned connection's
+// Read and Write methods can be used to receive and send SCION packets.
+func (n *Network) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 	svc addr.HostSVC) (*Conn, error) {
 	if raddr == nil {
 		return nil, common.NewCError("Unable to dial to nil remote")
 	}
-	conn, err := n.ListenSCION(network, laddr, baddr, svc)
+	conn, err := n.ListenSCIONWithBindSVC(network, laddr, baddr, svc)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +148,16 @@ func (n *Network) DialSCION(network string, laddr, raddr, baddr *Addr,
 // not supported yet. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
-func (n *Network) ListenSCION(network string, laddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
+	return n.ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone)
+}
+
+// ListenSCIONWithBindSVC registers laddr with the dispatcher. Nil values for laddr are
+// not supported yet. The returned connection's ReadFrom and WriteTo methods
+// can be used to receive and send SCION packets with per-packet addressing.
+// Parameter network must be "udp4".
+func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
+	svc addr.HostSVC) (*Conn, error) {
 	if network != "udp4" {
 		return nil, common.NewCError("Network not implemented", "net", network)
 	}
