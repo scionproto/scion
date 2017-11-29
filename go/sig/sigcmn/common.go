@@ -72,7 +72,7 @@ func Init(ia *addr.ISD_AS, ip net.IP) error {
 	}
 	PathMgr = snet.DefNetwork.PathResolver()
 	CtrlConn, err = snet.ListenSCION(
-		"udp4", &snet.Addr{IA: IA, Host: Host, L4Port: uint16(*CtrlPort)}, nil, addr.SvcNone)
+		"udp4", &snet.Addr{IA: IA, Host: Host, L4Port: uint16(*CtrlPort)})
 	if err != nil {
 		return common.NewCError("Error creating ctrl socket", "err", err)
 	}

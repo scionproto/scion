@@ -85,19 +85,35 @@ type Conn struct {
 }
 
 // DialSCION calls DialSCION on the default networking context.
-func DialSCION(network string, laddr, raddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
-	return DefNetwork.DialSCION(network, laddr, raddr, baddr, svc)
+	return DefNetwork.DialSCION(network, laddr, raddr)
+}
+
+// DialSCIONWithBindSVC calls DialSCIONWithBindSVC on the default networking context.
+func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+	if DefNetwork == nil {
+		return nil, common.NewCError("SCION network not initialized")
+	}
+	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc)
 }
 
 // ListenSCION calls ListenSCION on the default networking context.
-func ListenSCION(network string, laddr *Addr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
-	return DefNetwork.ListenSCION(network, laddr, baddr, svc)
+	return DefNetwork.ListenSCION(network, laddr)
+}
+
+// ListenSCIONWithBindSVC calls ListenSCIONWithBindSVC on the default networking context.
+func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+	if DefNetwork == nil {
+		return nil, common.NewCError("SCION network not initialized")
+	}
+	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc)
 }
 
 // ReadFromSCION reads data into b, returning the length of copied data and the
@@ -339,6 +355,14 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	return path.Entry, nil
 }
 
+func (c *Conn) BindAddr() net.Addr {
+	return c.baddr
+}
+
+func (c *Conn) BindSnetAddr() *Addr {
+	return c.baddr
+}
+
 func (c *Conn) LocalAddr() net.Addr {
 	return c.laddr
 }
@@ -353,6 +377,10 @@ func (c *Conn) RemoteAddr() net.Addr {
 
 func (c *Conn) RemoteSnetAddr() *Addr {
 	return c.raddr
+}
+
+func (c *Conn) SVC() addr.HostSVC {
+	return c.svc
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {
