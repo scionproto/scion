@@ -33,12 +33,16 @@
 //
 // ReliableSocket registration message format:
 //  13-bytes: [Common header with address type NONE]
-//   1-byte: Command (bit mask with 0x02=SCMP enable, 0x01 always set)
+//   1-byte: Command (bit mask with 0x04=Bind address, 0x02=SCMP enable, 0x01 always set)
 //   1-byte: L4 Proto (IANA number)
 //   4-bytes: ISD-AS
 //   2-bytes: L4 port
 //   1-byte: Address type
 //   var-byte: Address
+//  +2-bytes: L4 bind port  \
+//  +1-byte: Address type    ) (optional bind address)
+//  +var-byte: Bind Address /
+//  +2-bytes: SVC (optional SVC type)
 //
 // To communicate with SCIOND, clients must first connect to SCIOND's UNIX socket. Messages
 // for SCIOND must set the ADDR TYPE field in the common header to NONE. The payload contains
@@ -78,6 +82,7 @@ var (
 
 const (
 	regBindFlag     = 0x04 // Bind address flag (0x04)
+	regBindHdrLen   = 3    // port (2 bytes) + addr type (1 byte)
 	regCommandField = 0x03 // Register command (0x01) with SCMP enabled (0x02)
 	defBufSize      = 1 << 18
 )
@@ -157,7 +162,7 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a, bind *AppAddr, svc a
 	}
 	svcLen, bindLen := 0, 0
 	if bind != nil {
-		bindLen = 3 + bind.Addr.Size()
+		bindLen = regBindHdrLen + bind.Addr.Size()
 	}
 	if svc != addr.SvcNone {
 		svcLen = svc.Size()
@@ -166,9 +171,6 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a, bind *AppAddr, svc a
 	offset := 0
 	// Enable SCMP
 	request[offset] = regCommandField
-	if bind != nil {
-		request[offset] |= regBindFlag
-	}
 	offset++
 	request[offset] = byte(common.L4UDP)
 	offset++
@@ -177,14 +179,15 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a, bind *AppAddr, svc a
 	n, err := writeAppAddr(request[offset:], a)
 	if err != nil {
 		conn.Close()
-		return nil, 0, common.NewCError("Cannot register public address", "err", err)
+		return nil, 0, common.NewCError("Invalid public address", "err", err)
 	}
 	offset += n
 	if bind != nil {
+		request[0] |= regBindFlag
 		n, err = writeAppAddr(request[offset:], bind)
 		if err != nil {
 			conn.Close()
-			return nil, 0, common.NewCError("Cannot register bind address", "err", err)
+			return nil, 0, common.NewCError("Invalid bind address", "err", err)
 		}
 		offset += n
 	}

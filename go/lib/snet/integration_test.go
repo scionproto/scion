@@ -160,7 +160,7 @@ func TestListen(t *testing.T) {
 	Convey("Method Listen", t, func() {
 		for _, test := range tests {
 			Convey(test.desc, func() {
-				conn, err := ListenSCION(test.proto, test.laddr, nil, addr.SvcNone)
+				conn, err := ListenSCION(test.proto, test.laddr)
 				if test.isError {
 					SoMsg("Error", err, ShouldNotBeNil)
 				} else {
