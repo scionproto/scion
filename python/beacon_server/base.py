@@ -63,10 +63,9 @@ from lib.packet.path_mgmt.ifstate import (
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.pcb import (
     ASMarking,
-    PCB,
+    PathSegment,
     PCBMarking,
 )
-from lib.packet.proto_sign import ProtoSignType
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -205,7 +204,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 pcb.copy(), intf.isd_as, intf.if_id)
             if not new_pcb:
                 continue
-            self.send_meta(CtrlPayload(new_pcb.pcb()), meta)
+            self.send_meta(CtrlPayload(new_pcb), meta)
             propagated_pcbs[(intf.isd_as, intf.if_id)].append(pcb.short_id())
             prop_cnt += 1
         if self._labels:
@@ -214,10 +213,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
         ts = pcb.get_timestamp()
-        asm = self._create_asm(pcb.ifID, egress_if, ts, pcb.last_hof())
+        asm = self._create_asm(pcb.p.ifID, egress_if, ts, pcb.last_hof())
         if not asm:
             return None, None
-        pcb.add_asm(asm, ProtoSignType.ED25519, self.addr.isd_as.pack())
+        pcb.add_asm(asm)
         pcb.sign(self.signing_key)
         one_hop_path = self._create_one_hop_path(egress_if)
         return pcb, self._build_meta(ia=dst_ia, host=SVCType.BS_A,
@@ -263,7 +262,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         for pcb in pcbs:
             try:
-                pcb = PCB.from_raw(pcb)
+                pcb = PathSegment.from_raw(pcb)
             except SCIONParseError as e:
                 logging.error("Unable to parse raw pcb: %s", e)
                 continue
@@ -276,10 +275,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Handles pcbs received from the network.
         """
         pcb = cpld.union
-        assert isinstance(pcb, PCB), type(pcb)
-        pcb = pcb.pseg()
+        assert isinstance(pcb, PathSegment), type(pcb)
         if meta:
-            pcb.ifID = meta.path.get_hof().ingress_if
+            pcb.p.ifID = meta.path.get_hof().ingress_if
         try:
             self.path_policy.check_filters(pcb)
         except SCIONPathPolicyViolated as e:
@@ -305,7 +303,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             # with other beacon servers in this AS.
             entry_name = "%s-%s" % (pseg.get_hops_hash(hex=True), time.time())
             try:
-                self.pcb_cache.store(entry_name, pseg.pcb().copy().pack())
+                self.pcb_cache.store(entry_name, pcb.copy().pack())
             except ZkNoConnection:
                 logging.error("Unable to store PCB in shared cache: "
                               "no connection to ZK")
@@ -394,11 +392,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         segment to.
         """
         pcb = pcb.copy()
-        asm = self._create_asm(pcb.ifID, 0, pcb.get_timestamp(),
+        asm = self._create_asm(pcb.p.ifID, 0, pcb.get_timestamp(),
                                pcb.last_hof())
         if not asm:
             return None
-        pcb.add_asm(asm, ProtoSignType.ED25519, self.addr.isd_as.pack())
+        pcb.add_asm(asm)
         return pcb
 
     def handle_ifid_packet(self, cpld, meta):
@@ -581,7 +579,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     rev_info = RevocationInfo.from_raw(raw)
                 except SCIONParseError as e:
                     logging.error(
-                        "Error processing revocation info from ZK: %s", e)
+                        "Error parsing revocation info from ZK: %s", e)
+                    continue
+                try:
+                    rev_info.validate()
+                except SCIONBaseError as e:
+                    logging.warning("Failed to validate RevInfo from zk: %s\n%s",
+                                    e, rev_info.short_desc())
                     continue
                 self.local_rev_cache[rev_info] = rev_info.copy()
 
@@ -621,17 +625,24 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
+                            meta, e, rev_info.short_desc())
+            return
         self._process_revocation(rev_info)
 
     def _handle_revocation(self, cpld, meta):
         pmgt = cpld.union
         rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        logging.debug("Received revocation via TCP/UDP: %s (from %s)", rev_info.short_desc(), meta)
+        logging.debug("Received revocation via CtrlPld: %s (from %s)", rev_info.short_desc(), meta)
         try:
             rev_info.validate()
         except SCIONBaseError as e:
-            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
+            logging.warning("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
+                            meta, e, rev_info.short_desc())
             return
         self._process_revocation(rev_info)
 
@@ -697,7 +708,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             # revoked, then the corresponding pcb needs to be removed.
             root_verify = ConnectedHashTree.verify(rev_info, self._get_ht_root())
             if (self.addr.isd_as == rev_info.isd_as() and
-                    cand.pcb.ifID == rev_info.p.ifID and root_verify):
+                    cand.pcb.p.ifID == rev_info.p.ifID and root_verify):
                 to_remove.append(cand.id)
 
             for asm in cand.pcb.iter_asms():
