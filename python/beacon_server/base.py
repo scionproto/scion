@@ -581,7 +581,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     rev_info = RevocationInfo.from_raw(raw)
                 except SCIONParseError as e:
                     logging.error(
-                        "Error processing revocation info from ZK: %s", e)
+                        "Error parsing revocation info from ZK: %s", e)
+                    continue
+                try:
+                    rev_info.validate()
+                except SCIONBaseError as e:
+                    logging.warning("Failed to validate RevInfo from zk: %s\n%s",
+                                    e, rev_info.short_desc())
                     continue
                 self.local_rev_cache[rev_info] = rev_info.copy()
 
@@ -621,17 +627,24 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
+                            meta, e, rev_info.short_desc())
+            return
         self._process_revocation(rev_info)
 
     def _handle_revocation(self, cpld, meta):
         pmgt = cpld.union
         rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        logging.debug("Received revocation via TCP/UDP: %s (from %s)", rev_info.short_desc(), meta)
+        logging.debug("Received revocation via CtrlPld: %s (from %s)", rev_info.short_desc(), meta)
         try:
             rev_info.validate()
         except SCIONBaseError as e:
-            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
+            logging.warning("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
+                            meta, e, rev_info.short_desc())
             return
         self._process_revocation(rev_info)
 
