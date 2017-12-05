@@ -19,8 +19,8 @@ package path_mgmt
 import (
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
-	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*SegRecs)(nil)

@@ -20,12 +20,12 @@ package main
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 // handlePktError is called for protocol-level packet errors. If there's SCMP
@@ -145,7 +145,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			}
 			// Increment reversed path if it was incremented in the forward direction.
 			// Check
-			// https://github.com/netsec-ethz/scion/blob/master/doc/PathReversal.md
+			// https://github.com/scionproto/scion/blob/master/doc/PathReversal.md
 			// for details.
 			if rp.IncrementedPath {
 				if _, err := reply.IncPath(); err != nil {

@@ -17,10 +17,10 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay/conn"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 // SockFunc is a function that is started as a goroutine by

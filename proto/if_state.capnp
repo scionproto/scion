@@ -1,7 +1,7 @@
 @0xe6d9e9e231c09f51;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 using RevInfo = import "rev_info.capnp";
 

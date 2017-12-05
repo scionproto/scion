@@ -1,7 +1,7 @@
 @0x8273379c3e06a721;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 using Sciond = import "sciond.capnp";
 

@@ -1,7 +1,7 @@
 @0xfb8053d9fb34b837;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 using Sign = import "sign.capnp";
 using Sibra = import "sibra.capnp";

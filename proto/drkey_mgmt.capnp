@@ -2,7 +2,7 @@
 
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 struct DRKeyReq {
     isdas @0 :UInt32;      # Src ISD-AS of the requested DRKey

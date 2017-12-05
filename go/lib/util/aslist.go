@@ -19,8 +19,8 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 type asData struct {

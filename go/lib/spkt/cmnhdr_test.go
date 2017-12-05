@@ -19,8 +19,8 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scmp"
 )
 
 var cmnhInput = [CmnHdrLen]byte{0x01, 0xf8, 0x0c, 0xb6, 0x1f, 0xab, 0xcd, 0xef}

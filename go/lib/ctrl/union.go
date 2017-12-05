@@ -18,13 +18,13 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
-	"github.com/netsec-ethz/scion/go/proto"
-	sigmgmt "github.com/netsec-ethz/scion/go/sig/mgmt"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/ifid"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/proto"
+	sigmgmt "github.com/scionproto/scion/go/sig/mgmt"
 )
 
 // union represents the contents of the unnamed capnp union.

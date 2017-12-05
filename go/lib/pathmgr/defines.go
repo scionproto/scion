@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/addr"
 )
 
 const (

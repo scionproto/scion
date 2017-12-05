@@ -44,9 +44,9 @@ Necessary steps in order to run SCION:
    put a symlink into the go workspace to point to your existing scion
    checkout):
    ```
-   mkdir -p "$GOPATH/src/github.com/netsec-ethz"
-   cd "$GOPATH/src/github.com/netsec-ethz"
-   git clone --recursive git@github.com:netsec-ethz/scion
+   mkdir -p "$GOPATH/src/github.com/scionproto"
+   cd "$GOPATH/src/github.com/scionproto"
+   git clone --recursive git@github.com:scionproto/scion
    cd scion
    ```
    If you don't have a github account, or haven't setup ssh access to it, this

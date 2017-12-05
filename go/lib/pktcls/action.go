@@ -15,7 +15,7 @@
 package pktcls
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 )
 
 // Interface Action defines how paths and packets may be processed in a way

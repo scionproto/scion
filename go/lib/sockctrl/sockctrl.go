@@ -21,7 +21,7 @@ package sockctrl
 import (
 	"net"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func SockControl(c *net.UDPConn, f func(int) error) error {

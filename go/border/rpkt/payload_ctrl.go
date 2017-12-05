@@ -20,8 +20,8 @@ package rpkt
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 )
 
 func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, error) {

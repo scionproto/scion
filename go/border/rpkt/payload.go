@@ -17,7 +17,7 @@
 package rpkt
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // Payload retrieves the packet's payload if not already known. It ensures that

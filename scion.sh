@@ -122,7 +122,7 @@ cmd_version() {
 	cat <<-_EOF
 	============================================
 	=                  SCION                   =
-	=   https://github.com/netsec-ethz/scion   =
+	=   https://github.com/scionproto/scion   =
 	============================================
 	_EOF
 }

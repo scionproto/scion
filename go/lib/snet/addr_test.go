@@ -21,7 +21,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/addr"
 )
 
 func Test_Addr_String(t *testing.T) {

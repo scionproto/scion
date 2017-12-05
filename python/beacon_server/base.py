@@ -438,7 +438,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self.worker,),
             name="BS.worker", daemon=True).start()
-        # https://github.com/netsec-ethz/scion/issues/308:
+        # https://github.com/scionproto/scion/issues/308:
         threading.Thread(
             target=thread_safety_net, args=(self._handle_if_timeouts,),
             name="BS._handle_if_timeouts", daemon=True).start()

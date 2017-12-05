@@ -17,7 +17,7 @@ package sockctrl
 import (
 	"net"
 	"syscall"
-	//"github.com/netsec-ethz/scion/go/lib/common"
+	//"github.com/scionproto/scion/go/lib/common"
 )
 
 func GetsockoptInt(c *net.UDPConn, level, opt int) (int, error) {

@@ -15,7 +15,7 @@
 package util
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // CalcPadding returns the number of padding bytes needed to round length bytes
