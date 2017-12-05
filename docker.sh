@@ -19,7 +19,7 @@ cmd_base() {
     get_params
     copy_tree
     docker_build "base"
-    docker tag scion_base:latest ethznetsec/scion_base:pending
+    docker tag scion_base:latest scionproto/scion_base:pending
 }
 
 cmd_build() {
