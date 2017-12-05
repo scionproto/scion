@@ -77,6 +77,8 @@ func Test_Meta(t *testing.T) {
 		SoMsg("Checking field 'ISD_AS'", c.ISD_AS, ShouldResemble, &addr.ISD_AS{I: 1, A: 11})
 		SoMsg("Checking field 'Overlay'", c.Overlay, ShouldEqual, overlay.IPv46)
 		SoMsg("Checking field 'MTU'", c.MTU, ShouldEqual, 1472)
+		SoMsg("Checking field 'Core'", c.Core, ShouldBeFalse)
+
 	})
 }
 

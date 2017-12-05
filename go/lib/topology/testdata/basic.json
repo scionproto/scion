@@ -4,6 +4,7 @@
     "ISD_AS": "1-11",
     "MTU": 1472,
     "Overlay": "IPv4+6",
+    "Core": false,
     "BorderRouters": {
         "br1-11-1": {
             "InternalAddrs": [
