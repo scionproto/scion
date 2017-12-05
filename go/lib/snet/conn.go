@@ -63,9 +63,12 @@ var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
 	conn *reliable.Conn
-	// Local and remote SCION addresses (IA, L3, L4)
+	// Local, remote and bind SCION addresses (IA, L3, L4)
 	laddr *Addr
 	raddr *Addr
+	baddr *Addr
+	// svc address
+	svc addr.HostSVC
 	// Describes L3 and L4 protocol; currently only udp4 is implemented
 	net        string
 	readMutex  sync.Mutex
@@ -89,12 +92,29 @@ func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	return DefNetwork.DialSCION(network, laddr, raddr)
 }
 
+// DialSCIONWithBindSVC calls DialSCIONWithBindSVC on the default networking context.
+func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
+	svc addr.HostSVC) (*Conn, error) {
+	if DefNetwork == nil {
+		return nil, common.NewCError("SCION network not initialized")
+	}
+	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc)
+}
+
 // ListenSCION calls ListenSCION on the default networking context.
 func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
 	return DefNetwork.ListenSCION(network, laddr)
+}
+
+// ListenSCIONWithBindSVC calls ListenSCIONWithBindSVC on the default networking context.
+func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+	if DefNetwork == nil {
+		return nil, common.NewCError("SCION network not initialized")
+	}
+	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc)
 }
 
 // ReadFromSCION reads data into b, returning the length of copied data and the
@@ -336,6 +356,14 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	return path.Entry, nil
 }
 
+func (c *Conn) BindAddr() net.Addr {
+	return c.baddr
+}
+
+func (c *Conn) BindSnetAddr() *Addr {
+	return c.baddr
+}
+
 func (c *Conn) LocalAddr() net.Addr {
 	return c.laddr
 }
@@ -350,6 +378,10 @@ func (c *Conn) RemoteAddr() net.Addr {
 
 func (c *Conn) RemoteSnetAddr() *Addr {
 	return c.raddr
+}
+
+func (c *Conn) SVC() addr.HostSVC {
+	return c.svc
 }
 
 func (c *Conn) SetDeadline(t time.Time) error {

@@ -44,7 +44,7 @@ func NewChainHandler(conn *snet.Conn) *ChainHandler {
 func (h *ChainHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainReq) {
 	log.Info("Received certificate chain request", "addr", addr, "req", req)
 	chain := store.GetChain(req.IA(), req.Version)
-	srcLocal := local.IA.Eq(addr.IA)
+	srcLocal := public.IA.Eq(addr.IA)
 	if chain != nil {
 		if err := h.sendChainRep(addr, chain); err != nil {
 			log.Error("Unable to send certificate chain reply", "addr", addr, "req",

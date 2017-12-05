@@ -33,12 +33,16 @@
 //
 // ReliableSocket registration message format:
 //  13-bytes: [Common header with address type NONE]
-//   1-byte: Command (bit mask with 0x02=SCMP enable, 0x01 always set)
+//   1-byte: Command (bit mask with 0x04=Bind address, 0x02=SCMP enable, 0x01 always set)
 //   1-byte: L4 Proto (IANA number)
 //   4-bytes: ISD-AS
 //   2-bytes: L4 port
 //   1-byte: Address type
 //   var-byte: Address
+//  +2-bytes: L4 bind port  \
+//  +1-byte: Address type    ) (optional bind address)
+//  +var-byte: Bind Address /
+//  +2-bytes: SVC (optional SVC type)
 //
 // To communicate with SCIOND, clients must first connect to SCIOND's UNIX socket. Messages
 // for SCIOND must set the ADDR TYPE field in the common header to NONE. The payload contains
@@ -77,6 +81,8 @@ var (
 )
 
 const (
+	regBindFlag     = 0x04 // Bind address flag (0x04)
+	regBindHdrLen   = 3    // port (2 bytes) + addr type (1 byte)
 	regCommandField = 0x03 // Register command (0x01) with SCMP enabled (0x02)
 	defBufSize      = 1 << 18
 )
@@ -138,9 +144,9 @@ func newConn(c net.Conn) *Conn {
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
+func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
-	if a.Addr.Type() == addr.HostTypeNone {
+	if public.Addr.Type() == addr.HostTypeNone {
 		return nil, 0, common.NewCError("Cannot register with NoneType address")
 	}
 
@@ -154,7 +160,14 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	if timeout != 0 {
 		conn.SetDeadline(deadline)
 	}
-	request := make([]byte, regBaseHeaderLen+a.Addr.Size())
+	svcLen, bindLen := 0, 0
+	if bind != nil {
+		bindLen = regBindHdrLen + bind.Addr.Size()
+	}
+	if svc != addr.SvcNone {
+		svcLen = svc.Size()
+	}
+	request := make([]byte, regBaseHeaderLen+public.Addr.Size()+bindLen+svcLen)
 	offset := 0
 	// Enable SCMP
 	request[offset] = regCommandField
@@ -163,16 +176,24 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	offset++
 	ia.Write(request[offset : offset+4])
 	offset += 4
-	a.writePort(request[offset : offset+2])
-	offset += 2
-	if a.Addr.Type() == addr.HostTypeNone {
+	n, err := writeAppAddr(request[offset:], public)
+	if err != nil {
 		conn.Close()
-		return nil, 0, common.NewCError("Cannot register NoneType address")
+		return nil, 0, common.NewCError("Invalid public address", "err", err)
 	}
-	request[offset] = byte(a.Addr.Type())
-	offset++
-	a.writeAddr(request[offset:])
-
+	offset += n
+	if bind != nil {
+		request[0] |= regBindFlag
+		n, err = writeAppAddr(request[offset:], bind)
+		if err != nil {
+			conn.Close()
+			return nil, 0, common.NewCError("Invalid bind address", "err", err)
+		}
+		offset += n
+	}
+	if svc != addr.SvcNone {
+		copy(request[offset:], svc.Pack())
+	}
 	_, err = conn.Write(request)
 	if err != nil {
 		conn.Close()
@@ -186,10 +207,10 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 		return nil, 0, err
 	}
 	replyPort := common.Order.Uint16(reply[:read])
-	if a.Port != 0 && a.Port != replyPort {
+	if public.Port != 0 && public.Port != replyPort {
 		conn.Close()
 		return nil, 0, common.NewCError("Port mismatch when registering with dispatcher",
-			"expected", a.Port, "actual", replyPort)
+			"expected", public.Port, "actual", replyPort)
 	}
 
 	// Disable deadline to not affect calling code
@@ -197,11 +218,26 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	return conn, replyPort, nil
 }
 
+func writeAppAddr(request []byte, a *AppAddr) (int, error) {
+	offset := 0
+	a.writePort(request[offset : offset+2])
+	offset += 2
+	if a.Addr.Type() == addr.HostTypeNone {
+		return offset, common.NewCError("Cannot register NoneType address")
+	}
+	request[offset] = byte(a.Addr.Type())
+	offset++
+	a.writeAddr(request[offset : offset+a.Addr.Size()])
+	offset += a.Addr.Size()
+	return offset, nil
+}
+
 // Register connects to a SCION Dispatcher's UNIX socket.
 // Future messages for address a in AS ia which arrive at the dispatcher can be read by
 // calling Read on the returned Conn structure.
-func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, error) {
-	return RegisterTimeout(dispatcher, ia, a, time.Duration(0))
+func Register(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr,
+	svc addr.HostSVC) (*Conn, uint16, error) {
+	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
 }
 
 // Read blocks until it reads the next framed message payload from conn and stores it in buf.

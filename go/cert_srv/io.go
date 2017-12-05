@@ -17,6 +17,7 @@ package main
 import (
 	log "github.com/inconshreveable/log15"
 
+	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
 	"github.com/netsec-ethz/scion/go/lib/ctrl"
 	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
@@ -34,9 +35,8 @@ type Dispatcher struct {
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
-func NewDispatcher(addr *snet.Addr) (*Dispatcher, error) {
-	// FIXME(roosd): listen to SVC address after #1334 has been addressed
-	conn, err := snet.ListenSCION("udp4", addr)
+func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", public, bind, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}
