@@ -35,8 +35,8 @@ type Dispatcher struct {
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
-func NewDispatcher(a *snet.Addr) (*Dispatcher, error) {
-	conn, err := snet.ListenSCIONWithBindSVC("udp4", a, nil, addr.SvcCS)
+func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", public, bind, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}
