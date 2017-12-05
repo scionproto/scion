@@ -93,7 +93,8 @@ func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 }
 
 // DialSCIONWithBindSVC calls DialSCIONWithBindSVC on the default networking context.
-func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
+	svc addr.HostSVC) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewCError("SCION network not initialized")
 	}
