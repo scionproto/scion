@@ -42,6 +42,9 @@ func (rp *RtrPkt) Parse() error {
 	if _, err := rp.DstIA(); err != nil {
 		return err
 	}
+	if _, err := rp.SrcIA(); err != nil {
+		return err
+	}
 	if *rp.dstIA == *rp.Ctx.Conf.IA {
 		// If the destination is local, parse the destination host as well.
 		if _, err := rp.DstHost(); err != nil {

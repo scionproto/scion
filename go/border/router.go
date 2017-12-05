@@ -25,6 +25,7 @@ import (
 	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/netsec-ethz/scion/go/border/conf"
+	"github.com/netsec-ethz/scion/go/border/enforcement"
 	"github.com/netsec-ethz/scion/go/border/metrics"
 	"github.com/netsec-ethz/scion/go/border/rcmn"
 	"github.com/netsec-ethz/scion/go/border/rctx"
@@ -54,6 +55,12 @@ type Router struct {
 	freePkts *ringbuf.Ring
 	// revInfoQ is a channel for handling RevInfo payloads.
 	revInfoQ chan rpkt.RevTokenCallbackArgs
+	// fBwEnf is a flag to indicate whether to do BW enforcement or not.
+	fBwEnf bool
+	//ingressBWE holds all information to do BW enforcement on ingress pkts.
+	ingressBWE enforcement.BWEnforcer
+	//engressBWE holds all information to do BW enforcement on engress pkts.
+	egresseBWE enforcement.BWEnforcer
 }
 
 func NewRouter(id, confDir string) (*Router, error) {
@@ -62,6 +69,10 @@ func NewRouter(id, confDir string) (*Router, error) {
 	if err := r.setup(); err != nil {
 		return nil, err
 	}
+
+	//set-up bandwidth enforcement.
+	r.setupBwEnforcement(confDir)
+
 	return r, nil
 }
 
@@ -139,6 +150,21 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if err := rp.Parse(); err != nil {
 		r.handlePktError(rp, err, "Error parsing packet")
 		return
+	}
+	//Check that the packet does not belong to an AS that is exceeding its
+	// BW limitations.
+	if r.fBwEnf {
+		if r.ingressBWE.DoEnforcement &&
+			(rp.DirFrom == rcmn.DirExternal && (rp.DirTo == rcmn.DirLocal || rp.DirTo == rcmn.DirSelf ||
+				rp.DirTo == rcmn.DirExternal)) {
+			if !r.ingressBWE.Check(rp) {
+				return
+			}
+		} else if r.egresseBWE.DoEnforcement && (rp.DirFrom == rcmn.DirLocal && rp.DirTo == rcmn.DirExternal) {
+			if !r.egresseBWE.Check(rp) {
+				return
+			}
+		}
 	}
 	// Validation looks for errors in the packet that didn't break basic
 	// parsing.
