@@ -113,10 +113,10 @@ func loadTopo() (err error) {
 	if !ok {
 		return common.NewCError("Unable to load addresses. Element ID not found", "id", *id)
 	}
-	bindInfo := topoAddr.BindAddrInfo(topo.Overlay)
 	publicInfo := topoAddr.PublicAddrInfo(topo.Overlay)
 	public = &snet.Addr{IA: topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
 		L4Port: uint16(publicInfo.L4Port)}
+	bindInfo := topoAddr.BindAddrInfo(topo.Overlay)
 	tmpBind := &snet.Addr{IA: topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
 		L4Port: uint16(bindInfo.L4Port)}
 	if !tmpBind.EqAddr(public) {
