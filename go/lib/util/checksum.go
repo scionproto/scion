@@ -19,7 +19,7 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // Calculate RFC1071 checksum of supplied data chunks. If a chunk has

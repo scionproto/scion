@@ -20,7 +20,7 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // ReqCache keeps track of requester addresses associated with a certain request key.

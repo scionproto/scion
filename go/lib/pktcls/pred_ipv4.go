@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/gopacket/layers"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // IPv4Predicate describes a single test on various IPv4 packet fields.

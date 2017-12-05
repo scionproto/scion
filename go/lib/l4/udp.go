@@ -17,7 +17,7 @@ package l4
 import (
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (

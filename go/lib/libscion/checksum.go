@@ -25,7 +25,7 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func Checksum(srcs ...common.RawBytes) uint16 {

@@ -1,7 +1,7 @@
 @0xdf42b02816bdc1bf;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 using Sign = import "sign.capnp";
 using PSeg = import "path_seg.capnp";

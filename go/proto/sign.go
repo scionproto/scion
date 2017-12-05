@@ -17,8 +17,8 @@ package proto
 import (
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto"
 )
 
 var _ Cerealizable = (*SignS)(nil)

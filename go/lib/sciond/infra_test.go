@@ -24,7 +24,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 func TestRevNotification(t *testing.T) {

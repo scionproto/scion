@@ -19,8 +19,8 @@ import (
 	"encoding/binary"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // AppPathSet represents a set of SCIOND path entries, keyed by AppPath.Key().

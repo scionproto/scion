@@ -409,5 +409,5 @@
 			"tree": true
 		}
 	],
-	"rootPath": "github.com/netsec-ethz/scion/go"
+	"rootPath": "github.com/scionproto/scion/go"
 }

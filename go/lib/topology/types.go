@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // AS link types

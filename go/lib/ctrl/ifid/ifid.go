@@ -19,8 +19,8 @@ package ifid
 import (
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*IFID)(nil)

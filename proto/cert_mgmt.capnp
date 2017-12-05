@@ -1,7 +1,7 @@
 @0xec3b2b10a5e23975;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 struct CertChainReq {
     isdas @0 :UInt32;

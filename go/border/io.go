@@ -25,12 +25,12 @@ import (
 	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/overlay/conn"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay/conn"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {

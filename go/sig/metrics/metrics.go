@@ -27,9 +27,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/prom"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")

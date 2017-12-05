@@ -1,7 +1,7 @@
 @0xc434abcc856ab808;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 struct SiblingHash {
 	isLeft @0 :Bool;  # Is the sibling on the left?
