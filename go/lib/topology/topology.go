@@ -35,6 +35,7 @@ type Topo struct {
 	ISD_AS         *addr.ISD_AS
 	Overlay        overlay.Type
 	MTU            int
+	Core           bool
 
 	BR      map[string]BRInfo
 	BRNames []string
@@ -107,6 +108,7 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 		return err
 	}
 	t.MTU = raw.MTU
+	t.Core = raw.Core
 	return nil
 }
 

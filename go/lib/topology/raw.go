@@ -43,6 +43,7 @@ type RawTopo struct {
 	ISD_AS             string
 	Overlay            string
 	MTU                int
+	Core               bool
 	BorderRouters      map[string]RawBRInfo   `json:",omitempty"`
 	ZookeeperService   map[int]RawAddrPort    `json:",omitempty"`
 	BeaconService      map[string]RawAddrInfo `json:",omitempty"`
