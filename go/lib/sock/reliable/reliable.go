@@ -167,7 +167,7 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, 
 	if svc != addr.SvcNone {
 		svcLen = svc.Size()
 	}
-	request := make([]byte, regBaseHeaderLen+ public.Addr.Size()+bindLen+svcLen)
+	request := make([]byte, regBaseHeaderLen+public.Addr.Size()+bindLen+svcLen)
 	offset := 0
 	// Enable SCMP
 	request[offset] = regCommandField
