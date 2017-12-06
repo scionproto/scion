@@ -232,14 +232,21 @@ type AddrInfo struct {
 	OverlayPort int
 }
 
+func (a *AddrInfo) Key() string {
+	return fmt.Sprintf("%s:%d", a.IP, a.L4Port)
+}
+
+func (a *AddrInfo) Reset() {
+	a.Overlay = overlay.Invalid
+	a.IP = a.IP[:0]
+	a.L4Port = 0
+	a.OverlayPort = 0
+}
+
 func (a *AddrInfo) String() string {
 	// using %+v here would cause infinite recursion
 	return fmt.Sprintf("Addrinfo{Overlay: %s, IP: %s, L4Port: %d, OverlayPort: %d}",
 		a.Overlay, a.IP, a.L4Port, a.OverlayPort)
-}
-
-func (a *AddrInfo) Key() string {
-	return fmt.Sprintf("%s:%d", a.IP, a.L4Port)
 }
 
 // Note: TopoAddrV4 and V6 *must* have their pubIP and pubL4Port members set to

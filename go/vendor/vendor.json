@@ -44,12 +44,6 @@
 			"revisionTime": "2015-05-27T14:46:52Z"
 		},
 		{
-			"checksumSHA1": "4HpMp8lo5lc64CIb3pULsFlr4ms=",
-			"path": "github.com/gavv/monotime",
-			"revision": "47d58efa69556a936a3c15eb2ed42706d968ab01",
-			"revisionTime": "2016-10-10T19:08:48Z"
-		},
-		{
 			"checksumSHA1": "2sj/DbXoXdnPAfjAEyhS0Jj5QL0=",
 			"license": "APL 2.0",
 			"path": "github.com/go-stack/stack",
@@ -331,6 +325,24 @@
 			"path": "golang.org/x/net/context",
 			"revision": "65dfc08770ce66f74becfdff5f8ab01caef4e946",
 			"revisionTime": "2016-10-24T22:38:16Z"
+		},
+		{
+			"checksumSHA1": "YoSf+PgTWvHmFVaF3MrtZz3kX38=",
+			"path": "golang.org/x/net/internal/iana",
+			"revision": "c7086645de248775cbf2373cf5ca4d2fa664b8c1",
+			"revisionTime": "2017-11-10T09:49:23Z"
+		},
+		{
+			"checksumSHA1": "yBGrvq2Acd3ufxsCVtp8zgV7wF0=",
+			"path": "golang.org/x/net/internal/socket",
+			"revision": "c7086645de248775cbf2373cf5ca4d2fa664b8c1",
+			"revisionTime": "2017-11-10T09:49:23Z"
+		},
+		{
+			"checksumSHA1": "ZGMENpNTj2hojdJMcrUO+UPKVgE=",
+			"path": "golang.org/x/net/ipv4",
+			"revision": "c7086645de248775cbf2373cf5ca4d2fa664b8c1",
+			"revisionTime": "2017-11-10T09:49:23Z"
 		},
 		{
 			"checksumSHA1": "tY+5thYxjKDUQyQXYcBqogmMS5U=",

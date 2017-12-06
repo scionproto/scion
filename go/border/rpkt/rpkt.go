@@ -65,9 +65,8 @@ type RtrPkt struct {
 	// Raw is the underlying buffer that represents the raw packet bytes. (RECV)
 	Raw common.RawBytes
 	// TimeIn is the time the packet was received. This is used for metrics
-	// calculations. Note that this is a monotonic time value with an arbitrary
-	// epoch, and can't be used to refer to a particular clock time. (RECV)
-	TimeIn time.Duration
+	// calculations. (RECV)
+	TimeIn time.Time
 	// DirFrom is the direction from which the packet was received. (RECV)
 	DirFrom rcmn.Dir
 	// DirTo is the direction to which the packet is travelling. (PARSE)
@@ -151,6 +150,9 @@ func (rp *RtrPkt) Release() {
 	if refCnt == 0 && rp.Free != nil {
 		rp.Free(rp)
 	}
+	if assert.On {
+		assert.Must(refCnt >= 0, "refCnt must be non-negative")
+	}
 }
 
 // addrIFPair contains the overlay destination/source addresses, as well as the
@@ -209,12 +211,11 @@ type extnIdx struct {
 // leaking through.
 //
 // Fields that are assumed to be overwritten (and hence aren't reset):
-// Id, TimeIn, CmnHdr, Logger
+// TimeIn, CmnHdr, Logger
 func (rp *RtrPkt) Reset() {
 	rp.Id = ""
 	// Reset the length of the buffer to the max size.
 	rp.Raw = rp.Raw[:cap(rp.Raw)]
-	rp.TimeIn = 0
 	rp.DirFrom = rcmn.DirUnset
 	rp.DirTo = rcmn.DirUnset
 	rp.Ingress.Dst = nil
