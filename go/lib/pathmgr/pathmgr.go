@@ -196,13 +196,9 @@ func (r *PR) Unwatch(src, dst *addr.ISD_AS) error {
 func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
-	// If the filter was registered previously, fetch it from the cache
-	if sp, ok := r.cache.getWatch(src, dst, filter); ok {
-		return sp, nil
-	}
 	// If the src and dst are not monitored yet, add the request to the resolver's queue
-	done := make(chan struct{})
 	if !r.cache.isWatched(src, dst) {
+		done := make(chan struct{})
 		request := &resolverRequest{
 			reqType: reqMonitor,
 			src:     src,
@@ -213,6 +209,7 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 		r.requestQueue <- request
 		<-done
 	} else {
+		// Only increment reference count
 		r.cache.watch(src, dst, filter)
 	}
 	sp, _ := r.cache.getWatch(src, dst, filter)
