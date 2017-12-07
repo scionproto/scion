@@ -35,6 +35,8 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
+const processBufCnt = 128
+
 var sighup chan os.Signal
 
 func init() {
@@ -102,7 +104,7 @@ func (r *Router) confSig() {
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer liblog.LogPanicAndExit()
 	defer close(stopped)
-	pkts := make(ringbuf.EntryList, 32)
+	pkts := make(ringbuf.EntryList, processBufCnt)
 	log.Debug("handleSock starting", "sock", *s)
 	for {
 		n, _ := s.Ring.Read(pkts, true)
@@ -125,7 +127,6 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if assert.On {
 		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
-		assert.Must(rp.TimeIn != 0, "TimeIn must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
 		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")

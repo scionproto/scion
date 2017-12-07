@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build go1.9,linux
+
 package conn
 
 import (
@@ -22,9 +24,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
@@ -35,13 +37,16 @@ import (
 
 const recvBufSize = 1 << 20
 
+var oobSize = syscall.CmsgSpace(SizeOfInt) + syscall.CmsgSpace(SizeOfTimespec)
 var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 	"Ignore failing to set the receive buffer size on a socket.")
 
 type Conn interface {
 	Read(common.RawBytes) (int, *ReadMeta, error)
+	ReadBatch([]ipv4.Message, []ReadMeta) (int, error)
 	Write(common.RawBytes) (int, error)
 	WriteTo(common.RawBytes, *topology.AddrInfo) (int, error)
+	WriteBatch([]ipv4.Message) (int, error)
 	LocalAddr() *topology.AddrInfo
 	RemoteAddr() *topology.AddrInfo
 	Close() error
@@ -84,6 +89,7 @@ func New(listen, remote *topology.AddrInfo, labels prometheus.Labels) (Conn, err
 
 type connUDPIPv4 struct {
 	conn      *net.UDPConn
+	pconn     *ipv4.PacketConn
 	Listen    *topology.AddrInfo
 	Remote    *topology.AddrInfo
 	oob       common.RawBytes
@@ -129,6 +135,7 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 	oob := make(common.RawBytes, syscall.CmsgSpace(SizeOfInt)+syscall.CmsgSpace(SizeOfTimespec))
 	return &connUDPIPv4{
 		conn:      c,
+		pconn:     ipv4.NewPacketConn(c),
 		Listen:    listen,
 		Remote:    remote,
 		oob:       oob,
@@ -138,31 +145,48 @@ func newConnUDPIPv4(c *net.UDPConn, listen, remote *topology.AddrInfo,
 }
 
 func (c *connUDPIPv4) Read(b common.RawBytes) (int, *ReadMeta, error) {
-	c.readMeta.Src = nil
-	c.readMeta.RcvOvfl = 0
-	c.readMeta.Recvd = 0
-	c.readMeta.Read = 0
+	c.readMeta.Reset()
 	n, oobn, _, src, err := c.conn.ReadMsgUDP(b, c.oob)
-	c.readMeta.Read = monotime.Now()
+	c.readMeta.read = time.Now()
 	if oobn > 0 {
-		c.handleCmsg(c.oob[:oobn])
+		c.handleCmsg(c.oob[:oobn], &c.readMeta)
 	}
-	if c.readMeta.Recvd == 0 {
-		c.readMeta.Recvd = c.readMeta.Read
-	}
-	c.readMeta.Src = c.Remote
-	if c.Remote == nil {
-		c.tmpRemote.IP = src.IP
-		c.tmpRemote.L4Port = src.Port
-		c.readMeta.Src = &c.tmpRemote
+	if c.Remote != nil {
+		c.readMeta.Src.IP = c.Remote.IP
+		c.readMeta.Src.L4Port = c.Remote.L4Port
+	} else {
+		c.readMeta.Src.IP = src.IP
+		c.readMeta.Src.L4Port = src.Port
 	}
 	return n, &c.readMeta, err
 }
 
-func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
+// ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
+// corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
+func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, error) {
+	if assert.On {
+		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
+	}
+	for i := range metas {
+		metas[i].Reset()
+	}
+	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
+	readTime := time.Now()
+	for i := 0; i < n; i++ {
+		msg := msgs[i]
+		meta := &metas[i]
+		meta.read = readTime
+		if msg.NN > 0 {
+			c.handleCmsg(msg.OOB[:msg.NN], meta)
+		}
+		meta.SetSrc(c.Remote, msg.Addr.(*net.UDPAddr))
+	}
+	return n, err
+}
+
+func (c *connUDPIPv4) handleCmsg(oob common.RawBytes, meta *ReadMeta) {
 	// Based on https://github.com/golang/go/blob/release-branch.go1.8/src/syscall/sockcmsg_unix.go#L49
 	// and modified to remove most allocations.
-	now := time.Now()
 	sizeofCmsgHdr := syscall.CmsgLen(0)
 	for sizeofCmsgHdr <= len(oob) {
 		hdr := (*syscall.Cmsghdr)(unsafe.Pointer(&oob[0]))
@@ -178,13 +202,14 @@ func (c *connUDPIPv4) handleCmsg(oob common.RawBytes) {
 		}
 		switch {
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_RXQ_OVFL:
-			c.readMeta.RcvOvfl = *(*int)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
+			meta.RcvOvfl = *(*int)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
 		case hdr.Level == syscall.SOL_SOCKET && hdr.Type == syscall.SO_TIMESTAMPNS:
 			tv := *(*Timespec)(unsafe.Pointer(&oob[sizeofCmsgHdr]))
-			since := now.Sub(time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec)))
+			meta.Recvd = time.Unix(int64(tv.tv_sec), int64(tv.tv_nsec))
+			meta.ReadDelay = meta.read.Sub(meta.Recvd)
 			// Guard against leap-seconds.
-			if since > 0 {
-				c.readMeta.Recvd = c.readMeta.Read - since
+			if meta.ReadDelay < 0 {
+				meta.ReadDelay = 0
 			}
 		}
 		// What we actually want is the padded length of the cmsg, but CmsgLen
@@ -208,6 +233,10 @@ func (c *connUDPIPv4) WriteTo(b common.RawBytes, dst *topology.AddrInfo) (int, e
 	return c.conn.WriteTo(b, addr)
 }
 
+func (c *connUDPIPv4) WriteBatch(msgs []ipv4.Message) (int, error) {
+	return c.pconn.WriteBatch(msgs, 0)
+}
+
 func (c *connUDPIPv4) LocalAddr() *topology.AddrInfo {
 	return c.Listen
 }
@@ -225,8 +254,48 @@ func (c *connUDPIPv4) Close() error {
 }
 
 type ReadMeta struct {
-	Src     *topology.AddrInfo
-	RcvOvfl int
-	Recvd   time.Duration
-	Read    time.Duration
+	Src       topology.AddrInfo
+	RcvOvfl   int
+	Recvd     time.Time
+	read      time.Time
+	ReadDelay time.Duration
+}
+
+func (m *ReadMeta) Reset() {
+	m.Src.Reset()
+	m.RcvOvfl = 0
+	m.Recvd = time.Unix(0, 0)
+	m.read = time.Unix(0, 0)
+	m.ReadDelay = 0
+}
+
+func (m *ReadMeta) SetSrc(rai *topology.AddrInfo, raddr *net.UDPAddr) {
+	if rai != nil {
+		m.Src = *rai
+		return
+	}
+	m.Src.Overlay = overlay.UDPIPv4
+	m.Src.IP = raddr.IP
+	m.Src.L4Port = raddr.Port
+	m.Src.OverlayPort = overlay.EndhostPort
+}
+
+func NewReadMessages(n int) []ipv4.Message {
+	m := make([]ipv4.Message, n)
+	for i := range m {
+		// Allocate a single-element, to avoid allocations when setting the buffer.
+		m[i].Buffers = make([][]byte, 1)
+		m[i].OOB = make(common.RawBytes, oobSize)
+	}
+	return m
+}
+
+func NewWriteMessages(n int) []ipv4.Message {
+	m := make([]ipv4.Message, n)
+	for i := range m {
+		// Allocate a single-element, to avoid allocations when setting the buffer.
+		m[i].Buffers = make([][]byte, 1)
+		m[i].Addr = &net.UDPAddr{}
+	}
+	return m
 }
