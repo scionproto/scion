@@ -14,6 +14,7 @@ Thumbs.db
 !/logs/.keepme
 /gen/
 /gen-cache/
+/gen-certs/
 /traces/
 
 # Python generated files #
