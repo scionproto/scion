@@ -14,7 +14,7 @@ struct CertChainRep {
 }
 
 struct TRCReq {
-    isdas @0 :UInt32;
+    isd @0 :UInt16;
     version @1 :UInt64;
     cacheOnly @2 :Bool;
 }

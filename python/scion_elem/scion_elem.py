@@ -81,7 +81,7 @@ from lib.packet.scion import (
     build_base_hdrs,
 )
 from lib.packet.svc import SVC_TO_SERVICE, SERVICE_TO_SVC_A
-from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.packet.scmp.errors import (
     SCMPBadDstType,
@@ -331,8 +331,7 @@ class SCIONElement(object):
             now = time.time()
             for (isd, ver), (req_time, meta) in self.requested_trcs.items():
                 if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
-                    trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver,
-                                                     cache_only=True)
+                    trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
                     meta = meta or self._get_cs()
                     logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
                     self.send_meta(CtrlPayload(CertMgmt(trc_req)), meta)
@@ -445,7 +444,7 @@ class SCIONElement(object):
                     # There is already an outstanding request for the missing TRC
                     # to the local CS and we don't have a new meta.
                     continue
-            trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
+            trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
             if not meta:
                 logging.error("Couldn't find a CS to request TRC for PCB %s",
