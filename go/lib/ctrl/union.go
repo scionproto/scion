@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/extn"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -37,6 +38,7 @@ type union struct {
 	Sibra       []byte `capnp:"-"` // Omit for now
 	DRKeyMgmt   []byte `capnp:"-"` // Omit for now
 	Sig         *sigmgmt.Pld
+	Extn        *extn.CtrlExtnDataList
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -56,6 +58,9 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *cert_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_certMgmt
 		u.CertMgmt = p
+	case *extn.CtrlExtnDataList:
+		u.Which = proto.CtrlPld_Which_extn
+		u.Extn = p
 	default:
 		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
 	}
@@ -74,6 +79,8 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.Sig, nil
 	case proto.CtrlPld_Which_certMgmt:
 		return u.CertMgmt, nil
+	case proto.CtrlPld_Which_extn:
+		return u.Extn, nil
 	}
 	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", u.Which)
 }
