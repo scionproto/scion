@@ -186,7 +186,7 @@ func TestQuery(t *testing.T) {
 		},
 	}
 	Convey("Create path manager (path set max age = 1 second)", t, func() {
-		timers := Timers{
+		timers := &Timers{
 			NormalRefire: 5 * time.Second,
 			ErrorRefire:  5 * time.Second,
 			MaxAge:       time.Second,
@@ -225,7 +225,7 @@ func TestQueryFilter(t *testing.T) {
 		},
 	}
 	Convey("Create path manager", t, func() {
-		pm, err := New(api, Timers{}, log.Root())
+		pm, err := New(api, &Timers{}, log.Root())
 		SoMsg("pm", pm, ShouldNotBeNil)
 		SoMsg("err", err, ShouldBeNil)
 		Convey("Query with filter, only one path should remain", func() {
@@ -253,7 +253,7 @@ func TestRegister(t *testing.T) {
 		},
 	}
 	Convey("Create path manager", t, func() {
-		timers := Timers{
+		timers := &Timers{
 			NormalRefire: time.Second,
 			ErrorRefire:  time.Second,
 			MaxAge:       time.Second,
@@ -280,7 +280,7 @@ func TestRegisterFilter(t *testing.T) {
 		},
 	}
 	Convey("Create path manager", t, func() {
-		timers := Timers{
+		timers := &Timers{
 			NormalRefire: time.Second,
 			ErrorRefire:  time.Second,
 			MaxAge:       time.Second,
@@ -316,7 +316,7 @@ func TestRevoke(t *testing.T) {
 		},
 	}
 	Convey("Create path manager", t, func() {
-		timers := Timers{
+		timers := &Timers{
 			NormalRefire: time.Minute,
 			ErrorRefire:  time.Minute,
 			MaxAge:       time.Minute,

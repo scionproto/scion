@@ -65,13 +65,17 @@ var (
 
 // Init initializes the default SCION networking context.
 func Init(ia *addr.ISD_AS, sPath string, dPath string) error {
-	if DefNetwork != nil {
-		return common.NewCError("Cannot initialize global SCION network twice")
-	}
-
 	network, err := NewNetwork(ia, sPath, dPath)
 	if err != nil {
 		return err
+	}
+	return InitWithNetwork(network)
+}
+
+// InitWithNetwork initializes snet with the provided SCION networking context.
+func InitWithNetwork(network *Network) error {
+	if DefNetwork != nil {
+		return common.NewCError("Cannot initialize global SCION network twice")
 	}
 	DefNetwork = network
 	return nil
@@ -94,17 +98,23 @@ type Network struct {
 	localIA        *addr.ISD_AS
 }
 
-// NewNetwork creates a new networking context, on which future Dial or Listen
-// calls can be made. The new connections use the SCIOND server at sPath, the
-// dispatcher at dPath, and ia for the local ISD-AS.
-func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
-	network := &Network{
+// NewNetworkBasic creates a minimal networking context without a path resolver.
+// It is meant to be amended with a custom path resolver.
+func NewNetworkBasic(ia *addr.ISD_AS, sPath string, dPath string) *Network {
+	return &Network{
 		sciondPath:     sPath,
 		dispatcherPath: dPath,
 		localIA:        ia,
 	}
+}
+
+// NewNetwork creates a new networking context, on which future Dial or Listen
+// calls can be made. The new connections use the SCIOND server at sPath, the
+// dispatcher at dPath, and ia for the local ISD-AS.
+func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
+	network := NewNetworkBasic(ia, sPath, dPath)
 	sd := sciond.NewService(sPath)
-	timers := pathmgr.Timers{
+	timers := &pathmgr.Timers{
 		NormalRefire: time.Minute,
 		ErrorRefire:  3 * time.Second,
 		MaxAge:       time.Hour,
@@ -234,6 +244,15 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 // PathResolver returns the pathmgr.PR that the network is using.
 func (n *Network) PathResolver() *pathmgr.PR {
 	return n.pathResolver
+}
+
+// SetPathResolver set the pathmgr.PR that the networking is using. It can only
+// be set once and will be ignored if there is already a path resolver set.
+func (n *Network) SetPathResolver(resolver *pathmgr.PR) {
+	if n.pathResolver != nil {
+		return
+	}
+	n.pathResolver = resolver
 }
 
 // IA returns a copy of the ISD-AS assigned to n

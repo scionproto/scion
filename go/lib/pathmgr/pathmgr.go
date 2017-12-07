@@ -103,13 +103,16 @@ type PR struct {
 // constants). When a query for a path older than maxAge reaches the resolver,
 // SCIOND is used to refresh the path. New returns with an error if a
 // connection to SCIOND could not be established.
-func New(srvc sciond.Service, timers Timers, logger log.Logger) (*PR, error) {
+func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 	sciondConn, err := srvc.Connect()
 	if err != nil {
 		// Let external code handle initial failure
 		return nil, common.NewCError("Unable to connect to SCIOND", "err", err)
 	}
-	setDefaultTimers(&timers)
+	if timers == nil {
+		timers = &Timers{}
+	}
+	setDefaultTimers(timers)
 	pr := &PR{
 		sciondService: srvc,
 		requestQueue:  make(chan *resolverRequest, queryChanCap),
