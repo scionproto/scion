@@ -1,7 +1,7 @@
 @0x8fcd13516850d142;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 using PSeg = import "path_seg.capnp";
 using IFState = import "if_state.capnp";

@@ -23,16 +23,16 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/assert"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // Route handles routing of packets. Registered hooks are called, allowing them

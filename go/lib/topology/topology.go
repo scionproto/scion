@@ -21,9 +21,9 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 )
 
 // Structures used by Go code, filled in by populate()
@@ -35,6 +35,7 @@ type Topo struct {
 	ISD_AS         *addr.ISD_AS
 	Overlay        overlay.Type
 	MTU            int
+	Core           bool
 
 	BR      map[string]BRInfo
 	BRNames []string
@@ -107,6 +108,7 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 		return err
 	}
 	t.MTU = raw.MTU
+	t.Core = raw.Core
 	return nil
 }
 

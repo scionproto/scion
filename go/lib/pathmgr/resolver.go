@@ -19,10 +19,10 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	liblog "github.com/scionproto/scion/go/lib/log"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // resolver receives requests from PR and answers them by contacting SCIOND.

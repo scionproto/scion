@@ -24,14 +24,14 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/vishvananda/netlink"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/sig/config"
-	"github.com/netsec-ethz/scion/go/sig/egress"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
-	"github.com/netsec-ethz/scion/go/sig/siginfo"
-	"github.com/netsec-ethz/scion/go/sig/xnet"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/sig/siginfo"
+	"github.com/scionproto/scion/go/sig/xnet"
 )
 
 const sigMgrTick = 10 * time.Second

@@ -17,7 +17,7 @@ package pktcls
 import (
 	"encoding/json"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // ActionMap is a container for Actions, keyed by their unique name. Attempting

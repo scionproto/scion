@@ -21,7 +21,7 @@ import (
 	"github.com/dchest/cmac"
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (

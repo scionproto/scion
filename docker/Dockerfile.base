@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 ENV HOME /home/scion
-ENV BASE /home/scion/go/src/github.com/netsec-ethz/scion
+ENV BASE /home/scion/go/src/github.com/scionproto/scion
 ENV GOPATH $HOME/go
 ENV PATH /usr/local/go/bin:$GOPATH/bin:$HOME/.local/bin:$PATH
 

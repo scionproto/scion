@@ -29,12 +29,12 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/border/hsr"
-	"github.com/netsec-ethz/scion/go/border/netconf"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/border/hsr"
+	"github.com/scionproto/scion/go/border/netconf"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 )
 
 var (

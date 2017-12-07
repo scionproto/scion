@@ -35,11 +35,11 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/sock/reliable"
-	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Time to live for cache entries

@@ -20,8 +20,8 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const ErrorInvalidChksum = "Invalid L4 checksum"

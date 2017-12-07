@@ -1,7 +1,7 @@
 @0xc4f0db62ff503b7d;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 struct ZkId {
     isdas @0 :UInt32;

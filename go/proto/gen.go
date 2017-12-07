@@ -52,7 +52,7 @@ package proto
 import (
 	"zombiezen.com/go/capnproto2"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // NewRootStruct calls the appropriate NewRoot<x> function corresponding to the capnp proto type ID,

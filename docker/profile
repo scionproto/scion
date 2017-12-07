@@ -1,7 +1,7 @@
 export GOPATH="$HOME/go"
 export PATH="$HOME/.local/bin:/usr/share/zookeeper/bin:$GOPATH/bin:/usr/local/go/bin:$PATH"
 export SHELL
-export BASEDIR="$GOPATH/src/github.com/netsec-ethz/scion"
+export BASEDIR="$GOPATH/src/github.com/scionproto/scion"
 export PYTHONPATH="$BASEDIR/python/:$BASEDIR"
 
 alias cdscion="cd $BASEDIR"

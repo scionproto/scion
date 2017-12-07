@@ -21,18 +21,18 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/ifstate"
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/border/ifstate"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/ifid"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const (

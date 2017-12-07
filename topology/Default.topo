@@ -7,8 +7,6 @@ defaults:
 ASes:
   1-11:
     core: true
-    beacon_servers: 1
-    certificate_servers: 3
     path_servers: 3
   1-12:
     core: true
@@ -31,16 +29,12 @@ ASes:
   1-13:
     core: true
     beacon_servers: 2
-    certificate_servers: 3
   1-14:
-    path_servers: 1
     cert_issuer: 1-11
-    certificate_servers: 3
   1-15:
     cert_issuer: 1-12
   1-16:
     beacon_servers: 3
-    certificate_servers: 3
     cert_issuer: 1-13
   1-17:
     cert_issuer: 1-11
@@ -49,7 +43,6 @@ ASes:
     cert_issuer: 1-12
   1-19:
     path_servers: 2
-    certificate_servers: 3
     cert_issuer: 1-13
   1-10:
     cert_issuer: 1-13
@@ -62,7 +55,6 @@ ASes:
     cert_issuer: 2-21
   2-24:
     cert_issuer: 2-22
-    certificate_servers: 3
   2-25:
     cert_issuer: 2-21
   2-26:

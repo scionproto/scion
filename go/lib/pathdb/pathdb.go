@@ -17,11 +17,11 @@
 package pathdb
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
-	"github.com/netsec-ethz/scion/go/lib/pathdb/conn"
-	"github.com/netsec-ethz/scion/go/lib/pathdb/query"
-	"github.com/netsec-ethz/scion/go/lib/pathdb/sqlite"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/pathdb/conn"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
 )
 
 type DB struct {

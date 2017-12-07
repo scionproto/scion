@@ -19,8 +19,8 @@ import (
 
 	"github.com/vishvananda/netlink"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/xnet"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/sig/xnet"
 )
 
 type NetEntry struct {

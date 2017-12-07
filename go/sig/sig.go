@@ -24,16 +24,16 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/sig/base"
-	"github.com/netsec-ethz/scion/go/sig/config"
-	"github.com/netsec-ethz/scion/go/sig/disp"
-	"github.com/netsec-ethz/scion/go/sig/egress"
-	"github.com/netsec-ethz/scion/go/sig/ingress"
-	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/sig/base"
+	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/sig/disp"
+	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/ingress"
+	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 var sighup chan os.Signal

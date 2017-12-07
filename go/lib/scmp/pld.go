@@ -20,7 +20,7 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var _ common.Payload = (*Payload)(nil)

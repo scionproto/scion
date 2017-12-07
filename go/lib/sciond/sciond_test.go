@@ -23,7 +23,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/addr"
 )
 
 var (

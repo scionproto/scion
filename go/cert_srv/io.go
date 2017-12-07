@@ -17,11 +17,12 @@ package main
 import (
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/snet"
-	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const MaxReadBufSize = 2 << 16
@@ -31,17 +32,18 @@ type Dispatcher struct {
 	conn         *snet.Conn
 	buf          common.RawBytes
 	chainHandler *ChainHandler
+	trcHandler   *TRCHandler
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
-func NewDispatcher(addr *snet.Addr) (*Dispatcher, error) {
-	// FIXME(roosd): listen to SVC address after #1334 has been addressed
-	conn, err := snet.ListenSCION("udp4", addr)
+func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", public, bind, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}
 	d := &Dispatcher{conn: conn, buf: make(common.RawBytes, MaxReadBufSize)}
 	d.chainHandler = NewChainHandler(d.conn)
+	d.trcHandler = NewTRCHandler(d.conn)
 	return d, nil
 }
 
@@ -87,6 +89,10 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.ChainRep))
 		case proto.CertChainReq_TypeID:
 			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq))
+		case proto.TRCRep_TypeID:
+			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRCRep))
+		case proto.TRCReq_TypeID:
+			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq))
 		}
 	default:
 		return common.NewCError("Not implemented", "protoID", c.ProtoId())

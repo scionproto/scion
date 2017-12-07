@@ -23,12 +23,12 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
-	"github.com/netsec-ethz/scion/go/lib/pathdb/query"
-	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var (

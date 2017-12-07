@@ -21,9 +21,9 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 // ReassemblyList is used to keep a doubly linked list of SIG frames that are

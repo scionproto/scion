@@ -3,6 +3,7 @@
     "TimestampHuman": "May  6 00:00:00 CET 1975",
     "ISD_AS": "6-22",
     "MTU": 1472,
+    "Core": true,
     "Overlay": "IPv4+6",
     "BorderRouters": {
         "borderrouter6-22-1": {

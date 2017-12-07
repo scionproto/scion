@@ -20,8 +20,8 @@ package rctx
 import (
 	"sync"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // Ctx is the main router context structure.

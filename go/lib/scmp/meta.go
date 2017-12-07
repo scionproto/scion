@@ -20,7 +20,7 @@ import (
 
 	"gopkg.in/restruct.v1"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 type Meta struct {

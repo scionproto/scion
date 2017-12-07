@@ -21,15 +21,15 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/pathmgr"
-	"github.com/netsec-ethz/scion/go/lib/pktdisp"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
-	"github.com/netsec-ethz/scion/go/lib/snet"
-	"github.com/netsec-ethz/scion/go/sig/mgmt"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
-	"github.com/netsec-ethz/scion/go/sig/siginfo"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/pktdisp"
+	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/sig/mgmt"
+	"github.com/scionproto/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 // Session contains a pool of paths to the remote AS, metrics about those paths,

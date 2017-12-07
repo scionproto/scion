@@ -20,7 +20,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 )
 
 func TestActionMap(t *testing.T) {

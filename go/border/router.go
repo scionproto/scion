@@ -24,16 +24,18 @@ import (
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/assert"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
+
+const processBufCnt = 128
 
 var sighup chan os.Signal
 
@@ -102,7 +104,7 @@ func (r *Router) confSig() {
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer liblog.LogPanicAndExit()
 	defer close(stopped)
-	pkts := make(ringbuf.EntryList, 32)
+	pkts := make(ringbuf.EntryList, processBufCnt)
 	log.Debug("handleSock starting", "sock", *s)
 	for {
 		n, _ := s.Ring.Read(pkts, true)
@@ -125,7 +127,6 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if assert.On {
 		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
-		assert.Must(rp.TimeIn != 0, "TimeIn must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
 		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")

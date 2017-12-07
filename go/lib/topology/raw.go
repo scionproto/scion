@@ -21,8 +21,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 )
 
 const CfgName = "topology.json"
@@ -43,6 +43,7 @@ type RawTopo struct {
 	ISD_AS             string
 	Overlay            string
 	MTU                int
+	Core               bool
 	BorderRouters      map[string]RawBRInfo   `json:",omitempty"`
 	ZookeeperService   map[int]RawAddrPort    `json:",omitempty"`
 	BeaconService      map[string]RawAddrInfo `json:",omitempty"`

@@ -20,13 +20,13 @@ import (
 	"hash"
 	"time"
 
-	"github.com/netsec-ethz/scion/go/border/ifstate"
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/lib/assert"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/crypto"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/border/ifstate"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // validatePath validates the path header.

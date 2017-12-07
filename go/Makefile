@@ -28,7 +28,7 @@ coverage: deps_proto
 
 lint:
 	@echo "======> goimports"
-	out=$$(goimports -d -local github.com/netsec-ethz ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
+	out=$$(goimports -d -local github.com/scionproto ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> gofmt"
 	out=$$(gofmt -d -s ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"

@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // A PathPredicate specifies which sequence of ASes and interfaces the packet

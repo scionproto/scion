@@ -23,8 +23,8 @@ import (
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 const (

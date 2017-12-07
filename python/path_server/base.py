@@ -183,6 +183,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _rev_entries_handler(self, raw_entries):
         for raw in raw_entries:
             rev_info = RevocationInfo.from_raw(raw)
+            try:
+                rev_info.validate()
+            except SCIONBaseError as e:
+                logging.warning("Failed to validate RevInfo from zk: %s\n%s",
+                                e, rev_info.short_desc())
+                continue
             self._remove_revoked_segments(rev_info)
 
     def _add_rev_mappings(self, pcb):
@@ -232,10 +238,23 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
+                rev_info = info.rev_info()
+                try:
+                    rev_info.validate()
+                except SCIONBaseError as e:
+                    logging.warning("Failed to validate IFStateInfo RevInfo from %s: %s\n%s",
+                                    meta, e, rev_info.short_desc())
+                    continue
                 self._handle_revocation(CtrlPayload(PathMgmt(info.rev_info())), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
+                            meta, e, rev_info.short_desc())
+            return
         self._handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
 
     def _handle_revocation(self, cpld, meta):
@@ -247,6 +266,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pmgt = cpld.union
         rev_info = pmgt.union
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
+        # Validate before checking for presense in self.revocations, as that will trigger an assert
+        # failure if the rev_info is invalid.
+        try:
+            rev_info.validate()
+        except SCIONBaseError as e:
+            # Validation already done in the IFStateInfo and SCMP paths, so a failure here means
+            # it's from a CtrlPld.
+            logging.warning("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
+                            meta, e, rev_info.short_desc())
+            return
 
         if rev_info in self.revocations:
             return

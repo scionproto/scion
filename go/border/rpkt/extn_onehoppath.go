@@ -22,10 +22,10 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 var _ rExtension = (*rOneHopPath)(nil)

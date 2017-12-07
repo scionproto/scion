@@ -19,11 +19,11 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/crypto/cert"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var (
@@ -39,12 +39,12 @@ func NewChainHandler(conn *snet.Conn) *ChainHandler {
 	return &ChainHandler{conn: conn}
 }
 
-// HandleReq handles certificate chain requests. Non-local or cache-only requests are dropped,
-// if the certificate chain is not present.
+// HandleReq handles certificate chain requests. If the certificate chain is not already cached
+// and the cache-only flag is set or the requester is from a remote AS, the request is dropped.
 func (h *ChainHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainReq) {
 	log.Info("Received certificate chain request", "addr", addr, "req", req)
 	chain := store.GetChain(req.IA(), req.Version)
-	srcLocal := local.IA.Eq(addr.IA)
+	srcLocal := public.IA.Eq(addr.IA)
 	if chain != nil {
 		if err := h.sendChainRep(addr, chain); err != nil {
 			log.Error("Unable to send certificate chain reply", "addr", addr, "req",
@@ -97,7 +97,7 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 	return SendPayload(h.conn, cpld, a)
 }
 
-// HandleChainRep handles certificate chain replies. Pending requests are answered and removed.
+// HandleRep handles certificate chain replies. Pending requests are answered and removed.
 func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.ChainRep) {
 	log.Info("Received certificate chain reply", "addr", addr, "rep", rep)
 	chain, err := rep.Chain()

@@ -1,7 +1,7 @@
 @0x99440334ec0946a0;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 struct SignedBlob {
     blob @0 :Data;

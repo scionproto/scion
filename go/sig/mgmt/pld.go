@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type MsgIdType uint64

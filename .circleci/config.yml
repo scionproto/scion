@@ -43,7 +43,7 @@ jobs:
 
     build:
         docker:
-            - image: ethznetsec/scion_base@sha256:90528bc3890e00820767d306587974dbf1e7a0b9ce193e8fce5218cffc1f562e
+            - image: scionproto/scion_base@sha256:78c53b6a8554fdb5f4df048aa3df32741099b53a8ee3cc14ce76ce35bb59ebfe
         <<: *job
         steps:
             - checkout
@@ -84,7 +84,7 @@ jobs:
 
 scion_defaults:
     job: &job
-        working_directory: /home/scion/go/src/github.com/netsec-ethz/scion
+        working_directory: /home/scion/go/src/github.com/scionproto/scion
         environment:
             - BASH_ENV: /home/scion/.profile
 

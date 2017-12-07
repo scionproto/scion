@@ -19,7 +19,7 @@ cmd_base() {
     get_params
     copy_tree
     docker_build "base"
-    docker tag scion_base:latest ethznetsec/scion_base:pending
+    docker tag scion_base:latest scionproto/scion_base:pending
 }
 
 cmd_build() {
@@ -79,9 +79,9 @@ cmd_clean() {
 cmd_run() {
     # Limit to 4G of ram, don't allow swapping.
     local args="-i -t -h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
-    args+=" -v $PWD/htmlcov:/home/scion/go/src/github.com/netsec-ethz/scion/htmlcov"
-    args+=" -v $PWD/logs:/home/scion/go/src/github.com/netsec-ethz/scion/logs"
-    args+=" -v $PWD/sphinx-doc/_build:/home/scion/go/src/github.com/netsec-ethz/scion/sphinx-doc/_build"
+    args+=" -v $PWD/htmlcov:/home/scion/go/src/github.com/scionproto/scion/htmlcov"
+    args+=" -v $PWD/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
+    args+=" -v $PWD/sphinx-doc/_build:/home/scion/go/src/github.com/scionproto/scion/sphinx-doc/_build"
     # Can't use --rm in circleci, their environment doesn't allow it, so it
     # just throws an error
     [ -n "$CIRCLECI" ] || args+=" --rm"

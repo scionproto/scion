@@ -15,13 +15,13 @@
 package hpkt
 
 import (
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // ParseScnPkt populates the SCION fields in s with information from b

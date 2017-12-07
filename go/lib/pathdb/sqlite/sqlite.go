@@ -25,11 +25,11 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
-	"github.com/netsec-ethz/scion/go/lib/pathdb/conn"
-	"github.com/netsec-ethz/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/pathdb/conn"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
 )
 
 type segMeta struct {

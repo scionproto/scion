@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/netsec-ethz/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var (
