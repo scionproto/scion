@@ -28,7 +28,7 @@ from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.cert_mgmt import CertChainRequest, CertMgmt, TRCRequest
 from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.types import ServiceType
 from integration.base_cli_srv import (
     get_sciond_api_addr,
@@ -67,7 +67,7 @@ class TestCertClient(TestClientBase):
         if not self.cert:
             return CtrlPayload(CertMgmt(CertChainRequest.from_values(self.dst_ia, 0)))
         return CtrlPayload(
-            CertMgmt(TRCRequest.from_values(ISD_AS.from_values(self.dst_ia._isd, 0), 0)))
+            CertMgmt(TRCRequest.from_values(self.dst_ia[0], 0)))
 
     def _handle_response(self, spkt):
         cpld = spkt.parse_payload()
