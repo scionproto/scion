@@ -29,115 +29,59 @@ func createUDP() UDP {
 	return UDP{0x1234, 0x5678, 0xA, make(common.RawBytes, 2)}
 }
 
-func Test_UDPFromRaw(t *testing.T) {
-	raw := common.RawBytes{
-		0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0}
-	fromRaw, err := UDPFromRaw(raw)
-
-	original := createUDP()
-
+func TestUDPFromRaw(t *testing.T) {
 	Convey("Content must match", t, func() {
-		So(err, ShouldBeNil)
-		So(fromRaw, ShouldResemble, &original)
+		raw := common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0}
+		original := createUDP()
+
+		fromRaw, err := UDPFromRaw(raw)
+		SoMsg("Must build from raw without error", err, ShouldBeNil)
+		SoMsg("Wrongly rebuilt from raw", fromRaw, ShouldResemble, &original)
 	})
 }
 
-func Test_Validate(t *testing.T) {
-	u := createUDP()
-
+func TestUDPValidate(t *testing.T) {
 	Convey("It is structure of size 10, must be ok", t, func() {
+		u := createUDP()
+
 		So(u.TotalLen, ShouldEqual, 10)
 		err := u.Validate(int(u.TotalLen) - UDPLen)
-		So(err, ShouldBeNil)
+		SoMsg("This structure must be seen as valid", err, ShouldBeNil)
 	})
 }
 
-func Test_Parse(t *testing.T) {
-	// assuming we have tested UDPFromRaw
-	u := createUDP()
-	raw, err := u.Pack(true)
-
-	u2 := UDP{0, 0, 0xA,
-		make(common.RawBytes, 2)}
-	u2.Parse(raw)
-
+func TestUDPParse(t *testing.T) {
 	Convey("Must parse into the same representation", t, func() {
-		So(err, ShouldBeNil)
-		So(u2, ShouldResemble, u)
+		// assuming we have tested UDPPack
+		u := createUDP()
+		raw, err := u.Pack(true)
+		u2 := UDP{0, 0, 0xA,
+			make(common.RawBytes, 2)}
+
+		u2.Parse(raw)
+		SoMsg("Must parse this valid input", err, ShouldBeNil)
+		SoMsg("Parsed content must match expected", u2, ShouldResemble, u)
 	})
 }
 
-func Test_Pack(t *testing.T) {
-	u := createUDP()
-	raw, err := u.Pack(true)
-
+func TestUDPPack(t *testing.T) {
 	Convey("Binary content must match", t, func() {
-		So(err, ShouldBeNil)
-		So(raw.String(), ShouldEqual, "12345678000a0000")
-		So(raw, ShouldResemble, common.RawBytes{
-			0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
+		u := createUDP()
+		raw, err := u.Pack(true)
+
+		SoMsg("Must pack without error", err, ShouldBeNil)
+		SoMsg("Packed content must match expected", raw, ShouldResemble,
+			common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
 	})
 }
 
-func Test_Write(t *testing.T) {
-	u := createUDP()
-	raw := make(common.RawBytes, 8)
-	err := u.Write(raw)
-
+func TestUDPWrite(t *testing.T) {
 	Convey("Binary content must match", t, func() {
-		So(err, ShouldBeNil)
-		So(raw, ShouldResemble, common.RawBytes{
-			0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
-	})
-}
+		u := createUDP()
+		raw := make(common.RawBytes, 8)
+		err := u.Write(raw)
 
-func Test_Checksum(t *testing.T) {
-	u := createUDP()
-
-	Convey("Checksum field access", t, func() {
-		So(u.GetCSum(), ShouldResemble, common.RawBytes{0, 0})
-		u.SetCSum(common.RawBytes{1, 2})
-		So(u.GetCSum(), ShouldResemble, common.RawBytes{1, 2})
-	})
-}
-
-func Test_PldLen(t *testing.T) {
-	u := createUDP()
-
-	Convey("Checksum field access", t, func() {
-		u.SetPldLen(11)
-		So(u.TotalLen, ShouldEqual, UDPLen+11)
-	})
-}
-
-func Test_Copy(t *testing.T) {
-	u := createUDP()
-	clone := u.Copy()
-
-	Convey("Cloned instance must be equal but without checksum", t, func() {
-		So(&u, ShouldResemble, clone)
-	})
-}
-
-func Test_Reverse(t *testing.T) {
-	u := createUDP()
-	original := u
-
-	u.Reverse()
-
-	Convey("Ports must be swapped, size remain", t, func() {
-		So(u.DstPort, ShouldEqual, original.SrcPort)
-		So(u.SrcPort, ShouldEqual, original.DstPort)
-		So(u.TotalLen, ShouldEqual, original.TotalLen)
-	})
-}
-
-func Test_String(t *testing.T) {
-	u := createUDP()
-	string := u.String()
-
-	Convey("String representation must match", t, func() {
-		So(string,
-			ShouldEqual, "SPort=4660 DPort=22136 TotalLen=10 Checksum=0000")
+		SoMsg("Must write without error", err, ShouldBeNil)
+		SoMsg("Wrong content written", raw, ShouldResemble, common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
 	})
 }

@@ -35,208 +35,187 @@ func setupRtrPktHookTest() *RtrPkt {
 	rpkt := NewRtrPkt()
 	rpkt.Id = "id"
 	fetched = 0
-
 	return rpkt
 }
 
-func Test_Hooks_SrcDst_IA(t *testing.T) {
-	rpkt := setupRtrPktHookTest()
-
-	srcIA := &addr.ISD_AS{I: 1, A: 2}
-	dstIA := &addr.ISD_AS{I: 3, A: 4}
-
-	rpkt.hooks = hooks{
-		SrcIA: []hookIA{func() (HookResult, *addr.ISD_AS, error) {
-			fetched++
-			return HookFinish, srcIA, nil
-		}},
-
-		DstIA: []hookIA{func() (HookResult, *addr.ISD_AS, error) {
-			fetched++
-			return HookFinish, dstIA, nil
-		}},
-	}
-
+func TestHooksSrcDstIA(t *testing.T) {
 	Convey("Fetch SrcIA, DstIA via hook functions", t, func() {
+		rpkt := setupRtrPktHookTest()
+
+		srcIA := &addr.ISD_AS{I: 1, A: 2}
+		dstIA := &addr.ISD_AS{I: 3, A: 4}
+
+		rpkt.hooks = hooks{
+			SrcIA: []hookIA{func() (HookResult, *addr.ISD_AS, error) {
+				fetched++
+				return HookFinish, srcIA, nil
+			}},
+			DstIA: []hookIA{func() (HookResult, *addr.ISD_AS, error) {
+				fetched++
+				return HookFinish, dstIA, nil
+			}},
+		}
 		var ia *addr.ISD_AS
 
 		ia, err = rpkt.DstIA()
-		So(ia, ShouldEqual, dstIA)
-		So(err, ShouldBeNil)
+		SoMsg("Destination address wrong", ia, ShouldEqual, dstIA)
+		SoMsg("Should be no error when calling destination address getter", err, ShouldBeNil)
 
 		ia, err = rpkt.DstIA()
-		So(ia, ShouldEqual, dstIA)
-		So(fetched, ShouldEqual, 1)
-		So(err, ShouldBeNil)
+		SoMsg("Destination address wrong on second getter call", ia, ShouldEqual, dstIA)
+		SoMsg("Destination address must only be fetched once, cached value must be reused on the second call",
+			fetched, ShouldEqual, 1)
+		SoMsg("Should be no error when calling destination address getter for cached value", err, ShouldBeNil)
 
 		ia, err = rpkt.SrcIA()
-		So(ia, ShouldEqual, srcIA)
-		So(err, ShouldBeNil)
+		SoMsg("Source address wrong", ia, ShouldEqual, srcIA)
+		SoMsg("Should be no error when calling source address getter", err, ShouldBeNil)
 
 		ia, err = rpkt.SrcIA()
-		So(ia, ShouldEqual, srcIA)
-		So(fetched, ShouldEqual, 2)
-		So(err, ShouldBeNil)
+		SoMsg("Source address wrong on cached getter call", ia, ShouldEqual, srcIA)
+		SoMsg("Should be no error when calling destination address getter for cached value", err, ShouldBeNil)
+		SoMsg("Two fetches are expected (both source and destination address, each exactly once)",
+			fetched, ShouldEqual, 2)
 	})
 }
 
-func Test_Hooks_SrcDst_Host(t *testing.T) {
-	rpkt := setupRtrPktHookTest()
-
-	srcHost := addr.HostFromIP(net.IPv4(192, 168, 1, 37))
-	dstHost := addr.HostFromIP(net.IPv4(192, 168, 1, 38))
-
-	rpkt.hooks = hooks{
-		SrcHost: []hookHost{func() (HookResult, addr.HostAddr, error) {
-			fetched++
-			return HookFinish, srcHost, nil
-		}},
-
-		DstHost: []hookHost{func() (HookResult, addr.HostAddr, error) {
-			fetched++
-			return HookFinish, dstHost, nil
-		}},
-	}
-
+func TestHooksSrcDstHost(t *testing.T) {
 	Convey("Fetch SrcHost, DstHost via hook functions", t, func() {
+		rpkt := setupRtrPktHookTest()
+
+		srcHost := addr.HostFromIP(net.IPv4(192, 168, 1, 37))
+		dstHost := addr.HostFromIP(net.IPv4(192, 168, 1, 38))
+
+		rpkt.hooks = hooks{
+			SrcHost: []hookHost{func() (HookResult, addr.HostAddr, error) {
+				fetched++
+				return HookFinish, srcHost, nil
+			}},
+			DstHost: []hookHost{func() (HookResult, addr.HostAddr, error) {
+				fetched++
+				return HookFinish, dstHost, nil
+			}},
+		}
 		var host addr.HostAddr
 
 		host, err = rpkt.DstHost()
-		So(host, ShouldEqual, dstHost)
-		So(err, ShouldBeNil)
+		SoMsg("Destination host wrong", host, ShouldEqual, dstHost)
+		SoMsg("Should be no error when calling destination host getter", err, ShouldBeNil)
 
 		host, err = rpkt.DstHost()
-		So(host, ShouldEqual, dstHost)
-		So(err, ShouldBeNil)
-
-		So(fetched, ShouldEqual, 1)
-
-		host, err = rpkt.SrcHost()
-		So(host, ShouldEqual, srcHost)
-		So(err, ShouldBeNil)
+		SoMsg("Destination host wrong on second getter call", host, ShouldEqual, dstHost)
+		SoMsg("Should be no error when calling destination host getter for cached value", err, ShouldBeNil)
+		SoMsg("Destination host must only be fetched once, cached value must be reused on the second call",
+			fetched, ShouldEqual, 1)
 
 		host, err = rpkt.SrcHost()
-		So(host, ShouldEqual, srcHost)
-		So(err, ShouldBeNil)
+		SoMsg("Source host wrong", host, ShouldEqual, srcHost)
+		SoMsg("Should be no error when calling source host getter", err, ShouldBeNil)
 
-		So(fetched, ShouldEqual, 2)
+		host, err = rpkt.SrcHost()
+		SoMsg("Source host wrong on cached getter call", host, ShouldEqual, srcHost)
+		SoMsg("Should be no error when calling destination host getter for cached value", err, ShouldBeNil)
+		SoMsg("Two fetches are expected (both source and destination host, each exactly once)",
+			fetched, ShouldEqual, 2)
 	})
 }
 
-func Test_Hooks_Infof(t *testing.T) {
-	rpkt := setupRtrPktHookTest()
-	infof := spath.InfoField{TsInt: 10, ISD: 11, Hops: 3}
-
-	rpkt.hooks = hooks{
-
-		Infof: []hookInfoF{func() (HookResult, *spath.InfoField, error) {
-			fetched++
-			return HookFinish, &infof, nil
-		}},
-	}
-
+func TestHooksInfof(t *testing.T) {
 	Convey("Fetch Infof via hook functions", t, func() {
+		rpkt := setupRtrPktHookTest()
+		infof := spath.InfoField{TsInt: 10, ISD: 11, Hops: 3}
+
+		rpkt.hooks = hooks{
+			Infof: []hookInfoF{func() (HookResult, *spath.InfoField, error) {
+				fetched++
+				return HookFinish, &infof, nil
+			}},
+		}
 		var info *spath.InfoField
 
 		info, err = rpkt.InfoF()
-		So(err, ShouldBeNil)
-
-		So(info.ISD, ShouldEqual, infof.ISD)
-		So(info.TsInt, ShouldEqual, infof.TsInt)
-		So(info.Hops, ShouldEqual, infof.Hops)
+		SoMsg("Should be no error when calling InfoField getter for fetch", err, ShouldBeNil)
+		SoMsg("Wrong InfoField on the fetch call", *info, ShouldResemble, infof)
 
 		info, err = rpkt.InfoF()
-		So(err, ShouldBeNil)
-
-		So(info.ISD, ShouldEqual, infof.ISD)
-		So(info.TsInt, ShouldEqual, infof.TsInt)
-		So(info.Hops, ShouldEqual, infof.Hops)
-
-		So(fetched, ShouldEqual, 1)
+		SoMsg("Should be no error when calling InfoField getter for cached value", err, ShouldBeNil)
+		SoMsg("Wrong InfoField on the cached getter call", *info, ShouldResemble, infof)
+		SoMsg("Regardless of the two calls, only one fetch of InfoField expected", fetched,
+			ShouldEqual, 1)
 	})
 }
 
-func Test_Hooks_Hopf(t *testing.T) {
-	rpkt := setupRtrPktHookTest()
-	hopfield := spath.HopField{VerifyOnly: true}
+func TestHooksHopf(t *testing.T) {
+	Convey("Fetch HopF via hook functions", t, func() {
+		rpkt := setupRtrPktHookTest()
+		hopfield := spath.HopField{VerifyOnly: true}
 
-	rpkt.hooks = hooks{
-
-		HopF: []hookHopF{func() (HookResult, *spath.HopField, error) {
-			fetched++
-			return HookFinish, &hopfield, nil
-		}},
-	}
-
-	Convey("Fetch UpFlag via hook functions", t, func() {
+		rpkt.hooks = hooks{
+			HopF: []hookHopF{func() (HookResult, *spath.HopField, error) {
+				fetched++
+				return HookFinish, &hopfield, nil
+			}},
+		}
 		var hopf *spath.HopField
 
 		hopf, err = rpkt.HopF()
-		So(hopf.VerifyOnly, ShouldEqual, hopfield.VerifyOnly)
-		So(err, ShouldBeNil)
+		SoMsg("Wrong HopF on the fetch call", hopf.VerifyOnly, ShouldEqual, hopfield.VerifyOnly)
+		SoMsg("Should be no error when calling HopF for fetch", err, ShouldBeNil)
 
 		hopf, err = rpkt.HopF()
-		So(hopf.VerifyOnly, ShouldEqual, hopfield.VerifyOnly)
-		So(err, ShouldBeNil)
-
-		So(fetched, ShouldEqual, 1)
+		SoMsg("Wrong HopF on the cached getter call", hopf.VerifyOnly, ShouldEqual, hopfield.VerifyOnly)
+		SoMsg("Should be no error when calling HopF getter for cached value", err, ShouldBeNil)
+		SoMsg("Regardless of the two calls, only one fetch of HopF expected", fetched, ShouldEqual, 1)
 	})
 }
 
-func Test_Hooks_Up(t *testing.T) {
-	rpkt := setupRtrPktHookTest()
-
-	rpkt.hooks = hooks{
-
-		UpFlag: []hookBool{func() (HookResult, bool, error) {
-			fetched++
-			return HookFinish, true, nil
-		}},
-	}
-
+func TestHooksUp(t *testing.T) {
 	Convey("Fetch UpFlag via hook functions", t, func() {
+		rpkt := setupRtrPktHookTest()
+		rpkt.hooks = hooks{
+			UpFlag: []hookBool{func() (HookResult, bool, error) {
+				fetched++
+				return HookFinish, true, nil
+			}},
+		}
 		var up *bool
 
 		up, err = rpkt.UpFlag()
-		So(*up, ShouldBeTrue)
-		So(err, ShouldBeNil)
+		SoMsg("Wrong UpFlag on the fetch call", *up, ShouldBeTrue)
+		SoMsg("Should be no error when calling UpFlag for fetch", err, ShouldBeNil)
 
 		up, err = rpkt.UpFlag()
-		So(*up, ShouldBeTrue)
-		So(err, ShouldBeNil)
-
-		So(fetched, ShouldEqual, 1)
+		SoMsg("Wrong UpFlag on the cached getter call", *up, ShouldBeTrue)
+		SoMsg("Should be no error when calling UpFlag getter for cached value", err, ShouldBeNil)
+		SoMsg("Regardless of the two calls, only one fetch of UpFlag expected", fetched, ShouldEqual, 1)
 	})
 }
 
-func Test_Lifecycle(t *testing.T) {
-	rpkt := setupRtrPktHookTest()
-
+func TestLifecycle(t *testing.T) {
 	Convey("Track references", t, func() {
+		rpkt := setupRtrPktHookTest()
 		var free = false
 		rpkt.Free = func(pkt *RtrPkt) {
 			free = true
 		}
-
-		So(rpkt, ShouldNotBeNil)
-		So(rpkt.refCnt, ShouldEqual, 1)
+		SoMsg("Must be created with one ref count", rpkt.refCnt, ShouldEqual, 1)
 
 		rpkt.refInc(2)
-		So(rpkt.refCnt, ShouldEqual, 3)
+		SoMsg("refInc() must increment ref coount from 1 by 2", rpkt.refCnt, ShouldEqual, 3)
 
 		rpkt.Release()
-		So(rpkt.refCnt, ShouldEqual, 2)
-		So(free, ShouldBeFalse)
+		SoMsg("Release() must decrement ref count from 3 to 2", rpkt.refCnt, ShouldEqual, 2)
+		SoMsg("Incorrectly freed, 2 refs remaining", free, ShouldBeFalse)
 
 		rpkt.Release()
-		So(free, ShouldBeFalse)
+		SoMsg("Incorrectly freed, 1 ref remaining", free, ShouldBeFalse)
 
 		rpkt.Release()
-		So(free, ShouldBeTrue)
-		So(rpkt.refCnt, ShouldEqual, 0)
+		SoMsg("Should be no more refs remaining by now", rpkt.refCnt, ShouldEqual, 0)
+		SoMsg("Due no refs remaining by now be freed now", free, ShouldBeTrue)
 
 		rpkt.Reset()
-		So(rpkt.refCnt, ShouldEqual, 1)
-		So(rpkt.Id, ShouldBeEmpty)
+		SoMsg("Reset() must set refcount to 1", rpkt.refCnt, ShouldEqual, 1)
+		SoMsg("Reset() must set id to empty", rpkt.Id, ShouldBeEmpty)
 	})
 }

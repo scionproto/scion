@@ -17,7 +17,7 @@ package rpkt
 
 import (
 	"encoding/hex"
-	"net"
+
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -27,6 +27,8 @@ import (
 	"github.com/netsec-ethz/scion/go/border/rctx"
 	"github.com/netsec-ethz/scion/go/lib/addr"
 	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/l4"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
 // The packet sample from node 1-14 to 1-17 as logged 20.11.2016
@@ -34,68 +36,63 @@ const sample = "0041003f03000011001000110010000e7f00001b7f00001ac350c35000270" +
 	"a160000001b1008400211056a51080102ff100550010101021000070201330002"
 
 // Prepare the packet from raw
-func preparePacketSample() *RtrPkt {
+func prepareRtrPacketSample() *RtrPkt {
 	var err error
 	packet, err := hex.DecodeString(sample)
 	if err != nil {
 		panic(err)
 	}
 	r := NewRtrPkt()
-
-	// Set raw data:
 	r.Raw = packet
-
 	// Set some other data that are required for the parsing to succeed:
 	var config = &conf.Conf{
 		IA: &addr.ISD_AS{I: 1, A: 2},
-		Net: &netconf.NetConf{IFs: map[common.IFIDType]*netconf.Interface{
-			777: nil,
-		}}}
-
+		Net: &netconf.NetConf{
+			IFs: map[common.IFIDType]*netconf.Interface{777: nil},
+		},
+	}
 	r.Ctx = rctx.New(config, 777)
 	r.Ingress = addrIFPair{IfIDs: []common.IFIDType{1, 2}}
-
 	return r
 }
 
-func Test_ParseBasic(t *testing.T) {
-	r := preparePacketSample()
+func TestParseBasic(t *testing.T) {
+	Convey("Parse packet, basic", t, func() {
+		r := prepareRtrPacketSample()
 
-	Convey("Parse basic", t, func() {
 		r.parseBasic()
-
 		srcIA, _ := r.SrcIA()
 		dstIA, _ := r.DstIA()
-
 		srcHost, _ := r.SrcHost()
 		dstHost, _ := r.DstHost()
 
-		So(srcIA.String(), ShouldEqual, addr.ISD_AS{I: 1, A: 14}.String())
-		So(dstIA.String(), ShouldEqual, addr.ISD_AS{I: 1, A: 17}.String())
-
-		So(srcHost.String(), ShouldEqual,
-			addr.HostFromIP(net.IPv4(127, 0, 0, 26)).String())
-		So(dstHost.String(), ShouldEqual,
-			addr.HostFromIP(net.IPv4(127, 0, 0, 27)).String())
-
-		So(r.CmnHdr.Ver, ShouldEqual, 0)
-		So(r.CmnHdr.DstType, ShouldEqual, 1)
-		So(r.CmnHdr.SrcType, ShouldEqual, 1)
-		So(r.CmnHdr.TotalLen, ShouldEqual, 63)
-		So(r.CmnHdr.HdrLen, ShouldEqual, 3)
-		So(r.CmnHdr.NextHdr, ShouldEqual, 17)
+		SoMsg("Source IA", *srcIA, ShouldResemble, addr.ISD_AS{I: 1, A: 14})
+		SoMsg("Destination IA", *dstIA, ShouldResemble, addr.ISD_AS{I: 1, A: 17})
+		SoMsg("Source host IP", srcHost, ShouldResemble, addr.HostIPv4{127, 0, 0, 26})
+		SoMsg("Destination host IP", dstHost, ShouldResemble, addr.HostIPv4{127, 0, 0, 27})
+		SoMsg("CmnHdr", r.CmnHdr, ShouldResemble, spkt.CmnHdr{
+			Ver:      0,
+			DstType:  1,
+			SrcType:  1,
+			TotalLen: 63,
+			HdrLen:   3,
+			NextHdr:  17,
+		})
 	})
 }
 
-func Test_Parse(t *testing.T) {
-	r := preparePacketSample()
+func TestParse(t *testing.T) {
+	r := prepareRtrPacketSample()
 
-	Convey("Parse complete", t, func() {
+	// Verify additional fields that appear after complete parse only
+	Convey("Parse packet, complete", t, func() {
 		r.Parse()
-
-		// Verify additional fields
 		l4hdr, _ := r.L4Hdr(false)
-		So(l4hdr.String(), ShouldEqual,
-			"SPort=50000 DPort=50000 TotalLen=39 Checksum=0a16")
+		SoMsg("L4Hdr must be expected UDP", l4hdr, ShouldResemble, &l4.UDP{
+			SrcPort:  50000,
+			DstPort:  50000,
+			TotalLen: 39,
+			Checksum: common.RawBytes{0x0a, 0x16},
+		})
 	})
 }
