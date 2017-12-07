@@ -19,11 +19,12 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/crypto/trc"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/cert_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 var (
@@ -39,12 +40,12 @@ func NewTRCHandler(conn *snet.Conn) *TRCHandler {
 	return &TRCHandler{conn: conn}
 }
 
-// HandleReq handles TRC requests. Non-local and cache-only requests are dropped, if the TRC is
-// not present.
+// HandleReq handles TRC requests. If the TRC is not already cached and the cache-only flag is set
+// or the requester is from a remote AS, the request is dropped.
 func (h *TRCHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.TRCReq) {
 	log.Info("Received TRC request", "addr", addr, "req", req)
 	t := store.GetTRC(uint16(req.ISD()), req.Version)
-	srcLocal := local.IA.Eq(addr.IA)
+	srcLocal := public.IA.Eq(addr.IA)
 	if t != nil {
 		if err := h.sendTRCRep(addr, t); err != nil {
 			log.Error("Unable to send TRC reply", "addr", addr, "req", req, "err", err)
@@ -89,7 +90,13 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 	if err != nil {
 		return err
 	}
-	a := &snet.Addr{IA: req.RawIA.IA(), Host: addr.SvcCS}
+	pathSet := snet.DefNetwork.PathResolver().Query(
+		public.IA, &addr.ISD_AS{I: req.RawIA.IA().I, A: 0})
+	path := pathSet.GetAppPath("")
+	if path == nil {
+		return common.NewCError("Unable to find core AS")
+	}
+	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.SvcCS}
 	log.Debug("Send TRC request", "req", req, "addr", a)
 	return SendPayload(h.conn, cpld, a)
 }

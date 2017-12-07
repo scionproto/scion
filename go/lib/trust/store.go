@@ -193,7 +193,7 @@ func (s *Store) GetChain(ia *addr.ISD_AS, ver uint64) *cert.Chain {
 	return s.chainMap[*cert.NewKey(ia, ver)]
 }
 
-// GetNewestChain the certificate chain with the highest version for the specified ISD-AS.
+// GetNewestChain returns the certificate chain with the highest version for the specified ISD-AS.
 func (s *Store) GetNewestChain(ia *addr.ISD_AS) *cert.Chain {
 	s.chainLock.RLock()
 	defer s.chainLock.RUnlock()
