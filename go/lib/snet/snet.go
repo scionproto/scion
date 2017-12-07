@@ -65,7 +65,7 @@ var (
 
 // Init initializes the default SCION networking context.
 func Init(ia *addr.ISD_AS, sPath string, dPath string) error {
-	network, err := NewDefaultNetwork(ia, sPath, dPath)
+	network, err := NewNetwork(ia, sPath, dPath)
 	if err != nil {
 		return err
 	}
@@ -98,9 +98,9 @@ type Network struct {
 	localIA        *addr.ISD_AS
 }
 
-// NewNetwork creates a minimal networking context without a path resolver.
+// NewNetworkBasic creates a minimal networking context without a path resolver.
 // It is meant to be amended with a custom path resolver.
-func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) *Network {
+func NewNetworkBasic(ia *addr.ISD_AS, sPath string, dPath string) *Network {
 	return &Network{
 		sciondPath:     sPath,
 		dispatcherPath: dPath,
@@ -108,11 +108,11 @@ func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) *Network {
 	}
 }
 
-// NewDefaultNetwork creates a new networking context, on which future Dial or Listen
+// NewNetwork creates a new networking context, on which future Dial or Listen
 // calls can be made. The new connections use the SCIOND server at sPath, the
 // dispatcher at dPath, and ia for the local ISD-AS.
-func NewDefaultNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
-	network := NewNetwork(ia, sPath, dPath)
+func NewNetwork(ia *addr.ISD_AS, sPath string, dPath string) (*Network, error) {
+	network := NewNetworkBasic(ia, sPath, dPath)
 	sd := sciond.NewService(sPath)
 	timers := &pathmgr.Timers{
 		NormalRefire: time.Minute,
