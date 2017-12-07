@@ -43,7 +43,7 @@ var sizeIgnore = flag.Bool("overlay.conn.sizeIgnore", true,
 
 type Conn interface {
 	Read(common.RawBytes) (int, *ReadMeta, error)
-	ReadBatch([]ipv4.Message, []ReadMeta) (int, *ReadMeta, error)
+	ReadBatch([]ipv4.Message, []ReadMeta) (int, error)
 	Write(common.RawBytes) (int, error)
 	WriteTo(common.RawBytes, *topology.AddrInfo) (int, error)
 	WriteBatch([]ipv4.Message) (int, error)
@@ -161,7 +161,9 @@ func (c *connUDPIPv4) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	return n, &c.readMeta, err
 }
 
-func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, *ReadMeta, error) {
+// ReadBatch reads up to len(msgs) packets, and stores them in msgs, with their
+// corresponding ReadMeta in metas. It returns the number of packets read, and an error if any.
+func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, error) {
 	if assert.On {
 		assert.Must(len(msgs) == len(metas), "msgs and metas must be the same length")
 	}
@@ -179,7 +181,7 @@ func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, *Re
 		}
 		meta.SetSrc(c.Remote, msg.Addr.(*net.UDPAddr))
 	}
-	return n, nil, err
+	return n, err
 }
 
 func (c *connUDPIPv4) handleCmsg(oob common.RawBytes, meta *ReadMeta) {

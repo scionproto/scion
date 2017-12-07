@@ -23,6 +23,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -34,11 +35,16 @@ import (
 )
 
 const (
-	inputBufCnt       = 32
-	inputBatchCnt     = 1 // Must be <= inputBufCnt
-	defInputLowBufCnt = 4
-	outputBufCnt      = 32
-	outputBatchCnt    = 32 // Must be <= outputBufCnt
+	// Number of free packet buffers to request for input.
+	inputBufCnt = 32
+	// Number of packets to read in a single ReadBatch call.
+	inputBatchCnt = 16 // Must be <= inputBufCnt
+	// If there are fewer than inputLowBufCnt free packet buffers, request more.
+	inputLowBufCnt = 4
+	// Number of packet buffers to request for output.
+	outputBufCnt = 32
+	// Number of packets to write in a single WriteBatch call.
+	outputBatchCnt = 32 // Must be <= outputBufCnt
 )
 
 func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
@@ -77,48 +83,15 @@ Top:
 			break Top
 		default:
 		}
-		if len(pkts) < defInputLowBufCnt {
-			before := len(pkts)
-			pkts = pkts[:cap(pkts)]
-			// fetch fresh buffers to the end of pkts
-			n, _ := r.freePkts.Read(pkts[before:], true)
-			if n < 0 {
-				pkts = pkts[:before]
-				break
-			}
-			pkts = pkts[:before+n]
-		}
-		// setup msg references
-		for i := range pkts {
-			if i == inputBatchCnt {
-				break
-			}
-			rp := pkts[i].(*rpkt.RtrPkt)
-			msgs[i].Buffers[0] = rp.Raw
+		var ok bool
+		if pkts, ok = r.posixPrepInput(pkts, msgs); !ok {
+			break
 		}
 		inputReads.Inc()
-		toRead := len(pkts)
-		if toRead > inputBatchCnt {
-			toRead = inputBatchCnt
-		}
+		toRead := min(len(pkts), inputBatchCnt)
 		var pktsRead int
 		// Loop until a read succeeds, or a non-trivial error occurs
-		for {
-			pktsRead, _, err = s.Conn.ReadBatch(msgs[:toRead], readMetas[:toRead])
-			if err == nil {
-				break
-			}
-			if isConnRefused(err) {
-				// As we are using a connected UDP socket for interface
-				// sockets, any ECONNREFUSED errors that happen while
-				// sending to the neighbouring BR show up as read errors on
-				// the socket. As these do not indicate a problem with this BR,
-				// these errors should not be counted, and should not
-				// increment the read counter.
-				// TODO(kormat): consider having a conn refused error count
-				// for external interfaces.
-				continue
-			}
+		if pktsRead, err = r.posixInputRead(msgs[:toRead], readMetas[:toRead], s.Conn); err != nil {
 			inputReadErrs.Inc()
 			log.Error("Error reading from socket", "socket", dst, "err", err)
 			// The most likely reason for errors is that the socket has
@@ -171,6 +144,50 @@ Top:
 	r.freePkts.Write(pkts, true)
 }
 
+// posixPrepInput refills pkts if it's below inputLowBufCnt, and sets the msgs
+// Buffers references to point to the corresponding buffers in pkts.
+func (r *Router) posixPrepInput(pkts ringbuf.EntryList, msgs []ipv4.Message) (ringbuf.EntryList, bool) {
+	if len(pkts) < inputLowBufCnt {
+		before := len(pkts)
+		pkts = pkts[:cap(pkts)]
+		// fetch fresh buffers to the end of pkts
+		n, _ := r.freePkts.Read(pkts[before:], true)
+		if n < 0 {
+			pkts = pkts[:before]
+			return pkts, false
+		}
+		pkts = pkts[:before+n]
+	}
+	// setup msg references
+	for i := range pkts {
+		if i == inputBatchCnt {
+			break
+		}
+		rp := pkts[i].(*rpkt.RtrPkt)
+		msgs[i].Buffers[0] = rp.Raw
+	}
+	return pkts, true
+}
+
+func (r *Router) posixInputRead(msgs []ipv4.Message, metas []conn.ReadMeta,
+	c conn.Conn) (int, error) {
+	// Loop until a read succeeds, or a non-trivial error occurs
+	for {
+		n, err := c.ReadBatch(msgs, metas)
+		if err != nil && isConnRefused(err) {
+			// As we are using a connected UDP socket for interface sockets,
+			// any ECONNREFUSED errors that happen while sending to the
+			// neighbouring BR show up as read errors on the socket. As these
+			// do not indicate a problem with this BR, these errors should not
+			// be counted, and should not increment the read counter.
+			// TODO(kormat): consider having a conn refused error count
+			// for external interfaces.
+			continue
+		}
+		return n, err
+	}
+}
+
 func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	defer liblog.LogPanicAndExit()
 	defer close(stopped)
@@ -189,39 +206,17 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	outputWriteErrs := metrics.OutputWriteErrors.With(s.Labels)
 	outputWriteLatency := metrics.OutputWriteLatency.With(s.Labels)
 
-	var err error
-	var pktsWritten int
-	var bytes int
-	var t float64
 	for {
-		if len(epkts) == 0 {
-			epkts = epkts[:cap(epkts)]
-			n, _ := s.Ring.Read(epkts, true)
-			if n < 0 {
-				break
-			}
-			epkts = epkts[:n]
+		var bytes int // Needs to be declared before goto
+		var t float64 // Needs to be declared before goto
+		var ok bool
+		if epkts, ok = r.posixPrepOutput(epkts, msgs, s.Ring, dst != nil); !ok {
+			break
 		}
-		// setup msgs
-		for i := range epkts {
-			if i == outputBatchCnt {
-				break
-			}
-			erp := epkts[i].(*rpkt.EgressRtrPkt)
-			rp := erp.Rp
-			msgs[i].Buffers[0] = rp.Raw
-			if dst == nil {
-				// Unconnected socket, use supplied address
-				uaddr := msgs[i].Addr.(*net.UDPAddr)
-				uaddr.IP = erp.Dst.IP
-				uaddr.Port = erp.Dst.OverlayPort
-			}
-		}
-		toWrite := len(epkts)
-		if toWrite > outputBatchCnt {
-			toWrite = outputBatchCnt
-		}
+		toWrite := min(len(epkts), outputBatchCnt)
 		start := time.Now()
+		var err error
+		var pktsWritten int
 		if pktsWritten, err = s.Conn.WriteBatch(msgs[:toWrite]); err != nil {
 			outputWriteErrs.Inc()
 			log.Error("Error sending packet(s)", "src", src, "err", err)
@@ -256,6 +251,36 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 	}
 }
 
+// posixPrepOutput fetches new packets if epkts is empty, and sets the msgs
+// Buffers and Addr based on the corresponding entries in epkts.
+func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
+	ring *ringbuf.Ring, connected bool) (ringbuf.EntryList, bool) {
+	if len(epkts) == 0 {
+		epkts = epkts[:cap(epkts)]
+		n, _ := ring.Read(epkts, true)
+		if n < 0 {
+			return epkts[:0], false
+		}
+		epkts = epkts[:n]
+	}
+	// setup msgs
+	for i := range epkts {
+		if i == outputBatchCnt {
+			break
+		}
+		erp := epkts[i].(*rpkt.EgressRtrPkt)
+		rp := erp.Rp
+		msgs[i].Buffers[0] = rp.Raw
+		if !connected {
+			// Unconnected socket, use supplied address
+			uaddr := msgs[i].Addr.(*net.UDPAddr)
+			uaddr.IP = erp.Dst.IP
+			uaddr.Port = erp.Dst.OverlayPort
+		}
+	}
+	return epkts, true
+}
+
 func isConnRefused(err error) bool {
 	netErr, ok := err.(*net.OpError)
 	if !ok {
@@ -266,4 +291,11 @@ func isConnRefused(err error) bool {
 		return false
 	}
 	return osErr.Err == syscall.ECONNREFUSED
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
