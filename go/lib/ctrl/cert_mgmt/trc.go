@@ -28,18 +28,18 @@ type TRC struct {
 	RawTRC common.RawBytes `capnp:"trc"`
 }
 
-func (c *TRC) TRC() (*trc.TRC, error) {
-	return trc.TRCFromRaw(c.RawTRC, true)
+func (t *TRC) TRC() (*trc.TRC, error) {
+	return trc.TRCFromRaw(t.RawTRC, true)
 }
 
-func (c *TRC) ProtoId() proto.ProtoIdType {
+func (t *TRC) ProtoId() proto.ProtoIdType {
 	return proto.TRC_TypeID
 }
 
-func (c *TRC) String() string {
-	t, err := c.TRC()
+func (t *TRC) String() string {
+	u, err := t.TRC()
 	if err != nil {
 		return fmt.Sprintf("Invalid TRC: %v", err)
 	}
-	return t.String()
+	return u.String()
 }
