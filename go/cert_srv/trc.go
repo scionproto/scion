@@ -70,7 +70,7 @@ func (h *TRCHandler) sendTRCRep(addr *snet.Addr, t *trc.TRC) error {
 	if err != nil {
 		return err
 	}
-	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.TRCRep{RawTRC: raw})
+	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.TRC{RawTRC: raw})
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 }
 
 // HandleRep handles TRC replies. Pending requests are answered and removed.
-func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRCRep) {
+func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRC) {
 	log.Info("Received TRC reply", "addr", addr, "rep", rep)
 	t, err := rep.TRC()
 	if err != nil {
