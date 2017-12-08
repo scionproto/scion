@@ -44,7 +44,12 @@ func NewTRCHandler(conn *snet.Conn) *TRCHandler {
 // or the requester is from a remote AS, the request is dropped.
 func (h *TRCHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.TRCReq) {
 	log.Info("Received TRC request", "addr", addr, "req", req)
-	t := store.GetTRC(uint16(req.ISD()), req.Version)
+	var t *trc.TRC
+	if req.Version == cert_mgmt.NewestVersion {
+		t = store.GetNewestTRC(req.ISD)
+	} else {
+		t = store.GetTRC(req.ISD, req.Version)
+	}
 	srcLocal := public.IA.Eq(addr.IA)
 	if t != nil {
 		if err := h.sendTRCRep(addr, t); err != nil {
@@ -65,7 +70,7 @@ func (h *TRCHandler) sendTRCRep(addr *snet.Addr, t *trc.TRC) error {
 	if err != nil {
 		return err
 	}
-	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.TRCRep{RawTRC: raw})
+	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.TRC{RawTRC: raw})
 	if err != nil {
 		return err
 	}
@@ -75,7 +80,7 @@ func (h *TRCHandler) sendTRCRep(addr *snet.Addr, t *trc.TRC) error {
 
 // fetchTRC fetches a TRC from the remote AS.
 func (h *TRCHandler) fetchTRC(addr *snet.Addr, req *cert_mgmt.TRCReq) error {
-	key := trc.NewKey(uint16(req.ISD()), req.Version).String()
+	key := trc.NewKey(req.ISD, req.Version).String()
 	sendReq := trcReqCache.Put(key, addr)
 	if sendReq { // rate limit
 		return h.sendTRCReq(req)
@@ -90,8 +95,7 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 	if err != nil {
 		return err
 	}
-	pathSet := snet.DefNetwork.PathResolver().Query(
-		public.IA, &addr.ISD_AS{I: req.RawIA.IA().I, A: 0})
+	pathSet := snet.DefNetwork.PathResolver().Query(public.IA, req.IA())
 	path := pathSet.GetAppPath("")
 	if path == nil {
 		return common.NewCError("Unable to find core AS")
@@ -102,7 +106,7 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 }
 
 // HandleRep handles TRC replies. Pending requests are answered and removed.
-func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRCRep) {
+func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRC) {
 	log.Info("Received TRC reply", "addr", addr, "rep", rep)
 	t, err := rep.TRC()
 	if err != nil {
@@ -113,8 +117,12 @@ func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRCRep) {
 		log.Error("Unable to store TRC", "key", t.Key(), "err", err)
 		return
 	}
-	reqs := trcReqCache.Pop(t.Key().String())
-	if reqs == nil {
+	key := t.Key()
+	reqVer := chainReqCache.Pop(key.String())
+	key.Ver = cert_mgmt.NewestVersion
+	reqNew := chainReqCache.Pop(key.String())
+	key.Ver = t.Version
+	if reqVer == nil && reqNew == nil { // No pending requests
 		return
 	}
 	cpld, err := ctrl.NewCertMgmtPld(rep)
@@ -122,9 +130,18 @@ func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRCRep) {
 		log.Error("Unable to create TRC reply", "key", t.Key(), "err", err)
 		return
 	}
+	h.answerReqs(reqVer, cpld, key)
+	h.answerReqs(reqNew, cpld, key)
+}
+
+// answerReqs responds to pending requests.
+func (h *TRCHandler) answerReqs(reqs *AddrSet, cpld *ctrl.Pld, key *trc.Key) {
+	if reqs == nil {
+		return
+	}
 	for _, dst := range reqs.Addrs {
 		if err := SendPayload(h.conn, cpld, dst); err != nil {
-			log.Error("Unable to write TRC reply", "key", t.Key(), "err", err)
+			log.Error("Unable to write TRC reply", "key", key, "err", err)
 			continue
 		}
 	}
