@@ -22,21 +22,21 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*ChainRep)(nil)
+var _ proto.Cerealizable = (*Chain)(nil)
 
-type ChainRep struct {
+type Chain struct {
 	RawChain common.RawBytes `capnp:"chain"`
 }
 
-func (c *ChainRep) Chain() (*cert.Chain, error) {
+func (c *Chain) Chain() (*cert.Chain, error) {
 	return cert.ChainFromRaw(c.RawChain, true)
 }
 
-func (c *ChainRep) ProtoId() proto.ProtoIdType {
-	return proto.CertChainRep_TypeID
+func (c *Chain) ProtoId() proto.ProtoIdType {
+	return proto.CertChain_TypeID
 }
 
-func (c *ChainRep) String() string {
+func (c *Chain) String() string {
 	chain, err := c.Chain()
 	if err != nil {
 		return fmt.Sprintf("Invalid CertificateChain: %v", err)

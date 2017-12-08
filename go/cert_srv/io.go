@@ -85,12 +85,12 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 			return err
 		}
 		switch pld.ProtoId() {
-		case proto.CertChainRep_TypeID:
-			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.ChainRep))
+		case proto.CertChain_TypeID:
+			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain))
 		case proto.CertChainReq_TypeID:
 			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq))
-		case proto.TRCRep_TypeID:
-			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRCRep))
+		case proto.TRC_TypeID:
+			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC))
 		case proto.TRCReq_TypeID:
 			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq))
 		}

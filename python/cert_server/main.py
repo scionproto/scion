@@ -57,7 +57,6 @@ from lib.packet.cert_mgmt import (
     TRCRequest,
 )
 from lib.packet.ctrl_pld import CtrlPayload
-from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
@@ -270,7 +269,9 @@ class CertServer(SCIONElement):
         self.cc_requests.put((ia_ver, None))
 
     def _check_cc(self, key):
-        cert_chain = self.trust_store.get_cert(*key)
+        isd_as, ver = key
+        ver = None if ver == CertChainRequest.NEWEST_VERSION else ver
+        cert_chain = self.trust_store.get_cert(isd_as, ver)
         if cert_chain:
             return True
         logging.debug('Cert chain not found for %sv%s', *key)
@@ -297,6 +298,7 @@ class CertServer(SCIONElement):
 
     def _reply_cc(self, key, req_info):
         isd_as, ver = key
+        ver = None if ver == CertChainRequest.NEWEST_VERSION else ver
         meta = req_info[0]
         cert_chain = self.trust_store.get_cert(isd_as, ver)
         self.send_meta(CtrlPayload(CertMgmt(CertChainReply.from_values(cert_chain))), meta)
@@ -342,7 +344,9 @@ class CertServer(SCIONElement):
         self.trc_requests.put(((isd, ver), None))
 
     def _check_trc(self, key):
-        trc = self.trust_store.get_trc(*key)
+        isd, ver = key
+        ver = None if ver == TRCRequest.NEWEST_VERSION else ver
+        trc = self.trust_store.get_trc(isd, ver)
         if trc:
             return True
         logging.debug('TRC not found for %sv%s', *key)
@@ -353,11 +357,11 @@ class CertServer(SCIONElement):
         _, orig_req = req_info
         if orig_req.p.cacheOnly:
             return
-        self._send_trc_request(*key, orig_req.isd_as()[1])
+        self._send_trc_request(*key)
 
-    def _send_trc_request(self, isd, ver, as_):
-        isd_as = ISD_AS.from_values(isd, as_)
-        trc_req = TRCRequest.from_values(isd_as, ver, cache_only=True)
+    def _send_trc_request(self, isd, ver):
+        trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
+        isd_as = trc_req.isd_as()
         path_meta = self._get_path_via_sciond(isd_as)
         if path_meta:
             meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
@@ -369,6 +373,7 @@ class CertServer(SCIONElement):
 
     def _reply_trc(self, key, req_info):
         isd, ver = key
+        ver = None if ver == TRCRequest.NEWEST_VERSION else ver
         meta = req_info[0]
         trc = self.trust_store.get_trc(isd, ver)
         self.send_meta(CtrlPayload(CertMgmt(TRCReply.from_values(trc))), meta)
@@ -423,7 +428,7 @@ class CertServer(SCIONElement):
             self._send_cc_request(meta.ia, req.p.certVer)
             err.append("Certificate not present for %s(v: %s)" % (meta.ia, req.p.certVer))
         if not trc:
-            self._send_trc_request(meta.ia[0], req.p.trcVer, meta.ia[1])
+            self._send_trc_request(meta.ia[0], req.p.trcVer)
             err.append("TRC not present for %s(v: %s)" % (meta.ia[0], req.p.trcVer))
         if err:
             raise SCIONVerificationError(", ".join(err))
@@ -494,7 +499,7 @@ class CertServer(SCIONElement):
             self._send_cc_request(rep.isd_as, rep.p.certVerSrc)
             err.append("Certificate not present for %s(v: %s)" % (rep.isd_as, rep.p.certVerSrc))
         if not trc:
-            self._send_trc_request(rep.isd_as[0], rep.p.trcVer, rep.isd_as[1])
+            self._send_trc_request(rep.isd_as[0], rep.p.trcVer)
             err.append("TRC not present for %s(v: %s)" % (rep.isd_as[0], rep.p.trcVer))
         if err:
             raise SCIONVerificationError(", ".join(err))

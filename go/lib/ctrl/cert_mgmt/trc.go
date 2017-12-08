@@ -22,24 +22,24 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*TRCRep)(nil)
+var _ proto.Cerealizable = (*TRC)(nil)
 
-type TRCRep struct {
+type TRC struct {
 	RawTRC common.RawBytes `capnp:"trc"`
 }
 
-func (c *TRCRep) TRC() (*trc.TRC, error) {
-	return trc.TRCFromRaw(c.RawTRC, true)
+func (t *TRC) TRC() (*trc.TRC, error) {
+	return trc.TRCFromRaw(t.RawTRC, true)
 }
 
-func (c *TRCRep) ProtoId() proto.ProtoIdType {
-	return proto.TRCRep_TypeID
+func (t *TRC) ProtoId() proto.ProtoIdType {
+	return proto.TRC_TypeID
 }
 
-func (c *TRCRep) String() string {
-	trc, err := c.TRC()
+func (t *TRC) String() string {
+	u, err := t.TRC()
 	if err != nil {
 		return fmt.Sprintf("Invalid TRC: %v", err)
 	}
-	return trc.String()
+	return u.String()
 }

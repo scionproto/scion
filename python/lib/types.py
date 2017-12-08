@@ -109,9 +109,9 @@ class PayloadClass(object):
 
 class CertMgmtType(object):
     CERT_CHAIN_REQ = "certChainReq"
-    CERT_CHAIN_REPLY = "certChainRep"
+    CERT_CHAIN_REPLY = "certChain"
     TRC_REQ = "trcReq"
-    TRC_REPLY = "trcRep"
+    TRC_REPLY = "trc"
 
 
 class PathMgmtType(object):

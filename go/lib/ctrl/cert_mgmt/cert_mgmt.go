@@ -16,18 +16,21 @@ package cert_mgmt
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
 
+const NewestVersion = math.MaxUint64
+
 type union struct {
 	Which    proto.CertMgmt_Which
 	ChainReq *ChainReq `capnp:"certChainReq"`
-	ChainRep *ChainRep `capnp:"certChainRep"`
+	ChainRep *Chain    `capnp:"certChain"`
 	TRCReq   *TRCReq   `capnp:"trcReq"`
-	TRCRep   *TRCRep   `capnp:"trcRep"`
+	TRCRep   *TRC      `capnp:"trc"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -35,14 +38,14 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *ChainReq:
 		u.Which = proto.CertMgmt_Which_certChainReq
 		u.ChainReq = p
-	case *ChainRep:
-		u.Which = proto.CertMgmt_Which_certChainRep
+	case *Chain:
+		u.Which = proto.CertMgmt_Which_certChain
 		u.ChainRep = p
 	case *TRCReq:
 		u.Which = proto.CertMgmt_Which_trcReq
 		u.TRCReq = p
-	case *TRCRep:
-		u.Which = proto.CertMgmt_Which_trcRep
+	case *TRC:
+		u.Which = proto.CertMgmt_Which_trc
 		u.TRCRep = p
 	default:
 		return common.NewCError("Unsupported cert mgmt union type (set)", "type", common.TypeOf(c))
@@ -54,11 +57,11 @@ func (u *union) get() (proto.Cerealizable, error) {
 	switch u.Which {
 	case proto.CertMgmt_Which_certChainReq:
 		return u.ChainReq, nil
-	case proto.CertMgmt_Which_certChainRep:
+	case proto.CertMgmt_Which_certChain:
 		return u.ChainRep, nil
 	case proto.CertMgmt_Which_trcReq:
 		return u.TRCReq, nil
-	case proto.CertMgmt_Which_trcRep:
+	case proto.CertMgmt_Which_trc:
 		return u.TRCRep, nil
 	}
 	return nil, common.NewCError("Unsupported cert mgmt union type (get)", "type", u.Which)
