@@ -54,7 +54,7 @@ class CertChainRequest(Cerealizable):  # pragma: no cover
 
 class CertChainReply(Cerealizable):  # pragma: no cover
     NAME = "CertChainReply"
-    P_CLS = P.CertChainRep
+    P_CLS = P.CertChain
 
     def __init__(self, p):
         super().__init__(p)
@@ -92,7 +92,7 @@ class TRCRequest(Cerealizable):
 
 class TRCReply(Cerealizable):  # pragma: no cover
     NAME = "TRCReply"
-    P_CLS = P.TRCRep
+    P_CLS = P.TRC
 
     def __init__(self, p):
         super().__init__(p)

@@ -71,7 +71,7 @@ func (h *ChainHandler) sendChainRep(addr *snet.Addr, chain *cert.Chain) error {
 	if err != nil {
 		return err
 	}
-	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.ChainRep{RawChain: raw})
+	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.Chain{RawChain: raw})
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 }
 
 // HandleRep handles certificate chain replies. Pending requests are answered and removed.
-func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.ChainRep) {
+func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.Chain) {
 	log.Info("Received certificate chain reply", "addr", addr, "rep", rep)
 	chain, err := rep.Chain()
 	if err != nil {

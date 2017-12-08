@@ -9,7 +9,7 @@ struct CertChainReq {
     cacheOnly @2 :Bool;
 }
 
-struct CertChainRep {
+struct CertChain {
     chain @0 :Data;
 }
 
@@ -19,7 +19,7 @@ struct TRCReq {
     cacheOnly @2 :Bool;
 }
 
-struct TRCRep {
+struct TRC {
     trc @0 :Data;
 }
 
@@ -27,8 +27,8 @@ struct CertMgmt {
     union {
         unset @0 :Void;
         certChainReq @1 :CertChainReq;
-        certChainRep @2 :CertChainRep;
+        certChain @2 :CertChain;
         trcReq @3 :TRCReq;
-        trcRep @4 :TRCRep;
+        trc @4 :TRC;
     }
 }
