@@ -108,7 +108,7 @@ func (p *Pld) union() (interface{}, error) {
 	case proto.SCIONDMsg_Which_serviceInfoReply:
 		return p.ServiceInfoReply, nil
 	}
-	return nil, common.NewCError("Unsupported SCIOND union type", "type", p.Which)
+	return nil, common.NewBasicError("Unsupported SCIOND union type", nil, "type", p.Which)
 }
 
 type PathReq struct {

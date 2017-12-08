@@ -45,18 +45,17 @@ func ConnectTun(name string) (netlink.Link, io.ReadWriteCloser, error) {
 	if err != nil {
 		tun.Close()
 		// Should clean up the tun device, but if we can't find it...
-		return nil, nil, common.NewCError("Unable to find new TUN device",
-			"name", name, "err", err)
+		return nil, nil, common.NewBasicError("Unable to find new TUN device", err, "name", name)
 	}
 	err = netlink.LinkSetUp(link)
 	if err != nil {
-		err = common.NewCError("Unable to set new TUN device Up", "name", name, "err", err)
+		err = common.NewBasicError("Unable to set new TUN device Up", err, "name", name)
 		goto Cleanup
 	}
 	err = netlink.LinkSetTxQLen(link, SIGTxQlen)
 	if err != nil {
-		err = common.NewCError("Unable to set Tx queue lenght on new TUN device",
-			"name", name, "err", err)
+		err = common.NewBasicError("Unable to set Tx queue length on new TUN device", err,
+			"name", name)
 		goto Cleanup
 	}
 	return link, tun, nil

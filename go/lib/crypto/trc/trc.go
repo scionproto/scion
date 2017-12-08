@@ -114,8 +114,8 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 		// not exhaust the available memory.
 		bLen := binary.LittleEndian.Uint32(raw[:4])
 		if bLen > MaxTRCByteLength {
-			return nil, common.NewCError("TRC LZ4 block too large", "max",
-				MaxTRCByteLength, "actual", bLen)
+			return nil, common.NewBasicError("TRC LZ4 block too large", nil,
+				"max", MaxTRCByteLength, "actual", bLen)
 		}
 		buf := make([]byte, bLen)
 		n, err := lz4.UncompressBlock(raw[4:], buf, 0)
@@ -153,18 +153,21 @@ func (t *TRC) CoreASList() []*addr.ISD_AS {
 func (t *TRC) CheckActive(maxTRC *TRC) error {
 	currTime := uint64(time.Now().Unix())
 	if currTime < t.CreationTime {
-		return common.NewCError(EarlyUsage, "now",
-			timeToString(currTime), "creation", timeToString(t.CreationTime))
+		return common.NewBasicError(EarlyUsage, nil,
+			"now", timeToString(currTime), "creation", timeToString(t.CreationTime))
 	} else if currTime > t.ExpirationTime {
-		return common.NewCError(Expired, "now", timeToString(currTime), "expiration",
-			timeToString(t.ExpirationTime))
+		return common.NewBasicError(Expired, nil,
+			"now", timeToString(currTime), "expiration", timeToString(t.ExpirationTime))
 	} else if t.Version == maxTRC.Version {
 		return nil
 	} else if t.Version+1 != maxTRC.Version {
-		return common.NewCError(InactiveVersion, "expected", fmt.Sprintf("%d or %d",
-			maxTRC.Version-1, maxTRC.Version), "actual", t.Version)
+		return common.NewBasicError(
+			InactiveVersion, nil,
+			"expected", fmt.Sprintf("%d or %d", maxTRC.Version-1, maxTRC.Version),
+			"actual", t.Version,
+		)
 	} else if currTime > maxTRC.CreationTime+maxTRC.GracePeriod {
-		return common.NewCError(GracePeriodPassed, "now", timeToString(currTime),
+		return common.NewBasicError(GracePeriodPassed, nil, "now", timeToString(currTime),
 			"expiration", timeToString(maxTRC.CreationTime+maxTRC.GracePeriod))
 	}
 	return nil
@@ -174,11 +177,11 @@ func (t *TRC) CheckActive(maxTRC *TRC) error {
 func (t *TRC) Sign(name string, signKey common.RawBytes, signAlgo string) error {
 	sigInput, err := t.sigPack()
 	if err != nil {
-		return common.NewCError("Unable to pack TRC for signing", "err", err)
+		return common.NewBasicError("Unable to pack TRC for signing", err)
 	}
 	sig, err := crypto.Sign(sigInput, signKey, signAlgo)
 	if err != nil {
-		return common.NewCError("Unable to create signature", "err", err)
+		return common.NewBasicError("Unable to create signature", err)
 	}
 	t.Signatures[name] = sig
 	return nil
@@ -196,19 +199,21 @@ func (t *TRC) Verify(trust *TRC) (*TRCVerResult, error) {
 // verifyUpdate checks the validity of a updated TRC.
 func (t *TRC) verifyUpdate(old *TRC) (*TRCVerResult, error) {
 	if old.ISD != t.ISD {
-		return nil, common.NewCError(InvalidISD, "expected", old.ISD, "actual", t.ISD)
+		return nil, common.NewBasicError(InvalidISD, nil, "expected", old.ISD, "actual", t.ISD)
 	}
 	if old.Version+1 != t.Version {
-		return nil, common.NewCError(InvalidVersion, "expected",
-			old.Version+1, "actual", t.Version)
+		return nil, common.NewBasicError(InvalidVersion, nil,
+			"expected", old.Version+1, "actual", t.Version)
 	}
 	if t.CreationTime < old.CreationTime+old.GracePeriod {
-		return nil, common.NewCError(InvalidCreationTime, "expected >",
-			timeToString(old.CreationTime+old.GracePeriod), "actual",
-			timeToString(t.CreationTime))
+		return nil, common.NewBasicError(
+			InvalidCreationTime, nil,
+			"expected >", timeToString(old.CreationTime+old.GracePeriod),
+			"actual", timeToString(t.CreationTime),
+		)
 	}
 	if t.Quarantine || old.Quarantine {
-		return nil, common.NewCError(EarlyAnnouncement)
+		return nil, common.NewBasicError(EarlyAnnouncement, nil)
 	}
 	return t.verifySignatures(old)
 }
@@ -224,7 +229,7 @@ func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
 	for signer, coreAS := range old.CoreASes {
 		sig, ok := t.Signatures[signer.String()]
 		if !ok {
-			tvr.Failed[signer.Copy()] = common.NewCError(SignatureMissing, "as", signer)
+			tvr.Failed[signer.Copy()] = common.NewBasicError(SignatureMissing, nil, "as", signer)
 			continue
 		}
 		err = crypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
@@ -235,8 +240,8 @@ func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
 		}
 	}
 	if !tvr.QuorumOk() {
-		return tvr, common.NewCError(InvalidQuorum, "expected", old.QuorumTRC,
-			"actual", len(tvr.Verified))
+		return tvr, common.NewBasicError(InvalidQuorum, nil,
+			"expected", old.QuorumTRC, "actual", len(tvr.Verified))
 	}
 	return tvr, nil
 }
@@ -266,7 +271,7 @@ func (t *TRC) sigPack() (common.RawBytes, error) {
 	m["CoreASes"] = t.CoreASes
 	sigInput, err := json.Marshal(m)
 	if err != nil {
-		return nil, common.NewCError(UnableSigPack, "err", err)
+		return nil, common.NewBasicError(UnableSigPack, err)
 	}
 	return sigInput, nil
 }

@@ -101,17 +101,17 @@ func AddrFromString(s string) (*Addr, error) {
 
 	ia, err := addr.IAFromString(parts["ia"])
 	if err != nil {
-		return nil, common.NewCError("Invalid IA string", "ia", ia, "err", err)
+		return nil, common.NewBasicError("Invalid IA string", err, "ia", ia)
 	}
 
 	ip := net.ParseIP(parts["host"])
 	if ip == nil {
-		return nil, common.NewCError("Invalid IP address string", "ip", parts["host"])
+		return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
 	}
 
 	port, err := strconv.ParseUint(parts["port"], 10, 16)
 	if err != nil {
-		return nil, common.NewCError("Invalid port string", "port", parts["port"], "err", err)
+		return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"])
 	}
 	return &Addr{IA: ia, Host: addr.HostFromIP(ip), L4Port: uint16(port)}, nil
 }
@@ -121,7 +121,7 @@ func parseAddr(s string) (map[string]string, error) {
 	match := addrRegexp.FindStringSubmatch(s)
 	// If we do not have all submatches (ia, host, port), return an error
 	if len(match) != 4 {
-		return nil, common.NewCError("Invalid address", "addr", s)
+		return nil, common.NewBasicError("Invalid address", nil, "addr", s)
 	}
 	for i, name := range addrRegexp.SubexpNames() {
 		if i != 0 {

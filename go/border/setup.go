@@ -96,7 +96,7 @@ func (r *Router) setup() error {
 func (r *Router) clearCapabilities() error {
 	caps, err := capability.NewPid(0)
 	if err != nil {
-		return common.NewCError("Error retrieving capabilities", "err", err)
+		return common.NewBasicError("Error retrieving capabilities", err)
 	}
 	log.Debug("Startup capabilities", "caps", caps)
 	caps.Clear(capability.CAPS)
@@ -253,7 +253,7 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
 	// Listen on the socket.
 	over, err := conn.New(ba, nil, labels)
 	if err != nil {
-		return common.NewCError("Unable to listen on local socket", "err", err)
+		return common.NewBasicError("Unable to listen on local socket", err)
 	}
 	// Find interfaces that use this local address.
 	var ifids []common.IFIDType
@@ -320,7 +320,7 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	ba := intf.IFAddr.BindAddrInfo(intf.IFAddr.Overlay)
 	c, err := conn.New(ba, intf.RemoteAddr, labels)
 	if err != nil {
-		return common.NewCError("Unable to listen on external socket", "err", err)
+		return common.NewBasicError("Unable to listen on external socket", err)
 	}
 	ifids := []common.IFIDType{intf.Id}
 	// Setup input goroutine.

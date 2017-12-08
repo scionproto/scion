@@ -69,8 +69,8 @@ const (
 
 func NewHashTreeExtn(height uint8) (*HashTreeExtn, error) {
 	if height > MaxHeight {
-		return nil, common.NewCError("Invalid height", "height", height,
-			"max height", MaxHeight)
+		return nil, common.NewBasicError("Invalid height", nil,
+			"height", height, "max height", MaxHeight)
 	}
 
 	extn := &HashTreeExtn{BaseExtn: &spse.BaseExtn{SecMode: spse.ScmpAuthHashTree}}
@@ -84,8 +84,8 @@ func NewHashTreeExtn(height uint8) (*HashTreeExtn, error) {
 
 func (s HashTreeExtn) SetOrder(order common.RawBytes) error {
 	if len(order) != OrderLength {
-		return common.NewCError("Invalid order length", "expected", OrderLength,
-			"actual", len(order))
+		return common.NewBasicError("Invalid order length", nil,
+			"expected", OrderLength, "actual", len(order))
 	}
 	copy(s.Order, order)
 	return nil
@@ -94,8 +94,8 @@ func (s HashTreeExtn) SetOrder(order common.RawBytes) error {
 
 func (s HashTreeExtn) SetSignature(signature common.RawBytes) error {
 	if len(signature) != SignatureLength {
-		return common.NewCError("Invalid signature length", "expected", SignatureLength,
-			"actual", len(signature))
+		return common.NewBasicError("Invalid signature length", nil,
+			"expected", SignatureLength, "actual", len(signature))
 	}
 	copy(s.Signature, signature)
 	return nil
@@ -104,8 +104,8 @@ func (s HashTreeExtn) SetSignature(signature common.RawBytes) error {
 
 func (s HashTreeExtn) SetHashes(hashes common.RawBytes) error {
 	if len(hashes) != len(s.Hashes) {
-		return common.NewCError("Invalid hashes length", "expected", len(s.Hashes),
-			"actual", len(hashes))
+		return common.NewBasicError("Invalid hashes length", nil,
+			"expected", len(s.Hashes), "actual", len(hashes))
 	}
 	copy(s.Hashes, hashes)
 	return nil
@@ -114,8 +114,8 @@ func (s HashTreeExtn) SetHashes(hashes common.RawBytes) error {
 
 func (s *HashTreeExtn) Write(b common.RawBytes) error {
 	if len(b) < s.Len() {
-		return common.NewCError("Buffer too short", "method", "SCMPAuthHashTreeExtn.Write",
-			"expected min", s.Len(), "actual", len(b))
+		return common.NewBasicError("Buffer too short", nil,
+			"method", "SCMPAuthHashTreeExtn.Write", "expected min", s.Len(), "actual", len(b))
 	}
 	b[0] = uint8(s.SecMode)
 	b[HeightOffset] = s.Height

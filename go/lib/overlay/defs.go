@@ -78,7 +78,7 @@ func TypeFromString(s string) (Type, error) {
 	case strings.ToLower(UDPIPv46Name):
 		return UDPIPv46, nil
 	default:
-		return Invalid, common.NewCError("Unknown overlay type", "type", s)
+		return Invalid, common.NewBasicError("Unknown overlay type", nil, "type", s)
 	}
 }
 

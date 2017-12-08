@@ -94,12 +94,12 @@ func checkFlags() error {
 		*sciondPath = os.Getenv("SCIOND_PATH")
 		if *sciondPath == "" {
 			flag.Usage()
-			return common.NewCError("No SCIOND path specified")
+			return common.NewBasicError("No SCIOND path specified", nil)
 		}
 	}
 	if *confDir == "" {
 		flag.Usage()
-		return common.NewCError("No configuration directory specified")
+		return common.NewBasicError("No configuration directory specified", nil)
 	}
 	return nil
 }
@@ -107,11 +107,12 @@ func checkFlags() error {
 // loadTopo loads topology from the configuration file and sets the local address.
 func loadTopo() (err error) {
 	if topo, err = topology.LoadFromFile(filepath.Join(*confDir, topology.CfgName)); err != nil {
-		return common.NewCError("Unable to load topology", "err", err)
+		return common.NewBasicError("Unable to load topology", err)
 	}
 	topoAddr, ok := topo.CS[*id]
 	if !ok {
-		return common.NewCError("Unable to load addresses. Element ID not found", "id", *id)
+		return common.NewBasicError("Unable to load addresses. Element ID not found", nil,
+			"id", *id)
 	}
 	publicInfo := topoAddr.PublicAddrInfo(topo.Overlay)
 	public = &snet.Addr{IA: topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),

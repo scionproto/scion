@@ -121,8 +121,7 @@ func reloadOnSIGHUP(path string) {
 func loadConfig(path string) bool {
 	cfg, err := config.LoadFromFile(path)
 	if err != nil {
-		cerr := err.(*common.CError)
-		log.Error(cerr.Desc, cerr.Ctx...)
+		log.Error("loadConfig: Failed", "err", common.FmtError(err))
 		return false
 	}
 	return base.Map.ReloadConfig(cfg)

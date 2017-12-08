@@ -94,7 +94,7 @@ func NewDRKeyExtn() *DRKeyExtn {
 
 func (s DRKeyExtn) SetDirection(dir Dir) error {
 	if dir > HostToHostReversed {
-		return common.NewCError("Invalid direction", "dir", dir)
+		return common.NewBasicError("Invalid direction", nil, "dir", dir)
 	}
 	s.Direction = dir
 	return nil
@@ -102,7 +102,8 @@ func (s DRKeyExtn) SetDirection(dir Dir) error {
 
 func (s DRKeyExtn) SetMAC(mac common.RawBytes) error {
 	if len(mac) != MACLength {
-		return common.NewCError("Invalid MAC size", "expexted", MACLength, "actual", len(mac))
+		return common.NewBasicError("Invalid MAC size", nil,
+			"expected", MACLength, "actual", len(mac))
 	}
 	copy(s.MAC, mac)
 	return nil
@@ -110,8 +111,8 @@ func (s DRKeyExtn) SetMAC(mac common.RawBytes) error {
 
 func (s *DRKeyExtn) Write(b common.RawBytes) error {
 	if len(b) < s.Len() {
-		return common.NewCError("Buffer too short", "method", "SCMPAuthDRKeyExtn.Write",
-			"expected", s.Len(), "actual", len(b))
+		return common.NewBasicError("Buffer too short", nil,
+			"method", "SCMPAuthDRKeyExtn.Write", "expected", s.Len(), "actual", len(b))
 	}
 	b[0] = uint8(s.SecMode)
 	b[DirectionOffset] = uint8(s.Direction)

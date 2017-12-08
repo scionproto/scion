@@ -237,7 +237,7 @@ func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 	case HostTypeSVC:
 		return HostSVC(binary.BigEndian.Uint16(b)), nil
 	default:
-		return nil, common.NewCError(ErrorBadHostAddrType, "type", htype)
+		return nil, common.NewBasicError(ErrorBadHostAddrType, nil, "type", htype)
 	}
 }
 
@@ -262,7 +262,7 @@ func HostLen(htype HostAddrType) (uint8, error) {
 	case HostTypeSVC:
 		length = HostLenSVC
 	default:
-		return 0, common.NewCError(ErrorBadHostAddrType, "type", htype)
+		return 0, common.NewBasicError(ErrorBadHostAddrType, nil, "type", htype)
 	}
 	return length, nil
 }

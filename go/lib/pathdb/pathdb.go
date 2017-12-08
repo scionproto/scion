@@ -37,7 +37,7 @@ func New(path string, backend string) (*DB, error) {
 	case "sqlite":
 		db.conn, err = sqlite.New(path)
 	default:
-		return nil, common.NewCError("Unknown backend", "backend", backend)
+		return nil, common.NewBasicError("Unknown backend", nil, "backend", backend)
 	}
 	if err != nil {
 		return nil, err

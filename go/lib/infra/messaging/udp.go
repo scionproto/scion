@@ -190,7 +190,7 @@ func (t *RUDP) sendACK(id uint56, a net.Addr) error {
 func (t *RUDP) send(ctx context.Context, b common.RawBytes, a net.Addr) error {
 	deadline, ok := ctx.Deadline()
 	if !ok {
-		return common.NewCError("Bad context, missing deadline", "dst", a)
+		return common.NewBasicError("Bad context, missing deadline", nil, "dst", a)
 	}
 	// NOTE(scrye): Even though WriteTo is concurrency-safe, we want to enforce
 	// deadlines on each packet to prevent this function from blocking indefinitely.
@@ -208,7 +208,7 @@ func (t *RUDP) send(ctx context.Context, b common.RawBytes, a net.Addr) error {
 		return err
 	}
 	if n != len(b) {
-		return common.NewCError("Unable to send complete message (message truncated)",
+		return common.NewBasicError("Unable to send complete message (message truncated)", nil,
 			"sent_bytes", n, "msg_length", len(b))
 	}
 	return nil
@@ -219,8 +219,8 @@ func (t *RUDP) putHeader(id uint56, flags rudpFlag, b common.RawBytes) (*bufpool
 	buffer := bufpool.Get()
 	if rudpHdrLen+len(b) > len(buffer.B) {
 		bufpool.Put(buffer)
-		return nil, common.NewCError("Unable to send, payload too long", "pld_len", len(b),
-			"max_allowed", len(buffer.B)-rudpHdrLen)
+		return nil, common.NewBasicError("Unable to send, payload too long", nil,
+			"pld_len", len(b), "max_allowed", len(buffer.B)-rudpHdrLen)
 	}
 	buffer.B[0] = byte(flags)
 	id.putUint56(buffer.B[1:])
@@ -318,8 +318,8 @@ func (t *RUDP) goBackgroundReceiver() {
 // popHeader returns a slice referring only to the payload of b.
 func (t *RUDP) popHeader(b common.RawBytes) (rudpFlag, uint56, common.RawBytes, error) {
 	if len(b) < rudpHdrLen {
-		return 0, 0, nil, common.NewCError("Packet shorter than min length", "length", len(b),
-			"min_length", rudpHdrLen)
+		return 0, 0, nil, common.NewBasicError("Packet shorter than min length", nil,
+			"length", len(b), "min_length", rudpHdrLen)
 	}
 	flags := rudpFlag(b[0])
 	id := getUint56(b[1:])
@@ -333,7 +333,7 @@ func (t *RUDP) Close(ctx context.Context) error {
 	close(t.closed)
 	err := t.conn.Close()
 	if err != nil {
-		return common.NewCError("Unable to close conn", "err", err)
+		return common.NewBasicError("Unable to close conn", err)
 	}
 	// Wait for background goroutine to finish
 	select {

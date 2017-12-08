@@ -39,7 +39,8 @@ type InfoField struct {
 
 func InfoFFromRaw(b []byte) (*InfoField, error) {
 	if len(b) < InfoFieldLength {
-		return nil, common.NewCError(ErrorInfoFTooShort, "min", InfoFieldLength, "actual", len(b))
+		return nil, common.NewBasicError(ErrorInfoFTooShort, nil,
+			"min", InfoFieldLength, "actual", len(b))
 	}
 	inf := &InfoField{}
 	flags := b[0]

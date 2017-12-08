@@ -32,21 +32,17 @@ import (
 // metadata attached to the error object, then an SCMP error response is
 // generated and sent.
 func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
-	pcerr := perr.(*common.CError)
-	sdata, ok := pcerr.Data.(*scmp.ErrData)
-	if ok {
-		pcerr.AddCtx("SCMP", sdata.CT)
-	}
+	serr := scmp.ToError(perr)
 	// XXX(kormat): uncomment for debugging:
 	// pcerr.AddCtx("raw", rp.Raw)
-	rp.Error(desc, "err", pcerr)
-	if !ok || pcerr.Data == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
+	rp.Error(desc, "err", common.FmtError(perr))
+	if serr == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}
-	switch sdata.CT.Class {
+	switch serr.CT.Class {
 	case scmp.C_CmnHdr:
-		switch sdata.CT.Type {
+		switch serr.CT.Type {
 		case scmp.T_C_BadVersion, scmp.T_C_BadDstType, scmp.T_C_BadSrcType:
 			// For any of these cases, do nothing. A reply would only be
 			// possible in the case of a version/addr type being understood but
@@ -60,24 +56,23 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	}
 	// Certain errors are not respondable to if the source lies in a remote AS.
 	if !srcIA.Eq(rp.Ctx.Conf.IA) {
-		switch sdata.CT.Class {
+		switch serr.CT.Class {
 		case scmp.C_CmnHdr:
-			switch sdata.CT.Type {
+			switch serr.CT.Type {
 			case scmp.T_C_BadHopFOffset, scmp.T_C_BadInfoFOffset:
 				return
 			}
 		case scmp.C_Path:
-			switch sdata.CT.Type {
+			switch serr.CT.Type {
 			case scmp.T_P_PathRequired:
 				return
 			}
 		}
 
 	}
-	reply, err := r.createSCMPErrorReply(rp, sdata.CT, sdata.Info)
+	reply, err := r.createSCMPErrorReply(rp, serr.CT, serr.Info)
 	if err != nil {
-		cerr := err.(*common.CError)
-		rp.Error("Error creating SCMP response", cerr.Ctx...)
+		rp.Error("Error creating SCMP response", "err", common.FmtError(err))
 		return
 	}
 	reply.Route()

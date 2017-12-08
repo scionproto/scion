@@ -67,7 +67,7 @@ func CheckCSum(h L4Header, addr, pld common.RawBytes) error {
 	}
 	exp := h.GetCSum()
 	if bytes.Compare(exp, calc) != 0 {
-		return common.NewCError(ErrorInvalidChksum,
+		return common.NewBasicError(ErrorInvalidChksum, nil,
 			"expected", exp, "actual", calc, "proto", h.L4Type())
 	}
 	return nil

@@ -31,10 +31,10 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	offset := 0
 
 	if s.E2EExt != nil {
-		return 0, common.NewCError("E2E extensions not supported", "ext", s.E2EExt)
+		return 0, common.NewBasicError("E2E extensions not supported", nil, "ext", s.E2EExt)
 	}
 	if s.HBHExt != nil {
-		return 0, common.NewCError("HBH extensions not supported", "ext", s.HBHExt)
+		return 0, common.NewBasicError("HBH extensions not supported", nil, "ext", s.HBHExt)
 	}
 
 	// Compute header lengths
@@ -48,8 +48,8 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	scionHdrLen := spkt.CmnHdrLen + addrHdrLen + pathHdrLen
 	pktLen := scionHdrLen + s.L4.L4Len() + s.Pld.Len()
 	if len(b) < pktLen {
-		return 0, common.NewCError("Buffer too small", "expected", pktLen,
-			"actual", len(b))
+		return 0, common.NewBasicError("Buffer too small", nil,
+			"expected", pktLen, "actual", len(b))
 	}
 
 	// Compute preliminary common header, but do not write it to the packet yet
@@ -99,7 +99,7 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	// SCION/UDP Header
 	err = l4.SetCSum(s.L4, addrSlice, pldSlice)
 	if err != nil {
-		return 0, common.NewCError("Unable to compute checksum", "err", err)
+		return 0, common.NewBasicError("Unable to compute checksum", err)
 	}
 	s.L4.Write(l4Slice)
 

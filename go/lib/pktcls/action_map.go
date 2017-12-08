@@ -33,7 +33,7 @@ func NewActionMap() ActionMap {
 func (am ActionMap) Add(c Action) error {
 	_, ok := am[c.GetName()]
 	if ok {
-		return common.NewCError("Action name exists", "name", c.GetName())
+		return common.NewBasicError("Action name exists", nil, "name", c.GetName())
 	}
 	am[c.GetName()] = c
 	return nil
@@ -42,7 +42,7 @@ func (am ActionMap) Add(c Action) error {
 func (am ActionMap) Get(name string) (Action, error) {
 	class, ok := am[name]
 	if !ok {
-		return nil, common.NewCError("Action not found", "name", name)
+		return nil, common.NewBasicError("Action not found", nil, "name", name)
 	}
 	return class, nil
 }
@@ -50,7 +50,7 @@ func (am ActionMap) Get(name string) (Action, error) {
 func (am ActionMap) Remove(name string) error {
 	_, ok := am[name]
 	if !ok {
-		return common.NewCError("Action not found", "name", name)
+		return common.NewBasicError("Action not found", nil, "name", name)
 	}
 	delete(am, name)
 	return nil
