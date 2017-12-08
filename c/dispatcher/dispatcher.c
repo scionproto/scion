@@ -692,6 +692,7 @@ int find_available_port(Entry *list, L4Key *key)
                 return -1;
             }
         } else {
+            zlog_info(zc, "assigned port %d", key->port);
             break;
         }
     }
