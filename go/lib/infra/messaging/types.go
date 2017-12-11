@@ -22,7 +22,7 @@ import (
 )
 
 // ackTable maps packet IDs to channels. Goroutines waiting for an ACK for a
-// session ID create a channel, store it in the map at that ID and wait for the
+// packet ID create a channel, store it in the map at that ID and wait for the
 // channel to be closed. The background receiving goroutine closes the channel
 // when it receives the corresponding ack.
 type ackTable sync.Map
@@ -64,7 +64,7 @@ type uint56 uint64
 func (u *uint56) Inc() uint56 {
 	for {
 		old := atomic.LoadUint64((*uint64)(u))
-		new := (old + 1) % (1<<56 - 1)
+		new := (old + 1) % (1 << 56)
 		swapped := atomic.CompareAndSwapUint64((*uint64)(u), old, new)
 		if swapped {
 			return uint56(new)
@@ -72,19 +72,21 @@ func (u *uint56) Inc() uint56 {
 	}
 }
 
+// putUint56 writes a to b in network byte order.
 func (a uint56) putUint56(b common.RawBytes) {
 	_ = b[6]
-	b[0] = byte(a)
-	b[1] = byte(a >> 8)
-	b[2] = byte(a >> 16)
+	b[0] = byte(a >> 48)
+	b[1] = byte(a >> 40)
+	b[2] = byte(a >> 32)
 	b[3] = byte(a >> 24)
-	b[4] = byte(a >> 32)
-	b[5] = byte(a >> 40)
-	b[6] = byte(a >> 48)
+	b[4] = byte(a >> 16)
+	b[5] = byte(a >> 8)
+	b[6] = byte(a)
 }
 
+// getUint56 returns the number in b, read in network byte order.
 func getUint56(b common.RawBytes) uint56 {
 	_ = b[6]
-	return uint56(b[0]) | uint56(b[1])<<8 | uint56(b[2])<<16 | uint56(b[3])<<24 |
-		uint56(b[4])<<32 | uint56(b[5])<<40 | uint56(b[6])<<48
+	return uint56(b[0])<<48 | uint56(b[1])<<40 | uint56(b[2])<<32 | uint56(b[3])<<24 |
+		uint56(b[4])<<16 | uint56(b[5])<<8 | uint56(b[6])
 }

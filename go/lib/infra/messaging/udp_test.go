@@ -22,6 +22,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest/loopback"
 
@@ -31,9 +32,10 @@ import (
 func TestSendUnreliableMsgTo(t *testing.T) {
 	Convey("Create RUDP, send unreliable message, and receive same message", t, func() {
 		conn := loopback.New()
-		udp := NewUDPTransport(conn, log.Root())
+		udp := NewRUDP(conn, log.Root())
 
-		ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancelF()
 		err := udp.SendUnreliableMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldBeNil)
 
@@ -46,9 +48,10 @@ func TestSendUnreliableMsgTo(t *testing.T) {
 func TestSendMsgTo(t *testing.T) {
 	Convey("Create RUDP, send reliable message, and receive same message", t, func() {
 		conn := loopback.New()
-		udp := NewUDPTransport(conn, log.Root())
+		udp := NewRUDP(conn, log.Root())
 
-		ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancelF()
 		err := udp.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldBeNil)
 
@@ -64,8 +67,9 @@ func TestSendMsgTo(t *testing.T) {
 func TestClose(t *testing.T) {
 	Convey("Create RUDP, and close it", t, func() {
 		conn := loopback.New()
-		udp := NewUDPTransport(conn, log.Root())
-		ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+		udp := NewRUDP(conn, log.Root())
+		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancelF()
 		err := udp.Close(ctx)
 		SoMsg("err", err, ShouldBeNil)
 	})
@@ -73,14 +77,16 @@ func TestClose(t *testing.T) {
 
 func TestSendMsgToBadLink(t *testing.T) {
 	Convey("Create RUDP on bad link, send reliable message, should get error", t, func() {
-		conn := NewFaultyLoopback()
-		udp := NewUDPTransport(conn, log.Root())
+		conn := NewBadLoopback()
+		udp := NewRUDP(conn, log.Root())
 
-		ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancelF()
 		err := udp.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldNotBeNil)
 
-		ctx2, _ := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx2, cancelF2 := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancelF2()
 		err = udp.Close(ctx2)
 		SoMsg("err", err, ShouldBeNil)
 	})
@@ -92,7 +98,7 @@ type BadLoopback struct {
 	closed chan struct{}
 }
 
-func NewFaultyLoopback() *BadLoopback {
+func NewBadLoopback() *BadLoopback {
 	return &BadLoopback{
 		Conn:   loopback.New(),
 		closed: make(chan struct{}),
