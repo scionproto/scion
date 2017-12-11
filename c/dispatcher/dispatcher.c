@@ -1199,14 +1199,14 @@ int deliver_data(int sock, HostAddr *from, uint8_t *buf, int len)
 {
     errno = 0;
     if (send_dp_header(sock, from, len) != 0) {
-        zlog_warn(zc, "Failed to send dp header to app on fd %d (errno: %s)", sock, strerror(errno));
+        zlog_warn(zc, "Failed to send dp header to app on fd %d (err? %s)", sock, strerror(errno));
         close(sock);
         return -1;
     }
     errno = 0;
     int sent = send_all(sock, buf, len);
     if (sent != len) {
-        zlog_warn(zc, "Failed to send all data to app on fd %d, expected:%dB got:%dB (errno: %s)",
+        zlog_warn(zc, "Failed to send all data to app on fd %d, expected:%dB got:%dB (err? %s)",
                 sock, len, sent, strerror(errno));
         close(sock);
         return -1;
