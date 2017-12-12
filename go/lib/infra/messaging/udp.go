@@ -60,6 +60,11 @@ const (
 	maxReadEvents = 1 << 8
 )
 
+var (
+	// Used to initialize the first packet ID
+	generator = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+)
+
 var _ Transport = (*RUDP)(nil)
 
 // RUDP (Reliable UDP) implements a simple UDP protocol with ACKs on top of SCION/UDP.
@@ -107,7 +112,7 @@ type RUDP struct {
 func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 	t := &RUDP{
 		conn:           conn,
-		nextPktID:      uint56(rand.Intn(maxUint56 + 1)),
+		nextPktID:      uint56(generator.Intn(maxUint56 + 1)),
 		readEvents:     make(chan *readEventDesc, maxReadEvents),
 		closed:         make(chan struct{}),
 		backgroundDone: make(chan struct{}),
