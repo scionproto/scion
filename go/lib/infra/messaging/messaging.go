@@ -28,9 +28,12 @@ var (
 
 // Transport layers must be safe for concurrent use by multiple goroutines.
 type Transport interface {
-	// Send a message without expecting an ACK.
+	// Send an unreliable message. Unreliable transport layers do not request
+	// an ACK. For reliable transport layers, this is the same as SendMsgTo.
 	SendUnreliableMsgTo(context.Context, common.RawBytes, net.Addr) error
-	// Send a message, waiting for it to be ACK'd.
+	// Send a reliable message. Unreliable transport layers block here waiting
+	// for the message to be ACK'd. Reliable transport layers return
+	// immediately.
 	SendMsgTo(context.Context, common.RawBytes, net.Addr) error
 	// Receive a message.
 	RecvFrom(context.Context) (common.RawBytes, net.Addr, error)

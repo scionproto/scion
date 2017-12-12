@@ -211,6 +211,7 @@ func (t *RUDP) send(ctx context.Context, b common.RawBytes, a net.Addr) error {
 func (t *RUDP) putHeader(id uint56, flags rudpFlag, b common.RawBytes) (*freepool.Buffer, error) {
 	buffer := freepool.Get()
 	if rudpHdrLen+len(b) > len(buffer.B) {
+		freepool.Put(buffer)
 		return nil, common.NewCError("Unable to send, payload too long", "pld_len", len(b),
 			"max_allowed", len(buffer.B)-rudpHdrLen)
 	}
