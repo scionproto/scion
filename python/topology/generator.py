@@ -64,7 +64,6 @@ from lib.crypto.util import (
     get_offline_key_raw_file_path,
     get_online_key_file_path,
     get_online_key_raw_file_path,
-    KEYS_DIR,
 )
 from lib.defines import (
     AS_CONF_FILE,
