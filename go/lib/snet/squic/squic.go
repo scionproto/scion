@@ -52,13 +52,13 @@ func Init(keyPath, pemPath string) error {
 	return nil
 }
 
-func DialSCION(s_net *snet.Network, laddr, raddr *snet.Addr) (quic.Session, error) {
-	return DialSCIONWithBindSVC(s_net, laddr, raddr, nil, addr.SvcNone)
+func DialSCION(network *snet.Network, laddr, raddr *snet.Addr) (quic.Session, error) {
+	return DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone)
 }
 
-func DialSCIONWithBindSVC(s_net *snet.Network, laddr, raddr, baddr *snet.Addr,
+func DialSCIONWithBindSVC(network *snet.Network, laddr, raddr, baddr *snet.Addr,
 	svc addr.HostSVC) (quic.Session, error) {
-	sconn, err := sListen(s_net, laddr, baddr, svc)
+	sconn, err := sListen(network, laddr, baddr, svc)
 	if err != nil {
 		return nil, err
 	}
@@ -66,26 +66,26 @@ func DialSCIONWithBindSVC(s_net *snet.Network, laddr, raddr, baddr *snet.Addr,
 	return quic.Dial(sconn, raddr, "host:0", cliTlsCfg, nil)
 }
 
-func ListenSCION(s_net *snet.Network, laddr *snet.Addr) (quic.Listener, error) {
-	return ListenSCIONWithBindSVC(s_net, laddr, nil, addr.SvcNone)
+func ListenSCION(network *snet.Network, laddr *snet.Addr) (quic.Listener, error) {
+	return ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone)
 }
 
-func ListenSCIONWithBindSVC(s_net *snet.Network, laddr, baddr *snet.Addr,
+func ListenSCIONWithBindSVC(network *snet.Network, laddr, baddr *snet.Addr,
 	svc addr.HostSVC) (quic.Listener, error) {
 	if len(srvTlsCfg.Certificates) == 0 {
 		return nil, common.NewCError("squic: No server TLS certificate configured")
 	}
-	sconn, err := sListen(s_net, laddr, baddr, svc)
+	sconn, err := sListen(network, laddr, baddr, svc)
 	if err != nil {
 		return nil, err
 	}
 	return quic.Listen(sconn, srvTlsCfg, nil)
 }
 
-func sListen(s_net *snet.Network, laddr, baddr *snet.Addr,
+func sListen(network *snet.Network, laddr, baddr *snet.Addr,
 	svc addr.HostSVC) (*snet.Conn, error) {
-	if s_net == nil {
-		s_net = snet.DefNetwork
+	if network == nil {
+		network = snet.DefNetwork
 	}
-	return s_net.ListenSCIONWithBindSVC("udp4", laddr, baddr, svc)
+	return network.ListenSCIONWithBindSVC("udp4", laddr, baddr, svc)
 }
