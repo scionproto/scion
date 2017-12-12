@@ -78,19 +78,10 @@ func (u *uint56) Inc() uint56 {
 
 // putUint56 writes a to b in network byte order.
 func (a uint56) putUint56(b common.RawBytes) {
-	_ = b[6]
-	b[0] = byte(a >> 48)
-	b[1] = byte(a >> 40)
-	b[2] = byte(a >> 32)
-	b[3] = byte(a >> 24)
-	b[4] = byte(a >> 16)
-	b[5] = byte(a >> 8)
-	b[6] = byte(a)
+	common.Order.PutUintN(b, uint64(a), 7)
 }
 
 // getUint56 returns the number in b, read in network byte order.
 func getUint56(b common.RawBytes) uint56 {
-	_ = b[6]
-	return uint56(b[0])<<48 | uint56(b[1])<<40 | uint56(b[2])<<32 | uint56(b[3])<<24 |
-		uint56(b[4])<<16 | uint56(b[5])<<8 | uint56(b[6])
+	return uint56(common.Order.UintN(b, 7))
 }

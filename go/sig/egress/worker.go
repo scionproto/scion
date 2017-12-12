@@ -15,8 +15,6 @@
 package egress
 
 import (
-	"bytes"
-	"encoding/binary"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -248,11 +246,8 @@ func (f *frame) startPkt(pktLen uint16) {
 }
 
 func (f *frame) writeHdr(sessId mgmt.SessionType, epoch uint16, seq uint32) {
-	var buf bytes.Buffer
-	binary.Write(&buf, common.Order, seq)
-
 	f.b[0] = uint8(sessId)
 	common.Order.PutUint16(f.b[1:3], epoch)
-	copy(f.b[3:6], buf.Bytes()[1:])
+	common.Order.PutUintN(f.b[3:6], uint64(seq), 3)
 	common.Order.PutUint16(f.b[6:8], f.idx)
 }

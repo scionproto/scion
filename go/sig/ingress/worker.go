@@ -98,7 +98,7 @@ func (w *Worker) Run() {
 // list if needed.
 func (w *Worker) processFrame(frame *FrameBuf) {
 	epoch := int(common.Order.Uint16(frame.raw[1:3]))
-	seqNr := int(common.Order.Uint32(frame.raw[2:6]) & 0x00FFFFFF)
+	seqNr := int(common.Order.UintN(frame.raw[3:6], 3))
 	index := int(common.Order.Uint16(frame.raw[6:8]))
 	frame.seqNr = seqNr
 	frame.index = index
