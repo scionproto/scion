@@ -60,6 +60,10 @@ func (m *ackTable) Store(key uint56, value chan struct{}) {
 // Supports atomic increments and wraps on 7 bytes.
 type uint56 uint64
 
+const (
+	maxUint56 = (1 << 56) - 1
+)
+
 // Inc atomically increments u, and returns the new value.
 func (u *uint56) Inc() uint56 {
 	for {

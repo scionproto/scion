@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package freepool initializes an elastic pool of free buffers. Buffer have capacity
+// Package bufpool initializes an elastic pool of free buffers. Buffer have capacity
 // common.MaxMTU.
 //
-// Apps can use freepool to ammortize allocations between multiple goroutines
+// Apps can use bufpool to ammortize allocations between multiple goroutines
 // without preallocating a large amount of memory. Details about how the
 // allocation and freeing of resources works can be found in the documentation
 // for sync.Pool.
@@ -23,7 +23,7 @@
 // For apps where the performance penalty of grabbing a single free buffer is
 // non-neglibile (e.g., per packet processing in a router), package ringbuf (and
 // manual management of free buffers) should be used instead.
-package freepool
+package bufpool
 
 import (
 	"sync"

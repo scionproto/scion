@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -26,7 +27,7 @@ import (
 
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/util/freepool"
+	"github.com/scionproto/scion/go/lib/util/bufpool"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -106,6 +107,7 @@ type RUDP struct {
 func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 	t := &RUDP{
 		conn:           conn,
+		nextPktID:      uint56(rand.Intn(maxUint56 + 1)),
 		readEvents:     make(chan *readEventDesc, maxReadEvents),
 		closed:         make(chan struct{}),
 		backgroundDone: make(chan struct{}),
@@ -122,7 +124,7 @@ func (t *RUDP) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes, a net
 	if err != nil {
 		return err
 	}
-	defer freepool.Put(buffer)
+	defer bufpool.Put(buffer)
 	return t.send(ctx, buffer.B, a)
 }
 
@@ -135,7 +137,7 @@ func (t *RUDP) SendMsgTo(ctx context.Context, b common.RawBytes, a net.Addr) err
 	if err != nil {
 		return err
 	}
-	defer freepool.Put(buffer)
+	defer bufpool.Put(buffer)
 	// Store the channel in the shared table s.t. the background receiver can
 	// close it when it gets the ACK
 	ackChannel := make(chan struct{})
@@ -172,7 +174,7 @@ func (t *RUDP) sendACK(id uint56, a net.Addr) error {
 	if err != nil {
 		return err
 	}
-	defer freepool.Put(buffer)
+	defer bufpool.Put(buffer)
 	ctx, cancelF := context.WithTimeout(context.Background(), rudpACKTimeout)
 	defer cancelF()
 	return t.send(ctx, buffer.B, a)
@@ -208,10 +210,10 @@ func (t *RUDP) send(ctx context.Context, b common.RawBytes, a net.Addr) error {
 }
 
 // putHeader returns a new buffer containing the Reliable UDP header and b.
-func (t *RUDP) putHeader(id uint56, flags rudpFlag, b common.RawBytes) (*freepool.Buffer, error) {
-	buffer := freepool.Get()
+func (t *RUDP) putHeader(id uint56, flags rudpFlag, b common.RawBytes) (*bufpool.Buffer, error) {
+	buffer := bufpool.Get()
 	if rudpHdrLen+len(b) > len(buffer.B) {
-		freepool.Put(buffer)
+		bufpool.Put(buffer)
 		return nil, common.NewCError("Unable to send, payload too long", "pld_len", len(b),
 			"max_allowed", len(buffer.B)-rudpHdrLen)
 	}
@@ -228,7 +230,7 @@ func (t *RUDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) 
 	case event := <-t.readEvents:
 		// Propagate message payload to caller
 		b := event.buffer.CloneB()
-		freepool.Put(event.buffer)
+		bufpool.Put(event.buffer)
 		return b, event.address, nil
 	case <-ctx.Done():
 		// We timed out, return with failure
@@ -248,21 +250,21 @@ func (t *RUDP) goBackgroundReceiver() {
 		defer t.log.Info("UDPTransport background goroutine stopped", "connt", t.conn)
 		defer close(t.backgroundDone)
 		for {
-			b := freepool.Get()
+			b := bufpool.Get()
 			n, address, err := t.conn.ReadFrom(b.B)
 			if err != nil {
 				// FIXME(scrye): For now just log and continue on SCMP errors,
 				// and destroy the background receiver on other errors.
 				if opErr, ok := err.(*snet.OpError); ok && opErr.SCMP() != nil {
 					t.log.Warn("Received SCMP message", "msg", opErr.SCMP())
-					freepool.Put(b)
+					bufpool.Put(b)
 					continue
 				} else {
 					// Do not log close events
 					if err != io.EOF {
 						t.log.Error("Read error, shutting down", "err", err)
 					}
-					freepool.Put(b)
+					bufpool.Put(b)
 					return
 				}
 			}
@@ -270,7 +272,7 @@ func (t *RUDP) goBackgroundReceiver() {
 			flags, id, payload, err := t.popHeader(b.B[:n])
 			if err != nil {
 				t.log.Error("Unable to remove Reliable UDP header", "err", err)
-				freepool.Put(b)
+				bufpool.Put(b)
 				continue
 			}
 			b.B = payload
@@ -285,7 +287,7 @@ func (t *RUDP) goBackgroundReceiver() {
 				} else {
 					close(ackChannel)
 				}
-				freepool.Put(b)
+				bufpool.Put(b)
 				continue
 			}
 
@@ -301,7 +303,8 @@ func (t *RUDP) goBackgroundReceiver() {
 					}
 				}
 			default:
-				t.log.Warn("Internal queue full, dropped message", "msg_len", n)
+				t.log.Warn("Internal queue full, dropped message", "id", id, "flags", flags,
+					"msg_len", n)
 			}
 		}
 	}()
@@ -337,6 +340,6 @@ func (t *RUDP) Close(ctx context.Context) error {
 }
 
 type readEventDesc struct {
-	buffer  *freepool.Buffer
+	buffer  *bufpool.Buffer
 	address net.Addr
 }
