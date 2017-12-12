@@ -22,10 +22,12 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/squic"
 )
 
 const (
@@ -100,11 +102,17 @@ func Client() {
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	conn, err := snet.DialSCION("udp4", &local, &remote)
+	qsess, err := squic.DialSCION(nil, &local, &remote)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
-	log.Debug("Connected", "local", &local, "remote", &remote)
+	defer qsess.Close(nil)
+	qstream, err := qsess.OpenStreamSync()
+	if err != nil {
+		LogFatal("quic OpenStream failed", "err", err)
+	}
+	defer qstream.Close()
+	log.Debug("Quic stream opened", "local", &local, "remote", &remote)
 
 	b := make([]byte, 1<<12)
 	for i := 0; i < *count || *count == 0; i++ {
@@ -114,7 +122,7 @@ func Client() {
 
 		// Send echo request to destination
 		before := time.Now()
-		written, err := conn.Write([]byte(ReqMsg))
+		written, err := qstream.Write([]byte(ReqMsg))
 		if err != nil {
 			log.Error("Unable to write", "err", err)
 			continue
@@ -126,10 +134,17 @@ func Client() {
 		}
 
 		// Receive echo reply with timeout
-		conn.SetDeadline(time.Now().Add(DefaultTimeout))
-		read, err := conn.Read(b)
-		conn.SetDeadline(time.Time{})
+		err = qstream.SetReadDeadline(time.Now().Add(DefaultTimeout))
 		if err != nil {
+			LogFatal("SetReadDeadline failed", "err", err)
+		}
+		read, err := qstream.Read(b)
+		if err != nil {
+			qer := qerr.ToQuicError(err)
+			if qer.ErrorCode == qerr.PeerGoingAway {
+				log.Debug("Quic peer disconnected")
+				break
+			}
 			log.Error("Unable to read", "err", err)
 			continue
 		}
@@ -149,17 +164,31 @@ func Server() {
 	initNetwork()
 
 	// Listen on SCION address
-	conn, err := snet.ListenSCION("udp4", &local)
+	qsock, err := squic.ListenSCION(nil, &local)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
-	log.Debug("Listening", "local", &local)
+	log.Debug("Listening", "local", qsock.Addr())
+	qsess, err := qsock.Accept()
+	if err != nil {
+		LogFatal("Unable to accept quic session", "err", err)
+	}
+	log.Debug("Quic session accepted", "src", qsess.RemoteAddr())
+	qstream, err := qsess.AcceptStream()
+	if err != nil {
+		LogFatal("Unable to accept quic stream", "err", err)
+	}
 
 	b := make([]byte, 1<<12)
-	for i := 0; i < *count || *count == 0; i++ {
+	for {
 		// Receive echo request
-		read, senderAddr, err := conn.ReadFrom(b)
+		read, err := qstream.Read(b)
 		if err != nil {
+			qer := qerr.ToQuicError(err)
+			if qer.ErrorCode == qerr.PeerGoingAway {
+				log.Debug("Quic peer disconnected")
+				break
+			}
 			LogFatal("Unable to read", "err", err)
 		}
 		if string(b[:read]) != ReqMsg {
@@ -168,7 +197,7 @@ func Server() {
 		}
 
 		// Send echo reply
-		written, err := conn.WriteTo([]byte(ReplyMsg), senderAddr)
+		written, err := qstream.Write([]byte(ReplyMsg))
 		if err != nil {
 			LogFatal("Unable to write", "err", err)
 		}
@@ -181,11 +210,14 @@ func Server() {
 
 func initNetwork() {
 	// Initialize default SCION networking context
-	err := snet.Init(local.IA, *sciond, *dispatcher)
-	if err != nil {
+	if err := snet.Init(local.IA, *sciond, *dispatcher); err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
+	if err := squic.Init("", ""); err != nil {
+		LogFatal("Unable to initialize QUIC/SCION", "err", err)
+	}
+	log.Debug("QUIC/SCION successfully initialized")
 }
 
 type Address snet.Addr

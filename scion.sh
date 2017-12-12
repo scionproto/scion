@@ -31,6 +31,15 @@ cmd_run() {
         echo "Compiling..."
         cmd_build || exit 1
     fi
+    if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
+        local old=$(umask)
+        echo "Generating TLS cert"
+        mkdir -p "gen-certs"
+        umask 0177
+        openssl genrsa -out "gen-certs/tls.key" 2048
+        umask "$old"
+        openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
+    fi
     echo "Running the network..."
     if [ -e gen/zk_datalog_dirs.sh ]; then
         bash gen/zk_datalog_dirs.sh || exit 1
