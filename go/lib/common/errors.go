@@ -56,3 +56,12 @@ func (c *CError) AddCtx(ctx ...interface{}) error {
 	c.Ctx = append(c.Ctx, ctx...)
 	return c
 }
+
+type Temporary interface {
+	Temporary() bool
+}
+
+func IsTemporaryErr(e error) bool {
+	t, ok := e.(Temporary)
+	return ok && t.Temporary()
+}
