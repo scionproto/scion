@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -220,7 +221,16 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		if pktsWritten, err = s.Conn.WriteBatch(msgs[:toWrite]); err != nil {
 			outputWriteErrs.Inc()
 			log.Error("Error sending packet(s)", "src", src, "err", err)
-			goto End
+			// If some packets were still sent, continue processing. Otherwise:
+			if pktsWritten < 0 {
+				// If we know the error is temporary, retry sending, otherwise drop
+				// the current batch and move on.
+				if common.IsTemporaryErr(err) {
+					continue
+				}
+				pktsWritten = toWrite
+				goto End
+			}
 		}
 		t = time.Since(start).Seconds()
 		bytes = 0
