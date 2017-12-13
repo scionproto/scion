@@ -12,11 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xtest adds support for assertions in multiple goroutines to Goconvey
+// Package xtest adds support for assertions in multiple goroutines to
+// Goconvey.
 //
 // Parallel goconvey blocks cannot contain other goconvey blocks.
 //
-// For an example, check out the testing file in this package.
+// Example:
+//
+//  func TestParallel(t *testing.T) {
+//    Convey("Test parallel goroutines", t, Parallel(func(sc *SC) {
+//      x := 1
+//      sc.SoMsg("x", x, ShouldEqual, 1)
+//    }, func(sc *SC) {
+//      y := 1
+//      sc.SoMsg("y", y, ShouldEqual, 1)
+//    }))
+//  }
+//
+// Note that inside parallel blocks, Convey methods should be explicitly
+// invoked on the local convey object (e.g., sc).
 package xtest
 
 import (
