@@ -42,6 +42,7 @@ import (
 	"net"
 
 	log "github.com/inconshreveable/log15"
+
 	liblog "github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/common"
