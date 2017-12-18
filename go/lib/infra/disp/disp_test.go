@@ -20,6 +20,7 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+
 	"github.com/scionproto/scion/go/lib/infra/messaging"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
@@ -110,7 +111,6 @@ func TestNotify(t *testing.T) {
 			err := dispA.Notify(ctx2, notification, &p2p.Addr{})
 			SoMsg("a notify err", err, ShouldNotBeNil)
 		})
-
 	})
 }
 
@@ -128,5 +128,4 @@ func TestUnreliableNotify(t *testing.T) {
 			SoMsg("a notify err", err, ShouldBeNil)
 		})
 	})
-
 }
