@@ -24,12 +24,13 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
+	logext "github.com/inconshreveable/log15/ext"
 
+	. "github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util/bufpool"
-
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 type rudpFlag uint8
@@ -100,7 +101,8 @@ type RUDP struct {
 	closed chan struct{}
 	// Closed when background goroutine finishes shutting down
 	backgroundDone chan struct{}
-	log            log.Logger
+	// Logger used by the background goroutine
+	log log.Logger
 	// Serialize write access to the conn object
 	writeLock sync.Mutex
 }
@@ -116,14 +118,14 @@ func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 		readEvents:     make(chan *readEventDesc, maxReadEvents),
 		closed:         make(chan struct{}),
 		backgroundDone: make(chan struct{}),
-		log:            logger,
+		log:            logger.New("id", logext.RandId(4), "goroutine", "transport_bck"),
 	}
 	t.goBackgroundReceiver()
 	return t
 }
 
 // SendUnreliableMsgTo sends a message and returns without waiting for an ACK.
-func (t *RUDP) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes, a net.Addr) error {
+func (t *RUDP) SendUnreliableMsgTo(ctx context.Context, b RawBytes, a net.Addr) error {
 	id := t.nextPktID.Inc()
 	buffer, err := t.putHeader(id, flagsNone, b)
 	if err != nil {
@@ -136,7 +138,7 @@ func (t *RUDP) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes, a net
 // SendMsgTo sends a message and waits for an ACK. If no ACK is received for a
 // set amount of time, the message is retransmitted. This process repeats while
 // ctx is not canceled.
-func (t *RUDP) SendMsgTo(ctx context.Context, b common.RawBytes, a net.Addr) error {
+func (t *RUDP) SendMsgTo(ctx context.Context, b RawBytes, a net.Addr) error {
 	id := t.nextPktID.Inc()
 	buffer, err := t.putHeader(id, flagNeedACK, b)
 	if err != nil {
@@ -163,13 +165,13 @@ func (t *RUDP) SendMsgTo(ctx context.Context, b common.RawBytes, a net.Addr) err
 			return nil
 		case <-ctx.Done():
 			// Context was canceled or we are out of time, return with failure
-			return ErrContextDone
+			return infra.NewCtxDoneError()
 		case <-time.After(rudpRetryTimeout):
 			// Did not get ACK and context is not canceled yet, so do nothing
 			// and try to send again
 		case <-t.closed:
 			// Someone called Close, return immediately
-			return ErrClosed
+			return infra.NewClosedError()
 		}
 	}
 }
@@ -187,7 +189,7 @@ func (t *RUDP) sendACK(id uint56, a net.Addr) error {
 
 // send sends b to a via the net.PacketConn object. send guarantees to return
 // once ctx is canceled.
-func (t *RUDP) send(ctx context.Context, b common.RawBytes, a net.Addr) error {
+func (t *RUDP) send(ctx context.Context, b RawBytes, a net.Addr) error {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		return common.NewBasicError("Bad context, missing deadline", nil, "dst", a)
@@ -215,7 +217,7 @@ func (t *RUDP) send(ctx context.Context, b common.RawBytes, a net.Addr) error {
 }
 
 // putHeader returns a new buffer containing the Reliable UDP header and b.
-func (t *RUDP) putHeader(id uint56, flags rudpFlag, b common.RawBytes) (*bufpool.Buffer, error) {
+func (t *RUDP) putHeader(id uint56, flags rudpFlag, b RawBytes) (*bufpool.Buffer, error) {
 	buffer := bufpool.Get()
 	if rudpHdrLen+len(b) > len(buffer.B) {
 		bufpool.Put(buffer)
@@ -230,7 +232,7 @@ func (t *RUDP) putHeader(id uint56, flags rudpFlag, b common.RawBytes) (*bufpool
 }
 
 // RecvFrom returns the next non-ACK message.
-func (t *RUDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
+func (t *RUDP) RecvFrom(ctx context.Context) (RawBytes, net.Addr, error) {
 	select {
 	case event := <-t.readEvents:
 		// Propagate message payload to caller
@@ -239,10 +241,10 @@ func (t *RUDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) 
 		return b, event.address, nil
 	case <-ctx.Done():
 		// We timed out, return with failure
-		return nil, nil, ErrContextDone
+		return nil, nil, infra.NewCtxDoneError()
 	case <-t.closed:
 		// Some other goroutine closed the transport layer
-		return nil, nil, ErrClosed
+		return nil, nil, infra.NewClosedError()
 	}
 }
 
@@ -251,8 +253,8 @@ func (t *RUDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) 
 func (t *RUDP) goBackgroundReceiver() {
 	go func() {
 		defer liblog.LogPanicAndExit()
-		t.log.Info("UDPTransport background goroutine starting", "conn", t.conn)
-		defer t.log.Info("UDPTransport background goroutine stopped", "connt", t.conn)
+		t.log.Info("Started")
+		defer t.log.Info("Stopped")
 		defer close(t.backgroundDone)
 		for {
 			b := bufpool.Get()
@@ -316,7 +318,7 @@ func (t *RUDP) goBackgroundReceiver() {
 }
 
 // popHeader returns a slice referring only to the payload of b.
-func (t *RUDP) popHeader(b common.RawBytes) (rudpFlag, uint56, common.RawBytes, error) {
+func (t *RUDP) popHeader(b RawBytes) (rudpFlag, uint56, RawBytes, error) {
 	if len(b) < rudpHdrLen {
 		return 0, 0, nil, common.NewBasicError("Packet shorter than min length", nil,
 			"length", len(b), "min_length", rudpHdrLen)
@@ -338,7 +340,7 @@ func (t *RUDP) Close(ctx context.Context) error {
 	// Wait for background goroutine to finish
 	select {
 	case <-ctx.Done():
-		return ErrContextDone
+		return infra.NewCtxDoneError()
 	case <-t.backgroundDone:
 		return nil
 	}

@@ -42,10 +42,12 @@ import (
 	"net"
 
 	log "github.com/inconshreveable/log15"
+	logext "github.com/inconshreveable/log15/ext"
 
+	"github.com/scionproto/scion/go/lib/infra"
 	liblog "github.com/scionproto/scion/go/lib/log"
 
-	"github.com/scionproto/scion/go/lib/common"
+	. "github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/messaging"
 )
 
@@ -68,7 +70,8 @@ type Dispatcher struct {
 	stoppedC chan struct{}
 	// Closed when Close is called
 	closeC chan struct{}
-	log    log.Logger
+	// Logger used by the background goroutine
+	log log.Logger
 }
 
 // New creates a new dispatcher backed by transport t, and using adapter to
@@ -85,7 +88,7 @@ func NewDispatcher(t messaging.Transport, adapter MessageAdapter, logger log.Log
 		readEvents: make(chan *readEventDesc, maxReadEvents),
 		stoppedC:   make(chan struct{}),
 		closeC:     make(chan struct{}),
-		log:        logger,
+		log:        logger.New("id", logext.RandId(4), "goroutine", "dispatcher_bck"),
 	}
 	d.goBackgroundReceiver()
 	return d
@@ -98,36 +101,35 @@ func NewDispatcher(t messaging.Transport, adapter MessageAdapter, logger log.Log
 // the message is the expected type.
 func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr) (Message, error) {
 	if err := d.waitTable.AddRequest(msg); err != nil {
-		return nil, common.NewCError("Unable to register request", "err", err)
+		return nil, infra.WrapInternalError(err, "op", "waitTable.AddRequest")
 	}
 	// Delete request entry when we exit this context
 	defer d.waitTable.CancelRequest(msg)
 
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return nil, common.NewCError("Unable to convert msg to raw", "err", err)
+		return nil, infra.WrapAdapterError(err, "op", "waitTable.MsgToRaw")
 	}
 	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return nil, common.NewCError("Unable to send message", "err", err)
+		return nil, infra.WrapTransportError(err, "op", "SendMsgTo")
 	}
 
 	reply, err := d.waitTable.WaitForReply(ctx, msg)
 	if err != nil {
-		return nil, common.NewCError("Waiting for reply failed", "err", err)
+		return nil, infra.WrapInternalError(err, "op", "waitTable.WaitForReply")
 	}
-
 	return reply, nil
 }
 
 // Notify sends msg to address, and returns once the send has been ACK'd by the
-// remote end. This method always blocks while waiting for the ACK.
+// remote end. Notify blocks while waiting for the ACK.
 func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return common.NewCError("Unable to convert msg to raw", "err", err)
+		return infra.WrapAdapterError(err, "op", "MsgToRaw")
 	}
 	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return common.NewCError("Unable to send message", "err", err)
+		return infra.WrapTransportError(err, "op", "SendMsgTo")
 	}
 	return nil
 }
@@ -136,10 +138,10 @@ func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) 
 func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg Message, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return common.NewCError("Unable to convert msg to raw", "err", err)
+		return infra.WrapAdapterError(err, "op", "MsgToRaw")
 	}
 	if err := d.transport.SendUnreliableMsgTo(ctx, b, address); err != nil {
-		return common.NewCError("Unable to send unreliable message", "err", err)
+		return infra.WrapTransportError(err, "op", "SendUnreliableMsgTo")
 	}
 	return nil
 }
@@ -151,18 +153,18 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (Message, net.Addr, error) {
 		return event.msg, event.address, nil
 	case <-ctx.Done():
 		// We timed out, return with failure
-		return nil, nil, common.NewCError("Context canceled")
+		return nil, nil, infra.NewCtxDoneError()
 	case <-d.closeC:
 		// Some other goroutine closed the dispatcher
-		return nil, nil, common.NewCError("Closed")
+		return nil, nil, infra.NewClosedError()
 	}
 }
 
 func (d *Dispatcher) goBackgroundReceiver() {
 	go func() {
 		defer liblog.LogPanicAndExit()
-		d.log.Info("Dispatcher background goroutine starting")
-		defer d.log.Info("Dispatcher background goroutine stopped")
+		d.log.Info("Started")
+		defer d.log.Info("Stopped")
 		defer close(d.stoppedC)
 		for {
 			// On each iteration, check for termination signal
@@ -180,18 +182,18 @@ func (d *Dispatcher) recvNext() {
 	// Once the transport is closed, RecvFrom returns immediately.
 	b, address, err := d.transport.RecvFrom(context.TODO())
 	if err != nil {
-		d.log.Warn("Unable to receive from transport layer", "err", err)
+		d.log.Warn(infra.WrapTransportError(err, "op", "RecvFrom").Error())
 		return
 	}
 
 	msg, err := d.adapter.RawToMsg(b)
 	if err != nil {
-		d.log.Warn("Unable to convert raw content to message", "err", err)
+		d.log.Warn(infra.WrapAdapterError(err, "op", "RawToMsg").Error())
 		return
 	}
 	if d.adapter.MsgIsReply(msg) {
 		if err := d.waitTable.Reply(msg); err != nil {
-			d.log.Warn("Unable to signal reply", "err", err)
+			d.log.Warn(infra.WrapInternalError(err, "op", "waitTable.Reply").Error())
 		}
 		return
 	}
@@ -210,12 +212,12 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 	close(d.closeC)
 	err := d.transport.Close(ctx)
 	if err != nil {
-		return common.NewCError("Unable to close transport", "err", err)
+		return NewCError("Unable to close transport", "err", err)
 	}
 	// Wait for background goroutine to finish
 	select {
 	case <-ctx.Done():
-		return common.NewCError("Context canceled")
+		return infra.NewCtxDoneError()
 	case <-d.stoppedC:
 		return nil
 	}
