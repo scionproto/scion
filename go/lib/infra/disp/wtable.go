@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra"
 )
 
 type waitTable struct {
@@ -34,9 +35,9 @@ func newWaitTable(keyF func(Message) string) *waitTable {
 	}
 }
 
-func (fwt *waitTable) AddRequest(object Message) error {
+func (wt *waitTable) AddRequest(object Message) error {
 	select {
-	case <-fwt.destroyC:
+	case <-wt.destroyC:
 		return common.NewCError("Table destroyed")
 	default:
 		// Continue below
@@ -44,54 +45,54 @@ func (fwt *waitTable) AddRequest(object Message) error {
 	// Destroy can be called between now and when we exit this function.
 
 	replyChannel := make(chan Message, 1)
-	_, loaded := fwt.t.LoadOrStore(fwt.keyF(object), replyChannel)
+	_, loaded := wt.t.LoadOrStore(wt.keyF(object), replyChannel)
 	if loaded {
-		return common.NewCError("Duplicate key", "key", fwt.keyF(object))
+		return common.NewCError("Duplicate key", "key", wt.keyF(object))
 	}
 
 	return nil
 }
 
-func (fwt *waitTable) CancelRequest(object Message) {
-	fwt.t.Delete(fwt.keyF(object))
+func (wt *waitTable) CancelRequest(object Message) {
+	wt.t.Delete(wt.keyF(object))
 }
 
-func (fwt *waitTable) WaitForReply(ctx context.Context, object Message) (Message, error) {
+func (wt *waitTable) WaitForReply(ctx context.Context, object Message) (Message, error) {
 	select {
-	case <-fwt.destroyC:
+	case <-wt.destroyC:
 		return nil, common.NewCError("Table destroyed")
 	default:
 		// Continue below
 	}
 	// Destroy can be called between now and when we exit this function.
 
-	replyChannel, loaded := fwt.t.Load(fwt.keyF(object))
+	replyChannel, loaded := wt.t.Load(wt.keyF(object))
 	if !loaded {
-		return nil, common.NewCError("Key not found", "key", fwt.keyF(object))
+		return nil, common.NewCError("Key not found", "key", wt.keyF(object))
 	}
 
 	select {
 	case reply := <-replyChannel:
 		return reply, nil
 	case <-ctx.Done():
-		return nil, common.NewCError("Context expired TODO")
-	case <-fwt.destroyC:
+		return nil, infra.NewCtxDoneError()
+	case <-wt.destroyC:
 		return nil, common.NewCError("Table destroyed")
 	}
 }
 
-func (fwt *waitTable) Reply(object Message) error {
+func (wt *waitTable) Reply(object Message) error {
 	select {
-	case <-fwt.destroyC:
+	case <-wt.destroyC:
 		return common.NewCError("Table destroyed")
 	default:
 		// Continue below
 	}
 	// Destroy can be called between now and when we exit this function.
 
-	replyChannel, loaded := fwt.t.Load(fwt.keyF(object))
+	replyChannel, loaded := wt.t.Load(wt.keyF(object))
 	if !loaded {
-		return common.NewCError("Reply received, but no one is waiting", "key", fwt.keyF(object))
+		return common.NewCError("Reply received, but no one is waiting", "key", wt.keyF(object))
 	}
 
 	select {
@@ -105,13 +106,13 @@ func (fwt *waitTable) Reply(object Message) error {
 	default:
 		// Duplicate reply and the channel is already full. While this is not
 		// an error, it is useful to log.
-		return common.NewCError("Duplicate reply key", "key", fwt.keyF(object))
+		return common.NewCError("Duplicate reply key", "key", wt.keyF(object))
 	}
 	return nil
 }
 
-func (fwt *waitTable) Destroy() {
-	close(fwt.destroyC)
+func (wt *waitTable) Destroy() {
+	close(wt.destroyC)
 }
 
 type replyChannelMap sync.Map
