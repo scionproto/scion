@@ -16,11 +16,13 @@ package disp
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messaging"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
@@ -61,7 +63,9 @@ func TestRequest(t *testing.T) {
 			defer cancelF()
 			recvReply, err := dispA.Request(ctx, request, &p2p.Addr{})
 			SoMsg("a request err", err, ShouldNotBeNil)
+			SoMsg("a request err timeout", infra.IsTimeout(err), ShouldBeTrue)
 			SoMsg("a request reply", recvReply, ShouldBeNil)
+			fmt.Println(err)
 		})
 
 		Convey("Request, and receive bad reply (Parallel)", xtest.Parallel(func(sc *xtest.SC) {
@@ -69,6 +73,7 @@ func TestRequest(t *testing.T) {
 			defer cancelF()
 			recvReply, err := dispA.Request(ctx, request, &p2p.Addr{})
 			sc.SoMsg("a request err", err, ShouldNotBeNil)
+			sc.SoMsg("a request err timeout", infra.IsTimeout(err), ShouldBeTrue)
 			sc.SoMsg("a request reply", recvReply, ShouldBeNil)
 		}, func(sc *xtest.SC) {
 			ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
@@ -110,6 +115,7 @@ func TestNotify(t *testing.T) {
 			defer cancelF2()
 			err := dispA.Notify(ctx2, notification, &p2p.Addr{})
 			SoMsg("a notify err", err, ShouldNotBeNil)
+			SoMsg("a notify err timeout", infra.IsTimeout(err), ShouldBeTrue)
 		})
 	})
 }

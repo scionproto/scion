@@ -21,11 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var (
-	ErrClosed      = common.NewCError("Messaging transport closed")
-	ErrContextDone = common.NewCError("Context expired while waiting")
-)
-
 // Transport layers must be safe for concurrent use by multiple goroutines.
 type Transport interface {
 	// Send an unreliable message. Unreliable transport layers do not request
