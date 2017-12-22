@@ -27,9 +27,6 @@ type MessageAdapter interface {
 	RawToMsg(common.RawBytes) (Message, error)
 	// Return a key used to match requests and replies
 	MsgKey(Message) string
-	// Return true if Message should be used to service a pending request and
-	// silently discarded if one doesn't exist
-	MsgIsReply(Message) bool
 }
 
 // Generic object used by the Dispatcher.
