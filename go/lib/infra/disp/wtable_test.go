@@ -24,27 +24,28 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func Test_FunctionWT_Wait(t *testing.T) {
+func TestWT(t *testing.T) {
 	Convey("Initialize table", t, func() {
-		ftw := newWaitTable(testAdapter.MsgKey)
+		wt := newWaitTable(testAdapter.MsgKey)
 		request, reply := &customObject{8, "request"}, &customObject{8, "reply"}
 
 		Convey("Normal request/reply", func() {
 			// channel to force reply after request is added to table
 			sequencer := make(chan struct{})
 			Convey("Parallel", xtest.Parallel(func(sc *xtest.SC) {
-				err := ftw.AddRequest(request)
-				sc.SoMsg("err add", err, ShouldBeNil)
+				err := wt.addRequest(request)
+				sc.SoMsg("add err", err, ShouldBeNil)
 				sequencer <- struct{}{}
 				ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancelF()
-				recvReply, err := ftw.WaitForReply(ctx, request)
-				sc.SoMsg("err wait", err, ShouldBeNil)
+				recvReply, err := wt.waitForReply(ctx, request)
+				sc.SoMsg("wait err", err, ShouldBeNil)
 				sc.SoMsg("reply", recvReply, ShouldResemble, reply)
 			}, func(sc *xtest.SC) {
 				<-sequencer
-				err := ftw.Reply(reply)
-				sc.SoMsg("err reply", err, ShouldBeNil)
+				found, err := wt.reply(reply)
+				sc.SoMsg("reply err", err, ShouldBeNil)
+				sc.SoMsg("reply found", found, ShouldBeTrue)
 			}))
 		})
 
@@ -52,35 +53,48 @@ func Test_FunctionWT_Wait(t *testing.T) {
 			// channel to force reply after request is added to table
 			sequencer := make(chan struct{})
 			Convey("Parallel", xtest.Parallel(func(sc *xtest.SC) {
-				err := ftw.AddRequest(request)
+				err := wt.addRequest(request)
 				sc.SoMsg("err add", err, ShouldBeNil)
 				sequencer <- struct{}{}
 				// Ignore reply to force duplicate reply detection
 			}, func(sc *xtest.SC) {
 				<-sequencer
-				err := ftw.Reply(reply)
-				sc.SoMsg("err reply #1", err, ShouldBeNil)
-				err = ftw.Reply(reply)
-				sc.SoMsg("err reply #2", err, ShouldNotBeNil)
+				found, err := wt.reply(reply)
+				sc.SoMsg("reply #1 err", err, ShouldBeNil)
+				sc.SoMsg("reply #1 found", found, ShouldBeTrue)
+				_, err = wt.reply(reply)
+				sc.SoMsg("reply #2 err", err, ShouldNotBeNil)
 			}))
 		})
 
 		Convey("Reply without request", func() {
-			err := ftw.Reply(reply)
-			SoMsg("err reply", err, ShouldNotBeNil)
+			found, err := wt.reply(reply)
+			SoMsg("reply err", err, ShouldBeNil)
+			SoMsg("reply found", found, ShouldBeFalse)
 		})
 
 		Convey("Reply with deleted request", func() {
-			err := ftw.AddRequest(request)
-			SoMsg("err add", err, ShouldBeNil)
+			err := wt.addRequest(request)
+			SoMsg("add err", err, ShouldBeNil)
 			ctx, cancelF := context.WithTimeout(context.Background(), 10*time.Millisecond)
 			defer cancelF()
-			recvReply, err := ftw.WaitForReply(ctx, request)
-			SoMsg("err wait", err, ShouldNotBeNil)
+			recvReply, err := wt.waitForReply(ctx, request)
+			SoMsg("wait err", err, ShouldNotBeNil)
 			SoMsg("reply", recvReply, ShouldBeNil)
-			ftw.CancelRequest(request)
-			err = ftw.Reply(reply)
-			SoMsg("err reply", err, ShouldNotBeNil)
+			wt.cancelRequest(request)
+			found, err := wt.reply(reply)
+			SoMsg("reply err", err, ShouldBeNil)
+			SoMsg("reply found", found, ShouldBeFalse)
+		})
+
+		Convey("Method call on destroyed table", func() {
+			wt.Destroy()
+			err := wt.addRequest(request)
+			SoMsg("addRequest err", err, ShouldNotBeNil)
+			_, err = wt.waitForReply(context.TODO(), request)
+			SoMsg("waitForReply err", err, ShouldNotBeNil)
+			_, err = wt.reply(request)
+			SoMsg("reply err", err, ShouldNotBeNil)
 		})
 	})
 }
