@@ -21,7 +21,7 @@
 // NotifyUnreliable (send a message, return immediately).
 //
 // A Dispatcher can be customized by implementing interface MessageAdapter. The
-// inteface instructs the dispatcher how to convert a message to its raw
+// interface instructs the dispatcher how to convert a message to its raw
 // representation, how to parse a raw representation into a message, how to
 // determine which messages are replies and how to extract keys (unique IDs)
 // from messages.
@@ -40,6 +40,7 @@ package disp
 import (
 	"context"
 	"net"
+	"sync"
 
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
@@ -68,10 +69,13 @@ type Dispatcher struct {
 	adapter MessageAdapter
 	// Closed when background goroutine shuts down
 	stoppedC chan struct{}
-	// Closed when Close is called
-	closeC chan struct{}
 	// Logger used by the background goroutine
 	log log.Logger
+
+	// Protect against double close
+	lock sync.Mutex
+	// Closed when Close is called
+	closeC chan struct{}
 }
 
 // New creates a new dispatcher backed by transport t, and using adapter to
@@ -100,23 +104,23 @@ func NewDispatcher(t messaging.Transport, adapter MessageAdapter, logger log.Log
 // No type validations are performed. Upper layer code should verify whether
 // the message is the expected type.
 func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr) (Message, error) {
-	if err := d.waitTable.AddRequest(msg); err != nil {
-		return nil, infra.WrapInternalError(err, "op", "waitTable.AddRequest")
+	if err := d.waitTable.addRequest(msg); err != nil {
+		return nil, infra.NewInternalError(err, "op", "waitTable.AddRequest")
 	}
 	// Delete request entry when we exit this context
-	defer d.waitTable.CancelRequest(msg)
+	defer d.waitTable.cancelRequest(msg)
 
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return nil, infra.WrapAdapterError(err, "op", "waitTable.MsgToRaw")
+		return nil, infra.NewAdapterError(err, "op", "waitTable.MsgToRaw")
 	}
 	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return nil, infra.WrapTransportError(err, "op", "SendMsgTo")
+		return nil, infra.NewTransportError(err, "op", "SendMsgTo")
 	}
 
-	reply, err := d.waitTable.WaitForReply(ctx, msg)
+	reply, err := d.waitTable.waitForReply(ctx, msg)
 	if err != nil {
-		return nil, infra.WrapInternalError(err, "op", "waitTable.WaitForReply")
+		return nil, infra.NewInternalError(err, "op", "waitTable.WaitForReply")
 	}
 	return reply, nil
 }
@@ -126,10 +130,10 @@ func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr)
 func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return infra.WrapAdapterError(err, "op", "MsgToRaw")
+		return infra.NewAdapterError(err, "op", "MsgToRaw")
 	}
 	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return infra.WrapTransportError(err, "op", "SendMsgTo")
+		return infra.NewTransportError(err, "op", "SendMsgTo")
 	}
 	return nil
 }
@@ -138,10 +142,10 @@ func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) 
 func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg Message, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return infra.WrapAdapterError(err, "op", "MsgToRaw")
+		return infra.NewAdapterError(err, "op", "MsgToRaw")
 	}
 	if err := d.transport.SendUnreliableMsgTo(ctx, b, address); err != nil {
-		return infra.WrapTransportError(err, "op", "SendUnreliableMsgTo")
+		return infra.NewTransportError(err, "op", "SendUnreliableMsgTo")
 	}
 	return nil
 }
@@ -182,19 +186,23 @@ func (d *Dispatcher) recvNext() {
 	// Once the transport is closed, RecvFrom returns immediately.
 	b, address, err := d.transport.RecvFrom(context.TODO())
 	if err != nil {
-		d.log.Warn(infra.WrapTransportError(err, "op", "RecvFrom").Error())
+		d.log.Warn(infra.NewTransportError(err, "op", "RecvFrom").Error())
 		return
 	}
 
 	msg, err := d.adapter.RawToMsg(b)
 	if err != nil {
-		d.log.Warn(infra.WrapAdapterError(err, "op", "RawToMsg").Error())
+		d.log.Warn(infra.NewAdapterError(err, "op", "RawToMsg").Error())
 		return
 	}
-	if d.adapter.MsgIsReply(msg) {
-		if err := d.waitTable.Reply(msg); err != nil {
-			d.log.Warn(infra.WrapInternalError(err, "op", "waitTable.Reply").Error())
-		}
+
+	found, err := d.waitTable.reply(msg)
+	if err != nil {
+		d.log.Warn(infra.NewInternalError(err, "op", "waitTable.Reply").Error())
+		return
+	}
+	if found {
+		// If a waiting goroutine was found the message has already been forwarded
 		return
 	}
 
@@ -209,7 +217,15 @@ func (d *Dispatcher) recvNext() {
 
 // Close shuts down the background goroutine and closes the transport.
 func (d *Dispatcher) Close(ctx context.Context) error {
-	close(d.closeC)
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	select {
+	case <-d.closeC:
+		// Some other goroutine already called Close()
+		return nil
+	default:
+		close(d.closeC)
+	}
 	err := d.transport.Close(ctx)
 	if err != nil {
 		return NewCError("Unable to close transport", "err", err)
