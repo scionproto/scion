@@ -41,15 +41,15 @@ func NewCtxDoneError(ctx ...interface{}) error {
 	return NewCErrorData(strCtxDoneError, meta, ctx...)
 }
 
-func WrapAdapterError(err error, ctx ...interface{}) error {
+func NewAdapterError(err error, ctx ...interface{}) error {
 	return WrapError(err, strAdapterError, ctx...)
 }
 
-func WrapTransportError(err error, ctx ...interface{}) error {
+func NewTransportError(err error, ctx ...interface{}) error {
 	return WrapError(err, strTransportError, ctx...)
 }
 
-func WrapInternalError(err error, ctx ...interface{}) error {
+func NewInternalError(err error, ctx ...interface{}) error {
 	return WrapError(err, strInternalError, ctx...)
 }
 
