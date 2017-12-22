@@ -57,11 +57,6 @@ func (t testAdapterT) MsgKey(msg Message) string {
 	return strconv.Itoa(o.id)
 }
 
-func (t testAdapterT) MsgIsReply(msg Message) bool {
-	o := msg.(*customObject)
-	return o.str == "reply"
-}
-
 type customObject struct {
 	id  int
 	str string
