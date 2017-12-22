@@ -63,9 +63,10 @@ func TestHooksSrcDstIA(t *testing.T) {
 
 		ia, err = rpkt.DstIA()
 		SoMsg("Destination address wrong on second getter call", ia, ShouldEqual, dstIA)
-		SoMsg("Destination address must only be fetched once, cached value must be reused on the second call",
-			fetched, ShouldEqual, 1)
-		SoMsg("Should be no error when calling destination address getter for cached value", err, ShouldBeNil)
+		SoMsg("Destination address must only be fetched once, cached value must be reused on the"+
+			" second call", fetched, ShouldEqual, 1)
+		SoMsg("Should be no error when calling destination address getter for cached value", err,
+			ShouldBeNil)
 
 		ia, err = rpkt.SrcIA()
 		SoMsg("Source address wrong", ia, ShouldEqual, srcIA)
@@ -73,7 +74,8 @@ func TestHooksSrcDstIA(t *testing.T) {
 
 		ia, err = rpkt.SrcIA()
 		SoMsg("Source address wrong on cached getter call", ia, ShouldEqual, srcIA)
-		SoMsg("Should be no error when calling destination address getter for cached value", err, ShouldBeNil)
+		SoMsg("Should be no error when calling destination address getter for cached value", err,
+			ShouldBeNil)
 		SoMsg("Two fetches are expected (both source and destination address, each exactly once)",
 			fetched, ShouldEqual, 2)
 	})
@@ -104,9 +106,10 @@ func TestHooksSrcDstHost(t *testing.T) {
 
 		host, err = rpkt.DstHost()
 		SoMsg("Destination host wrong on second getter call", host, ShouldEqual, dstHost)
-		SoMsg("Should be no error when calling destination host getter for cached value", err, ShouldBeNil)
-		SoMsg("Destination host must only be fetched once, cached value must be reused on the second call",
-			fetched, ShouldEqual, 1)
+		SoMsg("Should be no error when calling destination host getter for cached value", err,
+			ShouldBeNil)
+		SoMsg("Destination host must only be fetched once, cached value must be reused on the "+
+			"second call", fetched, ShouldEqual, 1)
 
 		host, err = rpkt.SrcHost()
 		SoMsg("Source host wrong", host, ShouldEqual, srcHost)
@@ -114,7 +117,8 @@ func TestHooksSrcDstHost(t *testing.T) {
 
 		host, err = rpkt.SrcHost()
 		SoMsg("Source host wrong on cached getter call", host, ShouldEqual, srcHost)
-		SoMsg("Should be no error when calling destination host getter for cached value", err, ShouldBeNil)
+		SoMsg("Should be no error when calling destination host getter for cached value", err,
+			ShouldBeNil)
 		SoMsg("Two fetches are expected (both source and destination host, each exactly once)",
 			fetched, ShouldEqual, 2)
 	})
@@ -138,7 +142,8 @@ func TestHooksInfof(t *testing.T) {
 		SoMsg("Wrong InfoField on the fetch call", *info, ShouldResemble, infof)
 
 		info, err = rpkt.InfoF()
-		SoMsg("Should be no error when calling InfoField getter for cached value", err, ShouldBeNil)
+		SoMsg("Should be no error when calling InfoField getter for cached value", err,
+			ShouldBeNil)
 		SoMsg("Wrong InfoField on the cached getter call", *info, ShouldResemble, infof)
 		SoMsg("Regardless of the two calls, only one fetch of InfoField expected", fetched,
 			ShouldEqual, 1)
@@ -163,9 +168,11 @@ func TestHooksHopf(t *testing.T) {
 		SoMsg("Should be no error when calling HopF for fetch", err, ShouldBeNil)
 
 		hopf, err = rpkt.HopF()
-		SoMsg("Wrong HopF on the cached getter call", hopf.VerifyOnly, ShouldEqual, hopfield.VerifyOnly)
+		SoMsg("Wrong HopF on the cached getter call", hopf.VerifyOnly, ShouldEqual,
+			hopfield.VerifyOnly)
 		SoMsg("Should be no error when calling HopF getter for cached value", err, ShouldBeNil)
-		SoMsg("Regardless of the two calls, only one fetch of HopF expected", fetched, ShouldEqual, 1)
+		SoMsg("Regardless of the two calls, only one fetch of HopF expected", fetched,
+			ShouldEqual, 1)
 	})
 }
 
@@ -187,7 +194,8 @@ func TestHooksUp(t *testing.T) {
 		up, err = rpkt.UpFlag()
 		SoMsg("Wrong UpFlag on the cached getter call", *up, ShouldBeTrue)
 		SoMsg("Should be no error when calling UpFlag getter for cached value", err, ShouldBeNil)
-		SoMsg("Regardless of the two calls, only one fetch of UpFlag expected", fetched, ShouldEqual, 1)
+		SoMsg("Regardless of the two calls, only one fetch of UpFlag expected", fetched,
+			ShouldEqual, 1)
 	})
 }
 
@@ -205,14 +213,14 @@ func TestLifecycle(t *testing.T) {
 
 		rpkt.Release()
 		SoMsg("Release() must decrement ref count from 3 to 2", rpkt.refCnt, ShouldEqual, 2)
-		SoMsg("Incorrectly freed, 2 refs remaining", free, ShouldBeFalse)
+		SoMsg("Not freed yet, 2 refs remaining", free, ShouldBeFalse)
 
 		rpkt.Release()
-		SoMsg("Incorrectly freed, 1 ref remaining", free, ShouldBeFalse)
+		SoMsg("Not freed yet, 1 ref remaining", free, ShouldBeFalse)
 
 		rpkt.Release()
 		SoMsg("Should be no more refs remaining by now", rpkt.refCnt, ShouldEqual, 0)
-		SoMsg("Due no refs remaining by now be freed now", free, ShouldBeTrue)
+		SoMsg("Freed due to no refs remaining", free, ShouldBeTrue)
 
 		rpkt.Reset()
 		SoMsg("Reset() must set refcount to 1", rpkt.refCnt, ShouldEqual, 1)
