@@ -24,7 +24,9 @@ import (
 
 type waitTable struct {
 	keyF     func(Message) string
-	t        replyChannelMap
+	replyMap replyChannelMap
+
+	lock     sync.Mutex
 	destroyC chan struct{}
 }
 
@@ -35,17 +37,14 @@ func newWaitTable(keyF func(Message) string) *waitTable {
 	}
 }
 
-func (wt *waitTable) AddRequest(object Message) error {
+func (wt *waitTable) addRequest(object Message) error {
 	select {
 	case <-wt.destroyC:
 		return common.NewCError("Table destroyed")
 	default:
-		// Continue below
 	}
-	// Destroy can be called between now and when we exit this function.
-
 	replyChannel := make(chan Message, 1)
-	_, loaded := wt.t.LoadOrStore(wt.keyF(object), replyChannel)
+	_, loaded := wt.replyMap.LoadOrStore(wt.keyF(object), replyChannel)
 	if loaded {
 		return common.NewCError("Duplicate key", "key", wt.keyF(object))
 	}
@@ -53,24 +52,20 @@ func (wt *waitTable) AddRequest(object Message) error {
 	return nil
 }
 
-func (wt *waitTable) CancelRequest(object Message) {
-	wt.t.Delete(wt.keyF(object))
+func (wt *waitTable) cancelRequest(object Message) {
+	wt.replyMap.Delete(wt.keyF(object))
 }
 
-func (wt *waitTable) WaitForReply(ctx context.Context, object Message) (Message, error) {
+func (wt *waitTable) waitForReply(ctx context.Context, object Message) (Message, error) {
 	select {
 	case <-wt.destroyC:
 		return nil, common.NewCError("Table destroyed")
 	default:
-		// Continue below
 	}
-	// Destroy can be called between now and when we exit this function.
-
-	replyChannel, loaded := wt.t.Load(wt.keyF(object))
+	replyChannel, loaded := wt.replyMap.Load(wt.keyF(object))
 	if !loaded {
 		return nil, common.NewCError("Key not found", "key", wt.keyF(object))
 	}
-
 	select {
 	case reply := <-replyChannel:
 		return reply, nil
@@ -81,20 +76,19 @@ func (wt *waitTable) WaitForReply(ctx context.Context, object Message) (Message,
 	}
 }
 
-func (wt *waitTable) Reply(object Message) error {
+// reply sends object to the waiting goroutine. If a waiting goroutine is
+// found, the returned bool value is true. If no waiting goroutine is found,
+// the returned bool value is false and error is nil.
+func (wt *waitTable) reply(object Message) (bool, error) {
 	select {
 	case <-wt.destroyC:
-		return common.NewCError("Table destroyed")
+		return false, common.NewCError("Table destroyed")
 	default:
-		// Continue below
 	}
-	// Destroy can be called between now and when we exit this function.
-
-	replyChannel, loaded := wt.t.Load(wt.keyF(object))
+	replyChannel, loaded := wt.replyMap.Load(wt.keyF(object))
 	if !loaded {
-		return common.NewCError("Reply received, but no one is waiting", "key", wt.keyF(object))
+		return false, nil
 	}
-
 	select {
 	case replyChannel <- object:
 		// NOTE(scrye): Do not close the channel to prevent future writers from
@@ -106,13 +100,20 @@ func (wt *waitTable) Reply(object Message) error {
 	default:
 		// Duplicate reply and the channel is already full. While this is not
 		// an error, it is useful to log.
-		return common.NewCError("Duplicate reply key", "key", wt.keyF(object))
+		return false, common.NewCError("Duplicate reply key", "key", wt.keyF(object))
 	}
-	return nil
+	return true, nil
 }
 
 func (wt *waitTable) Destroy() {
-	close(wt.destroyC)
+	wt.lock.Lock()
+	defer wt.lock.Unlock()
+	select {
+	case <-wt.destroyC:
+		// Channel already closed by some other goroutine
+	default:
+		close(wt.destroyC)
+	}
 }
 
 type replyChannelMap sync.Map
