@@ -22,7 +22,7 @@ import (
 )
 
 var _ error = (*Error)(nil)
-var _ common.ErrorNest = (*Error)(nil)
+var _ common.ErrorNester = (*Error)(nil)
 
 type Error struct {
 	CT   ClassType

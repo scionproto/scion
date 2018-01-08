@@ -21,22 +21,22 @@ import (
 	"github.com/scionproto/scion/go/lib/assert"
 )
 
-// ErrorMsg allows extracting the message from an error. This means a caller
+// ErrorMsger allows extracting the message from an error. This means a caller
 // can determine the type of error by comparing the returned message with a
 // const error string. E.g.:
 // if GetErrorMsg(err) == addr.ErrorBadHostAddrType {
 //    // Handle bad host addr error
 // }
-type ErrorMsg interface {
+type ErrorMsger interface {
+	error
 	GetMsg() string
 }
 
-// GetErrorMsg extracts the message from e, if e implements the ErrorMsg
-// interface. As a fall-back, if e implements ErrorNest, GetErrorMsg recurses on
+// GetErrorMsg extracts the message from e, if e implements the ErrorMsger
+// interface. As a fall-back, if e implements ErrorNester, GetErrorMsg recurses on
 // the nested error. Otherwise returns an empty string.
 func GetErrorMsg(e error) string {
-	if e, _ := e.(ErrorMsg); e != nil {
-		// e implements ErrorMsg and is not nil
+	if e, _ := e.(ErrorMsger); e != nil {
 		return e.GetMsg()
 	}
 	if n := GetNestedError(e); n != nil {
@@ -45,15 +45,15 @@ func GetErrorMsg(e error) string {
 	return ""
 }
 
-// ErrorNest allows recursing into nested errors.
-type ErrorNest interface {
+// ErrorNester allows recursing into nested errors.
+type ErrorNester interface {
+	error
 	GetErr() error
 }
 
 // GetNestedError returns the nested error, if any. Returns nil otherwise.
 func GetNestedError(e error) error {
-	if n, _ := e.(ErrorNest); n != nil {
-		// e implements ErrorNest and is not nil
+	if n, _ := e.(ErrorNester); n != nil {
 		return n.GetErr()
 	}
 	return nil
@@ -61,14 +61,14 @@ func GetNestedError(e error) error {
 
 // Temporary allows signalling of a temporary error. Based on https://golang.org/pkg/net/#Error
 type Temporary interface {
+	error
 	Temporary() bool
 }
 
-// IsTemporaryErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNest,
+// IsTemporaryErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNester,
 // IsTemporaryErr recurses on the nested error. Otherwise returns false.
 func IsTemporaryErr(e error) bool {
 	if t, _ := e.(Temporary); t != nil {
-		// e implements Temporary and is not nil
 		return t.Temporary()
 	}
 	if n := GetNestedError(e); n != nil {
@@ -79,14 +79,14 @@ func IsTemporaryErr(e error) bool {
 
 // Temporary allows signalling of a timeout error. Based on https://golang.org/pkg/net/#Error
 type Timeout interface {
+	error
 	Timeout() bool
 }
 
-// IsTimeoutErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNest,
+// IsTimeoutErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNester,
 // IsTimeoutErr recurses on the nested error. Otherwise returns false.
 func IsTimeoutErr(e error) bool {
 	if t, _ := e.(Timeout); t != nil {
-		// e implements Timeout and is not nil
 		return t.Timeout()
 	}
 	if n := GetNestedError(e); n != nil {
@@ -96,10 +96,10 @@ func IsTimeoutErr(e error) bool {
 }
 
 var _ error = BasicError{}
-var _ ErrorMsg = BasicError{}
-var _ ErrorNest = BasicError{}
+var _ ErrorMsger = BasicError{}
+var _ ErrorNester = BasicError{}
 
-// BasicError is a simple error type that implements ErrorMsg and ErrorNest,
+// BasicError is a simple error type that implements ErrorMsger and ErrorNester,
 // and can contain context (slice of [string, val, string, val...]) for logging purposes.
 type BasicError struct {
 	// Error message
@@ -110,6 +110,8 @@ type BasicError struct {
 	Err error
 }
 
+// NewBasicError creates a new BasicError, with e as the embedded error (can be nil), with logCtx
+// being a list of string/val pairs.
 func NewBasicError(msg string, e error, logCtx ...interface{}) error {
 	if assert.On {
 		assert.Must(len(logCtx)%2 == 0, "Log context must have an even number of elements")
