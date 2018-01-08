@@ -1,4 +1,4 @@
-// Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,27 +16,21 @@ package common
 
 import (
 	"fmt"
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-var _ Payload = (*RawBytes)(nil)
-
-type RawBytes []byte
-
-func (r RawBytes) String() string {
-	return fmt.Sprintf("%x", []byte(r))
-}
-
-func (r RawBytes) Len() int {
-	return len(r)
-}
-
-func (r RawBytes) Copy() (Payload, error) {
-	return append(RawBytes{}, r...), nil
-}
-
-func (r RawBytes) WritePld(b RawBytes) (int, error) {
-	if len(b) < len(r) {
-		return 0, NewBasicError("Insufficient space", nil, "expected", len(r), "actual", len(b))
-	}
-	return copy(b, r), nil
+func Test_FmtError(t *testing.T) {
+	var err error = NewBasicError(
+		"level0\nlevel0.1",
+		fmt.Errorf("level1\nlevel1.1"),
+		"k0", "v0", "k1", 1,
+	)
+	Convey("FmtError formats correctly", t, func() {
+		So(FmtError(err), ShouldEqual, `level0
+    >   level0.1 k0="v0" k1="1"
+    level1
+    >   level1.1`)
+	})
 }

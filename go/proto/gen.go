@@ -65,13 +65,16 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 	case {{.}}_TypeID:
 		v, err := NewRoot{{.}}(seg)
 		if err != nil {
-			return blank, common.NewCError("Error creating new {{.}} capnp struct", "err", err)
+			return blank, common.NewBasicError("Error creating new {{.}} capnp struct", err)
 		}
 		return v.Struct, nil
 	{{- end }}
 	}
-	return blank, common.NewCError(
-		"Unsupported capnp struct type (i.e. not listed in go/proto/gen.go:RootTypes)", "id", id)
+	return blank, common.NewBasicError(
+		"Unsupported capnp struct type (i.e. not listed in go/proto/gen.go:RootTypes)",
+		nil,
+		"id", id,
+	)
 }
 {{ range .RootTypes }}
 func (s {{.}}) GetStruct() capnp.Struct {

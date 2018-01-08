@@ -147,7 +147,7 @@ func newConn(c net.Conn) *Conn {
 func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
 	if public.Addr.Type() == addr.HostTypeNone {
-		return nil, 0, common.NewCError("Cannot register with NoneType address")
+		return nil, 0, common.NewBasicError("Cannot register with NoneType address", nil)
 	}
 
 	deadline := time.Now().Add(timeout)
@@ -179,7 +179,7 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, 
 	n, err := writeAppAddr(request[offset:], public)
 	if err != nil {
 		conn.Close()
-		return nil, 0, common.NewCError("Invalid public address", "err", err)
+		return nil, 0, common.NewBasicError("Invalid public address", err)
 	}
 	offset += n
 	if bind != nil {
@@ -187,7 +187,7 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, 
 		n, err = writeAppAddr(request[offset:], bind)
 		if err != nil {
 			conn.Close()
-			return nil, 0, common.NewCError("Invalid bind address", "err", err)
+			return nil, 0, common.NewBasicError("Invalid bind address", err)
 		}
 		offset += n
 	}
@@ -209,7 +209,7 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, 
 	replyPort := common.Order.Uint16(reply[:read])
 	if public.Port != 0 && public.Port != replyPort {
 		conn.Close()
-		return nil, 0, common.NewCError("Port mismatch when registering with dispatcher",
+		return nil, 0, common.NewBasicError("Port mismatch when registering with dispatcher", nil,
 			"expected", public.Port, "actual", replyPort)
 	}
 
@@ -223,7 +223,7 @@ func writeAppAddr(request []byte, a *AppAddr) (int, error) {
 	a.writePort(request[offset : offset+2])
 	offset += 2
 	if a.Addr.Type() == addr.HostTypeNone {
-		return offset, common.NewCError("Cannot register NoneType address")
+		return offset, common.NewBasicError("Cannot register NoneType address", nil)
 	}
 	request[offset] = byte(a.Addr.Type())
 	offset++
@@ -322,7 +322,8 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	header := peekData[:hdrLen]
 	if bytes.Compare(header[:len(cookie)], cookie) != 0 {
 		conn.Close()
-		return false, common.NewCError("ReliableSock protocol desynchronized", "conn", conn)
+		return false, common.NewBasicError("ReliableSock protocol desynchronized", nil,
+			"conn", conn)
 	}
 	peekOffset += len(cookie)
 	rcvdAddrType := addr.HostAddrType(header[peekOffset])
@@ -345,12 +346,12 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 		lastHop, err = AppAddrFromRaw(addrBuf, rcvdAddrType)
 		if err != nil {
 			conn.Close()
-			return false, common.NewCError("Unable to parse received address", "err", err)
+			return false, common.NewBasicError("Unable to parse received address", err)
 		}
 		peekOffset += addrLen + 2
 	default:
 		conn.Close()
-		return false, common.NewCError("Unsupported address type", "type", rcvdAddrType)
+		return false, common.NewBasicError("Unsupported address type", nil, "type", rcvdAddrType)
 	}
 
 	// Read the payload
@@ -432,7 +433,7 @@ func (conn *Conn) writeN(bufs []Msg) (int, error) {
 	for copied < index {
 		n, err := conn.UnixConn.Write(conn.sendBuf[copied:index])
 		if err != nil {
-			return 0, common.NewCError("Error writing to UNIX socket", "err", err)
+			return 0, common.NewBasicError("Error writing to UNIX socket", err)
 		}
 		copied += n
 	}
@@ -473,10 +474,10 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	if len(conn.sendBuf[index:]) < hdrLen+destLen+len(msg.Buffer) {
 		if copiedMsgs == 0 {
 			// We are unable to fit the first message in the buffer
-			return 0, 0, common.NewCError("Unable to copy first message",
-				"details", "message too large", "bufSize",
-				len(conn.sendBuf[index:]), "want",
-				hdrLen+destLen+len(msg.Buffer))
+			return 0, 0, common.NewBasicError("Unable to copy first message", nil,
+				"details", "message too large", "bufSize", len(conn.sendBuf[index:]),
+				"want", hdrLen+destLen+len(msg.Buffer),
+			)
 		}
 		return index, copiedMsgs, nil
 	}
@@ -510,7 +511,7 @@ type Listener struct {
 func Listen(laddr string) (*Listener, error) {
 	l, err := net.Listen("unix", laddr)
 	if err != nil {
-		return nil, common.NewCError("Unable to listen on address", "addr", laddr)
+		return nil, common.NewBasicError("Unable to listen on address", err, "addr", laddr)
 	}
 	return &Listener{l.(*net.UnixListener)}, nil
 }

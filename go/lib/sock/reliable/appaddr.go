@@ -42,8 +42,8 @@ func AppAddrFromRaw(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, 
 	}
 	// Add 2 for port
 	if len(buf) < int(addrLen)+2 {
-		return nil, common.NewCError("Buffer too small for address type", "expected", addrLen+2,
-			"actual", len(buf))
+		return nil, common.NewBasicError("Buffer too small for address type", nil,
+			"expected", addrLen+2, "actual", len(buf))
 	}
 
 	a.Addr, err = addr.HostFromRaw(buf, addrType)
@@ -56,7 +56,7 @@ func AppAddrFromRaw(buf common.RawBytes, addrType addr.HostAddrType) (*AppAddr, 
 
 func (a *AppAddr) Write(buf common.RawBytes) (int, error) {
 	if len(buf) < a.Len() {
-		return 0, common.NewCError("Unable to write AppAddr, buffer too small",
+		return 0, common.NewBasicError("Unable to write AppAddr, buffer too small", nil,
 			"expected", a.Len(), "actual", len(buf))
 	}
 	a.writeAddr(buf)

@@ -69,11 +69,11 @@ func (d *Dispatcher) Run() error {
 	var err error
 	extConn, err = snet.ListenSCION("udp4", d.laddr)
 	if err != nil {
-		return common.NewCError("Unable to initialize extConn", "err", err)
+		return common.NewBasicError("Unable to initialize extConn", err)
 	}
 	_, tunIO, err = xnet.ConnectTun(tunDevName)
 	if err != nil {
-		return common.NewCError("Unable to connect to tunIO", "err", err)
+		return common.NewBasicError("Unable to connect to tunIO", err)
 	}
 	d.read()
 	return nil

@@ -40,7 +40,7 @@ const (
 func MetaFromRaw(b []byte) (*Meta, error) {
 	m := &Meta{}
 	if err := restruct.Unpack(b, binary.BigEndian, m); err != nil {
-		return nil, common.NewCError("Failed to unpack SCMP Metadata", "err", err)
+		return nil, common.NewBasicError("Failed to unpack SCMP Metadata", err)
 	}
 	return m, nil
 }
@@ -56,7 +56,7 @@ func (m *Meta) Copy() *Meta {
 func (m *Meta) Write(b common.RawBytes) error {
 	out, err := restruct.Pack(common.Order, m)
 	if err != nil {
-		return common.NewCError("Error packing SCMP Metadata", "err", err)
+		return common.NewBasicError("Error packing SCMP Metadata", err)
 	}
 	copy(b, out)
 	return nil

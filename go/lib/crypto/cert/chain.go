@@ -61,8 +61,8 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 		// not exhaust the available memory.
 		byteLen := binary.LittleEndian.Uint32(raw[:4])
 		if byteLen > MaxChainByteLength {
-			return nil, common.NewCError("Certificate chain LZ4 block too large", "max",
-				MaxChainByteLength, "actual", byteLen)
+			return nil, common.NewBasicError("Certificate chain LZ4 block too large", nil,
+				"max", MaxChainByteLength, "actual", byteLen)
 		}
 		buf := make([]byte, byteLen)
 		n, err := lz4.UncompressBlock(raw[4:], buf, 0)

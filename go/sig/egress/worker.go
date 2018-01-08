@@ -164,7 +164,7 @@ func (w *worker) write(f *frame) error {
 	snetAddr := w.currSig.EncapSnetAddr()
 	snetAddr.Path = spath.New(w.currPathEntry.Path.FwdPath)
 	if err := snetAddr.Path.InitOffsets(); err != nil {
-		return common.NewCError("Error initializing path offsets", "err", err)
+		return common.NewBasicError("Error initializing path offsets", err)
 	}
 	snetAddr.NextHopHost = w.currPathEntry.HostInfo.Host()
 	snetAddr.NextHopPort = w.currPathEntry.HostInfo.Port
@@ -180,7 +180,7 @@ func (w *worker) write(f *frame) error {
 	}
 	bytesWritten, err := w.sess.conn.WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
-		return common.NewCError("Egress write error", "err", err)
+		return common.NewBasicError("Egress write error", err)
 	}
 	metrics.FramesSent.WithLabelValues(w.iaString).Inc()
 	metrics.FrameBytesSent.WithLabelValues(w.iaString).Add(float64(bytesWritten))

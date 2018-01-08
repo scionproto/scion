@@ -49,24 +49,24 @@ func IAFromRaw(b common.RawBytes) *ISD_AS {
 func IAFromString(s string) (*ISD_AS, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
-		return nil, common.NewCError("Invalid ISD-AS", "val", s)
+		return nil, common.NewBasicError("Invalid ISD-AS", nil, "val", s)
 	}
 	isd, err := strconv.Atoi(parts[0])
 	if err != nil {
-		e := err.(*strconv.NumError)
-		return nil, common.NewCError("Unable to parse ISD", "val", s, "err", e.Err)
+		// err.Error() will contain the original value
+		return nil, common.NewBasicError("Unable to parse ISD", err)
 	}
 	if isd > MaxISD {
-		return nil, common.NewCError("Invalid ISD-AS: ISD too large",
+		return nil, common.NewBasicError("Invalid ISD-AS: ISD too large", nil,
 			"max", MaxISD, "actual", isd, "raw", s)
 	}
 	as, err := strconv.Atoi(parts[1])
 	if err != nil {
-		e := err.(*strconv.NumError)
-		return nil, common.NewCError("Unable to parse AS", "val", s, "err", e.Err)
+		// err.Error() will contain the original value
+		return nil, common.NewBasicError("Unable to parse AS", err)
 	}
 	if as > MaxAS {
-		return nil, common.NewCError("Invalid ISD-AS: AS too large",
+		return nil, common.NewBasicError("Invalid ISD-AS: AS too large", nil,
 			"max", MaxAS, "actual", as, "raw", s)
 	}
 	return &ISD_AS{I: isd, A: as}, nil

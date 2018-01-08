@@ -88,13 +88,11 @@ func (r *Router) confSig() {
 		var err error
 		var config *conf.Conf
 		if config, err = r.loadNewConfig(); err != nil {
-			cerr := err.(*common.CError)
-			log.Error("Error reloading config", cerr.Ctx...)
+			log.Error("Error reloading config", "err", common.FmtError(err))
 			continue
 		}
 		if err := r.setupNewContext(config); err != nil {
-			cerr := err.(*common.CError)
-			log.Error("Error setting up new context", cerr.Ctx...)
+			log.Error("Error setting up new context", "err", common.FmtError(err))
 			continue
 		}
 		log.Info("Config reloaded")
@@ -150,8 +148,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// Check if the packet needs to be processed locally, and if so register
 	// hooks for doing so.
 	if err := rp.NeedsLocalProcessing(); err != nil {
-		cerr := err.(*common.CError)
-		rp.Error("Error checking for local processing", cerr.Ctx...)
+		rp.Error("Error checking for local processing", "err", common.FmtError(err))
 		return
 	}
 	// Parse the packet payload, if a previous step has registered a relevant
@@ -159,8 +156,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if _, err := rp.Payload(true); err != nil {
 		// Any errors at this point are application-level, and hence not
 		// calling handlePktError, as no SCMP errors will be sent.
-		cerr := err.(*common.CError)
-		rp.Error("Error parsing payload", cerr.Ctx...)
+		rp.Error("Error parsing payload", "err", common.FmtError(err))
 		return
 	}
 	// Process the packet, if a previous step has registered a relevant hook

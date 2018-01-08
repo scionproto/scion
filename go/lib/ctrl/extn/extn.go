@@ -64,7 +64,7 @@ type CtrlExtnData struct {
 func NewCtrlExtnDataFromValues(e Extension, arenaSize int) (*CtrlExtnData, error) {
 	raw, err := e.Pack()
 	if err != nil {
-		return nil, common.NewCError("Unable to pack extension", "extn", e, "err", err)
+		return nil, common.NewBasicError("Unable to pack extension", err, "extn", e)
 	}
 	return &CtrlExtnData{Type: e.CtrlExtnType(), Data: raw}, nil
 }

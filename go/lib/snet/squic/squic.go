@@ -46,7 +46,7 @@ func Init(keyPath, pemPath string) error {
 	}
 	cert, err := tls.LoadX509KeyPair(pemPath, keyPath)
 	if err != nil {
-		return common.NewCError("squic: Unable to load TLS cert/key", "err", err)
+		return common.NewBasicError("squic: Unable to load TLS cert/key", err)
 	}
 	srvTlsCfg.Certificates = []tls.Certificate{cert}
 	return nil
@@ -73,7 +73,7 @@ func ListenSCION(network *snet.Network, laddr *snet.Addr) (quic.Listener, error)
 func ListenSCIONWithBindSVC(network *snet.Network, laddr, baddr *snet.Addr,
 	svc addr.HostSVC) (quic.Listener, error) {
 	if len(srvTlsCfg.Certificates) == 0 {
-		return nil, common.NewCError("squic: No server TLS certificate configured")
+		return nil, common.NewBasicError("squic: No server TLS certificate configured", nil)
 	}
 	sconn, err := sListen(network, laddr, baddr, svc)
 	if err != nil {

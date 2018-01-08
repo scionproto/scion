@@ -51,8 +51,8 @@ func WriteRoot(c Cerealizable, b common.RawBytes) (int, error) {
 	raw := &util.Raw{B: b}
 	enc := capnp.NewPackedEncoder(raw)
 	if err := enc.Encode(msg); err != nil {
-		return 0, common.NewCError("Failed to encode capnp struct",
-			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
+		return 0, common.NewBasicError("Failed to encode capnp struct", err,
+			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	return raw.Offset, nil
 }
@@ -65,8 +65,8 @@ func PackRoot(c Cerealizable) (common.RawBytes, error) {
 	}
 	raw, err := msg.MarshalPacked()
 	if err != nil {
-		return nil, common.NewCError("Failed to marshal capnp struct",
-			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
+		return nil, common.NewBasicError("Failed to marshal capnp struct", err,
+			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	return raw, nil
 }
@@ -74,16 +74,16 @@ func PackRoot(c Cerealizable) (common.RawBytes, error) {
 func cerealInsert(c Cerealizable) (*capnp.Message, error) {
 	msg, arena, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
-		return nil, common.NewCError("Failed to create new capnp message",
-			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
+		return nil, common.NewBasicError("Failed to create new capnp message", err,
+			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	s, err := NewRootStruct(c.ProtoId(), arena)
 	if err != nil {
 		return nil, err
 	}
 	if err := pogs.Insert(uint64(c.ProtoId()), s, c); err != nil {
-		return nil, common.NewCError("Failed to insert struct into capnp message",
-			"id", c.ProtoId(), "type", common.TypeOf(c), "err", err)
+		return nil, common.NewBasicError("Failed to insert struct into capnp message", err,
+			"id", c.ProtoId(), "type", common.TypeOf(c))
 	}
 	return msg, nil
 }
@@ -98,11 +98,11 @@ func ReadRootFromReader(r io.Reader) (capnp.Struct, error) {
 	var blank capnp.Struct
 	msg, err := capnp.NewPackedDecoder(r).Decode()
 	if err != nil {
-		return blank, common.NewCErrorData("Failed to decode capnp message", err, "err", err)
+		return blank, common.NewBasicError("Failed to decode capnp message", err)
 	}
 	rootPtr, err := msg.RootPtr()
 	if err != nil {
-		return blank, common.NewCError("Failed to get root pointer from capnp message", "err", err)
+		return blank, common.NewBasicError("Failed to get root pointer from capnp message", err)
 	}
 	return rootPtr.Struct(), nil
 }
@@ -110,7 +110,7 @@ func ReadRootFromReader(r io.Reader) (capnp.Struct, error) {
 // ParseStruct parses a capnp struct into a Cerealizable instance.
 func ParseStruct(c Cerealizable, pType ProtoIdType, s capnp.Struct) error {
 	if err := pogs.Extract(c, uint64(pType), s); err != nil {
-		return common.NewCError("Failed to extract struct from capnp message", "err", err)
+		return common.NewBasicError("Failed to extract struct from capnp message", err)
 	}
 	return nil
 }

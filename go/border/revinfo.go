@@ -59,12 +59,10 @@ func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
 	scpld, err := ctrl.NewSignedPathMgmtPld(revInfo)
 	if err != nil {
-		cerr := err.(*common.CError)
-		log.Error("Error generating RevInfo payload", cerr.Ctx...)
+		log.Error("Error generating RevInfo payload", "err", common.FmtError(err))
 		return
 	}
 	if err = r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, scpld); err != nil {
-		cerr := err.(*common.CError)
-		log.Error("Error generating RevInfo packet", cerr.Ctx...)
+		log.Error("Error generating RevInfo packet", "err", common.FmtError(err))
 	}
 }

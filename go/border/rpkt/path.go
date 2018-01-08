@@ -45,35 +45,36 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 			// this router.
 			return nil
 		}
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_PathRequired, nil)
-		return common.NewCErrorData("Path required", sdata)
+		return common.NewBasicError("Path required",
+			scmp.NewError(scmp.C_Path, scmp.T_P_PathRequired, nil, nil))
 	}
 	// A verify-only Hop Field cannot be used for routing.
 	if rp.hopF.VerifyOnly {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets())
-		return common.NewCErrorData("Hop field is VERIFY_ONLY", sdata)
+		return common.NewBasicError("Hop field is VERIFY_ONLY",
+			scmp.NewError(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets(), nil))
 	}
 	// A forward-only Hop Field cannot be used for local delivery.
 	if rp.hopF.ForwardOnly && rp.dstIA == rp.Ctx.Conf.IA {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets())
-		return common.NewCErrorData("Hop field is FORWARD_ONLY", sdata)
+		return common.NewBasicError("Hop field is FORWARD_ONLY",
+
+			scmp.NewError(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets(), nil))
 	}
 	// Check if Hop Field has expired.
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
 	if time.Now().After(hopfExpiry) {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets())
-		return common.NewCErrorData("Hop field expired", sdata, "expiry", hopfExpiry)
+		return common.NewBasicError(
+			"Hop field expired",
+			scmp.NewError(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets(), nil),
+			"expiry", hopfExpiry,
+		)
 	}
 	// Verify the Hop Field MAC.
 	hfmac := rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
 	err := rp.hopF.Verify(hfmac, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
 	rp.Ctx.Conf.HFMacPool.Put(hfmac)
-	if err != nil {
-		cerr := err.(*common.CError)
-		if cerr.Desc == spath.ErrorHopFBadMac {
-			cerr.Data = scmp.NewErrData(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets())
-		}
+	if err != nil && common.GetErrorMsg(err) == spath.ErrorHopFBadMac {
+		err = scmp.NewError(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets(), err)
 	}
 	return err
 }
@@ -83,12 +84,15 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 // destination is this router.
 func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	if ifid == nil {
-		return common.NewCError("validateLocalIF: Interface is nil")
+		return common.NewBasicError("validateLocalIF: Interface is nil", nil)
 	}
-	if _, ok := rp.Ctx.Conf.Topo.IFInfoMap[common.IFIDType(*ifid)]; !ok {
+	if _, ok := rp.Ctx.Conf.Topo.IFInfoMap[*ifid]; !ok {
 		// No such interface.
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets())
-		return common.NewCErrorData("Unknown IF", sdata, "ifid", ifid)
+		return common.NewBasicError(
+			"Unknown IF",
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets(), nil),
+			"ifid", *ifid,
+		)
 	}
 	ifstate.S.RLock()
 	info, ok := ifstate.S.M[*ifid]
@@ -115,8 +119,11 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	sinfo := scmp.NewInfoRevocation(
 		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
 		rp.DirFrom == rcmn.DirExternal, info.RawRev)
-	sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_RevokedIF, sinfo)
-	return common.NewCErrorData(errIntfRevoked, sdata, "ifid", ifid)
+	return common.NewBasicError(
+		errIntfRevoked,
+		scmp.NewError(scmp.C_Path, scmp.T_P_RevokedIF, sinfo, nil),
+		"ifid", ifid,
+	)
 }
 
 // mkInfoPathOffsets is a helper function to create an scmp.InfoPathOffsets
@@ -150,13 +157,17 @@ func (rp *RtrPkt) InfoF() (*spath.InfoField, error) {
 		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
 			// There is no path, so do nothing.
 		case hOff < rp.idxs.path: // Error
-			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewCErrorData("Info field index too small", sdata,
-				"min", rp.idxs.path/common.LineLen, "actual", rp.CmnHdr.CurrInfoF)
+			return nil, common.NewBasicError(
+				"Info field index too small",
+				scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil, nil),
+				"min", rp.idxs.path/common.LineLen, "actual", rp.CmnHdr.CurrInfoF,
+			)
 		case rp.CmnHdr.CurrInfoF > rp.CmnHdr.HdrLen: // Error
-			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil)
-			return nil, common.NewCErrorData("Info field index too large", sdata,
-				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF)
+			return nil, common.NewBasicError(
+				"Info field index too large",
+				scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadInfoFOffset, nil, nil),
+				"max", rp.CmnHdr.HdrLen, "actual", rp.CmnHdr.CurrInfoF,
+			)
 		case rp.CmnHdr.CurrInfoF < rp.CmnHdr.HdrLen: // Parse
 			var err error
 			if rp.infoF, err = spath.InfoFFromRaw(rp.Raw[hOff:]); err != nil {
@@ -191,14 +202,18 @@ func (rp *RtrPkt) HopF() (*spath.HopField, error) {
 		case rp.CmnHdr.CurrHopF == rp.CmnHdr.CurrInfoF:
 			// There is no path, so do nothing.
 		case hOff < iOff+spath.InfoFieldLength: // Error
-			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewCErrorData("Hop field index too small", sdata, "min",
-				(iOff+spath.InfoFieldLength)/common.LineLen, "actual", rp.CmnHdr.CurrHopF)
+			return nil, common.NewBasicError(
+				"Hop field index too small",
+				scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil, nil),
+				"min", (iOff+spath.InfoFieldLength)/common.LineLen, "actual", rp.CmnHdr.CurrHopF,
+			)
 		case rp.CmnHdr.CurrHopF >= rp.CmnHdr.HdrLen: // Error
-			sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil)
-			return nil, common.NewCErrorData("Hop field index too large", sdata, "max",
-				(rp.CmnHdr.HdrLenBytes()-spath.HopFieldLength)/common.LineLen,
-				"actual", rp.CmnHdr.CurrHopF)
+			return nil, common.NewBasicError(
+				"Hop field index too large",
+				scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadHopFOffset, nil, nil),
+				"max", (rp.CmnHdr.HdrLenBytes()-spath.HopFieldLength)/common.LineLen,
+				"actual", rp.CmnHdr.CurrHopF,
+			)
 		default: // Parse
 			var err error
 			if rp.hopF, err = spath.HopFFromRaw(rp.Raw[hOff:]); err != nil {
@@ -321,7 +336,8 @@ func (rp *RtrPkt) IncPath() (bool, error) {
 		vOnly++
 	}
 	if hOff > hdrLen {
-		return false, common.NewCError("New HopF offset > header length", "max", hdrLen, "actual", hOff)
+		return false, common.NewBasicError("New HopF offset > header length", nil,
+			"max", hdrLen, "actual", hOff)
 	}
 	// Update common header, and packet's InfoF/HopF fields.
 	segChgd := iOff != rp.CmnHdr.InfoFOffBytes()
@@ -343,13 +359,13 @@ func (rp *RtrPkt) IncPath() (bool, error) {
 	}
 	// Check that there's no VERIFY_ONLY fields in the middle of a segment.
 	if vOnly > 0 && !segChgd {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets())
-		return segChgd, common.NewCError("VERIFY_ONLY in middle of segment", sdata)
+		return segChgd, common.NewBasicError("VERIFY_ONLY in middle of segment",
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets(), nil))
 	}
 	// Check that the segment didn't change from a down-segment to an up-segment.
 	if !origUp && *rp.upFlag {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return segChgd, common.NewCError("Switched from down-segment to up-segment", sdata)
+		return segChgd, common.NewBasicError("Switched from down-segment to up-segment",
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
 	}
 	return segChgd, nil
 }
@@ -403,7 +419,8 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 			case rcmn.DirExternal:
 				ingress = !*rp.upFlag
 			default:
-				return nil, common.NewCError("DirFrom value unsupported", "val", rp.DirFrom)
+				return nil, common.NewBasicError("DirFrom value unsupported", nil,
+					"val", rp.DirFrom)
 			}
 			if ingress {
 				return rp.checkSetCurrIF(&rp.hopF.Ingress)
@@ -419,10 +436,10 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 // valid before setting the ifCurr field and returning the value.
 func (rp *RtrPkt) checkSetCurrIF(ifid *common.IFIDType) (*common.IFIDType, error) {
 	if ifid == nil {
-		return nil, common.NewCError("No interface found")
+		return nil, common.NewBasicError("No interface found", nil)
 	}
 	if _, ok := rp.Ctx.Conf.Net.IFs[*ifid]; !ok {
-		return nil, common.NewCError("Unknown interface", "ifid", *ifid)
+		return nil, common.NewBasicError("Unknown interface", nil, "ifid", *ifid)
 	}
 	rp.ifCurr = ifid
 	return rp.ifCurr, nil

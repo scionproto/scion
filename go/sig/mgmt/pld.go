@@ -44,7 +44,8 @@ func (u *union) set(c proto.Cerealizable) error {
 		u.Which = proto.SIGCtrl_Which_pollRep
 		u.PollRep = p
 	default:
-		return common.NewCError("Unsupported SIG ctrl union type (set)", "type", common.TypeOf(c))
+		return common.NewBasicError("Unsupported SIG ctrl union type (set)", nil,
+			"type", common.TypeOf(c))
 	}
 	return nil
 }
@@ -56,7 +57,8 @@ func (u *union) get() (proto.Cerealizable, error) {
 	case proto.SIGCtrl_Which_pollRep:
 		return u.PollRep, nil
 	}
-	return nil, common.NewCError("Unsupported SIG ctrl union type (get)", "type", u.Which)
+	return nil, common.NewBasicError("Unsupported SIG ctrl union type (get)", nil,
+		"type", u.Which)
 }
 
 var _ proto.Cerealizable = (*Pld)(nil)

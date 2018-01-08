@@ -144,7 +144,7 @@ func (w *Worker) cleanup() {
 func send(packet common.RawBytes) error {
 	bytesWritten, err := tunIO.Write(packet)
 	if err != nil {
-		return common.NewCError("Unable to write to internal ingress", "err", err,
+		return common.NewBasicError("Unable to write to internal ingress", err,
 			"length", len(packet))
 	}
 	metrics.PktsSent.WithLabelValues(tunDevName).Inc()

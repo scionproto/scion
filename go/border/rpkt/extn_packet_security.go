@@ -57,9 +57,11 @@ func parseSPSEfromRaw(rp *RtrPkt, start, end, pos int) (rExtension, error) {
 	case spse.ScmpAuthHashTree:
 		return rSCMPAuthHashTreeExtnFromRaw(rp, start, end)
 	default:
-		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
-			&scmp.InfoExtIdx{Idx: uint8(pos)})
-		return nil, common.NewCErrorData("Unsupported SecMode", sdata, "mode", secMode)
+		return nil, common.NewBasicError(
+			"Unsupported SecMode",
+			scmp.NewError(scmp.C_Ext, scmp.T_E_BadEnd2End, &scmp.InfoExtIdx{Idx: uint8(pos)}, nil),
+			"mode", secMode,
+		)
 	}
 }
 
@@ -96,8 +98,8 @@ func (s *rSPSExtn) SetMetadata(metadata common.RawBytes) error {
 		return err
 	}
 	if len(meta) != len(metadata) {
-		return common.NewCError("Invalid metadata length", "expected", len(meta),
-			"actual", len(metadata))
+		return common.NewBasicError("Invalid metadata length", nil,
+			"expected", len(meta), "actual", len(metadata))
 	}
 	copy(meta, metadata)
 	return nil
@@ -119,8 +121,8 @@ func (s *rSPSExtn) SetAuthenticator(authenticator common.RawBytes) error {
 		return err
 	}
 	if len(auth) != len(authenticator) {
-		return common.NewCError("Invalid authenticator length", "expected", len(auth),
-			"actual", len(authenticator))
+		return common.NewBasicError("Invalid authenticator length", nil,
+			"expected", len(auth), "actual", len(authenticator))
 	}
 	copy(auth, authenticator)
 	return nil
@@ -143,12 +145,12 @@ func (s *rSPSExtn) Validate() (HookResult, error) {
 	case spse.GcmAes128 == s.SecMode:
 		expectedLen = spse.GcmAes128TotalLength
 	default:
-		return HookError, common.NewCError("SecMode not supported", "mode", s.SecMode)
+		return HookError, common.NewBasicError("SecMode not supported", nil, "mode", s.SecMode)
 	}
 
 	if len(s.raw) != expectedLen {
-		return HookError, common.NewCError("Invalid header length", "expected", expectedLen,
-			"actual", len(s.raw))
+		return HookError, common.NewBasicError("Invalid header length", nil,
+			"expected", expectedLen, "actual", len(s.raw))
 	}
 
 	return HookContinue, nil
@@ -196,8 +198,8 @@ func (s *rSPSExtn) limitsMetadata() (int, int, error) {
 	case spse.GcmAes128:
 		size = spse.GcmAes128MetaLength
 	default:
-		return 0, 0, common.NewCError("Invalid SecMode", "mode", s.SecMode,
-			"func", "limitsMetadata")
+		return 0, 0, common.NewBasicError("Invalid SecMode", nil,
+			"mode", s.SecMode, "func", "limitsMetadata")
 	}
 	return spse.SecModeLength, spse.SecModeLength + size, nil
 
@@ -216,8 +218,8 @@ func (s *rSPSExtn) limitsAuthenticator() (int, int, error) {
 	case spse.GcmAes128:
 		size = spse.GcmAes128AuthLength
 	default:
-		return 0, 0, common.NewCError("Invalid SecMode", "mode", s.SecMode,
-			"func", "limitsAuthenticator")
+		return 0, 0, common.NewBasicError("Invalid SecMode", nil,
+			"mode", s.SecMode, "func", "limitsAuthenticator")
 	}
 	_, l, _ := s.limitsMetadata()
 	return l, l + size, nil

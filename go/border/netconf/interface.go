@@ -58,14 +58,14 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	for _, ifid := range intfs {
 		ifinfo := infomap[ifid]
 		if v, ok := locIdxes[ifinfo.InternalAddrIdx]; ok && v != ifinfo.InternalAddr {
-			return nil, common.NewCError("Duplicate local address index",
+			return nil, common.NewBasicError("Duplicate local address index", nil,
 				"idx", ifinfo.InternalAddrIdx, "first", v, "second", ifinfo.InternalAddr)
 		}
 		locIdxes[ifinfo.InternalAddrIdx] = ifinfo.InternalAddr
 		v, ok := n.IFs[ifid]
 		newIF := intfFromTopoIF(&ifinfo, ifid)
 		if ok {
-			return nil, common.NewCError("Duplicate ifid",
+			return nil, common.NewBasicError("Duplicate ifid", nil,
 				"ifid", ifid, "first", v, "second", newIF)
 		}
 		n.IFs[ifid] = newIF
@@ -78,7 +78,8 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	for idx := 0; idx < len(locIdxes); idx++ {
 		taddr, ok := locIdxes[idx]
 		if !ok {
-			return nil, common.NewCError("Non-contiguous local address indexes", "missing", idx)
+			return nil, common.NewBasicError("Non-contiguous local address indexes", nil,
+				"missing", idx)
 		}
 		n.LocAddr[idx] = taddr
 		if taddr.IPv4 != nil {

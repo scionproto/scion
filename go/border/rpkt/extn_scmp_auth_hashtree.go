@@ -58,12 +58,12 @@ func (s *rSCMPAuthHashTreeExtn) RegisterHooks(h *hooks) error {
 
 func (s *rSCMPAuthHashTreeExtn) Validate() (HookResult, error) {
 	if s.Height() > scmp_auth.MaxHeight {
-		return HookError, common.NewCError("Invalid height", "height", s.Height(),
-			"max height", scmp_auth.MaxHeight)
+		return HookError, common.NewBasicError("Invalid height", nil,
+			"height", s.Height(), "max height", scmp_auth.MaxHeight)
 	}
 	if len(s.raw) != s.TotalLength() {
-		return HookError, common.NewCError("Invalid header length", "expected", s.TotalLength(),
-			"actual", len(s.raw))
+		return HookError, common.NewBasicError("Invalid header length", nil,
+			"expected", s.TotalLength(), "actual", len(s.raw))
 	}
 	return HookContinue, nil
 }
@@ -95,8 +95,8 @@ func (s *rSCMPAuthHashTreeExtn) Order() common.RawBytes {
 
 func (s *rSCMPAuthHashTreeExtn) SetOrder(order common.RawBytes) error {
 	if len(order) != scmp_auth.OrderLength {
-		return common.NewCError("Invalid order length.", "expected", scmp_auth.OrderLength,
-			"actual", len(order))
+		return common.NewBasicError("Invalid order length", nil,
+			"expected", scmp_auth.OrderLength, "actual", len(order))
 	}
 	copy(s.raw[scmp_auth.OrderOffset:scmp_auth.SignatureOffset], order)
 	return nil
@@ -109,8 +109,8 @@ func (s *rSCMPAuthHashTreeExtn) Signature() common.RawBytes {
 
 func (s *rSCMPAuthHashTreeExtn) SetSignature(signature common.RawBytes) error {
 	if len(signature) != scmp_auth.SignatureLength {
-		return common.NewCError("Invalid signature length.", "expected", scmp_auth.SignatureLength,
-			"actual", len(signature))
+		return common.NewBasicError("Invalid signature length", nil,
+			"expected", scmp_auth.SignatureLength, "actual", len(signature))
 	}
 	copy(s.raw[scmp_auth.SignatureOffset:scmp_auth.HashesOffset], signature)
 	return nil
@@ -122,8 +122,8 @@ func (s *rSCMPAuthHashTreeExtn) Hashes() common.RawBytes {
 
 func (s *rSCMPAuthHashTreeExtn) SetHashes(hashes common.RawBytes) error {
 	if len(hashes) != scmpAuthHashesLength(s.Height()) {
-		return common.NewCError("Invalid hashes length", "expected",
-			scmpAuthHashesLength(s.Height()), "actual", len(hashes))
+		return common.NewBasicError("Invalid hashes length", nil,
+			"expected", scmpAuthHashesLength(s.Height()), "actual", len(hashes))
 	}
 	copy(s.raw[scmp_auth.HashesOffset:s.TotalLength()], hashes)
 	return nil

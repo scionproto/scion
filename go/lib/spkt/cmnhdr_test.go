@@ -19,7 +19,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
 
@@ -44,10 +43,9 @@ func Test_CmnHdr_Parse(t *testing.T) {
 		input[0] |= 0x30
 		err := cmn.Parse(input)
 		So(err, ShouldNotBeNil)
-		cerr := err.(*common.CError)
-		data, ok := cerr.Data.(*scmp.ErrData)
-		So(ok, ShouldBeTrue)
-		So(data.CT, ShouldResemble, scmp.ClassType{Class: scmp.C_CmnHdr, Type: scmp.T_C_BadVersion})
+		serr := scmp.ToError(err)
+		So(serr, ShouldNotBeNil)
+		So(serr.CT, ShouldResemble, scmp.ClassType{Class: scmp.C_CmnHdr, Type: scmp.T_C_BadVersion})
 		So(cmn.Ver, ShouldEqual, 0x3)
 	})
 }

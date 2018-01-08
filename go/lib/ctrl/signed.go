@@ -70,7 +70,7 @@ func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 	sp := &SignedPld{}
 	n := common.Order.Uint32(b)
 	if int(n)+4 != len(b) {
-		return nil, common.NewCError("Invalid ctrl payload length",
+		return nil, common.NewBasicError("Invalid ctrl payload length", nil,
 			"expected", n+4, "actual", len(b))
 	}
 	return sp, proto.ParseFromRaw(sp, sp.ProtoId(), b[4:])

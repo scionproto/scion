@@ -48,7 +48,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 	case SignType_ed25519:
 		return crypto.Sign(message, key, crypto.Ed25519)
 	}
-	return nil, common.NewCError("SignS.Sign: Unsupported SignType", "type", s.Type)
+	return nil, common.NewBasicError("SignS.Sign: Unsupported SignType", nil, "type", s.Type)
 }
 
 func (s *SignS) SignAndSet(key, message common.RawBytes) error {
@@ -64,7 +64,7 @@ func (s *SignS) Verify(key, message common.RawBytes) error {
 	case SignType_ed25519:
 		return crypto.Verify(message, s.Signature, key, crypto.Ed25519)
 	}
-	return common.NewCError("SignS.Verify: Unsupported SignType", "type", s.Type)
+	return common.NewBasicError("SignS.Verify: Unsupported SignType", nil, "type", s.Type)
 }
 
 func (s *SignS) Pack() common.RawBytes {

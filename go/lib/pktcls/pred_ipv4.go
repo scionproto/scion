@@ -62,7 +62,7 @@ func (m *IPv4MatchSource) UnmarshalJSON(b []byte) error {
 	}
 	_, network, err := net.ParseCIDR(s)
 	if err != nil {
-		return common.NewCError("Unable to parse MatchSource operand", "err", err)
+		return common.NewBasicError("Unable to parse MatchSource operand", err)
 	}
 	m.Net = network
 	return nil
@@ -96,7 +96,7 @@ func (m *IPv4MatchDestination) UnmarshalJSON(b []byte) error {
 	s, err := unmarshalStringField(b, "MatchDestination", "Net")
 	_, network, err := net.ParseCIDR(s)
 	if err != nil {
-		return common.NewCError("Unable to parse MatchDestination operand", "err", err)
+		return common.NewBasicError("Unable to parse MatchDestination operand", err)
 	}
 	m.Net = network
 	return nil

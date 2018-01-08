@@ -67,8 +67,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 			var err error
 			rawRev, err = proto.PackRoot(info.RevInfo)
 			if err != nil {
-				cerr := err.(*common.CError)
-				log.Error("Unable to pack RevInfo", cerr.Ctx...)
+				log.Error("Unable to pack RevInfo", "err", common.FmtError(err))
 				return
 			}
 		}
@@ -102,7 +101,7 @@ func Activate(ifID common.IFIDType) error {
 	defer S.Unlock()
 	ifState, ok := S.M[ifID]
 	if !ok {
-		return common.NewCError("Trying to activate non-existing interface", "intf", ifID)
+		return common.NewBasicError("Trying to activate non-existing interface", nil, "intf", ifID)
 	}
 	ifState.Info.Active = true
 	return nil

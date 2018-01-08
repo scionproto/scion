@@ -143,17 +143,3 @@ const (
 	RawExtHdrs
 	RawL4Hdr
 )
-
-// Used as part of common.NewErrorData to indicate which SCMP error should be generated.
-type ErrData struct {
-	CT   ClassType
-	Info Info
-}
-
-func NewErrData(class Class, type_ Type, info Info) *ErrData {
-	return &ErrData{CT: ClassType{class, type_}, Info: info}
-}
-
-func (e *ErrData) String() string {
-	return fmt.Sprintf("CT: %v Info: %v", e.CT, e.Info)
-}

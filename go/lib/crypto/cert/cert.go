@@ -68,7 +68,7 @@ type Certificate struct {
 func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 	cert := &Certificate{}
 	if err := json.Unmarshal(raw, cert); err != nil {
-		return nil, common.NewCError("Unable to parse Certificate", "err", err)
+		return nil, common.NewBasicError("Unable to parse Certificate", err)
 	}
 	return cert, nil
 }
@@ -78,17 +78,17 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 // subject, and that it is valid at the current time.
 func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, signAlgo string) error {
 	if !subject.Eq(c.Subject) {
-		return common.NewCError(InvalidSubject, "expected", c.Subject,
-			"actual", subject)
+		return common.NewBasicError(InvalidSubject, nil,
+			"expected", c.Subject, "actual", subject)
 	}
 	currTime := uint64(time.Now().Unix())
 	if currTime < c.IssuingTime {
-		return common.NewCError(EarlyUsage, "IssuingTime",
-			timeToString(c.IssuingTime), "current", timeToString(currTime))
+		return common.NewBasicError(EarlyUsage, nil,
+			"IssuingTime", timeToString(c.IssuingTime), "current", timeToString(currTime))
 	}
 	if currTime > c.ExpirationTime {
-		return common.NewCError(Expired, "Expiration Time",
-			timeToString(c.ExpirationTime), "current", timeToString(currTime))
+		return common.NewBasicError(Expired, nil,
+			"Expiration Time", timeToString(c.ExpirationTime), "current", timeToString(currTime))
 	}
 	return c.VerifySignature(verifyKey, signAlgo)
 }
@@ -98,7 +98,7 @@ func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, si
 func (c *Certificate) VerifySignature(verifyKey common.RawBytes, signAlgo string) error {
 	sigInput, err := c.sigPack()
 	if err != nil {
-		return common.NewCError(UnableSigPack, "error", err)
+		return common.NewBasicError(UnableSigPack, err)
 	}
 	return crypto.Verify(sigInput, c.Signature, verifyKey, signAlgo)
 }

@@ -59,7 +59,8 @@ func NewHopField(b common.RawBytes, in common.IFIDType, out common.IFIDType) *Ho
 
 func HopFFromRaw(b []byte) (*HopField, error) {
 	if len(b) < HopFieldLength {
-		return nil, common.NewCError(ErrorHopFTooShort, "min", HopFieldLength, "actual", len(b))
+		return nil, common.NewBasicError(ErrorHopFTooShort, nil,
+			"min", HopFieldLength, "actual", len(b))
 	}
 	h := &HopField{}
 	h.data = b[:HopFieldLength]
@@ -118,7 +119,7 @@ func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) err
 	if mac, err := h.CalcMac(mac, tsInt, prev); err != nil {
 		return err
 	} else if !bytes.Equal(h.Mac, mac) {
-		return common.NewCError(ErrorHopFBadMac, "expected", h.Mac, "actual", mac)
+		return common.NewBasicError(ErrorHopFBadMac, nil, "expected", h.Mac, "actual", mac)
 	}
 	return nil
 }

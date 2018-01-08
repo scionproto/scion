@@ -139,7 +139,7 @@ func (ps *PathSegment) MaxAEIdx() int {
 
 func (ps *PathSegment) validateIdx(idx int) error {
 	if idx < 0 || idx > ps.MaxAEIdx() {
-		return common.NewCError("Invalid ASEntry index",
+		return common.NewBasicError("Invalid ASEntry index", nil,
 			"min", 0, "max", ps.MaxAEIdx(), "actual", idx)
 	}
 	return nil

@@ -35,16 +35,16 @@ func newNetEntry(link netlink.Link, ipnet *net.IPNet) (*NetEntry, error) {
 
 func (ne *NetEntry) setup() error {
 	if err := netlink.RouteAdd(ne.Route); err != nil {
-		return common.NewCError("Unable to add route for remote network",
-			"route", ne.Route, "err", err)
+		return common.NewBasicError("Unable to add route for remote network", err,
+			"route", ne.Route)
 	}
 	return nil
 }
 
 func (ne *NetEntry) Cleanup() error {
 	if err := netlink.RouteDel(ne.Route); err != nil {
-		return common.NewCError("Unable to delete route for remote network",
-			"route", ne.Route, "err", err)
+		return common.NewBasicError("Unable to delete route for remote network", err,
+			"route", ne.Route)
 	}
 	return nil
 }

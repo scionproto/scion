@@ -36,12 +36,12 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(signKey) != ed25519.PrivateKeySize {
-			return nil, common.NewCError(InvalidKeySize, "expected",
+			return nil, common.NewBasicError(InvalidKeySize, nil, "expected",
 				ed25519.PrivateKeySize, "actual", len(signKey))
 		}
 		return ed25519.Sign(ed25519.PrivateKey(signKey), sigInput), nil
 	default:
-		return nil, common.NewCError(UnsupportedSignAlgo, "algo", signAlgo)
+		return nil, common.NewBasicError(UnsupportedSignAlgo, nil, "algo", signAlgo)
 	}
 }
 
@@ -51,14 +51,14 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(verifyKey) != ed25519.PublicKeySize {
-			return common.NewCError(InvalidKeySize, "expected",
-				ed25519.PublicKeySize, "actual", len(verifyKey))
+			return common.NewBasicError(InvalidKeySize, nil,
+				"expected", ed25519.PublicKeySize, "actual", len(verifyKey))
 		}
 		if !ed25519.Verify(ed25519.PublicKey(verifyKey), sigInput, sig) {
-			return common.NewCError(InvalidSignature)
+			return common.NewBasicError(InvalidSignature, nil)
 		}
 		return nil
 	default:
-		return common.NewCError(UnsupportedSignAlgo, "algo", signAlgo)
+		return common.NewBasicError(UnsupportedSignAlgo, nil, "algo", signAlgo)
 	}
 }

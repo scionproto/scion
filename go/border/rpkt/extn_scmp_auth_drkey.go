@@ -58,8 +58,8 @@ func (s *rSCMPAuthDRKeyExtn) RegisterHooks(h *hooks) error {
 
 func (s *rSCMPAuthDRKeyExtn) Validate() (HookResult, error) {
 	if len(s.raw) != scmp_auth.DRKeyTotalLength {
-		return HookError, common.NewCError("Invalid header length", "expected",
-			scmp_auth.DRKeyTotalLength, "actual", len(s.raw))
+		return HookError, common.NewBasicError("Invalid header length", nil,
+			"expected", scmp_auth.DRKeyTotalLength, "actual", len(s.raw))
 	}
 	return HookContinue, nil
 }
@@ -89,8 +89,8 @@ func (s *rSCMPAuthDRKeyExtn) MAC() common.RawBytes {
 
 func (s *rSCMPAuthDRKeyExtn) SetMAC(mac common.RawBytes) error {
 	if len(mac) != scmp_auth.MACLength {
-		return common.NewCError("Invalid MAC length", "expected", len(s.MAC()),
-			"actual", len(mac))
+		return common.NewBasicError("Invalid MAC length", nil,
+			"expected", len(s.MAC()), "actual", len(mac))
 	}
 	copy(s.MAC(), mac)
 	return nil

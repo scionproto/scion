@@ -89,7 +89,7 @@ func Init(zlog_cfg string, args []string, addrMs []AddrMeta) error {
 	// Initialise libhsr. Its logging is controlled by the zlog config and
 	// category, and DPDK's general options are configured by the argv.
 	if C.router_init(C.CString(zlog_cfg), C.CString("border"), C.int(len(argv)), &argv[0]) != 0 {
-		return common.NewCError("Failure initialising libhsr (router_init)")
+		return common.NewBasicError("Failure initialising libhsr (router_init)", nil)
 	}
 	AddrMs = addrMs
 	// Calculate the C address structure from the Go address structure.
@@ -100,11 +100,11 @@ func Init(zlog_cfg string, args []string, addrMs []AddrMeta) error {
 	}
 	// Configure network ports
 	if C.setup_network(&cAddrs[0], C.int(len(cAddrs))) != 0 {
-		return common.NewCError("Failure initialising libhsr (setup_network)")
+		return common.NewBasicError("Failure initialising libhsr (setup_network)", nil)
 	}
 	// Create the libhsr worker threads.
 	if C.create_lib_threads() != 0 {
-		return common.NewCError("Failure initialising libhsr (create_lib_threads)")
+		return common.NewBasicError("Failure initialising libhsr (create_lib_threads)", nil)
 	}
 	return nil
 }
@@ -137,7 +137,8 @@ func NewHSR() *HSR {
 // arg is used to indicate which ports received packets in this call.
 func (h *HSR) GetPackets(rps []*rpkt.RtrPkt, usedPorts []bool) (int, error) {
 	if len(rps) > MaxPkts {
-		return 0, common.NewCError("Too many packets requested", "max", MaxPkts, "actual", len(rps))
+		return 0, common.NewBasicError("Too many packets requested", nil,
+			"max", MaxPkts, "actual", len(rps))
 	}
 	// Set the C buffer pointers to the Go buffer addresses.
 	// XXX(kormat): N.B. this breaks one of the CGO safety rules
@@ -190,7 +191,7 @@ func SendPacket(dst *topology.AddrInfo, portID int, buf common.RawBytes) error {
 	taiToSaddr(dst, cp.dst)
 	cp.port_id = C.uint8_t(portID)
 	if C.send_packet(&cp) != 0 {
-		return common.NewCError("Error sending packet through HSR")
+		return common.NewBasicError("Error sending packet through HSR", nil)
 	}
 	return nil
 }
@@ -211,7 +212,8 @@ func saddrToTAI(saddr *C.saddr_storage) (*topology.AddrInfo, error) {
 			IP:      C.GoBytes(unsafe.Pointer(&saddr.sin6_addr), 16),
 		}, nil
 	default:
-		return nil, common.NewCError("Unsupported sockaddr family type", "type", saddr.ss_family)
+		return nil, common.NewBasicError("Unsupported sockaddr family type", nil,
+			"type", saddr.ss_family)
 	}
 }
 

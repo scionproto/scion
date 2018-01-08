@@ -107,7 +107,7 @@ func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 	sciondConn, err := srvc.Connect()
 	if err != nil {
 		// Let external code handle initial failure
-		return nil, common.NewCError("Unable to connect to SCIOND", "err", err)
+		return nil, common.NewBasicError("Unable to connect to SCIOND", err)
 	}
 	if timers == nil {
 		timers = &Timers{}

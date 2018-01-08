@@ -112,7 +112,7 @@ func unmarshalInterface(b []byte) (Typer, error) {
 			err := json.Unmarshal(*v, &p)
 			return &p, err
 		default:
-			return nil, common.NewCError("Unknown type", "type", k)
+			return nil, common.NewBasicError("Unknown type", nil, "type", k)
 		}
 	}
 	return nil, nil
@@ -126,7 +126,7 @@ func unmarshalCond(b []byte) (Cond, error) {
 	}
 	c, ok := t.(Cond)
 	if !ok {
-		return nil, common.NewCError("Unable to extract Cond from interface")
+		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
 	}
 	return c, nil
 }
@@ -139,7 +139,7 @@ func unmarshalAction(b []byte) (Action, error) {
 	}
 	a, ok := t.(Action)
 	if !ok {
-		return nil, common.NewCError("Unable to extract Cond from interface")
+		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
 	}
 	return a, nil
 }
@@ -152,7 +152,7 @@ func unmarshalPredicate(b []byte) (IPv4Predicate, error) {
 	}
 	p, ok := t.(IPv4Predicate)
 	if !ok {
-		return nil, common.NewCError("Unable to extract Cond from interface")
+		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
 	}
 	return p, nil
 }
@@ -196,11 +196,11 @@ func unmarshalStringField(b []byte, name, field string) (string, error) {
 	}
 	v, ok := jc[field]
 	if !ok {
-		return "", common.NewCError("String field missing", "name", name, "field", field)
+		return "", common.NewBasicError("String field missing", nil, "name", name, "field", field)
 	}
 	s, ok := v.(string)
 	if !ok {
-		return "", common.NewCError("Field is non-string",
+		return "", common.NewBasicError("Field is non-string", nil,
 			"name", name, "field", field, "type", common.TypeOf(v))
 	}
 	return s, nil
@@ -213,8 +213,8 @@ func unmarshalUintField(b []byte, name, field string, width int) (uint64, error)
 	}
 	i, err := strconv.ParseUint(s, 0, width)
 	if err != nil {
-		return 0, common.NewCError("Unable to parse uint field",
-			"name", name, "field", field, "err", err)
+		return 0, common.NewBasicError("Unable to parse uint field", err,
+			"name", name, "field", field)
 	}
 	return i, nil
 }

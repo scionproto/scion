@@ -103,7 +103,7 @@ func (p *parseCtx) parse() error {
 	// extensions can override 5-6.
 
 	if err := p.CmnHdrParser(); err != nil {
-		return common.NewCError("Unable to parse common header", "err", err)
+		return common.NewBasicError("Unable to parse common header", err)
 	}
 	p.nextHdr = p.cmnHdr.NextHdr
 
@@ -114,26 +114,26 @@ func (p *parseCtx) parse() error {
 	p.offset = p.extHdrOffsets.start
 
 	if err := p.HBHAllExtsParser(); err != nil {
-		return common.NewCError("Unable to parse HBH extensions", "err", err)
+		return common.NewBasicError("Unable to parse HBH extensions", err)
 	}
 
 	if err := p.E2EAllExtsParser(); err != nil {
-		return common.NewCError("Unable to parse E2E extensions", "err", err)
+		return common.NewBasicError("Unable to parse E2E extensions", err)
 	}
 
 	// Return to the start of the address header
 	p.offset = p.cmnHdrOffsets.end
 	if err := p.AddrHdrParser(); err != nil {
-		return common.NewCError("Unable to parse address header", "err", err)
+		return common.NewBasicError("Unable to parse address header", err)
 	}
 	if err := p.FwdPathParser(); err != nil {
-		return common.NewCError("Unable to parse path header", "err", err)
+		return common.NewBasicError("Unable to parse path header", err)
 	}
 
 	// Jump after extensions
 	p.offset = p.extHdrOffsets.end
 	if err := p.L4Parser(); err != nil {
-		return common.NewCError("Unable to parse L4 content", "err", err)
+		return common.NewBasicError("Unable to parse L4 content", err)
 	}
 	return nil
 }
@@ -147,8 +147,8 @@ func (p *parseCtx) CmnHdrParser() error {
 	p.cmnHdrOffsets.end = p.offset
 
 	if int(p.cmnHdr.TotalLen) != len(p.b) {
-		return common.NewCError("Malformed total packet length", "expected", p.cmnHdr.TotalLen,
-			"actual", len(p.b))
+		return common.NewBasicError("Malformed total packet length", nil,
+			"expected", p.cmnHdr.TotalLen, "actual", len(p.b))
 	}
 	return nil
 }
@@ -162,12 +162,12 @@ func (p *parseCtx) HBHAllExtsParser() error {
 	for p.nextHdr == common.HopByHopClass {
 		p.hbhCounter += 1
 		if err := p.HBHExtParser(); err != nil {
-			return common.NewCError("Unable to parse HBH extension", "err", err)
+			return common.NewBasicError("Unable to parse HBH extension", err)
 		}
 		if p.hbhCounter > p.hbhLimit {
 			ext := p.s.HBHExt[len(p.s.HBHExt)-1]
-			return common.NewCError("HBH extension limit exceeded", "type", ext.Class(),
-				"position", p.hbhCounter-1, "limit", p.hbhLimit)
+			return common.NewBasicError("HBH extension limit exceeded", nil,
+				"type", ext.Class(), "position", p.hbhCounter-1, "limit", p.hbhLimit)
 		}
 	}
 	return nil
@@ -176,7 +176,7 @@ func (p *parseCtx) HBHAllExtsParser() error {
 func (p *parseCtx) E2EAllExtsParser() error {
 	for p.nextHdr == common.End2EndClass {
 		if err := p.E2EExtParser(); err != nil {
-			return common.NewCError("Unable to parse E2E extension", "err", err)
+			return common.NewBasicError("Unable to parse E2E extension", err)
 		}
 	}
 	return nil
@@ -184,7 +184,7 @@ func (p *parseCtx) E2EAllExtsParser() error {
 
 func (p *parseCtx) DefaultHBHExtParser() error {
 	if len(p.b[p.offset:]) < common.LineLen {
-		return common.NewCError("Truncated extension")
+		return common.NewBasicError("Truncated extension", nil)
 	}
 
 	// Parse 3-byte extension header first
@@ -200,21 +200,21 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 	case common.ExtnSCMPType.Type:
 		if p.hbhCounter != 1 {
 			// SCMP HBH extensions must come immediately after the path header
-			return common.NewCError("Invalid placement of HBH SCMP extension (must be first)",
-				"position", p.hbhCounter-1, "offset", p.offset)
+			return common.NewBasicError("Invalid placement of HBH SCMP extension (must be first)",
+				nil, "position", p.hbhCounter-1, "offset", p.offset)
 		}
 		// SCMP HBH extensions increase the limit of HBH extensions by 1
 		p.hbhLimit += 1
 
 		extn, err := scmp.ExtnFromRaw(p.b[p.offset+common.ExtnSubHdrLen : p.extHdrOffsets.end])
 		if err != nil {
-			return common.NewCError("Unable to parse extension header", "type", extn.Class(),
-				"position", p.hbhCounter-1, "err", err)
+			return common.NewBasicError("Unable to parse extension header", nil,
+				"type", extn.Class(), "position", p.hbhCounter-1, "err", err)
 		}
 		p.s.HBHExt = append(p.s.HBHExt, extn)
 	default:
-		return common.NewCError("Unsupported HBH extension type", "type", extnType,
-			"position", p.hbhCounter-1)
+		return common.NewBasicError("Unsupported HBH extension type", nil,
+			"type", extnType, "position", p.hbhCounter-1)
 	}
 
 	p.offset = p.extHdrOffsets.end
@@ -222,7 +222,7 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 }
 
 func (p *parseCtx) DefaultE2EExtParser() error {
-	return common.NewCError("Not implemented")
+	return common.NewBasicError("Not implemented", nil)
 }
 
 func (p *parseCtx) DefaultAddrHdrParser() error {
@@ -233,20 +233,18 @@ func (p *parseCtx) DefaultAddrHdrParser() error {
 	p.s.SrcIA.Parse(p.b[p.offset:])
 	p.offset += addr.IABytes
 	if p.s.DstHost, err = addr.HostFromRaw(p.b[p.offset:], p.cmnHdr.DstType); err != nil {
-		return common.NewCError("Unable to parse destination host address",
-			"err", err)
+		return common.NewBasicError("Unable to parse destination host address", err)
 	}
 	p.offset += p.s.DstHost.Size()
 	if p.s.SrcHost, err = addr.HostFromRaw(p.b[p.offset:], p.cmnHdr.SrcType); err != nil {
-		return common.NewCError("Unable to parse source host address",
-			"err", err)
+		return common.NewBasicError("Unable to parse source host address", err)
 	}
 	p.offset += p.s.SrcHost.Size()
 	// Validate address padding bytes
 	padBytes := util.CalcPadding(p.offset, common.LineLen)
 	if pos, ok := isZeroMemory(p.b[p.offset : p.offset+padBytes]); !ok {
-		return common.NewCError("Invalid padding", "position", pos,
-			"expected", 0, "actual", p.b[p.offset+pos])
+		return common.NewBasicError("Invalid padding", nil,
+			"position", pos, "expected", 0, "actual", p.b[p.offset+pos])
 	}
 	p.offset += padBytes
 	p.addrHdrOffsets.end = p.offset
@@ -276,15 +274,15 @@ func (p *parseCtx) DefaultL4Parser() error {
 	switch p.nextHdr {
 	case common.L4UDP:
 		if p.s.L4, err = l4.UDPFromRaw(p.b[p.offset : p.offset+l4.UDPLen]); err != nil {
-			return common.NewCError("Unable to parse UDP header", "err", err)
+			return common.NewBasicError("Unable to parse UDP header", err)
 		}
 	case common.L4SCMP:
 		if p.s.L4, err = scmp.HdrFromRaw(p.b[p.offset : p.offset+scmp.HdrLen]); err != nil {
-			return common.NewCError("Unable to parse SCMP header", "err", err)
+			return common.NewBasicError("Unable to parse SCMP header", err)
 		}
 	default:
-		return common.NewCError("Unsupported NextHdr value", "expected",
-			common.L4UDP, "actual", p.nextHdr)
+		return common.NewBasicError("Unsupported NextHdr value", nil,
+			"expected", common.L4UDP, "actual", p.nextHdr)
 	}
 	p.offset += p.s.L4.L4Len()
 	p.l4HdrOffsets.end = p.offset
@@ -293,7 +291,7 @@ func (p *parseCtx) DefaultL4Parser() error {
 	p.pldOffsets.start = p.offset
 	pldLen := len(p.b) - p.pldOffsets.start
 	if err = p.s.L4.Validate(pldLen); err != nil {
-		return common.NewCError("L4 validation failed", "err", err)
+		return common.NewBasicError("L4 validation failed", err)
 	}
 	switch p.nextHdr {
 	case common.L4UDP:
@@ -301,12 +299,13 @@ func (p *parseCtx) DefaultL4Parser() error {
 	case common.L4SCMP:
 		hdr, ok := p.s.L4.(*scmp.Hdr)
 		if !ok {
-			return common.NewCError("Unable to extract SCMP payload, type assertion failed.")
+			return common.NewBasicError(
+				"Unable to extract SCMP payload, type assertion failed", nil)
 		}
 		p.s.Pld, err = scmp.PldFromRaw(p.b[p.offset:p.offset+pldLen],
 			scmp.ClassType{Class: hdr.Class, Type: hdr.Type})
 		if err != nil {
-			return common.NewCError("Unable to parse SCMP payload", "err", err)
+			return common.NewBasicError("Unable to parse SCMP payload", err)
 		}
 	}
 	p.offset += pldLen
@@ -316,7 +315,7 @@ func (p *parseCtx) DefaultL4Parser() error {
 	err = l4.CheckCSum(p.s.L4, p.b[p.addrHdrOffsets.start:p.addrHdrOffsets.end],
 		p.b[p.pldOffsets.start:p.pldOffsets.end])
 	if err != nil {
-		return common.NewCError("Checksum failed", "err", err)
+		return common.NewBasicError("Checksum failed", err)
 	}
 	return nil
 }

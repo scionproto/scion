@@ -62,7 +62,8 @@ func (u *union) set(c proto.Cerealizable) error {
 		u.Which = proto.CtrlPld_Which_extn
 		u.Extn = p
 	default:
-		return common.NewCError("Unsupported ctrl union type (set)", "type", common.TypeOf(c))
+		return common.NewBasicError("Unsupported ctrl union type (set)", nil,
+			"type", common.TypeOf(c))
 	}
 	return nil
 }
@@ -82,5 +83,5 @@ func (u *union) get() (proto.Cerealizable, error) {
 	case proto.CtrlPld_Which_extn:
 		return u.Extn, nil
 	}
-	return nil, common.NewCError("Unsupported ctrl union type (get)", "type", u.Which)
+	return nil, common.NewBasicError("Unsupported ctrl union type (get)", nil, "type", u.Which)
 }

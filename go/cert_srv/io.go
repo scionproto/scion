@@ -95,7 +95,7 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq))
 		}
 	default:
-		return common.NewCError("Not implemented", "protoID", c.ProtoId())
+		return common.NewBasicError("Not implemented", nil, "protoID", c.ProtoId())
 	}
 	return nil
 }

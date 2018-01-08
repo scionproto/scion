@@ -59,14 +59,14 @@ func New(path string) (*Backend, error) {
 	var version int
 	err := b.db.QueryRow("PRAGMA user_version;").Scan(&version)
 	if err != nil {
-		return nil, common.NewCError("Failed to check schema version", "err", err)
+		return nil, common.NewBasicError("Failed to check schema version", err)
 	}
 	if version == 0 {
 		if err := b.setup(); err != nil {
 			return nil, err
 		}
 	} else if version != SchemaVersion {
-		return nil, common.NewCError("Database schema version mismatch",
+		return nil, common.NewBasicError("Database schema version mismatch", nil,
 			"expected", SchemaVersion, "have", version)
 	}
 	return b, nil
@@ -79,19 +79,19 @@ func (b *Backend) open(path string) error {
 	uri := fmt.Sprintf("%s?_foreign_keys=1", path)
 	var err error
 	if b.db, err = sql.Open("sqlite3", uri); err != nil {
-		return common.NewCError("Couldn't open SQLite database", "err", err)
+		return common.NewBasicError("Couldn't open SQLite database", err)
 	}
 	// Ensure foreign keys are supported and enabled.
 	var enabled bool
 	err = b.db.QueryRow("PRAGMA foreign_keys;").Scan(&enabled)
 	if err == sql.ErrNoRows {
-		return common.NewCError("Foreign keys not supported", "err", err)
+		return common.NewBasicError("Foreign keys not supported", err)
 	}
 	if err != nil {
-		return common.NewCError("Failed to check for foreign key support", "err", err)
+		return common.NewBasicError("Failed to check for foreign key support", err)
 	}
 	if !enabled {
-		return common.NewCError("Failed to enable foreign key support")
+		return common.NewBasicError("Failed to enable foreign key support", nil)
 	}
 	return nil
 }
@@ -100,16 +100,16 @@ func (b *Backend) setup() error {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
-		return common.NewCError("No database open")
+		return common.NewBasicError("No database open", nil)
 	}
 	_, err := b.db.Exec(Schema)
 	if err != nil {
-		return common.NewCError("Failed to set up SQLite database", "err", err)
+		return common.NewBasicError("Failed to set up SQLite database", err)
 	}
 	// Write schema version to database.
 	_, err = b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion))
 	if err != nil {
-		return common.NewCError("Failed to write schema version", "err", err)
+		return common.NewBasicError("Failed to write schema version", err)
 	}
 	return nil
 }
@@ -118,21 +118,21 @@ func (b *Backend) close() error {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
-		return common.NewCError("No database open")
+		return common.NewBasicError("No database open", nil)
 	}
 	if err := b.db.Close(); err != nil {
-		return common.NewCError("Failed to close SQLite database", "err", err)
+		return common.NewBasicError("Failed to close SQLite database", err)
 	}
 	return nil
 }
 
 func (b *Backend) begin() error {
 	if b.tx != nil {
-		return common.NewCError("A transaction already exists")
+		return common.NewBasicError("A transaction already exists", nil)
 	}
 	var err error
 	if b.tx, err = b.db.Begin(); err != nil {
-		return common.NewCError("Failed to create transaction", "err", err)
+		return common.NewBasicError("Failed to create transaction", err)
 	}
 	return nil
 }
@@ -140,22 +140,22 @@ func (b *Backend) begin() error {
 func (b *Backend) prepareAndExec(inst string, args ...interface{}) (sql.Result, error) {
 	stmt, err := b.tx.Prepare(inst)
 	if err != nil {
-		return nil, common.NewCError("Failed to prepare statement", "stmt", inst, "err", err)
+		return nil, common.NewBasicError("Failed to prepare statement", err, "stmt", inst)
 	}
 	res, err := stmt.Exec(args...)
 	if err != nil {
-		return nil, common.NewCError("Failed to execute statement", "stmt", inst, "err", err)
+		return nil, common.NewBasicError("Failed to execute statement", err, "stmt", inst)
 	}
 	return res, nil
 }
 
 func (b *Backend) commit() error {
 	if b.tx == nil {
-		return common.NewCError("No transaction to commit")
+		return common.NewBasicError("No transaction to commit", nil)
 	}
 	if err := b.tx.Commit(); err != nil {
 		b.tx = nil
-		return common.NewCError("Failed to commit transaction", "err", err)
+		return common.NewBasicError("Failed to commit transaction", err)
 	}
 	b.tx = nil
 	return nil
@@ -170,7 +170,7 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
-		return 0, common.NewCError("No database open")
+		return 0, common.NewBasicError("No database open", nil)
 	}
 	// Check if we already have a path segment.
 	segID, err := pseg.ID()
@@ -206,7 +206,7 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 func (b *Backend) get(segID common.RawBytes) (*segMeta, error) {
 	rows, err := b.db.Query("SELECT * FROM Segments WHERE SegID=?", segID)
 	if err != nil {
-		return nil, common.NewCError("Failed to lookup segment", "err", err)
+		return nil, common.NewBasicError("Failed to lookup segment", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -215,7 +215,7 @@ func (b *Backend) get(segID common.RawBytes) (*segMeta, error) {
 		var rawSeg sql.RawBytes
 		err = rows.Scan(&meta.RowID, &meta.SegID, &lastUpdated, &rawSeg)
 		if err != nil {
-			return nil, common.NewCError("Failed to extract data", "err", err)
+			return nil, common.NewBasicError("Failed to extract data", err)
 		}
 		meta.LastUpdated = time.Unix(int64(lastUpdated), 0)
 		var err error
@@ -268,7 +268,7 @@ func (b *Backend) updateSeg(meta *segMeta) error {
 	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=? WHERE RowID=?`
 	_, err = b.prepareAndExec(stmtStr, meta.LastUpdated.Unix(), packedSeg, meta.RowID)
 	if err != nil {
-		return common.NewCError("Failed to update segment", "err", err)
+		return common.NewBasicError("Failed to update segment", err)
 	}
 	return nil
 }
@@ -277,7 +277,7 @@ func (b *Backend) insertType(segRowID int64, segType seg.Type) error {
 	_, err := b.prepareAndExec("INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
-		return common.NewCError("Failed to insert type", "err", err)
+		return common.NewBasicError("Failed to insert type", err)
 	}
 	return nil
 }
@@ -287,7 +287,7 @@ func (b *Backend) insertHPCfgID(segRowID int64, hpCfgID *query.HPCfgID) error {
 		"INSERT INTO HpCfgIds (SegRowID, IsdID, AsID, CfgID) VALUES (?, ?, ?, ?)",
 		segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID)
 	if err != nil {
-		return common.NewCError("Failed to insert hpCfgID", "err", err)
+		return common.NewBasicError("Failed to insert hpCfgID", err)
 	}
 	return nil
 }
@@ -311,12 +311,12 @@ func (b *Backend) insertFull(pseg *seg.PathSegment,
 	res, err := b.prepareAndExec(inst, segID, time.Now().Unix(), packedSeg)
 	if err != nil {
 		b.tx.Rollback()
-		return common.NewCError("Failed to insert path segment", "err", err)
+		return common.NewBasicError("Failed to insert path segment", err)
 	}
 	segRowID, err := res.LastInsertId()
 	if err != nil {
 		b.tx.Rollback()
-		return common.NewCError("Failed to retrieve segRowID of inserted segment", "err", err)
+		return common.NewBasicError("Failed to retrieve segRowID of inserted segment", err)
 	}
 	// Insert all interfaces.
 	if err = b.insertInterfaces(pseg.ASEntries, segRowID); err != nil {
@@ -361,25 +361,25 @@ func (b *Backend) insertInterfaces(ases []*seg.ASEntry, segRowID int64) error {
 		stmtStr := `INSERT INTO IntfToSeg (IsdID, ASID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
 		stmt, err := b.tx.Prepare(stmtStr)
 		if err != nil {
-			return common.NewCError("Failed to prepare insert into IntfToSeg", "err", err)
+			return common.NewBasicError("Failed to prepare insert into IntfToSeg", err)
 		}
 		defer stmt.Close()
 		for idx, hop := range as.HopEntries {
 			hof, err := hop.HopField()
 			if err != nil {
-				return common.NewCError("Failed to extract hop field", "err", err)
+				return common.NewBasicError("Failed to extract hop field", err)
 			}
 			if hof.Ingress != 0 {
 				_, err = stmt.Exec(ia.I, ia.A, hof.Ingress, segRowID)
 				if err != nil {
-					return common.NewCError("Failed to insert Ingress into IntfToSeg", "err", err)
+					return common.NewBasicError("Failed to insert Ingress into IntfToSeg", err)
 				}
 			}
 			// Only insert the Egress interface for the first hop entry in an AS entry.
 			if idx == 0 && hof.Egress != 0 {
 				_, err := stmt.Exec(ia.I, ia.A, hof.Egress, segRowID)
 				if err != nil {
-					return common.NewCError("Failed to insert Egress into IntfToSeg", "err", err)
+					return common.NewBasicError("Failed to insert Egress into IntfToSeg", err)
 				}
 			}
 		}
@@ -393,7 +393,7 @@ func (b *Backend) insertStartOrEnd(as *seg.ASEntry, segRowID int64,
 	stmtStr := fmt.Sprintf("INSERT INTO %s (IsdID, AsID, SegRowID) VALUES (?, ?, ?)", tableName)
 	_, err := b.prepareAndExec(stmtStr, ia.I, ia.A, segRowID)
 	if err != nil {
-		return common.NewCError(fmt.Sprintf("Failed to insert into %s", tableName), "err", err)
+		return common.NewBasicError(fmt.Sprintf("Failed to insert into %s", tableName), err)
 	}
 	return nil
 }
@@ -402,7 +402,7 @@ func (b *Backend) Delete(segID common.RawBytes) (int, error) {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
-		return 0, common.NewCError("No database open")
+		return 0, common.NewBasicError("No database open", nil)
 	}
 	// Create new transaction
 	if err := b.begin(); err != nil {
@@ -411,7 +411,7 @@ func (b *Backend) Delete(segID common.RawBytes) (int, error) {
 	res, err := b.prepareAndExec("DELETE FROM Segments WHERE SegID=?", segID)
 	if err != nil {
 		b.tx.Rollback()
-		return 0, common.NewCError("Failed to delete segment", "err", err)
+		return 0, common.NewBasicError("Failed to delete segment", err)
 	}
 	// Commit transaction
 	if err := b.commit(); err != nil {
@@ -425,7 +425,7 @@ func (b *Backend) DeleteWithIntf(intf query.IntfSpec) (int, error) {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
-		return 0, common.NewCError("No database open")
+		return 0, common.NewBasicError("No database open", nil)
 	}
 	// Create new transaction
 	if err := b.begin(); err != nil {
@@ -436,7 +436,7 @@ func (b *Backend) DeleteWithIntf(intf query.IntfSpec) (int, error) {
 	res, err := b.prepareAndExec(delStmt, intf.IA.I, intf.IA.A, intf.IfID)
 	if err != nil {
 		b.tx.Rollback()
-		return 0, common.NewCError("Failed to delete segments", "err", err)
+		return 0, common.NewBasicError("Failed to delete segments", err)
 	}
 	// Commit transaction
 	if err := b.commit(); err != nil {
@@ -450,12 +450,12 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, error) {
 	b.RLock()
 	defer b.RUnlock()
 	if b.db == nil {
-		return nil, common.NewCError("No database open")
+		return nil, common.NewBasicError("No database open", nil)
 	}
 	stmt := b.buildQuery(params)
 	rows, err := b.db.Query(stmt)
 	if err != nil {
-		return nil, common.NewCError("Error looking up path segment", "q", stmt, "err", err)
+		return nil, common.NewBasicError("Error looking up path segment", err, "q", stmt)
 	}
 	defer rows.Close()
 	res := []*query.Result{}
@@ -467,7 +467,7 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, error) {
 		hpCfgID := &query.HPCfgID{IA: &addr.ISD_AS{}}
 		err = rows.Scan(&segRowID, &rawSeg, &hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID)
 		if err != nil {
-			return nil, common.NewCError("Error reading DB response", "err", err)
+			return nil, common.NewBasicError("Error reading DB response", err)
 		}
 		// Check if we have a new segment.
 		if segRowID != prevID {
@@ -478,7 +478,7 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, error) {
 			var err error
 			curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
 			if err != nil {
-				return nil, common.NewCError("Error unmarshalling segment", "err", err)
+				return nil, common.NewBasicError("Error unmarshalling segment", err)
 			}
 		}
 		// Append hpCfgID to result

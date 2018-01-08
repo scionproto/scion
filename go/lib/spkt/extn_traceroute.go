@@ -48,7 +48,7 @@ func (t *Traceroute) TotalHops() int {
 
 func (t *Traceroute) Write(b common.RawBytes) error {
 	if len(b) < t.Len() {
-		return common.NewCError("Buffer too short", "method", "Traceroute.Write")
+		return common.NewBasicError("Buffer too short", nil, "method", "Traceroute.Write")
 	}
 	b[0] = uint8(t.NumHops())
 	offset := common.ExtnSubHdrLen

@@ -182,9 +182,9 @@ func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]To
 	for name, svc := range rais {
 		svcTopoAddr, err := svc.ToTopoAddr(ot)
 		if err != nil {
-			return nil, common.NewCError(
-				"Could not convert RawAddrInfo to TopoAddr", "servicetype", stype, "RawAddrInfo",
-				svc, "name", name, "err", err)
+			return nil, common.NewBasicError(
+				"Could not convert RawAddrInfo to TopoAddr", err,
+				"servicetype", stype, "RawAddrInfo", svc, "name", name)
 		}
 		smap[name] = *svcTopoAddr
 		snames = append(snames, name)

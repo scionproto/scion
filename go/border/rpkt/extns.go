@@ -36,7 +36,7 @@ type rExtension interface {
 
 const (
 	// FIXME(kormat): remove when generic header walker is implemented.
-	errExtChainTooLong = "Extension header chain longer than packet"
+	ErrExtChainTooLong = "Extension header chain longer than packet"
 )
 
 // extnParseHBH parses a specified hop-by-hop extension in a packet.
@@ -51,9 +51,11 @@ func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 		return rSCMPExtFromRaw(rp, start, end)
 	default:
 		// HBH not supported, so send an SCMP error in response.
-		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadHopByHop,
-			&scmp.InfoExtIdx{Idx: uint8(pos)})
-		return nil, common.NewCErrorData("Unsupported hop-by-hop extension", sdata, "type", extType)
+		return nil, common.NewBasicError(
+			"Unsupported hop-by-hop extension",
+			scmp.NewError(scmp.C_Ext, scmp.T_E_BadHopByHop, &scmp.InfoExtIdx{Idx: uint8(pos)}, nil),
+			"type", extType,
+		)
 	}
 }
 
@@ -63,10 +65,11 @@ func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 func (rp *RtrPkt) extnAddHBH(e common.Extension) error {
 	max := rp.maxHBHExtns()
 	if len(rp.HBHExt) >= rp.maxHBHExtns() {
-		return common.NewCError("Too many hop-by-hop extensions", "curr", len(rp.HBHExt), "max", max)
+		return common.NewBasicError("Too many hop-by-hop extensions", nil,
+			"curr", len(rp.HBHExt), "max", max)
 	}
 	if len(rp.HBHExt) > 1 && e.Type() == common.ExtnSCMPType {
-		return common.NewCError("Bad extension order - SCMP must be first",
+		return common.NewBasicError("Bad extension order - SCMP must be first", nil,
 			"idx", len(rp.HBHExt), "first", rp.HBHExt[0].Type())
 	}
 	// Find the last hop-by-hop extension, if any, and write the extension
@@ -101,9 +104,11 @@ func (rp *RtrPkt) extnParseE2E(extType common.ExtnType,
 		return extn, nil
 	default:
 		// E2E not supported, so send an SCMP error in response.
-		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadEnd2End,
-			&scmp.InfoExtIdx{Idx: uint8(pos)})
-		return nil, common.NewCErrorData("Unsupported end-to-end extension", sdata, "type", extType)
+		return nil, common.NewBasicError(
+			"Unsupported end-to-end extension",
+			scmp.NewError(scmp.C_Ext, scmp.T_E_BadEnd2End, &scmp.InfoExtIdx{Idx: uint8(pos)}, nil),
+			"type", extType,
+		)
 	}
 }
 
@@ -133,7 +138,7 @@ func (rp *RtrPkt) extnAddE2E(e common.Extension) error {
 // that extension, as well as a pointer to the nextHdr field of that extension.
 func (rp *RtrPkt) extnOffsetNew(isHBH bool) (int, *uint8, error) {
 	if isHBH && len(rp.E2EExt) > 0 {
-		return 0, nil, common.NewCError("HBH extension illegal to add after E2E extension")
+		return 0, nil, common.NewBasicError("HBH extension illegal to add after E2E extension", nil)
 	}
 	offset := rp.CmnHdr.HdrLenBytes()
 	nextHdr := (*uint8)(&rp.CmnHdr.NextHdr)
@@ -158,7 +163,7 @@ func (rp *RtrPkt) extnWriteExtension(e common.Extension, isHBH bool) (int, int, 
 	}
 	eLen := e.Len() + common.ExtnSubHdrLen
 	if eLen%common.LineLen != 0 {
-		return 0, 0, common.NewCError("Ext length not multiple of line length",
+		return 0, 0, common.NewBasicError("Ext length not multiple of line length", nil,
 			"Class", e.Class(), "Type", e.Type(), "lineLen", common.LineLen, "actual", eLen)
 	}
 	et := e.Type()
@@ -182,17 +187,22 @@ func (rp *RtrPkt) validateExtns() error {
 	count := len(rp.idxs.hbhExt)
 	// Check if there are too many hop-by-hop extensions.
 	if count > max {
-		sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
-			&scmp.InfoExtIdx{Idx: uint8(count)})
-		return common.NewCErrorData("Too many hop-by-hop extensions",
-			sdata, "max", common.ExtnMaxHBH, "actual", count)
+		return common.NewBasicError(
+			"Too many hop-by-hop extensions",
+			scmp.NewError(scmp.C_Ext, scmp.T_E_TooManyHopbyHop,
+				&scmp.InfoExtIdx{Idx: uint8(count)}, nil),
+			"max", common.ExtnMaxHBH, "actual", count,
+		)
 	}
 	// Check if there an SCMP hop-by-hop extension that isn't at index 0.
 	for i, e := range rp.idxs.hbhExt {
 		if e.Type == common.ExtnSCMPType && i > 0 {
-			sdata := scmp.NewErrData(scmp.C_Ext, scmp.T_E_BadExtOrder,
-				&scmp.InfoExtIdx{Idx: uint8(i)})
-			return common.NewCErrorData("Extension order is illegal", sdata, "scmpIdx", count)
+			return common.NewBasicError(
+				"Extension order is illegal",
+				scmp.NewError(scmp.C_Ext, scmp.T_E_BadExtOrder,
+					&scmp.InfoExtIdx{Idx: uint8(i)}, nil),
+				"scmpIdx", count,
+			)
 		}
 	}
 	return nil

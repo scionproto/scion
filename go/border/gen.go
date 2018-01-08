@@ -83,7 +83,8 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int
 	} else {
 		ifid, ok := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]
 		if !ok {
-			return common.NewCError("genPkt: unable to find ifid for address", "addr", srcAddr)
+			return common.NewBasicError("genPkt: unable to find ifid for address",
+				nil, "addr", srcAddr)
 		}
 		rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	}
@@ -110,16 +111,12 @@ func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
 	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
 	scpld, err := ctrl.NewSignedPldFromUnion(&ifid.IFID{OrigIfID: uint64(ifID)})
 	if err != nil {
-		cerr := err.(*common.CError)
-		cerr.AddCtx("desc", cerr.Desc)
-		logger.Error("Error generating IFID payload", cerr.Ctx...)
+		logger.Error("Error generating IFID payload", "err", common.FmtError(err))
 		return
 	}
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
 		intf.RemoteAddr.L4Port, srcAddr, scpld); err != nil {
-		cerr := err.(*common.CError)
-		cerr.AddCtx("desc", cerr.Desc)
-		logger.Error("Error generating IFID packet", cerr.Ctx...)
+		logger.Error("Error generating IFID packet", "err", common.FmtError(err))
 	}
 }
 
@@ -146,14 +143,10 @@ func (r *Router) genIFStateReq() {
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
 	scpld, err := ctrl.NewSignedPathMgmtPld(&path_mgmt.IFStateReq{})
 	if err != nil {
-		cerr := err.(*common.CError)
-		cerr.AddCtx("desc", cerr.Desc)
-		log.Error("Error generating IFStateReq payload", cerr.Ctx...)
+		log.Error("Error generating IFStateReq payload", "err", common.FmtError(err))
 		return
 	}
 	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, scpld); err != nil {
-		cerr := err.(*common.CError)
-		cerr.AddCtx("desc", cerr.Desc)
-		log.Error("Error generating IFStateReq packet", cerr.Ctx...)
+		log.Error("Error generating IFStateReq packet", "err", common.FmtError(err))
 	}
 }

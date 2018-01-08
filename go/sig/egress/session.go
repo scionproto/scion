@@ -93,11 +93,10 @@ func (s *Session) Cleanup() error {
 	<-s.sessMonStopped
 	s.Debug("egress.Session Cleanup: closing conn")
 	if err := s.conn.Close(); err != nil {
-		return common.NewCError("Unable to close conn", "err", err)
+		return common.NewBasicError("Unable to close conn", err)
 	}
 	if err := sigcmn.PathMgr.Unwatch(sigcmn.IA, s.IA); err != nil {
-		return common.NewCError("Unable to unwatch src-dst", "src", sigcmn.IA, "dst", s.IA,
-			"err", err)
+		return common.NewBasicError("Unable to unwatch src-dst", err, "src", sigcmn.IA, "dst", s.IA)
 	}
 	return nil
 }
