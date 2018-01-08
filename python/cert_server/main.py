@@ -361,10 +361,10 @@ class CertServer(SCIONElement):
 
     def _send_trc_request(self, isd, ver):
         trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
-        isd_as = trc_req.isd_as()
-        path_meta = self._get_path_via_sciond(isd_as)
+        path_meta = self._get_path_via_sciond(trc_req.isd_as())
         if path_meta:
-            meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
+            meta = self._build_meta(
+                path_meta.dst_ia(), host=SVCType.CS_A, path=path_meta.fwd_path())
             self.send_meta(CtrlPayload(CertMgmt(trc_req)), meta)
             logging.info("TRC request sent to %s via [%s]: %s",
                          meta, path_meta.short_desc(), trc_req.short_desc())
