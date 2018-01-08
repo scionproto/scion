@@ -24,7 +24,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/xtest/loopback"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -85,7 +84,7 @@ func TestSendMsgToBadLink(t *testing.T) {
 		defer cancelF()
 		err := udp.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldNotBeNil)
-		SoMsg("send err is timeout", infra.IsTimeout(err), ShouldBeTrue)
+		SoMsg("send err is timeout", common.IsTimeoutErr(err), ShouldBeTrue)
 
 		ctx2, cancelF2 := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF2()
