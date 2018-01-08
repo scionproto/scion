@@ -48,6 +48,12 @@ class FwdPathMeta(Cerealizable):  # pragma: no cover
             self._fwd_path = SCIONPath(self.p.fwdPath)
         return self._fwd_path
 
+    def src_ia(self):
+        return PathInterface(self.p.interfaces[0]).isd_as()
+
+    def dst_ia(self):
+        return PathInterface(self.p.interfaces[-1]).isd_as()
+
     def iter_ifs(self):
         for if_ in self.p.interfaces:
             yield PathInterface(if_)
