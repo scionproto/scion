@@ -61,7 +61,9 @@ from lib.crypto.util import (
     get_ca_cert_file_path,
     get_ca_private_key_file_path,
     get_offline_key_file_path,
+    get_offline_key_raw_file_path,
     get_online_key_file_path,
+    get_online_key_raw_file_path,
 )
 from lib.defines import (
     AS_CONF_FILE,
@@ -348,9 +350,15 @@ class CertGenerator(object):
             self.pub_offline_root_keys[topo_id] = off_root_pub
             self.priv_offline_root_keys[topo_id] = off_root_priv
             online_key_path = get_online_key_file_path("")
+            online_key_raw_path = get_online_key_raw_file_path("")
             offline_key_path = get_offline_key_file_path("")
+            offline_key_raw_path = get_offline_key_raw_file_path("")
             self.cert_files[topo_id][online_key_path] = base64.b64encode(on_root_priv).decode()
+            self.cert_files[topo_id][online_key_raw_path] = base64.b64encode(
+                SigningKey(on_root_priv)._signing_key).decode()
             self.cert_files[topo_id][offline_key_path] = base64.b64encode(off_root_priv).decode()
+            self.cert_files[topo_id][offline_key_raw_path] = base64.b64encode(
+                SigningKey(off_root_priv)._signing_key).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.
