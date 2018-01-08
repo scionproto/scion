@@ -171,7 +171,7 @@ func (t *RUDP) SendMsgTo(ctx context.Context, b common.RawBytes, a net.Addr) err
 			// and try to send again
 		case <-t.closedC:
 			// Someone called Close, return immediately
-			return infra.NewClosedError()
+			return common.NewBasicError(infra.StrClosedError, nil)
 		}
 	}
 }
@@ -244,7 +244,7 @@ func (t *RUDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) 
 		return nil, nil, infra.NewCtxDoneError()
 	case <-t.closedC:
 		// Some other goroutine closed the transport layer
-		return nil, nil, infra.NewClosedError()
+		return nil, nil, common.NewBasicError(infra.StrClosedError, nil)
 	}
 }
 

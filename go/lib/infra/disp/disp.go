@@ -107,22 +107,22 @@ func New(t messaging.Transport, adapter MessageAdapter, logger log.Logger) *Disp
 // the message is the expected type.
 func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr) (Message, error) {
 	if err := d.waitTable.addRequest(msg); err != nil {
-		return nil, infra.NewInternalError(err, "op", "waitTable.AddRequest")
+		return nil, common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.AddRequest")
 	}
 	// Delete request entry when we exit this context
 	defer d.waitTable.cancelRequest(msg)
 
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return nil, infra.NewAdapterError(err, "op", "adapter.MsgToRaw")
+		return nil, common.NewBasicError(infra.StrAdapterError, err, "op", "adapter.MsgToRaw")
 	}
 	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return nil, infra.NewTransportError(err, "op", "SendMsgTo")
+		return nil, common.NewBasicError(infra.StrTransportError, err, "op", "transport.SendMsgTo")
 	}
 
 	reply, err := d.waitTable.waitForReply(ctx, msg)
 	if err != nil {
-		return nil, infra.NewInternalError(err, "op", "waitTable.WaitForReply")
+		return nil, common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.WaitForReply")
 	}
 	return reply, nil
 }
@@ -133,10 +133,10 @@ func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr)
 func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return infra.NewAdapterError(err, "op", "MsgToRaw")
+		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
 	}
 	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
-		return infra.NewTransportError(err, "op", "SendMsgTo")
+		return common.NewBasicError(infra.StrTransportError, err, "op", "SendMsgTo")
 	}
 	return nil
 }
@@ -145,10 +145,10 @@ func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) 
 func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg Message, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return infra.NewAdapterError(err, "op", "MsgToRaw")
+		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
 	}
 	if err := d.transport.SendUnreliableMsgTo(ctx, b, address); err != nil {
-		return infra.NewTransportError(err, "op", "SendUnreliableMsgTo")
+		return common.NewBasicError(infra.StrTransportError, err, "op", "SendUnreliableMsgTo")
 	}
 	return nil
 }
@@ -163,7 +163,7 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (Message, net.Addr, error) {
 		return nil, nil, infra.NewCtxDoneError()
 	case <-d.closeC:
 		// Some other goroutine closed the dispatcher
-		return nil, nil, infra.NewClosedError()
+		return nil, nil, common.NewBasicError(infra.StrClosedError, nil)
 	}
 }
 
@@ -189,19 +189,22 @@ func (d *Dispatcher) recvNext() {
 	// Once the transport is closed, RecvFrom returns immediately.
 	b, address, err := d.transport.RecvFrom(context.Background())
 	if err != nil {
-		d.log.Warn(infra.NewTransportError(err, "op", "RecvFrom").Error())
+		d.log.Warn("error", "err",
+			common.FmtError(common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom")))
 		return
 	}
 
 	msg, err := d.adapter.RawToMsg(b)
 	if err != nil {
-		d.log.Warn(infra.NewAdapterError(err, "op", "RawToMsg").Error())
+		d.log.Warn("error", "err",
+			common.FmtError(common.NewBasicError(infra.StrAdapterError, err, "op", "RawToMsg")))
 		return
 	}
 
 	found, err := d.waitTable.reply(msg)
 	if err != nil {
-		d.log.Warn(infra.NewInternalError(err, "op", "waitTable.Reply").Error())
+		d.log.Warn("error", "err",
+			common.FmtError(common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.Reply")))
 		return
 	}
 	if found {
@@ -231,7 +234,7 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 	}
 	err := d.transport.Close(ctx)
 	if err != nil {
-		return common.NewCError("Unable to close transport", "err", err)
+		return common.NewBasicError("Unable to close transport", err)
 	}
 	// Wait for background goroutine to finish
 	select {

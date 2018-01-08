@@ -39,11 +39,11 @@ func (t testAdapterT) MsgToRaw(msg Message) (common.RawBytes, error) {
 func (t testAdapterT) RawToMsg(b common.RawBytes) (Message, error) {
 	items := strings.Split(string(b), "-")
 	if len(items) != 2 {
-		return nil, common.NewCError("Bad message")
+		return nil, common.NewBasicError("Bad message", nil)
 	}
 	id, err := strconv.Atoi(items[0])
 	if err != nil {
-		return nil, common.NewCError("Unable to parse ID", "err", err)
+		return nil, common.NewBasicError("Unable to parse ID", err)
 	}
 	msg := &customObject{
 		id:  id,
