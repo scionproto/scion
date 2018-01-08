@@ -51,6 +51,7 @@ var (
 	store    *trust.Store
 	bind     *snet.Addr
 	public   *snet.Addr
+	keyConf  *trust.KeyConf
 )
 
 // main initializes the certificate server and starts the dispatcher.
@@ -69,6 +70,9 @@ func main() {
 		fatal(err.Error())
 	}
 	if err = loadTopo(); err != nil {
+		fatal(err.Error())
+	}
+	if keyConf, err = trust.LoadKeyConf(filepath.Join(*confDir, "keys"), topo.Core); err != nil {
 		fatal(err.Error())
 	}
 	// initialize Trust Store
