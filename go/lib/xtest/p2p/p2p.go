@@ -65,7 +65,7 @@ func (c *Conn) WriteTo(b []byte, a net.Addr) (n int, err error) {
 	// write to it. If this happens, we recover and return an error.
 	defer func() {
 		if r := recover(); r != nil {
-			err = common.NewCError("p2p conn closed")
+			err = common.NewBasicError("p2p conn closed", nil)
 		}
 	}()
 	c.send <- packet{b: dup(b), a: a}
