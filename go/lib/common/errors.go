@@ -122,10 +122,11 @@ func NewBasicError(msg string, e error, logCtx ...interface{}) error {
 }
 
 func (be BasicError) Error() string {
-	s := make([]string, 1+(len(be.logCtx)/2))
+	s := make([]string, 0, 1+(len(be.logCtx)/2))
+	s = append(s, be.Msg)
 	s[0] = be.Msg
 	for i := 0; i < len(be.logCtx); i += 2 {
-		s[i/2] = fmt.Sprintf("%s=\"%v\"", be.logCtx[i], be.logCtx[i+1])
+		s = append(s, fmt.Sprintf("%s=\"%v\"", be.logCtx[i], be.logCtx[i+1]))
 	}
 	return strings.Join(s, " ")
 }
