@@ -32,8 +32,8 @@ import (
 
 func Setup() (*Dispatcher, *Dispatcher, *customObject, *customObject) {
 	a2b, b2a := p2p.New()
-	dispA := NewDispatcher(messaging.NewRUDP(a2b, log.Root()), testAdapter, log.Root())
-	dispB := NewDispatcher(messaging.NewRUDP(b2a, log.Root()), testAdapter, log.Root())
+	dispA := New(messaging.NewRUDP(a2b, log.Root()), testAdapter, log.Root())
+	dispB := New(messaging.NewRUDP(b2a, log.Root()), testAdapter, log.Root())
 	request := &customObject{8, "request"}
 	reply := &customObject{8, "reply"}
 	return dispA, dispB, request, reply

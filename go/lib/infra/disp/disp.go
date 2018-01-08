@@ -16,8 +16,9 @@
 // protocols.
 //
 // Supported message exchanges are Request (send a request message, block until
-// a reply message with the same key is received), Notify (send a message,
-// block until an ACK is received from the remote Transport protocol),
+// a reply message with the same key is received), Notify (send a reliable
+// notification, i.e., one that is either sent via a lower-level reliable
+// transport or waits for an ACK on an unreliable transport), and
 // NotifyUnreliable (send a message, return immediately).
 //
 // A Dispatcher can be customized by implementing interface MessageAdapter. The
@@ -45,11 +46,10 @@ import (
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	liblog "github.com/scionproto/scion/go/lib/log"
-
-	. "github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/messaging"
+	liblog "github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -81,10 +81,12 @@ type Dispatcher struct {
 // New creates a new dispatcher backed by transport t, and using adapter to
 // convert generic Message objects to and from their raw representation.
 //
-// All methods guarantee to return immediately once their context is canceled.
+// All methods guarantee to return immediately once their context expires.
+// Calling the context's cancel function does not guarantee immediate return
+// (lower levels might be blocked on an uninterruptible call).
 //
 // A Dispatcher can be safely used by concurrent goroutines.
-func NewDispatcher(t messaging.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
+func New(t messaging.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
 	d := &Dispatcher{
 		transport:  t,
 		waitTable:  newWaitTable(adapter.MsgKey),
@@ -112,7 +114,7 @@ func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr)
 
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
-		return nil, infra.NewAdapterError(err, "op", "waitTable.MsgToRaw")
+		return nil, infra.NewAdapterError(err, "op", "adapter.MsgToRaw")
 	}
 	if err := d.transport.SendMsgTo(ctx, b, address); err != nil {
 		return nil, infra.NewTransportError(err, "op", "SendMsgTo")
@@ -125,8 +127,9 @@ func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr)
 	return reply, nil
 }
 
-// Notify sends msg to address, and returns once the send has been ACK'd by the
-// remote end. Notify blocks while waiting for the ACK.
+// Notify sends msg to address in a reliable way (i.e., either via a
+// lower-level reliable transport or by waiting for an ACK on an unreliable
+// transport).
 func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
@@ -184,7 +187,7 @@ func (d *Dispatcher) goBackgroundReceiver() {
 
 func (d *Dispatcher) recvNext() {
 	// Once the transport is closed, RecvFrom returns immediately.
-	b, address, err := d.transport.RecvFrom(context.TODO())
+	b, address, err := d.transport.RecvFrom(context.Background())
 	if err != nil {
 		d.log.Warn(infra.NewTransportError(err, "op", "RecvFrom").Error())
 		return
@@ -228,7 +231,7 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 	}
 	err := d.transport.Close(ctx)
 	if err != nil {
-		return NewCError("Unable to close transport", "err", err)
+		return common.NewCError("Unable to close transport", "err", err)
 	}
 	// Wait for background goroutine to finish
 	select {

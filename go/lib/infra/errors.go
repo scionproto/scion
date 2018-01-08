@@ -19,15 +19,15 @@ package infra
 import (
 	"fmt"
 
-	. "github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (
-	strCtxDoneError   = "context canceled"
-	strClosedError    = "layer closed"
-	strAdapterError   = "msg adapter error"
-	strInternalError  = "internal error"
-	strTransportError = "transport error"
+	StrCtxDoneError   = "context canceled"
+	StrClosedError    = "layer closed"
+	StrAdapterError   = "msg adapter error"
+	StrInternalError  = "internal error"
+	StrTransportError = "transport error"
 )
 
 type errMeta struct {
@@ -38,36 +38,36 @@ func NewCtxDoneError(ctx ...interface{}) error {
 	meta := &errMeta{
 		timeout: true,
 	}
-	return NewCErrorData(strCtxDoneError, meta, ctx...)
+	return common.NewCErrorData(StrCtxDoneError, meta, ctx...)
 }
 
 func NewAdapterError(err error, ctx ...interface{}) error {
-	return WrapError(err, strAdapterError, ctx...)
+	return WrapError(err, StrAdapterError, ctx...)
 }
 
 func NewTransportError(err error, ctx ...interface{}) error {
-	return WrapError(err, strTransportError, ctx...)
+	return WrapError(err, StrTransportError, ctx...)
 }
 
 func NewInternalError(err error, ctx ...interface{}) error {
-	return WrapError(err, strInternalError, ctx...)
+	return WrapError(err, StrInternalError, ctx...)
 }
 
 func NewClosedError(ctx ...interface{}) error {
-	return NewError(strClosedError, ctx)
+	return NewError(StrClosedError, ctx)
 }
 
 func NewError(errStr string, ctx ...interface{}) error {
-	return NewCError(errStr, ctx)
+	return common.NewCError(errStr, ctx)
 }
 
 // Returns true if err was
 func IsTimeout(err error) bool {
-	cmnErr, ok := err.(*CError)
+	cerr, ok := err.(*common.CError)
 	if !ok {
 		return false
 	}
-	meta, ok := cmnErr.Data.(*errMeta)
+	meta, ok := cerr.Data.(*errMeta)
 	if !ok {
 		return false
 	}
@@ -77,12 +77,12 @@ func IsTimeout(err error) bool {
 // Mutates the state of err to contain additional context, while preserving the
 // original metadata.
 func WrapError(err error, desc string, ctx ...interface{}) error {
-	cmnErr, ok := err.(*CError)
+	cerr, ok := err.(*common.CError)
 	if !ok {
 		// Convert standard error to CError
-		cmnErr = NewCError(err.Error()).(*CError)
+		cerr = common.NewCError(err.Error()).(*common.CError)
 	}
-	cmnErr.Ctx = append(ctx, "err", fmt.Sprintf("{%v}", cmnErr))
-	cmnErr.Desc = desc
-	return err
+	cerr.Ctx = append(ctx, "err", fmt.Sprintf("{%v}", cerr))
+	cerr.Desc = desc
+	return cerr
 }
