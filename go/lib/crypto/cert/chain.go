@@ -27,9 +27,17 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 )
 
-const MaxChainByteLength uint32 = 1 << 20
+const (
+	MaxChainByteLength uint32 = 1 << 20
+
+	// Error strings
+	CoreCertInvalid = "Core certificate invalid"
+	IssASNotFound   = "Issuing Core AS not found"
+	LeafCertInvalid = "Leaf certificate invalid"
+)
 
 type Key struct {
 	IA  addr.ISD_AS
@@ -78,11 +86,17 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	return c, nil
 }
 
-func (c *Chain) Verify(subject *addr.ISD_AS, trc interface{}) error {
+func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
 	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
-		return err
+		return common.NewBasicError(LeafCertInvalid, err)
 	}
-	// Fixme(roosd): Verify Core Certificate based on TRC
+	coreAS, ok := t.CoreASes[*c.Core.Issuer]
+	if !ok {
+		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Core.Issuer, "coreASes", t.CoreASes)
+	}
+	if err := c.Core.Verify(c.Core.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
+		return common.NewBasicError(CoreCertInvalid, err)
+	}
 	return nil
 }
 
