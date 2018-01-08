@@ -24,12 +24,15 @@ import (
 var _ error = (*Error)(nil)
 var _ common.ErrorNester = (*Error)(nil)
 
+// Error represents an SCMP error, with an optional nested error.
 type Error struct {
 	CT   ClassType
 	Info Info
 	Err  error
 }
 
+// NewError creates a new SCMP Error with the specified scmp Class/Type/Info,
+// and optional nested error.
 func NewError(class Class, type_ Type, info Info, e error) error {
 	return &Error{CT: ClassType{class, type_}, Info: info, Err: e}
 }
@@ -50,6 +53,8 @@ func (e *Error) GetErr() error {
 	return e.Err
 }
 
+// ToError converts an e to an Error. If that fails, it recurses on the nested
+// error, if any, and otherwise returns nil.
 func ToError(e error) *Error {
 	if e, ok := e.(*Error); ok {
 		return e
