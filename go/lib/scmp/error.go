@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var _ error = (*Error)(nil)
 var _ common.ErrorNester = (*Error)(nil)
 
 // Error represents an SCMP error, with an optional nested error.

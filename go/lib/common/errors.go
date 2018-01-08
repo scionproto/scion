@@ -95,7 +95,6 @@ func IsTimeoutErr(e error) bool {
 	return false
 }
 
-var _ error = BasicError{}
 var _ ErrorMsger = BasicError{}
 var _ ErrorNester = BasicError{}
 
