@@ -55,7 +55,7 @@ func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, error) {
 // Add creates a new traceroute entry directly to the underlying buffer.
 func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) error {
 	if t.NumHops == t.TotalHops {
-		return common.NewCError("Header already full", "entries", t.NumHops)
+		return common.NewBasicError("Header already full", nil, "entries", t.NumHops)
 	}
 	offset := common.ExtnFirstLineLen + common.LineLen*int(t.NumHops)
 	entry.IA.Write(t.raw[offset:])
@@ -70,7 +70,8 @@ func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) error {
 // Entry parses a specified traceroute entry from the underlying buffer.
 func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, error) {
 	if idx > int(t.NumHops-1) {
-		return nil, common.NewCError("Entry index out of range", "idx", idx, "max", t.NumHops-1)
+		return nil, common.NewBasicError("Entry index out of range", nil,
+			"idx", idx, "max", t.NumHops-1)
 	}
 	entry := spkt.TracerouteEntry{}
 	offset := common.ExtnFirstLineLen + common.LineLen*idx
@@ -90,10 +91,10 @@ func (t *rTraceroute) RegisterHooks(h *hooks) error {
 
 func (t *rTraceroute) Validate() (HookResult, error) {
 	if (len(t.raw)-common.ExtnFirstLineLen)%common.LineLen != 0 {
-		return HookError, common.NewCError(errLenMultiple, "len", len(t.raw))
+		return HookError, common.NewBasicError(errLenMultiple, nil, "len", len(t.raw))
 	}
 	if t.NumHops > t.TotalHops {
-		return HookError, common.NewCError("Header claims too many entries",
+		return HookError, common.NewBasicError("Header claims too many entries", nil,
 			"max", t.TotalHops, "actual", t.NumHops)
 	}
 	return HookContinue, nil
@@ -107,9 +108,7 @@ func (t *rTraceroute) Process() (HookResult, error) {
 		IA: *t.rp.Ctx.Conf.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
 	}
 	if err := t.Add(&entry); err != nil {
-		cerr := err.(*common.CError)
-		cerr.Ctx = append(cerr.Ctx, "raw", t.rp.Raw)
-		t.Error("Unable to add entry", "err", cerr)
+		t.Error("Unable to add entry", "err", common.FmtError(err))
 	}
 	// Update the raw buffer with the number of hops.
 	t.raw[0] = t.NumHops

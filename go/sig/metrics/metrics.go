@@ -97,7 +97,7 @@ func init() {
 func Start() error {
 	ln, err := net.Listen("tcp", *promAddr)
 	if err != nil {
-		return common.NewCError("Unable to bind prometheus metrics port", "err", err)
+		return common.NewBasicError("Unable to bind prometheus metrics port", err)
 	}
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
 	go http.Serve(ln, nil)

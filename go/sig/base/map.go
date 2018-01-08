@@ -78,8 +78,7 @@ func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 		log.Info("ReloadConfig: Adding AS...", "ia", ia)
 		ae, err := am.AddIA(ia)
 		if err != nil {
-			cerr := err.(*common.CError)
-			log.Error(cerr.Desc, cerr.Ctx...)
+			log.Error("ReloadConfig: Adding AS failed", "err", common.FmtError(err))
 			s = false
 			continue
 		}
@@ -99,8 +98,7 @@ func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 			// Deletion also handles session/tun device cleanup
 			err := am.DelIA(ia)
 			if err != nil {
-				cerr := err.(*common.CError)
-				log.Error(cerr.Desc, cerr.Ctx...)
+				log.Error("ReloadConfig: Deleting AS failed", "err", common.FmtError(err))
 				s = false
 				return true
 			}
@@ -115,7 +113,7 @@ func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
 	if ia.I == 0 || ia.A == 0 {
 		// A 0 for either ISD or AS indicates a wildcard, and not a specific ISD-AS.
-		return nil, common.NewCError("AddIA: ISD and AS must not be 0", "ia", ia)
+		return nil, common.NewBasicError("AddIA: ISD and AS must not be 0", nil, "ia", ia)
 	}
 	key := ia.IAInt()
 	ae, ok := am.Load(key)
@@ -135,7 +133,7 @@ func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
 	key := ia.IAInt()
 	ae, ok := am.Load(key)
 	if !ok {
-		return common.NewCError("DelIA: No entry found", "ia", ia)
+		return common.NewBasicError("DelIA: No entry found", nil, "ia", ia)
 	}
 	am.Delete(key)
 	return ae.Cleanup()

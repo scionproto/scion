@@ -33,7 +33,7 @@ func NewClassMap() ClassMap {
 func (cm ClassMap) Add(c *Class) error {
 	_, ok := cm[c.name]
 	if ok {
-		return common.NewCError("Class name exists", "name", c.name)
+		return common.NewBasicError("Class name exists", nil, "name", c.name)
 	}
 	cm[c.name] = c
 	return nil
@@ -42,7 +42,7 @@ func (cm ClassMap) Add(c *Class) error {
 func (cm ClassMap) Get(name string) (*Class, error) {
 	class, ok := cm[name]
 	if !ok {
-		return nil, common.NewCError("Class not found", "name", name)
+		return nil, common.NewBasicError("Class not found", nil, "name", name)
 	}
 	return class, nil
 }
@@ -50,7 +50,7 @@ func (cm ClassMap) Get(name string) (*Class, error) {
 func (cm ClassMap) Remove(name string) error {
 	_, ok := cm[name]
 	if !ok {
-		return common.NewCError("Class not found", "name", name)
+		return common.NewBasicError("Class not found", nil, "name", name)
 	}
 	delete(cm, name)
 	return nil

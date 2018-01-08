@@ -19,7 +19,6 @@ import (
 	"hash"
 
 	"github.com/dchest/cmac"
-	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -32,11 +31,11 @@ const (
 func InitMac(key common.RawBytes) (hash.Hash, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, common.NewCError(ErrorCipherFailure, log.Ctx{"err": err})
+		return nil, common.NewBasicError(ErrorCipherFailure, err)
 	}
 	mac, err := cmac.New(block)
 	if err != nil {
-		return nil, common.NewCError(ErrorMacFailure, log.Ctx{"err": err})
+		return nil, common.NewBasicError(ErrorMacFailure, err)
 	}
 	return mac, nil
 }

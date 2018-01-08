@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	ErrClosed      = common.NewCError("Messaging transport closed")
-	ErrContextDone = common.NewCError("Context expired while waiting")
+	ErrClosed      = common.NewBasicError("Messaging transport closed", nil)
+	ErrContextDone = common.NewBasicError("Context expired while waiting", nil)
 )
 
 // Transport layers must be safe for concurrent use by multiple goroutines.

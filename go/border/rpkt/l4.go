@@ -54,7 +54,7 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, error) {
 		*/
 		default:
 			// Can't return an SCMP error as we don't understand the L4 header
-			return nil, common.NewCError(UnsupportedL4, "type", rp.L4Type)
+			return nil, common.NewBasicError(UnsupportedL4, nil, "type", rp.L4Type)
 		}
 	}
 	if verify {
@@ -86,13 +86,15 @@ func (rp *RtrPkt) findL4() (bool, error) {
 		offset += hdrLen
 		if hdrLen == 0 {
 			// FIXME(kormat): Can't return an SCMP error as we can't parse the headers
-			return false, common.NewCError("0-length header", "nextHdr", nextHdr, "offset", offset)
+			return false, common.NewBasicError("0-length header", nil,
+				"nextHdr", nextHdr, "offset", offset)
 		}
 	}
 	if offset > len(rp.Raw) {
 		// FIXME(kormat): Can't generally return an SCMP error as parsing the
 		// headers has failed.
-		return false, common.NewCError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
+		return false, common.NewBasicError(ErrExtChainTooLong, nil,
+			"curr", offset, "max", len(rp.Raw))
 	}
 	rp.idxs.nextHdrIdx.Type = nextHdr
 	rp.idxs.nextHdrIdx.Index = offset
@@ -151,7 +153,7 @@ func (rp *RtrPkt) updateL4() error {
 			return err
 		}
 	default:
-		return common.NewCError("Updating l4 payload not supported", "type", rp.L4Type)
+		return common.NewBasicError("Updating l4 payload not supported", nil, "type", rp.L4Type)
 	}
 	return nil
 }

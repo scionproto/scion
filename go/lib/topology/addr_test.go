@@ -238,8 +238,7 @@ func Test_ToTopoAddr_Errors(t *testing.T) {
 			Convey(desc, t, func() {
 				_, err := test.in.ToTopoAddr(ot)
 				SoMsg("Error returned", err, ShouldNotBeNil)
-				cerr := err.(*common.CError)
-				SoMsg("Error description", cerr.Desc, shouldBeInStrings, test.errDesc)
+				SoMsg("Error description", common.GetErrorMsg(err), shouldBeInStrings, test.errDesc)
 			})
 		}
 	}

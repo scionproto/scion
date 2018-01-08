@@ -36,7 +36,6 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
@@ -135,7 +134,7 @@ func (c *connector) nextID() uint64 {
 func (c *connector) send(p *Pld) error {
 	raw, err := proto.PackRoot(p)
 	if err != nil {
-		return tryExtractNetError(err)
+		return err
 	}
 	_, err = c.conn.Write(raw)
 	return err
@@ -145,7 +144,7 @@ func (c *connector) receive() (*Pld, error) {
 	p := &Pld{}
 	err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
 	if err != nil {
-		return nil, tryExtractNetError(err)
+		return nil, err
 	}
 	return p, nil
 }
@@ -343,16 +342,4 @@ func (c *connector) Close() error {
 // desynchronized. Establishing a fresh connection to SCIOND is recommended.
 func (c *connector) SetDeadline(t time.Time) error {
 	return c.conn.SetDeadline(t)
-}
-
-// If err embeds a net.Error, return only the embedded error
-func tryExtractNetError(err error) error {
-	cErr, ok := err.(*common.CError)
-	if ok {
-		netErr, ok := cErr.Data.(net.Error)
-		if ok {
-			return netErr
-		}
-	}
-	return err
 }

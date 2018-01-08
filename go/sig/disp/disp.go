@@ -78,7 +78,7 @@ func (dm *dispRegistry) Register(regType RegType, key RegPollKey, c RegPldChan) 
 	case RegPollRep:
 		dm.pollRep[key] = c
 	default:
-		return common.NewCError("Register: Unsupported dispatcher RegType", "v", regType)
+		return common.NewBasicError("Register: Unsupported dispatcher RegType", nil, "v", regType)
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func (dm *dispRegistry) Unregister(regType RegType, key RegPollKey) error {
 	case RegPollRep:
 		delete(dm.pollRep, key)
 	default:
-		return common.NewCError("Unregister: Unsupported dispatcher RegType", "v", regType)
+		return common.NewBasicError("Unregister: Unsupported dispatcher RegType", nil, "v", regType)
 	}
 	return nil
 }

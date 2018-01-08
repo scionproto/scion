@@ -24,6 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var (
@@ -79,7 +80,6 @@ func TestAPITimeout(t *testing.T) {
 			})
 
 			Convey("Path request should timeout", func() {
-				var expectedT *net.OpError
 				src, _ := addr.IAFromString("1-1")
 				dst, _ := addr.IAFromString("2-2")
 				conn.SetDeadline(time.Now().Add(3 * time.Second))
@@ -91,13 +91,10 @@ func TestAPITimeout(t *testing.T) {
 					before.Add(4*time.Second))
 
 				SoMsg("reply", reply, ShouldBeNil)
-				SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
-				opErr := err.(*net.OpError)
-				SoMsg("timeout", opErr.Timeout(), ShouldBeTrue)
+				SoMsg("timeout", common.IsTimeoutErr(err), ShouldBeTrue)
 			})
 
 			Convey("Revocation notification should timeout", func() {
-				var expectedT *net.OpError
 				conn.SetDeadline(time.Now().Add(3 * time.Second))
 
 				before := time.Now()
@@ -107,9 +104,7 @@ func TestAPITimeout(t *testing.T) {
 					before.Add(4*time.Second))
 
 				SoMsg("reply", reply, ShouldBeNil)
-				SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)
-				opErr := err.(*net.OpError)
-				SoMsg("timeout", opErr.Timeout(), ShouldBeTrue)
+				SoMsg("timeout", common.IsTimeoutErr(err), ShouldBeTrue)
 			})
 		})
 	})

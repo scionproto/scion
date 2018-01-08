@@ -55,8 +55,7 @@ func main() {
 	setupSignals()
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
-		cerr := err.(*common.CError)
-		log.Crit("Startup failed", cerr.Ctx...)
+		log.Crit("Startup failed", "err", common.FmtError(err))
 		liblog.Flush()
 		os.Exit(1)
 	}
@@ -67,8 +66,7 @@ func main() {
 	}
 	log.Info("Starting up", "id", *id, "pid", os.Getpid())
 	if err := r.Run(); err != nil {
-		cerr := err.(*common.CError)
-		log.Crit("Run failed", cerr.Ctx...)
+		log.Crit("Run failed", "err", common.FmtError(err))
 		liblog.Flush()
 		os.Exit(1)
 	}

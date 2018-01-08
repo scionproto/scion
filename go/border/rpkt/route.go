@@ -57,8 +57,8 @@ func (rp *RtrPkt) Route() error {
 		}
 	}
 	if len(rp.Egress) == 0 {
-		return common.NewCError("No routing information found", "egress", rp.Egress,
-			"dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
+		return common.NewBasicError("No routing information found", nil,
+			"egress", rp.Egress, "dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
 	}
 	rp.refInc(len(rp.Egress))
 	// Call all egress functions.
@@ -79,7 +79,7 @@ func (rp *RtrPkt) Route() error {
 func (rp *RtrPkt) RouteResolveSVC() (HookResult, error) {
 	svc, ok := rp.dstHost.(addr.HostSVC)
 	if !ok {
-		return HookError, common.NewCError("Destination host is NOT an SVC address",
+		return HookError, common.NewBasicError("Destination host is NOT an SVC address", nil,
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
 	// Use any local output sock in case the packet has no path (e.g., ifstate requests)
@@ -143,7 +143,8 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 	case rcmn.DirLocal:
 		return rp.forwardFromLocal()
 	default:
-		return HookError, common.NewCError("Unsupported forwarding DirFrom", "dirFrom", rp.DirFrom)
+		return HookError, common.NewBasicError("Unsupported forwarding DirFrom", nil,
+			"dirFrom", rp.DirFrom)
 	}
 }
 
@@ -154,8 +155,8 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		assert.Mustf(rp.hopF != nil, rp.ErrStr, "rp.hopF must not be nil")
 	}
 	if rp.hopF.VerifyOnly { // Should have been caught by validatePath
-		return HookError, common.NewCError(
-			"BUG: Non-routing HopF, refusing to forward", "hopF", rp.hopF)
+		return HookError, common.NewBasicError("BUG: Non-routing HopF, refusing to forward", nil,
+			"hopF", rp.hopF)
 	}
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	// FIXME(kormat): this needs to be cleaner, as it won't work with
@@ -165,8 +166,8 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
 		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
-			return HookError, common.NewCError("BUG: Delivery forbidden for Forward-only HopF",
-				"hopF", rp.hopF)
+			return HookError, common.NewBasicError("BUG: Delivery forbidden for Forward-only HopF",
+				nil, "hopF", rp.hopF)
 		}
 		ot := overlay.OverlayFromIP(rp.dstHost.IP(), rp.Ctx.Conf.Topo.Overlay)
 		dst := &topology.AddrInfo{
@@ -221,9 +222,8 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	// If this is a peering XOVER point.
 	if infoF.Peer {
 		if segChgd {
-			sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-			return common.NewCError(
-				"Path inc on ingress caused illegal peer segment change", sdata)
+			return common.NewBasicError("Path inc on ingress caused illegal peer segment change",
+				scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
 		}
 		origIF := origIFNext
 		newIF := *rp.ifNext
@@ -236,10 +236,11 @@ func (rp *RtrPkt) xoverFromExternal() error {
 			newIF = *rp.ifCurr
 		}
 		if origIF != newIF {
-			sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets())
-			return common.NewCError(
-				"Downstream interfaces don't match on peer XOVER hop fields", sdata,
-				"orig", origIF, "new", newIF)
+			return common.NewBasicError(
+				"Downstream interfaces don't match on peer XOVER hop fields",
+				scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets(), nil),
+				"orig", origIF, "new", newIF,
+			)
 		}
 		return nil
 	}
@@ -251,22 +252,24 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	nextLink := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext].LinkType
 	// Never allowed to switch between core segments.
 	if prevLink == topology.CoreLink && nextLink == topology.CoreLink {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return common.NewCError("Segment change between CORE links.", sdata)
+		return common.NewBasicError("Segment change between CORE links",
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
 	}
 	// Only allowed to switch from up- to up-segment if the next link is CORE.
 	if infoF.Up && rp.infoF.Up && nextLink != topology.CoreLink {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return common.NewCError(
-			"Segment change from up segment to up segment with non-CORE next link", sdata,
-			"prevLink", prevLink, "nextLink", nextLink)
+		return common.NewBasicError(
+			"Segment change from up segment to up segment with non-CORE next link",
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),
+			"prevLink", prevLink, "nextLink", nextLink,
+		)
 	}
 	// Only allowed to switch from down- to down-segment if the previous link is CORE.
 	if !infoF.Up && !rp.infoF.Up && prevLink != topology.CoreLink {
-		sdata := scmp.NewErrData(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets())
-		return common.NewCError(
+		return common.NewBasicError(
 			"Segment change from down segment to down segment with non-CORE previous link",
-			sdata, "prevLink", prevLink, "nextLink", nextLink)
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),
+			"prevLink", prevLink, "nextLink", nextLink,
+		)
 	}
 	return nil
 }

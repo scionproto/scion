@@ -93,7 +93,7 @@ func (c *CertLog) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if len(m) != 1 {
-		return common.NewCError("Invalid number of sub-entries in CertLogEntry",
+		return common.NewBasicError("Invalid number of sub-entries in CertLogEntry", nil,
 			"expect", 1, "actual", len(m))
 	}
 	for key, cert := range m {
@@ -120,15 +120,15 @@ func (a *Addr) String() string {
 func (a *Addr) ParseString(addr_ string) error {
 	l := strings.Split(addr_, ",")
 	if len(l) != 2 {
-		return common.NewCError("Invalid address", "raw", addr_, "err", "wrong format")
+		return common.NewBasicError("Invalid address", nil, "raw", addr_, "err", "wrong format")
 	}
 	ia, err := addr.IAFromString(l[0])
 	if err != nil {
-		return common.NewCError("Invalid address", "raw", addr_, "err", err)
+		return common.NewBasicError("Invalid address", nil, "raw", addr_, "err", err)
 	}
 	ip := net.ParseIP(l[1])
 	if ip == nil {
-		return common.NewCError("Invalid address", "raw", addr_, "err", "Invalid IP")
+		return common.NewBasicError("Invalid address", nil, "raw", addr_, "err", "Invalid IP")
 	}
 	a.IA = ia
 	a.IP = ip

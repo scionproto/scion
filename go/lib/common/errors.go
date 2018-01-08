@@ -18,50 +18,156 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kormat/fmt15"
+	"github.com/scionproto/scion/go/lib/assert"
 )
 
-type ErrCtx fmt15.FCtx
-
-type ErrorData interface{}
-
-var _ error = (*CError)(nil)
-
-type CError struct {
-	Desc string
-	Ctx  ErrCtx
-	Data ErrorData
-	Cerr *CError
+// ErrorMsger allows extracting the message from an error. This means a caller
+// can determine the type of error by comparing the returned message with a
+// const error string. E.g.:
+// if GetErrorMsg(err) == addr.ErrorBadHostAddrType {
+//    // Handle bad host addr error
+// }
+type ErrorMsger interface {
+	error
+	GetMsg() string
 }
 
-func NewCError(desc string, ctx ...interface{}) error {
-	return &CError{Desc: desc, Ctx: ctx}
+// GetErrorMsg extracts the message from e, if e implements the ErrorMsger
+// interface. As a fall-back, if e implements ErrorNester, GetErrorMsg recurses on
+// the nested error. Otherwise returns an empty string.
+func GetErrorMsg(e error) string {
+	if e, _ := e.(ErrorMsger); e != nil {
+		return e.GetMsg()
+	}
+	if n := GetNestedError(e); n != nil {
+		return GetErrorMsg(n)
+	}
+	return ""
 }
 
-func NewCErrorData(desc string, data ErrorData, ctx ...interface{}) error {
-	return &CError{Desc: desc, Ctx: ctx, Data: data}
+// ErrorNester allows recursing into nested errors.
+type ErrorNester interface {
+	error
+	GetErr() error
 }
 
-func (c CError) Error() string {
-	// FIXME(kormat): handle nesting.
-	s := []string{}
-	s = append(s, c.Desc)
-	for i := 0; i < len(c.Ctx); i += 2 {
-		s = append(s, fmt.Sprintf("%s=\"%s\"", c.Ctx[i], c.Ctx[i+1]))
+// GetNestedError returns the nested error, if any. Returns nil otherwise.
+func GetNestedError(e error) error {
+	if n, _ := e.(ErrorNester); n != nil {
+		return n.GetErr()
+	}
+	return nil
+}
+
+// Temporary allows signalling of a temporary error. Based on https://golang.org/pkg/net/#Error
+type Temporary interface {
+	error
+	Temporary() bool
+}
+
+// IsTemporaryErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNester,
+// IsTemporaryErr recurses on the nested error. Otherwise returns false.
+func IsTemporaryErr(e error) bool {
+	if t, _ := e.(Temporary); t != nil {
+		return t.Temporary()
+	}
+	if n := GetNestedError(e); n != nil {
+		return IsTemporaryErr(n)
+	}
+	return false
+}
+
+// Temporary allows signalling of a timeout error. Based on https://golang.org/pkg/net/#Error
+type Timeout interface {
+	error
+	Timeout() bool
+}
+
+// IsTimeoutErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNester,
+// IsTimeoutErr recurses on the nested error. Otherwise returns false.
+func IsTimeoutErr(e error) bool {
+	if t, _ := e.(Timeout); t != nil {
+		return t.Timeout()
+	}
+	if n := GetNestedError(e); n != nil {
+		return IsTimeoutErr(n)
+	}
+	return false
+}
+
+var _ ErrorMsger = BasicError{}
+var _ ErrorNester = BasicError{}
+
+// BasicError is a simple error type that implements ErrorMsger and ErrorNester,
+// and can contain context (slice of [string, val, string, val...]) for logging purposes.
+type BasicError struct {
+	// Error message
+	Msg string
+	// Error context, for logging purposes only
+	logCtx []interface{}
+	// Nested error, if any.
+	Err error
+}
+
+// NewBasicError creates a new BasicError, with e as the embedded error (can be nil), with logCtx
+// being a list of string/val pairs.
+func NewBasicError(msg string, e error, logCtx ...interface{}) error {
+	if assert.On {
+		assert.Must(len(logCtx)%2 == 0, "Log context must have an even number of elements")
+		for i := 0; i < len(logCtx); i += 2 {
+			_, ok := logCtx[i].(string)
+			assert.Must(ok, "First element of each log context pair must be a string")
+		}
+	}
+	return BasicError{Msg: msg, logCtx: logCtx, Err: e}
+}
+
+func (be BasicError) Error() string {
+	s := make([]string, 0, 1+(len(be.logCtx)/2))
+	s = append(s, be.Msg)
+	s[0] = be.Msg
+	for i := 0; i < len(be.logCtx); i += 2 {
+		s = append(s, fmt.Sprintf("%s=\"%v\"", be.logCtx[i], be.logCtx[i+1]))
 	}
 	return strings.Join(s, " ")
 }
 
-func (c *CError) AddCtx(ctx ...interface{}) error {
-	c.Ctx = append(c.Ctx, ctx...)
-	return c
+func (be BasicError) GetMsg() string {
+	return be.Msg
 }
 
-type Temporary interface {
-	Temporary() bool
+func (be BasicError) GetErr() error {
+	return be.Err
 }
 
-func IsTemporaryErr(e error) bool {
-	t, ok := e.(Temporary)
-	return ok && t.Temporary()
+// FmtError formats e for logging. It walks through all nested errors, putting each on a new line,
+// and indenting multi-line errors.
+func FmtError(e error) string {
+	var s, ns []string
+	for {
+		ns, e = innerFmtError(e)
+		s = append(s, ns...)
+		if e == nil {
+			break
+		}
+	}
+	return strings.Join(s, "\n    ")
+}
+
+func innerFmtError(e error) ([]string, error) {
+	var s []string
+	lines := strings.Split(e.Error(), "\n")
+	for i, line := range lines {
+		if i == len(lines)-1 && len(line) == 0 {
+			// Don't output an empty line if caused by a trailing newline in
+			// the input.
+			break
+		}
+		if i == 0 {
+			s = append(s, line)
+		} else {
+			s = append(s, ">   "+line)
+		}
+	}
+	return s, GetNestedError(e)
 }
