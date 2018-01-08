@@ -85,8 +85,8 @@ func (wt *waitTable) reply(object Message) (bool, error) {
 		return false, common.NewCError("Table destroyed")
 	default:
 	}
-	replyChannel, loaded := wt.replyMap.Load(wt.keyF(object))
-	if !loaded {
+	replyChannel, ok := wt.replyMap.Load(wt.keyF(object))
+	if !ok {
 		return false, nil
 	}
 	select {
