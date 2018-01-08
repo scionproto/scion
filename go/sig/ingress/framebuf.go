@@ -102,7 +102,7 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 		//log.Debug("ProcessCompletePkts: directly write pkt", "seqNr", fb.seqNr,
 		//	"offset", offset, "len", pktLen)
 		if err := send(rawPkt[:pktLen]); err != nil {
-			log.Error("Unable to send packet", "err", err)
+			log.Error("Unable to send packet", "err", common.FmtError(err))
 		}
 		offset += pktLen
 		// Packet always starts at 8-byte boundary.

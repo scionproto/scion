@@ -20,6 +20,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -53,14 +54,14 @@ func (h *ChainHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainReq) {
 	if chain != nil {
 		if err := h.sendChainRep(addr, chain); err != nil {
 			log.Error("Unable to send certificate chain reply", "addr", addr, "req",
-				req, "err", err)
+				req, "err", common.FmtError(err))
 		}
 	} else if !srcLocal || req.CacheOnly {
-		log.Info("Dropping certificate chain request", "addr", addr, "req", req, "err",
-			"certificate chain not found")
+		log.Info("Dropping certificate chain request", "addr", addr, "req", req,
+			"err", "certificate chain not found")
 	} else {
 		if err := h.fetchChain(addr, req); err != nil {
-			log.Error("Unable to fetch certificate chain", "req", req, "err", err)
+			log.Error("Unable to fetch certificate chain", "req", req, "err", common.FmtError(err))
 		}
 	}
 }
@@ -107,10 +108,11 @@ func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.Chain) {
 	log.Info("Received certificate chain reply", "addr", addr, "rep", rep)
 	chain, err := rep.Chain()
 	if err != nil {
-		log.Error("Unable to parse certificate reply", "err", err)
+		log.Error("Unable to parse certificate reply", "err", common.FmtError(err))
 	}
 	if err = store.AddChain(chain, true); err != nil {
-		log.Error("Unable to store certificate chain", "key", chain.Key(), "err", err)
+		log.Error("Unable to store certificate chain", "key", chain.Key(),
+			"err", common.FmtError(err))
 		return
 	}
 	key := chain.Key()
@@ -123,7 +125,8 @@ func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.Chain) {
 	}
 	cpld, err := ctrl.NewCertMgmtPld(rep)
 	if err != nil {
-		log.Error("Unable to create certificate chain reply", "key", key, "err", err)
+		log.Error("Unable to create certificate chain reply", "key", key,
+			"err", common.FmtError(err))
 		return
 	}
 	h.answerReqs(reqVer, cpld, key)
@@ -137,7 +140,8 @@ func (h *ChainHandler) answerReqs(reqs *AddrSet, cpld *ctrl.Pld, key *cert.Key) 
 	}
 	for _, dst := range reqs.Addrs {
 		if err := SendPayload(h.conn, cpld, dst); err != nil {
-			log.Error("Unable to write certificate chain reply", "key", key, "err", err)
+			log.Error("Unable to write certificate chain reply", "key", key,
+				"err", common.FmtError(err))
 			continue
 		}
 	}

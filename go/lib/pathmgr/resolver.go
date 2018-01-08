@@ -22,6 +22,7 @@ import (
 	liblog "github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
@@ -81,7 +82,7 @@ func (r *resolver) run() {
 func (r *resolver) lookup(src, dst *addr.ISD_AS) AppPathSet {
 	reply, err := r.sciondConn.Paths(dst, src, numReqPaths, sciond.PathReqFlags{})
 	if err != nil {
-		log.Error("SCIOND network error", "err", err)
+		log.Error("SCIOND network error", "err", common.FmtError(err))
 		r.reconnect()
 	}
 	if reply.ErrorCode != sciond.ErrorOk {
@@ -97,7 +98,7 @@ func (r *resolver) reconnect() {
 	for {
 		sciondConn, err := r.sciondService.Connect()
 		if err != nil {
-			log.Error("Unable to connect to sciond", "err", err)
+			log.Error("Unable to connect to sciond", "err", common.FmtError(err))
 			// wait for three seconds before trying again
 			time.Sleep(reconnectInterval)
 			continue

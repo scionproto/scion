@@ -29,7 +29,8 @@ import (
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/common"
+	liblog "github.com/scionproto/scion/go/lib/log"
 )
 
 type HSRInputFunc func(*Router, chan struct{}, chan struct{})
@@ -84,7 +85,7 @@ func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) 
 			// Read packets from libhsr.
 			count, err := h.GetPackets(rpkts, usedPorts)
 			if err != nil {
-				log.Error("Error getting packets from HSR", "err", err)
+				log.Error("Error getting packets from HSR", "err", common.FmtError(err))
 				// Zero the port counters for next loop
 				for i := range usedPorts {
 					usedPorts[i] = false
