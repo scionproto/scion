@@ -91,7 +91,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		return common.NewBasicError(
 			"Unknown IF",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets(), nil),
-			"ifid", ifid,
+			"ifid", *ifid,
 		)
 	}
 	ifstate.S.RLock()
