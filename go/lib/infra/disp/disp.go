@@ -48,7 +48,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messaging"
+	"github.com/scionproto/scion/go/lib/infra/transport"
 	liblog "github.com/scionproto/scion/go/lib/log"
 )
 
@@ -58,7 +58,7 @@ const (
 
 type Dispatcher struct {
 	// Used to send and receive messages
-	transport messaging.Transport
+	transport transport.Transport
 	// Contains keys for messages awaiting replies
 	waitTable *waitTable
 	// Channel for messages read by the background receiver; drained by calls
@@ -86,7 +86,7 @@ type Dispatcher struct {
 // (lower levels might be blocked on an uninterruptible call).
 //
 // A Dispatcher can be safely used by concurrent goroutines.
-func New(t messaging.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
+func New(t transport.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
 	d := &Dispatcher{
 		transport:   t,
 		waitTable:   newWaitTable(adapter.MsgKey),

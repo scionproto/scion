@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -72,6 +73,14 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 		return nil, common.NewBasicError("Unable to parse Certificate", err)
 	}
 	return cert, nil
+}
+
+func CertificateFromFile(path string, lz4_ bool) (*Certificate, error) {
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return CertificateFromRaw(raw)
 }
 
 // Verify checks the signature of the certificate based on a trusted verifying key and the

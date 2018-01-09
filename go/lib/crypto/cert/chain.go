@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/pierrec/lz4"
@@ -88,6 +89,14 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 		return nil, err
 	}
 	return c, nil
+}
+
+func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return ChainFromRaw(raw, lz4_)
 }
 
 func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
