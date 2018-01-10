@@ -94,7 +94,7 @@ Top:
 		// Loop until a read succeeds, or a non-trivial error occurs
 		if pktsRead, err = r.posixInputRead(msgs[:toRead], readMetas[:toRead], s.Conn); err != nil {
 			inputReadErrs.Inc()
-			log.Error("Error reading from socket", "socket", dst, "err", err)
+			log.Error("Error reading from socket", "socket", dst, "err", common.FmtError(err))
 			// The most likely reason for errors is that the socket has
 			// been closed, so jump back to the top to see if the stop
 			// signal has been sent.
@@ -220,7 +220,7 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 		var pktsWritten int
 		if pktsWritten, err = s.Conn.WriteBatch(msgs[:toWrite]); err != nil {
 			outputWriteErrs.Inc()
-			log.Error("Error sending packet(s)", "src", src, "err", err)
+			log.Error("Error sending packet(s)", "src", src, "err", common.FmtError(err))
 			// If some packets were still sent, continue processing. Otherwise:
 			if pktsWritten < 0 {
 				// If we know the error is temporary, retry sending, otherwise drop

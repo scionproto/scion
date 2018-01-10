@@ -95,7 +95,7 @@ TopLoop:
 		} else if len(w.pkts) == 0 {
 			// Didn't read any new packets, send partial frame.
 			if err := w.write(f); err != nil {
-				w.Error("Error sending frame", "err", err)
+				w.Error("Error sending frame", "err", common.FmtError(err))
 			}
 			continue TopLoop
 		}
@@ -103,7 +103,7 @@ TopLoop:
 		for i := range w.pkts {
 			pkt := w.pkts[i].(common.RawBytes)
 			if err := w.processPkt(f, pkt); err != nil {
-				w.Error("Error sending frame", "err", err)
+				w.Error("Error sending frame", "err", common.FmtError(err))
 			}
 		}
 		// Return processed pkts to the free pool, and remove references.

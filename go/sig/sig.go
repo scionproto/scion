@@ -64,19 +64,19 @@ func main() {
 	// Export prometheus metrics.
 	metrics.Init(*id)
 	if err := metrics.Start(); err != nil {
-		fatal("Unable to export prometheus metrics", "err", err)
+		fatal("Unable to export prometheus metrics", "err", common.FmtError(err))
 	}
 	// Parse basic flags
 	ia, err := addr.IAFromString(*isdas)
 	if err != nil {
-		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", err)
+		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", common.FmtError(err))
 	}
 	ip := net.ParseIP(*ipStr)
 	if ip == nil {
 		fatal("unable to parse IP address", "addr", *ipStr)
 	}
 	if err = sigcmn.Init(ia, ip); err != nil {
-		fatal("Error during initialization", "err", err)
+		fatal("Error during initialization", "err", common.FmtError(err))
 	}
 	egress.Init()
 	disp.Init(sigcmn.CtrlConn)
@@ -90,7 +90,7 @@ func main() {
 
 	// Spawn ingress Dispatcher.
 	if err := ingress.Init(); err != nil {
-		fatal("Unable to spawn ingress dispatcher", "err", err)
+		fatal("Unable to spawn ingress dispatcher", "err", common.FmtError(err))
 	}
 }
 

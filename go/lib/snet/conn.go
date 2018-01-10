@@ -211,11 +211,12 @@ func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	scmpPayload, ok := pkt.Pld.(*scmp.Payload)
 	if !ok {
-		log.Error("Unable to type assert payload to SCMP payload")
+		log.Error("Unable to type assert payload to SCMP payload", "type", common.TypeOf(pkt.Pld))
 	}
 	info, ok := scmpPayload.Info.(*scmp.InfoRevocation)
 	if !ok {
-		log.Error("Unable to type assert SCMP Info to SCMP Revocation Info")
+		log.Error("Unable to type assert SCMP Info to SCMP Revocation Info",
+			"type", common.TypeOf(scmpPayload.Info))
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
 	// Extract RevInfo buffer and send it to path manager
