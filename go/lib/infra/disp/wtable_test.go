@@ -30,19 +30,15 @@ func TestWT(t *testing.T) {
 		request, reply := &customObject{8, "request"}, &customObject{8, "reply"}
 
 		Convey("Normal request/reply", func() {
-			// channel to force reply after request is added to table
-			sequencer := make(chan struct{})
+			err := wt.addRequest(request)
+			SoMsg("add err", err, ShouldBeNil)
 			Convey("Parallel", xtest.Parallel(func(sc *xtest.SC) {
-				err := wt.addRequest(request)
-				sc.SoMsg("add err", err, ShouldBeNil)
-				sequencer <- struct{}{}
 				ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancelF()
 				recvReply, err := wt.waitForReply(ctx, request)
 				sc.SoMsg("wait err", err, ShouldBeNil)
 				sc.SoMsg("reply", recvReply, ShouldResemble, reply)
 			}, func(sc *xtest.SC) {
-				<-sequencer
 				found, err := wt.reply(reply)
 				sc.SoMsg("reply err", err, ShouldBeNil)
 				sc.SoMsg("reply found", found, ShouldBeTrue)

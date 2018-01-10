@@ -98,9 +98,9 @@ type RUDP struct {
 	// Channel for received messages, used between the background goroutine and receivers
 	readEvents chan *readEventDesc
 	// Closed when Close() starts to run
-	closedC chan struct{}
+	closedChan chan struct{}
 	// Closed when background goroutine finishes shutting down
-	doneC chan struct{}
+	doneChan chan struct{}
 	// Logger used by the background goroutine
 	log log.Logger
 	// Serialize write access to the conn object
@@ -116,8 +116,8 @@ func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 		conn:       conn,
 		nextPktID:  uint56(generator.Intn(maxUint56 + 1)),
 		readEvents: make(chan *readEventDesc, maxReadEvents),
-		closedC:    make(chan struct{}),
-		doneC:      make(chan struct{}),
+		closedChan: make(chan struct{}),
+		doneChan:   make(chan struct{}),
 		log:        logger.New("id", logext.RandId(4), "goroutine", "transport_bck"),
 	}
 	t.goBackgroundReceiver()
@@ -169,7 +169,7 @@ func (t *RUDP) SendMsgTo(ctx context.Context, b common.RawBytes, a net.Addr) err
 		case <-time.After(rudpRetryTimeout):
 			// Did not get ACK and context is not canceled yet, so do nothing
 			// and try to send again
-		case <-t.closedC:
+		case <-t.closedChan:
 			// Someone called Close, return immediately
 			return common.NewBasicError(infra.StrClosedError, nil)
 		}
@@ -242,7 +242,7 @@ func (t *RUDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) 
 	case <-ctx.Done():
 		// We timed out, return with failure
 		return nil, nil, infra.NewCtxDoneError()
-	case <-t.closedC:
+	case <-t.closedChan:
 		// Some other goroutine closed the transport layer
 		return nil, nil, common.NewBasicError(infra.StrClosedError, nil)
 	}
@@ -255,7 +255,7 @@ func (t *RUDP) goBackgroundReceiver() {
 		defer liblog.LogPanicAndExit()
 		t.log.Info("Started")
 		defer t.log.Info("Stopped")
-		defer close(t.doneC)
+		defer close(t.doneChan)
 		for {
 			b := bufpool.Get()
 			n, address, err := t.conn.ReadFrom(b.B)
@@ -332,7 +332,7 @@ func (t *RUDP) popHeader(b common.RawBytes) (rudpFlag, uint56, common.RawBytes, 
 // goroutine. If Close blocks for too long while waiting for the goroutine to
 // terminate, it returns ErrContextDone.
 func (t *RUDP) Close(ctx context.Context) error {
-	close(t.closedC)
+	close(t.closedChan)
 	err := t.conn.Close()
 	if err != nil {
 		return common.NewBasicError("Unable to close conn", err)
@@ -341,7 +341,7 @@ func (t *RUDP) Close(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return infra.NewCtxDoneError()
-	case <-t.doneC:
+	case <-t.doneChan:
 		return nil
 	}
 }

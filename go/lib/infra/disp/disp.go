@@ -68,14 +68,14 @@ type Dispatcher struct {
 	// and computing keys
 	adapter MessageAdapter
 	// Closed when background goroutine shuts down
-	stoppedC chan struct{}
+	stoppedChan chan struct{}
 	// Logger used by the background goroutine
 	log log.Logger
 
 	// Protect against double close
 	lock sync.Mutex
 	// Closed when Close is called
-	closeC chan struct{}
+	closedChan chan struct{}
 }
 
 // New creates a new dispatcher backed by transport t, and using adapter to
@@ -88,13 +88,13 @@ type Dispatcher struct {
 // A Dispatcher can be safely used by concurrent goroutines.
 func New(t messaging.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
 	d := &Dispatcher{
-		transport:  t,
-		waitTable:  newWaitTable(adapter.MsgKey),
-		adapter:    adapter,
-		readEvents: make(chan *readEventDesc, maxReadEvents),
-		stoppedC:   make(chan struct{}),
-		closeC:     make(chan struct{}),
-		log:        logger.New("id", logext.RandId(4), "goroutine", "dispatcher_bck"),
+		transport:   t,
+		waitTable:   newWaitTable(adapter.MsgKey),
+		adapter:     adapter,
+		readEvents:  make(chan *readEventDesc, maxReadEvents),
+		stoppedChan: make(chan struct{}),
+		closedChan:  make(chan struct{}),
+		log:         logger.New("id", logext.RandId(4), "goroutine", "dispatcher_bck"),
 	}
 	d.goBackgroundReceiver()
 	return d
@@ -161,7 +161,7 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (Message, net.Addr, error) {
 	case <-ctx.Done():
 		// We timed out, return with failure
 		return nil, nil, infra.NewCtxDoneError()
-	case <-d.closeC:
+	case <-d.closedChan:
 		// Some other goroutine closed the dispatcher
 		return nil, nil, common.NewBasicError(infra.StrClosedError, nil)
 	}
@@ -172,11 +172,11 @@ func (d *Dispatcher) goBackgroundReceiver() {
 		defer liblog.LogPanicAndExit()
 		d.log.Info("Started")
 		defer d.log.Info("Stopped")
-		defer close(d.stoppedC)
+		defer close(d.stoppedChan)
 		for {
 			// On each iteration, check for termination signal
 			select {
-			case <-d.closeC:
+			case <-d.closedChan:
 				return
 			default:
 				d.recvNext()
@@ -226,11 +226,11 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	select {
-	case <-d.closeC:
+	case <-d.closedChan:
 		// Some other goroutine already called Close()
 		return nil
 	default:
-		close(d.closeC)
+		close(d.closedChan)
 	}
 	err := d.transport.Close(ctx)
 	if err != nil {
@@ -240,7 +240,7 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return infra.NewCtxDoneError()
-	case <-d.stoppedC:
+	case <-d.stoppedChan:
 		return nil
 	}
 }

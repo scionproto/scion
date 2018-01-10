@@ -26,20 +26,20 @@ type waitTable struct {
 	keyF     func(Message) string
 	replyMap replyChannelMap
 
-	lock     sync.Mutex
-	destroyC chan struct{}
+	lock        sync.Mutex
+	destroyChan chan struct{}
 }
 
 func newWaitTable(keyF func(Message) string) *waitTable {
 	return &waitTable{
-		keyF:     keyF,
-		destroyC: make(chan struct{}),
+		keyF:        keyF,
+		destroyChan: make(chan struct{}),
 	}
 }
 
 func (wt *waitTable) addRequest(object Message) error {
 	select {
-	case <-wt.destroyC:
+	case <-wt.destroyChan:
 		return common.NewBasicError("Table destroyed", nil)
 	default:
 	}
@@ -58,7 +58,7 @@ func (wt *waitTable) cancelRequest(object Message) {
 
 func (wt *waitTable) waitForReply(ctx context.Context, object Message) (Message, error) {
 	select {
-	case <-wt.destroyC:
+	case <-wt.destroyChan:
 		return nil, common.NewBasicError("Table destroyed", nil)
 	default:
 	}
@@ -71,7 +71,7 @@ func (wt *waitTable) waitForReply(ctx context.Context, object Message) (Message,
 		return reply, nil
 	case <-ctx.Done():
 		return nil, infra.NewCtxDoneError()
-	case <-wt.destroyC:
+	case <-wt.destroyChan:
 		return nil, common.NewBasicError("Table destroyed", nil)
 	}
 }
@@ -81,7 +81,7 @@ func (wt *waitTable) waitForReply(ctx context.Context, object Message) (Message,
 // the returned bool value is false and error is nil.
 func (wt *waitTable) reply(object Message) (bool, error) {
 	select {
-	case <-wt.destroyC:
+	case <-wt.destroyChan:
 		return false, common.NewBasicError("Table destroyed", nil)
 	default:
 	}
@@ -109,10 +109,10 @@ func (wt *waitTable) Destroy() {
 	wt.lock.Lock()
 	defer wt.lock.Unlock()
 	select {
-	case <-wt.destroyC:
+	case <-wt.destroyChan:
 		// Channel already closed by some other goroutine
 	default:
-		close(wt.destroyC)
+		close(wt.destroyChan)
 	}
 }
 

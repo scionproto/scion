@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -126,4 +127,10 @@ func (c *BadLoopback) Close() error {
 	}
 	close(c.closed)
 	return nil
+}
+
+func TestMain(m *testing.M) {
+	l := log.Root()
+	l.SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
 }
