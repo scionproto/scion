@@ -84,7 +84,7 @@ func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) bool {
 	for _, ipnet := range ipnets {
 		err := ae.addNet(ipnet.IPNet())
 		if err != nil {
-			ae.Error("Unable to add network", "net", ipnet, "err", err)
+			ae.Error("Unable to add network", "net", ipnet, "err", common.FmtError(err))
 			s = false
 		}
 	}
@@ -103,7 +103,7 @@ Top:
 		}
 		err := ae.delNet(ne.Net)
 		if err != nil {
-			ae.Error("Unable to delete network", "NetEntry", ne, "err", err)
+			ae.Error("Unable to delete network", "NetEntry", ne, "err", common.FmtError(err))
 			s = false
 		}
 	}
@@ -171,7 +171,7 @@ func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) bool {
 		}
 		err := ae.AddSig(sig.Id, sig.Addr, ctrlPort, encapPort, true)
 		if err != nil {
-			ae.Error("Unable to add SIG", "sig", sig, "err", err)
+			ae.Error("Unable to add SIG", "sig", sig, "err", common.FmtError(err))
 			s = false
 		}
 	}
@@ -188,7 +188,7 @@ func (ae *ASEntry) delOldSIGS(sigs config.SIGSet) bool {
 		if _, ok := sigs[sig.Id]; !ok {
 			err := ae.DelSig(sig.Id)
 			if err != nil {
-				ae.Error("Unable to delete SIG", "err", err)
+				ae.Error("Unable to delete SIG", "err", common.FmtError(err))
 				s = false
 			}
 		}
@@ -270,7 +270,7 @@ func (ae *ASEntry) Cleanup() error {
 	ae.sigMgrStop <- struct{}{}
 	// Clean up the egress dispatcher.
 	if err := ae.tunIO.Close(); err != nil {
-		ae.Error("Error closing TUN io", "dev", ae.DevName, "err", err)
+		ae.Error("Error closing TUN io", "dev", ae.DevName, "err", common.FmtError(err))
 	}
 	// Clean up sessions, and associated workers.
 	ae.cleanSessions()
@@ -285,7 +285,7 @@ func (ae *ASEntry) Cleanup() error {
 
 func (ae *ASEntry) cleanSessions() {
 	if err := ae.Session.Cleanup(); err != nil {
-		ae.Session.Error("Error cleaning up session", "err", err)
+		ae.Session.Error("Error cleaning up session", "err", common.FmtError(err))
 	}
 }
 

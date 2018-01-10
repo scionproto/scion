@@ -90,7 +90,7 @@ BatchLoop:
 						break BatchLoop
 					}
 				}
-				ed.Error("EgressDispatcher: error reading from devIO", "err", err)
+				ed.Error("EgressDispatcher: error reading from devIO", "err", common.FmtError(err))
 				continue
 			}
 			buf = buf[:length]

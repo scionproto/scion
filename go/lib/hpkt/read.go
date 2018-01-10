@@ -208,8 +208,8 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 
 		extn, err := scmp.ExtnFromRaw(p.b[p.offset+common.ExtnSubHdrLen : p.extHdrOffsets.end])
 		if err != nil {
-			return common.NewBasicError("Unable to parse extension header", nil,
-				"type", extn.Class(), "position", p.hbhCounter-1, "err", err)
+			return common.NewBasicError("Unable to parse extension header", err,
+				"type", extn.Class(), "position", p.hbhCounter-1)
 		}
 		p.s.HBHExt = append(p.s.HBHExt, extn)
 	default:
