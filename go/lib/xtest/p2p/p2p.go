@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,51 +13,67 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package loopback defines a net.PacketConn implementation where sent messages
-// are echoed back on the same connection.
-package loopback
+// Package p2p (point to point) defines a net.PacketConn implementation where
+// messages are exchanged via channels.
+package p2p
 
 import (
 	"io"
 	"net"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
+
+type Conn struct {
+	send chan packet
+	recv chan packet
+}
 
 const (
 	// Number of packets that can fit into Conn buffers until the writer blocks
 	PktBufferSize = 16
 )
 
-// Connects a client-server app to itself to simplify testing.
-type Conn struct {
-	wire chan packet
-}
-
-// New creates a new loopback connection with capacity PktBufferSize.
-func New() *Conn {
-	return &Conn{
-		wire: make(chan packet, PktBufferSize),
+// New creates two paired connection objects. A message sent on the first conn
+// is received on the second conn, and viceversa.
+func New() (*Conn, *Conn) {
+	a2b := make(chan packet, PktBufferSize)
+	b2a := make(chan packet, PktBufferSize)
+	a2bConn := &Conn{
+		send: a2b,
+		recv: b2a,
 	}
+	b2aConn := &Conn{
+		send: b2a,
+		recv: a2b,
+	}
+	return a2bConn, b2aConn
 }
 
 func (c *Conn) ReadFrom(b []byte) (int, net.Addr, error) {
-	if pkt, ok := <-c.wire; ok {
+	if pkt, ok := <-c.recv; ok {
 		n := copy(b, pkt.b)
 		return n, pkt.a, nil
 	}
 	return 0, nil, io.EOF
 }
 
-func (c *Conn) WriteTo(b []byte, a net.Addr) (int, error) {
-	c.wire <- packet{
-		b: b,
-		a: a,
-	}
+func (c *Conn) WriteTo(b []byte, a net.Addr) (n int, err error) {
+	// Panicking here is possible if a goroutine calls Close() thus closing the
+	// channel, and another goroutine calls WriteTo afterwards and attempts to
+	// write to it. If this happens, we recover and return an error.
+	defer func() {
+		if r := recover(); r != nil {
+			err = common.NewBasicError("p2p conn closed", nil)
+		}
+	}()
+	c.send <- packet{b: dup(b), a: a}
 	return len(b), nil
 }
 
 func (c *Conn) Close() error {
-	close(c.wire)
+	close(c.send)
 	return nil
 }
 
@@ -80,20 +97,23 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 	return nil
 }
 
-// Addr implements net.Addr. It always returns the same constant strings.
-type Addr struct{}
-
-// Network always returns "loopback".
-func (a *Addr) Network() string {
-	return "loopback"
-}
-
-// String always returns "loopback address".
-func (a *Addr) String() string {
-	return "loopback address"
-}
-
 type packet struct {
 	b []byte
 	a net.Addr
+}
+
+type Addr struct{}
+
+// Network always returns "p2p".
+func (a *Addr) Network() string {
+	return "p2p"
+}
+
+// String always returns "p2p address".
+func (a *Addr) String() string {
+	return "p2p address"
+}
+
+func dup(b []byte) []byte {
+	return append([]byte{}, b...)
 }
