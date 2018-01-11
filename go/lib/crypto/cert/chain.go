@@ -87,12 +87,21 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 }
 
 func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
+	if c.Leaf.IssuingTime < c.Core.IssuingTime || c.Leaf.ExpirationTime > c.Core.ExpirationTime {
+		return common.NewBasicError(LeafCertInvalid, nil, "err",
+			"validity period not covered by core certificate")
+	}
 	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
 		return common.NewBasicError(LeafCertInvalid, err)
 	}
+	if c.Core.ExpirationTime > t.ExpirationTime {
+		return common.NewBasicError(CoreCertInvalid, nil, "err",
+			"validity period not covered by TRC")
+	}
 	coreAS, ok := t.CoreASes[*c.Core.Issuer]
 	if !ok {
-		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Core.Issuer, "coreASes", t.CoreASes)
+		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Core.Issuer, "coreASes",
+			t.CoreASes)
 	}
 	if err := c.Core.Verify(c.Core.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
 		return common.NewBasicError(CoreCertInvalid, err)

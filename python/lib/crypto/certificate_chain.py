@@ -87,7 +87,7 @@ class CertificateChain(object):
 
     def __init__(self, cert_list):
         """
-        :param str cert_list: certificate chain as list.
+        :param [Certificate] cert_list: certificate chain as list.
         """
         if len(cert_list) != 2:
             raise SCIONParseError("Certificate chains must have length 2.")
@@ -117,14 +117,21 @@ class CertificateChain(object):
         :raises: SCIONVerificationError if the verification fails.
         """
         # Verify AS certificate against core AS certificate
+        leaf = self.as_cert
+        core = self.core_as_cert
+        if leaf.issuing_time < core.issuing_time or leaf.expiration_time > core.expiration_time:
+            raise SCIONVerificationError("AS certificate verification failed: "
+                                         "Validity period not covered by core certificate")
         try:
-            self.as_cert.verify(subject, self.core_as_cert.subject_sig_key_raw)
+            leaf.verify(subject, core.subject_sig_key_raw)
         except SCIONVerificationError as e:
             raise SCIONVerificationError("AS certificate verification failed: %s" % e)
         # Verify core AS certificate against TRC
+        if core.expiration_time > trc.exp_time:
+            raise SCIONVerificationError("Core AS certificate verification failed: "
+                                         "Validity period not covered by TRC")
         try:
-            self.core_as_cert.verify(self.as_cert.issuer,
-                                     trc.core_ases[self.core_as_cert.issuer][ONLINE_KEY_STRING])
+            core.verify(leaf.issuer, trc.core_ases[core.issuer][ONLINE_KEY_STRING])
         except SCIONVerificationError as e:
             raise SCIONVerificationError("Core AS certificate verification failed: %s" % e)
 
