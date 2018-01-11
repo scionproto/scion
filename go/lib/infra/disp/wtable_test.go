@@ -46,21 +46,13 @@ func TestWT(t *testing.T) {
 		})
 
 		Convey("Double reply", func() {
-			// channel to force reply after request is added to table
-			sequencer := make(chan struct{})
-			Convey("Parallel", xtest.Parallel(func(sc *xtest.SC) {
-				err := wt.addRequest(request)
-				sc.SoMsg("err add", err, ShouldBeNil)
-				sequencer <- struct{}{}
-				// Ignore reply to force duplicate reply detection
-			}, func(sc *xtest.SC) {
-				<-sequencer
-				found, err := wt.reply(reply)
-				sc.SoMsg("reply #1 err", err, ShouldBeNil)
-				sc.SoMsg("reply #1 found", found, ShouldBeTrue)
-				_, err = wt.reply(reply)
-				sc.SoMsg("reply #2 err", err, ShouldNotBeNil)
-			}))
+			err := wt.addRequest(request)
+			SoMsg("err add", err, ShouldBeNil)
+			found, err := wt.reply(reply)
+			SoMsg("reply #1 err", err, ShouldBeNil)
+			SoMsg("reply #1 found", found, ShouldBeTrue)
+			_, err = wt.reply(reply)
+			SoMsg("reply #2 err", err, ShouldNotBeNil)
 		})
 
 		Convey("Reply without request", func() {
