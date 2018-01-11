@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -84,6 +85,7 @@ func TestSendMsgToBadLink(t *testing.T) {
 		defer cancelF()
 		err := udp.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldNotBeNil)
+		SoMsg("send err is timeout", common.IsTimeoutErr(err), ShouldBeTrue)
 
 		ctx2, cancelF2 := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF2()
@@ -125,4 +127,10 @@ func (c *BadLoopback) Close() error {
 	}
 	close(c.closed)
 	return nil
+}
+
+func TestMain(m *testing.M) {
+	l := log.Root()
+	l.SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
 }
