@@ -113,6 +113,7 @@ func Test_Chain_Verify(t *testing.T) {
 		chain.Core.Sign(privTRCRaw, crypto.Ed25519)
 
 		trc_.CoreASes[*chain.Core.Issuer].OnlineKey = pubTRCRaw
+		trc_.ExpirationTime = chain.Core.ExpirationTime
 		err := chain.Verify(&addr.ISD_AS{I: 1, A: 10}, trc_)
 		SoMsg("err", err, ShouldBeNil)
 	})
