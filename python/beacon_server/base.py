@@ -242,11 +242,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         cert_exp = self._get_my_cert().as_cert.expiration_time
         max_exp_time = int((cert_exp-ts) / EXP_TIME_UNIT)
-        exp_time = min(max_exp_time, self.default_hof_exp_time)
-        if exp_time <= 0:
-            logging.warning("Hop field expiration time set to 0. Timestamp: %s "
-                            "Cert expiration: %s", ts, cert_exp)
-        return max(exp_time, 0)
+        return min(max_exp_time, self.default_hof_exp_time)
 
     def _mk_if_info(self, if_id):
         """
@@ -395,8 +391,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         out_info = self._mk_if_info(out_if)
         if out_info["remote_ia"].int() and not out_info["remote_if"]:
             return None
-        hof = HopOpaqueField.from_values(
-            self.hof_exp_time(ts), in_if, out_if, xover=xover)
+        exp_time = self.hof_exp_time(ts)
+        if exp_time <= 0:
+            logging.error("Invalid hop field expiration time value: %s", exp_time)
+            return None
+        hof = HopOpaqueField.from_values(exp_time, in_if, out_if, xover=xover)
         hof.set_mac(self.of_gen_key, ts, prev_hof)
         return PCBMarking.from_values(
             in_info["remote_ia"], in_info["remote_if"], in_info["mtu"],
