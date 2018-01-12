@@ -240,11 +240,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :return: HF ExpTime
         :rtype: int
         """
-        cert = self._get_my_cert()
-        exp = min(self._get_my_trc().exp_time, cert.as_cert.expiration_time,
-                  cert.core_as_cert.expiration_time)
-        max_exp_time = int((exp-ts)/EXP_TIME_UNIT)
-        return min(max_exp_time, self.default_hof_exp_time)
+        cert_exp = self._get_my_cert().as_cert.expiration_time
+        max_exp_time = int((cert_exp-ts) / EXP_TIME_UNIT)
+        exp_time = min(max_exp_time, self.default_hof_exp_time)
+        if exp_time <= 0:
+            logging.warning("Hop field expiration time set to 0. Timestamp: %s "
+                            "Cert expiration: %s", ts, cert_exp)
+        return max(exp_time, 0)
 
     def _mk_if_info(self, if_id):
         """

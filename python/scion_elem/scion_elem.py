@@ -655,18 +655,16 @@ class SCIONElement(object):
             cert_ia = asm.isd_as()
             trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
             chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
-            self._verify_exp_time(exp_time, trc, chain)
+            self._verify_exp_time(exp_time, chain)
             verify_chain_trc(cert_ia, chain, trc)
             seg.verify(chain.as_cert.subject_sig_key_raw, i)
 
-    def _verify_exp_time(self, exp_time, trc, chain):
+    def _verify_exp_time(self, exp_time, chain):
         """
-        Verify that TRC and certificate chain cover the expiration time.
+        Verify that certificate chain cover the expiration time.
         :raises SCIONVerificationError
         """
-        if trc.exp_time < exp_time:
-            raise SCIONVerificationError(
-                "TRC %sv%s expires before path segment" % trc.get_isd_ver())
+        # chain is only verifiable if TRC.exp_time >= CoreCert.exp_time >= LeafCert.exp_time
         if chain.as_cert.expiration_time < exp_time:
             raise SCIONVerificationError(
                 "Certificate chain %sv%s expires before path segment" % chain.get_leaf_isd_as_ver())
