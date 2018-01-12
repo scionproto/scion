@@ -25,7 +25,7 @@ SCION_PROTO_VERSION = 0
 #: Default TTL of a PathSegment in realtime seconds.
 DEFAULT_SEGMENT_TTL = 6 * 60 * 60
 #: Max TTL of a PathSegment in realtime seconds.
-MAX_SEGMENT_TTL = 12 * 60 * 60
+MAX_SEGMENT_TTL = 24 * 60 * 60
 #: Time unit for HOF expiration.
 EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
 #: Max number of supported HopByHop extensions (does not include SCMP)
