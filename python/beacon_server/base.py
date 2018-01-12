@@ -134,7 +134,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                             self.config.master_as_key, b"Derive hashtree Key")
         logging.info(self.config.__dict__)
         # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
-        self.hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT)
+        self.default_hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT)
         self._hash_tree = None
         self._hash_tree_lock = Lock()
         self._next_tree = None
@@ -226,10 +226,23 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _create_one_hop_path(self, egress_if):
         ts = int(SCIONTime.get_time())
         info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0], hops=2)
-        hf1 = HopOpaqueField.from_values(self.hof_exp_time, 0, egress_if)
+        hf1 = HopOpaqueField.from_values(self.hof_exp_time(ts), 0, egress_if)
         hf1.set_mac(self.of_gen_key, ts, None)
         # Return a path where second HF is empty.
         return SCIONPath.from_values(info, [hf1, HopOpaqueField()])
+
+    def hof_exp_time(self, ts):
+        """
+        Return the ExpTime based on IF timestamp and the certificate chain/TRC.
+        The certificate chain must be valid for the entire HOF lifetime.
+
+        :param int ts: IF timestamp
+        :return: HF ExpTime
+        :rtype: int
+        """
+        cert_exp = self._get_my_cert().as_cert.expiration_time
+        max_exp_time = int((cert_exp-ts) / EXP_TIME_UNIT)
+        return min(max_exp_time, self.default_hof_exp_time)
 
     def _mk_if_info(self, if_id):
         """
@@ -378,8 +391,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         out_info = self._mk_if_info(out_if)
         if out_info["remote_ia"].int() and not out_info["remote_if"]:
             return None
-        hof = HopOpaqueField.from_values(
-            self.hof_exp_time, in_if, out_if, xover=xover)
+        exp_time = self.hof_exp_time(ts)
+        if exp_time <= 0:
+            logging.error("Invalid hop field expiration time value: %s", exp_time)
+            return None
+        hof = HopOpaqueField.from_values(exp_time, in_if, out_if, xover=xover)
         hof.set_mac(self.of_gen_key, ts, prev_hof)
         return PCBMarking.from_values(
             in_info["remote_ia"], in_info["remote_if"], in_info["mtu"],
