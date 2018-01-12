@@ -34,9 +34,10 @@ const (
 	MaxChainByteLength uint32 = 1 << 20
 
 	// Error strings
-	CoreCertInvalid = "Core certificate invalid"
-	IssASNotFound   = "Issuing Core AS not found"
-	LeafCertInvalid = "Leaf certificate invalid"
+	CoreCertInvalid  = "Core certificate invalid"
+	IssASNotFound    = "Issuing Core AS not found"
+	LeafCertInvalid  = "Leaf certificate invalid"
+	ValPerNotCovered = "Validity period not covered"
 )
 
 type Key struct {
@@ -88,15 +89,15 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 
 func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
 	if c.Leaf.IssuingTime < c.Core.IssuingTime || c.Leaf.ExpirationTime > c.Core.ExpirationTime {
-		return common.NewBasicError(LeafCertInvalid, nil, "err",
-			"validity period not covered by core certificate")
+		return common.NewBasicError(LeafCertInvalid, nil, "err", ValPerNotCovered,
+			"leaf", c.Leaf.ValPeriodString(), "core", c.Core.ValPeriodString())
 	}
 	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
 		return common.NewBasicError(LeafCertInvalid, err)
 	}
 	if c.Core.ExpirationTime > t.ExpirationTime {
-		return common.NewBasicError(CoreCertInvalid, nil, "err",
-			"validity period not covered by TRC")
+		return common.NewBasicError(CoreCertInvalid, nil, "err", ValPerNotCovered,
+			"core", c.Core.ValPeriodString(), "TRC", timeToString(t.ExpirationTime))
 	}
 	coreAS, ok := t.CoreASes[*c.Core.Issuer]
 	if !ok {

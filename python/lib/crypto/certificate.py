@@ -23,6 +23,7 @@ import time
 # SCION
 from lib.crypto.asymcrypto import sign, verify
 from lib.errors import SCIONVerificationError
+from lib.util import iso_timestamp
 
 SUBJECT_STRING = 'Subject'
 ISSUER_STRING = 'Issuer'
@@ -202,6 +203,9 @@ class Certificate(object):
 
     def to_json(self, indent=4):
         return json.dumps(self.dict(), sort_keys=True, indent=indent)
+
+    def val_period(self):
+        return "%s - %s" % (iso_timestamp(self.issuing_time), iso_timestamp(self.expiration_time))
 
     def __str__(self):
         return self.to_json(None)

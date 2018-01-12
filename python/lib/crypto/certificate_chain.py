@@ -32,6 +32,7 @@ from lib.crypto.trc import (
 from lib.crypto.util import CERT_DIR
 from lib.errors import SCIONVerificationError, SCIONParseError
 from lib.packet.scion_addr import ISD_AS
+from lib.util import iso_timestamp
 
 
 def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
@@ -87,7 +88,7 @@ class CertificateChain(object):
 
     def __init__(self, cert_list):
         """
-        :param [Certificate] cert_list: certificate chain as list.
+        :param list(Certificate) cert_list: certificate chain as list.
         """
         if len(cert_list) != 2:
             raise SCIONParseError("Certificate chains must have length 2.")
@@ -120,16 +121,18 @@ class CertificateChain(object):
         leaf = self.as_cert
         core = self.core_as_cert
         if leaf.issuing_time < core.issuing_time or leaf.expiration_time > core.expiration_time:
-            raise SCIONVerificationError("AS certificate verification failed: "
-                                         "Validity period not covered by core certificate")
+            raise SCIONVerificationError(
+                "AS certificate verification failed: Validity period not covered by core "
+                "certificate. Leaf: %s Core: %s" % (leaf.val_period(), core.val_period()))
         try:
             leaf.verify(subject, core.subject_sig_key_raw)
         except SCIONVerificationError as e:
             raise SCIONVerificationError("AS certificate verification failed: %s" % e)
         # Verify core AS certificate against TRC
         if core.expiration_time > trc.exp_time:
-            raise SCIONVerificationError("Core AS certificate verification failed: "
-                                         "Validity period not covered by TRC")
+            raise SCIONVerificationError(
+                "Core AS certificate verification failed: Validity period not covered by TRC. "
+                "Core: %s TRC: %s" % (core.val_period(), iso_timestamp(trc.exp_time)))
         try:
             core.verify(leaf.issuer, trc.core_ases[core.issuer][ONLINE_KEY_STRING])
         except SCIONVerificationError as e:

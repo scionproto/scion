@@ -167,6 +167,10 @@ func (c *Certificate) Eq(o *Certificate) bool {
 		bytes.Equal(c.Signature, o.Signature)
 }
 
+func (c *Certificate) ValPeriodString() string {
+	return fmt.Sprintf("%s - %s", timeToString(c.IssuingTime), timeToString(c.ExpirationTime))
+}
+
 func timeToString(t uint64) string {
 	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
 }
