@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	ErrorTopo      = "Unable to load topology"
-	ErrorAddr      = "Unable to load addresses"
-	ErrorKeyConf   = "Unable to load KeyConf"
+	ErrorTopo    = "Unable to load topology"
+	ErrorAddr    = "Unable to load addresses"
+	ErrorKeyConf = "Unable to load KeyConf"
 )
 
 type Conf struct {
