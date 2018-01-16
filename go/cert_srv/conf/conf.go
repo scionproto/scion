@@ -34,10 +34,10 @@ type Conf struct {
 	// Topo contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
 	Topo *topology.Topo
-	// Bind is the local bind address.
-	Bind *snet.Addr
-	// Public is the public address.
-	Public *snet.Addr
+	// BindAddr is the local bind address.
+	BindAddr *snet.Addr
+	// PublicAddr is the public address.
+	PublicAddr *snet.Addr
 	// KeyConf contains the AS level keys used for signing and decrypting.
 	KeyConf *trust.KeyConf
 	// Dir is the configuration directory.
@@ -60,13 +60,13 @@ func Load(id string, confDir string) (*Conf, error) {
 			"id", id)
 	}
 	publicInfo := topoAddr.PublicAddrInfo(conf.Topo.Overlay)
-	conf.Public = &snet.Addr{IA: conf.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
+	conf.PublicAddr = &snet.Addr{IA: conf.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
 		L4Port: uint16(publicInfo.L4Port)}
 	bindInfo := topoAddr.BindAddrInfo(conf.Topo.Overlay)
 	tmpBind := &snet.Addr{IA: conf.Topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
 		L4Port: uint16(bindInfo.L4Port)}
-	if !tmpBind.EqAddr(conf.Public) {
-		conf.Bind = tmpBind
+	if !tmpBind.EqAddr(conf.PublicAddr) {
+		conf.BindAddr = tmpBind
 	}
 	// load keyConf
 	path = filepath.Join(confDir, "keys")
