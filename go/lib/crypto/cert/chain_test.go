@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 )
 
 // Interface assertions
@@ -35,6 +36,7 @@ var (
 	fnChain       = "testdata/ISD1-AS10-V1.crt"
 	fnCore        = "testdata/ISD1-AS10-V1.core"
 	fnNoIndentCrt = "testdata/noindent.crt"
+	fnTRC         = "testdata/ISD1-V2.trc"
 
 	packChain, _ = hex.DecodeString("bb030000fe277b2230223a7b2243616e4973737565223a66616c7365" +
 		"2c22436f6d6d656e74223a2241532043657274696669636174655c75323630320600f24a222c2245" +
@@ -94,16 +96,25 @@ func Test_ChainFromRaw(t *testing.T) {
 
 func Test_Chain_Verify(t *testing.T) {
 	Convey("Chain is verifiable", t, func() {
-		// FIXME(roosd): Update with TRC implementation
 		chain := loadChain(fnChain, t)
 		pub, priv, _ := ed25519.GenerateKey(nil)
-		pubRaw, privRaw := []byte(pub), []byte(priv)
+		pubCoreRaw, privCoreRaw := []byte(pub), []byte(priv)
+		pub, priv, _ = ed25519.GenerateKey(nil)
+		pubTRCRaw, privTRCRaw := []byte(pub), []byte(priv)
+		trc_ := loadTRC(fnTRC, t)
 
 		chain.Leaf.IssuingTime = uint64(time.Now().Unix())
 		chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
-		chain.Leaf.Sign(privRaw, crypto.Ed25519)
-		chain.Core.SubjectSignKey = pubRaw
-		err := chain.Verify(&addr.ISD_AS{I: 1, A: 10}, nil)
+		chain.Leaf.Sign(privCoreRaw, crypto.Ed25519)
+
+		chain.Core.SubjectSignKey = pubCoreRaw
+		chain.Core.IssuingTime = uint64(time.Now().Unix())
+		chain.Core.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
+		chain.Core.Sign(privTRCRaw, crypto.Ed25519)
+
+		trc_.CoreASes[*chain.Core.Issuer].OnlineKey = pubTRCRaw
+		trc_.ExpirationTime = chain.Core.ExpirationTime
+		err := chain.Verify(&addr.ISD_AS{I: 1, A: 10}, trc_)
 		SoMsg("err", err, ShouldBeNil)
 	})
 }
@@ -184,4 +195,12 @@ func loadChain(filename string, t *testing.T) *Chain {
 		t.Fatalf("Error loading Certificate Chain from '%s': %v", filename, err)
 	}
 	return trc
+}
+
+func loadTRC(filename string, t *testing.T) *trc.TRC {
+	trc_, err := trc.TRCFromRaw(loadRaw(filename, t), false)
+	if err != nil {
+		t.Fatalf("Error loading TRC from '%s': %v", filename, err)
+	}
+	return trc_
 }

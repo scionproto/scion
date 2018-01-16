@@ -32,6 +32,7 @@ from lib.crypto.trc import (
 from lib.crypto.util import CERT_DIR
 from lib.errors import SCIONVerificationError, SCIONParseError
 from lib.packet.scion_addr import ISD_AS
+from lib.util import iso_timestamp
 
 
 def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
@@ -87,7 +88,7 @@ class CertificateChain(object):
 
     def __init__(self, cert_list):
         """
-        :param str cert_list: certificate chain as list.
+        :param list(Certificate) cert_list: certificate chain as list.
         """
         if len(cert_list) != 2:
             raise SCIONParseError("Certificate chains must have length 2.")
@@ -117,14 +118,29 @@ class CertificateChain(object):
         :raises: SCIONVerificationError if the verification fails.
         """
         # Verify AS certificate against core AS certificate
+        leaf = self.as_cert
+        core = self.core_as_cert
+        if leaf.issuing_time < core.issuing_time:
+            raise SCIONVerificationError(
+                "AS certificate verification failed: Leaf issued before core certificate. Leaf: %s "
+                "Core: %s" % (iso_timestamp(leaf.issuing_time), iso_timestamp(core.issuing_time)))
+        if leaf.expiration_time > core.expiration_time:
+            raise SCIONVerificationError(
+                "AS certificate verification failed: Leaf expires after core certificate. Leaf: %s "
+                "Core: %s" % (iso_timestamp(leaf.expiration_time),
+                              iso_timestamp(core.expiration_time)))
         try:
-            self.as_cert.verify(subject, self.core_as_cert.subject_sig_key_raw)
+            leaf.verify(subject, core.subject_sig_key_raw)
         except SCIONVerificationError as e:
             raise SCIONVerificationError("AS certificate verification failed: %s" % e)
         # Verify core AS certificate against TRC
+        if core.expiration_time > trc.exp_time:
+            raise SCIONVerificationError(
+                "Core AS certificate verification failed: Core certificate expires after TRC. "
+                "Core: %s TRC: %s" % (iso_timestamp(trc.expiration_time),
+                                      iso_timestamp(trc.exp_time)))
         try:
-            self.core_as_cert.verify(self.as_cert.issuer,
-                                     trc.core_ases[self.core_as_cert.issuer][ONLINE_KEY_STRING])
+            core.verify(leaf.issuer, trc.core_ases[core.issuer][ONLINE_KEY_STRING])
         except SCIONVerificationError as e:
             raise SCIONVerificationError("Core AS certificate verification failed: %s" % e)
 
