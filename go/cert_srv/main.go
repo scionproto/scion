@@ -77,7 +77,7 @@ func main() {
 		fatal("Unable to create local SCION Network context", "err", common.FmtError(err))
 	}
 	// initialize dispatcher
-	dispatcher, err := NewDispatcher(config.Public, config.Bind)
+	dispatcher, err := NewDispatcher(config.PublicAddr, config.BindAddr)
 	if err != nil {
 		fatal("Unable to initialize dispatcher", "err", common.FmtError(err))
 	}
@@ -106,7 +106,7 @@ func checkFlags() error {
 func initSNET(attempts int, sleep time.Duration) (err error) {
 	// Initialize SCION local networking module
 	for i := 0; i < attempts; i++ {
-		if err = snet.Init(config.Public.IA, *sciondPath, *dispPath); err == nil {
+		if err = snet.Init(config.PublicAddr.IA, *sciondPath, *dispPath); err == nil {
 			break
 		}
 		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", common.FmtError(err))
