@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -83,12 +84,12 @@ func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, si
 	}
 	currTime := uint64(time.Now().Unix())
 	if currTime < c.IssuingTime {
-		return common.NewBasicError(EarlyUsage, nil,
-			"IssuingTime", timeToString(c.IssuingTime), "current", timeToString(currTime))
+		return common.NewBasicError(EarlyUsage, nil, "IssuingTime",
+			util.TimeToString(c.IssuingTime), "current", util.TimeToString(currTime))
 	}
 	if currTime > c.ExpirationTime {
-		return common.NewBasicError(Expired, nil,
-			"Expiration Time", timeToString(c.ExpirationTime), "current", timeToString(currTime))
+		return common.NewBasicError(Expired, nil, "Expiration Time",
+			util.TimeToString(c.ExpirationTime), "current", util.TimeToString(currTime))
 	}
 	return c.VerifySignature(verifyKey, signAlgo)
 }
@@ -165,8 +166,4 @@ func (c *Certificate) Eq(o *Certificate) bool {
 		bytes.Equal(c.SubjectEncKey, o.SubjectEncKey) &&
 		bytes.Equal(c.SubjectSignKey, o.SubjectSignKey) &&
 		bytes.Equal(c.Signature, o.Signature)
-}
-
-func timeToString(t uint64) string {
-	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
 }

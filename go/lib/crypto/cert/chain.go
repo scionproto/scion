@@ -27,9 +27,21 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
-const MaxChainByteLength uint32 = 1 << 20
+const (
+	MaxChainByteLength uint32 = 1 << 20
+
+	// Error strings
+	CoreCertInvalid  = "Core certificate invalid"
+	CoreExpiresAfter = "Core certificate expires after TRC"
+	IssASNotFound    = "Issuing Core AS not found"
+	LeafCertInvalid  = "Leaf certificate invalid"
+	LeafExpiresAfter = "Leaf certificate expires after core certificate"
+	LeafIssuedBefore = "Leaf certificate issued before core certificate"
+)
 
 type Key struct {
 	IA  addr.ISD_AS
@@ -78,11 +90,33 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	return c, nil
 }
 
-func (c *Chain) Verify(subject *addr.ISD_AS, trc interface{}) error {
-	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
-		return err
+func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
+	if c.Leaf.IssuingTime < c.Core.IssuingTime {
+		return common.NewBasicError(LeafIssuedBefore, nil, "leaf",
+			util.TimeToString(c.Leaf.IssuingTime), "core",
+			util.TimeToString(c.Core.IssuingTime))
 	}
-	// Fixme(roosd): Verify Core Certificate based on TRC
+	if c.Leaf.ExpirationTime > c.Core.ExpirationTime {
+		return common.NewBasicError(LeafExpiresAfter, nil, "leaf",
+			util.TimeToString(c.Leaf.ExpirationTime), "core",
+			util.TimeToString(c.Core.ExpirationTime))
+	}
+	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
+		return common.NewBasicError(LeafCertInvalid, err)
+	}
+	if c.Core.ExpirationTime > t.ExpirationTime {
+		return common.NewBasicError(CoreExpiresAfter, nil, "core",
+			util.TimeToString(c.Core.ExpirationTime), "TRC",
+			util.TimeToString(t.ExpirationTime))
+	}
+	coreAS, ok := t.CoreASes[*c.Core.Issuer]
+	if !ok {
+		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Core.Issuer, "coreASes",
+			t.CoreASes)
+	}
+	if err := c.Core.Verify(c.Core.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
+		return common.NewBasicError(CoreCertInvalid, err)
+	}
 	return nil
 }
 
