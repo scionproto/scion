@@ -120,10 +120,15 @@ class CertificateChain(object):
         # Verify AS certificate against core AS certificate
         leaf = self.as_cert
         core = self.core_as_cert
-        if leaf.issuing_time < core.issuing_time or leaf.expiration_time > core.expiration_time:
+        if leaf.issuing_time < core.issuing_time:
             raise SCIONVerificationError(
-                "AS certificate verification failed: Validity period not covered by core "
-                "certificate. Leaf: %s Core: %s" % (leaf.val_period(), core.val_period()))
+                "AS certificate verification failed: Leaf issued before core certificate. Leaf: %s "
+                "Core: %s" % (iso_timestamp(leaf.issuing_time), iso_timestamp(core.issuing_time)))
+        if leaf.expiration_time > core.expiration_time:
+            raise SCIONVerificationError(
+                "AS certificate verification failed: Leaf expires after core certificate. Leaf: %s "
+                "Core: %s" % (iso_timestamp(leaf.expiration_time),
+                              iso_timestamp(core.expiration_time)))
         try:
             leaf.verify(subject, core.subject_sig_key_raw)
         except SCIONVerificationError as e:
@@ -131,8 +136,9 @@ class CertificateChain(object):
         # Verify core AS certificate against TRC
         if core.expiration_time > trc.exp_time:
             raise SCIONVerificationError(
-                "Core AS certificate verification failed: Validity period not covered by TRC. "
-                "Core: %s TRC: %s" % (core.val_period(), iso_timestamp(trc.exp_time)))
+                "Core AS certificate verification failed: Core certificate expires after TRC. "
+                "Core: %s TRC: %s" % (iso_timestamp(trc.expiration_time),
+                                      iso_timestamp(trc.exp_time)))
         try:
             core.verify(leaf.issuer, trc.core_ases[core.issuer][ONLINE_KEY_STRING])
         except SCIONVerificationError as e:

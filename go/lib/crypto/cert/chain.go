@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -35,9 +36,11 @@ const (
 
 	// Error strings
 	CoreCertInvalid  = "Core certificate invalid"
+	CoreExpiresAfter = "Core certificate expires after TRC"
 	IssASNotFound    = "Issuing Core AS not found"
 	LeafCertInvalid  = "Leaf certificate invalid"
-	ValPerNotCovered = "Validity period not covered"
+	LeafExpiresAfter = "Leaf certificate expires after core certificate"
+	LeafIssuedBefore = "Leaf certificate issued before core certificate"
 )
 
 type Key struct {
@@ -88,16 +91,23 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 }
 
 func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
-	if c.Leaf.IssuingTime < c.Core.IssuingTime || c.Leaf.ExpirationTime > c.Core.ExpirationTime {
-		return common.NewBasicError(LeafCertInvalid, nil, "err", ValPerNotCovered,
-			"leaf", c.Leaf.ValPeriodString(), "core", c.Core.ValPeriodString())
+	if c.Leaf.IssuingTime < c.Core.IssuingTime {
+		return common.NewBasicError(LeafIssuedBefore, nil, "leaf",
+			util.TimeToString(c.Leaf.IssuingTime), "core",
+			util.TimeToString(c.Core.IssuingTime))
+	}
+	if c.Leaf.ExpirationTime > c.Core.ExpirationTime {
+		return common.NewBasicError(LeafExpiresAfter, nil, "leaf",
+			util.TimeToString(c.Leaf.ExpirationTime), "core",
+			util.TimeToString(c.Core.ExpirationTime))
 	}
 	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
 		return common.NewBasicError(LeafCertInvalid, err)
 	}
 	if c.Core.ExpirationTime > t.ExpirationTime {
-		return common.NewBasicError(CoreCertInvalid, nil, "err", ValPerNotCovered,
-			"core", c.Core.ValPeriodString(), "TRC", timeToString(t.ExpirationTime))
+		return common.NewBasicError(CoreExpiresAfter, nil, "core",
+			util.TimeToString(c.Core.ExpirationTime), "TRC",
+			util.TimeToString(t.ExpirationTime))
 	}
 	coreAS, ok := t.CoreASes[*c.Core.Issuer]
 	if !ok {
