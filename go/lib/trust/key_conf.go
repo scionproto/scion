@@ -46,9 +46,9 @@ const (
 	ErrorParse = "Unable to parse key"
 )
 
-// LoadKeyConf loads key configuration from specified path. The loaded config is put into
-// CurrKeyConf.
-func LoadKeyConf(path string, core bool) (*KeyConf, error) {
+// LoadKeyConf loads key configuration from specified path. If loadRootKeys is set true, the
+// online and offline key are loaded.
+func LoadKeyConf(path string, loadRootKeys bool) (*KeyConf, error) {
 	conf := &KeyConf{}
 	var err error
 	if conf.DecryptKey, err = loadKey(filepath.Join(path, DecKeyFile)); err != nil {
@@ -57,7 +57,7 @@ func LoadKeyConf(path string, core bool) (*KeyConf, error) {
 	if conf.SignKey, err = loadKey(filepath.Join(path, SigKeyFile)); err != nil {
 		return nil, err
 	}
-	if core {
+	if loadRootKeys {
 		if conf.OffRootKey, err = loadKey(filepath.Join(path, OffKeyFile)); err != nil {
 			return nil, err
 		}
