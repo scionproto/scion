@@ -25,11 +25,10 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/trust"
 )
 
@@ -47,11 +46,8 @@ var (
 	confDir  = flag.String("confd", "", "Configuration directory (Required)")
 	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
 	prom     = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
-	topo     *topology.Topo
+	config   *conf.Conf
 	store    *trust.Store
-	bind     *snet.Addr
-	public   *snet.Addr
-	keyConf  *trust.KeyConf
 )
 
 // main initializes the certificate server and starts the dispatcher.
@@ -69,10 +65,7 @@ func main() {
 	if err = checkFlags(); err != nil {
 		fatal(err.Error())
 	}
-	if err = loadTopo(); err != nil {
-		fatal(err.Error())
-	}
-	if keyConf, err = trust.LoadKeyConf(filepath.Join(*confDir, "keys"), topo.Core); err != nil {
+	if config, err = conf.Load(*id, *confDir); err != nil {
 		fatal(err.Error())
 	}
 	// initialize Trust Store
@@ -84,7 +77,7 @@ func main() {
 		fatal("Unable to create local SCION Network context", "err", common.FmtError(err))
 	}
 	// initialize dispatcher
-	dispatcher, err := NewDispatcher(public, bind)
+	dispatcher, err := NewDispatcher(config.PublicAddr, config.BindAddr)
 	if err != nil {
 		fatal("Unable to initialize dispatcher", "err", common.FmtError(err))
 	}
@@ -108,34 +101,12 @@ func checkFlags() error {
 	return nil
 }
 
-// loadTopo loads topology from the configuration file and sets the local address.
-func loadTopo() (err error) {
-	if topo, err = topology.LoadFromFile(filepath.Join(*confDir, topology.CfgName)); err != nil {
-		return common.NewBasicError("Unable to load topology", err)
-	}
-	topoAddr, ok := topo.CS[*id]
-	if !ok {
-		return common.NewBasicError("Unable to load addresses. Element ID not found", nil,
-			"id", *id)
-	}
-	publicInfo := topoAddr.PublicAddrInfo(topo.Overlay)
-	public = &snet.Addr{IA: topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
-		L4Port: uint16(publicInfo.L4Port)}
-	bindInfo := topoAddr.BindAddrInfo(topo.Overlay)
-	tmpBind := &snet.Addr{IA: topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
-		L4Port: uint16(bindInfo.L4Port)}
-	if !tmpBind.EqAddr(public) {
-		bind = tmpBind
-	}
-	return nil
-}
-
 // initSNET initializes snet. The number of attempts is specified, as well as the sleep duration.
 // This is needed, since supervisord might take some time, until sciond is initialized.
 func initSNET(attempts int, sleep time.Duration) (err error) {
 	// Initialize SCION local networking module
 	for i := 0; i < attempts; i++ {
-		if err = snet.Init(public.IA, *sciondPath, *dispPath); err == nil {
+		if err = snet.Init(config.PublicAddr.IA, *sciondPath, *dispPath); err == nil {
 			break
 		}
 		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", common.FmtError(err))
