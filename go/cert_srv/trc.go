@@ -50,7 +50,7 @@ func (h *TRCHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.TRCReq) {
 	} else {
 		t = store.GetTRC(req.ISD, req.Version)
 	}
-	srcLocal := public.IA.Eq(addr.IA)
+	srcLocal := config.PublicAddr.IA.Eq(addr.IA)
 	if t != nil {
 		if err := h.sendTRCRep(addr, t); err != nil {
 			log.Error("Unable to send TRC reply", "addr", addr, "req", req,
@@ -96,7 +96,7 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 	if err != nil {
 		return err
 	}
-	pathSet := snet.DefNetwork.PathResolver().Query(public.IA, req.IA())
+	pathSet := snet.DefNetwork.PathResolver().Query(config.PublicAddr.IA, req.IA())
 	path := pathSet.GetAppPath("")
 	if path == nil {
 		return common.NewBasicError("Unable to find core AS", nil)
