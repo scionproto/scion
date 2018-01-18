@@ -61,9 +61,21 @@ func NewStore(certDir, cacheDir, eName string) (*Store, error) {
 		maxChainMap: make(map[addr.ISD_AS]uint64),
 		trcMap:      make(map[trc.Key]*trc.TRC),
 		maxTrcMap:   make(map[uint16]uint64)}
-	s.initChains()
-	s.initTRCs()
+	if err := s.Reload(); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// Reload reloads
+func (s *Store) Reload() error {
+	if err := s.initChains(); err != nil {
+		return err
+	}
+	if err := s.initTRCs(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // initChains loads the certificate chain files from dir and cacheDir and populates chainMap
