@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Example app for how an infrastructure service that does nothing except
-// service some requests using default handlers.
+// Example infrastructure service that does nothing except service some
+// requests using default handlers.
 //
 // While the code compiles it does not do anything and is currently just
 // included for reference purposes. It should not be part of the SCION codebase
@@ -67,8 +67,11 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 		log.Error("Unable to create trust store", "err", err)
 		os.Exit(-1)
 	}
+	modules := &messenger.Modules{
+		TrustStore: server.trustStore,
+	}
 	// Initialize messenger with verification capabilities (trustStore-backed)
-	server.messenger = messenger.New(dispatcherLayer, server.trustStore, log.Root())
+	server.messenger = messenger.New(dispatcherLayer, modules, log.Root())
 	// Enable network access for trust store request handling
 	server.trustStore.StartResolvers(server.messenger)
 	return server

@@ -22,6 +22,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -75,7 +76,13 @@ func (handler *trcResolverHandler) Handle() {
 	defer liblog.LogPanicAndExit()
 	ctx, cancelF := context.WithTimeout(context.Background(), MinimumDelta)
 	defer cancelF()
+	handler.log.Info("Start TRC resolver handler", "request", handler.request)
 
+	// Check ahead of time if we have a verifier TRC
+	if handler.request.verifier == nil {
+		handler.log.Warn("Unable to fetch TRC without a trusted TRC")
+		return
+	}
 	trcReqMsg := &cert_mgmt.TRCReq{
 		ISD:       handler.request.isd,
 		Version:   handler.request.version,
@@ -85,16 +92,23 @@ func (handler *trcResolverHandler) Handle() {
 	csAddress := net.Addr(nil)
 	trcMessage, err := handler.resolver.api.GetTRC(ctx, trcReqMsg, csAddress)
 	if err != nil {
-		handler.log.Warn("Unable to get TRC from peer", "err", err)
+		handler.log.Warn("Unable to get TRC from peer", "err", common.FmtError(err))
 		return
 	}
-	trc, err := trcMessage.TRC()
+	trcObj, err := trcMessage.TRC()
 	if err != nil {
-		handler.log.Warn("Unable to parse TRC message", "err", err, "msg", trcMessage)
+		handler.log.Warn("Unable to parse TRC message", "err", common.FmtError(err), "msg", trcMessage)
 		return
 	}
 
-	err = handler.resolver.trustdb.InsertTRCCtx(ctx, handler.request.isd, handler.request.version, trc)
+	// Verify trc based on the verifier in the request
+	// XXX(scrye): full verification is not implemented (e.g., no cross signature support)
+	if _, err = trcObj.Verify(handler.request.verifier); err != nil {
+		handler.log.Warn("TRC verification error", "err", common.FmtError(err))
+		return
+	}
+
+	err = handler.resolver.trustdb.InsertTRCCtx(ctx, handler.request.isd, handler.request.version, trcObj)
 	if err != nil {
 		handler.log.Warn("Unable to store trc in database", "err", err)
 	}
@@ -143,7 +157,13 @@ func (handler *chainResolverHandler) Handle() {
 	defer liblog.LogPanicAndExit()
 	ctx, cancelF := context.WithTimeout(context.Background(), MinimumDelta)
 	defer cancelF()
+	handler.log.Info("Start Chain resolver handler", "request", handler.request)
 
+	// Check ahead of time if we have a verifier TRC
+	if handler.request.verifier == nil {
+		handler.log.Warn("Unable to fetch Chain without a trusted TRC")
+		return
+	}
 	chainReqMsg := &cert_mgmt.ChainReq{
 		RawIA:     handler.request.ia.IAInt(),
 		Version:   handler.request.version,
@@ -159,6 +179,12 @@ func (handler *chainResolverHandler) Handle() {
 	chain, err := chainMessage.Chain()
 	if err != nil {
 		handler.log.Warn("Unable to parse CertChain message", "err", err)
+		return
+	}
+
+	// Verify chain based on the verifier in the request
+	if err := chain.Verify(&handler.request.ia, handler.request.verifier); err != nil {
+		handler.log.Warn("Chain verification failed", "err", common.FmtError(err))
 		return
 	}
 

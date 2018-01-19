@@ -16,40 +16,38 @@ package trust
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 )
 
-type FakeMessenger struct {
-	rawTRC common.RawBytes
-}
+var (
+	testISDList = []uint16{1, 2}
+	testASList  = []addr.ISD_AS{
+		{I: 1, A: 11}, {I: 1, A: 12}, {I: 1, A: 13}, {I: 1, A: 16}, {I: 1, A: 19},
+		{I: 2, A: 21}, {I: 2, A: 22}, {I: 2, A: 23}, {I: 2, A: 25},
+	}
+	trcObjects   map[uint16]*trc.TRC
+	chainObjects map[addr.ISD_AS]*cert.Chain
+)
 
-func NewFakeMessenger() (infra.Messenger, error) {
-	raw, err := ioutil.ReadFile("testdata/ISD1-V0.trc")
-	if err != nil {
-		return nil, err
-	}
-	trcObject, err := trc.TRCFromRaw(raw, false)
-	if err != nil {
-		return nil, err
-	}
-	compressedRaw, err := trcObject.Compress()
-	if err != nil {
-		return nil, err
-	}
-	return &FakeMessenger{
-		rawTRC: compressedRaw,
-	}, nil
+type FakeMessenger struct{}
+
+func NewFakeMessenger() infra.Messenger {
+	return &FakeMessenger{}
 }
 
 func (m *FakeMessenger) RecvMsg(ctx context.Context) (interface{}, net.Addr, error) {
@@ -58,7 +56,16 @@ func (m *FakeMessenger) RecvMsg(ctx context.Context) (interface{}, net.Addr, err
 
 func (m *FakeMessenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr) (*cert_mgmt.TRC, error) {
-	return &cert_mgmt.TRC{RawTRC: m.rawTRC}, nil
+	trcObj, ok := trcObjects[msg.ISD]
+	if !ok {
+		return nil, common.NewBasicError("TRC not found", nil)
+	}
+
+	compressedTRC, err := trcObj.Compress()
+	if err != nil {
+		return nil, common.NewBasicError("Unable to compress TRC", nil)
+	}
+	return &cert_mgmt.TRC{RawTRC: compressedTRC}, nil
 }
 
 func (m *FakeMessenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error {
@@ -67,31 +74,116 @@ func (m *FakeMessenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.A
 
 func (m *FakeMessenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr) (*cert_mgmt.Chain, error) {
-	panic("not implemented")
+	chain, ok := chainObjects[*msg.IA()]
+	if !ok {
+		return nil, common.NewBasicError("Chain not found", nil)
+	}
+
+	compressedChain, err := chain.Compress()
+	if err != nil {
+		return nil, common.NewBasicError("Unable to compress Chain", nil)
+	}
+	return &cert_mgmt.Chain{RawChain: compressedChain}, nil
 }
 
 func (m *FakeMessenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr) error {
 	panic("not implemented")
 }
 
-func (m *FakeMessenger) SendSignedCtrlPld() error {
+func (m *FakeMessenger) AddHandler(msgType string, f infra.HandlerConstructor) {
+	panic("not implemented")
+}
+
+func (m *FakeMessenger) ListenAndServe() {
+	panic("not implemented")
+}
+
+func (m *FakeMessenger) CloseServer() error {
 	panic("not implemented")
 }
 
 func TestTrust(t *testing.T) {
-	Convey("Create a new trust store", t, func() {
-		messenger, err := NewFakeMessenger()
-		SoMsg("messenger err", err, ShouldBeNil)
+	SkipConvey("Create a new trust store", t, func() {
+		messenger := NewFakeMessenger()
 		store, err := NewStore(randomFileName(), log.Root())
 		SoMsg("store err", err, ShouldBeNil)
 		store.StartResolvers(messenger)
 		Convey("Send request and get answer", func() {
 			isd, version := uint16(1), uint64(5)
 			ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
-			trc, err := store.GetTRC(ctx, isd, version)
+			request := trcRequest{
+				isd:     isd,
+				version: version,
+			}
+			trc, err := store.getTRC(ctx, request)
 			cancelF()
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("trc", trc, ShouldNotBeNil)
+		})
+	})
+}
+
+func TestTrustTrails(t *testing.T) {
+	Convey("", t, func() {
+		store, err := NewStore(randomFileName(), log.Root())
+		// Add trust root for this trust store manually
+		err = store.trustdb.InsertTRCCtx(context.Background(), 2, 0, trcObjects[2])
+		SoMsg("root insertion err", err, ShouldBeNil)
+
+		// Enable fake network access for trust database
+		messenger := NewFakeMessenger()
+		store.StartResolvers(messenger)
+
+		Convey("Validate using trail from ISD2 to AS1-16", func() {
+			// Test that 1-16 Certificate can be validate
+			trail := []TrustDescriptor{
+				{
+					TRCVersion:   0,
+					ChainVersion: 0,
+					IA:           addr.ISD_AS{I: 1, A: 16},
+					Type:         ChainDescriptor,
+				},
+				{
+					TRCVersion:   0,
+					ChainVersion: 0,
+					IA:           addr.ISD_AS{I: 1, A: 0},
+					Type:         TRCDescriptor,
+				},
+				{
+					TRCVersion:   0,
+					ChainVersion: 0,
+					IA:           addr.ISD_AS{I: 2, A: 0},
+					Type:         TRCDescriptor,
+				},
+			}
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			cert, err := store.GetCertificate(ctx, trail, nil)
+			cancelF()
+			SoMsg("fetch err", err, ShouldBeNil)
+			SoMsg("cert", cert, ShouldResemble, chainObjects[addr.ISD_AS{I: 1, A: 16}].Leaf)
+		})
+
+		Convey("Fail to validate incomplete trail from ISD2 to AS1-19", func() {
+			// Test that 1-19 can't be validated due to incomplete trail
+			trail := []TrustDescriptor{
+				{
+					TRCVersion:   0,
+					ChainVersion: 0,
+					IA:           addr.ISD_AS{I: 1, A: 19},
+					Type:         ChainDescriptor,
+				},
+				{
+					TRCVersion:   0,
+					ChainVersion: 0,
+					IA:           addr.ISD_AS{I: 2, A: 0},
+					Type:         TRCDescriptor,
+				},
+			}
+			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+			cert, err := store.GetCertificate(ctx, trail, nil)
+			cancelF()
+			SoMsg("fetch err", err, ShouldNotBeNil)
+			SoMsg("cert", cert, ShouldBeNil)
 		})
 	})
 }
@@ -107,4 +199,38 @@ func randomFileName() string {
 		panic("unable to close temp file")
 	}
 	return name
+}
+
+func TestMain(m *testing.M) {
+	log.Root().SetHandler(log.DiscardHandler())
+	trcObjects = make(map[uint16]*trc.TRC)
+	for _, isd := range testISDList {
+		trcObj, err := trc.TRCFromFile(getTRCFileName(isd, 0), false)
+		if err != nil {
+			fatal(err)
+		}
+		trcObjects[isd] = trcObj
+	}
+	chainObjects = make(map[addr.ISD_AS]*cert.Chain)
+	for _, ia := range testASList {
+		chain, err := cert.ChainFromFile(getChainFileName(ia, 0), false)
+		if err != nil {
+			fatal(err)
+		}
+		chainObjects[ia] = chain
+	}
+	os.Exit(m.Run())
+}
+
+func getTRCFileName(isd uint16, version uint64) string {
+	return fmt.Sprintf("testdata/ISD%d-V%d.trc", isd, version)
+}
+
+func getChainFileName(ia addr.ISD_AS, version uint64) string {
+	return fmt.Sprintf("testdata/ISD%d-AS%d-V%d.crt", ia.I, ia.A, version)
+}
+
+func fatal(err error) {
+	log.Error("Fatal error", "err", common.FmtError(err))
+	os.Exit(1)
 }

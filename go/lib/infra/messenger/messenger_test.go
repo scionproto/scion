@@ -106,5 +106,5 @@ func TestTRCExchange(t *testing.T) {
 func setupMessenger(conn net.PacketConn, name string) *Messenger {
 	transport := transport.NewRUDP(conn, log.New("name", name))
 	dispatcher := disp.New(transport, DefaultAdapter, log.New("name", name))
-	return New(dispatcher, nil, log.Root().New("name", name))
+	return New(dispatcher, &Modules{}, log.Root().New("name", name))
 }
