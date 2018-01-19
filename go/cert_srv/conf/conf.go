@@ -185,7 +185,6 @@ func (c *Conf) getActiveTRC() (*trc.TRC, *trc.TRC, error) {
 		return nil, nil, common.NewBasicError("No TRC for own ISD", nil)
 	}
 	for ver := t.Version - 1; ver >= 0; ver-- {
-		log.Debug("loooking at trc", "trc", t)
 		if err := t.CheckActive(t); common.GetErrorMsg(err) != trc.EarlyUsage {
 			break
 		}
@@ -222,12 +221,9 @@ func (c *Conf) getChain(keyConf *trust.KeyConf, t, graceT *trc.TRC) (*cert.Chain
 			"chain does not authenticate keys", "chain", chain, "verKey", verKey)
 	}
 	if t != nil && chain.Verify(c.PublicAddr.IA, t) == nil {
-		log.Debug("Verifiable with trc", "trc", t)
 		return chain, t, nil
 	}
 	if graceT != nil && chain.Verify(c.PublicAddr.IA, graceT) == nil {
-
-		log.Debug("Verifiable with old trc", "trc", graceT)
 		return chain, graceT, nil
 	}
 	return nil, nil, common.NewBasicError(InvalidKeyConf, nil, "Certificate chain not "+
