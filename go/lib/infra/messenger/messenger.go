@@ -22,6 +22,7 @@
 //  Chain        -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain    (nv)
 //  TRCRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq   (nv)
 //  TRC          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC      (nv)
+//  PathRequest  -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq   (nv)
 //
 // Unsupported messages are returned by Messenger.RecvMsg(), but if the
 // messages are processed via method ListenAndServe they are logged and
@@ -77,8 +78,10 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/modules/paths"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -92,12 +95,19 @@ const (
 
 var _ infra.Messenger = (*Messenger)(nil)
 
+type Modules struct {
+	TrustStore   *trust.Store
+	PathVerifier *paths.PathVerifier
+}
+
 // A Messenger exposes the API for sending and receiving CtrlPld messages.
 type Messenger struct {
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
 	// Source for crypto objects (certificates and TRCs)
 	trustStore *trust.Store
+	// Used to implement path validation
+	pathVerifier *paths.PathVerifier
 
 	constructorLock sync.RWMutex
 	// Handlers for received messages processing
@@ -114,7 +124,7 @@ type Messenger struct {
 
 // New creates a new Messenger that uses dispatcher for sending and receiving
 // messages, and trustStore as crypto information database.
-func New(dispatcher *disp.Dispatcher, trustStore *trust.Store, logger log.Logger) *Messenger {
+func New(dispatcher *disp.Dispatcher, modules *Modules, logger log.Logger) *Messenger {
 	// XXX(scrye): A trustStore object is passed to the API as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -123,7 +133,8 @@ func New(dispatcher *disp.Dispatcher, trustStore *trust.Store, logger log.Logger
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
 		dispatcher:   dispatcher,
-		trustStore:   trustStore,
+		trustStore:   modules.TrustStore,
+		pathVerifier: modules.PathVerifier,
 		constructors: make(map[string]infra.HandlerConstructor),
 		closeC:       make(chan struct{}),
 		ctx:          ctx,
@@ -211,6 +222,35 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 		return err
 	}
 	return nil
+}
+
+// GetPaths asks the server at the remote address for the paths specified by
+// msg, and returns a verified reply.
+func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr) (*path_mgmt.SegReply, error) {
+	if m.pathVerifier == nil {
+		return nil, common.NewBasicError("Unable to verify paths without a PathVerifier module", nil)
+	}
+	signedCtrlPldMsg, err := ctrl.NewSignedPathMgmtPld(msg)
+	if err != nil {
+		return nil, err
+	}
+	replyCtrlPldMsg, err := m.dispatcher.Request(ctx, signedCtrlPldMsg, a)
+	if err != nil {
+		return nil, err
+	}
+	_, replyMsg, err := m.validate(replyCtrlPldMsg)
+	if err != nil {
+		return nil, err
+	}
+	reply, ok := replyMsg.(*path_mgmt.SegReply)
+	if !ok {
+		return nil, newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
+	}
+	if err := m.pathVerifier.VerifySegReply(ctx, reply); err != nil {
+		// Verification failure
+		return nil, common.NewBasicError("Reply received, but verification failed", err)
+	}
+	return reply, nil
 }
 
 // AddHandler registers a constructor for CtrlPld handlers for msgType.
