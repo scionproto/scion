@@ -125,6 +125,7 @@ func setupSignals() {
 }
 
 func reloadConfig(sighup chan os.Signal) {
+	defer liblog.LogPanicAndExit()
 	for range sighup {
 		if err := config.Reload(); err != nil {
 			if common.GetErrorMsg(err) != conf.ErrorFatal {

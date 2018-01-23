@@ -67,7 +67,8 @@ func NewStore(certDir, cacheDir, eName string) (*Store, error) {
 	return s, nil
 }
 
-// Reload reloads
+// Reload reloads trust files by populating the trust store with certificate chains and TRCs from
+// certDir and cacheDir.
 func (s *Store) Reload() error {
 	if err := s.initChains(); err != nil {
 		return err

@@ -50,14 +50,10 @@ type Conf struct {
 	PublicAddr *snet.Addr
 	// Store is the trust store.
 	Store *trust.Store
-	// TRCVer is the TRC version that is currently used.
-	TRCVer uint64
-	// CertVer is the certificate chain version that is currently used.
-	CertVer uint64
-	// KeyConf contains the AS level keys used for signing and decrypting.
-	KeyConf *trust.KeyConf
-	// KeyConfLock guards KeyConf, CertVer and TRCVer.
-	KeyConfLock sync.RWMutex
+	// keyConf contains the AS level keys used for signing and decrypting.
+	keyConf *trust.KeyConf
+	// keyConfLock guards KeyConf, CertVer and TRCVer.
+	keyConfLock sync.RWMutex
 	// Dir is the configuration directory.
 	Dir string
 }
@@ -91,11 +87,11 @@ func Load(id string, confDir string) (*Conf, error) {
 	if err != nil {
 		return nil, common.NewBasicError(ErrorStore, err)
 	}
-	if conf.KeyConf, err = conf.loadKeyConf(); err != nil {
+	if conf.keyConf, err = conf.loadKeyConf(); err != nil {
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
 
-	if conf.CertVer, conf.TRCVer, err = conf.checkKeyConf(conf.KeyConf); err != nil {
+	if err = conf.verifyKeyConf(conf.keyConf); err != nil {
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
 	return conf, nil
@@ -108,93 +104,137 @@ func (c *Conf) Reload() error {
 	if err := c.Store.Reload(); err != nil {
 		return common.NewBasicError(ErrorStore, err)
 	}
-	c.KeyConfLock.Lock()
-	defer c.KeyConfLock.Unlock()
+	c.keyConfLock.Lock()
+	defer c.keyConfLock.Unlock()
 	keyConf, err := c.loadKeyConf()
 	if err == nil {
-		var certVer, trcVer uint64
-		if certVer, trcVer, err = c.checkKeyConf(keyConf); err == nil {
-			c.KeyConf = keyConf
-			c.CertVer = certVer
-			c.TRCVer = trcVer
+		// Check if new key config is usable with the current TRC and certificate chain
+		if err = c.verifyKeyConf(keyConf); err == nil {
+			c.keyConf = keyConf
 			return nil
 		}
 	}
-	certVer, trcVer, errO := c.checkKeyConf(c.KeyConf)
-	if errO == nil {
-		c.CertVer = certVer
-		c.TRCVer = trcVer
+	// Check that old key config is usable with the current (possible freshly loaded)
+	// TRC and certificate chain
+	existingErr := c.verifyKeyConf(c.keyConf)
+	if existingErr == nil {
 		return err
 	}
-	return common.NewBasicError(ErrorFatal, err, "errExistingKeyConf", common.FmtError(errO))
+	return common.NewBasicError(ErrorFatal, err, "existingErr", common.FmtError(existingErr))
 }
 
 // loadKeyConf loads key configuration.
 func (c *Conf) loadKeyConf() (*trust.KeyConf, error) {
-	return trust.LoadKeyConf(filepath.Join(c.Dir, "keys"), c.Topo.Core)
+	// Certificate server does not need offline root key during normal operations
+	return trust.LoadKeyConf(filepath.Join(c.Dir, "keys"), c.Topo.Core, false)
 }
 
-// checkKeyConf checks if key configuration is usable in combination with the active TRC and
-// certificate chain and returns the associated versions.
-func (c *Conf) checkKeyConf(keyConf *trust.KeyConf) (uint64, uint64, error) {
-	t, graceT, err := c.getTRC(keyConf)
-	if err != nil {
-		return 0, 0, err
+// verifyKeyConf verifies that the key configuration is usable in combination with the active TRC
+// and certificate chain.
+func (c *Conf) verifyKeyConf(keyConf *trust.KeyConf) error {
+	chain := c.Store.GetNewestChain(c.PublicAddr.IA)
+	if chain == nil {
+		return common.NewBasicError(ErrorFatal, nil, "err", "No certificate chain")
 	}
-	chain, usedT, err := c.getChain(keyConf, t, graceT)
-	if err != nil {
-		return 0, 0, err
+	// Check that the public key config matches the public key in the certificate chain
+	verKey := common.RawBytes(ed25519.PrivateKey(keyConf.SignKey).Public().(ed25519.PublicKey))
+	if !bytes.Equal(chain.Leaf.SubjectSignKey, verKey) {
+		// FIXME(roosd): Add check for SubjectEncKey
+		return common.NewBasicError(InvalidKeyConf, nil, "err", "Certificate "+
+			"chain does not authenticate keys", "chain", chain, "verKey", verKey)
 	}
-	if usedT == graceT {
-		log.Warn("KeyConf relys on TRC in grace period", "TRC", usedT)
+	// Check that the current certificate chain is verifiable with current TRC (or grace TRC)
+	if err := c.verifyCC(chain); err != nil {
+		return err
 	}
-	return chain.Leaf.Version, usedT.Version, nil
+	// Check root keys are authenticated by current TRC (or grace TRC)
+	if c.Topo.Core {
+		// get current TRC (and possibly grace TRC)
+		t, graceT, err := c.getActiveTRC()
+		if err != nil {
+			return common.NewBasicError(ErrorFatal, err)
+		}
+		// Check if root keys authenticated by active TRC
+		if err = c.verifyRootKeys(keyConf, t); err != nil {
+			// Check if root keys authenticated by grace TRC
+			if graceErr := c.verifyRootKeys(keyConf, graceT); graceErr != nil {
+				return common.NewBasicError(ErrorFatal, err, "graceErr",
+					common.FmtError(graceErr))
+			}
+			log.Warn("Current root keys rely on TRC in grace period", "TRC", graceT)
+		}
+	}
+	return nil
 }
 
-// getTRC returns the TRCs which are usable with this keyConf or an error. The first return value
-// is the active TRC. The second return value is the TRC still active in the grace period.
-func (c *Conf) getTRC(keyConf *trust.KeyConf) (*trc.TRC, *trc.TRC, error) {
+// verifyCC verifies that the provided certificate chain is verifiable with the current TRCs.
+func (c *Conf) verifyCC(chain *cert.Chain) error {
 	t, graceT, err := c.getActiveTRC()
 	if err != nil {
-		return nil, nil, common.NewBasicError(ErrorFatal, err)
+		return common.NewBasicError(ErrorFatal, err)
 	}
-	if !c.Topo.Core {
-		return t, graceT, nil
+	if t != nil && chain.Verify(c.PublicAddr.IA, t) == nil {
+		return nil
 	}
+	if graceT != nil && chain.Verify(c.PublicAddr.IA, graceT) == nil {
+		log.Warn("Current certificate chain relies on TRC in grace period", "TRC", graceT)
+		return nil
+	}
+	return common.NewBasicError(InvalidKeyConf, nil, "Certificate chain not verifiable",
+		"chain", chain, "trc", t, "graceTRC", graceT)
+}
+
+// verifyRootKeys verifies that the root keys in keyConf are authenticated by the provided TRC.
+func (c *Conf) verifyRootKeys(keyConf *trust.KeyConf, t *trc.TRC) error {
+	if t == nil {
+		return common.NewBasicError("No TRC provided to verify root keys", nil)
+	}
+	// Check that this AS is part of the core ASes
+	coreEntry := t.CoreASes[*c.PublicAddr.IA]
+	if coreEntry == nil {
+		return common.NewBasicError("Not a core AS", nil, "IA", c.PublicAddr.IA, "TRC", t)
+	}
+	// Check that online key is authenticated by TRC
 	onPubKey := ed25519.PrivateKey(keyConf.OnRootKey).Public().(ed25519.PublicKey)
+	if !bytes.Equal(coreEntry.OnlineKey, onPubKey) {
+		return common.NewBasicError("Online key does not match", nil, "TRC", t)
+	}
+	// Offline key is not available during normal operations
+	if keyConf.OffRootKey == nil {
+		return nil
+	}
+	// Check that offline key is authenticated by TRC
 	offPubKey := ed25519.PrivateKey(keyConf.OffRootKey).Public().(ed25519.PublicKey)
-	if t != nil && (!bytes.Equal(t.CoreASes[*c.PublicAddr.IA].OfflineKey, offPubKey) ||
-		!bytes.Equal(t.CoreASes[*c.PublicAddr.IA].OnlineKey, onPubKey)) {
-		t = nil
+	if !bytes.Equal(coreEntry.OfflineKey, offPubKey) {
+		return common.NewBasicError("Offline key does not match", nil, "TRC", t)
 	}
-	if graceT != nil && (!bytes.Equal(graceT.CoreASes[*c.PublicAddr.IA].OfflineKey, offPubKey) ||
-		!bytes.Equal(graceT.CoreASes[*c.PublicAddr.IA].OnlineKey, onPubKey)) {
-		graceT = nil
-	}
-	if t == nil && graceT == nil {
-		return nil, nil, common.NewBasicError(InvalidKeyConf, nil, "err", "No matching TRC")
-	}
-	return t, graceT, nil
+	return nil
 }
 
 // getActiveTRC returns active TRCs if they exist or an error. The first return value is the
-// active TRC. The second return value is the TRC still active in the grace period.
+// active TRC. The second return value is the grace TRC if the grace period has not passed yet.
 func (c *Conf) getActiveTRC() (*trc.TRC, *trc.TRC, error) {
 	t := c.Store.GetNewestTRC(uint16(c.PublicAddr.IA.I))
 	if t == nil {
 		return nil, nil, common.NewBasicError("No TRC for own ISD", nil)
 	}
+	// This loop iterates through all TRC versions (starting from the newest TRC) and find the
+	// latest TRC which is not early usage
 	for ver := t.Version - 1; ver >= 0; ver-- {
+		// Check if creation time is in the future. GetErrorMsg(nil) returns empty string
 		if err := t.CheckActive(t); common.GetErrorMsg(err) != trc.EarlyUsage {
 			break
 		}
+		// A valid trust store must posses the preceding TRC
 		if t = c.Store.GetTRC(uint16(c.PublicAddr.IA.I), ver-1); t == nil {
 			return nil, nil, common.NewBasicError("Missing TRC", nil, "ver", ver)
 		}
 	}
+	// Check that the TRC is active
 	if err := t.CheckActive(t); err != nil {
 		return nil, nil, common.NewBasicError("No active TRC", nil)
 	}
+	// Also return the grace TRC, if it is active
 	if t.Version > 0 {
 		graceT := c.Store.GetTRC(uint16(c.PublicAddr.IA.I), t.Version-1)
 		if err := graceT.CheckActive(t); err != nil {
@@ -205,27 +245,23 @@ func (c *Conf) getActiveTRC() (*trc.TRC, *trc.TRC, error) {
 	return t, nil, nil
 }
 
-// getChain returns the newest certificate chain if it is verifiable and authenticates
-// the keys in keyConf. Otherwise, an error is returned. The SubjectSignKey must match in the newest
-// certificate. If this is not the case, the responsible core AS has a different verifying key in
-// its mapping and no certificate reissuance requests will be accepted.
-func (c *Conf) getChain(keyConf *trust.KeyConf, t, graceT *trc.TRC) (*cert.Chain, *trc.TRC, error) {
-	chain := c.Store.GetNewestChain(c.PublicAddr.IA)
-	if chain == nil {
-		return nil, nil, common.NewBasicError(ErrorFatal, nil, "err", "No certificate chain")
-	}
-	verKey := common.RawBytes(ed25519.PrivateKey(keyConf.SignKey).Public().(ed25519.PublicKey))
-	if !bytes.Equal(chain.Leaf.SubjectSignKey, verKey) {
-		// FIXME(roosd): Add check for SubjectEncKey
-		return nil, nil, common.NewBasicError(InvalidKeyConf, nil, "err", "Certificate "+
-			"chain does not authenticate keys", "chain", chain, "verKey", verKey)
-	}
-	if t != nil && chain.Verify(c.PublicAddr.IA, t) == nil {
-		return chain, t, nil
-	}
-	if graceT != nil && chain.Verify(c.PublicAddr.IA, graceT) == nil {
-		return chain, graceT, nil
-	}
-	return nil, nil, common.NewBasicError(InvalidKeyConf, nil, "Certificate chain not "+
-		"verifiable", "chain", chain, "trc", t, "graceTRC", graceT)
+// GetSigningKey returns the signing key of the current key configuration.
+func (c *Conf) GetSigningKey() common.RawBytes {
+	c.keyConfLock.RLock()
+	defer c.keyConfLock.RUnlock()
+	return c.keyConf.SignKey
+}
+
+// GetDecryptKey returns the decryption key of the current key configuration.
+func (c *Conf) GetDecryptKey() common.RawBytes {
+	c.keyConfLock.RLock()
+	defer c.keyConfLock.RUnlock()
+	return c.keyConf.DecryptKey
+}
+
+// GetOnRootKey returns the online root key of the current key configuration.
+func (c *Conf) GetOnRootKey() common.RawBytes {
+	c.keyConfLock.RLock()
+	defer c.keyConfLock.RUnlock()
+	return c.keyConf.OnRootKey
 }
