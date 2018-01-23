@@ -34,9 +34,9 @@ import (
 const (
 	MaxChainByteLength uint32 = 1 << 20
 	// LeafValidity is the default validity time of a leaf certificate in seconds.
-	LeafValidity = 3 * 24 * 60 * 60
+	DefaultLeafCertValidity = 3 * 24 * 60 * 60
 	// CoreValidity is the default validity time of a core certificate in seconds.
-	CoreValidity = 7 * 24 * 60 * 60
+	DefaultCoreCertValidity = 7 * 24 * 60 * 60
 
 	// Error strings
 	CoreCertInvalid  = "Core certificate invalid"
