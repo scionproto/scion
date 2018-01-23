@@ -14,27 +14,28 @@
 
 // Package rpkt contains the router representation of a SCION packet.
 //
-// This differs from the higher-level github.com/netsec-ethz/scion/go/lib/spkt
+// This differs from the higher-level github.com/scionproto/scion/go/lib/spkt
 // package by being tied to an underlying buffer, which greatly improves
 // processing performance at the expense of flexibility.
 package rpkt
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/assert"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
-	"github.com/netsec-ethz/scion/go/lib/spath"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // pktBufSize is the maxiumum size of a packet buffer.
@@ -64,9 +65,8 @@ type RtrPkt struct {
 	// Raw is the underlying buffer that represents the raw packet bytes. (RECV)
 	Raw common.RawBytes
 	// TimeIn is the time the packet was received. This is used for metrics
-	// calculations. Note that this is a monotonic time value with an arbitrary
-	// epoch, and can't be used to refer to a particular clock time. (RECV)
-	TimeIn time.Duration
+	// calculations. (RECV)
+	TimeIn time.Time
 	// DirFrom is the direction from which the packet was received. (RECV)
 	DirFrom rcmn.Dir
 	// DirTo is the direction to which the packet is travelling. (PARSE)
@@ -126,7 +126,7 @@ type RtrPkt struct {
 	// The current router context to process this packet.
 	Ctx *rctx.Ctx
 	// Reference count
-	refCnt int
+	refCnt int32
 	// Called by Release when the reference count hits 0
 	Free func(*RtrPkt)
 }
@@ -138,13 +138,20 @@ func NewRtrPkt() *RtrPkt {
 	return r
 }
 
+func (rp *RtrPkt) refInc(val int) {
+	atomic.AddInt32(&rp.refCnt, int32(val))
+}
+
 func (rp *RtrPkt) Release() {
+	refCnt := atomic.AddInt32(&rp.refCnt, -1)
 	if assert.On {
-		assert.Mustf(rp.refCnt > 0, rp.ErrStr, "RtrPkt.refCnt be positive.")
+		assert.Mustf(refCnt >= 0, rp.ErrStr, "RtrPkt.refCnt be >= 0.")
 	}
-	rp.refCnt -= 1
-	if rp.refCnt == 0 && rp.Free != nil {
+	if refCnt == 0 && rp.Free != nil {
 		rp.Free(rp)
+	}
+	if assert.On {
+		assert.Must(refCnt >= 0, "refCnt must be non-negative")
 	}
 }
 
@@ -204,12 +211,11 @@ type extnIdx struct {
 // leaking through.
 //
 // Fields that are assumed to be overwritten (and hence aren't reset):
-// Id, TimeIn, CmnHdr, Logger
+// TimeIn, CmnHdr, Logger
 func (rp *RtrPkt) Reset() {
 	rp.Id = ""
 	// Reset the length of the buffer to the max size.
 	rp.Raw = rp.Raw[:cap(rp.Raw)]
-	rp.TimeIn = 0
 	rp.DirFrom = rcmn.DirUnset
 	rp.DirTo = rcmn.DirUnset
 	rp.Ingress.Dst = nil

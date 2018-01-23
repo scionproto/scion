@@ -34,16 +34,18 @@ from string import Template
 # External packages
 import yaml
 
+from nacl.signing import SigningKey
 from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
 # SCION
 from lib.config import Config
 from lib.crypto.asymcrypto import (
-    generate_sign_keypair,
     generate_enc_keypair,
+    generate_sign_keypair,
     get_enc_key_file_path,
-    get_sig_key_file_path
+    get_sig_key_file_path,
+    get_sig_key_raw_file_path,
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
@@ -59,7 +61,9 @@ from lib.crypto.util import (
     get_ca_cert_file_path,
     get_ca_private_key_file_path,
     get_offline_key_file_path,
+    get_offline_key_raw_file_path,
     get_online_key_file_path,
+    get_online_key_raw_file_path,
 )
 from lib.defines import (
     AS_CONF_FILE,
@@ -104,28 +108,25 @@ ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
 DEFAULT_LINK_BW = 1000
 
 DEFAULT_BEACON_SERVERS = 1
+DEFAULT_CERTIFICATE_SERVER = "py"
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
-DEFAULT_SIBRA_SERVERS = 1
 INITIAL_CERT_VERSION = 0
 INITIAL_TRC_VERSION = 0
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
-DEFAULT_ROUTER = "go"
 
 SCION_SERVICE_NAMES = (
     "BeaconService",
     "CertificateService",
     "BorderRouters",
     "PathService",
-    "SibraService",
 )
 
-DEFAULT_KEYGEN_ALG = 'Ed25519'
+DEFAULT_KEYGEN_ALG = 'ed25519'
 
-GENERATE_BOTH_TOPOLOGY = True
 GENERATE_BIND_ADDRESS = False
 
 
@@ -136,8 +137,8 @@ class ConfigGenerator(object):
     def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 use_mininet=False, router="py", bind_addr=GENERATE_BIND_ADDRESS,
-                 pseg_ttl=DEFAULT_SEGMENT_TTL):
+                 use_mininet=False, bind_addr=GENERATE_BIND_ADDRESS,
+                 pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -149,6 +150,7 @@ class ConfigGenerator(object):
             Network to create subnets in, of the form x.x.x.x/y
         :param bool use_mininet: Use Mininet
         :param int pseg_ttl: The TTL for path segments (in seconds)
+        :param string cs: Use go or python implementation of certificate server
         """
         self.out_dir = out_dir
         self.topo_config = load_yaml_file(topo_file)
@@ -157,10 +159,10 @@ class ConfigGenerator(object):
         self.mininet = use_mininet
         self.default_zookeepers = {}
         self.default_mtu = None
-        self.router = router
         self.gen_bind_addr = bind_addr
         self.pseg_ttl = pseg_ttl
         self._read_defaults(network)
+        self.cs = cs
 
     def _read_defaults(self, network):
         """
@@ -219,8 +221,7 @@ class ConfigGenerator(object):
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
         super_gen = SupervisorGenerator(
-            self.out_dir, topo_dicts, zookeepers, self.zk_config, self.mininet,
-            self.router)
+            self.out_dir, topo_dicts, zookeepers, self.zk_config, self.mininet, self.cs)
         super_gen.generate()
 
     def _generate_zk_conf(self, zookeepers):
@@ -335,8 +336,11 @@ class CertGenerator(object):
         self.enc_priv_keys[topo_id] = enc_priv
         sig_path = get_sig_key_file_path("")
         enc_path = get_enc_key_file_path("")
+        sig_raw_path = get_sig_key_raw_file_path("")
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
         self.cert_files[topo_id][enc_path] = base64.b64encode(enc_priv).decode()
+        self.cert_files[topo_id][sig_raw_path] = base64.b64encode(
+            SigningKey(sig_priv)._signing_key).decode()
         if self.is_core(as_conf):
             # generate_sign_key_pair uses Ed25519
             on_root_pub, on_root_priv = generate_sign_keypair()
@@ -346,9 +350,15 @@ class CertGenerator(object):
             self.pub_offline_root_keys[topo_id] = off_root_pub
             self.priv_offline_root_keys[topo_id] = off_root_priv
             online_key_path = get_online_key_file_path("")
+            online_key_raw_path = get_online_key_raw_file_path("")
             offline_key_path = get_offline_key_file_path("")
+            offline_key_raw_path = get_offline_key_raw_file_path("")
             self.cert_files[topo_id][online_key_path] = base64.b64encode(on_root_priv).decode()
+            self.cert_files[topo_id][online_key_raw_path] = base64.b64encode(
+                SigningKey(on_root_priv)._signing_key).decode()
             self.cert_files[topo_id][offline_key_path] = base64.b64encode(off_root_priv).decode()
+            self.cert_files[topo_id][offline_key_raw_path] = base64.b64encode(
+                SigningKey(off_root_priv)._signing_key).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.
@@ -396,28 +406,25 @@ class CertGenerator(object):
             self._create_trc(topo_id[0])
         trc = self.trcs[topo_id[0]]
         # Add public root online/offline key to TRC
-        core = {}
-        core[ONLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[ONLINE_KEY_STRING] = self.pub_online_root_keys[topo_id]
-        core[OFFLINE_KEY_ALG_STRING] = DEFAULT_KEYGEN_ALG
-        core[OFFLINE_KEY_STRING] = self.pub_offline_root_keys[topo_id]
-        trc.core_ases[str(topo_id)] = core
-        ca_certs = {}
-        for ca_name, ca_cert in self.ca_certs[topo_id[0]].items():
-            ca_certs[ca_name] = crypto.dump_certificate(crypto.FILETYPE_ASN1, ca_cert)
-        trc.root_cas = ca_certs
+
+        trc.core_ases[str(topo_id)] = self._populate_core(topo_id)
+
+    def _populate_core(self, topo_id):
+        return {ONLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                ONLINE_KEY_STRING: self.pub_online_root_keys[topo_id],
+                OFFLINE_KEY_ALG_STRING: DEFAULT_KEYGEN_ALG,
+                OFFLINE_KEY_STRING: self.pub_offline_root_keys[topo_id]}
 
     def _create_trc(self, isd):
-        self.trcs[isd] = TRC.from_values(
-            isd, "ISD %s" % isd, 0, {}, {},
-            {}, 2, 'dns_srv_addr', 2,
-            3, 18000, True, {})
+        validity_period = TRC.VALIDITY_PERIOD
+        self.trcs[isd] = TRC.from_values(isd, "ISD %s" % isd, INITIAL_TRC_VERSION, {}, {}, {}, 2,
+                                         {}, 2, 3, 18000, False, {}, validity_period)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):
             return
         trc = self.trcs[topo_id[0]]
-        trc.sign(str(topo_id), self.priv_online_root_keys[topo_id])
+        trc.sign(topo_id, self.priv_online_root_keys[topo_id])
 
     def _gen_trc_files(self, topo_id, _):
         trc = self.trcs[topo_id[0]]
@@ -593,7 +600,6 @@ class TopoGenerator(object):
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateService"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
-            ("sibra_servers", DEFAULT_SIBRA_SERVERS, "sb", "SibraService"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -689,12 +695,6 @@ class TopoGenerator(object):
             contents_json = json.dumps(self.topo_dicts[topo_id],
                                        default=_json_default, indent=2)
             write_file(path, contents_json)
-            if GENERATE_BOTH_TOPOLOGY:
-                path_yaml = os.path.join(base, "topology.yml")
-                topo_dicts_old = _topo_json_to_yaml(self.topo_dicts[topo_id])
-                contents_yaml = yaml.dump(topo_dicts_old,
-                                          default_flow_style=False)
-                write_file(path_yaml, contents_yaml)
             # Test if topo file parses cleanly
             Topology.from_file(path)
 
@@ -778,14 +778,13 @@ class PrometheusGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet,
-                 router):
+    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet, cs):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.zookeepers = zookeepers
         self.zk_config = zk_config
         self.mininet = mininet
-        self.router = router
+        self.cs = cs
 
     def generate(self):
         self._write_dispatcher_conf()
@@ -796,17 +795,12 @@ class SupervisorGenerator(object):
         entries = []
         base = self._get_base_path(topo_id)
         for key, cmd in (
-            ("BeaconService", "bin/beacon_server"),
-            ("CertificateService", "bin/cert_server"),
-            ("PathService", "bin/path_server"),
-            ("SibraService", "bin/sibra_server"),
+            ("BeaconService", "python/bin/beacon_server"),
+            ("PathService", "python/bin/path_server"),
         ):
             entries.extend(self._std_entries(topo, key, cmd, base))
-        if self.router == "go":
-            entries.extend(self._br_entries(topo, "bin/border", base))
-        else:
-            entries.extend(self._std_entries(topo, "BorderRouters",
-                                             "bin/router", base))
+        entries.extend(self._cs_entries(topo, base))
+        entries.extend(self._br_entries(topo, "bin/border", base))
         entries.extend(self._zk_entries(topo_id))
         self._write_as_conf(topo_id, entries)
 
@@ -825,10 +819,20 @@ class SupervisorGenerator(object):
                                 "-prom=%s" % _prom_addr_br(v)]))
         return entries
 
+    def _cs_entries(self, topo, base):
+        if self.cs == "py":
+            return self._std_entries(topo, "CertificateService", "python/bin/cert_server", base)
+        entries = []
+        for k, v in topo.get("CertificateService", {}).items():
+            conf_dir = os.path.join(base, k)
+            entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
+                                "-prom=%s" % _prom_addr_infra(v)]))
+        return entries
+
     def _sciond_entry(self, name, conf_dir):
         path = self._sciond_path(name)
         return self._common_entry(
-            name, ["bin/sciond", "--api-addr", path, name, conf_dir])
+            name, ["python/bin/sciond", "--api-addr", path, name, conf_dir])
 
     def _sciond_path(self, name):
         return os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)
@@ -889,7 +893,7 @@ class SupervisorGenerator(object):
                 # Else set the SCIOND_PATH env to point to the per-AS sciond.
                 path = self._sciond_path("sd%s" % topo_id)
                 prog['environment'] += ',SCIOND_PATH="%s"' % path
-        if elem.startswith("br") and self.router == "go":
+        if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         if elem.startswith("zk") and self.zk_config["Environment"]:
             for k, v in self.zk_config["Environment"].items():
@@ -1185,97 +1189,6 @@ def _json_default(o):
     raise TypeError
 
 
-def _topo_json_to_yaml(topo_dicts):
-    """
-    Convert the new topology format (which uses json) to the old format (which uses yaml).
-    XXX(kormat): This is only needed until the BR is switched over to the new topo format.
-
-    :pram dict topo_dicts: new topology dict
-    :return dict topo_old: old topology dict
-    """
-    topo_old = {}
-    for service, attributes in topo_dicts.items():
-        if service == "Overlay":
-            continue
-        elif service == "BeaconService":
-            topo_old["BeaconServers"] = {}
-            for bs_id, entity in attributes.items():
-                bs_addr = topo_dicts[service][bs_id]["Public"][0]["Addr"]
-                bs_port = topo_dicts[service][bs_id]["Public"][0]["L4Port"]
-                topo_old["BeaconServers"][bs_id] = {
-                    'Addr': bs_addr,
-                    'Port': bs_port
-                }
-        elif service == "BorderRouters":
-            topo_old["BorderRouters"] = {}
-            for br_id, entity in attributes.items():
-                br_addr = topo_dicts[service][br_id]["InternalAddrs"][0]["Public"][0]["Addr"]
-                br_port = topo_dicts[service][br_id]["InternalAddrs"][0]["Public"][0]["L4Port"]
-                for ifid, temp in topo_dicts[service][br_id]["Interfaces"].items():
-                    if_addr = topo_dicts[service][br_id]["Interfaces"][ifid]["Public"]["Addr"]
-                    if_port = topo_dicts[service][br_id]["Interfaces"][ifid]["Public"]["L4Port"]
-                    bandwidth = topo_dicts[service][br_id]["Interfaces"][ifid]["Bandwidth"]
-                    isdas = topo_dicts[service][br_id]["Interfaces"][ifid]["ISD_AS"]
-                    linktype = topo_dicts[service][br_id]["Interfaces"][ifid]["LinkType"]
-                    mtu = topo_dicts[service][br_id]["Interfaces"][ifid]["MTU"]
-                    toaddr = topo_dicts[service][br_id]["Interfaces"][ifid]["Remote"]["Addr"]
-                    toport = topo_dicts[service][br_id]["Interfaces"][ifid]["Remote"]["L4Port"]
-                    topo_old[service][br_id] = {
-                        'Addr': br_addr,
-                        'Port': br_port,
-                        'Interface': {
-                            'Addr': if_addr,
-                            'UdpPort': if_port,
-                            'IFID': ifid,
-                            'Bandwidth': bandwidth,
-                            'ISD_AS': isdas,
-                            'LinkType': linktype,
-                            'MTU': mtu,
-                            'ToAddr': toaddr,
-                            'ToUdpPort': toport,
-                        }
-                    }
-        elif service == "CertificateService":
-            topo_old["CertificateServers"] = {}
-            for cs_id, entity in attributes.items():
-                cs_addr = topo_dicts[service][cs_id]["Public"][0]["Addr"]
-                cs_port = topo_dicts[service][cs_id]["Public"][0]["L4Port"]
-                topo_old["CertificateServers"][cs_id] = {
-                    'Addr': cs_addr,
-                    'Port': cs_port
-                }
-        elif service == "PathService":
-            topo_old["PathServers"] = {}
-            for ps_id, entity in attributes.items():
-                ps_addr = topo_dicts[service][ps_id]["Public"][0]["Addr"]
-                ps_port = topo_dicts[service][ps_id]["Public"][0]["L4Port"]
-                topo_old["PathServers"][ps_id] = {
-                    'Addr': ps_addr,
-                    'Port': ps_port
-                }
-        elif service == "SibraService":
-            topo_old["SibraServers"] = {}
-            for sb_id, entity in attributes.items():
-                sb_addr = topo_dicts[service][sb_id]["Public"][0]["Addr"]
-                sb_port = topo_dicts[service][sb_id]["Public"][0]["L4Port"]
-                topo_old["SibraServers"][sb_id] = {
-                    'Addr': sb_addr,
-                    'Port': sb_port
-                }
-        elif service == "ZookeeperService":
-            topo_old["Zookeepers"] = {}
-            for zk_id, entity in attributes.items():
-                zk_addr = topo_dicts[service][zk_id]["Addr"]
-                zk_port = topo_dicts[service][zk_id]["L4Port"]
-                topo_old["Zookeepers"][zk_id] = {
-                    'Addr': zk_addr,
-                    'Port': zk_port
-                }
-        else:
-            topo_old[service] = attributes
-    return topo_old
-
-
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
     int_addr = br_ele['InternalAddrs'][0]['Public'][0]
@@ -1305,16 +1218,16 @@ def main():
                         help='Output directory')
     parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
                         help='Zookeeper configuration file')
-    parser.add_argument('-r', '--router', default=DEFAULT_ROUTER,
-                        help='Router implementation to use ("go" or "py")')
     parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
                         help='Path segment TTL (in seconds)')
+    parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
+                        help='Certificate Server implementation to use ("go" or "py")')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.router, args.bind_addr, args.pseg_ttl)
+        args.network, args.mininet, args.bind_addr, args.pseg_ttl, args.cert_server)
     confgen.generate_all()
 
 

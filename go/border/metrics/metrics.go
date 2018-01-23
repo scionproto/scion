@@ -25,9 +25,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/prom"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/prom"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 var promAddr = flag.String("prom", "127.0.0.1:1280", "Address to export prometheus metrics on")
@@ -139,7 +139,7 @@ func Init(elem string) {
 func Start() error {
 	ln, err := net.Listen("tcp", *promAddr)
 	if err != nil {
-		return common.NewCError("Unable to bind prometheus metrics port", "err", err)
+		return common.NewBasicError("Unable to bind prometheus metrics port", err)
 	}
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
 	go http.Serve(ln, nil)

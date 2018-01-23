@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 type Type int
@@ -78,7 +78,7 @@ func TypeFromString(s string) (Type, error) {
 	case strings.ToLower(UDPIPv46Name):
 		return UDPIPv46, nil
 	default:
-		return Invalid, common.NewCError("Unknown overlay type", "type", s)
+		return Invalid, common.NewBasicError("Unknown overlay type", nil, "type", s)
 	}
 }
 

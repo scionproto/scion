@@ -29,6 +29,7 @@ type Topo struct {
     ISD_AS         *addr.ISD_AS
     Overlay        overlay.Type
     MTU            int
+    Core           bool
 
     BR             map[string]BRInfo
     BRNames        []string

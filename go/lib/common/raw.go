@@ -36,8 +36,7 @@ func (r RawBytes) Copy() (Payload, error) {
 
 func (r RawBytes) WritePld(b RawBytes) (int, error) {
 	if len(b) < len(r) {
-		return 0, NewCError("Insufficient space", ErrCtx{"expected",
-			len(r), "actual", len(b)})
+		return 0, NewBasicError("Insufficient space", nil, "expected", len(r), "actual", len(b))
 	}
 	return copy(b, r), nil
 }

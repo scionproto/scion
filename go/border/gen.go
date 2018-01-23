@@ -22,19 +22,19 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/ifid"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	"github.com/netsec-ethz/scion/go/lib/l4"
-	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
-	"github.com/netsec-ethz/scion/go/lib/spkt"
-	"github.com/netsec-ethz/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/ifid"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const (
@@ -83,7 +83,8 @@ func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int
 	} else {
 		ifid, ok := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]
 		if !ok {
-			return common.NewCError("genPkt: unable to find ifid for address", "addr", srcAddr)
+			return common.NewBasicError("genPkt: unable to find ifid for address",
+				nil, "addr", srcAddr)
 		}
 		rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	}
@@ -108,16 +109,14 @@ func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
 	logger := log.New("ifid", ifID)
 	intf := ctx.Conf.Net.IFs[ifID]
 	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
-	cpld, err := ctrl.NewPld(&ifid.IFID{OrigIfID: uint64(ifID)})
+	scpld, err := ctrl.NewSignedPldFromUnion(&ifid.IFID{OrigIfID: uint64(ifID)})
 	if err != nil {
-		cerr := err.(*common.CError)
-		logger.Error("Error generating IFID payload", cerr.Ctx...)
+		logger.Error("Error generating IFID payload", "err", common.FmtError(err))
 		return
 	}
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
-		intf.RemoteAddr.L4Port, srcAddr, cpld); err != nil {
-		cerr := err.(*common.CError)
-		logger.Error("Error generating IFID packet", cerr.Ctx...)
+		intf.RemoteAddr.L4Port, srcAddr, scpld); err != nil {
+		logger.Error("Error generating IFID packet", "err", common.FmtError(err))
 	}
 }
 
@@ -142,14 +141,12 @@ func (r *Router) genIFStateReq() {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
-	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{})
+	scpld, err := ctrl.NewSignedPathMgmtPld(&path_mgmt.IFStateReq{})
 	if err != nil {
-		cerr := err.(*common.CError)
-		log.Error("Error generating IFStateReq payload", cerr.Ctx...)
+		log.Error("Error generating IFStateReq payload", "err", common.FmtError(err))
 		return
 	}
-	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, cpld); err != nil {
-		cerr := err.(*common.CError)
-		log.Error("Error generating IFStateReq packet", cerr.Ctx...)
+	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, scpld); err != nil {
+		log.Error("Error generating IFStateReq packet", "err", common.FmtError(err))
 	}
 }

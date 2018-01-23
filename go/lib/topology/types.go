@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // AS link types
@@ -50,7 +50,7 @@ func LinkTypeFromString(s string) (LinkType, error) {
 	case PeerLinkName:
 		return PeerLink, nil
 	default:
-		return InvalidLink, common.NewCError("Unknown link type", "type", s)
+		return InvalidLink, common.NewBasicError("Unknown link type", nil, "type", s)
 	}
 }
 

@@ -33,12 +33,16 @@
 //
 // ReliableSocket registration message format:
 //  13-bytes: [Common header with address type NONE]
-//   1-byte: Command (bit mask with 0x02=SCMP enable, 0x01 always set)
+//   1-byte: Command (bit mask with 0x04=Bind address, 0x02=SCMP enable, 0x01 always set)
 //   1-byte: L4 Proto (IANA number)
 //   4-bytes: ISD-AS
 //   2-bytes: L4 port
 //   1-byte: Address type
 //   var-byte: Address
+//  +2-bytes: L4 bind port  \
+//  +1-byte: Address type    ) (optional bind address)
+//  +var-byte: Bind Address /
+//  +2-bytes: SVC (optional SVC type)
 //
 // To communicate with SCIOND, clients must first connect to SCIOND's UNIX socket. Messages
 // for SCIOND must set the ADDR TYPE field in the common header to NONE. The payload contains
@@ -64,8 +68,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var (
@@ -77,6 +81,8 @@ var (
 )
 
 const (
+	regBindFlag     = 0x04 // Bind address flag (0x04)
+	regBindHdrLen   = 3    // port (2 bytes) + addr type (1 byte)
 	regCommandField = 0x03 // Register command (0x01) with SCMP enabled (0x02)
 	defBufSize      = 1 << 18
 )
@@ -138,10 +144,10 @@ func newConn(c net.Conn) *Conn {
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
+func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
-	if a.Addr.Type() == addr.HostTypeNone {
-		return nil, 0, common.NewCError("Cannot register with NoneType address")
+	if public.Addr.Type() == addr.HostTypeNone {
+		return nil, 0, common.NewBasicError("Cannot register with NoneType address", nil)
 	}
 
 	deadline := time.Now().Add(timeout)
@@ -154,7 +160,14 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	if timeout != 0 {
 		conn.SetDeadline(deadline)
 	}
-	request := make([]byte, regBaseHeaderLen+a.Addr.Size())
+	svcLen, bindLen := 0, 0
+	if bind != nil {
+		bindLen = regBindHdrLen + bind.Addr.Size()
+	}
+	if svc != addr.SvcNone {
+		svcLen = svc.Size()
+	}
+	request := make([]byte, regBaseHeaderLen+public.Addr.Size()+bindLen+svcLen)
 	offset := 0
 	// Enable SCMP
 	request[offset] = regCommandField
@@ -163,16 +176,24 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	offset++
 	ia.Write(request[offset : offset+4])
 	offset += 4
-	a.writePort(request[offset : offset+2])
-	offset += 2
-	if a.Addr.Type() == addr.HostTypeNone {
+	n, err := writeAppAddr(request[offset:], public)
+	if err != nil {
 		conn.Close()
-		return nil, 0, common.NewCError("Cannot register NoneType address")
+		return nil, 0, common.NewBasicError("Invalid public address", err)
 	}
-	request[offset] = byte(a.Addr.Type())
-	offset++
-	a.writeAddr(request[offset:])
-
+	offset += n
+	if bind != nil {
+		request[0] |= regBindFlag
+		n, err = writeAppAddr(request[offset:], bind)
+		if err != nil {
+			conn.Close()
+			return nil, 0, common.NewBasicError("Invalid bind address", err)
+		}
+		offset += n
+	}
+	if svc != addr.SvcNone {
+		copy(request[offset:], svc.Pack())
+	}
 	_, err = conn.Write(request)
 	if err != nil {
 		conn.Close()
@@ -186,10 +207,10 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 		return nil, 0, err
 	}
 	replyPort := common.Order.Uint16(reply[:read])
-	if a.Port != 0 && a.Port != replyPort {
+	if public.Port != 0 && public.Port != replyPort {
 		conn.Close()
-		return nil, 0, common.NewCError("Port mismatch when registering with dispatcher",
-			"expected", a.Port, "actual", replyPort)
+		return nil, 0, common.NewBasicError("Port mismatch when registering with dispatcher", nil,
+			"expected", public.Port, "actual", replyPort)
 	}
 
 	// Disable deadline to not affect calling code
@@ -197,11 +218,26 @@ func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, a AppAddr,
 	return conn, replyPort, nil
 }
 
+func writeAppAddr(request []byte, a *AppAddr) (int, error) {
+	offset := 0
+	a.writePort(request[offset : offset+2])
+	offset += 2
+	if a.Addr.Type() == addr.HostTypeNone {
+		return offset, common.NewBasicError("Cannot register NoneType address", nil)
+	}
+	request[offset] = byte(a.Addr.Type())
+	offset++
+	a.writeAddr(request[offset : offset+a.Addr.Size()])
+	offset += a.Addr.Size()
+	return offset, nil
+}
+
 // Register connects to a SCION Dispatcher's UNIX socket.
 // Future messages for address a in AS ia which arrive at the dispatcher can be read by
 // calling Read on the returned Conn structure.
-func Register(dispatcher string, ia *addr.ISD_AS, a AppAddr) (*Conn, uint16, error) {
-	return RegisterTimeout(dispatcher, ia, a, time.Duration(0))
+func Register(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr,
+	svc addr.HostSVC) (*Conn, uint16, error) {
+	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
 }
 
 // Read blocks until it reads the next framed message payload from conn and stores it in buf.
@@ -286,7 +322,8 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	header := peekData[:hdrLen]
 	if bytes.Compare(header[:len(cookie)], cookie) != 0 {
 		conn.Close()
-		return false, common.NewCError("ReliableSock protocol desynchronized", "conn", conn)
+		return false, common.NewBasicError("ReliableSock protocol desynchronized", nil,
+			"conn", conn)
 	}
 	peekOffset += len(cookie)
 	rcvdAddrType := addr.HostAddrType(header[peekOffset])
@@ -309,12 +346,12 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 		lastHop, err = AppAddrFromRaw(addrBuf, rcvdAddrType)
 		if err != nil {
 			conn.Close()
-			return false, common.NewCError("Unable to parse received address", "err", err)
+			return false, common.NewBasicError("Unable to parse received address", err)
 		}
 		peekOffset += addrLen + 2
 	default:
 		conn.Close()
-		return false, common.NewCError("Unsupported address type", "type", rcvdAddrType)
+		return false, common.NewBasicError("Unsupported address type", nil, "type", rcvdAddrType)
 	}
 
 	// Read the payload
@@ -396,7 +433,7 @@ func (conn *Conn) writeN(bufs []Msg) (int, error) {
 	for copied < index {
 		n, err := conn.UnixConn.Write(conn.sendBuf[copied:index])
 		if err != nil {
-			return 0, common.NewCError("Error writing to UNIX socket", "err", err)
+			return 0, common.NewBasicError("Error writing to UNIX socket", err)
 		}
 		copied += n
 	}
@@ -437,10 +474,10 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	if len(conn.sendBuf[index:]) < hdrLen+destLen+len(msg.Buffer) {
 		if copiedMsgs == 0 {
 			// We are unable to fit the first message in the buffer
-			return 0, 0, common.NewCError("Unable to copy first message",
-				"details", "message too large", "bufSize",
-				len(conn.sendBuf[index:]), "want",
-				hdrLen+destLen+len(msg.Buffer))
+			return 0, 0, common.NewBasicError("Unable to copy first message", nil,
+				"details", "message too large", "bufSize", len(conn.sendBuf[index:]),
+				"want", hdrLen+destLen+len(msg.Buffer),
+			)
 		}
 		return index, copiedMsgs, nil
 	}
@@ -474,7 +511,7 @@ type Listener struct {
 func Listen(laddr string) (*Listener, error) {
 	l, err := net.Listen("unix", laddr)
 	if err != nil {
-		return nil, common.NewCError("Unable to listen on address", "addr", laddr)
+		return nil, common.NewBasicError("Unable to listen on address", err, "addr", laddr)
 	}
 	return &Listener{l.(*net.UnixListener)}, nil
 }

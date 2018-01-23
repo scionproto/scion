@@ -24,17 +24,24 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/sig/base"
-	"github.com/netsec-ethz/scion/go/sig/config"
-	"github.com/netsec-ethz/scion/go/sig/disp"
-	"github.com/netsec-ethz/scion/go/sig/egress"
-	"github.com/netsec-ethz/scion/go/sig/ingress"
-	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/sig/base"
+	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/sig/disp"
+	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/ingress"
+	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/sigcmn"
 )
+
+var sighup chan os.Signal
+
+func init() {
+	sighup = make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+}
 
 var (
 	id      = flag.String("id", "", "Element ID (Required. E.g. 'sig4-21-9')")
@@ -57,31 +64,33 @@ func main() {
 	// Export prometheus metrics.
 	metrics.Init(*id)
 	if err := metrics.Start(); err != nil {
-		fatal("Unable to export prometheus metrics", "err", err)
+		fatal("Unable to export prometheus metrics", "err", common.FmtError(err))
 	}
 	// Parse basic flags
 	ia, err := addr.IAFromString(*isdas)
 	if err != nil {
-		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", err)
+		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", common.FmtError(err))
 	}
 	ip := net.ParseIP(*ipStr)
 	if ip == nil {
 		fatal("unable to parse IP address", "addr", *ipStr)
 	}
 	if err = sigcmn.Init(ia, ip); err != nil {
-		fatal("Error during initialization", "err", err)
+		fatal("Error during initialization", "err", common.FmtError(err))
 	}
 	egress.Init()
 	disp.Init(sigcmn.CtrlConn)
 	go base.PollReqHdlr()
+
 	// Parse config
 	if loadConfig(*cfgPath) != true {
 		fatal("Unable to load config on startup")
 	}
+	go reloadOnSIGHUP(*cfgPath)
 
 	// Spawn ingress Dispatcher.
 	if err := ingress.Init(); err != nil {
-		fatal("Unable to spawn ingress dispatcher", "err", err)
+		fatal("Unable to spawn ingress dispatcher", "err", common.FmtError(err))
 	}
 }
 
@@ -97,50 +106,25 @@ func setupSignals() {
 	}()
 }
 
+func reloadOnSIGHUP(path string) {
+	defer liblog.LogPanicAndExit()
+	log.Info("reloadOnSIGHUP: started")
+	for range sighup {
+		log.Info("reloadOnSIGHUP: reloading...")
+		success := loadConfig(path)
+		// Errors already logged in loadConfig
+		log.Info("reloadOnSIGHUP: reload done", "success", success)
+	}
+	log.Info("reloadOnSIGHUP: stopped")
+}
+
 func loadConfig(path string) bool {
 	cfg, err := config.LoadFromFile(path)
 	if err != nil {
-		cerr := err.(*common.CError)
-		log.Error(cerr.Desc, cerr.Ctx...)
+		log.Error("loadConfig: Failed", "err", common.FmtError(err))
 		return false
 	}
-	success := true
-	for iaVal, cfgEntry := range cfg.ASes {
-		ia := &iaVal
-		ae, err := base.Map.AddIA(ia)
-		if err != nil {
-			cerr := err.(*common.CError)
-			log.Error(cerr.Desc, cerr.Ctx...)
-			success = false
-			continue
-		}
-		// Add sigs before networks, so there's somewhere for packets to go.
-		for id, sig := range cfgEntry.Sigs {
-			ctrlPort := int(sig.CtrlPort)
-			if ctrlPort == 0 {
-				ctrlPort = sigcmn.DefaultCtrlPort
-			}
-			encapPort := int(sig.EncapPort)
-			if encapPort == 0 {
-				encapPort = sigcmn.DefaultEncapPort
-			}
-			if err := ae.AddSig(id, sig.Addr, ctrlPort, encapPort, true); err != nil {
-				cerr := err.(*common.CError)
-				log.Error(cerr.Desc, cerr.Ctx...)
-				success = false
-				continue
-			}
-		}
-		for _, netw := range cfgEntry.Nets {
-			if err := ae.AddNet(netw.IPNet()); err != nil {
-				cerr := err.(*common.CError)
-				log.Error(cerr.Desc, cerr.Ctx...)
-				success = false
-				continue
-			}
-		}
-	}
-	return success
+	return base.Map.ReloadConfig(cfg)
 }
 
 func fatal(msg string, args ...interface{}) {

@@ -17,9 +17,9 @@ package spkt
 import (
 	"fmt"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/scmp"
 )
 
 const (
@@ -69,9 +69,11 @@ func (c *CmnHdr) Parse(b common.RawBytes) error {
 	if c.Ver != SCIONVersion {
 		// This can only usefully be replied to if the version specified is one
 		// that the current router supports, but has deprecated.
-		sdata := scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadVersion, nil)
-		return common.NewCErrorData(ErrorUnsuppVersion, sdata,
-			"expected", SCIONVersion, "actual", c.Ver)
+		return common.NewBasicError(
+			ErrorUnsuppVersion,
+			scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadVersion, nil, nil),
+			"expected", SCIONVersion, "actual", c.Ver,
+		)
 	}
 	return nil
 }

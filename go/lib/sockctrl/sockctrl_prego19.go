@@ -13,13 +13,13 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func SockControl(c *net.UDPConn, f func(int) error) error {
 	fd, err := socketOf(c)
 	if err != nil {
-		return common.NewCError("sockctrl: unable to get socket fd", "err", err)
+		return common.NewBasicError("sockctrl: unable to get socket fd", err)
 	}
 	return f(int(fd))
 }

@@ -25,7 +25,7 @@ from lib.errors import SCIONIndexError, SCIONParseError
 from lib.packet.ext_hdr import ExtensionHeader
 from lib.packet.ext_util import parse_extensions
 from lib.packet.host_addr import HostAddrInvalidType, haddr_get_type
-from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.ctrl_pld import SignedCtrlPayload
 from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import (
     Serializable,
@@ -656,7 +656,7 @@ class SCIONL4Packet(SCIONExtPacket):
         praw = self._payload.pack()
         if self.l4_hdr.TYPE == L4Proto.UDP:
             # Treat as SCION control message
-            pld = CtrlPayload.from_raw(praw)
+            pld = SignedCtrlPayload.from_raw(praw).pld()
         elif self.l4_hdr.TYPE == L4Proto.SCMP:
             pld = SCMPPayload((self.l4_hdr.class_, self.l4_hdr.type, praw))
         self.set_payload(pld)

@@ -21,11 +21,9 @@ import (
 	"io/ioutil"
 	"net"
 
-	//log "github.com/inconshreveable/log15"
-
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/sig/siginfo"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 // Cfg is a direct Go representation of the JSON file format.
@@ -37,14 +35,14 @@ type Cfg struct {
 func LoadFromFile(path string) (*Cfg, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewCError("Unable to open SIG config", "err", err)
+		return nil, common.NewBasicError("Unable to open SIG config", err)
 	}
 	cfg, err := Parse(b)
 	if err != nil {
 		return nil, err
 	}
 	if len(cfg.ASes) == 0 {
-		return nil, common.NewCError("Empty ASTable in config")
+		return nil, common.NewBasicError("Empty ASTable in config", nil)
 	}
 	return cfg, nil
 }
@@ -53,14 +51,21 @@ func LoadFromFile(path string) (*Cfg, error) {
 func Parse(b common.RawBytes) (*Cfg, error) {
 	cfg := &Cfg{}
 	if err := json.Unmarshal(b, cfg); err != nil {
-		return nil, common.NewCError("Unable to parse SIG config", "err", err)
+		return nil, common.NewBasicError("Unable to parse SIG config", err)
+	}
+	// Populate IDs
+	for _, as := range cfg.ASes {
+		for id := range as.Sigs {
+			sig := as.Sigs[id]
+			sig.Id = id
+		}
 	}
 	return cfg, nil
 }
 
 type ASEntry struct {
 	Nets []*IPNet
-	Sigs map[siginfo.SigIdType]*SIG
+	Sigs SIGSet
 }
 
 // IPNet is custom type of net.IPNet, to allow custom unmarshalling.
@@ -69,11 +74,11 @@ type IPNet net.IPNet
 func (in *IPNet) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
-		return common.NewCError("Unable to unmarshal IPnet from JSON", "raw", b, "err", err)
+		return common.NewBasicError("Unable to unmarshal IPnet from JSON", err, "raw", b)
 	}
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
-		return common.NewCError("Unable to parse IPnet string", "raw", s, "err", err)
+		return common.NewBasicError("Unable to parse IPnet string", err, "raw", s)
 	}
 	*in = IPNet(*ipnet)
 	return nil
@@ -90,3 +95,5 @@ type SIG struct {
 	CtrlPort  uint16
 	EncapPort uint16
 }
+
+type SIGSet map[siginfo.SigIdType]*SIG

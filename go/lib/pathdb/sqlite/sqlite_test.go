@@ -23,11 +23,12 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/seg"
-	"github.com/netsec-ethz/scion/go/lib/pathdb/query"
-	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -90,16 +91,16 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 			},
 		},
 	}
-	info := spath.InfoField{
+	info := &spath.InfoField{
 		TsInt: expiration,
 		ISD:   1,
 		Hops:  3,
 	}
-	rawInfo := make(common.RawBytes, 8)
-	info.Write(rawInfo)
-	pseg := &seg.PathSegment{
-		RawInfo:   rawInfo,
-		ASEntries: ases,
+	pseg, _ := seg.NewSeg(info)
+	for _, ase := range ases {
+		if err := pseg.AddASEntry(ase, proto.SignType_none, nil); err != nil {
+			fmt.Printf("Error adding ASEntry: %v", err)
+		}
 	}
 	segID, _ := pseg.ID()
 	return pseg, segID
@@ -117,7 +118,7 @@ func setupDB(t *testing.T) (*Backend, string) {
 	tmpFile := tempFilename(t)
 	b, err := New(tmpFile)
 	if err != nil {
-		t.Fatal("Failed to open DB", "err", err)
+		t.Fatal("Failed to open DB", "err", common.FmtError(err))
 	}
 	return b, tmpFile
 }
@@ -146,13 +147,13 @@ func checkSegments(t *testing.T, b *Backend, segRowID int, segID common.RawBytes
 	err := b.db.QueryRow("SELECT RowID, Segment FROM Segments WHERE SegID=?",
 		segID).Scan(&ID, &rawSeg)
 	if err != nil {
-		t.Fatal("checkSegments: Call", "err", err)
+		t.Fatal("checkSegments: Call", "err", common.FmtError(err))
 	}
-	pseg, err := seg.NewFromRaw(common.RawBytes(rawSeg))
+	pseg, err := seg.NewSegFromRaw(common.RawBytes(rawSeg))
 	if err != nil {
-		t.Fatal("checkSegments: Parse", "err", err)
+		t.Fatal("checkSegments: Parse", "err", common.FmtError(err))
 	}
-	info, _ := pseg.Info()
+	info, _ := pseg.InfoF()
 	SoMsg("RowID match", ID, ShouldEqual, segRowID)
 	SoMsg("Timestamps match", info.TsInt, ShouldEqual, ts)
 }
@@ -165,7 +166,7 @@ func checkIntfToSeg(t *testing.T, b *Backend, segRowID int, intfs []query.IntfSp
 			spec.IA.I, spec.IA.A, spec.IfID, segRowID)
 		err := row.Scan(&count)
 		if err != nil {
-			t.Fatal("CheckIntfToSegTable", "err", err)
+			t.Fatal("CheckIntfToSegTable", "err", common.FmtError(err))
 		}
 		SoMsg(fmt.Sprintf("Has Intf %v:%v", spec.IA, spec.IfID), count, ShouldEqual, 1)
 	}
@@ -173,7 +174,7 @@ func checkIntfToSeg(t *testing.T, b *Backend, segRowID int, intfs []query.IntfSp
 	var count int
 	err := b.db.QueryRow("SELECT COUNT(*) FROM IntfToSeg WHERE IntfID=0").Scan(&count)
 	if err != nil {
-		t.Fatal("CheckIntfToSegTable", "err", err)
+		t.Fatal("CheckIntfToSegTable", "err", common.FmtError(err))
 	}
 	SoMsg("No IF 0", count, ShouldEqual, 0)
 }
@@ -183,7 +184,7 @@ func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, segRowID int,
 	queryStr := fmt.Sprintf("SELECT SegRowID FROM %s WHERE IsdID=%v AND AsID=%v", table, ia.I, ia.A)
 	err := b.db.QueryRow(queryStr).Scan(&segID)
 	if err != nil {
-		t.Fatal("CheckStartsAtOrEndsAt", "err", err)
+		t.Fatal("CheckStartsAtOrEndsAt", "err", common.FmtError(err))
 	}
 	SoMsg("StartsAt", segID, ShouldEqual, segRowID)
 }
@@ -194,7 +195,7 @@ func checkSegTypes(t *testing.T, b *Backend, segRowID int, types []seg.Type) {
 		err := b.db.QueryRow("SELECT COUNT(*) FROM SegTypes WHERE SegRowID=? AND Type=?",
 			segRowID, segType).Scan(&count)
 		if err != nil {
-			t.Fatal("checkSegTypes", "err", err)
+			t.Fatal("checkSegTypes", "err", common.FmtError(err))
 		}
 		SoMsg(fmt.Sprintf("Has type %v", segType), count, ShouldEqual, 1)
 	}
@@ -207,7 +208,7 @@ func checkHPCfgIDs(t *testing.T, b *Backend, segRowID int, hpCfgIDs []*query.HPC
 			"SELECT COUNT(*) FROM HPCfgIDs WHERE SegRowID=? AND IsdID=? AND AsID=? AND CfgID=?",
 			segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID).Scan(&count)
 		if err != nil {
-			t.Fatal("checkHPCfgIDs", "err", err)
+			t.Fatal("checkHPCfgIDs", "err", common.FmtError(err))
 		}
 		SoMsg(fmt.Sprintf("Has hpCfgID %v", hpCfgID), count, ShouldEqual, 1)
 	}
@@ -303,7 +304,7 @@ func checkEmpty(t *testing.T, b *Backend, table string) {
 	var count int
 	err := b.db.QueryRow(queryStr).Scan(&count)
 	if err != nil {
-		t.Fatal("checkEmpty", "err", err)
+		t.Fatal("checkEmpty", "err", common.FmtError(err))
 	}
 	SoMsg(fmt.Sprintf("Empty %s", table), count, ShouldEqual, 0)
 }

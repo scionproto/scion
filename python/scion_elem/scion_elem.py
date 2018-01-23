@@ -31,7 +31,7 @@ from prometheus_client import Counter, Gauge, start_http_server
 # SCION
 import lib.app.sciond as lib_sciond
 from lib.config import Config
-from lib.crypto.certificate_chain import verify_sig_chain_trc
+from lib.crypto.certificate_chain import verify_chain_trc
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.flagtypes import TCPFlags
@@ -81,7 +81,7 @@ from lib.packet.scion import (
     build_base_hdrs,
 )
 from lib.packet.svc import SVC_TO_SERVICE, SERVICE_TO_SVC_A
-from lib.packet.scion_addr import ISD_AS, SCIONAddr
+from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
 from lib.packet.scmp.errors import (
     SCMPBadDstType,
@@ -99,7 +99,6 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
-from lib.packet.pcb import PathSegment
 from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
 from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.thread import thread_safety_net, kill_self
@@ -332,8 +331,7 @@ class SCIONElement(object):
             now = time.time()
             for (isd, ver), (req_time, meta) in self.requested_trcs.items():
                 if now - req_time >= self.TRC_CC_REQ_TIMEOUT:
-                    trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver,
-                                                     cache_only=True)
+                    trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
                     meta = meta or self._get_cs()
                     logging.info("Re-Requesting TRC from %s: %s", meta, trc_req.short_desc())
                     self.send_meta(CtrlPayload(CertMgmt(trc_req)), meta)
@@ -446,7 +444,7 @@ class SCIONElement(object):
                     # There is already an outstanding request for the missing TRC
                     # to the local CS and we don't have a new meta.
                     continue
-            trc_req = TRCRequest.from_values(ISD_AS.from_values(isd, 0), ver, cache_only=True)
+            trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
             if not meta:
                 logging.error("Couldn't find a CS to request TRC for PCB %s",
@@ -652,13 +650,24 @@ class SCIONElement(object):
         segment are available.
         """
         seg = seg_meta.seg
-        ver_seg = PathSegment.from_values(seg.info)
-        for asm in seg.iter_asms():
+        exp_time = seg.get_expiration_time()
+        for i, asm in enumerate(seg.iter_asms()):
             cert_ia = asm.isd_as()
             trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
             chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
-            ver_seg.add_asm(asm)
-            verify_sig_chain_trc(ver_seg.sig_pack3(), asm.p.sig, cert_ia, chain, trc)
+            self._verify_exp_time(exp_time, chain)
+            verify_chain_trc(cert_ia, chain, trc)
+            seg.verify(chain.as_cert.subject_sig_key_raw, i)
+
+    def _verify_exp_time(self, exp_time, chain):
+        """
+        Verify that certificate chain cover the expiration time.
+        :raises SCIONVerificationError
+        """
+        # chain is only verifiable if TRC.exp_time >= CoreCert.exp_time >= LeafCert.exp_time
+        if chain.as_cert.expiration_time < exp_time:
+            raise SCIONVerificationError(
+                "Certificate chain %sv%s expires before path segment" % chain.get_leaf_isd_as_ver())
 
     def _get_ctrl_handler(self, msg):
         pclass = msg.type()

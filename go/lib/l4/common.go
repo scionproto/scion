@@ -20,8 +20,8 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const ErrorInvalidChksum = "Invalid L4 checksum"
@@ -67,7 +67,7 @@ func CheckCSum(h L4Header, addr, pld common.RawBytes) error {
 	}
 	exp := h.GetCSum()
 	if bytes.Compare(exp, calc) != 0 {
-		return common.NewCError(ErrorInvalidChksum,
+		return common.NewBasicError(ErrorInvalidChksum, nil,
 			"expected", exp, "actual", calc, "proto", h.L4Type())
 	}
 	return nil

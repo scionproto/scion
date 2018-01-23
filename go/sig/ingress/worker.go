@@ -20,12 +20,12 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
-	"github.com/netsec-ethz/scion/go/lib/snet"
-	"github.com/netsec-ethz/scion/go/sig/metrics"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/lib/common"
+	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -37,15 +37,15 @@ const (
 
 // Worker handles decapsulation of SIG frames.
 type Worker struct {
+	log.Logger
 	Remote           *snet.Addr
-	SessId           sigcmn.SessionType
+	SessId           mgmt.SessionType
 	Ring             *ringbuf.Ring
 	reassemblyLists  map[int]*ReassemblyList
-	running          bool
 	markedForCleanup bool
 }
 
-func NewWorker(remote *snet.Addr, sessId sigcmn.SessionType) *Worker {
+func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 	// FIXME(kormat): these labels don't allow us to identify traffic from a
 	// specific remote sig, but adding the remote sig addr would cause a label
 	// explosion :/
@@ -53,6 +53,7 @@ func NewWorker(remote *snet.Addr, sessId sigcmn.SessionType) *Worker {
 		"ringId": remote.IA.String(), "sessId": sessId.String(),
 	}
 	worker := &Worker{
+		Logger:          log.New("ingress", remote.String(), "sessId", sessId),
 		Remote:          remote,
 		SessId:          sessId,
 		Ring:            ringbuf.New(64, nil, "ingress", ringLabels),
@@ -61,23 +62,14 @@ func NewWorker(remote *snet.Addr, sessId sigcmn.SessionType) *Worker {
 	return worker
 }
 
-func (w *Worker) Start() {
-	if !w.running {
-		go w.run()
-		w.running = true
-	}
-}
-
 func (w *Worker) Stop() {
-	if w.running {
-		log.Info("IngressWorker stopping", "remote", w.Remote.String(), "sessId", w.SessId)
-		w.Ring.Close()
-		w.running = false
-	}
+	defer liblog.LogPanicAndExit()
+	w.Ring.Close()
 }
 
-func (w *Worker) run() {
+func (w *Worker) Run() {
 	defer liblog.LogPanicAndExit()
+	w.Info("IngressWorker starting")
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
 	for {
@@ -86,7 +78,7 @@ func (w *Worker) run() {
 		// to do any cleanup.
 		n, _ := w.Ring.Read(frames, true)
 		if n < 0 {
-			return
+			break
 		}
 		for i := 0; i < n; i++ {
 			frame := frames[i].(*FrameBuf)
@@ -98,6 +90,7 @@ func (w *Worker) run() {
 			lastCleanup = time.Now()
 		}
 	}
+	w.Info("IngressWorker stopping")
 }
 
 // processFrame processes a SIG frame by first writing all completely contained
@@ -105,11 +98,11 @@ func (w *Worker) run() {
 // list if needed.
 func (w *Worker) processFrame(frame *FrameBuf) {
 	epoch := int(common.Order.Uint16(frame.raw[1:3]))
-	seqNr := int(common.Order.Uint32(frame.raw[2:6]) & 0x00FFFFFF)
+	seqNr := int(common.Order.UintN(frame.raw[3:6], 3))
 	index := int(common.Order.Uint16(frame.raw[6:8]))
 	frame.seqNr = seqNr
 	frame.index = index
-	//log.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
+	//w.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
 	//	"len", frame.frameLen)
 	// If index == 1 then we can be sure that there is no fragment at the beginning
 	// of the frame.
@@ -151,7 +144,7 @@ func (w *Worker) cleanup() {
 func send(packet common.RawBytes) error {
 	bytesWritten, err := tunIO.Write(packet)
 	if err != nil {
-		return common.NewCError("Unable to write to internal ingress", "err", err,
+		return common.NewBasicError("Unable to write to internal ingress", err,
 			"length", len(packet))
 	}
 	metrics.PktsSent.WithLabelValues(tunDevName).Inc()

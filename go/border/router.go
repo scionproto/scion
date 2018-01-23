@@ -24,16 +24,18 @@ import (
 	log "github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 
-	"github.com/netsec-ethz/scion/go/border/conf"
-	"github.com/netsec-ethz/scion/go/border/metrics"
-	"github.com/netsec-ethz/scion/go/border/rcmn"
-	"github.com/netsec-ethz/scion/go/border/rctx"
-	"github.com/netsec-ethz/scion/go/border/rpkt"
-	"github.com/netsec-ethz/scion/go/lib/assert"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/metrics"
+	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
+
+const processBufCnt = 128
 
 var sighup chan os.Signal
 
@@ -86,13 +88,11 @@ func (r *Router) confSig() {
 		var err error
 		var config *conf.Conf
 		if config, err = r.loadNewConfig(); err != nil {
-			cerr := err.(*common.CError)
-			log.Error("Error reloading config", cerr.Ctx...)
+			log.Error("Error reloading config", "err", common.FmtError(err))
 			continue
 		}
 		if err := r.setupNewContext(config); err != nil {
-			cerr := err.(*common.CError)
-			log.Error("Error setting up new context", cerr.Ctx...)
+			log.Error("Error setting up new context", "err", common.FmtError(err))
 			continue
 		}
 		log.Info("Config reloaded")
@@ -102,7 +102,7 @@ func (r *Router) confSig() {
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 	defer liblog.LogPanicAndExit()
 	defer close(stopped)
-	pkts := make(ringbuf.EntryList, 32)
+	pkts := make(ringbuf.EntryList, processBufCnt)
 	log.Debug("handleSock starting", "sock", *s)
 	for {
 		n, _ := s.Ring.Read(pkts, true)
@@ -125,7 +125,6 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if assert.On {
 		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
-		assert.Must(rp.TimeIn != 0, "TimeIn must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
 		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
@@ -149,8 +148,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	// Check if the packet needs to be processed locally, and if so register
 	// hooks for doing so.
 	if err := rp.NeedsLocalProcessing(); err != nil {
-		cerr := err.(*common.CError)
-		rp.Error("Error checking for local processing", cerr.Ctx...)
+		rp.Error("Error checking for local processing", "err", common.FmtError(err))
 		return
 	}
 	// Parse the packet payload, if a previous step has registered a relevant
@@ -158,8 +156,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if _, err := rp.Payload(true); err != nil {
 		// Any errors at this point are application-level, and hence not
 		// calling handlePktError, as no SCMP errors will be sent.
-		cerr := err.(*common.CError)
-		rp.Error("Error parsing payload", cerr.Ctx...)
+		rp.Error("Error parsing payload", "err", common.FmtError(err))
 		return
 	}
 	// Process the packet, if a previous step has registered a relevant hook

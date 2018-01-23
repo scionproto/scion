@@ -19,7 +19,7 @@ import (
 	//log "github.com/inconshreveable/log15"
 )
 
-// https://github.com/netsec-ethz/scion/blob/master/lib/packet/scmp/types.py
+// https://github.com/scionproto/scion/blob/master/lib/packet/scmp/types.py
 
 type Class uint16
 
@@ -113,7 +113,7 @@ var typeNameMap = map[Class][]string{
 		"BAD_INFO_FIELD", "BAD_HOP_FIELD",
 	},
 	C_Ext:   {"TOO_MANY_HOPBYHOP", "BAD_EXT_ORDER", "BAD_HOPBYHOP", "BAD_END2END"},
-	C_Sibra: {"SIBRA_BAD_VERSION", "SIBRA_SETUP_NO_REQ"},
+	C_Sibra: {"BAD_VERSION", "SETUP_NO_REQ"},
 }
 
 func (t Type) Name(c Class) string {
@@ -143,17 +143,3 @@ const (
 	RawExtHdrs
 	RawL4Hdr
 )
-
-// Used as part of common.NewErrorData to indicate which SCMP error should be generated.
-type ErrData struct {
-	CT   ClassType
-	Info Info
-}
-
-func NewErrData(class Class, type_ Type, info Info) *ErrData {
-	return &ErrData{CT: ClassType{class, type_}, Info: info}
-}
-
-func (e *ErrData) String() string {
-	return fmt.Sprintf("CT: %v Info: %v", e.CT, e.Info)
-}

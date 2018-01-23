@@ -15,10 +15,14 @@ import (
 
 // Any proto which will be marshalled as a single capnp message needs to be listed here.
 var RootTypes = []string{
-	"PathSegment",
-	"RevInfo",
+	"ASEntry",
 	"CtrlPld",
+	"PathSegment",
+	"PathSegmentSignedData",
+	"RevInfo",
 	"SCIONDMsg",
+	"SignedBlob",
+	"SignedCtrlPld",
 }
 
 func main() {
@@ -48,7 +52,7 @@ package proto
 import (
 	"zombiezen.com/go/capnproto2"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // NewRootStruct calls the appropriate NewRoot<x> function corresponding to the capnp proto type ID,
@@ -61,13 +65,16 @@ func NewRootStruct(id ProtoIdType, seg *capnp.Segment) (capnp.Struct, error) {
 	case {{.}}_TypeID:
 		v, err := NewRoot{{.}}(seg)
 		if err != nil {
-			return blank, common.NewCError("Error creating new {{.}} capnp struct", "err", err)
+			return blank, common.NewBasicError("Error creating new {{.}} capnp struct", err)
 		}
 		return v.Struct, nil
 	{{- end }}
 	}
-	return blank, common.NewCError(
-		"Unsupported capnp struct type (i.e. not listed in go/proto/gen.go:RootTypes)", "id", id)
+	return blank, common.NewBasicError(
+		"Unsupported capnp struct type (i.e. not listed in go/proto/gen.go:RootTypes)",
+		nil,
+		"id", id,
+	)
 }
 {{ range .RootTypes }}
 func (s {{.}}) GetStruct() capnp.Struct {

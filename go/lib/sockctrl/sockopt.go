@@ -17,14 +17,14 @@ package sockctrl
 import (
 	"net"
 	"syscall"
-	//"github.com/netsec-ethz/scion/go/lib/common"
+	//"github.com/scionproto/scion/go/lib/common"
 )
 
 func GetsockoptInt(c *net.UDPConn, level, opt int) (int, error) {
 	var val int
 	err := SockControl(c, func(fd int) error {
 		var err error
-		val, err = syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+		val, err = syscall.GetsockoptInt(fd, level, opt)
 		return err
 	})
 	return val, err
@@ -32,6 +32,6 @@ func GetsockoptInt(c *net.UDPConn, level, opt int) (int, error) {
 
 func SetsockoptInt(c *net.UDPConn, level, opt, value int) error {
 	return SockControl(c, func(fd int) error {
-		return syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RXQ_OVFL, 1)
+		return syscall.SetsockoptInt(fd, level, opt, value)
 	})
 }

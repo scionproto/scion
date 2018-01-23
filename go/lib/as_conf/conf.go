@@ -20,8 +20,8 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 type ASConf struct {
@@ -44,7 +44,7 @@ var CurrConf *ASConf
 func Load(path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return common.NewCError(ErrorOpen, "err", err)
+		return common.NewBasicError(ErrorOpen, err)
 	}
 	return Parse(b, path)
 }
@@ -52,7 +52,7 @@ func Load(path string) error {
 func Parse(data []byte, path string) error {
 	c := &ASConf{}
 	if err := yaml.Unmarshal(data, c); err != nil {
-		return common.NewCError(ErrorParse, "err", err, "path", path)
+		return common.NewBasicError(ErrorParse, err, "path", path)
 	}
 	CurrConf = c
 	return nil

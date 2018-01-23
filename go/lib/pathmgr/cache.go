@@ -22,8 +22,8 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // cacheEntry contains path information for an IA src-dst pair.
@@ -163,7 +163,7 @@ func (c *cache) removeWatch(src, dst *addr.ISD_AS, filter *PathPredicate) error 
 	if entry, ok := c.getEntry(src, dst); ok {
 		pf, ok := entry.fs[key]
 		if !ok {
-			return common.NewCError("Unable to delete path filter, filter not found",
+			return common.NewBasicError("Unable to delete path filter, filter not found", nil,
 				"src", src, "dst", dst, "filter", key)
 		}
 		pf.refCount--
@@ -172,7 +172,7 @@ func (c *cache) removeWatch(src, dst *addr.ISD_AS, filter *PathPredicate) error 
 		}
 		return nil
 	}
-	return common.NewCError("Unable to delete path filter, src and dst are not watched",
+	return common.NewBasicError("Unable to delete path filter, src and dst are not watched", nil,
 		"src", src, "dst", dst)
 }
 

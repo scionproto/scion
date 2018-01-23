@@ -8,7 +8,6 @@ BASE=$(dirname "$0")
 "$BASE/debian/deps"
 "$BASE/pip3/deps"
 "$BASE/pip2/deps"
-"$BASE/pip3web/deps"
 "$BASE/zlog/deps"
 "$BASE/go/deps"
 ( cd go && make deps )

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ proto.Cerealizable = (*IFStateInfos)(nil)

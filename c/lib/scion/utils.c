@@ -55,7 +55,12 @@ int send_dp_header(int sock, HostAddr *host, int packet_len)
         addr_port_len = get_addr_len(host->addr_type) + 2;
     uint8_t buf[DP_HEADER_LEN + addr_port_len];
     write_dp_header(buf, host, packet_len);
-    return send_all(sock, buf, DP_HEADER_LEN + addr_port_len);
+    int hdr_len = DP_HEADER_LEN + addr_port_len;
+    int sent = send_all(sock, buf, hdr_len);
+    if (hdr_len != sent)  {
+        return -1;
+    }
+    return 0;
 }
 
 int recv_all(int sock, uint8_t *buf, int len)

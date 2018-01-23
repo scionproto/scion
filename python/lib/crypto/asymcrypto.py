@@ -33,6 +33,13 @@ from lib.util import read_file
 
 def get_sig_key_file_path(conf_dir):
     """
+    Return the signing key seed file path.
+    """
+    return os.path.join(conf_dir, KEYS_DIR, "as-sig.seed")
+
+
+def get_sig_key_raw_file_path(conf_dir):
+    """
     Return the signing key file path.
     """
     return os.path.join(conf_dir, KEYS_DIR, "as-sig.key")
@@ -66,8 +73,8 @@ def generate_sign_keypair():
     """
     Generate Ed25519 keypair.
 
-    :returns: a pair containing the signing key and the verifying key.
-    :rtype: bytes
+    :returns: a pair containing the verifying (public) key and the signing (private) key.
+    :rtype: (bytes, bytes)
     """
     sk = SigningKey.generate()
     return sk.verify_key.encode(), sk.encode()
@@ -77,8 +84,7 @@ def generate_enc_keypair():
     """
     Generate Curve25519 keypair
 
-    :returns tuple: A byte pair containing the encryption key and decryption
-        key.
+    :returns tuple: A byte pair containing the public key and the private key, used for encryption.
     """
     private_key = PrivateKey.generate()
     return private_key.public_key.encode(), private_key.encode()
@@ -109,7 +115,7 @@ def verify(msg, sig, verifying_key):
     try:
         return msg == VerifyKey(verifying_key).verify(msg, sig)
     except BadSignatureError:
-        raise SCIONVerificationError("Signature corrupt or forged.")
+        raise SCIONVerificationError("Signature corrupt or forged.") from None
 
 
 def encrypt(msg, private_key, public_key):

@@ -17,7 +17,7 @@ package util
 import (
 	"io"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var _ io.ReadWriter = (*Raw)(nil)

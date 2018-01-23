@@ -152,6 +152,7 @@ void handle_send(int index);
 void cleanup_socket(int sock, int index, int err);
 
 int send_data(uint8_t *buf, int len, HostAddr *first_hop);
+int deliver_data(int sock, HostAddr *from, uint8_t *buf, int len);
 
 #ifndef UNIX_PATH_MAX
 #define UNIX_PATH_MAX 108
@@ -463,6 +464,23 @@ void handle_app()
         return;
     }
     zlog_info(zc, "new socket created: %d", sock);
+    // Set send/recv timeouts on socket, so that an unresponsive application
+    // doesn't block the dispatcher indefinitely.
+    struct timeval timeout;
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    errno = 0;
+    if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+            zlog_error(zc, "failed to set send timeout on app socket (fd: %d): %s", sock, strerror(errno));
+            close(sock);
+            return;
+    }
+    errno = 0;
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+            zlog_error(zc, "failed to set recv timeout on app socket (fd: %d): %s", sock, strerror(errno));
+            close(sock);
+            return;
+    }
     /*
      * Application message format:
      * cookie (8B) | addr_type (1B) | packet_len (4B) | addr (?B) | port (2B) | msg (?B)
@@ -552,6 +570,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     if (type < ADDR_IPV4_TYPE || type > ADDR_IPV6_TYPE) {
         zlog_error(zc, "Invalid address type: %d", type);
         close(sock);
+        free(e);
         return NULL;
     }
 
@@ -673,6 +692,7 @@ int find_available_port(Entry *list, L4Key *key)
                 return -1;
             }
         } else {
+            zlog_info(zc, "assigned port %d", key->port);
             break;
         }
     }
@@ -684,7 +704,14 @@ void reply(int sock, int port)
     uint8_t buf[DP_HEADER_LEN + 2];
     write_dp_header(buf, NULL, 2);
     *(uint16_t *)(buf + DP_HEADER_LEN) = htons(port);
-    send_all(sock, buf, sizeof(buf));
+    int len = sizeof(buf);
+    int sent = send_all(sock, buf, len);
+    if (sent != len) {
+        zlog_warn(zc, "Failed to send registration reply on fd %d, expected:%dB got:%dB (errno: %s)",
+                sock, len, sent, strerror(errno));
+        close(sock);
+        return;
+    }
     zlog_debug(zc, "sent reply %d on socket %d", port, sock);
 }
 
@@ -823,7 +850,6 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
     uint8_t *l4ptr = buf;
     get_l4_proto(&l4ptr);
     SCIONUDPHeader *udp = (SCIONUDPHeader *)l4ptr;
-    int sock;
 
     uint16_t checksum = scion_udp_checksum(buf, chk_udp_input);
     if (checksum != udp->checksum) {
@@ -855,13 +881,10 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
             return;
         }
     }
-    sock = e->sock;
-    send_dp_header(sock, from, len);
-    send_all(sock, buf, len);
+    deliver_data(e->sock, from, buf, len);
 }
 
 void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
-    int sock;
     SVCKey svc_key;
     memset(&svc_key, 0, sizeof(SVCKey));
     uint16_t addr = ntohs(*(uint16_t *)get_dst_addr(buf));
@@ -888,17 +911,13 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
             addr_to_str(dst->addr, dst->addr_type, dststr),
             addr_to_str(get_dst_addr(buf), ADDR_SVC_TYPE, svcstr));
     if (!(addr & SVC_MULTICAST)) {  // Anycast SVC address
-        sock = se->sockets[rand() % se->count];
-        send_dp_header(sock, from, len);
-        send_all(sock, buf, len);
+        deliver_data(se->sockets[rand() % se->count], from, buf, len);
         return;
     }
     // Multicast SVC address
     int i;
     for (i = 0; i < se->count; i++) {
-        sock = se->sockets[i];
-        send_dp_header(sock, from, len);
-        send_all(sock, buf, len);
+        deliver_data(se->sockets[i], from, buf, len);
     }
 }
 
@@ -952,9 +971,8 @@ void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr
     PingEntry *e;
     HASH_FIND(hh, ping_list, &id, sizeof(id), e);
     if( e != NULL) {
-        send_dp_header(e->sock, from, len);
-        send_all(e->sock, buf, len);
         zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", ntohs(info[0]), ntohs(info[1]));
+        deliver_data(e->sock, from, buf, len);
     }else{
         zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", ntohs(info[0]), ntohs(info[1]));
     }
@@ -1000,8 +1018,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
             goto cleanup;
     }
 
-    send_dp_header(e->sock, from, len);
-    send_all(e->sock, buf, len);
+    deliver_data(e->sock, from, buf, len);
 cleanup:
     free(pld);
 }
@@ -1176,4 +1193,23 @@ int send_data(uint8_t *buf, int len, HostAddr *first_hop)
         ret = -1;
     }
     return ret;
+}
+
+int deliver_data(int sock, HostAddr *from, uint8_t *buf, int len)
+{
+    errno = 0;
+    if (send_dp_header(sock, from, len) != 0) {
+        zlog_warn(zc, "Failed to send dp header to app on fd %d (err? %s)", sock, strerror(errno));
+        close(sock);
+        return -1;
+    }
+    errno = 0;
+    int sent = send_all(sock, buf, len);
+    if (sent != len) {
+        zlog_warn(zc, "Failed to send all data to app on fd %d, expected:%dB got:%dB (err? %s)",
+                sock, len, sent, strerror(errno));
+        close(sock);
+        return -1;
+    }
+    return 0;
 }

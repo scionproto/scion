@@ -23,12 +23,12 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/netsec-ethz/scion/go/border/netconf"
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/as_conf"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/topology"
-	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/scionproto/scion/go/border/netconf"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/as_conf"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Conf is the main config structure.
@@ -65,7 +65,7 @@ func Load(id, confDir string) (*Conf, error) {
 	// Find the config for this router.
 	topoBR, ok := conf.Topo.BR[id]
 	if !ok {
-		return nil, common.NewCError("Unable to find element ID in topology",
+		return nil, common.NewBasicError("Unable to find element ID in topology", nil,
 			"id", id, "path", topoPath)
 	}
 	conf.BR = &topoBR

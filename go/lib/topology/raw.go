@@ -21,8 +21,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 )
 
 const CfgName = "topology.json"
@@ -43,6 +43,7 @@ type RawTopo struct {
 	ISD_AS             string
 	Overlay            string
 	MTU                int
+	Core               bool
 	BorderRouters      map[string]RawBRInfo   `json:",omitempty"`
 	ZookeeperService   map[int]RawAddrPort    `json:",omitempty"`
 	BeaconService      map[string]RawAddrInfo `json:",omitempty"`
@@ -99,7 +100,8 @@ func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, error) {
 func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (*AddrInfo, error) {
 	ip := net.ParseIP(b.Remote.Addr)
 	if ip == nil {
-		return nil, common.NewCError("Could not parse remote IP from string", "ip", b.Remote.Addr)
+		return nil, common.NewBasicError("Could not parse remote IP from string", nil,
+			"ip", b.Remote.Addr)
 	}
 	ai := &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}
 	if o.IsUDP() {
@@ -149,11 +151,11 @@ func (a RawAddrPortOverlay) String() string {
 func Load(b common.RawBytes) (*Topo, error) {
 	rt := &RawTopo{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewCError(ErrorParse, "err", err)
+		return nil, common.NewBasicError(ErrorParse, err)
 	}
 	ct, err := TopoFromRaw(rt)
 	if err != nil {
-		return nil, common.NewCError(ErrorConvert, "err", err)
+		return nil, common.NewBasicError(ErrorConvert, err)
 	}
 	return ct, nil
 }
@@ -161,7 +163,7 @@ func Load(b common.RawBytes) (*Topo, error) {
 func LoadFromFile(path string) (*Topo, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewCError(ErrorOpen, "err", err, "path", path)
+		return nil, common.NewBasicError(ErrorOpen, err, "path", path)
 	}
 	return Load(b)
 }
@@ -169,7 +171,7 @@ func LoadFromFile(path string) (*Topo, error) {
 func LoadRaw(b common.RawBytes) (*RawTopo, error) {
 	rt := &RawTopo{}
 	if err := json.Unmarshal(b, rt); err != nil {
-		return nil, common.NewCError(ErrorParse, "err", err)
+		return nil, common.NewBasicError(ErrorParse, err)
 	}
 	return rt, nil
 }
@@ -177,7 +179,7 @@ func LoadRaw(b common.RawBytes) (*RawTopo, error) {
 func LoadRawFromFile(path string) (*RawTopo, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, common.NewCError(ErrorOpen, "err", err, "path", path)
+		return nil, common.NewBasicError(ErrorOpen, err, "path", path)
 	}
 	return LoadRaw(b)
 }

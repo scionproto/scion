@@ -21,8 +21,8 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"gopkg.in/restruct.v1"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/l4"
 )
 
 var _ l4.L4Header = (*Hdr)(nil)
@@ -54,14 +54,14 @@ func NewHdr(ct ClassType, len int) *Hdr {
 func HdrFromRaw(b common.RawBytes) (*Hdr, error) {
 	h := &Hdr{}
 	if err := restruct.Unpack(b, common.Order, h); err != nil {
-		return nil, common.NewCError(ErrorSCMPHdrUnpack, "err", err)
+		return nil, common.NewBasicError(ErrorSCMPHdrUnpack, err)
 	}
 	return h, nil
 }
 
 func (h *Hdr) Validate(plen int) error {
 	if plen+HdrLen != int(h.TotalLen) {
-		return common.NewCError("SCMP header total length doesn't match",
+		return common.NewBasicError("SCMP header total length doesn't match", nil,
 			"expected", h.TotalLen, "actual", plen)
 	}
 	return nil
@@ -74,10 +74,10 @@ func (h *Hdr) SetPldLen(l int) {
 func (h *Hdr) Write(b common.RawBytes) error {
 	out, err := restruct.Pack(common.Order, h)
 	if err != nil {
-		return common.NewCError("Error packing SCMP header", "err", err)
+		return common.NewBasicError("Error packing SCMP header", err)
 	}
 	if count := copy(b, out); count != HdrLen {
-		return common.NewCError("Partial write of SCMP header",
+		return common.NewBasicError("Partial write of SCMP header", nil,
 			"expected(B)", HdrLen, "actual(B)", count)
 	}
 	return nil

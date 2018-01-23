@@ -7,6 +7,7 @@ all: clibs dispatcher go
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 	cd go && $(MAKE) clean
+	rm -f bin/*
 	rm -f tags
 
 go: libscion
@@ -41,4 +42,4 @@ uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
 
 tags:
-	{ git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | grep -v sub/web/ad_manager/static/js/ | ctags -L -
+	{ git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | ctags -L -

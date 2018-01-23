@@ -17,7 +17,6 @@
 """
 # Stdlib
 import logging
-import random
 
 # SCION
 from lib.packet.svc import SVCType
@@ -34,6 +33,7 @@ class LocalPathServer(PathServer):
     SCION Path Server in a non-core AS. Stores up-segments to the core and
     registers down-segments with the CPS. Can cache segments learned from a CPS.
     """
+
     def __init__(self, server_id, conf_dir, prom_export=None):
         """
         :param str server_id: server identifier.
@@ -67,17 +67,15 @@ class LocalPathServer(PathServer):
             return set([(pcb.first_ia(), pcb.is_sibra())])
         return set()
 
-    def path_resolution(self, cpld, meta, new_request=True, logger=None, req_id=None):
+    def path_resolution(self, cpld, meta, new_request=True, logger=None):
         """
         Handle generic type of a path request.
         """
         pmgt = cpld.union
         req = pmgt.union
         assert isinstance(req, PathSegmentReq), type(req)
-        # Random ID for a request.
-        req_id = req_id or random.randint(0, 2**32 - 1)
         if logger is None:
-            logger = self.get_request_logger(req, req_id, meta)
+            logger = self.get_request_logger(req, meta)
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received")
@@ -98,7 +96,7 @@ class LocalPathServer(PathServer):
             return True
         if new_request:
             self._request_paths_from_core(req, logger)
-            self.pending_req[(dst_ia, req.p.flags.sibra)][req_id] = (req, meta, logger)
+            self.pending_req[(dst_ia, req.p.flags.sibra)][req.req_id()] = (req, meta, logger)
 
         return False
 

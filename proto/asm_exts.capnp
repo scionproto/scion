@@ -1,7 +1,7 @@
 @0xe6c88f91b6a1209e;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/netsec-ethz/scion/go/proto");
+$Go.import("github.com/scionproto/scion/go/proto");
 
 struct RoutingPolicyExt{
     set @0 :Bool;   # Is the extension present? Every extension must include this field.

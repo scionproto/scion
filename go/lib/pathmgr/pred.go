@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // A PathPredicate specifies which sequence of ASes and interfaces the packet
@@ -87,7 +87,7 @@ func (pp *PathPredicate) UnmarshalJSON(b []byte) error {
 	}
 	other, err := NewPathPredicate(s)
 	if err != nil {
-		return common.NewCError("Unable to parse PathPredicate operand", "err", err)
+		return common.NewBasicError("Unable to parse PathPredicate operand", err)
 	}
 	pp.Match = other.Match
 	return nil
@@ -97,7 +97,7 @@ func ppParseIface(str string) (sciond.PathInterface, error) {
 	tokens := strings.Split(str, "#")
 	if len(tokens) != 2 {
 		return sciond.PathInterface{},
-			common.NewCError("Failed to parse interface spec", "value", str)
+			common.NewBasicError("Failed to parse interface spec", nil, "value", str)
 	}
 	var iface sciond.PathInterface
 	ia, err := addr.IAFromString(tokens[0])

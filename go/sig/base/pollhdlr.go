@@ -17,13 +17,13 @@ package base
 import (
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/snet"
-	"github.com/netsec-ethz/scion/go/sig/disp"
-	"github.com/netsec-ethz/scion/go/sig/mgmt"
-	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
+	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/sig/disp"
+	"github.com/scionproto/scion/go/sig/mgmt"
+	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 func PollReqHdlr() {
@@ -37,19 +37,19 @@ func PollReqHdlr() {
 			continue
 		}
 		//log.Debug("PollReqHdlr: got PollReq", "src", rpld.Addr, "pld", req)
-		spld, err := mgmt.NewPld(rpld.Id, mgmt.NewPollRep(req.Session))
+		spld, err := mgmt.NewPld(rpld.Id, mgmt.NewPollRep(sigcmn.MgmtAddr, req.Session))
 		if err != nil {
-			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", err)
+			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", common.FmtError(err))
 			break
 		}
-		cpld, err := ctrl.NewPld(spld)
+		scpld, err := ctrl.NewSignedPldFromUnion(spld)
 		if err != nil {
-			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", err)
+			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", common.FmtError(err))
 			break
 		}
-		raw, err := cpld.PackPld()
+		raw, err := scpld.PackPld()
 		if err != nil {
-			log.Error("PollReqHdlr: Error packing Ctrl payload", "err", err)
+			log.Error("PollReqHdlr: Error packing Ctrl payload", "err", common.FmtError(err))
 			break
 		}
 		sigCtrlAddr := &snet.Addr{
@@ -59,7 +59,8 @@ func PollReqHdlr() {
 		}
 		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
 		if err != nil {
-			log.Error("PollReqHdlr: Error sending Ctrl payload", "err", err, "desc", rpld.Addr)
+			log.Error("PollReqHdlr: Error sending Ctrl payload", "dest", rpld.Addr,
+				"err", common.FmtError(err))
 		}
 	}
 	log.Info("PollReqHdlr: stopped")

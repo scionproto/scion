@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 export PYTHONPATH=python/:.
 
@@ -31,6 +31,15 @@ cmd_run() {
         echo "Compiling..."
         cmd_build || exit 1
     fi
+    if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
+        local old=$(umask)
+        echo "Generating TLS cert"
+        mkdir -p "gen-certs"
+        umask 0177
+        openssl genrsa -out "gen-certs/tls.key" 2048
+        umask "$old"
+        openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
+    fi
     echo "Running the network..."
     if [ -e gen/zk_datalog_dirs.sh ]; then
         bash gen/zk_datalog_dirs.sh || exit 1
@@ -52,12 +61,13 @@ cmd_status() {
 }
 
 cmd_test(){
-    set -e
+    local ret=0
     case "$1" in
-        py) shift; py_test "$@";;
-        go) shift; go_test "$@";;
-        *) py_test; go_test;;
+        py) shift; py_test "$@"; ret=$((ret+$?));;
+        go) shift; go_test "$@"; ret=$((ret+$?));;
+        *) py_test; ret=$((ret+$?)); go_test; ret=$((ret+$?));;
     esac
+    return $ret
 }
 
 py_test() {
@@ -102,7 +112,7 @@ cmd_lint() {
 
 py_lint() {
     local ret=0
-    for i in python python/mininet sub/web; do
+    for i in python python/mininet; do
       [ -d "$i" ] || continue
       echo "Linting $i"
       local cmd="flake8"
@@ -121,7 +131,7 @@ cmd_version() {
 	cat <<-_EOF
 	============================================
 	=                  SCION                   =
-	=   https://github.com/netsec-ethz/scion   =
+	=   https://github.com/scionproto/scion   =
 	============================================
 	_EOF
 }
@@ -149,7 +159,7 @@ cmd_sciond() {
     GENDIR=gen/ISD${ISD}/AS${AS}/endhost
     [ -d "$GENDIR" ] || { echo "Topology directory for $ISD-$AS doesn't exist: $GENDIR"; exit 1; }
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
-    PYTHONPATH=python/:. bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR &
+    PYTHONPATH=python/:. python/bin/sciond --addr $ADDR --api-addr $APIADDR sd${ISD}-${AS} $GENDIR &
     echo "Sciond running for $ISD-$AS (pid $!)"
     wait
     exit $?

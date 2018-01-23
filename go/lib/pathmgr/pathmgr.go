@@ -47,11 +47,11 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/netsec-ethz/scion/go/lib/addr"
-	"github.com/netsec-ethz/scion/go/lib/common"
-	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
-	liblog "github.com/netsec-ethz/scion/go/lib/log"
-	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // Timers is used to customize the timers for a new Path Manager.
@@ -103,13 +103,16 @@ type PR struct {
 // constants). When a query for a path older than maxAge reaches the resolver,
 // SCIOND is used to refresh the path. New returns with an error if a
 // connection to SCIOND could not be established.
-func New(srvc sciond.Service, timers Timers, logger log.Logger) (*PR, error) {
+func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 	sciondConn, err := srvc.Connect()
 	if err != nil {
 		// Let external code handle initial failure
-		return nil, common.NewCError("Unable to connect to SCIOND", "err", err)
+		return nil, common.NewBasicError("Unable to connect to SCIOND", err)
 	}
-	setDefaultTimers(&timers)
+	if timers == nil {
+		timers = &Timers{}
+	}
+	setDefaultTimers(timers)
 	pr := &PR{
 		sciondService: srvc,
 		requestQueue:  make(chan *resolverRequest, queryChanCap),
@@ -193,13 +196,9 @@ func (r *PR) Unwatch(src, dst *addr.ISD_AS) error {
 func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
-	// If the filter was registered previously, fetch it from the cache
-	if sp, ok := r.cache.getWatch(src, dst, filter); ok {
-		return sp, nil
-	}
 	// If the src and dst are not monitored yet, add the request to the resolver's queue
-	done := make(chan struct{})
 	if !r.cache.isWatched(src, dst) {
+		done := make(chan struct{})
 		request := &resolverRequest{
 			reqType: reqMonitor,
 			src:     src,
@@ -210,6 +209,7 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 		r.requestQueue <- request
 		<-done
 	} else {
+		// Only increment reference count
 		r.cache.watch(src, dst, filter)
 	}
 	sp, _ := r.cache.getWatch(src, dst, filter)
@@ -218,8 +218,9 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 
 // UnwatchFilter deletes a previously registered filter.
 func (r *PR) UnwatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) error {
-	// FIXME(scrye): Implement this
-	return common.NewCError("Function UnwatchFilter not implemented")
+	r.Lock()
+	defer r.Unlock()
+	return r.cache.removeWatch(src, dst, filter)
 }
 
 // Revoke asynchronously informs SCIOND about a revocation and flushes any
@@ -236,25 +237,27 @@ func (r *PR) Revoke(revInfo common.RawBytes) {
 }
 
 func (r *PR) revoke(revInfo common.RawBytes) {
-	parsedRev, cerr := path_mgmt.NewRevInfoFromRaw(revInfo)
-	if cerr != nil {
-		log.Error("Revocation failed, unable to parse revocation info", "err", cerr,
-			"revInfo", revInfo)
+	parsedRev, err := path_mgmt.NewRevInfoFromRaw(revInfo)
+	if err != nil {
+		log.Error("Revocation failed, unable to parse revocation info",
+			"revInfo", revInfo, "err", common.FmtError(err))
 		return
 	}
 	conn, err := r.sciondService.Connect()
 	if err != nil {
-		log.Error("Revocation failed, unable to connect to SCIOND", "err", err)
+		log.Error("Revocation failed, unable to connect to SCIOND", "err", common.FmtError(err))
 		return
 	}
 	reply, err := conn.RevNotification(parsedRev)
 	if err != nil {
-		log.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
+		log.Error("Revocation failed, unable to inform SCIOND about revocation",
+			"err", common.FmtError(err))
 		return
 	}
 	err = conn.Close()
 	if err != nil {
-		log.Error("Revocation error, unable to close SCIOND connection", "err", err)
+		log.Error("Revocation error, unable to close SCIOND connection",
+			"err", common.FmtError(err))
 		// Continue with revocation
 	}
 	switch reply.Result {
