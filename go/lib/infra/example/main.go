@@ -27,6 +27,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -64,7 +65,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	dispatcherLayer := disp.New(transportLayer, messenger.DefaultAdapter, log.New("name", "server"))
 	// Initialize TrustStore
 	if server.trustStore, err = trust.NewStore(randomFileName(), log.Root()); err != nil {
-		log.Error("Unable to create trust store", "err", err)
+		log.Error("Unable to create trust store", "err", common.FmtError(err))
 		os.Exit(-1)
 	}
 	modules := &messenger.Modules{

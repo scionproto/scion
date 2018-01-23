@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,12 +18,12 @@ package trust
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -43,13 +44,13 @@ const (
 
 // Store manages requests for TRC and Certificate Chain objects.
 //
-// Requests from local server logic are handled via GetXxx methods,
+// Certificate requests from local server logic are handled by GetCertificate,
 // while requests from other services can be handled via NewXxxHandler methods.
 //
 // By default, a Store object can only return objects that are already present
-// in the database at path. To allow a Store to use the SCION network to
-// retrieve objects from other infrastructure services, method StartResolvers
-// must be called with an operational infra.Messenger object.
+// in the database. To allow a Store to use the SCION network to retrieve
+// objects from other infrastructure services, method StartResolvers must be
+// called with an operational infra.Messenger object.
 //
 // Currently Store is backed by a sqlite3 database in package
 // go/lib/infra/components/trust/trustdb.
@@ -96,8 +97,9 @@ func NewStore(path string, logger log.Logger) (*Store, error) {
 // StartResolvers launches goroutines for handling TRC and Cert requests that
 // are not available in the local database. Outgoing (network) requests are
 // throttled s.t. at most one request for each address and version is sent
-// every MinimumDelta duration. Received objects are not verified prior to
-// insertion into the backing database.
+// every MinimumDelta duration. Received objects are verified prior to
+// insertion into the backing database, s.t. the database only contains
+// verified data.
 func (store *Store) StartResolvers(messenger infra.Messenger) error {
 	store.startMutex.Lock()
 	defer store.startMutex.Unlock()
@@ -114,98 +116,98 @@ func (store *Store) StartResolvers(messenger infra.Messenger) error {
 	store.startedFlag = true
 
 	trcResolver := &trcResolver{
-		api:      messenger,
+		msger:    messenger,
 		trustdb:  store.trustdb,
 		requests: store.trcRequests,
 		events:   store.trcEvents,
-		log:      store.log.New("id", logext.RandId(4), "goroutine", "trcResolver"),
+		log:      store.log.New("goroutine", "trcResolver"),
 	}
 	go trcResolver.Run()
 	chainResolver := &chainResolver{
-		api:      messenger,
+		msger:    messenger,
 		trustdb:  store.trustdb,
 		requests: store.chainRequests,
 		events:   store.chainEvents,
-		log:      store.log.New("id", logext.RandId(4), "goroutine", "chainResolver"),
+		log:      store.log.New("goroutine", "chainResolver"),
 	}
 	go chainResolver.Run()
 	return nil
 }
 
-func (store *Store) getTRC(ctx context.Context, request trcRequest) (*trc.TRC, error) {
+func (store *Store) getTRC(ctx context.Context, req trcRequest) (*trc.TRC, error) {
 	for {
 		// Attempt to get the TRC from the local cache
-		if trc, ok, err := store.trustdb.GetTRCVersionCtx(ctx, request.isd, request.version); err != nil {
+		if trc, err := store.trustdb.GetTRCVersionCtx(ctx, req.isd, req.version); err != nil {
 			return nil, err
-		} else if ok {
+		} else if trc != nil {
 			return trc, nil
 		}
 		// TRC not found, forward a request to the background TRC resolver
-		if err := store.issueTRCRequest(ctx, request); err != nil {
+		if err := store.issueTRCRequest(ctx, req); err != nil {
 			return nil, err
 		}
 	}
 }
 
-func (store *Store) issueTRCRequest(ctx context.Context, request trcRequest) error {
+func (store *Store) issueTRCRequest(ctx context.Context, req trcRequest) error {
 	select {
-	case store.trcRequests <- request:
+	case store.trcRequests <- req:
 	default:
 		return common.NewBasicError("Unable to request TRC, queue full",
-			nil, "isd", request.isd, "version", request.version)
+			nil, "isd", req.isd, "version", req.version)
 	}
 	// Block waiting for request to be finalized
 	select {
-	case <-store.trcEvents.Wait(request):
+	case <-store.trcEvents.Wait(req.Key()):
 		// Try to load version from map again
 		return nil
 	case <-ctx.Done():
 		// Context expired while waiting
 		return common.NewBasicError("Context canceled while waiting for TRC",
-			nil, "isd", request.isd, "version", request.version)
+			nil, "isd", req.isd, "version", req.version)
 	}
 }
 
-func (store *Store) getChain(ctx context.Context, request chainRequest) (*cert.Chain, error) {
+func (store *Store) getChain(ctx context.Context, req chainRequest) (*cert.Chain, error) {
 	for {
 		// Attempt to get the Chain from the local cache
-		if chain, ok, err := store.trustdb.GetChainVersionCtx(ctx, request.ia, request.version); err != nil {
+		if chain, err := store.trustdb.GetChainVersionCtx(ctx, req.ia, req.version); err != nil {
 			return nil, err
-		} else if ok {
+		} else if chain != nil {
 			return chain, nil
 		}
 		// Chain not found, forward the request to the background Chain resolver
-		if err := store.issueChainRequest(ctx, request); err != nil {
+		if err := store.issueChainRequest(ctx, req); err != nil {
 			return nil, err
 		}
 	}
 }
 
-func (store *Store) issueChainRequest(ctx context.Context, request chainRequest) error {
+func (store *Store) issueChainRequest(ctx context.Context, req chainRequest) error {
 	select {
-	case store.chainRequests <- request:
+	case store.chainRequests <- req:
 	default:
 		return common.NewBasicError("Unable to request Chain, queue full",
-			nil, "ia", request.ia, "version", request.version)
+			nil, "ia", req.ia, "version", req.version)
 	}
 	// Block waiting for request to be finalized
 	select {
-	case <-store.chainEvents.Wait(request):
+	case <-store.chainEvents.Wait(req.Key()):
 		// Try to load version from map again
 		return nil
 	case <-ctx.Done():
 		// Context expired while waiting
 		return common.NewBasicError("Context canceled while waiting for Chain",
-			nil, "ia", request.ia, "version", request.version)
+			nil, "ia", req.ia, "version", req.version)
 	}
 }
 
 // NewTRCReqHandler initializes a handler for TRC request data coming from peer.
-func (store *Store) NewTRCReqHandler(data, _ interface{}, peer net.Addr) (infra.Handler, error) {
+func (store *Store) NewTRCReqHandler(data, _ proto.Cerealizable, peer net.Addr) (infra.Handler, error) {
 	trcReq, ok := data.(*cert_mgmt.TRCReq)
 	if !ok {
 		return nil, common.NewBasicError("wrong message type, expected cert_mgmt.TRCReq", nil,
-			"msg", data)
+			"msg", data, "type", common.TypeOf(data))
 	}
 	reqObject := &trcReqHandler{
 		data:  trcReq,
@@ -217,11 +219,11 @@ func (store *Store) NewTRCReqHandler(data, _ interface{}, peer net.Addr) (infra.
 }
 
 // NewChainReqHandler initializes a handler for TRC request data coming from peer.
-func (store *Store) NewChainReqHandler(data, _ interface{}, peer net.Addr) (infra.Handler, error) {
+func (store *Store) NewChainReqHandler(data, _ proto.Cerealizable, peer net.Addr) (infra.Handler, error) {
 	chainReq, ok := data.(*cert_mgmt.ChainReq)
 	if !ok {
 		return nil, common.NewBasicError("wrong message type, expected cert_mgmt.ChainReq", nil,
-			"msg", data)
+			"msg", data, "type", common.TypeOf(data))
 	}
 	reqObject := &chainReqHandler{
 		data:  chainReq,
@@ -247,7 +249,6 @@ func (store *Store) Close() error {
 
 var _ infra.Handler = (*trcReqHandler)(nil)
 
-// Includes goroutine-specific state
 type trcReqHandler struct {
 	data  *cert_mgmt.TRCReq
 	cache *Store
@@ -255,15 +256,16 @@ type trcReqHandler struct {
 	log   log.Logger
 }
 
-func (handler *trcReqHandler) Handle(ctx context.Context) {
+func (h *trcReqHandler) Handle(ctx context.Context) {
 	v := ctx.Value(infra.MessengerContextKey)
 	if v == nil {
-		handler.log.Warn("Unable to service request, no Messenger interface found")
+		h.log.Warn("Unable to service request, no Messenger interface found")
 		return
 	}
 	messenger, ok := v.(infra.Messenger)
 	if !ok {
-		handler.log.Warn("Unable to service request, bad Messenger interface found")
+		h.log.Warn("Unable to service request, bad Messenger interface found",
+			"value", v, "type", common.TypeOf(v))
 		return
 	}
 	subCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
@@ -271,32 +273,31 @@ func (handler *trcReqHandler) Handle(ctx context.Context) {
 
 	// Only serve remote requests from the local database for now
 	request := trcRequest{
-		isd:     uint16(handler.data.ISD),
-		version: handler.data.Version,
+		isd:     uint16(h.data.ISD),
+		version: h.data.Version,
 	}
-	trc, err := handler.cache.getTRC(ctx, request)
+	trc, err := h.cache.getTRC(ctx, request)
 	if err != nil {
-		handler.log.Error("Unable to retrieve TRC", "err", err)
+		h.log.Error("Unable to retrieve TRC", "err", err)
 		return
 	}
 
 	// FIXME(scrye): avoid recompressing this for every request
 	rawTRC, err := trc.Compress()
 	if err != nil {
-		handler.log.Warn("Unable to compress TRC", "err", err)
+		h.log.Warn("Unable to compress TRC", "err", err)
 		return
 	}
 	trcMessage := &cert_mgmt.TRC{
 		RawTRC: rawTRC,
 	}
 	if err := messenger.SendTRC(subCtx, trcMessage, nil); err != nil {
-		handler.log.Error("Messenger API error", "err", err)
+		h.log.Error("Messenger API error", "err", err)
 	}
 }
 
 var _ infra.Handler = (*chainReqHandler)(nil)
 
-// Includes goroutine-specific state
 type chainReqHandler struct {
 	data  *cert_mgmt.ChainReq
 	cache *Store
@@ -304,7 +305,7 @@ type chainReqHandler struct {
 	log   log.Logger
 }
 
-func (handler *chainReqHandler) Handle(ctx context.Context) {
+func (h *chainReqHandler) Handle(ctx context.Context) {
 	// TODO(scrye): this is very similar to the trcReqHandler.Handle
 	panic("not implemented")
 }
@@ -316,6 +317,10 @@ type trcRequest struct {
 	verifier *trc.TRC
 }
 
+func (req trcRequest) Key() string {
+	return fmt.Sprintf("%d-%d", req.isd, req.version)
+}
+
 type chainRequest struct {
 	ia       addr.ISD_AS
 	version  uint64
@@ -323,7 +328,12 @@ type chainRequest struct {
 	verifier *trc.TRC
 }
 
-func (store *Store) GetCertificate(ctx context.Context, trail []TrustDescriptor, hint net.Addr) (*cert.Certificate, error) {
+func (req chainRequest) Key() string {
+	return fmt.Sprintf("%d-%d", req.ia, req.version)
+}
+
+func (store *Store) GetCertificate(ctx context.Context, trail []TrustDescriptor,
+	hint net.Addr) (*cert.Certificate, error) {
 	var (
 		// The trust TRC used to verify the next trust object
 		verifierTRC *trc.TRC
@@ -334,29 +344,30 @@ func (store *Store) GetCertificate(ctx context.Context, trail []TrustDescriptor,
 
 ForLoop:
 	for idx = 0; idx < len(trail); idx++ {
-		descriptor := trail[idx]
-		switch descriptor.Type {
+		desc := trail[idx]
+		switch desc.Type {
 		case ChainDescriptor:
 			if idx != 0 {
-				return nil, common.NewBasicError("Chain descriptors are only allowed in trails on index 0", nil, "actual", idx)
+				return nil, common.NewBasicError("Chain descriptors must be on index 0", nil,
+					"actual", idx)
 			}
-			chain, ok, err := store.trustdb.GetChainVersionCtx(ctx, descriptor.IA, descriptor.ChainVersion)
+			chain, err := store.trustdb.GetChainVersionCtx(ctx, desc.IA, desc.ChainVersion)
 			if err != nil {
 				return nil, common.NewBasicError("Unable to read from database", err)
 			}
-			if ok {
+			if chain != nil {
 				// We have the needed chain already, we can return
 				return chain.Leaf, nil
 			}
 		case TRCDescriptor:
 			if idx == 0 {
-				return nil, common.NewBasicError("TRC descriptors are not allowed in trail on index 0", nil)
+				return nil, common.NewBasicError("TRC descriptors are not allowed on index 0", nil)
 			}
-			trcObj, ok, err := store.trustdb.GetTRCVersionCtx(ctx, uint16(descriptor.IA.I), descriptor.TRCVersion)
+			trcObj, err := store.trustdb.GetTRCVersionCtx(ctx, uint16(desc.IA.I), desc.TRCVersion)
 			if err != nil {
 				return nil, common.NewBasicError("Unable to read from database", err)
 			}
-			if ok {
+			if trcObj != nil {
 				// We found the root of trust in the database, we can now go
 				// back and download/verify missing TRCs and certificate chains
 				// starting from it.
@@ -364,13 +375,13 @@ ForLoop:
 				break ForLoop
 			}
 		default:
-			return nil, common.NewBasicError("Unknown descriptor type", nil, "type", descriptor.Type)
+			return nil, common.NewBasicError("Unknown descriptor type", nil, "type", desc.Type)
 		}
 	}
 
 	if idx == len(trail) {
 		// We've reached the end of the trust trail without finding any trusted object, abort
-		return nil, common.NewBasicError("Unable to find trusted object when following trust trail", nil)
+		return nil, common.NewBasicError("Unable to find trusted object when following trail", nil)
 	}
 
 	for {
@@ -397,6 +408,7 @@ ForLoop:
 			}
 			verifierTRC, err = store.getTRC(ctx, request)
 			if err != nil {
+				store.log.Info("Reply: ", "TRC", verifierTRC, "err", err)
 				return nil, err
 			}
 		default:

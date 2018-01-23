@@ -14,7 +14,9 @@
 
 package trust
 
-import "sync"
+import (
+	"sync"
+)
 
 // eventMap implements a level-triggered synchronization primitive.
 //
@@ -49,8 +51,13 @@ func (em *eventMap) Wait(key interface{}) <-chan struct{} {
 func (em *eventMap) Signal(key interface{}) {
 	// If a channel already exists, close it
 	if eventC, ok := em.events.Load(key); ok {
-		// FIXME/TODO: doesn't this double close?!
-		close(eventC.(chan struct{}))
+		c := eventC.(chan struct{})
+		select {
+		case <-c:
+			// already closed, nothing to do
+		default:
+			close(c)
+		}
 		return
 	}
 	// Initialize a closed channel and then attempt to store it for future waiters

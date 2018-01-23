@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // TestCase data
@@ -37,7 +38,7 @@ var (
 	mockTRC = &cert_mgmt.TRC{RawTRC: common.RawBytes("foobar")}
 )
 
-func MockTRCRequestConstructor(data, _ interface{}, peer net.Addr) (infra.Handler, error) {
+func MockTRCRequestConstructor(data, _ proto.Cerealizable, peer net.Addr) (infra.Handler, error) {
 	return &MockTRCRequest{peer: peer}, nil
 }
 

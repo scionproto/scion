@@ -41,21 +41,18 @@ func TestTRC(t *testing.T) {
 			err := db.InsertTRCCtx(context.Background(), 1, 10, trcobj)
 			SoMsg("err", err, ShouldBeNil)
 			Convey("Get TRC from database", func() {
-				newTRCobj, ok, err := db.GetTRCVersionCtx(context.Background(), 1, 10)
+				newTRCobj, err := db.GetTRCVersionCtx(context.Background(), 1, 10)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("ok", ok, ShouldBeTrue)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get Max TRC from database", func() {
-				newTRCobj, ok, err := db.GetTRCMaxVersionCtx(context.Background(), 1)
+				newTRCobj, err := db.GetTRCMaxVersionCtx(context.Background(), 1)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("ok", ok, ShouldBeTrue)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get missing TRC from database", func() {
-				newTRCobj, ok, err := db.GetTRCVersionCtx(context.Background(), 2, 10)
+				newTRCobj, err := db.GetTRCVersionCtx(context.Background(), 2, 10)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("ok", ok, ShouldBeFalse)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
 		})
@@ -76,22 +73,19 @@ func TestChain(t *testing.T) {
 			err := db.InsertChainCtx(context.Background(), ia, 10, trcobj)
 			SoMsg("err", err, ShouldBeNil)
 			Convey("Get certificate chain from database", func() {
-				newTRCobj, ok, err := db.GetChainVersionCtx(context.Background(), ia, 10)
+				newTRCobj, err := db.GetChainVersionCtx(context.Background(), ia, 10)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("ok", ok, ShouldBeTrue)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get max version certificate chain from database", func() {
-				newTRCobj, ok, err := db.GetChainMaxVersionCtx(context.Background(), ia)
+				newTRCobj, err := db.GetChainMaxVersionCtx(context.Background(), ia)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("ok", ok, ShouldBeTrue)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get missing certificate chain from database", func() {
 				otherIA := addr.ISD_AS{I: 1, A: 2}
-				newTRCobj, ok, err := db.GetChainVersionCtx(context.Background(), otherIA, 10)
+				newTRCobj, err := db.GetChainVersionCtx(context.Background(), otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("ok", ok, ShouldBeFalse)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
 		})
@@ -118,7 +112,7 @@ func BenchmarkDB(b *testing.B) {
 		return
 	}
 	for i := 0; i < b.N; i++ {
-		if _, _, err := db.GetTRCMaxVersionCtx(context.Background(), 1); err != nil {
+		if _, err := db.GetTRCMaxVersionCtx(context.Background(), 1); err != nil {
 			logger.Warn("unable to get max version TRC from DB", "err", err)
 			return
 		}

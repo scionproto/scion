@@ -19,17 +19,18 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Interface Handler is implemented by objects that can handle a request coming
-// from a remote SCION infra service.
+// from a remote SCION network node.
 type Handler interface {
 	Handle(ctx context.Context)
 }
 
 // Constructs a handler for message msg. Handle() can be called on the
 // resulting object to process the message.
-type HandlerConstructor func(msg, fullMsg interface{}, peer net.Addr) (Handler, error)
+type HandlerConstructor func(msg, fullMsg proto.Cerealizable, peer net.Addr) (Handler, error)
 
 var (
 	// MessengerContextKey is a context key. It can be used in SCION infra
@@ -46,7 +47,7 @@ func (k *contextKey) String() string {
 }
 
 type Messenger interface {
-	RecvMsg(ctx context.Context) (interface{}, net.Addr, error)
+	RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error)
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr) (*cert_mgmt.TRC, error)
 	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr) (*cert_mgmt.Chain, error)

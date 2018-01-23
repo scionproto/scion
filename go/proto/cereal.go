@@ -117,7 +117,13 @@ func ParseStruct(c Cerealizable, pType ProtoIdType, s capnp.Struct) error {
 
 // ParseFromRaw is a utility function, which reads a capnp message from b and parses it into c.
 // It is effectively a composition of ReadRootFromRaw and ParseStruct.
-func ParseFromRaw(c Cerealizable, pType ProtoIdType, b common.RawBytes) error {
+func ParseFromRaw(c Cerealizable, pType ProtoIdType, b common.RawBytes) (err error) {
+	// Convert capnp panics to errors
+	defer func() {
+		if r := recover(); r != nil {
+			err = common.NewBasicError("capnp panic", nil, "panic", r, "bytes", b)
+		}
+	}()
 	return ParseFromReader(c, pType, bytes.NewBuffer(b))
 }
 

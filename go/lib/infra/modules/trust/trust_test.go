@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var (
@@ -50,7 +51,7 @@ func NewFakeMessenger() infra.Messenger {
 	return &FakeMessenger{}
 }
 
-func (m *FakeMessenger) RecvMsg(ctx context.Context) (interface{}, net.Addr, error) {
+func (m *FakeMessenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
 	panic("not implemented")
 }
 
@@ -100,27 +101,6 @@ func (m *FakeMessenger) ListenAndServe() {
 
 func (m *FakeMessenger) CloseServer() error {
 	panic("not implemented")
-}
-
-func TestTrust(t *testing.T) {
-	SkipConvey("Create a new trust store", t, func() {
-		messenger := NewFakeMessenger()
-		store, err := NewStore(randomFileName(), log.Root())
-		SoMsg("store err", err, ShouldBeNil)
-		store.StartResolvers(messenger)
-		Convey("Send request and get answer", func() {
-			isd, version := uint16(1), uint64(5)
-			ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
-			request := trcRequest{
-				isd:     isd,
-				version: version,
-			}
-			trc, err := store.getTRC(ctx, request)
-			cancelF()
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("trc", trc, ShouldNotBeNil)
-		})
-	})
 }
 
 func TestTrustTrails(t *testing.T) {
