@@ -18,14 +18,14 @@
 package rpkt
 
 import (
-	"github.com/scionproto/scion/go/border/rcmn"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/spkt"
-	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/assert"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/topology"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 // Parse handles the basic parsing of a packet.
@@ -87,16 +87,18 @@ func (rp *RtrPkt) parseBasic() error {
 	// Set index for destination host address and calculate its length.
 	rp.idxs.dstHost = rp.idxs.srcIA + addr.IABytes
 	if dstLen, err = addr.HostLen(rp.CmnHdr.DstType); err != nil {
-		if common.GetErrorMsg(err) == addr.ErrorBadHostAddrType {
-			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil, err)
+		cerr := err.(*common.CError)
+		if cerr.Desc == addr.ErrorBadHostAddrType {
+			cerr.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadDstType, nil)
 		}
 		return err
 	}
 	// Set index for source host address and calculate its length.
 	rp.idxs.srcHost = rp.idxs.dstHost + int(dstLen)
 	if srcLen, err = addr.HostLen(rp.CmnHdr.SrcType); err != nil {
-		if common.GetErrorMsg(err) == addr.ErrorBadHostAddrType {
-			err = scmp.NewError(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil, err)
+		cerr := err.(*common.CError)
+		if cerr.Desc == addr.ErrorBadHostAddrType {
+			cerr.Data = scmp.NewErrData(scmp.C_CmnHdr, scmp.T_C_BadSrcType, nil)
 		}
 		return err
 	}
@@ -107,7 +109,7 @@ func (rp *RtrPkt) parseBasic() error {
 	rp.idxs.path = spkt.CmnHdrLen + addrLen + addrPad
 	if rp.idxs.path > hdrLen {
 		// Can't generate SCMP error as we can't parse anything after the address header
-		return common.NewBasicError("Header length indicated in common header is too small", nil,
+		return common.NewCError("Header length indicated in common header is too small",
 			"min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen, "byteSize", hdrLen)
 	}
 	return nil
@@ -143,7 +145,7 @@ func (rp *RtrPkt) parseHopExtns() error {
 	if *offset > len(rp.Raw) {
 		// FIXME(kormat): Can't generate SCMP error in general as we can't
 		// parse anything after the hbh extensions (e.g. a layer 4 header).
-		return common.NewBasicError(ErrExtChainTooLong, nil, "curr", offset, "max", len(rp.Raw))
+		return common.NewCError(errExtChainTooLong, "curr", offset, "max", len(rp.Raw))
 	}
 	return nil
 }

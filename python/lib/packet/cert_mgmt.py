@@ -34,11 +34,7 @@ class CertMgmt(CerealBox):  # pragma: no cover
     CLASS_FIELD_MAP = None
 
 
-class CertChainRequest(Cerealizable):  # pragma: no cover
-    NAME = "CertChainRequest"
-    P_CLS = P.CertChainReq
-    NEWEST_VERSION = 2**64-1
-
+class CertMgmtRequest(Cerealizable):  # pragma: no cover
     def isd_as(self):
         return ISD_AS(self.p.isdas)
 
@@ -47,6 +43,11 @@ class CertChainRequest(Cerealizable):  # pragma: no cover
         return cls(cls.P_CLS.new_message(isdas=int(isd_as), version=version,
                                          cacheOnly=cache_only))
 
+
+class CertChainRequest(CertMgmtRequest):
+    NAME = "CertChainRequest"
+    P_CLS = P.CertChainReq
+
     def short_desc(self):
         return "%sv%s (Cache only? %s)" % (self.isd_as(), self.p.version,
                                            self.p.cacheOnly)
@@ -54,7 +55,7 @@ class CertChainRequest(Cerealizable):  # pragma: no cover
 
 class CertChainReply(Cerealizable):  # pragma: no cover
     NAME = "CertChainReply"
-    P_CLS = P.CertChain
+    P_CLS = P.CertChainRep
 
     def __init__(self, p):
         super().__init__(p)
@@ -72,27 +73,18 @@ class CertChainReply(Cerealizable):  # pragma: no cover
         return "%s: ISD-AS: %s Version: %s" % (self.NAME, isd_as, ver)
 
 
-class TRCRequest(Cerealizable):
+class TRCRequest(CertMgmtRequest):
     NAME = "TRCRequest"
     P_CLS = P.TRCReq
-    NEWEST_VERSION = 2**64-1
-
-    def isd_as(self):
-        return ISD_AS.from_values(self.p.isd, 0)
-
-    @classmethod
-    def from_values(cls, isd, version, cache_only=False):
-        return cls(cls.P_CLS.new_message(isd=isd, version=version,
-                                         cacheOnly=cache_only))
 
     def short_desc(self):
-        return "%sv%s (Cache only? %s)" % (self.p.isd, self.p.version,
+        return "%sv%s (Cache only? %s)" % (self.isd_as()[0], self.p.version,
                                            self.p.cacheOnly)
 
 
 class TRCReply(Cerealizable):  # pragma: no cover
     NAME = "TRCReply"
-    P_CLS = P.TRC
+    P_CLS = P.TRCRep
 
     def __init__(self, p):
         super().__init__(p)

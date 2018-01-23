@@ -20,29 +20,33 @@ package main
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/border/rcmn"
-	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/border/rcmn"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/scmp"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
 )
 
 // handlePktError is called for protocol-level packet errors. If there's SCMP
 // metadata attached to the error object, then an SCMP error response is
 // generated and sent.
 func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
-	serr := scmp.ToError(perr)
+	pcerr := perr.(*common.CError)
+	sdata, ok := pcerr.Data.(*scmp.ErrData)
+	if ok {
+		pcerr.AddCtx("SCMP", sdata.CT)
+	}
 	// XXX(kormat): uncomment for debugging:
-	// perr = common.NewBasicError("Raw packet", perr, "raw", rp.Raw)
-	rp.Error(desc, "err", common.FmtError(perr))
-	if serr == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
+	// pcerr.AddCtx("raw", rp.Raw)
+	rp.Error(desc, "err", pcerr)
+	if !ok || pcerr.Data == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}
-	switch serr.CT.Class {
+	switch sdata.CT.Class {
 	case scmp.C_CmnHdr:
-		switch serr.CT.Type {
+		switch sdata.CT.Type {
 		case scmp.T_C_BadVersion, scmp.T_C_BadDstType, scmp.T_C_BadSrcType:
 			// For any of these cases, do nothing. A reply would only be
 			// possible in the case of a version/addr type being understood but
@@ -56,23 +60,24 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	}
 	// Certain errors are not respondable to if the source lies in a remote AS.
 	if !srcIA.Eq(rp.Ctx.Conf.IA) {
-		switch serr.CT.Class {
+		switch sdata.CT.Class {
 		case scmp.C_CmnHdr:
-			switch serr.CT.Type {
+			switch sdata.CT.Type {
 			case scmp.T_C_BadHopFOffset, scmp.T_C_BadInfoFOffset:
 				return
 			}
 		case scmp.C_Path:
-			switch serr.CT.Type {
+			switch sdata.CT.Type {
 			case scmp.T_P_PathRequired:
 				return
 			}
 		}
 
 	}
-	reply, err := r.createSCMPErrorReply(rp, serr.CT, serr.Info)
+	reply, err := r.createSCMPErrorReply(rp, sdata.CT, sdata.Info)
 	if err != nil {
-		rp.Error("Error creating SCMP response", "err", common.FmtError(err))
+		cerr := err.(*common.CError)
+		rp.Error("Error creating SCMP response", cerr.Ctx...)
 		return
 	}
 	reply.Route()
@@ -140,7 +145,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			}
 			// Increment reversed path if it was incremented in the forward direction.
 			// Check
-			// https://github.com/scionproto/scion/blob/master/doc/PathReversal.md
+			// https://github.com/netsec-ethz/scion/blob/master/doc/PathReversal.md
 			// for details.
 			if rp.IncrementedPath {
 				if _, err := reply.IncPath(); err != nil {

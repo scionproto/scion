@@ -20,103 +20,33 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/sig/config"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 var Map = newASMap()
 
-// ASMap is not concurrency safe against multiple writers.
-type ASMap sync.Map
+// ASMap is a RWMutex-protected map of ASEntries.
+type ASMap struct {
+	// FIXME(kormat): when we switch to go 1.9, consider replacing this with sync.Map.
+	sync.RWMutex
+	t map[addr.IAInt]*ASEntry
+}
 
 func newASMap() *ASMap {
-	return &ASMap{}
-}
-
-func (am *ASMap) Delete(key addr.IAInt) {
-	(*sync.Map)(am).Delete(key)
-}
-
-func (am *ASMap) Load(key addr.IAInt) (*ASEntry, bool) {
-	value, ok := (*sync.Map)(am).Load(key)
-	if value == nil {
-		return nil, ok
-	}
-	return value.(*ASEntry), ok
-}
-
-func (am *ASMap) LoadOrStore(key addr.IAInt, value *ASEntry) (*ASEntry, bool) {
-	actual, ok := (*sync.Map)(am).LoadOrStore(key, value)
-	if actual == nil {
-		return nil, ok
-	}
-	return actual.(*ASEntry), ok
-}
-
-func (am *ASMap) Store(key addr.IAInt, value *ASEntry) {
-	(*sync.Map)(am).Store(key, value)
-}
-
-func (am *ASMap) Range(f func(key addr.IAInt, value *ASEntry) bool) {
-	(*sync.Map)(am).Range(func(key, value interface{}) bool {
-		return f(key.(addr.IAInt), value.(*ASEntry))
-	})
-}
-
-func (am *ASMap) ReloadConfig(cfg *config.Cfg) bool {
-	// Method calls first to prevent skips due to logical short-circuit
-	s := am.addNewIAs(cfg)
-	return am.delOldIAs(cfg) && s
-}
-
-// addNewIAs adds the ASes in cfg that are not currently configured.
-func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
-	s := true
-	for iaVal, cfgEntry := range cfg.ASes {
-		ia := &iaVal
-		log.Info("ReloadConfig: Adding AS...", "ia", ia)
-		ae, err := am.AddIA(ia)
-		if err != nil {
-			log.Error("ReloadConfig: Adding AS failed", "err", common.FmtError(err))
-			s = false
-			continue
-		}
-		s = ae.ReloadConfig(cfgEntry) && s
-		log.Info("ReloadConfig: Added AS", "ia", ia)
-	}
-	return s
-}
-
-func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
-	s := true
-	// Delete all ASes that currently exist but are not in cfg
-	am.Range(func(iaInt addr.IAInt, as *ASEntry) bool {
-		ia := iaInt.IA()
-		if _, ok := cfg.ASes[*ia]; !ok {
-			log.Info("ReloadConfig: Deleting AS...", "ia", ia)
-			// Deletion also handles session/tun device cleanup
-			err := am.DelIA(ia)
-			if err != nil {
-				log.Error("ReloadConfig: Deleting AS failed", "err", common.FmtError(err))
-				s = false
-				return true
-			}
-			log.Info("ReloadConfig: Deleted AS", "ia", ia)
-		}
-		return true
-	})
-	return s
+	return &ASMap{t: make(map[addr.IAInt]*ASEntry)}
 }
 
 // AddIA idempotently adds an entry for a remote IA.
 func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
 	if ia.I == 0 || ia.A == 0 {
 		// A 0 for either ISD or AS indicates a wildcard, and not a specific ISD-AS.
-		return nil, common.NewBasicError("AddIA: ISD and AS must not be 0", nil, "ia", ia)
+		return nil, common.NewCError("AddIA: ISD and AS must not be 0", "ia", ia)
 	}
+	am.Lock()
+	defer am.Unlock()
 	key := ia.IAInt()
-	ae, ok := am.Load(key)
+	ae, ok := am.t[key]
 	if ok {
 		return ae, nil
 	}
@@ -124,25 +54,29 @@ func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	am.Store(key, ae)
+	am.t[key] = ae
+	log.Info("Added IA", "ia", ia)
 	return ae, nil
 }
 
 // DelIA removes an entry for a remote IA.
 func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
+	am.Lock()
 	key := ia.IAInt()
-	ae, ok := am.Load(key)
+	ae, ok := am.t[key]
 	if !ok {
-		return common.NewBasicError("DelIA: No entry found", nil, "ia", ia)
+		am.Unlock()
+		return common.NewCError("DelIA: No entry found", "ia", ia)
 	}
-	am.Delete(key)
+	delete(am.t, key)
+	am.Unlock() // Do cleanup outside the lock.
+	log.Info("Removed IA", "ia", ia)
 	return ae.Cleanup()
 }
 
 // ASEntry returns the entry for the specified remote IA, or nil if not present.
 func (am *ASMap) ASEntry(ia *addr.ISD_AS) *ASEntry {
-	if as, ok := am.Load(ia.IAInt()); ok {
-		return as
-	}
-	return nil
+	am.RLock()
+	defer am.RUnlock()
+	return am.t[ia.IAInt()]
 }

@@ -35,7 +35,7 @@ EXPIRATION_TIME_STRING = 'ExpirationTime'
 ENC_ALGORITHM_STRING = 'EncAlgorithm'
 SUBJECT_ENC_KEY_STRING = 'SubjectEncKey'
 SIGN_ALGORITHM_STRING = 'SignAlgorithm'
-SUBJECT_SIG_KEY_STRING = 'SubjectSignKey'
+SUBJECT_SIG_KEY_STRING = 'SubjectSigKey'
 SIGNATURE_STRING = 'Signature'
 
 

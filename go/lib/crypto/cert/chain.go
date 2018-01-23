@@ -25,35 +25,19 @@ import (
 
 	"github.com/pierrec/lz4"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
-const (
-	MaxChainByteLength uint32 = 1 << 20
-
-	// Error strings
-	CoreCertInvalid  = "Core certificate invalid"
-	CoreExpiresAfter = "Core certificate expires after TRC"
-	IssASNotFound    = "Issuing Core AS not found"
-	LeafCertInvalid  = "Leaf certificate invalid"
-	LeafExpiresAfter = "Leaf certificate expires after core certificate"
-	LeafIssuedBefore = "Leaf certificate issued before core certificate"
-)
+const MaxChainByteLength uint32 = 1 << 20
 
 type Key struct {
 	IA  addr.ISD_AS
-	Ver uint64
-}
-
-func NewKey(ia *addr.ISD_AS, ver uint64) *Key {
-	return &Key{IA: *ia, Ver: ver}
+	Ver int
 }
 
 func (k *Key) String() string {
-	return fmt.Sprintf("%sv%d", k.IA, k.Ver)
+	return fmt.Sprintf("%s.%d", k.IA, k.Ver)
 }
 
 // Chain contains two certificates, one fore the leaf and one for the core. The leaf certificate
@@ -69,12 +53,12 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	if lz4_ {
 		// The python lz4 library uses lz4 block mode. To know the length of the
 		// compressed block, it prepends the length of the original data as 4 bytes, little
-		// endian, unsigned integer. We need to make sure that a malformed message does
+		// endian, unsigned integer. We need to make sure, that a malformed message does
 		// not exhaust the available memory.
 		byteLen := binary.LittleEndian.Uint32(raw[:4])
 		if byteLen > MaxChainByteLength {
-			return nil, common.NewBasicError("Certificate chain LZ4 block too large", nil,
-				"max", MaxChainByteLength, "actual", byteLen)
+			return nil, common.NewCError("Exceeding byte length", "max",
+				MaxChainByteLength, "actual", byteLen)
 		}
 		buf := make([]byte, byteLen)
 		n, err := lz4.UncompressBlock(raw[4:], buf, 0)
@@ -90,33 +74,11 @@ func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
 	return c, nil
 }
 
-func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
-	if c.Leaf.IssuingTime < c.Core.IssuingTime {
-		return common.NewBasicError(LeafIssuedBefore, nil, "leaf",
-			util.TimeToString(c.Leaf.IssuingTime), "core",
-			util.TimeToString(c.Core.IssuingTime))
+func (c *Chain) Verify(subject *addr.ISD_AS, trc interface{}) error {
+	if err := c.Leaf.Verify(subject, c.Core.SubjectSigKey, c.Core.SignAlgorithm); err != nil {
+		return err
 	}
-	if c.Leaf.ExpirationTime > c.Core.ExpirationTime {
-		return common.NewBasicError(LeafExpiresAfter, nil, "leaf",
-			util.TimeToString(c.Leaf.ExpirationTime), "core",
-			util.TimeToString(c.Core.ExpirationTime))
-	}
-	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
-		return common.NewBasicError(LeafCertInvalid, err)
-	}
-	if c.Core.ExpirationTime > t.ExpirationTime {
-		return common.NewBasicError(CoreExpiresAfter, nil, "core",
-			util.TimeToString(c.Core.ExpirationTime), "TRC",
-			util.TimeToString(t.ExpirationTime))
-	}
-	coreAS, ok := t.CoreASes[*c.Core.Issuer]
-	if !ok {
-		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Core.Issuer, "coreASes",
-			t.CoreASes)
-	}
-	if err := c.Core.Verify(c.Core.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
-		return common.NewBasicError(CoreCertInvalid, err)
-	}
+	// Fixme(roosd): Verify Core Certificate based on TRC
 	return nil
 }
 
@@ -152,10 +114,10 @@ func (c *Chain) Eq(o *Chain) bool {
 	return c.Leaf.Eq(o.Leaf) && c.Core.Eq(o.Core)
 }
 
-func (c *Chain) IAVer() (*addr.ISD_AS, uint64) {
+func (c *Chain) IAVer() (*addr.ISD_AS, int) {
 	return c.Leaf.Subject, c.Leaf.Version
 }
 
 func (c *Chain) Key() *Key {
-	return NewKey(c.Leaf.Subject, c.Leaf.Version)
+	return &Key{IA: *c.Leaf.Subject, Ver: c.Leaf.Version}
 }

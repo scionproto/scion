@@ -15,22 +15,23 @@
 package egress
 
 import (
+	"bytes"
+	"encoding/binary"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
-	liblog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/spkt"
-	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/sig/metrics"
-	"github.com/scionproto/scion/go/sig/mgmt"
-	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/siginfo"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/l4"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/netsec-ethz/scion/go/lib/sciond"
+	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/spkt"
+	"github.com/netsec-ethz/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
 //   SIG Frame Header, used to encapsulate SIG to SIG traffic. The sequence
@@ -52,7 +53,6 @@ const (
 	PktLenSize = 2
 	MinSpace   = 16
 	SigHdrLen  = 8
-	MaxSeq     = (1 << 24) - 1
 )
 
 type worker struct {
@@ -95,7 +95,7 @@ TopLoop:
 		} else if len(w.pkts) == 0 {
 			// Didn't read any new packets, send partial frame.
 			if err := w.write(f); err != nil {
-				w.Error("Error sending frame", "err", common.FmtError(err))
+				w.Error("Error sending frame", "err", err)
 			}
 			continue TopLoop
 		}
@@ -103,7 +103,7 @@ TopLoop:
 		for i := range w.pkts {
 			pkt := w.pkts[i].(common.RawBytes)
 			if err := w.processPkt(f, pkt); err != nil {
-				w.Error("Error sending frame", "err", common.FmtError(err))
+				w.Error("Error sending frame", "err", err)
 			}
 		}
 		// Return processed pkts to the free pool, and remove references.
@@ -164,7 +164,7 @@ func (w *worker) write(f *frame) error {
 	snetAddr := w.currSig.EncapSnetAddr()
 	snetAddr.Path = spath.New(w.currPathEntry.Path.FwdPath)
 	if err := snetAddr.Path.InitOffsets(); err != nil {
-		return common.NewBasicError("Error initializing path offsets", err)
+		return common.NewCError("Error initializing path offsets", "err", err)
 	}
 	snetAddr.NextHopHost = w.currPathEntry.HostInfo.Host()
 	snetAddr.NextHopPort = w.currPathEntry.HostInfo.Port
@@ -173,14 +173,11 @@ func (w *worker) write(f *frame) error {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
 	f.writeHdr(w.sess.SessId, w.epoch, w.seq)
-	// Update sequence number for next packet
+	// Update metadata
 	w.seq += 1
-	if w.seq > MaxSeq {
-		w.seq = 0
-	}
 	bytesWritten, err := w.sess.conn.WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
-		return common.NewBasicError("Egress write error", err)
+		return common.NewCError("Egress write error", "err", err)
 	}
 	metrics.FramesSent.WithLabelValues(w.iaString).Inc()
 	metrics.FrameBytesSent.WithLabelValues(w.iaString).Add(float64(bytesWritten))
@@ -245,9 +242,12 @@ func (f *frame) startPkt(pktLen uint16) {
 	f.offset += PktLenSize
 }
 
-func (f *frame) writeHdr(sessId mgmt.SessionType, epoch uint16, seq uint32) {
+func (f *frame) writeHdr(sessId sigcmn.SessionType, epoch uint16, seq uint32) {
+	var buf bytes.Buffer
+	binary.Write(&buf, common.Order, seq)
+
 	f.b[0] = uint8(sessId)
 	common.Order.PutUint16(f.b[1:3], epoch)
-	common.Order.PutUintN(f.b[3:6], uint64(seq), 3)
+	copy(f.b[3:6], buf.Bytes()[1:])
 	common.Order.PutUint16(f.b[6:8], f.idx)
 }

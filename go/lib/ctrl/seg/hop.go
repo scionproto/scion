@@ -17,8 +17,8 @@
 package seg
 
 import (
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/spath"
 )
 
 type HopEntry struct {
@@ -27,7 +27,7 @@ type HopEntry struct {
 	InMTU       uint16     `capnp:"inMTU"`
 	RawOutIA    addr.IAInt `capnp:"outIA"`
 	RemoteOutIF uint64
-	RawHopField []byte `capnp:"hopF"`
+	RawHopField []byte `capnp:"hof"`
 }
 
 func (e *HopEntry) InIA() *addr.ISD_AS {

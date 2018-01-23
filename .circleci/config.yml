@@ -26,6 +26,10 @@ jobs:
                 command: ./scion.sh coverage |& tee logs/coverage.run
                 when: always
             - run:
+                name: scion-web
+                command: ./sub/web/manage.py test &> logs/sweb_test.run
+                when: always
+            - run:
                 name: Python documentation (sphinx)
                 command: make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
                 when: always
@@ -43,7 +47,7 @@ jobs:
 
     build:
         docker:
-            - image: scionproto/scion_base@sha256:5e0e04b721280e206054cb8c05e14f5e6de29a58f2b1d32fd63d5547fb803a60
+            - image: ethznetsec/scion_base@sha256:90528bc3890e00820767d306587974dbf1e7a0b9ce193e8fce5218cffc1f562e
         <<: *job
         steps:
             - checkout
@@ -67,6 +71,10 @@ jobs:
                 command: ./scion.sh coverage |& tee logs/coverage.run
                 when: always
             - run:
+                name: scion-web
+                command: ./sub/web/manage.py test &> logs/sweb_test.run
+                when: always
+            - run:
                 name: Python documentation (sphinx)
                 command: make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
                 when: always
@@ -84,7 +92,7 @@ jobs:
 
 scion_defaults:
     job: &job
-        working_directory: /home/scion/go/src/github.com/scionproto/scion
+        working_directory: /home/scion/go/src/github.com/netsec-ethz/scion
         environment:
             - BASH_ENV: /home/scion/.profile
 

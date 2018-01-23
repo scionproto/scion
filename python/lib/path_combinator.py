@@ -16,6 +16,7 @@
 ===================================================================
 """
 # Stdlib
+import copy
 import logging
 
 # SCION
@@ -56,7 +57,7 @@ def _build_shortcuts(up_segment, down_segment, peer_revs):
     """
     # TODO check if stub ASs are the same...
     if (not up_segment or not down_segment or
-            not up_segment.p.asEntries or not down_segment.p.asEntries):
+            not up_segment.p.asms or not down_segment.p.asms):
         return []
 
     # looking for xovr and peer points
@@ -85,7 +86,7 @@ def _copy_segment(segment, xover_start, xover_end, up=True):
     """
     if not segment:
         return None, None, float("inf")
-    info = segment.infoF()
+    info = copy.deepcopy(segment.info)
     info.up_flag = up
     hofs, mtu = _copy_hofs(segment.iter_asms(), reverse=up)
     if xover_start:
@@ -321,7 +322,7 @@ def _copy_segment_shortcut(segment, index, up=True):
         The copied :any:`InfoOpaqueField`, path :any:`HopOpaqueField`\s and
         Upstream :any:`HopOpaqueField`.
     """
-    info = segment.infoF()
+    info = copy.deepcopy(segment.info)
     info.hops -= index
     info.up_flag = up
     # Copy segment HOFs

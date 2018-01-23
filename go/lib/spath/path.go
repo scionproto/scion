@@ -17,7 +17,7 @@ package spath
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 const (
@@ -60,7 +60,7 @@ func (p *Path) Reverse() error {
 		if origOff == len(p.Raw) {
 			break
 		} else if origOff > len(p.Raw) {
-			return common.NewBasicError("Unable to reverse corrupt path", nil,
+			return common.NewCError("Unable to reverse corrupt path",
 				"currOff", origOff, "max", len(p.Raw))
 		}
 	}
@@ -112,7 +112,7 @@ func (path *Path) InitOffsets() error {
 	path.HopOff = common.LineLen
 	// Cannot initialize an empty path
 	if path == nil || len(path.Raw) == 0 {
-		return common.NewBasicError("Unable to initialize empty path", nil)
+		return common.NewCError("Unable to initialize empty path")
 	}
 	// Skip Peer with Xover HF
 	if infoF, err = path.getInfoField(path.InfOff); err != nil {
@@ -131,7 +131,8 @@ func (path *Path) InitOffsets() error {
 		return err
 	}
 	if path.InfOff != 0 {
-		return common.NewBasicError("Unable to find routing Hop Field in first path segment", nil)
+		return common.NewCError("Unable to find routing Hop Field in first path" +
+			"segment")
 	}
 	return nil
 }
@@ -146,7 +147,8 @@ func (path *Path) IncOffsets() error {
 		return path.InitOffsets()
 	}
 	if hopF, err = path.getHopField(path.HopOff); err != nil {
-		return common.NewBasicError("Hop Field parse error", err, "offset", path.HopOff)
+		return common.NewCError("Hop Field parse error",
+			"offset", path.HopOff, "err", err)
 	}
 	return path.incOffsets(hopF.Len())
 }
@@ -157,7 +159,8 @@ func (path *Path) incOffsets(skip int) error {
 	var hopF *HopField
 	infoF, err := path.getInfoField(path.InfOff)
 	if err != nil {
-		return common.NewBasicError("Info Field parse error", err, "offset", path.InfOff)
+		return common.NewCError("Info Field parse error", "offset", path.InfOff,
+			"err", err)
 	}
 	path.HopOff += skip
 	for {
@@ -166,12 +169,14 @@ func (path *Path) incOffsets(skip int) error {
 			path.InfOff = path.HopOff
 			infoF, err = path.getInfoField(path.InfOff)
 			if err != nil {
-				return common.NewBasicError("Info Field parse error", err, "offset", path.InfOff)
+				return common.NewCError("Info Field parse error",
+					"offset", path.InfOff, "err", err)
 			}
 			path.HopOff += common.LineLen
 		}
 		if hopF, err = path.getHopField(path.HopOff); err != nil {
-			return common.NewBasicError("Hop Field parse error", err, "offset", path.HopOff)
+			return common.NewCError("Hop Field parse error",
+				"offset", path.HopOff, "err", err)
 		}
 		if !hopF.VerifyOnly {
 			break
@@ -183,22 +188,22 @@ func (path *Path) incOffsets(skip int) error {
 
 func (path *Path) getInfoField(offset int) (*InfoField, error) {
 	if offset < 0 {
-		return nil, common.NewBasicError("Negative InfoF offset", nil, "offset", offset)
+		return nil, common.NewCError("Negative offset", "offset", offset)
 	}
 	infoF, err := InfoFFromRaw(path.Raw[offset:])
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse Info Field", err, "offset", offset)
+		return nil, common.NewCError("Unable to parse Info Field", "err", err)
 	}
 	return infoF, nil
 }
 
 func (path *Path) getHopField(offset int) (*HopField, error) {
 	if offset < 0 {
-		return nil, common.NewBasicError("Negative HopF offset", nil, "offset", offset)
+		return nil, common.NewCError("Negative offset", "offset", offset)
 	}
 	hopF, err := HopFFromRaw(path.Raw[offset:])
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse Hop Field", err, "offset", offset)
+		return nil, common.NewCError("Unable to parse Hop Field", "err", err)
 	}
 	return hopF, nil
 }

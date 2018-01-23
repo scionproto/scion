@@ -20,8 +20,8 @@ import (
 	//log "github.com/inconshreveable/log15"
 	"gopkg.in/restruct.v1"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 type Info interface {
@@ -65,7 +65,7 @@ type InfoEcho struct {
 func InfoEchoFromRaw(b common.RawBytes) (*InfoEcho, error) {
 	e := &InfoEcho{}
 	if err := restruct.Unpack(b, common.Order, e); err != nil {
-		return nil, common.NewBasicError("Failed to unpack SCMP ECHO info", err)
+		return nil, common.NewCError("Failed to unpack SCMP ECHO info", "err", err)
 	}
 	return e, nil
 }
@@ -99,7 +99,7 @@ type InfoPktSize struct {
 func InfoPktSizeFromRaw(b common.RawBytes) (*InfoPktSize, error) {
 	p := &InfoPktSize{}
 	if err := restruct.Unpack(b, common.Order, p); err != nil {
-		return nil, common.NewBasicError("Failed to unpack SCMP Pkt Size info", err)
+		return nil, common.NewCError("Failed to unpack SCMP Pkt Size info", "err", err)
 	}
 	return p, nil
 }
@@ -134,10 +134,9 @@ type InfoPathOffsets struct {
 
 func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, error) {
 	p := &InfoPathOffsets{}
-	p.InfoF = common.Order.Uint16(b[0:])
-	p.HopF = common.Order.Uint16(b[2:])
-	p.IfID = common.Order.Uint16(b[4:])
-	p.Ingress = (b[6] & 0x01) == 0x01
+	if err := restruct.Unpack(b, common.Order, p); err != nil {
+		return nil, common.NewCError("Failed to unpack SCMP Path Offsets info", "err", err)
+	}
 	return p, nil
 }
 
@@ -182,11 +181,9 @@ func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
 }
 
 func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
-	var err error
-	p := &InfoRevocation{}
-	p.InfoPathOffsets, err = InfoPathOffsetsFromRaw(b)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to parse path offsets", err)
+	p := &InfoRevocation{InfoPathOffsets: &InfoPathOffsets{}}
+	if err := restruct.Unpack(b, common.Order, &p.InfoPathOffsets); err != nil {
+		return nil, common.NewCError("Failed to unpack SCMP Revocation info", "err", err)
 	}
 	p.RevToken = b[8:]
 	return p, nil

@@ -21,15 +21,12 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/pktdisp"
-	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/sig/mgmt"
-	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/siginfo"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
+	"github.com/netsec-ethz/scion/go/sig/siginfo"
 )
 
 // Session contains a pool of paths to the remote AS, metrics about those paths,
@@ -37,11 +34,11 @@ import (
 type Session struct {
 	log.Logger
 	IA     *addr.ISD_AS
-	SessId mgmt.SessionType
+	SessId sigcmn.SessionType
 	// pool of paths, managed by pathmgr
 	pool *pathmgr.SyncPaths
-	// remote SIGs
-	sigMap *siginfo.SigMap
+	// function pointer to return SigMap from parent ASEntry.
+	sigMapF func() siginfo.SigMap
 	// *RemoteInfo
 	currRemote atomic.Value
 	// bool
@@ -53,14 +50,14 @@ type Session struct {
 	workerStopped  chan struct{}
 }
 
-func NewSession(dstIA *addr.ISD_AS, sessId mgmt.SessionType,
-	sigMap *siginfo.SigMap, logger log.Logger) (*Session, error) {
+func NewSession(dstIA *addr.ISD_AS, sessId sigcmn.SessionType,
+	sigMapF func() siginfo.SigMap, logger log.Logger) (*Session, error) {
 	var err error
 	s := &Session{
-		Logger: logger.New("sessId", sessId),
-		IA:     dstIA,
-		SessId: sessId,
-		sigMap: sigMap,
+		Logger:  logger.New("sessId", sessId),
+		IA:      dstIA,
+		SessId:  sessId,
+		sigMapF: sigMapF,
 	}
 	if s.pool, err = sigcmn.PathMgr.Watch(sigcmn.IA, s.IA); err != nil {
 		return nil, err
@@ -72,7 +69,7 @@ func NewSession(dstIA *addr.ISD_AS, sessId mgmt.SessionType,
 	// Not using a fixed local port, as this is for outgoing data only.
 	s.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
-	go pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger)
+	go snet.PktDispatcher(s.conn, snet.DispLogger)
 	s.sessMonStop = make(chan struct{})
 	s.sessMonStopped = make(chan struct{})
 	s.workerStopped = make(chan struct{})
@@ -92,13 +89,7 @@ func (s *Session) Cleanup() error {
 	s.Debug("egress.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
 	s.Debug("egress.Session Cleanup: closing conn")
-	if err := s.conn.Close(); err != nil {
-		return common.NewBasicError("Unable to close conn", err)
-	}
-	if err := sigcmn.PathMgr.Unwatch(sigcmn.IA, s.IA); err != nil {
-		return common.NewBasicError("Unable to unwatch src-dst", err, "src", sigcmn.IA, "dst", s.IA)
-	}
-	return nil
+	return s.conn.Close()
 }
 
 func (s *Session) Remote() *RemoteInfo {

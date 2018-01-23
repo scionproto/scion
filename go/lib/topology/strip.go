@@ -15,7 +15,7 @@
 package topology
 
 import (
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 func StripBind(rt *RawTopo) {

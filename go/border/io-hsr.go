@@ -20,17 +20,16 @@ package main
 
 import (
 	"net"
-	"time"
 
+	"github.com/gavv/monotime"
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/border/hsr"
-	"github.com/scionproto/scion/go/border/metrics"
-	"github.com/scionproto/scion/go/border/rctx"
-	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/border/hsr"
+	"github.com/netsec-ethz/scion/go/border/metrics"
+	"github.com/netsec-ethz/scion/go/border/rctx"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
 type HSRInputFunc func(*Router, chan struct{}, chan struct{})
@@ -81,18 +80,18 @@ func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) 
 	for {
 		select {
 		default:
-			start := time.Now()
+			start := monotime.Now()
 			// Read packets from libhsr.
 			count, err := h.GetPackets(rpkts, usedPorts)
 			if err != nil {
-				log.Error("Error getting packets from HSR", "err", common.FmtError(err))
+				log.Error("Error getting packets from HSR", "err", err)
 				// Zero the port counters for next loop
 				for i := range usedPorts {
 					usedPorts[i] = false
 				}
 				continue
 			}
-			timeIn := time.Now()
+			timeIn := monotime.Now()
 			ctx := rctx.Get()
 			// Iterate over received packets
 			for i := 0; i < count; i++ {
@@ -101,12 +100,12 @@ func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) 
 				rp.Ctx = ctx
 				// Process packet.
 				r.processPacket(rp)
-				metrics.PktProcessTime.Add(time.Since(rp.TimeIn).Seconds())
+				metrics.PktProcessTime.Add(monotime.Since(rp.TimeIn).Seconds())
 				// Reset packet.
 				rp.Reset()
 			}
 			// Update port metrics
-			duration := time.Since(start).Seconds()
+			duration := monotime.Since(start).Seconds()
 			for id := range usedPorts {
 				if usedPorts[id] {
 					usedPorts[id] = false
@@ -124,10 +123,10 @@ func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) 
 // writeHSROutput sends a single output packet via libhsr.
 func writeHSROutput(oo rctx.OutputObj, dst *net.UDPAddr, portID int,
 	labels prometheus.Labels) {
-	start := time.Now()
+	start := monotime.Now()
 	raw := oo.Bytes()
 	hsr.SendPacket(dst, portID, raw)
-	duration := time.Since(start).Seconds()
+	duration := monotime.Since(start).Seconds()
 	metrics.OutputProcessTime.With(labels).Add(duration)
 	metrics.BytesSent.With(labels).Add(float64(len(raw)))
 	metrics.PktsSent.With(labels).Inc()

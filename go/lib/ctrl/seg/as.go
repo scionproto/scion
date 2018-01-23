@@ -17,47 +17,23 @@
 package seg
 
 import (
-	"fmt"
-
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/netsec-ethz/scion/go/lib/addr"
 )
-
-var _ proto.Cerealizable = (*ASEntry)(nil)
 
 type ASEntry struct {
 	RawIA        addr.IAInt `capnp:"isdas"`
-	TrcVer       uint64
-	CertVer      uint64
+	TrcVer       uint32
+	CertVer      uint32
 	IfIDSize     uint8
-	HopEntries   []*HopEntry `capnp:"hops"`
-	HashTreeRoot common.RawBytes
+	HopEntries   []*HopEntry `capnp:"pcbms"`
+	HashTreeRoot []byte
+	Sig          []byte
 	MTU          uint16 `capnp:"mtu"`
 	Exts         struct {
-		RoutingPolicy common.RawBytes `capnp:"-"` // Not supported yet
-		Sibra         common.RawBytes `capnp:"-"` // Not supported yet
+		RoutingPolicy []byte `capnp:"-"` // Omit routing policy extension for now.
 	}
 }
 
-func newASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
-	ase := &ASEntry{}
-	return ase, proto.ParseFromRaw(ase, ase.ProtoId(), b)
-}
-
-func (ase *ASEntry) IA() *addr.ISD_AS {
-	return ase.RawIA.IA()
-}
-
-func (ase *ASEntry) Pack() (common.RawBytes, error) {
-	return proto.PackRoot(ase)
-}
-
-func (ase *ASEntry) ProtoId() proto.ProtoIdType {
-	return proto.ASEntry_TypeID
-}
-
-func (ase *ASEntry) String() string {
-	return fmt.Sprintf("%s Trc: %d Cert: %d Ifid size: %d Hops: %d MTU: %d",
-		ase.IA(), ase.TrcVer, ase.CertVer, ase.IfIDSize, len(ase.HopEntries), ase.MTU)
+func (e *ASEntry) IA() *addr.ISD_AS {
+	return e.RawIA.IA()
 }

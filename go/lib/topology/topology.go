@@ -21,9 +21,9 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
 
 // Structures used by Go code, filled in by populate()
@@ -35,7 +35,6 @@ type Topo struct {
 	ISD_AS         *addr.ISD_AS
 	Overlay        overlay.Type
 	MTU            int
-	Core           bool
 
 	BR      map[string]BRInfo
 	BRNames []string
@@ -108,7 +107,6 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 		return err
 	}
 	t.MTU = raw.MTU
-	t.Core = raw.Core
 	return nil
 }
 
@@ -182,9 +180,9 @@ func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]To
 	for name, svc := range rais {
 		svcTopoAddr, err := svc.ToTopoAddr(ot)
 		if err != nil {
-			return nil, common.NewBasicError(
-				"Could not convert RawAddrInfo to TopoAddr", err,
-				"servicetype", stype, "RawAddrInfo", svc, "name", name)
+			return nil, common.NewCError(
+				"Could not convert RawAddrInfo to TopoAddr", "servicetype", stype, "RawAddrInfo",
+				svc, "name", name, "err", err)
 		}
 		smap[name] = *svcTopoAddr
 		snames = append(snames, name)

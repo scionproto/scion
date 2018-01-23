@@ -1,25 +1,25 @@
 @0xec3b2b10a5e23975;
 using Go = import "go.capnp";
 $Go.package("proto");
-$Go.import("github.com/scionproto/scion/go/proto");
+$Go.import("github.com/netsec-ethz/scion/go/proto");
 
 struct CertChainReq {
     isdas @0 :UInt32;
-    version @1 :UInt64;
+    version @1 :UInt32;
     cacheOnly @2 :Bool;
 }
 
-struct CertChain {
+struct CertChainRep {
     chain @0 :Data;
 }
 
 struct TRCReq {
-    isd @0 :UInt16;
-    version @1 :UInt64;
+    isdas @0 :UInt32;
+    version @1 :UInt32;
     cacheOnly @2 :Bool;
 }
 
-struct TRC {
+struct TRCRep {
     trc @0 :Data;
 }
 
@@ -27,8 +27,8 @@ struct CertMgmt {
     union {
         unset @0 :Void;
         certChainReq @1 :CertChainReq;
-        certChain @2 :CertChain;
+        certChainRep @2 :CertChainRep;
         trcReq @3 :TRCReq;
-        trc @4 :TRC;
+        trcRep @4 :TRCRep;
     }
 }
