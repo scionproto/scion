@@ -151,13 +151,20 @@ func (c *Certificate) sigPack() (common.RawBytes, error) {
 
 func (c *Certificate) Copy() *Certificate {
 
-	n := &Certificate{CanIssue: c.CanIssue, Comment: c.Comment, EncAlgorithm: c.EncAlgorithm,
-		ExpirationTime: c.ExpirationTime, Issuer: c.Issuer.Copy(),
-		IssuingTime: c.IssuingTime, SignAlgorithm: c.SignAlgorithm,
-		Signature: make(common.RawBytes, len(c.Signature)), Subject: c.Subject.Copy(),
+	n := &Certificate{
+		CanIssue:       c.CanIssue,
+		Comment:        c.Comment,
+		EncAlgorithm:   c.EncAlgorithm,
+		ExpirationTime: c.ExpirationTime,
+		Issuer:         c.Issuer.Copy(),
+		IssuingTime:    c.IssuingTime,
+		SignAlgorithm:  c.SignAlgorithm,
+		Signature:      make(common.RawBytes, len(c.Signature)),
+		Subject:        c.Subject.Copy(),
 		SubjectEncKey:  make(common.RawBytes, len(c.SubjectEncKey)),
 		SubjectSignKey: make(common.RawBytes, len(c.SubjectSignKey)),
-		TRCVersion:     c.TRCVersion, Version: c.Version}
+		TRCVersion:     c.TRCVersion,
+		Version:        c.Version}
 	copy(n.Signature, c.Signature)
 	copy(n.SubjectEncKey, c.SubjectEncKey)
 	copy(n.SubjectSignKey, c.SubjectSignKey)
