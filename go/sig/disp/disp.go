@@ -20,16 +20,16 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/pktdisp"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/sig/mgmt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	"github.com/netsec-ethz/scion/go/lib/snet"
+	"github.com/netsec-ethz/scion/go/sig/mgmt"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 func Init(conn *snet.Conn) {
-	go pktdisp.PktDispatcher(conn, dispFunc)
+	go snet.PktDispatcher(conn, dispFunc)
 }
 
 type RegType int
@@ -78,7 +78,7 @@ func (dm *dispRegistry) Register(regType RegType, key RegPollKey, c RegPldChan) 
 	case RegPollRep:
 		dm.pollRep[key] = c
 	default:
-		return common.NewBasicError("Register: Unsupported dispatcher RegType", nil, "v", regType)
+		return common.NewCError("Register: Unsupported dispatcher RegType", "v", regType)
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func (dm *dispRegistry) Unregister(regType RegType, key RegPollKey) error {
 	case RegPollRep:
 		delete(dm.pollRep, key)
 	default:
-		return common.NewBasicError("Unregister: Unsupported dispatcher RegType", nil, "v", regType)
+		return common.NewCError("Unregister: Unsupported dispatcher RegType", "v", regType)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 	defer dm.Unlock()
 	u, err := pld.Union()
 	if err != nil {
-		log.Error("Unable to extract SIG ctrl union", "src", addr, "err", common.FmtError(err))
+		log.Error("Unable to extract SIG ctrl union", "err", err, "src", addr)
 		return
 	}
 	msgId := pld.Id
@@ -124,33 +124,28 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 	}
 }
 
-func dispFunc(dp *pktdisp.DispPkt) {
-	scpld, err := ctrl.NewSignedPldFromRaw(dp.Raw)
+func dispFunc(dp *snet.DispPkt) {
+	cpld, err := ctrl.NewPldFromRaw(dp.Raw)
 	src := dp.Addr.Copy()
 	if err != nil {
-		log.Error("Unable to parse signed ctrl payload", "src", src, "err", common.FmtError(err))
-		return
-	}
-	cpld, err := scpld.Pld()
-	if err != nil {
-		log.Error("Unable to parse ctrl payload", "src", src, "err", common.FmtError(err))
+		log.Error("Unable to parse ctrl payload", "err", err, "src", src)
 		return
 	}
 	u, err := cpld.Union()
 	if err != nil {
-		log.Error("Unable to extract ctrl payload union", "src", src, "err", common.FmtError(err))
+		log.Error("Unable to extract ctrl payload union", "err", err, "src", src)
 		return
 	}
 	switch pld := u.(type) {
 	case *mgmt.Pld:
 		Dispatcher.sigCtrl(pld, src)
 	default:
-		log.Error("Unsupported ctrl payload type", "type", common.TypeOf(pld))
+		log.Error("Unsupported ctrl payload type", common.TypeOf(pld))
 	}
 }
 
 type RegPollKey string
 
-func MkRegPollKey(ia *addr.ISD_AS, session mgmt.SessionType) RegPollKey {
+func MkRegPollKey(ia *addr.ISD_AS, session sigcmn.SessionType) RegPollKey {
 	return RegPollKey(fmt.Sprintf("%s-%s", ia, session))
 }

@@ -43,7 +43,7 @@ if [ ${result} -ne 0 ]; then
     exit ${result}
 fi
 # Bring down routers.
-SLEEP=4
+SLEEP=10
 log "Stopping routers and waiting for ${SLEEP}s."
 ./supervisor/supervisor.sh stop "$@"
 if [ $? -ne 0 ]; then

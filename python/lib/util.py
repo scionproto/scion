@@ -21,7 +21,6 @@ Various utilities for SCION functionality.
 import json
 import logging
 import os
-import random
 import shutil
 import signal
 import sys
@@ -275,11 +274,6 @@ def recv_all(sock, total_len, flags):
             return None
         barr += buf
     return bytes(barr)
-
-
-def random_uint64():
-    """Returns a random number in the range [0, 2**64 - 1]"""
-    return random.randint(0, 2**64 - 1)
 
 
 class SCIONTime(object):

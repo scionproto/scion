@@ -24,8 +24,12 @@ from lib.packet.packet_base import CerealBox
 from lib.types import PathMgmtType
 from lib.packet.path_mgmt.ifstate import IFStatePayload, IFStateRequest
 from lib.packet.path_mgmt.rev_info import RevocationInfo
-from lib.packet.path_mgmt.seg_recs import PathRecordsReg, PathRecordsSync
-from lib.packet.path_mgmt.seg_req import PathSegmentReq, PathSegmentReply
+from lib.packet.path_mgmt.seg_recs import (
+    PathRecordsReg,
+    PathRecordsReply,
+    PathRecordsSync,
+)
+from lib.packet.path_mgmt.seg_req import PathSegmentReq
 
 
 class PathMgmt(CerealBox):  # pragma: no cover
@@ -33,7 +37,7 @@ class PathMgmt(CerealBox):  # pragma: no cover
     P_CLS = P.PathMgmt
     CLASS_FIELD_MAP = {
         PathSegmentReq: PathMgmtType.REQUEST,
-        PathSegmentReply: PathMgmtType.REPLY,
+        PathRecordsReply: PathMgmtType.REPLY,
         PathRecordsReg: PathMgmtType.REG,
         PathRecordsSync: PathMgmtType.SYNC,
         RevocationInfo: PathMgmtType.REVOCATION,

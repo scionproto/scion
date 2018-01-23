@@ -16,9 +16,8 @@ package pktcls
 
 import (
 	"encoding/json"
-	"strconv"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 type Typer interface {
@@ -48,7 +47,6 @@ const (
 	TypeIPv4MatchSource      = "MatchSource"
 	TypeIPv4MatchDestination = "MatchDestination"
 	TypeIPv4MatchToS         = "MatchToS"
-	TypeIPv4MatchDSCP        = "MatchDSCP"
 )
 
 // generic container for marshaling custom data
@@ -107,12 +105,8 @@ func unmarshalInterface(b []byte) (Typer, error) {
 			var p IPv4MatchToS
 			err := json.Unmarshal(*v, &p)
 			return &p, err
-		case TypeIPv4MatchDSCP:
-			var p IPv4MatchDSCP
-			err := json.Unmarshal(*v, &p)
-			return &p, err
 		default:
-			return nil, common.NewBasicError("Unknown type", nil, "type", k)
+			return nil, common.NewCError("Unknown type", "type", k)
 		}
 	}
 	return nil, nil
@@ -126,7 +120,7 @@ func unmarshalCond(b []byte) (Cond, error) {
 	}
 	c, ok := t.(Cond)
 	if !ok {
-		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
+		return nil, common.NewCError("Unable to extract Cond from interface")
 	}
 	return c, nil
 }
@@ -139,7 +133,7 @@ func unmarshalAction(b []byte) (Action, error) {
 	}
 	a, ok := t.(Action)
 	if !ok {
-		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
+		return nil, common.NewCError("Unable to extract Cond from interface")
 	}
 	return a, nil
 }
@@ -152,7 +146,7 @@ func unmarshalPredicate(b []byte) (IPv4Predicate, error) {
 	}
 	p, ok := t.(IPv4Predicate)
 	if !ok {
-		return nil, common.NewBasicError("Unable to extract Cond from interface", nil)
+		return nil, common.NewCError("Unable to extract Cond from interface")
 	}
 	return p, nil
 }
@@ -186,35 +180,4 @@ func unmarshalCondSlice(b []byte) ([]Cond, error) {
 		conds = append(conds, cond)
 	}
 	return conds, nil
-}
-
-func unmarshalStringField(b []byte, name, field string) (string, error) {
-	var jc jsonContainer
-	err := json.Unmarshal(b, &jc)
-	if err != nil {
-		return "", err
-	}
-	v, ok := jc[field]
-	if !ok {
-		return "", common.NewBasicError("String field missing", nil, "name", name, "field", field)
-	}
-	s, ok := v.(string)
-	if !ok {
-		return "", common.NewBasicError("Field is non-string", nil,
-			"name", name, "field", field, "type", common.TypeOf(v))
-	}
-	return s, nil
-}
-
-func unmarshalUintField(b []byte, name, field string, width int) (uint64, error) {
-	s, err := unmarshalStringField(b, name, field)
-	if err != nil {
-		return 0, err
-	}
-	i, err := strconv.ParseUint(s, 0, width)
-	if err != nil {
-		return 0, common.NewBasicError("Unable to parse uint field", err,
-			"name", name, "field", field)
-	}
-	return i, nil
 }

@@ -98,7 +98,7 @@ class SCIONPacketSecurityExtn(SCIONPacketSecurityBaseExtn):
         """
         cls.check_validity(sec_mode, metadata, authenticator)
         inst = cls()
-        inst._init_size(inst.bytes_to_hdr_len(SPSELengths.TOTAL[sec_mode])-1)
+        inst._init_size(inst.bytes_to_hdr_len(SPSELengths.TOTAL[sec_mode]))
         inst.sec_mode = sec_mode
         inst.metadata = metadata
         inst.authenticator = authenticator

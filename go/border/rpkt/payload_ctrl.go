@@ -20,19 +20,15 @@ package rpkt
 import (
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl"
 )
 
 func (rp *RtrPkt) parseCtrlPayload() (HookResult, common.Payload, error) {
 	if rp.L4Type != common.L4UDP {
 		return HookContinue, nil, nil
 	}
-	scpld, err := ctrl.NewSignedPldFromRaw(rp.Raw[rp.idxs.pld:])
-	if err != nil {
-		return HookError, nil, err
-	}
-	cpld, err := scpld.Pld()
+	cpld, err := ctrl.NewPldFromRaw(rp.Raw[rp.idxs.pld:])
 	if err != nil {
 		return HookError, nil, err
 	}

@@ -16,6 +16,7 @@
 ========================================================================
 """
 # Stdlib
+import copy
 import heapq
 import math
 from collections import defaultdict, deque
@@ -230,7 +231,7 @@ class PathStoreRecord(object):
         """
         assert self.id == pcb.get_hops_hash(hex=True)
         now = int(SCIONTime.get_time())
-        self.pcb = pcb.copy()
+        self.pcb = copy.deepcopy(pcb)
         self.delay_time = now - pcb.get_timestamp()
         self.last_seen_time = now
         self.expiration_time = pcb.get_expiration_time()

@@ -20,8 +20,8 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/proto"
 )
 
 // union represents the contents of the unnamed capnp union.
@@ -60,8 +60,7 @@ func (u *union) set(c proto.Cerealizable) error {
 		u.Which = proto.PathMgmt_Which_ifStateInfos
 		u.IFStateInfos = p
 	default:
-		return common.NewBasicError("Unsupported path mgmt union type (set)", nil,
-			"type", common.TypeOf(c))
+		return common.NewCError("Unsupported path mgmt union type (set)", "type", common.TypeOf(c))
 	}
 	return nil
 }
@@ -83,7 +82,7 @@ func (u *union) get() (proto.Cerealizable, error) {
 	case proto.PathMgmt_Which_ifStateInfos:
 		return u.IFStateInfos, nil
 	}
-	return nil, common.NewBasicError("Unsupported path mgmt union type (get)", nil, "type", u.Which)
+	return nil, common.NewCError("Unsupported path mgmt union type (get)", "type", u.Which)
 }
 
 var _ proto.Cerealizable = (*Pld)(nil)

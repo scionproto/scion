@@ -16,15 +16,14 @@ package egress
 
 import (
 	"io"
-	"os"
 
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	liblog "github.com/netsec-ethz/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/lib/ringbuf"
+	"github.com/netsec-ethz/scion/go/sig/metrics"
 )
 
 const (
@@ -65,7 +64,6 @@ func (ed *egressDispatcher) Run() {
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
 	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
-BatchLoop:
 	for {
 		n, _ := egressFreePkts.Read(bufs, true)
 		if n < 0 {
@@ -77,29 +75,14 @@ BatchLoop:
 			buf = buf[:cap(buf)]
 			length, err := ed.devIO.Read(buf)
 			if err != nil {
-				// Release buffer back to free buffer pool
-				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
-				if err == io.EOF {
-					// This dispatcher is shutting down
-					break BatchLoop
-				}
-				// Sometimes we don't receive a clean EOF, so we check if the
-				// tunnel device is closed.
-				if pErr, ok := err.(*os.PathError); ok {
-					if pErr.Err == os.ErrClosed {
-						break BatchLoop
-					}
-				}
-				ed.Error("EgressDispatcher: error reading from devIO", "err", common.FmtError(err))
+				ed.Error("EgressDispatcher: error reading from devIO", "err", err)
 				continue
 			}
 			buf = buf[:length]
 			sess := ed.chooseSess(buf)
 			if sess == nil {
-				// Release buffer back to free buffer pool
-				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
-				ed.Debug("EgressDispatcher: unable to find session")
+				log.Debug("Unable to find session")
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)

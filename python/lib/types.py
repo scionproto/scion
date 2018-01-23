@@ -109,9 +109,9 @@ class PayloadClass(object):
 
 class CertMgmtType(object):
     CERT_CHAIN_REQ = "certChainReq"
-    CERT_CHAIN_REPLY = "certChain"
+    CERT_CHAIN_REPLY = "certChainRep"
     TRC_REQ = "trcReq"
-    TRC_REPLY = "trc"
+    TRC_REPLY = "trcRep"
 
 
 class PathMgmtType(object):
@@ -130,10 +130,10 @@ class PathSegmentType(TypeBase):
     """
     PathSegmentType class, indicates a type of path request/reply.
     """
-    # XXX(kormat): these strings must match the values in the capnp enum.
-    UP = "up"  # Request/Reply for up-paths
-    DOWN = "down"  # Request/Reply for down-paths
-    CORE = "core"  # Request/Reply for core-paths
+    UP = 0  # Request/Reply for up-paths
+    DOWN = 1  # Request/Reply for down-paths
+    CORE = 2  # Request/Reply for core-paths
+    GENERIC = 3  # FIXME(PSz): experimental for now.
 
 
 class DRKeyMgmtType(object):
@@ -196,6 +196,8 @@ class SCIONDMsgType(TypeBase):
     SERVICE_REPLY = "serviceInfoReply"
     DRKEY_REQUEST = "drkeyRequest"
     DRKEY_REPLY = "drkeyReply"
+    SEGMENT_REQUEST = "segmentReq"
+    SEGMENT_REPLY = "segmentReply"
 
 
 #######################

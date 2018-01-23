@@ -19,19 +19,20 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/proto"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/proto"
+	"github.com/netsec-ethz/scion/go/sig/sigcmn"
 )
 
 var _ proto.Cerealizable = (*poll)(nil)
 
 type poll struct {
 	Addr    *Addr
-	Session SessionType
+	Session sigcmn.SessionType
 }
 
-func newPoll(a *Addr, s SessionType) *poll {
-	return &poll{Addr: a, Session: s}
+func newPoll(s sigcmn.SessionType) *poll {
+	return &poll{Addr: newAddr(), Session: s}
 }
 
 func (p *poll) ProtoId() proto.ProtoIdType {
@@ -50,14 +51,14 @@ type PollReq struct {
 	*poll
 }
 
-func NewPollReq(a *Addr, s SessionType) *PollReq {
-	return &PollReq{newPoll(a, s)}
+func NewPollReq(s sigcmn.SessionType) *PollReq {
+	return &PollReq{newPoll(s)}
 }
 
 type PollRep struct {
 	*poll
 }
 
-func NewPollRep(a *Addr, s SessionType) *PollRep {
-	return &PollRep{newPoll(a, s)}
+func NewPollRep(s sigcmn.SessionType) *PollRep {
+	return &PollRep{newPoll(s)}
 }

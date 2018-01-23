@@ -21,11 +21,10 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/sig/mgmt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/pathmgr"
+	"github.com/netsec-ethz/scion/go/lib/snet"
 )
 
 const (
@@ -48,7 +47,6 @@ var (
 	Host     addr.HostAddr
 	PathMgr  *pathmgr.PR
 	CtrlConn *snet.Conn
-	MgmtAddr *mgmt.Addr
 )
 
 func Init(ia *addr.ISD_AS, ip net.IP) error {
@@ -61,20 +59,19 @@ func Init(ia *addr.ISD_AS, ip net.IP) error {
 	if err = ValidatePort("local encap", *EncapPort); err != nil {
 		return err
 	}
-	MgmtAddr = mgmt.NewAddr(Host, uint16(*CtrlPort), uint16(*EncapPort))
 	if *sciondPath == "" {
 		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia)
 	}
 	// Initialize SCION local networking module
 	err = snet.Init(ia, *sciondPath, *dispatcherPath)
 	if err != nil {
-		return common.NewBasicError("Error creating local SCION Network context", err)
+		return common.NewCError("Error creating local SCION Network context", "err", err)
 	}
 	PathMgr = snet.DefNetwork.PathResolver()
 	CtrlConn, err = snet.ListenSCION(
 		"udp4", &snet.Addr{IA: IA, Host: Host, L4Port: uint16(*CtrlPort)})
 	if err != nil {
-		return common.NewBasicError("Error creating ctrl socket", err)
+		return common.NewCError("Error creating ctrl socket", "err", err)
 	}
 	return nil
 }
@@ -93,8 +90,14 @@ func EncapSnetAddr() *snet.Addr {
 
 func ValidatePort(desc string, port int) error {
 	if port < 1 || port > MaxPort {
-		return common.NewBasicError(fmt.Sprintf("Invalid %s port", desc), nil,
+		return common.NewCError(fmt.Sprintf("Invalid %s port", desc),
 			"min", 1, "max", MaxPort, "actual", port)
 	}
 	return nil
+}
+
+type SessionType uint8
+
+func (st SessionType) String() string {
+	return fmt.Sprintf("0x%02x", uint8(st))
 }

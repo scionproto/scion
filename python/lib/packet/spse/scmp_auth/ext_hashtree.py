@@ -115,7 +115,7 @@ class SCMPAuthHashTreeExtn(SCIONPacketSecurityBaseExtn):
         hdr_len = inst.bytes_to_hdr_len(
             SCMPAuthHashtreeLengths.HASH_TREE_MIN_LENGTH +
             height * SCMPAuthHashtreeLengths.HASH)
-        inst._init_size(hdr_len-1)
+        inst._init_size(hdr_len)
         return inst
 
     def pack(self):

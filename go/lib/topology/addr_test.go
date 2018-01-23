@@ -21,8 +21,8 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/overlay"
 )
 
 type testRAIOver struct {
@@ -238,7 +238,8 @@ func Test_ToTopoAddr_Errors(t *testing.T) {
 			Convey(desc, t, func() {
 				_, err := test.in.ToTopoAddr(ot)
 				SoMsg("Error returned", err, ShouldNotBeNil)
-				SoMsg("Error description", common.GetErrorMsg(err), shouldBeInStrings, test.errDesc)
+				cerr := err.(*common.CError)
+				SoMsg("Error description", cerr.Desc, shouldBeInStrings, test.errDesc)
 			})
 		}
 	}

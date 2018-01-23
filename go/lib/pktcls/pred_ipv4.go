@@ -18,10 +18,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/google/gopacket/layers"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/common"
 )
 
 // IPv4Predicate describes a single test on various IPv4 packet fields.
@@ -56,13 +57,22 @@ func (m *IPv4MatchSource) MarshalJSON() ([]byte, error) {
 }
 
 func (m *IPv4MatchSource) UnmarshalJSON(b []byte) error {
-	s, err := unmarshalStringField(b, "MatchSource", "Net")
+	var jc jsonContainer
+	err := json.Unmarshal(b, &jc)
 	if err != nil {
 		return err
 	}
+	v, ok := jc["Net"]
+	if !ok {
+		return common.NewCError("MatchSource predicate lacks operand")
+	}
+	s, ok := v.(string)
+	if !ok {
+		return common.NewCError("Unable to parse MatchSource operand")
+	}
 	_, network, err := net.ParseCIDR(s)
 	if err != nil {
-		return common.NewBasicError("Unable to parse MatchSource operand", err)
+		return common.NewCError("Unable to parse MatchSource operand", "err", err)
 	}
 	m.Net = network
 	return nil
@@ -93,10 +103,22 @@ func (m *IPv4MatchDestination) MarshalJSON() ([]byte, error) {
 }
 
 func (m *IPv4MatchDestination) UnmarshalJSON(b []byte) error {
-	s, err := unmarshalStringField(b, "MatchDestination", "Net")
+	var jc jsonContainer
+	err := json.Unmarshal(b, &jc)
+	if err != nil {
+		return err
+	}
+	v, ok := jc["Net"]
+	if !ok {
+		return common.NewCError("MatchDestination predicate lacks operand")
+	}
+	s, ok := v.(string)
+	if !ok {
+		return common.NewCError("Unable to parse MatchDestination operand")
+	}
 	_, network, err := net.ParseCIDR(s)
 	if err != nil {
-		return common.NewBasicError("Unable to parse MatchDestination operand", err)
+		return common.NewCError("Unable to parse MatchDestination operand", "err", err)
 	}
 	m.Net = network
 	return nil
@@ -127,43 +149,26 @@ func (m *IPv4MatchToS) MarshalJSON() ([]byte, error) {
 
 func (m *IPv4MatchToS) UnmarshalJSON(b []byte) error {
 	// Format is 0x hex number in quoted string
-	i, err := unmarshalUintField(b, "TOS", "TOS", 8)
+	var jc jsonContainer
+	err := json.Unmarshal(b, &jc)
 	if err != nil {
 		return err
+	}
+
+	v, ok := jc["TOS"]
+	if !ok {
+		return common.NewCError("TOS predicate lacks operand")
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return common.NewCError("Unable to parse TOS operand")
+	}
+
+	i, err := strconv.ParseUint(s, 0, 8)
+	if err != nil {
+		return common.NewCError("Unable to parse TOS operand", "err", err)
 	}
 	m.TOS = uint8(i)
-	return nil
-}
-
-var _ IPv4Predicate = (*IPv4MatchDSCP)(nil)
-
-// IPv4MatchDSCP checks whether the DSCP subset of the TOS field matches.
-type IPv4MatchDSCP struct {
-	DSCP uint8
-}
-
-func (m *IPv4MatchDSCP) Type() string {
-	return "MatchDSCP"
-}
-
-func (m *IPv4MatchDSCP) Eval(p *layers.IPv4) bool {
-	return m.DSCP == p.TOS>>2
-}
-
-func (m *IPv4MatchDSCP) MarshalJSON() ([]byte, error) {
-	return json.Marshal(
-		jsonContainer{
-			"DSCP": fmt.Sprintf("%#x", m.DSCP),
-		},
-	)
-}
-
-func (m *IPv4MatchDSCP) UnmarshalJSON(b []byte) error {
-	// Format is 0x hex number in quoted string
-	i, err := unmarshalUintField(b, "DSCP", "DSCP", 6)
-	if err != nil {
-		return err
-	}
-	m.DSCP = uint8(i)
 	return nil
 }

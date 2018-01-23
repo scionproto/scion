@@ -15,11 +15,11 @@
 package spkt
 
 import (
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/l4"
+	"github.com/netsec-ethz/scion/go/lib/spath"
+	"github.com/netsec-ethz/scion/go/lib/util"
 )
 
 // SCION Packet structure.
@@ -36,8 +36,7 @@ type ScnPkt struct {
 	Pld     common.Payload
 }
 
-func (s *ScnPkt) Copy() (*ScnPkt, error) {
-	var err error
+func (s *ScnPkt) Copy() *ScnPkt {
 	c := &ScnPkt{}
 	if s.DstIA != nil {
 		c.DstIA = s.DstIA.Copy()
@@ -63,10 +62,8 @@ func (s *ScnPkt) Copy() (*ScnPkt, error) {
 	if s.L4 != nil {
 		c.L4 = s.L4.Copy()
 	}
-	if s.Pld != nil {
-		c.Pld, err = s.Pld.Copy()
-	}
-	return c, err
+	// TODO(kormat): define payload interface, with Copy()
+	return c
 }
 
 func (s *ScnPkt) Reverse() error {

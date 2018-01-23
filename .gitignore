@@ -14,7 +14,6 @@ Thumbs.db
 !/logs/.keepme
 /gen/
 /gen-cache/
-/gen-certs/
 /traces/
 
 # Python generated files #
@@ -60,12 +59,16 @@ topology/mininet/*.pyc
 *.o
 *.so
 
-# Generated executables
+# Executable binaries
 ##########################
-/bin/*
-!/bin/.keepme
-/c/dispatcher/dispatcher
-/c/lib/scion/checksum_bench
+bin/border
+bin/dispatcher
+bin/logdog
+bin/sig
+bin/topopruner
+bin/echoscion
+c/dispatcher/dispatcher
+c/lib/scion/checksum_bench
 
 # CTags
 ##########################

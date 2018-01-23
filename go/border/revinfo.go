@@ -19,13 +19,13 @@ package main
 import (
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/border/rctx"
-	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/netsec-ethz/scion/go/border/rctx"
+	"github.com/netsec-ethz/scion/go/border/rpkt"
+	"github.com/netsec-ethz/scion/go/lib/addr"
+	"github.com/netsec-ethz/scion/go/lib/common"
+	"github.com/netsec-ethz/scion/go/lib/ctrl"
+	"github.com/netsec-ethz/scion/go/lib/ctrl/path_mgmt"
+	"github.com/netsec-ethz/scion/go/lib/log"
 )
 
 // RevTokenCallback is called to enqueue RevInfos for handling by the
@@ -57,12 +57,14 @@ func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
-	scpld, err := ctrl.NewSignedPathMgmtPld(revInfo)
+	cpld, err := ctrl.NewPathMgmtPld(revInfo)
 	if err != nil {
-		log.Error("Error generating RevInfo payload", "err", common.FmtError(err))
+		cerr := err.(*common.CError)
+		log.Error("Error generating RevInfo payload", cerr.Ctx...)
 		return
 	}
-	if err = r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, scpld); err != nil {
-		log.Error("Error generating RevInfo packet", "err", common.FmtError(err))
+	if err = r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, cpld); err != nil {
+		cerr := err.(*common.CError)
+		log.Error("Error generating RevInfo packet", cerr.Ctx...)
 	}
 }
