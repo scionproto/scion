@@ -26,11 +26,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/basedb"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/sqlite"
 )
 
 type segMeta struct {
@@ -52,7 +52,7 @@ type Backend struct {
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
 func New(path string) (*Backend, error) {
-	db, err := basedb.New(path, Schema, SchemaVersion)
+	db, err := sqlite.New(path, Schema, SchemaVersion)
 	if err != nil {
 		return nil, err
 	}

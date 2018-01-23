@@ -26,27 +26,27 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/basedb"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/sqlite"
 )
 
 const (
 	SchemaVersion = 1
 	Schema        = ` CREATE TABLE TRCs (
-		ISD INTEGER NOT NULL,
+		ISDID INTEGER NOT NULL,
 		Version INTEGER NOT NULL,
 		Data TEXT NOT NULL,
-		PRIMARY KEY (ISD, Version)
+		PRIMARY KEY (ISDID, Version)
 	);
 
 	CREATE TABLE Chains (
-		ISD INTEGER NOT NULL,
-		ASN INTEGER NOT NULL,
+		ISDID INTEGER NOT NULL,
+		ASID INTEGER NOT NULL,
 		Version INTEGER NOT NULL,
 		Data TEXT NOT NULL,
-		PRIMARY KEY (ISD, ASN, Version)
+		PRIMARY KEY (ISDID, ASID, Version)
 	);
 	`
 
@@ -54,41 +54,38 @@ const (
 	ChainsTable = "Chains"
 )
 
-var (
-	queries = map[string]string{
-		"getChainVersion": `
+const (
+	getChainVersionStr = `
 			SELECT Data FROM Chains
-			WHERE ISD=? AND ASN=? AND Version=?
-		`,
-		"getChainMaxVersion": `
+			WHERE ISDID=? AND ASID=? AND Version=?
+		`
+	getChainMaxVersionStr = `
 			SELECT Data FROM Chains
-			WHERE ISD=? AND ASN=? AND Version=(SELECT Max(Version) FROM Chains)
-		`,
-		"insertChain": `
-			INSERT INTO Chains (ISD, ASN, Version, Data) VALUES (?, ?, ?, ?)
-		`,
-		"getTRCVersion": `
+			WHERE ISDID=? AND ASID=? AND Version=(SELECT Max(Version) FROM Chains)
+		`
+	insertChainStr = `
+			INSERT INTO Chains (ISDID, ASID, Version, Data) VALUES (?, ?, ?, ?)
+		`
+	getTRCVersionStr = `
 			SELECT Data FROM TRCs
-			WHERE ISD=? AND Version=?
-		`,
-		"getTRCMaxVersion": `
+			WHERE ISDID=? AND Version=?
+		`
+	getTRCMaxVersionStr = `
 			SELECT Data FROM TRCs
-			WHERE ISD=? AND Version=(SELECT Max(Version) FROM TRCs)
-		`,
-		"insertTRC": `
-			INSERT INTO TRCs (ISD, Version, Data) VALUES (?, ?, ?)
-		`,
-	}
+			WHERE ISDID=? AND Version=(SELECT Max(Version) FROM TRCs)
+		`
+	insertTRCStr = `
+			INSERT INTO TRCs (ISDID, Version, Data) VALUES (?, ?, ?)
+		`
 )
 
 // DB is a database containing TRCs and Certificate Chains, stored in JSON format.
 //
-// DB currently stores unverified crypto objects.
+// DB stores only verified crypto objects.
 //
-// XXX(scrye): DB should contain only verified crypto objects, to prevent (1)
-// DoS attempts that spam the service with fake objects that get stored, (2)
-// repeated verifications of the same object, (3) poison attempts where a valid
-// crypto object is overwritten with a bad one.
+// On errors, GetXxx methods return nil and the error. If no error occurred,
+// but the database query yielded 0 results, the first returned value is nil.
+// GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
 	db                     *sql.DB
 	getChainVersionStmt    *sql.Stmt
@@ -101,12 +98,10 @@ type DB struct {
 
 func New(path string) (*DB, error) {
 	var err error
-	var sqldb *sql.DB
 	db := &DB{}
-	if sqldb, err = basedb.New(path, Schema, SchemaVersion); err != nil {
+	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
-	db.db = sqldb
 
 	// On future errors, close the sql database before exiting
 	defer func() {
@@ -114,56 +109,74 @@ func New(path string) (*DB, error) {
 			db.db.Close()
 		}
 	}()
-	if db.getChainVersionStmt, err = sqldb.Prepare(queries["getChainVersion"]); err != nil {
+	if db.getChainVersionStmt, err = db.db.Prepare(getChainVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainVersion", err)
 	}
-	if db.getChainMaxVersionStmt, err = sqldb.Prepare(queries["getChainMaxVersion"]); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getChainMaxVersion", err, "err", err)
+	if db.getChainMaxVersionStmt, err = db.db.Prepare(getChainMaxVersionStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getChainMaxVersion", err)
 	}
-	if db.insertChainStmt, err = sqldb.Prepare(queries["insertChain"]); err != nil {
+	if db.insertChainStmt, err = db.db.Prepare(insertChainStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertChain", err)
 	}
-	if db.getTRCVersionStmt, err = sqldb.Prepare(queries["getTRCVersion"]); err != nil {
+	if db.getTRCVersionStmt, err = db.db.Prepare(getTRCVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCVersion", err)
 	}
-	if db.getTRCMaxVersionStmt, err = sqldb.Prepare(queries["getTRCMaxVersion"]); err != nil {
+	if db.getTRCMaxVersionStmt, err = db.db.Prepare(getTRCMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCMaxVersion", err)
 	}
-	if db.insertTRCStmt, err = sqldb.Prepare(queries["insertTRC"]); err != nil {
+	if db.insertTRCStmt, err = db.db.Prepare(insertTRCStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertTRC", err)
 	}
 	return db, nil
 }
 
-func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.ISD_AS, version uint64) (*cert.Chain, bool, error) {
+func (db *DB) GetChainVersion(ia addr.ISD_AS, version uint64) (*cert.Chain, error) {
+	return db.GetChainVersionCtx(context.Background(), ia, version)
+}
+
+func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.ISD_AS,
+	version uint64) (*cert.Chain, error) {
 	var raw common.RawBytes
-	err := db.getChainVersionStmt.QueryRow(ia.I, ia.A, version).Scan(&raw)
+	err := db.getChainVersionStmt.QueryRowContext(ctx, ia.I, ia.A, version).Scan(&raw)
 	if err == sql.ErrNoRows {
-		return nil, false, nil
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
 	}
 	chain, err := cert.ChainFromRaw(raw, false)
 	if err != nil {
-		return nil, false, common.NewBasicError("Chain parse error", nil, "ia", ia, "version", version,
-			"err", err)
+		return nil, common.NewBasicError("Chain parse error", err, "ia", ia, "version", version)
 	}
-	return chain, true, nil
+	return chain, nil
 }
 
-func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.ISD_AS) (*cert.Chain, bool, error) {
+func (db *DB) GetChainMaxVersion(ia addr.ISD_AS) (*cert.Chain, error) {
+	return db.GetChainMaxVersionCtx(context.Background(), ia)
+}
+
+func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.ISD_AS) (*cert.Chain, error) {
 	var raw common.RawBytes
-	err := db.getChainMaxVersionStmt.QueryRow(ia.I, ia.A).Scan(&raw)
+	err := db.getChainMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
 	if err == sql.ErrNoRows {
-		return nil, false, nil
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
 	}
 	chain, err := cert.ChainFromRaw(raw, false)
 	if err != nil {
-		return nil, false, common.NewBasicError("Chain parse error", nil, "ia", ia, "version", "max",
-			"err", err)
+		return nil, common.NewBasicError("Chain parse error", err, "ia", ia, "version", "max")
 	}
-	return chain, true, nil
+	return chain, nil
 }
 
-func (db *DB) InsertChainCtx(ctx context.Context, ia addr.ISD_AS, version uint64, chain *cert.Chain) error {
+func (db *DB) InsertChain(ia addr.ISD_AS, version uint64, chain *cert.Chain) error {
+	return db.InsertChainCtx(context.Background(), ia, version, chain)
+}
+
+func (db *DB) InsertChainCtx(ctx context.Context, ia addr.ISD_AS, version uint64,
+	chain *cert.Chain) error {
 	raw, err := chain.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
@@ -172,30 +185,48 @@ func (db *DB) InsertChainCtx(ctx context.Context, ia addr.ISD_AS, version uint64
 	return err
 }
 
-func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) (*trc.TRC, bool, error) {
-	var raw common.RawBytes
-	err := db.getTRCVersionStmt.QueryRow(isd, version).Scan(&raw)
-	if err == sql.ErrNoRows {
-		return nil, false, nil
-	}
-	trcobj, err := trc.TRCFromRaw(raw, false)
-	if err != nil {
-		return nil, false, common.NewBasicError("TRC parse error", nil, "isd", isd, "err", err)
-	}
-	return trcobj, true, nil
+func (db *DB) GetTRCVersion(isd uint16, version uint64) (*trc.TRC, error) {
+	return db.GetTRCVersionCtx(context.Background(), isd, version)
 }
 
-func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, bool, error) {
+func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) (*trc.TRC, error) {
 	var raw common.RawBytes
-	err := db.getTRCMaxVersionStmt.QueryRow(isd).Scan(&raw)
+	err := db.getTRCVersionStmt.QueryRowContext(ctx, isd, version).Scan(&raw)
 	if err == sql.ErrNoRows {
-		return nil, false, nil
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
 	}
 	trcobj, err := trc.TRCFromRaw(raw, false)
 	if err != nil {
-		return nil, false, common.NewBasicError("TRC parse error", nil, "isd", isd, "version", "max")
+		return nil, common.NewBasicError("TRC parse error", err, "isd", isd)
 	}
-	return trcobj, true, nil
+	return trcobj, nil
+}
+
+func (db *DB) GetTRCMaxVersion(isd uint16) (*trc.TRC, error) {
+	return db.GetTRCMaxVersionCtx(context.Background(), isd)
+}
+
+func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, error) {
+	var raw common.RawBytes
+	err := db.getTRCMaxVersionStmt.QueryRowContext(ctx, isd).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
+	}
+	trcobj, err := trc.TRCFromRaw(raw, false)
+	if err != nil {
+		return nil, common.NewBasicError("TRC parse error", err, "isd", isd, "version", "max")
+	}
+	return trcobj, nil
+}
+
+func (db *DB) InsertTRC(isd uint16, version uint64, trcobj *trc.TRC) error {
+	return db.InsertTRCCtx(context.Background(), isd, version, trcobj)
 }
 
 func (db *DB) InsertTRCCtx(ctx context.Context, isd uint16, version uint64, trcobj *trc.TRC) error {
@@ -203,6 +234,6 @@ func (db *DB) InsertTRCCtx(ctx context.Context, isd uint16, version uint64, trco
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
 	}
-	_, err = db.insertTRCStmt.Exec(isd, version, raw)
+	_, err = db.insertTRCStmt.ExecContext(ctx, isd, version, raw)
 	return err
 }

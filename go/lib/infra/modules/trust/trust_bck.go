@@ -35,7 +35,7 @@ const (
 )
 
 type trcResolver struct {
-	api      infra.Messenger
+	msger    infra.Messenger
 	lastSent map[trcRequest]time.Time
 	trustdb  *trustdb.DB
 	requests <-chan trcRequest
@@ -90,7 +90,7 @@ func (handler *trcResolverHandler) Handle() {
 	}
 	// FIXME(scrye): Add SVC support for write ops in snet
 	csAddress := net.Addr(nil)
-	trcMessage, err := handler.resolver.api.GetTRC(ctx, trcReqMsg, csAddress)
+	trcMessage, err := handler.resolver.msger.GetTRC(ctx, trcReqMsg, csAddress)
 	if err != nil {
 		handler.log.Warn("Unable to get TRC from peer", "err", common.FmtError(err))
 		return
@@ -112,11 +112,11 @@ func (handler *trcResolverHandler) Handle() {
 	if err != nil {
 		handler.log.Warn("Unable to store trc in database", "err", err)
 	}
-	handler.resolver.events.Signal(handler.request)
+	handler.resolver.events.Signal(handler.request.Key())
 }
 
 type chainResolver struct {
-	api      infra.Messenger
+	msger    infra.Messenger
 	lastSent map[chainRequest]time.Time
 	trustdb  *trustdb.DB
 	requests <-chan chainRequest
@@ -171,7 +171,7 @@ func (handler *chainResolverHandler) Handle() {
 	}
 	// FIXME(scrye): Add SVC support for write ops in snet
 	csAddress := net.Addr(nil)
-	chainMessage, err := handler.resolver.api.GetCertChain(ctx, chainReqMsg, csAddress)
+	chainMessage, err := handler.resolver.msger.GetCertChain(ctx, chainReqMsg, csAddress)
 	if err != nil {
 		handler.log.Warn("Unable to get CertChain from peer", "err", err)
 		return
@@ -192,5 +192,5 @@ func (handler *chainResolverHandler) Handle() {
 	if err != nil {
 		handler.log.Warn("Unable to store CertChain in database", "err", err)
 	}
-	handler.resolver.events.Signal(handler.request)
+	handler.resolver.events.Signal(handler.request.Key())
 }

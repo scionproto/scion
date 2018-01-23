@@ -37,21 +37,21 @@
 // To start processing messages received via the Messenger, call
 // ListenAndServe. The method runs in the current goroutine, and spawns new
 // goroutines to handle each received message:
-//  messenger := New(...)
-//  messenger.ListenAndServe()
+//  msger := New(...)
+//  msger.ListenAndServe()
 //
-// ListenAndServe will throw errors for all received messages. To process
+// ListenAndServe will log errors for all received messages. To process
 // messages, handlers need to be registered. Handlers allow different
 // infrastructure servers to choose which requests they service, and to exploit
 // shared functionality. One handler can be registered for each message type,
 // identified by its msgType string:
-//   server.AddHandler("ChainRequest", MyCustomHandlerConstructor)
-//   server.AddHandler("TRCRequest", MyOtherCustomHandlerConstructor)
+//   msger.AddHandler("ChainRequest", MyCustomHandlerConstructor)
+//   msger.AddHandler("TRCRequest", MyOtherCustomHandlerConstructor)
 //
 // MyCustomHandlerConstructor initializes the state required to service a
 // message of the specified type, and then starts a goroutine on top of that
 // state. The goroutine runs indepedently (i.e., without any synchronization)
-// until completion. Goroutines inherit the Messenger of the server via the
+// until completion. Goroutines inherit a reference to the Messenger via the
 // infra.MessengerContextKey context key. This allows handlers to directly send
 // network messages.
 //
@@ -61,7 +61,7 @@
 //   trust.*Store.NewTRCHandler
 //
 // Shut down the server and any running handlers using CloseServer():
-//   messenger.CloseServer()
+//  msger.CloseServer()
 //
 // CloseServer() does not do graceful shutdown (all handlers are canceled
 // immediately) and does not close the Messenger itself.
@@ -100,7 +100,7 @@ type Modules struct {
 	PathVerifier *paths.PathVerifier
 }
 
-// A Messenger exposes the API for sending and receiving CtrlPld messages.
+// Messenger exposes the API for sending and receiving CtrlPld messages.
 type Messenger struct {
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
@@ -113,8 +113,8 @@ type Messenger struct {
 	// Handlers for received messages processing
 	constructors map[string]infra.HandlerConstructor
 
-	lock   sync.Mutex
-	closeC chan struct{}
+	lock      sync.Mutex
+	closeChan chan struct{}
 	// Context passed to blocking receive. Canceled by Close to unblock listeners.
 	ctx     context.Context
 	cancelF context.CancelFunc
@@ -125,7 +125,7 @@ type Messenger struct {
 // New creates a new Messenger that uses dispatcher for sending and receiving
 // messages, and trustStore as crypto information database.
 func New(dispatcher *disp.Dispatcher, modules *Modules, logger log.Logger) *Messenger {
-	// XXX(scrye): A trustStore object is passed to the API as it is required
+	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
 	// processed in the relevant handlers which have their own reference to the
@@ -136,7 +136,7 @@ func New(dispatcher *disp.Dispatcher, modules *Modules, logger log.Logger) *Mess
 		trustStore:   modules.TrustStore,
 		pathVerifier: modules.PathVerifier,
 		constructors: make(map[string]infra.HandlerConstructor),
-		closeC:       make(chan struct{}),
+		closeChan:    make(chan struct{}),
 		ctx:          ctx,
 		cancelF:      cancelF,
 		logger:       logger,
@@ -147,14 +147,19 @@ func New(dispatcher *disp.Dispatcher, modules *Modules, logger log.Logger) *Mess
 
 // RecvMsg reads a new message from the dispatcher. This method is included for
 // low-level messaging operations. Applications should instead use method
-// ListenAndServer which is a message-type-safe wrapper around RecvMsg.
-func (m *Messenger) RecvMsg(ctx context.Context) (interface{}, net.Addr, error) {
-	return m.dispatcher.RecvFrom(ctx)
+// ListenAndServe which is a message-type-safe wrapper around RecvMsg.
+func (m *Messenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
+	object, address, err := m.dispatcher.RecvFrom(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return object.(proto.Cerealizable), address, err
 }
 
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
 // reply and returns the reply.
-func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr) (*cert_mgmt.TRC, error) {
+func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
+	a net.Addr) (*cert_mgmt.TRC, error) {
 	signedCtrlPldMsg, err := ctrl.NewSignedCertMgmtPld(msg)
 	if err != nil {
 		return nil, err
@@ -190,7 +195,8 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr)
 
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
 // receives a reply and returns the reply.
-func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr) (*cert_mgmt.Chain, error) {
+func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
+	a net.Addr) (*cert_mgmt.Chain, error) {
 	signedCtrlPldMsg, err := ctrl.NewSignedCertMgmtPld(msg)
 	if err != nil {
 		return nil, err
@@ -226,10 +232,8 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 
 // GetPaths asks the server at the remote address for the paths specified by
 // msg, and returns a verified reply.
-func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr) (*path_mgmt.SegReply, error) {
-	if m.pathVerifier == nil {
-		return nil, common.NewBasicError("Unable to verify paths without a PathVerifier module", nil)
-	}
+func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
+	a net.Addr) (*path_mgmt.SegReply, error) {
 	signedCtrlPldMsg, err := ctrl.NewSignedPathMgmtPld(msg)
 	if err != nil {
 		return nil, err
@@ -245,6 +249,10 @@ func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq, a net.A
 	reply, ok := replyMsg.(*path_mgmt.SegReply)
 	if !ok {
 		return nil, newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
+	}
+	if m.pathVerifier == nil {
+		// If there is no pathVerifier, skip path verification and return immediately
+		return reply, nil
 	}
 	if err := m.pathVerifier.VerifySegReply(ctx, reply); err != nil {
 		// Verification failure
@@ -268,28 +276,26 @@ func (m *Messenger) ListenAndServe() {
 	defer m.logger.Info("Stopped listening")
 	for {
 		select {
-		case <-m.closeC:
+		case <-m.closeChan:
 			return
 		default:
 		}
-		// Handle the message in its own goroutine to make the main loop
-		// available as soon as possible.
-		go m.serve()
+		m.serve()
 	}
 }
 
 func (m *Messenger) serve() {
 	// Recv blocks until a new message is received. To close the server,
-	// Close() calls the context's cancel function, thus unblocking Recv. The
+	// CloseSever() calls the context's cancel function, thus unblocking Recv. The
 	// server's main loop then detects that closeC has been closed, and shuts
 	// down cleanly.
 	genericMsg, address, err := m.RecvMsg(m.ctx)
 	if err != nil {
 		// Do not log errors caused after close signal sent
 		select {
-		case <-m.closeC:
+		case <-m.closeChan:
 		default:
-			m.logger.Error("Receive error", "err", err)
+			m.logger.Error("Receive error", "err", common.FmtError(err))
 		}
 		return
 	}
@@ -297,7 +303,7 @@ func (m *Messenger) serve() {
 	// signature is correct.
 	msgType, msg, err := m.validate(genericMsg)
 	if err != nil {
-		m.logger.Warn("Received message, but unable to validate message", "err",
+		m.logger.Error("Received message, but unable to validate message", "err",
 			common.FmtError(err))
 		return
 	}
@@ -306,32 +312,29 @@ func (m *Messenger) serve() {
 	constructor := m.constructors[msgType]
 	m.constructorLock.RUnlock()
 	if constructor == nil {
-		m.logger.Warn("Received message, but handler constructor not found", "msgType", msgType)
+		m.logger.Error("Received message, but handler constructor not found", "msgType", msgType)
 		return
 	}
 	handler, err := constructor(msg, genericMsg, address)
 	if err != nil {
-		m.logger.Warn("Unable to initialize handler", "err", common.FmtError(err))
+		m.logger.Error("Unable to initialize handler", "err", common.FmtError(err))
 		return
 	}
 	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
-	// Run the handler in this goroutine, as we're already running in a
-	// goroutine that's only servicing this message.
-	//
 	// XXX(scrye): The handler might perform additional verifications; for
 	// example, a PCB handler will probably verify additional signatures.
-	handler.Handle(serveCtx)
+	go handler.Handle(serveCtx)
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
 // message type ID string, the object containing only the payload, and an error
 // (if one occurred).
-func (m *Messenger) validate(msg disp.Message) (string, interface{}, error) {
+func (m *Messenger) validate(msg disp.Message) (string, proto.Cerealizable, error) {
 	signedCtrlPld, ok := msg.(*ctrl.SignedPld)
 	if !ok {
 		return "", nil, common.NewBasicError("Unexpected capnp type", nil, "expected",
-			"ctrl.SignedPld", "actual", fmt.Sprintf("%T", msg))
+			"ctrl.SignedPld", "actual", common.TypeOf(msg))
 	}
 
 	// XXX(scrye): If the top-level signedCtrlPld contains a Sign capnp
@@ -354,13 +357,13 @@ func (m *Messenger) validate(msg disp.Message) (string, interface{}, error) {
 	case proto.CtrlPld_Which_certMgmt:
 		switch ctrlPld.CertMgmt.Which {
 		case proto.CertMgmt_Which_certChainReq:
-			return "ChainRequest", ctrlPld.CertMgmt.ChainReq, nil
+			return ChainRequest, ctrlPld.CertMgmt.ChainReq, nil
 		case proto.CertMgmt_Which_certChain:
-			return "Chain", ctrlPld.CertMgmt.ChainRep, nil
+			return Chain, ctrlPld.CertMgmt.ChainRep, nil
 		case proto.CertMgmt_Which_trcReq:
-			return "TRCRequest", ctrlPld.CertMgmt.TRCReq, nil
+			return TRCRequest, ctrlPld.CertMgmt.TRCReq, nil
 		case proto.CertMgmt_Which_trc:
-			return "TRC", ctrlPld.CertMgmt.TRCRep, nil
+			return TRC, ctrlPld.CertMgmt.TRCRep, nil
 		default:
 			return "", nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type", nil)
@@ -377,10 +380,10 @@ func (m *Messenger) CloseServer() error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	select {
-	case <-m.closeC:
+	case <-m.closeChan:
 		// Already closed, so do nothing
 	default:
-		close(m.closeC)
+		close(m.closeChan)
 		m.cancelF()
 	}
 	return nil

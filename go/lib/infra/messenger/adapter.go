@@ -33,23 +33,15 @@ type Adapter struct{}
 var DefaultAdapter = &Adapter{}
 
 func (a *Adapter) MsgToRaw(msg disp.Message) (common.RawBytes, error) {
-	// pld will be a ctrl.Pld or ctrl.SignedPld object (but anything
-	// implementing Cerealizable can be sent)
 	pld, ok := msg.(*ctrl.SignedPld)
 	if !ok {
 		return nil, common.NewBasicError("Unable to type assert disp.Message to ctrl.SignedPld",
-			nil, "msg", msg)
+			nil, "msg", msg, "type", common.TypeOf(msg))
 	}
 	return pld.PackPld()
 }
 
-func (a *Adapter) RawToMsg(b common.RawBytes) (msg disp.Message, err error) {
-	// Convert capnp panics to errors
-	defer func() {
-		if r := recover(); r != nil {
-			msg, err = nil, common.NewBasicError("capnp panic", nil, "panic", r, "bytes", b)
-		}
-	}()
+func (a *Adapter) RawToMsg(b common.RawBytes) (disp.Message, error) {
 	return ctrl.NewSignedPldFromRaw(b)
 }
 
@@ -58,7 +50,8 @@ func (a *Adapter) MsgKey(msg disp.Message) string {
 	if !ok {
 		// FIXME(scrye): Change interface to handle key errors instead of
 		// logging it here
-		log.Warn("Unable to type assert disp.Message to ctrl.SignedPld", "msg", msg)
+		log.Warn("Unable to type assert disp.Message to ctrl.SignedPld", "msg", msg,
+			"type", common.TypeOf(msg))
 		return ""
 	}
 
