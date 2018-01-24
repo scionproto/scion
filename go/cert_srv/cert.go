@@ -45,9 +45,9 @@ func (h *ChainHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainReq) {
 	log.Info("Received certificate chain request", "addr", addr, "req", req)
 	var chain *cert.Chain
 	if req.Version == cert_mgmt.NewestVersion {
-		chain = store.GetNewestChain(req.IA())
+		chain = config.Store.GetNewestChain(req.IA())
 	} else {
-		chain = store.GetChain(req.IA(), req.Version)
+		chain = config.Store.GetChain(req.IA(), req.Version)
 	}
 	srcLocal := config.PublicAddr.IA.Eq(addr.IA)
 	if chain != nil {
@@ -109,7 +109,7 @@ func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.Chain) {
 	if err != nil {
 		log.Error("Unable to parse certificate reply", "err", err)
 	}
-	if err = store.AddChain(chain, true); err != nil {
+	if err = config.Store.AddChain(chain, true); err != nil {
 		log.Error("Unable to store certificate chain", "key", chain.Key(), "err", err)
 		return
 	}

@@ -191,7 +191,7 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
-        cert_files, trc_files = self._generate_certs_trcs(ca_certs)
+        cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
@@ -200,6 +200,7 @@ class ConfigGenerator(object):
         self._write_ca_files(topo_dicts, ca_cert_files)
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
+        self._write_cust_files(topo_dicts, cust_files)
         self._write_conf_policies(topo_dicts)
         self._write_networks_conf(networks, NETWORKS_FILE)
         if self.gen_bind_addr:
@@ -246,6 +247,13 @@ class ConfigGenerator(object):
                 topo_dicts, self.out_dir, common=True):
             for path, value in cert_files[topo_id].items():
                 write_file(os.path.join(base, path), value + '\n')
+
+    def _write_cust_files(self, topo_dicts, cust_files):
+        for topo_id, as_topo in topo_dicts.items():
+            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+            for elem in as_topo["CertificateService"]:
+                for path, value in cust_files[topo_id].items():
+                    write_file(os.path.join(base, elem, path), value)
 
     def _write_conf_policies(self, topo_dicts):
         """
@@ -307,6 +315,7 @@ class CertGenerator(object):
         self.trcs = {}
         self.cert_files = defaultdict(dict)
         self.trc_files = defaultdict(dict)
+        self.cust_files = defaultdict(dict)
 
     def generate(self):
         self._self_sign_keys()
@@ -316,7 +325,7 @@ class CertGenerator(object):
         self._iterate(self._gen_trc_entry)
         self._iterate(self._sign_trc)
         self._iterate(self._gen_trc_files)
-        return self.cert_files, self.trc_files
+        return self.cert_files, self.trc_files, self.cust_files
 
     def _self_sign_keys(self):
         topo_id = TopoID.from_values(0, 0)
@@ -395,6 +404,10 @@ class CertGenerator(object):
             chain.append(self.core_certs[issuer])
             cert_path = get_cert_chain_file_path("", topo_id, INITIAL_CERT_VERSION)
             self.cert_files[topo_id][cert_path] = CertificateChain(chain).to_json()
+            map_path = os.path.join("customers", '%s-%s-V%d.key' % (
+                topo_id.ISD(), topo_id.AS(), INITIAL_CERT_VERSION))
+            self.cust_files[issuer][map_path] = base64.b64encode(
+                self.sig_pub_keys[topo_id]).decode()
 
     def is_core(self, as_conf):
         return as_conf.get("core")
