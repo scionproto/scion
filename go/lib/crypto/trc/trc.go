@@ -151,6 +151,9 @@ func (t *TRC) CoreASList() []*addr.ISD_AS {
 // CheckActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
 // the newest active TRC of the same ISD which we know of.
 func (t *TRC) CheckActive(maxTRC *TRC) error {
+	if t.Quarantine {
+		return common.NewBasicError(EarlyAnnouncement, nil)
+	}
 	currTime := uint64(time.Now().Unix())
 	if currTime < t.CreationTime {
 		return common.NewBasicError(EarlyUsage, nil,

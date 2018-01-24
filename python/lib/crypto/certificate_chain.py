@@ -129,6 +129,9 @@ class CertificateChain(object):
                 "AS certificate verification failed: Leaf expires after core certificate. Leaf: %s "
                 "Core: %s" % (iso_timestamp(leaf.expiration_time),
                               iso_timestamp(core.expiration_time)))
+        if not core.can_issue:
+            raise SCIONVerificationError(
+                "AS certificate verification failed: Core certificate cannot issue certificates")
         try:
             leaf.verify(subject, core.subject_sig_key_raw)
         except SCIONVerificationError as e:
