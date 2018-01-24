@@ -19,7 +19,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -29,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/trust"
 )
 
 const (
@@ -47,7 +45,6 @@ var (
 	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
 	prom     = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
 	config   *conf.Conf
-	store    *trust.Store
 )
 
 // main initializes the certificate server and starts the dispatcher.
@@ -67,10 +64,6 @@ func main() {
 	}
 	if config, err = conf.Load(*id, *confDir); err != nil {
 		fatal(err.Error())
-	}
-	// initialize Trust Store
-	if store, err = trust.NewStore(filepath.Join(*confDir, "certs"), *cacheDir, *id); err != nil {
-		fatal("Unable to initialize TrustStore", "err", common.FmtError(err))
 	}
 	// initialize snet with retries
 	if err = initSNET(initAttempts, initInterval); err != nil {
@@ -126,6 +119,24 @@ func setupSignals() {
 		liblog.Flush()
 		os.Exit(1)
 	}()
+	sighup := make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+	go reloadConfig(sighup)
+}
+
+func reloadConfig(sighup chan os.Signal) {
+	defer liblog.LogPanicAndExit()
+	for range sighup {
+		if err := config.Reload(); err != nil {
+			if common.GetErrorMsg(err) != conf.ErrorFatal {
+				log.Error("Error during reloading", "err", common.FmtError(err))
+				continue
+			} else {
+				fatal("Fatal error during reloading", "err", common.FmtError(err))
+			}
+		}
+		log.Info("Config reloaded")
+	}
 }
 
 func fatal(msg string, args ...interface{}) {
