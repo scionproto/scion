@@ -101,6 +101,9 @@ func (c *Chain) Verify(subject *addr.ISD_AS, t *trc.TRC) error {
 			util.TimeToString(c.Leaf.ExpirationTime), "core",
 			util.TimeToString(c.Core.ExpirationTime))
 	}
+	if !c.Core.CanIssue {
+		return common.NewBasicError(CoreCertInvalid, nil, "CanIssue", false)
+	}
 	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
 		return common.NewBasicError(LeafCertInvalid, err)
 	}
