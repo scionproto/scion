@@ -298,6 +298,8 @@ class TRC(object):
         :param TRC max_trc: newest available TRC for same ISD. (If none, self is newest TRC)
         :raises: SCIONVerificationError
         """
+        if self.quarantine:
+            raise SCIONVerificationError("Early announcement")
         now = int(time.time())
         if not (self.create_time <= now <= self.exp_time):
             raise SCIONVerificationError("Current time outside of validity period. "
