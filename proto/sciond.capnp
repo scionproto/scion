@@ -4,6 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 using RevInfo = import "rev_info.capnp";
+using PSeg = import "path_seg.capnp";
 
 struct SCIONDMsg {
     id @0 :UInt64;  # Request ID
@@ -19,6 +20,8 @@ struct SCIONDMsg {
         serviceInfoRequest @9 :ServiceInfoRequest;
         serviceInfoReply @10 :ServiceInfoReply;
         revReply @11 :RevReply;
+        segTypeHopReq @12 :SegTypeHopReq;
+        segTypeHopReply @13 :SegTypeHopReply;
     }
 }
 
@@ -116,4 +119,18 @@ struct ServiceInfoReplyEntry {
     serviceType @0 :ServiceInfoRequest.ServiceType;  # The service ID of the service.
     ttl @1 :UInt32;  # The TTL for the service record in seconds (currently unused).
     hostInfos @2 :List(HostInfo);  # The host infos of the service.
+}
+
+struct SegTypeHopReq {
+    type @0 :PSeg.PathSegType;  # The path segments type: up, down, core.
+}
+
+struct SegTypeHopReply {
+    entries @0 :List(SegTypeHopReplyEntry);  # List of path segments matching type request, if any
+}
+
+struct SegTypeHopReplyEntry {
+    interfaces @0 :List(PathInterface);  # List of interfaces for the segment
+    timestamp @1 :UInt64;  # Creation timestamp, seconds since Unix Epoch
+    expTime @2 :UInt64;  # Expiration timestamp, seconds since Unix Epoch
 }

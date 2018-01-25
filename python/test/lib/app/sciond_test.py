@@ -28,7 +28,10 @@ from lib.packet.host_addr import HostAddrIPv4, HostAddrSVC
 from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.svc import SVCType
 from lib.sciond_api.path_req import SCIONDPathReplyError as PRE
-from lib.types import SCIONDMsgType as SMT
+from lib.types import (
+    PathSegmentType as PST,
+    SCIONDMsgType as SMT,
+)
 from test.testcommon import create_mock, create_mock_full
 
 
@@ -361,3 +364,31 @@ class TestSCIONDConnectorTryCache:
         key_list = [1, 2, 1, 2]
         # Call
         ntools.eq_(SCIONDConnector._try_cache(cache, key_list), (set(), {1: "a", 2: "b"}))
+
+
+class TestSCIONDConnectorGetTypeSegs(SCIONDConnectorTestBase):
+    """Unit tests for lib.app.sciond.SCIONDConnector.get_segtype_hops"""
+
+    def _setup(self):
+        return self._setup_connector(
+            create_mock_full({"iter_entries()": ["segment"]}))
+
+    @patch("lib.app.sciond.SCIONDSegTypeHopRequest.from_values", new_callable=create_mock)
+    @patch("lib.app.sciond.SCIONDMsg", new_callable=create_mock)
+    def test_valid_type(self, sciond_msg, segment_req):
+        connector = self._setup()
+        seg_type = PST.CORE
+        # Call
+        segments = connector.get_segtype_hops(seg_type)
+        # Tests
+        ntools.eq_(segments, ["segment"])
+        sciond_msg.assert_called_once_with(segment_req.return_value, self.REQ_ID)
+        segment_req.assert_called_once_with(seg_type)
+        connector._create_socket.assert_called_once_with()
+        connector._get_response.assert_called_once_with(ANY, 1, SMT.SEGTYPEHOP_REPLY)
+
+    def test_invalid_type(self):
+        connector = self._setup()
+        seg_type = 'unset'
+        # Call
+        ntools.assert_raises(AssertionError, connector.get_segtype_hops, seg_type)
