@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )
@@ -42,8 +43,10 @@ func main() {
 	// Initialize networking and modules
 	serverApp := InitDefaultNetworking(s2c)
 	// Initialize Server
-	serverApp.messenger.AddHandler("ChainRequest", serverApp.trustStore.NewChainReqHandler)
-	serverApp.messenger.AddHandler("TRCRequest", serverApp.trustStore.NewTRCReqHandler)
+	serverApp.messenger.AddHandler("ChainRequest",
+		infra.HandlerFunc(serverApp.trustStore.ChainReqHandler))
+	serverApp.messenger.AddHandler("TRCRequest",
+		infra.HandlerFunc(serverApp.trustStore.TRCReqHandler))
 	go serverApp.messenger.ListenAndServe()
 	// Do work
 	select {}
@@ -64,15 +67,17 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	// Initialize message dispatcher
 	dispatcherLayer := disp.New(transportLayer, messenger.DefaultAdapter, log.New("name", "server"))
 	// Initialize TrustStore
-	if server.trustStore, err = trust.NewStore(randomFileName(), log.Root()); err != nil {
+	db, err := trustdb.New(randomFileName())
+	if err != nil {
+		log.Error("Unable to initialize trustdb", "err", common.FmtError(err))
+		os.Exit(-1)
+	}
+	if server.trustStore, err = trust.NewStore(db, log.Root()); err != nil {
 		log.Error("Unable to create trust store", "err", common.FmtError(err))
 		os.Exit(-1)
 	}
-	modules := &messenger.Modules{
-		TrustStore: server.trustStore,
-	}
 	// Initialize messenger with verification capabilities (trustStore-backed)
-	server.messenger = messenger.New(dispatcherLayer, modules, log.Root())
+	server.messenger = messenger.New(dispatcherLayer, server.trustStore, log.Root())
 	// Enable network access for trust store request handling
 	server.trustStore.StartResolvers(server.messenger)
 	return server

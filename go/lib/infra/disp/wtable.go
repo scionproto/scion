@@ -20,30 +20,31 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type waitTable struct {
-	keyF     func(Message) string
+	keyF     func(proto.Cerealizable) string
 	replyMap replyChannelMap
 
 	lock        sync.Mutex
 	destroyChan chan struct{}
 }
 
-func newWaitTable(keyF func(Message) string) *waitTable {
+func newWaitTable(keyF func(proto.Cerealizable) string) *waitTable {
 	return &waitTable{
 		keyF:        keyF,
 		destroyChan: make(chan struct{}),
 	}
 }
 
-func (wt *waitTable) addRequest(object Message) error {
+func (wt *waitTable) addRequest(object proto.Cerealizable) error {
 	select {
 	case <-wt.destroyChan:
 		return common.NewBasicError("Table destroyed", nil)
 	default:
 	}
-	replyChannel := make(chan Message, 1)
+	replyChannel := make(chan proto.Cerealizable, 1)
 	_, loaded := wt.replyMap.LoadOrStore(wt.keyF(object), replyChannel)
 	if loaded {
 		return common.NewBasicError("Duplicate key", nil, "key", wt.keyF(object))
@@ -52,11 +53,12 @@ func (wt *waitTable) addRequest(object Message) error {
 	return nil
 }
 
-func (wt *waitTable) cancelRequest(object Message) {
+func (wt *waitTable) cancelRequest(object proto.Cerealizable) {
 	wt.replyMap.Delete(wt.keyF(object))
 }
 
-func (wt *waitTable) waitForReply(ctx context.Context, object Message) (Message, error) {
+func (wt *waitTable) waitForReply(ctx context.Context,
+	object proto.Cerealizable) (proto.Cerealizable, error) {
 	select {
 	case <-wt.destroyChan:
 		return nil, common.NewBasicError("Table destroyed", nil)
@@ -79,7 +81,7 @@ func (wt *waitTable) waitForReply(ctx context.Context, object Message) (Message,
 // reply sends object to the waiting goroutine. If a waiting goroutine is
 // found, the returned bool value is true. If no waiting goroutine is found,
 // the returned bool value is false and error is nil.
-func (wt *waitTable) reply(object Message) (bool, error) {
+func (wt *waitTable) reply(object proto.Cerealizable) (bool, error) {
 	select {
 	case <-wt.destroyChan:
 		return false, common.NewBasicError("Table destroyed", nil)
@@ -122,28 +124,29 @@ func (m *replyChannelMap) Delete(key string) {
 	(*sync.Map)(m).Delete(key)
 }
 
-func (m *replyChannelMap) Load(key string) (chan Message, bool) {
+func (m *replyChannelMap) Load(key string) (chan proto.Cerealizable, bool) {
 	value, loaded := (*sync.Map)(m).Load(key)
 	if value == nil {
 		return nil, loaded
 	}
-	return value.(chan Message), loaded
+	return value.(chan proto.Cerealizable), loaded
 }
 
-func (m *replyChannelMap) LoadOrStore(key string, value chan Message) (chan Message, bool) {
+func (m *replyChannelMap) LoadOrStore(key string,
+	value chan proto.Cerealizable) (chan proto.Cerealizable, bool) {
 	newValue, loaded := (*sync.Map)(m).LoadOrStore(key, value)
 	if newValue == nil {
 		return nil, loaded
 	}
-	return newValue.(chan Message), loaded
+	return newValue.(chan proto.Cerealizable), loaded
 }
 
-func (m *replyChannelMap) Range(f func(string, chan Message) bool) {
+func (m *replyChannelMap) Range(f func(string, chan proto.Cerealizable) bool) {
 	(*sync.Map)(m).Range(func(k, v interface{}) bool {
-		return f(k.(string), v.(chan Message))
+		return f(k.(string), v.(chan proto.Cerealizable))
 	})
 }
 
-func (m *replyChannelMap) Store(key string, value chan Message) {
+func (m *replyChannelMap) Store(key string, value chan proto.Cerealizable) {
 	(*sync.Map)(m).Store(key, value)
 }

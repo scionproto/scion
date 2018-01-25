@@ -25,12 +25,16 @@ import (
 // Interface Handler is implemented by objects that can handle a request coming
 // from a remote SCION network node.
 type Handler interface {
-	Handle(ctx context.Context)
+	Handle(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr)
 }
 
 // Constructs a handler for message msg. Handle() can be called on the
 // resulting object to process the message.
-type HandlerConstructor func(msg, fullMsg proto.Cerealizable, peer net.Addr) (Handler, error)
+type HandlerFunc func(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr)
+
+func (f HandlerFunc) Handle(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr) {
+	f(ctx, msg, fullMsg, peer)
+}
 
 var (
 	// MessengerContextKey is a context key. It can be used in SCION infra
@@ -52,7 +56,7 @@ type Messenger interface {
 	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr) (*cert_mgmt.Chain, error)
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr) error
-	AddHandler(msgType string, f HandlerConstructor)
+	AddHandler(msgType string, h Handler)
 	ListenAndServe()
 	CloseServer() error
 }

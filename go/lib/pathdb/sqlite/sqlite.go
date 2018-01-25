@@ -61,7 +61,7 @@ func New(path string) (*Backend, error) {
 	}, nil
 }
 
-func (b *Backend) beginLocked() error {
+func (b *Backend) begin() error {
 	if b.tx != nil {
 		return common.NewBasicError("A transaction already exists", nil)
 	}
@@ -72,7 +72,7 @@ func (b *Backend) beginLocked() error {
 	return nil
 }
 
-func (b *Backend) commitLocked() error {
+func (b *Backend) commit() error {
 	if b.tx == nil {
 		return common.NewBasicError("No transaction to commit", nil)
 	}
@@ -112,7 +112,7 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 			// Update existing path segment.
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
-			if err := b.updateExistingLocked(meta, segTypes, hpCfgIDs); err != nil {
+			if err := b.updateExisting(meta, segTypes, hpCfgIDs); err != nil {
 				return 0, err
 			}
 			return 1, nil
@@ -120,7 +120,7 @@ func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
 		return 0, nil
 	}
 	// Do full insert.
-	if err = b.insertFullLocked(pseg, segTypes, hpCfgIDs); err != nil {
+	if err = b.insertFull(pseg, segTypes, hpCfgIDs); err != nil {
 		return 0, err
 	}
 	return 1, nil
@@ -151,39 +151,39 @@ func (b *Backend) get(segID common.RawBytes) (*segMeta, error) {
 	return nil, nil
 }
 
-func (b *Backend) updateExistingLocked(meta *segMeta,
+func (b *Backend) updateExisting(meta *segMeta,
 	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) error {
 	// Create new transaction
-	if err := b.beginLocked(); err != nil {
+	if err := b.begin(); err != nil {
 		return err
 	}
 	// Update segment.
-	if err := b.updateSegLocked(meta); err != nil {
+	if err := b.updateSeg(meta); err != nil {
 		b.tx.Rollback()
 		return err
 	}
 	// Check if the existing segment is registered as the given type(s).
 	for _, segType := range segTypes {
-		if err := b.insertTypeLocked(meta.RowID, segType); err != nil {
+		if err := b.insertType(meta.RowID, segType); err != nil {
 			b.tx.Rollback()
 			return err
 		}
 	}
 	// Check if the existing segment is registered with the given hpCfgIDs.
 	for _, hpCfgID := range hpCfgIDs {
-		if err := b.insertHPCfgIDLocked(meta.RowID, hpCfgID); err != nil {
+		if err := b.insertHPCfgID(meta.RowID, hpCfgID); err != nil {
 			b.tx.Rollback()
 			return err
 		}
 	}
 	// Commit transaction
-	if err := b.commitLocked(); err != nil {
+	if err := b.commit(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b *Backend) updateSegLocked(meta *segMeta) error {
+func (b *Backend) updateSeg(meta *segMeta) error {
 	packedSeg, err := meta.Seg.Pack()
 	if err != nil {
 		return err
@@ -196,7 +196,7 @@ func (b *Backend) updateSegLocked(meta *segMeta) error {
 	return nil
 }
 
-func (b *Backend) insertTypeLocked(segRowID int64, segType seg.Type) error {
+func (b *Backend) insertType(segRowID int64, segType seg.Type) error {
 	_, err := b.tx.Exec("INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
@@ -205,7 +205,7 @@ func (b *Backend) insertTypeLocked(segRowID int64, segType seg.Type) error {
 	return nil
 }
 
-func (b *Backend) insertHPCfgIDLocked(segRowID int64, hpCfgID *query.HPCfgID) error {
+func (b *Backend) insertHPCfgID(segRowID int64, hpCfgID *query.HPCfgID) error {
 	_, err := b.tx.Exec(
 		"INSERT INTO HpCfgIds (SegRowID, IsdID, AsID, CfgID) VALUES (?, ?, ?, ?)",
 		segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID)
@@ -215,10 +215,10 @@ func (b *Backend) insertHPCfgIDLocked(segRowID int64, hpCfgID *query.HPCfgID) er
 	return nil
 }
 
-func (b *Backend) insertFullLocked(pseg *seg.PathSegment,
+func (b *Backend) insertFull(pseg *seg.PathSegment,
 	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) error {
 	// Create new transaction
-	if err := b.beginLocked(); err != nil {
+	if err := b.begin(); err != nil {
 		return err
 	}
 	segID, err := pseg.ID()
@@ -247,32 +247,32 @@ func (b *Backend) insertFullLocked(pseg *seg.PathSegment,
 		return err
 	}
 	// Insert ISD-AS to StartsAt.
-	if err = b.insertStartOrEndLocked(pseg.ASEntries[0], segRowID, StartsAtTable); err != nil {
+	if err = b.insertStartOrEnd(pseg.ASEntries[0], segRowID, StartsAtTable); err != nil {
 		b.tx.Rollback()
 		return err
 	}
 	// Insert ISD-AS to EndsAt.
-	if err = b.insertStartOrEndLocked(pseg.ASEntries[pseg.MaxAEIdx()],
+	if err = b.insertStartOrEnd(pseg.ASEntries[pseg.MaxAEIdx()],
 		segRowID, EndsAtTable); err != nil {
 		b.tx.Rollback()
 		return err
 	}
 	// Insert segType information.
 	for _, segType := range segTypes {
-		if err = b.insertTypeLocked(segRowID, segType); err != nil {
+		if err = b.insertType(segRowID, segType); err != nil {
 			b.tx.Rollback()
 			return err
 		}
 	}
 	// Insert hpCfgID information.
 	for _, hpCfgID := range hpCfgIDs {
-		if err = b.insertHPCfgIDLocked(segRowID, hpCfgID); err != nil {
+		if err = b.insertHPCfgID(segRowID, hpCfgID); err != nil {
 			b.tx.Rollback()
 			return err
 		}
 	}
 	// Commit transaction
-	if err = b.commitLocked(); err != nil {
+	if err = b.commit(); err != nil {
 		return err
 	}
 	return nil
@@ -310,7 +310,7 @@ func (b *Backend) insertInterfaces(ases []*seg.ASEntry, segRowID int64) error {
 	return nil
 }
 
-func (b *Backend) insertStartOrEndLocked(as *seg.ASEntry, segRowID int64,
+func (b *Backend) insertStartOrEnd(as *seg.ASEntry, segRowID int64,
 	tableName string) error {
 	ia := as.IA()
 	stmtStr := fmt.Sprintf("INSERT INTO %s (IsdID, AsID, SegRowID) VALUES (?, ?, ?)", tableName)
@@ -328,7 +328,7 @@ func (b *Backend) Delete(segID common.RawBytes) (int, error) {
 		return 0, common.NewBasicError("No database open", nil)
 	}
 	// Create new transaction
-	if err := b.beginLocked(); err != nil {
+	if err := b.begin(); err != nil {
 		return 0, err
 	}
 	res, err := b.tx.Exec("DELETE FROM Segments WHERE SegID=?", segID)
@@ -337,7 +337,7 @@ func (b *Backend) Delete(segID common.RawBytes) (int, error) {
 		return 0, common.NewBasicError("Failed to delete segment", err)
 	}
 	// Commit transaction
-	if err := b.commitLocked(); err != nil {
+	if err := b.commit(); err != nil {
 		return 0, err
 	}
 	deleted, _ := res.RowsAffected()
@@ -351,7 +351,7 @@ func (b *Backend) DeleteWithIntf(intf query.IntfSpec) (int, error) {
 		return 0, common.NewBasicError("No database open", nil)
 	}
 	// Create new transaction
-	if err := b.beginLocked(); err != nil {
+	if err := b.begin(); err != nil {
 		return 0, err
 	}
 	delStmt := `DELETE FROM Segments WHERE EXISTS (
@@ -362,7 +362,7 @@ func (b *Backend) DeleteWithIntf(intf query.IntfSpec) (int, error) {
 		return 0, common.NewBasicError("Failed to delete segments", err)
 	}
 	// Commit transaction
-	if err := b.commitLocked(); err != nil {
+	if err := b.commit(); err != nil {
 		return 0, err
 	}
 	deleted, _ := res.RowsAffected()
@@ -375,7 +375,7 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, error) {
 	if b.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
-	stmt := b.buildQueryLocked(params)
+	stmt := b.buildQuery(params)
 	rows, err := b.db.Query(stmt)
 	if err != nil {
 		return nil, common.NewBasicError("Error looking up path segment", err, "q", stmt)
@@ -414,7 +414,7 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, error) {
 	return res, nil
 }
 
-func (b *Backend) buildQueryLocked(params *query.Params) string {
+func (b *Backend) buildQuery(params *query.Params) string {
 	query := []string{
 		"SELECT DISTINCT s.RowID, s.Segment, h.IsdID, h.AsID, h.CfgID FROM Segments s",
 		"JOIN HpCfgIds h ON h.SegRowID=s.RowID",
