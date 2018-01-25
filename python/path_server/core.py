@@ -266,7 +266,7 @@ class CorePathServer(PathServer):
             logger = self.get_request_logger(req, meta)
         dst_ia = req.dst_ia()
         if new_request:
-            logger.info("PATH_REQ received")
+            logger.info("PATH_REQ received: %s", req)
             REQS_TOTAL.labels(**self._labels).inc()
         if dst_ia == self.addr.isd_as:
             logger.warning("Dropping request: requested DST is local AS")
