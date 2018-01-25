@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -91,7 +92,7 @@ func (m *FakeMessenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain,
 	panic("not implemented")
 }
 
-func (m *FakeMessenger) AddHandler(msgType string, f infra.HandlerConstructor) {
+func (m *FakeMessenger) AddHandler(msgType string, h infra.Handler) {
 	panic("not implemented")
 }
 
@@ -103,9 +104,21 @@ func (m *FakeMessenger) CloseServer() error {
 	panic("not implemented")
 }
 
+type FakeAddress struct{}
+
+func (f *FakeAddress) Network() string {
+	panic("not implemented")
+}
+
+func (f *FakeAddress) String() string {
+	return ""
+}
+
 func TestTrustTrails(t *testing.T) {
 	Convey("", t, func() {
-		store, err := NewStore(randomFileName(), log.Root())
+		db, err := trustdb.New(randomFileName())
+		SoMsg("trustdb init error", err, ShouldBeNil)
+		store, err := NewStore(db, log.Root())
 		// Add trust root for this trust store manually
 		err = store.trustdb.InsertTRCCtx(context.Background(), 2, 0, trcObjects[2])
 		SoMsg("root insertion err", err, ShouldBeNil)
@@ -116,7 +129,7 @@ func TestTrustTrails(t *testing.T) {
 
 		Convey("Validate using trail from ISD2 to AS1-16", func() {
 			// Test that 1-16 Certificate can be validate
-			trail := []TrustDescriptor{
+			trail := []Descriptor{
 				{
 					TRCVersion:   0,
 					ChainVersion: 0,
@@ -137,7 +150,7 @@ func TestTrustTrails(t *testing.T) {
 				},
 			}
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-			cert, err := store.GetCertificate(ctx, trail, nil)
+			cert, err := store.GetCertificate(ctx, trail, &FakeAddress{})
 			cancelF()
 			SoMsg("fetch err", err, ShouldBeNil)
 			SoMsg("cert", cert, ShouldResemble, chainObjects[addr.ISD_AS{I: 1, A: 16}].Leaf)
@@ -145,7 +158,7 @@ func TestTrustTrails(t *testing.T) {
 
 		Convey("Fail to validate incomplete trail from ISD2 to AS1-19", func() {
 			// Test that 1-19 can't be validated due to incomplete trail
-			trail := []TrustDescriptor{
+			trail := []Descriptor{
 				{
 					TRCVersion:   0,
 					ChainVersion: 0,
@@ -160,7 +173,7 @@ func TestTrustTrails(t *testing.T) {
 				},
 			}
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-			cert, err := store.GetCertificate(ctx, trail, nil)
+			cert, err := store.GetCertificate(ctx, trail, &FakeAddress{})
 			cancelF()
 			SoMsg("fetch err", err, ShouldNotBeNil)
 			SoMsg("cert", cert, ShouldBeNil)

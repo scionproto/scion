@@ -35,18 +35,18 @@ import (
 const (
 	SchemaVersion = 1
 	Schema        = ` CREATE TABLE TRCs (
-		ISDID INTEGER NOT NULL,
+		IsdID INTEGER NOT NULL,
 		Version INTEGER NOT NULL,
 		Data TEXT NOT NULL,
-		PRIMARY KEY (ISDID, Version)
+		PRIMARY KEY (IsdID, Version)
 	);
 
 	CREATE TABLE Chains (
-		ISDID INTEGER NOT NULL,
-		ASID INTEGER NOT NULL,
+		IsdID INTEGER NOT NULL,
+		AsID INTEGER NOT NULL,
 		Version INTEGER NOT NULL,
 		Data TEXT NOT NULL,
-		PRIMARY KEY (ISDID, ASID, Version)
+		PRIMARY KEY (IsdID, AsID, Version)
 	);
 	`
 
@@ -57,25 +57,25 @@ const (
 const (
 	getChainVersionStr = `
 			SELECT Data FROM Chains
-			WHERE ISDID=? AND ASID=? AND Version=?
+			WHERE IsdID=? AND AsID=? AND Version=?
 		`
 	getChainMaxVersionStr = `
 			SELECT Data FROM Chains
-			WHERE ISDID=? AND ASID=? AND Version=(SELECT Max(Version) FROM Chains)
+			WHERE IsdID=? AND AsID=? AND Version=(SELECT Max(Version) FROM Chains)
 		`
 	insertChainStr = `
-			INSERT INTO Chains (ISDID, ASID, Version, Data) VALUES (?, ?, ?, ?)
+			INSERT INTO Chains (IsdID, AsID, Version, Data) VALUES (?, ?, ?, ?)
 		`
 	getTRCVersionStr = `
 			SELECT Data FROM TRCs
-			WHERE ISDID=? AND Version=?
+			WHERE IsdID=? AND Version=?
 		`
 	getTRCMaxVersionStr = `
 			SELECT Data FROM TRCs
-			WHERE ISDID=? AND Version=(SELECT Max(Version) FROM TRCs)
+			WHERE IsdID=? AND Version=(SELECT Max(Version) FROM TRCs)
 		`
 	insertTRCStr = `
-			INSERT INTO TRCs (ISDID, Version, Data) VALUES (?, ?, ?)
+			INSERT INTO TRCs (IsdID, Version, Data) VALUES (?, ?, ?)
 		`
 )
 

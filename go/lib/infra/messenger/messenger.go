@@ -45,20 +45,18 @@
 // infrastructure servers to choose which requests they service, and to exploit
 // shared functionality. One handler can be registered for each message type,
 // identified by its msgType string:
-//   msger.AddHandler("ChainRequest", MyCustomHandlerConstructor)
-//   msger.AddHandler("TRCRequest", MyOtherCustomHandlerConstructor)
+//   msger.AddHandler("ChainRequest", MyCustomHandler)
+//   msger.AddHandler("TRCRequest", MyOtherCustomHandler)
 //
-// MyCustomHandlerConstructor initializes the state required to service a
-// message of the specified type, and then starts a goroutine on top of that
-// state. The goroutine runs indepedently (i.e., without any synchronization)
-// until completion. Goroutines inherit a reference to the Messenger via the
+// Each handler runs indepedently (i.e., without any synchronization) until
+// completion. Goroutines inherit a reference to the Messenger via the
 // infra.MessengerContextKey context key. This allows handlers to directly send
 // network messages.
 //
-// Some default handler constructors are already implemented; for more
+// Some default handlerss are already implemented; for more
 // information, see their package documentation:
-//   trust.*Store.NewCertHandler
-//   trust.*Store.NewTRCHandler
+//   trust.*Store.CertRequestHandler
+//   trust.*Store.TRCRequestHandler
 //
 // Shut down the server and any running handlers using CloseServer():
 //  msger.CloseServer()
@@ -81,7 +79,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/modules/paths"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -95,23 +92,16 @@ const (
 
 var _ infra.Messenger = (*Messenger)(nil)
 
-type Modules struct {
-	TrustStore   *trust.Store
-	PathVerifier *paths.PathVerifier
-}
-
 // Messenger exposes the API for sending and receiving CtrlPld messages.
 type Messenger struct {
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
 	// Source for crypto objects (certificates and TRCs)
 	trustStore *trust.Store
-	// Used to implement path validation
-	pathVerifier *paths.PathVerifier
 
-	constructorLock sync.RWMutex
+	handlersLock sync.RWMutex
 	// Handlers for received messages processing
-	constructors map[string]infra.HandlerConstructor
+	handlers map[string]infra.Handler
 
 	lock      sync.Mutex
 	closeChan chan struct{}
@@ -124,7 +114,7 @@ type Messenger struct {
 
 // New creates a new Messenger that uses dispatcher for sending and receiving
 // messages, and trustStore as crypto information database.
-func New(dispatcher *disp.Dispatcher, modules *Modules, logger log.Logger) *Messenger {
+func New(dispatcher *disp.Dispatcher, store *trust.Store, logger log.Logger) *Messenger {
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -132,14 +122,13 @@ func New(dispatcher *disp.Dispatcher, modules *Modules, logger log.Logger) *Mess
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
-		dispatcher:   dispatcher,
-		trustStore:   modules.TrustStore,
-		pathVerifier: modules.PathVerifier,
-		constructors: make(map[string]infra.HandlerConstructor),
-		closeChan:    make(chan struct{}),
-		ctx:          ctx,
-		cancelF:      cancelF,
-		logger:       logger,
+		dispatcher: dispatcher,
+		trustStore: store,
+		handlers:   make(map[string]infra.Handler),
+		closeChan:  make(chan struct{}),
+		ctx:        ctx,
+		cancelF:    cancelF,
+		logger:     logger,
 	}
 	// XXX(scrye): More crypto is needed to send signed messages (a local
 	// signing key, at a minimum).
@@ -149,11 +138,7 @@ func New(dispatcher *disp.Dispatcher, modules *Modules, logger log.Logger) *Mess
 // low-level messaging operations. Applications should instead use method
 // ListenAndServe which is a message-type-safe wrapper around RecvMsg.
 func (m *Messenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
-	object, address, err := m.dispatcher.RecvFrom(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	return object.(proto.Cerealizable), address, err
+	return m.dispatcher.RecvFrom(ctx)
 }
 
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
@@ -250,22 +235,14 @@ func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
 	if !ok {
 		return nil, newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
 	}
-	if m.pathVerifier == nil {
-		// If there is no pathVerifier, skip path verification and return immediately
-		return reply, nil
-	}
-	if err := m.pathVerifier.VerifySegReply(ctx, reply); err != nil {
-		// Verification failure
-		return nil, common.NewBasicError("Reply received, but verification failed", err)
-	}
 	return reply, nil
 }
 
 // AddHandler registers a constructor for CtrlPld handlers for msgType.
-func (m *Messenger) AddHandler(msgType string, f infra.HandlerConstructor) {
-	m.constructorLock.Lock()
-	m.constructors[msgType] = f
-	m.constructorLock.Unlock()
+func (m *Messenger) AddHandler(msgType string, handler infra.Handler) {
+	m.handlersLock.Lock()
+	m.handlers[msgType] = handler
+	m.handlersLock.Unlock()
 }
 
 // ListenAndServe starts listening and serving messages on srv's Messenger
@@ -275,30 +252,28 @@ func (m *Messenger) ListenAndServe() {
 	m.logger.Info("Started listening")
 	defer m.logger.Info("Stopped listening")
 	for {
-		select {
-		case <-m.closeChan:
-			return
-		default:
+		// Recv blocks until a new message is received. To close the server,
+		// CloseServer() calls the context's cancel function, thus unblocking Recv. The
+		// server's main loop then detects that closeChan has been closed, and shuts
+		// down cleanly.
+		fmt.Println("waiting for message")
+		genericMsg, address, err := m.RecvMsg(m.ctx)
+		if err != nil {
+			// Do not log errors caused after close signal sent
+			select {
+			case <-m.closeChan:
+				// CloseServer was called
+				return
+			default:
+				m.logger.Error("Receive error", "err", common.FmtError(err))
+			}
+			continue
 		}
-		m.serve()
+		m.serve(genericMsg, address)
 	}
 }
 
-func (m *Messenger) serve() {
-	// Recv blocks until a new message is received. To close the server,
-	// CloseSever() calls the context's cancel function, thus unblocking Recv. The
-	// server's main loop then detects that closeC has been closed, and shuts
-	// down cleanly.
-	genericMsg, address, err := m.RecvMsg(m.ctx)
-	if err != nil {
-		// Do not log errors caused after close signal sent
-		select {
-		case <-m.closeChan:
-		default:
-			m.logger.Error("Receive error", "err", common.FmtError(err))
-		}
-		return
-	}
+func (m *Messenger) serve(genericMsg proto.Cerealizable, address net.Addr) {
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
 	msgType, msg, err := m.validate(genericMsg)
@@ -308,42 +283,29 @@ func (m *Messenger) serve() {
 		return
 	}
 
-	m.constructorLock.RLock()
-	constructor := m.constructors[msgType]
-	m.constructorLock.RUnlock()
-	if constructor == nil {
-		m.logger.Error("Received message, but handler constructor not found", "msgType", msgType)
-		return
-	}
-	handler, err := constructor(msg, genericMsg, address)
-	if err != nil {
-		m.logger.Error("Unable to initialize handler", "err", common.FmtError(err))
+	m.handlersLock.RLock()
+	handler := m.handlers[msgType]
+	m.handlersLock.RUnlock()
+	if handler == nil {
+		m.logger.Error("Received message, but handler not found", "msgType", msgType)
 		return
 	}
 	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
 	// XXX(scrye): The handler might perform additional verifications; for
 	// example, a PCB handler will probably verify additional signatures.
-	go handler.Handle(serveCtx)
+	go handler.Handle(serveCtx, msg, genericMsg, address)
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
 // message type ID string, the object containing only the payload, and an error
 // (if one occurred).
-func (m *Messenger) validate(msg disp.Message) (string, proto.Cerealizable, error) {
+func (m *Messenger) validate(msg proto.Cerealizable) (string, proto.Cerealizable, error) {
 	signedCtrlPld, ok := msg.(*ctrl.SignedPld)
 	if !ok {
 		return "", nil, common.NewBasicError("Unexpected capnp type", nil, "expected",
 			"ctrl.SignedPld", "actual", common.TypeOf(msg))
 	}
-
-	// XXX(scrye): If the top-level signedCtrlPld contains a Sign capnp
-	// structure with a SignType of 'none' it should not be checked. Otherwise,
-	// the signature needs to be verified for _all_ messages, irrespective of
-	// inner payload. Note that if SignType is 'none', but the inner message
-	// type requires for the entire message to be signed the message should be
-	// considered invalid (e.g., a crafted PCB where the top-level signature
-	// was stripped).
 
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported. None of them use have a signature at the top, so

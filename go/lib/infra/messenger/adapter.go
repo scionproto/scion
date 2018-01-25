@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ disp.MessageAdapter = (*Adapter)(nil)
@@ -32,20 +33,20 @@ type Adapter struct{}
 // Default adapter
 var DefaultAdapter = &Adapter{}
 
-func (a *Adapter) MsgToRaw(msg disp.Message) (common.RawBytes, error) {
+func (a *Adapter) MsgToRaw(msg proto.Cerealizable) (common.RawBytes, error) {
 	pld, ok := msg.(*ctrl.SignedPld)
 	if !ok {
-		return nil, common.NewBasicError("Unable to type assert disp.Message to ctrl.SignedPld",
+		return nil, common.NewBasicError("Unable to type assert proto.Cerealizable to ctrl.SignedPld",
 			nil, "msg", msg, "type", common.TypeOf(msg))
 	}
 	return pld.PackPld()
 }
 
-func (a *Adapter) RawToMsg(b common.RawBytes) (disp.Message, error) {
+func (a *Adapter) RawToMsg(b common.RawBytes) (proto.Cerealizable, error) {
 	return ctrl.NewSignedPldFromRaw(b)
 }
 
-func (a *Adapter) MsgKey(msg disp.Message) string {
+func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
 	ctrlPld, ok := msg.(*ctrl.SignedPld)
 	if !ok {
 		// FIXME(scrye): Change interface to handle key errors instead of

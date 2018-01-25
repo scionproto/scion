@@ -16,7 +16,9 @@ package messenger
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -38,17 +40,7 @@ var (
 	mockTRC = &cert_mgmt.TRC{RawTRC: common.RawBytes("foobar")}
 )
 
-func MockTRCRequestConstructor(data, _ proto.Cerealizable, peer net.Addr) (infra.Handler, error) {
-	return &MockTRCRequest{peer: peer}, nil
-}
-
-var _ infra.Handler = (*MockTRCRequest)(nil)
-
-type MockTRCRequest struct {
-	peer net.Addr
-}
-
-func (r *MockTRCRequest) Handle(ctx context.Context) {
+func MockTRCRequestConstructor(ctx context.Context, data, _ proto.Cerealizable, peer net.Addr) {
 	v := ctx.Value(infra.MessengerContextKey)
 	if v == nil {
 		log.Warn("Unable to service request, no Messenger interface found")
@@ -94,11 +86,12 @@ func TestTRCExchange(t *testing.T) {
 			sc.SoMsg("client received trc", trc, ShouldResemble, mockTRC)
 
 			// Exchange finished, shut down server
+			fmt.Println("close server")
 			serverMessenger.CloseServer()
 		}, func(sc *xtest.SC) {
 			// The server receives a TRC request from the client, passes it to
 			// the mock TRCRequest handler which sends back the result.
-			serverMessenger.AddHandler(TRCRequest, MockTRCRequestConstructor)
+			serverMessenger.AddHandler(TRCRequest, infra.HandlerFunc(MockTRCRequestConstructor))
 			serverMessenger.ListenAndServe()
 		}))
 	})
@@ -107,5 +100,10 @@ func TestTRCExchange(t *testing.T) {
 func setupMessenger(conn net.PacketConn, name string) *Messenger {
 	transport := transport.NewRUDP(conn, log.New("name", name))
 	dispatcher := disp.New(transport, DefaultAdapter, log.New("name", name))
-	return New(dispatcher, &Modules{}, log.Root().New("name", name))
+	return New(dispatcher, nil, log.Root().New("name", name))
+}
+
+func TestMain(m *testing.M) {
+	log.Root().SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
 }
