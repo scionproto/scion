@@ -245,7 +245,7 @@ class ConfigGenerator(object):
         for topo_id, as_topo, base in _srv_iter(
                 topo_dicts, self.out_dir, common=True):
             for path, value in cert_files[topo_id].items():
-                write_file(os.path.join(base, path), value)
+                write_file(os.path.join(base, path), value + '\n')
 
     def _write_conf_policies(self, topo_dicts):
         """
@@ -694,7 +694,7 @@ class TopoGenerator(object):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],
                                        default=_json_default, indent=2)
-            write_file(path, contents_json)
+            write_file(path, contents_json + '\n')
             # Test if topo file parses cleanly
             Topology.from_file(path)
 
