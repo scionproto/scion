@@ -256,7 +256,6 @@ func (m *Messenger) ListenAndServe() {
 		// CloseServer() calls the context's cancel function, thus unblocking Recv. The
 		// server's main loop then detects that closeChan has been closed, and shuts
 		// down cleanly.
-		fmt.Println("waiting for message")
 		genericMsg, address, err := m.RecvMsg(m.ctx)
 		if err != nil {
 			// Do not log errors caused after close signal sent
