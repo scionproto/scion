@@ -71,7 +71,7 @@ func (h *TRCHandler) sendTRCRep(addr *snet.Addr, t *trc.TRC) error {
 	if err != nil {
 		return err
 	}
-	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.TRC{RawTRC: raw})
+	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.TRC{RawTRC: raw}, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (h *TRCHandler) fetchTRC(addr *snet.Addr, req *cert_mgmt.TRCReq) error {
 
 // sendTRCReq sends a TRC request to the specified remote AS.
 func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
-	cpld, err := ctrl.NewCertMgmtPld(req)
+	cpld, err := ctrl.NewCertMgmtPld(req, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRC) {
 	if reqVer == nil && reqNew == nil { // No pending requests
 		return
 	}
-	cpld, err := ctrl.NewCertMgmtPld(rep)
+	cpld, err := ctrl.NewCertMgmtPld(rep, nil, nil)
 	if err != nil {
 		log.Error("Unable to create TRC reply", "key", t.Key(), "err", common.FmtError(err))
 		return

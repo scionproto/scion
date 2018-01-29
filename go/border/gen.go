@@ -109,7 +109,8 @@ func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
 	logger := log.New("ifid", ifID)
 	intf := ctx.Conf.Net.IFs[ifID]
 	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
-	scpld, err := ctrl.NewSignedPldFromUnion(&ifid.IFID{OrigIfID: uint64(ifID)})
+	scpld, err := ctrl.MkSPld(ctrl.NewPldF(&ifid.IFID{OrigIfID: uint64(ifID)}, nil),
+		ctrl.NullSigner)
 	if err != nil {
 		logger.Error("Error generating IFID payload", "err", common.FmtError(err))
 		return
@@ -141,7 +142,8 @@ func (r *Router) genIFStateReq() {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
-	scpld, err := ctrl.NewSignedPathMgmtPld(&path_mgmt.IFStateReq{})
+	scpld, err := ctrl.MkSPld(ctrl.NewPathMgmtPldF(&path_mgmt.IFStateReq{}, nil, nil),
+		ctrl.NullSigner)
 	if err != nil {
 		log.Error("Error generating IFStateReq payload", "err", common.FmtError(err))
 		return

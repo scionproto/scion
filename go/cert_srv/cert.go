@@ -72,7 +72,7 @@ func (h *ChainHandler) sendChainRep(addr *snet.Addr, chain *cert.Chain) error {
 	if err != nil {
 		return err
 	}
-	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.Chain{RawChain: raw})
+	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.Chain{RawChain: raw}, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (h *ChainHandler) fetchChain(addr *snet.Addr, req *cert_mgmt.ChainReq) erro
 
 // sendChainReq sends a certificate chain request to the specified remote AS.
 func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
-	cpld, err := ctrl.NewCertMgmtPld(req)
+	cpld, err := ctrl.NewCertMgmtPld(req, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.Chain) {
 	if reqVer == nil && reqNew == nil { // No pending requests
 		return
 	}
-	cpld, err := ctrl.NewCertMgmtPld(rep)
+	cpld, err := ctrl.NewCertMgmtPld(rep, nil, nil)
 	if err != nil {
 		log.Error("Unable to create certificate chain reply", "key", key,
 			"err", common.FmtError(err))
