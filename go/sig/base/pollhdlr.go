@@ -42,7 +42,7 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", common.FmtError(err))
 			break
 		}
-		scpld, err := ctrl.NewSignedPldFromUnion(spld)
+		scpld, err := ctrl.MkSPld(ctrl.NewPldF(spld, nil), ctrl.NullSigner)
 		if err != nil {
 			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", common.FmtError(err))
 			break

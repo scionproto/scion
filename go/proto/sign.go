@@ -34,6 +34,9 @@ func NewSignS(type_ SignType, src common.RawBytes) *SignS {
 }
 
 func (s *SignS) Copy() *SignS {
+	if s == nil {
+		return nil
+	}
 	return &SignS{
 		Type:      s.Type,
 		Src:       append(common.RawBytes(nil), s.Src...),

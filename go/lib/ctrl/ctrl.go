@@ -28,45 +28,95 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+type Plder func() (*Pld, error)
+
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
 	union
+	*Data
 }
 
 // NewPld creates a new control payload, containing the supplied Cerealizable instance.
-func NewPld(u proto.Cerealizable) (*Pld, error) {
-	p := &Pld{}
+func NewPld(u proto.Cerealizable, d *Data) (*Pld, error) {
+	p := &Pld{Data: d}
 	return p, p.union.set(u)
+}
+
+// NewPldF returns a Plder that calls NewPld
+func NewPldF(u proto.Cerealizable, d *Data) Plder {
+	return func() (*Pld, error) {
+		return NewPld(u, d)
+	}
 }
 
 // NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
 // which in turn contains the supplied Cerealizable instance.
-func NewPathMgmtPld(u proto.Cerealizable) (*Pld, error) {
-	ppld, err := path_mgmt.NewPld(u)
+func NewPathMgmtPld(u proto.Cerealizable, pathD *path_mgmt.Data, ctrlD *Data) (*Pld, error) {
+	ppld, err := path_mgmt.NewPld(u, pathD)
 	if err != nil {
 		return nil, err
 	}
-	return NewPld(ppld)
+	return NewPld(ppld, ctrlD)
+}
+
+// NewPathMgmtPldF creates a Plder that calls NewPathMgmtPld
+func NewPathMgmtPldF(u proto.Cerealizable, pathD *path_mgmt.Data, ctrlD *Data) Plder {
+	return func() (*Pld, error) {
+		return NewPathMgmtPld(u, pathD, ctrlD)
+	}
 }
 
 // NewCertMgmtPld creates a new control payload, containing a new cert_mgmt payload,
 // which in turn contains the supplied Cerealizable instance.
-func NewCertMgmtPld(u proto.Cerealizable) (*Pld, error) {
-	cpld, err := cert_mgmt.NewPld(u)
+func NewCertMgmtPld(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) (*Pld, error) {
+	cpld, err := cert_mgmt.NewPld(u, certD)
 	if err != nil {
 		return nil, err
 	}
-	return NewPld(cpld)
+	return NewPld(cpld, ctrlD)
+}
+
+// NewCertMgmtPldF creates a Plder that calls NewCertMgmtPld
+func NewCertMgmtPldF(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) Plder {
+	return func() (*Pld, error) {
+		return NewCertMgmtPld(u, certD, ctrlD)
+	}
 }
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
-	p := &Pld{}
+	p := &Pld{Data: &Data{}}
 	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b)
 }
 
 func (p *Pld) Union() (proto.Cerealizable, error) {
 	return p.union.get()
+}
+
+func (p *Pld) GetCertMgmt() (*cert_mgmt.Pld, *Data, error) {
+	u, err := p.Union()
+	if err != nil {
+		return nil, nil, err
+	}
+	certP, ok := u.(*cert_mgmt.Pld)
+	if !ok {
+		return nil, nil, common.NewBasicError("Non-matching ctrl pld contents", nil,
+			"expected", "*cert_mgmt.Pld", "actual", common.TypeOf(u))
+	}
+	return certP, p.Data, nil
+}
+
+func (p *Pld) GetPathMgmt() (*path_mgmt.Pld, *Data, error) {
+	u, err := p.Union()
+	if err != nil {
+		return nil, nil, err
+	}
+	pathP, ok := u.(*path_mgmt.Pld)
+	if !ok {
+		return nil, nil, common.NewBasicError("Non-matching ctrl pld contents", nil,
+			"expected", "*path_mgmt.Pld", "actual", common.TypeOf(u))
+	}
+	return pathP, p.Data, nil
 }
 
 func (p *Pld) Len() int {
@@ -85,12 +135,8 @@ func (p *Pld) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(p, b)
 }
 
-func (p *Pld) SignedPld() (*SignedPld, error) {
-	return NewSignedPld(p)
-}
-
 func (p *Pld) WritePld(b common.RawBytes) (int, error) {
-	sp, err := p.SignedPld()
+	sp, err := newSignedPld(p, nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -98,7 +144,7 @@ func (p *Pld) WritePld(b common.RawBytes) (int, error) {
 }
 
 func (p *Pld) PackPld() (common.RawBytes, error) {
-	sp, err := p.SignedPld()
+	sp, err := newSignedPld(p, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -118,4 +164,10 @@ func (p *Pld) String() string {
 		desc = append(desc, fmt.Sprintf("%+v", u))
 	}
 	return strings.Join(desc, " ")
+}
+
+// Data holds all non-union entries from CtrlPld
+type Data struct {
+	ReqId   uint64
+	TraceId common.RawBytes
 }
