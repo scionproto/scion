@@ -173,6 +173,9 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
+        # FIXME(kormat): sciond does not cache non-peer revocations, so if the PS gives us a path
+        # that has been revoked, this won't be caught. This will be fixed in the upcoming rewrite of
+        # sciond.
         pmgt = cpld.union
         path_reply = pmgt.union
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
@@ -392,6 +395,7 @@ class SCIONDaemon(SCIONElement):
                 % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
             return SCIONDRevReplyStatus.STALE
 
+        self.peer_revs.add(rev_info)
         # Go through all segment databases and remove affected segments.
         removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
         removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
@@ -420,8 +424,7 @@ class SCIONDaemon(SCIONElement):
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
-        Removes all segments from 'db' that contain an IF token for which
-        rev_token is a preimage (within 20 calls).
+        Removes all segments from 'db' that have a revoked upstream PCBMarking.
 
         :param db: The PathSegmentDB.
         :type db: :class:`lib.path_db.PathSegmentDB`
@@ -435,7 +438,7 @@ class SCIONDaemon(SCIONElement):
         to_remove = []
         for segment in db(full=True):
             for asm in segment.iter_asms():
-                if self._verify_revocation_for_asm(rev_info, asm):
+                if self._verify_revocation_for_asm(rev_info, asm, verify_all=False):
                     logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
