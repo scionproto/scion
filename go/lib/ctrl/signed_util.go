@@ -21,61 +21,74 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type Signer func(*Pld) (*SignedPld, error)
+// Signer takes a Pld and signs it, producing a SignedPld.
+type Signer interface {
+	Sign(*Pld) (*SignedPld, error)
+}
 
-func MkSigner(s *proto.SignS, key common.RawBytes) Signer {
-	return func(p *Pld) (*SignedPld, error) {
-		return newSignedPld(p, s, key)
+// BasicSigner is a simple implementation of Signer.
+type BasicSigner struct {
+	s   *proto.SignS
+	key common.RawBytes
+}
+
+// NewBasicSigner creates a Signer that uses the supplied s and key to sign Pld's.
+func NewBasicSigner(s *proto.SignS, key common.RawBytes) *BasicSigner {
+	return &BasicSigner{s: s, key: key}
+}
+
+func (b *BasicSigner) Sign(pld *Pld) (*SignedPld, error) {
+	return newSignedPld(pld, b.s, b.key)
+}
+
+// NullSigner is a Signer that creates SignedPld's with no signature.
+var NullSigner = NewBasicSigner(nil, nil)
+
+type trustStore struct{} // TODO(kormat): replace this with trust store interface
+
+// VerifySig does some sanity checks on p, and then verifies the signature using sigV.
+func VerifySig(p *SignedPld, sigV SigVerifier) error {
+	// Perform common checks before calling real checker.
+	if p.Sign.Type == proto.SignType_none && len(p.Sign.Signature) == 0 {
+		// Nothing to check.
+		return nil
 	}
-}
-
-func NullSigner(p *Pld) (*SignedPld, error) {
-	return newSignedPld(p, nil, nil)
-}
-
-type trustStore struct{} // TODO(kormat): replace this with the actual trust store.
-
-type SigChecker func(*SignedPld) error
-type SigCheckerInner func(*SignedPld, *trustStore) error
-
-func MkSigchecker(sigCin SigCheckerInner, tStore *trustStore) SigChecker {
-	return func(p *SignedPld) error {
-		// Perform common checks before calling real checker.
-		if p.Sign.Type == proto.SignType_none && len(p.Sign.Signature) == 0 {
-			// Nothing to check.
-			return nil
-		}
-		if p.Sign.Type == proto.SignType_none {
-			return common.NewBasicError("SignedPld has signature of type none", nil)
-		}
-		if len(p.Sign.Signature) == 0 {
-			return common.NewBasicError("SignedPld is missing signature", nil, "type", p.Sign.Type)
-		}
-		return sigCin(p, tStore)
+	if p.Sign.Type == proto.SignType_none {
+		return common.NewBasicError("SignedPld has signature of type none", nil)
 	}
+	if len(p.Sign.Signature) == 0 {
+		return common.NewBasicError("SignedPld is missing signature", nil, "type", p.Sign.Type)
+	}
+	return sigV.Verify(p)
 }
 
-func BasicSigCheck(p *SignedPld, tStore *trustStore) error {
+// SigVerifier verifies the signature of a SignedPld.
+type SigVerifier interface {
+	Verify(*SignedPld) error
+}
+
+// BasicSigVerifier is a SigVerifier that ignores signatures on cert_mgmt.TRC
+// and cert_mgmt.Chain messages, to avoid depdendency cycles.
+type BasicSigVerifier struct {
+	tStore *trustStore
+}
+
+func (b *BasicSigVerifier) Verify(p *SignedPld) error {
 	cpld, err := p.Pld()
 	if err != nil {
 		return err
 	}
-	if ignoreSign(cpld) {
+	if b.ignoreSign(cpld) {
 		return nil
 	}
-	c, err := GetCertForSign(p.Sign, tStore)
+	c, err := b.getCertForSign(p.Sign)
 	if err != nil {
 		return err
 	}
 	return p.Sign.Verify(c.SubjectSignKey, p.Blob)
 }
 
-func GetCertForSign(s *proto.SignS, tStore *trustStore) (*cert.Certificate, error) {
-	// TODO(kormat): Parse s.Src, query tStore
-	return nil, nil
-}
-
-func ignoreSign(p *Pld) bool {
+func (b *BasicSigVerifier) ignoreSign(p *Pld) bool {
 	u0, _ := p.Union()
 	outer, ok := u0.(*cert_mgmt.Pld)
 	if !ok {
@@ -90,11 +103,7 @@ func ignoreSign(p *Pld) bool {
 	}
 }
 
-// MkSPld creates a SignedPld from the provided Plder and Signer.
-func MkSPld(plder Plder, signer Signer) (*SignedPld, error) {
-	pld, err := plder()
-	if err != nil {
-		return nil, err
-	}
-	return signer(pld)
+func (b *BasicSigVerifier) getCertForSign(s *proto.SignS) (*cert.Certificate, error) {
+	// TODO(kormat): Parse s.Src, query b.tStore
+	return nil, nil
 }

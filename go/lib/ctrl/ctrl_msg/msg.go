@@ -30,21 +30,17 @@ type notifyF func(context.Context, disp.Message, net.Addr) error
 
 type Requester struct {
 	signer ctrl.Signer
-	sigc   ctrl.SigChecker
+	sigv   ctrl.SigVerifier
 	d      *disp.Dispatcher
 }
 
-func NewRequester(signer ctrl.Signer, sigc ctrl.SigChecker, d *disp.Dispatcher) *Requester {
-	return &Requester{signer: signer, sigc: sigc, d: d}
+func NewRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher) *Requester {
+	return &Requester{signer: signer, sigv: sigv, d: d}
 }
 
-func (r *Requester) Request(ctx context.Context, plder ctrl.Plder,
+func (r *Requester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
-	pld, err := plder()
-	if err != nil {
-		return nil, nil, err
-	}
-	spld, err := r.signer(pld)
+	spld, err := r.signer.Sign(pld)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -57,7 +53,7 @@ func (r *Requester) Request(ctx context.Context, plder ctrl.Plder,
 		return nil, nil, common.NewBasicError("ctrl_msg: reply is not a ctrl.SignedPld", nil,
 			"type", common.TypeOf(reply), "reply", reply)
 	}
-	if err := r.sigc(rspld); err != nil {
+	if err := r.sigv.Verify(rspld); err != nil {
 		return nil, rspld.Sign, err
 	}
 	rpld, err := rspld.Pld()
@@ -67,20 +63,16 @@ func (r *Requester) Request(ctx context.Context, plder ctrl.Plder,
 	return rpld, rspld.Sign, nil
 }
 
-func (r *Requester) Notify(ctx context.Context, plder ctrl.Plder, a net.Addr) error {
-	return r.notify(ctx, plder, a, r.d.Notify)
+func (r *Requester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	return r.notify(ctx, pld, a, r.d.Notify)
 }
 
-func (r *Requester) NotifyUnreliable(ctx context.Context, plder ctrl.Plder, a net.Addr) error {
-	return r.notify(ctx, plder, a, r.d.NotifyUnreliable)
+func (r *Requester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	return r.notify(ctx, pld, a, r.d.NotifyUnreliable)
 }
 
-func (r *Requester) notify(ctx context.Context, plder ctrl.Plder, a net.Addr, f notifyF) error {
-	pld, err := plder()
-	if err != nil {
-		return err
-	}
-	spld, err := r.signer(pld)
+func (r *Requester) notify(ctx context.Context, pld *ctrl.Pld, a net.Addr, f notifyF) error {
+	spld, err := pld.SignedPld(r.signer)
 	if err != nil {
 		return err
 	}

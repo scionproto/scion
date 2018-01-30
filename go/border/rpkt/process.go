@@ -159,7 +159,11 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 	// Set the RelayIF field in the payload to the current interface ID.
 	ifid.RelayIfID = uint64(*rp.ifCurr)
-	scpld, err := ctrl.MkSPld(ctrl.NewPldF(ifid, nil), ctrl.NullSigner)
+	cpld, err := ctrl.NewPld(ifid, nil)
+	if err != nil {
+		return HookError, err
+	}
+	scpld, err := cpld.SignedPld(ctrl.NullSigner)
 	if err != nil {
 		return HookError, err
 	}

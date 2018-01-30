@@ -28,8 +28,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type Plder func() (*Pld, error)
-
 var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
@@ -43,13 +41,6 @@ func NewPld(u proto.Cerealizable, d *Data) (*Pld, error) {
 	return p, p.union.set(u)
 }
 
-// NewPldF returns a Plder that calls NewPld
-func NewPldF(u proto.Cerealizable, d *Data) Plder {
-	return func() (*Pld, error) {
-		return NewPld(u, d)
-	}
-}
-
 // NewPathMgmtPld creates a new control payload, containing a new path_mgmt payload,
 // which in turn contains the supplied Cerealizable instance.
 func NewPathMgmtPld(u proto.Cerealizable, pathD *path_mgmt.Data, ctrlD *Data) (*Pld, error) {
@@ -58,13 +49,6 @@ func NewPathMgmtPld(u proto.Cerealizable, pathD *path_mgmt.Data, ctrlD *Data) (*
 		return nil, err
 	}
 	return NewPld(ppld, ctrlD)
-}
-
-// NewPathMgmtPldF creates a Plder that calls NewPathMgmtPld
-func NewPathMgmtPldF(u proto.Cerealizable, pathD *path_mgmt.Data, ctrlD *Data) Plder {
-	return func() (*Pld, error) {
-		return NewPathMgmtPld(u, pathD, ctrlD)
-	}
 }
 
 // NewCertMgmtPld creates a new control payload, containing a new cert_mgmt payload,
@@ -77,13 +61,6 @@ func NewCertMgmtPld(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) (*
 	return NewPld(cpld, ctrlD)
 }
 
-// NewCertMgmtPldF creates a Plder that calls NewCertMgmtPld
-func NewCertMgmtPldF(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) Plder {
-	return func() (*Pld, error) {
-		return NewCertMgmtPld(u, certD, ctrlD)
-	}
-}
-
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
 	p := &Pld{Data: &Data{}}
 	return p, proto.ParseFromRaw(p, proto.CtrlPld_TypeID, b)
@@ -93,6 +70,8 @@ func (p *Pld) Union() (proto.Cerealizable, error) {
 	return p.union.get()
 }
 
+// GetCertMgmt returns the CertMgmt payload and the CtrlPld's non-union Data.
+// If the union type is not CertMgmt, an error is returned.
 func (p *Pld) GetCertMgmt() (*cert_mgmt.Pld, *Data, error) {
 	u, err := p.Union()
 	if err != nil {
@@ -106,6 +85,8 @@ func (p *Pld) GetCertMgmt() (*cert_mgmt.Pld, *Data, error) {
 	return certP, p.Data, nil
 }
 
+// GetCertMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
+// If the union type is not PathMgmt, an error is returned.
 func (p *Pld) GetPathMgmt() (*path_mgmt.Pld, *Data, error) {
 	u, err := p.Union()
 	if err != nil {
@@ -133,6 +114,10 @@ func (p *Pld) Copy() (common.Payload, error) {
 
 func (p *Pld) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(p, b)
+}
+
+func (p *Pld) SignedPld(signer Signer) (*SignedPld, error) {
+	return signer.Sign(p)
 }
 
 func (p *Pld) WritePld(b common.RawBytes) (int, error) {
