@@ -42,14 +42,20 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", common.FmtError(err))
 			break
 		}
-		scpld, err := ctrl.NewSignedPldFromUnion(spld)
+		cpld, err := ctrl.NewPld(spld, nil)
 		if err != nil {
 			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", common.FmtError(err))
 			break
 		}
+		scpld, err := cpld.SignedPld(ctrl.NullSigner)
+		if err != nil {
+			log.Error("PollReqHdlr: Error creating signed Ctrl payload",
+				"err", common.FmtError(err))
+			break
+		}
 		raw, err := scpld.PackPld()
 		if err != nil {
-			log.Error("PollReqHdlr: Error packing Ctrl payload", "err", common.FmtError(err))
+			log.Error("PollReqHdlr: Error packing signed Ctrl payload", "err", common.FmtError(err))
 			break
 		}
 		sigCtrlAddr := &snet.Addr{

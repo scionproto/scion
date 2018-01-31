@@ -88,6 +88,11 @@ class CtrlPayload(CerealBox):
         DRKeyMgmt: PayloadClass.DRKEY,
     }
 
+    def __init__(self, union, req_id=0, trace_id=b''):
+        self.union = union
+        self.req_id = req_id
+        self.trace_id = trace_id
+
     @classmethod
     def from_raw(cls, raw):
         try:
@@ -95,6 +100,22 @@ class CtrlPayload(CerealBox):
         except capnp.lib.capnp.KjException as e:
             raise SCIONParseError("Unable to parse %s capnp message: %s" % (cls.NAME, e)) from None
         return cls.from_proto(p)
+
+    @classmethod
+    def _from_union(cls, p, union):  # pragma: no cover
+        return cls(union, p.reqId, p.traceId)
+
+    def proto(self):
+        field = self.type()
+        return self.P_CLS.new_message(**{
+            field: self.union.proto(),
+            "reqId": self.req_id,
+            "traceId": self.trace_id,
+        })
+
+    def __str__(self):
+        return "%s(%dB): req_id=%s trace_id=%s %s" % (
+            self.NAME, len(self), self.req_id, self.trace_id, self.union)
 
     def new_signed_pld(self):
         return SignedCtrlPayload.from_values(self.proto().to_bytes_packed())

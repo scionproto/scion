@@ -72,11 +72,12 @@ var _ proto.Cerealizable = (*Pld)(nil)
 
 type Pld struct {
 	union
+	*Data
 }
 
 // NewPld creates a new cert mgmt payload, containing the supplied Cerealizable instance.
-func NewPld(u proto.Cerealizable) (*Pld, error) {
-	p := &Pld{}
+func NewPld(u proto.Cerealizable, d *Data) (*Pld, error) {
+	p := &Pld{Data: d}
 	return p, p.union.set(u)
 }
 
@@ -97,4 +98,8 @@ func (p *Pld) String() string {
 		desc = append(desc, fmt.Sprintf("%+v", u))
 	}
 	return strings.Join(desc, " ")
+}
+
+type Data struct {
+	// For passing any future non-union data.
 }

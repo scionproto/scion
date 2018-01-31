@@ -19,6 +19,7 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -31,39 +32,24 @@ var _ proto.Cerealizable = (*SignedPld)(nil)
 type SignedPld struct {
 	Blob common.RawBytes
 	Sign *proto.SignS
+	pld  *Pld
 }
 
-func NewSignedPld(c *Pld) (*SignedPld, error) {
-	s := &SignedPld{Sign: &proto.SignS{}}
-	if c != nil {
-		return s, s.SetPld(c)
+func newSignedPld(cpld *Pld, sign *proto.SignS, key common.RawBytes) (*SignedPld, error) {
+	// Make a copy of signer, so the caller can re-use it.
+	spld := &SignedPld{Sign: sign.Copy()}
+	if spld.Sign == nil && assert.On {
+		assert.Must(len(key) == 0, "If there's no Sign, key must be empty")
 	}
-	return s, nil
-}
-
-func NewSignedPldFromUnion(u proto.Cerealizable) (*SignedPld, error) {
-	cpld, err := NewPld(u)
-	if err != nil {
+	if err := spld.SetPld(cpld); err != nil {
 		return nil, err
 	}
-	s := &SignedPld{Sign: &proto.SignS{}}
-	return s, s.SetPld(cpld)
-}
-
-func NewSignedPathMgmtPld(u proto.Cerealizable) (*SignedPld, error) {
-	cpld, err := NewPathMgmtPld(u)
-	if err != nil {
-		return nil, err
+	if spld.Sign != nil {
+		if err := spld.Sign.SignAndSet(key, spld.Blob); err != nil {
+			return nil, err
+		}
 	}
-	return NewSignedPld(cpld)
-}
-
-func NewSignedCertMgmtPld(u proto.Cerealizable) (*SignedPld, error) {
-	cpld, err := NewCertMgmtPld(u)
-	if err != nil {
-		return nil, err
-	}
-	return NewSignedPld(cpld)
+	return spld, nil
 }
 
 func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
@@ -77,11 +63,16 @@ func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 }
 
 func (sp *SignedPld) Pld() (*Pld, error) {
-	return NewPldFromRaw(sp.Blob)
+	var err error
+	if sp.pld == nil {
+		sp.pld, err = NewPldFromRaw(sp.Blob)
+	}
+	return sp.pld, err
 }
 
 func (sp *SignedPld) SetPld(p *Pld) error {
 	var err error
+	sp.pld = nil
 	sp.Blob, err = proto.PackRoot(p)
 	return err
 }
