@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package ctrl_msg implements a layer for sending SCION Ctrl payload
+// requests/notifications via the infra dispatcher, including integrated
+// signing and signature verification of ctrl payloads.
 package ctrl_msg
 
 import (
