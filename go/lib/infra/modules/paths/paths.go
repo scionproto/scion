@@ -68,33 +68,34 @@ func (pv *Verifier) VerifyPathSegment(ctx context.Context, segment seg.PathSegme
 }
 
 // buildTrustTrail extracts the sequence of trust descriptors required to
-// verify the bottom signature in entries.
+// verify the innermost signature in entries.
 func (pv *Verifier) buildTrustTrail(entries []*seg.ASEntry) []trust.Descriptor {
 	if entries == nil {
 		return nil
 	}
-	// The bottom signature is contained in the first entry.
+	// The innermost signature is contained in the first entry.
 	firstEntry := entries[0]
 	trail := []trust.Descriptor{
 		{
-			TRCVersion:   firstEntry.TrcVer,
-			ChainVersion: firstEntry.CertVer,
-			IA:           *firstEntry.IA(),
-			Type:         trust.ChainDescriptor,
+			Version: firstEntry.CertVer,
+			IA:      *firstEntry.IA(),
+			Type:    trust.ChainDescriptor,
 		},
 	}
 	// Add TRCs for each AS entry starting from the first entry itself. This
-	// constructs the ISD trail from the ISD of the bottom signer, to the ISD
-	// of the top signer. The top signer will usually be a very close ISD,
+	// constructs the ISD trail from the ISD of the innermost signer, to the ISD
+	// of the outer signer. The outer signer will usually be a very close ISD,
 	// either the local one or a direct neighbor.
+	ia := firstEntry.IA()
 	for _, asEntry := range entries {
-		desc := trust.Descriptor{
-			TRCVersion:   asEntry.TrcVer,
-			ChainVersion: asEntry.CertVer,
-			IA:           *asEntry.IA(),
-			Type:         trust.TRCDescriptor,
+		if ia.I != asEntry.IA().I {
+			desc := trust.Descriptor{
+				Version: asEntry.TrcVer,
+				IA:      *asEntry.IA(),
+				Type:    trust.TRCDescriptor,
+			}
+			trail = append(trail, desc)
 		}
-		trail = append(trail, desc)
 	}
 	return trail
 }

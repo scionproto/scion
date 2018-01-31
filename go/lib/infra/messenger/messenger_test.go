@@ -16,7 +16,6 @@ package messenger
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"testing"
@@ -86,7 +85,6 @@ func TestTRCExchange(t *testing.T) {
 			sc.SoMsg("client received trc", trc, ShouldResemble, mockTRC)
 
 			// Exchange finished, shut down server
-			fmt.Println("close server")
 			serverMessenger.CloseServer()
 		}, func(sc *xtest.SC) {
 			// The server receives a TRC request from the client, passes it to

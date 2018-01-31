@@ -118,35 +118,32 @@ func TestTrustTrails(t *testing.T) {
 	Convey("", t, func() {
 		db, err := trustdb.New(randomFileName())
 		SoMsg("trustdb init error", err, ShouldBeNil)
-		store, err := NewStore(db, log.Root())
+		store, err := NewStore(db, addr.ISD_AS{I: 1, A: 1}, log.Root())
 		// Add trust root for this trust store manually
 		err = store.trustdb.InsertTRCCtx(context.Background(), 2, 0, trcObjects[2])
 		SoMsg("root insertion err", err, ShouldBeNil)
 
 		// Enable fake network access for trust database
 		messenger := NewFakeMessenger()
-		store.StartResolvers(messenger)
+		store.StartResolvers(messenger, false)
 
 		Convey("Validate using trail from ISD2 to AS1-16", func() {
 			// Test that 1-16 Certificate can be validate
 			trail := []Descriptor{
 				{
-					TRCVersion:   0,
-					ChainVersion: 0,
-					IA:           addr.ISD_AS{I: 1, A: 16},
-					Type:         ChainDescriptor,
+					Version: 0,
+					IA:      addr.ISD_AS{I: 1, A: 16},
+					Type:    ChainDescriptor,
 				},
 				{
-					TRCVersion:   0,
-					ChainVersion: 0,
-					IA:           addr.ISD_AS{I: 1, A: 0},
-					Type:         TRCDescriptor,
+					Version: 0,
+					IA:      addr.ISD_AS{I: 1, A: 0},
+					Type:    TRCDescriptor,
 				},
 				{
-					TRCVersion:   0,
-					ChainVersion: 0,
-					IA:           addr.ISD_AS{I: 2, A: 0},
-					Type:         TRCDescriptor,
+					Version: 0,
+					IA:      addr.ISD_AS{I: 2, A: 0},
+					Type:    TRCDescriptor,
 				},
 			}
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
@@ -160,16 +157,14 @@ func TestTrustTrails(t *testing.T) {
 			// Test that 1-19 can't be validated due to incomplete trail
 			trail := []Descriptor{
 				{
-					TRCVersion:   0,
-					ChainVersion: 0,
-					IA:           addr.ISD_AS{I: 1, A: 19},
-					Type:         ChainDescriptor,
+					Version: 0,
+					IA:      addr.ISD_AS{I: 1, A: 19},
+					Type:    ChainDescriptor,
 				},
 				{
-					TRCVersion:   0,
-					ChainVersion: 0,
-					IA:           addr.ISD_AS{I: 2, A: 0},
-					Type:         TRCDescriptor,
+					Version: 0,
+					IA:      addr.ISD_AS{I: 2, A: 0},
+					Type:    TRCDescriptor,
 				},
 			}
 			ctx, cancelF := context.WithTimeout(context.Background(), time.Second)

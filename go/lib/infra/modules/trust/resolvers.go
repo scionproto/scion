@@ -41,136 +41,146 @@ const (
 	CompletionChanCap = 1 << 8
 )
 
-// trcResolver services requests from channel requests. Requests are throttled
+type requestI interface {
+	// requestKey returns a string that is defined by the AS, Certificate
+	// version and contacted address. Requests with the same requestKey are
+	// throttled (i.e., at most one every MinimumDelta time).
+	requestKey() string
+	// responseKey returns a string that is completely defined by the AS and
+	// Certificate version of the request. This can be used to create maps of
+	// channels where any goroutine that is handling a request for an AS and
+	// version can unblock the waiters on the channel, irrespective of contacted
+	// address.
+	responseKey() string
+	// resolve builds a network message from the request, sends it on msger,
+	// waits for the response, verifies it and finally inserts it into the
+	// database.
+	resolve(ctx context.Context, msger infra.Messenger, db *trustdb.DB) error
+	// getErrorChan returns the channel the goroutine that submitted the
+	// request is waiting on.
+	getErrorChan() chan<- error
+}
+
+// resolver services requests from channel requests. Requests are throttled
 // based on key, meaning that multiple requests arriving for the same key in
 // the same MinimumDelta time slot will cause a single handler to spawn.
 // The maximum lifetime of the handler is MinimumDelta + GracePeriod. Requests
 // include error channels which are used by the resolver to communicate if the
 // handler associated with a request encountered an error, and to unblock the
 // submitter of the request.
-type trcResolver struct {
+type resolver struct {
 	msger   infra.Messenger
 	trustdb *trustdb.DB
 	// channel from which the resolver receives requests from the frontend
-	requests <-chan trcRequest
+	requests <-chan requestI
 	// for each key maintain a completion channel that includes a sequence of
 	// error channels. When the resolver receives a request, it writes the
 	// error channel (on which the submitter of the request is waiting) to the
 	// completionChannel for that key. When the handler completes (either
 	// successfully or with an error), it writes the error result on each error
 	// channel and then shuts itself down.
-	completionChans map[string]chan chan error
+	completionChans map[string]chan chan<- error
 	log             log.Logger
 }
 
-func (resolver *trcResolver) Run() {
+func (r *resolver) Run() {
 	defer liblog.LogPanicAndExit()
 	lastSent := make(map[string]time.Time)
-	for request := range resolver.requests {
-		key := request.Key()
-		if now := time.Now(); now.Sub(lastSent[key]) > MinimumDelta {
-			// We sent out the last request a long time ago and it expired by now.
-			// Send one again.
-			lastSent[key] = now
-			if resolver.completionChans[key] != nil {
-				close(resolver.completionChans[key])
+	for request := range r.requests {
+		// requestKey uniquely describes a (object, version, address) tuple,
+		// while responseKey describes a (object, version) one. The resolver
+		// throttles based on the requestKey, s.t. at most a single goroutine
+		// every MinimumDelta is trying to reach an address. However, channels
+		// containing the error channels requesters are waiting on are indexed
+		// by responseKeys. Once any goroutine for any address has the desired
+		// object, all waiters are unblocked irrespective of the address they
+		// contacted. However, on error conditions, the signaling is done via
+		// requestKey indexing (because the error might be related to a single
+		// address).
+		requestKey := request.requestKey()
+		responseKey := request.responseKey()
+		if now := time.Now(); now.Sub(lastSent[requestKey]) > MinimumDelta {
+			// We sent out the last request to the address described in
+			// requestKey a long time ago and it expired by now.  Send one
+			// again.
+			lastSent[requestKey] = now
+			// FIXME(scrye): these references will leak channels unless
+			// periodically cleaned from the maps.
+			if r.completionChans[responseKey] == nil {
+				r.completionChans[responseKey] = make(chan chan<- error, CompletionChanCap)
 			}
-			resolver.completionChans[key] = make(chan chan error, CompletionChanCap)
-			handler := &trcResolverHandler{
-				resolver:       resolver,
-				request:        request,
-				completionChan: resolver.completionChans[key],
-				log: resolver.log.New("id", logext.RandId(4),
+			if r.completionChans[requestKey] == nil {
+				r.completionChans[requestKey] = make(chan chan<- error, CompletionChanCap)
+			}
+			handler := &resolverHandler{
+				resolver:              r,
+				request:               request,
+				successCompletionChan: r.completionChans[responseKey],
+				failCompletionChan:    r.completionChans[requestKey],
+				log: r.log.New("id", logext.RandId(4),
 					"goroutine", "trcResolverHandler.Handle", "request", request),
 			}
 			go handler.Handle()
 		}
 
+		// A goroutine is already handling a request described by the same
+		// requestKey. We need to register the error channel the requester is
+		// waiting one with all the goroutines that are currently attempting to
+		// grab the desired object from any address.
 		select {
-		case resolver.completionChans[key] <- request.errChan:
+		case r.completionChans[responseKey] <- request.getErrorChan():
 			// Do nothing
 		default:
-			request.errChan <- common.NewBasicError("Insufficient space in completion channel",
-				nil, "request_key", key)
-			close(request.errChan)
+			request.getErrorChan() <- common.NewBasicError("Insufficient space in completion channel",
+				nil, "request_key", requestKey)
+			close(request.getErrorChan())
 		}
 	}
 }
 
-type trcResolverHandler struct {
-	resolver *trcResolver
-	request  trcRequest
-	// when the handler exits, read all the error channels from completionChan,
-	// write the result of the handler to each of them and finally close them.
-	completionChan chan chan error
-	log            log.Logger
+// resolverHandler is tasked with servicing a single request.
+type resolverHandler struct {
+	resolver *resolver
+	request  requestI
+	// when the handler exits successfully, read all the error channels from
+	// successCompletionChan, write nil to each of them and finally close them.
+	// This unblocks all goroutines waiting for (object, version)
+	successCompletionChan chan chan<- error
+	// when the handler exits with a failure, read all the error channels from
+	// failCompleTionChan, write the error to each of them and finally close them.
+	// This unblocks all goroutines waiting for (object, version, address)
+	failCompletionChan chan chan<- error
+	log                log.Logger
 }
 
-func (handler *trcResolverHandler) Handle() {
-	var err error
+func (h *resolverHandler) Handle() {
 	defer liblog.LogPanicAndExit()
 	ctx, cancelF := context.WithTimeout(context.Background(), MinimumDelta+GracePeriod)
 	defer cancelF()
-	handler.log.Info("Start TRC resolver handler", "request", handler.request)
+	h.log.Info("Start resolver handler", "request", h.request)
 
-	defer func() {
-		// Once MinimumDelta expires, if the resolver receives a new request
-		// for the same request.Key() that this handler services, it closes errChan
-		// and all the resources associated with it get cleaned up. If
-		// the resolver doesn't receive a request, ctx.Done() returns after
-		// MinimumDelta+GracePeriod at the latest.
-		for {
-			select {
-			case errChan := <-handler.completionChan:
-				errChan <- err
-				close(errChan)
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	// Check ahead of time if we have a verifier TRC
-	if handler.request.verifier == nil {
-		err = common.NewBasicError("Unable to fetch TRC without a trusted TRC", nil)
-		return
-	}
-	trcReqMsg := &cert_mgmt.TRCReq{
-		ISD:       handler.request.isd,
-		Version:   handler.request.version,
-		CacheOnly: false,
-	}
-	var csAddress net.Addr
-	if handler.request.hint != nil {
-		csAddress = handler.request.hint
+	err := h.request.resolve(ctx, h.resolver.msger, h.resolver.trustdb)
+	// Depending on error, choose whether to announce success or errors
+	var announceChan chan chan<- error
+	if err != nil {
+		announceChan = h.failCompletionChan
 	} else {
-		// FIXME(scrye): Add SVC support for write ops in snet
-		csAddress = net.Addr(nil)
+		announceChan = h.successCompletionChan
 	}
-	trcMessage, err := handler.resolver.msger.GetTRC(ctx, trcReqMsg, csAddress)
-	if err != nil {
-		return
-	}
-	trcObj, err := trcMessage.TRC()
-	if err != nil {
-		err = common.NewBasicError("Unable to parse TRC message", err, "msg", trcMessage)
-		return
-	}
-
-	// Verify trc based on the verifier in the request
-	// XXX(scrye): full verification is not implemented (e.g., no cross signature support)
-	if _, err = trcObj.Verify(handler.request.verifier); err != nil {
-		err = common.NewBasicError("TRC verification error", err)
-		return
-	}
-
-	err = handler.resolver.trustdb.InsertTRCCtx(ctx, handler.request.isd, handler.request.version,
-		trcObj)
-	if err != nil {
-		err = common.NewBasicError("Unable to store TRC in database", err)
-		return
+	for {
+		select {
+		case errChan := <-announceChan:
+			// Unblock the goroutine waiting for a message on errChan
+			errChan <- err
+			close(errChan)
+		default:
+			// Nobody is waiting for the result any more
+			return
+		}
 	}
 }
+
+var _ requestI = trcRequest{}
 
 // trcRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
@@ -182,143 +192,57 @@ type trcRequest struct {
 	errChan  chan error
 }
 
-// Key returns a string that describes the request. Requests with the same key
-// are throttled (i.e., at most one every MinimumDelta time).
-func (req trcRequest) Key() string {
-	return fmt.Sprintf("%d-%d-%s", req.isd, req.version, req.hint.String())
+func (req trcRequest) requestKey() string {
+	return fmt.Sprintf("%dv%d %s", req.isd, req.version, req.hint.String())
 }
 
-// chainResolver services requests from channel requests. Requests are throttled
-// based on key, meaning that multiple requests arriving for the same key in
-// the same MinimumDelta time slot will cause a single handler to spawn.
-// The maximum lifetime of the handler is MinimumDelta + GracePeriod. Requests
-// include error channels which are used by the resolver to communicate if the
-// handler associated with a request encountered an error, and to unblock the
-// submitter of the request.
-type chainResolver struct {
-	msger   infra.Messenger
-	trustdb *trustdb.DB
-	// channel from which the resolver receives requests from the frontend
-	requests <-chan chainRequest
-	// for each key maintain a completion channel that includes a sequence of
-	// error channels. When the resolver receives a request, it writes the
-	// error channel (on which the submitter of the request is waiting) to the
-	// completionChannel for that key. When the handler completes (either
-	// successfully or with an error), it writes the error result on each error
-	// channel and then shuts itself down.
-	completionChans map[string]chan chan error
-	log             log.Logger
+func (req trcRequest) responseKey() string {
+	return fmt.Sprintf("%dv%d", req.isd, req.version)
 }
 
-func (resolver *chainResolver) Run() {
-	defer liblog.LogPanicAndExit()
-	lastSent := make(map[string]time.Time)
-	for request := range resolver.requests {
-		key := request.Key()
-		if now := time.Now(); now.Sub(lastSent[key]) > MinimumDelta {
-			// We sent out the last request a long time ago and it expired by now.
-			// Send one again.
-			lastSent[key] = now
-			if resolver.completionChans[key] != nil {
-				close(resolver.completionChans[key])
-			}
-			resolver.completionChans[key] = make(chan chan error, CompletionChanCap)
-			handler := &chainResolverHandler{
-				resolver:       resolver,
-				request:        request,
-				completionChan: resolver.completionChans[key],
-				log: resolver.log.New("id", logext.RandId(4),
-					"goroutine", "chainResolverHandler.Handle", "request", request),
-			}
-			go handler.Handle()
-		}
-
-		select {
-		case resolver.completionChans[key] <- request.errChan:
-			// Do nothing
-		default:
-			request.errChan <- common.NewBasicError("Insufficient space in completion channel",
-				nil, "request_key", key)
-			close(request.errChan)
-		}
-	}
-}
-
-type chainResolverHandler struct {
-	resolver *chainResolver
-	request  chainRequest
-	// when the handler exits, read all the error channels from completionChan,
-	// write the result of the handler to each of them and finally close them.
-	completionChan chan chan error
-	log            log.Logger
-}
-
-func (handler *chainResolverHandler) Handle() {
-	var err error
-	defer liblog.LogPanicAndExit()
-	ctx, cancelF := context.WithTimeout(context.Background(), MinimumDelta+GracePeriod)
-	defer cancelF()
-	handler.log.Info("Start Chain resolver handler", "request", handler.request)
-
-	defer func() {
-		// Once MinimumDelta expires, if the resolver receives a new request
-		// for the same request.Key() that this handler services, it closes errChan
-		// and all the resources associated with it get cleaned up. If
-		// the resolver doesn't receive a request, ctx.Done() returns after
-		// MinimumDelta+GracePeriod at the latest.
-		for {
-			select {
-			case errChan := <-handler.completionChan:
-				errChan <- err
-				close(errChan)
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
+func (req trcRequest) resolve(ctx context.Context, msger infra.Messenger, db *trustdb.DB) error {
 	// Check ahead of time if we have a verifier TRC
-	if handler.request.verifier == nil {
-		err = common.NewBasicError("Unable to fetch Chain without a trusted TRC", nil)
-		return
+	if req.verifier == nil {
+		return common.NewBasicError("Unable to fetch TRC without a trusted TRC", nil)
 	}
-	chainReqMsg := &cert_mgmt.ChainReq{
-		RawIA:     handler.request.ia.IAInt(),
-		Version:   handler.request.version,
-		CacheOnly: false,
+	// FIXME(scrye): Implement CacheOnly support.
+	trcReqMsg := &cert_mgmt.TRCReq{
+		ISD:       req.isd,
+		Version:   req.version,
+		CacheOnly: true,
 	}
-	var csAddress net.Addr
-	if handler.request.hint != nil {
-		csAddress = handler.request.hint
+	var address net.Addr
+	if req.hint != nil {
+		address = req.hint
 	} else {
 		// FIXME(scrye): Add SVC support for write ops in snet
-		csAddress = net.Addr(nil)
+		address = net.Addr(nil)
 	}
-	chainMessage, err := handler.resolver.msger.GetCertChain(ctx, chainReqMsg, csAddress)
+	trcMessage, err := msger.GetTRC(ctx, trcReqMsg, address)
 	if err != nil {
-		err = common.NewBasicError("Unable to get CertChain from peer", err)
-		return
+		return err
 	}
-	chain, err := chainMessage.Chain()
+	trcObj, err := trcMessage.TRC()
 	if err != nil {
-		err = common.NewBasicError("Unable to parse CertChain message", err)
-		return
+		return common.NewBasicError("Unable to parse TRC message", err, "msg", trcMessage)
 	}
 
-	// Verify chain based on the verifier in the request
-	err = chain.Verify(&handler.request.ia, handler.request.verifier)
-	if err != nil {
-		err = common.NewBasicError("Chain verification failed", err)
-		return
+	// Verify trc based on the verifier in the request
+	// XXX(scrye): full verification is not implemented (e.g., no cross signature support)
+	if _, err = trcObj.Verify(req.verifier); err != nil {
+		return common.NewBasicError("TRC verification error", err)
 	}
-
-	err = handler.resolver.trustdb.InsertChainCtx(ctx, handler.request.ia, handler.request.version,
-		chain)
-	if err != nil {
-		err = common.NewBasicError("Unable to store CertChain in database", err)
-		return
+	if err := db.InsertTRCCtx(ctx, req.isd, req.version, trcObj); err != nil {
+		return common.NewBasicError("Unable to store TRC in database", err)
 	}
+	return nil
 }
+
+func (req trcRequest) getErrorChan() chan<- error {
+	return req.errChan
+}
+
+var _ requestI = chainRequest{}
 
 // chainRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
@@ -330,8 +254,52 @@ type chainRequest struct {
 	errChan  chan error
 }
 
-// Key returns a string that describes the request. Requests with the same key
-// are throttled (i.e., at most one every MinimumDelta time).
-func (req chainRequest) Key() string {
-	return fmt.Sprintf("%d-%d-%s", req.ia, req.version, req.hint.String())
+func (req chainRequest) requestKey() string {
+	return fmt.Sprintf("%sv%d %s", req.ia, req.version, req.hint.String())
+}
+
+func (req chainRequest) responseKey() string {
+	return fmt.Sprintf("%sv%d", req.ia, req.version)
+}
+
+func (req chainRequest) resolve(ctx context.Context, msger infra.Messenger, db *trustdb.DB) error {
+	// Check ahead of time if we have a verifier TRC
+	if req.verifier == nil {
+		return common.NewBasicError("Unable to fetch Chain without a trusted TRC", nil)
+	}
+	// FIXME(scrye): Implement CacheOnly support.
+	chainReqMsg := &cert_mgmt.ChainReq{
+		RawIA:     req.ia.IAInt(),
+		Version:   req.version,
+		CacheOnly: true,
+	}
+	var address net.Addr
+	if req.hint != nil {
+		address = req.hint
+	} else {
+		// FIXME(scrye): Add SVC support for write ops in snet
+		address = net.Addr(nil)
+	}
+	chainMessage, err := msger.GetCertChain(ctx, chainReqMsg, address)
+	if err != nil {
+		return common.NewBasicError("Unable to get CertChain from peer", err)
+	}
+	chain, err := chainMessage.Chain()
+	if err != nil {
+		return common.NewBasicError("Unable to parse CertChain message", err)
+	}
+
+	// Verify chain based on the verifier in the request
+	if err := chain.Verify(&req.ia, req.verifier); err != nil {
+		return common.NewBasicError("Chain verification failed", err)
+	}
+	err = db.InsertChainCtx(ctx, req.ia, req.version, chain)
+	if err != nil {
+		return common.NewBasicError("Unable to store CertChain in database", err)
+	}
+	return nil
+}
+
+func (req chainRequest) getErrorChan() chan<- error {
+	return req.errChan
 }

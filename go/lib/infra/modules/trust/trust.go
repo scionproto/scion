@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -59,11 +60,16 @@ type Store struct {
 	trustdb *trustdb.DB
 	// channel to send TRC requests from client goroutines to the backend
 	// resolver
-	trcRequests chan trcRequest
+	trcRequests chan requestI
 	// channel to send Certificate Chain requests from client goroutines to the
 	// backend resolver
-	chainRequests chan chainRequest
-	log           log.Logger
+	chainRequests chan requestI
+	// set to true if the trust store should create chain and TRC remote
+	// request handlers with recursion enabled (i.e., request forwarding)
+	recurse bool
+	// local AS
+	ia  addr.ISD_AS
+	log log.Logger
 
 	// Used to serialize access to Close
 	closeMutex sync.Mutex
@@ -77,12 +83,14 @@ type Store struct {
 }
 
 // NewStore initializes a TRC cache/resolver backed by SQLite3 database at
-// path.
-func NewStore(db *trustdb.DB, logger log.Logger) (*Store, error) {
+// path. Parameter local must specify the AS in which the trust store resides
+// (which is used during request forwarding decisions).
+func NewStore(db *trustdb.DB, local addr.ISD_AS, logger log.Logger) (*Store, error) {
 	return &Store{
 		trustdb:       db,
-		trcRequests:   make(chan trcRequest, MaxPendingRequests),
-		chainRequests: make(chan chainRequest, MaxPendingRequests),
+		trcRequests:   make(chan requestI, MaxPendingRequests),
+		chainRequests: make(chan requestI, MaxPendingRequests),
+		ia:            local,
 		log:           logger,
 	}, nil
 }
@@ -91,8 +99,11 @@ func NewStore(db *trustdb.DB, logger log.Logger) (*Store, error) {
 // are not available in the local database. Outgoing (network) requests are
 // throttled s.t. at most one request for each address and version is sent
 // every MinimumDelta duration. Received objects are verified prior to
-// insertion into the backing database.
-func (store *Store) StartResolvers(messenger infra.Messenger) error {
+// insertion into the backing database. Parameter recurse states whether
+// goroutines that service requests coming over the network for objects that
+// are not available locally are allowed to send out new requests over the
+// network (i.e., request forwarding).
+func (store *Store) StartResolvers(messenger infra.Messenger, recurse bool) error {
 	store.startMutex.Lock()
 	defer store.startMutex.Unlock()
 	store.closeMutex.Lock()
@@ -105,20 +116,21 @@ func (store *Store) StartResolvers(messenger infra.Messenger) error {
 		// Prohibit double starts
 		return common.NewBasicError("double start", nil)
 	}
+	store.recurse = recurse
 	store.startedFlag = true
-	trcResolver := &trcResolver{
+	trcResolver := &resolver{
 		msger:           messenger,
 		trustdb:         store.trustdb,
 		requests:        store.trcRequests,
-		completionChans: make(map[string]chan chan error),
+		completionChans: make(map[string]chan chan<- error),
 		log:             store.log.New("goroutine", "trcResolver"),
 	}
 	go trcResolver.Run()
-	chainResolver := &chainResolver{
+	chainResolver := &resolver{
 		msger:           messenger,
 		trustdb:         store.trustdb,
 		requests:        store.chainRequests,
-		completionChans: make(map[string]chan chan error),
+		completionChans: make(map[string]chan chan<- error),
 		log:             store.log.New("goroutine", "chainResolver"),
 	}
 	go chainResolver.Run()
@@ -126,8 +138,12 @@ func (store *Store) StartResolvers(messenger infra.Messenger) error {
 }
 
 // getTRC attempts to grab the TRC from the database; if the TRC is not found,
-// it follows up with a network request (if network access is configured).
-func (store *Store) getTRC(ctx context.Context, req trcRequest) (*trc.TRC, error) {
+// it follows up with a network request (if allowed).  Parameter request
+// specifies whether this function is allowed to create new network requests.
+// Parameter requester contains the node that caused the function to be called,
+// or nil if the function was called due to a local feature.
+func (store *Store) getTRC(ctx context.Context, req trcRequest, recurse bool,
+	requester net.Addr) (*trc.TRC, error) {
 	for {
 		// Attempt to get the TRC from the local cache
 		if trc, err := store.trustdb.GetTRCVersionCtx(ctx, req.isd, req.version); err != nil {
@@ -136,8 +152,20 @@ func (store *Store) getTRC(ctx context.Context, req trcRequest) (*trc.TRC, error
 			return trc, nil
 		}
 		if !store.startedFlag {
-			return nil, common.NewBasicError("TRC not found in DB, and no network access configured",
+			return nil, common.NewBasicError("TRC not found in DB, and network access disabled",
 				nil)
+		}
+		if requester != nil {
+			// If we cannot extract the AS of the requester or it doesn't match
+			// with our AS, never forward the request.
+			saddr, ok := requester.(*snet.Addr)
+			if !ok || !store.ia.Eq(saddr.IA) {
+				return nil, common.NewBasicError("TRC not found in DB, and recursion not "+
+					"allowed for clients outside AS", nil, "client", saddr)
+			}
+		}
+		if recurse == false {
+			return nil, common.NewBasicError("TRC not found in DB, and recursion disabled", nil)
 		}
 		// TRC not found, forward a request to the background TRC resolver
 		if err := store.issueTRCRequest(ctx, req); err != nil {
@@ -166,9 +194,13 @@ func (store *Store) issueTRCRequest(ctx context.Context, req trcRequest) error {
 }
 
 // getChain attempts to grab the Certificate Chain from the database; if the
-// Chain is not found, it follows up with a network request (if network access
-// is configured).
-func (store *Store) getChain(ctx context.Context, req chainRequest) (*cert.Chain, error) {
+// Chain is not found, it follows up with a network request (if allowed).
+// Parameter request specifies whether this function is allowed to create new
+// network requests. Parameter requester contains the node that caused the
+// function to be called, or nil if the function was called due to a local
+// feature.
+func (store *Store) getChain(ctx context.Context, req chainRequest,
+	recurse bool, requester net.Addr) (*cert.Chain, error) {
 	for {
 		// Attempt to get the Chain from the local cache
 		if chain, err := store.trustdb.GetChainVersionCtx(ctx, req.ia, req.version); err != nil {
@@ -177,8 +209,20 @@ func (store *Store) getChain(ctx context.Context, req chainRequest) (*cert.Chain
 			return chain, nil
 		}
 		if !store.startedFlag {
-			return nil, common.NewBasicError("Chain not found in DB, and no network access configured",
+			return nil, common.NewBasicError("Chain not found in DB, and network access disabled",
 				nil)
+		}
+		if requester != nil {
+			// If we cannot extract the AS of the requester or it doesn't match with our AS,
+			// never forward the request.
+			saddr, ok := requester.(*snet.Addr)
+			if !ok || !store.ia.Eq(saddr.IA) {
+				return nil, common.NewBasicError("Chain not found in DB, and recursion not "+
+					"allowed for clients outside AS", nil, "client", saddr)
+			}
+		}
+		if recurse == false {
+			return nil, common.NewBasicError("Chain not found in DB, and recursion disabled", nil)
 		}
 		// Chain not found, forward the request to the background Chain resolver
 		if err := store.issueChainRequest(ctx, req); err != nil {
@@ -206,7 +250,8 @@ func (store *Store) issueChainRequest(ctx context.Context, req chainRequest) err
 	}
 }
 
-// NewTRCReqHandler runs a handler for TRC request data coming from peer.
+// NewTRCReqHandler runs a handler for TRC request data coming from peer. This
+// should only be used when servicing requests coming from remote nodes.
 func (store *Store) TRCReqHandler(ctx context.Context, data, _ proto.Cerealizable, peer net.Addr) {
 	trcReq, ok := data.(*cert_mgmt.TRCReq)
 	if !ok {
@@ -223,8 +268,11 @@ func (store *Store) TRCReqHandler(ctx context.Context, data, _ proto.Cerealizabl
 	reqObject.Handle(ctx)
 }
 
-// NewChainReqHandler initializes a handler for TRC request data coming from peer.
-func (store *Store) ChainReqHandler(ctx context.Context, data, _ proto.Cerealizable, peer net.Addr) {
+// NewChainReqHandler initializes a handler for TRC request data coming from
+// peer. This should only be used when servicing requests coming from remote
+// nodes.
+func (store *Store) ChainReqHandler(ctx context.Context, data, _ proto.Cerealizable,
+	peer net.Addr) {
 	chainReq, ok := data.(*cert_mgmt.ChainReq)
 	if !ok {
 		store.log.Error("wrong message type, expected cert_mgmt.ChainReq",
@@ -239,7 +287,8 @@ func (store *Store) ChainReqHandler(ctx context.Context, data, _ proto.Cerealiza
 	reqObject.Handle(ctx)
 }
 
-func (store *Store) GetCertificate(ctx context.Context, trail []Descriptor, hint net.Addr) (*cert.Certificate, error) {
+func (store *Store) GetCertificate(ctx context.Context, trail []Descriptor,
+	hint net.Addr) (*cert.Certificate, error) {
 	verifierObj, err := store.getCertificate(ctx, trail, hint)
 	if err != nil {
 		return nil, err
@@ -265,8 +314,9 @@ func (store *Store) GetCertificate(ctx context.Context, trail []Descriptor, hint
 //
 // TRC1 is then used to download TRC0, and finally TRC0 is used to download
 // Cert0, and the recursion finishes.
-func (store *Store) getCertificate(ctx context.Context, trail []Descriptor, hint net.Addr) (interface{}, error) {
-	// Attempt to read the object decribed by the current trust descriptor from
+func (store *Store) getCertificate(ctx context.Context, trail []Descriptor,
+	hint net.Addr) (interface{}, error) {
+	// Attempt to read the object described by the current trust descriptor from
 	// the database.
 	trustObject, err := store.queryByDescriptor(ctx, trail[0])
 	if err != nil {
@@ -295,7 +345,7 @@ func (store *Store) getCertificate(ctx context.Context, trail []Descriptor, hint
 func (store *Store) queryByDescriptor(ctx context.Context, desc Descriptor) (interface{}, error) {
 	switch desc.Type {
 	case ChainDescriptor:
-		chain, err := store.trustdb.GetChainVersionCtx(ctx, desc.IA, desc.ChainVersion)
+		chain, err := store.trustdb.GetChainVersionCtx(ctx, desc.IA, desc.Version)
 		if err != nil {
 			return nil, common.NewBasicError("Query GetChainVersionCtx to trustdb failed", err)
 		}
@@ -304,7 +354,7 @@ func (store *Store) queryByDescriptor(ctx context.Context, desc Descriptor) (int
 			return chain.Leaf, nil
 		}
 	case TRCDescriptor:
-		trcObj, err := store.trustdb.GetTRCVersionCtx(ctx, uint16(desc.IA.I), desc.TRCVersion)
+		trcObj, err := store.trustdb.GetTRCVersionCtx(ctx, uint16(desc.IA.I), desc.Version)
 		if err != nil {
 			return nil, common.NewBasicError("Query GetTRCVersionCtx to trustdb failed", err)
 		}
@@ -327,21 +377,21 @@ func (store *Store) fetchByDescriptor(ctx context.Context, desc Descriptor, hint
 	case ChainDescriptor:
 		request := chainRequest{
 			ia:       desc.IA,
-			version:  desc.ChainVersion,
+			version:  desc.Version,
 			verifier: verifier,
 			hint:     hint,
-			errChan:  make(chan error),
+			errChan:  make(chan error, 1),
 		}
-		return store.getChain(ctx, request)
+		return store.getChain(ctx, request, true, nil)
 	case TRCDescriptor:
 		request := trcRequest{
 			isd:      uint16(desc.IA.I),
-			version:  desc.TRCVersion,
+			version:  desc.Version,
 			verifier: verifier,
 			hint:     hint,
-			errChan:  make(chan error),
+			errChan:  make(chan error, 1),
 		}
-		return store.getTRC(ctx, request)
+		return store.getTRC(ctx, request, true, nil)
 	default:
 		return nil, common.NewBasicError("Unknown descriptor type", nil, "type", desc.Type)
 	}
@@ -367,6 +417,9 @@ type trcReqHandler struct {
 	cache *Store
 	peer  net.Addr
 	log   log.Logger
+	// set to true if this handler is allowed to issue new requests over the
+	// network
+	recurse bool
 }
 
 func (h *trcReqHandler) Handle(ctx context.Context) {
@@ -388,7 +441,7 @@ func (h *trcReqHandler) Handle(ctx context.Context) {
 		isd:     uint16(h.data.ISD),
 		version: h.data.Version,
 	}
-	trc, err := h.cache.getTRC(ctx, request)
+	trc, err := h.cache.getTRC(ctx, request, h.recurse, h.peer)
 	if err != nil {
 		h.log.Error("Unable to retrieve TRC", "err", err)
 		return
@@ -403,7 +456,7 @@ func (h *trcReqHandler) Handle(ctx context.Context) {
 	trcMessage := &cert_mgmt.TRC{
 		RawTRC: rawTRC,
 	}
-	if err := messenger.SendTRC(subCtx, trcMessage, nil); err != nil {
+	if err := messenger.SendTRC(subCtx, trcMessage, h.peer); err != nil {
 		h.log.Error("Messenger API error", "err", err)
 	}
 }
@@ -415,18 +468,53 @@ type chainReqHandler struct {
 	cache *Store
 	peer  net.Addr
 	log   log.Logger
+	// set to true if this handler is allowed to issue new requests over the
+	// network
+	recurse bool
 }
 
 func (h *chainReqHandler) Handle(ctx context.Context) {
-	// TODO(scrye): this is very similar to the trcReqHandler.Handle
-	panic("not implemented")
+	v := ctx.Value(infra.MessengerContextKey)
+	if v == nil {
+		h.log.Warn("Unable to service request, no Messenger interface found")
+		return
+	}
+	messenger, ok := v.(infra.Messenger)
+	if !ok {
+		h.log.Warn("Unable to service request, bad Messenger interface found",
+			"value", v, "type", common.TypeOf(v))
+		return
+	}
+	subCtx, cancelF := context.WithTimeout(ctx, HandlerTimeout)
+	defer cancelF()
+
+	request := chainRequest{
+		ia:      *h.data.IA(),
+		version: h.data.Version,
+	}
+	chain, err := h.cache.getChain(ctx, request, h.recurse, h.peer)
+	if err != nil {
+		h.log.Error("Unable to retrieve Chain", "err", err)
+		return
+	}
+
+	rawChain, err := chain.Compress()
+	if err != nil {
+		h.log.Warn("Unable to compress Chain", "err", err)
+		return
+	}
+	chainMessage := &cert_mgmt.Chain{
+		RawChain: rawChain,
+	}
+	if err := messenger.SendCertChain(subCtx, chainMessage, h.peer); err != nil {
+		h.log.Error("Messenger API error", "err", err)
+	}
 }
 
 type Descriptor struct {
-	TRCVersion   uint64
-	ChainVersion uint64
-	IA           addr.ISD_AS
-	Type         DescriptorType
+	Version uint64
+	IA      addr.ISD_AS
+	Type    DescriptorType
 }
 
 type DescriptorType uint64

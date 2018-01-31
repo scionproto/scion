@@ -53,7 +53,7 @@
 // infra.MessengerContextKey context key. This allows handlers to directly send
 // network messages.
 //
-// Some default handlerss are already implemented; for more
+// Some default handlers are already implemented; for more
 // information, see their package documentation:
 //   trust.*Store.CertRequestHandler
 //   trust.*Store.TRCRequestHandler
@@ -76,6 +76,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
@@ -96,6 +97,11 @@ var _ infra.Messenger = (*Messenger)(nil)
 type Messenger struct {
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
+	// Keep a reference for the signer and verifier if we need manual access
+	signer   ctrl.Signer
+	verifier ctrl.SigVerifier
+	// Request/response encapsulation/decapsulation (and signature) support
+	requester *ctrl_msg.Requester
 	// Source for crypto objects (certificates and TRCs)
 	trustStore *trust.Store
 
@@ -109,7 +115,7 @@ type Messenger struct {
 	ctx     context.Context
 	cancelF context.CancelFunc
 
-	logger log.Logger
+	log log.Logger
 }
 
 // New creates a new Messenger that uses dispatcher for sending and receiving
@@ -121,14 +127,19 @@ func New(dispatcher *disp.Dispatcher, store *trust.Store, logger log.Logger) *Me
 	// processed in the relevant handlers which have their own reference to the
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
+	signer := ctrl.NullSigner
+	verifier := ctrl.NullSigVerifier
 	return &Messenger{
 		dispatcher: dispatcher,
+		signer:     signer,
+		verifier:   verifier,
+		requester:  ctrl_msg.NewRequester(signer, verifier, dispatcher),
 		trustStore: store,
 		handlers:   make(map[string]infra.Handler),
 		closeChan:  make(chan struct{}),
 		ctx:        ctx,
 		cancelF:    cancelF,
-		logger:     logger,
+		log:        logger,
 	}
 	// XXX(scrye): More crypto is needed to send signed messages (a local
 	// signing key, at a minimum).
@@ -145,16 +156,16 @@ func (m *Messenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, 
 // reply and returns the reply.
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr) (*cert_mgmt.TRC, error) {
-	signedCtrlPldMsg, err := ctrl.NewSignedCertMgmtPld(msg)
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Send request and get reply
-	replyCtrlPldMsg, err := m.dispatcher.Request(ctx, signedCtrlPldMsg, a)
+
+	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
 	}
-	_, replyMsg, err := m.validate(replyCtrlPldMsg)
+	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
 		return nil, err
 	}
@@ -167,31 +178,27 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 
 // SendTRC sends a reliable cert_mgmt.TRC to address a.
 func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error {
-	signedCtrlPldMsg, err := ctrl.NewSignedCertMgmtPld(msg)
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
 	if err != nil {
 		return err
 	}
-	err = m.dispatcher.Notify(ctx, signedCtrlPldMsg, a)
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.requester.Notify(ctx, pld, a)
 }
 
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
 // receives a reply and returns the reply.
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr) (*cert_mgmt.Chain, error) {
-	signedCtrlPldMsg, err := ctrl.NewSignedCertMgmtPld(msg)
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	// Send request and get reply
-	replyCtrlPldMsg, err := m.dispatcher.Request(ctx, signedCtrlPldMsg, a)
+
+	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
 	}
-	_, replyMsg, err := m.validate(replyCtrlPldMsg)
+	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
 		return nil, err
 	}
@@ -204,30 +211,27 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 
 // SendCertChain sends a reliable cert_mgmt.Chain to address a.
 func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr) error {
-	signedCtrlPldMsg, err := ctrl.NewSignedCertMgmtPld(msg)
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
 	if err != nil {
 		return err
 	}
-	err = m.dispatcher.Notify(ctx, signedCtrlPldMsg, a)
-	if err != nil {
-		return err
-	}
-	return nil
+	return m.requester.Notify(ctx, pld, a)
 }
 
 // GetPaths asks the server at the remote address for the paths specified by
 // msg, and returns a verified reply.
 func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr) (*path_mgmt.SegReply, error) {
-	signedCtrlPldMsg, err := ctrl.NewSignedPathMgmtPld(msg)
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	replyCtrlPldMsg, err := m.dispatcher.Request(ctx, signedCtrlPldMsg, a)
+
+	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
 	}
-	_, replyMsg, err := m.validate(replyCtrlPldMsg)
+	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
 		return nil, err
 	}
@@ -249,8 +253,8 @@ func (m *Messenger) AddHandler(msgType string, handler infra.Handler) {
 // interface. The function runs in the current goroutine. Multiple
 // ListenAndServe methods can run in parallel.
 func (m *Messenger) ListenAndServe() {
-	m.logger.Info("Started listening")
-	defer m.logger.Info("Stopped listening")
+	m.log.Info("Started listening")
+	defer m.log.Info("Stopped listening")
 	for {
 		// Recv blocks until a new message is received. To close the server,
 		// CloseServer() calls the context's cancel function, thus unblocking Recv. The
@@ -264,20 +268,39 @@ func (m *Messenger) ListenAndServe() {
 				// CloseServer was called
 				return
 			default:
-				m.logger.Error("Receive error", "err", common.FmtError(err))
+				m.log.Error("Receive error", "err", common.FmtError(err))
 			}
 			continue
 		}
-		m.serve(genericMsg, address)
+
+		signedPld, ok := genericMsg.(*ctrl.SignedPld)
+		if !ok {
+			m.log.Error("Type assertion failure", "expected", "*ctrl.SignedPld",
+				"actual", common.TypeOf(genericMsg))
+			continue
+		}
+
+		err = m.verifier.Verify(signedPld)
+		if err != nil {
+			m.log.Error("Verification error", "err", common.FmtError(err))
+			continue
+		}
+
+		pld, err := signedPld.Pld()
+		if err != nil {
+			m.log.Error("Unable to extract Pld from CtrlPld", "err", common.FmtError(err))
+			continue
+		}
+		m.serve(pld, address)
 	}
 }
 
-func (m *Messenger) serve(genericMsg proto.Cerealizable, address net.Addr) {
+func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
-	msgType, msg, err := m.validate(genericMsg)
+	msgType, msg, err := m.validate(pld)
 	if err != nil {
-		m.logger.Error("Received message, but unable to validate message", "err",
+		m.log.Error("Received message, but unable to validate message", "err",
 			common.FmtError(err))
 		return
 	}
@@ -286,45 +309,33 @@ func (m *Messenger) serve(genericMsg proto.Cerealizable, address net.Addr) {
 	handler := m.handlers[msgType]
 	m.handlersLock.RUnlock()
 	if handler == nil {
-		m.logger.Error("Received message, but handler not found", "msgType", msgType)
+		m.log.Error("Received message, but handler not found", "msgType", msgType)
 		return
 	}
 	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
 	// XXX(scrye): The handler might perform additional verifications; for
 	// example, a PCB handler will probably verify additional signatures.
-	go handler.Handle(serveCtx, msg, genericMsg, address)
+	go handler.Handle(serveCtx, msg, pld, address)
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
 // message type ID string, the object containing only the payload, and an error
 // (if one occurred).
-func (m *Messenger) validate(msg proto.Cerealizable) (string, proto.Cerealizable, error) {
-	signedCtrlPld, ok := msg.(*ctrl.SignedPld)
-	if !ok {
-		return "", nil, common.NewBasicError("Unexpected capnp type", nil, "expected",
-			"ctrl.SignedPld", "actual", common.TypeOf(msg))
-	}
-
+func (m *Messenger) validate(pld *ctrl.Pld) (string, proto.Cerealizable, error) {
 	// XXX(scrye): For now, only the messages in the top comment of this
-	// package are supported. None of them use have a signature at the top, so
-	// we can directly extract the payload to discover the unique message type.
-	ctrlPld, err := signedCtrlPld.Pld()
-	if err != nil {
-		return "", nil, common.NewBasicError("Unable to extract CtrlPld from SignedPld", err)
-	}
-
-	switch ctrlPld.Which {
+	// package are supported.
+	switch pld.Which {
 	case proto.CtrlPld_Which_certMgmt:
-		switch ctrlPld.CertMgmt.Which {
+		switch pld.CertMgmt.Which {
 		case proto.CertMgmt_Which_certChainReq:
-			return ChainRequest, ctrlPld.CertMgmt.ChainReq, nil
+			return ChainRequest, pld.CertMgmt.ChainReq, nil
 		case proto.CertMgmt_Which_certChain:
-			return Chain, ctrlPld.CertMgmt.ChainRep, nil
+			return Chain, pld.CertMgmt.ChainRep, nil
 		case proto.CertMgmt_Which_trcReq:
-			return TRCRequest, ctrlPld.CertMgmt.TRCReq, nil
+			return TRCRequest, pld.CertMgmt.TRCReq, nil
 		case proto.CertMgmt_Which_trc:
-			return TRC, ctrlPld.CertMgmt.TRCRep, nil
+			return TRC, pld.CertMgmt.TRCRep, nil
 		default:
 			return "", nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type", nil)

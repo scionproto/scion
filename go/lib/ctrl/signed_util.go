@@ -26,6 +26,8 @@ type Signer interface {
 	Sign(*Pld) (*SignedPld, error)
 }
 
+var _ Signer = (*BasicSigner)(nil)
+
 // BasicSigner is a simple implementation of Signer.
 type BasicSigner struct {
 	s   *proto.SignS
@@ -42,7 +44,7 @@ func (b *BasicSigner) Sign(pld *Pld) (*SignedPld, error) {
 }
 
 // NullSigner is a Signer that creates SignedPld's with no signature.
-var NullSigner = NewBasicSigner(nil, nil)
+var NullSigner Signer = NewBasicSigner(nil, nil)
 
 type trustStore struct{} // TODO(kormat): replace this with trust store interface
 
@@ -67,10 +69,18 @@ type SigVerifier interface {
 	Verify(*SignedPld) error
 }
 
+var _ SigVerifier = (*BasicSigVerifier)(nil)
+
 // BasicSigVerifier is a SigVerifier that ignores signatures on cert_mgmt.TRC
-// and cert_mgmt.Chain messages, to avoid depdendency cycles.
+// and cert_mgmt.Chain messages, to avoid dependency cycles.
 type BasicSigVerifier struct {
 	tStore *trustStore
+}
+
+func NewBasicSigVerifier(tStore *trustStore) *BasicSigVerifier {
+	return &BasicSigVerifier{
+		tStore: tStore,
+	}
 }
 
 func (b *BasicSigVerifier) Verify(p *SignedPld) error {
@@ -106,4 +116,18 @@ func (b *BasicSigVerifier) ignoreSign(p *Pld) bool {
 func (b *BasicSigVerifier) getCertForSign(s *proto.SignS) (*cert.Certificate, error) {
 	// TODO(kormat): Parse s.Src, query b.tStore
 	return nil, nil
+}
+
+var _ SigVerifier = (*nullSigVerifier)(nil)
+
+// NullSigVerifier ignores signatures on all messages. Note that Verify can
+// return an error if the Pld insided the SignedPld cannot be extracted.
+var NullSigVerifier SigVerifier = &nullSigVerifier{}
+
+type nullSigVerifier struct{}
+
+func (_ *nullSigVerifier) Verify(p *SignedPld) error {
+	// Run the payload extraction step only
+	_, err := p.Pld()
+	return err
 }
