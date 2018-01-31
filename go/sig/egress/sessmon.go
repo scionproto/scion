@@ -189,9 +189,14 @@ func (sm *sessMonitor) sendReq() {
 		sm.Error("sessMonitor: Error creating SIGCtrl payload", "err", common.FmtError(err))
 		return
 	}
-	scpld, err := ctrl.NewSignedPldFromUnion(spld)
+	cpld, err := ctrl.NewPld(spld, nil)
 	if err != nil {
 		sm.Error("sessMonitor: Error creating Ctrl payload", "err", common.FmtError(err))
+		return
+	}
+	scpld, err := cpld.SignedPld(ctrl.NullSigner)
+	if err != nil {
+		sm.Error("sessMonitor: Error creating signed Ctrl payload", "err", common.FmtError(err))
 		return
 	}
 	raw, err := scpld.PackPld()
