@@ -74,7 +74,7 @@ func (am *ASMap) ReloadConfig(cfg *config.Cfg) bool {
 func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 	s := true
 	for iaVal, cfgEntry := range cfg.ASes {
-		ia := &iaVal
+		ia := iaVal.Copy()
 		log.Info("ReloadConfig: Adding AS...", "ia", ia)
 		ae, err := am.AddIA(ia)
 		if err != nil {
