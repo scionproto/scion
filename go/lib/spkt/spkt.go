@@ -85,8 +85,7 @@ func (s *ScnPkt) Reverse() error {
 }
 
 func (s *ScnPkt) AddrLen() int {
-	addrLen := addr.IABytes*2 + s.DstHost.Size() + s.SrcHost.Size()
-	return addrLen + util.CalcPadding(addrLen, common.LineLen)
+	return AddrHdrLen(s.DstHost, s.SrcHost)
 }
 
 // HdrLen returns the length of the header, in bytes.
@@ -113,4 +112,11 @@ func (s *ScnPkt) TotalLen() int {
 		l += s.Pld.Len()
 	}
 	return l
+}
+
+// AddrHdrLen calculates the length of a SCION address header (including
+// padding) for the specified address types.
+func AddrHdrLen(dst addr.HostAddr, src addr.HostAddr) int {
+	addrLen := addr.IABytes*2 + dst.Size() + src.Size()
+	return addrLen + util.CalcPadding(addrLen, common.LineLen)
 }
