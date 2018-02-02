@@ -49,6 +49,26 @@ func (ase *ASEntry) IA() *addr.ISD_AS {
 	return ase.RawIA.IA()
 }
 
+func (ase *ASEntry) Validate(prevIA *addr.ISD_AS, nextIA *addr.ISD_AS) error {
+	if len(ase.HopEntries) == 0 {
+		return common.NewBasicError("ASEntry has no HopEntries", nil, "ia", ase.IA())
+	}
+	for i := range ase.HopEntries {
+		h := ase.HopEntries[i]
+		if i == 0 && !prevIA.Eq(h.InIA()) {
+			// Only perform this checks for the first HopEntry, as we can't validate
+			// peering HopEntries from the available information.
+			return common.NewBasicError("HopEntry InIA mismatch", nil,
+				"hopIdx", i, "expected", h.InIA(), "actual", prevIA)
+		}
+		if !nextIA.Eq(h.OutIA()) {
+			return common.NewBasicError("HopEntry OutIA mismatch", nil,
+				"hopIdx", i, "expected", h.OutIA(), "actual", prevIA)
+		}
+	}
+	return nil
+}
+
 func (ase *ASEntry) Pack() (common.RawBytes, error) {
 	return proto.PackRoot(ase)
 }
