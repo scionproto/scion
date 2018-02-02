@@ -91,16 +91,17 @@ func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
 
 func (ps *PathSegment) Validate() error {
 	if len(ps.RawASEntries) == 0 {
-		return common.NewBasicError("PathSegment has no ASEntry's", nil)
+		return common.NewBasicError("PathSegment has no AS Entries", nil)
 	}
 	if len(ps.ASEntries) != len(ps.RawASEntries) {
 		return common.NewBasicError(
-			"PathSegment has mismatched number of raw and parsed ASEntry's", nil,
+			"PathSegment has mismatched number of raw and parsed AS Entries", nil,
 			"ASEntries", len(ps.ASEntries), "RawASEntries", len(ps.RawASEntries),
 		)
 	}
 	for i := range ps.ASEntries {
-		var prevIA, nextIA *addr.ISD_AS
+		prevIA := &addr.ISD_AS{}
+		nextIA := &addr.ISD_AS{}
 		if i > 0 {
 			prevIA = ps.ASEntries[i-1].IA()
 		}
