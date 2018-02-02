@@ -15,6 +15,9 @@
 package ctrl
 
 import (
+	"fmt"
+
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -68,7 +71,7 @@ type SigVerifier interface {
 }
 
 // BasicSigVerifier is a SigVerifier that ignores signatures on cert_mgmt.TRC
-// and cert_mgmt.Chain messages, to avoid depdendency cycles.
+// and cert_mgmt.Chain messages, to avoid dependency cycles.
 type BasicSigVerifier struct {
 	tStore *trustStore
 }
@@ -81,11 +84,11 @@ func (b *BasicSigVerifier) Verify(p *SignedPld) error {
 	if b.ignoreSign(cpld) {
 		return nil
 	}
-	c, err := b.getCertForSign(p.Sign)
+	vKey, err := b.getVerifyKeyForSign(p.Sign)
 	if err != nil {
 		return err
 	}
-	return p.Sign.Verify(c.SubjectSignKey, p.Blob)
+	return p.Sign.Verify(vKey, p.Blob)
 }
 
 func (b *BasicSigVerifier) ignoreSign(p *Pld) bool {
@@ -103,7 +106,54 @@ func (b *BasicSigVerifier) ignoreSign(p *Pld) bool {
 	}
 }
 
-func (b *BasicSigVerifier) getCertForSign(s *proto.SignS) (*cert.Certificate, error) {
-	// TODO(kormat): Parse s.Src, query b.tStore
+func (b *BasicSigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes, error) {
+	if s.Type == proto.SignType_none {
+		return nil, nil
+	}
+	sigSrc, err := NewSignSrcSFromRaw(s.Src)
+	if err != nil {
+		return nil, err
+	}
+	chain, err := b.getCertForSign(sigSrc)
+	if err != nil {
+		return nil, err
+	}
+	if chain == nil { // FIXME(roosd): remove after getCertForSign is implemented
+		return nil, nil
+	}
+	return chain.Leaf.SubjectSignKey, nil
+}
+
+func (b *BasicSigVerifier) getCertForSign(s *SignSrcS) (*cert.Chain, error) {
+	// TODO(kormat): query b.tStore
 	return nil, nil
+}
+
+var _ proto.Cerealizable = (*SignSrcS)(nil)
+
+type SignSrcS struct {
+	RawIA        addr.IAInt `capnp:"isdas"`
+	ChainVersion uint64
+	TRCVersion   uint64 `capnp:"trcVersion"`
+}
+
+func NewSignSrcSFromRaw(b common.RawBytes) (*SignSrcS, error) {
+	s := &SignSrcS{}
+	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
+}
+
+func (s *SignSrcS) Pack() (common.RawBytes, error) {
+	return proto.PackRoot(s)
+}
+
+func (s *SignSrcS) IA() *addr.ISD_AS {
+	return s.RawIA.IA()
+}
+
+func (s *SignSrcS) ProtoId() proto.ProtoIdType {
+	return proto.SignSrc_TypeID
+}
+
+func (s *SignSrcS) String() string {
+	return fmt.Sprintf("IA: %s ChainVer: %d TRCVer: %d", s.IA(), s.ChainVersion, s.TRCVersion)
 }
