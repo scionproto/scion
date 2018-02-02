@@ -68,8 +68,10 @@ func (r *resolver) run() {
 				} else {
 					wait = r.normalRefire
 				}
+				// Make a copy of loop var for closure.
+				req := request
 				time.AfterFunc(wait, func() {
-					r.requestQueue <- request
+					r.requestQueue <- req
 				})
 			}
 		default:
