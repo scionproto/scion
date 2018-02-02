@@ -48,6 +48,7 @@ func GetErrorMsg(e error) string {
 // ErrorNester allows recursing into nested errors.
 type ErrorNester interface {
 	error
+	TopError() string // should not include the nested error
 	GetErr() error
 }
 
@@ -122,7 +123,7 @@ func NewBasicError(msg string, e error, logCtx ...interface{}) error {
 	return BasicError{Msg: msg, logCtx: logCtx, Err: e}
 }
 
-func (be BasicError) Error() string {
+func (be BasicError) TopError() string {
 	s := make([]string, 0, 1+(len(be.logCtx)/2))
 	s = append(s, be.Msg)
 	s[0] = be.Msg
@@ -130,6 +131,10 @@ func (be BasicError) Error() string {
 		s = append(s, fmt.Sprintf("%s=\"%v\"", be.logCtx[i], be.logCtx[i+1]))
 	}
 	return strings.Join(s, " ")
+}
+
+func (be BasicError) Error() string {
+	return FmtError(be)
 }
 
 func (be BasicError) GetMsg() string {
@@ -156,7 +161,13 @@ func FmtError(e error) string {
 
 func innerFmtError(e error) ([]string, error) {
 	var s []string
-	lines := strings.Split(e.Error(), "\n")
+	var lines []string
+	switch e := e.(type) {
+	case ErrorNester:
+		lines = strings.Split(e.TopError(), "\n")
+	default:
+		lines = strings.Split(e.Error(), "\n")
+	}
 	for i, line := range lines {
 		if i == len(lines)-1 && len(line) == 0 {
 			// Don't output an empty line if caused by a trailing newline in

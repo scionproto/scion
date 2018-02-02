@@ -36,7 +36,7 @@ func NewError(class Class, type_ Type, info Info, e error) error {
 	return &Error{CT: ClassType{class, type_}, Info: info, Err: e}
 }
 
-func (e *Error) Error() string {
+func (e *Error) TopError() string {
 	if e == nil {
 		return "<nil>"
 	}
@@ -46,6 +46,10 @@ func (e *Error) Error() string {
 		s = append(s, fmt.Sprintf("Info: %v", e.Info))
 	}
 	return strings.Join(s, " ")
+}
+
+func (e *Error) Error() string {
+	return common.FmtError(e)
 }
 
 func (e *Error) GetErr() error {
