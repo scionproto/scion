@@ -16,14 +16,17 @@ package proto
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var _ Cerealizable = (*SignS)(nil)
 
 type SignS struct {
+	Timestamp uint64
 	Type      SignType
 	Src       common.RawBytes
 	Signature common.RawBytes
@@ -38,6 +41,7 @@ func (s *SignS) Copy() *SignS {
 		return nil
 	}
 	return &SignS{
+		Timestamp: s.Timestamp,
 		Type:      s.Type,
 		Src:       append(common.RawBytes(nil), s.Src...),
 		Signature: append(common.RawBytes(nil), s.Signature...),
@@ -56,6 +60,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 
 func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 	var err error
+	s.Timestamp = uint64(time.Now().Unix())
 	s.Signature, err = s.Sign(key, message)
 	return err
 }
@@ -71,7 +76,8 @@ func (s *SignS) Verify(key, message common.RawBytes) error {
 }
 
 func (s *SignS) Pack() common.RawBytes {
-	var raw common.RawBytes
+	raw := make(common.RawBytes, 8)
+	common.Order.PutUint64(raw, s.Timestamp)
 	raw = append(raw, common.RawBytes(s.Type.String())...)
 	raw = append(raw, s.Src...)
 	raw = append(raw, s.Signature...)
@@ -83,7 +89,8 @@ func (s *SignS) ProtoId() ProtoIdType {
 }
 
 func (s *SignS) String() string {
-	return fmt.Sprintf("SignType: %s SignSrc: %s Signature: %s", s.Type, s.Src, s.Signature)
+	return fmt.Sprintf("SignType: %s Timestamp: %s SignSrc: %s Signature: %s", s.Type,
+		util.TimeToString(s.Timestamp), s.Src, s.Signature)
 }
 
 var _ Cerealizable = (*SignedBlobS)(nil)
