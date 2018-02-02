@@ -48,7 +48,7 @@ func GetErrorMsg(e error) string {
 // ErrorNester allows recursing into nested errors.
 type ErrorNester interface {
 	error
-	FmtError() string // should not include the nested error
+	TopError() string // should not include the nested error
 	GetErr() error
 }
 
@@ -123,7 +123,7 @@ func NewBasicError(msg string, e error, logCtx ...interface{}) error {
 	return BasicError{Msg: msg, logCtx: logCtx, Err: e}
 }
 
-func (be BasicError) FmtError() string {
+func (be BasicError) TopError() string {
 	s := make([]string, 0, 1+(len(be.logCtx)/2))
 	s = append(s, be.Msg)
 	s[0] = be.Msg
@@ -164,7 +164,7 @@ func innerFmtError(e error) ([]string, error) {
 	var lines []string
 	switch e := e.(type) {
 	case ErrorNester:
-		lines = strings.Split(e.FmtError(), "\n")
+		lines = strings.Split(e.TopError(), "\n")
 	default:
 		lines = strings.Split(e.Error(), "\n")
 	}

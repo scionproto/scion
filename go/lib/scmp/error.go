@@ -36,7 +36,7 @@ func NewError(class Class, type_ Type, info Info, e error) error {
 	return &Error{CT: ClassType{class, type_}, Info: info, Err: e}
 }
 
-func (e *Error) FmtError() string {
+func (e *Error) TopError() string {
 	if e == nil {
 		return "<nil>"
 	}
