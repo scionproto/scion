@@ -98,6 +98,8 @@ REVOCATIONS_ISSUED = Counter("bs_revocations_issued_total", "# of issued revocat
                              ["server_id", "isd_as"])
 IS_MASTER = Gauge("bs_is_master", "true if this process is the replication master",
                   ["server_id", "isd_as"])
+IF_STATE = Gauge("bs_ifstate", "0/1/2 if interface is active/revoked/other",
+                 ["server_id", "isd_as", "ifid"])
 
 
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
@@ -747,6 +749,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 to_revoke = []
                 for (if_id, if_state) in self.ifid_state.items():
                     cur_epoch = ConnectedHashTree.get_current_epoch()
+                    if self._labels:
+                        metric = IF_STATE.labels(ifid=if_id, **self._labels)
+                        if if_state.is_active():
+                            metric.set(0)
+                        elif if_state.is_revoked():
+                            metric.set(1)
+                        else:
+                            metric.set(2)
                     if not if_state.is_expired() or (
                             if_state.is_revoked() and if_id_last_revoked[if_id] == cur_epoch):
                         # Either the interface hasn't timed out, or it's already revoked for this
