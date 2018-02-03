@@ -27,21 +27,29 @@ import (
 	"sync"
 
 	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
 
-func init() {
-	S = &States{M: make(map[common.IFIDType]State)}
+// States is a map of interface IDs to interface states.
+type States sync.Map
+
+func (s *States) Delete(key common.IFIDType) {
+	(*sync.Map)(s).Delete(key)
 }
 
-// States is a map of interface IDs to interface states, protected by a RWMutex.
-type States struct {
-	sync.RWMutex
-	M map[common.IFIDType]State
+func (s *States) Load(key common.IFIDType) (*State, bool) {
+	val, loaded := (*sync.Map)(s).Load(key)
+	if val == nil {
+		return nil, loaded
+	}
+	return val.(*State), loaded
+}
+
+func (s *States) Store(key common.IFIDType, val *State) {
+	(*sync.Map)(s).Store(key, val)
 }
 
 // State stores the IFStateInfo capnp message, as well as the raw revocation
@@ -51,15 +59,10 @@ type State struct {
 	RawRev common.RawBytes
 }
 
-// S contains the interface states.
-var S *States
+var states States
 
 // Process processes Interface State updates from the beacon service.
-// NOTE: Process currently assumes that ifStates contains infos for each interface
-// in the AS.
 func Process(ifStates *path_mgmt.IFStateInfos) {
-	// Convert IFState infos to map
-	m := make(map[common.IFIDType]State, len(ifStates.Infos))
 	for _, info := range ifStates.Infos {
 		var rawRev common.RawBytes
 		ifid := common.IFIDType(info.IfID)
@@ -71,9 +74,9 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 				return
 			}
 		}
-		m[ifid] = State{Info: info, RawRev: rawRev}
+		s := &State{Info: info, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
-		oldState, ok := S.M[ifid]
+		oldState, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
 		}
@@ -88,21 +91,12 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 			}
 			gauge.Set(0)
 		}
+		states.Store(ifid, s)
 	}
-	// Lock IFState config for writing, and replace existing map
-	S.Lock()
-	S.M = m
-	S.Unlock()
 }
 
-// Activate updates the state of a single interface to active.
-func Activate(ifID common.IFIDType) error {
-	S.Lock()
-	defer S.Unlock()
-	ifState, ok := S.M[ifID]
-	if !ok {
-		return common.NewBasicError("Trying to activate non-existing interface", nil, "intf", ifID)
-	}
-	ifState.Info.Active = true
-	return nil
+// GetState returns the State for a given interface ID or an empty state.
+// The bool result indicates whether the state was found in the map.
+func GetState(ifID common.IFIDType) (*State, bool) {
+	return states.Load(ifID)
 }
