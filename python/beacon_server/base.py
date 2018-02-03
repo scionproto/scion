@@ -791,8 +791,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 info = IFStateInfo.from_values(ifid, state.is_active(), rev_info)
                 infos.append(info)
             if not infos and not self._quiet_startup():
-                logging.warning("No IF state info to put in IFState update for %s.",
-                                ", ".join([str(m) for m in border_metas + server_metas]))
+                logging.warning("No IF state info to put in IFState update for %s.", meta)
                 return
         self._send_ifstate_update(infos, [meta])
 
