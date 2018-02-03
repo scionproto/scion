@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	log "github.com/inconshreveable/log15"
+
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
