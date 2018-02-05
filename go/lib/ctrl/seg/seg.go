@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
@@ -64,7 +65,7 @@ func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
 		}
 		ps.ASEntries = append(ps.ASEntries, ase)
 	}
-	return ps, nil
+	return ps, ps.Validate()
 }
 
 func (ps *PathSegment) ID() (common.RawBytes, error) {
@@ -86,6 +87,32 @@ func (ps *PathSegment) ID() (common.RawBytes, error) {
 
 func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
 	return ps.SData.InfoF()
+}
+
+func (ps *PathSegment) Validate() error {
+	if len(ps.RawASEntries) == 0 {
+		return common.NewBasicError("PathSegment has no AS Entries", nil)
+	}
+	if len(ps.ASEntries) != len(ps.RawASEntries) {
+		return common.NewBasicError(
+			"PathSegment has mismatched number of raw and parsed AS Entries", nil,
+			"ASEntries", len(ps.ASEntries), "RawASEntries", len(ps.RawASEntries),
+		)
+	}
+	for i := range ps.ASEntries {
+		prevIA := &addr.ISD_AS{}
+		nextIA := &addr.ISD_AS{}
+		if i > 0 {
+			prevIA = ps.ASEntries[i-1].IA()
+		}
+		if i < len(ps.ASEntries)-1 {
+			nextIA = ps.ASEntries[i+1].IA()
+		}
+		if err := ps.ASEntries[i].Validate(prevIA, nextIA); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,

@@ -108,6 +108,9 @@ func (ia *ISD_AS) Copy() *ISD_AS {
 }
 
 func (ia *ISD_AS) Eq(other *ISD_AS) bool {
+	if (ia == nil) || (other == nil) {
+		return ia == other
+	}
 	return ia.I == other.I && ia.A == other.A
 }
 

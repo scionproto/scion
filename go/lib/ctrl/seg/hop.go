@@ -18,15 +18,16 @@ package seg
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
 type HopEntry struct {
 	RawInIA     addr.IAInt `capnp:"inIA"`
-	RemoteInIF  uint64
+	RemoteInIF  common.IFIDType
 	InMTU       uint16     `capnp:"inMTU"`
 	RawOutIA    addr.IAInt `capnp:"outIA"`
-	RemoteOutIF uint64
+	RemoteOutIF common.IFIDType
 	RawHopField []byte `capnp:"hopF"`
 }
 
