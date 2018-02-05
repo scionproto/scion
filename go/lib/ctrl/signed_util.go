@@ -166,7 +166,7 @@ func NewSignSrcDefFromRaw(b common.RawBytes) (*SignSrcDef, error) {
 }
 
 func (s *SignSrcDef) Pack() common.RawBytes {
-	return common.RawBytes(fmt.Sprintf("DEFAULT: IA: %s CHAIN: %d TRC: %d",
+	return common.RawBytes(fmt.Sprintf("%sIA: %s CHAIN: %d TRC: %d", SrcDefaultPrefix,
 		s.IA, s.ChainVer, s.TRCVer))
 }
 
