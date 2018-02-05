@@ -23,6 +23,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"os/user"
 	"syscall"
 
 	log "github.com/inconshreveable/log15"
@@ -48,6 +49,11 @@ func main() {
 	}
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
+	if err := checkPerms(); err != nil {
+		log.Crit("Permissions checks failed", "err", common.FmtError(err))
+		liblog.Flush()
+		os.Exit(1)
+	}
 	if *profFlag {
 		// Start profiling if requested.
 		profile.Start(*id)
@@ -83,4 +89,15 @@ func setupSignals() {
 		liblog.Flush()
 		os.Exit(1)
 	}()
+}
+
+func checkPerms() error {
+	user, err := user.Current()
+	if err != nil {
+		return common.NewBasicError("Error retrieving user", err)
+	}
+	if user.Uid == "0" {
+		return common.NewBasicError("Running as root is not allowed for security reasons", nil)
+	}
+	return nil
 }
