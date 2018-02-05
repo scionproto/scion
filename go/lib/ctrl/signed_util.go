@@ -135,7 +135,7 @@ const (
 	// SrcDefaultPrefix is the default prefix for proto.SignS.Src.
 	SrcDefaultPrefix = "DEFAULT: "
 	// SrcDefaultFmt is the default format for proto.SignS.Src.
-	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\d+)-(\d+) CHAIN: (\d+) TRC: (\d+)$`
+	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\d+-\d+) CHAIN: (\d+) TRC: (\d+)$`
 )
 
 type SignSrcDef struct {
@@ -148,19 +148,19 @@ func NewSignSrcDefFromRaw(b common.RawBytes) (*SignSrcDef, error) {
 	re := regexp.MustCompile(SrcDefaultFmt)
 	s := re.FindStringSubmatch(string(b))
 	if len(s) == 0 {
-		return nil, common.NewBasicError("Unable to parse default src", nil, "string", string(b))
+		return nil, common.NewBasicError("Unable to match default src", nil, "string", string(b))
 	}
-	ia, err := addr.IAFromString(fmt.Sprintf("%s-%s", s[1], s[2]))
+	ia, err := addr.IAFromString(s[1])
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse default src", err)
+		return nil, common.NewBasicError("Unable to parse default src IA", err)
 	}
-	chainVer, err := strconv.ParseUint(s[3], 10, 64)
+	chainVer, err := strconv.ParseUint(s[2], 10, 64)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse default src", err)
+		return nil, common.NewBasicError("Unable to parse default src ChainVer", err)
 	}
-	trcVer, err := strconv.ParseUint(s[4], 10, 64)
+	trcVer, err := strconv.ParseUint(s[3], 10, 64)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to parse default src", err)
+		return nil, common.NewBasicError("Unable to parse default src TRCVer", err)
 	}
 	return &SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil
 }
