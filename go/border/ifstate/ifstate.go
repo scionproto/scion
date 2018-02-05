@@ -25,6 +25,8 @@ package ifstate
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
+	"unsafe"
 
 	log "github.com/inconshreveable/log15"
 
@@ -34,33 +36,38 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// States is a map of interface IDs to interface states.
-type States sync.Map
+// ifStates is a map of interface IDs to interface states.
+type ifStates sync.Map
 
-func (s *States) Delete(key common.IFIDType) {
+func (s *ifStates) Delete(key common.IFIDType) {
 	(*sync.Map)(s).Delete(key)
 }
 
-func (s *States) Load(key common.IFIDType) (*State, bool) {
+func (s *ifStates) Load(key common.IFIDType) (*state, bool) {
 	val, loaded := (*sync.Map)(s).Load(key)
 	if val == nil {
 		return nil, loaded
 	}
-	return val.(*State), loaded
+	return val.(*state), loaded
 }
 
-func (s *States) Store(key common.IFIDType, val *State) {
+func (s *ifStates) Store(key common.IFIDType, val *state) {
 	(*sync.Map)(s).Store(key, val)
 }
 
-// State stores the IFStateInfo capnp message, as well as the raw revocation
-// info for a given interface.
-type State struct {
-	Info   *path_mgmt.IFStateInfo
-	RawRev common.RawBytes
+var states ifStates
+
+type state struct {
+	info unsafe.Pointer
 }
 
-var states States
+// Info stores state information, as well as the raw revocation info for a given interface.
+type Info struct {
+	IfID    common.IFIDType
+	Active  bool
+	RevInfo *path_mgmt.RevInfo
+	RawRev  common.RawBytes
+}
 
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates *path_mgmt.IFStateInfos) {
@@ -75,29 +82,56 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 				return
 			}
 		}
-		s := &State{Info: info, RawRev: rawRev}
+		stateInfo := &Info{IfID: ifid, Active: info.Active, RevInfo: info.RevInfo, RawRev: rawRev}
 		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
-		oldState, ok := states.Load(ifid)
+		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
-		}
-		if info.Active {
-			if ok && !oldState.Info.Active {
-				log.Info("IFState: intf activated", "ifid", ifid)
-			}
-			gauge.Set(1)
+			s = &state{}
+			states.Store(ifid, s)
 		} else {
-			if ok && oldState.Info.Active {
-				log.Info("IFState: intf deactivated", "ifid", ifid)
+			oldInfo := (*Info)(atomic.LoadPointer(&s.info))
+			if stateInfo.Active {
+				if !oldInfo.Active {
+					log.Info("IFState: intf activated", "ifid", ifid)
+				}
+				gauge.Set(1)
+			} else {
+				if oldInfo.Active {
+					log.Info("IFState: intf deactivated", "ifid", ifid)
+				}
+				gauge.Set(0)
 			}
-			gauge.Set(0)
 		}
-		states.Store(ifid, s)
+		atomic.StorePointer(&s.info, unsafe.Pointer(stateInfo))
 	}
 }
 
-// GetState returns the State for a given interface ID or an empty state.
+// LoadState returns the state info for a given interface ID or nil.
 // The bool result indicates whether the state was found in the map.
-func GetState(ifID common.IFIDType) (*State, bool) {
-	return states.Load(ifID)
+func LoadState(ifID common.IFIDType) (*Info, bool) {
+	s, ok := states.Load(ifID)
+	if !ok {
+		return nil, ok
+	}
+	return (*Info)(atomic.LoadPointer(&s.info)), ok
+}
+
+// UpdateIfNew atomically updates the state info for a given ifid, if the state has
+// not been changed in the meantime. If there is no state info, a new one will be created
+// and the new state will be inserted.
+func UpdateIfNew(ifID common.IFIDType, old, new *Info) {
+	s, ok := states.Load(ifID)
+	if ok {
+		atomic.CompareAndSwapPointer(&s.info, unsafe.Pointer(old), unsafe.Pointer(new))
+		return
+	}
+	s = &state{}
+	atomic.StorePointer(&s.info, unsafe.Pointer(new))
+	states.Store(ifID, s)
+}
+
+// DeleteState removes the state info for a given interface.
+func DeleteState(ifID common.IFIDType) {
+	states.Delete(ifID)
 }
