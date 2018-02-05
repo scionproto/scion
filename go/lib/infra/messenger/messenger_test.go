@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // TestCase data
@@ -39,8 +38,8 @@ var (
 	mockTRC = &cert_mgmt.TRC{RawTRC: common.RawBytes("foobar")}
 )
 
-func MockTRCRequestConstructor(ctx context.Context, data, _ proto.Cerealizable, peer net.Addr) {
-	v := ctx.Value(infra.MessengerContextKey)
+func MockTRCHandler(request *infra.Request) {
+	v := request.Context().Value(infra.MessengerContextKey)
 	if v == nil {
 		log.Warn("Unable to service request, no Messenger interface found")
 		return
@@ -50,7 +49,7 @@ func MockTRCRequestConstructor(ctx context.Context, data, _ proto.Cerealizable, 
 		log.Warn("Unable to service request, bad Messenger value found")
 		return
 	}
-	subCtx, cancelF := context.WithTimeout(ctx, 3*time.Second)
+	subCtx, cancelF := context.WithTimeout(request.Context(), 3*time.Second)
 	defer cancelF()
 	if err := messenger.SendTRC(subCtx, mockTRC, &MockAddress{}); err != nil {
 		log.Error("Server error", "err", err)
@@ -89,7 +88,7 @@ func TestTRCExchange(t *testing.T) {
 		}, func(sc *xtest.SC) {
 			// The server receives a TRC request from the client, passes it to
 			// the mock TRCRequest handler which sends back the result.
-			serverMessenger.AddHandler(TRCRequest, infra.HandlerFunc(MockTRCRequestConstructor))
+			serverMessenger.AddHandler(TRCRequest, infra.HandlerFunc(MockTRCHandler))
 			serverMessenger.ListenAndServe()
 		}))
 	})

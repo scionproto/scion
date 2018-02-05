@@ -211,14 +211,7 @@ func (req trcRequest) resolve(ctx context.Context, msger infra.Messenger, db *tr
 		Version:   req.version,
 		CacheOnly: true,
 	}
-	var address net.Addr
-	if req.hint != nil {
-		address = req.hint
-	} else {
-		// FIXME(scrye): Add SVC support for write ops in snet
-		address = net.Addr(nil)
-	}
-	trcMessage, err := msger.GetTRC(ctx, trcReqMsg, address)
+	trcMessage, err := msger.GetTRC(ctx, trcReqMsg, req.hint)
 	if err != nil {
 		return err
 	}
@@ -273,14 +266,7 @@ func (req chainRequest) resolve(ctx context.Context, msger infra.Messenger, db *
 		Version:   req.version,
 		CacheOnly: true,
 	}
-	var address net.Addr
-	if req.hint != nil {
-		address = req.hint
-	} else {
-		// FIXME(scrye): Add SVC support for write ops in snet
-		address = net.Addr(nil)
-	}
-	chainMessage, err := msger.GetCertChain(ctx, chainReqMsg, address)
+	chainMessage, err := msger.GetCertChain(ctx, chainReqMsg, req.hint)
 	if err != nil {
 		return common.NewBasicError("Unable to get CertChain from peer", err)
 	}

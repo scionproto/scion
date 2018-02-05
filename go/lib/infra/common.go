@@ -25,15 +25,45 @@ import (
 // Interface Handler is implemented by objects that can handle a request coming
 // from a remote SCION network node.
 type Handler interface {
-	Handle(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr)
+	Handle(*Request)
 }
 
-// Constructs a handler for message msg. Handle() can be called on the
-// resulting object to process the message.
-type HandlerFunc func(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr)
+// Request describes an object received from the network that is not part of an
+// exchange initiated by the local node. A Request includes its associated
+// context.
+type Request struct {
+	// The proto.Cerealizable message, post-namespace flattening
+	Message proto.Cerealizable
+	// The top-level proto.Cerealizable message read from the wire
+	FullMessage proto.Cerealizable
+	// The node that sent this request
+	Peer net.Addr
 
-func (f HandlerFunc) Handle(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr) {
-	f(ctx, msg, fullMsg, peer)
+	// ctx is a server context, used in handlers when receiving messages from
+	// the network.
+	ctx context.Context
+}
+
+func NewRequest(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr) *Request {
+	return &Request{
+		Message:     msg,
+		FullMessage: fullMsg,
+		Peer:        peer,
+		ctx:         ctx,
+	}
+}
+
+// Context returns the request's context.
+func (r *Request) Context() context.Context {
+	return r.ctx
+}
+
+// Constructs a handler for request r. Handle() can be called on the
+// resulting object to process the message.
+type HandlerFunc func(r *Request)
+
+func (f HandlerFunc) Handle(m *Request) {
+	f(m)
 }
 
 var (

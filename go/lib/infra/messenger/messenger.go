@@ -55,8 +55,10 @@
 //
 // Some default handlers are already implemented; for more
 // information, see their package documentation:
-//   trust.*Store.CertRequestHandler
-//   trust.*Store.TRCRequestHandler
+//   trust.*Store.NewChainReqHandler
+//   trust.*Store.NewTRCReqHandler
+//   trust.*Store.NewPushChainHandler
+//   trust.*Store.NewPushTRCHandler
 //
 // Shut down the server and any running handlers using CloseServer():
 //  msger.CloseServer()
@@ -315,7 +317,8 @@ func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
 	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
 	// XXX(scrye): The handler might perform additional verifications; for
 	// example, a PCB handler will probably verify additional signatures.
-	go handler.Handle(serveCtx, msg, pld, address)
+	request := infra.NewRequest(serveCtx, msg, pld, address)
+	go handler.Handle(request)
 }
 
 // validate checks that msg is one of the acceptable message types for SCION

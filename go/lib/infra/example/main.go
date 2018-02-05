@@ -44,10 +44,10 @@ func main() {
 	// Initialize networking and modules
 	serverApp := InitDefaultNetworking(s2c)
 	// Initialize Server
-	serverApp.messenger.AddHandler("ChainRequest",
-		infra.HandlerFunc(serverApp.trustStore.ChainReqHandler))
-	serverApp.messenger.AddHandler("TRCRequest",
-		infra.HandlerFunc(serverApp.trustStore.TRCReqHandler))
+	serverApp.messenger.AddHandler("ChainRequest", serverApp.trustStore.NewChainReqHandler(false))
+	serverApp.messenger.AddHandler("TRCRequest", serverApp.trustStore.NewTRCReqHandler(false))
+	serverApp.messenger.AddHandler("TRC", serverApp.trustStore.NewPushTRCHandler())
+	serverApp.messenger.AddHandler("Chain", serverApp.trustStore.NewPushChainHandler())
 	go serverApp.messenger.ListenAndServe()
 	// Do work
 	select {}
@@ -80,7 +80,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	// Initialize messenger with verification capabilities (trustStore-backed)
 	server.messenger = messenger.New(dispatcherLayer, server.trustStore, log.Root())
 	// Enable network access for trust store request handling
-	server.trustStore.StartResolvers(server.messenger, false)
+	server.trustStore.StartResolvers(server.messenger)
 	return server
 }
 

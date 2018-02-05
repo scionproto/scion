@@ -125,7 +125,7 @@ func TestTrustTrails(t *testing.T) {
 
 		// Enable fake network access for trust database
 		messenger := NewFakeMessenger()
-		store.StartResolvers(messenger, false)
+		store.StartResolvers(messenger)
 
 		Convey("Validate using trail from ISD2 to AS1-16", func() {
 			// Test that 1-16 Certificate can be validate
