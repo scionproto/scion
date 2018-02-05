@@ -16,6 +16,8 @@ package ctrl
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -110,50 +112,64 @@ func (b *BasicSigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes,
 	if s.Type == proto.SignType_none {
 		return nil, nil
 	}
-	sigSrc, err := NewSignSrcSFromRaw(s.Src)
+	sigSrc, err := NewSignSrcDefFromRaw(s.Src)
 	if err != nil {
 		return nil, err
 	}
-	chain, err := b.getCertForSign(sigSrc)
+	chain, err := b.getChainForSign(sigSrc)
 	if err != nil {
 		return nil, err
 	}
-	if chain == nil { // FIXME(roosd): remove after getCertForSign is implemented
+	if chain == nil { // FIXME(roosd): remove after getChainForSign is implemented
 		return nil, nil
 	}
 	return chain.Leaf.SubjectSignKey, nil
 }
 
-func (b *BasicSigVerifier) getCertForSign(s *SignSrcS) (*cert.Chain, error) {
+func (b *BasicSigVerifier) getChainForSign(s *SignSrcDef) (*cert.Chain, error) {
 	// TODO(kormat): query b.tStore
 	return nil, nil
 }
 
-var _ proto.Cerealizable = (*SignSrcS)(nil)
+const (
+	// SrcDefaultPrefix is the default prefix for proto.SignS.Src.
+	SrcDefaultPrefix = "DEFAULT: "
+	// SrcDefaultFmt is the default format for proto.SignS.Src.
+	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\d+)-(\d+) CHAIN: (\d+) TRC: (\d+)$`
+)
 
-type SignSrcS struct {
-	RawIA        addr.IAInt `capnp:"isdas"`
-	ChainVersion uint64
-	TRCVersion   uint64 `capnp:"trcVersion"`
+type SignSrcDef struct {
+	IA       *addr.ISD_AS
+	ChainVer uint64
+	TRCVer   uint64
 }
 
-func NewSignSrcSFromRaw(b common.RawBytes) (*SignSrcS, error) {
-	s := &SignSrcS{}
-	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
+func NewSignSrcDefFromRaw(b common.RawBytes) (*SignSrcDef, error) {
+	re := regexp.MustCompile(SrcDefaultFmt)
+	s := re.FindStringSubmatch(string(b))
+	if len(s) == 0 {
+		return nil, common.NewBasicError("Unable to parse default src", nil, "string", string(b))
+	}
+	ia, err := addr.IAFromString(fmt.Sprintf("%s-%s", s[1], s[2]))
+	if err != nil {
+		return nil, common.NewBasicError("Unable to parse default src", err)
+	}
+	chainVer, err := strconv.ParseUint(s[3], 10, 64)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to parse default src", err)
+	}
+	trcVer, err := strconv.ParseUint(s[4], 10, 64)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to parse default src", err)
+	}
+	return &SignSrcDef{IA: ia, ChainVer: chainVer, TRCVer: trcVer}, nil
 }
 
-func (s *SignSrcS) Pack() (common.RawBytes, error) {
-	return proto.PackRoot(s)
+func (s *SignSrcDef) Pack() common.RawBytes {
+	return common.RawBytes(fmt.Sprintf("DEFAULT: IA: %s CHAIN: %d TRC: %d",
+		s.IA, s.ChainVer, s.TRCVer))
 }
 
-func (s *SignSrcS) IA() *addr.ISD_AS {
-	return s.RawIA.IA()
-}
-
-func (s *SignSrcS) ProtoId() proto.ProtoIdType {
-	return proto.SignSrc_TypeID
-}
-
-func (s *SignSrcS) String() string {
-	return fmt.Sprintf("IA: %s ChainVer: %d TRCVer: %d", s.IA(), s.ChainVersion, s.TRCVersion)
+func (s *SignSrcDef) String() string {
+	return fmt.Sprintf("IA: %s ChainVer: %d TRCVer: %d", s.IA, s.ChainVer, s.TRCVer)
 }

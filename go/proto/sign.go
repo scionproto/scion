@@ -28,6 +28,9 @@ var _ Cerealizable = (*SignS)(nil)
 type SignS struct {
 	Timestamp uint64
 	Type      SignType
+	// Src holds the required metadata to verify the signature. The format is "STRING: METADATA".
+	// The prefix consists of "STRING: " and is required to match the regex "^\w+\: ".
+	// There are no format restrictions on the metadata.
 	Src       common.RawBytes
 	Signature common.RawBytes
 }
