@@ -77,9 +77,9 @@ type Store struct {
 	startedFlag bool
 }
 
-// NewStore initializes a TRC cache/resolver backed by SQLite3 database at
-// path. Parameter local must specify the AS in which the trust store resides
-// (which is used during request forwarding decisions).
+// NewStore initializes a TRC cache/resolver backed by db. Parameter local must
+// specify the AS in which the trust store resides (which is used during
+// request forwarding decisions).
 func NewStore(db *trustdb.DB, local addr.ISD_AS, logger log.Logger) (*Store, error) {
 	return &Store{
 		trustdb:       db,
@@ -129,7 +129,7 @@ func (store *Store) StartResolvers(messenger infra.Messenger) error {
 }
 
 // getTRC attempts to grab the TRC from the database; if the TRC is not found,
-// it follows up with a network request (if allowed).  Parameter request
+// it follows up with a network request (if allowed).  Parameter recurse
 // specifies whether this function is allowed to create new network requests.
 // Parameter requester contains the node that caused the function to be called,
 // or nil if the function was called due to a local feature.
@@ -186,7 +186,7 @@ func (store *Store) issueTRCRequest(ctx context.Context, req trcRequest) error {
 
 // getChain attempts to grab the Certificate Chain from the database; if the
 // Chain is not found, it follows up with a network request (if allowed).
-// Parameter request specifies whether this function is allowed to create new
+// Parameter recurse specifies whether this function is allowed to create new
 // network requests. Parameter requester contains the node that caused the
 // function to be called, or nil if the function was called due to a local
 // feature.
