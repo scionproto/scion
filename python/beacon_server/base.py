@@ -436,11 +436,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             br.interfaces[ifid].to_if_id = pld.p.origIF
             prev_state = self.ifid_state[ifid].update()
             if prev_state == InterfaceState.INACTIVE:
-                logging.info("IF %d activated", ifid)
+                logging.info("IF %d activated.", ifid)
             elif prev_state in [InterfaceState.TIMED_OUT,
                                 InterfaceState.REVOKED]:
                 logging.info("IF %d came back up.", ifid)
-            if not prev_state == InterfaceState.ACTIVE:
+            if prev_state != InterfaceState.ACTIVE:
                 if self.zk.have_lock():
                     # Inform BRs about the interface coming up.
                     metas = []

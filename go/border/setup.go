@@ -27,6 +27,7 @@ import (
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/ifstate"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -212,6 +213,8 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 		for ifid, sock := range oldCtx.ExtSockIn {
 			if _, ok := ctx.ExtSockIn[ifid]; !ok {
 				sock.Stop()
+				// Remove the interface from the ifstate map.
+				ifstate.DeleteState(ifid)
 			}
 		}
 	}
