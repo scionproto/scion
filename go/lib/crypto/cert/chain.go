@@ -33,6 +33,10 @@ import (
 
 const (
 	MaxChainByteLength uint32 = 1 << 20
+	// LeafValidity is the default validity time of a leaf certificate in seconds.
+	DefaultLeafCertValidity = 3 * 24 * 60 * 60
+	// CoreValidity is the default validity time of a core certificate in seconds.
+	DefaultCoreCertValidity = 7 * 24 * 60 * 60
 
 	// Error strings
 	CoreCertInvalid  = "Core certificate invalid"
@@ -138,6 +142,10 @@ func (c *Chain) Compress() (common.RawBytes, error) {
 		return nil, err
 	}
 	return comp[:n+4], err
+}
+
+func (c *Chain) Copy() *Chain {
+	return &Chain{Core: c.Core.Copy(), Leaf: c.Leaf.Copy()}
 }
 
 func (c *Chain) String() string {
