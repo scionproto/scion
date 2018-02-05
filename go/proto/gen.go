@@ -23,7 +23,6 @@ var RootTypes = []string{
 	"SCIONDMsg",
 	"SignedBlob",
 	"SignedCtrlPld",
-	"SignSrc",
 }
 
 func main() {
