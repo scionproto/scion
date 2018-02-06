@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type notifyF func(context.Context, disp.Message, net.Addr) error
+type notifyF func(context.Context, proto.Cerealizable, net.Addr) error
 
 type Requester struct {
 	signer ctrl.Signer

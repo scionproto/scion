@@ -16,18 +16,16 @@ package disp
 
 import (
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // MessageAdapter converts application level messages to and from elements the
 // Dispatcher understands.
 type MessageAdapter interface {
 	// Convert msg to a format suitable for sending on a wire
-	MsgToRaw(msg Message) (common.RawBytes, error)
+	MsgToRaw(msg proto.Cerealizable) (common.RawBytes, error)
 	// Convert a raw byte slice to a message
-	RawToMsg(common.RawBytes) (Message, error)
+	RawToMsg(common.RawBytes) (proto.Cerealizable, error)
 	// Return a key used to match requests and replies
-	MsgKey(Message) string
+	MsgKey(proto.Cerealizable) string
 }
-
-// Generic object used by the Dispatcher.
-type Message interface{}
