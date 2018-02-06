@@ -37,7 +37,7 @@ from lib.defines import (
 from lib.errors import SCIONBaseError
 from lib.log import add_formatter, Rfc3339Formatter
 from lib.path_seg_meta import PathSegMeta
-from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.ifstate import IFStatePayload
 from lib.packet.path_mgmt.rev_info import RevocationInfo
@@ -337,7 +337,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         raise NotImplementedError
 
-    def _send_path_segments(self, req, meta, logger, up=None, core=None, down=None):
+    def _send_path_segments(self, req, req_id, meta, logger, up=None, core=None, down=None):
         """
         Sends path-segments to requester (depending on Path Server's location).
         """
@@ -355,7 +355,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             revs_to_add
         )
         pld = PathSegmentReply.from_values(req.copy(), recs)
-        self.send_meta(CtrlPayload(PathMgmt(pld)), meta)
+        self.send_meta(CtrlPayload(PathMgmt(pld), req_id=req_id), meta)
         logger.info("Sending PATH_REPLY with %d segment(s).", len(all_segs))
 
     def _peer_revs_for_segs(self, segs):
@@ -380,11 +380,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Serve pending requests.
         with self.pen_req_lock:
             for key in self.pending_req:
-                for req_id, (req, meta, logger) in self.pending_req[key].items():
-                    if self.path_resolution(CtrlPayload(PathMgmt(req)), meta,
+                for req_key, (req, req_id, meta, logger) in self.pending_req[key].items():
+                    if self.path_resolution(CtrlPayload(PathMgmt(req), req_id=req_id), meta,
                                             new_request=False, logger=logger):
                         meta.close()
-                        del self.pending_req[key][req_id]
+                        del self.pending_req[key][req_key]
                 if not self.pending_req[key]:
                     rem_keys.append(key)
             for key in rem_keys:
@@ -407,14 +407,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pmgt = cpld.union
         reply = pmgt.union
         assert isinstance(reply, PathSegmentReply), type(reply)
-        self._handle_seg_recs(reply.recs(), meta)
+        self._handle_seg_recs(reply.recs(), cpld.req_id, meta)
 
     def handle_seg_recs(self, cpld, meta):
         pmgt = cpld.union
         seg_recs = pmgt.union
-        self._handle_seg_recs(seg_recs, meta)
+        self._handle_seg_recs(seg_recs, cpld.req_id, meta)
 
-    def _handle_seg_recs(self, seg_recs, meta):
+    def _handle_seg_recs(self, seg_recs, req_id, meta):
         """
         Handles paths received from the network.
         """
@@ -427,7 +427,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for type_, pcb in seg_recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
                                    type_, params)
-            self._process_path_seg(seg_meta)
+            self._process_path_seg(seg_meta, req_id)
 
     def continue_seg_processing(self, seg_meta):
         """
@@ -537,9 +537,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         while targets:
             (seg_req, logger) = targets.pop(0)
             meta = self._build_meta(ia=src_ia, path=path, host=SVCType.PS_A, reuse=True)
-            self.send_meta(CtrlPayload(PathMgmt(seg_req)), meta)
-            logger.info("Waiting request (%s) sent to %s via %s",
-                        seg_req.short_desc(), meta, pcb.short_desc())
+            req_id = mk_ctrl_req_id()
+            self.send_meta(CtrlPayload(PathMgmt(seg_req), req_id=req_id), meta)
+            logger.info("Waiting request (%s) sent to %s via %s [id: %016x]",
+                        seg_req.short_desc(), meta, pcb.short_desc(), req_id)
 
     def _share_via_zk(self):
         if not self._segs_to_zk:
@@ -588,14 +589,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             "{id=%(id)s, from=%(from)s}")
         add_formatter('RequestLogger', formatter)
 
-    def get_request_logger(self, req, meta):
+    def get_request_logger(self, req_id, meta):
         """
-        Returns a logger adapter for 'req'.
+        Returns a logger adapter for a request.
         """
         # Create a logger for the request to log with context.
         return logging.LoggerAdapter(
             self._request_logger,
-            {"id": req.req_id(), "from": str(meta)})
+            {"id": req_id, "from": str(meta)})
 
     def _init_metrics(self):
         super()._init_metrics()

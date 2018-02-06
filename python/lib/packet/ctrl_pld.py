@@ -16,6 +16,7 @@
 =========================================
 """
 # Stdlib
+import random
 import struct
 
 # External
@@ -90,6 +91,9 @@ class CtrlPayload(CerealBox):
 
     def __init__(self, union, req_id=0, trace_id=b''):
         self.union = union
+        if req_id == 0:
+            # If no request id is specified, generate a random id.
+            req_id = mk_ctrl_req_id()
         self.req_id = req_id
         self.trace_id = trace_id
 
@@ -113,12 +117,19 @@ class CtrlPayload(CerealBox):
             "traceId": self.trace_id,
         })
 
+    def req_id_str(self):
+        return "%016x" % self.req_id
+
     def __str__(self):
         return "%s(%dB): req_id=%s trace_id=%s %s" % (
-            self.NAME, len(self), self.req_id, self.trace_id, self.union)
+            self.NAME, len(self), self.req_id_str(), self.trace_id, self.union)
 
     def new_signed_pld(self):
         return SignedCtrlPayload.from_values(self.proto().to_bytes_packed())
 
     def pack(self):  # pragma: no cover
         return self.new_signed_pld().pack()
+
+
+def mk_ctrl_req_id():
+    return random.randrange(1, 1 << 64)

@@ -36,7 +36,7 @@ from lib.errors import SCIONBaseError, SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
 from lib.path_seg_meta import PathSegMeta
-from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.rev_info import RevocationInfo
@@ -76,7 +76,7 @@ from lib.types import (
     ServiceType,
     TypeBase,
 )
-from lib.util import random_uint64, SCIONTime
+from lib.util import SCIONTime
 from sciond.req import RequestState
 from scion_elem.scion_elem import SCIONElement
 
@@ -193,7 +193,7 @@ class SCIONDaemon(SCIONElement):
         for type_, pcb in recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                    meta, type_, params=(r,))
-            self._process_path_seg(seg_meta)
+            self._process_path_seg(seg_meta, cpld.req_id)
 
     def continue_seg_processing(self, seg_meta):
         """
@@ -470,8 +470,7 @@ class SCIONDaemon(SCIONElement):
                 r = self.requested_paths.get(key)
                 if r is None:
                     # No previous outstanding request
-                    req = PathSegmentReq.from_values(
-                        random_uint64(), self.addr.isd_as, dst_ia, flags=flags)
+                    req = PathSegmentReq.from_values(self.addr.isd_as, dst_ia, flags=flags)
                     r = RequestState(req.copy())
                     self.requested_paths[key] = r
                     self._fetch_segments(req)
@@ -657,9 +656,11 @@ class SCIONDaemon(SCIONElement):
         except SCIONServiceLookupError:
             log_exception("Error querying path service:")
             return
-        logging.debug("Sending path request (%s) to [%s]:%s", req.short_desc(), addr, port)
+        req_id = mk_ctrl_req_id()
+        logging.debug("Sending path request (%s) to [%s]:%s [id: %016x]",
+                      req.short_desc(), addr, port, req_id)
         meta = self._build_meta(host=addr, port=port)
-        self.send_meta(CtrlPayload(PathMgmt(req)), meta)
+        self.send_meta(CtrlPayload(PathMgmt(req), req_id=req_id), meta)
 
     def _calc_core_segs(self, dst_isd, up_segs, down_segs):
         """
