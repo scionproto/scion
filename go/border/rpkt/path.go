@@ -111,7 +111,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	if !crypto.VerifyHashTreeEpoch(revInfo.Epoch) {
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
-		newState := &ifstate.Info{IfID: state.IfID, Active: true}
+		newState := ifstate.NewInfo(*ifid, true, nil, nil)
 		ifstate.UpdateIfNew(*ifid, state, newState)
 		return nil
 	}

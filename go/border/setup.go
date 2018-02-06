@@ -142,6 +142,14 @@ func (r *Router) setupNewContext(config *conf.Conf) error {
 	for _, s := range ctx.ExtSockOut {
 		s.Start()
 	}
+	// Clean-up interface state infos that are not present anymore.
+	if oldCtx != nil {
+		for ifID := range oldCtx.Conf.Topo.IFInfoMap {
+			if _, ok := ctx.Conf.Topo.IFInfoMap[ifID]; !ok {
+				ifstate.DeleteState(ifID)
+			}
+		}
+	}
 	return nil
 }
 
@@ -213,8 +221,6 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 		for ifid, sock := range oldCtx.ExtSockIn {
 			if _, ok := ctx.ExtSockIn[ifid]; !ok {
 				sock.Stop()
-				// Remove the interface from the ifstate map.
-				ifstate.DeleteState(ifid)
 			}
 		}
 	}

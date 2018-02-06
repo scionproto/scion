@@ -28,6 +28,8 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/border/metrics"
@@ -58,15 +60,35 @@ func (s *ifStates) Store(key common.IFIDType, val *state) {
 var states ifStates
 
 type state struct {
+	// info is a pointer to an Info object.
 	info unsafe.Pointer
 }
 
 // Info stores state information, as well as the raw revocation info for a given interface.
 type Info struct {
-	IfID    common.IFIDType
-	Active  bool
-	RevInfo *path_mgmt.RevInfo
-	RawRev  common.RawBytes
+	IfID         common.IFIDType
+	Active       bool
+	RevInfo      *path_mgmt.RevInfo
+	RawRev       common.RawBytes
+	ActiveMetric prometheus.Gauge
+}
+
+func NewInfo(ifID common.IFIDType, active bool, rev *path_mgmt.RevInfo,
+	rawRev common.RawBytes) *Info {
+	i := &Info{
+		IfID:         ifID,
+		Active:       active,
+		RevInfo:      rev,
+		RawRev:       rawRev,
+		ActiveMetric: metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifID)),
+	}
+	var isActive float64
+	if active {
+		isActive = 1
+	}
+	i.ActiveMetric.Set(isActive)
+
+	return i
 }
 
 // Process processes Interface State updates from the beacon service.
@@ -82,25 +104,23 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 				return
 			}
 		}
-		stateInfo := &Info{IfID: ifid, Active: info.Active, RevInfo: info.RevInfo, RawRev: rawRev}
-		gauge := metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifid))
+		stateInfo := NewInfo(ifid, info.Active, info.RevInfo, rawRev)
 		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
 			s = &state{}
+			atomic.StorePointer(&s.info, unsafe.Pointer(stateInfo))
 			states.Store(ifid, s)
+			continue
+		}
+		oldInfo := (*Info)(atomic.LoadPointer(&s.info))
+		if stateInfo.Active {
+			if !oldInfo.Active {
+				log.Info("IFState: intf activated", "ifid", ifid)
+			}
 		} else {
-			oldInfo := (*Info)(atomic.LoadPointer(&s.info))
-			if stateInfo.Active {
-				if !oldInfo.Active {
-					log.Info("IFState: intf activated", "ifid", ifid)
-				}
-				gauge.Set(1)
-			} else {
-				if oldInfo.Active {
-					log.Info("IFState: intf deactivated", "ifid", ifid)
-				}
-				gauge.Set(0)
+			if oldInfo.Active {
+				log.Info("IFState: intf deactivated", "ifid", ifid)
 			}
 		}
 		atomic.StorePointer(&s.info, unsafe.Pointer(stateInfo))
