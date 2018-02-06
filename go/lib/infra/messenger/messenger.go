@@ -146,13 +146,6 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger)
 	// signing key, at a minimum).
 }
 
-// RecvMsg reads a new message from the dispatcher. This method is included for
-// low-level messaging operations. Applications should instead use method
-// ListenAndServe which is a message-type-safe wrapper around RecvMsg.
-func (m *Messenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
-	return m.dispatcher.RecvFrom(ctx)
-}
-
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
 // reply and returns the reply.
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
@@ -243,7 +236,7 @@ func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
 	return reply, nil
 }
 
-// AddHandler registers a constructor for CtrlPld handlers for msgType.
+// AddHandler registers a handler for msgType.
 func (m *Messenger) AddHandler(msgType string, handler infra.Handler) {
 	m.handlersLock.Lock()
 	m.handlers[msgType] = handler
@@ -261,7 +254,7 @@ func (m *Messenger) ListenAndServe() {
 		// CloseServer() calls the context's cancel function, thus unblocking Recv. The
 		// server's main loop then detects that closeChan has been closed, and shuts
 		// down cleanly.
-		genericMsg, address, err := m.RecvMsg(m.ctx)
+		genericMsg, address, err := m.dispatcher.RecvFrom(m.ctx)
 		if err != nil {
 			// Do not log errors caused after close signal sent
 			select {

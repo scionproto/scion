@@ -29,13 +29,23 @@ type Handler interface {
 	Handle(*Request)
 }
 
+// Constructs a handler for request r. Handle() can be called on the
+// resulting object to process the message.
+type HandlerFunc func(r *Request)
+
+func (f HandlerFunc) Handle(r *Request) {
+	f(r)
+}
+
 // Request describes an object received from the network that is not part of an
 // exchange initiated by the local node. A Request includes its associated
 // context.
 type Request struct {
-	// The proto.Cerealizable message
+	// The inner proto.Cerealizable message, as supported by
+	// messenger.Messenger (e.g., a *cert_mgmt.ChainReq). For information about
+	// possible messages, see the package documentation for that package.
 	Message proto.Cerealizable
-	// The top-level proto.Cerealizable message read from the wire
+	// The top-level SignedCtrlPld message read from the wire
 	FullMessage proto.Cerealizable
 	// The node that sent this request
 	Peer net.Addr
@@ -59,14 +69,6 @@ func (r *Request) Context() context.Context {
 	return r.ctx
 }
 
-// Constructs a handler for request r. Handle() can be called on the
-// resulting object to process the message.
-type HandlerFunc func(r *Request)
-
-func (f HandlerFunc) Handle(m *Request) {
-	f(m)
-}
-
 var (
 	// MessengerContextKey is a context key. It can be used in SCION infra
 	// request handlers to access the messaging layer the message arrived on.
@@ -82,7 +84,6 @@ func (k *contextKey) String() string {
 }
 
 type Messenger interface {
-	RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error)
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr) (*cert_mgmt.TRC, error)
 	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr) (*cert_mgmt.Chain, error)

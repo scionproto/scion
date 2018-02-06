@@ -15,8 +15,6 @@
 package messenger
 
 import (
-	"strconv"
-
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -47,7 +45,7 @@ func (a *Adapter) RawToMsg(b common.RawBytes) (proto.Cerealizable, error) {
 }
 
 func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
-	ctrlPld, ok := msg.(*ctrl.SignedPld)
+	signedCtrlPld, ok := msg.(*ctrl.SignedPld)
 	if !ok {
 		// FIXME(scrye): Change interface to handle key errors instead of
 		// logging it here
@@ -56,8 +54,13 @@ func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
 		return ""
 	}
 
-	// FIXME(scrye): This needs protocol support (schema changes + updates to
-	// Python code base); ctrl.Pld should include an ID field
-	_ = ctrlPld
-	return strconv.Itoa(42)
+	// XXX(scrye): For request/response matching based on ID, verification is
+	// not taken into account. This allows attackers to change the ID in a
+	// response to make it match any outstanding request.
+	ctrlPld, err := signedCtrlPld.Pld()
+	if err != nil {
+		log.Warn("Unable to extract CtrlPld from SignedCtrlPld", "err", err)
+		return ""
+	}
+	return ctrlPld.TraceId.String()
 }
