@@ -93,9 +93,12 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC))
 		case proto.TRCReq_TypeID:
 			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq))
+		default:
+			return common.NewBasicError("Handler for cert_mgmt.pld not implemented", nil,
+				"protoID", pld.ProtoId())
 		}
 	default:
-		return common.NewBasicError("Not implemented", nil, "protoID", c.ProtoId())
+		return common.NewBasicError("Handler for cpld not implemented", nil, "protoID", c.ProtoId())
 	}
 	return nil
 }
