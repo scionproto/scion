@@ -306,7 +306,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                           pcb.short_desc())
             return
         seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta)
-        self._process_path_seg(seg_meta)
+        self._process_path_seg(seg_meta, cpld.req_id)
 
     def continue_seg_processing(self, seg_meta):
         """

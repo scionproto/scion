@@ -75,7 +75,7 @@ class LocalPathServer(PathServer):
         req = pmgt.union
         assert isinstance(req, PathSegmentReq), type(req)
         if logger is None:
-            logger = self.get_request_logger(req, meta)
+            logger = self.get_request_logger(cpld.req_id_str(), meta)
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received: %s", req)
@@ -92,11 +92,12 @@ class LocalPathServer(PathServer):
         else:
             self._resolve_not_core(req, up_segs, core_segs, down_segs)
         if up_segs | core_segs | down_segs:
-            self._send_path_segments(req, meta, logger, up_segs, core_segs, down_segs)
+            self._send_path_segments(req, cpld.req_id, meta, logger, up_segs, core_segs, down_segs)
             return True
         if new_request:
             self._request_paths_from_core(req, logger)
-            self.pending_req[(dst_ia, req.p.flags.sibra)][req.req_id()] = (req, meta, logger)
+            self.pending_req[(dst_ia, req.p.flags.sibra)][str(meta)] = (
+                req, cpld.req_id, meta, logger)
         return False
 
     def _resolve_core(self, req, up_segs, core_segs):
