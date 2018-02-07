@@ -32,7 +32,6 @@ from lib.packet.path_mgmt.seg_recs import PathRecordsSync
 from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
 from lib.packet.svc import SVCType
 from lib.types import PathSegmentType as PST
-from lib.util import random_uint64
 from lib.zk.errors import ZkNoConnection
 from path_server.base import PathServer, REQS_TOTAL
 
@@ -230,7 +229,7 @@ class CorePathServer(PathServer):
         sflags = set(flags)
         sflags.add(PATH_FLAG_CACHEONLY)
         flags = tuple(sflags)
-        req = PathSegmentReq.from_values(random_uint64(), src_ia, dst_ia, flags=flags)
+        req = PathSegmentReq.from_values(src_ia, dst_ia, flags=flags)
         logger.debug("Asking master (%s) for segment: %s" % (self._master_id, req.short_desc()))
         self._send_to_master(req)
 
@@ -263,7 +262,7 @@ class CorePathServer(PathServer):
         req = pmgt.union
         assert isinstance(req, PathSegmentReq), type(req)
         if logger is None:
-            logger = self.get_request_logger(req, meta)
+            logger = self.get_request_logger(cpld.req_id_str(), meta)
         dst_ia = req.dst_ia()
         if new_request:
             logger.info("PATH_REQ received: %s", req)
@@ -275,21 +274,21 @@ class CorePathServer(PathServer):
         dst_is_core = self.is_core_as(dst_ia) or dst_ia[1] == 0
         if dst_is_core:
             core_segs = self._resolve_core(
-                req, meta, dst_ia, new_request, req.flags(), logger)
+                req, cpld.req_id, meta, dst_ia, new_request, req.flags(), logger)
             down_segs = set()
         else:
             core_segs, down_segs = self._resolve_not_core(
-                req, meta, dst_ia, new_request, req.flags(), logger)
+                req, cpld.req_id, meta, dst_ia, new_request, req.flags(), logger)
 
         if not (core_segs | down_segs):
             if new_request:
                 logger.debug("Segs to %s not found." % dst_ia)
             return False
 
-        self._send_path_segments(req, meta, logger, core=core_segs, down=down_segs)
+        self._send_path_segments(req, cpld.req_id, meta, logger, core=core_segs, down=down_segs)
         return True
 
-    def _resolve_core(self, req, meta, dst_ia, new_request, flags, logger):
+    def _resolve_core(self, req, req_id, meta, dst_ia, new_request, flags, logger):
         """
         Dst is core AS.
         """
@@ -300,13 +299,13 @@ class CorePathServer(PathServer):
         core_segs = set(self.core_segments(**params))
         if not core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             # Segments not found and it is a new request.
-            self.pending_req[(dst_ia, sibra)][req.req_id()] = (req, meta, logger)
+            self.pending_req[(dst_ia, sibra)][str(meta)] = (req, req_id, meta, logger)
             # If dst is in remote ISD then a segment may be kept by master.
             if dst_ia[0] != self.addr.isd_as[0]:
                 self._query_master(dst_ia, logger, flags=flags)
         return core_segs
 
-    def _resolve_not_core(self, seg_req, meta, dst_ia, new_request, flags, logger):
+    def _resolve_not_core(self, seg_req, req_id, meta, dst_ia, new_request, flags, logger):
         """
         Dst is regular AS.
         """
@@ -316,7 +315,7 @@ class CorePathServer(PathServer):
         # Check if there exists any down-segs to dst.
         tmp_down_segs = self.down_segments(last_ia=dst_ia, sibra=sibra)
         if not tmp_down_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
-            self._resolve_not_core_failed(seg_req, meta, dst_ia, flags, logger)
+            self._resolve_not_core_failed(seg_req, req_id, meta, dst_ia, flags, logger)
 
         for dseg in tmp_down_segs:
             dseg_ia = dseg.first_ia()
@@ -331,7 +330,7 @@ class CorePathServer(PathServer):
                 first_ia=dseg_ia, last_ia=self.addr.isd_as, sibra=sibra)
             if not tmp_core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
                 # Core segment not found and it is a new request.
-                self.pending_req[(dseg_ia, sibra)][seg_req.req_id()] = (seg_req, meta, logger)
+                self.pending_req[(dseg_ia, sibra)][str(meta)] = (seg_req, req_id, meta, logger)
                 if dst_ia[0] != self.addr.isd_as[0]:
                     # Master may know a segment.
                     self._query_master(dseg_ia, logger, flags=flags)
@@ -340,14 +339,14 @@ class CorePathServer(PathServer):
                 core_segs.update(tmp_core_segs)
         return core_segs, down_segs
 
-    def _resolve_not_core_failed(self, seg_req, meta, dst_ia, flags, logger):
+    def _resolve_not_core_failed(self, seg_req, req_id, meta, dst_ia, flags, logger):
         """
         Execute after _resolve_not_core() cannot resolve a new request, due to
         lack of corresponding down segment(s).
         This must not be executed for a pending request.
         """
         sibra = PATH_FLAG_SIBRA in flags
-        self.pending_req[(dst_ia, sibra)][seg_req.req_id()] = (seg_req, meta, logger)
+        self.pending_req[(dst_ia, sibra)][str(meta)] = (seg_req, req_id, meta, logger)
         if dst_ia[0] == self.addr.isd_as[0]:
             # Master may know down segment as dst is in local ISD.
             self._query_master(dst_ia, logger, flags=flags)

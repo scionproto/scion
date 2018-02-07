@@ -8,12 +8,11 @@ using IFState = import "if_state.capnp";
 using RevInfo = import "rev_info.capnp";
 
 struct SegReq {
-    id @0 :UInt64;  # Request ID
-    srcIA @1 :UInt32;
-    dstIA @2 :UInt32;
+    srcIA @0 :UInt32;
+    dstIA @1 :UInt32;
     flags :group {
-        sibra @3 :Bool;
-        cacheOnly @4 :Bool;
+        sibra @2 :Bool;
+        cacheOnly @3 :Bool;
     }
 
 }
