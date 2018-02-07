@@ -31,6 +31,8 @@ type Signer interface {
 	Sign(*Pld) (*SignedPld, error)
 }
 
+var _ Signer = (*BasicSigner)(nil)
+
 // BasicSigner is a simple implementation of Signer.
 type BasicSigner struct {
 	s   *proto.SignS
@@ -47,7 +49,7 @@ func (b *BasicSigner) Sign(pld *Pld) (*SignedPld, error) {
 }
 
 // NullSigner is a Signer that creates SignedPld's with no signature.
-var NullSigner = NewBasicSigner(nil, nil)
+var NullSigner Signer = NewBasicSigner(nil, nil)
 
 type trustStore struct{} // TODO(kormat): replace this with trust store interface
 
@@ -72,10 +74,18 @@ type SigVerifier interface {
 	Verify(*SignedPld) error
 }
 
+var _ SigVerifier = (*BasicSigVerifier)(nil)
+
 // BasicSigVerifier is a SigVerifier that ignores signatures on cert_mgmt.TRC
 // and cert_mgmt.Chain messages, to avoid dependency cycles.
 type BasicSigVerifier struct {
 	tStore *trustStore
+}
+
+func NewBasicSigVerifier(tStore *trustStore) *BasicSigVerifier {
+	return &BasicSigVerifier{
+		tStore: tStore,
+	}
 }
 
 func (b *BasicSigVerifier) Verify(p *SignedPld) error {
@@ -172,4 +182,15 @@ func (s *SignSrcDef) Pack() common.RawBytes {
 
 func (s *SignSrcDef) String() string {
 	return fmt.Sprintf("IA: %s ChainVer: %d TRCVer: %d", s.IA, s.ChainVer, s.TRCVer)
+}
+
+var _ SigVerifier = (*nullSigVerifier)(nil)
+
+// NullSigVerifier ignores signatures on all messages.
+var NullSigVerifier SigVerifier = &nullSigVerifier{}
+
+type nullSigVerifier struct{}
+
+func (_ *nullSigVerifier) Verify(p *SignedPld) error {
+	return nil
 }

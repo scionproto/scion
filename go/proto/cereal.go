@@ -94,7 +94,13 @@ func ReadRootFromRaw(b common.RawBytes) (capnp.Struct, error) {
 }
 
 // ReadRootFromReader returns the root struct from a capnp message read from r.
-func ReadRootFromReader(r io.Reader) (capnp.Struct, error) {
+func ReadRootFromReader(r io.Reader) (_ capnp.Struct, err error) {
+	// Convert capnp panics to errors
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = common.NewBasicError("capnp panic", nil, "panic", rec)
+		}
+	}()
 	var blank capnp.Struct
 	msg, err := capnp.NewPackedDecoder(r).Decode()
 	if err != nil {
