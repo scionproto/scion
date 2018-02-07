@@ -23,7 +23,7 @@ jobs:
                 when: always
             - run:
                 name: Unit tests & Coverage
-                command: ./scion.sh coverage |& tee logs/coverage.run
+                command: '{ ./scion.sh coverage py; make -sC go test; } |& tee logs/coverage.run'
                 when: always
             - run:
                 name: Python documentation (sphinx)
@@ -64,7 +64,7 @@ jobs:
                 when: always
             - run:
                 name: Unit tests & Coverage
-                command: ./scion.sh coverage |& tee logs/coverage.run
+                command: '{ ./scion.sh coverage py; make -sC go test; } |& tee logs/coverage.run'
                 when: always
             - run:
                 name: Python documentation (sphinx)
@@ -97,7 +97,7 @@ scion_defaults:
         name: Gather test artifacts
         command: |
             set +e -x
-            mv -n python/htmlcov logs go/gocover.html gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
+            mv -n python/htmlcov logs gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
             cp -a /tmp/test_flags "/tmp/artifacts/$ARTIFACTS"
             tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS" || exit 1
         when: always
