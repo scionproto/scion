@@ -48,8 +48,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messaging"
+	"github.com/scionproto/scion/go/lib/infra/transport"
 	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -58,7 +59,7 @@ const (
 
 type Dispatcher struct {
 	// Used to send and receive messages
-	transport messaging.Transport
+	transport transport.Transport
 	// Contains keys for messages awaiting replies
 	waitTable *waitTable
 	// Channel for messages read by the background receiver; drained by calls
@@ -86,7 +87,7 @@ type Dispatcher struct {
 // (lower levels might be blocked on an uninterruptible call).
 //
 // A Dispatcher can be safely used by concurrent goroutines.
-func New(t messaging.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
+func New(t transport.Transport, adapter MessageAdapter, logger log.Logger) *Dispatcher {
 	d := &Dispatcher{
 		transport:   t,
 		waitTable:   newWaitTable(adapter.MsgKey),
@@ -105,7 +106,8 @@ func New(t messaging.Transport, adapter MessageAdapter, logger log.Logger) *Disp
 //
 // No type validations are performed. Upper layer code should verify whether
 // the message is the expected type.
-func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr) (Message, error) {
+func (d *Dispatcher) Request(ctx context.Context, msg proto.Cerealizable,
+	address net.Addr) (proto.Cerealizable, error) {
 	if err := d.waitTable.addRequest(msg); err != nil {
 		return nil, common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.AddRequest")
 	}
@@ -130,7 +132,7 @@ func (d *Dispatcher) Request(ctx context.Context, msg Message, address net.Addr)
 // Notify sends msg to address in a reliable way (i.e., either via a
 // lower-level reliable transport or by waiting for an ACK on an unreliable
 // transport).
-func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) error {
+func (d *Dispatcher) Notify(ctx context.Context, msg proto.Cerealizable, address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
 		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
@@ -142,7 +144,8 @@ func (d *Dispatcher) Notify(ctx context.Context, msg Message, address net.Addr) 
 }
 
 // NotifyUnreliable sends msg to address, and returns immediately.
-func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg Message, address net.Addr) error {
+func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg proto.Cerealizable,
+	address net.Addr) error {
 	b, err := d.adapter.MsgToRaw(msg)
 	if err != nil {
 		return common.NewBasicError(infra.StrAdapterError, err, "op", "MsgToRaw")
@@ -154,7 +157,7 @@ func (d *Dispatcher) NotifyUnreliable(ctx context.Context, msg Message, address 
 }
 
 // RecvFrom returns the next non-reply message.
-func (d *Dispatcher) RecvFrom(ctx context.Context) (Message, net.Addr, error) {
+func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
 	select {
 	case event := <-d.readEvents:
 		return event.msg, event.address, nil
@@ -247,5 +250,5 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 
 type readEventDesc struct {
 	address net.Addr
-	msg     Message
+	msg     proto.Cerealizable
 }
