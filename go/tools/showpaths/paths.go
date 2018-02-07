@@ -41,38 +41,8 @@ var (
 var (
 	dstIA   *addr.ISD_AS
 	srcIA   *addr.ISD_AS
-	PathMgr *pathmgr.PR
+	pathMgr *pathmgr.PR
 )
-
-func validateFlags() {
-	var err error
-
-	flag.Parse()
-
-	dstIA, err = addr.IAFromString(*dstIAStr)
-	if err != nil {
-		LogFatal("dstIA:", err)
-	}
-
-	if *sciondPath == "" {
-		if *srcIAStr == "" {
-			LogFatal("sciond or srcIA required")
-		}
-
-		*sciondPath = "/run/shm/sciond/sd" + *srcIAStr + ".sock"
-	} else if *srcIAStr != "" {
-		log.Warn("srcIA ignored! sciond takes precedence")
-	}
-
-	if *srcIAStr == "" {
-		// Set any value, required by Query() but does not affect result
-		*srcIAStr = "1-10"
-	}
-	srcIA, err = addr.IAFromString(*srcIAStr)
-	if err != nil {
-		LogFatal("srcIA:", err)
-	}
-}
 
 func main() {
 	var err error
@@ -80,6 +50,7 @@ func main() {
 	validateFlags()
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
+	defer liblog.Flush()
 
 	log.Debug("Connecting to SCIOND", "sciond", *sciondPath)
 
@@ -88,10 +59,10 @@ func main() {
 	if err != nil {
 		LogFatal("Initizaling SCION local networking module", "err", common.FmtError(err))
 	}
-	PathMgr = snet.DefNetwork.PathResolver()
+	pathMgr = snet.DefNetwork.PathResolver()
 
 	fmt.Println("Available paths to", dstIA)
-	pathSet := PathMgr.Query(srcIA, dstIA)
+	pathSet := pathMgr.Query(srcIA, dstIA)
 	i := 0
 	for _, path := range pathSet {
 		fmt.Printf("[%2d] %s\n", i, path.Entry.Path.String())
@@ -99,7 +70,35 @@ func main() {
 	}
 }
 
+func validateFlags() {
+	var err error
+
+	flag.Parse()
+
+	dstIA, err = addr.IAFromString(*dstIAStr)
+	if err != nil {
+		LogFatal("Unable to parse destination IA:", "err", err)
+	}
+	if *sciondPath == "" {
+		if *srcIAStr == "" {
+			LogFatal("sciond or srcIA required")
+		}
+		*sciondPath = "/run/shm/sciond/sd" + *srcIAStr + ".sock"
+	} else if *srcIAStr != "" {
+		log.Warn("srcIA ignored! sciond takes precedence")
+	}
+	if *srcIAStr == "" {
+		// Set any value, required by Query() but does not affect result
+		*srcIAStr = "1-10"
+	}
+	srcIA, err = addr.IAFromString(*srcIAStr)
+	if err != nil {
+		LogFatal("Unable to parse source IA:", "err", err)
+	}
+}
+
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
+	liblog.Flush()
 	os.Exit(1)
 }
