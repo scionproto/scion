@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -31,6 +32,7 @@ import (
 var (
 	dstIAStr       = flag.String("dstIA", "", "Destination IA address: ISD-AS")
 	srcIAStr       = flag.String("srcIA", "", "Source IA address: ISD-AS")
+	id             = flag.String("id", "paths", "Element ID")
 	sciondPath     = flag.String("sciond", "", "SCIOND socket path")
 	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"SCION Dispatcher path")
@@ -76,6 +78,8 @@ func main() {
 	var err error
 
 	validateFlags()
+	liblog.Setup(*id)
+	defer liblog.LogPanicAndExit()
 
 	log.Debug("Connecting to SCIOND", "sciond", *sciondPath)
 
@@ -86,6 +90,7 @@ func main() {
 	}
 	PathMgr = snet.DefNetwork.PathResolver()
 
+	fmt.Println("Available paths to", dstIA)
 	pathSet := PathMgr.Query(srcIA, dstIA)
 	i := 0
 	for _, path := range pathSet {
