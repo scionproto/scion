@@ -80,11 +80,11 @@ func TestTRCExchange(t *testing.T) {
 
 			msg := &cert_mgmt.TRCReq{ISD: 42, Version: 1337, CacheOnly: true}
 			trc, err := clientMessenger.GetTRC(ctx, msg, &MockAddress{})
+			// CloseServer now, to guarantee it is run even if an assertion
+			// fails and execution of the client stops
+			serverMessenger.CloseServer()
 			sc.SoMsg("client request err", err, ShouldBeNil)
 			sc.SoMsg("client received trc", trc, ShouldResemble, mockTRC)
-
-			// Exchange finished, shut down server
-			serverMessenger.CloseServer()
 		}, func(sc *xtest.SC) {
 			// The server receives a TRC request from the client, passes it to
 			// the mock TRCRequest handler which sends back the result.

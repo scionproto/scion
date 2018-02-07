@@ -193,7 +193,5 @@ var NullSigVerifier SigVerifier = &nullSigVerifier{}
 type nullSigVerifier struct{}
 
 func (_ *nullSigVerifier) Verify(p *SignedPld) error {
-	// Run the payload extraction step only
-	_, err := p.Pld()
-	return err
+	return nil
 }

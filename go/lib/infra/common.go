@@ -99,9 +99,9 @@ type TrustStore interface {
 	NewChainReqHandler() Handler
 	NewPushTRCHandler() Handler
 	NewPushChainHandler() Handler
-	GetCertificate(ctx context.Context, trail []Descriptor, hint net.Addr) (*cert.Certificate, error)
+	GetCertificate(ctx context.Context, trail []TrustDescriptor, hint net.Addr) (*cert.Certificate, error)
 }
 
-type Descriptor struct {
+type TrustDescriptor struct {
 	// FIXME(scrye): include type when trust store gets merged
 }

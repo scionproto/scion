@@ -58,6 +58,8 @@ func (t testAdapterT) MsgKey(msg proto.Cerealizable) string {
 	return strconv.Itoa(o.id)
 }
 
+var _ proto.Cerealizable = (*customObject)(nil)
+
 type customObject struct {
 	id  int
 	str string

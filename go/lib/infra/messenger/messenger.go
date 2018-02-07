@@ -24,15 +24,8 @@
 //  TRC          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC      (nv)
 //  PathRequest  -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq   (nv)
 //
-// Unsupported messages are returned by Messenger.RecvMsg(), but if the
-// messages are processed via method ListenAndServe they are logged and
-// dropped.
-//
 // The word "reliable" in method descriptions means a reliable protocol is used
 // to deliver that message.
-//
-// Messages can be received and serviced explicitly via RecvMsg. However,
-// Messenger also includes a generic server framework for CtrlPld messages.
 //
 // To start processing messages received via the Messenger, call
 // ListenAndServe. The method runs in the current goroutine, and spawns new
@@ -45,8 +38,8 @@
 // infrastructure servers to choose which requests they service, and to exploit
 // shared functionality. One handler can be registered for each message type,
 // identified by its msgType string:
-//   msger.AddHandler("ChainRequest", MyCustomHandler)
-//   msger.AddHandler("TRCRequest", MyOtherCustomHandler)
+//   msger.AddHandler(ChainRequest, MyCustomHandler)
+//   msger.AddHandler(TRCRequest, MyOtherCustomHandler)
 //
 // Each handler runs indepedently (i.e., without any synchronization) until
 // completion. Goroutines inherit a reference to the Messenger via the
@@ -63,8 +56,8 @@
 // Shut down the server and any running handlers using CloseServer():
 //  msger.CloseServer()
 //
-// CloseServer() does not do graceful shutdown (all handlers are canceled
-// immediately) and does not close the Messenger itself.
+// CloseServer() does not do graceful shutdown of the handlers and does not
+// close the Messenger itself.
 package messenger
 
 import (
@@ -72,6 +65,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	log "github.com/inconshreveable/log15"
 
@@ -110,13 +104,15 @@ type Messenger struct {
 	// Handlers for received messages processing
 	handlers map[string]infra.Handler
 
-	lock      sync.Mutex
+	closeLock sync.Mutex
 	closeChan chan struct{}
 	// Context passed to blocking receive. Canceled by Close to unblock listeners.
 	ctx     context.Context
 	cancelF context.CancelFunc
 
-	log log.Logger
+	// The request ID of the next message
+	reqID uint64
+	log   log.Logger
 }
 
 // New creates a new Messenger that uses dispatcher for sending and receiving
@@ -154,7 +150,6 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	if err != nil {
 		return nil, err
 	}
-
 	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
@@ -172,7 +167,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 
 // SendTRC sends a reliable cert_mgmt.TRC to address a.
 func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
 	if err != nil {
 		return err
 	}
@@ -183,11 +178,10 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr)
 // receives a reply and returns the reply.
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr) (*cert_mgmt.Chain, error) {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
 	if err != nil {
 		return nil, err
 	}
-
 	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
@@ -205,7 +199,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 
 // SendCertChain sends a reliable cert_mgmt.Chain to address a.
 func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr) error {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
 	if err != nil {
 		return err
 	}
@@ -216,11 +210,10 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 // msg, and returns a verified reply.
 func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr) (*path_mgmt.SegReply, error) {
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, nil)
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
 	if err != nil {
 		return nil, err
 	}
-
 	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
@@ -307,16 +300,13 @@ func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
 		return
 	}
 	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
-	// XXX(scrye): The handler might perform additional verifications; for
-	// example, a PCB handler will probably verify additional signatures.
-	request := infra.NewRequest(serveCtx, msg, pld, address)
-	go handler.Handle(request)
+	go handler.Handle(infra.NewRequest(serveCtx, msg, pld, address))
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
-// message type ID string, the object containing only the payload, and an error
-// (if one occurred).
+// message type ID string, the message (the inner proto.Cerealizable object),
+// and an error (if one occurred).
 func (m *Messenger) validate(pld *ctrl.Pld) (string, proto.Cerealizable, error) {
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported.
@@ -333,10 +323,12 @@ func (m *Messenger) validate(pld *ctrl.Pld) (string, proto.Cerealizable, error) 
 			return TRC, pld.CertMgmt.TRCRep, nil
 		default:
 			return "", nil,
-				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type", nil)
+				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type",
+					nil, "capnp_which", pld.CertMgmt.Which)
 		}
 	default:
-		return "", nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type", nil)
+		return "", nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
+			nil, "capnp_which", pld.Which)
 	}
 }
 
@@ -344,8 +336,8 @@ func (m *Messenger) validate(pld *ctrl.Pld) (string, proto.Cerealizable, error) 
 // handlers. The server's Messenger layer is not closed.
 func (m *Messenger) CloseServer() error {
 	// Protect against concurrent Close calls
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.closeLock.Lock()
+	defer m.closeLock.Unlock()
 	select {
 	case <-m.closeChan:
 		// Already closed, so do nothing
@@ -354,6 +346,24 @@ func (m *Messenger) CloseServer() error {
 		m.cancelF()
 	}
 	return nil
+}
+
+// nextID returns a unique CtrlPld Request ID.
+func (m *Messenger) nextID() uint64 {
+	const maxUint64 uint64 = 1<<64 - 1
+	var swapped bool
+	for {
+		swapped = false
+		old := atomic.LoadUint64(&m.reqID)
+		if old == maxUint64 {
+			swapped = atomic.CompareAndSwapUint64(&m.reqID, old, 0)
+		} else {
+			swapped = atomic.CompareAndSwapUint64(&m.reqID, old, old+1)
+		}
+		if swapped {
+			return old
+		}
+	}
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {
