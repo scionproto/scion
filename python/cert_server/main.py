@@ -252,7 +252,7 @@ class CertServer(SCIONElement):
             else:
                 self.cc_requests.put((key, (meta, req, cpld.req_id)))
             return
-        self._reply_cc(key, (meta, req))
+        self._reply_cc(key, (meta, req, cpld.req_id))
 
     def process_cert_chain_reply(self, cpld, meta, from_zk=False):
         """Process a certificate chain reply."""
@@ -279,7 +279,7 @@ class CertServer(SCIONElement):
 
     def _fetch_cc(self, key, req_info):
         # Do not attempt to fetch the CertChain from a remote AS if the cacheOnly flag is set.
-        _, orig_req = req_info
+        _, orig_req, _ = req_info
         if orig_req.p.cacheOnly:
             return
         self._send_cc_request(*key)
