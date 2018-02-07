@@ -16,13 +16,13 @@
 // infra.Messenger. Sent and received messages must be one of the supported
 // types below.
 //
-// The following message types are valid messages. For messages marked (nv), no
-// signature verification is performed on the SignedPld.
-//  ChainRequest -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainReq (nv)
-//  Chain        -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain    (nv)
-//  TRCRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq   (nv)
-//  TRC          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC      (nv)
-//  PathRequest  -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq   (nv)
+// The following message types are valid messages. At the moment, no signature
+// verification is performed on the SignedPld.
+//  ChainRequest -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainReq
+//  Chain        -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain
+//  TRCRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
+//  TRC          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC
+//  PathRequest  -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //
 // The word "reliable" in method descriptions means a reliable protocol is used
 // to deliver that message.
@@ -63,9 +63,11 @@ package messenger
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	log "github.com/inconshreveable/log15"
 
@@ -110,7 +112,7 @@ type Messenger struct {
 	ctx     context.Context
 	cancelF context.CancelFunc
 
-	// The request ID of the next message
+	// The request ID of the last message that was sent out
 	reqID uint64
 	log   log.Logger
 }
@@ -136,6 +138,7 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger)
 		closeChan:  make(chan struct{}),
 		ctx:        ctx,
 		cancelF:    cancelF,
+		reqID:      uint64(rand.NewSource(time.Now().UnixNano()).Int63()),
 		log:        logger,
 	}
 	// XXX(scrye): More crypto is needed to send signed messages (a local
@@ -350,20 +353,7 @@ func (m *Messenger) CloseServer() error {
 
 // nextID returns a unique CtrlPld Request ID.
 func (m *Messenger) nextID() uint64 {
-	const maxUint64 uint64 = 1<<64 - 1
-	var swapped bool
-	for {
-		swapped = false
-		old := atomic.LoadUint64(&m.reqID)
-		if old == maxUint64 {
-			swapped = atomic.CompareAndSwapUint64(&m.reqID, old, 0)
-		} else {
-			swapped = atomic.CompareAndSwapUint64(&m.reqID, old, old+1)
-		}
-		if swapped {
-			return old
-		}
-	}
+	return atomic.AddUint64(&m.reqID, 1)
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {

@@ -186,8 +186,7 @@ func (s *SignSrcDef) String() string {
 
 var _ SigVerifier = (*nullSigVerifier)(nil)
 
-// NullSigVerifier ignores signatures on all messages. Note that Verify can
-// return an error if the Pld insided the SignedPld cannot be extracted.
+// NullSigVerifier ignores signatures on all messages.
 var NullSigVerifier SigVerifier = &nullSigVerifier{}
 
 type nullSigVerifier struct{}
