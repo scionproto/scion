@@ -16,6 +16,7 @@ package messenger
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"testing"
@@ -39,6 +40,7 @@ var (
 )
 
 func MockTRCHandler(request *infra.Request) {
+	fmt.Println("id = ", request.ID)
 	v := request.Context().Value(infra.MessengerContextKey)
 	if v == nil {
 		log.Warn("Unable to service request, no Messenger interface found")
@@ -51,7 +53,7 @@ func MockTRCHandler(request *infra.Request) {
 	}
 	subCtx, cancelF := context.WithTimeout(request.Context(), 3*time.Second)
 	defer cancelF()
-	if err := messenger.SendTRC(subCtx, mockTRC, &MockAddress{}); err != nil {
+	if err := messenger.SendTRC(subCtx, mockTRC, &MockAddress{}, request.ID); err != nil {
 		log.Error("Server error", "err", err)
 	}
 }
@@ -79,7 +81,7 @@ func TestTRCExchange(t *testing.T) {
 			defer cancelF()
 
 			msg := &cert_mgmt.TRCReq{ISD: 42, Version: 1337, CacheOnly: true}
-			trc, err := clientMessenger.GetTRC(ctx, msg, &MockAddress{})
+			trc, err := clientMessenger.GetTRC(ctx, msg, &MockAddress{}, 1337)
 			// CloseServer now, to guarantee it is run even if an assertion
 			// fails and execution of the client stops
 			serverMessenger.CloseServer()

@@ -63,11 +63,8 @@ package messenger
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net"
 	"sync"
-	"sync/atomic"
-	"time"
 
 	log "github.com/inconshreveable/log15"
 
@@ -112,9 +109,7 @@ type Messenger struct {
 	ctx     context.Context
 	cancelF context.CancelFunc
 
-	// The request ID of the last message that was sent out
-	reqID uint64
-	log   log.Logger
+	log log.Logger
 }
 
 // New creates a new Messenger that uses dispatcher for sending and receiving
@@ -138,7 +133,6 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger)
 		closeChan:  make(chan struct{}),
 		ctx:        ctx,
 		cancelF:    cancelF,
-		reqID:      uint64(rand.NewSource(time.Now().UnixNano()).Int63()),
 		log:        logger,
 	}
 	// XXX(scrye): More crypto is needed to send signed messages (a local
@@ -148,8 +142,9 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger)
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
 // reply and returns the reply.
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
-	a net.Addr) (*cert_mgmt.TRC, error) {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, nil)
+	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
+
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +164,8 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 }
 
 // SendTRC sends a reliable cert_mgmt.TRC to address a.
-func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
+func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error {
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
 	}
@@ -180,8 +175,9 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr)
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
 // receives a reply and returns the reply.
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
-	a net.Addr) (*cert_mgmt.Chain, error) {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
+	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
+
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
@@ -201,8 +197,10 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 }
 
 // SendCertChain sends a reliable cert_mgmt.Chain to address a.
-func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr) error {
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
+func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
+	id uint64) error {
+
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return err
 	}
@@ -212,8 +210,9 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 // GetPaths asks the server at the remote address for the paths specified by
 // msg, and returns a verified reply.
 func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
-	a net.Addr) (*path_mgmt.SegReply, error) {
-	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: m.nextID()})
+	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +302,7 @@ func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
 		return
 	}
 	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
-	go handler.Handle(infra.NewRequest(serveCtx, msg, pld, address))
+	go handler.Handle(infra.NewRequest(serveCtx, msg, pld, address, pld.ReqId))
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
@@ -349,11 +348,6 @@ func (m *Messenger) CloseServer() error {
 		m.cancelF()
 	}
 	return nil
-}
-
-// nextID returns a unique CtrlPld Request ID.
-func (m *Messenger) nextID() uint64 {
-	return atomic.AddUint64(&m.reqID, 1)
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {

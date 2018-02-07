@@ -50,17 +50,21 @@ type Request struct {
 	// The node that sent this request
 	Peer net.Addr
 
+	ID uint64
 	// ctx is a server context, used in handlers when receiving messages from
 	// the network.
 	ctx context.Context
 }
 
-func NewRequest(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr) *Request {
+func NewRequest(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr,
+	id uint64) *Request {
+
 	return &Request{
 		Message:     msg,
 		FullMessage: fullMsg,
 		Peer:        peer,
 		ctx:         ctx,
+		ID:          id,
 	}
 }
 
@@ -84,10 +88,12 @@ func (k *contextKey) String() string {
 }
 
 type Messenger interface {
-	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr) (*cert_mgmt.TRC, error)
-	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr) error
-	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr) (*cert_mgmt.Chain, error)
-	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr) error
+	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
+		id uint64) (*cert_mgmt.TRC, error)
+	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error
+	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
+		id uint64) (*cert_mgmt.Chain, error)
+	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
 	AddHandler(msgType string, h Handler)
 	ListenAndServe()
 	CloseServer() error
