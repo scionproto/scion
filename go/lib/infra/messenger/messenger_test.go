@@ -16,7 +16,6 @@ package messenger
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"testing"
@@ -40,7 +39,6 @@ var (
 )
 
 func MockTRCHandler(request *infra.Request) {
-	fmt.Println("id = ", request.ID)
 	v := request.Context().Value(infra.MessengerContextKey)
 	if v == nil {
 		log.Warn("Unable to service request, no Messenger interface found")
