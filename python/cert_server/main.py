@@ -326,7 +326,7 @@ class CertServer(SCIONElement):
             else:
                 self.trc_requests.put((key, (meta, req, cpld.req_id)))
             return
-        self._reply_trc(key, (meta, req))
+        self._reply_trc(key, (meta, req, cpld.req_id))
 
     def process_trc_reply(self, cpld, meta, from_zk=False):
         """
@@ -358,7 +358,7 @@ class CertServer(SCIONElement):
 
     def _fetch_trc(self, key, req_info):
         # Do not attempt to fetch the TRC from a remote AS if the cacheOnly flag is set.
-        _, orig_req = req_info
+        _, orig_req, _ = req_info
         if orig_req.p.cacheOnly:
             return
         self._send_trc_request(*key)
