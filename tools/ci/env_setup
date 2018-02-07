@@ -13,7 +13,7 @@ TARGET="${TARGET//\//_}"
 REPO="${CIRCLE_PROJECT_REPONAME:-local}"
 BUILD=$(date +%s)
 [ -n "$CIRCLE_BUILD_NUM" ] && BUILD="build${CIRCLE_BUILD_NUM}"
-echo "export ARTIFACTS=\"circleci.${REPO}.${TARGET}.${BUILD}\"" >> ~/.profile
+echo "export ARTIFACTS=\"circleci.${CIRCLE_PROJECT_USERNAME}.${REPO}.${TARGET}.${BUILD}\"" >> ~/.profile
 
 # Ensure the artifact output dirs exist before proceeding
 . ~/.profile
