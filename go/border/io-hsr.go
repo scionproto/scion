@@ -85,7 +85,7 @@ func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) 
 			// Read packets from libhsr.
 			count, err := h.GetPackets(rpkts, usedPorts)
 			if err != nil {
-				log.Error("Error getting packets from HSR", "err", common.FmtError(err))
+				log.Error("Error getting packets from HSR", "err", err)
 				// Zero the port counters for next loop
 				for i := range usedPorts {
 					usedPorts[i] = false

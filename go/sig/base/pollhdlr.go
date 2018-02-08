@@ -39,23 +39,22 @@ func PollReqHdlr() {
 		//log.Debug("PollReqHdlr: got PollReq", "src", rpld.Addr, "pld", req)
 		spld, err := mgmt.NewPld(rpld.Id, mgmt.NewPollRep(sigcmn.MgmtAddr, req.Session))
 		if err != nil {
-			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", common.FmtError(err))
+			log.Error("PollReqHdlr: Error creating SIGCtrl payload", "err", err)
 			break
 		}
 		cpld, err := ctrl.NewPld(spld, nil)
 		if err != nil {
-			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", common.FmtError(err))
+			log.Error("PollReqHdlr: Error creating Ctrl payload", "err", err)
 			break
 		}
 		scpld, err := cpld.SignedPld(ctrl.NullSigner)
 		if err != nil {
-			log.Error("PollReqHdlr: Error creating signed Ctrl payload",
-				"err", common.FmtError(err))
+			log.Error("PollReqHdlr: Error creating signed Ctrl payload", "err", err)
 			break
 		}
 		raw, err := scpld.PackPld()
 		if err != nil {
-			log.Error("PollReqHdlr: Error packing signed Ctrl payload", "err", common.FmtError(err))
+			log.Error("PollReqHdlr: Error packing signed Ctrl payload", "err", err)
 			break
 		}
 		sigCtrlAddr := &snet.Addr{
@@ -65,8 +64,7 @@ func PollReqHdlr() {
 		}
 		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
 		if err != nil {
-			log.Error("PollReqHdlr: Error sending Ctrl payload", "dest", rpld.Addr,
-				"err", common.FmtError(err))
+			log.Error("PollReqHdlr: Error sending Ctrl payload", "dest", rpld.Addr, "err", err)
 		}
 	}
 	log.Info("PollReqHdlr: stopped")

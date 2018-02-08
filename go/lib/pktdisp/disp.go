@@ -41,7 +41,7 @@ func PktDispatcher(c *snet.Conn, f DispatchFunc) {
 		dp.Raw = dp.Raw[:cap(dp.Raw)]
 		n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
 		if err != nil {
-			log.Error("PktDispatcher: Error reading from connection", "err", common.FmtError(err))
+			log.Error("PktDispatcher: Error reading from connection", "err", err)
 			// FIXME(shitz): Continuing here is only a temporary solution. Different
 			// errors need to be handled different, for some it should break and others
 			// are recoverable.

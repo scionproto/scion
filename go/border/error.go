@@ -35,7 +35,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	serr := scmp.ToError(perr)
 	// XXX(kormat): uncomment for debugging:
 	// perr = common.NewBasicError("Raw packet", perr, "raw", rp.Raw)
-	rp.Error(desc, "err", common.FmtError(perr))
+	rp.Error(desc, "err", perr)
 	if serr == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
@@ -72,7 +72,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	}
 	reply, err := r.createSCMPErrorReply(rp, serr.CT, serr.Info)
 	if err != nil {
-		rp.Error("Error creating SCMP response", "err", common.FmtError(err))
+		rp.Error("Error creating SCMP response", "err", err)
 		return
 	}
 	reply.Route()

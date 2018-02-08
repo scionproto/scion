@@ -50,7 +50,7 @@ func main() {
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
 	if err := checkPerms(); err != nil {
-		log.Crit("Permissions checks failed", "err", common.FmtError(err))
+		log.Crit("Permissions checks failed", "err", err)
 		liblog.Flush()
 		os.Exit(1)
 	}
@@ -61,7 +61,7 @@ func main() {
 	setupSignals()
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
-		log.Crit("Startup failed", "err", common.FmtError(err))
+		log.Crit("Startup failed", "err", err)
 		liblog.Flush()
 		os.Exit(1)
 	}
@@ -72,7 +72,7 @@ func main() {
 	}
 	log.Info("Starting up", "id", *id, "pid", os.Getpid())
 	if err := r.Run(); err != nil {
-		log.Crit("Run failed", "err", common.FmtError(err))
+		log.Crit("Run failed", "err", err)
 		liblog.Flush()
 		os.Exit(1)
 	}

@@ -70,16 +70,16 @@ func main() {
 	}
 	// initialize Trust Store
 	if store, err = trust.NewStore(filepath.Join(*confDir, "certs"), *cacheDir, *id); err != nil {
-		fatal("Unable to initialize TrustStore", "err", common.FmtError(err))
+		fatal("Unable to initialize TrustStore", "err", err)
 	}
 	// initialize snet with retries
 	if err = initSNET(initAttempts, initInterval); err != nil {
-		fatal("Unable to create local SCION Network context", "err", common.FmtError(err))
+		fatal("Unable to create local SCION Network context", "err", err)
 	}
 	// initialize dispatcher
 	dispatcher, err := NewDispatcher(config.PublicAddr, config.BindAddr)
 	if err != nil {
-		fatal("Unable to initialize dispatcher", "err", common.FmtError(err))
+		fatal("Unable to initialize dispatcher", "err", err)
 	}
 	dispatcher.run()
 
@@ -109,7 +109,7 @@ func initSNET(attempts int, sleep time.Duration) (err error) {
 		if err = snet.Init(config.PublicAddr.IA, *sciondPath, *dispPath); err == nil {
 			break
 		}
-		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", common.FmtError(err))
+		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", err)
 		time.Sleep(sleep)
 	}
 	return err

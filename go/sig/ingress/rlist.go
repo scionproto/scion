@@ -185,7 +185,7 @@ func (l *ReassemblyList) collectAndWrite() {
 	} else {
 		// Write the packet to the wire.
 		if err := send(l.buf.Bytes()); err != nil {
-			log.Error("Unable to send reassembled packet", "err", common.FmtError(err))
+			log.Error("Unable to send reassembled packet", "err", err)
 		}
 	}
 	// Process the complete packets in the last frame

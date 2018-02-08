@@ -193,21 +193,21 @@ func (d *Dispatcher) recvNext() {
 	b, address, err := d.transport.RecvFrom(context.Background())
 	if err != nil {
 		d.log.Warn("error", "err",
-			common.FmtError(common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom")))
+			common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom"))
 		return
 	}
 
 	msg, err := d.adapter.RawToMsg(b)
 	if err != nil {
 		d.log.Warn("error", "err",
-			common.FmtError(common.NewBasicError(infra.StrAdapterError, err, "op", "RawToMsg")))
+			common.NewBasicError(infra.StrAdapterError, err, "op", "RawToMsg"))
 		return
 	}
 
 	found, err := d.waitTable.reply(msg)
 	if err != nil {
 		d.log.Warn("error", "err",
-			common.FmtError(common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.Reply")))
+			common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.Reply"))
 		return
 	}
 	if found {
