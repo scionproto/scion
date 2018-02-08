@@ -97,7 +97,6 @@ func (d *Dispatcher) read() {
 			} else {
 				frame.frameLen = read
 				frame.sessId = mgmt.SessionType((frame.raw[0]))
-				d.dispatch(frame, src)
 				counters, ok := framesRecvCounters[frame.sessId]
 				if !ok {
 					counters = metrics.CtrPair{
@@ -110,6 +109,7 @@ func (d *Dispatcher) read() {
 				}
 				counters.Pkts.Inc()
 				counters.Bytes.Add(float64(read))
+				d.dispatch(frame, src)
 			}
 			// Clear FrameBuf reference
 			frames[i] = nil
