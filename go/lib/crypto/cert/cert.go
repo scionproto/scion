@@ -82,16 +82,24 @@ func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, si
 		return common.NewBasicError(InvalidSubject, nil,
 			"expected", c.Subject, "actual", subject)
 	}
-	currTime := uint64(time.Now().Unix())
-	if currTime < c.IssuingTime {
-		return common.NewBasicError(EarlyUsage, nil, "IssuingTime",
-			util.TimeToString(c.IssuingTime), "current", util.TimeToString(currTime))
-	}
-	if currTime > c.ExpirationTime {
-		return common.NewBasicError(Expired, nil, "Expiration Time",
-			util.TimeToString(c.ExpirationTime), "current", util.TimeToString(currTime))
+	if err := c.VerifyTime(uint64(time.Now().Unix())); err != nil {
+		return err
 	}
 	return c.VerifySignature(verifyKey, signAlgo)
+}
+
+// VerifyTime checks that the time ts is between issuing and expiration time. This function does
+// not check the validity of the signature.
+func (c *Certificate) VerifyTime(ts uint64) error {
+	if ts < c.IssuingTime {
+		return common.NewBasicError(EarlyUsage, nil, "IssuingTime",
+			util.TimeToString(c.IssuingTime), "current", util.TimeToString(ts))
+	}
+	if ts > c.ExpirationTime {
+		return common.NewBasicError(Expired, nil, "ExpirationTime",
+			util.TimeToString(c.ExpirationTime), "current", util.TimeToString(ts))
+	}
+	return nil
 }
 
 // VerifySignature checks the signature of the certificate based on a trusted verifying key and the
@@ -139,6 +147,28 @@ func (c *Certificate) sigPack() (common.RawBytes, error) {
 		return nil, err
 	}
 	return sigInput, nil
+}
+
+func (c *Certificate) Copy() *Certificate {
+
+	n := &Certificate{
+		CanIssue:       c.CanIssue,
+		Comment:        c.Comment,
+		EncAlgorithm:   c.EncAlgorithm,
+		ExpirationTime: c.ExpirationTime,
+		Issuer:         c.Issuer.Copy(),
+		IssuingTime:    c.IssuingTime,
+		SignAlgorithm:  c.SignAlgorithm,
+		Signature:      make(common.RawBytes, len(c.Signature)),
+		Subject:        c.Subject.Copy(),
+		SubjectEncKey:  make(common.RawBytes, len(c.SubjectEncKey)),
+		SubjectSignKey: make(common.RawBytes, len(c.SubjectSignKey)),
+		TRCVersion:     c.TRCVersion,
+		Version:        c.Version}
+	copy(n.Signature, c.Signature)
+	copy(n.SubjectEncKey, c.SubjectEncKey)
+	copy(n.SubjectSignKey, c.SubjectSignKey)
+	return n
 }
 
 func (c *Certificate) String() string {

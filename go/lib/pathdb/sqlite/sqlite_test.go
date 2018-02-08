@@ -74,20 +74,20 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 		{
 			RawIA: ia13.IAInt(),
 			HopEntries: []*seg.HopEntry{
-				allocHopEntry(ia13, ia16, rawHops[0]),
+				allocHopEntry(&addr.ISD_AS{}, ia16, rawHops[0]),
 			},
 		},
 		{
 			RawIA: ia16.IAInt(),
 			HopEntries: []*seg.HopEntry{
 				allocHopEntry(ia13, ia19, rawHops[1]),
-				allocHopEntry(ia13, ia14, rawHops[2]),
+				allocHopEntry(ia14, ia19, rawHops[2]),
 			},
 		},
 		{
 			RawIA: ia19.IAInt(),
 			HopEntries: []*seg.HopEntry{
-				allocHopEntry(ia16, ia19, rawHops[3]),
+				allocHopEntry(ia16, &addr.ISD_AS{}, rawHops[3]),
 			},
 		},
 	}

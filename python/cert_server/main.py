@@ -56,7 +56,7 @@ from lib.packet.cert_mgmt import (
     TRCReply,
     TRCRequest,
 )
-from lib.packet.ctrl_pld import CtrlPayload
+from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.svc import SVCType
 from lib.requests import RequestHandler
 from lib.thread import thread_safety_net
@@ -250,9 +250,9 @@ class CertServer(SCIONElement):
                     "CC not found && requester is not local)",
                     meta, *key)
             else:
-                self.cc_requests.put((key, (meta, req)))
+                self.cc_requests.put((key, (meta, req, cpld.req_id)))
             return
-        self._reply_cc(key, (meta, req))
+        self._reply_cc(key, (meta, req, cpld.req_id))
 
     def process_cert_chain_reply(self, cpld, meta, from_zk=False):
         """Process a certificate chain reply."""
@@ -279,7 +279,7 @@ class CertServer(SCIONElement):
 
     def _fetch_cc(self, key, req_info):
         # Do not attempt to fetch the CertChain from a remote AS if the cacheOnly flag is set.
-        _, orig_req = req_info
+        _, orig_req, _ = req_info
         if orig_req.p.cacheOnly:
             return
         self._send_cc_request(*key)
@@ -289,9 +289,10 @@ class CertServer(SCIONElement):
         path_meta = self._get_path_via_sciond(isd_as)
         if path_meta:
             meta = self._build_meta(isd_as, host=SVCType.CS_A, path=path_meta.fwd_path())
-            self.send_meta(CtrlPayload(CertMgmt(req)), meta)
-            logging.info("Cert chain request sent to %s via [%s]: %s",
-                         meta, path_meta.short_desc(), req.short_desc())
+            req_id = mk_ctrl_req_id()
+            self.send_meta(CtrlPayload(CertMgmt(req), req_id=req_id), meta)
+            logging.info("Cert chain request sent to %s via [%s]: %s [id: %016x]",
+                         meta, path_meta.short_desc(), req.short_desc(), req_id)
         else:
             logging.warning("Cert chain request (for %s) not sent: "
                             "no path found", req.short_desc())
@@ -300,9 +301,11 @@ class CertServer(SCIONElement):
         isd_as, ver = key
         ver = None if ver == CertChainRequest.NEWEST_VERSION else ver
         meta = req_info[0]
+        req_id = req_info[2]
         cert_chain = self.trust_store.get_cert(isd_as, ver)
-        self.send_meta(CtrlPayload(CertMgmt(CertChainReply.from_values(cert_chain))), meta)
-        logging.info("Cert chain for %sv%s sent to %s", isd_as, ver, meta)
+        self.send_meta(
+            CtrlPayload(CertMgmt(CertChainReply.from_values(cert_chain)), req_id=req_id), meta)
+        logging.info("Cert chain for %sv%s sent to %s [id: %016x]", isd_as, ver, meta, req_id)
 
     def process_trc_request(self, cpld, meta):
         """Process a TRC request."""
@@ -310,7 +313,8 @@ class CertServer(SCIONElement):
         req = cmgt.union
         assert isinstance(req, TRCRequest), type(req)
         key = req.isd_as()[0], req.p.version
-        logging.info("TRC request received for %sv%s from %s", *key, meta)
+        logging.info("TRC request received for %sv%s from %s [id: %s]",
+                     *key, meta, cpld.req_id_str())
         REQS_TOTAL.labels(**self._labels, type="trc").inc()
         local = meta.ia == self.addr.isd_as
         if not self._check_trc(key):
@@ -320,9 +324,9 @@ class CertServer(SCIONElement):
                     "TRC not found && requester is not local)",
                     meta, *key)
             else:
-                self.trc_requests.put((key, (meta, req)))
+                self.trc_requests.put((key, (meta, req, cpld.req_id)))
             return
-        self._reply_trc(key, (meta, req))
+        self._reply_trc(key, (meta, req, cpld.req_id))
 
     def process_trc_reply(self, cpld, meta, from_zk=False):
         """
@@ -335,8 +339,8 @@ class CertServer(SCIONElement):
         trc_rep = cmgt.union
         assert isinstance(trc_rep, TRCReply), type(trc_rep)
         isd, ver = trc_rep.trc.get_isd_ver()
-        logging.info("TRCReply received for ISD %sv%s, ZK: %s",
-                     isd, ver, from_zk)
+        logging.info("TRCReply received for ISD %sv%s, ZK: %s [id: %s]",
+                     isd, ver, from_zk, cpld.req_id_str())
         self.trust_store.add_trc(trc_rep.trc)
         if not from_zk:
             self._share_object(trc_rep.trc, is_trc=True)
@@ -354,7 +358,7 @@ class CertServer(SCIONElement):
 
     def _fetch_trc(self, key, req_info):
         # Do not attempt to fetch the TRC from a remote AS if the cacheOnly flag is set.
-        _, orig_req = req_info
+        _, orig_req, _ = req_info
         if orig_req.p.cacheOnly:
             return
         self._send_trc_request(*key)
@@ -365,9 +369,10 @@ class CertServer(SCIONElement):
         if path_meta:
             meta = self._build_meta(
                 path_meta.dst_ia(), host=SVCType.CS_A, path=path_meta.fwd_path())
-            self.send_meta(CtrlPayload(CertMgmt(trc_req)), meta)
-            logging.info("TRC request sent to %s via [%s]: %s",
-                         meta, path_meta.short_desc(), trc_req.short_desc())
+            req_id = mk_ctrl_req_id()
+            self.send_meta(CtrlPayload(CertMgmt(trc_req), req_id=req_id), meta)
+            logging.info("TRC request sent to %s via [%s]: %s [id: %016x]",
+                         meta, path_meta.short_desc(), trc_req.short_desc(), req_id)
         else:
             logging.warning("TRC request not sent for %s: no path found.", trc_req.short_desc())
 
@@ -375,9 +380,10 @@ class CertServer(SCIONElement):
         isd, ver = key
         ver = None if ver == TRCRequest.NEWEST_VERSION else ver
         meta = req_info[0]
+        req_id = req_info[2]
         trc = self.trust_store.get_trc(isd, ver)
-        self.send_meta(CtrlPayload(CertMgmt(TRCReply.from_values(trc))), meta)
-        logging.info("TRC for %sv%s sent to %s", isd, ver, meta)
+        self.send_meta(CtrlPayload(CertMgmt(TRCReply.from_values(trc)), req_id=req_id), meta)
+        logging.info("TRC for %sv%s sent to %s [id: %016x]", isd, ver, meta, req_id)
 
     def process_drkey_request(self, cpld, meta):
         """
@@ -389,7 +395,8 @@ class CertServer(SCIONElement):
         dpld = cpld.union
         req = dpld.union
         assert isinstance(req, DRKeyRequest), type(req)
-        logging.info("DRKeyRequest received from %s: %s", meta, req.short_desc())
+        logging.info("DRKeyRequest received from %s: %s [id: %s]",
+                     meta, req.short_desc(), cpld.req_id_str())
         REQS_TOTAL.labels(**self._labels, type="drkey").inc()
         try:
             cert = self._verify_drkey_request(req, meta)
@@ -402,8 +409,9 @@ class CertServer(SCIONElement):
         trc_version = self.trust_store.get_trc(self.addr.isd_as[0]).version
         rep = get_drkey_reply(sv, self.addr.isd_as, meta.ia, self.private_key,
                               self.signing_key, cert_version, cert, trc_version)
-        self.send_meta(CtrlPayload(DRKeyMgmt(rep)), meta)
-        logging.info("DRKeyReply sent to %s: %s", meta, req.short_desc())
+        self.send_meta(CtrlPayload(DRKeyMgmt(rep), req_id=cpld.req_id), meta)
+        logging.info("DRKeyReply sent to %s: %s [id: %s]",
+                     meta, req.short_desc(), cpld.req_id_str())
 
     def _verify_drkey_request(self, req, meta):
         """
@@ -450,7 +458,8 @@ class CertServer(SCIONElement):
         dpld = cpld.union
         rep = dpld.union
         assert isinstance(rep, DRKeyReply), type(rep)
-        logging.info("DRKeyReply received from %s: %s", meta, rep.short_desc())
+        logging.info("DRKeyReply received from %s: %s [id: %s]",
+                     meta, rep.short_desc(), cpld.req_id_str())
         src = meta or "ZK"
 
         try:
@@ -540,8 +549,10 @@ class CertServer(SCIONElement):
         path_meta = self._get_path_via_sciond(drkey.src_ia)
         if path_meta:
             meta = self._build_meta(drkey.src_ia, host=SVCType.CS_A, path=path_meta.fwd_path())
+            req_id = mk_ctrl_req_id()
             self.send_meta(CtrlPayload(DRKeyMgmt(req)), meta)
-            logging.info("DRKeyRequest (%s) sent to %s via %s", req.short_desc(), meta, path_meta)
+            logging.info("DRKeyRequest (%s) sent to %s via %s [id: %016x]",
+                         req.short_desc(), meta, path_meta, req_id)
         else:
             logging.warning("DRKeyRequest (for %s) not sent", req.short_desc())
 

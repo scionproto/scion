@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // testAdapterT implements MessageAdapter for unit level tests.
@@ -31,12 +32,12 @@ var (
 	testAdapter testAdapterT
 )
 
-func (t testAdapterT) MsgToRaw(msg Message) (common.RawBytes, error) {
+func (t testAdapterT) MsgToRaw(msg proto.Cerealizable) (common.RawBytes, error) {
 	o := msg.(*customObject)
 	return []byte(fmt.Sprintf("%d-%s", o.id, o.str)), nil
 }
 
-func (t testAdapterT) RawToMsg(b common.RawBytes) (Message, error) {
+func (t testAdapterT) RawToMsg(b common.RawBytes) (proto.Cerealizable, error) {
 	items := strings.Split(string(b), "-")
 	if len(items) != 2 {
 		return nil, common.NewBasicError("Bad message", nil)
@@ -52,12 +53,22 @@ func (t testAdapterT) RawToMsg(b common.RawBytes) (Message, error) {
 	return msg, nil
 }
 
-func (t testAdapterT) MsgKey(msg Message) string {
+func (t testAdapterT) MsgKey(msg proto.Cerealizable) string {
 	o := msg.(*customObject)
 	return strconv.Itoa(o.id)
 }
 
+var _ proto.Cerealizable = (*customObject)(nil)
+
 type customObject struct {
 	id  int
 	str string
+}
+
+func (c *customObject) String() string {
+	panic("not implemented")
+}
+
+func (c *customObject) ProtoId() proto.ProtoIdType {
+	panic("not implemented")
 }

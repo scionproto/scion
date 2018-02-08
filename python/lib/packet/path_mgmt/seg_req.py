@@ -32,19 +32,15 @@ class PathSegmentReq(Cerealizable):  # pragma: no cover
     P_CLS = P.SegReq
 
     @classmethod
-    def from_values(cls, req_id, src_ia, dst_ia, flags=None):
+    def from_values(cls, src_ia, dst_ia, flags=None):
         if not flags:
             flags = set()
-        p = cls.P_CLS.new_message(
-            id=req_id, srcIA=int(src_ia), dstIA=int(dst_ia))
+        p = cls.P_CLS.new_message(srcIA=int(src_ia), dstIA=int(dst_ia))
         if PATH_FLAG_SIBRA in flags:
             p.flags.sibra = True
         if PATH_FLAG_CACHEONLY in flags:
             p.flags.cacheOnly = True
         return cls(p)
-
-    def req_id(self):
-        return self.p.id
 
     def src_ia(self):
         return ISD_AS(self.p.srcIA)
@@ -61,15 +57,12 @@ class PathSegmentReq(Cerealizable):  # pragma: no cover
         return tuple(flags)
 
     def __eq__(self, other):
-        return (self.p.id == other.p.id and self.p.srcIA == other.p.srcIA and
-                self.p.dstIA == other.p.dstIA and self.flags() == other.flags())
-
-    def __hash__(self):
-        return self.p.id
+        return (self.p.srcIA == other.p.srcIA and
+                self.p.dstIA == other.p.dstIA and
+                self.flags() == other.flags())
 
     def short_desc(self):
-        return "Id: %016x %s -> %s  %s" % (
-            self.req_id(), self.src_ia(), self.dst_ia(), self.flags())
+        return "%s -> %s  %s" % (self.src_ia(), self.dst_ia(), self.flags())
 
 
 class PathSegmentReply(Cerealizable):  # pragma: no cover

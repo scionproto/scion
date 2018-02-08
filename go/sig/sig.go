@@ -20,9 +20,11 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"os/user"
 	"syscall"
 
 	log "github.com/inconshreveable/log15"
+	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -60,6 +62,9 @@ func main() {
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
 	setupSignals()
+	if err := checkPerms(); err != nil {
+		fatal("Permissions checks failed", "err", common.FmtError(err))
+	}
 
 	// Export prometheus metrics.
 	metrics.Init(*id)
@@ -104,6 +109,24 @@ func setupSignals() {
 		liblog.Flush()
 		os.Exit(1)
 	}()
+}
+
+func checkPerms() error {
+	user, err := user.Current()
+	if err != nil {
+		return common.NewBasicError("Error retrieving user", err)
+	}
+	if user.Uid == "0" {
+		return common.NewBasicError("Running as root is not allowed for security reasons", nil)
+	}
+	caps, err := capability.NewPid(0)
+	if err != nil {
+		return common.NewBasicError("Error retrieving capabilities", err)
+	}
+	if !caps.Get(capability.EFFECTIVE, capability.CAP_NET_ADMIN) {
+		return common.NewBasicError("CAP_NET_ADMIN is required", nil, "caps", caps)
+	}
+	return nil
 }
 
 func reloadOnSIGHUP(path string) {

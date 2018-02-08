@@ -15,6 +15,8 @@ struct Sign {
     src @1 :Data;
     # Signature over blob, using signType, created by src. Unset if signType is `none`.
     signature @2 :Data;
+    # Signature creation time. Seconds since Unix Epoch.
+    timestamp @3 :UInt64;
 }
 
 enum SignType {
