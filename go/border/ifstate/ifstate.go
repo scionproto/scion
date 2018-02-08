@@ -108,8 +108,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)
-			s = &state{}
-			atomic.StorePointer(&s.info, unsafe.Pointer(stateInfo))
+			s = &state{info: unsafe.Pointer(stateInfo)}
 			states.Store(ifid, s)
 			continue
 		}
