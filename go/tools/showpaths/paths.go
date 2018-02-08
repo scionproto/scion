@@ -19,29 +19,28 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 var (
-	dstIAStr       = flag.String("dstIA", "", "Destination IA address: ISD-AS")
-	srcIAStr       = flag.String("srcIA", "", "Source IA address: ISD-AS")
-	id             = flag.String("id", "paths", "Element ID")
-	sciondPath     = flag.String("sciond", "", "SCIOND socket path")
-	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
-		"SCION Dispatcher path")
+	dstIAStr   = flag.String("dstIA", "", "Destination IA address: ISD-AS")
+	srcIAStr   = flag.String("srcIA", "", "Source IA address: ISD-AS")
+	id         = flag.String("id", "paths", "Element ID")
+	sciondPath = flag.String("sciond", "", "SCIOND socket path")
+	timeout    = flag.Int("timeout", 5000, "SCIOND connection timeout in ms")
+	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
 )
 
 var (
-	dstIA   *addr.ISD_AS
-	srcIA   *addr.ISD_AS
-	pathMgr *pathmgr.PR
+	dstIA *addr.ISD_AS
+	srcIA *addr.ISD_AS
 )
 
 func main() {
@@ -54,18 +53,19 @@ func main() {
 
 	log.Debug("Connecting to SCIOND", "sciond", *sciondPath)
 
-	// Initialize SCION local networking module
-	err = snet.Init(srcIA, *sciondPath, *dispatcherPath)
+	sd := sciond.NewService(*sciondPath)
+	sdConn, err := sd.ConnectTimeout(time.Duration(*timeout * 1000))
 	if err != nil {
-		LogFatal("Initizaling SCION local networking module", "err", common.FmtError(err))
+		LogFatal("Failed to connect to SCIOND", "err", common.FmtError(err))
 	}
-	pathMgr = snet.DefNetwork.PathResolver()
-
+	reply, err := sdConn.Paths(dstIA, srcIA, uint16(*maxPaths), sciond.PathReqFlags{})
+	if err != nil {
+		LogFatal("Failed to retrieve paths from SCIOND", "err", common.FmtError(err))
+	}
 	fmt.Println("Available paths to", dstIA)
-	pathSet := pathMgr.Query(srcIA, dstIA)
 	i := 0
-	for _, path := range pathSet {
-		fmt.Printf("[%2d] %s\n", i, path.Entry.Path.String())
+	for _, path := range reply.Entries {
+		fmt.Printf("[%2d] %s\n", i, path.Path.String())
 		i++
 	}
 }
@@ -77,7 +77,7 @@ func validateFlags() {
 
 	dstIA, err = addr.IAFromString(*dstIAStr)
 	if err != nil {
-		LogFatal("Unable to parse destination IA:", "err", err)
+		LogFatal("Unable to parse destination IA:", "err", common.FmtError(err))
 	}
 	if *sciondPath == "" {
 		if *srcIAStr == "" {
@@ -93,7 +93,7 @@ func validateFlags() {
 	}
 	srcIA, err = addr.IAFromString(*srcIAStr)
 	if err != nil {
-		LogFatal("Unable to parse source IA:", "err", err)
+		LogFatal("Unable to parse source IA:", "err", common.FmtError(err))
 	}
 }
 
