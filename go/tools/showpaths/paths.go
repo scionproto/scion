@@ -34,7 +34,7 @@ var (
 	srcIAStr   = flag.String("srcIA", "", "Source IA address: ISD-AS")
 	id         = flag.String("id", "paths", "Element ID")
 	sciondPath = flag.String("sciond", "", "SCIOND socket path")
-	timeout    = flag.Int("timeout", 5000, "SCIOND connection timeout in ms")
+	timeout    = flag.Duration("timeout", 2000, "SCIOND connection timeout in ms")
 	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
 )
 
@@ -51,10 +51,11 @@ func main() {
 	defer liblog.LogPanicAndExit()
 	defer liblog.Flush()
 
-	log.Debug("Connecting to SCIOND", "sciond", *sciondPath)
+	*timeout *= time.Millisecond
+	log.Debug("Connecting to SCIOND", "sciond", *sciondPath, "timeout", *timeout)
 
 	sd := sciond.NewService(*sciondPath)
-	sdConn, err := sd.ConnectTimeout(time.Duration(*timeout * 1000))
+	sdConn, err := sd.ConnectTimeout(*timeout)
 	if err != nil {
 		LogFatal("Failed to connect to SCIOND", "err", common.FmtError(err))
 	}
