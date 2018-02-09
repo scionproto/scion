@@ -1,4 +1,4 @@
-# Copyright 2017 ETH Zurich
+# Copyright 2018 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`segment_req` --- SCIOND segment requests and replies
+:mod:`segment_req` --- SCIOND segments by type requests and replies
 ====================================================
 """
 # External
@@ -23,55 +23,34 @@ import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
 
 
-class SCIONDSegmentRequest(Cerealizable):
-    NAME = "SCIONDSegmentRequest"
-    P_CLS = P.SegmentRequest
+class SCIONDSegTypeRequest(Cerealizable):
+    NAME = "SCIONDSegTypeRequest"
+    P_CLS = P.SegTypeReq
 
     @classmethod
-    def from_values(cls, seg_type=None):
-        p = cls.P_CLS.new_message()
-        p.segmentType = seg_type
+    def from_values(cls, seg_type):
+        p = cls.P_CLS.new_message(type=seg_type)
         return cls(p)
 
     def short_desc(self):
-        desc = ["%s:" % self.NAME]
-        desc.append("  segmentType: %s" % self.p.segmentType)
-        return "\n".join(desc)
+        return "%s: type: %s" % (self.NAME, self.p.type)
 
 
-class SCIONDSegmentReply(Cerealizable):
-    NAME = "SegmentReply"
-    P_CLS = P.SegmentReply
+class SCIONDSegTypeReply(Cerealizable):
+    NAME = "SCIONDSegTypeReply"
+    P_CLS = P.SegTypeReply
 
     @classmethod
     def from_values(cls, entries):
-        p = cls.P_CLS.new_message()
-        entry_list = p.init("entries", len(entries))
-        for i, entry in enumerate(entries):
-            entry_list[i] = entry.p
+        p = cls.P_CLS.new_message(entries=entries)
         return cls(p)
 
     def entry(self, idx):
-        return SCIONDSegmentReplyEntry(self.p.entries[idx])
+        return self.p.entries[idx]
 
     def iter_entries(self):
         for entry in self.p.entries:
-            yield SCIONDSegmentReplyEntry(entry)
+            yield entry
 
     def short_desc(self):
         return "\n".join([entry.short_desc() for entry in self.iter_entries()])
-
-
-class SCIONDSegmentReplyEntry(Cerealizable):
-    NAME = "SegmentReplyEntry"
-    P_CLS = P.SegmentReplyEntry
-
-    @classmethod
-    def from_values(cls, segment):
-        p = cls.P_CLS.new_message(segment=segment)
-        return cls(p)
-
-    def short_desc(self):
-        desc = ["%s:" % self.NAME]
-        desc.append("  segment: %s" % self.p.segment)
-        return "\n".join(desc)

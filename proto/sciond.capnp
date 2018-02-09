@@ -20,8 +20,8 @@ struct SCIONDMsg {
         serviceInfoRequest @9 :ServiceInfoRequest;
         serviceInfoReply @10 :ServiceInfoReply;
         revReply @11 :RevReply;
-        segmentRequest @12 :SegmentRequest;
-        segmentReply @13 :SegmentReply;
+        segTypeReq @12 :SegTypeReq;
+        segTypeReply @13 :SegTypeReply;
     }
 }
 
@@ -121,14 +121,10 @@ struct ServiceInfoReplyEntry {
     hostInfos @2 :List(HostInfo);  # The host infos of the service.
 }
 
-struct SegmentRequest {
-    segmentType @0 :PSeg.PathSegType;
+struct SegTypeReq {
+    type @0 :PSeg.PathSegType;
 }
 
-struct SegmentReply {
-    entries @0 :List(SegmentReplyEntry);
-}
-
-struct SegmentReplyEntry {
-    segment @0 :PSeg.PathSegment;
+struct SegTypeReply {
+    entries @0 :List(PSeg.PathSegment);
 }

@@ -373,7 +373,7 @@ class TestSCIONDConnectorGetSegment(SCIONDConnectorTestBase):
         return self._setup_connector(
             create_mock_full({"iter_entries()": ["segment"]}))
 
-    @patch("lib.app.sciond.SCIONDSegmentRequest.from_values", new_callable=create_mock)
+    @patch("lib.app.sciond.SCIONDSegTypeRequest.from_values", new_callable=create_mock)
     @patch("lib.app.sciond.SCIONDMsg", new_callable=create_mock)
     def test_valid_type(self, sciond_msg, segment_req):
         connector = self._setup()
@@ -385,7 +385,7 @@ class TestSCIONDConnectorGetSegment(SCIONDConnectorTestBase):
         sciond_msg.assert_called_once_with(segment_req.return_value, self.REQ_ID)
         segment_req.assert_called_once_with(seg_type)
         connector._create_socket.assert_called_once_with()
-        connector._get_response.assert_called_once_with(ANY, 1, SMT.SEGMENT_REPLY)
+        connector._get_response.assert_called_once_with(ANY, 1, SMT.SEGTYPE_REPLY)
 
     def test_invalid_type(self):
         connector = self._setup()

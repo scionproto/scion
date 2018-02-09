@@ -42,7 +42,7 @@ from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoRequest
 from lib.sciond_api.path_req import SCIONDPathReplyError, SCIONDPathRequest
 from lib.sciond_api.revocation import SCIONDRevNotification
-from lib.sciond_api.segment_req import SCIONDSegmentRequest
+from lib.sciond_api.segment_req import SCIONDSegTypeRequest
 from lib.sciond_api.service_req import SCIONDServiceInfoRequest
 from lib.socket import ReliableSocket
 from lib.types import (
@@ -206,11 +206,11 @@ class SCIONDConnector:
         req_id = self._req_id.inc()
         valid_pst = set([PST.CORE, PST.UP, PST.DOWN])
         assert seg_type in valid_pst, 'PathSegmentType %s is unrecognized.' % seg_type
-        request = SCIONDMsg(SCIONDSegmentRequest.from_values(seg_type), req_id)
+        request = SCIONDMsg(SCIONDSegTypeRequest.from_values(seg_type), req_id)
         with closing(self._create_socket()) as socket:
             if not socket.send(request.pack()):
                 raise SCIONDRequestError
-            response = self._get_response(socket, req_id, SMT.SEGMENT_REPLY)
+            response = self._get_response(socket, req_id, SMT.SEGTYPE_REPLY)
             return list(response.iter_entries())
 
     def _resolve_ifid(self, if_id):  # pragma: no cover
@@ -417,7 +417,7 @@ def get_segments(seg_type, connector=None):  # pragma: no cover
     Request list of segments used to construct paths.
 
     :param seg_type: The type of PathSegmentType requested.
-    :returns: List of SCIONDSegmentResponseEntry objects.
+    :returns: List of SCIONDSegTypeReplyEntry objects.
     """
     global _connector
     if not connector:
