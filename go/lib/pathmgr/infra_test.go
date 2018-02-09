@@ -24,7 +24,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
@@ -39,24 +38,24 @@ func ExamplePR() {
 	var err error
 	src, err := addr.IAFromString(*srcStr)
 	if err != nil {
-		fmt.Println("Unable to parse srcIA", *srcStr, "err", common.FmtError(err))
+		fmt.Println("Unable to parse srcIA", *srcStr, "err", err)
 	}
 	dst, err := addr.IAFromString(*dstStr)
 	if err != nil {
-		fmt.Println("Unable to parse dstIA", *dstStr, "err", common.FmtError(err))
+		fmt.Println("Unable to parse dstIA", *dstStr, "err", err)
 	}
 	// Initialize path resolver
 	sciondPath := fmt.Sprintf("/run/shm/sciond/sd%s.sock", src.String())
 	sciondService := sciond.NewService(sciondPath)
 	pr, err := New(sciondService, time.Second, time.Minute, log.Root())
 	if err != nil {
-		fmt.Println("Failed to connect to SCIOND", "err", common.FmtError(err))
+		fmt.Println("Failed to connect to SCIOND", "err", err)
 		return
 	}
 	// Register source and destination
 	sp, err := pr.Watch(src, dst)
 	if err != nil {
-		fmt.Println("Failed to register", "err", common.FmtError(err))
+		fmt.Println("Failed to register", "err", err)
 	}
 	// sp will always point to an up to date slice of paths, or nil if none
 	// available

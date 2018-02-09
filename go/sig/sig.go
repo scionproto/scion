@@ -63,25 +63,25 @@ func main() {
 	defer liblog.LogPanicAndExit()
 	setupSignals()
 	if err := checkPerms(); err != nil {
-		fatal("Permissions checks failed", "err", common.FmtError(err))
+		fatal("Permissions checks failed", "err", err)
 	}
 
 	// Export prometheus metrics.
 	metrics.Init(*id)
 	if err := metrics.Start(); err != nil {
-		fatal("Unable to export prometheus metrics", "err", common.FmtError(err))
+		fatal("Unable to export prometheus metrics", "err", err)
 	}
 	// Parse basic flags
 	ia, err := addr.IAFromString(*isdas)
 	if err != nil {
-		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", common.FmtError(err))
+		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", err)
 	}
 	ip := net.ParseIP(*ipStr)
 	if ip == nil {
 		fatal("unable to parse IP address", "addr", *ipStr)
 	}
 	if err = sigcmn.Init(ia, ip); err != nil {
-		fatal("Error during initialization", "err", common.FmtError(err))
+		fatal("Error during initialization", "err", err)
 	}
 	egress.Init()
 	disp.Init(sigcmn.CtrlConn)
@@ -95,7 +95,7 @@ func main() {
 
 	// Spawn ingress Dispatcher.
 	if err := ingress.Init(); err != nil {
-		fatal("Unable to spawn ingress dispatcher", "err", common.FmtError(err))
+		fatal("Unable to spawn ingress dispatcher", "err", err)
 	}
 }
 
@@ -144,7 +144,7 @@ func reloadOnSIGHUP(path string) {
 func loadConfig(path string) bool {
 	cfg, err := config.LoadFromFile(path)
 	if err != nil {
-		log.Error("loadConfig: Failed", "err", common.FmtError(err))
+		log.Error("loadConfig: Failed", "err", err)
 		return false
 	}
 	return base.Map.ReloadConfig(cfg)

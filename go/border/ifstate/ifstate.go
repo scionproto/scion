@@ -67,7 +67,7 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 			var err error
 			rawRev, err = proto.PackRoot(info.RevInfo)
 			if err != nil {
-				log.Error("Unable to pack RevInfo", "err", common.FmtError(err))
+				log.Error("Unable to pack RevInfo", "err", err)
 				return
 			}
 		}

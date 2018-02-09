@@ -88,8 +88,7 @@ func (d *Dispatcher) read() {
 			frame := frames[i].(*FrameBuf)
 			read, src, err := extConn.ReadFromSCION(frame.raw)
 			if err != nil {
-				log.Error("IngressDispatcher: Unable to read from external ingress",
-					"err", common.FmtError(err))
+				log.Error("IngressDispatcher: Unable to read from external ingress", "err", err)
 				frame.Release()
 			} else {
 				frame.frameLen = read

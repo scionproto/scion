@@ -24,7 +24,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
@@ -56,11 +55,11 @@ func main() {
 	sd := sciond.NewService(*sciondPath)
 	sdConn, err := sd.ConnectTimeout(*timeout)
 	if err != nil {
-		LogFatal("Failed to connect to SCIOND", "err", common.FmtError(err))
+		LogFatal("Failed to connect to SCIOND", "err", err)
 	}
 	reply, err := sdConn.Paths(dstIA, srcIA, uint16(*maxPaths), sciond.PathReqFlags{})
 	if err != nil {
-		LogFatal("Failed to retrieve paths from SCIOND", "err", common.FmtError(err))
+		LogFatal("Failed to retrieve paths from SCIOND", "err", err)
 	}
 	fmt.Println("Available paths to", dstIA)
 	i := 0
@@ -77,7 +76,7 @@ func validateFlags() {
 
 	dstIA, err = addr.IAFromString(*dstIAStr)
 	if err != nil {
-		LogFatal("Unable to parse destination IA:", "err", common.FmtError(err))
+		LogFatal("Unable to parse destination IA:", "err", err)
 	}
 	if *sciondPath == "" {
 		if *srcIAStr == "" {
@@ -93,7 +92,7 @@ func validateFlags() {
 	}
 	srcIA, err = addr.IAFromString(*srcIAStr)
 	if err != nil {
-		LogFatal("Unable to parse source IA:", "err", common.FmtError(err))
+		LogFatal("Unable to parse source IA:", "err", err)
 	}
 }
 

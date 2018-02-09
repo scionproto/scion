@@ -108,7 +108,7 @@ func (t *rTraceroute) Process() (HookResult, error) {
 		IA: *t.rp.Ctx.Conf.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
 	}
 	if err := t.Add(&entry); err != nil {
-		t.Error("Unable to add entry", "err", common.FmtError(err))
+		t.Error("Unable to add entry", "err", err)
 	}
 	// Update the raw buffer with the number of hops.
 	t.raw[0] = t.NumHops

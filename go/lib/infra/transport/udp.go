@@ -269,7 +269,7 @@ func (t *RUDP) goBackgroundReceiver() {
 				} else {
 					// Do not log close events
 					if err != io.EOF {
-						t.log.Error("Read error, shutting down", "err", common.FmtError(err))
+						t.log.Error("Read error, shutting down", "err", err)
 					}
 					bufpool.Put(b)
 					return
@@ -278,7 +278,7 @@ func (t *RUDP) goBackgroundReceiver() {
 
 			flags, id, payload, err := t.popHeader(b.B[:n])
 			if err != nil {
-				t.log.Error("Unable to remove Reliable UDP header", "err", common.FmtError(err))
+				t.log.Error("Unable to remove Reliable UDP header", "err", err)
 				bufpool.Put(b)
 				continue
 			}
@@ -306,7 +306,7 @@ func (t *RUDP) goBackgroundReceiver() {
 				// (if requested)
 				if flags.isSet(flagNeedACK) {
 					if err := t.sendACK(id, address); err != nil {
-						t.log.Warn("Unable to send ACK", "err", common.FmtError(err))
+						t.log.Warn("Unable to send ACK", "err", err)
 					}
 				}
 			default:

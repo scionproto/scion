@@ -52,13 +52,13 @@ func (d *Dispatcher) run() {
 	for {
 		read, addr, err := d.conn.ReadFromSCION(d.buf)
 		if err != nil {
-			log.Error("Unable to read from network", "err", common.FmtError(err))
+			log.Error("Unable to read from network", "err", err)
 			continue
 		}
 		buf := make(common.RawBytes, read)
 		copy(buf, d.buf[:read])
 		if err = d.dispatch(addr, buf); err != nil {
-			log.Error("Unable to dispatch", "err", common.FmtError(err))
+			log.Error("Unable to dispatch", "err", err)
 		}
 
 	}

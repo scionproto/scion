@@ -78,7 +78,7 @@ func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 		log.Info("ReloadConfig: Adding AS...", "ia", ia)
 		ae, err := am.AddIA(ia)
 		if err != nil {
-			log.Error("ReloadConfig: Adding AS failed", "err", common.FmtError(err))
+			log.Error("ReloadConfig: Adding AS failed", "err", err)
 			s = false
 			continue
 		}
@@ -98,7 +98,7 @@ func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 			// Deletion also handles session/tun device cleanup
 			err := am.DelIA(ia)
 			if err != nil {
-				log.Error("ReloadConfig: Deleting AS failed", "err", common.FmtError(err))
+				log.Error("ReloadConfig: Deleting AS failed", "err", err)
 				s = false
 				return true
 			}

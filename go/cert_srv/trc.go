@@ -53,14 +53,13 @@ func (h *TRCHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.TRCReq) {
 	srcLocal := config.PublicAddr.IA.Eq(addr.IA)
 	if t != nil {
 		if err := h.sendTRCRep(addr, t); err != nil {
-			log.Error("Unable to send TRC reply", "addr", addr, "req", req,
-				"err", common.FmtError(err))
+			log.Error("Unable to send TRC reply", "addr", addr, "req", req, "err", err)
 		}
 	} else if !srcLocal || req.CacheOnly {
 		log.Info("Dropping TRC requeset", "addr", addr, "req", req, "err", "TRC not found")
 	} else {
 		if err := h.fetchTRC(addr, req); err != nil {
-			log.Error("Unable to fetch TRC", "req", req, "err", common.FmtError(err))
+			log.Error("Unable to fetch TRC", "req", req, "err", err)
 		}
 	}
 }
@@ -111,11 +110,11 @@ func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRC) {
 	log.Info("Received TRC reply", "addr", addr, "rep", rep)
 	t, err := rep.TRC()
 	if err != nil {
-		log.Error("Unable to parse TRC reply", "err", common.FmtError(err))
+		log.Error("Unable to parse TRC reply", "err", err)
 		return
 	}
 	if err = store.AddTRC(t, true); err != nil {
-		log.Error("Unable to store TRC", "key", t.Key(), "err", common.FmtError(err))
+		log.Error("Unable to store TRC", "key", t.Key(), "err", err)
 		return
 	}
 	key := t.Key()
@@ -128,7 +127,7 @@ func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRC) {
 	}
 	cpld, err := ctrl.NewCertMgmtPld(rep, nil, nil)
 	if err != nil {
-		log.Error("Unable to create TRC reply", "key", t.Key(), "err", common.FmtError(err))
+		log.Error("Unable to create TRC reply", "key", t.Key(), "err", err)
 		return
 	}
 	h.answerReqs(reqVer, cpld, key)
@@ -142,7 +141,7 @@ func (h *TRCHandler) answerReqs(reqs *AddrSet, cpld *ctrl.Pld, key *trc.Key) {
 	}
 	for _, dst := range reqs.Addrs {
 		if err := SendPayload(h.conn, cpld, dst); err != nil {
-			log.Error("Unable to write TRC reply", "key", key, "err", common.FmtError(err))
+			log.Error("Unable to write TRC reply", "key", key, "err", err)
 			continue
 		}
 	}

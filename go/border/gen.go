@@ -111,17 +111,17 @@ func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
 	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
 	cpld, err := ctrl.NewPld(&ifid.IFID{OrigIfID: uint64(ifID)}, nil)
 	if err != nil {
-		logger.Error("Error generating IFID Ctrl payload", "err", common.FmtError(err))
+		logger.Error("Error generating IFID Ctrl payload", "err", err)
 		return
 	}
 	scpld, err := cpld.SignedPld(ctrl.NullSigner)
 	if err != nil {
-		logger.Error("Error generating IFID signed Ctrl payload", "err", common.FmtError(err))
+		logger.Error("Error generating IFID signed Ctrl payload", "err", err)
 		return
 	}
 	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
 		intf.RemoteAddr.L4Port, srcAddr, scpld); err != nil {
-		logger.Error("Error generating IFID packet", "err", common.FmtError(err))
+		logger.Error("Error generating IFID packet", "err", err)
 	}
 }
 
@@ -148,15 +148,15 @@ func (r *Router) genIFStateReq() {
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
 	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
 	if err != nil {
-		log.Error("Error generating IFStateReq Ctrl payload", "err", common.FmtError(err))
+		log.Error("Error generating IFStateReq Ctrl payload", "err", err)
 		return
 	}
 	scpld, err := cpld.SignedPld(ctrl.NullSigner)
 	if err != nil {
-		log.Error("Error generating IFStateReq signed Ctrl payload", "err", common.FmtError(err))
+		log.Error("Error generating IFStateReq signed Ctrl payload", "err", err)
 		return
 	}
 	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, scpld); err != nil {
-		log.Error("Error generating IFStateReq packet", "err", common.FmtError(err))
+		log.Error("Error generating IFStateReq packet", "err", err)
 	}
 }

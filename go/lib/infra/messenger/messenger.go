@@ -257,7 +257,7 @@ func (m *Messenger) ListenAndServe() {
 				// CloseServer was called
 				return
 			default:
-				m.log.Error("Receive error", "err", common.FmtError(err))
+				m.log.Error("Receive error", "err", err)
 			}
 			continue
 		}
@@ -271,13 +271,13 @@ func (m *Messenger) ListenAndServe() {
 
 		err = m.verifier.Verify(signedPld)
 		if err != nil {
-			m.log.Error("Verification error", "err", common.FmtError(err))
+			m.log.Error("Verification error", "err", err)
 			continue
 		}
 
 		pld, err := signedPld.Pld()
 		if err != nil {
-			m.log.Error("Unable to extract Pld from CtrlPld", "err", common.FmtError(err))
+			m.log.Error("Unable to extract Pld from CtrlPld", "err", err)
 			continue
 		}
 		m.serve(pld, address)
@@ -289,8 +289,7 @@ func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
 	// signature is correct.
 	msgType, msg, err := m.validate(pld)
 	if err != nil {
-		m.log.Error("Received message, but unable to validate message", "err",
-			common.FmtError(err))
+		m.log.Error("Received message, but unable to validate message", "err", err)
 		return
 	}
 

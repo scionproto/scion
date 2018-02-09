@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
@@ -59,15 +58,15 @@ func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
 	cpld, err := ctrl.NewPathMgmtPld(revInfo, nil, nil)
 	if err != nil {
-		log.Error("Error generating RevInfo Ctrl payload", "err", common.FmtError(err))
+		log.Error("Error generating RevInfo Ctrl payload", "err", err)
 		return
 	}
 	scpld, err := cpld.SignedPld(ctrl.NullSigner)
 	if err != nil {
-		log.Error("Error generating RevInfo signed Ctrl payload", "err", common.FmtError(err))
+		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
 		return
 	}
 	if err = r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, scpld); err != nil {
-		log.Error("Error generating RevInfo packet", "err", common.FmtError(err))
+		log.Error("Error generating RevInfo packet", "err", err)
 	}
 }
