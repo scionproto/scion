@@ -45,7 +45,6 @@ var (
 	extConn            *snet.Conn
 	tunIO              io.ReadWriteCloser
 	freeFrames         *ringbuf.Ring
-	pktsSentCounters   map[metricKey]metrics.CtrPair
 	framesRecvCounters map[metricKey]metrics.CtrPair
 )
 
@@ -66,7 +65,6 @@ func Init() error {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
-	pktsSentCounters = make(map[metricKey]metrics.CtrPair)
 	framesRecvCounters = make(map[metricKey]metrics.CtrPair)
 	d := &Dispatcher{
 		laddr:   sigcmn.EncapSnetAddr(),
@@ -102,7 +100,6 @@ func (d *Dispatcher) read() {
 				frame.Release()
 			} else {
 				frame.frameLen = read
-				frame.remoteIA = src.IA
 				frame.sessId = mgmt.SessionType((frame.raw[0]))
 				key := metricKey{src.IA.IAInt(), frame.sessId}
 				counters, ok := framesRecvCounters[key]
