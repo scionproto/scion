@@ -436,18 +436,19 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             br.interfaces[ifid].to_if_id = pld.p.origIF
             prev_state = self.ifid_state[ifid].update()
             if prev_state == InterfaceState.INACTIVE:
-                logging.info("IF %d activated", ifid)
+                logging.info("IF %d activated.", ifid)
             elif prev_state in [InterfaceState.TIMED_OUT,
                                 InterfaceState.REVOKED]:
                 logging.info("IF %d came back up.", ifid)
-            if not prev_state == InterfaceState.ACTIVE:
+            if prev_state != InterfaceState.ACTIVE:
                 if self.zk.have_lock():
                     # Inform BRs about the interface coming up.
                     metas = []
                     for br in self.topology.border_routers:
                         br_addr, br_port = br.int_addrs[0].public[0]
                         metas.append(UDPMetadata.from_values(host=br_addr, port=br_port))
-                    self._send_ifstate_update(metas)
+                    info = IFStateInfo.from_values(ifid, True)
+                    self._send_ifstate_update([info], metas)
 
     def run(self):
         """
@@ -619,12 +620,14 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not self.zk.have_lock():
             return
         # Process revoked interfaces.
+        infos = []
         for if_id in revoked_ifs:
             rev_info = self._get_ht_proof(if_id)
             logging.info("Issuing revocation: %s", rev_info.short_desc())
             if self._labels:
                 REVOCATIONS_ISSUED.labels(**self._labels).inc()
             self._process_revocation(rev_info)
+            infos.append(IFStateInfo.from_values(if_id, False, rev_info))
         border_metas = []
         # Add all BRs.
         for br in self.topology.border_routers:
@@ -640,7 +643,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             # Create a meta if there is a local path service
             if addr:
                 ps_meta.append(UDPMetadata.from_values(host=addr, port=port))
-        self._send_ifstate_update(border_metas, ps_meta)
+        self._send_ifstate_update(infos, border_metas, ps_meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
@@ -778,10 +781,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(req, IFStateRequest), type(req)
         if not self.zk.have_lock():
             return
-        self._send_ifstate_update([meta])
-
-    def _send_ifstate_update(self, border_metas, server_metas=None):
-        server_metas = server_metas or []
         with self.ifid_state_lock:
             infos = []
             for (ifid, state) in self.ifid_state.items():
@@ -792,10 +791,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 info = IFStateInfo.from_values(ifid, state.is_active(), rev_info)
                 infos.append(info)
             if not infos and not self._quiet_startup():
-                logging.warning("No IF state info to put in IFState update for %s.",
-                                ", ".join([str(m) for m in border_metas + server_metas]))
+                logging.warning("No IF state info to put in IFState update for %s.", meta)
                 return
-            payload = CtrlPayload(PathMgmt(IFStatePayload.from_values(infos)))
+        self._send_ifstate_update(infos, [meta])
+
+    def _send_ifstate_update(self, state_infos, border_metas, server_metas=None):
+        server_metas = server_metas or []
+        payload = CtrlPayload(PathMgmt(IFStatePayload.from_values(state_infos)))
         for meta in border_metas:
             self.send_meta(payload.copy(), meta, (meta.host, meta.port))
         for meta in server_metas:

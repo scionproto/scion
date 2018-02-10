@@ -27,6 +27,7 @@ import (
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/ifstate"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -140,6 +141,14 @@ func (r *Router) setupNewContext(config *conf.Conf) error {
 	// Start external output functions.
 	for _, s := range ctx.ExtSockOut {
 		s.Start()
+	}
+	// Clean-up interface state infos that are not present anymore.
+	if oldCtx != nil {
+		for ifID := range oldCtx.Conf.Topo.IFInfoMap {
+			if _, ok := ctx.Conf.Topo.IFInfoMap[ifID]; !ok {
+				ifstate.DeleteState(ifID)
+			}
+		}
 	}
 	return nil
 }

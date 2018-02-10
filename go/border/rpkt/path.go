@@ -94,17 +94,15 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 			"ifid", *ifid,
 		)
 	}
-	ifstate.S.RLock()
-	info, ok := ifstate.S.M[*ifid]
-	ifstate.S.RUnlock()
-	if !ok || info.Info.Active || rp.DirTo == rcmn.DirSelf {
+	state, ok := ifstate.LoadState(*ifid)
+	if !ok || state.Active || rp.DirTo == rcmn.DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
 		// router, in which case revocations are ignored to allow communication
 		// with the router.
 		return nil
 	}
 	// Interface is revoked.
-	revInfo := info.Info.RevInfo
+	revInfo := state.RevInfo
 	if revInfo == nil {
 		rp.Warn("No RevInfo for revoked interface", "ifid", *ifid)
 		return nil
@@ -113,12 +111,13 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	if !crypto.VerifyHashTreeEpoch(revInfo.Epoch) {
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
-		ifstate.Activate(*ifid)
+		newState := ifstate.NewInfo(*ifid, true, nil, nil)
+		ifstate.UpdateIfNew(*ifid, state, newState)
 		return nil
 	}
 	sinfo := scmp.NewInfoRevocation(
 		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
-		rp.DirFrom == rcmn.DirExternal, info.RawRev)
+		rp.DirFrom == rcmn.DirExternal, state.RawRev)
 	return common.NewBasicError(
 		errIntfRevoked,
 		scmp.NewError(scmp.C_Path, scmp.T_P_RevokedIF, sinfo, nil),
