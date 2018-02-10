@@ -41,9 +41,11 @@ const (
 )
 
 var (
-	extConn    *snet.Conn
-	tunIO      io.ReadWriteCloser
-	freeFrames *ringbuf.Ring
+	extConn            *snet.Conn
+	tunIO              io.ReadWriteCloser
+	freeFrames         *ringbuf.Ring
+	pktsSentCounters   map[mgmt.SessionType]metrics.CtrPair
+	framesRecvCounters map[mgmt.SessionType]metrics.CtrPair
 )
 
 // Dispatcher reads new encapsulated packets, classifies the packet by
@@ -58,6 +60,8 @@ func Init() error {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
+	pktsSentCounters = make(map[mgmt.SessionType]metrics.CtrPair)
+	framesRecvCounters = make(map[mgmt.SessionType]metrics.CtrPair)
 	d := &Dispatcher{
 		laddr:   sigcmn.EncapSnetAddr(),
 		workers: make(map[string]*Worker),
@@ -92,9 +96,20 @@ func (d *Dispatcher) read() {
 				frame.Release()
 			} else {
 				frame.frameLen = read
+				frame.sessId = mgmt.SessionType((frame.raw[0]))
 				d.dispatch(frame, src)
-				metrics.FramesRecv.WithLabelValues(src.IA.String()).Inc()
-				metrics.FrameBytesRecv.WithLabelValues(src.IA.String()).Add(float64(read))
+				counters, ok := framesRecvCounters[frame.sessId]
+				if !ok {
+					counters = metrics.CtrPair{
+						Pkts: metrics.FramesRecv.WithLabelValues(
+							src.IA.String(), frame.sessId.String()),
+						Bytes: metrics.FrameBytesRecv.WithLabelValues(
+							src.IA.String(), frame.sessId.String()),
+					}
+					framesRecvCounters[frame.sessId] = counters
+				}
+				counters.Pkts.Inc()
+				counters.Bytes.Add(float64(read))
 			}
 			// Clear FrameBuf reference
 			frames[i] = nil
@@ -109,12 +124,11 @@ func (d *Dispatcher) read() {
 // dispatch dispatches a frame to the corresponding worker, spawning one if none
 // exist yet. Dispatching is done based on source ISD-AS -> source host Addr -> Sess Id.
 func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
-	sessId := mgmt.SessionType((frame.raw[0]))
-	dispatchStr := fmt.Sprintf("%s/%s/%s", src.IA, src.Host, sessId)
+	dispatchStr := fmt.Sprintf("%s/%s/%s", src.IA, src.Host, frame.sessId)
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]
 	if !ok {
-		worker = NewWorker(src, sessId)
+		worker = NewWorker(src, frame.sessId)
 		d.workers[dispatchStr] = worker
 		go worker.Run()
 	}

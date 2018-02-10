@@ -54,8 +54,8 @@ var (
 func Init(elem string) {
 	namespace := "sig"
 	constLabels := prometheus.Labels{"elem": elem}
-	intfLabels := []string{"intf"}
-	iaLabels := []string{"IA"}
+	intfLabels := []string{"intf", "sessId"}
+	iaLabels := []string{"IA", "sessId"}
 
 	// Some closures to reduce boiler-plate.
 	newC := func(name, help string) prometheus.Counter {
@@ -102,4 +102,10 @@ func Start() error {
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
 	go http.Serve(ln, nil)
 	return nil
+}
+
+// CtrPair is a pair of counters, one for packets and one for bytes.
+type CtrPair struct {
+	Pkts  prometheus.Counter
+	Bytes prometheus.Counter
 }

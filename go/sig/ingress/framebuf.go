@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -32,6 +33,8 @@ const (
 // FrameBuf is a struct used to reassemble encapsulated packets spread over
 // multiple SIG frames. It contains the raw bytes and metadata needed for reassembly.
 type FrameBuf struct {
+	// Session Id of the frame.
+	sessId mgmt.SessionType
 	// Sequence number of the frame.
 	seqNr int
 	// Index of the frame.
@@ -66,6 +69,7 @@ func NewFrameBuf() *FrameBuf {
 
 // Reset resets the metadata of a FrameBuf.
 func (fb *FrameBuf) Reset() {
+	fb.sessId = 0
 	fb.seqNr = -1
 	fb.index = -1
 	fb.frameLen = 0
@@ -101,7 +105,7 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 		// We got everything for the packet. Write it out to the wire.
 		//log.Debug("ProcessCompletePkts: directly write pkt", "seqNr", fb.seqNr,
 		//	"offset", offset, "len", pktLen)
-		if err := send(rawPkt[:pktLen]); err != nil {
+		if err := send(rawPkt[:pktLen], fb.sessId); err != nil {
 			log.Error("Unable to send packet", "err", err)
 		}
 		offset += pktLen

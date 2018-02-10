@@ -18,6 +18,8 @@ import (
 	"io"
 	"os"
 
+	"github.com/scionproto/scion/go/sig/mgmt"
+
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -45,17 +47,19 @@ func Init() {
 
 type egressDispatcher struct {
 	log.Logger
-	devName string
-	devIO   io.ReadWriteCloser
-	sess    *Session
+	devName          string
+	devIO            io.ReadWriteCloser
+	sess             *Session
+	pktsRecvCounters map[mgmt.SessionType]metrics.CtrPair
 }
 
 func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egressDispatcher {
 	return &egressDispatcher{
-		Logger:  log.New("dev", devName),
-		devName: devName,
-		devIO:   devIO,
-		sess:    sess,
+		Logger:           log.New("dev", devName),
+		devName:          devName,
+		devIO:            devIO,
+		sess:             sess,
+		pktsRecvCounters: make(map[mgmt.SessionType]metrics.CtrPair),
 	}
 }
 
@@ -63,8 +67,6 @@ func (ed *egressDispatcher) Run() {
 	defer liblog.LogPanicAndExit()
 	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
-	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
-	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
 BatchLoop:
 	for {
 		n, _ := egressFreePkts.Read(bufs, true)
@@ -103,8 +105,16 @@ BatchLoop:
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
-			pktsRecv.Inc()
-			pktBytesRecv.Add(float64(length))
+			counters, ok := ed.pktsRecvCounters[sess.SessId]
+			if !ok {
+				counters = metrics.CtrPair{
+					Pkts:  metrics.PktsSent.WithLabelValues(ed.devName, sess.SessId.String()),
+					Bytes: metrics.PktBytesSent.WithLabelValues(ed.devName, sess.SessId.String()),
+				}
+				ed.pktsRecvCounters[sess.SessId] = counters
+			}
+			counters.Pkts.Inc()
+			counters.Bytes.Add(float64(length))
 		}
 	}
 	ed.Info("EgressDispatcher: stopping")
