@@ -19,6 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/util"
@@ -33,6 +34,8 @@ const (
 // FrameBuf is a struct used to reassemble encapsulated packets spread over
 // multiple SIG frames. It contains the raw bytes and metadata needed for reassembly.
 type FrameBuf struct {
+	// remoteIA is the sender IA for this frame.
+	remoteIA *addr.ISD_AS
 	// Session Id of the frame.
 	sessId mgmt.SessionType
 	// Sequence number of the frame.
@@ -69,6 +72,7 @@ func NewFrameBuf() *FrameBuf {
 
 // Reset resets the metadata of a FrameBuf.
 func (fb *FrameBuf) Reset() {
+	fb.remoteIA = nil
 	fb.sessId = 0
 	fb.seqNr = -1
 	fb.index = -1
@@ -105,7 +109,8 @@ func (fb *FrameBuf) ProcessCompletePkts() {
 		// We got everything for the packet. Write it out to the wire.
 		//log.Debug("ProcessCompletePkts: directly write pkt", "seqNr", fb.seqNr,
 		//	"offset", offset, "len", pktLen)
-		if err := send(rawPkt[:pktLen], fb.sessId); err != nil {
+		key := metricKey{fb.remoteIA.IAInt(), fb.sessId}
+		if err := send(rawPkt[:pktLen], key); err != nil {
 			log.Error("Unable to send packet", "err", err)
 		}
 		offset += pktLen

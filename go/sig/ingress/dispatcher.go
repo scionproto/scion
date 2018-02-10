@@ -22,6 +22,7 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -44,9 +45,14 @@ var (
 	extConn            *snet.Conn
 	tunIO              io.ReadWriteCloser
 	freeFrames         *ringbuf.Ring
-	pktsSentCounters   map[mgmt.SessionType]metrics.CtrPair
-	framesRecvCounters map[mgmt.SessionType]metrics.CtrPair
+	pktsSentCounters   map[metricKey]metrics.CtrPair
+	framesRecvCounters map[metricKey]metrics.CtrPair
 )
+
+type metricKey struct {
+	RemoteIA addr.IAInt
+	SessId   mgmt.SessionType
+}
 
 // Dispatcher reads new encapsulated packets, classifies the packet by
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
@@ -60,8 +66,8 @@ func Init() error {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
-	pktsSentCounters = make(map[mgmt.SessionType]metrics.CtrPair)
-	framesRecvCounters = make(map[mgmt.SessionType]metrics.CtrPair)
+	pktsSentCounters = make(map[metricKey]metrics.CtrPair)
+	framesRecvCounters = make(map[metricKey]metrics.CtrPair)
 	d := &Dispatcher{
 		laddr:   sigcmn.EncapSnetAddr(),
 		workers: make(map[string]*Worker),
@@ -96,8 +102,10 @@ func (d *Dispatcher) read() {
 				frame.Release()
 			} else {
 				frame.frameLen = read
+				frame.remoteIA = src.IA
 				frame.sessId = mgmt.SessionType((frame.raw[0]))
-				counters, ok := framesRecvCounters[frame.sessId]
+				key := metricKey{src.IA.IAInt(), frame.sessId}
+				counters, ok := framesRecvCounters[key]
 				if !ok {
 					counters = metrics.CtrPair{
 						Pkts: metrics.FramesRecv.WithLabelValues(
@@ -105,7 +113,7 @@ func (d *Dispatcher) read() {
 						Bytes: metrics.FrameBytesRecv.WithLabelValues(
 							src.IA.String(), frame.sessId.String()),
 					}
-					framesRecvCounters[frame.sessId] = counters
+					framesRecvCounters[key] = counters
 				}
 				counters.Pkts.Inc()
 				counters.Bytes.Add(float64(read))
