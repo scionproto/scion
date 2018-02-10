@@ -64,7 +64,7 @@ func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 
 func (w *Worker) Stop() {
 	defer liblog.LogPanicAndExit()
-	delete(pktsSentCounters, w.SessId)
+	delete(pktsSentCounters, metricKey{w.Remote.IA.IAInt(), w.SessId})
 	w.Ring.Close()
 }
 
@@ -142,19 +142,21 @@ func (w *Worker) cleanup() {
 	}
 }
 
-func send(packet common.RawBytes, sessId mgmt.SessionType) error {
+func send(packet common.RawBytes, key metricKey) error {
 	bytesWritten, err := tunIO.Write(packet)
 	if err != nil {
 		return common.NewBasicError("Unable to write to internal ingress", err,
 			"length", len(packet))
 	}
-	counters, ok := pktsSentCounters[sessId]
+	counters, ok := pktsSentCounters[key]
 	if !ok {
 		counters = metrics.CtrPair{
-			Pkts:  metrics.PktsSent.WithLabelValues(tunDevName, sessId.String()),
-			Bytes: metrics.PktBytesSent.WithLabelValues(tunDevName, sessId.String()),
+			Pkts: metrics.PktsSent.WithLabelValues(key.RemoteIA.IA().String(),
+				key.SessId.String()),
+			Bytes: metrics.PktBytesSent.WithLabelValues(key.RemoteIA.IA().String(),
+				key.SessId.String()),
 		}
-		pktsSentCounters[sessId] = counters
+		pktsSentCounters[key] = counters
 	}
 	counters.Pkts.Inc()
 	counters.Bytes.Add(float64(bytesWritten))

@@ -18,15 +18,15 @@ import (
 	"io"
 	"os"
 
-	"github.com/scionproto/scion/go/sig/mgmt"
-
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -39,6 +39,11 @@ var (
 	egressFreePkts *ringbuf.Ring
 )
 
+type metricKey struct {
+	RemoteIA addr.IAInt
+	SessId   mgmt.SessionType
+}
+
 func Init() {
 	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
 		return make(common.RawBytes, common.MaxMTU)
@@ -50,7 +55,7 @@ type egressDispatcher struct {
 	devName          string
 	devIO            io.ReadWriteCloser
 	sess             *Session
-	pktsRecvCounters map[mgmt.SessionType]metrics.CtrPair
+	pktsRecvCounters map[metricKey]metrics.CtrPair
 }
 
 func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egressDispatcher {
@@ -59,7 +64,7 @@ func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egr
 		devName:          devName,
 		devIO:            devIO,
 		sess:             sess,
-		pktsRecvCounters: make(map[mgmt.SessionType]metrics.CtrPair),
+		pktsRecvCounters: make(map[metricKey]metrics.CtrPair),
 	}
 }
 
@@ -105,13 +110,15 @@ BatchLoop:
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
-			counters, ok := ed.pktsRecvCounters[sess.SessId]
+			key := metricKey{sess.IA.IAInt(), sess.SessId}
+			counters, ok := ed.pktsRecvCounters[key]
 			if !ok {
 				counters = metrics.CtrPair{
-					Pkts:  metrics.PktsSent.WithLabelValues(ed.devName, sess.SessId.String()),
-					Bytes: metrics.PktBytesSent.WithLabelValues(ed.devName, sess.SessId.String()),
+					Pkts: metrics.PktsRecv.WithLabelValues(sess.IA.String(), sess.SessId.String()),
+					Bytes: metrics.PktBytesRecv.WithLabelValues(sess.IA.String(),
+						sess.SessId.String()),
 				}
-				ed.pktsRecvCounters[sess.SessId] = counters
+				ed.pktsRecvCounters[key] = counters
 			}
 			counters.Pkts.Inc()
 			counters.Bytes.Add(float64(length))

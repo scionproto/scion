@@ -54,7 +54,6 @@ var (
 func Init(elem string) {
 	namespace := "sig"
 	constLabels := prometheus.Labels{"elem": elem}
-	intfLabels := []string{"intf", "sessId"}
 	iaLabels := []string{"IA", "sessId"}
 
 	// Some closures to reduce boiler-plate.
@@ -69,10 +68,10 @@ func Init(elem string) {
 		return v
 	}
 	// FIXME(kormat): these metrics should probably have more informative labels
-	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", intfLabels)
-	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", intfLabels)
-	PktBytesRecv = newCVec("pkt_bytes_recv_total", "Number of packet bytes received.", intfLabels)
-	PktBytesSent = newCVec("pkt_bytes_sent_total", "Number of packet bytes sent.", intfLabels)
+	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)
+	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", iaLabels)
+	PktBytesRecv = newCVec("pkt_bytes_recv_total", "Number of packet bytes received.", iaLabels)
+	PktBytesSent = newCVec("pkt_bytes_sent_total", "Number of packet bytes sent.", iaLabels)
 	FramesRecv = newCVec("frames_recv_total", "Number of frames received.", iaLabels)
 	FramesSent = newCVec("frames_sent_total", "Number of frames sent.", iaLabels)
 	FrameBytesRecv = newCVec("frame_bytes_recv_total", "Number of frame bytes received.", iaLabels)
