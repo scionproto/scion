@@ -22,44 +22,44 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var _ common.Extension = (*Traceroute)(nil)
+var _ common.Extension = (*RecordPath)(nil)
 
 const (
-	TracerouteEntryLen = 8
+	RecordPathEntryLen = 8
 )
 
-type Traceroute struct {
-	Hops []*TracerouteEntry
+type RecordPath struct {
+	Hops []*RecordPathEntry
 }
 
-func NewTraceroute(totalHops int) *Traceroute {
-	t := &Traceroute{}
-	t.Hops = make([]*TracerouteEntry, 0, totalHops)
+func NewRecordPath(totalHops int) *RecordPath {
+	t := &RecordPath{}
+	t.Hops = make([]*RecordPathEntry, 0, totalHops)
 	return t
 }
 
-func (t *Traceroute) NumHops() int {
+func (t *RecordPath) NumHops() int {
 	return len(t.Hops)
 }
 
-func (t *Traceroute) TotalHops() int {
+func (t *RecordPath) TotalHops() int {
 	return int(cap(t.Hops))
 }
 
-func (t *Traceroute) Write(b common.RawBytes) error {
+func (t *RecordPath) Write(b common.RawBytes) error {
 	if len(b) < t.Len() {
-		return common.NewBasicError("Buffer too short", nil, "method", "Traceroute.Write")
+		return common.NewBasicError("Buffer too short", nil, "method", "RecordPath.Write")
 	}
 	b[0] = uint8(t.NumHops())
 	offset := common.ExtnSubHdrLen
 	for _, h := range t.Hops {
 		h.Write(b[offset:])
-		offset += TracerouteEntryLen
+		offset += RecordPathEntryLen
 	}
 	return nil
 }
 
-func (t *Traceroute) Pack() (common.RawBytes, error) {
+func (t *RecordPath) Pack() (common.RawBytes, error) {
 	b := make(common.RawBytes, t.Len())
 	if err := t.Write(b); err != nil {
 		return nil, err
@@ -67,34 +67,34 @@ func (t *Traceroute) Pack() (common.RawBytes, error) {
 	return b, nil
 }
 
-func (t *Traceroute) Copy() common.Extension {
-	c := NewTraceroute(t.TotalHops())
+func (t *RecordPath) Copy() common.Extension {
+	c := NewRecordPath(t.TotalHops())
 	for _, h := range t.Hops {
 		c.Hops = append(c.Hops, h.Copy())
 	}
 	return c
 }
 
-func (t *Traceroute) Reverse() (bool, error) {
+func (t *RecordPath) Reverse() (bool, error) {
 	// Nothing to do.
 	return true, nil
 }
 
-func (t *Traceroute) Len() int {
+func (t *RecordPath) Len() int {
 	return common.ExtnFirstLineLen + t.TotalHops()*common.LineLen
 }
 
-func (t *Traceroute) Class() common.L4ProtocolType {
+func (t *RecordPath) Class() common.L4ProtocolType {
 	return common.HopByHopClass
 }
 
-func (t *Traceroute) Type() common.ExtnType {
-	return common.ExtnTracerouteType
+func (t *RecordPath) Type() common.ExtnType {
+	return common.ExtnRecordPathType
 }
 
-func (t *Traceroute) String() string {
+func (t *RecordPath) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "Traceroute (%dB): Hops filled/total: %d/%d\n",
+	fmt.Fprintf(buf, "RecordPath (%dB): Hops filled/total: %d/%d\n",
 		t.Len(), t.NumHops(), t.TotalHops())
 	for i, h := range t.Hops {
 		fmt.Fprintf(buf, "  %d. %v\n", i, h)
@@ -102,17 +102,17 @@ func (t *Traceroute) String() string {
 	return buf.String()
 }
 
-type TracerouteEntry struct {
+type RecordPathEntry struct {
 	IA        addr.IA
 	IfID      uint16
 	TimeStamp uint16
 }
 
-func (t *TracerouteEntry) Copy() *TracerouteEntry {
-	return &TracerouteEntry{IA: t.IA, IfID: t.IfID, TimeStamp: t.TimeStamp}
+func (t *RecordPathEntry) Copy() *RecordPathEntry {
+	return &RecordPathEntry{IA: t.IA, IfID: t.IfID, TimeStamp: t.TimeStamp}
 }
 
-func (t *TracerouteEntry) Write(b common.RawBytes) {
+func (t *RecordPathEntry) Write(b common.RawBytes) {
 	offset := 0
 	t.IA.Write(b[offset:])
 	offset += addr.IABytes
