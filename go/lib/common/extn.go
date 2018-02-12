@@ -24,7 +24,7 @@ type ExtnType struct {
 }
 
 var (
-	ExtnTracerouteType          = ExtnType{HopByHopClass, 0}
+	ExtnRecordPathType          = ExtnType{HopByHopClass, 0}
 	ExtnSIBRAType               = ExtnType{HopByHopClass, 1}
 	ExtnSCMPType                = ExtnType{HopByHopClass, 2}
 	ExtnOneHopPathType          = ExtnType{HopByHopClass, 3}
@@ -35,8 +35,8 @@ var (
 
 func (e ExtnType) String() string {
 	switch e {
-	case ExtnTracerouteType:
-		return "Traceroute"
+	case ExtnRecordPathType:
+		return "RecordPath"
 	case ExtnSIBRAType:
 		return "SIBRA"
 	case ExtnSCMPType:
