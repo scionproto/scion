@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the router's representation of the Traceroute hop-by-hop
+// This file contains the router's representation of the RecordPath hop-by-hop
 // extension.
 
 package rpkt
@@ -28,10 +28,10 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-var _ rExtension = (*rTraceroute)(nil)
+var _ rExtension = (*rRecordPath)(nil)
 
-// rTraceroute is the router's representation of the Traceroute extension.
-type rTraceroute struct {
+// rRecordPath is the router's representation of the RecordPath extension.
+type rRecordPath struct {
 	rp        *RtrPkt
 	raw       common.RawBytes
 	NumHops   uint8
@@ -41,10 +41,10 @@ type rTraceroute struct {
 
 var errLenMultiple = fmt.Sprintf("Header length isn't a multiple of %dB", common.LineLen)
 
-// rTracerouteFromRaw creates an rTraceroute instance from raw bytes, keeping a
+// rRecordPathFromRaw creates an rRecordPath instance from raw bytes, keeping a
 // reference to the location in the packet's buffer.
-func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, error) {
-	t := &rTraceroute{rp: rp, raw: rp.Raw[start:end]}
+func rRecordPathFromRaw(rp *RtrPkt, start, end int) (*rRecordPath, error) {
+	t := &rRecordPath{rp: rp, raw: rp.Raw[start:end]}
 	t.NumHops = t.raw[0]
 	// Ignore subheader line
 	t.TotalHops = uint8((len(t.raw) - common.ExtnFirstLineLen) / common.LineLen)
@@ -53,7 +53,7 @@ func rTracerouteFromRaw(rp *RtrPkt, start, end int) (*rTraceroute, error) {
 }
 
 // Add creates a new traceroute entry directly to the underlying buffer.
-func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) error {
+func (t *rRecordPath) Add(entry *spkt.RecordPathEntry) error {
 	if t.NumHops == t.TotalHops {
 		return common.NewBasicError("Header already full", nil, "entries", t.NumHops)
 	}
@@ -68,12 +68,12 @@ func (t *rTraceroute) Add(entry *spkt.TracerouteEntry) error {
 }
 
 // Entry parses a specified traceroute entry from the underlying buffer.
-func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, error) {
+func (t *rRecordPath) Entry(idx int) (*spkt.RecordPathEntry, error) {
 	if idx > int(t.NumHops-1) {
 		return nil, common.NewBasicError("Entry index out of range", nil,
 			"idx", idx, "max", t.NumHops-1)
 	}
-	entry := spkt.TracerouteEntry{}
+	entry := spkt.RecordPathEntry{}
 	offset := common.ExtnFirstLineLen + common.LineLen*idx
 	entry.IA = addr.IAFromRaw(t.raw[offset:])
 	offset += addr.IABytes
@@ -83,13 +83,13 @@ func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, error) {
 	return &entry, nil
 }
 
-func (t *rTraceroute) RegisterHooks(h *hooks) error {
+func (t *rRecordPath) RegisterHooks(h *hooks) error {
 	h.Validate = append(h.Validate, t.Validate)
 	h.Process = append(h.Process, t.Process)
 	return nil
 }
 
-func (t *rTraceroute) Validate() (HookResult, error) {
+func (t *rRecordPath) Validate() (HookResult, error) {
 	if (len(t.raw)-common.ExtnFirstLineLen)%common.LineLen != 0 {
 		return HookError, common.NewBasicError(errLenMultiple, nil, "len", len(t.raw))
 	}
@@ -101,10 +101,10 @@ func (t *rTraceroute) Validate() (HookResult, error) {
 }
 
 // Process creates a new entry, and adds it to the underlying buffer.
-func (t *rTraceroute) Process() (HookResult, error) {
+func (t *rRecordPath) Process() (HookResult, error) {
 	// Take the current time in milliseconds, and truncate it to 16bits.
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
-	entry := spkt.TracerouteEntry{
+	entry := spkt.RecordPathEntry{
 		IA: t.rp.Ctx.Conf.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
 	}
 	if err := t.Add(&entry); err != nil {
@@ -115,11 +115,11 @@ func (t *rTraceroute) Process() (HookResult, error) {
 	return HookContinue, nil
 }
 
-// GetExtn returns the spkt.Traceroute representation. The big difference
+// GetExtn returns the spkt.RecordPath representation. The big difference
 // between the two representations is that the latter doesn't have an
-// underlying buffer, so instead it has a slice of TracerouteEntry's.
-func (t *rTraceroute) GetExtn() (common.Extension, error) {
-	s := spkt.NewTraceroute(int(t.TotalHops))
+// underlying buffer, so instead it has a slice of RecordPathEntry's.
+func (t *rRecordPath) GetExtn() (common.Extension, error) {
+	s := spkt.NewRecordPath(int(t.TotalHops))
 	for i := 0; i < int(t.NumHops); i++ {
 		entry, err := t.Entry(i)
 		if err != nil {
@@ -130,23 +130,23 @@ func (t *rTraceroute) GetExtn() (common.Extension, error) {
 	return s, nil
 }
 
-func (t *rTraceroute) Len() int {
+func (t *rRecordPath) Len() int {
 	return len(t.raw)
 }
 
-func (t *rTraceroute) Class() common.L4ProtocolType {
+func (t *rRecordPath) Class() common.L4ProtocolType {
 	return common.HopByHopClass
 }
 
-func (t *rTraceroute) Type() common.ExtnType {
-	return common.ExtnTracerouteType
+func (t *rRecordPath) Type() common.ExtnType {
+	return common.ExtnRecordPathType
 }
 
-func (t *rTraceroute) String() string {
-	// Delegate string representation to spkt.Traceroute
+func (t *rRecordPath) String() string {
+	// Delegate string representation to spkt.RecordPath
 	e, err := t.GetExtn()
 	if err != nil {
-		return fmt.Sprintf("Traceroute: %v", err)
+		return fmt.Sprintf("RecordPath: %v", err)
 	}
 	return e.String()
 }
