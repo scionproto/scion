@@ -51,7 +51,7 @@ from lib.sciond_api.revocation import SCIONDRevReply, SCIONDRevReplyStatus
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry, SCIONDIFInfoRequest
 from lib.sciond_api.base import SCIONDMsg
-from lib.sciond_api.path_meta import FwdPathMeta
+from lib.sciond_api.path_meta import FwdPathMeta, PathInterface
 from lib.sciond_api.path_req import (
     SCIONDPathRequest,
     SCIONDPathReplyError,
@@ -60,8 +60,9 @@ from lib.sciond_api.path_req import (
 )
 from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.sciond_api.segment_req import (
-    SCIONDSegTypeRequest,
     SCIONDSegTypeReply,
+    SCIONDSegTypeReplyEntry,
+    SCIONDSegTypeRequest,
 )
 from lib.sciond_api.service_req import (
     SCIONDServiceInfoReply,
@@ -376,12 +377,25 @@ class SCIONDaemon(SCIONElement):
         elif segmentType == PST.DOWN:
             db = self.down_segments
         else:
-            logging.error("Requesting segment type %s unrecognized.\n%s" % segmentType)
+            logging.error("Requesting segment type %s unrecognized.", segmentType)
 
         seg_entries = []
         for segment in db(full=True):
-            seg_entries.append(segment.p)
-        seg_reply = SCIONDMsg(SCIONDSegTypeReply.from_values(seg_entries), pld.id)
+            if_list = []
+            for asm in segment.iter_asms():
+                isd_as = asm.isd_as()
+                hof = asm.pcbm(0).hof()
+                egress = hof.egress_if
+                ingress = hof.ingress_if
+                if ingress:
+                    if_list.append(PathInterface.from_values(isd_as, ingress))
+                if egress:
+                    if_list.append(PathInterface.from_values(isd_as, egress))
+            reply_entry = SCIONDSegTypeReplyEntry.from_values(
+                if_list, segment.get_timestamp(), segment.get_expiration_time())
+            seg_entries.append(reply_entry)
+        seg_reply = SCIONDMsg(
+            SCIONDSegTypeReply.from_values(seg_entries), pld.id)
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):

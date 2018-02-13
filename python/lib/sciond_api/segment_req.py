@@ -17,10 +17,13 @@
 """
 # External
 import capnp  # noqa
+from datetime import timedelta
 
 # SCION
 import proto.sciond_capnp as P
 from lib.packet.packet_base import Cerealizable
+from lib.sciond_api.path_meta import PathInterface
+from lib.util import iso_timestamp
 
 
 class SCIONDSegTypeRequest(Cerealizable):
@@ -42,15 +45,51 @@ class SCIONDSegTypeReply(Cerealizable):
 
     @classmethod
     def from_values(cls, entries):
-        p = cls.P_CLS.new_message(entries=entries)
+        p = cls.P_CLS.new_message()
+        entry_list = p.init("entries", len(entries))
+        for i, entry in enumerate(entries):
+            entry_list[i] = entry.p
         return cls(p)
 
     def entry(self, idx):
-        return self.p.entries[idx]
+        return SCIONDSegTypeReplyEntry(self.p.entries[idx])
 
     def iter_entries(self):
         for entry in self.p.entries:
-            yield entry
+            yield SCIONDSegTypeReplyEntry(entry)
 
     def short_desc(self):
         return "\n".join([entry.short_desc() for entry in self.iter_entries()])
+
+
+class SCIONDSegTypeReplyEntry(Cerealizable):
+    NAME = "SCIONDSegTypeReplyEntry"
+    P_CLS = P.SegTypeReplyEntry
+
+    @classmethod
+    def from_values(cls, interfaces, timestamp, expTime):
+        p = cls.P_CLS.new_message(timestamp=timestamp, expTime=expTime)
+        ifs = p.init("interfaces", len(interfaces))
+        for i, if_ in enumerate(interfaces):
+            ifs[i] = if_.p
+        return cls(p)
+
+    def iter_ifs(self):
+        for if_ in self.p.interfaces:
+            yield PathInterface(if_)
+
+    def short_desc(self):
+        desc = []
+        remain = self.p.expTime - self.p.timestamp
+        desc.append("%s, %s, " % (iso_timestamp(
+            self.p.timestamp), timedelta(seconds=remain)))
+        desc.append(", ".join([if_.short_desc() for if_ in self.iter_ifs()]))
+        return "".join(desc)
+
+    def __str__(self):
+        desc = ["%s:" % self.NAME]
+        if_str = ", ".join([if_.short_desc() for if_ in self.iter_ifs()])
+        desc.append("  Interfaces: %s " % if_str)
+        desc.append("  Timestamp: %s" % self.p.timestamp)
+        desc.append("  Expiration: %s" % self.p.expTime)
+        return "\n".join(desc)

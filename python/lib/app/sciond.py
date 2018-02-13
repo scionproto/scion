@@ -202,7 +202,7 @@ class SCIONDConnector:
             return self._resolve_ifid(if_id)
         return self._resolve_dst_addr(spkt.addrs.src, spkt.addrs.dst)
 
-    def get_segments(self, seg_type):
+    def get_type_segs(self, seg_type):
         req_id = self._req_id.inc()
         valid_pst = set([PST.CORE, PST.UP, PST.DOWN])
         assert seg_type in valid_pst, 'PathSegmentType %s is unrecognized.' % seg_type
@@ -412,9 +412,9 @@ def send_rev_notification(rev_info, connector=None):  # pragma: no cover
     connector.send_rev_notification(rev_info)
 
 
-def get_segments(seg_type, connector=None):  # pragma: no cover
+def get_type_segs(seg_type, connector=None):  # pragma: no cover
     """
-    Request list of segments used to construct paths.
+    Request list of segments by type used to construct paths.
 
     :param seg_type: The type of PathSegmentType requested.
     :returns: List of SCIONDSegTypeReplyEntry objects.
@@ -424,4 +424,4 @@ def get_segments(seg_type, connector=None):  # pragma: no cover
         connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
-    return connector.get_segments(seg_type)
+    return connector.get_type_segs(seg_type)

@@ -366,8 +366,8 @@ class TestSCIONDConnectorTryCache:
         ntools.eq_(SCIONDConnector._try_cache(cache, key_list), (set(), {1: "a", 2: "b"}))
 
 
-class TestSCIONDConnectorGetSegment(SCIONDConnectorTestBase):
-    """Unit tests for lib.app.sciond.SCIONDConnector.get_segments"""
+class TestSCIONDConnectorGetTypeSegs(SCIONDConnectorTestBase):
+    """Unit tests for lib.app.sciond.SCIONDConnector.get_type_segs"""
 
     def _setup(self):
         return self._setup_connector(
@@ -379,7 +379,7 @@ class TestSCIONDConnectorGetSegment(SCIONDConnectorTestBase):
         connector = self._setup()
         seg_type = PST.CORE
         # Call
-        segments = connector.get_segments(seg_type)
+        segments = connector.get_type_segs(seg_type)
         # Tests
         ntools.eq_(segments, ["segment"])
         sciond_msg.assert_called_once_with(segment_req.return_value, self.REQ_ID)
@@ -391,4 +391,4 @@ class TestSCIONDConnectorGetSegment(SCIONDConnectorTestBase):
         connector = self._setup()
         seg_type = 'unset'
         # Call
-        ntools.assert_raises(AssertionError, connector.get_segments, seg_type)
+        ntools.assert_raises(AssertionError, connector.get_type_segs, seg_type)

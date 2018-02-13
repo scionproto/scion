@@ -122,9 +122,15 @@ struct ServiceInfoReplyEntry {
 }
 
 struct SegTypeReq {
-    type @0 :PSeg.PathSegType;
+    type @0 :PSeg.PathSegType;  # The path segments type: up, down, core.
 }
 
 struct SegTypeReply {
-    entries @0 :List(PSeg.PathSegment);
+    entries @0 :List(SegTypeReplyEntry);  # List of path segments matching type request, if any
+}
+
+struct SegTypeReplyEntry {
+    interfaces @0 :List(PathInterface);  # List of interfaces for the segment
+    timestamp @1 :UInt64;  # Creation timestamp
+    expTime @2 :UInt64;  # Expiration time
 }
