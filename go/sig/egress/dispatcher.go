@@ -21,10 +21,12 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -104,18 +106,7 @@ BatchLoop:
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
-			key := metrics.CtrPairKey{RemoteIA: remoteIAInt, SessId: sess.SessId}
-			counters, ok := ed.pktsRecvCounters[key]
-			if !ok {
-				counters = metrics.CtrPair{
-					Pkts: metrics.PktsRecv.WithLabelValues(sess.IA.String(), sess.SessId.String()),
-					Bytes: metrics.PktBytesRecv.WithLabelValues(sess.IA.String(),
-						sess.SessId.String()),
-				}
-				ed.pktsRecvCounters[key] = counters
-			}
-			counters.Pkts.Inc()
-			counters.Bytes.Add(float64(length))
+			ed.updateMetrics(remoteIAInt, sess.SessId, length)
 		}
 	}
 	ed.Info("EgressDispatcher: stopping")
@@ -123,4 +114,20 @@ BatchLoop:
 
 func (ed *egressDispatcher) chooseSess(b common.RawBytes) *Session {
 	return ed.sess
+}
+
+func (ed *egressDispatcher) updateMetrics(remoteIA addr.IAInt, sessId mgmt.SessionType, read int) {
+	key := metrics.CtrPairKey{RemoteIA: remoteIA, SessId: sessId}
+	counters, ok := ed.pktsRecvCounters[key]
+	if !ok {
+		iaStr := remoteIA.IA().String()
+		counters = metrics.CtrPair{
+			Pkts:  metrics.PktsRecv.WithLabelValues(iaStr, sessId.String()),
+			Bytes: metrics.PktBytesRecv.WithLabelValues(iaStr, sessId.String()),
+		}
+		ed.pktsRecvCounters[key] = counters
+	}
+	counters.Pkts.Inc()
+	counters.Bytes.Add(float64(read))
+
 }

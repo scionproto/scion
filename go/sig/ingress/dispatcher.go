@@ -19,6 +19,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
+
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -95,19 +97,7 @@ func (d *Dispatcher) read() {
 			} else {
 				frame.frameLen = read
 				frame.sessId = mgmt.SessionType((frame.raw[0]))
-				key := metrics.CtrPairKey{RemoteIA: src.IA.IAInt(), SessId: frame.sessId}
-				counters, ok := framesRecvCounters[key]
-				if !ok {
-					counters = metrics.CtrPair{
-						Pkts: metrics.FramesRecv.WithLabelValues(
-							src.IA.String(), frame.sessId.String()),
-						Bytes: metrics.FrameBytesRecv.WithLabelValues(
-							src.IA.String(), frame.sessId.String()),
-					}
-					framesRecvCounters[key] = counters
-				}
-				counters.Pkts.Inc()
-				counters.Bytes.Add(float64(read))
+				updateMetrics(src.IA.IAInt(), frame.sessId, read)
 				d.dispatch(frame, src)
 			}
 			// Clear FrameBuf reference
@@ -145,4 +135,20 @@ func (d *Dispatcher) cleanup() {
 			worker.markedForCleanup = true
 		}
 	}
+}
+
+func updateMetrics(remoteIA addr.IAInt, sessId mgmt.SessionType, read int) {
+	key := metrics.CtrPairKey{RemoteIA: remoteIA, SessId: sessId}
+	counters, ok := framesRecvCounters[key]
+	if !ok {
+		iaStr := remoteIA.IA().String()
+		counters = metrics.CtrPair{
+			Pkts:  metrics.FramesRecv.WithLabelValues(iaStr, sessId.String()),
+			Bytes: metrics.FrameBytesRecv.WithLabelValues(iaStr, sessId.String()),
+		}
+		framesRecvCounters[key] = counters
+	}
+	counters.Pkts.Inc()
+	counters.Bytes.Add(float64(read))
+
 }
