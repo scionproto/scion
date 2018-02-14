@@ -46,8 +46,10 @@ func ParseInfo(b common.RawBytes, ct ClassType) (Info, error) {
 	switch {
 	case ct == ClassType{C_General, T_G_Unspecified}:
 		return InfoString(b), nil
-	case ct.Class == C_General:
+	case ct.Class == C_General && (ct.Type == T_G_EchoRequest || ct.Type == T_G_EchoReply):
 		return InfoEchoFromRaw(b)
+	case ct.Class == C_General && (ct.Type == T_G_RecordPathRequest || ct.Type == T_G_RecordPathReply):
+		return InfoRecordPathFromRaw(b)
 	case ct == ClassType{C_Routing, T_R_OversizePkt} || ct == ClassType{C_CmnHdr, T_C_BadPktLen}:
 		return InfoPktSizeFromRaw(b)
 	case ct == ClassType{C_Path, T_P_PathRequired}:
