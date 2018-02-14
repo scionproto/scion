@@ -55,7 +55,7 @@ var (
 	interval  = flag.Duration("interval", DefaultInterval, "time between packets")
 	timeout   = flag.Duration("timeout", DefaultTimeout, "timeout per packet")
 	count     = flag.Uint("c", 0, "Total number of packet to send (ignored if not echo)")
-	sTypeStr  = &sType
+	sTypeStr  = flag.String("t", "echo", "SCMP Type: echo | rp/recordpath")
 	local     snet.Addr
 	remote    snet.Addr
 	bind      snet.Addr
