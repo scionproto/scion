@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -58,9 +59,11 @@ type scmpCtx struct {
 }
 
 func initSCMP(ctx *scmpCtx, typeStr string, total uint, pathEntry *sciond.PathReplyEntry) {
-	switch typeStr {
-	case "echo":
+	switch {
+	case typeStr == "echo":
 		initEcho(ctx, total)
+	case typeStr == "rp" || typeStr == "recordpath":
+		initRecordPath(ctx, pathEntry)
 	default:
 		fatal("Invalid SCMP type")
 	}
@@ -70,11 +73,28 @@ func initEcho(s *scmpCtx, total uint) {
 	s.recv = 0
 	s.sent = 0
 	s.total = uint64(total)
-	s.infoS = &scmp.InfoEcho{Id: rnd.Uint64(), Seq: 0}
+	// Receive packet
 	s.pktR = &spkt.ScnPkt{}
 	s.ctR = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_EchoReply}
+	// Send packet
+	s.infoS = &scmp.InfoEcho{Id: rnd.Uint64(), Seq: 0}
 	s.pktS = newSCMPPkt(scmp.T_G_EchoRequest, s.infoS, nil)
 	s.ctS = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_EchoRequest}
+}
+
+func initRecordPath(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
+	s.recv = 0
+	s.sent = 0
+	s.total = 1
+	// Receive packet
+	s.pktR = &spkt.ScnPkt{}
+	s.ctR = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathReply}
+	// Send packet
+	ext := &scmp.Extn{Error: false, HopByHop: true}
+	n := uint8(len(pathEntry.Path.Interfaces))
+	s.infoS = &scmp.InfoRecordPath{Id: rnd.Uint64(), NumHops: 0, MaxHops: n}
+	s.pktS = newSCMPPkt(scmp.T_G_RecordPathRequest, s.infoS, ext)
+	s.ctS = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathRequest}
 }
 
 func updatePktTS(s *scmpCtx, ts time.Time) {
@@ -111,6 +131,12 @@ func validatePkt(s *scmpCtx) error {
 			return common.NewBasicError("Not an Info Echo type", nil,
 				"type", common.TypeOf(s.infoR))
 		}
+	case scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathReply}:
+		s.infoR, ok = scmpPld.Info.(*scmp.InfoRecordPath)
+		if ok == false {
+			return common.NewBasicError("Not a Info RecordPath type", nil,
+				"type", common.TypeOf(s.infoR))
+		}
 	}
 	return nil
 }
@@ -118,10 +144,15 @@ func validatePkt(s *scmpCtx) error {
 func prettyPrint(s *scmpCtx, pktLen int, now time.Time) {
 	// Calculate return time
 	scmpHdr := s.pktR.L4.(*scmp.Hdr)
-	rtt := now.UnixNano() - (int64(scmpHdr.Timestamp) * 1000)
+	rtt := float64(now.UnixNano()-(int64(scmpHdr.Timestamp)*1000)) / 1000000
 	switch info := s.infoR.(type) {
 	case *scmp.InfoEcho:
 		fmt.Printf("%d bytes from %s,[%s] scmp_seq=%d time=%.3fms\n",
-			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, info.Seq, float64(rtt)/1000000)
+			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, info.Seq, rtt)
+	case *scmp.InfoRecordPath:
+		str := info.String()
+		i := strings.Index(str, "\n")
+		fmt.Printf("%d bytes from %s,[%s] time=%.3fms%s",
+			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, rtt, str[i:])
 	}
 }
