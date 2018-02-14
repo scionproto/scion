@@ -21,10 +21,12 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/metrics"
+	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -45,17 +47,19 @@ func Init() {
 
 type egressDispatcher struct {
 	log.Logger
-	devName string
-	devIO   io.ReadWriteCloser
-	sess    *Session
+	devName          string
+	devIO            io.ReadWriteCloser
+	sess             *Session
+	pktsRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
 func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egressDispatcher {
 	return &egressDispatcher{
-		Logger:  log.New("dev", devName),
-		devName: devName,
-		devIO:   devIO,
-		sess:    sess,
+		Logger:           log.New("dev", devName),
+		devName:          devName,
+		devIO:            devIO,
+		sess:             sess,
+		pktsRecvCounters: make(map[metrics.CtrPairKey]metrics.CtrPair),
 	}
 }
 
@@ -63,8 +67,7 @@ func (ed *egressDispatcher) Run() {
 	defer liblog.LogPanicAndExit()
 	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
-	pktsRecv := metrics.PktsRecv.WithLabelValues(ed.devName)
-	pktBytesRecv := metrics.PktBytesRecv.WithLabelValues(ed.devName)
+	remoteIAInt := ed.sess.IA.IAInt()
 BatchLoop:
 	for {
 		n, _ := egressFreePkts.Read(bufs, true)
@@ -103,8 +106,7 @@ BatchLoop:
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
-			pktsRecv.Inc()
-			pktBytesRecv.Add(float64(length))
+			ed.updateMetrics(remoteIAInt, sess.SessId, length)
 		}
 	}
 	ed.Info("EgressDispatcher: stopping")
@@ -112,4 +114,20 @@ BatchLoop:
 
 func (ed *egressDispatcher) chooseSess(b common.RawBytes) *Session {
 	return ed.sess
+}
+
+func (ed *egressDispatcher) updateMetrics(remoteIA addr.IAInt, sessId mgmt.SessionType, read int) {
+	key := metrics.CtrPairKey{RemoteIA: remoteIA, SessId: sessId}
+	counters, ok := ed.pktsRecvCounters[key]
+	if !ok {
+		iaStr := remoteIA.IA().String()
+		counters = metrics.CtrPair{
+			Pkts:  metrics.PktsRecv.WithLabelValues(iaStr, sessId.String()),
+			Bytes: metrics.PktBytesRecv.WithLabelValues(iaStr, sessId.String()),
+		}
+		ed.pktsRecvCounters[key] = counters
+	}
+	counters.Pkts.Inc()
+	counters.Bytes.Add(float64(read))
+
 }

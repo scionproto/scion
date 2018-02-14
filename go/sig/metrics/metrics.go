@@ -27,9 +27,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")
@@ -54,8 +56,7 @@ var (
 func Init(elem string) {
 	namespace := "sig"
 	constLabels := prometheus.Labels{"elem": elem}
-	intfLabels := []string{"intf"}
-	iaLabels := []string{"IA"}
+	iaLabels := []string{"IA", "sessId"}
 
 	// Some closures to reduce boiler-plate.
 	newC := func(name, help string) prometheus.Counter {
@@ -69,10 +70,10 @@ func Init(elem string) {
 		return v
 	}
 	// FIXME(kormat): these metrics should probably have more informative labels
-	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", intfLabels)
-	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", intfLabels)
-	PktBytesRecv = newCVec("pkt_bytes_recv_total", "Number of packet bytes received.", intfLabels)
-	PktBytesSent = newCVec("pkt_bytes_sent_total", "Number of packet bytes sent.", intfLabels)
+	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)
+	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", iaLabels)
+	PktBytesRecv = newCVec("pkt_bytes_recv_total", "Number of packet bytes received.", iaLabels)
+	PktBytesSent = newCVec("pkt_bytes_sent_total", "Number of packet bytes sent.", iaLabels)
 	FramesRecv = newCVec("frames_recv_total", "Number of frames received.", iaLabels)
 	FramesSent = newCVec("frames_sent_total", "Number of frames sent.", iaLabels)
 	FrameBytesRecv = newCVec("frame_bytes_recv_total", "Number of frame bytes received.", iaLabels)
@@ -102,4 +103,15 @@ func Start() error {
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
 	go http.Serve(ln, nil)
 	return nil
+}
+
+// CtrPair is a pair of counters, one for packets and one for bytes.
+type CtrPair struct {
+	Pkts  prometheus.Counter
+	Bytes prometheus.Counter
+}
+
+type CtrPairKey struct {
+	RemoteIA addr.IAInt
+	SessId   mgmt.SessionType
 }

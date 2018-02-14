@@ -35,14 +35,19 @@ const (
 	rlistCleanUpInterval = 1 * time.Second
 )
 
+type sender interface {
+	send(common.RawBytes) error
+}
+
 // Worker handles decapsulation of SIG frames.
 type Worker struct {
 	log.Logger
 	Remote           *snet.Addr
 	SessId           mgmt.SessionType
 	Ring             *ringbuf.Ring
-	reassemblyLists  map[int]*ReassemblyList
+	rlists           map[int]*ReassemblyList
 	markedForCleanup bool
+	sentCtrs         metrics.CtrPair
 }
 
 func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
@@ -53,11 +58,17 @@ func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 		"ringId": remote.IA.String(), "sessId": sessId.String(),
 	}
 	worker := &Worker{
-		Logger:          log.New("ingress", remote.String(), "sessId", sessId),
-		Remote:          remote,
-		SessId:          sessId,
-		Ring:            ringbuf.New(64, nil, "ingress", ringLabels),
-		reassemblyLists: make(map[int]*ReassemblyList),
+		Logger: log.New("ingress", remote.String(), "sessId", sessId),
+		Remote: remote,
+		SessId: sessId,
+		Ring:   ringbuf.New(64, nil, "ingress", ringLabels),
+		rlists: make(map[int]*ReassemblyList),
+		sentCtrs: metrics.CtrPair{
+			Pkts: metrics.PktsSent.WithLabelValues(remote.IA.String(),
+				sessId.String()),
+			Bytes: metrics.PktBytesSent.WithLabelValues(remote.IA.String(),
+				sessId.String()),
+		},
 	}
 	return worker
 }
@@ -102,6 +113,7 @@ func (w *Worker) processFrame(frame *FrameBuf) {
 	index := int(common.Order.Uint16(frame.raw[6:8]))
 	frame.seqNr = seqNr
 	frame.index = index
+	frame.snd = w
 	//w.Debug("Received Frame", "seqNr", seqNr, "index", index, "epoch", epoch,
 	//	"len", frame.frameLen)
 	// If index == 1 then we can be sure that there is no fragment at the beginning
@@ -111,27 +123,27 @@ func (w *Worker) processFrame(frame *FrameBuf) {
 	// frame.
 	frame.completePktsProcessed = index == 0
 	// Add to frame buf reassembly list.
-	rlist := w.getReassemblyList(epoch)
+	rlist := w.getRlist(epoch)
 	rlist.Insert(frame)
 }
 
-func (w *Worker) getReassemblyList(epoch int) *ReassemblyList {
-	rlist, ok := w.reassemblyLists[epoch]
+func (w *Worker) getRlist(epoch int) *ReassemblyList {
+	rlist, ok := w.rlists[epoch]
 	if !ok {
-		rlist = NewReassemblyList(epoch, reassemblyListCap)
-		w.reassemblyLists[epoch] = rlist
+		rlist = NewReassemblyList(epoch, reassemblyListCap, w)
+		w.rlists[epoch] = rlist
 	}
 	rlist.markedForDeletion = false
 	return rlist
 }
 
 func (w *Worker) cleanup() {
-	for epoch, rlist := range w.reassemblyLists {
+	for epoch, rlist := range w.rlists {
 		if rlist.markedForDeletion {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
 			// Remove the reassembly list from the map and then release all frames
 			// back to the bufpool.
-			delete(w.reassemblyLists, epoch)
+			delete(w.rlists, epoch)
 			go rlist.removeAll()
 		} else {
 			// Mark the reassembly list for deletion. If it is not accessed between now
@@ -141,13 +153,13 @@ func (w *Worker) cleanup() {
 	}
 }
 
-func send(packet common.RawBytes) error {
+func (w *Worker) send(packet common.RawBytes) error {
 	bytesWritten, err := tunIO.Write(packet)
 	if err != nil {
 		return common.NewBasicError("Unable to write to internal ingress", err,
 			"length", len(packet))
 	}
-	metrics.PktsSent.WithLabelValues(tunDevName).Inc()
-	metrics.PktBytesSent.WithLabelValues(tunDevName).Add(float64(bytesWritten))
+	w.sentCtrs.Pkts.Inc()
+	w.sentCtrs.Bytes.Add(float64(bytesWritten))
 	return nil
 }

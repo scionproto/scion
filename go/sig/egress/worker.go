@@ -61,6 +61,7 @@ type worker struct {
 	sess          *Session
 	currSig       *siginfo.Sig
 	currPathEntry *sciond.PathReplyEntry
+	frameSentCtrs metrics.CtrPair
 
 	epoch uint16
 	seq   uint32
@@ -72,7 +73,11 @@ func NewWorker(sess *Session, logger log.Logger) *worker {
 		Logger:   logger,
 		iaString: sess.IA.String(),
 		sess:     sess,
-		pkts:     make(ringbuf.EntryList, 0, egressBufPkts),
+		frameSentCtrs: metrics.CtrPair{
+			Pkts:  metrics.FramesSent.WithLabelValues(sess.IA.String(), sess.SessId.String()),
+			Bytes: metrics.FrameBytesSent.WithLabelValues(sess.IA.String(), sess.SessId.String()),
+		},
+		pkts: make(ringbuf.EntryList, 0, egressBufPkts),
 	}
 }
 
@@ -182,8 +187,8 @@ func (w *worker) write(f *frame) error {
 	if err != nil {
 		return common.NewBasicError("Egress write error", err)
 	}
-	metrics.FramesSent.WithLabelValues(w.iaString).Inc()
-	metrics.FrameBytesSent.WithLabelValues(w.iaString).Add(float64(bytesWritten))
+	w.frameSentCtrs.Pkts.Inc()
+	w.frameSentCtrs.Bytes.Add(float64(bytesWritten))
 	return nil
 }
 
