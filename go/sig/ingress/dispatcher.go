@@ -22,7 +22,6 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -45,13 +44,8 @@ var (
 	extConn            *snet.Conn
 	tunIO              io.ReadWriteCloser
 	freeFrames         *ringbuf.Ring
-	framesRecvCounters map[metricKey]metrics.CtrPair
+	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 )
-
-type metricKey struct {
-	RemoteIA addr.IAInt
-	SessId   mgmt.SessionType
-}
 
 // Dispatcher reads new encapsulated packets, classifies the packet by
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
@@ -65,7 +59,7 @@ func Init() error {
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
-	framesRecvCounters = make(map[metricKey]metrics.CtrPair)
+	framesRecvCounters = make(map[metrics.CtrPairKey]metrics.CtrPair)
 	d := &Dispatcher{
 		laddr:   sigcmn.EncapSnetAddr(),
 		workers: make(map[string]*Worker),
@@ -101,7 +95,7 @@ func (d *Dispatcher) read() {
 			} else {
 				frame.frameLen = read
 				frame.sessId = mgmt.SessionType((frame.raw[0]))
-				key := metricKey{src.IA.IAInt(), frame.sessId}
+				key := metrics.CtrPairKey{RemoteIA: src.IA.IAInt(), SessId: frame.sessId}
 				counters, ok := framesRecvCounters[key]
 				if !ok {
 					counters = metrics.CtrPair{

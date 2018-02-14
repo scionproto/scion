@@ -21,12 +21,10 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/metrics"
-	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
 const (
@@ -39,11 +37,6 @@ var (
 	egressFreePkts *ringbuf.Ring
 )
 
-type metricKey struct {
-	RemoteIA addr.IAInt
-	SessId   mgmt.SessionType
-}
-
 func Init() {
 	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
 		return make(common.RawBytes, common.MaxMTU)
@@ -55,7 +48,7 @@ type egressDispatcher struct {
 	devName          string
 	devIO            io.ReadWriteCloser
 	sess             *Session
-	pktsRecvCounters map[metricKey]metrics.CtrPair
+	pktsRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
 func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egressDispatcher {
@@ -64,7 +57,7 @@ func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egr
 		devName:          devName,
 		devIO:            devIO,
 		sess:             sess,
-		pktsRecvCounters: make(map[metricKey]metrics.CtrPair),
+		pktsRecvCounters: make(map[metrics.CtrPairKey]metrics.CtrPair),
 	}
 }
 
@@ -72,6 +65,7 @@ func (ed *egressDispatcher) Run() {
 	defer liblog.LogPanicAndExit()
 	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
+	remoteIAInt := ed.sess.IA.IAInt()
 BatchLoop:
 	for {
 		n, _ := egressFreePkts.Read(bufs, true)
@@ -110,7 +104,7 @@ BatchLoop:
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
-			key := metricKey{sess.IA.IAInt(), sess.SessId}
+			key := metrics.CtrPairKey{RemoteIA: remoteIAInt, SessId: sess.SessId}
 			counters, ok := ed.pktsRecvCounters[key]
 			if !ok {
 				counters = metrics.CtrPair{
