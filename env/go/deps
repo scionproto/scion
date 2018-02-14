@@ -35,20 +35,20 @@ go_install() {
     local src sum
     case "$(uname -m)" in
         x86_64)
-            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz
-            sum=de874549d9a8d8d8062be05808509c09a88a248e77ec14eb77453530829ac02b
+            src=https://dl.google.com/go/go1.9.4.linux-amd64.tar.gz
+            sum=15b0937615809f87321a457bb1265f946f9f6e736c563d6c5e0bd2c22e44f779
             ;;
         i?86)
-            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-386.tar.gz
-            sum=574b2c4b1a248e58ef7d1f825beda15429610a2316d9cbd3096d8d3fa8c0bc1a
+            src=https://dl.google.com/go/go1.9.4.linux-386.tar.gz
+            sum=d440aee90dad851630559bcee2b767b543ce7e54f45162908f3e12c3489888ab
             ;;
         arm*)
-            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-armv6l.tar.gz
-            sum=8a6758c8d390e28ef2bcea511f62dcb43056f38c1addc06a8bc996741987e7bb
+            src=https://dl.google.com/go/go1.9.4.linux-armv6l.tar.gz
+            sum=3c8cf3f79754a9fd6b33e2d8f930ee37d488328d460065992c72bc41c7b41a49
             ;;
         aarch64)
-            src=https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-arm64.tar.gz
-            sum=0016ac65ad8340c84f51bc11dbb24ee8265b0a4597dbfdf8d91776fc187456fa
+            src=https://dl.google.com/go/go1.9.4.linux-arm64.tar.gz
+            sum=41a71231e99ccc9989867dce2fcb697921a68ede0bd06fc288ab6c2f56be8864
             ;;
         *)
             echo "ERROR: unsupported architecture '$(uname -m)'"
