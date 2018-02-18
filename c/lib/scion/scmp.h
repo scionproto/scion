@@ -35,61 +35,111 @@ typedef struct {
     void *l4hdr;
 } SCMPPayload;
 
+#define MAX_SCMP_CLASS_TYPE_STR 50
+
+#define foreach_scmp_class                       \
+_(GENERAL)                                       \
+_(ROUTING)                                       \
+_(CMNHDR)                                        \
+_(PATH)                                          \
+_(EXT)
+
 typedef enum {
-    SCMP_GENERAL_CLASS,
-    SCMP_ROUTING_CLASS,
-    SCMP_CMNHDR_CLASS,
-    SCMP_PATH_CLASS,
-    SCMP_EXT_CLASS,
+#define _(sym) SCMP_CLASS_##sym,
+    foreach_scmp_class
+#undef _
+    SCMP_CLASS_N
 } SCMPClass;
 
+#define foreach_scmp_general                     \
+_(UNSPECIFIED)                                   \
+_(ECHO_REQUEST)                                  \
+_(ECHO_REPLY)                                    \
+_(TRACEROUTE_REQUEST)                            \
+_(TRACEROUTE_REPLY)                              \
+_(RECORDPATH_REQUEST)                            \
+_(RECORDPATH_REPLY)
+
 typedef enum {
-    SCMP_UNSPECIFIED,
-    SCMP_ECHO_REQUEST,
-    SCMP_ECHO_REPLY,
+#define _(sym) SCMP_##sym,
+    foreach_scmp_general
+#undef _
+    SCMP_GENERAL_N
 } SCMPGeneralType;
 
+#define foreach_scmp_routing                     \
+_(UNREACH_NET)                                   \
+_(UNREACH_HOST)                                  \
+_(L2_ERROR)                                      \
+_(UNREACH_PROTO)                                 \
+_(UNREACH_PORT)                                  \
+_(UNKNOWN_HOST)                                  \
+_(BAD_HOST)                                      \
+_(OVERSIZE_PKT)                                  \
+_(ADMIN_DENIED)
+
 typedef enum {
-    SCMP_UNREACH_NET,
-    SCMP_UNREACH_HOST,
-    SCMP_L2_ERROR,
-    SCMP_UNREACH_PROTO,
-    SCMP_UNREACH_PORT,
-    SCMP_UNKNOWN_HOST,
-    SCMP_BAD_HOST,
-    SCMP_OVERSIZE_PKT,
-    SCMP_ADMIN_DENIED,
+#define _(sym) SCMP_##sym,
+    foreach_scmp_routing
+#undef _
+    SCMP_ROUTING_N
 } SCMPRoutingType;
 
+#define foreach_scmp_cmnhdr                      \
+_(BAD_VERSION)                                   \
+_(BAD_DST_TYPE)                                  \
+_(BAD_SRC_TYPE)                                  \
+_(BAD_PKT_LEN)                                   \
+_(BAD_IOF_OFFSET)                                \
+_(BAD_HOF_OFFSET)
+
 typedef enum {
-    SCMP_BAD_VERSION,
-    SCMP_BAD_DST_TYPE,
-    SCMP_BAD_SRC_TYPE,
-    SCMP_BAD_PKT_LEN,
-    SCMP_BAD_IOF_OFFSET,
-    SCMP_BAD_HOF_OFFSET,
+#define _(sym) SCMP_##sym,
+    foreach_scmp_cmnhdr
+#undef _
+    SCMP_CMNHDR_N
 } SCMPCmnHdrType;
 
-typedef enum {
-    SCMP_PATH_REQUIRED,
-    SCMP_BAD_MAC,
-    SCMP_EXPIRED_HOF,
-    SCMP_BAD_IF,
-    SCMP_REVOKED_IF,
-    SCMP_NON_ROUTING_HOF,
-    SCMP_DELIVERY_FWD_ONLY,
-    SCMP_DELIVERY_NON_LOCAL,
-} SCMPPathType;
+#define foreach_scmp_path                        \
+_(PATH_REQUIRED)                                 \
+_(BAD_MAC)                                       \
+_(EXPIRED_HOF)                                   \
+_(BAD_IF)                                        \
+_(REVOKED_IF)                                    \
+_(NON_ROUTING_HOF)                               \
+_(DELIVERY_FWD_ONLY)                             \
+_(DELIVERY_NON_LOCAL)
 
 typedef enum {
-    SCMP_TOO_MANY_HOPBYHOP,
-    SCMP_BAD_EXT_ORDER,
-    SCMP_BAD_HOPBYHOP,
-    SCMP_BAD_END2END,
+#define _(sym) SCMP_##sym,
+    foreach_scmp_path
+#undef _
+    SCMP_PATH_N
+} SCMPPathType;
+
+#define foreach_scmp_ext                         \
+_(TOO_MANY_HOPBYHOP)                             \
+_(BAD_EXT_ORDER)                                 \
+_(BAD_HOPBYHOP)                                  \
+_(BAD_END2END)
+
+typedef enum {
+#define _(sym) SCMP_##sym,
+    foreach_scmp_ext
+#undef _
+    SCMP_EXT_N
 } SCMPExtType;
 
 uint16_t scmp_checksum(uint8_t *buf);
 void update_scmp_checksum(uint8_t *buf);
 SCMPPayload *scmp_parse_payload(SCMPL4Header *scmp_hdr);
+
+const char *scmp_class_to_str(uint16_t index);
+const char *scmp_general_to_str(uint16_t index);
+const char *scmp_routing_to_str(uint16_t index);
+const char *scmp_cmnhdr_to_str(uint16_t index);
+const char *scmp_path_to_str(uint16_t index);
+const char *scmp_ext_to_str(uint16_t index);
+const char *scmp_ct_to_str(char *buf, uint16_t class, uint16_t type);
 
 #endif
