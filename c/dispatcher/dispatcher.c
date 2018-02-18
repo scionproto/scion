@@ -97,7 +97,7 @@ typedef struct Entry {
 
 typedef struct PingEntry {
     int sock;
-    uint16_t id;
+    uint64_t id;
     UT_hash_handle hh;
 } PingEntry;
 
@@ -144,8 +144,8 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmpptr, int len, HostAddr *from);
-void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmpptr, HostAddr *from);
-void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from);
+void send_scmp_reply(uint8_t *buf, SCMPL4Header *scmpptr, HostAddr *from, uint16_t type);
+void deliver_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from);
 void deliver_scmp(uint8_t *buf, SCMPL4Header *l4ptr, int len, HostAddr *from);
 
 void handle_send(int index);
@@ -189,13 +189,13 @@ int main(int argc, char **argv)
 
     /* TCPMW uses many open files, set limit as high as possible */
     struct rlimit rlim;
-    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0){
+    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
         zlog_fatal(zc, "getrlimit(): %s", strerror(errno));
         return -1;
     }
     zlog_debug(zc, "Changing RLIMIT_NOFILE %lu -> %lu", rlim.rlim_cur, rlim.rlim_max);
     rlim.rlim_cur = rlim.rlim_max;
-    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0){
+    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0) {
         zlog_fatal(zc, "setrlimit(): %s", strerror(errno));
         return -1;
     }
@@ -406,7 +406,7 @@ int init_tcpmw()
     pthread_t tid;
     tcp_scion_output = &send_data;
     zc_tcp = zc;
-    if (pthread_create(&tid, NULL, &tcpmw_main_thread, NULL)){
+    if (pthread_create(&tid, NULL, &tcpmw_main_thread, NULL)) {
         zlog_fatal(zc, "pthread_create(): %s", strerror(errno));
         return -1;
     }
@@ -939,42 +939,58 @@ void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
                 ntohs(scmp->checksum), ntohs(calc_chk));
         return;
     }
-    if (ntohs(scmp->class_) == SCMP_GENERAL_CLASS)  {
-        if (ntohs(scmp->type) == SCMP_ECHO_REQUEST) {
-            send_scmp_echo_reply(buf, scmp, from);
+    if (ntohs(scmp->class_) == SCMP_CLASS_GENERAL)  {
+        uint16_t type = ntohs(scmp->type);
+        switch (type) {
+        case SCMP_ECHO_REQUEST:
+            send_scmp_reply(buf, scmp, from, SCMP_ECHO_REPLY);
             return;
-        }
-        if (ntohs(scmp->type) == SCMP_ECHO_REPLY) {
-            deliver_scmp_echo_reply(buf, scmp, len, from);
+        case SCMP_TRACEROUTE_REQUEST:
+            send_scmp_reply(buf, scmp, from, SCMP_TRACEROUTE_REPLY);
+            return;
+        case SCMP_RECORDPATH_REQUEST:
+            send_scmp_reply(buf, scmp, from, SCMP_RECORDPATH_REPLY);
+            return;
+        case SCMP_ECHO_REPLY:
+        case SCMP_TRACEROUTE_REPLY:
+        case SCMP_RECORDPATH_REPLY:
+            deliver_scmp_reply(buf, scmp, len, from);
             return;
         }
     }
     deliver_scmp(buf, scmp, len, from);
 }
 
-void send_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from)
+void send_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from, uint16_t type)
 {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
+    char strbuf[MAX_SCMP_CLASS_TYPE_STR] __attribute__((unused)) = { 0 };
+
     reverse_packet(buf);
-    scmp->type = htons(SCMP_ECHO_REPLY);
+    scmp->type = htons(type);
     update_scmp_checksum(buf);
-    zlog_debug(zc, "send echo reply to %s:%d", addr_to_str(from->addr, from->addr_type, NULL), ntohs(from->port));
+    zlog_debug(zc, "send SCMP %s to %s:%d",
+            scmp_ct_to_str(strbuf, scmp->class_, scmp->type),
+            addr_to_str(from->addr, from->addr_type, NULL),
+            ntohs(from->port));
     send_data(buf, ntohs(sch->total_len), from);
 }
 
-void deliver_scmp_echo_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
+void deliver_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 {
     SCMPPayload *pld = scmp_parse_payload(scmp);
-    uint16_t *info = (uint16_t *)pld->info;
-    uint16_t id = info[0];
+    uint64_t id = *((uint64_t *)pld->info);
+    char strbuf[MAX_SCMP_CLASS_TYPE_STR] = { 0 };
 
     PingEntry *e;
     HASH_FIND(hh, ping_list, &id, sizeof(id), e);
-    if( e != NULL) {
-        zlog_debug(zc, "SCMP echo reply (%d-%d) entry found", ntohs(info[0]), ntohs(info[1]));
+    if (e != NULL) {
+        zlog_debug(zc, "SCMP %s reply (%lx) entry found",
+                scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
         deliver_data(e->sock, from, buf, len);
-    }else{
-        zlog_info(zc, "SCMP echo reply (%d-%d) entry not found", ntohs(info[0]), ntohs(info[1]));
+    } else {
+        zlog_warn(zc, "SCMP %s reply (%lx) entry not found",
+                scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
     }
     free(pld);
 }
@@ -1023,29 +1039,31 @@ cleanup:
     free(pld);
 }
 
-void add_ping_entry(SCMPL4Header *scmp, int sock)
+void add_scmp_entry(SCMPL4Header *scmp, int sock)
 {
-    if(HASH_COUNT(ping_list) >= MAX_NUMBER_PINGS){
-        zlog_error(zc, "failed adding SCMP echo mapping. Max number of mappings (%d) reached.", MAX_NUMBER_PINGS);
+    if (HASH_COUNT(ping_list) >= MAX_NUMBER_PINGS) {
+        zlog_error(zc, "failed adding SCMP mapping. Max number of mappings (%d) reached.",
+                MAX_NUMBER_PINGS);
         return;
     }
 
     SCMPPayload *pld = scmp_parse_payload(scmp);
-    uint16_t *info = (uint16_t *)pld->info;
-    uint16_t id = info[0];
+    uint64_t id = *((uint64_t *)pld->info);
     PingEntry *e;
+
     HASH_FIND(hh, ping_list, &id, sizeof(id), e);
-    if(e == NULL){
+    if (e == NULL) {
         e = (PingEntry *)malloc(sizeof(PingEntry));
         if (!e) {
             zlog_fatal(zc, "malloc failed, abandon ship");
             exit(1);
         }
         memset(e, 0, sizeof(PingEntry));
-        e->id = info[0];
+        e->id = id;
         e->sock = sock;
-        HASH_ADD(hh, ping_list, id, sizeof(uint16_t), e);
-    } else if(e->sock != sock){
+        HASH_ADD(hh, ping_list, id, sizeof(id), e);
+        zlog_debug(zc, "SCMP entry added: sock=%d, id=%lu", sock, id);
+    } else if (e->sock != sock) {
         zlog_error(zc, "failed adding SCMP echo mapping. ID %d already in use.", ntohs(id));
     }
     free(pld);
@@ -1103,10 +1121,15 @@ void handle_send(int index)
     send_data(buf + addr_len + 2, packet_len, &hop);
     uint8_t *l4ptr = buf + addr_len + 2;
     uint8_t l4 = get_l4_proto(&l4ptr);
-    if(l4 == L4_SCMP){
+    if (l4 == L4_SCMP) {
         SCMPL4Header *scmp = (SCMPL4Header *) l4ptr;
-        if(ntohs(scmp->class_) == SCMP_GENERAL_CLASS && ntohs(scmp->type) == SCMP_ECHO_REQUEST){
-            add_ping_entry(scmp, sock);
+        if (ntohs(scmp->class_) == SCMP_CLASS_GENERAL) {
+            switch (ntohs(scmp->type)) {
+            case SCMP_ECHO_REQUEST:
+            case SCMP_TRACEROUTE_REQUEST:
+            case SCMP_RECORDPATH_REQUEST:
+                add_scmp_entry(scmp, sock);
+            }
         }
     }
     zlog_debug(zc, "%d byte packet (l4 = %d) sent to %s:%d",
@@ -1162,7 +1185,7 @@ void cleanup_socket(int sock, int index, int err)
     }
     PingEntry *p, *tmp = NULL;
     HASH_ITER(hh, ping_list, p, tmp) {
-        if(p->sock == sock){
+        if (p->sock == sock) {
             HASH_DELETE(hh, ping_list, p);
             free(p);
         }

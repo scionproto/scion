@@ -72,3 +72,107 @@ SCMPPayload *scmp_parse_payload(SCMPL4Header *scmp_hdr) {
     pld->l4hdr = pld->meta->l4_len ? ptr : NULL;
     return pld;
 }
+
+static const char *scmp_to_str(uint16_t index, uint16_t max, const char *str[]) {
+    if (index < max)
+        return str[index];
+    return NULL;
+}
+
+static const char *SCMPClass_str[] = {
+#define _(sym) #sym,
+    foreach_scmp_class
+#undef _
+};
+
+static const char *SCMPGeneral_str[] = {
+#define _(sym) #sym,
+    foreach_scmp_general
+#undef _
+};
+
+static const char *SCMPRouting_str[] = {
+#define _(sym) #sym,
+    foreach_scmp_routing
+#undef _
+};
+
+static const char *SCMPCmnHdr_str[] = {
+#define _(sym) #sym,
+    foreach_scmp_cmnhdr
+#undef _
+};
+
+static const char *SCMPPath_str[] = {
+#define _(sym) #sym,
+    foreach_scmp_path
+#undef _
+};
+
+static const char *SCMPExt_str[] = {
+#define _(sym) #sym,
+    foreach_scmp_ext
+#undef _
+};
+
+const char *scmp_class_to_str(uint16_t index)
+{
+    return scmp_to_str(index, SCMP_CLASS_N, SCMPClass_str);
+}
+
+const char *scmp_general_to_str(uint16_t index)
+{
+    return scmp_to_str(index, SCMP_GENERAL_N, SCMPGeneral_str);
+}
+
+const char *scmp_routing_to_str(uint16_t index)
+{
+    return scmp_to_str(index, SCMP_ROUTING_N, SCMPRouting_str);
+}
+
+const char *scmp_cmnhdr_to_str(uint16_t index)
+{
+    return scmp_to_str(index, SCMP_CMNHDR_N, SCMPCmnHdr_str);
+}
+
+const char *scmp_path_to_str(uint16_t index)
+{
+    return scmp_to_str(index, SCMP_PATH_N, SCMPPath_str);
+}
+
+const char *scmp_ext_to_str(uint16_t index)
+{
+    return scmp_to_str(index, SCMP_EXT_N, SCMPExt_str);
+}
+
+const char *scmp_ct_to_str(char *buf, uint16_t class, uint16_t type)
+{
+    const char *class_str = NULL, *type_str = NULL;
+
+    class_str = scmp_class_to_str(class);
+    switch (class) {
+    case SCMP_CLASS_GENERAL:
+        type_str = scmp_general_to_str(type);
+        break;
+    case SCMP_CLASS_ROUTING:
+        type_str = scmp_routing_to_str(type);
+        break;
+    case SCMP_CLASS_CMNHDR:
+        type_str = scmp_cmnhdr_to_str(type);
+        break;
+    case SCMP_CLASS_PATH:
+        type_str = scmp_path_to_str(type);
+        break;
+    case SCMP_CLASS_EXT:
+        type_str = scmp_ext_to_str(type);
+        break;
+    default:
+        class_str = "Unknown Class";
+    }
+
+    if (!type_str)
+        type_str = "Unknown Type";
+
+    snprintf(buf, MAX_SCMP_CLASS_TYPE_STR, "%s %s", class_str, type_str);
+    return buf;
+}
