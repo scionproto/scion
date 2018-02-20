@@ -60,9 +60,9 @@ from lib.sciond_api.path_req import (
 )
 from lib.sciond_api.revocation import SCIONDRevNotification
 from lib.sciond_api.segment_req import (
-    SCIONDSegTypeReply,
-    SCIONDSegTypeReplyEntry,
-    SCIONDSegTypeRequest,
+    SCIONDSegTypeHopReply,
+    SCIONDSegTypeHopReplyEntry,
+    SCIONDSegTypeHopRequest,
 )
 from lib.sciond_api.service_req import (
     SCIONDServiceInfoReply,
@@ -257,7 +257,7 @@ class SCIONDaemon(SCIONElement):
             self._api_handle_if_request(msg, meta)
         elif mtype == SMT.SERVICE_REQUEST:
             self._api_handle_service_request(msg, meta)
-        elif mtype == SMT.SEGTYPE_REQUEST:
+        elif mtype == SMT.SEGTYPEHOP_REQUEST:
             self._api_handle_seg_type_request(msg, meta)
         else:
             logging.warning(
@@ -367,7 +367,7 @@ class SCIONDaemon(SCIONElement):
 
     def _api_handle_seg_type_request(self, pld, meta):
         request = pld.union
-        assert isinstance(request, SCIONDSegTypeRequest), type(request)
+        assert isinstance(request, SCIONDSegTypeHopRequest), type(request)
         segmentType = request.p.type
         db = []
         if segmentType == PST.CORE:
@@ -391,11 +391,11 @@ class SCIONDaemon(SCIONElement):
                     if_list.append(PathInterface.from_values(isd_as, ingress))
                 if egress:
                     if_list.append(PathInterface.from_values(isd_as, egress))
-            reply_entry = SCIONDSegTypeReplyEntry.from_values(
+            reply_entry = SCIONDSegTypeHopReplyEntry.from_values(
                 if_list, segment.get_timestamp(), segment.get_expiration_time())
             seg_entries.append(reply_entry)
         seg_reply = SCIONDMsg(
-            SCIONDSegTypeReply.from_values(seg_entries), pld.id)
+            SCIONDSegTypeHopReply.from_values(seg_entries), pld.id)
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):

@@ -367,28 +367,28 @@ class TestSCIONDConnectorTryCache:
 
 
 class TestSCIONDConnectorGetTypeSegs(SCIONDConnectorTestBase):
-    """Unit tests for lib.app.sciond.SCIONDConnector.get_type_segs"""
+    """Unit tests for lib.app.sciond.SCIONDConnector.get_segtype_hops"""
 
     def _setup(self):
         return self._setup_connector(
             create_mock_full({"iter_entries()": ["segment"]}))
 
-    @patch("lib.app.sciond.SCIONDSegTypeRequest.from_values", new_callable=create_mock)
+    @patch("lib.app.sciond.SCIONDSegTypeHopRequest.from_values", new_callable=create_mock)
     @patch("lib.app.sciond.SCIONDMsg", new_callable=create_mock)
     def test_valid_type(self, sciond_msg, segment_req):
         connector = self._setup()
         seg_type = PST.CORE
         # Call
-        segments = connector.get_type_segs(seg_type)
+        segments = connector.get_segtype_hops(seg_type)
         # Tests
         ntools.eq_(segments, ["segment"])
         sciond_msg.assert_called_once_with(segment_req.return_value, self.REQ_ID)
         segment_req.assert_called_once_with(seg_type)
         connector._create_socket.assert_called_once_with()
-        connector._get_response.assert_called_once_with(ANY, 1, SMT.SEGTYPE_REPLY)
+        connector._get_response.assert_called_once_with(ANY, 1, SMT.SEGTYPEHOP_REPLY)
 
     def test_invalid_type(self):
         connector = self._setup()
         seg_type = 'unset'
         # Call
-        ntools.assert_raises(AssertionError, connector.get_type_segs, seg_type)
+        ntools.assert_raises(AssertionError, connector.get_segtype_hops, seg_type)

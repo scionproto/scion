@@ -196,8 +196,8 @@ class SCIONDMsgType(TypeBase):
     SERVICE_REPLY = "serviceInfoReply"
     DRKEY_REQUEST = "drkeyRequest"
     DRKEY_REPLY = "drkeyReply"
-    SEGTYPE_REQUEST = "segTypeReq"
-    SEGTYPE_REPLY = "segTypeReply"
+    SEGTYPEHOP_REQUEST = "segTypeHopReq"
+    SEGTYPEHOP_REPLY = "segTypeHopReply"
 
 
 #######################

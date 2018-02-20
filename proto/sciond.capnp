@@ -20,8 +20,8 @@ struct SCIONDMsg {
         serviceInfoRequest @9 :ServiceInfoRequest;
         serviceInfoReply @10 :ServiceInfoReply;
         revReply @11 :RevReply;
-        segTypeReq @12 :SegTypeReq;
-        segTypeReply @13 :SegTypeReply;
+        segTypeHopReq @12 :SegTypeHopReq;
+        segTypeHopReply @13 :SegTypeHopReply;
     }
 }
 
@@ -121,16 +121,16 @@ struct ServiceInfoReplyEntry {
     hostInfos @2 :List(HostInfo);  # The host infos of the service.
 }
 
-struct SegTypeReq {
+struct SegTypeHopReq {
     type @0 :PSeg.PathSegType;  # The path segments type: up, down, core.
 }
 
-struct SegTypeReply {
-    entries @0 :List(SegTypeReplyEntry);  # List of path segments matching type request, if any
+struct SegTypeHopReply {
+    entries @0 :List(SegTypeHopReplyEntry);  # List of path segments matching type request, if any
 }
 
-struct SegTypeReplyEntry {
+struct SegTypeHopReplyEntry {
     interfaces @0 :List(PathInterface);  # List of interfaces for the segment
-    timestamp @1 :UInt64;  # Creation timestamp
-    expTime @2 :UInt64;  # Expiration time
+    timestamp @1 :UInt64;  # Creation timestamp, seconds since Unix Epoch
+    expTime @2 :UInt64;  # Expiration timestamp, seconds since Unix Epoch
 }

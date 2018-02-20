@@ -26,9 +26,9 @@ from lib.sciond_api.path_meta import PathInterface
 from lib.util import iso_timestamp
 
 
-class SCIONDSegTypeRequest(Cerealizable):
-    NAME = "SCIONDSegTypeRequest"
-    P_CLS = P.SegTypeReq
+class SCIONDSegTypeHopRequest(Cerealizable):
+    NAME = "SCIONDSegTypeHopRequest"
+    P_CLS = P.SegTypeHopReq
 
     @classmethod
     def from_values(cls, seg_type):
@@ -39,9 +39,9 @@ class SCIONDSegTypeRequest(Cerealizable):
         return "%s: type: %s" % (self.NAME, self.p.type)
 
 
-class SCIONDSegTypeReply(Cerealizable):
-    NAME = "SCIONDSegTypeReply"
-    P_CLS = P.SegTypeReply
+class SCIONDSegTypeHopReply(Cerealizable):
+    NAME = "SCIONDSegTypeHopReply"
+    P_CLS = P.SegTypeHopReply
 
     @classmethod
     def from_values(cls, entries):
@@ -52,19 +52,19 @@ class SCIONDSegTypeReply(Cerealizable):
         return cls(p)
 
     def entry(self, idx):
-        return SCIONDSegTypeReplyEntry(self.p.entries[idx])
+        return SCIONDSegTypeHopReplyEntry(self.p.entries[idx])
 
     def iter_entries(self):
         for entry in self.p.entries:
-            yield SCIONDSegTypeReplyEntry(entry)
+            yield SCIONDSegTypeHopReplyEntry(entry)
 
     def short_desc(self):
         return "\n".join([entry.short_desc() for entry in self.iter_entries()])
 
 
-class SCIONDSegTypeReplyEntry(Cerealizable):
-    NAME = "SCIONDSegTypeReplyEntry"
-    P_CLS = P.SegTypeReplyEntry
+class SCIONDSegTypeHopReplyEntry(Cerealizable):
+    NAME = "SCIONDSegTypeHopReplyEntry"
+    P_CLS = P.SegTypeHopReplyEntry
 
     @classmethod
     def from_values(cls, interfaces, timestamp, expTime):
