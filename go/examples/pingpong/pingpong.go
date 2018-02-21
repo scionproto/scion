@@ -18,12 +18,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/lucas-clemente/quic-go/qerr"
 	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	liblog "github.com/scionproto/scion/go/lib/log"
@@ -53,6 +54,8 @@ var (
 		"Path to dispatcher socket")
 	count = flag.Int("count", 0,
 		fmt.Sprintf("Number of pings, between 0 and %d; a count of 0 means infinity", MaxPings))
+	timeout = flag.Duration("timeout", DefaultTimeout,
+		"Timeout for the ping response")
 	interval = flag.Duration("interval", DefaultInterval, "time between pings")
 )
 
@@ -125,6 +128,11 @@ func Client() {
 		before := time.Now()
 		written, err := qstream.Write([]byte(ReqMsg))
 		if err != nil {
+			qer := qerr.ToQuicError(err)
+			if qer.ErrorCode == qerr.NetworkIdleTimeout {
+				log.Debug("The connection timed out due to no network activity")
+				break
+			}
 			log.Error("Unable to write", "err", err)
 			continue
 		}
@@ -135,7 +143,7 @@ func Client() {
 		}
 
 		// Receive pong message with timeout
-		err = qstream.SetReadDeadline(time.Now().Add(DefaultTimeout))
+		err = qstream.SetReadDeadline(time.Now().Add(*timeout))
 		if err != nil {
 			LogFatal("SetReadDeadline failed", "err", err)
 		}
@@ -145,6 +153,10 @@ func Client() {
 			if qer.ErrorCode == qerr.PeerGoingAway {
 				log.Debug("Quic peer disconnected")
 				break
+			}
+			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				log.Debug("ReadDeadline missed", "err", err)
+				continue
 			}
 			log.Error("Unable to read", "err", err)
 			continue
