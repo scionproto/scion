@@ -37,7 +37,7 @@ class CertMgmt(CerealBox):  # pragma: no cover
 class CertChainRequest(Cerealizable):  # pragma: no cover
     NAME = "CertChainRequest"
     P_CLS = P.CertChainReq
-    NEWEST_VERSION = 2**64-1
+    NEWEST_VERSION = 0
 
     def isd_as(self):
         return ISD_AS(self.p.isdas)
@@ -75,7 +75,7 @@ class CertChainReply(Cerealizable):  # pragma: no cover
 class TRCRequest(Cerealizable):
     NAME = "TRCRequest"
     P_CLS = P.TRCReq
-    NEWEST_VERSION = 2**64-1
+    NEWEST_VERSION = 0
 
     def isd_as(self):
         return ISD_AS.from_values(self.p.isd, 0)

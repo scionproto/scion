@@ -86,10 +86,10 @@
         }
     },
     "Signatures": {
-        "1-11": "TpOrQv43vmpLehSw/zO9AuZf3Z+p5ptyQzoyPM5Ke47N3W48FtUeefr39RnXUTHdrKotN+lNH1qdfDraUsn4Cg==",
+        "1-11": "NI+KmU/QUi0uSWtcU3Wbw5PG3SpwQ43ngk5oLkgaA9Uwlh1TeR2jurzu2WH4Oo0+SZfJ8qkXJlyztBfNPXxCBQ==",
         "1-12": "BnnxUcaB7VrswHnQNVF4B5oZXHm9unyB2cSB0+rw+FC7ZLdlyjbqanHbOM3EgTyJqLR4gdDJaWPaC8Fjyjz2Dw==",
         "1-13": "V/SKkJCYpbfCKR4G2RvP6NJurNnr1rliVEbiaFDQgpbDp9MvfaC7hsx0ap82ne2JmAjmLScd0AQCJBaiGsq1CA=="
     },
     "ThresholdEEPKI": 2,
-    "Version": 0
+    "Version": 1
 }

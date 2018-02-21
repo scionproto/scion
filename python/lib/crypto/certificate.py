@@ -111,6 +111,8 @@ class Certificate(object):
         :param bytes verifying_key: the key to be used for signature verification.
         :raises: SCIONVerificationError if the verification fails.
         """
+        if self.version == 0:
+            raise SCIONVerificationError("Invalid certificate version 0:\n%s" % self)
         if subject != self.subject:
             raise SCIONVerificationError(
                 "The given subject (%s) doesn't match the certificate's subject (%s):\n%s" %

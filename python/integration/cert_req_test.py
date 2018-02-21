@@ -65,9 +65,10 @@ class TestCertClient(TestClientBase):
 
     def _create_payload(self, _):
         if not self.cert:
-            return CtrlPayload(CertMgmt(CertChainRequest.from_values(self.dst_ia, 0)))
+            return CtrlPayload(CertMgmt(CertChainRequest.from_values(
+                self.dst_ia, CertChainRequest.NEWEST_VERSION)))
         return CtrlPayload(
-            CertMgmt(TRCRequest.from_values(self.dst_ia[0], 0)))
+            CertMgmt(TRCRequest.from_values(self.dst_ia[0], TRCRequest.NEWEST_VERSION)))
 
     def _handle_response(self, spkt):
         cpld = spkt.parse_payload()
@@ -75,13 +76,13 @@ class TestCertClient(TestClientBase):
         pld = cmgt.union
         logging.debug("Got:\n%s", spkt)
         if not self.cert:
-            if (self.dst_ia, 0) == pld.chain.get_leaf_isd_as_ver():
+            if self.dst_ia == pld.chain.get_leaf_isd_as_ver()[0]:
                 logging.debug("Cert query success")
                 self.cert = pld.chain
                 return ResponseRV.CONTINUE
             logging.error("Cert query failed")
             return ResponseRV.FAILURE
-        if (self.dst_ia[0], 0) == pld.trc.get_isd_ver():
+        if self.dst_ia[0] == pld.trc.get_isd_ver()[0]:
             self.cert.verify(str(self.dst_ia), pld.trc)
             logging.debug("TRC query success")
             self.success = True

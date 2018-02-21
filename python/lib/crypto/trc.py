@@ -321,6 +321,8 @@ class TRC(object):
         :param TRC trusted_trc: a verified TRC, used as a trust anchor.
         :raises: SCIONVerificationError
         """
+        if self.version == 0:
+            raise SCIONVerificationError("Invalid TRC version 0")
         if self.isd == trusted_trc.isd:
             self.verify_update(trusted_trc)
         else:

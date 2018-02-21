@@ -69,8 +69,9 @@ func Load(id string, confDir string) (*Conf, error) {
 		conf.BindAddr = tmpBind
 	}
 	// load keyConf
+	isCore := conf.Topo.Core
 	path = filepath.Join(confDir, "keys")
-	if conf.KeyConf, err = trust.LoadKeyConf(path, conf.Topo.Core); err != nil {
+	if conf.KeyConf, err = trust.LoadKeyConf(path, isCore, isCore, false); err != nil {
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
 	return conf, nil
