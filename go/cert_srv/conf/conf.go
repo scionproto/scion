@@ -119,7 +119,8 @@ func (c *Conf) ReloadCustomers() error {
 
 // loadKeyConf loads key configuration.
 func (c *Conf) loadKeyConf() (*trust.KeyConf, error) {
-	return trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core)
+	return trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
+		c.Topo.Core, false)
 }
 
 // GetSigningKey returns the signing key of the current key configuration.

@@ -41,6 +41,7 @@ const (
 	InvalidISD          = "Invalid TRC ISD"
 	InvalidQuorum       = "Not enough valid signatures"
 	InvalidVersion      = "Invalid TRC version"
+	ReservedVersion     = "Invalid version 0"
 	SignatureMissing    = "Signature missing"
 	UnableSigPack       = "TRC: Unable to create signature input"
 )
@@ -102,7 +103,7 @@ type TRC struct {
 	// ThresholdEEPKI is the threshold number of trusted parties (CAs and one log) required to
 	// assert a domain’s policy.
 	ThresholdEEPKI uint32
-	// Version is the version number of the TRC
+	// Version is the version number of the TRC. The value 0 is reserved and shall not be used.
 	Version uint64
 }
 
@@ -127,6 +128,9 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 	t := &TRC{}
 	if err := json.Unmarshal(raw, t); err != nil {
 		return nil, err
+	}
+	if t.Version == 0 {
+		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	return t, nil
 }
@@ -257,6 +261,9 @@ func (t *TRC) verifyXSig(trust *TRC) error {
 
 // sigPack creates a sorted json object of all fields, except for the signature map.
 func (t *TRC) sigPack() (common.RawBytes, error) {
+	if t.Version == 0 {
+		return nil, common.NewBasicError(ReservedVersion, nil)
+	}
 	m := make(map[string]interface{})
 	m["CertLogs"] = t.CertLogs
 	m["CreationTime"] = t.CreationTime

@@ -34,7 +34,7 @@ import (
 var _ fmt.Stringer = (*TRC)(nil)
 
 var (
-	fnTRC    = "testdata/ISD1-V0.trc"
+	fnTRC    = "testdata/ISD1-V1.trc"
 	fnCACert = "testdata/CA1-1.crt"
 )
 
@@ -51,7 +51,7 @@ func Test_TRCFromRaw(t *testing.T) {
 		SoMsg("QuorumCAs", trc.QuorumCAs, ShouldEqual, 3)
 		SoMsg("QuorumTRC", trc.QuorumTRC, ShouldEqual, 2)
 		SoMsg("ThresholdEEPKI", trc.ThresholdEEPKI, ShouldEqual, 2)
-		SoMsg("Version", trc.Version, ShouldEqual, 0)
+		SoMsg("Version", trc.Version, ShouldEqual, 1)
 
 		Convey("CertLogs parsed correctly", func() {
 			SoMsg("Log1", trc.CertLogs["Log1"], ShouldNotBeNil)
@@ -127,13 +127,13 @@ func Test_TRCFromRaw(t *testing.T) {
 			SoMsg("1-12", trc.Signatures["1-12"], ShouldNotBeNil)
 			SoMsg("1-13", trc.Signatures["1-13"], ShouldNotBeNil)
 			SoMsg("Signature 1-11", trc.Signatures["1-11"], ShouldResemble,
-				common.RawBytes{0x4e, 0x93, 0xab, 0x42, 0xfe, 0x37, 0xbe, 0x6a,
-					0x4b, 0x7a, 0x14, 0xb0, 0xff, 0x33, 0xbd, 0x02, 0xe6, 0x5f,
-					0xdd, 0x9f, 0xa9, 0xe6, 0x9b, 0x72, 0x43, 0x3a, 0x32, 0x3c,
-					0xce, 0x4a, 0x7b, 0x8e, 0xcd, 0xdd, 0x6e, 0x3c, 0x16, 0xd5,
-					0x1e, 0x79, 0xfa, 0xf7, 0xf5, 0x19, 0xd7, 0x51, 0x31, 0xdd,
-					0xac, 0xaa, 0x2d, 0x37, 0xe9, 0x4d, 0x1f, 0x5a, 0x9d, 0x7c,
-					0x3a, 0xda, 0x52, 0xc9, 0xf8, 0x0a})
+				common.RawBytes{0x34, 0x8f, 0x8a, 0x99, 0x4f, 0xd0, 0x52, 0x2d,
+					0x2e, 0x49, 0x6b, 0x5c, 0x53, 0x75, 0x9b, 0xc3, 0x93, 0xc6,
+					0xdd, 0x2a, 0x70, 0x43, 0x8d, 0xe7, 0x82, 0x4e, 0x68, 0x2e,
+					0x48, 0x1a, 0x03, 0xd5, 0x30, 0x96, 0x1d, 0x53, 0x79, 0x1d,
+					0xa3, 0xba, 0xbc, 0xee, 0xd9, 0x61, 0xf8, 0x3a, 0x8d, 0x3e,
+					0x49, 0x97, 0xc9, 0xf2, 0xa9, 0x17, 0x26, 0x5c, 0xb3, 0xb4,
+					0x17, 0xcd, 0x3d, 0x7c, 0x42, 0x05})
 		})
 
 	})
@@ -234,7 +234,7 @@ func Test_TRC_Compress(t *testing.T) {
 func Test_TRC_String(t *testing.T) {
 	Convey("TRC is returned as String correctly", t, func() {
 		trc := loadTRC(fnTRC, t)
-		SoMsg("Compare", trc.String(), ShouldEqual, "TRC 1v0")
+		SoMsg("Compare", trc.String(), ShouldEqual, "TRC 1v1")
 
 	})
 }
@@ -254,7 +254,7 @@ func Test_TRC_IsdVer(t *testing.T) {
 		trc := loadTRC(fnTRC, t)
 		isd, ver := trc.IsdVer()
 		SoMsg("IA", isd, ShouldEqual, 1)
-		SoMsg("Ver", ver, ShouldEqual, 0)
+		SoMsg("Ver", ver, ShouldEqual, 1)
 	})
 }
 
@@ -262,8 +262,8 @@ func Test_TRC_Key(t *testing.T) {
 	Convey("Key is returned correctly", t, func() {
 		trc := loadTRC(fnTRC, t)
 		key := *trc.Key()
-		SoMsg("Key", key, ShouldResemble, Key{ISD: 1, Ver: 0})
-		SoMsg("String", (&key).String(), ShouldResemble, (&Key{ISD: 1, Ver: 0}).String())
+		SoMsg("Key", key, ShouldResemble, Key{ISD: 1, Ver: 1})
+		SoMsg("String", (&key).String(), ShouldResemble, (&Key{ISD: 1, Ver: 1}).String())
 
 	})
 }
