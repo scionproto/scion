@@ -160,7 +160,7 @@ local scion_path_hop_ingress_if = ProtoField.uint64("scion.path.hop.ingress_if",
     "Ingress IFID", base.DEC)
 local scion_path_hop_egress_if = ProtoField.uint64("scion.path.hop.egress_if",
     "Egress IFID", base.DEC)
-local scion_path_hop_mac = ProtoField.bytes("scion.path.hop.mac", "MAC", base.HEX)
+local scion_path_hop_mac = ProtoField.bytes("scion.path.hop.mac", "MAC")
 
 local scion_hdr_type_hbh = ProtoField.uint8("scion.hdr.type.hbh", "Type", nil, hbhTypes)
 local scion_hdr_type_e2e = ProtoField.uint8("scion.hdr.type.e2e", "Type", nil, e2eTypes)
