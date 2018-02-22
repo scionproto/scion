@@ -67,7 +67,7 @@ class PathPolicy(object):
         assert isinstance(pcb, PathSegment), type(pcb)
         isd_as = self._check_unwanted_ases(pcb)
         if isd_as:
-            raise SCIONPathPolicyViolated("Unwanted AS(%s): %s", isd_as, pcb.short_desc())
+            raise SCIONPathPolicyViolated("Unwanted AS(%s): %s" % (isd_as, pcb.short_desc()))
         reasons = self._check_property_ranges(pcb)
         if reasons:
             raise SCIONPathPolicyViolated(", ".join(reasons), pcb.short_desc())
