@@ -28,13 +28,17 @@ import (
 
 func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	var err error
+	var lastNextHdr *uint8
 	offset := 0
 
 	if s.E2EExt != nil {
 		return 0, common.NewBasicError("E2E extensions not supported", nil, "ext", s.E2EExt)
 	}
-	if s.HBHExt != nil {
-		return 0, common.NewBasicError("HBH extensions not supported", nil, "ext", s.HBHExt)
+	if s.L4.L4Type() == common.L4SCMP {
+		if len(s.HBHExt) == 0 || s.HBHExt[0].Type() != common.ExtnSCMPType {
+			return 0, common.NewBasicError("SCMP requires HBH SCMP ext to be the first extension",
+				nil, "ext", s.HBHExt)
+		}
 	}
 
 	// Compute header lengths
@@ -83,6 +87,18 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 		cmnHdr.CurrHopF = uint8((offset + s.Path.HopOff) / common.LineLen)
 		offset += copy(b[offset:], s.Path.Raw)
 	}
+	// HBH extensions
+	if len(s.HBHExt) > 0 {
+		l, nh, err := writeScnPktExtn(s, b[offset:])
+		if err != nil {
+			return 0, err
+		}
+		lastNextHdr = nh
+		*lastNextHdr = uint8(cmnHdr.NextHdr)
+		cmnHdr.NextHdr = common.HopByHopClass
+		cmnHdr.TotalLen += uint16(l)
+		offset += l
+	}
 
 	// Write the common header at the start of the buffer
 	cmnHdr.Write(b)
@@ -96,7 +112,7 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	s.Pld.WritePld(b[offset:])
 	offset += s.Pld.Len()
 
-	// SCION/UDP Header
+	// SCION/L4 Header
 	err = l4.SetCSum(s.L4, addrSlice, pldSlice)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to compute checksum", err)
@@ -104,6 +120,33 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	s.L4.Write(l4Slice)
 
 	return offset, nil
+}
+
+func writeScnPktExtn(s *spkt.ScnPkt, b common.RawBytes) (int, *uint8, error) {
+	var extHdrLen, offset int
+	max := 3
+	l4Type := s.L4.L4Type()
+	if l4Type == common.L4SCMP {
+		max += 1
+	}
+	if len(s.HBHExt) > max {
+		return 0, nil, common.NewBasicError("Too many HBH extensions",
+			nil, "max", max, "actual", len(s.HBHExt))
+	}
+	for _, ext := range s.HBHExt {
+		if l4Type != common.L4SCMP && ext.Type() == common.ExtnSCMPType {
+			return 0, nil, common.NewBasicError("HBH SCMP extension for a non SCMP packet",
+				nil, "ext", s.HBHExt)
+		}
+		// Set all nextHdr fields as HBH, later we update last extension and common header
+		b[offset] = uint8(common.HopByHopClass)
+		extHdrLen = common.ExtnSubHdrLen + ext.Len()
+		b[offset+1] = uint8(extHdrLen / common.LineLen)
+		b[offset+2] = ext.Type().Type
+		ext.Write(b[offset+common.ExtnSubHdrLen:])
+		offset += extHdrLen
+	}
+	return offset, &b[offset-extHdrLen], nil
 }
 
 func isZeroMemory(b common.RawBytes) (int, bool) {
