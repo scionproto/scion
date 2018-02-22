@@ -155,7 +155,10 @@ func (h *HostInfo) Host() addr.HostAddr {
 	if len(h.Addrs.Ipv4) > 0 {
 		return addr.HostIPv4(h.Addrs.Ipv4)
 	}
-	return addr.HostIPv6(h.Addrs.Ipv6)
+	if len(h.Addrs.Ipv6) > 0 {
+		return addr.HostIPv6(h.Addrs.Ipv6)
+	}
+	return nil
 }
 
 type FwdPathMeta struct {
