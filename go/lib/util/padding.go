@@ -32,7 +32,7 @@ func FillPadding(b common.RawBytes, length, blkSize int) int {
 	padding := CalcPadding(length, blkSize)
 	total := length + padding
 	for i := range b[length:total] {
-		b[i] = 0
+		b[length+i] = 0
 	}
 	return total
 }
