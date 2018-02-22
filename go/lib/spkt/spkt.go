@@ -24,7 +24,6 @@ import (
 
 // SCION Packet structure.
 type ScnPkt struct {
-	CmnHdr  *CmnHdr // FIXME(scrye): remove this once the SIG no longer needs it
 	DstIA   addr.IA
 	SrcIA   addr.IA
 	DstHost addr.HostAddr
