@@ -33,7 +33,11 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	if s.E2EExt != nil {
 		return 0, common.NewBasicError("E2E extensions not supported", nil, "ext", s.E2EExt)
 	}
-	if s.HBHExt != nil {
+	if len(s.HBHExt) == 1 && s.HBHExt[0].Type() == common.ExtnSCMPType {
+		if s.L4.L4Type() != common.L4SCMP {
+			return 0, common.NewBasicError("SCMP requires HBH SCMP extension", nil, "ext", s.HBHExt)
+		}
+	} else if s.HBHExt != nil {
 		return 0, common.NewBasicError("HBH extensions not supported", nil, "ext", s.HBHExt)
 	}
 
@@ -54,6 +58,7 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 
 	// Compute preliminary common header, but do not write it to the packet yet
 	cmnHdr := spkt.CmnHdr{}
+	s.CmnHdr = &cmnHdr
 	cmnHdr.Ver = spkt.SCIONVersion
 	cmnHdr.DstType = s.DstHost.Type()
 	cmnHdr.SrcType = s.SrcHost.Type()
@@ -83,6 +88,18 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 		cmnHdr.CurrHopF = uint8((offset + s.Path.HopOff) / common.LineLen)
 		offset += copy(b[offset:], s.Path.Raw)
 	}
+	// HBH SCMP extension
+	if s.HBHExt != nil {
+		ext := s.HBHExt[0]
+		b[offset] = uint8(cmnHdr.NextHdr)
+		extHdrLen := common.ExtnSubHdrLen + ext.Len()
+		b[offset+1] = uint8(extHdrLen / common.LineLen)
+		b[offset+2] = ext.Type().Type
+		ext.Write(b[offset+common.ExtnSubHdrLen:])
+		offset += extHdrLen
+		cmnHdr.NextHdr = common.HopByHopClass
+		cmnHdr.TotalLen += uint16(extHdrLen)
+	}
 
 	// Write the common header at the start of the buffer
 	cmnHdr.Write(b)
@@ -96,7 +113,7 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	s.Pld.WritePld(b[offset:])
 	offset += s.Pld.Len()
 
-	// SCION/UDP Header
+	// SCION/L4 Header
 	err = l4.SetCSum(s.L4, addrSlice, pldSlice)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to compute checksum", err)
