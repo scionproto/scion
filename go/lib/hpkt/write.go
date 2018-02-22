@@ -33,8 +33,11 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	if s.E2EExt != nil {
 		return 0, common.NewBasicError("E2E extensions not supported", nil, "ext", s.E2EExt)
 	}
-	if s.HBHExt != nil {
-		return 0, common.NewBasicError("HBH extensions not supported", nil, "ext", s.HBHExt)
+	if s.L4.L4Type() == common.L4SCMP {
+		if len(s.HBHExt) == 0 || s.HBHExt[0].Type() != common.ExtnSCMPType {
+			return 0, common.NewBasicError("SCMP requires HBH SCMP ext to be the first extension",
+				nil, "ext", s.HBHExt)
+		}
 	}
 
 	// Compute header lengths
@@ -83,6 +86,16 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 		cmnHdr.CurrHopF = uint8((offset + s.Path.HopOff) / common.LineLen)
 		offset += copy(b[offset:], s.Path.Raw)
 	}
+	// HBH extensions
+	if s.HBHExt != nil {
+		l, err := writeScnPktExtn(s, b[offset:], cmnHdr.NextHdr)
+		if err != nil {
+			return 0, err
+		}
+		cmnHdr.NextHdr = common.HopByHopClass
+		cmnHdr.TotalLen += uint16(l)
+		offset += l
+	}
 
 	// Write the common header at the start of the buffer
 	cmnHdr.Write(b)
@@ -96,12 +109,38 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	s.Pld.WritePld(b[offset:])
 	offset += s.Pld.Len()
 
-	// SCION/UDP Header
+	// SCION/L4 Header
 	err = l4.SetCSum(s.L4, addrSlice, pldSlice)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to compute checksum", err)
 	}
 	s.L4.Write(l4Slice)
+
+	return offset, nil
+}
+
+func writeScnPktExtn(s *spkt.ScnPkt, b common.RawBytes, nextHdr common.L4ProtocolType) (int, error) {
+	var extHdrLen, offset int
+	l4Type := s.L4.L4Type()
+	if len(s.HBHExt) > 3 {
+		return 0, common.NewBasicError("Maximum number of HBH extensions is 3",
+			nil, "number of HBH extensions", len(s.HBHExt))
+	}
+	for _, ext := range s.HBHExt {
+		if l4Type != common.L4SCMP && ext.Type() == common.ExtnSCMPType {
+			return 0, common.NewBasicError("HBH SCMP extension for a non SCMP packet",
+				nil, "ext", s.HBHExt)
+		}
+		// Set all nextHdr fields as HBH, later we update last extension and common header
+		b[offset] = uint8(common.HopByHopClass)
+		extHdrLen = common.ExtnSubHdrLen + ext.Len()
+		b[offset+1] = uint8(extHdrLen / common.LineLen)
+		b[offset+2] = ext.Type().Type
+		ext.Write(b[offset+common.ExtnSubHdrLen:])
+		offset += extHdrLen
+	}
+	// Update nextHdr in the last extension
+	b[offset-extHdrLen] = uint8(nextHdr)
 
 	return offset, nil
 }
