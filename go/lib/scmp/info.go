@@ -58,7 +58,7 @@ func (s InfoString) String() string {
 var _ Info = (*InfoEcho)(nil)
 
 type InfoEcho struct {
-	Id  uint16
+	Id  uint64
 	Seq uint16
 }
 
@@ -75,14 +75,14 @@ func (e *InfoEcho) Copy() Info {
 }
 
 func (e *InfoEcho) Len() int {
-	l := 4
+	l := 10
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
 func (e *InfoEcho) Write(b common.RawBytes) (int, error) {
-	common.Order.PutUint16(b[0:], e.Id)
-	common.Order.PutUint16(b[2:], e.Seq)
-	return util.FillPadding(b, 4, common.LineLen), nil
+	common.Order.PutUint64(b[0:], e.Id)
+	common.Order.PutUint16(b[8:], e.Seq)
+	return util.FillPadding(b, 10, common.LineLen), nil
 }
 
 func (e *InfoEcho) String() string {
