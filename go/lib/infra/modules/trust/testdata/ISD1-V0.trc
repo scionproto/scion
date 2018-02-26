@@ -1,0 +1,41 @@
+{
+    "CertLogs": {},
+    "CoreASes": {
+        "1-11": {
+            "OfflineKey": "qaB0HlLaqeJUY0tPadCs8tfcdIGL90tLj0YJqoXYs88=",
+            "OfflineKeyAlg": "ed25519",
+            "OnlineKey": "EMCTs/yQUWjQWc5P/7DM3nXMwlg0441GUXoWMeWprdU=",
+            "OnlineKeyAlg": "ed25519"
+        },
+        "1-12": {
+            "OfflineKey": "AWEbbDxfT0HGz6FtzRHKIBnCWE9T6mw4BqZMaAQ7T7o=",
+            "OfflineKeyAlg": "ed25519",
+            "OnlineKey": "qE1Se7sBV42Y3R2rK8gGsb2WxBpvVU6TkeSsqEwpp6U=",
+            "OnlineKeyAlg": "ed25519"
+        },
+        "1-13": {
+            "OfflineKey": "aV4pAEcjPkMg10cGmf3mP62kU624Buk0aJYn8VsRJxw=",
+            "OfflineKeyAlg": "ed25519",
+            "OnlineKey": "3N5m5EJOJK+98TA44u6Ip3MbIW4VskH4oSObR/ApC98=",
+            "OnlineKeyAlg": "ed25519"
+        }
+    },
+    "CreationTime": 1512572983,
+    "Description": "ISD 1",
+    "ExpirationTime": 1544108983,
+    "GracePeriod": 18000,
+    "ISD": 1,
+    "Quarantine": false,
+    "QuorumCAs": 3,
+    "QuorumTRC": 2,
+    "RAINS": {},
+    "RootCAs": {},
+    "Signatures": {
+        "1-11": "pHtxrwjW0RdTRVla3CZB8pwgfOLXLkEH6dYMA9CsLMDrZAvxqQlwYjrffAUn+9GxEgPR6+kNhktrnpFHfZbXBw==",
+        "1-12": "jypuCGiWolo1NEjR1w75GiWRsHeGSFQSfng6zX3ocLQhKK2BSlU5eXnJqiczEO+OfQJPZ+4ikhbD1R1d/glmCw==",
+        "1-13": "c8wHKQ3BHFrGsEZEbPNBWyambH3PrI6rHih1mp8it9aMbXt7d6UoU5M1nQdJy9h3hdGsneKdpdbT0iopPu0PCQ=="
+    },
+    "ThresholdEEPKI": 2,
+    "Version": 0
+}
+
