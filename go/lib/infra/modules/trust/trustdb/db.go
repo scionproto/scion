@@ -81,11 +81,13 @@ const (
 
 // DB is a database containing TRCs and Certificate Chains, stored in JSON format.
 //
+// DB stores only verified crypto objects.
+//
 // On errors, GetXxx methods return nil and the error. If no error occurred,
 // but the database query yielded 0 results, the first returned value is nil.
 // GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
-	*sql.DB
+	db                     *sql.DB
 	getChainVersionStmt    *sql.Stmt
 	getChainMaxVersionStmt *sql.Stmt
 	insertChainStmt        *sql.Stmt
@@ -97,50 +99,43 @@ type DB struct {
 func New(path string) (*DB, error) {
 	var err error
 	db := &DB{}
-	if db.DB, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
+	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
 
 	// On future errors, close the sql database before exiting
 	defer func() {
 		if err != nil {
-			db.Close()
+			db.db.Close()
 		}
 	}()
-	if db.getChainVersionStmt, err = db.Prepare(getChainVersionStr); err != nil {
+	if db.getChainVersionStmt, err = db.db.Prepare(getChainVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainVersion", err)
 	}
-	if db.getChainMaxVersionStmt, err = db.Prepare(getChainMaxVersionStr); err != nil {
+	if db.getChainMaxVersionStmt, err = db.db.Prepare(getChainMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainMaxVersion", err)
 	}
-	if db.insertChainStmt, err = db.Prepare(insertChainStr); err != nil {
+	if db.insertChainStmt, err = db.db.Prepare(insertChainStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertChain", err)
 	}
-	if db.getTRCVersionStmt, err = db.Prepare(getTRCVersionStr); err != nil {
+	if db.getTRCVersionStmt, err = db.db.Prepare(getTRCVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCVersion", err)
 	}
-	if db.getTRCMaxVersionStmt, err = db.Prepare(getTRCMaxVersionStr); err != nil {
+	if db.getTRCMaxVersionStmt, err = db.db.Prepare(getTRCMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCMaxVersion", err)
 	}
-	if db.insertTRCStmt, err = db.Prepare(insertTRCStr); err != nil {
+	if db.insertTRCStmt, err = db.db.Prepare(insertTRCStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertTRC", err)
 	}
 	return db, nil
 }
 
-// GetChainVersion returns the specified version of the certificate chain for
-// ia. If version is 0, this is equivalent to GetChainMaxVersion.
-func (db *DB) GetChainVersion(ia addr.IA, version uint64) (*cert.Chain, error) {
+func (db *DB) GetChainVersion(ia addr.ISD_AS, version uint64) (*cert.Chain, error) {
 	return db.GetChainVersionCtx(context.Background(), ia, version)
 }
 
-// GetChainVersionCtx is the context-aware version of GetChainVersion.
-func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.IA,
+func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.ISD_AS,
 	version uint64) (*cert.Chain, error) {
-
-	if version == 0 {
-		return db.GetChainMaxVersionCtx(ctx, ia)
-	}
 	var raw common.RawBytes
 	err := db.getChainVersionStmt.QueryRowContext(ctx, ia.I, ia.A, version).Scan(&raw)
 	if err == sql.ErrNoRows {
@@ -156,11 +151,11 @@ func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.IA,
 	return chain, nil
 }
 
-func (db *DB) GetChainMaxVersion(ia addr.IA) (*cert.Chain, error) {
+func (db *DB) GetChainMaxVersion(ia addr.ISD_AS) (*cert.Chain, error) {
 	return db.GetChainMaxVersionCtx(context.Background(), ia)
 }
 
-func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Chain, error) {
+func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.ISD_AS) (*cert.Chain, error) {
 	var raw common.RawBytes
 	err := db.getChainMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
 	if err == sql.ErrNoRows {
@@ -176,11 +171,11 @@ func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Chai
 	return chain, nil
 }
 
-func (db *DB) InsertChain(ia addr.IA, version uint64, chain *cert.Chain) error {
+func (db *DB) InsertChain(ia addr.ISD_AS, version uint64, chain *cert.Chain) error {
 	return db.InsertChainCtx(context.Background(), ia, version, chain)
 }
 
-func (db *DB) InsertChainCtx(ctx context.Context, ia addr.IA, version uint64,
+func (db *DB) InsertChainCtx(ctx context.Context, ia addr.ISD_AS, version uint64,
 	chain *cert.Chain) error {
 	raw, err := chain.JSON(false)
 	if err != nil {
@@ -190,17 +185,11 @@ func (db *DB) InsertChainCtx(ctx context.Context, ia addr.IA, version uint64,
 	return err
 }
 
-// GetTRCVersion returns the specified version of the TRC for
-// isd. If version is 0, this is equivalent to GetTRCMaxVersion.
 func (db *DB) GetTRCVersion(isd uint16, version uint64) (*trc.TRC, error) {
 	return db.GetTRCVersionCtx(context.Background(), isd, version)
 }
 
-// GetTRCVersionCtx is the context aware version of GetTRCVersion.
 func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) (*trc.TRC, error) {
-	if version == 0 {
-		return db.GetTRCMaxVersionCtx(ctx, isd)
-	}
 	var raw common.RawBytes
 	err := db.getTRCVersionStmt.QueryRowContext(ctx, isd, version).Scan(&raw)
 	if err == sql.ErrNoRows {
@@ -236,13 +225,11 @@ func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, er
 	return trcobj, nil
 }
 
-func (db *DB) InsertTRC(isd addr.ISD, version uint64, trcobj *trc.TRC) error {
+func (db *DB) InsertTRC(isd uint16, version uint64, trcobj *trc.TRC) error {
 	return db.InsertTRCCtx(context.Background(), isd, version, trcobj)
 }
 
-func (db *DB) InsertTRCCtx(ctx context.Context, isd addr.ISD, version uint64,
-	trcobj *trc.TRC) error {
-
+func (db *DB) InsertTRCCtx(ctx context.Context, isd uint16, version uint64, trcobj *trc.TRC) error {
 	raw, err := trcobj.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
