@@ -138,6 +138,8 @@ const (
 
 // DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
 //
+// DB stores only verified crypto objects.
+//
 // On errors, GetXxx methods return nil and the error. If no error occurred,
 // but the database query yielded 0 results, the first returned value is nil.
 // GetXxxCtx methods are the context equivalents of GetXxx.
@@ -347,7 +349,7 @@ func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.IA,
 	return parseChain(rows, err)
 }
 
-func (db *DB) GetChainMaxVersion(ia addr.IA) (*cert.Chain, error) {
+func (db *DB) GetChainMaxVersion(ia addr.ISD_AS) (*cert.Chain, error) {
 	return db.GetChainMaxVersionCtx(context.Background(), ia)
 }
 
@@ -421,17 +423,11 @@ func (db *DB) getIssCertRowIDCtx(ctx context.Context, ia addr.IA, ver uint64) (i
 	return rowId, nil
 }
 
-// GetTRCVersion returns the specified version of the TRC for
-// isd. If version is 0, this is equivalent to GetTRCMaxVersion.
 func (db *DB) GetTRCVersion(isd uint16, version uint64) (*trc.TRC, error) {
 	return db.GetTRCVersionCtx(context.Background(), isd, version)
 }
 
-// GetTRCVersionCtx is the context aware version of GetTRCVersion.
 func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) (*trc.TRC, error) {
-	if version == 0 {
-		return db.GetTRCMaxVersionCtx(ctx, isd)
-	}
 	var raw common.RawBytes
 	err := db.getTRCVersionStmt.QueryRowContext(ctx, isd, version).Scan(&raw)
 	if err == sql.ErrNoRows {
