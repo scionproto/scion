@@ -17,7 +17,6 @@ package transport
 import (
 	"context"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -34,19 +33,25 @@ type UDP struct {
 	// While conn is safe for use from multiple goroutines, deadlines are
 	// global so it is not safe to enforce two at the same time. Thus, to
 	// meet context deadlines we serialize access to the conn.
-	writeLock sync.Mutex
-	readLock  sync.Mutex
+	writeLock *channelLock
+	readLock  *channelLock
 }
 
 func NewUDP(conn net.PacketConn) *UDP {
 	return &UDP{
-		conn: conn,
+		conn:      conn,
+		writeLock: newChannelLock(),
+		readLock:  newChannelLock(),
 	}
 }
 
 func (u *UDP) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes, address net.Addr) error {
-	u.writeLock.Lock()
-	defer u.writeLock.Unlock()
+	select {
+	case <-u.writeLock.Lock():
+		defer u.writeLock.Unlock()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	if err := setWriteDeadlineFromCtx(u.conn, ctx); err != nil {
 		return err
 	}
@@ -59,8 +64,12 @@ func (u *UDP) SendMsgTo(ctx context.Context, b common.RawBytes, address net.Addr
 }
 
 func (u *UDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
-	u.readLock.Lock()
-	defer u.readLock.Unlock()
+	select {
+	case <-u.readLock.Lock():
+		defer u.readLock.Unlock()
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	}
 	if err := setReadDeadlineFromCtx(u.conn, ctx); err != nil {
 		return nil, nil, err
 	}

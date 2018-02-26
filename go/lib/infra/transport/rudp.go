@@ -20,7 +20,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -104,7 +103,7 @@ type RUDP struct {
 	// Logger used by the background goroutine
 	log log.Logger
 	// Serialize write access to the conn object
-	writeLock sync.Mutex
+	writeLock *channelLock
 }
 
 // NewRUDP creates a new RUDP connection by wrapping around a PacketConn.
@@ -119,6 +118,7 @@ func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 		closedChan: make(chan struct{}),
 		doneChan:   make(chan struct{}),
 		log:        logger.New("id", logext.RandId(4), "goroutine", "transport_bck"),
+		writeLock:  newChannelLock(),
 	}
 	t.goBackgroundReceiver()
 	return t
@@ -197,8 +197,12 @@ func (t *RUDP) send(ctx context.Context, b common.RawBytes, a net.Addr) error {
 	// NOTE(scrye): Even though WriteTo is concurrency-safe, we want to enforce
 	// deadlines on each packet to prevent this function from blocking indefinitely.
 	// Because a connection supports a single deadline, we serialize access via a lock.
-	t.writeLock.Lock()
-	defer t.writeLock.Unlock()
+	select {
+	case <-t.writeLock.Lock():
+		defer t.writeLock.Unlock()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	if err := t.conn.SetWriteDeadline(deadline); err != nil {
 		return err
 	}
