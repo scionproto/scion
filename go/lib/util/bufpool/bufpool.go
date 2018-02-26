@@ -72,12 +72,6 @@ func Put(buffer *Buffer) {
 	freeList.put(buffer)
 }
 
-// NewBytes returns a new common.RawBytes object of capacity common.MaxMTU that is
-// not tied to the free buffer pool.
-func NewBytes() common.RawBytes {
-	return make(common.RawBytes, common.MaxMTU)
-}
-
 // Buffer is a container for a common.RawBytes object B. B can be safely
 // resliced. Calling Reset will return B to its initial length and capacity.
 type Buffer struct {

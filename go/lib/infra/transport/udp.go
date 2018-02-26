@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util/bufpool"
 )
 
 var _ Transport = (*UDP)(nil)
@@ -55,7 +54,10 @@ func (u *UDP) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes, addres
 	if err := setWriteDeadlineFromCtx(u.conn, ctx); err != nil {
 		return err
 	}
-	_, err := u.conn.WriteTo(b, address)
+	n, err := u.conn.WriteTo(b, address)
+	if n != len(b) {
+		return common.NewBasicError("Wrote incomplete message", nil, "wrote", n, "expected", len(b))
+	}
 	return err
 }
 
@@ -73,7 +75,7 @@ func (u *UDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
 	if err := setReadDeadlineFromCtx(u.conn, ctx); err != nil {
 		return nil, nil, err
 	}
-	b := bufpool.NewBytes()
+	b := make(common.RawBytes, common.MaxMTU)
 	n, address, err := u.conn.ReadFrom(b)
 	return b[:n], address, err
 }
