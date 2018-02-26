@@ -39,14 +39,14 @@ deps_proto: deps proto
 deps: vendor/.deps.stamp ../proto/go.capnp
 
 vendor/.deps.stamp: vendor/vendor.json
-	@echo "$$(date -Iseconds) Remove unused deps"; \
+	@[ -z "${QUIET}" ] && echo "$$(date -Iseconds) Remove unused deps"; \
 	    govendor list -no-status +unused | while read pkg; do \
 	    grep -q '"path": "'$$pkg'"' vendor/vendor.json && continue; \
 	    echo "$$pkg"; \
 	    govendor remove "$$pkg"; \
 	done
-	@echo "$$(date -Iseconds) Syncing deps"; govendor sync -v
-	@echo "$$(date -Iseconds) Installing deps"; go install ./vendor/...
+	@[ -z "${QUIET}" ] && echo "$$(date -Iseconds) Syncing deps"; govendor sync -v
+	@[ -z "${QUIET}" ] && echo "$$(date -Iseconds) Installing deps"; go install ./vendor/...
 	@if [ -n "$$(govendor list -no-status +outside | grep -v '^context$$')" ]; then \
 	    echo "ERROR: external/missing packages:"; \
 	    govendor list +outside; \
@@ -63,7 +63,7 @@ depspurge:
 	find vendor/* -maxdepth 0 -type d -exec rm -rf ./{} \;
 
 proto: deps
-	cd proto && $(MAKE)
+	$(MAKE) -C proto
 
 bin: deps_proto
 	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
