@@ -18,6 +18,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -122,13 +123,22 @@ type Messenger interface {
 
 type TrustStore interface {
 	StartResolvers(messenger Messenger) error
-	NewTRCReqHandler() Handler
-	NewChainReqHandler() Handler
+	NewTRCReqHandler(recurse bool) Handler
+	NewChainReqHandler(recurse bool) Handler
 	NewPushTRCHandler() Handler
 	NewPushChainHandler() Handler
 	GetCertificate(ctx context.Context, trail []TrustDescriptor, hint net.Addr) (*cert.Certificate, error)
 }
 
 type TrustDescriptor struct {
-	// FIXME(scrye): include type when trust store gets merged
+	Version uint64
+	IA      addr.ISD_AS
+	Type    TrustDescriptorType
 }
+
+type TrustDescriptorType uint64
+
+const (
+	ChainDescriptor TrustDescriptorType = iota
+	TRCDescriptor
+)
