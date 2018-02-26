@@ -141,6 +141,8 @@ const (
 
 // DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
 //
+// DB stores only verified crypto objects.
+//
 // On errors, GetXxx methods return nil and the error. If no error occurred,
 // but the database query yielded 0 results, the first returned value is nil.
 // GetXxxCtx methods are the context equivalents of GetXxx.
@@ -350,7 +352,7 @@ func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.IA,
 	return parseChain(rows, err)
 }
 
-func (db *DB) GetChainMaxVersion(ia addr.IA) (*cert.Chain, error) {
+func (db *DB) GetChainMaxVersion(ia addr.ISD_AS) (*cert.Chain, error) {
 	return db.GetChainMaxVersionCtx(context.Background(), ia)
 }
 
