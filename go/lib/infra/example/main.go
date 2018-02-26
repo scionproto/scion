@@ -44,10 +44,14 @@ func main() {
 	// Initialize networking and modules
 	serverApp := InitDefaultNetworking(s2c)
 	// Initialize Server
-	serverApp.messenger.AddHandler("ChainRequest", serverApp.trustStore.NewChainReqHandler(false))
-	serverApp.messenger.AddHandler("TRCRequest", serverApp.trustStore.NewTRCReqHandler(false))
-	serverApp.messenger.AddHandler("TRC", serverApp.trustStore.NewPushTRCHandler())
-	serverApp.messenger.AddHandler("Chain", serverApp.trustStore.NewPushChainHandler())
+	serverApp.messenger.AddHandler(messenger.ChainRequest,
+		serverApp.trustStore.NewChainReqHandler(false))
+	serverApp.messenger.AddHandler(messenger.TRCRequest,
+		serverApp.trustStore.NewTRCReqHandler(false))
+	serverApp.messenger.AddHandler(messenger.TRC,
+		serverApp.trustStore.NewPushTRCHandler())
+	serverApp.messenger.AddHandler(messenger.Chain,
+		serverApp.trustStore.NewPushChainHandler())
 	go serverApp.messenger.ListenAndServe()
 	// Do work
 	select {}
