@@ -26,6 +26,7 @@ from lib.sciond_api.as_req import SCIONDASInfoRequest, SCIONDASInfoReply
 from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoRequest
 from lib.sciond_api.path_req import SCIONDPathRequest, SCIONDPathReply
 from lib.sciond_api.revocation import SCIONDRevNotification, SCIONDRevReply
+from lib.sciond_api.segment_req import SCIONDSegTypeHopRequest, SCIONDSegTypeHopReply
 from lib.sciond_api.service_req import SCIONDServiceInfoReply, SCIONDServiceInfoRequest
 from lib.types import SCIONDMsgType
 
@@ -44,6 +45,8 @@ class SCIONDMsg(CerealBox):  # pragma: no cover
         SCIONDIFInfoReply: SCIONDMsgType.IF_REPLY,
         SCIONDServiceInfoRequest: SCIONDMsgType.SERVICE_REQUEST,
         SCIONDServiceInfoReply: SCIONDMsgType.SERVICE_REPLY,
+        SCIONDSegTypeHopRequest: SCIONDMsgType.SEGTYPEHOP_REQUEST,
+        SCIONDSegTypeHopReply: SCIONDMsgType.SEGTYPEHOP_REPLY,
     }
 
     def __init__(self, union, id):
