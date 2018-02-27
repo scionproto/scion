@@ -30,6 +30,8 @@ def sciond_default():
     handle_signals()
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir', default="logs/", help='Log dir (Default: logs/)')
+    parser.add_argument('--spki_cache_dir', default="gen-cache/",
+                        help='Cache dir for SCION TRCs and cert chains (Default: gen-cache/)')
     parser.add_argument('--addr', default='127.0.0.1',
                         help='Address to bind to (Default: 127.0.0.1)')
     parser.add_argument('--api-addr',
