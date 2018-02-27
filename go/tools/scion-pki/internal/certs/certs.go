@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 var CmdCerts = &base.Command{
@@ -111,24 +112,16 @@ the following values:
 `,
 }
 
-const (
-	certNameFmt     = "ISD%d-AS%d-V%d.crt"
-	coreCertNameFmt = "ISD%d-AS%d-V%d-core.crt"
-	trcNameFmt      = "ISD%d-V%d.trc"
-)
-
 var (
-	rootDir string
 	genKeys bool
-	force   bool
 	core    bool
 	verify  bool
 )
 
 func init() {
-	CmdCerts.Flag.StringVar(&rootDir, "d", ".", "")
+	CmdCerts.Flag.StringVar(&pkicmn.RootDir, "d", ".", "")
+	CmdCerts.Flag.BoolVar(&pkicmn.Force, "f", false, "")
 	CmdCerts.Flag.BoolVar(&genKeys, "genkeys", false, "")
-	CmdCerts.Flag.BoolVar(&force, "f", false, "")
 	CmdCerts.Flag.BoolVar(&core, "core", false, "")
 	CmdCerts.Flag.BoolVar(&verify, "verify", false, "")
 }

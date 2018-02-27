@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 var (
@@ -38,7 +39,7 @@ func runTemplate(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := base.ProcessSelector(rootDir, args[0], args[1:])
+	top, err := pkicmn.ProcessSelector(args[0], args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
@@ -71,7 +72,7 @@ func visitTemplate(path string, info os.FileInfo, visitError error) error {
 	fname := getConfName(core)
 	fpath := filepath.Join(path, fname)
 	// Check if file exists and do not override without -f
-	if !force {
+	if !pkicmn.Force {
 		// Check if the file already exists.
 		if _, err = os.Stat(fpath); err == nil {
 			fmt.Printf("%s already exists. Use -f to overwrite.", fpath)

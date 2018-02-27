@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/certs"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/help"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/keys"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/trc"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/version"
 )
 
@@ -31,6 +32,7 @@ func init() {
 	base.Commands = []*base.Command{
 		certs.CmdCerts,
 		keys.CmdKeys,
+		trc.CmdTrc,
 		version.CmdVersion,
 	}
 }
