@@ -213,7 +213,7 @@ func TestWriteTo(t *testing.T) {
 					cconn, err := DialTimeout(sockName, time.Second)
 					sc.SoMsg("dial err", err, ShouldBeNil)
 
-					n, err := cconn.WriteTo([]byte(tc.msg), *tc.dst)
+					n, err := cconn.WriteTo([]byte(tc.msg), tc.dst)
 					sc.SoMsg("client write err", err, ShouldBeNil)
 					sc.SoMsg("client written bytes", n, ShouldEqual, len(tc.msg))
 
