@@ -145,10 +145,11 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	if c.scionNet == nil {
 		return 0, nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	n, lastHop, err := c.conn.ReadFrom(c.recvBuffer)
+	n, lastHopNetAddr, err := c.conn.ReadFrom(c.recvBuffer)
 	if err != nil {
 		return 0, nil, common.NewBasicError("Dispatcher read error", err)
 	}
+	lastHop := lastHopNetAddr.(*reliable.AppAddr)
 	if !from {
 		lastHop = nil
 	}
@@ -316,7 +317,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	}
 
 	// Send message
-	n, err = c.conn.WriteTo(c.sendBuffer[:n], appAddr)
+	n, err = c.conn.WriteTo(c.sendBuffer[:n], &appAddr)
 	if err != nil {
 		return 0, common.NewBasicError("Dispatcher write error", err)
 	}
