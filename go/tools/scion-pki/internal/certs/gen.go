@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/keys"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 func runGenCert(cmd *base.Command, args []string) {
@@ -39,7 +40,7 @@ func runGenCert(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := base.ProcessSelector(rootDir, args[0], args[1:])
+	top, err := pkicmn.ProcessSelector(args[0], args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
@@ -87,7 +88,7 @@ func getWalker(core bool) filepath.WalkFunc {
 		// Generate keys if specified
 		if genKeys {
 			fmt.Println("Generating keys for", conf.Subject)
-			err = keys.GenAll(filepath.Join(path, "keys"), core, force)
+			err = keys.GenAll(filepath.Join(path, "keys"), core)
 			if err != nil {
 				return err
 			}
@@ -110,8 +111,21 @@ func getWalker(core bool) filepath.WalkFunc {
 		if err != nil {
 			return common.NewBasicError("Error generating cert", err, "subject", conf.Subject)
 		}
+		// Check if out directory exists and if not create it.
+		dir := filepath.Join(path, "certs")
+		if _, err = os.Stat(dir); os.IsNotExist(err) {
+			if err = os.MkdirAll(dir, 0755); err != nil {
+				return common.NewBasicError("Cannot create output dir", err, "path", path)
+			}
+		}
 		// Write the cert to disk.
-		if err = writeCert(filepath.Join(path, "certs"), chain); err != nil {
+		subject := chain.Leaf.Subject
+		fname := fmt.Sprintf(pkicmn.CertNameFmt, subject.I, subject.A, chain.Leaf.Version)
+		raw, err := chain.JSON(true)
+		if err != nil {
+			return common.NewBasicError("Error json-encoding cert", err, "subject", conf.Subject)
+		}
+		if err = pkicmn.WriteToFile(raw, filepath.Join(dir, fname), 0644); err != nil {
 			return common.NewBasicError("Error writing cert", err, "subject", conf.Subject)
 		}
 		// Skip the rest of this directory.
@@ -216,7 +230,7 @@ func genASCert(conf *certConf, issuerCert *cert.Certificate) (*cert.Chain, error
 	if verify {
 		err = verifyChain(chain, c.Subject)
 		if err != nil {
-			fname := fmt.Sprintf(certNameFmt, c.Subject.I, c.Subject.A, c.Version)
+			fname := fmt.Sprintf(pkicmn.CertNameFmt, c.Subject.I, c.Subject.A, c.Version)
 			return nil, common.NewBasicError("Verification FAILED", err, "cert", fname)
 		}
 	}
@@ -258,7 +272,7 @@ func genIssuerCert(issuer *addr.ISD_AS, ccpath string) (*cert.Certificate, error
 		return nil, err
 	}
 	// We already have a core AS certificate of the specified version.
-	if issuerCert.Version >= coreConf.Version {
+	if issuerCert != nil && issuerCert.Version >= coreConf.Version {
 		return issuerCert, nil
 	}
 	// Need to generate a new core AS certificate.
@@ -269,35 +283,6 @@ func genIssuerCert(issuer *addr.ISD_AS, ccpath string) (*cert.Certificate, error
 	return issuerCert, nil
 }
 
-func writeCert(path string, c *cert.Chain) error {
-	certRaw, err := c.JSON(true)
-	if err != nil {
-		return err
-	}
-	subject := c.Leaf.Subject
-	fullName := filepath.Join(path, fmt.Sprintf(certNameFmt, subject.I, subject.A, c.Leaf.Version))
-	if !force {
-		// Check if the file already exists.
-		if _, err = os.Stat(fullName); err == nil {
-			fmt.Printf("%s already exists. Use -f to overwrite.\n", fullName)
-			return nil
-		}
-	}
-	// Check if out directory exists and if not create it.
-	_, err = os.Stat(path)
-	if os.IsNotExist(err) {
-		if err = os.MkdirAll(path, 0755); err != nil {
-			return common.NewBasicError("Cannot create output dir", err, "path", path)
-		}
-	}
-	if err := ioutil.WriteFile(fullName, append(certRaw, "\n"...), 0644); err != nil {
-		return err
-	}
-	fmt.Println("Successfully written cert to", fullName)
-
-	return nil
-}
-
 func path(ia *addr.ISD_AS) string {
-	return filepath.Join(rootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
+	return filepath.Join(pkicmn.RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
 }
