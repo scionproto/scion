@@ -27,6 +27,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
+    GEN_CACHE_PATH,
     PATH_FLAG_SIBRA,
     PATH_REQ_TOUT,
     PATH_SERVICE,
@@ -93,11 +94,12 @@ class SCIONDaemon(SCIONElement):
     SEGMENT_TTL = 300
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=None, prom_export=None):
+                 port=None, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
         Initialize an instance of the class SCIONDaemon.
         """
-        super().__init__("sciond", conf_dir, prom_export=prom_export, public=[(addr, port)])
+        super().__init__("sciond", conf_dir, spki_cache_dir=spki_cache_dir,
+                         prom_export=prom_export, public=[(addr, port)])
         up_labels = {**self._labels, "type": "up"} if self._labels else None
         down_labels = {**self._labels, "type": "down"} if self._labels else None
         core_labels = {**self._labels, "type": "core"} if self._labels else None

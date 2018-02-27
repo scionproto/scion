@@ -19,6 +19,7 @@
 import logging
 
 # SCION
+from lib.defines import GEN_CACHE_PATH
 from lib.packet.svc import SVCType
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path_mgmt.base import PathMgmt
@@ -34,13 +35,14 @@ class LocalPathServer(PathServer):
     registers down-segments with the CPS. Can cache segments learned from a CPS.
     """
 
-    def __init__(self, server_id, conf_dir, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir, prom_export)
+        super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
+                         prom_export=prom_export)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_as, "This shouldn't be a core PS!"
         # Database of up-segments to the core.

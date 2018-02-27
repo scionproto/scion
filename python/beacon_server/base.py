@@ -36,6 +36,7 @@ from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
+    GEN_CACHE_PATH,
     HASHTREE_EPOCH_TIME,
     HASHTREE_EPOCH_TOLERANCE,
     PATH_POLICY_FILE,
@@ -120,13 +121,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
-    def __init__(self, server_id, conf_dir, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir, prom_export=prom_export)
+        super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
+                         prom_export=prom_export)
+        self.config = self._load_as_conf()
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
@@ -134,7 +137,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
         self.hashtree_gen_key = kdf(
                             self.config.master_as_key, b"Derive hashtree Key")
-        logging.info(self.config.__dict__)
         # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
         self.default_hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT)
         self._hash_tree = None

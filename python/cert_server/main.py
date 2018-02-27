@@ -32,7 +32,7 @@ from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
 from lib.crypto.symcrypto import kdf
-from lib.defines import CERTIFICATE_SERVICE
+from lib.defines import CERTIFICATE_SERVICE, GEN_CACHE_PATH
 from lib.drkey.drkey_mgmt import (
     DRKeyMgmt,
     DRKeyReply,
@@ -102,13 +102,15 @@ class CertServer(SCIONElement):
     ZK_TRC_CACHE_PATH = "trc_cache"
     ZK_DRKEY_PATH = "drkey_cache"
 
-    def __init__(self, server_id, conf_dir, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir, prom_export=prom_export)
+        super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
+                         prom_export=prom_export)
+        self.config = self._load_as_conf()
         cc_labels = {**self._labels, "type": "cc"} if self._labels else None
         trc_labels = {**self._labels, "type": "trc"} if self._labels else None
         drkey_labels = {**self._labels, "type": "drkey"} if self._labels else None

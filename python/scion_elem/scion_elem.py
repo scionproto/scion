@@ -148,7 +148,8 @@ class SCIONElement(object):
     # Timeout for TRC or Certificate requests.
     TRC_CC_REQ_TIMEOUT = 3
 
-    def __init__(self, server_id, conf_dir, public=None, bind=None, prom_export=None):
+    def __init__(self, server_id, conf_dir, public=None, bind=None, spki_cache_dir=GEN_CACHE_PATH,
+                 prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -159,6 +160,8 @@ class SCIONElement(object):
             (host_addr, port) of the element's bind address, if any
             (i.e. the address the element uses to identify itself to the local
             operating system, if it differs from the public address due to NAT).
+        :param str spki_cache_dir:
+            Path for caching TRCs and certificate chains.
         :param str prom_export:
             String of the form 'addr:port' specifying the prometheus endpoint.
             If no string is provided, no metrics are exported.
@@ -168,8 +171,6 @@ class SCIONElement(object):
         self.ifid2br = {}
         self.topology = Topology.from_file(
             os.path.join(self.conf_dir, TOPO_FILE))
-        self.config = Config.from_file(
-            os.path.join(self.conf_dir, AS_CONF_FILE))
         # Labels attached to every exported metric.
         self._labels = {"server_id": self.id, "isd_as": str(self.topology.isd_as)}
         # Must be over-ridden by child classes:
@@ -185,7 +186,7 @@ class SCIONElement(object):
             if bind is None:
                 self.bind = own_config.bind
         self.init_ifid2br()
-        self.trust_store = TrustStore(self.conf_dir, GEN_CACHE_PATH, self.id, self._labels)
+        self.trust_store = TrustStore(self.conf_dir, spki_cache_dir, self.id, self._labels)
         self.total_dropped = 0
         self._core_ases = defaultdict(list)  # Mapping ISD_ID->list of core ASes
         self.init_core_ases()
@@ -214,6 +215,9 @@ class SCIONElement(object):
             self._init_metrics()
         self._setup_sockets(True)
         lib_sciond.init(os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % self.addr.isd_as))
+
+    def _load_as_conf(self):
+        return Config.from_file(os.path.join(self.conf_dir, AS_CONF_FILE))
 
     def _setup_sockets(self, init):
         """

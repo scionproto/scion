@@ -30,6 +30,7 @@ from prometheus_client import Counter, Gauge
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
+    GEN_CACHE_PATH,
     HASHTREE_EPOCH_TIME,
     PATH_REQ_TOUT,
     PATH_SERVICE,
@@ -92,13 +93,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     # TTL of segments in the queue for ZK (in seconds)
     SEGS_TO_ZK_TTL = 10 * 60
 
-    def __init__(self, server_id, conf_dir, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir, prom_export=prom_export)
+        super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
+                         prom_export=prom_export)
+        self.config = self._load_as_conf()
         down_labels = {**self._labels, "type": "down"} if self._labels else None
         core_labels = {**self._labels, "type": "core"} if self._labels else None
         self.down_segments = PathSegmentDB(max_res_no=self.MAX_SEG_NO, labels=down_labels)

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+ORG=scionproto
 branch=
 build_dir=
 image_tag=
@@ -19,7 +20,7 @@ cmd_base() {
     get_params
     copy_tree
     docker_build "base"
-    docker tag scion_base:latest scionproto/scion_base:pending
+    docker tag scion_base:latest "$ORG/scion_base:pending"
 }
 
 cmd_build() {
