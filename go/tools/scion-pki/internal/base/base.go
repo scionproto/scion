@@ -18,13 +18,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"text/template"
-
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 )
 
 type Command struct {
@@ -73,35 +68,4 @@ func Tmpl(text string, data interface{}) {
 func ErrorAndExit(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	os.Exit(2)
-}
-
-// ProcessSelector processes the given selector and returns the top level directory
-// to which the requested operation should be applied.
-func ProcessSelector(rootDir, option string, args []string) (string, error) {
-	var top string
-	switch option {
-	case "all":
-		top = rootDir
-	case "isd":
-		if len(args) != 1 {
-			return "", common.NewBasicError("isd id missing", nil)
-		}
-		isd, err := strconv.Atoi(args[0])
-		if err != nil {
-			return "", common.NewBasicError("Failed parsing isd arg", err)
-		}
-		top = filepath.Join(rootDir, fmt.Sprintf("ISD%d", isd))
-	case "as":
-		if len(args) != 1 {
-			return "", common.NewBasicError("as id missing", nil)
-		}
-		ia, err := addr.IAFromString(args[0])
-		if err != nil {
-			return "", common.NewBasicError("Failed parsing as arg", err)
-		}
-		top = filepath.Join(rootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
-	default:
-		return "", common.NewBasicError("Unrecognized option", nil, "option", option)
-	}
-	return top, nil
 }
