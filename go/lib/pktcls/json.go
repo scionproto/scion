@@ -40,15 +40,18 @@ type Typer interface {
 // concrete type is unmarshaled.
 
 const (
-	TypeCondAllOf            = "CondAllOf"
-	TypeCondAnyOf            = "CondAnyOf"
-	TypeCondBool             = "CondBool"
-	TypeCondIPv4             = "CondIPv4"
-	TypeActionFilterPaths    = "ActionFilterPaths"
-	TypeIPv4MatchSource      = "MatchSource"
-	TypeIPv4MatchDestination = "MatchDestination"
-	TypeIPv4MatchToS         = "MatchToS"
-	TypeIPv4MatchDSCP        = "MatchDSCP"
+	TypeCondAllOf             = "CondAllOf"
+	TypeCondAnyOf             = "CondAnyOf"
+	TypeCondNot               = "CondNot"
+	TypeCondBool              = "CondBool"
+	TypeCondIPv4              = "CondIPv4"
+	TypeCondPathPredicate     = "CondPathPredicate"
+	TypeActionFilterPaths     = "ActionFilterPaths"
+	TypeActionCondFilterPaths = "ActionCondFilterPaths"
+	TypeIPv4MatchSource       = "MatchSource"
+	TypeIPv4MatchDestination  = "MatchDestination"
+	TypeIPv4MatchToS          = "MatchToS"
+	TypeIPv4MatchDSCP         = "MatchDSCP"
 )
 
 // generic container for marshaling custom data
@@ -83,6 +86,10 @@ func unmarshalInterface(b []byte) (Typer, error) {
 			}
 			err := json.Unmarshal(*v, &c)
 			return c, err
+		case TypeCondNot:
+			var c CondNot
+			err := json.Unmarshal(*v, &c)
+			return c, err
 		case TypeCondBool:
 			var c CondBool
 			err := json.Unmarshal(*v, &c)
@@ -91,8 +98,16 @@ func unmarshalInterface(b []byte) (Typer, error) {
 			var c CondIPv4
 			err := json.Unmarshal(*v, &c)
 			return &c, err
+		case TypeCondPathPredicate:
+			var c CondPathPredicate
+			err := json.Unmarshal(*v, &c)
+			return &c, err
 		case TypeActionFilterPaths:
 			var a ActionFilterPaths
+			err := json.Unmarshal(*v, &a)
+			return &a, err
+		case TypeActionCondFilterPaths:
+			var a ActionCondFilterPaths
 			err := json.Unmarshal(*v, &a)
 			return &a, err
 		case TypeIPv4MatchSource:

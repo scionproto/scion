@@ -60,7 +60,11 @@ func TestBasicConds(t *testing.T) {
 			c := NewCondAllOf(
 				NewCondAnyOf(),
 				NewCondAllOf(),
-				CondTrue,
+				NewCondNot(
+					NewCondNot(
+						CondTrue,
+					),
+				),
 			)
 			SoMsg("All(Any(), All(), true)", c.Eval(nil), ShouldBeTrue)
 			c = NewCondAllOf(
