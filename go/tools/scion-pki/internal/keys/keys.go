@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 const seedFileExt = ".seed"
@@ -80,8 +80,6 @@ The following selectors are available:
 }
 
 var (
-	rootDir string
-	force   bool
 	core    bool
 	all     bool
 	dec     bool
@@ -91,8 +89,8 @@ var (
 )
 
 func init() {
-	CmdKeys.Flag.StringVar(&rootDir, "d", ".", "")
-	CmdKeys.Flag.BoolVar(&force, "f", false, "")
+	CmdKeys.Flag.StringVar(&pkicmn.RootDir, "d", ".", "")
+	CmdKeys.Flag.BoolVar(&pkicmn.Force, "f", false, "")
 	CmdKeys.Flag.BoolVar(&core, "core", false, "")
 	CmdKeys.Flag.BoolVar(&all, "all", false, "")
 	CmdKeys.Flag.BoolVar(&dec, "dec", false, "")
@@ -126,7 +124,7 @@ func runGenKey(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := base.ProcessSelector(rootDir, args[0], args[1:])
+	top, err := pkicmn.ProcessSelector(args[0], args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
@@ -148,25 +146,25 @@ func visitKeys(path string, info os.FileInfo, visitError error) error {
 	fmt.Println("Generating keys for", info.Name())
 	kpath := filepath.Join(path, "keys")
 	if all {
-		return GenAll(kpath, core, force)
+		return GenAll(kpath, core)
 	}
 	if sign {
-		if err := GenKey(trust.SigKeyFile, kpath, force, genSignKey); err != nil {
+		if err := GenKey(trust.SigKeyFile, kpath, genSignKey); err != nil {
 			return err
 		}
 	}
 	if dec {
-		if err := GenKey(trust.DecKeyFile, kpath, force, genEncKey); err != nil {
+		if err := GenKey(trust.DecKeyFile, kpath, genEncKey); err != nil {
 			return err
 		}
 	}
 	if online {
-		if err := GenKey(trust.OnKeyFile, kpath, force, genSignKey); err != nil {
+		if err := GenKey(trust.OnKeyFile, kpath, genSignKey); err != nil {
 			return err
 		}
 	}
 	if online {
-		if err := GenKey(trust.OffKeyFile, kpath, force, genSignKey); err != nil {
+		if err := GenKey(trust.OffKeyFile, kpath, genSignKey); err != nil {
 			return err
 		}
 	}
@@ -175,7 +173,7 @@ func visitKeys(path string, info os.FileInfo, visitError error) error {
 
 type keyGenFunc func(io.Reader) ([]byte, error)
 
-func GenKey(fname, outDir string, override bool, keyGenF keyGenFunc) error {
+func GenKey(fname, outDir string, keyGenF keyGenFunc) error {
 	// Check if out directory exists and if not create it.
 	_, err := os.Stat(outDir)
 	if os.IsNotExist(err) {
@@ -185,20 +183,11 @@ func GenKey(fname, outDir string, override bool, keyGenF keyGenFunc) error {
 	} else if err != nil {
 		return common.NewBasicError("Error checking output dir", err, "key", fname)
 	}
-	seedFname := strings.TrimSuffix(fname, filepath.Ext(fname)) + seedFileExt
-	seedPath := filepath.Join(outDir, seedFname)
-	if !override {
-		// Check if the key already exists
-		if _, err := os.Stat(seedPath); err == nil {
-			fmt.Printf("%s already exists. Use -f to overwrite.\n", seedPath)
-			return nil
-		}
-	}
 	// Generate the seed for the public/private key pair.
 	seed := make([]byte, 32)
 	_, err = rand.Read(seed)
 	if err != nil {
-		return common.NewBasicError("Error generating key seed", err, "seed", seedPath)
+		return common.NewBasicError("Error generating key seed", err, "key", fname)
 	}
 	// Generate a fresh public/private key pair based on seed.
 	privKey, err := keyGenF(bytes.NewReader(seed))
@@ -206,13 +195,16 @@ func GenKey(fname, outDir string, override bool, keyGenF keyGenFunc) error {
 		return common.NewBasicError("Error generating keys", err, "key", fname)
 	}
 	// Write seed to file.
+	seedFname := strings.TrimSuffix(fname, filepath.Ext(fname)) + seedFileExt
+	seedPath := filepath.Join(outDir, seedFname)
 	seedEnc := base64.StdEncoding.EncodeToString(seed) + "\n"
-	if err = ioutil.WriteFile(seedPath, []byte(seedEnc), 0600); err != nil {
+	if err = pkicmn.WriteToFile([]byte(seedEnc), seedPath, 0600); err != nil {
 		return common.NewBasicError("Cannot write seed file", err, "seed", seedFname)
 	}
+	// Write private key to file.
 	privKeyPath := filepath.Join(outDir, fname)
 	privKeyEnc := base64.StdEncoding.EncodeToString(privKey) + "\n"
-	if err = ioutil.WriteFile(privKeyPath, []byte(privKeyEnc), 0600); err != nil {
+	if err = pkicmn.WriteToFile([]byte(privKeyEnc), privKeyPath, 0600); err != nil {
 		return common.NewBasicError("Cannot write key file", err, "key", fname)
 	}
 	fmt.Println("Successfully written seed to", seedPath)
@@ -236,12 +228,12 @@ func genEncKey(rand io.Reader) ([]byte, error) {
 	return (*private)[:], nil
 }
 
-func GenAll(outDir string, core, override bool) error {
+func GenAll(outDir string, core bool) error {
 	// Generate signing and decryption keys.
-	if err := GenKey(trust.SigKeyFile, outDir, override, genSignKey); err != nil {
+	if err := GenKey(trust.SigKeyFile, outDir, genSignKey); err != nil {
 		return err
 	}
-	if err := GenKey(trust.DecKeyFile, outDir, override, genEncKey); err != nil {
+	if err := GenKey(trust.DecKeyFile, outDir, genEncKey); err != nil {
 		return err
 	}
 	// If core was not specified we are done.
@@ -249,8 +241,8 @@ func GenAll(outDir string, core, override bool) error {
 		return nil
 	}
 	// Generate offline and online root keys if core was specified.
-	if err := GenKey(trust.OffKeyFile, outDir, override, genSignKey); err != nil {
+	if err := GenKey(trust.OffKeyFile, outDir, genSignKey); err != nil {
 		return err
 	}
-	return GenKey(trust.OnKeyFile, outDir, override, genSignKey)
+	return GenKey(trust.OnKeyFile, outDir, genSignKey)
 }
