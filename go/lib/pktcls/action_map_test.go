@@ -87,3 +87,33 @@ func TestMarshalJSONActions(t *testing.T) {
 		})
 	})
 }
+
+func TestMarshalJSONCondActions(t *testing.T) {
+	Convey("Initialize path predicates", t, func() {
+		ppA, err := pathmgr.NewPathPredicate("1-11#18,1-11#87")
+		SoMsg("ppA err", err, ShouldBeNil)
+		SoMsg("ppA", ppA, ShouldNotBeNil)
+		condA := NewCondAnyOf(NewCondPathPredicate(ppA))
+		ppB, err := pathmgr.NewPathPredicate("2-0#0")
+		SoMsg("ppB err", err, ShouldBeNil)
+		SoMsg("ppB", ppB, ShouldNotBeNil)
+		condB := NewCondAllOf(CondTrue, NewCondNot(NewCondPathPredicate(ppB)))
+		Convey("Create action map", func() {
+			actionMap := NewActionMap()
+			actionMap.Add(NewActionCondFilterPaths("GoThrough1-11", condA))
+			actionMap.Add(NewActionCondFilterPaths("GoThrough2", condB))
+			Convey("Marshal JSON", func() {
+				enc, err := json.MarshalIndent(actionMap, "", "    ")
+				SoMsg("err", err, ShouldBeNil)
+				Convey("Unmarshal back", func() {
+					amu := NewActionMap()
+					err := json.Unmarshal(enc, &amu)
+					SoMsg("err", err, ShouldBeNil)
+					Convey("Unmarshaled action-map should be the same as the initial one", func() {
+						So(amu, ShouldResemble, actionMap)
+					})
+				})
+			})
+		})
+	})
+}
