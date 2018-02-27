@@ -41,7 +41,7 @@ class SCMPEchoClient(TestClientBase):
     SCMP Echo client app
     """
     def _create_extensions(self):
-        return [SCMPExt.from_values(True, True)]
+        return [SCMPExt.from_values(False, False)]
 
     def _create_l4_hdr(self):
         return SCMPHeader.from_values(
