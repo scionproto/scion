@@ -73,6 +73,7 @@ class TestMainDefault(object):
         args.server_id = "srvid"
         args.conf_dir = "confdir"
         args.prom = "prom"
+        args.spki_cache_dir = "gen-cache"
         # Call
         main_default(type_, trace_=True, kwarg1="kwarg1")
         # Tests
@@ -81,7 +82,8 @@ class TestMainDefault(object):
         ntools.ok_(parser.add_argument.called)
         parser.parse_args.assert_called_once_with()
         init_log.assert_called_once_with("logging/srvid")
-        type_.assert_called_once_with("srvid", "confdir", prom_export="prom", kwarg1="kwarg1")
+        type_.assert_called_once_with("srvid", "confdir", spki_cache_dir="gen-cache",
+                                      prom_export="prom", kwarg1="kwarg1")
         trace.assert_called_once_with(inst.id)
         inst.run.assert_called_once_with()
 
