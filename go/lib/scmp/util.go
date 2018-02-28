@@ -50,6 +50,10 @@ func ParseInfo(b common.RawBytes, ct ClassType) (Info, error) {
 		fallthrough
 	case ct == ClassType{C_General, T_G_EchoReply}:
 		return InfoEchoFromRaw(b)
+	case ct == ClassType{C_General, T_G_TraceRouteRequest}:
+		fallthrough
+	case ct == ClassType{C_General, T_G_TraceRouteReply}:
+		return InfoTraceRouteFromRaw(b)
 	case ct == ClassType{C_General, T_G_RecordPathRequest}:
 		fallthrough
 	case ct == ClassType{C_General, T_G_RecordPathReply}:

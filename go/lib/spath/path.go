@@ -115,11 +115,11 @@ func (path *Path) InitOffsets() error {
 		return common.NewBasicError("Unable to initialize empty path", nil)
 	}
 	// Skip Peer with Xover HF
-	if infoF, err = path.getInfoField(path.InfOff); err != nil {
+	if infoF, err = path.GetInfoField(path.InfOff); err != nil {
 		return err
 	}
 	if infoF.Peer {
-		if hopF, err = path.getHopField(path.HopOff); err != nil {
+		if hopF, err = path.GetHopField(path.HopOff); err != nil {
 			return err
 		}
 		if hopF.Xover {
@@ -145,7 +145,7 @@ func (path *Path) IncOffsets() error {
 		// Path not initialized yet
 		return path.InitOffsets()
 	}
-	if hopF, err = path.getHopField(path.HopOff); err != nil {
+	if hopF, err = path.GetHopField(path.HopOff); err != nil {
 		return common.NewBasicError("Hop Field parse error", err, "offset", path.HopOff)
 	}
 	return path.incOffsets(hopF.Len())
@@ -155,7 +155,7 @@ func (path *Path) IncOffsets() error {
 // Field starting at that location
 func (path *Path) incOffsets(skip int) error {
 	var hopF *HopField
-	infoF, err := path.getInfoField(path.InfOff)
+	infoF, err := path.GetInfoField(path.InfOff)
 	if err != nil {
 		return common.NewBasicError("Info Field parse error", err, "offset", path.InfOff)
 	}
@@ -164,13 +164,13 @@ func (path *Path) incOffsets(skip int) error {
 		if path.HopOff-path.InfOff > int(infoF.Hops)*common.LineLen {
 			// Switch to next segment
 			path.InfOff = path.HopOff
-			infoF, err = path.getInfoField(path.InfOff)
+			infoF, err = path.GetInfoField(path.InfOff)
 			if err != nil {
 				return common.NewBasicError("Info Field parse error", err, "offset", path.InfOff)
 			}
 			path.HopOff += common.LineLen
 		}
-		if hopF, err = path.getHopField(path.HopOff); err != nil {
+		if hopF, err = path.GetHopField(path.HopOff); err != nil {
 			return common.NewBasicError("Hop Field parse error", err, "offset", path.HopOff)
 		}
 		if !hopF.VerifyOnly {
@@ -181,7 +181,7 @@ func (path *Path) incOffsets(skip int) error {
 	return nil
 }
 
-func (path *Path) getInfoField(offset int) (*InfoField, error) {
+func (path *Path) GetInfoField(offset int) (*InfoField, error) {
 	if offset < 0 {
 		return nil, common.NewBasicError("Negative InfoF offset", nil, "offset", offset)
 	}
@@ -192,7 +192,7 @@ func (path *Path) getInfoField(offset int) (*InfoField, error) {
 	return infoF, nil
 }
 
-func (path *Path) getHopField(offset int) (*HopField, error) {
+func (path *Path) GetHopField(offset int) (*HopField, error) {
 	if offset < 0 {
 		return nil, common.NewBasicError("Negative HopF offset", nil, "offset", offset)
 	}
