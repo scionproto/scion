@@ -29,14 +29,15 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var logDir = flag.String("log.dir", "logs", "Log directory")
-var logLevel = flag.String("log.level", "debug", "Logging level")
-var logConsole = flag.String("log.console", "crit", "Console logging level")
-var logSize = flag.Int("log.size", 50, "Max size of log file in MiB")
-var logAge = flag.Int("log.age", 7, "Max age of log file in days")
-var logFlush = flag.Int("log.flush", 5, "How frequently to flush to the log file, in seconds")
-
-var logBuf *syncBuf
+var (
+	logDir     string
+	logLevel   string
+	logConsole string
+	logSize    int
+	logAge     int
+	logFlush   int
+	logBuf     *syncBuf
+)
 
 func init() {
 	os.Setenv("TZ", "UTC")
@@ -53,19 +54,28 @@ func Setup(name string) {
 	)
 	log.Root().SetHandler(handler)
 	go func() {
-		for range time.Tick(time.Duration(*logFlush) * time.Second) {
+		for range time.Tick(time.Duration(logFlush) * time.Second) {
 			Flush()
 		}
 	}()
 }
 
+func AddDefaultLogFlags() {
+	flag.StringVar(&logDir, "log.dir", "logs", "Log directory")
+	flag.StringVar(&logLevel, "log.level", "debug", "Logging level")
+	flag.StringVar(&logConsole, "log.console", "crit", "Console logging level")
+	flag.IntVar(&logSize, "log.size", 50, "Max size of log file in MiB")
+	flag.IntVar(&logAge, "log.age", 7, "Max age of log file in days")
+	flag.IntVar(&logFlush, "log.flush", 5, "How frequently to flush to the log file, in seconds")
+}
+
 func parseLvls() (log.Lvl, log.Lvl) {
-	logLvl, err := log.LvlFromString(*logLevel)
+	logLvl, err := log.LvlFromString(logLevel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to parse log.Level flag: %v", err)
 		os.Exit(1)
 	}
-	consLvl, err := log.LvlFromString(*logConsole)
+	consLvl, err := log.LvlFromString(logConsole)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to parse log.Console flag: %v", err)
 		os.Exit(1)
@@ -75,9 +85,9 @@ func parseLvls() (log.Lvl, log.Lvl) {
 
 func mkLogfile(name string) io.WriteCloser {
 	return &lumberjack.Logger{
-		Filename: fmt.Sprintf("%s/%s.log", *logDir, name),
-		MaxSize:  *logSize, // MiB
-		MaxAge:   *logAge,  // days
+		Filename: fmt.Sprintf("%s/%s.log", logDir, name),
+		MaxSize:  logSize, // MiB
+		MaxAge:   logAge,  // days
 	}
 }
 
