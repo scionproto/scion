@@ -86,13 +86,14 @@ Selector:
 }
 
 var (
-	core    bool
-	all     bool
-	dec     bool
-	sign    bool
-	online  bool
-	offline bool
-	master  bool
+	core     bool
+	all      bool
+	dec      bool
+	sign     bool
+	coreSign bool
+	online   bool
+	offline  bool
+	master   bool
 )
 
 func init() {
@@ -102,6 +103,7 @@ func init() {
 	CmdKeys.Flag.BoolVar(&all, "all", false, "")
 	CmdKeys.Flag.BoolVar(&dec, "dec", false, "")
 	CmdKeys.Flag.BoolVar(&sign, "sign", false, "")
+	CmdKeys.Flag.BoolVar(&coreSign, "core-sign", false, "")
 	CmdKeys.Flag.BoolVar(&online, "online", false, "")
 	CmdKeys.Flag.BoolVar(&offline, "offline", false, "")
 	CmdKeys.Flag.BoolVar(&master, "master", false, "")
@@ -151,13 +153,22 @@ func visitKeys(path string, info os.FileInfo, visitError error) error {
 	if !info.IsDir() || !strings.HasPrefix(info.Name(), "AS") {
 		return nil
 	}
-	fmt.Println("Generating keys for", info.Name())
+	ia, err := pkicmn.GetIAFromPath(path)
+	if err != nil {
+		return common.NewBasicError("Invalid path", nil, "path", path)
+	}
+	fmt.Println("Generating keys for", ia)
 	kpath := filepath.Join(path, "keys")
 	if all {
 		return GenAll(kpath, core)
 	}
 	if sign {
 		if err := GenKey(trust.SigKeyFile, kpath, genSignKey, true); err != nil {
+			return err
+		}
+	}
+	if coreSign {
+		if err := GenKey(trust.CoreSigKeyFile, kpath, genSignKey, true); err != nil {
 			return err
 		}
 	}
@@ -171,7 +182,7 @@ func visitKeys(path string, info os.FileInfo, visitError error) error {
 			return err
 		}
 	}
-	if online {
+	if offline {
 		if err := GenKey(trust.OffKeyFile, kpath, genSignKey, false); err != nil {
 			return err
 		}
@@ -255,19 +266,23 @@ func genMasterKey(rand io.Reader) ([]byte, error) {
 }
 
 func GenAll(outDir string, core bool) error {
-	// Generate signing and decryption keys.
+	// Generate AS sigining and decryption keys.
 	if err := GenKey(trust.SigKeyFile, outDir, genSignKey, true); err != nil {
 		return err
 	}
 	if err := GenKey(trust.DecKeyFile, outDir, genEncKey, true); err != nil {
 		return err
 	}
+	// Generate AS master key.
 	if err := GenKey(masterKeyFname, outDir, genMasterKey, false); err != nil {
 		return err
 	}
-	// If core was not specified we are done.
 	if !core {
 		return nil
+	}
+	// Generate core signing key.
+	if err := GenKey(trust.CoreSigKeyFile, outDir, genSignKey, true); err != nil {
+		return err
 	}
 	// Generate offline and online root keys if core was specified.
 	if err := GenKey(trust.OffKeyFile, outDir, genSignKey, false); err != nil {
