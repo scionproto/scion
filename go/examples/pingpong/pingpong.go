@@ -73,10 +73,14 @@ func init() {
 }
 
 func main() {
-	liblog.AddDefaultLogFlags()
+	log.AddLogConsFlags()
 	validateFlags()
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
+	if err := log.SetupFromFlags(""); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
+	defer log.LogPanicAndExit()
 	switch *mode {
 	case "client":
 		if remote.Host == nil {

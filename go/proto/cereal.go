@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"io"
 
-	//log "github.com/inconshreveable/log15"
+	//"github.com/scionproto/scion/go/lib/log"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 

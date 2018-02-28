@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/inconshreveable/log15"
+	"github.com/scionproto/scion/go/lib/log"
 
 	. "github.com/smartystreets/goconvey/convey"
 

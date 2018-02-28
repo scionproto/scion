@@ -19,7 +19,7 @@ import (
 	"math"
 	"time"
 
-	//log "github.com/inconshreveable/log15"
+	//"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"

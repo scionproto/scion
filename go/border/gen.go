@@ -20,7 +20,7 @@ package main
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
+	"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -96,7 +95,7 @@ func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
 // interface state changes, so this is only needed as a fail-safe after
 // startup.
 func (r *Router) IFStateUpdate() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	r.genIFStateReq()
 	for range time.Tick(ifStateFreq) {
 		r.genIFStateReq()
