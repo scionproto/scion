@@ -139,7 +139,7 @@ func configSig() {
 	defer liblog.LogPanicAndExit()
 	for range sighup {
 		if err := config.ReloadCustomers(); err != nil {
-			log.Error("Error reloading customers", "err", common.FmtError(err))
+			log.Error("Error reloading customers", "err", err)
 			continue
 		}
 		log.Info("Customers reloaded")
