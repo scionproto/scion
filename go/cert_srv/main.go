@@ -59,6 +59,7 @@ func init() {
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
+	liblog.AddDefaultLogFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
