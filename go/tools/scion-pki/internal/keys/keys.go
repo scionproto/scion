@@ -207,8 +207,6 @@ func GenKey(fname, outDir string, keyGenF keyGenFunc) error {
 	if err = pkicmn.WriteToFile([]byte(privKeyEnc), privKeyPath, 0600); err != nil {
 		return common.NewBasicError("Cannot write key file", err, "key", fname)
 	}
-	fmt.Println("Successfully written seed to", seedPath)
-	fmt.Println("Successfully written key to", privKeyPath)
 	return nil
 }
 

@@ -14,7 +14,6 @@
 
 // Package certs provides a generator for AS-level certs involved in the SCION
 // control plane PKI.
-
 package certs
 
 import (
@@ -52,7 +51,7 @@ The following flags are available:
 		Used with 'template' to generate a core-cert.ini
 	-f
 		Overwrite existing certificates (and keys if -genkeys is specified).
-	-verify
+	-verify (default TRUE)
 		Also verify the generated/renewed certificates.
 
 The following selectors are available:
@@ -123,7 +122,7 @@ func init() {
 	CmdCerts.Flag.BoolVar(&pkicmn.Force, "f", false, "")
 	CmdCerts.Flag.BoolVar(&genKeys, "genkeys", false, "")
 	CmdCerts.Flag.BoolVar(&core, "core", false, "")
-	CmdCerts.Flag.BoolVar(&verify, "verify", false, "")
+	CmdCerts.Flag.BoolVar(&verify, "verify", true, "")
 }
 
 func runCert(cmd *base.Command, args []string) {
