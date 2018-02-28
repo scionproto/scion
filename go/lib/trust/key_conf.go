@@ -51,34 +51,35 @@ const (
 func LoadKeyConf(path string, loadRootKeys bool) (*KeyConf, error) {
 	conf := &KeyConf{}
 	var err error
-	if conf.DecryptKey, err = loadKey(filepath.Join(path, DecKeyFile)); err != nil {
+	if conf.DecryptKey, err = LoadKey(filepath.Join(path, DecKeyFile)); err != nil {
 		return nil, err
 	}
-	if conf.SignKey, err = loadKey(filepath.Join(path, SigKeyFile)); err != nil {
+	if conf.SignKey, err = LoadKey(filepath.Join(path, SigKeyFile)); err != nil {
 		return nil, err
 	}
 	if loadRootKeys {
-		if conf.OffRootKey, err = loadKey(filepath.Join(path, OffKeyFile)); err != nil {
+		if conf.OffRootKey, err = LoadKey(filepath.Join(path, OffKeyFile)); err != nil {
 			return nil, err
 		}
-		if conf.OnRootKey, err = loadKey(filepath.Join(path, OnKeyFile)); err != nil {
+		if conf.OnRootKey, err = LoadKey(filepath.Join(path, OnKeyFile)); err != nil {
 			return nil, err
 		}
 	}
 	return conf, nil
 }
 
-// loadKey decodes a base64 encoded key stored in file and returns the raw bytes.
-func loadKey(file string) (common.RawBytes, error) {
+// LoadKey decodes a base64 encoded key stored in file and returns the raw bytes.
+func LoadKey(file string) (common.RawBytes, error) {
 	b, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, common.NewBasicError(ErrorOpen, err)
 	}
-	b, err = base64.StdEncoding.DecodeString(string(b))
+	dbuf := make([]byte, base64.StdEncoding.DecodedLen(len(b)))
+	n, err := base64.StdEncoding.Decode(dbuf, b)
 	if err != nil {
 		return nil, common.NewBasicError(ErrorParse, err)
 	}
-	return b, nil
+	return dbuf[:n], nil
 }
 
 func (a *KeyConf) String() string {

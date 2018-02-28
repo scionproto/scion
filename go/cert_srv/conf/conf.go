@@ -52,14 +52,21 @@ type Conf struct {
 	customers Customers
 	// customersLock guards the customers map.
 	customersLock sync.RWMutex
-	// Dir is the configuration directory.
-	Dir string
+	// CacheDir is the configuration directory.
+	CacheDir string
+	// ConfDir is the configuration directory.
+	ConfDir string
+	// StateDir is the configuration directory.
+	StateDir string
 }
 
 // Load initializes the configuration by loading it from confDir.
-func Load(id string, confDir string, cacheDir string) (*Conf, error) {
+func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, error) {
 	var err error
-	conf := &Conf{Dir: confDir}
+	conf := &Conf{
+		ConfDir:  confDir,
+		CacheDir: cacheDir,
+		StateDir: stateDir}
 	// load topology
 	path := filepath.Join(confDir, topology.CfgName)
 	if conf.Topo, err = topology.LoadFromFile(path); err != nil {
@@ -98,6 +105,7 @@ func Load(id string, confDir string, cacheDir string) (*Conf, error) {
 
 // ReloadCustomers reloads the mapping from customer to verifying key.
 func (c *Conf) ReloadCustomers() error {
+	// Makes sure no new files can be written by SetVerifyingKey in the meantime
 	c.customersLock.Lock()
 	defer c.customersLock.Unlock()
 	cust, err := c.LoadCustomers()
@@ -110,7 +118,7 @@ func (c *Conf) ReloadCustomers() error {
 
 // loadKeyConf loads key configuration.
 func (c *Conf) loadKeyConf() (*trust.KeyConf, error) {
-	return trust.LoadKeyConf(filepath.Join(c.Dir, "keys"), c.Topo.Core)
+	return trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core)
 }
 
 // GetSigningKey returns the signing key of the current key configuration.

@@ -26,19 +26,20 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/trust"
 )
 
 const (
 	KeyChanged   = "Verifying key has changed in the meantime"
 	NotACustomer = "ISD-AS not in custommer mapping"
+	CustomersDir = "customers"
 )
 
 type Customers map[addr.ISD_AS]common.RawBytes
 
 // LoadCustomers populates the mapping from assigned non-core ASes to their respective verifying key.
 func (c *Conf) LoadCustomers() (Customers, error) {
-	// Makes sure no new files can be written by SetVerifyingKey in the meantime
-	path := filepath.Join(c.Dir, "customers")
+	path := filepath.Join(c.StateDir, CustomersDir)
 	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", path))
 	if err != nil {
 		return nil, err
@@ -46,13 +47,16 @@ func (c *Conf) LoadCustomers() (Customers, error) {
 	activeKeys := make(map[addr.ISD_AS]string)
 	activeVers := make(map[addr.ISD_AS]uint64)
 	for _, file := range files {
-		re := regexp.MustCompile(`ISD(\d+)-AS(\d+)-V(\d+)`)
-		s := re.FindAllStringSubmatch(file, -1)
-		ia, err := addr.IAFromString(fmt.Sprintf("%s-%s", s[len(s)-1][1], s[len(s)-1][2]))
+		re := regexp.MustCompile(`ISD(\d+)-AS(\d+)-V(\d+)\.key$`)
+		s := re.FindStringSubmatch(file)
+		ia, err := addr.IAFromString(fmt.Sprintf("%s-%s", s[1], s[2]))
 		if err != nil {
 			return nil, common.NewBasicError("Unable to parse IA", err, "file", file)
 		}
-		ver, err := strconv.ParseUint(s[len(s)-1][3], 10, 64)
+		ver, err := strconv.ParseUint(s[3], 10, 64)
+		if err != nil {
+			return nil, common.NewBasicError("Unable to parse Version", err, "file", file)
+		}
 		if uint64(ver) >= activeVers[*ia] {
 			activeKeys[*ia] = file
 			activeVers[*ia] = uint64(ver)
@@ -60,21 +64,17 @@ func (c *Conf) LoadCustomers() (Customers, error) {
 	}
 	customers := make(map[addr.ISD_AS]common.RawBytes)
 	for ia, file := range activeKeys {
-		b, err := ioutil.ReadFile(file)
+		key, err := trust.LoadKey(file)
 		if err != nil {
-			return nil, err
-		}
-		key, err := base64.StdEncoding.DecodeString(string(b))
-		if err != nil {
-			return nil, common.NewBasicError("Unable to parse key", err, "file", file)
+			return nil, common.NewBasicError("Unable to load key", err, "file", file)
 		}
 		customers[ia] = key
 	}
 	return customers, nil
 }
 
-// GetVerifyingKey returns the verifying key from the requested AS and true if it is in the mapping.
-// Otherwise, nil and false.
+// GetVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
+// Otherwise, nil and an error.
 func (c *Conf) GetVerifyingKey(ia *addr.ISD_AS) (common.RawBytes, error) {
 	c.customersLock.RLock()
 	defer c.customersLock.RUnlock()
@@ -100,18 +100,19 @@ func (c *Conf) SetVerifyingKey(ia *addr.ISD_AS, ver uint64, newKey, oldKey commo
 	// Key has to be written to file system, only if it has changed
 	if !bytes.Equal(newKey, currKey) {
 		var err error
-		path := filepath.Join(c.Dir, fmt.Sprintf("ISD%d-AS%d-V%d.key", ia.I, ia.A, ver))
-		if _, err = os.Stat(path); os.IsNotExist(err) {
-			b := base64.StdEncoding.EncodeToString(newKey)
-			if err = ioutil.WriteFile(path, []byte(b), 0644); err != nil {
-				return err
-			}
-			key := make(common.RawBytes, len(newKey))
-			copy(key, newKey)
-			c.customers[*ia] = key
-			return nil
+		name := fmt.Sprintf("ISD%d-AS%d-V%d.key", ia.I, ia.A, ver)
+		path := filepath.Join(c.StateDir, CustomersDir, name)
+		if _, err = os.Stat(path); !os.IsNotExist(err) {
+			return err
 		}
-		return err
+		buf := make([]byte, base64.StdEncoding.EncodedLen(len(newKey)))
+		base64.StdEncoding.Encode(buf, newKey)
+		if err = ioutil.WriteFile(path, buf, 0644); err != nil {
+			return err
+		}
+		c.customers[*ia] = make(common.RawBytes, len(newKey))
+		copy(c.customers[*ia], newKey)
+		return nil
 	}
 	return nil
 }
