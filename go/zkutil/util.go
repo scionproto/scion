@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/inconshreveable/log15"
+	log "github.com/scionproto/scion/go/lib/log"
 	"github.com/samuel/go-zookeeper/zk"
 )
 

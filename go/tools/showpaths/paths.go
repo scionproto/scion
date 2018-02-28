@@ -21,7 +21,7 @@ import (
 	"os"
 	"time"
 
-	log "github.com/inconshreveable/log15"
+	log "github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"

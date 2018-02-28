@@ -22,7 +22,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	log "github.com/inconshreveable/log15"
+	log "github.com/scionproto/scion/go/lib/log"
 	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
 	"gopkg.in/natefinch/lumberjack.v2"
 

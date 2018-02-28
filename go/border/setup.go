@@ -22,7 +22,7 @@ package main
 import (
 	"fmt"
 
-	log "github.com/inconshreveable/log15"
+	log "github.com/scionproto/scion/go/lib/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
 
