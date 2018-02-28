@@ -54,25 +54,25 @@ const (
 func LoadKeyConf(path string, coreSigKey, onKey, offKey bool) (*KeyConf, error) {
 	conf := &KeyConf{}
 	var err error
-	if conf.DecryptKey, err = loadKey(filepath.Join(path, DecKeyFile), true); err != nil {
+	if conf.DecryptKey, err = loadKeyCond(filepath.Join(path, DecKeyFile), true); err != nil {
 		return nil, err
 	}
-	if conf.SignKey, err = loadKey(filepath.Join(path, SigKeyFile), true); err != nil {
+	if conf.SignKey, err = loadKeyCond(filepath.Join(path, SigKeyFile), true); err != nil {
 		return nil, err
 	}
-	if conf.CoreSigKey, err = loadKey(filepath.Join(path, CoreSigKeyFile), coreSigKey); err != nil {
+	if conf.CoreSigKey, err = loadKeyCond(filepath.Join(path, CoreSigKeyFile), coreSigKey); err != nil {
 
 	}
-	if conf.OffRootKey, err = loadKey(filepath.Join(path, OffKeyFile), offKey); err != nil {
+	if conf.OffRootKey, err = loadKeyCond(filepath.Join(path, OffKeyFile), offKey); err != nil {
 		return nil, err
 	}
-	if conf.OnRootKey, err = loadKey(filepath.Join(path, OnKeyFile), onKey); err != nil {
+	if conf.OnRootKey, err = loadKeyCond(filepath.Join(path, OnKeyFile), onKey); err != nil {
 		return nil, err
 	}
 	return conf, nil
 }
 
-func loadKey(file string, load bool) (common.RawBytes, error) {
+func loadKeyCond(file string, load bool) (common.RawBytes, error) {
 	if !load {
 		return nil, nil
 	}
