@@ -22,12 +22,14 @@ import (
 	"runtime/debug"
 	"time"
 
-	log "github.com/scionproto/scion/go/lib/log"
+	"github.com/inconshreveable/log15"
 	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
+
+type Logger log15.Logger
 
 var logDir string
 var logLevel string
@@ -45,12 +47,12 @@ func init() {
 func Setup(name string) {
 	logLvl, consLvl := parseLvls()
 	logBuf = newSyncBuf(mkLogfile(name))
-	handler := log.MultiHandler(
-		log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
-		log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
+	handler := log15.MultiHandler(
+		log15.LvlFilterHandler(logLvl, log15.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
+		log15.LvlFilterHandler(consLvl, log15.StreamHandler(os.Stdout,
 			fmt15.Fmt15Format(fmt15.ColorMap))),
 	)
-	log.Root().SetHandler(handler)
+	log15.Root().SetHandler(handler)
 	go func() {
 		for range time.Tick(time.Duration(logFlush) * time.Second) {
 			Flush()
@@ -67,13 +69,13 @@ func AddDefaultLogFlags() {
 	flag.IntVar(&logFlush, "log.flush", 5, "How frequently to flush to the log file, in seconds")
 }
 
-func parseLvls() (log.Lvl, log.Lvl) {
-	logLvl, err := log.LvlFromString(logLevel)
+func parseLvls() (log15.Lvl, log15.Lvl) {
+	logLvl, err := log15.LvlFromString(logLevel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to parse log.Level flag: %v", err)
 		os.Exit(1)
 	}
-	consLvl, err := log.LvlFromString(logConsole)
+	consLvl, err := log15.LvlFromString(logConsole)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to parse log.Console flag: %v", err)
 		os.Exit(1)
@@ -91,36 +93,44 @@ func mkLogfile(name string) io.WriteCloser {
 
 func LogPanicAndExit() {
 	if msg := recover(); msg != nil {
-		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
+		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 		Flush()
 		os.Exit(255)
 	}
-}
-
-func DiscardHandler() log.Handler {
-	return log.DiscardHandler()
 }
 
 func Flush() {
 	logBuf.Flush()
 }
 
+func New(ctx ...interface{}) Logger {
+	return log15.New(ctx...)
+}
+
+func DiscardHandler() log15.Handler {
+	return log15.DiscardHandler()
+}
+
+func Root() Logger {
+	return log15.Root()
+}
+
 func Debug(msg string, ctx ...interface{}) {
-	log.Debug(msg, ctx)
+	log15.Debug(msg, ctx)
 }
 
 func Info(msg string, ctx ...interface{}) {
-	log.Info(msg, ctx)
+	log15.Info(msg, ctx)
 }
 
 func Warn(msg string, ctx ...interface{}) {
-	log.Warn(msg, ctx)
+	log15.Warn(msg, ctx)
 }
 
 func Error(msg string, ctx ...interface{}) {
-	log.Error(msg, ctx)
+	log15.Error(msg, ctx)
 }
 
 func Crit(msg string, ctx ...interface{}) {
-	log.Crit(msg, ctx)
+	log15.Crit(msg, ctx)
 }
