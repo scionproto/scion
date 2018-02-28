@@ -45,6 +45,7 @@ var (
 func main() {
 	var err error
 
+	liblog.AddDefaultLogFlags()
 	validateFlags()
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()

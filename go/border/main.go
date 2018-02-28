@@ -42,6 +42,7 @@ var (
 
 func main() {
 	// Parse and check flags.
+	liblog.AddDefaultLogFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
