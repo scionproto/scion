@@ -19,7 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
@@ -43,7 +43,7 @@ func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, sess *Session) *egressDispatc
 }
 
 func (ed *egressDispatcher) Run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	for {

@@ -261,7 +261,7 @@ func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 
 // manage the Sig map
 func (ae *ASEntry) sigMgr() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	ticker := time.NewTicker(sigMgrTick)
 	defer ticker.Stop()
 	ae.Info("sigMgr starting")
