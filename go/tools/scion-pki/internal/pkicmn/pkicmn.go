@@ -79,5 +79,10 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 	if err := ioutil.WriteFile(path, append(raw, "\n"...), perm); err != nil {
 		return err
 	}
+	fmt.Println("Successfully written", path)
 	return nil
+}
+
+func GetPath(ia *addr.ISD_AS) string {
+	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
 }

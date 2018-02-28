@@ -136,7 +136,7 @@ func getWalker(core bool) filepath.WalkFunc {
 func genCertCommon(conf *certConf) (*cert.Certificate, error) {
 	// Load signing and decryption keys that will be in the certificate.
 	// FIXME(shitz): CoreAS keys should be different from AS keys.
-	keyDir := filepath.Join(path(conf.subjectIA), "keys")
+	keyDir := filepath.Join(pkicmn.GetPath(conf.subjectIA), "keys")
 	signKey, err := trust.LoadKey(filepath.Join(keyDir, trust.SigKeyFile))
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func genCoreASCert(conf *certConf) (*cert.Certificate, error) {
 		return nil, common.NewBasicError("Subject must match Issuer for Core AS cert.", nil,
 			"subject", c.Subject, "issuer", c.Issuer)
 	}
-	issuerKeyPath := filepath.Join(path(c.Issuer), "keys", trust.OnKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetPath(c.Issuer), "keys", trust.OnKeyFile)
 	// Load online root key to sign the certificate.
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
@@ -213,7 +213,7 @@ func genASCert(conf *certConf, issuerCert *cert.Certificate) (*cert.Chain, error
 		return nil, common.NewBasicError("Issuer cert not authorized to issue new certs.", nil,
 			"issuer", c.Issuer)
 	}
-	issuerKeyPath := filepath.Join(path(issuerCert.Issuer), "keys", trust.SigKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetPath(issuerCert.Issuer), "keys", trust.SigKeyFile)
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
 		return nil, err
@@ -241,7 +241,7 @@ func genASCert(conf *certConf, issuerCert *cert.Certificate) (*cert.Chain, error
 // getIssuerCert returns the newest core certificate of issuer (if any).
 func getIssuerCert(issuer *addr.ISD_AS) (*cert.Certificate, error) {
 	fnames, err := filepath.Glob(fmt.Sprintf("%s/*.crt",
-		filepath.Join(path(issuer), "certs")))
+		filepath.Join(pkicmn.GetPath(issuer), "certs")))
 	if err != nil {
 		return nil, err
 	}
@@ -281,8 +281,4 @@ func genIssuerCert(issuer *addr.ISD_AS, ccpath string) (*cert.Certificate, error
 		return nil, common.NewBasicError("Error generating core AS cert", err, "subject", issuer)
 	}
 	return issuerCert, nil
-}
-
-func path(ia *addr.ISD_AS) string {
-	return filepath.Join(pkicmn.RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
 }

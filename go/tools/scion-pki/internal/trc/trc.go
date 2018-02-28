@@ -36,9 +36,28 @@ import (
 var CmdTrc = &base.Command{
 	Name:      "trc",
 	Run:       runTrc,
-	UsageLine: "trc [-h] [<flags>] selector",
+	UsageLine: "trc [-h] gen [<flags>] selector",
 	Short:     "Generate TRCs for the SCION control plane PKI",
-	Long:      "<insert long desc here>",
+	Long: `
+'trc' can be used to generate Trust Root Configuration (TRC) files used in the SCION control
+plane PKI.
+
+The following subcommands are available:
+	gen
+		Used to generate new TRCs.
+
+The following flags are available:
+	-d
+		The root directory of on which 'scion-pki' operates.
+	-f
+		Overwrite existing TRCs.
+
+The following selectors are available:
+	all
+		Apply command to all ISDs under the root directory.
+	isd <id>
+		Apply command to a given ISD.
+`,
 }
 
 func init() {
@@ -47,6 +66,24 @@ func init() {
 }
 
 func runTrc(cmd *base.Command, args []string) {
+	if len(args) < 1 {
+		cmd.Usage()
+		os.Exit(2)
+	}
+	subCmd := args[0]
+	cmd.Flag.Parse(args[1:])
+	switch subCmd {
+	case "gen":
+		runGenTrc(cmd, cmd.Flag.Args())
+	default:
+		fmt.Fprintf(os.Stderr, "unrecognized subcommand '%s'\n", args[0])
+		fmt.Fprintf(os.Stderr, "run 'scion-pki trc -h' for help.\n")
+		os.Exit(2)
+	}
+	os.Exit(0)
+}
+
+func runGenTrc(cmd *base.Command, args []string) {
 	if len(args) < 1 {
 		cmd.Usage()
 		os.Exit(2)
@@ -109,12 +146,12 @@ func genTrc(conf *trcConf, path string) (*trc.TRC, error) {
 	for _, cia := range conf.CoreIAs {
 		var as coreAS
 		as.IA = *cia
-		online, err := trust.LoadKey(filepath.Join(path, "keys", trust.OnKeyFile))
+		online, err := trust.LoadKey(filepath.Join(pkicmn.GetPath(cia), "keys", trust.OnKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
 		}
 		as.Online = ed25519.PrivateKey(online)
-		offline, err := trust.LoadKey(filepath.Join(path, "keys", trust.OffKeyFile))
+		offline, err := trust.LoadKey(filepath.Join(pkicmn.GetPath(cia), "keys", trust.OffKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading offline key", err)
 		}
