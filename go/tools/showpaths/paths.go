@@ -41,6 +41,7 @@ var (
 func main() {
 	var err error
 
+	liblog.AddDefaultLogFlags()
 	validateFlags()
 
 	sd := sciond.NewService(*sciondPath)
