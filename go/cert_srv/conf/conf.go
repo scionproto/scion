@@ -52,11 +52,11 @@ type Conf struct {
 	customers Customers
 	// customersLock guards the customers map.
 	customersLock sync.RWMutex
-	// CacheDir is the configuration directory.
+	// CacheDir is the cache directory.
 	CacheDir string
 	// ConfDir is the configuration directory.
 	ConfDir string
-	// StateDir is the configuration directory.
+	// StateDir is the state directory.
 	StateDir string
 }
 
@@ -66,7 +66,8 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 	conf := &Conf{
 		ConfDir:  confDir,
 		CacheDir: cacheDir,
-		StateDir: stateDir}
+		StateDir: stateDir,
+	}
 	// load topology
 	path := filepath.Join(confDir, topology.CfgName)
 	if conf.Topo, err = topology.LoadFromFile(path); err != nil {
