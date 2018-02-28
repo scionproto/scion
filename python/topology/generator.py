@@ -317,8 +317,8 @@ class CertGenerator(object):
         self.priv_online_root_keys = {}
         self.pub_offline_root_keys = {}
         self.priv_offline_root_keys = {}
-        self.priv_core_sig_keys = {}
         self.pub_core_sig_keys = {}
+        self.priv_core_sig_keys = {}
         self.certs = {}
         self.core_certs = {}
         self.trcs = {}
