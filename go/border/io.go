@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
