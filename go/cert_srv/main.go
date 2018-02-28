@@ -19,7 +19,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -29,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/trust"
 )
 
 const (
@@ -45,10 +43,19 @@ var (
 		"SCION Dispatcher path")
 	confDir  = flag.String("confd", "", "Configuration directory (Required)")
 	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
+	stateDir = flag.String("stated", "", "State directory (Defaults to confd)")
 	prom     = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
 	config   *conf.Conf
-	store    *trust.Store
+	sighup   chan os.Signal
 )
+
+func init() {
+	// Add a SIGHUP handler as soon as possible on startup, to reduce the
+	// chance that a premature SIGHUP will kill the process. This channel is
+	// used by configSig below.
+	sighup = make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+}
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
@@ -65,12 +72,8 @@ func main() {
 	if err = checkFlags(); err != nil {
 		fatal(err.Error())
 	}
-	if config, err = conf.Load(*id, *confDir); err != nil {
+	if config, err = conf.Load(*id, *confDir, *cacheDir, *stateDir); err != nil {
 		fatal(err.Error())
-	}
-	// initialize Trust Store
-	if store, err = trust.NewStore(filepath.Join(*confDir, "certs"), *cacheDir, *id); err != nil {
-		fatal("Unable to initialize TrustStore", "err", err)
 	}
 	// initialize snet with retries
 	if err = initSNET(initAttempts, initInterval); err != nil {
@@ -97,6 +100,9 @@ func checkFlags() error {
 	if *confDir == "" {
 		flag.Usage()
 		return common.NewBasicError("No configuration directory specified", nil)
+	}
+	if *stateDir == "" {
+		*stateDir = *confDir
 	}
 	return nil
 }
@@ -126,6 +132,18 @@ func setupSignals() {
 		liblog.Flush()
 		os.Exit(1)
 	}()
+	go configSig()
+}
+
+func configSig() {
+	defer liblog.LogPanicAndExit()
+	for range sighup {
+		if err := config.ReloadCustomers(); err != nil {
+			log.Error("Error reloading customers", "err", err)
+			continue
+		}
+		log.Info("Customers reloaded")
+	}
 }
 
 func fatal(msg string, args ...interface{}) {
