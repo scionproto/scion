@@ -49,7 +49,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/transport"
-	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
 

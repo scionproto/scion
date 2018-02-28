@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	liblog "github.com/scionproto/scion/go/lib/log"
 )
 
 type HSRInputFunc func(*Router, chan struct{}, chan struct{})
