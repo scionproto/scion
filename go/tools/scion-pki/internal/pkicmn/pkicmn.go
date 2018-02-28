@@ -21,15 +21,17 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (
-	CertNameFmt     = "ISD%d-AS%d-V%d.crt"
-	CoreCertNameFmt = "ISD%d-AS%d-V%d-core.crt"
-	TrcNameFmt      = "ISD%d-V%d.trc"
+	CertNameFmt        = "ISD%d-AS%d-V%d.crt"
+	CoreCertNameFmt    = "ISD%d-AS%d-V%d-core.crt"
+	TrcNameFmt         = "ISD%d-V%d.trc"
+	ErrInvalidSelector = "Invalid selector."
 )
 
 var (
@@ -40,32 +42,30 @@ var (
 // ProcessSelector processes the given selector and returns the top level directory
 // to which the requested operation should be applied.
 func ProcessSelector(option string, args []string) (string, error) {
-	var top string
-	switch option {
-	case "all":
-		top = RootDir
-	case "isd":
-		if len(args) != 1 {
-			return "", common.NewBasicError("isd id missing", nil)
-		}
-		isd, err := strconv.Atoi(args[0])
-		if err != nil {
-			return "", common.NewBasicError("Failed parsing isd arg", err)
-		}
-		top = filepath.Join(RootDir, fmt.Sprintf("ISD%d", isd))
-	case "as":
-		if len(args) != 1 {
-			return "", common.NewBasicError("as id missing", nil)
-		}
-		ia, err := addr.IAFromString(args[0])
-		if err != nil {
-			return "", common.NewBasicError("Failed parsing as arg", err)
-		}
-		top = filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
-	default:
-		return "", common.NewBasicError("Unrecognized option", nil, "option", option)
+	toks := strings.Split(option, "-")
+	if len(toks) != 2 {
+		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
 	}
-	return top, nil
+	isdTok := toks[0]
+	asTok := toks[1]
+	if isdTok == "*" {
+		if asTok != "*" {
+			return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
+		}
+		return RootDir, nil
+	}
+	isd, err := strconv.Atoi(isdTok)
+	if err != nil {
+		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
+	}
+	if asTok == "*" {
+		return filepath.Join(RootDir, fmt.Sprintf("ISD%d", isd)), nil
+	}
+	as, err := strconv.Atoi(asTok)
+	if err != nil {
+		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
+	}
+	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", isd, as)), nil
 }
 
 func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
