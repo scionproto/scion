@@ -39,7 +39,6 @@ var logFlush int
 var logBuf *syncBuf
 
 func init() {
-	os.Setenv("TZ", "UTC")
 	fmt15.TimeFmt = common.TimeFmt
 }
 

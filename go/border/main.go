@@ -48,6 +48,7 @@ func main() {
 		log.Crit("No element ID specified")
 		os.Exit(1)
 	}
+	os.Setenv("TZ", "UTC")
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
 	if err := checkPerms(); err != nil {

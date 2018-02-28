@@ -66,6 +66,7 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+	os.Setenv("TZ", "UTC")
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
 	setupSignals()
