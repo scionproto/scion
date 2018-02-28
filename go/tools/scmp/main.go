@@ -161,11 +161,11 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan tim
 		// Notify the receiver
 		ch <- nextPktTS
 		ctx.sent += 1
-		// Update packet fields
-		updatePkt(ctx)
 		if !morePkts(ctx) {
 			break
 		}
+		// Update packet fields
+		updatePkt(ctx)
 	}
 }
 
