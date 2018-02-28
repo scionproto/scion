@@ -35,11 +35,11 @@ var CmdCerts = &base.Command{
 Subcommands:
 	gen
 		Used to generate new certificates.
-	renew
+	renew (NOT IMPLEMENTED)
 		Used to renew existing certificates.
 	template
 		Used to generate cert.ini (core-cert.ini if -core supplied) template configuration files.
-	clean
+	clean (NOT IMPLEMENTED)
 		Used to clean the PKI root directory.
 
 Flags:
