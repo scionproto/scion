@@ -22,12 +22,11 @@ import (
 	"os"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	log "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 )
@@ -65,10 +64,10 @@ func init() {
 }
 
 func main() {
-	liblog.AddDefaultLogFlags()
+	log.AddDefaultLogFlags()
 	validateFlags()
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
+	log.Setup(*id)
+	defer log.LogPanicAndExit()
 	switch *mode {
 	case "client":
 		Client()

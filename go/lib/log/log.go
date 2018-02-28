@@ -97,6 +97,30 @@ func LogPanicAndExit() {
 	}
 }
 
+func DiscardHandler() log.Handler {
+	return log.DiscardHandler()
+}
+
 func Flush() {
 	logBuf.Flush()
+}
+
+func Debug(msg string, ctx ...interface{}) {
+	log.Debug(msg, ctx)
+}
+
+func Info(msg string, ctx ...interface{}) {
+	log.Info(msg, ctx)
+}
+
+func Warn(msg string, ctx ...interface{}) {
+	log.Warn(msg, ctx)
+}
+
+func Error(msg string, ctx ...interface{}) {
+	log.Error(msg, ctx)
+}
+
+func Crit(msg string, ctx ...interface{}) {
+	log.Crit(msg, ctx)
 }
