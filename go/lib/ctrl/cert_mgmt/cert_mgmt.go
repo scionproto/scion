@@ -16,14 +16,13 @@ package cert_mgmt
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
 
-const NewestVersion = math.MaxUint64
+const NewestVersion = 0
 
 type union struct {
 	Which       proto.CertMgmt_Which
