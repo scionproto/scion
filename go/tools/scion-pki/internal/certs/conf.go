@@ -65,14 +65,12 @@ func (c *certConf) validate() error {
 	if c.issuerIA, err = addr.IAFromString(c.Issuer); err != nil {
 		return err
 	}
-	// FIXME(shitz): Uncomment the version checks as soon as the main code
-	// disallows version 0.
-	//	if c.TRCVersion == 0 {
-	//		return newValidationError("TRCVersion")
-	//	}
-	//	if c.Version == 0 {
-	//		return newValidationError("Version")
-	//	}
+	if c.TRCVersion == 0 {
+		return newValidationError("TRCVersion")
+	}
+	if c.Version == 0 {
+		return newValidationError("Version")
+	}
 	if c.Validity == 0 {
 		return newValidationError("Validity")
 	}
@@ -92,6 +90,7 @@ func newTemplateCertConf(subject *addr.ISD_AS, canIssue bool) *certConf {
 		issuerIA:      issuer,
 		Issuer:        issuer.String(),
 		CanIssue:      canIssue,
+		Version:       1,
 	}
 }
 
