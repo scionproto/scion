@@ -16,21 +16,22 @@ package cert_mgmt
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )
 
-const NewestVersion = math.MaxUint64
+const NewestVersion = 0
 
 type union struct {
-	Which    proto.CertMgmt_Which
-	ChainReq *ChainReq `capnp:"certChainReq"`
-	ChainRep *Chain    `capnp:"certChain"`
-	TRCReq   *TRCReq   `capnp:"trcReq"`
-	TRCRep   *TRC      `capnp:"trc"`
+	Which       proto.CertMgmt_Which
+	ChainReq    *ChainReq    `capnp:"certChainReq"`
+	ChainRep    *Chain       `capnp:"certChain"`
+	ChainIssReq *ChainIssReq `capnp:"certChainIssReq"`
+	ChainIssRep *ChainIssRep `capnp:"certChainIssRep"`
+	TRCReq      *TRCReq      `capnp:"trcReq"`
+	TRCRep      *TRC         `capnp:"trc"`
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -41,6 +42,12 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *Chain:
 		u.Which = proto.CertMgmt_Which_certChain
 		u.ChainRep = p
+	case *ChainIssReq:
+		u.Which = proto.CertMgmt_Which_certChainIssReq
+		u.ChainIssReq = p
+	case *ChainIssRep:
+		u.Which = proto.CertMgmt_Which_certChainIssRep
+		u.ChainIssRep = p
 	case *TRCReq:
 		u.Which = proto.CertMgmt_Which_trcReq
 		u.TRCReq = p
@@ -60,6 +67,10 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.ChainReq, nil
 	case proto.CertMgmt_Which_certChain:
 		return u.ChainRep, nil
+	case proto.CertMgmt_Which_certChainIssReq:
+		return u.ChainIssReq, nil
+	case proto.CertMgmt_Which_certChainIssRep:
+		return u.ChainIssRep, nil
 	case proto.CertMgmt_Which_trcReq:
 		return u.TRCReq, nil
 	case proto.CertMgmt_Which_trc:

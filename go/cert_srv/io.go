@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const MaxReadBufSize = 2 << 16
@@ -78,24 +77,27 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 	if err != nil {
 		return err
 	}
-	switch c.ProtoId() {
-	case proto.CertMgmt_TypeID:
+	switch c.(type) {
+	case *cert_mgmt.Pld:
 		pld, err := c.(*cert_mgmt.Pld).Union()
 		if err != nil {
 			return err
 		}
-		switch pld.ProtoId() {
-		case proto.CertChain_TypeID:
+		switch pld.(type) {
+		case *cert_mgmt.Chain:
 			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain))
-		case proto.CertChainReq_TypeID:
+		case *cert_mgmt.ChainReq:
 			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq))
-		case proto.TRC_TypeID:
+		case *cert_mgmt.TRC:
 			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC))
-		case proto.TRCReq_TypeID:
+		case *cert_mgmt.TRCReq:
 			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq))
+		default:
+			return common.NewBasicError("Handler for cert_mgmt.pld not implemented", nil,
+				"protoID", pld.ProtoId())
 		}
 	default:
-		return common.NewBasicError("Not implemented", nil, "protoID", c.ProtoId())
+		return common.NewBasicError("Handler for cpld not implemented", nil, "protoID", c.ProtoId())
 	}
 	return nil
 }

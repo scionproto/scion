@@ -46,9 +46,9 @@ func (h *TRCHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.TRCReq) {
 	log.Info("Received TRC request", "addr", addr, "req", req)
 	var t *trc.TRC
 	if req.Version == cert_mgmt.NewestVersion {
-		t = store.GetNewestTRC(req.ISD)
+		t = config.Store.GetNewestTRC(req.ISD)
 	} else {
-		t = store.GetTRC(req.ISD, req.Version)
+		t = config.Store.GetTRC(req.ISD, req.Version)
 	}
 	srcLocal := config.PublicAddr.IA.Eq(addr.IA)
 	if t != nil {
@@ -113,7 +113,7 @@ func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRC) {
 		log.Error("Unable to parse TRC reply", "err", err)
 		return
 	}
-	if err = store.AddTRC(t, true); err != nil {
+	if err = config.Store.AddTRC(t, true); err != nil {
 		log.Error("Unable to store TRC", "key", t.Key(), "err", err)
 		return
 	}

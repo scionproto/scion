@@ -25,7 +25,7 @@ from external.expiring_dict import ExpiringDict
 from prometheus_client import Gauge
 
 # SCION
-from lib.defines import PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
+from lib.defines import GEN_CACHE_PATH, PATH_FLAG_CACHEONLY, PATH_FLAG_SIBRA
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsSync
@@ -50,13 +50,14 @@ class CorePathServer(PathServer):
     server.
     """
 
-    def __init__(self, server_id, conf_dir, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
         """
-        super().__init__(server_id, conf_dir, prom_export=prom_export)
+        super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
+                         prom_export=prom_export)
         # Sanity check that we should indeed be a core path server.
         assert self.topology.is_core_as, "This shouldn't be a local PS!"
         self._master_id = None  # Address of master core Path Server.

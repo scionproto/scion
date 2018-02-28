@@ -27,6 +27,7 @@ from external.expiring_dict import ExpiringDict
 # SCION
 from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
+    GEN_CACHE_PATH,
     PATH_FLAG_SIBRA,
     PATH_REQ_TOUT,
     PATH_SERVICE,
@@ -51,7 +52,7 @@ from lib.sciond_api.revocation import SCIONDRevReply, SCIONDRevReplyStatus
 from lib.sciond_api.host_info import HostInfo
 from lib.sciond_api.if_req import SCIONDIFInfoReply, SCIONDIFInfoReplyEntry, SCIONDIFInfoRequest
 from lib.sciond_api.base import SCIONDMsg
-from lib.sciond_api.path_meta import FwdPathMeta
+from lib.sciond_api.path_meta import FwdPathMeta, PathInterface
 from lib.sciond_api.path_req import (
     SCIONDPathRequest,
     SCIONDPathReplyError,
@@ -59,6 +60,11 @@ from lib.sciond_api.path_req import (
     SCIONDPathReplyEntry,
 )
 from lib.sciond_api.revocation import SCIONDRevNotification
+from lib.sciond_api.segment_req import (
+    SCIONDSegTypeHopReply,
+    SCIONDSegTypeHopReplyEntry,
+    SCIONDSegTypeHopRequest,
+)
 from lib.sciond_api.service_req import (
     SCIONDServiceInfoReply,
     SCIONDServiceInfoReplyEntry,
@@ -93,11 +99,12 @@ class SCIONDaemon(SCIONElement):
     SEGMENT_TTL = 300
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=None, prom_export=None):
+                 port=None, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
         Initialize an instance of the class SCIONDaemon.
         """
-        super().__init__("sciond", conf_dir, prom_export=prom_export, public=[(addr, port)])
+        super().__init__("sciond", conf_dir, spki_cache_dir=spki_cache_dir,
+                         prom_export=prom_export, public=[(addr, port)])
         up_labels = {**self._labels, "type": "up"} if self._labels else None
         down_labels = {**self._labels, "type": "down"} if self._labels else None
         core_labels = {**self._labels, "type": "core"} if self._labels else None
@@ -255,6 +262,8 @@ class SCIONDaemon(SCIONElement):
             self._api_handle_if_request(msg, meta)
         elif mtype == SMT.SERVICE_REQUEST:
             self._api_handle_service_request(msg, meta)
+        elif mtype == SMT.SEGTYPEHOP_REQUEST:
+            self._api_handle_seg_type_request(msg, meta)
         else:
             logging.warning(
                 "API: type %s not supported.", TypeBase.to_str(mtype))
@@ -360,6 +369,39 @@ class SCIONDaemon(SCIONElement):
         status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
         self.send_meta(rev_reply.pack(), meta)
+
+    def _api_handle_seg_type_request(self, pld, meta):
+        request = pld.union
+        assert isinstance(request, SCIONDSegTypeHopRequest), type(request)
+        segmentType = request.p.type
+        db = []
+        if segmentType == PST.CORE:
+            db = self.core_segments
+        elif segmentType == PST.UP:
+            db = self.up_segments
+        elif segmentType == PST.DOWN:
+            db = self.down_segments
+        else:
+            logging.error("Requesting segment type %s unrecognized.", segmentType)
+
+        seg_entries = []
+        for segment in db(full=True):
+            if_list = []
+            for asm in segment.iter_asms():
+                isd_as = asm.isd_as()
+                hof = asm.pcbm(0).hof()
+                egress = hof.egress_if
+                ingress = hof.ingress_if
+                if ingress:
+                    if_list.append(PathInterface.from_values(isd_as, ingress))
+                if egress:
+                    if_list.append(PathInterface.from_values(isd_as, egress))
+            reply_entry = SCIONDSegTypeHopReplyEntry.from_values(
+                if_list, segment.get_timestamp(), segment.get_expiration_time())
+            seg_entries.append(reply_entry)
+        seg_reply = SCIONDMsg(
+            SCIONDSegTypeHopReply.from_values(seg_entries), pld.id)
+        self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)

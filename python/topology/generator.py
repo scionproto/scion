@@ -43,6 +43,8 @@ from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_enc_keypair,
     generate_sign_keypair,
+    get_core_sig_key_file_path,
+    get_core_sig_key_raw_file_path,
     get_enc_key_file_path,
     get_sig_key_file_path,
     get_sig_key_raw_file_path,
@@ -109,10 +111,15 @@ DEFAULT_LINK_BW = 1000
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVER = "py"
+DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
-INITIAL_CERT_VERSION = 0
-INITIAL_TRC_VERSION = 0
+INITIAL_CERT_VERSION = 1
+INITIAL_TRC_VERSION = 1
+INITIAL_GRACE_PERIOD = 0
+MAX_QUORUM_CAS = 0
+MAX_QUORUM_TRC = 4
+THRESHOLD_EEPKI = 0
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
@@ -191,7 +198,7 @@ class ConfigGenerator(object):
         Generate all needed files.
         """
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
-        cert_files, trc_files = self._generate_certs_trcs(ca_certs)
+        cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
         self._generate_zk_conf(zookeepers)
@@ -200,6 +207,7 @@ class ConfigGenerator(object):
         self._write_ca_files(topo_dicts, ca_cert_files)
         self._write_trust_files(topo_dicts, cert_files)
         self._write_trust_files(topo_dicts, trc_files)
+        self._write_cust_files(topo_dicts, cust_files)
         self._write_conf_policies(topo_dicts)
         self._write_networks_conf(networks, NETWORKS_FILE)
         if self.gen_bind_addr:
@@ -247,6 +255,13 @@ class ConfigGenerator(object):
             for path, value in cert_files[topo_id].items():
                 write_file(os.path.join(base, path), value + '\n')
 
+    def _write_cust_files(self, topo_dicts, cust_files):
+        for topo_id, as_topo in topo_dicts.items():
+            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+            for elem in as_topo["CertificateService"]:
+                for path, value in cust_files[topo_id].items():
+                    write_file(os.path.join(base, elem, path), value)
+
     def _write_conf_policies(self, topo_dicts):
         """
         Write AS configurations and path policies.
@@ -293,6 +308,7 @@ class ConfigGenerator(object):
 class CertGenerator(object):
     def __init__(self, topo_config, ca_certs):
         self.topo_config = topo_config
+        self.core_count = defaultdict(int)
         self.ca_certs = ca_certs
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
@@ -302,21 +318,25 @@ class CertGenerator(object):
         self.priv_online_root_keys = {}
         self.pub_offline_root_keys = {}
         self.priv_offline_root_keys = {}
+        self.pub_core_sig_keys = {}
+        self.priv_core_sig_keys = {}
         self.certs = {}
         self.core_certs = {}
         self.trcs = {}
         self.cert_files = defaultdict(dict)
         self.trc_files = defaultdict(dict)
+        self.cust_files = defaultdict(dict)
 
     def generate(self):
         self._self_sign_keys()
+        self._iterate(self._count_cores)
         self._iterate(self._gen_as_keys)
         self._iterate(self._gen_as_certs)
         self._build_chains()
         self._iterate(self._gen_trc_entry)
         self._iterate(self._sign_trc)
         self._iterate(self._gen_trc_files)
-        return self.cert_files, self.trc_files
+        return self.cert_files, self.trc_files, self.cust_files
 
     def _self_sign_keys(self):
         topo_id = TopoID.from_values(0, 0)
@@ -326,6 +346,10 @@ class CertGenerator(object):
     def _iterate(self, f):
         for isd_as, as_conf in self.topo_config["ASes"].items():
             f(TopoID(isd_as), as_conf)
+
+    def _count_cores(self, topo_id, as_conf):
+        if self.is_core(as_conf):
+            self.core_count[topo_id[0]] += 1
 
     def _gen_as_keys(self, topo_id, as_conf):
         sig_pub, sig_priv = generate_sign_keypair()
@@ -345,20 +369,28 @@ class CertGenerator(object):
             # generate_sign_key_pair uses Ed25519
             on_root_pub, on_root_priv = generate_sign_keypair()
             off_root_pub, off_root_priv = generate_sign_keypair()
+            core_sig_pub, core_sig_priv = generate_sign_keypair()
             self.pub_online_root_keys[topo_id] = on_root_pub
             self.priv_online_root_keys[topo_id] = on_root_priv
             self.pub_offline_root_keys[topo_id] = off_root_pub
             self.priv_offline_root_keys[topo_id] = off_root_priv
+            self.pub_core_sig_keys[topo_id] = core_sig_pub
+            self.priv_core_sig_keys[topo_id] = core_sig_priv
             online_key_path = get_online_key_file_path("")
             online_key_raw_path = get_online_key_raw_file_path("")
             offline_key_path = get_offline_key_file_path("")
             offline_key_raw_path = get_offline_key_raw_file_path("")
+            core_sig_path = get_core_sig_key_file_path("")
+            core_sig_raw_path = get_core_sig_key_raw_file_path("")
             self.cert_files[topo_id][online_key_path] = base64.b64encode(on_root_priv).decode()
             self.cert_files[topo_id][online_key_raw_path] = base64.b64encode(
                 SigningKey(on_root_priv)._signing_key).decode()
             self.cert_files[topo_id][offline_key_path] = base64.b64encode(off_root_priv).decode()
             self.cert_files[topo_id][offline_key_raw_path] = base64.b64encode(
                 SigningKey(off_root_priv)._signing_key).decode()
+            self.cert_files[topo_id][core_sig_path] = base64.b64encode(core_sig_priv).decode()
+            self.cert_files[topo_id][core_sig_raw_path] = base64.b64encode(
+                SigningKey(core_sig_priv)._signing_key).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.
@@ -375,10 +407,10 @@ class CertGenerator(object):
             self.core_certs[topo_id] = Certificate.from_values(
                 str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
                 comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
-                self.sig_pub_keys[topo_id], signing_key
+                self.pub_core_sig_keys[topo_id], signing_key
             )
         # Create regular AS certificate
-        signing_key = self.sig_priv_keys[issuer]
+        signing_key = self.priv_core_sig_keys[issuer]
         can_issue = False
         comment = "AS Certificate"
         validity_period = Certificate.AS_VALIDITY_PERIOD
@@ -395,6 +427,10 @@ class CertGenerator(object):
             chain.append(self.core_certs[issuer])
             cert_path = get_cert_chain_file_path("", topo_id, INITIAL_CERT_VERSION)
             self.cert_files[topo_id][cert_path] = CertificateChain(chain).to_json()
+            map_path = os.path.join("customers", '%s-%s-V%d.key' % (
+                topo_id.ISD(), topo_id.AS(), INITIAL_CERT_VERSION))
+            self.cust_files[issuer][map_path] = base64.b64encode(
+                self.sig_pub_keys[topo_id]).decode()
 
     def is_core(self, as_conf):
         return as_conf.get("core")
@@ -417,8 +453,10 @@ class CertGenerator(object):
 
     def _create_trc(self, isd):
         validity_period = TRC.VALIDITY_PERIOD
-        self.trcs[isd] = TRC.from_values(isd, "ISD %s" % isd, INITIAL_TRC_VERSION, {}, {}, {}, 2,
-                                         {}, 2, 3, 18000, False, {}, validity_period)
+        quorum_trc = min(self.core_count[isd], MAX_QUORUM_TRC)
+        self.trcs[isd] = TRC.from_values(
+            isd, "ISD %s" % isd, INITIAL_TRC_VERSION, {}, {}, {}, THRESHOLD_EEPKI, {}, quorum_trc,
+            MAX_QUORUM_CAS, INITIAL_GRACE_PERIOD, False, {}, validity_period)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):

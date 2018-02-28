@@ -31,10 +31,11 @@ import (
 )
 
 const (
-	EarlyUsage     = "Certificate IssuingTime in the future"
-	InvalidSubject = "Invalid subject"
-	Expired        = "Certificate expired"
-	UnableSigPack  = "Cert: Unable to create signature input"
+	EarlyUsage      = "Certificate IssuingTime in the future"
+	Expired         = "Certificate expired"
+	InvalidSubject  = "Invalid subject"
+	ReservedVersion = "Invalid version 0"
+	UnableSigPack   = "Cert: Unable to create signature input"
 )
 
 type Certificate struct {
@@ -62,7 +63,7 @@ type Certificate struct {
 	SubjectSignKey common.RawBytes
 	// TRCVersion is the version of the issuing trc.
 	TRCVersion uint64
-	// Version is the certificate version.
+	// Version is the certificate version. The value 0 is reserved and shall not be used.
 	Version uint64
 }
 
@@ -70,6 +71,9 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 	cert := &Certificate{}
 	if err := json.Unmarshal(raw, cert); err != nil {
 		return nil, common.NewBasicError("Unable to parse Certificate", err)
+	}
+	if cert.Version == 0 {
+		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	return cert, nil
 }
@@ -129,6 +133,9 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 
 // sigPack creates a sorted json object of all fields, except for the signature field.
 func (c *Certificate) sigPack() (common.RawBytes, error) {
+	if c.Version == 0 {
+		return nil, common.NewBasicError(ReservedVersion, nil)
+	}
 	m := make(map[string]interface{})
 	m["CanIssue"] = c.CanIssue
 	m["Comment"] = c.Comment
@@ -150,7 +157,6 @@ func (c *Certificate) sigPack() (common.RawBytes, error) {
 }
 
 func (c *Certificate) Copy() *Certificate {
-
 	n := &Certificate{
 		CanIssue:       c.CanIssue,
 		Comment:        c.Comment,

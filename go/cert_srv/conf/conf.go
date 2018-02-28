@@ -16,6 +16,7 @@ package conf
 
 import (
 	"path/filepath"
+	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -25,9 +26,11 @@ import (
 )
 
 const (
-	ErrorTopo    = "Unable to load topology"
-	ErrorAddr    = "Unable to load addresses"
-	ErrorKeyConf = "Unable to load KeyConf"
+	ErrorAddr      = "Unable to load addresses"
+	ErrorKeyConf   = "Unable to load KeyConf"
+	ErrorStore     = "Unable to load TrustStore"
+	ErrorTopo      = "Unable to load topology"
+	ErrorCustomers = "Unable to load Customers"
 )
 
 type Conf struct {
@@ -38,16 +41,33 @@ type Conf struct {
 	BindAddr *snet.Addr
 	// PublicAddr is the public address.
 	PublicAddr *snet.Addr
-	// KeyConf contains the AS level keys used for signing and decrypting.
-	KeyConf *trust.KeyConf
-	// Dir is the configuration directory.
-	Dir string
+	// Store is the trust store.
+	Store *trust.Store
+	// keyConf contains the AS level keys used for signing and decrypting.
+	keyConf *trust.KeyConf
+	// keyConfLock guards KeyConf, CertVer and TRCVer.
+	keyConfLock sync.RWMutex
+	// customers is a mapping from non-core ASes assigned to this core AS to their public
+	// verifying key.
+	customers Customers
+	// customersLock guards the customers map.
+	customersLock sync.RWMutex
+	// CacheDir is the cache directory.
+	CacheDir string
+	// ConfDir is the configuration directory.
+	ConfDir string
+	// StateDir is the state directory.
+	StateDir string
 }
 
 // Load initializes the configuration by loading it from confDir.
-func Load(id string, confDir string) (*Conf, error) {
+func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, error) {
 	var err error
-	conf := &Conf{Dir: confDir}
+	conf := &Conf{
+		ConfDir:  confDir,
+		CacheDir: cacheDir,
+		StateDir: stateDir,
+	}
 	// load topology
 	path := filepath.Join(confDir, topology.CfgName)
 	if conf.Topo, err = topology.LoadFromFile(path); err != nil {
@@ -68,10 +88,58 @@ func Load(id string, confDir string) (*Conf, error) {
 	if !tmpBind.EqAddr(conf.PublicAddr) {
 		conf.BindAddr = tmpBind
 	}
-	// load keyConf
-	path = filepath.Join(confDir, "keys")
-	if conf.KeyConf, err = trust.LoadKeyConf(path, conf.Topo.Core); err != nil {
+	// load trust store
+	conf.Store, err = trust.NewStore(filepath.Join(confDir, "certs"), cacheDir, id)
+	if err != nil {
+		return nil, common.NewBasicError(ErrorStore, err)
+	}
+	// load key configuration
+	if conf.keyConf, err = conf.loadKeyConf(); err != nil {
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
+	// load customers
+	if conf.customers, err = conf.LoadCustomers(); err != nil {
+		return nil, err
+	}
 	return conf, nil
+}
+
+// ReloadCustomers reloads the mapping from customer to verifying key.
+func (c *Conf) ReloadCustomers() error {
+	// Makes sure no new files can be written by SetVerifyingKey in the meantime
+	c.customersLock.Lock()
+	defer c.customersLock.Unlock()
+	cust, err := c.LoadCustomers()
+	if err != nil {
+		return common.NewBasicError(ErrorCustomers, err)
+	}
+	c.customers = cust
+	return nil
+}
+
+// loadKeyConf loads key configuration.
+func (c *Conf) loadKeyConf() (*trust.KeyConf, error) {
+	return trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
+		c.Topo.Core, false)
+}
+
+// GetSigningKey returns the signing key of the current key configuration.
+func (c *Conf) GetSigningKey() common.RawBytes {
+	c.keyConfLock.RLock()
+	defer c.keyConfLock.RUnlock()
+	return c.keyConf.SignKey
+}
+
+// GetDecryptKey returns the decryption key of the current key configuration.
+func (c *Conf) GetDecryptKey() common.RawBytes {
+	c.keyConfLock.RLock()
+	defer c.keyConfLock.RUnlock()
+	return c.keyConf.DecryptKey
+}
+
+// GetOnRootKey returns the online root key of the current key configuration.
+func (c *Conf) GetOnRootKey() common.RawBytes {
+	c.keyConfLock.RLock()
+	defer c.keyConfLock.RUnlock()
+	return c.keyConf.OnRootKey
 }

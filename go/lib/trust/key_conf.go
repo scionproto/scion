@@ -24,6 +24,8 @@ import (
 )
 
 type KeyConf struct {
+	// CoreSigKey is the AS core signing Key.
+	CoreSigKey common.RawBytes
 	// DecryptKey is the AS decryption key.
 	DecryptKey common.RawBytes
 	// OffRootKey is the AS offline root key.
@@ -35,10 +37,11 @@ type KeyConf struct {
 }
 
 const (
-	DecKeyFile = "as-decrypt.key"
-	OffKeyFile = "offline-root.key"
-	OnKeyFile  = "online-root.key"
-	SigKeyFile = "as-sig.key"
+	CoreSigKeyFile = "core-sig.key"
+	DecKeyFile     = "as-decrypt.key"
+	OffKeyFile     = "offline-root.key"
+	OnKeyFile      = "online-root.key"
+	SigKeyFile     = "as-sig.key"
 )
 
 const (
@@ -46,43 +49,52 @@ const (
 	ErrorParse = "Unable to parse key"
 )
 
-// LoadKeyConf loads key configuration from specified path. If loadRootKeys is set true, the
-// online and offline key are loaded.
-func LoadKeyConf(path string, loadRootKeys bool) (*KeyConf, error) {
+// LoadKeyConf loads key configuration from specified path.
+// coreSigKey, onKey, offKey can be set true, to load the respective keys.
+func LoadKeyConf(path string, coreSigKey, onKey, offKey bool) (*KeyConf, error) {
 	conf := &KeyConf{}
 	var err error
-	if conf.DecryptKey, err = loadKey(filepath.Join(path, DecKeyFile)); err != nil {
+	if conf.DecryptKey, err = loadKeyCond(filepath.Join(path, DecKeyFile), true); err != nil {
 		return nil, err
 	}
-	if conf.SignKey, err = loadKey(filepath.Join(path, SigKeyFile)); err != nil {
+	if conf.SignKey, err = loadKeyCond(filepath.Join(path, SigKeyFile), true); err != nil {
 		return nil, err
 	}
-	if loadRootKeys {
-		if conf.OffRootKey, err = loadKey(filepath.Join(path, OffKeyFile)); err != nil {
-			return nil, err
-		}
-		if conf.OnRootKey, err = loadKey(filepath.Join(path, OnKeyFile)); err != nil {
-			return nil, err
-		}
+	if conf.CoreSigKey, err = loadKeyCond(filepath.Join(path, CoreSigKeyFile), coreSigKey); err != nil {
+
+	}
+	if conf.OffRootKey, err = loadKeyCond(filepath.Join(path, OffKeyFile), offKey); err != nil {
+		return nil, err
+	}
+	if conf.OnRootKey, err = loadKeyCond(filepath.Join(path, OnKeyFile), onKey); err != nil {
+		return nil, err
 	}
 	return conf, nil
 }
 
-// loadKey decodes a base64 encoded key stored in file and returns the raw bytes.
-func loadKey(file string) (common.RawBytes, error) {
+func loadKeyCond(file string, load bool) (common.RawBytes, error) {
+	if !load {
+		return nil, nil
+	}
+	return LoadKey(file)
+}
+
+// LoadKey decodes a base64 encoded key stored in file and returns the raw bytes.
+func LoadKey(file string) (common.RawBytes, error) {
 	b, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, common.NewBasicError(ErrorOpen, err)
 	}
-	b, err = base64.StdEncoding.DecodeString(string(b))
+	dbuf := make([]byte, base64.StdEncoding.DecodedLen(len(b)))
+	n, err := base64.StdEncoding.Decode(dbuf, b)
 	if err != nil {
 		return nil, common.NewBasicError(ErrorParse, err)
 	}
-	return b, nil
+	return dbuf[:n], nil
 }
 
 func (a *KeyConf) String() string {
 	return fmt.Sprintf(
-		"DecryptKey:%s SigningKey:%s OfflineRootKey:%s OnlineRootKey:%s",
-		a.DecryptKey, a.SignKey, a.OffRootKey, a.OnRootKey)
+		"DecryptKey:%s SigningKey:%s CoreSigningKey: %s OfflineRootKey:%s OnlineRootKey:%s",
+		a.DecryptKey, a.SignKey, a.CoreSigKey, a.OffRootKey, a.OnRootKey)
 }

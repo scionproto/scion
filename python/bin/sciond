@@ -29,23 +29,24 @@ from lib.util import handle_signals
 def sciond_default():
     handle_signals()
     parser = argparse.ArgumentParser()
-    parser.add_argument('sciond_id', help='Sciond identifier')
-    parser.add_argument('conf_dir', nargs='?', default='.',
-                        help='Configuration directory (Default: ./)')
-    parser.add_argument('log_dir', nargs='?', default="logs/",
-                        help='Log dir (Default: logs/)')
+    parser.add_argument('--log_dir', default="logs/", help='Log dir (Default: logs/)')
+    parser.add_argument('--spki_cache_dir', default="gen-cache/",
+                        help='Cache dir for SCION TRCs and cert chains (Default: gen-cache/)')
     parser.add_argument('--addr', default='127.0.0.1',
                         help='Address to bind to (Default: 127.0.0.1)')
     parser.add_argument('--api-addr',
                         help='Address to bind to (Default: %s)' %
                         os.path.join(SCIOND_API_SOCKDIR, "ISD-AS.sock"))
+    parser.add_argument('sciond_id', help='Sciond identifier')
+    parser.add_argument('conf_dir', nargs='?', default='.',
+                        help='Configuration directory (Default: ./)')
     args = parser.parse_args()
     init_logging(os.path.join(args.log_dir, args.sciond_id),
                  console_level=logging.CRITICAL)
     addr = haddr_parse_interface(args.addr)
 
-    inst = SCIONDaemon(args.conf_dir, addr, args.api_addr, run_local_api=True,
-                       port=0)
+    inst = SCIONDaemon(args.conf_dir, addr, args.api_addr, spki_cache_dir=args.spki_cache_dir,
+                       run_local_api=True, port=0)
     logging.info("Started %s", args.sciond_id)
     inst.run()
 
