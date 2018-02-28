@@ -32,7 +32,7 @@ var CmdCerts = &base.Command{
 	Long: `
 'certs' can be used to generate and renew certificate chains for the SCION control plane PKI.
 
-The following subcommands are available:
+Subcommands:
 	gen
 		Used to generate new certificates.
 	renew
@@ -42,7 +42,7 @@ The following subcommands are available:
 	clean
 		Used to clean the PKI root directory.
 
-The following flags are available:
+Flags:
 	-d
 		The root directory of all certificates and keys (default '.')
 	-genkeys
@@ -54,13 +54,13 @@ The following flags are available:
 	-verify (default TRUE)
 		Also verify the generated/renewed certificates.
 
-The following selectors are available:
-	all
-		Apply command to all ASes under the root directory.
-	isd <id>
-		Apply command to all ASes in a given ISD.
-	as <isd>-<as>
-		Apply command to a specific AS, given as ISD-AS identifier (e.g., 1-11)
+Selector:
+	*-*
+		All ISDs and ASes under the root directory.
+	X-*
+		All ASes in ISD X.
+	X-Y
+		A specific AS X-Y, e.g. AS 1-11
 
 'certs' needs to be pointed to the root directory where all keys and certificates are
 stored on disk (-d flag). It expects the contents of the root directory to follow

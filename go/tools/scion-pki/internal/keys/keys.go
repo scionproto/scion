@@ -45,13 +45,13 @@ var CmdKeys = &base.Command{
 	Long: `
 'keys' can be used to generate all the necessary keys used in the SCION control plane PKI.
 
-The following subcommands are available:
+Subcommands:
 	gen
 		Used to generate new keys.
 	clean
 		Used to remove all keys.
 
-The following flags are available:
+Flags:
 	-d
 		The root directory of all certificates and keys (default '.')
 	-core
@@ -69,13 +69,13 @@ The following flags are available:
 	-offline
 		Generate the AS offline root key.
 
-The following selectors are available:
-	all
-		Apply command to all ASes under the root directory.
-	isd <id>
-		Apply command to all ASes in a given ISD.
-	as <isd>-<as>
-		Apply command to a specific AS, given as ISD-AS identifier (e.g., 1-11)
+Selector:
+	*-*
+		All ISDs and ASes under the root directory.
+	X-*
+		All ASes in ISD X.
+	X-Y
+		A specific AS X-Y, e.g. AS 1-11
 `,
 }
 

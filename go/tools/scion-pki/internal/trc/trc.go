@@ -52,11 +52,13 @@ The following flags are available:
 	-f
 		Overwrite existing TRCs.
 
-The following selectors are available:
-	all
-		Apply command to all ISDs under the root directory.
-	isd <id>
-		Apply command to a given ISD.
+Selector:
+	*-*
+		All ISDs and ASes under the root directory.
+	X-*
+		All ASes in ISD X.
+	X-Y
+		A specific AS X-Y, e.g. AS 1-11
 `,
 }
 
