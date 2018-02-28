@@ -26,7 +26,7 @@ import (
 )
 
 func PollReqHdlr() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	log.Info("PollReqHdlr: starting")
 	for rpld := range disp.Dispatcher.PollReqC {
 		req, ok := rpld.P.(*mgmt.PollReq)

@@ -41,18 +41,18 @@ var (
 
 func main() {
 	// Parse and check flags.
-	liblog.AddDefaultLogFlags()
+	log.AddDefaultLogFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
 		os.Exit(1)
 	}
 	os.Setenv("TZ", "UTC")
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
+	log.Setup(*id)
+	defer log.LogPanicAndExit()
 	if err := checkPerms(); err != nil {
 		log.Crit("Permissions checks failed", "err", err)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}
 	if *profFlag {
@@ -63,7 +63,7 @@ func main() {
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
 		log.Crit("Startup failed", "err", err)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}
 	if assert.On {
@@ -74,7 +74,7 @@ func main() {
 	log.Info("Starting up", "id", *id, "pid", os.Getpid())
 	if err := r.Run(); err != nil {
 		log.Crit("Run failed", "err", err)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}
 }
@@ -87,7 +87,7 @@ func setupSignals() {
 		<-sig
 		log.Info("Exiting")
 		profile.Stop()
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}()
 }

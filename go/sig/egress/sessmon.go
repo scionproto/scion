@@ -68,7 +68,7 @@ func newSessMonitor(sess *Session) *sessMonitor {
 }
 
 func (sm *sessMonitor) run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	defer close(sm.sess.sessMonStopped)
 	// Setup timers
 	reqTick := time.NewTicker(tickLen)

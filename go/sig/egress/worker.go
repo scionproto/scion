@@ -81,7 +81,7 @@ func NewWorker(sess *Session, logger log.Logger) *worker {
 }
 
 func (w *worker) Run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	w.Info("EgressWorker: starting")
 	f := newFrame()
 

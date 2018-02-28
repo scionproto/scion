@@ -63,7 +63,7 @@ func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egr
 }
 
 func (ed *egressDispatcher) Run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 	remoteIAInt := ed.sess.IA.IAInt()

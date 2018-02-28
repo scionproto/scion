@@ -255,7 +255,7 @@ func (t *RUDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) 
 // in the ACK table.
 func (t *RUDP) goBackgroundReceiver() {
 	go func() {
-		defer liblog.LogPanicAndExit()
+		defer log.LogPanicAndExit()
 		t.log.Info("Started")
 		defer t.log.Info("Stopped")
 		defer close(t.doneChan)

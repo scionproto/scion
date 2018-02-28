@@ -44,11 +44,11 @@ var (
 func main() {
 	var err error
 
-	liblog.AddDefaultLogFlags()
+	log.AddDefaultLogFlags()
 	validateFlags()
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
-	defer liblog.Flush()
+	log.Setup(*id)
+	defer log.LogPanicAndExit()
+	defer log.Flush()
 
 	log.Debug("Connecting to SCIOND", "sciond", *sciondPath, "timeout", *timeout)
 
@@ -98,6 +98,6 @@ func validateFlags() {
 
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
-	liblog.Flush()
+	log.Flush()
 	os.Exit(1)
 }

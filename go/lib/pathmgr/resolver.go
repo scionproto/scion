@@ -42,7 +42,7 @@ type resolver struct {
 // updates the path cache with the result. Periodic requests are readded to the
 // channel.
 func (r *resolver) run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	for request := range r.requestQueue {
 		aps := r.lookup(request.src, request.dst)
 		switch request.reqType {

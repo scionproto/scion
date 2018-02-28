@@ -82,7 +82,7 @@ func (r *Router) Run() error {
 
 // confSig handles reloading the configuration when SIGHUP is received.
 func (r *Router) confSig() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	for range sighup {
 		var err error
 		var config *conf.Conf
@@ -99,7 +99,7 @@ func (r *Router) confSig() {
 }
 
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	defer close(stopped)
 	pkts := make(ringbuf.EntryList, processBufCnt)
 	log.Debug("handleSock starting", "sock", *s)

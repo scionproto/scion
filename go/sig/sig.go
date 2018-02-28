@@ -52,7 +52,7 @@ var (
 )
 
 func main() {
-	liblog.AddDefaultLogFlags()
+	log.AddDefaultLogFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
@@ -60,8 +60,8 @@ func main() {
 		os.Exit(1)
 	}
 	os.Setenv("TZ", "UTC")
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
+	log.Setup(*id)
+	defer log.LogPanicAndExit()
 	setupSignals()
 	if err := checkPerms(); err != nil {
 		fatal("Permissions checks failed", "err", err)
@@ -107,7 +107,7 @@ func setupSignals() {
 	go func() {
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}()
 }
@@ -131,7 +131,7 @@ func checkPerms() error {
 }
 
 func reloadOnSIGHUP(path string) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	log.Info("reloadOnSIGHUP: started")
 	for range sighup {
 		log.Info("reloadOnSIGHUP: reloading...")
@@ -153,6 +153,6 @@ func loadConfig(path string) bool {
 
 func fatal(msg string, args ...interface{}) {
 	log.Crit(msg, args...)
-	liblog.Flush()
+	log.Flush()
 	os.Exit(1)
 }

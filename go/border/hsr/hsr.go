@@ -80,7 +80,7 @@ var AddrMs []AddrMeta
 
 // Init initialises libhsr, and relevant metadata.
 func Init(zlog_cfg string, args []string, addrMs []AddrMeta) error {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	// Create a C-style argv to pass to router_init.
 	argv := make([]*C.char, 0, len(args))
 	for _, arg := range args {

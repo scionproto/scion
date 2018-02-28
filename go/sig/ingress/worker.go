@@ -73,12 +73,12 @@ func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 }
 
 func (w *Worker) Stop() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	w.Ring.Close()
 }
 
 func (w *Worker) Run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	w.Info("IngressWorker starting")
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()

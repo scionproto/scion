@@ -171,7 +171,7 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, net.Addr
 
 func (d *Dispatcher) goBackgroundReceiver() {
 	go func() {
-		defer liblog.LogPanicAndExit()
+		defer log.LogPanicAndExit()
 		d.log.Info("Started")
 		defer d.log.Info("Stopped")
 		defer close(d.stoppedChan)
