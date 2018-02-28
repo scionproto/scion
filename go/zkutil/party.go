@@ -17,8 +17,9 @@ package zkutil
 import (
 	"fmt"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/samuel/go-zookeeper/zk"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type Party struct {

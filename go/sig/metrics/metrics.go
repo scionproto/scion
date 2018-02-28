@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	log "github.com/inconshreveable/log15"
+	"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

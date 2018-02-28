@@ -19,7 +19,7 @@ package path_mgmt
 import (
 	"fmt"
 
-	//log "github.com/inconshreveable/log15"
+	//"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
