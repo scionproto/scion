@@ -30,8 +30,7 @@ import (
 )
 
 var (
-	iaRe  *regexp.Regexp = regexp.MustCompile("ISD[0-9]+/AS[0-9]+")
-	numRe *regexp.Regexp = regexp.MustCompile("[0-9]+")
+	iaRe *regexp.Regexp = regexp.MustCompile("ISD([0-9]+)/AS([0-9]+)")
 )
 
 func runTemplate(cmd *base.Command, args []string) {
@@ -75,7 +74,7 @@ func visitTemplate(path string, info os.FileInfo, visitError error) error {
 	if !pkicmn.Force {
 		// Check if the file already exists.
 		if _, err = os.Stat(fpath); err == nil {
-			fmt.Printf("%s already exists. Use -f to overwrite.", fpath)
+			fmt.Printf("%s already exists. Use -f to overwrite.\n", fpath)
 			return nil
 		}
 	}
@@ -88,16 +87,15 @@ func visitTemplate(path string, info os.FileInfo, visitError error) error {
 }
 
 func getIAFromPath(path string) (*addr.ISD_AS, error) {
-	subStr := iaRe.FindString(path)
-	ia := numRe.FindAllString(subStr, -1)
-	if len(ia) != 2 {
+	match := iaRe.FindAllStringSubmatch(path, -1)
+	if len(match) != 1 || len(match[0]) != 3 {
 		return nil, common.NewBasicError("Path not valid", nil, "path", path)
 	}
-	isd, err := strconv.Atoi(ia[0])
+	isd, err := strconv.Atoi(match[0][1])
 	if err != nil {
 		return nil, err
 	}
-	as, err := strconv.Atoi(ia[1])
+	as, err := strconv.Atoi(match[0][2])
 	if err != nil {
 		return nil, err
 	}
