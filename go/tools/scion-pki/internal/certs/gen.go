@@ -133,11 +133,10 @@ func getWalker(core bool) filepath.WalkFunc {
 	}
 }
 
-func genCertCommon(conf *certConf) (*cert.Certificate, error) {
+func genCertCommon(conf *certConf, signKeyFname string) (*cert.Certificate, error) {
 	// Load signing and decryption keys that will be in the certificate.
-	// FIXME(shitz): CoreAS keys should be different from AS keys.
 	keyDir := filepath.Join(pkicmn.GetPath(conf.subjectIA), "keys")
-	signKey, err := trust.LoadKey(filepath.Join(keyDir, trust.SigKeyFile))
+	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname))
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +172,7 @@ func genCertCommon(conf *certConf) (*cert.Certificate, error) {
 
 // genCoreASCert generates a new core AS certificate according to conf.
 func genCoreASCert(conf *certConf) (*cert.Certificate, error) {
-	c, err := genCertCommon(conf)
+	c, err := genCertCommon(conf, trust.CoreSigKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +200,7 @@ func genCoreASCert(conf *certConf) (*cert.Certificate, error) {
 
 // genASCert generates a new AS certificate according to 'conf'.
 func genASCert(conf *certConf, issuerCert *cert.Certificate) (*cert.Chain, error) {
-	c, err := genCertCommon(conf)
+	c, err := genCertCommon(conf, trust.SigKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +212,7 @@ func genASCert(conf *certConf, issuerCert *cert.Certificate) (*cert.Chain, error
 		return nil, common.NewBasicError("Issuer cert not authorized to issue new certs.", nil,
 			"issuer", c.Issuer)
 	}
-	issuerKeyPath := filepath.Join(pkicmn.GetPath(issuerCert.Issuer), "keys", trust.SigKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetPath(issuerCert.Issuer), "keys", trust.CoreSigKeyFile)
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
 		return nil, err
@@ -267,16 +266,16 @@ func genIssuerCert(issuer *addr.ISD_AS, ccpath string) (*cert.Certificate, error
 	if err != nil {
 		return nil, common.NewBasicError("Error loading core-cert.ini", err, "subject", issuer)
 	}
-	issuerCert, err := getIssuerCert(issuer)
-	if err != nil {
-		return nil, err
-	}
-	// We already have a core AS certificate of the specified version.
-	if issuerCert != nil && issuerCert.Version >= coreConf.Version {
-		return issuerCert, nil
-	}
+	//issuerCert, err := getIssuerCert(issuer)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//// We already have a core AS certificate of the specified version.
+	//if issuerCert != nil && issuerCert.Version >= coreConf.Version {
+	//	return issuerCert, nil
+	//}
 	// Need to generate a new core AS certificate.
-	issuerCert, err = genCoreASCert(coreConf)
+	issuerCert, err := genCoreASCert(coreConf)
 	if err != nil {
 		return nil, common.NewBasicError("Error generating core AS cert", err, "subject", issuer)
 	}

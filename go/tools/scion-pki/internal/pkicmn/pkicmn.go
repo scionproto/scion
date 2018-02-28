@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -37,6 +38,7 @@ const (
 var (
 	RootDir string
 	Force   bool
+	iaRe    *regexp.Regexp = regexp.MustCompile("ISD([0-9]+)/AS([0-9]+)")
 )
 
 // ProcessSelector processes the given selector and returns the top level directory
@@ -85,4 +87,20 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 
 func GetPath(ia *addr.ISD_AS) string {
 	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
+}
+
+func GetIAFromPath(path string) (*addr.ISD_AS, error) {
+	match := iaRe.FindAllStringSubmatch(path, -1)
+	if len(match) != 1 || len(match[0]) != 3 {
+		return nil, common.NewBasicError("Path not valid", nil, "path", path)
+	}
+	isd, err := strconv.Atoi(match[0][1])
+	if err != nil {
+		return nil, err
+	}
+	as, err := strconv.Atoi(match[0][2])
+	if err != nil {
+		return nil, err
+	}
+	return &addr.ISD_AS{I: isd, A: as}, nil
 }

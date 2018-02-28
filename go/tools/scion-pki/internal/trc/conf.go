@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/go-ini/ini"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -41,10 +42,9 @@ func (t *trcConf) validate() error {
 	if t.Isd == 0 {
 		return newValidationError("Isd")
 	}
-	// FIXME(shitz): Uncomment as soon as codebase disallows version 0 for TRCs.
-	//if t.Version == 0 {
-	// 	return newValidationError("Version")
-	//}
+	if t.Version == 0 {
+		return newValidationError("Version")
+	}
 	if t.Validity == 0 {
 		return newValidationError("Validity")
 	}
