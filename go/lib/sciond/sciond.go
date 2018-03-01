@@ -14,15 +14,16 @@
 
 // Package sciond queries local SCIOND servers for information.
 //
-// To query a SCIOND server, a connection must be established to one using Connect. The returned
-// structure can then be queried for information about Paths, ASes, available SCION
-// services and interface IDs of border routers.
+// To query SCIOND, initialize a Service object by passing in the path to the
+// UNIX socket. It is then possible to establish connections to SCIOND by
+// calling Connect or ConnectTimeout on the service. The connections implement
+// interface Connector, whose methods can be used to talk to SCIOND.
 //
-// API calls return the entire answer of SCIOND.
+// Connector method calls return the entire answer of SCIOND.
 //
-// Fields prefixed with Raw (e.g., RawErrorCode) contain data in the format received from SCIOND.
-// These are used internally, and the accessors without the prefix (e.g., ErrorCode()) should be
-// used instead.
+// Fields prefixed with Raw (e.g., RawErrorCode) contain data in the format
+// received from SCIOND.  These are used internally, and the accessors without
+// the prefix (e.g., ErrorCode()) should be used instead.
 package sciond
 
 import (
@@ -51,7 +52,18 @@ const (
 // Service describes a SCIOND endpoint. New connections to SCIOND can be
 // initialized via Connect and ConnectTimeout.
 type Service interface {
+	// Connect connects to the SCIOND server described by Service. Future
+	// method calls on the returned Connector request information from SCIOND.
+	// The information is not guaranteed to be fresh, as the returned connector
+	// caches ASInfo replies for ASInfoTTL time, IFInfo replies for IFInfoTTL
+	// time and SVCInfo for SVCInfoTTL time.
 	Connect() (Connector, error)
+	// ConnectTimeout acts like Connect but takes a timeout.
+	//
+	// A negative timeout means infinite timeout.
+	//
+	// To check for timeout errors, type assert the returned error to
+	// *net.OpError and call method Timeout().
 	ConnectTimeout(timeout time.Duration) (Connector, error)
 }
 
@@ -77,13 +89,39 @@ func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
 // cache for interface, service and AS information. All connector methods block until either
 // an error occurs, or the method successfully returns.
 type Connector interface {
+	// Paths requests from SCIOND a set of end to end paths between src and
+	// dst. max specifices the maximum number of paths returned.
 	Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error)
+	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error)
+	// IFInfo requests from SCIOND addresses and ports of interfaces.  Slice
+	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
+	// answer containing all interfaces is returned.
 	IFInfo(ifs []uint64) (*IFInfoReply, error)
+	// SVCInfo requests from SCIOND information about addresses and ports of
+	// infrastructure services.  Slice svcTypes contains a list of desired
+	// service types. If unset, a fresh (i.e., uncached) answer containing all
+	// service types is returned.
 	SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error)
+	// RevNotification sends a raw revocation to SCIOND, as contained in an
+	// SCMP message.
 	RevNotificationFromRaw(revInfo []byte) (*RevReply, error)
+	// RevNotification sends a RevocationInfo message to SCIOND.
 	RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error)
+	// Close shuts down the connection to a SCIOND server.
 	Close() error
+	// SetDeadline sets a deadline associated with any SCIOND query. If
+	// underlying protocol operations exceed the deadline, the queries return
+	// immediately with an error.
+	//
+	// A zero value for t means queries will not time out.
+	//
+	// To check for exceeded deadlines, type assert the returned error to
+	// *net.OpError and call method Timeout().
+	//
+	// Following a timeout error the underlying protocol to SCIOND is probably
+	// desynchronized. Establishing a fresh connection to SCIOND is
+	// recommended.
 	SetDeadline(t time.Time) error
 }
 
@@ -97,20 +135,10 @@ type connector struct {
 	svcInfos *cache.Cache
 }
 
-// connect connects to a SCIOND server listening on socketName. Future method calls on the
-// returned Connector request information from SCIOND. The information is not
-// guaranteed to be fresh, as the returned connector caches ASInfo replies for ASInfoTTL time,
-// IFInfo replies for IFInfoTTL time and SVCInfo for SVCInfoTTL time.
 func connect(socketName string) (*connector, error) {
 	return connectTimeout(socketName, time.Duration(-1))
 }
 
-// connectTimeout acts like Connect but takes a timeout.
-//
-// A negative timeout means infinite timeout.
-//
-// To check for timeout errors, type assert the returned error to *net.OpError and
-// call method Timeout().
 func connectTimeout(socketName string, timeout time.Duration) (*connector, error) {
 	conn, err := reliable.DialTimeout(socketName, timeout)
 	if err != nil {
@@ -149,8 +177,6 @@ func (c *connector) receive() (*Pld, error) {
 	return p, nil
 }
 
-// Paths requests from SCIOND a set of end to end paths between src and dst. max specifices the
-// maximum number of paths returned.
 func (c *connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -173,7 +199,6 @@ func (c *connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*P
 	return &reply.PathReply, nil
 }
 
-// ASInfo requests from SCIOND information about AS ia.
 func (c *connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -201,9 +226,6 @@ func (c *connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
 	return &reply.AsInfoReply, nil
 }
 
-// IFInfo requests from SCIOND addresses and ports of interfaces.
-// Slice ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached) answer containing
-// all interfaces is returned.
 func (c *connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -249,9 +271,6 @@ func (c *connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	return &reply.IfInfoReply, nil
 }
 
-// SVCInfo requests from SCIOND information about addresses and ports of infrastructure services.
-// Slice svcTypes contains a list of desired service types. If unset, a fresh (i.e., uncached)
-// answer containing all service types is returned.
 func (c *connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -303,7 +322,6 @@ func (c *connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
 	return c.RevNotification(ri)
 }
 
-// RevNotification sends a RevocationInfo message to SCIOND.
 func (c *connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -324,22 +342,10 @@ func (c *connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, erro
 	return &reply.RevReply, nil
 }
 
-// Close shuts down the connection to a SCIOND server.
 func (c *connector) Close() error {
 	return c.conn.Close()
 }
 
-// SetDeadline sets a deadline associated with any SCIOND query. If underlying
-// protocol operations exceed the deadline, the queries return immediately with
-// an error.
-//
-// A zero value for t means queries will not time out.
-//
-// To check for exceeded deadlines, type assert the returned error to *net.OpError and
-// call method Timeout().
-//
-// Following a timeout error the underlying protocol to SCIOND is probably
-// desynchronized. Establishing a fresh connection to SCIOND is recommended.
 func (c *connector) SetDeadline(t time.Time) error {
 	return c.conn.SetDeadline(t)
 }
