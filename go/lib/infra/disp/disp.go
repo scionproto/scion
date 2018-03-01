@@ -43,7 +43,7 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/scionproto/scion/go/lib/common"

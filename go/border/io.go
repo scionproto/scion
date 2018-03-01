@@ -22,7 +22,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/border/metrics"

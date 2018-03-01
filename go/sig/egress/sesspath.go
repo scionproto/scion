@@ -19,7 +19,7 @@ import (
 	"math"
 	"time"
 
-	//log "github.com/scionproto/scion/go/lib/log"
+	//"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"

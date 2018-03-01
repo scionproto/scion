@@ -18,7 +18,7 @@
 package main
 
 import (
-	//log "github.com/scionproto/scion/go/lib/log"
+	//"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"

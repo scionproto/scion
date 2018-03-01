@@ -18,7 +18,7 @@
 package rpkt
 
 import (
-	//log "github.com/scionproto/scion/go/lib/log"
+	//"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"

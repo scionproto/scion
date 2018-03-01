@@ -19,7 +19,7 @@ import (
 	"io"
 	"net"
 
-	//log "github.com/scionproto/scion/go/lib/log"
+	//"github.com/scionproto/scion/go/lib/log"
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
 

@@ -15,7 +15,7 @@
 package base
 
 import (
-	log "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"

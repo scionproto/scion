@@ -23,7 +23,7 @@ import (
 	"os/user"
 	"syscall"
 
-	log "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/lib/addr"

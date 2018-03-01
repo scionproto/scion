@@ -21,7 +21,7 @@ import (
 	"net"
 	"net/http"
 
-	log "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
