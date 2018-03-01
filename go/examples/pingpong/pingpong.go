@@ -64,9 +64,14 @@ func init() {
 }
 
 func main() {
-	log.AddDefaultLogFlags()
+	log.AddLogFileFlags()
+	log.AddLogConsFlags()
 	validateFlags()
-	log.Setup(*id)
+	if err := log.SetupFromFlags(*id); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
 	defer log.LogPanicAndExit()
 	switch *mode {
 	case "client":

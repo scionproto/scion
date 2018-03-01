@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -58,7 +59,9 @@ func init() {
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
-	log.AddDefaultLogFlags()
+	var err error
+	log.AddLogFileFlags()
+	log.AddLogConsFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
@@ -66,10 +69,13 @@ func main() {
 		os.Exit(1)
 	}
 	os.Setenv("TZ", "UTC")
-	log.Setup(*id)
+	if err = log.SetupFromFlags(*id); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
 	defer log.LogPanicAndExit()
 	setupSignals()
-	var err error
 	if err = checkFlags(); err != nil {
 		fatal(err.Error())
 	}

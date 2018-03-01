@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	_ "net/http/pprof"
 	"os"
@@ -52,7 +53,8 @@ var (
 )
 
 func main() {
-	log.AddDefaultLogFlags()
+	log.AddLogFileFlags()
+	log.AddLogConsFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
@@ -60,7 +62,11 @@ func main() {
 		os.Exit(1)
 	}
 	os.Setenv("TZ", "UTC")
-	log.Setup(*id)
+	if err := log.SetupFromFlags(*id); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
 	defer log.LogPanicAndExit()
 	setupSignals()
 	if err := checkPerms(); err != nil {
