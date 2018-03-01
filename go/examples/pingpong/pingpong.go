@@ -46,7 +46,6 @@ func GetDefaultSCIONDPath(ia *addr.ISD_AS) string {
 var (
 	local      snet.Addr
 	remote     snet.Addr
-	id         = flag.String("id", "pingpong", "Element ID")
 	mode       = flag.String("mode", "client", "Run in client or server mode")
 	sciond     = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
@@ -64,10 +63,9 @@ func init() {
 }
 
 func main() {
-	log.AddLogFileFlags()
 	log.AddLogConsFlags()
 	validateFlags()
-	if err := log.SetupFromFlags(*id); err != nil {
+	if err := log.SetupFromFlags(""); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
 		os.Exit(1)

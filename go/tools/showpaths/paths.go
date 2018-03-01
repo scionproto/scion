@@ -30,7 +30,6 @@ import (
 var (
 	dstIAStr   = flag.String("dstIA", "", "Destination IA address: ISD-AS")
 	srcIAStr   = flag.String("srcIA", "", "Source IA address: ISD-AS")
-	id         = flag.String("id", "paths", "Element ID")
 	sciondPath = flag.String("sciond", "", "SCIOND socket path")
 	timeout    = flag.Duration("timeout", 2*time.Second, "SCIOND connection timeout")
 	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
@@ -44,10 +43,9 @@ var (
 func main() {
 	var err error
 
-	log.AddLogFileFlags()
 	log.AddLogConsFlags()
 	validateFlags()
-	if err := log.SetupFromFlags(*id); err != nil {
+	if err := log.SetupFromFlags(""); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
 		os.Exit(1)
