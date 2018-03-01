@@ -140,7 +140,7 @@ class CertificateChain(object):
         if core.expiration_time > trc.exp_time:
             raise SCIONVerificationError(
                 "Core AS certificate verification failed: Core certificate expires after TRC. "
-                "Core: %s TRC: %s" % (iso_timestamp(trc.expiration_time),
+                "Core: %s TRC: %s" % (iso_timestamp(core.expiration_time),
                                       iso_timestamp(trc.exp_time)))
         try:
             core.verify(leaf.issuer, trc.core_ases[core.issuer][ONLINE_KEY_STRING])
