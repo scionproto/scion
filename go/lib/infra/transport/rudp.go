@@ -22,8 +22,6 @@ import (
 	"net"
 	"time"
 
-	logext "github.com/inconshreveable/log15/ext"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
@@ -116,7 +114,7 @@ func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 		readEvents: make(chan *readEventDesc, maxReadEvents),
 		closedChan: make(chan struct{}),
 		doneChan:   make(chan struct{}),
-		log:        logger.New("id", logext.RandId(4), "goroutine", "transport_bck"),
+		log:        logger.New("id", log.RandId(4), "goroutine", "transport_bck"),
 		writeLock:  newChannelLock(),
 	}
 	t.goBackgroundReceiver()

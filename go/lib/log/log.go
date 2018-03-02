@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/inconshreveable/log15"
+	logext "github.com/inconshreveable/log15/ext"
 	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
 	"gopkg.in/natefinch/lumberjack.v2"
 
@@ -168,4 +169,8 @@ func Error(msg string, ctx ...interface{}) {
 
 func Crit(msg string, ctx ...interface{}) {
 	log15.Crit(msg, ctx...)
+}
+
+func RandId(idlen int) string {
+	return logext.RandId(idlen)
 }

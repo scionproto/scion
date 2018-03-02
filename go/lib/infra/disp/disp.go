@@ -43,8 +43,6 @@ import (
 	"net"
 	"sync"
 
-	logext "github.com/inconshreveable/log15/ext"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/transport"
@@ -94,7 +92,7 @@ func New(t transport.Transport, adapter MessageAdapter, logger log.Logger) *Disp
 		readEvents:  make(chan *readEventDesc, maxReadEvents),
 		stoppedChan: make(chan struct{}),
 		closedChan:  make(chan struct{}),
-		log:         logger.New("id", logext.RandId(4), "goroutine", "dispatcher_bck"),
+		log:         logger.New("id", log.RandId(4), "goroutine", "dispatcher_bck"),
 	}
 	d.goBackgroundReceiver()
 	return d

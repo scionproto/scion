@@ -21,8 +21,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	logext "github.com/inconshreveable/log15/ext"
-
 	"github.com/scionproto/scion/go/border/conf"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -129,7 +127,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		assert.Must(rp.Ctx != nil, "Context must be set")
 	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
-	rp.Id = logext.RandId(4)
+	rp.Id = log.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	// XXX(kormat): uncomment for debugging:
 	//rp.Debug("processPacket", "raw", rp.Raw)
