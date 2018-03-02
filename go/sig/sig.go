@@ -154,6 +154,7 @@ func loadConfig(path string) bool {
 		log.Error("loadConfig: Failed", "err", err)
 		return false
 	}
+	metrics.ConfigVersion.Set(cfg.ConfigVersion)
 	return base.Map.ReloadConfig(cfg)
 }
 
