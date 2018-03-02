@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -29,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/transport"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )

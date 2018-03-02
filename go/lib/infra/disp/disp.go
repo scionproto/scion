@@ -43,12 +43,12 @@ import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/log"
 	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/transport"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
 

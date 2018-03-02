@@ -23,12 +23,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sockctrl"
 	"github.com/scionproto/scion/go/lib/topology"

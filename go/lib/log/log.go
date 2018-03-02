@@ -30,6 +30,7 @@ import (
 )
 
 type Logger log15.Logger
+type Handler log15.Handler
 
 var (
 	logDir         string
@@ -141,7 +142,7 @@ func New(ctx ...interface{}) Logger {
 	return log15.New(ctx...)
 }
 
-func DiscardHandler() log15.Handler {
+func DiscardHandler() Handler {
 	return log15.DiscardHandler()
 }
 

@@ -19,7 +19,6 @@ package rpkt
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
 	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -27,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 

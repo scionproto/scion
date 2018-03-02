@@ -21,11 +21,11 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )

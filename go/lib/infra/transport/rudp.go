@@ -22,11 +22,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
 	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util/bufpool"
 )

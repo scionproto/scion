@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/pktdisp"
 	"github.com/scionproto/scion/go/lib/ringbuf"

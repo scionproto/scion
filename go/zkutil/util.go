@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/samuel/go-zookeeper/zk"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 func isdAsPath(isd, as int) string {

@@ -21,7 +21,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/scionproto/scion/go/lib/log"
 	logext "github.com/inconshreveable/log15/ext"
 
 	"github.com/scionproto/scion/go/border/conf"
@@ -30,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 

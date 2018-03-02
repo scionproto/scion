@@ -24,11 +24,11 @@ import (
 	"os/user"
 	"syscall"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/disp"

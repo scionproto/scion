@@ -17,10 +17,8 @@ package pathmgr
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
-
-
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 

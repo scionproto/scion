@@ -17,10 +17,10 @@ package ingress
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/metrics"

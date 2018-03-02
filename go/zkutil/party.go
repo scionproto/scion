@@ -17,8 +17,9 @@ package zkutil
 import (
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/samuel/go-zookeeper/zk"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type Party struct {
