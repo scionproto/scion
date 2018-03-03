@@ -43,7 +43,7 @@ var (
 
 // ProcessSelector processes the given selector and returns the top level directory
 // to which the requested operation should be applied.
-func ProcessSelector(option string, args []string) (string, error) {
+func ProcessSelector(option string, args []string, isdOnly bool) (string, error) {
 	toks := strings.Split(option, "-")
 	if len(toks) != 2 {
 		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
@@ -62,6 +62,9 @@ func ProcessSelector(option string, args []string) (string, error) {
 	}
 	if asTok == "*" {
 		return filepath.Join(RootDir, fmt.Sprintf("ISD%d", isd)), nil
+	}
+	if isdOnly {
+		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
 	}
 	as, err := strconv.Atoi(asTok)
 	if err != nil {
