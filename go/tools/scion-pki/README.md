@@ -107,7 +107,7 @@ Validity      = 7
 ```
 
 ```
-CanIssue      = true
+CanIssue      = false
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
 Subject       = 1-12
