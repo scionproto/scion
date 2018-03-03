@@ -40,7 +40,7 @@ func runGenCert(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := pkicmn.ProcessSelector(args[0], args[1:])
+	top, err := pkicmn.ProcessSelector(args[0], args[1:], false)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
@@ -266,15 +266,6 @@ func genIssuerCert(issuer *addr.ISD_AS, ccpath string) (*cert.Certificate, error
 	if err != nil {
 		return nil, common.NewBasicError("Error loading core-cert.ini", err, "subject", issuer)
 	}
-	//issuerCert, err := getIssuerCert(issuer)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//// We already have a core AS certificate of the specified version.
-	//if issuerCert != nil && issuerCert.Version >= coreConf.Version {
-	//	return issuerCert, nil
-	//}
-	// Need to generate a new core AS certificate.
 	issuerCert, err := genCoreASCert(coreConf)
 	if err != nil {
 		return nil, common.NewBasicError("Error generating core AS cert", err, "subject", issuer)
