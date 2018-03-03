@@ -20,6 +20,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/crypto/ed25519"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
@@ -27,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
-	"golang.org/x/crypto/ed25519"
 )
 
 func runGenTrc(cmd *base.Command, args []string) {
