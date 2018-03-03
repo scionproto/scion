@@ -16,6 +16,7 @@ package trc
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-ini/ini"
@@ -50,6 +51,12 @@ func (t *trcConf) validate() error {
 	}
 	if len(t.CoreIAs) == 0 {
 		return newValidationError("CoreASes")
+	} else {
+		for _, ia := range t.CoreIAs {
+			if ia.IAInt() == addr.IAInt(0) {
+				return common.NewBasicError("Invalid core AS", nil, "ia", ia)
+			}
+		}
 	}
 	if t.QuorumTRC == 0 {
 		return newValidationError("QuorumTRC")
@@ -77,7 +84,7 @@ func loadTrcConf(cname string) (*trcConf, error) {
 	ases := section.Key("CoreASes").Strings(",")
 	// Parse into addr.ISD_AS structs
 	for _, as := range ases {
-		ia, err := addr.IAFromString(as)
+		ia, err := addr.IAFromString(strings.Trim(as, " "))
 		if err != nil {
 			return nil, err
 		}
