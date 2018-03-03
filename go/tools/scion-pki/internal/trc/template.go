@@ -11,16 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package certs
+package trc
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/go-ini/ini"
-
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -30,13 +30,13 @@ func runTemplate(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := pkicmn.ProcessSelector(args[0], args[1:], false)
+	top, err := pkicmn.ProcessSelector(args[0], args[1:], true)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
-	fmt.Println("Generating cert config templates.")
+	fmt.Println("Generating trc config templates.")
 	if err := filepath.Walk(top, visitTemplate); err != nil {
 		base.ErrorAndExit("Failed generating template: %s\n", err)
 	}
@@ -47,20 +47,23 @@ func visitTemplate(path string, info os.FileInfo, visitError error) error {
 		return visitError
 	}
 	// If not an AS directory, keep walking.
-	if !info.IsDir() || !strings.HasPrefix(info.Name(), "AS") {
+	if !info.IsDir() || !strings.HasPrefix(info.Name(), "ISD") {
 		return nil
 	}
-	ia, err := pkicmn.GetIAFromPath(path)
+	isd, err := strconv.Atoi(info.Name()[3:])
 	if err != nil {
 		return err
 	}
-	c := newTemplateCertConf(ia, core)
+	fmt.Printf("Generating configuration template for ISD%d\n", isd)
+	t := &trcConf{Isd: uint16(isd)}
 	iniCfg := ini.Empty()
-	if err = ini.ReflectFrom(iniCfg, c); err != nil {
+	if err = ini.ReflectFrom(iniCfg, t); err != nil {
 		return err
 	}
-	fname := getConfName(core)
-	fpath := filepath.Join(path, fname)
+	if _, err = iniCfg.Section("").NewKey("CoreASes", "0-0,0-0"); err != nil {
+		return err
+	}
+	fpath := filepath.Join(path, trcConfFile)
 	// Check if file exists and do not override without -f
 	if !pkicmn.Force {
 		// Check if the file already exists.

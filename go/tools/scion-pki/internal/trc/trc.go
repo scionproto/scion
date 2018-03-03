@@ -19,16 +19,7 @@ package trc
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"golang.org/x/crypto/ed25519"
-
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
-	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -45,6 +36,8 @@ plane PKI.
 The following subcommands are available:
 	gen
 		Used to generate new TRCs.
+	template
+		Used to generate trc.ini template configuration files.
 
 The following flags are available:
 	-d
@@ -54,11 +47,44 @@ The following flags are available:
 
 Selector:
 	*-*
-		All ISDs and ASes under the root directory.
+		All ISDs under the root directory.
 	X-*
-		All ASes in ISD X.
-	X-Y
-		A specific AS X-Y, e.g. AS 1-11
+		ISD X.
+
+'trc' needs to be pointed to the root directory where all keys and certificates are
+stored on disk (-d flag). It expects the contents of the root directory to follow
+a predefined structure:
+	<root>/
+		ISD1/
+			trc.ini
+			AS1/
+			AS2/
+			...
+		ISD2/
+			trc.ini
+			AS1/
+			...
+		...
+
+trc.ini contains the preconfigured parameters according to which 'trc' generates
+the TRCs. It follows the ini format and can contain only the default section with
+the following values:
+	Isd [required]
+		integer representing the Isd ID for which the TRC is generated
+	Description [optional]
+		arbitrary string used to describe the TRC
+	Version [required]
+		integer representing the version of the TRC
+	Validity [required]
+		integer representing the validity of the TRC in days
+	CoreASes [required]
+		comma-separated list of ISD-AS identifiers representing the core ASes of the ISD.
+	IssuingTime (now) [optional]
+		the time the TRC was created as a UNIX timestamp
+	GracePeriod (0) [optional]
+		integer reprensenting the time the previous TRC is still valid in seconds
+	QuorumTRC [required]
+		integer reprensenting the number of core ASes needed to sign a new TRC.
 `,
 }
 
@@ -77,108 +103,12 @@ func runTrc(cmd *base.Command, args []string) {
 	switch subCmd {
 	case "gen":
 		runGenTrc(cmd, cmd.Flag.Args())
+	case "template":
+		runTemplate(cmd, cmd.Flag.Args())
 	default:
 		fmt.Fprintf(os.Stderr, "unrecognized subcommand '%s'\n", args[0])
 		fmt.Fprintf(os.Stderr, "run 'scion-pki trc -h' for help.\n")
 		os.Exit(2)
 	}
 	os.Exit(0)
-}
-
-func runGenTrc(cmd *base.Command, args []string) {
-	if len(args) < 1 {
-		cmd.Usage()
-		os.Exit(2)
-	}
-	top, err := pkicmn.ProcessSelector(args[0], args[1:])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		cmd.Usage()
-		os.Exit(2)
-	}
-	if err := filepath.Walk(top, visitTrc); err != nil && err != filepath.SkipDir {
-		base.ErrorAndExit("%s\n", err)
-	}
-	os.Exit(0)
-}
-
-func visitTrc(path string, info os.FileInfo, visitError error) error {
-	if visitError != nil {
-		return visitError
-	}
-	if !info.IsDir() || !strings.HasPrefix(info.Name(), "ISD") {
-		return nil
-	}
-	conf, err := loadTrcConf(filepath.Join(path, trcConfFile))
-	if err != nil {
-		return common.NewBasicError("Error loading TRC conf", err)
-	}
-	t, err := genTrc(conf, path)
-	if err != nil {
-		return err
-	}
-	raw, err := t.JSON(true)
-	if err != nil {
-		return common.NewBasicError("Error json-encoding TRC", err)
-	}
-	fname := fmt.Sprintf(pkicmn.TrcNameFmt, conf.Isd, conf.Version)
-	if err = pkicmn.WriteToFile(raw, filepath.Join(path, fname), 0644); err != nil {
-		return err
-	}
-	return filepath.SkipDir
-}
-
-func genTrc(conf *trcConf, path string) (*trc.TRC, error) {
-	t := &trc.TRC{
-		CreationTime:   conf.IssuingTime,
-		Description:    conf.Description,
-		ExpirationTime: conf.IssuingTime + conf.Validity*24*60*60,
-		GracePeriod:    conf.GracePeriod,
-		ISD:            conf.Isd,
-		QuorumTRC:      conf.QuorumTRC,
-		Version:        conf.Version,
-		CoreASes:       make(map[addr.ISD_AS]*trc.CoreAS),
-		Signatures:     make(map[string]common.RawBytes),
-		RAINS:          &trc.Rains{},
-		RootCAs:        make(map[string]*trc.RootCA),
-		CertLogs:       make(map[string]*trc.CertLog),
-	}
-	// Load the online/offline root keys.
-	var ases []coreAS
-	for _, cia := range conf.CoreIAs {
-		var as coreAS
-		as.IA = *cia
-		online, err := trust.LoadKey(filepath.Join(pkicmn.GetPath(cia), "keys", trust.OnKeyFile))
-		if err != nil {
-			return nil, common.NewBasicError("Error loading online key", err)
-		}
-		as.Online = ed25519.PrivateKey(online)
-		offline, err := trust.LoadKey(filepath.Join(pkicmn.GetPath(cia), "keys", trust.OffKeyFile))
-		if err != nil {
-			return nil, common.NewBasicError("Error loading offline key", err)
-		}
-		as.Offline = ed25519.PrivateKey(offline)
-		ases = append(ases, as)
-	}
-	for _, as := range ases {
-		t.CoreASes[as.IA] = &trc.CoreAS{
-			OnlineKey:     common.RawBytes(as.Online.Public().(ed25519.PublicKey)),
-			OnlineKeyAlg:  crypto.Ed25519,
-			OfflineKey:    common.RawBytes(as.Offline.Public().(ed25519.PublicKey)),
-			OfflineKeyAlg: crypto.Ed25519,
-		}
-	}
-	// Sign the TRC.
-	for _, as := range ases {
-		if err := t.Sign(as.IA.String(), common.RawBytes(as.Online), crypto.Ed25519); err != nil {
-			return nil, common.NewBasicError("Error signing TRC", err, "signer", as.IA)
-		}
-	}
-	return t, nil
-}
-
-type coreAS struct {
-	IA      addr.ISD_AS
-	Online  ed25519.PrivateKey
-	Offline ed25519.PrivateKey
 }
