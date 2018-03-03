@@ -24,12 +24,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/crypto/ed25519"
+	"golang.org/x/crypto/nacl/box"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
-	"golang.org/x/crypto/ed25519"
-	"golang.org/x/crypto/nacl/box"
 )
 
 func runGenKey(cmd *base.Command, args []string) {
