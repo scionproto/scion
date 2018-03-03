@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
+
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
