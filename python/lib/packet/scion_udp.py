@@ -19,7 +19,7 @@
 import struct
 
 # External
-import scapy.utils
+from pypacker import checksum
 
 # SCION
 from lib.errors import SCIONChecksumFailed
@@ -117,7 +117,7 @@ class SCIONUDPHeader(L4HeaderBase):
             b"\x00", struct.pack("!B", L4Proto.UDP),
             self.pack(payload, checksum=bytes(2)), payload,
         ])
-        chk_int = scapy.utils.checksum(pseudo_header)
+        chk_int = checksum.in_cksum(pseudo_header)
         return struct.pack("!H", chk_int)
 
     def reverse(self):

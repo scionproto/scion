@@ -1,9 +1,8 @@
 nose-descriptionfixer==0.0.4 --hash=sha256:4c74bd38f6fcf158b0681ea4ccb6b4f64c09867d039d5ef9a8c1856395dbac7c # Direct dependency
 pockets==0.3 --hash=sha256:dc870d57992cebaf4bb9dabdad55972ef915429521142af77f6a1efb9e3646de
+six==1.10.0 --hash=sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1
 pycapnp==0.6.1 --hash=sha256:ea60837533307849e98bb3494555cea28a52ea0c301cfdf32bce661931940696 # Direct dependency
 PyDbLite==3.0.4 --hash=sha256:79ed97d17b5954c6fa8927d9f36033cb4486d1304005057d506ac1dee999bad6 # Direct dependency
-scapy-python3==0.18 --hash=sha256:23c19d0dbba07b7a7681d97784371f92fb570cdea3ae58e12bf19fe98c7bf7ad # Direct dependency
-six==1.10.0 --hash=sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1
 sphinxcontrib-napoleon==0.5.3 --hash=sha256:a809ab437a5617442ae4f919e50a3f953faff1730e9234bcc502fdf594bbbfbb # Direct dependency
 cryptography==1.8.1 --hash=sha256:323524312bb467565ebca7e50c8ae5e9674e544951d28a2904a50012a8828190 # Direct dependency
 idna==2.5 --hash=sha256:cc19709fd6d0cbfed39ea875d29ba6d4e22c0cebc510a76d6302a28385e8bb70
@@ -14,4 +13,5 @@ cffi==1.10.0 --hash=sha256:b3b02911eb1f6ada203b0763ba924234629b51586f72a21faacc6
 pyparsing==2.2.0 --hash=sha256:fee43f17a9c4087e7ed1605bd6df994c6173c1e977d7ade7b651292fab2bd010
 appdirs==1.4.3 --hash=sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e
 pycparser==2.17 --hash=sha256:0aac31e917c24cb3357f5a4d5566f2cc91a19ca41862f6c3c22dc60a629673b6
-prometheus-client==0.0.19 --hash=sha256:ce4ddcb89a870ee771ca5427df123029bf5344ea84f535ded4a1787e29a22a3f
+prometheus-client==0.0.19 --hash=sha256:ce4ddcb89a870ee771ca5427df123029bf5344ea84f535ded4a1787e29a22a3f # Direct dependency
+pypacker==4.1 --hash=sha256:05bc5c873cfef620ce8b07df4aa286ea199e328b5b1eabd0b10aa0bb699c464f # Direct dependency

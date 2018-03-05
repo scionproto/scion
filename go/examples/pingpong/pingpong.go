@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build ignore
+
 // Simple application for SCION connectivity using the snet library.
 package main
 
@@ -23,8 +25,8 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/qerr"
+	//"github.com/lucas-clemente/quic-go"
+	//"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	liblog "github.com/scionproto/scion/go/lib/log"

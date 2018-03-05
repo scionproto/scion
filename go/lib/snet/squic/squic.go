@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build ignore
+
 // QUIC/SCION implementation.
 package squic
 
@@ -19,7 +21,7 @@ import (
 	"crypto/tls"
 
 	//log "github.com/inconshreveable/log15"
-	"github.com/lucas-clemente/quic-go"
+	//"github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
