@@ -119,10 +119,10 @@ local scion_ch_infoff = ProtoField.uint8("scion.ch.inf_off", "Info Field offset"
 local scion_ch_hopoff = ProtoField.uint8("scion.ch.hop_off", "Hop Field offset", base.DEC)
 local scion_ch_nexthdr = ProtoField.uint8("scion.ch.next_hdr", "Next header", base.DEC, hdrTypes)
 
-local scion_addr_dst_isd = ProtoField.uint8("scion.addr.dst_isd", "Dest ISD", base.DEC)
-local scion_addr_dst_as = ProtoField.uint8("scion.addr.dst_as", "Dest AS", base.DEC)
-local scion_addr_src_isd = ProtoField.uint8("scion.addr.src_isd", "Src ISD", base.DEC)
-local scion_addr_src_as = ProtoField.uint8("scion.addr.src_as", "Src AS", base.DEC)
+local scion_addr_dst_isd = ProtoField.uint16("scion.addr.dst_isd", "Dest ISD", base.DEC)
+local scion_addr_dst_as = ProtoField.uint32("scion.addr.dst_as", "Dest AS", base.DEC)
+local scion_addr_src_isd = ProtoField.uint16("scion.addr.src_isd", "Src ISD", base.DEC)
+local scion_addr_src_as = ProtoField.uint32("scion.addr.src_as", "Src AS", base.DEC)
 local scion_addr_dst_ipv4 = ProtoField.ipv4("scion.addr.dst_ipv4", "Dest IPv4")
 local scion_addr_dst_ipv6 = ProtoField.ipv6("scion.addr.dst_ipv6", "Dest IPv6")
 local scion_addr_dst_svc = ProtoField.uint16("scion.addr.dst_svc", "Dest SVC", base.HEX, svcTypes)
@@ -160,7 +160,7 @@ local scion_path_hop_ingress_if = ProtoField.uint64("scion.path.hop.ingress_if",
     "Ingress IFID", base.DEC)
 local scion_path_hop_egress_if = ProtoField.uint64("scion.path.hop.egress_if",
     "Egress IFID", base.DEC)
-local scion_path_hop_mac = ProtoField.bytes("scion.path.hop.mac", "MAC", base.HEX)
+local scion_path_hop_mac = ProtoField.bytes("scion.path.hop.mac", "MAC")
 
 local scion_hdr_type_hbh = ProtoField.uint8("scion.hdr.type.hbh", "Type", nil, hbhTypes)
 local scion_hdr_type_e2e = ProtoField.uint8("scion.hdr.type.e2e", "Type", nil, e2eTypes)
