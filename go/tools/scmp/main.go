@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -50,7 +51,7 @@ func GetDefaultSCIONDPath(ia *addr.ISD_AS) string {
 var (
 	id          = flag.String("id", "echo", "Element ID")
 	interactive = flag.Bool("i", false, "Interactive mode")
-	sciond      = flag.String("sciond", "", "Path to sciond socket")
+	sciondPath  = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
 	interval = flag.Duration("interval", DefaultInterval, "time between packets")
@@ -79,11 +80,11 @@ func main() {
 	if local.IA == nil {
 		logFatal("Missing local address")
 	}
-	if *sciond == "" {
-		*sciond = GetDefaultSCIONDPath(local.IA)
+	if *sciondPath == "" {
+		*sciondPath = GetDefaultSCIONDPath(local.IA)
 	}
 	// Initialize default SCION networking context
-	if err := snet.Init(local.IA, *sciond, *dispatcher); err != nil {
+	if err := snet.Init(local.IA, *sciondPath, *dispatcher); err != nil {
 		logFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
@@ -96,7 +97,6 @@ func main() {
 	if remote.L4Port != 0 {
 		logFatal("Invalid remote port", "remote port", remote.L4Port)
 	}
-
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: local.Host, Port: 0}
 	conn, port, err := reliable.Register(*dispatcher, local.IA, address, nil, addr.SvcNone)
@@ -106,23 +106,37 @@ func main() {
 	defer conn.Close()
 	log.Debug("Registered with dispatcher", "ia", local.IA, "host", address.Addr.String(), "port", port)
 
-	choosePath()
+	var pathEntry *sciond.PathReplyEntry
+	// If remote is not in local AS, we need a path!
+	if !remote.IA.Eq(local.IA) {
+		pathEntry = choosePath(*interactive)
+		if pathEntry == nil {
+			logFatal("No paths available to remote destination")
+		}
+		remote.Path = spath.New(pathEntry.Path.FwdPath)
+		remote.Path.InitOffsets()
+		remote.NextHopHost = pathEntry.HostInfo.Host()
+		remote.NextHopPort = pathEntry.HostInfo.Port
+	}
 
 	seed := rand.NewSource(time.Now().UnixNano())
 	rnd = rand.New(seed)
 
-	s := newScmp(*sTypeStr)
+	var send, recv scmpPkt
+	initSCMP(&send, &recv, *sTypeStr, *count, pathEntry)
+
 	wg.Add(2)
-	go RecvPkts(&wg, conn, s)
-	go SendPkts(&wg, conn, s)
+	go RecvPkts(&wg, conn, &recv)
+	go SendPkts(&wg, conn, &send)
 
 	wg.Wait()
 }
 
-func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s scmpI) {
+func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpPkt) {
 	defer wg.Done()
 	defer logPanicAndExit()
 
+	nextPktTS := time.Now()
 	b := make(common.RawBytes, 1<<10)
 
 	nhAddr := reliable.AppAddr{Addr: remote.NextHopHost, Port: remote.NextHopPort}
@@ -130,17 +144,14 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s scmpI) {
 		nhAddr = reliable.AppAddr{Addr: remote.Host, Port: overlay.EndhostPort}
 	}
 	log.Debug("Path next Hop:", "Host", nhAddr.Addr, "Port", nhAddr.Port)
-	var written int
-	nextPktTS := time.Now()
 	for {
 		// Serialize packet to internal buffer
-		s.setTimestamp(uint64(nextPktTS.UnixNano()) / 1000)
-		pktLen, err := hpkt.WriteScnPkt(s.pktSend(), b)
+		pktLen, err := hpkt.WriteScnPkt(s.pkt, b)
 		if err != nil {
 			log.Error("Unable to serialize SCION packet", "err", err)
 			break
 		}
-		written, err = conn.WriteTo(b[:pktLen], nhAddr)
+		written, err := conn.WriteTo(b[:pktLen], nhAddr)
 		if err != nil {
 			log.Error("Unable to write", "err", err)
 			break
@@ -149,7 +160,7 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s scmpI) {
 			break
 		}
 		nextPktTS = nextPktTS.Add(*interval)
-		if !s.sendNext() {
+		if !sendNext(s, nextPktTS) {
 			break
 		}
 		sleepTime := time.Until(nextPktTS)
@@ -157,7 +168,7 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s scmpI) {
 	}
 }
 
-func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, s scmpI) {
+func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpPkt) {
 	defer wg.Done()
 	defer logPanicAndExit()
 
@@ -170,26 +181,24 @@ func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, s scmpI) {
 			break
 		}
 		now := time.Now()
-		err = hpkt.ParseScnPkt(s.pktRecv(), b[:pktLen])
+		err = hpkt.ParseScnPkt(s.pkt, b[:pktLen])
 		if err != nil {
 			log.Error("SCION packet parse error", "err", err)
 			break
 		}
-		err = s.validate()
+		err = validatePkt(s)
 		if err != nil {
 			log.Error("Unexpected SCMP Packet", "err", err)
 			break
 		}
-		// Calculate return time
-		retTime := now.Sub(time.Unix(0, s.getTimestamp()*1000))
-		log.Info(fmt.Sprintf("%d bytes from %v time=%v %s\n", pktLen, remote.String(), retTime, s.String()))
-		if !s.recvNext() {
+		prettyPrint(s, pktLen, now)
+		if !recvNext(s) {
 			break
 		}
 	}
 }
 
-func choosePath() {
+func choosePath(interactive bool) *sciond.PathReplyEntry {
 	pathMgr := snet.DefNetwork.PathResolver()
 	pathSet := pathMgr.Query(local.IA, remote.IA)
 	pathIndeces := make(map[uint64]pathmgr.PathKey)
@@ -197,18 +206,13 @@ func choosePath() {
 	i := uint64(0)
 
 	if len(pathSet) == 0 {
-		// If remote is not in local AS, we need a path!
-		if !remote.IA.Eq(local.IA) {
-			logFatal("No paths available to remote destination")
-		}
-		// If remote in local AS, there is no path
-		return
+		return nil
 	}
 	for k := range pathSet {
 		pathIndeces[i] = k
 		i++
 	}
-	if *interactive {
+	if interactive {
 		log.Info(fmt.Sprintf("Available paths to %v", remote.IA))
 		for i := range pathIndeces {
 			log.Info(fmt.Sprintf("[%2d] %s\n", i, pathSet[pathIndeces[i]].Entry.Path.String()))
@@ -226,9 +230,5 @@ func choosePath() {
 		}
 	}
 	log.Info(fmt.Sprintf("Using path:\n  %s\n", pathSet[pathIndeces[pathIndex]].Entry.Path.String()))
-	entry := pathSet[pathIndeces[pathIndex]].Entry
-	remote.Path = spath.New(entry.Path.FwdPath)
-	remote.Path.InitOffsets()
-	remote.NextHopHost = entry.HostInfo.Host()
-	remote.NextHopPort = entry.HostInfo.Port
+	return pathSet[pathIndeces[pathIndex]].Entry
 }

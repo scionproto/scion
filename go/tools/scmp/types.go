@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
@@ -18,6 +20,7 @@ func newSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 	scmpMeta.Write(pld)
 	info.Write(pld[scmp.MetaLen:])
 	scmpHdr := scmp.NewHdr(scmp.ClassType{Class: scmp.C_General, Type: t}, len(pld))
+	scmpHdr.Timestamp = uint64(time.Now().UnixNano()) / 1000
 	exts := make([]common.Extension, 1)
 	exts[0] = ext
 
@@ -34,119 +37,89 @@ func newSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 	return pkt
 }
 
-type scmpI interface {
-	fmt.Stringer
-	scmpCommonI
-	init()
-	sendNext() bool
-	recvNext() bool
-	validate() error
+type scmpPkt struct {
+	pkt     *spkt.ScnPkt
+	pktType scmp.Type
+	info    scmp.Info
+	total   uint
+	num     uint
 }
 
-func newScmp(typeStr string) scmpI {
-	var ret scmpI
-	switch {
-	case typeStr == "echo":
-		ret = &scmpEcho{}
+func initSCMP(send, recv *scmpPkt, typeStr string, count uint, pathEntry *sciond.PathReplyEntry) {
+	switch typeStr {
+	case "echo":
+		initEcho(send, false, count)
+		initEcho(recv, true, count)
 	default:
 		logFatal("Invalid SCMP type")
 	}
-	ret.init()
-	return ret
 }
 
-/*
- * SCMP Echo
- */
-var _ scmpI = (*scmpEcho)(nil)
-
-type scmpEcho struct {
-	scmpCommon
-	infoSend *scmp.InfoEcho
-	infoRecv *scmp.InfoEcho
-	total    uint
-	sent     uint
-	recv     uint
+func initEcho(s *scmpPkt, recv bool, count uint) {
+	s.num = 0
+	s.total = count
+	s.info = &scmp.InfoEcho{Id: rnd.Uint64(), Seq: 0}
+	if recv {
+		s.pkt = &spkt.ScnPkt{DstIA: &addr.ISD_AS{}, SrcIA: &addr.ISD_AS{}, Path: &spath.Path{}}
+		s.pktType = scmp.T_G_EchoReply
+	} else {
+		ext := &scmp.Extn{Error: false, HopByHop: false}
+		s.pkt = newSCMPPkt(scmp.T_G_EchoRequest, s.info, ext)
+		s.pktType = scmp.T_G_EchoRequest
+	}
 }
 
-func (s *scmpEcho) init() {
-	s.sent = 0
-	s.total = *count // flag
-	s.recv = 0
-	s.infoSend = &scmp.InfoEcho{Id: rnd.Uint64(), Seq: 0}
-	ext := &scmp.Extn{Error: false, HopByHop: false}
-	s.pktS = newSCMPPkt(scmp.T_G_EchoRequest, s.infoSend, ext)
-	s.pktR = &spkt.ScnPkt{DstIA: &addr.ISD_AS{}, SrcIA: &addr.ISD_AS{}, Path: &spath.Path{}}
+func sendNext(s *scmpPkt, ts time.Time) bool {
+	scmpHdr := s.pkt.L4.(*scmp.Hdr)
+	scmpHdr.Timestamp = uint64(ts.UnixNano()) / 1000
+	s.num += 1
+	switch info := s.info.(type) {
+	case *scmp.InfoEcho:
+		info.Seq += 1
+		b := s.pkt.Pld.(common.RawBytes)
+		info.Write(b[scmp.MetaLen:])
+	}
+	return s.num < s.total
 }
 
-func (s *scmpEcho) sendNext() bool {
-	s.sent += 1
-	s.infoSend.Seq += 1
-	b := s.pktS.Pld.(common.RawBytes)
-	s.infoSend.Write(b[scmp.MetaLen:])
-	return s.sent < s.total
+func recvNext(s *scmpPkt) bool {
+	switch s.pktType {
+	case scmp.T_G_EchoReply:
+		s.num += 1
+	}
+	return s.num < s.total
 }
 
-func (s *scmpEcho) recvNext() bool {
-	s.recv += 1
-	return s.recv < s.total
-}
-
-func (s *scmpEcho) validate() error {
-	scmpHdr, ok := s.pktR.L4.(*scmp.Hdr)
+func validatePkt(s *scmpPkt) error {
+	scmpHdr, ok := s.pkt.L4.(*scmp.Hdr)
 	if ok == false {
 		return common.NewBasicError("Not a SCMP header", nil)
 	}
-	if scmpHdr.Type != scmp.T_G_EchoReply {
-		return common.NewBasicError("Bad type", nil,
-			"Received", scmpHdr.Type, "Expected", scmp.T_G_EchoReply)
-	}
-	scmpPld, ok := s.pktR.Pld.(*scmp.Payload)
+	scmpPld, ok := s.pkt.Pld.(*scmp.Payload)
 	if ok == false {
 		return common.NewBasicError("Not a SCMP payload)", nil)
 	}
-	s.infoRecv, ok = scmpPld.Info.(*scmp.InfoEcho)
-	if ok == false {
-		return common.NewBasicError("Not a Info Echo type", nil)
+	if scmpHdr.Type != s.pktType {
+		return common.NewBasicError("Bad type", nil,
+			"Received", scmpHdr.Type, "Expected", s.pktType)
+	}
+	switch s.pktType {
+	case scmp.T_G_EchoReply:
+		s.info, ok = scmpPld.Info.(*scmp.InfoEcho)
+		if ok == false {
+			return common.NewBasicError("Not a Info Echo type", nil)
+		}
 	}
 	return nil
 }
 
-func (s *scmpEcho) String() string {
-	return fmt.Sprintf("scmp_seq=%v", s.infoRecv.Seq)
-}
-
-/*
- * SCMP Common
- */
-type scmpCommonI interface {
-	pktSend() *spkt.ScnPkt
-	pktRecv() *spkt.ScnPkt
-	setTimestamp(uint64)
-	getTimestamp() uint64
-}
-
-var _ scmpCommonI = scmpCommon{}
-
-type scmpCommon struct {
-	pktS *spkt.ScnPkt
-	pktR *spkt.ScnPkt
-}
-
-func (s scmpCommon) pktSend() *spkt.ScnPkt {
-	return s.pktS
-}
-
-func (s scmpCommon) pktRecv() *spkt.ScnPkt {
-	return s.pktR
-}
-
-func (s scmpCommon) setTimestamp(ts uint64) {
-	scmpHdr := s.pktS.L4.(*scmp.Hdr)
-	scmpHdr.Timestamp = ts
-}
-
-func (s scmpCommon) getTimestamp() uint64 {
-	scmpHdr := s.pktR.L4.(*scmp.Hdr)
-	return scmpHdr.Timestamp
+func prettyPrint(s *scmpPkt, pktLen int, now time.Time) {
+	// Calculate return time
+	scmpHdr := s.pkt.L4.(*scmp.Hdr)
+	retTime := now.Sub(time.Unix(0, int64(scmpHdr.Timestamp)*1000))
+	switch info := s.info.(type) {
+	case *scmp.InfoEcho:
+		fmt.Printf("%d bytes from %v,[%v] scmp_seq=%v time=%v\n",
+			pktLen, s.pkt.SrcIA, s.pkt.SrcHost, info.Seq, retTime)
+	}
 }
