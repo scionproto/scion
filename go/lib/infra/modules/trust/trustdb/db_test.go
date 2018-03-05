@@ -56,33 +56,65 @@ func TestTRC(t *testing.T) {
 	})
 }
 
-func TestChain(t *testing.T) {
-	Convey("Initialize DB and load TRC", t, func() {
+func TestCert(t *testing.T) {
+	Convey("Initialize DB and load Cert", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		trcobj, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
-		SoMsg("err trc", err, ShouldBeNil)
-		SoMsg("trc", trcobj, ShouldNotBeNil)
+		chainObj, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		SoMsg("err chain", err, ShouldBeNil)
+		SoMsg("chain", chainObj, ShouldNotBeNil)
 		ia := addr.IA{I: 1, A: 1}
 		Convey("Insert into database", func() {
-			err := db.InsertChain(ia, 10, trcobj)
+			err := db.InsertCert(ia, 10, chainObj.Core)
+			SoMsg("err", err, ShouldBeNil)
+			Convey("Get certificate from database", func() {
+				certObj, err := db.GetCertVersion(ia, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", certObj, ShouldResemble, chainObj.Core)
+			})
+			Convey("Get max version certificate from database", func() {
+				certObj, err := db.GetCertMaxVersion(ia)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", certObj, ShouldResemble, chainObj.Core)
+			})
+			Convey("Get missing certificate from database", func() {
+				otherIA := addr.IA{I: 1, A: 2}
+				certObj, err := db.GetCertVersion(otherIA, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", certObj, ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestChain(t *testing.T) {
+	Convey("Initialize DB and load Chain", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		chainObj, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		SoMsg("err chain", err, ShouldBeNil)
+		SoMsg("chain", chainObj, ShouldNotBeNil)
+		ia := addr.IA{I: 1, A: 1}
+		Convey("Insert into database", func() {
+			err := db.InsertChain(ia, 10, chainObj)
 			SoMsg("err", err, ShouldBeNil)
 			Convey("Get certificate chain from database", func() {
-				newTRCobj, err := db.GetChainVersion(ia, 10)
+				newChainObj, err := db.GetChainVersion(ia, 10)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+				SoMsg("chain", newChainObj, ShouldResemble, chainObj)
 			})
 			Convey("Get max version certificate chain from database", func() {
-				newTRCobj, err := db.GetChainMaxVersion(ia)
+				newChainObj, err := db.GetChainMaxVersion(ia)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+				SoMsg("chain", newChainObj, ShouldResemble, chainObj)
 			})
 			Convey("Get missing certificate chain from database", func() {
 				otherIA := addr.IA{I: 1, A: 2}
-				newTRCobj, err := db.GetChainVersion(otherIA, 10)
+				newChainObj, err := db.GetChainVersion(otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("trc", newTRCobj, ShouldBeNil)
+				SoMsg("chain", newChainObj, ShouldBeNil)
 			})
 		})
 	})

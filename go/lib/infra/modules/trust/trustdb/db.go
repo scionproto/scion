@@ -33,6 +33,7 @@ import (
 )
 
 const (
+	Path          = "trustDB.sqlite3"
 	SchemaVersion = 1
 	Schema        = ` CREATE TABLE TRCs (
 		IsdID INTEGER NOT NULL,
@@ -48,13 +49,33 @@ const (
 		Data TEXT NOT NULL,
 		PRIMARY KEY (IsdID, AsID, Version)
 	);
+
+	CREATE TABLE Certs (
+		IsdID INTEGER NOT NULL,
+		AsID INTEGER NOT NULL,
+		Version INTEGER NOT NULL, 
+		Data TEXT NOT NULL, 
+		PRIMARY KEY (IsdID, AsID, Version)
+	);
 	`
 
 	TRCsTable   = "TRCs"
 	ChainsTable = "Chains"
+	CertsTable  = "Certs"
 )
 
 const (
+	getCertVersionStr = `
+			SELECT Data FROM Certs
+			WHERE IsdID=? AND AsID=? AND Version=?
+		`
+	getCertMaxVersionStr = `
+			SELECT Data FROM Certs
+			WHERE IsdID=? AND AsID=? AND Version=(SELECT Max(Version) FROM Certs)
+		`
+	insertCertStr = `
+			INSERT INTO Certs (IsdID, AsID, Version, Data) VALUES (?, ?, ?, ?)
+		`
 	getChainVersionStr = `
 			SELECT Data FROM Chains
 			WHERE IsdID=? AND AsID=? AND Version=?
@@ -86,6 +107,9 @@ const (
 // GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
 	*sql.DB
+	getCertVersionStmt     *sql.Stmt
+	getCertMaxVersionStmt  *sql.Stmt
+	insertCertStmt         *sql.Stmt
 	getChainVersionStmt    *sql.Stmt
 	getChainMaxVersionStmt *sql.Stmt
 	insertChainStmt        *sql.Stmt
@@ -107,6 +131,16 @@ func New(path string) (*DB, error) {
 			db.Close()
 		}
 	}()
+	if db.getCertVersionStmt, err = db.Prepare(getCertVersionStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getCertVersion", err)
+	}
+	if db.getCertMaxVersionStmt, err = db.Prepare(getCertMaxVersionStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getCertMaxVersion", err)
+	}
+	if db.insertCertStmt, err = db.Prepare(insertCertStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare insertCert", err)
+	}
+
 	if db.getChainVersionStmt, err = db.Prepare(getChainVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainVersion", err)
 	}
@@ -126,6 +160,71 @@ func New(path string) (*DB, error) {
 		return nil, common.NewBasicError("Unable to prepare insertTRC", err)
 	}
 	return db, nil
+}
+
+// GetCertVersion returns the specified version of the certificate for
+// ia. If version is 0, this is equivalent to GetCertMaxVersion.
+func (db *DB) GetCertVersion(ia addr.IA, version uint64) (*cert.Certificate, error) {
+	return db.GetCertVersionCtx(context.Background(), ia, version)
+}
+
+// GetCertVersionCtx is the context-aware version of GetCertVersion.
+func (db *DB) GetCertVersionCtx(ctx context.Context, ia addr.IA,
+	version uint64) (*cert.Certificate, error) {
+
+	if version == 0 {
+		return db.GetCertMaxVersionCtx(ctx, ia)
+	}
+	var raw common.RawBytes
+	err := db.getCertVersionStmt.QueryRowContext(ctx, ia.I, ia.A, version).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
+	}
+	c, err := cert.CertificateFromRaw(raw)
+	if err != nil {
+		return nil, common.NewBasicError("Cert parse error", err, "ia", ia, "version", version)
+	}
+	return c, nil
+}
+
+// GetCertVersion returns the max version of the certificate for ia.
+func (db *DB) GetCertMaxVersion(ia addr.IA) (*cert.Certificate, error) {
+	return db.GetCertMaxVersionCtx(context.Background(), ia)
+}
+
+// GetCertMaxVersionCtx is the context-aware version of GetCertMaxVersion.
+func (db *DB) GetCertMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Certificate, error) {
+	var raw common.RawBytes
+	err := db.getCertMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
+	}
+	crt, err := cert.CertificateFromRaw(raw)
+	if err != nil {
+		return nil, common.NewBasicError("Cert parse error", err, "ia", ia, "version", "max")
+	}
+	return crt, nil
+}
+
+// InsertCert inserts the certificate.
+func (db *DB) InsertCert(ia addr.IA, version uint64, c *cert.Certificate) error {
+	return db.InsertCertCtx(context.Background(), ia, version, c)
+}
+
+func (db *DB) InsertCertCtx(ctx context.Context, ia addr.IA, version uint64,
+	crt *cert.Certificate) error {
+	raw, err := crt.JSON(false)
+	if err != nil {
+		return common.NewBasicError("Unable to convert to JSON", err)
+	}
+	_, err = db.insertCertStmt.Exec(ia.I, ia.A, version, raw)
+	return err
 }
 
 // GetChainVersion returns the specified version of the certificate chain for

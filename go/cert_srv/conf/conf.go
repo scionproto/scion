@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/trust"
@@ -27,9 +28,11 @@ import (
 
 const (
 	ErrorAddr      = "Unable to load addresses"
+	ErrorCoreCert  = "Unable to load core certificate"
 	ErrorKeyConf   = "Unable to load KeyConf"
 	ErrorStore     = "Unable to load TrustStore"
 	ErrorTopo      = "Unable to load topology"
+	ErrorTrustDB   = "Unable to load trust DB"
 	ErrorCustomers = "Unable to load Customers"
 )
 
@@ -43,6 +46,8 @@ type Conf struct {
 	PublicAddr *snet.Addr
 	// Store is the trust store.
 	Store *trust.Store
+	// TrustDB is the trust DB.
+	TrustDB *trustdb.DB
 	// keyConf contains the AS level keys used for signing and decrypting.
 	keyConf *trust.KeyConf
 	// keyConfLock guards KeyConf, CertVer and TRCVer.
@@ -58,6 +63,8 @@ type Conf struct {
 	ConfDir string
 	// StateDir is the state directory.
 	StateDir string
+	// CoreCertStore holds issued core certificate.
+	CoreCertStore *CoreCertStore
 }
 
 // Load initializes the configuration by loading it from confDir.
@@ -93,13 +100,26 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 	if err != nil {
 		return nil, common.NewBasicError(ErrorStore, err)
 	}
+	// init trust db
+	conf.TrustDB, err = trustdb.New(filepath.Join(stateDir, trustdb.Path))
+	if err != nil {
+		return nil, common.NewBasicError(ErrorTrustDB, err)
+	}
 	// load key configuration
 	if conf.keyConf, err = conf.loadKeyConf(); err != nil {
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
-	// load customers
-	if conf.customers, err = conf.LoadCustomers(); err != nil {
-		return nil, err
+	if conf.Topo.Core {
+		// load core cert store
+		chain := conf.Store.GetNewestChain(conf.PublicAddr.IA)
+		conf.CoreCertStore, err = NewCoreCertStore(conf.PublicAddr.IA, chain, conf.TrustDB)
+		if err != nil {
+			return nil, common.NewBasicError(ErrorCoreCert, err)
+		}
+		// load customers
+		if conf.customers, err = conf.LoadCustomers(); err != nil {
+			return nil, err
+		}
 	}
 	return conf, nil
 }
