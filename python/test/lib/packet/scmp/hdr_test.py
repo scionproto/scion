@@ -81,8 +81,8 @@ class TestSCMPHeaderCalcChecksum(object):
     """
     Unit tests for lib.packet.scmp.hdr.SCMPHeader._calc_checksum
     """
-    @patch("lib.packet.scmp.hdr.scapy.utils.checksum", autospec=True)
-    def test(self, scapy_checksum):
+    @patch("lib.packet.scmp.hdr.checksum.in_cksum", autospec=True)
+    def test(self, in_cksum):
         inst = SCMPHeader()
         src_ia = create_mock_full({"pack()": b"srIA"})
         src_host = create_mock_full({"pack()": b"sHst"})
@@ -97,11 +97,11 @@ class TestSCMPHeaderCalcChecksum(object):
             b"dsIA", b"srIA", b"dHst", b"sHst", b"\x00", bytes([L4Proto.SCMP]),
             b"packed with null checksum", payload,
         ])
-        scapy_checksum.return_value = 0x3412
+        in_cksum.return_value = 0x3412
         # Call
         ntools.eq_(inst._calc_checksum(payload), bytes.fromhex("3412"))
         # Tests
-        scapy_checksum.assert_called_once_with(expected_call)
+        in_cksum.assert_called_once_with(expected_call)
 
 
 if __name__ == "__main__":

@@ -81,8 +81,8 @@ class TestSCIONUDPHeaderCalcChecksum(object):
     """
     Unit tests for lib.packet.scion_udp.SCIONUDPHeader._calc_checksum
     """
-    @patch("lib.packet.scion_udp.scapy.utils.checksum", autospec=True)
-    def test(self, scapy_checksum):
+    @patch("lib.packet.scion_udp.checksum.in_cksum", autospec=True)
+    def test(self, in_cksum):
         inst = SCIONUDPHeader()
         inst._dst = create_mock_full({
             "isd_as": create_mock_full({"pack()": b"dsIA"}),
@@ -98,11 +98,11 @@ class TestSCIONUDPHeaderCalcChecksum(object):
             b"dsIA", b"srIA", b"dstH", b"srcH", b"\x00", bytes([L4Proto.UDP]),
             b"packed with null checksum", payload,
         ])
-        scapy_checksum.return_value = 0x3412
+        in_cksum.return_value = 0x3412
         # Call
         ntools.eq_(inst._calc_checksum(payload), bytes.fromhex("3412"))
         # Tests
-        scapy_checksum.assert_called_once_with(expected_call)
+        in_cksum.assert_called_once_with(expected_call)
 
 
 class TestSCIONUDPHeaderReverse(object):
