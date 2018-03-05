@@ -27,7 +27,7 @@ import (
 
 var _ net.Addr = (*Addr)(nil)
 
-var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-\d+),\[(?P<host>[^\]]+)\]:(?P<port>\d+)$`)
+var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-\d+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
 
 type Addr struct {
 	IA          *addr.ISD_AS
@@ -98,20 +98,24 @@ func AddrFromString(s string) (*Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	ia, err := addr.IAFromString(parts["ia"])
 	if err != nil {
 		return nil, common.NewBasicError("Invalid IA string", err, "ia", ia)
 	}
-
 	ip := net.ParseIP(parts["host"])
 	if ip == nil {
 		return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
 	}
-
-	port, err := strconv.ParseUint(parts["port"], 10, 16)
-	if err != nil {
-		return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"])
+	var port uint64
+	if parts["port"] != "" {
+		var err error
+		// skip the : (first character) from the port string
+		port, err = strconv.ParseUint(parts["port"][1:], 10, 16)
+		if err != nil {
+			return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"][1:])
+		}
+	} else {
+		port = 0
 	}
 	return &Addr{IA: ia, Host: addr.HostFromIP(ip), L4Port: uint16(port)}, nil
 }
@@ -119,14 +123,27 @@ func AddrFromString(s string) (*Addr, error) {
 func parseAddr(s string) (map[string]string, error) {
 	result := make(map[string]string)
 	match := addrRegexp.FindStringSubmatch(s)
-	// If we do not have all submatches (ia, host, port), return an error
-	if len(match) != 4 {
+	if len(match) == 0 {
 		return nil, common.NewBasicError("Invalid address", nil, "addr", s)
 	}
 	for i, name := range addrRegexp.SubexpNames() {
-		if i != 0 {
-			result[name] = match[i]
+		if i == 0 {
+			continue
 		}
+		// port is optional, (ia, host) are mandatory
+		if name != "port" && match[i] == "" {
+			return nil, common.NewBasicError("Invalid address", nil, "addr", s)
+		}
+		result[name] = match[i]
 	}
 	return result, nil
+}
+
+func (a *Addr) Set(s string) error {
+	other, err := AddrFromString(s)
+	if err != nil {
+		return err
+	}
+	a.IA, a.Host, a.L4Port = other.IA, other.Host, other.L4Port
+	return nil
 }

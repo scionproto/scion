@@ -17,6 +17,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -47,10 +48,27 @@ func GetDefaultSCIONDPath(ia *addr.ISD_AS) string {
 }
 
 var (
-	local  snet.Addr
-	remote snet.Addr
-	rnd    *rand.Rand
+	id          = flag.String("id", "echo", "Element ID")
+	interactive = flag.Bool("i", false, "Interactive mode")
+	sciond      = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+		"Path to dispatcher socket")
+	interval = flag.Duration("interval", DefaultInterval, "time between packets")
+	count    = flag.Uint("c", 10, "Total number of packet to send (ignored if not echo")
+	logLevel = flag.String("logLevel", "info", "Console logging level")
+	sTypeStr = &sType
+	local    snet.Addr
+	remote   snet.Addr
+	rnd      *rand.Rand
 )
+
+var sType string = "echo"
+
+func init() {
+	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
+	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Parse()
+}
 
 func main() {
 	var wg sync.WaitGroup
@@ -58,7 +76,7 @@ func main() {
 	logSetup()
 	defer logPanicAndExit()
 
-	if local.Host == nil {
+	if local.IA == nil {
 		logFatal("Missing local address")
 	}
 	if *sciond == "" {
@@ -69,6 +87,15 @@ func main() {
 		logFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
+
+	// scmp-tool does not uses ports, thus they should not be set
+	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
+	if local.L4Port != 0 {
+		logFatal("Invalid local port", "local port", local.L4Port)
+	}
+	if remote.L4Port != 0 {
+		logFatal("Invalid remote port", "remote port", remote.L4Port)
+	}
 
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: local.Host, Port: 0}
