@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"sync/atomic"
 	"syscall"
 
 	log "github.com/inconshreveable/log15"
@@ -147,7 +148,7 @@ func loadConfig(path string) bool {
 		log.Error("loadConfig: Failed", "err", err)
 		return false
 	}
-	metrics.ConfigVersion.Set(cfg.ConfigVersion)
+	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
 	return base.Map.ReloadConfig(cfg)
 }
 

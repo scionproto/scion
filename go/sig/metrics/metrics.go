@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -38,7 +39,7 @@ var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export promethe
 
 // Declare prometheus metrics to export.
 var (
-	ConfigVersion      prometheus.Gauge
+	ConfigVersion      uint64 // write this atomically
 	PktsRecv           *prometheus.CounterVec
 	PktsSent           *prometheus.CounterVec
 	PktBytesRecv       *prometheus.CounterVec
@@ -65,18 +66,12 @@ func Init(elem string) {
 		prometheus.MustRegister(v)
 		return v
 	}
-	newG := func(name, help string) prometheus.Gauge {
-		v := prom.NewGauge(namespace, "", name, help, constLabels)
-		prometheus.MustRegister(v)
-		return v
-	}
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
 		v := prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
 		prometheus.MustRegister(v)
 		return v
 	}
 	// FIXME(kormat): these metrics should probably have more informative labels
-	ConfigVersion = newG("config_version", "Version number of the current config")
 	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)
 	PktsSent = newCVec("pkts_sent_total", "Number of packets sent.", iaLabels)
 	PktBytesRecv = newCVec("pkt_bytes_recv_total", "Number of packet bytes received.", iaLabels)
@@ -108,6 +103,9 @@ func Start() error {
 		return common.NewBasicError("Unable to bind prometheus metrics port", err)
 	}
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
+	http.HandleFunc("/version", func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprint(w, ConfigVersion)
+	})
 	go http.Serve(ln, nil)
 	return nil
 }
