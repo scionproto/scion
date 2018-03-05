@@ -772,7 +772,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         logging.info("IF %d went down.", if_id)
                     to_revoke.append(if_id)
                     if_state.revoke_if_expired()
-                self._issue_revocations(to_revoke)
+                if to_revoke:
+                    self._issue_revocations(to_revoke)
             sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
                            "Handle IF timeouts")
 
