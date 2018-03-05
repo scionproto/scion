@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
@@ -56,7 +54,6 @@ var (
 		"Path to dispatcher socket")
 	interval = flag.Duration("interval", DefaultInterval, "time between packets")
 	count    = flag.Uint("c", 10, "Total number of packet to send (ignored if not echo")
-	logLevel = flag.String("logLevel", "info", "Console logging level")
 	sTypeStr = &sType
 	local    snet.Addr
 	remote   snet.Addr
@@ -74,44 +71,32 @@ func init() {
 func main() {
 	var wg sync.WaitGroup
 
-	logSetup()
-	defer logPanicAndExit()
-
 	if local.IA == nil {
-		logFatal("Missing local address")
+		fatal("Missing local address")
 	}
 	if *sciondPath == "" {
 		*sciondPath = GetDefaultSCIONDPath(local.IA)
 	}
 	// Initialize default SCION networking context
 	if err := snet.Init(local.IA, *sciondPath, *dispatcher); err != nil {
-		logFatal("Unable to initialize SCION network", "err", err)
-	}
-	log.Debug("SCION network successfully initialized")
-
-	// scmp-tool does not uses ports, thus they should not be set
-	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
-	if local.L4Port != 0 {
-		logFatal("Invalid local port", "local port", local.L4Port)
-	}
-	if remote.L4Port != 0 {
-		logFatal("Invalid remote port", "remote port", remote.L4Port)
+		fatal("Unable to initialize SCION network", "err", err)
 	}
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: local.Host, Port: 0}
-	conn, port, err := reliable.Register(*dispatcher, local.IA, address, nil, addr.SvcNone)
+	conn, _, err := reliable.Register(*dispatcher, local.IA, address, nil, addr.SvcNone)
 	if err != nil {
-		logFatal("Unable to register with the dispatcher", "err", err, "addr", local)
+		fatal("Unable to register with the dispatcher", "err", err, "addr", local)
 	}
 	defer conn.Close()
-	log.Debug("Registered with dispatcher", "ia", local.IA, "host", address.Addr.String(), "port", port)
+
+	validate()
 
 	var pathEntry *sciond.PathReplyEntry
 	// If remote is not in local AS, we need a path!
 	if !remote.IA.Eq(local.IA) {
 		pathEntry = choosePath(*interactive)
 		if pathEntry == nil {
-			logFatal("No paths available to remote destination")
+			fatal("No paths available to remote destination")
 		}
 		remote.Path = spath.New(pathEntry.Path.FwdPath)
 		remote.Path.InitOffsets()
@@ -132,9 +117,25 @@ func main() {
 	wg.Wait()
 }
 
+func validate() {
+	if local.IA == nil {
+		fatal("Invalid local address")
+	}
+	if remote.IA == nil {
+		fatal("Invalid remote address")
+	}
+	// scmp-tool does not uses ports, thus they should not be set
+	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
+	if local.L4Port != 0 {
+		fatal("Invalid local port", "local port", local.L4Port)
+	}
+	if remote.L4Port != 0 {
+		fatal("Invalid remote port", "remote port", remote.L4Port)
+	}
+}
+
 func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpPkt) {
 	defer wg.Done()
-	defer logPanicAndExit()
 
 	nextPktTS := time.Now()
 	b := make(common.RawBytes, 1<<10)
@@ -143,20 +144,19 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpPkt) {
 	if remote.NextHopHost == nil {
 		nhAddr = reliable.AppAddr{Addr: remote.Host, Port: overlay.EndhostPort}
 	}
-	log.Debug("Path next Hop:", "Host", nhAddr.Addr, "Port", nhAddr.Port)
 	for {
 		// Serialize packet to internal buffer
 		pktLen, err := hpkt.WriteScnPkt(s.pkt, b)
 		if err != nil {
-			log.Error("Unable to serialize SCION packet", "err", err)
+			fmt.Printf("ERROR: Unable to serialize SCION packet %s\n", err.Error())
 			break
 		}
 		written, err := conn.WriteTo(b[:pktLen], nhAddr)
 		if err != nil {
-			log.Error("Unable to write", "err", err)
+			fmt.Printf("ERROR: Unable to write %s\n", err.Error())
 			break
 		} else if written != pktLen {
-			log.Error("Wrote incomplete message", "expected", len(b), "actual", written)
+			fmt.Printf("ERROR: Wrote incomplete message. written=%v, expected=%v\n", len(b), written)
 			break
 		}
 		nextPktTS = nextPktTS.Add(*interval)
@@ -170,25 +170,24 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpPkt) {
 
 func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpPkt) {
 	defer wg.Done()
-	defer logPanicAndExit()
 
 	b := make([]byte, 1<<10)
 
 	for {
 		pktLen, err := conn.Read(b)
 		if err != nil {
-			log.Error("Unable to read", "err", err)
+			fmt.Printf("ERROR: Unable to read %s\n", err.Error())
 			break
 		}
 		now := time.Now()
 		err = hpkt.ParseScnPkt(s.pkt, b[:pktLen])
 		if err != nil {
-			log.Error("SCION packet parse error", "err", err)
+			fmt.Printf("ERROR: SCION packet parse error %s\n", err.Error())
 			break
 		}
 		err = validatePkt(s)
 		if err != nil {
-			log.Error("Unexpected SCMP Packet", "err", err)
+			fmt.Printf("ERROR: Unexpected SCMP Packet %s\n", err.Error())
 			break
 		}
 		prettyPrint(s, pktLen, now)
@@ -213,22 +212,27 @@ func choosePath(interactive bool) *sciond.PathReplyEntry {
 		i++
 	}
 	if interactive {
-		log.Info(fmt.Sprintf("Available paths to %v", remote.IA))
+		fmt.Printf("Available paths to %v\n", remote.IA)
 		for i := range pathIndeces {
-			log.Info(fmt.Sprintf("[%2d] %s\n", i, pathSet[pathIndeces[i]].Entry.Path.String()))
+			fmt.Printf("[%2d] %s\n", i, pathSet[pathIndeces[i]].Entry.Path.String())
 		}
 		reader := bufio.NewReader(os.Stdin)
 		for {
-			log.Info(fmt.Sprintf("Choose path: "))
+			fmt.Printf("Choose path: ")
 			pathIndexStr, _ := reader.ReadString('\n')
 			var err error
 			pathIndex, err = strconv.ParseUint(pathIndexStr[:len(pathIndexStr)-1], 10, 64)
 			if err == nil && pathIndex < i {
 				break
 			}
-			log.Error("Invalid path index. Valid indeces:", "min", 0, "max", i-1)
+			fmt.Printf("ERROR: Invalid path index, valid indices range: [0, %v]\n", i-1)
 		}
 	}
-	log.Info(fmt.Sprintf("Using path:\n  %s\n", pathSet[pathIndeces[pathIndex]].Entry.Path.String()))
+	fmt.Printf("Using path:\n  %s\n", pathSet[pathIndeces[pathIndex]].Entry.Path.String())
 	return pathSet[pathIndeces[pathIndex]].Entry
+}
+
+func fatal(msg string, a ...interface{}) {
+	fmt.Printf("CRIT: "+msg+"\n", a...)
+	os.Exit(1)
 }
