@@ -22,6 +22,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync/atomic"
 
 	log "github.com/inconshreveable/log15"
 
@@ -39,7 +40,7 @@ var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export promethe
 
 // Declare prometheus metrics to export.
 var (
-	ConfigVersion      uint64 // write this atomically
+	ConfigVersion      uint64 // atomic
 	PktsRecv           *prometheus.CounterVec
 	PktsSent           *prometheus.CounterVec
 	PktBytesRecv       *prometheus.CounterVec
@@ -103,8 +104,8 @@ func Start() error {
 		return common.NewBasicError("Unable to bind prometheus metrics port", err)
 	}
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
-	http.HandleFunc("/version", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprint(w, ConfigVersion)
+	http.HandleFunc("/version", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, atomic.LoadUint64(&ConfigVersion))
 	})
 	go http.Serve(ln, nil)
 	return nil
