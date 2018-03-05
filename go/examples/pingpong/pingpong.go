@@ -130,11 +130,11 @@ func Client() {
 		before := time.Now()
 		written, err := qstream.Write([]byte(ReqMsg))
 		if err != nil {
-			qer := qerr.ToQuicError(err)
-			if qer.ErrorCode == qerr.NetworkIdleTimeout {
-				log.Debug("The connection timed out due to no network activity")
-				break
-			}
+			//qer := qerr.ToQuicError(err)
+			//if qer.ErrorCode == qerr.NetworkIdleTimeout {
+			//	log.Debug("The connection timed out due to no network activity")
+			//	break
+			//}
 			log.Error("Unable to write", "err", err)
 			continue
 		}
@@ -151,11 +151,11 @@ func Client() {
 		}
 		read, err := qstream.Read(b)
 		if err != nil {
-			qer := qerr.ToQuicError(err)
-			if qer.ErrorCode == qerr.PeerGoingAway {
-				log.Debug("Quic peer disconnected")
-				break
-			}
+			//qer := qerr.ToQuicError(err)
+			//if qer.ErrorCode == qerr.PeerGoingAway {
+			//	log.Debug("Quic peer disconnected")
+			//	break
+			//}
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				log.Debug("ReadDeadline missed", "err", err)
 				continue
@@ -206,7 +206,7 @@ func initNetwork() {
 	log.Debug("QUIC/SCION successfully initialized")
 }
 
-func handleClient(qsess quic.Session) {
+func handleClient( /*qsess quic.Session*/ ) {
 	qstream, err := qsess.AcceptStream()
 	if err != nil {
 		LogFatal("Unable to accept quic stream", "err", err)
@@ -217,11 +217,11 @@ func handleClient(qsess quic.Session) {
 		// Receive ping message
 		read, err := qstream.Read(b)
 		if err != nil {
-			qer := qerr.ToQuicError(err)
-			if qer.ErrorCode == qerr.PeerGoingAway {
-				log.Debug("Quic peer disconnected")
-				break
-			}
+			//qer := qerr.ToQuicError(err)
+			//if qer.ErrorCode == qerr.PeerGoingAway {
+			//	log.Debug("Quic peer disconnected")
+			//	break
+			//}
 			log.Error("Unable to read", "err", err)
 			break
 		}
