@@ -72,6 +72,12 @@ func main() {
 	defer liblog.LogPanicAndExit()
 	switch *mode {
 	case "client":
+		if remote.Host == nil {
+			LogFatal("Missing remote address")
+		}
+		if remote.L4Port == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.L4Port)
+		}
 		Client()
 	case "server":
 		Server()
@@ -88,9 +94,6 @@ func validateFlags() {
 	}
 	if local.Host == nil {
 		LogFatal("Missing local address")
-	}
-	if remote.L4Port == 0 {
-		LogFatal("Invalid remote port", "remote port", remote.L4Port)
 	}
 	if *sciond == "" {
 		*sciond = GetDefaultSCIONDPath(local.IA)
