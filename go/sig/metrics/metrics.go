@@ -40,7 +40,6 @@ var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export promethe
 
 // Declare prometheus metrics to export.
 var (
-	ConfigVersion      uint64 // atomic
 	PktsRecv           *prometheus.CounterVec
 	PktsSent           *prometheus.CounterVec
 	PktBytesRecv       *prometheus.CounterVec
@@ -54,6 +53,9 @@ var (
 	FramesTooOld       prometheus.Counter
 	FramesDuplicated   prometheus.Counter
 )
+
+// Version number of loaded config, atomic
+var ConfigVersion uint64
 
 // Ensure all metrics are registered.
 func Init(elem string) {
@@ -104,8 +106,8 @@ func Start() error {
 		return common.NewBasicError("Unable to bind prometheus metrics port", err)
 	}
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
-	http.HandleFunc("/version", func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprint(w, atomic.LoadUint64(&ConfigVersion))
+	http.HandleFunc("/configversion", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintln(w, atomic.LoadUint64(&ConfigVersion))
 	})
 	go http.Serve(ln, nil)
 	return nil
