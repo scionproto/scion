@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/sqlite"
 )
 
 type segMeta struct {
@@ -51,79 +52,13 @@ type Backend struct {
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from the one in schema.go, an error is returned.
 func New(path string) (*Backend, error) {
-	b := &Backend{}
-	if err := b.open(path); err != nil {
+	db, err := sqlite.New(path, Schema, SchemaVersion)
+	if err != nil {
 		return nil, err
 	}
-	// Check the schema version and set up new DB if necessary.
-	var version int
-	err := b.db.QueryRow("PRAGMA user_version;").Scan(&version)
-	if err != nil {
-		return nil, common.NewBasicError("Failed to check schema version", err)
-	}
-	if version == 0 {
-		if err := b.setup(); err != nil {
-			return nil, err
-		}
-	} else if version != SchemaVersion {
-		return nil, common.NewBasicError("Database schema version mismatch", nil,
-			"expected", SchemaVersion, "have", version)
-	}
-	return b, nil
-}
-
-func (b *Backend) open(path string) error {
-	b.Lock()
-	defer b.Unlock()
-	// Add foreign_key parameter to path to enable foreign key support.
-	uri := fmt.Sprintf("%s?_foreign_keys=1", path)
-	var err error
-	if b.db, err = sql.Open("sqlite3", uri); err != nil {
-		return common.NewBasicError("Couldn't open SQLite database", err)
-	}
-	// Ensure foreign keys are supported and enabled.
-	var enabled bool
-	err = b.db.QueryRow("PRAGMA foreign_keys;").Scan(&enabled)
-	if err == sql.ErrNoRows {
-		return common.NewBasicError("Foreign keys not supported", err)
-	}
-	if err != nil {
-		return common.NewBasicError("Failed to check for foreign key support", err)
-	}
-	if !enabled {
-		return common.NewBasicError("Failed to enable foreign key support", nil)
-	}
-	return nil
-}
-
-func (b *Backend) setup() error {
-	b.Lock()
-	defer b.Unlock()
-	if b.db == nil {
-		return common.NewBasicError("No database open", nil)
-	}
-	_, err := b.db.Exec(Schema)
-	if err != nil {
-		return common.NewBasicError("Failed to set up SQLite database", err)
-	}
-	// Write schema version to database.
-	_, err = b.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", SchemaVersion))
-	if err != nil {
-		return common.NewBasicError("Failed to write schema version", err)
-	}
-	return nil
-}
-
-func (b *Backend) close() error {
-	b.Lock()
-	defer b.Unlock()
-	if b.db == nil {
-		return common.NewBasicError("No database open", nil)
-	}
-	if err := b.db.Close(); err != nil {
-		return common.NewBasicError("Failed to close SQLite database", err)
-	}
-	return nil
+	return &Backend{
+		db: db,
+	}, nil
 }
 
 func (b *Backend) begin() error {
@@ -135,18 +70,6 @@ func (b *Backend) begin() error {
 		return common.NewBasicError("Failed to create transaction", err)
 	}
 	return nil
-}
-
-func (b *Backend) prepareAndExec(inst string, args ...interface{}) (sql.Result, error) {
-	stmt, err := b.tx.Prepare(inst)
-	if err != nil {
-		return nil, common.NewBasicError("Failed to prepare statement", err, "stmt", inst)
-	}
-	res, err := stmt.Exec(args...)
-	if err != nil {
-		return nil, common.NewBasicError("Failed to execute statement", err, "stmt", inst)
-	}
-	return res, nil
 }
 
 func (b *Backend) commit() error {
@@ -266,7 +189,7 @@ func (b *Backend) updateSeg(meta *segMeta) error {
 		return err
 	}
 	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=? WHERE RowID=?`
-	_, err = b.prepareAndExec(stmtStr, meta.LastUpdated.Unix(), packedSeg, meta.RowID)
+	_, err = b.tx.Exec(stmtStr, meta.LastUpdated.Unix(), packedSeg, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
 	}
@@ -274,7 +197,7 @@ func (b *Backend) updateSeg(meta *segMeta) error {
 }
 
 func (b *Backend) insertType(segRowID int64, segType seg.Type) error {
-	_, err := b.prepareAndExec("INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
+	_, err := b.tx.Exec("INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
 		return common.NewBasicError("Failed to insert type", err)
@@ -283,7 +206,7 @@ func (b *Backend) insertType(segRowID int64, segType seg.Type) error {
 }
 
 func (b *Backend) insertHPCfgID(segRowID int64, hpCfgID *query.HPCfgID) error {
-	_, err := b.prepareAndExec(
+	_, err := b.tx.Exec(
 		"INSERT INTO HpCfgIds (SegRowID, IsdID, AsID, CfgID) VALUES (?, ?, ?, ?)",
 		segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID)
 	if err != nil {
@@ -308,7 +231,7 @@ func (b *Backend) insertFull(pseg *seg.PathSegment,
 	}
 	// Insert path segment.
 	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment) VALUES (?, ?, ?)`
-	res, err := b.prepareAndExec(inst, segID, time.Now().Unix(), packedSeg)
+	res, err := b.tx.Exec(inst, segID, time.Now().Unix(), packedSeg)
 	if err != nil {
 		b.tx.Rollback()
 		return common.NewBasicError("Failed to insert path segment", err)
@@ -391,7 +314,7 @@ func (b *Backend) insertStartOrEnd(as *seg.ASEntry, segRowID int64,
 	tableName string) error {
 	ia := as.IA()
 	stmtStr := fmt.Sprintf("INSERT INTO %s (IsdID, AsID, SegRowID) VALUES (?, ?, ?)", tableName)
-	_, err := b.prepareAndExec(stmtStr, ia.I, ia.A, segRowID)
+	_, err := b.tx.Exec(stmtStr, ia.I, ia.A, segRowID)
 	if err != nil {
 		return common.NewBasicError(fmt.Sprintf("Failed to insert into %s", tableName), err)
 	}
@@ -408,7 +331,7 @@ func (b *Backend) Delete(segID common.RawBytes) (int, error) {
 	if err := b.begin(); err != nil {
 		return 0, err
 	}
-	res, err := b.prepareAndExec("DELETE FROM Segments WHERE SegID=?", segID)
+	res, err := b.tx.Exec("DELETE FROM Segments WHERE SegID=?", segID)
 	if err != nil {
 		b.tx.Rollback()
 		return 0, common.NewBasicError("Failed to delete segment", err)
@@ -433,7 +356,7 @@ func (b *Backend) DeleteWithIntf(intf query.IntfSpec) (int, error) {
 	}
 	delStmt := `DELETE FROM Segments WHERE EXISTS (
 		SELECT * FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=?)`
-	res, err := b.prepareAndExec(delStmt, intf.IA.I, intf.IA.A, intf.IfID)
+	res, err := b.tx.Exec(delStmt, intf.IA.I, intf.IA.A, intf.IfID)
 	if err != nil {
 		b.tx.Rollback()
 		return 0, common.NewBasicError("Failed to delete segments", err)

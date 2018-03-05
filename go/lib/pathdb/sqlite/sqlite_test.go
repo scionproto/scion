@@ -118,7 +118,7 @@ func setupDB(t *testing.T) (*Backend, string) {
 	tmpFile := tempFilename(t)
 	b, err := New(tmpFile)
 	if err != nil {
-		t.Fatal("Failed to open DB", "err", err)
+		t.Fatal("Failed to open DB", "err", common.FmtError(err))
 	}
 	return b, tmpFile
 }
@@ -147,11 +147,11 @@ func checkSegments(t *testing.T, b *Backend, segRowID int, segID common.RawBytes
 	err := b.db.QueryRow("SELECT RowID, Segment FROM Segments WHERE SegID=?",
 		segID).Scan(&ID, &rawSeg)
 	if err != nil {
-		t.Fatal("checkSegments: Call", "err", err)
+		t.Fatal("checkSegments: Call", "err", common.FmtError(err))
 	}
 	pseg, err := seg.NewSegFromRaw(common.RawBytes(rawSeg))
 	if err != nil {
-		t.Fatal("checkSegments: Parse", "err", err)
+		t.Fatal("checkSegments: Parse", "err", common.FmtError(err))
 	}
 	info, _ := pseg.InfoF()
 	SoMsg("RowID match", ID, ShouldEqual, segRowID)
@@ -166,7 +166,7 @@ func checkIntfToSeg(t *testing.T, b *Backend, segRowID int, intfs []query.IntfSp
 			spec.IA.I, spec.IA.A, spec.IfID, segRowID)
 		err := row.Scan(&count)
 		if err != nil {
-			t.Fatal("CheckIntfToSegTable", "err", err)
+			t.Fatal("CheckIntfToSegTable", "err", common.FmtError(err))
 		}
 		SoMsg(fmt.Sprintf("Has Intf %v:%v", spec.IA, spec.IfID), count, ShouldEqual, 1)
 	}
@@ -174,7 +174,7 @@ func checkIntfToSeg(t *testing.T, b *Backend, segRowID int, intfs []query.IntfSp
 	var count int
 	err := b.db.QueryRow("SELECT COUNT(*) FROM IntfToSeg WHERE IntfID=0").Scan(&count)
 	if err != nil {
-		t.Fatal("CheckIntfToSegTable", "err", err)
+		t.Fatal("CheckIntfToSegTable", "err", common.FmtError(err))
 	}
 	SoMsg("No IF 0", count, ShouldEqual, 0)
 }
@@ -184,7 +184,7 @@ func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, segRowID int,
 	queryStr := fmt.Sprintf("SELECT SegRowID FROM %s WHERE IsdID=%v AND AsID=%v", table, ia.I, ia.A)
 	err := b.db.QueryRow(queryStr).Scan(&segID)
 	if err != nil {
-		t.Fatal("CheckStartsAtOrEndsAt", "err", err)
+		t.Fatal("CheckStartsAtOrEndsAt", "err", common.FmtError(err))
 	}
 	SoMsg("StartsAt", segID, ShouldEqual, segRowID)
 }
@@ -195,7 +195,7 @@ func checkSegTypes(t *testing.T, b *Backend, segRowID int, types []seg.Type) {
 		err := b.db.QueryRow("SELECT COUNT(*) FROM SegTypes WHERE SegRowID=? AND Type=?",
 			segRowID, segType).Scan(&count)
 		if err != nil {
-			t.Fatal("checkSegTypes", "err", err)
+			t.Fatal("checkSegTypes", "err", common.FmtError(err))
 		}
 		SoMsg(fmt.Sprintf("Has type %v", segType), count, ShouldEqual, 1)
 	}
@@ -208,7 +208,7 @@ func checkHPCfgIDs(t *testing.T, b *Backend, segRowID int, hpCfgIDs []*query.HPC
 			"SELECT COUNT(*) FROM HPCfgIDs WHERE SegRowID=? AND IsdID=? AND AsID=? AND CfgID=?",
 			segRowID, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID).Scan(&count)
 		if err != nil {
-			t.Fatal("checkHPCfgIDs", "err", err)
+			t.Fatal("checkHPCfgIDs", "err", common.FmtError(err))
 		}
 		SoMsg(fmt.Sprintf("Has hpCfgID %v", hpCfgID), count, ShouldEqual, 1)
 	}
@@ -243,7 +243,7 @@ type ExpectedInsert struct {
 func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly insert a new segment", t, func() {
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg, segID := allocPathSegment(ifs1, TS)
@@ -262,7 +262,7 @@ func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 func Test_UpdateExisting(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly update a new segment", t, func() {
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		oldTS := uint32(10)
 		oldSeg, _ := allocPathSegment(ifs1, oldTS)
@@ -282,7 +282,7 @@ func Test_UpdateExisting(t *testing.T) {
 func Test_OlderIgnored(t *testing.T) {
 	Convey("InsertWithHpCfgID should correctly ignore an older segment", t, func() {
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		newTS := uint32(20)
 		newSeg, newSegID := allocPathSegment(ifs1, newTS)
@@ -304,7 +304,7 @@ func checkEmpty(t *testing.T, b *Backend, table string) {
 	var count int
 	err := b.db.QueryRow(queryStr).Scan(&count)
 	if err != nil {
-		t.Fatal("checkEmpty", "err", err)
+		t.Fatal("checkEmpty", "err", common.FmtError(err))
 	}
 	SoMsg(fmt.Sprintf("Empty %s", table), count, ShouldEqual, 0)
 }
@@ -313,7 +313,7 @@ func Test_Delete(t *testing.T) {
 	Convey("Delete should correctly remove a path segment", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg, segID := allocPathSegment(ifs1, TS)
@@ -336,7 +336,7 @@ func Test_DeleteWithIntf(t *testing.T) {
 	Convey("DeleteWithIntf should correctly remove all affected path segments", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
@@ -357,7 +357,7 @@ func Test_GetMixed(t *testing.T) {
 	Convey("Get should return the correct path segments", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, segID1 := allocPathSegment(ifs1, TS)
@@ -384,7 +384,7 @@ func Test_GetAll(t *testing.T) {
 	Convey("Get should return the all path segments", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, segID1 := allocPathSegment(ifs1, TS)
@@ -414,7 +414,7 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 	Convey("Get should return all path segments starting or ending at", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
@@ -439,7 +439,7 @@ func Test_GetWithIntfs(t *testing.T) {
 	Convey("Get should return all path segment with given ifIDs", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
@@ -465,7 +465,7 @@ func Test_GetWithHpCfgIDs(t *testing.T) {
 	Convey("Get should return all path segment with given HpCfgIDs", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
-		defer b.close()
+		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
@@ -491,7 +491,7 @@ func Test_OpenExisting(t *testing.T) {
 		TS := uint32(10)
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
-		b.close()
+		b.db.Close()
 		// Call
 		b, err := New(tmpF)
 		if err != nil {
@@ -516,7 +516,7 @@ func Test_OpenNewer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		b.close()
+		b.db.Close()
 		// Call
 		b, err = New(tmpF)
 		// Test
