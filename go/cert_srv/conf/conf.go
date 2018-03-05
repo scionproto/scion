@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -62,6 +63,14 @@ type Conf struct {
 	ConfDir string
 	// StateDir is the state directory.
 	StateDir string
+	// signer is used to sign ctrl payloads.
+	signer ctrl.Signer
+	// SignerLock guards signer.
+	SignerLock sync.RWMutex
+	// verifier is used to verify ctrl payloads.
+	verifier ctrl.SigVerifier
+	// VerifierLock guards verifier.
+	VerifierLock sync.RWMutex
 }
 
 // Load initializes the configuration by loading it from confDir.
@@ -153,4 +162,32 @@ func (c *Conf) GetOnRootKey() common.RawBytes {
 	c.keyConfLock.RLock()
 	defer c.keyConfLock.RUnlock()
 	return c.keyConf.OnRootKey
+}
+
+// GetSigner returns the signer of the current configuration.
+func (c *Conf) GetSigner() ctrl.Signer {
+	c.SignerLock.RLock()
+	defer c.SignerLock.RUnlock()
+	return c.signer
+}
+
+// SetSigner sets the signer of the current configuration.
+func (c *Conf) SetSigner(signer ctrl.Signer) {
+	c.SignerLock.Lock()
+	defer c.SignerLock.Unlock()
+	c.signer = signer
+}
+
+// GetVerifier returns the verifier of the current configuration.
+func (c *Conf) GetVerifier() ctrl.SigVerifier {
+	c.VerifierLock.RLock()
+	defer c.VerifierLock.RUnlock()
+	return c.verifier
+}
+
+// SetVerifier sets the verifier of the current configuration.
+func (c *Conf) SetVerifier(verifier ctrl.SigVerifier) {
+	c.VerifierLock.Lock()
+	defer c.VerifierLock.Unlock()
+	c.verifier = verifier
 }
