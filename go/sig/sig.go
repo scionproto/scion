@@ -148,8 +148,11 @@ func loadConfig(path string) bool {
 		log.Error("loadConfig: Failed", "err", err)
 		return false
 	}
-	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
-	return base.Map.ReloadConfig(cfg)
+	ok := base.Map.ReloadConfig(cfg)
+	if ok {
+		atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
+	}
+	return ok
 }
 
 func fatal(msg string, args ...interface{}) {
