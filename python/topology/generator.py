@@ -331,11 +331,11 @@ class CertGenerator(object):
         self._self_sign_keys()
         self._iterate(self._count_cores)
         self._iterate(self._gen_as_keys)
-        self._iterate(self._gen_as_certs)
-        self._build_chains()
         self._iterate(self._gen_trc_entry)
         self._iterate(self._sign_trc)
         self._iterate(self._gen_trc_files)
+        self._iterate(self._gen_as_certs)
+        self._build_chains()
         return self.cert_files, self.trc_files, self.cust_files
 
     def _self_sign_keys(self):
@@ -404,11 +404,15 @@ class CertGenerator(object):
             can_issue = True
             comment = "Core AS Certificate"
             validity_period = Certificate.CORE_AS_VALIDITY_PERIOD
-            self.core_certs[topo_id] = Certificate.from_values(
+            cert = Certificate.from_values(
                 str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
                 comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
                 self.pub_core_sig_keys[topo_id], signing_key
             )
+            cert.issuing_time = max(cert.issuing_time, self.trcs[topo_id[0]].create_time)
+            cert.expiration_time = min(cert.expiration_time, self.trcs[topo_id[0]].exp_time)
+            cert.sign(signing_key)
+            self.core_certs[topo_id] = cert
         # Create regular AS certificate
         signing_key = self.priv_core_sig_keys[issuer]
         can_issue = False
@@ -422,11 +426,13 @@ class CertGenerator(object):
 
     def _build_chains(self):
         for topo_id, cert in self.certs.items():
-            chain = [cert]
             issuer = TopoID(cert.issuer)
-            chain.append(self.core_certs[issuer])
+            core_cert = self.core_certs[issuer]
+            cert.issuing_time = max(cert.issuing_time, core_cert.issuing_time)
+            cert.expiration_time = min(cert.expiration_time, core_cert.expiration_time)
+            cert.sign(self.priv_core_sig_keys[issuer])
             cert_path = get_cert_chain_file_path("", topo_id, INITIAL_CERT_VERSION)
-            self.cert_files[topo_id][cert_path] = CertificateChain(chain).to_json()
+            self.cert_files[topo_id][cert_path] = CertificateChain([cert, core_cert]).to_json()
             map_path = os.path.join("customers", '%s-%s-V%d.key' % (
                 topo_id.ISD(), topo_id.AS(), INITIAL_CERT_VERSION))
             self.cust_files[issuer][map_path] = base64.b64encode(
