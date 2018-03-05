@@ -51,7 +51,7 @@ func initSCMP(send, recv *scmpPkt, typeStr string, count uint, pathEntry *sciond
 		initEcho(send, false, count)
 		initEcho(recv, true, count)
 	default:
-		logFatal("Invalid SCMP type")
+		fatal("Invalid SCMP type")
 	}
 }
 
