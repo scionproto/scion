@@ -27,6 +27,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/nacl/box"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
@@ -39,15 +40,15 @@ func runGenKey(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	_, asDirs, err := pkicmn.ProcessSelector(args[0])
+	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
-	for _, dirs := range asDirs {
-		for _, dir := range dirs {
-			if err = genKeys(dir); err != nil {
+	for _, ases := range asMap {
+		for _, ia := range ases {
+			if err = genKeys(ia); err != nil {
 				base.ErrorAndExit("Error generating keys: %s\n", err)
 			}
 		}
@@ -55,7 +56,8 @@ func runGenKey(cmd *base.Command, args []string) {
 	os.Exit(0)
 }
 
-func genKeys(dir string) error {
+func genKeys(ia *addr.ISD_AS) error {
+	dir := pkicmn.GetAsPath(ia)
 	// Check if as.ini exists, otherwise skip dir.
 	cname := filepath.Join(dir, conf.AsConfFileName)
 	if _, err := os.Stat(cname); os.IsNotExist(err) {
@@ -67,12 +69,38 @@ func genKeys(dir string) error {
 	if err != nil {
 		return err
 	}
-	return GenAll(filepath.Join(dir, "keys"), a.IsCore)
+	return genAll(filepath.Join(dir, "keys"), a.IsCore)
+}
+
+func genAll(outDir string, core bool) error {
+	// Generate AS sigining and decryption keys.
+	if err := genKey(trust.SigKeyFile, outDir, genSignKey, true); err != nil {
+		return err
+	}
+	if err := genKey(trust.DecKeyFile, outDir, genEncKey, true); err != nil {
+		return err
+	}
+	// Generate AS master key.
+	if err := genKey(masterKeyFname, outDir, genMasterKey, false); err != nil {
+		return err
+	}
+	if !core {
+		return nil
+	}
+	// Generate core signing key.
+	if err := genKey(trust.CoreSigKeyFile, outDir, genSignKey, true); err != nil {
+		return err
+	}
+	// Generate offline and online root keys if core was specified.
+	if err := genKey(trust.OffKeyFile, outDir, genSignKey, false); err != nil {
+		return err
+	}
+	return genKey(trust.OnKeyFile, outDir, genSignKey, false)
 }
 
 type keyGenFunc func(io.Reader) ([]byte, error)
 
-func GenKey(fname, outDir string, keyGenF keyGenFunc, writeSeed bool) error {
+func genKey(fname, outDir string, keyGenF keyGenFunc, writeSeed bool) error {
 	// Check if out directory exists and if not create it.
 	_, err := os.Stat(outDir)
 	if os.IsNotExist(err) {
@@ -138,30 +166,4 @@ func genMasterKey(rand io.Reader) ([]byte, error) {
 		return nil, common.NewBasicError("Not enough random bytes", nil)
 	}
 	return key, nil
-}
-
-func GenAll(outDir string, core bool) error {
-	// Generate AS sigining and decryption keys.
-	if err := GenKey(trust.SigKeyFile, outDir, genSignKey, true); err != nil {
-		return err
-	}
-	if err := GenKey(trust.DecKeyFile, outDir, genEncKey, true); err != nil {
-		return err
-	}
-	// Generate AS master key.
-	if err := GenKey(masterKeyFname, outDir, genMasterKey, false); err != nil {
-		return err
-	}
-	if !core {
-		return nil
-	}
-	// Generate core signing key.
-	if err := GenKey(trust.CoreSigKeyFile, outDir, genSignKey, true); err != nil {
-		return err
-	}
-	// Generate offline and online root keys if core was specified.
-	if err := GenKey(trust.OffKeyFile, outDir, genSignKey, false); err != nil {
-		return err
-	}
-	return GenKey(trust.OnKeyFile, outDir, genSignKey, false)
 }

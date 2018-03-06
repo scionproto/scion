@@ -11,60 +11,61 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package certs
+package tmpl
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-func runTemplate(cmd *base.Command, args []string) {
+func runGenAsTmpl(cmd *base.Command, args []string) {
 	if len(args) < 1 {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	isdDirs, asDirs, err := pkicmn.ProcessSelector(args[0])
+	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
 	fmt.Println("Generating cert config templates.")
-	for i, isdDir := range isdDirs {
-		tconf, err := conf.LoadTrcConf(isdDir)
+	for isd, ases := range asMap {
+		tconf, err := conf.LoadTrcConf(pkicmn.GetIsdPath(isd))
 		if err != nil {
-			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
+			base.ErrorAndExit("Error reading %s: %s\n", conf.TrcConfFileName, err)
 		}
-		cores, ases := pkicmn.FilterASDirs(asDirs[i], tconf.CoreIAs)
-		for _, dir := range cores {
-			if err = genTemplate(dir, true); err != nil {
-				base.ErrorAndExit("Error generating %s: %s\n",
-					filepath.Join(dir, conf.AsConfFileName), err)
-			}
-		}
-		for _, dir := range ases {
-			if err = genTemplate(dir, false); err != nil {
-				base.ErrorAndExit("Error generating %s: %s\n",
-					filepath.Join(dir, conf.AsConfFileName), err)
+		for _, ia := range ases {
+			if err = genAsTmpl(ia, tconf); err != nil {
+				base.ErrorAndExit("Error generating %s template for %s: %s\n",
+					conf.AsConfFileName, ia, err)
 			}
 		}
 	}
 }
 
-func genTemplate(dir string, core bool) error {
-	ia, err := pkicmn.GetIAFromPath(dir)
-	if err != nil {
-		panic(err)
-	}
+func genAsTmpl(ia *addr.ISD_AS, isdConf *conf.Trc) error {
+	core := contains(isdConf.CoreIAs, ia)
+	a := conf.NewTemplateAsConf(ia, core, isdConf.Version)
+	dir := pkicmn.GetAsPath(ia)
 	fpath := filepath.Join(dir, conf.AsConfFileName)
-	a := conf.NewTemplateAsConf(ia, core)
-	if err = a.SaveTo(fpath, pkicmn.Force); err != nil {
+	if err := a.SaveTo(fpath, pkicmn.Force); err != nil {
 		return err
 	}
 	return nil
+}
+
+func contains(cores []*addr.ISD_AS, as *addr.ISD_AS) bool {
+	for _, cia := range cores {
+		if cia.Eq(as) {
+			return true
+		}
+	}
+	return false
 }
