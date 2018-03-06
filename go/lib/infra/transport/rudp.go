@@ -113,7 +113,7 @@ type RUDP struct {
 func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 	t := &RUDP{
 		conn:       conn,
-		nextPktID:  uint56(generator.Intn(maxUint56 + 1)),
+		nextPktID:  uint56(generator.Int63n(maxUint56 + 1)),
 		readEvents: make(chan *readEventDesc, maxReadEvents),
 		closedChan: make(chan struct{}),
 		doneChan:   make(chan struct{}),
