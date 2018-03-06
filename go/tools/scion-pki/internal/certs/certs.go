@@ -92,9 +92,6 @@ that can contain the following values:
 		integer representing the version of the certificate
 	Comment [optional]
 		arbitrary string used to describe the certificate
-	CanIssue [required]
-		boolean that describes whether the subject is allowed to issue
-		certificates for other ASes
 	Validity [required]
 		the validity of the certificate in days
 	IssuingTime (now) [optional]
@@ -135,8 +132,6 @@ func runCert(cmd *base.Command, args []string) {
 	case "renew":
 		fmt.Println("renew is not implemented yet.")
 		return
-	case "template":
-		runTemplate(cmd, cmd.Flag.Args())
 	case "verify":
 		runVerify(cmd, cmd.Flag.Args())
 	case "clean":

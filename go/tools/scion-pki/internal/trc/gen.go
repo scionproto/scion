@@ -36,21 +36,22 @@ func runGenTrc(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	isdDirs, _, err := pkicmn.ProcessSelector(args[0])
+	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
-	for _, dir := range isdDirs {
-		if err = genTrc(dir); err != nil {
+	for isd := range asMap {
+		if err = genTrc(isd); err != nil {
 			base.ErrorAndExit("Error generating TRC: %s\n", err)
 		}
 	}
 	os.Exit(0)
 }
 
-func genTrc(dir string) error {
+func genTrc(isd int) error {
+	dir := pkicmn.GetIsdPath(isd)
 	// Check that isd.ini exists, otherwise skip directory.
 	cpath := filepath.Join(dir, conf.TrcConfFileName)
 	if _, err := os.Stat(cpath); os.IsNotExist(err) {
@@ -60,8 +61,8 @@ func genTrc(dir string) error {
 	if err != nil {
 		return common.NewBasicError("Error loading TRC conf", err)
 	}
-	fmt.Printf("Generating TRC for ISD %d\n", tconf.Isd)
-	t, err := newTrc(tconf, dir)
+	fmt.Printf("Generating TRC for ISD %d\n", isd)
+	t, err := newTrc(isd, tconf, dir)
 	if err != nil {
 		return err
 	}
@@ -69,17 +70,17 @@ func genTrc(dir string) error {
 	if err != nil {
 		return common.NewBasicError("Error json-encoding TRC", err)
 	}
-	fname := fmt.Sprintf(pkicmn.TrcNameFmt, tconf.Isd, tconf.Version)
+	fname := fmt.Sprintf(pkicmn.TrcNameFmt, isd, tconf.Version)
 	return pkicmn.WriteToFile(raw, filepath.Join(dir, fname), 0644)
 }
 
-func newTrc(tconf *conf.Trc, path string) (*trc.TRC, error) {
+func newTrc(isd int, tconf *conf.Trc, path string) (*trc.TRC, error) {
 	t := &trc.TRC{
 		CreationTime:   tconf.IssuingTime,
 		Description:    tconf.Description,
 		ExpirationTime: tconf.IssuingTime + tconf.Validity*24*60*60,
 		GracePeriod:    tconf.GracePeriod,
-		ISD:            tconf.Isd,
+		ISD:            uint16(isd),
 		QuorumTRC:      tconf.QuorumTRC,
 		Version:        tconf.Version,
 		CoreASes:       make(map[addr.ISD_AS]*trc.CoreAS),
@@ -93,12 +94,13 @@ func newTrc(tconf *conf.Trc, path string) (*trc.TRC, error) {
 	for _, cia := range tconf.CoreIAs {
 		var as coreAS
 		as.IA = *cia
-		online, err := trust.LoadKey(filepath.Join(pkicmn.GetPath(cia), "keys", trust.OnKeyFile))
+		aspath := pkicmn.GetAsPath(cia)
+		online, err := trust.LoadKey(filepath.Join(aspath, "keys", trust.OnKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
 		}
 		as.Online = ed25519.PrivateKey(online)
-		offline, err := trust.LoadKey(filepath.Join(pkicmn.GetPath(cia), "keys", trust.OffKeyFile))
+		offline, err := trust.LoadKey(filepath.Join(aspath, "keys", trust.OffKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading offline key", err)
 		}

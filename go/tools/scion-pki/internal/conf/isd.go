@@ -31,7 +31,6 @@ const TrcConfFileName = "isd.ini"
 
 // Trc holds the parameters that are used to generate a Trc.
 type Trc struct {
-	Isd         uint16
 	Description string
 	Version     uint64
 	IssuingTime uint64
@@ -42,9 +41,6 @@ type Trc struct {
 }
 
 func (t *Trc) validate() error {
-	if t.Isd == 0 {
-		return newValidationError("Isd")
-	}
 	if t.Version == 0 {
 		return newValidationError("Version")
 	}

@@ -11,42 +11,38 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package trc
+package tmpl
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-func runTemplate(cmd *base.Command, args []string) {
+func runGenIsdTmpl(cmd *base.Command, args []string) {
 	if len(args) < 1 {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	isdDirs, _, err := pkicmn.ProcessSelector(args[0])
+	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
 	fmt.Println("Generating trc config templates.")
-	for _, dir := range isdDirs {
-		genTemplate(dir)
+	for isd := range asMap {
+		genIsdTmpl(isd)
 	}
 }
 
-func genTemplate(dir string) error {
-	isd, err := strconv.ParseUint(filepath.Base(dir)[3:], 10, 12)
-	if err != nil {
-		panic(err)
-	}
+func genIsdTmpl(isd int) error {
+	dir := pkicmn.GetIsdPath(isd)
 	fmt.Printf("Generating configuration template for ISD%d\n", isd)
-	t := &conf.Trc{Isd: uint16(isd)}
+	t := &conf.Trc{Version: 1}
 	return t.SaveTo(filepath.Join(dir, conf.TrcConfFileName), pkicmn.Force)
 }

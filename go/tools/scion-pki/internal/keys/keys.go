@@ -48,7 +48,7 @@ Flags:
 	-d
 		The root directory of all certificates and keys (default '.')
 	-f
-		Overwrite existing keys.	
+		Overwrite existing keys.
 Selector:
 	*-*
 		All ISDs and ASes under the root directory.

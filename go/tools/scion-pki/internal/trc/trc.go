@@ -36,8 +36,6 @@ plane PKI.
 The following subcommands are available:
 	gen
 		Used to generate new TRCs.
-	template
-		Used to generate isd.ini template configuration files.
 
 The following flags are available:
 	-d
@@ -103,8 +101,6 @@ func runTrc(cmd *base.Command, args []string) {
 	switch subCmd {
 	case "gen":
 		runGenTrc(cmd, cmd.Flag.Args())
-	case "template":
-		runTemplate(cmd, cmd.Flag.Args())
 	default:
 		fmt.Fprintf(os.Stderr, "unrecognized subcommand '%s'\n", args[0])
 		fmt.Fprintf(os.Stderr, "run 'scion-pki trc -h' for help.\n")
