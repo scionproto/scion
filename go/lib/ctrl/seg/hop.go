@@ -31,11 +31,11 @@ type HopEntry struct {
 	RawHopField []byte `capnp:"hopF"`
 }
 
-func (e *HopEntry) InIA() *addr.ISD_AS {
+func (e *HopEntry) InIA() addr.IA {
 	return e.RawInIA.IA()
 }
 
-func (e *HopEntry) OutIA() *addr.ISD_AS {
+func (e *HopEntry) OutIA() addr.IA {
 	return e.RawOutIA.IA()
 }
 

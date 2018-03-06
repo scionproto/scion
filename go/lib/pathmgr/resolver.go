@@ -80,7 +80,7 @@ func (r *resolver) run() {
 }
 
 // lookup queries SCIOND, blocking while waiting for the response.
-func (r *resolver) lookup(src, dst *addr.ISD_AS) AppPathSet {
+func (r *resolver) lookup(src, dst addr.IA) AppPathSet {
 	reply, err := r.sciondConn.Paths(dst, src, numReqPaths, sciond.PathReqFlags{})
 	if err != nil {
 		log.Error("SCIOND network error", "err", err)
@@ -120,8 +120,8 @@ const (
 
 // resolverRequest describes the items contained in the resolver's request queue.
 type resolverRequest struct {
-	src     *addr.ISD_AS
-	dst     *addr.ISD_AS
+	src     addr.IA
+	dst     addr.IA
 	reqType reqType
 	done    chan struct{}
 }

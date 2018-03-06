@@ -46,7 +46,7 @@ func prepareRtrPacketSample() *RtrPkt {
 	r.Raw = packet
 	// Set some other data that are required for the parsing to succeed:
 	var config = &conf.Conf{
-		IA: &addr.ISD_AS{I: 1, A: 2},
+		IA: addr.IA{I: 1, A: 2},
 		Net: &netconf.NetConf{
 			IFs: map[common.IFIDType]*netconf.Interface{777: nil},
 		},
@@ -66,8 +66,8 @@ func TestParseBasic(t *testing.T) {
 		srcHost, _ := r.SrcHost()
 		dstHost, _ := r.DstHost()
 
-		SoMsg("Source IA", *srcIA, ShouldResemble, addr.ISD_AS{I: 1, A: 14})
-		SoMsg("Destination IA", *dstIA, ShouldResemble, addr.ISD_AS{I: 1, A: 17})
+		SoMsg("Source IA", srcIA, ShouldResemble, addr.IA{I: 1, A: 14})
+		SoMsg("Destination IA", dstIA, ShouldResemble, addr.IA{I: 1, A: 17})
 		SoMsg("Source host IP", srcHost, ShouldResemble, addr.HostIPv4{127, 0, 0, 26})
 		SoMsg("Destination host IP", dstHost, ShouldResemble, addr.HostIPv4{127, 0, 0, 27})
 		SoMsg("CmnHdr", r.CmnHdr, ShouldResemble, spkt.CmnHdr{

@@ -38,8 +38,8 @@ var (
 )
 
 var (
-	dstIA *addr.ISD_AS
-	srcIA *addr.ISD_AS
+	dstIA addr.IA
+	srcIA addr.IA
 )
 
 func main() {

@@ -73,8 +73,7 @@ func (am *ASMap) ReloadConfig(cfg *config.Cfg) bool {
 // addNewIAs adds the ASes in cfg that are not currently configured.
 func (am *ASMap) addNewIAs(cfg *config.Cfg) bool {
 	s := true
-	for iaVal, cfgEntry := range cfg.ASes {
-		ia := iaVal.Copy()
+	for ia, cfgEntry := range cfg.ASes {
 		log.Info("ReloadConfig: Adding AS...", "ia", ia)
 		ae, err := am.AddIA(ia)
 		if err != nil {
@@ -93,7 +92,7 @@ func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 	// Delete all ASes that currently exist but are not in cfg
 	am.Range(func(iaInt addr.IAInt, as *ASEntry) bool {
 		ia := iaInt.IA()
-		if _, ok := cfg.ASes[*ia]; !ok {
+		if _, ok := cfg.ASes[ia]; !ok {
 			log.Info("ReloadConfig: Deleting AS...", "ia", ia)
 			// Deletion also handles session/tun device cleanup
 			err := am.DelIA(ia)
@@ -110,7 +109,7 @@ func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 }
 
 // AddIA idempotently adds an entry for a remote IA.
-func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
+func (am *ASMap) AddIA(ia addr.IA) (*ASEntry, error) {
 	if ia.I == 0 || ia.A == 0 {
 		// A 0 for either ISD or AS indicates a wildcard, and not a specific ISD-AS.
 		return nil, common.NewBasicError("AddIA: ISD and AS must not be 0", nil, "ia", ia)
@@ -129,7 +128,7 @@ func (am *ASMap) AddIA(ia *addr.ISD_AS) (*ASEntry, error) {
 }
 
 // DelIA removes an entry for a remote IA.
-func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
+func (am *ASMap) DelIA(ia addr.IA) error {
 	key := ia.IAInt()
 	ae, ok := am.Load(key)
 	if !ok {
@@ -140,7 +139,7 @@ func (am *ASMap) DelIA(ia *addr.ISD_AS) error {
 }
 
 // ASEntry returns the entry for the specified remote IA, or nil if not present.
-func (am *ASMap) ASEntry(ia *addr.ISD_AS) *ASEntry {
+func (am *ASMap) ASEntry(ia addr.IA) *ASEntry {
 	if as, ok := am.Load(ia.IAInt()); ok {
 		return as
 	}

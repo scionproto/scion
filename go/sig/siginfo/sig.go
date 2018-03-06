@@ -85,7 +85,7 @@ func (sm *SigMap) GetSig(currSigId SigIdType) *Sig {
 }
 
 type Sig struct {
-	IA          *addr.ISD_AS
+	IA          addr.IA
 	Id          SigIdType
 	Host        addr.HostAddr
 	CtrlL4Port  int
@@ -98,7 +98,7 @@ type Sig struct {
 	statsFailCount uint16
 }
 
-func NewSig(ia *addr.ISD_AS, id SigIdType, host addr.HostAddr,
+func NewSig(ia addr.IA, id SigIdType, host addr.HostAddr,
 	ctrlPort, encapPort int, static bool) *Sig {
 	return &Sig{
 		IA: ia, Id: id, Host: host, CtrlL4Port: ctrlPort,

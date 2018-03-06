@@ -37,7 +37,7 @@ type Conf struct {
 	// of interface IDs to routers, and the actual topology.
 	Topo *topology.Topo
 	// IA is the current ISD-AS.
-	IA *addr.ISD_AS
+	IA addr.IA
 	// BR is the topology information of this router.
 	BR *topology.BRInfo
 	// ASConf is the local AS configuration.

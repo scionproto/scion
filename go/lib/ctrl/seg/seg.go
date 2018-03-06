@@ -100,8 +100,8 @@ func (ps *PathSegment) Validate() error {
 		)
 	}
 	for i := range ps.ASEntries {
-		prevIA := &addr.ISD_AS{}
-		nextIA := &addr.ISD_AS{}
+		prevIA := addr.IA{}
+		nextIA := addr.IA{}
 		if i > 0 {
 			prevIA = ps.ASEntries[i-1].IA()
 		}

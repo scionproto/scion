@@ -107,7 +107,7 @@ func (c *CertLog) UnmarshalJSON(b []byte) error {
 // Addr is the (ISD-AS IP)-tuple used for entity addresses in the TRC file.
 type Addr struct {
 	// IA is the ISD-AS.
-	IA *addr.ISD_AS
+	IA addr.IA
 	// IP is the IP.
 	IP net.IP
 }

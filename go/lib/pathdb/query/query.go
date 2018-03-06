@@ -22,13 +22,13 @@ import (
 
 // TODO(shitz): This should be moved when we have hidden path sets.
 type HPCfgID struct {
-	IA *addr.ISD_AS
+	IA addr.IA
 	ID uint64
 }
 
 func NewHPCfgID(isd int, as int, ID uint64) *HPCfgID {
 	return &HPCfgID{
-		IA: &addr.ISD_AS{I: isd, A: as},
+		IA: addr.IA{I: isd, A: as},
 		ID: ID,
 	}
 }
@@ -40,7 +40,7 @@ func (h *HPCfgID) Eq(other *HPCfgID) bool {
 var NullHpCfgID = HPCfgID{IA: addr.IAInt(0).IA(), ID: 0}
 
 type IntfSpec struct {
-	IA   *addr.ISD_AS
+	IA   addr.IA
 	IfID uint64
 }
 
@@ -49,8 +49,8 @@ type Params struct {
 	SegTypes []seg.Type
 	HpCfgIDs []*HPCfgID
 	Intfs    []*IntfSpec
-	StartsAt []*addr.ISD_AS
-	EndsAt   []*addr.ISD_AS
+	StartsAt []addr.IA
+	EndsAt   []addr.IA
 }
 
 type Result struct {

@@ -32,10 +32,10 @@ import (
 )
 
 var (
-	ia13 = &addr.ISD_AS{I: 1, A: 13}
-	ia14 = &addr.ISD_AS{I: 1, A: 14}
-	ia16 = &addr.ISD_AS{I: 1, A: 16}
-	ia19 = &addr.ISD_AS{I: 1, A: 19}
+	ia13 = addr.IA{I: 1, A: 13}
+	ia14 = addr.IA{I: 1, A: 14}
+	ia16 = addr.IA{I: 1, A: 16}
+	ia19 = addr.IA{I: 1, A: 19}
 
 	ifs1 = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 3, 2, 0}
@@ -74,7 +74,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 		{
 			RawIA: ia13.IAInt(),
 			HopEntries: []*seg.HopEntry{
-				allocHopEntry(&addr.ISD_AS{}, ia16, rawHops[0]),
+				allocHopEntry(addr.IA{}, ia16, rawHops[0]),
 			},
 		},
 		{
@@ -87,7 +87,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 		{
 			RawIA: ia19.IAInt(),
 			HopEntries: []*seg.HopEntry{
-				allocHopEntry(ia16, &addr.ISD_AS{}, rawHops[3]),
+				allocHopEntry(ia16, addr.IA{}, rawHops[3]),
 			},
 		},
 	}
@@ -106,7 +106,7 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 	return pseg, segID
 }
 
-func allocHopEntry(inIA, outIA *addr.ISD_AS, hopF common.RawBytes) *seg.HopEntry {
+func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *seg.HopEntry {
 	return &seg.HopEntry{
 		RawInIA:     inIA.IAInt(),
 		RawOutIA:    outIA.IAInt(),
@@ -179,7 +179,7 @@ func checkIntfToSeg(t *testing.T, b *Backend, segRowID int, intfs []query.IntfSp
 	SoMsg("No IF 0", count, ShouldEqual, 0)
 }
 
-func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, segRowID int, ia *addr.ISD_AS) {
+func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, segRowID int, ia addr.IA) {
 	var segID int
 	queryStr := fmt.Sprintf("SELECT SegRowID FROM %s WHERE IsdID=%v AND AsID=%v", table, ia.I, ia.A)
 	err := b.db.QueryRow(queryStr).Scan(&segID)
@@ -234,8 +234,8 @@ type ExpectedInsert struct {
 	SegID    common.RawBytes
 	TS       uint32
 	Intfs    []query.IntfSpec
-	StartsAt *addr.ISD_AS
-	EndsAt   *addr.ISD_AS
+	StartsAt addr.IA
+	EndsAt   addr.IA
 	Types    []seg.Type
 	HpCfgIDs []*query.HPCfgID
 }
@@ -422,12 +422,12 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
-		res, err := b.Get(&query.Params{StartsAt: []*addr.ISD_AS{ia13, ia19}})
+		res, err := b.Get(&query.Params{StartsAt: []addr.IA{ia13, ia19}})
 		if err != nil {
 			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
-		res, err = b.Get(&query.Params{EndsAt: []*addr.ISD_AS{ia13, ia19}})
+		res, err = b.Get(&query.Params{EndsAt: []addr.IA{ia13, ia19}})
 		if err != nil {
 			t.Fatal(err)
 		}

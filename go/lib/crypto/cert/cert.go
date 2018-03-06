@@ -48,7 +48,7 @@ type Certificate struct {
 	// ExpirationTime is the unix timestamp in seconds at which the certificate expires.
 	ExpirationTime uint64
 	// Issuer is the certificate issuer. It can only be a core AS.
-	Issuer *addr.ISD_AS
+	Issuer addr.IA
 	// IssuingTime is the unix timestamp in seconds at which the certificate was created.
 	IssuingTime uint64
 	// SignAlgorithm is the algorithm associated with SubjectSigKey.
@@ -56,7 +56,7 @@ type Certificate struct {
 	// Signature is the certificate signature. It is computed over the rest of the certificate.
 	Signature common.RawBytes `json:",omitempty"`
 	// Subject is the certificate subject.
-	Subject *addr.ISD_AS
+	Subject addr.IA
 	// SubjectEncKey is the public key used for encryption.
 	SubjectEncKey common.RawBytes
 	// SubjectSignKey the public key used for signature verification.
@@ -81,7 +81,7 @@ func CertificateFromRaw(raw common.RawBytes) (*Certificate, error) {
 // Verify checks the signature of the certificate based on a trusted verifying key and the
 // associated signature algorithm. Further, it verifies that the certificate belongs to the given
 // subject, and that it is valid at the current time.
-func (c *Certificate) Verify(subject *addr.ISD_AS, verifyKey common.RawBytes, signAlgo string) error {
+func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlgo string) error {
 	if !subject.Eq(c.Subject) {
 		return common.NewBasicError(InvalidSubject, nil,
 			"expected", c.Subject, "actual", subject)
@@ -162,11 +162,11 @@ func (c *Certificate) Copy() *Certificate {
 		Comment:        c.Comment,
 		EncAlgorithm:   c.EncAlgorithm,
 		ExpirationTime: c.ExpirationTime,
-		Issuer:         c.Issuer.Copy(),
+		Issuer:         c.Issuer,
 		IssuingTime:    c.IssuingTime,
 		SignAlgorithm:  c.SignAlgorithm,
 		Signature:      make(common.RawBytes, len(c.Signature)),
-		Subject:        c.Subject.Copy(),
+		Subject:        c.Subject,
 		SubjectEncKey:  make(common.RawBytes, len(c.SubjectEncKey)),
 		SubjectSignKey: make(common.RawBytes, len(c.SubjectSignKey)),
 		TRCVersion:     c.TRCVersion,

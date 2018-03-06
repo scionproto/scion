@@ -47,11 +47,11 @@ func NewSegReqFromRaw(b common.RawBytes) (*SegReq, error) {
 	return s, proto.ParseFromRaw(s, s.ProtoId(), b)
 }
 
-func (s *SegReq) SrcIA() *addr.ISD_AS {
+func (s *SegReq) SrcIA() addr.IA {
 	return s.RawSrcIA.IA()
 }
 
-func (s *SegReq) DstIA() *addr.ISD_AS {
+func (s *SegReq) DstIA() addr.IA {
 	return s.RawDstIA.IA()
 }
 

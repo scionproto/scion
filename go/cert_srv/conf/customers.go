@@ -35,7 +35,7 @@ const (
 	CustomersDir = "customers"
 )
 
-type Customers map[addr.ISD_AS]common.RawBytes
+type Customers map[addr.IA]common.RawBytes
 
 // LoadCustomers populates the mapping from assigned non-core ASes to their respective verifying key.
 func (c *Conf) LoadCustomers() (Customers, error) {
@@ -44,8 +44,8 @@ func (c *Conf) LoadCustomers() (Customers, error) {
 	if err != nil {
 		return nil, err
 	}
-	activeKeys := make(map[addr.ISD_AS]string)
-	activeVers := make(map[addr.ISD_AS]uint64)
+	activeKeys := make(map[addr.IA]string)
+	activeVers := make(map[addr.IA]uint64)
 	for _, file := range files {
 		re := regexp.MustCompile(`ISD(\d+)-AS(\d+)-V(\d+)\.key$`)
 		s := re.FindStringSubmatch(file)
@@ -57,12 +57,12 @@ func (c *Conf) LoadCustomers() (Customers, error) {
 		if err != nil {
 			return nil, common.NewBasicError("Unable to parse Version", err, "file", file)
 		}
-		if uint64(ver) >= activeVers[*ia] {
-			activeKeys[*ia] = file
-			activeVers[*ia] = uint64(ver)
+		if uint64(ver) >= activeVers[ia] {
+			activeKeys[ia] = file
+			activeVers[ia] = uint64(ver)
 		}
 	}
-	customers := make(map[addr.ISD_AS]common.RawBytes)
+	customers := make(map[addr.IA]common.RawBytes)
 	for ia, file := range activeKeys {
 		key, err := trust.LoadKey(file)
 		if err != nil {
@@ -75,10 +75,10 @@ func (c *Conf) LoadCustomers() (Customers, error) {
 
 // GetVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
 // Otherwise, nil and an error.
-func (c *Conf) GetVerifyingKey(ia *addr.ISD_AS) (common.RawBytes, error) {
+func (c *Conf) GetVerifyingKey(ia addr.IA) (common.RawBytes, error) {
 	c.customersLock.RLock()
 	defer c.customersLock.RUnlock()
-	b, ok := c.customers[*ia]
+	b, ok := c.customers[ia]
 	if !ok {
 		return nil, common.NewBasicError(NotACustomer, nil)
 	}
@@ -86,10 +86,10 @@ func (c *Conf) GetVerifyingKey(ia *addr.ISD_AS) (common.RawBytes, error) {
 }
 
 // SetVerifyingKey sets the verifying key for a specified AS. The key is written to the file system.
-func (c *Conf) SetVerifyingKey(ia *addr.ISD_AS, ver uint64, newKey, oldKey common.RawBytes) error {
+func (c *Conf) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.RawBytes) error {
 	c.customersLock.Lock()
 	defer c.customersLock.Unlock()
-	currKey, ok := c.customers[*ia]
+	currKey, ok := c.customers[ia]
 	if !ok {
 		return common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
 	}
@@ -110,8 +110,8 @@ func (c *Conf) SetVerifyingKey(ia *addr.ISD_AS, ver uint64, newKey, oldKey commo
 		if err = ioutil.WriteFile(path, buf, 0644); err != nil {
 			return err
 		}
-		c.customers[*ia] = make(common.RawBytes, len(newKey))
-		copy(c.customers[*ia], newKey)
+		c.customers[ia] = make(common.RawBytes, len(newKey))
+		copy(c.customers[ia], newKey)
 		return nil
 	}
 	return nil

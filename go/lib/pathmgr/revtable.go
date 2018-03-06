@@ -27,7 +27,7 @@ type uifid struct {
 	ifid common.IFIDType
 }
 
-func uifidFromValues(isdas *addr.ISD_AS, ifid common.IFIDType) uifid {
+func uifidFromValues(isdas addr.IA, ifid common.IFIDType) uifid {
 	return uifid{
 		ia:   isdas.IAInt(),
 		ifid: ifid,

@@ -36,8 +36,8 @@ import (
 var _ = log.Root
 
 var (
-	asList  []*addr.ISD_AS
-	localIA *addr.ISD_AS
+	asList  []addr.IA
+	localIA addr.IA
 )
 
 const (
@@ -46,8 +46,8 @@ const (
 )
 
 type TestCase struct {
-	srcIA *addr.ISD_AS
-	dstIA *addr.ISD_AS
+	srcIA addr.IA
+	dstIA addr.IA
 
 	srcLocal addr.HostAddr
 	dstLocal addr.HostAddr
@@ -59,7 +59,7 @@ type TestCase struct {
 	reply   []byte
 }
 
-func generateTests(asList []*addr.ISD_AS, count int) []TestCase {
+func generateTests(asList []addr.IA, count int) []TestCase {
 	rand.Seed(time.Now().UnixNano())
 	tests := make([]TestCase, 0, 0)
 	var cIndex, sIndex int32

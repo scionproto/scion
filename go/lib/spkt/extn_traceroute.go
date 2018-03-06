@@ -103,7 +103,7 @@ func (t *Traceroute) String() string {
 }
 
 type TracerouteEntry struct {
-	IA        addr.ISD_AS
+	IA        addr.IA
 	IfID      uint16
 	TimeStamp uint16
 }

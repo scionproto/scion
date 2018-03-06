@@ -26,7 +26,7 @@ The basic layout is as follows:
 type Topo struct {
     Timestamp      int64
     TimestampHuman string
-    ISD_AS         *addr.ISD_AS
+    ISD_AS         addr.IA
     Overlay        overlay.Type
     MTU            int
     Core           bool
@@ -75,7 +75,7 @@ type IFInfo struct {
     Remote          *AddrInfo
     RemoteIFID      common.IFIDType
     Bandwidth       int
-    ISD_AS          *addr.ISD_AS
+    ISD_AS          addr.IA
     LinkType        LinkType
     MTU             int
 }

@@ -387,7 +387,7 @@ func (b *Backend) Get(params *query.Params) ([]*query.Result, error) {
 	for rows.Next() {
 		var segRowID int
 		var rawSeg sql.RawBytes
-		hpCfgID := &query.HPCfgID{IA: &addr.ISD_AS{}}
+		hpCfgID := &query.HPCfgID{IA: addr.IA{}}
 		err = rows.Scan(&segRowID, &rawSeg, &hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID)
 		if err != nil {
 			return nil, common.NewBasicError("Error reading DB response", err)

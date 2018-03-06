@@ -93,8 +93,8 @@ var (
 func Test_ParseScnPkt(t *testing.T) {
 	Convey("ScnPkt.Parse should load values correctly", t, func() {
 		s := &spkt.ScnPkt{
-			DstIA: &addr.ISD_AS{},
-			SrcIA: &addr.ISD_AS{},
+			DstIA: addr.IA{},
+			SrcIA: addr.IA{},
 		}
 		err := ParseScnPkt(s, common.RawBytes(testParsePkt))
 
@@ -130,8 +130,8 @@ func Test_ParseScnPkt(t *testing.T) {
 func Test_ParseSCMP(t *testing.T) {
 	Convey("ScnPkt.Parse should load SCMP values correctly", t, func() {
 		s := &spkt.ScnPkt{
-			DstIA: &addr.ISD_AS{},
-			SrcIA: &addr.ISD_AS{},
+			DstIA: addr.IA{},
+			SrcIA: addr.IA{},
 			Path:  &spath.Path{},
 		}
 		err := ParseScnPkt(s, common.RawBytes(testParseSCMP))
@@ -159,8 +159,8 @@ func Test_ParseSCMP(t *testing.T) {
 func Test_ScnPkt_Write(t *testing.T) {
 	Convey("ScnPkt.Write should write values correctly", t, func() {
 		s := &spkt.ScnPkt{
-			DstIA: &addr.ISD_AS{},
-			SrcIA: &addr.ISD_AS{},
+			DstIA: addr.IA{},
+			SrcIA: addr.IA{},
 			Path:  &spath.Path{},
 		}
 		s.DstIA, _ = addr.IAFromString("42-1")

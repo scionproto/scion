@@ -31,7 +31,7 @@ type ChainReq struct {
 	CacheOnly bool
 }
 
-func (c *ChainReq) IA() *addr.ISD_AS {
+func (c *ChainReq) IA() addr.IA {
 	return c.RawIA.IA()
 }
 

@@ -135,7 +135,7 @@ type Interface struct {
 	// of the link.
 	RemoteAddr *topology.AddrInfo
 	// RemoteIA is the ISD-AS of the other end of the link.
-	RemoteIA *addr.ISD_AS
+	RemoteIA addr.IA
 	// BW is the bandwidth of the link.
 	BW int
 	// MTU is the maximum packet size allowed on the link, in bytes.
