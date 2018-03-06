@@ -33,9 +33,8 @@ const (
 	CoreAsSectionName = "Core AS Certificate"
 )
 
-// conf holds the parameters that are used to create certs.
+// Cert holds the parameters that are used to create certs.
 type Cert struct {
-	CanIssue      bool
 	Comment       string
 	EncAlgorithm  string
 	SignAlgorithm string
@@ -81,9 +80,9 @@ func (c *Cert) validate() error {
 	return nil
 }
 
-func NewTemplateCertConf(subject *addr.ISD_AS, canIssue bool) *Cert {
+func NewTemplateCertConf(subject *addr.ISD_AS, core bool, trcVer uint64) *Cert {
 	issuer := &addr.ISD_AS{}
-	if canIssue {
+	if core {
 		issuer = subject
 	}
 	return &Cert{
@@ -93,8 +92,8 @@ func NewTemplateCertConf(subject *addr.ISD_AS, canIssue bool) *Cert {
 		SignAlgorithm: "ed25519",
 		IssuerIA:      issuer,
 		Issuer:        issuer.String(),
-		CanIssue:      canIssue,
 		Version:       1,
+		TRCVersion:    trcVer,
 	}
 }
 
@@ -143,11 +142,11 @@ func (a *As) SaveTo(path string, force bool) error {
 	return nil
 }
 
-func NewTemplateAsConf(subject *addr.ISD_AS, core bool) *As {
+func NewTemplateAsConf(subject *addr.ISD_AS, core bool, trcVer uint64) *As {
 	a := &As{IsCore: core}
-	a.C = NewTemplateCertConf(subject, false)
+	a.C = NewTemplateCertConf(subject, false, trcVer)
 	if core {
-		a.CC = NewTemplateCertConf(subject, true)
+		a.CC = NewTemplateCertConf(subject, true, trcVer)
 	}
 	return a
 }

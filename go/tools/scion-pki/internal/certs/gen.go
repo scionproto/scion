@@ -39,35 +39,35 @@ func runGenCert(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	isdDirs, asDirs, err := pkicmn.ProcessSelector(args[0])
+	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
-	for i, isdDir := range isdDirs {
-		tconf, err := conf.LoadTrcConf(isdDir)
+	for isd, ases := range asMap {
+		tconf, err := conf.LoadTrcConf(pkicmn.GetIsdPath(isd))
 		if err != nil {
 			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
 		}
-		cores, ases := pkicmn.FilterASDirs(asDirs[i], tconf.CoreIAs)
-		for _, dir := range cores {
-			if err = genCert(dir, true); err != nil {
-				base.ErrorAndExit("Error generating %s: %s\n",
-					filepath.Join(dir, conf.AsConfFileName), err)
+		nonCores := pkicmn.FilterAses(ases, tconf.CoreIAs)
+		for _, cia := range tconf.CoreIAs {
+			if err = genCert(cia, true); err != nil {
+				base.ErrorAndExit("Error generating cert for %s: %s\n", cia, err)
 			}
 		}
-		for _, dir := range ases {
-			if err = genCert(dir, false); err != nil {
-				base.ErrorAndExit("Error generating %s: %s\n",
-					filepath.Join(dir, conf.AsConfFileName), err)
+		for _, ia := range nonCores {
+			if err = genCert(ia, false); err != nil {
+				base.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
 			}
 		}
 	}
+	os.Exit(0)
 }
 
-func genCert(dir string, core bool) error {
+func genCert(ia *addr.ISD_AS, core bool) error {
 	var err error
+	dir := pkicmn.GetAsPath(ia)
 	// Check that as.ini exists, otherwise skip directory.
 	cpath := filepath.Join(dir, conf.AsConfFileName)
 	if _, err = os.Stat(cpath); os.IsNotExist(err) {
@@ -121,7 +121,7 @@ func genCert(dir string, core bool) error {
 
 func genCertCommon(conf *conf.Cert, signKeyFname string) (*cert.Certificate, error) {
 	// Load signing and decryption keys that will be in the certificate.
-	keyDir := filepath.Join(pkicmn.GetPath(conf.SubjectIA), "keys")
+	keyDir := filepath.Join(pkicmn.GetAsPath(conf.SubjectIA), "keys")
 	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname))
 	if err != nil {
 		return nil, err
@@ -139,7 +139,6 @@ func genCertCommon(conf *conf.Cert, signKeyFname string) (*cert.Certificate, err
 	issuingTime := uint64(time.Now().Unix())
 	expirationTime := issuingTime + conf.Validity*24*60*60
 	c := &cert.Certificate{
-		CanIssue:       conf.CanIssue,
 		Comment:        conf.Comment,
 		SubjectSignKey: signPub,
 		SignAlgorithm:  conf.SignAlgorithm,
@@ -162,6 +161,7 @@ func genCoreASCert(conf *conf.Cert) (*cert.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.CanIssue = true
 	if c.Comment == "" {
 		c.Comment = fmt.Sprintf("Core AS Certificate for %s version %d.", c.Subject, c.Version)
 	}
@@ -170,7 +170,7 @@ func genCoreASCert(conf *conf.Cert) (*cert.Certificate, error) {
 		return nil, common.NewBasicError("Subject must match Issuer for Core AS cert.", nil,
 			"subject", c.Subject, "issuer", c.Issuer)
 	}
-	issuerKeyPath := filepath.Join(pkicmn.GetPath(c.Issuer), "keys", trust.OnKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(c.Issuer), "keys", trust.OnKeyFile)
 	// Load online root key to sign the certificate.
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
@@ -190,6 +190,7 @@ func genASCert(conf *conf.Cert, issuerCert *cert.Certificate) (*cert.Chain, erro
 	if err != nil {
 		return nil, err
 	}
+	c.CanIssue = false
 	if c.Comment == "" {
 		c.Comment = fmt.Sprintf("AS Certificate for %s version %d.", c.Subject, c.Version)
 	}
@@ -198,7 +199,7 @@ func genASCert(conf *conf.Cert, issuerCert *cert.Certificate) (*cert.Chain, erro
 		return nil, common.NewBasicError("Issuer cert not authorized to issue new certs.", nil,
 			"issuer", c.Issuer)
 	}
-	issuerKeyPath := filepath.Join(pkicmn.GetPath(issuerCert.Issuer), "keys", trust.CoreSigKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), "keys", trust.CoreSigKeyFile)
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
 		return nil, err
@@ -226,7 +227,7 @@ func genASCert(conf *conf.Cert, issuerCert *cert.Certificate) (*cert.Chain, erro
 // getIssuerCert returns the newest core certificate of issuer (if any).
 func getIssuerCert(issuer *addr.ISD_AS) (*cert.Certificate, error) {
 	fnames, err := filepath.Glob(fmt.Sprintf("%s/*.crt",
-		filepath.Join(pkicmn.GetPath(issuer), "certs")))
+		filepath.Join(pkicmn.GetAsPath(issuer), "certs")))
 	if err != nil {
 		return nil, err
 	}

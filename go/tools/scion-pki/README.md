@@ -21,19 +21,19 @@ necessary keys, certificates, TRCs, and configuration files needed for the gener
 entities.
 The expected structure is the following:
 ```
-	<root>/
-		ISD1/
-			isd.ini
-			AS1/
-				as.ini
-				certs/
-				keys/
-			AS2/
-			...
-		ISD2/
-			AS1/
-			...
-		...
+    <root>/
+        ISD1/
+            isd.ini
+            AS1/
+                as.ini
+                certs/
+                keys/
+            AS2/
+            ...
+        ISD2/
+            AS1/
+            ...
+        ...
 ```
 Thus, the first step is to generate the appropriate directory structure. Lets assume for this
 example that `<root>` is the current directory, i.e., `.`.
@@ -44,7 +44,7 @@ example that `<root>` is the current directory, i.e., `.`.
 
 The next step is to create all the necessary isd.ini files. We can generate templates with
 
-`scion-pki trc template '1-*'`
+`scion-pki tmpl isd '1-*'`
 
 to generate a template config file in `ISD1/isd.ini`. Now, we can adjust the values in 
 `ISD1/isd.ini`until they look like this:
@@ -63,14 +63,13 @@ Refer to `scion-pki help trc` for documentation on all available parameters.
 
 Now we are ready to generate all as.ini files. Again, templates can be generated using
 
-`scion-pki certs template '1-*'`
+`scion-pki tmpl as '1-*'`
 
 Below are examples for `ISD1/AS1/as.ini` and `ISD1/AS12/as.ini`
 ```
 core = true
 
 [AS Certificate]
-CanIssue      = false
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
 Subject       = 1-1
@@ -80,7 +79,6 @@ Version       = 1
 Validity      = 3
 
 [Core AS Certificate]
-CanIssue      = true
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
 Subject       = 1-1
@@ -94,7 +92,6 @@ Validity      = 7
 core = false
 
 [AS Certificate]
-CanIssue      = false
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
 Subject       = 1-12
