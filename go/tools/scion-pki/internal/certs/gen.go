@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/curve25519"
@@ -31,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/keys"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
@@ -40,102 +39,89 @@ func runGenCert(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := pkicmn.ProcessSelector(args[0], args[1:], false)
+	isdDirs, asDirs, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
-	// In the first walk, only process core ASes under <top>/
-	if err := filepath.Walk(top, getWalker(true)); err != nil && err != filepath.SkipDir {
-		base.ErrorAndExit("%s\n", err)
-	}
-	// In the second walk, process everything that hasn't been processed yet under <top>/
-	if err := filepath.Walk(top, getWalker(false)); err != nil && err != filepath.SkipDir {
-		base.ErrorAndExit("%s\n", err)
+	for i, isdDir := range isdDirs {
+		tconf, err := conf.LoadTrcConf(isdDir)
+		if err != nil {
+			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
+		}
+		cores, ases := pkicmn.FilterASDirs(asDirs[i], tconf.CoreIAs)
+		for _, dir := range cores {
+			if err = genCert(dir, true); err != nil {
+				base.ErrorAndExit("Error generating %s: %s\n",
+					filepath.Join(dir, conf.AsConfFileName), err)
+			}
+		}
+		for _, dir := range ases {
+			if err = genCert(dir, false); err != nil {
+				base.ErrorAndExit("Error generating %s: %s\n",
+					filepath.Join(dir, conf.AsConfFileName), err)
+			}
+		}
 	}
 }
 
-func getWalker(core bool) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, visitError error) error {
-		if visitError != nil {
-			return visitError
-		}
-		// If not an AS directory, keep walking.
-		if !info.IsDir() || !strings.HasPrefix(info.Name(), "AS") {
-			return nil
-		}
-		var err error
-		// Check that cert.ini exists, otherwise skip directory.
-		cpath := filepath.Join(path, confFile)
-		if _, err = os.Stat(cpath); os.IsNotExist(err) {
-			return filepath.SkipDir
-		}
-		// Check that core-cert.ini exists, otherwise skip directory if walking core ASes.
-		ccpath := filepath.Join(path, coreConfFile)
-		if _, err = os.Stat(ccpath); os.IsNotExist(err) && core {
-			return filepath.SkipDir
-		}
-		// Skip AS if we are processing the non-core ASes and there is a core-cert.ini
-		if err == nil && !core {
-			return filepath.SkipDir
-		}
-		conf, err := loadCertConf(cpath)
-		if err != nil {
-			return common.NewBasicError("Error loading cert.ini", err, "path", cpath)
-		}
-		fmt.Println("Generating Certificate Chain for", conf.Subject)
-		// Generate keys if specified
-		if genKeys {
-			fmt.Println("Generating keys for", conf.Subject)
-			err = keys.GenAll(filepath.Join(path, "keys"), core)
-			if err != nil {
-				return err
-			}
-		}
-		// If we are core then we need to generate a core AS cert first.
-		var issuerCert *cert.Certificate
-		if core {
-			issuerCert, err = genIssuerCert(conf.issuerIA, ccpath)
-		} else {
-			issuerCert, err = getIssuerCert(conf.issuerIA)
-		}
-		if err != nil {
-			return err
-		}
-		if issuerCert == nil {
-			return common.NewBasicError("Issuer cert not found", err, "issuer", conf.Issuer)
-		}
-		// Generate the AS certificate chain.
-		chain, err := genASCert(conf, issuerCert)
-		if err != nil {
-			return common.NewBasicError("Error generating cert", err, "subject", conf.Subject)
-		}
-		// Check if out directory exists and if not create it.
-		dir := filepath.Join(path, "certs")
-		if _, err = os.Stat(dir); os.IsNotExist(err) {
-			if err = os.MkdirAll(dir, 0755); err != nil {
-				return common.NewBasicError("Cannot create output dir", err, "path", path)
-			}
-		}
-		// Write the cert to disk.
-		subject := chain.Leaf.Subject
-		fname := fmt.Sprintf(pkicmn.CertNameFmt, subject.I, subject.A, chain.Leaf.Version)
-		raw, err := chain.JSON(true)
-		if err != nil {
-			return common.NewBasicError("Error json-encoding cert", err, "subject", conf.Subject)
-		}
-		if err = pkicmn.WriteToFile(raw, filepath.Join(dir, fname), 0644); err != nil {
-			return common.NewBasicError("Error writing cert", err, "subject", conf.Subject)
-		}
-		// Skip the rest of this directory.
-		return filepath.SkipDir
+func genCert(dir string, core bool) error {
+	var err error
+	// Check that as.ini exists, otherwise skip directory.
+	cpath := filepath.Join(dir, conf.AsConfFileName)
+	if _, err = os.Stat(cpath); os.IsNotExist(err) {
+		return nil
 	}
+	a, err := conf.LoadAsConf(dir)
+	if err != nil {
+		return common.NewBasicError("Error loading as.ini", err, "path", cpath)
+	}
+	if core && a.CC == nil {
+		return common.NewBasicError("'%s' section missing from as.ini", nil, "path", cpath)
+	}
+	fmt.Println("Generating Certificate Chain for", a.C.Subject)
+	// If we are core then we need to generate a core AS cert first.
+	var issuerCert *cert.Certificate
+	if core {
+		issuerCert, err = genCoreASCert(a.CC)
+	} else {
+		issuerCert, err = getIssuerCert(a.C.IssuerIA)
+	}
+	if err != nil {
+		return common.NewBasicError("Error loading issuer cert", err, "subject", a.C.Subject)
+	}
+	if issuerCert == nil {
+		return common.NewBasicError("Issuer cert not found", err, "issuer", a.C.Issuer)
+	}
+	// Generate the AS certificate chain.
+	chain, err := genASCert(a.C, issuerCert)
+	if err != nil {
+		return common.NewBasicError("Error generating cert", err, "subject", a.C.Subject)
+	}
+	// Check if out directory exists and if not create it.
+	out := filepath.Join(dir, "certs")
+	if _, err = os.Stat(out); os.IsNotExist(err) {
+		if err = os.MkdirAll(out, 0755); err != nil {
+			return common.NewBasicError("Cannot create output dir", err, "dir", out)
+		}
+	}
+	// Write the cert to disk.
+	subject := chain.Leaf.Subject
+	fname := fmt.Sprintf(pkicmn.CertNameFmt, subject.I, subject.A, chain.Leaf.Version)
+	raw, err := chain.JSON(true)
+	if err != nil {
+		return common.NewBasicError("Error json-encoding cert", err, "subject", a.C.Subject)
+	}
+	if err = pkicmn.WriteToFile(raw, filepath.Join(out, fname), 0644); err != nil {
+		return common.NewBasicError("Error writing cert", err, "subject", a.C.Subject)
+	}
+	return nil
 }
 
-func genCertCommon(conf *certConf, signKeyFname string) (*cert.Certificate, error) {
+func genCertCommon(conf *conf.Cert, signKeyFname string) (*cert.Certificate, error) {
 	// Load signing and decryption keys that will be in the certificate.
-	keyDir := filepath.Join(pkicmn.GetPath(conf.subjectIA), "keys")
+	keyDir := filepath.Join(pkicmn.GetPath(conf.SubjectIA), "keys")
 	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname))
 	if err != nil {
 		return nil, err
@@ -159,8 +145,8 @@ func genCertCommon(conf *certConf, signKeyFname string) (*cert.Certificate, erro
 		SignAlgorithm:  conf.SignAlgorithm,
 		SubjectEncKey:  decPub[:],
 		EncAlgorithm:   conf.EncAlgorithm,
-		Issuer:         conf.issuerIA,
-		Subject:        conf.subjectIA,
+		Issuer:         conf.IssuerIA,
+		Subject:        conf.SubjectIA,
 		IssuingTime:    issuingTime,
 		ExpirationTime: expirationTime,
 		Version:        conf.Version,
@@ -171,7 +157,7 @@ func genCertCommon(conf *certConf, signKeyFname string) (*cert.Certificate, erro
 }
 
 // genCoreASCert generates a new core AS certificate according to conf.
-func genCoreASCert(conf *certConf) (*cert.Certificate, error) {
+func genCoreASCert(conf *conf.Cert) (*cert.Certificate, error) {
 	c, err := genCertCommon(conf, trust.CoreSigKeyFile)
 	if err != nil {
 		return nil, err
@@ -199,7 +185,7 @@ func genCoreASCert(conf *certConf) (*cert.Certificate, error) {
 }
 
 // genASCert generates a new AS certificate according to 'conf'.
-func genASCert(conf *certConf, issuerCert *cert.Certificate) (*cert.Chain, error) {
+func genASCert(conf *conf.Cert, issuerCert *cert.Certificate) (*cert.Chain, error) {
 	c, err := genCertCommon(conf, trust.SigKeyFile)
 	if err != nil {
 		return nil, err
@@ -257,18 +243,6 @@ func getIssuerCert(issuer *addr.ISD_AS) (*cert.Certificate, error) {
 		if issuerCert == nil || chain.Core.Version > issuerCert.Version {
 			issuerCert = chain.Core
 		}
-	}
-	return issuerCert, nil
-}
-
-func genIssuerCert(issuer *addr.ISD_AS, ccpath string) (*cert.Certificate, error) {
-	coreConf, err := loadCertConf(ccpath)
-	if err != nil {
-		return nil, common.NewBasicError("Error loading core-cert.ini", err, "subject", issuer)
-	}
-	issuerCert, err := genCoreASCert(coreConf)
-	if err != nil {
-		return nil, common.NewBasicError("Error generating core AS cert", err, "subject", issuer)
 	}
 	return issuerCert, nil
 }

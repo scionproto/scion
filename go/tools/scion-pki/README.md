@@ -16,16 +16,16 @@ ISD 1 contains the following ASes:
 
 ### Setting up the directory structure
 
-`scion-pki` works on a root directory `<root>` that where it will put and look for all the necessary
-keys, certificates, TRCs, and configuration files needed for the generation of the PKI entities.
+`scion-pki` works on a root directory `<root>` that where it will put and look for all the 
+necessary keys, certificates, TRCs, and configuration files needed for the generation of the PKI 
+entities.
 The expected structure is the following:
 ```
 	<root>/
 		ISD1/
-			trc.ini
+			isd.ini
 			AS1/
-				cert.ini
-				[core-cert.ini]
+				as.ini
 				certs/
 				keys/
 			AS2/
@@ -35,34 +35,19 @@ The expected structure is the following:
 			...
 		...
 ```
-Thus, the first step is to generate the appropriate directory structure. Lets assume for this example
-that `<root>` is the current directory, i.e., `.`.
+Thus, the first step is to generate the appropriate directory structure. Lets assume for this
+example that `<root>` is the current directory, i.e., `.`.
 
 `mkdir -p ISD1/AS{1,2,3,11,12,13}`
 
-### Generating the keys
+### Creating the configuration files
 
-Now that we have the necessary directory structure in place (`keys` and `certs` directories will be generated
-on demand by `scion-pki`), we can generate the keys. First we will generate all keys for the core
-ASes.
+The next step is to create all the necessary isd.ini files. We can generate templates with
 
-`scion-pki keys gen -all -core 1-1; scion-pki keys gen -all -core 1-2; scion-pki keys gen -all -core 1-3`
+`scion-pki trc template '1-*'`
 
-The next step is to generate all the keys for the non-core ASes. For this we simply run
-
-`scion-pki keys gen -all 1-*`
-
-since `scion-pki` won't overwrite already existing keys (unless instructed to with `-f`).
-
-### Generating the TRC
-
-Now that we have generated all the keys, we can generate a TRC. For this, we first need to create 
-a `trc.ini` that is used by `scion-pki trc gen` to generate a TRC. We can used
-
-`scion-pki trc template 1-*`
-
-to generate a template config file in `ISD1/trc.ini`. Now, we can adjust the values in `ISD1/trc.ini`
-until they look like this:
+to generate a template config file in `ISD1/isd.ini`. Now, we can adjust the values in 
+`ISD1/isd.ini`until they look like this:
 
 ```
 Isd = 1
@@ -76,26 +61,25 @@ Validity = 365
 
 Refer to `scion-pki help trc` for documentation on all available parameters.
 
-To generate the TRC, we can run
+Now we are ready to generate all as.ini files. Again, templates can be generated using
 
-`scion-pki trc gen 1-*`
+`scion-pki certs template '1-*'`
 
-which will output the result to `ISD1/ISD1-V1.trc`.
-
-### Generating the certificates
-
-To generate the certificates for each AS, `scion-pki certs gen` expects a `cert.ini` and for core
-ASes additionally a `core-cert.ini` containing the parameters used to generate the certificate.
-
-Again, `scion-pki` can generate templates for us:
-
-`scion-pki certs template 1-*`
-
-`scion-pki certs template -core 1-1; scion-pki certs template -core 1-2; scion-pki certs template -core 1-3`
-
-Below are two examples for `ISD1/AS1/core-cert.ini` and `ISD1/AS12/cert.ini`
-
+Below are examples for `ISD1/AS1/as.ini` and `ISD1/AS12/as.ini`
 ```
+core = true
+
+[AS Certificate]
+CanIssue      = false
+EncAlgorithm  = curve25519xsalsa20poly1305
+SignAlgorithm = ed25519
+Subject       = 1-1
+Issuer        = 1-1
+TRCVersion    = 1
+Version       = 1
+Validity      = 3
+
+[Core AS Certificate]
 CanIssue      = true
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
@@ -107,6 +91,9 @@ Validity      = 7
 ```
 
 ```
+core = false
+
+[AS Certificate]
 CanIssue      = false
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
@@ -119,7 +106,18 @@ Validity      = 3
 
 Refer to `scion-pki help certs` for documentation on all available parameters.
 
-We can now finally generate all certificates:
+### Generating the keys, the TRC, and the certificates
+
+Now that we have the necessary config files and the directory structure in place (`keys` and
+`certs` directories will be generated on demand by `scion-pki`), we can generate the keys. 
+
+`scion-pki keys gen 1-*`
+
+the TRC
+
+`scion-pki trc gen 1-*`
+
+and the certificates
 
 `scion-pki certs gen 1-*`
 

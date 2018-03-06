@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
@@ -38,65 +39,35 @@ func runGenKey(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := pkicmn.ProcessSelector(args[0], args[1:], false)
+	_, asDirs, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
-	if err := filepath.Walk(top, visitKeys); err != nil && err != filepath.SkipDir {
-		base.ErrorAndExit("%s\n", err)
+	for _, dirs := range asDirs {
+		for _, dir := range dirs {
+			if err = genKeys(dir); err != nil {
+				base.ErrorAndExit("Error generating keys: %s\n", err)
+			}
+		}
 	}
 	os.Exit(0)
 }
 
-func visitKeys(path string, info os.FileInfo, visitError error) error {
-	if visitError != nil {
-		return visitError
-	}
-	if !info.IsDir() || !strings.HasPrefix(info.Name(), "AS") {
+func genKeys(dir string) error {
+	// Check if as.ini exists, otherwise skip dir.
+	cname := filepath.Join(dir, conf.AsConfFileName)
+	if _, err := os.Stat(cname); os.IsNotExist(err) {
+		fmt.Printf("%s does not exists. Skipping %s.\n", conf.AsConfFileName, dir)
 		return nil
 	}
-	ia, err := pkicmn.GetIAFromPath(path)
+	// Load as.ini
+	a, err := conf.LoadAsConf(dir)
 	if err != nil {
-		return common.NewBasicError("Invalid path", nil, "path", path)
+		return err
 	}
-	fmt.Println("Generating keys for", ia)
-	kpath := filepath.Join(path, "keys")
-	if all {
-		return GenAll(kpath, core)
-	}
-	if sign {
-		if err := GenKey(trust.SigKeyFile, kpath, genSignKey, true); err != nil {
-			return err
-		}
-	}
-	if coreSign {
-		if err := GenKey(trust.CoreSigKeyFile, kpath, genSignKey, true); err != nil {
-			return err
-		}
-	}
-	if dec {
-		if err := GenKey(trust.DecKeyFile, kpath, genEncKey, true); err != nil {
-			return err
-		}
-	}
-	if online {
-		if err := GenKey(trust.OnKeyFile, kpath, genSignKey, false); err != nil {
-			return err
-		}
-	}
-	if offline {
-		if err := GenKey(trust.OffKeyFile, kpath, genSignKey, false); err != nil {
-			return err
-		}
-	}
-	if master {
-		if err := GenKey(masterKeyFname, kpath, genMasterKey, false); err != nil {
-			return err
-		}
-	}
-	return filepath.SkipDir
+	return GenAll(filepath.Join(dir, "keys"), a.IsCore)
 }
 
 type keyGenFunc func(io.Reader) ([]byte, error)

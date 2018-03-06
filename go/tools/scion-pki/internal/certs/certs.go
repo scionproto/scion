@@ -38,17 +38,13 @@ Subcommands:
 	renew (NOT IMPLEMENTED)
 		Used to renew existing certificates.
 	template
-		Used to generate cert.ini (core-cert.ini if -core supplied) template configuration files.
+		Used to generate as.ini (core-as.ini if -core supplied) template configuration files.
 	clean (NOT IMPLEMENTED)
 		Used to clean the PKI root directory.
 
 Flags:
 	-d
 		The root directory of all certificates and keys (default '.')
-	-genkeys
-		Generate also keys in addition to certificates.
-	-core
-		Used with 'template' to generate a core-cert.ini
 	-f
 		Overwrite existing certificates (and keys if -genkeys is specified).
 	-verify (default TRUE)
@@ -68,8 +64,7 @@ a predefined structure:
 	<root>/
 		ISD1/
 			AS1/
-				cert.ini
-				[core-cert.ini]
+				as.ini
 				certs/
 				keys/
 			AS2/
@@ -79,9 +74,11 @@ a predefined structure:
 			...
 		...
 
-(core-)cert.ini contains the preconfigured parameters according to which 'certs' generates
-the certificates. It follows the ini format and can contain only the default section with
-the following values:
+as.ini contains the preconfigured parameters according to which 'certs' generates
+the certificates. It follows the ini format and has a top-level attribute "core = (true|false)"
+that indicates whether this AS is a core AS or not. Furthermore, as.ini must contain a 
+"AS Certificate" section and in case of core==true also a "Core AS Certificate" section
+that can contain the following values:
 	Subject [required]
 		string representing the entity that owns the certificate and the corresponding
 		key pair. An AS is represented as a string ISD-AS (e.g., 1-11).

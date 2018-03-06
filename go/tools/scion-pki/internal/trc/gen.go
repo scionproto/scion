@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"golang.org/x/crypto/ed25519"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
@@ -36,31 +36,32 @@ func runGenTrc(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := pkicmn.ProcessSelector(args[0], args[1:], true)
+	isdDirs, _, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
-	if err := filepath.Walk(top, visitTrc); err != nil && err != filepath.SkipDir {
-		base.ErrorAndExit("%s\n", err)
+	for _, dir := range isdDirs {
+		if err = genTrc(dir); err != nil {
+			base.ErrorAndExit("Error generating TRC: %s\n", err)
+		}
 	}
 	os.Exit(0)
 }
 
-func visitTrc(path string, info os.FileInfo, visitError error) error {
-	if visitError != nil {
-		return visitError
-	}
-	if !info.IsDir() || !strings.HasPrefix(info.Name(), "ISD") {
+func genTrc(dir string) error {
+	// Check that isd.ini exists, otherwise skip directory.
+	cpath := filepath.Join(dir, conf.TrcConfFileName)
+	if _, err := os.Stat(cpath); os.IsNotExist(err) {
 		return nil
 	}
-	conf, err := loadTrcConf(filepath.Join(path, trcConfFile))
+	tconf, err := conf.LoadTrcConf(dir)
 	if err != nil {
 		return common.NewBasicError("Error loading TRC conf", err)
 	}
-	fmt.Printf("Generating TRC for ISD %d\n", conf.Isd)
-	t, err := genTrc(conf, path)
+	fmt.Printf("Generating TRC for ISD %d\n", tconf.Isd)
+	t, err := newTrc(tconf, dir)
 	if err != nil {
 		return err
 	}
@@ -68,22 +69,19 @@ func visitTrc(path string, info os.FileInfo, visitError error) error {
 	if err != nil {
 		return common.NewBasicError("Error json-encoding TRC", err)
 	}
-	fname := fmt.Sprintf(pkicmn.TrcNameFmt, conf.Isd, conf.Version)
-	if err = pkicmn.WriteToFile(raw, filepath.Join(path, fname), 0644); err != nil {
-		return err
-	}
-	return filepath.SkipDir
+	fname := fmt.Sprintf(pkicmn.TrcNameFmt, tconf.Isd, tconf.Version)
+	return pkicmn.WriteToFile(raw, filepath.Join(dir, fname), 0644)
 }
 
-func genTrc(conf *trcConf, path string) (*trc.TRC, error) {
+func newTrc(tconf *conf.Trc, path string) (*trc.TRC, error) {
 	t := &trc.TRC{
-		CreationTime:   conf.IssuingTime,
-		Description:    conf.Description,
-		ExpirationTime: conf.IssuingTime + conf.Validity*24*60*60,
-		GracePeriod:    conf.GracePeriod,
-		ISD:            conf.Isd,
-		QuorumTRC:      conf.QuorumTRC,
-		Version:        conf.Version,
+		CreationTime:   tconf.IssuingTime,
+		Description:    tconf.Description,
+		ExpirationTime: tconf.IssuingTime + tconf.Validity*24*60*60,
+		GracePeriod:    tconf.GracePeriod,
+		ISD:            tconf.Isd,
+		QuorumTRC:      tconf.QuorumTRC,
+		Version:        tconf.Version,
 		CoreASes:       make(map[addr.ISD_AS]*trc.CoreAS),
 		Signatures:     make(map[string]common.RawBytes),
 		RAINS:          &trc.Rains{},
@@ -92,7 +90,7 @@ func genTrc(conf *trcConf, path string) (*trc.TRC, error) {
 	}
 	// Load the online/offline root keys.
 	var ases []coreAS
-	for _, cia := range conf.CoreIAs {
+	for _, cia := range tconf.CoreIAs {
 		var as coreAS
 		as.IA = *cia
 		online, err := trust.LoadKey(filepath.Join(pkicmn.GetPath(cia), "keys", trust.OnKeyFile))

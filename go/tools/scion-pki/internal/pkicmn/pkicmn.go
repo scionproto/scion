@@ -43,34 +43,63 @@ var (
 
 // ProcessSelector processes the given selector and returns the top level directory
 // to which the requested operation should be applied.
-func ProcessSelector(option string, args []string, isdOnly bool) (string, error) {
-	toks := strings.Split(option, "-")
+func ProcessSelector(selector string) ([]string, [][]string, error) {
+	toks := strings.Split(selector, "-")
 	if len(toks) != 2 {
-		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
+		return nil, nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
 	}
 	isdTok := toks[0]
 	asTok := toks[1]
-	if isdTok == "*" {
-		if asTok != "*" {
-			return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
+	// Sanity check selector.
+	if isdTok == "*" && asTok != "*" {
+		return nil, nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
+	}
+	if isdTok != "*" {
+		if _, err := strconv.ParseUint(isdTok, 10, 12); err != nil {
+			return nil, nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
-		return RootDir, nil
 	}
-	isd, err := strconv.Atoi(isdTok)
+	if asTok != "*" {
+		if _, err := strconv.ParseUint(asTok, 10, 20); err != nil {
+			return nil, nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
+		}
+	}
+	absRoot, err := filepath.Abs(RootDir)
 	if err != nil {
-		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
+		return nil, nil, err
 	}
-	if asTok == "*" {
-		return filepath.Join(RootDir, fmt.Sprintf("ISD%d", isd)), nil
-	}
-	if isdOnly {
-		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
-	}
-	as, err := strconv.Atoi(asTok)
+	isdGlob := fmt.Sprintf("ISD%s", isdTok)
+	isdDirs, err := filepath.Glob(filepath.Join(absRoot, isdGlob))
 	if err != nil {
-		return "", common.NewBasicError(ErrInvalidSelector, nil, "selector", option)
+		return nil, nil, err
 	}
-	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", isd, as)), nil
+	var asDirs [][]string
+	for _, dir := range isdDirs {
+		asGlob := fmt.Sprintf("%s/AS%s", filepath.Base(dir), asTok)
+		dirs, err := filepath.Glob(filepath.Join(absRoot, asGlob))
+		if err != nil {
+			return nil, nil, err
+		}
+		asDirs = append(asDirs, dirs)
+	}
+	return isdDirs, asDirs, nil
+}
+
+// FilterASDirs takes a list of paths and returns a list of paths corresponding to core ASes
+// and a list of paths for all remaining ASes.
+func FilterASDirs(asDirs []string, cores []*addr.ISD_AS) ([]string, []string) {
+	var cdirs, dirs []string
+OUTER:
+	for _, dir := range asDirs {
+		for _, cia := range cores {
+			if dir == GetPath(cia) {
+				cdirs = append(cdirs, dir)
+				continue OUTER
+			}
+		}
+		dirs = append(dirs, dir)
+	}
+	return cdirs, dirs
 }
 
 func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
@@ -89,7 +118,11 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 }
 
 func GetPath(ia *addr.ISD_AS) string {
-	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
+	absRoot, err := filepath.Abs(RootDir)
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(absRoot, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
 }
 
 func GetIAFromPath(path string) (*addr.ISD_AS, error) {

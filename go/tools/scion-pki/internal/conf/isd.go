@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trc
+package conf
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -25,21 +27,21 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-const trcConfFile = "trc.ini"
+const TrcConfFileName = "isd.ini"
 
-// trcConf holds the parameters that are used to generate a TRC.
-type trcConf struct {
+// Trc holds the parameters that are used to generate a Trc.
+type Trc struct {
 	Isd         uint16
 	Description string
 	Version     uint64
 	IssuingTime uint64
 	Validity    uint64
-	CoreIAs     []*addr.ISD_AS
+	CoreIAs     []*addr.ISD_AS `ini:"-"`
 	GracePeriod uint64
 	QuorumTRC   uint32
 }
 
-func (t *trcConf) validate() error {
+func (t *Trc) validate() error {
 	if t.Isd == 0 {
 		return newValidationError("Isd")
 	}
@@ -59,7 +61,7 @@ func (t *trcConf) validate() error {
 		}
 	}
 	if t.QuorumTRC == 0 {
-		return newValidationError("QuorumTRC")
+		return newValidationError("QuorumTrc")
 	}
 	if int(t.QuorumTRC) > len(t.CoreIAs) {
 		return common.NewBasicError("QuorumTRC > # core ASes", nil)
@@ -67,13 +69,36 @@ func (t *trcConf) validate() error {
 	return nil
 }
 
-func loadTrcConf(cname string) (*trcConf, error) {
+func (t *Trc) SaveTo(path string, force bool) error {
+	// Check if file exists and do not override without -f
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			fmt.Printf("%s already exists. Use -f to overwrite.\n", path)
+			return nil
+		}
+	}
+	iniCfg := ini.Empty()
+	if err := ini.ReflectFrom(iniCfg, t); err != nil {
+		return err
+	}
+	if _, err := iniCfg.Section("").NewKey("CoreASes", "0-0,0-0"); err != nil {
+		return err
+	}
+	if err := iniCfg.SaveTo(path); err != nil {
+		return err
+	}
+	fmt.Println("Successfully written", path)
+	return nil
+}
+
+func LoadTrcConf(dir string) (*Trc, error) {
+	cname := filepath.Join(dir, TrcConfFileName)
 	cfg, err := ini.Load(cname)
 	if err != nil {
 		return nil, err
 	}
 	section := cfg.Section("")
-	t := &trcConf{}
+	t := &Trc{}
 	if err = section.MapTo(t); err != nil {
 		return nil, err
 	}
@@ -97,8 +122,4 @@ func loadTrcConf(cname string) (*trcConf, error) {
 		return nil, err
 	}
 	return t, nil
-}
-
-func newValidationError(param string) error {
-	return common.NewBasicError(fmt.Sprintf("Parameter '%s' not set.", param), nil)
 }
