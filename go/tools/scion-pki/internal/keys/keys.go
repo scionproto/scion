@@ -48,22 +48,7 @@ Flags:
 	-d
 		The root directory of all certificates and keys (default '.')
 	-f
-		Overwrite existing keys.
-	-core
-		Used with -all to generate core keys types as well.
-	-all
-		Generate all keys.
-	-sign
-		Generate the AS signing key.
-	-dec
-		Generate the AS decryption key.
-	-online
-		Generate the AS online root key.
-	-offline
-		Generate the AS offline root key.
-	-master
-		Generate the AS master key.
-
+		Overwrite existing keys.	
 Selector:
 	*-*
 		All ISDs and ASes under the root directory.
@@ -74,28 +59,9 @@ Selector:
 `,
 }
 
-var (
-	core     bool
-	all      bool
-	dec      bool
-	sign     bool
-	coreSign bool
-	online   bool
-	offline  bool
-	master   bool
-)
-
 func init() {
 	CmdKeys.Flag.StringVar(&pkicmn.RootDir, "d", ".", "")
 	CmdKeys.Flag.BoolVar(&pkicmn.Force, "f", false, "")
-	CmdKeys.Flag.BoolVar(&core, "core", false, "")
-	CmdKeys.Flag.BoolVar(&all, "all", false, "")
-	CmdKeys.Flag.BoolVar(&dec, "dec", false, "")
-	CmdKeys.Flag.BoolVar(&sign, "sign", false, "")
-	CmdKeys.Flag.BoolVar(&coreSign, "core-sign", false, "")
-	CmdKeys.Flag.BoolVar(&online, "online", false, "")
-	CmdKeys.Flag.BoolVar(&offline, "offline", false, "")
-	CmdKeys.Flag.BoolVar(&master, "master", false, "")
 }
 
 func runKeys(cmd *base.Command, args []string) {
