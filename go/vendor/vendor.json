@@ -313,12 +313,6 @@
 			"revisionTime": "2017-11-28T01:43:40Z"
 		},
 		{
-			"checksumSHA1": "ae7txltioBX37I+KT8P88kNkFmM=",
-			"path": "golang.org/x/crypto/nacl",
-			"revision": "650f4a345ab4e5b245a3034b110ebc7299e68186",
-			"revisionTime": "2017-09-27T09:16:38Z"
-		},
-		{
 			"checksumSHA1": "Fy1wkWVRMRkq0/AEzFWwRCib8jU=",
 			"path": "golang.org/x/crypto/nacl/box",
 			"revision": "650f4a345ab4e5b245a3034b110ebc7299e68186",
