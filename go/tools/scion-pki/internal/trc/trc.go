@@ -37,7 +37,7 @@ The following subcommands are available:
 	gen
 		Used to generate new TRCs.
 	template
-		Used to generate trc.ini template configuration files.
+		Used to generate isd.ini template configuration files.
 
 The following flags are available:
 	-d
@@ -56,17 +56,17 @@ stored on disk (-d flag). It expects the contents of the root directory to follo
 a predefined structure:
 	<root>/
 		ISD1/
-			trc.ini
+			isd.ini
 			AS1/
 			AS2/
 			...
 		ISD2/
-			trc.ini
+			isd.ini
 			AS1/
 			...
 		...
 
-trc.ini contains the preconfigured parameters according to which 'trc' generates
+isd.ini contains the preconfigured parameters according to which 'trc' generates
 the TRCs. It follows the ini format and can contain only the default section with
 the following values:
 	Isd [required]

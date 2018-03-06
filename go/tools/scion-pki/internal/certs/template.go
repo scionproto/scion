@@ -17,11 +17,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/go-ini/ini"
 
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
@@ -30,50 +28,43 @@ func runTemplate(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
-	top, err := pkicmn.ProcessSelector(args[0], args[1:], false)
+	isdDirs, asDirs, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		cmd.Usage()
 		os.Exit(2)
 	}
 	fmt.Println("Generating cert config templates.")
-	if err := filepath.Walk(top, visitTemplate); err != nil {
-		base.ErrorAndExit("Failed generating template: %s\n", err)
+	for i, isdDir := range isdDirs {
+		tconf, err := conf.LoadTrcConf(isdDir)
+		if err != nil {
+			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
+		}
+		cores, ases := pkicmn.FilterASDirs(asDirs[i], tconf.CoreIAs)
+		for _, dir := range cores {
+			if err = genTemplate(dir, true); err != nil {
+				base.ErrorAndExit("Error generating %s: %s\n",
+					filepath.Join(dir, conf.AsConfFileName), err)
+			}
+		}
+		for _, dir := range ases {
+			if err = genTemplate(dir, false); err != nil {
+				base.ErrorAndExit("Error generating %s: %s\n",
+					filepath.Join(dir, conf.AsConfFileName), err)
+			}
+		}
 	}
 }
 
-func visitTemplate(path string, info os.FileInfo, visitError error) error {
-	if visitError != nil {
-		return visitError
-	}
-	// If not an AS directory, keep walking.
-	if !info.IsDir() || !strings.HasPrefix(info.Name(), "AS") {
-		return nil
-	}
-	ia, err := pkicmn.GetIAFromPath(path)
+func genTemplate(dir string, core bool) error {
+	ia, err := pkicmn.GetIAFromPath(dir)
 	if err != nil {
+		panic(err)
+	}
+	fpath := filepath.Join(dir, conf.AsConfFileName)
+	a := conf.NewTemplateAsConf(ia, core)
+	if err = a.SaveTo(fpath, pkicmn.Force); err != nil {
 		return err
 	}
-	c := newTemplateCertConf(ia, core)
-	iniCfg := ini.Empty()
-	if err = ini.ReflectFrom(iniCfg, c); err != nil {
-		return err
-	}
-	fname := getConfName(core)
-	fpath := filepath.Join(path, fname)
-	// Check if file exists and do not override without -f
-	if !pkicmn.Force {
-		// Check if the file already exists.
-		if _, err = os.Stat(fpath); err == nil {
-			fmt.Printf("%s already exists. Use -f to overwrite.\n", fpath)
-			return nil
-		}
-	}
-	err = iniCfg.SaveTo(fpath)
-	if err != nil {
-		return err
-	}
-	fmt.Println("Successfully written", fpath)
-	// Skip the rest of this directory.
-	return filepath.SkipDir
+	return nil
 }
