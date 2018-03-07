@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -15,14 +14,11 @@ import (
 
 func newSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt {
 	scmpMeta := scmp.Meta{InfoLen: uint8(info.Len())}
-	assert.Must((scmp.MetaLen+info.Len())%common.LineLen == 0, "Bad SCMP payload length")
 	pld := make(common.RawBytes, scmp.MetaLen+info.Len())
 	scmpMeta.Write(pld)
 	info.Write(pld[scmp.MetaLen:])
 	scmpHdr := scmp.NewHdr(scmp.ClassType{Class: scmp.C_General, Type: t}, len(pld))
 	scmpHdr.Timestamp = uint64(time.Now().UnixNano()) / 1000
-	exts := make([]common.Extension, 1)
-	exts[0] = ext
 
 	pkt := &spkt.ScnPkt{
 		DstIA:   remote.IA,
@@ -30,7 +26,7 @@ func newSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 		DstHost: remote.Host,
 		SrcHost: local.Host,
 		Path:    remote.Path,
-		HBHExt:  exts,
+		HBHExt:  []common.Extension{ext},
 		L4:      scmpHdr,
 		Pld:     pld,
 	}
@@ -41,8 +37,8 @@ type scmpPkt struct {
 	pkt     *spkt.ScnPkt
 	pktType scmp.Type
 	info    scmp.Info
-	total   uint
-	num     uint
+	count   uint64
+	num     uint64
 }
 
 func initSCMP(send, recv *scmpPkt, typeStr string, count uint, pathEntry *sciond.PathReplyEntry) {
@@ -57,9 +53,11 @@ func initSCMP(send, recv *scmpPkt, typeStr string, count uint, pathEntry *sciond
 
 func initEcho(s *scmpPkt, recv bool, count uint) {
 	s.num = 0
-	s.total = count
+	s.count = uint64(count)
 	s.info = &scmp.InfoEcho{Id: rnd.Uint64(), Seq: 0}
 	if recv {
+		// FIXME application should not need to initialize this to parse a packet,
+		// hpkt.parseCtx.parse() should take care of it
 		s.pkt = &spkt.ScnPkt{DstIA: &addr.ISD_AS{}, SrcIA: &addr.ISD_AS{}, Path: &spath.Path{}}
 		s.pktType = scmp.T_G_EchoReply
 	} else {
@@ -69,7 +67,7 @@ func initEcho(s *scmpPkt, recv bool, count uint) {
 	}
 }
 
-func sendNext(s *scmpPkt, ts time.Time) bool {
+func updateNext(s *scmpPkt, ts time.Time) bool {
 	scmpHdr := s.pkt.L4.(*scmp.Hdr)
 	scmpHdr.Timestamp = uint64(ts.UnixNano()) / 1000
 	s.num += 1
@@ -79,15 +77,7 @@ func sendNext(s *scmpPkt, ts time.Time) bool {
 		b := s.pkt.Pld.(common.RawBytes)
 		info.Write(b[scmp.MetaLen:])
 	}
-	return s.num < s.total
-}
-
-func recvNext(s *scmpPkt) bool {
-	switch s.pktType {
-	case scmp.T_G_EchoReply:
-		s.num += 1
-	}
-	return s.num < s.total
+	return s.count == 0 || s.num < s.count
 }
 
 func validatePkt(s *scmpPkt) error {
@@ -107,7 +97,7 @@ func validatePkt(s *scmpPkt) error {
 	case scmp.T_G_EchoReply:
 		s.info, ok = scmpPld.Info.(*scmp.InfoEcho)
 		if ok == false {
-			return common.NewBasicError("Not a Info Echo type", nil)
+			return common.NewBasicError("Not a Info Echo type", nil, "type", common.TypeOf(s.info))
 		}
 	}
 	return nil
