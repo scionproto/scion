@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/go-ini/ini"
@@ -27,20 +26,80 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-const TrcConfFileName = "isd.ini"
+const IsdConfFileName = "isd.ini"
+
+// Isd holds config parameters read from isd.ini.
+type Isd struct {
+	Desc string `comment:"General description for the ISD"`
+	*Trc `ini:"TRC"`
+}
+
+func LoadIsdConf(dir string) (*Isd, error) {
+	cname := filepath.Join(dir, IsdConfFileName)
+	cfg, err := ini.Load(cname)
+	if err != nil {
+		return nil, err
+	}
+	i := &Isd{}
+	if err = cfg.MapTo(i); err != nil {
+		return nil, err
+	}
+	if len(i.Trc.RawCoreIAs) == 0 {
+		return nil, common.NewBasicError("CoreASes missing", nil)
+	}
+	// Parse core ASes into addr.IAs
+	for _, raw := range i.Trc.RawCoreIAs {
+		ia, err := addr.IAFromString(raw)
+		if err != nil {
+			return nil, err
+		}
+		i.Trc.CoreIAs = append(i.Trc.CoreIAs, ia)
+	}
+	if err = i.Trc.validate(); err != nil {
+		return nil, err
+	}
+	return i, nil
+}
+
+func (i *Isd) Write(path string, force bool) error {
+	// Check if file exists and do not override without -f
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			fmt.Printf("%s already exists. Use -f to overwrite.\n", path)
+			return nil
+		}
+	}
+	// Make sure RawCoreIAs and CoreIAs are in sync.
+	i.Trc.RawCoreIAs = make([]string, len(i.Trc.CoreIAs))
+	for idx, ia := range i.Trc.CoreIAs {
+		i.Trc.RawCoreIAs[idx] = ia.String()
+	}
+	iniCfg := ini.Empty()
+	if err := ini.ReflectFrom(iniCfg, i); err != nil {
+		return err
+	}
+	if err := iniCfg.SaveTo(path); err != nil {
+		return err
+	}
+	fmt.Println("Successfully written", path)
+	return nil
+}
 
 // Trc holds the parameters that are used to generate a Trc.
 type Trc struct {
-	Description string
-	Version     uint64
-	IssuingTime uint64
-	Validity    uint64
+	Version     uint64    `comment:"The version of the TRC. Must not be 0."`
+	IssuingTime uint64    `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
+	Validity    uint64    `comment:"The validity of the certificate as duration string, e.g., 180d or 21d12h"`
 	CoreIAs     []addr.IA `ini:"-"`
-	GracePeriod uint64
-	QuorumTRC   uint32
+	RawCoreIAs  []string  `ini:"CoreASes" comment:"The core ASes of this ISD as comma-separated list, e.g., 1-11,1-12,1-13"`
+	GracePeriod uint64    `comment:"The grace period for the previous TRC as duration string (see above)"`
+	QuorumTRC   uint32    `comment:"The number of core ASes needed to update the TRC"`
 }
 
 func (t *Trc) validate() error {
+	if t.IssuingTime == 0 {
+		t.IssuingTime = uint64(time.Now().Unix())
+	}
 	if t.Version == 0 {
 		return newValidationError("Version")
 	}
@@ -51,7 +110,7 @@ func (t *Trc) validate() error {
 		return newValidationError("CoreASes")
 	} else {
 		for _, ia := range t.CoreIAs {
-			if ia.IAInt() == addr.IAInt(0) {
+			if ia.I == 0 || ia.A == 0 {
 				return common.NewBasicError("Invalid core AS", nil, "ia", ia)
 			}
 		}
@@ -63,59 +122,4 @@ func (t *Trc) validate() error {
 		return common.NewBasicError("QuorumTRC > # core ASes", nil)
 	}
 	return nil
-}
-
-func (t *Trc) SaveTo(path string, force bool) error {
-	// Check if file exists and do not override without -f
-	if !force {
-		if _, err := os.Stat(path); err == nil {
-			fmt.Printf("%s already exists. Use -f to overwrite.\n", path)
-			return nil
-		}
-	}
-	iniCfg := ini.Empty()
-	if err := ini.ReflectFrom(iniCfg, t); err != nil {
-		return err
-	}
-	if _, err := iniCfg.Section("").NewKey("CoreASes", "0-0,0-0"); err != nil {
-		return err
-	}
-	if err := iniCfg.SaveTo(path); err != nil {
-		return err
-	}
-	fmt.Println("Successfully written", path)
-	return nil
-}
-
-func LoadTrcConf(dir string) (*Trc, error) {
-	cname := filepath.Join(dir, TrcConfFileName)
-	cfg, err := ini.Load(cname)
-	if err != nil {
-		return nil, err
-	}
-	section := cfg.Section("")
-	t := &Trc{}
-	if err = section.MapTo(t); err != nil {
-		return nil, err
-	}
-	// Get core ASes as comma separated list
-	if !section.HasKey("CoreASes") {
-		return nil, common.NewBasicError("CoreASes missing", nil)
-	}
-	ases := section.Key("CoreASes").Strings(",")
-	// Parse into addr.ISD_AS structs
-	for _, as := range ases {
-		ia, err := addr.IAFromString(strings.Trim(as, " "))
-		if err != nil {
-			return nil, err
-		}
-		t.CoreIAs = append(t.CoreIAs, ia)
-	}
-	if t.IssuingTime == 0 {
-		t.IssuingTime = uint64(time.Now().Unix())
-	}
-	if err = t.validate(); err != nil {
-		return nil, err
-	}
-	return t, nil
 }

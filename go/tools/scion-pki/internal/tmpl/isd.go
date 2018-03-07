@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package tmpl
 
 import (
@@ -30,9 +31,7 @@ func runGenIsdTmpl(cmd *base.Command, args []string) {
 	}
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		cmd.Usage()
-		os.Exit(2)
+		base.ErrorAndExit("Error: %s\n", err)
 	}
 	fmt.Println("Generating trc config templates.")
 	for isd := range asMap {
@@ -43,6 +42,6 @@ func runGenIsdTmpl(cmd *base.Command, args []string) {
 func genIsdTmpl(isd int) error {
 	dir := pkicmn.GetIsdPath(isd)
 	fmt.Printf("Generating configuration template for ISD%d\n", isd)
-	t := &conf.Trc{Version: 1}
-	return t.SaveTo(filepath.Join(dir, conf.TrcConfFileName), pkicmn.Force)
+	i := &conf.Isd{Trc: &conf.Trc{Version: 1}}
+	return i.Write(filepath.Join(dir, conf.IsdConfFileName), pkicmn.Force)
 }

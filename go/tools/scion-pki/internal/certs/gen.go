@@ -41,21 +41,19 @@ func runGenCert(cmd *base.Command, args []string) {
 	}
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		cmd.Usage()
-		os.Exit(2)
+		base.ErrorAndExit("Error: %s\n", err)
 	}
 	for isd, ases := range asMap {
-		tconf, err := conf.LoadTrcConf(pkicmn.GetIsdPath(isd))
+		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(isd))
 		if err != nil {
 			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
 		}
-		nonCores := pkicmn.FilterAses(ases, tconf.CoreIAs)
-		for _, cia := range tconf.CoreIAs {
+		for _, cia := range iconf.Trc.CoreIAs {
 			if err = genCert(cia, true); err != nil {
 				base.ErrorAndExit("Error generating cert for %s: %s\n", cia, err)
 			}
 		}
+		nonCores := pkicmn.FilterAses(ases, iconf.Trc.CoreIAs)
 		for _, ia := range nonCores {
 			if err = genCert(ia, false); err != nil {
 				base.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
@@ -71,33 +69,38 @@ func genCert(ia addr.IA, core bool) error {
 	// Check that as.ini exists, otherwise skip directory.
 	cpath := filepath.Join(dir, conf.AsConfFileName)
 	if _, err = os.Stat(cpath); os.IsNotExist(err) {
+		fmt.Printf("Skipping %s. Missing %s\n", dir, conf.AsConfFileName)
 		return nil
 	}
 	a, err := conf.LoadAsConf(dir)
 	if err != nil {
 		return common.NewBasicError("Error loading as.ini", err, "path", cpath)
 	}
-	if core && a.CC == nil {
-		return common.NewBasicError("'%s' section missing from as.ini", nil, "path", cpath)
+	if core && a.IssuerCert == nil {
+		return common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
+			conf.IssuerSectionName), nil, "path", cpath)
 	}
-	fmt.Println("Generating Certificate Chain for", a.C.Subject)
+	fmt.Println("Generating Certificate Chain for", ia)
 	// If we are core then we need to generate a core AS cert first.
 	var issuerCert *cert.Certificate
 	if core {
-		issuerCert, err = genCoreASCert(a.CC)
+		issuerCert, err = genCoreASCert(a.IssuerCert, ia)
+		if err != nil {
+			return common.NewBasicError("Error generating issuer cert", err, "subject", ia)
+		}
 	} else {
-		issuerCert, err = getIssuerCert(a.C.IssuerIA)
-	}
-	if err != nil {
-		return common.NewBasicError("Error loading issuer cert", err, "subject", a.C.Subject)
+		issuerCert, err = getIssuerCert(a.AsCert.IssuerIA)
+		if err != nil {
+			return common.NewBasicError("Error loading issuer cert", err, "subject", ia)
+		}
 	}
 	if issuerCert == nil {
-		return common.NewBasicError("Issuer cert not found", err, "issuer", a.C.Issuer)
+		return common.NewBasicError("Issuer cert not found", err, "issuer", a.AsCert.Issuer)
 	}
 	// Generate the AS certificate chain.
-	chain, err := genASCert(a.C, issuerCert)
+	chain, err := genASCert(a.AsCert, ia, issuerCert)
 	if err != nil {
-		return common.NewBasicError("Error generating cert", err, "subject", a.C.Subject)
+		return common.NewBasicError("Error generating cert", err, "subject", ia)
 	}
 	// Check if out directory exists and if not create it.
 	out := filepath.Join(dir, "certs")
@@ -111,64 +114,24 @@ func genCert(ia addr.IA, core bool) error {
 	fname := fmt.Sprintf(pkicmn.CertNameFmt, subject.I, subject.A, chain.Leaf.Version)
 	raw, err := chain.JSON(true)
 	if err != nil {
-		return common.NewBasicError("Error json-encoding cert", err, "subject", a.C.Subject)
+		return common.NewBasicError("Error json-encoding cert", err, "subject", ia)
 	}
 	if err = pkicmn.WriteToFile(raw, filepath.Join(out, fname), 0644); err != nil {
-		return common.NewBasicError("Error writing cert", err, "subject", a.C.Subject)
+		return common.NewBasicError("Error writing cert", err, "subject", ia)
 	}
 	return nil
 }
 
-func genCertCommon(conf *conf.Cert, signKeyFname string) (*cert.Certificate, error) {
-	// Load signing and decryption keys that will be in the certificate.
-	keyDir := filepath.Join(pkicmn.GetAsPath(conf.SubjectIA), "keys")
-	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname))
-	if err != nil {
-		return nil, err
-	}
-	signPub := common.RawBytes(ed25519.PrivateKey(signKey).Public().(ed25519.PublicKey))
-	decKey, err := trust.LoadKey(filepath.Join(keyDir, trust.DecKeyFile))
-	if err != nil {
-		return nil, err
-	}
-	decKeyFixed := new([32]byte)
-	copy(decKeyFixed[:], decKey)
-	decPub := new([32]byte)
-	curve25519.ScalarBaseMult(decPub, decKeyFixed)
-	// Determine issuingTime and calculate expiration time from validity.
-	issuingTime := uint64(time.Now().Unix())
-	expirationTime := issuingTime + conf.Validity*24*60*60
-	c := &cert.Certificate{
-		Comment:        conf.Comment,
-		SubjectSignKey: signPub,
-		SignAlgorithm:  conf.SignAlgorithm,
-		SubjectEncKey:  decPub[:],
-		EncAlgorithm:   conf.EncAlgorithm,
-		Issuer:         conf.IssuerIA,
-		Subject:        conf.SubjectIA,
-		IssuingTime:    issuingTime,
-		ExpirationTime: expirationTime,
-		Version:        conf.Version,
-		TRCVersion:     conf.TRCVersion,
-	}
-
-	return c, nil
-}
-
 // genCoreASCert generates a new core AS certificate according to conf.
-func genCoreASCert(conf *conf.Cert) (*cert.Certificate, error) {
-	c, err := genCertCommon(conf, trust.CoreSigKeyFile)
+func genCoreASCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
+	c, err := genCertCommon(conf.BaseCert, s, trust.CoreSigKeyFile)
 	if err != nil {
 		return nil, err
 	}
 	c.CanIssue = true
+	c.Issuer = s
 	if c.Comment == "" {
 		c.Comment = fmt.Sprintf("Core AS Certificate for %s version %d.", c.Subject, c.Version)
-	}
-	// For core AS certificates issuer == subject.
-	if !c.Issuer.Eq(c.Subject) {
-		return nil, common.NewBasicError("Subject must match Issuer for Core AS cert.", nil,
-			"subject", c.Subject, "issuer", c.Issuer)
 	}
 	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(c.Issuer), "keys", trust.OnKeyFile)
 	// Load online root key to sign the certificate.
@@ -185,19 +148,20 @@ func genCoreASCert(conf *conf.Cert) (*cert.Certificate, error) {
 }
 
 // genASCert generates a new AS certificate according to 'conf'.
-func genASCert(conf *conf.Cert, issuerCert *cert.Certificate) (*cert.Chain, error) {
-	c, err := genCertCommon(conf, trust.SigKeyFile)
+func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cert.Chain, error) {
+	c, err := genCertCommon(conf.BaseCert, s, trust.SigKeyFile)
 	if err != nil {
 		return nil, err
 	}
 	c.CanIssue = false
+	c.Issuer = conf.IssuerIA
 	if c.Comment == "" {
 		c.Comment = fmt.Sprintf("AS Certificate for %s version %d.", c.Subject, c.Version)
 	}
 	// Ensure issuer can issue certificates.
 	if !issuerCert.CanIssue {
-		return nil, common.NewBasicError("Issuer cert not authorized to issue new certs.", nil,
-			"issuer", c.Issuer)
+		return nil, common.NewBasicError("Issuer cert not authorized to issue certs.", nil,
+			"issuer", c.Issuer, "subject", c.Subject)
 	}
 	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), "keys", trust.CoreSigKeyFile)
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
@@ -222,6 +186,38 @@ func genASCert(conf *conf.Cert, issuerCert *cert.Certificate) (*cert.Chain, erro
 	}
 	// Write the cert to disk.
 	return chain, nil
+}
+
+func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Certificate, error) {
+	// Load signing and decryption keys that will be in the certificate.
+	keyDir := filepath.Join(pkicmn.GetAsPath(s), "keys")
+	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname))
+	if err != nil {
+		return nil, err
+	}
+	signPub := common.RawBytes(ed25519.PrivateKey(signKey).Public().(ed25519.PublicKey))
+	decKey, err := trust.LoadKey(filepath.Join(keyDir, trust.DecKeyFile))
+	if err != nil {
+		return nil, err
+	}
+	var decKeyFixed, decPub [32]byte
+	copy(decKeyFixed[:], decKey)
+	curve25519.ScalarBaseMult(&decPub, &decKeyFixed)
+	// Determine issuingTime and calculate expiration time from validity.
+	issuingTime := uint64(time.Now().Unix())
+	expirationTime := issuingTime + bc.Validity*24*60*60
+	return &cert.Certificate{
+		Comment:        bc.Comment,
+		SubjectSignKey: signPub,
+		SignAlgorithm:  bc.SignAlgorithm,
+		SubjectEncKey:  decPub[:],
+		EncAlgorithm:   bc.EncAlgorithm,
+		Subject:        s,
+		IssuingTime:    issuingTime,
+		ExpirationTime: expirationTime,
+		Version:        bc.Version,
+		TRCVersion:     bc.TRCVersion,
+	}, nil
 }
 
 // getIssuerCert returns the newest core certificate of issuer (if any).

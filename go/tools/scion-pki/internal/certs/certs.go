@@ -37,10 +37,8 @@ Subcommands:
 		Used to generate new certificates.
 	renew (NOT IMPLEMENTED)
 		Used to renew existing certificates.
-	template
-		Used to generate as.ini (core-as.ini if -core supplied) template configuration files.
 	clean (NOT IMPLEMENTED)
-		Used to clean the PKI root directory.
+		Used to clean all the certificates.
 
 Flags:
 	-d
@@ -63,6 +61,7 @@ stored on disk (-d flag). It expects the contents of the root directory to follo
 a predefined structure:
 	<root>/
 		ISD1/
+			isd.ini
 			AS1/
 				as.ini
 				certs/
@@ -75,25 +74,21 @@ a predefined structure:
 		...
 
 as.ini contains the preconfigured parameters according to which 'certs' generates
-the certificates. It follows the ini format and has a top-level attribute "core = (true|false)"
-that indicates whether this AS is a core AS or not. Furthermore, as.ini must contain a 
-"AS Certificate" section and in case of core==true also a "Core AS Certificate" section
+the certificates. It follows the ini format and must contain a 
+"AS Certificate" section and in case of a core AS also a "Issuer Certificate" section
 that can contain the following values:
-	Subject [required]
-		string representing the entity that owns the certificate and the corresponding
-		key pair. An AS is represented as a string ISD-AS (e.g., 1-11).
 	Issuer [required]
 		string identifying the entity that signed the certificate. An AS is represented
-		as a string ISD-AS (e.g., 1-11).
+		as a string ISD-AS (e.g., 1-11). This is only needed in the "AS Certificate" section.
 	TRCVersion [required]
 		integer representing the version of TRC that the issuer used at the time of
 		signing the certificate.
 	Version [required]
 		integer representing the version of the certificate
 	Comment [optional]
-		arbitrary string used to describe the certificate
+		arbitrary string used to describe the AS and certificate
 	Validity [required]
-		the validity of the certificate in days
+		the validity of the certificate as a duration string, e.g., 180d or 11d23h
 	IssuingTime (now) [optional]
 		the time the certificate was issued as a UNIX timestamp
 	EncAlgorithm (curve25519xalsa20poly1305) [optional]

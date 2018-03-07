@@ -44,18 +44,19 @@ example that `<root>` is the current directory, i.e., `.`.
 
 The next step is to create all the necessary isd.ini files. We can generate templates with
 
-`scion-pki tmpl isd '1-*'`
+`scion-pki tmpl isd 1`
 
 to generate a template config file in `ISD1/isd.ini`. Now, we can adjust the values in 
 `ISD1/isd.ini`until they look like this:
 
 ```
-Isd = 1
+Description = "Test ISD 1"
+
+[TRC]
 GracePeriod = 0
 CoreASes = 1-1,1-2,1-3
 Version = 1
 QuorumTRC = 2
-Description = "TRC for ISD 1"
 Validity = 365
 ```
 
@@ -63,12 +64,10 @@ Refer to `scion-pki help trc` for documentation on all available parameters.
 
 Now we are ready to generate all as.ini files. Again, templates can be generated using
 
-`scion-pki tmpl as '1-*'`
+`scion-pki tmpl as 1-*`
 
 Below are examples for `ISD1/AS1/as.ini` and `ISD1/AS12/as.ini`
 ```
-core = true
-
 [AS Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
@@ -78,7 +77,7 @@ TRCVersion    = 1
 Version       = 1
 Validity      = 3
 
-[Core AS Certificate]
+[Issuer Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
 Subject       = 1-1
@@ -89,8 +88,6 @@ Validity      = 7
 ```
 
 ```
-core = false
-
 [AS Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
@@ -112,7 +109,7 @@ Now that we have the necessary config files and the directory structure in place
 
 the TRC
 
-`scion-pki trc gen 1-*`
+`scion-pki trc gen 1`
 
 and the certificates
 

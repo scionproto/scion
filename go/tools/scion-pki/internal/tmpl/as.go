@@ -31,18 +31,16 @@ func runGenAsTmpl(cmd *base.Command, args []string) {
 	}
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		cmd.Usage()
-		os.Exit(2)
+		base.ErrorAndExit("Error: %s\n", err)
 	}
 	fmt.Println("Generating cert config templates.")
 	for isd, ases := range asMap {
-		tconf, err := conf.LoadTrcConf(pkicmn.GetIsdPath(isd))
+		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(isd))
 		if err != nil {
-			base.ErrorAndExit("Error reading %s: %s\n", conf.TrcConfFileName, err)
+			base.ErrorAndExit("Error reading %s: %s\n", conf.IsdConfFileName, err)
 		}
 		for _, ia := range ases {
-			if err = genAsTmpl(ia, tconf); err != nil {
+			if err = genAsTmpl(ia, iconf); err != nil {
 				base.ErrorAndExit("Error generating %s template for %s: %s\n",
 					conf.AsConfFileName, ia, err)
 			}
@@ -50,22 +48,13 @@ func runGenAsTmpl(cmd *base.Command, args []string) {
 	}
 }
 
-func genAsTmpl(ia addr.IA, isdConf *conf.Trc) error {
-	core := contains(isdConf.CoreIAs, ia)
-	a := conf.NewTemplateAsConf(ia, core, isdConf.Version)
+func genAsTmpl(ia addr.IA, isdConf *conf.Isd) error {
+	core := pkicmn.Contains(isdConf.Trc.CoreIAs, ia)
+	a := conf.NewTemplateAsConf(isdConf.Trc.Version, core)
 	dir := pkicmn.GetAsPath(ia)
 	fpath := filepath.Join(dir, conf.AsConfFileName)
-	if err := a.SaveTo(fpath, pkicmn.Force); err != nil {
+	if err := a.Write(fpath, pkicmn.Force); err != nil {
 		return err
 	}
 	return nil
-}
-
-func contains(cores []addr.IA, as addr.IA) bool {
-	for _, cia := range cores {
-		if cia.Eq(as) {
-			return true
-		}
-	}
-	return false
 }
