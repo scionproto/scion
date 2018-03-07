@@ -41,7 +41,7 @@ var (
 
 // ProcessSelector processes the given selector and returns the top level directory
 // to which the requested operation should be applied.
-func ProcessSelector(selector string) (map[int][]*addr.ISD_AS, error) {
+func ProcessSelector(selector string) (map[int][]addr.IA, error) {
 	toks := strings.Split(selector, "-")
 	if len(toks) != 2 {
 		return nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
@@ -67,7 +67,7 @@ func ProcessSelector(selector string) (map[int][]*addr.ISD_AS, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := make(map[int][]*addr.ISD_AS)
+	res := make(map[int][]addr.IA)
 	for _, dir := range isdDirs {
 		base := filepath.Base(dir)
 		isd, err := strconv.ParseUint(base[3:], 10, 12)
@@ -79,13 +79,13 @@ func ProcessSelector(selector string) (map[int][]*addr.ISD_AS, error) {
 		if err != nil {
 			return nil, err
 		}
-		ases := make([]*addr.ISD_AS, len(dirs))
+		ases := make([]addr.IA, len(dirs))
 		for i, asDir := range dirs {
 			as, err := strconv.ParseUint(filepath.Base(asDir)[2:], 10, 22)
 			if err != nil {
 				return nil, common.NewBasicError("Invalid path", nil, "path", asDir)
 			}
-			ases[i] = &addr.ISD_AS{I: int(isd), A: int(as)}
+			ases[i] = addr.IA{I: int(isd), A: int(as)}
 		}
 		res[int(isd)] = ases
 	}
@@ -94,8 +94,8 @@ func ProcessSelector(selector string) (map[int][]*addr.ISD_AS, error) {
 
 // FilterASDirs takes a list of paths and returns a list of paths corresponding to core ASes
 // and a list of paths for all remaining ASes.
-func FilterAses(ases, cores []*addr.ISD_AS) []*addr.ISD_AS {
-	var filtered []*addr.ISD_AS
+func FilterAses(ases, cores []addr.IA) []addr.IA {
+	var filtered []addr.IA
 OUTER:
 	for _, ia := range ases {
 		for _, cia := range cores {
@@ -103,7 +103,7 @@ OUTER:
 				continue OUTER
 			}
 		}
-		filtered = append(filtered, ia.Copy())
+		filtered = append(filtered, ia)
 	}
 	return filtered
 }
@@ -127,7 +127,7 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 	return nil
 }
 
-func GetAsPath(ia *addr.ISD_AS) string {
+func GetAsPath(ia addr.IA) string {
 	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
 }
 
