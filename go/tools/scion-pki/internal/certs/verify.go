@@ -52,7 +52,7 @@ func runVerify(cmd *base.Command, args []string) {
 	}
 }
 
-func verifyChain(chain *cert.Chain, subject *addr.ISD_AS) error {
+func verifyChain(chain *cert.Chain, subject addr.IA) error {
 	// Load corresponding TRC.
 	t, err := loadTRC(subject, chain.Leaf.TRCVersion)
 	if err != nil {
@@ -61,7 +61,7 @@ func verifyChain(chain *cert.Chain, subject *addr.ISD_AS) error {
 	return chain.Verify(subject, t)
 }
 
-func loadTRC(subject *addr.ISD_AS, version uint64) (*trc.TRC, error) {
+func loadTRC(subject addr.IA, version uint64) (*trc.TRC, error) {
 	fname := fmt.Sprintf(pkicmn.TrcNameFmt, subject.I, version)
 	trcPath := filepath.Join(pkicmn.RootDir, fmt.Sprintf("ISD%d", subject.I), fname)
 	trcRaw, err := ioutil.ReadFile(trcPath)

@@ -65,7 +65,7 @@ func runGenCert(cmd *base.Command, args []string) {
 	os.Exit(0)
 }
 
-func genCert(ia *addr.ISD_AS, core bool) error {
+func genCert(ia addr.IA, core bool) error {
 	var err error
 	dir := pkicmn.GetAsPath(ia)
 	// Check that as.ini exists, otherwise skip directory.
@@ -225,7 +225,7 @@ func genASCert(conf *conf.Cert, issuerCert *cert.Certificate) (*cert.Chain, erro
 }
 
 // getIssuerCert returns the newest core certificate of issuer (if any).
-func getIssuerCert(issuer *addr.ISD_AS) (*cert.Certificate, error) {
+func getIssuerCert(issuer addr.IA) (*cert.Certificate, error) {
 	fnames, err := filepath.Glob(fmt.Sprintf("%s/*.crt",
 		filepath.Join(pkicmn.GetAsPath(issuer), "certs")))
 	if err != nil {

@@ -56,7 +56,7 @@ func runGenKey(cmd *base.Command, args []string) {
 	os.Exit(0)
 }
 
-func genKeys(ia *addr.ISD_AS) error {
+func genKeys(ia addr.IA) error {
 	dir := pkicmn.GetAsPath(ia)
 	// Check if as.ini exists, otherwise skip dir.
 	cname := filepath.Join(dir, conf.AsConfFileName)

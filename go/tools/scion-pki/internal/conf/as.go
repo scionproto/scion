@@ -39,9 +39,9 @@ type Cert struct {
 	EncAlgorithm  string
 	SignAlgorithm string
 	Subject       string
-	SubjectIA     *addr.ISD_AS `ini:"-"`
+	SubjectIA     addr.IA `ini:"-"`
 	Issuer        string
-	IssuerIA      *addr.ISD_AS `ini:"-"`
+	IssuerIA      addr.IA `ini:"-"`
 	IssuingTime   int64
 	TRCVersion    uint64
 	Version       uint64
@@ -80,8 +80,8 @@ func (c *Cert) validate() error {
 	return nil
 }
 
-func NewTemplateCertConf(subject *addr.ISD_AS, core bool, trcVer uint64) *Cert {
-	issuer := &addr.ISD_AS{}
+func NewTemplateCertConf(subject addr.IA, core bool, trcVer uint64) *Cert {
+	issuer := addr.IA{}
 	if core {
 		issuer = subject
 	}
@@ -142,7 +142,7 @@ func (a *As) SaveTo(path string, force bool) error {
 	return nil
 }
 
-func NewTemplateAsConf(subject *addr.ISD_AS, core bool, trcVer uint64) *As {
+func NewTemplateAsConf(subject addr.IA, core bool, trcVer uint64) *As {
 	a := &As{IsCore: core}
 	a.C = NewTemplateCertConf(subject, false, trcVer)
 	if core {
