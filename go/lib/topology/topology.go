@@ -32,7 +32,7 @@ import (
 type Topo struct {
 	Timestamp      time.Time
 	TimestampHuman string // This can vary wildly in format and is only for informational purposes.
-	ISD_AS         *addr.ISD_AS
+	ISD_AS         addr.IA
 	Overlay        overlay.Type
 	MTU            int
 	Core           bool
@@ -222,7 +222,7 @@ type IFInfo struct {
 	Remote          *AddrInfo
 	RemoteIFID      common.IFIDType
 	Bandwidth       int
-	ISD_AS          *addr.ISD_AS
+	ISD_AS          addr.IA
 	LinkType        LinkType
 	MTU             int
 }

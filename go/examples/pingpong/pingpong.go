@@ -42,7 +42,7 @@ const (
 	ReplyMsg        = "pong!"
 )
 
-func GetDefaultSCIONDPath(ia *addr.ISD_AS) string {
+func GetDefaultSCIONDPath(ia addr.IA) string {
 	return fmt.Sprintf("/run/shm/sciond/sd%v.sock", ia)
 }
 

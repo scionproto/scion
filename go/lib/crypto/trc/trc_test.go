@@ -58,7 +58,7 @@ func Test_TRCFromRaw(t *testing.T) {
 			SoMsg("Log2", trc.CertLogs["Log2"], ShouldNotBeNil)
 			ip := net.ParseIP("127.0.0.75")
 			SoMsg("Log1 addr", trc.CertLogs["Log1"].Addr, ShouldResemble,
-				&Addr{IA: &addr.ISD_AS{I: 1, A: 11}, IP: ip})
+				&Addr{IA: addr.IA{I: 1, A: 11}, IP: ip})
 			SoMsg("Log1 cert", trc.CertLogs["Log1"].Certificate, ShouldResemble,
 				common.RawBytes{0xe3, 0x48, 0x78, 0xbc, 0xee, 0x40, 0x28, 0x71,
 					0x87, 0x93, 0x72, 0x31, 0xa3, 0x7d, 0xaf, 0xcb, 0xf0, 0x07,
@@ -67,9 +67,9 @@ func Test_TRCFromRaw(t *testing.T) {
 		})
 
 		Convey("CoreASes parsed correctly", func() {
-			SoMsg("1-11", trc.CoreASes[addr.ISD_AS{I: 1, A: 11}], ShouldNotBeNil)
-			SoMsg("1-12", trc.CoreASes[addr.ISD_AS{I: 1, A: 12}], ShouldNotBeNil)
-			SoMsg("1-13", trc.CoreASes[addr.ISD_AS{I: 1, A: 13}], ShouldNotBeNil)
+			SoMsg("1-11", trc.CoreASes[addr.IA{I: 1, A: 11}], ShouldNotBeNil)
+			SoMsg("1-12", trc.CoreASes[addr.IA{I: 1, A: 12}], ShouldNotBeNil)
+			SoMsg("1-13", trc.CoreASes[addr.IA{I: 1, A: 13}], ShouldNotBeNil)
 			entry := &CoreAS{OfflineKeyAlg: crypto.Ed25519, OnlineKeyAlg: crypto.Ed25519}
 			entry.OfflineKey = []byte{0x2b, 0x75, 0x84, 0xd7, 0xb4, 0x3d, 0xb3, 0xff,
 				0x38, 0x76, 0x38, 0x9d, 0xd3, 0x44, 0x51, 0x12, 0x77, 0xba, 0x48,
@@ -80,7 +80,7 @@ func Test_TRCFromRaw(t *testing.T) {
 				0x8d, 0xee, 0x4c, 0xf7, 0xc3, 0x70, 0xd5, 0x98, 0xf7, 0x0e, 0x42,
 				0x91, 0xd4}
 
-			SoMsg("CoreAS 1-11", trc.CoreASes[addr.ISD_AS{I: 1, A: 11}], ShouldResemble,
+			SoMsg("CoreAS 1-11", trc.CoreASes[addr.IA{I: 1, A: 11}], ShouldResemble,
 				entry)
 		})
 
@@ -97,7 +97,7 @@ func Test_TRCFromRaw(t *testing.T) {
 					0x8b, 0xdc, 0x0c, 0x78})
 			ip := net.ParseIP("127.0.0.107")
 			SoMsg("TRCSrv", trc.RAINS.TRCSrv[0], ShouldResemble,
-				&Addr{IA: &addr.ISD_AS{I: 1, A: 12}, IP: ip})
+				&Addr{IA: addr.IA{I: 1, A: 12}, IP: ip})
 			SoMsg("TRCSrv size", len(trc.RAINS.TRCSrv), ShouldEqual, 3)
 		})
 
@@ -117,8 +117,8 @@ func Test_TRCFromRaw(t *testing.T) {
 				0x1f, 0xad}
 			ipA := net.ParseIP("127.0.0.70")
 			ipT := net.ParseIP("127.0.0.71")
-			entry.ARPKISrv = []*Addr{{IA: &addr.ISD_AS{I: 1, A: 11}, IP: ipA}}
-			entry.TRCSrv = []*Addr{{IA: &addr.ISD_AS{I: 1, A: 11}, IP: ipT}}
+			entry.ARPKISrv = []*Addr{{IA: addr.IA{I: 1, A: 11}, IP: ipA}}
+			entry.TRCSrv = []*Addr{{IA: addr.IA{I: 1, A: 11}, IP: ipT}}
 			SoMsg("RootCA CA1-1", trc.RootCAs["CA1-1"], ShouldResemble, entry)
 		})
 
@@ -145,7 +145,7 @@ func Test_TRCFromRaw(t *testing.T) {
 	})
 }
 
-type ISDAS []*addr.ISD_AS
+type ISDAS []addr.IA
 
 func (i ISDAS) Len() int           { return len(i) }
 func (i ISDAS) Swap(k, j int)      { i[k], i[j] = i[j], i[k] }
@@ -156,7 +156,7 @@ func Test_TRC_CoreASList(t *testing.T) {
 		trc := loadTRC(fnTRC, t)
 		list := trc.CoreASList()
 		sort.Sort(ISDAS(list))
-		SoMsg("CoreASList", list, ShouldResemble, []*addr.ISD_AS{{I: 1, A: 11},
+		SoMsg("CoreASList", list, ShouldResemble, []addr.IA{{I: 1, A: 11},
 			{I: 1, A: 12}, {I: 1, A: 13}})
 	})
 }
@@ -166,7 +166,7 @@ func Test_TRC_Sign(t *testing.T) {
 		trc := loadTRC(fnTRC, t)
 		packd, _ := trc.sigPack()
 		err := crypto.Verify(packd, trc.Signatures["1-11"],
-			trc.CoreASes[addr.ISD_AS{I: 1, A: 11}].OnlineKey, crypto.Ed25519)
+			trc.CoreASes[addr.IA{I: 1, A: 11}].OnlineKey, crypto.Ed25519)
 		SoMsg("err", err, ShouldBeNil)
 		key := []byte{0xaf, 0x00, 0x0e, 0xb6, 0x26, 0x4f, 0xbd, 0x20, 0xd1, 0x36, 0xed,
 			0xae, 0x42, 0x65, 0xeb, 0x29, 0x15, 0x8e, 0xa6, 0x35, 0xef, 0x3d, 0x2a,

@@ -41,7 +41,7 @@ type ASEntry struct {
 	sync.RWMutex
 	Nets       map[string]*NetEntry
 	Sigs       *siginfo.SigMap
-	IA         *addr.ISD_AS
+	IA         addr.IA
 	IAString   string
 	Session    *egress.Session
 	DevName    string
@@ -51,7 +51,7 @@ type ASEntry struct {
 	log.Logger
 }
 
-func newASEntry(ia *addr.ISD_AS) (*ASEntry, error) {
+func newASEntry(ia addr.IA) (*ASEntry, error) {
 	ae := &ASEntry{
 		Logger:     log.New("ia", ia),
 		IA:         ia,

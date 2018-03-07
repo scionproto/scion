@@ -36,7 +36,7 @@ import (
 // as well as maintaining the currently favoured path and remote SIG to use.
 type Session struct {
 	log.Logger
-	IA     *addr.ISD_AS
+	IA     addr.IA
 	SessId mgmt.SessionType
 	// pool of paths, managed by pathmgr
 	pool *pathmgr.SyncPaths
@@ -53,7 +53,7 @@ type Session struct {
 	workerStopped  chan struct{}
 }
 
-func NewSession(dstIA *addr.ISD_AS, sessId mgmt.SessionType,
+func NewSession(dstIA addr.IA, sessId mgmt.SessionType,
 	sigMap *siginfo.SigMap, logger log.Logger) (*Session, error) {
 	var err error
 	s := &Session{

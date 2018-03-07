@@ -75,7 +75,7 @@ func (t *rTraceroute) Entry(idx int) (*spkt.TracerouteEntry, error) {
 	}
 	entry := spkt.TracerouteEntry{}
 	offset := common.ExtnFirstLineLen + common.LineLen*idx
-	entry.IA = *addr.IAFromRaw(t.raw[offset:])
+	entry.IA = addr.IAFromRaw(t.raw[offset:])
 	offset += addr.IABytes
 	entry.IfID = common.Order.Uint16(t.raw[offset:])
 	offset += 2
@@ -105,7 +105,7 @@ func (t *rTraceroute) Process() (HookResult, error) {
 	// Take the current time in milliseconds, and truncate it to 16bits.
 	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
 	entry := spkt.TracerouteEntry{
-		IA: *t.rp.Ctx.Conf.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
+		IA: t.rp.Ctx.Conf.IA, IfID: uint16(*t.rp.ifCurr), TimeStamp: uint16(ts),
 	}
 	if err := t.Add(&entry); err != nil {
 		t.Error("Unable to add entry", "err", err)

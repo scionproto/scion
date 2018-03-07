@@ -85,9 +85,9 @@ type RtrPkt struct {
 	// packet. (PARSE)
 	idxs packetIdxs
 	// dstIA is the destination ISD-AS. (PARSE)
-	dstIA *addr.ISD_AS
+	dstIA addr.IA
 	// srcIA is the source ISD-AS. (PARSE, only if needed)
-	srcIA *addr.ISD_AS
+	srcIA addr.IA
 	// dstHost is the destination Host. (PARSE, only if dstIA is local)
 	dstHost addr.HostAddr
 	// srcHost is the source Host. (PARSE, only if needed)
@@ -226,8 +226,8 @@ func (rp *RtrPkt) Reset() {
 	// CmnHdr doesn't contain any references.
 	rp.IncrementedPath = false
 	rp.idxs = packetIdxs{}
-	rp.dstIA = nil
-	rp.srcIA = nil
+	rp.dstIA = addr.IA{}
+	rp.srcIA = addr.IA{}
 	rp.dstHost = nil
 	rp.srcHost = nil
 	rp.infoF = nil

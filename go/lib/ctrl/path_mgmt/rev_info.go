@@ -45,7 +45,7 @@ func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
 	return r, proto.ParseFromRaw(r, r.ProtoId(), b)
 }
 
-func (r *RevInfo) IA() *addr.ISD_AS {
+func (r *RevInfo) IA() addr.IA {
 	return r.RawIsdas.IA()
 }
 func (r *RevInfo) ProtoId() proto.ProtoIdType {

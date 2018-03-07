@@ -81,7 +81,7 @@ func Test_Certificate_Verify(t *testing.T) {
 	Convey("Load Certificate from Raw and init values", t, func() {
 		cert := loadCert(fnLeaf, t)
 		pub, priv, _ := ed25519.GenerateKey(nil)
-		subject := &addr.ISD_AS{I: 1, A: 10}
+		subject := addr.IA{I: 1, A: 10}
 		pubRaw, privRaw := []byte(pub), []byte(priv)
 
 		cert.IssuingTime = uint64(time.Now().Unix())
@@ -94,7 +94,7 @@ func Test_Certificate_Verify(t *testing.T) {
 		})
 
 		Convey("Wrong subject throws error", func() {
-			err := cert.Verify(&addr.ISD_AS{I: 1, A: 14}, pubRaw, crypto.Ed25519)
+			err := cert.Verify(addr.IA{I: 1, A: 14}, pubRaw, crypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
@@ -191,7 +191,7 @@ func Test_Certificate_Eq(t *testing.T) {
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (Issuer)", func() {
-			c1.Issuer = &addr.ISD_AS{I: 13, A: 37}
+			c1.Issuer = addr.IA{I: 13, A: 37}
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (IssuingTime)", func() {
@@ -207,7 +207,7 @@ func Test_Certificate_Eq(t *testing.T) {
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (Subject)", func() {
-			c1.Subject = &addr.ISD_AS{I: 13, A: 37}
+			c1.Subject = addr.IA{I: 13, A: 37}
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (SubjectEncKey)", func() {

@@ -46,7 +46,7 @@ const (
 )
 
 // genPkt is a generic function to generate packets that originate at the router.
-func (r *Router) genPkt(dstIA *addr.ISD_AS, dstHost addr.HostAddr, dstL4Port int,
+func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
 	srcAddr *topology.AddrInfo, pld common.Payload) error {
 	ctx := rctx.Get()
 	dirTo := rcmn.DirExternal

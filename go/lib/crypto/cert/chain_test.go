@@ -112,9 +112,9 @@ func Test_Chain_Verify(t *testing.T) {
 		chain.Core.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
 		chain.Core.Sign(privTRCRaw, crypto.Ed25519)
 
-		trc_.CoreASes[*chain.Core.Issuer].OnlineKey = pubTRCRaw
+		trc_.CoreASes[chain.Core.Issuer].OnlineKey = pubTRCRaw
 		trc_.ExpirationTime = chain.Core.ExpirationTime
-		err := chain.Verify(&addr.ISD_AS{I: 1, A: 10}, trc_)
+		err := chain.Verify(addr.IA{I: 1, A: 10}, trc_)
 		SoMsg("err", err, ShouldBeNil)
 	})
 }
@@ -150,7 +150,7 @@ func Test_Chain_IAVer(t *testing.T) {
 	Convey("IA version tuple is returned correctly", t, func() {
 		chain := loadChain(fnChain, t)
 		ia, ver := chain.IAVer()
-		SoMsg("IA", ia.Eq(&addr.ISD_AS{I: 1, A: 10}), ShouldBeTrue)
+		SoMsg("IA", ia.Eq(addr.IA{I: 1, A: 10}), ShouldBeTrue)
 		SoMsg("Ver", ver, ShouldEqual, 1)
 	})
 }
@@ -178,13 +178,13 @@ func Test_Chain_Key(t *testing.T) {
 	Convey("Key is returned correctly", t, func() {
 		chain := loadChain(fnChain, t)
 		key := *chain.Key()
-		SoMsg("Key", key, ShouldResemble, Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1})
+		SoMsg("Key", key, ShouldResemble, Key{IA: addr.IA{I: 1, A: 10}, Ver: 1})
 	})
 }
 
 func Test_Key_String(t *testing.T) {
 	Convey("Key represented as string correctly", t, func() {
-		SoMsg("Key", (&Key{IA: addr.ISD_AS{I: 1, A: 10}, Ver: 1}).String(), ShouldEqual,
+		SoMsg("Key", (&Key{IA: addr.IA{I: 1, A: 10}, Ver: 1}).String(), ShouldEqual,
 			"1-10v1")
 	})
 }

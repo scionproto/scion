@@ -31,7 +31,7 @@ import (
 
 type TestCase struct {
 	msg       string
-	ia        *addr.ISD_AS
+	ia        addr.IA
 	dst       *AppAddr
 	bind      *AppAddr
 	svc       addr.HostSVC
@@ -42,7 +42,7 @@ type TestCase struct {
 func TestRegister(t *testing.T) {
 	testCases := []TestCase{
 		{
-			ia: &addr.ISD_AS{I: 1, A: 10},
+			ia: addr.IA{I: 1, A: 10},
 			dst: &AppAddr{
 				Addr: addr.HostNone{},
 				Port: 0,
@@ -50,7 +50,7 @@ func TestRegister(t *testing.T) {
 			bind: nil, svc: addr.SvcNone,
 			want: nil, timeoutOK: true,
 		}, {
-			ia: &addr.ISD_AS{I: 2, A: 21},
+			ia: addr.IA{I: 2, A: 21},
 			dst: &AppAddr{
 				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
 				Port: 80,
@@ -60,7 +60,7 @@ func TestRegister(t *testing.T) {
 				3, 17, 0, 32, 0, 21, 0, 80, 1, 127, 0, 0, 1},
 			timeoutOK: false,
 		}, {
-			ia:   &addr.ISD_AS{I: 2, A: 21},
+			ia:   addr.IA{I: 2, A: 21},
 			dst:  &AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
 			bind: nil, svc: addr.SvcNone,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 25,
@@ -68,7 +68,7 @@ func TestRegister(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 			timeoutOK: false,
 		}, {
-			ia: &addr.ISD_AS{I: 2, A: 21},
+			ia: addr.IA{I: 2, A: 21},
 			dst: &AppAddr{
 				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
 				Port: 80,
@@ -81,7 +81,7 @@ func TestRegister(t *testing.T) {
 				7, 17, 0, 32, 0, 21, 0, 80, 1, 127, 0, 0, 1, 0, 81, 1, 127, 0, 0, 2},
 			timeoutOK: false,
 		}, {
-			ia: &addr.ISD_AS{I: 2, A: 21},
+			ia: addr.IA{I: 2, A: 21},
 			dst: &AppAddr{
 				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
 				Port: 80,
@@ -140,7 +140,7 @@ func TestRegisterTimeout(t *testing.T) {
 		})
 		Convey("Register to \"dispatcher\" returns timeout error", func() {
 			var expectedT *net.OpError
-			ia := &addr.ISD_AS{I: 1, A: 10}
+			ia := addr.IA{I: 1, A: 10}
 			appAddr := &AppAddr{Addr: addr.HostFromIP(net.IPv4(1, 2, 3, 4)), Port: 0}
 
 			before := time.Now()

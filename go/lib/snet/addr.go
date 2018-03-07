@@ -30,7 +30,7 @@ var _ net.Addr = (*Addr)(nil)
 var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-\d+),\[(?P<host>[^\]]+)\]:(?P<port>\d+)$`)
 
 type Addr struct {
-	IA          *addr.ISD_AS
+	IA          addr.IA
 	Host        addr.HostAddr
 	L4Port      uint16
 	Path        *spath.Path
@@ -77,7 +77,7 @@ func (a *Addr) Copy() *Addr {
 		return nil
 	}
 	newA := &Addr{
-		IA:          a.IA.Copy(),
+		IA:          a.IA,
 		Host:        a.Host.Copy(),
 		L4Port:      a.L4Port,
 		NextHopPort: a.NextHopPort,

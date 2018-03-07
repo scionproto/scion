@@ -42,7 +42,7 @@ const (
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() error {
-	if *rp.dstIA != *rp.Ctx.Conf.IA {
+	if !rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Packet isn't to this ISD-AS, so just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil

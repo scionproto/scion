@@ -29,8 +29,8 @@ type asData struct {
 }
 
 type ASList struct {
-	Core    []*addr.ISD_AS
-	NonCore []*addr.ISD_AS
+	Core    []addr.IA
+	NonCore []addr.IA
 }
 
 // LoadASList parses the yaml file fileName and returns a structure with
@@ -57,8 +57,8 @@ func LoadASList(fileName string) (*ASList, error) {
 	return asList, nil
 }
 
-func parse(names []string) ([]*addr.ISD_AS, error) {
-	var iaList []*addr.ISD_AS
+func parse(names []string) ([]addr.IA, error) {
+	var iaList []addr.IA
 	for _, name := range names {
 		ia, err := addr.IAFromString(name)
 		if err != nil {

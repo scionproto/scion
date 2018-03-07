@@ -29,97 +29,86 @@ const (
 	MaxAS   = (1 << 20) - 1
 )
 
-var _ encoding.TextUnmarshaler = (*ISD_AS)(nil)
+var _ encoding.TextUnmarshaler = (*IA)(nil)
 
-type ISD_AS struct {
+// IA represents the ISD (Isolation Domain) and AS (Autonomous System) Id of a given SCION AS.
+type IA struct {
 	I int
 	A int
 }
 
-const (
-	ErrorIAUnpack = "Unable to unpack ISD-AS"
-)
-
-func IAFromRaw(b common.RawBytes) *ISD_AS {
-	ia := &ISD_AS{}
+func IAFromRaw(b common.RawBytes) IA {
+	ia := &IA{}
 	ia.Parse(b)
-	return ia
+	return *ia
 }
 
-func IAFromString(s string) (*ISD_AS, error) {
+func IAFromString(s string) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
-		return nil, common.NewBasicError("Invalid ISD-AS", nil, "val", s)
+		return IA{}, common.NewBasicError("Invalid ISD-AS", nil, "val", s)
 	}
 	isd, err := strconv.Atoi(parts[0])
 	if err != nil {
 		// err.Error() will contain the original value
-		return nil, common.NewBasicError("Unable to parse ISD", err)
+		return IA{}, common.NewBasicError("Unable to parse ISD", err)
 	}
 	if isd > MaxISD {
-		return nil, common.NewBasicError("Invalid ISD-AS: ISD too large", nil,
+		return IA{}, common.NewBasicError("Invalid ISD-AS: ISD too large", nil,
 			"max", MaxISD, "actual", isd, "raw", s)
 	}
 	as, err := strconv.Atoi(parts[1])
 	if err != nil {
 		// err.Error() will contain the original value
-		return nil, common.NewBasicError("Unable to parse AS", err)
+		return IA{}, common.NewBasicError("Unable to parse AS", err)
 	}
 	if as > MaxAS {
-		return nil, common.NewBasicError("Invalid ISD-AS: AS too large", nil,
+		return IA{}, common.NewBasicError("Invalid ISD-AS: AS too large", nil,
 			"max", MaxAS, "actual", as, "raw", s)
 	}
-	return &ISD_AS{I: isd, A: as}, nil
+	return IA{I: isd, A: as}, nil
 }
 
-func (ia ISD_AS) MarshalText() ([]byte, error) {
+func (ia IA) MarshalText() ([]byte, error) {
 	return []byte(ia.String()), nil
 }
 
 // allows ISD_AS to be used as a map key in JSON.
-func (ia *ISD_AS) UnmarshalText(text []byte) error {
+func (ia *IA) UnmarshalText(text []byte) error {
 	newIA, err := IAFromString(string(text))
 	if err != nil {
 		return err
 	}
-	*ia = *newIA
+	*ia = newIA
 	return nil
 }
 
-func (ia *ISD_AS) Parse(b common.RawBytes) {
-	newIA := IAInt(common.Order.Uint32(b)).IA()
-	*ia = *newIA
+func (ia *IA) Parse(b common.RawBytes) {
+	*ia = IAInt(common.Order.Uint32(b)).IA()
 }
 
-func (ia *ISD_AS) Write(b common.RawBytes) {
+func (ia IA) Write(b common.RawBytes) {
 	common.Order.PutUint32(b, uint32(ia.IAInt()))
 }
 
-func (ia *ISD_AS) IAInt() IAInt {
+func (ia IA) IAInt() IAInt {
 	return IAInt((ia.I << 20) | (ia.A & 0x000FFFFF))
 }
 
-func (ia *ISD_AS) SizeOf() int {
-	return IABytes
+func (ia IA) IsZero() bool {
+	return ia.I == 0 && ia.A == 0
 }
 
-func (ia *ISD_AS) Copy() *ISD_AS {
-	return &ISD_AS{I: ia.I, A: ia.A}
-}
-
-func (ia *ISD_AS) Eq(other *ISD_AS) bool {
-	if (ia == nil) || (other == nil) {
-		return ia == other
-	}
+func (ia IA) Eq(other IA) bool {
 	return ia.I == other.I && ia.A == other.A
 }
 
-func (ia ISD_AS) String() string {
+func (ia IA) String() string {
 	return fmt.Sprintf("%d-%d", ia.I, ia.A)
 }
 
 type IAInt uint32
 
-func (iaI IAInt) IA() *ISD_AS {
-	return &ISD_AS{I: int(iaI >> 20), A: int(iaI & 0x000FFFFF)}
+func (iaI IAInt) IA() IA {
+	return IA{I: int(iaI >> 20), A: int(iaI & 0x000FFFFF)}
 }

@@ -164,18 +164,18 @@ type FwdPathMeta struct {
 	Interfaces []PathInterface
 }
 
-func (fpm FwdPathMeta) SrcIA() *addr.ISD_AS {
+func (fpm FwdPathMeta) SrcIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
-		return nil
+		return addr.IA{}
 	}
 	return ifaces[0].ISD_AS()
 }
 
-func (fpm FwdPathMeta) DstIA() *addr.ISD_AS {
+func (fpm FwdPathMeta) DstIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
-		return nil
+		return addr.IA{}
 	}
 	return ifaces[len(ifaces)-1].ISD_AS()
 }
@@ -193,7 +193,7 @@ type PathInterface struct {
 	IfID     uint64
 }
 
-func (iface *PathInterface) ISD_AS() *addr.ISD_AS {
+func (iface *PathInterface) ISD_AS() addr.IA {
 	return iface.RawIsdas.IA()
 }
 
@@ -215,7 +215,7 @@ type ASInfoReplyEntry struct {
 	IsCore   bool
 }
 
-func (entry *ASInfoReplyEntry) ISD_AS() *addr.ISD_AS {
+func (entry *ASInfoReplyEntry) ISD_AS() addr.IA {
 	return entry.RawIsdas.IA()
 }
 

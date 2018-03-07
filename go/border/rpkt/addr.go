@@ -22,24 +22,24 @@ import (
 )
 
 // DstIA retrieves the destination ISD-AS if it isn't already known.
-func (rp *RtrPkt) DstIA() (*addr.ISD_AS, error) {
-	if rp.dstIA == nil {
+func (rp *RtrPkt) DstIA() (addr.IA, error) {
+	if rp.dstIA.IsZero() {
 		var err error
 		rp.dstIA, err = rp.hookIA(rp.hooks.DstIA, rp.idxs.dstIA)
 		if err != nil {
-			return nil, common.NewBasicError("Unable to retrieve destination ISD-AS", err)
+			return addr.IA{}, common.NewBasicError("Unable to retrieve destination ISD-AS", err)
 		}
 	}
 	return rp.dstIA, nil
 }
 
 // SrcIA retrieves the source ISD-AS if it isn't already known.
-func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, error) {
-	if rp.srcIA == nil {
+func (rp *RtrPkt) SrcIA() (addr.IA, error) {
+	if rp.srcIA.IsZero() {
 		var err error
 		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
 		if err != nil {
-			return nil, common.NewBasicError("Unable to retrieve source ISD-AS", err)
+			return addr.IA{}, common.NewBasicError("Unable to retrieve source ISD-AS", err)
 		}
 	}
 	return rp.srcIA, nil
@@ -47,12 +47,12 @@ func (rp *RtrPkt) SrcIA() (*addr.ISD_AS, error) {
 
 // hookIA is a helper method used by DstIA/SrcIA to run ISD-AS retrieval hooks,
 // falling back to parsing the address header directly otherwise.
-func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (*addr.ISD_AS, error) {
+func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (addr.IA, error) {
 	for _, f := range hooks {
 		ret, ia, err := f()
 		switch {
 		case err != nil:
-			return nil, err
+			return addr.IA{}, err
 		case ret == HookContinue:
 			continue
 		case ret == HookFinish:

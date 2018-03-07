@@ -25,8 +25,8 @@ import (
 // SCION Packet structure.
 type ScnPkt struct {
 	CmnHdr  *CmnHdr // FIXME(scrye): remove this once the SIG no longer needs it
-	DstIA   *addr.ISD_AS
-	SrcIA   *addr.ISD_AS
+	DstIA   addr.IA
+	SrcIA   addr.IA
 	DstHost addr.HostAddr
 	SrcHost addr.HostAddr
 	Path    *spath.Path
@@ -39,12 +39,8 @@ type ScnPkt struct {
 func (s *ScnPkt) Copy() (*ScnPkt, error) {
 	var err error
 	c := &ScnPkt{}
-	if s.DstIA != nil {
-		c.DstIA = s.DstIA.Copy()
-	}
-	if s.SrcIA != nil {
-		c.SrcIA = s.SrcIA.Copy()
-	}
+	c.DstIA = s.DstIA
+	c.SrcIA = s.SrcIA
 	if s.DstHost != nil {
 		c.DstHost = s.DstHost.Copy()
 	}

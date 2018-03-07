@@ -60,7 +60,7 @@ func newCache(maxAge time.Duration) *cache {
 }
 
 // update the set of paths between src and dst to aps.
-func (c *cache) update(src, dst *addr.ISD_AS, aps AppPathSet) {
+func (c *cache) update(src, dst addr.IA, aps AppPathSet) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	entry, ok := c.getEntry(src, dst)
@@ -77,7 +77,7 @@ func (c *cache) update(src, dst *addr.ISD_AS, aps AppPathSet) {
 
 // getAPS returns the paths between src and dst. If the paths are stale or
 // missing, the second return value is false.
-func (c *cache) getAPS(src, dst *addr.ISD_AS) (AppPathSet, bool) {
+func (c *cache) getAPS(src, dst addr.IA) (AppPathSet, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if entry, ok := c.getEntry(src, dst); ok {
@@ -92,7 +92,7 @@ func (c *cache) getAPS(src, dst *addr.ISD_AS) (AppPathSet, bool) {
 
 // watch adds periodic lookups for paths between src and dst. If filter is non-nil,
 // the paths are filtered according to it.
-func (c *cache) watch(src, dst *addr.ISD_AS, filter *PathPredicate) {
+func (c *cache) watch(src, dst addr.IA, filter *PathPredicate) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	var key string
@@ -123,7 +123,7 @@ func (c *cache) watch(src, dst *addr.ISD_AS, filter *PathPredicate) {
 // yet using watch, getWatch returns nil. If filter is nil, a reference to an
 // unfiltered object is returned. The object is shared between callers, so
 // callers must never write to it.
-func (c *cache) getWatch(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, bool) {
+func (c *cache) getWatch(src, dst addr.IA, filter *PathPredicate) (*SyncPaths, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	var key string
@@ -141,7 +141,7 @@ func (c *cache) getWatch(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 }
 
 // isWatched returns true if src and dst are registered for periodic lookups.
-func (c *cache) isWatched(src, dst *addr.ISD_AS) bool {
+func (c *cache) isWatched(src, dst addr.IA) bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if entry, ok := c.getEntry(src, dst); ok {
@@ -151,7 +151,7 @@ func (c *cache) isWatched(src, dst *addr.ISD_AS) bool {
 }
 
 // removeWatch deletes a watch.
-func (c *cache) removeWatch(src, dst *addr.ISD_AS, filter *PathPredicate) error {
+func (c *cache) removeWatch(src, dst addr.IA, filter *PathPredicate) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	var key string
@@ -184,7 +184,7 @@ func (c *cache) revoke(u uifid) {
 	for _, ap := range aps {
 		src := ap.Entry.Path.SrcIA()
 		dst := ap.Entry.Path.DstIA()
-		if src == nil || dst == nil {
+		if src.IsZero() || dst.IsZero() {
 			log.Warn("Unable to extract src and dst IAs from path", "path", ap)
 			continue
 		}
@@ -193,7 +193,7 @@ func (c *cache) revoke(u uifid) {
 }
 
 // remove (internal) one path from the set of paths between src and dst.
-func (c *cache) remove(src, dst *addr.ISD_AS, ap *AppPath) {
+func (c *cache) remove(src, dst addr.IA, ap *AppPath) {
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
 		log.Warn("Attempted to remove known path, but no path set found", "path",
@@ -208,14 +208,14 @@ func (c *cache) remove(src, dst *addr.ISD_AS, ap *AppPath) {
 }
 
 // getEntry (internal) retrieves the cache entry for src and dst.
-func (c *cache) getEntry(src, dst *addr.ISD_AS) (*cacheEntry, bool) {
+func (c *cache) getEntry(src, dst addr.IA) (*cacheEntry, bool) {
 	k := IAKey{src: src.IAInt(), dst: dst.IAInt()}
 	entry, ok := c.m[k]
 	return entry, ok
 }
 
 // addEntry (internal) initializes a cache entry for src and dst.
-func (c *cache) addEntry(src, dst *addr.ISD_AS) *cacheEntry {
+func (c *cache) addEntry(src, dst addr.IA) *cacheEntry {
 	entry := &cacheEntry{
 		aps:       make(AppPathSet),
 		fs:        make(filterSet),

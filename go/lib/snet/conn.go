@@ -153,8 +153,8 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 		lastHop = nil
 	}
 	pkt := &spkt.ScnPkt{
-		DstIA: &addr.ISD_AS{},
-		SrcIA: &addr.ISD_AS{},
+		DstIA: addr.IA{},
+		SrcIA: addr.IA{},
 		Path:  &spath.Path{},
 	}
 	err = hpkt.ParseScnPkt(pkt, c.recvBuffer[:n])

@@ -62,8 +62,8 @@ func (k *Key) String() string {
 // TRCVerResult is the result of verifying core AS signatures.
 type TRCVerResult struct {
 	Quorum   uint32
-	Verified []*addr.ISD_AS
-	Failed   map[*addr.ISD_AS]error
+	Verified []addr.IA
+	Failed   map[addr.IA]error
 }
 
 func (tvr *TRCVerResult) QuorumOk() bool {
@@ -75,7 +75,7 @@ type TRC struct {
 	// certificate.
 	CertLogs map[string]*CertLog
 	// CoreASes is a map from core ASes to their online and offline key.
-	CoreASes map[addr.ISD_AS]*CoreAS
+	CoreASes map[addr.IA]*CoreAS
 	// CreationTime is the unix timestamp in seconds at which the TRC was created.
 	CreationTime uint64
 	// Description is an human-readable description of the ISD.
@@ -144,10 +144,10 @@ func (t *TRC) Key() *Key {
 }
 
 // CoreASList returns a list of core ASes' addresses.
-func (t *TRC) CoreASList() []*addr.ISD_AS {
-	l := make([]*addr.ISD_AS, 0, len(t.CoreASes))
+func (t *TRC) CoreASList() []addr.IA {
+	l := make([]addr.IA, 0, len(t.CoreASes))
 	for key := range t.CoreASes {
-		l = append(l, key.Copy())
+		l = append(l, key)
 	}
 	return l
 }
@@ -236,14 +236,14 @@ func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
 	for signer, coreAS := range old.CoreASes {
 		sig, ok := t.Signatures[signer.String()]
 		if !ok {
-			tvr.Failed[signer.Copy()] = common.NewBasicError(SignatureMissing, nil, "as", signer)
+			tvr.Failed[signer] = common.NewBasicError(SignatureMissing, nil, "as", signer)
 			continue
 		}
 		err = crypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
 		if err == nil {
-			tvr.Verified = append(tvr.Verified, signer.Copy())
+			tvr.Verified = append(tvr.Verified, signer)
 		} else {
-			tvr.Failed[signer.Copy()] = err
+			tvr.Failed[signer] = err
 		}
 	}
 	if !tvr.QuorumOk() {

@@ -44,14 +44,14 @@ var (
 )
 
 var (
-	IA       *addr.ISD_AS
+	IA       addr.IA
 	Host     addr.HostAddr
 	PathMgr  *pathmgr.PR
 	CtrlConn *snet.Conn
 	MgmtAddr *mgmt.Addr
 )
 
-func Init(ia *addr.ISD_AS, ip net.IP) error {
+func Init(ia addr.IA, ip net.IP) error {
 	var err error
 	IA = ia
 	Host = addr.HostFromIP(ip)

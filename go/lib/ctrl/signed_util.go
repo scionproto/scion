@@ -149,7 +149,7 @@ const (
 )
 
 type SignSrcDef struct {
-	IA       *addr.ISD_AS
+	IA       addr.IA
 	ChainVer uint64
 	TRCVer   uint64
 }

@@ -144,7 +144,7 @@ func newConn(c net.Conn) *Conn {
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func RegisterTimeout(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr, svc addr.HostSVC,
+func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
 	if public.Addr.Type() == addr.HostTypeNone {
 		return nil, 0, common.NewBasicError("Cannot register with NoneType address", nil)
@@ -235,7 +235,7 @@ func writeAppAddr(request []byte, a *AppAddr) (int, error) {
 // Register connects to a SCION Dispatcher's UNIX socket.
 // Future messages for address a in AS ia which arrive at the dispatcher can be read by
 // calling Read on the returned Conn structure.
-func Register(dispatcher string, ia *addr.ISD_AS, public, bind *AppAddr,
+func Register(dispatcher string, ia addr.IA, public, bind *AppAddr,
 	svc addr.HostSVC) (*Conn, uint16, error) {
 	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
 }

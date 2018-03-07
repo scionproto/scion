@@ -151,6 +151,6 @@ func dispFunc(dp *pktdisp.DispPkt) {
 
 type RegPollKey string
 
-func MkRegPollKey(ia *addr.ISD_AS, session mgmt.SessionType) RegPollKey {
+func MkRegPollKey(ia addr.IA, session mgmt.SessionType) RegPollKey {
 	return RegPollKey(fmt.Sprintf("%s-%s", ia, session))
 }

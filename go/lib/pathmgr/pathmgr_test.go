@@ -28,9 +28,9 @@ import (
 )
 
 var (
-	iaX = &addr.ISD_AS{I: 1, A: 11}
-	iaY = &addr.ISD_AS{I: 1, A: 12}
-	iaZ = &addr.ISD_AS{I: 2, A: 21}
+	iaX = addr.IA{I: 1, A: 11}
+	iaY = addr.IA{I: 1, A: 12}
+	iaZ = addr.IA{I: 2, A: 21}
 )
 
 var (
@@ -137,7 +137,7 @@ type mockSCIONDConn struct {
 	replies []*sciond.PathReply
 }
 
-func (m *mockSCIONDConn) Paths(dst, src *addr.ISD_AS, max uint16,
+func (m *mockSCIONDConn) Paths(dst, src addr.IA, max uint16,
 	f sciond.PathReqFlags) (*sciond.PathReply, error) {
 	if m.index >= len(m.replies) {
 		return buildSCIONDReply(), nil
@@ -147,7 +147,7 @@ func (m *mockSCIONDConn) Paths(dst, src *addr.ISD_AS, max uint16,
 	return entry, nil
 }
 
-func (m *mockSCIONDConn) ASInfo(ia *addr.ISD_AS) (*sciond.ASInfoReply, error) {
+func (m *mockSCIONDConn) ASInfo(ia addr.IA) (*sciond.ASInfoReply, error) {
 	return nil, nil
 }
 
@@ -343,7 +343,7 @@ func TestRevoke(t *testing.T) {
 			SoMsg("aps register filter", spd.APS, ShouldResemble, buildAPS(pathXYZ))
 			Convey("Revoke a path that's not part of any path set", func() {
 				// Call revoke directly on the cache to avoid parsing a raw rev notification
-				ia := &addr.ISD_AS{I: 5, A: 5}
+				ia := addr.IA{I: 5, A: 5}
 				pm.cache.revoke(uifidFromValues(ia, 50))
 				aps := pm.Query(iaX, iaY)
 				SoMsg("aps", aps, ShouldResemble, buildAPS(pathXY1, pathXY2))

@@ -42,30 +42,30 @@ func NewTRCHandler(conn *snet.Conn) *TRCHandler {
 
 // HandleReq handles TRC requests. If the TRC is not already cached and the cache-only flag is set
 // or the requester is from a remote AS, the request is dropped.
-func (h *TRCHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.TRCReq) {
-	log.Info("Received TRC request", "addr", addr, "req", req)
+func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq) {
+	log.Info("Received TRC request", "addr", a, "req", req)
 	var t *trc.TRC
 	if req.Version == cert_mgmt.NewestVersion {
 		t = config.Store.GetNewestTRC(req.ISD)
 	} else {
 		t = config.Store.GetTRC(req.ISD, req.Version)
 	}
-	srcLocal := config.PublicAddr.IA.Eq(addr.IA)
+	srcLocal := config.PublicAddr.IA.Eq(a.IA)
 	if t != nil {
-		if err := h.sendTRCRep(addr, t); err != nil {
-			log.Error("Unable to send TRC reply", "addr", addr, "req", req, "err", err)
+		if err := h.sendTRCRep(a, t); err != nil {
+			log.Error("Unable to send TRC reply", "addr", a, "req", req, "err", err)
 		}
 	} else if !srcLocal || req.CacheOnly {
-		log.Info("Dropping TRC requeset", "addr", addr, "req", req, "err", "TRC not found")
+		log.Info("Dropping TRC requeset", "addr", a, "req", req, "err", "TRC not found")
 	} else {
-		if err := h.fetchTRC(addr, req); err != nil {
+		if err := h.fetchTRC(a, req); err != nil {
 			log.Error("Unable to fetch TRC", "req", req, "err", err)
 		}
 	}
 }
 
 // sendTRCRep creates a TRC response and sends it to the requester.
-func (h *TRCHandler) sendTRCRep(addr *snet.Addr, t *trc.TRC) error {
+func (h *TRCHandler) sendTRCRep(a *snet.Addr, t *trc.TRC) error {
 	raw, err := t.Compress()
 	if err != nil {
 		return err
@@ -74,18 +74,18 @@ func (h *TRCHandler) sendTRCRep(addr *snet.Addr, t *trc.TRC) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("Send TRC reply", "trc", t, "addr", addr)
-	return SendPayload(h.conn, cpld, addr)
+	log.Debug("Send TRC reply", "trc", t, "addr", a)
+	return SendPayload(h.conn, cpld, a)
 }
 
 // fetchTRC fetches a TRC from the remote AS.
-func (h *TRCHandler) fetchTRC(addr *snet.Addr, req *cert_mgmt.TRCReq) error {
+func (h *TRCHandler) fetchTRC(a *snet.Addr, req *cert_mgmt.TRCReq) error {
 	key := trc.NewKey(req.ISD, req.Version).String()
-	sendReq := trcReqCache.Put(key, addr)
+	sendReq := trcReqCache.Put(key, a)
 	if sendReq { // rate limit
 		return h.sendTRCReq(req)
 	}
-	log.Info("Ignoring TRC request (same request already pending)", "addr", addr, "req", req)
+	log.Info("Ignoring TRC request (same request already pending)", "addr", a, "req", req)
 	return nil
 }
 
@@ -106,8 +106,8 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 }
 
 // HandleRep handles TRC replies. Pending requests are answered and removed.
-func (h *TRCHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.TRC) {
-	log.Info("Received TRC reply", "addr", addr, "rep", rep)
+func (h *TRCHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.TRC) {
+	log.Info("Received TRC reply", "addr", a, "rep", rep)
 	t, err := rep.TRC()
 	if err != nil {
 		log.Error("Unable to parse TRC reply", "err", err)

@@ -41,32 +41,32 @@ func NewChainHandler(conn *snet.Conn) *ChainHandler {
 
 // HandleReq handles certificate chain requests. If the certificate chain is not already cached
 // and the cache-only flag is set or the requester is from a remote AS, the request is dropped.
-func (h *ChainHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainReq) {
-	log.Info("Received certificate chain request", "addr", addr, "req", req)
+func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq) {
+	log.Info("Received certificate chain request", "addr", a, "req", req)
 	var chain *cert.Chain
 	if req.Version == cert_mgmt.NewestVersion {
 		chain = config.Store.GetNewestChain(req.IA())
 	} else {
 		chain = config.Store.GetChain(req.IA(), req.Version)
 	}
-	srcLocal := config.PublicAddr.IA.Eq(addr.IA)
+	srcLocal := config.PublicAddr.IA.Eq(a.IA)
 	if chain != nil {
-		if err := h.sendChainRep(addr, chain); err != nil {
+		if err := h.sendChainRep(a, chain); err != nil {
 			log.Error("Unable to send certificate chain reply",
-				"addr", addr, "req", req, "err", err)
+				"addr", a, "req", req, "err", err)
 		}
 	} else if !srcLocal || req.CacheOnly {
-		log.Info("Dropping certificate chain request", "addr", addr, "req", req,
+		log.Info("Dropping certificate chain request", "addr", a, "req", req,
 			"err", "certificate chain not found")
 	} else {
-		if err := h.fetchChain(addr, req); err != nil {
+		if err := h.fetchChain(a, req); err != nil {
 			log.Error("Unable to fetch certificate chain", "req", req, "err", err)
 		}
 	}
 }
 
 // sendChainRep creates a certificate chain response and sends it to the requester.
-func (h *ChainHandler) sendChainRep(addr *snet.Addr, chain *cert.Chain) error {
+func (h *ChainHandler) sendChainRep(a *snet.Addr, chain *cert.Chain) error {
 	raw, err := chain.Compress()
 	if err != nil {
 		return err
@@ -75,19 +75,19 @@ func (h *ChainHandler) sendChainRep(addr *snet.Addr, chain *cert.Chain) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("Send certificate chain reply", "chain", chain, "addr", addr)
-	return SendPayload(h.conn, cpld, addr)
+	log.Debug("Send certificate chain reply", "chain", chain, "addr", a)
+	return SendPayload(h.conn, cpld, a)
 }
 
 // fetchChain fetches certificate chain from the remote AS.
-func (h *ChainHandler) fetchChain(addr *snet.Addr, req *cert_mgmt.ChainReq) error {
+func (h *ChainHandler) fetchChain(a *snet.Addr, req *cert_mgmt.ChainReq) error {
 	key := cert.NewKey(req.IA(), req.Version).String()
-	sendReq := chainReqCache.Put(key, addr)
+	sendReq := chainReqCache.Put(key, a)
 	if sendReq { // rate limit
 		return h.sendChainReq(req)
 	}
 	log.Info("Ignoring certificate chain request (same request already pending)",
-		"addr", addr, "req", req)
+		"addr", a, "req", req)
 	return nil
 }
 
@@ -103,8 +103,8 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 }
 
 // HandleRep handles certificate chain replies. Pending requests are answered and removed.
-func (h *ChainHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.Chain) {
-	log.Info("Received certificate chain reply", "addr", addr, "rep", rep)
+func (h *ChainHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.Chain) {
+	log.Info("Received certificate chain reply", "addr", a, "rep", rep)
 	chain, err := rep.Chain()
 	if err != nil {
 		log.Error("Unable to parse certificate reply", "err", err)

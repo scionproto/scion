@@ -42,7 +42,7 @@ func (rp *RtrPkt) Parse() error {
 	if _, err := rp.DstIA(); err != nil {
 		return err
 	}
-	if *rp.dstIA == *rp.Ctx.Conf.IA {
+	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// If the destination is local, parse the destination host as well.
 		if _, err := rp.DstHost(); err != nil {
 			return err
@@ -63,7 +63,7 @@ func (rp *RtrPkt) Parse() error {
 	if _, err := rp.IFNext(); err != nil {
 		return err
 	}
-	if *rp.dstIA != *rp.Ctx.Conf.IA {
+	if !rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// If the destination isn't local, parse the next interface ID as well.
 		if _, err := rp.IFNext(); err != nil {
 			return err
@@ -156,7 +156,7 @@ func (rp *RtrPkt) setDirTo() {
 		assert.Mustf(rp.DirFrom != rcmn.DirUnset, rp.ErrStr, "DirFrom must not be DirUnset.")
 		assert.Mustf(rp.ifCurr != nil, rp.ErrStr, "rp.ifCurr must not be nil.")
 	}
-	if *rp.dstIA != *rp.Ctx.Conf.IA {
+	if !rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Packet is not destined to the local AS, so it can't be DirSelf.
 		if rp.DirFrom == rcmn.DirLocal {
 			rp.DirTo = rcmn.DirExternal

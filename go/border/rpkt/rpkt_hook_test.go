@@ -42,38 +42,38 @@ func TestHooksSrcDstIA(t *testing.T) {
 	Convey("Fetch SrcIA, DstIA via hook functions", t, func() {
 		rpkt := setupRtrPktHookTest()
 
-		srcIA := &addr.ISD_AS{I: 1, A: 2}
-		dstIA := &addr.ISD_AS{I: 3, A: 4}
+		srcIA := addr.IA{I: 1, A: 2}
+		dstIA := addr.IA{I: 3, A: 4}
 
 		rpkt.hooks = hooks{
-			SrcIA: []hookIA{func() (HookResult, *addr.ISD_AS, error) {
+			SrcIA: []hookIA{func() (HookResult, addr.IA, error) {
 				fetched++
 				return HookFinish, srcIA, nil
 			}},
-			DstIA: []hookIA{func() (HookResult, *addr.ISD_AS, error) {
+			DstIA: []hookIA{func() (HookResult, addr.IA, error) {
 				fetched++
 				return HookFinish, dstIA, nil
 			}},
 		}
-		var ia *addr.ISD_AS
+		var ia addr.IA
 
 		ia, err = rpkt.DstIA()
-		SoMsg("Destination address wrong", ia, ShouldEqual, dstIA)
+		SoMsg("Destination address wrong", ia, ShouldResemble, dstIA)
 		SoMsg("Should be no error when calling destination address getter", err, ShouldBeNil)
 
 		ia, err = rpkt.DstIA()
-		SoMsg("Destination address wrong on second getter call", ia, ShouldEqual, dstIA)
+		SoMsg("Destination address wrong on second getter call", ia, ShouldResemble, dstIA)
 		SoMsg("Destination address must only be fetched once, cached value must be reused on the"+
 			" second call", fetched, ShouldEqual, 1)
 		SoMsg("Should be no error when calling destination address getter for cached value", err,
 			ShouldBeNil)
 
 		ia, err = rpkt.SrcIA()
-		SoMsg("Source address wrong", ia, ShouldEqual, srcIA)
+		SoMsg("Source address wrong", ia, ShouldResemble, srcIA)
 		SoMsg("Should be no error when calling source address getter", err, ShouldBeNil)
 
 		ia, err = rpkt.SrcIA()
-		SoMsg("Source address wrong on cached getter call", ia, ShouldEqual, srcIA)
+		SoMsg("Source address wrong on cached getter call", ia, ShouldResemble, srcIA)
 		SoMsg("Should be no error when calling destination address getter for cached value", err,
 			ShouldBeNil)
 		SoMsg("Two fetches are expected (both source and destination address, each exactly once)",

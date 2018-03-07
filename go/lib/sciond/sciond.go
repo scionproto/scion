@@ -91,9 +91,9 @@ func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
 type Connector interface {
 	// Paths requests from SCIOND a set of end to end paths between src and
 	// dst. max specifices the maximum number of paths returned.
-	Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error)
+	Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
 	// ASInfo requests from SCIOND information about AS ia.
-	ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error)
+	ASInfo(ia addr.IA) (*ASInfoReply, error)
 	// IFInfo requests from SCIOND addresses and ports of interfaces.  Slice
 	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
 	// answer containing all interfaces is returned.
@@ -177,7 +177,7 @@ func (c *connector) receive() (*Pld, error) {
 	return p, nil
 }
 
-func (c *connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*PathReply, error) {
+func (c *connector) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -199,7 +199,7 @@ func (c *connector) Paths(dst, src *addr.ISD_AS, max uint16, f PathReqFlags) (*P
 	return &reply.PathReply, nil
 }
 
-func (c *connector) ASInfo(ia *addr.ISD_AS) (*ASInfoReply, error) {
+func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 

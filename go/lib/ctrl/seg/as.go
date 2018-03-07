@@ -45,11 +45,11 @@ func newASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
 	return ase, proto.ParseFromRaw(ase, ase.ProtoId(), b)
 }
 
-func (ase *ASEntry) IA() *addr.ISD_AS {
+func (ase *ASEntry) IA() addr.IA {
 	return ase.RawIA.IA()
 }
 
-func (ase *ASEntry) Validate(prevIA *addr.ISD_AS, nextIA *addr.ISD_AS) error {
+func (ase *ASEntry) Validate(prevIA addr.IA, nextIA addr.IA) error {
 	if len(ase.HopEntries) == 0 {
 		return common.NewBasicError("ASEntry has no HopEntries", nil, "ia", ase.IA())
 	}

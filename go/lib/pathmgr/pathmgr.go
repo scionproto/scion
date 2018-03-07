@@ -136,7 +136,7 @@ func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 // Query returns a slice of paths between src and dst. If the paths are not
 // found in the path resolver's cache, a query to SCIOND is issued and the
 // function blocks until the reply is received.
-func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
+func (r *PR) Query(src, dst addr.IA) AppPathSet {
 	r.Lock()
 	defer r.Unlock()
 	if aps, ok := r.cache.getAPS(src, dst); ok {
@@ -160,7 +160,7 @@ func (r *PR) Query(src, dst *addr.ISD_AS) AppPathSet {
 	return AppPathSet{}
 }
 
-func (r *PR) QueryFilter(src, dst *addr.ISD_AS, filter *PathPredicate) AppPathSet {
+func (r *PR) QueryFilter(src, dst addr.IA, filter *PathPredicate) AppPathSet {
 	aps := r.Query(src, dst)
 	// Delete paths that do not match the predicate
 	for k, ap := range aps {
@@ -179,11 +179,11 @@ func (r *PR) QueryFilter(src, dst *addr.ISD_AS, filter *PathPredicate) AppPathSe
 // a reference to a structure containing the currently available paths.
 //
 // On registration failure an error is returned.
-func (r *PR) Watch(src, dst *addr.ISD_AS) (*SyncPaths, error) {
+func (r *PR) Watch(src, dst addr.IA) (*SyncPaths, error) {
 	return r.WatchFilter(src, dst, nil)
 }
 
-func (r *PR) Unwatch(src, dst *addr.ISD_AS) error {
+func (r *PR) Unwatch(src, dst addr.IA) error {
 	return r.UnwatchFilter(src, dst, nil)
 }
 
@@ -193,7 +193,7 @@ func (r *PR) Unwatch(src, dst *addr.ISD_AS) error {
 //
 // WatchFilter also adds pair src-dst to the list of tracked paths (if it
 // wasn't already tracked).
-func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPaths, error) {
+func (r *PR) WatchFilter(src, dst addr.IA, filter *PathPredicate) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
 	// If the src and dst are not monitored yet, add the request to the resolver's queue
@@ -217,7 +217,7 @@ func (r *PR) WatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) (*SyncPat
 }
 
 // UnwatchFilter deletes a previously registered filter.
-func (r *PR) UnwatchFilter(src, dst *addr.ISD_AS, filter *PathPredicate) error {
+func (r *PR) UnwatchFilter(src, dst addr.IA, filter *PathPredicate) error {
 	r.Lock()
 	defer r.Unlock()
 	return r.cache.removeWatch(src, dst, filter)

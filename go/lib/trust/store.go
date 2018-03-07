@@ -44,7 +44,7 @@ type Store struct {
 	// chainMap is a mapping form (ISD-AS, version) to certificate chain
 	chainMap map[cert.Key]*cert.Chain
 	// maxChainMap is a mapping from (ISD-AS) to max version.
-	maxChainMap map[addr.ISD_AS]uint64
+	maxChainMap map[addr.IA]uint64
 	// chainLock guards chainMap and maxChainMap.
 	chainLock sync.RWMutex
 	// trcMap is a mapping from (ISD, version) to corresponding TRC
@@ -58,7 +58,7 @@ type Store struct {
 func NewStore(certDir, cacheDir, eName string) (*Store, error) {
 	s := &Store{certDir: certDir, cacheDir: cacheDir, eName: eName,
 		chainMap:    make(map[cert.Key]*cert.Chain),
-		maxChainMap: make(map[addr.ISD_AS]uint64),
+		maxChainMap: make(map[addr.IA]uint64),
 		trcMap:      make(map[trc.Key]*trc.TRC),
 		maxTrcMap:   make(map[uint16]uint64)}
 	s.initChains()
@@ -128,8 +128,8 @@ func (s *Store) AddChain(chain *cert.Chain, write bool) error {
 	s.chainLock.Lock()
 	if _, ok := s.chainMap[key]; !ok {
 		s.chainMap[key] = chain
-		if v, ok := s.maxChainMap[*ia]; !ok || ver > v {
-			s.maxChainMap[*ia] = ver
+		if v, ok := s.maxChainMap[ia]; !ok || ver > v {
+			s.maxChainMap[ia] = ver
 		}
 	}
 	s.chainLock.Unlock()
@@ -187,18 +187,18 @@ func (s *Store) writeJSON(j JSON, path string) error {
 }
 
 // GetChain returns the certificate chain for the specified values or nil, if it is not present.
-func (s *Store) GetChain(ia *addr.ISD_AS, ver uint64) *cert.Chain {
+func (s *Store) GetChain(ia addr.IA, ver uint64) *cert.Chain {
 	s.chainLock.RLock()
 	defer s.chainLock.RUnlock()
 	return s.chainMap[*cert.NewKey(ia, ver)]
 }
 
 // GetNewestChain returns the certificate chain with the highest version for the specified ISD-AS.
-func (s *Store) GetNewestChain(ia *addr.ISD_AS) *cert.Chain {
+func (s *Store) GetNewestChain(ia addr.IA) *cert.Chain {
 	s.chainLock.RLock()
 	defer s.chainLock.RUnlock()
 	var chain *cert.Chain
-	ver, ok := s.maxChainMap[*ia]
+	ver, ok := s.maxChainMap[ia]
 	if ok {
 		chain = s.chainMap[*cert.NewKey(ia, ver)]
 	}

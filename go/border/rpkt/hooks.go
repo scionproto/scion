@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
-type hookIA func() (HookResult, *addr.ISD_AS, error)
+type hookIA func() (HookResult, addr.IA, error)
 type hookHost func() (HookResult, addr.HostAddr, error)
 type hookInfoF func() (HookResult, *spath.InfoField, error)
 type hookHopF func() (HookResult, *spath.HopField, error)
