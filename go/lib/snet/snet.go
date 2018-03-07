@@ -84,7 +84,7 @@ func InitWithNetwork(network *Network) error {
 // IA returns the default ISD-AS
 func IA() addr.IA {
 	if DefNetwork == nil {
-		return addr.EmptyIA
+		return addr.IA{}
 	}
 	return DefNetwork.localIA
 }
@@ -210,7 +210,7 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	}
 	regAddr.Addr = conn.laddr.Host
 
-	if conn.laddr.IA.IsUnset() {
+	if conn.laddr.IA.IsZero() {
 		conn.laddr.IA = n.IA()
 	}
 

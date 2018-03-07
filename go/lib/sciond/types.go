@@ -167,7 +167,7 @@ type FwdPathMeta struct {
 func (fpm FwdPathMeta) SrcIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
-		return addr.EmptyIA
+		return addr.IA{}
 	}
 	return ifaces[0].ISD_AS()
 }
@@ -175,7 +175,7 @@ func (fpm FwdPathMeta) SrcIA() addr.IA {
 func (fpm FwdPathMeta) DstIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
-		return addr.EmptyIA
+		return addr.IA{}
 	}
 	return ifaces[len(ifaces)-1].ISD_AS()
 }

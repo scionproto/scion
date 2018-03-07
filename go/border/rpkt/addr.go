@@ -23,11 +23,11 @@ import (
 
 // DstIA retrieves the destination ISD-AS if it isn't already known.
 func (rp *RtrPkt) DstIA() (addr.IA, error) {
-	if rp.dstIA.IsUnset() {
+	if rp.dstIA.IsZero() {
 		var err error
 		rp.dstIA, err = rp.hookIA(rp.hooks.DstIA, rp.idxs.dstIA)
 		if err != nil {
-			return addr.EmptyIA, common.NewBasicError("Unable to retrieve destination ISD-AS", err)
+			return addr.IA{}, common.NewBasicError("Unable to retrieve destination ISD-AS", err)
 		}
 	}
 	return rp.dstIA, nil
@@ -35,11 +35,11 @@ func (rp *RtrPkt) DstIA() (addr.IA, error) {
 
 // SrcIA retrieves the source ISD-AS if it isn't already known.
 func (rp *RtrPkt) SrcIA() (addr.IA, error) {
-	if rp.srcIA.IsUnset() {
+	if rp.srcIA.IsZero() {
 		var err error
 		rp.srcIA, err = rp.hookIA(rp.hooks.SrcIA, rp.idxs.srcIA)
 		if err != nil {
-			return addr.EmptyIA, common.NewBasicError("Unable to retrieve source ISD-AS", err)
+			return addr.IA{}, common.NewBasicError("Unable to retrieve source ISD-AS", err)
 		}
 	}
 	return rp.srcIA, nil
@@ -52,7 +52,7 @@ func (rp *RtrPkt) hookIA(hooks []hookIA, idx int) (addr.IA, error) {
 		ret, ia, err := f()
 		switch {
 		case err != nil:
-			return addr.EmptyIA, err
+			return addr.IA{}, err
 		case ret == HookContinue:
 			continue
 		case ret == HookFinish:

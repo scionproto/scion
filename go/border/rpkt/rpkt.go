@@ -226,8 +226,8 @@ func (rp *RtrPkt) Reset() {
 	// CmnHdr doesn't contain any references.
 	rp.IncrementedPath = false
 	rp.idxs = packetIdxs{}
-	rp.dstIA = addr.EmptyIA
-	rp.srcIA = addr.EmptyIA
+	rp.dstIA = addr.IA{}
+	rp.srcIA = addr.IA{}
 	rp.dstHost = nil
 	rp.srcHost = nil
 	rp.infoF = nil

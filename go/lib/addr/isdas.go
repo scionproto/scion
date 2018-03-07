@@ -24,13 +24,10 @@ import (
 )
 
 const (
-	IABytes       = 4
-	MaxISD        = (1 << 12) - 1
-	MaxAS         = (1 << 20) - 1
-	ErrorIAUnpack = "Unable to unpack ISD-AS"
+	IABytes = 4
+	MaxISD  = (1 << 12) - 1
+	MaxAS   = (1 << 20) - 1
 )
-
-var EmptyIA = IA{}
 
 var _ encoding.TextUnmarshaler = (*IA)(nil)
 
@@ -49,24 +46,24 @@ func IAFromRaw(b common.RawBytes) IA {
 func IAFromString(s string) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
-		return EmptyIA, common.NewBasicError("Invalid ISD-AS", nil, "val", s)
+		return IA{}, common.NewBasicError("Invalid ISD-AS", nil, "val", s)
 	}
 	isd, err := strconv.Atoi(parts[0])
 	if err != nil {
 		// err.Error() will contain the original value
-		return EmptyIA, common.NewBasicError("Unable to parse ISD", err)
+		return IA{}, common.NewBasicError("Unable to parse ISD", err)
 	}
 	if isd > MaxISD {
-		return EmptyIA, common.NewBasicError("Invalid ISD-AS: ISD too large", nil,
+		return IA{}, common.NewBasicError("Invalid ISD-AS: ISD too large", nil,
 			"max", MaxISD, "actual", isd, "raw", s)
 	}
 	as, err := strconv.Atoi(parts[1])
 	if err != nil {
 		// err.Error() will contain the original value
-		return EmptyIA, common.NewBasicError("Unable to parse AS", err)
+		return IA{}, common.NewBasicError("Unable to parse AS", err)
 	}
 	if as > MaxAS {
-		return EmptyIA, common.NewBasicError("Invalid ISD-AS: AS too large", nil,
+		return IA{}, common.NewBasicError("Invalid ISD-AS: AS too large", nil,
 			"max", MaxAS, "actual", as, "raw", s)
 	}
 	return IA{I: isd, A: as}, nil
@@ -98,7 +95,7 @@ func (ia IA) IAInt() IAInt {
 	return IAInt((ia.I << 20) | (ia.A & 0x000FFFFF))
 }
 
-func (ia IA) IsUnset() bool {
+func (ia IA) IsZero() bool {
 	return ia.I == 0 && ia.A == 0
 }
 

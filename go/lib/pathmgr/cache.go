@@ -184,7 +184,7 @@ func (c *cache) revoke(u uifid) {
 	for _, ap := range aps {
 		src := ap.Entry.Path.SrcIA()
 		dst := ap.Entry.Path.DstIA()
-		if src.IsUnset() || dst.IsUnset() {
+		if src.IsZero() || dst.IsZero() {
 			log.Warn("Unable to extract src and dst IAs from path", "path", ap)
 			continue
 		}
