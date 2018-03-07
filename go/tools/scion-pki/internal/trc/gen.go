@@ -38,9 +38,7 @@ func runGenTrc(cmd *base.Command, args []string) {
 	}
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		cmd.Usage()
-		os.Exit(2)
+		base.ErrorAndExit("Error: %s\n", err)
 	}
 	for isd := range asMap {
 		if err = genTrc(isd); err != nil {
@@ -53,16 +51,16 @@ func runGenTrc(cmd *base.Command, args []string) {
 func genTrc(isd int) error {
 	dir := pkicmn.GetIsdPath(isd)
 	// Check that isd.ini exists, otherwise skip directory.
-	cpath := filepath.Join(dir, conf.TrcConfFileName)
+	cpath := filepath.Join(dir, conf.IsdConfFileName)
 	if _, err := os.Stat(cpath); os.IsNotExist(err) {
 		return nil
 	}
-	tconf, err := conf.LoadTrcConf(dir)
+	iconf, err := conf.LoadIsdConf(dir)
 	if err != nil {
 		return common.NewBasicError("Error loading TRC conf", err)
 	}
 	fmt.Printf("Generating TRC for ISD %d\n", isd)
-	t, err := newTrc(isd, tconf, dir)
+	t, err := newTrc(isd, iconf, dir)
 	if err != nil {
 		return err
 	}
@@ -70,19 +68,19 @@ func genTrc(isd int) error {
 	if err != nil {
 		return common.NewBasicError("Error json-encoding TRC", err)
 	}
-	fname := fmt.Sprintf(pkicmn.TrcNameFmt, isd, tconf.Version)
+	fname := fmt.Sprintf(pkicmn.TrcNameFmt, isd, iconf.Trc.Version)
 	return pkicmn.WriteToFile(raw, filepath.Join(dir, fname), 0644)
 }
 
-func newTrc(isd int, tconf *conf.Trc, path string) (*trc.TRC, error) {
+func newTrc(isd int, iconf *conf.Isd, path string) (*trc.TRC, error) {
 	t := &trc.TRC{
-		CreationTime:   tconf.IssuingTime,
-		Description:    tconf.Description,
-		ExpirationTime: tconf.IssuingTime + tconf.Validity*24*60*60,
-		GracePeriod:    tconf.GracePeriod,
+		CreationTime:   iconf.Trc.IssuingTime,
+		Description:    iconf.Desc,
+		ExpirationTime: iconf.Trc.IssuingTime + iconf.Trc.Validity*24*60*60,
+		GracePeriod:    iconf.Trc.GracePeriod,
 		ISD:            uint16(isd),
-		QuorumTRC:      tconf.QuorumTRC,
-		Version:        tconf.Version,
+		QuorumTRC:      iconf.Trc.QuorumTRC,
+		Version:        iconf.Trc.Version,
 		CoreASes:       make(map[addr.IA]*trc.CoreAS),
 		Signatures:     make(map[string]common.RawBytes),
 		RAINS:          &trc.Rains{},
@@ -91,7 +89,7 @@ func newTrc(isd int, tconf *conf.Trc, path string) (*trc.TRC, error) {
 	}
 	// Load the online/offline root keys.
 	var ases []coreAS
-	for _, cia := range tconf.CoreIAs {
+	for _, cia := range iconf.Trc.CoreIAs {
 		var as coreAS
 		as.IA = cia
 		aspath := pkicmn.GetAsPath(cia)
@@ -107,6 +105,7 @@ func newTrc(isd int, tconf *conf.Trc, path string) (*trc.TRC, error) {
 		as.Offline = ed25519.PrivateKey(offline)
 		ases = append(ases, as)
 	}
+	// FIXME(shitz): The Online/OfflineKeyAlg should be configurable.
 	for _, as := range ases {
 		t.CoreASes[as.IA] = &trc.CoreAS{
 			OnlineKey:     common.RawBytes(as.Online.Public().(ed25519.PublicKey)),

@@ -32,11 +32,12 @@ func runVerify(cmd *base.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
+	exitStatus := 0
 	for _, certPath := range args {
 		// Load file.
 		raw, err := ioutil.ReadFile(certPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading %s: %s", certPath, err)
+			fmt.Fprintf(os.Stderr, "Error reading %s: %s\n", certPath, err)
 			continue
 		}
 		chain, err := cert.ChainFromRaw(raw, false)
@@ -46,10 +47,12 @@ func runVerify(cmd *base.Command, args []string) {
 		}
 		if err = verifyChain(chain, chain.Leaf.Subject); err != nil {
 			fmt.Printf("Verification of %s FAILED. Reason: %s\n", certPath, err)
+			exitStatus = 2
 			continue
 		}
 		fmt.Printf("Verification of %s SUCCEEDED.\n", certPath)
 	}
+	os.Exit(exitStatus)
 }
 
 func verifyChain(chain *cert.Chain, subject addr.IA) error {

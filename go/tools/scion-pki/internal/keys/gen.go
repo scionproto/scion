@@ -27,7 +27,6 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/nacl/box"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
@@ -42,34 +41,23 @@ func runGenKey(cmd *base.Command, args []string) {
 	}
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		cmd.Usage()
-		os.Exit(2)
+		base.ErrorAndExit("Error: %s\n", err)
 	}
-	for _, ases := range asMap {
+	for isd, ases := range asMap {
+		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(isd))
+		if err != nil {
+			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
+		}
 		for _, ia := range ases {
-			if err = genKeys(ia); err != nil {
+			dir := pkicmn.GetAsPath(ia)
+			core := pkicmn.Contains(iconf.Trc.CoreIAs, ia)
+			fmt.Println("Generating keys for", ia)
+			if err = genAll(filepath.Join(dir, "keys"), core); err != nil {
 				base.ErrorAndExit("Error generating keys: %s\n", err)
 			}
 		}
 	}
 	os.Exit(0)
-}
-
-func genKeys(ia addr.IA) error {
-	dir := pkicmn.GetAsPath(ia)
-	// Check if as.ini exists, otherwise skip dir.
-	cname := filepath.Join(dir, conf.AsConfFileName)
-	if _, err := os.Stat(cname); os.IsNotExist(err) {
-		fmt.Printf("%s does not exists. Skipping %s.\n", conf.AsConfFileName, dir)
-		return nil
-	}
-	// Load as.ini
-	a, err := conf.LoadAsConf(dir)
-	if err != nil {
-		return err
-	}
-	return genAll(filepath.Join(dir, "keys"), a.IsCore)
 }
 
 func genAll(outDir string, core bool) error {

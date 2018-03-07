@@ -44,9 +44,9 @@ The following flags are available:
 		Overwrite existing TRCs.
 
 Selector:
-	*-*
+	*
 		All ISDs under the root directory.
-	X-*
+	X
 		ISD X.
 
 'trc' needs to be pointed to the root directory where all keys and certificates are
@@ -67,10 +67,9 @@ a predefined structure:
 isd.ini contains the preconfigured parameters according to which 'trc' generates
 the TRCs. It follows the ini format and can contain only the default section with
 the following values:
-	Isd [required]
-		integer representing the Isd ID for which the TRC is generated
 	Description [optional]
-		arbitrary string used to describe the TRC
+		arbitrary string used to describe the ISD/TRC
+and a section 'TRC' with the following values:
 	Version [required]
 		integer representing the version of the TRC
 	Validity [required]

@@ -29,7 +29,32 @@ var CmdTmpl = &base.Command{
 	UsageLine: "tmpl [-h] (isd|as) [<flags>] selector",
 	Short:     "Generate configuration templates for ISDs and ASes.",
 	Long: `
-Insert long desc here.
+'tmpl' can be used to generate configuration file templates for ISDs and ASes.
+
+Subcommands:
+	isd
+		Used to generate an isd.ini template.
+	as
+		Used to generate an as.ini template.
+
+Flags:
+	-d
+		The root directory of all certificates and keys (default '.')
+	-f
+		Overwrite existing keys.
+
+Selector:
+	*
+		All ISDs under the root directory.
+	X
+		A specific ISD X.
+	*-*
+		All ISDs and ASes under the root directory.
+	X-*
+		All ASes in ISD X.
+	X-Y
+		A specific AS X-Y, e.g. AS 1-11
+
 `,
 }
 

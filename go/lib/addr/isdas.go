@@ -25,8 +25,10 @@ import (
 
 const (
 	IABytes = 4
-	MaxISD  = (1 << 12) - 1
-	MaxAS   = (1 << 20) - 1
+	ISDBits = 12
+	ASBits  = 20
+	MaxISD  = (1 << ISDBits) - 1
+	MaxAS   = (1 << ASBits) - 1
 )
 
 var _ encoding.TextUnmarshaler = (*IA)(nil)

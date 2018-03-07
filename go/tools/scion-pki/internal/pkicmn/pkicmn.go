@@ -39,51 +39,59 @@ var (
 	Force   bool
 )
 
-// ProcessSelector processes the given selector and returns the top level directory
-// to which the requested operation should be applied.
+// ProcessSelector processes the given selector and returns a mapping from ISD id to ASes
+// of that ISD. In case of an ISD-only selector, i.e., a '*' or any number the lists of
+// ASes will be empty.
 func ProcessSelector(selector string) (map[int][]addr.IA, error) {
 	toks := strings.Split(selector, "-")
-	if len(toks) != 2 {
+	if len(toks) > 2 {
 		return nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
 	}
 	isdTok := toks[0]
-	asTok := toks[1]
-	// Sanity check selector.
+	asTok := "*"
+	if len(toks) == 2 {
+		asTok = toks[1]
+	}
+	// Validate selectors.
 	if isdTok == "*" && asTok != "*" {
 		return nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
 	}
 	if isdTok != "*" {
-		if _, err := strconv.ParseUint(isdTok, 10, 12); err != nil {
+		if _, err := strconv.ParseUint(isdTok, 10, addr.ISDBits); err != nil {
 			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
 	}
+
 	if asTok != "*" {
-		if _, err := strconv.ParseUint(asTok, 10, 20); err != nil {
+		if _, err := strconv.ParseUint(asTok, 10, addr.ASBits); err != nil {
 			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
 	}
-	isdGlob := fmt.Sprintf("ISD%s", isdTok)
-	isdDirs, err := filepath.Glob(filepath.Join(RootDir, isdGlob))
+	isdDirs, err := filepath.Glob(filepath.Join(RootDir, fmt.Sprintf("ISD%s", isdTok)))
 	if err != nil {
 		return nil, err
 	}
+	if len(isdDirs) == 0 {
+		return nil, common.NewBasicError("No directories found", nil, "selector", selector)
+	}
 	res := make(map[int][]addr.IA)
 	for _, dir := range isdDirs {
-		base := filepath.Base(dir)
-		isd, err := strconv.ParseUint(base[3:], 10, 12)
-		if err != nil {
-			return nil, common.NewBasicError("Invalid path", nil, "path", dir)
-		}
-		asGlob := fmt.Sprintf("%s/AS%s", base, asTok)
-		dirs, err := filepath.Glob(filepath.Join(RootDir, asGlob))
+		isd, err := isdFromDir(dir)
 		if err != nil {
 			return nil, err
 		}
+		dirs, err := filepath.Glob(filepath.Join(dir, fmt.Sprintf("AS%s", asTok)))
+		if err != nil {
+			return nil, err
+		}
+		if len(dirs) == 0 {
+			return nil, common.NewBasicError("No directories found", nil, "selector", selector)
+		}
 		ases := make([]addr.IA, len(dirs))
 		for i, asDir := range dirs {
-			as, err := strconv.ParseUint(filepath.Base(asDir)[2:], 10, 22)
+			as, err := asFromDir(asDir)
 			if err != nil {
-				return nil, common.NewBasicError("Invalid path", nil, "path", asDir)
+				return nil, err
 			}
 			ases[i] = addr.IA{I: int(isd), A: int(as)}
 		}
@@ -92,20 +100,41 @@ func ProcessSelector(selector string) (map[int][]addr.IA, error) {
 	return res, nil
 }
 
-// FilterASDirs takes a list of paths and returns a list of paths corresponding to core ASes
-// and a list of paths for all remaining ASes.
+func isdFromDir(dir string) (uint64, error) {
+	isd, err := strconv.ParseUint(filepath.Base(dir)[3:], 10, addr.ISDBits)
+	if err != nil {
+		return 0, common.NewBasicError("Unable to parse ISD number from dir", nil, "dir", dir)
+	}
+	return isd, nil
+}
+
+func asFromDir(dir string) (uint64, error) {
+	as, err := strconv.ParseUint(filepath.Base(dir)[2:], 10, addr.ASBits)
+	if err != nil {
+		return 0, common.NewBasicError("Unable to parse AS number from dir", nil, "dir", dir)
+	}
+	return as, nil
+}
+
+// FilterAses returns a list of ASes with entries from 'ases' that are not in 'cores'.
 func FilterAses(ases, cores []addr.IA) []addr.IA {
 	var filtered []addr.IA
-OUTER:
 	for _, ia := range ases {
-		for _, cia := range cores {
-			if ia.Eq(cia) {
-				continue OUTER
-			}
+		if Contains(cores, ia) {
+			continue
 		}
 		filtered = append(filtered, ia)
 	}
 	return filtered
+}
+
+func Contains(ases []addr.IA, as addr.IA) bool {
+	for _, ia := range ases {
+		if ia.Eq(as) {
+			return true
+		}
+	}
+	return false
 }
 
 func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
