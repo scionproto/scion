@@ -1,0 +1,110 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package deduplicate implements a generic request/response proxy that issues a
+// single request instead of multiple redundant requests.
+//
+// To initialize a Deduplicator, define the function that handles the request,
+// and use it to initialize the Deduplicator:
+//   dd := &Deduplicator{RequestFunc: foo}
+//
+// Requests can then be issued:
+//   dd.Request(ctx.TODO(), objectA)
+//   dd.Request(ctx.TODO(), objectB)
+//
+// If objectA and objectB have the same DeduplicationKey() (and arrive at dd at
+// approximately the same time, see Deduplicator timer fields for more
+// information), a single call to foo is made.
+//
+// To support anycast behavior (where multiple requests are sent out to various
+// services, and the first response that we get unblocks all waiters), requests
+// can define BroadcastKeys.
+package deduplicate
+
+import (
+	"context"
+	"time"
+)
+
+const (
+	DefaultDeduplicationLifetime = time.Minute
+)
+
+type Request interface {
+	// Two requests are considered identical if they return the same
+	// DeduplicationKey.
+	DeduplicationKey() string
+	// When a reply arrives for a request, the reply is delivered to all
+	// requests sharing the same broadcast key. If two requests have the same
+	// DeduplicationKey, they must have the same BroadcastKey.  BroadcastKeys
+	// allow applications to implement anycast request/responses.  For this,
+	// define different DedupicationKeys for the same message sent to different
+	// remote servers, while keeping the BroadcastKey the same.
+	BroadcastKey() string
+}
+
+// RequestFunc performs a request/response exchange, with the response written
+// on the channel. To support proper clean-up, RequestFunc must write exactly
+// one value to response. The Response is transparently passed by the
+// Deduplicator to all callers waiting on the same BroadcastKey.
+//
+// When sending out a fresh request, the Deduplicator calls RequestFunc in a
+// goroutine, and selects on ctx.Done() and on the response channel.
+//
+// Use TestRequestFunc to verify that an implementation is valid
+// for use with Deduplicator.
+type RequestFunc func(ctx context.Context, request Request, response chan<- Response)
+
+// A Deduplicator issues a single request instead of multiple identical
+// requests. Responses get broadcast to all waiters. For more information, see
+// the package level documentation.
+//
+// The zero value is a valid Deduplicator object.
+type Deduplicator struct {
+	// Function to call when a new request needs to be sent out.
+	RequestFunc RequestFunc
+
+	// Time after calling RequestFunc for a specific DeduplicationKey where all
+	// requests for the same key will not result in an additional call to
+	// RequestFunc. If unset, DeduplicationLifetime defaults to
+	// DefaultDeduplicationLifetime.
+	DeduplicationLifetime time.Duration
+
+	// XXX(scrye): Add more fields here to support the customization
+	// of Deduplicator behavior and timing.
+}
+
+// Request passes a request that is subject to deduplication. This function
+// returns immediately, and callers should wait on the returned channel for the
+// result.
+func (dd *Deduplicator) Request(ctx context.Context, object Request) <-chan Response {
+	// TODO(scrye): No aggregation logic yet, so just call the handler
+	ch := make(chan Response, 1)
+	dd.RequestFunc(ctx, object, ch)
+	// TODO(scrye): Replicate content of ch across all broadcast channels
+	return ch
+}
+
+// Response represents the outcome of a request. It is passed along
+// channels by the Deduplicator.
+type Response struct {
+	Data  interface{}
+	Error error
+}
+
+// TestRequestFunc checks whether f is a correct RequestFunc implementation, as
+// expected by Deduplicator objects. It is designed for use in tests.
+func TestRequestFunc(f RequestFunc) error {
+	panic("not implemented")
+}
