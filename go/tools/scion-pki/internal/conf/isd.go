@@ -35,7 +35,7 @@ type Trc struct {
 	Version     uint64
 	IssuingTime uint64
 	Validity    uint64
-	CoreIAs     []*addr.ISD_AS `ini:"-"`
+	CoreIAs     []addr.IA `ini:"-"`
 	GracePeriod uint64
 	QuorumTRC   uint32
 }

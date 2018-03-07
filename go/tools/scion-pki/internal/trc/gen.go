@@ -83,7 +83,7 @@ func newTrc(isd int, tconf *conf.Trc, path string) (*trc.TRC, error) {
 		ISD:            uint16(isd),
 		QuorumTRC:      tconf.QuorumTRC,
 		Version:        tconf.Version,
-		CoreASes:       make(map[addr.ISD_AS]*trc.CoreAS),
+		CoreASes:       make(map[addr.IA]*trc.CoreAS),
 		Signatures:     make(map[string]common.RawBytes),
 		RAINS:          &trc.Rains{},
 		RootCAs:        make(map[string]*trc.RootCA),
@@ -93,7 +93,7 @@ func newTrc(isd int, tconf *conf.Trc, path string) (*trc.TRC, error) {
 	var ases []coreAS
 	for _, cia := range tconf.CoreIAs {
 		var as coreAS
-		as.IA = *cia
+		as.IA = cia
 		aspath := pkicmn.GetAsPath(cia)
 		online, err := trust.LoadKey(filepath.Join(aspath, "keys", trust.OnKeyFile))
 		if err != nil {
@@ -125,7 +125,7 @@ func newTrc(isd int, tconf *conf.Trc, path string) (*trc.TRC, error) {
 }
 
 type coreAS struct {
-	IA      addr.ISD_AS
+	IA      addr.IA
 	Online  ed25519.PrivateKey
 	Offline ed25519.PrivateKey
 }

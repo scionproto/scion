@@ -50,7 +50,7 @@ func runGenAsTmpl(cmd *base.Command, args []string) {
 	}
 }
 
-func genAsTmpl(ia *addr.ISD_AS, isdConf *conf.Trc) error {
+func genAsTmpl(ia addr.IA, isdConf *conf.Trc) error {
 	core := contains(isdConf.CoreIAs, ia)
 	a := conf.NewTemplateAsConf(ia, core, isdConf.Version)
 	dir := pkicmn.GetAsPath(ia)
@@ -61,7 +61,7 @@ func genAsTmpl(ia *addr.ISD_AS, isdConf *conf.Trc) error {
 	return nil
 }
 
-func contains(cores []*addr.ISD_AS, as *addr.ISD_AS) bool {
+func contains(cores []addr.IA, as addr.IA) bool {
 	for _, cia := range cores {
 		if cia.Eq(as) {
 			return true
