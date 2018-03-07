@@ -31,16 +31,16 @@ func Test_ParseDuration(t *testing.T) {
 		{"", 0, false},      // Empty string
 		{"0", 0, false},     // No unit provided
 		{"1d12h", 0, false}, // Multiple units
-		{"1ns", 1 * time.Nanosecond, true},
-		{"1us", 1 * time.Microsecond, true},
-		{"1µs", 1 * time.Microsecond, true},
-		{"1ms", 1 * time.Millisecond, true},
-		{"1s", 1 * time.Second, true},
-		{"1m", 1 * time.Minute, true},
-		{"1h", 1 * time.Hour, true},
-		{"1d", 24 * time.Hour, true},
-		{"1w", 7 * 24 * time.Hour, true},
-		{"1y", 365 * 24 * time.Hour, true},
+		{"2ns", 2 * time.Nanosecond, true},
+		{"33us", 33 * time.Microsecond, true},
+		{"4444µs", 4444 * time.Microsecond, true},
+		{"55555ms", 55555 * time.Millisecond, true},
+		{"101s", 101 * time.Second, true},
+		{"102m", 102 * time.Minute, true},
+		{"103h", 103 * time.Hour, true},
+		{"104d", 104 * 24 * time.Hour, true},
+		{"105w", 105 * 7 * 24 * time.Hour, true},
+		{"106y", 106 * 365 * 24 * time.Hour, true},
 	}
 	Convey("Test ParseDuration", t, func() {
 		for _, test := range tests {
