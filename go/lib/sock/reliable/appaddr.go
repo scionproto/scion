@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	NilAppAddr *AppAddr = &AppAddr{
+	NilAppAddr = &AppAddr{
 		Addr: addr.HostNone{},
 		Port: 0,
 	}

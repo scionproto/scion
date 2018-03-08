@@ -380,10 +380,12 @@ func (conn *Conn) Write(buf []byte) (int, error) {
 func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	conn.writeMutex.Lock()
 	defer conn.writeMutex.Unlock()
-	appAddr := dst.(*AppAddr)
-	msgs := make([]Msg, 1)
-	msgs[0].Buffer = buf
-	msgs[0].Addr = appAddr
+	msgs := []Msg{
+		{
+			Buffer: buf,
+			Addr:   dst.(*AppAddr),
+		},
+	}
 	for {
 		n, err := conn.writeN(msgs)
 		if err != nil {
