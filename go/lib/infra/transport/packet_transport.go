@@ -31,11 +31,12 @@ var _ Transport = (*PacketTransport)(nil)
 // For PacketTransports running on top of UDP, both SendMsgTo and
 // SendUnreliableMsgTo are unreliable.
 //
-// For PacketTransports running on top of UNIX datagram or Reliable socket,
-// both SendMsgTo and SendUnreliableMsgTo are reliable. Note that in this case,
-// the reliability only extends to the guarantee that the message was not lost
-// in transfer. It is not a guarantee that the server has read and processed
-// the message.
+// For PacketTransports running on top of UNIX domain socket with SOCK_DGRAM or
+// Reliable socket, both SendMsgTo and SendUnreliableMsgTo guarantee reliable
+// delivery to the other other end of the socket. Note that in this case, the
+// reliability only extends to the guarantee that the message was not lost in
+// transfer. It is not a guarantee that the server has read and processed the
+// message.
 type PacketTransport struct {
 	conn net.PacketConn
 	// While conn is safe for use from multiple goroutines, deadlines are
