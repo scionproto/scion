@@ -92,7 +92,7 @@ func IA() addr.IA {
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
 // Path resolver.
 type Network struct {
-	sciond         *sciond.Service
+	sciond         sciond.Service
 	sciondPath     string
 	dispatcherPath string
 	pathResolver   *pathmgr.PR
@@ -256,7 +256,7 @@ func (n *Network) SetPathResolver(resolver *pathmgr.PR) {
 }
 
 // Sciond returns the sciond.Service that the network is using.
-func (n *Network) Sciond() *sciond.Service {
+func (n *Network) Sciond() sciond.Service {
 	return n.sciond
 }
 
