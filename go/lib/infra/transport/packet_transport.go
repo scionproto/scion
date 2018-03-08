@@ -22,12 +22,22 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-var _ Transport = (*UDP)(nil)
+var _ Transport = (*PacketTransport)(nil)
 
-// UDP implements interface Transport by wrapping around *snet.Conn. For UDP,
-// SendMsgTo is equivalent to SendUnreliableMsgTo and provides no guarantees of
-// reliability.
-type UDP struct {
+// PacketTransport implements interface Transport by wrapping around a
+// net.PacketConn. The reliability of the underlying net.PacketConn defines the
+// semantics behind SendMsgTo and SendUnreliableMsgTo.
+//
+// For PacketTransports running on top of UDP, both SendMsgTo and
+// SendUnreliableMsgTo are unreliable.
+//
+// For PacketTransports running on top of UNIX domain socket with SOCK_DGRAM or
+// Reliable socket, both SendMsgTo and SendUnreliableMsgTo guarantee reliable
+// delivery to the other other end of the socket. Note that in this case, the
+// reliability only extends to the guarantee that the message was not lost in
+// transfer. It is not a guarantee that the server has read and processed the
+// message.
+type PacketTransport struct {
 	conn net.PacketConn
 	// While conn is safe for use from multiple goroutines, deadlines are
 	// global so it is not safe to enforce two at the same time. Thus, to
@@ -36,15 +46,17 @@ type UDP struct {
 	readLock  *channelLock
 }
 
-func NewUDP(conn net.PacketConn) *UDP {
-	return &UDP{
+func NewPacketTransport(conn net.PacketConn) *PacketTransport {
+	return &PacketTransport{
 		conn:      conn,
 		writeLock: newChannelLock(),
 		readLock:  newChannelLock(),
 	}
 }
 
-func (u *UDP) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes, address net.Addr) error {
+func (u *PacketTransport) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes,
+	address net.Addr) error {
+
 	select {
 	case <-u.writeLock.Lock():
 		defer u.writeLock.Unlock()
@@ -61,11 +73,13 @@ func (u *UDP) SendUnreliableMsgTo(ctx context.Context, b common.RawBytes, addres
 	return err
 }
 
-func (u *UDP) SendMsgTo(ctx context.Context, b common.RawBytes, address net.Addr) error {
+func (u *PacketTransport) SendMsgTo(ctx context.Context, b common.RawBytes,
+	address net.Addr) error {
+
 	return u.SendUnreliableMsgTo(ctx, b, address)
 }
 
-func (u *UDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
+func (u *PacketTransport) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
 	select {
 	case <-u.readLock.Lock():
 		defer u.readLock.Unlock()
@@ -80,7 +94,7 @@ func (u *UDP) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
 	return b[:n], address, err
 }
 
-func (u *UDP) Close(context.Context) error {
+func (u *PacketTransport) Close(context.Context) error {
 	return u.conn.Close()
 }
 

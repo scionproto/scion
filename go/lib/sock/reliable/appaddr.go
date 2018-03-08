@@ -15,18 +15,18 @@
 package reliable
 
 import (
+	"fmt"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
 
 var (
-	NilAppAddr AppAddr
+	NilAppAddr = &AppAddr{
+		Addr: addr.HostNone{},
+		Port: 0,
+	}
 )
-
-func init() {
-	a, _ := addr.HostFromRaw(nil, addr.HostTypeNone)
-	NilAppAddr = AppAddr{Addr: a, Port: 0}
-}
 
 // AppAddr is a L3 + L4 address container, it currently only supports UDP for L4.
 type AppAddr struct {
@@ -80,4 +80,12 @@ func (a *AppAddr) writePort(buf common.RawBytes) {
 		return
 	}
 	common.Order.PutUint16(buf, a.Port)
+}
+
+func (a *AppAddr) Network() string {
+	return "reliable"
+}
+
+func (a *AppAddr) String() string {
+	return fmt.Sprintf("%s:%d", a.Addr, a.Port)
 }

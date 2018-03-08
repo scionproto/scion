@@ -93,6 +93,9 @@ type Msg struct {
 	Addr   *AppAddr
 }
 
+var _ net.Conn = (*Conn)(nil)
+var _ net.PacketConn = (*Conn)(nil)
+
 // Conn implements the ReliableSocket framing protocol over UNIX sockets.
 type Conn struct {
 	*net.UnixConn
@@ -251,7 +254,7 @@ func (conn *Conn) Read(buf []byte) (int, error) {
 
 // ReadFrom works similarly to Read. In addition to Read, it also returns the last hop
 // (usually, the border router) which sent the message.
-func (conn *Conn) ReadFrom(buf []byte) (int, *AppAddr, error) {
+func (conn *Conn) ReadFrom(buf []byte) (int, net.Addr, error) {
 	msgs := make([]Msg, 1)
 	msgs[0].Buffer = buf
 	_, err := conn.ReadN(msgs)
@@ -374,12 +377,15 @@ func (conn *Conn) Write(buf []byte) (int, error) {
 
 // WriteTo works similarly to Write. In addition to Write, the ReliableSocket message header
 // will contain the address and port information in dst.
-func (conn *Conn) WriteTo(buf []byte, dst AppAddr) (int, error) {
+func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	conn.writeMutex.Lock()
 	defer conn.writeMutex.Unlock()
-	msgs := make([]Msg, 1)
-	msgs[0].Buffer = buf
-	msgs[0].Addr = &dst
+	msgs := []Msg{
+		{
+			Buffer: buf,
+			Addr:   dst.(*AppAddr),
+		},
+	}
 	for {
 		n, err := conn.writeN(msgs)
 		if err != nil {
@@ -465,7 +471,7 @@ func (conn *Conn) String() string {
 func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	var dst *AppAddr
 	if msg.Addr == nil {
-		dst = &NilAppAddr
+		dst = NilAppAddr
 	} else {
 		dst = msg.Addr
 	}
