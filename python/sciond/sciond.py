@@ -315,13 +315,14 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_as_request(self, pld, meta):
         request = pld.union
         assert isinstance(request, SCIONDASInfoRequest), type(request)
-        remote_as = request.isd_as()
-        if remote_as:
-            reply_entry = SCIONDASInfoReplyEntry.from_values(
-                remote_as, self.is_core_as(remote_as))
-        else:
+        req_ia = request.isd_as()
+        if not req_ia or req_ia.is_zero() or req_ia == self.addr.isd_as:
+            # Request is for the local AS.
             reply_entry = SCIONDASInfoReplyEntry.from_values(
                 self.addr.isd_as, self.is_core_as(), self.topology.mtu)
+        else:
+            # Request is for a remote AS.
+            reply_entry = SCIONDASInfoReplyEntry.from_values(req_ia, self.is_core_as(req_ia))
         as_reply = SCIONDMsg(SCIONDASInfoReply.from_values([reply_entry]), pld.id)
         self.send_meta(as_reply.pack(), meta)
 

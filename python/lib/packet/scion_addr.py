@@ -98,6 +98,9 @@ class ISD_AS(Serializable):
     def any_as(self):  # pragma: no cover
         return self.from_values(self._isd, 0)
 
+    def is_zero(self):  # pragma: no cover
+        return self._isd == 0 and self._as == 0
+
     def params(self, name="first"):  # pragma: no cover
         """Provides parameters for querying PathSegmentDB"""
         if self._as == 0:

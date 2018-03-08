@@ -92,6 +92,7 @@ func IA() addr.IA {
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
 // Path resolver.
 type Network struct {
+	sciond         sciond.Service
 	sciondPath     string
 	dispatcherPath string
 	pathResolver   *pathmgr.PR
@@ -102,6 +103,7 @@ type Network struct {
 // It is meant to be amended with a custom path resolver.
 func NewNetworkBasic(ia addr.IA, sPath string, dPath string) *Network {
 	return &Network{
+		sciond:         sciond.NewService(sPath),
 		sciondPath:     sPath,
 		dispatcherPath: dPath,
 		localIA:        ia,
@@ -113,13 +115,12 @@ func NewNetworkBasic(ia addr.IA, sPath string, dPath string) *Network {
 // dispatcher at dPath, and ia for the local ISD-AS.
 func NewNetwork(ia addr.IA, sPath string, dPath string) (*Network, error) {
 	network := NewNetworkBasic(ia, sPath, dPath)
-	sd := sciond.NewService(sPath)
 	timers := &pathmgr.Timers{
 		NormalRefire: time.Minute,
 		ErrorRefire:  3 * time.Second,
 		MaxAge:       time.Hour,
 	}
-	pathResolver, err := pathmgr.New(sd, timers, log.Root())
+	pathResolver, err := pathmgr.New(network.sciond, timers, log.Root())
 	if err != nil {
 		return nil, common.NewBasicError("Unable to initialize path resolver", err)
 	}
@@ -252,6 +253,11 @@ func (n *Network) SetPathResolver(resolver *pathmgr.PR) {
 		return
 	}
 	n.pathResolver = resolver
+}
+
+// Sciond returns the sciond.Service that the network is using.
+func (n *Network) Sciond() sciond.Service {
+	return n.sciond
 }
 
 // IA returns the ISD-AS assigned to n
