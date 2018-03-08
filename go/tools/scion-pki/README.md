@@ -53,11 +53,11 @@ to generate a template config file in `ISD1/isd.ini`. Now, we can adjust the val
 Description = "Test ISD 1"
 
 [TRC]
-GracePeriod = 0
+GracePeriod = 0s
 CoreASes = 1-1,1-2,1-3
 Version = 1
 QuorumTRC = 2
-Validity = 365
+Validity = 365d
 ```
 
 Refer to `scion-pki help trc` for documentation on all available parameters.
@@ -71,31 +71,28 @@ Below are examples for `ISD1/AS1/as.ini` and `ISD1/AS12/as.ini`
 [AS Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
-Subject       = 1-1
 Issuer        = 1-1
 TRCVersion    = 1
 Version       = 1
-Validity      = 3
+Validity      = 3d
 
 [Issuer Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
-Subject       = 1-1
 Issuer        = 1-1
 TRCVersion    = 1
 Version       = 1
-Validity      = 7
+Validity      = 7d
 ```
 
 ```
 [AS Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
-Subject       = 1-12
 Issuer        = 1-2
 TRCVersion    = 1
 Version       = 1
-Validity      = 3
+Validity      = 3d
 ```
 
 Refer to `scion-pki help certs` for documentation on all available parameters.
@@ -117,4 +114,23 @@ and the certificates
 
 `scion-pki certs gen` verifies all generated certificates against the TRC to ensure correctness. If
 that is not desired for any reason it can be turned of with `-verify=false`.
+
+## How to add a new customer AS
+
+Building on the previous example, AS 1-2 wants to connect a new customer, AS 1-22. To that end, we
+first create the appropriate subdirectory:
+
+`mkdir ISD1/AS22`
+
+Then we can create the template configuration and make the necessary changes:
+
+`scion-pki tmpl as 1-22`
+
+The next step is to create the keys for AS 1-22:
+
+`scion-pki keys gen 1-22`
+
+Finally, we can generate the new certificate:
+
+`scion-pki certs gen 1-22`
 
