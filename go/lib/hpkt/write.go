@@ -34,12 +34,6 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	if s.E2EExt != nil {
 		return 0, common.NewBasicError("E2E extensions not supported", nil, "ext", s.E2EExt)
 	}
-	if s.L4.L4Type() == common.L4SCMP {
-		if len(s.HBHExt) == 0 || s.HBHExt[0].Type() != common.ExtnSCMPType {
-			return 0, common.NewBasicError("SCMP requires HBH SCMP ext to be the first extension",
-				nil, "ext", s.HBHExt)
-		}
-	}
 
 	// Compute header lengths
 	addrHdrLen := s.DstHost.Size() + s.SrcHost.Size() + 2*addr.IABytes
@@ -133,10 +127,17 @@ func writeScnPktExtn(s *spkt.ScnPkt, b common.RawBytes) (int, *uint8, error) {
 		return 0, nil, common.NewBasicError("Too many HBH extensions",
 			nil, "max", max, "actual", len(s.HBHExt))
 	}
-	for _, ext := range s.HBHExt {
-		if l4Type != common.L4SCMP && ext.Type() == common.ExtnSCMPType {
-			return 0, nil, common.NewBasicError("HBH SCMP extension for a non SCMP packet",
-				nil, "ext", s.HBHExt)
+	for i, ext := range s.HBHExt {
+		if ext.Type() == common.ExtnSCMPType {
+			if i != 0 {
+				// This also triggers if there are multiple SCMP extensions
+				return 0, nil, common.NewBasicError("HBH SCMP extension has to be the first one",
+					nil, "index", i)
+			}
+			if l4Type != common.L4SCMP {
+				return 0, nil, common.NewBasicError("HBH SCMP extension for a non SCMP packet",
+					nil, "ext", s.HBHExt)
+			}
 		}
 		// Set all nextHdr fields as HBH, later we update last extension and common header
 		b[offset] = uint8(common.HopByHopClass)
