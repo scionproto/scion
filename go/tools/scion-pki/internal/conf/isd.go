@@ -24,6 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const IsdConfFileName = "isd.ini"
@@ -74,6 +75,9 @@ func (i *Isd) Write(path string, force bool) error {
 	for idx, ia := range i.Trc.CoreIAs {
 		i.Trc.RawCoreIAs[idx] = ia.String()
 	}
+	// Make sure RawValidity and Validity are in sync.
+	i.Trc.RawValidity = util.WriteDuration(i.Trc.Validity)
+	i.Trc.RawGracePeriod = util.WriteDuration(i.Trc.GracePeriod)
 	iniCfg := ini.Empty()
 	if err := ini.ReflectFrom(iniCfg, i); err != nil {
 		return err
@@ -87,13 +91,15 @@ func (i *Isd) Write(path string, force bool) error {
 
 // Trc holds the parameters that are used to generate a Trc.
 type Trc struct {
-	Version     uint64    `comment:"The version of the TRC. Must not be 0."`
-	IssuingTime uint64    `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
-	Validity    uint64    `comment:"The validity of the certificate as duration string, e.g., 180d or 21d12h"`
-	CoreIAs     []addr.IA `ini:"-"`
-	RawCoreIAs  []string  `ini:"CoreASes" comment:"The core ASes of this ISD as comma-separated list, e.g., 1-11,1-12,1-13"`
-	GracePeriod uint64    `comment:"The grace period for the previous TRC as duration string (see above)"`
-	QuorumTRC   uint32    `comment:"The number of core ASes needed to update the TRC"`
+	Version        uint64        `comment:"The version of the TRC. Must not be 0."`
+	IssuingTime    uint64        `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
+	Validity       time.Duration `ini:"-"`
+	RawValidity    string        `ini:"Validity" comment:"The validity of the certificate as duration string, e.g., 180d or 36h"`
+	CoreIAs        []addr.IA     `ini:"-"`
+	RawCoreIAs     []string      `ini:"CoreASes" comment:"The core ASes of this ISD as comma-separated list, e.g., 1-11,1-12,1-13"`
+	GracePeriod    time.Duration `ini:"-"`
+	RawGracePeriod string        `ini:"GracePeriod" comment:"The grace period for the previous TRC as duration string (see above)"`
+	QuorumTRC      uint32        `comment:"The number of core ASes needed to update the TRC"`
 }
 
 func (t *Trc) validate() error {
@@ -103,7 +109,15 @@ func (t *Trc) validate() error {
 	if t.Version == 0 {
 		return newValidationError("Version")
 	}
-	if t.Validity == 0 {
+	if t.RawValidity == "" {
+		t.RawValidity = "0s"
+	}
+	var err error
+	t.Validity, err = util.ParseDuration(t.RawValidity)
+	if err != nil {
+		return common.NewBasicError("Invalid validity duration", nil, "duration", t.RawValidity)
+	}
+	if int64(t.Validity) == 0 {
 		return newValidationError("Validity")
 	}
 	if len(t.CoreIAs) == 0 {
@@ -114,6 +128,13 @@ func (t *Trc) validate() error {
 				return common.NewBasicError("Invalid core AS", nil, "ia", ia)
 			}
 		}
+	}
+	if t.RawGracePeriod == "" {
+		t.RawGracePeriod = "0s"
+	}
+	t.GracePeriod, err = util.ParseDuration(t.RawGracePeriod)
+	if err != nil {
+		return common.NewBasicError("Invalid validity duration", nil, "duration", t.RawGracePeriod)
 	}
 	if t.QuorumTRC == 0 {
 		return newValidationError("QuorumTrc")

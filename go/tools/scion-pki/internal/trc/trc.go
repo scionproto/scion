@@ -73,7 +73,7 @@ and a section 'TRC' with the following values:
 	Version [required]
 		integer representing the version of the TRC
 	Validity [required]
-		integer representing the validity of the TRC in days
+		the validity of the TRC as a duration string, e.g., 180d or 36h
 	CoreASes [required]
 		comma-separated list of ISD-AS identifiers representing the core ASes of the ISD.
 	IssuingTime (now) [optional]
