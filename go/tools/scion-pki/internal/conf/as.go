@@ -70,7 +70,7 @@ func (a *As) Write(path string, force bool) error {
 	return nil
 }
 
-func NewTemplateAsConf(trcVer uint64, core bool) *As {
+func NewTemplateAsConf(subject addr.IA, trcVer uint64, core bool) *As {
 	a := &As{}
 	bc := NewTemplateCertConf(trcVer)
 	a.AsCert = &AsCert{
@@ -81,6 +81,7 @@ func NewTemplateAsConf(trcVer uint64, core bool) *As {
 	if core {
 		ibc := NewTemplateCertConf(trcVer)
 		a.IssuerCert = &IssuerCert{BaseCert: ibc}
+		a.AsCert.Issuer = subject.String()
 	}
 	return a
 }
@@ -142,9 +143,6 @@ func (c *BaseCert) validate() error {
 	}
 	if c.SignAlgorithm == "" {
 		c.SignAlgorithm = crypto.Ed25519
-	}
-	if c.IssuingTime == 0 {
-		c.IssuingTime = uint64(time.Now().Unix())
 	}
 	if c.TRCVersion == 0 {
 		return newValidationError("TRCVersion")

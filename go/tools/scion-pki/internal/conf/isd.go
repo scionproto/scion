@@ -76,8 +76,8 @@ func (i *Isd) Write(path string, force bool) error {
 		i.Trc.RawCoreIAs[idx] = ia.String()
 	}
 	// Make sure RawValidity and Validity are in sync.
-	i.Trc.RawValidity = util.WriteDuration(i.Trc.Validity)
-	i.Trc.RawGracePeriod = util.WriteDuration(i.Trc.GracePeriod)
+	i.Trc.RawValidity = util.FmtDuration(i.Trc.Validity)
+	i.Trc.RawGracePeriod = util.FmtDuration(i.Trc.GracePeriod)
 	iniCfg := ini.Empty()
 	if err := ini.ReflectFrom(iniCfg, i); err != nil {
 		return err
@@ -124,7 +124,7 @@ func (t *Trc) validate() error {
 		return newValidationError("CoreASes")
 	} else {
 		for _, ia := range t.CoreIAs {
-			if ia.I == 0 || ia.A == 0 {
+			if ia.IsValid() {
 				return common.NewBasicError("Invalid core AS", nil, "ia", ia)
 			}
 		}

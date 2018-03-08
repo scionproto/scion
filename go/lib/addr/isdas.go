@@ -101,6 +101,10 @@ func (ia IA) IsZero() bool {
 	return ia.I == 0 && ia.A == 0
 }
 
+func (ia IA) IsValid() bool {
+	return ia.I != 0 && ia.A != 0
+}
+
 func (ia IA) Eq(other IA) bool {
 	return ia.I == other.I && ia.A == other.A
 }

@@ -77,7 +77,7 @@ func ParseDuration(durationStr string) (time.Duration, error) {
 	return dur, nil
 }
 
-func WriteDuration(dur time.Duration) string {
+func FmtDuration(dur time.Duration) string {
 	var (
 		ns   = int64(dur)
 		unit = "ns"
@@ -94,7 +94,7 @@ func WriteDuration(dur time.Duration) string {
 		"s":  int64(time.Second),
 		"ms": int64(time.Millisecond),
 		"us": int64(time.Microsecond),
-		"ns": 1,
+		"ns": int64(time.Nanosecond),
 	}
 
 	switch int64(0) {
@@ -115,5 +115,5 @@ func WriteDuration(dur time.Duration) string {
 	case ns % factors["us"]:
 		unit = "us"
 	}
-	return fmt.Sprintf("%v%v", ns/factors[unit], unit)
+	return fmt.Sprintf("%d%s", ns/factors[unit], unit)
 }

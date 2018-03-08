@@ -50,7 +50,7 @@ func runGenAsTmpl(cmd *base.Command, args []string) {
 
 func genAsTmpl(ia addr.IA, isdConf *conf.Isd) error {
 	core := pkicmn.Contains(isdConf.Trc.CoreIAs, ia)
-	a := conf.NewTemplateAsConf(isdConf.Trc.Version, core)
+	a := conf.NewTemplateAsConf(ia, isdConf.Trc.Version, core)
 	dir := pkicmn.GetAsPath(ia)
 	fpath := filepath.Join(dir, conf.AsConfFileName)
 	if err := a.Write(fpath, pkicmn.Force); err != nil {

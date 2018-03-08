@@ -25,10 +25,11 @@ import (
 )
 
 var CmdCerts = &base.Command{
-	Name:      "certs",
-	Run:       runCert,
-	UsageLine: "certs [-h] (gen|renew|template|verify|clean) [<flags>] [<selector>|<files>]",
-	Short:     "Generate and renew certificate chains for the SCION control plane PKI.",
+	Name: "certs",
+	Run:  runCert,
+	UsageLine: `certs [-h] (gen|renew|template|clean) [<flags>] <selector>
+       scion-pki certs verify <files>`,
+	Short: "Generate and renew certificate chains for the SCION control plane PKI.",
 	Long: `
 'certs' can be used to generate and renew certificate chains for the SCION control plane PKI.
 
@@ -100,17 +101,11 @@ that can contain the following values:
 `,
 }
 
-var (
-	genKeys bool
-	core    bool
-	verify  bool
-)
+var verify bool
 
 func init() {
 	CmdCerts.Flag.StringVar(&pkicmn.RootDir, "d", ".", "")
 	CmdCerts.Flag.BoolVar(&pkicmn.Force, "f", false, "")
-	CmdCerts.Flag.BoolVar(&genKeys, "genkeys", false, "")
-	CmdCerts.Flag.BoolVar(&core, "core", false, "")
 	CmdCerts.Flag.BoolVar(&verify, "verify", true, "")
 }
 

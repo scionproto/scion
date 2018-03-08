@@ -63,7 +63,7 @@ func runGenCert(cmd *base.Command, args []string) {
 	os.Exit(0)
 }
 
-func genCert(ia addr.IA, core bool) error {
+func genCert(ia addr.IA, isIssuer bool) error {
 	var err error
 	dir := pkicmn.GetAsPath(ia)
 	// Check that as.ini exists, otherwise skip directory.
@@ -76,15 +76,15 @@ func genCert(ia addr.IA, core bool) error {
 	if err != nil {
 		return common.NewBasicError("Error loading as.ini", err, "path", cpath)
 	}
-	if core && a.IssuerCert == nil {
+	if isIssuer && a.IssuerCert == nil {
 		return common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
 			conf.IssuerSectionName), nil, "path", cpath)
 	}
 	fmt.Println("Generating Certificate Chain for", ia)
 	// If we are core then we need to generate a core AS cert first.
 	var issuerCert *cert.Certificate
-	if core {
-		issuerCert, err = genCoreASCert(a.IssuerCert, ia)
+	if isIssuer {
+		issuerCert, err = genIssuerCert(a.IssuerCert, ia)
 		if err != nil {
 			return common.NewBasicError("Error generating issuer cert", err, "subject", ia)
 		}
@@ -95,7 +95,7 @@ func genCert(ia addr.IA, core bool) error {
 		}
 	}
 	if issuerCert == nil {
-		return common.NewBasicError("Issuer cert not found", err, "issuer", a.AsCert.Issuer)
+		return common.NewBasicError("Issuer cert not found", nil, "issuer", a.AsCert.Issuer)
 	}
 	// Generate the AS certificate chain.
 	chain, err := genASCert(a.AsCert, ia, issuerCert)
@@ -122,8 +122,8 @@ func genCert(ia addr.IA, core bool) error {
 	return nil
 }
 
-// genCoreASCert generates a new core AS certificate according to conf.
-func genCoreASCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
+// genIssuerCert generates a new issuer AS certificate according to conf.
+func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
 	c, err := genCertCommon(conf.BaseCert, s, trust.CoreSigKeyFile)
 	if err != nil {
 		return nil, err
@@ -204,7 +204,10 @@ func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Cer
 	copy(decKeyFixed[:], decKey)
 	curve25519.ScalarBaseMult(&decPub, &decKeyFixed)
 	// Determine issuingTime and calculate expiration time from validity.
-	issuingTime := uint64(time.Now().Unix())
+	issuingTime := bc.IssuingTime
+	if issuingTime == 0 {
+		issuingTime = uint64(time.Now().Unix())
+	}
 	expirationTime := issuingTime + uint64(bc.Validity.Seconds())
 	return &cert.Certificate{
 		Comment:        bc.Comment,
@@ -220,7 +223,7 @@ func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Cer
 	}, nil
 }
 
-// getIssuerCert returns the newest core certificate of issuer (if any).
+// getIssuerCert returns the newest issuer certificate (if any).
 func getIssuerCert(issuer addr.IA) (*cert.Certificate, error) {
 	fnames, err := filepath.Glob(fmt.Sprintf("%s/*.crt",
 		filepath.Join(pkicmn.GetAsPath(issuer), "certs")))

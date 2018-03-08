@@ -35,7 +35,7 @@ The expected structure is the following:
             ...
         ...
 ```
-Thus, the first step is to generate the appropriate directory structure. Lets assume for this
+Thus, the first step is to generate the appropriate directory structure. Let's assume for this
 example that `<root>` is the current directory, i.e., `.`.
 
 `mkdir -p ISD1/AS{1,2,3,11,12,13}`

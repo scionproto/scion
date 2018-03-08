@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/crypto/ed25519"
 
@@ -73,10 +74,14 @@ func genTrc(isd int) error {
 }
 
 func newTrc(isd int, iconf *conf.Isd, path string) (*trc.TRC, error) {
+	issuingTime := iconf.Trc.IssuingTime
+	if issuingTime == 0 {
+		issuingTime = uint64(time.Now().Unix())
+	}
 	t := &trc.TRC{
 		CreationTime:   iconf.Trc.IssuingTime,
 		Description:    iconf.Desc,
-		ExpirationTime: iconf.Trc.IssuingTime + uint64(iconf.Trc.Validity.Seconds()),
+		ExpirationTime: issuingTime + uint64(iconf.Trc.Validity.Seconds()),
 		GracePeriod:    uint64(iconf.Trc.GracePeriod),
 		ISD:            uint16(isd),
 		QuorumTRC:      iconf.Trc.QuorumTRC,
