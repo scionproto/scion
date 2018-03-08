@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -125,13 +126,14 @@ type IssuerCert struct {
 
 // BaseCert holds the parameters that are used to create certs.
 type BaseCert struct {
-	Comment       string `comment:"Description of the AS and certificate"`
-	EncAlgorithm  string `comment:"Encryption algorithm used by AS, e.g., curve25519xsalsa20poly1305"`
-	SignAlgorithm string `comment:"Signing algotirhm used by AS, e.g., ed25519"`
-	IssuingTime   uint64 `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
-	TRCVersion    uint64 `comment:"The version of the current TRC"`
-	Version       uint64 `comment:"The version of the certificate. Cannot be 0"`
-	Validity      uint64 `comment:"The validity of the certificate as duration string, e.g., 180d or 21d12h"`
+	Comment       string        `comment:"Description of the AS and certificate"`
+	EncAlgorithm  string        `comment:"Encryption algorithm used by AS, e.g., curve25519xsalsa20poly1305"`
+	SignAlgorithm string        `comment:"Signing algotirhm used by AS, e.g., ed25519"`
+	IssuingTime   uint64        `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
+	TRCVersion    uint64        `comment:"The version of the current TRC"`
+	Version       uint64        `comment:"The version of the certificate. Cannot be 0"`
+	Validity      time.Duration `ini:"-"`
+	RawValidity   string        `ini:"Validity" comment:"The validity of the certificate as duration string, e.g., 180d or 36h"`
 }
 
 func (c *BaseCert) validate() error {
@@ -150,7 +152,15 @@ func (c *BaseCert) validate() error {
 	if c.Version == 0 {
 		return newValidationError("Version")
 	}
-	if c.Validity == 0 {
+	if c.RawValidity == "" {
+		c.RawValidity = "0s"
+	}
+	var err error
+	c.Validity, err = util.ParseDuration(c.RawValidity)
+	if err != nil {
+		return common.NewBasicError("Invalid validity duration", nil, "duration", c.RawValidity)
+	}
+	if int64(c.Validity) == 0 {
 		return newValidationError("Validity")
 	}
 	return nil

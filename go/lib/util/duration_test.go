@@ -56,3 +56,36 @@ func Test_ParseDuration(t *testing.T) {
 		}
 	})
 }
+
+func Test_WriteDuration(t *testing.T) {
+	tests := []struct {
+		input  time.Duration
+		output string
+		isOk   bool
+	}{
+		{2 * time.Nanosecond, "2ns", true},
+		{33 * time.Microsecond, "33us", true},
+		{44 * time.Millisecond, "44ms", true},
+		{55 * time.Second, "55s", true},
+		{66 * time.Hour, "66h", true},
+		{48 * time.Hour, "48h", false},
+		{48 * time.Hour, "2d", true},
+		{30 * day, "30d", true},
+		{35 * day, "35d", false},
+		{35 * day, "5w", true},
+		{101 * year, "101y", true},
+	}
+	Convey("Test WriteDuration", t, func() {
+		for _, test := range tests {
+			Convey(fmt.Sprintf("Input: %v", test.output), func() {
+				ret := WriteDuration(test.input)
+				if test.isOk {
+					SoMsg("Result should be correct", ret, ShouldEqual, test.output)
+				} else {
+					SoMsg("Result should not match", ret, ShouldNotEqual, test.output)
+				}
+			})
+		}
+	})
+
+}

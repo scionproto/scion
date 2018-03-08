@@ -88,7 +88,7 @@ that can contain the following values:
 	Comment [optional]
 		arbitrary string used to describe the AS and certificate
 	Validity [required]
-		the validity of the certificate as a duration string, e.g., 180d or 11d23h
+		the validity of the certificate as a duration string, e.g., 180d or 36h
 	IssuingTime (now) [optional]
 		the time the certificate was issued as a UNIX timestamp
 	EncAlgorithm (curve25519xalsa20poly1305) [optional]
