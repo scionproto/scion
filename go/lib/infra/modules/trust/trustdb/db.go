@@ -141,8 +141,6 @@ const (
 
 // DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
 //
-// DB stores only verified crypto objects.
-//
 // On errors, GetXxx methods return nil and the error. If no error occurred,
 // but the database query yielded 0 results, the first returned value is nil.
 // GetXxxCtx methods are the context equivalents of GetXxx.
@@ -166,13 +164,13 @@ type DB struct {
 func New(path string) (*DB, error) {
 	var err error
 	db := &DB{}
-	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
+	if db.DB, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
 	// On future errors, close the sql database before exiting
 	defer func() {
 		if err != nil {
-			db.db.Close()
+			db.Close()
 		}
 	}()
 	if db.getIssCertVersionStmt, err = db.db.Prepare(getIssCertVersionStr); err != nil {
@@ -199,19 +197,19 @@ func New(path string) (*DB, error) {
 	if db.getChainVersionStmt, err = db.db.Prepare(getChainVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainVersion", err)
 	}
-	if db.getChainMaxVersionStmt, err = db.db.Prepare(getChainMaxVersionStr); err != nil {
+	if db.getChainMaxVersionStmt, err = db.Prepare(getChainMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainMaxVersion", err)
 	}
-	if db.insertChainStmt, err = db.db.Prepare(insertChainStr); err != nil {
+	if db.insertChainStmt, err = db.Prepare(insertChainStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertChain", err)
 	}
-	if db.getTRCVersionStmt, err = db.db.Prepare(getTRCVersionStr); err != nil {
+	if db.getTRCVersionStmt, err = db.Prepare(getTRCVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCVersion", err)
 	}
-	if db.getTRCMaxVersionStmt, err = db.db.Prepare(getTRCMaxVersionStr); err != nil {
+	if db.getTRCMaxVersionStmt, err = db.Prepare(getTRCMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCMaxVersion", err)
 	}
-	if db.insertTRCStmt, err = db.db.Prepare(insertTRCStr); err != nil {
+	if db.insertTRCStmt, err = db.Prepare(insertTRCStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertTRC", err)
 	}
 	return db, nil
@@ -352,7 +350,7 @@ func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.IA,
 	return parseChain(rows, err)
 }
 
-func (db *DB) GetChainMaxVersion(ia addr.ISD_AS) (*cert.Chain, error) {
+func (db *DB) GetChainMaxVersion(ia addr.IA) (*cert.Chain, error) {
 	return db.GetChainMaxVersionCtx(context.Background(), ia)
 }
 
