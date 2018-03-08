@@ -64,10 +64,13 @@ func (h *trcReqHandler) Handle() {
 	request := trcRequest{
 		isd:      uint16(trcReq.ISD),
 		version:  trcReq.Version,
-		hint:     nil, // FIXME: Fix this for CS servers
-		verifier: nil, // FIXME: This needs additional logic to select the correct verifier
+		hint:     nil, // FIXME(scrye): Fix this for CS servers
+		verifier: nil, // FIXME(scrye): This needs additional logic to select the correct verifier
 	}
-	trc, err := h.store.getTRC(h.request.Context(), request, h.recurse, h.request.Peer)
+	// Only allow network traffic to be sent out if recursion is enabled and
+	// CacheOnly is not requested.
+	trc, err := h.store.getTRC(h.request.Context(), request, h.recurse && !trcReq.CacheOnly,
+		h.request.Peer)
 	if err != nil {
 		h.log.Error("Unable to retrieve TRC", "err", err)
 		return
@@ -122,12 +125,15 @@ func (h *chainReqHandler) Handle() {
 
 	// FIXME(scrye): Same observations as in trcReqHandler.Handle
 	request := chainRequest{
-		ia:       *chainReq.IA(),
+		ia:       chainReq.IA(),
 		version:  chainReq.Version,
 		hint:     nil, // FIXME
 		verifier: nil, // FIXME
 	}
-	chain, err := h.store.getChain(h.request.Context(), request, h.recurse, h.request.Peer)
+	// Only allow network traffic to be sent out if recursion is enabled and
+	// CacheOnly is not requested.
+	chain, err := h.store.getChain(h.request.Context(), request, h.recurse && !chainReq.CacheOnly,
+		h.request.Peer)
 	if err != nil {
 		h.log.Error("Unable to retrieve Chain", "err", err)
 		return
@@ -141,7 +147,8 @@ func (h *chainReqHandler) Handle() {
 	chainMessage := &cert_mgmt.Chain{
 		RawChain: rawChain,
 	}
-	if err := messenger.SendCertChain(subCtx, chainMessage, h.request.Peer, h.store.nextID()); err != nil {
+	err = messenger.SendCertChain(subCtx, chainMessage, h.request.Peer, h.store.nextID())
+	if err != nil {
 		h.log.Error("Messenger API error", "err", err)
 	}
 }
@@ -212,7 +219,7 @@ func (h *chainPushHandler) Handle() {
 		h.log.Info("Received unsolicited TRC update from node, but already have object",
 			"AS", chain.Leaf.Subject, "version", chain.Leaf.Version, "sender", h.request.Peer)
 	case resultSuccessVerified:
-		err := h.store.trustdb.InsertChainCtx(h.request.Context(), *chain.Leaf.Subject,
+		err := h.store.trustdb.InsertChainCtx(h.request.Context(), chain.Leaf.Subject,
 			chain.Leaf.Version, chain)
 		if err != nil {
 			h.log.Error("Unable to insert TRC in trust database",

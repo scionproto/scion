@@ -15,8 +15,8 @@
 package trustdb
 
 import (
-	"context"
 	"io/ioutil"
+	"os"
 	"testing"
 
 	log "github.com/inconshreveable/log15"
@@ -30,7 +30,8 @@ import (
 
 func TestTRC(t *testing.T) {
 	Convey("Initialize DB and load TRC", t, func() {
-		db, err := New(randomFileName())
+		db, cleanF := newDatabase(t)
+		defer cleanF()
 		SoMsg("err db ", err, ShouldBeNil)
 		SoMsg("db", db, ShouldNotBeNil)
 
@@ -50,7 +51,7 @@ func TestTRC(t *testing.T) {
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get Max TRC from database", func() {
-				newTRCobj, err := db.GetTRCMaxVersionCtx(context.Background(), 1)
+				newTRCobj, err := db.GetTRCMaxVersion(1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 				newTRCobj, err = db.GetTRCVersion(1, 0)
@@ -58,7 +59,7 @@ func TestTRC(t *testing.T) {
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get missing TRC from database", func() {
-				newTRCobj, err := db.GetTRCVersionCtx(context.Background(), 2, 10)
+				newTRCobj, err := db.GetTRCVersion(2, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
@@ -223,7 +224,8 @@ func BenchmarkDB(b *testing.B) {
 	// Even so, currently trustdb can serve about 8500 requests per second on a
 	// i7 @ 3.4Ghz core.
 	logger := log.Root().New("benchmark", "BenchmarkDB")
-	db, err := New(randomFileName())
+	db, cleanF := newDatabase(t)
+	defer cleanF()
 	if err != nil {
 		logger.Warn("unable to initialize DB", "err", err)
 		return
@@ -233,12 +235,13 @@ func BenchmarkDB(b *testing.B) {
 		logger.Warn("unable to load TRC from file", "err", err)
 		return
 	}
-	if err := db.InsertTRCCtx(context.Background(), 1, 10, trcobj); err != nil {
+	if err := db.InsertTRC(1, 10, trcobj); err != nil {
 		logger.Warn("unable to insert TRC in DB", "err", err)
 		return
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := db.GetTRCMaxVersionCtx(context.Background(), 1); err != nil {
+		if _, err := db.GetTRCMaxVersion(1); err != nil {
 			logger.Warn("unable to get max version TRC from DB", "err", err)
 			return
 		}
@@ -247,7 +250,8 @@ func BenchmarkDB(b *testing.B) {
 
 func BenchmarkDBNoJSON(b *testing.B) {
 	logger := log.Root().New("benchmark", "BenchmarkDBNoJSON")
-	db, err := New(randomFileName())
+	db, cleanF := newDatabase(t)
+	defer cleanF()
 	if err != nil {
 		logger.Warn("unable to initialize DB", "err", err)
 		return
@@ -257,10 +261,11 @@ func BenchmarkDBNoJSON(b *testing.B) {
 		logger.Warn("unable to load TRC from file", "err", err)
 		return
 	}
-	if err := db.InsertTRCCtx(context.Background(), 1, 10, trcobj); err != nil {
+	if err := db.InsertTRC(1, 10, trcobj); err != nil {
 		logger.Warn("unable to insert TRC in DB", "err", err)
 		return
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var raw common.RawBytes
 		if err := db.getTRCMaxVersionStmt.QueryRow(1).Scan(&raw); err != nil {
@@ -270,15 +275,18 @@ func BenchmarkDBNoJSON(b *testing.B) {
 	}
 }
 
-func randomFileName() string {
+func newDatabase(t *testing.T) (*DB, func()) {
 	file, err := ioutil.TempFile("", "db-test-")
 	if err != nil {
-		panic("unable to create temp file")
+		t.Fatalf("unable to create temp file")
 	}
 	name := file.Name()
-	err = file.Close()
-	if err != nil {
-		panic("unable to close temp file")
+	if err := file.Close(); err != nil {
+		t.Fatalf("unable to close temp file")
 	}
-	return name
+	db := New(name)
+	return db, func() {
+		db.Close()
+		os.Remove(name)
+	}
 }

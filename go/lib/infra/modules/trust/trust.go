@@ -55,7 +55,7 @@ const (
 // called with an operational infra.Messenger object.
 //
 // Currently Store is backed by a sqlite3 database in package
-// go/lib/infra/components/trust/trustdb.
+// go/lib/infra/modules/trust/trustdb.
 type Store struct {
 	trustdb *trustdb.DB
 	// channel to send TRC requests from client goroutines to the backend
@@ -65,7 +65,7 @@ type Store struct {
 	// backend resolver
 	chainRequests chan requestI
 	// local AS
-	ia  addr.ISD_AS
+	ia  addr.IA
 	log log.Logger
 
 	// ID of the last infra message that was sent out by the Store
@@ -81,11 +81,12 @@ type Store struct {
 	startedFlag bool
 }
 
-// NewStore initializes a TRC cache/resolver backed by db. Parameter local must
-// specify the AS in which the trust store resides (which is used during
-// request forwarding decisions). When sending infra messages, the trust store
-// will use IDs starting from startID, and increment by one for each message.
-func NewStore(db *trustdb.DB, local addr.ISD_AS, startID uint64, logger log.Logger) (*Store, error) {
+// NewStore initializes a TRC/Certificate Chain cache/resolver backed by db.
+// Parameter local must specify the AS in which the trust store resides (which
+// is used during request forwarding decisions). When sending infra messages,
+// the trust store will use IDs starting from startID, and increment by one for
+// each message.
+func NewStore(db *trustdb.DB, local addr.IA, startID uint64, logger log.Logger) (*Store, error) {
 	return &Store{
 		trustdb:       db,
 		trcRequests:   make(chan requestI, MaxPendingRequests),
@@ -156,7 +157,11 @@ func (store *Store) getTRC(ctx context.Context, req trcRequest, recurse bool,
 			// If we cannot extract the AS of the requester or it doesn't match
 			// with our AS, never forward the request.
 			saddr, ok := requester.(*snet.Addr)
-			if !ok || !store.ia.Eq(saddr.IA) {
+			if !ok {
+				return nil, common.NewBasicError("Unable to determine AS of requester",
+					nil, "addr", requester)
+			}
+			if !store.ia.Eq(saddr.IA) {
 				return nil, common.NewBasicError("TRC not found in DB, and recursion not "+
 					"allowed for clients outside AS", nil, "client", saddr)
 			}
@@ -181,7 +186,7 @@ func (store *Store) issueTRCRequest(ctx context.Context, req trcRequest) error {
 	}
 	// Block waiting for request to be finalized
 	select {
-	case err := <-req.errChan:
+	case err := <-req.completionChan:
 		return err
 	case <-ctx.Done():
 		// Context expired while waiting
@@ -213,7 +218,11 @@ func (store *Store) getChain(ctx context.Context, req chainRequest,
 			// If we cannot extract the AS of the requester or it doesn't match with our AS,
 			// never forward the request.
 			saddr, ok := requester.(*snet.Addr)
-			if !ok || !store.ia.Eq(saddr.IA) {
+			if !ok {
+				return nil, common.NewBasicError("Unable to determine AS of requester",
+					nil, "addr", requester)
+			}
+			if !store.ia.Eq(saddr.IA) {
 				return nil, common.NewBasicError("Chain not found in DB, and recursion not "+
 					"allowed for clients outside AS", nil, "client", saddr)
 			}
@@ -249,9 +258,8 @@ func (store *Store) issueChainRequest(ctx context.Context, req chainRequest) err
 
 // NewTRCReqHandler returns an infra.Handler for TRC requests coming from a
 // peer, backed by the trust store. If recurse is set to true, the handler is
-// allowed to issue new TRC and Certificate Chain requests over the network.
-// This method should only be used when servicing requests coming from remote
-// nodes.
+// allowed to issue new TRC requests over the network.  This method should only
+// be used when servicing requests coming from remote nodes.
 func (store *Store) NewTRCReqHandler(recurse bool) infra.Handler {
 	handler := func(r *infra.Request) {
 		handlerState := &trcReqHandler{
@@ -315,18 +323,30 @@ func (store *Store) NewPushChainHandler() infra.Handler {
 
 func (store *Store) GetCertificate(ctx context.Context, trail []infra.TrustDescriptor,
 	hint net.Addr) (*cert.Certificate, error) {
+
 	verifierObj, err := store.getTrustObject(ctx, trail, hint)
 	if err != nil {
 		return nil, err
 	}
 	if verifierObj == nil {
-		return nil, nil
+		return nil, common.NewBasicError("certificate chain not found", nil, "trail", trail)
 	}
-	// If we get a panic on this type assertion, it means the trust trail was
-	// not valid (e.g., the trail started with a TRC descriptor instead of a
-	// Chain descriptor.
 	chain := verifierObj.(*cert.Chain)
-	return chain.Leaf, err
+	return chain.Leaf, nil
+}
+
+func (store *Store) GetTRC(ctx context.Context, trail []infra.TrustDescriptor,
+	hint net.Addr) (*trc.TRC, error) {
+
+	verifierObj, err := store.getTrustObject(ctx, trail, hint)
+	if err != nil {
+		return nil, err
+	}
+	if verifierObj == nil {
+		return nil, common.NewBasicError("trc not found", nil, "trail", trail)
+	}
+	trcObj := verifierObj.(*trc.TRC)
+	return trcObj, nil
 }
 
 // getTrustObject recursively follows trail to create a fully verified trust
@@ -345,6 +365,7 @@ func (store *Store) GetCertificate(ctx context.Context, trail []infra.TrustDescr
 // Cert0, and the recursion finishes.
 func (store *Store) getTrustObject(ctx context.Context, trail []infra.TrustDescriptor,
 	hint net.Addr) (interface{}, error) {
+
 	if len(trail) == 0 {
 		// We've reached the end of the trail and did not find a trust anchor,
 		// propagate this information to the caller.
@@ -429,12 +450,12 @@ func (store *Store) fetchByDescriptor(ctx context.Context, desc infra.TrustDescr
 		return store.getChain(ctx, request, true, nil)
 	case infra.TRCDescriptor:
 		request := trcRequest{
-			isd:      uint16(desc.IA.I),
-			version:  desc.Version,
-			verifier: verifier,
-			hint:     hint,
-			id:       store.nextID(),
-			errChan:  make(chan error, 1),
+			isd:            uint16(desc.IA.I),
+			version:        desc.Version,
+			verifier:       verifier,
+			hint:           hint,
+			id:             store.nextID(),
+			completionChan: make(chan error, 1),
 		}
 		return store.getTRC(ctx, request, true, nil)
 	default:
@@ -447,56 +468,64 @@ func (store *Store) fetchByDescriptor(ctx context.Context, desc infra.TrustDescr
 // resolvers, instead giving up if the required information is not already in
 // the database.
 func (store *Store) localTRCVerify(ctx context.Context, trcObj *trc.TRC) verificationResult {
-	// If we already have the TRC for this ISD and version number, stop
-	desc := infra.TrustDescriptor{
-		IA:      addr.ISD_AS{I: int(trcObj.ISD), A: 0},
-		Version: trcObj.Version,
-		Type:    infra.TRCDescriptor,
-	}
-	if _, err := store.queryByDescriptor(ctx, desc); err != nil {
-		return resultSuccessExists
-	}
+	// FIXME(scrye): While cross signatures and ISD trails in pushes are not
+	// implemented, always return success for all TRCs.
+	return resultSuccessExists
 
-	// FIXME(scrye): This needs a closer look, as I'm not sure whether it is
-	// intended behavior.  If we do not have the TRC, we need to find out how
-	// to verify it. Look into all the signer fields in the pushed TRC, and for
-	// each one try to see if its ISD's TRC is in our trust database. If it is
-	// and verification succeeds, accept it. TRCs that are more than one hop
-	// away will fail this verification.
-	verified := false
-	for key := range trcObj.Signatures {
-		if ia, err := addr.IAFromString(key); err == nil && ia.I != store.ia.I {
-			desc := infra.TrustDescriptor{
-				IA:      addr.ISD_AS{I: int(trcObj.ISD), A: 0},
-				Version: 0, // Ask for max
-				Type:    infra.TRCDescriptor,
-			}
-			genericObj, err := store.queryByDescriptor(ctx, desc)
-			if err != nil {
-				// Try next one
-				continue
-			}
-			verifierTRC := genericObj.(*trc.TRC)
-
-			// Object found, check for cross-signature
-			if _, err := trcObj.Verify(verifierTRC); err != nil {
-				// FIXME(scrye): The fact that verification failed points to a
-				// forged TRC. Deciding to continue is risky, as it might lead
-				// to broken trust chains. E.g. X trusts Y and Z, Y trusts V
-				// but Z doesn't trust V. Stopping verification here should
-				// probably be the desired approach, _however_, doing so means
-				// that verification can return different results depending on
-				// the order in which trcObj.Signatures is iterated through.
-				// For now, just try every TRC.
-				continue
-			}
-			verified = true
+	/*
+		// If we already have the TRC for this ISD and version number, stop
+		desc := infra.TrustDescriptor{
+			IA:      addr.IA{I: int(trcObj.ISD), A: 0},
+			Version: trcObj.Version,
+			Type:    infra.TRCDescriptor,
 		}
-	}
-	if verified {
-		return resultSuccessVerified
-	}
-	return resultFailure
+		if _, err := store.queryByDescriptor(ctx, desc); err != nil {
+			return resultSuccessExists
+		}
+
+		// FIXME(scrye): This needs a closer look, as I'm not sure whether it is
+		// intended behavior.  If we do not have the TRC, we need to find out how
+		// to verify it. First, we check whether we have the previous version. If
+		// we do, we need to check whether the verification succeeds. If we don't
+		// have the previous version, we look into all the cross signer fields in the
+		// pushed TRC, and for each one try to see if its ISD's TRC is in our trust
+		// database. If it is and verification succeeds, accept it. TRCs that are
+		// more than one hop away will fail this verification.
+		verified := false
+		for key := range trcObj.Signatures {
+			if ia, err := addr.IAFromString(key); err == nil && ia.I != int(trcObj.ISD) {
+				desc := infra.TrustDescriptor{
+					IA:      addr.IA{I: int(trcObj.ISD), A: 0},
+					Version: 0, // Ask for max
+					Type:    infra.TRCDescriptor,
+				}
+				genericObj, err := store.queryByDescriptor(ctx, desc)
+				if err != nil {
+					// Try next one
+					continue
+				}
+				verifierTRC := genericObj.(*trc.TRC)
+
+				// Object found, check for cross-signature
+				if _, err := trcObj.Verify(verifierTRC); err != nil {
+					// FIXME(scrye): The fact that verification failed points to a
+					// forged TRC. Deciding to continue is risky, as it might lead
+					// to broken trust chains. E.g. X trusts Y and Z, Y trusts V
+					// but Z doesn't trust V. Stopping verification here should
+					// probably be the desired approach, _however_, doing so means
+					// that verification can return different results depending on
+					// the order in which trcObj.Signatures is iterated through.
+					// For now, just try every TRC.
+					continue
+				}
+				verified = true
+			}
+		}
+		if verified {
+			return resultSuccessVerified
+		}
+		return resultFailure
+	*/
 }
 
 // localChainVerify will try to verify chain without any available
@@ -506,7 +535,7 @@ func (store *Store) localTRCVerify(ctx context.Context, trcObj *trc.TRC) verific
 func (store *Store) localChainVerify(ctx context.Context, chain *cert.Chain) verificationResult {
 	// If we already have the Chain for this AS and version number, stop
 	desc := infra.TrustDescriptor{
-		IA:      *chain.Leaf.Subject,
+		IA:      chain.Leaf.Subject,
 		Version: chain.Leaf.Version,
 		Type:    infra.ChainDescriptor,
 	}
@@ -515,7 +544,7 @@ func (store *Store) localChainVerify(ctx context.Context, chain *cert.Chain) ver
 	}
 
 	trcDesc := infra.TrustDescriptor{
-		IA:      *chain.Core.Issuer,
+		IA:      chain.Core.Issuer,
 		Version: chain.Core.TRCVersion,
 		Type:    infra.TRCDescriptor,
 	}
@@ -523,8 +552,6 @@ func (store *Store) localChainVerify(ctx context.Context, chain *cert.Chain) ver
 	if err != nil {
 		// TRC missing
 		return resultFailure
-		// XXX(scrye): In this case, it could be possible to ask someone else
-		// for the TRC.
 	}
 	trcObj := genericObj.(*trc.TRC)
 
@@ -552,7 +579,7 @@ func (store *Store) Close() error {
 	return common.NewBasicError("double close", nil)
 }
 
-// verificationResult is used by peekXxx methods to inform the caller whether
+// verificationResult is used by localXxx methods to inform the caller whether
 // (and why) the verification succeeded/failed.
 type verificationResult uint16
 

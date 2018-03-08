@@ -123,16 +123,17 @@ type Messenger interface {
 
 type TrustStore interface {
 	StartResolvers(messenger Messenger) error
-	NewTRCReqHandler(recurse bool) Handler
-	NewChainReqHandler(recurse bool) Handler
+	NewTRCReqHandler(recurseAllowed bool) Handler
+	NewChainReqHandler(recurseAllowed bool) Handler
 	NewPushTRCHandler() Handler
 	NewPushChainHandler() Handler
-	GetCertificate(ctx context.Context, trail []TrustDescriptor, hint net.Addr) (*cert.Certificate, error)
+	GetCertificate(ctx context.Context, trail []TrustDescriptor,
+		hint net.Addr) (*cert.Certificate, error)
 }
 
 type TrustDescriptor struct {
 	Version uint64
-	IA      addr.ISD_AS
+	IA      addr.IA
 	Type    TrustDescriptorType
 }
 

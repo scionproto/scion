@@ -38,12 +38,12 @@ import (
 
 var (
 	testISDList = []uint16{1, 2}
-	testASList  = []addr.ISD_AS{
+	testASList  = []addr.IA{
 		{I: 1, A: 11}, {I: 1, A: 12}, {I: 1, A: 13}, {I: 1, A: 16}, {I: 1, A: 19},
 		{I: 2, A: 21}, {I: 2, A: 22}, {I: 2, A: 23}, {I: 2, A: 25},
 	}
 	trcObjects   map[uint16]*trc.TRC
-	chainObjects map[addr.ISD_AS]*cert.Chain
+	chainObjects map[addr.IA]*cert.Chain
 )
 
 type FakeMessenger struct{}
@@ -80,7 +80,7 @@ func (m *FakeMessenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.A
 func (m *FakeMessenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
-	chain, ok := chainObjects[*msg.IA()]
+	chain, ok := chainObjects[msg.IA()]
 	if !ok {
 		return nil, common.NewBasicError("Chain not found", nil)
 	}
@@ -124,7 +124,7 @@ func TestTrustTrails(t *testing.T) {
 	Convey("", t, func() {
 		db, err := trustdb.New(randomFileName())
 		SoMsg("trustdb init error", err, ShouldBeNil)
-		store, err := NewStore(db, addr.ISD_AS{I: 1, A: 1}, 0, log.Root())
+		store, err := NewStore(db, addr.IA{I: 1, A: 1}, 0, log.Root())
 		// Add trust root for this trust store manually
 		err = store.trustdb.InsertTRCCtx(context.Background(), 2, 0, trcObjects[2])
 		SoMsg("root insertion err", err, ShouldBeNil)
@@ -138,17 +138,17 @@ func TestTrustTrails(t *testing.T) {
 			trail := []infra.TrustDescriptor{
 				{
 					Version: 0,
-					IA:      addr.ISD_AS{I: 1, A: 16},
+					IA:      addr.IA{I: 1, A: 16},
 					Type:    infra.ChainDescriptor,
 				},
 				{
 					Version: 0,
-					IA:      addr.ISD_AS{I: 1, A: 0},
+					IA:      addr.IA{I: 1, A: 0},
 					Type:    infra.TRCDescriptor,
 				},
 				{
 					Version: 0,
-					IA:      addr.ISD_AS{I: 2, A: 0},
+					IA:      addr.IA{I: 2, A: 0},
 					Type:    infra.TRCDescriptor,
 				},
 			}
@@ -156,7 +156,7 @@ func TestTrustTrails(t *testing.T) {
 			cert, err := store.GetCertificate(ctx, trail, &FakeAddress{})
 			cancelF()
 			SoMsg("fetch err", err, ShouldBeNil)
-			SoMsg("cert", cert, ShouldResemble, chainObjects[addr.ISD_AS{I: 1, A: 16}].Leaf)
+			SoMsg("cert", cert, ShouldResemble, chainObjects[addr.IA{I: 1, A: 16}].Leaf)
 		})
 
 		Convey("Fail to validate incomplete trail from ISD2 to AS1-19", func() {
@@ -164,12 +164,12 @@ func TestTrustTrails(t *testing.T) {
 			trail := []infra.TrustDescriptor{
 				{
 					Version: 0,
-					IA:      addr.ISD_AS{I: 1, A: 19},
+					IA:      addr.IA{I: 1, A: 19},
 					Type:    infra.ChainDescriptor,
 				},
 				{
 					Version: 0,
-					IA:      addr.ISD_AS{I: 2, A: 0},
+					IA:      addr.IA{I: 2, A: 0},
 					Type:    infra.TRCDescriptor,
 				},
 			}
@@ -199,15 +199,15 @@ func TestMain(m *testing.M) {
 	log.Root().SetHandler(log.DiscardHandler())
 	trcObjects = make(map[uint16]*trc.TRC)
 	for _, isd := range testISDList {
-		trcObj, err := trc.TRCFromFile(getTRCFileName(isd, 0), false)
+		trcObj, err := trc.TRCFromFile(getTRCFileName(isd, 1), false)
 		if err != nil {
 			fatal(err)
 		}
 		trcObjects[isd] = trcObj
 	}
-	chainObjects = make(map[addr.ISD_AS]*cert.Chain)
+	chainObjects = make(map[addr.IA]*cert.Chain)
 	for _, ia := range testASList {
-		chain, err := cert.ChainFromFile(getChainFileName(ia, 0), false)
+		chain, err := cert.ChainFromFile(getChainFileName(ia, 1), false)
 		if err != nil {
 			fatal(err)
 		}
@@ -220,11 +220,11 @@ func getTRCFileName(isd uint16, version uint64) string {
 	return fmt.Sprintf("testdata/ISD%d-V%d.trc", isd, version)
 }
 
-func getChainFileName(ia addr.ISD_AS, version uint64) string {
+func getChainFileName(ia addr.IA, version uint64) string {
 	return fmt.Sprintf("testdata/ISD%d-AS%d-V%d.crt", ia.I, ia.A, version)
 }
 
 func fatal(err error) {
-	log.Error("Fatal error", "err", common.FmtError(err))
+	log.Error("Fatal error", "err", err)
 	os.Exit(1)
 }
