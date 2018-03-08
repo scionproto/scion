@@ -19,11 +19,9 @@ import (
 	"os"
 	"testing"
 
-	log "github.com/inconshreveable/log15"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 )
@@ -32,10 +30,8 @@ func TestTRC(t *testing.T) {
 	Convey("Initialize DB and load TRC", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
-		SoMsg("err db ", err, ShouldBeNil)
-		SoMsg("db", db, ShouldNotBeNil)
 
-		trcobj, err := trc.TRCFromFile("testdata/ISD1-V0.trc", false)
+		trcobj, err := trc.TRCFromFile("testdata/ISD1-V1.trc", false)
 		SoMsg("err trc", err, ShouldBeNil)
 		SoMsg("trc", trcobj, ShouldNotBeNil)
 		Convey("Insert into database", func() {
@@ -64,13 +60,11 @@ func TestChain(t *testing.T) {
 	Convey("Initialize DB and load TRC", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
-		SoMsg("err db ", err, ShouldBeNil)
-		SoMsg("db", db, ShouldNotBeNil)
 
-		trcobj, err := cert.ChainFromFile("testdata/ISD1-V0.trc", false)
+		trcobj, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
 		SoMsg("err trc", err, ShouldBeNil)
 		SoMsg("trc", trcobj, ShouldNotBeNil)
-		ia := addr.ISD_AS{I: 1, A: 1}
+		ia := addr.IA{I: 1, A: 1}
 		Convey("Insert into database", func() {
 			err := db.InsertChain(ia, 10, trcobj)
 			SoMsg("err", err, ShouldBeNil)
@@ -85,69 +79,13 @@ func TestChain(t *testing.T) {
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get missing certificate chain from database", func() {
-				otherIA := addr.ISD_AS{I: 1, A: 2}
+				otherIA := addr.IA{I: 1, A: 2}
 				newTRCobj, err := db.GetChainVersion(otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
 		})
 	})
-}
-
-func BenchmarkDB(b *testing.B) {
-	// NOTE(scrye): JSON conversion is a 10x drop in performance on my machine.
-	// Even so, currently trustdb can serve about 8500 requests per second on a
-	// i7 @ 3.4Ghz core.
-	logger := log.Root().New("benchmark", "BenchmarkDB")
-	db, cleanF := newDatabase(t)
-	defer cleanF()
-	if err != nil {
-		logger.Warn("unable to initialize DB", "err", err)
-		return
-	}
-	trcobj, err := trc.TRCFromFile("testdata/ISD1-V0.trc", false)
-	if err != nil {
-		logger.Warn("unable to load TRC from file", "err", err)
-		return
-	}
-	if err := db.InsertTRC(1, 10, trcobj); err != nil {
-		logger.Warn("unable to insert TRC in DB", "err", err)
-		return
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err := db.GetTRCMaxVersion(1); err != nil {
-			logger.Warn("unable to get max version TRC from DB", "err", err)
-			return
-		}
-	}
-}
-
-func BenchmarkDBNoJSON(b *testing.B) {
-	logger := log.Root().New("benchmark", "BenchmarkDBNoJSON")
-	db, cleanF := newDatabase(t)
-	defer cleanF()
-	if err != nil {
-		logger.Warn("unable to initialize DB", "err", err)
-		return
-	}
-	trcobj, err := trc.TRCFromFile("testdata/ISD1-V0.trc", false)
-	if err != nil {
-		logger.Warn("unable to load TRC from file", "err", err)
-		return
-	}
-	if err := db.InsertTRC(1, 10, trcobj); err != nil {
-		logger.Warn("unable to insert TRC in DB", "err", err)
-		return
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var raw common.RawBytes
-		if err := db.getTRCMaxVersionStmt.QueryRow(1).Scan(&raw); err != nil {
-			logger.Warn("unable to get max version TRC from DB", "err", err)
-			return
-		}
-	}
 }
 
 func newDatabase(t *testing.T) (*DB, func()) {
@@ -159,7 +97,10 @@ func newDatabase(t *testing.T) (*DB, func()) {
 	if err := file.Close(); err != nil {
 		t.Fatalf("unable to close temp file")
 	}
-	db := New(name)
+	db, err := New(name)
+	if err != nil {
+		t.Fatalf("unable to initialize database")
+	}
 	return db, func() {
 		db.Close()
 		os.Remove(name)
