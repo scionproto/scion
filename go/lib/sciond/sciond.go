@@ -130,6 +130,7 @@ type connector struct {
 	conn      net.Conn
 	requestID uint64
 
+	// TODO(kormat): Move the caches to `service`, so they can be shared across connectors.
 	asInfos  *cache.Cache
 	ifInfos  *cache.Cache
 	svcInfos *cache.Cache
