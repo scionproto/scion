@@ -61,6 +61,7 @@ var (
 	bind      snet.Addr
 	rnd       *rand.Rand
 	pathEntry *sciond.PathReplyEntry
+	mtu       uint16
 )
 
 var sType string = "echo"
@@ -77,9 +78,6 @@ func main() {
 	flag.Parse()
 	validate()
 
-	if local.Host == nil {
-		fatal("Missing local address")
-	}
 	if *sciondPath == "" {
 		*sciondPath = GetDefaultSCIONDPath(local.IA)
 	}
@@ -109,23 +107,41 @@ func main() {
 		remote.Path.InitOffsets()
 		remote.NextHopHost = pathEntry.HostInfo.Host()
 		remote.NextHopPort = pathEntry.HostInfo.Port
+		mtu = pathEntry.Path.Mtu
+	} else {
+		// Use local AS MTU when we have no path
+		sd := snet.DefNetwork.Sciond()
+		c, err := sd.Connect()
+		if err != nil {
+			fatal("Unable to connect to sciond")
+		}
+		reply, err := c.ASInfo(addr.IA{I: 0, A: 0})
+		if err != nil {
+			fatal("Unable to request AS info to sciond")
+		}
+		// No need to check corner cases as we know that we are a local AS
+		for _, entry := range reply.Entries {
+			if entry.RawIsdas == local.IA.IAInt() {
+				mtu = entry.Mtu
+				break
+			}
+		}
 	}
-
 	seed := rand.NewSource(time.Now().UnixNano())
 	rnd = rand.New(seed)
 
-	var send, recv scmpCtx
-	initSCMP(&send, &recv, *sTypeStr, *count, pathEntry)
+	var ctx scmpCtx
+	initSCMP(&ctx, *sTypeStr, *count, pathEntry)
 
 	ch := make(chan time.Time, 20)
 	wg.Add(2)
-	go RecvPkts(&wg, conn, &recv, ch)
-	go SendPkts(&wg, conn, &send, ch)
+	go RecvPkts(&wg, conn, &ctx, ch)
+	go SendPkts(&wg, conn, &ctx, ch)
 
 	wg.Wait()
 
 	ret := 0
-	if send.num != recv.num {
+	if ctx.sent == ctx.recv {
 		ret = 1
 	}
 
@@ -149,14 +165,11 @@ func validate() {
 	}
 }
 
-func sendPKt(conn *reliable.Conn, s *scmpCtx, b common.RawBytes) {
-}
-
-func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpCtx, ch chan time.Time) {
+func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan time.Time) {
 	defer wg.Done()
 	defer close(ch)
 
-	b := make(common.RawBytes, pathEntry.Path.Mtu)
+	b := make(common.RawBytes, mtu)
 
 	nhAddr := reliable.AppAddr{Addr: remote.NextHopHost, Port: remote.NextHopPort}
 	if remote.NextHopHost == nil {
@@ -165,14 +178,14 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpCtx, ch chan time.
 	nextPktTS := time.Now()
 	ticker := time.NewTicker(*interval)
 	for ; true; nextPktTS = <-ticker.C {
-		updatePktTS(s, nextPktTS)
+		updatePktTS(ctx, nextPktTS)
 		// Serialize packet to internal buffer
-		pktLen, err := hpkt.WriteScnPkt(s.pkt, b)
+		pktLen, err := hpkt.WriteScnPkt(ctx.pktS, b)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: Unable to serialize SCION packet %v\n", err)
 			break
 		}
-		written, err := conn.WriteTo(b[:pktLen], nhAddr)
+		written, err := conn.WriteTo(b[:pktLen], &nhAddr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: Unable to write %v\n", err)
 			break
@@ -183,29 +196,28 @@ func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpCtx, ch chan time.
 		}
 		// Notify the receiver
 		ch <- nextPktTS
+		ctx.sent += 1
 		// Update packet fields
-		updatePkt(s)
-		if !morePkts(s) {
+		updatePkt(ctx)
+		if !morePkts(ctx) {
 			break
 		}
 	}
 }
 
-func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpCtx, ch chan time.Time) {
+func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan time.Time) {
 	defer wg.Done()
-	var sent uint64
 
-	b := make(common.RawBytes, pathEntry.Path.Mtu)
+	b := make(common.RawBytes, mtu)
 
 	start := time.Now()
 	nextTimeout := start
 	for {
 		nextPktTS, ok := <-ch
 		if ok {
-			sent += 1
 			nextTimeout = nextPktTS.Add(*timeout)
 			conn.SetReadDeadline(nextTimeout)
-		} else if s.num == sent || nextTimeout.Before(time.Now()) {
+		} else if ctx.recv == ctx.sent || nextTimeout.Before(time.Now()) {
 			break
 		}
 		pktLen, err := conn.Read(b)
@@ -219,21 +231,21 @@ func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, s *scmpCtx, ch chan time.
 			}
 		}
 		now := time.Now()
-		err = hpkt.ParseScnPkt(s.pkt, b[:pktLen])
+		err = hpkt.ParseScnPkt(ctx.pktR, b[:pktLen])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse error %v\n", err)
 			break
 		}
-		err = validatePkt(s)
+		err = validatePkt(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: Unexpected SCMP Packet %v\n", err)
 			break
 		}
-		s.num += 1
-		prettyPrint(s, pktLen, now)
+		ctx.recv += 1
+		prettyPrint(ctx, pktLen, now)
 	}
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		sent, s.num, 100-s.num*100/sent, time.Now().Sub(start))
+		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Now().Sub(start))
 }
 
 func choosePath(interactive bool) *sciond.PathReplyEntry {
