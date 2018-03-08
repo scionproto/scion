@@ -28,7 +28,6 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -74,11 +73,12 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	// Initialize TrustStore
 	db, err := trustdb.New(randomFileName())
 	if err != nil {
-		log.Error("Unable to initialize trustdb", "err", common.FmtError(err))
+		log.Error("Unable to initialize trustdb", "err", err)
 		os.Exit(-1)
 	}
-	if server.trustStore, err = trust.NewStore(db, addr.ISD_AS{I: 1, A: 1}, 0, log.Root()); err != nil {
-		log.Error("Unable to create trust store", "err", common.FmtError(err))
+	server.trustStore, err = trust.NewStore(db, addr.IA{I: 1, A: 1}, 0, log.Root())
+	if err != nil {
+		log.Error("Unable to create trust store", "err", err)
 		os.Exit(-1)
 	}
 	// Initialize messenger with verification capabilities (trustStore-backed)

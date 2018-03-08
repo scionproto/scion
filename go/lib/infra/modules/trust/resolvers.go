@@ -33,24 +33,27 @@ import (
 )
 
 const (
-	// Minimum time between sending network packets for the same object.
+	// MinimumDelta is the minimum time between sending network packets for the
+	// same object.
 	MinimumDelta = 2 * time.Second
-	// Time in addition to MinimumDelta in which a handler attempts to handle the request
+	// GracePeriod is the time in addition to MinimumDelta in which a handler
+	// attempts to handle the request.
 	GracePeriod = 2 * time.Second
-	// Maximum number of waiters in a completion channel
+	// CompletionChanCap is the maximum number of waiters in a completion
+	// channel.
 	CompletionChanCap = 1 << 8
 )
 
 type requestI interface {
-	// requestKey returns a string that is defined by the AS, Certificate
-	// version and contacted address. Requests with the same requestKey are
-	// throttled (i.e., at most one every MinimumDelta time).
+	// requestKey returns a string that is defined by the ISD (or AS), version
+	// and contacted address. Requests with the same requestKey are throttled
+	// (i.e., at most one every MinimumDelta time).
 	requestKey() string
-	// responseKey returns a string that is completely defined by the AS and
-	// Certificate version of the request. This can be used to create maps of
+	// responseKey returns a string that is completely defined by the ISD (or
+	// AS) and version of the request. This can be used to create maps of
 	// channels where any goroutine that is handling a request for an AS and
-	// version can unblock the waiters on the channel, irrespective of contacted
-	// address.
+	// version can unblock the waiters on the channel, irrespective of
+	// contacted address.
 	responseKey() string
 	// resolve builds a network message from the request, sends it on msger,
 	// waits for the response, verifies it and finally inserts it into the
@@ -131,8 +134,8 @@ func (r *resolver) Run() {
 		case r.completionChans[responseKey] <- request.getCompletionChan():
 			// Do nothing
 		default:
-			request.getCompletionChan() <- common.NewBasicError("Insufficient space in completion channel",
-				nil, "request_key", requestKey)
+			request.getCompletionChan() <- common.NewBasicError(
+				"Insufficient space in completion channel", nil, "request_key", requestKey)
 			close(request.getCompletionChan())
 		}
 	}
@@ -147,7 +150,7 @@ type resolverHandler struct {
 	// This unblocks all goroutines waiting for (object, version)
 	successCompletionChan chan chan<- error
 	// when the handler exits with a failure, read all the error channels from
-	// failCompleTionChan, write the error to each of them and finally close them.
+	// failCompletionChan, write the error to each of them and finally close them.
 	// This unblocks all goroutines waiting for (object, version, address)
 	failCompletionChan chan chan<- error
 	log                log.Logger
@@ -161,11 +164,9 @@ func (h *resolverHandler) Handle() {
 
 	err := h.request.resolve(ctx, h.resolver.msger, h.resolver.trustdb)
 	// Depending on error, choose whether to announce success or errors
-	var announceChan chan chan<- error
+	announceChan := h.successCompletionChan
 	if err != nil {
 		announceChan = h.failCompletionChan
-	} else {
-		announceChan = h.successCompletionChan
 	}
 	for {
 		select {
@@ -185,12 +186,12 @@ var _ requestI = trcRequest{}
 // trcRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
 type trcRequest struct {
-	isd      uint16
-	version  uint64
-	hint     net.Addr
-	verifier *trc.TRC
-	id       uint64
-	errChan  chan error
+	isd            uint16
+	version        uint64
+	hint           net.Addr
+	verifier       *trc.TRC
+	id             uint64
+	completionChan chan error
 }
 
 func (req trcRequest) requestKey() string {
@@ -222,7 +223,8 @@ func (req trcRequest) resolve(ctx context.Context, msger infra.Messenger, db *tr
 	}
 
 	// Verify trc based on the verifier in the request
-	// XXX(scrye): full verification is not implemented (e.g., no cross signature support)
+	// XXX(scrye): full verification is not implemented (e.g., no cross
+	// signature support), so this always returns true.
 	if _, err = trcObj.Verify(req.verifier); err != nil {
 		return common.NewBasicError("TRC verification error", err)
 	}
@@ -233,7 +235,7 @@ func (req trcRequest) resolve(ctx context.Context, msger infra.Messenger, db *tr
 }
 
 func (req trcRequest) getCompletionChan() chan<- error {
-	return req.errChan
+	return req.completionChan
 }
 
 var _ requestI = chainRequest{}
@@ -241,7 +243,7 @@ var _ requestI = chainRequest{}
 // chainRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
 type chainRequest struct {
-	ia       addr.ISD_AS
+	ia       addr.IA
 	version  uint64
 	hint     net.Addr
 	verifier *trc.TRC
@@ -278,7 +280,7 @@ func (req chainRequest) resolve(ctx context.Context, msger infra.Messenger, db *
 	}
 
 	// Verify chain based on the verifier in the request
-	if err := chain.Verify(&req.ia, req.verifier); err != nil {
+	if err := chain.Verify(req.ia, req.verifier); err != nil {
 		return common.NewBasicError("Chain verification failed", err)
 	}
 	err = db.InsertChainCtx(ctx, req.ia, req.version, chain)
