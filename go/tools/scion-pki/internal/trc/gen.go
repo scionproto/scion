@@ -69,8 +69,15 @@ func genTrc(isd int) error {
 	if err != nil {
 		return common.NewBasicError("Error json-encoding TRC", err)
 	}
+	// Check if output directory exists.
+	outDir := filepath.Join(dir, "trcs")
+	if _, err = os.Stat(outDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(outDir, 0755); err != nil {
+			return common.NewBasicError("Cannot create output dir", err, "path", outDir)
+		}
+	}
 	fname := fmt.Sprintf(pkicmn.TrcNameFmt, isd, iconf.Trc.Version)
-	return pkicmn.WriteToFile(raw, filepath.Join(dir, fname), 0644)
+	return pkicmn.WriteToFile(raw, filepath.Join(outDir, fname), 0644)
 }
 
 func newTrc(isd int, iconf *conf.Isd, path string) (*trc.TRC, error) {

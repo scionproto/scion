@@ -48,13 +48,20 @@ func runGenCert(cmd *base.Command, args []string) {
 		if err != nil {
 			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
 		}
-		for _, cia := range iconf.Trc.CoreIAs {
-			if err = genCert(cia, true); err != nil {
-				base.ErrorAndExit("Error generating cert for %s: %s\n", cia, err)
+		// Process cores.
+		for _, ia := range ases {
+			if !pkicmn.Contains(iconf.Trc.CoreIAs, ia) {
+				continue
+			}
+			if err = genCert(ia, true); err != nil {
+				base.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
 			}
 		}
-		nonCores := pkicmn.FilterAses(ases, iconf.Trc.CoreIAs)
-		for _, ia := range nonCores {
+		// Process non-cores.
+		for _, ia := range ases {
+			if pkicmn.Contains(iconf.Trc.CoreIAs, ia) {
+				continue
+			}
 			if err = genCert(ia, false); err != nil {
 				base.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
 			}
