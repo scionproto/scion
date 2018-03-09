@@ -116,18 +116,6 @@ func asFromDir(dir string) (uint64, error) {
 	return as, nil
 }
 
-// FilterAses returns a list of ASes with entries from 'ases' that are not in 'cores'.
-func FilterAses(ases, cores []addr.IA) []addr.IA {
-	var filtered []addr.IA
-	for _, ia := range ases {
-		if Contains(cores, ia) {
-			continue
-		}
-		filtered = append(filtered, ia)
-	}
-	return filtered
-}
-
 func Contains(ases []addr.IA, as addr.IA) bool {
 	for _, ia := range ases {
 		if ia.Eq(as) {
