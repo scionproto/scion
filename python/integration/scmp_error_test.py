@@ -25,12 +25,12 @@ import lib.app.sciond as lib_sciond
 from lib.defines import MAX_HOPBYHOP_EXT
 from lib.main import main_wrapper
 from lib.packet.ctrl_pld import CtrlPayload
-from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.host_addr import HostAddrSVC
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path import SCIONPath
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.ext import SCMPExt
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.scmp.types import (
     SCMPClass,
     SCMPCmnHdrClass,
@@ -302,7 +302,7 @@ class ErrorGenTooManyHbH(ErrorGenBase):
     def _create_extensions(self):
         exts = []
         for i in range(MAX_HOPBYHOP_EXT + 1):
-            exts.append(TracerouteExt.from_values(5))
+            exts.append(OneHopPathExt.from_values())
         return exts
 
 
@@ -313,7 +313,7 @@ class ErrorGenBadExtOrder(ErrorGenBase):
 
     def _create_extensions(self):
         exts = []
-        exts.append(TracerouteExt.from_values(5))
+        exts.append(OneHopPathExt.from_values())
         exts.append(SCMPExt.from_values(error=False))
         return exts
 
@@ -324,7 +324,7 @@ class ErrorGenBadHopByHop(ErrorGenBase):
     DESC = "Bad hop-by-hop extension"
 
     def _create_extensions(self):
-        return [TracerouteExt.from_values(5)]
+        return [OneHopPathExt.from_values()]
 
     def _send_pkt(self, spkt, first_hop):
         next_hop, port = self._get_next_hop(spkt)

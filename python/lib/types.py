@@ -64,10 +64,9 @@ class ExtensionClass(TypeBase):
 
 
 class ExtHopByHopType(TypeBase):
-    TRACEROUTE = 0
-    SIBRA = 1
-    SCMP = 2
-    ONE_HOP_PATH = 3
+    SCMP = 0
+    ONE_HOP_PATH = 1
+    SIBRA = 2
 
 
 class ExtEndToEndType(TypeBase):
