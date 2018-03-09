@@ -56,3 +56,30 @@ func Test_ParseDuration(t *testing.T) {
 		}
 	})
 }
+
+func Test_FmtDuration(t *testing.T) {
+	tests := []struct {
+		input  time.Duration
+		output string
+	}{
+		{0 * time.Nanosecond, "0s"},
+		{2 * time.Nanosecond, "2ns"},
+		{33 * time.Microsecond, "33us"},
+		{44 * time.Millisecond, "44ms"},
+		{55 * time.Second, "55s"},
+		{66 * time.Hour, "66h"},
+		{48 * time.Hour, "2d"},
+		{30 * day, "30d"},
+		{35 * day, "5w"},
+		{101 * year, "101y"},
+	}
+	Convey("Test FmtDuration", t, func() {
+		for _, test := range tests {
+			Convey(fmt.Sprintf("Input: %v", test.output), func() {
+				ret := FmtDuration(test.input)
+				SoMsg("Result should be correct", ret, ShouldEqual, test.output)
+			})
+		}
+	})
+
+}

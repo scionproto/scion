@@ -15,11 +15,18 @@
 package util
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+)
+
+const (
+	year = time.Hour * 24 * 365
+	week = time.Hour * 24 * 7
+	day  = time.Hour * 24
 )
 
 // This code is lightly adapted from
@@ -46,11 +53,11 @@ func ParseDuration(durationStr string) (time.Duration, error) {
 	)
 	switch unit := matches[2]; unit {
 	case "y":
-		dur *= time.Hour * 24 * 365
+		dur *= year
 	case "w":
-		dur *= time.Hour * 24 * 7
+		dur *= week
 	case "d":
-		dur *= time.Hour * 24
+		dur *= day
 	case "h":
 		dur *= time.Hour
 	case "m":
@@ -68,4 +75,45 @@ func ParseDuration(durationStr string) (time.Duration, error) {
 			"unit", unit, "val", durationStr)
 	}
 	return dur, nil
+}
+
+func FmtDuration(dur time.Duration) string {
+	var (
+		ns   = int64(dur)
+		unit = "ns"
+	)
+	if ns == 0 {
+		return "0s"
+	}
+	factors := map[string]int64{
+		"y":  int64(time.Hour) * 24 * 365,
+		"w":  int64(time.Hour) * 24 * 7,
+		"d":  int64(time.Hour) * 24,
+		"h":  int64(time.Hour),
+		"m":  int64(time.Second) * 60,
+		"s":  int64(time.Second),
+		"ms": int64(time.Millisecond),
+		"us": int64(time.Microsecond),
+		"ns": int64(time.Nanosecond),
+	}
+
+	switch int64(0) {
+	case ns % factors["y"]:
+		unit = "y"
+	case ns % factors["w"]:
+		unit = "w"
+	case ns % factors["d"]:
+		unit = "d"
+	case ns % factors["h"]:
+		unit = "h"
+	case ns % factors["m"]:
+		unit = "m"
+	case ns % factors["s"]:
+		unit = "s"
+	case ns % factors["ms"]:
+		unit = "ms"
+	case ns % factors["us"]:
+		unit = "us"
+	}
+	return fmt.Sprintf("%d%s", ns/factors[unit], unit)
 }
