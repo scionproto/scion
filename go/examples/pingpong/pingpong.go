@@ -62,8 +62,8 @@ var (
 )
 
 func init() {
-	flag.Var((*Address)(&local), "local", "(Mandatory) address to listen on")
-	flag.Var((*Address)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
+	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
 }
 
 func main() {
@@ -72,6 +72,12 @@ func main() {
 	defer liblog.LogPanicAndExit()
 	switch *mode {
 	case "client":
+		if remote.Host == nil {
+			LogFatal("Missing remote address")
+		}
+		if remote.L4Port == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.L4Port)
+		}
 		Client()
 	case "server":
 		Server()
@@ -238,21 +244,6 @@ func handleClient( /*qsess quic.Session*/ ) {
 			LogFatal("Wrote incomplete message", "expected", len(ReplyMsg), "actual", written)
 		}
 	}
-}
-
-type Address snet.Addr
-
-func (a *Address) String() string {
-	return (*snet.Addr)(a).String()
-}
-
-func (a *Address) Set(s string) error {
-	other, err := snet.AddrFromString(s)
-	if err != nil {
-		return err
-	}
-	a.IA, a.Host, a.L4Port = other.IA, other.Host, other.L4Port
-	return nil
 }
 
 func LogFatal(msg string, a ...interface{}) {
