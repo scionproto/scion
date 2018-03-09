@@ -87,9 +87,9 @@ func main() {
 	}
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: local.Host}
-	bindAddress := &reliable.AppAddr{Addr: bind.Host}
-	if bind.Host == nil {
-		bindAddress = nil
+	var bindAddress *reliable.AppAddr
+	if bind.Host != nil {
+		bindAddress = &reliable.AppAddr{Addr: bind.Host}
 	}
 	conn, _, err := reliable.Register(*dispatcher, local.IA, address, bindAddress, addr.SvcNone)
 	if err != nil {
@@ -99,33 +99,9 @@ func main() {
 
 	// If remote is not in local AS, we need a path!
 	if !remote.IA.Eq(local.IA) {
-		pathEntry = choosePath(*interactive)
-		if pathEntry == nil {
-			fatal("No paths available to remote destination")
-		}
-		remote.Path = spath.New(pathEntry.Path.FwdPath)
-		remote.Path.InitOffsets()
-		remote.NextHopHost = pathEntry.HostInfo.Host()
-		remote.NextHopPort = pathEntry.HostInfo.Port
-		mtu = pathEntry.Path.Mtu
+		mtu = setPathAndMtu()
 	} else {
-		// Use local AS MTU when we have no path
-		sd := snet.DefNetwork.Sciond()
-		c, err := sd.Connect()
-		if err != nil {
-			fatal("Unable to connect to sciond")
-		}
-		reply, err := c.ASInfo(addr.IA{I: 0, A: 0})
-		if err != nil {
-			fatal("Unable to request AS info to sciond")
-		}
-		// No need to check corner cases as we know that we are a local AS
-		for _, entry := range reply.Entries {
-			if entry.RawIsdas == local.IA.IAInt() {
-				mtu = entry.Mtu
-				break
-			}
-		}
+		mtu = setLocalMtu()
 	}
 	seed := rand.NewSource(time.Now().UnixNano())
 	rnd = rand.New(seed)
@@ -141,28 +117,11 @@ func main() {
 	wg.Wait()
 
 	ret := 0
-	if ctx.sent == ctx.recv {
+	if ctx.sent != ctx.recv {
 		ret = 1
 	}
 
 	os.Exit(ret)
-}
-
-func validate() {
-	if local.Host == nil {
-		fatal("Invalid local address")
-	}
-	if remote.Host == nil {
-		fatal("Invalid remote address")
-	}
-	// scmp-tool does not uses ports, thus they should not be set
-	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
-	if local.L4Port != 0 {
-		fatal("Local port should not be provided")
-	}
-	if remote.L4Port != 0 {
-		fatal("Remote port should not be provided")
-	}
 }
 
 func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan time.Time) {
@@ -280,6 +239,50 @@ func choosePath(interactive bool) *sciond.PathReplyEntry {
 	}
 	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
 	return paths[pathIndex]
+}
+
+func validate() {
+	if local.Host == nil {
+		fatal("Invalid local address")
+	}
+	if remote.Host == nil {
+		fatal("Invalid remote address")
+	}
+	// scmp-tool does not use ports, thus they should not be set
+	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
+	if local.L4Port != 0 {
+		fatal("Local port should not be provided")
+	}
+	if remote.L4Port != 0 {
+		fatal("Remote port should not be provided")
+	}
+}
+
+func setPathAndMtu() uint16 {
+	pathEntry = choosePath(*interactive)
+	if pathEntry == nil {
+		fatal("No paths available to remote destination")
+	}
+	remote.Path = spath.New(pathEntry.Path.FwdPath)
+	remote.Path.InitOffsets()
+	remote.NextHopHost = pathEntry.HostInfo.Host()
+	remote.NextHopPort = pathEntry.HostInfo.Port
+	return pathEntry.Path.Mtu
+}
+
+func setLocalMtu() uint16 {
+	// Use local AS MTU when we have no path
+	sd := snet.DefNetwork.Sciond()
+	c, err := sd.Connect()
+	if err != nil {
+		fatal("Unable to connect to sciond")
+	}
+	reply, err := c.ASInfo(addr.IA{})
+	if err != nil {
+		fatal("Unable to request AS info to sciond")
+	}
+	// XXX We expect a single entry in the reply
+	return reply.Entries[0].Mtu
 }
 
 func fatal(msg string, a ...interface{}) {
