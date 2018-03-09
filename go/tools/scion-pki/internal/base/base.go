@@ -41,7 +41,7 @@ type Command struct {
 var Commands []*Command
 
 func (c *Command) Usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
+	fmt.Fprintf(os.Stderr, "usage: scion-pki %s\n", c.UsageLine)
 	fmt.Fprintf(os.Stderr, "Run 'scion-pki help %s' for details.\n", c.Name)
 	os.Exit(2)
 }

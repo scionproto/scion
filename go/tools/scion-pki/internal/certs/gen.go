@@ -81,7 +81,7 @@ func genCert(ia addr.IA, isIssuer bool) error {
 			conf.IssuerSectionName), nil, "path", cpath)
 	}
 	fmt.Println("Generating Certificate Chain for", ia)
-	// If we are core then we need to generate a core AS cert first.
+	// If we are an issuer then we need to generate an issuer cert first.
 	var issuerCert *cert.Certificate
 	if isIssuer {
 		issuerCert, err = genIssuerCert(a.IssuerCert, ia)
@@ -122,7 +122,7 @@ func genCert(ia addr.IA, isIssuer bool) error {
 	return nil
 }
 
-// genIssuerCert generates a new issuer AS certificate according to conf.
+// genIssuerCert generates a new issuer certificate according to conf.
 func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
 	c, err := genCertCommon(conf.BaseCert, s, trust.CoreSigKeyFile)
 	if err != nil {
@@ -131,7 +131,7 @@ func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) 
 	c.CanIssue = true
 	c.Issuer = s
 	if c.Comment == "" {
-		c.Comment = fmt.Sprintf("Core AS Certificate for %s version %d.", c.Subject, c.Version)
+		c.Comment = fmt.Sprintf("Issuer Certificate for %s version %d.", c.Subject, c.Version)
 	}
 	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(c.Issuer), "keys", trust.OnKeyFile)
 	// Load online root key to sign the certificate.

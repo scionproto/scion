@@ -124,7 +124,7 @@ func (t *Trc) validate() error {
 		return newValidationError("CoreASes")
 	} else {
 		for _, ia := range t.CoreIAs {
-			if ia.IsValid() {
+			if ia.I == 0 || ia.A == 0 {
 				return common.NewBasicError("Invalid core AS", nil, "ia", ia)
 			}
 		}
