@@ -120,13 +120,6 @@ func writeScnPktExtn(s *spkt.ScnPkt, b common.RawBytes) (int, *uint8, error) {
 	var extHdrLen, offset int
 	max := 3
 	l4Type := s.L4.L4Type()
-	if l4Type == common.L4SCMP {
-		max += 1
-	}
-	if len(s.HBHExt) > max {
-		return 0, nil, common.NewBasicError("Too many HBH extensions",
-			nil, "max", max, "actual", len(s.HBHExt))
-	}
 	for i, ext := range s.HBHExt {
 		if ext.Type() == common.ExtnSCMPType {
 			if i != 0 {
@@ -138,6 +131,11 @@ func writeScnPktExtn(s *spkt.ScnPkt, b common.RawBytes) (int, *uint8, error) {
 				return 0, nil, common.NewBasicError("HBH SCMP extension for a non SCMP packet",
 					nil, "ext", s.HBHExt)
 			}
+			max += 1
+		}
+		if i > max {
+			return 0, nil, common.NewBasicError("Too many HBH extensions",
+				nil, "max", max, "actual", i)
 		}
 		// Set all nextHdr fields as HBH, later we update last extension and common header
 		b[offset] = uint8(common.HopByHopClass)
