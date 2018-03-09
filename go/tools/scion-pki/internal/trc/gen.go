@@ -70,7 +70,7 @@ func genTrc(isd int) error {
 		return common.NewBasicError("Error json-encoding TRC", err)
 	}
 	// Check if output directory exists.
-	outDir := filepath.Join(dir, "trc")
+	outDir := filepath.Join(dir, "trcs")
 	if _, err = os.Stat(outDir); os.IsNotExist(err) {
 		if err = os.MkdirAll(outDir, 0755); err != nil {
 			return common.NewBasicError("Cannot create output dir", err, "path", outDir)
