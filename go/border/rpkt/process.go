@@ -217,6 +217,7 @@ func (rp *RtrPkt) processSCMP() (HookResult, error) {
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
 	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_RecordPathReply:
+		// Do nothing (no fallthrough)
 	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_RecordPathRequest:
 		if err := rp.processSCMPRecordPath(); err != nil {
 			return HookError, err
@@ -247,11 +248,11 @@ func (rp *RtrPkt) processSCMPRecordPath() error {
 			"expected", "*scmp.InfoRecordPath", "actual", common.TypeOf(pld.Info))
 	}
 	// Take the current time in milliseconds, and truncate it to 16bits.
-	ts := (time.Now().UnixNano() / 1000) % (1 << 16)
-	entry := scmp.RecordPathEntry{
-		IA: rp.Ctx.Conf.IA, IfID: uint16(*rp.ifCurr), TimeStamp: uint16(ts),
+	ts := (time.Now().UnixNano() / 1000000) % (1 << 16)
+	entry := &scmp.RecordPathEntry{
+		IA: rp.Ctx.Conf.IA, IfID: uint16(*rp.ifCurr), TS: uint16(ts),
 	}
-	if err := infoRec.Add(&entry); err != nil {
+	if err := infoRec.Add(entry); err != nil {
 		return common.NewBasicError("Unable to add path entry to SCMP Record Path packet",
 			nil, "err", err)
 	}
