@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -150,9 +149,12 @@ func prettyPrint(s *scmpCtx, pktLen int, now time.Time) {
 		fmt.Printf("%d bytes from %s,[%s] scmp_seq=%d time=%.3fms\n",
 			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, info.Seq, rtt)
 	case *scmp.InfoRecordPath:
-		str := info.String()
-		i := strings.Index(str, "\n")
-		fmt.Printf("%d bytes from %s,[%s] time=%.3fms%s",
-			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, rtt, str[i:])
+		fmt.Printf("%d bytes from %s,[%s] time=%.3fms Hops=%d\n",
+			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, rtt, info.NumHops)
+		for i := 0; i < int(info.NumHops); i++ {
+			e := info.Entry(i)
+			ts := e.TS - uint16(scmpHdr.Timestamp/1000)
+			fmt.Printf(" %2d. %v %v %vms\n", i+1, e.IA, e.IfID, ts)
+		}
 	}
 }

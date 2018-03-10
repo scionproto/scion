@@ -28,7 +28,7 @@ import (
 //
 //  0B       1        2        3        4        5        6        7
 // +--------+--------+--------+--------+--------+--------+--------+--------+
-// |                IA                 |      IfID       |   Timestamp     |
+// |                IA                 |      IfID       |       TS        |
 // +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 const (
@@ -36,13 +36,13 @@ const (
 )
 
 type RecordPathEntry struct {
-	IA        addr.IA
-	IfID      uint16
-	TimeStamp uint16
+	IA   addr.IA
+	IfID uint16
+	TS   uint16
 }
 
 func (t *RecordPathEntry) Copy() *RecordPathEntry {
-	return &RecordPathEntry{IA: t.IA, IfID: t.IfID, TimeStamp: t.TimeStamp}
+	return &RecordPathEntry{IA: t.IA, IfID: t.IfID, TS: t.TS}
 }
 
 func (entry *RecordPathEntry) Write(b common.RawBytes) {
@@ -51,7 +51,7 @@ func (entry *RecordPathEntry) Write(b common.RawBytes) {
 	offset += addr.IABytes
 	common.Order.PutUint16(b[offset:], entry.IfID)
 	offset += 2
-	common.Order.PutUint16(b[offset:], entry.TimeStamp)
+	common.Order.PutUint16(b[offset:], entry.TS)
 }
 
 // Record Path packet format:
@@ -86,10 +86,10 @@ type InfoRecordPath struct {
 
 func InfoRecordPathFromRaw(b common.RawBytes) (*InfoRecordPath, error) {
 	rec := &InfoRecordPath{}
-	rec.Id = common.Order.Uint64(b[0:8])
+	rec.Id = common.Order.Uint64(b[:8])
 	rec.NumHops = b[8]
-	// Skip first 8 Bytes [Id | NumHops]
-	rec.MaxHops = uint8((len(b) / common.LineLen) - 1)
+	// Skip [Id | NumHops]
+	rec.MaxHops = uint8(len(b[16:]) / common.LineLen)
 	if !(rec.NumHops <= rec.MaxHops) {
 		return nil, common.NewBasicError("Invalid header", nil, "NumHops", rec.NumHops,
 			"MaxHops", rec.MaxHops)
@@ -111,10 +111,10 @@ func (rec *InfoRecordPath) Add(entry *RecordPathEntry) error {
 }
 
 func (rec *InfoRecordPath) Copy() Info {
-	r := InfoRecordPath{Id: rec.Id, NumHops: rec.NumHops, MaxHops: rec.MaxHops}
+	r := &InfoRecordPath{Id: rec.Id, NumHops: rec.NumHops, MaxHops: rec.MaxHops}
 	r.raw = make([]byte, len(rec.raw))
 	copy(r.raw, rec.raw)
-	return &r
+	return r
 }
 
 func (rec *InfoRecordPath) Len() int {
@@ -123,20 +123,15 @@ func (rec *InfoRecordPath) Len() int {
 
 func (rec *InfoRecordPath) Write(b common.RawBytes) (int, error) {
 	var l int
-	if rec.raw == nil {
-		l = rec.Len()
-	} else {
-		l = len(rec.raw)
-	}
+	l = rec.Len()
 	if len(b) < l {
 		return 0, common.NewBasicError("Not enough space in buffer", nil,
 			"InfoRecordPathLen", l, "BufferLen", len(b))
 	}
-	if rec.raw == nil {
-		common.Order.PutUint64(b[0:8], rec.Id)
-		b[8] = rec.NumHops
-	} else {
-		copy(b, rec.raw)
+	common.Order.PutUint64(b[0:8], rec.Id)
+	b[8] = rec.NumHops
+	if rec.raw != nil {
+		copy(b[16:], rec.raw[16:])
 	}
 	return l, nil
 }
@@ -149,7 +144,7 @@ func (rec *InfoRecordPath) Entry(idx int) *RecordPathEntry {
 	offset += addr.IABytes
 	entry.IfID = common.Order.Uint16(rec.raw[offset:])
 	offset += 2
-	entry.TimeStamp = common.Order.Uint16(rec.raw[offset:])
+	entry.TS = common.Order.Uint16(rec.raw[offset:])
 	return &entry
 }
 
@@ -159,7 +154,7 @@ func (rec *InfoRecordPath) String() string {
 		rec.Id, rec.NumHops, rec.MaxHops)
 	for i := 0; i < int(rec.NumHops); i++ {
 		e := rec.Entry(i)
-		fmt.Fprintf(buf, "  %d. %v %v %v\n", i, e.IA, e.IfID, e.TimeStamp)
+		fmt.Fprintf(buf, "  %d. %v %v %v\n", i, e.IA, e.IfID, e.TS)
 	}
 	return buf.String()
 }
