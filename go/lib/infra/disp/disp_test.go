@@ -35,8 +35,8 @@ const (
 
 func Setup() (*Dispatcher, *Dispatcher, *customObject, *customObject) {
 	a2b, b2a := p2p.New()
-	dispA := New(transport.NewRUDP(a2b, log.Root()), testAdapter, log.Root())
-	dispB := New(transport.NewRUDP(b2a, log.Root()), testAdapter, log.Root())
+	dispA := New(transport.NewPacketTransport(a2b), testAdapter, log.Root())
+	dispB := New(transport.NewPacketTransport(b2a), testAdapter, log.Root())
 	request := &customObject{8, "request"}
 	reply := &customObject{8, "reply"}
 	return dispA, dispB, request, reply
@@ -117,23 +117,6 @@ func TestNotifyOk(t *testing.T) {
 			sc.SoMsg("b recv err", err, ShouldBeNil)
 			sc.SoMsg("b recv notification", recvNotification, ShouldResemble, notification)
 		}))
-	})
-}
-
-func TestNotifyNoAck(t *testing.T) {
-	Convey("Setup", t, func() {
-		dispA, dispB, notification, _ := Setup()
-		Convey("Notify, but no ACK", func() {
-			// Close dispB to make sure its transport layer doesn't ACK
-			ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
-			defer cancelF()
-			dispB.Close(ctx)
-			ctx2, cancelF2 := context.WithTimeout(context.Background(), testCtxTimeout)
-			defer cancelF2()
-			err := dispA.Notify(ctx2, notification, &p2p.Addr{})
-			SoMsg("a notify err", err, ShouldNotBeNil)
-			SoMsg("a notify err timeout", common.IsTimeoutErr(err), ShouldBeTrue)
-		})
 	})
 }
 

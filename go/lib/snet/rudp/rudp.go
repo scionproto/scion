@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transport
+package rudp
 
 import (
 	"context"
@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/util/bufpool"
 )
 
@@ -65,7 +66,7 @@ var (
 	generator = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 )
 
-var _ Transport = (*RUDP)(nil)
+var _ infra.Transport = (*RUDP)(nil)
 
 // RUDP (Reliable UDP) implements a simple UDP protocol with ACKs on top of SCION/UDP.
 //
@@ -103,14 +104,14 @@ type RUDP struct {
 	// Logger used by the background goroutine
 	log log.Logger
 	// Serialize write access to the conn object
-	writeLock *channelLock
+	writeLock *util.ChannelLock
 }
 
-// NewRUDP creates a new RUDP connection by wrapping around a PacketConn.
+// New creates a new RUDP connection by wrapping around a PacketConn.
 //
-// NewRUDP also spawns a background receiving goroutine that continuously reads
+// New also spawns a background receiving goroutine that continuously reads
 // from conn and keeps track of ACKs and messages.
-func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
+func New(conn net.PacketConn, logger log.Logger) *RUDP {
 	t := &RUDP{
 		conn:       conn,
 		nextPktID:  uint56(generator.Int63n(maxUint56 + 1)),
@@ -118,7 +119,7 @@ func NewRUDP(conn net.PacketConn, logger log.Logger) *RUDP {
 		closedChan: make(chan struct{}),
 		doneChan:   make(chan struct{}),
 		log:        logger.New("id", logext.RandId(4), "goroutine", "transport_bck"),
-		writeLock:  newChannelLock(),
+		writeLock:  util.NewChannelLock(),
 	}
 	t.goBackgroundReceiver()
 	return t
