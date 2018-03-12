@@ -248,16 +248,19 @@ func (rp *RtrPkt) processSCMPRecordPath() error {
 			"expected", "*scmp.InfoRecordPath", "actual", common.TypeOf(pld.Info))
 	}
 	// Take the current time in milliseconds, and truncate it to 16bits.
-	ts := (time.Now().UnixNano() / 1000000) % (1 << 16)
+	hdr := rp.l4.(*scmp.Hdr)
+	ts := uint32(time.Now().Sub(time.Unix(0, int64(hdr.Timestamp)*1000)).Nanoseconds() / 1000)
 	entry := &scmp.RecordPathEntry{
-		IA: rp.Ctx.Conf.IA, IfID: uint16(*rp.ifCurr), TS: uint16(ts),
+		IA: rp.Ctx.Conf.IA, TS: ts, IfID: *rp.ifCurr,
 	}
-	if err := infoRec.Add(entry); err != nil {
+	infoRec.Entries = append(infoRec.Entries, entry)
+	info := rp.Raw[rp.idxs.pld+scmp.MetaLen:]
+	if _, err := infoRec.Write(info); err != nil {
 		return common.NewBasicError("Unable to add path entry to SCMP Record Path packet",
 			nil, "err", err)
 	}
 	if err := rp.updateL4(); err != nil {
-		return common.NewBasicError("Failed to update L4 cheksum", nil, "err", err)
+		return common.NewBasicError("Failed to update L4 header", nil, "err", err)
 	}
 	return nil
 }
