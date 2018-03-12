@@ -31,11 +31,11 @@ func FooRequestFunc(ctx context.Context, request Request, response chan<- Respon
 }
 
 func Example() {
-	// Usage example for the deduplication API. Initialize a mock Deduplicator,
-	// and send two requests. Once the Deduplicator is implemented,
-	// FooRequestFunc will be called just once and both goroutines should
-	// be unblocked by the first response coming in.
-	dd := &Deduplicator{
+	// Usage example for the deduplication API. Initialize a mock Deduper, and
+	// send two requests. Once the Deduper is implemented, FooRequestFunc will
+	// be called just once and both goroutines should be unblocked by the first
+	// response coming in.
+	dd := &Deduper{
 		RequestFunc: RequestFunc(FooRequestFunc),
 	}
 
@@ -57,7 +57,7 @@ type ExampleRequest struct {
 	Peer string
 }
 
-func (r *ExampleRequest) DeduplicationKey() string {
+func (r *ExampleRequest) DedupeKey() string {
 	return fmt.Sprintf("%d-%s", r.ID, r.Peer)
 }
 
