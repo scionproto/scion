@@ -12,7 +12,7 @@ import (
 
 func newSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt {
 	var exts []common.Extension
-	scmpMeta := scmp.Meta{InfoLen: uint8(info.Len())}
+	scmpMeta := scmp.Meta{InfoLen: uint8(info.Len() / common.LineLen)}
 	pld := make(common.RawBytes, scmp.MetaLen+info.Len())
 	scmpMeta.Write(pld)
 	info.Write(pld[scmp.MetaLen:])
@@ -49,6 +49,8 @@ type scmpCtx struct {
 	// InfoR is the Info part of the received SCMP packet payload, used for
 	// validation and pretty printing
 	infoR scmp.Info
+	// pathEntry is the path used to send the packet
+	pathEntry *sciond.PathReplyEntry
 	// total is the total number of packets to send (0 means unlimited)
 	total uint64
 	// sent is the number of sent packets
@@ -58,10 +60,12 @@ type scmpCtx struct {
 }
 
 func initSCMP(ctx *scmpCtx, typeStr string, total uint, pathEntry *sciond.PathReplyEntry) {
-	switch {
-	case typeStr == "echo":
+	switch typeStr {
+	case "echo":
 		initEcho(ctx, total)
-	case typeStr == "rp" || typeStr == "recordpath":
+	case "rp":
+		fallthrough
+	case "recordpath":
 		initRecordPath(ctx, pathEntry)
 	default:
 		fatal("Invalid SCMP type")
@@ -90,8 +94,11 @@ func initRecordPath(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
 	s.ctR = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathReply}
 	// Send packet
 	ext := &scmp.Extn{Error: false, HopByHop: true}
+	s.pathEntry = pathEntry
 	n := uint8(len(pathEntry.Path.Interfaces))
-	s.infoS = &scmp.InfoRecordPath{Id: rnd.Uint64(), NumHops: 0, MaxHops: n}
+	entries := make([]*scmp.RecordPathEntry, 0, n)
+	s.infoS = &scmp.InfoRecordPath{Id: rnd.Uint64(), Entries: entries}
+	fmt.Printf("%v\n", s.infoS)
 	s.pktS = newSCMPPkt(scmp.T_G_RecordPathRequest, s.infoS, ext)
 	s.ctS = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathRequest}
 }
@@ -131,10 +138,36 @@ func validatePkt(s *scmpCtx) error {
 				"type", common.TypeOf(s.infoR))
 		}
 	case scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathReply}:
-		s.infoR, ok = scmpPld.Info.(*scmp.InfoRecordPath)
+		info, ok := scmpPld.Info.(*scmp.InfoRecordPath)
 		if ok == false {
 			return common.NewBasicError("Not a Info RecordPath type", nil,
 				"type", common.TypeOf(s.infoR))
+		}
+		s.infoR = info
+		err := validateRecordPath(info, s.pathEntry.Path.Interfaces)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateRecordPath(info *scmp.InfoRecordPath, interfaces []sciond.PathInterface) error {
+
+	if len(info.Entries) != len(interfaces) {
+		return common.NewBasicError("Invalid number of entries", nil,
+			"Expected", len(interfaces), "Actual", len(info.Entries))
+	}
+	for i, e := range info.Entries {
+		ia := interfaces[i].RawIsdas.IA()
+		if e.IA != ia {
+			return common.NewBasicError("Invalid ISD_AS", nil, "entry", i,
+				"Expected", ia, "Actual", e.IA)
+		}
+		ifid := common.IFIDType(interfaces[i].IfID)
+		if e.IfID != ifid {
+			return common.NewBasicError("Invalid IfID", nil, "entry", i,
+				"Expected", ifid, "Actual", e.IfID)
 		}
 	}
 	return nil
@@ -143,18 +176,16 @@ func validatePkt(s *scmpCtx) error {
 func prettyPrint(s *scmpCtx, pktLen int, now time.Time) {
 	// Calculate return time
 	scmpHdr := s.pktR.L4.(*scmp.Hdr)
-	rtt := float64(now.UnixNano()-(int64(scmpHdr.Timestamp)*1000)) / 1000000
+	rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
 	switch info := s.infoR.(type) {
 	case *scmp.InfoEcho:
-		fmt.Printf("%d bytes from %s,[%s] scmp_seq=%d time=%.3fms\n",
+		fmt.Printf("%d bytes from %s,[%s] scmp_seq=%d time=%s\n",
 			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, info.Seq, rtt)
 	case *scmp.InfoRecordPath:
-		fmt.Printf("%d bytes from %s,[%s] time=%.3fms Hops=%d\n",
-			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, rtt, info.NumHops)
-		for i := 0; i < int(info.NumHops); i++ {
-			e := info.Entry(i)
-			ts := e.TS - uint16(scmpHdr.Timestamp/1000)
-			fmt.Printf(" %2d. %v %v %vms\n", i+1, e.IA, e.IfID, ts)
+		fmt.Printf("%d bytes from %s,[%s] time=%s Hops=%d\n",
+			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, rtt, info.NumHops())
+		for i, e := range info.Entries {
+			fmt.Printf(" %2d. %v %v %s\n", i+1, e.IA, e.IfID, time.Duration(uint64(e.TS*1000)))
 		}
 	}
 }
