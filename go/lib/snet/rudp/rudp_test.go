@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transport
+package rudp
 
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 func TestSendUnreliableMsgTo(t *testing.T) {
 	Convey("Create RUDP, send unreliable message, and receive same message", t, func() {
 		conn := loopback.New()
-		udp := NewRUDP(conn, log.Root())
+		udp := New(conn, log.Root())
 
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
@@ -49,7 +49,7 @@ func TestSendUnreliableMsgTo(t *testing.T) {
 func TestSendMsgTo(t *testing.T) {
 	Convey("Create RUDP, send reliable message, and receive same message", t, func() {
 		conn := loopback.New()
-		udp := NewRUDP(conn, log.Root())
+		udp := New(conn, log.Root())
 
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
@@ -68,7 +68,7 @@ func TestSendMsgTo(t *testing.T) {
 func TestClose(t *testing.T) {
 	Convey("Create RUDP, and close it", t, func() {
 		conn := loopback.New()
-		udp := NewRUDP(conn, log.Root())
+		udp := New(conn, log.Root())
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
 		err := udp.Close(ctx)
@@ -79,7 +79,7 @@ func TestClose(t *testing.T) {
 func TestSendMsgToBadLink(t *testing.T) {
 	Convey("Create RUDP on bad link, send reliable message, should get error", t, func() {
 		conn := NewBadLoopback()
-		udp := NewRUDP(conn, log.Root())
+		udp := New(conn, log.Root())
 
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
