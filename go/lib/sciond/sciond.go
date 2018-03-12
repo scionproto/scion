@@ -27,18 +27,21 @@
 package sciond
 
 import (
+	"context"
 	"math/rand"
-	"net"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	log "github.com/inconshreveable/log15"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -111,25 +114,12 @@ type Connector interface {
 	RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close() error
-	// SetDeadline sets a deadline associated with any SCIOND query. If
-	// underlying protocol operations exceed the deadline, the queries return
-	// immediately with an error.
-	//
-	// A zero value for t means queries will not time out.
-	//
-	// To check for exceeded deadlines, type assert the returned error to
-	// *net.OpError and call method Timeout().
-	//
-	// Following a timeout error the underlying protocol to SCIOND is probably
-	// desynchronized. Establishing a fresh connection to SCIOND is
-	// recommended.
-	SetDeadline(t time.Time) error
 }
 
 type connector struct {
 	sync.Mutex
-	conn      net.Conn
-	requestID uint64
+	dispatcher *disp.Dispatcher
+	requestID  uint64
 
 	// TODO(kormat): Move the caches to `service`, so they can be shared across connectors.
 	asInfos  *cache.Cache
@@ -147,13 +137,17 @@ func connectTimeout(socketName string, timeout time.Duration) (*connector, error
 		return nil, err
 	}
 	rand.Seed(time.Now().UnixNano())
-	c := &connector{conn: conn, requestID: uint64(rand.Uint32())}
 
-	cleanupInterval := time.Minute
-	c.asInfos = cache.New(ASInfoTTL, cleanupInterval)
-	c.ifInfos = cache.New(IFInfoTTL, cleanupInterval)
-	c.svcInfos = cache.New(SVCInfoTTL, cleanupInterval)
-	return c, nil
+	return &connector{
+		dispatcher: disp.New(
+			transport.NewPacketTransport(conn),
+			&Adapter{},
+			log.Root(),
+		),
+		asInfos:  cache.New(ASInfoTTL, time.Minute),
+		ifInfos:  cache.New(IFInfoTTL, time.Minute),
+		svcInfos: cache.New(SVCInfoTTL, time.Minute),
+	}, nil
 }
 
 // Self incrementing atomic counter for request IDs
@@ -161,44 +155,28 @@ func (c *connector) nextID() uint64 {
 	return atomic.AddUint64(&c.requestID, 1)
 }
 
-func (c *connector) send(p *Pld) error {
-	raw, err := proto.PackRoot(p)
-	if err != nil {
-		return err
-	}
-	_, err = c.conn.Write(raw)
-	return err
-}
-
-func (c *connector) receive() (*Pld, error) {
-	p := &Pld{}
-	err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, c.conn)
-	if err != nil {
-		return nil, err
-	}
-	return p, nil
-}
-
 func (c *connector) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_pathReq}
-	request.PathReq.Dst = dst.IAInt()
-	request.PathReq.Src = src.IAInt()
-	request.PathReq.MaxPaths = max
-	request.PathReq.Flags = f
-
-	err := c.send(request)
+	reply, err := c.dispatcher.Request(
+		context.Background(),
+		&Pld{
+			Id:    c.nextID(),
+			Which: proto.SCIONDMsg_Which_pathReq,
+			PathReq: PathReq{
+				Dst:      dst.IAInt(),
+				Src:      src.IAInt(),
+				MaxPaths: max,
+				Flags:    f,
+			},
+		},
+		reliable.NilAppAddr,
+	)
 	if err != nil {
 		return nil, err
 	}
-	reply, err := c.receive()
-	if err != nil {
-		return nil, err
-	}
-
-	return &reply.PathReply, nil
+	return &reply.(*Pld).PathReply, nil
 }
 
 func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
@@ -212,20 +190,23 @@ func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
 	}
 
 	// Value not in cache, so we ask SCIOND
-	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_asInfoReq}
-	request.AsInfoReq.Isdas = ia.IAInt()
-	err := c.send(request)
+	pld, err := c.dispatcher.Request(
+		context.Background(),
+		&Pld{
+			Id:    c.nextID(),
+			Which: proto.SCIONDMsg_Which_asInfoReq,
+			AsInfoReq: ASInfoReq{
+				Isdas: ia.IAInt(),
+			},
+		},
+		reliable.NilAppAddr,
+	)
 	if err != nil {
 		return nil, err
 	}
-	reply, err := c.receive()
-	if err != nil {
-		return nil, err
-	}
-
-	// Cache result
-	c.asInfos.SetDefault(key, &reply.AsInfoReply)
-	return &reply.AsInfoReply, nil
+	asInfoReply := pld.(*Pld).AsInfoReply
+	c.asInfos.SetDefault(key, &asInfoReply)
+	return &asInfoReply, nil
 }
 
 func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
@@ -248,27 +229,32 @@ func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 	}
 
 	// Some values were not in the cache, so we ask SCIOND for them
-	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_ifInfoRequest}
-	request.IfInfoRequest.IfIDs = uncachedIfs
-	err := c.send(request)
+	pld, err := c.dispatcher.Request(
+		context.Background(),
+		&Pld{
+			Id:    c.nextID(),
+			Which: proto.SCIONDMsg_Which_ifInfoRequest,
+			IfInfoRequest: IFInfoRequest{
+				IfIDs: uncachedIfs,
+			},
+		},
+		reliable.NilAppAddr,
+	)
 	if err != nil {
 		return nil, err
 	}
-	reply, err := c.receive()
-	if err != nil {
-		return nil, err
-	}
+	ifInfoReply := pld.(*Pld).IfInfoReply
 
 	// Add new information to cache
 	// If SCIOND does not find HostInfo for a requested IFID, the
 	// null answer is not added to the cache.
-	for _, entry := range reply.IfInfoReply.RawEntries {
+	for _, entry := range ifInfoReply.RawEntries {
 		c.ifInfos.SetDefault(entry.IfID.String(), entry)
 	}
 
 	// Append old cached entries to our reply
-	reply.IfInfoReply.RawEntries = append(reply.IfInfoReply.RawEntries, cachedEntries...)
-	return &reply.IfInfoReply, nil
+	ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, cachedEntries...)
+	return &ifInfoReply, nil
 }
 
 func (c *connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
@@ -292,25 +278,30 @@ func (c *connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 	}
 
 	// Some values were not in the cache, so we ask SCIOND for them
-	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_serviceInfoRequest}
-	request.ServiceInfoRequest.ServiceTypes = uncachedSVCs
-	err := c.send(request)
+	pld, err := c.dispatcher.Request(
+		context.Background(),
+		&Pld{
+			Id:    c.nextID(),
+			Which: proto.SCIONDMsg_Which_serviceInfoRequest,
+			ServiceInfoRequest: ServiceInfoRequest{
+				ServiceTypes: uncachedSVCs,
+			},
+		},
+		reliable.NilAppAddr,
+	)
 	if err != nil {
 		return nil, err
 	}
-	reply, err := c.receive()
-	if err != nil {
-		return nil, err
-	}
+	serviceInfoReply := pld.(*Pld).ServiceInfoReply
 
 	// Add new information to cache
-	for _, entry := range reply.ServiceInfoReply.Entries {
+	for _, entry := range serviceInfoReply.Entries {
 		key := strconv.FormatUint(uint64(entry.ServiceType), 10)
 		c.svcInfos.SetDefault(key, entry)
 	}
 
-	reply.ServiceInfoReply.Entries = append(reply.ServiceInfoReply.Entries, cachedEntries...)
-	return &reply.ServiceInfoReply, nil
+	serviceInfoReply.Entries = append(serviceInfoReply.Entries, cachedEntries...)
+	return &serviceInfoReply, nil
 }
 
 func (c *connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
@@ -327,25 +318,24 @@ func (c *connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, erro
 	defer c.Unlock()
 
 	// Encapsulate RevInfo item in RevNotification object
-	request := &Pld{Id: c.nextID(), Which: proto.SCIONDMsg_Which_revNotification}
-	request.RevNotification.RevInfo = revInfo
-
-	err := c.send(request)
+	reply, err := c.dispatcher.Request(
+		context.Background(),
+		&Pld{
+			Id:    c.nextID(),
+			Which: proto.SCIONDMsg_Which_revNotification,
+			RevNotification: RevNotification{
+				RevInfo: revInfo,
+			},
+		},
+		reliable.NilAppAddr,
+	)
 	if err != nil {
 		return nil, err
 	}
-	reply, err := c.receive()
-	if err != nil {
-		return nil, err
-	}
 
-	return &reply.RevReply, nil
+	return &reply.(*Pld).RevReply, nil
 }
 
 func (c *connector) Close() error {
-	return c.conn.Close()
-}
-
-func (c *connector) SetDeadline(t time.Time) error {
-	return c.conn.SetDeadline(t)
+	return c.dispatcher.Close(context.Background())
 }

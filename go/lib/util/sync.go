@@ -12,29 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transport
+package util
 
-// channelLock implements a sync.Mutex-like API that uses a 1-value channel
+// ChannelLock implements a sync.Mutex-like API that uses a 1-value channel
 // behind the scenes. This makes it usable in selects that also need to meet
 // context deadlines.
-type channelLock struct {
+type ChannelLock struct {
 	ch chan struct{}
 }
 
-func newChannelLock() *channelLock {
+func NewChannelLock() *ChannelLock {
 	ch := make(chan struct{}, 1)
 	ch <- struct{}{}
-	return &channelLock{
+	return &ChannelLock{
 		ch: ch,
 	}
 }
 
 // Lock returns a channel that can be drained to acquire the lock.
-func (l *channelLock) Lock() <-chan struct{} {
+func (l *ChannelLock) Lock() <-chan struct{} {
 	return l.ch
 }
 
-func (l *channelLock) Unlock() {
+func (l *ChannelLock) Unlock() {
 	select {
 	case l.ch <- struct{}{}:
 	default:
