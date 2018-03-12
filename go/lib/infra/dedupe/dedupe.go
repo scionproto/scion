@@ -30,7 +30,7 @@
 // To support anycast behavior (where multiple requests are sent out to various
 // services, and the first response that we get unblocks all waiters), requests
 // can define BroadcastKeys.
-package deduplicate
+package dedupe
 
 import (
 	"context"
