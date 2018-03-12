@@ -49,7 +49,7 @@ type Request interface {
 	// requests sharing the same broadcast key. If two requests have the same
 	// DedupeKey, they must have the same BroadcastKey.  BroadcastKeys allow
 	// applications to implement anycast request/responses.  For this, define
-	// different DedupicationKeys for the same message sent to different remote
+	// different DedupeKey for the same message sent to different remote
 	// servers, while keeping the BroadcastKey the same.
 	BroadcastKey() string
 }
