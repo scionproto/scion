@@ -55,7 +55,7 @@ var (
 	interval  = flag.Duration("interval", DefaultInterval, "time between packets")
 	timeout   = flag.Duration("timeout", DefaultTimeout, "timeout per packet")
 	count     = flag.Uint("c", 0, "Total number of packet to send (ignored if not echo)")
-	sTypeStr  = flag.String("t", "echo", "SCMP Type: echo | rp/recordpath")
+	sTypeStr  = flag.String("t", "echo", "SCMP Type: echo |  rp | recordpath")
 	local     snet.Addr
 	remote    snet.Addr
 	bind      snet.Addr
@@ -204,7 +204,7 @@ func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan tim
 		prettyPrint(ctx, pktLen, now)
 	}
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Now().Sub(start))
+		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Now().Sub(start).Round(time.Microsecond))
 }
 
 func choosePath(interactive bool) *sciond.PathReplyEntry {
