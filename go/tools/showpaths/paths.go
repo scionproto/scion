@@ -76,7 +76,7 @@ func validateFlags() {
 			*sciondPath = "/run/shm/sciond/sd" + *srcIAStr + ".sock"
 		}
 	} else if *srcIAStr != "" {
-		fmt.Fprintf(os.Stdout, "srcIA ignored! sciond takes precedence\n")
+		fmt.Printf("srcIA ignored! sciond takes precedence\n")
 	}
 	if *srcIAStr == "" {
 		// Set any value, required by Query() but does not affect result
