@@ -63,9 +63,7 @@ func initSCMP(ctx *scmpCtx, typeStr string, total uint, pathEntry *sciond.PathRe
 	switch typeStr {
 	case "echo":
 		initEcho(ctx, total)
-	case "rp":
-		fallthrough
-	case "recordpath":
+	case "rp", "recordpath":
 		initRecordPath(ctx, pathEntry)
 	default:
 		fatal("Invalid SCMP type")
@@ -98,7 +96,6 @@ func initRecordPath(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
 	n := uint8(len(pathEntry.Path.Interfaces))
 	entries := make([]*scmp.RecordPathEntry, 0, n)
 	s.infoS = &scmp.InfoRecordPath{Id: rnd.Uint64(), Entries: entries}
-	fmt.Printf("%v\n", s.infoS)
 	s.pktS = newSCMPPkt(scmp.T_G_RecordPathRequest, s.infoS, ext)
 	s.ctS = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathRequest}
 }
@@ -153,7 +150,6 @@ func validatePkt(s *scmpCtx) error {
 }
 
 func validateRecordPath(info *scmp.InfoRecordPath, interfaces []sciond.PathInterface) error {
-
 	if len(info.Entries) != len(interfaces) {
 		return common.NewBasicError("Invalid number of entries", nil,
 			"Expected", len(interfaces), "Actual", len(info.Entries))
@@ -161,7 +157,7 @@ func validateRecordPath(info *scmp.InfoRecordPath, interfaces []sciond.PathInter
 	for i, e := range info.Entries {
 		ia := interfaces[i].RawIsdas.IA()
 		if e.IA != ia {
-			return common.NewBasicError("Invalid ISD_AS", nil, "entry", i,
+			return common.NewBasicError("Invalid ISD-AS", nil, "entry", i,
 				"Expected", ia, "Actual", e.IA)
 		}
 		ifid := common.IFIDType(interfaces[i].IfID)
@@ -185,7 +181,7 @@ func prettyPrint(s *scmpCtx, pktLen int, now time.Time) {
 		fmt.Printf("%d bytes from %s,[%s] time=%s Hops=%d\n",
 			pktLen, s.pktR.SrcIA, s.pktR.SrcHost, rtt, info.NumHops())
 		for i, e := range info.Entries {
-			fmt.Printf(" %2d. %v %v %s\n", i+1, e.IA, e.IfID, time.Duration(uint64(e.TS*1000)))
+			fmt.Printf(" %2d. %s\n", i+1, e.String())
 		}
 	}
 }

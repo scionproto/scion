@@ -247,9 +247,9 @@ func (rp *RtrPkt) processSCMPRecordPath() error {
 		return common.NewBasicError("Invalid SCMP Info type in SCMP packet", nil,
 			"expected", "*scmp.InfoRecordPath", "actual", common.TypeOf(pld.Info))
 	}
-	// Take the current time in milliseconds, and truncate it to 16bits.
+	// Calculate time in microseconds since scmp packet was created
 	hdr := rp.l4.(*scmp.Hdr)
-	ts := uint32(time.Now().Sub(time.Unix(0, int64(hdr.Timestamp)*1000)).Nanoseconds() / 1000)
+	ts := uint32(time.Since(hdr.Time()) / time.Microsecond)
 	entry := &scmp.RecordPathEntry{
 		IA: rp.Ctx.Conf.IA, TS: ts, IfID: *rp.ifCurr,
 	}
