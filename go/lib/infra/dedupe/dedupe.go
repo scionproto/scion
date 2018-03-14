@@ -34,12 +34,18 @@ package dedupe
 
 import (
 	"context"
+	"sync"
 	"time"
 )
 
 const (
-	DefaultDedupeLifetime = time.Minute
+	DefaultDedupeLifetime = 5 * time.Second
+	DefaultGracePeriod    = 1 * time.Second
 )
+
+// CancelFunc can be called to cancel a request ahead of time, freeing up
+// internal resources (notification lists, goroutines, etc.).
+type CancelFunc func()
 
 type Request interface {
 	// Two requests are considered identical if they return the same
@@ -75,24 +81,96 @@ type Deduper struct {
 	// Function to call when a new request needs to be sent out.
 	RequestFunc RequestFunc
 
-	// Time after calling RequestFunc for a specific DedupeKey where all
-	// requests for the same key will not result in an additional call to
-	// RequestFunc. If unset, DedupeLifetime defaults to DefaultDedupeLifetime.
+	// DedupeLifetime is the timeout for network requests. For DedupeLifetime
+	// time after a fresh network request is sent out (for a DedupeKey), no new
+	// network requests are sent out. Once the request completes, all callers
+	// of Request are notified.  If unset, DedupeLifetime defaults to
+	// DefaultDedupeLifetime.
 	DedupeLifetime time.Duration
 
-	// XXX(scrye): Add more fields here to support the customization
-	// of Deduper behavior and timing.
+	// Time after a successful network request where no new network requests
+	// for the same broadcast key are sent out. The result is immediately
+	// returned from an internal cache for this period.
+	GracePeriod time.Duration
+
+	// Mutex for notification table initialization
+	mu sync.Mutex
+	// Internal table for notification lists and caches.
+	notifications *notificationTable
 }
+
+type ResponseChannel chan Response
 
 // Request passes a request that is subject to deduplication. This function
 // returns immediately, and callers should wait on the returned channel for the
-// result.
-func (dd *Deduper) Request(ctx context.Context, object Request) <-chan Response {
-	// TODO(scrye): No aggregation logic yet, so just call the handler
+// result. The second return value is a cancellation function that can be used
+// to free up resources associated with the request. It is safe to call Request
+// from multiple goroutines.
+//
+// Objects written to the channel might share the same address space, so
+// callers should copy the value drained from the channel if they want to have
+// exclusive ownership.
+func (dd *Deduper) Request(ctx context.Context, object Request) (<-chan Response, CancelFunc) {
+	dd.mu.Lock()
+	if dd.notifications == nil {
+		if dd.DedupeLifetime == 0 {
+			dd.DedupeLifetime = DefaultDedupeLifetime
+		}
+		if dd.GracePeriod == 0 {
+			dd.GracePeriod = DefaultGracePeriod
+		}
+		dd.notifications = &notificationTable{
+			DedupeLifetime:  dd.DedupeLifetime,
+			GracePeriod:     dd.GracePeriod,
+			broadcast:       make(map[string]notifyList),
+			dedupe:          make(map[string]notifyList),
+			cancelFunctions: make(map[string]CancelFunc),
+			cache:           make(map[string]*cacheEntry),
+			goroutines:      make(map[ResponseChannel]string),
+		}
+	}
+	dd.mu.Unlock()
+
+	ch := make(chan Response, 1)
+	if ctx := dd.notifications.Add(object, ch); ctx != nil {
+		go dd.handler(ctx, object)
+	}
+
+	return ch, func() {
+		// Give callers the option of cleaning up resources prior to the
+		// Request returning.
+		dd.notifications.Remove(object, ch)
+	}
+}
+
+// handler calls RequestFunc with a freshly created channel, and then reads the
+// result from the channel and notifies the relevant waiters.
+func (dd *Deduper) handler(ctx context.Context, object Request) {
 	ch := make(chan Response, 1)
 	dd.RequestFunc(ctx, object, ch)
-	// TODO(scrye): Replicate content of ch across all broadcast channels
-	return ch
+
+	// There are two possible ways RequestFunc finishes. During normal
+	// operation, ctx.Done returns nil and ch is populated with a retrieved
+	// object. During errors, both the context is marked as Done (via external
+	// cancellation or expiry) and ch contains an error. Because the top-level
+	// cases in the select below are nondeterministic, we peek for context
+	// expiration on the successful branch.
+	select {
+	case <-ctx.Done():
+		response := Response{Data: nil, Error: ctx.Err()}
+		dd.notifications.BroadcastError(object, response)
+	case response := <-ch:
+		// Peek for context expiration
+		select {
+		case <-ctx.Done():
+			response := Response{Data: nil, Error: ctx.Err()}
+			dd.notifications.BroadcastError(object, response)
+			return
+		default:
+		}
+		dd.notifications.BroadcastSuccess(object.BroadcastKey(), response)
+		dd.notifications.Cache(object.BroadcastKey(), response)
+	}
 }
 
 // Response represents the outcome of a request. It is passed along channels by
@@ -100,10 +178,4 @@ func (dd *Deduper) Request(ctx context.Context, object Request) <-chan Response 
 type Response struct {
 	Data  interface{}
 	Error error
-}
-
-// TestRequestFunc checks whether f is a correct RequestFunc implementation, as
-// expected by Deduper objects. It is designed for use in tests.
-func TestRequestFunc(f RequestFunc) error {
-	panic("not implemented")
 }
