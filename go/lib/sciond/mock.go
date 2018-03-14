@@ -19,8 +19,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/sciond/graph"
+	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 var _ Service = (*MockService)(nil)
@@ -87,7 +88,7 @@ func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRep
 			pathInterfaces = append(pathInterfaces,
 				PathInterface{
 					RawIsdas: m.g.GetParent(ifid).IAInt(),
-					IfID:     ifid,
+					IfID:     uint64(ifid),
 				},
 			)
 		}
@@ -140,7 +141,7 @@ func (m *MockConn) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.g.Disconnect(revInfo.IfID)
+	m.g.RemoveLink(common.IFIDType(revInfo.IfID))
 	return &RevReply{
 		Result: RevValid,
 	}, nil

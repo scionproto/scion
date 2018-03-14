@@ -22,7 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/sciond/graph"
+	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
 func TestPathPredicates(t *testing.T) {
