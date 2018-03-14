@@ -101,6 +101,10 @@ func main() {
 	if !remote.IA.Eq(local.IA) {
 		mtu = setPathAndMtu()
 	} else {
+		if *sTypeStr != "echo" {
+			fmt.Printf("Remote in local AS %s\n", remote.IA)
+			os.Exit(0)
+		}
 		mtu = setLocalMtu()
 	}
 	seed := rand.NewSource(time.Now().UnixNano())
@@ -204,7 +208,7 @@ func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan tim
 		prettyPrint(ctx, pktLen, now)
 	}
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Now().Sub(start).Round(time.Microsecond))
+		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Since(start).Round(time.Microsecond))
 }
 
 func choosePath(interactive bool) *sciond.PathReplyEntry {

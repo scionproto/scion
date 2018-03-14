@@ -17,6 +17,7 @@ package scmp
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	//log "github.com/inconshreveable/log15"
 
@@ -61,6 +62,13 @@ func (entry *RecordPathEntry) read(b common.RawBytes) {
 	entry.IfID = common.IFIDType(common.Order.Uint64(b[offset:]))
 }
 
+func (entry *RecordPathEntry) String() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "%s %d %s\n", entry.IA, entry.IfID,
+		time.Duration(entry.TS)*time.Microsecond)
+	return buf.String()
+}
+
 // Record Path packet format:
 //
 //  0B       1        2        3        4        5        6        7
@@ -94,7 +102,7 @@ func InfoRecordPathFromRaw(b common.RawBytes) (*InfoRecordPath, error) {
 	rec.Id = common.Order.Uint64(b[:8])
 	numHops := int(b[8])
 	// Skip [Id | NumHops]
-	maxHops := int(len(b[recordPathHdrLen:]) / recordPathEntryLen)
+	maxHops := len(b[recordPathHdrLen:]) / recordPathEntryLen
 	if numHops > maxHops {
 		return nil, common.NewBasicError("Invalid header", nil, "NumHops", numHops,
 			"MaxHops", maxHops)
@@ -124,7 +132,7 @@ func (rec *InfoRecordPath) NumHops() int {
 }
 
 func (rec *InfoRecordPath) TotalHops() int {
-	return int(cap(rec.Entries))
+	return cap(rec.Entries)
 }
 
 func (rec *InfoRecordPath) Len() int {
@@ -137,22 +145,24 @@ func (rec *InfoRecordPath) Write(b common.RawBytes) (int, error) {
 			"Expected", rec.Len(), "Actual", len(b))
 	}
 	common.Order.PutUint64(b[0:8], rec.Id)
-	numHops := rec.NumHops()
-	b[8] = uint8(numHops)
+	b[8] = uint8(rec.NumHops())
 	offset := recordPathHdrLen
 	for _, e := range rec.Entries {
 		e.write(b[offset:])
 		offset += recordPathEntryLen
+	}
+	if offset < rec.Len() {
+		b[offset:].Zero()
 	}
 	return rec.Len(), nil
 }
 
 func (rec *InfoRecordPath) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "RecordPath Id %d: Hops filled/total: %d/%d\n",
+	fmt.Fprintf(buf, "RecordPath Id 0x%016x: Hops filled/total: %d/%d\n",
 		rec.Id, rec.NumHops(), rec.TotalHops())
 	for i, e := range rec.Entries {
-		fmt.Fprintf(buf, "  %d. %v %v %v\n", i, e.IA, e.IfID, e.TS/1000)
+		fmt.Fprintf(buf, " %2d. %s\n", i+1, e.String())
 	}
 	return buf.String()
 }
