@@ -16,6 +16,7 @@ package common
 
 import (
 	"reflect"
+	"strconv"
 )
 
 const (
@@ -38,6 +39,10 @@ const (
 
 // Interface ID
 type IFIDType uint64
+
+func (ifid IFIDType) String() string {
+	return strconv.FormatUint(uint64(ifid), 10)
+}
 
 const IFIDBytes = 8
 
