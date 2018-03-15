@@ -31,6 +31,7 @@ import (
 	//"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -42,8 +43,9 @@ const (
 	DefaultInterval = 1 * time.Second
 	DefaultTimeout  = 2 * time.Second
 	MaxPings        = 1 << 16
-	ReqMsg          = "ping!"
+	ReqMsg          = "ping!" // ReqMsg and ReplyMsg length need to be the same
 	ReplyMsg        = "pong!"
+	TSLen           = 8
 )
 
 func GetDefaultSCIONDPath(ia addr.IA) string {
@@ -64,6 +66,7 @@ var (
 	timeout = flag.Duration("timeout", DefaultTimeout,
 		"Timeout for the ping response")
 	interval = flag.Duration("interval", DefaultInterval, "time between pings")
+	verbose  = flag.Bool("v", false, "sets verbose output")
 )
 
 func init() {
@@ -144,8 +147,14 @@ func Client() {
 	}
 	defer qstream.Close()
 	log.Debug("Quic stream opened", "local", &local, "remote", &remote)
+	go Send(qstream)
+	Read(qstream)
+}
 
-	b := make([]byte, 1<<12)
+func Send( /* qstream quic.Stream */ ) {
+	reqMsgLen := len(ReqMsg)
+	payload := make([]byte, reqMsgLen+TSLen)
+	copy(payload[0:], ReqMsg)
 	for i := 0; i < *count || *count == 0; i++ {
 		if i != 0 && *interval != 0 {
 			time.Sleep(*interval)
@@ -153,7 +162,8 @@ func Client() {
 
 		// Send ping message to destination
 		before := time.Now()
-		written, err := qstream.Write([]byte(ReqMsg))
+		common.Order.PutUint64(payload[reqMsgLen:], uint64(before.UnixNano()))
+		written, err := qstream.Write(payload[:])
 		if err != nil {
 			//qer := qerr.ToQuicError(err)
 			//if qer.ErrorCode == qerr.NetworkIdleTimeout {
@@ -163,18 +173,26 @@ func Client() {
 			log.Error("Unable to write", "err", err)
 			continue
 		}
-		if written != len(ReqMsg) {
-			log.Error("Wrote incomplete message", "expected", len(ReqMsg),
+		if written != len(ReqMsg)+TSLen {
+			log.Error("Wrote incomplete message", "expected", len(ReqMsg)+TSLen,
 				"actual", written)
 			continue
 		}
+	}
+	// After sending the last ping, set a ReadDeadline on the stream
+	err := qstream.SetReadDeadline(time.Now().Add(*timeout))
+	if err != nil {
+		LogFatal("SetReadDeadline failed", "err", err)
+	}
+}
 
-		// Receive pong message with timeout
-		err = qstream.SetReadDeadline(time.Now().Add(*timeout))
-		if err != nil {
-			LogFatal("SetReadDeadline failed", "err", err)
-		}
+func Read( /* qstream quic.Stream */ ) {
+	// Receive pong message (with final timeout)
+	b := make([]byte, 1<<12)
+	replyMsgLen := len(ReplyMsg)
+	for i := 0; i < *count || *count == 0; i++ {
 		read, err := qstream.Read(b)
+		after := time.Now()
 		if err != nil {
 			//qer := qerr.ToQuicError(err)
 			//if qer.ErrorCode == qerr.PeerGoingAway {
@@ -183,18 +201,32 @@ func Client() {
 			//}
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				log.Debug("ReadDeadline missed", "err", err)
-				continue
+				// ReadDeadline is only set after we are done writing
+				// and we don't want to wait indefinitely for the remaining responses
+				break
 			}
 			log.Error("Unable to read", "err", err)
 			continue
 		}
-		if string(b[:read]) != ReplyMsg {
+		if read < replyMsgLen || string(b[:replyMsgLen]) != ReplyMsg {
 			fmt.Println("Received bad message", "expected", ReplyMsg,
 				"actual", string(b[:read]))
+			continue
 		}
-		after := time.Now()
+		if read < replyMsgLen+TSLen {
+			fmt.Println("Received bad message missing timestamp",
+				"actual", string(b[:read]))
+			continue
+		}
+		before := time.Unix(0, int64(common.Order.Uint64(b[replyMsgLen:replyMsgLen+TSLen])))
 		elapsed := after.Sub(before)
-		fmt.Printf("%d bytes from %v: seq=%d time=%s\n", read, &remote, i, elapsed)
+		if *verbose {
+			fmt.Printf("[%s]\tReceived %d bytes from %v: seq=%d RTT=%s\n",
+				before.Unix(), read, &remote, i, elapsed)
+		} else {
+			fmt.Printf("Received %d bytes from %v: seq=%d RTT=%s\n",
+				read, &remote, i, elapsed)
+		}
 	}
 }
 
@@ -212,7 +244,8 @@ func Server() {
 	for {
 		qsess, err := qsock.Accept()
 		if err != nil {
-			LogFatal("Unable to accept quic session", "err", err)
+			log.Error("Unable to accept quic session", "err", err)
+			continue
 		}
 		log.Debug("Quic session accepted", "src", qsess.RemoteAddr())
 		go handleClient(qsess)
@@ -231,13 +264,17 @@ func initNetwork() {
 	log.Debug("QUIC/SCION successfully initialized")
 }
 
-func handleClient( /*qsess quic.Session*/ ) {
+func handleClient( /* qsess quic.Session */ ) {
+	defer qsess.Close(nil)
 	qstream, err := qsess.AcceptStream()
+	defer qstream.Close()
 	if err != nil {
-		LogFatal("Unable to accept quic stream", "err", err)
+		log.Error("Unable to accept quic stream", "err", err)
+		return
 	}
 
 	b := make([]byte, 1<<12)
+	reqMsgLen := len(ReqMsg)
 	for {
 		// Receive ping message
 		read, err := qstream.Read(b)
@@ -250,17 +287,25 @@ func handleClient( /*qsess quic.Session*/ ) {
 			log.Error("Unable to read", "err", err)
 			break
 		}
-		if string(b[:read]) != ReqMsg {
+		if string(b[:reqMsgLen]) != ReqMsg {
 			fmt.Println("Received bad message", "expected", ReqMsg,
-				"actual", string(b[:read]))
+				"actual", string(b[:reqMsgLen]), "full", string(b[:read]))
 		}
+		// extract timestamp
+		ts := common.Order.PutUint64(b[reqMsgLen:])
 
 		// Send pong message
-		written, err := qstream.Write([]byte(ReplyMsg))
+		replyMsgLen := len(ReplyMsg)
+		copy(b[:replyMsgLen], ReplyMsg)
+		common.Order.PutUint64(b[replyMsgLen:], ts)
+		written, err := qstream.Write(b[:replyMsgLen+TSLen])
 		if err != nil {
-			LogFatal("Unable to write", "err", err)
-		} else if written != len(ReplyMsg) {
-			LogFatal("Wrote incomplete message", "expected", len(ReplyMsg), "actual", written)
+			log.Error("Unable to write", "err", err)
+			continue
+		} else if written != len(ReplyMsg)+TSLen {
+			log.Error("Wrote incomplete message",
+				"expected", len(ReplyMsg)+TSLen, "actual", written)
+			continue
 		}
 	}
 }
