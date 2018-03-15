@@ -4,7 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 struct CertChainReq {
-    isdas @0 :UInt32;
+    isdas @0 :UInt64;
     version @1 :UInt64;
     cacheOnly @2 :Bool;
 }

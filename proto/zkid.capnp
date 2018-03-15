@@ -4,7 +4,7 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 struct ZkId {
-    isdas @0 :UInt32;
+    isdas @0 :UInt64;
     id @1 :Text;
     addrs @2 :List(Addr);
 }
