@@ -105,7 +105,7 @@ local scmpTypes = {
 }
 local chLen = 8
 local lineLen = 8
-local iaLen = 4
+local iaLen = 8
 local maxSegTTL = 12 * 60 * 60
 local segExpUnit = maxSegTTL / 2^8
 local us_in_s = UInt64.new(1e6)
@@ -410,15 +410,15 @@ function parse_addr_hdr(buffer, tree, meta)
     local t = tree:add(buffer, string.format("SCION Address header [%dB]", meta.addrTotalLen))
     -- dst ISD-AS
     local dstIaT = t:add(buffer(0, iaLen), string.format("Destination ISD-AS [%dB]", iaLen))
-    meta["dstIsd"] = buffer(0, 2):bitfield(0, 12)
+    meta["dstIsd"] = buffer(0, 2):bitfield(0, 16)
     dstIaT:add(scion_addr_dst_isd, buffer(0, 2), meta.dstIsd)
-    meta["dstAs"] = buffer(0, iaLen):bitfield(12, 20)
+    meta["dstAs"] = buffer(0, iaLen):bitfield(16, 48)
     dstIaT:add(scion_addr_dst_as, buffer(1, iaLen-1), meta.dstAs)
     -- src ISD-AS
     local srcIaT = t:add(buffer(iaLen, iaLen), string.format("Source ISD-AS [%dB]", iaLen))
-    meta["srcIsd"] = buffer(iaLen, 2):bitfield(0, 12)
+    meta["srcIsd"] = buffer(iaLen, 2):bitfield(0, 16)
     srcIaT:add(scion_addr_src_isd, buffer(iaLen, 2), meta.srcIsd)
-    meta["srcAs"] = buffer(iaLen, iaLen):bitfield(12, 20)
+    meta["srcAs"] = buffer(iaLen, iaLen):bitfield(16, 48)
     srcIaT:add(scion_addr_src_as, buffer(iaLen+1, iaLen-1), meta.srcAs)
     -- dst addr
     local dstBuf = buffer(iaLen * 2, addrLens[meta.dstType])
