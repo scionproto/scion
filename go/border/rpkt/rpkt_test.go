@@ -16,7 +16,9 @@
 package rpkt
 
 import (
-	"encoding/hex"
+	"fmt"
+	"io/ioutil"
+	"net"
 
 	"testing"
 
@@ -31,19 +33,20 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-// The packet sample from node 1-14 to 1-17 as logged 20.11.2016
-const sample = "0041003f03000011001000110010000e7f00001b7f00001ac350c35000270" +
-	"a160000001b1008400211056a51080102ff100550010101021000070201330002"
+var rawUdpPkt = MustLoad("testdata/udp-scion.bin")
+
+func MustLoad(path string) common.RawBytes {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to load file: %v", err))
+	}
+	return common.RawBytes(data)
+}
 
 // Prepare the packet from raw
 func prepareRtrPacketSample() *RtrPkt {
-	var err error
-	packet, err := hex.DecodeString(sample)
-	if err != nil {
-		panic(err)
-	}
 	r := NewRtrPkt()
-	r.Raw = packet
+	r.Raw = rawUdpPkt
 	// Set some other data that are required for the parsing to succeed:
 	var config = &conf.Conf{
 		IA: addr.IA{I: 1, A: 2},
@@ -66,17 +69,19 @@ func TestParseBasic(t *testing.T) {
 		srcHost, _ := r.SrcHost()
 		dstHost, _ := r.DstHost()
 
-		SoMsg("Source IA", srcIA, ShouldResemble, addr.IA{I: 1, A: 14})
-		SoMsg("Destination IA", dstIA, ShouldResemble, addr.IA{I: 1, A: 17})
-		SoMsg("Source host IP", srcHost, ShouldResemble, addr.HostIPv4{127, 0, 0, 26})
-		SoMsg("Destination host IP", dstHost, ShouldResemble, addr.HostIPv4{127, 0, 0, 27})
+		SoMsg("Source IA", srcIA, ShouldResemble, addr.IA{I: 1, A: 10})
+		SoMsg("Destination IA", dstIA, ShouldResemble, addr.IA{I: 2, A: 25})
+		SoMsg("Source host IP", srcHost.IP().Equal(net.IPv4(127, 1, 1, 111)), ShouldBeTrue)
+		SoMsg("Destination host IP", dstHost.IP().Equal(net.IPv4(127, 2, 2, 222)), ShouldBeTrue)
 		SoMsg("CmnHdr", r.CmnHdr, ShouldResemble, spkt.CmnHdr{
-			Ver:      0,
-			DstType:  1,
-			SrcType:  1,
-			TotalLen: 63,
-			HdrLen:   3,
-			NextHdr:  17,
+			Ver:       0,
+			DstType:   addr.HostTypeIPv4,
+			SrcType:   addr.HostTypeIPv4,
+			TotalLen:  1280,
+			HdrLen:    17,
+			CurrInfoF: 4 + 9, // 4 accounts for common header + address headers.
+			CurrHopF:  4 + 12,
+			NextHdr:   17,
 		})
 	})
 }
@@ -89,10 +94,10 @@ func TestParse(t *testing.T) {
 		r.Parse()
 		l4hdr, _ := r.L4Hdr(false)
 		SoMsg("L4Hdr must be expected UDP", l4hdr, ShouldResemble, &l4.UDP{
-			SrcPort:  50000,
-			DstPort:  50000,
-			TotalLen: 39,
-			Checksum: common.RawBytes{0x0a, 0x16},
+			SrcPort:  44887,
+			DstPort:  3000,
+			TotalLen: 1144,
+			Checksum: common.RawBytes{0x7c, 0x46},
 		})
 	})
 }
