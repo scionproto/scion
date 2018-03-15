@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -30,6 +29,7 @@ import (
 	//"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -41,7 +41,7 @@ const (
 	MaxPings        = 1 << 16
 	ReqMsg          = "ping!" // ReqMsg and ReplyMsg length need to be the same
 	ReplyMsg        = "pong!"
-	TSLen           = 10 // length of unix timestamp == len(strconv.FormatInt(time.Now().Unix(), 10))
+	TSLen           = 8
 )
 
 func GetDefaultSCIONDPath(ia addr.IA) string {
@@ -61,6 +61,7 @@ var (
 	timeout = flag.Duration("timeout", DefaultTimeout,
 		"Timeout for the ping response")
 	interval = flag.Duration("interval", DefaultInterval, "time between pings")
+	verbose  = flag.Bool("v", false, "sets verbose output")
 )
 
 func init() {
@@ -131,7 +132,7 @@ func Client() {
 	Read(qstream)
 }
 
-func Send(qstream quic.Stream) {
+func Send( /* qstream quic.Stream */ ) {
 	reqMsgLen := len(ReqMsg)
 	payload := make([]byte, reqMsgLen+TSLen)
 	copy(payload[0:], ReqMsg)
@@ -142,7 +143,7 @@ func Send(qstream quic.Stream) {
 
 		// Send ping message to destination
 		before := time.Now()
-		copy(payload[reqMsgLen:], strconv.FormatInt(before.Unix(), 10))
+		common.Order.PutUint64(payload[reqMsgLen:], uint64(before.UnixNano()))
 		written, err := qstream.Write(payload[:])
 		if err != nil {
 			//qer := qerr.ToQuicError(err)
@@ -166,7 +167,7 @@ func Send(qstream quic.Stream) {
 	}
 }
 
-func Read(qstream quic.Stream) {
+func Read( /* qstream quic.Stream */ ) {
 	// Receive pong message (with final timeout)
 	b := make([]byte, 1<<12)
 	replyMsgLen := len(ReplyMsg)
@@ -198,16 +199,13 @@ func Read(qstream quic.Stream) {
 				"actual", string(b[:read]))
 			continue
 		}
-		unixTs, err := strconv.ParseInt(string(b[replyMsgLen:replyMsgLen+TSLen]), 10, 64)
-		if err != nil {
-			fmt.Println("Received invalid timestamp",
-				"actual", string(b[replyMsgLen:]),
-				"err", err)
-			continue
-		}
-		before := time.Unix(unixTs, 0)
+		before := time.Unix(0, int64(common.Order.Uint64(b[replyMsgLen:replyMsgLen+TSLen])))
 		elapsed := after.Sub(before)
-		fmt.Printf("[%v] Received %d bytes from %v: seq=%d RTT=%s\n", before.Unix(), read, &remote, i, elapsed)
+		if *verbose {
+			fmt.Printf("[%s]\tReceived %d bytes from %v: seq=%d RTT=%s\n", before.Unix(), read, &remote, i, elapsed)
+		} else {
+			fmt.Printf("Received %d bytes from %v: seq=%d RTT=%s\n", read, &remote, i, elapsed)
+		}
 	}
 }
 
@@ -245,7 +243,7 @@ func initNetwork() {
 	log.Debug("QUIC/SCION successfully initialized")
 }
 
-func handleClient(qsess quic.Session) {
+func handleClient( /* qsess quic.Session */ ) {
 	defer qsess.Close(nil)
 	qstream, err := qsess.AcceptStream()
 	defer qstream.Close()
@@ -256,7 +254,6 @@ func handleClient(qsess quic.Session) {
 
 	b := make([]byte, 1<<12)
 	reqMsgLen := len(ReqMsg)
-	TSLen := len(strconv.FormatInt(time.Now().Unix(), 10))
 	for {
 		// Receive ping message
 		read, err := qstream.Read(b)
@@ -271,13 +268,15 @@ func handleClient(qsess quic.Session) {
 		}
 		if string(b[:reqMsgLen]) != ReqMsg {
 			fmt.Println("Received bad message", "expected", ReqMsg,
-				"actual", string(b[:read]))
+				"actual", string(b[:reqMsgLen]), "full", string(b[:read]))
 		}
+		// extract timestamp
+		ts := common.Order.PutUint64(b[reqMsgLen:])
 
 		// Send pong message
 		replyMsgLen := len(ReplyMsg)
-		// replyMsgLen == reqMsgLen is required here (else sender timestamp gets overwritten)
 		copy(b[:replyMsgLen], ReplyMsg)
+		common.Order.PutUint64(b[replyMsgLen:], ts)
 		written, err := qstream.Write(b[:replyMsgLen+TSLen])
 		if err != nil {
 			log.Error("Unable to write", "err", err)
