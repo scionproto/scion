@@ -7,7 +7,7 @@ struct RoutingPolicyExt{
     set @0 :Bool;   # Is the extension present? Every extension must include this field.
     polType @1 :UInt8;  # The policy type
     ifID @2 :UInt64;
-    isdases @3 :List(UInt32);
+    isdases @3 :List(UInt64);
 }
 
 struct ISDAnnouncementExt{

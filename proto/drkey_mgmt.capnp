@@ -5,7 +5,7 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 struct DRKeyReq {
-    isdas @0 :UInt32;      # Src ISD-AS of the requested DRKey
+    isdas @0 :UInt64;      # Src ISD-AS of the requested DRKey
     timestamp @1 :UInt64;  # Timestamp
     signature @2 :Data;    # Signature of (isdas, prefetch, timestamp)
     certVer @3 :UInt32;    # Version cert used to sign
@@ -17,7 +17,7 @@ struct DRKeyReq {
 }
 
 struct DRKeyRep {
-    isdas @0 :UInt32;      # Src ISD-AS of the DRKey
+    isdas @0 :UInt64;      # Src ISD-AS of the DRKey
     timestamp @1 :UInt64;  # Timestamp
     expTime @2 :UInt64;    # Expiration time of the DRKey
     cipher @3 :Data;       # Encrypted DRKey
