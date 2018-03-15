@@ -35,7 +35,7 @@
 //  13-bytes: [Common header with address type NONE]
 //   1-byte: Command (bit mask with 0x04=Bind address, 0x02=SCMP enable, 0x01 always set)
 //   1-byte: L4 Proto (IANA number)
-//   4-bytes: ISD-AS
+//   8-bytes: ISD-AS
 //   2-bytes: L4 port
 //   1-byte: Address type
 //   var-byte: Address
@@ -74,8 +74,8 @@ import (
 
 var (
 	cookie           = []byte{0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0x03}
-	regBaseHeaderLen = len(cookie) + 1
-	hdrLen           = regBaseHeaderLen + 4
+	regBaseHeaderLen = 1 + 1 + addr.IABytes + 2 + 1
+	hdrLen           = len(cookie) + 1 + 4
 	// MaxLength contains the maximum payload length for the ReliableSocket framing protocol.
 	MaxLength = (1 << 16) - 1 - hdrLen
 )
@@ -177,8 +177,8 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *AppAddr, svc a
 	offset++
 	request[offset] = byte(common.L4UDP)
 	offset++
-	ia.Write(request[offset : offset+4])
-	offset += 4
+	ia.Write(request[offset:])
+	offset += addr.IABytes
 	n, err := writeAppAddr(request[offset:], public)
 	if err != nil {
 		conn.Close()

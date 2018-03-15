@@ -207,7 +207,7 @@ int l4_index(uint8_t l4)
 uint8_t * set_scionaddr(SCIONAddr *addr, uint8_t *ptr)
 {
     /* Set the SCIONAddr fields */
-    addr->isd_as = ntohl(*(isdas_t *)ptr);
+    addr->isd_as = be64toh(*(isdas_t *)ptr);
     addr->host.addr_type = *(ptr + 4);
     memcpy(addr->host.addr, ptr + 5, MAX_HOST_ADDR_LEN);
     addr->host.port = ntohs(*(uint16_t *)(ptr + 5 + MAX_HOST_ADDR_LEN));

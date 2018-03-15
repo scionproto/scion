@@ -552,9 +552,9 @@ void register_udp(uint8_t *buf, int len, int sock)
 
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 {
-    isdas_t isd_as = ntohl(*(isdas_t *)(buf + 2));
-    uint16_t port = ntohs(*(uint16_t *)(buf + 6));
-    int common = 9; // start of (protocol/addrtype)-dependent data
+    isdas_t isd_as = be64toh(*(isdas_t *)(buf + 2));
+    uint16_t port = ntohs(*(uint16_t *)(buf + 2 + ISD_AS_LEN));
+    int common = 2 + ISD_AS_LEN + 2 + 1; // start of (protocol/addrtype)-dependent data
 
     zlog_info(zc, "registration for isd_as %d-%" PRId64, ISD(isd_as), AS(isd_as));
 
@@ -566,7 +566,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     memset(e, 0, sizeof(Entry));
     e->sock = sock;
 
-    uint8_t type = *(uint8_t *)(buf + 8);
+    uint8_t type = *(uint8_t *)(buf + common - 1);
     if (type < ADDR_IPV4_TYPE || type > ADDR_IPV6_TYPE) {
         zlog_error(zc, "Invalid address type: %d", type);
         close(sock);
@@ -1012,7 +1012,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     Entry *e;
     L4Key key;
     memset(&key, 0, sizeof(key));
-    key.isd_as = ntohl(*(isdas_t *)(pld->addr + ISD_AS_LEN));
+    key.isd_as = be64toh(*(isdas_t *)(pld->addr + ISD_AS_LEN));
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
     switch (pld->meta->l4_proto) {
         case L4_UDP:

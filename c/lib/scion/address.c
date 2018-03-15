@@ -27,7 +27,7 @@ int get_addr_len(int type)
  */
 isdas_t get_dst_isd_as(uint8_t *buf)
 {
-    return ntohl(*(isdas_t *)(buf + DST_IA_OFFSET));
+    return be64toh(*(isdas_t *)(buf + DST_IA_OFFSET));
 }
 
 /*
@@ -37,7 +37,7 @@ isdas_t get_dst_isd_as(uint8_t *buf)
  */
 isdas_t get_src_isd_as(uint8_t *buf)
 {
-    return ntohl(*(isdas_t *)(buf + SRC_IA_OFFSET));
+    return be64toh(*(isdas_t *)(buf + SRC_IA_OFFSET));
 }
 
 /*
