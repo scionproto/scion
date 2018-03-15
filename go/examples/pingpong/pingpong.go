@@ -23,7 +23,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
@@ -128,11 +127,8 @@ func Client() {
 	}
 	defer qstream.Close()
 	log.Debug("Quic stream opened", "local", &local, "remote", &remote)
-	wg := new(sync.WaitGroup)
 	go Send(qstream)
-	wg.Add(1)
-	go Read(qstream, wg)
-	wg.Wait()
+	Read(qstream)
 }
 
 func Send(qstream quic.Stream) {
@@ -170,8 +166,7 @@ func Send(qstream quic.Stream) {
 	}
 }
 
-func Read(qstream quic.Stream, wg *sync.WaitGroup) {
-	defer wg.Done()
+func Read(qstream quic.Stream) {
 	// Receive pong message (with final timeout)
 	b := make([]byte, 1<<12)
 	replyMsgLen := len(ReplyMsg)
@@ -186,7 +181,7 @@ func Read(qstream quic.Stream, wg *sync.WaitGroup) {
 			//}
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				log.Debug("ReadDeadline missed", "err", err)
-				// ReadDeadline is only set after we are done writting
+				// ReadDeadline is only set after we are done writing
 				// and we don't want to wait indefinitely for the remaining responses
 				break
 			}
@@ -231,7 +226,6 @@ func Server() {
 		qsess, err := qsock.Accept()
 		if err != nil {
 			log.Error("Unable to accept quic session", "err", err)
-			qsess.Close(nil)
 			continue
 		}
 		log.Debug("Quic session accepted", "src", qsess.RemoteAddr())
