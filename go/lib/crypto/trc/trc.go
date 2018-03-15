@@ -47,11 +47,11 @@ const (
 )
 
 type Key struct {
-	ISD uint16
+	ISD addr.ISDInt
 	Ver uint64
 }
 
-func NewKey(isd uint16, ver uint64) *Key {
+func NewKey(isd addr.ISDInt, ver uint64) *Key {
 	return &Key{ISD: isd, Ver: ver}
 }
 
@@ -86,7 +86,7 @@ type TRC struct {
 	// seconds.
 	GracePeriod uint64
 	// ISD is the integer identifier from 1 to 4095.
-	ISD uint16
+	ISD addr.ISDInt
 	// Quarantine describes if the TRC is an early announcement (true) or valid (false).
 	Quarantine bool
 	// QuorumCAs is the quorum of root CAs required to change e RootCAs, CertLogs,
@@ -135,7 +135,7 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 	return t, nil
 }
 
-func (t *TRC) IsdVer() (uint16, uint64) {
+func (t *TRC) IsdVer() (addr.ISDInt, uint64) {
 	return t.ISD, t.Version
 }
 
