@@ -107,6 +107,7 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	offset += s.Pld.Len()
 
 	// SCION/L4 Header
+	s.L4.SetPldLen(s.Pld.Len())
 	err = l4.SetCSum(s.L4, addrSlice, pldSlice)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to compute checksum", err)

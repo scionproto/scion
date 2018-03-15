@@ -43,7 +43,7 @@ jobs:
 
     build:
         docker:
-            - image: scionproto/scion_base@sha256:f4f92ec89fd1c55751a6212bfccc11ff2867ab6060cc486ba000a5b70b1910ee
+            - image: scionproto/scion_base@sha256:9b7746fdb9f78e080da3c6a261da34efa1801277eba5891516872439b356472d
         <<: *job
         steps:
             - checkout

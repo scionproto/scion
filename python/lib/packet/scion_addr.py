@@ -30,10 +30,15 @@ from lib.util import Raw
 
 class ISD_AS(Serializable):
     """
-    Class for representing isd-as pair.
+    Class for representing ISD-AS pair. The underlying type is a 64-bit unsigned int; ISD is
+    represented by the top 16 bits (though the top 4 bits are currently reserved), and AS by the
+    lower 48 bits.
     """
     NAME = "ISD_AS"
-    LEN = 4
+    LEN = 8
+    ISD_BITS = 16
+    AS_BITS = 48
+    AS_MASK = (1 << AS_BITS) - 1
 
     def __init__(self, raw=None):
         self._isd = 0
@@ -50,12 +55,10 @@ class ISD_AS(Serializable):
 
     def _parse_bytes(self, raw):
         """
-        :param bytes raw:
-            a byte string containing ISD ID, AS ID. ISD and AS are respectively
-            represented as 12 and 20 most significant bits.
+        :param bytes raw: a byte string containing a 64-bit unsigned integer.
         """
         data = Raw(raw, self.NAME, self.LEN)
-        isd_as = struct.unpack("!I", data.pop())[0]
+        isd_as = struct.unpack("!Q", data.pop())[0]
         self._parse_int(isd_as)
 
     def _parse_str(self, raw):
@@ -74,11 +77,10 @@ class ISD_AS(Serializable):
 
     def _parse_int(self, raw):
         """
-        :param int raw: a 32bit int containing the ISD ID in the 12 MSBs and the
-            AS ID in the remaining 20 bits.
+        :param int raw: a 64-bit unsigned integer
         """
-        self._isd = raw >> 20
-        self._as = raw & 0x000fffff
+        self._isd = raw >> self.AS_BITS
+        self._as = raw & self.AS_MASK
 
     @classmethod
     def from_values(cls, isd, as_):  # pragma: no cover
@@ -88,11 +90,11 @@ class ISD_AS(Serializable):
         return inst
 
     def pack(self):
-        return struct.pack("!I", self.int())
+        return struct.pack("!Q", self.int())
 
     def int(self):
-        isd_as = self._isd << 20
-        isd_as |= self._as & 0x000fffff
+        isd_as = self._isd << self.AS_BITS
+        isd_as |= self._as & self.AS_MASK
         return isd_as
 
     def any_as(self):  # pragma: no cover
