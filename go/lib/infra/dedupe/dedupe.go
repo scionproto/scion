@@ -23,7 +23,7 @@
 //   dd.Request(ctx.TODO(), objectA)
 //   dd.Request(ctx.TODO(), objectB)
 //
-// If objectA and objectB have the sam DedupeKey() (and arrive at dd at
+// If objectA and objectB have the same DedupeKey() (and arrive at dd at
 // approximately the same time, see Deduper timer fields for more information),
 // a single call to foo is made.
 //
@@ -63,20 +63,24 @@ type Request interface {
 // RequestFunc performs a request/response exchange, with the response written
 // on the channel. To support proper clean-up, RequestFunc must write exactly
 // one value to response. The Response is transparently passed by the
-// Deduper to all callers waiting on the same BroadcastKey.
+// Deduper to all callers waiting on the same BroadcastKey. To avoid leaks,
+// RequestFunc must take ctx into account and correctly time out/terminate if
+// the context is Done.
 //
 // When sending out a fresh request, the Deduper calls RequestFunc in a
 // goroutine, and selects on ctx.Done() and on the response channel.
 //
 // Use TestRequestFunc to verify that an implementation is valid
 // for use with Deduper.
-type RequestFunc func(ctx context.Context, request Request, response chan<- Response)
+type RequestFunc func(ctx context.Context, request Request) Response
 
 // A Deduper issues a single request instead of multiple identical
 // requests. Responses get broadcast to all waiters. For more information, see
 // the package level documentation.
 //
-// The zero value is a valid Deduper object.
+// The zero value is a valid Deduper object. Members variables should only be
+// set during initialization; setting them after the first Request is undefined
+// behavior.
 type Deduper struct {
 	// Function to call when a new request needs to be sent out.
 	RequestFunc RequestFunc
@@ -147,29 +151,29 @@ func (dd *Deduper) Request(ctx context.Context, object Request) (<-chan Response
 // result from the channel and notifies the relevant waiters.
 func (dd *Deduper) handler(ctx context.Context, object Request) {
 	ch := make(chan Response, 1)
-	dd.RequestFunc(ctx, object, ch)
+	go func() {
+		ch <- dd.RequestFunc(ctx, object)
+	}()
 
 	// There are two possible ways RequestFunc finishes. During normal
 	// operation, ctx.Done returns nil and ch is populated with a retrieved
 	// object. During errors, both the context is marked as Done (via external
 	// cancellation or expiry) and ch contains an error. Because the top-level
-	// cases in the select below are nondeterministic, we peek for context
+	// cases in the select below are nondeterministic, we also check for context
 	// expiration on the successful branch.
 	select {
 	case <-ctx.Done():
 		response := Response{Data: nil, Error: ctx.Err()}
 		dd.notifications.BroadcastError(object, response)
 	case response := <-ch:
-		// Peek for context expiration
-		select {
-		case <-ctx.Done():
-			response := Response{Data: nil, Error: ctx.Err()}
+		if response.Error != nil {
+			// Make sure Data is nil on errors
+			response := Response{Data: nil, Error: response.Error}
 			dd.notifications.BroadcastError(object, response)
-			return
-		default:
+		} else {
+			dd.notifications.BroadcastSuccess(object.BroadcastKey(), response)
+			dd.notifications.Cache(object.BroadcastKey(), response)
 		}
-		dd.notifications.BroadcastSuccess(object.BroadcastKey(), response)
-		dd.notifications.Cache(object.BroadcastKey(), response)
 	}
 }
 
