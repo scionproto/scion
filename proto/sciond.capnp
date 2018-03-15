@@ -26,8 +26,8 @@ struct SCIONDMsg {
 }
 
 struct PathReq {
-    dst @0 :UInt32;  # Destination ISD-AS
-    src @1 :UInt32 = 0;  # Source ISD-AS
+    dst @0 :UInt64;  # Destination ISD-AS
+    src @1 :UInt64;  # Source ISD-AS
     maxPaths @2: UInt16;  # Maximum number of paths requested
     flags :group {
         flush @3 :Bool;  # Flush all paths to dst.
@@ -60,12 +60,12 @@ struct FwdPathMeta {
 }
 
 struct PathInterface {
-    isdas @0 :UInt32;
+    isdas @0 :UInt64;
     ifID @1 :UInt64;
 }
 
 struct ASInfoReq {
-    isdas @0 :UInt32;  # The AS ID for which the AS Info is requested. If unset, returns info about the local AS(es).
+    isdas @0 :UInt64;  # The AS ID for which the AS Info is requested. If unset, returns info about the local AS(es).
 }
 
 struct ASInfoReply {
@@ -73,7 +73,7 @@ struct ASInfoReply {
 }
 
 struct ASInfoReplyEntry {
-    isdas @0 :UInt32;
+    isdas @0 :UInt64;
     mtu @1 :UInt16;  # The MTU of the AS.
     isCore @2 :Bool;  # True, if this is a core AS.
 }

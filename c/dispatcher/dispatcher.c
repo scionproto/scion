@@ -58,7 +58,7 @@ typedef struct sockaddr_in6 sockaddr_in6;
 
 typedef struct {
     uint16_t port;
-    uint32_t isd_as;
+    isdas_t isd_as;
     uint8_t host[MAX_HOST_ADDR_LEN];
     uint64_t flow_id;
 } L4Key;
@@ -69,7 +69,7 @@ static uint16_t next_port = MIN_UDP_PORT;
 
 typedef struct {
     uint16_t addr;
-    uint32_t isd_as;
+    isdas_t isd_as;
     uint8_t host[MAX_HOST_ADDR_LEN];
 } SVCKey;
 
@@ -132,7 +132,7 @@ int bind_data_sockets();
 void handle_app();
 void register_udp(uint8_t *buf, int len, int sock);
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock);
-int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset);
+int add_bind_addr(Entry *e, uint8_t *buf, isdas_t isd_as, int offset);
 int find_available_port(Entry *list, L4Key *key);
 void reply(int sock, int port);
 static inline uint16_t get_next_port();
@@ -552,11 +552,11 @@ void register_udp(uint8_t *buf, int len, int sock)
 
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 {
-    uint32_t isd_as = ntohl(*(uint32_t *)(buf + 2));
-    uint16_t port = ntohs(*(uint16_t *)(buf + 6));
-    int common = 9; // start of (protocol/addrtype)-dependent data
+    isdas_t isd_as = be64toh(*(isdas_t *)(buf + 2));
+    uint16_t port = ntohs(*(uint16_t *)(buf + 2 + ISD_AS_LEN));
+    int common = 2 + ISD_AS_LEN + 2 + 1; // start of (protocol/addrtype)-dependent data
 
-    zlog_info(zc, "registration for isd_as %x(%d-%d)", isd_as, ISD(isd_as), AS(isd_as));
+    zlog_info(zc, "registration for isd_as %d-%" PRId64, ISD(isd_as), AS(isd_as));
 
     Entry *e = (Entry *)malloc(sizeof(Entry));
     if (!e) {
@@ -566,7 +566,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     memset(e, 0, sizeof(Entry));
     e->sock = sock;
 
-    uint8_t type = *(uint8_t *)(buf + 8);
+    uint8_t type = *(uint8_t *)(buf + common - 1);
     if (type < ADDR_IPV4_TYPE || type > ADDR_IPV6_TYPE) {
         zlog_error(zc, "Invalid address type: %d", type);
         close(sock);
@@ -636,12 +636,12 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
                 se->bind_key.isd_as = isd_as;
 
                 HASH_ADD(bindhh, bind_svc_list, bind_key, sizeof(SVCKey), se);
-                zlog_info(zc, "Adding Bind SVC entry. SVC:%d ISD_AS:%d-%d Host:%s",
+                zlog_info(zc, "Adding Bind SVC entry. SVC:%d ISD_AS:%d-%" PRId64 " Host:%s",
                     se->bind_key.addr, ISD(se->bind_key.isd_as), AS(se->bind_key.isd_as),
                     addr_to_str(se->bind_key.host, type, NULL));
             }
             HASH_ADD(hh, svc_list, key, sizeof(SVCKey), se);
-            zlog_info(zc, "Adding SVC entry. SVC:%d ISD_AS:%d-%d Host:%s",
+            zlog_info(zc, "Adding SVC entry. SVC:%d ISD_AS:%d-%" PRId64 " Host:%s",
                     se->key.addr, ISD(se->key.isd_as), AS(se->key.isd_as), addr_to_str(se->key.host, type, NULL));
         }
         e->se = se;
@@ -654,7 +654,7 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
 // When registering a socket with a bind address the command format looks like:
 // command (1B) | proto (1B) | isd_as (4B) | port (2B) | addr type (1B) | addr (?B) |
 // bind_port (2B) | bind_addr type (1B) | bind_addr (?B) | SVC (2B, optional)
-int add_bind_addr(Entry *e, uint8_t *buf, uint32_t isd_as, int offset)
+int add_bind_addr(Entry *e, uint8_t *buf, isdas_t isd_as, int offset)
 {
     int port_len = 2;
     int type_len = 1;
@@ -875,7 +875,7 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
         /* Find dst info from the bind address list if the lookup fails with the public address list*/
         HASH_FIND(bindhh, bind_udp_port_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "entry for (%d-%d):%s:%d not found",
+            zlog_warn(zc, "entry for (%d-%" PRId64 "):%s:%d not found",
                     ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
             return;
@@ -898,7 +898,7 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
         /* Find dst info from the bind address list if the lookup fails with the public address list*/
         HASH_FIND(bindhh, bind_svc_list, &svc_key, sizeof(SVCKey), se);
         if (!se) {
-            zlog_warn(zc, "Entry not found: ISD-AS: %d-%d SVC: %02x IP: %s",
+            zlog_warn(zc, "Entry not found: ISD-AS: %d-%" PRId64 " SVC: %02x IP: %s",
                     ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
                     addr_to_str(dst->addr, dst->addr_type, NULL));
             return;
@@ -906,7 +906,7 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
     }
     //char dststr[MAX_HOST_ADDR_STR];
     //char svcstr[MAX_HOST_ADDR_STR];
-    zlog_debug(zc, "deliver UDP packet to (%d-%d):%s SVC:%s",
+    zlog_debug(zc, "deliver UDP packet to (%d-%" PRId64 "):%s SVC:%s",
             ISD(svc_key.isd_as), AS(svc_key.isd_as),
             addr_to_str(dst->addr, dst->addr_type, dststr),
             addr_to_str(get_dst_addr(buf), ADDR_SVC_TYPE, svcstr));
@@ -985,11 +985,11 @@ void deliver_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *fro
     PingEntry *e;
     HASH_FIND(hh, ping_list, &id, sizeof(id), e);
     if (e != NULL) {
-        zlog_debug(zc, "SCMP %s reply (%lx) entry found",
+        zlog_debug(zc, "SCMP %s reply (%" PRIx64 ") entry found",
                 scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
         deliver_data(e->sock, from, buf, len);
     } else {
-        zlog_warn(zc, "SCMP %s reply (%lx) entry not found",
+        zlog_warn(zc, "SCMP %s reply (%" PRIx64 ") entry not found",
                 scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
     }
     free(pld);
@@ -1012,7 +1012,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
     Entry *e;
     L4Key key;
     memset(&key, 0, sizeof(key));
-    key.isd_as = ntohl(*(uint32_t *)(pld->addr + ISD_AS_LEN));
+    key.isd_as = be64toh(*(isdas_t *)(pld->addr + ISD_AS_LEN));
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
     switch (pld->meta->l4_proto) {
         case L4_UDP:
@@ -1020,12 +1020,12 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
             key.port = ntohs(*(uint16_t *)(pld->l4hdr));
             HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
             if (!e) {
-                zlog_info(zc, "SCMP entry for %d-%d %s:%d not found",
+                zlog_info(zc, "SCMP entry for %d-%" PRId64 " %s:%d not found",
                         ISD(key.isd_as), AS(key.isd_as),
                         addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
                 goto cleanup;
             }
-            zlog_debug(zc, "SCMP entry %d-%d for %s:%d found",
+            zlog_debug(zc, "SCMP entry %d-%" PRId64 " for %s:%d found",
                     ISD(key.isd_as), AS(key.isd_as),
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
             break;
@@ -1062,9 +1062,9 @@ void add_scmp_entry(SCMPL4Header *scmp, int sock)
         e->id = id;
         e->sock = sock;
         HASH_ADD(hh, ping_list, id, sizeof(id), e);
-        zlog_debug(zc, "SCMP entry added: sock=%d, id=%lu", sock, id);
+        zlog_debug(zc, "SCMP entry added: sock=%d, id=%" PRIx64, sock, id);
     } else if (e->sock != sock) {
-        zlog_error(zc, "failed adding SCMP echo mapping. ID %d already in use.", ntohs(id));
+        zlog_error(zc, "failed adding SCMP echo mapping. ID %" PRIx64 " already in use.", be64toh(id));
     }
     free(pld);
 }

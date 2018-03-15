@@ -13,6 +13,7 @@
  *   See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+#include <inttypes.h>
 #include "middleware.h"
 
 #ifndef UNIX_PATH_MAX
@@ -238,9 +239,9 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
         goto exit;
     }
     char host_str[MAX_HOST_ADDR_STR];
-    uint32_t isd_as = *(uint32_t*)addr.addr;
+    isdas_t isd_as = *(isdas_t *)addr.addr;
     format_host(addr.type, addr.addr, host_str, sizeof(host_str));
-    zlog_info(zc_tcp, "tcpmw_bind(): bound:%d-%d, %s port %d, svc: %d",
+    zlog_info(zc_tcp, "tcpmw_bind(): bound:%d-%" PRId64 ", %s port %d, svc: %d",
               ISD(isd_as), AS(isd_as), host_str, port, svc);
 
 exit:

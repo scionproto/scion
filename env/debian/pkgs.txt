@@ -46,4 +46,5 @@ python3-yaml
 screen
 sudo
 uthash-dev
+vim-common
 zookeeperd

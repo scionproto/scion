@@ -17,7 +17,6 @@ extern "C" {
 #include "packet.h"
 #include "path.h"
 #include "scmp.h"
-#include "types.h"
 #include "udp.h"
 #include "utils.h"
 

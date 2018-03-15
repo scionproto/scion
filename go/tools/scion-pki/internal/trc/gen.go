@@ -49,7 +49,7 @@ func runGenTrc(cmd *base.Command, args []string) {
 	os.Exit(0)
 }
 
-func genTrc(isd int) error {
+func genTrc(isd addr.ISD) error {
 	dir := pkicmn.GetIsdPath(isd)
 	// Check that isd.ini exists, otherwise skip directory.
 	cpath := filepath.Join(dir, conf.IsdConfFileName)
@@ -80,7 +80,7 @@ func genTrc(isd int) error {
 	return pkicmn.WriteToFile(raw, filepath.Join(outDir, fname), 0644)
 }
 
-func newTrc(isd int, iconf *conf.Isd, path string) (*trc.TRC, error) {
+func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 	issuingTime := iconf.Trc.IssuingTime
 	if issuingTime == 0 {
 		issuingTime = uint64(time.Now().Unix())
@@ -90,7 +90,7 @@ func newTrc(isd int, iconf *conf.Isd, path string) (*trc.TRC, error) {
 		Description:    iconf.Desc,
 		ExpirationTime: issuingTime + uint64(iconf.Trc.Validity.Seconds()),
 		GracePeriod:    uint64(iconf.Trc.GracePeriod),
-		ISD:            uint16(isd),
+		ISD:            isd,
 		QuorumTRC:      iconf.Trc.QuorumTRC,
 		Version:        iconf.Trc.Version,
 		CoreASes:       make(map[addr.IA]*trc.CoreAS),

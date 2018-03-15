@@ -50,7 +50,7 @@ type Store struct {
 	// trcMap is a mapping from (ISD, version) to corresponding TRC
 	trcMap map[trc.Key]*trc.TRC
 	// maxTrcMap is a mapping from (ISD) to max version.
-	maxTrcMap map[uint16]uint64
+	maxTrcMap map[addr.ISD]uint64
 	// trcLock guards trcMap and maxTrcMap.
 	trcLock sync.RWMutex
 }
@@ -60,7 +60,7 @@ func NewStore(certDir, cacheDir, eName string) (*Store, error) {
 		chainMap:    make(map[cert.Key]*cert.Chain),
 		maxChainMap: make(map[addr.IA]uint64),
 		trcMap:      make(map[trc.Key]*trc.TRC),
-		maxTrcMap:   make(map[uint16]uint64)}
+		maxTrcMap:   make(map[addr.ISD]uint64)}
 	s.initChains()
 	s.initTRCs()
 	return s, nil
@@ -206,7 +206,7 @@ func (s *Store) GetNewestChain(ia addr.IA) *cert.Chain {
 }
 
 // GetTRC returns the TRC for the specified values or nil, if it is not present.
-func (s *Store) GetTRC(isd uint16, ver uint64) *trc.TRC {
+func (s *Store) GetTRC(isd addr.ISD, ver uint64) *trc.TRC {
 	s.trcLock.RLock()
 	t := s.trcMap[*trc.NewKey(isd, ver)]
 	s.trcLock.RUnlock()
@@ -215,7 +215,7 @@ func (s *Store) GetTRC(isd uint16, ver uint64) *trc.TRC {
 
 // GetNewestTRC returns the TRC with the highest version for the specified ISD or nil, if there is
 // no TRC present for that ISD.
-func (s *Store) GetNewestTRC(isd uint16) *trc.TRC {
+func (s *Store) GetNewestTRC(isd addr.ISD) *trc.TRC {
 	s.trcLock.RLock()
 	defer s.trcLock.RUnlock()
 	var t *trc.TRC

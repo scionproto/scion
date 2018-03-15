@@ -1,5 +1,6 @@
 #define _GNU_SOURCE // required to get struct in6_pktinfo definition
 #include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
@@ -206,7 +207,7 @@ int l4_index(uint8_t l4)
 uint8_t * set_scionaddr(SCIONAddr *addr, uint8_t *ptr)
 {
     /* Set the SCIONAddr fields */
-    addr->isd_as = ntohl(*(uint32_t *)ptr);
+    addr->isd_as = be64toh(*(isdas_t *)ptr);
     addr->host.addr_type = *(ptr + 4);
     memcpy(addr->host.addr, ptr + 5, MAX_HOST_ADDR_LEN);
     addr->host.port = ntohs(*(uint16_t *)(ptr + 5 + MAX_HOST_ADDR_LEN));
@@ -229,7 +230,7 @@ void format_scionaddr(SCIONAddr *addr, char **str)
 {
     char buf[MAX_HOST_ADDR_STR];
     format_host(addr->host.addr_type, addr->host.addr, buf, MAX_HOST_ADDR_STR);
-    asprintf(str, "[ISD-AS : %d-%d, IP : %s, Port : %d]",
+    asprintf(str, "[ISD-AS : %d-%" PRId64 ", IP : %s, Port : %d]",
              ISD(addr->isd_as), AS(addr->isd_as), buf, addr->host.port);
 }
 

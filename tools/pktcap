@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# This script dumps the raw SCION packet to the specified file. It assumes
+# - the default topology is running on the local machine
+# - tshark is installed and configured to use the scion wireshark plugin (tools/wireshark/scion.lua)
+# - xxd is installed
+#
+# Example usage:
+# In terminal 1: ./tools/pktcap 127.1.1.111 raw.spkt
+# In terminal 2: scmp -local 1-10,[127.0.0.1] -remote 2-25,[127.1.1.111] -c1
+
+set -e
+set -o pipefail
+
+tshark -c1 -npi lo -q -T fields -e scion.packet dst host "${1:?}" | tr -d : | xxd -r -p > "${2:?}"
