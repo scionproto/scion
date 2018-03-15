@@ -63,7 +63,7 @@ type remoteServer struct {
 
 // Handler is a RequestFunc for the Deduper that also tracks the number of
 // network requests via srv's state.
-func (srv *remoteServer) Handler(ctx context.Context, request Request, response chan<- Response) {
+func (srv *remoteServer) Handler(ctx context.Context, request Request) Response {
 	trequest := request.(*TRequest)
 	srv.mu.Lock()
 	srv.handledRequests[request.DedupeKey()]++
@@ -71,13 +71,13 @@ func (srv *remoteServer) Handler(ctx context.Context, request Request, response 
 	select {
 	case <-time.After(trequest.Latency * time.Millisecond):
 		// Normal
-		response <- Response{
+		return Response{
 			Data:  trequest.Data,
 			Error: trequest.Error,
 		}
 	case <-ctx.Done():
 		// Context canceled, probably during clean-up
-		response <- Response{
+		return Response{
 			Data:  nil,
 			Error: ctx.Err(),
 		}

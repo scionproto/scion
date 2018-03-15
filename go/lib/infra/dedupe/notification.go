@@ -23,7 +23,7 @@ import (
 // notifyList maintains a set of channels for disseminating responses. The keys
 // map to themselves. Each channel corresponds to one client call to
 // Deduper.Request.
-type notifyList map[ResponseChannel]ResponseChannel
+type notifyList map[ResponseChannel]struct{}
 
 // cacheEntry describes a value obtained via a successful network request.
 //
@@ -31,7 +31,7 @@ type notifyList map[ResponseChannel]ResponseChannel
 // cleaned up from the cache if they are not accessed after they have expired.
 // A periodic cacheEntry clean-up function should be included.
 type cacheEntry struct {
-	object    Response
+	response  Response
 	timestamp time.Time
 }
 
@@ -42,8 +42,7 @@ type cacheEntry struct {
 type notificationTable struct {
 	sync.Mutex
 
-	GracePeriod time.Duration
-
+	GracePeriod    time.Duration
 	DedupeLifetime time.Duration
 
 	// broadcast maps broadcast keys to a set of channels that should be
@@ -77,18 +76,19 @@ type notificationTable struct {
 
 // Add registers ch with the dedupe and broadcast key maps. If a network
 // request needs to be issued, the returneed context is non-nil.
-func (table *notificationTable) Add(object Request, ch ResponseChannel) context.Context {
+func (table *notificationTable) Add(req Request, ch ResponseChannel) context.Context {
 	table.Lock()
 	defer table.Unlock()
 
+	bkey := req.BroadcastKey()
 	// If the answer is cached and in the grace period, do not bother sending
 	// out a request and answer immediately.
-	if entry, ok := table.cache[object.BroadcastKey()]; ok {
+	if entry, ok := table.cache[bkey]; ok {
 		if entry.timestamp.Add(table.GracePeriod).After(time.Now()) {
-			ch <- entry.object
+			ch <- entry.response
 			return nil
 		} else {
-			delete(table.cache, object.BroadcastKey())
+			delete(table.cache, bkey)
 		}
 	}
 
@@ -100,34 +100,33 @@ func (table *notificationTable) Add(object Request, ch ResponseChannel) context.
 	// Insert into dedupe key map. If this is the first channel for the key,
 	// initialize a context to signal that the caller should issue a new
 	// network request.
-	dkey := object.DedupeKey()
+	dkey := req.DedupeKey()
 	if _, ok := table.dedupe[dkey]; !ok {
 		table.dedupe[dkey] = make(notifyList)
 		ctx, cancelF = context.WithTimeout(context.Background(), table.DedupeLifetime)
 		table.cancelFunctions[dkey] = CancelFunc(cancelF)
 	}
-	table.dedupe[dkey][ch] = ch
+	table.dedupe[dkey][ch] = struct{}{}
 
 	// Insert into broadcast key map. Also, add backlink from channel to dedupe
 	// key s.t. we can cancel the network goroutine if the response comes from
 	// a broadcast.
-	bkey := object.BroadcastKey()
 	if _, ok := table.broadcast[bkey]; !ok {
 		table.broadcast[bkey] = make(notifyList)
 	}
-	table.broadcast[bkey][ch] = ch
+	table.broadcast[bkey][ch] = struct{}{}
 	table.goroutines[ch] = dkey
 	return ctx
 }
 
 // Cache saves object in the cache, using the specified key. The current time
 // is used to time-stamp the entry.
-func (table *notificationTable) Cache(key string, object Response) {
+func (table *notificationTable) Cache(key string, response Response) {
 	table.Lock()
 	defer table.Unlock()
 	table.cache[key] = &cacheEntry{
 		timestamp: time.Now(),
-		object:    object,
+		response:  response,
 	}
 }
 
@@ -137,22 +136,27 @@ func (table *notificationTable) Cache(key string, object Response) {
 // response channel is empty and should not be drained. If Remove deletes the
 // last channel for a dedupe key, the network goroutine that is associated with
 // it is canceled.
-func (table *notificationTable) Remove(object Request, ch ResponseChannel) {
+func (table *notificationTable) Remove(req Request, ch ResponseChannel) {
 	table.Lock()
 	defer table.Unlock()
-	table.removeLocked(object, ch)
+	table.removeLocked(req, ch)
 }
 
 // removeLocked is the acquired-lock variant of Remove. It should only be
-// called after writing the response to the to-be removed channel ch.
-func (table *notificationTable) removeLocked(object Request, ch ResponseChannel) {
-	dedupeKey := object.DedupeKey()
-	broadcastKey := object.BroadcastKey()
+// called after writing the response to the to-be-removed channel ch.
+func (table *notificationTable) removeLocked(req Request, ch ResponseChannel) {
+	dedupeKey := req.DedupeKey()
+	broadcastKey := req.BroadcastKey()
 	delete(table.broadcast[broadcastKey], ch)
+	if len(table.broadcast[broadcastKey]) == 0 {
+		delete(table.broadcast, broadcastKey)
+	}
 	delete(table.dedupe[dedupeKey], ch)
-	// If there are no more channels on the dedupeKey, it means no goroutine is
-	// still waiting for the request and we can cancel it.
+	// If there are no more channels on the dedupeKey, it means no client
+	// (application) goroutine is waiting for the result of the network request
+	// goroutine and we can cancel the latter.
 	if len(table.dedupe[dedupeKey]) == 0 {
+		delete(table.dedupe, dedupeKey)
 		f := table.cancelFunctions[dedupeKey]
 		delete(table.cancelFunctions, dedupeKey)
 		if f != nil {
@@ -163,17 +167,17 @@ func (table *notificationTable) removeLocked(object Request, ch ResponseChannel)
 
 // BroadcastError writes response to all the channels waiting on
 // object's dedupe key. Response should contain an error and nil data.
-func (table *notificationTable) BroadcastError(object Request, response Response) {
+func (table *notificationTable) BroadcastError(req Request, response Response) {
 	table.Lock()
 	defer table.Unlock()
 
-	dkey := object.DedupeKey()
+	dkey := req.DedupeKey()
 	for ch := range table.dedupe[dkey] {
 		select {
 		case ch <- response:
 			// Now that we have sent the result to the caller, we can remove
 			// the references and call the context's cleanup function.
-			table.removeLocked(object, ch)
+			table.removeLocked(req, ch)
 		default:
 			// Programming error/race, two writers tried to write to this channel
 			panic("unable to write to response channel")
