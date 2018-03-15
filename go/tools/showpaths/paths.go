@@ -21,17 +21,13 @@ import (
 	"os"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/addr"
-	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 var (
 	dstIAStr   = flag.String("dstIA", "", "Destination IA address: ISD-AS")
 	srcIAStr   = flag.String("srcIA", "", "Source IA address: ISD-AS")
-	id         = flag.String("id", "paths", "Element ID")
 	sciondPath = flag.String("sciond", "", "SCIOND socket path")
 	timeout    = flag.Duration("timeout", 2*time.Second, "SCIOND connection timeout")
 	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
@@ -46,20 +42,15 @@ func main() {
 	var err error
 
 	validateFlags()
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
-	defer liblog.Flush()
-
-	log.Debug("Connecting to SCIOND", "sciond", *sciondPath, "timeout", *timeout)
 
 	sd := sciond.NewService(*sciondPath)
 	sdConn, err := sd.ConnectTimeout(*timeout)
 	if err != nil {
-		LogFatal("Failed to connect to SCIOND", "err", err)
+		LogFatal("Failed to connect to SCIOND: %v\n", err)
 	}
 	reply, err := sdConn.Paths(dstIA, srcIA, uint16(*maxPaths), sciond.PathReqFlags{})
 	if err != nil {
-		LogFatal("Failed to retrieve paths from SCIOND", "err", err)
+		LogFatal("Failed to retrieve paths from SCIOND: %v\n", err)
 	}
 	fmt.Println("Available paths to", dstIA)
 	i := 0
@@ -76,15 +67,16 @@ func validateFlags() {
 
 	dstIA, err = addr.IAFromString(*dstIAStr)
 	if err != nil {
-		LogFatal("Unable to parse destination IA:", "err", err)
+		LogFatal("Unable to parse destination IA: %v\n", err)
 	}
 	if *sciondPath == "" {
 		if *srcIAStr == "" {
-			LogFatal("sciond or srcIA required")
+			*sciondPath = "/run/shm/sciond/default.sock"
+		} else {
+			*sciondPath = "/run/shm/sciond/sd" + *srcIAStr + ".sock"
 		}
-		*sciondPath = "/run/shm/sciond/sd" + *srcIAStr + ".sock"
 	} else if *srcIAStr != "" {
-		log.Warn("srcIA ignored! sciond takes precedence")
+		fmt.Printf("srcIA ignored! sciond takes precedence\n")
 	}
 	if *srcIAStr == "" {
 		// Set any value, required by Query() but does not affect result
@@ -92,12 +84,11 @@ func validateFlags() {
 	}
 	srcIA, err = addr.IAFromString(*srcIAStr)
 	if err != nil {
-		LogFatal("Unable to parse source IA:", "err", err)
+		LogFatal("Unable to parse source IA: %v\n", err)
 	}
 }
 
 func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
-	liblog.Flush()
+	fmt.Fprintf(os.Stderr, msg, a...)
 	os.Exit(1)
 }
