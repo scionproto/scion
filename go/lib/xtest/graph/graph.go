@@ -15,6 +15,10 @@
 // Package graph implements a multigraph model of a SCION network for use in
 // tests. The default Mock SCIOND implementation uses the graph to simulate
 // path lookups.
+//
+// Note that the graph always returns the shortest paths, regardless whether
+// they are valid SCION paths (e.g., the path might cross multiple peering
+// links).
 package graph
 
 import (
@@ -52,7 +56,7 @@ func New() *Graph {
 }
 
 // NewFromDescription initializes a new graph from description desc.
-func NewFromDescription(desc *FooBarDesc) *Graph {
+func NewFromDescription(desc *Description) *Graph {
 	graph := New()
 	for _, node := range desc.Nodes {
 		graph.Add(node)
@@ -130,8 +134,7 @@ func (g *Graph) GetParent(ifid common.IFIDType) addr.IA {
 // and yIA, a 0-length slice is returned.
 //
 // Note that this always returns shortest length paths, even if they might not
-// be valid SCION path. For example, GetPaths might return a path containing
-// multiple peering links.
+// be valid SCION path.
 func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 	g.lock.Lock()
 	defer g.lock.Unlock()
@@ -139,7 +142,7 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 	dst := MustParseIA(yIA)
 	solutionLength := 1000 // Infinity
 	queue := []*solution{
-		newTestVisitTrail(src),
+		newSolution(src),
 	}
 	var solution [][]common.IFIDType
 	for {
@@ -204,37 +207,37 @@ type solution struct {
 	trail []common.IFIDType
 }
 
-func newTestVisitTrail(start addr.IA) *solution {
+func newSolution(start addr.IA) *solution {
 	return &solution{
 		visited:   map[addr.IA]struct{}{start: {}},
 		CurrentIA: start,
 	}
 }
 
-func (trail *solution) Copy() *solution {
-	newTrail := &solution{}
-	newTrail.CurrentIA = trail.CurrentIA
-	newTrail.visited = make(map[addr.IA]struct{})
-	for ia := range trail.visited {
-		newTrail.visited[ia] = struct{}{}
+func (s *solution) Copy() *solution {
+	newS := &solution{}
+	newS.CurrentIA = s.CurrentIA
+	newS.visited = make(map[addr.IA]struct{})
+	for ia := range s.visited {
+		newS.visited[ia] = struct{}{}
 	}
-	newTrail.trail = append([]common.IFIDType{}, trail.trail...)
-	return newTrail
+	newS.trail = append([]common.IFIDType{}, s.trail...)
+	return newS
 }
 
-func (trail *solution) Visited(ia addr.IA) bool {
-	_, ok := trail.visited[ia]
+func (s *solution) Visited(ia addr.IA) bool {
+	_, ok := s.visited[ia]
 	return ok
 }
 
 // Add appends localIFID and nextIFID to the trail, and advances to nextIA.
-func (trail *solution) Add(localIFID, nextIFID common.IFIDType, nextIA addr.IA) {
-	trail.visited[nextIA] = struct{}{}
-	trail.trail = append(trail.trail, localIFID, nextIFID)
+func (s *solution) Add(localIFID, nextIFID common.IFIDType, nextIA addr.IA) {
+	s.visited[nextIA] = struct{}{}
+	s.trail = append(s.trail, localIFID, nextIFID)
 }
 
-func (trail *solution) Len() int {
-	return len(trail.trail) / 2
+func (s *solution) Len() int {
+	return len(s.trail) / 2
 }
 
 func MustParseIA(ia string) addr.IA {
@@ -245,9 +248,9 @@ func MustParseIA(ia string) addr.IA {
 	return isdas
 }
 
-// FooBarDesc contains the entire specification of a graph. It is useful for
+// Description contains the entire specification of a graph. It is useful for
 // one shot initilizations.
-type FooBarDesc struct {
+type Description struct {
 	Nodes []string
 	Edges []EdgeDesc
 }
@@ -261,7 +264,7 @@ type EdgeDesc struct {
 }
 
 // Graph description of the topology in doc/fig/default-topo.pdf.
-var DefaultGraphDescription = &FooBarDesc{
+var DefaultGraphDescription = &Description{
 	Nodes: []string{"1-10", "1-11", "1-12", "1-13", "1-14", "1-15", "1-16", "1-17", "1-18",
 		"1-19", "2-20", "2-21", "2-22", "2-23", "2-24", "2-25", "2-26"},
 	Edges: []EdgeDesc{

@@ -37,6 +37,7 @@ import (
 	"github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
@@ -97,7 +98,7 @@ type Connector interface {
 	// IFInfo requests from SCIOND addresses and ports of interfaces.  Slice
 	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
 	// answer containing all interfaces is returned.
-	IFInfo(ifs []uint64) (*IFInfoReply, error)
+	IFInfo(ifs []common.IFIDType) (*IFInfoReply, error)
 	// SVCInfo requests from SCIOND information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
@@ -227,16 +228,15 @@ func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
 	return &reply.AsInfoReply, nil
 }
 
-func (c *connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
+func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	// Store uncached interface IDs
-	uncachedIfs := make([]uint64, 0, len(ifs))
+	uncachedIfs := make([]common.IFIDType, 0, len(ifs))
 	cachedEntries := make([]IFInfoReplyEntry, 0, len(ifs))
 	for _, iface := range ifs {
-		key := strconv.FormatUint(iface, 10)
-		if value, found := c.ifInfos.Get(key); found {
+		if value, found := c.ifInfos.Get(iface.String()); found {
 			cachedEntries = append(cachedEntries, value.(IFInfoReplyEntry))
 		} else {
 			uncachedIfs = append(uncachedIfs, iface)
@@ -263,8 +263,7 @@ func (c *connector) IFInfo(ifs []uint64) (*IFInfoReply, error) {
 	// If SCIOND does not find HostInfo for a requested IFID, the
 	// null answer is not added to the cache.
 	for _, entry := range reply.IfInfoReply.RawEntries {
-		key := strconv.FormatUint(entry.IfID, 10)
-		c.ifInfos.SetDefault(key, entry)
+		c.ifInfos.SetDefault(entry.IfID.String(), entry)
 	}
 
 	// Append old cached entries to our reply

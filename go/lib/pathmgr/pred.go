@@ -109,7 +109,7 @@ func ppParseIface(str string) (sciond.PathInterface, error) {
 	if err != nil {
 		return sciond.PathInterface{}, err
 	}
-	iface.IfID = ifid
+	iface.IfID = common.IFIDType(ifid)
 	return iface, nil
 }
 
