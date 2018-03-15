@@ -88,7 +88,7 @@ func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRep
 			pathInterfaces = append(pathInterfaces,
 				PathInterface{
 					RawIsdas: m.g.GetParent(ifid).IAInt(),
-					IfID:     uint64(ifid),
+					IfID:     ifid,
 				},
 			)
 		}
@@ -121,7 +121,7 @@ func (m *MockConn) ASInfo(ia addr.IA) (*ASInfoReply, error) {
 }
 
 // IFInfo is not implemented.
-func (m *MockConn) IFInfo(ifs []uint64) (*IFInfoReply, error) {
+func (m *MockConn) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 	panic("not implemented")
 }
 
