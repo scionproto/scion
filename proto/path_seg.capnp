@@ -19,7 +19,7 @@ struct PathSegmentSignedData {
 }
 
 struct ASEntry {
-    isdas @0 :UInt32;  # Local ISD-AS
+    isdas @0 :UInt64;  # Local ISD-AS
     trcVer @1 :UInt64;
     certVer @2 :UInt64;
     ifIDSize @3 :UInt8;  # Number of bits used for interface IDs in this AS.
@@ -33,10 +33,10 @@ struct ASEntry {
 }
 
 struct HopEntry {
-    inIA @0 :UInt32;  # Ingress (incl peer) ISD-AS
+    inIA @0 :UInt64;  # Ingress (incl peer) ISD-AS
     remoteInIF @1 :UInt64; # Interface ID on far end of ingress link
     inMTU @2 :UInt16;  # Ingress Link MTU
-    outIA @3 :UInt32;  # Downstream ISD-AS
+    outIA @3 :UInt64;  # Downstream ISD-AS
     remoteOutIF @4 :UInt64;  # Interface ID on far end of egress link
     hopF @5 :Data;  # Raw HopField
 }

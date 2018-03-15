@@ -42,7 +42,7 @@ var (
 // ProcessSelector processes the given selector and returns a mapping from ISD id to ASes
 // of that ISD. In case of an ISD-only selector, i.e., a '*' or any number the lists of
 // ASes will be empty.
-func ProcessSelector(selector string) (map[int][]addr.IA, error) {
+func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
 	toks := strings.Split(selector, "-")
 	if len(toks) > 2 {
 		return nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
@@ -74,7 +74,7 @@ func ProcessSelector(selector string) (map[int][]addr.IA, error) {
 	if len(isdDirs) == 0 {
 		return nil, common.NewBasicError("No directories found", nil, "selector", selector)
 	}
-	res := make(map[int][]addr.IA)
+	res := make(map[addr.ISD][]addr.IA)
 	for _, dir := range isdDirs {
 		isd, err := isdFromDir(dir)
 		if err != nil {
@@ -93,27 +93,27 @@ func ProcessSelector(selector string) (map[int][]addr.IA, error) {
 			if err != nil {
 				return nil, err
 			}
-			ases[i] = addr.IA{I: int(isd), A: int(as)}
+			ases[i] = addr.IA{I: addr.ISD(isd), A: addr.AS(as)}
 		}
-		res[int(isd)] = ases
+		res[isd] = ases
 	}
 	return res, nil
 }
 
-func isdFromDir(dir string) (uint64, error) {
+func isdFromDir(dir string) (addr.ISD, error) {
 	isd, err := strconv.ParseUint(filepath.Base(dir)[3:], 10, addr.ISDBits)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to parse ISD number from dir", nil, "dir", dir)
 	}
-	return isd, nil
+	return addr.ISD(isd), nil
 }
 
-func asFromDir(dir string) (uint64, error) {
+func asFromDir(dir string) (addr.AS, error) {
 	as, err := strconv.ParseUint(filepath.Base(dir)[2:], 10, addr.ASBits)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to parse AS number from dir", nil, "dir", dir)
 	}
-	return as, nil
+	return addr.AS(as), nil
 }
 
 func Contains(ases []addr.IA, as addr.IA) bool {
@@ -148,6 +148,6 @@ func GetAsPath(ia addr.IA) string {
 	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
 }
 
-func GetIsdPath(isd int) string {
+func GetIsdPath(isd addr.ISD) string {
 	return filepath.Join(RootDir, fmt.Sprintf("ISD%d", isd))
 }

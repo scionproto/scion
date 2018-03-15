@@ -3,7 +3,7 @@
 
 #include "defines.h"
 
-#define ISD_AS_LEN 4
+#define ISD_AS_LEN 8
 // Maximum length string needed to describe any host address.
 #define MAX_HOST_ADDR_STR INET6_ADDRSTRLEN
 
@@ -13,22 +13,28 @@ typedef struct {
     uint16_t port;
 } HostAddr;
 
+typedef uint64_t isdas_t;
+
 /*
  * Struct for SCION Addresses:
- * 12 bits ISD ID
- * 20 bits AS ID
+ * 16 bits ISD ID
+ * 48 bits AS ID
  * (4 bytes IPv4 Addr OR
  *  16 bytes IPv6 Addr OR
  *  2 bytes SVC addr)
  */
 typedef struct {
-    uint32_t isd_as;
+    isdas_t isd_as;
     HostAddr host;
 } SCIONAddr;
 
-#define ISD(isd_as) (isd_as >> 20)
-#define AS(isd_as) (isd_as & 0xfffff)
-#define ISD_AS(isd, as) ((isd) << 20 | (as))
+#define ISD_BITS 16
+#define AS_BITS 48
+#define AS_MASK ((1L << AS_BITS) - 1)
+
+#define ISD(isd_as) ((uint16_t)((isd_as) >> AS_BITS))
+#define AS(isd_as) ((isd_as) & AS_MASK)
+#define ISD_AS(isd, as) ((isd) << AS_BITS | ((as) & AS_MASK))
 
 #define SCION_ADDR_PAD 8
 
@@ -59,16 +65,12 @@ typedef struct {
     uint8_t type;
 } saddr_t;
 
-#define SADDR_ISD(saddr) ISD(ntohs(*(uint32_t *)(saddr.addr)))
-#define SADDR_AS(saddr) AS(ntohs(*(uint32_t *)(saddr.addr)))
-#define SADDR_HOST(saddr) (saddr.addr + ISD_AS_LEN)
-
 #define DST_IA_OFFSET sizeof(SCIONCommonHeader)
 #define SRC_IA_OFFSET sizeof(SCIONCommonHeader) + ISD_AS_LEN
 
 int get_addr_len(int type);
-uint32_t get_dst_isd_as(uint8_t *buf);
-uint32_t get_src_isd_as(uint8_t *buf);
+isdas_t get_dst_isd_as(uint8_t *buf);
+isdas_t get_src_isd_as(uint8_t *buf);
 uint8_t get_dst_len(uint8_t *buf);
 uint8_t get_src_len(uint8_t *buf);
 uint8_t get_addrs_len(uint8_t *buf);

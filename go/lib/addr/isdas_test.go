@@ -21,24 +21,27 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+var (
+	rawIA = []byte{0xF0, 0x11, 0xF2, 0x33, 0x44, 0x55, 0x66, 0x77}
+	ia    = IA{I: 0xF011, A: 0xF23344556677}
+)
+
 // Interface assertions
 var _ fmt.Stringer = (*IA)(nil)
 
 func Test_IAFromRaw(t *testing.T) {
 	Convey("IAFromRaw should parse bytes correctly", t, func() {
-		input := []byte{0x02, 0x10, 0x00, 0x2c}
-		ia := IAFromRaw(input)
-		So(ia.I, ShouldEqual, 33)
-		So(ia.A, ShouldEqual, 44)
+		ia := IAFromRaw(rawIA)
+		So(ia.I, ShouldEqual, ia.I)
+		So(ia.A, ShouldEqual, ia.A)
 	})
 }
 
 func Test_IA_Write(t *testing.T) {
 	Convey("ISD_AS.Write() should output bytes correctly", t, func() {
-		output := make([]byte, 4)
-		ia := &IA{I: 33, A: 44}
+		output := make([]byte, IABytes)
 		ia.Write(output)
-		So(output, ShouldResemble, []byte{0x02, 0x10, 0x00, 0x2c})
+		So(output, ShouldResemble, rawIA)
 	})
 }
 

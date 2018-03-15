@@ -75,7 +75,7 @@ def _pack_dispatcher_msg(addr, port, bind_addr, bind_port, svc, scmp):
     data = []
     if bind_addr:
         cmd |= 1 << 2
-    data.append(struct.pack("!BBIHB", cmd, L4Proto.UDP, addr.isd_as.int(), port, addr.host.TYPE))
+    data.append(struct.pack("!BBQHB", cmd, L4Proto.UDP, addr.isd_as.int(), port, addr.host.TYPE))
     data.append(addr.host.pack())
     if bind_addr:
         data.append(struct.pack("!HB", bind_port, bind_addr.host.TYPE))
