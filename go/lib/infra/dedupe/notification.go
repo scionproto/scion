@@ -18,6 +18,12 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	cache "github.com/patrickmn/go-cache"
+)
+
+const (
+	cacheExpirationInterval = time.Minute
 )
 
 // notifyList maintains a set of channels for disseminating responses. The keys
@@ -25,25 +31,12 @@ import (
 // Deduper.Request.
 type notifyList map[ResponseChannel]struct{}
 
-// cacheEntry describes a value obtained via a successful network request.
-//
-// FIXME(scrye): Currently cacheEntries leak memory; they expire, but are not
-// cleaned up from the cache if they are not accessed after they have expired.
-// A periodic cacheEntry clean-up function should be included.
-type cacheEntry struct {
-	response  Response
-	timestamp time.Time
-}
-
 // notificationTable indexes response channels based on broadcast keys and
 // dedupe keys. For each local request coming from a client goroutine, a unique
 // ResponseChannel is created. The channels are then inserted into the
 // notifyLists for the dedupe and broadcast key that describes that request.
 type notificationTable struct {
 	sync.Mutex
-
-	GracePeriod    time.Duration
-	DedupeLifetime time.Duration
 
 	// broadcast maps broadcast keys to a set of channels that should be
 	// notified whenever a request goroutine with that broadcast key completes
@@ -64,7 +57,7 @@ type notificationTable struct {
 	// new request arrives within GracePeriod time of a successful network
 	// request, it does not spawn a new network request and the response
 	// is directly taken from this cache. The map is keyed using broadcast keys.
-	cache map[string]*cacheEntry
+	cache *cache.Cache
 
 	// goroutines contains an inverse map from a channel to the dedupe key it
 	// is assigned to. After broadcasts, it is used to clean up (i.e., cancel)
@@ -74,21 +67,37 @@ type notificationTable struct {
 	goroutines map[ResponseChannel]string
 }
 
+func newNotificationTable() *notificationTable {
+	return &notificationTable{
+		broadcast:       make(map[string]notifyList),
+		dedupe:          make(map[string]notifyList),
+		cancelFunctions: make(map[string]CancelFunc),
+		// 0 is the default lifetime as we explicitly set lifetimes using set
+		cache:      cache.New(0, cacheExpirationInterval),
+		goroutines: make(map[ResponseChannel]string),
+	}
+}
+
 // Add registers ch with the dedupe and broadcast key maps. If a network
 // request needs to be issued, the returneed context is non-nil.
-func (table *notificationTable) Add(req Request, ch ResponseChannel) context.Context {
+func (table *notificationTable) Add(req Request, ch ResponseChannel,
+	dedupeLifetime time.Duration) context.Context {
+
 	table.Lock()
 	defer table.Unlock()
 
 	bkey := req.BroadcastKey()
 	// If the answer is cached and in the grace period, do not bother sending
 	// out a request and answer immediately.
-	if entry, ok := table.cache[bkey]; ok {
-		if entry.timestamp.Add(table.GracePeriod).After(time.Now()) {
-			ch <- entry.response
+	if entryI, expiry, ok := table.cache.GetWithExpiration(bkey); ok {
+		response := entryI.(Response)
+		// Need to explicitly check expiration date because an entry might be
+		// expired but the cache's cleanup goroutine hasn't run yet.
+		if expiry.After(time.Now()) {
+			ch <- response
 			return nil
 		} else {
-			delete(table.cache, bkey)
+			table.cache.Delete(bkey)
 		}
 	}
 
@@ -103,7 +112,7 @@ func (table *notificationTable) Add(req Request, ch ResponseChannel) context.Con
 	dkey := req.DedupeKey()
 	if _, ok := table.dedupe[dkey]; !ok {
 		table.dedupe[dkey] = make(notifyList)
-		ctx, cancelF = context.WithTimeout(context.Background(), table.DedupeLifetime)
+		ctx, cancelF = context.WithTimeout(context.Background(), dedupeLifetime)
 		table.cancelFunctions[dkey] = CancelFunc(cancelF)
 	}
 	table.dedupe[dkey][ch] = struct{}{}
@@ -119,15 +128,9 @@ func (table *notificationTable) Add(req Request, ch ResponseChannel) context.Con
 	return ctx
 }
 
-// Cache saves object in the cache, using the specified key. The current time
-// is used to time-stamp the entry.
-func (table *notificationTable) Cache(key string, response Response) {
-	table.Lock()
-	defer table.Unlock()
-	table.cache[key] = &cacheEntry{
-		timestamp: time.Now(),
-		response:  response,
-	}
+// Cache saves response in the cache, using the specified key and lifetime d.
+func (table *notificationTable) Cache(key string, response Response, d time.Duration) {
+	table.cache.Set(key, response, d)
 }
 
 // Remove deletes ch from the dedupe and broadcast key maps without writing
@@ -166,7 +169,7 @@ func (table *notificationTable) removeLocked(req Request, ch ResponseChannel) {
 }
 
 // BroadcastError writes response to all the channels waiting on
-// object's dedupe key. Response should contain an error and nil data.
+// req's dedupe key. Response should contain an error and nil data.
 func (table *notificationTable) BroadcastError(req Request, response Response) {
 	table.Lock()
 	defer table.Unlock()
@@ -185,7 +188,7 @@ func (table *notificationTable) BroadcastError(req Request, response Response) {
 	}
 }
 
-// BroadcastSuccess writes response to all the channels waiting on object's
+// BroadcastSuccess writes response to all the channels waiting on the specified
 // broadcast key. Response should contain data and a nil error.
 func (table *notificationTable) BroadcastSuccess(key string, response Response) {
 	table.Lock()

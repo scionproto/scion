@@ -114,67 +114,67 @@ type ResponseChannel chan Response
 // Objects written to the channel might share the same address space, so
 // callers should copy the value drained from the channel if they want to have
 // exclusive ownership.
-func (dd *Deduper) Request(ctx context.Context, object Request) (<-chan Response, CancelFunc) {
+func (dd *Deduper) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
 	dd.mu.Lock()
 	if dd.notifications == nil {
-		if dd.DedupeLifetime == 0 {
-			dd.DedupeLifetime = DefaultDedupeLifetime
-		}
-		if dd.GracePeriod == 0 {
-			dd.GracePeriod = DefaultGracePeriod
-		}
-		dd.notifications = &notificationTable{
-			DedupeLifetime:  dd.DedupeLifetime,
-			GracePeriod:     dd.GracePeriod,
-			broadcast:       make(map[string]notifyList),
-			dedupe:          make(map[string]notifyList),
-			cancelFunctions: make(map[string]CancelFunc),
-			cache:           make(map[string]*cacheEntry),
-			goroutines:      make(map[ResponseChannel]string),
-		}
+		dd.notifications = newNotificationTable()
 	}
 	dd.mu.Unlock()
 
 	ch := make(chan Response, 1)
-	if ctx := dd.notifications.Add(object, ch); ctx != nil {
-		go dd.handler(ctx, object)
+	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime()); ctx != nil {
+		go dd.handler(ctx, req)
 	}
 
 	return ch, func() {
 		// Give callers the option of cleaning up resources prior to the
 		// Request returning.
-		dd.notifications.Remove(object, ch)
+		dd.notifications.Remove(req, ch)
 	}
 }
 
 // handler calls RequestFunc with a freshly created channel, and then reads the
 // result from the channel and notifies the relevant waiters.
-func (dd *Deduper) handler(ctx context.Context, object Request) {
+func (dd *Deduper) handler(ctx context.Context, req Request) {
 	ch := make(chan Response, 1)
 	go func() {
-		ch <- dd.RequestFunc(ctx, object)
+		ch <- dd.RequestFunc(ctx, req)
 	}()
 
 	// There are two possible ways RequestFunc finishes. During normal
 	// operation, ctx.Done returns nil and ch is populated with a retrieved
 	// object. During errors, both the context is marked as Done (via external
 	// cancellation or expiry) and ch contains an error. Because the top-level
-	// cases in the select below are nondeterministic, we also check for context
-	// expiration on the successful branch.
+	// cases in the select below are nondeterministic, we also propagate context
+	// expiration errors on the second branch.
 	select {
 	case <-ctx.Done():
 		response := Response{Data: nil, Error: ctx.Err()}
-		dd.notifications.BroadcastError(object, response)
+		dd.notifications.BroadcastError(req, response)
 	case response := <-ch:
 		if response.Error != nil {
 			// Make sure Data is nil on errors
 			response := Response{Data: nil, Error: response.Error}
-			dd.notifications.BroadcastError(object, response)
+			dd.notifications.BroadcastError(req, response)
 		} else {
-			dd.notifications.BroadcastSuccess(object.BroadcastKey(), response)
-			dd.notifications.Cache(object.BroadcastKey(), response)
+			dd.notifications.BroadcastSuccess(req.BroadcastKey(), response)
+			dd.notifications.Cache(req.BroadcastKey(), response, dd.GracePeriod)
 		}
 	}
+}
+
+func (dd *Deduper) dedupeLifetime() time.Duration {
+	if dd.DedupeLifetime == 0 {
+		return DefaultDedupeLifetime
+	}
+	return dd.DedupeLifetime
+}
+
+func (dd *Deduper) gracePeriod() time.Duration {
+	if dd.GracePeriod == 0 {
+		return DefaultGracePeriod
+	}
+	return dd.GracePeriod
 }
 
 // Response represents the outcome of a request. It is passed along channels by
