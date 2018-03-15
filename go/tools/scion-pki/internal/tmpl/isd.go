@@ -40,7 +40,7 @@ func runGenIsdTmpl(cmd *base.Command, args []string) {
 	}
 }
 
-func genIsdTmpl(isd addr.ISDInt) error {
+func genIsdTmpl(isd addr.ISD) error {
 	dir := pkicmn.GetIsdPath(isd)
 	fmt.Printf("Generating configuration template for ISD%d\n", isd)
 	i := &conf.Isd{Trc: &conf.Trc{Version: 1}}

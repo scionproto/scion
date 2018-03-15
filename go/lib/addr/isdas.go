@@ -31,15 +31,15 @@ const (
 	MaxAS   = (1 << ASBits) - 1
 )
 
-type ISDInt uint16
-type ASInt uint64
+type ISD uint16
+type AS uint64
 
 var _ encoding.TextUnmarshaler = (*IA)(nil)
 
 // IA represents the ISD (Isolation Domain) and AS (Autonomous System) Id of a given SCION AS.
 type IA struct {
-	I ISDInt
-	A ASInt
+	I ISD
+	A AS
 }
 
 func IAFromRaw(b common.RawBytes) IA {
@@ -63,7 +63,7 @@ func IAFromString(s string) (IA, error) {
 		// err.Error() will contain the original value
 		return IA{}, common.NewBasicError("Unable to parse AS", err)
 	}
-	return IA{I: ISDInt(isd), A: ASInt(as)}, nil
+	return IA{I: ISD(isd), A: AS(as)}, nil
 }
 
 func (ia IA) MarshalText() ([]byte, error) {
@@ -107,5 +107,5 @@ func (ia IA) String() string {
 type IAInt uint64
 
 func (iaI IAInt) IA() IA {
-	return IA{I: ISDInt(iaI >> ASBits), A: ASInt(iaI & MaxAS)}
+	return IA{I: ISD(iaI >> ASBits), A: AS(iaI & MaxAS)}
 }

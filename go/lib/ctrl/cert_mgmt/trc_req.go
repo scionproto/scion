@@ -26,7 +26,7 @@ import (
 var _ proto.Cerealizable = (*TRCReq)(nil)
 
 type TRCReq struct {
-	ISD       addr.ISDInt `capnp:"isd"`
+	ISD       addr.ISD `capnp:"isd"`
 	Version   uint64
 	CacheOnly bool
 }

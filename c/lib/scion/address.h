@@ -32,8 +32,8 @@ typedef struct {
 #define AS_BITS 48
 #define AS_MASK ((1L << AS_BITS) - 1)
 
-#define ISD(isd_as) ((uint16_t)(isd_as >> AS_BITS))
-#define AS(isd_as) (isd_as & AS_MASK)
+#define ISD(isd_as) ((uint16_t)((isd_as) >> AS_BITS))
+#define AS(isd_as) ((isd_as) & AS_MASK)
 #define ISD_AS(isd, as) ((isd) << AS_BITS | ((as) & AS_MASK))
 
 #define SCION_ADDR_PAD 8
@@ -66,7 +66,7 @@ typedef struct {
 } saddr_t;
 
 #define SADDR_ISD(saddr) ISD(ntohs(*(isdas_t *)(saddr.addr)))
-#define SADDR_AS(saddr) AS(ntohs(*(isdas_t *)(saddr.addr)))
+#define SADDR_AS(saddr) AS(be64toh(*(isdas_t *)(saddr.addr)))
 #define SADDR_HOST(saddr) (saddr.addr + ISD_AS_LEN)
 
 #define DST_IA_OFFSET sizeof(SCIONCommonHeader)
