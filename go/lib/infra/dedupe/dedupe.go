@@ -149,12 +149,6 @@ func (dd *Deduper) handler(ctx context.Context, req Request) {
 		ch <- dd.requestFunc(ctx, req)
 	}()
 
-	// There are two possible ways RequestFunc finishes. During normal
-	// operation, ctx.Done returns nil and ch is populated with a retrieved
-	// object. During errors, both the context is marked as Done (via external
-	// cancellation or expiry) and ch contains an error. Because the top-level
-	// cases in the select below are nondeterministic, we also propagate context
-	// expiration errors on the second branch.
 	select {
 	case <-ctx.Done():
 		response := Response{Data: nil, Error: ctx.Err()}
