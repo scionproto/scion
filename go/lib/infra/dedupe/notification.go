@@ -26,9 +26,8 @@ const (
 	cacheExpirationInterval = time.Minute
 )
 
-// notifyList maintains a set of channels for disseminating responses. The keys
-// map to themselves. Each channel corresponds to one client call to
-// Deduper.Request.
+// notifyList maintains a set of channels for disseminating responses. Each
+// channel corresponds to one client call to Deduper.Request.
 type notifyList map[ResponseChannel]struct{}
 
 // notificationTable indexes response channels based on broadcast keys and
@@ -54,7 +53,7 @@ type notificationTable struct {
 	cancelFunctions map[string]CancelFunc
 
 	// cache contains the results of recent successful network requests. If a
-	// new request arrives within GracePeriod time of a successful network
+	// new request arrives within ResponseValidity time of a successful network
 	// request, it does not spawn a new network request and the response
 	// is directly taken from this cache. The map is keyed using broadcast keys.
 	cache *cache.Cache

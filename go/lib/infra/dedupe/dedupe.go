@@ -34,14 +34,15 @@ package dedupe
 
 import (
 	"context"
-	"sync"
 	"time"
 )
 
 const (
-	DefaultDedupeLifetime = 5 * time.Second
-	DefaultGracePeriod    = 1 * time.Second
+	DefaultDedupeLifetime   = 5 * time.Second
+	DefaultResponseValidity = 1 * time.Second
 )
+
+type ResponseChannel chan Response
 
 // CancelFunc can be called to cancel a request ahead of time, freeing up
 // internal resources (notification lists, goroutines, etc.).
@@ -82,28 +83,41 @@ type RequestFunc func(ctx context.Context, request Request) Response
 // set during initialization; setting them after the first Request is undefined
 // behavior.
 type Deduper struct {
-	// Function to call when a new request needs to be sent out.
-	RequestFunc RequestFunc
+	requestFunc      RequestFunc
+	dedupeLifetime   time.Duration
+	responseValidity time.Duration
 
-	// DedupeLifetime is the timeout for network requests. For DedupeLifetime
-	// time after a fresh network request is sent out (for a DedupeKey), no new
-	// network requests are sent out. Once the request completes, all callers
-	// of Request are notified.  If unset, DedupeLifetime defaults to
-	// DefaultDedupeLifetime.
-	DedupeLifetime time.Duration
-
-	// Time after a successful network request where no new network requests
-	// for the same broadcast key are sent out. The result is immediately
-	// returned from an internal cache for this period.
-	GracePeriod time.Duration
-
-	// Mutex for notification table initialization
-	mu sync.Mutex
 	// Internal table for notification lists and caches.
 	notifications *notificationTable
 }
 
-type ResponseChannel chan Response
+// NewDeduper allocates a new Deduper.
+//
+// f is the function to call when a new request needs to be sent out.
+//
+// dedupeLifetime is the timeout for network requests. For dedupeLifetime time
+// after a fresh network request is sent out (for a DedupeKey), no new network
+// requests are sent out. Once the request completes, all callers of Request
+// are notified.  If 0, dedupeLifetime defaults to DefaultDedupeLifetime.
+//
+// responseValidity is the time after a successful network request where no new
+// network requests for the same broadcast key are sent out. The result is
+// immediately returned from an internal cache for this period. If 0,
+// responseValidity defaults to DefaultResponseValidity.
+func NewDeduper(f RequestFunc, dedupeLifetime, responseValidity time.Duration) *Deduper {
+	if dedupeLifetime == 0 {
+		dedupeLifetime = DefaultDedupeLifetime
+	}
+	if responseValidity == 0 {
+		responseValidity = DefaultResponseValidity
+	}
+	return &Deduper{
+		requestFunc:      f,
+		dedupeLifetime:   dedupeLifetime,
+		responseValidity: responseValidity,
+		notifications:    newNotificationTable(),
+	}
+}
 
 // Request passes a request that is subject to deduplication. This function
 // returns immediately, and callers should wait on the returned channel for the
@@ -115,14 +129,8 @@ type ResponseChannel chan Response
 // callers should copy the value drained from the channel if they want to have
 // exclusive ownership.
 func (dd *Deduper) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
-	dd.mu.Lock()
-	if dd.notifications == nil {
-		dd.notifications = newNotificationTable()
-	}
-	dd.mu.Unlock()
-
 	ch := make(chan Response, 1)
-	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime()); ctx != nil {
+	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime); ctx != nil {
 		go dd.handler(ctx, req)
 	}
 
@@ -138,7 +146,7 @@ func (dd *Deduper) Request(ctx context.Context, req Request) (<-chan Response, C
 func (dd *Deduper) handler(ctx context.Context, req Request) {
 	ch := make(chan Response, 1)
 	go func() {
-		ch <- dd.RequestFunc(ctx, req)
+		ch <- dd.requestFunc(ctx, req)
 	}()
 
 	// There are two possible ways RequestFunc finishes. During normal
@@ -158,23 +166,9 @@ func (dd *Deduper) handler(ctx context.Context, req Request) {
 			dd.notifications.BroadcastError(req, response)
 		} else {
 			dd.notifications.BroadcastSuccess(req.BroadcastKey(), response)
-			dd.notifications.Cache(req.BroadcastKey(), response, dd.GracePeriod)
+			dd.notifications.Cache(req.BroadcastKey(), response, dd.responseValidity)
 		}
 	}
-}
-
-func (dd *Deduper) dedupeLifetime() time.Duration {
-	if dd.DedupeLifetime == 0 {
-		return DefaultDedupeLifetime
-	}
-	return dd.DedupeLifetime
-}
-
-func (dd *Deduper) gracePeriod() time.Duration {
-	if dd.GracePeriod == 0 {
-		return DefaultGracePeriod
-	}
-	return dd.GracePeriod
 }
 
 // Response represents the outcome of a request. It is passed along channels by
