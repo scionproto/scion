@@ -193,7 +193,7 @@ func (fpm FwdPathMeta) String() string {
 
 type PathInterface struct {
 	RawIsdas addr.IAInt `capnp:"isdas"`
-	IfID     uint64
+	IfID     common.IFIDType
 }
 
 func (iface *PathInterface) ISD_AS() addr.IA {
@@ -259,7 +259,7 @@ func (c RevResult) String() string {
 }
 
 type IFInfoRequest struct {
-	IfIDs []uint64
+	IfIDs []common.IFIDType
 }
 
 type IFInfoReply struct {
@@ -267,8 +267,8 @@ type IFInfoReply struct {
 }
 
 // Entries maps IFIDs to their addresses and ports; the map is rebuilt each time.
-func (reply *IFInfoReply) Entries() map[uint64]HostInfo {
-	m := make(map[uint64]HostInfo)
+func (reply *IFInfoReply) Entries() map[common.IFIDType]HostInfo {
+	m := make(map[common.IFIDType]HostInfo)
 
 	for _, entry := range reply.RawEntries {
 		m[entry.IfID] = entry.HostInfo
@@ -278,7 +278,7 @@ func (reply *IFInfoReply) Entries() map[uint64]HostInfo {
 }
 
 type IFInfoReplyEntry struct {
-	IfID     uint64
+	IfID     common.IFIDType
 	HostInfo HostInfo
 }
 

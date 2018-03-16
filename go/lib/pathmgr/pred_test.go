@@ -22,116 +22,52 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
-var ppPaths = map[string]*sciond.PathReplyEntry{
-	"1-19->2-25": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("1-19"), IfID: 60}, {RawIsdas: IA("1-16"), IfID: 38},
-				{RawIsdas: IA("1-16"), IfID: 22}, {RawIsdas: IA("1-13"), IfID: 23},
-				{RawIsdas: IA("1-13"), IfID: 46}, {RawIsdas: IA("1-11"), IfID: 18},
-				{RawIsdas: IA("1-11"), IfID: 87}, {RawIsdas: IA("2-21"), IfID: 97},
-				{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
-				{RawIsdas: IA("2-23"), IfID: 66}, {RawIsdas: IA("2-25"), IfID: 74},
-			},
-		},
-	},
-	"1-10->1-18": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("1-10"), IfID: 51}, {RawIsdas: IA("1-19"), IfID: 49},
-				{RawIsdas: IA("1-19"), IfID: 60}, {RawIsdas: IA("1-16"), IfID: 38},
-				{RawIsdas: IA("1-16"), IfID: 30}, {RawIsdas: IA("1-15"), IfID: 35},
-				{RawIsdas: IA("1-15"), IfID: 84}, {RawIsdas: IA("1-18"), IfID: 40},
-			},
-		},
-	},
-	"2-26->1-17": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("2-26"), IfID: 75}, {RawIsdas: IA("2-22"), IfID: 77},
-				{RawIsdas: IA("2-22"), IfID: 49}, {RawIsdas: IA("1-12"), IfID: 23},
-				{RawIsdas: IA("1-12"), IfID: 95}, {RawIsdas: IA("1-11"), IfID: 54},
-				{RawIsdas: IA("1-11"), IfID: 28}, {RawIsdas: IA("1-14"), IfID: 48},
-				{RawIsdas: IA("1-14"), IfID: 49}, {RawIsdas: IA("1-17"), IfID: 14},
-			},
-		},
-	},
-	"2-22->1-16": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("2-22"), IfID: 49}, {RawIsdas: IA("1-12"), IfID: 23},
-				{RawIsdas: IA("1-12"), IfID: 66}, {RawIsdas: IA("1-13"), IfID: 85},
-				{RawIsdas: IA("1-13"), IfID: 23}, {RawIsdas: IA("1-16"), IfID: 22},
-			},
-		},
-	},
-	"1-18->2-25": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("1-18"), IfID: 40}, {RawIsdas: IA("1-15"), IfID: 84},
-				{RawIsdas: IA("1-15"), IfID: 64}, {RawIsdas: IA("1-12"), IfID: 35},
-				{RawIsdas: IA("1-12"), IfID: 23}, {RawIsdas: IA("2-22"), IfID: 49},
-				{RawIsdas: IA("2-22"), IfID: 10}, {RawIsdas: IA("2-21"), IfID: 22},
-				{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
-				{RawIsdas: IA("2-23"), IfID: 66}, {RawIsdas: IA("2-25"), IfID: 74},
-			},
-		},
-	},
-	"2-21->2-26": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
-				{RawIsdas: IA("2-23"), IfID: 17}, {RawIsdas: IA("2-26"), IfID: 34},
-			},
-		},
-	},
-	"1-11->2-23": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("1-11"), IfID: 87}, {RawIsdas: IA("2-21"), IfID: 97},
-				{RawIsdas: IA("2-21"), IfID: 69}, {RawIsdas: IA("2-23"), IfID: 57},
-			},
-		},
-	},
-	"1-13->1-18": {
-		Path: sciond.FwdPathMeta{
-			Interfaces: []sciond.PathInterface{
-				{RawIsdas: IA("1-13"), IfID: 46}, {RawIsdas: IA("1-11"), IfID: 18},
-				{RawIsdas: IA("1-11"), IfID: 54}, {RawIsdas: IA("1-12"), IfID: 95},
-				{RawIsdas: IA("1-12"), IfID: 35}, {RawIsdas: IA("1-15"), IfID: 64},
-				{RawIsdas: IA("1-15"), IfID: 84}, {RawIsdas: IA("1-18"), IfID: 40},
-			},
-		},
-	},
-}
-
 func TestPathPredicates(t *testing.T) {
+	conn := testGetSCIONDConn(t)
+
 	testCases := []struct {
+		name         string
+		src          string
+		dst          string
 		predicateStr string
-		appPathStr   string
 		expected     bool
 	}{
-		{"2-26#75", "2-26->1-17", true},
-		{"2-26#75", "1-19->2-25", false},
-		{"1-18#0", "1-10->1-18", true},
-		{"1-15#0", "2-22->1-16", false},
-		{"2-0#0", "1-11->2-23", true},
-		{"2-0#0", "1-13->1-18", false},
-		{"1-12#95,1-11#54", "2-26->1-17", true},
-		{"1-0#0,1-0#0", "1-11->2-23", false},
-		{"2-21#69,2-23#57,2-23#17,2-26#34", "2-21->2-26", true},
-		{"2-0#0,2-0#0,2-23#17,2-26#0", "2-21->2-26", true},
+		{"direct neighbors, exact match", "1-10", "1-19", "1-10#1019", true},
+		{"direct neighbors, not match", "1-10", "1-19", "1-10#1234", false},
+		{"direct neighbors, wildcard ifid match", "1-10", "1-19", "1-10#0", true},
+		{"direct neighbors, wildcard AS match", "1-10", "1-19", "1-0#1019", true},
+		{"direct neighbors, wildcard AS but no match", "1-10", "1-19", "1-0#1234", false},
+		{"direct neighbors, any wildcard match", "1-10", "1-19", "0-0#0", true},
+		{"direct neighbors, multiple any wildcards but no match", "1-10", "1-19",
+			"0-0#0,0-0#0,0-0#0", false},
+		{"far neighbors, match in the middle", "1-18", "2-22", "1-12#1215", true},
+		{"far neighbors, match in the middle, on egress", "1-18", "2-22", "1-12#1222", true},
+		{"far neighbors, match at the end", "1-18", "2-22", "2-22#2212", true},
+		{"far neighbors, match at the start", "1-18", "2-22", "1-18#1815", true},
+		{"far neighbors, not match", "1-18", "2-22", "1-14#0", false},
+		{"far neighbors, match multiple with wildcards", "1-18", "2-22", "1-15#0,1-15#1512", true},
+		{"far neighbors, match multiple with wildcards and jumps", "1-18", "2-22",
+			"1-12#1215,2-22#0", true},
+		{"far neighbors, not match with wildcard jumps", "1-18", "2-22",
+			"1-12#0,0-0#0,1-11#0", false},
 	}
 
 	Convey("Test for various predicates and paths", t, func() {
 		for _, tc := range testCases {
-			Convey(fmt.Sprintf("Predicate=%s, Path=%s\n", tc.predicateStr, tc.appPathStr), func() {
+			Convey(fmt.Sprintf("Test %s", tc.name), func() {
 				pp, err := NewPathPredicate(tc.predicateStr)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("pp", pp, ShouldNotBeNil)
-				match := pp.Eval(ppPaths[tc.appPathStr])
+
+				reply, err := conn.Paths(MustParseIA(tc.dst), MustParseIA(tc.src),
+					5, sciond.PathReqFlags{})
+				SoMsg("paths err", err, ShouldBeNil)
+				SoMsg("one path only", len(reply.Entries), ShouldEqual, 1)
+
+				match := pp.Eval(&reply.Entries[0])
 				SoMsg("match", match, ShouldEqual, tc.expected)
 			})
 		}
@@ -150,7 +86,7 @@ func TestPathPredicateString(t *testing.T) {
 	}
 	Convey("Compile path predicates", t, func() {
 		for _, tc := range testCases {
-			Convey(fmt.Sprintf("expr=%s", tc.expr), func() {
+			Convey(fmt.Sprintf("Test predicate %s", tc.expr), func() {
 				ppA, err := NewPathPredicate(tc.expr)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("string", ppA.String(), ShouldEqual, tc.expr)
@@ -159,7 +95,22 @@ func TestPathPredicateString(t *testing.T) {
 	})
 }
 
-func IA(iaStr string) addr.IAInt {
-	ia, _ := addr.IAFromString(iaStr)
-	return ia.IAInt()
+func MustParseIA(iaStr string) addr.IA {
+	ia, err := addr.IAFromString(iaStr)
+	if err != nil {
+		panic(fmt.Sprintf("unable to parse IA %s", ia))
+	}
+	return ia
+}
+
+func testGetSCIONDConn(t *testing.T) sciond.Connector {
+	t.Helper()
+
+	g := graph.NewFromDescription(graph.DefaultGraphDescription)
+	service := sciond.NewMockService(g)
+	conn, err := service.Connect()
+	if err != nil {
+		t.Fatalf("sciond init error: %s", err)
+	}
+	return conn
 }
