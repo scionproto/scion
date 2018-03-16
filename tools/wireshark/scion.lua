@@ -36,10 +36,9 @@ local svcTypes = {
     [0xffff] = "None",
 }
 local hbhTypes = {
-    [0] = "Traceroute",
-    [1] = "SIBRA",
-    [2] = "SCMP",
-    [3] = "OneHopPath",
+    [0] = "SCMP",
+    [1] = "OneHopPath",
+    [2] = "SIBRA",
 }
 local e2eTypes = {
     [0] = "PathTrans",
@@ -105,10 +104,12 @@ local scmpTypes = {
 }
 local chLen = 8
 local lineLen = 8
-local iaLen = 4
+local iaLen = 8
 local maxSegTTL = 12 * 60 * 60
 local segExpUnit = maxSegTTL / 2^8
 local us_in_s = UInt64.new(1e6)
+
+local scion_packet = ProtoField.bytes("scion.packet", "Raw SCION packet", base.HEX)
 
 local scion_ch_version = ProtoField.uint8("scion.ch.version", "Version", base.HEX)
 local scion_ch_dsttype = ProtoField.uint8("scion.ch.dst_type", "Destination address type", base.HEX, addrTypes)
@@ -120,9 +121,9 @@ local scion_ch_hopoff = ProtoField.uint8("scion.ch.hop_off", "Hop Field offset",
 local scion_ch_nexthdr = ProtoField.uint8("scion.ch.next_hdr", "Next header", base.DEC, hdrTypes)
 
 local scion_addr_dst_isd = ProtoField.uint16("scion.addr.dst_isd", "Dest ISD", base.DEC)
-local scion_addr_dst_as = ProtoField.uint32("scion.addr.dst_as", "Dest AS", base.DEC)
+local scion_addr_dst_as = ProtoField.uint64("scion.addr.dst_as", "Dest AS", base.DEC)
 local scion_addr_src_isd = ProtoField.uint16("scion.addr.src_isd", "Src ISD", base.DEC)
-local scion_addr_src_as = ProtoField.uint32("scion.addr.src_as", "Src AS", base.DEC)
+local scion_addr_src_as = ProtoField.uint64("scion.addr.src_as", "Src AS", base.DEC)
 local scion_addr_dst_ipv4 = ProtoField.ipv4("scion.addr.dst_ipv4", "Dest IPv4")
 local scion_addr_dst_ipv6 = ProtoField.ipv6("scion.addr.dst_ipv6", "Dest IPv6")
 local scion_addr_dst_svc = ProtoField.uint16("scion.addr.dst_svc", "Dest SVC", base.HEX, svcTypes)
@@ -212,6 +213,7 @@ local scion_udp_len_expert = ProtoExpert.new("scion.udp.length.expert",
 
 
 scion_proto.fields={
+    scion_packet,
     scion_ch_version,
     scion_ch_dsttype,
     scion_ch_srctype,
@@ -285,6 +287,7 @@ scion_proto.experts = {
 
 
 function scion_proto.dissector(buffer, pinfo, tree)
+    tree:add(scion_packet, buffer())
     local meta = {["pkt"] = buffer, ["protocol"] = "SCION"}  -- Metadata about the packet
     local ch = parse_cmn_hdr(buffer(0, chLen), tree, meta)
     if ch == nil or meta == nil then
@@ -410,15 +413,15 @@ function parse_addr_hdr(buffer, tree, meta)
     local t = tree:add(buffer, string.format("SCION Address header [%dB]", meta.addrTotalLen))
     -- dst ISD-AS
     local dstIaT = t:add(buffer(0, iaLen), string.format("Destination ISD-AS [%dB]", iaLen))
-    meta["dstIsd"] = buffer(0, 2):bitfield(0, 12)
+    meta["dstIsd"] = buffer(0, 2):bitfield(0, 16)
     dstIaT:add(scion_addr_dst_isd, buffer(0, 2), meta.dstIsd)
-    meta["dstAs"] = buffer(0, iaLen):bitfield(12, 20)
+    meta["dstAs"] = buffer(0, iaLen):bitfield(16, 48)
     dstIaT:add(scion_addr_dst_as, buffer(1, iaLen-1), meta.dstAs)
     -- src ISD-AS
     local srcIaT = t:add(buffer(iaLen, iaLen), string.format("Source ISD-AS [%dB]", iaLen))
-    meta["srcIsd"] = buffer(iaLen, 2):bitfield(0, 12)
+    meta["srcIsd"] = buffer(iaLen, 2):bitfield(0, 16)
     srcIaT:add(scion_addr_src_isd, buffer(iaLen, 2), meta.srcIsd)
-    meta["srcAs"] = buffer(iaLen, iaLen):bitfield(12, 20)
+    meta["srcAs"] = buffer(iaLen, iaLen):bitfield(16, 48)
     srcIaT:add(scion_addr_src_as, buffer(iaLen+1, iaLen-1), meta.srcAs)
     -- dst addr
     local dstBuf = buffer(iaLen * 2, addrLens[meta.dstType])
@@ -449,8 +452,8 @@ function parse_addr_hdr(buffer, tree, meta)
     if meta.addrPadding > 0 then
         t:add(scion_addr_padding, buffer(meta.addrLen, meta.addrPadding))
     end
-    meta["srcStr"] = string.format("%d-%d,[%s]", meta.srcIsd, meta.srcAs, srcAddr)
-    meta["dstStr"] = string.format("%d-%d,[%s]", meta.dstIsd, meta.dstAs, dstAddr)
+    meta["srcStr"] = string.format("%d-%s,[%s]", meta.srcIsd, meta.srcAs, srcAddr)
+    meta["dstStr"] = string.format("%d-%s,[%s]", meta.dstIsd, meta.dstAs, dstAddr)
     t:append_text(string.format(", %s -> %s", meta.srcStr, meta.dstStr))
 end
 

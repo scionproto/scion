@@ -36,14 +36,14 @@ class TestISDASParseBytes(object):
     def test(self, raw):
         inst = ISD_AS()
         data = create_mock(["pop"])
-        data.pop.return_value = bytes.fromhex("11122222")
+        data.pop.return_value = bytes.fromhex("F011F23344556677")
         raw.return_value = data
         # Call
         inst._parse_bytes("data")
         # Tests
         raw.assert_called_once_with("data", ISD_AS.NAME, ISD_AS.LEN)
-        ntools.eq_(inst._isd, 0x111)
-        ntools.eq_(inst._as, 0x22222)
+        ntools.eq_(inst._isd, 0xF011)
+        ntools.eq_(inst._as, 0xF23344556677)
 
 
 class TestISDASParseStr(object):
@@ -53,9 +53,9 @@ class TestISDASParseStr(object):
     def test_success(self):
         inst = ISD_AS()
         # Call
-        inst._parse_str("1-99")
+        inst._parse_str("4095-99")
         # Tests
-        ntools.eq_(inst._isd, 1)
+        ntools.eq_(inst._isd, 4095)
         ntools.eq_(inst._as, 99)
 
     def _check_excp(self, isd_as):
@@ -75,10 +75,10 @@ class TestISDASParseInt(object):
     def test(self):
         inst = ISD_AS()
         # Call
-        inst._parse_int(0xAAAFFFFF)
+        inst._parse_int(0xF011F23344556677)
         # Tests
-        ntools.eq_(inst._isd, 0xAAA)
-        ntools.eq_(inst._as, 0xFFFFF)
+        ntools.eq_(inst._isd, 0xF011)
+        ntools.eq_(inst._as, 0xF23344556677)
 
 
 class TestISDASPack(object):
@@ -87,10 +87,10 @@ class TestISDASPack(object):
     """
     def test(self):
         inst = ISD_AS()
-        inst._isd = 0x111
-        inst._as = 0x22222
+        inst._isd = 0xF011
+        inst._as = 0xF23344556677
         # Call
-        ntools.eq_(inst.pack(), bytes.fromhex("11122222"))
+        ntools.eq_(inst.pack(), bytes.fromhex("F011F23344556677"))
 
 
 class TestSCIONAddrParse(object):

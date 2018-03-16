@@ -39,6 +39,8 @@ const (
 // Interface ID
 type IFIDType uint64
 
+const IFIDBytes = 8
+
 func TypeOf(v interface{}) string {
 	return reflect.TypeOf(v).String()
 }

@@ -25,9 +25,9 @@ int get_addr_len(int type)
  * buf: Pointer to start of SCION packet
  * return value: dst ISD_AS value
  */
-uint32_t get_dst_isd_as(uint8_t *buf)
+isdas_t get_dst_isd_as(uint8_t *buf)
 {
-    return ntohl(*(uint32_t *)(buf + DST_IA_OFFSET));
+    return be64toh(*(isdas_t *)(buf + DST_IA_OFFSET));
 }
 
 /*
@@ -35,9 +35,9 @@ uint32_t get_dst_isd_as(uint8_t *buf)
  * buf: Pointer to start of SCION packet
  * return value: src ISD_AS value
  */
-uint32_t get_src_isd_as(uint8_t *buf)
+isdas_t get_src_isd_as(uint8_t *buf)
 {
-    return ntohl(*(uint32_t *)(buf + SRC_IA_OFFSET));
+    return be64toh(*(isdas_t *)(buf + SRC_IA_OFFSET));
 }
 
 /*
@@ -147,13 +147,13 @@ void format_host(int addr_type, uint8_t *addr, char *buf, int size) {
  */
 void print_addresses(uint8_t *buf) {
     SCIONCommonHeader *sch = (SCIONCommonHeader *)buf;
-    uint32_t dst_isd_as = get_dst_isd_as(buf);
-    uint32_t src_isd_as = get_src_isd_as(buf);
+    isdas_t dst_isd_as = get_dst_isd_as(buf);
+    isdas_t src_isd_as = get_src_isd_as(buf);
     char host_str[MAX_HOST_ADDR_STR];
     format_host(DST_TYPE(sch), get_dst_addr(buf), host_str, sizeof(host_str));
-    fprintf(stderr, "Dst: ISD-AS: %d-%d Host(%s): %s\n", ISD(dst_isd_as),
+    fprintf(stderr, "Dst: ISD-AS: %d-%" PRId64 " Host(%s): %s\n", ISD(dst_isd_as),
             AS(dst_isd_as), addr_type_str(DST_TYPE(sch)), host_str);
     format_host(SRC_TYPE(sch), get_src_addr(buf), host_str, sizeof(host_str));
-    fprintf(stderr, "Src: ISD-AS: %d-%d Host(%s): %s\n", ISD(src_isd_as),
+    fprintf(stderr, "Src: ISD-AS: %d-%" PRId64 " Host(%s): %s\n", ISD(src_isd_as),
             AS(src_isd_as), addr_type_str(SRC_TYPE(sch)), host_str);
 }

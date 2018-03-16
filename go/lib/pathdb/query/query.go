@@ -26,13 +26,6 @@ type HPCfgID struct {
 	ID uint64
 }
 
-func NewHPCfgID(isd int, as int, ID uint64) *HPCfgID {
-	return &HPCfgID{
-		IA: addr.IA{I: isd, A: as},
-		ID: ID,
-	}
-}
-
 func (h *HPCfgID) Eq(other *HPCfgID) bool {
 	return h.IA.Eq(other.IA) && h.ID == other.ID
 }

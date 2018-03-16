@@ -190,19 +190,19 @@ func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan tim
 			if ok && e.Timeout() {
 				continue
 			} else {
-				fmt.Fprintf(os.Stderr, "ERROR: Unable to read %v\n", err)
+				fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)
 				break
 			}
 		}
 		now := time.Now()
 		err = hpkt.ParseScnPkt(ctx.pktR, b[:pktLen])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse error %v\n", err)
+			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse error: %v\n", err)
 			break
 		}
 		err = validatePkt(ctx)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: Unexpected SCMP Packet %v\n", err)
+			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation error: %v\n", err)
 			break
 		}
 		ctx.recv += 1

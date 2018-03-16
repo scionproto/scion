@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
@@ -39,7 +40,7 @@ func runGenIsdTmpl(cmd *base.Command, args []string) {
 	}
 }
 
-func genIsdTmpl(isd int) error {
+func genIsdTmpl(isd addr.ISD) error {
 	dir := pkicmn.GetIsdPath(isd)
 	fmt.Printf("Generating configuration template for ISD%d\n", isd)
 	i := &conf.Isd{Trc: &conf.Trc{Version: 1}}
