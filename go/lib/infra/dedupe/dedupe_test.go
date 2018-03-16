@@ -219,10 +219,10 @@ func Init(dedupeLifetime time.Duration, gracePeriod time.Duration) (*Deduper, *r
 	server := &remoteServer{
 		handledRequests: make(map[string]uint),
 	}
-	deduper := &Deduper{
-		RequestFunc:    server.Handler,
-		DedupeLifetime: dedupeLifetime,
-		GracePeriod:    gracePeriod,
-	}
+	deduper := NewDeduper(
+		server.Handler,
+		dedupeLifetime,
+		gracePeriod,
+	)
 	return deduper, server
 }
