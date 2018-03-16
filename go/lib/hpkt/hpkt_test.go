@@ -71,10 +71,10 @@ func Test_ParseScnPkt(t *testing.T) {
 			t.Fatalf("Bad header, cannot continue")
 		}
 
-		SoMsg("UDP.SrcPort", udpHdr.SrcPort, ShouldEqual, 33194)
+		SoMsg("UDP.SrcPort", udpHdr.SrcPort, ShouldEqual, 34711)
 		SoMsg("UDP.DstPort", udpHdr.DstPort, ShouldEqual, 3000)
 		SoMsg("UDP.Len", udpHdr.TotalLen, ShouldEqual, 1144)
-		SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0xa9, 0xf3})
+		SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0xa4, 0x06})
 
 		buf := make(common.RawBytes, 1<<16)
 		n, _ := s.Pld.WritePld(buf)
@@ -100,8 +100,8 @@ func Test_ParseSCMPRev(t *testing.T) {
 		SoMsg("SCMP.Class", scmpHdr.Class, ShouldEqual, scmp.C_Path)
 		SoMsg("SCMP.Type", scmpHdr.Type, ShouldEqual, scmp.T_P_RevokedIF)
 		SoMsg("SCMP.Len", scmpHdr.TotalLen, ShouldEqual, 848)
-		SoMsg("SCMP.Checksum", scmpHdr.Checksum, ShouldResemble, common.RawBytes{0xcf, 0x41})
-		SoMsg("SCMP.Timestamp", scmpHdr.Timestamp, ShouldEqual, 1521126662605378)
+		SoMsg("SCMP.Checksum", scmpHdr.Checksum, ShouldResemble, common.RawBytes{0xbc, 0x1b})
+		SoMsg("SCMP.Timestamp", scmpHdr.Timestamp, ShouldEqual, 1521209247650504)
 
 		buf := make(common.RawBytes, 1<<16)
 		n, _ := s.Pld.WritePld(buf)
