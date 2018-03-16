@@ -36,10 +36,9 @@ local svcTypes = {
     [0xffff] = "None",
 }
 local hbhTypes = {
-    [0] = "Traceroute",
-    [1] = "SIBRA",
-    [2] = "SCMP",
-    [3] = "OneHopPath",
+    [0] = "SCMP",
+    [1] = "OneHopPath",
+    [2] = "SIBRA",
 }
 local e2eTypes = {
     [0] = "PathTrans",

@@ -37,7 +37,7 @@ import (
 // TS is the time since SCMP Timestamp in microseconds, truncated to 32bits.
 //
 const (
-	recordPathEntryLen = 16
+	recordPathEntryLen = addr.IABytes + 4 + common.IFIDBytes
 )
 
 type RecordPathEntry struct {
@@ -63,10 +63,8 @@ func (entry *RecordPathEntry) read(b common.RawBytes) {
 }
 
 func (entry *RecordPathEntry) String() string {
-	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "IA: %s, IfID: %d, Offset: %s", entry.IA, entry.IfID,
+	return fmt.Sprintf("IA: %s, IfID: %d, Offset: %s", entry.IA, entry.IfID,
 		time.Duration(entry.TS)*time.Microsecond)
-	return buf.String()
 }
 
 // Record Path packet format:
@@ -98,10 +96,18 @@ type InfoRecordPath struct {
 }
 
 func InfoRecordPathFromRaw(b common.RawBytes) (*InfoRecordPath, error) {
+	if len(b) <= recordPathHdrLen {
+		return nil, common.NewBasicError("Truncated RecordPath info header", nil,
+			"min", recordPathHdrLen, "actual", len(b))
+	}
 	rec := &InfoRecordPath{}
 	rec.Id = common.Order.Uint64(b[:8])
 	numHops := int(b[8])
-	// Skip [Id | NumHops]
+	// Skip header
+	if len(b[recordPathHdrLen:])%recordPathEntryLen != 0 {
+		return nil, common.NewBasicError("Illegal RecordPath info entries length", nil,
+			"len", len(b[recordPathHdrLen:]), "entryLen", recordPathEntryLen)
+	}
 	maxHops := len(b[recordPathHdrLen:]) / recordPathEntryLen
 	if numHops > maxHops {
 		return nil, common.NewBasicError("Invalid header", nil, "NumHops", numHops,

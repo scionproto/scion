@@ -10,19 +10,18 @@
 #define END_TO_END 222
 
 // Hop by hop
-#define TRACEROUTE 0
-#define SIBRA 1
-#define SCMP 2
-#define ONE_HOP_PATH 3
+#define SCMP 0
+#define ONE_HOP_PATH 1
+#define SIBRA 2
 
 // End to end
 #define PATH_TRANSPORT 0
 #define PATH_PROBE 1
+#define SCION_PKT_SECURITY 2
 
 // Max number of supported HopByHop extensions (does not include SCMP)
 #define MAX_HOPBYHOP_EXT 3
 
-#define TRACEROUTE_HOP_LEN 8
 // Payload length of one hop path extension.
 #define ONE_HOP_PATH_PLDLEN 5
 

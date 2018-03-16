@@ -124,11 +124,11 @@ func morePkts(s *scmpCtx) bool {
 func validatePkt(s *scmpCtx) error {
 	_, ok := s.pktR.L4.(*scmp.Hdr)
 	if ok == false {
-		return common.NewBasicError("Not a SCMP header", nil)
+		return common.NewBasicError("Not an SCMP header", nil, "type", common.TypeOf(s.pktR.L4))
 	}
 	scmpPld, ok := s.pktR.Pld.(*scmp.Payload)
 	if ok == false {
-		return common.NewBasicError("Not a SCMP payload)", nil)
+		return common.NewBasicError("Not an SCMP payload", nil, "type", common.TypeOf(s.pktR.Pld))
 	}
 	switch s.ctR {
 	case scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_EchoReply}:
