@@ -83,7 +83,7 @@ func main() {
 	}
 	// Initialize default SCION networking context
 	if err := snet.Init(local.IA, *sciondPath, *dispatcher); err != nil {
-		fatal("Unable to initialize SCION network", "err", err)
+		fatal("Unable to initialize SCION network\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: local.Host}
@@ -93,7 +93,7 @@ func main() {
 	}
 	conn, _, err := reliable.Register(*dispatcher, local.IA, address, bindAddress, addr.SvcNone)
 	if err != nil {
-		fatal("Unable to register with the dispatcher", "err", err, "addr", local)
+		fatal("Unable to register with the dispatcher addr=%s\nerr=%v", local, err)
 	}
 	defer conn.Close()
 
