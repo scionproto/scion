@@ -43,8 +43,7 @@ type TRequest struct {
 	// Delay is the time (in milliseconds) to wait before the Request runs in
 	// the test.
 	Delay int
-	// Latency is the time (in milliseconds) while Request runs (simulates
-	// network and server latency).
+	// Latency is how long it takes (in milliseconds) for Request to complete.
 	Latency int
 }
 
