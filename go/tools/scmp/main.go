@@ -55,7 +55,7 @@ var (
 	interval  = flag.Duration("interval", DefaultInterval, "time between packets")
 	timeout   = flag.Duration("timeout", DefaultTimeout, "timeout per packet")
 	count     = flag.Uint("c", 0, "Total number of packet to send (ignored if not echo)")
-	sTypeStr  = &sType
+	sTypeStr  = flag.String("t", "echo", "SCMP Type: echo |  rp | recordpath")
 	local     snet.Addr
 	remote    snet.Addr
 	bind      snet.Addr
@@ -83,7 +83,7 @@ func main() {
 	}
 	// Initialize default SCION networking context
 	if err := snet.Init(local.IA, *sciondPath, *dispatcher); err != nil {
-		fatal("Unable to initialize SCION network", "err", err)
+		fatal("Unable to initialize SCION network\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: local.Host}
@@ -93,16 +93,21 @@ func main() {
 	}
 	conn, _, err := reliable.Register(*dispatcher, local.IA, address, bindAddress, addr.SvcNone)
 	if err != nil {
-		fatal("Unable to register with the dispatcher", "err", err, "addr", local)
+		fatal("Unable to register with the dispatcher addr=%s\nerr=%v", local, err)
 	}
 	defer conn.Close()
 
 	// If remote is not in local AS, we need a path!
+	var pathStr string
 	if !remote.IA.Eq(local.IA) {
 		mtu = setPathAndMtu()
+		pathStr = pathEntry.Path.String()
 	} else {
 		mtu = setLocalMtu()
+		pathStr = "None"
 	}
+	fmt.Printf("Using path:\n  %s\n", pathStr)
+
 	seed := rand.NewSource(time.Now().UnixNano())
 	rnd = rand.New(seed)
 
@@ -204,7 +209,7 @@ func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan tim
 		prettyPrint(ctx, pktLen, now)
 	}
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Now().Sub(start))
+		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Since(start).Round(time.Microsecond))
 }
 
 func choosePath(interactive bool) *sciond.PathReplyEntry {
@@ -237,7 +242,6 @@ func choosePath(interactive bool) *sciond.PathReplyEntry {
 			fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n", len(paths))
 		}
 	}
-	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
 	return paths[pathIndex]
 }
 

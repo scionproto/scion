@@ -16,19 +16,21 @@
 :mod:`cli_srv_ext_test` --- SCION client-server test with an extension
 ======================================================================
 """
+
+# XXX After removing the traceroute as an extension, this test always succeeds
+# if packets are received by the client
+
 # Stdlib
 import logging
 
 # SCION
 from lib.main import main_wrapper
-from lib.packet.ext.traceroute import TracerouteExt
 from lib.packet.ext.path_transport import (
     PathTransportExt,
     PathTransOFPath,
     PathTransType,
 )
 from lib.packet.packet_base import PayloadRaw
-from lib.types import ExtensionClass, ExtHopByHopType
 from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -50,8 +52,6 @@ class ExtClient(TestClientBase):
 
         # Extensions
         exts = []
-        # Create empty Traceroute extensions with allocated space
-        exts.append(TracerouteExt.from_values(routers_no))
         # Create PathTransportExtension
         # One with data-plane path.
         of_path = PathTransOFPath.from_values(self.addr, self.dst, fwd_path)
@@ -61,28 +61,6 @@ class ExtClient(TestClientBase):
 
     def _handle_response(self, spkt):
         logging.debug('Received response:\n%s', spkt)
-        trace = spkt.ext_hdrs[0]
-        if trace.EXT_CLASS != ExtensionClass.HOP_BY_HOP:
-            logging.error("First extension is not hop-by-hop:\n%s", trace)
-            return False
-        if trace.EXT_TYPE != ExtHopByHopType.TRACEROUTE:
-            logging.error("First extension is not Traceroute:\n%s", trace)
-            return False
-        if_list = list(self.path_meta.iter_ifs())
-        iflist = if_list + list(reversed(if_list))
-        if len(trace.hops) != len(iflist):
-            logging.error(
-                "Number of traceroute hops (%d) does not "
-                "match number of expected interfaces (%d):\n%s",
-                len(trace.hops), len(iflist), trace)
-            return False
-        for i, (isd_as, ifid, _) in enumerate(trace.hops):
-            if isd_as != iflist[i][0] or ifid != iflist[i][1]:
-                logging.error(
-                    "Traceroute hop %d (IA: %s IfID: %d) != "
-                    "expected entry (IA: %s IfID: %d)",
-                    i, isd_as, ifid, iflist[i][0], iflist[i][1])
-                return False
         self.success = True
         self.finished.set()
         return True

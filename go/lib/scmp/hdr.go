@@ -126,3 +126,7 @@ func (h *Hdr) Copy() l4.L4Header {
 		h.Class, h.Type, h.TotalLen, append(common.RawBytes(nil), h.Checksum...), h.Timestamp,
 	}
 }
+
+func (h *Hdr) Time() time.Time {
+	return time.Unix(0, int64(h.Timestamp*1000))
+}

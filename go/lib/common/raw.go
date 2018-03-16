@@ -40,3 +40,9 @@ func (r RawBytes) WritePld(b RawBytes) (int, error) {
 	}
 	return copy(b, r), nil
 }
+
+func (r RawBytes) Zero() {
+	for i := range r {
+		r[i] = 0
+	}
+}

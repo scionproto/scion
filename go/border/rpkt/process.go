@@ -18,6 +18,7 @@ package rpkt
 
 import (
 	"fmt"
+	"time"
 
 	//log "github.com/inconshreveable/log15"
 
@@ -215,6 +216,12 @@ func (rp *RtrPkt) processSCMP() (HookResult, error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
+	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_RecordPathReply:
+		// Do nothing (no fallthrough)
+	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_RecordPathRequest:
+		if err := rp.processSCMPRecordPath(); err != nil {
+			return HookError, err
+		}
 	case hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF:
 		// Ignore any revocations received locally.
 		if rp.DirFrom == rcmn.DirExternal {
@@ -227,6 +234,35 @@ func (rp *RtrPkt) processSCMP() (HookResult, error) {
 			"class", hdr.Class, "type", hdr.Type.Name(hdr.Class))
 	}
 	return HookFinish, nil
+}
+
+func (rp *RtrPkt) processSCMPRecordPath() error {
+	pld, ok := rp.pld.(*scmp.Payload)
+	if !ok {
+		return common.NewBasicError("Invalid payload type in SCMP packet", nil,
+			"expected", "*scmp.Payload", "actual", common.TypeOf(rp.pld))
+	}
+	infoRec, ok := pld.Info.(*scmp.InfoRecordPath)
+	if !ok {
+		return common.NewBasicError("Invalid SCMP Info type in SCMP packet", nil,
+			"expected", "*scmp.InfoRecordPath", "actual", common.TypeOf(pld.Info))
+	}
+	// Calculate time in microseconds since scmp packet was created
+	hdr := rp.l4.(*scmp.Hdr)
+	ts := uint32(time.Since(hdr.Time()) / time.Microsecond)
+	entry := &scmp.RecordPathEntry{
+		IA: rp.Ctx.Conf.IA, TS: ts, IfID: *rp.ifCurr,
+	}
+	infoRec.Entries = append(infoRec.Entries, entry)
+	info := rp.Raw[rp.idxs.pld+scmp.MetaLen:]
+	if _, err := infoRec.Write(info); err != nil {
+		return common.NewBasicError("Unable to add path entry to SCMP Record Path packet",
+			nil, "err", err)
+	}
+	if err := rp.updateL4(); err != nil {
+		return common.NewBasicError("Failed to update L4 header", nil, "err", err)
+	}
+	return nil
 }
 
 // processSCMPRevocation handles SCMP revocations.

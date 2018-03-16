@@ -43,12 +43,10 @@ const (
 func (rp *RtrPkt) extnParseHBH(extType common.ExtnType,
 	start, end, pos int) (rExtension, error) {
 	switch {
-	case extType == common.ExtnTracerouteType:
-		return rTracerouteFromRaw(rp, start, end)
-	case extType == common.ExtnOneHopPathType:
-		return rOneHopPathFromRaw(rp)
 	case extType == common.ExtnSCMPType:
 		return rSCMPExtFromRaw(rp, start, end)
+	case extType == common.ExtnOneHopPathType:
+		return rOneHopPathFromRaw(rp)
 	default:
 		// HBH not supported, so send an SCMP error in response.
 		return nil, common.NewBasicError(

@@ -24,10 +24,9 @@ type ExtnType struct {
 }
 
 var (
-	ExtnTracerouteType          = ExtnType{HopByHopClass, 0}
-	ExtnSIBRAType               = ExtnType{HopByHopClass, 1}
-	ExtnSCMPType                = ExtnType{HopByHopClass, 2}
-	ExtnOneHopPathType          = ExtnType{HopByHopClass, 3}
+	ExtnSCMPType                = ExtnType{HopByHopClass, 0}
+	ExtnOneHopPathType          = ExtnType{HopByHopClass, 1}
+	ExtnSIBRAType               = ExtnType{HopByHopClass, 2}
 	ExtnPathTransType           = ExtnType{End2EndClass, 0}
 	ExtnPathProbeType           = ExtnType{End2EndClass, 1}
 	ExtnSCIONPacketSecurityType = ExtnType{End2EndClass, 2}
@@ -35,14 +34,12 @@ var (
 
 func (e ExtnType) String() string {
 	switch e {
-	case ExtnTracerouteType:
-		return "Traceroute"
-	case ExtnSIBRAType:
-		return "SIBRA"
 	case ExtnSCMPType:
 		return "SCMP"
 	case ExtnOneHopPathType:
 		return "OneHopPath"
+	case ExtnSIBRAType:
+		return "SIBRA"
 	case ExtnPathTransType:
 		return "PathTrans"
 	case ExtnPathProbeType:
