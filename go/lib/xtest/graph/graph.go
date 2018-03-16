@@ -134,7 +134,7 @@ func (g *Graph) GetParent(ifid common.IFIDType) addr.IA {
 // and yIA, a 0-length slice is returned.
 //
 // Note that this always returns shortest length paths, even if they might not
-// be valid SCION path.
+// be valid SCION paths.
 func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 	g.lock.Lock()
 	defer g.lock.Unlock()
@@ -151,30 +151,30 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 			break
 		}
 		// Explore the next element in the queue.
-		currentTrail := queue[0]
+		curSolution := queue[0]
 		queue = queue[1:]
 
-		if currentTrail.Len() > solutionLength {
+		if curSolution.Len() > solutionLength {
 			break
 		}
 
 		// If we found the solution, save the length to stop exploring
 		// longer paths.
-		if currentTrail.CurrentIA == dst {
-			solutionLength = currentTrail.Len()
-			solution = append(solution, currentTrail.trail)
+		if curSolution.CurrentIA == dst {
+			solutionLength = curSolution.Len()
+			solution = append(solution, curSolution.trail)
 			continue
 		}
 
 		// Explore neighboring ASes, if not visited yet.
-		for ifid := range g.ases[currentTrail.CurrentIA].IFIDs {
+		for ifid := range g.ases[curSolution.CurrentIA].IFIDs {
 			nextIFID := g.links[ifid]
 			nextIA := g.parents[nextIFID]
-			if currentTrail.Visited(nextIA) {
+			if curSolution.Visited(nextIA) {
 				continue
 			}
 			// Copy to avoid mutating the trails of other explorations.
-			nextTrail := currentTrail.Copy()
+			nextTrail := curSolution.Copy()
 			nextTrail.Add(ifid, nextIFID, nextIA)
 			nextTrail.CurrentIA = nextIA
 			queue = append(queue, nextTrail)

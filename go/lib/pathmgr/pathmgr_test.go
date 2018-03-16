@@ -30,7 +30,7 @@ import (
 func TestQuery(t *testing.T) {
 	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
 		g := graph.NewDefaultGraph()
-		pm := NewPR(t, g, 5, 5, 1)
+		pm := NewPR(t, g, 250, 250, 100)
 		srcIA := MustParseIA("1-10")
 		dstIA := MustParseIA("1-16")
 
@@ -42,11 +42,11 @@ func TestQuery(t *testing.T) {
 			SoMsg("path", getPathStrings(aps), ShouldContain,
 				"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
 		})
-		Convey("Wait 2 seconds for paths to expire, then query and get new paths", func() {
+		Convey("Wait 200ms for paths to expire, then query and get new paths", func() {
 			// Add new path between 1-10 and 1-16
 			g.AddLink("1-10", 101902, "1-19", 191002)
 			// Wait for two seconds to guarantee that the pathmgr refreshes the paths
-			<-time.After(2 * time.Second)
+			<-time.After(200 * time.Millisecond)
 			aps := pm.Query(srcIA, dstIA)
 			SoMsg("aps len", len(aps), ShouldEqual, 2)
 			SoMsg("path #1", getPathStrings(aps), ShouldContain,
@@ -76,13 +76,12 @@ func TestQueryFilter(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-
 	Convey("Register for path, receive 0 responses", t, func() {
 		g := graph.NewDefaultGraph()
 		// Remove link between 1-19 and 1-16 so that the initial path set is
 		// nil
 		g.RemoveLink(1019)
-		pm := NewPR(t, g, 1, 1, 1)
+		pm := NewPR(t, g, 100, 100, 100)
 		srcIA := MustParseIA("1-10")
 		dstIA := MustParseIA("1-16")
 
@@ -90,12 +89,12 @@ func TestRegister(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("aps", len(sp.Load().APS), ShouldEqual, 0)
 
-		Convey("Wait 5 seconds, the APS should contain fresh paths", func() {
-			// Readd the link between 1-19 and 1-16; the path manager will
+		Convey("Wait 200ms, the APS should contain fresh paths", func() {
+			// Re-add the link between 1-19 and 1-16; the path manager will
 			// update APS behind the scenes (after a normal refire of one
 			// second), so it should contain the path after 4 seconds.
 			g.AddLink("1-10", 1019, "1-19", 1910)
-			<-time.After(4 * time.Second)
+			<-time.After(200 * time.Millisecond)
 			SoMsg("aps", len(sp.Load().APS), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
 				"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
@@ -106,7 +105,7 @@ func TestRegister(t *testing.T) {
 func TestRegisterFilter(t *testing.T) {
 	Convey("Register filter 1-19#1910", t, func() {
 		g := graph.NewDefaultGraph()
-		pm := NewPR(t, g, 1, 1, 1)
+		pm := NewPR(t, g, 500, 500, 1000)
 		srcIA := MustParseIA("1-10")
 		dstIA := MustParseIA("1-16")
 
@@ -134,42 +133,45 @@ func TestRevoke(t *testing.T) {
 		watchDst := MustParseIA("2-22")
 
 		aps := pm.Query(querySrc, queryDst)
-		SoMsg("len(aps)", len(aps), ShouldEqual, 1)
-		SoMsg("path", getPathStrings(aps), ShouldContain,
+		apsCheckPaths("path", aps,
 			"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
 
 		sp, err := pm.Watch(watchSrc, watchDst)
-		SoMsg("err watch", err, ShouldBeNil)
-		SoMsg("len(aps) watch", len(sp.Load().APS), ShouldEqual, 1)
-		SoMsg("path watch", getPathStrings(sp.Load().APS), ShouldContain,
+		SoMsg("watch: ee", err, ShouldBeNil)
+		apsCheckPaths("watch", sp.Load().APS,
 			"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
 
 		pp, err := NewPathPredicate("1-15#1518")
 		SoMsg("err predicate", err, ShouldBeNil)
 		spf, err := pm.WatchFilter(watchSrc, watchDst, pp)
-		SoMsg("err watch filter", err, ShouldBeNil)
-		SoMsg("len(aps) watch filter", len(spf.Load().APS), ShouldEqual, 1)
-		SoMsg("path watch filter", getPathStrings(spf.Load().APS), ShouldContain,
+		SoMsg("watch filter: err", err, ShouldBeNil)
+		apsCheckPaths("watch filter", spf.Load().APS,
 			"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
 
 		Convey("Revoke a path that's not part of any path set", func() {
-			g.RemoveLink(1311)
+			pm.cache.revoke(uifidFromValues(MustParseIA("1-13"), 1311))
 			aps := pm.Query(querySrc, queryDst)
-			SoMsg("len(aps)", len(aps), ShouldEqual, 1)
-			SoMsg("path", getPathStrings(aps), ShouldContain,
+			apsCheckPaths("path", aps,
 				"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
+			apsCheckPaths("watch", sp.Load().APS,
+				"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
+			apsCheckPaths("watch filter", spf.Load().APS,
+				"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
 		})
 		Convey("Revoke a path that's in Query, but not in Watch/WatchFilter path sets", func() {
-			// Disconnect #1619
+			// Disconnect #1019
 			// Note that the revoke below only invalidates the cache and
 			// does not inform sciond. This means that the path manager
 			// reaches 0 paths after the revocation, thus forcing a requery
 			// to sciond behind the scenes, which gets back the same path.
 			pm.cache.revoke(uifidFromValues(MustParseIA("1-10"), 1019))
 			aps := pm.Query(querySrc, queryDst)
-			SoMsg("len(aps)", len(aps), ShouldEqual, 1)
-			SoMsg("path watch", getPathStrings(aps), ShouldContain,
+			apsCheckPaths("path", aps,
 				"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
+			apsCheckPaths("watch", sp.Load().APS,
+				"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
+			apsCheckPaths("watch filter", spf.Load().APS,
+				"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
 		})
 		Convey("Revoke a path that's in Watch and WatchFilter, but not in Query", func() {
 			// Disconnect #1815
@@ -177,21 +179,23 @@ func TestRevoke(t *testing.T) {
 			// do not requery sciond automatically (like the previous
 			// test), they will be left with 0 paths.
 			pm.cache.revoke(uifidFromValues(watchSrc, 1815))
-			SoMsg("len(aps) watch", len(sp.Load().APS), ShouldEqual, 0)
-			SoMsg("len(aps) watch filter", len(sp.Load().APS), ShouldEqual, 0)
+			apsCheckPaths("path", aps,
+				"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
+			apsCheckPaths("watch", sp.Load().APS)
+			apsCheckPaths("watch filter", spf.Load().APS)
 		})
 	})
 }
 
-func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge time.Duration) *PR {
+func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) *PR {
 	t.Helper()
 
 	pm, err := New(
 		sciond.NewMockService(g),
 		&Timers{
-			NormalRefire: normalRefire * time.Second,
-			ErrorRefire:  errorRefire * time.Second,
-			MaxAge:       maxAge * time.Second,
+			NormalRefire: time.Duration(normalRefire) * time.Millisecond,
+			ErrorRefire:  time.Duration(errorRefire) * time.Millisecond,
+			MaxAge:       time.Duration(maxAge) * time.Millisecond,
 		},
 		log.Root(),
 	)
@@ -207,4 +211,11 @@ func getPathStrings(aps AppPathSet) []string {
 		ss = append(ss, fmt.Sprintf("%v", v.Entry.Path.Interfaces))
 	}
 	return ss
+}
+
+func apsCheckPaths(desc string, aps AppPathSet, expValues ...string) {
+	SoMsg(fmt.Sprintf("%s: len", desc), len(aps), ShouldEqual, len(expValues))
+	for i, value := range expValues {
+		SoMsg(fmt.Sprintf("%s: path %d", desc, i), getPathStrings(aps), ShouldContain, value)
+	}
 }
