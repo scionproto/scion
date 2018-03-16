@@ -22,6 +22,7 @@ package dedupe
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 	"testing"
@@ -39,11 +40,12 @@ type TRequest struct {
 	Data  string
 	Error error
 
-	// Delay is the time to wait before the Request runs in the test
-	Delay time.Duration
-	// Latency is the time while Request runs (simulates network and server
-	// latency).
-	Latency time.Duration
+	// Delay is the time (in milliseconds) to wait before the Request runs in
+	// the test.
+	Delay int
+	// Latency is the time (in milliseconds) while Request runs (simulates
+	// network and server latency).
+	Latency int
 }
 
 func (request *TRequest) DedupeKey() string {
@@ -69,7 +71,7 @@ func (srv *remoteServer) Handler(ctx context.Context, request Request) Response 
 	srv.handledRequests[request.DedupeKey()]++
 	srv.mu.Unlock()
 	select {
-	case <-time.After(trequest.Latency * time.Millisecond):
+	case <-time.After(time.Duration(trequest.Latency) * time.Millisecond):
 		// Normal
 		return Response{
 			Data:  trequest.Data,
@@ -100,6 +102,26 @@ func TestDeduper(t *testing.T) {
 				{Data: "foo", Error: nil},
 			},
 			serverState: map[string]uint{"a-x": 1},
+		},
+		{
+			Name: "one request with error",
+			requests: []TRequest{
+				{DKey: "a-x", BKey: "a", Data: "", Error: fmt.Errorf("bad"), Latency: 0},
+			},
+			results: []Response{
+				{Data: nil, Error: fmt.Errorf("bad")},
+			},
+			serverState: map[string]uint{"a-x": 1},
+		},
+		{
+			Name: "one request with bkey = dkey",
+			requests: []TRequest{
+				{DKey: "a", BKey: "a", Data: "foo", Error: nil, Latency: 0},
+			},
+			results: []Response{
+				{Data: "foo", Error: nil},
+			},
+			serverState: map[string]uint{"a": 1},
 		},
 		{
 			Name: "two requests, same dedupe key, same broadcast key",
@@ -154,8 +176,10 @@ func TestDeduper(t *testing.T) {
 			requests: []TRequest{
 				{DKey: "a-x", BKey: "a", Data: "foo", Error: nil, Latency: 0},
 				{DKey: "a-x", BKey: "a", Data: "foo", Error: nil, Delay: 500, Latency: 0},
+				{DKey: "a-y", BKey: "a", Data: "foo", Error: nil, Delay: 0, Latency: 0},
 			},
 			results: []Response{
+				{Data: "foo", Error: nil},
 				{Data: "foo", Error: nil},
 				{Data: "foo", Error: nil},
 			},
@@ -197,7 +221,7 @@ func TestDeduper(t *testing.T) {
 				deduper, server := Init(500*time.Millisecond, 1000*time.Millisecond)
 				chs := make(map[int]<-chan Response)
 				for i := range tc.requests {
-					<-time.After(tc.requests[i].Delay * time.Millisecond)
+					<-time.After(time.Duration(tc.requests[i].Delay) * time.Millisecond)
 					ch, cancelF := deduper.Request(context.TODO(), &tc.requests[i])
 					chs[i] = ch
 					defer cancelF()
@@ -212,7 +236,6 @@ func TestDeduper(t *testing.T) {
 			})
 		}
 	})
-
 }
 
 func Init(dedupeLifetime time.Duration, gracePeriod time.Duration) (*Deduper, *remoteServer) {
