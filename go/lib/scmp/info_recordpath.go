@@ -64,7 +64,7 @@ func (entry *RecordPathEntry) read(b common.RawBytes) {
 
 func (entry *RecordPathEntry) String() string {
 	buf := &bytes.Buffer{}
-	fmt.Fprintf(buf, "%s %d %s\n", entry.IA, entry.IfID,
+	fmt.Fprintf(buf, "IA: %s, IfID: %d, Offset: %s", entry.IA, entry.IfID,
 		time.Duration(entry.TS)*time.Microsecond)
 	return buf.String()
 }

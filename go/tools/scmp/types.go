@@ -93,7 +93,10 @@ func initRecordPath(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
 	// Send packet
 	ext := &scmp.Extn{Error: false, HopByHop: true}
 	s.pathEntry = pathEntry
-	n := uint8(len(pathEntry.Path.Interfaces))
+	var n int
+	if pathEntry != nil {
+		n = len(pathEntry.Path.Interfaces)
+	}
 	entries := make([]*scmp.RecordPathEntry, 0, n)
 	s.infoS = &scmp.InfoRecordPath{Id: rnd.Uint64(), Entries: entries}
 	s.pktS = newSCMPPkt(scmp.T_G_RecordPathRequest, s.infoS, ext)
@@ -141,9 +144,11 @@ func validatePkt(s *scmpCtx) error {
 				"type", common.TypeOf(s.infoR))
 		}
 		s.infoR = info
-		err := validateRecordPath(info, s.pathEntry.Path.Interfaces)
-		if err != nil {
-			return err
+		if s.pathEntry != nil {
+			err := validateRecordPath(info, s.pathEntry.Path.Interfaces)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

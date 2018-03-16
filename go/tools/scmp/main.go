@@ -98,15 +98,20 @@ func main() {
 	defer conn.Close()
 
 	// If remote is not in local AS, we need a path!
+	var pathStr string
 	if !remote.IA.Eq(local.IA) {
 		mtu = setPathAndMtu()
+		pathStr = pathEntry.Path.String()
 	} else {
-		if *sTypeStr != "echo" {
+		if *sTypeStr == "tr" || *sTypeStr == "traceroute" {
 			fmt.Printf("Remote in local AS %s\n", remote.IA)
 			os.Exit(0)
 		}
 		mtu = setLocalMtu()
+		pathStr = "None"
 	}
+	fmt.Printf("Using path:\n  %s\n", pathStr)
+
 	seed := rand.NewSource(time.Now().UnixNano())
 	rnd = rand.New(seed)
 
@@ -241,7 +246,6 @@ func choosePath(interactive bool) *sciond.PathReplyEntry {
 			fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n", len(paths))
 		}
 	}
-	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
 	return paths[pathIndex]
 }
 

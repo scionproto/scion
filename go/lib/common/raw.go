@@ -42,8 +42,7 @@ func (r RawBytes) WritePld(b RawBytes) (int, error) {
 }
 
 func (r RawBytes) Zero() {
-	r[0] = 0
-	for i := 1; i < len(r); i++ {
-		copy(r[i:], r[:i])
+	for i := range r {
+		r[i] = 0
 	}
 }
