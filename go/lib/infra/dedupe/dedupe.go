@@ -16,16 +16,16 @@
 // single request instead of multiple redundant requests.
 //
 // To initialize a Deduper, define the function that handles the request,
-// and use it to initialize the Deduper:
-//   dd := &Deduper{RequestFunc: foo}
+// and pass it in to the constructor:
+//   dd := deduper.New(f, 0, 0)
 //
 // Requests can then be issued:
 //   dd.Request(ctx.TODO(), objectA)
 //   dd.Request(ctx.TODO(), objectB)
 //
 // If objectA and objectB have the same DedupeKey() (and arrive at dd at
-// approximately the same time, see Deduper timer fields for more information),
-// a single call to foo is made.
+// approximately the same time, see the documentation for New for more
+// information), a single call to f is made.
 //
 // To support anycast behavior (where multiple requests are sent out to various
 // services, and the first response that we get unblocks all waiters), requests
@@ -91,7 +91,7 @@ type Deduper struct {
 	notifications *notificationTable
 }
 
-// NewDeduper allocates a new Deduper.
+// New allocates a new Deduper.
 //
 // f is the function to call when a new request needs to be sent out.
 //
@@ -104,7 +104,7 @@ type Deduper struct {
 // network requests for the same broadcast key are sent out. The result is
 // immediately returned from an internal cache for this period. If 0,
 // responseValidity defaults to DefaultResponseValidity.
-func NewDeduper(f RequestFunc, dedupeLifetime, responseValidity time.Duration) *Deduper {
+func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) *Deduper {
 	if dedupeLifetime == 0 {
 		dedupeLifetime = DefaultDedupeLifetime
 	}
