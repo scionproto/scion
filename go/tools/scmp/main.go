@@ -103,10 +103,6 @@ func main() {
 		mtu = setPathAndMtu()
 		pathStr = pathEntry.Path.String()
 	} else {
-		if *sTypeStr == "tr" || *sTypeStr == "traceroute" {
-			fmt.Printf("Remote in local AS %s\n", remote.IA)
-			os.Exit(0)
-		}
 		mtu = setLocalMtu()
 		pathStr = "None"
 	}
