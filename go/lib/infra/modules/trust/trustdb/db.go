@@ -465,7 +465,7 @@ func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd addr.ISD) (*trc.TRC, 
 	}
 	trcobj, err := trc.TRCFromRaw(raw, false)
 	if err != nil {
-		return nil, common.NewBasicError("TRC parse error", err, "isd", isd, "version", "max")
+		return nil, common.NewBasicError("TRC parse error", err, "isd", isd, "version", "max", "raw", raw)
 	}
 	return trcobj, nil
 }

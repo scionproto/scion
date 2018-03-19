@@ -18,6 +18,7 @@ package trust
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -29,16 +30,14 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
-	// Maximum number of requests waiting to be picked up by the trust server.
-	// If the maximum is reached and a goroutine attempts to register a new
-	// request, it will receive an error.
-	MaxPendingRequests = 64
 	// Handler lifetime
 	HandlerTimeout = 3 * time.Second
 )
@@ -57,28 +56,16 @@ const (
 // Currently Store is backed by a sqlite3 database in package
 // go/lib/infra/modules/trust/trustdb.
 type Store struct {
-	trustdb *trustdb.DB
-	// channel to send TRC requests from client goroutines to the backend
-	// resolver
-	trcRequests chan requestI
-	// channel to send Certificate Chain requests from client goroutines to the
-	// backend resolver
-	chainRequests chan requestI
+	mu           sync.Mutex
+	trustdb      *trustdb.DB
+	trcDeduper   *dedupe.Deduper
+	chainDeduper *dedupe.Deduper
 	// local AS
 	ia  addr.IA
 	log log.Logger
-
 	// ID of the last infra message that was sent out by the Store
 	msgID uint64
-	// Used to serialize access to Close
-	closeMutex sync.Mutex
-	// Set to true once Closed successfully completes
-	closedFlag bool
-
-	// Used to serialize access to StartResolvers
-	startMutex sync.Mutex
-	// Set to true once StartResolvers successfully completes
-	startedFlag bool
+	msger infra.Messenger
 }
 
 // NewStore initializes a TRC/Certificate Chain cache/resolver backed by db.
@@ -87,52 +74,147 @@ type Store struct {
 // the trust store will use IDs starting from startID, and increment by one for
 // each message.
 func NewStore(db *trustdb.DB, local addr.IA, startID uint64, logger log.Logger) (*Store, error) {
-	return &Store{
-		trustdb:       db,
-		trcRequests:   make(chan requestI, MaxPendingRequests),
-		chainRequests: make(chan requestI, MaxPendingRequests),
-		ia:            local,
-		log:           logger,
-		msgID:         startID,
-	}, nil
+	store := &Store{
+		trustdb: db,
+		ia:      local,
+		log:     logger,
+		msgID:   startID,
+	}
+	return store, nil
 }
 
-// StartResolvers launches goroutines for handling TRC and Cert requests that
-// are not available in the local database. Outgoing (network) requests are
-// throttled s.t. at most one request for each address and version is sent
-// every MinimumDelta duration. Received objects are verified prior to
-// insertion into the backing database.
-func (store *Store) StartResolvers(messenger infra.Messenger) error {
-	store.startMutex.Lock()
-	defer store.startMutex.Unlock()
-	store.closeMutex.Lock()
-	defer store.closeMutex.Unlock()
-	if store.closedFlag == true {
-		// Prohibit resolver start after Close has been called
-		return common.NewBasicError("start after close", nil)
+// SetMessenger enables network access for the trust store via msger.
+func (store *Store) SetMessenger(msger infra.Messenger) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	if store.msger != nil {
+		panic("double init")
 	}
-	if store.startedFlag == true {
-		// Prohibit double starts
-		return common.NewBasicError("double start", nil)
+	store.msger = msger
+	store.trcDeduper = dedupe.New(store.trcRequestFunc, 0, 0)
+	store.chainDeduper = dedupe.New(store.chainRequestFunc, 0, 0)
+}
+
+// trcRequestFunc is the dedupe.RequestFunc for TRC requests.
+func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) dedupe.Response {
+	req := request.(*trcRequest)
+	trcReqMsg := &cert_mgmt.TRCReq{
+		ISD:       req.isd,
+		Version:   req.version,
+		CacheOnly: true,
 	}
-	store.startedFlag = true
-	trcResolver := &resolver{
-		msger:           messenger,
-		trustdb:         store.trustdb,
-		requests:        store.trcRequests,
-		completionChans: make(map[string]chan chan<- error),
-		log:             store.log.New("goroutine", "trcResolver"),
+
+	trcMsg, err := store.msger.GetTRC(ctx, trcReqMsg, req.source, req.id)
+	if err != nil {
+		return wrapErr(err)
 	}
-	go trcResolver.Run()
-	chainResolver := &resolver{
-		msger:           messenger,
-		trustdb:         store.trustdb,
-		requests:        store.chainRequests,
-		completionChans: make(map[string]chan chan<- error),
-		log:             store.log.New("goroutine", "chainResolver"),
+	trcObj, err := trcMsg.TRC()
+	if err != nil {
+		return wrapErr(common.NewBasicError("Unable to parse TRC message", err, "msg", trcMsg))
 	}
-	go chainResolver.Run()
-	return nil
+
+	if req.version != 0 && trcObj.Version != req.version {
+		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
+			"got", trcObj.Version, "expected", req.version))
+	}
+
+	if req.postHook != nil {
+		return dedupe.Response{Data: trcObj, Error: req.postHook(ctx, trcObj)}
+	}
+	return dedupe.Response{Data: trcObj}
+}
+
+// chainRequestFunc is the dedupe.RequestFunc for Chain requests.
+func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request) dedupe.Response {
+	req := request.(*chainRequest)
+	chainReqMsg := &cert_mgmt.ChainReq{
+		RawIA:     req.ia.IAInt(),
+		Version:   req.version,
+		CacheOnly: true,
+	}
+	chainMsg, err := store.msger.GetCertChain(ctx, chainReqMsg, req.source, req.id)
+	if err != nil {
+		return wrapErr(common.NewBasicError("Unable to get CertChain from peer", err))
+	}
+	chain, err := chainMsg.Chain()
+	if err != nil {
+		return wrapErr(common.NewBasicError("Unable to parse CertChain message", err))
+	}
+
+	if req.version != 0 && chain.Leaf.Version != req.version {
+		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
+			"got", chain.Leaf.Version, "expected", req.version))
+	}
+
+	if req.postHook != nil {
+		return dedupe.Response{Data: chain, Error: req.postHook(ctx, chain)}
+	}
+	return dedupe.Response{Data: chain}
+}
+
+// GetTRC asks the trust store to return a valid TRC for isd. Trail should
+// contain a sequence of cross-signing ISDs to be used during validation, with
+// the requested TRC being the first one.
+func (store *Store) GetTRC(ctx context.Context, isd addr.ISD, trail ...addr.ISD) (*trc.TRC, error) {
+	if len(trail) > 0 && trail[0] != isd {
+		return nil, common.NewBasicError(fmt.Sprintf("bad trail, should start with ISD=%d\n", isd),
+			nil, "trail", trail)
+	}
+	return store.getVerifiedTRC(ctx, trail, nil)
+}
+
+// getVerifiedTRC recursively follows trail to create a fully verified trust
+// chain leading up to trail[0].  Given a trail composed of:
+//   [TRC0, TRC1, TRC2, TRC3]
+// getVerifiedTRC first tries to see if TRC0 is in trustdb. If it's not, it
+// recursively calls getVerifiedTRC on new trail:
+//   [TRC1, TRC2, TRC3]
+// and eventually:
+//   [TRC2, TRC3]
+// Suppose TRC2 is in the database. The function returns (TRC2, nil). The
+// caller now has access to TRC2, and needs to obtain TRC1. It issues a call to
+// the backend passing TRC2 as a verifier. Once it gets TRC1, it returns it.
+// TRC1 is then used to download TRC0.
+func (store *Store) getVerifiedTRC(ctx context.Context, trail []addr.ISD,
+	source net.Addr) (*trc.TRC, error) {
+
+	if len(trail) == 0 {
+		// We've reached the end of the trail and did not find a trust anchor,
+		// propagate this information to the caller.
+		return nil, common.NewBasicError("reached end of trail, but no trusted TRC found", nil)
+	}
+
+	if trail[0] == 0 {
+		return nil, common.NewBasicError("value 0 is not a valid ISD number", nil)
+	}
+
+	if trcObj, err := store.getTRCFromDB(ctx, trail[0], 0); err != nil || trcObj != nil {
+		return trcObj, err
+	}
+
+	// The TRC needed to perform verification is not in trustdb; advance the
+	// trail and recursively try to get the next TRC.
+	nextTRC, err := store.getVerifiedTRC(ctx, trail[1:], source)
+	if err != nil {
+		return nil, err
+	}
+	return store.getTRCFromNetwork(ctx, &trcRequest{
+		isd:      trail[0],
+		version:  0,
+		id:       store.nextID(),
+		source:   source,
+		postHook: store.newTRCValidationFunction(nextTRC),
+	})
+}
+
+// GetUnverifiedTRC asks the trust store to return a TRC of the requested
+// version without performing any verification. If the TRC is not available, it
+// is requested from the authoritative CS.
+func (store *Store) GetUnverifiedTRC(ctx context.Context,
+	isd addr.ISD, version uint64) (*trc.TRC, error) {
+
+	return store.getUnverifiedTRC(ctx, isd, version, true, nil)
 }
 
 // getTRC attempts to grab the TRC from the database; if the TRC is not found,
@@ -140,59 +222,117 @@ func (store *Store) StartResolvers(messenger infra.Messenger) error {
 // specifies whether this function is allowed to create new network requests.
 // Parameter requester contains the node that caused the function to be called,
 // or nil if the function was called due to a local feature.
-func (store *Store) getTRC(ctx context.Context, req trcRequest, recurse bool,
-	requester net.Addr) (*trc.TRC, error) {
-	for {
-		// Attempt to get the TRC from the local cache
-		if trc, err := store.trustdb.GetTRCVersionCtx(ctx, req.isd, req.version); err != nil {
-			return nil, err
-		} else if trc != nil {
-			return trc, nil
+func (store *Store) getUnverifiedTRC(ctx context.Context, isd addr.ISD, version uint64,
+	recurse bool, requester net.Addr) (*trc.TRC, error) {
+
+	if trcObj, err := store.getTRCFromDB(ctx, isd, version); err != nil || trcObj != nil {
+		return trcObj, err
+	}
+
+	if recurse == false {
+		return nil, common.NewBasicError("TRC not found in DB, and recursion disabled", nil)
+	}
+
+	// We need to send out a network request, but only do so if we're
+	// servicing a request coming from our own AS.
+	if requester != nil {
+		switch saddr, ok := requester.(*snet.Addr); {
+		case !ok:
+			return nil, common.NewBasicError("Unable to determine AS of requester",
+				nil, "addr", requester)
+		case !store.ia.Eq(saddr.IA):
+			return nil, common.NewBasicError("TRC not found in DB, and recursion not "+
+				"allowed for clients outside AS", nil, "client", saddr)
 		}
-		if !store.startedFlag {
-			return nil, common.NewBasicError("TRC not found in DB, and network access disabled",
-				nil)
+	}
+
+	return store.getTRCFromNetwork(ctx, &trcRequest{
+		isd:      isd,
+		version:  version,
+		id:       store.nextID(),
+		source:   getAuthoritativeCS(), // FIXME(scrye): compute actual CS address
+		postHook: nil,                  // Disable verification / database insertion
+	})
+}
+
+func (store *Store) getTRCFromDB(ctx context.Context, isd addr.ISD,
+	version uint64) (*trc.TRC, error) {
+
+	return store.trustdb.GetTRCVersionCtx(ctx, isd, version)
+}
+
+func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
+	responseC, cancelF := store.trcDeduper.Request(ctx, req)
+	defer cancelF()
+	select {
+	case response := <-responseC:
+		if response.Error != nil {
+			return nil, response.Error
 		}
-		if requester != nil {
-			// If we cannot extract the AS of the requester or it doesn't match
-			// with our AS, never forward the request.
-			saddr, ok := requester.(*snet.Addr)
-			if !ok {
-				return nil, common.NewBasicError("Unable to determine AS of requester",
-					nil, "addr", requester)
-			}
-			if !store.ia.Eq(saddr.IA) {
-				return nil, common.NewBasicError("TRC not found in DB, and recursion not "+
-					"allowed for clients outside AS", nil, "client", saddr)
-			}
-		}
-		if recurse == false {
-			return nil, common.NewBasicError("TRC not found in DB, and recursion disabled", nil)
-		}
-		// TRC not found, forward a request to the background TRC resolver
-		if err := store.issueTRCRequest(ctx, req); err != nil {
-			return nil, err
-		}
+		return response.Data.(*trc.TRC), nil
+	case <-ctx.Done():
+		return nil, common.NewBasicError("Context done while waiting for TRC",
+			ctx.Err(), "isd", req.isd, "version", req.version)
 	}
 }
 
-// issueTRCRequest requests a TRC from the trust store backend.
-func (store *Store) issueTRCRequest(ctx context.Context, req trcRequest) error {
-	select {
-	case store.trcRequests <- req:
-	default:
-		return common.NewBasicError("Unable to request TRC, queue full",
-			nil, "isd", req.isd, "version", req.version)
+// newTRCValidationFunction returns a TRC validation callback with verifier as
+// trust anchor. If validation succeeds, the validated TRC is also inserted in
+// the trust database.
+func (store *Store) newTRCValidationFunction(verifier *trc.TRC) ValidateTRCF {
+	return func(ctx context.Context, trcObj *trc.TRC) error {
+		if verifier == nil {
+			return common.NewBasicError("TRC verification error, nil verifier", nil,
+				"target", trcObj)
+		}
+		if _, err := trcObj.Verify(verifier); err != nil {
+			return common.NewBasicError("TRC verification error", err)
+		}
+		if err := store.trustdb.InsertTRCCtx(ctx, trcObj.ISD, trcObj.Version, trcObj); err != nil {
+			return common.NewBasicError("Unable to store TRC in database", err)
+		}
+		return nil
 	}
-	// Block waiting for request to be finalized
-	select {
-	case err := <-req.completionChan:
-		return err
-	case <-ctx.Done():
-		// Context expired while waiting
-		return common.NewBasicError("Context canceled while waiting for TRC",
-			nil, "isd", req.isd, "version", req.version)
+}
+
+// GetChain asks the trust store to rerturn a valid certificate chain for ia.
+// Trail should contain a sequence of cross-signing ISDs to be used during
+// validation, with the ISD of the certificate chain being the first one.
+func (store *Store) GetChain(ctx context.Context, ia addr.IA,
+	trail ...addr.ISD) (*cert.Chain, error) {
+
+	if len(trail) > 0 && trail[0] != ia.I {
+		return nil, common.NewBasicError(fmt.Sprintf("bad trail, should start with ISD=%d\n", ia.I),
+			nil, "trail", trail)
 	}
+
+	return store.getVerifiedChain(ctx, ia, trail, nil)
+}
+
+func (store *Store) getVerifiedChain(ctx context.Context, ia addr.IA, trail []addr.ISD,
+	source net.Addr) (*cert.Chain, error) {
+
+	trcObj, err := store.getVerifiedTRC(ctx, trail, source)
+	if err != nil {
+		return nil, err
+	}
+
+	return store.getChainFromNetwork(ctx, &chainRequest{
+		ia:       ia,
+		version:  0,
+		id:       store.nextID(),
+		source:   source,
+		postHook: store.newChainValidationFunction(trcObj),
+	})
+}
+
+// GetUnverifiedChain asks the trust store to return a certificate chain of
+// requested version without performing any verification. If the certificate
+// chain is not available, it is requested from the authoritative CS.
+func (store *Store) GetUnverifiedChain(ctx context.Context, ia addr.IA,
+	version uint64) (*cert.Chain, error) {
+
+	return store.getUnverifiedChain(ctx, ia, version, true, nil)
 }
 
 // getChain attempts to grab the Certificate Chain from the database; if the
@@ -201,59 +341,86 @@ func (store *Store) issueTRCRequest(ctx context.Context, req trcRequest) error {
 // network requests. Parameter requester contains the node that caused the
 // function to be called, or nil if the function was called due to a local
 // feature.
-func (store *Store) getChain(ctx context.Context, req chainRequest,
+func (store *Store) getUnverifiedChain(ctx context.Context, ia addr.IA, version uint64,
 	recurse bool, requester net.Addr) (*cert.Chain, error) {
-	for {
-		// Attempt to get the Chain from the local cache
-		if chain, err := store.trustdb.GetChainVersionCtx(ctx, req.ia, req.version); err != nil {
-			return nil, err
-		} else if chain != nil {
-			return chain, nil
+
+	// Attempt to get the Chain from the local cache
+	if chain, err := store.getChainFromDB(ctx, ia, version); err != nil || chain != nil {
+		return chain, err
+	}
+
+	if recurse == false {
+		return nil, common.NewBasicError("Chain not found in DB, and recursion disabled", nil)
+	}
+
+	// We need to send out a network request, but only do so if we're
+	// servicing a request coming from our own AS.
+	if requester != nil {
+		switch saddr, ok := requester.(*snet.Addr); {
+		case !ok:
+			return nil, common.NewBasicError("Unable to determine AS of requester",
+				nil, "addr", requester)
+		case !store.ia.Eq(saddr.IA):
+			return nil, common.NewBasicError("TRC not found in DB, and recursion not "+
+				"allowed for clients outside AS", nil, "client", saddr)
 		}
-		if !store.startedFlag {
-			return nil, common.NewBasicError("Chain not found in DB, and network access disabled",
-				nil)
+	}
+
+	return store.getChainFromNetwork(ctx, &chainRequest{
+		ia:       ia,
+		version:  version,
+		id:       store.nextID(),
+		source:   getAuthoritativeCS(), // FIXME(scrye): compute actual CS address
+		postHook: nil,                  // Disable verification / DB insertion
+	})
+}
+
+// newChainValidationFunction returns a Chain validation callback with verifier as
+// trust anchor. If validation succeeds, the certificate chain is also inserted in the
+// trust database.
+func (store *Store) newChainValidationFunction(verifier *trc.TRC) ValidateChainF {
+	return func(ctx context.Context, chain *cert.Chain) error {
+		if verifier == nil {
+			return common.NewBasicError("Chain verification failed, nil verifier", nil,
+				"target", chain)
 		}
-		if requester != nil {
-			// If we cannot extract the AS of the requester or it doesn't match with our AS,
-			// never forward the request.
-			saddr, ok := requester.(*snet.Addr)
-			if !ok {
-				return nil, common.NewBasicError("Unable to determine AS of requester",
-					nil, "addr", requester)
-			}
-			if !store.ia.Eq(saddr.IA) {
-				return nil, common.NewBasicError("Chain not found in DB, and recursion not "+
-					"allowed for clients outside AS", nil, "client", saddr)
-			}
+		if err := chain.Verify(chain.Leaf.Subject, verifier); err != nil {
+			return common.NewBasicError("Chain verification failed", err)
 		}
-		if recurse == false {
-			return nil, common.NewBasicError("Chain not found in DB, and recursion disabled", nil)
+		err := store.trustdb.InsertChainCtx(ctx, chain.Leaf.Subject, chain.Leaf.Version, chain)
+		if err != nil {
+			return common.NewBasicError("Unable to store CertChain in database", err)
 		}
-		// Chain not found, forward the request to the background Chain resolver
-		if err := store.issueChainRequest(ctx, req); err != nil {
-			return nil, err
-		}
+		return nil
 	}
 }
 
+func (store *Store) getChainFromDB(ctx context.Context, ia addr.IA,
+	version uint64) (*cert.Chain, error) {
+
+	return store.trustdb.GetChainVersionCtx(ctx, ia, version)
+}
+
 // issueChainRequest requests a Chain from the trust store backend.
-func (store *Store) issueChainRequest(ctx context.Context, req chainRequest) error {
+func (store *Store) getChainFromNetwork(ctx context.Context,
+	req *chainRequest) (*cert.Chain, error) {
+
+	responseC, cancelF := store.chainDeduper.Request(ctx, req)
+	defer cancelF()
 	select {
-	case store.chainRequests <- req:
-	default:
-		return common.NewBasicError("Unable to request Chain, queue full",
-			nil, "ia", req.ia, "version", req.version)
-	}
-	// Block waiting for request to be finalized
-	select {
-	case err := <-req.errChan:
-		return err
+	case response := <-responseC:
+		if response.Error != nil {
+			return nil, response.Error
+		}
+		return response.Data.(*cert.Chain), nil
 	case <-ctx.Done():
-		// Context expired while waiting
-		return common.NewBasicError("Context canceled while waiting for Chain",
+		return nil, common.NewBasicError("Context canceled while waiting for Chain",
 			nil, "ia", req.ia, "version", req.version)
 	}
+}
+
+func (store *Store) nextID() uint64 {
+	return atomic.AddUint64(&store.msgID, 1)
 }
 
 // NewTRCReqHandler returns an infra.Handler for TRC requests coming from a
@@ -261,16 +428,16 @@ func (store *Store) issueChainRequest(ctx context.Context, req chainRequest) err
 // allowed to issue new TRC requests over the network.  This method should only
 // be used when servicing requests coming from remote nodes.
 func (store *Store) NewTRCReqHandler(recurse bool) infra.Handler {
-	handler := func(r *infra.Request) {
-		handlerState := &trcReqHandler{
+	f := func(r *infra.Request) {
+		handler := &trcReqHandler{
 			request: r,
 			store:   store,
 			log:     store.log,
 			recurse: recurse,
 		}
-		handlerState.Handle()
+		handler.Handle()
 	}
-	return infra.HandlerFunc(handler)
+	return infra.HandlerFunc(f)
 }
 
 // NewChainReqHandler returns an infra.Handler for Certificate Chain
@@ -279,315 +446,26 @@ func (store *Store) NewTRCReqHandler(recurse bool) infra.Handler {
 // over the network. This method should only be used when servicing requests
 // coming from remote nodes.
 func (store *Store) NewChainReqHandler(recurse bool) infra.Handler {
-	handler := func(r *infra.Request) {
-		handlerState := &chainReqHandler{
+	f := func(r *infra.Request) {
+		handler := chainReqHandler{
 			request: r,
 			store:   store,
 			log:     store.log,
 			recurse: recurse,
 		}
-		handlerState.Handle()
+		handler.Handle()
 	}
-	return infra.HandlerFunc(handler)
+	return infra.HandlerFunc(f)
 }
 
-// NewPushTRCHandler returns an infra.Handler that verifies unsolicited TRCs coming from
-// remote nodes. If the verification succeeds, the TRC is inserted into the
-// backing trust database.
-func (store *Store) NewPushTRCHandler() infra.Handler {
-	handler := func(r *infra.Request) {
-		handlerState := &trcPushHandler{
-			request: r,
-			store:   store,
-			log:     store.log,
-		}
-		handlerState.Handle()
-	}
-	return infra.HandlerFunc(handler)
+// wrapErr build a dedupe.Response object containing nil data and error err.
+func wrapErr(err error) dedupe.Response {
+	return dedupe.Response{Error: err}
 }
 
-// NewPushChainHandler returns an infra.Handler that verifies unsolicited Certificate
-// Chains coming form remote nodes. If the verification succeeds, the Chain is
-// inserted into the backing trust database.
-func (store *Store) NewPushChainHandler() infra.Handler {
-	handler := func(r *infra.Request) {
-		handlerState := &chainPushHandler{
-			request: r,
-			store:   store,
-			log:     store.log,
-		}
-		handlerState.Handle()
-	}
-	return infra.HandlerFunc(handler)
+// getAuthoritativeCS returns the CS address for a remote ISD or AS.
+func getAuthoritativeCS() net.Addr {
+	// FIXME(scrye): implement this when CS/other infra address support is
+	// implemented.
+	return nil
 }
-
-func (store *Store) GetCertificate(ctx context.Context, trail []infra.TrustDescriptor,
-	hint net.Addr) (*cert.Certificate, error) {
-
-	verifierObj, err := store.getTrustObject(ctx, trail, hint)
-	if err != nil {
-		return nil, err
-	}
-	if verifierObj == nil {
-		return nil, common.NewBasicError("certificate chain not found", nil, "trail", trail)
-	}
-	chain := verifierObj.(*cert.Chain)
-	return chain.Leaf, nil
-}
-
-func (store *Store) GetTRC(ctx context.Context, trail []infra.TrustDescriptor,
-	hint net.Addr) (*trc.TRC, error) {
-
-	verifierObj, err := store.getTrustObject(ctx, trail, hint)
-	if err != nil {
-		return nil, err
-	}
-	if verifierObj == nil {
-		return nil, common.NewBasicError("trc not found", nil, "trail", trail)
-	}
-	trcObj := verifierObj.(*trc.TRC)
-	return trcObj, nil
-}
-
-// getTrustObject recursively follows trail to create a fully verified trust
-// chain leading up to trail[0].  Given a trail composed of:
-//   [Cert0, TRC0, TRC1, TRC2]
-// getTrustObject first tries to see if Cert0 is in trustdb. If it's not, it
-// recursively calls getTrustObject on new trail:
-//   [TRC0, TRC1, TRC2]
-// and eventually:
-//   [TRC1, TRC2]
-// Suppose TRC2 is in the database. The function returns (TRC2, nil). The
-// caller now has access to TRC2, and needs to obtain TRC1. It issues a call to
-// the backend passing TRC2 as a verifier. Once it gets TRC1, it returns it.
-//
-// TRC1 is then used to download TRC0, and finally TRC0 is used to download
-// Cert0, and the recursion finishes.
-func (store *Store) getTrustObject(ctx context.Context, trail []infra.TrustDescriptor,
-	hint net.Addr) (interface{}, error) {
-
-	if len(trail) == 0 {
-		// We've reached the end of the trail and did not find a trust anchor,
-		// propagate this information to the caller.
-		return nil, nil
-	}
-
-	// Attempt to read the object described by the current trust descriptor from
-	// the database.
-	trustObject, err := store.queryByDescriptor(ctx, trail[0])
-	if err != nil {
-		return nil, err
-	}
-	if trustObject != nil {
-		return trustObject, nil
-	}
-
-	// The trust object needed to perform verification is not in trustdb;
-	// advance the trail and recursively try to get the next object.
-	nextObj, err := store.getTrustObject(ctx, trail[1:], hint)
-	if err != nil {
-		return nil, err
-	}
-	if nextObj == nil {
-		// Propagate the information that there is no trust anchor available at
-		// the end of the trail
-		return nil, nil
-	}
-	// Getting a panic on this trust assertion means the trust trail was
-	// not valid (e.g., multiple chains were present, but this
-	// functionality is not supported yet).
-	nextTRC := nextObj.(*trc.TRC)
-
-	// We have the next trust object, so we can issue a request to the backend
-	// for the current trust object by passing it as the verifier.
-	return store.fetchByDescriptor(ctx, trail[0], hint, nextTRC)
-}
-
-func (store *Store) queryByDescriptor(ctx context.Context,
-	desc infra.TrustDescriptor) (interface{}, error) {
-
-	switch desc.Type {
-	case infra.ChainDescriptor:
-		chain, err := store.trustdb.GetChainVersionCtx(ctx, desc.IA, desc.Version)
-		if err != nil {
-			return nil, common.NewBasicError("Query GetChainVersionCtx to trustdb failed", err)
-		}
-		if chain != nil {
-			// We have the needed chain already, we can return
-			return chain.Leaf, nil
-		}
-	case infra.TRCDescriptor:
-		trcObj, err := store.trustdb.GetTRCVersionCtx(ctx, uint16(desc.IA.I), desc.Version)
-		if err != nil {
-			return nil, common.NewBasicError("Query GetTRCVersionCtx to trustdb failed", err)
-		}
-		if trcObj != nil {
-			// We found the root of trust in the database, we can now go
-			// back and download/verify missing TRCs and certificate chains
-			// starting from it.
-			return trcObj, nil
-		}
-	default:
-		return nil, common.NewBasicError("Unknown descriptor type", nil, "type", desc.Type)
-	}
-	// object described by desc not found
-	return nil, nil
-}
-
-func (store *Store) fetchByDescriptor(ctx context.Context, desc infra.TrustDescriptor,
-	hint net.Addr, verifier *trc.TRC) (interface{}, error) {
-
-	switch desc.Type {
-	case infra.ChainDescriptor:
-		request := chainRequest{
-			ia:       desc.IA,
-			version:  desc.Version,
-			verifier: verifier,
-			hint:     hint,
-			id:       store.nextID(),
-			errChan:  make(chan error, 1),
-		}
-		return store.getChain(ctx, request, true, nil)
-	case infra.TRCDescriptor:
-		request := trcRequest{
-			isd:            uint16(desc.IA.I),
-			version:        desc.Version,
-			verifier:       verifier,
-			hint:           hint,
-			id:             store.nextID(),
-			completionChan: make(chan error, 1),
-		}
-		return store.getTRC(ctx, request, true, nil)
-	default:
-		return nil, common.NewBasicError("Unknown descriptor type", nil, "type", desc.Type)
-	}
-}
-
-// localTRCVerify will try to verify trcObj without any available
-// side-information. localTRCVerify never issues requests to the backend
-// resolvers, instead giving up if the required information is not already in
-// the database.
-func (store *Store) localTRCVerify(ctx context.Context, trcObj *trc.TRC) verificationResult {
-	// FIXME(scrye): While cross signatures and ISD trails in pushes are not
-	// implemented, always return success for all TRCs.
-	return resultSuccessExists
-
-	/*
-		// If we already have the TRC for this ISD and version number, stop
-		desc := infra.TrustDescriptor{
-			IA:      addr.IA{I: int(trcObj.ISD), A: 0},
-			Version: trcObj.Version,
-			Type:    infra.TRCDescriptor,
-		}
-		if _, err := store.queryByDescriptor(ctx, desc); err != nil {
-			return resultSuccessExists
-		}
-
-		// FIXME(scrye): This needs a closer look, as I'm not sure whether it is
-		// intended behavior.  If we do not have the TRC, we need to find out how
-		// to verify it. First, we check whether we have the previous version. If
-		// we do, we need to check whether the verification succeeds. If we don't
-		// have the previous version, we look into all the cross signer fields in the
-		// pushed TRC, and for each one try to see if its ISD's TRC is in our trust
-		// database. If it is and verification succeeds, accept it. TRCs that are
-		// more than one hop away will fail this verification.
-		verified := false
-		for key := range trcObj.Signatures {
-			if ia, err := addr.IAFromString(key); err == nil && ia.I != int(trcObj.ISD) {
-				desc := infra.TrustDescriptor{
-					IA:      addr.IA{I: int(trcObj.ISD), A: 0},
-					Version: 0, // Ask for max
-					Type:    infra.TRCDescriptor,
-				}
-				genericObj, err := store.queryByDescriptor(ctx, desc)
-				if err != nil {
-					// Try next one
-					continue
-				}
-				verifierTRC := genericObj.(*trc.TRC)
-
-				// Object found, check for cross-signature
-				if _, err := trcObj.Verify(verifierTRC); err != nil {
-					// FIXME(scrye): The fact that verification failed points to a
-					// forged TRC. Deciding to continue is risky, as it might lead
-					// to broken trust chains. E.g. X trusts Y and Z, Y trusts V
-					// but Z doesn't trust V. Stopping verification here should
-					// probably be the desired approach, _however_, doing so means
-					// that verification can return different results depending on
-					// the order in which trcObj.Signatures is iterated through.
-					// For now, just try every TRC.
-					continue
-				}
-				verified = true
-			}
-		}
-		if verified {
-			return resultSuccessVerified
-		}
-		return resultFailure
-	*/
-}
-
-// localChainVerify will try to verify chain without any available
-// side-information. localChainVerify never issues requests to the backend
-// resolvers, instead giving up if the required information is not already in
-// the database.
-func (store *Store) localChainVerify(ctx context.Context, chain *cert.Chain) verificationResult {
-	// If we already have the Chain for this AS and version number, stop
-	desc := infra.TrustDescriptor{
-		IA:      chain.Leaf.Subject,
-		Version: chain.Leaf.Version,
-		Type:    infra.ChainDescriptor,
-	}
-	if _, err := store.queryByDescriptor(ctx, desc); err != nil {
-		return resultSuccessExists
-	}
-
-	trcDesc := infra.TrustDescriptor{
-		IA:      chain.Core.Issuer,
-		Version: chain.Core.TRCVersion,
-		Type:    infra.TRCDescriptor,
-	}
-	genericObj, err := store.queryByDescriptor(ctx, trcDesc)
-	if err != nil {
-		// TRC missing
-		return resultFailure
-	}
-	trcObj := genericObj.(*trc.TRC)
-
-	// Verify the chain using the TRC we retrieved
-	if err := chain.Verify(chain.Leaf.Subject, trcObj); err != nil {
-		return resultFailure
-	}
-	return resultSuccessVerified
-}
-
-func (store *Store) nextID() uint64 {
-	return atomic.AddUint64(&store.msgID, 1)
-}
-
-// Close shuts down the background TRC and Chain resolvers.
-func (store *Store) Close() error {
-	store.closeMutex.Lock()
-	defer store.closeMutex.Unlock()
-	if store.closedFlag == false {
-		store.closedFlag = true
-		close(store.trcRequests)
-		close(store.chainRequests)
-		return nil
-	}
-	return common.NewBasicError("double close", nil)
-}
-
-// verificationResult is used by localXxx methods to inform the caller whether
-// (and why) the verification succeeded/failed.
-type verificationResult uint16
-
-const (
-	// Returned when an object is verified, and it already exists in the database
-	resultSuccessExists verificationResult = iota
-	// Returned when an object is successfully verified, and is not currently in the database
-	resultSuccessVerified
-	// Returned when verification failed
-	resultFailure
-)

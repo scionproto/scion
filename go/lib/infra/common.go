@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -122,24 +123,11 @@ type Messenger interface {
 }
 
 type TrustStore interface {
-	StartResolvers(messenger Messenger) error
+	GetChain(ctx context.Context, ia addr.IA, trail ...addr.ISD) (*cert.Chain, error)
+	GetTRC(ctx context.Context, isd addr.ISD, trail ...addr.ISD) (*trc.TRC, error)
+	GetUnverifiedChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
+	GetUnverifiedTRC(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error)
 	NewTRCReqHandler(recurseAllowed bool) Handler
 	NewChainReqHandler(recurseAllowed bool) Handler
-	NewPushTRCHandler() Handler
-	NewPushChainHandler() Handler
-	GetCertificate(ctx context.Context, trail []TrustDescriptor,
-		hint net.Addr) (*cert.Certificate, error)
+	SetMessenger(msger Messenger)
 }
-
-type TrustDescriptor struct {
-	Version uint64
-	IA      addr.IA
-	Type    TrustDescriptorType
-}
-
-type TrustDescriptorType uint64
-
-const (
-	ChainDescriptor TrustDescriptorType = iota
-	TRCDescriptor
-)
