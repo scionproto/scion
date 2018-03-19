@@ -213,17 +213,16 @@ func (db *DB) GetCertMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Certi
 }
 
 // InsertCert inserts the certificate.
-func (db *DB) InsertCert(ia addr.IA, version uint64, c *cert.Certificate) error {
-	return db.InsertCertCtx(context.Background(), ia, version, c)
+func (db *DB) InsertCert(c *cert.Certificate) error {
+	return db.InsertCertCtx(context.Background(), c)
 }
 
-func (db *DB) InsertCertCtx(ctx context.Context, ia addr.IA, version uint64,
-	crt *cert.Certificate) error {
+func (db *DB) InsertCertCtx(ctx context.Context, crt *cert.Certificate) error {
 	raw, err := crt.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
 	}
-	_, err = db.insertCertStmt.Exec(ia.I, ia.A, version, raw)
+	_, err = db.insertCertStmt.Exec(crt.Subject.I, crt.Subject.A, crt.Version, raw)
 	return err
 }
 
@@ -275,17 +274,17 @@ func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Chai
 	return chain, nil
 }
 
-func (db *DB) InsertChain(ia addr.IA, version uint64, chain *cert.Chain) error {
-	return db.InsertChainCtx(context.Background(), ia, version, chain)
+func (db *DB) InsertChain(chain *cert.Chain) error {
+	return db.InsertChainCtx(context.Background(), chain)
 }
 
-func (db *DB) InsertChainCtx(ctx context.Context, ia addr.IA, version uint64,
-	chain *cert.Chain) error {
+func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) error {
 	raw, err := chain.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
 	}
-	_, err = db.insertChainStmt.Exec(ia.I, ia.A, version, raw)
+	ia, ver := chain.IAVer()
+	_, err = db.insertChainStmt.Exec(ia.I, ia.A, ver, raw)
 	return err
 }
 
@@ -335,17 +334,16 @@ func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, er
 	return trcobj, nil
 }
 
-func (db *DB) InsertTRC(isd addr.ISD, version uint64, trcobj *trc.TRC) error {
-	return db.InsertTRCCtx(context.Background(), isd, version, trcobj)
+func (db *DB) InsertTRC(trcobj *trc.TRC) error {
+	return db.InsertTRCCtx(context.Background(), trcobj)
 }
 
-func (db *DB) InsertTRCCtx(ctx context.Context, isd addr.ISD, version uint64,
-	trcobj *trc.TRC) error {
+func (db *DB) InsertTRCCtx(ctx context.Context, trcobj *trc.TRC) error {
 
 	raw, err := trcobj.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
 	}
-	_, err = db.insertTRCStmt.ExecContext(ctx, isd, version, raw)
+	_, err = db.insertTRCStmt.ExecContext(ctx, trcobj.ISD, trcobj.Version, raw)
 	return err
 }
