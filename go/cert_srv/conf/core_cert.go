@@ -17,8 +17,6 @@ package conf
 import (
 	"database/sql"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
