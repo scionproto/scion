@@ -47,10 +47,6 @@ func main() {
 		serverApp.trustStore.NewChainReqHandler(false))
 	serverApp.messenger.AddHandler(messenger.TRCRequest,
 		serverApp.trustStore.NewTRCReqHandler(false))
-	serverApp.messenger.AddHandler(messenger.TRC,
-		serverApp.trustStore.NewPushTRCHandler())
-	serverApp.messenger.AddHandler(messenger.Chain,
-		serverApp.trustStore.NewPushChainHandler())
 	go serverApp.messenger.ListenAndServe()
 	// Do work
 	select {}
@@ -84,7 +80,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	// Initialize messenger with verification capabilities (trustStore-backed)
 	server.messenger = messenger.New(dispatcherLayer, server.trustStore, log.Root())
 	// Enable network access for trust store request handling
-	server.trustStore.StartResolvers(server.messenger)
+	server.trustStore.SetMessenger(server.messenger)
 	return server
 }
 
