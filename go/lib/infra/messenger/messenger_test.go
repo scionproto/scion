@@ -56,16 +56,6 @@ func MockTRCHandler(request *infra.Request) {
 	}
 }
 
-type MockAddress struct{}
-
-func (m *MockAddress) Network() string {
-	return "mock network"
-}
-
-func (m *MockAddress) String() string {
-	return "mock address"
-}
-
 func TestTRCExchange(t *testing.T) {
 	Convey("Setup", t, func() {
 		c2s, s2c := p2p.New()

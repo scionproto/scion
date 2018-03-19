@@ -35,6 +35,9 @@
 package xtest
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -91,4 +94,41 @@ func Parallel(f, g func(sc *SC)) func(c C) {
 		defer sc.Recover()
 		f(sc)
 	}
+}
+
+// SoMsgError wraps nil/non-nil error Goconvey assertions into a single yes/no
+// error check. The assertions pass if err is nil and shouldBeError is false,
+// or if err is non-nil and shouldBeError is true. In the latter case, no
+// equality check is performed.
+func SoMsgError(msg string, err error, shouldBeError bool) {
+	if shouldBeError == true {
+		SoMsg(msg, err, ShouldNotBeNil)
+	} else {
+		SoMsg(msg, err, ShouldBeNil)
+	}
+}
+
+// IgnoreTestdata populates the entire directory structure under subdirectory
+// testdata with ignore.goconvey files containing the line "IGNORE". If this is
+// not done, the Goconvey UI outputs build failures for each subdirectory.
+// If the files already exist, they are overwritten.
+//
+// If folder testdata is not found, the function silently exits.
+func IgnoreTestdata() error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Join(wd, "/testdata")
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			ignoreFile := filepath.Join(path, "ignore.goconvey")
+			return ioutil.WriteFile(ignoreFile, []byte("IGNORE\n"), 0644)
+		}
+		return nil
+	})
 }
