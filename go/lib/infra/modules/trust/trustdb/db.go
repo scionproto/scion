@@ -182,6 +182,9 @@ func (db *DB) InsertChain(ia addr.IA, version uint64, chain *cert.Chain) error {
 
 func (db *DB) InsertChainCtx(ctx context.Context, ia addr.IA, version uint64,
 	chain *cert.Chain) error {
+	if chain == nil {
+		return common.NewBasicError("Cannot insert nil Chain", nil, "ia", ia, "version", version)
+	}
 	raw, err := chain.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
@@ -192,12 +195,12 @@ func (db *DB) InsertChainCtx(ctx context.Context, ia addr.IA, version uint64,
 
 // GetTRCVersion returns the specified version of the TRC for
 // isd. If version is 0, this is equivalent to GetTRCMaxVersion.
-func (db *DB) GetTRCVersion(isd uint16, version uint64) (*trc.TRC, error) {
+func (db *DB) GetTRCVersion(isd addr.ISD, version uint64) (*trc.TRC, error) {
 	return db.GetTRCVersionCtx(context.Background(), isd, version)
 }
 
 // GetTRCVersionCtx is the context aware version of GetTRCVersion.
-func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) (*trc.TRC, error) {
+func (db *DB) GetTRCVersionCtx(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error) {
 	if version == 0 {
 		return db.GetTRCMaxVersionCtx(ctx, isd)
 	}
@@ -216,11 +219,11 @@ func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) 
 	return trcobj, nil
 }
 
-func (db *DB) GetTRCMaxVersion(isd uint16) (*trc.TRC, error) {
+func (db *DB) GetTRCMaxVersion(isd addr.ISD) (*trc.TRC, error) {
 	return db.GetTRCMaxVersionCtx(context.Background(), isd)
 }
 
-func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, error) {
+func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
 	var raw common.RawBytes
 	err := db.getTRCMaxVersionStmt.QueryRowContext(ctx, isd).Scan(&raw)
 	if err == sql.ErrNoRows {
@@ -231,16 +234,20 @@ func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, er
 	}
 	trcobj, err := trc.TRCFromRaw(raw, false)
 	if err != nil {
-		return nil, common.NewBasicError("TRC parse error", err, "isd", isd, "version", "max")
+		return nil, common.NewBasicError("TRC parse error", err, "isd", isd, "version", "max", "raw", raw)
 	}
 	return trcobj, nil
 }
 
-func (db *DB) InsertTRC(isd uint16, version uint64, trcobj *trc.TRC) error {
+func (db *DB) InsertTRC(isd addr.ISD, version uint64, trcobj *trc.TRC) error {
 	return db.InsertTRCCtx(context.Background(), isd, version, trcobj)
 }
 
-func (db *DB) InsertTRCCtx(ctx context.Context, isd uint16, version uint64, trcobj *trc.TRC) error {
+func (db *DB) InsertTRCCtx(ctx context.Context, isd addr.ISD, version uint64,
+	trcobj *trc.TRC) error {
+	if trcobj == nil {
+		return common.NewBasicError("Cannot insert nil TRC", nil, "isd", isd, "version", version)
+	}
 	raw, err := trcobj.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
