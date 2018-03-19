@@ -75,6 +75,7 @@ func init() {
 }
 
 func main() {
+	liblog.AddDefaultLogFlags()
 	validateFlags()
 	liblog.Setup(*id)
 	defer liblog.LogPanicAndExit()
