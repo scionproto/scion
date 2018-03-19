@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -133,6 +134,14 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	return t, nil
+}
+
+func TRCFromFile(path string, lz4_ bool) (*TRC, error) {
+	raw, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return TRCFromRaw(raw, lz4_)
 }
 
 func (t *TRC) IsdVer() (addr.ISD, uint64) {
