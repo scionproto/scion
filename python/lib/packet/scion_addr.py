@@ -148,13 +148,13 @@ class ISD_AS(Serializable):
         yield self._as
 
     def isd_str(self):
-        s = "%s" % self._isd
+        s = str(self._isd)
         if self._isd > self.MAX_ISD:
             return "%s [Illegal ISD: larger than %d]" % (s, self.MAX_ISD)
         return s
 
     def as_str(self):
-        dec_str = "%s" % self._as
+        dec_str = str(self._as)
         if self._as > self.MAX_AS:
             return "%s [Illegal AS: larger than %d]" % (dec_str, self.MAX_AS)
         l = len(dec_str)
