@@ -25,7 +25,7 @@ import nose.tools as ntools
 # SCION
 from lib.errors import SCIONParseError
 from lib.packet.scion_addr import SCIONAddr, ISD_AS
-from test.testcommon import assert_these_calls, create_mock
+from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
 
 class TestISDASParseBytes(object):
@@ -129,6 +129,67 @@ class TestISDASPack(object):
         inst._as = 0xF23344556677
         # Call
         ntools.eq_(inst.pack(), bytes.fromhex("F011F23344556677"))
+
+
+class TestISDASIsdStr(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS.isd_str
+    """
+    def _check(self, isd, s):
+        inst = ISD_AS()
+        inst._isd = isd
+        # Call
+        ntools.eq_(inst.isd_str(), s)
+
+    def test(self):
+        for isd, s in (
+            (0, "0"),
+            (1, "1"),
+            (65535, "65535"),
+            (65536, "65536 [Illegal ISD: larger than 65535]"),
+        ):
+            yield self._check, isd, s
+
+
+class TestISDASAsStr(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS.as_str
+    """
+    def _check(self, as_, s):
+        inst = ISD_AS()
+        inst._as = as_
+        # Call
+        ntools.eq_(inst.as_str(), s)
+
+    def test(self):
+        for as_, s in (
+            (0, "0"),
+            (1, "1"),
+            (999, "999"),
+            (1000, "1_000"),
+            (11000, "11_000"),
+            (999999, "999_999"),
+            (1000000, "1_000_000"),
+            (999999999, "999_999_999"),
+            (1000000000, "1_000_000_000"),
+            (999999999999, "999_999_999_999"),
+            (1000000000000, "1_000_000_000_000"),
+            (281474976710655, "281_474_976_710_655"),
+            (281474976710656, "281474976710656 [Illegal AS: larger than 281474976710655]"),
+        ):
+            yield self._check, as_, s
+
+
+class TestISDASStr(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS.__str__
+    """
+    def test(self):
+        inst = ISD_AS()
+        inst.isd_str = create_mock_full()
+        inst.as_str = create_mock_full()
+        # Call
+        ntools.eq_(str(inst), "%s-%s" % (inst.isd_str.return_value, inst.as_str.return_value))
 
 
 class TestSCIONAddrParse(object):

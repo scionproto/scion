@@ -147,10 +147,30 @@ class ISD_AS(Serializable):
         yield self._isd
         yield self._as
 
-    def __str__(self):
-        return "%s-%s" % (self._isd, self._as)
+    def isd_str(self):
+        s = "%s" % self._isd
+        if self._isd > self.MAX_ISD:
+            return "%s [Illegal ISD: larger than %d]" % (s, self.MAX_ISD)
+        return s
 
-    def __repr__(self):
+    def as_str(self):
+        dec_str = "%s" % self._as
+        if self._as > self.MAX_AS:
+            return "%s [Illegal AS: larger than %d]" % (dec_str, self.MAX_AS)
+        l = len(dec_str)
+        s = []
+        start = 0
+        end = (l % 3) or 3
+        while end <= l:
+            s.append(dec_str[start:end])
+            start = end
+            end += 3
+        return "_".join(s)
+
+    def __str__(self):
+        return "%s-%s" % (self.isd_str(), self.as_str())
+
+    def __repr__(self):  # pragma: no cover
         return "ISD_AS(isd=%s, as=%s)" % (self._isd, self._as)
 
     def __len__(self):  # pragma: no cover
