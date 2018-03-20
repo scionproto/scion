@@ -39,16 +39,18 @@ type Binary struct {
 }
 
 // Build compiles and saves the binary.
-func (b *Binary) Build() {
-	b.name = Build(b.Target, b.Dir, b.Prefix, b.BuildFlags...)
+func (b *Binary) Build() error {
+	if name, err := Build(b.Target, b.Dir, b.Prefix, b.BuildFlags...); err != nil {
+		return err
+	} else {
+		b.name = name
+		return nil
+	}
 }
 
 // Cmd returns an initialized *exec.Cmd for the binary described by b.
 // The working directory is set to b.Dir.
 func (b *Binary) Cmd(args ...string) *exec.Cmd {
-	if b.name == "" {
-		panic("executable not found")
-	}
 	cmd := exec.Command(b.name, args...)
 	if b.Dir != "" {
 		cmd.Dir = b.Dir
@@ -58,7 +60,8 @@ func (b *Binary) Cmd(args ...string) *exec.Cmd {
 
 // Build compiles package target, and saves the resulting binary in directory
 // dir with a file name starting with prefix, and a randomly generated suffix.
-func Build(target, dir, prefix string, extraFlags ...string) string {
+// On errors, the first returned value is "" and the error is non-nil.
+func Build(target, dir, prefix string, extraFlags ...string) (string, error) {
 	binaryName := MustTempFileName(dir, prefix)
 
 	args := append(append([]string{"build", "-o", binaryName}, extraFlags...), target)
@@ -68,9 +71,9 @@ func Build(target, dir, prefix string, extraFlags ...string) string {
 
 	if err := cmd.Run(); err != nil {
 		// Build error
-		panic(fmt.Sprintf("build failed (%s)", err))
+		return "", fmt.Errorf("build failed (%s)", err)
 	}
-	return binaryName
+	return binaryName, nil
 }
 
 // TempFileName creates a temporary file in dir with the specified prefix, and

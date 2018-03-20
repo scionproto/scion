@@ -21,7 +21,9 @@ func TestExample(t *testing.T) {
 			Dir:    dir,
 			Prefix: "mainbin",
 		}
-		b.Build()
+		err := b.Build()
+		SoMsg("err", err, ShouldBeNil)
+
 		output, err := b.Cmd().CombinedOutput()
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("output", string(output), ShouldEqual, dir)
