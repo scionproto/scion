@@ -31,6 +31,8 @@ type Binary struct {
 	Dir string
 	// First part of the binary file name; the last part is generated randomly.
 	Prefix string
+	// Extra build flags
+	BuildFlags []string
 
 	// Full binary path
 	name string
@@ -38,7 +40,7 @@ type Binary struct {
 
 // Build compiles and saves the binary.
 func (b *Binary) Build() {
-	b.name = Build(b.Target, b.Dir, b.Prefix)
+	b.name = Build(b.Target, b.Dir, b.Prefix, b.BuildFlags...)
 }
 
 // Cmd returns an initialized *exec.Cmd for the binary described by b.
