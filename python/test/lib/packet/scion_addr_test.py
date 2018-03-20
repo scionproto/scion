@@ -25,7 +25,7 @@ import nose.tools as ntools
 # SCION
 from lib.errors import SCIONParseError
 from lib.packet.scion_addr import SCIONAddr, ISD_AS
-from test.testcommon import assert_these_calls, create_mock
+from test.testcommon import assert_these_calls, create_mock, create_mock_full
 
 
 class TestISDASParseBytes(object):
@@ -50,13 +50,27 @@ class TestISDASParseStr(object):
     """
     Unit tests for lib.packet.scion_addr.ISD_AS._parse_str
     """
-    def test_success(self):
+    def _check_success(self, ia_s, isd, as_):
         inst = ISD_AS()
         # Call
-        inst._parse_str("4095-99")
+        inst._parse_str(ia_s)
         # Tests
-        ntools.eq_(inst._isd, 4095)
-        ntools.eq_(inst._as, 99)
+        ntools.eq_(inst._isd, isd)
+        ntools.eq_(inst._as, as_)
+
+    def test_success(self):
+        for ia_s, isd, as_ in (
+            ("0-0", 0, 0),
+            ("1-1", 1, 1),
+            ("65535-1", ISD_AS.MAX_ISD, 1),
+            ("1-281474976710655", 1, ISD_AS.MAX_AS),
+            ("65535-281474976710655", ISD_AS.MAX_ISD, ISD_AS.MAX_AS),
+            ("1-1_000", 1, 1000),
+            ("1-11_000", 1, 11000),
+            ("1-111_000", 1, 111000),
+            ("65535-281_474_976_710_655", ISD_AS.MAX_ISD, ISD_AS.MAX_AS),
+        ):
+            yield self._check_success, ia_s, isd, as_
 
     def _check_excp(self, isd_as):
         inst = ISD_AS()
@@ -64,7 +78,31 @@ class TestISDASParseStr(object):
         ntools.assert_raises(SCIONParseError, inst._parse_str, isd_as)
 
     def test_excp(self):
-        for isd_as in ("0-nope", "argh-99"):
+        for isd_as in (
+            "",
+            "a",
+            "1a-2b",
+            "-",
+            "1-",
+            "-1",
+            "-1-",
+            "1--1",
+            "1-_",
+            "1-_0",
+            "1-_00",
+            "1-_000",
+            "1-_0000",
+            "1-1_0",
+            "1-1_00",
+            "65536-1",
+            "1-281474976710656",
+            "1-1_0000",
+            "1-1111_000",
+            "65535-281_474_976_710_656",
+            "65535-281_474_976_7106_55",
+            "65535-281_474_976_71_0655",
+            "65535-1281_474_976_710",
+        ):
             yield self._check_excp, isd_as
 
 
@@ -91,6 +129,67 @@ class TestISDASPack(object):
         inst._as = 0xF23344556677
         # Call
         ntools.eq_(inst.pack(), bytes.fromhex("F011F23344556677"))
+
+
+class TestISDASIsdStr(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS.isd_str
+    """
+    def _check(self, isd, s):
+        inst = ISD_AS()
+        inst._isd = isd
+        # Call
+        ntools.eq_(inst.isd_str(), s)
+
+    def test(self):
+        for isd, s in (
+            (0, "0"),
+            (1, "1"),
+            (65535, "65535"),
+            (65536, "65536 [Illegal ISD: larger than 65535]"),
+        ):
+            yield self._check, isd, s
+
+
+class TestISDASAsStr(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS.as_str
+    """
+    def _check(self, as_, s):
+        inst = ISD_AS()
+        inst._as = as_
+        # Call
+        ntools.eq_(inst.as_str(), s)
+
+    def test(self):
+        for as_, s in (
+            (0, "0"),
+            (1, "1"),
+            (999, "999"),
+            (1000, "1_000"),
+            (11000, "11_000"),
+            (999999, "999_999"),
+            (1000000, "1_000_000"),
+            (999999999, "999_999_999"),
+            (1000000000, "1_000_000_000"),
+            (999999999999, "999_999_999_999"),
+            (1000000000000, "1_000_000_000_000"),
+            (281474976710655, "281_474_976_710_655"),
+            (281474976710656, "281474976710656 [Illegal AS: larger than 281474976710655]"),
+        ):
+            yield self._check, as_, s
+
+
+class TestISDASStr(object):
+    """
+    Unit tests for lib.packet.scion_addr.ISD_AS.__str__
+    """
+    def test(self):
+        inst = ISD_AS()
+        inst.isd_str = create_mock_full()
+        inst.as_str = create_mock_full()
+        # Call
+        ntools.eq_(str(inst), "%s-%s" % (inst.isd_str.return_value, inst.as_str.return_value))
 
 
 class TestSCIONAddrParse(object):

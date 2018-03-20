@@ -37,8 +37,9 @@ class ISD_AS(Serializable):
     NAME = "ISD_AS"
     LEN = 8
     ISD_BITS = 16
+    MAX_ISD = (1 << ISD_BITS) - 1
     AS_BITS = 48
-    AS_MASK = (1 << AS_BITS) - 1
+    MAX_AS = (1 << AS_BITS) - 1
 
     def __init__(self, raw=None):
         self._isd = 0
@@ -65,22 +66,39 @@ class ISD_AS(Serializable):
         """
         :param str raw: a string of the format "isd-as".
         """
-        isd, as_ = raw.split("-", 1)
+        parts = raw.split("-")
+        if len(parts) != 2:
+            raise SCIONParseError("Unable to split ISD-AS in string: %s" % raw)
+        isd_s, as_s = parts
         try:
-            self._isd = int(isd)
+            self._isd = int(isd_s)
         except ValueError:
             raise SCIONParseError("Unable to parse ISD from string: %s" % raw)
+        if self._isd > self.MAX_ISD:
+            raise SCIONParseError("ISD too large (max: %d): %s" % (self.MAX_ISD, raw))
+        if '_' in as_s:
+            as_parts = as_s.split("_")
+            for i, s in enumerate(as_parts):
+                if i == 0:
+                    if len(s) == 0 or len(s) > 3:
+                        raise SCIONParseError("Malformed _-separated AS: %s" % raw)
+                    continue
+                if len(s) != 3:
+                        raise SCIONParseError("Malformed _-separated AS: %s" % raw)
+            as_s = "".join(as_parts)
         try:
-            self._as = int(as_)
+            self._as = int(as_s)
         except ValueError:
             raise SCIONParseError("Unable to parse AS from string: %s" % raw)
+        if self._as > self.MAX_AS:
+            raise SCIONParseError("AS too large (max: %d): %s" % (self.MAX_AS, raw))
 
     def _parse_int(self, raw):
         """
         :param int raw: a 64-bit unsigned integer
         """
         self._isd = raw >> self.AS_BITS
-        self._as = raw & self.AS_MASK
+        self._as = raw & self.MAX_AS
 
     @classmethod
     def from_values(cls, isd, as_):  # pragma: no cover
@@ -94,7 +112,7 @@ class ISD_AS(Serializable):
 
     def int(self):
         isd_as = self._isd << self.AS_BITS
-        isd_as |= self._as & self.AS_MASK
+        isd_as |= self._as & self.MAX_AS
         return isd_as
 
     def any_as(self):  # pragma: no cover
@@ -129,10 +147,30 @@ class ISD_AS(Serializable):
         yield self._isd
         yield self._as
 
-    def __str__(self):
-        return "%s-%s" % (self._isd, self._as)
+    def isd_str(self):
+        s = str(self._isd)
+        if self._isd > self.MAX_ISD:
+            return "%s [Illegal ISD: larger than %d]" % (s, self.MAX_ISD)
+        return s
 
-    def __repr__(self):
+    def as_str(self):
+        dec_str = str(self._as)
+        if self._as > self.MAX_AS:
+            return "%s [Illegal AS: larger than %d]" % (dec_str, self.MAX_AS)
+        l = len(dec_str)
+        s = []
+        start = 0
+        end = (l % 3) or 3
+        while end <= l:
+            s.append(dec_str[start:end])
+            start = end
+            end += 3
+        return "_".join(s)
+
+    def __str__(self):
+        return "%s-%s" % (self.isd_str(), self.as_str())
+
+    def __repr__(self):  # pragma: no cover
         return "ISD_AS(isd=%s, as=%s)" % (self._isd, self._as)
 
     def __len__(self):  # pragma: no cover
