@@ -62,6 +62,7 @@ func (r *Router) setup() error {
 		return rpkt.NewRtrPkt()
 	}, "free", prometheus.Labels{"ringId": "freePkts"})
 	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs)
+	r.pktErrorQ = make(chan pktErrorArgs)
 
 	// Configure the rpkt package with the callbacks it needs.
 	rpkt.Init(r.RevTokenCallback)

@@ -208,8 +208,8 @@ func TestLifecycle(t *testing.T) {
 		}
 		SoMsg("Must be created with one ref count", rpkt.refCnt, ShouldEqual, 1)
 
-		rpkt.refInc(2)
-		SoMsg("refInc() must increment ref coount from 1 by 2", rpkt.refCnt, ShouldEqual, 3)
+		rpkt.RefInc(2)
+		SoMsg("RefInc() must increment ref coount from 1 by 2", rpkt.refCnt, ShouldEqual, 3)
 
 		rpkt.Release()
 		SoMsg("Release() must decrement ref count from 3 to 2", rpkt.refCnt, ShouldEqual, 2)

@@ -60,7 +60,7 @@ func (rp *RtrPkt) Route() error {
 		return common.NewBasicError("No routing information found", nil,
 			"egress", rp.Egress, "dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
 	}
-	rp.refInc(len(rp.Egress))
+	rp.RefInc(len(rp.Egress))
 	// Call all egress functions.
 	for _, epair := range rp.Egress {
 		epair.S.Ring.Write(ringbuf.EntryList{&EgressRtrPkt{rp, epair.Dst}}, true)
