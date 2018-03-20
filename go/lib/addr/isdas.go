@@ -32,7 +32,47 @@ const (
 )
 
 type ISD uint16
+
+func ISDFromString(s string) (ISD, error) {
+	isd, err := strconv.ParseUint(s, 10, ISDBits)
+	if err != nil {
+		// err.Error() will contain the original value
+		return 0, common.NewBasicError("Unable to parse ISD", err)
+	}
+	return ISD(isd), nil
+}
+
 type AS uint64
+
+func ASFromString(s string) (AS, error) {
+	asStr := s
+	if strings.Index(s, "_") != -1 {
+		// Support AS nubmers that have _ as thousands-separators. E.g. `281474976710655`
+		// can also be written as `281_474_976_710_655`.
+		parts := strings.Split(s, "_")
+		for i := range parts {
+			pLen := len(parts[i])
+			if i == 0 {
+				if pLen == 0 || pLen > 3 {
+					// Make sure the first part isn't either 0, or too long
+					return 0, common.NewBasicError("Malformed _-separated AS", nil, "val", s)
+				}
+				continue
+			}
+			if pLen != 3 {
+				// Ensure that there are 3 chars for every part after the first
+				return 0, common.NewBasicError("Malformed _-separated AS", nil, "val", s)
+			}
+		}
+		asStr = strings.Join(parts, "")
+	}
+	as, err := strconv.ParseUint(asStr, 10, ASBits)
+	if err != nil {
+		// err.Error() will contain the original value
+		return 0, common.NewBasicError("Unable to parse AS", err)
+	}
+	return AS(as), nil
+}
 
 func (as AS) String() string {
 	decStr := strconv.FormatUint(uint64(as), 10)
@@ -74,39 +114,15 @@ func IAFromString(s string) (IA, error) {
 	if len(parts) != 2 {
 		return IA{}, common.NewBasicError("Invalid ISD-AS", nil, "val", s)
 	}
-	isd, err := strconv.ParseUint(parts[0], 10, ISDBits)
+	isd, err := ISDFromString(parts[0])
 	if err != nil {
-		// err.Error() will contain the original value
-		return IA{}, common.NewBasicError("Unable to parse ISD", err)
+		return IA{}, err
 	}
-	var as uint64
-	var asStr = parts[1]
-	if strings.Index(parts[1], "_") != -1 {
-		// Support AS nubmers that have _ as thousands-separators. E.g. `281474976710655`
-		// can also be written as `281_474_976_710_655`.
-		as_parts := strings.Split(parts[1], "_")
-		for i := range as_parts {
-			pLen := len(as_parts[i])
-			if i == 0 {
-				if pLen == 0 || pLen > 3 {
-					// Make sure the first part isn't either 0, or too long
-					return IA{}, common.NewBasicError("Malformed _-separated AS", nil, "val", s)
-				}
-				continue
-			}
-			if pLen != 3 {
-				// Ensure that there are 3 chars for every part after the first
-				return IA{}, common.NewBasicError("Malformed _-separated AS", nil, "val", s)
-			}
-		}
-		asStr = strings.Join(as_parts, "")
-	}
-	as, err = strconv.ParseUint(asStr, 10, ASBits)
+	as, err := ASFromString(parts[1])
 	if err != nil {
-		// err.Error() will contain the original value
-		return IA{}, common.NewBasicError("Unable to parse AS", err)
+		return IA{}, err
 	}
-	return IA{I: ISD(isd), A: AS(as)}, nil
+	return IA{I: ISD(isd), A: as}, nil
 }
 
 func (ia IA) MarshalText() ([]byte, error) {

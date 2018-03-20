@@ -181,7 +181,7 @@ func checkIntfToSeg(t *testing.T, b *Backend, segRowID int, intfs []query.IntfSp
 
 func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, segRowID int, ia addr.IA) {
 	var segID int
-	queryStr := fmt.Sprintf("SELECT SegRowID FROM %s WHERE IsdID=%v AND AsID=%v", table, ia.I, ia.A)
+	queryStr := fmt.Sprintf("SELECT SegRowID FROM %s WHERE IsdID=%d AND AsID=%d", table, ia.I, ia.A)
 	err := b.db.QueryRow(queryStr).Scan(&segID)
 	if err != nil {
 		t.Fatal("CheckStartsAtOrEndsAt", "err", err)

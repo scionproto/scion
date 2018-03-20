@@ -161,7 +161,7 @@ func (s *Store) AddTRC(trc *trc.TRC, write bool) error {
 // writeChain writes certificate chain to the filesystem, if it does not already exist.
 func (s *Store) writeChain(chain *cert.Chain) error {
 	ia, ver := chain.IAVer()
-	name := fmt.Sprintf("%s-ISD%d-AS%d-V%d.crt", s.eName, ia.I, ia.A, ver)
+	name := fmt.Sprintf("%s-ISD%d-AS%s-V%d.crt", s.eName, ia.I, ia.A, ver)
 	return s.writeJSON(chain, filepath.Join(s.cacheDir, name))
 }
 
