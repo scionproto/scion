@@ -34,6 +34,27 @@ const (
 type ISD uint16
 type AS uint64
 
+func (as AS) String() string {
+	decStr := strconv.FormatUint(uint64(as), 10)
+	if as > MaxAS {
+		return fmt.Sprintf("%s [Illegal AS: larger than %d]", decStr, MaxAS)
+	}
+	l := len(decStr)
+	parts := make([]string, 0, (l/3)+1)
+	start := 0
+	end := l % 3
+	if end == 0 {
+		end = 3
+	}
+	for end <= l {
+		parts = append(parts, decStr[start:end])
+		start = end
+		end += 3
+	}
+	return strings.Join(parts, "_")
+}
+
+var _ fmt.Stringer = IA{}
 var _ encoding.TextUnmarshaler = (*IA)(nil)
 
 // IA represents the ISD (Isolation Domain) and AS (Autonomous System) Id of a given SCION AS.
@@ -123,7 +144,7 @@ func (ia IA) Eq(other IA) bool {
 }
 
 func (ia IA) String() string {
-	return fmt.Sprintf("%d-%d", ia.I, ia.A)
+	return fmt.Sprintf("%d-%s", ia.I, ia.A)
 }
 
 type IAInt uint64

@@ -15,7 +15,6 @@
 package addr
 
 import (
-	"fmt"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -26,8 +25,34 @@ var (
 	ia    = IA{I: 0xF011, A: 0xF23344556677}
 )
 
-// Interface assertions
-var _ fmt.Stringer = (*IA)(nil)
+func Test_AS_String(t *testing.T) {
+	var testCases = []struct {
+		as  AS
+		out string
+	}{
+		{0, "0"},
+		{1, "1"},
+		{999, "999"},
+		{1000, "1_000"},
+		{11000, "11_000"},
+		{999999, "999_999"},
+		{1000000, "1_000_000"},
+		{999999999, "999_999_999"},
+		{1000000000, "1_000_000_000"},
+		{999999999999, "999_999_999_999"},
+		{1000000000000, "1_000_000_000_000"},
+		{281474976710655, "281_474_976_710_655"},
+		{281474976710656, "281474976710656 [Illegal AS: larger than 281474976710655]"},
+	}
+	Convey("AS.String() should format correctly", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.out, func() {
+				s := tc.as.String()
+				SoMsg("Format must match", s, ShouldEqual, tc.out)
+			})
+		}
+	})
+}
 
 func Test_IAFromRaw(t *testing.T) {
 	Convey("IAFromRaw should parse bytes correctly", t, func() {
@@ -100,8 +125,22 @@ func Test_IA_Write(t *testing.T) {
 }
 
 func Test_IA_String(t *testing.T) {
-	Convey("String() should return ISD-AS", t, func() {
-		ia := IA{33, 55}
-		So(ia.String(), ShouldEqual, "33-55")
+	var testCases = []struct {
+		ia  IA
+		out string
+	}{
+		{IA{0, 0}, "0-0"},
+		{IA{1, 1}, "1-1"},
+		{IA{65535, 1}, "65535-1"},
+		{IA{65535, 281474976710655}, "65535-281_474_976_710_655"},
+		{IA{1, 281474976710656}, "1-281474976710656 [Illegal AS: larger than 281474976710655]"},
+	}
+	Convey("IA.String() should format correctly", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.out, func() {
+				s := tc.ia.String()
+				SoMsg("Format must match", s, ShouldEqual, tc.out)
+			})
+		}
 	})
 }
