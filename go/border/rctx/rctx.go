@@ -18,8 +18,6 @@
 package rctx
 
 import (
-	"sync"
-
 	"github.com/scionproto/scion/go/border/conf"
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -57,19 +55,12 @@ func New(conf *conf.Conf, intAddrCnt int) *Ctx {
 // ctx is the current router context object.
 var ctx *Ctx
 
-// ctxLock protects access to the global context object.
-var ctxLock sync.RWMutex
-
 // Get returns a pointer to the current router context.
 func Get() *Ctx {
-	ctxLock.RLock()
-	defer ctxLock.RUnlock()
 	return ctx
 }
 
 // Set updates the current router context.
 func Set(newCtx *Ctx) {
-	ctxLock.Lock()
-	defer ctxLock.Unlock()
 	ctx = newCtx
 }
