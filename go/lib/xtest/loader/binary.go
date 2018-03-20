@@ -56,14 +56,11 @@ func (b *Binary) Cmd(args ...string) *exec.Cmd {
 
 // Build compiles package target, and saves the resulting binary in directory
 // dir with a file name starting with prefix, and a randomly generated suffix.
-func Build(target, dir, prefix string) string {
+func Build(target, dir, prefix string, extraFlags ...string) string {
 	binaryName := MustTempFileName(dir, prefix)
 
-	cmd := exec.Command(
-		"go", "build",
-		"-o", binaryName,
-		target,
-	)
+	args := append(append([]string{"build", "-o", binaryName}, extraFlags...), target)
+	cmd := exec.Command("go", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
