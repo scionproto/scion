@@ -18,6 +18,8 @@
 package rctx
 
 import (
+	"sync/atomic"
+
 	"github.com/scionproto/scion/go/border/conf"
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -53,14 +55,18 @@ func New(conf *conf.Conf, intAddrCnt int) *Ctx {
 }
 
 // ctx is the current router context object.
-var ctx *Ctx
+var ctx atomic.Value
 
 // Get returns a pointer to the current router context.
 func Get() *Ctx {
-	return ctx
+	c := ctx.Load()
+	if c != nil {
+		return c.(*Ctx)
+	}
+	return nil
 }
 
 // Set updates the current router context.
 func Set(newCtx *Ctx) {
-	ctx = newCtx
+	ctx.Store(newCtx)
 }
