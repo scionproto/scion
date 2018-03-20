@@ -18,24 +18,51 @@
 package main
 
 import (
-	//log "github.com/inconshreveable/log15"
+	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-// handlePktError is called for protocol-level packet errors. If there's SCMP
-// metadata attached to the error object, then an SCMP error response is
-// generated and sent.
+type pktErrorArgs struct {
+	rp   *rpkt.RtrPkt
+	perr error
+}
+
+// handlePktError is called to enqueue packets with protocol-level errors
+// for handling by the PacketError goroutine.
 func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
-	serr := scmp.ToError(perr)
 	// XXX(kormat): uncomment for debugging:
 	// perr = common.NewBasicError("Raw packet", perr, "raw", rp.Raw)
 	rp.Error(desc, "err", perr)
+	rp.RefInc(1)
+	args := pktErrorArgs{rp: rp, perr: perr}
+	select {
+	case r.pktErrorQ <- args:
+	default:
+		log.Debug("Dropping pkt error")
+	}
+}
+
+// PackeError creates an SCMP error for the given packet and sends it to its source.
+func (r *Router) PacketError() {
+	defer liblog.LogPanicAndExit()
+	// Run forever.
+	for args := range r.pktErrorQ {
+		r.doPktError(args.rp, args.perr)
+	}
+}
+
+// doPktError is called for protocol-level packet errors. If there's SCMP
+// metadata attached to the error object, then an SCMP error response is
+// generated and sent.
+func (r *Router) doPktError(rp *rpkt.RtrPkt, perr error) {
+	serr := scmp.ToError(perr)
 	if serr == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
@@ -68,13 +95,13 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 				return
 			}
 		}
-
 	}
 	reply, err := r.createSCMPErrorReply(rp, serr.CT, serr.Info)
 	if err != nil {
 		rp.Error("Error creating SCMP response", "err", err)
 		return
 	}
+	rp.Release()
 	reply.Route()
 }
 
