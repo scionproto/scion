@@ -29,9 +29,11 @@ import (
 //
 //  0B       1        2        3        4        5        6        7
 // +--------+--------+--------+--------+--------+--------+--------+--------+
-// |                IA                 |                TS                 |
+// |                                  IA                                   |
 // +--------+--------+--------+--------+--------+--------+--------+--------+
 // |                                 IfID                                  |
+// +--------+--------+--------+--------+--------+--------+--------+--------+
+// |                TS                 |               Unused              |
 // +--------+--------+--------+--------+--------+--------+--------+--------+
 //
 // TS is the time since SCMP Timestamp in microseconds, truncated to 32bits.
@@ -42,28 +44,28 @@ const (
 
 type RecordPathEntry struct {
 	IA   addr.IA
-	TS   uint32
 	IfID common.IFIDType
+	TS   uint32
 }
 
 func (entry *RecordPathEntry) write(b common.RawBytes) {
 	entry.IA.Write(b)
 	offset := addr.IABytes
-	common.Order.PutUint32(b[offset:], entry.TS)
-	offset += 4
 	common.Order.PutUint64(b[offset:], uint64(entry.IfID))
+	offset += 8
+	common.Order.PutUint32(b[offset:], entry.TS)
 }
 
 func (entry *RecordPathEntry) read(b common.RawBytes) {
 	entry.IA = addr.IAFromRaw(b)
 	offset := addr.IABytes
-	entry.TS = common.Order.Uint32(b[offset:])
-	offset += 4
 	entry.IfID = common.IFIDType(common.Order.Uint64(b[offset:]))
+	offset += 8
+	entry.TS = common.Order.Uint32(b[offset:])
 }
 
 func (entry *RecordPathEntry) String() string {
-	return fmt.Sprintf("IA: %s, IfID: %d, Offset: %s", entry.IA, entry.IfID,
+	return fmt.Sprintf("IA: %s, IfID: %d, TimeOff: %s", entry.IA, entry.IfID,
 		time.Duration(entry.TS)*time.Microsecond)
 }
 
@@ -96,7 +98,7 @@ type InfoRecordPath struct {
 }
 
 func InfoRecordPathFromRaw(b common.RawBytes) (*InfoRecordPath, error) {
-	if len(b) <= recordPathHdrLen {
+	if len(b) < recordPathHdrLen {
 		return nil, common.NewBasicError("Truncated RecordPath info header", nil,
 			"min", recordPathHdrLen, "actual", len(b))
 	}
