@@ -130,6 +130,9 @@ DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 
+DEFAULT6_NETWORK = "::127:0:0:0/104"
+DEFAULT6_PRIV_NETWORK = "fd00::192:168:0:0/112"
+
 SCION_SERVICE_NAMES = (
     "BeaconService",
     "CertificateService",
@@ -146,7 +149,7 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
-    def __init__(self, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
+    def __init__(self, ipv6=False, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
                  use_mininet=False, bind_addr=GENERATE_BIND_ADDRESS,
@@ -164,6 +167,7 @@ class ConfigGenerator(object):
         :param int pseg_ttl: The TTL for path segments (in seconds)
         :param string cs: Use go or python implementation of certificate server
         """
+        self.ipv6 = ipv6
         self.out_dir = out_dir
         self.topo_config = load_yaml_file(topo_file)
         self.zk_config = load_yaml_file(zk_config_file)
@@ -185,12 +189,17 @@ class ConfigGenerator(object):
         if not def_network:
             def_network = defaults.get("subnet")
         if not def_network:
-            if self.mininet:
-                def_network = DEFAULT_MININET_NETWORK
+            if self.ipv6:
+                priv_net = DEFAULT6_PRIV_NETWORK
+                def_network = DEFAULT6_NETWORK
             else:
-                def_network = DEFAULT_NETWORK
+                priv_net = DEFAULT_PRIV_NETWORK
+                if self.mininet:
+                    def_network = DEFAULT_MININET_NETWORK
+                else:
+                    def_network = DEFAULT_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
-        self.prvnet_gen = SubnetGenerator(DEFAULT_PRIV_NETWORK)
+        self.prvnet_gen = SubnetGenerator(priv_net)
         for key, val in defaults.get("zookeepers", {}).items():
             if self.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
@@ -237,9 +246,13 @@ class ConfigGenerator(object):
         return certgen.generate()
 
     def _generate_topology(self):
+        if self.ipv6:
+            overlay = 'UDP/IPv6'
+        else:
+            overlay = 'UDP/IPv4'
         topo_gen = TopoGenerator(
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
-            self.default_mtu, self.gen_bind_addr)
+            self.default_mtu, self.gen_bind_addr, overlay)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts, zookeepers):
@@ -558,7 +571,7 @@ class CA_Generator(object):
 
 class TopoGenerator(object):
     def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr):
+                 default_mtu, gen_bind_addr, overlay):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
@@ -573,6 +586,7 @@ class TopoGenerator(object):
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
         self.ifid_map = {}
+        self.overlay = overlay
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -636,7 +650,7 @@ class TopoGenerator(object):
         assert mtu >= SCION_MIN_MTU, mtu
         self.topo_dicts[topo_id] = {
             'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
-            'ZookeeperService': {}, 'MTU': mtu, 'Overlay': 'UDP/IPv4'
+            'ZookeeperService': {}, 'MTU': mtu, 'Overlay': self.overlay
         }
         for i in SCION_SERVICE_NAMES:
             self.topo_dicts[topo_id][i] = {}
@@ -682,6 +696,7 @@ class TopoGenerator(object):
                       remote_br):
         public_addr, remote_addr = self._reg_link_addrs(
             local_br, remote_br)
+
         self.topo_dicts[local]["BorderRouters"][local_br] = {
             'InternalAddrs': [{
                 'Public': [{
@@ -692,7 +707,7 @@ class TopoGenerator(object):
             'Interfaces': {
                 ifid: {  # Interface ID.
                     'InternalAddrIdx': 0,
-                    'Overlay': 'UDP/IPv4',
+                    'Overlay': self.overlay,
                     'Public': {
                         'Addr': public_addr,
                         'L4Port': SCION_ROUTER_PORT
@@ -1019,7 +1034,12 @@ class ZKConfGenerator(object):
         # Build up server block
         servers = []
         for id_, zk in zks.values():
-            servers.append("server.%s=%s:%d:%d" %
+            addr = ip_address(zk.addr.ip)
+            if addr.version == 6:
+                servers.append("server.%s=[%s]:%d:%d" %
+                           (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
+            else:
+                servers.append("server.%s=%s:%d:%d" %
                            (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
         server_block = "\n".join(sorted(servers))
         base_dir = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
@@ -1111,24 +1131,26 @@ class ZKTopo(object):
 
 class SubnetGenerator(object):
     def __init__(self, network):
-        self._net = ip_network(network)
-        if "/" not in network:
-            logging.critical("No prefix length specified for network '%s'",
-                             network)
+        try:
+            self._net = ip_network(network)
+        except ValueError:
+            logging.critical("Invalid network '%s'", network)
             sys.exit(1)
         self._subnets = defaultdict(lambda: AddressGenerator())
         self._allocations = defaultdict(list)
         # Initialise the allocations with the supplied network, making sure to
-        # exclude 127.0.0.0/30 if it's contained in the network.
-        # - 127.0.0.0 is treated as a broadcast address by the kernel
-        # - 127.0.0.1 is the normal loopback address
-        # - 127.0.0.[23] are used for clients to bind to for testing purposes.
-        if network is DEFAULT_PRIV_NETWORK:
-            v4_lo = ip_network("192.168.0.0/30")
-        else:
-            v4_lo = ip_network("127.0.0.0/30")
-        if self._net.overlaps(v4_lo):
-            self._exclude_net(self._net, v4_lo)
+        # exclude <net>/30 if it's contained in the network.
+        # - .0 is treated as a broadcast address by the kernel
+        # - .1 is the normal loopback address
+        # - .[23] are used for clients to bind to for testing purposes.
+        if self._net.version == 6:
+            prefix = 126
+        else: # ipv4
+            prefix = 30
+        exclude = ip_network(ip_interface(network).ip).supernet(new_prefix=prefix)
+
+        if self._net.overlaps(exclude):
+            self._exclude_net(self._net, exclude)
         else:
             self._allocations[self._net.prefixlen].append(self._net)
 
@@ -1256,6 +1278,8 @@ def main():
     Main function.
     """
     parser = argparse.ArgumentParser()
+    parser.add_argument('-6', '--ipv6', action='store_true',
+                        help='Generate IPv6 addresses')
     parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
                         help='Default topology config')
     parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
@@ -1276,7 +1300,7 @@ def main():
                         help='Certificate Server implementation to use ("go" or "py")')
     args = parser.parse_args()
     confgen = ConfigGenerator(
-        args.output_dir, args.topo_config, args.path_policy, args.zk_config,
+        args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
         args.network, args.mininet, args.bind_addr, args.pseg_ttl, args.cert_server)
     confgen.generate_all()
 

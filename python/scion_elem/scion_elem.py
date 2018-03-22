@@ -1221,7 +1221,7 @@ class SCIONElement(object):
         """
         Starts an HTTP server endpoint for prometheus to scrape.
         """
-        addr, port = export_addr.split(":")
+        addr, port = export_addr.rsplit(":", 1)
         port = int(port)
         addr = addr.strip("[]")
         logging.info("Exporting metrics on %s", export_addr)
