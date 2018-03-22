@@ -25,11 +25,11 @@ import (
 
 const (
 	getCoreCertVersionStr = `
-			SELECT max(Version) FROM Certs WHERE IsdID=? and AsID=?
+			SELECT max(Version) FROM IssuerCerts WHERE IsdID=? and AsID=?
 		`
 	insertCoreCertStr = `
-			INSERT INTO Certs (IsdID, AsID, Version, Data) SELECT ?,?,?,? 
-			WHERE NOT EXISTS(SELECT 1 FROM Certs WHERE IsdID=? and AsID=? and Version>=?)
+			INSERT INTO IssuerCerts (IsdID, AsID, Version, Data) SELECT ?,?,?,? 
+			WHERE NOT EXISTS(SELECT 1 FROM IssuerCerts WHERE IsdID=? and AsID=? and Version>=?)
 		`
 )
 
@@ -107,5 +107,5 @@ func (s *CoreCertStore) Set(crt *cert.Certificate) error {
 
 // Get returns the core certificate.
 func (s *CoreCertStore) Get() (*cert.Certificate, error) {
-	return s.db.GetCertMaxVersion(s.ia)
+	return s.db.GetIssCertMaxVersion(s.ia)
 }

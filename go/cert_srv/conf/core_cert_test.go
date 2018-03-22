@@ -95,6 +95,10 @@ func Test_Set(t *testing.T) {
 				SoMsg("cert", crt, ShouldResemble, chain.Core)
 			})
 		})
+		Convey("Set certificate mismatching ia", func() {
+			err := s.Set(chain.Leaf)
+			SoMsg("err", err, ShouldNotBeNil)
+		})
 	})
 }
 

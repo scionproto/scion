@@ -37,6 +37,8 @@ func TestTRC(t *testing.T) {
 		Convey("Insert into database", func() {
 			err := db.InsertTRC(trcobj)
 			SoMsg("err", err, ShouldBeNil)
+			err = db.InsertTRC(trcobj)
+			SoMsg("err", err, ShouldBeNil)
 			Convey("Get TRC from database", func() {
 				newTRCobj, err := db.GetTRCVersion(1, 1)
 				SoMsg("err", err, ShouldBeNil)
@@ -44,6 +46,9 @@ func TestTRC(t *testing.T) {
 			})
 			Convey("Get Max TRC from database", func() {
 				newTRCobj, err := db.GetTRCMaxVersion(1)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+				newTRCobj, err = db.GetTRCVersion(1, 0)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
@@ -56,8 +61,8 @@ func TestTRC(t *testing.T) {
 	})
 }
 
-func TestCert(t *testing.T) {
-	Convey("Initialize DB and load Cert", t, func() {
+func TestIssCert(t *testing.T) {
+	Convey("Initialize DB and load issuer Cert", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
@@ -66,21 +71,63 @@ func TestCert(t *testing.T) {
 		SoMsg("chain", chain, ShouldNotBeNil)
 		ia := addr.IA{I: 1, A: 13}
 		Convey("Insert into database", func() {
-			err := db.InsertCert(chain.Core)
+			err := db.InsertIssCert(chain.Core)
 			SoMsg("err", err, ShouldBeNil)
-			Convey("Get certificate from database", func() {
-				crt, err := db.GetCertVersion(ia, 1)
+			err = db.InsertIssCert(chain.Core)
+			SoMsg("err", err, ShouldBeNil)
+			Convey("Get issuer certificate from database", func() {
+				crt, err := db.GetIssCertVersion(ia, 1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Core)
 			})
-			Convey("Get max version certificate from database", func() {
-				crt, err := db.GetCertMaxVersion(ia)
+			Convey("Get max version issuer certificate from database", func() {
+				crt, err := db.GetIssCertMaxVersion(ia)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Core)
+				crt, err = db.GetIssCertVersion(ia, 0)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Core)
 			})
-			Convey("Get missing certificate from database", func() {
+			Convey("Get missing issuer certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 2}
-				crt, err := db.GetCertVersion(otherIA, 10)
+				crt, err := db.GetIssCertVersion(otherIA, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestLeafCert(t *testing.T) {
+	Convey("Initialize DB and load leaf Cert", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		SoMsg("err chain", err, ShouldBeNil)
+		SoMsg("chain", chain, ShouldNotBeNil)
+		ia := addr.IA{I: 1, A: 10}
+		Convey("Insert into database", func() {
+			err := db.InsertLeafCert(chain.Leaf)
+			SoMsg("err", err, ShouldBeNil)
+			err = db.InsertLeafCert(chain.Leaf)
+			SoMsg("err", err, ShouldBeNil)
+			Convey("Get leaf certificate from database", func() {
+				crt, err := db.GetLeafCertVersion(ia, 1)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
+			})
+			Convey("Get max version leaf certificate from database", func() {
+				crt, err := db.GetLeafCertMaxVersion(ia)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
+				crt, err = db.GetLeafCertVersion(ia, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
+			})
+			Convey("Get missing leaf certificate from database", func() {
+				otherIA := addr.IA{I: 1, A: 2}
+				crt, err := db.GetLeafCertVersion(otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
@@ -107,6 +154,9 @@ func TestChain(t *testing.T) {
 			})
 			Convey("Get max version certificate chain from database", func() {
 				newChain, err := db.GetChainMaxVersion(ia)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("chain", newChain, ShouldResemble, chain)
+				newChain, err = db.GetChainVersion(ia, 0)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldResemble, chain)
 			})
