@@ -10,22 +10,6 @@ ASes:
     path_servers: 3
   1-12:
     core: true
-    zookeepers:
-      1:
-        manage: true
-        clientPort: 4000
-        leaderPort: 4001
-        electionPort: 4002
-      2:
-        manage: true
-        clientPort: 4003
-        leaderPort: 4004
-        electionPort: 4005
-      3:
-        manage: true
-        clientPort: 4006
-        leaderPort: 4007
-        electionPort: 4008
   1-13:
     core: true
     beacon_servers: 2
