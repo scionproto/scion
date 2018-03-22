@@ -70,7 +70,7 @@ func (pp *PathPredicate) String() string {
 	var desc []string
 	for _, iface := range pp.Match {
 		isdas := iface.ISD_AS()
-		desc = append(desc, fmt.Sprintf("%d-%d#%d", isdas.I, isdas.A, iface.IfID))
+		desc = append(desc, fmt.Sprintf("%d-%s#%d", isdas.I, isdas.A, iface.IfID))
 	}
 	return strings.Join(desc, ",")
 }

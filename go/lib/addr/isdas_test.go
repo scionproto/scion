@@ -25,6 +25,77 @@ var (
 	ia    = IA{I: 0xF011, A: 0xF23344556677}
 )
 
+func Test_ISDFromString(t *testing.T) {
+	var testCases = []struct {
+		src string
+		isd ISD
+		ok  bool
+	}{
+		{"", 0, false},
+		{"0", 0, true},
+		{"1", 1, true},
+		{"65535", MaxISD, true},
+		{"65536", 0, false},
+	}
+	Convey("ISDFromString should parse strings correctly", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.src, func() {
+				isd, err := ISDFromString(tc.src)
+				if !tc.ok {
+					SoMsg("Must raise parse error", err, ShouldNotBeNil)
+					return
+				}
+				SoMsg("Must parse cleanly", err, ShouldBeNil)
+				SoMsg("Parsed ISD must be correct", isd, ShouldEqual, tc.isd)
+			})
+		}
+	})
+}
+
+func Test_ASFromString(t *testing.T) {
+	var testCases = []struct {
+		src string
+		as  AS
+		ok  bool
+	}{
+		{"", 0, false},
+		{"2b", 0, false},
+		{"0", 0, true},
+		{"1", 1, true},
+		{"1 1", 0, false},
+		{"281474976710655", MaxAS, true},
+		{"281474976710656", 0, false},
+		{"_000", 0, false},
+		{"000_", 0, false},
+		{"_000_", 0, false},
+		{"1_0", 0, false},
+		{"1_00", 0, false},
+		{"1_000", 1000, true},
+		{"1_0000", 0, false},
+		{"11_000", 11000, true},
+		{"111_000", 111000, true},
+		{"1111_000", 0, false},
+		{"281_474_976_710_655", MaxAS, true},
+		{"281_474_976_710_656", 0, false},
+		{"281_474_976_7106_55", 0, false},
+		{"281_474_976_71_0655", 0, false},
+		{"1281_474_976_710", 0, false},
+	}
+	Convey("ASFromString should parse strings correctly", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.src, func() {
+				as, err := ASFromString(tc.src)
+				if !tc.ok {
+					SoMsg("Must raise parse error", err, ShouldNotBeNil)
+					return
+				}
+				SoMsg("Must parse cleanly", err, ShouldBeNil)
+				SoMsg("Parsed AS must be correct", as, ShouldEqual, tc.as)
+			})
+		}
+	})
+}
+
 func Test_AS_String(t *testing.T) {
 	var testCases = []struct {
 		as  AS
@@ -82,23 +153,6 @@ func Test_IAFromString(t *testing.T) {
 		{"1-281474976710655", &IA{1, MaxAS}},
 		{"1-281474976710656", nil},
 		{"65535-281474976710655", &IA{MaxISD, MaxAS}},
-		{"1-_", nil},
-		{"1-_0", nil},
-		{"1-_00", nil},
-		{"1-_000", nil},
-		{"1-_0000", nil},
-		{"1-1_0", nil},
-		{"1-1_00", nil},
-		{"1-1_000", &IA{1, 1000}},
-		{"1-1_0000", nil},
-		{"1-11_000", &IA{1, 11000}},
-		{"1-111_000", &IA{1, 111000}},
-		{"1-1111_000", nil},
-		{"65535-281_474_976_710_655", &IA{MaxISD, MaxAS}},
-		{"65535-281_474_976_710_656", nil},
-		{"65535-281_474_976_7106_55", nil},
-		{"65535-281_474_976_71_0655", nil},
-		{"65535-1281_474_976_710", nil},
 	}
 	Convey("IAFromString should parse strings correctly", t, func() {
 		for _, tc := range testCases {

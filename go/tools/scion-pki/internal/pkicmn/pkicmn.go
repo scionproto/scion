@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -28,8 +27,8 @@ import (
 )
 
 const (
-	CertNameFmt        = "ISD%d-AS%d-V%d.crt"
-	CoreCertNameFmt    = "ISD%d-AS%d-V%d-core.crt"
+	CertNameFmt        = "ISD%d-AS%s-V%d.crt"
+	CoreCertNameFmt    = "ISD%d-AS%s-V%d-core.crt"
 	TrcNameFmt         = "ISD%d-V%d.trc"
 	ErrInvalidSelector = "Invalid selector."
 )
@@ -57,13 +56,12 @@ func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
 		return nil, common.NewBasicError(ErrInvalidSelector, nil, "selector", selector)
 	}
 	if isdTok != "*" {
-		if _, err := strconv.ParseUint(isdTok, 10, addr.ISDBits); err != nil {
+		if _, err := addr.ISDFromString(isdTok); err != nil {
 			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
 	}
-
 	if asTok != "*" {
-		if _, err := strconv.ParseUint(asTok, 10, addr.ASBits); err != nil {
+		if _, err := addr.ASFromString(asTok); err != nil {
 			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
 	}
@@ -101,19 +99,19 @@ func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
 }
 
 func isdFromDir(dir string) (addr.ISD, error) {
-	isd, err := strconv.ParseUint(filepath.Base(dir)[3:], 10, addr.ISDBits)
+	isd, err := addr.ISDFromString(filepath.Base(dir)[3:])
 	if err != nil {
-		return 0, common.NewBasicError("Unable to parse ISD number from dir", nil, "dir", dir)
+		return 0, common.NewBasicError("Unable to parse ISD number from dir", err, "dir", dir)
 	}
-	return addr.ISD(isd), nil
+	return isd, nil
 }
 
 func asFromDir(dir string) (addr.AS, error) {
-	as, err := strconv.ParseUint(filepath.Base(dir)[2:], 10, addr.ASBits)
+	as, err := addr.ASFromString(filepath.Base(dir)[2:])
 	if err != nil {
-		return 0, common.NewBasicError("Unable to parse AS number from dir", nil, "dir", dir)
+		return 0, common.NewBasicError("Unable to parse AS number from dir", err, "dir", dir)
 	}
-	return addr.AS(as), nil
+	return as, nil
 }
 
 func Contains(ases []addr.IA, as addr.IA) bool {
@@ -145,7 +143,7 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 }
 
 func GetAsPath(ia addr.IA) string {
-	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%d", ia.I, ia.A))
+	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%s", ia.I, ia.A))
 }
 
 func GetIsdPath(isd addr.ISD) string {

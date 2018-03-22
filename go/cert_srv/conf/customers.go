@@ -47,7 +47,7 @@ func (c *Conf) LoadCustomers() (Customers, error) {
 	activeKeys := make(map[addr.IA]string)
 	activeVers := make(map[addr.IA]uint64)
 	for _, file := range files {
-		re := regexp.MustCompile(`ISD(\d+)-AS(\d+)-V(\d+)\.key$`)
+		re := regexp.MustCompile(`ISD(\d+)-AS([\d_]+)-V(\d+)\.key$`)
 		s := re.FindStringSubmatch(file)
 		ia, err := addr.IAFromString(fmt.Sprintf("%s-%s", s[1], s[2]))
 		if err != nil {
@@ -100,7 +100,7 @@ func (c *Conf) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.Raw
 	// Key has to be written to file system, only if it has changed
 	if !bytes.Equal(newKey, currKey) {
 		var err error
-		name := fmt.Sprintf("ISD%d-AS%d-V%d.key", ia.I, ia.A, ver)
+		name := fmt.Sprintf("ISD%d-AS%s-V%d.key", ia.I, ia.A, ver)
 		path := filepath.Join(c.StateDir, CustomersDir, name)
 		if _, err = os.Stat(path); !os.IsNotExist(err) {
 			return err
