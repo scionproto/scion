@@ -15,3 +15,4 @@ appdirs==1.4.3 --hash=sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df
 pycparser==2.17 --hash=sha256:0aac31e917c24cb3357f5a4d5566f2cc91a19ca41862f6c3c22dc60a629673b6
 prometheus-client==0.0.19 --hash=sha256:ce4ddcb89a870ee771ca5427df123029bf5344ea84f535ded4a1787e29a22a3f # Direct dependency
 pypacker==4.1 --hash=sha256:05bc5c873cfef620ce8b07df4aa286ea199e328b5b1eabd0b10aa0bb699c464f # Direct dependency
+pyroute2==0.5.0 --hash=sha256:bb02fe5a02fb4e8baad4d7ccf7ba5e748044ee0a1ad7d2fa4927f68f396863c4

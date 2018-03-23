@@ -44,12 +44,14 @@ cmd_run() {
     if [ -e gen/zk_datalog_dirs.sh ]; then
         bash gen/zk_datalog_dirs.sh || exit 1
     fi
+    sudo python/topology/setinterfaces.py -a
     supervisor/supervisor.sh start all
 }
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     supervisor/supervisor.sh stop all
+    sudo python/topology/setinterfaces.py -d
     find /run/shm/dispatcher /run/shm/sciond -type s -print0 | xargs -r0 rm -v
 }
 
