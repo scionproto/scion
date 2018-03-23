@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xtest adds support for assertions in multiple goroutines to
-// Goconvey.
+// Package xtest implements common functionality for unit tests. This includes
+// support for assertions in multiple goroutines to Goconvey, and temporary
+// test file/folder helpers.
 //
 // Parallel goconvey blocks cannot contain other goconvey blocks.
 //
