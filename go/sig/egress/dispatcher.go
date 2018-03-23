@@ -15,11 +15,7 @@
 package egress
 
 import (
-	"io"
-	"os"
-
 	log "github.com/inconshreveable/log15"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -29,35 +25,18 @@ import (
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
-const (
-	// FIXME(kormat): these relative sizes will fail if there are lots of egress dispatchers.
-	egressFreePktsCap = 1024
-	egressBufPkts     = 32
-)
-
-var (
-	egressFreePkts *ringbuf.Ring
-)
-
-func Init() {
-	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
-		return make(common.RawBytes, common.MaxMTU)
-	}, "egress", prometheus.Labels{"ringId": "freePkts", "sessId": ""})
-}
-
 type egressDispatcher struct {
 	log.Logger
-	devName          string
-	devIO            io.ReadWriteCloser
+	ia               addr.IA
+	ring             *ringbuf.Ring
 	sess             *Session
 	pktsRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
 }
 
-func NewDispatcher(devName string, devIO io.ReadWriteCloser, sess *Session) *egressDispatcher {
+func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, sess *Session) *egressDispatcher {
 	return &egressDispatcher{
-		Logger:           log.New("dev", devName),
-		devName:          devName,
-		devIO:            devIO,
+		Logger:           log.New("ia", ia.String()),
+		ring:             ring,
 		sess:             sess,
 		pktsRecvCounters: make(map[metrics.CtrPairKey]metrics.CtrPair),
 	}
@@ -67,36 +46,13 @@ func (ed *egressDispatcher) Run() {
 	defer liblog.LogPanicAndExit()
 	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
-	remoteIAInt := ed.sess.IA.IAInt()
-BatchLoop:
 	for {
-		n, _ := egressFreePkts.Read(bufs, true)
+		n, _ := ed.ring.Read(bufs, true)
 		if n < 0 {
 			break
 		}
 		for i := 0; i < n; i++ {
 			buf := bufs[i].(common.RawBytes)
-			bufs[i] = nil
-			buf = buf[:cap(buf)]
-			length, err := ed.devIO.Read(buf)
-			if err != nil {
-				// Release buffer back to free buffer pool
-				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
-				if err == io.EOF {
-					// This dispatcher is shutting down
-					break BatchLoop
-				}
-				// Sometimes we don't receive a clean EOF, so we check if the
-				// tunnel device is closed.
-				if pErr, ok := err.(*os.PathError); ok {
-					if pErr.Err == os.ErrClosed {
-						break BatchLoop
-					}
-				}
-				ed.Error("EgressDispatcher: error reading from devIO", "err", err)
-				continue
-			}
-			buf = buf[:length]
 			sess := ed.chooseSess(buf)
 			if sess == nil {
 				// Release buffer back to free buffer pool
@@ -106,7 +62,7 @@ BatchLoop:
 				continue
 			}
 			sess.ring.Write(ringbuf.EntryList{buf}, true)
-			ed.updateMetrics(remoteIAInt, sess.SessId, length)
+			ed.updateMetrics(sess.IA.IAInt(), sess.SessId, len(buf))
 		}
 	}
 	ed.Info("EgressDispatcher: stopping")

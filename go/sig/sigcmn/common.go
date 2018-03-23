@@ -41,6 +41,12 @@ var (
 	sciondPath     = flag.String("sciond", "", "SCIOND socket path")
 	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"SCION Dispatcher path")
+	SigTun = flag.String("tun", "sig", "Name of TUN device to create")
+)
+
+var (
+	DefV4Net = &net.IPNet{IP: net.IPv4zero, Mask: make(net.IPMask, net.IPv4len)}
+	DefV6Net = &net.IPNet{IP: net.IPv6zero, Mask: make(net.IPMask, net.IPv6len)}
 )
 
 var (

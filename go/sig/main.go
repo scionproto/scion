@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	"io"
 	"net"
 	_ "net/http/pprof"
 	"os"
@@ -37,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/sig/ingress"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/sigcmn"
+	"github.com/scionproto/scion/go/sig/xnet"
 )
 
 var sighup chan os.Signal
@@ -85,18 +87,22 @@ func main() {
 	if err = sigcmn.Init(ia, ip); err != nil {
 		fatal("Error during initialization", "err", err)
 	}
+	tunIO, err := setupTun()
+	if err != nil {
+		fatal("Unable to create & configure TUN device", "err", err)
+	}
 	egress.Init()
 	disp.Init(sigcmn.CtrlConn)
 	go base.PollReqHdlr()
-
 	// Parse config
 	if loadConfig(*cfgPath) != true {
 		fatal("Unable to load config on startup")
 	}
 	go reloadOnSIGHUP(*cfgPath)
-
+	// Spawn egress reader
+	go egress.NewReader(tunIO).Run()
 	// Spawn ingress Dispatcher.
-	if err := ingress.Init(); err != nil {
+	if err := ingress.Init(tunIO); err != nil {
 		fatal("Unable to spawn ingress dispatcher", "err", err)
 	}
 }
@@ -129,6 +135,29 @@ func checkPerms() error {
 		return common.NewBasicError("CAP_NET_ADMIN is required", nil, "caps", caps)
 	}
 	return nil
+}
+
+func setupTun() (io.ReadWriteCloser, error) {
+	tunLink, tunIO, err := xnet.ConnectTun(*sigcmn.SigTun)
+	if err != nil {
+		return nil, err
+	}
+	if err = xnet.AddRoute(tunLink, sigcmn.DefV4Net); err != nil {
+		return nil,
+			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
+	}
+	if err = xnet.AddRoute(tunLink, sigcmn.DefV6Net); err != nil {
+		return nil,
+			common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
+	}
+	// Now that everything is set up, drop CAP_NET_ADMIN
+	caps, err := capability.NewPid(0)
+	if err != nil {
+		return nil, common.NewBasicError("Error retrieving capabilities", err)
+	}
+	caps.Clear(capability.CAPS)
+	caps.Apply(capability.CAPS)
+	return tunIO, nil
 }
 
 func reloadOnSIGHUP(path string) {
