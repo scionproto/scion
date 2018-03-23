@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/xnet"
 )
 
 const (
@@ -57,7 +56,8 @@ type Dispatcher struct {
 	workers map[string]*Worker
 }
 
-func Init() error {
+func Init(tio io.ReadWriteCloser) error {
+	tunIO = tio
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
@@ -74,10 +74,6 @@ func (d *Dispatcher) Run() error {
 	extConn, err = snet.ListenSCION("udp4", d.laddr)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize extConn", err)
-	}
-	_, tunIO, err = xnet.ConnectTun(tunDevName)
-	if err != nil {
-		return common.NewBasicError("Unable to connect to tunIO", err)
 	}
 	d.read()
 	return nil

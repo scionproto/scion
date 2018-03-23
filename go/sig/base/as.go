@@ -15,23 +15,21 @@
 package base
 
 import (
-	"fmt"
-	"io"
 	"net"
 	"sync"
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	"github.com/vishvananda/netlink"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/siginfo"
-	"github.com/scionproto/scion/go/sig/xnet"
 )
 
 const sigMgrTick = 10 * time.Second
@@ -39,16 +37,15 @@ const sigMgrTick = 10 * time.Second
 // ASEntry contains all of the information required to interact with a remote AS.
 type ASEntry struct {
 	sync.RWMutex
-	Nets       map[string]*NetEntry
+	Nets       map[string]*net.IPNet
 	Sigs       *siginfo.SigMap
 	IA         addr.IA
 	IAString   string
-	Session    *egress.Session
-	DevName    string
-	tunLink    netlink.Link
-	tunIO      io.ReadWriteCloser
+	egressRing *ringbuf.Ring
 	sigMgrStop chan struct{}
 	log.Logger
+
+	Session *egress.Session
 }
 
 func newASEntry(ia addr.IA) (*ASEntry, error) {
@@ -56,9 +53,8 @@ func newASEntry(ia addr.IA) (*ASEntry, error) {
 		Logger:     log.New("ia", ia),
 		IA:         ia,
 		IAString:   ia.String(),
-		Nets:       make(map[string]*NetEntry),
+		Nets:       make(map[string]*net.IPNet),
 		Sigs:       &siginfo.SigMap{},
-		DevName:    fmt.Sprintf("scion-%s", ia),
 		sigMgrStop: make(chan struct{}),
 	}
 	var err error
@@ -95,15 +91,15 @@ func (ae *ASEntry) addNewNets(ipnets []*config.IPNet) bool {
 func (ae *ASEntry) delOldNets(ipnets []*config.IPNet) bool {
 	s := true
 Top:
-	for _, ne := range ae.Nets {
+	for k, v := range ae.Nets {
 		for _, ipnet := range ipnets {
-			if ne.Net.String() == ipnet.IPNet().String() {
+			if k == ipnet.IPNet().String() {
 				continue Top
 			}
 		}
-		err := ae.delNet(ne.Net)
+		err := ae.delNet(v)
 		if err != nil {
-			ae.Error("Unable to delete network", "NetEntry", ne, "err", err)
+			ae.Error("Unable to delete network", "net", k, "err", err)
 			s = false
 		}
 	}
@@ -118,8 +114,8 @@ func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
 }
 
 func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
-	if ae.tunLink == nil {
-		// Ensure that the network setup is done, as otherwise route entries can't be added.
+	if ae.egressRing == nil {
+		// Ensure that the network setup is done
 		if err := ae.setupNet(); err != nil {
 			return err
 		}
@@ -128,33 +124,32 @@ func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 	if _, ok := ae.Nets[key]; ok {
 		return nil
 	}
-	ne, err := newNetEntry(ae.tunLink, ipnet)
-	if err != nil {
+	if err := egress.NetMap.Add(ipnet, ae.IA, ae.egressRing); err != nil {
 		return err
 	}
-	ae.Nets[key] = ne
+	ae.Nets[key] = ipnet
 	ae.Info("Added network", "net", ipnet)
 	return nil
 }
 
-// DelIA removes a network for the remote IA.
+// DelNet removes a network for the remote IA.
 func (ae *ASEntry) DelNet(ipnet *net.IPNet) error {
 	ae.Lock()
 	defer ae.Unlock()
 	return ae.delNet(ipnet)
 }
 
-// DelIA removes a network for the remote IA.
 func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
 	key := ipnet.String()
-	ne, ok := ae.Nets[key]
-	if !ok {
-		ae.Unlock()
+	if _, ok := ae.Nets[key]; !ok {
 		return common.NewBasicError("DelNet: no network found", nil, "ia", ae.IA, "net", ipnet)
+	}
+	if err := egress.NetMap.Delete(ipnet); err != nil {
+		return err
 	}
 	delete(ae.Nets, key)
 	ae.Info("Removed network", "net", ipnet)
-	return ne.Cleanup()
+	return nil
 }
 
 // addNewSIGS adds the SIGs in sigs that are not currently configured.
@@ -268,18 +263,15 @@ func (ae *ASEntry) Cleanup() error {
 	defer ae.Unlock()
 	// Clean up sigMgr goroutine.
 	ae.sigMgrStop <- struct{}{}
-	// Clean up the egress dispatcher.
-	if err := ae.tunIO.Close(); err != nil {
-		ae.Error("Error closing TUN io", "dev", ae.DevName, "err", err)
+	// Clean up NetMap entries
+	for _, v := range ae.Nets {
+		if err := ae.delNet(v); err != nil {
+			ae.Error("Error removing networks during cleanup", "err", err)
+		}
 	}
+	ae.egressRing.Close()
 	// Clean up sessions, and associated workers.
 	ae.cleanSessions()
-	// The operating system also removes the routes when deleting the link.
-	if err := netlink.LinkDel(ae.tunLink); err != nil {
-		// Only return this error, as it's the only critical one.
-		return common.NewBasicError("Error removing TUN link", err,
-			"ia", ae.IA, "dev", ae.DevName)
-	}
 	return nil
 }
 
@@ -290,14 +282,11 @@ func (ae *ASEntry) cleanSessions() {
 }
 
 func (ae *ASEntry) setupNet() error {
-	var err error
-	ae.tunLink, ae.tunIO, err = xnet.ConnectTun(ae.DevName)
-	if err != nil {
-		return err
-	}
-	ae.Info("Network setup done")
-	go egress.NewDispatcher(ae.DevName, ae.tunIO, ae.Session).Run()
+	ae.egressRing = ringbuf.New(64, nil, "egress",
+		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
+	go egress.NewDispatcher(ae.IA, ae.egressRing, ae.Session).Run()
 	go ae.sigMgr()
 	ae.Session.Start()
+	ae.Info("Network setup done")
 	return nil
 }

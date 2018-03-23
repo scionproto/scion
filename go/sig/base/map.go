@@ -25,14 +25,10 @@ import (
 	"github.com/scionproto/scion/go/sig/config"
 )
 
-var Map = newASMap()
+var Map = &ASMap{}
 
 // ASMap is not concurrency safe against multiple writers.
 type ASMap sync.Map
-
-func newASMap() *ASMap {
-	return &ASMap{}
-}
 
 func (am *ASMap) Delete(key addr.IAInt) {
 	(*sync.Map)(am).Delete(key)
