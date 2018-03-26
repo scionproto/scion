@@ -61,14 +61,14 @@ func Test_ChainFromRaw(t *testing.T) {
 	Convey("ChainFromRaw should parse bytes correctly", t, func() {
 		chain, err := ChainFromRaw(loadRaw(fnChain, t), false)
 		SoMsg("err", err, ShouldBeNil)
-		Convey("Leaf Certifiacte is parsed correctly", func() {
+		Convey("Leaf Certificate is parsed correctly", func() {
 			cert := loadCert(fnLeaf, t)
 			SoMsg("Leaf", chain.Leaf.Eq(cert), ShouldBeTrue)
 		})
 
-		Convey("Core Certifiacte is parsed correctly", func() {
+		Convey("Issuer Certificate is parsed correctly", func() {
 			cert := loadCert(fnCore, t)
-			SoMsg("Core", chain.Core.Eq(cert), ShouldBeTrue)
+			SoMsg("Issuer", chain.Issuer.Eq(cert), ShouldBeTrue)
 		})
 	})
 
@@ -76,14 +76,14 @@ func Test_ChainFromRaw(t *testing.T) {
 		chain, err := ChainFromRaw(packChain, true)
 		SoMsg("err", err, ShouldBeNil)
 
-		Convey("Leaf Certifiacte is parsed correctly", func() {
+		Convey("Leaf Certificate is parsed correctly", func() {
 			cert := loadCert(fnLeaf, t)
 			SoMsg("Leaf", chain.Leaf.Eq(cert), ShouldBeTrue)
 		})
 
-		Convey("Core Certifiacte is parsed correctly", func() {
+		Convey("Issuer Certificate is parsed correctly", func() {
 			cert := loadCert(fnCore, t)
-			SoMsg("Core", chain.Core.Eq(cert), ShouldBeTrue)
+			SoMsg("Issuer", chain.Issuer.Eq(cert), ShouldBeTrue)
 		})
 	})
 
@@ -107,13 +107,13 @@ func Test_Chain_Verify(t *testing.T) {
 		chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
 		chain.Leaf.Sign(privCoreRaw, crypto.Ed25519)
 
-		chain.Core.SubjectSignKey = pubCoreRaw
-		chain.Core.IssuingTime = uint64(time.Now().Unix())
-		chain.Core.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
-		chain.Core.Sign(privTRCRaw, crypto.Ed25519)
+		chain.Issuer.SubjectSignKey = pubCoreRaw
+		chain.Issuer.IssuingTime = uint64(time.Now().Unix())
+		chain.Issuer.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
+		chain.Issuer.Sign(privTRCRaw, crypto.Ed25519)
 
-		trc_.CoreASes[chain.Core.Issuer].OnlineKey = pubTRCRaw
-		trc_.ExpirationTime = chain.Core.ExpirationTime
+		trc_.CoreASes[chain.Issuer.Issuer].OnlineKey = pubTRCRaw
+		trc_.ExpirationTime = chain.Issuer.ExpirationTime
 		err := chain.Verify(addr.IA{I: 1, A: 10}, trc_)
 		SoMsg("err", err, ShouldBeNil)
 	})
@@ -167,8 +167,8 @@ func Test_Chain_Eq(t *testing.T) {
 			c1.Leaf.CanIssue = true
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
-		Convey("Chains are unequal (Core)", func() {
-			c1.Core.CanIssue = false
+		Convey("Chains are unequal (Issuer)", func() {
+			c1.Issuer.CanIssue = false
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 	})

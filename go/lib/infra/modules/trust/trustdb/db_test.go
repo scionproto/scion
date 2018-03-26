@@ -67,26 +67,27 @@ func TestIssCert(t *testing.T) {
 		defer cleanF()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
-		SoMsg("err chain", err, ShouldBeNil)
-		SoMsg("chain", chain, ShouldNotBeNil)
+		if err != nil {
+			t.Fatalf("Unable to load certificate chain")
+		}
 		ia := addr.IA{I: 1, A: 13}
 		Convey("Insert into database", func() {
-			err := db.InsertIssCert(chain.Core)
+			err := db.InsertIssCert(chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
-			err = db.InsertIssCert(chain.Core)
+			err = db.InsertIssCert(chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
 			Convey("Get issuer certificate from database", func() {
 				crt, err := db.GetIssCertVersion(ia, 1)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("cert", crt, ShouldResemble, chain.Core)
+				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 			})
 			Convey("Get max version issuer certificate from database", func() {
 				crt, err := db.GetIssCertMaxVersion(ia)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("cert", crt, ShouldResemble, chain.Core)
+				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 				crt, err = db.GetIssCertVersion(ia, 0)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("cert", crt, ShouldResemble, chain.Core)
+				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 			})
 			Convey("Get missing issuer certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 2}
@@ -104,8 +105,9 @@ func TestLeafCert(t *testing.T) {
 		defer cleanF()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
-		SoMsg("err chain", err, ShouldBeNil)
-		SoMsg("chain", chain, ShouldNotBeNil)
+		if err != nil {
+			t.Fatalf("Unable to load certificate chain")
+		}
 		ia := addr.IA{I: 1, A: 10}
 		Convey("Insert into database", func() {
 			err := db.InsertLeafCert(chain.Leaf)
@@ -141,8 +143,9 @@ func TestChain(t *testing.T) {
 		defer cleanF()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
-		SoMsg("err chain", err, ShouldBeNil)
-		SoMsg("chain", chain, ShouldNotBeNil)
+		if err != nil {
+			t.Fatalf("Unable to load certificate chain")
+		}
 		ia := addr.IA{I: 1, A: 10}
 		Convey("Insert into database", func() {
 			err := db.InsertChain(chain)

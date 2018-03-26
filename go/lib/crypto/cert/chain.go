@@ -40,9 +40,9 @@ const (
 	DefaultCoreCertValidity = 7 * 24 * 60 * 60
 
 	// Error strings
-	CoreCertInvalid  = "Core certificate invalid"
-	CoreExpiresAfter = "Core certificate expires after TRC"
-	IssASNotFound    = "Issuing Core AS not found"
+	IssCertInvalid   = "Issuer certificate invalid"
+	IssExpiresAfter  = "Issuer certificate expires after TRC"
+	IssASNotFound    = "Issuing AS not found"
 	LeafCertInvalid  = "Leaf certificate invalid"
 	LeafExpiresAfter = "Leaf certificate expires after core certificate"
 	LeafIssuedBefore = "Leaf certificate issued before core certificate"
@@ -64,10 +64,10 @@ func (k *Key) String() string {
 // Chain contains two certificates, one fore the leaf and one for the core. The leaf certificate
 // is signed by the core certificate, which is signed by the TRC of the corresponding ISD.
 type Chain struct {
-	// Leaf is the leaf certificate of the chain. It is signed by the Core certificate.
+	// Leaf is the leaf certificate of the chain. It is signed by the Issuer certificate.
 	Leaf *Certificate `json:"0"`
-	// Core is the core AS certificate of the chain. It is signed by the TRC of the ISD.
-	Core *Certificate `json:"1"`
+	// Issuer is the core AS certificate of the chain. It is signed by the TRC of the ISD.
+	Issuer *Certificate `json:"1"`
 }
 
 func ChainFromRaw(raw common.RawBytes, lz4_ bool) (*Chain, error) {
@@ -104,34 +104,34 @@ func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
 }
 
 func (c *Chain) Verify(subject addr.IA, t *trc.TRC) error {
-	if c.Leaf.IssuingTime < c.Core.IssuingTime {
+	if c.Leaf.IssuingTime < c.Issuer.IssuingTime {
 		return common.NewBasicError(LeafIssuedBefore, nil, "leaf",
 			util.TimeToString(c.Leaf.IssuingTime), "core",
-			util.TimeToString(c.Core.IssuingTime))
+			util.TimeToString(c.Issuer.IssuingTime))
 	}
-	if c.Leaf.ExpirationTime > c.Core.ExpirationTime {
+	if c.Leaf.ExpirationTime > c.Issuer.ExpirationTime {
 		return common.NewBasicError(LeafExpiresAfter, nil, "leaf",
 			util.TimeToString(c.Leaf.ExpirationTime), "core",
-			util.TimeToString(c.Core.ExpirationTime))
+			util.TimeToString(c.Issuer.ExpirationTime))
 	}
-	if !c.Core.CanIssue {
-		return common.NewBasicError(CoreCertInvalid, nil, "CanIssue", false)
+	if !c.Issuer.CanIssue {
+		return common.NewBasicError(IssCertInvalid, nil, "CanIssue", false)
 	}
-	if err := c.Leaf.Verify(subject, c.Core.SubjectSignKey, c.Core.SignAlgorithm); err != nil {
+	if err := c.Leaf.Verify(subject, c.Issuer.SubjectSignKey, c.Issuer.SignAlgorithm); err != nil {
 		return common.NewBasicError(LeafCertInvalid, err)
 	}
-	if c.Core.ExpirationTime > t.ExpirationTime {
-		return common.NewBasicError(CoreExpiresAfter, nil, "core",
-			util.TimeToString(c.Core.ExpirationTime), "TRC",
+	if c.Issuer.ExpirationTime > t.ExpirationTime {
+		return common.NewBasicError(IssExpiresAfter, nil, "core",
+			util.TimeToString(c.Issuer.ExpirationTime), "TRC",
 			util.TimeToString(t.ExpirationTime))
 	}
-	coreAS, ok := t.CoreASes[c.Core.Issuer]
+	coreAS, ok := t.CoreASes[c.Issuer.Issuer]
 	if !ok {
-		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Core.Issuer, "coreASes",
+		return common.NewBasicError(IssASNotFound, nil, "isdas", c.Issuer.Issuer, "coreASes",
 			t.CoreASes)
 	}
-	if err := c.Core.Verify(c.Core.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
-		return common.NewBasicError(CoreCertInvalid, err)
+	if err := c.Issuer.Verify(c.Issuer.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
+		return common.NewBasicError(IssCertInvalid, err)
 	}
 	return nil
 }
@@ -154,7 +154,7 @@ func (c *Chain) Compress() (common.RawBytes, error) {
 }
 
 func (c *Chain) Copy() *Chain {
-	return &Chain{Core: c.Core.Copy(), Leaf: c.Leaf.Copy()}
+	return &Chain{Issuer: c.Issuer.Copy(), Leaf: c.Leaf.Copy()}
 }
 
 func (c *Chain) String() string {
@@ -169,7 +169,7 @@ func (c *Chain) JSON(indent bool) ([]byte, error) {
 }
 
 func (c *Chain) Eq(o *Chain) bool {
-	return c.Leaf.Eq(o.Leaf) && c.Core.Eq(o.Core)
+	return c.Leaf.Eq(o.Leaf) && c.Issuer.Eq(o.Issuer)
 }
 
 func (c *Chain) IAVer() (addr.IA, uint64) {

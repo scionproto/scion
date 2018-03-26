@@ -76,7 +76,7 @@ func genAll(outDir string, core bool) error {
 		return nil
 	}
 	// Generate core signing key.
-	if err := genKey(trust.CoreSigKeyFile, outDir, genSignKey, true); err != nil {
+	if err := genKey(trust.IssSigKeyFile, outDir, genSignKey, true); err != nil {
 		return err
 	}
 	// Generate offline and online root keys if core was specified.

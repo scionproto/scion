@@ -57,7 +57,7 @@ const (
 		IsdID INTEGER NOT NULL,
 		AsID INTEGER NOT NULL,
 		Version INTEGER NOT NULL,
-		Data TEXT NOT NULL, 
+		Data TEXT NOT NULL,
 		PRIMARY KEY (IsdID, AsID, Version)
 	);
 
@@ -66,8 +66,8 @@ const (
 		IsdID INTEGER NOT NULL,
 		AsID INTEGER NOT NULL,
 		Version INTEGER NOT NULL,
-		Data TEXT NOT NULL, 
-		CONSTRAINT iavt_unique UNIQUE (IsdID, AsID, Version)
+		Data TEXT NOT NULL,
+		CONSTRAINT iav_unique UNIQUE (IsdID, AsID, Version)
 	);
 	`
 
@@ -78,9 +78,6 @@ const (
 )
 
 const (
-	enableForeignKeysStr = `
-			PRAGMA foreign_keys = ON
-		`
 	getIssCertVersionStr = `
 			SELECT Data FROM IssuerCerts WHERE IsdID=? AND AsID=? AND Version=?
 		`
@@ -102,14 +99,16 @@ const (
 	getChainVersionStr = `
 			SELECT Data FROM LeafCerts WHERE IsdID=? AND AsID=? AND Version=?
 			UNION 
-			SELECT Data FROM IssuerCerts WHERE ROWID IN (
+			SELECT Data FROM IssuerCerts WHERE RowID IN (
 				SELECT IssCertsRowID FROM Chains WHERE IsdID=? AND AsID=? AND Version=?
 			)
 		`
 	getChainMaxVersionStr = `
-			SELECT Data FROM (SELECT *, MAX(Version) FROM LeafCerts WHERE IsdID=? AND AsID=?)
+			SELECT Data FROM LeafCerts WHERE IsdID=? AND AsID=? AND Version = (
+				SELECT MAX(Version) FROM Chains WHERE IsdID=? AND AsID=?
+			)
 			UNION 
-			SELECT Data FROM IssuerCerts WHERE ROWID IN (
+			SELECT Data FROM IssuerCerts WHERE RowID IN (
 				SELECT IssCertsRowID FROM Chains WHERE IsdID=? AND AsID=? AND Version = (
 					SELECT MAX(Version) FROM Chains WHERE IsdID=? AND AsID=?
 				)
@@ -155,9 +154,6 @@ func New(path string) (*DB, error) {
 	var err error
 	db := &DB{}
 	if db.DB, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
-		return nil, err
-	}
-	if _, err = db.Exec(enableForeignKeysStr); err != nil {
 		return nil, err
 	}
 	// On future errors, close the sql database before exiting
@@ -220,7 +216,7 @@ func (db *DB) GetIssCertVersionCtx(ctx context.Context, ia addr.IA,
 	}
 	var raw common.RawBytes
 	err := db.getIssCertVersionStmt.QueryRowContext(ctx, ia.I, ia.A, version).Scan(&raw)
-	return parseIssCert(raw, ia, version, err)
+	return parseCert(raw, ia, version, err)
 }
 
 // GetIssCertMaxVersion returns the max version of the issuer certificate for ia.
@@ -232,11 +228,7 @@ func (db *DB) GetIssCertMaxVersion(ia addr.IA) (*cert.Certificate, error) {
 func (db *DB) GetIssCertMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Certificate, error) {
 	var raw common.RawBytes
 	err := db.getIssCertMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
-	return parseIssCert(raw, ia, 0, err)
-}
-
-func parseIssCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Certificate, error) {
-	return parseCert(raw, ia, v, err)
+	return parseCert(raw, ia, 0, err)
 }
 
 // InsertIssCert inserts the issuer certificate.
@@ -268,7 +260,7 @@ func (db *DB) GetLeafCertVersionCtx(ctx context.Context, ia addr.IA,
 	}
 	var raw common.RawBytes
 	err := db.getLeafCertVersionStmt.QueryRowContext(ctx, ia.I, ia.A, version).Scan(&raw)
-	return parseLeafCert(raw, ia, version, err)
+	return parseCert(raw, ia, version, err)
 }
 
 // GetLeafCertMaxVersion returns the max version of the issuer certificate for ia.
@@ -280,11 +272,7 @@ func (db *DB) GetLeafCertMaxVersion(ia addr.IA) (*cert.Certificate, error) {
 func (db *DB) GetLeafCertMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Certificate, error) {
 	var raw common.RawBytes
 	err := db.getLeafCertMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
-	return parseLeafCert(raw, ia, 0, err)
-}
-
-func parseLeafCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Certificate, error) {
-	return parseCert(raw, ia, v, err)
+	return parseCert(raw, ia, 0, err)
 }
 
 func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Certificate, error) {
@@ -342,7 +330,8 @@ func (db *DB) GetChainMaxVersion(ia addr.IA) (*cert.Chain, error) {
 }
 
 func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Chain, error) {
-	rows, err := db.getChainMaxVersionStmt.QueryContext(ctx, ia.I, ia.A, ia.I, ia.A, ia.I, ia.A)
+	rows, err := db.getChainMaxVersionStmt.QueryContext(ctx, ia.I, ia.A, ia.I, ia.A, ia.I, ia.A,
+		ia.I, ia.A)
 	defer rows.Close()
 	return parseChain(rows, err)
 }
@@ -375,7 +364,7 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &cert.Chain{Leaf: leaf, Core: iss}, nil
+	return &cert.Chain{Leaf: leaf, Issuer: iss}, nil
 }
 
 func (db *DB) InsertChain(chain *cert.Chain) error {
@@ -386,12 +375,12 @@ func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) error {
 	if err := db.InsertLeafCertCtx(ctx, chain.Leaf); err != nil {
 		return err
 	}
-	raw, err := chain.Core.JSON(false)
+	raw, err := chain.Issuer.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
 	}
-	res, err := db.insertIssCertStmt.Exec(chain.Core.Subject.I, chain.Core.Subject.A,
-		chain.Core.Version, raw)
+	res, err := db.insertIssCertStmt.ExecContext(ctx, chain.Issuer.Subject.I,
+		chain.Issuer.Subject.A, chain.Issuer.Version, raw)
 	if err != nil {
 		return err
 	}
@@ -400,7 +389,7 @@ func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) error {
 		return err
 	}
 	ia, ver := chain.IAVer()
-	_, err = db.insertChainStmt.Exec(ia.I, ia.A, ver, 1, id)
+	_, err = db.insertChainStmt.ExecContext(ctx, ia.I, ia.A, ver, 1, id)
 	return err
 }
 

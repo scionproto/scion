@@ -24,70 +24,70 @@ import (
 )
 
 const (
-	getCoreCertVersionStr = `
+	getIssuerCertVersionStr = `
 			SELECT max(Version) FROM IssuerCerts WHERE IsdID=? and AsID=?
 		`
-	insertCoreCertStr = `
+	insertIssuerCertStr = `
 			INSERT INTO IssuerCerts (IsdID, AsID, Version, Data) SELECT ?,?,?,? 
 			WHERE NOT EXISTS(SELECT 1 FROM IssuerCerts WHERE IsdID=? and AsID=? and Version>=?)
 		`
 )
 
-// CoreCertStore keeps track of the newest version of the core certificate of this core AS.
-type CoreCertStore struct {
-	db                 *trustdb.DB
-	ia                 addr.IA
-	getCoreCertVerStmt *sql.Stmt
-	insertCoreCertStmt *sql.Stmt
+// IssuerCertStore keeps track of the newest version of the issuer certificate of this AS.
+type IssuerCertStore struct {
+	db                   *trustdb.DB
+	ia                   addr.IA
+	getIssuerCertVerStmt *sql.Stmt
+	insertIssuerCertStmt *sql.Stmt
 }
 
-// NewCoreCertStore loads the CoreCertStore.
-func NewCoreCertStore(ia addr.IA, chain *cert.Chain, db *trustdb.DB) (*CoreCertStore, error) {
+// NewIssuerCertStore loads the IssuerCertStore.
+func NewIssuerCertStore(ia addr.IA, chain *cert.Chain, db *trustdb.DB) (*IssuerCertStore, error) {
 	var err error
-	s := &CoreCertStore{
+	s := &IssuerCertStore{
 		ia: ia,
 		db: db,
 	}
-	if s.getCoreCertVerStmt, err = s.db.Prepare(getCoreCertVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getCoreCertVer", err)
+	if s.getIssuerCertVerStmt, err = s.db.Prepare(getIssuerCertVersionStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getIssuerCertVersion", err)
 	}
-	if s.insertCoreCertStmt, err = s.db.Prepare(insertCoreCertStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare insertCoreCert", err)
+	if s.insertIssuerCertStmt, err = s.db.Prepare(insertIssuerCertStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare insertIssuerCert", err)
 	}
-	var ver uint64 = 0
-	err = s.getCoreCertVerStmt.QueryRow().Scan(&ver)
+	var ver uint64
+	err = s.getIssuerCertVerStmt.QueryRow().Scan(&ver)
 	if chain == nil && err != nil {
-		return nil, common.NewBasicError("No chain provided and core cert not set", nil)
+		return nil, common.NewBasicError("No chain provided and issuer cert not set", nil)
 	}
-	if !chain.Core.Subject.Eq(ia) {
-		return nil, common.NewBasicError("Ia does not match core certificate subject", nil,
-			"ia", ia, "subject", chain.Core.Subject)
+	if !chain.Issuer.Subject.Eq(ia) {
+		return nil, common.NewBasicError("Ia does not match issuer certificate subject", nil,
+			"ia", ia, "subject", chain.Issuer.Subject)
 	}
-	if chain.Core.Version > ver || err != nil {
-		raw, err := chain.Core.JSON(false)
+	if chain.Issuer.Version > ver || err != nil {
+		raw, err := chain.Issuer.JSON(false)
 		if err != nil {
 			return nil, err
 		}
-		ver = chain.Core.Version
-		if _, err = s.insertCoreCertStmt.Exec(ia.I, ia.A, ver, raw, ia.I, ia.A, ver); err != nil {
+		ver = chain.Issuer.Version
+		if _, err = s.insertIssuerCertStmt.Exec(ia.I, ia.A, ver, raw, ia.I, ia.A, ver); err != nil {
 			return nil, err
 		}
 	}
 	return s, nil
 }
 
-// Set sets the core certificate. An error is returned, if there already exists a core cert with
+// Set sets the issuer certificate. An error is returned, if there already exists a issuer cert with
 // higher version number.
-func (s *CoreCertStore) Set(crt *cert.Certificate) error {
+func (s *IssuerCertStore) Set(crt *cert.Certificate) error {
 	if !crt.Subject.Eq(s.ia) {
-		return common.NewBasicError("Ia does not match core certificate subject", nil,
+		return common.NewBasicError("Ia does not match issuer certificate subject", nil,
 			"ia", s.ia, "subject", crt.Subject)
 	}
 	raw, err := crt.JSON(false)
 	if err != nil {
 		return common.NewBasicError("Unable to convert to JSON", err)
 	}
-	res, err := s.insertCoreCertStmt.Exec(s.ia.I, s.ia.A, crt.Version, raw,
+	res, err := s.insertIssuerCertStmt.Exec(s.ia.I, s.ia.A, crt.Version, raw,
 		s.ia.I, s.ia.A, crt.Version)
 	if err != nil {
 		return err
@@ -97,7 +97,7 @@ func (s *CoreCertStore) Set(crt *cert.Certificate) error {
 		return err
 	} else if affected == 0 {
 		var ver uint64
-		err = s.getCoreCertVerStmt.QueryRow().Scan(&ver)
+		err = s.getIssuerCertVerStmt.QueryRow().Scan(&ver)
 		return common.NewBasicError("Unable to insert max certificate", nil, "err",
 			"Certificate with higher version present")
 	}
@@ -105,7 +105,7 @@ func (s *CoreCertStore) Set(crt *cert.Certificate) error {
 	return nil
 }
 
-// Get returns the core certificate.
-func (s *CoreCertStore) Get() (*cert.Certificate, error) {
+// Get returns the issuer certificate.
+func (s *IssuerCertStore) Get() (*cert.Certificate, error) {
 	return s.db.GetIssCertMaxVersion(s.ia)
 }

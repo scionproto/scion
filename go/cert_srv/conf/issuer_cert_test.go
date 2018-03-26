@@ -26,48 +26,48 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 )
 
-func Test_NewCoreCertStore(t *testing.T) {
-	Convey("NewCoreCertStore should initialize correctly", t, func() {
+func Test_NewIssCertStore(t *testing.T) {
+	Convey("NewIssuerCertStore should initialize correctly", t, func() {
 		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
 		SoMsg("err chain", err, ShouldBeNil)
 		SoMsg("chain", chain, ShouldNotBeNil)
-		ia := chain.Core.Subject
-		chain.Core.Version = 2
-		_, db, cleanF := newTestCoreCertStore(ia, chain, t)
+		ia := chain.Issuer.Subject
+		chain.Issuer.Version = 2
+		_, db, cleanF := newTestIssCertStore(ia, chain, t)
 		defer cleanF()
 
 		Convey("Init with no chain", func() {
-			_, err := NewCoreCertStore(ia, chain, db)
+			_, err := NewIssuerCertStore(ia, chain, db)
 			SoMsg("err", err, ShouldBeNil)
 		})
 
 		Convey("Init with older chain", func() {
-			chain.Core.Version -= 1
-			_, err := NewCoreCertStore(ia, chain, db)
+			chain.Issuer.Version -= 1
+			_, err := NewIssuerCertStore(ia, chain, db)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Init with newer chain", func() {
-			chain.Core.Version += 1
-			_, err := NewCoreCertStore(ia, chain, db)
+			chain.Issuer.Version += 1
+			_, err := NewIssuerCertStore(ia, chain, db)
 			SoMsg("err", err, ShouldBeNil)
 		})
 
 	})
-	Convey("NewCoreCertStore should fail if db empty and no chain provided", t, func() {
+	Convey("NewIssuerCertStore should fail if db empty and no chain provided", t, func() {
 		db, cleanF := newTestDatabase(t)
 		defer cleanF()
 		ia := addr.IA{I: 1, A: 10}
-		_, err := NewCoreCertStore(ia, nil, db)
+		_, err := NewIssuerCertStore(ia, nil, db)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
-	Convey("NewCoreCertStore should fail if mismatching ISD-AS", t, func() {
+	Convey("NewIssuerCertStore should fail if mismatching ISD-AS", t, func() {
 		db, cleanF := newTestDatabase(t)
 		defer cleanF()
 		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
 		SoMsg("err chain", err, ShouldBeNil)
 		SoMsg("chain", chain, ShouldNotBeNil)
 		ia := addr.IA{I: 1, A: 1}
-		_, err = NewCoreCertStore(ia, nil, db)
+		_, err = NewIssuerCertStore(ia, nil, db)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 
@@ -78,21 +78,21 @@ func Test_Set(t *testing.T) {
 		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
 		SoMsg("err chain", err, ShouldBeNil)
 		SoMsg("chain", chain, ShouldNotBeNil)
-		s, _, cleanF := newTestCoreCertStore(chain.Core.Subject, chain, t)
+		s, _, cleanF := newTestIssCertStore(chain.Issuer.Subject, chain, t)
 		defer cleanF()
 
 		Convey("Set certificate", func() {
-			chain.Core.Version = 2
-			err := s.Set(chain.Core)
+			chain.Issuer.Version = 2
+			err := s.Set(chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
 			Convey("Set older certificate", func() {
-				err := s.Set(chain.Core)
+				err := s.Set(chain.Issuer)
 				SoMsg("err", err, ShouldNotBeNil)
 			})
 			Convey("Get older certificate", func() {
 				crt, err := s.Get()
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("cert", crt, ShouldResemble, chain.Core)
+				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 			})
 		})
 		Convey("Set certificate mismatching ia", func() {
@@ -107,21 +107,21 @@ func Test_Get(t *testing.T) {
 		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
 		SoMsg("err chain", err, ShouldBeNil)
 		SoMsg("chain", chain, ShouldNotBeNil)
-		s, _, cleanF := newTestCoreCertStore(chain.Core.Subject, chain, t)
+		s, _, cleanF := newTestIssCertStore(chain.Issuer.Subject, chain, t)
 		defer cleanF()
 
 		Convey("Get certificate", func() {
 			crt, err := s.Get()
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("cert", crt, ShouldResemble, chain.Core)
+			SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 		})
 	})
 }
 
-func newTestCoreCertStore(ia addr.IA, chain *cert.Chain, t *testing.T) (*CoreCertStore,
+func newTestIssCertStore(ia addr.IA, chain *cert.Chain, t *testing.T) (*IssuerCertStore,
 	*trustdb.DB, func()) {
 	db, f := newTestDatabase(t)
-	s, err := NewCoreCertStore(ia, chain, db)
+	s, err := NewIssuerCertStore(ia, chain, db)
 	if err != nil {
 		t.Fatalf("unable to initialize database")
 	}
