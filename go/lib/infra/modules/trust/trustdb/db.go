@@ -84,6 +84,9 @@ const (
 	getIssCertMaxVersionStr = `
 			SELECT Data FROM (SELECT *, MAX(Version) FROM IssuerCerts WHERE IsdID=? AND AsID=?)
 		`
+	getIssCertRowIDStr = `
+			SELECT RowID FROM IssuerCerts WHERE IsdID=? AND AsID=? AND Version=?
+		`
 	insertIssCertStr = `
 			INSERT OR IGNORE INTO IssuerCerts (IsdID, AsID, Version, Data) VALUES (?, ?, ?, ?)
 		`
@@ -129,15 +132,16 @@ const (
 		`
 )
 
-// DB is a database containing TRCs and Certificate Chains, stored in JSON format.
+// DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
 //
 // On errors, GetXxx methods return nil and the error. If no error occurred,
 // but the database query yielded 0 results, the first returned value is nil.
 // GetXxxCtx methods are the context equivalents of GetXxx.
 type DB struct {
-	*sql.DB
+	db                        *sql.DB
 	getIssCertVersionStmt     *sql.Stmt
 	getIssCertMaxVersionStmt  *sql.Stmt
+	getIssCertRowIDStmt       *sql.Stmt
 	insertIssCertStmt         *sql.Stmt
 	getLeafCertVersionStmt    *sql.Stmt
 	getLeafCertMaxVersionStmt *sql.Stmt
@@ -153,52 +157,60 @@ type DB struct {
 func New(path string) (*DB, error) {
 	var err error
 	db := &DB{}
-	if db.DB, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
+	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
 	// On future errors, close the sql database before exiting
 	defer func() {
 		if err != nil {
-			db.Close()
+			db.db.Close()
 		}
 	}()
-	if db.getIssCertVersionStmt, err = db.Prepare(getIssCertVersionStr); err != nil {
+	if db.getIssCertVersionStmt, err = db.db.Prepare(getIssCertVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getIssCertVersion", err)
 	}
-	if db.getIssCertMaxVersionStmt, err = db.Prepare(getIssCertMaxVersionStr); err != nil {
+	if db.getIssCertMaxVersionStmt, err = db.db.Prepare(getIssCertMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getIssCertMaxVersion", err)
 	}
-	if db.insertIssCertStmt, err = db.Prepare(insertIssCertStr); err != nil {
+	if db.getIssCertRowIDStmt, err = db.db.Prepare(getIssCertRowIDStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getIssCertRowID", err)
+	}
+	if db.insertIssCertStmt, err = db.db.Prepare(insertIssCertStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertIssCert", err)
 	}
-	if db.getLeafCertVersionStmt, err = db.Prepare(getLeafCertVersionStr); err != nil {
+	if db.getLeafCertVersionStmt, err = db.db.Prepare(getLeafCertVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getLeafCertVersion", err)
 	}
-	if db.getLeafCertMaxVersionStmt, err = db.Prepare(getLeafCertMaxVersionStr); err != nil {
+	if db.getLeafCertMaxVersionStmt, err = db.db.Prepare(getLeafCertMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getLeafCertMaxVersion", err)
 	}
-	if db.insertLeafCertStmt, err = db.Prepare(insertLeafCertStr); err != nil {
+	if db.insertLeafCertStmt, err = db.db.Prepare(insertLeafCertStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertLeafCert", err)
 	}
-	if db.getChainVersionStmt, err = db.Prepare(getChainVersionStr); err != nil {
+	if db.getChainVersionStmt, err = db.db.Prepare(getChainVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainVersion", err)
 	}
-	if db.getChainMaxVersionStmt, err = db.Prepare(getChainMaxVersionStr); err != nil {
+	if db.getChainMaxVersionStmt, err = db.db.Prepare(getChainMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainMaxVersion", err)
 	}
-	if db.insertChainStmt, err = db.Prepare(insertChainStr); err != nil {
+	if db.insertChainStmt, err = db.db.Prepare(insertChainStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertChain", err)
 	}
-	if db.getTRCVersionStmt, err = db.Prepare(getTRCVersionStr); err != nil {
+	if db.getTRCVersionStmt, err = db.db.Prepare(getTRCVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCVersion", err)
 	}
-	if db.getTRCMaxVersionStmt, err = db.Prepare(getTRCMaxVersionStr); err != nil {
+	if db.getTRCMaxVersionStmt, err = db.db.Prepare(getTRCMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getTRCMaxVersion", err)
 	}
-	if db.insertTRCStmt, err = db.Prepare(insertTRCStr); err != nil {
+	if db.insertTRCStmt, err = db.db.Prepare(insertTRCStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertTRC", err)
 	}
 	return db, nil
+}
+
+// Close closes the database connection.
+func (db *DB) Close() error {
+	return db.db.Close()
 }
 
 // GetIssCertVersion returns the specified version of the issuer certificate for
@@ -232,17 +244,20 @@ func (db *DB) GetIssCertMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Ce
 }
 
 // InsertIssCert inserts the issuer certificate.
-func (db *DB) InsertIssCert(c *cert.Certificate) error {
+func (db *DB) InsertIssCert(c *cert.Certificate) (int64, error) {
 	return db.InsertIssCertCtx(context.Background(), c)
 }
 
-func (db *DB) InsertIssCertCtx(ctx context.Context, crt *cert.Certificate) error {
+func (db *DB) InsertIssCertCtx(ctx context.Context, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
-		return common.NewBasicError("Unable to convert to JSON", err)
+		return 0, common.NewBasicError("Unable to convert to JSON", err)
 	}
-	_, err = db.insertIssCertStmt.Exec(crt.Subject.I, crt.Subject.A, crt.Version, raw)
-	return err
+	res, err := db.insertIssCertStmt.ExecContext(ctx, crt.Subject.I, crt.Subject.A, crt.Version, raw)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // GetLeafCertVersion returns the specified version of the issuer certificate for
@@ -294,17 +309,20 @@ func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Cert
 }
 
 // InsertLeafCert inserts the issuer certificate.
-func (db *DB) InsertLeafCert(c *cert.Certificate) error {
+func (db *DB) InsertLeafCert(c *cert.Certificate) (int64, error) {
 	return db.InsertLeafCertCtx(context.Background(), c)
 }
 
-func (db *DB) InsertLeafCertCtx(ctx context.Context, crt *cert.Certificate) error {
+func (db *DB) InsertLeafCertCtx(ctx context.Context, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
-		return common.NewBasicError("Unable to convert to JSON", err)
+		return 0, common.NewBasicError("Unable to convert to JSON", err)
 	}
-	_, err = db.insertLeafCertStmt.Exec(crt.Subject.I, crt.Subject.A, crt.Version, raw)
-	return err
+	res, err := db.insertLeafCertStmt.ExecContext(ctx, crt.Subject.I, crt.Subject.A, crt.Version, raw)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // GetChainVersion returns the specified version of the certificate chain for
@@ -367,30 +385,48 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	return &cert.Chain{Leaf: leaf, Issuer: iss}, nil
 }
 
-func (db *DB) InsertChain(chain *cert.Chain) error {
+func (db *DB) InsertChain(chain *cert.Chain) (int64, error) {
 	return db.InsertChainCtx(context.Background(), chain)
 }
 
-func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) error {
-	if err := db.InsertLeafCertCtx(ctx, chain.Leaf); err != nil {
-		return err
-	}
-	raw, err := chain.Issuer.JSON(false)
+func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) (int64, error) {
+	rowsAffected, err := db.InsertLeafCertCtx(ctx, chain.Leaf)
 	if err != nil {
-		return common.NewBasicError("Unable to convert to JSON", err)
+		return rowsAffected, err
 	}
-	res, err := db.insertIssCertStmt.ExecContext(ctx, chain.Issuer.Subject.I,
-		chain.Issuer.Subject.A, chain.Issuer.Version, raw)
+	tmpRows, err := db.InsertIssCertCtx(ctx, chain.Issuer)
 	if err != nil {
-		return err
+		return rowsAffected + tmpRows, err
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return err
-	}
+	rowsAffected += tmpRows
+	// Get RowID of issuer certificate.
 	ia, ver := chain.IAVer()
-	_, err = db.insertChainStmt.ExecContext(ctx, ia.I, ia.A, ver, 1, id)
-	return err
+	rowId, err := db.getIssCertRowIDCtx(ctx, chain.Issuer.Subject, chain.Issuer.Version)
+	if err != nil {
+		return rowsAffected, err
+	}
+	// Insert chain
+	res, err := db.insertChainStmt.ExecContext(ctx, ia.I, ia.A, ver, 1, rowId)
+	if err != nil {
+		return rowsAffected, err
+	}
+	if tmpRows, err = res.RowsAffected(); err != nil {
+		return rowsAffected, err
+	}
+	return rowsAffected + tmpRows, nil
+}
+
+func (db *DB) getIssCertRowIDCtx(ctx context.Context, ia addr.IA, ver uint64) (int64, error) {
+	var rowId int64
+	err := db.getIssCertRowIDStmt.QueryRowContext(ctx, ia.I, ia.A, ver).Scan(&rowId)
+	if err == sql.ErrNoRows {
+		return 0, common.NewBasicError("Unable to get RowID of issuer certificate", nil,
+			"ia", ia, "ver", ver)
+	}
+	if err != nil {
+		return 0, common.NewBasicError("Database access error", err)
+	}
+	return rowId, nil
 }
 
 // GetTRCVersion returns the specified version of the TRC for
@@ -439,16 +475,18 @@ func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, er
 	return trcobj, nil
 }
 
-func (db *DB) InsertTRC(trcobj *trc.TRC) error {
+func (db *DB) InsertTRC(trcobj *trc.TRC) (int64, error) {
 	return db.InsertTRCCtx(context.Background(), trcobj)
 }
 
-func (db *DB) InsertTRCCtx(ctx context.Context, trcobj *trc.TRC) error {
-
+func (db *DB) InsertTRCCtx(ctx context.Context, trcobj *trc.TRC) (int64, error) {
 	raw, err := trcobj.JSON(false)
 	if err != nil {
-		return common.NewBasicError("Unable to convert to JSON", err)
+		return 0, common.NewBasicError("Unable to convert to JSON", err)
 	}
-	_, err = db.insertTRCStmt.ExecContext(ctx, trcobj.ISD, trcobj.Version, raw)
-	return err
+	res, err := db.insertTRCStmt.ExecContext(ctx, trcobj.ISD, trcobj.Version, raw)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }

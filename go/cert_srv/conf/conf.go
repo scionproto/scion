@@ -28,7 +28,6 @@ import (
 
 const (
 	ErrorAddr      = "Unable to load addresses"
-	ErrorIssCert   = "Unable to load issuer certificate"
 	ErrorKeyConf   = "Unable to load KeyConf"
 	ErrorStore     = "Unable to load TrustStore"
 	ErrorTopo      = "Unable to load topology"
@@ -63,8 +62,6 @@ type Conf struct {
 	ConfDir string
 	// StateDir is the state directory.
 	StateDir string
-	// IssuerCertStore holds issuer certificates.
-	IssuerCertStore *IssuerCertStore
 }
 
 // Load initializes the configuration by loading it from confDir.
@@ -110,12 +107,6 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
 	if conf.Topo.Core {
-		// load issuer cert store
-		chain := conf.Store.GetNewestChain(conf.PublicAddr.IA)
-		conf.IssuerCertStore, err = NewIssuerCertStore(conf.PublicAddr.IA, chain, conf.TrustDB)
-		if err != nil {
-			return nil, common.NewBasicError(ErrorIssCert, err)
-		}
 		// load customers
 		if conf.customers, err = conf.LoadCustomers(); err != nil {
 			return nil, err

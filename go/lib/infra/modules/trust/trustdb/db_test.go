@@ -35,10 +35,12 @@ func TestTRC(t *testing.T) {
 		SoMsg("err trc", err, ShouldBeNil)
 		SoMsg("trc", trcobj, ShouldNotBeNil)
 		Convey("Insert into database", func() {
-			err := db.InsertTRC(trcobj)
+			rows, err := db.InsertTRC(trcobj)
 			SoMsg("err", err, ShouldBeNil)
-			err = db.InsertTRC(trcobj)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertTRC(trcobj)
 			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get TRC from database", func() {
 				newTRCobj, err := db.GetTRCVersion(1, 1)
 				SoMsg("err", err, ShouldBeNil)
@@ -72,10 +74,12 @@ func TestIssCert(t *testing.T) {
 		}
 		ia := addr.IA{I: 1, A: 13}
 		Convey("Insert into database", func() {
-			err := db.InsertIssCert(chain.Issuer)
+			rows, err := db.InsertIssCert(chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
-			err = db.InsertIssCert(chain.Issuer)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertIssCert(chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get issuer certificate from database", func() {
 				crt, err := db.GetIssCertVersion(ia, 1)
 				SoMsg("err", err, ShouldBeNil)
@@ -110,10 +114,12 @@ func TestLeafCert(t *testing.T) {
 		}
 		ia := addr.IA{I: 1, A: 10}
 		Convey("Insert into database", func() {
-			err := db.InsertLeafCert(chain.Leaf)
+			rows, err := db.InsertLeafCert(chain.Leaf)
 			SoMsg("err", err, ShouldBeNil)
-			err = db.InsertLeafCert(chain.Leaf)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertLeafCert(chain.Leaf)
 			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get leaf certificate from database", func() {
 				crt, err := db.GetLeafCertVersion(ia, 1)
 				SoMsg("err", err, ShouldBeNil)
@@ -148,8 +154,9 @@ func TestChain(t *testing.T) {
 		}
 		ia := addr.IA{I: 1, A: 10}
 		Convey("Insert into database", func() {
-			err := db.InsertChain(chain)
+			rows, err := db.InsertChain(chain)
 			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
 			Convey("Get certificate chain from database", func() {
 				newChain, err := db.GetChainVersion(ia, 1)
 				SoMsg("err", err, ShouldBeNil)
