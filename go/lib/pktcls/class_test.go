@@ -23,6 +23,8 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestClassMap(t *testing.T) {
@@ -33,7 +35,7 @@ func TestClassMap(t *testing.T) {
 	}{
 		{
 			Name:     "ABC",
-			FileName: "class_abc",
+			FileName: "class_1",
 			Classes: ClassMap{
 				"transit ISD 1": NewClass(
 					"transit ISD 1",
@@ -71,11 +73,11 @@ func TestClassMap(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				if *update {
-					mustMarshalToFile(t, tc.Classes, tc.FileName)
+					xtest.MustMarshalToFile(t, tc.Classes, tc.FileName)
 				}
 
-				expected, err := ioutil.ReadFile(expandPath(tc.FileName))
-				failOnErr(t, err)
+				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+				xtest.FailOnErr(t, err)
 
 				// Check that marshaling matches reference files
 				enc, err := json.MarshalIndent(tc.Classes, "", "    ")
