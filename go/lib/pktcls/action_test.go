@@ -16,6 +16,7 @@ package pktcls
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -26,7 +27,12 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+)
+
+var (
+	update = flag.Bool("update", false, "set to true to update reference testdata files")
 )
 
 func TestActionMap(t *testing.T) {
@@ -37,7 +43,7 @@ func TestActionMap(t *testing.T) {
 	}{
 		{
 			Name:     "AllOf(true)",
-			FileName: "act_allof_true",
+			FileName: "act_1",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -49,7 +55,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "AllOf(AllOf(true))",
-			FileName: "act_allof_allof_true",
+			FileName: "act_2",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -63,7 +69,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "AnyOf(AnyOf(false))",
-			FileName: "act_anyof_anyof_false",
+			FileName: "act_3",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -77,7 +83,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "CondNot(false)",
-			FileName: "act_condnot_false",
+			FileName: "act_4",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -89,7 +95,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "CondAnyOf(false, 0-0#123)",
-			FileName: "act_condanyof_false_pred",
+			FileName: "act_5",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -102,7 +108,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "A CondAnyOf(false) B CondAllOf(true)",
-			FileName: "act_a_condanyof_false_b_condallof_true",
+			FileName: "act_6",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -120,7 +126,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "CondAllOf(0-0#123, 0-0#134)",
-			FileName: "act_condallof_pred_pred",
+			FileName: "act_7",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -133,7 +139,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "CondAnyOf(0-0#123, 0-0#134)",
-			FileName: "act_condanyof_2xpred",
+			FileName: "act_8",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -146,7 +152,7 @@ func TestActionMap(t *testing.T) {
 		},
 		{
 			Name:     "CondAnyOf(CondAllOf(0-0#123, 0-0#234), CondAllOf(0-0#345, 0-0#456))",
-			FileName: "act_condanyof_condallof_2xpred_condallof_2xpred",
+			FileName: "act_9",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
@@ -169,11 +175,11 @@ func TestActionMap(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				if *update {
-					mustMarshalToFile(t, tc.Actions, tc.FileName)
+					xtest.MustMarshalToFile(t, tc.Actions, tc.FileName)
 				}
 
-				expected, err := ioutil.ReadFile(expandPath(tc.FileName))
-				failOnErr(t, err)
+				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+				xtest.FailOnErr(t, err)
 
 				// Check that marshaling matches reference files
 				enc, err := json.MarshalIndent(tc.Actions, "", "    ")
@@ -197,7 +203,7 @@ func mustCondPathPredicate(t *testing.T, str string) *CondPathPredicate {
 	t.Helper()
 
 	pp, err := pathmgr.NewPathPredicate(str)
-	failOnErr(t, err)
+	xtest.FailOnErr(t, err)
 	return NewCondPathPredicate(pp)
 }
 
@@ -316,7 +322,7 @@ func TestActionAct(t *testing.T) {
 func testGetSCIONDConn(t *testing.T) sciond.Connector {
 	t.Helper()
 
-	g := graph.NewFromDescription(graph.DefaultGraphDescription)
+	g := graph.NewDefaultGraph()
 	service := sciond.NewMockService(g)
 	conn, err := service.Connect()
 	if err != nil {
