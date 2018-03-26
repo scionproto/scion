@@ -34,18 +34,18 @@ import (
 
 const (
 	MaxChainByteLength uint32 = 1 << 20
-	// LeafValidity is the default validity time of a leaf certificate in seconds.
+	// DefaultLeafCertValidity is the default validity time of a leaf certificate in seconds.
 	DefaultLeafCertValidity = 3 * 24 * 60 * 60
-	// CoreValidity is the default validity time of a core certificate in seconds.
-	DefaultCoreCertValidity = 7 * 24 * 60 * 60
+	// DefaultIssuerCertValidity is the default validity time of an issuer certificate in seconds.
+	DefaultIssuerCertValidity = 7 * 24 * 60 * 60
 
 	// Error strings
 	IssCertInvalid   = "Issuer certificate invalid"
 	IssExpiresAfter  = "Issuer certificate expires after TRC"
 	IssASNotFound    = "Issuing AS not found"
 	LeafCertInvalid  = "Leaf certificate invalid"
-	LeafExpiresAfter = "Leaf certificate expires after core certificate"
-	LeafIssuedBefore = "Leaf certificate issued before core certificate"
+	LeafExpiresAfter = "Leaf certificate expires after issuer certificate"
+	LeafIssuedBefore = "Leaf certificate issued before issuer certificate"
 )
 
 type Key struct {
@@ -61,12 +61,12 @@ func (k *Key) String() string {
 	return fmt.Sprintf("%sv%d", k.IA, k.Ver)
 }
 
-// Chain contains two certificates, one fore the leaf and one for the core. The leaf certificate
-// is signed by the core certificate, which is signed by the TRC of the corresponding ISD.
+// Chain contains two certificates, one fore the leaf and one for the issuer. The leaf certificate
+// is signed by the issuer certificate, which is signed by the TRC of the corresponding ISD.
 type Chain struct {
 	// Leaf is the leaf certificate of the chain. It is signed by the Issuer certificate.
 	Leaf *Certificate `json:"0"`
-	// Issuer is the core AS certificate of the chain. It is signed by the TRC of the ISD.
+	// Issuer is the issuer AS certificate of the chain. It is signed by the TRC of the ISD.
 	Issuer *Certificate `json:"1"`
 }
 
@@ -106,12 +106,12 @@ func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
 func (c *Chain) Verify(subject addr.IA, t *trc.TRC) error {
 	if c.Leaf.IssuingTime < c.Issuer.IssuingTime {
 		return common.NewBasicError(LeafIssuedBefore, nil, "leaf",
-			util.TimeToString(c.Leaf.IssuingTime), "core",
+			util.TimeToString(c.Leaf.IssuingTime), "issuer",
 			util.TimeToString(c.Issuer.IssuingTime))
 	}
 	if c.Leaf.ExpirationTime > c.Issuer.ExpirationTime {
 		return common.NewBasicError(LeafExpiresAfter, nil, "leaf",
-			util.TimeToString(c.Leaf.ExpirationTime), "core",
+			util.TimeToString(c.Leaf.ExpirationTime), "issuer",
 			util.TimeToString(c.Issuer.ExpirationTime))
 	}
 	if !c.Issuer.CanIssue {
@@ -121,7 +121,7 @@ func (c *Chain) Verify(subject addr.IA, t *trc.TRC) error {
 		return common.NewBasicError(LeafCertInvalid, err)
 	}
 	if c.Issuer.ExpirationTime > t.ExpirationTime {
-		return common.NewBasicError(IssExpiresAfter, nil, "core",
+		return common.NewBasicError(IssExpiresAfter, nil, "issuer",
 			util.TimeToString(c.Issuer.ExpirationTime), "TRC",
 			util.TimeToString(t.ExpirationTime))
 	}
