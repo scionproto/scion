@@ -1,0 +1,16 @@
+{
+    "A": {
+        "ActionFilterPaths": {
+            "CondAnyOf": [
+                {
+                    "CondBool": false
+                },
+                {
+                    "CondPathPredicate": {
+                        "PP": "0-0#123"
+                    }
+                }
+            ]
+        }
+    }
+}

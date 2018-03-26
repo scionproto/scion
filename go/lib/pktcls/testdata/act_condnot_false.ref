@@ -1,0 +1,9 @@
+{
+    "A": {
+        "ActionFilterPaths": {
+            "CondNot": {
+                "CondBool": false
+            }
+        }
+    }
+}

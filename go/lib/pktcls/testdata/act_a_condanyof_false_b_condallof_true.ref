@@ -1,0 +1,20 @@
+{
+    "A": {
+        "ActionFilterPaths": {
+            "CondAnyOf": [
+                {
+                    "CondBool": false
+                }
+            ]
+        }
+    },
+    "B": {
+        "ActionFilterPaths": {
+            "CondAllOf": [
+                {
+                    "CondBool": true
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,41 @@
+{
+    "classC": {
+        "CondAllOf": null
+    },
+    "transit ISD 1": {
+        "CondAllOf": [
+            {
+                "CondIPv4": {
+                    "MatchToS": {
+                        "TOS": "0x80"
+                    }
+                }
+            },
+            {
+                "CondIPv4": {
+                    "MatchDestination": {
+                        "Net": "192.168.1.0/24"
+                    }
+                }
+            }
+        ]
+    },
+    "transit ISD 2": {
+        "CondAnyOf": [
+            {
+                "CondIPv4": {
+                    "MatchToS": {
+                        "TOS": "0x0"
+                    }
+                }
+            },
+            {
+                "CondIPv4": {
+                    "MatchSource": {
+                        "Net": "10.0.0.0/8"
+                    }
+                }
+            }
+        ]
+    }
+}

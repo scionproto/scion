@@ -26,54 +26,22 @@ import (
 type Action interface {
 	Act(interface{}) interface{}
 	GetName() string
-	setName(name string)
+	SetName(name string)
 	Typer
 }
 
 var _ Action = (*ActionFilterPaths)(nil)
 
-// Filter only paths which match the embedded PathPredicate.
-//
-// DEPRECATED, use ActionCondFilterPaths instead.
-type ActionFilterPaths struct {
-	Contains *pathmgr.PathPredicate
-	Name     string `json:"-"`
-}
-
-func NewActionFilterPaths(name string, pp *pathmgr.PathPredicate) *ActionFilterPaths {
-	return &ActionFilterPaths{Name: name, Contains: pp}
-}
-
-// Act takes an AppPathSet and returns a new AppPathSet containing only the
-// paths permitted by the filter.
-func (a *ActionFilterPaths) Act(aps interface{}) interface{} {
-	panic("not implemented")
-}
-
-func (a *ActionFilterPaths) GetName() string {
-	return a.Name
-}
-
-func (a *ActionFilterPaths) setName(name string) {
-	a.Name = name
-}
-
-func (a *ActionFilterPaths) Type() string {
-	return TypeActionFilterPaths
-}
-
-var _ Action = (*ActionCondFilterPaths)(nil)
-
-// ActionCondFilterPaths filters paths according to the embedded Cond object.
+// ActionFilterPaths filters paths according to the embedded Cond object.
 // CondAnyOf, CondAllOf, CondNot and CondPathPredicate conditions can be
 // combined to implement complex path selection policies.
-type ActionCondFilterPaths struct {
+type ActionFilterPaths struct {
 	Cond Cond
 	Name string `json:"-"`
 }
 
-func NewActionCondFilterPaths(name string, cond Cond) *ActionCondFilterPaths {
-	return &ActionCondFilterPaths{
+func NewActionFilterPaths(name string, cond Cond) *ActionFilterPaths {
+	return &ActionFilterPaths{
 		Name: name,
 		Cond: cond,
 	}
@@ -81,7 +49,7 @@ func NewActionCondFilterPaths(name string, cond Cond) *ActionCondFilterPaths {
 
 // Act takes an AppPathSet and returns a new AppPathSet containing only the
 // paths permitted by the conditional predicate.
-func (a *ActionCondFilterPaths) Act(values interface{}) interface{} {
+func (a *ActionFilterPaths) Act(values interface{}) interface{} {
 	inputSet := values.(pathmgr.AppPathSet)
 	resultSet := make(pathmgr.AppPathSet)
 	for key, path := range inputSet {
@@ -92,23 +60,23 @@ func (a *ActionCondFilterPaths) Act(values interface{}) interface{} {
 	return resultSet
 }
 
-func (a *ActionCondFilterPaths) GetName() string {
+func (a *ActionFilterPaths) GetName() string {
 	return a.Name
 }
 
-func (a *ActionCondFilterPaths) setName(name string) {
+func (a *ActionFilterPaths) SetName(name string) {
 	a.Name = name
 }
 
-func (a *ActionCondFilterPaths) Type() string {
-	return TypeActionCondFilterPaths
+func (a *ActionFilterPaths) Type() string {
+	return TypeActionFilterPaths
 }
 
-func (a *ActionCondFilterPaths) MarshalJSON() ([]byte, error) {
+func (a *ActionFilterPaths) MarshalJSON() ([]byte, error) {
 	return marshalInterface(a.Cond)
 }
 
-func (a *ActionCondFilterPaths) UnmarshalJSON(b []byte) error {
+func (a *ActionFilterPaths) UnmarshalJSON(b []byte) error {
 	var err error
 	a.Cond, err = unmarshalCond(b)
 	return err
@@ -117,7 +85,7 @@ func (a *ActionCondFilterPaths) UnmarshalJSON(b []byte) error {
 var _ Cond = (*CondPathPredicate)(nil)
 
 // CondPathPredicate implements interface Cond, and is designed for use in
-// conditions for ActionCondFilterPaths. CondPathPredicate returns true if the
+// conditions for ActionFilterPaths. CondPathPredicate returns true if the
 // argument to eval is a *sciond.PathReplyEntry that satisfies the embedded
 // predicate PP.
 type CondPathPredicate struct {

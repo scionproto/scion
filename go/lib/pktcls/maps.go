@@ -14,47 +14,12 @@
 
 package pktcls
 
-import (
-	"encoding/json"
+import "encoding/json"
 
-	"github.com/scionproto/scion/go/lib/common"
-)
-
-// ActionMap is a container for Actions, keyed by their unique name. Attempting
-// to add an Action with the same name twice returns an error. ActionMap can be
-// used to marshal Actions to JSON. Unmarshaling back to ActionMap is
+// ActionMap is a container for Actions, keyed by their unique name. ActionMap
+// can be used to marshal Actions to JSON. Unmarshaling back to ActionMap is
 // guaranteed to yield an object that is identical to the initial one.
 type ActionMap map[string]Action
-
-func NewActionMap() ActionMap {
-	return make(ActionMap)
-}
-
-func (am ActionMap) Add(c Action) error {
-	_, ok := am[c.GetName()]
-	if ok {
-		return common.NewBasicError("Action name exists", nil, "name", c.GetName())
-	}
-	am[c.GetName()] = c
-	return nil
-}
-
-func (am ActionMap) Get(name string) (Action, error) {
-	class, ok := am[name]
-	if !ok {
-		return nil, common.NewBasicError("Action not found", nil, "name", name)
-	}
-	return class, nil
-}
-
-func (am ActionMap) Remove(name string) error {
-	_, ok := am[name]
-	if !ok {
-		return common.NewBasicError("Action not found", nil, "name", name)
-	}
-	delete(am, name)
-	return nil
-}
 
 func (am ActionMap) MarshalJSON() ([]byte, error) {
 	m := make(map[string]*json.RawMessage)
@@ -69,9 +34,8 @@ func (am ActionMap) MarshalJSON() ([]byte, error) {
 }
 
 func (am *ActionMap) UnmarshalJSON(b []byte) error {
-	m := make(map[string]*json.RawMessage)
-	err := json.Unmarshal(b, &m)
-	if err != nil {
+	var m map[string]*json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
 		return err
 	}
 
@@ -81,8 +45,27 @@ func (am *ActionMap) UnmarshalJSON(b []byte) error {
 		if err != nil {
 			return err
 		}
-		action.setName(k)
+		action.SetName(k)
 		(*am)[k] = action
+	}
+	return nil
+}
+
+// ClassMap is a container for Classes, keyed by their unique name.  ClassMap
+// can be used to marshal Classes to JSON. Unmarshaling back to ClassMap is
+// guaranteed to yield an object that is identical to the initial one.
+type ClassMap map[string]*Class
+
+func (cm ClassMap) MarshalJSON() ([]byte, error) {
+	return json.MarshalIndent((map[string]*Class)(cm), "", "    ")
+}
+
+func (cm *ClassMap) UnmarshalJSON(b []byte) error {
+	if err := json.Unmarshal(b, (*map[string]*Class)(cm)); err != nil {
+		return err
+	}
+	for className, class := range *cm {
+		class.name = className
 	}
 	return nil
 }
