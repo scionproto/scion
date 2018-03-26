@@ -22,11 +22,12 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 var (
-	iaA   = addr.IA{1, 4295000000}
-	iaB   = addr.IA{1, 4295000001}
+	iaA   = addr.IA{I: 1, A: 4295000000}
+	iaB   = addr.IA{I: 1, A: 4295000001}
 	iaMap = map[addr.IA][]string{
 		iaA: {"192.0.2.0/30", "192.0.2.8/30", "2001:db8::/48", "2001:db8:2::/48"},
 		iaB: {"192.0.2.4/30", "2001:db8:1::/48"},
@@ -45,7 +46,7 @@ func defNetworks(t *testing.T) *Networks {
 	nets := &Networks{}
 	for ia, v := range iaMap {
 		for _, n := range v {
-			if err := nets.Add(parseNet(t, n), ia, nil); err != nil {
+			if err := nets.Add(parseNet(t, n), ia, &ringbuf.Ring{}); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -81,7 +82,11 @@ func Test_Networks_Add(t *testing.T) {
 			Convey(fmt.Sprintf("%q", tc.nets), func() {
 				ok := true
 				for i := range tc.nets {
-					err := nets.Add(parseNet(t, tc.nets[i]), addr.IA{addr.MaxISD, addr.MaxAS}, nil)
+					err := nets.Add(
+						parseNet(t, tc.nets[i]),
+						addr.IA{I: addr.MaxISD, A: addr.MaxAS},
+						&ringbuf.Ring{},
+					)
 					if err != nil {
 						ok = false
 					}
@@ -166,11 +171,11 @@ func Test_Networks_Lookup(t *testing.T) {
 		nets := defNetworks(t)
 		for _, tc := range testCases {
 			Convey(tc.ip, func() {
-				ia, _, ok := nets.Lookup(net.ParseIP(tc.ip))
+				ia, ring := nets.Lookup(net.ParseIP(tc.ip))
 				if tc.ia.IsZero() {
-					SoMsg("Lookup should fail", ok, ShouldBeFalse)
+					SoMsg("Lookup should fail", ring, ShouldBeNil)
 				} else {
-					SoMsg("Lookup should succeed", ok, ShouldBeTrue)
+					SoMsg("Lookup should succeed", ring, ShouldNotBeNil)
 					SoMsg("IA should match", ia, ShouldResemble, tc.ia)
 				}
 			})
