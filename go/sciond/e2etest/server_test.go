@@ -28,13 +28,14 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/loader"
 )
 
 func TestASInfo(t *testing.T) {
 	dir, deleteDirTree := setupDirTree(t)
 	defer deleteDirTree()
-	sock := loader.MustTempFileName(dir, "rsock")
+	sock := xtest.MustTempFileName(dir, "rsock")
 	stopServer := StartServer(t, dir, sock)
 	defer stopServer()
 	conn, stopClient := StartClient(t, sock)
@@ -43,7 +44,16 @@ func TestASInfo(t *testing.T) {
 	Convey("Send and receive ASInfo", t, func() {
 		reply, err := conn.ASInfo(addr.IA{I: 1, A: 1})
 		SoMsg("err", err, ShouldBeNil)
-		fmt.Printf("reply: %v\n", reply)
+		expReply := &sciond.ASInfoReply{
+			Entries: []sciond.ASInfoReplyEntry{
+				{
+					RawIsdas: addr.IA{I: 1, A: 1}.IAInt(),
+					Mtu:      1337,
+					IsCore:   true,
+				},
+			},
+		}
+		SoMsg("reply", reply, ShouldResemble, expReply)
 	})
 }
 
@@ -85,17 +95,19 @@ func StartServer(t *testing.T, dir, file string) func() {
 	t.Log("Build succeeded")
 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	cmd := binary.Run(
+	cmd := binary.Cmd(
 		"-id", "sdtest",
 		"-reliable", file,
 		"-log.console", "debug",
 		"-prom", fmt.Sprintf("127.0.0.1:%d", 30000+r.Intn(1000)),
 	)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("unable to run sciond binary, err=%v", err)
 	}
 	// Give the server time to start
-	time.Sleep(3 * time.Second)
+	time.Sleep(time.Second)
 
 	return func() {
 		cmd.Process.Kill()

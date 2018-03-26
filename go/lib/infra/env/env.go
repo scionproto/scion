@@ -61,6 +61,7 @@ type Env struct {
 // up signals.
 func Init() (*Env, error) {
 	env := &Env{}
+	liblog.AddDefaultLogFlags()
 	flag.Parse()
 	if err := env.setupLogging(); err != nil {
 		return nil, err
