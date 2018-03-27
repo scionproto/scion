@@ -57,7 +57,9 @@ func regenerateCrypto() error {
 		Target: "github.com/scionproto/scion/go/tools/scion-pki",
 		Dir:    dir,
 	}
-	b.Build()
+	if err := b.Build(); err != nil {
+		panic(err)
+	}
 
 	wd, err := os.Getwd()
 	if err != nil {
@@ -81,24 +83,17 @@ func regenerateCrypto() error {
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("scion-pki: %s", msg)
 	}
-
-	// Also automatically populate all folders under testdata with goconvey
-	// ignore files so the webUI doesn't print a Build failure.
-	if err := xtest.IgnoreTestdata(); err != nil {
-		return fmt.Errorf("create ignore files: %v", err)
-	}
-
 	return nil
 }
 
-func TestGetTRC(t *testing.T) {
+func TestGetValidTRC(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: 1}, {I: 1, A: 2}, {I: 1, A: 3},
-		{I: 2, A: 1}, {I: 2, A: 2}, {I: 2, A: 3},
-		{I: 3, A: 1}, {I: 3, A: 2}, {I: 3, A: 3},
-		{I: 4, A: 1}, {I: 4, A: 2}, {I: 4, A: 3},
-		{I: 5, A: 1}, {I: 5, A: 2}, {I: 5, A: 3},
+		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
+		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
+		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
+		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
+		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -164,8 +159,12 @@ func TestGetTRC(t *testing.T) {
 		},
 	}
 
-	Convey("Get TRCs", t, func() {
-		store, cleanF := initStore(t, addr.IA{I: 1, A: 1}, messenger.NewMock(trcs, chains))
+	Convey("Get valid TRCs", t, func() {
+		msger := &messenger.MockMessenger{
+			TRCs:   trcs,
+			Chains: chains,
+		}
+		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -175,7 +174,7 @@ func TestGetTRC(t *testing.T) {
 				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 				defer cancelF()
 
-				trcObj, err := store.GetTRC(ctx, tc.ISD, tc.Trail...)
+				trcObj, err := store.GetValidTRC(ctx, tc.ISD, tc.Trail...)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", trcObj, ShouldResemble, tc.ExpData)
 
@@ -183,21 +182,21 @@ func TestGetTRC(t *testing.T) {
 				for _, trcObj := range tc.DBTRCInChecks {
 					get, err := store.trustdb.GetTRCVersion(trcObj.ISD, trcObj.Version)
 					SoMsg("db err", err, ShouldBeNil)
-					SoMsg("db chain", get, ShouldResemble, trcObj)
+					SoMsg("db trc", get, ShouldResemble, trcObj)
 				}
 			})
 		}
 	})
 }
 
-func TestGetUnverifiedTRC(t *testing.T) {
+func TestGetTRC(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: 1}, {I: 1, A: 2}, {I: 1, A: 3},
-		{I: 2, A: 1}, {I: 2, A: 2}, {I: 2, A: 3},
-		{I: 3, A: 1}, {I: 3, A: 2}, {I: 3, A: 3},
-		{I: 4, A: 1}, {I: 4, A: 2}, {I: 4, A: 3},
-		{I: 5, A: 1}, {I: 5, A: 2}, {I: 5, A: 3},
+		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
+		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
+		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
+		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
+		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -264,7 +263,11 @@ func TestGetUnverifiedTRC(t *testing.T) {
 	}
 
 	Convey("Get unverified TRCs", t, func() {
-		store, cleanF := initStore(t, addr.IA{I: 1, A: 1}, messenger.NewMock(trcs, chains))
+		msger := &messenger.MockMessenger{
+			TRCs:   trcs,
+			Chains: chains,
+		}
+		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -275,7 +278,7 @@ func TestGetUnverifiedTRC(t *testing.T) {
 				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 				defer cancelF()
 
-				trcObj, err := store.GetUnverifiedTRC(ctx, tc.ISD, tc.Version)
+				trcObj, err := store.GetTRC(ctx, tc.ISD, tc.Version)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", trcObj, ShouldResemble, tc.ExpData)
 
@@ -283,7 +286,7 @@ func TestGetUnverifiedTRC(t *testing.T) {
 				for _, trcObj := range tc.DBTRCNotInChecks {
 					get, err := store.trustdb.GetTRCVersion(trcObj.ISD, trcObj.Version)
 					SoMsg("db err", err, ShouldBeNil)
-					SoMsg("db chain", get, ShouldBeNil)
+					SoMsg("db trc", get, ShouldBeNil)
 				}
 			})
 		}
@@ -291,14 +294,14 @@ func TestGetUnverifiedTRC(t *testing.T) {
 
 }
 
-func TestGetChain(t *testing.T) {
+func TestGetValidChain(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: 1}, {I: 1, A: 2}, {I: 1, A: 3},
-		{I: 2, A: 1}, {I: 2, A: 2}, {I: 2, A: 3},
-		{I: 3, A: 1}, {I: 3, A: 2}, {I: 3, A: 3},
-		{I: 4, A: 1}, {I: 4, A: 2}, {I: 4, A: 3},
-		{I: 5, A: 1}, {I: 5, A: 2}, {I: 5, A: 3},
+		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
+		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
+		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
+		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
+		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -312,7 +315,7 @@ func TestGetChain(t *testing.T) {
 	}{
 		{
 			Name: "bad IA=0-1",
-			IA:   addr.IA{I: 0, A: 1}, Trail: []addr.ISD{0},
+			IA:   addr.IA{I: 0, A: tas(1)}, Trail: []addr.ISD{0},
 			ExpData: nil, ExpError: true,
 		},
 		{
@@ -322,19 +325,23 @@ func TestGetChain(t *testing.T) {
 		},
 		{
 			Name: "local IA=1-1",
-			IA:   addr.IA{I: 1, A: 1}, Trail: []addr.ISD{1},
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Trail: []addr.ISD{1},
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 		},
 		{
-			Name: "remote IA=2-1",
-			IA:   addr.IA{I: 2, A: 1}, Trail: []addr.ISD{2, 1},
-			ExpData: chains[addr.IA{I: 2, A: 1}], ExpError: false,
-			DBChainInChecks: []*cert.Chain{chains[addr.IA{I: 2, A: 1}]},
+			Name: "remote IA=2-4",
+			IA:   addr.IA{I: 2, A: tas(4)}, Trail: []addr.ISD{2, 1},
+			ExpData: chains[addr.IA{I: 2, A: tas(4)}], ExpError: false,
+			DBChainInChecks: []*cert.Chain{chains[addr.IA{I: 2, A: tas(4)}]},
 		},
 	}
 
-	Convey("Get TRCs", t, func() {
-		store, cleanF := initStore(t, addr.IA{I: 1, A: 1}, messenger.NewMock(trcs, chains))
+	Convey("Get Chains", t, func() {
+		msger := &messenger.MockMessenger{
+			TRCs:   trcs,
+			Chains: chains,
+		}
+		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -344,7 +351,7 @@ func TestGetChain(t *testing.T) {
 				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 				defer cancelF()
 
-				chain, err := store.GetChain(ctx, tc.IA, tc.Trail...)
+				chain, err := store.GetValidChain(ctx, tc.IA, tc.Trail...)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", chain, ShouldResemble, tc.ExpData)
 
@@ -360,14 +367,14 @@ func TestGetChain(t *testing.T) {
 	})
 }
 
-func TestGetUnverifiedChain(t *testing.T) {
+func TestGetChain(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: 1}, {I: 1, A: 2}, {I: 1, A: 3},
-		{I: 2, A: 1}, {I: 2, A: 2}, {I: 2, A: 3},
-		{I: 3, A: 1}, {I: 3, A: 2}, {I: 3, A: 3},
-		{I: 4, A: 1}, {I: 4, A: 2}, {I: 4, A: 3},
-		{I: 5, A: 1}, {I: 5, A: 2}, {I: 5, A: 3},
+		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
+		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
+		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
+		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
+		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -382,7 +389,7 @@ func TestGetUnverifiedChain(t *testing.T) {
 	}{
 		{
 			Name: "bad IA=0-1",
-			IA:   addr.IA{I: 0, A: 1}, Version: 0,
+			IA:   addr.IA{I: 0, A: tas(1)}, Version: 0,
 			ExpData: nil, ExpError: true,
 		},
 		{
@@ -392,61 +399,65 @@ func TestGetUnverifiedChain(t *testing.T) {
 		},
 		{
 			Name: "local IA=1-1, version 1",
-			IA:   addr.IA{I: 1, A: 1}, Version: 1,
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 1,
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 		},
 		{
 			Name: "local IA=1-1, max version",
-			IA:   addr.IA{I: 1, A: 1}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 		},
 		{
 			Name: "local IA=1-1, unknown version 4",
-			IA:   addr.IA{I: 1, A: 1}, Version: 4,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 4,
 			ExpData: nil, ExpError: true,
 		},
 		{
-			Name: "unknown IA=2-1", IA: addr.IA{I: 2, A: 1},
-			ExpData: chains[addr.IA{I: 2, A: 1}], ExpError: false,
-			DBChainNotInChecks: []*cert.Chain{chains[addr.IA{I: 2, A: 1}]},
+			Name: "unknown IA=2-4", IA: addr.IA{I: 2, A: tas(4)},
+			ExpData: chains[addr.IA{I: 2, A: tas(4)}], ExpError: false,
+			DBChainNotInChecks: []*cert.Chain{chains[addr.IA{I: 2, A: tas(4)}]},
 		},
 		{
-			Name: "remote IA=3-3, version 1",
-			IA:   addr.IA{I: 3, A: 3}, Version: 1,
-			ExpData: chains[addr.IA{I: 3, A: 3}], ExpError: false,
+			Name: "remote IA=3-9, version 1",
+			IA:   addr.IA{I: 3, A: tas(9)}, Version: 1,
+			ExpData: chains[addr.IA{I: 3, A: tas(9)}], ExpError: false,
 		},
 		{
-			Name: "remote IA=3-3, max version",
-			IA:   addr.IA{I: 3, A: 3}, Version: 0,
-			ExpData: chains[addr.IA{I: 3, A: 3}], ExpError: false,
+			Name: "remote IA=3-9, max version",
+			IA:   addr.IA{I: 3, A: tas(9)}, Version: 0,
+			ExpData: chains[addr.IA{I: 3, A: tas(9)}], ExpError: false,
 		},
 		{
-			Name: "remote IA=3-3, unknown version 4",
-			IA:   addr.IA{I: 3, A: 3}, Version: 4,
+			Name: "remote IA=3-9, unknown version 4",
+			IA:   addr.IA{I: 3, A: tas(9)}, Version: 4,
 			ExpData: nil, ExpError: true,
 		},
 		{
-			Name: "bogus IA=42-3",
-			IA:   addr.IA{I: 42, A: 3}, Version: 1,
+			Name: "bogus IA=42-9",
+			IA:   addr.IA{I: 42, A: tas(9)}, Version: 1,
 			ExpData: nil, ExpError: true,
 		},
 	}
 
 	Convey("Get unverified chains", t, func() {
-		store, cleanF := initStore(t, addr.IA{I: 1, A: 1}, messenger.NewMock(trcs, chains))
+		msger := &messenger.MockMessenger{
+			TRCs:   trcs,
+			Chains: chains,
+		}
+		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
-		insertChain(t, store, chains[addr.IA{I: 1, A: 1}])
+		insertChain(t, store, chains[addr.IA{I: 1, A: tas(1)}])
 		insertTRC(t, store, trcs[3])
-		insertChain(t, store, chains[addr.IA{I: 3, A: 3}])
+		insertChain(t, store, chains[addr.IA{I: 3, A: tas(9)}])
 
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 				defer cancelF()
 
-				chain, err := store.GetUnverifiedChain(ctx, tc.IA, tc.Version)
+				chain, err := store.GetChain(ctx, tc.IA, tc.Version)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", chain, ShouldResemble, tc.ExpData)
 
@@ -465,11 +476,11 @@ func TestGetUnverifiedChain(t *testing.T) {
 func TestTRCReqHandler(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: 1}, {I: 1, A: 2}, {I: 1, A: 3},
-		{I: 2, A: 1}, {I: 2, A: 2}, {I: 2, A: 3},
-		{I: 3, A: 1}, {I: 3, A: 2}, {I: 3, A: 3},
-		{I: 4, A: 1}, {I: 4, A: 2}, {I: 4, A: 3},
-		{I: 5, A: 1}, {I: 5, A: 2}, {I: 5, A: 3},
+		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
+		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
+		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
+		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
+		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -568,7 +579,11 @@ func TestTRCReqHandler(t *testing.T) {
 	//
 	// ClientMsger runs without a trust store.
 	Convey("Test TRCReq Handler", t, func() {
-		store, cleanF := initStore(t, addr.IA{I: 1, A: 1}, messenger.NewMock(trcs, chains))
+		msger := &messenger.MockMessenger{
+			TRCs:   trcs,
+			Chains: chains,
+		}
+		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -609,11 +624,11 @@ func TestTRCReqHandler(t *testing.T) {
 func TestChainReqHandler(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: 1}, {I: 1, A: 2}, {I: 1, A: 3},
-		{I: 2, A: 1}, {I: 2, A: 2}, {I: 2, A: 3},
-		{I: 3, A: 1}, {I: 3, A: 2}, {I: 3, A: 3},
-		{I: 4, A: 1}, {I: 4, A: 2}, {I: 4, A: 3},
-		{I: 5, A: 1}, {I: 5, A: 2}, {I: 5, A: 3},
+		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
+		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
+		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
+		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
+		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -628,61 +643,61 @@ func TestChainReqHandler(t *testing.T) {
 	}{
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only, recursive",
-			IA:   addr.IA{I: 1, A: 1}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only, non-recursive",
-			IA:   addr.IA{I: 1, A: 1}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: 1}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only=false, non-recursive",
-			IA:   addr.IA{I: 1, A: 1}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 			RecursionEnabled: false, CacheOnly: false,
 		},
 		{
 			Name: "ask for known chain=1-1, version=1, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: 1}, Version: 1,
-			ExpData: chains[addr.IA{I: 1, A: 1}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 1,
+			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for known chain=1-1, version=4, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: 1}, Version: 4,
+			IA:   addr.IA{I: 1, A: tas(1)}, Version: 4,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, recursive",
-			IA:   addr.IA{I: 1, A: 2}, Version: 0,
+			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, non-recursive",
-			IA:   addr.IA{I: 1, A: 2}, Version: 0,
+			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: 2}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: 2}], ExpError: false,
+			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
+			ExpData: chains[addr.IA{I: 1, A: tas(2)}], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only=false, non-recursive",
-			IA:   addr.IA{I: 1, A: 2}, Version: 0,
+			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: false,
 		},
@@ -690,11 +705,15 @@ func TestChainReqHandler(t *testing.T) {
 
 	// See TestTRCReqHandler for info about the testing setup.
 	Convey("Test ChainReq Handler", t, func() {
-		store, cleanF := initStore(t, addr.IA{I: 1, A: 1}, messenger.NewMock(trcs, chains))
+		msger := &messenger.MockMessenger{
+			TRCs:   trcs,
+			Chains: chains,
+		}
+		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
-		insertChain(t, store, chains[addr.IA{I: 1, A: 1}])
+		insertChain(t, store, chains[addr.IA{I: 1, A: tas(1)}])
 
 		c2s, s2c := p2p.New()
 		// each test initiates a request from the client messenger
@@ -764,7 +783,7 @@ func getTRCFileName(isd addr.ISD, version uint64) string {
 }
 
 func getChainFileName(ia addr.IA, version uint64) string {
-	return fmt.Sprintf("testdata/ISD%d/AS%d/certs/ISD%d-AS%d-V%d.crt",
+	return fmt.Sprintf("testdata/ISD%d/AS%s/certs/ISD%d-AS%s-V%d.crt",
 		ia.I, ia.A, ia.I, ia.A, version)
 }
 
@@ -777,7 +796,7 @@ func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func())
 		t.Fatal(err)
 	}
 
-	store, err := NewStore(db, addr.IA{I: 1, A: 1}, 0, log.Root())
+	store, err := NewStore(db, ia, 0, log.Root())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -793,7 +812,7 @@ func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func())
 func insertTRC(t *testing.T, store *Store, trcObj *trc.TRC) {
 	t.Helper()
 
-	err := store.trustdb.InsertTRC(trcObj.ISD, trcObj.Version, trcObj)
+	_, err := store.trustdb.InsertTRC(trcObj)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -802,8 +821,12 @@ func insertTRC(t *testing.T, store *Store, trcObj *trc.TRC) {
 func insertChain(t *testing.T, store *Store, chain *cert.Chain) {
 	t.Helper()
 
-	err := store.trustdb.InsertChain(chain.Leaf.Subject, chain.Leaf.Version, chain)
+	_, err := store.trustdb.InsertChain(chain)
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func tas(x addr.AS) addr.AS {
+	return x + 4300000000
 }

@@ -43,15 +43,9 @@ func (h *trcReqHandler) Handle() {
 		return
 	}
 
-	v := h.request.Context().Value(infra.MessengerContextKey)
-	if v == nil {
-		h.log.Warn("Unable to service request, no Messenger interface found")
-		return
-	}
-	messenger, ok := v.(infra.Messenger)
+	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
-		h.log.Warn("Unable to service request, bad Messenger interface found",
-			"value", v, "type", common.TypeOf(v))
+		h.log.Warn("Unable to service request, no Messenger found in context.")
 		return
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
@@ -61,7 +55,7 @@ func (h *trcReqHandler) Handle() {
 	// CacheOnly is not requested.
 	// FIXME(scrye): when protocol support is in, the below needs to select
 	// between verified/unverified retrieval based on message content.
-	trc, err := h.store.getUnverifiedTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
+	trc, err := h.store.getTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
 		h.recurse && !trcReq.CacheOnly, h.request.Peer)
 	if err != nil {
 		h.log.Error("Unable to retrieve TRC", "err", err)
@@ -101,15 +95,9 @@ func (h *chainReqHandler) Handle() {
 		return
 	}
 
-	v := h.request.Context().Value(infra.MessengerContextKey)
-	if v == nil {
-		h.log.Warn("Unable to service request, no Messenger interface found")
-		return
-	}
-	messenger, ok := v.(infra.Messenger)
+	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
-		h.log.Warn("Unable to service request, bad Messenger interface found",
-			"value", v, "type", common.TypeOf(v))
+		h.log.Warn("Unable to service request, no Messenger found in context.")
 		return
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
@@ -119,7 +107,7 @@ func (h *chainReqHandler) Handle() {
 	// CacheOnly is not requested.
 	// FIXME(scrye): when protocol support is in, the below needs to select
 	// between verified/unverified retrieval based on message content.
-	chain, err := h.store.getUnverifiedChain(h.request.Context(), chainReq.IA(), chainReq.Version,
+	chain, err := h.store.getChain(h.request.Context(), chainReq.IA(), chainReq.Version,
 		h.recurse && !chainReq.CacheOnly, h.request.Peer)
 	if err != nil {
 		h.log.Error("Unable to retrieve Chain", "err", err)
