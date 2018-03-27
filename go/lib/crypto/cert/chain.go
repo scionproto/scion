@@ -110,7 +110,7 @@ func ChainFromSlice(certs []*Certificate) (*Chain, error) {
 	if len(certs) != 2 {
 		return nil, common.NewBasicError("Unsupported chain length", nil, "len", len(certs))
 	}
-	if certs[0] == nil && certs[1] == nil {
+	if certs[0] == nil || certs[1] == nil {
 		return nil, common.NewBasicError("Certificates must not be nil", nil, "leaf", certs[0],
 			"iss", certs[1])
 	}
