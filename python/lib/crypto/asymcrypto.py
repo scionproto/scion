@@ -58,14 +58,14 @@ def get_core_sig_key_file_path(conf_dir):
     """
     Return the core signing key seed file path.
     """
-    return os.path.join(conf_dir, KEYS_DIR, "iss-sig.seed")
+    return os.path.join(conf_dir, KEYS_DIR, "core-sig.seed")
 
 
 def get_core_sig_key_raw_file_path(conf_dir):
     """
     Return the core signing key file path.
     """
-    return os.path.join(conf_dir, KEYS_DIR, "iss-sig.key")
+    return os.path.join(conf_dir, KEYS_DIR, "core-sig.key")
 
 
 def get_core_sig_key(conf_dir):

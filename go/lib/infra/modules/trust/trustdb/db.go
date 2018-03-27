@@ -100,25 +100,29 @@ const (
 			INSERT OR IGNORE INTO LeafCerts (IsdID, AsID, Version, Data) VALUES (?, ?, ?, ?)
 		`
 	getChainVersionStr = `
-			SELECT Data FROM LeafCerts WHERE IsdID=? AND AsID=? AND Version=?
-			UNION 
-			SELECT Data FROM IssuerCerts WHERE RowID IN (
+			SELECT Data, 0 FROM LeafCerts WHERE IsdID=? AND AsID=? AND Version=?
+			UNION
+			SELECT ic.Data, ch.OrderKey FROM IssuerCerts ic, Chains ch
+			WHERE ic.RowID IN (
 				SELECT IssCertsRowID FROM Chains WHERE IsdID=? AND AsID=? AND Version=?
 			)
+			ORDER BY ch.OrderKey
 		`
 	getChainMaxVersionStr = `
-			SELECT Data FROM LeafCerts WHERE IsdID=? AND AsID=? AND Version = (
+			SELECT Data, 0 FROM LeafCerts WHERE IsdID=? AND AsID=? AND Version=(
 				SELECT MAX(Version) FROM Chains WHERE IsdID=? AND AsID=?
 			)
-			UNION 
-			SELECT Data FROM IssuerCerts WHERE RowID IN (
-				SELECT IssCertsRowID FROM Chains WHERE IsdID=? AND AsID=? AND Version = (
+			UNION
+			SELECT ic.Data, ch.OrderKey FROM IssuerCerts ic, Chains ch
+			WHERE ic.RowID IN (
+				SELECT IssCertsRowID FROM Chains WHERE IsdID=? AND AsID=? AND Version=(
 					SELECT MAX(Version) FROM Chains WHERE IsdID=? AND AsID=?
 				)
 			)
+			ORDER BY ch.OrderKey
 		`
 	insertChainStr = `
-			INSERT OR IGNORE INTO Chains (IsdID, AsID, Version, OrderKey, IssCertsRowID) 
+			INSERT OR IGNORE INTO Chains (IsdID, AsID, Version, OrderKey, IssCertsRowID)
 			VALUES (?, ?, ?, ?, ?)
 		`
 	getTRCVersionStr = `
@@ -358,31 +362,26 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Database access error", err)
 	}
-	raw := make([]common.RawBytes, 0, 2)
+	certs := make([]*cert.Certificate, 0, 2)
+	var raw common.RawBytes
+	var pos int64
 	for i := 0; rows.Next(); i++ {
-		raw = append(raw, common.RawBytes(nil))
-		if err = rows.Scan(&raw[i]); err != nil {
+		if err = rows.Scan(&raw, &pos); err != nil {
 			return nil, err
 		}
+		crt, err := cert.CertificateFromRaw(raw)
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, crt)
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
-	if len(raw) == 0 {
+	if len(certs) == 0 {
 		return nil, nil
 	}
-	if len(raw) != 2 {
-		return nil, common.NewBasicError("Unsupported chain length", nil, "len", len(raw))
-	}
-	leaf, err := cert.CertificateFromRaw(raw[0])
-	if err != nil {
-		return nil, err
-	}
-	iss, err := cert.CertificateFromRaw(raw[1])
-	if err != nil {
-		return nil, err
-	}
-	return &cert.Chain{Leaf: leaf, Issuer: iss}, nil
+	return cert.ChainFromSlice(certs)
 }
 
 func (db *DB) InsertChain(chain *cert.Chain) (int64, error) {
@@ -390,30 +389,22 @@ func (db *DB) InsertChain(chain *cert.Chain) (int64, error) {
 }
 
 func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) (int64, error) {
-	rowsAffected, err := db.InsertLeafCertCtx(ctx, chain.Leaf)
-	if err != nil {
-		return rowsAffected, err
+	if _, err := db.InsertLeafCertCtx(ctx, chain.Leaf); err != nil {
+		return 0, err
 	}
-	tmpRows, err := db.InsertIssCertCtx(ctx, chain.Issuer)
-	if err != nil {
-		return rowsAffected + tmpRows, err
+	if _, err := db.InsertIssCertCtx(ctx, chain.Issuer); err != nil {
+		return 0, err
 	}
-	rowsAffected += tmpRows
-	// Get RowID of issuer certificate.
 	ia, ver := chain.IAVer()
 	rowId, err := db.getIssCertRowIDCtx(ctx, chain.Issuer.Subject, chain.Issuer.Version)
 	if err != nil {
-		return rowsAffected, err
+		return 0, err
 	}
-	// Insert chain
 	res, err := db.insertChainStmt.ExecContext(ctx, ia.I, ia.A, ver, 1, rowId)
 	if err != nil {
-		return rowsAffected, err
+		return 0, err
 	}
-	if tmpRows, err = res.RowsAffected(); err != nil {
-		return rowsAffected, err
-	}
-	return rowsAffected + tmpRows, nil
+	return res.RowsAffected()
 }
 
 func (db *DB) getIssCertRowIDCtx(ctx context.Context, ia addr.IA, ver uint64) (int64, error) {

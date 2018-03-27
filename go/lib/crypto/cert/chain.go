@@ -61,7 +61,7 @@ func (k *Key) String() string {
 	return fmt.Sprintf("%sv%d", k.IA, k.Ver)
 }
 
-// Chain contains two certificates, one fore the leaf and one for the issuer. The leaf certificate
+// Chain contains two certificates, one for the leaf and one for the issuer. The leaf certificate
 // is signed by the issuer certificate, which is signed by the TRC of the corresponding ISD.
 type Chain struct {
 	// Leaf is the leaf certificate of the chain. It is signed by the Issuer certificate.
@@ -101,6 +101,13 @@ func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
 		return nil, err
 	}
 	return ChainFromRaw(raw, lz4_)
+}
+
+func ChainFromSlice(certs []*Certificate) (*Chain, error) {
+	if len(certs) != 2 {
+		return nil, common.NewBasicError("Unsupported chain length", nil, "len", len(certs))
+	}
+	return &Chain{Leaf: certs[0], Issuer: certs[1]}, nil
 }
 
 func (c *Chain) Verify(subject addr.IA, t *trc.TRC) error {

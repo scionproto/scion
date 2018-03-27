@@ -37,7 +37,7 @@ type KeyConf struct {
 }
 
 const (
-	IssSigKeyFile = "iss-sig.key"
+	IssSigKeyFile = "core-sig.key" // TODO(roosd): rename "core-sig.key" -> "iss-sig.key"
 	DecKeyFile    = "as-decrypt.key"
 	OffKeyFile    = "offline-root.key"
 	OnKeyFile     = "online-root.key"
