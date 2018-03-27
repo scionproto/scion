@@ -75,7 +75,7 @@ func setup(db *sql.DB, schema string, schemaVersion int) error {
 	}
 	_, err := db.Exec(schema)
 	if err != nil {
-		return common.NewBasicError("Failed to set up SQLite database", err, "err", err)
+		return common.NewBasicError("Failed to set up SQLite database", err)
 	}
 	// Write schema version to database.
 	_, err = db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion))
