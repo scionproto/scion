@@ -24,8 +24,8 @@ import (
 )
 
 type KeyConf struct {
-	// CoreSigKey is the AS core signing Key.
-	CoreSigKey common.RawBytes
+	// IssSigKey is the AS issuer signing Key.
+	IssSigKey common.RawBytes
 	// DecryptKey is the AS decryption key.
 	DecryptKey common.RawBytes
 	// OffRootKey is the AS offline root key.
@@ -37,11 +37,11 @@ type KeyConf struct {
 }
 
 const (
-	CoreSigKeyFile = "core-sig.key"
-	DecKeyFile     = "as-decrypt.key"
-	OffKeyFile     = "offline-root.key"
-	OnKeyFile      = "online-root.key"
-	SigKeyFile     = "as-sig.key"
+	IssSigKeyFile = "core-sig.key" // TODO(roosd): rename "core-sig.key" -> "iss-sig.key"
+	DecKeyFile    = "as-decrypt.key"
+	OffKeyFile    = "offline-root.key"
+	OnKeyFile     = "online-root.key"
+	SigKeyFile    = "as-sig.key"
 )
 
 const (
@@ -50,8 +50,8 @@ const (
 )
 
 // LoadKeyConf loads key configuration from specified path.
-// coreSigKey, onKey, offKey can be set true, to load the respective keys.
-func LoadKeyConf(path string, coreSigKey, onKey, offKey bool) (*KeyConf, error) {
+// issSigKey, onKey, offKey can be set true, to load the respective keys.
+func LoadKeyConf(path string, issSigKey, onKey, offKey bool) (*KeyConf, error) {
 	conf := &KeyConf{}
 	var err error
 	if conf.DecryptKey, err = loadKeyCond(filepath.Join(path, DecKeyFile), true); err != nil {
@@ -60,7 +60,7 @@ func LoadKeyConf(path string, coreSigKey, onKey, offKey bool) (*KeyConf, error) 
 	if conf.SignKey, err = loadKeyCond(filepath.Join(path, SigKeyFile), true); err != nil {
 		return nil, err
 	}
-	if conf.CoreSigKey, err = loadKeyCond(filepath.Join(path, CoreSigKeyFile), coreSigKey); err != nil {
+	if conf.IssSigKey, err = loadKeyCond(filepath.Join(path, IssSigKeyFile), issSigKey); err != nil {
 
 	}
 	if conf.OffRootKey, err = loadKeyCond(filepath.Join(path, OffKeyFile), offKey); err != nil {
@@ -95,6 +95,6 @@ func LoadKey(file string) (common.RawBytes, error) {
 
 func (a *KeyConf) String() string {
 	return fmt.Sprintf(
-		"DecryptKey:%s SigningKey:%s CoreSigningKey: %s OfflineRootKey:%s OnlineRootKey:%s",
-		a.DecryptKey, a.SignKey, a.CoreSigKey, a.OffRootKey, a.OnRootKey)
+		"DecryptKey:%s SigningKey:%s IssSigningKey: %s OfflineRootKey:%s OnlineRootKey:%s",
+		a.DecryptKey, a.SignKey, a.IssSigKey, a.OffRootKey, a.OnRootKey)
 }

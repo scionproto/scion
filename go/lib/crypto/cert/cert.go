@@ -47,7 +47,7 @@ type Certificate struct {
 	EncAlgorithm string
 	// ExpirationTime is the unix timestamp in seconds at which the certificate expires.
 	ExpirationTime uint64
-	// Issuer is the certificate issuer. It can only be a core AS.
+	// Issuer is the certificate issuer. It can only be a issuing AS.
 	Issuer addr.IA
 	// IssuingTime is the unix timestamp in seconds at which the certificate was created.
 	IssuingTime uint64

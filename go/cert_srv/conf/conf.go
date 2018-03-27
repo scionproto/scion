@@ -20,6 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/trust"
@@ -30,6 +31,7 @@ const (
 	ErrorKeyConf   = "Unable to load KeyConf"
 	ErrorStore     = "Unable to load TrustStore"
 	ErrorTopo      = "Unable to load topology"
+	ErrorTrustDB   = "Unable to load trust DB"
 	ErrorCustomers = "Unable to load Customers"
 )
 
@@ -43,6 +45,8 @@ type Conf struct {
 	PublicAddr *snet.Addr
 	// Store is the trust store.
 	Store *trust.Store
+	// TrustDB is the trust DB.
+	TrustDB *trustdb.DB
 	// keyConf contains the AS level keys used for signing and decrypting.
 	keyConf *trust.KeyConf
 	// keyConfLock guards KeyConf, CertVer and TRCVer.
@@ -93,13 +97,20 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 	if err != nil {
 		return nil, common.NewBasicError(ErrorStore, err)
 	}
+	// init trust db
+	conf.TrustDB, err = trustdb.New(filepath.Join(stateDir, trustdb.Path))
+	if err != nil {
+		return nil, common.NewBasicError(ErrorTrustDB, err)
+	}
 	// load key configuration
 	if conf.keyConf, err = conf.loadKeyConf(); err != nil {
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
-	// load customers
-	if conf.customers, err = conf.LoadCustomers(); err != nil {
-		return nil, err
+	if conf.Topo.Core {
+		// load customers
+		if conf.customers, err = conf.LoadCustomers(); err != nil {
+			return nil, err
+		}
 	}
 	return conf, nil
 }

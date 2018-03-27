@@ -35,15 +35,22 @@ func TestTRC(t *testing.T) {
 		SoMsg("err trc", err, ShouldBeNil)
 		SoMsg("trc", trcobj, ShouldNotBeNil)
 		Convey("Insert into database", func() {
-			err := db.InsertTRC(1, 10, trcobj)
+			rows, err := db.InsertTRC(trcobj)
 			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertTRC(trcobj)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get TRC from database", func() {
-				newTRCobj, err := db.GetTRCVersion(1, 10)
+				newTRCobj, err := db.GetTRCVersion(1, 1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get Max TRC from database", func() {
 				newTRCobj, err := db.GetTRCMaxVersion(1)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+				newTRCobj, err = db.GetTRCVersion(1, 0)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
@@ -56,33 +63,118 @@ func TestTRC(t *testing.T) {
 	})
 }
 
-func TestChain(t *testing.T) {
-	Convey("Initialize DB and load TRC", t, func() {
+func TestIssCert(t *testing.T) {
+	Convey("Initialize DB and load issuer Cert", t, func() {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		trcobj, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
-		SoMsg("err trc", err, ShouldBeNil)
-		SoMsg("trc", trcobj, ShouldNotBeNil)
-		ia := addr.IA{I: 1, A: 1}
+		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		if err != nil {
+			t.Fatalf("Unable to load certificate chain")
+		}
+		ia := addr.IA{I: 1, A: 13}
 		Convey("Insert into database", func() {
-			err := db.InsertChain(ia, 10, trcobj)
+			rows, err := db.InsertIssCert(chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
-			Convey("Get certificate chain from database", func() {
-				newTRCobj, err := db.GetChainVersion(ia, 10)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertIssCert(chain.Issuer)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
+			Convey("Get issuer certificate from database", func() {
+				crt, err := db.GetIssCertVersion(ia, 1)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
+			})
+			Convey("Get max version issuer certificate from database", func() {
+				crt, err := db.GetIssCertMaxVersion(ia)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
+				crt, err = db.GetIssCertVersion(ia, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
+			})
+			Convey("Get missing issuer certificate from database", func() {
+				otherIA := addr.IA{I: 1, A: 2}
+				crt, err := db.GetIssCertVersion(otherIA, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestLeafCert(t *testing.T) {
+	Convey("Initialize DB and load leaf Cert", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		if err != nil {
+			t.Fatalf("Unable to load certificate chain")
+		}
+		ia := addr.IA{I: 1, A: 10}
+		Convey("Insert into database", func() {
+			rows, err := db.InsertLeafCert(chain.Leaf)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertLeafCert(chain.Leaf)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
+			Convey("Get leaf certificate from database", func() {
+				crt, err := db.GetLeafCertVersion(ia, 1)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
+			})
+			Convey("Get max version leaf certificate from database", func() {
+				crt, err := db.GetLeafCertMaxVersion(ia)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
+				crt, err = db.GetLeafCertVersion(ia, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
+			})
+			Convey("Get missing leaf certificate from database", func() {
+				otherIA := addr.IA{I: 1, A: 2}
+				crt, err := db.GetLeafCertVersion(otherIA, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldBeNil)
+			})
+		})
+	})
+}
+
+func TestChain(t *testing.T) {
+	Convey("Initialize DB and load Chain", t, func() {
+		db, cleanF := newDatabase(t)
+		defer cleanF()
+
+		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		if err != nil {
+			t.Fatalf("Unable to load certificate chain")
+		}
+		ia := addr.IA{I: 1, A: 10}
+		Convey("Insert into database", func() {
+			rows, err := db.InsertChain(chain)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			Convey("Get certificate chain from database", func() {
+				newChain, err := db.GetChainVersion(ia, 1)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("chain", newChain, ShouldResemble, chain)
 			})
 			Convey("Get max version certificate chain from database", func() {
-				newTRCobj, err := db.GetChainMaxVersion(ia)
+				newChain, err := db.GetChainMaxVersion(ia)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+				SoMsg("chain", newChain, ShouldResemble, chain)
+				newChain, err = db.GetChainVersion(ia, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("chain", newChain, ShouldResemble, chain)
 			})
 			Convey("Get missing certificate chain from database", func() {
 				otherIA := addr.IA{I: 1, A: 2}
-				newTRCobj, err := db.GetChainVersion(otherIA, 10)
+				newChain, err := db.GetChainVersion(otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("trc", newTRCobj, ShouldBeNil)
+				SoMsg("chain", newChain, ShouldBeNil)
 			})
 		})
 	})

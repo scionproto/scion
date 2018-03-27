@@ -131,7 +131,7 @@ func genCert(ia addr.IA, isIssuer bool) error {
 
 // genIssuerCert generates a new issuer certificate according to conf.
 func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
-	c, err := genCertCommon(conf.BaseCert, s, trust.CoreSigKeyFile)
+	c, err := genCertCommon(conf.BaseCert, s, trust.IssSigKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 		return nil, common.NewBasicError("Issuer cert not authorized to issue certs.", nil,
 			"issuer", c.Issuer, "subject", c.Subject)
 	}
-	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), "keys", trust.CoreSigKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), "keys", trust.IssSigKeyFile)
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
 		return nil, err
@@ -181,8 +181,8 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 	}
 	// Create certificate chain.
 	chain := &cert.Chain{
-		Leaf: c,
-		Core: issuerCert,
+		Leaf:   c,
+		Issuer: issuerCert,
 	}
 	if verify {
 		err = verifyChain(chain, c.Subject)
@@ -247,8 +247,8 @@ func getIssuerCert(issuer addr.IA) (*cert.Certificate, error) {
 		if err != nil {
 			return nil, err
 		}
-		if issuerCert == nil || chain.Core.Version > issuerCert.Version {
-			issuerCert = chain.Core
+		if issuerCert == nil || chain.Issuer.Version > issuerCert.Version {
+			issuerCert = chain.Issuer
 		}
 	}
 	return issuerCert, nil
