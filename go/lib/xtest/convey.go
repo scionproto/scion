@@ -35,9 +35,6 @@
 package xtest
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sync"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -106,29 +103,4 @@ func SoMsgError(msg string, err error, shouldBeError bool) {
 	} else {
 		SoMsg(msg, err, ShouldBeNil)
 	}
-}
-
-// IgnoreTestdata populates the entire directory structure under subdirectory
-// testdata with ignore.goconvey files containing the line "IGNORE". If this is
-// not done, the Goconvey UI outputs build failures for each subdirectory.
-// If the files already exist, they are overwritten.
-//
-// If folder testdata is not found, the function silently exits.
-func IgnoreTestdata() error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	dir := filepath.Join(wd, "/testdata")
-	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			ignoreFile := filepath.Join(path, "ignore.goconvey")
-			return ioutil.WriteFile(ignoreFile, []byte("IGNORE\n"), 0644)
-		}
-		return nil
-	})
 }

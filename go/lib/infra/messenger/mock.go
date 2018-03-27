@@ -28,14 +28,14 @@ import (
 )
 
 type MockMessenger struct {
-	trcs   map[addr.ISD]*trc.TRC
-	chains map[addr.IA]*cert.Chain
+	TRCs   map[addr.ISD]*trc.TRC
+	Chains map[addr.IA]*cert.Chain
 }
 
 func NewMock(trcs map[addr.ISD]*trc.TRC, chains map[addr.IA]*cert.Chain) infra.Messenger {
 	return &MockMessenger{
-		trcs:   trcs,
-		chains: chains,
+		TRCs:   trcs,
+		Chains: chains,
 	}
 }
 
@@ -46,7 +46,7 @@ func (m *MockMessenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Ad
 func (m *MockMessenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	trcObj, ok := m.trcs[msg.ISD]
+	trcObj, ok := m.TRCs[msg.ISD]
 	if !ok {
 		return nil, common.NewBasicError("TRC not found", nil)
 	}
@@ -67,7 +67,7 @@ func (m *MockMessenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.A
 func (m *MockMessenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
-	chain, ok := m.chains[msg.IA()]
+	chain, ok := m.Chains[msg.IA()]
 	if !ok {
 		return nil, common.NewBasicError("Chain not found", nil)
 	}

@@ -39,12 +39,12 @@ var (
 )
 
 func MockTRCHandler(request *infra.Request) {
-	v := request.Context().Value(infra.MessengerContextKey)
-	if v == nil {
+	messengerI, ok := infra.MessengerFromContext(request.Context())
+	if !ok {
 		log.Warn("Unable to service request, no Messenger interface found")
 		return
 	}
-	messenger, ok := v.(*Messenger)
+	messenger, ok := messengerI.(*Messenger)
 	if !ok {
 		log.Warn("Unable to service request, bad Messenger value found")
 		return
