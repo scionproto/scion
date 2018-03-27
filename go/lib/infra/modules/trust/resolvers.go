@@ -30,13 +30,14 @@ var _ dedupe.Request = (*trcRequest)(nil)
 // trcRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
 type trcRequest struct {
-	isd     addr.ISD
-	version uint64
-	id      uint64
-	source  net.Addr
+	isd       addr.ISD
+	version   uint64
+	cacheOnly bool
+	id        uint64
+	source    net.Addr
 	// If postHook is set, run the callback to verify the downloaded object and insert into
 	// the database. Also, used to generate different DedupeKeys for requests
-	// for verified vs unverified crypto.
+	// for valid vs invalid crypto.
 	postHook ValidateTRCF
 }
 
@@ -57,13 +58,14 @@ var _ dedupe.Request = (*chainRequest)(nil)
 // chainRequest objects describe a single request and are passed from the trust
 // store to the background resolvers.
 type chainRequest struct {
-	ia      addr.IA
-	version uint64
-	id      uint64
-	source  net.Addr
+	ia        addr.IA
+	version   uint64
+	cacheOnly bool
+	id        uint64
+	source    net.Addr
 	// If postHook is set, run the callback to verify the downloaded object and insert into
 	// the database. Also, used to generate different DedupeKeys for requests
-	// for verified vs unverified crypto.
+	// for valid vs invalid crypto.
 	postHook ValidateChainF
 }
 

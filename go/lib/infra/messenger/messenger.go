@@ -300,7 +300,7 @@ func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
 		m.log.Error("Received message, but handler not found", "msgType", msgType)
 		return
 	}
-	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
+	serveCtx := infra.NewContextWithMessenger(m.ctx, m)
 	go handler.Handle(infra.NewRequest(serveCtx, msg, pld, address, pld.ReqId))
 }
 
