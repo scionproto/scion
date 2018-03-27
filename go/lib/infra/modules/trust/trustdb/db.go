@@ -400,6 +400,7 @@ func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) (int64, err
 	if err != nil {
 		return 0, err
 	}
+	// NOTE(roosd): Adding multiple rows to Chains table has to be done in a transaction.
 	res, err := db.insertChainStmt.ExecContext(ctx, ia.I, ia.A, ver, 1, rowId)
 	if err != nil {
 		return 0, err

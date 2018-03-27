@@ -103,9 +103,20 @@ func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
 	return ChainFromRaw(raw, lz4_)
 }
 
+// ChainFromSlice creates a certificate chain from a list of certificates. The first certificate is
+// the leaf certificate. The second certificate is the issuer certificate. Only chains with length
+// of two are supported.
 func ChainFromSlice(certs []*Certificate) (*Chain, error) {
 	if len(certs) != 2 {
 		return nil, common.NewBasicError("Unsupported chain length", nil, "len", len(certs))
+	}
+	if certs[0] == nil && certs[1] == nil {
+		return nil, common.NewBasicError("Certificates must not be nil", nil, "leaf", certs[0],
+			"iss", certs[1])
+	}
+	if !certs[0].Issuer.Eq(certs[1].Subject) {
+		return nil, common.NewBasicError("Leaf not signed by issuer", nil, "expected",
+			certs[0].Issuer, "actual", certs[1].Subject)
 	}
 	return &Chain{Leaf: certs[0], Issuer: certs[1]}, nil
 }
