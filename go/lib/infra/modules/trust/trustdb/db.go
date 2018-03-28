@@ -83,6 +83,7 @@ const (
 		`
 	getIssCertMaxVersionStr = `
 			SELECT Data FROM (SELECT *, MAX(Version) FROM IssuerCerts WHERE IsdID=? AND AsID=?)
+			WHERE Data IS NOT NULL
 		`
 	getIssCertRowIDStr = `
 			SELECT RowID FROM IssuerCerts WHERE IsdID=? AND AsID=? AND Version=?
@@ -95,6 +96,7 @@ const (
 		`
 	getLeafCertMaxVersionStr = `
 			SELECT Data FROM (SELECT *, MAX(Version) FROM LeafCerts WHERE IsdID=? AND AsID=?)
+			WHERE Data IS NOT NULL
 		`
 	insertLeafCertStr = `
 			INSERT OR IGNORE INTO LeafCerts (IsdID, AsID, Version, Data) VALUES (?, ?, ?, ?)
@@ -130,6 +132,7 @@ const (
 		`
 	getTRCMaxVersionStr = `
 			SELECT Data FROM (SELECT *, MAX(Version) FROM TRCs WHERE IsdID=?)
+			WHERE Data IS NOT NULL
 		`
 	insertTRCStr = `
 			INSERT OR IGNORE INTO TRCs (IsdID, Version, Data) VALUES (?, ?, ?)
@@ -423,12 +426,12 @@ func (db *DB) getIssCertRowIDCtx(ctx context.Context, ia addr.IA, ver uint64) (i
 
 // GetTRCVersion returns the specified version of the TRC for
 // isd. If version is 0, this is equivalent to GetTRCMaxVersion.
-func (db *DB) GetTRCVersion(isd uint16, version uint64) (*trc.TRC, error) {
+func (db *DB) GetTRCVersion(isd addr.ISD, version uint64) (*trc.TRC, error) {
 	return db.GetTRCVersionCtx(context.Background(), isd, version)
 }
 
 // GetTRCVersionCtx is the context aware version of GetTRCVersion.
-func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) (*trc.TRC, error) {
+func (db *DB) GetTRCVersionCtx(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error) {
 	if version == 0 {
 		return db.GetTRCMaxVersionCtx(ctx, isd)
 	}
@@ -447,11 +450,11 @@ func (db *DB) GetTRCVersionCtx(ctx context.Context, isd uint16, version uint64) 
 	return trcobj, nil
 }
 
-func (db *DB) GetTRCMaxVersion(isd uint16) (*trc.TRC, error) {
+func (db *DB) GetTRCMaxVersion(isd addr.ISD) (*trc.TRC, error) {
 	return db.GetTRCMaxVersionCtx(context.Background(), isd)
 }
 
-func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd uint16) (*trc.TRC, error) {
+func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
 	var raw common.RawBytes
 	err := db.getTRCMaxVersionStmt.QueryRowContext(ctx, isd).Scan(&raw)
 	if err == sql.ErrNoRows {
