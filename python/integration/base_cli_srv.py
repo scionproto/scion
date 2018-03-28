@@ -53,6 +53,7 @@ from lib.util import (
 
 API_TOUT = 15
 
+
 class ResponseRV:
     FAILURE = 0
     SUCCESS = 1

@@ -13,13 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Stdlib
 import os
 import argparse
 from ipaddress import IPv6Address, IPv6Network
+
+# SCION
 from lib.defines import (
     GEN_PATH,
     NETWORKS_FILE,
 )
+
 
 def set_interfaces(action):
     path = os.path.join(GEN_PATH, NETWORKS_FILE)
@@ -29,9 +33,11 @@ def set_interfaces(action):
                 address = l.split("= ")[1]
                 addr = IPv6Address(address[:-1])
                 if addr in IPv6Network('::127:0:0:0/112'):
+                    # Redirect stderr to NULL to avoid error in case the IP address is alredy set
                     os.system('ip addr %s %s/128 dev lo 2>/dev/null' % (action, str(addr)))
-            except Exception as e:
+            except Exception:
                 continue
+
 
 def main():
     parser = argparse.ArgumentParser()
