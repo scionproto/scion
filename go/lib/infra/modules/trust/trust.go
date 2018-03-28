@@ -44,9 +44,9 @@ const (
 
 // Store manages requests for TRC and Certificate Chain objects.
 //
-// Certificate requests from the local process (running the trust store)  are
-// handled by GetCertificate, while requests from other services can be handled
-// via XxxReqHandler methods.
+// Chain and TRC requests from the local process (running the trust store)  are
+// handled by GetValidChain/GetChain and GetValidTRC/GetTRC respectively, while
+// requests from other services can be handled via NewXxxReqHandler methods.
 //
 // By default, a Store object can only return objects that are already present
 // in the database. To allow a Store to use the SCION network to retrieve
@@ -156,7 +156,9 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 // GetValidTRC asks the trust store to return a valid TRC for isd. Trail should
 // contain a sequence of cross-signing ISDs to be used during validation, with
 // the requested TRC being the first one.
-func (store *Store) GetValidTRC(ctx context.Context, isd addr.ISD, trail ...addr.ISD) (*trc.TRC, error) {
+func (store *Store) GetValidTRC(ctx context.Context, isd addr.ISD,
+	trail ...addr.ISD) (*trc.TRC, error) {
+
 	if len(trail) > 0 && trail[0] != isd {
 		return nil, common.NewBasicError(fmt.Sprintf("bad trail, should start with ISD=%d\n", isd),
 			nil, "trail", trail)
@@ -240,17 +242,8 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 		return nil, common.NewBasicError("TRC not found in DB, and recursion disabled", nil)
 	}
 
-	// We need to send out a network request, but only do so if we're
-	// servicing a request coming from our own AS.
-	if requester != nil {
-		switch saddr, ok := requester.(*snet.Addr); {
-		case !ok:
-			return nil, common.NewBasicError("Unable to determine AS of requester",
-				nil, "addr", requester)
-		case !store.ia.Eq(saddr.IA):
-			return nil, common.NewBasicError("TRC not found in DB, and recursion not "+
-				"allowed for clients outside AS", nil, "client", saddr)
-		}
+	if err := store.isLocal(requester); err != nil {
+		return nil, err
 	}
 
 	return store.getTRCFromNetwork(ctx, &trcRequest{
@@ -365,6 +358,10 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 		return nil, common.NewBasicError("Chain not found in DB, and recursion disabled", nil)
 	}
 
+	if err := store.isLocal(requester); err != nil {
+		return nil, err
+	}
+
 	// We need to send out a network request, but only do so if we're
 	// servicing a request coming from our own AS.
 	if requester != nil {
@@ -462,6 +459,24 @@ func (store *Store) NewChainReqHandler(recurse bool) infra.Handler {
 		handler.Handle()
 	}
 	return infra.HandlerFunc(f)
+}
+
+// isLocal returns an error if address is not part of the local AS (or if the
+// check cannot be made).
+func (store *Store) isLocal(address net.Addr) error {
+	// We need to send out a network request, but only do so if we're
+	// servicing a request coming from our own AS.
+	if address != nil {
+		switch saddr, ok := address.(*snet.Addr); {
+		case !ok:
+			return common.NewBasicError("Unable to determine AS of address",
+				nil, "addr", address)
+		case !store.ia.Eq(saddr.IA):
+			return common.NewBasicError("TRC not found in DB, and recursion not "+
+				"allowed for clients outside AS", nil, "addr", address)
+		}
+	}
+	return nil
 }
 
 // wrapErr build a dedupe.Response object containing nil data and error err.
