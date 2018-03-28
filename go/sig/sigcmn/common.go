@@ -45,8 +45,8 @@ var (
 )
 
 var (
-	DefV4Net = &net.IPNet{IP: net.IPv4zero, Mask: make(net.IPMask, net.IPv4len)}
-	DefV6Net = &net.IPNet{IP: net.IPv6zero, Mask: make(net.IPMask, net.IPv6len)}
+	DefV4Net = &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, net.IPv4len*8)}
+	DefV6Net = &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, net.IPv6len*8)}
 )
 
 var (

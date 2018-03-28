@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,31 +40,23 @@ type Networks struct {
 }
 
 func (ns *Networks) Add(ipnet *net.IPNet, ia addr.IA, ring *ringbuf.Ring) error {
-	cnet := newCanonNet(ipnet)
 	if ia.I == 0 || ia.A == 0 {
 		return common.NewBasicError("Networks.Add(): Illegal wildcard remote AS", nil, "ia", ia)
 	}
 	if ring == nil {
 		return common.NewBasicError("Networks.Add(): ringBuf.Ring must not be nil", nil, "ia", ia)
 	}
+	cnet := newCanonNet(ipnet)
 	ns.m.Lock()
 	defer ns.m.Unlock()
-	for i := range ns.nets {
-		exnet := ns.nets[i]
-		if exnet.net.Equal(cnet) {
-			return common.NewBasicError("Networks.Add(): IPNet entry already present", nil,
-				"net", ipnet, "ia", ia, "existing", exnet)
-		}
-		if exnet.net.Contains(cnet.IP) {
-			return common.NewBasicError("Networks.Add(): IPNet contains existing network", nil,
-				"net", ipnet, "ia", ia, "existing", exnet)
-		}
-		if cnet.Contains(exnet.net.IP) {
-			return common.NewBasicError("Networks.Add(): IPNet is contained in existing network",
-				nil, "net", ipnet, "ia", ia, "existing", exnet)
+	newNet := &network{cnet, ia, ring}
+	for _, exnet := range ns.nets {
+		if exnet.net.Contains(cnet.IP) || cnet.Contains(exnet.net.IP) {
+			return common.NewBasicError("Networks.Add(): Networks overlap", nil,
+				"new", newNet, "existing", exnet)
 		}
 	}
-	ns.nets = append(ns.nets, &network{cnet, ia, ring})
+	ns.nets = append(ns.nets, newNet)
 	return nil
 }
 
@@ -88,8 +80,7 @@ func (ns *Networks) Delete(ipnet *net.IPNet) error {
 func (ns *Networks) Lookup(ip net.IP) (addr.IA, *ringbuf.Ring) {
 	ns.m.RLock()
 	defer ns.m.RUnlock()
-	for i := range ns.nets {
-		n := ns.nets[i]
+	for _, n := range ns.nets {
 		if n.net.Contains(ip) {
 			return n.ia, n.ring
 		}
@@ -98,8 +89,8 @@ func (ns *Networks) Lookup(ip net.IP) (addr.IA, *ringbuf.Ring) {
 }
 
 func (ns *Networks) getIdxL(cnet *canonNet) int {
-	for i := range ns.nets {
-		if ns.nets[i].net.Equal(cnet) {
+	for i, n := range ns.nets {
+		if n.net.Equal(cnet) {
 			return i
 		}
 	}
@@ -112,7 +103,8 @@ type network struct {
 	ring *ringbuf.Ring
 }
 
-// canonNet contains a canonicalized version of net.IPNet, which allows it to be tested for equality.
+// canonNet contains a canonicalized version of net.IPNet, which allows it to
+// be tested for equality.
 type canonNet struct {
 	*net.IPNet
 }

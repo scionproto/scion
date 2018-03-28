@@ -35,6 +35,8 @@ var (
 )
 
 func parseNet(t *testing.T, s string) *net.IPNet {
+	t.Helper()
+
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		t.Fatal(err)
@@ -43,6 +45,8 @@ func parseNet(t *testing.T, s string) *net.IPNet {
 }
 
 func defNetworks(t *testing.T) *Networks {
+	t.Helper()
+
 	nets := &Networks{}
 	for ia, v := range iaMap {
 		for _, n := range v {
@@ -129,15 +133,17 @@ func Test_Networks_Delete(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.net, func() {
 				delNet := parseNet(t, tc.net)
+				cdelNet := newCanonNet(delNet)
 				err := nets.Delete(delNet)
 				if tc.ok {
 					SoMsg("Delete should succeed", err, ShouldBeNil)
 					SoMsg("Number of nets should have reduced",
 						len(nets.nets), ShouldEqual, numNets-1)
-					//for i := range nets.nets {
-					//	if delNet.
-					//	SoMsg("Network should not be present anymore",
-					//}
+					for _, n := range nets.nets {
+						if cdelNet.Equal(n.net) {
+							SoMsg("Network should not be present anymore", true, ShouldBeFalse)
+						}
+					}
 				} else {
 					SoMsg("Delete should fail", err, ShouldNotBeNil)
 				}
@@ -201,13 +207,8 @@ func Test_ipNet_Equal(t *testing.T) {
 			Convey(fmt.Sprintf("%s <> %s", tc.netA, tc.netB), func() {
 				netA := newCanonNet(parseNet(t, tc.netA))
 				netB := newCanonNet(parseNet(t, tc.netB))
-				if tc.ok {
-					SoMsg("netA == netB", netA.Equal(netB), ShouldBeTrue)
-					SoMsg("netB == netA", netB.Equal(netA), ShouldBeTrue)
-				} else {
-					SoMsg("netA != netB", netA.Equal(netB), ShouldBeFalse)
-					SoMsg("netB != netA", netB.Equal(netA), ShouldBeFalse)
-				}
+				SoMsg("netA == netB", netA.Equal(netB), ShouldEqual, tc.ok)
+				SoMsg("netB == netA", netB.Equal(netA), ShouldEqual, tc.ok)
 			})
 		}
 	})

@@ -94,7 +94,7 @@ BatchLoop:
 				r.log.Error("EgressReader: unable to get dest IP", "err", err)
 				continue
 			}
-			_, dstRing := NetMap.Lookup(dstIP)
+			dstIA, dstRing := NetMap.Lookup(dstIP)
 			if dstRing == nil {
 				// Release buffer back to free buffer pool
 				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
@@ -102,7 +102,12 @@ BatchLoop:
 				r.log.Error("EgressReader: unable to find dest IA", "ip", dstIP)
 				continue
 			}
-			dstRing.Write(ringbuf.EntryList{buf}, true)
+			if n, _ := dstRing.Write(ringbuf.EntryList{buf}, false); n != 1 {
+				// Release buffer back to free buffer pool
+				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				// FIXME(kormat): replace with metric.
+				r.log.Error("EgressReader: no space in egress worker queue", "ia", dstIA)
+			}
 		}
 	}
 	r.log.Info("EgressDispatcher: stopping")
