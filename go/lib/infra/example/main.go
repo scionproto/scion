@@ -27,13 +27,13 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-	"github.com/scionproto/scion/go/lib/infra/transport"
+	"github.com/scionproto/scion/go/lib/snet/rpt"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )
 
@@ -63,7 +63,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	var err error
 	server := &ExampleServerApp{}
 	// Initialize transport
-	transportLayer := transport.NewRUDP(conn, log.New("name", "server"))
+	transportLayer := rpt.New(conn, log.New("name", "server"))
 	// Initialize message dispatcher
 	dispatcherLayer := disp.New(transportLayer, messenger.DefaultAdapter, log.New("name", "server"))
 	// Initialize TrustStore
@@ -72,7 +72,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 		log.Error("Unable to initialize trustdb", "err", err)
 		os.Exit(-1)
 	}
-	server.trustStore, err = trust.NewStore(db, addr.IA{I: 1, A: 1}, 0, log.Root())
+	server.trustStore, err = trust.NewStore(db, xtest.MustParseIA("1-ff00:0:1"), 0, log.Root())
 	if err != nil {
 		log.Error("Unable to create trust store", "err", err)
 		os.Exit(-1)

@@ -30,7 +30,6 @@ topology/mininet/*.pyc
 /go/proto/*.gen.go
 /go/vendor/*/
 /go/vendor/.deps.stamp
-ignore.goconvey
 
 # vim generated files #
 #########################

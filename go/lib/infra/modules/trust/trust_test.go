@@ -34,7 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-	"github.com/scionproto/scion/go/lib/infra/transport"
+	"github.com/scionproto/scion/go/lib/snet/rpt"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/loader"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
@@ -89,11 +89,14 @@ func regenerateCrypto() error {
 func TestGetValidTRC(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
-		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
-		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
-		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
-		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
+		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
+		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
+		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
+		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
+		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
+		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
+		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
+		xtest.MustParseIA("5-ff00:0:f"),
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -164,7 +167,7 @@ func TestGetValidTRC(t *testing.T) {
 			TRCs:   trcs,
 			Chains: chains,
 		}
-		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
+		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -192,11 +195,14 @@ func TestGetValidTRC(t *testing.T) {
 func TestGetTRC(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
-		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
-		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
-		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
-		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
+		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
+		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
+		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
+		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
+		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
+		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
+		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
+		xtest.MustParseIA("5-ff00:0:f"),
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -267,7 +273,7 @@ func TestGetTRC(t *testing.T) {
 			TRCs:   trcs,
 			Chains: chains,
 		}
-		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
+		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -297,11 +303,14 @@ func TestGetTRC(t *testing.T) {
 func TestGetValidChain(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
-		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
-		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
-		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
-		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
+		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
+		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
+		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
+		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
+		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
+		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
+		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
+		xtest.MustParseIA("5-ff00:0:f"),
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -315,7 +324,7 @@ func TestGetValidChain(t *testing.T) {
 	}{
 		{
 			Name: "bad IA=0-1",
-			IA:   addr.IA{I: 0, A: tas(1)}, Trail: []addr.ISD{0},
+			IA:   xtest.MustParseIA("0-ff00:0:1"), Trail: []addr.ISD{0},
 			ExpData: nil, ExpError: true,
 		},
 		{
@@ -325,14 +334,14 @@ func TestGetValidChain(t *testing.T) {
 		},
 		{
 			Name: "local IA=1-1",
-			IA:   addr.IA{I: 1, A: tas(1)}, Trail: []addr.ISD{1},
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Trail: []addr.ISD{1},
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 		},
 		{
 			Name: "remote IA=2-4",
-			IA:   addr.IA{I: 2, A: tas(4)}, Trail: []addr.ISD{2, 1},
-			ExpData: chains[addr.IA{I: 2, A: tas(4)}], ExpError: false,
-			DBChainInChecks: []*cert.Chain{chains[addr.IA{I: 2, A: tas(4)}]},
+			IA:   xtest.MustParseIA("2-ff00:0:4"), Trail: []addr.ISD{2, 1},
+			ExpData: chains[xtest.MustParseIA("2-ff00:0:4")], ExpError: false,
+			DBChainInChecks: []*cert.Chain{chains[xtest.MustParseIA("2-ff00:0:4")]},
 		},
 	}
 
@@ -341,7 +350,7 @@ func TestGetValidChain(t *testing.T) {
 			TRCs:   trcs,
 			Chains: chains,
 		}
-		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
+		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -370,11 +379,14 @@ func TestGetValidChain(t *testing.T) {
 func TestGetChain(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
-		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
-		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
-		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
-		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
+		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
+		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
+		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
+		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
+		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
+		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
+		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
+		xtest.MustParseIA("5-ff00:0:f"),
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -389,7 +401,7 @@ func TestGetChain(t *testing.T) {
 	}{
 		{
 			Name: "bad IA=0-1",
-			IA:   addr.IA{I: 0, A: tas(1)}, Version: 0,
+			IA:   xtest.MustParseIA("0-ff00:0:1"), Version: 0,
 			ExpData: nil, ExpError: true,
 		},
 		{
@@ -399,42 +411,42 @@ func TestGetChain(t *testing.T) {
 		},
 		{
 			Name: "local IA=1-1, version 1",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 1,
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 1,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 		},
 		{
 			Name: "local IA=1-1, max version",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 		},
 		{
 			Name: "local IA=1-1, unknown version 4",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 4,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 4,
 			ExpData: nil, ExpError: true,
 		},
 		{
-			Name: "unknown IA=2-4", IA: addr.IA{I: 2, A: tas(4)},
-			ExpData: chains[addr.IA{I: 2, A: tas(4)}], ExpError: false,
-			DBChainNotInChecks: []*cert.Chain{chains[addr.IA{I: 2, A: tas(4)}]},
+			Name: "unknown IA=2-4", IA: xtest.MustParseIA("2-ff00:0:4"),
+			ExpData: chains[xtest.MustParseIA("2-ff00:0:4")], ExpError: false,
+			DBChainNotInChecks: []*cert.Chain{chains[xtest.MustParseIA("2-ff00:0:4")]},
 		},
 		{
 			Name: "remote IA=3-9, version 1",
-			IA:   addr.IA{I: 3, A: tas(9)}, Version: 1,
-			ExpData: chains[addr.IA{I: 3, A: tas(9)}], ExpError: false,
+			IA:   xtest.MustParseIA("3-ff00:0:9"), Version: 1,
+			ExpData: chains[xtest.MustParseIA("3-ff00:0:9")], ExpError: false,
 		},
 		{
 			Name: "remote IA=3-9, max version",
-			IA:   addr.IA{I: 3, A: tas(9)}, Version: 0,
-			ExpData: chains[addr.IA{I: 3, A: tas(9)}], ExpError: false,
+			IA:   xtest.MustParseIA("3-ff00:0:9"), Version: 0,
+			ExpData: chains[xtest.MustParseIA("3-ff00:0:9")], ExpError: false,
 		},
 		{
 			Name: "remote IA=3-9, unknown version 4",
-			IA:   addr.IA{I: 3, A: tas(9)}, Version: 4,
+			IA:   xtest.MustParseIA("3-ff00:0:9"), Version: 4,
 			ExpData: nil, ExpError: true,
 		},
 		{
 			Name: "bogus IA=42-9",
-			IA:   addr.IA{I: 42, A: tas(9)}, Version: 1,
+			IA:   xtest.MustParseIA("42-ff00:0:9"), Version: 1,
 			ExpData: nil, ExpError: true,
 		},
 	}
@@ -444,13 +456,13 @@ func TestGetChain(t *testing.T) {
 			TRCs:   trcs,
 			Chains: chains,
 		}
-		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
+		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
-		insertChain(t, store, chains[addr.IA{I: 1, A: tas(1)}])
+		insertChain(t, store, chains[xtest.MustParseIA("1-ff00:0:1")])
 		insertTRC(t, store, trcs[3])
-		insertChain(t, store, chains[addr.IA{I: 3, A: tas(9)}])
+		insertChain(t, store, chains[xtest.MustParseIA("3-ff00:0:9")])
 
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
@@ -476,11 +488,14 @@ func TestGetChain(t *testing.T) {
 func TestTRCReqHandler(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
-		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
-		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
-		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
-		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
+		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
+		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
+		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
+		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
+		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
+		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
+		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
+		xtest.MustParseIA("5-ff00:0:f"),
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -583,7 +598,7 @@ func TestTRCReqHandler(t *testing.T) {
 			TRCs:   trcs,
 			Chains: chains,
 		}
-		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
+		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -624,11 +639,14 @@ func TestTRCReqHandler(t *testing.T) {
 func TestChainReqHandler(t *testing.T) {
 	isds := []addr.ISD{1, 2, 3, 4, 5}
 	ias := []addr.IA{
-		{I: 1, A: tas(1)}, {I: 1, A: tas(2)}, {I: 1, A: tas(3)},
-		{I: 2, A: tas(4)}, {I: 2, A: tas(5)}, {I: 2, A: tas(6)},
-		{I: 3, A: tas(7)}, {I: 3, A: tas(8)}, {I: 3, A: tas(9)},
-		{I: 4, A: tas(10)}, {I: 4, A: tas(11)}, {I: 4, A: tas(12)},
-		{I: 5, A: tas(13)}, {I: 5, A: tas(14)}, {I: 5, A: tas(15)},
+		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
+		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
+		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
+		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
+		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
+		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
+		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
+		xtest.MustParseIA("5-ff00:0:f"),
 	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -643,61 +661,61 @@ func TestChainReqHandler(t *testing.T) {
 	}{
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only, recursive",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only, non-recursive",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only=false, non-recursive",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: false, CacheOnly: false,
 		},
 		{
 			Name: "ask for known chain=1-1, version=1, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 1,
-			ExpData: chains[addr.IA{I: 1, A: tas(1)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 1,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for known chain=1-1, version=4, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: tas(1)}, Version: 4,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 4,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, recursive",
-			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, non-recursive",
-			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only=false, recursive",
-			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
-			ExpData: chains[addr.IA{I: 1, A: tas(2)}], ExpError: false,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
+			ExpData: chains[xtest.MustParseIA("1-ff00:0:2")], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only=false, non-recursive",
-			IA:   addr.IA{I: 1, A: tas(2)}, Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: false,
 		},
@@ -709,11 +727,11 @@ func TestChainReqHandler(t *testing.T) {
 			TRCs:   trcs,
 			Chains: chains,
 		}
-		store, cleanF := initStore(t, addr.IA{I: 1, A: tas(1)}, msger)
+		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
-		insertChain(t, store, chains[addr.IA{I: 1, A: tas(1)}])
+		insertChain(t, store, chains[xtest.MustParseIA("1-ff00:0:1")])
 
 		c2s, s2c := p2p.New()
 		// each test initiates a request from the client messenger
@@ -749,7 +767,7 @@ func TestChainReqHandler(t *testing.T) {
 }
 
 func setupMessenger(conn net.PacketConn, store *Store, name string) infra.Messenger {
-	transport := transport.NewRUDP(conn, log.New("name", name))
+	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
 	return messenger.New(dispatcher, store, log.Root().New("name", name))
 }
@@ -784,7 +802,7 @@ func getTRCFileName(isd addr.ISD, version uint64) string {
 
 func getChainFileName(ia addr.IA, version uint64) string {
 	return fmt.Sprintf("testdata/ISD%d/AS%s/certs/ISD%d-AS%s-V%d.crt",
-		ia.I, ia.A, ia.I, ia.A, version)
+		ia.I, ia.A.FileFmt(), ia.I, ia.A.FileFmt(), version)
 }
 
 func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func()) {
@@ -825,8 +843,4 @@ func insertChain(t *testing.T, store *Store, chain *cert.Chain) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func tas(x addr.AS) addr.AS {
-	return x + 4300000000
 }
