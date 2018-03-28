@@ -59,6 +59,14 @@ func TestTRC(t *testing.T) {
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
+			Convey("Get missing Max TRC from database", func() {
+				newTRCobj, err := db.GetTRCVersion(2, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldBeNil)
+				newTRCobj, err = db.GetTRCMaxVersion(2)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldBeNil)
+			})
 		})
 	})
 }
@@ -96,6 +104,15 @@ func TestIssCert(t *testing.T) {
 			Convey("Get missing issuer certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 2}
 				crt, err := db.GetIssCertVersion(otherIA, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldBeNil)
+			})
+			Convey("Get missing issuer max certificate from database", func() {
+				otherIA := addr.IA{I: 1, A: 2}
+				crt, err := db.GetIssCertVersion(otherIA, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldBeNil)
+				crt, err = db.GetIssCertMaxVersion(otherIA)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
@@ -139,6 +156,15 @@ func TestLeafCert(t *testing.T) {
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
+			Convey("Get missing leaf max certificate from database", func() {
+				otherIA := addr.IA{I: 1, A: 2}
+				crt, err := db.GetLeafCertVersion(otherIA, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldBeNil)
+				crt, err = db.GetLeafCertMaxVersion(otherIA)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cert", crt, ShouldBeNil)
+			})
 		})
 	})
 }
@@ -173,6 +199,15 @@ func TestChain(t *testing.T) {
 			Convey("Get missing certificate chain from database", func() {
 				otherIA := addr.IA{I: 1, A: 2}
 				newChain, err := db.GetChainVersion(otherIA, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("chain", newChain, ShouldBeNil)
+			})
+			Convey("Get missing max certificate chain from database", func() {
+				otherIA := addr.IA{I: 1, A: 2}
+				newChain, err := db.GetChainVersion(otherIA, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("chain", newChain, ShouldBeNil)
+				newChain, err = db.GetChainMaxVersion(otherIA)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldBeNil)
 			})
