@@ -27,6 +27,8 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+var _ infra.Messenger = (*MockMessenger)(nil)
+
 type MockMessenger struct {
 	TRCs   map[addr.ISD]*trc.TRC
 	Chains map[addr.IA]*cert.Chain

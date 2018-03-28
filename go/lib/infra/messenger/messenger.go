@@ -50,8 +50,6 @@
 // information, see their package documentation:
 //   trust.*Store.NewChainReqHandler
 //   trust.*Store.NewTRCReqHandler
-//   trust.*Store.NewPushChainHandler
-//   trust.*Store.NewPushTRCHandler
 //
 // Shut down the server and any running handlers using CloseServer():
 //  msger.CloseServer()
