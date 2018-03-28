@@ -138,7 +138,7 @@ func NewRtrPkt() *RtrPkt {
 	return r
 }
 
-func (rp *RtrPkt) refInc(val int) {
+func (rp *RtrPkt) RefInc(val int) {
 	atomic.AddInt32(&rp.refCnt, int32(val))
 }
 
