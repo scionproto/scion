@@ -32,13 +32,6 @@ type MockMessenger struct {
 	Chains map[addr.IA]*cert.Chain
 }
 
-func NewMock(trcs map[addr.ISD]*trc.TRC, chains map[addr.IA]*cert.Chain) infra.Messenger {
-	return &MockMessenger{
-		TRCs:   trcs,
-		Chains: chains,
-	}
-}
-
 func (m *MockMessenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
 	panic("not implemented")
 }
