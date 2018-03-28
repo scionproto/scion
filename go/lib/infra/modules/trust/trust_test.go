@@ -721,7 +721,7 @@ func TestChainReqHandler(t *testing.T) {
 		// the server messenger runs ListenAndServe, backed by the trust store
 		serverMessenger := setupMessenger(s2c, store, "server")
 
-		for _, tc := range testCases[5:6] {
+		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				handler := store.NewChainReqHandler(tc.RecursionEnabled)
 				serverMessenger.AddHandler(messenger.ChainRequest, handler)
