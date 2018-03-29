@@ -96,12 +96,14 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 // not check the validity of the signature.
 func (c *Certificate) VerifyTime(ts uint64) error {
 	if ts < c.IssuingTime {
-		return common.NewBasicError(EarlyUsage, nil, "IssuingTime",
-			util.TimeToString(c.IssuingTime), "current", util.TimeToString(ts))
+		return common.NewBasicError(EarlyUsage, nil,
+			"IssuingTime", util.TimeToString(util.Uint64ToTime(c.IssuingTime)),
+			"current", util.TimeToString(util.Uint64ToTime(ts)))
 	}
 	if ts > c.ExpirationTime {
-		return common.NewBasicError(Expired, nil, "ExpirationTime",
-			util.TimeToString(c.ExpirationTime), "current", util.TimeToString(ts))
+		return common.NewBasicError(Expired, nil,
+			"ExpirationTime", util.TimeToString(util.Uint64ToTime(c.ExpirationTime)),
+			"current", util.TimeToString(util.Uint64ToTime(ts)))
 	}
 	return nil
 }

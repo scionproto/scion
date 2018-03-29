@@ -20,6 +20,14 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-func TimeToString(t uint64) string {
-	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
+func Uint64ToTime(t uint64) time.Time {
+	return time.Unix(int64(t), 0)
+}
+
+func Int64ToTime(t int64) time.Time {
+	return time.Unix(t, 0)
+}
+
+func TimeToString(t time.Time) string {
+	return t.UTC().Format(common.TimeFmt)
 }
