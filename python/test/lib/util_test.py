@@ -290,25 +290,24 @@ class TestSignalHandler(object):
     Unit tests for lib.util._signal_handler
     """
     @patch("lib.util.sys.exit", autospec=True)
-    @patch("lib.util.logging.info", autospec=True)
-    def test_term(self, info, exit):
+    @patch("lib.util.atexit.register", autospec=True)
+    def test_term(self, atexit, exit):
         exit.side_effect = SystemExit
         ntools.assert_raises(SystemExit, _signal_handler, SIGTERM, "")
-        ntools.ok_(info.called)
+        ntools.ok_(atexit.called)
         exit.assert_called_once_with(0)
 
     @patch("lib.util.sys.exit", autospec=True)
-    @patch("lib.util.logging.info", autospec=True)
-    def test_int(self, info, exit):
+    @patch("lib.util.atexit.register", autospec=True)
+    def test_int(self, atexit, exit):
         _signal_handler(SIGINT, "")
-        ntools.ok_(info.called)
         exit.assert_called_once_with(1)
 
     @patch("lib.util.sys.exit", autospec=True)
-    @patch("lib.util.logging.error", autospec=True)
-    def test_error(self, error, exit):
+    @patch("lib.util.atexit.register", autospec=True)
+    def test_error(self, atexit, exit):
         _signal_handler(SIGQUIT, "")
-        ntools.ok_(error.called)
+        ntools.ok_(atexit.called)
         exit.assert_called_once_with(1)
 
 

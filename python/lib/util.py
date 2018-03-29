@@ -18,6 +18,7 @@
 Various utilities for SCION functionality.
 """
 # Stdlib
+import atexit
 import json
 import logging
 import os
@@ -226,12 +227,12 @@ def _signal_handler(signum, _):
     """Basic signal handler function."""
     text = "Received %s" % _SIG_MAP[signum]
     if signum == signal.SIGTERM:
-        logging.info(text)
+        atexit.register(lambda: logging.info(text))
         sys.exit(0)
     elif signum == signal.SIGINT:
-        logging.info(text)
+        atexit.register(lambda: logging.info(text))
     else:
-        logging.error(text)
+        atexit.register(lambda: logging.error(text))
     sys.exit(1)
 
 
