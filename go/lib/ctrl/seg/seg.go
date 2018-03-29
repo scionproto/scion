@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -192,7 +193,7 @@ func (ps *PathSegment) String() string {
 		desc = append(desc, id.String())
 	}
 	info, _ := ps.InfoF()
-	desc = append(desc, info.Timestamp().UTC().Format(common.TimeFmt))
+	desc = append(desc, util.TimeToString(info.Timestamp()))
 	hops_desc := []string{}
 	for _, ase := range ps.ASEntries {
 		hop_entry := ase.HopEntries[0]
