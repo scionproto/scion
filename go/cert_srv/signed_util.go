@@ -68,14 +68,16 @@ func (v *SigVerifier) Verify(p *ctrl.SignedPld) error {
 	if v.ignoreSign(cpld) {
 		return nil
 	}
-	diff := time.Now().Sub(time.Unix(int64(p.Sign.Timestamp), 0))
+	now := time.Now()
+	ts := p.Sign.Time()
+	diff := now.Sub(ts)
 	if diff < 0 {
-		return common.NewBasicError("Invalid timestamp. Signed before current time", nil, "ts",
-			util.TimeToString(p.Sign.Timestamp), "now", util.TimeToString(uint64(time.Now().Unix())))
+		return common.NewBasicError("Invalid timestamp. Signed before current time", nil,
+			"ts", util.TimeToString(ts), "now", util.TimeToString(now))
 	}
 	if diff > SignatureValidity {
-		return common.NewBasicError("Invalid timestamp. Signature expired", nil, "ts",
-			util.TimeToString(p.Sign.Timestamp), "now", util.TimeToString(uint64(time.Now().Unix())))
+		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
+			"ts", util.TimeToString(ts), "now", util.TimeToString(now))
 	}
 	vKey, err := v.getVerifyKeyForSign(p.Sign)
 	if err != nil {
@@ -92,6 +94,9 @@ func (v *SigVerifier) ignoreSign(p *ctrl.Pld) bool {
 	}
 	u1, _ := outer.Union()
 	switch u1.(type) {
+	// FIXME(roosd): ChainIssRep is disregarded to avoid deadlock when
+	// the issuer updates its leaf certificate at the same time. Remove
+	// it when trust store supports lookup of missing certificates.
 	case *cert_mgmt.Chain, *cert_mgmt.TRC, *cert_mgmt.ChainIssRep:
 		return true
 	default:

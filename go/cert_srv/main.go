@@ -83,7 +83,7 @@ func main() {
 		fatal(err.Error())
 	}
 	config.SetSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()))
-	config.SetVerifier(&SigVerifier{})
+	config.SetVerifier(&SigVerifier{&ctrl.BasicSigVerifier{}})
 	// initialize snet with retries
 	if err = initSNET(initAttempts, initInterval); err != nil {
 		fatal("Unable to create local SCION Network context", "err", err)
