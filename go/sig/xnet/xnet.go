@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package xnet contains low level Linux networking calls (generally related to netlink and tunneling)
+// Package xnet contains low level Linux networking calls (generally related to
+// netlink and tunneling)
 package xnet
 
 import (
@@ -24,7 +25,6 @@ import (
 	"github.com/vishvananda/netlink"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/sig/sigcmn"
 )
 
 const (
@@ -66,9 +66,14 @@ Cleanup:
 	return nil, nil, err
 }
 
-func NewRoute(link netlink.Link, dest *net.IPNet) *netlink.Route {
-	return &netlink.Route{
-		LinkIndex: link.Attrs().Index, Src: sigcmn.Host.IP(), Dst: dest,
+func AddRoute(link netlink.Link, dest *net.IPNet) error {
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index, Dst: dest,
 		Priority: SIGRPriority, Table: SIGRTable,
 	}
+	if err := netlink.RouteAdd(route); err != nil {
+		return common.NewBasicError("EgressReader: Unable to add SIG route", err,
+			"route", route)
+	}
+	return nil
 }
