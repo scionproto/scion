@@ -68,7 +68,7 @@ func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 	return err
 }
 
-// Time returns the timestamp. If the receiver is nil, the zero value of time.Time is returned.
+// Time returns the timestamp. If the receiver is nil, the zero value is returned.
 func (s *SignS) Time() time.Time {
 	if s != nil {
 		return time.Unix(int64(s.Timestamp), 0)
