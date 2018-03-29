@@ -84,6 +84,10 @@ class SCMPGeneralClass(TypeBase):
     ECHO_REQUEST = 1
     #: Echo reply. Same format as Echo request.
     ECHO_REPLY = 2
+    ECHO_TRACEROUTE_REQUEST = 3
+    ECHO_TRACEROUTE_REPLY = 4
+    ECHO_RECORDPATH_REQUEST = 5
+    ECHO_RECORDPATH_REPLY = 6
 
 
 class SCMPRoutingClass(TypeBase):

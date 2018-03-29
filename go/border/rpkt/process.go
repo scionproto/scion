@@ -216,14 +216,10 @@ func (rp *RtrPkt) processSCMP() (HookResult, error) {
 	// FIXME(shitz): rate-limit revocations
 	hdr := rp.l4.(*scmp.Hdr)
 	switch {
-	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_TraceRouteReply:
-		// Do nothing (no fallthrough)
 	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_TraceRouteRequest:
 		if err := rp.processSCMPTraceRoute(); err != nil {
 			return HookError, err
 		}
-	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_RecordPathReply:
-		// Do nothing (no fallthrough)
 	case hdr.Class == scmp.C_General && hdr.Type == scmp.T_G_RecordPathRequest:
 		if err := rp.processSCMPRecordPath(); err != nil {
 			return HookError, err
@@ -256,10 +252,10 @@ func (rp *RtrPkt) processSCMPTraceRoute() error {
 	if infoTrace.HopOff != rp.CmnHdr.CurrHopF {
 		return nil
 	}
-	if *rp.upFlag != infoTrace.In && rp.hopF.Ingress != *rp.ifCurr {
-		return nil
-	}
-	if *rp.upFlag == infoTrace.In && rp.hopF.Egress != *rp.ifCurr {
+	// If In is set and the packet came from the local AS,
+	// or if In is false and the packet came from outside,
+	// then stop processing.
+	if infoTrace.In != (rp.DirFrom == rcmn.DirExternal) {
 		return nil
 	}
 	infoTrace.IA = rp.Ctx.Conf.IA
