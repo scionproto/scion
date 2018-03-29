@@ -40,8 +40,6 @@ import (
 // the common header HopOff and its current interface is the Ingress/Egress
 // (In is true for Ingress). In such a case the BR generates a REPLY filling
 // the IA and IfID fields.
-// If the HopOff is 0, the packet is meant for the endhost and BR should just
-// forward the packet.
 //
 var _ Info = (*InfoTraceRoute)(nil)
 

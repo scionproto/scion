@@ -47,7 +47,6 @@ func GetDefaultSCIONDPath(ia addr.IA) string {
 }
 
 var (
-	id          = flag.String("id", "echo", "Element ID")
 	interactive = flag.Bool("i", false, "Interactive mode")
 	sciondPath  = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
@@ -63,8 +62,6 @@ var (
 	pathEntry *sciond.PathReplyEntry
 	mtu       uint16
 )
-
-var sType string = "echo"
 
 func init() {
 	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
@@ -83,7 +80,7 @@ func main() {
 	}
 	// Initialize default SCION networking context
 	if err := snet.Init(local.IA, *sciondPath, *dispatcher); err != nil {
-		fatal("Unable to initialize SCION network\nerr=%v", err)
+		//		fatal("Unable to initialize SCION network\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: local.Host}
@@ -93,7 +90,7 @@ func main() {
 	}
 	conn, _, err := reliable.Register(*dispatcher, local.IA, address, bindAddress, addr.SvcNone)
 	if err != nil {
-		fatal("Unable to register with the dispatcher addr=%s\nerr=%v", local, err)
+		fatal("Unable to register with the dispatcher addr=%s\nerr=%v", local.String(), err)
 	}
 	defer conn.Close()
 
@@ -103,7 +100,8 @@ func main() {
 		mtu = setPathAndMtu()
 		pathStr = pathEntry.Path.String()
 	} else {
-		mtu = setLocalMtu()
+		//	mtu = setLocalMtu()
+		mtu = 1500
 		pathStr = "None"
 	}
 	fmt.Printf("Using path:\n  %s\n", pathStr)
