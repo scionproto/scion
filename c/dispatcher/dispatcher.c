@@ -968,11 +968,12 @@ void send_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from, uint16_t 
 
     reverse_packet(buf);
     scmp->type = htons(type);
-    update_scmp_checksum(buf);
     zlog_debug(zc, "send SCMP %s to %s:%d",
-            scmp_ct_to_str(strbuf, scmp->class_, scmp->type),
+            scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)),
             addr_to_str(from->addr, from->addr_type, NULL),
             ntohs(from->port));
+    remove_hbh_scmp_extn(buf);
+    update_scmp_checksum(buf);
     send_data(buf, ntohs(sch->total_len), from);
 }
 
