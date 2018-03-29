@@ -90,6 +90,7 @@ func initEcho(s *scmpCtx, total uint) {
 
 func initTraceRoute(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
 	var hopOff uint8
+	var ext *scmp.Extn
 	s.recv = 0
 	s.sent = 0
 	s.total = 1
@@ -99,18 +100,19 @@ func initTraceRoute(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
 		s.path.InitOffsets()
 		s.total += uint64(len(pathEntry.Path.Interfaces))
 		hopOff = hopPktOff(s.path.HopOff)
+		ext = &scmp.Extn{Error: false, HopByHop: true}
 	}
 	// Receive packet
 	s.pktR = &spkt.ScnPkt{}
 	s.ctR = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_TraceRouteReply}
 	// Send packet
-	ext := &scmp.Extn{Error: false, HopByHop: true}
 	s.infoS = &scmp.InfoTraceRoute{Id: rnd.Uint64(), HopOff: hopOff}
 	s.pktS = newSCMPPkt(scmp.T_G_TraceRouteRequest, s.infoS, ext)
 	s.ctS = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_TraceRouteRequest}
 }
 
 func initRecordPath(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
+	var ext *scmp.Extn
 	s.recv = 0
 	s.sent = 0
 	s.total = 1
@@ -118,11 +120,11 @@ func initRecordPath(s *scmpCtx, pathEntry *sciond.PathReplyEntry) {
 	s.pktR = &spkt.ScnPkt{}
 	s.ctR = scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathReply}
 	// Send packet
-	ext := &scmp.Extn{Error: false, HopByHop: true}
 	s.pathEntry = pathEntry
 	var n int
 	if pathEntry != nil {
 		n = len(pathEntry.Path.Interfaces)
+		ext = &scmp.Extn{Error: false, HopByHop: true}
 	}
 	entries := make([]*scmp.RecordPathEntry, 0, n)
 	s.infoS = &scmp.InfoRecordPath{Id: rnd.Uint64(), Entries: entries}
@@ -180,23 +182,23 @@ func morePkts(s *scmpCtx) bool {
 
 func validatePkt(s *scmpCtx) error {
 	_, ok := s.pktR.L4.(*scmp.Hdr)
-	if ok == false {
+	if !ok {
 		return common.NewBasicError("Not an SCMP header", nil, "type", common.TypeOf(s.pktR.L4))
 	}
 	scmpPld, ok := s.pktR.Pld.(*scmp.Payload)
-	if ok == false {
+	if !ok {
 		return common.NewBasicError("Not an SCMP payload", nil, "type", common.TypeOf(s.pktR.Pld))
 	}
 	switch s.ctR {
 	case scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_EchoReply}:
 		s.infoR, ok = scmpPld.Info.(*scmp.InfoEcho)
-		if ok == false {
+		if !ok {
 			return common.NewBasicError("Not an Info Echo", nil,
 				"type", common.TypeOf(s.infoR))
 		}
 	case scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_TraceRouteReply}:
 		info, ok := scmpPld.Info.(*scmp.InfoTraceRoute)
-		if ok == false {
+		if !ok {
 			return common.NewBasicError("Not an Info TraceRoute", nil,
 				"type", common.TypeOf(s.infoR))
 		}
@@ -204,7 +206,7 @@ func validatePkt(s *scmpCtx) error {
 		validateTraceRoute(info, s.pathEntry)
 	case scmp.ClassType{Class: scmp.C_General, Type: scmp.T_G_RecordPathReply}:
 		info, ok := scmpPld.Info.(*scmp.InfoRecordPath)
-		if ok == false {
+		if !ok {
 			return common.NewBasicError("Not an Info RecordPath", nil,
 				"type", common.TypeOf(s.infoR))
 		}

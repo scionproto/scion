@@ -1,3 +1,4 @@
+// Copyright 2016 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -161,7 +162,7 @@ func (rp *RtrPkt) SetPld(pld common.Payload) error {
 	return nil
 }
 
-// createReplyScnPkt creates a generic ScnPkt reply, by converting the RtrPkt
+// CreateReplyScnPkt creates a generic ScnPkt reply, by converting the RtrPkt
 // to an ScnPkt, then reversing the ScnPkt, and setting the reply source address.
 func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	sp, err := rp.ToScnPkt(false)
@@ -219,7 +220,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 			}
 		}
 	}
-	egress, err := rp.ReplyEgress()
+	egress, err := rp.replyEgress()
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +230,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
-func (rp *RtrPkt) ReplyEgress() (EgressPair, error) {
+func (rp *RtrPkt) replyEgress() (EgressPair, error) {
 	if rp.DirFrom == rcmn.DirLocal {
 		return EgressPair{S: rp.Ctx.LocSockOut[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
 	}
