@@ -19,27 +19,20 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"math/rand"
-	"net"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/hpkt"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
-)
 
-const (
-	DefaultInterval = 1 * time.Second
-	DefaultTimeout  = 2 * time.Second
-	MaxEchoes       = 1 << 16
+	"github.com/scionproto/scion/go/tools/scmp/cmn"
+	"github.com/scionproto/scion/go/tools/scmp/echo"
+	"github.com/scionproto/scion/go/tools/scmp/recordpath"
+	"github.com/scionproto/scion/go/tools/scmp/traceroute"
 )
 
 func GetDefaultSCIONDPath(ia addr.IA) string {
@@ -47,175 +40,89 @@ func GetDefaultSCIONDPath(ia addr.IA) string {
 }
 
 var (
-	interactive = flag.Bool("i", false, "Interactive mode")
-	sciondPath  = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher  = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+	sciondPath = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
-	interval  = flag.Duration("interval", DefaultInterval, "time between packets")
-	timeout   = flag.Duration("timeout", DefaultTimeout, "timeout per packet")
-	count     = flag.Uint("c", 0, "Total number of packet to send (ignored if not echo)")
-	sTypeStr  = flag.String("t", "echo", "SCMP Type: echo |  rp | recordpath")
-	local     snet.Addr
-	remote    snet.Addr
-	bind      snet.Addr
-	rnd       *rand.Rand
-	pathEntry *sciond.PathReplyEntry
-	mtu       uint16
 )
 
-func init() {
-	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
-	flag.Var((*snet.Addr)(&bind), "bind", "address to bind to, if running behind NAT")
-}
-
 func main() {
-	var wg sync.WaitGroup
-
+	var err error
 	flag.Parse()
-	validate()
+	args := flag.Args()
+	if len(args) < 1 {
+		flag.Usage()
+		os.Exit(1)
+	}
+	cmn.ValidateFlags()
 
 	if *sciondPath == "" {
-		*sciondPath = GetDefaultSCIONDPath(local.IA)
+		*sciondPath = GetDefaultSCIONDPath(cmn.Local.IA)
 	}
 	// Initialize default SCION networking context
-	if err := snet.Init(local.IA, *sciondPath, *dispatcher); err != nil {
-		//		fatal("Unable to initialize SCION network\nerr=%v", err)
+	if err := snet.Init(cmn.Local.IA, *sciondPath, *dispatcher); err != nil {
+		//		cmn.Fatal("Unable to initialize SCION network\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
-	address := &reliable.AppAddr{Addr: local.Host}
+	address := &reliable.AppAddr{Addr: cmn.Local.Host}
 	var bindAddress *reliable.AppAddr
-	if bind.Host != nil {
-		bindAddress = &reliable.AppAddr{Addr: bind.Host}
+	if cmn.Bind.Host != nil {
+		bindAddress = &reliable.AppAddr{Addr: cmn.Bind.Host}
 	}
-	conn, _, err := reliable.Register(*dispatcher, local.IA, address, bindAddress, addr.SvcNone)
+	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, address, bindAddress, addr.SvcNone)
 	if err != nil {
-		fatal("Unable to register with the dispatcher addr=%s\nerr=%v", local.String(), err)
+		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local.String(), err)
 	}
-	defer conn.Close()
+	defer cmn.Conn.Close()
 
 	// If remote is not in local AS, we need a path!
 	var pathStr string
-	if !remote.IA.Eq(local.IA) {
-		mtu = setPathAndMtu()
-		pathStr = pathEntry.Path.String()
+	if !cmn.Remote.IA.Eq(cmn.Local.IA) {
+		cmn.Mtu = setPathAndMtu()
+		pathStr = cmn.PathEntry.Path.String()
 	} else {
-		//	mtu = setLocalMtu()
-		mtu = 1500
+		//	cmn.mtu = setLocalMtu()
+		cmn.Mtu = 1500
 		pathStr = "None"
 	}
 	fmt.Printf("Using path:\n  %s\n", pathStr)
 
-	seed := rand.NewSource(time.Now().UnixNano())
-	rnd = rand.New(seed)
-
-	var ctx scmpCtx
-	initSCMP(&ctx, *sTypeStr, *count, pathEntry)
-
-	ch := make(chan time.Time, 20)
-	wg.Add(2)
-	go RecvPkts(&wg, conn, &ctx, ch)
-	go SendPkts(&wg, conn, &ctx, ch)
-
-	wg.Wait()
-
-	ret := 0
-	if ctx.sent != ctx.recv {
-		ret = 1
-	}
-
+	ret := doCommand(args[0])
 	os.Exit(ret)
 }
 
-func SendPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan time.Time) {
-	defer wg.Done()
-	defer close(ch)
-
-	b := make(common.RawBytes, mtu)
-
-	nhAddr := reliable.AppAddr{Addr: remote.NextHopHost, Port: remote.NextHopPort}
-	if remote.NextHopHost == nil {
-		nhAddr = reliable.AppAddr{Addr: remote.Host, Port: overlay.EndhostPort}
-	}
-	nextPktTS := time.Now()
-	ticker := time.NewTicker(*interval)
-	for ; true; nextPktTS = <-ticker.C {
-		updatePktTS(ctx, nextPktTS)
-		// Serialize packet to internal buffer
-		pktLen, err := hpkt.WriteScnPkt(ctx.pktS, b)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: Unable to serialize SCION packet %v\n", err)
-			break
-		}
-		written, err := conn.WriteTo(b[:pktLen], &nhAddr)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: Unable to write %v\n", err)
-			break
-		} else if written != pktLen {
-			fmt.Fprintf(os.Stderr, "ERROR: Wrote incomplete message. written=%d, expected=%d\n",
-				len(b), written)
-			break
-		}
-		// Notify the receiver
-		ch <- nextPktTS
-		ctx.sent += 1
-		if !morePkts(ctx) {
-			break
-		}
-		// Update packet fields
-		updatePkt(ctx)
-	}
-}
-
-func RecvPkts(wg *sync.WaitGroup, conn *reliable.Conn, ctx *scmpCtx, ch chan time.Time) {
-	defer wg.Done()
-
-	b := make(common.RawBytes, mtu)
+func doCommand(cmd string) int {
+	cmn.Stats = &cmn.ScmpStats{}
+	stats := cmn.Stats
 
 	start := time.Now()
-	nextTimeout := start
-	for {
-		nextPktTS, ok := <-ch
-		if ok {
-			nextTimeout = nextPktTS.Add(*timeout)
-			conn.SetReadDeadline(nextTimeout)
-		} else if ctx.recv == ctx.sent || nextTimeout.Before(time.Now()) {
-			break
-		}
-		pktLen, err := conn.Read(b)
-		if err != nil {
-			e, ok := err.(*net.OpError)
-			if ok && e.Timeout() {
-				continue
-			} else {
-				fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)
-				break
-			}
-		}
-		now := time.Now()
-		err = hpkt.ParseScnPkt(ctx.pktR, b[:pktLen])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse error: %v\n", err)
-			break
-		}
-		err = validatePkt(ctx)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation error: %v\n", err)
-			break
-		}
-		ctx.recv += 1
-		prettyPrint(ctx, pktLen, now)
+	switch cmd {
+	case "echo":
+		echo.Run()
+	case "tr", "traceroute":
+		traceroute.Run()
+	case "rp", "recordpath":
+		recordpath.Run()
+	default:
+		fmt.Fprintf(os.Stderr, "ERROR: Invalid command\n")
+		flag.Usage()
+		os.Exit(1)
 	}
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		ctx.sent, ctx.recv, 100-ctx.recv*100/ctx.sent, time.Since(start).Round(time.Microsecond))
+		stats.Sent, stats.Recv, 100-stats.Recv*100/stats.Sent,
+		time.Since(start).Round(time.Microsecond))
+
+	if stats.Sent != stats.Recv {
+		return 1
+	}
+	return 0
 }
 
-func choosePath(interactive bool) *sciond.PathReplyEntry {
+func choosePath() *sciond.PathReplyEntry {
 	var paths []*sciond.PathReplyEntry
 	var pathIndex uint64
 
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathSet := pathMgr.Query(cmn.Local.IA, cmn.Remote.IA)
 
 	if len(pathSet) == 0 {
 		return nil
@@ -223,8 +130,8 @@ func choosePath(interactive bool) *sciond.PathReplyEntry {
 	for _, p := range pathSet {
 		paths = append(paths, p.Entry)
 	}
-	if interactive {
-		fmt.Printf("Available paths to %v\n", remote.IA)
+	if cmn.Interactive {
+		fmt.Printf("Available paths to %v\n", cmn.Remote.IA)
 		for i := range paths {
 			fmt.Printf("[%2d] %s\n", i, paths[i].Path.String())
 		}
@@ -243,33 +150,16 @@ func choosePath(interactive bool) *sciond.PathReplyEntry {
 	return paths[pathIndex]
 }
 
-func validate() {
-	if local.Host == nil {
-		fatal("Invalid local address")
-	}
-	if remote.Host == nil {
-		fatal("Invalid remote address")
-	}
-	// scmp-tool does not use ports, thus they should not be set
-	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
-	if local.L4Port != 0 {
-		fatal("Local port should not be provided")
-	}
-	if remote.L4Port != 0 {
-		fatal("Remote port should not be provided")
-	}
-}
-
 func setPathAndMtu() uint16 {
-	pathEntry = choosePath(*interactive)
-	if pathEntry == nil {
-		fatal("No paths available to remote destination")
+	cmn.PathEntry = choosePath()
+	if cmn.PathEntry == nil {
+		cmn.Fatal("No paths available to remote destination")
 	}
-	remote.Path = spath.New(pathEntry.Path.FwdPath)
-	remote.Path.InitOffsets()
-	remote.NextHopHost = pathEntry.HostInfo.Host()
-	remote.NextHopPort = pathEntry.HostInfo.Port
-	return pathEntry.Path.Mtu
+	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
+	cmn.Remote.Path.InitOffsets()
+	cmn.Remote.NextHopHost = cmn.PathEntry.HostInfo.Host()
+	cmn.Remote.NextHopPort = cmn.PathEntry.HostInfo.Port
+	return cmn.PathEntry.Path.Mtu
 }
 
 func setLocalMtu() uint16 {
@@ -277,17 +167,12 @@ func setLocalMtu() uint16 {
 	sd := snet.DefNetwork.Sciond()
 	c, err := sd.Connect()
 	if err != nil {
-		fatal("Unable to connect to sciond")
+		cmn.Fatal("Unable to connect to sciond")
 	}
 	reply, err := c.ASInfo(addr.IA{})
 	if err != nil {
-		fatal("Unable to request AS info to sciond")
+		cmn.Fatal("Unable to request AS info to sciond")
 	}
 	// XXX We expect a single entry in the reply
 	return reply.Entries[0].Mtu
-}
-
-func fatal(msg string, a ...interface{}) {
-	fmt.Printf("CRIT: "+msg+"\n", a...)
-	os.Exit(1)
 }
