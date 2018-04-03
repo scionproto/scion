@@ -31,10 +31,10 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// FIXME(scrye): add update code for the revocation token in testdata/revocation.ref
+// FIXME(scrye): add update code for the revocation token in testdata/revocation.bin
 
 func TestRevNotification(t *testing.T) {
-	token := mustRead(t, "revocation.ref")
+	token := mustRead(t, "revocation.bin")
 
 	rand.Seed(time.Now().UnixNano())
 	Convey("Old revocations should return correct status code", t, func() {

@@ -109,6 +109,19 @@ func MustWriteToFile(t *testing.T, b []byte, baseName string) {
 	}
 }
 
+// MustReadFromFile reads testdata/baseName and returns the raw content. On
+// errors, t.Fatal() is called.
+func MustReadFromFile(t *testing.T, baseName string) []byte {
+	t.Helper()
+
+	name := filepath.Join("testdata", baseName)
+	b, err := ioutil.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
 // ExpandPath returns testdata/file.
 func ExpandPath(file string) string {
 	return filepath.Join("testdata", fmt.Sprintf("%s.ref", file))
