@@ -20,11 +20,13 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-// Cond is used to decide which packets match a class. Types implementing Cond
+// Cond is used to decide which objects match a logical predicate. Types implementing Cond
 // should not be marshaled directly to JSON. Instead, embed them into a Class
 // and add the Class to a ClassMap; finally, marshal the entire ClassMap.
+//
+// Implemented logical operations include or (CondAnyOf), and (CondAllOf) and not (CondNot).
 type Cond interface {
-	Eval(*Packet) bool
+	Eval(v interface{}) bool
 	Typer
 }
 
@@ -37,7 +39,7 @@ func NewCondAnyOf(children ...Cond) CondAnyOf {
 	return CondAnyOf(children)
 }
 
-func (c CondAnyOf) Eval(v *Packet) bool {
+func (c CondAnyOf) Eval(v interface{}) bool {
 	if len(c) == 0 {
 		return true
 	}
@@ -81,7 +83,7 @@ func NewCondAllOf(children ...Cond) CondAllOf {
 	return CondAllOf(children)
 }
 
-func (c CondAllOf) Eval(v *Packet) bool {
+func (c CondAllOf) Eval(v interface{}) bool {
 	for _, child := range c {
 		if !child.Eval(v) {
 			return false
@@ -113,6 +115,39 @@ func (c *CondAllOf) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+var _ Cond = CondNot{}
+
+// CondNot conditions negate the result of the subcondition.
+type CondNot struct {
+	Operand Cond
+}
+
+func NewCondNot(operand Cond) CondNot {
+	return CondNot{Operand: operand}
+}
+
+func (c CondNot) Eval(v interface{}) bool {
+	return !c.Operand.Eval(v)
+}
+
+func (c CondNot) String() string {
+	return fmt.Sprintf("not(%v)", c.Operand)
+}
+
+func (c CondNot) Type() string {
+	return TypeCondNot
+}
+
+func (c CondNot) MarshalJSON() ([]byte, error) {
+	return marshalInterface(c.Operand)
+}
+
+func (c *CondNot) UnmarshalJSON(b []byte) error {
+	var err error
+	c.Operand, err = unmarshalCond(b)
+	return err
+}
+
 var _ Cond = CondBool(true)
 
 // CondBool contains a true or false value, useful for debugging and testing.
@@ -123,7 +158,7 @@ var (
 	CondFalse CondBool = false
 )
 
-func (c CondBool) Eval(v *Packet) bool {
+func (c CondBool) Eval(v interface{}) bool {
 	return bool(c)
 }
 
@@ -142,15 +177,20 @@ func NewCondIPv4(p IPv4Predicate) *CondIPv4 {
 	return &CondIPv4{Predicate: p}
 }
 
-func (c *CondIPv4) Eval(v *Packet) bool {
+func (c *CondIPv4) Eval(v interface{}) bool {
 	if v == nil {
 		return false
 	}
-	pkt, ok := v.parsedPkt.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
-	if !ok || pkt == nil {
+	pkt := v.(*Packet)
+	// Protect against typed nils
+	if pkt == nil {
 		return false
 	}
-	return c.Predicate.Eval(pkt)
+	parsedPkt, ok := pkt.parsedPkt.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+	if !ok || parsedPkt == nil {
+		return false
+	}
+	return c.Predicate.Eval(parsedPkt)
 }
 
 func (c *CondIPv4) Type() string {

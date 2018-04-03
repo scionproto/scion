@@ -16,6 +16,7 @@ package pktcls
 
 import (
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 // Interface Action defines how paths and packets may be processed in a way
@@ -25,36 +26,83 @@ import (
 type Action interface {
 	Act(interface{}) interface{}
 	GetName() string
-	setName(s string)
+	SetName(name string)
 	Typer
 }
 
 var _ Action = (*ActionFilterPaths)(nil)
 
-// Filter only paths which match the embedded PathPredicate.
+// ActionFilterPaths filters paths according to the embedded Cond object.
+// CondAnyOf, CondAllOf, CondNot and CondPathPredicate conditions can be
+// combined to implement complex path selection policies.
 type ActionFilterPaths struct {
-	Contains *pathmgr.PathPredicate
-	Name     string `json:"-"`
+	Cond Cond
+	Name string `json:"-"`
 }
 
-func NewActionFilterPaths(name string, pp *pathmgr.PathPredicate) *ActionFilterPaths {
-	return &ActionFilterPaths{Name: name, Contains: pp}
+func NewActionFilterPaths(name string, cond Cond) *ActionFilterPaths {
+	return &ActionFilterPaths{
+		Name: name,
+		Cond: cond,
+	}
 }
 
 // Act takes an AppPathSet and returns a new AppPathSet containing only the
-// paths permitted by the filter.
-func (a *ActionFilterPaths) Act(aps interface{}) interface{} {
-	return nil
+// paths permitted by the conditional predicate.
+func (a *ActionFilterPaths) Act(values interface{}) interface{} {
+	inputSet := values.(pathmgr.AppPathSet)
+	resultSet := make(pathmgr.AppPathSet)
+	for key, path := range inputSet {
+		if a.Cond.Eval(path.Entry) {
+			resultSet[key] = path
+		}
+	}
+	return resultSet
 }
 
 func (a *ActionFilterPaths) GetName() string {
 	return a.Name
 }
 
-func (a *ActionFilterPaths) setName(name string) {
+func (a *ActionFilterPaths) SetName(name string) {
 	a.Name = name
 }
 
 func (a *ActionFilterPaths) Type() string {
 	return TypeActionFilterPaths
+}
+
+func (a *ActionFilterPaths) MarshalJSON() ([]byte, error) {
+	return marshalInterface(a.Cond)
+}
+
+func (a *ActionFilterPaths) UnmarshalJSON(b []byte) error {
+	var err error
+	a.Cond, err = unmarshalCond(b)
+	return err
+}
+
+var _ Cond = (*CondPathPredicate)(nil)
+
+// CondPathPredicate implements interface Cond, and is designed for use in
+// conditions for ActionFilterPaths. CondPathPredicate returns true if the
+// argument to eval is a *sciond.PathReplyEntry that satisfies the embedded
+// predicate PP.
+type CondPathPredicate struct {
+	PP *pathmgr.PathPredicate
+}
+
+func NewCondPathPredicate(pp *pathmgr.PathPredicate) *CondPathPredicate {
+	return &CondPathPredicate{
+		PP: pp,
+	}
+}
+
+func (c *CondPathPredicate) Eval(v interface{}) bool {
+	path := v.(*sciond.PathReplyEntry)
+	return c.PP.Eval(path)
+}
+
+func (c *CondPathPredicate) Type() string {
+	return TypeCondPathPredicate
 }

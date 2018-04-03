@@ -42,8 +42,10 @@ type Typer interface {
 const (
 	TypeCondAllOf            = "CondAllOf"
 	TypeCondAnyOf            = "CondAnyOf"
+	TypeCondNot              = "CondNot"
 	TypeCondBool             = "CondBool"
 	TypeCondIPv4             = "CondIPv4"
+	TypeCondPathPredicate    = "CondPathPredicate"
 	TypeActionFilterPaths    = "ActionFilterPaths"
 	TypeIPv4MatchSource      = "MatchSource"
 	TypeIPv4MatchDestination = "MatchDestination"
@@ -83,12 +85,20 @@ func unmarshalInterface(b []byte) (Typer, error) {
 			}
 			err := json.Unmarshal(*v, &c)
 			return c, err
+		case TypeCondNot:
+			var c CondNot
+			err := json.Unmarshal(*v, &c)
+			return c, err
 		case TypeCondBool:
 			var c CondBool
 			err := json.Unmarshal(*v, &c)
 			return c, err
 		case TypeCondIPv4:
 			var c CondIPv4
+			err := json.Unmarshal(*v, &c)
+			return &c, err
+		case TypeCondPathPredicate:
+			var c CondPathPredicate
 			err := json.Unmarshal(*v, &c)
 			return &c, err
 		case TypeActionFilterPaths:

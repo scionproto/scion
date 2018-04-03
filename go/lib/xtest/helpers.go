@@ -15,8 +15,13 @@
 package xtest
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"testing"
 )
 
 // TempFileName creates a temporary file in dir with the specified prefix, and
@@ -63,4 +68,48 @@ func MustTempDir(dir, prefix string) (string, func()) {
 	return name, func() {
 		os.RemoveAll(name)
 	}
+}
+
+// FailOnErr causes t to exit with a fatal error if err is non-nil.
+func FailOnErr(t *testing.T, err error) {
+	t.Helper()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// MustMarshalJSONToFile marshals v and writes the result to file
+// testdata/baseName. If the file exists, it is truncated; if it doesn't exist,
+// it is created. On errors, t.Fatal() is called.
+func MustMarshalJSONToFile(t *testing.T, v interface{}, baseName string) {
+	t.Helper()
+
+	enc, err := json.MarshalIndent(v, "", "    ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buffer := bytes.NewBuffer(enc)
+	if err := buffer.WriteByte('\n'); err != nil {
+		t.Fatal(err)
+	}
+
+	MustWriteToFile(t, buffer.Bytes(), baseName)
+}
+
+// MustWriteToFile writes b to file testdata/baseName. If the file exists, it
+// is truncated; if it doesn't exist, it is created. On errors, t.Fatal() is
+// called.
+func MustWriteToFile(t *testing.T, b []byte, baseName string) {
+	t.Helper()
+
+	if err := ioutil.WriteFile(ExpandPath(baseName), b, 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ExpandPath returns testdata/file.
+func ExpandPath(file string) string {
+	return filepath.Join("testdata", fmt.Sprintf("%s.ref", file))
 }
