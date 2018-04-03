@@ -123,8 +123,6 @@ func genCert(ia addr.IA, isIssuer bool) error {
 		}
 	}
 	// Write the cert to disk.
-	subject := chain.Leaf.Subject
-	fname = fmt.Sprintf(pkicmn.CertNameFmt, subject.I, subject.A, chain.Leaf.Version)
 	raw, err := chain.JSON(true)
 	if err != nil {
 		return common.NewBasicError("Error json-encoding cert", err, "subject", ia)
