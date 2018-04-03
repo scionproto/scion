@@ -1037,10 +1037,10 @@ class ZKConfGenerator(object):
             addr = ip_address(zk.addr.ip)
             if addr.version == 6:
                 servers.append("server.%s=[%s]:%d:%d" %
-                           (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
+                               (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
             else:
                 servers.append("server.%s=%s:%d:%d" %
-                           (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
+                               (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
         server_block = "\n".join(sorted(servers))
         base_dir = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
         for name, (id_, zk) in zks.items():
@@ -1145,7 +1145,7 @@ class SubnetGenerator(object):
         # - .[23] are used for clients to bind to for testing purposes.
         if self._net.version == 6:
             prefix = 126
-        else: # ipv4
+        else:  # ipv4
             prefix = 30
         exclude = ip_network(ip_interface(network).ip).supernet(new_prefix=prefix)
 

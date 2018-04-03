@@ -13,28 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Stdlib
 import os
 import argparse
 from ipaddress import IPv6Address, IPv6Network
+
+# SCION
 from lib.defines import (
     GEN_PATH,
     NETWORKS_FILE,
 )
-from pyroute2 import IPRoute
+
 
 def set_interfaces(action):
     path = os.path.join(GEN_PATH, NETWORKS_FILE)
-    ip = IPRoute()
-    ifidx = ip.link_lookup(ifname='lo')[0]
     with open(path, 'r') as f:
         for l in f.readlines():
             try:
                 address = l.split("= ")[1]
                 addr = IPv6Address(address[:-1])
                 if addr in IPv6Network('::127:0:0:0/112'):
-                    ip.addr(action, ifidx, address=str(addr), mask=128)
-            except Exception as e:
+                    # Redirect stderr to NULL to avoid error in case the IP address is alredy set
+                    os.system('ip addr %s %s/128 dev lo 2>/dev/null' % (action, str(addr)))
+            except Exception:
                 continue
+
 
 def main():
     parser = argparse.ArgumentParser()

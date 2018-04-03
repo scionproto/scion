@@ -131,7 +131,7 @@ class TestClientBase(TestBase):
         path_entry = path_entries[0]
         self.path_meta = path_entry.path()
         fh_info = path_entry.first_hop()
-        fh_addr = fh_info.ipv4()
+        fh_addr = fh_info.ipv4() or fh_info.ipv6()
         if not fh_addr:
             fh_addr = self.dst.host
         port = fh_info.p.port or SCION_UDP_EH_DATA_PORT
