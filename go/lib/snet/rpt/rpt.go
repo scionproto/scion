@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// package rpt (Reliable Packet Transport) implements a simple UDP protocol
-// with ACKs on top of net.PacketConn.
+// package rpt (Reliable Packet Transport) implements a simple packet-oriented
+// protocol with ACKs on top of net.PacketConn.
 package rpt
 
 import (
@@ -70,8 +70,8 @@ var (
 
 var _ infra.Transport = (*RPT)(nil)
 
-// RPT (Reliable Packet Transport) implements a simple UDP protocol with ACKs
-// on top of net.PacketConn.
+// RPT (Reliable Packet Transport) implements a simple packet-oriented protocol
+// with ACKs on top of net.PacketConn.
 //
 // Two sending primitives are available:
 //
