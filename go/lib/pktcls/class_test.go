@@ -73,7 +73,7 @@ func TestClassMap(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				if *update {
-					xtest.MustMarshalToFile(t, tc.Classes, tc.FileName)
+					xtest.MustMarshalJSONToFile(t, tc.Classes, tc.FileName)
 				}
 
 				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))

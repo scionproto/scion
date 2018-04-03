@@ -111,7 +111,7 @@ func TestIPCond(t *testing.T) {
 			),
 			Packet: newTestPacket(
 				&layers.IPv4{
-					SrcIP: net.IP{192, 168, 1, 1},
+					SrcIP: net.IP{172, 17, 1, 1},
 					DstIP: net.IP{192, 168, 1, 2},
 				},
 				[]byte{1, 1, 1, 1},

@@ -72,15 +72,19 @@ func MustTempDir(dir, prefix string) (string, func()) {
 
 // FailOnErr causes t to exit with a fatal error if err is non-nil.
 func FailOnErr(t *testing.T, err error) {
+	t.Helper()
+
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-// MustMarshalToFile marshals v and writes the result to file
+// MustMarshalJSONToFile marshals v and writes the result to file
 // testdata/baseName. If the file exists, it is truncated; if it doesn't exist,
 // it is created. On errors, t.Fatal() is called.
-func MustMarshalToFile(t *testing.T, v interface{}, baseName string) {
+func MustMarshalJSONToFile(t *testing.T, v interface{}, baseName string) {
+	t.Helper()
+
 	enc, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		t.Fatal(err)
@@ -98,6 +102,8 @@ func MustMarshalToFile(t *testing.T, v interface{}, baseName string) {
 // is truncated; if it doesn't exist, it is created. On errors, t.Fatal() is
 // called.
 func MustWriteToFile(t *testing.T, b []byte, baseName string) {
+	t.Helper()
+
 	if err := ioutil.WriteFile(ExpandPath(baseName), b, 0644); err != nil {
 		t.Fatal(err)
 	}
