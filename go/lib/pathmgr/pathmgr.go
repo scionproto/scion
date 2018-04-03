@@ -17,8 +17,8 @@
 // A new resolver can be instantiated by calling `New`. There are two types of
 // supported path queries, simple or periodic.
 //
-// Simple path queries are issued via 'Query'; they return an path.AppPathSet
-// of valid paths.
+// Simple path queries are issued via 'Query'; they return an
+// spathmeta.AppPathSet of valid paths.
 //
 // Periodic path queries are added via 'Watch', which returns a pointer to a
 // thread-safe SyncPaths object; calling Load on the object returns the data
@@ -51,9 +51,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	liblog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/path"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // Timers is used to customize the timers for a new Path Manager.
@@ -138,7 +138,7 @@ func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 // Query returns a slice of paths between src and dst. If the paths are not
 // found in the path resolver's cache, a query to SCIOND is issued and the
 // function blocks until the reply is received.
-func (r *PR) Query(src, dst addr.IA) path.AppPathSet {
+func (r *PR) Query(src, dst addr.IA) spathmeta.AppPathSet {
 	r.Lock()
 	defer r.Unlock()
 	if aps, ok := r.cache.getAPS(src, dst); ok {
@@ -159,14 +159,14 @@ func (r *PR) Query(src, dst addr.IA) path.AppPathSet {
 	if aps, ok := r.cache.getAPS(src, dst); ok {
 		return aps.Copy()
 	}
-	return path.AppPathSet{}
+	return spathmeta.AppPathSet{}
 }
 
-func (r *PR) QueryFilter(src, dst addr.IA, filter *pktcls.ActionFilterPaths) path.AppPathSet {
+func (r *PR) QueryFilter(src, dst addr.IA, filter *pktcls.ActionFilterPaths) spathmeta.AppPathSet {
 	aps := r.Query(src, dst)
 	// Delete paths that do not match the predicate
 
-	return filter.Act(aps).(path.AppPathSet)
+	return filter.Act(aps).(spathmeta.AppPathSet)
 }
 
 // Watch adds pair src-dst to the list of watched paths.

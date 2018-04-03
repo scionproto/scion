@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package path implements basic types for working with SCIOND paths.
-package path
+// Package spathmeta implements basic types for working with SCIOND paths.
+package spathmeta
 
 import (
 	"crypto/sha256"

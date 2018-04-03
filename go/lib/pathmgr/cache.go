@@ -24,14 +24,14 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/path"
 	"github.com/scionproto/scion/go/lib/pktcls"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // cacheEntry contains path information for an IA src-dst pair.
 type cacheEntry struct {
 	// Set of currently available paths
-	aps path.AppPathSet
+	aps spathmeta.AppPathSet
 	// Set of watched filters
 	fs filterSet
 	// Time when paths were last changed
@@ -62,7 +62,7 @@ func newCache(maxAge time.Duration) *cache {
 }
 
 // update the set of paths between src and dst to aps.
-func (c *cache) update(src, dst addr.IA, aps path.AppPathSet) {
+func (c *cache) update(src, dst addr.IA, aps spathmeta.AppPathSet) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	entry, ok := c.getEntry(src, dst)
@@ -79,7 +79,7 @@ func (c *cache) update(src, dst addr.IA, aps path.AppPathSet) {
 
 // getAPS returns the paths between src and dst. If the paths are stale or
 // missing, the second return value is false.
-func (c *cache) getAPS(src, dst addr.IA) (path.AppPathSet, bool) {
+func (c *cache) getAPS(src, dst addr.IA) (spathmeta.AppPathSet, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if entry, ok := c.getEntry(src, dst); ok {
@@ -195,7 +195,7 @@ func (c *cache) revoke(u uifid) {
 }
 
 // remove (internal) one path from the set of paths between src and dst.
-func (c *cache) remove(src, dst addr.IA, ap *path.AppPath) {
+func (c *cache) remove(src, dst addr.IA, ap *spathmeta.AppPath) {
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
 		log.Warn("Attempted to remove known path, but no path set found", "path",
@@ -219,7 +219,7 @@ func (c *cache) getEntry(src, dst addr.IA) (*cacheEntry, bool) {
 // addEntry (internal) initializes a cache entry for src and dst.
 func (c *cache) addEntry(src, dst addr.IA) *cacheEntry {
 	entry := &cacheEntry{
-		aps:       make(path.AppPathSet),
+		aps:       make(spathmeta.AppPathSet),
 		fs:        make(filterSet),
 		timestamp: time.Now(),
 	}
