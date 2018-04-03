@@ -23,7 +23,10 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/path"
+	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
@@ -68,10 +71,12 @@ func TestQueryFilter(t *testing.T) {
 		dstIA := MustParseIA("1-ff00:0:131")
 
 		pp, err := NewPathPredicate("1-ff00:0:132#0")
+		xtest.FailOnErr(t, err)
+		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#0", pktcls.NewCondPathPredicate(pp))
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("pp", pp, ShouldNotBeNil)
+		SoMsg("filter", filter, ShouldNotBeNil)
 
-		aps := pm.QueryFilter(srcIA, dstIA, pp)
+		aps := pm.QueryFilter(srcIA, dstIA, filter)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
 			"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
@@ -115,10 +120,12 @@ func TestRegisterFilter(t *testing.T) {
 		dstIA := MustParseIA("1-ff00:0:131")
 
 		pp, err := NewPathPredicate("1-ff00:0:132#132133")
-		SoMsg("pp", pp, ShouldNotBeNil)
-		SoMsg("err", err, ShouldBeNil)
+		xtest.FailOnErr(t, err)
 
-		sp, err := pm.WatchFilter(srcIA, dstIA, pp)
+		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#1910",
+			pktcls.NewCondPathPredicate(pp))
+
+		sp, err := pm.WatchFilter(srcIA, dstIA, filter)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("len aps", len(sp.Load().APS), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
@@ -150,8 +157,9 @@ func TestRevoke(t *testing.T) {
 				"1-ff00:0:120#120121 1-ff00:0:120#120220 2-ff00:0:220#220120]")
 
 		pp, err := NewPathPredicate("1-ff00:0:121#121122")
-		SoMsg("err predicate", err, ShouldBeNil)
-		spf, err := pm.WatchFilter(watchSrc, watchDst, pp)
+		xtest.FailOnErr(t, err)
+		filter := pktcls.NewActionFilterPaths("test-1-15#1518", pktcls.NewCondPathPredicate(pp))
+		spf, err := pm.WatchFilter(watchSrc, watchDst, filter)
 		SoMsg("watch filter: err", err, ShouldBeNil)
 		apsCheckPaths("watch filter", spf.Load().APS,
 			"[1-ff00:0:122#122121 1-ff00:0:121#121122 1-ff00:0:121#121120 "+
@@ -222,7 +230,7 @@ func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) 
 	return pm
 }
 
-func getPathStrings(aps AppPathSet) []string {
+func getPathStrings(aps path.AppPathSet) []string {
 	var ss []string
 	for _, v := range aps {
 		ss = append(ss, fmt.Sprintf("%v", v.Entry.Path.Interfaces))
@@ -230,7 +238,7 @@ func getPathStrings(aps AppPathSet) []string {
 	return ss
 }
 
-func apsCheckPaths(desc string, aps AppPathSet, expValues ...string) {
+func apsCheckPaths(desc string, aps path.AppPathSet, expValues ...string) {
 	SoMsg(fmt.Sprintf("%s: len", desc), len(aps), ShouldEqual, len(expValues))
 	for i, value := range expValues {
 		SoMsg(fmt.Sprintf("%s: path %d", desc, i), getPathStrings(aps), ShouldContain, value)
