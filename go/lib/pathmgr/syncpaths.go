@@ -18,9 +18,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/path"
 )
 
-// SyncPaths contains a concurrency-safe reference to an AppPathSet that is
+// SyncPaths contains a concurrency-safe reference to an path.AppPathSet that is
 // continuously kept up to date by the path manager.  Callers can safely `Load`
 // the reference and use the paths within. At any moment, the path resolver can
 // change the value of the reference within a SyncPaths to a different slice
@@ -38,19 +40,19 @@ type SyncPaths struct {
 // SyncPathsData is the atomic value inside a SyncPaths object. It provides a
 // snapshot of a SyncPaths object. Callers must not change APS.
 type SyncPathsData struct {
-	APS         AppPathSet
+	APS         path.AppPathSet
 	ModifyTime  time.Time
 	RefreshTime time.Time
 }
 
 // NewSyncPaths creates a new SyncPaths object and sets the timestamp to
-// current time.  A newly created SyncPaths contains a nil AppPathSet.
+// current time.  A newly created SyncPaths contains a nil path.AppPathSet.
 func NewSyncPaths() *SyncPaths {
 	sp := &SyncPaths{}
 	now := time.Now()
 	sp.value.Store(
 		&SyncPathsData{
-			APS:         make(AppPathSet),
+			APS:         make(path.AppPathSet),
 			ModifyTime:  now,
 			RefreshTime: now,
 		},
@@ -63,7 +65,7 @@ func NewSyncPaths() *SyncPaths {
 // updated.
 // FIXME(scrye): Add SCIOND support s.t. the refresh timestamp is changed only
 // when paths (including path metadata) change.
-func (sp *SyncPaths) update(newAPS AppPathSet) {
+func (sp *SyncPaths) update(newAPS path.AppPathSet) {
 	sp.mutex.Lock()
 	defer sp.mutex.Unlock()
 	value := sp.value.Load().(*SyncPathsData)
@@ -82,8 +84,8 @@ func (sp *SyncPaths) Load() *SyncPathsData {
 	return sp.value.Load().(*SyncPathsData)
 }
 
-func setSubtract(x, y AppPathSet) AppPathSet {
-	result := make(AppPathSet)
+func setSubtract(x, y path.AppPathSet) path.AppPathSet {
+	result := make(path.AppPathSet)
 	for _, ap := range x {
 		if _, ok := y[ap.Key()]; !ok {
 			result.Add(ap.Entry)
