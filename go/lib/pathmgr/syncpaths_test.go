@@ -18,8 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/path"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 func TestSyncPathsTimestamp(t *testing.T) {
@@ -33,7 +34,7 @@ func TestSyncPathsTimestamp(t *testing.T) {
 
 		Convey("Call store again without changing anything", func() {
 			beforeStore := time.Now()
-			sp.update(path.AppPathSet(nil))
+			sp.update(spathmeta.AppPathSet(nil))
 			afterStore := time.Now()
 			data := sp.Load()
 			Convey("Modify timestamp should not change", func() {

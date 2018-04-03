@@ -19,10 +19,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/path"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
-// SyncPaths contains a concurrency-safe reference to an path.AppPathSet that is
+// SyncPaths contains a concurrency-safe reference to an spathmeta.AppPathSet that is
 // continuously kept up to date by the path manager.  Callers can safely `Load`
 // the reference and use the paths within. At any moment, the path resolver can
 // change the value of the reference within a SyncPaths to a different slice
@@ -40,19 +40,19 @@ type SyncPaths struct {
 // SyncPathsData is the atomic value inside a SyncPaths object. It provides a
 // snapshot of a SyncPaths object. Callers must not change APS.
 type SyncPathsData struct {
-	APS         path.AppPathSet
+	APS         spathmeta.AppPathSet
 	ModifyTime  time.Time
 	RefreshTime time.Time
 }
 
 // NewSyncPaths creates a new SyncPaths object and sets the timestamp to
-// current time.  A newly created SyncPaths contains a nil path.AppPathSet.
+// current time.  A newly created SyncPaths contains a nil spathmeta.AppPathSet.
 func NewSyncPaths() *SyncPaths {
 	sp := &SyncPaths{}
 	now := time.Now()
 	sp.value.Store(
 		&SyncPathsData{
-			APS:         make(path.AppPathSet),
+			APS:         make(spathmeta.AppPathSet),
 			ModifyTime:  now,
 			RefreshTime: now,
 		},
@@ -65,7 +65,7 @@ func NewSyncPaths() *SyncPaths {
 // updated.
 // FIXME(scrye): Add SCIOND support s.t. the refresh timestamp is changed only
 // when paths (including path metadata) change.
-func (sp *SyncPaths) update(newAPS path.AppPathSet) {
+func (sp *SyncPaths) update(newAPS spathmeta.AppPathSet) {
 	sp.mutex.Lock()
 	defer sp.mutex.Unlock()
 	value := sp.value.Load().(*SyncPathsData)
@@ -84,8 +84,8 @@ func (sp *SyncPaths) Load() *SyncPathsData {
 	return sp.value.Load().(*SyncPathsData)
 }
 
-func setSubtract(x, y path.AppPathSet) path.AppPathSet {
-	result := make(path.AppPathSet)
+func setSubtract(x, y spathmeta.AppPathSet) spathmeta.AppPathSet {
+	result := make(spathmeta.AppPathSet)
 	for _, ap := range x {
 		if _, ok := y[ap.Key()]; !ok {
 			result.Add(ap.Entry)

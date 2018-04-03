@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -81,7 +82,7 @@ type Conn struct {
 	// Reference to SCION networking context
 	scionNet *Network
 	// Key of last used path, used to select the same path for the next packet
-	prefPathKey pathmgr.PathKey
+	prefPathKey spathmeta.PathKey
 }
 
 // DialSCION calls DialSCION on the default networking context.
@@ -327,7 +328,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 
 func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var err error
-	var pathSet pathmgr.AppPathSet
+	var pathSet spathmeta.AppPathSet
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
 	if c.raddr == nil {

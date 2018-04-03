@@ -21,16 +21,16 @@ import (
 
 	//log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 const pathFailExpiration = 5 * time.Minute
 
-type sessPathPool map[pathmgr.PathKey]*sessPath
+type sessPathPool map[spathmeta.PathKey]*sessPath
 
 // Return the path with the fewest failures, excluding the current path (if specified).
-func (spp sessPathPool) get(currKey pathmgr.PathKey) *sessPath {
+func (spp sessPathPool) get(currKey spathmeta.PathKey) *sessPath {
 	var sp *sessPath
 	var minFail uint16 = math.MaxUint16
 	for k, v := range spp {
@@ -46,7 +46,7 @@ func (spp sessPathPool) get(currKey pathmgr.PathKey) *sessPath {
 	return sp
 }
 
-func (spp sessPathPool) update(aps pathmgr.AppPathSet) {
+func (spp sessPathPool) update(aps spathmeta.AppPathSet) {
 	// Remove any old entries that aren't present in the update.
 	for key := range spp {
 		if _, ok := aps[key]; !ok {
@@ -66,13 +66,13 @@ func (spp sessPathPool) update(aps pathmgr.AppPathSet) {
 }
 
 type sessPath struct {
-	key       pathmgr.PathKey
+	key       spathmeta.PathKey
 	pathEntry *sciond.PathReplyEntry
 	lastFail  time.Time
 	failCount uint16
 }
 
-func newSessPath(key pathmgr.PathKey, pathEntry *sciond.PathReplyEntry) *sessPath {
+func newSessPath(key spathmeta.PathKey, pathEntry *sciond.PathReplyEntry) *sessPath {
 	return &sessPath{key: key, pathEntry: pathEntry, lastFail: time.Now()}
 }
 
