@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/path"
 )
 
 // uifid (Unique IFID) uniquely describes an interface
@@ -38,18 +39,18 @@ func (u uifid) String() string {
 	return fmt.Sprintf("%s#%d", u.ia.IA().String(), u.ifid)
 }
 
-// revTable tracks for each UIFID the set of AppPaths that contain that UIFID.
-// Revoking an interface consists of grabbing its UIFID, going through the set
-// and calling Revoke on each AppPath.
+// revTable tracks for each UIFID the set of path.AppPaths that contain that
+// UIFID.  Revoking an interface consists of grabbing its UIFID, going through
+// the set and calling Revoke on each path.AppPath.
 type revTable struct {
 	// maps UIFID keys to sets of paths that contain that UIFID
-	m map[uifid]AppPathSet
+	m map[uifid]path.AppPathSet
 }
 
 // newRevTable creates an empty revocation table.
 func newRevTable() *revTable {
 	return &revTable{
-		m: make(map[uifid]AppPathSet),
+		m: make(map[uifid]path.AppPathSet),
 	}
 }
 
@@ -59,28 +60,28 @@ func newRevTable() *revTable {
 // pointers are updated to track the new path object. This allows revocations
 // to always update the live, in-use paths and not old copies that will be soon
 // collected by the GC.
-func (rt *revTable) updatePathSet(aps AppPathSet) {
+func (rt *revTable) updatePathSet(aps path.AppPathSet) {
 	for _, ap := range aps {
 		rt.updatePath(ap)
 	}
 }
 
-func (rt *revTable) updatePath(ap *AppPath) {
+func (rt *revTable) updatePath(ap *path.AppPath) {
 	for _, iface := range ap.Entry.Path.Interfaces {
 		uifid := uifidFromValues(iface.ISD_AS(), common.IFIDType(iface.IfID))
 		aps, ok := rt.m[uifid]
 		if !ok {
-			// AppPathSet not initialized yet
-			aps = make(AppPathSet)
+			// path.AppPathSet not initialized yet
+			aps = make(path.AppPathSet)
 			// Store reference to new map
 			rt.m[uifid] = aps
 		}
-		aps[PathKey(ap.Key())] = ap
+		aps[path.PathKey(ap.Key())] = ap
 	}
 }
 
 // revoke deletes all the paths that include uifid
-func (rt *revTable) revoke(u uifid) AppPathSet {
+func (rt *revTable) revoke(u uifid) path.AppPathSet {
 	aps := rt.m[u]
 	delete(rt.m, u)
 	for _, ap := range aps {

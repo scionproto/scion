@@ -15,7 +15,7 @@
 package pktcls
 
 import (
-	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/path"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
@@ -50,8 +50,8 @@ func NewActionFilterPaths(name string, cond Cond) *ActionFilterPaths {
 // Act takes an AppPathSet and returns a new AppPathSet containing only the
 // paths permitted by the conditional predicate.
 func (a *ActionFilterPaths) Act(values interface{}) interface{} {
-	inputSet := values.(pathmgr.AppPathSet)
-	resultSet := make(pathmgr.AppPathSet)
+	inputSet := values.(path.AppPathSet)
+	resultSet := make(path.AppPathSet)
 	for key, path := range inputSet {
 		if a.Cond.Eval(path.Entry) {
 			resultSet[key] = path
@@ -89,10 +89,10 @@ var _ Cond = (*CondPathPredicate)(nil)
 // argument to eval is a *sciond.PathReplyEntry that satisfies the embedded
 // predicate PP.
 type CondPathPredicate struct {
-	PP *pathmgr.PathPredicate
+	PP *path.PathPredicate
 }
 
-func NewCondPathPredicate(pp *pathmgr.PathPredicate) *CondPathPredicate {
+func NewCondPathPredicate(pp *path.PathPredicate) *CondPathPredicate {
 	return &CondPathPredicate{
 		PP: pp,
 	}
