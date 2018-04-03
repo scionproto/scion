@@ -15,192 +15,209 @@
 package pktcls
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"strings"
 	"testing"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-type TestCase struct {
-	hpktKey  string
-	hpkt     *Packet
-	classKey string
-	class    *Class
-	expected bool
-}
-
-func TestBasicConds(t *testing.T) {
-	Convey("Conditions", t, func() {
-		Convey("Any returns correct values on Eval", func() {
-			c := NewCondAnyOf()
-			SoMsg("empty any", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAnyOf(CondTrue)
-			SoMsg("true", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAnyOf(CondFalse, CondFalse)
-			SoMsg("false, false", c.Eval(nil), ShouldBeFalse)
-			c = NewCondAnyOf(CondFalse, CondTrue, CondFalse)
-			SoMsg("false, true, false", c.Eval(nil), ShouldBeTrue)
-		})
-
-		Convey("All returns correct values on Eval", func() {
-			c := NewCondAllOf()
-			SoMsg("empty all", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAllOf(CondTrue)
-			SoMsg("true", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAllOf(CondFalse, CondFalse)
-			SoMsg("false, false", c.Eval(nil), ShouldBeFalse)
-			c = NewCondAllOf(CondFalse, CondTrue, CondFalse)
-			SoMsg("false, true, false", c.Eval(nil), ShouldBeFalse)
-		})
-
-		Convey("Mixed conds return correct values on Eval", func() {
-			c := NewCondAllOf(
-				NewCondAnyOf(),
-				NewCondAllOf(),
-				CondTrue,
-			)
-			SoMsg("All(Any(), All(), true)", c.Eval(nil), ShouldBeTrue)
-			c = NewCondAllOf(
-				NewCondAnyOf(),
-				NewCondAllOf(),
-				CondFalse,
-			)
-			SoMsg("All(Any(), All(), false)", c.Eval(nil), ShouldBeFalse)
-			c = NewCondAllOf(
-				CondTrue,
-				CondTrue,
-				NewCondAnyOf(
-					CondFalse,
-					CondFalse,
+func TestClassMap(t *testing.T) {
+	testCases := []struct {
+		Name     string
+		FileName string
+		Classes  ClassMap
+	}{
+		{
+			Name:     "ABC",
+			FileName: "class_1",
+			Classes: ClassMap{
+				"transit ISD 1": NewClass(
+					"transit ISD 1",
+					NewCondAllOf(
+						NewCondIPv4(&IPv4MatchToS{0x80}),
+						NewCondIPv4(&IPv4MatchDestination{
+							&net.IPNet{
+								IP:   net.IP{192, 168, 1, 0},
+								Mask: net.IPv4Mask(255, 255, 255, 0),
+							},
+						}),
+					),
+				),
+				"transit ISD 2": NewClass(
+					"transit ISD 2",
+					NewCondAnyOf(
+						NewCondIPv4(&IPv4MatchToS{0x0}),
+						NewCondIPv4(&IPv4MatchSource{
+							&net.IPNet{
+								IP:   net.IP{10, 0, 0, 0},
+								Mask: net.IPv4Mask(255, 0, 0, 0),
+							},
+						}),
+					),
+				),
+				"classC": NewClass(
+					"classC",
 					NewCondAllOf(),
 				),
-			)
-			SoMsg("All(true, true, Any(false, false, All()))", c.Eval(nil), ShouldBeTrue)
-		})
-	})
+			},
+		},
+	}
 
-}
+	Convey("Test class marshal/unmarshal", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				if *update {
+					xtest.MustMarshalJSONToFile(t, tc.Classes, tc.FileName)
+				}
 
-func TestIPv4Conds(t *testing.T) {
-	tcs := InitTestCases()
+				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+				xtest.FailOnErr(t, err)
 
-	Convey("Evaluate classes for different packets", t, func() {
-		for _, tc := range tcs {
-			Convey(fmt.Sprintf("class=%s, hpkt=%s", tc.classKey, tc.hpktKey), func() {
-				SoMsg("eval", tc.class.Eval(tc.hpkt), ShouldEqual, tc.expected)
+				// Check that marshaling matches reference files
+				enc, err := json.MarshalIndent(tc.Classes, "", "    ")
+				SoMsg("err marshal", err, ShouldBeNil)
+				SoMsg("bytes",
+					string(enc),
+					ShouldResemble,
+					strings.TrimRight(string(expected), "\n"))
+
+				// Check that unmarshaling from reference files matches structure
+				var classes ClassMap
+				err = json.Unmarshal(expected, &classes)
+				SoMsg("err unmarshal", err, ShouldBeNil)
+				SoMsg("object", classes, ShouldResemble, tc.Classes)
 			})
 		}
 	})
 }
 
-func InitTestCases() []*TestCase {
-	tests := []struct {
-		class    string
-		hpkt     string
-		expected bool
-	}{
-		{"ClassA", "192.168.1.1->192.168.1.2", true},
-		{"ClassA", "192.168.1.1->10.0.0.2", true},
-		{"ClassB", "192.168.1.1->192.168.1.2", false},
-		{"ClassB", "192.168.1.1->10.0.0.2", true},
-		{"ClassC", "192.168.1.1->192.168.1.2", false},
-		{"ClassC", "192.168.1.1->10.0.0.2", false},
-		{"ClassA", "", false}, // Force nil hpkt
-	}
-
-	var tcs []*TestCase
-	hpkts := InitHPkts()
-	classes := InitClasses()
-	for _, test := range tests {
-		tcs = append(tcs, &TestCase{
-			hpktKey:  test.hpkt,
-			hpkt:     hpkts[test.hpkt],
-			classKey: test.class,
-			class:    classes[test.class],
-			expected: test.expected,
-		})
-	}
-	return tcs
-}
-
-func InitHPkts() map[string]*Packet {
-	pkts := make(map[string]*Packet)
-	pkts["192.168.1.1->192.168.1.2"] = InitHPkt(
-		&layers.IPv4{
-			SrcIP: net.IP{192, 168, 1, 1},
-			DstIP: net.IP{192, 168, 1, 2},
-		},
-		[]byte{1, 1, 1, 1},
-	)
-	pkts["192.168.1.1->10.0.0.2"] = InitHPkt(
-		&layers.IPv4{
-			SrcIP: net.IP{192, 168, 1, 1},
-			DstIP: net.IP{10, 0, 0, 2},
-		},
-		[]byte{2, 2, 2, 2},
-	)
-	return pkts
-}
-
-func InitHPkt(ipv4 *layers.IPv4, pld []byte) *Packet {
-	buf := gopacket.NewSerializeBuffer()
-	gopacket.SerializeLayers(
-		buf,
-		gopacket.SerializeOptions{},
-		ipv4,
-		gopacket.Payload(pld),
-	)
-	return NewPacket(buf.Bytes())
-}
-
-func InitClasses() map[string]*Class {
-	return map[string]*Class{
-		"ClassA": NewClass(
-			"ClassA",
-			NewCondAllOf(
-				NewCondIPv4(
-					&IPv4MatchSource{
-						&net.IPNet{
-							IP:   net.IP{192, 168, 1, 0},
-							Mask: net.IPv4Mask(255, 255, 255, 240),
-						},
-					},
-				),
-			),
-		),
-		"ClassB": NewClass(
-			"ClassB",
-			NewCondAllOf(
-				NewCondIPv4(
-					&IPv4MatchDestination{
-						&net.IPNet{
-							IP:   net.IP{10, 0, 0, 0},
-							Mask: net.IPv4Mask(255, 0, 0, 0),
-						},
-					},
-				),
-			),
-		),
-		"ClassC": NewClass(
-			"ClassC",
-			NewCondAllOf(
-				NewCondIPv4(
-					&IPv4MatchToS{
-						TOS: 0x80,
-					},
-				),
-				NewCondIPv4(
-					&IPv4MatchSource{
-						&net.IPNet{
-							IP:   net.IP{192, 168, 1, 1},
-							Mask: net.IPv4Mask(255, 255, 255, 255),
-						},
-					},
-				),
-			),
-		),
-	}
+func TestBadJSON(t *testing.T) {
+	testCases := []string{`
+		{
+			"Name": "Undefined condition"
+		}
+		`, `
+		{
+			"CondFoo": true,
+			"Name": "Nonexistent cond type"
+		}
+		`, `
+		{
+			"CondBool": "hello gophers",
+			"Name": "Unparsable bool conditions"
+		}
+		`, `
+		{
+			"CondAllOf": [
+			{
+				"CondBool": true
+			},
+			{
+				"CondBool": "gopher"
+			}
+			],
+			"Name": "Unparsable subcondition"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"x" "x"
+			},
+			"Name": "Bad JSON"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchTOS": {
+					"foo": 123
+				}
+			},
+			"Name": "No TOS operand"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchTOS": {
+					"TOS": 17
+				}
+			},
+			"Name": "Unable to parse ToS operand"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchTOS": {
+					"TOS": "0xx123"
+				}
+			},
+			"Name": "Unable to parse ToS operand string"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchDestination": {
+					"foo": 123
+				}
+			},
+			"Name": "No destination operand"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchDestination": {
+					"Net": 1234
+				}
+			},
+			"Name": "Unable to parse destination operand"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchDestination": {
+					"Net": "1.2.3.4///"
+				}
+			},
+			"Name": "Unable to parse destination operand string"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchSource": {
+					"foo": 123
+				}
+			},
+			"Name": "No source operand"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchSource": {
+					"Net": 1234
+				}
+			},
+			"Name": "Unable to parse source operand"
+		}
+		`, `
+		{
+			"CondIPv4": {
+				"MatchSource": {
+					"Net": "1.2.3.4///"
+				}
+			},
+			"Name": "Unable to parse source operand string"
+		}
+	`}
+	Convey("Marshaling bad JSON should return errors", t, func() {
+		for i, tc := range testCases {
+			var c Class
+			err := json.Unmarshal([]byte(tc), &c)
+			SoMsg(fmt.Sprintf("err %d", i), err, ShouldNotBeNil)
+		}
+	})
 }
