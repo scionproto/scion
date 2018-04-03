@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build ignore
-
 // Simple application for SCION connectivity using the snet library.
 package main
 
@@ -27,8 +25,8 @@ import (
 	"time"
 
 	log "github.com/inconshreveable/log15"
-	//"github.com/lucas-clemente/quic-go"
-	//"github.com/lucas-clemente/quic-go/qerr"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -152,7 +150,7 @@ func Client() {
 	Read(qstream)
 }
 
-func Send( /* qstream quic.Stream */ ) {
+func Send(qstream quic.Stream) {
 	reqMsgLen := len(ReqMsg)
 	payload := make([]byte, reqMsgLen+TSLen)
 	copy(payload[0:], ReqMsg)
@@ -166,11 +164,11 @@ func Send( /* qstream quic.Stream */ ) {
 		common.Order.PutUint64(payload[reqMsgLen:], uint64(before.UnixNano()))
 		written, err := qstream.Write(payload[:])
 		if err != nil {
-			//qer := qerr.ToQuicError(err)
-			//if qer.ErrorCode == qerr.NetworkIdleTimeout {
-			//	log.Debug("The connection timed out due to no network activity")
-			//	break
-			//}
+			qer := qerr.ToQuicError(err)
+			if qer.ErrorCode == qerr.NetworkIdleTimeout {
+				log.Debug("The connection timed out due to no network activity")
+				break
+			}
 			log.Error("Unable to write", "err", err)
 			continue
 		}
@@ -187,7 +185,7 @@ func Send( /* qstream quic.Stream */ ) {
 	}
 }
 
-func Read( /* qstream quic.Stream */ ) {
+func Read(qstream quic.Stream) {
 	// Receive pong message (with final timeout)
 	b := make([]byte, 1<<12)
 	replyMsgLen := len(ReplyMsg)
@@ -195,11 +193,11 @@ func Read( /* qstream quic.Stream */ ) {
 		read, err := qstream.Read(b)
 		after := time.Now()
 		if err != nil {
-			//qer := qerr.ToQuicError(err)
-			//if qer.ErrorCode == qerr.PeerGoingAway {
-			//	log.Debug("Quic peer disconnected")
-			//	break
-			//}
+			qer := qerr.ToQuicError(err)
+			if qer.ErrorCode == qerr.PeerGoingAway {
+				log.Debug("Quic peer disconnected")
+				break
+			}
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				log.Debug("ReadDeadline missed", "err", err)
 				// ReadDeadline is only set after we are done writing
@@ -220,10 +218,10 @@ func Read( /* qstream quic.Stream */ ) {
 			continue
 		}
 		before := time.Unix(0, int64(common.Order.Uint64(b[replyMsgLen:replyMsgLen+TSLen])))
-		elapsed := after.Sub(before)
+		elapsed := after.Sub(before).Round(time.Microsecond)
 		if *verbose {
 			fmt.Printf("[%s]\tReceived %d bytes from %v: seq=%d RTT=%s\n",
-				before.Unix(), read, &remote, i, elapsed)
+				before.Format(common.TimeFmt), read, &remote, i, elapsed)
 		} else {
 			fmt.Printf("Received %d bytes from %v: seq=%d RTT=%s\n",
 				read, &remote, i, elapsed)
@@ -265,7 +263,7 @@ func initNetwork() {
 	log.Debug("QUIC/SCION successfully initialized")
 }
 
-func handleClient( /* qsess quic.Session */ ) {
+func handleClient(qsess quic.Session) {
 	defer qsess.Close(nil)
 	qstream, err := qsess.AcceptStream()
 	defer qstream.Close()
@@ -280,11 +278,11 @@ func handleClient( /* qsess quic.Session */ ) {
 		// Receive ping message
 		read, err := qstream.Read(b)
 		if err != nil {
-			//qer := qerr.ToQuicError(err)
-			//if qer.ErrorCode == qerr.PeerGoingAway {
-			//	log.Debug("Quic peer disconnected")
-			//	break
-			//}
+			qer := qerr.ToQuicError(err)
+			if qer.ErrorCode == qerr.PeerGoingAway {
+				log.Debug("Quic peer disconnected")
+				break
+			}
 			log.Error("Unable to read", "err", err)
 			break
 		}
@@ -293,7 +291,7 @@ func handleClient( /* qsess quic.Session */ ) {
 				"actual", string(b[:reqMsgLen]), "full", string(b[:read]))
 		}
 		// extract timestamp
-		ts := common.Order.PutUint64(b[reqMsgLen:])
+		ts := common.Order.Uint64(b[reqMsgLen:])
 
 		// Send pong message
 		replyMsgLen := len(ReplyMsg)

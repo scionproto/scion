@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build ignore
-
 // QUIC/SCION implementation.
 package squic
 
@@ -21,7 +19,7 @@ import (
 	"crypto/tls"
 
 	//log "github.com/inconshreveable/log15"
-	//"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -54,26 +52,26 @@ func Init(keyPath, pemPath string) error {
 	return nil
 }
 
-func DialSCION(network *snet.Network, laddr, raddr *snet.Addr) /*quic.Session, */ error {
+func DialSCION(network *snet.Network, laddr, raddr *snet.Addr) (quic.Session, error) {
 	return DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone)
 }
 
 func DialSCIONWithBindSVC(network *snet.Network, laddr, raddr, baddr *snet.Addr,
-	svc addr.HostSVC) /*quic.Session, */ error {
+	svc addr.HostSVC) (quic.Session, error) {
 	sconn, err := sListen(network, laddr, baddr, svc)
 	if err != nil {
 		return nil, err
 	}
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
-	return //quic.Dial(sconn, raddr, "host:0", cliTlsCfg, nil)
+	return quic.Dial(sconn, raddr, "host:0", cliTlsCfg, nil)
 }
 
-func ListenSCION(network *snet.Network, laddr *snet.Addr) /*quic.Listener, */ error {
+func ListenSCION(network *snet.Network, laddr *snet.Addr) (quic.Listener, error) {
 	return ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone)
 }
 
 func ListenSCIONWithBindSVC(network *snet.Network, laddr, baddr *snet.Addr,
-	svc addr.HostSVC) /*quic.Listener, */ error {
+	svc addr.HostSVC) (quic.Listener, error) {
 	if len(srvTlsCfg.Certificates) == 0 {
 		return nil, common.NewBasicError("squic: No server TLS certificate configured", nil)
 	}
@@ -81,7 +79,7 @@ func ListenSCIONWithBindSVC(network *snet.Network, laddr, baddr *snet.Addr,
 	if err != nil {
 		return nil, err
 	}
-	return //quic.Listen(sconn, srvTlsCfg, nil)
+	return quic.Listen(sconn, srvTlsCfg, nil)
 }
 
 func sListen(network *snet.Network, laddr, baddr *snet.Addr,
