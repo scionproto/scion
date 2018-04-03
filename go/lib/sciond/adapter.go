@@ -32,9 +32,7 @@ func (a *Adapter) MsgToRaw(msg proto.Cerealizable) (common.RawBytes, error) {
 }
 
 func (a *Adapter) RawToMsg(b common.RawBytes) (proto.Cerealizable, error) {
-	msg := &Pld{}
-	err := proto.ParseFromRaw(msg, proto.SCIONDMsg_TypeID, b)
-	return msg, err
+	return NewPldFromRaw(b)
 }
 
 func (a *Adapter) MsgKey(msg proto.Cerealizable) string {
