@@ -114,6 +114,11 @@ DEFAULT_CERTIFICATE_SERVER = "py"
 DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
+
+DEFAULT_TRC_VALIDITY = 365 * 24 * 60 * 60
+DEFAULT_CORE_CERT_VALIDITY = 364 * 24 * 60 * 60
+DEFAULT_LEAF_CERT_VALIDITY = 363 * 24 * 60 * 60
+
 INITIAL_CERT_VERSION = 1
 INITIAL_TRC_VERSION = 1
 INITIAL_GRACE_PERIOD = 0
@@ -403,20 +408,18 @@ class CertGenerator(object):
             signing_key = self.priv_online_root_keys[topo_id]
             can_issue = True
             comment = "Core AS Certificate"
-            validity_period = Certificate.CORE_AS_VALIDITY_PERIOD
             self.core_certs[topo_id] = Certificate.from_values(
                 str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
-                comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
+                comment, can_issue, DEFAULT_CORE_CERT_VALIDITY, self.enc_pub_keys[topo_id],
                 self.pub_core_sig_keys[topo_id], signing_key
             )
         # Create regular AS certificate
         signing_key = self.priv_core_sig_keys[issuer]
         can_issue = False
         comment = "AS Certificate"
-        validity_period = Certificate.AS_VALIDITY_PERIOD
         self.certs[topo_id] = Certificate.from_values(
             str(topo_id), str(issuer), INITIAL_TRC_VERSION, INITIAL_CERT_VERSION,
-            comment, can_issue, validity_period, self.enc_pub_keys[topo_id],
+            comment, can_issue, DEFAULT_LEAF_CERT_VALIDITY, self.enc_pub_keys[topo_id],
             self.sig_pub_keys[topo_id], signing_key
         )
 
@@ -452,11 +455,10 @@ class CertGenerator(object):
                 OFFLINE_KEY_STRING: self.pub_offline_root_keys[topo_id]}
 
     def _create_trc(self, isd):
-        validity_period = TRC.VALIDITY_PERIOD
         quorum_trc = min(self.core_count[isd], MAX_QUORUM_TRC)
         self.trcs[isd] = TRC.from_values(
             isd, "ISD %s" % isd, INITIAL_TRC_VERSION, {}, {}, {}, THRESHOLD_EEPKI, {}, quorum_trc,
-            MAX_QUORUM_CAS, INITIAL_GRACE_PERIOD, False, {}, validity_period)
+            MAX_QUORUM_CAS, INITIAL_GRACE_PERIOD, False, {}, DEFAULT_TRC_VALIDITY)
 
     def _sign_trc(self, topo_id, as_conf):
         if not as_conf.get('core', False):

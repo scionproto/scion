@@ -67,8 +67,6 @@ class Certificate(object):
     :cvar str sign_algortihm: default algorithm used to sign a certificate.
     :cvar str enc_alorithm: default algorithm used to encrypt messages.
     """
-    AS_VALIDITY_PERIOD = 365 * 24 * 60 * 60
-    CORE_AS_VALIDITY_PERIOD = 365 * 24 * 60 * 60
     SIGN_ALGORTIHM = 'ed25519'
     ENC_ALGORITHM = 'curve25519xsalsa20poly1305'
     FIELDS_MAP = {
