@@ -3,12 +3,12 @@ first make sure the infrastructure is running.
 
 Then, start the server using:
 ```
-go run pingpong.go -mode server -local 2-25,[127.0.0.1]:40002 -count 10
+pingpong -mode server -local 2-25,[127.0.0.1]:40002
 ```
 
 Finally, start the client using:
 ```
-go run pingpong.go -mode client -remote 2-25,[127.0.0.1]:40002 -local 1-19,[127.0.0.1]:0 -count 10
+pingpong -mode client -remote 2-25,[127.0.0.1]:40002 -local 1-19,[127.0.0.1]:0 -count 10
 ```
 
 When running the client in interactive mode, the user would be able to choose
