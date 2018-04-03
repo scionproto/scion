@@ -24,9 +24,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/path"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -68,7 +68,7 @@ func TestQueryFilter(t *testing.T) {
 		srcIA := addr.IA{I: 1, A: 10}
 		dstIA := addr.IA{I: 1, A: 16}
 
-		pp, err := path.NewPathPredicate("1-19#0")
+		pp, err := spathmeta.NewPathPredicate("1-19#0")
 		xtest.FailOnErr(t, err)
 		filter := pktcls.NewActionFilterPaths("test-1-19#0", pktcls.NewCondPathPredicate(pp))
 
@@ -116,7 +116,7 @@ func TestRegisterFilter(t *testing.T) {
 		srcIA := addr.IA{I: 1, A: 10}
 		dstIA := addr.IA{I: 1, A: 16}
 
-		pp, err := path.NewPathPredicate("1-19#1910")
+		pp, err := spathmeta.NewPathPredicate("1-19#1910")
 		xtest.FailOnErr(t, err)
 		filter := pktcls.NewActionFilterPaths("test-1-19#1910", pktcls.NewCondPathPredicate(pp))
 
@@ -148,7 +148,7 @@ func TestRevoke(t *testing.T) {
 		apsCheckPaths("watch", sp.Load().APS,
 			"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
 
-		pp, err := path.NewPathPredicate("1-15#1518")
+		pp, err := spathmeta.NewPathPredicate("1-15#1518")
 		xtest.FailOnErr(t, err)
 		filter := pktcls.NewActionFilterPaths("test-1-15#1518", pktcls.NewCondPathPredicate(pp))
 		spf, err := pm.WatchFilter(watchSrc, watchDst, filter)
@@ -215,7 +215,7 @@ func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) 
 	return pm
 }
 
-func getPathStrings(aps path.AppPathSet) []string {
+func getPathStrings(aps spathmeta.AppPathSet) []string {
 	var ss []string
 	for _, v := range aps {
 		ss = append(ss, fmt.Sprintf("%v", v.Entry.Path.Interfaces))
@@ -223,7 +223,7 @@ func getPathStrings(aps path.AppPathSet) []string {
 	return ss
 }
 
-func apsCheckPaths(desc string, aps path.AppPathSet, expValues ...string) {
+func apsCheckPaths(desc string, aps spathmeta.AppPathSet, expValues ...string) {
 	SoMsg(fmt.Sprintf("%s: len", desc), len(aps), ShouldEqual, len(expValues))
 	for i, value := range expValues {
 		SoMsg(fmt.Sprintf("%s: path %d", desc, i), getPathStrings(aps), ShouldContain, value)
