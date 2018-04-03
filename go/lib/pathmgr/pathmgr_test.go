@@ -23,7 +23,11 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/path"
+	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
@@ -31,8 +35,8 @@ func TestQuery(t *testing.T) {
 	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
 		g := graph.NewDefaultGraph()
 		pm := NewPR(t, g, 250, 250, 100)
-		srcIA := MustParseIA("1-10")
-		dstIA := MustParseIA("1-16")
+		srcIA := addr.IA{I: 1, A: 10}
+		dstIA := addr.IA{I: 1, A: 16}
 
 		aps := pm.Query(srcIA, dstIA)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
@@ -61,14 +65,17 @@ func TestQueryFilter(t *testing.T) {
 	Convey("Query with filter, only one path should remain", t, func() {
 		g := graph.NewDefaultGraph()
 		pm := NewPR(t, g, 0, 0, 0)
-		srcIA := MustParseIA("1-10")
-		dstIA := MustParseIA("1-16")
+		srcIA := addr.IA{I: 1, A: 10}
+		dstIA := addr.IA{I: 1, A: 16}
 
-		pp, err := NewPathPredicate("1-19#0")
+		pp, err := path.NewPathPredicate("1-19#0")
+		xtest.FailOnErr(t, err)
+		filter := pktcls.NewActionFilterPaths("test-1-19#0", pktcls.NewCondPathPredicate(pp))
+
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("pp", pp, ShouldNotBeNil)
+		SoMsg("filter", filter, ShouldNotBeNil)
 
-		aps := pm.QueryFilter(srcIA, dstIA, pp)
+		aps := pm.QueryFilter(srcIA, dstIA, filter)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
 			"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
@@ -82,8 +89,8 @@ func TestRegister(t *testing.T) {
 		// nil
 		g.RemoveLink(1019)
 		pm := NewPR(t, g, 100, 100, 100)
-		srcIA := MustParseIA("1-10")
-		dstIA := MustParseIA("1-16")
+		srcIA := addr.IA{I: 1, A: 10}
+		dstIA := addr.IA{I: 1, A: 16}
 
 		sp, err := pm.Watch(srcIA, dstIA)
 		SoMsg("err", err, ShouldBeNil)
@@ -106,14 +113,14 @@ func TestRegisterFilter(t *testing.T) {
 	Convey("Register filter 1-19#1910", t, func() {
 		g := graph.NewDefaultGraph()
 		pm := NewPR(t, g, 500, 500, 1000)
-		srcIA := MustParseIA("1-10")
-		dstIA := MustParseIA("1-16")
+		srcIA := addr.IA{I: 1, A: 10}
+		dstIA := addr.IA{I: 1, A: 16}
 
-		pp, err := NewPathPredicate("1-19#1910")
-		SoMsg("pp", pp, ShouldNotBeNil)
-		SoMsg("err", err, ShouldBeNil)
+		pp, err := path.NewPathPredicate("1-19#1910")
+		xtest.FailOnErr(t, err)
+		filter := pktcls.NewActionFilterPaths("test-1-19#1910", pktcls.NewCondPathPredicate(pp))
 
-		sp, err := pm.WatchFilter(srcIA, dstIA, pp)
+		sp, err := pm.WatchFilter(srcIA, dstIA, filter)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("len aps", len(sp.Load().APS), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
@@ -126,11 +133,11 @@ func TestRevoke(t *testing.T) {
 		g := graph.NewDefaultGraph()
 		pm := NewPR(t, g, 60, 60, 60)
 		// Query: 1-10 -> 1-16
-		querySrc := MustParseIA("1-10")
-		queryDst := MustParseIA("1-16")
+		querySrc := addr.IA{I: 1, A: 10}
+		queryDst := addr.IA{I: 1, A: 16}
 		// Watch/WatchFilter: 1-18 -> 2-22
-		watchSrc := MustParseIA("1-18")
-		watchDst := MustParseIA("2-22")
+		watchSrc := addr.IA{I: 1, A: 18}
+		watchDst := addr.IA{I: 2, A: 22}
 
 		aps := pm.Query(querySrc, queryDst)
 		apsCheckPaths("path", aps,
@@ -141,16 +148,17 @@ func TestRevoke(t *testing.T) {
 		apsCheckPaths("watch", sp.Load().APS,
 			"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
 
-		pp, err := NewPathPredicate("1-15#1518")
-		SoMsg("err predicate", err, ShouldBeNil)
-		spf, err := pm.WatchFilter(watchSrc, watchDst, pp)
+		pp, err := path.NewPathPredicate("1-15#1518")
+		xtest.FailOnErr(t, err)
+		filter := pktcls.NewActionFilterPaths("test-1-15#1518", pktcls.NewCondPathPredicate(pp))
+		spf, err := pm.WatchFilter(watchSrc, watchDst, filter)
 		SoMsg("watch filter: err", err, ShouldBeNil)
 		apsCheckPaths("watch filter", spf.Load().APS,
 			"[1-18#1815 1-15#1518 1-15#1512 1-12#1215 1-12#1222 2-22#2212]")
 
 		Convey("Revoke a path that's not part of any path set", func() {
 			g.RemoveLink(1311)
-			pm.cache.revoke(uifidFromValues(MustParseIA("1-13"), 1311))
+			pm.cache.revoke(uifidFromValues(addr.IA{I: 1, A: 13}, 1311))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps,
 				"[1-10#1019 1-19#1910 1-19#1916 1-16#1619]")
@@ -166,7 +174,7 @@ func TestRevoke(t *testing.T) {
 			// reaches 0 paths after the revocation, thus forcing a requery
 			// to sciond behind the scenes, which gets back the same path.
 			g.RemoveLink(1019)
-			pm.cache.revoke(uifidFromValues(MustParseIA("1-10"), 1019))
+			pm.cache.revoke(uifidFromValues(addr.IA{I: 1, A: 10}, 1019))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps)
 			apsCheckPaths("watch", sp.Load().APS,
@@ -207,7 +215,7 @@ func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) 
 	return pm
 }
 
-func getPathStrings(aps AppPathSet) []string {
+func getPathStrings(aps path.AppPathSet) []string {
 	var ss []string
 	for _, v := range aps {
 		ss = append(ss, fmt.Sprintf("%v", v.Entry.Path.Interfaces))
@@ -215,7 +223,7 @@ func getPathStrings(aps AppPathSet) []string {
 	return ss
 }
 
-func apsCheckPaths(desc string, aps AppPathSet, expValues ...string) {
+func apsCheckPaths(desc string, aps path.AppPathSet, expValues ...string) {
 	SoMsg(fmt.Sprintf("%s: len", desc), len(aps), ShouldEqual, len(expValues))
 	for i, value := range expValues {
 		SoMsg(fmt.Sprintf("%s: path %d", desc, i), getPathStrings(aps), ShouldContain, value)

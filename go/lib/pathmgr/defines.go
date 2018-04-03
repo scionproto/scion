@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/path"
+	"github.com/scionproto/scion/go/lib/pktcls"
 )
 
 const (
@@ -47,8 +49,8 @@ func (k IAKey) String() string {
 type filterSet map[string]*pathFilter
 
 // update all the pathFilters in fs to contain the paths in aps that match
-// their respective PathPredicates.
-func (fs filterSet) update(aps AppPathSet) {
+// their respective path.PathPredicates.
+func (fs filterSet) update(aps path.AppPathSet) {
 	// Walk each PathFilter in this FilterSet and Update paths if needed
 	for _, pathFilter := range fs {
 		pathFilter.update(aps)
@@ -57,24 +59,19 @@ func (fs filterSet) update(aps AppPathSet) {
 
 type pathFilter struct {
 	sp       *SyncPaths
-	pp       *PathPredicate
+	pp       *pktcls.ActionFilterPaths
 	refCount int
 }
 
 // update replaces the pathFilter's paths with those from aps, filtered by the
-// pathFilter's PathPredicate (if set).
-func (pf *pathFilter) update(aps AppPathSet) {
+// pathFilter's path.PathPredicate (if set).
+func (pf *pathFilter) update(aps path.AppPathSet) {
 	// Filter the paths according to the current predicate
-	newAPS := make(AppPathSet)
+	newAPS := make(path.AppPathSet)
 	if pf.pp == nil {
 		newAPS = aps
 	} else {
-		for _, appPath := range aps {
-			match := pf.pp.Eval(appPath.Entry)
-			if match {
-				newAPS.Add(appPath.Entry)
-			}
-		}
+		newAPS = pf.pp.Act(aps).(path.AppPathSet)
 	}
 	pf.sp.update(newAPS)
 }
