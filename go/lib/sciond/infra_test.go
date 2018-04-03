@@ -18,10 +18,8 @@ package sciond
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -34,7 +32,7 @@ import (
 // FIXME(scrye): add update code for the revocation token in testdata/revocation.bin
 
 func TestRevNotification(t *testing.T) {
-	token := mustRead(t, "revocation.bin")
+	token := xtest.MustRead(t, "revocation.bin")
 
 	rand.Seed(time.Now().UnixNano())
 	Convey("Old revocations should return correct status code", t, func() {
@@ -53,17 +51,6 @@ func TestRevNotification(t *testing.T) {
 		SoMsg("RevNotification error", err, ShouldBeNil)
 		SoMsg("Result", reply.Result, ShouldEqual, RevInvalid)
 	})
-}
-
-func mustRead(t *testing.T, baseName string) []byte {
-	t.Helper()
-
-	name := filepath.Join("testdata", baseName)
-	b, err := ioutil.ReadFile(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b
 }
 
 func TestMain(m *testing.M) {
