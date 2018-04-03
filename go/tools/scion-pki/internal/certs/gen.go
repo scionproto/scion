@@ -87,6 +87,12 @@ func genCert(ia addr.IA, isIssuer bool) error {
 		return common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
 			conf.IssuerSectionName), nil, "path", cpath)
 	}
+	// Check if file already exists.
+	fname := fmt.Sprintf(pkicmn.CertNameFmt, ia.I, ia.A, a.AsCert.Version)
+	if _, err := os.Stat(filepath.Join(dir, "certs", fname)); err == nil && !pkicmn.Force {
+		fmt.Printf("%s already exists. Use -f to overwrite.\n", fname)
+		return nil
+	}
 	fmt.Println("Generating Certificate Chain for", ia)
 	// If we are an issuer then we need to generate an issuer cert first.
 	var issuerCert *cert.Certificate
@@ -117,8 +123,6 @@ func genCert(ia addr.IA, isIssuer bool) error {
 		}
 	}
 	// Write the cert to disk.
-	subject := chain.Leaf.Subject
-	fname := fmt.Sprintf(pkicmn.CertNameFmt, subject.I, subject.A, chain.Leaf.Version)
 	raw, err := chain.JSON(true)
 	if err != nil {
 		return common.NewBasicError("Error json-encoding cert", err, "subject", ia)
