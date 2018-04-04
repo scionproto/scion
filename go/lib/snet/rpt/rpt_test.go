@@ -30,9 +30,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-// FIXME(scrye): move this to go/lib/infra/transport once it can import snet
-// without causing a circular dependency.
-
 func TestSendUnreliableMsgTo(t *testing.T) {
 	Convey("Create RPT, send unreliable message, and receive same message", t, func() {
 		conn := loopback.New()

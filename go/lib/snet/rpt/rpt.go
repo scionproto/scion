@@ -35,6 +35,9 @@ import (
 	"github.com/scionproto/scion/go/lib/util/bufpool"
 )
 
+// FIXME(scrye): move this to go/lib/infra/transport once it can import snet
+// without causing a circular dependency.
+
 type rptFlag uint8
 
 func (f rptFlag) isSet(other rptFlag) bool {
