@@ -41,7 +41,7 @@ void simple_test() {
         checksum(input);
     }
     printf("simple_test(%" PRIu64 " = %" PRIu64 "B): %" PRIu64 " in %" PRId32 "s"
-           " (%.2lfM calls/s)\n", sizeof(data), sizeof(data), i, RUN_TIME, 
+           " (%.2lfM calls/s)\n", sizeof(data), sizeof(data), i, RUN_TIME,
            ((double)i/RUN_TIME)/1000000);
 }
 
