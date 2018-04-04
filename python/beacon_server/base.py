@@ -433,8 +433,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pld = cpld.union
         assert isinstance(pld, IFIDPayload), type(pld)
         ifid = pld.p.relayIF
-        print("received ifid update", pld)
-        print(cpld)
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
