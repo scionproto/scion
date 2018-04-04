@@ -54,6 +54,8 @@ IFIDS_FILE = "ifids.yml"
 AS_LIST_FILE = "as_list.yml"
 #: Prometheus config
 PROM_FILE = "prometheus.yml"
+#: Overlay
+OVERLAY_FILE = "overlay"
 
 #: Buffer size for receiving packets
 SCION_BUFLEN = 65535
@@ -142,3 +144,10 @@ TCP_TIMEOUT = 5.0
 
 # Max time for a path lookup to succeed/fail.
 PATH_REQ_TOUT = 2
+
+# Default IPv6 network, our equivalent to 127.0.0.0/8
+DEFAULT6_NETWORK_ADDR = "fd00:f00d:cafe::7f00:0000"
+DEFAULT6_MASK = "/104"
+DEFAULT6_NETWORK = DEFAULT6_NETWORK_ADDR + DEFAULT6_MASK
+DEFAULT6_CLIENT = "fd00:f00d:cafe::7f00:0002"
+DEFAULT6_SERVER = "fd00:f00d:cafe::7f00:0003"

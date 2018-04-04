@@ -44,14 +44,16 @@ cmd_run() {
     if [ -e gen/zk_datalog_dirs.sh ]; then
         bash gen/zk_datalog_dirs.sh || exit 1
     fi
-    sudo PYTHONPATH=$PYTHONPATH python/integration/set_ipv6_addr.py -a
+    python/integration/set_ipv6_addr.py -a
     supervisor/supervisor.sh start all
 }
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     supervisor/supervisor.sh stop all
-    sudo PYTHONPATH=$PYTHONPATH python/integration/set_ipv6_addr.py -d
+    if [ "$1" = "clean" ]; then
+        python/integration/set_ipv6_addr.py -d
+    fi
     find /run/shm/dispatcher /run/shm/sciond -type s -print0 | xargs -r0 rm -v
 }
 

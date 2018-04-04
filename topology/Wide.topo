@@ -2,7 +2,6 @@
 defaults:
   zookeepers:
     1:
-      manage: false
       addr: 127.0.0.1
 
 ASes:

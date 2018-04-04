@@ -21,25 +21,42 @@ from ipaddress import IPv6Address, IPv6Network
 # SCION
 from lib.defines import (
     GEN_PATH,
+    DEFAULT6_CLIENT,
+    DEFAULT6_MASK,
+    DEFAULT6_NETWORK,
+    DEFAULT6_SERVER,
     NETWORKS_FILE,
+    OVERLAY_FILE,
+)
+
+from lib.util import (
+    read_file,
 )
 
 
-def set_interfaces(action):
+def set_interfaces():
     path = os.path.join(GEN_PATH, NETWORKS_FILE)
     with open(path, 'r') as f:
         for l in f.readlines():
             try:
                 address = l.split("= ")[1]
                 addr = IPv6Address(address[:-1])
-                if addr in IPv6Network('::127:0:0:0/112'):
-                    # Redirect stderr to NULL to avoid error in case the IP address is alredy set
-                    os.system('ip addr %s %s/128 dev lo 2>/dev/null' % (action, str(addr)))
+                if addr in IPv6Network(DEFAULT6_NETWORK):
+                    os.system('sudo ip addr replace %s/104 dev lo' % (str(addr)))
             except Exception:
                 continue
 
 
+def get_overlay():
+    file_path = os.path.join(GEN_PATH, OVERLAY_FILE)
+    return read_file(file_path).strip()
+
+
 def main():
+    overlay = get_overlay()
+    if overlay == 'UDP/IPv4' or overlay == 'IPv4':
+        return
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--add', action='store_true',
                         help='Add IPv6 local host addresses to loopback')
@@ -47,9 +64,11 @@ def main():
                         help='Delete IPv6 local host addresses from loopback')
     args = parser.parse_args()
     if args.add:
-        set_interfaces('add')
+        os.system('sudo ip addr replace %s dev lo' % (DEFAULT6_CLIENT + DEFAULT6_MASK))
+        os.system('sudo ip addr replace %s dev lo' % (DEFAULT6_SERVER + DEFAULT6_MASK))
+        set_interfaces()
     if args.delete:
-        set_interfaces('delete')
+        os.system('sudo ip addr flush dev lo to %s' % (DEFAULT6_NETWORK))
 
 if __name__ == "__main__":
     main()

@@ -35,13 +35,6 @@ for br in "$@"; do
 done
 
 export PYTHONPATH=python/:.
-log "Testing connectivity between all the hosts."
-python/integration/end2end_test.py -l ERROR
-result=$?
-if [ ${result} -ne 0 ]; then
-    log "E2E test failed. (${result})"
-    exit ${result}
-fi
 # Bring down routers.
 SLEEP=4
 log "Stopping routers and waiting for ${SLEEP}s."
