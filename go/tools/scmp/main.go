@@ -60,7 +60,7 @@ func main() {
 	}
 	// Initialize default SCION networking context
 	if err := snet.Init(cmn.Local.IA, *sciondPath, *dispatcher); err != nil {
-		//		cmn.Fatal("Unable to initialize SCION network\nerr=%v", err)
+		cmn.Fatal("Unable to initialize SCION network\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
 	address := &reliable.AppAddr{Addr: cmn.Local.Host}
@@ -68,9 +68,10 @@ func main() {
 	if cmn.Bind.Host != nil {
 		bindAddress = &reliable.AppAddr{Addr: cmn.Bind.Host}
 	}
-	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, address, bindAddress, addr.SvcNone)
+	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, address,
+		bindAddress, addr.SvcNone)
 	if err != nil {
-		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local.String(), err)
+		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local, err)
 	}
 	defer cmn.Conn.Close()
 
@@ -80,9 +81,7 @@ func main() {
 		cmn.Mtu = setPathAndMtu()
 		pathStr = cmn.PathEntry.Path.String()
 	} else {
-		//	cmn.mtu = setLocalMtu()
-		cmn.Mtu = 1500
-		pathStr = "None"
+		cmn.Mtu = setLocalMtu()
 	}
 	fmt.Printf("Using path:\n  %s\n", pathStr)
 
@@ -103,7 +102,7 @@ func doCommand(cmd string) int {
 	case "rp", "recordpath":
 		recordpath.Run()
 	default:
-		fmt.Fprintf(os.Stderr, "ERROR: Invalid command\n")
+		fmt.Fprintf(os.Stderr, "ERROR: Invalid command %s\n", cmd)
 		flag.Usage()
 		os.Exit(1)
 	}

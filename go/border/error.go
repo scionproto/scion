@@ -53,6 +53,7 @@ func (r *Router) PacketError() {
 	// Run forever.
 	for args := range r.pktErrorQ {
 		r.doPktError(args.rp, args.perr)
+		args.rp.Release()
 	}
 }
 
@@ -99,7 +100,6 @@ func (r *Router) doPktError(rp *rpkt.RtrPkt, perr error) {
 		rp.Error("Error creating SCMP response", "err", err)
 		return
 	}
-	rp.Release()
 	reply.Route()
 }
 
