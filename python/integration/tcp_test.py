@@ -32,9 +32,9 @@ from lib.tcp.socket import SCIONTCPSocket, SockOpt
 from lib.util import recv_all
 from integration.base_cli_srv import start_sciond
 
-s_isd_as = ISD_AS("1-18")
+s_isd_as = ISD_AS("1-4_295_001_022")
 s_ip = haddr_parse(1, "127.1.1.1")
-c_isd_as = ISD_AS("2-26")
+c_isd_as = ISD_AS("2-4_295_002_022")
 c_ip = haddr_parse(1, "127.2.2.2")
 # TODO(PSz): test with 0
 MAX_MSG_SIZE = 500000

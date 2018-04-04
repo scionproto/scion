@@ -53,7 +53,7 @@ Selector:
 	X-*
 		All ASes in ISD X.
 	X-Y
-		A specific AS X-Y, e.g. AS 1-11
+		A specific AS X-Y, e.g. AS 1-4_294_967_300
 
 `,
 }

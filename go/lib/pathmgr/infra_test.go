@@ -28,13 +28,13 @@ import (
 )
 
 var (
-	srcStr = flag.String("srcIA", "1-14", "Source ISD-AS")
-	dstStr = flag.String("dstIA", "2-21", "Destination ISD-AS")
+	srcStr = flag.String("srcIA", "1-4_295_001_11", "Source ISD-AS")
+	dstStr = flag.String("dstIA", "2-4_295_002_10", "Destination ISD-AS")
 )
 
 // SCION test infrastructure needs to be running for this example.
 func ExamplePR() {
-	// Run with "go test -tags=infrarunning -args -srcIA 1-14 -dstIA 2-21".
+	// Run with "go test -tags=infrarunning -args -srcIA 1-4_295_001_11 -dstIA 2-4_295_002_10".
 	var err error
 	src, err := addr.IAFromString(*srcStr)
 	if err != nil {

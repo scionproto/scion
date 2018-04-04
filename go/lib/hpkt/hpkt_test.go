@@ -54,9 +54,9 @@ func Test_ParseScnPkt(t *testing.T) {
 		SoMsg("error", err, ShouldBeNil)
 
 		SoMsg("AddrHdr.DstIA.I", s.DstIA.I, ShouldEqual, 2)
-		SoMsg("AddrHdr.DstIA.A", s.DstIA.A, ShouldEqual, 25)
+		SoMsg("AddrHdr.DstIA.A", s.DstIA.A, ShouldEqual, 4295002022)
 		SoMsg("AddrHdr.SrcIA.I", s.SrcIA.I, ShouldEqual, 1)
-		SoMsg("AddrHdr.SrcIA.A", s.SrcIA.A, ShouldEqual, 10)
+		SoMsg("AddrHdr.SrcIA.A", s.SrcIA.A, ShouldEqual, 4295001033)
 
 		SoMsg("AddrHdr.DstHostAddr", s.DstHost.IP(), ShouldResemble, net.IP{127, 2, 2, 222})
 		SoMsg("AddrHdr.SrcHostAddr", s.SrcHost.IP(), ShouldResemble, net.IP{127, 1, 1, 111})
@@ -71,10 +71,10 @@ func Test_ParseScnPkt(t *testing.T) {
 			t.Fatalf("Bad header, cannot continue")
 		}
 
-		SoMsg("UDP.SrcPort", udpHdr.SrcPort, ShouldEqual, 34711)
+		SoMsg("UDP.SrcPort", udpHdr.SrcPort, ShouldEqual, 36921)
 		SoMsg("UDP.DstPort", udpHdr.DstPort, ShouldEqual, 3000)
-		SoMsg("UDP.Len", udpHdr.TotalLen, ShouldEqual, 1144)
-		SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0xa4, 0x06})
+		SoMsg("UDP.Len", udpHdr.TotalLen, ShouldEqual, 1264)
+		SoMsg("UDP.Checksum", udpHdr.Checksum, ShouldResemble, common.RawBytes{0x8f, 0x9d})
 
 		buf := make(common.RawBytes, 1<<16)
 		n, _ := s.Pld.WritePld(buf)
@@ -99,9 +99,9 @@ func Test_ParseSCMPRev(t *testing.T) {
 		}
 		SoMsg("SCMP.Class", scmpHdr.Class, ShouldEqual, scmp.C_Path)
 		SoMsg("SCMP.Type", scmpHdr.Type, ShouldEqual, scmp.T_P_RevokedIF)
-		SoMsg("SCMP.Len", scmpHdr.TotalLen, ShouldEqual, 848)
-		SoMsg("SCMP.Checksum", scmpHdr.Checksum, ShouldResemble, common.RawBytes{0xbc, 0x1b})
-		SoMsg("SCMP.Timestamp", scmpHdr.Timestamp, ShouldEqual, 1521209247650504)
+		SoMsg("SCMP.Len", scmpHdr.TotalLen, ShouldEqual, 816)
+		SoMsg("SCMP.Checksum", scmpHdr.Checksum, ShouldResemble, common.RawBytes{0xde, 0x37})
+		SoMsg("SCMP.Timestamp", scmpHdr.Timestamp, ShouldEqual, 1522929287506836)
 
 		buf := make(common.RawBytes, 1<<16)
 		n, _ := s.Pld.WritePld(buf)
@@ -118,8 +118,8 @@ func Test_ScnPkt_Write(t *testing.T) {
 		"\x00\x3f\x00\x00\x1d\x8a\xad\x6c")
 	Convey("Hpkt should be able to parse packets it writes.", t, func() {
 		s := &spkt.ScnPkt{}
-		s.DstIA, _ = addr.IAFromString("42-1")
-		s.SrcIA, _ = addr.IAFromString("73-1025")
+		s.DstIA, _ = addr.IAFromString("42-4_294_967_300")
+		s.SrcIA, _ = addr.IAFromString("73-4_294_967_301")
 		s.DstHost = addr.HostFromIP(net.IPv4(1, 2, 3, 4))
 		s.SrcHost = addr.HostFromIP(net.IPv4(10, 0, 0, 1))
 		s.Path = &spath.Path{Raw: rawPath, InfOff: 0, HopOff: 8}

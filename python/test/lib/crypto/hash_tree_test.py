@@ -43,7 +43,7 @@ class TestHashTreeCalcTreeDepth(object):
     @patch("lib.crypto.hash_tree.HashTree._setup", autospec=True)
     def test_for_non2power(self, _):
         # Setup
-        inst = HashTree(ISD_AS("1-11"), "if_ids", "seed", 10, HashType.SHA256)
+        inst = HashTree(ISD_AS("1-4_294_967_311"), "if_ids", "seed", 10, HashType.SHA256)
         # Call
         inst.calc_tree_depth(6)
         # Tests
@@ -54,7 +54,7 @@ class TestHashTreeCalcTreeDepth(object):
         # Setup
         if_ids = [1, 2, 3, 4]
         seed = b"abc"
-        inst = HashTree(ISD_AS("1-11"), if_ids, seed, 10, HashType.SHA256)
+        inst = HashTree(ISD_AS("1-4_294_967_311"), if_ids, seed, 10, HashType.SHA256)
         # Call
         inst.calc_tree_depth(8)
         # Tests
@@ -69,7 +69,7 @@ class TestHashTreeCreateTree(object):
     @patch("lib.crypto.hash_tree.hash_func_for_type", autospec=True)
     def test(self, hash_func_for_type, _):
         # Setup
-        isd_as = ISD_AS("1-11")
+        isd_as = ISD_AS("1-4_294_967_311")
         if_ids = [1, 2, 3]
         hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300"]
@@ -93,7 +93,7 @@ class TestHashTreeGetProof(object):
     @patch("lib.crypto.hash_tree.hash_func_for_type", autospec=True)
     def test(self, hash_func_for_type, _):
         # Setup
-        isd_as = ISD_AS("1-11")
+        isd_as = ISD_AS("1-4_294_967_311")
         if_ids = [1, 2, 3]
         hashes = [b"s10", b"10s10", b"s20", b"20s20", b"s30", b"30s30",
                   b"0", b"30s300", b"10s1020s20", b"10s1020s2030s300", b"s20"]
@@ -119,7 +119,7 @@ class TestConnectedHashTreeUpdate(object):
     """
     def test(self):
         # Setup
-        isd_as = ISD_AS("1-11")
+        isd_as = ISD_AS("1-4_294_967_311")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
         inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)
@@ -167,7 +167,7 @@ class TestConnectedHashTreeUpdateAndVerify(object):
     """
     def test(self):
         # Check that the revocation proof is verifiable in T.
-        isd_as = ISD_AS("1-11")
+        isd_as = ISD_AS("1-4_294_967_311")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
         inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)
@@ -180,7 +180,7 @@ class TestConnectedHashTreeUpdateAndVerify(object):
     def test_one_timestep(self):
         # Check that the revocation proof is verifiable across T and T+1.
         # Setup
-        isd_as = ISD_AS("1-11")
+        isd_as = ISD_AS("1-4_294_967_311")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
         inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)
@@ -195,7 +195,7 @@ class TestConnectedHashTreeUpdateAndVerify(object):
     def test_two_timesteps(self):
         # Check that the revocation proof is "NOT" verifiable across T and T+2.
         # Setup
-        isd_as = ISD_AS("1-11")
+        isd_as = ISD_AS("1-4_294_967_311")
         if_ids = [23, 35, 120]
         initial_seed = b"qwerty"
         inst = ConnectedHashTree(isd_as, if_ids, initial_seed, 60, HashType.SHA256)

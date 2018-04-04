@@ -55,7 +55,7 @@ Selector:
 	X-*
 		All ASes in ISD X.
 	X-Y
-		A specific AS X-Y, e.g. AS 1-11
+		A specific AS X-Y, e.g. AS 1-4_294_967_300
 
 'certs' needs to be pointed to the root directory where all keys and certificates are
 stored on disk (-d flag). It expects the contents of the root directory to follow
@@ -75,12 +75,13 @@ a predefined structure:
 		...
 
 as.ini contains the preconfigured parameters according to which 'certs' generates
-the certificates. It follows the ini format and must contain a 
-"AS Certificate" section and in case of a core AS also a "Issuer Certificate" section
-that can contain the following values:
+the certificates. It follows the ini format and must contain a "AS Certificate"
+section and in case of a core AS also a "Issuer Certificate" section that can
+contain the following values:
 	Issuer [required]
-		string identifying the entity that signed the certificate. An AS is represented
-		as a string ISD-AS (e.g., 1-11). This is only needed in the "AS Certificate" section.
+		string identifying the entity that signed the certificate. An AS is
+		represented as a string ISD-AS (e.g., 1-4_294_967_300). This is only
+		needed in the "AS Certificate" section.
 	TRCVersion [required]
 		integer representing the version of TRC that the issuer used at the time of
 		signing the certificate.

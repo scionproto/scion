@@ -7,9 +7,9 @@
     "TRCVersion": 2,
     "ExpirationTime": 1539868933,
     "Signature": "CbjEsqIe4LW7kjMsyMBim4RdRn0YwM4kCjED+1Lbja4o3lwQVHqxVzQ8Rx0CsmHdsm4mwPoNg++KKUlUxrRmCg==",
-    "Issuer": "1-13",
+    "Issuer": "1-4_294_967_310",
     "CanIssue": true,
-    "Subject": "1-13",
+    "Subject": "1-4_294_967_310",
     "IssuingTime": 1508332933,
     "Comment": "Core AS Certificate"
 }

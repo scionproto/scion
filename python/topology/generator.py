@@ -202,6 +202,7 @@ class ConfigGenerator(object):
         """
         Generate all needed files.
         """
+        self._ensure_uniq_ases()
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
@@ -217,6 +218,15 @@ class ConfigGenerator(object):
         self._write_networks_conf(networks, NETWORKS_FILE)
         if self.gen_bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
+
+    def _ensure_uniq_ases(self):
+        seen = set()
+        for asStr in self.topo_config["ASes"]:
+            ia = ISD_AS(asStr)
+            if ia[1] in seen:
+                logging.critical("Non-unique AS Id '%s'", ia[1])
+                sys.exit(1)
+            seen.add(ia[1])
 
     def _generate_cas(self):
         ca_gen = CA_Generator(self.topo_config)
@@ -1046,10 +1056,10 @@ class ZKConfGenerator(object):
 
 class TopoID(ISD_AS):
     def ISD(self):
-        return "ISD%s" % self._isd
+        return "ISD%s" % self.isd_str()
 
     def AS(self):
-        return "AS%s" % self._as
+        return "AS%s" % self.as_str()
 
     def __lt__(self, other):
         return str(self) < str(other)
