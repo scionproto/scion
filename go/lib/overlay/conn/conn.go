@@ -97,7 +97,6 @@ func (c *connUDPIPv4) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, err
 	for i := range metas {
 		metas[i].Reset()
 	}
-	//msgs = msgs[0].(ipv4.Message)
 	n, err := c.pconn.ReadBatch(msgs, syscall.MSG_WAITFORONE)
 	readTime := time.Now()
 	for i := 0; i < n; i++ {

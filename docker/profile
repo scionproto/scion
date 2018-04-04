@@ -5,3 +5,6 @@ export BASEDIR="$GOPATH/src/github.com/scionproto/scion"
 export PYTHONPATH="$BASEDIR/python/:$BASEDIR"
 
 alias cdscion="cd $BASEDIR"
+
+# Starts Zookeeper service at docker startup
+sudo service zookeeper start

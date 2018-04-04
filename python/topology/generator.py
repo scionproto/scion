@@ -74,7 +74,10 @@ from lib.defines import (
     DEFAULT_SEGMENT_TTL,
     GEN_PATH,
     IFIDS_FILE,
+    DEFAULT6_NETWORK,
+    DEFAULT6_NETWORK_ADDR,
     NETWORKS_FILE,
+    OVERLAY_FILE,
     PATH_POLICY_FILE,
     PROM_FILE,
     PRV_NETWORKS_FILE,
@@ -130,8 +133,7 @@ DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 
-DEFAULT6_NETWORK = "::127:0:0:0/104"
-DEFAULT6_PRIV_NETWORK = "fd00::192:168:0:0/112"
+DEFAULT6_PRIV_NETWORK = "fd00:f00d:cafe::c000:0000/104"
 
 SCION_SERVICE_NAMES = (
     "BeaconService",
@@ -173,7 +175,6 @@ class ConfigGenerator(object):
         self.zk_config = load_yaml_file(zk_config_file)
         self.path_policy_file = path_policy_file
         self.mininet = use_mininet
-        self.default_zookeepers = {}
         self.default_mtu = None
         self.gen_bind_addr = bind_addr
         self.pseg_ttl = pseg_ttl
@@ -203,8 +204,6 @@ class ConfigGenerator(object):
         for key, val in defaults.get("zookeepers", {}).items():
             if self.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
-            self.default_zookeepers[key] = ZKTopo(
-                val, self.zk_config)
         self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
 
     def generate_all(self):
@@ -216,7 +215,6 @@ class ConfigGenerator(object):
         cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_supervisor(topo_dicts, zookeepers)
-        self._generate_zk_conf(zookeepers)
         self._generate_prom_conf(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
@@ -259,10 +257,6 @@ class ConfigGenerator(object):
         super_gen = SupervisorGenerator(
             self.out_dir, topo_dicts, zookeepers, self.zk_config, self.mininet, self.cs)
         super_gen.generate()
-
-    def _generate_zk_conf(self, zookeepers):
-        zk_gen = ZKConfGenerator(self.out_dir, zookeepers)
-        zk_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
         prom_gen = PrometheusGenerator(self.out_dir, topo_dicts)
@@ -614,6 +608,7 @@ class TopoGenerator(object):
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
+        self._write_overlay()
         return self.topo_dicts, self.zookeepers, networks, prv_networks
 
     def _read_links(self):
@@ -735,12 +730,7 @@ class TopoGenerator(object):
 
     def _gen_zk_entry(self, topo_id, zk_id, zk_conf):
         zk = ZKTopo(zk_conf, self.zk_config)
-        if zk.manage:
-            elem_id = "zk%s-%s" % (topo_id, zk_id)
-            addr = zk.addr = self._reg_addr(topo_id, elem_id)
-            self.zookeepers[topo_id][elem_id] = zk_id, zk
-        else:
-            addr = str(zk.addr)
+        addr = str(zk.addr)
         self.topo_dicts[topo_id]["ZookeeperService"][zk_id] = {
             'Addr': addr,
             'L4Port': zk.clientPort
@@ -771,6 +761,10 @@ class TopoGenerator(object):
         list_path = os.path.join(self.out_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
+
+    def _write_overlay(self):
+        file_path = os.path.join(self.out_dir, OVERLAY_FILE)
+        write_file(file_path, self.overlay + '\n')
 
 
 class PrometheusGenerator(object):
@@ -1019,61 +1013,6 @@ class SupervisorGenerator(object):
             " ".join(['"%s"' % arg for arg in cmd_args]), name)
 
 
-class ZKConfGenerator(object):
-    def __init__(self, out_dir, zookeepers):
-        self.out_dir = out_dir
-        self.zookeepers = zookeepers
-        self.datalog_dirs = []
-
-    def generate(self):
-        for topo_id, zks in self.zookeepers.items():
-            self._write_as_zk_configs(topo_id, zks)
-        self._write_datalog_dirs()
-
-    def _write_as_zk_configs(self, topo_id, zks):
-        # Build up server block
-        servers = []
-        for id_, zk in zks.values():
-            addr = ip_address(zk.addr.ip)
-            if addr.version == 6:
-                servers.append("server.%s=[%s]:%d:%d" %
-                               (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
-            else:
-                servers.append("server.%s=%s:%d:%d" %
-                               (id_, zk.addr.ip, zk.leaderPort, zk.electionPort))
-        server_block = "\n".join(sorted(servers))
-        base_dir = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
-        for name, (id_, zk) in zks.items():
-            copy_file(DEFAULT_ZK_LOG4J,
-                      os.path.join(base_dir, name, "log4j.properties"))
-            text = StringIO()
-            datalog_dir = os.path.join(ZOOKEEPER_TMPFS_DIR, name)
-            text.write("%s\n\n" % zk.zk_conf(
-                os.path.join(base_dir, name, "data"), datalog_dir,
-            ))
-            text.write("%s\n" % server_block)
-            write_file(os.path.join(base_dir, name, 'zoo.cfg'), text.getvalue())
-            write_file(os.path.join(base_dir, name, "data", "myid"),
-                       "%s\n" % id_)
-            self.datalog_dirs.append(datalog_dir)
-
-    def _write_datalog_dirs(self):
-        text = StringIO()
-        text.write("#!/bin/bash\n\n")
-        text.write(
-            "if [ ! -e %(dir)s ]; then\n"
-            "  echo 'Creating %(dir)s & restarting zookeeper'\n"
-            "  sudo mkdir -p %(dir)s\n"
-            "  sudo chown -R zookeeper: %(dir)s\n"
-            "  sudo service zookeeper restart\n"
-            "fi\n" % {"dir": ZOOKEEPER_HOST_TMPFS_DIR}
-        )
-        for d in self.datalog_dirs:
-            text.write("mkdir -p %s\n" % d)
-        write_file(os.path.join(self.out_dir, "zk_datalog_dirs.sh"),
-                   text.getvalue())
-
-
 class TopoID(ISD_AS):
     def ISD(self):
         return "ISD%s" % self.isd_str()
@@ -1093,10 +1032,7 @@ class ZKTopo(object):
         self.addr = None
         self.topo_config = topo_config
         self.zk_config = zk_config
-        self.manage = self.topo_config.get("manage", False)
-        if not self.manage:
-            # A ZK we don't manage must have an assigned IP in the topology
-            self.addr = ip_address(self.topo_config["addr"])
+        self.addr = ip_address(self.topo_config["addr"])
         self.clientPort = self._get_def("clientPort")
         self.leaderPort = self._get_def("leaderPort")
         self.electionPort = self._get_def("electionPort")
@@ -1143,16 +1079,16 @@ class SubnetGenerator(object):
         # - .0 is treated as a broadcast address by the kernel
         # - .1 is the normal loopback address
         # - .[23] are used for clients to bind to for testing purposes.
-        if self._net.version == 6:
-            prefix = 126
-        else:  # ipv4
-            prefix = 30
-        exclude = ip_network(ip_interface(network).ip).supernet(new_prefix=prefix)
+        if self._net.version == 4:
+            exclude = ip_network("127.0.0.0/30")
+        else:
+            exclude = ip_network(DEFAULT6_NETWORK_ADDR + "/126")
 
         if self._net.overlaps(exclude):
             self._exclude_net(self._net, exclude)
-        else:
-            self._allocations[self._net.prefixlen].append(self._net)
+            return
+
+        self._allocations[self._net.prefixlen].append(self._net)
 
     def register(self, location):
         return self._subnets[location]
