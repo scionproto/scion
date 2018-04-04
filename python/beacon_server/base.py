@@ -433,7 +433,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pld = cpld.union
         assert isinstance(pld, IFIDPayload), type(pld)
         ifid = pld.p.relayIF
-        print("received update", pld)
+        print("received ifid update", pld)
+        print(cpld)
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
@@ -818,22 +819,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             sleep_interval(start, self.IFID_INTERVAL, "BS._send_ifid_updates cycle")
             start = time.time()
 
-            # send keep alives on all known BR interfaces
+            # only master sends keep-alive messages
+            if not self.zk.have_lock():
+                pass
+
+            # send keep-alives on all known BR interfaces
             for ifid in self.ifid2br:
-                print(ifid, self.ifid_state[ifid].is_active())
-                # print(ifid, self.ifid_state[ifid]._state)
+                one_hop_path = self._create_one_hop_path(ifid)
                 br = self.ifid2br[ifid]
-                print(br)
-                print(br.interfaces[ifid])
-                print(br.interfaces[ifid].isd_as)
-                # print(br.int_addrs)
-                br_addr, br_port = br.int_addrs[0].public[0]
-                # print(br_addr, br_port)
-                meta = UDPMetadata.from_values(host=br_addr, port=br_port)
-                print(meta)
-                meta = self._build_meta(br.interfaces[ifid].isd_as, host=SVCType.BS_M)
-                print(meta)
-                self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)), meta)
+                dst_ia = br.interfaces[ifid].isd_as
+                meta = self._build_meta(ia=dst_ia, host=SVCType.BS_M, path=one_hop_path, one_hop=True)
+                print("send ifid", meta)
+                self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)), meta, next_hop_port=br.int_addrs[0].public[0])
 
     def _init_metrics(self):
         super()._init_metrics()
