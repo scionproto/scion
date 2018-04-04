@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/transport"
+	"github.com/scionproto/scion/go/lib/snet/rpt"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )
@@ -95,7 +95,7 @@ func TestTRCExchange(t *testing.T) {
 }
 
 func setupMessenger(conn net.PacketConn, name string) *Messenger {
-	transport := transport.NewRUDP(conn, log.New("name", name))
+	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, DefaultAdapter, log.New("name", name))
 	return New(dispatcher, nil, log.Root().New("name", name))
 }

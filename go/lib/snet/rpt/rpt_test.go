@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package transport
+package rpt
 
 import (
 	"context"
@@ -31,65 +31,65 @@ import (
 )
 
 func TestSendUnreliableMsgTo(t *testing.T) {
-	Convey("Create RUDP, send unreliable message, and receive same message", t, func() {
+	Convey("Create RPT, send unreliable message, and receive same message", t, func() {
 		conn := loopback.New()
-		udp := NewRUDP(conn, log.Root())
+		rpt := New(conn, log.Root())
 
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
-		err := udp.SendUnreliableMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
+		err := rpt.SendUnreliableMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldBeNil)
 
-		b, _, err := udp.RecvFrom(ctx)
+		b, _, err := rpt.RecvFrom(ctx)
 		SoMsg("recv err", err, ShouldBeNil)
 		SoMsg("payload", b, ShouldResemble, common.RawBytes("1234"))
 	})
 }
 
 func TestSendMsgTo(t *testing.T) {
-	Convey("Create RUDP, send reliable message, and receive same message", t, func() {
+	Convey("Create RPT, send reliable message, and receive same message", t, func() {
 		conn := loopback.New()
-		udp := NewRUDP(conn, log.Root())
+		rpt := New(conn, log.Root())
 
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
-		err := udp.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
+		err := rpt.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldBeNil)
 
-		b, _, err := udp.RecvFrom(ctx)
+		b, _, err := rpt.RecvFrom(ctx)
 		SoMsg("recv err", err, ShouldBeNil)
 		SoMsg("payload", b, ShouldResemble, common.RawBytes("1234"))
 
-		err = udp.Close(ctx)
+		err = rpt.Close(ctx)
 		SoMsg("err", err, ShouldBeNil)
 	})
 }
 
 func TestClose(t *testing.T) {
-	Convey("Create RUDP, and close it", t, func() {
+	Convey("Create RPT, and close it", t, func() {
 		conn := loopback.New()
-		udp := NewRUDP(conn, log.Root())
+		rpt := New(conn, log.Root())
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
-		err := udp.Close(ctx)
+		err := rpt.Close(ctx)
 		SoMsg("err", err, ShouldBeNil)
 	})
 }
 
 func TestSendMsgToBadLink(t *testing.T) {
-	Convey("Create RUDP on bad link, send reliable message, should get error", t, func() {
+	Convey("Create RPT on bad link, send reliable message, should get error", t, func() {
 		conn := NewBadLoopback()
-		udp := NewRUDP(conn, log.Root())
+		rpt := New(conn, log.Root())
 
 		ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF()
-		err := udp.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
+		err := rpt.SendMsgTo(ctx, common.RawBytes("1234"), &loopback.Addr{})
 		SoMsg("send err", err, ShouldNotBeNil)
 		SoMsg("send err is timeout", common.IsTimeoutErr(err), ShouldBeTrue)
 
 		ctx2, cancelF2 := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancelF2()
-		err = udp.Close(ctx2)
+		err = rpt.Close(ctx2)
 		SoMsg("err", err, ShouldBeNil)
 	})
 }

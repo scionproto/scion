@@ -19,15 +19,21 @@ package sciond
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
+	log "github.com/inconshreveable/log15"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+// FIXME(scrye): add update code for the revocation token in testdata/revocation.bin
+
 func TestRevNotification(t *testing.T) {
+	token := xtest.MustRead(t, "revocation.bin")
+
 	rand.Seed(time.Now().UnixNano())
 	Convey("Old revocations should return correct status code", t, func() {
 		asStruct, err := util.LoadASList("../../../gen/as_list.yml")
@@ -37,11 +43,17 @@ func TestRevNotification(t *testing.T) {
 		SoMsg("AS selection len", len(asList), ShouldBeGreaterThan, 0)
 		localIA := asList[rand.Intn(len(asList))]
 
-		conn, err := Connect(fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA))
+		service := NewService(fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA))
+		conn, err := service.Connect()
 		SoMsg("Connect error", err, ShouldBeNil)
 
-		reply, err := conn.RevNotificationFromRaw([]byte(token))
+		reply, err := conn.RevNotificationFromRaw(token)
 		SoMsg("RevNotification error", err, ShouldBeNil)
 		SoMsg("Result", reply.Result, ShouldEqual, RevInvalid)
 	})
+}
+
+func TestMain(m *testing.M) {
+	log.Root().SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
 }

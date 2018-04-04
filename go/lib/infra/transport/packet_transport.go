@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
-var _ Transport = (*PacketTransport)(nil)
+var _ infra.Transport = (*PacketTransport)(nil)
 
 // PacketTransport implements interface Transport by wrapping around a
 // net.PacketConn. The reliability of the underlying net.PacketConn defines the
@@ -42,15 +44,15 @@ type PacketTransport struct {
 	// While conn is safe for use from multiple goroutines, deadlines are
 	// global so it is not safe to enforce two at the same time. Thus, to
 	// meet context deadlines we serialize access to the conn.
-	writeLock *channelLock
-	readLock  *channelLock
+	writeLock *util.ChannelLock
+	readLock  *util.ChannelLock
 }
 
 func NewPacketTransport(conn net.PacketConn) *PacketTransport {
 	return &PacketTransport{
 		conn:      conn,
-		writeLock: newChannelLock(),
-		readLock:  newChannelLock(),
+		writeLock: util.NewChannelLock(),
+		readLock:  util.NewChannelLock(),
 	}
 }
 

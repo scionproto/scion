@@ -18,10 +18,31 @@ import (
 	"context"
 	"net"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
+
+// Interface Transport wraps around low-level networking objects to provide
+// reliable and unreliable delivery of network packets, together with
+// context-aware networking that can be used to construct handlers with
+// timeouts.
+//
+// Transport layers must be safe for concurrent use by multiple goroutines.
+type Transport interface {
+	// Send an unreliable message. Unreliable transport layers do not request
+	// an ACK. For reliable transport layers, this is the same as SendMsgTo.
+	SendUnreliableMsgTo(context.Context, common.RawBytes, net.Addr) error
+	// Send a reliable message. Unreliable transport layers block here waiting
+	// for the message to be ACK'd. Reliable transport layers return
+	// immediately.
+	SendMsgTo(context.Context, common.RawBytes, net.Addr) error
+	// Receive a message.
+	RecvFrom(context.Context) (common.RawBytes, net.Addr, error)
+	// Clean up.
+	Close(context.Context) error
+}
 
 // Interface Handler is implemented by objects that can handle a request coming
 // from a remote SCION network node.
