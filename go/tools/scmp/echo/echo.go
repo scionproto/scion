@@ -16,9 +16,7 @@ package echo
 
 import (
 	"fmt"
-	"net"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -30,30 +28,23 @@ import (
 )
 
 var (
-	wg sync.WaitGroup
 	ch chan time.Time
 )
 
 func Run() {
-
 	ch = make(chan time.Time, 20)
-	wg.Add(2)
-	go recvPkts()
 	go sendPkts()
-
-	wg.Wait()
+	recvPkts()
 }
 
 func sendPkts() {
-	defer wg.Done()
 	defer close(ch)
 
 	info := &scmp.InfoEcho{Id: cmn.Rand(), Seq: 0}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
-
 	b := make(common.RawBytes, cmn.Mtu)
-
 	nhAddr := cmn.NextHopAddr()
+
 	nextPktTS := time.Now()
 	ticker := time.NewTicker(cmn.Interval)
 	for ; true; nextPktTS = <-ticker.C {
@@ -88,10 +79,7 @@ func sendPkts() {
 }
 
 func recvPkts() {
-	defer wg.Done()
-
 	pkt := &spkt.ScnPkt{}
-
 	b := make(common.RawBytes, cmn.Mtu)
 
 	nextTimeout := time.Now()
@@ -105,8 +93,7 @@ func recvPkts() {
 		}
 		pktLen, err := cmn.Conn.Read(b)
 		if err != nil {
-			e, ok := err.(*net.OpError)
-			if ok && e.Timeout() {
+			if common.IsTimeoutErr(err) {
 				continue
 			} else {
 				fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)

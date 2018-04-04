@@ -31,21 +31,26 @@ type ScmpStats struct {
 }
 
 var (
+	// Flag vars
+	Count       uint
 	Interactive bool
 	Interval    time.Duration
 	Timeout     time.Duration
-	Count       uint
-	PathEntry   *sciond.PathReplyEntry
-	Mtu         uint16
 	Local       snet.Addr
 	Remote      snet.Addr
 	Bind        snet.Addr
-	Conn        *reliable.Conn
-	rnd         *rand.Rand
-	Stats       *ScmpStats
+)
+
+var (
+	Conn      *reliable.Conn
+	Mtu       uint16
+	PathEntry *sciond.PathReplyEntry
+	rnd       *rand.Rand
+	Stats     *ScmpStats
 )
 
 func init() {
+	// Set up flag vars
 	flag.BoolVar(&Interactive, "i", false, "Interactive mode")
 	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets")
 	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
@@ -54,6 +59,7 @@ func init() {
 	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
 	flag.Var((*snet.Addr)(&Bind), "bind", "address to bind to, if running behind NAT")
 	flag.Usage = scmpUsage
+	// Initialize random
 	seed := rand.NewSource(time.Now().UnixNano())
 	rnd = rand.New(seed)
 }
