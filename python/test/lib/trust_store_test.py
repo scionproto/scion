@@ -62,28 +62,28 @@ class TestTrustStoreGetCert(object):
     """
     def _init(self):
         inst = TrustStore("conf_dir", "cache_dir", "element_name")
-        inst._certs["1-1"] = [(1, 'cert1'), (3, 'cert3'), (0, 'cert0')]
+        inst._certs["1-4_294_967_300"] = [(1, 'cert1'), (3, 'cert3'), (0, 'cert0')]
         return inst
 
     def test_non_existing_as(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("2-2"), None)
+        ntools.eq_(inst.get_cert("2-4_294_967_322"), None)
 
     def test_non_existing_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("1-1", 2), None)
+        ntools.eq_(inst.get_cert("1-4_294_967_300", 2), None)
 
     def test_default_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("1-1"), 'cert3')
+        ntools.eq_(inst.get_cert("1-4_294_967_300"), 'cert3')
 
     def test_existing_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("1-1", 1), 'cert1')
+        ntools.eq_(inst.get_cert("1-4_294_967_300", 1), 'cert1')
 
 
 class TestTrustStoreAddTrc(object):

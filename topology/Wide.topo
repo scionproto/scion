@@ -6,93 +6,63 @@ defaults:
       addr: 127.0.0.1
 
 ASes:
-  1-1: {core: true}
-  1-2: {core: true}
-  1-3: {cert_issuer: 1-1}
-  1-4: {cert_issuer: 1-2}
-  2-1: {core: true}
-  2-2: {core: true}
-  2-3: {cert_issuer: 2-2}
-  2-4: {cert_issuer: 2-2}
-  3-1: {core: true}
-  3-3: {cert_issuer: 3-1}
-  3-4: {cert_issuer: 3-1}
-  3-5: {cert_issuer: 3-1}
-  4-1: {core: true}
-  5-1: {core: true}
-  5-2: {core: true}
-  5-3: {core: true}
-  5-4: {cert_issuer: 5-1}
-  5-5: {cert_issuer: 5-3}
+  1-4_295_001_010: {core: true}
+  1-4_295_001_020: {core: true}
+  1-4_295_001_011: {cert_issuer: 1-4_295_001_010}
+  1-4_295_001_021: {cert_issuer: 1-4_295_001_020}
+  2-4_295_002_010: {core: true}
+  2-4_295_002_020: {core: true}
+  2-4_295_002_021: {cert_issuer: 2-4_295_002_020}
+  2-4_295_002_022: {cert_issuer: 2-4_295_002_020}
+  3-4_295_003_010: {core: true}
+  3-4_295_003_011: {cert_issuer: 3-4_295_003_010}
+  3-4_295_003_012: {cert_issuer: 3-4_295_003_010}
+  3-4_295_003_013: {cert_issuer: 3-4_295_003_010}
+  4-4_295_004_010: {core: true}
+  5-4_295_005_010: {core: true}
+  5-4_295_005_020: {core: true}
+  5-4_295_005_030: {core: true}
+  5-4_295_005_011: {cert_issuer: 5-4_295_005_010}
+  5-4_295_005_031: {cert_issuer: 5-4_295_005_030}
+links:
+  - {a: 1-4_295_001_010, b: 1-4_295_001_020, ltype: CORE}
+  - {a: 1-4_295_001_010, b: 2-4_295_002_010, ltype: CORE}
+  - {a: 1-4_295_001_010, b: 2-4_295_002_020, ltype: CORE}
+  - {a: 1-4_295_001_010, b: 3-4_295_003_010, ltype: CORE}
+  - {a: 1-4_295_001_010, b: 1-4_295_001_011, ltype: PARENT}
+  - {a: 1-4_295_001_020, b: 2-4_295_002_010, ltype: CORE}
+  - {a: 1-4_295_001_020, b: 1-4_295_001_021, ltype: PARENT}
+  - {a: 1-4_295_001_011, b: 1-4_295_001_021, ltype: PEER}
+  - {a: 1-4_295_001_011, b: 3-4_295_003_011, ltype: PEER}
+  - {a: 2-4_295_002_010, b: 2-4_295_002_020, ltype: CORE}
+  - {a: 2-4_295_002_010, b: 3-4_295_003_010, ltype: CORE}
+  - {a: 2-4_295_002_010, b: 2-4_295_002_021, ltype: PARENT}
+  - {a: 2-4_295_002_010, b: 2-4_295_002_022, ltype: PARENT}
+  - {a: 2-4_295_002_020, b: 2-4_295_002_021, ltype: PARENT}
+  - {a: 2-4_295_002_020, b: 2-4_295_002_022, ltype: PARENT}
+  - {a: 2-4_295_002_021, b: 2-4_295_002_022, ltype: PEER}
+  - {a: 3-4_295_003_010, b: 4-4_295_004_010, ltype: CORE}
+  - {a: 3-4_295_003_010, b: 3-4_295_003_011, ltype: PARENT}
+  - {a: 3-4_295_003_011, b: 3-4_295_003_012, ltype: PARENT}
+  - {a: 3-4_295_003_011, b: 3-4_295_003_013, ltype: PARENT}
+  - {a: 4-4_295_004_010, b: 5-4_295_005_020, ltype: CORE}
+  - {a: 5-4_295_005_010, b: 5-4_295_005_020, ltype: CORE}
+  - {a: 5-4_295_005_010, b: 5-4_295_005_011, ltype: PARENT}
+  - {a: 5-4_295_005_020, b: 5-4_295_005_030, ltype: CORE}
+  - {a: 5-4_295_005_030, b: 5-4_295_005_031, ltype: PARENT}
 CAs:
   CA1-1:
     ISD: 1
     commonName: CA1-1
-  CA1-2:
-    ISD: 1
-    commonName: CA1-2
-  CA1-3:
-    ISD: 1
-    commonName: CA1-3
   CA2-1:
     ISD: 2
     commonName: CA2-1
-  CA2-2:
-    ISD: 2
-    commonName: CA2-2
-  CA2-3:
-    ISD: 2
-    commonName: CA2-3
   CA3-1:
     ISD: 3
     commonName: CA3-1
-  CA3-2:
-    ISD: 3
-    commonName: CA3-2
-  CA3-3:
-    ISD: 3
-    commonName: CA3-3
   CA4-1:
     ISD: 4
     commonName: CA4-1
-  CA4-2:
-    ISD: 4
-    commonName: CA4-2
-  CA4-3:
-    ISD: 4
-    commonName: CA4-3
   CA5-1:
     ISD: 5
     commonName: CA5-1
-  CA5-2:
-    ISD: 5
-    commonName: CA5-2
-  CA5-3:
-    ISD: 5
-    commonName: CA5-3
-links:
-  - {a: 1-1, b: 1-2, ltype: CORE}
-  - {a: 1-1, b: 2-1, ltype: CORE}
-  - {a: 1-1, b: 2-2, ltype: CORE}
-  - {a: 1-1, b: 3-1, ltype: CORE}
-  - {a: 1-1, b: 1-3, ltype: PARENT}
-  - {a: 1-2, b: 2-1, ltype: CORE}
-  - {a: 1-2, b: 1-4, ltype: PARENT}
-  - {a: 1-3, b: 1-4, ltype: PEER}
-  - {a: 1-3, b: 3-3, ltype: PEER}
-  - {a: 2-1, b: 2-2, ltype: CORE}
-  - {a: 2-1, b: 3-1, ltype: CORE}
-  - {a: 2-1, b: 2-3, ltype: PARENT}
-  - {a: 2-1, b: 2-4, ltype: PARENT}
-  - {a: 2-2, b: 2-3, ltype: PARENT}
-  - {a: 2-2, b: 2-4, ltype: PARENT}
-  - {a: 2-3, b: 2-4, ltype: PEER}
-  - {a: 3-1, b: 4-1, ltype: CORE}
-  - {a: 3-1, b: 3-3, ltype: PARENT}
-  - {a: 3-3, b: 3-4, ltype: PARENT}
-  - {a: 3-3, b: 3-5, ltype: PARENT}
-  - {a: 4-1, b: 5-2, ltype: CORE}
-  - {a: 5-1, b: 5-2, ltype: CORE}
-  - {a: 5-1, b: 5-4, ltype: PARENT}
-  - {a: 5-2, b: 5-3, ltype: CORE}
-  - {a: 5-3, b: 5-5, ltype: PARENT}

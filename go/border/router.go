@@ -47,7 +47,7 @@ func init() {
 }
 
 type Router struct {
-	// Id is the SCION element ID, e.g. "br4-21-9".
+	// Id is the SCION element ID, e.g. "br4-4_294_967_300-9".
 	Id string
 	// confDir is the directory containing the configuration file.
 	confDir string

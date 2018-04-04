@@ -32,26 +32,26 @@ import (
 )
 
 var (
-	ia13 = addr.IA{I: 1, A: 13}
-	ia14 = addr.IA{I: 1, A: 14}
-	ia16 = addr.IA{I: 1, A: 16}
-	ia19 = addr.IA{I: 1, A: 19}
+	ia330 = addr.IA{I: 1, A: 4294967330}
+	ia311 = addr.IA{I: 1, A: 4294967311}
+	ia331 = addr.IA{I: 1, A: 4294967331}
+	ia332 = addr.IA{I: 1, A: 4294967332}
 
 	ifs1 = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 3, 2, 0}
 
 	hpCfgIDs = []*query.HPCfgID{
 		&query.NullHpCfgID,
-		{ia13, 0xdeadbeef},
+		{ia330, 0xdeadbeef},
 	}
 	types = []seg.Type{seg.UpSegment, seg.DownSegment}
 
 	ifspecs = []query.IntfSpec{
-		{IA: ia13, IfID: 5},
-		{IA: ia16, IfID: 2},
-		{IA: ia16, IfID: 3},
-		{IA: ia16, IfID: 6},
-		{IA: ia19, IfID: 1},
+		{IA: ia330, IfID: 5},
+		{IA: ia331, IfID: 2},
+		{IA: ia331, IfID: 3},
+		{IA: ia331, IfID: 6},
+		{IA: ia332, IfID: 1},
 	}
 
 	tables = []string{
@@ -72,22 +72,22 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 	}
 	ases := []*seg.ASEntry{
 		{
-			RawIA: ia13.IAInt(),
+			RawIA: ia330.IAInt(),
 			HopEntries: []*seg.HopEntry{
-				allocHopEntry(addr.IA{}, ia16, rawHops[0]),
+				allocHopEntry(addr.IA{}, ia331, rawHops[0]),
 			},
 		},
 		{
-			RawIA: ia16.IAInt(),
+			RawIA: ia331.IAInt(),
 			HopEntries: []*seg.HopEntry{
-				allocHopEntry(ia13, ia19, rawHops[1]),
-				allocHopEntry(ia14, ia19, rawHops[2]),
+				allocHopEntry(ia330, ia332, rawHops[1]),
+				allocHopEntry(ia311, ia332, rawHops[2]),
 			},
 		},
 		{
-			RawIA: ia19.IAInt(),
+			RawIA: ia332.IAInt(),
 			HopEntries: []*seg.HopEntry{
-				allocHopEntry(ia16, addr.IA{}, rawHops[3]),
+				allocHopEntry(ia331, addr.IA{}, rawHops[3]),
 			},
 		},
 	}
@@ -219,9 +219,9 @@ func checkInsert(t *testing.T, b *Backend, e *ExpectedInsert) {
 	checkSegments(t, b, e.RowID, e.SegID, e.TS)
 	// Check that the IntfToSegs Table contains all the interfaces.
 	checkIntfToSeg(t, b, e.RowID, e.Intfs)
-	// Check that the StartsAt Table contains 1-13 => 1.
+	// Check that the StartsAt Table contains 1-4_294_967_330 => 1.
 	checkStartsAtOrEndsAt(t, b, StartsAtTable, e.RowID, e.StartsAt)
-	// Check that the EndsAt Table contains 1-19 => 1.
+	// Check that the EndsAt Table contains 1-4_294_967_332 => 1.
 	checkStartsAtOrEndsAt(t, b, EndsAtTable, e.RowID, e.EndsAt)
 	// Check that SegTypes contains {0, 1} => 1
 	checkSegTypes(t, b, e.RowID, e.Types)
@@ -255,7 +255,7 @@ func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert.
-		checkInsert(t, b, &ExpectedInsert{1, segID, TS, ifspecs, ia13, ia19, types, hpCfgIDs})
+		checkInsert(t, b, &ExpectedInsert{1, segID, TS, ifspecs, ia330, ia332, types, hpCfgIDs})
 	})
 }
 
@@ -275,7 +275,7 @@ func Test_UpdateExisting(t *testing.T) {
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert
 		checkInsert(t, b,
-			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
+			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia330, ia332, types, hpCfgIDs})
 	})
 }
 
@@ -295,7 +295,7 @@ func Test_OlderIgnored(t *testing.T) {
 		SoMsg("Inserted", inserted, ShouldEqual, 0)
 		// Check Insert
 		checkInsert(t, b,
-			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia13, ia19, types, hpCfgIDs})
+			&ExpectedInsert{1, newSegID, newTS, ifspecs, ia330, ia332, types, hpCfgIDs})
 	})
 }
 
@@ -344,7 +344,7 @@ func Test_DeleteWithIntf(t *testing.T) {
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types, hpCfgIDs)
 		// Call
-		deleted, err := b.DeleteWithIntf(query.IntfSpec{IA: ia16, IfID: 2})
+		deleted, err := b.DeleteWithIntf(query.IntfSpec{IA: ia331, IfID: 2})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -422,12 +422,12 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 		insertSeg(t, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
-		res, err := b.Get(&query.Params{StartsAt: []addr.IA{ia13, ia19}})
+		res, err := b.Get(&query.Params{StartsAt: []addr.IA{ia330, ia332}})
 		if err != nil {
 			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
-		res, err = b.Get(&query.Params{EndsAt: []addr.IA{ia13, ia19}})
+		res, err = b.Get(&query.Params{EndsAt: []addr.IA{ia330, ia332}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -448,8 +448,8 @@ func Test_GetWithIntfs(t *testing.T) {
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
 			Intfs: []*query.IntfSpec{
-				{ia13, 5},
-				{ia19, 2},
+				{ia330, 5},
+				{ia332, 2},
 			},
 		}
 		// Call

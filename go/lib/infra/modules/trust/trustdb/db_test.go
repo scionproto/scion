@@ -76,11 +76,11 @@ func TestIssCert(t *testing.T) {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		chain, err := cert.ChainFromFile("testdata/ISD1-AS4_294_967_311-V1.crt", false)
 		if err != nil {
 			t.Fatalf("Unable to load certificate chain")
 		}
-		ia := addr.IA{I: 1, A: 13}
+		ia := addr.IA{I: 1, A: 4294967310}
 		Convey("Insert into database", func() {
 			rows, err := db.InsertIssCert(chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
@@ -102,13 +102,13 @@ func TestIssCert(t *testing.T) {
 				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 			})
 			Convey("Get missing issuer certificate from database", func() {
-				otherIA := addr.IA{I: 1, A: 2}
+				otherIA := addr.IA{I: 1, A: 4294967320}
 				crt, err := db.GetIssCertVersion(otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
 			Convey("Get missing issuer max certificate from database", func() {
-				otherIA := addr.IA{I: 1, A: 2}
+				otherIA := addr.IA{I: 1, A: 4294967320}
 				crt, err := db.GetIssCertVersion(otherIA, 0)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
@@ -125,11 +125,11 @@ func TestLeafCert(t *testing.T) {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		chain, err := cert.ChainFromFile("testdata/ISD1-AS4_294_967_311-V1.crt", false)
 		if err != nil {
 			t.Fatalf("Unable to load certificate chain")
 		}
-		ia := addr.IA{I: 1, A: 10}
+		ia := addr.IA{I: 1, A: 4294967311}
 		Convey("Insert into database", func() {
 			rows, err := db.InsertLeafCert(chain.Leaf)
 			SoMsg("err", err, ShouldBeNil)
@@ -151,13 +151,13 @@ func TestLeafCert(t *testing.T) {
 				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
 			})
 			Convey("Get missing leaf certificate from database", func() {
-				otherIA := addr.IA{I: 1, A: 2}
+				otherIA := addr.IA{I: 1, A: 4294967321}
 				crt, err := db.GetLeafCertVersion(otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
 			Convey("Get missing leaf max certificate from database", func() {
-				otherIA := addr.IA{I: 1, A: 2}
+				otherIA := addr.IA{I: 1, A: 4294967321}
 				crt, err := db.GetLeafCertVersion(otherIA, 0)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
@@ -174,11 +174,11 @@ func TestChain(t *testing.T) {
 		db, cleanF := newDatabase(t)
 		defer cleanF()
 
-		chain, err := cert.ChainFromFile("testdata/ISD1-AS10-V1.crt", false)
+		chain, err := cert.ChainFromFile("testdata/ISD1-AS4_294_967_311-V1.crt", false)
 		if err != nil {
 			t.Fatalf("Unable to load certificate chain")
 		}
-		ia := addr.IA{I: 1, A: 10}
+		ia := addr.IA{I: 1, A: 4294967311}
 		Convey("Insert into database", func() {
 			rows, err := db.InsertChain(chain)
 			SoMsg("err", err, ShouldBeNil)
@@ -197,13 +197,13 @@ func TestChain(t *testing.T) {
 				SoMsg("chain", newChain, ShouldResemble, chain)
 			})
 			Convey("Get missing certificate chain from database", func() {
-				otherIA := addr.IA{I: 1, A: 2}
+				otherIA := addr.IA{I: 1, A: 4294967320}
 				newChain, err := db.GetChainVersion(otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldBeNil)
 			})
 			Convey("Get missing max certificate chain from database", func() {
-				otherIA := addr.IA{I: 1, A: 2}
+				otherIA := addr.IA{I: 1, A: 4294967320}
 				newChain, err := db.GetChainVersion(otherIA, 0)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldBeNil)

@@ -86,7 +86,7 @@ class TestInterfaceElementInit(object):
                 'L4Port': 5
             },
             'Bandwidth': 1001,
-            'ISD_AS': '3-2',
+            'ISD_AS': '3-4_294_967_301',
             'LinkType': 'PARENT',
             'MTU': 4242
         }
@@ -112,7 +112,7 @@ class TestTopologyParseDict(object):
     """
     @patch("lib.topology.ISD_AS", autospec=True)
     def test(self, isd_as):
-        topo_dict = {'Core': True, 'ISD_AS': '1-2', 'MTU': 440, 'Overlay': 'UDP/IPv4'}
+        topo_dict = {'Core': True, 'ISD_AS': '1-4_294_967_312', 'MTU': 440, 'Overlay': 'UDP/IPv4'}
         inst = Topology()
         inst._parse_srv_dicts = create_mock()
         inst._parse_router_dicts = create_mock()

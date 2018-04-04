@@ -119,7 +119,7 @@ class TestPathPolicyParseDict(object):
         dict_['HistoryLimit'] = "history_limit"
         dict_['UpdateAfterNumber'] = "update_after_number"
         dict_['UpdateAfterTime'] = "update_after_time"
-        dict_['UnwantedASes'] = "1-11,2-12"
+        dict_['UnwantedASes'] = "1-4_294_967_311,2-4_294_967_312"
         dict_['PropertyRanges'] = {'key1': "1-11", 'key2': "2-12"}
         dict_['PropertyWeights'] = "property_weights"
         pth_pol2 = PathPolicy()

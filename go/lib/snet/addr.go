@@ -29,7 +29,7 @@ import (
 var _ net.Addr = (*Addr)(nil)
 var _ flag.Value = (*Addr)(nil)
 
-var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-\d+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
+var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d_]+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
 
 type Addr struct {
 	IA          addr.IA
@@ -94,7 +94,7 @@ func (a *Addr) Copy() *Addr {
 }
 
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port
-// (e.g., 1-10,[192.168.1.1]:80) to a SCION address.
+// (e.g., 1-4_294_967_300,[192.168.1.1]:80) to a SCION address.
 func AddrFromString(s string) (*Addr, error) {
 	parts, err := parseAddr(s)
 	if err != nil {

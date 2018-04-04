@@ -19,19 +19,19 @@
 // >  Loc addrs:
 // >    127.0.0.65:30066
 // >  Interfaces:
-// >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-12 MTU: 1472 BW: 1000
+// >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-4_294_967_312 MTU: 1472 BW: 1000
 // 2017-05-16T13:18:16.539633390+0000 [DBUG] AS Conf loaded conf="CertChainVersion:0 MasterASKey:e856d81efb0878512f78f207bb8aadb3 PropagateTime:5 RegisterPath:true RegisterTime:5"
-// 2017-05-16T13:18:16.539658666+0000 [INFO] Starting up id=br1-11-1
+// 2017-05-16T13:18:16.539658666+0000 [INFO] Starting up id=br1-4_294_967_311-1
 //
 // Lines starting with "> " or a space are assumed to be continuations, i.e.
 // they belong with the line(s) above them.
 //
 // Further, the code prefixes all log entries with the processed filename of
 // the line was read from, stripped of the path and extension. I.e.
-// foo/bar/br1-11-1.log turns into the prefix br1-11-1. The prefix is only
-// printed once for blocks coming from the same file. The timestamp format of
-// the output is the same as the input format, i.e. ISO8601 with a space
-// instead of "T".
+// foo/bar/br1-4_294_967_311-1.log turns into the prefix br1-4_294_967_311-1.
+// The prefix is only printed once for blocks coming from the same file. The
+// timestamp format of the output is the same as the input format, i.e. ISO8601
+// with a space instead of "T".
 //
 // Limitations:
 // - All the logs are kept in memory prior to output. Processing terabytes of
@@ -104,7 +104,8 @@ func (e LogEntries) Less(i, j int) bool {
 
 func (e LogEntries) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
 
-// Turn a path name like "foo/bar/logs/br-11-1.log" into "br1-11-1"
+// Turn a path name like "foo/bar/logs/br1-4_294_967_311-1.log" into
+// "br1-4_294_967_311-1"
 // Note that sthis also strips the suffix, no matter its contents, i.e. it will
 // strip .log, .DEBUG, .INFO etc., basically anything after (and including) the
 // rightmost dot in the basename of the path
