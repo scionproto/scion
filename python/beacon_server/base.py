@@ -120,6 +120,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
+    # Interval to send keep-alive msgs
+    IFID_INTERVAL = 1
 
     def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
@@ -431,6 +433,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         pld = cpld.union
         assert isinstance(pld, IFIDPayload), type(pld)
         ifid = pld.p.relayIF
+        print("received update", pld)
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
@@ -460,6 +463,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             target=thread_safety_net, args=(self.worker,),
             name="BS.worker", daemon=True).start()
         # https://github.com/scionproto/scion/issues/308:
+        threading.Thread(
+            target=thread_safety_net, args=(self._send_ifid_updates,),
+            name="BS._send_if_updates", daemon=True).start()
         threading.Thread(
             target=thread_safety_net, args=(self._handle_if_timeouts,),
             name="BS._handle_if_timeouts", daemon=True).start()
@@ -805,6 +811,29 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.send_meta(payload.copy(), meta, (meta.host, meta.port))
         for meta in server_metas:
             self.send_meta(payload.copy(), meta)
+
+    def _send_ifid_updates(self):
+        start = time.time()
+        while self.run_flag.is_set():
+            sleep_interval(start, self.IFID_INTERVAL, "BS._send_ifid_updates cycle")
+            start = time.time()
+
+            # send keep alives on all known BR interfaces
+            for ifid in self.ifid2br:
+                print(ifid, self.ifid_state[ifid].is_active())
+                # print(ifid, self.ifid_state[ifid]._state)
+                br = self.ifid2br[ifid]
+                print(br)
+                print(br.interfaces[ifid])
+                print(br.interfaces[ifid].isd_as)
+                # print(br.int_addrs)
+                br_addr, br_port = br.int_addrs[0].public[0]
+                # print(br_addr, br_port)
+                meta = UDPMetadata.from_values(host=br_addr, port=br_port)
+                print(meta)
+                meta = self._build_meta(br.interfaces[ifid].isd_as, host=SVCType.BS_M)
+                print(meta)
+                self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)), meta)
 
     def _init_metrics(self):
         super()._init_metrics()
