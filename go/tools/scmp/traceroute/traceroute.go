@@ -16,7 +16,6 @@ package traceroute
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"time"
 
@@ -29,6 +28,8 @@ import (
 
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 )
+
+const pkts_per_hop uint = 3
 
 func Run() {
 	var hopOff uint8
@@ -43,16 +44,19 @@ func Run() {
 		hopOff = hopPktOff(path.HopOff)
 		ext = &scmp.Extn{Error: false, HopByHop: true}
 	}
-	// Send packet
 	info := &scmp.InfoTraceRoute{Id: cmn.Rand(), HopOff: hopOff}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_TraceRouteRequest, info, ext)
-
+	total *= pkts_per_hop
 	b := make(common.RawBytes, cmn.Mtu)
-
 	nhAddr := cmn.NextHopAddr()
-	ts := time.Now()
-	ticker := time.NewTicker(cmn.Interval)
-	for ; true; ts = <-ticker.C {
+	for {
+		var now time.Time
+		var rtt time.Duration
+		var pktRecv *spkt.ScnPkt
+		var scmpHdr *scmp.Hdr
+		var infoRecv *scmp.InfoTraceRoute
+
+		ts := time.Now()
 		cmn.UpdatePktTS(pkt, ts)
 		// Serialize packet to internal buffer
 		pktLen, err := hpkt.WriteScnPkt(pkt, b)
@@ -75,51 +79,66 @@ func Run() {
 		cmn.Conn.SetReadDeadline(ts.Add(cmn.Timeout))
 		pktLen, err = cmn.Conn.Read(b)
 		if err != nil {
-			e, ok := err.(*net.OpError)
-			if ok && e.Timeout() {
-				continue
+			if common.IsTimeoutErr(err) {
+				rtt = cmn.Timeout + 1
+				goto next
 			} else {
 				fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)
 				break
 			}
 		}
+		now = time.Now()
 		cmn.Stats.Recv += 1
-		now := time.Now()
 		// Parse packet
-		pktRecv := &spkt.ScnPkt{}
+		pktRecv = &spkt.ScnPkt{}
 		err = hpkt.ParseScnPkt(pktRecv, b[:pktLen])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse error: %v\n", err)
 			break
 		}
 		// Validate packet
-		scmpHdr, infoRecv, err := validate(pktRecv, cmn.PathEntry)
+		scmpHdr, infoRecv, err = validate(pktRecv, cmn.PathEntry)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation error: %v\n", err)
 			// We continue as one bad reply does not mean all replies would be bad ones
-			continue
+			break
 		}
 		// Calculate return time
-		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-		prettyPrint(pktRecv, pktLen, infoRecv, rtt)
+		rtt = now.Sub(scmpHdr.Time()).Round(time.Microsecond)
+	next:
+		prettyPrint(pktRecv, infoRecv, rtt)
 		// More packets?
 		if cmn.Stats.Sent == total {
 			break
 		}
-		// Update packet fields
-		setNextHF(info, path, total)
-		pldBuf := pkt.Pld.(common.RawBytes)
-		info.Write(pldBuf[scmp.MetaLen:])
+		updateHopField(pkt, info, path, total)
 	}
 }
 
-func prettyPrint(pkt *spkt.ScnPkt, pktLen int, info *scmp.InfoTraceRoute, rtt time.Duration) {
-	if info.HopOff == 0 {
-		fmt.Printf("%d bytes from %s,[%s] time=%s\n",
-			pktLen, pkt.SrcIA, pkt.SrcHost, rtt)
+var hop_printed bool = false
+
+func prettyPrint(pkt *spkt.ScnPkt, info *scmp.InfoTraceRoute, rtt time.Duration) {
+	var str string
+	if (cmn.Stats.Sent-1)%pkts_per_hop == 0 {
+		fmt.Printf("%d ", cmn.Stats.Sent/pkts_per_hop)
+	}
+	if rtt > cmn.Timeout {
+		fmt.Printf(" *")
 	} else {
-		fmt.Printf("%d bytes from %s,[%s] IfID=%d time=%s\n",
-			pktLen, pkt.SrcIA, pkt.SrcHost, info.IfID, rtt)
+		//	fmt.Printf("DBG: itmeout %v, rtt %v\n", cmn.Timeout, rtt)
+		if !hop_printed {
+			hop_printed = true
+			if info.HopOff == 0 {
+				str = fmt.Sprintf("%s,[%s]  ", pkt.SrcIA, pkt.SrcHost)
+			} else {
+				str = fmt.Sprintf("%s,[%s] IfID=%d  ", pkt.SrcIA, pkt.SrcHost, info.IfID)
+			}
+		}
+		fmt.Printf(" %s%s", str, rtt)
+	}
+	if cmn.Stats.Sent%pkts_per_hop == 0 {
+		hop_printed = false
+		fmt.Println()
 	}
 }
 
@@ -129,9 +148,12 @@ func hopPktOff(offset int) uint8 {
 	return uint8(off / common.LineLen)
 }
 
-func setNextHF(info *scmp.InfoTraceRoute, path *spath.Path, total uint) {
+func updateHopField(pkt *spkt.ScnPkt, info *scmp.InfoTraceRoute, path *spath.Path, total uint) {
+	if cmn.Stats.Sent%pkts_per_hop != 0 {
+		return
+	}
 	info.HopOff = 0
-	if path != nil && cmn.Stats.Sent < total-1 {
+	if path != nil && cmn.Stats.Sent < total-pkts_per_hop {
 		if !info.In { // Egress
 			// Inc path
 			path.IncOffsets()
@@ -146,6 +168,8 @@ func setNextHF(info *scmp.InfoTraceRoute, path *spath.Path, total uint) {
 		info.In = !info.In
 		info.HopOff = hopPktOff(path.HopOff)
 	}
+	pldBuf := pkt.Pld.(common.RawBytes)
+	info.Write(pldBuf[scmp.MetaLen:])
 }
 
 func validate(pkt *spkt.ScnPkt, pathEntry *sciond.PathReplyEntry) (*scmp.Hdr,

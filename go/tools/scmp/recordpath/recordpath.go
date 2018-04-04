@@ -39,9 +39,7 @@ func Run() {
 	entries := make([]*scmp.RecordPathEntry, 0, n)
 	info := &scmp.InfoRecordPath{Id: cmn.Rand(), Entries: entries}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_RecordPathRequest, info, ext)
-
 	b := make(common.RawBytes, cmn.Mtu)
-
 	nhAddr := cmn.NextHopAddr()
 	ts := time.Now()
 	cmn.UpdatePktTS(pkt, ts)
