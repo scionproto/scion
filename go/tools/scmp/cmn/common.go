@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -47,6 +49,7 @@ var (
 	PathEntry *sciond.PathReplyEntry
 	rnd       *rand.Rand
 	Stats     *ScmpStats
+	Start     time.Time
 )
 
 func init() {
@@ -62,6 +65,8 @@ func init() {
 	// Initialize random
 	seed := rand.NewSource(time.Now().UnixNano())
 	rnd = rand.New(seed)
+	Stats = &ScmpStats{}
+	Start = time.Now()
 }
 
 func scmpUsage() {
@@ -135,10 +140,23 @@ func Rand() uint64 {
 
 func UpdatePktTS(pkt *spkt.ScnPkt, ts time.Time) {
 	scmpHdr := pkt.L4.(*scmp.Hdr)
-	scmpHdr.Timestamp = uint64(ts.UnixNano()) / 1000
+	scmpHdr.SetTime(ts)
 }
 
 func Fatal(msg string, a ...interface{}) {
 	fmt.Printf("CRIT: "+msg+"\n", a...)
 	os.Exit(1)
+}
+
+func SetupSignals(f func()) {
+	sig := make(chan os.Signal, 2)
+	signal.Notify(sig, os.Interrupt)
+	signal.Notify(sig, syscall.SIGTERM)
+	go func() {
+		<-sig
+		if f != nil {
+			f()
+		}
+		os.Exit(0)
+	}()
 }
