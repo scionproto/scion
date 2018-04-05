@@ -31,12 +31,17 @@ import (
 
 const pkts_per_hop uint = 3
 
+var (
+	id uint64
+)
+
 func Run() {
 	var hopOff uint8
 	var ext *scmp.Extn
 	var path *spath.Path
 	var total uint = 1
 
+	cmn.SetupSignals(nil)
 	if cmn.PathEntry != nil {
 		path = spath.New(cmn.PathEntry.Path.FwdPath)
 		path.InitOffsets()
@@ -44,7 +49,8 @@ func Run() {
 		hopOff = hopPktOff(path.HopOff)
 		ext = &scmp.Extn{Error: false, HopByHop: true}
 	}
-	info := &scmp.InfoTraceRoute{Id: cmn.Rand(), HopOff: hopOff}
+	id = cmn.Rand()
+	info := &scmp.InfoTraceRoute{Id: id, HopOff: hopOff}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_TraceRouteRequest, info, ext)
 	total *= pkts_per_hop
 	b := make(common.RawBytes, cmn.Mtu)
@@ -189,6 +195,10 @@ func validate(pkt *spkt.ScnPkt, pathEntry *sciond.PathReplyEntry) (*scmp.Hdr,
 	if !ok {
 		return nil, nil,
 			common.NewBasicError("Not an Info TraceRoute", nil, "type", common.TypeOf(info))
+	}
+	if info.Id != id {
+		return nil, nil,
+			common.NewBasicError("Wrong SCMP ID", nil, "expected", id, "actual", info.Id)
 	}
 	if pathEntry == nil || info.HopOff == 0 {
 		return scmpHdr, info, nil

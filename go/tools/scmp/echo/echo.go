@@ -29,10 +29,12 @@ import (
 
 var (
 	ch chan time.Time
+	id uint64
 )
 
 func Run() {
 	ch = make(chan time.Time, 20)
+	cmn.SetupSignals(summary)
 	go sendPkts()
 	recvPkts()
 }
@@ -40,7 +42,8 @@ func Run() {
 func sendPkts() {
 	defer close(ch)
 
-	info := &scmp.InfoEcho{Id: cmn.Rand(), Seq: 0}
+	id = cmn.Rand()
+	info := &scmp.InfoEcho{Id: id, Seq: 0}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
 	b := make(common.RawBytes, cmn.Mtu)
 	nhAddr := cmn.NextHopAddr()
@@ -117,8 +120,16 @@ func recvPkts() {
 		cmn.Stats.Recv += 1
 		// Calculate return time
 		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-		prettyPrint(pkt, pktLen, info, rtt)
+		prettyPrint(pkt, pktLen, info, rtt, scmpHdr.Time(), nextPktTS)
 	}
+	summary()
+}
+
+func summary() {
+	fmt.Printf("\n--- %s,[%s] statistics ---\n", cmn.Remote.IA, cmn.Remote.Host)
+	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
+		cmn.Stats.Sent, cmn.Stats.Recv, 100-cmn.Stats.Recv*100/cmn.Stats.Sent,
+		time.Since(cmn.Start).Round(time.Microsecond))
 }
 
 func validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.InfoEcho, error) {
@@ -137,10 +148,24 @@ func validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.InfoEcho, error) {
 		return nil, nil,
 			common.NewBasicError("Not an Info Echo", nil, "type", common.TypeOf(info))
 	}
+	if info.Id != id {
+		return nil, nil,
+			common.NewBasicError("Wrong SCMP ID", nil, "expected", id, "actual", info.Id)
+	}
 	return scmpHdr, info, nil
 }
 
-func prettyPrint(pkt *spkt.ScnPkt, pktLen int, info *scmp.InfoEcho, rtt time.Duration) {
-	fmt.Printf("%d bytes from %s,[%s] scmp_seq=%d time=%s\n",
-		pktLen, pkt.SrcIA, pkt.SrcHost, info.Seq, rtt)
+func prettyPrint(pkt *spkt.ScnPkt, pktLen int, info *scmp.InfoEcho, rtt time.Duration,
+	pktTS, expectedTS time.Time) {
+
+	var ooo string
+	if rtt > cmn.Timeout {
+		return
+	}
+	expectedTS = expectedTS.Truncate(time.Microsecond)
+	if pktTS.Before(expectedTS) {
+		ooo = "  Out of Order"
+	}
+	fmt.Printf("%d bytes from %s,[%s] scmp_seq=%d time=%s%s\n",
+		pktLen, pkt.SrcIA, pkt.SrcHost, info.Seq, rtt, ooo)
 }

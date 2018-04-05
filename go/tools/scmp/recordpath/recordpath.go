@@ -28,16 +28,22 @@ import (
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 )
 
+var (
+	id uint64
+)
+
 func Run() {
 	var n, pktLen int
 	var ext *scmp.Extn
 
+	cmn.SetupSignals(nil)
 	if cmn.PathEntry != nil {
 		n = len(cmn.PathEntry.Path.Interfaces)
 		ext = &scmp.Extn{Error: false, HopByHop: true}
 	}
 	entries := make([]*scmp.RecordPathEntry, 0, n)
-	info := &scmp.InfoRecordPath{Id: cmn.Rand(), Entries: entries}
+	id = cmn.Rand()
+	info := &scmp.InfoRecordPath{Id: id, Entries: entries}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_RecordPathRequest, info, ext)
 	b := make(common.RawBytes, cmn.Mtu)
 	nhAddr := cmn.NextHopAddr()
@@ -113,6 +119,10 @@ func validate(pkt *spkt.ScnPkt, pathEntry *sciond.PathReplyEntry) (*scmp.Hdr,
 	if !ok {
 		return nil, nil,
 			common.NewBasicError("Not an Info RecordPath", nil, "type", common.TypeOf(info))
+	}
+	if info.Id != id {
+		return nil, nil,
+			common.NewBasicError("Wrong SCMP ID", nil, "expected", id, "actual", info.Id)
 	}
 	if pathEntry == nil {
 		return scmpHdr, info, nil

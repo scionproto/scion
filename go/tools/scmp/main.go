@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -90,10 +89,6 @@ func main() {
 }
 
 func doCommand(cmd string) int {
-	cmn.Stats = &cmn.ScmpStats{}
-	stats := cmn.Stats
-
-	start := time.Now()
 	switch cmd {
 	case "echo":
 		echo.Run()
@@ -106,11 +101,8 @@ func doCommand(cmd string) int {
 		flag.Usage()
 		os.Exit(1)
 	}
-	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		stats.Sent, stats.Recv, 100-stats.Recv*100/stats.Sent,
-		time.Since(start).Round(time.Microsecond))
 
-	if stats.Sent != stats.Recv {
+	if cmn.Stats.Sent != cmn.Stats.Recv {
 		return 1
 	}
 	return 0
