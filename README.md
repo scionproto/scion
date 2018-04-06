@@ -6,13 +6,15 @@ Internet architecture.
 
 * [docker/](/docker): support files to run SCION inside of Docker
   containers.
-* [endhost/](/endhost): the parts of the code used on end hosts, e.g.
-  `sciond`.
 * [go/](/go): parts of the implementation that are written in
   [Go](http://golang.org).
-* [infrastructure/](/infrastructure): the parts of the infrastructure
+  * [border_router](/go/border): Border Router.
+* [python/](/python): the parts of the infrastructure
   implemented in Python.
-* [lib/](/lib): the most relevant SCION libraries.
+  * [beacon_server](/python/beacon_server): Beacon Server
+  * [certificate_server](/python/cert_server): Certificate Server
+  * [path_server](/python/path_server): Path Server
+* [python/lib/](python/lib): the most relevant SCION libraries.
 * [proto/](/proto): the protocol definitions for use with [Cap’n
   Proto](https://capnproto.org/).
 * [sphinx-doc/](/sphinx-doc): the tools to generate the API
@@ -20,7 +22,6 @@ Internet architecture.
 * [sub/](/sub): the git submodules used by SCION
 * [supervisor/](/supervisor): the configuration for
   [supervisord](http://supervisord.org/).
-* [test/](/test): the unit tests for the Python code.
 * [tools/](/tools): assorted support tools.
 * [topology/](/topology): the scripts to generate the SCION
   configuration and topology files, as well as the certificates and ROT files
@@ -83,7 +84,7 @@ Necessary steps in order to run SCION:
                 keys/
                     as-sig.key
 
-   The default topology looks like [this](doc/fig/default-topo.pdf).
+   The default topology looks like [this](doc/fig/default_topo.png).
 
 1. Run the infrastructure:
 
