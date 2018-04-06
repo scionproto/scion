@@ -24,8 +24,8 @@ import (
 )
 
 type RevTokenCallbackArgs struct {
-	RevInfo *path_mgmt.RevInfo
-	Addrs   []addr.HostSVC
+	SignedRevInfo *path_mgmt.SignedRevInfo
+	Addrs         []addr.HostSVC
 }
 
 // parseSCMPPayload is a hook that can be used for hookPayload, to retrieve the
