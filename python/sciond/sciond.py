@@ -86,7 +86,8 @@ from lib.util import SCIONTime
 from sciond.req import RequestState
 from scion_elem.scion_elem import SCIONElement
 
-from python.lib.packet.path_mgmt.rev_info import ProtoLinkType
+from lib.types import ProtoLinkType
+from lib.packet.proto_sign import ProtoSignedBlob
 
 _FLUSH_FLAG = "FLUSH"
 
@@ -371,7 +372,7 @@ class SCIONDaemon(SCIONElement):
         assert isinstance(request, SCIONDRevNotification), type(request)
         status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
-        self.send_meta(rev_reply.pack(), meta)
+        self.send_meta(rev_reply.pack(), meta) # send back to appli.
 
     def _api_handle_seg_type_request(self, pld, meta):
         request = pld.union
@@ -407,8 +408,7 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
-        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-        self.handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
+        self.handle_revocation(CtrlPayload(PathMgmt(pld.info.rev_info)), meta)
 
     def handle_revocation(self, cpld, meta):
         pmgt = cpld.union

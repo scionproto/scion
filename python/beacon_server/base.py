@@ -648,6 +648,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._send_ifstate_update(infos, border_metas, ps_meta)
 
     def _handle_scmp_revocation(self, pld, meta):
+        # TODO what is pld.info.rev_info?
         rev_info = RevocationInfo.from_raw(pld.info.rev_info)
         logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
         try:
@@ -727,14 +728,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if cand.id in processed:
                 continue
             processed.add(cand.id)
-            if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
+            if not rev_info.active():
                 continue
 
             # If the interface on which we received the PCB is
             # revoked, then the corresponding pcb needs to be removed.
-            root_verify = ConnectedHashTree.verify(rev_info, self._get_ht_root())
             if (self.addr.isd_as == rev_info.isd_as() and
-                    cand.pcb.ifID == rev_info.p.ifID and root_verify):
+                    cand.pcb.ifID == rev_info.p.ifID):
                 to_remove.append(cand.id)
 
             for asm in cand.pcb.iter_asms():

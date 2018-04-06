@@ -26,6 +26,7 @@ from lib.packet.path_mgmt.ifstate import IFStatePayload, IFStateRequest
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg, PathRecordsSync
 from lib.packet.path_mgmt.seg_req import PathSegmentReq, PathSegmentReply
+from lib.packet.proto_sign import ProtoSignedBlob
 
 
 class PathMgmt(CerealBox):  # pragma: no cover
@@ -36,7 +37,7 @@ class PathMgmt(CerealBox):  # pragma: no cover
         PathSegmentReply: PathMgmtType.REPLY,
         PathRecordsReg: PathMgmtType.REG,
         PathRecordsSync: PathMgmtType.SYNC,
-        RevocationInfo: PathMgmtType.REVOCATION,
+        RevocationInfo: ProtoSignedBlob.NAME,
         IFStateRequest: PathMgmtType.IFSTATE_REQ,
         IFStatePayload: PathMgmtType.IFSTATE_INFOS,
     }

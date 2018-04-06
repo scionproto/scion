@@ -268,8 +268,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         pmgt = cpld.union
         rev_info = pmgt.union
+        # TODO get correct
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        # Validate before checking for presense in self.revocations, as that will trigger an assert
+        # Validate before checking for presence in self.revocations, as that will trigger an assert
         # failure if the rev_info is invalid.
         try:
             rev_info.validate()
@@ -307,7 +308,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
+        if not rev_info.active():
             return
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
         if_id = rev_info.p.ifID

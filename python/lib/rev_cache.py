@@ -81,7 +81,7 @@ class RevCache:
                 return rev_info
             return default
 
-    def get_by_link_type(self, type):
+    def get_by_link_type(self, type_):
         """
         Return revocation infos of one link type
         :param type: ProtoLinkType
@@ -91,7 +91,7 @@ class RevCache:
             rev_infos = self._cache.values()
             revs = []
             for rev_info in rev_infos:
-                if self._validate_entry(rev_info) and rev_info.link_type == type:
+                if self._validate_entry(rev_info) and rev_info.link_type == type_:
                     revs.append(rev_info)
             return revs
 

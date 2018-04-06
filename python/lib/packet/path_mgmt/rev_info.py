@@ -28,12 +28,7 @@ from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.util import iso_timestamp
 
-
-class ProtoLinkType(object):
-    CORE = "core"
-    PARENT = "parent"
-    CHILD = "child"
-    PEER = "peer"
+from python.lib.defines import REVOCATION_TTL
 
 
 class RevInfoValidationError(SCIONBaseError):
@@ -48,7 +43,7 @@ class RevocationInfo(Cerealizable):
     P_CLS = P.RevInfo
 
     @classmethod
-    def from_values(cls, isd_as, if_id, link_type, timestamp, ttl=10):
+    def from_values(cls, isd_as, if_id, link_type, timestamp, ttl=REVOCATION_TTL):
         """
         Returns a RevocationInfo object with the specified values.
 
@@ -58,6 +53,7 @@ class RevocationInfo(Cerealizable):
         :param int timestamp: Revocation creation timestamp in seconds
         :param int TTL: Revocation validity period in seconds
         """
+        assert ttl >= REVOCATION_TTL
         p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, linkType=link_type,
                                   timestamp=timestamp, ttl=ttl)
         return cls(p)
@@ -68,18 +64,17 @@ class RevocationInfo(Cerealizable):
     def validate(self):
         if self.p.timestamp > int(time.time()) + 1:
             raise RevInfoValidationError("Timestamp in the future: %s" % self.p.timestamp)
-        if self.p.ttl < 10:
+        if self.p.ttl < REVOCATION_TTL:
             raise RevInfoValidationError("TTL is too small: %s" % self.p.ttl)
         if self.p.ifID == 0:
-            raise RevInfoValidationError("Invalid ifID: %d" % self.p.ifID)
+            raise RevInfoValidationError("Invalid ifID: %s" % self.p.ifID)
         self.isd_as()
 
     def active(self):
         now = int(time.time())
-        # make sure the revocation timestamp is within the validity window
-        if self.p.timestamp > now + 1 or self.p.timestamp < now - self.p.ttl:
-            return False
-        return True
+        # Make sure the revocation timestamp is within the validity window
+        assert self.p.timestamp <= now + 1
+        return now < (self.p.timestamp + self.p.ttl)
 
     def cmp_str(self):
         b = []
@@ -99,6 +94,6 @@ class RevocationInfo(Cerealizable):
         return hash(self.cmp_str())
 
     def short_desc(self):
-        return "RevInfo: %s IF: %d Link type: %s Timestamp: %s TTL: %d" % (
+        return "RevInfo: %s IF: %s Link type: %s Timestamp: %s TTL: %s" % (
             self.isd_as(), self.p.ifID, self.p.link_type,
             iso_timestamp(self.p.timestamp), self.p.ttl)

@@ -54,6 +54,13 @@ class ServiceType(TypeBase):
     SIBRA = "sb"
 
 
+class ProtoLinkType(TypeBase):
+    CORE = "core"
+    PARENT = "parent"
+    CHILD = "child"
+    PEER = "peer"
+
+
 class ExtensionClass(TypeBase):
     """
     Constants for two types of extensions. These values are shared with L4
