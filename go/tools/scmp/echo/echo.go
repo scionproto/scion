@@ -28,20 +28,17 @@ import (
 )
 
 var (
-	ch chan time.Time
-	id uint64
+	id      uint64
+	recvSeq uint16
 )
 
 func Run() {
-	ch = make(chan time.Time, 20)
 	cmn.SetupSignals(summary)
 	go sendPkts()
 	recvPkts()
 }
 
 func sendPkts() {
-	defer close(ch)
-
 	id = cmn.Rand()
 	info := &scmp.InfoEcho{Id: id, Seq: 0}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
@@ -67,8 +64,6 @@ func sendPkts() {
 				len(b), written)
 			break
 		}
-		// Notify the receiver
-		ch <- nextPktTS
 		cmn.Stats.Sent += 1
 		// More packets?
 		if cmn.Count != 0 && cmn.Stats.Sent == cmn.Count {
@@ -81,22 +76,30 @@ func sendPkts() {
 	}
 }
 
+func updateDeadline(t time.Time, seq uint16) {
+	nextTimeout := t.Add(cmn.Interval * time.Duration(seq)).Add(cmn.Timeout)
+	cmn.Conn.SetReadDeadline(nextTimeout)
+}
+
 func recvPkts() {
+	var expectedSeq uint16
+
 	pkt := &spkt.ScnPkt{}
 	b := make(common.RawBytes, cmn.Mtu)
 
-	nextTimeout := time.Now()
-	for {
-		nextPktTS, ok := <-ch
-		if ok {
-			nextTimeout = nextPktTS.Add(cmn.Timeout)
-			cmn.Conn.SetReadDeadline(nextTimeout)
-		} else if cmn.Stats.Recv == cmn.Stats.Sent || nextTimeout.Before(time.Now()) {
-			break
-		}
+	start := time.Now()
+	updateDeadline(start, 0)
+	for cmn.Count == 0 || expectedSeq < uint16(cmn.Count) {
 		pktLen, err := cmn.Conn.Read(b)
 		if err != nil {
 			if common.IsTimeoutErr(err) {
+				fmt.Printf("Timeout on scmp_seq=%d\n", expectedSeq)
+				if expectedSeq > recvSeq {
+					expectedSeq += 1
+				} else {
+					expectedSeq = recvSeq + 1
+				}
+				updateDeadline(start, expectedSeq)
 				continue
 			} else {
 				fmt.Fprintf(os.Stderr, "ERROR: Unable to read: %v\n", err)
@@ -118,9 +121,21 @@ func recvPkts() {
 			break
 		}
 		cmn.Stats.Recv += 1
+		if info.Seq > recvSeq {
+			recvSeq = info.Seq
+		}
+		// Update read deadline if the expected packet was received
+		if info.Seq == expectedSeq {
+			if expectedSeq > recvSeq {
+				expectedSeq += 1
+			} else {
+				expectedSeq = recvSeq + 1
+			}
+			updateDeadline(start, expectedSeq)
+		}
 		// Calculate return time
 		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
-		prettyPrint(pkt, pktLen, info, rtt, scmpHdr.Time(), nextPktTS)
+		prettyPrint(pkt, pktLen, info, rtt)
 	}
 	summary()
 }
@@ -155,17 +170,13 @@ func validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.InfoEcho, error) {
 	return scmpHdr, info, nil
 }
 
-func prettyPrint(pkt *spkt.ScnPkt, pktLen int, info *scmp.InfoEcho, rtt time.Duration,
-	pktTS, expectedTS time.Time) {
-
-	var ooo string
+func prettyPrint(pkt *spkt.ScnPkt, pktLen int, info *scmp.InfoEcho, rtt time.Duration) {
+	var str string
 	if rtt > cmn.Timeout {
-		return
-	}
-	expectedTS = expectedTS.Truncate(time.Microsecond)
-	if pktTS.Before(expectedTS) {
-		ooo = "  Out of Order"
+		str = "  Packet too old"
+	} else if info.Seq < recvSeq {
+		str = "  Out of Order"
 	}
 	fmt.Printf("%d bytes from %s,[%s] scmp_seq=%d time=%s%s\n",
-		pktLen, pkt.SrcIA, pkt.SrcHost, info.Seq, rtt, ooo)
+		pktLen, pkt.SrcIA, pkt.SrcHost, info.Seq, rtt, str)
 }

@@ -46,12 +46,7 @@ var (
 
 func main() {
 	var err error
-	flag.Parse()
-	args := flag.Args()
-	if len(args) < 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
+	cmd := cmn.ParseFlags()
 	cmn.ValidateFlags()
 
 	if *sciondPath == "" {
@@ -84,7 +79,7 @@ func main() {
 	}
 	fmt.Printf("Using path:\n  %s\n", pathStr)
 
-	ret := doCommand(args[0])
+	ret := doCommand(cmd)
 	os.Exit(ret)
 }
 

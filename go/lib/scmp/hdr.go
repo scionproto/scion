@@ -132,5 +132,5 @@ func (h *Hdr) Time() time.Time {
 }
 
 func (h *Hdr) SetTime(t time.Time) {
-	h.Timestamp = uint64(t.Truncate(time.Microsecond).UnixNano()) / 1000
+	h.Timestamp = uint64(t.UnixNano()) / 1000
 }

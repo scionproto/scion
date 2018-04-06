@@ -106,7 +106,6 @@ func Run() {
 		scmpHdr, infoRecv, err = validate(pktRecv, cmn.PathEntry)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation error: %v\n", err)
-			// We continue as one bad reply does not mean all replies would be bad ones
 			break
 		}
 		// Calculate return time
@@ -131,7 +130,6 @@ func prettyPrint(pkt *spkt.ScnPkt, info *scmp.InfoTraceRoute, rtt time.Duration)
 	if rtt > cmn.Timeout {
 		fmt.Printf(" *")
 	} else {
-		//	fmt.Printf("DBG: itmeout %v, rtt %v\n", cmn.Timeout, rtt)
 		if !hop_printed {
 			hop_printed = true
 			if info.HopOff == 0 {
