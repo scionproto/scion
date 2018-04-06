@@ -76,6 +76,7 @@ from lib.defines import (
     IFIDS_FILE,
     DEFAULT6_NETWORK,
     DEFAULT6_NETWORK_ADDR,
+    DEFAULT6_PRIV_NETWORK,
     NETWORKS_FILE,
     OVERLAY_FILE,
     PATH_POLICY_FILE,
@@ -132,8 +133,6 @@ THRESHOLD_EEPKI = 0
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
-
-DEFAULT6_PRIV_NETWORK = "fd00:f00d:cafe::c000:0000/104"
 
 SCION_SERVICE_NAMES = (
     "BeaconService",
@@ -214,7 +213,7 @@ class ConfigGenerator(object):
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
-        self._generate_supervisor(topo_dicts, zookeepers)
+        self._generate_supervisor(topo_dicts)
         self._generate_prom_conf(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
@@ -253,9 +252,9 @@ class ConfigGenerator(object):
             self.default_mtu, self.gen_bind_addr, overlay)
         return topo_gen.generate()
 
-    def _generate_supervisor(self, topo_dicts, zookeepers):
+    def _generate_supervisor(self, topo_dicts):
         super_gen = SupervisorGenerator(
-            self.out_dir, topo_dicts, zookeepers, self.zk_config, self.mininet, self.cs)
+            self.out_dir, topo_dicts, self.mininet, self.cs)
         super_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
@@ -721,9 +720,7 @@ class TopoGenerator(object):
 
     def _gen_zk_entries(self, topo_id, as_conf):
         zk_conf = {}
-        if "zookeepers" in as_conf:
-            zk_conf = as_conf["zookeepers"]
-        elif "zookeepers" in self.topo_config.get("defaults", {}):
+        if "zookeepers" in self.topo_config.get("defaults", {}):
             zk_conf = self.topo_config["defaults"]["zookeepers"]
         for key, val in zk_conf.items():
             self._gen_zk_entry(topo_id, key, val)
@@ -837,11 +834,9 @@ class PrometheusGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, zookeepers, zk_config, mininet, cs):
+    def __init__(self, out_dir, topo_dicts, mininet, cs):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self.zookeepers = zookeepers
-        self.zk_config = zk_config
         self.mininet = mininet
         self.cs = cs
 
@@ -860,7 +855,6 @@ class SupervisorGenerator(object):
             entries.extend(self._std_entries(topo, key, cmd, base))
         entries.extend(self._cs_entries(topo, base))
         entries.extend(self._br_entries(topo, "bin/border", base))
-        entries.extend(self._zk_entries(topo_id))
         self._write_as_conf(topo_id, entries)
 
     def _std_entries(self, topo, topo_key, cmd, base):
@@ -895,14 +889,6 @@ class SupervisorGenerator(object):
 
     def _sciond_path(self, name):
         return os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)
-
-    def _zk_entries(self, topo_id):
-        if topo_id not in self.zookeepers:
-            return []
-        entries = []
-        for name, (_, zk) in self.zookeepers[topo_id].items():
-            entries.append((name, zk.super_conf(topo_id, name, self.out_dir)))
-        return entries
 
     def _write_as_conf(self, topo_id, entries):
         config = configparser.ConfigParser(interpolation=None)
@@ -954,9 +940,6 @@ class SupervisorGenerator(object):
                 prog['environment'] += ',SCIOND_PATH="%s"' % path
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
-        if elem.startswith("zk") and self.zk_config["Environment"]:
-            for k, v in self.zk_config["Environment"].items():
-                prog['environment'] += ',%s="%s"' % (k, v)
         config["program:%s" % elem] = prog
         text = StringIO()
         config.write(text)
@@ -1034,39 +1017,16 @@ class ZKTopo(object):
         self.zk_config = zk_config
         self.addr = ip_address(self.topo_config["addr"])
         self.clientPort = self._get_def("clientPort")
-        self.leaderPort = self._get_def("leaderPort")
-        self.electionPort = self._get_def("electionPort")
-        self.maxClientCnxns = self._get_def("maxClientCnxns")
 
     def _get_def(self, key):
         return self.topo_config.get(key, self.zk_config["Default"][key])
 
-    def zk_conf(self, data_dir, data_log_dir):
-        c = []
-        for s in ('tickTime', 'initLimit', 'syncLimit', 'maxClientCnxns'):
-            c.append("%s=%s" % (s, self._get_def(s)))
-        c.append("dataDir=%s" % data_dir)
-        c.append("dataLogDir=%s" % data_log_dir)
-        c.append("clientPort=%s" % self.clientPort)
-        c.append("clientPortAddress=%s" % self.addr.ip)
-        c.append("autopurge.purgeInterval=1")
-        return "\n".join(c)
-
-    def super_conf(self, topo_id, name, out_dir):
-        base_dir = os.path.join(out_dir, topo_id.ISD(), topo_id.AS(), name)
-        cfg_path = os.path.join(base_dir, "zoo.cfg")
-        class_path = ":".join([
-            base_dir, self.zk_config["Config"]["CLASSPATH"],
-        ])
-        return [
-            "java", "-cp", class_path,
-            '-Dzookeeper.log.file=logs/%s.log' % name,
-            self.zk_config["Config"]["ZOOMAIN"], cfg_path,
-        ]
-
 
 class SubnetGenerator(object):
     def __init__(self, network):
+        if "/" not in network:
+            logging.critical("No prefix length specified for network '%s'",
+                             network)
         try:
             self._net = ip_network(network)
         except ValueError:
@@ -1075,7 +1035,8 @@ class SubnetGenerator(object):
         self._subnets = defaultdict(lambda: AddressGenerator())
         self._allocations = defaultdict(list)
         # Initialise the allocations with the supplied network, making sure to
-        # exclude <net>/30 if it's contained in the network.
+        # exclude 127.0.0.0/30 (for v4) and DEFAULT6_NETWORK_ADDR/126 (for v6)
+        # if it's contained in the network.
         # - .0 is treated as a broadcast address by the kernel
         # - .1 is the normal loopback address
         # - .[23] are used for clients to bind to for testing purposes.

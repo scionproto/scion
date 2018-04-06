@@ -24,6 +24,7 @@ from lib.defines import (
     DEFAULT6_CLIENT,
     DEFAULT6_MASK,
     DEFAULT6_NETWORK,
+    DEFAULT6_PRIV_NETWORK,
     DEFAULT6_SERVER,
     NETWORKS_FILE,
     OVERLAY_FILE,
@@ -34,17 +35,31 @@ from lib.util import (
 )
 
 
+def ip_missing(addr):  # Can only safely detect the _absences_ of addr
+    return len(os.popen("ip addr show dev lo to %s 2>&1" % addr).read()) == 0
+
+
+def ip_add(addr, mask):
+    if ip_missing(addr):
+        os.system('sudo ip addr replace %s%s dev lo' % (addr, mask))
+
+
+def net_clear(net):
+    if not ip_missing(net):
+        os.system('sudo ip addr flush dev lo to %s' % (net))
+
+
 def set_interfaces():
     path = os.path.join(GEN_PATH, NETWORKS_FILE)
     with open(path, 'r') as f:
         for l in f.readlines():
-            try:
-                address = l.split("= ")[1]
-                addr = IPv6Address(address[:-1])
-                if addr in IPv6Network(DEFAULT6_NETWORK):
-                    os.system('sudo ip addr replace %s/104 dev lo' % (str(addr)))
-            except Exception:
+            split = l.split("= ")
+            if (len(split) < 2):
                 continue
+            address = split[1]
+            addr = IPv6Address(address[:-1])
+            if addr in IPv6Network(DEFAULT6_NETWORK):
+                ip_add(str(addr), DEFAULT6_MASK)
 
 
 def get_overlay():
@@ -54,7 +69,7 @@ def get_overlay():
 
 def main():
     overlay = get_overlay()
-    if overlay == 'UDP/IPv4' or overlay == 'IPv4':
+    if "IPv4" in overlay:
         return
 
     parser = argparse.ArgumentParser()
@@ -64,11 +79,12 @@ def main():
                         help='Delete IPv6 local host addresses from loopback')
     args = parser.parse_args()
     if args.add:
-        os.system('sudo ip addr replace %s dev lo' % (DEFAULT6_CLIENT + DEFAULT6_MASK))
-        os.system('sudo ip addr replace %s dev lo' % (DEFAULT6_SERVER + DEFAULT6_MASK))
+        ip_add(DEFAULT6_CLIENT, DEFAULT6_MASK)
+        ip_add(DEFAULT6_SERVER, DEFAULT6_MASK)
         set_interfaces()
     if args.delete:
-        os.system('sudo ip addr flush dev lo to %s' % (DEFAULT6_NETWORK))
+        net_clear(DEFAULT6_NETWORK)
+        net_clear(DEFAULT6_PRIV_NETWORK)
 
 if __name__ == "__main__":
     main()

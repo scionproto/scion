@@ -170,7 +170,6 @@ type connUDPBase struct {
 }
 
 func (cc *connUDPBase) initConnUDP(network string, listen, remote *topology.AddrInfo) error {
-
 	var laddr, raddr *net.UDPAddr
 	var c *net.UDPConn
 	var err error

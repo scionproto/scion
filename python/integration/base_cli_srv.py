@@ -384,7 +384,7 @@ def setup_main(name, parser=None):
     init_logging("logs/%s" % name, console_level=args.loglevel)
 
     overlay = get_overlay()
-    if overlay == 'UDP/IPv6' or overlay == 'IPv6':
+    if "IPv6" in overlay:
         if not args.client:
             args.client = DEFAULT6_CLIENT
         if not args.server:
