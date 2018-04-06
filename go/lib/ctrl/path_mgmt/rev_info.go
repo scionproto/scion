@@ -25,7 +25,10 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/lib/util"
+	"time"
 )
+
+const TTL = 10 * time.Second // Revocation TTL
 
 var _ proto.Cerealizable = (*RevInfo)(nil)
 
@@ -44,6 +47,16 @@ func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
 func (r *RevInfo) IA() addr.IA {
 	return r.RawIsdas.IA()
 }
+
+func (r *RevInfo) Valid() bool {
+	now := time.Now().UnixNano()
+	// Revocation is not valid if its timestamp is not within the TTL
+	if int64(r.Timestamp) > now || int64(r.Timestamp) < now - TTL.Nanoseconds() {
+		return false
+	}
+	return true
+}
+
 func (r *RevInfo) ProtoId() proto.ProtoIdType {
 	return proto.RevInfo_TypeID
 }
