@@ -27,11 +27,10 @@ from external.expiring_dict import ExpiringDict
 from prometheus_client import Counter, Gauge
 
 # SCION
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
     GEN_CACHE_PATH,
-    HASHTREE_EPOCH_TIME,
+    MIN_REVOCATION_TTL,
     PATH_REQ_TOUT,
     PATH_SERVICE,
 )
@@ -44,6 +43,7 @@ from lib.packet.path_mgmt.ifstate import IFStatePayload
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReply
 from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
@@ -68,8 +68,6 @@ REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_a
 REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests", ["server_id", "isd_as"])
 SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", ["server_id", "isd_as"])
 REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK", ["server_id", "isd_as"])
-HT_ROOT_MAPPTINGS = Gauge("ps_ht_root_mappings_total", "# of hashtree root to segment mappings",
-                          ["server_id", "isd_as"])
 IS_MASTER = Gauge("ps_is_master", "true if this process is the replication master",
                   ["server_id", "isd_as"])
 
@@ -89,7 +87,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     # Max number of segments per ZK cache entry
     ZK_SHARE_LIMIT = 10
     # Time to store revocations in zookeeper
-    ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
+    ZK_REV_OBJ_MAX_AGE = MIN_REVOCATION_TTL
     # TTL of segments in the queue for ZK (in seconds)
     SEGS_TO_ZK_TTL = 10 * 60
 
@@ -113,9 +111,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache(labels=self._labels)
-        # A mapping from (hash tree root of AS, IFID) to segments
-        self.htroot_if2seg = ExpiringDict(1000, self.config.revocation_tree_ttl)
-        self.htroot_if2seglock = Lock()
+        self.seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.IFSTATE_INFOS: self.handle_ifstate_infos,
@@ -138,7 +134,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             },
         }
         self._segs_to_zk = ExpiringDict(1000, self.SEGS_TO_ZK_TTL)
-        self._revs_to_zk = ExpiringDict(1000, HASHTREE_EPOCH_TIME)
+        self._revs_to_zk = ExpiringDict(1000, MIN_REVOCATION_TTL)
         self._zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                       [(self.addr.host, self._port)])
         self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE,
@@ -194,19 +190,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 continue
             self._remove_revoked_segments(rev_info)
 
-    def _add_rev_mappings(self, pcb):
-        """
-        Add if revocation token to segment ID mappings.
-        """
-        segment_id = pcb.get_hops_hash()
-        with self.htroot_if2seglock:
-            for asm in pcb.iter_asms():
-                hof = asm.pcbm(0).hof()
-                egress_h = (asm.p.hashTreeRoot, hof.egress_if)
-                self.htroot_if2seg.setdefault(egress_h, set()).add(segment_id)
-                ingress_h = (asm.p.hashTreeRoot, hof.ingress_if)
-                self.htroot_if2seg.setdefault(ingress_h, set()).add(segment_id)
-
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
@@ -222,11 +205,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _add_segment(self, pcb, seg_db, name, reverse=False):
         res = seg_db.update(pcb, reverse=reverse)
         if res == DBResult.ENTRY_ADDED:
-            self._add_rev_mappings(pcb)
             logging.info("%s-Segment registered: %s", name, pcb.short_id())
             return True
         elif res == DBResult.ENTRY_UPDATED:
-            self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_id())
         return False
 
@@ -241,7 +222,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
-                rev_info = info.rev_info()
+                signed_rev_info = info.rev_info()
+                rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
                 try:
                     rev_info.validate()
                 except SCIONBaseError as e:
@@ -251,14 +233,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self._handle_revocation(CtrlPayload(PathMgmt(info.rev_info())), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
+        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         try:
             rev_info.validate()
         except SCIONBaseError as e:
             logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
                             meta, e, rev_info.short_desc())
             return
-        self._handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
+        self._handle_revocation(CtrlPayload(PathMgmt(signed_rev_info)), meta)
 
     def _handle_revocation(self, cpld, meta):
         """
@@ -267,9 +250,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The RevocationInfo object.
         """
         pmgt = cpld.union
-        rev_info = pmgt.union
+        signed_rev_info = pmgt.union
+        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        # Validate before checking for presense in self.revocations, as that will trigger an assert
+        # Validate before checking for presence in self.revocations, as that will trigger an assert
         # failure if the rev_info is invalid.
         try:
             rev_info.validate()
@@ -288,6 +272,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         except SCIONBaseError as e:
             logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
             return
+        # Verify signature
+        cert = self.trust_store.get_cert(rev_info.isd_as())
+        if not cert:
+            logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+            return
+        if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
+            logging.error("Failed to verify signature!")
+            return
         if meta.ia[0] != self.addr.isd_as[0]:
             logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
                          (meta, rev_info.short_desc()))
@@ -297,35 +289,42 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Forward revocation to other path servers.
-        self._forward_revocation(rev_info, meta)
+        self._forward_revocation(signed_rev_info, meta)
 
     def _remove_revoked_segments(self, rev_info):
         """
-        Try the previous and next hashes as possible astokens,
-        and delete any segment that matches
+        Loop through all segments and remove those containing a revoked IFID
 
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
+        if not rev_info.active():
             return
-        (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
         if_id = rev_info.p.ifID
 
-        with self.htroot_if2seglock:
-            down_segs_removed = 0
-            core_segs_removed = 0
-            up_segs_removed = 0
-            for h in (hash01, hash12):
-                for sid in self.htroot_if2seg.pop((h, if_id), []):
-                    if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
-                        down_segs_removed += 1
-                    if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
-                        core_segs_removed += 1
-                    if not self.topology.is_core_as:
-                        if (self.up_segments.delete(sid) ==
-                                DBResult.ENTRY_DELETED):
-                            up_segs_removed += 1
+        def _handle_one_seg(seg, db):
+            if not seg:
+                return 0
+            for asm in seg.iter_asms():
+                for pcbm in asm.iter_pcbms(1):
+                    hof = pcbm.hof()
+                    if if_id == hof.ingress_if or if_id == hof.egress_if:
+                        if db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED:
+                            return 1
+            return 0
+
+        up_segs_removed = 0
+        down_segs_removed = 0
+        core_segs_removed = 0
+        with self.seglock:
+            if not self.topology.is_core_as:
+                for up_segment in self.up_segments:
+                    up_segs_removed += _handle_one_seg(up_segment, self.up_segments)
+            for down_segment in self.down_segments:
+                down_segs_removed += _handle_one_seg(down_segment, self.down_segments)
+            for core_segment in self.core_segments:
+                core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
+
             logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
                           (rev_info.short_desc(), up_segs_removed, down_segs_removed,
                            core_segs_removed))
@@ -424,7 +423,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(seg_recs, PathSegmentRecords), type(seg_recs)
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.
-        for rev_info in seg_recs.iter_rev_infos():
+        for signed_rev_info in seg_recs.iter_rev_infos():
+            rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
             self.revocations.add(rev_info)
         # Verify pcbs and process them
         for type_, pcb in seg_recs.iter_pcbs():
@@ -607,7 +607,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         REQS_PENDING.labels(**self._labels).set(0)
         SEGS_TO_ZK.labels(**self._labels).set(0)
         REVS_TO_ZK.labels(**self._labels).set(0)
-        HT_ROOT_MAPPTINGS.labels(**self._labels).set(0)
         IS_MASTER.labels(**self._labels).set(0)
 
     def _update_metrics(self):
@@ -628,8 +627,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Update SEGS_TO_ZK and REVS_TO_ZK metrics.
         SEGS_TO_ZK.labels(**self._labels).set(len(self._segs_to_zk))
         REVS_TO_ZK.labels(**self._labels).set(len(self._revs_to_zk))
-        # Update HT_ROOT_MAPPTINGS metric.
-        HT_ROOT_MAPPTINGS.labels(**self._labels).set(len(self.htroot_if2seg))
         # Update IS_MASTER metric.
         IS_MASTER.labels(**self._labels).set(int(self.zk.have_lock()))
 

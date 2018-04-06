@@ -22,7 +22,7 @@ import capnp  # noqa
 import proto.path_mgmt_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.packet.pcb import PathSegment
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.types import PathSegmentType as PST
 
 
@@ -35,13 +35,13 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
     P_CLS = P.SegRecs
 
     @classmethod
-    def from_values(cls, pcb_dict, rev_infos=None):
+    def from_values(cls, pcb_dict, signed_rev_infos=None):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
-        :param rev_infos: list of RevocationInfo objects
+        :param signed_rev_infos: list of SignedBlob (RevocationInfo) objects
         """
-        if not rev_infos:
-            rev_infos = []
+        if not signed_rev_infos:
+            signed_rev_infos = []
         p = cls.P_CLS.new_message()
         flat = []
         for type_, pcbs in pcb_dict.items():
@@ -51,8 +51,8 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
         for i, (type_, pcb) in enumerate(flat):
             p.recs[i].type = type_
             p.recs[i].pathSeg = pcb.p
-        p.init("revInfos", len(rev_infos))
-        for i, rev_info in enumerate(rev_infos):
+        p.init("revInfos", len(signed_rev_infos))
+        for i, rev_info in enumerate(signed_rev_infos):
             p.revInfos[i] = rev_info.p
         return cls(p)
 
@@ -61,7 +61,7 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             yield rec.type, PathSegment(rec.pathSeg)
 
     def rev_info(self, idx):
-        return RevocationInfo(self.p.revInfos[idx])
+        return ProtoSignedBlob(self.p.revInfos[idx])
 
     def iter_rev_infos(self, start=0):
         for i in range(start, len(self.p.revInfos)):
