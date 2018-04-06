@@ -24,20 +24,16 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var _ proto.Cerealizable = (*RevInfo)(nil)
 
 type RevInfo struct {
-	IfID     uint64
-	Epoch    uint64
-	Nonce    common.RawBytes
-	Siblings []SiblingHash
-	PrevRoot common.RawBytes
-	NextRoot common.RawBytes
-	RawIsdas addr.IAInt `capnp:"isdas"`
-	HashType uint16
-	TreeTTL  uint32
+	IfID      uint64
+	RawIsdas  addr.IAInt `capnp:"isdas"`
+	LinkType  proto.LinkType // Link type of revocation
+	Timestamp uint64         // Time in µs since unix epoch
 }
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
@@ -53,11 +49,6 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 }
 
 func (r *RevInfo) String() string {
-	return fmt.Sprintf("IA: %s IfID: %d Epoch: %d TreeTTL: %d",
-		r.IA(), r.IfID, r.Epoch, r.TreeTTL)
-}
-
-type SiblingHash struct {
-	IsLeft bool
-	Hash   common.RawBytes
+	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s",
+		r.IA(), r.IfID, r.LinkType, util.TimeToString(r.Timestamp))
 }
