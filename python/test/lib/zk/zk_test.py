@@ -42,7 +42,7 @@ class BaseZookeeper(object):
     """
     Base class for lib.zk.zk.Zookeeper unit tests
     """
-    default_args = ["1-2", "srvtype", b"srvid"]
+    default_args = ["1-4_294_967_301", "srvtype", b"srvid"]
     default_hosts = ["host1:9521", "host2:339"]
 
     def _init_basic_setup(self, **kwargs):
@@ -65,12 +65,12 @@ class TestZookeeperInit(BaseZookeeper):
         inst = self._init_basic_setup(
             timeout=4.5, on_connect="on_conn", on_disconnect="on_dis")
         # Tests
-        ntools.eq_(inst._isd_as, "1-2")
+        ntools.eq_(inst._isd_as, "1-4_294_967_301")
         ntools.eq_(inst._srv_id, 'c3J2aWQ=')
         ntools.eq_(inst._timeout, 4.5)
         ntools.eq_(inst._on_connect, "on_conn")
         ntools.eq_(inst._on_disconnect, "on_dis")
-        ntools.eq_(inst.prefix, "/1-2/srvtype")
+        ntools.eq_(inst.prefix, "/1-4_294_967_301/srvtype")
         ntools.eq_(inst._connected, "event0")
         ntools.eq_(inst._lock, "event1")
         queue.assert_called_once_with()

@@ -193,15 +193,15 @@ class TestPathCombinatorGetXovrPeer(object):
            new_callable=create_mock)
     def test_xovr(self, find):
         up_asms = [
-            create_mock_full({"isd_as()": "1-1"}),
-            create_mock_full({"isd_as()": "1-2"}),
-            create_mock_full({"isd_as()": "1-3"}),
+            create_mock_full({"isd_as()": "1-4_294_967_300"}),
+            create_mock_full({"isd_as()": "1-4_294_967_301"}),
+            create_mock_full({"isd_as()": "1-4_294_967_302"}),
         ]
         up_seg = create_mock_full({"iter_asms()": up_asms})
         down_asms = [
-            create_mock_full({"isd_as()": "1-1"}),
-            create_mock_full({"isd_as()": "1-2"}),
-            create_mock_full({"isd_as()": "1-4"}),
+            create_mock_full({"isd_as()": "1-4_294_967_300"}),
+            create_mock_full({"isd_as()": "1-4_294_967_301"}),
+            create_mock_full({"isd_as()": "1-4_294_967_303"}),
         ]
         down_seg = create_mock_full({"iter_asms()": down_asms})
         find.return_value = False
@@ -214,15 +214,15 @@ class TestPathCombinatorGetXovrPeer(object):
            new_callable=create_mock)
     def test_peer(self, find):
         up_asms = [
-            create_mock_full({"isd_as()": "1-1"}),  # peers with 1-10
-            create_mock_full({"isd_as()": "1-2"}),  # peers with 1-12
-            create_mock_full({"isd_as()": "1-3"}),
+            create_mock_full({"isd_as()": "1-4_294_967_300"}),  # peers with 1-4_294_967_310
+            create_mock_full({"isd_as()": "1-4_294_967_301"}),  # peers with 1-4_294_967_312
+            create_mock_full({"isd_as()": "1-4_294_967_302"}),
         ]
         up_seg = create_mock_full({"iter_asms()": up_asms})
         down_asms = [
-            create_mock_full({"isd_as()": "1-10"}),  # peers with 1-1
-            create_mock_full({"isd_as()": "1-11"}),
-            create_mock_full({"isd_as()": "1-12"}),  # peers with 1-2
+            create_mock_full({"isd_as()": "1-4_294_967_310"}),  # peers with 1-4_294_967_300
+            create_mock_full({"isd_as()": "1-4_294_967_311"}),
+            create_mock_full({"isd_as()": "1-4_294_967_312"}),  # peers with 1-4_294_967_301
         ]
         down_seg = create_mock_full({"iter_asms()": down_asms})
         peer_revs = create_mock()
@@ -499,14 +499,14 @@ class TestPathCombinatorFindPeerHfs(object):
     """
     def _mk_pcbms(self):
         up_pcbms = [
-            self._mk_pcbm("2-1", 1, 1, 500),
-            self._mk_pcbm("2-1", 2, 2, 600),  # Not reciprocated
-            self._mk_pcbm("2-1", 3, 3, 700),
+            self._mk_pcbm("2-4_294_967_321", 1, 1, 500),
+            self._mk_pcbm("2-4_294_967_321", 2, 2, 600),  # Not reciprocated
+            self._mk_pcbm("2-4_294_967_321", 3, 3, 700),
         ]
         down_pcbms = [
-            # Local 2-1
-            self._mk_pcbm("1-1", 1, 1, 500),
-            self._mk_pcbm("1-1", 3, 3, 700),
+            # Local 2-4_294_967_321
+            self._mk_pcbm("1-4_294_967_300", 1, 1, 500),
+            self._mk_pcbm("1-4_294_967_300", 3, 3, 700),
         ]
         return up_pcbms, down_pcbms
 
@@ -518,9 +518,9 @@ class TestPathCombinatorFindPeerHfs(object):
     def test(self):
         up_pcbms, down_pcbms = self._mk_pcbms()
         p = create_mock_full({"hashTreeRoot": b"1234"})
-        up_asm = create_mock_full({"isd_as()": "1-1", "iter_pcbms()": up_pcbms,
+        up_asm = create_mock_full({"isd_as()": "1-4_294_967_300", "iter_pcbms()": up_pcbms,
                                    "p": p})
-        down_asm = create_mock_full({"isd_as()": "2-1",
+        down_asm = create_mock_full({"isd_as()": "2-4_294_967_321",
                                      "iter_pcbms()": down_pcbms,
                                      "p": p})
         peer_revs = create_mock_full({"get()": None})
@@ -534,10 +534,10 @@ class TestPathCombinatorFindPeerHfs(object):
     def test_with_revocation(self, skip_peer):
         up_pcbms, down_pcbms = self._mk_pcbms()
         p = create_mock_full({"hashTreeRoot": b"1234"})
-        up_asm = create_mock_full({"isd_as()": "1-1",
+        up_asm = create_mock_full({"isd_as()": "1-4_294_967_300",
                                    "iter_pcbms()": up_pcbms,
                                    "p": p})
-        down_asm = create_mock_full({"isd_as()": "2-1",
+        down_asm = create_mock_full({"isd_as()": "2-4_294_967_321",
                                      "iter_pcbms()": down_pcbms,
                                      "p": p})
         up_peer_rev = create_mock()
@@ -545,7 +545,7 @@ class TestPathCombinatorFindPeerHfs(object):
         peer_revs = create_mock(["get"])
 
         def get_side_effect(key):
-            data = {("1-1", 3): up_peer_rev, ("2-1", 3): down_peer_rev}
+            data = {("1-4_294_967_300", 3): up_peer_rev, ("2-4_294_967_321", 3): down_peer_rev}
             return data.get(key)
 
         peer_revs.get.side_effect = get_side_effect

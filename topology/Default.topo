@@ -5,10 +5,10 @@ defaults:
       manage: false
       addr: 127.0.0.1
 ASes:
-  1-11:
+  1-4_295_001_010: # old 1-11
     core: true
     path_servers: 3
-  1-12:
+  1-4_295_001_020: # old 1-12
     core: true
     zookeepers:
       1:
@@ -26,78 +26,66 @@ ASes:
         clientPort: 4006
         leaderPort: 4007
         electionPort: 4008
-  1-13:
+  1-4_295_001_030: # old 1-13
     core: true
     beacon_servers: 2
-  1-14:
-    cert_issuer: 1-11
-  1-15:
-    cert_issuer: 1-12
-  1-16:
-    beacon_servers: 3
-    cert_issuer: 1-13
-  1-17:
-    cert_issuer: 1-11
+  1-4_295_001_011: # old 1-14
+    cert_issuer: 1-4_295_001_010
+  1-4_295_001_012: # old 1-17
+    cert_issuer: 1-4_295_001_010
     mtu: 1450
-  1-18:
-    cert_issuer: 1-12
-  1-19:
+  1-4_295_001_021: # old 1-15
+    cert_issuer: 1-4_295_001_020
+  1-4_295_001_022: # old 1-18
+    cert_issuer: 1-4_295_001_020
+  1-4_295_001_031: # old 1-16
+    cert_issuer: 1-4_295_001_030
+    beacon_servers: 3
+  1-4_295_001_032: # old 1-19
+    cert_issuer: 1-4_295_001_030
     path_servers: 2
-    cert_issuer: 1-13
-  1-10:
-    cert_issuer: 1-13
-  2-21:
+  1-4_295_001_033: # old 1-10
+    cert_issuer: 1-4_295_001_030
+  2-4_295_002_010: # old 2-21
     core: true
     mtu: 1280
-  2-22:
+  2-4_295_002_020: # old 2-22
     core: true
-  2-23:
-    cert_issuer: 2-21
-  2-24:
-    cert_issuer: 2-22
-  2-25:
-    cert_issuer: 2-21
-  2-26:
-    cert_issuer: 2-22
+  2-4_295_002_011: # old 2-23
+    cert_issuer: 2-4_295_002_010
+  2-4_295_002_012: # old 2-25
+    cert_issuer: 2-4_295_002_010
+  2-4_295_002_021: # old 2-24
+    cert_issuer: 2-4_295_002_020
+  2-4_295_002_022: # old 2-26
+    cert_issuer: 2-4_295_002_020
+links:
+  - {a: 1-4_295_001_010, b: 1-4_295_001_020, ltype: CORE}
+  - {a: 1-4_295_001_010, b: 1-4_295_001_030, ltype: CORE}
+  - {a: 1-4_295_001_010, b: 2-4_295_002_010, ltype: CORE}
+  - {a: 1-4_295_001_010, b: 1-4_295_001_011, ltype: PARENT}
+  - {a: 1-4_295_001_020, b: 1-4_295_001_030, ltype: CORE}
+  - {a: 1-4_295_001_020, b: 2-4_295_002_020, ltype: CORE, mtu: 1400}
+  - {a: 1-4_295_001_020, b: 1-4_295_001_021, ltype: PARENT}
+  - {a: 1-4_295_001_030, b: 1-4_295_001_031, ltype: PARENT}
+  - {a: 1-4_295_001_011, b: 1-4_295_001_021, ltype: PEER}
+  - {a: 1-4_295_001_011, b: 2-4_295_002_011, ltype: PEER}
+  - {a: 1-4_295_001_011, b: 1-4_295_001_012, ltype: PARENT}
+  - {a: 1-4_295_001_021, b: 1-4_295_001_031, ltype: PEER}
+  - {a: 1-4_295_001_021, b: 1-4_295_001_022, ltype: PARENT}
+  - {a: 1-4_295_001_031, b: 1-4_295_001_032, ltype: PARENT}
+  - {a: 1-4_295_001_032, b: 1-4_295_001_033, ltype: PARENT}
+  - {a: 2-4_295_002_010, b: 2-4_295_002_020, ltype: CORE}
+  - {a: 2-4_295_002_010, b: 2-4_295_002_011, ltype: PARENT}
+  - {a: 2-4_295_002_020, b: 2-4_295_002_021, ltype: PARENT}
+  - {a: 2-4_295_002_011, b: 2-4_295_002_021, ltype: PEER}
+  - {a: 2-4_295_002_011, b: 2-4_295_002_012, ltype: PARENT}
+  - {a: 2-4_295_002_011, b: 2-4_295_002_022, ltype: PARENT}
+  - {a: 2-4_295_002_021, b: 2-4_295_002_022, ltype: PARENT}
 CAs:
   CA1-1:
     ISD: 1
     commonName: CA1-1
-  CA1-2:
-    ISD: 1
-    commonName: CA1-2
-  CA1-3:
-    ISD: 1
-    commonName: CA1-3
   CA2-1:
     ISD: 2
     commonName: CA2-1
-  CA2-2:
-    ISD: 2
-    commonName: CA2-2
-  CA2-3:
-    ISD: 2
-    commonName: CA2-3
-links:
-  - {a: 1-11, b: 1-12, ltype: CORE}
-  - {a: 1-11, b: 1-13, ltype: CORE}
-  - {a: 1-11, b: 2-21, ltype: CORE}
-  - {a: 1-11, b: 1-14, ltype: PARENT}
-  - {a: 1-12, b: 1-13, ltype: CORE}
-  - {a: 1-12, b: 2-22, ltype: CORE, mtu: 1400}
-  - {a: 1-12, b: 1-15, ltype: PARENT}
-  - {a: 1-13, b: 1-16, ltype: PARENT}
-  - {a: 1-14, b: 1-15, ltype: PEER}
-  - {a: 1-14, b: 2-23, ltype: PEER}
-  - {a: 1-14, b: 1-17, ltype: PARENT}
-  - {a: 1-15, b: 1-16, ltype: PEER}
-  - {a: 1-15, b: 1-18, ltype: PARENT}
-  - {a: 1-16, b: 1-19, ltype: PARENT}
-  - {a: 1-19, b: 1-10, ltype: PARENT}
-  - {a: 2-21, b: 2-22, ltype: CORE}
-  - {a: 2-21, b: 2-23, ltype: PARENT}
-  - {a: 2-22, b: 2-24, ltype: PARENT}
-  - {a: 2-23, b: 2-24, ltype: PEER}
-  - {a: 2-23, b: 2-25, ltype: PARENT}
-  - {a: 2-23, b: 2-26, ltype: PARENT}
-  - {a: 2-24, b: 2-26, ltype: PARENT}

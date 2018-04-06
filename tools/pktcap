@@ -7,7 +7,7 @@
 #
 # Example usage:
 # In terminal 1: ./tools/pktcap 127.1.1.111 raw.spkt
-# In terminal 2: scmp -local 1-10,[127.0.0.1] -remote 2-25,[127.1.1.111] -c1
+# In terminal 2: scmp -local 1-4_295_001_033,[127.0.0.1] -remote 2-4_295_002_022,[127.1.1.111] -c1
 
 set -e
 set -o pipefail

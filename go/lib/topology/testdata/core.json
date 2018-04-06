@@ -1,12 +1,12 @@
 {
     "Timestamp": 168562800,
     "TimestampHuman": "May  6 00:00:00 CET 1975",
-    "ISD_AS": "6-22",
+    "ISD_AS": "6-4_294_967_362",
     "MTU": 1472,
     "Core": true,
     "Overlay": "IPv4+6",
     "BorderRouters": {
-        "borderrouter6-22-1": {
+        "borderrouter6-4_294_967_362-1": {
             "InternalAddrs": [
                 {
                   "Public": [
@@ -23,13 +23,13 @@
                     "Public": {"Addr": "192.0.2.1", "L4Port": 4997},
                     "Remote": {"Addr": "192.0.2.2", "L4Port": 4998},
                     "Bandwidth": 100000,
-                    "ISD_AS": "6-23",
+                    "ISD_AS": "6-4_294_967_363",
                     "LinkType": "CORE",
                     "MTU": 1472
                 }
             }
         },
-        "borderrouter6-22-9": {
+        "borderrouter6-4_294_967_362-9": {
             "InternalAddrs": [
                 {
                   "Public": [
@@ -46,7 +46,7 @@
                     "Remote": {"Addr":"2001:db8:a0b:12f0::2", "L4Port": 50000},
                     "Bind": {"Addr":"2001:db8:a0b:12f0::8", "L4Port": 10000},
                     "Bandwidth": 5000,
-                    "ISD_AS": "6-14",
+                    "ISD_AS": "6-4_294_967_364",
                     "LinkType": "CHILD",
                     "MTU": 4430
                 }
