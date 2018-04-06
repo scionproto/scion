@@ -17,17 +17,16 @@
 """
 # Stdlib
 import logging
+# External
+import capnp  # noqa
+
 # SCION
 from datetime import datetime
-
 import proto.rev_info_capnp as P
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.util import iso_timestamp
-
-
-# External
 
 
 class ProtoLinkType(object):
@@ -49,7 +48,7 @@ class RevocationInfo(Cerealizable):
     P_CLS = P.RevInfo
 
     @classmethod
-    def from_values(cls, isd_as, if_id, link_type, timestamp):
+    def from_values(cls, isd_as, if_id, link_type, timestamp, ttl=10):
         """
         Returns a RevocationInfo object with the specified values.
 
@@ -57,9 +56,10 @@ class RevocationInfo(Cerealizable):
         :param int if_id: ID of the interface to be revoked
         :param str link_type: Link type of the revoked interface
         :param int timestamp: Revocation creation time
+        :param int TTL: Revocation validity period in seconds
         """
         p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, linkType=link_type,
-                                  timestamp=timestamp)
+                                  timestamp=timestamp, ttl=ttl)
         return cls(p)
 
     def isd_as(self):
@@ -68,7 +68,8 @@ class RevocationInfo(Cerealizable):
     def validate(self):
         if self.p.timestamp > datetime.now():
             raise RevInfoValidationError("Invalid timestamp: %s" % self.p.timestamp)
-        # TODO add TTL check
+        if self.p.ttl < 10:
+            raise RevInfoValidationError("Invalid TTL: %s" % self.p.ttl)
         if self.p.ifID == 0:
             raise RevInfoValidationError("Invalid ifID: %d" % self.p.ifID)
         self.isd_as()
@@ -91,5 +92,5 @@ class RevocationInfo(Cerealizable):
         return hash(self.cmp_str())
 
     def short_desc(self):
-        return "RevInfo: %s IF: %d Link type: %s Timestamp: %s" % (
-            self.isd_as(), self.p.ifID, self.p.link_type, iso_timestamp(self.p.timestamp / 1000000))
+        return "RevInfo: %s IF: %d Link type: %s Timestamp: %s TTL: %d" % (
+            self.isd_as(), self.p.ifID, self.p.link_type, iso_timestamp(self.p.timestamp / 1000000), self.p.ttl)
