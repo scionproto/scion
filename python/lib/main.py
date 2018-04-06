@@ -66,14 +66,14 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
     parser.add_argument('conf_dir', nargs='?', default='.',
                         help='Configuration directory (Default: ./)')
     args = parser.parse_args()
-    init_logging(os.path.join(args.log_dir, args.server_id))
+    init_logging(os.path.join(str(args.log_dir), str(args.server_id)))
 
     if local_type is None:
         inst = type_(args.server_id, args.conf_dir, prom_export=args.prom,
                      spki_cache_dir=args.spki_cache_dir, **kwargs)
     else:
         # Load the topology to check if this is a core AD or not
-        topo = Topology.from_file(os.path.join(args.conf_dir, TOPO_FILE))
+        topo = Topology.from_file(os.path.join(str(args.conf_dir), TOPO_FILE))
         if topo.is_core_as:
             inst = type_(args.server_id, args.conf_dir, prom_export=args.prom,
                          spki_cache_dir=args.spki_cache_dir, **kwargs)

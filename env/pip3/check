@@ -5,4 +5,4 @@ set -e
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
 
-pip_compare pip3 "$BASE/requirements.txt"
+pip_compare pip3 "$BASE/requirements$1.txt"

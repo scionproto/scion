@@ -9,7 +9,15 @@ BASE=$(dirname "$0")
 
 tmpdir=$(mktemp -d /tmp/zlog.XXXXXXX)
 cd "${tmpdir:?}"
-curl -L https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1
+
+if [[ $1 == "_ubuntu1804" ]]; then
+    curl -L https://github.com/HardySimpson/zlog/archive/master.zip > zlog.zip
+    unzip zlog.zip
+    cd zlog-master
+else
+    curl -L https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1
+fi
+
 make -j6
 echo "ldconfig" >> postinstall-pak
 echo "ldconfig" >> postremove-pak

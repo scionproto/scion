@@ -5,7 +5,7 @@ set -e
 BASE=$(dirname "$0")
 . $(dirname "$BASE")/common.sh
 
-[ -z "$("$BASE/check")" ] && exit
+[ -z "$("$BASE/check" $1)" ] && exit
 
 echo "Installing necessary packages from pip3"
-pip_install pip3 "$BASE/requirements.txt"
+pip_install pip3 "$BASE/requirements$1.txt"

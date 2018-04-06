@@ -5,9 +5,27 @@ set -e
 BASE=$(dirname "$0")
 . $BASE/common.sh
 
-"$BASE/debian/deps"
-"$BASE/pip3/deps"
-"$BASE/pip2/deps"
-"$BASE/zlog/deps"
-"$BASE/go/deps"
-( cd go && make deps )
+# Check whether running Ubuntu or Debian
+os_type=$(cat /etc/os-release | grep "^ID=" | awk -F '=' '{print $2}')
+version=$(cat /etc/os-release | grep "VERSION_ID" | awk -F '"' '{print $2}')
+
+function install_deps() {
+    "$BASE/os/deps" $1
+    "$BASE/pip3/deps" $1
+    "$BASE/pip2/deps" $1
+    "$BASE/zlog/deps" $1
+    "$BASE/go/deps" $1
+    ( cd go && make deps )
+}
+
+if [[ $os_type == "ubuntu" ]]; then
+    if [[ $version == "18.04" ]]; then
+        install_deps "_ubuntu1804"
+    else
+        install_deps
+    fi
+else
+    install_deps
+fi
+
+

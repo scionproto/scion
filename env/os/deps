@@ -7,7 +7,6 @@ BASE=$(dirname "$0")
 
 APTARGS=${APTARGS:---no-remove}
 
-pkgs="$($BASE/check)"
+pkgs="$($BASE/check $1)"
 [ -z "$pkgs" ] && exit
-
 sudo DEBIAN_FRONTEND=noninteractive apt-get install $APTARGS --no-install-recommends $pkgs
