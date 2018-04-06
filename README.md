@@ -6,12 +6,14 @@ Internet architecture.
 
 * [docker/](/docker): support files to run SCION inside of Docker
   containers.
-* [endhost/](/endhost): the parts of the code used on end hosts, e.g.
-  `sciond`.
 * [go/](/go): parts of the implementation that are written in
   [Go](http://golang.org).
-* [infrastructure/](/infrastructure): the parts of the infrastructure
+  * [border_router](/go/border): Border Router.
+* [python/](/python): the parts of the infrastructure
   implemented in Python.
+  * [beacon_server](/python/beacon_server): Beacon Server
+  * [certificate_server](/python/cert_server): Certificate Server
+  * [path_server](/python/path_server): Path Server
 * [lib/](/lib): the most relevant SCION libraries.
 * [proto/](/proto): the protocol definitions for use with [Cap’n
   Proto](https://capnproto.org/).
