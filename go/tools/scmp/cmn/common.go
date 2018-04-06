@@ -55,9 +55,9 @@ var (
 func init() {
 	// Set up flag vars
 	flag.BoolVar(&Interactive, "i", false, "Interactive mode")
-	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets")
+	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets (echo only)")
 	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
-	flag.UintVar(&Count, "c", 0, "Total number of packet to send (ignored if not echo)")
+	flag.UintVar(&Count, "c", 0, "Total number of packet to send (echo only). Maximum value 65535")
 	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
 	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
 	flag.Var((*snet.Addr)(&Bind), "bind", "address to bind to, if running behind NAT")
@@ -83,6 +83,28 @@ flags:
 	flag.PrintDefaults()
 }
 
+func ParseFlags() string {
+	var args []string
+	flag.Parse()
+	args = flag.Args()
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "ERROR: Missing command\n")
+		flag.Usage()
+		os.Exit(1)
+	} else if len(args) == 1 {
+		return args[0]
+	}
+	// Parse more flags after command
+	cmd := args[0]
+	flag.CommandLine.Parse(args[1:])
+	args = flag.Args()
+	if len(args) != 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
+	return cmd
+}
+
 func ValidateFlags() {
 	if Local.Host == nil {
 		Fatal("Invalid local address")
@@ -100,6 +122,10 @@ func ValidateFlags() {
 	}
 	if Interval == 0 {
 		Interval = 1
+	}
+	var zero uint16
+	if Count > uint(zero-1) {
+		Fatal("Maximum count value is %d", zero-1)
 	}
 }
 
