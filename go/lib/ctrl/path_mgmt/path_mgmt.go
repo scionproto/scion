@@ -31,7 +31,7 @@ type union struct {
 	SegReply     *SegReply
 	SegReg       *SegReg
 	SegSync      *SegSync
-	RevInfo      *RevInfo
+	RevInfo      *SignedRevInfo
 	IFStateReq   *IFStateReq   `capnp:"ifStateReq"`
 	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
 }
@@ -50,7 +50,7 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *SegSync:
 		u.Which = proto.PathMgmt_Which_segSync
 		u.SegSync = p
-	case *RevInfo:
+	case *SignedRevInfo:
 		u.Which = proto.PathMgmt_Which_revInfo
 		u.RevInfo = p
 	case *IFStateReq:

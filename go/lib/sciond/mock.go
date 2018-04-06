@@ -139,10 +139,11 @@ func (m *MockConn) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
 
 // RevNotification deletes the edge containing revInfo.IfID from the
 // multigraph. RevNotification does not perform any validation of revInfo.
-func (m *MockConn) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
+func (m *MockConn) RevNotification(signedRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
+	revInfo, _ := signedRevInfo.RevInfo()
 	m.g.RemoveLink(common.IFIDType(revInfo.IfID))
 	return &RevReply{
 		Result: RevValid,

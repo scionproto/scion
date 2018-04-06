@@ -22,10 +22,6 @@ import threading
 # External
 from prometheus_client import Counter, Gauge
 
-# SCION
-from lib.crypto.hash_tree import ConnectedHashTree
-
-
 # Exported metrics.
 REVS_TOTAL = Gauge("rc_revs_total", "# of cached revocations", ["server_id", "isd_as"])
 REVS_BYTES = Gauge("rc_revs_bytes", "RevCache memory usage", ["server_id", "isd_as"])
@@ -85,11 +81,29 @@ class RevCache:
                 return rev_info
             return default
 
+    def values(self):
+        """
+        Return all validated values
+        :return: list(RevocationInfo)
+        """
+        with self._lock:
+            rev_infos = self._cache.values()
+            to_return = []
+            for rev_info in rev_infos:
+                if rev_info.active():
+                    to_return.append(rev_info)
+            # Validate entries
+            for k in list(self._cache.keys()):
+                self._validate_entry(self._cache[k])
+            return to_return
+
     def add(self, rev_info):
         """
         Adds rev_info to the cache and returns True if the operation succeeds.
+        :param type: RevocationInfo
+        :return: boolean
         """
-        if ConnectedHashTree.verify_epoch(rev_info.p.epoch) != ConnectedHashTree.EPOCH_OK:
+        if not rev_info.active():
             return False
         with self._lock:
             key = _mk_key(rev_info)
@@ -109,7 +123,7 @@ class RevCache:
                     REVS_TOTAL.labels(**self._labels).inc()
                     REVS_BYTES.labels(**self._labels).inc(len(rev_info))
                 return True
-            if rev_info.p.epoch > stored_info.p.epoch:
+            if rev_info.p.timestamp > stored_info.p.timestamp:
                 self._cache[key] = rev_info
                 if self._labels:
                     REVS_ADDED.labels(**self._labels).inc()
@@ -118,10 +132,13 @@ class RevCache:
                 return True
             return False
 
-    def _validate_entry(self, rev_info, cur_epoch=None):  # pragma: no cover
-        """Removes an expired revocation from the cache."""
-        if (ConnectedHashTree.verify_epoch(rev_info.p.epoch, cur_epoch) !=
-                ConnectedHashTree.EPOCH_OK):
+    def _validate_entry(self, rev_info):  # pragma: no cover
+        """
+        Removes an expired revocation from the cache.
+        :param type: RevocationInfo
+        :return: boolean
+        """
+        if not rev_info.active():
             del self._cache[_mk_key(rev_info)]
             if self._labels:
                 REVS_REMOVED.labels(**self._labels).inc()

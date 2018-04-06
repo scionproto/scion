@@ -311,7 +311,6 @@ class ConfigGenerator(object):
             # FIXME(kormat): This seems to always be true..:
             'RegisterPath': True if as_topo["PathService"] else False,
             'PathSegmentTTL': self.pseg_ttl,
-            'RevocationTreeTTL': self.pseg_ttl,
         }
 
     def _write_networks_conf(self, networks, out_file):

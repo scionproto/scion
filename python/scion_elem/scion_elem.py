@@ -32,7 +32,6 @@ from prometheus_client import Counter, Gauge, start_http_server
 import lib.app.sciond as lib_sciond
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_chain_trc
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.flagtypes import TCPFlags
 from lib.defines import (
@@ -1190,9 +1189,6 @@ class SCIONElement(object):
             interface in the AS marking, False otherwise.
         """
         if rev_info.isd_as() != as_marking.isd_as():
-            return False
-        if not ConnectedHashTree.verify(rev_info, as_marking.p.hashTreeRoot):
-            logging.error("Revocation verification failed. %s", rev_info)
             return False
         for pcbm in as_marking.iter_pcbms():
             if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:

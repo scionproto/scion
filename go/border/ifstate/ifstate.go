@@ -68,12 +68,12 @@ type state struct {
 type Info struct {
 	IfID         common.IFIDType
 	Active       bool
-	RevInfo      *path_mgmt.RevInfo
+	RevInfo      *path_mgmt.SignedRevInfo
 	RawRev       common.RawBytes
 	ActiveMetric prometheus.Gauge
 }
 
-func NewInfo(ifID common.IFIDType, active bool, rev *path_mgmt.RevInfo,
+func NewInfo(ifID common.IFIDType, active bool, rev *path_mgmt.SignedRevInfo,
 	rawRev common.RawBytes) *Info {
 	i := &Info{
 		IfID:         ifID,

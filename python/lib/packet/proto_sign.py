@@ -15,7 +15,7 @@
 :mod:`proto_sign` --- Signed Capnp protos
 =========================================
 """
-
+import time
 # External
 import capnp  # noqa
 
@@ -52,6 +52,7 @@ class ProtoSign(Cerealizable):
             raise ProtoSignError("Signature already present")
         if self.p.type == ProtoSignType.ED25519:
             self.p.signature = sign(self._sig_input(msg), key)
+            self.p.timestamp = int(time.time())
         else:
             raise ProtoSignError("Unsupported proto signature type (sign): %s" % self.p.type)
 
