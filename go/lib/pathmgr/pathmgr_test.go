@@ -232,7 +232,6 @@ func getPathStrings(aps AppPathSet) []string {
 
 func apsCheckPaths(desc string, aps AppPathSet, expValues ...string) {
 	SoMsg(fmt.Sprintf("%s: len", desc), len(aps), ShouldEqual, len(expValues))
-	//fmt.Println(getPathStrings(aps))
 	for i, value := range expValues {
 		SoMsg(fmt.Sprintf("%s: path %d", desc, i), getPathStrings(aps), ShouldContain, value)
 	}
