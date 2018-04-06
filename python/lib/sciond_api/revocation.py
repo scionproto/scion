@@ -22,6 +22,7 @@ import capnp  # noqa
 import proto.sciond_capnp as P
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.packet_base import Cerealizable
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.types import TypeBase
 
 
@@ -41,11 +42,12 @@ class SCIONDRevNotification(Cerealizable):
 
     def rev_info(self):
         if not self._rev_info:
-            self._rev_info = RevocationInfo(self.p.revInfo)
+            self._rev_info = ProtoSignedBlob(self.p.revInfo)
         return self._rev_info
 
     def short_desc(self):
-        return self.rev_info().short_desc()
+        rev_info = RevocationInfo.from_raw(self.rev_info().p.blob)
+        return rev_info.short_desc()
 
 
 class SCIONDRevReply(Cerealizable):  # pragma: no cover

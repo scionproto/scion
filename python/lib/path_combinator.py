@@ -19,39 +19,38 @@
 import logging
 
 # SCION
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import EXP_TIME_UNIT, SCION_MIN_MTU
 from lib.packet.path import SCIONPath
 from lib.sciond_api.path_meta import FwdPathMeta, PathInterface
 
 
-def build_shortcut_paths(up_segments, down_segments, peer_revs):
+def build_shortcut_paths(up_segments, down_segments, rev_cache):
     """
     Returns a list of all shortcut paths (peering and crossover paths) that
     can be built using the provided up- and down-segments.
 
     :param list up_segments: List of `up` PathSegments.
     :param list down_segments: List of `down` PathSegments.
-    :param RevCache peer_revs: Peering revocations.
+    :param RevCache rev_cache: Revocations.
     :returns: List of FwdPathMeta objects.
     """
     path_metas = []
     for up in up_segments:
         for down in down_segments:
-            for path_meta in _build_shortcuts(up, down, peer_revs):
+            for path_meta in _build_shortcuts(up, down, rev_cache):
                 if path_meta and path_meta not in path_metas:
                     path_metas.append(path_meta)
     return path_metas
 
 
-def _build_shortcuts(up_segment, down_segment, peer_revs):
+def _build_shortcuts(up_segment, down_segment, rev_cache):
     """
     Takes :any:`PathSegment`\s and tries to combine them into short path via
     any cross-over or peer links found.
 
     :param list up_segment: `up` :any:`PathSegment`.
     :param list down_segment: `down` :any:`PathSegment`.
-    :param RevCache peer_revs: Peering revocations.
+    :param RevCache rev_cache: Revocations.
     :returns: SCIONPath if a shortcut path is found, otherwise ``None``.
     """
     # TODO check if stub ASs are the same...
@@ -60,7 +59,7 @@ def _build_shortcuts(up_segment, down_segment, peer_revs):
         return []
 
     # looking for xovr and peer points
-    xovr, peer = _get_xovr_peer(up_segment, down_segment, peer_revs)
+    xovr, peer = _get_xovr_peer(up_segment, down_segment, rev_cache)
 
     if not xovr and not peer:
         return []
@@ -72,7 +71,7 @@ def _build_shortcuts(up_segment, down_segment, peer_revs):
 
     if _sum_pt(peer) > _sum_pt(xovr):
         # Peer is best.
-        return _join_peer(up_segment, down_segment, peer, peer_revs)
+        return _join_peer(up_segment, down_segment, peer, rev_cache)
     else:
         # Xovr is best
         return _join_xovr(up_segment, down_segment, xovr)
@@ -95,7 +94,7 @@ def _copy_segment(segment, xover_start, xover_end, up=True):
     return info, hofs, mtu, _calc_exp_time(info.timestamp, hof_exp)
 
 
-def _get_xovr_peer(up_segment, down_segment, peer_revs):
+def _get_xovr_peer(up_segment, down_segment, rev_cache):
     """
     Find the shortest xovr (preferred) and peer points between the supplied
     segments.
@@ -105,7 +104,7 @@ def _get_xovr_peer(up_segment, down_segment, peer_revs):
 
     :param list up_segment: `up` :any:`PathSegment`.
     :param list down_segment: `down` :any:`PathSegment`.
-    :param RevCache peer_revs: Peering revocations.
+    :param RevCache rev_cache: Revocations.
     :returns:
         Tuple of the shortest xovr and peer points.
     """
@@ -118,7 +117,7 @@ def _get_xovr_peer(up_segment, down_segment, peer_revs):
             if up_ia == down_ia:
                 xovrs.append((up_i, down_i))
                 continue
-            if _find_peer_hfs(up_asm, down_asm, peer_revs):
+            if _find_peer_hfs(up_asm, down_asm, rev_cache):
                 peers.append((up_i, down_i))
     xovr = peer = None
     if xovrs:
@@ -158,14 +157,14 @@ def _join_xovr(up_segment, down_segment, point):
     return [path_meta]
 
 
-def _join_peer(up_segment, down_segment, point, peer_revs):
+def _join_peer(up_segment, down_segment, point, rev_cache):
     """
     Joins the supplied segments into a shortcut (peer) fullpath.
 
     :param list up_segment: `up` :any:`PathSegment`.
     :param list down_segment: `down` :any:`PathSegment`.
     :param tuple point: Indexes of peer point.
-    :param RevCache peer_revs: Peering revocations.
+    :param RevCache rev_cache: Peering revocations.
     :returns: :any:`CrossOverPath`.
     """
     (up_index, down_index) = point
@@ -179,7 +178,7 @@ def _join_peer(up_segment, down_segment, point, peer_revs):
     path_metas = []
     for uph, dph, pm in _find_peer_hfs(
             up_segment.asm(up_index), down_segment.asm(down_index),
-            peer_revs):
+            rev_cache):
         um = min(up_mtu, pm)
         dm = min(down_mtu, pm)
         args = _shortcut_path_args(
@@ -341,7 +340,7 @@ def _copy_segment_shortcut(segment, index, up=True):
     return info, hofs, upstream_hof, mtu, _calc_exp_time(info.timestamp, hof_exp)
 
 
-def _find_peer_hfs(up_asm, down_asm, peer_revs):
+def _find_peer_hfs(up_asm, down_asm, rev_cache):
     """
     Finds the peering :any:`HopOpaqueField` of the shortcut path.
     """
@@ -355,12 +354,10 @@ def _find_peer_hfs(up_asm, down_asm, peer_revs):
             if (up_peer.inIA() == down_ia and down_peer.inIA() == up_ia and
                     up_peer.p.remoteInIF == down_hof.ingress_if and
                     up_hof.ingress_if == down_peer.p.remoteInIF):
-                # Check that there is no valid revocation for the peering
-                # interface.
-                up_rev = peer_revs.get((up_ia, up_hof.ingress_if))
-                down_rev = peer_revs.get((down_ia, down_hof.ingress_if))
-                if (_skip_peer(up_rev, up_asm.p.hashTreeRoot) or
-                        _skip_peer(down_rev, down_asm.p.hashTreeRoot)):
+                # Check that there is no revocation for the peering interface.
+                up_rev = rev_cache.get((up_ia, up_hof.ingress_if))
+                down_rev = rev_cache.get((down_ia, down_hof.ingress_if))
+                if up_rev or down_rev:
                     logging.debug(
                         "Not using peer %s:%d <-> %s:%d due to revocation."
                         % (up_ia, up_hof.ingress_if, down_ia,
@@ -368,14 +365,6 @@ def _find_peer_hfs(up_asm, down_asm, peer_revs):
                     continue
                 hfs.append((up_hof, down_hof, up_peer.p.inMTU))
     return hfs
-
-
-def _skip_peer(peer_rev, ht_root):  # pragma: no cover
-    if not peer_rev:
-        return False
-    rev_status = ConnectedHashTree.verify_epoch(peer_rev.p.epoch)
-    return (rev_status == ConnectedHashTree.EPOCH_OK and
-            ConnectedHashTree.verify(peer_rev, ht_root))
 
 
 def tuples_to_full_paths(tuples):

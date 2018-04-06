@@ -111,7 +111,7 @@ type Connector interface {
 	// SCMP message.
 	RevNotificationFromRaw(revInfo []byte) (*RevReply, error)
 	// RevNotification sends a RevocationInfo message to SCIOND.
-	RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error)
+	RevNotification(signedRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close() error
 }
@@ -306,14 +306,14 @@ func (c *connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 
 func (c *connector) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
 	// Extract information from notification
-	ri, err := path_mgmt.NewRevInfoFromRaw(revInfo)
+	ri, err := path_mgmt.NewSignedRevInfoFromRaw(revInfo)
 	if err != nil {
 		return nil, err
 	}
 	return c.RevNotification(ri)
 }
 
-func (c *connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
+func (c *connector) RevNotification(signedRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -324,7 +324,7 @@ func (c *connector) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, erro
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_revNotification,
 			RevNotification: RevNotification{
-				RevInfo: revInfo,
+				RevInfo: signedRevInfo,
 			},
 		},
 		reliable.NilAppAddr,

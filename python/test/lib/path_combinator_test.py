@@ -526,29 +526,21 @@ class TestPathCombinatorFindPeerHfs(object):
 
     def test(self):
         up_pcbms, down_pcbms = self._mk_pcbms()
-        p = create_mock_full({"hashTreeRoot": b"1234"})
-        up_asm = create_mock_full({"isd_as()": "1-ff00:0:300", "iter_pcbms()": up_pcbms,
-                                   "p": p})
+        up_asm = create_mock_full({"isd_as()": "1-ff00:0:300", "iter_pcbms()": up_pcbms})
         down_asm = create_mock_full({"isd_as()": "2-ff00:0:321",
-                                     "iter_pcbms()": down_pcbms,
-                                     "p": p})
+                                     "iter_pcbms()": down_pcbms})
         peer_revs = create_mock_full({"get()": None})
         # Call
         ntools.eq_(path_combinator._find_peer_hfs(up_asm, down_asm, peer_revs),
                    [(up_pcbms[0].hof(), down_pcbms[0].hof(), 500),
                     (up_pcbms[2].hof(), down_pcbms[1].hof(), 700)])
 
-    @patch("lib.path_combinator._skip_peer",
-           new_callable=create_mock)
-    def test_with_revocation(self, skip_peer):
+    def test_with_revocation(self):
         up_pcbms, down_pcbms = self._mk_pcbms()
-        p = create_mock_full({"hashTreeRoot": b"1234"})
         up_asm = create_mock_full({"isd_as()": "1-ff00:0:300",
-                                   "iter_pcbms()": up_pcbms,
-                                   "p": p})
+                                   "iter_pcbms()": up_pcbms})
         down_asm = create_mock_full({"isd_as()": "2-ff00:0:321",
-                                     "iter_pcbms()": down_pcbms,
-                                     "p": p})
+                                     "iter_pcbms()": down_pcbms})
         up_peer_rev = create_mock()
         down_peer_rev = create_mock()
         peer_revs = create_mock(["get"])
@@ -559,18 +551,10 @@ class TestPathCombinatorFindPeerHfs(object):
 
         peer_revs.get.side_effect = get_side_effect
 
-        def skip_peer_side_effect(rev, ht_root):
-            if rev in [up_peer_rev, down_peer_rev] and ht_root == b"1234":
-                return True
-            return False
-        skip_peer.side_effect = skip_peer_side_effect
-
         # Call
         peers = path_combinator._find_peer_hfs(up_asm, down_asm, peer_revs)
         # Tests
         ntools.eq_(peers, [(up_pcbms[0].hof(), down_pcbms[0].hof(), 500)])
-        skip_peer.assert_has_calls(
-            [call(None, b"1234"), call(up_peer_rev, b"1234")], any_order=True)
 
 
 if __name__ == "__main__":

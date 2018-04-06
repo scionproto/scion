@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -102,13 +101,18 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		return nil
 	}
 	// Interface is revoked.
-	revInfo := state.RevInfo
+	signedRevInfo := state.RevInfo
+	revInfo, err := signedRevInfo.RevInfo()
+	if err != nil {
+		rp.Warn("Could not parse RevInfo for revoked interface", "ifid", *ifid)
+		return nil
+	}
 	if revInfo == nil {
 		rp.Warn("No RevInfo for revoked interface", "ifid", *ifid)
 		return nil
 	}
-	// Check that we have a revocation for the current epoch.
-	if !crypto.VerifyHashTreeEpoch(revInfo.Epoch) {
+	// Check that the revocation timestamp is within the TTL.
+	if !revInfo.Valid() {
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
 		newState := ifstate.NewInfo(*ifid, true, nil, nil)

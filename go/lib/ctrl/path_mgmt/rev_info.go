@@ -18,26 +18,55 @@ package path_mgmt
 
 import (
 	"fmt"
+	"time"
 
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
+const MinRevTTL = 10 * time.Second // Revocation MinRevTTL
+
 var _ proto.Cerealizable = (*RevInfo)(nil)
+var _ proto.Cerealizable = (*SignedRevInfo)(nil)
+
+type SignedRevInfo struct {
+	Blob    common.RawBytes
+	Sign    *proto.SignS
+	revInfo *RevInfo `capnp:"-"`
+}
+
+func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
+	sr := &SignedRevInfo{}
+	return sr, proto.ParseFromRaw(sr, sr.ProtoId(), b)
+}
+
+func (sr *SignedRevInfo) ProtoId() proto.ProtoIdType {
+	return proto.SignedBlob_TypeID
+}
+
+func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
+	var err error
+	if sr.revInfo == nil {
+		sr.revInfo, err = NewRevInfoFromRaw(sr.Blob)
+	}
+	return sr.revInfo, err
+}
+
+func (sp *SignedRevInfo) String() string {
+	return fmt.Sprintf("SignedRevInfo: %s %s", sp.Blob, sp.Sign)
+}
 
 type RevInfo struct {
-	IfID     uint64
-	Epoch    uint64
-	Nonce    common.RawBytes
-	Siblings []SiblingHash
-	PrevRoot common.RawBytes
-	NextRoot common.RawBytes
-	RawIsdas addr.IAInt `capnp:"isdas"`
-	HashType uint16
-	TreeTTL  uint32
+	IfID      uint64
+	RawIsdas  addr.IAInt     `capnp:"isdas"`
+	LinkType  proto.LinkType // Link type of revocation
+	Timestamp uint32         // Time in seconds since unix epoch
+	RevTTL    uint32         // Validity period of the revocation in seconds
 }
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
@@ -48,16 +77,22 @@ func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
 func (r *RevInfo) IA() addr.IA {
 	return r.RawIsdas.IA()
 }
+
+func (r *RevInfo) Valid() bool {
+	assert.Must(r.RevTTL >= uint32(MinRevTTL.Seconds()), "RevTTL must not be smaller than MinRevTTL")
+	now := uint32(time.Now().Unix())
+	// Revocation is not valid if its timestamp is not within the MinRevTTL
+	if r.Timestamp > now || r.Timestamp < now-r.RevTTL {
+		return false
+	}
+	return true
+}
+
 func (r *RevInfo) ProtoId() proto.ProtoIdType {
 	return proto.RevInfo_TypeID
 }
 
 func (r *RevInfo) String() string {
-	return fmt.Sprintf("IA: %s IfID: %d Epoch: %d TreeTTL: %d",
-		r.IA(), r.IfID, r.Epoch, r.TreeTTL)
-}
-
-type SiblingHash struct {
-	IsLeft bool
-	Hash   common.RawBytes
+	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %d",
+		r.IA(), r.IfID, r.LinkType, util.USecsToTime(uint64(r.Timestamp)), r.RevTTL)
 }

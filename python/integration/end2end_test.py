@@ -25,6 +25,7 @@ from lib.main import main_wrapper
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.thread import kill_self
 from lib.types import L4Proto
 from integration.base_cli_srv import (
@@ -74,10 +75,11 @@ class E2EClient(TestClientBase):
         if (scmp_hdr.class_ == SCMPClass.PATH and
                 scmp_hdr.type == SCMPPathClass.REVOKED_IF):
             scmp_pld = spkt.get_payload()
-            rev_info = RevocationInfo.from_raw(scmp_pld.info.rev_info)
+            signed_rev_info = ProtoSignedBlob.from_raw(scmp_pld.info.rev_info)
+            rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
             logging.info("Received revocation: %s (from %s)", rev_info.short_desc(), spkt.addrs.src)
             lib_sciond.send_rev_notification(
-                rev_info, connector=self._connector)
+                signed_rev_info, connector=self._connector)
             return ResponseRV.RETRY
         else:
             logging.error("Received SCMP error:\n%s", spkt)

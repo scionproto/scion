@@ -54,6 +54,26 @@ class ServiceType(TypeBase):
     SIBRA = "sb"
 
 
+class ProtoLinkType(TypeBase):
+    CORE = "core"
+    PARENT = "parent"
+    CHILD = "child"
+    PEER = "peer"
+
+    @classmethod
+    def from_string(self, type_):
+        if type_ == "CORE":
+            return self.CORE
+        elif type_ == "PARENT":
+            return self.PARENT
+        elif type_ == "CHILD":
+            return self.CHILD
+        elif type_ == "PEER":
+            return self.PEER
+        else:
+            raise IndexError
+
+
 class ExtensionClass(TypeBase):
     """
     Constants for two types of extensions. These values are shared with L4

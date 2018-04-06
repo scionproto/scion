@@ -37,7 +37,6 @@ class BaseLibConfig(object):
         'registers_paths': 'RegisterPath',
         'cert_ver': 'CertChainVersion',
         'segment_ttl': 'PathSegmentTTL',
-        'revocation_tree_ttl': 'RevocationTreeTTL'
     }
 
 
@@ -52,7 +51,6 @@ class TestConfigParseDict(BaseLibConfig):
         "RegisterPath": 1,
         "RegisterTime": 5,
         "PathSegmentTTL": 6 * 60 * 60,
-        "RevocationTreeTTL": 6 * 60 * 60,
     }
 
     def test_basic(self):
