@@ -49,9 +49,9 @@ func (r *RevInfo) IA() addr.IA {
 }
 
 func (r *RevInfo) Valid() bool {
-	now := time.Now().UnixNano()
+	now := time.Now().UnixNano() / 1000
 	// Revocation is not valid if its timestamp is not within the TTL
-	if int64(r.Timestamp) > now || int64(r.Timestamp) < now - TTL.Nanoseconds() {
+	if int64(r.Timestamp) > now || int64(r.Timestamp) < now - TTL.Nanoseconds() / 1000 {
 		return false
 	}
 	return true

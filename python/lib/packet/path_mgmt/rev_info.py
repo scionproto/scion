@@ -17,17 +17,18 @@
 """
 # Stdlib
 import logging
-# SCION
+import time
 from datetime import datetime
 
+# External
+import capnp  # noqa
+
+# SCION
 import proto.rev_info_capnp as P
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.util import iso_timestamp
-
-
-# External
 
 
 class ProtoLinkType(object):
@@ -66,12 +67,14 @@ class RevocationInfo(Cerealizable):
         return ISD_AS(self.p.isdas)
 
     def validate(self):
-        if self.p.timestamp > datetime.now():
+        if self.p.timestamp > time.time()
             raise RevInfoValidationError("Invalid timestamp: %s" % self.p.timestamp)
-        # TODO add TTL check
         if self.p.ifID == 0:
             raise RevInfoValidationError("Invalid ifID: %d" % self.p.ifID)
         self.isd_as()
+
+    def active(self):
+        if self.p.timestamp
 
     def cmp_str(self):
         b = []
