@@ -17,7 +17,7 @@
 """
 # Stdlib
 import logging
-from datetime import datetime
+import time
 # External
 import capnp  # noqa
 
@@ -66,13 +66,20 @@ class RevocationInfo(Cerealizable):
         return ISD_AS(self.p.isdas)
 
     def validate(self):
-        if self.p.timestamp > datetime.now():
-            raise RevInfoValidationError("Invalid timestamp: %s" % self.p.timestamp)
+        if self.p.timestamp > int(time.time()) + 1:
+            raise RevInfoValidationError("Timestamp in the future: %s" % self.p.timestamp)
         if self.p.ttl < 10:
-            raise RevInfoValidationError("Invalid TTL: %s" % self.p.ttl)
+            raise RevInfoValidationError("TTL is too small: %s" % self.p.ttl)
         if self.p.ifID == 0:
             raise RevInfoValidationError("Invalid ifID: %d" % self.p.ifID)
         self.isd_as()
+
+    def active(self):
+        now = int(time.time())
+        # make sure the revocation timestamp is within the validity window
+        if self.p.timestamp > now + 1 or self.p.timestamp < now - self.p.ttl:
+            return False
+        return True
 
     def cmp_str(self):
         b = []

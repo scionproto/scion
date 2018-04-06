@@ -130,10 +130,8 @@ PATH_FLAG_SIBRA = "SIBRA"
 
 MAX_HOST_ADDR_LEN = 16
 
-# Time per Epoch
-HASHTREE_EPOCH_TIME = 10
-# The tolerable error in epoch in seconds.
-HASHTREE_EPOCH_TOLERANCE = 2
+# Revocation TTL in seconds
+REVOCATION_TTL = 10
 
 # TCP polling timeouts, used by accept() and recv().
 TCP_ACCEPT_POLLING_TOUT = 1.0
