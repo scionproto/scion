@@ -28,7 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
@@ -38,8 +37,6 @@ import (
 )
 
 const (
-	// ifIDFreq is how often IFID packets are sent to the neighbouring AS.
-	ifIDFreq = 1 * time.Second
 	// ifStateFreq is how often the router will request an Interface State update
 	// from the beacon service.
 	ifStateFreq = 30 * time.Second
@@ -89,40 +86,6 @@ func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
 		rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	}
 	return rp.Route()
-}
-
-// SyncInterface handles generating periodic Interface ID (IFID) packets that are
-// sent to the Beacon Service in the neighbouring AS. These function as both
-// keep-alives, and to inform the neighbour of the local interface ID.
-func (r *Router) SyncInterface() {
-	defer liblog.LogPanicAndExit()
-	for range time.Tick(ifIDFreq) {
-		ctx := rctx.Get()
-		for ifid := range ctx.Conf.Net.IFs {
-			r.genIFIDPkt(ifid, ctx)
-		}
-	}
-}
-
-// genIFIDPkt generates an IFID-packet for the specified interface.
-func (r *Router) genIFIDPkt(ifID common.IFIDType, ctx *rctx.Ctx) {
-	logger := log.New("ifid", ifID)
-	intf := ctx.Conf.Net.IFs[ifID]
-	srcAddr := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay)
-	cpld, err := ctrl.NewPld(&ifid.IFID{OrigIfID: uint64(ifID)}, nil)
-	if err != nil {
-		logger.Error("Error generating IFID Ctrl payload", "err", err)
-		return
-	}
-	scpld, err := cpld.SignedPld(ctrl.NullSigner)
-	if err != nil {
-		logger.Error("Error generating IFID signed Ctrl payload", "err", err)
-		return
-	}
-	if err := r.genPkt(intf.RemoteIA, addr.HostFromIP(intf.RemoteAddr.IP),
-		intf.RemoteAddr.L4Port, srcAddr, scpld); err != nil {
-		logger.Error("Error generating IFID packet", "err", err)
-	}
 }
 
 // IFStateUpdate handles generating periodic Interface State Request (IFStateReq)

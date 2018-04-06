@@ -120,6 +120,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
+    # Interval to send keep-alive msgs
+    IFID_INTERVAL = 1
 
     def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
@@ -460,6 +462,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             target=thread_safety_net, args=(self.worker,),
             name="BS.worker", daemon=True).start()
         # https://github.com/scionproto/scion/issues/308:
+        threading.Thread(
+            target=thread_safety_net, args=(self._send_ifid_updates,),
+            name="BS._send_if_updates", daemon=True).start()
         threading.Thread(
             target=thread_safety_net, args=(self._handle_if_timeouts,),
             name="BS._handle_if_timeouts", daemon=True).start()
@@ -805,6 +810,27 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.send_meta(payload.copy(), meta, (meta.host, meta.port))
         for meta in server_metas:
             self.send_meta(payload.copy(), meta)
+
+    def _send_ifid_updates(self):
+        start = time.time()
+        while self.run_flag.is_set():
+            sleep_interval(start, self.IFID_INTERVAL, "BS._send_ifid_updates cycle")
+            start = time.time()
+
+            # only master sends keep-alive messages
+            if not self.zk.have_lock():
+                continue
+
+            # send keep-alives on all known BR interfaces
+            for ifid in self.ifid2br:
+                br = self.ifid2br[ifid]
+                dst_ia = br.interfaces[ifid].isd_as
+                host, port = br.interfaces[ifid].remote[0]
+                one_hop_path = self._create_one_hop_path(ifid)
+                meta = self._build_meta(
+                    ia=dst_ia, host=host, port=port, path=one_hop_path, one_hop=True)
+                self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
+                               meta, next_hop_port=br.int_addrs[0].public[0])
 
     def _init_metrics(self):
         super()._init_metrics()

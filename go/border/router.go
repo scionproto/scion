@@ -71,7 +71,6 @@ func NewRouter(id, confDir string) (*Router, error) {
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
 func (r *Router) Run() error {
-	go r.SyncInterface()
 	go r.IFStateUpdate()
 	go r.RevInfoFwd()
 	go r.PacketError()
