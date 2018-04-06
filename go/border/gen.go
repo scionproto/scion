@@ -37,8 +37,6 @@ import (
 )
 
 const (
-	// ifIDFreq is how often IFID packets are sent to the neighbouring AS.
-	ifIDFreq = 1 * time.Second
 	// ifStateFreq is how often the router will request an Interface State update
 	// from the beacon service.
 	ifStateFreq = 30 * time.Second

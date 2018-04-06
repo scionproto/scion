@@ -819,19 +819,18 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
             # only master sends keep-alive messages
             if not self.zk.have_lock():
-                pass
+                continue
 
             # send keep-alives on all known BR interfaces
             for ifid in self.ifid2br:
                 br = self.ifid2br[ifid]
                 dst_ia = br.interfaces[ifid].isd_as
-                host = br.interfaces[ifid].remote[0][0]
-                port = br.interfaces[ifid].remote[0][1]
+                host, port = br.interfaces[ifid].remote[0]
                 one_hop_path = self._create_one_hop_path(ifid)
                 meta = self._build_meta(
                     ia=dst_ia, host=host, port=port, path=one_hop_path, one_hop=True)
-                self.send_meta(CtrlPayload(IFIDPayload.from_values(
-                    ifid)), meta, next_hop_port=br.int_addrs[0].public[0])
+                self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
+                               meta, next_hop_port=br.int_addrs[0].public[0])
 
     def _init_metrics(self):
         super()._init_metrics()
