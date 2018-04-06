@@ -17,11 +17,11 @@
 """
 # Stdlib
 import logging
+from datetime import datetime
 # External
 import capnp  # noqa
 
 # SCION
-from datetime import datetime
 import proto.rev_info_capnp as P
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
@@ -55,7 +55,7 @@ class RevocationInfo(Cerealizable):
         :param ISD_AS isd_as: The ISD_AS of the issuer of the revocation.
         :param int if_id: ID of the interface to be revoked
         :param str link_type: Link type of the revoked interface
-        :param int timestamp: Revocation creation time
+        :param int timestamp: Revocation creation timestamp in seconds
         :param int TTL: Revocation validity period in seconds
         """
         p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, linkType=link_type,
@@ -93,4 +93,4 @@ class RevocationInfo(Cerealizable):
 
     def short_desc(self):
         return "RevInfo: %s IF: %d Link type: %s Timestamp: %s TTL: %d" % (
-            self.isd_as(), self.p.ifID, self.p.link_type, iso_timestamp(self.p.timestamp / 1000000), self.p.ttl)
+            self.isd_as(), self.p.ifID, self.p.link_type, iso_timestamp(self.p.timestamp), self.p.ttl)

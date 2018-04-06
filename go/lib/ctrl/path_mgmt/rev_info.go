@@ -33,7 +33,7 @@ type RevInfo struct {
 	IfID      uint64
 	RawIsdas  addr.IAInt `capnp:"isdas"`
 	LinkType  proto.LinkType // Link type of revocation
-	Timestamp uint64         // Time in µs since unix epoch
+	Timestamp uint32         // Time in seconds since unix epoch
 	TTL       uint32         // Validity period of the revocation in seconds
 }
 
@@ -51,5 +51,5 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %d",
-		r.IA(), r.IfID, r.LinkType, util.TimeToString(r.Timestamp), r.TTL)
+		r.IA(), r.IfID, r.LinkType, util.TimeToString(uint64(r.Timestamp)), r.TTL)
 }
