@@ -100,4 +100,5 @@ class RevocationInfo(Cerealizable):
 
     def short_desc(self):
         return "RevInfo: %s IF: %d Link type: %s Timestamp: %s TTL: %d" % (
-            self.isd_as(), self.p.ifID, self.p.link_type, iso_timestamp(self.p.timestamp), self.p.ttl)
+            self.isd_as(), self.p.ifID, self.p.link_type,
+            iso_timestamp(self.p.timestamp), self.p.ttl)

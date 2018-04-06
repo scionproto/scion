@@ -19,13 +19,13 @@
 import logging
 import os
 import threading
+import time
 from itertools import product
 
 # External
 from external.expiring_dict import ExpiringDict
 
 # SCION
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     GEN_CACHE_PATH,
     PATH_FLAG_SIBRA,
@@ -189,6 +189,7 @@ class SCIONDaemon(SCIONElement):
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
         recs = path_reply.recs()
         for rev_info in recs.iter_rev_infos():
+            # TODO verify before inserting
             self.rev_cache.add(rev_info)
 
         req = path_reply.req()
@@ -411,7 +412,8 @@ class SCIONDaemon(SCIONElement):
 
     def handle_revocation(self, cpld, meta):
         pmgt = cpld.union
-        rev_info = pmgt.union
+        signed_blob = pmgt.union
+        rev_info = RevocationInfo.from_raw(signed_blob.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Revocation info received: %s", rev_info.short_desc())
         try:
@@ -423,8 +425,12 @@ class SCIONDaemon(SCIONElement):
         active = rev_info.active()
         if not active:
             logging.error(
-                "Failed to verify epoch: epoch in the past %d,current epoch %d."
-                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+                "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
+                % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
+            return SCIONDRevReplyStatus.INVALID
+        # Verify signature
+        if not signed_blob.verify():
+            logging.error("Failed to verify signature!")
             return SCIONDRevReplyStatus.INVALID
 
         self.rev_cache.add(rev_info)
@@ -432,7 +438,8 @@ class SCIONDaemon(SCIONElement):
         removed_up = removed_core = removed_down = 0
         if rev_info.p.link_type == ProtoLinkType.CORE:
             removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
-        elif rev_info.p.link_type == ProtoLinkType.PARENT or rev_info.p.link_type == ProtoLinkType.CHILD:
+        elif rev_info.p.link_type == ProtoLinkType.PARENT or \
+                rev_info.p.link_type == ProtoLinkType.CHILD:
             removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
             removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
         elif rev_info.p.link_type != ProtoLinkType.PEER:

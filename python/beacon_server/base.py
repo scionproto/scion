@@ -660,7 +660,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_revocation(self, cpld, meta):
         pmgt = cpld.union
-        rev_info = pmgt.union
+        signed_blob = pmgt.union
+        rev_info = RevocationInfo.from_raw(signed_blob.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation via CtrlPld: %s (from %s)", rev_info.short_desc(), meta)
         try:

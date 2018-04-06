@@ -19,7 +19,6 @@
 import logging
 
 # SCION
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import SCION_MIN_MTU
 from lib.packet.path import SCIONPath
 from lib.sciond_api.path_meta import FwdPathMeta, PathInterface

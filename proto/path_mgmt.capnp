@@ -6,6 +6,7 @@ $Go.import("github.com/scionproto/scion/go/proto");
 using PSeg = import "path_seg.capnp";
 using IFState = import "if_state.capnp";
 using RevInfo = import "rev_info.capnp";
+using Sign = import "sign.capnp";
 
 struct SegReq {
     srcIA @0 :UInt64;
@@ -34,7 +35,7 @@ struct PathMgmt {
         segReply @2 :SegReply;
         segReg @3 :SegRecs;
         segSync @4 :SegRecs;
-        revInfo @5 :RevInfo.RevInfo;
+        revInfo @5 :Sign.SignedBlob;
         ifStateReq @6 :IFState.IFStateReq;
         ifStateInfos @7 :IFState.IFStateInfos;
     }

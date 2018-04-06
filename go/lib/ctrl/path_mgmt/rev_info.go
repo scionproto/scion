@@ -18,14 +18,14 @@ package path_mgmt
 
 import (
 	"fmt"
+	"time"
 
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/lib/util"
-	"time"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const TTL = 10 * time.Second // Revocation TTL
@@ -34,7 +34,7 @@ var _ proto.Cerealizable = (*RevInfo)(nil)
 
 type RevInfo struct {
 	IfID      uint64
-	RawIsdas  addr.IAInt `capnp:"isdas"`
+	RawIsdas  addr.IAInt     `capnp:"isdas"`
 	LinkType  proto.LinkType // Link type of revocation
 	Timestamp uint32         // Time in seconds since unix epoch
 	TTL       uint32         // Validity period of the revocation in seconds
@@ -52,7 +52,7 @@ func (r *RevInfo) IA() addr.IA {
 func (r *RevInfo) Valid() bool {
 	now := uint32(time.Now().Second())
 	// Revocation is not valid if its timestamp is not within the TTL
-	if r.Timestamp > now || r.Timestamp < now - uint32(TTL.Seconds()) {
+	if r.Timestamp > now || r.Timestamp < now-uint32(TTL.Seconds()) {
 		return false
 	}
 	return true

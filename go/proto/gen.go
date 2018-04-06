@@ -19,7 +19,6 @@ var RootTypes = []string{
 	"CtrlPld",
 	"PathSegment",
 	"PathSegmentSignedData",
-	"RevInfo",
 	"SCIONDMsg",
 	"SignedBlob",
 	"SignedCtrlPld",
