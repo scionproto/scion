@@ -12,42 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package certs provides a generator for AS-level certs involved in the SCION
-// control plane PKI.
 package certs
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
+	"github.com/spf13/cobra"
 )
 
-var CmdCerts = &base.Command{
-	Name: "certs",
-	Run:  runCert,
-	UsageLine: `certs [-h] (gen|renew|template|clean) [<flags>] <selector>
-       scion-pki certs verify <files>`,
+var verify bool
+
+var Cmd = &cobra.Command{
+	Use:   "certs",
 	Short: "Generate and renew certificate chains for the SCION control plane PKI.",
 	Long: `
 'certs' can be used to generate and renew certificate chains for the SCION control plane PKI.
-
-Subcommands:
-	gen
-		Used to generate new certificates.
-	renew (NOT IMPLEMENTED)
-		Used to renew existing certificates.
-	clean (NOT IMPLEMENTED)
-		Used to clean all the certificates.
-
-Flags:
-	-d
-		The root directory of all certificates and keys (default '.')
-	-f
-		Overwrite existing certificates (and keys if -genkeys is specified).
-	-verify (default TRUE)
-		Also verify the generated/renewed certificates.
 
 Selector:
 	*-*
@@ -102,35 +81,44 @@ contain the following values:
 `,
 }
 
-var verify bool
-
-func init() {
-	CmdCerts.Flag.StringVar(&pkicmn.RootDir, "d", ".", "")
-	CmdCerts.Flag.BoolVar(&pkicmn.Force, "f", false, "")
-	CmdCerts.Flag.BoolVar(&verify, "verify", true, "")
+var genCerts = &cobra.Command{
+	Use:   "gen",
+	Short: "Generate new certificates",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runGenCert(args)
+	},
 }
 
-func runCert(cmd *base.Command, args []string) {
-	if len(args) < 1 {
-		cmd.Usage()
-		os.Exit(2)
-	}
-	subCmd := args[0]
-	cmd.Flag.Parse(args[1:])
-	switch subCmd {
-	case "gen":
-		runGenCert(cmd, cmd.Flag.Args())
-	case "renew":
-		fmt.Println("renew is not implemented yet.")
-		return
-	case "verify":
-		runVerify(cmd, cmd.Flag.Args())
-	case "clean":
-		fmt.Println("clean is not implemented yet.")
-		return
-	default:
-		fmt.Fprintf(os.Stderr, "unrecognized subcommand '%s'\n", args[0])
-		fmt.Fprintf(os.Stderr, "run 'scion-pki certs -h' for help.\n")
-		os.Exit(2)
-	}
+var renewCerts = &cobra.Command{
+	Use:   "renew",
+	Short: "Renew the existing certificates [NOT IMPLEMENTED]",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("renew is not implemented yet")
+	},
+}
+
+var cleanCerts = &cobra.Command{
+	Use:   "clean",
+	Short: "Clean all the exisiting certificates. [NOT IMPLEMENTED]",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("clean is not implemented yet")
+	},
+}
+
+var verifyCert = &cobra.Command{
+	Use:   "verify",
+	Short: "Verify certificate for given selector",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		runVerify(args)
+	},
+}
+
+func init() {
+	Cmd.PersistentFlags().BoolVarP(&verify, "verify", "v", true,
+		"verify the generated/renewed certificates")
+	Cmd.AddCommand(genCerts)
+	Cmd.AddCommand(renewCerts)
+	Cmd.AddCommand(cleanCerts)
 }

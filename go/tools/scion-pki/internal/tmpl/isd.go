@@ -16,7 +16,6 @@ package tmpl
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -25,11 +24,7 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-func runGenIsdTmpl(cmd *base.Command, args []string) {
-	if len(args) < 1 {
-		cmd.Usage()
-		os.Exit(2)
-	}
+func runGenIsdTmpl(args []string) {
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		base.ErrorAndExit("Error: %s\n", err)
