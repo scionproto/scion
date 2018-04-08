@@ -34,11 +34,12 @@ import (
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-func runGenKey(cmd *base.Command, args []string) {
-	if len(args) < 1 {
-		cmd.Usage()
-		os.Exit(2)
-	}
+const (
+	seedFileExt    = ".seed"
+	masterKeyFname = "master.key"
+)
+
+func runGenKey(args []string) {
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
 		base.ErrorAndExit("Error: %s\n", err)
