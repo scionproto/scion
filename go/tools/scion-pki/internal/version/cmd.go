@@ -15,14 +15,15 @@
 package version
 
 import (
-	"fmt"
+	"github.com/spf13/cobra"
 )
 
-const (
-	major = 0
-	minor = 1
-)
-
-func runVersion() {
-	fmt.Printf("SCION Control Plane PKI tool v%d.%d\n", major, minor)
+var Cmd = &cobra.Command{
+	Use:   "version",
+	Args:  cobra.NoArgs,
+	Short: "Print scion-pki version",
+	Long:  "Print scion-pki version",
+	Run: func(cmd *cobra.Command, args []string) {
+		runVersion()
+	},
 }

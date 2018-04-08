@@ -23,15 +23,10 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
-func runVerify(cmd *base.Command, args []string) {
-	if len(args) < 1 {
-		cmd.Usage()
-		os.Exit(2)
-	}
+func runVerify(args []string) {
 	exitStatus := 0
 	for _, certPath := range args {
 		// Load file.
