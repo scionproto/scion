@@ -12,12 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package commands
 
 import (
-	cmd "github.com/scionproto/scion/go/tools/scion-pki/commands"
+	"github.com/spf13/cobra"
+
+	version "github.com/scionproto/scion/go/tools/scion-pki/internal/version"
 )
 
-func main() {
-	cmd.Execute()
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Args:  cobra.NoArgs,
+	Short: "Print scion-pki version",
+	Long:  "Print scion-pki version",
+	Run: func(cmd *cobra.Command, args []string) {
+		version.RunVersion()
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(versionCmd)
 }

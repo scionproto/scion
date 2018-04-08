@@ -146,6 +146,12 @@
 			"revisionTime": "2016-10-13T18:12:40Z"
 		},
 		{
+			"checksumSHA1": "40vJyUB4ezQSn/NSadsKEOrudMc=",
+			"path": "github.com/inconshreveable/mousetrap",
+			"revision": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75",
+			"revisionTime": "2014-10-17T20:07:13Z"
+		},
+		{
 			"checksumSHA1": "tewA7jXVGCw1zb5mA0BDecWi4iQ=",
 			"license": "MIT",
 			"path": "github.com/jtolds/gls",
@@ -382,6 +388,18 @@
 			"path": "github.com/songgao/water",
 			"revision": "99d07fc117afd4d997bc5ebca77c241644ffe24a",
 			"revisionTime": "2017-05-24T16:52:02Z"
+		},
+		{
+			"checksumSHA1": "imvfVf7lRxu0Fz7V2G43CUC6Ff0=",
+			"path": "github.com/spf13/cobra",
+			"revision": "cd30c2a7e91a1d63fd9a0027accf18a681e9d50b",
+			"revisionTime": "2018-04-08T16:17:36Z"
+		},
+		{
+			"checksumSHA1": "dya2ZB3xsWQV/7/iKU19pY0KnqU=",
+			"path": "github.com/spf13/pflag",
+			"revision": "1ce0cc6db4029d97571db82f85092fccedb572ce",
+			"revisionTime": "2018-04-03T11:55:18Z"
 		},
 		{
 			"checksumSHA1": "83izdxZY8yjnpzNI0tPXZcOJxWI=",

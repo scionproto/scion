@@ -16,8 +16,6 @@ package version
 
 import (
 	"fmt"
-
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 )
 
 const (
@@ -25,17 +23,6 @@ const (
 	minor = 1
 )
 
-var CmdVersion = &base.Command{
-	Name:      "version",
-	Run:       runVersion,
-	UsageLine: "version",
-	Short:     "Print scion-pki version",
-	Long:      "Print scion-pki version",
-}
-
-func runVersion(cmd *base.Command, args []string) {
-	if len(args) != 0 {
-		cmd.Usage()
-	}
+func RunVersion() {
 	fmt.Printf("SCION Control Plane PKI tool v%d.%d\n", major, minor)
 }
