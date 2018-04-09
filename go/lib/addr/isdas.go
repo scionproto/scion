@@ -225,7 +225,7 @@ func (ia IA) Write(b common.RawBytes) {
 }
 
 func (ia IA) IAInt() IAInt {
-	return IAInt(ia.I)<<ASBits | IAInt(ia.A&MaxAS)
+	return RawIA(ia.I, ia.A)
 }
 
 func (ia IA) IsZero() bool {
@@ -253,4 +253,8 @@ type IAInt uint64
 
 func (iaI IAInt) IA() IA {
 	return IA{I: ISD(iaI >> ASBits), A: AS(iaI & MaxAS)}
+}
+
+func RawIA(isd ISD, as AS) IAInt {
+	return IAInt(isd)<<ASBits | IAInt(as&MaxAS)
 }
