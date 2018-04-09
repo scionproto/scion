@@ -5,7 +5,6 @@ $Go.import("github.com/scionproto/scion/go/proto");
 
 using PSeg = import "path_seg.capnp";
 using IFState = import "if_state.capnp";
-using RevInfo = import "rev_info.capnp";
 using Sign = import "sign.capnp";
 
 struct SegReq {
@@ -20,7 +19,7 @@ struct SegReq {
 
 struct SegRecs {
     recs @0 :List(PSeg.PathSegMeta);
-    revInfos @1 :List(RevInfo.RevInfo);
+    revInfos @1 :List(Sign.SignedBlob);
 }
 
 struct SegReply {

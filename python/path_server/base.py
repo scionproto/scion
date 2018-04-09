@@ -63,7 +63,7 @@ from scion_elem.scion_elem import SCIONElement
 
 
 # Exported metrics.
-from python.lib.crypto.hash_tree import HASHTREE_EPOCH_TIME
+from python.lib.defines import MIN_REVOCATION_TTL
 
 REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_as"])
 REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests", ["server_id", "isd_as"])
@@ -90,7 +90,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     # Max number of segments per ZK cache entry
     ZK_SHARE_LIMIT = 10
     # Time to store revocations in zookeeper
-    ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
+    ZK_REV_OBJ_MAX_AGE = MIN_REVOCATION_TTL
     # TTL of segments in the queue for ZK (in seconds)
     SEGS_TO_ZK_TTL = 10 * 60
 
@@ -139,7 +139,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             },
         }
         self._segs_to_zk = ExpiringDict(1000, self.SEGS_TO_ZK_TTL)
-        self._revs_to_zk = ExpiringDict(1000, HASHTREE_EPOCH_TIME)
+        self._revs_to_zk = ExpiringDict(1000, MIN_REVOCATION_TTL)
         self._zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                       [(self.addr.host, self._port)])
         self.zk = Zookeeper(self.topology.isd_as, PATH_SERVICE,
@@ -300,7 +300,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Forward revocation to other path servers.
-        self._forward_revocation(rev_info, meta)
+        self._forward_revocation(signed_rev_info, meta)
 
     def _remove_revoked_segments(self, rev_info):
         """
@@ -429,8 +429,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(seg_recs, PathSegmentRecords), type(seg_recs)
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.
-        for rev_info in seg_recs.iter_rev_infos():
-            self.revocations.add(rev_info)
+        for signed_rev_info in seg_recs.iter_rev_infos():
+            self.revocations.add(signed_rev_info.blob)
         # Verify pcbs and process them
         for type_, pcb in seg_recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,

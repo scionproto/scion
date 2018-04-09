@@ -23,10 +23,10 @@ import (
 	//log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
-	"github.com/scionproto/scion/go/lib/assert"
 )
 
 const MinRevTTL = 10 * time.Second // Revocation MinRevTTL
@@ -51,7 +51,7 @@ func (r *RevInfo) IA() addr.IA {
 }
 
 func (r *RevInfo) Valid() bool {
-	assert.Must(r.RevTTL>=uint32(MinRevTTL.Seconds()), "RevTTL must not be smaller than MinRevTTL")
+	assert.Must(r.RevTTL >= uint32(MinRevTTL.Seconds()), "RevTTL must not be smaller than MinRevTTL")
 	now := uint32(time.Now().Second())
 	// Revocation is not valid if its timestamp is not within the MinRevTTL
 	if r.Timestamp > now || r.Timestamp < now-r.RevTTL {

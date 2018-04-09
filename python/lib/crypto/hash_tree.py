@@ -26,6 +26,7 @@ from lib.packet.path_mgmt.rev_info import RevocationInfo
 HASHTREE_EPOCH_TIME = 30
 HASHTREE_EPOCH_TOLERANCE = 2
 
+
 class HashTree(object):
     """
     Class encapsulating a scion hash-tree.

@@ -22,16 +22,14 @@ import threading
 import time
 from collections import defaultdict
 from abc import ABCMeta, abstractmethod
-from threading import Lock, RLock
+from threading import RLock
 
 # External packages
-from external.expiring_dict import ExpiringDict
 from prometheus_client import Counter, Gauge
 
 # SCION
 from beacon_server.if_state import InterfaceState
 from lib.crypto.asymcrypto import get_sig_key
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import kdf
 from lib.defines import (
     BEACON_SERVICE,
@@ -70,10 +68,9 @@ from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_store import PathPolicy
-from lib.thread import thread_safety_net, kill_self
+from lib.thread import thread_safety_net
 from lib.types import (
     CertMgmtType,
-    HashType,
     PathMgmtType as PMT,
     PayloadClass,
 )
@@ -89,9 +86,9 @@ from scion_elem.scion_elem import SCIONElement
 
 
 # Exported metrics.
-from python.lib.crypto.hash_tree import HASHTREE_EPOCH_TIME, HASHTREE_EPOCH_TOLERANCE
 from python.lib.defines import MIN_REVOCATION_TTL
 from python.lib.packet.proto_sign import ProtoSignedBlob
+from python.lib.rev_cache import RevCache
 from python.lib.types import ProtoLinkType
 
 BEACONS_PROPAGATED = Counter("bs_beacons_propagated_total", "# of propagated beacons",
@@ -109,10 +106,6 @@ IF_STATE = Gauge("bs_ifstate", "0/1/2 if interface is active/revoked/other",
 class BeaconServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION PathConstructionBeacon Server.
-
-    Attributes:
-        if2rev_tokens: Contains the currently used revocation token
-            hash-chain for each interface.
     """
     SERVICE_TYPE = BEACON_SERVICE
     # ZK path for incoming PCBs
@@ -121,6 +114,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REVOCATIONS_PATH = "rev_cache"
     # Time revocation objects are cached in memory (in seconds).
     ZK_REV_OBJ_MAX_AGE = MIN_REVOCATION_TTL
+    # Revocation TTL
+    REVOCATION_TTL = MIN_REVOCATION_TTL
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
@@ -173,8 +168,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self.zk, self.ZK_PCB_CACHE_PATH, self._handle_pcbs_from_zk)
         self.revobjs_cache = ZkSharedCache(
             self.zk, self.ZK_REVOCATIONS_PATH, self.process_rev_objects)
-        self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
-                                            HASHTREE_EPOCH_TOLERANCE)
+        self.local_rev_cache = RevCache()
         self._rev_seg_lock = RLock()
 
     def propagate_downstream_pcb(self, pcb):
@@ -366,8 +360,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if (not self.ifid_state[in_if].is_active() and
                         not self._quiet_startup()):
                     continue
-            peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(),
-                                          xover=True)
+            peer_pcbm = self._create_pcbm(in_if, out_if, ts, up_pcbm.hof(), xover=True)
             if peer_pcbm:
                 yield peer_pcbm
 
@@ -540,7 +533,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     logging.warning("Failed to validate RevInfo from zk: %s\n%s",
                                     e, rev_info.short_desc())
                     continue
-                self.local_rev_cache[rev_info] = rev_info.copy()
+                self.local_rev_cache.add(rev_info.copy())
 
     def _issue_revocations(self, revoked_ifs):
         """
@@ -562,6 +555,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             self._process_revocation(rev_info)
             signed_rev_blob = ProtoSignedBlob.from_values(
                 rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
+            signed_rev_blob.sign(self.signing_key)
             infos.append(IFStateInfo.from_values(if_id, False, signed_rev_blob))
         border_metas = []
         # Add all BRs.
@@ -640,11 +634,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.error("Trying to revoke IF with ID 0.")
             return
         with self._rev_seg_lock:
-            self.local_rev_cache[rev_info] = rev_info.copy()
-        rev_token = rev_info.copy().pack()
-        entry_name = "%s:%s" % (hash(rev_token), time.time())
+            self.local_rev_cache.add(rev_info.copy())
+        rev_info_packed = rev_info.copy().pack()
+        entry_name = "%s:%s" % (hash(rev_info_packed), time.time())
         try:
-            self.revobjs_cache.store(entry_name, rev_token)
+            self.revobjs_cache.store(entry_name, rev_info_packed)
         except ZkNoConnection as exc:
             logging.error("Unable to store revocation in shared cache "
                           "(no ZK connection): %s" % exc)
@@ -671,13 +665,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :type rev_info: RevocationInfo
         """
         to_remove = []
+        if not rev_info.active():
+            return to_remove
         processed = set()
         for cand in candidates:
             if cand.id in processed:
                 continue
             processed.add(cand.id)
-            if not rev_info.active():
-                continue
 
             # If the interface on which we received the PCB is
             # revoked, then the corresponding pcb needs to be removed.
@@ -693,7 +687,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_if_timeouts(self):
         """
-        Periodically checks each interface state and issues an if revocation, if
+        Periodically checks each interface state and issues an IF revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
         if_id_last_revoked = defaultdict(int)
@@ -702,7 +696,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             with self.ifid_state_lock:
                 to_revoke = []
                 for (if_id, if_state) in self.ifid_state.items():
-                    cur_epoch = ConnectedHashTree.get_current_epoch()
                     if self._labels:
                         metric = IF_STATE.labels(ifid=if_id, **self._labels)
                         if if_state.is_active():
@@ -711,20 +704,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                             metric.set(1)
                         else:
                             metric.set(2)
-                    if not if_state.is_expired() or (
-                            if_state.is_revoked() and if_id_last_revoked[if_id] == cur_epoch):
-                        # Either the interface hasn't timed out, or it's already revoked for this
-                        # epoch
+                    if not if_state.is_expired():
+                        # Interface hasn't timed out
                         continue
-                    if_id_last_revoked[if_id] = cur_epoch
+                    if if_state.is_revoked() and \
+                            if_id_last_revoked[if_id] + self.REVOCATION_TTL > int(time.time()):
+                        # Interface has already been revoked in our REVOCATION_TTL
+                        continue
+                    if_id_last_revoked[if_id] = int(time.time())
                     if not if_state.is_revoked():
                         logging.info("IF %d went down.", if_id)
                     to_revoke.append(if_id)
                     if_state.revoke_if_expired()
                 if to_revoke:
                     self._issue_revocations(to_revoke)
-            sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL,
-                           "Handle IF timeouts")
+            sleep_interval(start_time, self.IF_TIMEOUT_INTERVAL, "Handle IF timeouts")
 
     def _handle_ifstate_request(self, cpld, meta):
         # Only master replies to ifstate requests.
@@ -741,9 +735,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     continue
                 if state.is_revoked():
                     rev_info = RevocationInfo.from_values(
-                        self.addr.isd_as, ifid, ProtoLinkType.CORE, int(time.time()), MIN_REVOCATION_TTL)
+                        self.addr.isd_as, ifid, ProtoLinkType.CORE, int(time.time()),
+                        MIN_REVOCATION_TTL)
                     signed_rev_blob = ProtoSignedBlob.from_values(
                         rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
+                    signed_rev_blob.sign(self.signing_key)
                     info = IFStateInfo.from_values(ifid, state.is_active(), signed_rev_blob)
                 else:
                     info = IFStateInfo.from_values(ifid, state.is_active(), None)

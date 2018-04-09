@@ -87,7 +87,6 @@ from sciond.req import RequestState
 from scion_elem.scion_elem import SCIONElement
 
 from lib.types import ProtoLinkType
-from lib.packet.proto_sign import ProtoSignedBlob
 
 _FLUSH_FLAG = "FLUSH"
 
