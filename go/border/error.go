@@ -22,11 +22,9 @@ import (
 
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 type pktErrorArgs struct {
@@ -55,6 +53,7 @@ func (r *Router) PacketError() {
 	// Run forever.
 	for args := range r.pktErrorQ {
 		r.doPktError(args.rp, args.perr)
+		args.rp.Release()
 	}
 }
 
@@ -101,7 +100,6 @@ func (r *Router) doPktError(rp *rpkt.RtrPkt, perr error) {
 		rp.Error("Error creating SCMP response", "err", err)
 		return
 	}
-	rp.Release()
 	reply.Route()
 }
 
@@ -109,7 +107,7 @@ func (r *Router) doPktError(rp *rpkt.RtrPkt, perr error) {
 func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	info scmp.Info) (*rpkt.RtrPkt, error) {
 	// Create generic ScnPkt reply
-	sp, err := r.createReplyScnPkt(rp)
+	sp, err := rp.CreateReplyScnPkt()
 	if err != nil {
 		return nil, err
 	}
@@ -143,81 +141,5 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 	}
 	sp.Pld = scmp.PldFromQuotes(ct, info, l4Type, rp.GetRaw)
 	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
-	// Convert back to RtrPkt
-	reply, err := rpkt.RtrPktFromScnPkt(sp, rp.DirFrom, rp.Ctx)
-	if err != nil {
-		return nil, err
-	}
-	dstIA, err := reply.DstIA()
-	if err != nil {
-		return nil, err
-	}
-	// Only (potentially) call IncPath if the dest is not in the local AS.
-	if !dstIA.Eq(rp.Ctx.Conf.IA) {
-		hopF, err := reply.HopF()
-		if err != nil {
-			return nil, err
-		}
-		if hopF != nil && hopF.Xover {
-			reply.InfoF()
-			reply.UpFlag()
-			// Always increment reversed path on a xover point.
-			if _, err := reply.IncPath(); err != nil {
-				return nil, err
-			}
-			// Increment reversed path if it was incremented in the forward direction.
-			// Check
-			// https://github.com/scionproto/scion/blob/master/doc/PathReversal.md
-			// for details.
-			if rp.IncrementedPath {
-				if _, err := reply.IncPath(); err != nil {
-					return nil, err
-				}
-			}
-		} else if rp.DirFrom == rcmn.DirExternal {
-			reply.InfoF()
-			reply.UpFlag()
-			// Increase path if the current HOF is not xover and
-			// this router is an ingress router.
-			if _, err := reply.IncPath(); err != nil {
-				return nil, err
-			}
-		}
-	}
-	egress, err := r.replyEgress(rp)
-	if err != nil {
-		return nil, err
-	}
-	reply.Egress = append(reply.Egress, egress)
-	return reply, nil
-}
-
-// createReplyScnPkt creates a generic ScnPkt reply, by converting the RtrPkt
-// to an ScnPkt, then reversing the ScnPkt, and setting the reply source address.
-func (r *Router) createReplyScnPkt(rp *rpkt.RtrPkt) (*spkt.ScnPkt, error) {
-	sp, err := rp.ToScnPkt(false)
-	if err != nil {
-		return nil, err
-	}
-	if err = sp.Reverse(); err != nil {
-		return nil, err
-	}
-	// Use the ingress address as the source host
-	sp.SrcIA = rp.Ctx.Conf.IA
-	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
-	return sp, nil
-}
-
-// replyEgress calculates the corresponding egress function and destination
-// address to use when replying to a packet.
-func (r *Router) replyEgress(rp *rpkt.RtrPkt) (rpkt.EgressPair, error) {
-	if rp.DirFrom == rcmn.DirLocal {
-		return rpkt.EgressPair{S: rp.Ctx.LocSockOut[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
-	}
-	ifid, err := rp.IFCurr()
-	if err != nil {
-		return rpkt.EgressPair{}, err
-	}
-	intf := rp.Ctx.Conf.Net.IFs[*ifid]
-	return rpkt.EgressPair{S: rp.Ctx.ExtSockOut[*ifid], Dst: intf.RemoteAddr}, nil
+	return rp.CreateReply(sp)
 }

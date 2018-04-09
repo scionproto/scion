@@ -161,3 +161,83 @@ func (rp *RtrPkt) SetPld(pld common.Payload) error {
 	rp.CmnHdr.Write(rp.Raw)
 	return nil
 }
+
+// CreateReplyScnPkt creates a generic ScnPkt reply, by converting the RtrPkt
+// to an ScnPkt, then reversing the ScnPkt, and setting the reply source address.
+func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
+	sp, err := rp.ToScnPkt(false)
+	if err != nil {
+		return nil, err
+	}
+	if err = sp.Reverse(); err != nil {
+		return nil, err
+	}
+	// Use the ingress address as the source host
+	sp.SrcIA = rp.Ctx.Conf.IA
+	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
+	return sp, nil
+}
+
+func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
+	// Convert back to RtrPkt
+	reply, err := RtrPktFromScnPkt(sp, rp.DirFrom, rp.Ctx)
+	if err != nil {
+		return nil, err
+	}
+	dstIA, err := reply.DstIA()
+	if err != nil {
+		return nil, err
+	}
+	// Only (potentially) call IncPath if the dest is not in the local AS.
+	if !dstIA.Eq(rp.Ctx.Conf.IA) {
+		hopF, err := reply.HopF()
+		if err != nil {
+			return nil, err
+		}
+		if hopF != nil && hopF.Xover {
+			reply.InfoF()
+			reply.UpFlag()
+			// Always increment reversed path on a xover point.
+			if _, err := reply.IncPath(); err != nil {
+				return nil, err
+			}
+			// Increment reversed path if it was incremented in the forward direction.
+			// Check
+			// https://github.com/scionproto/scion/blob/master/doc/PathReversal.md
+			// for details.
+			if rp.IncrementedPath {
+				if _, err := reply.IncPath(); err != nil {
+					return nil, err
+				}
+			}
+		} else if rp.DirFrom == rcmn.DirExternal {
+			reply.InfoF()
+			reply.UpFlag()
+			// Increase path if the current HOF is not xover and
+			// this router is an ingress router.
+			if _, err := reply.IncPath(); err != nil {
+				return nil, err
+			}
+		}
+	}
+	egress, err := rp.replyEgress()
+	if err != nil {
+		return nil, err
+	}
+	reply.Egress = append(reply.Egress, egress)
+	return reply, nil
+}
+
+// replyEgress calculates the corresponding egress function and destination
+// address to use when replying to a packet.
+func (rp *RtrPkt) replyEgress() (EgressPair, error) {
+	if rp.DirFrom == rcmn.DirLocal {
+		return EgressPair{S: rp.Ctx.LocSockOut[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
+	}
+	ifid, err := rp.IFCurr()
+	if err != nil {
+		return EgressPair{}, err
+	}
+	intf := rp.Ctx.Conf.Net.IFs[*ifid]
+	return EgressPair{S: rp.Ctx.ExtSockOut[*ifid], Dst: intf.RemoteAddr}, nil
+}

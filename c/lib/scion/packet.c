@@ -430,6 +430,37 @@ void reverse_packet(uint8_t *buf)
     }
 }
 
+struct extn_h {
+    uint8_t next_header;
+    uint8_t len;
+    uint8_t type;
+};
+
+void remove_hbh_scmp_extn(uint8_t *buf)
+{
+    spkt_t spkt;
+    parse_spkt_cmn_hdr(buf, &spkt);
+
+    uint8_t nh = spkt.sch->next_header;
+    uint16_t total_len = ntohs(spkt.sch->total_len);
+    uint16_t hdr_len = spkt.sch->header_len * LINE_LEN;
+    if (nh != HOP_BY_HOP || total_len == hdr_len) {
+        // No HBH extension
+        return;
+    }
+
+    uint8_t *extn = buf + hdr_len;
+    struct extn_h *e = (struct extn_h *)extn;
+    if (e->type != SCMP) {
+        return;
+    }
+
+    uint16_t extn_len = e->len * LINE_LEN;
+    spkt.sch->next_header = e->next_header;
+    spkt.sch->total_len = htons(total_len - extn_len);
+    memmove(extn, extn + extn_len, total_len - hdr_len - extn_len);
+}
+
 /*
  * Print fields in common header
  * buf: Pointer to start of SCION packet

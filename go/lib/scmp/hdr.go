@@ -130,3 +130,7 @@ func (h *Hdr) Copy() l4.L4Header {
 func (h *Hdr) Time() time.Time {
 	return time.Unix(0, int64(h.Timestamp*1000))
 }
+
+func (h *Hdr) SetTime(t time.Time) {
+	h.Timestamp = uint64(t.UnixNano()) / 1000
+}

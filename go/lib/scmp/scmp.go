@@ -48,6 +48,8 @@ const (
 	T_G_Unspecified Type = iota
 	T_G_EchoRequest
 	T_G_EchoReply
+	T_G_TraceRouteRequest
+	T_G_TraceRouteReply
 	T_G_RecordPathRequest
 	T_G_RecordPathReply
 )
