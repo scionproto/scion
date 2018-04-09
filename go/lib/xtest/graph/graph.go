@@ -22,11 +22,14 @@
 package graph
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 // Graph implements a graph of ASes and IFIDs for testing purposes. IFIDs
@@ -38,6 +41,8 @@ import (
 type Graph struct {
 	// maps IFIDs to the other IFID of the edge
 	links map[common.IFIDType]common.IFIDType
+	// specifies whether an IFID is on a peering link
+	isPeer map[common.IFIDType]bool
 	// maps IFIDs to the AS they belong to
 	parents map[common.IFIDType]addr.IA
 	// maps ASes to a structure containing a slice of their IFIDs
@@ -50,6 +55,7 @@ type Graph struct {
 func New() *Graph {
 	return &Graph{
 		links:   make(map[common.IFIDType]common.IFIDType),
+		isPeer:  make(map[common.IFIDType]bool),
 		parents: make(map[common.IFIDType]addr.IA),
 		ases:    make(map[addr.IA]*AS),
 	}
@@ -62,7 +68,7 @@ func NewFromDescription(desc *Description) *Graph {
 		graph.Add(node)
 	}
 	for _, edge := range desc.Edges {
-		graph.AddLink(edge.Xia, edge.Xifid, edge.Yia, edge.Yifid)
+		graph.AddLink(edge.Xia, edge.Xifid, edge.Yia, edge.Yifid, edge.Peer)
 	}
 	return graph
 }
@@ -81,7 +87,9 @@ func (g *Graph) Add(ia string) {
 // AddLink adds a new edge between the ASes described by xIA and yIA, with
 // xIFID in xIA and yIFID in yIA. If xIA or yIA are not valid string
 // representations of an ISD-AS, AddLink panics.
-func (g *Graph) AddLink(xIA string, xIFID common.IFIDType, yIA string, yIFID common.IFIDType) {
+func (g *Graph) AddLink(xIA string, xIFID common.IFIDType,
+	yIA string, yIFID common.IFIDType, peer bool) {
+
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	x := MustParseIA(xIA)
@@ -100,6 +108,8 @@ func (g *Graph) AddLink(xIA string, xIFID common.IFIDType, yIA string, yIFID com
 	}
 	g.links[xIFID] = yIFID
 	g.links[yIFID] = xIFID
+	g.isPeer[xIFID] = peer
+	g.isPeer[yIFID] = peer
 	g.parents[xIFID] = x
 	g.parents[yIFID] = y
 	g.ases[x].IFIDs[xIFID] = struct{}{}
@@ -116,6 +126,8 @@ func (g *Graph) RemoveLink(ifid common.IFIDType) {
 
 	delete(g.links, ifid)
 	delete(g.links, neighborIFID)
+	delete(g.isPeer, ifid)
+	delete(g.isPeer, neighborIFID)
 	delete(g.parents, ifid)
 	delete(g.parents, neighborIFID)
 	g.ases[ia].Delete(ifid)
@@ -181,6 +193,92 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 		}
 	}
 	return solution
+}
+
+// Beacon constructs PCBs across a series of egress ifids. The parent AS of the
+// first IFID is the origin of the beacon, and the beacon propagates up to the
+// parent AS of the remote counterpart of the last IFID. The constructed
+// segment includes peering links. The hop fields in the returned segment do
+// not contain valid MACs.
+func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
+	var remoteInIF, inIF, outIF, remoteOutIF common.IFIDType
+	var inIA, currIA, outIA addr.IA
+
+	var segment seg.PathSegment
+	if len(ifids) == 0 {
+		return &segment
+	}
+
+	currIA = g.parents[ifids[0]]
+Loop:
+	for i := 0; ; i++ {
+		switch {
+		case i < len(ifids):
+			outIF = ifids[i]
+			remoteOutIF = g.links[outIF]
+			outIA = g.parents[remoteOutIF]
+		case i == len(ifids):
+			outIF = 0
+			remoteOutIF = 0
+			outIA = addr.IA{}
+		default:
+			break Loop
+		}
+
+		asEntry := &seg.ASEntry{
+			RawIA: currIA.IAInt(),
+		}
+
+		hopField := spath.NewHopField(make(common.RawBytes, spath.HopFieldLength), inIF, outIF)
+		buffer := new(bytes.Buffer)
+		if _, err := hopField.WriteTo(buffer); err != nil {
+			panic(err)
+		}
+		localHopEntry := &seg.HopEntry{
+			RawInIA:     inIA.IAInt(),
+			RemoteInIF:  remoteInIF,
+			InMTU:       1280,
+			RawOutIA:    outIA.IAInt(),
+			RemoteOutIF: remoteOutIF,
+			RawHopField: buffer.Bytes(),
+		}
+		asEntry.HopEntries = append(asEntry.HopEntries, localHopEntry)
+
+		as := g.ases[currIA]
+		for peeringLocalIF := range as.IFIDs {
+			if g.isPeer[peeringLocalIF] {
+				peerHopField := spath.NewHopField(make(common.RawBytes, spath.HopFieldLength), peeringLocalIF, outIF)
+				buffer := new(bytes.Buffer)
+				if _, err := peerHopField.WriteTo(buffer); err != nil {
+					panic(err)
+				}
+				peeringRemoteIF := g.links[peeringLocalIF]
+				peeringIA := g.parents[peeringRemoteIF]
+				peerHopEntry := &seg.HopEntry{
+					RawInIA:     peeringIA.IAInt(),
+					RemoteInIF:  peeringRemoteIF,
+					InMTU:       1280,
+					RawOutIA:    outIA.IAInt(),
+					RemoteOutIF: remoteOutIF,
+					RawHopField: buffer.Bytes(),
+				}
+				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
+			}
+		}
+
+		segment.ASEntries = append(segment.ASEntries, asEntry)
+		remoteInIF = outIF
+		inIF = remoteOutIF
+		inIA = currIA
+		currIA = g.parents[remoteOutIF]
+	}
+	return &segment
+}
+
+// DeleteInterface removes ifid from the graph without deleting its remote
+// counterpart. This is useful for testing IFID misconfigurations.
+func (g *Graph) DeleteInterface(ifid common.IFIDType) {
+	delete(g.links, ifid)
 }
 
 // AS contains a list of all the IFIDs in an AS.
@@ -261,6 +359,7 @@ type EdgeDesc struct {
 	Xifid common.IFIDType
 	Yia   string
 	Yifid common.IFIDType
+	Peer  bool
 }
 
 // Graph description of the topology in doc/fig/default-topo.pdf.
@@ -273,28 +372,28 @@ var DefaultGraphDescription = &Description{
 		"2-ff00:0:220", "2-ff00:0:221", "2-ff00:0:222",
 	},
 	Edges: []EdgeDesc{
-		{"1-ff00:0:110", 110120, "1-ff00:0:120", 120110},
-		{"1-ff00:0:110", 110130, "1-ff00:0:130", 130110},
-		{"1-ff00:0:110", 110210, "2-ff00:0:210", 210110},
-		{"1-ff00:0:110", 110111, "1-ff00:0:111", 111110},
-		{"1-ff00:0:120", 120130, "1-ff00:0:130", 130120},
-		{"1-ff00:0:120", 120220, "2-ff00:0:220", 220120},
-		{"1-ff00:0:120", 120121, "1-ff00:0:121", 121120},
-		{"1-ff00:0:130", 130131, "1-ff00:0:131", 131130},
-		{"1-ff00:0:111", 111121, "1-ff00:0:121", 121111},
-		{"1-ff00:0:111", 111211, "2-ff00:0:211", 211111},
-		{"1-ff00:0:111", 111112, "1-ff00:0:112", 112111},
-		{"1-ff00:0:121", 121131, "1-ff00:0:131", 131121},
-		{"1-ff00:0:121", 121122, "1-ff00:0:122", 122121},
-		{"1-ff00:0:131", 131132, "1-ff00:0:132", 132131},
-		{"1-ff00:0:132", 132133, "1-ff00:0:133", 133132},
-		{"2-ff00:0:210", 210220, "2-ff00:0:220", 220210},
-		{"2-ff00:0:210", 210211, "2-ff00:0:211", 211210},
-		{"2-ff00:0:220", 220221, "2-ff00:0:221", 221220},
-		{"2-ff00:0:211", 211221, "2-ff00:0:221", 221211},
-		{"2-ff00:0:211", 211212, "2-ff00:0:212", 212211},
-		{"2-ff00:0:211", 211222, "2-ff00:0:222", 222211},
-		{"2-ff00:0:221", 221222, "2-ff00:0:222", 222221},
+		{"1-ff00:0:110", 1112, "1-ff00:0:120", 1211, false},
+		{"1-ff00:0:110", 1113, "1-ff00:0:130", 1311, false},
+		{"1-ff00:0:110", 1121, "2-ff00:0:210", 2111, false},
+		{"1-ff00:0:110", 1114, "1-ff00:0:111", 1411, false},
+		{"1-ff00:0:120", 1213, "1-ff00:0:130", 1312, false},
+		{"1-ff00:0:120", 1222, "2-ff00:0:220", 2212, false},
+		{"1-ff00:0:120", 1215, "1-ff00:0:121", 1512, false},
+		{"1-ff00:0:130", 1316, "1-ff00:0:131", 1613, false},
+		{"1-ff00:0:111", 1415, "1-ff00:0:121", 1514, true},
+		{"1-ff00:0:111", 1423, "2-ff00:0:211", 2314, true},
+		{"1-ff00:0:111", 1417, "1-ff00:0:112", 1714, false},
+		{"1-ff00:0:121", 1516, "1-ff00:0:131", 1615, true},
+		{"1-ff00:0:121", 1518, "1-ff00:0:122", 1815, false},
+		{"1-ff00:0:131", 1619, "1-ff00:0:132", 1916, false},
+		{"1-ff00:0:132", 1910, "1-ff00:0:133", 1019, false},
+		{"2-ff00:0:210", 2122, "2-ff00:0:220", 2221, false},
+		{"2-ff00:0:210", 2123, "2-ff00:0:211", 2321, false},
+		{"2-ff00:0:220", 2224, "2-ff00:0:221", 2422, false},
+		{"2-ff00:0:211", 2324, "2-ff00:0:221", 2423, true},
+		{"2-ff00:0:211", 2325, "2-ff00:0:212", 2523, false},
+		{"2-ff00:0:211", 2326, "2-ff00:0:222", 2623, false},
+		{"2-ff00:0:221", 2426, "2-ff00:0:222", 2624, false},
 	},
 }
 
