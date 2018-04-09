@@ -44,7 +44,7 @@ func TestQuery(t *testing.T) {
 		})
 		Convey("Wait 200ms for paths to expire, then query and get new paths", func() {
 			// Add new path between 1-10 and 1-16
-			g.AddLink("1-10", 101902, "1-19", 191002)
+			g.AddLink("1-10", 101902, "1-19", 191002, false)
 			// Wait for two seconds to guarantee that the pathmgr refreshes the paths
 			<-time.After(200 * time.Millisecond)
 			aps := pm.Query(srcIA, dstIA)
@@ -93,7 +93,7 @@ func TestRegister(t *testing.T) {
 			// Re-add the link between 1-19 and 1-16; the path manager will
 			// update APS behind the scenes (after a normal refire of one
 			// second), so it should contain the path after 4 seconds.
-			g.AddLink("1-10", 1019, "1-19", 1910)
+			g.AddLink("1-10", 1019, "1-19", 1910, false)
 			<-time.After(200 * time.Millisecond)
 			SoMsg("aps", len(sp.Load().APS), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,

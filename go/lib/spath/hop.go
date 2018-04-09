@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"io"
 
 	//log "github.com/inconshreveable/log15"
 
@@ -57,6 +58,11 @@ func NewHopField(b common.RawBytes, in common.IFIDType, out common.IFIDType) *Ho
 	return h
 }
 
+// HopFFromRaw returns a HopField object from the raw content in b.
+//
+// The new HopField object takes ownership of the first HopFieldLength bytes in
+// b. Changing fields in the new object and calling Write will mutate the
+// initial bytes in b.
 func HopFFromRaw(b []byte) (*HopField, error) {
 	if len(b) < HopFieldLength {
 		return nil, common.NewBasicError(ErrorHopFTooShort, nil,
@@ -104,7 +110,7 @@ func (h *HopField) Write() {
 	h.data[1] = h.ExpTime
 	// Interface IDs are 12b each, encoded into 3B
 	h.data[2] = byte(h.Ingress >> 4)
-	h.data[3] = byte((h.Ingress&0x0F)<<4 | h.Egress>>4)
+	h.data[3] = byte((h.Ingress&0x0F)<<4 | h.Egress>>8)
 	h.data[4] = byte(h.Egress & 0xFF)
 	copy(h.data[5:], h.Mac)
 }
@@ -134,4 +140,10 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	copy(all[9:], prev)
 	tag, err := util.Mac(mac, all)
 	return tag[:MacLen], err
+}
+
+func (h *HopField) WriteTo(w io.Writer) (int64, error) {
+	h.Write()
+	n, err := w.Write(h.data)
+	return int64(n), err
 }
