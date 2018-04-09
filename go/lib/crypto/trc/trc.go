@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -324,5 +325,5 @@ func (t *TRC) String() string {
 }
 
 func timeToString(t uint64) string {
-	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
+	return util.TimeToString(util.USecsToTime(t))
 }

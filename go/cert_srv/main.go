@@ -26,6 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -76,6 +77,13 @@ func main() {
 	if config, err = conf.Load(*id, *confDir, *cacheDir, *stateDir); err != nil {
 		fatal(err.Error())
 	}
+	// Set signer and verifier
+	sign, err := CreateSign()
+	if err != nil {
+		fatal(err.Error())
+	}
+	config.SetSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()))
+	config.SetVerifier(&SigVerifier{&ctrl.BasicSigVerifier{}})
 	// initialize snet with retries
 	if err = initSNET(initAttempts, initInterval); err != nil {
 		fatal("Unable to create local SCION Network context", "err", err)

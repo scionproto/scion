@@ -20,6 +20,16 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-func TimeToString(t uint64) string {
-	return time.Unix(int64(t), 0).UTC().Format(common.TimeFmt)
+// USecsToTime takes seconds stored in a uint64.
+func USecsToTime(t uint64) time.Time {
+	return time.Unix(int64(t), 0)
+}
+
+// SecsToTime takes seconds stored in a int64.
+func SecsToTime(t int64) time.Time {
+	return time.Unix(t, 0)
+}
+
+func TimeToString(t time.Time) string {
+	return t.UTC().Format(common.TimeFmt)
 }

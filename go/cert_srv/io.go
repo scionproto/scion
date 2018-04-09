@@ -67,21 +67,27 @@ func (d *Dispatcher) run() {
 func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 	signed, err := ctrl.NewSignedPldFromRaw(buf)
 	if err != nil {
-		return err
+		return common.NewBasicError("Unable to parse signed payload", err, "addr", addr)
+	}
+	if signed.Sign != nil {
+		verifier := config.GetVerifier()
+		if err := ctrl.VerifySig(signed, verifier); err != nil {
+			return common.NewBasicError("Unable to verify signed payload", err, "addr", addr)
+		}
 	}
 	cpld, err := signed.Pld()
 	if err != nil {
-		return err
+		return common.NewBasicError("Unable to parse ctrl payload", err, "addr", addr)
 	}
 	c, err := cpld.Union()
 	if err != nil {
-		return err
+		return common.NewBasicError("Unable to unpack ctrl union", err)
 	}
 	switch c.(type) {
 	case *cert_mgmt.Pld:
 		pld, err := c.(*cert_mgmt.Pld).Union()
 		if err != nil {
-			return err
+			return common.NewBasicError("Unable to unpack cert_mgmt union", err)
 		}
 		switch pld.(type) {
 		case *cert_mgmt.Chain:
@@ -105,6 +111,21 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 // SendPayload is used to send payloads to the specified address using snet.
 func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
 	buf, err := cpld.PackPld()
+	if err != nil {
+		return err
+	}
+	_, err = conn.WriteToSCION(buf, addr)
+	return err
+}
+
+// SendSignedPayload is used to send signed payloads to the specified address using snet.
+func SendSignedPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
+	signer := config.GetSigner()
+	signed, err := signer.Sign(cpld)
+	if err != nil {
+		return err
+	}
+	buf, err := signed.PackPld()
 	if err != nil {
 		return err
 	}
