@@ -19,6 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/cert_srv/csctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
@@ -34,23 +35,24 @@ var (
 
 type TRCHandler struct {
 	conn *snet.Conn
+	ia   addr.IA
 }
 
-func NewTRCHandler(conn *snet.Conn) *TRCHandler {
-	return &TRCHandler{conn: conn}
+func NewTRCHandler(conn *snet.Conn, ia addr.IA) *TRCHandler {
+	return &TRCHandler{conn: conn, ia: ia}
 }
 
 // HandleReq handles TRC requests. If the TRC is not already cached and the cache-only flag is set
 // or the requester is from a remote AS, the request is dropped.
-func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq) {
+func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq, ctx *csctx.Ctx) {
 	log.Info("Received TRC request", "addr", a, "req", req)
 	var t *trc.TRC
 	if req.Version == cert_mgmt.NewestVersion {
-		t = config.Store.GetNewestTRC(req.ISD)
+		t = ctx.Store.GetNewestTRC(req.ISD)
 	} else {
-		t = config.Store.GetTRC(req.ISD, req.Version)
+		t = ctx.Store.GetTRC(req.ISD, req.Version)
 	}
-	srcLocal := config.PublicAddr.IA.Eq(a.IA)
+	srcLocal := ctx.Conf.PublicAddr.IA.Eq(a.IA)
 	if t != nil {
 		if err := h.sendTRCRep(a, t); err != nil {
 			log.Error("Unable to send TRC reply", "addr", a, "req", req, "err", err)
@@ -95,7 +97,7 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 	if err != nil {
 		return err
 	}
-	pathSet := snet.DefNetwork.PathResolver().Query(config.PublicAddr.IA, req.IA())
+	pathSet := snet.DefNetwork.PathResolver().Query(h.ia, req.IA())
 	path := pathSet.GetAppPath("")
 	if path == nil {
 		return common.NewBasicError("Unable to find core AS", nil)
@@ -106,14 +108,14 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 }
 
 // HandleRep handles TRC replies. Pending requests are answered and removed.
-func (h *TRCHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.TRC) {
+func (h *TRCHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.TRC, ctx *csctx.Ctx) {
 	log.Info("Received TRC reply", "addr", a, "rep", rep)
 	t, err := rep.TRC()
 	if err != nil {
 		log.Error("Unable to parse TRC reply", "err", err)
 		return
 	}
-	if err = config.Store.AddTRC(t, true); err != nil {
+	if err = ctx.Store.AddTRC(t, true); err != nil {
 		log.Error("Unable to store TRC", "key", t.Key(), "err", err)
 		return
 	}

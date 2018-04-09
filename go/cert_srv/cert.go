@@ -19,6 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/cert_srv/csctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -41,15 +42,15 @@ func NewChainHandler(conn *snet.Conn) *ChainHandler {
 
 // HandleReq handles certificate chain requests. If the certificate chain is not already cached
 // and the cache-only flag is set or the requester is from a remote AS, the request is dropped.
-func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq) {
+func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq, ctx *csctx.Ctx) {
 	log.Info("Received certificate chain request", "addr", a, "req", req)
 	var chain *cert.Chain
 	if req.Version == cert_mgmt.NewestVersion {
-		chain = config.Store.GetNewestChain(req.IA())
+		chain = ctx.Store.GetNewestChain(req.IA())
 	} else {
-		chain = config.Store.GetChain(req.IA(), req.Version)
+		chain = ctx.Store.GetChain(req.IA(), req.Version)
 	}
-	srcLocal := config.PublicAddr.IA.Eq(a.IA)
+	srcLocal := ctx.Conf.PublicAddr.IA.Eq(a.IA)
 	if chain != nil {
 		if err := h.sendChainRep(a, chain); err != nil {
 			log.Error("Unable to send certificate chain reply",
@@ -103,13 +104,13 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 }
 
 // HandleRep handles certificate chain replies. Pending requests are answered and removed.
-func (h *ChainHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.Chain) {
+func (h *ChainHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.Chain, ctx *csctx.Ctx) {
 	log.Info("Received certificate chain reply", "addr", a, "rep", rep)
 	chain, err := rep.Chain()
 	if err != nil {
 		log.Error("Unable to parse certificate reply", "err", err)
 	}
-	if err = config.Store.AddChain(chain, true); err != nil {
+	if err = ctx.Store.AddChain(chain, true); err != nil {
 		log.Error("Unable to store certificate chain", "key", chain.Key(), "err", err)
 		return
 	}

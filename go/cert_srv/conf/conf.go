@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/trust"
@@ -30,9 +29,7 @@ import (
 const (
 	ErrorAddr      = "Unable to load addresses"
 	ErrorKeyConf   = "Unable to load KeyConf"
-	ErrorStore     = "Unable to load TrustStore"
 	ErrorTopo      = "Unable to load topology"
-	ErrorTrustDB   = "Unable to load trust DB"
 	ErrorCustomers = "Unable to load Customers"
 )
 
@@ -44,19 +41,13 @@ type Conf struct {
 	BindAddr *snet.Addr
 	// PublicAddr is the public address.
 	PublicAddr *snet.Addr
-	// Store is the trust store.
-	Store *trust.Store
-	// TrustDB is the trust DB.
-	TrustDB *trustdb.DB
 	// keyConf contains the AS level keys used for signing and decrypting.
 	keyConf *trust.KeyConf
 	// keyConfLock guards KeyConf, CertVer and TRCVer.
 	keyConfLock sync.RWMutex
-	// customers is a mapping from non-core ASes assigned to this core AS to their public
+	// Customers is a mapping from non-core ASes assigned to this core AS to their public
 	// verifying key.
-	customers Customers
-	// customersLock guards the customers map.
-	customersLock sync.RWMutex
+	Customers *Customers
 	// CacheDir is the cache directory.
 	CacheDir string
 	// ConfDir is the configuration directory.
@@ -65,12 +56,12 @@ type Conf struct {
 	StateDir string
 	// signer is used to sign ctrl payloads.
 	signer ctrl.Signer
-	// SignerLock guards signer.
-	SignerLock sync.RWMutex
+	// signerLock guards signer.
+	signerLock sync.RWMutex
 	// verifier is used to verify ctrl payloads.
 	verifier ctrl.SigVerifier
-	// VerifierLock guards verifier.
-	VerifierLock sync.RWMutex
+	// verifierLock guards verifier.
+	verifierLock sync.RWMutex
 }
 
 // Load initializes the configuration by loading it from confDir.
@@ -101,40 +92,17 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 	if !tmpBind.EqAddr(conf.PublicAddr) {
 		conf.BindAddr = tmpBind
 	}
-	// load trust store
-	conf.Store, err = trust.NewStore(filepath.Join(confDir, "certs"), cacheDir, id)
-	if err != nil {
-		return nil, common.NewBasicError(ErrorStore, err)
-	}
-	// init trust db
-	conf.TrustDB, err = trustdb.New(filepath.Join(stateDir, trustdb.Path))
-	if err != nil {
-		return nil, common.NewBasicError(ErrorTrustDB, err)
-	}
 	// load key configuration
 	if conf.keyConf, err = conf.loadKeyConf(); err != nil {
 		return nil, common.NewBasicError(ErrorKeyConf, err)
 	}
 	if conf.Topo.Core {
 		// load customers
-		if conf.customers, err = conf.LoadCustomers(); err != nil {
-			return nil, err
+		if conf.Customers, err = conf.LoadCustomers(); err != nil {
+			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
 	}
 	return conf, nil
-}
-
-// ReloadCustomers reloads the mapping from customer to verifying key.
-func (c *Conf) ReloadCustomers() error {
-	// Makes sure no new files can be written by SetVerifyingKey in the meantime
-	c.customersLock.Lock()
-	defer c.customersLock.Unlock()
-	cust, err := c.LoadCustomers()
-	if err != nil {
-		return common.NewBasicError(ErrorCustomers, err)
-	}
-	c.customers = cust
-	return nil
 }
 
 // loadKeyConf loads key configuration.
@@ -166,28 +134,28 @@ func (c *Conf) GetOnRootKey() common.RawBytes {
 
 // GetSigner returns the signer of the current configuration.
 func (c *Conf) GetSigner() ctrl.Signer {
-	c.SignerLock.RLock()
-	defer c.SignerLock.RUnlock()
+	c.signerLock.RLock()
+	defer c.signerLock.RUnlock()
 	return c.signer
 }
 
 // SetSigner sets the signer of the current configuration.
 func (c *Conf) SetSigner(signer ctrl.Signer) {
-	c.SignerLock.Lock()
-	defer c.SignerLock.Unlock()
+	c.signerLock.Lock()
+	defer c.signerLock.Unlock()
 	c.signer = signer
 }
 
 // GetVerifier returns the verifier of the current configuration.
 func (c *Conf) GetVerifier() ctrl.SigVerifier {
-	c.VerifierLock.RLock()
-	defer c.VerifierLock.RUnlock()
+	c.verifierLock.RLock()
+	defer c.verifierLock.RUnlock()
 	return c.verifier
 }
 
 // SetVerifier sets the verifier of the current configuration.
 func (c *Conf) SetVerifier(verifier ctrl.SigVerifier) {
-	c.VerifierLock.Lock()
-	defer c.VerifierLock.Unlock()
+	c.verifierLock.Lock()
+	defer c.verifierLock.Unlock()
 	c.verifier = verifier
 }

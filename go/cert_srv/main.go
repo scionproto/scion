@@ -24,11 +24,8 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
 	liblog "github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -46,7 +43,7 @@ var (
 	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
 	stateDir = flag.String("stated", "", "State directory (Defaults to confd)")
 	prom     = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
-	config   *conf.Conf
+	disp     *Dispatcher
 	sighup   chan os.Signal
 )
 
@@ -74,27 +71,11 @@ func main() {
 	if err = checkFlags(); err != nil {
 		fatal(err.Error())
 	}
-	if config, err = conf.Load(*id, *confDir, *cacheDir, *stateDir); err != nil {
-		fatal(err.Error())
+	if err = setup(); err != nil {
+		fatal("Setup failed", "err", err.Error())
 	}
-	// Set signer and verifier
-	sign, err := CreateSign()
-	if err != nil {
-		fatal(err.Error())
-	}
-	config.SetSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()))
-	config.SetVerifier(&SigVerifier{&ctrl.BasicSigVerifier{}})
-	// initialize snet with retries
-	if err = initSNET(initAttempts, initInterval); err != nil {
-		fatal("Unable to create local SCION Network context", "err", err)
-	}
-	// initialize dispatcher
-	dispatcher, err := NewDispatcher(config.PublicAddr, config.BindAddr)
-	if err != nil {
-		fatal("Unable to initialize dispatcher", "err", err)
-	}
-	dispatcher.run()
-
+	var wait chan struct{}
+	<-wait
 }
 
 // checkFlags checks that all required flags are set.
@@ -116,20 +97,6 @@ func checkFlags() error {
 	return nil
 }
 
-// initSNET initializes snet. The number of attempts is specified, as well as the sleep duration.
-// This is needed, since supervisord might take some time, until sciond is initialized.
-func initSNET(attempts int, sleep time.Duration) (err error) {
-	// Initialize SCION local networking module
-	for i := 0; i < attempts; i++ {
-		if err = snet.Init(config.PublicAddr.IA, *sciondPath, *dispPath); err == nil {
-			break
-		}
-		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", err)
-		time.Sleep(sleep)
-	}
-	return err
-}
-
 // setupSignals handle signals.
 func setupSignals() {
 	sig := make(chan os.Signal, 2)
@@ -147,11 +114,11 @@ func setupSignals() {
 func configSig() {
 	defer liblog.LogPanicAndExit()
 	for range sighup {
-		if err := config.ReloadCustomers(); err != nil {
-			log.Error("Error reloading customers", "err", err)
-			continue
+		log.Info("Reload config")
+		if err := setup(); err != nil {
+			fatal("Unable to reload config", "err", err.Error())
 		}
-		log.Info("Customers reloaded")
+		log.Info("Config reloaded")
 	}
 }
 

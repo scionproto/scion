@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -30,17 +31,29 @@ import (
 )
 
 const (
-	KeyChanged   = "Verifying key has changed in the meantime"
-	NotACustomer = "ISD-AS not in custommer mapping"
+	CustomersClosed = "Customer mapping is closed"
+	KeyChanged      = "Verifying key has changed in the meantime"
+	NotACustomer    = "ISD-AS not in customer mapping"
+
 	CustomersDir = "customers"
 )
 
-type Customers map[addr.IA]common.RawBytes
+// Customers is a mapping from non-core ASes assigned to this core AS to their public
+// verifying key.
+type Customers struct {
+	m sync.RWMutex
+	// custMap is the customer mapping.
+	custMap map[addr.IA]common.RawBytes
+	// path is the path to the customers directory.
+	path string
+	// closed indicates if updates to the customers mapping are permitted.
+	closed bool
+}
 
 // LoadCustomers populates the mapping from assigned non-core ASes to their respective verifying key.
-func (c *Conf) LoadCustomers() (Customers, error) {
-	path := filepath.Join(c.StateDir, CustomersDir)
-	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", path))
+func (c *Conf) LoadCustomers() (*Customers, error) {
+	cust := &Customers{path: filepath.Join(c.StateDir, CustomersDir)}
+	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", cust.path))
 	if err != nil {
 		return nil, err
 	}
@@ -62,34 +75,48 @@ func (c *Conf) LoadCustomers() (Customers, error) {
 			activeVers[ia] = uint64(ver)
 		}
 	}
-	customers := make(map[addr.IA]common.RawBytes)
+	cust.custMap = make(map[addr.IA]common.RawBytes)
 	for ia, file := range activeKeys {
 		key, err := trust.LoadKey(file)
 		if err != nil {
 			return nil, common.NewBasicError("Unable to load key", err, "file", file)
 		}
-		customers[ia] = key
+		cust.custMap[ia] = key
 	}
-	return customers, nil
+	return cust, nil
+}
+
+// Close closes the mapping. It is called before a context switch to ensure that all updates are
+// written to disk.
+func (c *Customers) Close() {
+	c.m.Lock()
+	defer c.m.Unlock()
+	c.closed = true
 }
 
 // GetVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
 // Otherwise, nil and an error.
-func (c *Conf) GetVerifyingKey(ia addr.IA) (common.RawBytes, error) {
-	c.customersLock.RLock()
-	defer c.customersLock.RUnlock()
-	b, ok := c.customers[ia]
+func (c *Customers) GetVerifyingKey(ia addr.IA) (common.RawBytes, error) {
+	c.m.RLock()
+	defer c.m.RUnlock()
+	if c.closed {
+		return nil, common.NewBasicError(CustomersClosed, nil)
+	}
+	b, ok := c.custMap[ia]
 	if !ok {
-		return nil, common.NewBasicError(NotACustomer, nil)
+		return nil, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
 	}
 	return b, nil
 }
 
 // SetVerifyingKey sets the verifying key for a specified AS. The key is written to the file system.
-func (c *Conf) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.RawBytes) error {
-	c.customersLock.Lock()
-	defer c.customersLock.Unlock()
-	currKey, ok := c.customers[ia]
+func (c *Customers) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.RawBytes) error {
+	c.m.Lock()
+	defer c.m.Unlock()
+	if c.closed {
+		return common.NewBasicError(CustomersClosed, nil)
+	}
+	currKey, ok := c.custMap[ia]
 	if !ok {
 		return common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
 	}
@@ -101,7 +128,7 @@ func (c *Conf) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.Raw
 	if !bytes.Equal(newKey, currKey) {
 		var err error
 		name := fmt.Sprintf("ISD%d-AS%s-V%d.key", ia.I, ia.A, ver)
-		path := filepath.Join(c.StateDir, CustomersDir, name)
+		path := filepath.Join(c.path, name)
 		if _, err = os.Stat(path); !os.IsNotExist(err) {
 			return err
 		}
@@ -110,8 +137,8 @@ func (c *Conf) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.Raw
 		if err = ioutil.WriteFile(path, buf, 0644); err != nil {
 			return err
 		}
-		c.customers[ia] = make(common.RawBytes, len(newKey))
-		copy(c.customers[ia], newKey)
+		c.custMap[ia] = make(common.RawBytes, len(newKey))
+		copy(c.custMap[ia], newKey)
 		return nil
 	}
 	return nil

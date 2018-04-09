@@ -17,6 +17,7 @@ package main
 import (
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/cert_srv/csctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -30,8 +31,11 @@ const MaxReadBufSize = 2 << 16
 type Dispatcher struct {
 	conn         *snet.Conn
 	buf          common.RawBytes
+	stop         chan struct{}
+	stopped      chan struct{}
 	chainHandler *ChainHandler
 	trcHandler   *TRCHandler
+	closed       bool
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
@@ -40,37 +44,50 @@ func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &Dispatcher{conn: conn, buf: make(common.RawBytes, MaxReadBufSize)}
-	d.chainHandler = NewChainHandler(d.conn)
-	d.trcHandler = NewTRCHandler(d.conn)
+	d := &Dispatcher{
+		conn:         conn,
+		buf:          make(common.RawBytes, MaxReadBufSize),
+		stop:         make(chan struct{}, 1),
+		stopped:      make(chan struct{}, 1),
+		chainHandler: NewChainHandler(conn),
+		trcHandler:   NewTRCHandler(conn, public.IA),
+		closed:       false,
+	}
 	return d, nil
 }
 
-// run reads SCION packets from snet.
-func (d *Dispatcher) run() {
+// Run reads SCION packets from snet.
+func (d *Dispatcher) Run() {
+	defer close(d.stopped)
 	for {
-		read, addr, err := d.conn.ReadFromSCION(d.buf)
-		if err != nil {
-			log.Error("Unable to read from network", "err", err)
-			continue
-		}
-		buf := make(common.RawBytes, read)
-		copy(buf, d.buf[:read])
-		if err = d.dispatch(addr, buf); err != nil {
-			log.Error("Unable to dispatch", "err", err)
-		}
+		ctx := csctx.Get()
+		select {
+		case <-d.stop:
+			return
+		default:
+			read, addr, err := d.conn.ReadFromSCION(d.buf)
+			if err != nil {
+				log.Error("Unable to read from network", "err", err)
+				continue
+			}
+			buf := make(common.RawBytes, read)
+			copy(buf, d.buf[:read])
+			if err = d.dispatch(addr, buf, ctx); err != nil {
+				log.Error("Unable to dispatch", "err", err)
+			}
 
+		}
 	}
 }
 
 // dispatch hands payload over tho the associated handlers.
-func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
+func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, ctx *csctx.Ctx) error {
 	signed, err := ctrl.NewSignedPldFromRaw(buf)
 	if err != nil {
 		return common.NewBasicError("Unable to parse signed payload", err, "addr", addr)
 	}
 	if signed.Sign != nil {
-		verifier := config.GetVerifier()
+		verifier := ctx.Conf.GetVerifier()
 		if err := ctrl.VerifySig(signed, verifier); err != nil {
 			return common.NewBasicError("Unable to verify signed payload", err, "addr", addr)
 		}
@@ -91,13 +108,13 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 		}
 		switch pld.(type) {
 		case *cert_mgmt.Chain:
-			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain))
+			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain), ctx)
 		case *cert_mgmt.ChainReq:
-			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq))
+			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq), ctx)
 		case *cert_mgmt.TRC:
-			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC))
+			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC), ctx)
 		case *cert_mgmt.TRCReq:
-			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq))
+			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq), ctx)
 		default:
 			return common.NewBasicError("Handler for cert_mgmt.pld not implemented", nil,
 				"protoID", pld.ProtoId())
@@ -105,6 +122,21 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes) error {
 	default:
 		return common.NewBasicError("Handler for cpld not implemented", nil, "protoID", c.ProtoId())
 	}
+	return nil
+}
+
+// Close terminates the dispatcher and closes the snet connection.
+func (d *Dispatcher) Close() error {
+	if d.closed {
+		return common.NewBasicError("Cannot close dispatcher twice", nil)
+	}
+	close(d.stop)
+	// release dispatcher from blocking read
+	if err := d.conn.Close(); err != nil {
+		return err
+	}
+	<-d.stopped
+	d.closed = true
 	return nil
 }
 
@@ -119,8 +151,8 @@ func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
 }
 
 // SendSignedPayload is used to send signed payloads to the specified address using snet.
-func SendSignedPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
-	signer := config.GetSigner()
+func SendSignedPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr, ctx *csctx.Ctx) error {
+	signer := ctx.Conf.GetSigner()
 	signed, err := signer.Sign(cpld)
 	if err != nil {
 		return err
