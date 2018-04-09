@@ -33,7 +33,10 @@ from itertools import product
 import lib.app.sciond as lib_sciond
 from lib.defines import (
     AS_LIST_FILE,
+    DEFAULT6_CLIENT,
+    DEFAULT6_SERVER,
     GEN_PATH,
+    OVERLAY_FILE,
     SCIOND_API_SOCKDIR,
     SCION_UDP_EH_DATA_PORT
 )
@@ -49,6 +52,7 @@ from lib.thread import kill_self, thread_safety_net
 from lib.util import (
     handle_signals,
     load_yaml_file,
+    read_file,
 )
 
 API_TOUT = 15
@@ -131,7 +135,7 @@ class TestClientBase(TestBase):
         path_entry = path_entries[0]
         self.path_meta = path_entry.path()
         fh_info = path_entry.first_hop()
-        fh_addr = fh_info.ipv4()
+        fh_addr = fh_info.ipv4() or fh_info.ipv6()
         if not fh_addr:
             fh_addr = self.dst.host
         port = fh_info.p.port or SCION_UDP_EH_DATA_PORT
@@ -354,6 +358,11 @@ def get_sciond_api_addr(addr):
     return os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % addr.isd_as)
 
 
+def get_overlay():
+    file_path = os.path.join(GEN_PATH, OVERLAY_FILE)
+    return read_file(file_path).strip()
+
+
 def setup_main(name, parser=None):
     handle_signals()
     parser = parser or argparse.ArgumentParser()
@@ -374,10 +383,17 @@ def setup_main(name, parser=None):
     args = parser.parse_args()
     init_logging("logs/%s" % name, console_level=args.loglevel)
 
-    if not args.client:
-        args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
-    if not args.server:
-        args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
+    overlay = get_overlay()
+    if "IPv6" in overlay:
+        if not args.client:
+            args.client = DEFAULT6_CLIENT
+        if not args.server:
+            args.server = DEFAULT6_SERVER
+    else:
+        if not args.client:
+            args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
+        if not args.server:
+            args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
     as_list = _load_as_list()
     srcs = _parse_locs(args.src_ia, as_list)
     dsts = _parse_locs(args.dst_ia, as_list)
