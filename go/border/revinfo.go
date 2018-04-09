@@ -43,16 +43,15 @@ func (r *Router) RevInfoFwd() {
 	defer liblog.LogPanicAndExit()
 	// Run forever.
 	for args := range r.revInfoQ {
-		log.Debug("Forwarding revocation", "revInfo", args.RevInfo.String(), "targets", args.Addrs)
+		log.Debug("Forwarding revocation", "revInfo", args.SignedRevInfo.RevInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
-			r.fwdRevInfo(args.RevInfo, &svcAddr)
+			r.fwdRevInfo(args.SignedRevInfo, &svcAddr)
 		}
 	}
-
 }
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
+func (r *Router) fwdRevInfo(revInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)

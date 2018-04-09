@@ -174,7 +174,7 @@ class LocalPathServer(PathServer):
         rev_isd_as = rev_info.blob.isd_as()
         if (rev_isd_as == self.addr.isd_as or
                 rev_isd_as[0] != self.addr.isd_as[0]):
-            self._send_rev_to_core(signed_rev_info)
+            self._send_rev_to_core(signed_rev_info, rev_info)
 
     def _send_rev_to_core(self, signed_rev_info, rev_info):
         """

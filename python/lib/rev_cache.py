@@ -88,11 +88,7 @@ class RevCache:
         """
         with self._lock:
             rev_infos = self._cache.values()
-            revs = []
-            for rev_info in rev_infos:
-                if self._validate_entry(rev_info):
-                    revs.append(rev_info)
-            return revs
+            return [self._validate_entry(rev_info) for rev_info in rev_infos]
 
     def add(self, rev_info):
         """

@@ -27,14 +27,13 @@ import (
 var _ proto.Cerealizable = (*ASEntry)(nil)
 
 type ASEntry struct {
-	RawIA        addr.IAInt `capnp:"isdas"`
-	TrcVer       uint64
-	CertVer      uint64
-	IfIDSize     uint8
-	HopEntries   []*HopEntry `capnp:"hops"`
-	HashTreeRoot common.RawBytes
-	MTU          uint16 `capnp:"mtu"`
-	Exts         struct {
+	RawIA      addr.IAInt `capnp:"isdas"`
+	TrcVer     uint64
+	CertVer    uint64
+	IfIDSize   uint8
+	HopEntries []*HopEntry `capnp:"hops"`
+	MTU        uint16      `capnp:"mtu"`
+	Exts       struct {
 		RoutingPolicy common.RawBytes `capnp:"-"` // Not supported yet
 		Sibra         common.RawBytes `capnp:"-"` // Not supported yet
 	}

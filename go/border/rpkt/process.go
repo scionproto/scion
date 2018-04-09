@@ -289,9 +289,10 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 		return common.NewBasicError("Invalid SCMP Info type in SCMP packet", nil,
 			"expected", "*scmp.InfoRevocation", "actual", common.TypeOf(pld.Info))
 	}
-	if args.RevInfo, err = path_mgmt.NewRevInfoFromRaw(infoRev.RevToken); err != nil {
+	if args.SignedRevInfo, err = path_mgmt.NewSignedRevInfoFromRaw(infoRev.RevToken); err != nil {
 		return common.NewBasicError("Unable to decode revToken", err)
 	}
+
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
 	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.CoreLink) ||

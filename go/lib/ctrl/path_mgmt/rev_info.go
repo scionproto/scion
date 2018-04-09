@@ -32,6 +32,26 @@ import (
 const MinRevTTL = 10 * time.Second // Revocation MinRevTTL
 
 var _ proto.Cerealizable = (*RevInfo)(nil)
+var _ proto.Cerealizable = (*SignedRevInfo)(nil)
+
+type SignedRevInfo struct {
+	Blob    common.RawBytes
+	Sign    *proto.SignS
+	RevInfo RevInfo
+}
+
+func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
+	sr := &SignedRevInfo{}
+	return sr, proto.ParseFromRaw(sr, sr.ProtoId(), b)
+}
+
+func (sr *SignedRevInfo) ProtoId() proto.ProtoIdType {
+	return proto.SignedBlob_TypeID
+}
+
+func (sp *SignedRevInfo) String() string {
+	return fmt.Sprintf("SignedRevInfo: %s %s", sp.Blob, sp.Sign)
+}
 
 type RevInfo struct {
 	IfID      uint64
