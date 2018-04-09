@@ -72,12 +72,13 @@ func (v *SigVerifier) Verify(p *ctrl.SignedPld) error {
 	ts := p.Sign.Time()
 	diff := now.Sub(ts)
 	if diff < 0 {
-		return common.NewBasicError("Invalid timestamp. Signed before current time", nil,
+		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now))
 	}
 	if diff > SignatureValidity {
 		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
-			"ts", util.TimeToString(ts), "now", util.TimeToString(now))
+			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
+			"validity", SignatureValidity)
 	}
 	vKey, err := v.getVerifyKeyForSign(p.Sign)
 	if err != nil {

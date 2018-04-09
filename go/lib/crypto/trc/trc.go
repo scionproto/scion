@@ -325,5 +325,5 @@ func (t *TRC) String() string {
 }
 
 func timeToString(t uint64) string {
-	return util.TimeToString(util.Uint64ToTime(t))
+	return util.TimeToString(util.USecsToTime(t))
 }

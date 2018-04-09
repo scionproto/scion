@@ -97,13 +97,13 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 func (c *Certificate) VerifyTime(ts uint64) error {
 	if ts < c.IssuingTime {
 		return common.NewBasicError(EarlyUsage, nil,
-			"IssuingTime", util.TimeToString(util.Uint64ToTime(c.IssuingTime)),
-			"current", util.TimeToString(util.Uint64ToTime(ts)))
+			"IssuingTime", util.TimeToString(util.USecsToTime(c.IssuingTime)),
+			"current", util.TimeToString(util.USecsToTime(ts)))
 	}
 	if ts > c.ExpirationTime {
 		return common.NewBasicError(Expired, nil,
-			"ExpirationTime", util.TimeToString(util.Uint64ToTime(c.ExpirationTime)),
-			"current", util.TimeToString(util.Uint64ToTime(ts)))
+			"ExpirationTime", util.TimeToString(util.USecsToTime(c.ExpirationTime)),
+			"current", util.TimeToString(util.USecsToTime(ts)))
 	}
 	return nil
 }

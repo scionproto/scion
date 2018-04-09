@@ -71,7 +71,7 @@ func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 // Time returns the timestamp. If the receiver is nil, the zero value is returned.
 func (s *SignS) Time() time.Time {
 	if s != nil {
-		return time.Unix(int64(s.Timestamp), 0)
+		return util.USecsToTime(s.Timestamp)
 	}
 	return time.Time{}
 }
@@ -101,7 +101,7 @@ func (s *SignS) ProtoId() ProtoIdType {
 
 func (s *SignS) String() string {
 	return fmt.Sprintf("SignType: %s Timestamp: %s SignSrc: %s Signature: %s", s.Type,
-		util.TimeToString(util.Uint64ToTime(s.Timestamp)), s.Src, s.Signature)
+		util.TimeToString(s.Time()), s.Src, s.Signature)
 }
 
 var _ Cerealizable = (*SignedBlobS)(nil)
