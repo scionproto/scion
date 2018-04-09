@@ -104,7 +104,7 @@ func (h *HopField) Write() {
 	h.data[1] = h.ExpTime
 	// Interface IDs are 12b each, encoded into 3B
 	h.data[2] = byte(h.Ingress >> 4)
-	h.data[3] = byte((h.Ingress&0x0F)<<4 | h.Egress>>4)
+	h.data[3] = byte((h.Ingress&0x0F)<<4 | h.Egress>>8)
 	h.data[4] = byte(h.Egress & 0xFF)
 	copy(h.data[5:], h.Mac)
 }
