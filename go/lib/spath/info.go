@@ -16,6 +16,7 @@ package spath
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	//log "github.com/inconshreveable/log15"
@@ -82,4 +83,11 @@ func (inf *InfoField) String() string {
 
 func (inf *InfoField) Timestamp() time.Time {
 	return time.Unix(int64(inf.TsInt), 0)
+}
+
+func (inf *InfoField) WriteTo(w io.Writer) (int64, error) {
+	b := make(common.RawBytes, common.LineLen)
+	inf.Write(b)
+	n, err := w.Write(b)
+	return int64(n), err
 }
