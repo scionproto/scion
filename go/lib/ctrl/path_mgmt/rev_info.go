@@ -26,9 +26,10 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/assert"
 )
 
-const TTL = 10 * time.Second // Revocation TTL
+const MinRevTTL = 10 * time.Second // Revocation MinRevTTL
 
 var _ proto.Cerealizable = (*RevInfo)(nil)
 
@@ -37,7 +38,7 @@ type RevInfo struct {
 	RawIsdas  addr.IAInt     `capnp:"isdas"`
 	LinkType  proto.LinkType // Link type of revocation
 	Timestamp uint32         // Time in seconds since unix epoch
-	TTL       uint32         // Validity period of the revocation in seconds
+	RevTTL    uint32         // Validity period of the revocation in seconds
 }
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
@@ -50,9 +51,10 @@ func (r *RevInfo) IA() addr.IA {
 }
 
 func (r *RevInfo) Valid() bool {
+	assert.Must(r.RevTTL>=uint32(MinRevTTL.Seconds()), "RevTTL must not be smaller than MinRevTTL")
 	now := uint32(time.Now().Second())
-	// Revocation is not valid if its timestamp is not within the TTL
-	if r.Timestamp > now || r.Timestamp < now-uint32(TTL.Seconds()) {
+	// Revocation is not valid if its timestamp is not within the MinRevTTL
+	if r.Timestamp > now || r.Timestamp < now-r.RevTTL {
 		return false
 	}
 	return true
@@ -64,5 +66,5 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %d",
-		r.IA(), r.IfID, r.LinkType, util.TimeToString(uint64(r.Timestamp)), r.TTL)
+		r.IA(), r.IfID, r.LinkType, util.TimeToString(uint64(r.Timestamp)), r.RevTTL)
 }

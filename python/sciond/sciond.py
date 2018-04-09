@@ -372,7 +372,7 @@ class SCIONDaemon(SCIONElement):
         assert isinstance(request, SCIONDRevNotification), type(request)
         status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
-        self.send_meta(rev_reply.pack(), meta) # send back to appli.
+        self.send_meta(rev_reply.pack(), meta)
 
     def _api_handle_seg_type_request(self, pld, meta):
         request = pld.union
@@ -426,24 +426,27 @@ class SCIONDaemon(SCIONElement):
         if not active:
             logging.error(
                 "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
-                % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
+                % (rev_info.p.timestamp, str(time.time()), rev_info.p.revTTL))
             return SCIONDRevReplyStatus.INVALID
         # Verify signature
-        if not signed_blob.verify():
+        cert = self.trust_store.get_cert(rev_info.isd_as())
+        if not cert:
+            logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+        if not signed_blob.verify(cert):
             logging.error("Failed to verify signature!")
             return SCIONDRevReplyStatus.INVALID
 
         self.rev_cache.add(rev_info)
         # Go through all segment databases and remove affected segments.
         removed_up = removed_core = removed_down = 0
-        if rev_info.p.link_type == ProtoLinkType.CORE:
+        if rev_info.p.linkType == ProtoLinkType.CORE:
             removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
-        elif rev_info.p.link_type == ProtoLinkType.PARENT or \
-                rev_info.p.link_type == ProtoLinkType.CHILD:
+        elif rev_info.p.linkType == ProtoLinkType.PARENT or \
+                rev_info.p.linkType == ProtoLinkType.CHILD:
             removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
             removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
-        elif rev_info.p.link_type != ProtoLinkType.PEER:
-            logging.error("Bad RevInfo link type: %s", rev_info.p.link_type)
+        elif rev_info.p.linkType != ProtoLinkType.PEER:
+            logging.error("Bad RevInfo link type: %s", rev_info.p.linkType)
 
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
                      (removed_up, removed_core, removed_down))

@@ -8,7 +8,7 @@ struct RevInfo {
     isdas @1 :UInt64;  # ISD-AS of the revocation issuer.
     linkType @2 :LinkType;  # Link type of the revoked interface
     timestamp @3 :UInt32;  # Creation timestamp, seconds since Unix Epoch
-    ttl @4 :UInt32;  # The validity period of the revocation in seconds.
+    revTTL @4 :UInt32;  # The validity period of the revocation in seconds.
 }
 
 enum LinkType {

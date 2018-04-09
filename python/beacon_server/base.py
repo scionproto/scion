@@ -37,8 +37,6 @@ from lib.defines import (
     BEACON_SERVICE,
     EXP_TIME_UNIT,
     GEN_CACHE_PATH,
-    HASHTREE_EPOCH_TIME,
-    HASHTREE_EPOCH_TOLERANCE,
     PATH_POLICY_FILE,
     PATH_SERVICE,
 )
@@ -91,6 +89,11 @@ from scion_elem.scion_elem import SCIONElement
 
 
 # Exported metrics.
+from python.lib.crypto.hash_tree import HASHTREE_EPOCH_TIME, HASHTREE_EPOCH_TOLERANCE
+from python.lib.defines import MIN_REVOCATION_TTL
+from python.lib.packet.proto_sign import ProtoSignedBlob
+from python.lib.types import ProtoLinkType
+
 BEACONS_PROPAGATED = Counter("bs_beacons_propagated_total", "# of propagated beacons",
                              ["server_id", "isd_as", "type"])
 SEGMENTS_REGISTERED = Counter("bs_segments_registered_total", "# of registered segments",
@@ -117,7 +120,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # ZK path for revocations.
     ZK_REVOCATIONS_PATH = "rev_cache"
     # Time revocation objects are cached in memory (in seconds).
-    ZK_REV_OBJ_MAX_AGE = HASHTREE_EPOCH_TIME
+    ZK_REV_OBJ_MAX_AGE = MIN_REVOCATION_TTL
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
 
@@ -135,14 +138,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             os.path.join(conf_dir, PATH_POLICY_FILE))
         self.signing_key = get_sig_key(self.conf_dir)
         self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
-        self.hashtree_gen_key = kdf(
-                            self.config.master_as_key, b"Derive hashtree Key")
         # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
         self.default_hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT)
-        self._hash_tree = None
-        self._hash_tree_lock = Lock()
-        self._next_tree = None
-        self._init_hash_tree()
         self.ifid_state = {}
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
@@ -179,19 +176,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.local_rev_cache = ExpiringDict(1000, HASHTREE_EPOCH_TIME +
                                             HASHTREE_EPOCH_TOLERANCE)
         self._rev_seg_lock = RLock()
-
-    def _init_hash_tree(self):
-        ifs = list(self.ifid2br.keys())
-        self._hash_tree = ConnectedHashTree(self.addr.isd_as, ifs, self.hashtree_gen_key,
-                                            self.config.revocation_tree_ttl, HashType.SHA256)
-
-    def _get_ht_proof(self, if_id):
-        with self._hash_tree_lock:
-            return self._hash_tree.get_proof(if_id)
-
-    def _get_ht_root(self):
-        with self._hash_tree_lock:
-            return self._hash_tree.get_root()
 
     def propagate_downstream_pcb(self, pcb):
         """
@@ -369,8 +353,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         chain = self._get_my_cert()
         _, cert_ver = chain.get_leaf_isd_as_ver()
         return ASMarking.from_values(
-            self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms,
-            self._get_ht_root(), self.topology.mtu)
+            self.addr.isd_as, self._get_my_trc().version, cert_ver, pcbms, self.topology.mtu)
 
     def _create_pcbms(self, in_if, out_if, ts, prev_hof):
         up_pcbm = self._create_pcbm(in_if, out_if, ts, prev_hof)
@@ -464,56 +447,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             target=thread_safety_net, args=(self._handle_if_timeouts,),
             name="BS._handle_if_timeouts", daemon=True).start()
         threading.Thread(
-            target=thread_safety_net, args=(self._create_next_tree,),
-            name="BS._create_next_tree", daemon=True).start()
-        threading.Thread(
             target=thread_safety_net, args=(self._check_trc_cert_reqs,),
             name="Elem.check_trc_cert_reqs", daemon=True).start()
         super().run()
-
-    def _create_next_tree(self):
-        last_ttl_window = 0
-        ttl = self.config.revocation_tree_ttl
-        update_window = ttl // 3
-        while self.run_flag.is_set():
-            start = time.time()
-            cur_ttl_window = ConnectedHashTree.get_ttl_window(ttl)
-            time_to_sleep = ConnectedHashTree.time_until_next_window(ttl) - update_window
-            if cur_ttl_window == last_ttl_window:
-                time_to_sleep += ttl
-            if time_to_sleep > 0:
-                sleep_interval(start, time_to_sleep, "BS._create_next_tree",
-                               self._quiet_startup())
-
-            # at this point, there should be <= update_window
-            # seconds left in current ttl
-            logging.info("Started computing hashtree for next TTL window (%d)",
-                         cur_ttl_window + 2)
-            last_ttl_window = ConnectedHashTree.get_ttl_window(ttl)
-
-            ht_start = time.time()
-            ifs = list(self.ifid2br.keys())
-            tree = ConnectedHashTree.get_next_tree(
-                self.addr.isd_as, ifs, self.hashtree_gen_key, ttl, HashType.SHA256)
-            ht_end = time.time()
-            with self._hash_tree_lock:
-                self._next_tree = tree
-            logging.info("Finished computing hashtree for TTL window %d in %.3fs" %
-                         (cur_ttl_window + 2, ht_end - ht_start))
-
-    def _maintain_hash_tree(self):
-        """
-        Maintain the hashtree. Update the the windows in the connected tree
-        """
-        with self._hash_tree_lock:
-            if self._next_tree is not None:
-                self._hash_tree.update(self._next_tree)
-                self._next_tree = None
-            else:
-                logging.critical("Did not create hashtree in time; dying")
-                kill_self()
-        logging.info("New Hash Tree TTL window beginning: %s",
-                     ConnectedHashTree.get_ttl_window(self.config.revocation_tree_ttl))
 
     def worker(self):
         """
@@ -521,7 +457,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         propagating PCBS/registering paths when master.
         """
         last_propagation = last_registration = 0
-        last_ttl_window = ConnectedHashTree.get_ttl_window(self.config.revocation_tree_ttl)
         worker_cycle = 1.0
         start = time.time()
         while self.run_flag.is_set():
@@ -536,11 +471,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 self.pcb_cache.process()
                 self.revobjs_cache.process()
                 self.handle_rev_objs()
-
-                cur_ttl_window = ConnectedHashTree.get_ttl_window(self.config.revocation_tree_ttl)
-                if cur_ttl_window != last_ttl_window:
-                    self._maintain_hash_tree()
-                    last_ttl_window = cur_ttl_window
 
                 ret = self.zk.get_lock(lock_timeout=0, conn_timeout=0)
                 if not ret:  # Failed to get the lock
@@ -624,12 +554,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Process revoked interfaces.
         infos = []
         for if_id in revoked_ifs:
-            rev_info = self._get_ht_proof(if_id)
+            rev_info = RevocationInfo.from_values(
+                self.addr.isd_as, if_id, ProtoLinkType.CORE, int(time.time()), MIN_REVOCATION_TTL)
             logging.info("Issuing revocation: %s", rev_info.short_desc())
             if self._labels:
                 REVOCATIONS_ISSUED.labels(**self._labels).inc()
             self._process_revocation(rev_info)
-            infos.append(IFStateInfo.from_values(if_id, False, rev_info))
+            signed_rev_blob = ProtoSignedBlob.from_values(
+                rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
+            infos.append(IFStateInfo.from_values(if_id, False, signed_rev_blob))
         border_metas = []
         # Add all BRs.
         for br in self.topology.border_routers:
@@ -671,6 +604,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.warning("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
                             meta, e, rev_info.short_desc())
             return
+        # Verify the revocation is in the validity window
+        active = rev_info.active()
+        if not active:
+            logging.error(
+                "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
+                % (rev_info.p.timestamp, str(time.time()), rev_info.p.revTTL))
+            return
+        # Verify signature
+        # cert = self.trust_store.get_cert(rev_info.isd_as())
+        # if not cert:
+        #     logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+        # if not signed_blob.verify(cert.as_cert.subject_sig_key): # TODO check
+        #     logging.error("Failed to verify signature!")
+        #     return
+
         self._process_revocation(rev_info)
 
     def handle_rev_objs(self):
@@ -791,8 +739,15 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 # Don't include inactive interfaces in update.
                 if state.is_inactive():
                     continue
-                rev_info = self._get_ht_proof(ifid) if state.is_revoked() else None
-                info = IFStateInfo.from_values(ifid, state.is_active(), rev_info)
+                if state.is_revoked():
+                    rev_info = RevocationInfo.from_values(
+                        self.addr.isd_as, ifid, ProtoLinkType.CORE, int(time.time()), MIN_REVOCATION_TTL)
+                    signed_rev_blob = ProtoSignedBlob.from_values(
+                        rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
+                    info = IFStateInfo.from_values(ifid, state.is_active(), signed_rev_blob)
+                else:
+                    info = IFStateInfo.from_values(ifid, state.is_active(), None)
+
                 infos.append(info)
             if not infos and not self._quiet_startup():
                 logging.warning("No IF state info to put in IFState update for %s.", meta)

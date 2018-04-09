@@ -24,11 +24,10 @@ struct ASEntry {
     certVer @2 :UInt64;
     ifIDSize @3 :UInt8;  # Number of bits used for interface IDs in this AS.
     hops @4 :List(HopEntry);
-    hashTreeRoot @5 :Data;
-    mtu @6 :UInt16;  # Internal AS MTU
+    mtu @5 :UInt16;  # Internal AS MTU
     exts :group {
-        routingPolicy @7 :Exts.RoutingPolicyExt;
-        sibra @8 :Sibra.SibraPCBExt;
+        routingPolicy @6 :Exts.RoutingPolicyExt;
+        sibra @7 :Sibra.SibraPCBExt;
     }
 }
 

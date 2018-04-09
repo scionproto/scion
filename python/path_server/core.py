@@ -37,6 +37,8 @@ from path_server.base import PathServer, REQS_TOTAL
 
 
 # Exported metrics.
+from python.lib.packet.path_mgmt.rev_info import RevocationInfo
+
 SEGS_TO_MASTER = Gauge("ps_segs_to_master_total", "# of path segments to master",
                        ["server_id", "isd_as"])
 SEGS_TO_PROP = Gauge("ps_segs_to_prop_total", "# of segments to propagate",
@@ -375,12 +377,13 @@ class CorePathServer(PathServer):
             # Ask for any segment to dst_isd
             self._query_master(dst_ia.any_as(), logger)
 
-    def _forward_revocation(self, rev_info, meta):
+    def _forward_revocation(self, signed_rev_info, meta):
         # Propagate revocation to other core ASes if:
         # 1) The revoked interface belongs to this AS, or
         # 2) the revocation was received from a non-core AS in this ISD, or
         # 3) the revocation was forked from a BR and it originated from a
         #    different ISD.
+        rev_info = RevocationInfo.from_raw(signed_rev_info.blob)
         rev_isd_as = rev_info.isd_as()
         if (rev_isd_as == self.addr.isd_as or
                 (meta.ia not in self._core_ases[self.addr.isd_as[0]]) or
@@ -388,7 +391,7 @@ class CorePathServer(PathServer):
                  rev_isd_as[0] != self.addr.isd_as[0])):
             logging.debug("Propagating revocation to other cores: %s"
                           % rev_info.short_desc())
-            self._propagate_to_core_ases(rev_info)
+            self._propagate_to_core_ases(signed_rev_info)
 
     def _init_metrics(self):
         super()._init_metrics()

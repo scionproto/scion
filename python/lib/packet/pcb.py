@@ -73,11 +73,11 @@ class ASMarking(Cerealizable):
     P_CLS = P.ASEntry
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=(),
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, mtu, exts=(),
                     ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
-            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu)
+            ifIDSize=ifid_size, mtu=mtu)
         p.init("hops", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.hops[i] = pm.p
@@ -108,7 +108,6 @@ class ASMarking(Cerealizable):
         for pcbm in self.iter_pcbms():
             for line in pcbm.short_desc().splitlines():
                 desc.append("  %s" % line)
-        desc.append("  hashTreeRoot=%s" % self.p.hashTreeRoot)
         return "\n".join(desc)
 
 

@@ -31,7 +31,6 @@ from lib.crypto.hash_tree import ConnectedHashTree
 from lib.crypto.symcrypto import crypto_hash
 from lib.defines import (
     GEN_CACHE_PATH,
-    HASHTREE_EPOCH_TIME,
     PATH_REQ_TOUT,
     PATH_SERVICE,
 )
@@ -64,6 +63,8 @@ from scion_elem.scion_elem import SCIONElement
 
 
 # Exported metrics.
+from python.lib.crypto.hash_tree import HASHTREE_EPOCH_TIME
+
 REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_as"])
 REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests", ["server_id", "isd_as"])
 SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", ["server_id", "isd_as"])
@@ -248,17 +249,17 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                     logging.warning("Failed to validate IFStateInfo RevInfo from %s: %s\n%s",
                                     meta, e, rev_info.short_desc())
                     continue
-                self._handle_revocation(CtrlPayload(PathMgmt(info.rev_info())), meta)
+                self._handle_revocation(CtrlPayload(PathMgmt(info.p.revInfo)), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        rev_info = RevocationInfo.from_raw(pld.info.rev_info.blob)
         try:
             rev_info.validate()
         except SCIONBaseError as e:
             logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
                             meta, e, rev_info.short_desc())
             return
-        self._handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
+        self._handle_revocation(CtrlPayload(PathMgmt(pld.info.rev_info)), meta)
 
     def _handle_revocation(self, cpld, meta):
         """
@@ -267,8 +268,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The RevocationInfo object.
         """
         pmgt = cpld.union
-        rev_info = pmgt.union
-        # TODO get correct
+        signed_rev_info = pmgt.union
+        rev_info = RevocationInfo.from_raw(signed_rev_info.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         # Validate before checking for presence in self.revocations, as that will trigger an assert
         # failure if the rev_info is invalid.
@@ -289,6 +290,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         except SCIONBaseError as e:
             logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
             return
+        # TODO verify sig here?
         if meta.ia[0] != self.addr.isd_as[0]:
             logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
                          (meta, rev_info.short_desc()))
@@ -310,6 +312,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         if not rev_info.active():
             return
+        return
+        # TODO new stuff
         (hash01, hash12) = ConnectedHashTree.get_possible_hashes(rev_info)
         if_id = rev_info.p.ifID
 
