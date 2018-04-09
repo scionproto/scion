@@ -93,7 +93,6 @@ func recvPkts() {
 		pktLen, err := cmn.Conn.Read(b)
 		if err != nil {
 			if common.IsTimeoutErr(err) {
-				fmt.Printf("Timeout on scmp_seq=%d\n", expectedSeq)
 				if expectedSeq > recvSeq {
 					expectedSeq += 1
 				} else {

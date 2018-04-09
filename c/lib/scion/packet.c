@@ -444,7 +444,7 @@ void remove_hbh_scmp_extn(uint8_t *buf)
     uint8_t nh = spkt.sch->next_header;
     uint16_t total_len = ntohs(spkt.sch->total_len);
     uint16_t hdr_len = spkt.sch->header_len * LINE_LEN;
-    if (nh != HOP_BY_HOP || total_len < hdr_len + LINE_LEN) {
+    if (nh != HOP_BY_HOP) {
         // No HBH extension
         return;
     }
