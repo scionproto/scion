@@ -54,9 +54,8 @@ class RevocationInfo(Cerealizable):
         :param int revTTL: Revocation validity period in seconds
         """
         assert revTTL >= MIN_REVOCATION_TTL
-        p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, linkType=link_type,
-                                  timestamp=timestamp, revTTL=revTTL)
-        return cls(p)
+        return cls(cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, linkType=link_type,
+                                         timestamp=timestamp, revTTL=revTTL))
 
     def isd_as(self):
         return ISD_AS(self.p.isdas)

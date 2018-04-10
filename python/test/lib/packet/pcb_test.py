@@ -58,8 +58,7 @@ class TestASMarkingFromValues(object):
                               exts, ifid_size=14)
         # Tests
         p_cls.new_message.assert_called_once_with(
-            isdas=_ISD_AS1, trcVer=2, certVer=3, ifIDSize=14,
-            hashTreeRoot="root", mtu="mtu")
+            isdas=_ISD_AS1, trcVer=2, certVer=3, ifIDSize=14, mtu="mtu")
         msg.init.assert_called_once_with("hops", 3)
         for i, pcbm in enumerate(msg.pcbms):
             ntools.eq_("pcbm %d" % i, pcbm)
