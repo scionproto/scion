@@ -54,7 +54,7 @@ class TestASMarkingFromValues(object):
         exts.append(create_mock_full({"EXT_TYPE": ASMExtType.ROUTING_POLICY, "p":
                     {"polType": RoutingPolType.ALLOW_AS, "itf": 0, "isdases": [_ISD_AS1]}}))
         # Call
-        ASMarking.from_values(_ISD_AS1, 2, 3, pcbms, "root", "mtu",
+        ASMarking.from_values(_ISD_AS1, 2, 3, pcbms, "mtu",
                               exts, ifid_size=14)
         # Tests
         p_cls.new_message.assert_called_once_with(

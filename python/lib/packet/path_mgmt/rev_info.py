@@ -17,15 +17,18 @@
 """
 # Stdlib
 import logging
+import time
 # External
 import capnp  # noqa
 
 # SCION
 import proto.rev_info_capnp as P
-from lib.defines import HASHTREE_EPOCH_TIME
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
+from lib.util import iso_timestamp
+
+from python.lib.defines import MIN_REVOCATION_TTL
 
 
 class RevInfoValidationError(SCIONBaseError):
@@ -34,55 +37,52 @@ class RevInfoValidationError(SCIONBaseError):
 
 class RevocationInfo(Cerealizable):
     """
-    Class containing revocation information, i.e., the revocation token.
+    Class containing revocation information.
     """
     NAME = "RevocationInfo"
     P_CLS = P.RevInfo
 
     @classmethod
-    def from_values(cls, isd_as, if_id, epoch, nonce, siblings, prev_root,
-                    next_root, hash_type, tree_ttl):
+    def from_values(cls, isd_as, if_id, link_type, timestamp, revTTL=MIN_REVOCATION_TTL):
         """
         Returns a RevocationInfo object with the specified values.
 
         :param ISD_AS isd_as: The ISD_AS of the issuer of the revocation.
         :param int if_id: ID of the interface to be revoked
-        :param int epoch: Time epoch for which interface is to be revoked
-        :param bytes nonce: Nonce for the (if_id, epoch) leaf in the hashtree
-        :param list[(bool, bytes)] siblings: Positions and hashes of siblings
-        :param bytes prev_root: Hash of the tree root at time T-1
-        :param bytes next_root: Hash of the tree root at time T+1
-        :param int hash_type: The hash function needed to verify the revocation.
-        :param int tree_ttl: The validity period of the revocation tree.
+        :param str link_type: Link type of the revoked interface
+        :param int timestamp: Revocation creation timestamp in seconds
+        :param int revTTL: Revocation validity period in seconds
         """
-        # Put the isd_as, if_id, epoch and nonce of the leaf into the proof.
-        p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, epoch=epoch,
-                                  nonce=nonce, hashType=hash_type, treeTTL=tree_ttl)
-        # Put the list of sibling hashes (along with l/r) into the proof.
-        sibs = p.init('siblings', len(siblings))
-        for i, sibling in enumerate(siblings):
-            sibs[i].isLeft, sibs[i].hash = sibling
-        # Put the roots of the hash trees at T-1 and T+1.
-        p.prevRoot = prev_root
-        p.nextRoot = next_root
+        assert revTTL >= MIN_REVOCATION_TTL
+        p = cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, linkType=link_type,
+                                  timestamp=timestamp, revTTL=revTTL)
         return cls(p)
 
     def isd_as(self):
         return ISD_AS(self.p.isdas)
 
     def validate(self):
+        if self.p.timestamp > int(time.time()) + 1:
+            raise RevInfoValidationError("Timestamp in the future: %s" % self.p.timestamp)
+        if self.p.revTTL < MIN_REVOCATION_TTL:
+            raise RevInfoValidationError("TTL is too small: %s" % self.p.revTTL)
         if self.p.ifID == 0:
-            raise RevInfoValidationError("Invalid ifID: %d" % self.p.ifID)
-        if self.p.treeTTL == 0 or (self.p.treeTTL % HASHTREE_EPOCH_TIME != 0):
-            raise RevInfoValidationError("Invalid TreeTTL: %d" % self.p.treeTTL)
+            raise RevInfoValidationError("Invalid ifID: %s" % self.p.ifID)
         self.isd_as()
+
+    def active(self):
+        now = int(time.time())
+        # Make sure the revocation timestamp is within the validity window
+        assert self.p.timestamp <= now + 1
+        return now < (self.p.timestamp + self.p.revTTL)
 
     def cmp_str(self):
         b = []
         b.append(self.p.isdas.to_bytes(8, 'big'))
         b.append(self.p.ifID.to_bytes(8, 'big'))
-        b.append(self.p.epoch.to_bytes(8, 'big'))
-        b.append(self.p.nonce)
+        b.append(self.p.linkType.raw.to_bytes(8, 'big'))
+        b.append(self.p.timestamp.to_bytes(8, 'big'))
+        b.append(self.p.revTTL.to_bytes(8, 'big'))
         return b"".join(b)
 
     def __eq__(self, other):
@@ -95,5 +95,6 @@ class RevocationInfo(Cerealizable):
         return hash(self.cmp_str())
 
     def short_desc(self):
-        return "RevInfo: %s IF: %d EPOCH: %d TreeTTL: %d" % (
-            self.isd_as(), self.p.ifID, self.p.epoch, self.p.treeTTL)
+        return "RevInfo: %s IF: %s Link type: %s Timestamp: %s TTL: %s" % (
+            self.isd_as(), self.p.ifID, self.p.linkType,
+            iso_timestamp(self.p.timestamp), self.p.revTTL)

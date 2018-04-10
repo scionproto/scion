@@ -28,6 +28,8 @@ from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
 from path_server.base import PathServer, REQS_TOTAL
 
+from python.lib.packet.path_mgmt.rev_info import RevocationInfo
+
 
 class LocalPathServer(PathServer):
     """
@@ -165,19 +167,21 @@ class LocalPathServer(PathServer):
                                 host=SVCType.PS_A, reuse=True)
         self.send_meta(CtrlPayload(PathMgmt(req.copy())), meta)
 
-    def _forward_revocation(self, rev_info, meta):
+    def _forward_revocation(self, signed_rev_info, meta):
         # Inform core ASes if the revoked interface belongs to this AS or
         # the revocation originates from a different ISD.
-        rev_isd_as = rev_info.isd_as()
+        rev_info = RevocationInfo.from_raw(signed_rev_info.blob)
+        rev_isd_as = rev_info.blob.isd_as()
         if (rev_isd_as == self.addr.isd_as or
                 rev_isd_as[0] != self.addr.isd_as[0]):
-            self._send_rev_to_core(rev_info)
+            self._send_rev_to_core(signed_rev_info, rev_info)
 
-    def _send_rev_to_core(self, rev_info):
+    def _send_rev_to_core(self, signed_rev_info, rev_info):
         """
         Forwards a revocation to a core path service.
 
-        :param rev_info: The RevocationInfo object
+        :param signed_rev_info: ProtoSignedBlob
+        :param rev_info: RevocationInfo
         """
         # Issue revocation to all core ASes excluding self.
         paths = self.up_segments()
@@ -191,4 +195,4 @@ class LocalPathServer(PathServer):
         logging.info("Forwarding Revocation to %s using path:\n%s" %
                      (core_ia, seg.short_desc()))
         meta = self._build_meta(ia=core_ia, path=path, host=SVCType.PS_A)
-        self.send_meta(CtrlPayload(PathMgmt(rev_info.copy())), meta)
+        self.send_meta(CtrlPayload(PathMgmt(signed_rev_info.copy())), meta)

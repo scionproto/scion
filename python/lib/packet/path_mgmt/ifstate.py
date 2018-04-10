@@ -21,7 +21,8 @@ import capnp  # noqa
 # SCION
 import proto.if_state_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+
+from python.lib.packet.path_mgmt.rev_info import RevocationInfo
 
 
 class IFStateInfo(Cerealizable):  # pragma: no cover
@@ -34,15 +35,15 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
     P_CLS = P.IFStateInfo
 
     @classmethod
-    def from_values(cls, if_id, active, rev_info=None):
+    def from_values(cls, if_id, active, signed_rev_info=None):
         p = cls.P_CLS.new_message(ifID=if_id, active=active)
-        if rev_info:
-            p.revInfo = rev_info.p
+        if signed_rev_info:
+            p.revInfo = signed_rev_info.p
         return cls(p)
 
     def rev_info(self):
         if self.p.revInfo:
-            return RevocationInfo(self.p.revInfo)
+            return RevocationInfo.from_raw(self.p.revInfo.blob)
         return None
 
     def short_desc(self):

@@ -21,11 +21,10 @@ import time
 
 # SCION
 from lib.crypto.symcrypto import hash_func_for_type
-from lib.defines import (
-    HASHTREE_EPOCH_TIME,
-    HASHTREE_EPOCH_TOLERANCE,
-)
 from lib.packet.path_mgmt.rev_info import RevocationInfo
+
+HASHTREE_EPOCH_TIME = 30
+HASHTREE_EPOCH_TOLERANCE = 2
 
 
 class HashTree(object):
