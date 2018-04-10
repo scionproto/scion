@@ -68,8 +68,6 @@ REQS_TOTAL = Counter("ps_reqs_total", "# of path requests", ["server_id", "isd_a
 REQS_PENDING = Gauge("ps_req_pending_total", "# of pending path requests", ["server_id", "isd_as"])
 SEGS_TO_ZK = Gauge("ps_segs_to_zk_total", "# of path segments to ZK", ["server_id", "isd_as"])
 REVS_TO_ZK = Gauge("ps_revs_to_zk_total", "# of revocations to ZK", ["server_id", "isd_as"])
-IF_SEG_MAPPINGS = Gauge("ps_ifid_seg_mappings_total", "# of ifid to segment mappings",
-                        ["server_id", "isd_as"])
 IS_MASTER = Gauge("ps_is_master", "true if this process is the replication master",
                   ["server_id", "isd_as"])
 
@@ -113,9 +111,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache(labels=self._labels)
-        # A mapping from IFID to segments
-        self.if2seg = ExpiringDict(1000, self.config.revocation_tree_ttl)
-        self.if2seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.IFSTATE_INFOS: self.handle_ifstate_infos,
@@ -194,17 +189,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 continue
             self._remove_revoked_segments(rev_info)
 
-    def _add_rev_mappings(self, pcb):
-        """
-        Add if revocation IFID to segment ID mappings.
-        """
-        segment_id = pcb.get_hops_hash()
-        with self.if2seglock:
-            for asm in pcb.iter_asms():
-                hof = asm.pcbm(0).hof()
-                self.if2seg.setdefault(hof.egress_if, set()).add(segment_id)
-                self.if2seg.setdefault(hof.ingress_if, set()).add(segment_id)
-
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
         raise NotImplementedError
@@ -220,11 +204,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     def _add_segment(self, pcb, seg_db, name, reverse=False):
         res = seg_db.update(pcb, reverse=reverse)
         if res == DBResult.ENTRY_ADDED:
-            self._add_rev_mappings(pcb)
             logging.info("%s-Segment registered: %s", name, pcb.short_id())
             return True
         elif res == DBResult.ENTRY_UPDATED:
-            self._add_rev_mappings(pcb)
             logging.debug("%s-Segment updated: %s", name, pcb.short_id())
         return False
 
@@ -301,8 +283,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _remove_revoked_segments(self, rev_info):
         """
-        Try the previous and next hashes as possible astokens,
-        and delete any segment that matches
+        Loop through all segments and remove those containing a revoked IFID
 
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
@@ -310,19 +291,29 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if not rev_info.active():
             return
         if_id = rev_info.p.ifID
-        with self.if2seglock:
-            down_segs_removed = 0
-            core_segs_removed = 0
-            up_segs_removed = 0
-            for sid in self.if2seg.pop(if_id, []):
-                if self.down_segments.delete(sid) == DBResult.ENTRY_DELETED:
-                    down_segs_removed += 1
-                if self.core_segments.delete(sid) == DBResult.ENTRY_DELETED:
-                    core_segs_removed += 1
-                if not self.topology.is_core_as:
-                    if (self.up_segments.delete(sid) == DBResult.ENTRY_DELETED):
-                        up_segs_removed += 1
-            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
+
+        def _handle_one_seg(seg, db):
+            for asm in seg.iter_asms():
+                for pcbm in asm.iter_pcbms(1):
+                    hof = pcbm.hof()
+                    if if_id == hof.ingress_if or if_id == hof.egress_if:
+                        if db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED:
+                            return 1
+            return 0
+
+        up_segs_removed = 0
+        down_segs_removed = 0
+        core_segs_removed = 0
+        if not self.topology.is_core_as:
+            for up_segment in self.up_segments:
+                up_segs_removed += _handle_one_seg(up_segment, self.up_segments)
+        for down_segment in self.down_segments:
+            down_segs_removed += _handle_one_seg(down_segment, self.down_segments)
+        for core_segment in self.core_segments:
+            core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
+
+
+        logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
                           (rev_info.short_desc(), up_segs_removed, down_segs_removed,
                            core_segs_removed))
 
@@ -624,8 +615,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Update SEGS_TO_ZK and REVS_TO_ZK metrics.
         SEGS_TO_ZK.labels(**self._labels).set(len(self._segs_to_zk))
         REVS_TO_ZK.labels(**self._labels).set(len(self._revs_to_zk))
-        # Update IF_SEG_MAPPINGS metric.
-        IF_SEG_MAPPINGS.labels(**self._labels).set(len(self.if2seg))
         # Update IS_MASTER metric.
         IS_MASTER.labels(**self._labels).set(int(self.zk.have_lock()))
 
