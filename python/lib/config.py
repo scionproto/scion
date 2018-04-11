@@ -17,7 +17,6 @@
 """
 # Stdlib
 import base64
-import logging
 
 # SCION
 from lib.defines import DEFAULT_SEGMENT_TTL

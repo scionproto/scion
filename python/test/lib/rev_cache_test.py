@@ -17,7 +17,7 @@
 """
 # Stdlib
 import time
-from unittest.mock import call, patch
+from unittest.mock import call
 
 # External packages
 import nose.tools as ntools
@@ -129,7 +129,7 @@ class TestRevCacheAdd:
         key = ("1-1", 1)
         now = int(time.time())
         rev_info1 = self._create_rev_info(key[0], key[1], timestamp=now)
-        rev_info2 = self._create_rev_info(key[0], key[1], timestamp=now +1)
+        rev_info2 = self._create_rev_info(key[0], key[1], timestamp=now + 1)
         rev_cache = RevCache()
         rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1

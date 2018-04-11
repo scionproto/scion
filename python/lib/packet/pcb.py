@@ -44,7 +44,8 @@ class PCBMarking(Cerealizable):
     P_CLS = P.HopEntry
 
     @classmethod
-    def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia, remote_out_ifid, hof):  # pragma: no cover
+    def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia,
+                    remote_out_ifid, hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
             inIA=int(in_ia), remoteInIF=remote_in_ifid, inMTU=in_mtu,
             outIA=int(out_ia), remoteOutIF=remote_out_ifid, hopF=hof.pack()))

@@ -58,7 +58,7 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 }
 
 func (sp *SignedRevInfo) String() string {
-	return fmt.Sprintf("SignedRevInfo: %s %s RevInfo: %s", sp.Blob, sp.Sign)
+	return fmt.Sprintf("SignedRevInfo: %s %s", sp.Blob, sp.Sign)
 }
 
 type RevInfo struct {
