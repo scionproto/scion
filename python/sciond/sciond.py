@@ -42,6 +42,7 @@ from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
@@ -78,6 +79,7 @@ from lib.types import (
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
+    ProtoLinkType,
     SCIONDMsgType as SMT,
     ServiceType,
     TypeBase,
@@ -85,8 +87,6 @@ from lib.types import (
 from lib.util import SCIONTime
 from sciond.req import RequestState
 from scion_elem.scion_elem import SCIONElement
-
-from lib.types import ProtoLinkType
 
 _FLUSH_FLAG = "FLUSH"
 
@@ -407,12 +407,13 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
-        self.handle_revocation(CtrlPayload(PathMgmt(pld.info.rev_info)), meta)
+        signed_rev_info = ProtoSignedBlob.from_raw(pld)
+        self.handle_revocation(CtrlPayload(PathMgmt(signed_rev_info)), meta)
 
     def handle_revocation(self, cpld, meta):
         pmgt = cpld.union
-        signed_blob = pmgt.union
-        rev_info = RevocationInfo.from_raw(signed_blob.blob)
+        signed_rev_info = pmgt.union
+        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Revocation info received: %s", rev_info.short_desc())
         try:
@@ -431,7 +432,7 @@ class SCIONDaemon(SCIONElement):
         cert = self.trust_store.get_cert(rev_info.isd_as())
         if not cert:
             logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
-        if not signed_blob.verify(cert):
+        if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
             logging.error("Failed to verify signature!")
             return SCIONDRevReplyStatus.INVALID
 

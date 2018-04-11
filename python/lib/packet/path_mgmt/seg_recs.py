@@ -23,6 +23,7 @@ import proto.path_mgmt_capnp as P
 from lib.packet.packet_base import Cerealizable
 from lib.packet.pcb import PathSegment
 from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.types import PathSegmentType as PST
 
 
@@ -61,7 +62,7 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             yield rec.type, PathSegment(rec.pathSeg)
 
     def rev_info(self, idx):
-        return RevocationInfo(self.p.revInfos[idx])
+        return ProtoSignedBlob(self.p.revInfos[idx])
 
     def iter_rev_infos(self, start=0):
         for i in range(start, len(self.p.revInfos)):

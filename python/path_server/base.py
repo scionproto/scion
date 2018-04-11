@@ -42,6 +42,7 @@ from lib.packet.path_mgmt.ifstate import IFStatePayload
 from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReply
 from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
@@ -222,7 +223,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
-                rev_info = info.rev_info()
+                signed_rev_info = info.rev_info()
+                rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
                 try:
                     rev_info.validate()
                 except SCIONBaseError as e:
@@ -232,14 +234,15 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self._handle_revocation(CtrlPayload(PathMgmt(info.p.revInfo)), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        rev_info = RevocationInfo.from_raw(pld.info.rev_info.blob)
+        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
+        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         try:
             rev_info.validate()
         except SCIONBaseError as e:
             logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
                             meta, e, rev_info.short_desc())
             return
-        self._handle_revocation(CtrlPayload(PathMgmt(pld.info.rev_info)), meta)
+        self._handle_revocation(CtrlPayload(PathMgmt(signed_rev_info)), meta)
 
     def _handle_revocation(self, cpld, meta):
         """
@@ -248,8 +251,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The RevocationInfo object.
         """
         pmgt = cpld.union
-        signed_rev_info = pmgt.union
-        rev_info = RevocationInfo.from_raw(signed_rev_info.blob)
+        signed_rev_info = ProtoSignedBlob(pmgt.union)
+        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         # Validate before checking for presence in self.revocations, as that will trigger an assert
         # failure if the rev_info is invalid.
@@ -270,7 +273,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         except SCIONBaseError as e:
             logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
             return
-        # TODO verify sig here?
+        # Verify signature
+        cert = self.trust_store.get_cert(rev_info.isd_as())
+        if not cert:
+            logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+        if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
+            logging.error("Failed to verify signature!")
+            return
         if meta.ia[0] != self.addr.isd_as[0]:
             logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
                          (meta, rev_info.short_desc()))

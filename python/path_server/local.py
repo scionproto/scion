@@ -171,7 +171,7 @@ class LocalPathServer(PathServer):
         # Inform core ASes if the revoked interface belongs to this AS or
         # the revocation originates from a different ISD.
         rev_info = RevocationInfo.from_raw(signed_rev_info.blob)
-        rev_isd_as = rev_info.blob.isd_as()
+        rev_isd_as = rev_info.isd_as()
         if (rev_isd_as == self.addr.isd_as or
                 rev_isd_as[0] != self.addr.isd_as[0]):
             self._send_rev_to_core(signed_rev_info, rev_info)
