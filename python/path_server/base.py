@@ -111,6 +111,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache(labels=self._labels)
+        self.seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
                 PMT.IFSTATE_INFOS: self.handle_ifstate_infos,
@@ -293,6 +294,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if_id = rev_info.p.ifID
 
         def _handle_one_seg(seg, db):
+            if not seg:
+                print("empty seg")
+                return 0
             for asm in seg.iter_asms():
                 for pcbm in asm.iter_pcbms(1):
                     hof = pcbm.hof()
@@ -304,14 +308,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         up_segs_removed = 0
         down_segs_removed = 0
         core_segs_removed = 0
-        if not self.topology.is_core_as:
-            for up_segment in self.up_segments:
-                up_segs_removed += _handle_one_seg(up_segment, self.up_segments)
-        for down_segment in self.down_segments:
-            down_segs_removed += _handle_one_seg(down_segment, self.down_segments)
-        for core_segment in self.core_segments:
-            core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
-
+        with self.seglock:
+            if not self.topology.is_core_as:
+                for up_segment in self.up_segments:
+                    up_segs_removed += _handle_one_seg(up_segment, self.up_segments)
+            for down_segment in self.down_segments:
+                down_segs_removed += _handle_one_seg(down_segment, self.down_segments)
+            for core_segment in self.core_segments:
+                core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
 
         logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
                           (rev_info.short_desc(), up_segs_removed, down_segs_removed,
@@ -594,7 +598,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         REQS_PENDING.labels(**self._labels).set(0)
         SEGS_TO_ZK.labels(**self._labels).set(0)
         REVS_TO_ZK.labels(**self._labels).set(0)
-        IF_SEG_MAPPINGS.labels(**self._labels).set(0)
         IS_MASTER.labels(**self._labels).set(0)
 
     def _update_metrics(self):

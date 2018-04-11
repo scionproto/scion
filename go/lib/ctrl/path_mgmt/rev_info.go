@@ -37,7 +37,7 @@ var _ proto.Cerealizable = (*SignedRevInfo)(nil)
 type SignedRevInfo struct {
 	Blob    common.RawBytes
 	Sign    *proto.SignS
-	RevInfo RevInfo
+	revInfo *RevInfo `capnp:"-"`
 }
 
 func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
@@ -49,8 +49,16 @@ func (sr *SignedRevInfo) ProtoId() proto.ProtoIdType {
 	return proto.SignedBlob_TypeID
 }
 
+func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
+	var err error
+	if sr.revInfo == nil {
+		sr.revInfo, err = NewRevInfoFromRaw(sr.Blob)
+	}
+	return sr.revInfo, err
+}
+
 func (sp *SignedRevInfo) String() string {
-	return fmt.Sprintf("SignedRevInfo: %s %s", sp.Blob, sp.Sign)
+	return fmt.Sprintf("SignedRevInfo: %s %s RevInfo: %s", sp.Blob, sp.Sign)
 }
 
 type RevInfo struct {
@@ -72,7 +80,7 @@ func (r *RevInfo) IA() addr.IA {
 
 func (r *RevInfo) Valid() bool {
 	assert.Must(r.RevTTL >= uint32(MinRevTTL.Seconds()), "RevTTL must not be smaller than MinRevTTL")
-	now := uint32(time.Now().Second())
+	now := uint32(time.Now().Unix())
 	// Revocation is not valid if its timestamp is not within the MinRevTTL
 	if r.Timestamp > now || r.Timestamp < now-r.RevTTL {
 		return false

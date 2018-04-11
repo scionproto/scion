@@ -547,14 +547,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         # Process revoked interfaces.
         infos = []
         for if_id in revoked_ifs:
+            br = self.ifid2br[if_id]
+            link_type = ProtoLinkType.from_string(br.interfaces[if_id].link_type)
             rev_info = RevocationInfo.from_values(
-                self.addr.isd_as, if_id, ProtoLinkType.CORE, int(time.time()), MIN_REVOCATION_TTL)
+                self.addr.isd_as, if_id, link_type, int(time.time()), MIN_REVOCATION_TTL)
             logging.info("Issuing revocation: %s", rev_info.short_desc())
             if self._labels:
                 REVOCATIONS_ISSUED.labels(**self._labels).inc()
             self._process_revocation(rev_info)
             signed_rev_blob = ProtoSignedBlob.from_values(
-                rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
+                rev_info.copy().pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
             signed_rev_blob.sign(self.signing_key)
             infos.append(IFStateInfo.from_values(if_id, False, signed_rev_blob))
         border_metas = []
@@ -575,8 +577,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._send_ifstate_update(infos, border_metas, ps_meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        # TODO what is pld.info.rev_info?
-        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
+        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
+        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
         try:
             rev_info.validate()
@@ -606,12 +608,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 % (rev_info.p.timestamp, str(time.time()), rev_info.p.revTTL))
             return
         # Verify signature
-        # cert = self.trust_store.get_cert(rev_info.isd_as())
-        # if not cert:
-        #     logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
-        # if not signed_blob.verify(cert.as_cert.subject_sig_key): # TODO check
-        #     logging.error("Failed to verify signature!")
-        #     return
+        cert = self.trust_store.get_cert(rev_info.isd_as())
+        if not cert:
+            logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+        if not signed_blob.verify(cert.as_cert.subject_sig_key):
+            logging.error("Failed to verify signature!")
+            return
 
         self._process_revocation(rev_info)
 
@@ -734,8 +736,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 if state.is_inactive():
                     continue
                 if state.is_revoked():
+                    br = self.ifid2br[ifid]
+                    link_type = ProtoLinkType.from_string(br.interfaces[ifid].link_type)
                     rev_info = RevocationInfo.from_values(
-                        self.addr.isd_as, ifid, ProtoLinkType.CORE, int(time.time()),
+                        self.addr.isd_as, ifid, link_type, int(time.time()),
                         MIN_REVOCATION_TTL)
                     signed_rev_blob = ProtoSignedBlob.from_values(
                         rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())

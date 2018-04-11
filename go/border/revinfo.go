@@ -43,7 +43,11 @@ func (r *Router) RevInfoFwd() {
 	defer liblog.LogPanicAndExit()
 	// Run forever.
 	for args := range r.revInfoQ {
-		log.Debug("Forwarding revocation", "revInfo", args.SignedRevInfo.RevInfo.String(), "targets", args.Addrs)
+		revInfo, err := args.SignedRevInfo.RevInfo()
+		if err != nil {
+			log.Error("Error getting RevInfo from SignedRevInfo", "err", err)
+		}
+		log.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
 			r.fwdRevInfo(args.SignedRevInfo, &svcAddr)
 		}

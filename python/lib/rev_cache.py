@@ -84,11 +84,18 @@ class RevCache:
     def values(self):
         """
         Return all validated values
-        :return:
+        :return: list(RevocationInfo)
         """
         with self._lock:
             rev_infos = self._cache.values()
-            return [self._validate_entry(rev_info) for rev_info in rev_infos]
+            to_return = []
+            for rev_info in rev_infos:
+                if rev_info.active():
+                    to_return.append(rev_info)
+            # Validate entries
+            for k in list(self._cache.keys()):
+                self._validate_entry(self._cache[k])
+            return to_return
 
     def add(self, rev_info):
         """

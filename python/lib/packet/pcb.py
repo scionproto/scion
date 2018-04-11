@@ -44,8 +44,7 @@ class PCBMarking(Cerealizable):
     P_CLS = P.HopEntry
 
     @classmethod
-    def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia, remote_out_ifid,
-                    hof):  # pragma: no cover
+    def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia, remote_out_ifid, hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
             inIA=int(in_ia), remoteInIF=remote_in_ifid, inMTU=in_mtu,
             outIA=int(out_ia), remoteOutIF=remote_out_ifid, hopF=hof.pack()))
@@ -73,8 +72,7 @@ class ASMarking(Cerealizable):
     P_CLS = P.ASEntry
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, mtu, exts=(),
-                    ifid_size=12):
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, mtu, exts=(), ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
             ifIDSize=ifid_size, mtu=mtu)
