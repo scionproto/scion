@@ -20,6 +20,7 @@ import capnp  # noqa
 
 # SCION
 import proto.path_mgmt_capnp as P
+from lib.packet.hp_cfg import HPCfgId
 from lib.packet.packet_base import Cerealizable
 from lib.packet.pcb import PathSegment
 from lib.packet.path_mgmt.rev_info import RevocationInfo
@@ -35,13 +36,15 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
     P_CLS = P.SegRecs
 
     @classmethod
-    def from_values(cls, pcb_dict, rev_infos=None):
+    def from_values(cls, pcb_dict, rev_infos=None, hp_cfg_ids=None):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
         :param rev_infos: list of RevocationInfo objects
         """
         if not rev_infos:
             rev_infos = []
+        if not hp_cfg_ids:
+            hp_cfg_ids = []
         p = cls.P_CLS.new_message()
         flat = []
         for type_, pcbs in pcb_dict.items():
@@ -51,9 +54,12 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
         for i, (type_, pcb) in enumerate(flat):
             p.recs[i].type = type_
             p.recs[i].pathSeg = pcb.p
-        p.init("revInfos", len(rev_infos))
+        p.meta.init("revInfos", len(rev_infos))
         for i, rev_info in enumerate(rev_infos):
-            p.revInfos[i] = rev_info.p
+            p.meta.revInfos[i] = rev_info.p
+        p.meta.init("hpCfgIds", len(hp_cfg_ids))
+        for i, hp_cfg_id in enumerate(hp_cfg_ids):
+            p.meta.hpCfgIds[i] = hp_cfg_id.p
         return cls(p)
 
     def iter_pcbs(self):
@@ -61,11 +67,18 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             yield rec.type, PathSegment(rec.pathSeg)
 
     def rev_info(self, idx):
-        return RevocationInfo(self.p.revInfos[idx])
+        return RevocationInfo(self.p.meta.revInfos[idx])
 
     def iter_rev_infos(self, start=0):
-        for i in range(start, len(self.p.revInfos)):
+        for i in range(start, len(self.p.meta.revInfos)):
             yield self.rev_info(i)
+
+    def hp_cfg_id(self, idx):
+        return HPCfgId(self.p.meta.hpCfgIds[idx])
+
+    def iter_hp_cfg_ids(self, start=0):
+        for i in range(start, len(self.p.meta.hpCfgIds)):
+            yield self.hp_cfg_id(i)
 
     def num_segs(self):
         """Returns the total number of path segments."""
@@ -83,6 +96,8 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             s.append("    %s" % pcb.short_desc())
         for rev_info in self.iter_rev_infos():
             s.append("  %s" % rev_info.short_desc())
+        for hp_cfg_id in self.iter_hp_cfg_ids():
+            s.append("  %s" % hp_cfg_id.short_desc())
 
         return "\n".join(s)
 

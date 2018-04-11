@@ -6,6 +6,7 @@ $Go.import("github.com/scionproto/scion/go/proto");
 using PSeg = import "path_seg.capnp";
 using IFState = import "if_state.capnp";
 using RevInfo = import "rev_info.capnp";
+using HPCfg = import "hp_cfg.capnp";
 
 struct SegReq {
     srcIA @0 :UInt64;
@@ -14,12 +15,18 @@ struct SegReq {
         sibra @2 :Bool;
         cacheOnly @3 :Bool;
     }
+    meta :group {
+        hpCfgIds @4 :List(HPCfg.HPCfgId);
+    }
 
 }
 
 struct SegRecs {
     recs @0 :List(PSeg.PathSegMeta);
-    revInfos @1 :List(RevInfo.RevInfo);
+    meta :group {
+        revInfos @1 :List(RevInfo.RevInfo);
+        hpCfgIds @2 :List(HPCfg.HPCfgId);
+    }
 }
 
 struct SegReply {

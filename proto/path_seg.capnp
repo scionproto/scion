@@ -57,4 +57,5 @@ enum PathSegType {
     up @1;
     down @2;
     core @3;
+    hidden @4;
 }

@@ -104,6 +104,7 @@ class PayloadClass(object):
     PATH = "pathMgmt"
     SIBRA = "sibra"
     DRKEY = "drkeyMgmt"
+    HPATH = "hpMgmt"
 
 
 class CertMgmtType(object):
@@ -125,6 +126,15 @@ class PathMgmtType(object):
     IFSTATE_INFOS = "ifStateInfos"
 
 
+class HPMgmtType(TypeBase):
+    CFG_REQ = "hpCfgReq"
+    CFG_REPLY = "hpCfgReply"
+    CFG_REG = "hpCfgReg"
+    SEG_REQ = "hpSegReq"
+    SEG_REPLY = "hpSegReply"
+    SEG_REG = "hpSegReg"
+
+
 class PathSegmentType(TypeBase):
     """
     PathSegmentType class, indicates a type of path request/reply.
@@ -133,6 +143,7 @@ class PathSegmentType(TypeBase):
     UP = "up"  # Request/Reply for up-paths
     DOWN = "down"  # Request/Reply for down-paths
     CORE = "core"  # Request/Reply for core-paths
+    HIDDEN = "hidden"  # Request/Reply for hidden-paths
 
 
 class DRKeyMgmtType(object):

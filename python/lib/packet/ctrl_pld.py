@@ -27,6 +27,7 @@ import proto.ctrl_pld_capnp as P
 from lib.drkey.drkey_mgmt import DRKeyMgmt
 from lib.errors import SCIONParseError
 from lib.packet.cert_mgmt import CertMgmt
+from lib.packet.hp_mgmt.base import HPMgmt
 from lib.packet.ifid import IFIDPayload
 from lib.packet.packet_base import CerealBox, Cerealizable
 from lib.packet.path_mgmt.base import PathMgmt
@@ -87,6 +88,7 @@ class CtrlPayload(CerealBox):
         PathMgmt: PayloadClass.PATH,
         SIBRAPayload: PayloadClass.SIBRA,
         DRKeyMgmt: PayloadClass.DRKEY,
+        HPMgmt: PayloadClass.HPATH,
     }
 
     def __init__(self, union, req_id=0, trace_id=b''):
