@@ -40,10 +40,9 @@ from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.ifstate import IFStatePayload
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import RevocationInfo, SignedRevInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReply
 from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
-from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
@@ -51,6 +50,7 @@ from lib.rev_cache import RevCache
 from lib.thread import thread_safety_net
 from lib.types import (
     CertMgmtType,
+    LinkType,
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
@@ -111,6 +111,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache(labels=self._labels)
+        # Used to serialize removal of revoked segments
         self.seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -181,13 +182,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _rev_entries_handler(self, raw_entries):
         for raw in raw_entries:
-            rev_info = RevocationInfo.from_raw(raw)
-            try:
-                rev_info.validate()
-            except SCIONBaseError as e:
-                logging.warning("Failed to validate RevInfo from zk: %s\n%s",
-                                e, rev_info.short_desc())
-                continue
+            srev_info = SignedRevInfo.from_raw(raw)
+            rev_info = srev_info.rev_info()
+            if not self.check_revocation(srev_info, "zk"):
+                return
             self._remove_revoked_segments(rev_info)
 
     @abstractmethod
@@ -222,36 +220,35 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
-                signed_rev_info = info.rev_info()
-                rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+                srev_info = info.srev_info()
+                rev_info = srev_info.rev_info()
                 try:
                     rev_info.validate()
                 except SCIONBaseError as e:
                     logging.warning("Failed to validate IFStateInfo RevInfo from %s: %s\n%s",
                                     meta, e, rev_info.short_desc())
                     continue
-                self._handle_revocation(CtrlPayload(PathMgmt(info.rev_info())), meta)
+                self._handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        srev_info = SignedRevInfo.from_raw(pld.info.rev_info)
+        rev_info = srev_info.rev_info()
         try:
             rev_info.validate()
         except SCIONBaseError as e:
-            logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
-                            meta, e, rev_info.short_desc())
+            logging.error("Failed to validate SCMP RevInfo from %s: %s\n%s",
+                          meta, e, rev_info.short_desc())
             return
-        self._handle_revocation(CtrlPayload(PathMgmt(signed_rev_info)), meta)
+        self._handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def _handle_revocation(self, cpld, meta):
         """
         Handles a revocation of a segment, interface or hop.
-
         :param rev_info: The RevocationInfo object.
         """
         pmgt = cpld.union
-        signed_rev_info = pmgt.union
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        srev_info = pmgt.union
+        rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         # Validate before checking for presence in self.revocations, as that will trigger an assert
         # failure if the rev_info is invalid.
@@ -260,57 +257,42 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         except SCIONBaseError as e:
             # Validation already done in the IFStateInfo and SCMP paths, so a failure here means
             # it's from a CtrlPld.
-            logging.warning("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
-                            meta, e, rev_info.short_desc())
+            logging.error("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
+                          meta, e, rev_info.short_desc())
             return
 
-        if rev_info in self.revocations:
+        if srev_info in self.revocations:
             return
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        try:
-            rev_info.validate()
-        except SCIONBaseError as e:
-            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
+        if not self.check_revocation(srev_info, meta):
             return
-        # Verify signature
-        cert = self.trust_store.get_cert(rev_info.isd_as())
-        if not cert:
-            logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
-            return
-        if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
-            logging.error("Failed to verify signature!")
-            return
+
         if meta.ia[0] != self.addr.isd_as[0]:
             logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
                          (meta, rev_info.short_desc()))
             return
-        self.revocations.add(rev_info)
-        self._revs_to_zk[rev_info] = rev_info.copy().pack()  # have to pack copy
+        self.revocations.add(srev_info)
+        self._revs_to_zk[srev_info] = srev_info.copy().pack()  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Forward revocation to other path servers.
-        self._forward_revocation(signed_rev_info, meta)
+        self._forward_revocation(srev_info, meta)
 
     def _remove_revoked_segments(self, rev_info):
         """
         Loop through all segments and remove those containing a revoked IFID
-
+        Make sure the revocation is checked beforehand
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        if not rev_info.active():
-            return
-        if_id = rev_info.p.ifID
-
         def _handle_one_seg(seg, db):
             if not seg:
+                # logging.error("Handle None segment")
                 return 0
-            for asm in seg.iter_asms():
-                for pcbm in asm.iter_pcbms(1):
-                    hof = pcbm.hof()
-                    if if_id == hof.ingress_if or if_id == hof.egress_if:
-                        if db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED:
-                            return 1
+            rm, ltype = seg.rev_match(rev_info)
+            if rm and (ltype in [LinkType.PARENT, LinkType.CHILD] and
+               db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED):
+                return 1
             return 0
 
         up_segs_removed = 0
@@ -325,9 +307,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for core_segment in self.core_segments:
                 core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
 
-            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
-                          (rev_info.short_desc(), up_segs_removed, down_segs_removed,
-                           core_segs_removed))
+        logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
+                      (rev_info.short_desc(), up_segs_removed, down_segs_removed,
+                       core_segs_removed))
 
     @abstractmethod
     def _forward_revocation(self, rev_info, meta):
@@ -351,31 +333,31 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             logger.warning("No segments to send for request: %s from: %s" %
                            (req.short_desc(), meta))
             return
-        revs_to_add = self._peer_revs_for_segs(all_segs)
+        srevs_to_add = self._peer_revs_for_segs(all_segs)
         recs = PathSegmentRecords.from_values(
             {PST.UP: up, PST.CORE: core, PST.DOWN: down},
-            revs_to_add
+            srevs_to_add
         )
         pld = PathSegmentReply.from_values(req.copy(), recs)
         self.send_meta(CtrlPayload(PathMgmt(pld), req_id=req_id), meta)
         logger.info("Sending PATH_REPLY with %d segment(s).", len(all_segs))
 
     def _peer_revs_for_segs(self, segs):
-        """Returns a list of peer revocations for segments in 'segs'."""
+        """Returns a list of signed peer revocations for segments in 'segs'."""
         def _handle_one_seg(seg):
             for asm in seg.iter_asms():
                 for pcbm in asm.iter_pcbms(1):
                     hof = pcbm.hof()
                     for if_id in [hof.ingress_if, hof.egress_if]:
-                        rev_info = self.revocations.get((asm.isd_as(), if_id))
-                        if rev_info:
-                            revs_to_add.add(rev_info.copy())
+                        srev_info = self.revocations.get((asm.isd_as(), if_id))
+                        if srev_info:
+                            srevs_to_add.add(srev_info.copy())
                             return
-        revs_to_add = set()
+        srevs_to_add = set()
         for seg in segs:
             _handle_one_seg(seg)
 
-        return list(revs_to_add)
+        return list(srevs_to_add)
 
     def _handle_pending_requests(self):
         rem_keys = []
@@ -423,9 +405,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(seg_recs, PathSegmentRecords), type(seg_recs)
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.
-        for signed_rev_info in seg_recs.iter_rev_infos():
-            rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
-            self.revocations.add(rev_info)
+        for srev_info in seg_recs.iter_srev_infos():
+            self.revocations.add(srev_info)
         # Verify pcbs and process them
         for type_, pcb in seg_recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
@@ -483,8 +464,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for asm in seg.iter_asms():
             pcbm = asm.pcbm(0)
             for if_id in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
-                rev_info = self.revocations.get((asm.isd_as(), if_id))
-                if rev_info:
+                srev_info = self.revocations.get((asm.isd_as(), if_id))
+                if srev_info:
+                    rev_info = srev_info.rev_info()
                     logging.debug("Found revoked interface (%d, %s) in segment %s." %
                                   (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
                     return False

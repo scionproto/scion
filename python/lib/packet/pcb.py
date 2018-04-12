@@ -32,7 +32,7 @@ from lib.packet.packet_base import Cerealizable
 from lib.packet.path import SCIONPath
 from lib.packet.proto_sign import ProtoSign, ProtoSignedBlob, ProtoSignType
 from lib.packet.scion_addr import ISD_AS
-from lib.types import ASMExtType
+from lib.types import ASMExtType, LinkType
 from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
@@ -296,6 +296,24 @@ class PathSegment(Cerealizable):
         if exts:
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
         return "".join(desc)
+
+    def rev_match(self, rev_info):
+        """
+        Check if a revocation matches the currnt PCB
+        :param rev_info: Revocation Info to check
+        :type rev_info: RevocationInfo
+        :return: Tuple(boolean, LinkType)
+        """
+        for asm in self.iter_asms():
+            if rev_info.isd_as() != asm.isd_as():
+                continue
+            for i, pcbm in enumerate(asm.iter_pcbms()):
+                hof = pcbm.hof()
+                if rev_info.p.ifID == hof.ingress_if:
+                    return True, LinkType.PARENT if i == 0 else LinkType.PEER
+                if rev_info.p.ifID == hof.egress_if:
+                    return True, LinkType.CHILD
+        return False, None
 
     def is_sibra(self):
         return False  # Nope! Kept for compatibility with path server.

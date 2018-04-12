@@ -21,8 +21,8 @@ import capnp  # noqa
 # SCION
 import proto.path_mgmt_capnp as P
 from lib.packet.packet_base import Cerealizable
+from lib.packet.path_mgmt.rev_info import SignedRevInfo
 from lib.packet.pcb import PathSegment
-from lib.packet.proto_sign import ProtoSignedBlob
 from lib.types import PathSegmentType as PST
 
 
@@ -60,12 +60,12 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
         for rec in self.p.recs:
             yield rec.type, PathSegment(rec.pathSeg)
 
-    def rev_info(self, idx):
-        return ProtoSignedBlob(self.p.revInfos[idx])
+    def srev_info(self, idx):
+        return SignedRevInfo(self.p.revInfos[idx])
 
-    def iter_rev_infos(self, start=0):
+    def iter_srev_infos(self, start=0):
         for i in range(start, len(self.p.revInfos)):
-            yield self.rev_info(i)
+            yield self.srev_info(i)
 
     def num_segs(self):
         """Returns the total number of path segments."""
@@ -81,8 +81,8 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             if type_ != last_type:
                 s.append("  %s:" % PST.to_str(type_))
             s.append("    %s" % pcb.short_desc())
-        for rev_info in self.iter_rev_infos():
-            s.append("  %s" % rev_info.short_desc())
+        for srev_info in self.iter_srev_infos():
+            s.append("  %s" % srev_info.short_desc())
 
         return "\n".join(s)
 
