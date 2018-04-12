@@ -35,6 +35,20 @@ var RootCmd = &cobra.Command{
 root configuration files used in the SCION control plane PKI.`,
 }
 
+const (
+	bashCompletionScript string = "scion_pki_bash"
+	zshCompletionScript  string = "_scion-pki"
+)
+
+var autoCompleteCmd = &cobra.Command{
+	Use:   "autocomplete",
+	Short: "Generate autocomplete script for bash",
+	Run: func(cmd *cobra.Command, args []string) {
+		RootCmd.GenBashCompletionFile(bashCompletionScript)
+		RootCmd.GenZshCompletionFile(zshCompletionScript)
+	},
+}
+
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -53,4 +67,5 @@ func init() {
 	RootCmd.AddCommand(version.Cmd)
 	RootCmd.AddCommand(trc.Cmd)
 	RootCmd.AddCommand(tmpl.Cmd)
+	RootCmd.AddCommand(autoCompleteCmd)
 }
