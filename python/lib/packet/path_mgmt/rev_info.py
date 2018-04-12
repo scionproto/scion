@@ -26,6 +26,7 @@ import proto.rev_info_capnp as P
 from lib.defines import MIN_REVOCATION_TTL
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
+from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scion_addr import ISD_AS
 from lib.types import LinkType
 from lib.util import iso_timestamp
@@ -35,12 +36,19 @@ class RevInfoValidationError(SCIONBaseError):
     """Validation of RevInfo failed"""
 
 
-class SignedRevInfo(Cerealizable):
+class SignedRevInfo(ProtoSignedBlob):
     """
     Wrapper for signed revocation information.
     """
-    NAME = "SignedRevocationInfo"
-    P_CLS = P.SignedBlob
+    def rev_info(self):
+        if self.rev_info:
+            return self.rev_info
+        # TODO(worxli) combine
+        if self.p.blob:
+            return RevocationInfo.from_raw(self.p.blob)
+        else:
+            # Debug
+            raise NotImplementedError
 
 
 class RevocationInfo(Cerealizable):

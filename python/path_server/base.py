@@ -40,10 +40,9 @@ from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.ifstate import IFStatePayload
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import RevocationInfo, SignedRevInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReply
 from lib.packet.path_mgmt.seg_recs import PathSegmentRecords
-from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.packet.svc import SVCType
 from lib.path_db import DBResult, PathSegmentDB
@@ -111,6 +110,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         # Used when l/cPS doesn't have up/dw-path.
         self.waiting_targets = defaultdict(list)
         self.revocations = RevCache(labels=self._labels)
+        # Used to serialize removal of revoked segments
         self.seglock = Lock()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
@@ -222,8 +222,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.revInfo:
-                signed_rev_info = info.rev_info()
-                rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+                signed_rev_info = info.srev_info()
+                rev_info = signed_rev_info.rev_info()
                 try:
                     rev_info.validate()
                 except SCIONBaseError as e:
@@ -233,8 +233,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self._handle_revocation(CtrlPayload(PathMgmt(info.rev_info())), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        signed_rev_info = SignedRevInfo.from_raw(pld.info.rev_info)
+        rev_info = signed_rev_info.rev_info()
         try:
             rev_info.validate()
         except SCIONBaseError as e:
@@ -252,7 +252,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pmgt = cpld.union
         logging.critical(meta)
         signed_rev_info = pmgt.union
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        rev_info = signed_rev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         # Validate before checking for presence in self.revocations, as that will trigger an assert
         # failure if the rev_info is invalid.
@@ -286,7 +286,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                          (meta, rev_info.short_desc()))
             return
         self.revocations.add(rev_info)
-        self._revs_to_zk[rev_info] = rev_info.copy().pack()  # have to pack copy
+        self._revs_to_zk[signed_rev_info] = signed_rev_info.copy().pack()  # have to pack copy
         # Remove segments that contain the revoked interface.
         self._remove_revoked_segments(rev_info)
         # Forward revocation to other path servers.
@@ -368,9 +368,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 for pcbm in asm.iter_pcbms(1):
                     hof = pcbm.hof()
                     for if_id in [hof.ingress_if, hof.egress_if]:
-                        rev_info = self.revocations.get((asm.isd_as(), if_id))
-                        if rev_info:
-                            revs_to_add.add(rev_info.copy())
+                        srev_info = self.revocations.get((asm.isd_as(), if_id))
+                        if srev_info:
+                            revs_to_add.add(srev_info.rev_info().copy())
                             return
         revs_to_add = set()
         for seg in segs:
@@ -424,9 +424,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(seg_recs, PathSegmentRecords), type(seg_recs)
         params = self._dispatch_params(seg_recs, meta)
         # Add revocations for peer interfaces included in the path segments.
-        for signed_rev_info in seg_recs.iter_rev_infos():
-            rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
-            self.revocations.add(rev_info)
+        for signed_rev_info in seg_recs.iter_srev_infos():
+            self.revocations.add(signed_rev_info)
         # Verify pcbs and process them
         for type_, pcb in seg_recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
@@ -484,8 +483,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for asm in seg.iter_asms():
             pcbm = asm.pcbm(0)
             for if_id in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
-                rev_info = self.revocations.get((asm.isd_as(), if_id))
-                if rev_info:
+                srev_info = self.revocations.get((asm.isd_as(), if_id))
+                if srev_info:
+                    rev_info = srev_info.rev_info()
                     logging.debug("Found revoked interface (%d, %s) in segment %s." %
                                   (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
                     return False

@@ -40,9 +40,8 @@ from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import RevocationInfo, SignedRevInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
-from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
@@ -188,8 +187,8 @@ class SCIONDaemon(SCIONElement):
         path_reply = pmgt.union
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
         recs = path_reply.recs()
-        for signed_rev_info in recs.iter_rev_infos():
-            rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        for signed_rev_info in recs.iter_srev_infos():
+            rev_info = signed_rev_info.rev_info()
             # Verify signature
             cert = self.trust_store.get_cert(rev_info.isd_as())
             if not cert:
@@ -415,13 +414,13 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
-        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
+        signed_rev_info = SignedRevInfo.from_raw(pld.info.rev_info)
         self.handle_revocation(CtrlPayload(PathMgmt(signed_rev_info)), meta)
 
     def handle_revocation(self, cpld, meta):
         pmgt = cpld.union
         signed_rev_info = pmgt.union
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        rev_info = signed_rev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Revocation info received: %s", rev_info.short_desc())
         try:

@@ -31,9 +31,9 @@ REVS_REMOVED = Counter("rc_revs_removed_total", "Total revocations removed",
                        ["server_id", "isd_as"])
 
 
-def _mk_key(rev_info):
-    """Returns the key for a RevocationInfo object."""
-    return (rev_info.isd_as(), rev_info.p.ifID)
+def _mk_key(signed_rev_info):
+    """Returns the key for a SignedRevInfo object."""
+    return (signed_rev_info.rev_info().isd_as(), signed_rev_info.rev_info().p.ifID)
 
 
 class RevCache:
@@ -84,7 +84,7 @@ class RevCache:
     def values(self):
         """
         Return all active revocations
-        :return: list(RevocationInfo)
+        :return: list(SignedRevInfo)
         """
         with self._lock:
             ret = []
@@ -93,16 +93,16 @@ class RevCache:
                     ret.append(v)
             return ret
 
-    def add(self, rev_info):
+    def add(self, signed_rev_info):
         """
-        Adds rev_info to the cache and returns True if the operation succeeds.
-        :param type: RevocationInfo
+        Adds signed_rev_info to the cache and returns True if the operation succeeds.
+        :param type: SignedRevInfo
         :return: boolean
         """
-        if not rev_info.active():
+        if not signed_rev_info.rev_info().active():
             return False
         with self._lock:
-            key = _mk_key(rev_info)
+            key = _mk_key(signed_rev_info)
             stored_info = self.get(key)
             if not stored_info:
                 # Try to free up space in case the cache reaches the cap limit.
@@ -113,32 +113,32 @@ class RevCache:
                 if len(self._cache) >= self._capacity:
                     logging.error("Revocation cache full!.")
                     return False
-                self._cache[key] = rev_info
+                self._cache[key] = signed_rev_info
                 if self._labels:
                     REVS_ADDED.labels(**self._labels).inc()
                     REVS_TOTAL.labels(**self._labels).inc()
-                    REVS_BYTES.labels(**self._labels).inc(len(rev_info))
+                    REVS_BYTES.labels(**self._labels).inc(len(signed_rev_info))
                 return True
             if rev_info.p.timestamp > stored_info.p.timestamp:
-                self._cache[key] = rev_info
+                self._cache[key] = signed_rev_info
                 if self._labels:
                     REVS_ADDED.labels(**self._labels).inc()
                     REVS_REMOVED.labels(**self._labels).inc()
-                    REVS_BYTES.labels(**self._labels).inc(len(rev_info) - len(stored_info))
+                    REVS_BYTES.labels(**self._labels).inc(len(signed_rev_info) - len(stored_info))
                 return True
             return False
 
-    def _check_active(self, rev_info):  # pragma: no cover
+    def _check_active(self, signed_rev_info):  # pragma: no cover
         """
         Removes an expired revocation from the cache.
-        :param type: RevocationInfo
+        :param type: SignedRevInfo
         :return: boolean
         """
-        if not rev_info.active():
-            del self._cache[_mk_key(rev_info)]
+        if not signed_rev_info.active():
+            del self._cache[_mk_key(signed_rev_info)]
             if self._labels:
                 REVS_REMOVED.labels(**self._labels).inc()
                 REVS_TOTAL.labels(**self._labels).dec()
-                REVS_BYTES.labels(**self._labels).dec(len(rev_info))
+                REVS_BYTES.labels(**self._labels).dec(len(signed_rev_info))
             return False
         return True

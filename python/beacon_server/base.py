@@ -58,13 +58,13 @@ from lib.packet.path_mgmt.ifstate import (
     IFStatePayload,
     IFStateRequest,
 )
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import RevocationInfo, SignedRevInfo
 from lib.packet.pcb import (
     ASMarking,
     PCB,
     PCBMarking,
 )
-from lib.packet.proto_sign import ProtoSignType, ProtoSignedBlob
+from lib.packet.proto_sign import ProtoSignType
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.svc import SVCType
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -557,7 +557,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             if self._labels:
                 REVOCATIONS_ISSUED.labels(**self._labels).inc()
             self._process_revocation(rev_info)
-            signed_rev_info = ProtoSignedBlob.from_values(
+            signed_rev_info = SignedRevInfo.from_values(
                 rev_info.copy().pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
             signed_rev_info.sign(self.signing_key)
             infos.append(IFStateInfo.from_values(if_id, False, signed_rev_info))
@@ -579,8 +579,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._send_ifstate_update(infos, border_metas, ps_meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        signed_rev_info = SignedRevInfo.from_raw(pld.info.rev_info)
+        rev_info = signed_rev_info.rev_info()
         logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
         try:
             rev_info.validate()
@@ -592,9 +592,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_revocation(self, cpld, meta):
         pmgt = cpld.union
-        logging.critical(meta)
-        signed_rev_info = ProtoSignedBlob(pmgt.union)
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        signed_rev_info = SignedRevInfo(pmgt.union)
+        rev_info = signed_rev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation via CtrlPld: %s (from %s)", rev_info.short_desc(), meta)
         try:
@@ -745,7 +744,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     rev_info = RevocationInfo.from_values(
                         self.addr.isd_as, ifid, br.interfaces[ifid].link_type,
                         int(time.time()), self.REVOCATION_TTL)
-                    signed_rev_info = ProtoSignedBlob.from_values(
+                    signed_rev_info = SignedRevInfo.from_values(
                         rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
                     signed_rev_info.sign(self.signing_key)
                 infos.append(IFStateInfo.from_values(ifid, state.is_active(), signed_rev_info))
