@@ -23,7 +23,7 @@ import proto.path_mgmt_capnp as P
 from lib.packet.packet_base import CerealBox
 from lib.types import PathMgmtType
 from lib.packet.path_mgmt.ifstate import IFStatePayload, IFStateRequest
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import SignedRevInfo
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg, PathRecordsSync
 from lib.packet.path_mgmt.seg_req import PathSegmentReq, PathSegmentReply
 
@@ -36,7 +36,7 @@ class PathMgmt(CerealBox):  # pragma: no cover
         PathSegmentReply: PathMgmtType.REPLY,
         PathRecordsReg: PathMgmtType.REG,
         PathRecordsSync: PathMgmtType.SYNC,
-        RevocationInfo: PathMgmtType.REVOCATION,
+        SignedRevInfo: PathMgmtType.REVOCATION,
         IFStateRequest: PathMgmtType.IFSTATE_REQ,
         IFStatePayload: PathMgmtType.IFSTATE_INFOS,
     }

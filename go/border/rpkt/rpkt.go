@@ -45,13 +45,13 @@ const pktBufSize = 9 * 1024
 // callbacks is an anonymous struct used for functions supplied by the router
 // for various processing tasks.
 var callbacks struct {
-	revTokenF func(RevTokenCallbackArgs)
+	rawRevF func(RawRevCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
-func Init(revTokenF func(RevTokenCallbackArgs)) {
-	callbacks.revTokenF = revTokenF
+func Init(rawRevF func(RawRevCallbackArgs)) {
+	callbacks.rawRevF = rawRevF
 }
 
 // Router representation of SCION packet, including metadata.  The comments for the members have

@@ -54,26 +54,6 @@ class ServiceType(TypeBase):
     SIBRA = "sb"
 
 
-class ProtoLinkType(TypeBase):
-    CORE = "core"
-    PARENT = "parent"
-    CHILD = "child"
-    PEER = "peer"
-
-    @classmethod
-    def from_string(self, type_):
-        if type_ == "CORE":
-            return self.CORE
-        elif type_ == "PARENT":
-            return self.PARENT
-        elif type_ == "CHILD":
-            return self.CHILD
-        elif type_ == "PEER":
-            return self.PEER
-        else:
-            raise IndexError
-
-
 class ExtensionClass(TypeBase):
     """
     Constants for two types of extensions. These values are shared with L4
@@ -188,14 +168,16 @@ class SIBRAPathType(TypeBase):
 # Link types
 ############################
 class LinkType(TypeBase):
+    # XXX(worxli): these values must be kept in sync with the capnp Linktype enum
+    UNSET = "unset"
     #: Link to child AS
-    CHILD = "CHILD"
+    CHILD = "child"
     #: Link to parent AS
-    PARENT = "PARENT"
+    PARENT = "parent"
     #: Link to peer AS
-    PEER = "PEER"
+    PEER = "peer"
     #: Link to other core AS
-    CORE = "CORE"
+    CORE = "core"
 
 
 ###########################

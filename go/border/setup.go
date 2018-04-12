@@ -61,11 +61,11 @@ func (r *Router) setup() error {
 	r.freePkts = ringbuf.New(1024, func() interface{} {
 		return rpkt.NewRtrPkt()
 	}, "free", prometheus.Labels{"ringId": "freePkts"})
-	r.revInfoQ = make(chan rpkt.RevTokenCallbackArgs, 16)
+	r.revInfoQ = make(chan rpkt.RawRevCallbackArgs, 16)
 	r.pktErrorQ = make(chan pktErrorArgs, 16)
 
 	// Configure the rpkt package with the callbacks it needs.
-	rpkt.Init(r.RevTokenCallback)
+	rpkt.Init(r.RawRevCallback)
 
 	// Add default posix setup hooks. If there are other hooks, they should install
 	// themselves via init(), so they appear before the posix ones.

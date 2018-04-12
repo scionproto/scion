@@ -98,7 +98,7 @@ class TestInterfaceElementInit(object):
         super_init.assert_called_once_with(inst, public, None, 'name')
         ntools.eq_(inst.if_id, 1)
         ntools.eq_(inst.isd_as, isd_as.return_value)
-        ntools.eq_(inst.link_type, "PARENT")
+        ntools.eq_(inst.link_type, "parent")
         ntools.eq_(inst.bandwidth, 1001)
         ntools.eq_(inst.mtu, 4242)
         ntools.eq_(inst.overlay, "UDP/IPv4")
@@ -169,13 +169,13 @@ class TestTopologyParseRouterDicts(object):
             routers[type_].append(m)
             return m
         routers = defaultdict(list)
-        router_dict = {"br-parent": "PARENT"}
+        router_dict = {"br-parent": "parent"}
         inst = Topology()
         router.side_effect = lambda v, k: _mk_router(v)
         # Call
         inst._parse_router_dicts({"BorderRouters": router_dict})
         # Tests
-        ntools.assert_count_equal(inst.border_routers, routers["PARENT"])
+        ntools.assert_count_equal(inst.border_routers, routers["parent"])
 
 
 class TestTopologyParseZkDicts(object):
