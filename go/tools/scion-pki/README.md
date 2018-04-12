@@ -134,3 +134,22 @@ Finally, we can generate the new certificate:
 
 `scion-pki certs gen 1-4_294_967_022`
 
+## Autocompleting scion-pki commands
+
+For `bash` follow the following instructions
+
+```
+./bin/scion-pki autocomplete
+sudo mv scion_pki_bash /etc/bash_completion.d
+source ~/.bashrc
+```
+
+For `zsh` follow the following instructions
+
+```
+./bin/scion-pki autocomplete --zsh
+mkdir -p ~/.zsh/completion
+mv _scion-pki ~/.zsh/completion
+echo "fpath=(~/.zsh/completion \$fpath)\nautload -U compinit\ncompinit\nzstyle ':completion:*' menu select=2" >> ~/.zshrc
+source ~/.zshrc
+```
