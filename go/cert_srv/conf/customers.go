@@ -31,9 +31,8 @@ import (
 )
 
 const (
-	CustomersClosed = "Customer mapping is closed"
-	KeyChanged      = "Verifying key has changed in the meantime"
-	NotACustomer    = "ISD-AS not in customer mapping"
+	KeyChanged   = "Verifying key has changed in the meantime"
+	NotACustomer = "ISD-AS not in customer mapping"
 
 	CustomersDir = "customers"
 )
@@ -46,8 +45,6 @@ type Customers struct {
 	custMap map[addr.IA]common.RawBytes
 	// path is the path to the customers directory.
 	path string
-	// closed indicates if updates to the customers mapping are permitted.
-	closed bool
 }
 
 // LoadCustomers populates the mapping from assigned non-core ASes to their verifying key.
@@ -86,22 +83,11 @@ func (c *Conf) LoadCustomers() (*Customers, error) {
 	return cust, nil
 }
 
-// Close closes the mapping. It is called before a context switch to ensure that all updates are
-// written to disk.
-func (c *Customers) Close() {
-	c.m.Lock()
-	defer c.m.Unlock()
-	c.closed = true
-}
-
 // GetVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
 // Otherwise, nil and an error.
 func (c *Customers) GetVerifyingKey(ia addr.IA) (common.RawBytes, error) {
 	c.m.RLock()
 	defer c.m.RUnlock()
-	if c.closed {
-		return nil, common.NewBasicError(CustomersClosed, nil)
-	}
 	b, ok := c.custMap[ia]
 	if !ok {
 		return nil, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
@@ -113,9 +99,6 @@ func (c *Customers) GetVerifyingKey(ia addr.IA) (common.RawBytes, error) {
 func (c *Customers) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.RawBytes) error {
 	c.m.Lock()
 	defer c.m.Unlock()
-	if c.closed {
-		return common.NewBasicError(CustomersClosed, nil)
-	}
 	currKey, ok := c.custMap[ia]
 	if !ok {
 		return common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)

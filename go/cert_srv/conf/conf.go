@@ -39,6 +39,8 @@ const (
 )
 
 type Conf struct {
+	// ID is the element ID.
+	ID string
 	// Topo contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
 	Topo *topology.Topo
@@ -57,8 +59,6 @@ type Conf struct {
 	// Customers is a mapping from non-core ASes assigned to this core AS to their public
 	// verifying key.
 	Customers *Customers
-	// ID is the element ID.
-	ID string
 	// CacheDir is the cache directory.
 	CacheDir string
 	// ConfDir is the configuration directory.
@@ -73,22 +73,6 @@ type Conf struct {
 	verifier ctrl.SigVerifier
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
-}
-
-var conf atomic.Value
-
-// Get returns a pointer to the current configuration.
-func Get() *Conf {
-	c := conf.Load()
-	if c != nil {
-		return c.(*Conf)
-	}
-	return nil
-}
-
-// Set updates the current configuration.
-func Set(c *Conf) {
-	conf.Store(c)
 }
 
 // Load initializes the configuration by loading it from confDir.
@@ -125,12 +109,15 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 	if oldConf == nil {
 		return nil, common.NewBasicError(ErrorConfNil, nil)
 	}
+	// FIXME(roosd): Changing keys for customers outside of the process on-disk
+	// requires a restart of the certificate server in order to be visible.
 	c := &Conf{
-		ID:       oldConf.ID,
-		ConfDir:  oldConf.ConfDir,
-		CacheDir: oldConf.CacheDir,
-		StateDir: oldConf.StateDir,
-		TrustDB:  oldConf.TrustDB,
+		ID:        oldConf.ID,
+		TrustDB:   oldConf.TrustDB,
+		Customers: oldConf.Customers,
+		ConfDir:   oldConf.ConfDir,
+		CacheDir:  oldConf.CacheDir,
+		StateDir:  oldConf.StateDir,
 	}
 	if err := c.loadTopo(); err != nil {
 		return nil, err
@@ -140,13 +127,6 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 	}
 	if err := c.loadKeyConf(); err != nil {
 		return nil, err
-	}
-	if c.Topo.Core {
-		var err error
-		oldConf.Customers.Close()
-		if c.Customers, err = c.LoadCustomers(); err != nil {
-			return nil, common.NewBasicError(ErrorCustomers, err)
-		}
 	}
 	return c, nil
 }
@@ -248,4 +228,20 @@ func (c *Conf) SetVerifier(verifier ctrl.SigVerifier) {
 	c.verifierLock.Lock()
 	defer c.verifierLock.Unlock()
 	c.verifier = verifier
+}
+
+var conf atomic.Value
+
+// Get returns a pointer to the current configuration.
+func Get() *Conf {
+	c := conf.Load()
+	if c != nil {
+		return c.(*Conf)
+	}
+	return nil
+}
+
+// Set updates the current configuration.
+func Set(c *Conf) {
+	conf.Store(c)
 }
