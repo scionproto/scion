@@ -47,6 +47,8 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) [][]*PathFi
 	return fieldsSlice
 }
 
+// RawFwdPathWriteTo dumps the contents of fields to w. It returns the number
+// of bytes written, and an error (if one occurred).
 func RawFwdPathWriteTo(fields []*PathField, w io.Writer) (int, error) {
 	var total int
 	for _, field := range fields {
@@ -59,7 +61,7 @@ func RawFwdPathWriteTo(fields []*PathField, w io.Writer) (int, error) {
 	return total, nil
 }
 
-// Segment is a local representation of a path segment which includes the
+// Segment is a local representation of a path segment that includes the
 // segment's type.
 type Segment struct {
 	ASEntries []*seg.ASEntry
