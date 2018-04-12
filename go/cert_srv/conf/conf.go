@@ -17,10 +17,12 @@ package conf
 import (
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/trust"
@@ -29,7 +31,10 @@ import (
 const (
 	ErrorAddr      = "Unable to load addresses"
 	ErrorKeyConf   = "Unable to load KeyConf"
+	ErrorConfNil   = "Unable to reload conf from nil value"
+	ErrorStore     = "Unable to load TrustStore"
 	ErrorTopo      = "Unable to load topology"
+	ErrorTrustDB   = "Unable to load trust DB"
 	ErrorCustomers = "Unable to load Customers"
 )
 
@@ -41,6 +46,10 @@ type Conf struct {
 	BindAddr *snet.Addr
 	// PublicAddr is the public address.
 	PublicAddr *snet.Addr
+	// Store is the trust store.
+	Store *trust.Store
+	// TrustDB is the trust DB.
+	TrustDB *trustdb.DB
 	// keyConf contains the AS level keys used for signing and decrypting.
 	keyConf *trust.KeyConf
 	// keyConfLock guards KeyConf, CertVer and TRCVer.
@@ -48,6 +57,8 @@ type Conf struct {
 	// Customers is a mapping from non-core ASes assigned to this core AS to their public
 	// verifying key.
 	Customers *Customers
+	// ID is the element ID.
+	ID string
 	// CacheDir is the cache directory.
 	CacheDir string
 	// ConfDir is the configuration directory.
@@ -64,51 +75,130 @@ type Conf struct {
 	verifierLock sync.RWMutex
 }
 
+var conf atomic.Value
+
+// Get returns a pointer to the current configuration.
+func Get() *Conf {
+	c := conf.Load()
+	if c != nil {
+		return c.(*Conf)
+	}
+	return nil
+}
+
+// Set updates the current configuration.
+func Set(c *Conf) {
+	conf.Store(c)
+}
+
 // Load initializes the configuration by loading it from confDir.
 func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, error) {
-	var err error
-	conf := &Conf{
+	c := &Conf{
+		ID:       id,
 		ConfDir:  confDir,
 		CacheDir: cacheDir,
 		StateDir: stateDir,
 	}
-	// load topology
-	path := filepath.Join(confDir, topology.CfgName)
-	if conf.Topo, err = topology.LoadFromFile(path); err != nil {
-		return nil, common.NewBasicError(ErrorTopo, err)
+	if err := c.loadTopo(); err != nil {
+		return nil, err
 	}
-	// load public and bind address
-	topoAddr, ok := conf.Topo.CS[id]
-	if !ok {
-		return nil, common.NewBasicError(ErrorAddr, nil, "err", "Element ID not found",
-			"id", id)
+	if err := c.loadStore(); err != nil {
+		return nil, err
 	}
-	publicInfo := topoAddr.PublicAddrInfo(conf.Topo.Overlay)
-	conf.PublicAddr = &snet.Addr{IA: conf.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
-		L4Port: uint16(publicInfo.L4Port)}
-	bindInfo := topoAddr.BindAddrInfo(conf.Topo.Overlay)
-	tmpBind := &snet.Addr{IA: conf.Topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
-		L4Port: uint16(bindInfo.L4Port)}
-	if !tmpBind.EqAddr(conf.PublicAddr) {
-		conf.BindAddr = tmpBind
+	if err := c.loadTrustDB(); err != nil {
+		return nil, err
 	}
-	// load key configuration
-	if conf.keyConf, err = conf.loadKeyConf(); err != nil {
-		return nil, common.NewBasicError(ErrorKeyConf, err)
+	if err := c.loadKeyConf(); err != nil {
+		return nil, err
 	}
-	if conf.Topo.Core {
-		// load customers
-		if conf.Customers, err = conf.LoadCustomers(); err != nil {
+	if c.Topo.Core {
+		var err error
+		if c.Customers, err = c.LoadCustomers(); err != nil {
 			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
 	}
-	return conf, nil
+	return c, nil
 }
 
-// loadKeyConf loads key configuration.
-func (c *Conf) loadKeyConf() (*trust.KeyConf, error) {
-	return trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
+// ReloadConf loads a new configuration based on the old one.
+func ReloadConf(oldConf *Conf) (*Conf, error) {
+	if oldConf == nil {
+		return nil, common.NewBasicError(ErrorConfNil, nil)
+	}
+	c := &Conf{
+		ID:       oldConf.ID,
+		ConfDir:  oldConf.ConfDir,
+		CacheDir: oldConf.CacheDir,
+		StateDir: oldConf.StateDir,
+		TrustDB:  oldConf.TrustDB,
+	}
+	if err := c.loadTopo(); err != nil {
+		return nil, err
+	}
+	if err := c.loadStore(); err != nil {
+		return nil, err
+	}
+	if err := c.loadKeyConf(); err != nil {
+		return nil, err
+	}
+	if c.Topo.Core {
+		var err error
+		oldConf.Customers.Close()
+		if c.Customers, err = c.LoadCustomers(); err != nil {
+			return nil, common.NewBasicError(ErrorCustomers, err)
+		}
+	}
+	return c, nil
+}
+
+// loadTopo loads the topology information.
+func (c *Conf) loadTopo() (err error) {
+	path := filepath.Join(c.ConfDir, topology.CfgName)
+	if c.Topo, err = topology.LoadFromFile(path); err != nil {
+		return common.NewBasicError(ErrorTopo, err)
+	}
+	// load public and bind address
+	topoAddr, ok := c.Topo.CS[c.ID]
+	if !ok {
+		return common.NewBasicError(ErrorAddr, nil, "err", "Element ID not found", "id", c.ID)
+	}
+	publicInfo := topoAddr.PublicAddrInfo(c.Topo.Overlay)
+	c.PublicAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
+		L4Port: uint16(publicInfo.L4Port)}
+	bindInfo := topoAddr.BindAddrInfo(c.Topo.Overlay)
+	tmpBind := &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
+		L4Port: uint16(bindInfo.L4Port)}
+	if !tmpBind.EqAddr(c.PublicAddr) {
+		c.BindAddr = tmpBind
+	}
+	return nil
+}
+
+// loadStore loads the trust store.
+func (c *Conf) loadStore() (err error) {
+	c.Store, err = trust.NewStore(filepath.Join(c.ConfDir, "certs"), c.CacheDir, c.ID)
+	if err != nil {
+		return common.NewBasicError(ErrorStore, err)
+	}
+	return nil
+}
+
+// loadTrustDB loads the trustdb.
+func (c *Conf) loadTrustDB() (err error) {
+	if c.TrustDB, err = trustdb.New(filepath.Join(c.StateDir, trustdb.Path)); err != nil {
+		return common.NewBasicError(ErrorTrustDB, err)
+	}
+	return nil
+}
+
+// loadKeyConf loads the key configuration.
+func (c *Conf) loadKeyConf() (err error) {
+	c.keyConf, err = trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
 		c.Topo.Core, false)
+	if err != nil {
+		return common.NewBasicError(ErrorKeyConf, err)
+	}
+	return nil
 }
 
 // GetSigningKey returns the signing key of the current key configuration.

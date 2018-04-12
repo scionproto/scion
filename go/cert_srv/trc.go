@@ -19,7 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/cert_srv/csctx"
+	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
@@ -44,15 +44,15 @@ func NewTRCHandler(conn *snet.Conn, ia addr.IA) *TRCHandler {
 
 // HandleReq handles TRC requests. If the TRC is not already cached and the cache-only flag is set
 // or the requester is from a remote AS, the request is dropped.
-func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq, ctx *csctx.Ctx) {
+func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq, config *conf.Conf) {
 	log.Info("Received TRC request", "addr", a, "req", req)
 	var t *trc.TRC
 	if req.Version == cert_mgmt.NewestVersion {
-		t = ctx.Store.GetNewestTRC(req.ISD)
+		t = config.Store.GetNewestTRC(req.ISD)
 	} else {
-		t = ctx.Store.GetTRC(req.ISD, req.Version)
+		t = config.Store.GetTRC(req.ISD, req.Version)
 	}
-	srcLocal := ctx.Conf.PublicAddr.IA.Eq(a.IA)
+	srcLocal := config.PublicAddr.IA.Eq(a.IA)
 	if t != nil {
 		if err := h.sendTRCRep(a, t); err != nil {
 			log.Error("Unable to send TRC reply", "addr", a, "req", req, "err", err)
@@ -108,14 +108,14 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 }
 
 // HandleRep handles TRC replies. Pending requests are answered and removed.
-func (h *TRCHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.TRC, ctx *csctx.Ctx) {
+func (h *TRCHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.TRC, config *conf.Conf) {
 	log.Info("Received TRC reply", "addr", a, "rep", rep)
 	t, err := rep.TRC()
 	if err != nil {
 		log.Error("Unable to parse TRC reply", "err", err)
 		return
 	}
-	if err = ctx.Store.AddTRC(t, true); err != nil {
+	if err = config.Store.AddTRC(t, true); err != nil {
 		log.Error("Unable to store TRC", "key", t.Key(), "err", err)
 		return
 	}

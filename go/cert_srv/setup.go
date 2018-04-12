@@ -15,87 +15,79 @@
 package main
 
 import (
-	"path/filepath"
 	"time"
 
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/cert_srv/conf"
-	"github.com/scionproto/scion/go/cert_srv/csctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/trust"
 )
 
 const (
-	ErrorCtx       = "Unable to load context"
+	ErrorConf      = "Unable to load configuration"
 	ErrorDispClose = "Unable to close dispatcher"
 	ErrorDispInit  = "Unable to initialize dispatcher"
 	ErrorSign      = "Unable to create sign"
 	ErrorSNET      = "Unable to create local SCION Network context"
 )
 
-// setup loads and sets the newest context. If needed, the snet/dispatcher are initialized.
+// setup loads and sets the newest configuration. If needed, the snet/dispatcher are initialized.
 func setup() error {
-	oldCtx := csctx.Get()
-	if oldCtx != nil {
-		defer oldCtx.TrustDB.Close()
-		oldCtx.Conf.Customers.Close()
-	}
-	newCtx, err := createCtx()
+	oldConf := conf.Get()
+	newConf, err := loadConf(oldConf)
 	if err != nil {
-		return common.NewBasicError(ErrorCtx, err)
+		return common.NewBasicError(ErrorConf, err)
 	}
 	// Set signer and verifier
-	sign, err := CreateSign(newCtx.Conf.PublicAddr.IA, newCtx.Store)
-	if err != nil {
+	if err = setDefaultSignerVerifier(newConf); err != nil {
 		return common.NewBasicError(ErrorSign, err)
 	}
-	newCtx.Conf.SetSigner(ctrl.NewBasicSigner(sign, newCtx.Conf.GetSigningKey()))
-	newCtx.Conf.SetVerifier(&SigVerifier{&ctrl.BasicSigVerifier{}})
-	// Initialize snet with retries if not already initialized
-	if oldCtx == nil {
-		if err = initSNET(newCtx.Conf.PublicAddr.IA, initAttempts, initInterval); err != nil {
-			return common.NewBasicError(ErrorSNET, err)
-		}
-	}
 	// Close dispatcher if the addresses are changed
-	if oldCtx != nil && (!oldCtx.Conf.PublicAddr.EqAddr(newCtx.Conf.PublicAddr) ||
-		!oldCtx.Conf.BindAddr.EqAddr(newCtx.Conf.BindAddr)) {
+	if oldConf != nil && (!oldConf.PublicAddr.EqAddr(newConf.PublicAddr) ||
+		!oldConf.BindAddr.EqAddr(newConf.BindAddr)) {
 		if err := disp.Close(); err != nil {
 			return common.NewBasicError(ErrorDispClose, err)
 		}
 	}
+	// Set the new configuration.
+	conf.Set(newConf)
+	// Initialize snet with retries if not already initialized
+	if oldConf == nil {
+		if err = initSNET(newConf.PublicAddr.IA, initAttempts, initInterval); err != nil {
+			return common.NewBasicError(ErrorSNET, err)
+		}
+	}
 	// Create new dispatcher if it does not exist or is closed
-	if oldCtx == nil || disp.closed {
-		if disp, err = NewDispatcher(newCtx.Conf.PublicAddr, newCtx.Conf.BindAddr); err != nil {
+	if oldConf == nil || disp.closed {
+		if disp, err = NewDispatcher(newConf.PublicAddr, newConf.BindAddr); err != nil {
 			return common.NewBasicError(ErrorDispInit, err)
 		}
 		defer func() { go disp.Run() }()
 	}
-	csctx.Set(newCtx)
 	return nil
 }
 
-// createCtx creates the newest context.
-func createCtx() (*csctx.Ctx, error) {
-	c, err := conf.Load(*id, *confDir, *cacheDir, *stateDir)
-	if err != nil {
-		return nil, err
+// loadConf loads the newest configuration.
+func loadConf(oldConf *conf.Conf) (*conf.Conf, error) {
+	if oldConf != nil {
+		return conf.ReloadConf(oldConf)
 	}
-	ctx := &csctx.Ctx{Conf: c}
-	ctx.Store, err = trust.NewStore(filepath.Join(*confDir, "certs"), *cacheDir, *id)
+	return conf.Load(*id, *confDir, *cacheDir, *stateDir)
+}
+
+// setDefaultSignerVerifier sets the signer and verifier. The newest certificate chain version is
+// used.
+func setDefaultSignerVerifier(c *conf.Conf) error {
+	sign, err := CreateSign(c.PublicAddr.IA, c.Store)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to load TrustStore", err)
+		return err
 	}
-	ctx.TrustDB, err = trustdb.New(filepath.Join(*stateDir, trustdb.Path))
-	if err != nil {
-		return nil, common.NewBasicError("Unable to load trust DB", err)
-	}
-	return ctx, nil
+	c.SetSigner(ctrl.NewBasicSigner(sign, c.GetSigningKey()))
+	c.SetVerifier(&SigVerifier{&ctrl.BasicSigVerifier{}})
+	return nil
 }
 
 // initSNET initializes snet. The number of attempts is specified, as well as the sleep duration.

@@ -17,7 +17,7 @@ package main
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/cert_srv/csctx"
+	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
@@ -124,16 +124,16 @@ func (v *SigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes, erro
 }
 
 func (v *SigVerifier) getChainForSign(s *ctrl.SignSrcDef) (*cert.Chain, error) {
-	c := csctx.Get().Store.GetChain(s.IA, s.ChainVer)
+	c := conf.Get().Store.GetChain(s.IA, s.ChainVer)
 	if c == nil {
 		return nil, common.NewBasicError("Unable to get certificate chain", nil,
 			"ISD-AS", s.IA, "ver", s.ChainVer)
 	}
-	t := csctx.Get().Store.GetTRC(s.IA.I, s.TRCVer)
+	t := conf.Get().Store.GetTRC(s.IA.I, s.TRCVer)
 	if t == nil {
 		return nil, common.NewBasicError("Unable to get TRC", nil, "ISD", s.IA.I, "ver", s.TRCVer)
 	}
-	maxTRC := csctx.Get().Store.GetNewestTRC(t.ISD)
+	maxTRC := conf.Get().Store.GetNewestTRC(t.ISD)
 	if err := t.CheckActive(maxTRC); err != nil {
 		// The certificate chain might still be verifiable with the max TRC
 		t = maxTRC

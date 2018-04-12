@@ -17,7 +17,7 @@ package main
 import (
 	log "github.com/inconshreveable/log15"
 
-	"github.com/scionproto/scion/go/cert_srv/csctx"
+	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -47,11 +47,10 @@ func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
 	d := &Dispatcher{
 		conn:         conn,
 		buf:          make(common.RawBytes, MaxReadBufSize),
-		stop:         make(chan struct{}, 1),
-		stopped:      make(chan struct{}, 1),
+		stop:         make(chan struct{}),
+		stopped:      make(chan struct{}),
 		chainHandler: NewChainHandler(conn),
 		trcHandler:   NewTRCHandler(conn, public.IA),
-		closed:       false,
 	}
 	return d, nil
 }
@@ -60,7 +59,7 @@ func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
 func (d *Dispatcher) Run() {
 	defer close(d.stopped)
 	for {
-		ctx := csctx.Get()
+		config := conf.Get()
 		select {
 		case <-d.stop:
 			return
@@ -72,7 +71,7 @@ func (d *Dispatcher) Run() {
 			}
 			buf := make(common.RawBytes, read)
 			copy(buf, d.buf[:read])
-			if err = d.dispatch(addr, buf, ctx); err != nil {
+			if err = d.dispatch(addr, buf, config); err != nil {
 				log.Error("Unable to dispatch", "err", err)
 			}
 
@@ -81,13 +80,13 @@ func (d *Dispatcher) Run() {
 }
 
 // dispatch hands payload over tho the associated handlers.
-func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, ctx *csctx.Ctx) error {
+func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, config *conf.Conf) error {
 	signed, err := ctrl.NewSignedPldFromRaw(buf)
 	if err != nil {
 		return common.NewBasicError("Unable to parse signed payload", err, "addr", addr)
 	}
 	if signed.Sign != nil {
-		verifier := ctx.Conf.GetVerifier()
+		verifier := config.GetVerifier()
 		if err := ctrl.VerifySig(signed, verifier); err != nil {
 			return common.NewBasicError("Unable to verify signed payload", err, "addr", addr)
 		}
@@ -108,13 +107,13 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, ctx *csctx.C
 		}
 		switch pld.(type) {
 		case *cert_mgmt.Chain:
-			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain), ctx)
+			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain), config)
 		case *cert_mgmt.ChainReq:
-			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq), ctx)
+			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq), config)
 		case *cert_mgmt.TRC:
-			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC), ctx)
+			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC), config)
 		case *cert_mgmt.TRCReq:
-			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq), ctx)
+			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq), config)
 		default:
 			return common.NewBasicError("Handler for cert_mgmt.pld not implemented", nil,
 				"protoID", pld.ProtoId())
@@ -151,8 +150,8 @@ func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
 }
 
 // SendSignedPayload is used to send signed payloads to the specified address using snet.
-func SendSignedPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr, ctx *csctx.Ctx) error {
-	signer := ctx.Conf.GetSigner()
+func SendSignedPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr, config *conf.Conf) error {
+	signer := config.GetSigner()
 	signed, err := signer.Sign(cpld)
 	if err != nil {
 		return err
