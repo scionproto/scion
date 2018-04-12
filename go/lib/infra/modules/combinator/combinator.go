@@ -504,11 +504,9 @@ func (sl PathSolutionList) Swap(i, j int) {
 	sl[i], sl[j] = sl[j], sl[i]
 }
 
+// RemoveAll returns a new slice with the same elements as in sl, minus the
+// ones at the indices contained in slice positions.
 func (sl PathSolutionList) RemoveAll(positions []int) PathSolutionList {
-	if len(sl) < len(positions) {
-		fmt.Printf("GARBAGE %d, %d, %v\n", len(sl), len(positions), positions)
-		return sl
-	}
 	newSL := make(PathSolutionList, len(sl)-len(positions))
 	for srcIndex, dstIndex, skipIndex := 0, 0, 0; srcIndex < len(sl); srcIndex++ {
 		if skipIndex < len(positions) && srcIndex == positions[skipIndex] {
