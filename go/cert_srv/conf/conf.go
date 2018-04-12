@@ -17,6 +17,7 @@ package conf
 import (
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -30,6 +31,7 @@ import (
 const (
 	ErrorAddr      = "Unable to load addresses"
 	ErrorKeyConf   = "Unable to load KeyConf"
+	ErrorConfNil   = "Unable to reload conf from nil value"
 	ErrorStore     = "Unable to load TrustStore"
 	ErrorTopo      = "Unable to load topology"
 	ErrorTrustDB   = "Unable to load trust DB"
@@ -37,6 +39,8 @@ const (
 )
 
 type Conf struct {
+	// ID is the element ID.
+	ID string
 	// Topo contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
 	Topo *topology.Topo
@@ -52,11 +56,9 @@ type Conf struct {
 	keyConf *trust.KeyConf
 	// keyConfLock guards KeyConf, CertVer and TRCVer.
 	keyConfLock sync.RWMutex
-	// customers is a mapping from non-core ASes assigned to this core AS to their public
+	// Customers is a mapping from non-core ASes assigned to this core AS to their public
 	// verifying key.
-	customers Customers
-	// customersLock guards the customers map.
-	customersLock sync.RWMutex
+	Customers *Customers
 	// CacheDir is the cache directory.
 	CacheDir string
 	// ConfDir is the configuration directory.
@@ -65,82 +67,118 @@ type Conf struct {
 	StateDir string
 	// signer is used to sign ctrl payloads.
 	signer ctrl.Signer
-	// SignerLock guards signer.
-	SignerLock sync.RWMutex
+	// signerLock guards signer.
+	signerLock sync.RWMutex
 	// verifier is used to verify ctrl payloads.
 	verifier ctrl.SigVerifier
-	// VerifierLock guards verifier.
-	VerifierLock sync.RWMutex
+	// verifierLock guards verifier.
+	verifierLock sync.RWMutex
 }
 
 // Load initializes the configuration by loading it from confDir.
 func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, error) {
-	var err error
-	conf := &Conf{
+	c := &Conf{
+		ID:       id,
 		ConfDir:  confDir,
 		CacheDir: cacheDir,
 		StateDir: stateDir,
 	}
-	// load topology
-	path := filepath.Join(confDir, topology.CfgName)
-	if conf.Topo, err = topology.LoadFromFile(path); err != nil {
-		return nil, common.NewBasicError(ErrorTopo, err)
+	if err := c.loadTopo(); err != nil {
+		return nil, err
 	}
-	// load public and bind address
-	topoAddr, ok := conf.Topo.CS[id]
-	if !ok {
-		return nil, common.NewBasicError(ErrorAddr, nil, "err", "Element ID not found",
-			"id", id)
+	if err := c.loadStore(); err != nil {
+		return nil, err
 	}
-	publicInfo := topoAddr.PublicAddrInfo(conf.Topo.Overlay)
-	conf.PublicAddr = &snet.Addr{IA: conf.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
-		L4Port: uint16(publicInfo.L4Port)}
-	bindInfo := topoAddr.BindAddrInfo(conf.Topo.Overlay)
-	tmpBind := &snet.Addr{IA: conf.Topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
-		L4Port: uint16(bindInfo.L4Port)}
-	if !tmpBind.EqAddr(conf.PublicAddr) {
-		conf.BindAddr = tmpBind
+	if err := c.loadTrustDB(); err != nil {
+		return nil, err
 	}
-	// load trust store
-	conf.Store, err = trust.NewStore(filepath.Join(confDir, "certs"), cacheDir, id)
-	if err != nil {
-		return nil, common.NewBasicError(ErrorStore, err)
+	if err := c.loadKeyConf(); err != nil {
+		return nil, err
 	}
-	// init trust db
-	conf.TrustDB, err = trustdb.New(filepath.Join(stateDir, trustdb.Path))
-	if err != nil {
-		return nil, common.NewBasicError(ErrorTrustDB, err)
-	}
-	// load key configuration
-	if conf.keyConf, err = conf.loadKeyConf(); err != nil {
-		return nil, common.NewBasicError(ErrorKeyConf, err)
-	}
-	if conf.Topo.Core {
-		// load customers
-		if conf.customers, err = conf.LoadCustomers(); err != nil {
-			return nil, err
+	if c.Topo.Core {
+		var err error
+		if c.Customers, err = c.LoadCustomers(); err != nil {
+			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
 	}
-	return conf, nil
+	return c, nil
 }
 
-// ReloadCustomers reloads the mapping from customer to verifying key.
-func (c *Conf) ReloadCustomers() error {
-	// Makes sure no new files can be written by SetVerifyingKey in the meantime
-	c.customersLock.Lock()
-	defer c.customersLock.Unlock()
-	cust, err := c.LoadCustomers()
-	if err != nil {
-		return common.NewBasicError(ErrorCustomers, err)
+// ReloadConf loads a new configuration based on the old one.
+func ReloadConf(oldConf *Conf) (*Conf, error) {
+	if oldConf == nil {
+		return nil, common.NewBasicError(ErrorConfNil, nil)
 	}
-	c.customers = cust
+	// FIXME(roosd): Changing keys for customers outside of the process on-disk
+	// requires a restart of the certificate server in order to be visible.
+	c := &Conf{
+		ID:        oldConf.ID,
+		TrustDB:   oldConf.TrustDB,
+		Customers: oldConf.Customers,
+		ConfDir:   oldConf.ConfDir,
+		CacheDir:  oldConf.CacheDir,
+		StateDir:  oldConf.StateDir,
+	}
+	if err := c.loadTopo(); err != nil {
+		return nil, err
+	}
+	if err := c.loadStore(); err != nil {
+		return nil, err
+	}
+	if err := c.loadKeyConf(); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// loadTopo loads the topology information.
+func (c *Conf) loadTopo() (err error) {
+	path := filepath.Join(c.ConfDir, topology.CfgName)
+	if c.Topo, err = topology.LoadFromFile(path); err != nil {
+		return common.NewBasicError(ErrorTopo, err)
+	}
+	// load public and bind address
+	topoAddr, ok := c.Topo.CS[c.ID]
+	if !ok {
+		return common.NewBasicError(ErrorAddr, nil, "err", "Element ID not found", "id", c.ID)
+	}
+	publicInfo := topoAddr.PublicAddrInfo(c.Topo.Overlay)
+	c.PublicAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
+		L4Port: uint16(publicInfo.L4Port)}
+	bindInfo := topoAddr.BindAddrInfo(c.Topo.Overlay)
+	tmpBind := &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
+		L4Port: uint16(bindInfo.L4Port)}
+	if !tmpBind.EqAddr(c.PublicAddr) {
+		c.BindAddr = tmpBind
+	}
 	return nil
 }
 
-// loadKeyConf loads key configuration.
-func (c *Conf) loadKeyConf() (*trust.KeyConf, error) {
-	return trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
+// loadStore loads the trust store.
+func (c *Conf) loadStore() (err error) {
+	c.Store, err = trust.NewStore(filepath.Join(c.ConfDir, "certs"), c.CacheDir, c.ID)
+	if err != nil {
+		return common.NewBasicError(ErrorStore, err)
+	}
+	return nil
+}
+
+// loadTrustDB loads the trustdb.
+func (c *Conf) loadTrustDB() (err error) {
+	if c.TrustDB, err = trustdb.New(filepath.Join(c.StateDir, trustdb.Path)); err != nil {
+		return common.NewBasicError(ErrorTrustDB, err)
+	}
+	return nil
+}
+
+// loadKeyConf loads the key configuration.
+func (c *Conf) loadKeyConf() (err error) {
+	c.keyConf, err = trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
 		c.Topo.Core, false)
+	if err != nil {
+		return common.NewBasicError(ErrorKeyConf, err)
+	}
+	return nil
 }
 
 // GetSigningKey returns the signing key of the current key configuration.
@@ -166,28 +204,44 @@ func (c *Conf) GetOnRootKey() common.RawBytes {
 
 // GetSigner returns the signer of the current configuration.
 func (c *Conf) GetSigner() ctrl.Signer {
-	c.SignerLock.RLock()
-	defer c.SignerLock.RUnlock()
+	c.signerLock.RLock()
+	defer c.signerLock.RUnlock()
 	return c.signer
 }
 
 // SetSigner sets the signer of the current configuration.
 func (c *Conf) SetSigner(signer ctrl.Signer) {
-	c.SignerLock.Lock()
-	defer c.SignerLock.Unlock()
+	c.signerLock.Lock()
+	defer c.signerLock.Unlock()
 	c.signer = signer
 }
 
 // GetVerifier returns the verifier of the current configuration.
 func (c *Conf) GetVerifier() ctrl.SigVerifier {
-	c.VerifierLock.RLock()
-	defer c.VerifierLock.RUnlock()
+	c.verifierLock.RLock()
+	defer c.verifierLock.RUnlock()
 	return c.verifier
 }
 
 // SetVerifier sets the verifier of the current configuration.
 func (c *Conf) SetVerifier(verifier ctrl.SigVerifier) {
-	c.VerifierLock.Lock()
-	defer c.VerifierLock.Unlock()
+	c.verifierLock.Lock()
+	defer c.verifierLock.Unlock()
 	c.verifier = verifier
+}
+
+var conf atomic.Value
+
+// Get returns a pointer to the current configuration.
+func Get() *Conf {
+	c := conf.Load()
+	if c != nil {
+		return c.(*Conf)
+	}
+	return nil
+}
+
+// Set updates the current configuration.
+func Set(c *Conf) {
+	conf.Store(c)
 }

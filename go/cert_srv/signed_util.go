@@ -17,23 +17,26 @@ package main
 import (
 	"time"
 
+	"github.com/scionproto/scion/go/cert_srv/conf"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
 const SignatureValidity = 2 * time.Second
 
-func CreateSign() (*proto.SignS, error) {
-	c := config.Store.GetNewestChain(config.PublicAddr.IA)
+func CreateSign(ia addr.IA, store *trust.Store) (*proto.SignS, error) {
+	c := store.GetNewestChain(ia)
 	if c == nil {
 		return nil, common.NewBasicError("Unable to find local certificate chain", nil)
 	}
-	t := config.Store.GetNewestTRC(config.PublicAddr.IA.I)
+	t := store.GetNewestTRC(ia.I)
 	if t == nil {
 		return nil, common.NewBasicError("Unable to find local TRC", nil)
 	}
@@ -46,7 +49,7 @@ func CreateSign() (*proto.SignS, error) {
 			c.Leaf.SignAlgorithm)
 	}
 	src := &ctrl.SignSrcDef{
-		IA:       config.PublicAddr.IA,
+		IA:       ia,
 		ChainVer: c.Leaf.Version,
 		TRCVer:   t.Version}
 	return proto.NewSignS(sigType, src.Pack()), nil
@@ -121,16 +124,16 @@ func (v *SigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes, erro
 }
 
 func (v *SigVerifier) getChainForSign(s *ctrl.SignSrcDef) (*cert.Chain, error) {
-	c := config.Store.GetChain(s.IA, s.ChainVer)
+	c := conf.Get().Store.GetChain(s.IA, s.ChainVer)
 	if c == nil {
 		return nil, common.NewBasicError("Unable to get certificate chain", nil,
 			"ISD-AS", s.IA, "ver", s.ChainVer)
 	}
-	t := config.Store.GetTRC(s.IA.I, s.TRCVer)
+	t := conf.Get().Store.GetTRC(s.IA.I, s.TRCVer)
 	if t == nil {
 		return nil, common.NewBasicError("Unable to get TRC", nil, "ISD", s.IA.I, "ver", s.TRCVer)
 	}
-	maxTRC := config.Store.GetNewestTRC(t.ISD)
+	maxTRC := conf.Get().Store.GetNewestTRC(t.ISD)
 	if err := t.CheckActive(maxTRC); err != nil {
 		// The certificate chain might still be verifiable with the max TRC
 		t = maxTRC

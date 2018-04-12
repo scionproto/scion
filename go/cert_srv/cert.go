@@ -19,6 +19,7 @@ import (
 
 	log "github.com/inconshreveable/log15"
 
+	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -41,7 +42,7 @@ func NewChainHandler(conn *snet.Conn) *ChainHandler {
 
 // HandleReq handles certificate chain requests. If the certificate chain is not already cached
 // and the cache-only flag is set or the requester is from a remote AS, the request is dropped.
-func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq) {
+func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq, config *conf.Conf) {
 	log.Info("Received certificate chain request", "addr", a, "req", req)
 	var chain *cert.Chain
 	if req.Version == cert_mgmt.NewestVersion {
@@ -103,7 +104,7 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 }
 
 // HandleRep handles certificate chain replies. Pending requests are answered and removed.
-func (h *ChainHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.Chain) {
+func (h *ChainHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.Chain, config *conf.Conf) {
 	log.Info("Received certificate chain reply", "addr", a, "rep", rep)
 	chain, err := rep.Chain()
 	if err != nil {
