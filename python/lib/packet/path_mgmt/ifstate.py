@@ -21,7 +21,7 @@ import capnp  # noqa
 # SCION
 import proto.if_state_capnp as P
 from lib.packet.packet_base import Cerealizable
-from lib.packet.proto_sign import ProtoSignedBlob
+from lib.packet.path_mgmt.rev_info import SignedRevInfo
 
 
 class IFStateInfo(Cerealizable):  # pragma: no cover
@@ -40,9 +40,9 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
             p.revInfo = signed_rev_info.p
         return cls(p)
 
-    def rev_info(self):
+    def srev_info(self):
         if self.p.revInfo:
-            return ProtoSignedBlob(self.p.revInfo)
+            return SignedRevInfo(self.p.revInfo)
         return None
 
     def short_desc(self):

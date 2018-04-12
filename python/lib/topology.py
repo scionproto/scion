@@ -99,7 +99,7 @@ class InterfaceElement(Element):
         self.if_id = int(if_id)
         self.addr_idx = interface_dict['InternalAddrIdx']
         self.isd_as = ISD_AS(interface_dict['ISD_AS'])
-        self.link_type = interface_dict['LinkTo']
+        self.link_type = interface_dict['LinkTo'].lower()
         self.bandwidth = interface_dict['Bandwidth']
         self.mtu = interface_dict['MTU']
         self.overlay = interface_dict['Overlay']

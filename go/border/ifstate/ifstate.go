@@ -68,17 +68,17 @@ type state struct {
 type Info struct {
 	IfID         common.IFIDType
 	Active       bool
-	RevInfo      *path_mgmt.SignedRevInfo
+	SRevInfo     *path_mgmt.SignedRevInfo
 	RawRev       common.RawBytes
 	ActiveMetric prometheus.Gauge
 }
 
-func NewInfo(ifID common.IFIDType, active bool, rev *path_mgmt.SignedRevInfo,
+func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
 	rawRev common.RawBytes) *Info {
 	i := &Info{
 		IfID:         ifID,
 		Active:       active,
-		RevInfo:      rev,
+		SRevInfo:     srev,
 		RawRev:       rawRev,
 		ActiveMetric: metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifID)),
 	}
@@ -96,15 +96,15 @@ func Process(ifStates *path_mgmt.IFStateInfos) {
 	for _, info := range ifStates.Infos {
 		var rawRev common.RawBytes
 		ifid := common.IFIDType(info.IfID)
-		if info.RevInfo != nil {
+		if info.SRevInfo != nil {
 			var err error
-			rawRev, err = proto.PackRoot(info.RevInfo)
+			rawRev, err = proto.PackRoot(info.SRevInfo)
 			if err != nil {
-				log.Error("Unable to pack RevInfo", "err", err)
+				log.Error("Unable to pack SRevInfo", "err", err)
 				return
 			}
 		}
-		stateInfo := NewInfo(ifid, info.Active, info.RevInfo, rawRev)
+		stateInfo := NewInfo(ifid, info.Active, info.SRevInfo, rawRev)
 		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)

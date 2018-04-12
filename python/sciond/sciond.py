@@ -40,9 +40,12 @@ from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import (
+    RevocationInfo,
+    SignedRevInfo,
+    SignedRevInfoVerificationError
+)
 from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
-from lib.packet.proto_sign import ProtoSignedBlob
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_combinator import build_shortcut_paths, tuples_to_full_paths
@@ -79,7 +82,7 @@ from lib.types import (
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
-    ProtoLinkType,
+    LinkType,
     SCIONDMsgType as SMT,
     ServiceType,
     TypeBase,
@@ -190,15 +193,10 @@ class SCIONDaemon(SCIONElement):
         path_reply = pmgt.union
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
         recs = path_reply.recs()
-        for signed_rev_info in recs.iter_rev_infos():
-            rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
-            # Verify signature
-            cert = self.trust_store.get_cert(rev_info.isd_as())
-            if not cert:
-                logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
-            if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
-                logging.error("Failed to verify signature!")
-            self.rev_cache.add(rev_info)
+        for srev_info in recs.iter_srev_infos():
+            if not self.check_revocation(srev_info, meta):
+                continue
+            self.rev_cache.add(srev_info)
 
         req = path_reply.req()
         key = req.dst_ia(), req.flags()
@@ -377,7 +375,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_rev_notification(self, pld, meta):
         request = pld.union
         assert isinstance(request, SCIONDRevNotification), type(request)
-        status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
+        status = self.handle_revocation(CtrlPayload(PathMgmt(request.srev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
         self.send_meta(rev_reply.pack(), meta)
 
@@ -415,66 +413,49 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
-        signed_rev_info = ProtoSignedBlob.from_raw(pld.info.rev_info)
-        self.handle_revocation(CtrlPayload(PathMgmt(signed_rev_info)), meta)
+        srev_info = SignedRevInfo.from_raw(pld.info.rev_info)
+        self.handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def handle_revocation(self, cpld, meta):
         pmgt = cpld.union
-        signed_rev_info = pmgt.union
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        srev_info = pmgt.union
+        rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Revocation info received: %s", rev_info.short_desc())
         try:
             rev_info.validate()
         except SCIONBaseError as e:
-            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
+            logging.error("Failed to validate RevInfo from %s: %s", meta, e)
             return SCIONDRevReplyStatus.INVALID
-        # Verify the revocation is in the validity window
-        active = rev_info.active()
-        if not active:
-            logging.error(
+        if not rev_info.active():
+            logging.warning(
                 "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
-                % (rev_info.p.timestamp, str(time.time()), rev_info.p.revTTL))
-            return SCIONDRevReplyStatus.INVALID
-        # Verify signature
+                % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
+            return SCIONDRevReplyStatus.STALE
         cert = self.trust_store.get_cert(rev_info.isd_as())
         if not cert:
-            logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
-        if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
-            logging.error("Failed to verify signature!")
-            return SCIONDRevReplyStatus.INVALID
+            logging.error("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+            return SCIONDRevReplyStatus.UNKNOWN
+        try:
+            srev_info.verify(cert.as_cert.subject_sig_key_raw)
+        except SignedRevInfoVerificationError as e:
+            logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
+            return SCIONDRevReplyStatus.SIGFAIL
 
-        self.rev_cache.add(rev_info)
+        self.rev_cache.add(srev_info)
         # Go through all segment databases and remove affected segments.
         removed_up = removed_core = removed_down = 0
-        if rev_info.p.linkType == ProtoLinkType.CORE:
+        if rev_info.p.linkType == LinkType.CORE:
             removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
-        elif rev_info.p.linkType == ProtoLinkType.PARENT or \
-                rev_info.p.linkType == ProtoLinkType.CHILD:
+        elif rev_info.p.linkType in [LinkType.PARENT, LinkType.CHILD]:
             removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
             removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
-        elif rev_info.p.linkType != ProtoLinkType.PEER:
+        elif rev_info.p.linkType != LinkType.PEER:
             logging.error("Bad RevInfo link type: %s", rev_info.p.linkType)
 
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
                      (removed_up, removed_core, removed_down))
-        total = removed_up + removed_core + removed_down
-        if total > 0:
-            return SCIONDRevReplyStatus.VALID
-        else:
-            # FIXME(scrye): UNKNOWN is returned in the following situations:
-            #  - No matching segments exist
-            #  - Matching segments exist, but the revoked interface is part of
-            #  a peering link; new path queries sent to SCIOND won't use the
-            #  link, but nothing is immediately revoked
-            #
-            # This should be fixed in the future to provide clearer meaning
-            # behind why the revocation could not be validated.
-            #
-            # For now, if applications receive an UNKOWN reply to a revocation,
-            # they should strongly consider flushing paths containing the
-            # interface.
-            return SCIONDRevReplyStatus.UNKNOWN
+        return SCIONDRevReplyStatus.VALID
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
@@ -492,7 +473,7 @@ class SCIONDaemon(SCIONElement):
         to_remove = []
         for segment in db(full=True):
             for asm in segment.iter_asms():
-                if self._verify_revocation_for_asm(rev_info, asm, verify_all=False):
+                if self._check_revocation_for_asm(rev_info, asm, verify_all=False):
                     logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)

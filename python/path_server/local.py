@@ -23,7 +23,6 @@ from lib.defines import GEN_CACHE_PATH
 from lib.packet.svc import SVCType
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path_mgmt.base import PathMgmt
-from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.packet.path_mgmt.seg_req import PathSegmentReq
 from lib.path_db import PathSegmentDB
 from lib.types import PathSegmentType as PST
@@ -166,23 +165,23 @@ class LocalPathServer(PathServer):
                                 host=SVCType.PS_A, reuse=True)
         self.send_meta(CtrlPayload(PathMgmt(req.copy())), meta)
 
-    def _forward_revocation(self, signed_rev_info, meta):
+    def _forward_revocation(self, srev_info, meta):
         # Inform core ASes if the revoked interface belongs to this AS or
         # the revocation originates from a different ISD.
-        rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
+        rev_info = srev_info.rev_info()
         rev_isd_as = rev_info.isd_as()
         if (rev_isd_as == self.addr.isd_as or
                 rev_isd_as[0] != self.addr.isd_as[0]):
-            self._send_rev_to_core(signed_rev_info, rev_info)
+            self._send_rev_to_core(srev_info)
 
-    def _send_rev_to_core(self, signed_rev_info, rev_info):
+    def _send_rev_to_core(self, srev_info):
         """
         Forwards a revocation to a core path service.
 
-        :param signed_rev_info: ProtoSignedBlob
-        :param rev_info: RevocationInfo
+        :param signed_rev_info: SignedRevInfo
         """
         # Issue revocation to all core ASes excluding self.
+        rev_info = srev_info.rev_inf()
         paths = self.up_segments()
         if not paths:
             logging.warning("No paths to core ASes available for forwarding "
@@ -194,4 +193,4 @@ class LocalPathServer(PathServer):
         logging.info("Forwarding Revocation to %s using path:\n%s" %
                      (core_ia, seg.short_desc()))
         meta = self._build_meta(ia=core_ia, path=path, host=SVCType.PS_A)
-        self.send_meta(CtrlPayload(PathMgmt(signed_rev_info.copy())), meta)
+        self.send_meta(CtrlPayload(PathMgmt(srev_info.copy())), meta)
