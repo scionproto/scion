@@ -250,6 +250,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The RevocationInfo object.
         """
         pmgt = cpld.union
+        logging.critical(meta)
         signed_rev_info = pmgt.union
         rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
@@ -325,7 +326,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for core_segment in self.core_segments:
                 core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
 
-            logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
+        logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
                           (rev_info.short_desc(), up_segs_removed, down_segs_removed,
                            core_segs_removed))
 

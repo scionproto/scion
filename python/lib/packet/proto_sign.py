@@ -44,7 +44,7 @@ class ProtoSign(Cerealizable):
         assert isinstance(src, bytes), type(src)
         return cls(cls.P_CLS.new_message(type=type_, src=src))
 
-    def sign(self, key, msg):
+    def sign(self, key, msg, ts=None):
         assert isinstance(msg, bytes), type(msg)
         if len(msg) == 0:
             raise ProtoSignError("Message is empty (sign)")
@@ -52,9 +52,11 @@ class ProtoSign(Cerealizable):
             raise ProtoSignError("Signature already present")
         if self.p.type == ProtoSignType.ED25519:
             self.p.signature = sign(self._sig_input(msg), key)
-            self.p.timestamp = int(time.time())
         else:
             raise ProtoSignError("Unsupported proto signature type (sign): %s" % self.p.type)
+        if ts is None:
+            ts = time.time()
+        self.p.timestamp = int(ts)
 
     def verify(self, key, msg):
         assert isinstance(msg, bytes), type(msg)

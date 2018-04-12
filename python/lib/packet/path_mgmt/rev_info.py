@@ -27,11 +27,20 @@ from lib.defines import MIN_REVOCATION_TTL
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.scion_addr import ISD_AS
+from lib.types import LinkType
 from lib.util import iso_timestamp
 
 
 class RevInfoValidationError(SCIONBaseError):
     """Validation of RevInfo failed"""
+
+
+class SignedRevInfo(Cerealizable):
+    """
+    Wrapper for signed revocation information.
+    """
+    NAME = "SignedRevocationInfo"
+    P_CLS = P.SignedBlob
 
 
 class RevocationInfo(Cerealizable):
@@ -42,7 +51,7 @@ class RevocationInfo(Cerealizable):
     P_CLS = P.RevInfo
 
     @classmethod
-    def from_values(cls, isd_as, if_id, link_type, timestamp, revTTL=MIN_REVOCATION_TTL):
+    def from_values(cls, isd_as, if_id, link_type, timestamp, ttl=MIN_REVOCATION_TTL):
         """
         Returns a RevocationInfo object with the specified values.
 
@@ -50,11 +59,11 @@ class RevocationInfo(Cerealizable):
         :param int if_id: ID of the interface to be revoked
         :param str link_type: Link type of the revoked interface
         :param int timestamp: Revocation creation timestamp in seconds
-        :param int revTTL: Revocation validity period in seconds
+        :param int ttl: Revocation validity period in seconds
         """
-        assert revTTL >= MIN_REVOCATION_TTL
+        assert ttl >= MIN_REVOCATION_TTL, ttl
         return cls(cls.P_CLS.new_message(isdas=int(isd_as), ifID=if_id, linkType=link_type,
-                                         timestamp=timestamp, revTTL=revTTL))
+                                         timestamp=timestamp, ttl=ttl))
 
     def isd_as(self):
         return ISD_AS(self.p.isdas)
@@ -62,8 +71,9 @@ class RevocationInfo(Cerealizable):
     def validate(self):
         if self.p.timestamp > int(time.time()) + 1:
             raise RevInfoValidationError("Timestamp in the future: %s" % self.p.timestamp)
-        if self.p.revTTL < MIN_REVOCATION_TTL:
-            raise RevInfoValidationError("TTL is too small: %s" % self.p.revTTL)
+        if self.p.ttl < MIN_REVOCATION_TTL:
+            raise RevInfoValidationError(
+                "TTL is too small: %s MinTTL: %s" % (self.p.ttl, MIN_REVOCATION_TTL))
         if self.p.ifID == 0:
             raise RevInfoValidationError("Invalid ifID: %s" % self.p.ifID)
         self.isd_as()
@@ -71,16 +81,16 @@ class RevocationInfo(Cerealizable):
     def active(self):
         now = int(time.time())
         # Make sure the revocation timestamp is within the validity window
-        assert self.p.timestamp <= now + 1
-        return now < (self.p.timestamp + self.p.revTTL)
+        assert self.p.timestamp <= now + 1, self.p.timestamp
+        return now < (self.p.timestamp + self.p.ttl)
 
     def cmp_str(self):
         b = []
         b.append(self.p.isdas.to_bytes(8, 'big'))
         b.append(self.p.ifID.to_bytes(8, 'big'))
-        b.append(self.p.linkType.raw.to_bytes(8, 'big'))
-        b.append(self.p.timestamp.to_bytes(8, 'big'))
-        b.append(self.p.revTTL.to_bytes(8, 'big'))
+        b.append(self.p.linkType.raw.to_bytes(2, 'big'))
+        b.append(self.p.timestamp.to_bytes(4, 'big'))
+        b.append(self.p.ttl.to_bytes(4, 'big'))
         return b"".join(b)
 
     def __eq__(self, other):
@@ -93,6 +103,6 @@ class RevocationInfo(Cerealizable):
         return hash(self.cmp_str())
 
     def short_desc(self):
-        return "RevInfo: %s IF: %s Link type: %s Timestamp: %s TTL: %s" % (
-            self.isd_as(), self.p.ifID, self.p.linkType,
-            iso_timestamp(self.p.timestamp), self.p.revTTL)
+        return "RevInfo: %s IF: %s Link type: %s Timestamp: %s TTL: %ss" % (
+            self.isd_as(), self.p.ifID, LinkType.to_str(self.p.linkType),
+            iso_timestamp(self.p.timestamp), self.p.ttl)

@@ -79,7 +79,7 @@ from lib.types import (
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
-    ProtoLinkType,
+    LinkType,
     SCIONDMsgType as SMT,
     ServiceType,
     TypeBase,
@@ -194,7 +194,9 @@ class SCIONDaemon(SCIONElement):
             cert = self.trust_store.get_cert(rev_info.isd_as())
             if not cert:
                 logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+                # TODO
             if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
+                # TODO 
                 logging.error("Failed to verify signature!")
             self.rev_cache.add(rev_info)
 
@@ -432,12 +434,13 @@ class SCIONDaemon(SCIONElement):
         if not active:
             logging.error(
                 "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
-                % (rev_info.p.timestamp, str(time.time()), rev_info.p.revTTL))
+                % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
             return SCIONDRevReplyStatus.INVALID
         # Verify signature
         cert = self.trust_store.get_cert(rev_info.isd_as())
         if not cert:
             logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+            # TODO
         if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
             logging.error("Failed to verify signature!")
             return SCIONDRevReplyStatus.INVALID
@@ -445,13 +448,13 @@ class SCIONDaemon(SCIONElement):
         self.rev_cache.add(rev_info)
         # Go through all segment databases and remove affected segments.
         removed_up = removed_core = removed_down = 0
-        if rev_info.p.linkType == ProtoLinkType.CORE:
+        if rev_info.p.linkType == LinkType.CORE:
             removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
-        elif rev_info.p.linkType == ProtoLinkType.PARENT or \
-                rev_info.p.linkType == ProtoLinkType.CHILD:
+        elif rev_info.p.linkType == LinkType.PARENT or \
+                rev_info.p.linkType == LinkType.CHILD:
             removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
             removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
-        elif rev_info.p.linkType != ProtoLinkType.PEER:
+        elif rev_info.p.linkType != LinkType.PEER:
             logging.error("Bad RevInfo link type: %s", rev_info.p.linkType)
 
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %

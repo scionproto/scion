@@ -64,12 +64,12 @@ class TestRevCacheGet:
 
 class TestRevCacheAdd:
     """Unit tests for lib.rev_cache.RevCache.add"""
-    def _create_rev_info(self, isd_as, if_id, link_type=LinkType.CORE,
-                         timestamp=int(time.time()), revTTL=10):
+    def _create_rev_info(self, isd_as, if_id, link_type=LinkType.CORE, timestamp=None, ttl=10):
+        timestamp = int(timestamp or time.time())
         rev_info_p = create_mock_full({"ifID": if_id, "link_type": link_type,
-                                       "timestamp": timestamp, "revTTL": revTTL})
+                                       "timestamp": timestamp, "ttl": ttl})
         now = int(time.time())
-        active = (timestamp <= now + 1) and now < (timestamp + revTTL)
+        active = (timestamp <= now + 1) and now < (timestamp + ttl)
         rev_info = create_mock_full({"isd_as()": isd_as,
                                      "active()": active, "p": rev_info_p})
 

@@ -66,7 +66,7 @@ class RevCache:
     def contains_key(self, key):  # pragma: no cover
         with self._lock:
             stored_info = self._cache.get(key)
-            return stored_info and self._validate_entry(stored_info)
+            return stored_info and self._check_active(stored_info)
 
     def __getitem__(self, key):  # pragma: no cover
         return self.get(key)
@@ -77,25 +77,21 @@ class RevCache:
                 rev_info = self._cache[key]
             except KeyError:
                 return default
-            if self._validate_entry(rev_info):
+            if self._check_active(rev_info):
                 return rev_info
             return default
 
     def values(self):
         """
-        Return all validated values
+        Return all active revocations
         :return: list(RevocationInfo)
         """
         with self._lock:
-            rev_infos = self._cache.values()
-            to_return = []
-            for rev_info in rev_infos:
-                if rev_info.active():
-                    to_return.append(rev_info)
-            # Validate entries
-            for k in list(self._cache.keys()):
-                self._validate_entry(self._cache[k])
-            return to_return
+            ret = []
+            for v in list(self._cache.values()):
+                if self._check_active(v):
+                    ret.append(v)
+            return ret
 
     def add(self, rev_info):
         """
@@ -112,7 +108,7 @@ class RevCache:
                 # Try to free up space in case the cache reaches the cap limit.
                 if len(self._cache) >= self._capacity:
                     for info in list(self._cache.values()):
-                        self._validate_entry(info)
+                        self._check_active(info)
                 # Couldn't free up enough space...
                 if len(self._cache) >= self._capacity:
                     logging.error("Revocation cache full!.")
@@ -132,7 +128,7 @@ class RevCache:
                 return True
             return False
 
-    def _validate_entry(self, rev_info):  # pragma: no cover
+    def _check_active(self, rev_info):  # pragma: no cover
         """
         Removes an expired revocation from the cache.
         :param type: RevocationInfo

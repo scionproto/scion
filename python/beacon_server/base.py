@@ -75,7 +75,6 @@ from lib.types import (
     CertMgmtType,
     PathMgmtType as PMT,
     PayloadClass,
-    ProtoLinkType,
 )
 from lib.util import (
     SCIONTime,
@@ -551,9 +550,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         infos = []
         for if_id in revoked_ifs:
             br = self.ifid2br[if_id]
-            link_type = ProtoLinkType.from_string(br.interfaces[if_id].link_type)
             rev_info = RevocationInfo.from_values(
-                self.addr.isd_as, if_id, link_type, int(time.time()), MIN_REVOCATION_TTL)
+                self.addr.isd_as, if_id, br.interfaces[if_id].link_type,
+                int(time.time()), self.REVOCATION_TTL)
             logging.info("Issuing revocation: %s", rev_info.short_desc())
             if self._labels:
                 REVOCATIONS_ISSUED.labels(**self._labels).inc()
@@ -593,6 +592,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_revocation(self, cpld, meta):
         pmgt = cpld.union
+        logging.critical(meta)
         signed_rev_info = ProtoSignedBlob(pmgt.union)
         rev_info = RevocationInfo.from_raw(signed_rev_info.p.blob)
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
@@ -608,12 +608,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if not active:
             logging.error(
                 "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
-                % (rev_info.p.timestamp, str(time.time()), rev_info.p.revTTL))
+                % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
             return
         # Verify signature
         cert = self.trust_store.get_cert(rev_info.isd_as())
         if not cert:
             logging.warning("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+            return
         if not signed_rev_info.verify(cert.as_cert.subject_sig_key_raw):
             logging.error("Failed to verify signature!")
             return
@@ -712,8 +713,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     if not if_state.is_expired():
                         # Interface hasn't timed out
                         continue
-                    if if_state.is_revoked() and \
-                            if_id_last_revoked[if_id] + self.REVOCATION_TTL > int(time.time()):
+                    if (if_state.is_revoked() and 
+                        if_id_last_revoked[if_id] + self.REVOCATION_TTL > int(time.time())):
                         # Interface has already been revoked within the REVOCATION_TTL
                         continue
                     if_id_last_revoked[if_id] = int(time.time())
@@ -738,20 +739,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 # Don't include inactive interfaces in update.
                 if state.is_inactive():
                     continue
+                signed_rev_info = None
                 if state.is_revoked():
                     br = self.ifid2br[ifid]
-                    link_type = ProtoLinkType.from_string(br.interfaces[ifid].link_type)
                     rev_info = RevocationInfo.from_values(
-                        self.addr.isd_as, ifid, link_type, int(time.time()),
-                        MIN_REVOCATION_TTL)
+                        self.addr.isd_as, ifid, br.interfaces[ifid].link_type,
+                        int(time.time()), self.REVOCATION_TTL)
                     signed_rev_info = ProtoSignedBlob.from_values(
                         rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
                     signed_rev_info.sign(self.signing_key)
-                    info = IFStateInfo.from_values(ifid, state.is_active(), signed_rev_info)
-                else:
-                    info = IFStateInfo.from_values(ifid, state.is_active(), None)
-
-                infos.append(info)
+                infos.append(IFStateInfo.from_values(ifid, state.is_active(), signed_rev_info))
             if not infos and not self._quiet_startup():
                 logging.warning("No IF state info to put in IFState update for %s.", meta)
                 return
