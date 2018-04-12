@@ -33,6 +33,8 @@ class ISD_AS(Serializable):
     Class for representing ISD-AS pair. The underlying type is a 64-bit unsigned int; ISD is
     represented by the top 16 bits (though the top 4 bits are currently reserved), and AS by the
     lower 48 bits.
+    See formatting and allocations here:
+    https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering
     """
     NAME = "ISD_AS"
     LEN = 8
@@ -40,6 +42,12 @@ class ISD_AS(Serializable):
     MAX_ISD = (1 << ISD_BITS) - 1
     AS_BITS = 48
     MAX_AS = (1 << AS_BITS) - 1
+    BGP_AS_BITS = 32
+    MAX_BGP_AS = (1 << BGP_AS_BITS) - 1
+    HEX_AS_PARTS = 3  # E.g. ff00:0:abcd
+    HEX_SEPARATOR = ":"
+    HEX_FILE_SEPARATOR = "_"
+    MAX_HEX_AS_PART = 0xffff
 
     def __init__(self, raw=None):
         self._isd = 0
@@ -70,26 +78,47 @@ class ISD_AS(Serializable):
         if len(parts) != 2:
             raise SCIONParseError("Unable to split ISD-AS in string: %s" % raw)
         isd_s, as_s = parts
+        self._parse_isd_str(isd_s)
+        for as_sep in [self.HEX_SEPARATOR, self.HEX_FILE_SEPARATOR]:
+            if as_sep in as_s:
+                self._parse_hex_as(as_s, as_sep)
+                break
+        else:
+            self._parse_dec_as(as_s)
+
+    def _parse_isd_str(self, raw):
         try:
-            self._isd = int(isd_s)
+            self._isd = int(raw)
         except ValueError:
-            raise SCIONParseError("Unable to parse ISD from string: %s" % raw)
+            raise SCIONParseError("Unable to parse ISD from string: %s" % raw) from None
         if self._isd > self.MAX_ISD:
             raise SCIONParseError("ISD too large (max: %d): %s" % (self.MAX_ISD, raw))
-        if '_' in as_s:
-            as_parts = as_s.split("_")
-            for i, s in enumerate(as_parts):
-                if i == 0:
-                    if len(s) == 0 or len(s) > 3:
-                        raise SCIONParseError("Malformed _-separated AS: %s" % raw)
-                    continue
-                if len(s) != 3:
-                        raise SCIONParseError("Malformed _-separated AS: %s" % raw)
-            as_s = "".join(as_parts)
+
+    def _parse_dec_as(self, raw):
         try:
-            self._as = int(as_s)
+            self._as = int(raw, base=10)
         except ValueError:
-            raise SCIONParseError("Unable to parse AS from string: %s" % raw)
+            raise SCIONParseError("Unable to parse decimal AS from string: %s" % raw) from None
+        if self._as > self.MAX_BGP_AS:
+            raise SCIONParseError("Decimal AS too large (max: %d): %s" % (self.MAX_BGP_AS, raw))
+
+    def _parse_hex_as(self, raw, as_sep=HEX_SEPARATOR):
+        try:
+            as_parts = raw.split(as_sep)
+        except ValueError:
+            raise SCIONParseError("Unable to parse hex AS from string: %s" % raw) from None
+        if len(as_parts) != self.HEX_AS_PARTS:
+            raise SCIONParseError(
+                "Wrong number of separators (%s) in hex AS number (expected: %d actual: %s): %s" %
+                (self.HEX_SEPARATOR, self.HEX_AS_PARTS,  as_parts, raw))
+        self._as = 0
+        for i, s in enumerate(as_parts):
+            self._as <<= 16
+            v = int(s, base=16)
+            if v > self.MAX_HEX_AS_PART:
+                raise SCIONParseError("Hex AS number has part greater than %x: %s" %
+                                      (self.MAX_HEX_AS_PART, raw))
+            self._as |= v
         if self._as > self.MAX_AS:
             raise SCIONParseError("AS too large (max: %d): %s" % (self.MAX_AS, raw))
 
@@ -153,22 +182,27 @@ class ISD_AS(Serializable):
             return "%s [Illegal ISD: larger than %d]" % (s, self.MAX_ISD)
         return s
 
-    def as_str(self):
+    def as_str(self, sep=HEX_SEPARATOR):
         dec_str = str(self._as)
         if self._as > self.MAX_AS:
             return "%s [Illegal AS: larger than %d]" % (dec_str, self.MAX_AS)
-        l = len(dec_str)
+        if self._as <= self.MAX_BGP_AS:
+            return str(self._as)
         s = []
-        start = 0
-        end = (l % 3) or 3
-        while end <= l:
-            s.append(dec_str[start:end])
-            start = end
-            end += 3
-        return "_".join(s)
+        as_ = self._as
+        for i in range(self.HEX_AS_PARTS):
+            s.insert(0, "%x" % (as_ & self.MAX_HEX_AS_PART))
+            as_ >>= 16
+        return sep.join(s)
 
-    def __str__(self):
-        return "%s-%s" % (self.isd_str(), self.as_str())
+    def as_file_fmt(self):
+        return self.as_str(self.HEX_FILE_SEPARATOR)
+
+    def file_fmt(self):
+        return "%s-%s" % (self.isd_str(), self.as_file_fmt())
+
+    def __str__(self, as_sep=HEX_SEPARATOR):
+        return "%s-%s" % (self.isd_str(), self.as_str(as_sep))
 
     def __repr__(self):  # pragma: no cover
         return "ISD_AS(isd=%s, as=%s)" % (self._isd, self._as)

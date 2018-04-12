@@ -32,7 +32,7 @@ import (
 var _ fmt.Stringer = (*Certificate)(nil)
 
 var (
-	fnLeaf         = "testdata/ISD1-AS4_294_967_311-V1.leaf"
+	fnLeaf         = "testdata/ISD1-ASff00_0_311-V1.leaf"
 	fnNoIndentLeaf = "testdata/noindent.leaf"
 
 	rawSignature = common.RawBytes{0xdf, 0xa7, 0x61, 0xa1, 0xb5, 0x6c, 0x3c, 0x1b, 0x7a, 0x52,
@@ -62,8 +62,8 @@ func Test_CertificateFromRaw(t *testing.T) {
 		SoMsg("SignAlgo", cert.SignAlgorithm, ShouldEqual, crypto.Ed25519)
 		SoMsg("TRCVer", cert.TRCVersion, ShouldEqual, 2)
 		SoMsg("Ver", cert.Version, ShouldEqual, 1)
-		SoMsg("Issuer", cert.Issuer.String(), ShouldEqual, "1-4_294_967_310")
-		SoMsg("Subject", cert.Subject.String(), ShouldEqual, "1-4_294_967_311")
+		SoMsg("Issuer", cert.Issuer.String(), ShouldEqual, "1-ff00:0:310")
+		SoMsg("Subject", cert.Subject.String(), ShouldEqual, "1-ff00:0:311")
 		SoMsg("Signature", cert.Signature, ShouldResemble, rawSignature)
 		SoMsg("EncKey", cert.SubjectEncKey, ShouldResemble, rawEncKey)
 		SoMsg("SigKey", cert.SubjectSignKey, ShouldResemble, rawSigKey)
@@ -81,7 +81,7 @@ func Test_Certificate_Verify(t *testing.T) {
 	Convey("Load Certificate from Raw and init values", t, func() {
 		cert := loadCert(fnLeaf, t)
 		pub, priv, _ := ed25519.GenerateKey(nil)
-		subject := addr.IA{I: 1, A: 4294967311}
+		subject := addr.IA{I: 1, A: 0xff0000000311}
 		pubRaw, privRaw := []byte(pub), []byte(priv)
 
 		cert.IssuingTime = uint64(time.Now().Unix())
@@ -153,7 +153,7 @@ func xxxTest_Certificate_Sign(t *testing.T) {
 func Test_Certificate_String(t *testing.T) {
 	Convey("Certificate is returned as String correctly", t, func() {
 		cert := loadCert(fnLeaf, t)
-		So(cert.String(), ShouldEqual, "Certificate 1-4_294_967_311v1")
+		So(cert.String(), ShouldEqual, "Certificate 1-ff00:0:311v1")
 	})
 }
 

@@ -3,15 +3,15 @@ To show the SCION paths between two ISD-ASs, first make sure the infrastructure 
 Then, run:
 ```
 make
-./bin/showpaths -dstIA 2-4_295_002_022 -srcIA 1-4_295_001_033
+./bin/showpaths -dstIA 2-ff00:0:222 -srcIA 1-ff00:0:133
 ```
 
 Alternatively, you can also run the application using:
 ```
-go run paths.go -dstIA 2-4_295_002_022 -srcIA 1-4_295_001_033
+go run paths.go -dstIA 2-ff00:0:222 -srcIA 1-ff00:0:133
 ```
-In the examples above, the application will display the paths between 1-4_295_001_033 and 
-2-4_295_002_022.
+In the examples above, the application will display the paths between 1-ff00:0:133 and
+2-ff00:0:222.
 
 For complete options:
 ```

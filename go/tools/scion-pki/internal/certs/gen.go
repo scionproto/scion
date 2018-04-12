@@ -84,7 +84,7 @@ func genCert(ia addr.IA, isIssuer bool) error {
 			conf.IssuerSectionName), nil, "path", cpath)
 	}
 	// Check if file already exists.
-	fname := fmt.Sprintf(pkicmn.CertNameFmt, ia.I, ia.A, a.AsCert.Version)
+	fname := fmt.Sprintf(pkicmn.CertNameFmt, ia.I, ia.A.FileFmt(), a.AsCert.Version)
 	if _, err := os.Stat(filepath.Join(dir, pkicmn.CertsDir, fname)); err == nil && !pkicmn.Force {
 		fmt.Printf("%s already exists. Use -f to overwrite.\n", fname)
 		return nil

@@ -32,8 +32,8 @@ import (
 var _ fmt.Stringer = (*Certificate)(nil)
 
 var (
-	fnChain       = "testdata/ISD1-AS4_294_967_311-V1.crt"
-	fnCore        = "testdata/ISD1-AS4_294_967_311-V1.core"
+	fnChain       = "testdata/ISD1-ASff00_0_311-V1.crt"
+	fnCore        = "testdata/ISD1-ASff00_0_311-V1.core"
 	fnNoIndentCrt = "testdata/noindent.crt"
 	fnTRC         = "testdata/ISD1-V2.trc"
 )
@@ -96,7 +96,7 @@ func Test_Chain_Verify(t *testing.T) {
 
 		trc_.CoreASes[chain.Issuer.Issuer].OnlineKey = pubTRCRaw
 		trc_.ExpirationTime = chain.Issuer.ExpirationTime
-		err := chain.Verify(addr.IA{I: 1, A: 4294967311}, trc_)
+		err := chain.Verify(addr.IA{I: 1, A: 0xff0000000311}, trc_)
 		SoMsg("err", err, ShouldBeNil)
 	})
 }
@@ -114,7 +114,7 @@ func Test_Chain_Compress(t *testing.T) {
 func Test_Chain_String(t *testing.T) {
 	Convey("Chain is returned as String correctly", t, func() {
 		chain := loadChain(fnChain, t)
-		SoMsg("Compare", chain.String(), ShouldEqual, "CertificateChain 1-4_294_967_311v1")
+		SoMsg("Compare", chain.String(), ShouldEqual, "CertificateChain 1-ff00:0:311v1")
 	})
 }
 
@@ -132,7 +132,7 @@ func Test_Chain_IAVer(t *testing.T) {
 	Convey("IA version tuple is returned correctly", t, func() {
 		chain := loadChain(fnChain, t)
 		ia, ver := chain.IAVer()
-		SoMsg("IA", ia.Eq(addr.IA{I: 1, A: 4294967311}), ShouldBeTrue)
+		SoMsg("IA", ia.Eq(addr.IA{I: 1, A: 0xff0000000311}), ShouldBeTrue)
 		SoMsg("Ver", ver, ShouldEqual, 1)
 	})
 }
@@ -160,14 +160,14 @@ func Test_Chain_Key(t *testing.T) {
 	Convey("Key is returned correctly", t, func() {
 		chain := loadChain(fnChain, t)
 		key := *chain.Key()
-		SoMsg("Key", key, ShouldResemble, Key{IA: addr.IA{I: 1, A: 4294967311}, Ver: 1})
+		SoMsg("Key", key, ShouldResemble, Key{IA: addr.IA{I: 1, A: 0xff0000000311}, Ver: 1})
 	})
 }
 
 func Test_Key_String(t *testing.T) {
 	Convey("Key represented as string correctly", t, func() {
-		SoMsg("Key", (&Key{IA: addr.IA{I: 1, A: 4294967311}, Ver: 1}).String(), ShouldEqual,
-			"1-4_294_967_311v1")
+		SoMsg("Key", (&Key{IA: addr.IA{I: 1, A: 0xff0000000311}, Ver: 1}).String(), ShouldEqual,
+			"1-ff00:0:311v1")
 	})
 }
 

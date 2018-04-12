@@ -41,7 +41,7 @@ var (
 )
 
 const (
-	SCIONDPath = "/run/shm/sciond/sd%v.sock"
+	SCIONDPath = "/run/shm/sciond/sd%s.sock"
 	DispPath   = "/run/shm/dispatcher/default.sock"
 )
 
@@ -91,10 +91,10 @@ func ClientServer(idx int, tc TestCase) {
 		tc.dstPort), func(c C) {
 		b := make([]byte, 128)
 
-		clientNet, err := NewNetwork(tc.srcIA, fmt.Sprintf(SCIONDPath, tc.srcIA),
+		clientNet, err := NewNetwork(tc.srcIA, fmt.Sprintf(SCIONDPath, tc.srcIA.FileFmt(false)),
 			DispPath)
 		SoMsg("Client network error", err, ShouldBeNil)
-		serverNet, err := NewNetwork(tc.dstIA, fmt.Sprintf(SCIONDPath, tc.dstIA),
+		serverNet, err := NewNetwork(tc.dstIA, fmt.Sprintf(SCIONDPath, tc.dstIA.FileFmt(false)),
 			DispPath)
 		SoMsg("Server network error", err, ShouldBeNil)
 
@@ -187,7 +187,7 @@ func TestMain(m *testing.M) {
 	asList = append(asStruct.Core, asStruct.NonCore...)
 
 	localIA = asList[rand.Intn(len(asList))]
-	err = Init(localIA, fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA),
+	err = Init(localIA, fmt.Sprintf("/run/shm/sciond/sd%s.sock", localIA.FileFmt(false)),
 		"/run/shm/dispatcher/default.sock")
 	if err != nil {
 		fmt.Println("Test setup error", err)

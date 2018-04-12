@@ -9,10 +9,10 @@ Run `scion-pki -h` and `scion-pki help [command]` for detailed documentation for
 This section explains how to generate all keys, certificates, and the TRC for an example ISD.
 
 ISD 1 contains the following ASes:
-* AS 4_294_967_010, AS 4_294_967_020, AS 4_294_967_030: core ASes
-* AS 4_294_967_011: customer of AS 4_294_967_010
-* AS 4_294_967_021: customer of AS 4_294_967_020
-* AS 4_294_967_031: customer of AS 4_294_967_030
+* AS ff00:0:010, AS ff00:0:020, AS ff00:0:030: core ASes
+* AS ff00:0:011: customer of AS ff00:0:010
+* AS ff00:0:021: customer of AS ff00:0:020
+* AS ff00:0:031: customer of AS ff00:0:030
 
 ### Setting up the directory structure
 
@@ -24,7 +24,7 @@ The expected structure is the following:
     <root>/
         ISD1/
             isd.ini
-            AS4_294_967_010/
+            ASff00:0:010/
                 as.ini
                 certs/
                 keys/
@@ -38,7 +38,7 @@ The expected structure is the following:
 Thus, the first step is to generate the appropriate directory structure. Let's assume for this
 example that `<root>` is the current directory, i.e., `.`.
 
-`mkdir -p ISD1/AS4_294_967_0{10,20,30,11,21,31}`
+`mkdir -p ISD1/ASff00:0:0{10,20,30,11,21,31}`
 
 ### Creating the configuration files
 
@@ -54,7 +54,7 @@ Description = "Test ISD 1"
 
 [TRC]
 GracePeriod = 0s
-CoreASes = 1-4_294_967_010,1-4_294_967_020,1-4_294_967_030
+CoreASes = 1-ff00:0:010,1-ff00:0:020,1-ff00:0:030
 Version = 1
 QuorumTRC = 2
 Validity = 365d
@@ -66,12 +66,12 @@ Now we are ready to generate all as.ini files. Again, templates can be generated
 
 `scion-pki tmpl as 1-*`
 
-Below are examples for `ISD1/AS4_294_967_010/as.ini` and `ISD1/AS4_294_967_021/as.ini`
+Below are examples for `ISD1/ASff00:0:010/as.ini` and `ISD1/ASff00:0:021/as.ini`
 ```
 [AS Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
-Issuer        = 1-4_294_967_010
+Issuer        = 1-ff00:0:010
 TRCVersion    = 1
 Version       = 1
 Validity      = 3d
@@ -79,7 +79,7 @@ Validity      = 3d
 [Issuer Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
-Issuer        = 1-4_294_967_010
+Issuer        = 1-ff00:0:010
 TRCVersion    = 1
 Version       = 1
 Validity      = 7d
@@ -89,7 +89,7 @@ Validity      = 7d
 [AS Certificate]
 EncAlgorithm  = curve25519xsalsa20poly1305
 SignAlgorithm = ed25519
-Issuer        = 1-4_294_967_020
+Issuer        = 1-ff00:0:020
 TRCVersion    = 1
 Version       = 1
 Validity      = 3d
@@ -117,22 +117,22 @@ that is not desired for any reason it can be turned of with `-verify=false`.
 
 ## How to add a new customer AS
 
-Building on the previous example, AS 1-4_294_967_020 wants to connect a new customer, 
-AS 1-4_294_967_022. To that end, we first create the appropriate subdirectory:
+Building on the previous example, AS 1-ff00:0:020 wants to connect a new customer, 
+AS 1-ff00:0:022. To that end, we first create the appropriate subdirectory:
 
-`mkdir ISD1/AS4_294_967_022`
+`mkdir ISD1/ASff00:0:022`
 
 Then we can create the template configuration and make the necessary changes:
 
-`scion-pki tmpl as 1-4_294_967_022`
+`scion-pki tmpl as 1-ff00:0:022`
 
-The next step is to create the keys for AS 1-4_294_967_022:
+The next step is to create the keys for AS 1-ff00:0:022:
 
-`scion-pki keys gen 1-4_294_967_022`
+`scion-pki keys gen 1-ff00:0:022`
 
 Finally, we can generate the new certificate:
 
-`scion-pki certs gen 1-4_294_967_022`
+`scion-pki certs gen 1-ff00:0:022`
 
 ## Autocompleting scion-pki commands
 

@@ -103,7 +103,7 @@ class TestSCIONDConnectorGetASInfo(SCIONDConnectorTestBase):
     @patch("lib.app.sciond.SCIONDMsg", new_callable=create_mock)
     def test_remote(self, sciond_msg, as_info_req):
         connector = self._setup()
-        isd_as = ISD_AS("1-4_294_967_300")
+        isd_as = ISD_AS("1-ff00:0:300")
         # Call
         ntools.eq_(connector.get_as_info(isd_as), ["as_info"])
         # Tests
@@ -114,7 +114,7 @@ class TestSCIONDConnectorGetASInfo(SCIONDConnectorTestBase):
 
     @patch("lib.app.sciond.SCIONDASInfoRequest.from_values", new_callable=create_mock)
     def test_with_cache(self, as_info_req):
-        isd_as = ISD_AS("1-4_294_967_300")
+        isd_as = ISD_AS("1-ff00:0:300")
         connector = self._setup({"local": ["as_info1"], isd_as: ["as_info2"]})
         # Call
         ntools.eq_(connector.get_as_info(), ["as_info1"])
@@ -303,8 +303,8 @@ class TestSCIONDConnectorResolveDstAddr:
         return connector
 
     def test_with_svc(self):
-        dst_addr = SCIONAddr.from_values(ISD_AS("1-4_294_967_300"), SVCType.BS_A)
-        src_addr = SCIONAddr.from_values(ISD_AS("1-4_294_967_300"), HostAddrIPv4("127.0.0.1"))
+        dst_addr = SCIONAddr.from_values(ISD_AS("1-ff00:0:300"), SVCType.BS_A)
+        src_addr = SCIONAddr.from_values(ISD_AS("1-ff00:0:300"), HostAddrIPv4("127.0.0.1"))
         connector = self._setup_connector(svc_info_desc=("bs", "bs1"))
         # Call
         ntools.eq_(connector._resolve_dst_addr(src_addr, dst_addr), "bs1")
@@ -313,8 +313,8 @@ class TestSCIONDConnectorResolveDstAddr:
 
     @patch("lib.app.sciond.HostInfo.from_values", new_callable=create_mock)
     def test_with_host(self, host_info):
-        dst_addr = SCIONAddr.from_values(ISD_AS("1-4_294_967_300"), HostAddrIPv4("127.0.0.2"))
-        src_addr = SCIONAddr.from_values(ISD_AS("1-4_294_967_300"), HostAddrIPv4("127.0.0.1"))
+        dst_addr = SCIONAddr.from_values(ISD_AS("1-ff00:0:300"), HostAddrIPv4("127.0.0.2"))
+        src_addr = SCIONAddr.from_values(ISD_AS("1-ff00:0:300"), HostAddrIPv4("127.0.0.1"))
         connector = self._setup_connector()
         # Call
         ntools.eq_(connector._resolve_dst_addr(src_addr, dst_addr),
@@ -324,8 +324,8 @@ class TestSCIONDConnectorResolveDstAddr:
         host_info.assert_called_once_with([HostAddrIPv4("127.0.0.2")], SCION_UDP_EH_DATA_PORT)
 
     def test_with_different_ases(self):
-        dst_addr = SCIONAddr.from_values(ISD_AS("1-4_294_967_301"), HostAddrSVC(0, raw=False))
-        src_addr = SCIONAddr.from_values(ISD_AS("1-4_294_967_300"), HostAddrIPv4("127.0.0.1"))
+        dst_addr = SCIONAddr.from_values(ISD_AS("1-ff00:0:301"), HostAddrSVC(0, raw=False))
+        src_addr = SCIONAddr.from_values(ISD_AS("1-ff00:0:300"), HostAddrIPv4("127.0.0.1"))
         connector = self._setup_connector(svc_info_desc=("bs", "bs1"))
         # Call
         ntools.eq_(connector._resolve_dst_addr(src_addr, dst_addr), None)

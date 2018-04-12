@@ -40,7 +40,7 @@ def get_cert_chain_file_path(conf_dir, isd_as, version):  # pragma: no cover
     Return the certificate chain file path for a given ISD.
     """
     return os.path.join(conf_dir, CERT_DIR, 'ISD%s-AS%s-V%s.crt' %
-                        (isd_as.isd_str(), isd_as.as_str(), version))
+                        (isd_as.isd_str(), isd_as.as_file_fmt(), version))
 
 
 def verify_chain_trc(subject, chain, trc):

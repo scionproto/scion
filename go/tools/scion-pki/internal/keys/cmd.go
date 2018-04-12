@@ -33,7 +33,7 @@ Selector:
 	X-*
 		All ASes in ISD X.
 	X-Y
-		A specific AS X-Y, e.g. AS 1-4_294_967_300
+		A specific AS X-Y, e.g. AS 1-ff00:0:300
 `,
 }
 

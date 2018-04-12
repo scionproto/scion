@@ -15,7 +15,7 @@
 """
 :mod:`zkls` --- Small utility to list the contents of zookeeper.
 ================================================================
-E.g.: `./tools/zkls.py -s 127.0.0.91:4006 -p 1-4_294_967_312/ps/path_cache`
+E.g.: `./tools/zkls.py -s 127.0.0.91:4006 -p 1-ff00:0:312/ps/path_cache`
 """
 
 # Stdlib

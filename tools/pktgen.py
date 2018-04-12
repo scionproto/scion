@@ -32,6 +32,9 @@ from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.socket import UDPSocket
 from integration.base_cli_srv import TestClientBase
 
+SRC_PORT = 3001
+DST_PORT = 3000
+
 
 class PktGen(TestClientBase):
     # FIXME(kormat): TestClientBase doesn't really offer too much that PktGen needs. It mostly just
@@ -87,7 +90,7 @@ class PktGen(TestClientBase):
 
     def _create_socket(self, addr):
         # Use UDPSocket directly to bypass the overhead of the dispatcher.
-        return UDPSocket(bind=(str(addr.host), 0, ""), addr_type=addr.host.TYPE)
+        return UDPSocket(bind=(str(addr.host), SRC_PORT, ""), addr_type=addr.host.TYPE)
 
     def _create_payload(self, spkt, randlen=False):
         data = b"ping " + self.data
@@ -142,7 +145,7 @@ def main():
                                 haddr_parse_interface(args.src_addr))
     dst = SCIONAddr.from_values(ISD_AS(args.dst_ia),
                                 haddr_parse_interface(args.dst_addr))
-    gen = PktGen(b"data", "finished", src, dst, 3000, size=args.size)
+    gen = PktGen(b"data", "finished", src, dst, DST_PORT, size=args.size)
 
     if args.random and (args.wait or args.size):
         logging.warning("Flags -w and -s are not used in random mode. See -h for help.")

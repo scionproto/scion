@@ -49,9 +49,9 @@ func init() {
 }
 
 var (
-	id      = flag.String("id", "", "Element ID (Required. E.g. 'sig4-4_294_967_300-9')")
+	id      = flag.String("id", "", "Element ID (Required. E.g. 'sig4-ff00:0:300-9')")
 	cfgPath = flag.String("config", "", "Config file (Required)")
-	isdas   = flag.String("ia", "", "Local AS (Required, e.g., 4-4_294_967_300)")
+	isdas   = flag.String("ia", "", "Local AS (Required, e.g., 4-ff00:0:300)")
 	ipStr   = flag.String("ip", "", "address to bind to (Required)")
 )
 

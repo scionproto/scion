@@ -31,9 +31,9 @@ import (
 // only allows paths which pass through ISD1 can be created with:
 //     pp, err = NewPathPredicate("1-0#0")
 //
-// To allow paths passing through ISD-AS 1-4_294_967_310 interface 27 and then
-// ISD-AS 1-4_294_967_320 interface 95:
-//     pp, err = NewPathPredicate("1-4_294_967_310#27,1-4_294_967_320#95")
+// To allow paths passing through ISD-AS 1-ff00:0:310 interface 27 and then
+// ISD-AS 1-ff00:0:320 interface 95:
+//     pp, err = NewPathPredicate("1-ff00:0:310#27,1-ff00:0:320#95")
 type PathPredicate struct {
 	Match []sciond.PathInterface
 }

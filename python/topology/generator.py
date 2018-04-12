@@ -278,7 +278,7 @@ class ConfigGenerator(object):
 
     def _write_cust_files(self, topo_dicts, cust_files):
         for topo_id, as_topo in topo_dicts.items():
-            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+            base = topo_id.base_dir(self.out_dir)
             for elem in as_topo["CertificateService"]:
                 for path, value in cust_files[topo_id].items():
                     write_file(os.path.join(base, elem, path), value)
@@ -446,8 +446,8 @@ class CertGenerator(object):
             chain.append(self.core_certs[issuer])
             cert_path = get_cert_chain_file_path("", topo_id, INITIAL_CERT_VERSION)
             self.cert_files[topo_id][cert_path] = CertificateChain(chain).to_json()
-            map_path = os.path.join("customers", '%s-%s-V%d.key' % (
-                topo_id.ISD(), topo_id.AS(), INITIAL_CERT_VERSION))
+            map_path = os.path.join("customers", '%s-V%d.key' % (
+                topo_id.file_fmt(), INITIAL_CERT_VERSION))
             self.cust_files[issuer][map_path] = base64.b64encode(
                 self.sig_pub_keys[topo_id]).decode()
 
@@ -625,10 +625,10 @@ class TopoGenerator(object):
                 ltype_a = LinkType.CHILD
                 ltype_b = LinkType.PARENT
             br_ids[a] += 1
-            a_br = "br%s-%d" % (a, br_ids[a])
+            a_br = "br%s-%d" % (a.file_fmt(), br_ids[a])
             a_ifid = if_ids[a].new()
             br_ids[b] += 1
-            b_br = "br%s-%d" % (b, br_ids[b])
+            b_br = "br%s-%d" % (b.file_fmt(), br_ids[b])
             b_ifid = if_ids[b].new()
             self.links[a].append((ltype_a, b, attrs, a_br, b_br, a_ifid))
             self.links[b].append((ltype_b, a, attrs, b_br, a_br, b_ifid))
@@ -666,7 +666,7 @@ class TopoGenerator(object):
                        topo_key):
         count = as_conf.get(conf_key, def_num)
         for i in range(1, count + 1):
-            elem_id = "%s%s-%s" % (nick, topo_id, i)
+            elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             d = {
                 'Public': [{
                     'Addr': self._reg_addr(topo_id, elem_id),
@@ -798,7 +798,7 @@ class PrometheusGenerator(object):
     def _write_config_files(self, config_dict):
         targets_paths = defaultdict(list)
         for topo_id, ele_dict in config_dict.items():
-            base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+            base = topo_id.base_dir(self.out_dir)
             as_local_targets_path = {}
             for ele_type, target_list in ele_dict.items():
                 targets_path = os.path.join(base, self.PROM_DIR, self.TARGET_FILES[ele_type])
@@ -847,7 +847,7 @@ class SupervisorGenerator(object):
 
     def _as_conf(self, topo_id, topo):
         entries = []
-        base = self._get_base_path(topo_id)
+        base = topo_id.base_dir(self.out_dir)
         for key, cmd in (
             ("BeaconService", "python/bin/beacon_server"),
             ("PathService", "python/bin/path_server"),
@@ -893,7 +893,7 @@ class SupervisorGenerator(object):
     def _write_as_conf(self, topo_id, entries):
         config = configparser.ConfigParser(interpolation=None)
         names = []
-        base = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
+        base = topo_id.base_dir(self.out_dir)
         for elem, entry in sorted(entries, key=lambda x: x[0]):
             names.append(elem)
             elem_dir = os.path.join(base, elem)
@@ -902,16 +902,15 @@ class SupervisorGenerator(object):
                 self._write_elem_mininet_conf(elem, elem_dir)
         # Mininet runs sciond per element, and not at an AS level.
         if not self.mininet:
-            sd_name = "sd%s" % topo_id
+            sd_name = "sd%s" % topo_id.file_fmt()
             names.append(sd_name)
             conf_dir = os.path.join(base, COMMON_DIR)
             config["program:%s" % sd_name] = self._sciond_entry(
                 sd_name, conf_dir)
-        config["group:as%s" % topo_id] = {"programs": ",".join(names)}
+        config["group:as%s" % topo_id.file_fmt()] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
-        conf_path = os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS(),
-                                 SUPERVISOR_CONF)
+        conf_path = os.path.join(topo_id.base_dir(self.out_dir), SUPERVISOR_CONF)
         write_file(conf_path, text.getvalue())
 
     def _write_elem_conf(self, elem, entry, elem_dir, topo_id=None):
@@ -936,7 +935,7 @@ class SupervisorGenerator(object):
                 prog['environment'] += ',SCIOND_PATH="%s"' % path
             else:
                 # Else set the SCIOND_PATH env to point to the per-AS sciond.
-                path = self._sciond_path("sd%s" % topo_id)
+                path = self._sciond_path("sd%s" % topo_id.file_fmt())
                 prog['environment'] += ',SCIOND_PATH="%s"' % path
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
@@ -965,9 +964,6 @@ class SupervisorGenerator(object):
         elem = "dispatcher"
         elem_dir = os.path.join(self.out_dir, elem)
         self._write_elem_conf(elem, ["bin/dispatcher"], elem_dir)
-
-    def _get_base_path(self, topo_id):
-        return os.path.join(self.out_dir, topo_id.ISD(), topo_id.AS())
 
     def _common_entry(self, name, cmd_args, elem_dir=None):
         entry = {
@@ -1002,6 +998,15 @@ class TopoID(ISD_AS):
 
     def AS(self):
         return "AS%s" % self.as_str()
+
+    def AS_file(self):
+        return "AS%s" % self.as_file_fmt()
+
+    def file_fmt(self):
+        return "%s-%s" % (self.isd_str(), self.as_file_fmt())
+
+    def base_dir(self, out_dir):
+        return os.path.join(out_dir, self.ISD(), self.AS_file())
 
     def __lt__(self, other):
         return str(self) < str(other)
@@ -1144,7 +1149,7 @@ class IFIDGenerator(object):
 
 def _srv_iter(topo_dicts, out_dir, common=False):
     for topo_id, as_topo in topo_dicts.items():
-        base = os.path.join(out_dir, topo_id.ISD(), topo_id.AS())
+        base = topo_id.base_dir(out_dir)
         for service in SCION_SERVICE_NAMES:
             for elem in as_topo[service]:
                 yield topo_id, as_topo, os.path.join(base, elem)

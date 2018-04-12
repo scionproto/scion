@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	iaA   = addr.IA{I: 1, A: 4295000000}
-	iaB   = addr.IA{I: 1, A: 4295000001}
+	iaA   = addr.IA{I: 1, A: 0xff0000000000}
+	iaB   = addr.IA{I: 1, A: 0xff0000000001}
 	iaMap = map[addr.IA][]string{
 		iaA: {"192.0.2.0/30", "192.0.2.8/30", "2001:db8::/48", "2001:db8:2::/48"},
 		iaB: {"192.0.2.4/30", "2001:db8:1::/48"},

@@ -110,7 +110,7 @@ func (c *Customers) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey commo
 	// Key has to be written to file system, only if it has changed
 	if !bytes.Equal(newKey, currKey) {
 		var err error
-		name := fmt.Sprintf("ISD%d-AS%s-V%d.key", ia.I, ia.A, ver)
+		name := fmt.Sprintf("ISD%d-AS%s-V%d.key", ia.I, ia.A.FileFmt(), ver)
 		path := filepath.Join(c.path, name)
 		if _, err = os.Stat(path); !os.IsNotExist(err) {
 			return err

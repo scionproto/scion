@@ -214,7 +214,7 @@ class SCIONElement(object):
             self._export_metrics(prom_export)
             self._init_metrics()
         self._setup_sockets(True)
-        lib_sciond.init(os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % self.addr.isd_as))
+        lib_sciond.init(os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % self.addr.isd_as.file_fmt()))
 
     def _load_as_conf(self):
         return Config.from_file(os.path.join(self.conf_dir, AS_CONF_FILE))

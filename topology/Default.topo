@@ -4,10 +4,10 @@ defaults:
     1:
       addr: 127.0.0.1
 ASes:
-  1-4_295_001_010: # old 1-11
+  "1-ff00:0:110": # old 1-11
     core: true
     path_servers: 3
-  1-4_295_001_020: # old 1-12
+  "1-ff00:0:120": # old 1-12
     core: true
     zookeepers:
       1:
@@ -25,62 +25,62 @@ ASes:
         clientPort: 4006
         leaderPort: 4007
         electionPort: 4008
-  1-4_295_001_030: # old 1-13
+  "1-ff00:0:130": # old 1-13
     core: true
     beacon_servers: 2
-  1-4_295_001_011: # old 1-14
-    cert_issuer: 1-4_295_001_010
-  1-4_295_001_012: # old 1-17
-    cert_issuer: 1-4_295_001_010
+  "1-ff00:0:111": # old 1-14
+    cert_issuer: 1-ff00:0:110
+  "1-ff00:0:112": # old 1-17
+    cert_issuer: 1-ff00:0:110
     mtu: 1450
-  1-4_295_001_021: # old 1-15
-    cert_issuer: 1-4_295_001_020
-  1-4_295_001_022: # old 1-18
-    cert_issuer: 1-4_295_001_020
-  1-4_295_001_031: # old 1-16
-    cert_issuer: 1-4_295_001_030
+  "1-ff00:0:121": # old 1-15
+    cert_issuer: 1-ff00:0:120
+  "1-ff00:0:122": # old 1-18
+    cert_issuer: 1-ff00:0:120
+  "1-ff00:0:131": # old 1-16
+    cert_issuer: 1-ff00:0:130
     beacon_servers: 3
-  1-4_295_001_032: # old 1-19
-    cert_issuer: 1-4_295_001_030
+  "1-ff00:0:132": # old 1-19
+    cert_issuer: 1-ff00:0:130
     path_servers: 2
-  1-4_295_001_033: # old 1-10
-    cert_issuer: 1-4_295_001_030
-  2-4_295_002_010: # old 2-21
+  "1-ff00:0:133": # old 1-10
+    cert_issuer: 1-ff00:0:130
+  "2-ff00:0:210": # old 2-21
     core: true
     mtu: 1280
-  2-4_295_002_020: # old 2-22
+  "2-ff00:0:220": # old 2-22
     core: true
-  2-4_295_002_011: # old 2-23
-    cert_issuer: 2-4_295_002_010
-  2-4_295_002_012: # old 2-25
-    cert_issuer: 2-4_295_002_010
-  2-4_295_002_021: # old 2-24
-    cert_issuer: 2-4_295_002_020
-  2-4_295_002_022: # old 2-26
-    cert_issuer: 2-4_295_002_020
+  "2-ff00:0:211": # old 2-23
+    cert_issuer: 2-ff00:0:210
+  "2-ff00:0:212": # old 2-25
+    cert_issuer: 2-ff00:0:210
+  "2-ff00:0:221": # old 2-24
+    cert_issuer: 2-ff00:0:220
+  "2-ff00:0:222": # old 2-26
+    cert_issuer: 2-ff00:0:220
 links:
-  - {a: 1-4_295_001_010, b: 1-4_295_001_020, ltype: CORE}
-  - {a: 1-4_295_001_010, b: 1-4_295_001_030, ltype: CORE}
-  - {a: 1-4_295_001_010, b: 2-4_295_002_010, ltype: CORE}
-  - {a: 1-4_295_001_010, b: 1-4_295_001_011, ltype: PARENT}
-  - {a: 1-4_295_001_020, b: 1-4_295_001_030, ltype: CORE}
-  - {a: 1-4_295_001_020, b: 2-4_295_002_020, ltype: CORE, mtu: 1400}
-  - {a: 1-4_295_001_020, b: 1-4_295_001_021, ltype: PARENT}
-  - {a: 1-4_295_001_030, b: 1-4_295_001_031, ltype: PARENT}
-  - {a: 1-4_295_001_011, b: 1-4_295_001_021, ltype: PEER}
-  - {a: 1-4_295_001_011, b: 2-4_295_002_011, ltype: PEER}
-  - {a: 1-4_295_001_011, b: 1-4_295_001_012, ltype: PARENT}
-  - {a: 1-4_295_001_021, b: 1-4_295_001_031, ltype: PEER}
-  - {a: 1-4_295_001_021, b: 1-4_295_001_022, ltype: PARENT}
-  - {a: 1-4_295_001_031, b: 1-4_295_001_032, ltype: PARENT}
-  - {a: 1-4_295_001_032, b: 1-4_295_001_033, ltype: PARENT}
-  - {a: 2-4_295_002_010, b: 2-4_295_002_020, ltype: CORE}
-  - {a: 2-4_295_002_010, b: 2-4_295_002_011, ltype: PARENT}
-  - {a: 2-4_295_002_020, b: 2-4_295_002_021, ltype: PARENT}
-  - {a: 2-4_295_002_011, b: 2-4_295_002_021, ltype: PEER}
-  - {a: 2-4_295_002_011, b: 2-4_295_002_012, ltype: PARENT}
-  - {a: 2-4_295_002_011, b: 2-4_295_002_022, ltype: PARENT}
-  - {a: 2-4_295_002_021, b: 2-4_295_002_022, ltype: PARENT}
+  - {a: "1-ff00:0:110", b: "1-ff00:0:120", ltype: CORE}
+  - {a: "1-ff00:0:110", b: "1-ff00:0:130", ltype: CORE}
+  - {a: "1-ff00:0:110", b: "2-ff00:0:210", ltype: CORE}
+  - {a: "1-ff00:0:110", b: "1-ff00:0:111", ltype: PARENT}
+  - {a: "1-ff00:0:120", b: "1-ff00:0:130", ltype: CORE}
+  - {a: "1-ff00:0:120", b: "2-ff00:0:220", ltype: CORE, mtu: 1400}
+  - {a: "1-ff00:0:120", b: "1-ff00:0:121", ltype: PARENT}
+  - {a: "1-ff00:0:130", b: "1-ff00:0:131", ltype: PARENT}
+  - {a: "1-ff00:0:111", b: "1-ff00:0:121", ltype: PEER}
+  - {a: "1-ff00:0:111", b: "2-ff00:0:211", ltype: PEER}
+  - {a: "1-ff00:0:111", b: "1-ff00:0:112", ltype: PARENT}
+  - {a: "1-ff00:0:121", b: "1-ff00:0:131", ltype: PEER}
+  - {a: "1-ff00:0:121", b: "1-ff00:0:122", ltype: PARENT}
+  - {a: "1-ff00:0:131", b: "1-ff00:0:132", ltype: PARENT}
+  - {a: "1-ff00:0:132", b: "1-ff00:0:133", ltype: PARENT}
+  - {a: "2-ff00:0:210", b: "2-ff00:0:220", ltype: CORE}
+  - {a: "2-ff00:0:210", b: "2-ff00:0:211", ltype: PARENT}
+  - {a: "2-ff00:0:220", b: "2-ff00:0:221", ltype: PARENT}
+  - {a: "2-ff00:0:211", b: "2-ff00:0:221", ltype: PEER}
+  - {a: "2-ff00:0:211", b: "2-ff00:0:212", ltype: PARENT}
+  - {a: "2-ff00:0:211", b: "2-ff00:0:222", ltype: PARENT}
+  - {a: "2-ff00:0:221", b: "2-ff00:0:222", ltype: PARENT}
 CAs:
   CA1-1:
     ISD: 1
