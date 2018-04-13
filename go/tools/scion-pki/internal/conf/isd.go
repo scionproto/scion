@@ -25,6 +25,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/util"
+
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 const IsdConfFileName = "isd.ini"
@@ -33,6 +35,14 @@ const IsdConfFileName = "isd.ini"
 type Isd struct {
 	Desc string `comment:"General description for the ISD"`
 	*Trc `ini:"TRC"`
+}
+
+func GetCurrentTRCPath(isd addr.ISD) string {
+	isdCfg, err := LoadIsdConf(pkicmn.RootDir)
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(pkicmn.RootDir, "trcs", fmt.Sprintf(pkicmn.TrcNameFmt, isd, isdCfg.Version))
 }
 
 func LoadIsdConf(dir string) (*Isd, error) {
