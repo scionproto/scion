@@ -4,14 +4,14 @@ $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
 struct HPCfgId {
-    masterIA @0 :Data;
+    masterIA @0 :UInt64;
     cfgId @1 :UInt64;
 }
 
 struct HPCfg {
     id @0 :HPCfgId;
     version @1: UInt64;
-    hpsIAs @2 :List(Data);  # ISD_AS of hidden path servers that stores hidden paths
-    writerIAs @3 :List(Data);  # ISD_AS of ASes that are authorized to register hidden paths
-    readerIAs @4 :List(Data);  # ISD_AS of ASes authorized to use the hidden paths
+    hpsIAs @2 :List(UInt64);  # ISD_AS of hidden path servers that stores hidden paths
+    writerIAs @3 :List(UInt64);  # ISD_AS of ASes that are authorized to register hidden paths
+    readerIAs @4 :List(UInt64);  # ISD_AS of ASes authorized to use the hidden paths
 }

@@ -34,7 +34,7 @@ class HPCfgId(Cerealizable):
         :param master_ia scion_addr.ISD_AS: The master IA part of the config ID.
         :param cfg_id int: An 8 byte integer.
         """
-        p = cls.P_CLS.new_message(masterIA=master_ia.pack(), cfgId=cfg_id)
+        p = cls.P_CLS.new_message(masterIA=int(master_ia), cfgId=cfg_id)
         return cls(p)
 
     def master_ia(self):
@@ -59,13 +59,13 @@ class HPCfg(Cerealizable):  # pragma: no cover
         p = cls.P_CLS.new_message(id=id.p, version=ver)
         p.init("hpsIAs", len(hps_ias))
         for i, hps_ia in enumerate(hps_ias):
-            p.hpsIAs[i] = hps_ia.pack()
+            p.hpsIAs[i] = int(hps_ia)
         p.init("writerIAs", len(writer_ias))
         for i, writer_ia in enumerate(writer_ias):
-            p.writerIAs[i] = writer_ia.pack()
+            p.writerIAs[i] = int(writer_ia)
         p.init("readerIAs", len(reader_ias))
         for i, reader_ia in enumerate(reader_ias):
-            p.readerIAs[i] = reader_ia.pack()
+            p.readerIAs[i] = int(reader_ia)
 
         return cls(p)
 
