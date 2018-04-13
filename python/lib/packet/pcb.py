@@ -302,7 +302,7 @@ class PathSegment(Cerealizable):
         Check if a revocation matches the currnt PCB
         :param rev_info: Revocation Info to check
         :type rev_info: RevocationInfo
-        :return: Tuple(boolean, LinkType) 
+        :return: Tuple(boolean, LinkType)
         """
         for asm in self.iter_asms():
             if rev_info.isd_as() != asm.isd_as():

@@ -60,13 +60,14 @@ class SignedRevInfo(ProtoSignedBlob):
         """
         cert = trust_store.get_cert(self.rev_info().isd_as())
         if not cert:
-            raise SignedRevInfoVerificationError(
+            raise SCIONBaseError(
                 "Failed to fetch cert for ISD-AS: %s", self.rev_info().isd_as())
         if not super().verify(cert.as_cert.subject_sig_key_raw):
             raise SignedRevInfoVerificationError("Failed to verify RevInfo signature!")
 
     def short_desc(self):
         return "SRevInfo Blob: %s Sign: %s" % (self.p.blob, self.p.sign)
+
 
 class RevocationInfo(Cerealizable):
     """
@@ -103,7 +104,8 @@ class RevocationInfo(Cerealizable):
                 "TTL is too small: %s MinTTL: %s" % (self.p.ttl, MIN_REVOCATION_TTL))
         if self.p.ifID == 0:
             raise RevInfoValidationError("Invalid ifID: %s" % self.p.ifID)
-        self.isd_as()
+        if self.isd_as().is_zero():
+            raise RevInfoValidationError("Invalid ISD_AS: %s" % self.isd_as())
 
     def active(self):
         now = int(time.time())

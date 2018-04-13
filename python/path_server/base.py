@@ -184,19 +184,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for raw in raw_entries:
             srev_info = SignedRevInfo.from_raw(raw)
             rev_info = srev_info.rev_info()
-            try:
-                rev_info.validate()
-            except SCIONBaseError as e:
-                logging.warning("Failed to validate RevInfo from zk: %s\n%s",
-                                e, rev_info.short_desc())
-                continue
-            if not rev_info.active():
-                continue
-            try:
-                srev_info.verify()
-            except SCIONBaseError as e:
-                logging.warning("Failed to verify SRevInfo from zk %s\n%s",
-                                e, srev_info.short_desc())
+            if not self.check_revocation(srev_info, "zk"):
                 return
             self._remove_revoked_segments(rev_info)
 
@@ -248,8 +236,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         try:
             rev_info.validate()
         except SCIONBaseError as e:
-            logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
-                            meta, e, rev_info.short_desc())
+            logging.error("Failed to validate SCMP RevInfo from %s: %s\n%s",
+                          meta, e, rev_info.short_desc())
             return
         self._handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
@@ -269,24 +257,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         except SCIONBaseError as e:
             # Validation already done in the IFStateInfo and SCMP paths, so a failure here means
             # it's from a CtrlPld.
-            logging.warning("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
-                            meta, e, rev_info.short_desc())
+            logging.error("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
+                          meta, e, rev_info.short_desc())
             return
 
         if srev_info in self.revocations:
             return
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        try:
-            rev_info.validate()
-        except SCIONBaseError as e:
-            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
+        if not self.check_revocation(srev_info, meta):
             return
-        try:
-            srev_info.verify()
-        except SCIONBaseError as e:
-            logging.warning("Failed to verify SRevInfo from %s: %s", meta, e)
-            return
-        
+
         if meta.ia[0] != self.addr.isd_as[0]:
             logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
                          (meta, rev_info.short_desc()))
@@ -307,8 +287,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         def _handle_one_seg(seg, db):
             rm, ltype = seg.rev_match(rev_info)
-            if rm and (ltype in [LinkType.PARENT, LinkType.CHILD] and 
-                db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED):
+            if rm and (ltype in [LinkType.PARENT, LinkType.CHILD] and
+               db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED):
                 return 1
             return 0
 
@@ -325,8 +305,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
 
         logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
-                          (rev_info.short_desc(), up_segs_removed, down_segs_removed,
-                           core_segs_removed))
+                      (rev_info.short_desc(), up_segs_removed, down_segs_removed,
+                       core_segs_removed))
 
     @abstractmethod
     def _forward_revocation(self, rev_info, meta):
