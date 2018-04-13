@@ -32,6 +32,10 @@ from lib.types import LinkType
 from lib.util import iso_timestamp
 
 
+class SignedRevInfoVerificationError(SCIONBaseError):
+    """Validation of RevInfo failed"""
+
+
 class RevInfoValidationError(SCIONBaseError):
     """Validation of RevInfo failed"""
 
@@ -50,6 +54,19 @@ class SignedRevInfo(ProtoSignedBlob):
             # Debug
             raise NotImplementedError
 
+    def verify(self, trust_store):
+        """
+        Verfiy the signature
+        """
+        cert = trust_store.get_cert(self.rev_info().isd_as())
+        if not cert:
+            raise SignedRevInfoVerificationError(
+                "Failed to fetch cert for ISD-AS: %s", self.rev_info().isd_as())
+        if not super().verify(cert.as_cert.subject_sig_key_raw):
+            raise SignedRevInfoVerificationError("Failed to verify RevInfo signature!")
+
+    def short_desc(self):
+        return "SRevInfo Blob: %s Sign: %s" % (self.p.blob, self.p.sign)
 
 class RevocationInfo(Cerealizable):
     """
@@ -74,7 +91,9 @@ class RevocationInfo(Cerealizable):
                                          timestamp=timestamp, ttl=ttl))
 
     def isd_as(self):
-        return ISD_AS(self.p.isdas)
+        if not self._isd_as:
+            self._isd_as = ISD_AS(self.p.isdas)
+        return self._isd_as
 
     def validate(self):
         if self.p.timestamp > int(time.time()) + 1:

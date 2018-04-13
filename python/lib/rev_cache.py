@@ -119,7 +119,8 @@ class RevCache:
                     REVS_TOTAL.labels(**self._labels).inc()
                     REVS_BYTES.labels(**self._labels).inc(len(signed_rev_info))
                 return True
-            if rev_info.p.timestamp > stored_info.p.timestamp:
+            # TODO verify this working
+            if srev_info.p.timestamp > stored_info.p.timestamp:
                 self._cache[key] = signed_rev_info
                 if self._labels:
                     REVS_ADDED.labels(**self._labels).inc()
