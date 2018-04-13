@@ -26,8 +26,8 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
@@ -85,7 +85,7 @@ func genCert(ia addr.IA, isIssuer bool) error {
 	}
 	// Check if file already exists.
 	fname := fmt.Sprintf(pkicmn.CertNameFmt, ia.I, ia.A, a.AsCert.Version)
-	if _, err := os.Stat(filepath.Join(dir, "certs", fname)); err == nil && !pkicmn.Force {
+	if _, err := os.Stat(filepath.Join(dir, pkicmn.CertsDir, fname)); err == nil && !pkicmn.Force {
 		fmt.Printf("%s already exists. Use -f to overwrite.\n", fname)
 		return nil
 	}
@@ -112,7 +112,7 @@ func genCert(ia addr.IA, isIssuer bool) error {
 		return common.NewBasicError("Error generating cert", err, "subject", ia)
 	}
 	// Check if out directory exists and if not create it.
-	out := filepath.Join(dir, "certs")
+	out := filepath.Join(dir, pkicmn.CertsDir)
 	if _, err = os.Stat(out); os.IsNotExist(err) {
 		if err = os.MkdirAll(out, 0755); err != nil {
 			return common.NewBasicError("Cannot create output dir", err, "dir", out)
@@ -130,8 +130,8 @@ func genCert(ia addr.IA, isIssuer bool) error {
 }
 
 // genIssuerCert generates a new issuer certificate according to conf.
-func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
-	c, err := genCertCommon(conf.BaseCert, s, trust.IssSigKeyFile)
+func genIssuerCert(issuerConf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
+	c, err := genCertCommon(issuerConf.BaseCert, s, trust.IssSigKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -140,17 +140,31 @@ func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) 
 	if c.Comment == "" {
 		c.Comment = fmt.Sprintf("Issuer Certificate for %s version %d.", c.Subject, c.Version)
 	}
-	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(c.Issuer), "keys", trust.OnKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(c.Issuer), pkicmn.KeysDir, trust.OnKeyFile)
 	// Load online root key to sign the certificate.
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
 		return nil, err
 	}
 	// Sign the certificate.
-	// FIXME(shitz): The signing algorithm should be supplied or read from the TRC.
-	if err = c.Sign(issuerKey, crypto.Ed25519); err != nil {
+	currTrcPath := filepath.Join(pkicmn.GetIsdPath(s.I), pkicmn.TRCsDir,
+		fmt.Sprintf(pkicmn.TrcNameFmt, s.I, c.TRCVersion))
+	currTrc, err := trc.TRCFromFile(currTrcPath, false)
+
+	if err != nil {
+		return nil, common.NewBasicError("Error reading TRC", err, "path: ", currTrcPath)
+	}
+
+	coreAs, ok := currTrc.CoreASes[s]
+	if !ok {
+		return nil, common.NewBasicError("Issuer of IssuerCert not found in Core ASes of TRC",
+			nil, "issuer", s)
+	}
+
+	if err = c.Sign(issuerKey, coreAs.OnlineKeyAlg); err != nil {
 		return nil, err
 	}
+
 	return c, nil
 }
 
@@ -170,7 +184,7 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 		return nil, common.NewBasicError("Issuer cert not authorized to issue certs.", nil,
 			"issuer", c.Issuer, "subject", c.Subject)
 	}
-	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), "keys", trust.IssSigKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), pkicmn.KeysDir, trust.IssSigKeyFile)
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
 		return nil, err
@@ -197,7 +211,7 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 
 func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Certificate, error) {
 	// Load signing and decryption keys that will be in the certificate.
-	keyDir := filepath.Join(pkicmn.GetAsPath(s), "keys")
+	keyDir := filepath.Join(pkicmn.GetAsPath(s), pkicmn.KeysDir)
 	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname))
 	if err != nil {
 		return nil, err
@@ -233,7 +247,7 @@ func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Cer
 // getIssuerCert returns the newest issuer certificate (if any).
 func getIssuerCert(issuer addr.IA) (*cert.Certificate, error) {
 	fnames, err := filepath.Glob(fmt.Sprintf("%s/*.crt",
-		filepath.Join(pkicmn.GetAsPath(issuer), "certs")))
+		filepath.Join(pkicmn.GetAsPath(issuer), pkicmn.CertsDir)))
 	if err != nil {
 		return nil, err
 	}

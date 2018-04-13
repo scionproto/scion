@@ -31,6 +31,9 @@ const (
 	CoreCertNameFmt    = "ISD%d-AS%s-V%d-core.crt"
 	TrcNameFmt         = "ISD%d-V%d.trc"
 	ErrInvalidSelector = "Invalid selector."
+	TRCsDir            = "trcs"
+	CertsDir           = "certs"
+	KeysDir            = "keys"
 )
 
 var (

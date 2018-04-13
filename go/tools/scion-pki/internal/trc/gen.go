@@ -66,7 +66,7 @@ func genTrc(isd addr.ISD) error {
 		return common.NewBasicError("Error json-encoding TRC", err)
 	}
 	// Check if output directory exists.
-	outDir := filepath.Join(dir, "trcs")
+	outDir := filepath.Join(dir, pkicmn.TRCsDir)
 	if _, err = os.Stat(outDir); os.IsNotExist(err) {
 		if err = os.MkdirAll(outDir, 0755); err != nil {
 			return common.NewBasicError("Cannot create output dir", err, "path", outDir)
@@ -101,12 +101,12 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 		var as coreAS
 		as.IA = cia
 		aspath := pkicmn.GetAsPath(cia)
-		online, err := trust.LoadKey(filepath.Join(aspath, "keys", trust.OnKeyFile))
+		online, err := trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OnKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
 		}
 		as.Online = ed25519.PrivateKey(online)
-		offline, err := trust.LoadKey(filepath.Join(aspath, "keys", trust.OffKeyFile))
+		offline, err := trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OffKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading offline key", err)
 		}
