@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
@@ -130,8 +131,8 @@ func genCert(ia addr.IA, isIssuer bool) error {
 }
 
 // genIssuerCert generates a new issuer certificate according to conf.
-func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
-	c, err := genCertCommon(conf.BaseCert, s, trust.IssSigKeyFile)
+func genIssuerCert(issuerConf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) {
+	c, err := genCertCommon(issuerConf.BaseCert, s, trust.IssSigKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -147,10 +148,30 @@ func genIssuerCert(conf *conf.IssuerCert, s addr.IA) (*cert.Certificate, error) 
 		return nil, err
 	}
 	// Sign the certificate.
-	// FIXME(shitz): The signing algorithm should be supplied or read from the TRC.
-	if err = c.Sign(issuerKey, crypto.Ed25519); err != nil {
+	currTrcPath := filepath.Join(pkicmn.GetIsdPath(s.I), "trcs",
+		fmt.Sprintf(pkicmn.TrcNameFmt, s.I, c.TRCVersion))
+	signAlgorithm := crypto.Ed25519
+	currTrc, err := trc.TRCFromFile(currTrcPath, false)
+
+	if err != nil {
+		return nil, common.NewBasicError("Error reading TRC", err, "path: ", currTrcPath)
+	}
+
+	coreAs, ok := currTrc.CoreASes[s]
+	if !ok {
+		return nil, common.NewBasicError("Issuer of IssuerCert not found in Core ASes of TRC",
+			nil, "issuer", s)
+	}
+
+	switch algo := coreAs.OnlineKeyAlg; algo {
+	case "ed25519":
+		signAlgorithm = crypto.Ed25519
+	}
+
+	if err = c.Sign(issuerKey, signAlgorithm); err != nil {
 		return nil, err
 	}
+
 	return c, nil
 }
 
