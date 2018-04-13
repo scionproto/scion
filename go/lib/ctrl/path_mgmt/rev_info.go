@@ -67,7 +67,7 @@ func (r *RevInfo) IA() addr.IA {
 }
 
 func (r *RevInfo) Active() error {
-	if r.TTL >= uint32(MinRevTTL.Seconds()) {
+	if r.TTL < uint32(MinRevTTL.Seconds()) {
 		return common.NewBasicError("Revocation TTL smaller than MinRevTTL.", nil,
 			"TTL", r.TTL, "MinRevTTL", MinRevTTL.Seconds())
 	}
