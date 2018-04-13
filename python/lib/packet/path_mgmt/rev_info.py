@@ -44,9 +44,13 @@ class SignedRevInfo(ProtoSignedBlob):
     """
     Wrapper for signed revocation information.
     """
+    def __init__(self, p):
+        super().__init__(p)
+        self._rev_info = None
+
     def rev_info(self):
-        if self.rev_info:
-            return self.rev_info
+        if self._rev_info:
+            return self._rev_info
         # TODO(worxli) combine
         if self.p.blob:
             return RevocationInfo.from_raw(self.p.blob)
@@ -75,6 +79,10 @@ class RevocationInfo(Cerealizable):
     """
     NAME = "RevocationInfo"
     P_CLS = P.RevInfo
+
+    def __init__(self, p):
+        super().__init__(p)
+        self._isd_as = None
 
     @classmethod
     def from_values(cls, isd_as, if_id, link_type, timestamp, ttl=MIN_REVOCATION_TTL):

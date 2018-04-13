@@ -525,18 +525,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             for raw in rev_infos:
                 try:
                     srev_info = SignedRevInfo.from_raw(raw)
-                    rev_info = srev_info.rev_info()
                 except SCIONParseError as e:
                     logging.error(
                         "Error parsing revocation info from ZK: %s", e)
                     continue
-                if not rev_info.active():
-                    continue
-                try:
-                    rev_info.validate()
-                except SCIONBaseError as e:
-                    logging.error("Failed to validate RevInfo from zk: %s\n%s",
-                                  e, rev_info.short_desc())
+                if not self.check_revocation(srev_info, "zk"):
                     continue
                 self.local_rev_cache.add(srev_info.copy())
 

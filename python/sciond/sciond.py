@@ -192,21 +192,7 @@ class SCIONDaemon(SCIONElement):
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
         recs = path_reply.recs()
         for srev_info in recs.iter_srev_infos():
-            rev_info = srev_info.rev_info()
-            try:
-                rev_info.validate()
-            except SCIONBaseError as e:
-                logging.errorwarning("Failed to validate RevInfo from %s: %s", meta, e)
-                continue
-            if not rev_info.active():
-                logging.warning(
-                    "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
-                    % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
-                continue
-            try:
-                srev_info.verify()
-            except SCIONBaseError as e:
-                logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
+            if not self.check_revocation(srev_info, meta):
                 continue
             self.rev_cache.add(srev_info)
 
@@ -445,7 +431,7 @@ class SCIONDaemon(SCIONElement):
                 % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
             return SCIONDRevReplyStatus.STALE
         try:
-            srev_info.verify()
+            srev_info.verify(self.trust_store)
         except SignedRevInfoVerificationError as e:
             logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
             return SCIONDRevReplyStatus.SIGFAIL

@@ -1265,7 +1265,7 @@ class SCIONElement(object):
         if not rev_info.active():
             return
         try:
-            srev_info.verify()
+            srev_info.verify(self.trust_store)
         except SCIONBaseError as e:
             logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
             return

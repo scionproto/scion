@@ -135,7 +135,7 @@ class RevCache:
         :param type: SignedRevInfo
         :return: boolean
         """
-        if not srev_info.active():
+        if not srev_info.rev_info().active():
             del self._cache[_mk_key(srev_info)]
             if self._labels:
                 REVS_REMOVED.labels(**self._labels).inc()
