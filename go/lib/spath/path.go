@@ -22,7 +22,7 @@ import (
 
 const (
 	MaxTTL      = 24 * 60 * 60 // One day in seconds
-	ExpTimeUnit = MaxTTL / 2 << 8
+	ExpTimeUnit = MaxTTL / (1 << 8)
 	macInputLen = 16
 )
 
