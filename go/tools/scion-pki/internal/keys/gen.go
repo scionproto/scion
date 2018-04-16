@@ -53,7 +53,7 @@ func runGenKey(args []string) {
 			dir := pkicmn.GetAsPath(ia)
 			core := pkicmn.Contains(iconf.Trc.CoreIAs, ia)
 			fmt.Println("Generating keys for", ia)
-			if err = genAll(filepath.Join(dir, "keys"), core); err != nil {
+			if err = genAll(filepath.Join(dir, pkicmn.KeysDir), core); err != nil {
 				base.ErrorAndExit("Error generating keys: %s\n", err)
 			}
 		}

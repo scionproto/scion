@@ -61,7 +61,7 @@ func verifyChain(chain *cert.Chain, subject addr.IA) error {
 
 func loadTRC(subject addr.IA, version uint64) (*trc.TRC, error) {
 	fname := fmt.Sprintf(pkicmn.TrcNameFmt, subject.I, version)
-	trcPath := filepath.Join(pkicmn.RootDir, fmt.Sprintf("ISD%d", subject.I), "trcs", fname)
+	trcPath := filepath.Join(pkicmn.RootDir, fmt.Sprintf("ISD%d", subject.I), pkicmn.TRCsDir, fname)
 	trcRaw, err := ioutil.ReadFile(trcPath)
 	if err != nil {
 		return nil, err
