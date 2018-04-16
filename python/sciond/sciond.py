@@ -439,7 +439,7 @@ class SCIONDaemon(SCIONElement):
             logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
             return SCIONDRevReplyStatus.UNKNOWN
 
-        self.rev_cache.add(rev_info)
+        self.rev_cache.add(srev_info)
         # Go through all segment databases and remove affected segments.
         removed_up = removed_core = removed_down = 0
         if rev_info.p.linkType == LinkType.CORE:
