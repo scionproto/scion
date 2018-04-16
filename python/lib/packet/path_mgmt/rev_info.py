@@ -49,14 +49,9 @@ class SignedRevInfo(ProtoSignedBlob):
         self._rev_info = None
 
     def rev_info(self):
-        if self._rev_info:
-            return self._rev_info
-        # TODO(worxli) combine
-        if self.p.blob:
-            return RevocationInfo.from_raw(self.p.blob)
-        else:
-            # Debug
-            raise NotImplementedError
+        if not self._rev_info:
+            self._rev_info = RevocationInfo.from_raw(self.p.blob)
+        return self._rev_info
 
     def verify(self, trust_store):
         """
