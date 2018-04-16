@@ -35,6 +35,39 @@ var RootCmd = &cobra.Command{
 root configuration files used in the SCION control plane PKI.`,
 }
 
+const (
+	bashCompletionScript string = "scion_pki_bash"
+	zshCompletionScript  string = "_scion-pki"
+	bashInstruction      string = `
+Instructions:
+sudo mv scion_pki_bash /etc/bash_completion.d
+source ~/.bashrc
+`
+	zshInstruction string = `
+Instructions:
+mkdir -p ~/.zsh/completion
+mv _scion-pki ~/.zsh/completion
+echo "fpath=(~/.zsh/completion \$fpath)\nautload -U compinit\ncompinit\nzstyle ':completion:*' menu select=2" >> ~/.zshrc
+source ~/.zshrc
+`
+)
+
+var autoCompleteCmd = &cobra.Command{
+	Use:   "autocomplete",
+	Short: "Generate autocomplete files for bash and zsh",
+	Run: func(cmd *cobra.Command, args []string) {
+		if zsh {
+			RootCmd.GenZshCompletionFile(zshCompletionScript)
+			fmt.Printf("Generated %s\n", zshCompletionScript)
+			fmt.Println(zshInstruction)
+		} else {
+			RootCmd.GenBashCompletionFile(bashCompletionScript)
+			fmt.Printf("Generated %s\n", bashCompletionScript)
+			fmt.Println(bashInstruction)
+		}
+	},
+}
+
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -42,15 +75,20 @@ func Execute() {
 	}
 }
 
+var zsh bool
+
 func init() {
 	RootCmd.PersistentFlags().BoolVarP(&pkicmn.Force, "force", "f", false,
 		"Overwrite existing keys/certs/trcs")
 	RootCmd.PersistentFlags().StringVarP(&pkicmn.RootDir, "root", "d", ".",
 		"root directory of all certificates and keys")
+	autoCompleteCmd.PersistentFlags().BoolVarP(&zsh, "zsh", "z", false,
+		"Generate autocompletion script for zsh")
 
 	RootCmd.AddCommand(certs.Cmd)
 	RootCmd.AddCommand(keys.Cmd)
 	RootCmd.AddCommand(version.Cmd)
 	RootCmd.AddCommand(trc.Cmd)
 	RootCmd.AddCommand(tmpl.Cmd)
+	RootCmd.AddCommand(autoCompleteCmd)
 }
