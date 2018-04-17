@@ -59,9 +59,10 @@ class SignedCtrlPayload(Cerealizable):
         return cls.from_proto(p)
 
     @classmethod
-    def from_values(cls, cpld_raw, sig_type=ProtoSignType.NONE, sig_src=b""):
-        s = ProtoSign.from_values(sig_type, sig_src)
-        return cls(cls.P_CLS.new_message(blob=cpld_raw, sign=s.p))
+    def from_values(cls, cpld_raw, sign=None):
+        if not sign:
+            sign = ProtoSign.from_values(ProtoSignType.NONE, b"")
+        return cls(cls.P_CLS.new_message(blob=cpld_raw, sign=sign.p))
 
     def sign(self, key):
         return self.psign.sign(key, self.p.blob)
