@@ -430,14 +430,15 @@ class SCIONDaemon(SCIONElement):
                 "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
                 % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
             return SCIONDRevReplyStatus.STALE
+        cert = self.trust_store.get_cert(rev_info.isd_as())
+        if not cert:
+            logging.error("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+            return SCIONDRevReplyStatus.UNKNOWN
         try:
-            srev_info.verify(self.trust_store)
+            srev_info.verify(cert.as_cert.subject_sig_key_raw)
         except SignedRevInfoVerificationError as e:
             logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
             return SCIONDRevReplyStatus.SIGFAIL
-        except SCIONBaseError as e:
-            logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
-            return SCIONDRevReplyStatus.UNKNOWN
 
         self.rev_cache.add(srev_info)
         # Go through all segment databases and remove affected segments.

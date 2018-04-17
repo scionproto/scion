@@ -101,13 +101,17 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		return nil
 	}
 	// Interface is revoked.
-	revInfo := state.RevInfo
+	revInfo, err := state.SRevInfo.RevInfo()
+	if err != nil {
+		rp.Warn("Could not parse RevInfo for interface", "ifid", ifid)
+		return nil
+	}
 	if revInfo == nil {
 		rp.Warn("No RevInfo for revoked interface", "ifid", *ifid)
 		return nil
 	}
 	// Check that the revocation timestamp is within the TTL.
-	err := revInfo.Active()
+	err = revInfo.Active()
 	if err != nil {
 		if !common.IsTimeoutErr(err) {
 			rp.Error("Error checking revocation", "err", err)
@@ -115,7 +119,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		}
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
-		newState := ifstate.NewInfo(*ifid, true, nil, nil, nil)
+		newState := ifstate.NewInfo(*ifid, true, nil, nil)
 		ifstate.UpdateIfNew(*ifid, state, newState)
 		return nil
 	}

@@ -50,13 +50,13 @@ class ProtoSign(Cerealizable):
             raise ProtoSignError("Message is empty (sign)")
         if len(self.p.signature) > 0:
             raise ProtoSignError("Signature already present")
-        if self.p.type == ProtoSignType.ED25519:
-            self.p.signature = sign(self._sig_input(msg), key)
-        else:
-            raise ProtoSignError("Unsupported proto signature type (sign): %s" % self.p.type)
         if ts is None:
             ts = time.time()
         self.p.timestamp = int(ts)
+        if self.p.type == ProtoSignType.ED25519:
+            self.p.signature = sign(self._sig_input(msg, self.p.timestamp), key)
+        else:
+            raise ProtoSignError("Unsupported proto signature type (sign): %s" % self.p.type)
 
     def verify(self, key, msg):
         assert isinstance(msg, bytes), type(msg)
@@ -67,7 +67,7 @@ class ProtoSign(Cerealizable):
         if len(self.p.signature) == 0:
             raise ProtoSignError("No signature to verify")
         elif self.p.type == ProtoSignType.ED25519:
-            return verify(self._sig_input(msg), self.p.signature, key)
+            return verify(self._sig_input(msg, self.p.timestamp), self.p.signature, key)
         else:
             raise ProtoSignError("Unsupported proto signature type (verify): %s" % self.p.type)
 
@@ -77,8 +77,8 @@ class ProtoSign(Cerealizable):
             b.append(self.p.signature)
         return b"".join(b)
 
-    def _sig_input(self, msg):
-        return b"".join([self.sig_pack(False), msg])
+    def _sig_input(self, msg, ts):
+        return b"".join([self.sig_pack(False), msg, ts])
 
 
 class ProtoSignedBlob(Cerealizable):

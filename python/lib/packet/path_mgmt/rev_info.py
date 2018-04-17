@@ -53,15 +53,11 @@ class SignedRevInfo(ProtoSignedBlob):
             self._rev_info = RevocationInfo.from_raw(self.p.blob)
         return self._rev_info
 
-    def verify(self, trust_store):
+    def verify(self, key):
         """
         Verfiy the signature
         """
-        cert = trust_store.get_cert(self.rev_info().isd_as())
-        if not cert:
-            raise SCIONBaseError(
-                "Failed to fetch cert for ISD-AS: %s", self.rev_info().isd_as())
-        if not super().verify(cert.as_cert.subject_sig_key_raw):
+        if not super().verify(key):
             raise SignedRevInfoVerificationError("Failed to verify RevInfo signature!")
 
     def short_desc(self):

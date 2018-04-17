@@ -307,7 +307,7 @@ class PathSegment(Cerealizable):
         for asm in self.iter_asms():
             if rev_info.isd_as() != asm.isd_as():
                 continue
-            for i, pcbm in asm.iter_pcbms():
+            for i, pcbm in enumerate(asm.iter_pcbms()):
                 hof = pcbm.hof()
                 if rev_info.p.ifID == hof.ingress_if:
                     return True, LinkType.PARENT if i == 0 else LinkType.PEER

@@ -1261,11 +1261,16 @@ class SCIONElement(object):
         except SCIONBaseError as e:
             logging.error("Failed to validate RevInfo from %s: %s\n%s",
                           meta, e, rev_info.short_desc())
-            return
+            return False
         if not rev_info.active():
-            return
+            return False
+        cert = self.trust_store.get_cert(rev_info.isd_as())
+        if not cert:
+            logging.error("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+            return False
         try:
-            srev_info.verify(self.trust_store)
+            srev_info.verify(cert.as_cert.subject_sig_key_raw)
         except SCIONBaseError as e:
             logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
-            return
+            return False
+        return True

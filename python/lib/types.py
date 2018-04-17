@@ -168,7 +168,7 @@ class SIBRAPathType(TypeBase):
 # Link types
 ############################
 class LinkType(TypeBase):
-    # XXX(worxli): these values must be kept in sync with the capnp
+    # XXX(worxli): these values must be kept in sync with the capnp Linktype enum
     UNSET = "unset"
     #: Link to child AS
     CHILD = "child"

@@ -689,10 +689,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                         # Interface hasn't timed out
                         continue
                     if (if_state.is_revoked() and if_id_last_revoked[if_id] +
-                       self.REVOCATION_TTL > int(time.time())):
+                       self.REVOCATION_TTL > start_time):
                         # Interface has already been revoked within the REVOCATION_TTL
                         continue
-                    if_id_last_revoked[if_id] = int(time.time())
+                    if_id_last_revoked[if_id] = start_time
                     if not if_state.is_revoked():
                         logging.info("IF %d went down.", if_id)
                     to_revoke.append(if_id)
