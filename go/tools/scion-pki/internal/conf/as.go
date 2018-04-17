@@ -80,7 +80,7 @@ func NewTemplateAsConf(subject addr.IA, trcVer uint64, core bool) *As {
 
 	if core {
 		ibc := NewTemplateCertConf(trcVer)
-		a.IssuerCert = &IssuerCert{BaseCert: ibc}
+		a.IssuerCert = &IssuerCert{BaseCert: ibc, OnlineKeyAlg: crypto.Ed25519, OfflineKeyAlg: crypto.Ed25519}
 		a.AsCert.Issuer = subject.String()
 	}
 	return a
@@ -122,7 +122,9 @@ func (ac *AsCert) validate() error {
 
 // IssuerCert corresponds to the "Issuer Certificate" section.
 type IssuerCert struct {
-	*BaseCert `ini:"Issuer Certificate"`
+	*BaseCert     `ini:"Issuer Certificate"`
+	OnlineKeyAlg  string `comment:"Signing algorithm used by Online Key, e.g., ed25519"`
+	OfflineKeyAlg string `comment:"Signing algorithm used by Offline Key, e.g., ed25519"`
 }
 
 // BaseCert holds the parameters that are used to create certs.
