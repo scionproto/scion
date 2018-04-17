@@ -99,8 +99,36 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 	var ases []coreAS
 	for _, cia := range iconf.Trc.CoreIAs {
 		var as coreAS
+		var err error
 		as.IA = cia
 		aspath := pkicmn.GetAsPath(cia)
+		cpath := filepath.Join(aspath, conf.AsConfFileName)
+		if _, err = os.Stat(cpath); os.IsNotExist(err) {
+			return nil, common.NewBasicError("Configuration file missing for AS", err, "path", aspath)
+		}
+
+		a, err := conf.LoadAsConf(aspath)
+		if err != nil {
+			return nil, common.NewBasicError("Error loading as.ini", err, "path", cpath)
+		}
+
+		if a.IssuerCert == nil {
+			return nil, common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
+				conf.IssuerSectionName), nil, "path", cpath)
+		}
+
+		if a.IssuerCert.OnlineKeyAlg == "" {
+			as.OnlineKeyAlg = crypto.Ed25519
+		} else {
+			as.OnlineKeyAlg = a.IssuerCert.OnlineKeyAlg
+		}
+
+		if a.IssuerCert.OfflineKeyAlg == "" {
+			as.OfflineKeyAlg = crypto.Ed25519
+		} else {
+			as.OfflineKeyAlg = a.IssuerCert.OfflineKeyAlg
+		}
+
 		online, err := trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OnKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
@@ -113,13 +141,13 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 		as.Offline = ed25519.PrivateKey(offline)
 		ases = append(ases, as)
 	}
-	// FIXME(shitz): The Online/OfflineKeyAlg should be configurable.
+
 	for _, as := range ases {
 		t.CoreASes[as.IA] = &trc.CoreAS{
 			OnlineKey:     common.RawBytes(as.Online.Public().(ed25519.PublicKey)),
-			OnlineKeyAlg:  crypto.Ed25519,
+			OnlineKeyAlg:  as.OnlineKeyAlg,
 			OfflineKey:    common.RawBytes(as.Offline.Public().(ed25519.PublicKey)),
-			OfflineKeyAlg: crypto.Ed25519,
+			OfflineKeyAlg: as.OfflineKeyAlg,
 		}
 	}
 	// Sign the TRC.
@@ -132,7 +160,9 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 }
 
 type coreAS struct {
-	IA      addr.IA
-	Online  ed25519.PrivateKey
-	Offline ed25519.PrivateKey
+	IA            addr.IA
+	Online        ed25519.PrivateKey
+	Offline       ed25519.PrivateKey
+	OnlineKeyAlg  string
+	OfflineKeyAlg string
 }
