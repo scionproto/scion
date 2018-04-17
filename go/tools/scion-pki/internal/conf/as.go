@@ -29,15 +29,22 @@ import (
 )
 
 const (
-	AsConfFileName    = "as.ini"
-	AsSectionName     = "AS Certificate"
-	IssuerSectionName = "Issuer Certificate"
+	AsConfFileName           = "as.ini"
+	SignAlgorithmSectionName = "Signing Algorithm"
+	AsSectionName            = "AS Certificate"
+	IssuerSectionName        = "Issuer Certificate"
 )
 
 // As contains the as.ini configuration parameters.
 type As struct {
-	*AsCert     `ini:"AS Certificate"`
-	*IssuerCert `ini:"Issuer Certificate,omitempty"`
+	*AsCert        `ini:"AS Certificate"`
+	*IssuerCert    `ini:"Issuer Certificate,omitempty"`
+	*SignAlgorithm `ini:"Signing Algorithm"`
+}
+
+type SignAlgorithm struct {
+	OnlineKeyAlg  string `comment:"Signing algorithm used by Online Key, e.g., ed25519"`
+	OfflineKeyAlg string `comment:"Signing algorithm used by Offline Key, e.g., ed25519"`
 }
 
 func (a *As) validate() error {
@@ -73,6 +80,10 @@ func (a *As) Write(path string, force bool) error {
 func NewTemplateAsConf(subject addr.IA, trcVer uint64, core bool) *As {
 	a := &As{}
 	bc := NewTemplateCertConf(trcVer)
+	a.SignAlgorithm = &SignAlgorithm{
+		OnlineKeyAlg:  crypto.Ed25519,
+		OfflineKeyAlg: crypto.Ed25519,
+	}
 	a.AsCert = &AsCert{
 		Issuer:   "0-0",
 		BaseCert: bc,
@@ -80,7 +91,9 @@ func NewTemplateAsConf(subject addr.IA, trcVer uint64, core bool) *As {
 
 	if core {
 		ibc := NewTemplateCertConf(trcVer)
-		a.IssuerCert = &IssuerCert{BaseCert: ibc}
+		a.IssuerCert = &IssuerCert{
+			BaseCert: ibc,
+		}
 		a.AsCert.Issuer = subject.String()
 	}
 	return a
