@@ -145,7 +145,7 @@ const (
 	// SrcDefaultPrefix is the default prefix for proto.SignS.Src.
 	SrcDefaultPrefix = "DEFAULT: "
 	// SrcDefaultFmt is the default format for proto.SignS.Src.
-	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\d+-\d+) CHAIN: (\d+) TRC: (\d+)$`
+	SrcDefaultFmt = `^` + SrcDefaultPrefix + `IA: (\S+) CHAIN: (\d+) TRC: (\d+)$`
 )
 
 type SignSrcDef struct {
