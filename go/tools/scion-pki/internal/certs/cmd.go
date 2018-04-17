@@ -55,8 +55,8 @@ a predefined structure:
 
 as.ini contains the preconfigured parameters according to which 'certs' generates
 the certificates. It follows the ini format and must contain a "AS Certificate"
-section and in case of a core AS also a "Issuer Certificate" section that can
-contain the following values:
+section and in case of a core AS there are two additional section
+"Issuer Certificate" section that can contain the following values:
 	Issuer [required]
 		string identifying the entity that signed the certificate. An AS is
 		represented as a string ISD-AS (e.g., 1-ff00:0:300). This is only
@@ -78,6 +78,11 @@ contain the following values:
 	SignAlgorithm (ed25519) [optional]
 		cryptographic algorithm that must be used to sign/verify a message with
 		the subject’s private/public key.
+"Key Algorithms" section that can contain following values
+	Online (ed25519) [optional]
+		cryptographic algorithm that must be used as signing algorithm by online key
+	Offline (ed25519) [optional]
+		cryptographic algorithm that must be used as signing algorithm by offline key
 `,
 }
 
