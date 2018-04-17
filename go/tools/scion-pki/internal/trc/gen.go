@@ -99,40 +99,73 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 	var ases []coreAS
 	for _, cia := range iconf.Trc.CoreIAs {
 		var as coreAS
+		var err error
 		as.IA = cia
 		aspath := pkicmn.GetAsPath(cia)
-		online, err := trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OnKeyFile))
+		cpath := filepath.Join(aspath, conf.AsConfFileName)
+		a, err := conf.LoadAsConf(aspath)
+		if err != nil {
+			return nil, common.NewBasicError("Error loading as.ini", err, "path", cpath)
+		}
+		if a.KeyAlgorithms == nil {
+			return nil, common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
+				conf.KeyAlgSectionName), nil, "path", cpath)
+		}
+		as.OnlineKeyAlg = crypto.Ed25519
+		if a.KeyAlgorithms.Online != "" {
+			as.OnlineKeyAlg = a.KeyAlgorithms.Online
+		}
+		as.OfflineKeyAlg = crypto.Ed25519
+		if a.KeyAlgorithms.Offline != "" {
+			as.OfflineKeyAlg = a.KeyAlgorithms.Offline
+		}
+		as.OnlineKey, err = trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OnKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
 		}
-		as.Online = ed25519.PrivateKey(online)
-		offline, err := trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OffKeyFile))
+		as.OfflineKey, err = trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OffKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading offline key", err)
 		}
-		as.Offline = ed25519.PrivateKey(offline)
 		ases = append(ases, as)
 	}
-	// FIXME(shitz): The Online/OfflineKeyAlg should be configurable.
 	for _, as := range ases {
+		pubKeyOnline, err := getPubKey(as.OnlineKey, as.OnlineKeyAlg)
+		if err != nil {
+			return nil, err
+		}
+		pubKeyOffline, err := getPubKey(as.OfflineKey, as.OfflineKeyAlg)
+		if err != nil {
+			return nil, err
+		}
 		t.CoreASes[as.IA] = &trc.CoreAS{
-			OnlineKey:     common.RawBytes(as.Online.Public().(ed25519.PublicKey)),
-			OnlineKeyAlg:  crypto.Ed25519,
-			OfflineKey:    common.RawBytes(as.Offline.Public().(ed25519.PublicKey)),
-			OfflineKeyAlg: crypto.Ed25519,
+			OnlineKey:     pubKeyOnline,
+			OnlineKeyAlg:  as.OnlineKeyAlg,
+			OfflineKey:    pubKeyOffline,
+			OfflineKeyAlg: as.OfflineKeyAlg,
 		}
 	}
 	// Sign the TRC.
 	for _, as := range ases {
-		if err := t.Sign(as.IA.String(), common.RawBytes(as.Online), crypto.Ed25519); err != nil {
+		if err := t.Sign(as.IA.String(), as.OnlineKey, as.OnlineKeyAlg); err != nil {
 			return nil, common.NewBasicError("Error signing TRC", err, "signer", as.IA)
 		}
 	}
 	return t, nil
 }
 
+func getPubKey(privKey common.RawBytes, keyType string) (common.RawBytes, error) {
+	switch keyType {
+	case crypto.Ed25519:
+		return common.RawBytes(ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey)), nil
+	}
+	return nil, common.NewBasicError("Unsupported key type", nil, "type", keyType)
+}
+
 type coreAS struct {
-	IA      addr.IA
-	Online  ed25519.PrivateKey
-	Offline ed25519.PrivateKey
+	IA            addr.IA
+	OnlineKey     common.RawBytes
+	OfflineKey    common.RawBytes
+	OnlineKeyAlg  string
+	OfflineKeyAlg string
 }
