@@ -50,6 +50,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.msg_meta import UDPMetadata
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.ifid import IFIDPayload
@@ -232,7 +233,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     def _create_one_hop_path(self, egress_if):
         ts = int(SCIONTime.get_time())
         info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0], hops=2)
-        hf1 = HopOpaqueField.from_values(self.hof_exp_time(ts), 0, egress_if)
+        hf1 = HopOpaqueField.from_values(OneHopPathExt.HOF_EXP_TIME, 0, egress_if)
         hf1.set_mac(self.of_gen_key, ts, None)
         # Return a path where second HF is empty.
         return SCIONPath.from_values(info, [hf1, HopOpaqueField()])

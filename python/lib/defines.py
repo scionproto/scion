@@ -27,7 +27,7 @@ DEFAULT_SEGMENT_TTL = 6 * 60 * 60
 #: Max TTL of a PathSegment in realtime seconds.
 MAX_SEGMENT_TTL = 24 * 60 * 60
 #: Time unit for HOF expiration.
-EXP_TIME_UNIT = MAX_SEGMENT_TTL / 2 ** 8
+EXP_TIME_UNIT = int(MAX_SEGMENT_TTL / 2 ** 8)
 #: Max number of supported HopByHop extensions (does not include SCMP)
 MAX_HOPBYHOP_EXT = 3
 #: Number of bytes per 'line'. Used for padding in many places.
