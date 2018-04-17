@@ -31,7 +31,7 @@ import (
 // RevInfoFwd goroutine.
 func (r *Router) RawRevCallback(args rpkt.RawRevCallbackArgs) {
 	select {
-	case r.revInfoQ <- args:
+	case r.sRevInfoQ <- args:
 	default:
 		log.Debug("Dropping rev token")
 	}
@@ -42,7 +42,7 @@ func (r *Router) RawRevCallback(args rpkt.RawRevCallbackArgs) {
 func (r *Router) RevInfoFwd() {
 	defer liblog.LogPanicAndExit()
 	// Run forever.
-	for args := range r.revInfoQ {
+	for args := range r.sRevInfoQ {
 		revInfo, err := args.SignedRevInfo.RevInfo()
 		if err != nil {
 			log.Error("Error getting RevInfo from SignedRevInfo", "err", err)
@@ -55,11 +55,11 @@ func (r *Router) RevInfoFwd() {
 }
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) fwdRevInfo(signedRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
+func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
-	cpld, err := ctrl.NewPathMgmtPld(signedRevInfo, nil, nil)
+	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
 		return

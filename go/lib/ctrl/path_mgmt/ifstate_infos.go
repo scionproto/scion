@@ -44,7 +44,7 @@ func (i *IFStateInfos) String() string {
 type IFStateInfo struct {
 	IfID     uint64
 	Active   bool
-	SRevInfo *SignedRevInfo `capnp:"revInfo"`
+	SRevInfo *SignedRevInfo
 }
 
 func (i *IFStateInfo) String() string {

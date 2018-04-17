@@ -80,7 +80,7 @@ struct ASInfoReplyEntry {
 }
 
 struct RevNotification {
-    revInfo @0 :Sign.SignedBlob;
+    sRevInfo @0 :Sign.SignedBlob;
 }
 
 struct RevReply {

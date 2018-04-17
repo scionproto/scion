@@ -232,7 +232,7 @@ func (r *PR) Revoke(revInfo common.RawBytes) {
 }
 
 func (r *PR) revoke(revInfo common.RawBytes) {
-	parsedSignedRev, err := path_mgmt.NewSignedRevInfoFromRaw(revInfo)
+	parsedSRev, err := path_mgmt.NewSignedRevInfoFromRaw(revInfo)
 	if err != nil {
 		log.Error("Revocation failed, unable to parse signed revocation info",
 			"revInfo", revInfo, "err", err)
@@ -243,7 +243,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 		log.Error("Revocation failed, unable to connect to SCIOND", "err", err)
 		return
 	}
-	reply, err := conn.RevNotification(parsedSignedRev)
+	reply, err := conn.RevNotification(parsedSRev)
 	if err != nil {
 		log.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
 		return
@@ -253,7 +253,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 		log.Error("Revocation error, unable to close SCIOND connection", "err", err)
 		// Continue with revocation
 	}
-	parsedRev, err := parsedSignedRev.RevInfo()
+	parsedRev, err := parsedSRev.RevInfo()
 	if err != nil {
 		log.Error("Revocation failed, unable to parse revocation info",
 			"revInfo", revInfo, "err", err)

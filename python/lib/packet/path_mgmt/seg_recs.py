@@ -35,13 +35,13 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
     P_CLS = P.SegRecs
 
     @classmethod
-    def from_values(cls, pcb_dict, signed_rev_infos=None):
+    def from_values(cls, pcb_dict, srev_infos=None):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
-        :param signed_rev_infos: list of SignedBlob (RevocationInfo) objects
+        :param srev_infos: list of SignedBlob (RevocationInfo) objects
         """
-        if not signed_rev_infos:
-            signed_rev_infos = []
+        if not srev_infos:
+            srev_infos = []
         p = cls.P_CLS.new_message()
         flat = []
         for type_, pcbs in pcb_dict.items():
@@ -51,9 +51,9 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
         for i, (type_, pcb) in enumerate(flat):
             p.recs[i].type = type_
             p.recs[i].pathSeg = pcb.p
-        p.init("revInfos", len(signed_rev_infos))
-        for i, rev_info in enumerate(signed_rev_infos):
-            p.revInfos[i] = rev_info.p
+        p.init("sRevInfos", len(srev_infos))
+        for i, srev_info in enumerate(srev_infos):
+            p.sRevInfos[i] = srev_info.p
         return cls(p)
 
     def iter_pcbs(self):
@@ -61,10 +61,10 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             yield rec.type, PathSegment(rec.pathSeg)
 
     def srev_info(self, idx):
-        return SignedRevInfo(self.p.revInfos[idx])
+        return SignedRevInfo(self.p.sRevInfos[idx])
 
     def iter_srev_infos(self, start=0):
-        for i in range(start, len(self.p.revInfos)):
+        for i in range(start, len(self.p.sRevInfos)):
             yield self.srev_info(i)
 
     def num_segs(self):

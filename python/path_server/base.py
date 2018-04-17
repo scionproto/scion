@@ -219,7 +219,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         infos = pmgt.union
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
-            if not info.p.active and info.p.revInfo:
+            if not info.p.active and info.p.sRevInfo:
                 srev_info = info.srev_info()
                 rev_info = srev_info.rev_info()
                 try:
@@ -231,7 +231,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                 self._handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        srev_info = SignedRevInfo.from_raw(pld.info.rev_info)
+        srev_info = SignedRevInfo.from_raw(pld.info.srev_info)
         rev_info = srev_info.rev_info()
         try:
             rev_info.validate()

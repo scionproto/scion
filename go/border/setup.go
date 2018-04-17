@@ -61,7 +61,7 @@ func (r *Router) setup() error {
 	r.freePkts = ringbuf.New(1024, func() interface{} {
 		return rpkt.NewRtrPkt()
 	}, "free", prometheus.Labels{"ringId": "freePkts"})
-	r.revInfoQ = make(chan rpkt.RawRevCallbackArgs, 16)
+	r.sRevInfoQ = make(chan rpkt.RawRevCallbackArgs, 16)
 	r.ifIDQ = make(chan rpkt.IFIDCallbackArgs, 16)
 	r.pktErrorQ = make(chan pktErrorArgs, 16)
 

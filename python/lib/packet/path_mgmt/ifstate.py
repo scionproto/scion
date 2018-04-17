@@ -34,20 +34,20 @@ class IFStateInfo(Cerealizable):  # pragma: no cover
     P_CLS = P.IFStateInfo
 
     @classmethod
-    def from_values(cls, if_id, active, signed_rev_info=None):
+    def from_values(cls, if_id, active, srev_info=None):
         p = cls.P_CLS.new_message(ifID=if_id, active=active)
-        if signed_rev_info:
-            p.revInfo = signed_rev_info.p
+        if srev_info:
+            p.sRevInfo = srev_info.p
         return cls(p)
 
     def srev_info(self):
-        if self.p.revInfo:
-            return SignedRevInfo(self.p.revInfo)
+        if self.p.sRevInfo:
+            return SignedRevInfo(self.p.sRevInfo)
         return None
 
     def short_desc(self):
         return "IF: %d Active: %s RevInfo: %s" % (
-            self.p.ifID, self.p.active, self.p.revInfo or "None")
+            self.p.ifID, self.p.active, self.p.sRevInfo or "None")
 
 
 class IFStatePayload(Cerealizable):  # pragma: no cover
