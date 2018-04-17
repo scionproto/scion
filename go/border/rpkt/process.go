@@ -156,8 +156,44 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 	}
 }
 
-// processIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
+// processIFID handles IFID (interface ID) packets
 func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
+	if rp.DirFrom == rcmn.DirLocal {
+		return rp.processLocalIFID(ifid)
+	} else {
+		return rp.processRemoteIFID(ifid)
+	}
+}
+
+// processLocalIFID handles IFID (interface ID) packets from the local BS
+// and forwards them to the remote ISD-AS BR
+func (rp *RtrPkt) processLocalIFID(ifid *ifid.IFID) (HookResult, error) {
+	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+	// Create ScnPkt from RtrPkt and set remote BR as Dst
+	spkt, err := rp.ToScnPkt(true)
+	if err != nil {
+		return HookError, err
+	}
+	spkt.DstIA = intf.RemoteIA
+	spkt.DstHost = addr.HostFromIP(intf.RemoteAddr.IP)
+	// Remove old path and add overlay
+	spkt.Path = nil
+	overlayPort := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay).OverlayPort
+	spkt.L4 = &l4.UDP{SrcPort: uint16(overlayPort), DstPort: uint16(intf.RemoteAddr.OverlayPort)}
+	// Convert back to RtrPkt
+	fwdrp, err := RtrPktFromScnPkt(spkt, rcmn.DirExternal, rp.Ctx)
+	if err != nil {
+		return HookError, err
+	}
+	// Set current IF and forward to remote BR directly
+	fwdrp.ifCurr = rp.ifCurr
+	fwdrp.hooks.Route = append(fwdrp.hooks.Route, fwdrp.forwardFromLocal)
+	fwdrp.Route()
+	return HookFinish, nil
+}
+
+// processRemoteIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
+func (rp *RtrPkt) processRemoteIFID(ifid *ifid.IFID) (HookResult, error) {
 	// Set the RelayIF field in the payload to the current interface ID.
 	ifid.RelayIfID = uint64(*rp.ifCurr)
 	cpld, err := ctrl.NewPld(ifid, nil)
