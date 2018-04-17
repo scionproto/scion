@@ -30,14 +30,16 @@ import (
 
 const (
 	AsConfFileName    = "as.ini"
+	KeyAlgSectionName = "Key Algorithms"
 	AsSectionName     = "AS Certificate"
 	IssuerSectionName = "Issuer Certificate"
 )
 
 // As contains the as.ini configuration parameters.
 type As struct {
-	*AsCert     `ini:"AS Certificate"`
-	*IssuerCert `ini:"Issuer Certificate,omitempty"`
+	*AsCert        `ini:"AS Certificate"`
+	*IssuerCert    `ini:"Issuer Certificate,omitempty"`
+	*KeyAlgorithms `ini:"Key Algorithms,omitempty"`
 }
 
 func (a *As) validate() error {
@@ -80,8 +82,14 @@ func NewTemplateAsConf(subject addr.IA, trcVer uint64, core bool) *As {
 
 	if core {
 		ibc := NewTemplateCertConf(trcVer)
-		a.IssuerCert = &IssuerCert{BaseCert: ibc}
+		a.IssuerCert = &IssuerCert{
+			BaseCert: ibc,
+		}
 		a.AsCert.Issuer = subject.String()
+		a.KeyAlgorithms = &KeyAlgorithms{
+			Online:  crypto.Ed25519,
+			Offline: crypto.Ed25519,
+		}
 	}
 	return a
 }
@@ -135,6 +143,12 @@ type BaseCert struct {
 	Version       uint64        `comment:"The version of the certificate. Cannot be 0"`
 	Validity      time.Duration `ini:"-"`
 	RawValidity   string        `ini:"Validity" comment:"The validity of the certificate as duration string, e.g., 180d or 36h"`
+}
+
+// KeyAlgorithms corresponds to the "Key Algorithms" section
+type KeyAlgorithms struct {
+	Online  string `comment:"Signing algorithm used by Online Key, e.g., ed25519"`
+	Offline string `comment:"Signing algorithm used by Offline Key, e.g., ed25519"`
 }
 
 func (c *BaseCert) validate() error {

@@ -54,7 +54,7 @@ Description = "Test ISD 1"
 
 [TRC]
 GracePeriod = 0s
-CoreASes = 1-ff00_0_10,1-ff00_0_20,1-ff00_0_30
+CoreASes = 1-ff00:0:10,1-ff00:0:20,1-ff00:0:30
 Version = 1
 QuorumTRC = 2
 Validity = 365d
@@ -83,6 +83,12 @@ Issuer        = 1-ff00:0:10
 TRCVersion    = 1
 Version       = 1
 Validity      = 7d
+
+[Key Algorithms]
+; Signing algorithm used by Online Key, e.g., ed25519
+Online  = ed25519
+; Signing algorithm used by Offline Key, e.g., ed25519
+Offline = ed25519
 ```
 
 ```
