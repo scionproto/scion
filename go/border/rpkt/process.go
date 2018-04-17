@@ -40,6 +40,11 @@ const (
 	errPldGet = "Unable to retrieve payload"
 )
 
+type IFIDCallbackArgs struct {
+	ScnPkt *spkt.ScnPkt
+	IFCurr *common.IFIDType
+}
+
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() error {
@@ -159,37 +164,16 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 // processIFID handles IFID (interface ID) packets
 func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 	if rp.DirFrom == rcmn.DirLocal {
-		return rp.processLocalIFID(ifid)
+		// Create ScnPkt from RtrPkt and enqueue for handler
+		spkt, err := rp.ToScnPkt(true)
+		if err != nil {
+			return HookError, err
+		}
+		callbacks.ifIDF(IFIDCallbackArgs{ScnPkt: spkt, IFCurr: rp.ifCurr})
+		return HookFinish, nil
 	} else {
 		return rp.processRemoteIFID(ifid)
 	}
-}
-
-// processLocalIFID handles IFID (interface ID) packets from the local BS
-// and forwards them to the remote ISD-AS BR
-func (rp *RtrPkt) processLocalIFID(ifid *ifid.IFID) (HookResult, error) {
-	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	// Create ScnPkt from RtrPkt and set remote BR as Dst
-	spkt, err := rp.ToScnPkt(true)
-	if err != nil {
-		return HookError, err
-	}
-	spkt.DstIA = intf.RemoteIA
-	spkt.DstHost = addr.HostFromIP(intf.RemoteAddr.IP)
-	// Remove old path and add overlay
-	spkt.Path = nil
-	overlayPort := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay).OverlayPort
-	spkt.L4 = &l4.UDP{SrcPort: uint16(overlayPort), DstPort: uint16(intf.RemoteAddr.OverlayPort)}
-	// Convert back to RtrPkt
-	fwdrp, err := RtrPktFromScnPkt(spkt, rcmn.DirExternal, rp.Ctx)
-	if err != nil {
-		return HookError, err
-	}
-	// Set current IF and forward to remote BR directly
-	fwdrp.ifCurr = rp.ifCurr
-	fwdrp.hooks.Route = append(fwdrp.hooks.Route, fwdrp.forwardFromLocal)
-	fwdrp.Route()
-	return HookFinish, nil
 }
 
 // processRemoteIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
