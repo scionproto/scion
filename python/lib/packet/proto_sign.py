@@ -72,7 +72,8 @@ class ProtoSign(Cerealizable):
             raise ProtoSignError("Unsupported proto signature type (verify): %s" % self.p.type)
 
     def sig_pack(self, incl_sig=True):
-        # b = [str(self.p.type).encode("utf-8"), self.p.src, str(self.p.timestamp).encode("utf-8")]
+        # XXX(worxli) add ts to signature but in sep. PR as it also needs changes in BR
+        # b = [str(self.p.type).encode("utf-8"), self.p.src, self.p.timestamp.to_bytes(4, 'big')]
         b = [str(self.p.type).encode("utf-8"), self.p.src]
         if incl_sig:
             b.append(self.p.signature)

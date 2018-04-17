@@ -576,7 +576,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self._send_ifstate_update(infos, border_metas, ps_meta)
 
     def _handle_scmp_revocation(self, pld, meta):
-        srev_info = SignedRevInfo.from_raw(pld.info.rev_info)
+        srev_info = SignedRevInfo.from_raw(pld.info.srev_info)
         rev_info = srev_info.rev_info()
         logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
         try:

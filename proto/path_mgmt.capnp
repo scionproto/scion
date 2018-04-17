@@ -19,7 +19,7 @@ struct SegReq {
 
 struct SegRecs {
     recs @0 :List(PSeg.PathSegMeta);
-    revInfos @1 :List(Sign.SignedBlob);
+    sRevInfos @1 :List(Sign.SignedBlob);
 }
 
 struct SegReply {
@@ -34,7 +34,7 @@ struct PathMgmt {
         segReply @2 :SegReply;
         segReg @3 :SegRecs;
         segSync @4 :SegRecs;
-        revInfo @5 :Sign.SignedBlob;
+        sRevInfo @5 :Sign.SignedBlob;
         ifStateReq @6 :IFState.IFStateReq;
         ifStateInfos @7 :IFState.IFStateInfos;
     }

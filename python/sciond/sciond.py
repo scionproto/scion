@@ -413,7 +413,7 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
-        srev_info = SignedRevInfo.from_raw(pld.info.rev_info)
+        srev_info = SignedRevInfo.from_raw(pld.info.srev_info)
         self.handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def handle_revocation(self, cpld, meta):

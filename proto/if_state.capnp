@@ -8,7 +8,7 @@ using Sign = import "sign.capnp";
 struct IFStateInfo {
     ifID @0 :UInt64;
     active @1 :Bool;
-    revInfo @2 :Sign.SignedBlob;
+    sRevInfo @2 :Sign.SignedBlob;
 }
 
 struct IFStateInfos {

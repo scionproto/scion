@@ -35,13 +35,13 @@ class SCIONDRevNotification(Cerealizable):
         self._rev_info = None
 
     @classmethod
-    def from_values(cls, rev_info):
-        p = cls.P_CLS.new_message(revInfo=rev_info.p)
+    def from_values(cls, srev_info):
+        p = cls.P_CLS.new_message(sRevInfo=srev_info.p)
         return cls(p)
 
     def srev_info(self):
         if not self._rev_info:
-            self._rev_info = SignedRevInfo(self.p.revInfo)
+            self._rev_info = SignedRevInfo(self.p.sRevInfo)
         return self._rev_info
 
     def short_desc(self):

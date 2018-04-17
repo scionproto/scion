@@ -232,8 +232,8 @@ class SCIONDConnector:
             return None
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
 
-    def send_rev_notification(self, rev_info):  # pragma: no cover
-        rev_not = SCIONDMsg(SCIONDRevNotification.from_values(rev_info), self._req_id.inc())
+    def send_rev_notification(self, srev_info):  # pragma: no cover
+        rev_not = SCIONDMsg(SCIONDRevNotification.from_values(srev_info), self._req_id.inc())
         with closing(self._create_socket()) as socket:
             if not socket.send(rev_not.pack()):
                 raise SCIONDRequestError
@@ -402,14 +402,14 @@ def get_overlay_dest(spkt, connector=None):  # pragma: no cover
     return fh_info
 
 
-def send_rev_notification(rev_info, connector=None):  # pragma: no cover
+def send_rev_notification(srev_info, connector=None):  # pragma: no cover
     """Forwards the RevocationInfo object to SCIOND."""
     global _connector
     if not connector:
         connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
-    connector.send_rev_notification(rev_info)
+    connector.send_rev_notification(srev_info)
 
 
 def get_segtype_hops(seg_type, connector=None):  # pragma: no cover
