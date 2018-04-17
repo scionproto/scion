@@ -46,12 +46,14 @@ const pktBufSize = 9 * 1024
 // for various processing tasks.
 var callbacks struct {
 	revTokenF func(RevTokenCallbackArgs)
+	ifIDF     func(IFIDCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
-func Init(revTokenF func(RevTokenCallbackArgs)) {
+func Init(revTokenF func(RevTokenCallbackArgs), ifIDF func(IFIDCallbackArgs)) {
 	callbacks.revTokenF = revTokenF
+	callbacks.ifIDF = ifIDF
 }
 
 // Router representation of SCION packet, including metadata.  The comments for the members have

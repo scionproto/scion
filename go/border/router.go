@@ -55,6 +55,8 @@ type Router struct {
 	freePkts *ringbuf.Ring
 	// revInfoQ is a channel for handling RevInfo payloads.
 	revInfoQ chan rpkt.RevTokenCallbackArgs
+	// iFID is a channel for handling IFID packets from the local BS
+	ifIDQ chan rpkt.IFIDCallbackArgs
 	// pktErrorQ is a channel for handling packet errors
 	pktErrorQ chan pktErrorArgs
 }
@@ -73,6 +75,7 @@ func NewRouter(id, confDir string) (*Router, error) {
 func (r *Router) Run() error {
 	go r.IFStateUpdate()
 	go r.RevInfoFwd()
+	go r.IFIDFwd()
 	go r.PacketError()
 	go r.confSig()
 	// TODO(shitz): Here should be some code to periodically check the discovery
