@@ -36,6 +36,7 @@ from lib.defines import (
 from lib.errors import SCIONBaseError, SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
+from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
@@ -504,7 +505,8 @@ class SCIONDaemon(SCIONElement):
             # Either the destination is the local AS, or the destination is any
             # core AS in this ISD, and the local AS is in the core
             empty = SCIONPath()
-            empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu)
+            empty_meta = FwdPathMeta.from_values(
+                empty, [], self.topology.mtu, OneHopPathExt.HOF_EXP_TIME)
             return [empty_meta], SCIONDPathReplyError.OK
         paths = self.path_resolution(dst_ia, flags=flags)
         if not paths:

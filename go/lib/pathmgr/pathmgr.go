@@ -37,9 +37,6 @@ package pathmgr
 // The manager is composed of the public PR struct, which is a proxy that
 // forward queries to the asynchronous resolver. Both the proxy and the
 // resolver operate over a thread-safe cache which contains path information.
-//
-// FIXME(scrye): Path TTLs are not implemented yet, which means expired paths
-// might be returned by the path manager.
 
 import (
 	"sync"
