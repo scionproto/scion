@@ -60,11 +60,20 @@ class SignedRevInfo(ProtoSignedBlob):
         if not super().verify(key):
             raise SignedRevInfoVerificationError("Failed to verify RevInfo signature!")
 
-    def short_desc(self):
-        return "SRevInfo Blob: %s Sign: %s" % (self.p.blob, self.p.sign)
+    def __eq__(self, other):
+        if other is None:
+            logging.error("Other SignedRevInfo object is None.")
+            return False
+        if not isinstance(other, SignedRevInfo):
+            logging.error("Other is not a SignedRevInfo.")
+            return False
+        return self.rev_info().cmp_str() == other.rev_info().cmp_str()
 
     def __hash__(self):
         return hash(self.rev_info().cmp_str())
+
+    def short_desc(self):
+        return "SRevInfo Blob: %s Sign: %s" % (self.p.blob, self.p.sign)
 
 
 class RevocationInfo(Cerealizable):

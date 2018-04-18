@@ -120,7 +120,7 @@ class PathMgmtType(object):
     REG = "segReg"
     # For records synchronization purposes (used by Path Servers).
     SYNC = "segSync"
-    REVOCATION = "revInfo"
+    REVOCATION = "sRevInfo"
     IFSTATE_REQ = "ifStateReq"
     IFSTATE_INFOS = "ifStateInfos"
 

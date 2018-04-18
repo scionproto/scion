@@ -181,7 +181,7 @@ class LocalPathServer(PathServer):
         :param signed_rev_info: SignedRevInfo
         """
         # Issue revocation to all core ASes excluding self.
-        rev_info = srev_info.rev_inf()
+        rev_info = srev_info.rev_info()
         paths = self.up_segments()
         if not paths:
             logging.warning("No paths to core ASes available for forwarding "
