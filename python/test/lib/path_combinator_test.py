@@ -25,6 +25,7 @@ import nose.tools as ntools
 
 # SCION
 from lib import path_combinator
+from lib.defines import EXP_TIME_UNIT
 from lib.packet.path import SCIONPath
 from lib.sciond_api.path_meta import FwdPathMeta, PathInterface
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
@@ -138,23 +139,24 @@ class TestPathCombinatorCopySegment(object):
     """
     def test_no_segment(self):
         ntools.eq_(path_combinator._copy_segment(None, False, False, "xovrs"),
-                   (None, None, float("inf")))
+                   (None, None, float("inf"), float("inf")))
 
     @patch("lib.path_combinator._copy_hofs",
            new_callable=create_mock)
     def test_copy_up(self, copy_hofs):
         seg = create_mock(["iter_asms", "infoF"])
-        info = create_mock(["up_flag"])
+        info = create_mock(["up_flag", "timestamp"])
+        info.timestamp = 12345
         seg.infoF.return_value = info
         hofs = []
         for _ in range(3):
             hof = create_mock(["xover"])
             hof.xover = False
             hofs.append(hof)
-        copy_hofs.return_value = hofs, None
+        copy_hofs.return_value = hofs, None, 1
         # Call
         ntools.eq_(path_combinator._copy_segment(seg, True, True),
-                   (info, hofs, None))
+                   (info, hofs, None, 12345 + EXP_TIME_UNIT))
         # Tests
         ntools.eq_(info.up_flag, True)
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
@@ -167,12 +169,13 @@ class TestPathCombinatorCopySegment(object):
            new_callable=create_mock)
     def test_copy_down(self, copy_hofs):
         seg = create_mock(["iter_asms", "infoF"])
-        info = create_mock(["up_flag"])
+        info = create_mock(["up_flag", "timestamp"])
+        info.timestamp = 12345
         seg.infoF.return_value = info
-        copy_hofs.return_value = "hofs", None
+        copy_hofs.return_value = "hofs", None, 1
         # Call
         ntools.eq_(path_combinator._copy_segment(seg, False, False, up=False),
-                   (info, "hofs", None))
+                   (info, "hofs", None, 12345 + EXP_TIME_UNIT))
         # Tests
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
                                           reverse=False)
@@ -245,10 +248,10 @@ class PathCombinatorJoinShortcutsBase(object):
         point = (1, 2)
         up_iof = create_mock(["shortcut", "peer"])
         down_iof = create_mock(["shortcut", "peer"])
-        copy_segment.side_effect = [(up_iof, ["A", "B"], "up hof", 1500),
-                                    (down_iof, ["C"], "down hof", 1400)]
+        copy_segment.side_effect = [(up_iof, ["A", "B"], "up hof", 1500, 123),
+                                    (down_iof, ["C"], "down hof", 1400, 123)]
         path_args.return_value = ()
-        return up_segment, down_segment, point
+        return up_segment, down_segment, point, 1234
 
 
 class TestPathCombinatorJoinCrossover(PathCombinatorJoinShortcutsBase):
@@ -262,8 +265,8 @@ class TestPathCombinatorJoinCrossover(PathCombinatorJoinShortcutsBase):
     @patch("lib.path_combinator._build_shortcut_interface_list",
            new_callable=create_mock)
     def test_xovr(self, build_list, path_args, copy_segment):
-        up_segment, down_segment, point = self._setup(path_args, copy_segment)
-        path_meta = FwdPathMeta.from_values(SCIONPath(), [], 0)
+        up_segment, down_segment, point, exp_time = self._setup(path_args, copy_segment)
+        path_meta = FwdPathMeta.from_values(SCIONPath(), [], 0, exp_time)
         ntools.eq_(
             path_combinator._join_xovr(up_segment, down_segment, point)[0],
             path_meta)
@@ -285,11 +288,11 @@ class TestPathCombinatorJoinPeer(PathCombinatorJoinShortcutsBase):
     @patch("lib.path_combinator._find_peer_hfs",
            new_callable=create_mock)
     def test_peer(self, find_peers, build_list, path_args, copy_segment):
-        up_segment, down_segment, point = self._setup(path_args, copy_segment)
+        up_segment, down_segment, point, exp_time = self._setup(path_args, copy_segment)
         find_peers.return_value = [("uph1", "dph1", 1500),
                                    ("uph2", "dph2", 1500)]
         peer_revs = create_mock()
-        path_meta = FwdPathMeta.from_values(SCIONPath(), [], 0)
+        path_meta = FwdPathMeta.from_values(SCIONPath(), [], 0, exp_time)
         ntools.eq_(path_combinator._join_peer(
             up_segment, down_segment, point, peer_revs)[0], path_meta)
         copy_segment.assert_any_call(up_segment, 1)
@@ -427,9 +430,13 @@ class TestPathCombinatorCopyHofs(object):
     """
     def test_full(self):
         asms = []
+        hof_mocks = []
         for i in range(4):
+            hof_mock = create_mock(["exp_time"])
+            hof_mock.exp_time = 4 + i
+            hof_mocks.append(hof_mock)
             pcbm = create_mock(["hof", "p"])
-            pcbm.hof.return_value = i
+            pcbm.hof.return_value = hof_mock
             pcbm.p = create_mock(["inMTU"])
             pcbm.p.inMTU = (i + 1) * 2
             asm = create_mock(["pcbm", "p"])
@@ -437,8 +444,9 @@ class TestPathCombinatorCopyHofs(object):
             asm.p = create_mock(["mtu"])
             asm.p.mtu = (i + 1) * 0.5
             asms.append(asm)
+        hof_mocks = list(reversed(hof_mocks))
         # Call
-        ntools.eq_(path_combinator._copy_hofs(asms), ([3, 2, 1, 0], 0.5))
+        ntools.eq_(path_combinator._copy_hofs(asms), (hof_mocks, 0.5, 4))
 
 
 class TestPathCombinatorCopySegmentShortcut(object):
@@ -446,8 +454,9 @@ class TestPathCombinatorCopySegmentShortcut(object):
     Unit tests for lib.path_combinator._copy_segment_shortcut
     """
     def _setup(self, copy_hofs):
-        info = create_mock(["hops", "up_flag"])
+        info = create_mock(["hops", "up_flag", "timestamp"])
         info.hops = 10
+        info.timestamp = 12345
         upstream_hof = create_mock(["verify_only", "xover"])
         pcbm = create_mock(["hof"])
         pcbm.hof.return_value = upstream_hof
@@ -459,7 +468,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         hofs = []
         for _ in range(6):
             hofs.append(create_mock(["xover"]))
-        copy_hofs.return_value = hofs, "mtu"
+        copy_hofs.return_value = hofs, "mtu", 1
         return seg, info, hofs, upstream_hof
 
     @patch("lib.path_combinator._copy_hofs",
@@ -468,7 +477,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         seg, info, hofs, upstream_hof = self._setup(copy_hofs)
         # Call
         ntools.eq_(path_combinator._copy_segment_shortcut(seg, 4),
-                   (info, hofs, upstream_hof, "mtu"))
+                   (info, hofs, upstream_hof, "mtu", info.timestamp + EXP_TIME_UNIT))
         # Tests
         ntools.eq_(info.hops, 6)
         ntools.ok_(info.up_flag)
@@ -484,7 +493,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         seg, info, hofs, upstream_hof = self._setup(copy_hofs)
         # Call
         ntools.eq_(path_combinator._copy_segment_shortcut(seg, 7, up=False),
-                   (info, hofs, upstream_hof, "mtu"))
+                   (info, hofs, upstream_hof, "mtu", info.timestamp + EXP_TIME_UNIT))
         # Tests
         ntools.assert_false(info.up_flag)
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,

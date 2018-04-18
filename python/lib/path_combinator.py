@@ -20,7 +20,7 @@ import logging
 
 # SCION
 from lib.crypto.hash_tree import ConnectedHashTree
-from lib.defines import SCION_MIN_MTU
+from lib.defines import EXP_TIME_UNIT, SCION_MIN_MTU
 from lib.packet.path import SCIONPath
 from lib.sciond_api.path_meta import FwdPathMeta, PathInterface
 
@@ -84,15 +84,15 @@ def _copy_segment(segment, xover_start, xover_end, up=True):
     flags, and optionally reversing the hops.
     """
     if not segment:
-        return None, None, float("inf")
+        return None, None, float("inf"), float("inf")
     info = segment.infoF()
     info.up_flag = up
-    hofs, mtu = _copy_hofs(segment.iter_asms(), reverse=up)
+    hofs, mtu, hof_exp = _copy_hofs(segment.iter_asms(), reverse=up)
     if xover_start:
         hofs[0].xover = True
     if xover_end:
         hofs[-1].xover = True
-    return info, hofs, mtu
+    return info, hofs, mtu, _calc_exp_time(info.timestamp, hof_exp)
 
 
 def _get_xovr_peer(up_segment, down_segment, peer_revs):
@@ -139,9 +139,9 @@ def _join_xovr(up_segment, down_segment, point):
     """
     (up_index, down_index) = point
 
-    up_iof, up_hofs, up_upstream_hof, up_mtu = \
+    up_iof, up_hofs, up_upstream_hof, up_mtu, up_exp = \
         _copy_segment_shortcut(up_segment, up_index)
-    down_iof, down_hofs, down_upstream_hof, down_mtu = \
+    down_iof, down_hofs, down_upstream_hof, down_mtu, down_exp = \
         _copy_segment_shortcut(down_segment, down_index, up=False)
 
     up_iof.shortcut = down_iof.shortcut = True
@@ -153,7 +153,8 @@ def _join_xovr(up_segment, down_segment, point):
     if_list = _build_shortcut_interface_list(
         up_segment, up_index, down_segment, down_index)
     mtu = _min_mtu(up_mtu, down_mtu)
-    path_meta = FwdPathMeta.from_values(path, if_list, mtu)
+    exp = min(up_exp, down_exp)
+    path_meta = FwdPathMeta.from_values(path, if_list, mtu, exp)
     return [path_meta]
 
 
@@ -169,9 +170,9 @@ def _join_peer(up_segment, down_segment, point, peer_revs):
     """
     (up_index, down_index) = point
 
-    up_iof, up_hofs, up_upstream_hof, up_mtu = \
+    up_iof, up_hofs, up_upstream_hof, up_mtu, up_exp = \
         _copy_segment_shortcut(up_segment, up_index)
-    down_iof, down_hofs, down_upstream_hof, down_mtu = \
+    down_iof, down_hofs, down_upstream_hof, down_mtu, down_exp = \
         _copy_segment_shortcut(down_segment, down_index, up=False)
     up_iof.shortcut = down_iof.shortcut = True
     up_iof.peer = down_iof.peer = True
@@ -188,7 +189,8 @@ def _join_peer(up_segment, down_segment, point, peer_revs):
         if_list = _build_shortcut_interface_list(
             up_segment, up_index, down_segment, down_index, (uph, dph))
         mtu = _min_mtu(um, dm)
-        path_meta = FwdPathMeta.from_values(path, if_list, mtu)
+        exp = min(up_exp, down_exp)
+        path_meta = FwdPathMeta.from_values(path, if_list, mtu, exp)
         path_metas.append(path_meta)
     return path_metas
 
@@ -292,6 +294,7 @@ def _copy_hofs(asms, reverse=True):
     """
     hofs = []
     mtu = float("inf")
+    hof_exp = float("inf")
     for i, asm in enumerate(asms):
         pcbm = asm.pcbm(0)
         if i != 0:
@@ -299,10 +302,12 @@ def _copy_hofs(asms, reverse=True):
             # ASMarking, as it won't be traversed.
             mtu = min(mtu, pcbm.p.inMTU)
         mtu = min(mtu, asm.p.mtu)
-        hofs.append(pcbm.hof())
+        hof = pcbm.hof()
+        hof_exp = min(hof_exp, hof.exp_time)
+        hofs.append(hof)
     if reverse:
         hofs.reverse()
-    return hofs, mtu
+    return hofs, mtu, hof_exp
 
 
 def _copy_segment_shortcut(segment, index, up=True):
@@ -326,14 +331,14 @@ def _copy_segment_shortcut(segment, index, up=True):
     info.up_flag = up
     # Copy segment HOFs
     asms = segment.iter_asms(index)
-    hofs, mtu = _copy_hofs(asms, reverse=up)
+    hofs, mtu, hof_exp = _copy_hofs(asms, reverse=up)
     xovr_idx = -1 if up else 0
     hofs[xovr_idx].xover = True
     # Extract upstream HOF
     upstream_hof = segment.asm(index - 1).pcbm(0).hof()
     upstream_hof.xover = False
     upstream_hof.verify_only = True
-    return info, hofs, upstream_hof, mtu
+    return info, hofs, upstream_hof, mtu, _calc_exp_time(info.timestamp, hof_exp)
 
 
 def _find_peer_hfs(up_asm, down_asm, peer_revs):
@@ -386,11 +391,11 @@ def tuples_to_full_paths(tuples):
                                 down_segment):
             continue
 
-        up_iof, up_hofs, up_mtu = _copy_segment(
+        up_iof, up_hofs, up_mtu, up_exp = _copy_segment(
             up_segment, False, (core_segment or down_segment))
-        core_iof, core_hofs, core_mtu = _copy_segment(
+        core_iof, core_hofs, core_mtu, core_exp = _copy_segment(
             core_segment, up_segment, down_segment)
-        down_iof, down_hofs, down_mtu = _copy_segment(
+        down_iof, down_hofs, down_mtu, down_exp = _copy_segment(
             down_segment, (up_segment or core_segment), False, up=False)
         args = []
         for iof, hofs in [(up_iof, up_hofs), (core_iof, core_hofs),
@@ -411,7 +416,8 @@ def tuples_to_full_paths(tuples):
             down_core = []
         if_list += _build_interface_list(down_core, up=False)
         mtu = _min_mtu(up_mtu, core_mtu, down_mtu)
-        path_meta = FwdPathMeta.from_values(path, if_list, mtu)
+        exp = min(up_exp, core_exp, down_exp)
+        path_meta = FwdPathMeta.from_values(path, if_list, mtu, exp)
         res.append(path_meta)
     return res
 
@@ -429,3 +435,13 @@ def _min_mtu(*candidates):  # pragma: no cover
     Return minimum of n mtu values, checking for validity
     """
     return min(filter(_valid_mtu, candidates), default=0)
+
+
+def _calc_exp_time(info_ts: int, min_hof_exp: int) -> int:
+    """
+    :param int info_ts: InfoOpaqueField timestamp
+    :param int min_hof_exp: Minimum expiration time of hop fields.
+    :returns: the real expiration time in seconds since epoch
+    :rtype: int
+    """
+    return info_ts + (min_hof_exp * EXP_TIME_UNIT)

@@ -36,8 +36,8 @@ class FwdPathMeta(Cerealizable):  # pragma: no cover
         self._fwd_path = None
 
     @classmethod
-    def from_values(cls, fwd_path, interfaces, mtu):
-        p = cls.P_CLS.new_message(fwdPath=fwd_path.pack(), mtu=mtu)
+    def from_values(cls, fwd_path, interfaces, mtu, exp_time):
+        p = cls.P_CLS.new_message(fwdPath=fwd_path.pack(), mtu=mtu, expTime=exp_time)
         ifs = p.init("interfaces", len(interfaces))
         for i, if_ in enumerate(interfaces):
             ifs[i] = if_.p
