@@ -341,100 +341,86 @@ type PathSolution struct {
 // extracting it from a path between source and destination in the DAMG.
 func (solution *PathSolution) GetFwdPathMetadata() []*PathField {
 	var fields []*PathField
+	var downStart, downEnd int
 
 	solutionEdges := solution.edges
 	for edgeIdx, solEdge := range solutionEdges {
+		asEntries := solEdge.segment.ASEntries
+
+		// Create new InfoField. Hop field initialization might set additional
+		// flags in currentIF.
 		currentIF := &PathField{
 			Type: IF,
 			Up:   solEdge.segment.UpFlag(),
-			ISD:  solEdge.segment.ASEntries[0].IA().I,
+			ISD:  asEntries[0].IA().I,
 		}
 		fields = append(fields, currentIF)
 
-		switch solEdge.segment.Type {
-		case UpSegment, CoreSegment:
-			// Go through each ASEntry, starting from the last one, until we
-			// find a shortcut or we reach the beginning of the segment
-			for asEntryIdx := len(solEdge.segment.ASEntries) - 1; asEntryIdx >= 0; asEntryIdx-- {
-				asEntry := solEdge.segment.ASEntries[asEntryIdx]
+		if solEdge.segment.Type == DownSegment {
+			downStart = len(fields)
+		}
 
-				if asEntryIdx == solEdge.edge.Shortcut {
-					// We've reached the ASEntry where we want to switch
-					// segments; this can happen either when we reach the end
-					// of the segment (so Shortcut = 0, Peer = 0), we reach a
-					// Shortcut annotation (so we don't need to go to the end
-					// of the segment anymore, Peer = 0), or when we need to
-					// traverse a peering link.
-					asEntryHF := NewHFPathField(asEntry.HopEntries[solEdge.edge.Peer])
-					if edgeIdx != len(solutionEdges)-1 {
-						// Only enable Xover flag if this is not the last segment.
-						asEntryHF.Xover = 1
-					}
-					fields = append(fields, asEntryHF)
-					currentIF.Hops++
+		// Go through each ASEntry, starting from the last one, until we
+		// find a shortcut (which can be 0, meaning the end of the segment).
+		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
+			asEntry := asEntries[asEntryIdx]
 
-					if solEdge.edge.Shortcut != 0 && solEdge.segment.Type == UpSegment {
-						// This was an actual Shortcut. If Peer is non-zero, it
-						// means we are crossing a peering link, so set the
-						// Peer flag in the current InfoField. Otherwise, it's
-						// an intra-ISD shortcut, so set the Shortcut flag
-						// instead.
-						if solEdge.edge.Peer != 0 {
-							currentIF.Peer = 1
-						} else {
-							if edgeIdx != len(solutionEdges)-1 {
-								// NOTE(scrye): for some reason, as defined in
-								// the book, single-segment shortcuts do not
-								// have the shortcut flag set.
-								currentIF.Shortcut = 1
-							}
-						}
+			// Normal hop field.
+			asEntryHF := NewHFPathField(asEntry.HopEntries[0])
+			fields = append(fields, asEntryHF)
+			currentIF.Hops++
 
-						// For actual shortcuts, include a verify-only HF
-						// afterwards.
-						asEntryHF := NewHFPathField(
-							solEdge.segment.ASEntries[asEntryIdx-1].HopEntries[0])
-						asEntryHF.Vonly = 1
-						fields = append(fields, asEntryHF)
-						currentIF.Hops++
-						break
-					}
-				} else {
-					// Normal hop field.
-					asEntryHF := NewHFPathField(asEntry.HopEntries[0])
-					fields = append(fields, asEntryHF)
+			if asEntryIdx == solEdge.edge.Shortcut {
+				// We've reached the ASEntry where we want to switch
+				// segments; this can happen either when we reach the end
+				// of the segment (so Shortcut = 0, Peer = 0), we reach a
+				// Shortcut annotation (so we don't need to go to the end
+				// of the segment anymore, Peer = 0), or when we need to
+				// traverse a peering link.
+
+				// If this is not the last segment in the path, set Xover flag.
+				if edgeIdx != len(solutionEdges)-1 {
+					asEntryHF.Xover = 1
 				}
-			}
-		case DownSegment:
-			// If this is a shortcut, we need to start from the verify-only HF
-			if solEdge.edge.Shortcut != 0 {
-				asEntryHF := NewHFPathField(
-					solEdge.segment.ASEntries[solEdge.edge.Shortcut-1].HopEntries[0])
-				asEntryHF.Vonly = 1
-				fields = append(fields, asEntryHF)
-				currentIF.Hops++
-			}
 
-			for index := solEdge.edge.Shortcut; index < len(solEdge.segment.ASEntries); index++ {
-				entry := solEdge.segment.ASEntries[index]
-				// If we're crossing a peering link, we need to start off by
-				// selecting the one matching  the peering link in the up
-				// segment
-				if index == solEdge.edge.Shortcut && solEdge.edge.Peer != 0 {
+				if solEdge.edge.Shortcut != 0 && solEdge.edge.Peer != 0 {
+					// Crossing peering link. Include the peer entry hop field,
+					// and always set Xover of normal hop field even if this is
+					// the last segment in the path.
+					asEntryHF.Xover = 1
 					currentIF.Peer = 1
-					asEntryHF := NewHFPathField(entry.HopEntries[solEdge.edge.Peer])
+					asEntryHF := NewHFPathField(asEntry.HopEntries[solEdge.edge.Peer])
 					asEntryHF.Xover = 1
 					fields = append(fields, asEntryHF)
 					currentIF.Hops++
-				} else {
-					asEntryHF := NewHFPathField(entry.HopEntries[0])
+				}
+
+				if solEdge.edge.Shortcut != 0 {
+					// Normal or peering shortcut. Include the verify-only hop field.
+					currentIF.Shortcut = 1
+					asEntryHF := NewHFPathField(asEntries[asEntryIdx-1].HopEntries[0])
+					asEntryHF.Vonly = 1
 					fields = append(fields, asEntryHF)
 					currentIF.Hops++
 				}
 			}
 		}
+
+		if solEdge.segment.Type == DownSegment {
+			downEnd = len(fields)
+		}
 	}
+
+	// Reverse down-segment. If no down-segment, this is a no-op.
+	reverseFields(fields, downStart, downEnd)
 	return fields
+}
+
+// reverseFields reverses the order of the fields between start and end-1.
+func reverseFields(fields []*PathField, start, end int) {
+	for i, j := start, end-1; i < j; i, j = i+1, j-1 {
+		fields[i], fields[j] = fields[j], fields[i]
+	}
 }
 
 // PathSolutionList is a sort.Interface implementation for a slice of solutions.
