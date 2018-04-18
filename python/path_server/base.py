@@ -286,9 +286,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :type rev_info: RevocationInfo
         """
         def _handle_one_seg(seg, db):
-            if not seg:
-                # logging.error("Handle None segment")
-                return 0
             rm, ltype = seg.rev_match(rev_info)
             if rm and (ltype in [LinkType.PARENT, LinkType.CHILD] and
                db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED):
@@ -300,11 +297,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         core_segs_removed = 0
         with self.seglock:
             if not self.topology.is_core_as:
-                for up_segment in self.up_segments:
+                for up_segment in self.up_segments():
                     up_segs_removed += _handle_one_seg(up_segment, self.up_segments)
-            for down_segment in self.down_segments:
+            for down_segment in self.down_segments():
                 down_segs_removed += _handle_one_seg(down_segment, self.down_segments)
-            for core_segment in self.core_segments:
+            for core_segment in self.core_segments():
                 core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
 
         logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
