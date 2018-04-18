@@ -17,13 +17,12 @@
 package e2etest
 
 import (
-	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"testing"
 	"time"
 
+	log "github.com/inconshreveable/log15"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -36,8 +35,7 @@ func TestASInfo(t *testing.T) {
 	dir, deleteDirTree := setupDirTree(t)
 	defer deleteDirTree()
 	sock := xtest.MustTempFileName(dir, "rsock")
-	stopServer := StartServer(t, dir, sock)
-	defer stopServer()
+	defer StartServer(t, dir, sock)()
 	conn, stopClient := StartClient(t, sock)
 	defer stopClient()
 
@@ -94,12 +92,10 @@ func StartServer(t *testing.T, dir, file string) func() {
 	binary.Build()
 	t.Log("Build succeeded")
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	cmd := binary.Cmd(
 		"-id", "sdtest",
 		"-reliable", file,
-		"-log.console", "debug",
-		"-prom", fmt.Sprintf("127.0.0.1:%d", 30000+r.Intn(1000)),
+		"-log.console", "crit",
 	)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -112,4 +108,10 @@ func StartServer(t *testing.T, dir, file string) func() {
 	return func() {
 		cmd.Process.Kill()
 	}
+}
+
+func TestMain(m *testing.M) {
+	// Discard client logging messages
+	log.Root().SetHandler(log.DiscardHandler())
+	os.Exit(m.Run())
 }

@@ -37,7 +37,7 @@ type UnixSockServer struct {
 	Log       log.Logger
 
 	mu        sync.Mutex // protect access to transport during init/close
-	transport transport.Transport
+	transport infra.Transport
 }
 
 // UnixServer starts a SCIONDMSg server on the UNIX SOCK_DGRAM socket at
