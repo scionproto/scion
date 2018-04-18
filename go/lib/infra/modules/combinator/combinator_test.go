@@ -131,23 +131,27 @@ func TestMultiPeering(t *testing.T) {
 			},
 			Exp: [][]PathField{
 				{
-					{Type: IF, Peer: 1, Up: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1714},
+					{Type: HF, Xover: 1, InIF: 1411, OutIF: 1417},
 					{Type: HF, Xover: 1, InIF: 1415, OutIF: 1417},
 					{Type: HF, Vonly: 1, OutIF: 1114},
-					{Type: IF, Peer: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Peer: 1, ISD: 1},
 					{Type: HF, Vonly: 1, OutIF: 1215},
 					{Type: HF, Xover: 1, InIF: 1514, OutIF: 1518},
+					{Type: HF, Xover: 1, InIF: 1512, OutIF: 1518},
 					{Type: HF, InIF: 1815},
 				},
 				{
-					{Type: IF, Peer: 1, Up: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1714},
+					{Type: HF, Xover: 1, InIF: 1411, OutIF: 1417},
 					{Type: HF, Xover: 1, InIF: 4001, OutIF: 1417},
 					{Type: HF, Vonly: 1, OutIF: 1114},
-					{Type: IF, Peer: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Peer: 1, ISD: 1},
 					{Type: HF, Vonly: 1, OutIF: 1215},
 					{Type: HF, Xover: 1, InIF: 4002, OutIF: 1518},
+					{Type: HF, Xover: 1, InIF: 1512, OutIF: 1518},
 					{Type: HF, InIF: 1815},
 				},
 				{
@@ -439,7 +443,7 @@ func TestComputePath(t *testing.T) {
 			},
 			Exp: [][]PathField{
 				{
-					{Type: IF, Up: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1019},
 					{Type: HF, InIF: 1916, OutIF: 1910},
 					{Type: HF, InIF: 1613, OutIF: 1619},
@@ -460,7 +464,7 @@ func TestComputePath(t *testing.T) {
 			},
 			Exp: [][]PathField{
 				{
-					{Type: IF, Up: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1019},
 					{Type: HF, InIF: 1916, OutIF: 1910},
 					{Type: HF, Vonly: 1, InIF: 1613, OutIF: 1619},
@@ -480,7 +484,7 @@ func TestComputePath(t *testing.T) {
 			},
 			Exp: [][]PathField{
 				{
-					{Type: IF, ISD: 1},
+					{Type: IF, Shortcut: 1, ISD: 1},
 					{Type: HF, Vonly: 1, InIF: 0, OutIF: 1316},
 					{Type: HF, InIF: 1613, OutIF: 1619},
 					{Type: HF, InIF: 1916},
@@ -504,8 +508,8 @@ func TestComputePath(t *testing.T) {
 					{Type: HF, InIF: 2523},
 					{Type: HF, Xover: 1, InIF: 2321, OutIF: 2325},
 					{Type: HF, Vonly: 1, OutIF: 2123},
-					{Type: IF, ISD: 2},
-					{Type: HF, Shortcut: 1, Vonly: 1, OutIF: 2123},
+					{Type: IF, Shortcut: 1, ISD: 2},
+					{Type: HF, Vonly: 1, OutIF: 2123},
 					{Type: HF, InIF: 2321, OutIF: 2326},
 					{Type: HF, InIF: 2623},
 				},
@@ -526,13 +530,15 @@ func TestComputePath(t *testing.T) {
 			},
 			Exp: [][]PathField{
 				{
-					{Type: IF, Peer: 1, Up: 1, ISD: 2},
+					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 2},
 					{Type: HF, InIF: 2523},
+					{Type: HF, Xover: 1, InIF: 2321, OutIF: 2325},
 					{Type: HF, Xover: 1, InIF: 2324, OutIF: 2325},
 					{Type: HF, Vonly: 1, OutIF: 2123},
-					{Type: IF, Peer: 1, ISD: 2},
+					{Type: IF, Shortcut: 1, Peer: 1, ISD: 2},
 					{Type: HF, Vonly: 1, OutIF: 2224},
 					{Type: HF, Xover: 1, InIF: 2423, OutIF: 2426},
+					{Type: HF, Xover: 1, InIF: 2422, OutIF: 2426},
 					{Type: HF, InIF: 2624},
 				},
 				{
@@ -565,12 +571,14 @@ func TestComputePath(t *testing.T) {
 			},
 			Exp: [][]PathField{
 				{
-					{Type: IF, Peer: 1, Up: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 1},
+					{Type: HF, Xover: 1, InIF: 1411},
 					{Type: HF, Xover: 1, InIF: 1423},
 					{Type: HF, Vonly: 1, OutIF: 1114},
-					{Type: IF, Peer: 1, ISD: 2},
+					{Type: IF, Shortcut: 1, Peer: 1, ISD: 2},
 					{Type: HF, Vonly: 1, OutIF: 2123},
 					{Type: HF, Xover: 1, InIF: 2314, OutIF: 2325},
+					{Type: HF, Xover: 1, InIF: 2321, OutIF: 2325},
 					{Type: HF, InIF: 2523},
 				},
 				{
@@ -602,12 +610,14 @@ func TestComputePath(t *testing.T) {
 			},
 			Exp: [][]PathField{
 				{
-					{Type: IF, Peer: 1, Up: 1, ISD: 1},
+					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 1},
+					{Type: HF, Xover: 1, InIF: 1411},
 					{Type: HF, Xover: 1, InIF: 1423},
 					{Type: HF, Vonly: 1, OutIF: 1114},
-					{Type: IF, Peer: 1, ISD: 2},
+					{Type: IF, Shortcut: 1, Peer: 1, ISD: 2},
 					{Type: HF, Vonly: 1, OutIF: 2123},
-					{Type: HF, Xover: 1, InIF: 2314, OutIF: 0},
+					{Type: HF, Xover: 1, InIF: 2314},
+					{Type: HF, Xover: 1, InIF: 2321},
 				},
 				{
 					{Type: IF, Up: 1, ISD: 1},
