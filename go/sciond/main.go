@@ -101,11 +101,13 @@ func realMain() int {
 		}()
 	}
 
-	go func() {
-		if err := http.ListenAndServe(Env.HTTPAddress, nil); err != nil {
-			fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
-		}
-	}()
+	if Env.HTTPAddress != "" {
+		go func() {
+			if err := http.ListenAndServe(Env.HTTPAddress, nil); err != nil {
+				fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
+			}
+		}()
+	}
 
 	select {
 	case <-Env.AppShutdownSignal:
@@ -161,9 +163,5 @@ func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
 	dispatcher := disp.New(transport.NewPacketTransport(conn), messenger.DefaultAdapter, env.Log)
 	// TODO: initialize actual trust store once it is available
 	trustStore := infra.TrustStore(nil)
-	msger := messenger.New(dispatcher, trustStore, env.Log)
-	// Include the below once we TrustStore is merged
-	// msger.AddHandler(messenger.ChainRequest, trustStore.NewChainReqHandler())
-	// msger.AddHandler(messenger.TRCRequest, trustStore.NewTRCReqHandler())
-	return msger, nil
+	return messenger.New(dispatcher, trustStore, env.Log), nil
 }

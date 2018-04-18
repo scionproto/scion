@@ -26,7 +26,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/transport"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -37,37 +37,33 @@ const (
 
 // API is a SCIOND API server running on top of a Transport.
 type API struct {
-	Transport transport.Transport
+	Transport infra.Transport
 
 	// State for request handlers
-	handlers *handlers
+	handlers map[proto.SCIONDMsg_Which]handler
 }
 
-type handlers struct {
-	PathRequest     PathRequestHandler
-	ASInfoRequest   ASInfoRequestHandler
-	IFInfoRequest   IFInfoRequestHandler
-	SVCInfoRequest  SVCInfoRequestHandler
-	RevNotification RevNotificationHandler
+type handler interface {
+	Handle(pld *sciond.Pld, src net.Addr)
 }
 
 func (srv *API) Serve() error {
 	// Initialize handler state if first time calling Serve
 	if srv.handlers == nil {
-		srv.handlers = &handlers{
-			PathRequest: PathRequestHandler{
+		srv.handlers = map[proto.SCIONDMsg_Which]handler{
+			proto.SCIONDMsg_Which_pathReq: &PathRequestHandler{
 				Transport: srv.Transport,
 			},
-			ASInfoRequest: ASInfoRequestHandler{
+			proto.SCIONDMsg_Which_asInfoReq: &ASInfoRequestHandler{
 				Transport: srv.Transport,
 			},
-			IFInfoRequest: IFInfoRequestHandler{
+			proto.SCIONDMsg_Which_ifInfoRequest: &IFInfoRequestHandler{
 				Transport: srv.Transport,
 			},
-			SVCInfoRequest: SVCInfoRequestHandler{
+			proto.SCIONDMsg_Which_serviceInfoRequest: &SVCInfoRequestHandler{
 				Transport: srv.Transport,
 			},
-			RevNotification: RevNotificationHandler{
+			proto.SCIONDMsg_Which_revNotification: &RevNotificationHandler{
 				Transport: srv.Transport,
 			},
 		}
@@ -90,22 +86,7 @@ func (srv *API) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("capnp error", "err", err)
 		return
 	}
-	switch p.Which {
-	case proto.SCIONDMsg_Which_pathReq:
-		go srv.handlers.PathRequest.Handle(&p.PathReq, address)
-	case proto.SCIONDMsg_Which_asInfoReq:
-		go srv.handlers.ASInfoRequest.Handle(p.Id, &p.AsInfoReq, address)
-	case proto.SCIONDMsg_Which_revNotification:
-		go srv.handlers.RevNotification.Handle(&p.RevNotification, address)
-	case proto.SCIONDMsg_Which_ifInfoRequest:
-		go srv.handlers.IFInfoRequest.Handle(&p.IfInfoRequest, address)
-	case proto.SCIONDMsg_Which_serviceInfoRequest:
-		go srv.handlers.SVCInfoRequest.Handle(&p.ServiceInfoRequest, address)
-	case proto.SCIONDMsg_Which_segTypeHopReq:
-		log.Warn("unsupported seg type hop req")
-	default:
-		log.Error("unknown or unsupported capnp message")
-	}
+	go srv.handlers[p.Which].Handle(p, address)
 }
 
 func (srv *API) Close() error {

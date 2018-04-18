@@ -39,7 +39,8 @@ var (
 	//confDir      = flag.String("confd", "", "Configuration directory (Required)")
 	// FIXME(scrye): Enable this when trust store becomes available.
 	//databasePath = flag.String("trustdb", "trust.db", "Trust database file")
-	prom = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
+	prom = flag.String("prom", "",
+		"Address to export prometheus metrics on. If not set, metrics are not exported.")
 )
 
 // Env aggregates command-line flags, config information and

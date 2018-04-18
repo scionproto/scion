@@ -21,8 +21,8 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -38,24 +38,27 @@ type PathRequestHandler struct {
 	Messenger messenger.Messenger
 
 	// For local API traffic
-	Transport transport.Transport
+	Transport infra.Transport
 }
 
-func (h *PathRequestHandler) Handle(req *sciond.PathReq, peer net.Addr) {
-	log.Warn("unsupported path req")
+func (h *PathRequestHandler) Handle(pld *sciond.Pld, src net.Addr) {
+	req := pld.PathReq
+	log.Warn("unsupported path req", "req", req)
 }
 
 // ASInfoRequestHandler represents the shared global state for the handling of all
 // ASInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each ASInfoRequest it receives.
 type ASInfoRequestHandler struct {
-	Transport transport.Transport
+	Transport infra.Transport
 }
 
-func (h *ASInfoRequestHandler) Handle(id uint64, req *sciond.ASInfoReq, peer net.Addr) {
+func (h *ASInfoRequestHandler) Handle(pld *sciond.Pld, src net.Addr) {
+	_ = pld.AsInfoReq
+
 	// FIXME(scrye): implement this correctly
 	reply := &sciond.Pld{
-		Id:    id,
+		Id:    pld.Id,
 		Which: proto.SCIONDMsg_Which_asInfoReply,
 		AsInfoReply: sciond.ASInfoReply{
 			Entries: []sciond.ASInfoReplyEntry{
@@ -71,39 +74,41 @@ func (h *ASInfoRequestHandler) Handle(id uint64, req *sciond.ASInfoReq, peer net
 	if err != nil {
 		log.Error("unable to serialize SCIONDMsg reply")
 	}
-	h.Transport.SendMsgTo(context.Background(), b, peer)
+	h.Transport.SendMsgTo(context.Background(), b, src)
 }
 
 // IFInfoRequestHandler represents the shared global state for the handling of all
 // IFInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each IFInfoRequest it receives.
 type IFInfoRequestHandler struct {
-	Transport transport.Transport
+	Transport infra.Transport
 }
 
-func (h *IFInfoRequestHandler) Handle(req *sciond.IFInfoRequest, peer net.Addr) {
-	log.Warn("unsupported if info req")
+func (h *IFInfoRequestHandler) Handle(pld *sciond.Pld, src net.Addr) {
+	req := pld.IfInfoRequest
+	log.Warn("unsupported if info req", "req", req)
 }
 
 // SVCInfoRequestHandler represents the shared global state for the handling of all
 // SVCInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each SVCInfoRequest it receives.
 type SVCInfoRequestHandler struct {
-	Transport transport.Transport
+	Transport infra.Transport
 }
 
-func (h *SVCInfoRequestHandler) Handle(req *sciond.ServiceInfoRequest, peer net.Addr) {
-	log.Warn("unsupported svc info request")
-
+func (h *SVCInfoRequestHandler) Handle(pld *sciond.Pld, src net.Addr) {
+	req := pld.ServiceInfoRequest
+	log.Warn("unsupported svc info request", "req", req)
 }
 
 // RevNotificationHandler represents the shared global state for the handling of all
 // RevNotification announcements. The SCIOND API spawns a goroutine with method Handle
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
-	Transport transport.Transport
+	Transport infra.Transport
 }
 
-func (h *RevNotificationHandler) Handle(req *sciond.RevNotification, peer net.Addr) {
-	log.Warn("unsupported rev notification")
+func (h *RevNotificationHandler) Handle(pld *sciond.Pld, peer net.Addr) {
+	req := pld.RevNotification
+	log.Warn("unsupported rev notification", "req", req)
 }
