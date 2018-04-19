@@ -162,7 +162,7 @@ class SCIONPath(Serializable):
             self._ofs.swap(self.A_HOFS, swap_hof)
         # Reverse IOF flags.
         for label in self.IOF_LABELS:
-            self._ofs.reverse_up_flag(label)
+            self._ofs.reverse_cons_dir_flag(label)
         # Reverse HOF lists.
         for label in self.HOF_LABELS:
             self._ofs.reverse_label(label)
@@ -204,7 +204,7 @@ class SCIONPath(Serializable):
                           (False, True): +1, (False, False): None}
         # Map the local direction of travel and the IOF up flag to the required
         # offset of the verification HOF (or None, if there's no relevant HOF).
-        offset = ingress_up[ingress, iof.up_flag]
+        offset = ingress_up[ingress, not iof.cons_dir_flag]
         if offset is None:
             return None
         return self._ofs.get_by_idx(self._hof_idx + offset)
@@ -212,11 +212,11 @@ class SCIONPath(Serializable):
     def _get_hof_ver_normal(self, iof):
         # If this is the last hop of an Up path, or the first hop of a Down
         # path, there's no previous HOF to verify against.
-        if (iof.up_flag and self._hof_idx == self._iof_idx + iof.hops) or (
-                not iof.up_flag and self._hof_idx == self._iof_idx + 1):
+        if (not iof.cons_dir_flag and self._hof_idx == self._iof_idx + iof.hops) or (
+                iof.cons_dir_flag and self._hof_idx == self._iof_idx + 1):
             return None
         # Otherwise use the next/prev HOF based on the up flag.
-        offset = 1 if iof.up_flag else -1
+        offset = 1 if not iof.cons_dir_flag else -1
         return self._ofs.get_by_idx(self._hof_idx + offset)
 
     def get_iof(self):  # pragma: no cover
@@ -261,9 +261,9 @@ class SCIONPath(Serializable):
             return 0
         iof = self.get_iof()
         hof = self.get_hof()
-        if iof.up_flag:
-            return hof.ingress_if
-        return hof.egress_if
+        if not iof.cons_dir_flag:
+            return hof.cons_ingress_if
+        return hof.cons_egress_if
 
     def get_curr_if(self, ingress=True):  # pragma: no cover
         """
@@ -272,9 +272,9 @@ class SCIONPath(Serializable):
         """
         hof = self.get_hof()
         iof = self.get_iof()
-        if ingress == iof.up_flag:
-            return hof.egress_if
-        return hof.ingress_if
+        if ingress != iof.cons_dir_flag:
+            return hof.cons_egress_if
+        return hof.cons_ingress_if
 
     def get_as_hops(self):
         total = 0

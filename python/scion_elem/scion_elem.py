@@ -1195,7 +1195,7 @@ class SCIONElement(object):
             logging.error("Revocation verification failed. %s", rev_info)
             return False
         for pcbm in as_marking.iter_pcbms():
-            if rev_info.p.ifID in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
+            if rev_info.p.ifID in [pcbm.hof().cons_ingress_if, pcbm.hof().cons_egress_if]:
                 return True
             if not verify_all:
                 break

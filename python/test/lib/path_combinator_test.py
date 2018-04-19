@@ -144,7 +144,7 @@ class TestPathCombinatorCopySegment(object):
            new_callable=create_mock)
     def test_copy_up(self, copy_hofs):
         seg = create_mock(["iter_asms", "infoF"])
-        info = create_mock(["up_flag"])
+        info = create_mock(["cons_dir_flag"])
         seg.infoF.return_value = info
         hofs = []
         for _ in range(3):
@@ -156,7 +156,7 @@ class TestPathCombinatorCopySegment(object):
         ntools.eq_(path_combinator._copy_segment(seg, True, True),
                    (info, hofs, None))
         # Tests
-        ntools.eq_(info.up_flag, True)
+        ntools.eq_(info.cons_dir_flag, False)
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
                                           reverse=True)
         ntools.eq_(hofs[0].xover, True)
@@ -167,11 +167,11 @@ class TestPathCombinatorCopySegment(object):
            new_callable=create_mock)
     def test_copy_down(self, copy_hofs):
         seg = create_mock(["iter_asms", "infoF"])
-        info = create_mock(["up_flag"])
+        info = create_mock(["cons_dir_flag"])
         seg.infoF.return_value = info
         copy_hofs.return_value = "hofs", None
         # Call
-        ntools.eq_(path_combinator._copy_segment(seg, False, False, up=False),
+        ntools.eq_(path_combinator._copy_segment(seg, False, False, cons_dir=True),
                    (info, "hofs", None))
         # Tests
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
@@ -268,7 +268,7 @@ class TestPathCombinatorJoinCrossover(PathCombinatorJoinShortcutsBase):
             path_combinator._join_xovr(up_segment, down_segment, point)[0],
             path_meta)
         copy_segment.assert_any_call(up_segment, 1)
-        copy_segment.assert_any_call(down_segment, 2, up=False)
+        copy_segment.assert_any_call(down_segment, 2, cons_dir=True)
         ntools.eq_(build_list.call_count, 1)
 
 
@@ -293,7 +293,7 @@ class TestPathCombinatorJoinPeer(PathCombinatorJoinShortcutsBase):
         ntools.eq_(path_combinator._join_peer(
             up_segment, down_segment, point, peer_revs)[0], path_meta)
         copy_segment.assert_any_call(up_segment, 1)
-        copy_segment.assert_any_call(down_segment, 2, up=False)
+        copy_segment.assert_any_call(down_segment, 2, cons_dir=True)
         ntools.eq_(build_list.call_count, 2)
 
 
@@ -332,21 +332,21 @@ class TestPathCombinatorBuildShortcutInterfaceList(object):
         if_list = path_combinator._build_shortcut_interface_list(
             up_seg, up_idx, down_seg, down_idx, peers)
         assert_these_calls(build_if_list, [call(["B", "A"]),
-                           call(["C", "D"], up=False)])
+                           call(["C", "D"], cons_dir=True)])
         if peers:
             up_hof, down_hof = peers
             ntools.eq_(
-                if_list, [PathInterface.from_values(11, up_hof.ingress_if),
-                          PathInterface.from_values(12, down_hof.ingress_if)])
+                if_list, [PathInterface.from_values(11, up_hof.cons_ingress_if),
+                          PathInterface.from_values(12, down_hof.cons_ingress_if)])
 
     def test_xovr(self):
         yield self._check_xovr_peers, None
 
     def test_peers(self):
-        up_hof = create_mock(["ingress_if"])
-        up_hof.ingress_if = 3
-        down_hof = create_mock(["ingress_if"])
-        down_hof.ingress_if = 4
+        up_hof = create_mock(["cons_ingress_if"])
+        up_hof.cons_ingress_if = 3
+        down_hof = create_mock(["cons_ingress_if"])
+        down_hof.cons_ingress_if = 4
         yield self._check_xovr_peers, (up_hof, down_hof)
 
 
@@ -354,34 +354,34 @@ class TestPathCombinatorBuildInterfaceList(object):
     """
     Unit tests for lib.path_combinator._build_interface_list
     """
-    def _check_up_down(self, up):
+    def _check_up_down(self, cons_dir):
         asms = []
         ifid = 0
         for i in range(1, 4):
-            if up:
-                hof = create_mock_full({"egress_if": ifid,
-                                        "ingress_if": ifid + 1})
+            if not cons_dir:
+                hof = create_mock_full({"cons_egress_if": ifid,
+                                        "cons_ingress_if": ifid + 1})
                 if i == 3:
-                    hof.ingress_if = 0
+                    hof.cons_ingress_if = 0
             else:
-                hof = create_mock_full({"egress_if": ifid + 1,
-                                        "ingress_if": ifid})
+                hof = create_mock_full({"cons_egress_if": ifid + 1,
+                                        "cons_ingress_if": ifid})
                 if i == 3:
-                    hof.egress_if = 0
+                    hof.cons_egress_if = 0
             ifid += 2
             pcbm = create_mock_full({"hof()": hof})
             asms.append(create_mock_full({"isd_as()": i, "pcbm()": pcbm}))
-        if_list = path_combinator._build_interface_list(asms, up)
+        if_list = path_combinator._build_interface_list(asms, cons_dir)
         ntools.eq_(if_list, [PathInterface.from_values(1, 1),
                              PathInterface.from_values(2, 2),
                              PathInterface.from_values(2, 3),
                              PathInterface.from_values(3, 4)])
 
     def test_up(self):
-        yield self._check_up_down, True
+        yield self._check_up_down, False
 
     def test_down(self):
-        yield self._check_up_down, False
+        yield self._check_up_down, True
 
 
 class TestPathCombinatorCheckConnected(object):
@@ -446,7 +446,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
     Unit tests for lib.path_combinator._copy_segment_shortcut
     """
     def _setup(self, copy_hofs):
-        info = create_mock(["hops", "up_flag"])
+        info = create_mock(["hops", "cons_dir_flag"])
         info.hops = 10
         upstream_hof = create_mock(["verify_only", "xover"])
         pcbm = create_mock(["hof"])
@@ -471,7 +471,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
                    (info, hofs, upstream_hof, "mtu"))
         # Tests
         ntools.eq_(info.hops, 6)
-        ntools.ok_(info.up_flag)
+        ntools.ok_(not info.cons_dir_flag)
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
                                           reverse=True)
         ntools.eq_(hofs[-1].xover, True)
@@ -483,10 +483,10 @@ class TestPathCombinatorCopySegmentShortcut(object):
     def test_down(self, copy_hofs):
         seg, info, hofs, upstream_hof = self._setup(copy_hofs)
         # Call
-        ntools.eq_(path_combinator._copy_segment_shortcut(seg, 7, up=False),
+        ntools.eq_(path_combinator._copy_segment_shortcut(seg, 7, cons_dir=True),
                    (info, hofs, upstream_hof, "mtu"))
         # Tests
-        ntools.assert_false(info.up_flag)
+        ntools.assert_true(info.cons_dir_flag)
         copy_hofs.assert_called_once_with(seg.iter_asms.return_value,
                                           reverse=False)
         ntools.eq_(hofs[0].xover, True)
@@ -511,7 +511,7 @@ class TestPathCombinatorFindPeerHfs(object):
         return up_pcbms, down_pcbms
 
     def _mk_pcbm(self, inIA, remoteInIF, hof_ingress, mtu):
-        hof = create_mock_full({"ingress_if": hof_ingress})
+        hof = create_mock_full({"cons_ingress_if": hof_ingress})
         p = create_mock_full({"remoteInIF": remoteInIF, "inMTU": mtu})
         return create_mock_full({"inIA()": inIA, "p": p, "hof()": hof})
 

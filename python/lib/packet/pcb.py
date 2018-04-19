@@ -214,7 +214,7 @@ class PathSegment(Cerealizable):
         asms = list(self.iter_asms())
         if reverse_direction:
             asms = reversed(asms)
-            info.up_flag ^= True
+            info.cons_dir_flag ^= True
         for asm in asms:
             hofs.append(asm.pcbm(0).hof())
         return SCIONPath.from_values(info, hofs)
@@ -240,7 +240,7 @@ class PathSegment(Cerealizable):
             pcbm = asm.pcbm(0)
             data.append(asm.isd_as().pack())
             hof = pcbm.hof()
-            data.append(struct.pack("!QQ", hof.ingress_if, hof.egress_if))
+            data.append(struct.pack("!QQ", hof.cons_ingress_if, hof.cons_egress_if))
         data = b"".join(data)
         if hex:
             return crypto_hash(data).hex()
@@ -287,11 +287,11 @@ class PathSegment(Cerealizable):
         for asm in self.iter_asms():
             hop = []
             hof = asm.pcbm(0).hof()
-            if hof.ingress_if:
-                hop.append("%d " % hof.ingress_if)
+            if hof.cons_ingress_if:
+                hop.append("%d " % hof.cons_ingress_if)
             hop.append("%s" % asm.isd_as())
-            if hof.egress_if:
-                hop.append(" %d" % hof.egress_if)
+            if hof.cons_egress_if:
+                hop.append(" %d" % hof.cons_egress_if)
             hops.append("".join(hop))
         exts = []
         desc.append(">".join(hops))

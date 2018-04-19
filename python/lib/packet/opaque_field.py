@@ -53,8 +53,8 @@ class HopOpaqueField(OpaqueField):
         self.forward_only = False
         self.recurse = False
         self.exp_time = 0
-        self.ingress_if = 0
-        self.egress_if = 0
+        self.cons_ingress_if = 0
+        self.cons_egress_if = 0
         self.mac = bytes(self.MAC_LEN)
         super().__init__(raw)
 
@@ -63,8 +63,8 @@ class HopOpaqueField(OpaqueField):
         flags, self.exp_time = struct.unpack("!BB", data.pop(2))
         self._parse_flags(flags)
         ifs = int.from_bytes(data.pop(3), byteorder="big")
-        self.ingress_if = (ifs & 0xFFF000) >> 12
-        self.egress_if = ifs & 0x000FFF
+        self.cons_ingress_if = (ifs & 0xFFF000) >> 12
+        self.cons_egress_if = ifs & 0x000FFF
         self.mac = data.pop(3)
 
     def _parse_flags(self, flags):  # pragma: no cover
@@ -74,7 +74,7 @@ class HopOpaqueField(OpaqueField):
         self.recurse = bool(flags & HopOFFlags.RECURSE)
 
     @classmethod
-    def from_values(cls, exp_time, ingress_if=0, egress_if=0,
+    def from_values(cls, exp_time, cons_ingress_if=0, cons_egress_if=0,
                     mac=None, xover=False, verify_only=False,
                     forward_only=False, recurse=False):  # pragma: no cover
         inst = cls()
@@ -83,8 +83,8 @@ class HopOpaqueField(OpaqueField):
         inst.forward_only = forward_only
         inst.recurse = recurse
         inst.exp_time = exp_time
-        inst.ingress_if = ingress_if
-        inst.egress_if = egress_if
+        inst.cons_ingress_if = cons_ingress_if
+        inst.cons_egress_if = cons_egress_if
         inst.mac = mac or bytes(inst.MAC_LEN)
         return inst
 
@@ -95,7 +95,7 @@ class HopOpaqueField(OpaqueField):
             flags &= self.VERIFY_FLAGS
         packed.append(struct.pack("!B", flags))
         packed.append(struct.pack("!B", self.exp_time))
-        ifs = (self.ingress_if << 12) | self.egress_if
+        ifs = (self.cons_ingress_if << 12) | self.cons_egress_if
         # Ingress and egress interfaces are packed into three bytes
         packed.append(ifs.to_bytes(3, "big"))
         if not mac:
@@ -133,8 +133,8 @@ class HopOpaqueField(OpaqueField):
 
     def __eq__(self, other):  # pragma: no cover
         return (self.exp_time == other.exp_time and
-                self.ingress_if == other.ingress_if and
-                self.egress_if == other.egress_if and
+                self.cons_ingress_if == other.cons_ingress_if and
+                self.cons_egress_if == other.cons_egress_if and
                 self.mac == other.mac)
 
     def __str__(self):
@@ -142,7 +142,7 @@ class HopOpaqueField(OpaqueField):
         return ("%s(%dB): flags: %s, exp_time: %s, "
                 "ingress: %s, egress: %s, mac: %s" %
                 (self.NAME, len(self), HopOFFlags.to_str(flags), self.exp_time,
-                 self.ingress_if, self.egress_if, hex_str(self.mac)))
+                 self.cons_ingress_if, self.cons_egress_if, hex_str(self.mac)))
 
 
 class InfoOpaqueField(OpaqueField):
@@ -156,7 +156,7 @@ class InfoOpaqueField(OpaqueField):
     NAME = "InfoOpaqueField"
 
     def __init__(self, raw=None):  # pragma: no cover
-        self.up_flag = False
+        self.cons_dir_flag = True
         self.shortcut = False
         self.peer = False
         self.timestamp = 0
@@ -172,7 +172,7 @@ class InfoOpaqueField(OpaqueField):
 
     def _parse_flags(self, flags):  # pragma: no cover
         if flags & InfoOFFlags.UP:
-            self.up_flag = True
+            self.cons_dir_flag = False
         if flags & InfoOFFlags.SHORTCUT:
             self.shortcut = True
         if flags & InfoOFFlags.PEER_SHORTCUT:
@@ -184,10 +184,10 @@ class InfoOpaqueField(OpaqueField):
         assert not(not self.shortcut and self.peer)
 
     @classmethod
-    def from_values(cls, timestamp, isd, up_flag=False, shortcut=False,
+    def from_values(cls, timestamp, isd, cons_dir_flag=True, shortcut=False,
                     peer=False, hops=0):  # pragma: no cover
         inst = cls()
-        inst.up_flag = up_flag
+        inst.cons_dir_flag =cons_dir_flag
         inst.shortcut = shortcut
         inst.peer = peer
         inst.timestamp = timestamp
@@ -203,7 +203,7 @@ class InfoOpaqueField(OpaqueField):
     def _pack_flags(self):  # pragma: no cover
         self._check_flags()
         flags = 0
-        if self.up_flag:
+        if not self.cons_dir_flag:
             flags |= InfoOFFlags.UP
         if self.shortcut:
             flags |= InfoOFFlags.SHORTCUT
@@ -374,9 +374,9 @@ class OpaqueFieldList(object):
             raise SCIONKeyError("Opaque field label (%s) unknown"
                                 % label) from None
 
-    def reverse_up_flag(self, label):
+    def reverse_cons_dir_flag(self, label):
         """
-        Reverse the Up flag of the first OF in a label, assuming the label isn't
+        Reverse the Up/ConsDir flag of the first OF in a label, assuming the label isn't
         empty. Used to change direction of IOFs.
 
         :param str label: The label to modify.
@@ -389,7 +389,7 @@ class OpaqueFieldList(object):
             raise SCIONKeyError("Opaque field label (%s) unknown"
                                 % label) from None
         if len(group) > 0:
-            group[0].up_flag ^= True
+            group[0].cons_dir_flag ^= True
 
     def pack(self):
         """

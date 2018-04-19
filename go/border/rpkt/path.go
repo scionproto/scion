@@ -237,22 +237,22 @@ func (rp *RtrPkt) getHopFVer(dirFrom rcmn.Dir) common.RawBytes {
 			// interface, and another from the upstream interface, used for
 			// verification only.
 			switch {
-			case ingress && rp.infoF.Up:
+			case ingress && !rp.infoF.ConsDir:
 				offset = +2
-			case ingress && !rp.infoF.Up:
+			case ingress && rp.infoF.ConsDir:
 				offset = +1
-			case !ingress && rp.infoF.Up:
+			case !ingress && !rp.infoF.ConsDir:
 				offset = -1
-			case !ingress && !rp.infoF.Up:
+			case !ingress && rp.infoF.ConsDir:
 				offset = -2
 			}
 		case false:
 			// Non-peer shortcut paths have an extra HOF above the last hop,
 			// used for verification of the last hop in that segment.
 			switch {
-			case ingress && !rp.infoF.Up:
+			case ingress && rp.infoF.ConsDir:
 				offset = -1
-			case !ingress && rp.infoF.Up:
+			case !ingress && !rp.infoF.ConsDir:
 				offset = +1
 			}
 		}
@@ -268,13 +268,13 @@ func (rp *RtrPkt) getHopFVerNormalOffset() int {
 	hOff := rp.CmnHdr.HopFOffBytes()
 	// If this is the last hop of an Up path, or the first hop of a Down path, there's no previous
 	// HOF to verify against.
-	if (rp.infoF.Up &&
+	if (!rp.infoF.ConsDir &&
 		hOff == (iOff+spath.InfoFieldLength+int(rp.infoF.Hops-1)*spath.HopFieldLength)) ||
-		(!rp.infoF.Up && hOff == (iOff+spath.InfoFieldLength)) {
+		(rp.infoF.ConsDir && hOff == (iOff+spath.InfoFieldLength)) {
 		return 0
 	}
 	// Otherwise use the next/prev HOF based on the up flag.
-	if rp.infoF.Up {
+	if !rp.infoF.ConsDir {
 		return 1
 	}
 	return -1
@@ -393,7 +393,8 @@ func (rp *RtrPkt) UpFlag() (*bool, error) {
 	if rp.infoF == nil {
 		return nil, nil
 	}
-	rp.upFlag = &rp.infoF.Up
+	upFlag := !rp.infoF.ConsDir
+	rp.upFlag = &upFlag
 	return rp.upFlag, nil
 }
 
@@ -422,9 +423,9 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 					"val", rp.DirFrom)
 			}
 			if ingress {
-				return rp.checkSetCurrIF(&rp.hopF.Ingress)
+				return rp.checkSetCurrIF(&rp.hopF.ConsIngress)
 			}
-			return rp.checkSetCurrIF(&rp.hopF.Egress)
+			return rp.checkSetCurrIF(&rp.hopF.ConsEgress)
 		}
 	}
 	// Default to the first IfID from Ingress.IfIDs
@@ -457,9 +458,9 @@ func (rp *RtrPkt) IFNext() (*common.IFIDType, error) {
 		}
 		// Get IFID from HopField
 		if *rp.upFlag {
-			rp.ifNext = &rp.hopF.Ingress
+			rp.ifNext = &rp.hopF.ConsIngress
 		} else {
-			rp.ifNext = &rp.hopF.Egress
+			rp.ifNext = &rp.hopF.ConsEgress
 		}
 	}
 	return rp.ifNext, nil

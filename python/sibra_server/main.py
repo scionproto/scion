@@ -258,7 +258,7 @@ class SibraServerBase(SCIONElement):
         if not seg:
             del self.dests[isd_as]
             return
-        ifid = seg.last_hof().ingress_if
+        ifid = seg.last_hof().cons_ingress_if
         link_state = self.link_states[ifid]
         link_type = self.link_types[ifid]
         # FIXME(kormat): un-hardcode these bandwidths

@@ -90,7 +90,7 @@ func Test_Path_Reverse(t *testing.T) {
 					prefix := fmt.Sprintf("seg %d", seg)
 					infof, err := InfoFFromRaw(path.Raw[offset:])
 					SoMsg(prefix+" InfoF parse", err, ShouldBeNil)
-					SoMsg(prefix+" InfoF up", infof.Up, ShouldEqual, out.up)
+					SoMsg(prefix+" InfoF up", !infof.ConsDir, ShouldEqual, out.up)
 					SoMsg(prefix+" InfoF ISD "+infof.String(),
 						infof.ISD, ShouldEqual, len(c.in)-seg-1)
 					SoMsg(prefix+" InfoF Offset", path.InfOff, ShouldEqual, c.outOffs[j][0])
@@ -125,7 +125,7 @@ func mkPathRevCase(in []pathCase, inInfOff, inHopfOff int) *Path {
 }
 
 func makeSeg(b common.RawBytes, up bool, isd uint16, hops []uint8) {
-	infof := InfoField{Up: up, ISD: isd, Hops: uint8(len(hops))}
+	infof := InfoField{ConsDir: !up, ISD: isd, Hops: uint8(len(hops))}
 	infof.Write(b)
 	for i, hop := range hops {
 		for j := 0; j < HopFieldLength; j++ {

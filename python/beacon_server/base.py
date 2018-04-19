@@ -219,21 +219,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             BEACONS_PROPAGATED.labels(**self._labels, type="down").inc(prop_cnt)
         return propagated_pcbs
 
-    def _mk_prop_pcb_meta(self, pcb, dst_ia, egress_if):
+    def _mk_prop_pcb_meta(self, pcb, dst_ia, cons_egress_if):
         ts = pcb.get_timestamp()
-        asm = self._create_asm(pcb.ifID, egress_if, ts, pcb.last_hof())
+        asm = self._create_asm(pcb.ifID, cons_egress_if, ts, pcb.last_hof())
         if not asm:
             return None, None
         pcb.add_asm(asm, ProtoSignType.ED25519, self.addr.isd_as.pack())
         pcb.sign(self.signing_key)
-        one_hop_path = self._create_one_hop_path(egress_if)
+        one_hop_path = self._create_one_hop_path(cons_egress_if)
         return pcb, self._build_meta(ia=dst_ia, host=SVCType.BS_A,
                                      path=one_hop_path, one_hop=True)
 
-    def _create_one_hop_path(self, egress_if):
+    def _create_one_hop_path(self, cons_egress_if):
         ts = int(SCIONTime.get_time())
         info = InfoOpaqueField.from_values(ts, self.addr.isd_as[0], hops=2)
-        hf1 = HopOpaqueField.from_values(OneHopPathExt.HOF_EXP_TIME, 0, egress_if)
+        hf1 = HopOpaqueField.from_values(OneHopPathExt.HOF_EXP_TIME, 0, cons_egress_if)
         hf1.set_mac(self.of_gen_key, ts, None)
         # Return a path where second HF is empty.
         return SCIONPath.from_values(info, [hf1, HopOpaqueField()])
@@ -299,7 +299,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(pcb, PCB), type(pcb)
         pcb = pcb.pseg()
         if meta:
-            pcb.ifID = meta.path.get_hof().ingress_if
+            pcb.ifID = meta.path.get_hof().cons_ingress_if
         try:
             self.path_policy.check_filters(pcb)
         except SCIONPathPolicyViolated as e:

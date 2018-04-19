@@ -391,8 +391,8 @@ class SCIONDaemon(SCIONElement):
             for asm in segment.iter_asms():
                 isd_as = asm.isd_as()
                 hof = asm.pcbm(0).hof()
-                egress = hof.egress_if
-                ingress = hof.ingress_if
+                egress = hof.cons_egress_if
+                ingress = hof.cons_ingress_if
                 if ingress:
                     if_list.append(PathInterface.from_values(isd_as, ingress))
                 if egress:

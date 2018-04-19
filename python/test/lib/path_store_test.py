@@ -351,12 +351,12 @@ class TestPathStoreUpdateAllDisjointness(object):
             asms = []
             for j in range(pathLength):
                 isdas = 9, id_ + j + 1
-                hof = create_mock_full({'egress_if': isdas[1] + pathLength})
+                hof = create_mock_full({'cons_egress_if': isdas[1] + pathLength})
                 pcbm = create_mock_full({'hof()': hof})
                 asms.append(create_mock_full({
                     "isd_as()": isdas, "pcbm()": pcbm}))
                 inst.disjointness[isdas[1]] = 1.0
-                inst.disjointness[hof.egress_if] = 1.0
+                inst.disjointness[hof.cons_egress_if] = 1.0
             pcb = create_mock_full({"iter_asms()": asms})
             record = create_mock_full(
                 {'pcb': pcb, 'disjointness': 0, 'id': id_})

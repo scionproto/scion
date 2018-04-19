@@ -202,9 +202,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         with self.htroot_if2seglock:
             for asm in pcb.iter_asms():
                 hof = asm.pcbm(0).hof()
-                egress_h = (asm.p.hashTreeRoot, hof.egress_if)
+                egress_h = (asm.p.hashTreeRoot, hof.cons_egress_if)
                 self.htroot_if2seg.setdefault(egress_h, set()).add(segment_id)
-                ingress_h = (asm.p.hashTreeRoot, hof.ingress_if)
+                ingress_h = (asm.p.hashTreeRoot, hof.cons_ingress_if)
                 self.htroot_if2seg.setdefault(ingress_h, set()).add(segment_id)
 
     @abstractmethod
@@ -367,7 +367,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for asm in seg.iter_asms():
                 for pcbm in asm.iter_pcbms(1):
                     hof = pcbm.hof()
-                    for if_id in [hof.ingress_if, hof.egress_if]:
+                    for if_id in [hof.cons_ingress_if, hof.cons_egress_if]:
                         rev_info = self.revocations.get((asm.isd_as(), if_id))
                         if rev_info:
                             revs_to_add.add(rev_info.copy())
@@ -482,7 +482,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         """
         for asm in seg.iter_asms():
             pcbm = asm.pcbm(0)
-            for if_id in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
+            for if_id in [pcbm.hof().cons_ingress_if, pcbm.hof().cons_egress_if]:
                 rev_info = self.revocations.get((asm.isd_as(), if_id))
                 if rev_info:
                     logging.debug("Found revoked interface (%d, %s) in segment %s." %

@@ -45,8 +45,8 @@ class TestHopOpaqueFieldParse(object):
         raw.assert_called_once_with("data", inst.NAME, inst.LEN)
         ntools.eq_(inst.exp_time, 0x2a)
         inst._parse_flags.assert_called_once_with(0x0e)
-        ntools.eq_(inst.ingress_if, 0x0a0)
-        ntools.eq_(inst.egress_if, 0xb0c)
+        ntools.eq_(inst.cons_ingress_if, 0x0a0)
+        ntools.eq_(inst.cons_egress_if, 0xb0c)
         ntools.eq_(inst.mac, bytes.fromhex('012345'))
 
 
@@ -59,8 +59,8 @@ class TestHopOpaqueFieldPack(object):
         inst._pack_flags = create_mock()
         inst._pack_flags.return_value = 0x0e
         inst.exp_time = 0x2a
-        inst.ingress_if = 0x0a0
-        inst.egress_if = 0xb0c
+        inst.cons_ingress_if = 0x0a0
+        inst.cons_egress_if = 0xb0c
         inst.mac = bytes.fromhex('012345')
         expected = bytes.fromhex('0e 2a 0a0b0c 012345')
         # Call
@@ -71,8 +71,8 @@ class TestHopOpaqueFieldPack(object):
         inst._pack_flags = create_mock()
         inst._pack_flags.return_value = 0x0e
         inst.exp_time = 0x2a
-        inst.ingress_if = 0x0a0
-        inst.egress_if = 0xb0c
+        inst.cons_ingress_if = 0x0a0
+        inst.cons_egress_if = 0xb0c
         inst.mac = bytes.fromhex('012345')
         expected = bytes.fromhex('04 2a 0a0b0c')
         # Call
@@ -303,27 +303,27 @@ class TestOpaqueFieldListReverseLabel(object):
 
 class TestOpaqueFieldListReverseUpFlag(object):
     """
-    Unit tests for lib.packet.opaque_field.OpaqueFieldList.reverse_up_flag
+    Unit tests for lib.packet.opaque_field.OpaqueFieldList.reverse_cons_dir_flag
     """
     def test_basic(self):
         inst = _of_list_setup()
-        iof = create_mock(["up_flag"])
-        iof.up_flag = True
+        iof = create_mock(["cons_dir_flag"])
+        iof.cons_dir_flag = False
         inst._labels["down"] = [iof]
         # Call
-        inst.reverse_up_flag("down")
+        inst.reverse_cons_dir_flag("down")
         # Tests
-        ntools.assert_false(iof.up_flag)
+        ntools.assert_true(iof.cons_dir_flag)
 
     def test_empty(self):
         inst = _of_list_setup()
         # Call
-        inst.reverse_up_flag("down")
+        inst.reverse_cons_dir_flag("down")
 
     def test_label_error(self):
         inst = _of_list_setup()
         # Call
-        ntools.assert_raises(SCIONKeyError, inst.reverse_up_flag, "nope")
+        ntools.assert_raises(SCIONKeyError, inst.reverse_cons_dir_flag, "nope")
 
 
 class TestOpaqueFieldListPack(object):

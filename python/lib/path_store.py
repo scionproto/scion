@@ -384,7 +384,7 @@ class PathStore(object):
             for asm in candidate.pcb.iter_asms():
                 as_disjointness += self.disjointness[asm.isd_as()[1]]
                 if_disjointness += self.disjointness[
-                    asm.pcbm(0).hof().egress_if]
+                    asm.pcbm(0).hof().cons_egress_if]
             candidate.disjointness = (path_disjointness + as_disjointness +
                                       if_disjointness)
             if candidate.disjointness > max_disjointness:
