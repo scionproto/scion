@@ -59,7 +59,7 @@ func removeBRBind(brs map[string]RawBRInfo) {
 				Remote:          nil,
 				Bandwidth:       brintf.Bandwidth,
 				ISD_AS:          brintf.ISD_AS,
-				LinkType:        brintf.LinkType,
+				LinkTo:          brintf.LinkTo,
 				MTU:             brintf.MTU,
 			}
 		}
