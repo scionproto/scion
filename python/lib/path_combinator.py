@@ -315,7 +315,7 @@ def _copy_segment_shortcut(segment, index, cons_dir=False):
     :param int index: Index at which to start the copy.
     :param bool cons_dir:
         ``True`` if the path direction is `!up or consDir` (which will leave the
-        segment direction unchanged), 
+        segment direction unchanged),
         ``False`` otherwise (which will reverse the
         segment direction).
     :returns:

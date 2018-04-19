@@ -187,7 +187,7 @@ class InfoOpaqueField(OpaqueField):
     def from_values(cls, timestamp, isd, cons_dir_flag=True, shortcut=False,
                     peer=False, hops=0):  # pragma: no cover
         inst = cls()
-        inst.cons_dir_flag =cons_dir_flag
+        inst.cons_dir_flag = cons_dir_flag
         inst.shortcut = shortcut
         inst.peer = peer
         inst.timestamp = timestamp
