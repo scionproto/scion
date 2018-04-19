@@ -87,7 +87,7 @@ class TestInterfaceElementInit(object):
             },
             'Bandwidth': 1001,
             'ISD_AS': '3-ff00:0:301',
-            'LinkType': 'PARENT',
+            'LinkTo': 'PARENT',
             'MTU': 4242
         }
         if_id = 1
