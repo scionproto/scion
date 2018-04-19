@@ -30,7 +30,7 @@
                     "Remote": {"Addr": "192.0.2.2", "L4Port": 44998},
                     "Bandwidth": 1000,
                     "ISD_AS": "1-ff00:0:312",
-                    "LinkType": "PARENT",
+                    "LinkTo": "PARENT",
                     "MTU": 1472
                 },
                 "3": {
@@ -41,7 +41,7 @@
                     "Bind": {"Addr":"2001:db8:a0b:12f0::8", "L4Port": 10000},
                     "Bandwidth": 5000,
                     "ISD_AS": "1-ff00:0:314",
-                    "LinkType": "CHILD",
+                    "LinkTo": "CHILD",
                     "MTU": 4430
                 },
                 "8": {
@@ -52,7 +52,7 @@
                     "Remote": {"Addr": "192.0.2.3", "L4Port": 50001},
                     "Bandwidth": 2000,
                     "ISD_AS": "1-ff00:0:313",
-                    "LinkType": "PEER",
+                    "LinkTo": "PEER",
                     "MTU": 1480
                 }
             }
