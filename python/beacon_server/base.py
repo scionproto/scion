@@ -827,7 +827,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 br = self.ifid2br[ifid]
                 br_addr, br_port = br.int_addrs[0].public[0]
                 meta = self._build_meta(host=br_addr, port=br_port)
-                self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)), meta, (meta.host, meta.port))
+                self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
+                               meta, (meta.host, meta.port))
 
     def _init_metrics(self):
         super()._init_metrics()
