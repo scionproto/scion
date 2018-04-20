@@ -24,31 +24,31 @@ ASes:
   5-ff00:0:511: {cert_issuer: 5-ff00:0:510}
   5-ff00:0:531: {cert_issuer: 5-ff00:0:530}
 links:
-  - {a: 1-ff00:0:110, b: 1-ff00:0:120, ltype: CORE}
-  - {a: 1-ff00:0:110, b: 2-ff00:0:210, ltype: CORE}
-  - {a: 1-ff00:0:110, b: 2-ff00:0:220, ltype: CORE}
-  - {a: 1-ff00:0:110, b: 3-ff00:0:310, ltype: CORE}
-  - {a: 1-ff00:0:110, b: 1-ff00:0:111, ltype: PARENT}
-  - {a: 1-ff00:0:120, b: 2-ff00:0:210, ltype: CORE}
-  - {a: 1-ff00:0:120, b: 1-ff00:0:121, ltype: PARENT}
-  - {a: 1-ff00:0:111, b: 1-ff00:0:121, ltype: PEER}
-  - {a: 1-ff00:0:111, b: 3-ff00:0:311, ltype: PEER}
-  - {a: 2-ff00:0:210, b: 2-ff00:0:220, ltype: CORE}
-  - {a: 2-ff00:0:210, b: 3-ff00:0:310, ltype: CORE}
-  - {a: 2-ff00:0:210, b: 2-ff00:0:221, ltype: PARENT}
-  - {a: 2-ff00:0:210, b: 2-ff00:0:222, ltype: PARENT}
-  - {a: 2-ff00:0:220, b: 2-ff00:0:221, ltype: PARENT}
-  - {a: 2-ff00:0:220, b: 2-ff00:0:222, ltype: PARENT}
-  - {a: 2-ff00:0:221, b: 2-ff00:0:222, ltype: PEER}
-  - {a: 3-ff00:0:310, b: 4-ff00:0:410, ltype: CORE}
-  - {a: 3-ff00:0:310, b: 3-ff00:0:311, ltype: PARENT}
-  - {a: 3-ff00:0:311, b: 3-ff00:0:312, ltype: PARENT}
-  - {a: 3-ff00:0:311, b: 3-ff00:0:313, ltype: PARENT}
-  - {a: 4-ff00:0:410, b: 5-ff00:0:520, ltype: CORE}
-  - {a: 5-ff00:0:510, b: 5-ff00:0:520, ltype: CORE}
-  - {a: 5-ff00:0:510, b: 5-ff00:0:511, ltype: PARENT}
-  - {a: 5-ff00:0:520, b: 5-ff00:0:530, ltype: CORE}
-  - {a: 5-ff00:0:530, b: 5-ff00:0:531, ltype: PARENT}
+  - {a: 1-ff00:0:110, b: 1-ff00:0:120, linkAtoB: CORE}
+  - {a: 1-ff00:0:110, b: 2-ff00:0:210, linkAtoB: CORE}
+  - {a: 1-ff00:0:110, b: 2-ff00:0:220, linkAtoB: CORE}
+  - {a: 1-ff00:0:110, b: 3-ff00:0:310, linkAtoB: CORE}
+  - {a: 1-ff00:0:110, b: 1-ff00:0:111, linkAtoB: CHILD}
+  - {a: 1-ff00:0:120, b: 2-ff00:0:210, linkAtoB: CORE}
+  - {a: 1-ff00:0:120, b: 1-ff00:0:121, linkAtoB: CHILD}
+  - {a: 1-ff00:0:111, b: 1-ff00:0:121, linkAtoB: PEER}
+  - {a: 1-ff00:0:111, b: 3-ff00:0:311, linkAtoB: PEER}
+  - {a: 2-ff00:0:210, b: 2-ff00:0:220, linkAtoB: CORE}
+  - {a: 2-ff00:0:210, b: 3-ff00:0:310, linkAtoB: CORE}
+  - {a: 2-ff00:0:210, b: 2-ff00:0:221, linkAtoB: CHILD}
+  - {a: 2-ff00:0:210, b: 2-ff00:0:222, linkAtoB: CHILD}
+  - {a: 2-ff00:0:220, b: 2-ff00:0:221, linkAtoB: CHILD}
+  - {a: 2-ff00:0:220, b: 2-ff00:0:222, linkAtoB: CHILD}
+  - {a: 2-ff00:0:221, b: 2-ff00:0:222, linkAtoB: PEER}
+  - {a: 3-ff00:0:310, b: 4-ff00:0:410, linkAtoB: CORE}
+  - {a: 3-ff00:0:310, b: 3-ff00:0:311, linkAtoB: CHILD}
+  - {a: 3-ff00:0:311, b: 3-ff00:0:312, linkAtoB: CHILD}
+  - {a: 3-ff00:0:311, b: 3-ff00:0:313, linkAtoB: CHILD}
+  - {a: 4-ff00:0:410, b: 5-ff00:0:520, linkAtoB: CORE}
+  - {a: 5-ff00:0:510, b: 5-ff00:0:520, linkAtoB: CORE}
+  - {a: 5-ff00:0:510, b: 5-ff00:0:511, linkAtoB: CHILD}
+  - {a: 5-ff00:0:520, b: 5-ff00:0:530, linkAtoB: CORE}
+  - {a: 5-ff00:0:530, b: 5-ff00:0:531, linkAtoB: CHILD}
 CAs:
   CA1-1:
     ISD: 1
