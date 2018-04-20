@@ -129,8 +129,8 @@ func ExpandPath(file string) string {
 	return filepath.Join("testdata", fmt.Sprintf("%s.ref", file))
 }
 
-// MustParseIA parses ia and returns the corresponding addr.IA object. It
-// panics if ia is not a valid ISD-AS representation.
+// MustParseIA parses s and returns the corresponding addr.IA object. It
+// panics if s is not a valid ISD-AS representation.
 func MustParseIA(s string) addr.IA {
 	ia, err := addr.IAFromString(s)
 	if err != nil {
