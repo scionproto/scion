@@ -72,16 +72,16 @@ func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 // https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering#as-numbers
 type AS uint64
 
-// ASFromString parses an AS from a decimal (in the case of BGP AS numbers) or
-// ipv6-style hex (in the case of SCION-only AS numbers) string.
+// ASFromString parses an AS from a decimal (in the case of the 32bit BGP AS
+// number space) or ipv6-style hex (in the case of SCION-only AS numbers)
+// string.
 func ASFromString(s string) (AS, error) {
 	return asParse(s, ":")
 }
 
-// ASFromFileFmt parses an AS from a file-format string. For BGP ASes, this is
-// a decimal string. For SCION-only ASes, this is the normal ipv6-style hex
-// string, with '_' separators. If prefix is true, an 'AS' prefix is expected
-// and stripped before parsing.
+// ASFromFileFmt parses an AS from a file-format string. This is the same
+// format as ASFromString expects, with ':' replaced by '_'. If prefix is true,
+// an 'AS' prefix is expected and stripped before parsing.
 func ASFromFileFmt(s string, prefix bool) (AS, error) {
 	if prefix {
 		if !strings.HasPrefix(s, ASFmtPrefix) {
