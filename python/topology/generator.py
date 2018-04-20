@@ -620,8 +620,8 @@ class TopoGenerator(object):
             # entry.
             a = TopoID(attrs.pop("a"))
             b = TopoID(attrs.pop("b"))
-            linkto = linkto_a = linkto_b = attrs.pop("linkto")
-            if linkto == LinkType.PARENT:
+            linkto = linkto_a = linkto_b = attrs.pop("linkAtoB")
+            if linkto == LinkType.CHILD:
                 linkto_a = LinkType.CHILD
                 linkto_b = LinkType.PARENT
             br_ids[a] += 1
