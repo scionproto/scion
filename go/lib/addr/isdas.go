@@ -45,6 +45,7 @@ const (
 // https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering#isd-numbers
 type ISD uint16
 
+// ISDFromString parses an ISD from a decimal string.
 func ISDFromString(s string) (ISD, error) {
 	isd, err := strconv.ParseUint(s, 10, ISDBits)
 	if err != nil {
@@ -54,6 +55,8 @@ func ISDFromString(s string) (ISD, error) {
 	return ISD(isd), nil
 }
 
+// ISDFromFileFmt parses an ISD from a file-format string. If prefix is true,
+// an 'ISD' prefix is expected and stripped before parsing.
 func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 	if prefix {
 		if !strings.HasPrefix(s, ISDFmtPrefix) {
@@ -69,10 +72,16 @@ func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 // https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering#as-numbers
 type AS uint64
 
+// ASFromString parses an AS from a decimal (in the case of BGP AS numbers) or
+// ipv6-style hex (in the case of SCION-only AS numbers) string.
 func ASFromString(s string) (AS, error) {
 	return asParse(s, ":")
 }
 
+// ASFromFileFmt parses an AS from a file-format string. For BGP ASes, this is
+// a decimal string. For SCION-only ASes, this is the normal ipv6-style hex
+// string, with '_' separators. If prefix is true, an 'AS' prefix is expected
+// and stripped before parsing.
 func ASFromFileFmt(s string, prefix bool) (AS, error) {
 	if prefix {
 		if !strings.HasPrefix(s, ASFmtPrefix) {
@@ -116,6 +125,8 @@ func (as AS) String() string {
 	return as.fmt(':')
 }
 
+// FileFmt formats an AS for use in a file name, using '_' instead of ':' as
+// the separator for SCION-only AS numbers.
 func (as AS) FileFmt() string {
 	return as.fmt('_')
 }
@@ -145,7 +156,7 @@ func (as AS) fmt(sep byte) string {
 var _ fmt.Stringer = IA{}
 var _ encoding.TextUnmarshaler = (*IA)(nil)
 
-// IA represents the ISD (Isolation Domain) and AS (Autonomous System) Id of a given SCION AS.
+// IA represents the ISD (ISolation Domain) and AS (Autonomous System) Id of a given SCION AS.
 type IA struct {
 	I ISD
 	A AS
@@ -157,6 +168,7 @@ func IAFromRaw(b common.RawBytes) IA {
 	return *ia
 }
 
+/// IAFromString parses an IA from a string of the format 'ia-as'.
 func IAFromString(s string) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
@@ -173,6 +185,7 @@ func IAFromString(s string) (IA, error) {
 	return IA{I: isd, A: as}, nil
 }
 
+// IAFromFileFmt parses an IA from a file-format
 func IAFromFileFmt(s string, prefixes bool) (IA, error) {
 	parts := strings.Split(s, "-")
 	if len(parts) != 2 {
@@ -235,6 +248,7 @@ func (ia IA) FileFmt(prefixes bool) string {
 	return fmt.Sprintf(fmts, ia.I, ia.A.FileFmt())
 }
 
+// IAInt is an integer representation of an ISD-AS.
 type IAInt uint64
 
 func (iaI IAInt) IA() IA {
