@@ -20,6 +20,7 @@ import (
 	log "github.com/inconshreveable/log15"
 
 	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -80,7 +81,7 @@ func (r *resolver) run() {
 }
 
 // lookup queries SCIOND, blocking while waiting for the response.
-func (r *resolver) lookup(src, dst addr.IA) AppPathSet {
+func (r *resolver) lookup(src, dst addr.IA) spathmeta.AppPathSet {
 	reply, err := r.sciondConn.Paths(dst, src, numReqPaths, sciond.PathReqFlags{})
 	if err != nil {
 		log.Error("SCIOND network error", "err", err)
@@ -89,9 +90,9 @@ func (r *resolver) lookup(src, dst addr.IA) AppPathSet {
 	if reply.ErrorCode != sciond.ErrorOk {
 		// SCIOND internal error, return 0 paths set
 		log.Error("Unable to find path", "src", src, "dst", dst, "code", reply.ErrorCode)
-		return make(AppPathSet)
+		return make(spathmeta.AppPathSet)
 	}
-	return NewAppPathSet(reply)
+	return spathmeta.NewAppPathSet(reply)
 }
 
 // reconnect repeatedly tries to reconnect to SCIOND.

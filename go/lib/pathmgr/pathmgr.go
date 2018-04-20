@@ -17,8 +17,8 @@
 // A new resolver can be instantiated by calling `New`. There are two types of
 // supported path queries, simple or periodic.
 //
-// Simple path queries are issued via 'Query'; they return an AppPathSet of valid
-// paths.
+// Simple path queries are issued via 'Query'; they return an
+// spathmeta.AppPathSet of valid paths.
 //
 // Periodic path queries are added via 'Watch', which returns a pointer to a
 // thread-safe SyncPaths object; calling Load on the object returns the data
@@ -51,7 +51,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // Timers is used to customize the timers for a new Path Manager.
@@ -136,7 +138,7 @@ func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 // Query returns a slice of paths between src and dst. If the paths are not
 // found in the path resolver's cache, a query to SCIOND is issued and the
 // function blocks until the reply is received.
-func (r *PR) Query(src, dst addr.IA) AppPathSet {
+func (r *PR) Query(src, dst addr.IA) spathmeta.AppPathSet {
 	r.Lock()
 	defer r.Unlock()
 	if aps, ok := r.cache.getAPS(src, dst); ok {
@@ -157,18 +159,14 @@ func (r *PR) Query(src, dst addr.IA) AppPathSet {
 	if aps, ok := r.cache.getAPS(src, dst); ok {
 		return aps.Copy()
 	}
-	return AppPathSet{}
+	return spathmeta.AppPathSet{}
 }
 
-func (r *PR) QueryFilter(src, dst addr.IA, filter *PathPredicate) AppPathSet {
+func (r *PR) QueryFilter(src, dst addr.IA, filter *pktcls.ActionFilterPaths) spathmeta.AppPathSet {
 	aps := r.Query(src, dst)
 	// Delete paths that do not match the predicate
-	for k, ap := range aps {
-		if !filter.Eval(ap.Entry) {
-			delete(aps, k)
-		}
-	}
-	return aps
+
+	return filter.Act(aps).(spathmeta.AppPathSet)
 }
 
 // Watch adds pair src-dst to the list of watched paths.
@@ -193,7 +191,7 @@ func (r *PR) Unwatch(src, dst addr.IA) error {
 //
 // WatchFilter also adds pair src-dst to the list of tracked paths (if it
 // wasn't already tracked).
-func (r *PR) WatchFilter(src, dst addr.IA, filter *PathPredicate) (*SyncPaths, error) {
+func (r *PR) WatchFilter(src, dst addr.IA, filter *pktcls.ActionFilterPaths) (*SyncPaths, error) {
 	r.Lock()
 	defer r.Unlock()
 	// If the src and dst are not monitored yet, add the request to the resolver's queue
@@ -217,7 +215,7 @@ func (r *PR) WatchFilter(src, dst addr.IA, filter *PathPredicate) (*SyncPaths, e
 }
 
 // UnwatchFilter deletes a previously registered filter.
-func (r *PR) UnwatchFilter(src, dst addr.IA, filter *PathPredicate) error {
+func (r *PR) UnwatchFilter(src, dst addr.IA, filter *pktcls.ActionFilterPaths) error {
 	r.Lock()
 	defer r.Unlock()
 	return r.cache.removeWatch(src, dst, filter)

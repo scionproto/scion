@@ -30,7 +30,7 @@
 //
 // Actions are marshalable objects that describe a process. Currently, the only
 // supported actions are Path Filters (ActionFilterPaths), which are containers
-// for a pathmgr.PathPredicate object.
+// for a spathmeta.PathPredicate object.
 //
 // Marshalable policies can be implemented by external code by mapping Cond
 // items to Action items.

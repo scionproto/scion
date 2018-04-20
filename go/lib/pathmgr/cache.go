@@ -24,12 +24,14 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/pktcls"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // cacheEntry contains path information for an IA src-dst pair.
 type cacheEntry struct {
 	// Set of currently available paths
-	aps AppPathSet
+	aps spathmeta.AppPathSet
 	// Set of watched filters
 	fs filterSet
 	// Time when paths were last changed
@@ -60,7 +62,7 @@ func newCache(maxAge time.Duration) *cache {
 }
 
 // update the set of paths between src and dst to aps.
-func (c *cache) update(src, dst addr.IA, aps AppPathSet) {
+func (c *cache) update(src, dst addr.IA, aps spathmeta.AppPathSet) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	entry, ok := c.getEntry(src, dst)
@@ -77,7 +79,7 @@ func (c *cache) update(src, dst addr.IA, aps AppPathSet) {
 
 // getAPS returns the paths between src and dst. If the paths are stale or
 // missing, the second return value is false.
-func (c *cache) getAPS(src, dst addr.IA) (AppPathSet, bool) {
+func (c *cache) getAPS(src, dst addr.IA) (spathmeta.AppPathSet, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if entry, ok := c.getEntry(src, dst); ok {
@@ -92,14 +94,14 @@ func (c *cache) getAPS(src, dst addr.IA) (AppPathSet, bool) {
 
 // watch adds periodic lookups for paths between src and dst. If filter is non-nil,
 // the paths are filtered according to it.
-func (c *cache) watch(src, dst addr.IA, filter *PathPredicate) {
+func (c *cache) watch(src, dst addr.IA, filter *pktcls.ActionFilterPaths) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	var key string
 	if filter == nil {
 		key = matchAll
 	} else {
-		key = filter.String()
+		key = filter.GetName()
 	}
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
@@ -123,14 +125,14 @@ func (c *cache) watch(src, dst addr.IA, filter *PathPredicate) {
 // yet using watch, getWatch returns nil. If filter is nil, a reference to an
 // unfiltered object is returned. The object is shared between callers, so
 // callers must never write to it.
-func (c *cache) getWatch(src, dst addr.IA, filter *PathPredicate) (*SyncPaths, bool) {
+func (c *cache) getWatch(src, dst addr.IA, filter *pktcls.ActionFilterPaths) (*SyncPaths, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	var key string
 	if filter == nil {
 		key = matchAll
 	} else {
-		key = filter.String()
+		key = filter.GetName()
 	}
 	if entry, ok := c.getEntry(src, dst); ok {
 		if pf, ok := entry.fs[key]; ok {
@@ -151,14 +153,14 @@ func (c *cache) isWatched(src, dst addr.IA) bool {
 }
 
 // removeWatch deletes a watch.
-func (c *cache) removeWatch(src, dst addr.IA, filter *PathPredicate) error {
+func (c *cache) removeWatch(src, dst addr.IA, filter *pktcls.ActionFilterPaths) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	var key string
 	if filter == nil {
 		key = matchAll
 	} else {
-		key = filter.String()
+		key = filter.GetName()
 	}
 	if entry, ok := c.getEntry(src, dst); ok {
 		pf, ok := entry.fs[key]
@@ -193,7 +195,7 @@ func (c *cache) revoke(u uifid) {
 }
 
 // remove (internal) one path from the set of paths between src and dst.
-func (c *cache) remove(src, dst addr.IA, ap *AppPath) {
+func (c *cache) remove(src, dst addr.IA, ap *spathmeta.AppPath) {
 	entry, ok := c.getEntry(src, dst)
 	if !ok {
 		log.Warn("Attempted to remove known path, but no path set found", "path",
@@ -217,7 +219,7 @@ func (c *cache) getEntry(src, dst addr.IA) (*cacheEntry, bool) {
 // addEntry (internal) initializes a cache entry for src and dst.
 func (c *cache) addEntry(src, dst addr.IA) *cacheEntry {
 	entry := &cacheEntry{
-		aps:       make(AppPathSet),
+		aps:       make(spathmeta.AppPathSet),
 		fs:        make(filterSet),
 		timestamp: time.Now(),
 	}

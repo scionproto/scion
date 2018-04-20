@@ -22,6 +22,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/scionproto/scion/go/lib/addr"
 )
 
 // TempFileName creates a temporary file in dir with the specified prefix, and
@@ -125,4 +127,14 @@ func MustReadFromFile(t *testing.T, baseName string) []byte {
 // ExpandPath returns testdata/file.
 func ExpandPath(file string) string {
 	return filepath.Join("testdata", fmt.Sprintf("%s.ref", file))
+}
+
+// MustParseIA parses s and returns the corresponding addr.IA object. It
+// panics if s is not a valid ISD-AS representation.
+func MustParseIA(s string) addr.IA {
+	ia, err := addr.IAFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return ia
 }

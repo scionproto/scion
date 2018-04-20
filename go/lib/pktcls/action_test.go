@@ -25,8 +25,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
@@ -202,7 +202,7 @@ func TestActionMap(t *testing.T) {
 func mustCondPathPredicate(t *testing.T, str string) *CondPathPredicate {
 	t.Helper()
 
-	pp, err := pathmgr.NewPathPredicate(str)
+	pp, err := spathmeta.NewPathPredicate(str)
 	xtest.FailOnErr(t, err)
 	return NewCondPathPredicate(pp)
 }
@@ -321,8 +321,8 @@ func TestActionAct(t *testing.T) {
 						paths, err := conn.Paths(stc.Dst, stc.Src, 5, sciond.PathReqFlags{})
 						SoMsg("sciond err", err, ShouldBeNil)
 
-						inAPS := pathmgr.NewAppPathSet(paths)
-						outAPS := tc.Action.Act(inAPS).(pathmgr.AppPathSet)
+						inAPS := spathmeta.NewAppPathSet(paths)
+						outAPS := tc.Action.Act(inAPS).(spathmeta.AppPathSet)
 						SoMsg("paths", getPathStrings(outAPS), ShouldResemble, stc.ExpPathStrings)
 					})
 				}
@@ -343,7 +343,7 @@ func testGetSCIONDConn(t *testing.T) sciond.Connector {
 	return conn
 }
 
-func getPathStrings(aps pathmgr.AppPathSet) map[string]struct{} {
+func getPathStrings(aps spathmeta.AppPathSet) map[string]struct{} {
 	ss := make(map[string]struct{})
 	for _, v := range aps {
 		ss[fmt.Sprintf("%v", v.Entry.Path.Interfaces)] = struct{}{}

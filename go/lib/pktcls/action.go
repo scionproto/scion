@@ -15,8 +15,8 @@
 package pktcls
 
 import (
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // Interface Action defines how paths and packets may be processed in a way
@@ -50,8 +50,8 @@ func NewActionFilterPaths(name string, cond Cond) *ActionFilterPaths {
 // Act takes an AppPathSet and returns a new AppPathSet containing only the
 // paths permitted by the conditional predicate.
 func (a *ActionFilterPaths) Act(values interface{}) interface{} {
-	inputSet := values.(pathmgr.AppPathSet)
-	resultSet := make(pathmgr.AppPathSet)
+	inputSet := values.(spathmeta.AppPathSet)
+	resultSet := make(spathmeta.AppPathSet)
 	for key, path := range inputSet {
 		if a.Cond.Eval(path.Entry) {
 			resultSet[key] = path
@@ -89,10 +89,10 @@ var _ Cond = (*CondPathPredicate)(nil)
 // argument to eval is a *sciond.PathReplyEntry that satisfies the embedded
 // predicate PP.
 type CondPathPredicate struct {
-	PP *pathmgr.PathPredicate
+	PP *spathmeta.PathPredicate
 }
 
-func NewCondPathPredicate(pp *pathmgr.PathPredicate) *CondPathPredicate {
+func NewCondPathPredicate(pp *spathmeta.PathPredicate) *CondPathPredicate {
 	return &CondPathPredicate{
 		PP: pp,
 	}
