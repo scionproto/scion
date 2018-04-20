@@ -44,6 +44,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 	case r.pktErrorQ <- args:
 	default:
 		log.Debug("Dropping pkt error")
+		rp.Release()
 	}
 }
 

@@ -40,6 +40,10 @@ const (
 	errPldGet = "Unable to retrieve payload"
 )
 
+type IFIDCallbackArgs struct {
+	RtrPkt *RtrPkt
+}
+
 // NeedsLocalProcessing determines if the router needs to do more than just
 // forward a packet (e.g. resolve an SVC destination address).
 func (rp *RtrPkt) NeedsLocalProcessing() error {
@@ -156,8 +160,18 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 	}
 }
 
-// processIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
+// processIFID handles IFID (interface ID) packets
 func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
+	if rp.DirFrom == rcmn.DirLocal {
+		callbacks.ifIDF(IFIDCallbackArgs{RtrPkt: rp})
+		return HookFinish, nil
+	} else {
+		return rp.processRemoteIFID(ifid)
+	}
+}
+
+// processRemoteIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
+func (rp *RtrPkt) processRemoteIFID(ifid *ifid.IFID) (HookResult, error) {
 	// Set the RelayIF field in the payload to the current interface ID.
 	ifid.RelayIfID = uint64(*rp.ifCurr)
 	cpld, err := ctrl.NewPld(ifid, nil)
