@@ -129,12 +129,12 @@ func ExpandPath(file string) string {
 	return filepath.Join("testdata", fmt.Sprintf("%s.ref", file))
 }
 
-// MuastParseIA parses ia and returns the corresponding addr.IA object. It
+// MustParseIA parses ia and returns the corresponding addr.IA object. It
 // panics if ia is not a valid ISD-AS representation.
-func MustParseIA(ia string) addr.IA {
-	isdas, err := addr.IAFromString(ia)
+func MustParseIA(s string) addr.IA {
+	ia, err := addr.IAFromString(s)
 	if err != nil {
 		panic(err)
 	}
-	return isdas
+	return ia
 }
