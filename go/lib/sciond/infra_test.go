@@ -43,7 +43,7 @@ func TestRevNotification(t *testing.T) {
 		SoMsg("AS selection len", len(asList), ShouldBeGreaterThan, 0)
 		localIA := asList[rand.Intn(len(asList))]
 
-		service := NewService(fmt.Sprintf("/run/shm/sciond/sd%v.sock", localIA))
+		service := NewService(fmt.Sprintf("/run/shm/sciond/sd%s.sock", localIA.FileFmt(false)))
 		conn, err := service.Connect()
 		SoMsg("Connect error", err, ShouldBeNil)
 

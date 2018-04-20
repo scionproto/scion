@@ -222,7 +222,7 @@ class TestSCIONAddrHdrParse(object):
         inst.calc_lens = create_mock()
         inst.update = create_mock()
         data = create_mock_full({
-            "pop()...": ("1-4_294_967_300", "1-4_294_967_322", "dst host", "src host"),
+            "pop()...": ("1-ff00:0:300", "1-ff00:0:322", "dst host", "src host"),
         })
         src_host = create_mock_full({"TYPE": src_type})
         src = create_mock_full({"host": src_host})
@@ -247,8 +247,8 @@ class TestSCIONAddrHdrParse(object):
             "data", inst.NAME, inst.calc_lens.return_value[0])
         assert_these_calls(data.pop, [call(ISD_AS.LEN), call(ISD_AS.LEN), call(12), call(34)])
         assert_these_calls(haddr, [call(1), call(2)])
-        assert_these_calls(saddr, [call(ISD_AS("1-4_294_967_300"), "dst haddr"),
-                                   call(ISD_AS("1-4_294_967_322"), "src haddr")])
+        assert_these_calls(saddr, [call(ISD_AS("1-ff00:0:300"), "dst haddr"),
+                                   call(ISD_AS("1-ff00:0:322"), "src haddr")])
         ntools.eq_(inst.dst, dst)
         ntools.eq_(inst.src, src)
         inst.update.assert_called_once_with()

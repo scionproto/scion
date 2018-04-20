@@ -355,7 +355,7 @@ def _parse_locs(as_str, as_list):
 
 
 def get_sciond_api_addr(addr):
-    return os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % addr.isd_as)
+    return os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % addr.isd_as.file_fmt())
 
 
 def get_overlay():

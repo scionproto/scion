@@ -25,7 +25,7 @@ import (
 )
 
 func Test_Addr_String(t *testing.T) {
-	ia, _ := addr.IAFromString("1-4_294_967_320")
+	ia, _ := addr.IAFromString("1-ff00:0:320")
 	host4 := addr.HostFromIP(net.IPv4(1, 2, 3, 4))
 	host6 := addr.HostFromIP(net.ParseIP("2001::1"))
 	tests := []struct {
@@ -33,9 +33,9 @@ func Test_Addr_String(t *testing.T) {
 		result  string
 	}{
 		{address: &Addr{IA: ia, Host: host4, L4Port: 10000},
-			result: "1-4_294_967_320,[1.2.3.4]:10000"},
+			result: "1-ff00:0:320,[1.2.3.4]:10000"},
 		{address: &Addr{IA: ia, Host: host6, L4Port: 20000},
-			result: "1-4_294_967_320,[2001::1]:20000"},
+			result: "1-ff00:0:320,[2001::1]:20000"},
 	}
 	Convey("Method String", t, func() {
 		for _, test := range tests {
@@ -57,34 +57,34 @@ func Test_AddrFromString(t *testing.T) {
 	}{
 		{address: "foo", isError: true},
 		{address: "5-", isError: true},
-		{address: "2-4_294_967_300,[", isError: true},
-		{address: "5-4_294_967_300,[]:", isError: true},
-		{address: "40-4_294_967_300,[]:19", isError: true},
-		{address: "1-4_294_967_300,[]:13,[f", isError: true},
-		{address: "1-4_294_967_300,[abc]:12", isError: true},
-		{address: "1-4_294_967_300]:14,[1.2.3.4]", isError: true},
-		{address: "1-4_294_967_300,[1.2.3.4]:70000", isError: true},
+		{address: "2-ff00:0:300,[", isError: true},
+		{address: "5-ff00:0:300,[]:", isError: true},
+		{address: "40-ff00:0:300,[]:19", isError: true},
+		{address: "1-ff00:0:300,[]:13,[f", isError: true},
+		{address: "1-ff00:0:300,[abc]:12", isError: true},
+		{address: "1-ff00:0:300]:14,[1.2.3.4]", isError: true},
+		{address: "1-ff00:0:300,[1.2.3.4]:70000", isError: true},
 		{address: "", isError: true},
-		{address: "1-4_294_967_300,[1.2.3.4]:80",
-			ia:   "1-4_294_967_300",
+		{address: "1-ff00:0:300,[1.2.3.4]:80",
+			ia:   "1-ff00:0:300",
 			host: "1.2.3.4",
 			port: 80},
-		{address: "1-4_294_967_301,[1.2.3.4]",
-			ia:   "1-4_294_967_301",
+		{address: "1-ff00:0:301,[1.2.3.4]",
+			ia:   "1-ff00:0:301",
 			host: "1.2.3.4",
 			port: 0},
-		{address: "50-4_294_967_350,[1.1.1.1]:5",
-			ia:   "50-4_294_967_350",
+		{address: "50-ff00:0:350,[1.1.1.1]:5",
+			ia:   "50-ff00:0:350",
 			host: "1.1.1.1",
 			port: 5},
-		{address: "1-4_294_967_302,[::1]:60000",
-			ia:   "1-4_294_967_302",
+		{address: "1-ff00:0:302,[::1]:60000",
+			ia:   "1-ff00:0:302",
 			host: "::1",
 			port: 60000},
 	}
 	Convey("Function AddrFromString", t, func() {
 		for _, test := range tests {
-			Convey(fmt.Sprintf("given address %s", test.address), func() {
+			Convey(fmt.Sprintf("given address %q", test.address), func() {
 				a, err := AddrFromString(test.address)
 				if test.isError {
 					SoMsg("error", err, ShouldNotBeNil)

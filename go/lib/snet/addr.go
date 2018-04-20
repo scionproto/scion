@@ -29,7 +29,8 @@ import (
 var _ net.Addr = (*Addr)(nil)
 var _ flag.Value = (*Addr)(nil)
 
-var addrRegexp = regexp.MustCompile(`^(?P<ia>\d+-[\d_]+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
+var addrRegexp = regexp.MustCompile(
+	`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
 
 type Addr struct {
 	IA          addr.IA
@@ -94,7 +95,7 @@ func (a *Addr) Copy() *Addr {
 }
 
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port
-// (e.g., 1-4_294_967_300,[192.168.1.1]:80) to a SCION address.
+// (e.g., 1-ff00:0:300,[192.168.1.1]:80) to a SCION address.
 func AddrFromString(s string) (*Addr, error) {
 	parts, err := parseAddr(s)
 	if err != nil {
@@ -124,15 +125,11 @@ func parseAddr(s string) (map[string]string, error) {
 	result := make(map[string]string)
 	match := addrRegexp.FindStringSubmatch(s)
 	if len(match) == 0 {
-		return nil, common.NewBasicError("Invalid address", nil, "addr", s)
+		return nil, common.NewBasicError("Invalid address: regex match failed", nil, "addr", s)
 	}
 	for i, name := range addrRegexp.SubexpNames() {
 		if i == 0 {
 			continue
-		}
-		// port is optional, (ia, host) are mandatory
-		if name != "port" && match[i] == "" {
-			return nil, common.NewBasicError("Invalid address", nil, "addr", s)
 		}
 		result[name] = match[i]
 	}

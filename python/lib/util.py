@@ -83,6 +83,9 @@ def write_file(file_path, text):
     :raises:
         lib.errors.SCIONIOError: IO error occurred
     """
+    # ":" is an illegal filename char on both windows and OSX, so disallow it globally to prevent
+    # incompatibility.
+    assert ":" not in file_path, file_path
     dir_ = os.path.dirname(file_path)
     try:
         os.makedirs(dir_, exist_ok=True)

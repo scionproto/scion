@@ -32,10 +32,10 @@ import (
 )
 
 var (
-	ia330 = addr.IA{I: 1, A: 4294967330}
-	ia311 = addr.IA{I: 1, A: 4294967311}
-	ia331 = addr.IA{I: 1, A: 4294967331}
-	ia332 = addr.IA{I: 1, A: 4294967332}
+	ia330 = addr.IA{I: 1, A: 0xff0000000330}
+	ia311 = addr.IA{I: 1, A: 0xff0000000311}
+	ia331 = addr.IA{I: 1, A: 0xff0000000331}
+	ia332 = addr.IA{I: 1, A: 0xff0000000332}
 
 	ifs1 = []uint64{0, 5, 2, 3, 6, 3, 1, 0}
 	ifs2 = []uint64{0, 4, 2, 3, 1, 3, 2, 0}
@@ -219,9 +219,9 @@ func checkInsert(t *testing.T, b *Backend, e *ExpectedInsert) {
 	checkSegments(t, b, e.RowID, e.SegID, e.TS)
 	// Check that the IntfToSegs Table contains all the interfaces.
 	checkIntfToSeg(t, b, e.RowID, e.Intfs)
-	// Check that the StartsAt Table contains 1-4_294_967_330 => 1.
+	// Check that the StartsAt Table contains 1-ff00:0:330 => 1.
 	checkStartsAtOrEndsAt(t, b, StartsAtTable, e.RowID, e.StartsAt)
-	// Check that the EndsAt Table contains 1-4_294_967_332 => 1.
+	// Check that the EndsAt Table contains 1-ff00:0:332 => 1.
 	checkStartsAtOrEndsAt(t, b, EndsAtTable, e.RowID, e.EndsAt)
 	// Check that SegTypes contains {0, 1} => 1
 	checkSegTypes(t, b, e.RowID, e.Types)

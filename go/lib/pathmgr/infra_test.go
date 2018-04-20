@@ -28,13 +28,13 @@ import (
 )
 
 var (
-	srcStr = flag.String("srcIA", "1-4_295_001_11", "Source ISD-AS")
-	dstStr = flag.String("dstIA", "2-4_295_002_10", "Destination ISD-AS")
+	srcStr = flag.String("srcIA", "1-ff00:0:111", "Source ISD-AS")
+	dstStr = flag.String("dstIA", "2-ff00:0:210", "Destination ISD-AS")
 )
 
 // SCION test infrastructure needs to be running for this example.
 func ExamplePR() {
-	// Run with "go test -tags=infrarunning -args -srcIA 1-4_295_001_11 -dstIA 2-4_295_002_10".
+	// Run with "go test -tags=infrarunning -args -srcIA 1-ff00:0:111 -dstIA 2-ff00:0:210".
 	var err error
 	src, err := addr.IAFromString(*srcStr)
 	if err != nil {
@@ -45,7 +45,7 @@ func ExamplePR() {
 		fmt.Println("Unable to parse dstIA", *dstStr, "err", err)
 	}
 	// Initialize path resolver
-	sciondPath := fmt.Sprintf("/run/shm/sciond/sd%s.sock", src.String())
+	sciondPath := fmt.Sprintf("/run/shm/sciond/sd%s.sock", src.FileFmt(false))
 	sciondService := sciond.NewService(sciondPath)
 	pr, err := New(sciondService, time.Second, time.Minute, log.Root())
 	if err != nil {

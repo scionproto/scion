@@ -35,7 +35,7 @@ import (
 )
 
 func GetDefaultSCIONDPath(ia addr.IA) string {
-	return fmt.Sprintf("/run/shm/sciond/sd%v.sock", ia)
+	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
 }
 
 var (

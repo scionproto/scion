@@ -58,7 +58,7 @@ func Test_TRCFromRaw(t *testing.T) {
 			SoMsg("Log2", trc.CertLogs["Log2"], ShouldNotBeNil)
 			ip := net.ParseIP("127.0.0.75")
 			SoMsg("Log1 addr", trc.CertLogs["Log1"].Addr, ShouldResemble,
-				&Addr{IA: addr.IA{I: 1, A: 4294967300}, IP: ip})
+				&Addr{IA: addr.IA{I: 1, A: 0xff0000000300}, IP: ip})
 			SoMsg("Log1 cert", trc.CertLogs["Log1"].Certificate, ShouldResemble,
 				common.RawBytes{0xe3, 0x48, 0x78, 0xbc, 0xee, 0x40, 0x28, 0x71,
 					0x87, 0x93, 0x72, 0x31, 0xa3, 0x7d, 0xaf, 0xcb, 0xf0, 0x07,
@@ -67,9 +67,9 @@ func Test_TRCFromRaw(t *testing.T) {
 		})
 
 		Convey("CoreASes parsed correctly", func() {
-			SoMsg("1-4_294_967_300", trc.CoreASes[addr.IA{I: 1, A: 4294967300}], ShouldNotBeNil)
-			SoMsg("1-4_294_967_301", trc.CoreASes[addr.IA{I: 1, A: 4294967301}], ShouldNotBeNil)
-			SoMsg("1-4_294_967_302", trc.CoreASes[addr.IA{I: 1, A: 4294967302}], ShouldNotBeNil)
+			SoMsg("1-ff00:0:300", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}], ShouldNotBeNil)
+			SoMsg("1-ff00:0:301", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000301}], ShouldNotBeNil)
+			SoMsg("1-ff00:0:302", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000302}], ShouldNotBeNil)
 			entry := &CoreAS{OfflineKeyAlg: crypto.Ed25519, OnlineKeyAlg: crypto.Ed25519}
 			entry.OfflineKey = []byte{0x2b, 0x75, 0x84, 0xd7, 0xb4, 0x3d, 0xb3, 0xff,
 				0x38, 0x76, 0x38, 0x9d, 0xd3, 0x44, 0x51, 0x12, 0x77, 0xba, 0x48,
@@ -80,7 +80,7 @@ func Test_TRCFromRaw(t *testing.T) {
 				0x8d, 0xee, 0x4c, 0xf7, 0xc3, 0x70, 0xd5, 0x98, 0xf7, 0x0e, 0x42,
 				0x91, 0xd4}
 
-			SoMsg("CoreAS 1-4_294_967_300", trc.CoreASes[addr.IA{I: 1, A: 4294967300}], ShouldResemble,
+			SoMsg("CoreAS 1-ff00:0:300", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}], ShouldResemble,
 				entry)
 		})
 
@@ -97,7 +97,7 @@ func Test_TRCFromRaw(t *testing.T) {
 					0x8b, 0xdc, 0x0c, 0x78})
 			ip := net.ParseIP("127.0.0.107")
 			SoMsg("TRCSrv", trc.RAINS.TRCSrv[0], ShouldResemble,
-				&Addr{IA: addr.IA{I: 1, A: 4294967301}, IP: ip})
+				&Addr{IA: addr.IA{I: 1, A: 0xff0000000301}, IP: ip})
 			SoMsg("TRCSrv size", len(trc.RAINS.TRCSrv), ShouldEqual, 3)
 		})
 
@@ -117,16 +117,16 @@ func Test_TRCFromRaw(t *testing.T) {
 				0x1f, 0xad}
 			ipA := net.ParseIP("127.0.0.70")
 			ipT := net.ParseIP("127.0.0.71")
-			entry.ARPKISrv = []*Addr{{IA: addr.IA{I: 1, A: 4294967300}, IP: ipA}}
-			entry.TRCSrv = []*Addr{{IA: addr.IA{I: 1, A: 4294967300}, IP: ipT}}
+			entry.ARPKISrv = []*Addr{{IA: addr.IA{I: 1, A: 0xff0000000300}, IP: ipA}}
+			entry.TRCSrv = []*Addr{{IA: addr.IA{I: 1, A: 0xff0000000300}, IP: ipT}}
 			SoMsg("RootCA CA1-1", trc.RootCAs["CA1-1"], ShouldResemble, entry)
 		})
 
 		Convey("Signatures parsed correctly", func() {
-			SoMsg("1-4_294_967_300", trc.Signatures["1-4_294_967_300"], ShouldNotBeNil)
-			SoMsg("1-4_294_967_301", trc.Signatures["1-4_294_967_301"], ShouldNotBeNil)
-			SoMsg("1-4_294_967_302", trc.Signatures["1-4_294_967_302"], ShouldNotBeNil)
-			SoMsg("Signature 1-4_294_967_300", trc.Signatures["1-4_294_967_300"], ShouldResemble,
+			SoMsg("1-ff00:0:300", trc.Signatures["1-ff00:0:300"], ShouldNotBeNil)
+			SoMsg("1-ff00:0:301", trc.Signatures["1-ff00:0:301"], ShouldNotBeNil)
+			SoMsg("1-ff00:0:302", trc.Signatures["1-ff00:0:302"], ShouldNotBeNil)
+			SoMsg("Signature 1-ff00:0:300", trc.Signatures["1-ff00:0:300"], ShouldResemble,
 				common.RawBytes{0x34, 0x8f, 0x8a, 0x99, 0x4f, 0xd0, 0x52, 0x2d,
 					0x2e, 0x49, 0x6b, 0x5c, 0x53, 0x75, 0x9b, 0xc3, 0x93, 0xc6,
 					0xdd, 0x2a, 0x70, 0x43, 0x8d, 0xe7, 0x82, 0x4e, 0x68, 0x2e,
@@ -156,8 +156,8 @@ func Test_TRC_CoreASList(t *testing.T) {
 		trc := loadTRC(fnTRC, t)
 		list := trc.CoreASList()
 		sort.Sort(ISDAS(list))
-		SoMsg("CoreASList", list, ShouldResemble, []addr.IA{{I: 1, A: 4294967300},
-			{I: 1, A: 4294967301}, {I: 1, A: 4294967302}})
+		SoMsg("CoreASList", list, ShouldResemble, []addr.IA{{I: 1, A: 0xff0000000300},
+			{I: 1, A: 0xff0000000301}, {I: 1, A: 0xff0000000302}})
 	})
 }
 
@@ -167,8 +167,8 @@ func xxxTest_TRC_Sign(t *testing.T) {
 	Convey("Sign should sign TRC correctly", t, func() {
 		trc := loadTRC(fnTRC, t)
 		packd, _ := trc.sigPack()
-		err := crypto.Verify(packd, trc.Signatures["1-4_294_967_300"],
-			trc.CoreASes[addr.IA{I: 1, A: 4294967300}].OnlineKey, crypto.Ed25519)
+		err := crypto.Verify(packd, trc.Signatures["1-ff00:0:300"],
+			trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}].OnlineKey, crypto.Ed25519)
 		SoMsg("err", err, ShouldBeNil)
 		key := []byte{0xaf, 0x00, 0x0e, 0xb6, 0x26, 0x4f, 0xbd, 0x20, 0xd1, 0x36, 0xed,
 			0xae, 0x42, 0x65, 0xeb, 0x29, 0x15, 0x8e, 0xa6, 0x35, 0xef, 0x3d, 0x2a,
@@ -176,11 +176,11 @@ func xxxTest_TRC_Sign(t *testing.T) {
 			0x38, 0x34, 0xc6, 0x88, 0xef, 0x38, 0x3b, 0x75, 0xdd, 0xa1, 0x4e, 0x27,
 			0x00, 0x55, 0x10, 0x3b, 0x8d, 0xee, 0x4c, 0xf7, 0xc3, 0x70, 0xd5, 0x98,
 			0xf7, 0x0e, 0x42, 0x91, 0xd4}
-		orig := trc.Signatures["1-4_294_967_300"]
+		orig := trc.Signatures["1-ff00:0:300"]
 		_ = orig
-		delete(trc.Signatures, "1-4_294_967_300")
-		trc.Sign("1-4_294_967_300", key, crypto.Ed25519)
-		SoMsg("Equal signature", trc.Signatures["1-4_294_967_300"], ShouldResemble, orig)
+		delete(trc.Signatures, "1-ff00:0:300")
+		trc.Sign("1-ff00:0:300", key, crypto.Ed25519)
+		SoMsg("Equal signature", trc.Signatures["1-ff00:0:300"], ShouldResemble, orig)
 	})
 }
 

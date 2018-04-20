@@ -22,6 +22,7 @@ from unittest.mock import patch
 import nose.tools as ntools
 
 # SCION
+from lib.packet.scion_addr import ISD_AS
 from lib.trust_store import TrustStore
 from test.testcommon import create_mock
 
@@ -62,28 +63,28 @@ class TestTrustStoreGetCert(object):
     """
     def _init(self):
         inst = TrustStore("conf_dir", "cache_dir", "element_name")
-        inst._certs["1-4_294_967_300"] = [(1, 'cert1'), (3, 'cert3'), (0, 'cert0')]
+        inst._certs["1-ff00:0:300"] = [(1, 'cert1'), (3, 'cert3'), (0, 'cert0')]
         return inst
 
     def test_non_existing_as(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("2-4_294_967_322"), None)
+        ntools.eq_(inst.get_cert("2-ff00:0:322"), None)
 
     def test_non_existing_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("1-4_294_967_300", 2), None)
+        ntools.eq_(inst.get_cert("1-ff00:0:300", 2), None)
 
     def test_default_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("1-4_294_967_300"), 'cert3')
+        ntools.eq_(inst.get_cert("1-ff00:0:300"), 'cert3')
 
     def test_existing_version(self):
         inst = self._init()
         # Call
-        ntools.eq_(inst.get_cert("1-4_294_967_300", 1), 'cert1')
+        ntools.eq_(inst.get_cert("1-ff00:0:300", 1), 'cert1')
 
 
 class TestTrustStoreAddTrc(object):
@@ -125,26 +126,28 @@ class TestTrustStoreAddCert(object):
     @patch("lib.trust_store.write_file", autospec=True)
     def test_add_unique_version(self, write_file):
         inst = TrustStore("conf_dir", "cache_dir", "element_name")
-        inst._certs[(1, 1)] = [(0, 'cert0'), (1, 'cert1')]
-        certs_before = inst._certs[(1, 1)][:]
+        ia = ISD_AS("1-ff00:0:1")
+        inst._certs[ia] = [(0, 'cert0'), (1, 'cert1')]
+        certs_before = inst._certs[ia][:]
         cert = create_mock(['get_leaf_isd_as_ver'])
-        cert.get_leaf_isd_as_ver.return_value = ((1, 1), 2)
+        cert.get_leaf_isd_as_ver.return_value = (ia, 2)
         # Call
         inst.add_cert(cert)
         # Tests
-        ntools.eq_(inst._certs[(1, 1)], certs_before + [(2, cert)])
+        ntools.eq_(inst._certs[ia], certs_before + [(2, cert)])
         write_file.assert_called_once_with(
-            "cache_dir/element_name-ISD1-AS1-V2.crt", str(cert))
+            "cache_dir/element_name-ISD1-ASff00_0_1-V2.crt", str(cert))
 
     @patch("lib.trust_store.write_file", autospec=True)
     def test_add_non_unique_version(self, write_file):
         inst = TrustStore("conf_dir", "cache_dir", "element_name")
-        inst._certs[(1, 1)] = [(0, 'cert0'), (1, 'cert1')]
-        certs_before = inst._certs[(1, 1)][:]
+        ia = ISD_AS("1-ff00:0:1")
+        inst._certs[ia] = [(0, 'cert0'), (1, 'cert1')]
+        certs_before = inst._certs[ia][:]
         cert = create_mock(['get_leaf_isd_as_ver'])
-        cert.get_leaf_isd_as_ver.return_value = ((1, 1), 1)
+        cert.get_leaf_isd_as_ver.return_value = (ia, 1)
         # Call
         inst.add_cert(cert)
         # Tests
-        ntools.eq_(inst._certs[(1, 1)], certs_before)
+        ntools.eq_(inst._certs[ia], certs_before)
         ntools.assert_false(write_file.called)

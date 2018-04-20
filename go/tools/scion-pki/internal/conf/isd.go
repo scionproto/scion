@@ -96,7 +96,7 @@ type Trc struct {
 	Validity       time.Duration `ini:"-"`
 	RawValidity    string        `ini:"Validity" comment:"The validity of the certificate as duration string, e.g., 180d or 36h"`
 	CoreIAs        []addr.IA     `ini:"-"`
-	RawCoreIAs     []string      `ini:"CoreASes" comment:"The core ASes of this ISD as comma-separated list, e.g., 1-4_294_967_000,1-4_294_967_001"`
+	RawCoreIAs     []string      `ini:"CoreASes" comment:"The core ASes of this ISD as comma-separated list, e.g., 1-ff00:0:0,1-ff00:0:1"`
 	GracePeriod    time.Duration `ini:"-"`
 	RawGracePeriod string        `ini:"GracePeriod" comment:"The grace period for the previous TRC as duration string (see above)"`
 	QuorumTRC      uint32        `comment:"The number of core ASes needed to update the TRC"`

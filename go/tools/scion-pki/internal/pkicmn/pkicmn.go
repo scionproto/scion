@@ -146,7 +146,7 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 }
 
 func GetAsPath(ia addr.IA) string {
-	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%s", ia.I, ia.A))
+	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%s", ia.I, ia.A.FileFmt()))
 }
 
 func GetIsdPath(isd addr.ISD) string {

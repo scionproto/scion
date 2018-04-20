@@ -35,7 +35,10 @@ var testTopo *Topo
 // Helpers
 func mkTAv4(ip string, port int, bindip string, bindport int, ot overlay.Type, op int) TopoAddr {
 	if bindip == "" {
-		return TopoAddr{IPv4: &topoAddrInt{pubIP: net.ParseIP(ip), pubL4Port: port, OverlayPort: op}, Overlay: ot}
+		return TopoAddr{
+			IPv4:    &topoAddrInt{pubIP: net.ParseIP(ip), pubL4Port: port, OverlayPort: op},
+			Overlay: ot,
+		}
 	}
 	tai := &topoAddrInt{
 		pubIP: net.ParseIP(ip), pubL4Port: port,
@@ -47,7 +50,10 @@ func mkTAv4(ip string, port int, bindip string, bindport int, ot overlay.Type, o
 
 func mkTAv6(ip string, port int, bindip string, bindport int, ot overlay.Type, op int) TopoAddr {
 	if bindip == "" {
-		return TopoAddr{IPv6: &topoAddrInt{pubIP: net.ParseIP(ip), pubL4Port: port, OverlayPort: op}, Overlay: ot}
+		return TopoAddr{
+			IPv6:    &topoAddrInt{pubIP: net.ParseIP(ip), pubL4Port: port, OverlayPort: op},
+			Overlay: ot,
+		}
 	}
 	tai := &topoAddrInt{
 		pubIP: net.ParseIP(ip), pubL4Port: port,
@@ -74,7 +80,7 @@ func Test_Meta(t *testing.T) {
 		// Is testing this piece of data really useful?
 		SoMsg("Checking field 'TimestampHuman", c.TimestampHuman,
 			ShouldContainSubstring, "1975-05-06 01:02:03.000000+0000")
-		SoMsg("Checking field 'ISD_AS'", c.ISD_AS, ShouldResemble, addr.IA{I: 1, A: 4294967311})
+		SoMsg("Checking field 'ISD_AS'", c.ISD_AS, ShouldResemble, addr.IA{I: 1, A: 0xff0000000311})
 		SoMsg("Checking field 'Overlay'", c.Overlay, ShouldEqual, overlay.IPv46)
 		SoMsg("Checking field 'MTU'", c.MTU, ShouldEqual, 1472)
 		SoMsg("Checking field 'Core'", c.Core, ShouldBeFalse)
@@ -84,11 +90,11 @@ func Test_Meta(t *testing.T) {
 
 func Test_BRs(t *testing.T) {
 	brs := map[string]BRInfo{
-		"br1-4_294_967_311-1": {
+		"br1-ff00:0:311-1": {
 			IFIDs: []common.IFIDType{1, 3, 8},
 		},
 	}
-	brn := []string{"br1-4_294_967_311-1"}
+	brn := []string{"br1-ff00:0:311-1"}
 
 	fn := "testdata/basic.json"
 	loadTopo(fn, t)
@@ -113,13 +119,13 @@ func Test_Service_Details(t *testing.T) {
 	// We do this just for CSs since the code for the other non-BR, non-ZK services is identical
 	cses := map[string]TopoAddr{
 		// v4 with bind
-		"cs1-4_294_967_311-1": mkTAv4("127.0.0.66", 30081, "127.0.0.67", 30081, ot, 0),
+		"cs1-ff00:0:311-1": mkTAv4("127.0.0.66", 30081, "127.0.0.67", 30081, ot, 0),
 		// v4 without bind
-		"cs1-4_294_967_311-2": mkTAv4("127.0.0.67", 30073, "", 0, ot, 0),
+		"cs1-ff00:0:311-2": mkTAv4("127.0.0.67", 30073, "", 0, ot, 0),
 		// v6 without bind
-		"cs1-4_294_967_311-3": mkTAv6("2001:db8:f00:b43::1", 23421, "", 0, ot, 0),
+		"cs1-ff00:0:311-3": mkTAv6("2001:db8:f00:b43::1", 23421, "", 0, ot, 0),
 		// v6 with bind
-		"cs1-4_294_967_311-4": mkTAv6("2001:db8:f00:b43::2", 23421, "2001:db8:1714::1", 13373, ot, 0),
+		"cs1-ff00:0:311-4": mkTAv6("2001:db8:f00:b43::2", 23421, "2001:db8:1714::1", 13373, ot, 0),
 	}
 	loadTopo(fn, t)
 	c := testTopo
@@ -169,9 +175,9 @@ func Test_ZK(t *testing.T) {
 
 func Test_IFInfoMap(t *testing.T) {
 	ifm := make(map[common.IFIDType]IFInfo)
-	isdas, _ := addr.IAFromString("1-4_294_967_312")
+	isdas, _ := addr.IAFromString("1-ff00:0:312")
 	ifm[1] = IFInfo{
-		BRName: "br1-4_294_967_311-1",
+		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
 			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
 			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
@@ -191,9 +197,9 @@ func Test_IFInfoMap(t *testing.T) {
 		LinkType:  ParentLink,
 		MTU:       1472,
 	}
-	isdas, _ = addr.IAFromString("1-4_294_967_314")
+	isdas, _ = addr.IAFromString("1-ff00:0:314")
 	ifm[3] = IFInfo{
-		BRName: "br1-4_294_967_311-1",
+		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
 			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
 			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
@@ -212,9 +218,9 @@ func Test_IFInfoMap(t *testing.T) {
 		LinkType:  ChildLink,
 		MTU:       4430,
 	}
-	isdas, _ = addr.IAFromString("1-4_294_967_313")
+	isdas, _ = addr.IAFromString("1-ff00:0:313")
 	ifm[8] = IFInfo{
-		BRName: "br1-4_294_967_311-1",
+		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
 			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.2"), pubL4Port: 30097},
 			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::2"), pubL4Port: 30097},
@@ -317,9 +323,9 @@ func Test_addrInfo(t *testing.T) {
 }
 func Test_IFInfoMap_COREAS(t *testing.T) {
 	ifm := make(map[common.IFIDType]IFInfo)
-	isdas, _ := addr.IAFromString("6-4_294_967_363")
+	isdas, _ := addr.IAFromString("6-ff00:0:363")
 	ifm[91] = IFInfo{
-		BRName: "borderrouter6-4_294_967_362-1",
+		BRName: "borderrouter6-ff00:0:362-1",
 		InternalAddr: &TopoAddr{
 			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
 			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
@@ -339,9 +345,9 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 		LinkType:  CoreLink,
 		MTU:       1472,
 	}
-	isdas, _ = addr.IAFromString("6-4_294_967_364")
+	isdas, _ = addr.IAFromString("6-ff00:0:364")
 	ifm[32] = IFInfo{
-		BRName: "borderrouter6-4_294_967_362-9",
+		BRName: "borderrouter6-ff00:0:362-9",
 		InternalAddr: &TopoAddr{
 			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.2"), pubL4Port: 3097},
 			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::2"), pubL4Port: 3097},
@@ -375,8 +381,8 @@ var br_cases = []struct {
 	name    string
 	intfids []common.IFIDType
 }{
-	{name: "borderrouter6-4_294_967_362-1", intfids: []common.IFIDType{91}},
-	{name: "borderrouter6-4_294_967_362-9", intfids: []common.IFIDType{32}},
+	{name: "borderrouter6-ff00:0:362-1", intfids: []common.IFIDType{91}},
+	{name: "borderrouter6-ff00:0:362-9", intfids: []common.IFIDType{32}},
 }
 
 func Test_BRs_COREAS(t *testing.T) {

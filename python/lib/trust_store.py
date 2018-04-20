@@ -144,5 +144,5 @@ class TrustStore(object):
             os.makedirs(self._cachedir, exist_ok=True)
             write_file(
                 os.path.join(self._cachedir, "%s-ISD%s-AS%s-V%s.crt" %
-                             (self._ename, isd_as[0], isd_as[1], version)),
+                             (self._ename, isd_as.isd_str(), isd_as.as_file_fmt(), version)),
                 str(cert))

@@ -69,7 +69,7 @@ func Init(ia addr.IA, ip net.IP) error {
 	}
 	MgmtAddr = mgmt.NewAddr(Host, uint16(*CtrlPort), uint16(*EncapPort))
 	if *sciondPath == "" {
-		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia)
+		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
 	}
 	// Initialize SCION local networking module
 	err = snet.Init(ia, *sciondPath, *dispatcherPath)

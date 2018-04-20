@@ -4,7 +4,6 @@
 import argparse
 import glob
 import os
-import sys
 
 # External
 from kazoo.client import KazooClient
@@ -23,13 +22,9 @@ def main():
     parser.add_argument('root', default="/", nargs="?",
                         help="Zookeeper dir to clean. (Default: %(default)s)")
     args = parser.parse_args()
-    if not args.zk and os.system("./supervisor/supervisor.sh mstart *:zk*"):
-        sys.exit(1)
     servers = [args.zk] if args.zk else set(find_servers())
     for server in servers:
         clean_zk(server, args.root)
-    if not args.zk:
-        sys.exit(os.system("./supervisor/supervisor.sh mstop *:zk*"))
 
 
 def find_servers():

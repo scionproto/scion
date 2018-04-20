@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	id       = flag.String("id", "", "Element ID (Required. E.g. 'br4-4_294_967_300-9')")
+	id       = flag.String("id", "", "Element ID (Required. E.g. 'br4-ff00:0:2f')")
 	confDir  = flag.String("confd", ".", "Configuration directory")
 	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
 )

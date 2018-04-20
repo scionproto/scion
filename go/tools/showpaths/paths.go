@@ -80,7 +80,7 @@ func validateFlags() {
 	}
 	if *srcIAStr == "" {
 		// Set any value, required by Query() but does not affect result
-		*srcIAStr = "1-4_294_967_310"
+		*srcIAStr = "1-ff00:0:310"
 	}
 	srcIA, err = addr.IAFromString(*srcIAStr)
 	if err != nil {

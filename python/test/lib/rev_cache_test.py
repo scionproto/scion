@@ -30,7 +30,7 @@ from lib.crypto.hash_tree import ConnectedHashTree
 class TestRevCacheGet:
     """Unit tests for lib.rev_cache.RevCache.get"""
     def test(self):
-        key = ("1-4_294_967_300", 1)
+        key = ("1-ff00:0:300", 1)
         default = "default"
         rev_info = "rev_info"
         rev_cache = RevCache()
@@ -42,14 +42,14 @@ class TestRevCacheGet:
         assert_these_calls(rev_cache._validate_entry, [call(rev_info)])
 
     def test_missing_entry(self):
-        key = ("1-4_294_967_300", 1)
+        key = ("1-ff00:0:300", 1)
         default = "default"
         rev_cache = RevCache()
         # Call
         ntools.eq_(rev_cache.get(key, default=default), default)
 
     def test_expired_entry(self):
-        key = ("1-4_294_967_300", 1)
+        key = ("1-ff00:0:300", 1)
         default = "default"
         rev_info = "rev_info"
         rev_cache = RevCache()
@@ -71,7 +71,7 @@ class TestRevCacheAdd:
     @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
            new_callable=create_mock)
     def test(self, verify_epoch):
-        key = ("1-4_294_967_300", 1)
+        key = ("1-ff00:0:300", 1)
         rev_info = self._create_rev_info(key[0], key[1], 2)
         verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
         rev_cache = RevCache()
@@ -87,7 +87,7 @@ class TestRevCacheAdd:
     @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
            new_callable=create_mock)
     def test_invalid_entry(self, verify_epoch):
-        rev_info = self._create_rev_info("1-4_294_967_300", 1, 2)
+        rev_info = self._create_rev_info("1-ff00:0:300", 1, 2)
         verify_epoch.return_value = ConnectedHashTree.EPOCH_PAST
         rev_cache = RevCache()
         # Call
@@ -97,7 +97,7 @@ class TestRevCacheAdd:
     @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
            new_callable=create_mock)
     def test_same_entry_exists(self, verify_epoch):
-        key = ("1-4_294_967_300", 1)
+        key = ("1-ff00:0:300", 1)
         rev_info1 = self._create_rev_info(key[0], key[1], 1)
         rev_info2 = self._create_rev_info(key[0], key[1], 1)
         verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
@@ -114,7 +114,7 @@ class TestRevCacheAdd:
     @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
            new_callable=create_mock)
     def test_newer_entry_exists(self, verify_epoch):
-        key = ("1-4_294_967_300", 1)
+        key = ("1-ff00:0:300", 1)
         rev_info1 = self._create_rev_info(key[0], key[1], 2)
         rev_info2 = self._create_rev_info(key[0], key[1], 1)
         verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
@@ -131,7 +131,7 @@ class TestRevCacheAdd:
     @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
            new_callable=create_mock)
     def test_older_entry_exists(self, verify_epoch):
-        key = ("1-4_294_967_300", 1)
+        key = ("1-ff00:0:300", 1)
         rev_info1 = self._create_rev_info(key[0], key[1], 1)
         rev_info2 = self._create_rev_info(key[0], key[1], 2)
         verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
@@ -148,8 +148,8 @@ class TestRevCacheAdd:
     @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
            new_callable=create_mock)
     def test_with_free_up(self, verify_epoch):
-        key1 = ("1-4_294_967_300", 1)
-        key2 = ("1-4_294_967_301", 1)
+        key1 = ("1-ff00:0:300", 1)
+        key2 = ("1-ff00:0:301", 1)
         rev_info1 = self._create_rev_info(key1[0], key1[1], 1)
         rev_info2 = self._create_rev_info(key2[0], key2[1], 2)
         verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
@@ -175,8 +175,8 @@ class TestRevCacheAdd:
     @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
            new_callable=create_mock)
     def test_with_no_free_up(self, verify_epoch):
-        key1 = ("1-4_294_967_300", 1)
-        key2 = ("1-4_294_967_301", 1)
+        key1 = ("1-ff00:0:300", 1)
+        key2 = ("1-ff00:0:301", 1)
         rev_info1 = self._create_rev_info(key1[0], key1[1], 1)
         rev_info2 = self._create_rev_info(key2[0], key2[1], 2)
         verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
