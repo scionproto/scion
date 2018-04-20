@@ -75,7 +75,7 @@ func init() {
 func main() {
 	liblog.AddDefaultLogFlags()
 	validateFlags()
-	liblog.Setup(*id)
+	liblog.Setup(*id, true)
 	defer liblog.LogPanicAndExit()
 	switch *mode {
 	case "client":

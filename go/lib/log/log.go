@@ -44,14 +44,21 @@ func init() {
 	fmt15.TimeFmt = common.TimeFmt
 }
 
-func Setup(name string) {
+func Setup(name string, logFileRequired bool) {
 	logLvl, consLvl := parseLvls()
-	logBuf = newSyncBuf(mkLogfile(name))
-	handler := log.MultiHandler(
-		log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
-		log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
-			fmt15.Fmt15Format(fmt15.ColorMap))),
-	)
+	var handler log.Handler
+	if logFileRequired {
+		logBuf = newSyncBuf(mkLogfile(name))
+		handler = log.MultiHandler(
+			log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
+			log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
+				fmt15.Fmt15Format(fmt15.ColorMap))),
+		)
+	} else {
+		handler = log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
+			fmt15.Fmt15Format(fmt15.ColorMap)))
+	}
+
 	log.Root().SetHandler(handler)
 	go func() {
 		for range time.Tick(time.Duration(logFlush) * time.Second) {
