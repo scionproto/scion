@@ -23,6 +23,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -243,4 +244,12 @@ func apsCheckPaths(desc string, aps spathmeta.AppPathSet, expValues ...string) {
 	for i, value := range expValues {
 		SoMsg(fmt.Sprintf("%s: path %d", desc, i), getPathStrings(aps), ShouldContain, value)
 	}
+}
+
+func MustParseIA(ia string) addr.IA {
+	isdas, err := addr.IAFromString(ia)
+	if err != nil {
+		panic(err)
+	}
+	return isdas
 }
