@@ -23,19 +23,19 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 // IFIDCallback is called to enqueue IFIDs for handling by the
 // IFIDFwd goroutine.
 func (r *Router) IFIDCallback(args rpkt.IFIDCallbackArgs) {
+	args.RtrPkt.RefInc(1)
 	select {
 	case r.ifIDQ <- args:
 	default:
 		log.Debug("Dropping ifid packet")
+		args.RtrPkt.Release()
 	}
 }
 
@@ -45,28 +45,42 @@ func (r *Router) IFIDFwd() {
 	defer liblog.LogPanicAndExit()
 	// Run forever.
 	for args := range r.ifIDQ {
-		r.fwdLocalIFID(args.ScnPkt, args.IFCurr)
+		r.fwdLocalIFID(args.RtrPkt)
+		args.RtrPkt.Release()
 	}
 }
 
 // fwdLocalIFID creates RtrPkts and sends them to the remote BR
-func (r *Router) fwdLocalIFID(spkt *spkt.ScnPkt, ifCurr *common.IFIDType) {
+func (r *Router) fwdLocalIFID(rp *rpkt.RtrPkt) {
+	ifCurr, err := rp.IFCurr()
+	if err != nil {
+		log.Error("Error getting current IF from RtrPkt", "err", err)
+		return
+	}
+	// Create ScnPkt from RtrPkt
+	spkt, err := rp.ToScnPkt(true)
+	if err != nil {
+		log.Error("Error generating ScnPkt from RtrPkt", "err", err)
+		return
+	}
 	ctx := rctx.Get()
 	intf := ctx.Conf.Net.IFs[*ifCurr]
 	// Set remote BR as Dst
 	spkt.DstIA = intf.RemoteIA
 	spkt.DstHost = addr.HostFromIP(intf.RemoteAddr.IP)
-	// Remove old path and add overlay
-	spkt.Path = nil
-	overlayPort := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay).OverlayPort
-	spkt.L4 = &l4.UDP{SrcPort: uint16(overlayPort), DstPort: uint16(intf.RemoteAddr.OverlayPort)}
+	if spkt.Path != nil && len(spkt.Path.Raw) > 0 {
+		log.Error("Error forwarding IFID packet: Path is present on ScnPkt.")
+		return
+	}
+	srcPort := intf.IFAddr.PublicAddrInfo(intf.IFAddr.Overlay).L4Port
+	spkt.L4 = &l4.UDP{SrcPort: uint16(srcPort), DstPort: uint16(intf.RemoteAddr.L4Port)}
 	// Convert back to RtrPkt
-	rp, err := rpkt.RtrPktFromScnPkt(spkt, rcmn.DirExternal, ctx)
+	fwdrp, err := rpkt.RtrPktFromScnPkt(spkt, rcmn.DirExternal, ctx)
 	if err != nil {
 		log.Error("Error generating RtrPkt from ScnPkt", "err", err)
 		return
 	}
 	// Forward to remote BR directly
-	rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[*ifCurr]})
-	rp.Route()
+	fwdrp.Egress = append(fwdrp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[*ifCurr]})
+	fwdrp.Route()
 }

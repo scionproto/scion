@@ -41,8 +41,7 @@ const (
 )
 
 type IFIDCallbackArgs struct {
-	ScnPkt *spkt.ScnPkt
-	IFCurr *common.IFIDType
+	RtrPkt *RtrPkt
 }
 
 // NeedsLocalProcessing determines if the router needs to do more than just
@@ -164,12 +163,7 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 // processIFID handles IFID (interface ID) packets
 func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 	if rp.DirFrom == rcmn.DirLocal {
-		// Create ScnPkt from RtrPkt and enqueue for handler
-		spkt, err := rp.ToScnPkt(true)
-		if err != nil {
-			return HookError, err
-		}
-		callbacks.ifIDF(IFIDCallbackArgs{ScnPkt: spkt, IFCurr: rp.ifCurr})
+		callbacks.ifIDF(IFIDCallbackArgs{RtrPkt: rp})
 		return HookFinish, nil
 	} else {
 		return rp.processRemoteIFID(ifid)
