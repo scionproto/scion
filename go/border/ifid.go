@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file handles IFID packets from the local ISD-AS (BS).
+// This file handles IFID packets from the local BS.
 
 package main
 
