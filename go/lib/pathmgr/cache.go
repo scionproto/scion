@@ -87,11 +87,11 @@ func (c *cache) getAPS(src, dst addr.IA) (spathmeta.AppPathSet, bool) {
 		aps := make(spathmeta.AppPathSet)
 		// Ignore expired paths
 		for _, path := range entry.aps {
-			if now.Before(path.Entry.Path.Time()) {
+			if now.Before(path.Entry.Path.Expiry()) {
 				aps.Add(path.Entry)
 			}
 		}
-		if time.Now().Sub(entry.timestamp) > c.maxAge || len(aps) == 0 {
+		if now.Sub(entry.timestamp) > c.maxAge || len(aps) == 0 {
 			// Paths are missing or stale, caller should ask the resolver to do a blocking request
 			return nil, false
 		}

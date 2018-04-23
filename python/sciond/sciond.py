@@ -19,6 +19,7 @@
 import logging
 import os
 import threading
+import time
 from itertools import product
 
 # External
@@ -36,7 +37,6 @@ from lib.defines import (
 from lib.errors import SCIONBaseError, SCIONParseError, SCIONServiceLookupError
 from lib.log import log_exception
 from lib.msg_meta import SockOnlyMetadata
-from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
@@ -98,6 +98,8 @@ class SCIONDaemon(SCIONElement):
     MAX_REQS = 1024
     # Time a path segment is cached at a host (in seconds).
     SEGMENT_TTL = 300
+    # Empty Path TTL
+    EMPTY_PATH_TTL = SEGMENT_TTL
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
                  port=None, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
@@ -505,8 +507,8 @@ class SCIONDaemon(SCIONElement):
             # Either the destination is the local AS, or the destination is any
             # core AS in this ISD, and the local AS is in the core
             empty = SCIONPath()
-            empty_meta = FwdPathMeta.from_values(
-                empty, [], self.topology.mtu, OneHopPathExt.HOF_EXP_TIME)
+            exp_time = int(time.time()) + self.EMPTY_PATH_TTL
+            empty_meta = FwdPathMeta.from_values(empty, [], self.topology.mtu, exp_time)
             return [empty_meta], SCIONDPathReplyError.OK
         paths = self.path_resolution(dst_ia, flags=flags)
         if not paths:

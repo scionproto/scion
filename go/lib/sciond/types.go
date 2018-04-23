@@ -167,7 +167,7 @@ type FwdPathMeta struct {
 	FwdPath    []byte
 	Mtu        uint16
 	Interfaces []PathInterface
-	ExpTime    uint64
+	ExpTime    uint32
 }
 
 func (fpm FwdPathMeta) SrcIA() addr.IA {
@@ -186,8 +186,8 @@ func (fpm FwdPathMeta) DstIA() addr.IA {
 	return ifaces[len(ifaces)-1].ISD_AS()
 }
 
-func (fpm FwdPathMeta) Time() time.Time {
-	return util.USecsToTime(fpm.ExpTime)
+func (fpm FwdPathMeta) Expiry() time.Time {
+	return util.USecsToTime(uint64(fpm.ExpTime))
 }
 
 func (fpm FwdPathMeta) String() string {
