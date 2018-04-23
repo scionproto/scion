@@ -136,7 +136,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			if ifinfo.ISD_AS, err = addr.IAFromString(rawIntf.ISD_AS); err != nil {
 				return err
 			}
-			if ifinfo.LinkType, err = LinkTypeFromString(rawIntf.LinkType); err != nil {
+			if ifinfo.LinkType, err = LinkTypeFromString(rawIntf.LinkTo); err != nil {
 				return err
 			}
 			ifinfo.MTU = rawIntf.MTU

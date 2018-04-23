@@ -12,8 +12,8 @@ ASes:
   1-ff00:0:112: # old 1-13
     cert_issuer: 1-ff00:0:110
 links:
-  - {a: 11-ff00:0:110, b: 11-ff00:0:111, ltype: PARENT, mtu: 1280}
-  - {a: 11-ff00:0:110, b: 11-ff00:0:112, ltype: PARENT, bw: 500}
+  - {a: 11-ff00:0:110, b: 11-ff00:0:111, linkAtoB: CHILD, mtu: 1280}
+  - {a: 11-ff00:0:110, b: 11-ff00:0:112, linkAtoB: CHILD, bw: 500}
 CAs:
   CA1-1:
     ISD: 1

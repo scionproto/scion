@@ -76,7 +76,7 @@ type RawBRIntf struct {
 	Remote          *RawAddrPort `json:",omitempty"`
 	Bandwidth       int
 	ISD_AS          string
-	LinkType        string
+	LinkTo          string
 	MTU             int
 }
 

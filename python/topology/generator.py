@@ -620,18 +620,18 @@ class TopoGenerator(object):
             # entry.
             a = TopoID(attrs.pop("a"))
             b = TopoID(attrs.pop("b"))
-            ltype = ltype_a = ltype_b = attrs.pop("ltype")
-            if ltype == LinkType.PARENT:
-                ltype_a = LinkType.CHILD
-                ltype_b = LinkType.PARENT
+            linkto = linkto_a = linkto_b = attrs.pop("linkAtoB")
+            if linkto == LinkType.CHILD:
+                linkto_a = LinkType.CHILD
+                linkto_b = LinkType.PARENT
             br_ids[a] += 1
             a_br = "br%s-%d" % (a.file_fmt(), br_ids[a])
             a_ifid = if_ids[a].new()
             br_ids[b] += 1
             b_br = "br%s-%d" % (b.file_fmt(), br_ids[b])
             b_ifid = if_ids[b].new()
-            self.links[a].append((ltype_a, b, attrs, a_br, b_br, a_ifid))
-            self.links[b].append((ltype_b, a, attrs, b_br, a_br, b_ifid))
+            self.links[a].append((linkto_a, b, attrs, a_br, b_br, a_ifid))
+            self.links[b].append((linkto_b, a, attrs, b_br, a_br, b_ifid))
             a_desc = "%s %s" % (a_br, a_ifid)
             b_desc = "%s %s" % (b_br, b_ifid)
             self.ifid_map.setdefault(str(a), {})
@@ -681,9 +681,9 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_br_entries(self, topo_id):
-        for (ltype, remote, attrs, local_br,
+        for (linkto, remote, attrs, local_br,
              remote_br, ifid) in self.links[topo_id]:
-            self._gen_br_entry(topo_id, ifid, remote, ltype, attrs, local_br,
+            self._gen_br_entry(topo_id, ifid, remote, linkto, attrs, local_br,
                                remote_br)
 
     def _gen_br_entry(self, local, ifid, remote, remote_type, attrs, local_br,
@@ -712,7 +712,7 @@ class TopoGenerator(object):
                     },
                     'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
                     'ISD_AS': str(remote),
-                    'LinkType': remote_type,
+                    'LinkTo': remote_type,
                     'MTU': attrs.get('mtu', DEFAULT_MTU)
                 }
             }
