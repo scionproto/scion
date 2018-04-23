@@ -19,6 +19,7 @@ Thumbs.db
 
 # Python generated files #
 #########################
+.mypy_cache/
 __pycache__
 topology/mininet/*.pyc
 
