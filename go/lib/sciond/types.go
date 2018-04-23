@@ -17,10 +17,12 @@ package sciond
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -165,6 +167,7 @@ type FwdPathMeta struct {
 	FwdPath    []byte
 	Mtu        uint16
 	Interfaces []PathInterface
+	ExpTime    uint32
 }
 
 func (fpm FwdPathMeta) SrcIA() addr.IA {
@@ -181,6 +184,10 @@ func (fpm FwdPathMeta) DstIA() addr.IA {
 		return addr.IA{}
 	}
 	return ifaces[len(ifaces)-1].ISD_AS()
+}
+
+func (fpm FwdPathMeta) Expiry() time.Time {
+	return util.USecsToTime(uint64(fpm.ExpTime))
 }
 
 func (fpm FwdPathMeta) String() string {

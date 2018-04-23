@@ -57,6 +57,7 @@ struct FwdPathMeta {
     fwdPath @0 :Data;  # The info- and hopfields of the path
     mtu @1 :UInt16;
     interfaces @2 :List(PathInterface);
+    expTime @3 :UInt32; # expiration time in seconds since epoch.
 }
 
 struct PathInterface {

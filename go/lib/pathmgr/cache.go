@@ -83,11 +83,19 @@ func (c *cache) getAPS(src, dst addr.IA) (spathmeta.AppPathSet, bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if entry, ok := c.getEntry(src, dst); ok {
-		if time.Now().Sub(entry.timestamp) > c.maxAge || len(entry.aps) == 0 {
+		now := time.Now()
+		aps := make(spathmeta.AppPathSet)
+		// Ignore expired paths
+		for _, path := range entry.aps {
+			if now.Before(path.Entry.Path.Expiry()) {
+				aps.Add(path.Entry)
+			}
+		}
+		if now.Sub(entry.timestamp) > c.maxAge || len(aps) == 0 {
 			// Paths are missing or stale, caller should ask the resolver to do a blocking request
 			return nil, false
 		}
-		return entry.aps, true
+		return aps, true
 	}
 	return nil, false
 }
