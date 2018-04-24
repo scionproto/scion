@@ -40,6 +40,20 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )
 
+var (
+	isds = []addr.ISD{1, 2, 3, 4, 5}
+	ias  = []addr.IA{
+		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
+		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
+		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
+		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
+		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
+		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
+		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
+		xtest.MustParseIA("5-ff00:0:f"),
+	}
+)
+
 func TestMain(m *testing.M) {
 	if err := regenerateCrypto(); err != nil {
 		fmt.Println(err)
@@ -87,17 +101,6 @@ func regenerateCrypto() error {
 }
 
 func TestGetValidTRC(t *testing.T) {
-	isds := []addr.ISD{1, 2, 3, 4, 5}
-	ias := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
-		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
-		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
-		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
-		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
-		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
-		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
-		xtest.MustParseIA("5-ff00:0:f"),
-	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
 	testCases := []struct {
@@ -193,17 +196,6 @@ func TestGetValidTRC(t *testing.T) {
 }
 
 func TestGetTRC(t *testing.T) {
-	isds := []addr.ISD{1, 2, 3, 4, 5}
-	ias := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
-		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
-		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
-		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
-		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
-		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
-		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
-		xtest.MustParseIA("5-ff00:0:f"),
-	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
 	testCases := []struct {
@@ -301,17 +293,6 @@ func TestGetTRC(t *testing.T) {
 }
 
 func TestGetValidChain(t *testing.T) {
-	isds := []addr.ISD{1, 2, 3, 4, 5}
-	ias := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
-		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
-		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
-		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
-		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
-		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
-		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
-		xtest.MustParseIA("5-ff00:0:f"),
-	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
 	testCases := []struct {
@@ -377,17 +358,6 @@ func TestGetValidChain(t *testing.T) {
 }
 
 func TestGetChain(t *testing.T) {
-	isds := []addr.ISD{1, 2, 3, 4, 5}
-	ias := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
-		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
-		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
-		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
-		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
-		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
-		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
-		xtest.MustParseIA("5-ff00:0:f"),
-	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
 	testCases := []struct {
@@ -486,17 +456,6 @@ func TestGetChain(t *testing.T) {
 }
 
 func TestTRCReqHandler(t *testing.T) {
-	isds := []addr.ISD{1, 2, 3, 4, 5}
-	ias := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
-		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
-		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
-		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
-		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
-		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
-		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
-		xtest.MustParseIA("5-ff00:0:f"),
-	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
 	testCases := []struct {
@@ -637,17 +596,6 @@ func TestTRCReqHandler(t *testing.T) {
 }
 
 func TestChainReqHandler(t *testing.T) {
-	isds := []addr.ISD{1, 2, 3, 4, 5}
-	ias := []addr.IA{
-		xtest.MustParseIA("1-ff00:0:1"), xtest.MustParseIA("1-ff00:0:2"),
-		xtest.MustParseIA("1-ff00:0:3"), xtest.MustParseIA("2-ff00:0:4"),
-		xtest.MustParseIA("2-ff00:0:5"), xtest.MustParseIA("2-ff00:0:6"),
-		xtest.MustParseIA("3-ff00:0:7"), xtest.MustParseIA("3-ff00:0:8"),
-		xtest.MustParseIA("3-ff00:0:9"), xtest.MustParseIA("4-ff00:0:a"),
-		xtest.MustParseIA("4-ff00:0:b"), xtest.MustParseIA("4-ff00:0:c"),
-		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
-		xtest.MustParseIA("5-ff00:0:f"),
-	}
 	trcs, chains := loadCrypto(t, isds, ias)
 
 	testCases := []struct {
