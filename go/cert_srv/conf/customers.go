@@ -50,7 +50,7 @@ type Customers struct {
 // LoadCustomers populates the mapping from assigned non-core ASes to their verifying key.
 func (c *Conf) LoadCustomers() (*Customers, error) {
 	cust := &Customers{path: filepath.Join(c.StateDir, CustomersDir)}
-	files, err := filepath.Glob(fmt.Sprintf("%s/*-V*.key", cust.path))
+	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", cust.path))
 	if err != nil {
 		return nil, err
 	}
@@ -58,9 +58,9 @@ func (c *Conf) LoadCustomers() (*Customers, error) {
 	activeVers := make(map[addr.IA]uint64)
 	for _, file := range files {
 		_, name := filepath.Split(file)
-		re := regexp.MustCompile(`(\S+)-V(\d+)\.key$`)
+		re := regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
 		s := re.FindStringSubmatch(name)
-		ia, err := addr.IAFromFileFmt(s[1], false)
+		ia, err := addr.IAFromFileFmt(s[1], true)
 		if err != nil {
 			return nil, common.NewBasicError("Unable to parse IA", err, "file", file)
 		}
@@ -111,7 +111,7 @@ func (c *Customers) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey commo
 	// Key has to be written to file system, only if it has changed
 	if !bytes.Equal(newKey, currKey) {
 		var err error
-		name := fmt.Sprintf("%s-V%d.key", ia.FileFmt(false), ver)
+		name := fmt.Sprintf("%s-V%d.key", ia.FileFmt(true), ver)
 		path := filepath.Join(c.path, name)
 		if _, err = os.Stat(path); !os.IsNotExist(err) {
 			return err
