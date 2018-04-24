@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
+	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -47,34 +48,37 @@ type handler interface {
 	Handle(pld *sciond.Pld, src net.Addr)
 }
 
-func (srv *API) Serve() error {
-	// Initialize handler state if first time calling Serve
-	if srv.handlers == nil {
-		srv.handlers = map[proto.SCIONDMsg_Which]handler{
+func NewAPI(transport infra.Transport) *API {
+	return &API{
+		Transport: transport,
+		handlers: map[proto.SCIONDMsg_Which]handler{
 			proto.SCIONDMsg_Which_pathReq: &PathRequestHandler{
-				Transport: srv.Transport,
+				Transport: transport,
 			},
 			proto.SCIONDMsg_Which_asInfoReq: &ASInfoRequestHandler{
-				Transport: srv.Transport,
+				Transport: transport,
 			},
 			proto.SCIONDMsg_Which_ifInfoRequest: &IFInfoRequestHandler{
-				Transport: srv.Transport,
+				Transport: transport,
 			},
 			proto.SCIONDMsg_Which_serviceInfoRequest: &SVCInfoRequestHandler{
-				Transport: srv.Transport,
+				Transport: transport,
 			},
 			proto.SCIONDMsg_Which_revNotification: &RevNotificationHandler{
-				Transport: srv.Transport,
+				Transport: transport,
 			},
-		}
+		},
 	}
+}
 
+func (srv *API) Serve() error {
 	for {
 		b, address, err := srv.Transport.RecvFrom(context.Background())
 		if err != nil {
 			return err
 		}
 		go func() {
+			liblog.LogPanicAndExit()
 			srv.Handle(b, address)
 		}()
 	}
@@ -86,7 +90,12 @@ func (srv *API) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("capnp error", "err", err)
 		return
 	}
-	go srv.handlers[p.Which].Handle(p, address)
+	handler, ok := srv.handlers[p.Which]
+	if !ok {
+		log.Error("handler not found for capnp message", "which", p.Which)
+		return
+	}
+	handler.Handle(p, address)
 }
 
 func (srv *API) Close() error {
