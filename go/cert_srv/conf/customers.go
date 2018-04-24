@@ -37,6 +37,9 @@ const (
 	CustomersDir = "customers"
 )
 
+// reCustVerKey is used to parse the IA and version of a customer verifying key file.
+var reCustVerKey = regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
+
 // Customers is a mapping from non-core ASes assigned to this core AS to their public
 // verifying key.
 type Customers struct {
@@ -58,8 +61,7 @@ func (c *Conf) LoadCustomers() (*Customers, error) {
 	activeVers := make(map[addr.IA]uint64)
 	for _, file := range files {
 		_, name := filepath.Split(file)
-		re := regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
-		s := re.FindStringSubmatch(name)
+		s := reCustVerKey.FindStringSubmatch(name)
 		ia, err := addr.IAFromFileFmt(s[1], true)
 		if err != nil {
 			return nil, common.NewBasicError("Unable to parse IA", err, "file", file)
