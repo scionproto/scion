@@ -50,6 +50,8 @@ log "Scion status:"
 ./scion.sh status || exit 1
 
 sleep 5
+# Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
+[ -n "$CIRCLECI" ] && sleep 10
 
 cat << EOF | parallel --no-notice -n2 -j2 run
 End2End
@@ -64,7 +66,7 @@ EOF
 result=$?
 
 run Revocation "integration/revocation_test.sh\
- ${REV_BRS:-as1-ff00:0:110:br1-ff00:0:110-3 as2-ff00:0:222:br2-ff00:0:222-2 as1-ff00:0:111:br1-ff00:0:111-3 as1-ff00:0:131:br1-ff00:0:131-2}"
+ ${REV_BRS:-as1-ff00_0_110:br1-ff00_0_110-3 as2-ff00_0_222:br2-ff00_0_222-2 as1-ff00_0_111:br1-ff00_0_111-3 as1-ff00_0_131:br1-ff00_0_131-2}"
 result=$((result+$?))
 
 shutdown
