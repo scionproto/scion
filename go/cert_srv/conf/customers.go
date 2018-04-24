@@ -37,6 +37,9 @@ const (
 	CustomersDir = "customers"
 )
 
+// reCustVerKey is used to parse the IA and version of a customer verifying key file.
+var reCustVerKey = regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
+
 // Customers is a mapping from non-core ASes assigned to this core AS to their public
 // verifying key.
 type Customers struct {
@@ -57,19 +60,19 @@ func (c *Conf) LoadCustomers() (*Customers, error) {
 	activeKeys := make(map[addr.IA]string)
 	activeVers := make(map[addr.IA]uint64)
 	for _, file := range files {
-		re := regexp.MustCompile(`ISD(\d+)-AS([\d_]+)-V(\d+)\.key$`)
-		s := re.FindStringSubmatch(file)
-		ia, err := addr.IAFromString(fmt.Sprintf("%s-%s", s[1], s[2]))
+		_, name := filepath.Split(file)
+		s := reCustVerKey.FindStringSubmatch(name)
+		ia, err := addr.IAFromFileFmt(s[1], true)
 		if err != nil {
 			return nil, common.NewBasicError("Unable to parse IA", err, "file", file)
 		}
-		ver, err := strconv.ParseUint(s[3], 10, 64)
+		ver, err := strconv.ParseUint(s[2], 10, 64)
 		if err != nil {
 			return nil, common.NewBasicError("Unable to parse Version", err, "file", file)
 		}
-		if uint64(ver) >= activeVers[ia] {
+		if ver >= activeVers[ia] {
 			activeKeys[ia] = file
-			activeVers[ia] = uint64(ver)
+			activeVers[ia] = ver
 		}
 	}
 	cust.custMap = make(map[addr.IA]common.RawBytes)
@@ -110,7 +113,7 @@ func (c *Customers) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey commo
 	// Key has to be written to file system, only if it has changed
 	if !bytes.Equal(newKey, currKey) {
 		var err error
-		name := fmt.Sprintf("ISD%d-AS%s-V%d.key", ia.I, ia.A.FileFmt(), ver)
+		name := fmt.Sprintf("%s-V%d.key", ia.FileFmt(true), ver)
 		path := filepath.Join(c.path, name)
 		if _, err = os.Stat(path); !os.IsNotExist(err) {
 			return err

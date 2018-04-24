@@ -446,8 +446,9 @@ class CertGenerator(object):
             chain.append(self.core_certs[issuer])
             cert_path = get_cert_chain_file_path("", topo_id, INITIAL_CERT_VERSION)
             self.cert_files[topo_id][cert_path] = CertificateChain(chain).to_json()
-            map_path = os.path.join("customers", '%s-V%d.key' % (
-                topo_id.file_fmt(), INITIAL_CERT_VERSION))
+            assert isinstance(topo_id, TopoID)
+            map_path = os.path.join("customers", '%s-%s-V%d.key' % (
+                topo_id.ISD(), topo_id.AS_file(), INITIAL_CERT_VERSION))
             self.cust_files[issuer][map_path] = base64.b64encode(
                 self.sig_pub_keys[topo_id]).decode()
 
