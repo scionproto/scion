@@ -150,17 +150,14 @@ func genIssuerCert(issuerConf *conf.IssuerCert, s addr.IA) (*cert.Certificate, e
 	currTrcPath := filepath.Join(pkicmn.GetIsdPath(s.I), pkicmn.TRCsDir,
 		fmt.Sprintf(pkicmn.TrcNameFmt, s.I, c.TRCVersion))
 	currTrc, err := trc.TRCFromFile(currTrcPath, false)
-
 	if err != nil {
 		return nil, common.NewBasicError("Error reading TRC", err, "path: ", currTrcPath)
 	}
-
 	coreAs, ok := currTrc.CoreASes[s]
 	if !ok {
 		return nil, common.NewBasicError("Issuer of IssuerCert not found in Core ASes of TRC",
 			nil, "issuer", s)
 	}
-
 	if err = c.Sign(issuerKey, coreAs.OnlineKeyAlg); err != nil {
 		return nil, err
 	}
@@ -184,7 +181,8 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 		return nil, common.NewBasicError("Issuer cert not authorized to issue certs.", nil,
 			"issuer", c.Issuer, "subject", c.Subject)
 	}
-	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), pkicmn.KeysDir, trust.IssSigKeyFile)
+	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(conf.IssuerIA), pkicmn.KeysDir,
+		trust.IssSigKeyFile)
 	issuerKey, err := trust.LoadKey(issuerKeyPath)
 	if err != nil {
 		return nil, err
