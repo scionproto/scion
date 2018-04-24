@@ -16,6 +16,9 @@
 // SCION Infrastructure services. If something is specific to one app, it
 // should go into that app's code and not here.
 //
+// During initialization, SIGHUPs are masked. To call a function on each
+// SIGHUP, pass the function when calling Init.
+//
 // TODO(scrye): Also common stuff like trustdb initialization, messenger
 // initialization and handler registration can go here. Everything that can be
 // shared by infra apps, to reduce duplicated code.
@@ -33,8 +36,15 @@ import (
 	liblog "github.com/scionproto/scion/go/lib/log"
 )
 
+var sighupC chan os.Signal
+
+func init() {
+	sighupC = make(chan os.Signal, 1)
+	signal.Notify(sighupC, syscall.SIGHUP)
+}
+
 var (
-	id = flag.String("id", "", "Element ID (e.g., 'cs1-10-1'). (Required)")
+	id = flag.String("id", "", "Element ID (e.g., 'cs4-ff00:0:2f'). (Required)")
 	// FIXME(scrye): Enable this when config loading is needed
 	//confDir      = flag.String("confd", "", "Configuration directory (Required)")
 	// FIXME(scrye): Enable this when trust store becomes available.
@@ -60,14 +70,18 @@ type Env struct {
 // Init performs common set up for infra services. This includes parsing and
 // validating flags and environment variables, setting up logging, and setting
 // up signals.
-func Init() (*Env, error) {
+//
+// On SIGHUP, reloadF is called in a fresh goroutine. SIGHUP signals are not
+// buffered pending registration, and might be drained before the function is
+// registered.  Function reloadF itself must ensure that panics are logged.
+func Init(reloadF func()) (*Env, error) {
 	env := &Env{}
 	liblog.AddDefaultLogFlags()
 	flag.Parse()
 	if err := env.setupLogging(); err != nil {
 		return nil, err
 	}
-	env.setupSignals()
+	env.setupSignals(reloadF)
 	env.HTTPAddress = *prom
 	return env, nil
 }
@@ -85,7 +99,7 @@ func (env *Env) setupLogging() error {
 
 // setupSignals sets up a goroutine that closes AppShutdownSignal if
 // SIGTERM/SIGINT signals are received by the app.
-func (env *Env) setupSignals() {
+func (env *Env) setupSignals(reloadF func()) {
 	env.AppShutdownSignal = make(chan struct{})
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -94,5 +108,12 @@ func (env *Env) setupSignals() {
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
 		close(env.AppShutdownSignal)
+	}()
+	go func() {
+		<-sighupC
+		log.Info("Received config reload signal")
+		if reloadF != nil {
+			go reloadF()
+		}
 	}()
 }
