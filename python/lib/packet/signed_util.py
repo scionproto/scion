@@ -17,7 +17,6 @@
 """
 
 # Std
-import copy
 import re
 
 # SCION
@@ -67,7 +66,7 @@ class Signer(object):
         :raises: ProtoSignError
         """
         sig_pld = SignedCtrlPayload.from_values(
-            pld.proto().to_bytes_packed(), copy.deepcopy(self._sign))
+            pld.proto().to_bytes_packed(), self._sign.copy())
         sig_pld.sign(self._key)
         return sig_pld
 
@@ -96,13 +95,14 @@ class Verifier(object):
         try:
             cpld = spld.pld()
         except SCIONParseError as e:
-            raise SCIONVerificationError("Unable to unpack control payload. Error: %s" % e)
+            raise SCIONVerificationError(
+                "Unable to unpack control payload. Error: %s" % e) from None
         if self.ignore_sign(cpld):
             return True
         try:
             vkey = self.get_verifying_key(spld.psign)
         except (SCIONKeyError, SCIONParseError, SCIONVerificationError) as e:
-            raise SCIONVerificationError("Unable to fetch verifying key. Error: %s" % e)
+            raise SCIONVerificationError("Unable to fetch verifying key. Error: %s" % e) from None
         return spld.verify(vkey)
 
     def ignore_sign(self, cpld: CtrlPayload) -> bool:
@@ -135,10 +135,10 @@ class Verifier(object):
         src = DefaultSignSrc(sign.p.src)
         chain = self._trust_store.get_cert(src.ia, src.chain_ver)
         if not chain:
-            raise SCIONKeyError("Chain (%sv%s) not found" % (src.ia, src.chain_ver))
+            raise SCIONKeyError("Chain (%sv%s) not found" % (src.ia, src.chain_ver)) from None
         trc = self._trust_store.get_trc(src.ia[0], src.trc_ver)
         if not trc:
-            raise SCIONKeyError("TRC (%sv%s) not found" % (src.ia[0], src.trc_ver))
+            raise SCIONKeyError("TRC (%sv%s) not found" % (src.ia[0], src.trc_ver)) from None
         max_trc = self._trust_store.get_trc(src.ia[0])
         trc.check_active(max_trc)
         chain.verify(chain.as_cert.subject, trc)
@@ -151,7 +151,7 @@ class DefaultSignSrc(Serializable):
     """
 
     PREFIX = "DEFAULT: "
-    FMT = r"^" + PREFIX + r"IA: (\S+) CHAIN: (\d+) TRC: (\d+)$"
+    FMT_RE = re.compile(r"^" + PREFIX + r"IA: (\S+) CHAIN: (\d+) TRC: (\d+)$")
 
     def __init__(self, raw: bytes = None) -> None:
         """
@@ -164,18 +164,18 @@ class DefaultSignSrc(Serializable):
         super().__init__(raw)
 
     def _parse(self, raw: bytes) -> None:
-        r = re.compile(DefaultSignSrc.FMT)
         try:
             decoded = raw.decode("utf-8")
-            groups = r.findall(decoded)
         except UnicodeDecodeError as e:
-            raise SCIONParseError(e)
+            raise SCIONParseError(e) from None
+        groups = self.FMT_RE.findall(decoded)
         if not groups:
-            raise SCIONParseError("Input does not match pattern. Decoded: %s" % decoded)
+            raise SCIONParseError("Input does not match pattern. Decoded: %s" % decoded) from None
         try:
             self.ia = ISD_AS(groups[0][0])
         except SCIONParseError as e:
-            raise SCIONParseError("Unable to parse IA. Decoded: %s error: %s" % (decoded, e))
+            raise SCIONParseError(
+                "Unable to parse IA. Decoded: %s error: %s" % (decoded, e)) from None
         self.chain_ver = groups[0][1]
         self.trc_ver = groups[0][2]
 
@@ -188,11 +188,11 @@ class DefaultSignSrc(Serializable):
         :returns: the sign src
         :rtype: DefaultSignSrc
         """
-        src = cls()
-        src.ia = ia
-        src.chain_ver = chain_ver
-        src.trc_ver = trc_ver
-        return src
+        inst = cls()
+        inst.ia = ia
+        inst.chain_ver = chain_ver
+        inst.trc_ver = trc_ver
+        return inst
 
     def pack(self) -> bytes:
         return str(self).encode("utf-8")
