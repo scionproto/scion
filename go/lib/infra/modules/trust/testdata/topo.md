@@ -1,5 +1,5 @@
 Cross signatures are not implemented so ISDs exist in isolation. The
-graph for this test file (in graph's package format) is outlined below. 
+graph for this test file (in graph's package format) is outlined below.
 
 ```
 Nodes: []string{

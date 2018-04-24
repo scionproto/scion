@@ -472,7 +472,7 @@ func (store *Store) isLocal(address net.Addr) error {
 			return common.NewBasicError("Unable to determine AS of address",
 				nil, "addr", address)
 		case !store.ia.Eq(saddr.IA):
-			return common.NewBasicError("TRC not found in DB, and recursion not "+
+			return common.NewBasicError("Object not found in DB, and recursion not "+
 				"allowed for clients outside AS", nil, "addr", address)
 		}
 	}
