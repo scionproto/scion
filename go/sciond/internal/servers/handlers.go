@@ -32,9 +32,6 @@ import (
 // for each PathRequest it receives.
 type PathRequestHandler struct {
 	// Path handling-specific data, e.g., reference to a path database
-
-	// For network traffic (i.e., sending out path requests) include reference
-	// to Messenger or maybe a throttler
 	Messenger messenger.Messenger
 
 	// For local API traffic
@@ -63,7 +60,7 @@ func (h *ASInfoRequestHandler) Handle(pld *sciond.Pld, src net.Addr) {
 		AsInfoReply: sciond.ASInfoReply{
 			Entries: []sciond.ASInfoReplyEntry{
 				{
-					RawIsdas: addr.IA{I: 1, A: 1}.IAInt(),
+					RawIsdas: addr.IA{I: 1, A: 0xff0000000001}.IAInt(),
 					Mtu:      1337,
 					IsCore:   true,
 				},

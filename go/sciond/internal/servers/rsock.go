@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/transport"
+	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -61,11 +62,11 @@ func (srv *RSockServer) ListenAndServe() error {
 			srv.Log.Warn("unable to accept reliable socket conn", "err", err)
 		}
 
-		// Launch SCIONDMsg server on the accepted conn
-		server := &API{
-			Transport: transport.NewPacketTransport(conn),
-		}
-		go server.Serve()
+		// Launch server for SCIONDMsg messages on the accepted conn
+		go func() {
+			liblog.LogPanicAndExit()
+			NewAPI(transport.NewPacketTransport(conn)).Serve()
+		}()
 	}
 }
 

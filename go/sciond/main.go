@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
+	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
@@ -59,12 +60,13 @@ func main() {
 
 func realMain() int {
 	var err error
-	Env, err = env.Init()
+	Env, err = env.Init(nil)
 	if err != nil {
 		log.Crit("Error", "err", err)
 		flag.Usage()
 		return 1
 	}
+	defer liblog.LogPanicAndExit()
 
 	// Initialize SignedCtrlPld server
 	// FIXME(scrye): enable this once we have SCIOND-less snet and a TrustStore
@@ -84,6 +86,7 @@ func realMain() int {
 		server, shutdownF := NewRSockServer(*reliableSockPath, Env)
 		defer shutdownF()
 		go func() {
+			defer liblog.LogPanicAndExit()
 			if err := server.ListenAndServe(); err != nil {
 				fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", nil,
 					"err", err)
@@ -95,6 +98,7 @@ func realMain() int {
 		server, shutdownF := NewUnixServer(*unixPath, Env)
 		defer shutdownF()
 		go func() {
+			defer liblog.LogPanicAndExit()
 			if err := server.ListenAndServe(); err != nil {
 				fatalC <- common.NewBasicError("UnixServer ListenAndServe error", nil, "err", err)
 			}
@@ -103,6 +107,7 @@ func realMain() int {
 
 	if Env.HTTPAddress != "" {
 		go func() {
+			defer liblog.LogPanicAndExit()
 			if err := http.ListenAndServe(Env.HTTPAddress, nil); err != nil {
 				fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
 			}
@@ -120,6 +125,22 @@ func realMain() int {
 		log.Crit("Unable to listen and serve", "err", err)
 		return 1
 	}
+}
+
+func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
+	// Initialize messenger for talking with other infra elements
+	snetAddress, err := snet.AddrFromString(scionAddress)
+	if err != nil {
+		return nil, common.NewBasicError("snet address parse error", err)
+	}
+	conn, err := snet.ListenSCION("udp", snetAddress)
+	if err != nil {
+		return nil, common.NewBasicError("snet listen error", err)
+	}
+	dispatcher := disp.New(transport.NewPacketTransport(conn), messenger.DefaultAdapter, env.Log)
+	// TODO: initialize actual trust store once it is available
+	trustStore := infra.TrustStore(nil)
+	return messenger.New(dispatcher, trustStore, env.Log), nil
 }
 
 func NewRSockServer(rsockPath string, env *env.Env) (*servers.RSockServer, func()) {
@@ -148,20 +169,4 @@ func NewUnixServer(unixPath string, env *env.Env) (*servers.UnixSockServer, func
 		cancelF()
 	}
 	return server, shutdownF
-}
-
-func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
-	// Initialize messenger for talking with other infra elements
-	snetAddress, err := snet.AddrFromString(scionAddress)
-	if err != nil {
-		return nil, common.NewBasicError("snet address parse error", err)
-	}
-	conn, err := snet.ListenSCION("udp", snetAddress)
-	if err != nil {
-		return nil, common.NewBasicError("snet listen error", err)
-	}
-	dispatcher := disp.New(transport.NewPacketTransport(conn), messenger.DefaultAdapter, env.Log)
-	// TODO: initialize actual trust store once it is available
-	trustStore := infra.TrustStore(nil)
-	return messenger.New(dispatcher, trustStore, env.Log), nil
 }

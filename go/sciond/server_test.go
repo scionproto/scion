@@ -14,7 +14,7 @@
 
 // End to end test for SCIOND. This is a separate package because it is
 // expected to grow. If it doesn't, we just merge it into go/sciond.
-package e2etest
+package main_test
 
 import (
 	"io/ioutil"
@@ -25,7 +25,6 @@ import (
 	log "github.com/inconshreveable/log15"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/loader"
@@ -40,12 +39,12 @@ func TestASInfo(t *testing.T) {
 	defer stopClient()
 
 	Convey("Send and receive ASInfo", t, func() {
-		reply, err := conn.ASInfo(addr.IA{I: 1, A: 1})
+		reply, err := conn.ASInfo(xtest.MustParseIA("1-ff00:0:1"))
 		SoMsg("err", err, ShouldBeNil)
 		expReply := &sciond.ASInfoReply{
 			Entries: []sciond.ASInfoReplyEntry{
 				{
-					RawIsdas: addr.IA{I: 1, A: 1}.IAInt(),
+					RawIsdas: xtest.MustParseIA("1-ff00:0:1").IAInt(),
 					Mtu:      1337,
 					IsCore:   true,
 				},

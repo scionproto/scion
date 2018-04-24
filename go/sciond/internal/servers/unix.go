@@ -44,10 +44,12 @@ type UnixSockServer struct {
 // address. The server handles SCIOND messages coming from clients, intepreting
 // data as raw capnp. Each capnp SCIOND message must be entirely contained in a
 // single UNIX datagram. If a datagram contains data after the capnp message,
-// the extra data is ignored. Messages received from clients that have not
-// bound to a local UNIX address are logged and discarded, as there is no way
-// to answer to them (see man 7 unix for more info).
+// a warning is logged. Messages received from clients that have not bound to
+// a local UNIX address are logged and discarded, as there is no way to answer
+// to them. For more information about UNIX SOCK_DGRAM sockets, see man 7 unix.
 func (srv *UnixSockServer) ListenAndServe() error {
+	// FIXME(scrye): implement and test full support for UNIX SOCK_DGRAM
+	// clients.
 	unixAddr := net.UnixAddr{
 		Name: srv.Address,
 		Net:  "unixgram",
