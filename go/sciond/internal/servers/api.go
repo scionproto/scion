@@ -78,7 +78,7 @@ func (srv *API) Serve() error {
 			return err
 		}
 		go func() {
-			liblog.LogPanicAndExit()
+			defer liblog.LogPanicAndExit()
 			srv.Handle(b, address)
 		}()
 	}
