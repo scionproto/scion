@@ -64,7 +64,7 @@ func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
 		}
 	}
 	if asTok != "*" {
-		if _, err := addr.ASFromString(asTok); err != nil {
+		if _, err := addr.ASFromFileFmt(asTok, false); err != nil {
 			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
 	}
