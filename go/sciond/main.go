@@ -144,11 +144,8 @@ func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
 }
 
 func NewRSockServer(rsockPath string, env *env.Env) (*servers.RSockServer, func()) {
-	server := &servers.RSockServer{
-		Address:   rsockPath,
-		Messenger: nil, // FIXME(scrye): enable this
-		Log:       env.Log,
-	}
+	// FIXME(scrye): enable msger below
+	server := servers.NewRSockServer(rsockPath, nil, env.Log)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)
@@ -158,11 +155,8 @@ func NewRSockServer(rsockPath string, env *env.Env) (*servers.RSockServer, func(
 }
 
 func NewUnixServer(unixPath string, env *env.Env) (*servers.UnixSockServer, func()) {
-	server := &servers.UnixSockServer{
-		Address:   unixPath,
-		Messenger: nil, // FIXME(scrye): enable this
-		Log:       env.Log,
-	}
+	// FIXME(scrye): enable msger below
+	server := servers.NewUnixSockServer(unixPath, nil, env.Log)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)

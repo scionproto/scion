@@ -33,12 +33,19 @@ import (
 //
 // The zero value for RSockServer is a valid configuration.
 type RSockServer struct {
-	Address   string
-	Messenger infra.Messenger
-	Log       log.Logger
-
+	address  string
+	msger    infra.Messenger
+	log      log.Logger
 	mu       sync.Mutex // protect access to listener during init/close
 	listener *reliable.Listener
+}
+
+func NewRSockServer(address string, msger infra.Messenger, logger log.Logger) *RSockServer {
+	return &RSockServer{
+		address: address,
+		msger:   msger,
+		log:     logger,
+	}
 }
 
 // ListenAndServe listens on the UNIX stream socket at address, and
@@ -50,21 +57,21 @@ type RSockServer struct {
 func (srv *RSockServer) ListenAndServe() error {
 	var err error
 	srv.mu.Lock()
-	srv.listener, err = reliable.Listen(srv.Address)
+	srv.listener, err = reliable.Listen(srv.address)
 	srv.mu.Unlock()
 	if err != nil {
 		return common.NewBasicError("unable to listen on reliable socket", nil,
-			"address", srv.Address, "err", err)
+			"address", srv.address, "err", err)
 	}
 	for {
 		conn, err := srv.listener.Accept()
 		if err != nil {
-			srv.Log.Warn("unable to accept reliable socket conn", "err", err)
+			srv.log.Warn("unable to accept reliable socket conn", "err", err)
 		}
 
 		// Launch server for SCIONDMsg messages on the accepted conn
 		go func() {
-			liblog.LogPanicAndExit()
+			defer liblog.LogPanicAndExit()
 			NewAPI(transport.NewPacketTransport(conn)).Serve()
 		}()
 	}

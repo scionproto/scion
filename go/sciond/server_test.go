@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// End to end test for SCIOND. This is a separate package because it is
-// expected to grow. If it doesn't, we just merge it into go/sciond.
-package main_test
+package main
 
 import (
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -27,7 +26,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/xtest"
-	"github.com/scionproto/scion/go/lib/xtest/loader"
 )
 
 func TestASInfo(t *testing.T) {
@@ -83,15 +81,8 @@ func StartClient(t *testing.T, file string) (sciond.Connector, func()) {
 func StartServer(t *testing.T, dir, file string) func() {
 	t.Helper()
 
-	binary := loader.Binary{
-		Target: "github.com/scionproto/scion/go/sciond",
-		Dir:    dir,
-		Prefix: "sciond",
-	}
-	binary.Build()
-	t.Log("Build succeeded")
-
-	cmd := binary.Cmd(
+	cmd := exec.Command(
+		"sciond",
 		"-id", "sdtest",
 		"-reliable", file,
 		"-log.console", "crit",
