@@ -50,8 +50,6 @@
 // information, see their package documentation:
 //   trust.*Store.NewChainReqHandler
 //   trust.*Store.NewTRCReqHandler
-//   trust.*Store.NewPushChainHandler
-//   trust.*Store.NewPushTRCHandler
 //
 // Shut down the server and any running handlers using CloseServer():
 //  msger.CloseServer()
@@ -300,7 +298,7 @@ func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
 		m.log.Error("Received message, but handler not found", "msgType", msgType)
 		return
 	}
-	serveCtx := context.WithValue(m.ctx, infra.MessengerContextKey, m)
+	serveCtx := infra.NewContextWithMessenger(m.ctx, m)
 	go handler.Handle(infra.NewRequest(serveCtx, msg, pld, address, pld.ReqId))
 }
 

@@ -387,10 +387,13 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	return cert.ChainFromSlice(certs)
 }
 
+// InsertChain inserts chain into the database. The first return value is the
+// number of rows affected.
 func (db *DB) InsertChain(chain *cert.Chain) (int64, error) {
 	return db.InsertChainCtx(context.Background(), chain)
 }
 
+// InsertChainCtx is the context aware version of InsertChain.
 func (db *DB) InsertChainCtx(ctx context.Context, chain *cert.Chain) (int64, error) {
 	if _, err := db.InsertLeafCertCtx(ctx, chain.Leaf); err != nil {
 		return 0, err
@@ -470,10 +473,13 @@ func (db *DB) GetTRCMaxVersionCtx(ctx context.Context, isd addr.ISD) (*trc.TRC, 
 	return trcobj, nil
 }
 
+// InsertTRC inserts trcobj into the database. The first return value is the
+// number of rows affected.
 func (db *DB) InsertTRC(trcobj *trc.TRC) (int64, error) {
 	return db.InsertTRCCtx(context.Background(), trcobj)
 }
 
+// InsertTRCCtx is the context aware version of InsertTRC.
 func (db *DB) InsertTRCCtx(ctx context.Context, trcobj *trc.TRC) (int64, error) {
 	raw, err := trcobj.JSON(false)
 	if err != nil {

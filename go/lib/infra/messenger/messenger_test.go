@@ -39,12 +39,12 @@ var (
 )
 
 func MockTRCHandler(request *infra.Request) {
-	v := request.Context().Value(infra.MessengerContextKey)
-	if v == nil {
+	messengerI, ok := infra.MessengerFromContext(request.Context())
+	if !ok {
 		log.Warn("Unable to service request, no Messenger interface found")
 		return
 	}
-	messenger, ok := v.(*Messenger)
+	messenger, ok := messengerI.(*Messenger)
 	if !ok {
 		log.Warn("Unable to service request, bad Messenger value found")
 		return
@@ -54,16 +54,6 @@ func MockTRCHandler(request *infra.Request) {
 	if err := messenger.SendTRC(subCtx, mockTRC, &MockAddress{}, request.ID); err != nil {
 		log.Error("Server error", "err", err)
 	}
-}
-
-type MockAddress struct{}
-
-func (m *MockAddress) Network() string {
-	return "mock network"
-}
-
-func (m *MockAddress) String() string {
-	return "mock address"
 }
 
 func TestTRCExchange(t *testing.T) {

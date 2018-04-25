@@ -18,8 +18,10 @@ import (
 	"context"
 	"net"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -95,9 +97,9 @@ func (r *Request) Context() context.Context {
 }
 
 var (
-	// MessengerContextKey is a context key. It can be used in SCION infra
+	// messengerContextKey is a context key. It can be used in SCION infra
 	// request handlers to access the messaging layer the message arrived on.
-	MessengerContextKey = &contextKey{"infra-messenger"}
+	messengerContextKey = &contextKey{"infra-messenger"}
 )
 
 type contextKey struct {
@@ -106,6 +108,10 @@ type contextKey struct {
 
 func (k *contextKey) String() string {
 	return "infra/messenger context value " + k.name
+}
+
+func NewContextWithMessenger(ctx context.Context, msger Messenger) context.Context {
+	return context.WithValue(ctx, messengerContextKey, msger)
 }
 
 type Messenger interface {
@@ -120,15 +126,17 @@ type Messenger interface {
 	CloseServer() error
 }
 
-type TrustStore interface {
-	StartResolvers(messenger Messenger) error
-	NewTRCReqHandler() Handler
-	NewChainReqHandler() Handler
-	NewPushTRCHandler() Handler
-	NewPushChainHandler() Handler
-	GetCertificate(ctx context.Context, trail []TrustDescriptor, hint net.Addr) (*cert.Certificate, error)
+func MessengerFromContext(ctx context.Context) (Messenger, bool) {
+	msger, ok := ctx.Value(messengerContextKey).(Messenger)
+	return msger, ok
 }
 
-type TrustDescriptor struct {
-	// FIXME(scrye): include type when trust store gets merged
+type TrustStore interface {
+	GetValidChain(ctx context.Context, ia addr.IA, trail ...addr.ISD) (*cert.Chain, error)
+	GetValidTRC(ctx context.Context, isd addr.ISD, trail ...addr.ISD) (*trc.TRC, error)
+	GetChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
+	GetTRC(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error)
+	NewTRCReqHandler(recurseAllowed bool) Handler
+	NewChainReqHandler(recurseAllowed bool) Handler
+	SetMessenger(msger Messenger)
 }

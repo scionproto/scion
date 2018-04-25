@@ -92,3 +92,15 @@ func Parallel(f, g func(sc *SC)) func(c C) {
 		f(sc)
 	}
 }
+
+// SoMsgError wraps nil/non-nil error Goconvey assertions into a single yes/no
+// error check. The assertions pass if err is nil and shouldBeError is false,
+// or if err is non-nil and shouldBeError is true. In the latter case, no
+// equality check is performed.
+func SoMsgError(msg string, err error, shouldBeError bool) {
+	if shouldBeError == true {
+		SoMsg(msg, err, ShouldNotBeNil)
+	} else {
+		SoMsg(msg, err, ShouldBeNil)
+	}
+}
