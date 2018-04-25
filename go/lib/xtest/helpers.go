@@ -138,3 +138,13 @@ func MustParseIA(s string) addr.IA {
 	}
 	return ia
 }
+
+// MustParseAS parses s and returns the corresponding addr.AS object. It panics
+// if s is not valid AS representation
+func MustParseAS(s string) addr.AS {
+	ia, err := addr.ASFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return ia
+}
