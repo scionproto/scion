@@ -32,12 +32,19 @@ import (
 //
 // The zero value for UnixSockServer is a valid configuration.
 type UnixSockServer struct {
-	Address   string
-	Messenger infra.Messenger
-	Log       log.Logger
-
+	address   string
+	msger     infra.Messenger
+	log       log.Logger
 	mu        sync.Mutex // protect access to transport during init/close
 	transport infra.Transport
+}
+
+func NewUnixSockServer(address string, msger infra.Messenger, logger log.Logger) *UnixSockServer {
+	return &UnixSockServer{
+		address: address,
+		msger:   msger,
+		log:     logger,
+	}
 }
 
 // UnixServer starts a SCIONDMSg server on the UNIX SOCK_DGRAM socket at
@@ -51,7 +58,7 @@ func (srv *UnixSockServer) ListenAndServe() error {
 	// FIXME(scrye): implement and test full support for UNIX SOCK_DGRAM
 	// clients.
 	unixAddr := net.UnixAddr{
-		Name: srv.Address,
+		Name: srv.address,
 		Net:  "unixgram",
 	}
 	conn, err := net.ListenUnixgram("unixgram", &unixAddr)

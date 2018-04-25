@@ -101,7 +101,7 @@ func (env *Env) setupLogging() error {
 // SIGTERM/SIGINT signals are received by the app.
 func (env *Env) setupSignals(reloadF func()) {
 	env.AppShutdownSignal = make(chan struct{})
-	sig := make(chan os.Signal, 1)
+	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt)
 	signal.Notify(sig, syscall.SIGTERM)
 	go func() {
