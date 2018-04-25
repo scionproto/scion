@@ -120,9 +120,9 @@ func (h *TRCHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.TRC, config *conf.Co
 		return
 	}
 	key := t.Key()
-	reqVer := chainReqCache.Pop(key.String())
+	reqVer := trcReqCache.Pop(key.String())
 	key.Ver = cert_mgmt.NewestVersion
-	reqNew := chainReqCache.Pop(key.String())
+	reqNew := trcReqCache.Pop(key.String())
 	key.Ver = t.Version
 	if reqVer == nil && reqNew == nil { // No pending requests
 		return
