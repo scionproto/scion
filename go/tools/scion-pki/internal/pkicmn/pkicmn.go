@@ -152,3 +152,8 @@ func GetAsPath(ia addr.IA) string {
 func GetIsdPath(isd addr.ISD) string {
 	return filepath.Join(RootDir, fmt.Sprintf("ISD%d", isd))
 }
+
+func ErrorAndExit(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, a...)
+	os.Exit(2)
+}

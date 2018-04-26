@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/trust"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -37,12 +36,12 @@ import (
 func runGenCert(args []string) {
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		base.ErrorAndExit("Error: %s\n", err)
+		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
 	for isd, ases := range asMap {
 		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(isd))
 		if err != nil {
-			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
+			pkicmn.ErrorAndExit("Error reading isd.ini: %s\n", err)
 		}
 		// Process cores.
 		for _, ia := range ases {
@@ -50,7 +49,7 @@ func runGenCert(args []string) {
 				continue
 			}
 			if err = genCert(ia, true); err != nil {
-				base.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
+				pkicmn.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
 			}
 		}
 		// Process non-cores.
@@ -59,7 +58,7 @@ func runGenCert(args []string) {
 				continue
 			}
 			if err = genCert(ia, false); err != nil {
-				base.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
+				pkicmn.ErrorAndExit("Error generating cert for %s: %s\n", ia, err)
 			}
 		}
 	}

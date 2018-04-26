@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/trust"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -35,11 +34,11 @@ import (
 func runGenTrc(args []string) {
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		base.ErrorAndExit("Error: %s\n", err)
+		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
 	for isd := range asMap {
 		if err = genTrc(isd); err != nil {
-			base.ErrorAndExit("Error generating TRC: %s\n", err)
+			pkicmn.ErrorAndExit("Error generating TRC: %s\n", err)
 		}
 	}
 	os.Exit(0)

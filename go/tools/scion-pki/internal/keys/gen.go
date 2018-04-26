@@ -29,7 +29,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/trust"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -42,19 +41,19 @@ const (
 func runGenKey(args []string) {
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		base.ErrorAndExit("Error: %s\n", err)
+		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
 	for isd, ases := range asMap {
 		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(isd))
 		if err != nil {
-			base.ErrorAndExit("Error reading isd.ini: %s\n", err)
+			pkicmn.ErrorAndExit("Error reading isd.ini: %s\n", err)
 		}
 		for _, ia := range ases {
 			dir := pkicmn.GetAsPath(ia)
 			core := pkicmn.Contains(iconf.Trc.CoreIAs, ia)
 			fmt.Println("Generating keys for", ia)
 			if err = genAll(filepath.Join(dir, pkicmn.KeysDir), core); err != nil {
-				base.ErrorAndExit("Error generating keys: %s\n", err)
+				pkicmn.ErrorAndExit("Error generating keys: %s\n", err)
 			}
 		}
 	}

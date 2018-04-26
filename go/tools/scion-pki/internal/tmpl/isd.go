@@ -19,7 +19,6 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -27,7 +26,7 @@ import (
 func runGenIsdTmpl(args []string) {
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		base.ErrorAndExit("Error: %s\n", err)
+		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
 	fmt.Println("Generating trc config templates.")
 	for isd := range asMap {
