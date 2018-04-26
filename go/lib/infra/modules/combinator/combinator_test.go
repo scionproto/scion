@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
@@ -45,7 +46,7 @@ func TestBadPeering(t *testing.T) {
 	// Test that paths are not constructed across peering links where the IFIDs
 	// on both ends do not match.
 	g := graph.NewDefaultGraph()
-	g.AddLink("1-14", 4001, "1-15", 4002, true)
+	g.AddLink("1-ff00:0:111", 4001, "1-ff00:0:121", 4002, true)
 	g.DeleteInterface(4002) // Break 4001-4002 peering, only 4001 remains in up segment
 	g.DeleteInterface(1415) // Break 1415-1514 peering, only 1514 remains in down segment
 
@@ -60,8 +61,8 @@ func TestBadPeering(t *testing.T) {
 	}{
 		{
 			Name:  "broken peering",
-			SrcIA: addr.IA{I: 1, A: 17},
-			DstIA: addr.IA{I: 1, A: 18},
+			SrcIA: xtest.MustParseIA("1-ff00:0:112"),
+			DstIA: xtest.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114, 1417}),
 			},
@@ -105,7 +106,7 @@ func TestBadPeering(t *testing.T) {
 
 func TestMultiPeering(t *testing.T) {
 	g := graph.NewDefaultGraph()
-	g.AddLink("1-14", 4001, "1-15", 4002, true)
+	g.AddLink("1-ff00:0:111", 4001, "1-ff00:0:121", 4002, true)
 
 	testCases := []struct {
 		Name  string
@@ -118,8 +119,8 @@ func TestMultiPeering(t *testing.T) {
 	}{
 		{
 			Name:  "two peerings between same ases",
-			SrcIA: addr.IA{I: 1, A: 17},
-			DstIA: addr.IA{I: 1, A: 18},
+			SrcIA: xtest.MustParseIA("1-ff00:0:112"),
+			DstIA: xtest.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114, 1417}),
 			},
@@ -199,8 +200,8 @@ func TestComputePath(t *testing.T) {
 	}{
 		{
 			Name:  "#0 simple up-core-down",
-			SrcIA: addr.IA{I: 1, A: 16},
-			DstIA: addr.IA{I: 1, A: 14},
+			SrcIA: xtest.MustParseIA("1-ff00:0:131"),
+			DstIA: xtest.MustParseIA("1-ff00:0:111"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316}),
 			},
@@ -226,8 +227,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#1 simple up-core",
-			SrcIA: addr.IA{I: 1, A: 16},
-			DstIA: addr.IA{I: 1, A: 11},
+			SrcIA: xtest.MustParseIA("1-ff00:0:131"),
+			DstIA: xtest.MustParseIA("1-ff00:0:110"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316}),
 			},
@@ -248,8 +249,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#2 simple up only",
-			SrcIA: addr.IA{I: 1, A: 16},
-			DstIA: addr.IA{I: 1, A: 13},
+			SrcIA: xtest.MustParseIA("1-ff00:0:131"),
+			DstIA: xtest.MustParseIA("1-ff00:0:130"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316}),
 			},
@@ -265,8 +266,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#3 simple core-down",
-			SrcIA: addr.IA{I: 1, A: 13},
-			DstIA: addr.IA{I: 1, A: 14},
+			SrcIA: xtest.MustParseIA("1-ff00:0:130"),
+			DstIA: xtest.MustParseIA("1-ff00:0:111"),
 			Ups:   []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1113}),
@@ -287,8 +288,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#4 simple down only",
-			SrcIA: addr.IA{I: 1, A: 11},
-			DstIA: addr.IA{I: 1, A: 14},
+			SrcIA: xtest.MustParseIA("1-ff00:0:110"),
+			DstIA: xtest.MustParseIA("1-ff00:0:111"),
 			Ups:   []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{
@@ -304,8 +305,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#5 inverted core",
-			SrcIA: addr.IA{I: 1, A: 16},
-			DstIA: addr.IA{I: 1, A: 14},
+			SrcIA: xtest.MustParseIA("1-ff00:0:131"),
+			DstIA: xtest.MustParseIA("1-ff00:0:111"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316}),
 			},
@@ -319,8 +320,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#6 simple long up-core-down",
-			SrcIA: addr.IA{I: 1, A: 19},
-			DstIA: addr.IA{I: 2, A: 25},
+			SrcIA: xtest.MustParseIA("1-ff00:0:132"),
+			DstIA: xtest.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619}),
 			},
@@ -349,8 +350,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#7 missing up",
-			SrcIA: addr.IA{I: 1, A: 19},
-			DstIA: addr.IA{I: 1, A: 18},
+			SrcIA: xtest.MustParseIA("1-ff00:0:132"),
+			DstIA: xtest.MustParseIA("1-ff00:0:122"),
 			Ups:   []*seg.PathSegment{},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1211, 1113}),
@@ -362,8 +363,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#8 missing core",
-			SrcIA: addr.IA{I: 1, A: 19},
-			DstIA: addr.IA{I: 2, A: 23},
+			SrcIA: xtest.MustParseIA("1-ff00:0:132"),
+			DstIA: xtest.MustParseIA("2-ff00:0:211"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619}),
 			},
@@ -375,8 +376,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#9 missing down",
-			SrcIA: addr.IA{I: 1, A: 19},
-			DstIA: addr.IA{I: 1, A: 18},
+			SrcIA: xtest.MustParseIA("1-ff00:0:132"),
+			DstIA: xtest.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619}),
 			},
@@ -388,8 +389,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#10 simple up-core-down, multiple cores",
-			SrcIA: addr.IA{I: 1, A: 19},
-			DstIA: addr.IA{I: 1, A: 17},
+			SrcIA: xtest.MustParseIA("1-ff00:0:132"),
+			DstIA: xtest.MustParseIA("1-ff00:0:112"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619}),
 			},
@@ -432,8 +433,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#11 shortcut, destination on path, going up, vonly hf is from core",
-			SrcIA: addr.IA{I: 1, A: 10},
-			DstIA: addr.IA{I: 1, A: 16},
+			SrcIA: xtest.MustParseIA("1-ff00:0:133"),
+			DstIA: xtest.MustParseIA("1-ff00:0:131"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619, 1910}),
 			},
@@ -463,8 +464,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#12 shortcut, destination on path, going up, vonly hf is non-core",
-			SrcIA: addr.IA{I: 1, A: 10},
-			DstIA: addr.IA{I: 1, A: 19},
+			SrcIA: xtest.MustParseIA("1-ff00:0:133"),
+			DstIA: xtest.MustParseIA("1-ff00:0:132"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619, 1910}),
 			},
@@ -505,8 +506,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#13 shortcut, destination on path, going down, verify hf is from core",
-			SrcIA: addr.IA{I: 1, A: 16},
-			DstIA: addr.IA{I: 1, A: 19},
+			SrcIA: xtest.MustParseIA("1-ff00:0:131"),
+			DstIA: xtest.MustParseIA("1-ff00:0:132"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316}),
 			},
@@ -534,8 +535,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#14 shortcut, common upstream",
-			SrcIA: addr.IA{I: 2, A: 25},
-			DstIA: addr.IA{I: 2, A: 26},
+			SrcIA: xtest.MustParseIA("2-ff00:0:212"),
+			DstIA: xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2123, 2325}),
 			},
@@ -568,8 +569,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#15 go through peer",
-			SrcIA: addr.IA{I: 2, A: 25},
-			DstIA: addr.IA{I: 2, A: 26},
+			SrcIA: xtest.MustParseIA("2-ff00:0:212"),
+			DstIA: xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2123, 2325}),
 			},
@@ -609,8 +610,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#16 start from peer",
-			SrcIA: addr.IA{I: 1, A: 14},
-			DstIA: addr.IA{I: 2, A: 25},
+			SrcIA: xtest.MustParseIA("1-ff00:0:111"),
+			DstIA: xtest.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114}),
 			},
@@ -648,8 +649,8 @@ func TestComputePath(t *testing.T) {
 		},
 		{
 			Name:  "#17 start and end on peer",
-			SrcIA: addr.IA{I: 1, A: 14},
-			DstIA: addr.IA{I: 2, A: 23},
+			SrcIA: xtest.MustParseIA("1-ff00:0:111"),
+			DstIA: xtest.MustParseIA("2-ff00:0:211"),
 			Ups: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114}),
 			},
