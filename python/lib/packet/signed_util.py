@@ -158,9 +158,9 @@ class DefaultSignSrc(Serializable):
         :param bytes raw: The raw src.
         :raises: SCIONParseError
         """
-        self.ia
-        self.trc_ver
-        self.chain_ver
+        self.ia = ISD_AS()
+        self.trc_ver = 0
+        self.chain_ver = 0
         super().__init__(raw)
 
     def _parse(self, raw: bytes) -> None:

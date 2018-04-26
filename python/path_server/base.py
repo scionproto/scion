@@ -337,7 +337,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         )
         pld = PathSegmentReply.from_values(req.copy(), recs)
         self.send_meta(CtrlPayload(PathMgmt(pld), req_id=req_id), meta)
-        logger.info("Sending PATH_REPLY with %d segment(s): %s", len(all_segs), [seg.short_id() for seg in all_segs])
+        logger.info("Sending PATH_REPLY with %d segment(s): %s", len(all_segs),
+                    [seg.short_id() for seg in all_segs])
 
     def _peer_revs_for_segs(self, segs):
         """Returns a list of signed peer revocations for segments in 'segs'."""

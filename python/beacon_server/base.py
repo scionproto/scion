@@ -67,6 +67,7 @@ from lib.packet.pcb import (
 )
 from lib.packet.proto_sign import ProtoSignType
 from lib.packet.scion_addr import ISD_AS
+from lib.packet.signed_util import DefaultSignSrc
 from lib.packet.svc import SVCType
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.path_store import PathPolicy
@@ -553,8 +554,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             logging.info("Issuing revocation: %s", rev_info.short_desc())
             if self._labels:
                 REVOCATIONS_ISSUED.labels(**self._labels).inc()
-            srev_info = SignedRevInfo.from_values(
-                rev_info.copy().pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
+            chain = self._get_my_cert()
+            _, cert_ver = chain.get_leaf_isd_as_ver()
+            src = DefaultSignSrc.from_values(rev_info.isd_as(), cert_ver,
+                                             self._get_my_trc().version).pack()
+            srev_info = SignedRevInfo.from_values(rev_info.copy().pack(),
+                                                  ProtoSignType.ED25519, src)
             srev_info.sign(self.signing_key)
             self._process_revocation(srev_info)
             infos.append(IFStateInfo.from_values(if_id, False, srev_info))
@@ -721,8 +726,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     rev_info = RevocationInfo.from_values(
                         self.addr.isd_as, ifid, br.interfaces[ifid].link_type,
                         int(time.time()), self.REVOCATION_TTL)
+                    chain = self._get_my_cert()
+                    _, cert_ver = chain.get_leaf_isd_as_ver()
+                    src = DefaultSignSrc.from_values(rev_info.isd_as(),
+                                                     cert_ver, self._get_my_trc().version).pack()
                     srev_info = SignedRevInfo.from_values(
-                        rev_info.pack(), ProtoSignType.ED25519, rev_info.isd_as().pack())
+                        rev_info.pack(), ProtoSignType.ED25519, src)
                     srev_info.sign(self.signing_key)
                 infos.append(IFStateInfo.from_values(ifid, state.is_active(), srev_info))
             if not infos and not self._quiet_startup():

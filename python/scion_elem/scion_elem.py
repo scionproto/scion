@@ -1273,4 +1273,5 @@ class SCIONElement(object):
         except SCIONBaseError as e:
             logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
             return False
+        logging.debug("Successfully validated and verified RevInfo %s", rev_info)
         return True
