@@ -15,55 +15,9 @@
 package base
 
 import (
-	"flag"
 	"fmt"
 	"os"
-	"strings"
-	"text/template"
 )
-
-type Command struct {
-	// Name is the name of the command.
-	Name string
-	// Run runs the command. The args are the arguments after the command name.
-	Run func(cmd *Command, args []string)
-	// UsageLine is the one-line usage message.
-	UsageLine string
-	// Short is the short description in the help output.
-	Short string
-	// Long is the long description in the help output.
-	Long string
-	// Flag is the set of flags specific to this command.
-	Flag flag.FlagSet
-}
-
-// Commands contains the available commands.
-var Commands []*Command
-
-func (c *Command) Usage() {
-	fmt.Fprintf(os.Stderr, "usage: scion-pki %s\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'scion-pki help %s' for details.\n", c.Name)
-	os.Exit(2)
-}
-
-func (c *Command) Help() {
-	Tmpl(helpTemplate, c)
-}
-
-var helpTemplate = `usage: scion-pki {{.UsageLine}}
-
-{{.Long | trim}}
-`
-
-// tmpl executes the given template text on data, writing the result to stdout.
-func Tmpl(text string, data interface{}) {
-	t := template.New("top")
-	t.Funcs(template.FuncMap{"trim": strings.TrimSpace})
-	template.Must(t.Parse(text))
-	if err := t.Execute(os.Stdout, data); err != nil {
-		panic(err)
-	}
-}
 
 func ErrorAndExit(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, a...)
