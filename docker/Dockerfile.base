@@ -6,10 +6,13 @@ ENV PATH /usr/local/go/bin:$GOPATH/bin:$HOME/.local/bin:$PATH
 
 WORKDIR $BASE
 
+# Use eatmydata to speed up a lot of the building
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y eatmydata sudo && apt-get clean
-# eatmydata to speed up a lot of the building
-RUN ln -s /usr/bin/eatmydata /usr/local/bin/apt-get
-RUN ln -s /usr/bin/eatmydata /usr/local/bin/dpkg
+RUN set -ex; \
+    ln -s /usr/bin/eatmydata /usr/local/bin/apt-get; \
+    ln -s /usr/bin/eatmydata /usr/local/bin/dpkg; \
+    ln -s /usr/bin/eatmydata /usr/local/bin/pip; \
+    ln -s /usr/bin/eatmydata /usr/local/bin/pip3
 
 RUN useradd -s /bin/bash scion
 RUN echo "scion ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/scion
@@ -30,9 +33,14 @@ COPY env/common.sh env/
 COPY env/debian env/debian
 RUN sudo apt-get update && APTARGS=-y env/debian/deps && sudo apt-get clean
 
-# Pip3 packages
+# Pip packages
 COPY env/pip3 env/pip3
-RUN env/pip3/deps && rm -r ~/.cache/pip
+COPY env/pip2 env/pip2
+RUN set -ex; \
+    env/pip2/deps; \
+    env/pip3/deps; \
+    tar czf ~/python_local.tar.gz --owner=scion -C ~ .local; \
+    rm -r ~/.cache/pip ~/.local
 
 # Pip2 packages
 COPY env/pip2 env/pip2
@@ -40,11 +48,11 @@ RUN env/pip2/deps && rm -r ~/.cache/pip
 
 # zlog packages
 COPY env/zlog env/zlog
-RUN env/zlog/deps
+RUN eatmydata env/zlog/deps
 
 # Go version check, and govendor
 COPY env/go env/go
-RUN GO_INSTALL=y env/go/deps
+RUN GO_INSTALL=y eatmydata env/go/deps && rm -r ~/go/pkg/
 
 # Cleanup
 RUN sudo rm -r env
@@ -52,10 +60,14 @@ RUN sudo rm -r env
 # Vendored go packages
 COPY go/vendor/ go/vendor
 RUN sudo chown -R scion .
-RUN \
-    set -ex; cd go; govendor sync -v; govendor install ./vendor/...; \
-    cd vendor; tar caf ~/go_vendor.tar.gz --owner=scion $(find * -maxdepth 0 -type d); \
-    cd ../../; rm -r go ~/go/.cache
+RUN set -ex; \
+    cd go; \
+    eatmydata govendor sync -v; \
+    eatmydata govendor install ./vendor/...; \
+    cd vendor; \
+    tar caf ~/go_vendor.tar.gz --owner=scion $(find * -maxdepth 0 -type d); \
+    cd ../../; \
+    rm -r go ~/go/.cache ~/go/pkg/
 
 #################################################################################
 ## Dependencies are now installed, carry on with the rest.

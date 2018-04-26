@@ -2,7 +2,7 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -O2
-LDFLAGS ?= -lpthread -lzlog -Wl,-Bstatic -ltcpmw -llwip -lfilter -lscion -Wl,-Bdynamic
+LDFLAGS ?= -lpthread -Wl,-Bstatic -lzlog -ltcpmw -llwip -lfilter -lscion -Wl,-Bdynamic
 
 LIB_DIR = ../lib
 LWIPDIR = ../../sub/lwip/src/include
