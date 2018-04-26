@@ -100,7 +100,8 @@ class CorePathServer(PathServer):
             if pcb.first_ia()[0] != self.addr.isd_as[0]:
                 core_segs.append(pcb)
         # Find down-segments from local ISD.
-        down_segs = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
+        with self.seglock:
+            down_segs = self.down_segments(full=True, last_isd=self.addr.isd_as[0])
         logging.debug("Syncing with master: %s", self._master_id)
         seen_ases = set()
         for seg_type, segs in [(PST.CORE, core_segs), (PST.DOWN, down_segs)]:

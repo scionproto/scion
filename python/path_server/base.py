@@ -297,11 +297,11 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         core_segs_removed = 0
         with self.seglock:
             if not self.topology.is_core_as:
-                for up_segment in self.up_segments():
+                for up_segment in self.up_segments(full=True):
                     up_segs_removed += _handle_one_seg(up_segment, self.up_segments)
-            for down_segment in self.down_segments():
+            for down_segment in self.down_segments(full=True):
                 down_segs_removed += _handle_one_seg(down_segment, self.down_segments)
-            for core_segment in self.core_segments():
+            for core_segment in self.core_segments(full=True):
                 core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
 
         logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
@@ -337,7 +337,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         )
         pld = PathSegmentReply.from_values(req.copy(), recs)
         self.send_meta(CtrlPayload(PathMgmt(pld), req_id=req_id), meta)
-        logger.info("Sending PATH_REPLY with %d segment(s).", len(all_segs))
+        logger.info("Sending PATH_REPLY with %d segment(s): %s", len(all_segs), [seg.short_id() for seg in all_segs])
 
     def _peer_revs_for_segs(self, segs):
         """Returns a list of signed peer revocations for segments in 'segs'."""
@@ -448,7 +448,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             PST.CORE: self._handle_core_segment_record,
             PST.DOWN: self._handle_down_segment_record,
         }
-        handle_map[type_](seg, **kwargs)
+        with self.seglock:
+            handle_map[type_](seg, **kwargs)
 
     def _validate_segment(self, seg):
         """

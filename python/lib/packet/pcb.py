@@ -299,7 +299,7 @@ class PathSegment(Cerealizable):
 
     def rev_match(self, rev_info):
         """
-        Check if a revocation matches the currnt PCB
+        Check if a revocation matches the current PCB
         :param rev_info: Revocation Info to check
         :type rev_info: RevocationInfo
         :return: Tuple(boolean, LinkType)
