@@ -38,7 +38,7 @@ func TestPathPredicates(t *testing.T) {
 		{
 			"direct neighbors, exact match",
 			"1-ff00:0:133", "1-ff00:0:132",
-			"1-ff00:0:133#133132", true,
+			"1-ff00:0:133#1019", true,
 		},
 		{
 			"direct neighbors, not match",
@@ -53,7 +53,7 @@ func TestPathPredicates(t *testing.T) {
 		{
 			"direct neighbors, wildcard AS match",
 			"1-ff00:0:133", "1-ff00:0:132",
-			"1-0#133132", true,
+			"1-0#1019", true,
 		},
 		{
 			"direct neighbors, wildcard AS but no match",
@@ -73,22 +73,22 @@ func TestPathPredicates(t *testing.T) {
 		{
 			"far neighbors, match in the middle",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:120#120121", true,
+			"1-ff00:0:120#1215", true,
 		},
 		{
 			"far neighbors, match in the middle, on egress",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:120#120220", true,
+			"1-ff00:0:120#1222", true,
 		},
 		{
 			"far neighbors, match at the end",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"2-ff00:0:220#220120", true,
+			"2-ff00:0:220#2212", true,
 		},
 		{
 			"far neighbors, match at the start",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:122#122121", true,
+			"1-ff00:0:122#1815", true,
 		},
 		{
 			"far neighbors, not match",
@@ -98,12 +98,12 @@ func TestPathPredicates(t *testing.T) {
 		{
 			"far neighbors, match multiple with wildcards",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:121#0,1-ff00:0:121#121120", true,
+			"1-ff00:0:121#0,1-ff00:0:121#1512", true,
 		},
 		{
 			"far neighbors, match multiple with wildcards and jumps",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:120#120121,2-ff00:0:220#0", true,
+			"1-ff00:0:120#1215,2-ff00:0:220#0", true,
 		},
 		{
 			"far neighbors, not match with wildcard jumps",
