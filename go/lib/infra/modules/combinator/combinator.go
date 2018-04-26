@@ -144,43 +144,38 @@ func (g *DAMG) traverseSegment(segment *Segment) {
 	// edges will originate from srcIA. For Downs, edges will go towards srcIA.
 	pinnedIA := asEntries[len(asEntries)-1].IA()
 
-	// Ignore entry at index 0 (so ASEntry of beacon origin) as all the
-	// information is included in the RawInIA field of the next one.
-	for asEntryIndex := len(asEntries) - 1; asEntryIndex > 0; asEntryIndex-- {
+	for asEntryIndex := len(asEntries) - 1; asEntryIndex >= 0; asEntryIndex-- {
 		// Whenever we add an edge that is not towards the first AS in the PCB,
-		// we are creating a shortcut. We use the shortcut below to annotate
-		// the edges as such, as we need the metadata during forwarding path
+		// we are creating a shortcut. We use the asEntryIndex to annotate the
+		// edges as such, as we need the metadata during forwarding path
 		// construction when adding verify-only HFs and pruning useless pieces
 		// of the segment.
-
-		// decrement by 1 because we're adding the vertex for ASEntry k when
-		// traversing ASEntry index k+1
-		shortcut := asEntryIndex - 1
 
 		currentIA := asEntries[asEntryIndex].IA()
 		// Construct edges for each hop in the current ASEntry.
 		for hopEntryIndex, hop := range asEntries[asEntryIndex].HopEntries {
-			if hopEntryIndex != 0 {
-				// This is a peering entry. For peering links, we're adding
-				// peering vertices containing ASEntry k (and the AS across the
-				// peering link) when traversing ASEntry k itself, so no longer
-				// decrement by one.
-				shortcut = asEntryIndex
+			he, err := hop.HopField()
+			if err != nil {
+				// should've been caught during MAC verification, abort
+				panic(err)
 			}
-			nextIA := hop.RawInIA.IA()
 
 			// build new edge
 			var srcVertex, dstVertex Vertex
 			srcVertex = VertexFromIA(pinnedIA)
 			if hopEntryIndex == 0 {
-				dstVertex = VertexFromIA(nextIA)
-			} else {
-				he, err := hop.HopField()
-				if err != nil {
-					// should've been caught during MAC verification, abort
-					panic(err)
+				if asEntryIndex == len(asEntries)-1 {
+					// This is the entry for our local AS; we're not interested in routing here,
+					// so we skip this entry.
+					continue
 				}
-				dstVertex = VertexFromPeering(currentIA, he.Ingress, nextIA, hop.RemoteInIF)
+				if he.ForwardOnly {
+					// We are not allowed to route to this AS
+					continue
+				}
+				dstVertex = VertexFromIA(currentIA)
+			} else {
+				dstVertex = VertexFromPeering(currentIA, he.Ingress, hop.RawInIA.IA(), hop.RemoteInIF)
 			}
 
 			if segment.Type == DownSegment {
@@ -191,9 +186,10 @@ func (g *DAMG) traverseSegment(segment *Segment) {
 			}
 
 			g.AddEdge(srcVertex, dstVertex, segment, &Edge{
-				Weight:   len(asEntries) - asEntryIndex, // weight increases going towards ASEntry 0
-				Shortcut: shortcut,
-				Peer:     hopEntryIndex,
+				Weight:      len(asEntries) - asEntryIndex, // weight increases going towards ASEntry 0
+				Shortcut:    asEntryIndex,
+				Peer:        hopEntryIndex,
+				ForwardOnly: he.ForwardOnly,
 			})
 		}
 	}
@@ -244,9 +240,8 @@ func (g *DAMG) GetPaths(src, dst Vertex) PathSolutionList {
 				queue = append(queue, newSolution)
 
 				if nextVertex == dst {
-					super, sub := solutions.findPathIncludes(newSolution)
-					solutions = solutions.RemoveAll(super)
-					if len(sub) == 0 {
+					// Do not allow solutions that terminate in an edge marked with ForwardOnly
+					if edge.ForwardOnly == false {
 						solutions = append(solutions, newSolution)
 					}
 					// Do not break, because we want all solutions
@@ -326,6 +321,10 @@ type Edge struct {
 	// Peer is the index in the hop entries array for this peer entry. If 0,
 	// the standard hop entry at index 0 is used (instead of a peer entry).
 	Peer int
+	// ForwardOnly is set if the edge contains a segment (or a portion of a
+	// segment) that ends with a forward-only hop field. Such an edge cannot be
+	// the final edge in a solution.
+	ForwardOnly bool
 }
 
 type PathSolution struct {
