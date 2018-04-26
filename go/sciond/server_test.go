@@ -82,7 +82,7 @@ func StartServer(t *testing.T, dir, file string) func() {
 	t.Helper()
 
 	cmd := exec.Command(
-		"sciond",
+		"../../bin/sciond",
 		"-id", "sdtest",
 		"-reliable", file,
 		"-log.console", "crit",
