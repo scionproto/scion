@@ -489,45 +489,6 @@ func (sl PathSolutionList) Swap(i, j int) {
 	sl[i], sl[j] = sl[j], sl[i]
 }
 
-// RemoveAll returns a new slice with the same elements as in sl, minus the
-// ones at the indices contained in slice positions.
-func (sl PathSolutionList) RemoveAll(positions []int) PathSolutionList {
-	newSL := make(PathSolutionList, len(sl)-len(positions))
-	for srcIndex, dstIndex, skipIndex := 0, 0, 0; srcIndex < len(sl); srcIndex++ {
-		if skipIndex < len(positions) && srcIndex == positions[skipIndex] {
-			// Skip this entry
-			skipIndex++
-		} else {
-			// Copy entry and increase indices
-			newSL[dstIndex] = sl[srcIndex]
-			dstIndex++
-		}
-	}
-	return newSL
-}
-
-// findPathIncludes reports information about which solutions contain path
-// segments that are completely included (as defined by method
-// solutionEdge.Include) in the path segments in newSolution. The indices of
-// the respective existing solutions are returned in slice sub.
-//
-// Slice super contains the reverse relationship.
-func (solutions PathSolutionList) findPathIncludes(newSolution *PathSolution) (super, sub []int) {
-	for _, newEdge := range newSolution.edges {
-		for solutionIndex, existingSolution := range solutions {
-			for _, edge := range existingSolution.edges {
-				if newEdge.Includes(edge) {
-					sub = insertSorted(sub, solutionIndex)
-				}
-				if edge.Includes(newEdge) {
-					super = insertSorted(super, solutionIndex)
-				}
-			}
-		}
-	}
-	return super, sub
-}
-
 // solutionEdge contains a graph edge and additional metadata required during
 // graph exploration.
 type solutionEdge struct {
@@ -536,20 +497,6 @@ type solutionEdge struct {
 	dst  Vertex
 	// The segment associated with this edge, used during forwarding path construction
 	segment *Segment
-}
-
-// Method Includes tests whether the path within the current edge includes the
-// path in other. If the paths are identical, the method returns false.
-//
-// If other includes a peering link, the method returns false (because in that
-// case we want to keep the longer paths).
-func (solEdge *solutionEdge) Includes(otherEdge *solutionEdge) bool {
-	if solEdge.segment == otherEdge.segment {
-		if solEdge.edge.Shortcut < otherEdge.edge.Shortcut && otherEdge.edge.Peer == 0 {
-			return true
-		}
-	}
-	return false
 }
 
 // PathField contains metadata about info fields or hop fields.
@@ -629,16 +576,4 @@ func flagPrint(name string, value int) string {
 		return "."
 	}
 	return name
-}
-
-func insertSorted(s []int, value int) []int {
-	index := sort.SearchInts(s, value)
-	if index < len(s) && s[index] == value {
-		return s
-	}
-
-	s = append(s, 0)
-	copy(s[index+1:], s[index:])
-	s[index] = value
-	return s
 }
