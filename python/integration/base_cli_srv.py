@@ -132,7 +132,8 @@ class TestClientBase(TestBase):
     def _get_path(self, api, flush=False):
         """Request path via SCIOND API."""
         path_entries = self._try_sciond_api(flush)
-        logging.info("Path entries (%s) from SCIOND:\n%s", len(path_entries), "\n    ".join([str(entry) for entry in path_entries]))
+        logging.info("Path entries (%s) from SCIOND:\n%s", len(path_entries),
+                     "\n    ".join([str(entry) for entry in path_entries]))
         path_entry = path_entries[0]
         self.path_meta = path_entry.path()
         fh_info = path_entry.first_hop()
