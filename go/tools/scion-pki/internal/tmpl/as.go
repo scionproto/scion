@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/tools/scion-pki/internal/base"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -26,17 +25,17 @@ import (
 func runGenAsTmpl(args []string) {
 	asMap, err := pkicmn.ProcessSelector(args[0])
 	if err != nil {
-		base.ErrorAndExit("Error: %s\n", err)
+		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
 	fmt.Println("Generating cert config templates.")
 	for isd, ases := range asMap {
 		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(isd))
 		if err != nil {
-			base.ErrorAndExit("Error reading %s: %s\n", conf.IsdConfFileName, err)
+			pkicmn.ErrorAndExit("Error reading %s: %s\n", conf.IsdConfFileName, err)
 		}
 		for _, ia := range ases {
 			if err = genAsTmpl(ia, iconf); err != nil {
-				base.ErrorAndExit("Error generating %s template for %s: %s\n",
+				pkicmn.ErrorAndExit("Error generating %s template for %s: %s\n",
 					conf.AsConfFileName, ia, err)
 			}
 		}
