@@ -201,7 +201,3 @@ func NewTemplateCertConf(trcVer uint64) *BaseCert {
 		TRCVersion:    trcVer,
 	}
 }
-
-func newValidationError(param string) error {
-	return common.NewBasicError(fmt.Sprintf("Parameter '%s' not set.", param), nil)
-}

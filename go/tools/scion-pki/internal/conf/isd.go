@@ -29,6 +29,15 @@ import (
 
 const IsdConfFileName = "isd.ini"
 
+const (
+	ErrCoreIANotSet               = "Core ASes are not specified"
+	ErrInvalidCoreIA              = "Invalid Core ASes"
+	ErrInvalidGracePeriod         = "Invalid Grace Period Duration"
+	ErrQuorumTrcGreaterThanCoreIA = "QuorumTRC > # Core ASes"
+	ErrQuorumTrcNotSet            = "Quorum TRC not set"
+	ErrTrcVersionNotSet           = "Version not set for TRC"
+)
+
 // Isd holds config parameters read from isd.ini.
 type Isd struct {
 	Desc string `comment:"General description for the ISD"`
@@ -107,7 +116,7 @@ func (t *Trc) validate() error {
 		t.IssuingTime = uint64(time.Now().Unix())
 	}
 	if t.Version == 0 {
-		return newValidationError("Version")
+		return common.NewBasicError(ErrTrcVersionNotSet, nil)
 	}
 	if t.RawValidity == "" {
 		t.RawValidity = "0s"
@@ -115,17 +124,17 @@ func (t *Trc) validate() error {
 	var err error
 	t.Validity, err = util.ParseDuration(t.RawValidity)
 	if err != nil {
-		return common.NewBasicError("Invalid validity duration", nil, "duration", t.RawValidity)
+		return common.NewBasicError(ErrInvalidValidityDuration, nil, "duration", t.RawValidity)
 	}
 	if int64(t.Validity) == 0 {
-		return newValidationError("Validity")
+		return common.NewBasicError(ErrValidityDurationNotSet, nil)
 	}
 	if len(t.CoreIAs) == 0 {
-		return newValidationError("CoreASes")
+		return common.NewBasicError(ErrCoreIANotSet, nil)
 	} else {
 		for _, ia := range t.CoreIAs {
 			if ia.I == 0 || ia.A == 0 {
-				return common.NewBasicError("Invalid core AS", nil, "ia", ia)
+				return common.NewBasicError(ErrInvalidCoreIA, nil, "ia", ia)
 			}
 		}
 	}
@@ -134,13 +143,13 @@ func (t *Trc) validate() error {
 	}
 	t.GracePeriod, err = util.ParseDuration(t.RawGracePeriod)
 	if err != nil {
-		return common.NewBasicError("Invalid validity duration", nil, "duration", t.RawGracePeriod)
+		return common.NewBasicError(ErrInvalidGracePeriod, nil, "duration", t.RawGracePeriod)
 	}
 	if t.QuorumTRC == 0 {
-		return newValidationError("QuorumTrc")
+		return common.NewBasicError(ErrQuorumTrcNotSet, nil)
 	}
 	if int(t.QuorumTRC) > len(t.CoreIAs) {
-		return common.NewBasicError("QuorumTRC > # core ASes", nil)
+		return common.NewBasicError(ErrQuorumTrcGreaterThanCoreIA, nil)
 	}
 	return nil
 }
