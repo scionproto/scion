@@ -67,6 +67,11 @@ func TestClassMap(t *testing.T) {
 				),
 			},
 		},
+		{
+			Name:     "nil ClassMap stays nil",
+			FileName: "class_2",
+			Classes:  nil,
+		},
 	}
 
 	Convey("Test class marshal/unmarshal", t, func() {

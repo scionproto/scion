@@ -169,6 +169,11 @@ func TestActionMap(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "nil ActionMap stays nil",
+			FileName: "act_10",
+			Actions:  nil,
+		},
 	}
 
 	Convey("Test action map marshal/unmarshal", t, func() {
