@@ -29,10 +29,16 @@ import (
 )
 
 const (
-	AsConfFileName    = "as.ini"
-	KeyAlgSectionName = "Key Algorithms"
-	AsSectionName     = "AS Certificate"
-	IssuerSectionName = "Issuer Certificate"
+	AsConfFileName             = "as.ini"
+	KeyAlgSectionName          = "Key Algorithms"
+	AsSectionName              = "AS Certificate"
+	IssuerSectionName          = "Issuer Certificate"
+	ErrAsCertMissing           = "AS Certificate section missing"
+	ErrBaseCertMissing         = "Base Certificate missing"
+	ErrIssuerMissing           = "Parameter Issuer not set in AS certificate"
+	ErrTRCVersionNotSet        = "Parameter TRCVersion not set in Base Certificate"
+	ErrVersionNotSet           = "Parameter Version not set for Base Certificate"
+	ErrInvalidValidityDuration = "Invalid validity duration"
 )
 
 // As contains the as.ini configuration parameters.
@@ -43,6 +49,9 @@ type As struct {
 }
 
 func (a *As) validate() error {
+	if a.AsCert == nil {
+		return common.NewBasicError(ErrAsCertMissing, nil)
+	}
 	if err := a.AsCert.validate(); err != nil {
 		return err
 	}
@@ -119,11 +128,14 @@ type AsCert struct {
 
 func (ac *AsCert) validate() error {
 	if ac.Issuer == "" || ac.Issuer == "0-0" {
-		return newValidationError("Issuer")
+		return common.NewBasicError(ErrIssuerMissing, nil)
 	}
 	var err error
 	if ac.IssuerIA, err = addr.IAFromString(ac.Issuer); err != nil {
 		return err
+	}
+	if ac.BaseCert == nil {
+		return common.NewBasicError(ErrBaseCertMissing, nil)
 	}
 	return ac.BaseCert.validate()
 }
@@ -159,10 +171,10 @@ func (c *BaseCert) validate() error {
 		c.SignAlgorithm = crypto.Ed25519
 	}
 	if c.TRCVersion == 0 {
-		return newValidationError("TRCVersion")
+		return common.NewBasicError(ErrTRCVersionNotSet, nil)
 	}
 	if c.Version == 0 {
-		return newValidationError("Version")
+		return common.NewBasicError(ErrVersionNotSet, nil)
 	}
 	if c.RawValidity == "" {
 		c.RawValidity = "0s"
@@ -170,10 +182,10 @@ func (c *BaseCert) validate() error {
 	var err error
 	c.Validity, err = util.ParseDuration(c.RawValidity)
 	if err != nil {
-		return common.NewBasicError("Invalid validity duration", nil, "duration", c.RawValidity)
+		return common.NewBasicError(ErrInvalidValidityDuration, nil, "duration", c.RawValidity)
 	}
 	if int64(c.Validity) == 0 {
-		return newValidationError("Validity")
+		return common.NewBasicError(ErrInvalidValidityDuration, nil, "duration", c.Validity)
 	}
 	return nil
 }
