@@ -16,6 +16,7 @@ package main
 
 import (
 	"flag"
+	//	"fmt"
 	"io"
 	"net"
 	_ "net/http/pprof"
@@ -65,7 +66,7 @@ func main() {
 	}
 	os.Setenv("TZ", "UTC")
 	if err := log.SetupFromFlags(*id); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		log.Crit(err.Error())
 		flag.Usage()
 		os.Exit(1)
 	}

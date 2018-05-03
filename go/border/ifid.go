@@ -17,8 +17,6 @@
 package main
 
 import (
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
@@ -42,7 +40,7 @@ func (r *Router) IFIDCallback(args rpkt.IFIDCallbackArgs) {
 // IFIDFwd handles IFID (interface ID) packets from the local BS
 // and forwards them to the remote ISD-AS BR
 func (r *Router) IFIDFwd() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	// Run forever.
 	for args := range r.ifIDQ {
 		r.fwdLocalIFID(args.RtrPkt)

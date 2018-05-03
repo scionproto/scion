@@ -19,11 +19,10 @@ import (
 	"net"
 	"os"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
@@ -56,7 +55,7 @@ func NewReader(tunIO io.ReadWriteCloser) *Reader {
 }
 
 func (r *Reader) Run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	r.log.Info("EgressReader: starting")
 	bufs := make(ringbuf.EntryList, egressBufPkts)
 BatchLoop:

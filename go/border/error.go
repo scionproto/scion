@@ -18,12 +18,10 @@
 package main
 
 import (
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
 
@@ -50,7 +48,7 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 
 // PackeError creates an SCMP error for the given packet and sends it to its source.
 func (r *Router) PacketError() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	// Run forever.
 	for args := range r.pktErrorQ {
 		r.doPktError(args.rp, args.perr)

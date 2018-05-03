@@ -23,10 +23,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
-
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (
