@@ -74,6 +74,10 @@ from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
+from lib.packet.path_mgmt.rev_info import (
+    CertFetchError,
+    RevInfoExpiredError
+)
 from lib.packet.scion import (
     SCIONBasePacket,
     SCIONL4Packet,
@@ -1250,28 +1254,17 @@ class SCIONElement(object):
         logging.warning("Unable to get path to %s from SCIOND.", isd_as)
         return None
 
-    def check_revocation(self, srev_info, meta):
+    def check_revocation(self, srev_info):
         """
         Checks if the revocation is valid and processing should continue
-        :returns: boolean if all checks were successful
         """
         rev_info = srev_info.rev_info()
-        try:
-            rev_info.validate()
-        except SCIONBaseError as e:
-            logging.error("Failed to validate RevInfo from %s: %s\n%s",
-                          meta, e, rev_info.short_desc())
-            return False
+        rev_info.validate()
         if not rev_info.active():
-            return False
+            raise RevInfoExpiredError("RevocationInfo has expired: %s" % rev_info.short_desc())
+        # FIXME(worxli): different cert versions should be handled (#1545)
         cert = self.trust_store.get_cert(rev_info.isd_as())
         if not cert:
-            logging.error("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
-            return False
-        try:
-            srev_info.verify(cert.as_cert.subject_sig_key_raw)
-        except SCIONBaseError as e:
-            logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
-            return False
-        logging.debug("Successfully validated and verified RevInfo %s", rev_info)
-        return True
+            raise CertFetchError("Failed to fetch cert for ISD-AS: %s" % rev_info.isd_as())
+        srev_info.verify(cert.as_cert.subject_sig_key_raw)
+        logging.debug("Successfully validated and verified RevInfo %s" % rev_info)

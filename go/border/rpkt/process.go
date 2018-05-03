@@ -335,7 +335,7 @@ func (rp *RtrPkt) processSCMPRecordPath() error {
 // 3. The revocation's destination is the local AS. The revocation notification is forked to the
 //    local PS, to ensure that it stops providing segments with revoked interfaces to clients.
 func (rp *RtrPkt) processSCMPRevocation() error {
-	var args RawRevCallbackArgs
+	var args RawSRevCallbackArgs
 	var err error
 	pld, ok := rp.pld.(*scmp.Payload)
 	if !ok {
@@ -347,8 +347,9 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 		return common.NewBasicError("Invalid SCMP Info type in SCMP packet", nil,
 			"expected", "*scmp.InfoRevocation", "actual", common.TypeOf(pld.Info))
 	}
-	if args.SignedRevInfo, err = path_mgmt.NewSignedRevInfoFromRaw(infoRev.RawRev); err != nil {
-		return common.NewBasicError("Unable to decode rawRev", err)
+	if args.SignedRevInfo, err = path_mgmt.NewSignedRevInfoFromRaw(infoRev.RawSRev); err != nil {
+		return common.NewBasicError(
+			"Unable to decode SignedRevInfo from SCMP InfoRevocation payload", err)
 	}
 
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
@@ -365,7 +366,7 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 		args.Addrs = append(args.Addrs, addr.SvcPS)
 	}
 	if len(args.Addrs) > 0 {
-		callbacks.rawRevF(args)
+		callbacks.rawSRevF(args)
 	}
 	return nil
 }

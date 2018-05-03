@@ -60,13 +60,11 @@ class RevCache:
         REVS_ADDED.labels(**self._labels).inc(0)
         REVS_REMOVED.labels(**self._labels).inc(0)
 
-    def __contains__(self, rev_info):  # pragma: no cover
-        return self.contains_key(_mk_key(rev_info))
-
-    def contains_key(self, key):  # pragma: no cover
-        with self._lock:
-            stored_info = self._cache.get(key)
-            return stored_info and self._check_active(stored_info)
+    def __contains__(self, srev_info):  # pragma: no cover
+        stored_info = self.get(_mk_key(srev_info))
+        if not stored_info:
+            return False
+        return stored_info.rev_info() == srev_info.rev_info()
 
     def __getitem__(self, key):  # pragma: no cover
         return self.get(key)
@@ -86,12 +84,12 @@ class RevCache:
         Return all active revocations
         :return: list(SignedRevInfo)
         """
+        ret = []
         with self._lock:
-            ret = []
             for v in list(self._cache.values()):
                 if self._check_active(v):
                     ret.append(v)
-            return ret
+        return ret
 
     def add(self, srev_info):
         """

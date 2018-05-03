@@ -231,11 +231,11 @@ func (r *PR) Revoke(revInfo common.RawBytes) {
 	}()
 }
 
-func (r *PR) revoke(revInfo common.RawBytes) {
-	parsedSRev, err := path_mgmt.NewSignedRevInfoFromRaw(revInfo)
+func (r *PR) revoke(b common.RawBytes) {
+	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(b)
 	if err != nil {
 		log.Error("Revocation failed, unable to parse signed revocation info",
-			"revInfo", revInfo, "err", err)
+			"sRevInfo", b, "err", err)
 		return
 	}
 	conn, err := r.sciondService.Connect()
@@ -243,7 +243,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 		log.Error("Revocation failed, unable to connect to SCIOND", "err", err)
 		return
 	}
-	reply, err := conn.RevNotification(parsedSRev)
+	reply, err := conn.RevNotification(sRevInfo)
 	if err != nil {
 		log.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
 		return
@@ -253,7 +253,7 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 		log.Error("Revocation error, unable to close SCIOND connection", "err", err)
 		// Continue with revocation
 	}
-	parsedRev, err := parsedSRev.RevInfo()
+	revInfo, err := sRevInfo.RevInfo()
 	if err != nil {
 		log.Error("Revocation failed, unable to parse revocation info",
 			"revInfo", revInfo, "err", err)
@@ -261,11 +261,11 @@ func (r *PR) revoke(revInfo common.RawBytes) {
 	}
 	switch reply.Result {
 	case sciond.RevUnknown, sciond.RevValid:
-		uifid := uifidFromValues(parsedRev.IA(), common.IFIDType(parsedRev.IfID))
+		uifid := uifidFromValues(revInfo.IA(), common.IFIDType(revInfo.IfID))
 		r.cache.revoke(uifid)
 	case sciond.RevStale:
-		log.Warn("Found stale revocation notification", "revInfo", parsedRev)
+		log.Warn("Found stale revocation notification", "revInfo", revInfo)
 	case sciond.RevInvalid:
-		log.Warn("Found invalid revocation notification", "revInfo", parsedRev)
+		log.Warn("Found invalid revocation notification", "revInfo", revInfo)
 	}
 }

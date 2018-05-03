@@ -23,7 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 )
 
-type RawRevCallbackArgs struct {
+type RawSRevCallbackArgs struct {
 	SignedRevInfo *path_mgmt.SignedRevInfo
 	Addrs         []addr.HostSVC
 }

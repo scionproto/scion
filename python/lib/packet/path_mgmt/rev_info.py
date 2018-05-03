@@ -33,10 +33,18 @@ from lib.util import iso_timestamp
 
 
 class SignedRevInfoVerificationError(SCIONBaseError):
-    """Validation of RevInfo failed"""
+    """Verification of SignedRevInfo failed"""
+
+
+class CertFetchError(SCIONBaseError):
+    """Failed to fetch cert to verify signature"""
 
 
 class RevInfoValidationError(SCIONBaseError):
+    """Active check on RevInfo failed"""
+
+
+class RevInfoExpiredError(SCIONBaseError):
     """Validation of RevInfo failed"""
 
 
@@ -44,6 +52,8 @@ class SignedRevInfo(ProtoSignedBlob):
     """
     Wrapper for signed revocation information.
     """
+    NAME = "SignedRevInfo"
+
     def __init__(self, p):
         super().__init__(p)
         self._rev_info = None
@@ -57,23 +67,20 @@ class SignedRevInfo(ProtoSignedBlob):
         """
         Verfiy the signature
         """
+        issuer = self.rev_info().isd_as()
+        signer = self.get_signer_from_proto_sign()
+        if issuer != signer:
+            raise SignedRevInfoVerificationError(
+                "SignedRevInfo signer (%s) does not match revocation issuer (%s)" %
+                (signer, issuer))
         if not super().verify(key):
             raise SignedRevInfoVerificationError("Failed to verify RevInfo signature!")
-
-    def __eq__(self, other):
-        if other is None:
-            logging.error("Other SignedRevInfo object is None.")
-            return False
-        if not isinstance(other, SignedRevInfo):
-            logging.error("Other is not a SignedRevInfo.")
-            return False
-        return self.rev_info().cmp_str() == other.rev_info().cmp_str()
 
     def __hash__(self):
         return hash(self.rev_info().cmp_str())
 
     def short_desc(self):
-        return "SRevInfo Blob: %s Sign: %s" % (self.p.blob, self.p.sign)
+        return "%s:\n%s\n%s" % (self.NAME, self.rev_info().short_desc(), self.psign)
 
 
 class RevocationInfo(Cerealizable):
@@ -115,14 +122,15 @@ class RevocationInfo(Cerealizable):
                 "TTL is too small: %s MinTTL: %s" % (self.p.ttl, MIN_REVOCATION_TTL))
         if self.p.ifID == 0:
             raise RevInfoValidationError("Invalid ifID: %s" % self.p.ifID)
-        if self.isd_as().is_zero():
+        self.isd_as()
+        if self._isd_as[0] == 0 or self._isd_as[1] == 0:
             raise RevInfoValidationError("Invalid ISD_AS: %s" % self.isd_as())
 
     def active(self):
         now = int(time.time())
         # Make sure the revocation timestamp is within the validity window
         assert self.p.timestamp <= now + 1, self.p.timestamp
-        return now < (self.p.timestamp + self.p.ttl)
+        return now <= (self.p.timestamp + self.p.ttl)
 
     def cmp_str(self):
         b = []

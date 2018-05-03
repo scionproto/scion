@@ -45,7 +45,7 @@ class SCIONDRevNotification(Cerealizable):
         return self._rev_info
 
     def short_desc(self):
-        return self.srev_info().rev_info().short_desc()
+        return self.srev_info().short_desc()
 
 
 class SCIONDRevReply(Cerealizable):  # pragma: no cover

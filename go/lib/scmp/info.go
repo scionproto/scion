@@ -170,14 +170,14 @@ var _ Info = (*InfoRevocation)(nil)
 
 type InfoRevocation struct {
 	*InfoPathOffsets
-	RawRev common.RawBytes
+	RawSRev common.RawBytes
 }
 
 func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
-	rawRev common.RawBytes) *InfoRevocation {
+	rawSRev common.RawBytes) *InfoRevocation {
 	return &InfoRevocation{
 		InfoPathOffsets: &InfoPathOffsets{InfoF: infoF, HopF: hopF, IfID: ifID, Ingress: ingress},
-		RawRev:          rawRev,
+		RawSRev:         rawSRev,
 	}
 }
 
@@ -188,18 +188,18 @@ func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse path offsets", err)
 	}
-	p.RawRev = b[8:]
+	p.RawSRev = b[8:]
 	return p, nil
 }
 func (r *InfoRevocation) Copy() Info {
 	return &InfoRevocation{
 		r.InfoPathOffsets.Copy().(*InfoPathOffsets),
-		append(common.RawBytes(nil), r.RawRev...),
+		append(common.RawBytes(nil), r.RawSRev...),
 	}
 }
 
 func (r *InfoRevocation) Len() int {
-	l := r.InfoPathOffsets.Len() + len(r.RawRev)
+	l := r.InfoPathOffsets.Len() + len(r.RawSRev)
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
@@ -208,13 +208,13 @@ func (r *InfoRevocation) Write(b common.RawBytes) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	count += copy(b[count:], r.RawRev)
+	count += copy(b[count:], r.RawSRev)
 	return util.FillPadding(b, count, common.LineLen), nil
 }
 
 func (r *InfoRevocation) String() string {
-	return fmt.Sprintf("InfoF=%d HopF=%d IfID=%d Ingress=%v RawRev=%v",
-		r.InfoF, r.HopF, r.IfID, r.Ingress, r.RawRev)
+	return fmt.Sprintf("InfoF=%d HopF=%d IfID=%d Ingress=%v RawSRev=%v",
+		r.InfoF, r.HopF, r.IfID, r.Ingress, r.RawSRev)
 }
 
 var _ Info = (*InfoExtIdx)(nil)

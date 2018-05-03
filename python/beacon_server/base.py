@@ -115,6 +115,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     ZK_REV_OBJ_MAX_AGE = MIN_REVOCATION_TTL
     # Revocation TTL
     REVOCATION_TTL = MIN_REVOCATION_TTL
+    # Revocation Overlapping (seconds)
+    REVOCATION_OVERLAP = 2
     # Interval to checked for timed out interfaces.
     IF_TIMEOUT_INTERVAL = 1
     # Interval to send keep-alive msgs
@@ -140,6 +142,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
         self.ifid_state_lock = RLock()
+        self.if_revocations = defaultdict(None)
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {PayloadClass.PCB: self.handle_pcb},
             PayloadClass.IFID: {PayloadClass.IFID: self.handle_ifid_packet},
@@ -531,9 +534,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     logging.error(
                         "Error parsing revocation info from ZK: %s", e)
                     continue
-                if not self.check_revocation(srev_info, "zk"):
+                try:
+                    self.check_revocation(srev_info)
+                except SCIONBaseError as e:
+                    logging.error("Revocation check from zookeeper for %s failed:\n%s",
+                                  srev_info.short_desc(), e)
                     continue
-                self.local_rev_cache.add(srev_info.copy())
+                self.local_rev_cache.add(srev_info)
 
     def _issue_revocations(self, revoked_ifs):
         """
@@ -561,6 +568,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             srev_info = SignedRevInfo.from_values(rev_info.copy().pack(),
                                                   ProtoSignType.ED25519, src)
             srev_info.sign(self.signing_key)
+            # Add to revocation cache
+            self.if_revocations[if_id] = srev_info
             self._process_revocation(srev_info)
             infos.append(IFStateInfo.from_values(if_id, False, srev_info))
         border_metas = []
@@ -582,14 +591,6 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
     def _handle_scmp_revocation(self, pld, meta):
         srev_info = SignedRevInfo.from_raw(pld.info.srev_info)
-        rev_info = srev_info.rev_info()
-        logging.debug("Received revocation via SCMP: %s (from %s)", rev_info.short_desc(), meta)
-        try:
-            rev_info.validate()
-        except SCIONBaseError as e:
-            logging.warning("Failed to validate SCMP RevInfo from %s: %s\n%s",
-                            meta, e, rev_info.short_desc())
-            return
         self._handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def _handle_revocation(self, cpld, meta):
@@ -597,7 +598,12 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         srev_info = pmgt.union
         rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        if not self.check_revocation(srev_info, meta):
+        logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
+        try:
+            self.check_revocation(srev_info)
+        except SCIONBaseError as e:
+            logging.error("Revocation check failed for %s from %s:\n%s",
+                          srev_info.short_desc(), meta, e)
             return
         self._process_revocation(srev_info)
 
@@ -677,14 +683,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         Periodically checks each interface state and issues an IF revocation, if
         no keep-alive message was received for IFID_TOUT.
         """
-        if_id_last_revoked = defaultdict(int)
         while self.run_flag.is_set():
             start_time = time.time()
             with self.ifid_state_lock:
                 to_revoke = []
-                for (if_id, if_state) in self.ifid_state.items():
+                for (ifid, if_state) in self.ifid_state.items():
                     if self._labels:
-                        metric = IF_STATE.labels(ifid=if_id, **self._labels)
+                        metric = IF_STATE.labels(ifid=ifid, **self._labels)
                         if if_state.is_active():
                             metric.set(0)
                         elif if_state.is_revoked():
@@ -693,15 +698,21 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                             metric.set(2)
                     if not if_state.is_expired():
                         # Interface hasn't timed out
+                        self.if_revocations[ifid] = None
                         continue
-                    if (if_state.is_revoked() and if_id_last_revoked[if_id] +
-                       self.REVOCATION_TTL > start_time):
-                        # Interface has already been revoked within the REVOCATION_TTL
-                        continue
-                    if_id_last_revoked[if_id] = start_time
+                    srev_info = self.if_revocations[ifid]
+                    if if_state.is_revoked() and srev_info:
+                        # Interface is revoked until the revocation time plus the revocation TTL,
+                        # we want to issue a new revocation REVOCATION_OVERLAP seconds
+                        # before it is expired
+                        revoked_until = srev_info.rev_info().p.timestamp + self.REVOCATION_TTL
+                        if revoked_until - self.REVOCATION_OVERLAP > start_time:
+                            # Interface has already been revoked within the REVOCATION_TTL -
+                            # REVOCATION_OVERLAP period
+                            continue
                     if not if_state.is_revoked():
-                        logging.info("IF %d went down.", if_id)
-                    to_revoke.append(if_id)
+                        logging.info("IF %d went down.", ifid)
+                    to_revoke.append(ifid)
                     if_state.revoke_if_expired()
                 if to_revoke:
                     self._issue_revocations(to_revoke)
@@ -722,17 +733,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     continue
                 srev_info = None
                 if state.is_revoked():
-                    br = self.ifid2br[ifid]
-                    rev_info = RevocationInfo.from_values(
-                        self.addr.isd_as, ifid, br.interfaces[ifid].link_type,
-                        int(time.time()), self.REVOCATION_TTL)
-                    chain = self._get_my_cert()
-                    _, cert_ver = chain.get_leaf_isd_as_ver()
-                    src = DefaultSignSrc.from_values(rev_info.isd_as(),
-                                                     cert_ver, self._get_my_trc().version).pack()
-                    srev_info = SignedRevInfo.from_values(
-                        rev_info.pack(), ProtoSignType.ED25519, src)
-                    srev_info.sign(self.signing_key)
+                    srev_info = self.if_revocations[ifid]
+                    if not srev_info:
+                        logging.warning("No revocation in cache for revoked IFID: %s", ifid)
+                        continue
                 infos.append(IFStateInfo.from_values(ifid, state.is_active(), srev_info))
             if not infos and not self._quiet_startup():
                 logging.warning("No IF state info to put in IFState update for %s.", meta)
