@@ -17,9 +17,6 @@ package pathmgr
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
-	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 
 	"github.com/scionproto/scion/go/lib/addr"

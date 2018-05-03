@@ -30,14 +30,19 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+type Logger log15.Logger
+type Handler log15.Handler
+
 var (
-	logDir     string
-	logLevel   string
-	logConsole string
-	logSize    int
-	logAge     int
-	logFlush   int
-	logBuf     *syncBuf
+	logDir         string
+	logLevel       string
+	logConsole     string
+	logSize        int
+	logAge         int
+	logFlush       int
+	logBuf         *syncBuf
+	logFileHandler Handler
+	logConsHandler Handler
 )
 
 func init() {
