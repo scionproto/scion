@@ -32,18 +32,6 @@ type Cfg struct {
 	ConfigVersion uint64
 }
 
-// postprocess sets the SIG IDs of the SIG objects in cfg according the keys in
-// SIGSet.
-func (cfg *Cfg) postprocess() {
-	// Populate IDs
-	for _, as := range cfg.ASes {
-		for id := range as.Sigs {
-			sig := as.Sigs[id]
-			sig.Id = id
-		}
-	}
-}
-
 // Load a JSON config file from path and parse it into a Cfg struct.
 func LoadFromFile(path string) (*Cfg, error) {
 	b, err := ioutil.ReadFile(path)
@@ -56,6 +44,18 @@ func LoadFromFile(path string) (*Cfg, error) {
 	}
 	cfg.postprocess()
 	return cfg, nil
+}
+
+// postprocess sets the SIG IDs of the SIG objects in cfg according the keys in
+// SIGSet.
+func (cfg *Cfg) postprocess() {
+	// Populate IDs
+	for _, as := range cfg.ASes {
+		for id := range as.Sigs {
+			sig := as.Sigs[id]
+			sig.Id = id
+		}
+	}
 }
 
 type ASEntry struct {

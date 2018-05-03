@@ -44,24 +44,24 @@ func TestLoadFromFile(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:1"): {
 						Nets: []*IPNet{
 							{
-								IP:   net.IP{192, 168, 1, 0},
-								Mask: net.CIDRMask(24, 32),
+								IP:   net.IP{192, 0, 2, 0},
+								Mask: net.CIDRMask(24, 8*net.IPv4len),
 							},
 							{
 								IP:   net.ParseIP("2001:DB8::"),
-								Mask: net.CIDRMask(48, 128),
+								Mask: net.CIDRMask(48, 8*net.IPv6len),
 							},
 						},
 						Sigs: SIGSet{
 							"remote-1": &SIG{
 								Id:        "remote-1",
-								Addr:      net.ParseIP("10.0.1.1"),
+								Addr:      net.ParseIP("192.0.2.1"),
 								CtrlPort:  1234,
 								EncapPort: 5678,
 							},
 							"remote-2": &SIG{
 								Id:        "remote-2",
-								Addr:      net.ParseIP("10.0.1.2"),
+								Addr:      net.ParseIP("192.0.2.2"),
 								CtrlPort:  65535,
 								EncapPort: 0,
 							},
@@ -70,8 +70,8 @@ func TestLoadFromFile(t *testing.T) {
 					xtest.MustParseIA("1-ff00:0:2"): {
 						Nets: []*IPNet{
 							{
-								IP:   net.IP{2, 0, 0, 0},
-								Mask: net.CIDRMask(16, 32),
+								IP:   net.IP{203, 0, 113, 0},
+								Mask: net.CIDRMask(24, 8*net.IPv4len),
 							},
 						},
 						Sigs: SIGSet{},
@@ -97,13 +97,15 @@ func TestLoadFromFile(t *testing.T) {
 
 	Convey("Test SIG config marshal/unmarshal", t, func() {
 		for _, tc := range testCases {
-			if *update {
-				xtest.MustMarshalJSONToFile(t, tc.Config, tc.FileName)
-			}
+			Convey(tc.Name, func() {
+				if *update {
+					xtest.MustMarshalJSONToFile(t, tc.Config, tc.FileName+".json")
+				}
 
-			cfg, err := LoadFromFile(filepath.Join("testdata", tc.FileName+".ref"))
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("cfg", *cfg, ShouldResemble, tc.Config)
+				cfg, err := LoadFromFile(filepath.Join("testdata", tc.FileName+".json"))
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("cfg", *cfg, ShouldResemble, tc.Config)
+			})
 		}
 	})
 }
