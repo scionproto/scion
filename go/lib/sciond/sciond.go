@@ -306,11 +306,11 @@ func (c *connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 
 func (c *connector) RevNotificationFromRaw(b []byte) (*RevReply, error) {
 	// Extract information from notification
-	ri, err := path_mgmt.NewSignedRevInfoFromRaw(b)
+	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(b)
 	if err != nil {
 		return nil, err
 	}
-	return c.RevNotification(ri)
+	return c.RevNotification(sRevInfo)
 }
 
 func (c *connector) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
@@ -324,7 +324,7 @@ func (c *connector) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevRepl
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_revNotification,
 			RevNotification: RevNotification{
-				RevInfo: sRevInfo,
+				SRevInfo: sRevInfo,
 			},
 		},
 		reliable.NilAppAddr,

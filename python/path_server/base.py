@@ -184,8 +184,12 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for raw in raw_entries:
             srev_info = SignedRevInfo.from_raw(raw)
             rev_info = srev_info.rev_info()
-            if not self.check_revocation(srev_info, "zk"):
-                return
+            try:
+                self.check_revocation(srev_info)
+            except SCIONBaseError as e:
+                logging.error("Revocation check from zookeeper failed for %s:\n%s",
+                              srev_info.short_desc(), e)
+                continue
             self._remove_revoked_segments(rev_info)
 
     @abstractmethod
@@ -220,25 +224,10 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(infos, IFStatePayload), type(infos)
         for info in infos.iter_infos():
             if not info.p.active and info.p.sRevInfo:
-                srev_info = info.srev_info()
-                rev_info = srev_info.rev_info()
-                try:
-                    rev_info.validate()
-                except SCIONBaseError as e:
-                    logging.warning("Failed to validate IFStateInfo RevInfo from %s: %s\n%s",
-                                    meta, e, rev_info.short_desc())
-                    continue
-                self._handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
+                self._handle_revocation(CtrlPayload(PathMgmt(info.srev_info())), meta)
 
     def _handle_scmp_revocation(self, pld, meta):
         srev_info = SignedRevInfo.from_raw(pld.info.srev_info)
-        rev_info = srev_info.rev_info()
-        try:
-            rev_info.validate()
-        except SCIONBaseError as e:
-            logging.error("Failed to validate SCMP RevInfo from %s: %s\n%s",
-                          meta, e, rev_info.short_desc())
-            return
         self._handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def _handle_revocation(self, cpld, meta):
@@ -255,16 +244,18 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         try:
             rev_info.validate()
         except SCIONBaseError as e:
-            # Validation already done in the IFStateInfo and SCMP paths, so a failure here means
-            # it's from a CtrlPld.
-            logging.error("Failed to validate CtrlPld RevInfo from %s: %s\n%s",
+            logging.error("Failed to validate RevInfo from %s: %s\n%s",
                           meta, e, rev_info.short_desc())
             return
 
         if srev_info in self.revocations:
             return
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        if not self.check_revocation(srev_info, meta):
+        try:
+            self.check_revocation(srev_info)
+        except SCIONBaseError as e:
+            logging.error("Revocation check failed for %s from %s:\n%s",
+                          srev_info.short_desc(), meta, e)
             return
 
         if meta.ia[0] != self.addr.isd_as[0]:
@@ -285,9 +276,9 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         :param rev_info: The revocation info
         :type rev_info: RevocationInfo
         """
-        def _handle_one_seg(seg, db):
-            rm, ltype = seg.rev_match(rev_info)
-            if rm and (ltype in [LinkType.PARENT, LinkType.CHILD] and
+        def _handle_one_seg(seg, db, core=False):
+            rm, ltype = seg.rev_match(rev_info, core)
+            if rm and (ltype in [LinkType.PARENT, LinkType.CHILD, LinkType.CORE] and
                db.delete(seg.get_hops_hash()) == DBResult.ENTRY_DELETED):
                 return 1
             return 0
@@ -302,7 +293,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             for down_segment in self.down_segments(full=True):
                 down_segs_removed += _handle_one_seg(down_segment, self.down_segments)
             for core_segment in self.core_segments(full=True):
-                core_segs_removed += _handle_one_seg(core_segment, self.core_segments)
+                core_segs_removed += _handle_one_seg(core_segment, self.core_segments, True)
 
         logging.debug("Removed segments revoked by [%s]: UP: %d DOWN: %d CORE: %d" %
                       (rev_info.short_desc(), up_segs_removed, down_segs_removed,

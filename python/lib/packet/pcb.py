@@ -297,7 +297,7 @@ class PathSegment(Cerealizable):
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
         return "".join(desc)
 
-    def rev_match(self, rev_info):
+    def rev_match(self, rev_info, core):
         """
         Check if a revocation matches the current PCB
         :param rev_info: Revocation Info to check
@@ -310,9 +310,10 @@ class PathSegment(Cerealizable):
             for i, pcbm in enumerate(asm.iter_pcbms()):
                 hof = pcbm.hof()
                 if rev_info.p.ifID == hof.ingress_if:
-                    return True, LinkType.PARENT if i == 0 else LinkType.PEER
+                    return True, LinkType.CORE if core else (LinkType.PARENT if i == 0
+                                                             else LinkType.PEER)
                 if rev_info.p.ifID == hof.egress_if:
-                    return True, LinkType.CHILD
+                    return True, LinkType.CORE if core else LinkType.CHILD
         return False, None
 
     def is_sibra(self):

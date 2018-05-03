@@ -103,7 +103,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	// Interface is revoked.
 	revInfo, err := state.SRevInfo.RevInfo()
 	if err != nil {
-		rp.Warn("Could not parse RevInfo for interface", "ifid", ifid)
+		rp.Warn("Could not parse RevInfo for interface", "ifid", *ifid, "err", err)
 		return nil
 	}
 	if revInfo == nil {
@@ -125,7 +125,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	}
 	sinfo := scmp.NewInfoRevocation(
 		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
-		rp.DirFrom == rcmn.DirExternal, state.RawRev)
+		rp.DirFrom == rcmn.DirExternal, state.RawSRev)
 	return common.NewBasicError(
 		errIntfRevoked,
 		scmp.NewError(scmp.C_Path, scmp.T_P_RevokedIF, sinfo, nil),

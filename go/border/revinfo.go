@@ -27,9 +27,9 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-// RawRevCallback is called to enqueue RevInfos for handling by the
+// RawSRevCallback is called to enqueue RevInfos for handling by the
 // RevInfoFwd goroutine.
-func (r *Router) RawRevCallback(args rpkt.RawRevCallbackArgs) {
+func (r *Router) RawSRevCallback(args rpkt.RawSRevCallbackArgs) {
 	select {
 	case r.sRevInfoQ <- args:
 	default:

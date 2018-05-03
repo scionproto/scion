@@ -32,13 +32,12 @@ const MinRevTTL = 10 * time.Second // MinRevTTL is the minimum lifetime of a rev
 
 var _ common.Timeout = (*RevTimeError)(nil)
 
-type RevTimeError struct {
-	Msg string
-}
+type RevTimeError string
 
 func NewRevTimeError(ts uint64, ttl uint32) RevTimeError {
-	return RevTimeError{Msg: fmt.Sprintf(
-		"Revocation is not valid in window, timestamp: %d, TTL %ds.", ts, ttl)}
+	return RevTimeError(fmt.Sprintf(
+		"Revocation is expired, timestamp: %s, TTL %ds.",
+		util.TimeToString(util.USecsToTime(ts)), ttl))
 }
 
 func (ee RevTimeError) Timeout() bool {
@@ -46,7 +45,7 @@ func (ee RevTimeError) Timeout() bool {
 }
 
 func (ee RevTimeError) Error() string {
-	return ee.Msg
+	return string(ee)
 }
 
 var _ proto.Cerealizable = (*RevInfo)(nil)
@@ -77,8 +76,12 @@ func (r *RevInfo) Active() error {
 	}
 	now := uint64(time.Now().Unix())
 	// Revocation is not valid if timestamp is not within the TTL window
-	if r.Timestamp > now+1 || r.Timestamp+uint64(r.TTL) < now {
+	if r.Timestamp+uint64(r.TTL) < now {
 		return NewRevTimeError(r.Timestamp, r.TTL)
+	}
+	if r.Timestamp > now+1 {
+		return common.NewBasicError("Revocation timestamp is in the future.", nil,
+			"timestamp", util.TimeToString(util.USecsToTime(r.Timestamp)))
 	}
 	return nil
 }

@@ -50,7 +50,7 @@ type IFStateInfo struct {
 func (i *IFStateInfo) String() string {
 	desc := fmt.Sprintf("IfID: %v, Active: %v", i.IfID, i.Active)
 	if i.SRevInfo != nil {
-		desc += fmt.Sprintf(", SRevInfo: %v", i.SRevInfo)
+		desc += fmt.Sprintf(", SRevInfo: %s", i.SRevInfo)
 	}
 	return desc
 }

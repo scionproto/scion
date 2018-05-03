@@ -41,6 +41,9 @@ from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.rev_info import (
+    CertFetchError,
+    RevInfoExpiredError,
+    RevInfoValidationError,
     RevocationInfo,
     SignedRevInfo,
     SignedRevInfoVerificationError
@@ -194,9 +197,14 @@ class SCIONDaemon(SCIONElement):
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
         recs = path_reply.recs()
         for srev_info in recs.iter_srev_infos():
-            if not self.check_revocation(srev_info, meta):
+            try:
+                self.check_revocation(srev_info)
+            except SCIONBaseError as e:
+                logging.error("Revocation check failed for %s from %s:\n%s",
+                              srev_info.short_desc(), meta, e)
                 continue
             self.rev_cache.add(srev_info)
+            self.remove_revoked_segments(srev_info.rev_info())
 
         req = path_reply.req()
         key = req.dst_ia(), req.flags()
@@ -421,28 +429,35 @@ class SCIONDaemon(SCIONElement):
         srev_info = pmgt.union
         rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        logging.debug("Revocation info received: %s", rev_info.short_desc())
+        logging.debug("Received revocation: %s from %s", srev_info.short_desc(), meta)
         try:
-            rev_info.validate()
-        except SCIONBaseError as e:
-            logging.error("Failed to validate RevInfo from %s: %s", meta, e)
+            self.check_revocation(srev_info)
+        except RevInfoValidationError as e:
+            logging.error("Failed to validate RevInfo %s from %s: %s",
+                          srev_info.short_desc(), meta, e)
             return SCIONDRevReplyStatus.INVALID
-        if not rev_info.active():
-            logging.warning(
-                "Failed to verify validity: timestamp %s, current timestamp %s, TTL %d."
-                % (rev_info.p.timestamp, str(time.time()), rev_info.p.ttl))
+        except RevInfoExpiredError as e:
+            logging.warning("Failed to verify RevInfo validity, %s from %s: %s",
+                            srev_info.short_desc(), meta, e)
             return SCIONDRevReplyStatus.STALE
-        cert = self.trust_store.get_cert(rev_info.isd_as())
-        if not cert:
-            logging.error("Failed to fetch cert for ISD-AS: %s", rev_info.isd_as())
+        except CertFetchError as e:
+            logging.error("Failed to fetch certificate for SignedRevInfo %s from %s: %s",
+                          srev_info.short_desc(), meta, e)
             return SCIONDRevReplyStatus.UNKNOWN
-        try:
-            srev_info.verify(cert.as_cert.subject_sig_key_raw)
         except SignedRevInfoVerificationError as e:
-            logging.error("Failed to verify SRevInfo from %s: %s", meta, e)
+            logging.error("Failed to verify SRevInfo %s from %s: %s",
+                          srev_info.short_desc(), meta, e)
             return SCIONDRevReplyStatus.SIGFAIL
+        except SCIONBaseError as e:
+            logging.error("Revocation check failed for %s from %s:\n%s",
+                          srev_info.short_desc(), meta, e)
+            return
 
         self.rev_cache.add(srev_info)
+        self.remove_revoked_segments(rev_info)
+        return SCIONDRevReplyStatus.VALID
+
+    def remove_revoked_segments(self, rev_info):
         # Go through all segment databases and remove affected segments.
         removed_up = removed_core = removed_down = 0
         if rev_info.p.linkType == LinkType.CORE:
@@ -455,7 +470,6 @@ class SCIONDaemon(SCIONElement):
 
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
                      (removed_up, removed_core, removed_down))
-        return SCIONDRevReplyStatus.VALID
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
