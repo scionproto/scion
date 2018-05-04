@@ -128,7 +128,7 @@ func benchmark(b *testing.B, setup SetupFunc, client EndpointFunc, server Endpoi
 			b.Fatalf("Unable to accept err=%v", err)
 		}
 		data := setup()
-		server(conn, data)
+		server(conn.(*Conn), data)
 		conn.Close()
 		lconn.Close()
 	}()

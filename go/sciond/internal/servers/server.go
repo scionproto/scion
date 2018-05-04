@@ -16,6 +16,7 @@ package servers
 
 import (
 	"context"
+	"net"
 	"sync"
 
 	log "github.com/inconshreveable/log15"
@@ -27,21 +28,27 @@ import (
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
-// RSockServers listens for new RSock connections on a UNIX domain with
-// SOCK_STREAM socket. Whenever a new connection is accepted, an SCIOND API
-// server is created to handle the connection.
-//
-// The zero value for RSockServer is a valid configuration.
-type RSockServer struct {
-	address  string
-	msger    infra.Messenger
-	log      log.Logger
+// Server listens for new connections on a "unixpacket" or "rsock" network.
+// Whenever a new connection is accepted, a SCIOND API server is created to
+// handle the connection.
+type Server struct {
+	network string
+	address string
+	msger   infra.Messenger
+	log     log.Logger
+
 	mu       sync.Mutex // protect access to listener during init/close
-	listener *reliable.Listener
+	listener net.Listener
 }
 
-func NewRSockServer(address string, msger infra.Messenger, logger log.Logger) *RSockServer {
-	return &RSockServer{
+// NewServer initializes a new server at address on the specified network. The
+// server will use msger for network access. To start listening on the address,
+// call ListenAndServe.
+//
+// Network must be "unixpacket" or "rsock".
+func NewServer(network string, address string, msger infra.Messenger, logger log.Logger) *Server {
+	return &Server{
+		network: network,
 		address: address,
 		msger:   msger,
 		log:     logger,
@@ -54,33 +61,51 @@ func NewRSockServer(address string, msger infra.Messenger, logger log.Logger) *R
 // For each accepted connection, a SCIONDMsg server is started as a separate
 // goroutine; the server will manage the connection until it is closed by the
 // client.
-func (srv *RSockServer) ListenAndServe() error {
-	var err error
+func (srv *Server) ListenAndServe() error {
 	srv.mu.Lock()
-	srv.listener, err = reliable.Listen(srv.address)
+	listener, err := srv.listen()
 	srv.mu.Unlock()
 	if err != nil {
 		return common.NewBasicError("unable to listen on reliable socket", nil,
 			"address", srv.address, "err", err)
 	}
+	srv.listener = listener
+
 	for {
 		conn, err := srv.listener.Accept()
 		if err != nil {
 			srv.log.Warn("unable to accept reliable socket conn", "err", err)
+			continue
 		}
 
 		// Launch server for SCIONDMsg messages on the accepted conn
 		go func() {
 			defer liblog.LogPanicAndExit()
-			NewAPI(transport.NewPacketTransport(conn)).Serve()
+			pconn := conn.(net.PacketConn)
+			NewAPI(transport.NewPacketTransport(pconn)).Serve()
 		}()
+	}
+}
+
+func (srv *Server) listen() (net.Listener, error) {
+	switch srv.network {
+	case "unixpacket":
+		laddr, err := net.ResolveUnixAddr("unixpacket", srv.address)
+		if err != nil {
+			return nil, err
+		}
+		return net.ListenUnix("unixpacket", laddr)
+	case "rsock":
+		return reliable.Listen(srv.address)
+	default:
+		return nil, common.NewBasicError("Unknown network", nil, "net", srv.network)
 	}
 }
 
 // Close makes the ReliableSockServer stop listening for new reliable socket
 // connections, and immediately closes all running SCIONDMsg servers that have
 // been launched by this server.
-func (srv *RSockServer) Close() error {
+func (srv *Server) Close() error {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
@@ -93,7 +118,7 @@ func (srv *RSockServer) Close() error {
 // Shutdown makes the ReliableSockServer stop listening for new reliable socket
 // connections, and cleanly shuts down all running SCIONDMsg servers that have
 // been launched by this server.
-func (srv *RSockServer) Shutdown(ctx context.Context) error {
+func (srv *Server) Shutdown(ctx context.Context) error {
 	// Ignore context during close as it should rarely block for non-negligible
 	// time.
 	if err := srv.Close(); err != nil {

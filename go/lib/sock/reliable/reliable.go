@@ -524,7 +524,7 @@ func Listen(laddr string) (*Listener, error) {
 
 // Accept returns sockets which implement the SCION ReliableSocket protocol for reading
 // and writing.
-func (listener *Listener) Accept() (*Conn, error) {
+func (listener *Listener) Accept() (net.Conn, error) {
 	c, err := listener.UnixListener.Accept()
 	if err != nil {
 		return nil, err

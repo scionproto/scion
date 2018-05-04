@@ -239,7 +239,7 @@ func server(sc *xtest.SC, tc *TestCase, listener *Listener) {
 	sc.SoMsg("server conn", sconn, ShouldNotBeNil)
 
 	b := make([]byte, len(tc.want))
-	_, err = io.ReadFull(sconn.UnixConn, b)
+	_, err = io.ReadFull(sconn.(*Conn).UnixConn, b)
 	sc.SoMsg("server read err", err, ShouldBeNil)
 	sc.SoMsg("server read msg", b, ShouldResemble, tc.want)
 
