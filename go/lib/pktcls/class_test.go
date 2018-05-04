@@ -67,16 +67,21 @@ func TestClassMap(t *testing.T) {
 				),
 			},
 		},
+		{
+			Name:     "nil ClassMap stays nil",
+			FileName: "class_2",
+			Classes:  nil,
+		},
 	}
 
 	Convey("Test class marshal/unmarshal", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				if *update {
-					xtest.MustMarshalJSONToFile(t, tc.Classes, tc.FileName)
+					xtest.MustMarshalJSONToFile(t, tc.Classes, tc.FileName+".json")
 				}
 
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName + ".json"))
 				xtest.FailOnErr(t, err)
 
 				// Check that marshaling matches reference files

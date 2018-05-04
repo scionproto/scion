@@ -38,22 +38,17 @@ func LoadFromFile(path string) (*Cfg, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to open SIG config", err)
 	}
-	cfg, err := Parse(b)
-	if err != nil {
-		return nil, err
-	}
-	if len(cfg.ASes) == 0 {
-		return nil, common.NewBasicError("Empty ASTable in config", nil)
-	}
-	return cfg, nil
-}
-
-// Parse a JSON config from b into a Cfg struct.
-func Parse(b common.RawBytes) (*Cfg, error) {
 	cfg := &Cfg{}
 	if err := json.Unmarshal(b, cfg); err != nil {
 		return nil, common.NewBasicError("Unable to parse SIG config", err)
 	}
+	cfg.postprocess()
+	return cfg, nil
+}
+
+// postprocess sets the SIG IDs of the SIG objects in cfg according the keys in
+// SIGSet.
+func (cfg *Cfg) postprocess() {
 	// Populate IDs
 	for _, as := range cfg.ASes {
 		for id := range as.Sigs {
@@ -61,7 +56,6 @@ func Parse(b common.RawBytes) (*Cfg, error) {
 			sig.Id = id
 		}
 	}
-	return cfg, nil
 }
 
 type ASEntry struct {
@@ -85,13 +79,21 @@ func (in *IPNet) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (in *IPNet) MarshalJSON() ([]byte, error) {
+	return json.Marshal(in.String())
+}
+
 func (in *IPNet) IPNet() *net.IPNet {
 	return (*net.IPNet)(in)
 }
 
+func (in *IPNet) String() string {
+	return (*net.IPNet)(in).String()
+}
+
 // SIG represents a SIG in a remote IA.
 type SIG struct {
-	Id        siginfo.SigIdType
+	Id        siginfo.SigIdType `json:"-"`
 	Addr      net.IP
 	CtrlPort  uint16
 	EncapPort uint16

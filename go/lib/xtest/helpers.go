@@ -126,7 +126,7 @@ func MustReadFromFile(t *testing.T, baseName string) []byte {
 
 // ExpandPath returns testdata/file.
 func ExpandPath(file string) string {
-	return filepath.Join("testdata", fmt.Sprintf("%s.ref", file))
+	return filepath.Join("testdata", fmt.Sprintf("%s", file))
 }
 
 // MustParseIA parses s and returns the corresponding addr.IA object. It

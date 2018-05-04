@@ -30,6 +30,9 @@ func (am ActionMap) MarshalJSON() ([]byte, error) {
 		}
 		m[k] = (*json.RawMessage)(&b)
 	}
+	if len(m) == 0 {
+		m = nil
+	}
 	return json.Marshal(m)
 }
 
@@ -47,6 +50,9 @@ func (am *ActionMap) UnmarshalJSON(b []byte) error {
 		}
 		action.SetName(k)
 		(*am)[k] = action
+	}
+	if len(*am) == 0 {
+		*am = nil
 	}
 	return nil
 }

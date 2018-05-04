@@ -169,16 +169,21 @@ func TestActionMap(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "nil ActionMap stays nil",
+			FileName: "act_10",
+			Actions:  nil,
+		},
 	}
 
 	Convey("Test action map marshal/unmarshal", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				if *update {
-					xtest.MustMarshalJSONToFile(t, tc.Actions, tc.FileName)
+					xtest.MustMarshalJSONToFile(t, tc.Actions, tc.FileName+".json")
 				}
 
-				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName + ".json"))
 				xtest.FailOnErr(t, err)
 
 				// Check that marshaling matches reference files
