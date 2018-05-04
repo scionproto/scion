@@ -63,13 +63,13 @@ class TestSibraExtSteadyAddHop(object):
         # Tests
         super_addhop.assert_called_once_with(inst, "key")
 
-    def _check_setup(self, up):
+    def _check_setup(self, cons_dir):
         inst = SibraExtSteady()
         inst._get_prev_raw = create_mock()
         inst.setup = True
         inst.path_ids = "path ids"
-        iof = create_mock(["up_flag"])
-        iof.up_flag = up
+        iof = create_mock(["cons_dir_flag"])
+        iof.cons_dir_flag = cons_dir
         hof = create_mock(["egress_if", "ingress_if"])
         path = create_mock(["get_hof", "get_iof"])
         path.get_iof.return_value = iof
@@ -81,13 +81,13 @@ class TestSibraExtSteadyAddHop(object):
         # Call
         inst._add_hop("key", spkt)
         # Tests
-        if up:
+        if cons_dir:
             req.add_hop.assert_called_once_with(
-                hof.egress_if, hof.ingress_if, inst._get_prev_raw.return_value,
+                hof.ingress_if, hof.egress_if, inst._get_prev_raw.return_value,
                 "key", "path ids")
         else:
             req.add_hop.assert_called_once_with(
-                hof.ingress_if, hof.egress_if, inst._get_prev_raw.return_value,
+                hof.egress_if, hof.ingress_if, inst._get_prev_raw.return_value,
                 "key", "path ids")
 
     def test_setup(self):

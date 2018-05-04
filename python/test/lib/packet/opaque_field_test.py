@@ -301,29 +301,29 @@ class TestOpaqueFieldListReverseLabel(object):
         ntools.assert_raises(SCIONKeyError, inst.reverse_label, "nope")
 
 
-class TestOpaqueFieldListReverseUpFlag(object):
+class TestOpaqueFieldListReverseConsDirFlag(object):
     """
-    Unit tests for lib.packet.opaque_field.OpaqueFieldList.reverse_up_flag
+    Unit tests for lib.packet.opaque_field.OpaqueFieldList.reverse_cons_dir_flag
     """
     def test_basic(self):
         inst = _of_list_setup()
-        iof = create_mock(["up_flag"])
-        iof.up_flag = True
+        iof = create_mock(["cons_dir_flag"])
+        iof.cons_dir_flag = True
         inst._labels["down"] = [iof]
         # Call
-        inst.reverse_up_flag("down")
+        inst.reverse_cons_dir_flag("down")
         # Tests
-        ntools.assert_false(iof.up_flag)
+        ntools.assert_false(iof.cons_dir_flag)
 
     def test_empty(self):
         inst = _of_list_setup()
         # Call
-        inst.reverse_up_flag("down")
+        inst.reverse_cons_dir_flag("down")
 
     def test_label_error(self):
         inst = _of_list_setup()
         # Call
-        ntools.assert_raises(SCIONKeyError, inst.reverse_up_flag, "nope")
+        ntools.assert_raises(SCIONKeyError, inst.reverse_cons_dir_flag, "nope")
 
 
 class TestOpaqueFieldListPack(object):
