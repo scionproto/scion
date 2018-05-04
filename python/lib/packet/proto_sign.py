@@ -29,66 +29,6 @@ from lib.errors import SCIONBaseError, SCIONParseError
 from lib.util import iso_timestamp
 
 
-class DefaultSignSrc(Serializable):
-    """
-    Default src for proto.Sign
-    """
-
-    PREFIX = "DEFAULT: "
-    FMT_RE = re.compile(r"^" + PREFIX + r"IA: (\S+) CHAIN: (\d+) TRC: (\d+)$")
-
-    def __init__(self, raw: bytes = None) -> None:
-        """
-        :param bytes raw: The raw src.
-        :raises: SCIONParseError
-        """
-        self.ia = ISD_AS()
-        self.trc_ver = 0
-        self.chain_ver = 0
-        super().__init__(raw)
-
-    def _parse(self, raw: bytes) -> None:
-        try:
-            decoded = raw.decode("utf-8")
-        except UnicodeDecodeError as e:
-            raise SCIONParseError(e) from None
-        groups = self.FMT_RE.findall(decoded)
-        if not groups:
-            raise SCIONParseError("Input does not match pattern. Decoded: %s" % decoded) from None
-        try:
-            self.ia = ISD_AS(groups[0][0])
-        except SCIONParseError as e:
-            raise SCIONParseError(
-                "Unable to parse IA. Decoded: %s error: %s" % (decoded, e)) from None
-        self.chain_ver = groups[0][1]
-        self.trc_ver = groups[0][2]
-
-    @classmethod
-    def from_values(cls, ia: ISD_AS, chain_ver: int, trc_ver: int) -> 'DefaultSignSrc':
-        """
-        :param ISD_AS ia: ISD-AS of the signing AS.
-        :param int chain_ver: Version of the certificate authenticating the signing key.
-        :param int trc_ver: Version of the TRC authenticating the certificate chain.
-        :returns: the sign src
-        :rtype: DefaultSignSrc
-        """
-        inst = cls()
-        inst.ia = ia
-        inst.chain_ver = chain_ver
-        inst.trc_ver = trc_ver
-        return inst
-
-    def pack(self) -> bytes:
-        return str(self).encode("utf-8")
-
-    def __len__(self) -> int:
-        return len(self.pack())
-
-    def __str__(self) -> str:
-        return "%sIA: %s CHAIN: %s TRC: %s" % (
-            DefaultSignSrc.PREFIX, self.ia, self.chain_ver, self.trc_ver)
-
-
 class ProtoSignError(SCIONBaseError):
     pass
 
@@ -168,5 +108,62 @@ class ProtoSignedBlob(Cerealizable):
     def verify(self, key):
         return self.psign.verify(key, self.p.blob)
 
-    def get_signer_from_proto_sign(self):
-        return DefaultSignSrc(self.psign.p.src).ia
+
+class DefaultSignSrc(Serializable):
+    """
+    Default src for proto.Sign
+    """
+
+    PREFIX = "DEFAULT: "
+    FMT_RE = re.compile(r"^" + PREFIX + r"IA: (\S+) CHAIN: (\d+) TRC: (\d+)$")
+
+    def __init__(self, raw: bytes = None) -> None:
+        """
+        :param bytes raw: The raw src.
+        :raises: SCIONParseError
+        """
+        self.ia = ISD_AS()
+        self.trc_ver = 0
+        self.chain_ver = 0
+        super().__init__(raw)
+
+    def _parse(self, raw: bytes) -> None:
+        try:
+            decoded = raw.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise SCIONParseError(e) from None
+        groups = self.FMT_RE.findall(decoded)
+        if not groups:
+            raise SCIONParseError("Input does not match pattern. Decoded: %s" % decoded) from None
+        try:
+            self.ia = ISD_AS(groups[0][0])
+        except SCIONParseError as e:
+            raise SCIONParseError(
+                "Unable to parse IA. Decoded: %s error: %s" % (decoded, e)) from None
+        self.chain_ver = groups[0][1]
+        self.trc_ver = groups[0][2]
+
+    @classmethod
+    def from_values(cls, ia: ISD_AS, chain_ver: int, trc_ver: int) -> 'DefaultSignSrc':
+        """
+        :param ISD_AS ia: ISD-AS of the signing AS.
+        :param int chain_ver: Version of the certificate authenticating the signing key.
+        :param int trc_ver: Version of the TRC authenticating the certificate chain.
+        :returns: the sign src
+        :rtype: DefaultSignSrc
+        """
+        inst = cls()
+        inst.ia = ia
+        inst.chain_ver = chain_ver
+        inst.trc_ver = trc_ver
+        return inst
+
+    def pack(self) -> bytes:
+        return str(self).encode("utf-8")
+
+    def __len__(self) -> int:
+        return len(self.pack())
+
+    def __str__(self) -> str:
+        return "%sIA: %s CHAIN: %s TRC: %s" % (
+            DefaultSignSrc.PREFIX, self.ia, self.chain_ver, self.trc_ver)

@@ -75,7 +75,7 @@ from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.rev_info import (
-    CertFetchError,
+    SignedRevInfoCertFetchError,
     RevInfoExpiredError
 )
 from lib.packet.scion import (
@@ -1265,6 +1265,7 @@ class SCIONElement(object):
         # FIXME(worxli): different cert versions should be handled (#1545)
         cert = self.trust_store.get_cert(rev_info.isd_as())
         if not cert:
-            raise CertFetchError("Failed to fetch cert for ISD-AS: %s" % rev_info.isd_as())
+            raise SignedRevInfoCertFetchError(
+                "Failed to fetch cert for SRevInfo: %s" % srev_info.short_desc())
         srev_info.verify(cert.as_cert.subject_sig_key_raw)
         logging.debug("Successfully validated and verified RevInfo %s" % rev_info)

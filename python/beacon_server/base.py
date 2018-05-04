@@ -142,7 +142,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
         self.ifid_state_lock = RLock()
-        self.if_revocations = defaultdict(None)
+        self.if_revocations = dict()
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PCB: {PayloadClass.PCB: self.handle_pcb},
             PayloadClass.IFID: {PayloadClass.IFID: self.handle_ifid_packet},
@@ -698,15 +698,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                             metric.set(2)
                     if not if_state.is_expired():
                         # Interface hasn't timed out
-                        self.if_revocations[ifid] = None
+                        self.if_revocations.pop(ifid, None)
                         continue
-                    srev_info = self.if_revocations[ifid]
+                    srev_info = self.if_revocations.get(ifid, None)
                     if if_state.is_revoked() and srev_info:
                         # Interface is revoked until the revocation time plus the revocation TTL,
                         # we want to issue a new revocation REVOCATION_OVERLAP seconds
                         # before it is expired
-                        revoked_until = srev_info.rev_info().p.timestamp + self.REVOCATION_TTL
-                        if revoked_until - self.REVOCATION_OVERLAP > start_time:
+                        rev_info = srev_info.rev_info()
+                        if (rev_info.p.timestamp + rev_info.p.ttl -
+                           self.REVOCATION_OVERLAP > start_time):
                             # Interface has already been revoked within the REVOCATION_TTL -
                             # REVOCATION_OVERLAP period
                             continue
@@ -733,7 +734,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     continue
                 srev_info = None
                 if state.is_revoked():
-                    srev_info = self.if_revocations[ifid]
+                    srev_info = self.if_revocations.get(ifid, None)
                     if not srev_info:
                         logging.warning("No revocation in cache for revoked IFID: %s", ifid)
                         continue

@@ -26,7 +26,7 @@ import proto.rev_info_capnp as P
 from lib.defines import MIN_REVOCATION_TTL
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
-from lib.packet.proto_sign import ProtoSignedBlob
+from lib.packet.proto_sign import DefaultSignSrc, ProtoSignedBlob
 from lib.packet.scion_addr import ISD_AS
 from lib.types import LinkType
 from lib.util import iso_timestamp
@@ -36,16 +36,16 @@ class SignedRevInfoVerificationError(SCIONBaseError):
     """Verification of SignedRevInfo failed"""
 
 
-class CertFetchError(SCIONBaseError):
+class SignedRevInfoCertFetchError(SCIONBaseError):
     """Failed to fetch cert to verify signature"""
 
 
 class RevInfoValidationError(SCIONBaseError):
-    """Active check on RevInfo failed"""
+    """Validation of RevInfo failed"""
 
 
 class RevInfoExpiredError(SCIONBaseError):
-    """Validation of RevInfo failed"""
+    """Active check on RevInfo failed"""
 
 
 class SignedRevInfo(ProtoSignedBlob):
@@ -68,7 +68,7 @@ class SignedRevInfo(ProtoSignedBlob):
         Verfiy the signature
         """
         issuer = self.rev_info().isd_as()
-        signer = self.get_signer_from_proto_sign()
+        signer = DefaultSignSrc(self.psign.p.src).ia
         if issuer != signer:
             raise SignedRevInfoVerificationError(
                 "SignedRevInfo signer (%s) does not match revocation issuer (%s)" %

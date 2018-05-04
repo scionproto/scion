@@ -41,7 +41,7 @@ from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.rev_info import (
-    CertFetchError,
+    SignedRevInfoCertFetchError,
     RevInfoExpiredError,
     RevInfoValidationError,
     RevocationInfo,
@@ -437,10 +437,9 @@ class SCIONDaemon(SCIONElement):
                           srev_info.short_desc(), meta, e)
             return SCIONDRevReplyStatus.INVALID
         except RevInfoExpiredError as e:
-            logging.warning("Failed to verify RevInfo validity, %s from %s: %s",
-                            srev_info.short_desc(), meta, e)
+            logging.info("Ignoring expired Revinfo, %s from %s", srev_info.short_desc(), meta)
             return SCIONDRevReplyStatus.STALE
-        except CertFetchError as e:
+        except SignedRevInfoCertFetchError as e:
             logging.error("Failed to fetch certificate for SignedRevInfo %s from %s: %s",
                           srev_info.short_desc(), meta, e)
             return SCIONDRevReplyStatus.UNKNOWN
@@ -451,7 +450,7 @@ class SCIONDaemon(SCIONElement):
         except SCIONBaseError as e:
             logging.error("Revocation check failed for %s from %s:\n%s",
                           srev_info.short_desc(), meta, e)
-            return
+            return SCIONDRevReplyStatus.UNKNOWN
 
         self.rev_cache.add(srev_info)
         self.remove_revoked_segments(rev_info)

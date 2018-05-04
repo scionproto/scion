@@ -235,7 +235,7 @@ func (r *PR) revoke(b common.RawBytes) {
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(b)
 	if err != nil {
 		log.Error("Revocation failed, unable to parse signed revocation info",
-			"sRevInfo", b, "err", err)
+			"raw", b, "err", err)
 		return
 	}
 	conn, err := r.sciondService.Connect()
@@ -256,7 +256,7 @@ func (r *PR) revoke(b common.RawBytes) {
 	revInfo, err := sRevInfo.RevInfo()
 	if err != nil {
 		log.Error("Revocation failed, unable to parse revocation info",
-			"revInfo", revInfo, "err", err)
+			"sRevInfo", sRevInfo, "err", err)
 		return
 	}
 	switch reply.Result {

@@ -101,13 +101,14 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		return nil
 	}
 	// Interface is revoked.
-	revInfo, err := state.SRevInfo.RevInfo()
-	if err != nil {
-		rp.Warn("Could not parse RevInfo for interface", "ifid", *ifid, "err", err)
+	sRevInfo := state.SRevInfo
+	if sRevInfo == nil {
+		rp.Warn("No SRevInfo for revoked interface", "ifid", *ifid)
 		return nil
 	}
-	if revInfo == nil {
-		rp.Warn("No RevInfo for revoked interface", "ifid", *ifid)
+	revInfo, err := sRevInfo.RevInfo()
+	if err != nil {
+		rp.Warn("Could not parse RevInfo for interface", "ifid", *ifid, "err", err)
 		return nil
 	}
 	// Check that the revocation timestamp is within the TTL.
