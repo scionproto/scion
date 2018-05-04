@@ -292,15 +292,15 @@ func (b *Backend) insertInterfaces(ases []*seg.ASEntry, segRowID int64) error {
 			if err != nil {
 				return common.NewBasicError("Failed to extract hop field", err)
 			}
-			if hof.Ingress != 0 {
-				_, err = stmt.Exec(ia.I, ia.A, hof.Ingress, segRowID)
+			if hof.ConsIngress != 0 {
+				_, err = stmt.Exec(ia.I, ia.A, hof.ConsIngress, segRowID)
 				if err != nil {
 					return common.NewBasicError("Failed to insert Ingress into IntfToSeg", err)
 				}
 			}
 			// Only insert the Egress interface for the first hop entry in an AS entry.
-			if idx == 0 && hof.Egress != 0 {
-				_, err := stmt.Exec(ia.I, ia.A, hof.Egress, segRowID)
+			if idx == 0 && hof.ConsEgress != 0 {
+				_, err := stmt.Exec(ia.I, ia.A, hof.ConsEgress, segRowID)
 				if err != nil {
 					return common.NewBasicError("Failed to insert Egress into IntfToSeg", err)
 				}

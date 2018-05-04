@@ -136,8 +136,8 @@ local scion_path_info_flags_peer = ProtoField.bool("scion.path.info.flags.peer",
     "Peer", 8, nil, 0x4)
 local scion_path_info_flags_shortcut = ProtoField.bool("scion.path.info.flags.shortcut",
     "Shortcut", 8, nil, 0x2)
-local scion_path_info_flags_up = ProtoField.bool("scion.path.info.flags.up",
-    "Up", 8, nil, 0x1)
+local scion_path_info_flags_cons_dir = ProtoField.bool("scion.path.info.flags.cons_dir",
+    "ConsDir", 8, nil, 0x1)
 -- XXX(kormat): This *should* be base.UTC, but that seems to be bugged in ubuntu 16.04's
 -- version of wireshark. Amazingly, using the raw enum value works.
 -- https://github.com/wireshark/wireshark/blob/2832f4e97d77324b4e46aac40dae0ce898ae559d/epan/time_fmt.h#L44
@@ -235,7 +235,7 @@ scion_proto.fields={
     scion_path_info_flags,
     scion_path_info_flags_peer,
     scion_path_info_flags_shortcut,
-    scion_path_info_flags_up,
+    scion_path_info_flags_cons_dir,
     scion_path_info_ts,
     scion_path_info_isd,
     scion_path_info_hops,
@@ -488,7 +488,7 @@ function parse_info_field(buffer, tree)
     flagsT:append_text(", " .. info_flag_desc(flags:uint()))
     flagsT:add(scion_path_info_flags_peer, flags)
     flagsT:add(scion_path_info_flags_shortcut, flags)
-    flagsT:add(scion_path_info_flags_up, flags)
+    flagsT:add(scion_path_info_flags_cons_dir, flags)
     local ts = buffer(1, 4):uint()
     t:add(scion_path_info_ts, buffer(1, 4))
     t:add(scion_path_info_isd, buffer(5, 2))
@@ -501,9 +501,9 @@ end
 function info_flag_desc(flag)
     local desc = {}
     if bit.band(flag, 0x1) > 0 then
-        table.insert(desc, "UP")
+        table.insert(desc, "CONS_DIR")
     else
-        table.insert(desc, "DOWN")
+        table.insert(desc, "NOT_CONS_DIR")
     end
     if bit.band(flag, 0x2) > 0 then
         if bit.band(flag, 0x4) > 0 then

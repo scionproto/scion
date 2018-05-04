@@ -78,8 +78,8 @@ func (ps *PathSegment) ID() (common.RawBytes, error) {
 			if err != nil {
 				return nil, err
 			}
-			binary.Write(h, common.Order, hopf.Ingress)
-			binary.Write(h, common.Order, hopf.Egress)
+			binary.Write(h, common.Order, hopf.ConsIngress)
+			binary.Write(h, common.Order, hopf.ConsEgress)
 		}
 		ps.id = h.Sum(nil)
 	}
@@ -203,12 +203,12 @@ func (ps *PathSegment) String() string {
 			continue
 		}
 		hop_desc := []string{}
-		if hop.Ingress > 0 {
-			hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.Ingress))
+		if hop.ConsIngress > 0 {
+			hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.ConsIngress))
 		}
 		hop_desc = append(hop_desc, ase.IA().String())
-		if hop.Egress > 0 {
-			hop_desc = append(hop_desc, fmt.Sprintf(" %v", hop.Egress))
+		if hop.ConsEgress > 0 {
+			hop_desc = append(hop_desc, fmt.Sprintf(" %v", hop.ConsEgress))
 		}
 		hops_desc = append(hops_desc, strings.Join(hop_desc, ""))
 	}

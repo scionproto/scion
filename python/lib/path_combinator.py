@@ -77,16 +77,16 @@ def _build_shortcuts(up_segment, down_segment, rev_cache):
         return _join_xovr(up_segment, down_segment, xovr)
 
 
-def _copy_segment(segment, xover_start, xover_end, up=True):
+def _copy_segment(segment, xover_start, xover_end, cons_dir=False):
     """
-    Copy a :any:`PathSegment`, setting the up flag, the crossover point
+    Copy a :any:`PathSegment`, setting the cons_dir flag, the crossover point
     flags, and optionally reversing the hops.
     """
     if not segment:
         return None, None, float("inf"), float("inf")
     info = segment.infoF()
-    info.up_flag = up
-    hofs, mtu, hof_exp = _copy_hofs(segment.iter_asms(), reverse=up)
+    info.cons_dir_flag = cons_dir
+    hofs, mtu, hof_exp = _copy_hofs(segment.iter_asms(), reverse=not cons_dir)
     if xover_start:
         hofs[0].xover = True
     if xover_end:
@@ -141,7 +141,7 @@ def _join_xovr(up_segment, down_segment, point):
     up_iof, up_hofs, up_upstream_hof, up_mtu, up_exp = \
         _copy_segment_shortcut(up_segment, up_index)
     down_iof, down_hofs, down_upstream_hof, down_mtu, down_exp = \
-        _copy_segment_shortcut(down_segment, down_index, up=False)
+        _copy_segment_shortcut(down_segment, down_index, cons_dir=True)
 
     up_iof.shortcut = down_iof.shortcut = True
     up_iof.peer = down_iof.peer = False
@@ -172,7 +172,7 @@ def _join_peer(up_segment, down_segment, point, rev_cache):
     up_iof, up_hofs, up_upstream_hof, up_mtu, up_exp = \
         _copy_segment_shortcut(up_segment, up_index)
     down_iof, down_hofs, down_upstream_hof, down_mtu, down_exp = \
-        _copy_segment_shortcut(down_segment, down_index, up=False)
+        _copy_segment_shortcut(down_segment, down_index, cons_dir=True)
     up_iof.shortcut = down_iof.shortcut = True
     up_iof.peer = down_iof.peer = True
     path_metas = []
@@ -236,14 +236,14 @@ def _build_shortcut_interface_list(
         if_list.append(
             PathInterface.from_values(down_ia, down_peer_hof.ingress_if))
     asm_list = list(down_seg.iter_asms(down_idx))
-    if_list += _build_interface_list(asm_list, up=False)
+    if_list += _build_interface_list(asm_list, cons_dir=True)
     return if_list
 
 
-def _build_interface_list(asms, up=True):
+def _build_interface_list(asms, cons_dir=False):
     """
     Builds list of interface IDs of segment ASMarkings. Order of IDs depends
-    on up flag.
+    on consDir flag.
     """
     if_list = []
     for i, asm in enumerate(asms):
@@ -251,16 +251,16 @@ def _build_interface_list(asms, up=True):
         hof = asm.pcbm(0).hof()
         egress = hof.egress_if
         ingress = hof.ingress_if
-        if up:
-            if egress:
-                if_list.append(PathInterface.from_values(isd_as, egress))
-            if ingress and i != len(asms) - 1:
-                if_list.append(PathInterface.from_values(isd_as, ingress))
-        else:
+        if cons_dir:
             if ingress and i != 0:
                 if_list.append(PathInterface.from_values(isd_as, ingress))
             if egress:
                 if_list.append(PathInterface.from_values(isd_as, egress))
+        else:
+            if egress:
+                if_list.append(PathInterface.from_values(isd_as, egress))
+            if ingress and i != len(asms) - 1:
+                if_list.append(PathInterface.from_values(isd_as, ingress))
     return if_list
 
 
@@ -309,29 +309,29 @@ def _copy_hofs(asms, reverse=True):
     return hofs, mtu, hof_exp
 
 
-def _copy_segment_shortcut(segment, index, up=True):
+def _copy_segment_shortcut(segment, index, cons_dir=False):
     """
     Copy a segment for a path shortcut, extracting the upstream
-    :any:`HopOpaqueField`, and setting the `up` flag and HOF types
+    :any:`HopOpaqueField`, and setting the `cons_dir` flag and HOF types
     appropriately.
 
     :param PathSegment segment: Segment to copy.
     :param int index: Index at which to start the copy.
-    :param bool up:
-        ``True`` if the path direction is `up` (which will reverse the
-        segment direction), ``False`` otherwise (which will leave the
-        segment direction unchanged).
+    :param bool cons_dir:
+        ``True`` if the path direction is `down` (which will leave the
+        segment direction unchanged), ``False`` otherwise (which will reverse
+        the segment direction).
     :returns:
         The copied :any:`InfoOpaqueField`, path :any:`HopOpaqueField`\s and
         Upstream :any:`HopOpaqueField`.
     """
     info = segment.infoF()
     info.hops -= index
-    info.up_flag = up
+    info.cons_dir_flag = cons_dir
     # Copy segment HOFs
     asms = segment.iter_asms(index)
-    hofs, mtu, hof_exp = _copy_hofs(asms, reverse=up)
-    xovr_idx = -1 if up else 0
+    hofs, mtu, hof_exp = _copy_hofs(asms, reverse=not cons_dir)
+    xovr_idx = 0 if cons_dir else -1
     hofs[xovr_idx].xover = True
     # Extract upstream HOF
     upstream_hof = segment.asm(index - 1).pcbm(0).hof()
@@ -385,7 +385,7 @@ def tuples_to_full_paths(tuples):
         core_iof, core_hofs, core_mtu, core_exp = _copy_segment(
             core_segment, up_segment, down_segment)
         down_iof, down_hofs, down_mtu, down_exp = _copy_segment(
-            down_segment, (up_segment or core_segment), False, up=False)
+            down_segment, (up_segment or core_segment), False, cons_dir=True)
         args = []
         for iof, hofs in [(up_iof, up_hofs), (core_iof, core_hofs),
                           (down_iof, down_hofs)]:
@@ -403,7 +403,7 @@ def tuples_to_full_paths(tuples):
             down_core = list(down_segment.iter_asms())
         else:
             down_core = []
-        if_list += _build_interface_list(down_core, up=False)
+        if_list += _build_interface_list(down_core, cons_dir=True)
         mtu = _min_mtu(up_mtu, core_mtu, down_mtu)
         exp = min(up_exp, core_exp, down_exp)
         path_meta = FwdPathMeta.from_values(path, if_list, mtu, exp)

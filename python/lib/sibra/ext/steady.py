@@ -115,9 +115,9 @@ class SibraExtSteady(SibraExtBase):
             return
         iof = spkt.path.get_iof()
         hof = spkt.path.get_hof()
-        if iof.up_flag:
-            if1, if2 = hof.egress_if, hof.ingress_if
-        else:
+        if iof.cons_dir_flag:
             if1, if2 = hof.ingress_if, hof.egress_if
+        else:
+            if1, if2 = hof.egress_if, hof.ingress_if
         prev_raw = self._get_prev_raw(req=True)
         self.req_block.add_hop(if1, if2, prev_raw, key, self.path_ids)
