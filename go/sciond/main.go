@@ -83,7 +83,7 @@ func realMain() int {
 	fatalC := make(chan error, 3)
 
 	if *reliableSockPath != "" {
-		server, shutdownF := NewRSockServer(*reliableSockPath, Env)
+		server, shutdownF := NewServer("rsock", *reliableSockPath, Env)
 		defer shutdownF()
 		go func() {
 			defer liblog.LogPanicAndExit()
@@ -95,7 +95,7 @@ func realMain() int {
 	}
 
 	if *unixPath != "" {
-		server, shutdownF := NewUnixServer(*unixPath, Env)
+		server, shutdownF := NewServer("unixpacket", *unixPath, Env)
 		defer shutdownF()
 		go func() {
 			defer liblog.LogPanicAndExit()
@@ -143,20 +143,9 @@ func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
 	return messenger.New(dispatcher, trustStore, env.Log), nil
 }
 
-func NewRSockServer(rsockPath string, env *env.Env) (*servers.RSockServer, func()) {
+func NewServer(network string, rsockPath string, env *env.Env) (*servers.Server, func()) {
 	// FIXME(scrye): enable msger below
-	server := servers.NewRSockServer(rsockPath, nil, env.Log)
-	shutdownF := func() {
-		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
-		server.Shutdown(ctx)
-		cancelF()
-	}
-	return server, shutdownF
-}
-
-func NewUnixServer(unixPath string, env *env.Env) (*servers.UnixSockServer, func()) {
-	// FIXME(scrye): enable msger below
-	server := servers.NewUnixSockServer(unixPath, nil, env.Log)
+	server := servers.NewServer(network, rsockPath, nil, env.Log)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)
