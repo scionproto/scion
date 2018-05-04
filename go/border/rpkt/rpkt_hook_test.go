@@ -177,24 +177,24 @@ func TestHooksHopf(t *testing.T) {
 }
 
 func TestHooksUp(t *testing.T) {
-	Convey("Fetch UpFlag via hook functions", t, func() {
+	Convey("Fetch ConsDirFlag via hook functions", t, func() {
 		rpkt := setupRtrPktHookTest()
 		rpkt.hooks = hooks{
-			UpFlag: []hookBool{func() (HookResult, bool, error) {
+			ConsDirFlag: []hookBool{func() (HookResult, bool, error) {
 				fetched++
-				return HookFinish, true, nil
+				return HookFinish, false, nil
 			}},
 		}
-		var up *bool
+		var consDir *bool
 
-		up, err = rpkt.UpFlag()
-		SoMsg("Wrong UpFlag on the fetch call", *up, ShouldBeTrue)
-		SoMsg("Should be no error when calling UpFlag for fetch", err, ShouldBeNil)
+		consDir, err = rpkt.ConsDirFlag()
+		SoMsg("Wrong ConsDirFlag on the fetch call", *consDir, ShouldBeFalse)
+		SoMsg("Should be no error when calling ConsDirFlag for fetch", err, ShouldBeNil)
 
-		up, err = rpkt.UpFlag()
-		SoMsg("Wrong UpFlag on the cached getter call", *up, ShouldBeTrue)
-		SoMsg("Should be no error when calling UpFlag getter for cached value", err, ShouldBeNil)
-		SoMsg("Regardless of the two calls, only one fetch of UpFlag expected", fetched,
+		consDir, err = rpkt.ConsDirFlag()
+		SoMsg("Wrong ConsDirFlag on the cached getter call", *consDir, ShouldBeFalse)
+		SoMsg("Should be no error when calling ConsDirFlag getter for cached value", err, ShouldBeNil)
+		SoMsg("Regardless of the two calls, only one fetch of ConsDirFlag expected", fetched,
 			ShouldEqual, 1)
 	})
 }

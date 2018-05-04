@@ -42,8 +42,8 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
         self.info = ResvInfoSteady(p.info)
 
     @classmethod
-    def from_values(cls, id_, info, sofs, up=True):
-        p = cls.P_CLS.new_message(id=id_, info=info.pack(), up=up)
+    def from_values(cls, id_, info, sofs, cons_dir=False):
+        p = cls.P_CLS.new_message(id=id_, info=info.pack(), cons_dir=cons_dir)
         p.init("sofs", len(sofs))
         for i, sof in enumerate(sofs):
             p.sofs[i] = sof.pack()
@@ -72,7 +72,7 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
         b = []
         b.append(self.p.id)
         b.append(self.p.info)
-        b.append(self.p.up.to_bytes(1, 'big'))
+        b.append(self.p.cons_dir.to_bytes(1, 'big'))
         for sof in self.p.sofs:
             b.append(sof)
         return b"".join(b)
@@ -86,8 +86,8 @@ class SibraPCBExt(Cerealizable):  # pragma: no cover
 
     def short_desc(self):
         a = []
-        a.append("%s: id: %s (owner: %s) Up? %s" %
-                 (self.NAME, hex_str(self.p.id), self.isd_as(), self.p.up))
+        a.append("%s: id: %s (owner: %s) ConsDir? %s" %
+                 (self.NAME, hex_str(self.p.id), self.isd_as(), self.p.cons_dir))
         for line in str(self.info).splitlines():
             a.append("  %s" % line)
         return "\n".join(a)

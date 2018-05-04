@@ -101,8 +101,8 @@ type RtrPkt struct {
 	ifCurr *common.IFIDType
 	// ifNext is the next interface ID, if any. (PARSE)
 	ifNext *common.IFIDType
-	// upFlag indicates if the packet is currently on an up path. (PARSE)
-	upFlag *bool
+	// consDirFlag indicates if the packet is currently on a down path. (PARSE)
+	consDirFlag *bool
 	// HBHExt is the list of Hop-by-hop extensions, if any. (PARSE)
 	HBHExt []rExtension
 	// E2EExt is the list of end2end extensions, if any. (PARSE, only if needed)
@@ -235,7 +235,7 @@ func (rp *RtrPkt) Reset() {
 	rp.hopF = nil
 	rp.ifCurr = nil
 	rp.ifNext = nil
-	rp.upFlag = nil
+	rp.consDirFlag = nil
 	rp.HBHExt = rp.HBHExt[:0]
 	rp.E2EExt = rp.E2EExt[:0]
 	rp.L4Type = common.L4None

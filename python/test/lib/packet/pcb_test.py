@@ -82,11 +82,11 @@ class TestPathSegmentGetPath(object):
     @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
     def test_fwd(self, _, info, scion_path):
         inst = self._setup()
-        info.return_value = create_mock_full({"up_flag": True})
+        info.return_value = create_mock_full({"cons_dir_flag": False})
         # Call
         ntools.eq_(inst.get_path(), scion_path.from_values.return_value)
         # Tests
-        ntools.eq_(info.return_value.up_flag, True)
+        ntools.eq_(info.return_value.cons_dir_flag, False)
         scion_path.from_values.assert_called_once_with(
             info.return_value, ["hof 0", "hof 1", "hof 2"])
 
@@ -95,11 +95,11 @@ class TestPathSegmentGetPath(object):
     @patch("lib.packet.pcb.PathSegment._setup", autospec=True)
     def test_reverse(self, _, info, scion_path):
         inst = self._setup()
-        info.return_value = create_mock_full({"up_flag": True})
+        info.return_value = create_mock_full({"cons_dir_flag": False})
         # Call
         ntools.eq_(inst.get_path(True), scion_path.from_values.return_value)
         # Tests
-        ntools.eq_(info.return_value.up_flag, False)
+        ntools.eq_(info.return_value.cons_dir_flag, True)
         scion_path.from_values.assert_called_once_with(
             info.return_value, ["hof 2", "hof 1", "hof 0"])
 

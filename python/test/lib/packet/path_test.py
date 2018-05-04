@@ -176,7 +176,7 @@ class TestSCIONPathReverse(object):
         inst._hof_idx = 1
         inst._ofs = create_mock(
             ["__len__", "count", "get_idx_by_label", "get_label_by_idx",
-             "reverse_label", "reverse_up_flag", "swap"])
+             "reverse_label", "reverse_cons_dir_flag", "swap"])
         inst._ofs.__len__.return_value = 10
         inst._ofs.count.side_effect = \
             lambda l: self._of_count(l, b_seg, c_seg)
@@ -195,7 +195,7 @@ class TestSCIONPathReverse(object):
         # Call
         inst.reverse()
         # Tests
-        assert_these_calls(inst._ofs.reverse_up_flag,
+        assert_these_calls(inst._ofs.reverse_cons_dir_flag,
                            [call(l) for l in inst.IOF_LABELS])
         assert_these_calls(inst._ofs.reverse_label,
                            [call(l) for l in inst.HOF_LABELS])
@@ -241,14 +241,14 @@ class TestSCIONPathGetHofVer(object):
     """
     Unit tests for lib.packet.path.SCIONPath.get_hof_ver
     """
-    def _setup(self, xover=False, peer=False, shortcut=False, up_flag=True):
+    def _setup(self, xover=False, peer=False, shortcut=False, cons_dir_flag=False):
         inst = SCIONPath()
         inst._iof_idx = 0
         inst._hof_idx = 0
-        iof = create_mock(["peer", "shortcut", "up_flag"])
+        iof = create_mock(["peer", "shortcut", "cons_dir_flag"])
         iof.peer = peer
         iof.shortcut = shortcut
-        iof.up_flag = up_flag
+        iof.cons_dir_flag = cons_dir_flag
         inst.get_iof = create_mock()
         inst.get_iof.return_value = iof
         hof = create_mock(["xover"])
@@ -273,9 +273,9 @@ class TestSCIONPathGetHofVer(object):
         # Tests
         inst._get_hof_ver_normal.assert_called_once_with(iof)
 
-    def _check_xover_peer(self, ingress, up, expected):
+    def _check_xover_peer(self, ingress, cons_dir, expected):
         inst, iof, hof = self._setup(xover=True, shortcut=True, peer=True,
-                                     up_flag=up)
+                                     cons_dir_flag=cons_dir)
         # Call
         ntools.eq_(inst.get_hof_ver(ingress=ingress),
                    inst._ofs.get_by_idx.return_value)
@@ -283,14 +283,14 @@ class TestSCIONPathGetHofVer(object):
         inst._ofs.get_by_idx.assert_called_once_with(expected)
 
     def test_xover_peer(self):
-        for ingress, up, exp in (
-            (True, True, 2), (True, False, 1),
-            (False, True, -1), (False, False, -2)
+        for ingress, cons_dir, exp in (
+            (True, False, 2), (True, True, 1),
+            (False, False, -1), (False, True, -2)
         ):
-            yield self._check_xover_peer, ingress, up, exp
+            yield self._check_xover_peer, ingress, cons_dir, exp
 
-    def _check_xover_normal(self, ingress, up, expected):
-        inst, iof, hof = self._setup(xover=True, up_flag=up)
+    def _check_xover_normal(self, ingress, cons_dir, expected):
+        inst, iof, hof = self._setup(xover=True, cons_dir_flag=cons_dir)
         # Call
         ret = inst.get_hof_ver(ingress=ingress)
         # Tests
@@ -301,25 +301,25 @@ class TestSCIONPathGetHofVer(object):
             inst._ofs.get_by_idx.assert_called_once_with(expected)
 
     def test_xover_normal(self):
-        for ingress, up, exp in (
-            (True, True, None), (True, False, -1),
-            (False, True, +1), (False, False, None)
+        for ingress, cons_dir, exp in (
+            (True, False, None), (True, True, -1),
+            (False, False, +1), (False, True, None)
         ):
-            yield self._check_xover_normal, ingress, up, exp
+            yield self._check_xover_normal, ingress, cons_dir, exp
 
 
 class TestSCIONPathGetHofVerNormal(object):
     """
     Unit tests for lib.packet.path.SCIONPath._get_hof_ver_normal
     """
-    def _check(self, up, hof_idx, expected):
+    def _check(self, cons_dir, hof_idx, expected):
         inst = SCIONPath()
         inst._iof_idx = 0
         inst._hof_idx = hof_idx
         inst._ofs = create_mock(["get_by_idx"])
-        iof = create_mock(["hops", "up_flag"])
+        iof = create_mock(["hops", "cons_dir_flag"])
         iof.hops = 5
-        iof.up_flag = up
+        iof.cons_dir_flag = cons_dir
         # Call
         ret = inst._get_hof_ver_normal(iof)
         # Tests
@@ -330,11 +330,11 @@ class TestSCIONPathGetHofVerNormal(object):
             inst._ofs.get_by_idx.assert_called_once_with(expected)
 
     def test(self):
-        for up, hof_idx, exp in (
-            (True, 1, 2), (True, 4, 5), (True, 5, None),
-            (False, 1, None), (False, 2, 1), (False, 5, 4),
+        for cons_dir, hof_idx, exp in (
+            (False, 1, 2), (False, 4, 5), (False, 5, None),
+            (True, 1, None), (True, 2, 1), (True, 5, 4),
         ):
-            yield self._check, up, hof_idx, exp
+            yield self._check, cons_dir, hof_idx, exp
 
 
 class TestSCIONPathIncHofIdx(object):

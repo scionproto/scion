@@ -24,8 +24,8 @@ import (
 )
 
 type pathCase struct {
-	up   bool
-	hops []uint8
+	consDir bool
+	hops    []uint8
 }
 
 var pathReverseCases = []struct {
@@ -90,7 +90,7 @@ func Test_Path_Reverse(t *testing.T) {
 					prefix := fmt.Sprintf("seg %d", seg)
 					infof, err := InfoFFromRaw(path.Raw[offset:])
 					SoMsg(prefix+" InfoF parse", err, ShouldBeNil)
-					SoMsg(prefix+" InfoF up", infof.Up, ShouldEqual, out.up)
+					SoMsg(prefix+" InfoF consDir", infof.ConsDir, ShouldEqual, out.consDir)
 					SoMsg(prefix+" InfoF ISD "+infof.String(),
 						infof.ISD, ShouldEqual, len(c.in)-seg-1)
 					SoMsg(prefix+" InfoF Offset", path.InfOff, ShouldEqual, c.outOffs[j][0])
@@ -118,14 +118,14 @@ func mkPathRevCase(in []pathCase, inInfOff, inHopfOff int) *Path {
 	path.Raw = make(common.RawBytes, plen)
 	offset := 0
 	for i, seg := range in {
-		makeSeg(path.Raw[offset:], seg.up, uint16(i), seg.hops)
+		makeSeg(path.Raw[offset:], seg.consDir, uint16(i), seg.hops)
 		offset += InfoFieldLength + len(seg.hops)*HopFieldLength
 	}
 	return path
 }
 
-func makeSeg(b common.RawBytes, up bool, isd uint16, hops []uint8) {
-	infof := InfoField{Up: up, ISD: isd, Hops: uint8(len(hops))}
+func makeSeg(b common.RawBytes, consDir bool, isd uint16, hops []uint8) {
+	infof := InfoField{ConsDir: consDir, ISD: isd, Hops: uint8(len(hops))}
 	infof.Write(b)
 	for i, hop := range hops {
 		for j := 0; j < HopFieldLength; j++ {
