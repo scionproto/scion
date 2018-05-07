@@ -111,7 +111,6 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		rp.Warn("Could not parse RevInfo for interface", "ifid", *ifid, "err", err)
 		return nil
 	}
-	// Check that the revocation timestamp is within the TTL.
 	err = revInfo.Active()
 	if err != nil {
 		if !common.IsTimeoutErr(err) {
