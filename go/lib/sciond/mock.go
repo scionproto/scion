@@ -133,16 +133,17 @@ func (m *MockConn) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
 }
 
 // RevNotificationFromRaw is not implemented.
-func (m *MockConn) RevNotificationFromRaw(revInfo []byte) (*RevReply, error) {
+func (m *MockConn) RevNotificationFromRaw(b []byte) (*RevReply, error) {
 	panic("not implemented")
 }
 
 // RevNotification deletes the edge containing revInfo.IfID from the
 // multigraph. RevNotification does not perform any validation of revInfo.
-func (m *MockConn) RevNotification(revInfo *path_mgmt.RevInfo) (*RevReply, error) {
+func (m *MockConn) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
+	revInfo, _ := sRevInfo.RevInfo()
 	m.g.RemoveLink(common.IFIDType(revInfo.IfID))
 	return &RevReply{
 		Result: RevValid,

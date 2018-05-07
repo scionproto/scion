@@ -3,7 +3,7 @@ using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
-using RevInfo = import "rev_info.capnp";
+using Sign = import "sign.capnp";
 using PSeg = import "path_seg.capnp";
 
 struct SCIONDMsg {
@@ -80,7 +80,7 @@ struct ASInfoReplyEntry {
 }
 
 struct RevNotification {
-    revInfo @0 :RevInfo.RevInfo;
+    sRevInfo @0 :Sign.SignedBlob;
 }
 
 struct RevReply {

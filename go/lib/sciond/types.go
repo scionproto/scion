@@ -234,7 +234,7 @@ func (entry ASInfoReplyEntry) String() string {
 }
 
 type RevNotification struct {
-	RevInfo *path_mgmt.RevInfo
+	SRevInfo *path_mgmt.SignedRevInfo
 }
 
 type RevReply struct {

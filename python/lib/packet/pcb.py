@@ -32,7 +32,7 @@ from lib.packet.packet_base import Cerealizable
 from lib.packet.path import SCIONPath
 from lib.packet.proto_sign import ProtoSign, ProtoSignedBlob, ProtoSignType
 from lib.packet.scion_addr import ISD_AS
-from lib.types import ASMExtType
+from lib.types import ASMExtType, LinkType
 from lib.util import iso_timestamp
 
 #: Default value for length (in bytes) of a revocation token.
@@ -44,8 +44,8 @@ class PCBMarking(Cerealizable):
     P_CLS = P.HopEntry
 
     @classmethod
-    def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia, remote_out_ifid,
-                    hof):  # pragma: no cover
+    def from_values(cls, in_ia, remote_in_ifid, in_mtu, out_ia,
+                    remote_out_ifid, hof):  # pragma: no cover
         return cls(cls.P_CLS.new_message(
             inIA=int(in_ia), remoteInIF=remote_in_ifid, inMTU=in_mtu,
             outIA=int(out_ia), remoteOutIF=remote_out_ifid, hopF=hof.pack()))
@@ -73,11 +73,10 @@ class ASMarking(Cerealizable):
     P_CLS = P.ASEntry
 
     @classmethod
-    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, hashTreeRoot, mtu, exts=(),
-                    ifid_size=12):
+    def from_values(cls, isd_as, trc_ver, cert_ver, pcbms, mtu, exts=(), ifid_size=12):
         p = cls.P_CLS.new_message(
             isdas=int(isd_as), trcVer=trc_ver, certVer=cert_ver,
-            ifIDSize=ifid_size, hashTreeRoot=hashTreeRoot, mtu=mtu)
+            ifIDSize=ifid_size, mtu=mtu)
         p.init("hops", len(pcbms))
         for i, pm in enumerate(pcbms):
             p.hops[i] = pm.p
@@ -108,7 +107,6 @@ class ASMarking(Cerealizable):
         for pcbm in self.iter_pcbms():
             for line in pcbm.short_desc().splitlines():
                 desc.append("  %s" % line)
-        desc.append("  hashTreeRoot=%s" % self.p.hashTreeRoot)
         return "\n".join(desc)
 
 
@@ -298,6 +296,26 @@ class PathSegment(Cerealizable):
         if exts:
             return "%s\n%s" % ("".join(desc), "\n".join(exts))
         return "".join(desc)
+
+    def rev_match(self, rev_info, core):
+        """
+        Check if a revocation matches the current PCB
+        :param rev_info: Revocation Info to check
+        :type rev_info: RevocationInfo
+        :return: Tuple(boolean, LinkType)
+        """
+        for asm in self.iter_asms():
+            if rev_info.isd_as() != asm.isd_as():
+                continue
+            for i, pcbm in enumerate(asm.iter_pcbms()):
+                hof = pcbm.hof()
+                if rev_info.p.ifID == hof.ingress_if:
+                    if core:
+                        return True, LinkType.CORE
+                    return True, LinkType.PARENT if i == 0 else LinkType.PEER
+                if rev_info.p.ifID == hof.egress_if:
+                    return True, LinkType.CORE if core else LinkType.CHILD
+        return False, None
 
     def is_sibra(self):
         return False  # Nope! Kept for compatibility with path server.

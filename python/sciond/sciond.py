@@ -26,7 +26,6 @@ from itertools import product
 from external.expiring_dict import ExpiringDict
 
 # SCION
-from lib.crypto.hash_tree import ConnectedHashTree
 from lib.defines import (
     GEN_CACHE_PATH,
     PATH_FLAG_SIBRA,
@@ -41,7 +40,14 @@ from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload, mk_ctrl_req_id
 from lib.packet.path import SCIONPath
 from lib.packet.path_mgmt.base import PathMgmt
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import (
+    SignedRevInfoCertFetchError,
+    RevInfoExpiredError,
+    RevInfoValidationError,
+    RevocationInfo,
+    SignedRevInfo,
+    SignedRevInfoVerificationError
+)
 from lib.packet.path_mgmt.seg_req import PathSegmentReply, PathSegmentReq
 from lib.packet.scion_addr import ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
@@ -79,6 +85,7 @@ from lib.types import (
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
+    LinkType,
     SCIONDMsgType as SMT,
     ServiceType,
     TypeBase,
@@ -86,7 +93,6 @@ from lib.types import (
 from lib.util import SCIONTime
 from sciond.req import RequestState
 from scion_elem.scion_elem import SCIONElement
-
 
 _FLUSH_FLAG = "FLUSH"
 
@@ -114,7 +120,7 @@ class SCIONDaemon(SCIONElement):
         self.up_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=up_labels)
         self.down_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=down_labels)
         self.core_segments = PathSegmentDB(segment_ttl=self.SEGMENT_TTL, labels=core_labels)
-        self.peer_revs = RevCache()
+        self.rev_cache = RevCache()
         # Keep track of requested paths.
         self.requested_paths = ExpiringDict(self.MAX_REQS, PATH_REQ_TOUT)
         self.req_path_lock = threading.Lock()
@@ -190,8 +196,15 @@ class SCIONDaemon(SCIONElement):
         path_reply = pmgt.union
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
         recs = path_reply.recs()
-        for rev_info in recs.iter_rev_infos():
-            self.peer_revs.add(rev_info)
+        for srev_info in recs.iter_srev_infos():
+            try:
+                self.check_revocation(srev_info)
+            except SCIONBaseError as e:
+                logging.error("Revocation check failed for %s from %s:\n%s",
+                              srev_info.short_desc(), meta, e)
+                continue
+            self.rev_cache.add(srev_info)
+            self.remove_revoked_segments(srev_info.rev_info())
 
         req = path_reply.req()
         key = req.dst_ia(), req.flags()
@@ -370,7 +383,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_rev_notification(self, pld, meta):
         request = pld.union
         assert isinstance(request, SCIONDRevNotification), type(request)
-        status = self.handle_revocation(CtrlPayload(PathMgmt(request.rev_info())), meta)
+        status = self.handle_revocation(CtrlPayload(PathMgmt(request.srev_info())), meta)
         rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
         self.send_meta(rev_reply.pack(), meta)
 
@@ -408,65 +421,54 @@ class SCIONDaemon(SCIONElement):
         self.send_meta(seg_reply.pack(), meta)
 
     def handle_scmp_revocation(self, pld, meta):
-        rev_info = RevocationInfo.from_raw(pld.info.rev_info)
-        self.handle_revocation(CtrlPayload(PathMgmt(rev_info)), meta)
+        srev_info = SignedRevInfo.from_raw(pld.info.srev_info)
+        self.handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
     def handle_revocation(self, cpld, meta):
         pmgt = cpld.union
-        rev_info = pmgt.union
+        srev_info = pmgt.union
+        rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
-        logging.debug("Revocation info received: %s", rev_info.short_desc())
+        logging.debug("Received revocation: %s from %s", srev_info.short_desc(), meta)
         try:
-            rev_info.validate()
-        except SCIONBaseError as e:
-            logging.warning("Failed to validate RevInfo from %s: %s", meta, e)
+            self.check_revocation(srev_info)
+        except RevInfoValidationError as e:
+            logging.error("Failed to validate RevInfo %s from %s: %s",
+                          srev_info.short_desc(), meta, e)
             return SCIONDRevReplyStatus.INVALID
-        # Verify epoch information and on failure return directly
-        epoch_status = ConnectedHashTree.verify_epoch(rev_info.p.epoch)
-        if epoch_status == ConnectedHashTree.EPOCH_PAST:
-            logging.error(
-                "Failed to verify epoch: epoch in the past %d,current epoch %d."
-                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
-            return SCIONDRevReplyStatus.INVALID
-
-        if epoch_status == ConnectedHashTree.EPOCH_FUTURE:
-            logging.warning(
-                "Failed to verify epoch: epoch in the future %d,current epoch %d."
-                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
-            return SCIONDRevReplyStatus.INVALID
-
-        if epoch_status == ConnectedHashTree.EPOCH_NEAR_PAST:
-            logging.info(
-                "Failed to verify epoch: epoch in the near past %d, current epoch %d."
-                % (rev_info.p.epoch, ConnectedHashTree.get_current_epoch()))
+        except RevInfoExpiredError as e:
+            logging.info("Ignoring expired Revinfo, %s from %s", srev_info.short_desc(), meta)
             return SCIONDRevReplyStatus.STALE
+        except SignedRevInfoCertFetchError as e:
+            logging.error("Failed to fetch certificate for SignedRevInfo %s from %s: %s",
+                          srev_info.short_desc(), meta, e)
+            return SCIONDRevReplyStatus.UNKNOWN
+        except SignedRevInfoVerificationError as e:
+            logging.error("Failed to verify SRevInfo %s from %s: %s",
+                          srev_info.short_desc(), meta, e)
+            return SCIONDRevReplyStatus.SIGFAIL
+        except SCIONBaseError as e:
+            logging.error("Revocation check failed for %s from %s:\n%s",
+                          srev_info.short_desc(), meta, e)
+            return SCIONDRevReplyStatus.UNKNOWN
 
-        self.peer_revs.add(rev_info)
+        self.rev_cache.add(srev_info)
+        self.remove_revoked_segments(rev_info)
+        return SCIONDRevReplyStatus.VALID
+
+    def remove_revoked_segments(self, rev_info):
         # Go through all segment databases and remove affected segments.
-        removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
-        removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
-        removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
+        removed_up = removed_core = removed_down = 0
+        if rev_info.p.linkType == LinkType.CORE:
+            removed_core = self._remove_revoked_pcbs(self.core_segments, rev_info)
+        elif rev_info.p.linkType in [LinkType.PARENT, LinkType.CHILD]:
+            removed_up = self._remove_revoked_pcbs(self.up_segments, rev_info)
+            removed_down = self._remove_revoked_pcbs(self.down_segments, rev_info)
+        elif rev_info.p.linkType != LinkType.PEER:
+            logging.error("Bad RevInfo link type: %s", rev_info.p.linkType)
+
         logging.info("Removed %d UP- %d CORE- and %d DOWN-Segments." %
                      (removed_up, removed_core, removed_down))
-        total = removed_up + removed_core + removed_down
-        if total > 0:
-            return SCIONDRevReplyStatus.VALID
-        else:
-            # FIXME(scrye): UNKNOWN is returned in the following situations:
-            #  - No matching segments exist
-            #  - Matching segments exist, but the revoked interface is part of
-            #  a peering link; new path queries sent to SCIOND won't use the
-            #  link, but nothing is immediately revoked
-            #  - A hash check failed and prevented the revocation from taking
-            #  place
-            #
-            # This should be fixed in the future to provide clearer meaning
-            # behind why the revocation could not be validated.
-            #
-            # For now, if applications receive an UNKOWN reply to a revocation,
-            # they should strongly consider flushing paths containing the
-            # interface.
-            return SCIONDRevReplyStatus.UNKNOWN
 
     def _remove_revoked_pcbs(self, db, rev_info):
         """
@@ -484,7 +486,7 @@ class SCIONDaemon(SCIONElement):
         to_remove = []
         for segment in db(full=True):
             for asm in segment.iter_asms():
-                if self._verify_revocation_for_asm(rev_info, asm, verify_all=False):
+                if self._check_revocation_for_asm(rev_info, asm, verify_all=False):
                     logging.debug("Removing segment: %s" % segment.short_desc())
                     to_remove.append(segment.get_hops_hash())
         return db.delete_all(to_remove)
@@ -612,7 +614,7 @@ class SCIONDaemon(SCIONElement):
         down_segs = self.down_segments(last_ia=dst_ia)
         core_segs = self._calc_core_segs(dst_ia[0], up_segs, down_segs)
         full_paths = build_shortcut_paths(
-            up_segs, down_segs, self.peer_revs)
+            up_segs, down_segs, self.rev_cache)
         tuples = []
         for up_seg in up_segs:
             for down_seg in down_segs:

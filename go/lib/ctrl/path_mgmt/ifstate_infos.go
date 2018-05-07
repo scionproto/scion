@@ -42,15 +42,15 @@ func (i *IFStateInfos) String() string {
 }
 
 type IFStateInfo struct {
-	IfID    uint64
-	Active  bool
-	RevInfo *RevInfo
+	IfID     uint64
+	Active   bool
+	SRevInfo *SignedRevInfo
 }
 
 func (i *IFStateInfo) String() string {
 	desc := fmt.Sprintf("IfID: %v, Active: %v", i.IfID, i.Active)
-	if i.RevInfo != nil {
-		desc += fmt.Sprintf(", RevInfo: %v", i.RevInfo)
+	if i.SRevInfo != nil {
+		desc += fmt.Sprintf(", SRevInfo: %s", i.SRevInfo)
 	}
 	return desc
 }

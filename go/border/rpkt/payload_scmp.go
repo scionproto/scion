@@ -23,9 +23,9 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 )
 
-type RevTokenCallbackArgs struct {
-	RevInfo *path_mgmt.RevInfo
-	Addrs   []addr.HostSVC
+type RawSRevCallbackArgs struct {
+	SignedRevInfo *path_mgmt.SignedRevInfo
+	Addrs         []addr.HostSVC
 }
 
 // parseSCMPPayload is a hook that can be used for hookPayload, to retrieve the

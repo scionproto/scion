@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -102,13 +101,22 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		return nil
 	}
 	// Interface is revoked.
-	revInfo := state.RevInfo
-	if revInfo == nil {
-		rp.Warn("No RevInfo for revoked interface", "ifid", *ifid)
+	sRevInfo := state.SRevInfo
+	if sRevInfo == nil {
+		rp.Warn("No SRevInfo for revoked interface", "ifid", *ifid)
 		return nil
 	}
-	// Check that we have a revocation for the current epoch.
-	if !crypto.VerifyHashTreeEpoch(revInfo.Epoch) {
+	revInfo, err := sRevInfo.RevInfo()
+	if err != nil {
+		rp.Warn("Could not parse RevInfo for interface", "ifid", *ifid, "err", err)
+		return nil
+	}
+	err = revInfo.Active()
+	if err != nil {
+		if !common.IsTimeoutErr(err) {
+			rp.Error("Error checking revocation", "err", err)
+			return nil
+		}
 		// If the BR does not have a revocation for the current epoch, it considers
 		// the interface as active until it receives a new revocation.
 		newState := ifstate.NewInfo(*ifid, true, nil, nil)
@@ -117,7 +125,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	}
 	sinfo := scmp.NewInfoRevocation(
 		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
-		rp.DirFrom == rcmn.DirExternal, state.RawRev)
+		rp.DirFrom == rcmn.DirExternal, state.RawSRev)
 	return common.NewBasicError(
 		errIntfRevoked,
 		scmp.NewError(scmp.C_Path, scmp.T_P_RevokedIF, sinfo, nil),

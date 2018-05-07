@@ -27,11 +27,11 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-// RevTokenCallback is called to enqueue RevInfos for handling by the
+// RawSRevCallback is called to enqueue RevInfos for handling by the
 // RevInfoFwd goroutine.
-func (r *Router) RevTokenCallback(args rpkt.RevTokenCallbackArgs) {
+func (r *Router) RawSRevCallback(args rpkt.RawSRevCallbackArgs) {
 	select {
-	case r.revInfoQ <- args:
+	case r.sRevInfoQ <- args:
 	default:
 		log.Debug("Dropping rev token")
 	}
@@ -42,21 +42,24 @@ func (r *Router) RevTokenCallback(args rpkt.RevTokenCallbackArgs) {
 func (r *Router) RevInfoFwd() {
 	defer liblog.LogPanicAndExit()
 	// Run forever.
-	for args := range r.revInfoQ {
-		log.Debug("Forwarding revocation", "revInfo", args.RevInfo.String(), "targets", args.Addrs)
+	for args := range r.sRevInfoQ {
+		revInfo, err := args.SignedRevInfo.RevInfo()
+		if err != nil {
+			log.Error("Error getting RevInfo from SignedRevInfo", "err", err)
+		}
+		log.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
-			r.fwdRevInfo(args.RevInfo, &svcAddr)
+			r.fwdRevInfo(args.SignedRevInfo, &svcAddr)
 		}
 	}
-
 }
 
 // fwdRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) fwdRevInfo(revInfo *path_mgmt.RevInfo, dstHost addr.HostAddr) {
+func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
 	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
-	cpld, err := ctrl.NewPathMgmtPld(revInfo, nil, nil)
+	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
 		return

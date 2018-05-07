@@ -68,18 +68,18 @@ type state struct {
 type Info struct {
 	IfID         common.IFIDType
 	Active       bool
-	RevInfo      *path_mgmt.RevInfo
-	RawRev       common.RawBytes
+	SRevInfo     *path_mgmt.SignedRevInfo
+	RawSRev      common.RawBytes
 	ActiveMetric prometheus.Gauge
 }
 
-func NewInfo(ifID common.IFIDType, active bool, rev *path_mgmt.RevInfo,
-	rawRev common.RawBytes) *Info {
+func NewInfo(ifID common.IFIDType, active bool, srev *path_mgmt.SignedRevInfo,
+	rawSRev common.RawBytes) *Info {
 	i := &Info{
 		IfID:         ifID,
 		Active:       active,
-		RevInfo:      rev,
-		RawRev:       rawRev,
+		SRevInfo:     srev,
+		RawSRev:      rawSRev,
 		ActiveMetric: metrics.IFState.WithLabelValues(fmt.Sprintf("intf:%d", ifID)),
 	}
 	var isActive float64
@@ -94,17 +94,17 @@ func NewInfo(ifID common.IFIDType, active bool, rev *path_mgmt.RevInfo,
 // Process processes Interface State updates from the beacon service.
 func Process(ifStates *path_mgmt.IFStateInfos) {
 	for _, info := range ifStates.Infos {
-		var rawRev common.RawBytes
+		var rawSRev common.RawBytes
 		ifid := common.IFIDType(info.IfID)
-		if info.RevInfo != nil {
+		if info.SRevInfo != nil {
 			var err error
-			rawRev, err = proto.PackRoot(info.RevInfo)
+			rawSRev, err = proto.PackRoot(info.SRevInfo)
 			if err != nil {
-				log.Error("Unable to pack RevInfo", "err", err)
+				log.Error("Unable to pack SRevInfo", "err", err)
 				return
 			}
 		}
-		stateInfo := NewInfo(ifid, info.Active, info.RevInfo, rawRev)
+		stateInfo := NewInfo(ifid, info.Active, info.SRevInfo, rawSRev)
 		s, ok := states.Load(ifid)
 		if !ok {
 			log.Info("IFState: intf added", "ifid", ifid, "active", info.Active)

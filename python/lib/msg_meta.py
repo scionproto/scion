@@ -55,14 +55,16 @@ class UDPMetadata(MetadataBase):
     """
     Class for UDP message metadata
     """
-    pass
+    def __str__(self):
+        return "UDPMetadata: %s:%d" % (self.get_addr(), self.port)
 
 
 class SCMPMetadata(MetadataBase):
     """
     Class for SCMP message metadata
     """
-    pass
+    def __str__(self):
+        return "SCMPMetadata: %s:%d" % (self.get_addr(), self.port)
 
 
 class TCPMetadata(MetadataBase):

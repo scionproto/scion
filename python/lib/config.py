@@ -17,7 +17,6 @@
 """
 # Stdlib
 import base64
-import logging
 
 # SCION
 from lib.defines import DEFAULT_SEGMENT_TTL
@@ -35,7 +34,6 @@ class Config(object):
     :ivar int registers_paths: whether or not the AS registers paths.
     :ivar int cert_ver: initial version of the certificate chain.
     :ivar int segment_ttl: the TTL of path segments registered by this AS (in seconds).
-    :ivar int revocation_tree_ttl: the TTL of one revocation tree (in seconds).
     """
 
     def __init__(self):  # pragma: no cover
@@ -45,7 +43,6 @@ class Config(object):
         self.registers_paths = 0
         self.cert_ver = 0
         self.segment_ttl = 0
-        self.revocation_tree_ttl = 0
 
     @classmethod
     def from_file(cls, config_file):  # pragma: no cover
@@ -83,9 +80,3 @@ class Config(object):
         self.registers_paths = config['RegisterPath']
         self.cert_ver = config['CertChainVersion']
         self.segment_ttl = config.get('PathSegmentTTL', DEFAULT_SEGMENT_TTL)
-        self.revocation_tree_ttl = config.get('RevocationTreeTTL', self.segment_ttl)
-        if self.revocation_tree_ttl < self.segment_ttl:
-            logging.warning("RevocationTreeTTL shorter than PathSegmentTTL (%ds vs %ds). "
-                            "Setting RevocationTreeTTL to %ds",
-                            self.segment_ttl, self.revocation_tree_ttl, self.segment_ttl)
-            self.revocation_tree_ttl = self.segment_ttl

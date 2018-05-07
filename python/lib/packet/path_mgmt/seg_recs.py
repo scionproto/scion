@@ -21,8 +21,8 @@ import capnp  # noqa
 # SCION
 import proto.path_mgmt_capnp as P
 from lib.packet.packet_base import Cerealizable
+from lib.packet.path_mgmt.rev_info import SignedRevInfo
 from lib.packet.pcb import PathSegment
-from lib.packet.path_mgmt.rev_info import RevocationInfo
 from lib.types import PathSegmentType as PST
 
 
@@ -35,13 +35,13 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
     P_CLS = P.SegRecs
 
     @classmethod
-    def from_values(cls, pcb_dict, rev_infos=None):
+    def from_values(cls, pcb_dict, srev_infos=None):
         """
         :param pcb_dict: dict of {seg_type: [pcbs]}
-        :param rev_infos: list of RevocationInfo objects
+        :param srev_infos: list of SignedBlob (RevocationInfo) objects
         """
-        if not rev_infos:
-            rev_infos = []
+        if not srev_infos:
+            srev_infos = []
         p = cls.P_CLS.new_message()
         flat = []
         for type_, pcbs in pcb_dict.items():
@@ -51,21 +51,21 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
         for i, (type_, pcb) in enumerate(flat):
             p.recs[i].type = type_
             p.recs[i].pathSeg = pcb.p
-        p.init("revInfos", len(rev_infos))
-        for i, rev_info in enumerate(rev_infos):
-            p.revInfos[i] = rev_info.p
+        p.init("sRevInfos", len(srev_infos))
+        for i, srev_info in enumerate(srev_infos):
+            p.sRevInfos[i] = srev_info.p
         return cls(p)
 
     def iter_pcbs(self):
         for rec in self.p.recs:
             yield rec.type, PathSegment(rec.pathSeg)
 
-    def rev_info(self, idx):
-        return RevocationInfo(self.p.revInfos[idx])
+    def srev_info(self, idx):
+        return SignedRevInfo(self.p.sRevInfos[idx])
 
-    def iter_rev_infos(self, start=0):
-        for i in range(start, len(self.p.revInfos)):
-            yield self.rev_info(i)
+    def iter_srev_infos(self, start=0):
+        for i in range(start, len(self.p.sRevInfos)):
+            yield self.srev_info(i)
 
     def num_segs(self):
         """Returns the total number of path segments."""
@@ -81,8 +81,8 @@ class PathSegmentRecords(Cerealizable):  # pragma: no cover
             if type_ != last_type:
                 s.append("  %s:" % PST.to_str(type_))
             s.append("    %s" % pcb.short_desc())
-        for rev_info in self.iter_rev_infos():
-            s.append("  %s" % rev_info.short_desc())
+        for srev_info in self.iter_srev_infos():
+            s.append("  %s" % srev_info.short_desc())
 
         return "\n".join(s)
 

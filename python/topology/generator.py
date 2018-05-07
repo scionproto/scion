@@ -311,7 +311,6 @@ class ConfigGenerator(object):
             # FIXME(kormat): This seems to always be true..:
             'RegisterPath': True if as_topo["PathService"] else False,
             'PathSegmentTTL': self.pseg_ttl,
-            'RevocationTreeTTL': self.pseg_ttl,
         }
 
     def _write_networks_conf(self, networks, out_file):
@@ -622,17 +621,17 @@ class TopoGenerator(object):
             a = TopoID(attrs.pop("a"))
             b = TopoID(attrs.pop("b"))
             linkto = linkto_a = linkto_b = attrs.pop("linkAtoB")
-            if linkto == LinkType.CHILD:
-                linkto_a = LinkType.CHILD
-                linkto_b = LinkType.PARENT
+            if linkto.lower() == LinkType.CHILD:
+                linkto_a = LinkType.PARENT
+                linkto_b = LinkType.CHILD
             br_ids[a] += 1
             a_br = "br%s-%d" % (a.file_fmt(), br_ids[a])
             a_ifid = if_ids[a].new()
             br_ids[b] += 1
             b_br = "br%s-%d" % (b.file_fmt(), br_ids[b])
             b_ifid = if_ids[b].new()
-            self.links[a].append((linkto_a, b, attrs, a_br, b_br, a_ifid))
-            self.links[b].append((linkto_b, a, attrs, b_br, a_br, b_ifid))
+            self.links[a].append((linkto_b, b, attrs, a_br, b_br, a_ifid))
+            self.links[b].append((linkto_a, a, attrs, b_br, a_br, b_ifid))
             a_desc = "%s %s" % (a_br, a_ifid)
             b_desc = "%s %s" % (b_br, b_ifid)
             self.ifid_map.setdefault(str(a), {})
@@ -713,7 +712,7 @@ class TopoGenerator(object):
                     },
                     'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
                     'ISD_AS': str(remote),
-                    'LinkTo': remote_type,
+                    'LinkTo': LinkType.to_str(remote_type.lower()),
                     'MTU': attrs.get('mtu', DEFAULT_MTU)
                 }
             }

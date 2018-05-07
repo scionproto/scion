@@ -120,7 +120,7 @@ class PathMgmtType(object):
     REG = "segReg"
     # For records synchronization purposes (used by Path Servers).
     SYNC = "segSync"
-    REVOCATION = "revInfo"
+    REVOCATION = "sRevInfo"
     IFSTATE_REQ = "ifStateReq"
     IFSTATE_INFOS = "ifStateInfos"
 
@@ -168,14 +168,16 @@ class SIBRAPathType(TypeBase):
 # Link types
 ############################
 class LinkType(TypeBase):
+    # XXX(worxli): these values must be kept in sync with the capnp Linktype enum
+    UNSET = "unset"
     #: Link to child AS
-    CHILD = "CHILD"
+    CHILD = "child"
     #: Link to parent AS
-    PARENT = "PARENT"
+    PARENT = "parent"
     #: Link to peer AS
-    PEER = "PEER"
+    PEER = "peer"
     #: Link to other core AS
-    CORE = "CORE"
+    CORE = "core"
 
 
 ###########################

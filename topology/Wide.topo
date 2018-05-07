@@ -5,50 +5,50 @@ defaults:
       addr: 127.0.0.1
 
 ASes:
-  1-ff00:0:110: {core: true}
-  1-ff00:0:120: {core: true}
-  1-ff00:0:111: {cert_issuer: 1-ff00:0:110}
-  1-ff00:0:121: {cert_issuer: 1-ff00:0:120}
-  2-ff00:0:210: {core: true}
-  2-ff00:0:220: {core: true}
-  2-ff00:0:221: {cert_issuer: 2-ff00:0:220}
-  2-ff00:0:222: {cert_issuer: 2-ff00:0:220}
-  3-ff00:0:310: {core: true}
-  3-ff00:0:311: {cert_issuer: 3-ff00:0:310}
-  3-ff00:0:312: {cert_issuer: 3-ff00:0:310}
-  3-ff00:0:313: {cert_issuer: 3-ff00:0:310}
-  4-ff00:0:410: {core: true}
-  5-ff00:0:510: {core: true}
-  5-ff00:0:520: {core: true}
-  5-ff00:0:530: {core: true}
-  5-ff00:0:511: {cert_issuer: 5-ff00:0:510}
-  5-ff00:0:531: {cert_issuer: 5-ff00:0:530}
+  "1-ff00:0:110": {core: true}
+  "1-ff00:0:120": {core: true}
+  "1-ff00:0:111": {cert_issuer: "1-ff00:0:110"}
+  "1-ff00:0:121": {cert_issuer: "1-ff00:0:120"}
+  "2-ff00:0:210": {core: true}
+  "2-ff00:0:220": {core: true}
+  "2-ff00:0:221": {cert_issuer: "2-ff00:0:220"}
+  "2-ff00:0:222": {cert_issuer: "2-ff00:0:220"}
+  "3-ff00:0:310": {core: true}
+  "3-ff00:0:311": {cert_issuer: "3-ff00:0:310"}
+  "3-ff00:0:312": {cert_issuer: "3-ff00:0:310"}
+  "3-ff00:0:313": {cert_issuer: "3-ff00:0:310"}
+  "4-ff00:0:410": {core: true}
+  "5-ff00:0:510": {core: true}
+  "5-ff00:0:520": {core: true}
+  "5-ff00:0:530": {core: true}
+  "5-ff00:0:511": {cert_issuer: "5-ff00:0:510"}
+  "5-ff00:0:531": {cert_issuer: "5-ff00:0:530"}
 links:
-  - {a: 1-ff00:0:110, b: 1-ff00:0:120, linkAtoB: CORE}
-  - {a: 1-ff00:0:110, b: 2-ff00:0:210, linkAtoB: CORE}
-  - {a: 1-ff00:0:110, b: 2-ff00:0:220, linkAtoB: CORE}
-  - {a: 1-ff00:0:110, b: 3-ff00:0:310, linkAtoB: CORE}
-  - {a: 1-ff00:0:110, b: 1-ff00:0:111, linkAtoB: CHILD}
-  - {a: 1-ff00:0:120, b: 2-ff00:0:210, linkAtoB: CORE}
-  - {a: 1-ff00:0:120, b: 1-ff00:0:121, linkAtoB: CHILD}
-  - {a: 1-ff00:0:111, b: 1-ff00:0:121, linkAtoB: PEER}
-  - {a: 1-ff00:0:111, b: 3-ff00:0:311, linkAtoB: PEER}
-  - {a: 2-ff00:0:210, b: 2-ff00:0:220, linkAtoB: CORE}
-  - {a: 2-ff00:0:210, b: 3-ff00:0:310, linkAtoB: CORE}
-  - {a: 2-ff00:0:210, b: 2-ff00:0:221, linkAtoB: CHILD}
-  - {a: 2-ff00:0:210, b: 2-ff00:0:222, linkAtoB: CHILD}
-  - {a: 2-ff00:0:220, b: 2-ff00:0:221, linkAtoB: CHILD}
-  - {a: 2-ff00:0:220, b: 2-ff00:0:222, linkAtoB: CHILD}
-  - {a: 2-ff00:0:221, b: 2-ff00:0:222, linkAtoB: PEER}
-  - {a: 3-ff00:0:310, b: 4-ff00:0:410, linkAtoB: CORE}
-  - {a: 3-ff00:0:310, b: 3-ff00:0:311, linkAtoB: CHILD}
-  - {a: 3-ff00:0:311, b: 3-ff00:0:312, linkAtoB: CHILD}
-  - {a: 3-ff00:0:311, b: 3-ff00:0:313, linkAtoB: CHILD}
-  - {a: 4-ff00:0:410, b: 5-ff00:0:520, linkAtoB: CORE}
-  - {a: 5-ff00:0:510, b: 5-ff00:0:520, linkAtoB: CORE}
-  - {a: 5-ff00:0:510, b: 5-ff00:0:511, linkAtoB: CHILD}
-  - {a: 5-ff00:0:520, b: 5-ff00:0:530, linkAtoB: CORE}
-  - {a: 5-ff00:0:530, b: 5-ff00:0:531, linkAtoB: CHILD}
+  - {a: "1-ff00:0:110", b: "1-ff00:0:120", linkAtoB: CORE}
+  - {a: "1-ff00:0:110", b: "2-ff00:0:210", linkAtoB: CORE}
+  - {a: "1-ff00:0:110", b: "2-ff00:0:220", linkAtoB: CORE}
+  - {a: "1-ff00:0:110", b: "3-ff00:0:310", linkAtoB: CORE}
+  - {a: "1-ff00:0:110", b: "1-ff00:0:111", linkAtoB: CHILD}
+  - {a: "1-ff00:0:120", b: "2-ff00:0:210", linkAtoB: CORE}
+  - {a: "1-ff00:0:120", b: "1-ff00:0:121", linkAtoB: CHILD}
+  - {a: "1-ff00:0:111", b: "1-ff00:0:121", linkAtoB: PEER}
+  - {a: "1-ff00:0:111", b: "3-ff00:0:311", linkAtoB: PEER}
+  - {a: "2-ff00:0:210", b: "2-ff00:0:220", linkAtoB: CORE}
+  - {a: "2-ff00:0:210", b: "3-ff00:0:310", linkAtoB: CORE}
+  - {a: "2-ff00:0:210", b: "2-ff00:0:221", linkAtoB: CHILD}
+  - {a: "2-ff00:0:210", b: "2-ff00:0:222", linkAtoB: CHILD}
+  - {a: "2-ff00:0:220", b: "2-ff00:0:221", linkAtoB: CHILD}
+  - {a: "2-ff00:0:220", b: "2-ff00:0:222", linkAtoB: CHILD}
+  - {a: "2-ff00:0:221", b: "2-ff00:0:222", linkAtoB: PEER}
+  - {a: "3-ff00:0:310", b: "4-ff00:0:410", linkAtoB: CORE}
+  - {a: "3-ff00:0:310", b: "3-ff00:0:311", linkAtoB: CHILD}
+  - {a: "3-ff00:0:311", b: "3-ff00:0:312", linkAtoB: CHILD}
+  - {a: "3-ff00:0:311", b: "3-ff00:0:313", linkAtoB: CHILD}
+  - {a: "4-ff00:0:410", b: "5-ff00:0:520", linkAtoB: CORE}
+  - {a: "5-ff00:0:510", b: "5-ff00:0:520", linkAtoB: CORE}
+  - {a: "5-ff00:0:510", b: "5-ff00:0:511", linkAtoB: CHILD}
+  - {a: "5-ff00:0:520", b: "5-ff00:0:530", linkAtoB: CORE}
+  - {a: "5-ff00:0:530", b: "5-ff00:0:531", linkAtoB: CHILD}
 CAs:
   CA1-1:
     ISD: 1

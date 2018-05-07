@@ -3,12 +3,12 @@ using Go = import "go.capnp";
 $Go.package("proto");
 $Go.import("github.com/scionproto/scion/go/proto");
 
-using RevInfo = import "rev_info.capnp";
+using Sign = import "sign.capnp";
 
 struct IFStateInfo {
     ifID @0 :UInt64;
     active @1 :Bool;
-    revInfo @2 :RevInfo.RevInfo;
+    sRevInfo @2 :Sign.SignedBlob;
 }
 
 struct IFStateInfos {

@@ -20,7 +20,7 @@ import capnp  # noqa
 
 # SCION
 import proto.sciond_capnp as P
-from lib.packet.path_mgmt.rev_info import RevocationInfo
+from lib.packet.path_mgmt.rev_info import SignedRevInfo
 from lib.packet.packet_base import Cerealizable
 from lib.types import TypeBase
 
@@ -35,17 +35,17 @@ class SCIONDRevNotification(Cerealizable):
         self._rev_info = None
 
     @classmethod
-    def from_values(cls, rev_info):
-        p = cls.P_CLS.new_message(revInfo=rev_info.p)
+    def from_values(cls, srev_info):
+        p = cls.P_CLS.new_message(sRevInfo=srev_info.p)
         return cls(p)
 
-    def rev_info(self):
+    def srev_info(self):
         if not self._rev_info:
-            self._rev_info = RevocationInfo(self.p.revInfo)
+            self._rev_info = SignedRevInfo(self.p.sRevInfo)
         return self._rev_info
 
     def short_desc(self):
-        return self.rev_info().short_desc()
+        return self.srev_info().short_desc()
 
 
 class SCIONDRevReply(Cerealizable):  # pragma: no cover
@@ -67,6 +67,7 @@ class SCIONDRevReplyStatus(TypeBase):  # pragma: no cover
     STALE = 1
     INVALID = 2
     UNKNOWN = 3
+    SIGFAIL = 4
 
     @classmethod
     def describe(cls, code):
@@ -78,4 +79,6 @@ class SCIONDRevReplyStatus(TypeBase):  # pragma: no cover
             return "Revocation is invalid."
         if code == cls.UNKNOWN:
             return "Revocation state unknown."
+        if code == cls.SIGFAIL:
+            return "Revocation has a bad signature."
         return "Unknown result code."

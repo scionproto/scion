@@ -16,7 +16,8 @@
 =====================================================
 """
 # Stdlib
-from unittest.mock import call, patch
+import time
+from unittest.mock import call
 
 # External packages
 import nose.tools as ntools
@@ -24,7 +25,7 @@ import nose.tools as ntools
 # SCION
 from lib.rev_cache import RevCache
 from test.testcommon import assert_these_calls, create_mock, create_mock_full
-from lib.crypto.hash_tree import ConnectedHashTree
+from lib.types import LinkType
 
 
 class TestRevCacheGet:
@@ -33,13 +34,14 @@ class TestRevCacheGet:
         key = ("1-ff00:0:300", 1)
         default = "default"
         rev_info = "rev_info"
+        srev_info = create_mock_full({"rev_info()": rev_info})
         rev_cache = RevCache()
-        rev_cache._cache[key] = rev_info
-        rev_cache._validate_entry = create_mock_full(return_value=True)
+        rev_cache._cache[key] = srev_info
+        rev_cache._check_active = create_mock_full(return_value=True)
         # Call
-        ntools.eq_(rev_cache.get(key, default=default), rev_info)
+        ntools.eq_(rev_cache.get(key, default=default), srev_info)
         # Tests
-        assert_these_calls(rev_cache._validate_entry, [call(rev_info)])
+        assert_these_calls(rev_cache._check_active, [call(srev_info)])
 
     def test_missing_entry(self):
         key = ("1-ff00:0:300", 1)
@@ -52,28 +54,32 @@ class TestRevCacheGet:
         key = ("1-ff00:0:300", 1)
         default = "default"
         rev_info = "rev_info"
+        srev_info = create_mock_full({"rev_info()": rev_info})
         rev_cache = RevCache()
-        rev_cache._cache[key] = rev_info
-        rev_cache._validate_entry = create_mock_full(return_value=False)
+        rev_cache._cache[key] = srev_info
+        rev_cache._check_active = create_mock_full(return_value=False)
         # Call
         ntools.eq_(rev_cache.get(key, default=default), default)
         # Tests
-        assert_these_calls(rev_cache._validate_entry, [call(rev_info)])
+        assert_these_calls(rev_cache._check_active, [call(srev_info)])
 
 
 class TestRevCacheAdd:
     """Unit tests for lib.rev_cache.RevCache.add"""
-    def _create_rev_info(self, isd_as, if_id, epoch):
-        rev_info_p = create_mock_full({"ifID": if_id, "epoch": epoch})
-        rev_info = create_mock_full({"isd_as()": isd_as, "p": rev_info_p})
-        return rev_info
+    def _create_rev_info(self, isd_as, if_id, link_type=LinkType.CORE, timestamp=None, ttl=10):
+        timestamp = int(timestamp or time.time())
+        rev_info_p = create_mock_full({"ifID": if_id, "link_type": link_type,
+                                       "timestamp": timestamp, "ttl": ttl})
+        now = int(time.time())
+        active = (timestamp <= now + 1) and now < (timestamp + ttl)
+        rev_info = create_mock_full({"isd_as()": isd_as,
+                                     "active()": active, "p": rev_info_p})
+        srev_info = create_mock_full({"rev_info()": rev_info})
+        return srev_info
 
-    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
-           new_callable=create_mock)
-    def test(self, verify_epoch):
+    def test(self):
         key = ("1-ff00:0:300", 1)
-        rev_info = self._create_rev_info(key[0], key[1], 2)
-        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
+        rev_info = self._create_rev_info(key[0], key[1])
         rev_cache = RevCache()
         rev_cache.get = create_mock()
         rev_cache.get.return_value = None
@@ -82,25 +88,20 @@ class TestRevCacheAdd:
         # Tests
         ntools.eq_(rev_cache._cache[key], rev_info)
         assert_these_calls(rev_cache.get, [call(key)])
-        assert_these_calls(verify_epoch, [call(rev_info.p.epoch)])
+        assert_these_calls(rev_info.rev_info().active, [call()])
 
-    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
-           new_callable=create_mock)
-    def test_invalid_entry(self, verify_epoch):
-        rev_info = self._create_rev_info("1-ff00:0:300", 1, 2)
-        verify_epoch.return_value = ConnectedHashTree.EPOCH_PAST
+    def test_invalid_entry(self):
+        rev_info = self._create_rev_info("1-ff00:0:300", 1, timestamp=int(time.time())-20)
         rev_cache = RevCache()
         # Call
         ntools.assert_false(rev_cache.add(rev_info))
-        assert_these_calls(verify_epoch, [call(rev_info.p.epoch)])
+        assert_these_calls(rev_info.rev_info().active, [call()])
 
-    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
-           new_callable=create_mock)
-    def test_same_entry_exists(self, verify_epoch):
+    def test_same_entry_exists(self):
         key = ("1-ff00:0:300", 1)
-        rev_info1 = self._create_rev_info(key[0], key[1], 1)
-        rev_info2 = self._create_rev_info(key[0], key[1], 1)
-        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
+        now = int(time.time())
+        rev_info1 = self._create_rev_info(key[0], key[1], timestamp=now)
+        rev_info2 = self._create_rev_info(key[0], key[1], timestamp=now)
         rev_cache = RevCache()
         rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
@@ -108,16 +109,14 @@ class TestRevCacheAdd:
         ntools.assert_false(rev_cache.add(rev_info2))
         # Tests
         ntools.eq_(rev_cache._cache[key], rev_info1)
-        assert_these_calls(verify_epoch, [call(rev_info2.p.epoch)])
-        assert_these_calls(rev_cache.get, [call(key)])
+        assert_these_calls(rev_info2.rev_info().active, [call()])
+        assert_these_calls(rev_cache.get, [call(key), call().rev_info()])
 
-    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
-           new_callable=create_mock)
-    def test_newer_entry_exists(self, verify_epoch):
+    def test_newer_entry_exists(self):
         key = ("1-ff00:0:300", 1)
-        rev_info1 = self._create_rev_info(key[0], key[1], 2)
-        rev_info2 = self._create_rev_info(key[0], key[1], 1)
-        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
+        now = int(time.time())
+        rev_info1 = self._create_rev_info(key[0], key[1], timestamp=now + 1)
+        rev_info2 = self._create_rev_info(key[0], key[1], timestamp=now)
         rev_cache = RevCache()
         rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
@@ -125,16 +124,14 @@ class TestRevCacheAdd:
         ntools.assert_false(rev_cache.add(rev_info2))
         # Tests
         ntools.eq_(rev_cache._cache[key], rev_info1)
-        assert_these_calls(verify_epoch, [call(rev_info2.p.epoch)])
-        assert_these_calls(rev_cache.get, [call(key)])
+        assert_these_calls(rev_info2.rev_info().active, [call()])
+        assert_these_calls(rev_cache.get, [call(key), call().rev_info()])
 
-    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
-           new_callable=create_mock)
-    def test_older_entry_exists(self, verify_epoch):
+    def test_older_entry_exists(self):
         key = ("1-ff00:0:300", 1)
-        rev_info1 = self._create_rev_info(key[0], key[1], 1)
-        rev_info2 = self._create_rev_info(key[0], key[1], 2)
-        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
+        now = int(time.time())
+        rev_info1 = self._create_rev_info(key[0], key[1], timestamp=now)
+        rev_info2 = self._create_rev_info(key[0], key[1], timestamp=now + 1)
         rev_cache = RevCache()
         rev_cache.get = create_mock_full(return_value=rev_info1)
         rev_cache._cache[key] = rev_info1
@@ -142,26 +139,24 @@ class TestRevCacheAdd:
         ntools.assert_true(rev_cache.add(rev_info2))
         # Tests
         ntools.eq_(rev_cache._cache[key], rev_info2)
-        assert_these_calls(verify_epoch, [call(rev_info2.p.epoch)])
-        assert_these_calls(rev_cache.get, [call(key)])
+        assert_these_calls(rev_info2.rev_info().active, [call()])
+        assert_these_calls(rev_cache.get, [call(key), call().rev_info()])
 
-    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
-           new_callable=create_mock)
-    def test_with_free_up(self, verify_epoch):
+    def test_with_free_up(self):
         key1 = ("1-ff00:0:300", 1)
         key2 = ("1-ff00:0:301", 1)
-        rev_info1 = self._create_rev_info(key1[0], key1[1], 1)
-        rev_info2 = self._create_rev_info(key2[0], key2[1], 2)
-        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
+        now = int(time.time())
+        rev_info1 = self._create_rev_info(key1[0], key1[1], timestamp=now)
+        rev_info2 = self._create_rev_info(key2[0], key2[1], timestamp=now + 1)
 
-        def validate_entry_side_effect(rev_info):
-            del rev_cache._cache[(rev_info.isd_as(), rev_info.p.ifID)]
+        def check_active_side_effect(srev_info):
+            del rev_cache._cache[(srev_info.rev_info().isd_as(), srev_info.rev_info().p.ifID)]
             return False
 
         rev_cache = RevCache(capacity=1)
         rev_cache._cache[key1] = rev_info1
-        rev_cache._validate_entry = create_mock()
-        rev_cache._validate_entry.side_effect = validate_entry_side_effect
+        rev_cache._check_active = create_mock()
+        rev_cache._check_active.side_effect = check_active_side_effect
         rev_cache.get = create_mock()
         rev_cache.get.return_value = None
         # Call
@@ -169,25 +164,23 @@ class TestRevCacheAdd:
         # Tests
         ntools.eq_(rev_cache._cache[key2], rev_info2)
         ntools.assert_true(key1 not in rev_cache._cache)
-        assert_these_calls(verify_epoch, [call(rev_info2.p.epoch)])
+        assert_these_calls(rev_info2.rev_info().active, [call()])
         assert_these_calls(rev_cache.get, [call(key2)])
 
-    @patch("lib.crypto.hash_tree.ConnectedHashTree.verify_epoch",
-           new_callable=create_mock)
-    def test_with_no_free_up(self, verify_epoch):
+    def test_with_no_free_up(self):
         key1 = ("1-ff00:0:300", 1)
         key2 = ("1-ff00:0:301", 1)
-        rev_info1 = self._create_rev_info(key1[0], key1[1], 1)
-        rev_info2 = self._create_rev_info(key2[0], key2[1], 2)
-        verify_epoch.return_value = ConnectedHashTree.EPOCH_OK
+        now = int(time.time())
+        rev_info1 = self._create_rev_info(key1[0], key1[1], timestamp=now)
+        rev_info2 = self._create_rev_info(key2[0], key2[1], timestamp=now + 1)
         rev_cache = RevCache(capacity=1)
         rev_cache._cache[key1] = rev_info1
-        rev_cache._validate_entry = create_mock_full(return_value=True)
+        rev_cache._check_active = create_mock_full(return_value=True)
         rev_cache.get = create_mock()
         rev_cache.get.return_value = None
         # Call
         ntools.assert_false(rev_cache.add(rev_info2))
         # Tests
         ntools.assert_true(key1 in rev_cache._cache)
-        assert_these_calls(verify_epoch, [call(rev_info2.p.epoch)])
+        assert_these_calls(rev_info2.rev_info().active, [call()])
         assert_these_calls(rev_cache.get, [call(key2)])

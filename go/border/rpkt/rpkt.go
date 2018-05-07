@@ -45,14 +45,14 @@ const pktBufSize = 9 * 1024
 // callbacks is an anonymous struct used for functions supplied by the router
 // for various processing tasks.
 var callbacks struct {
-	revTokenF func(RevTokenCallbackArgs)
-	ifIDF     func(IFIDCallbackArgs)
+	rawSRevF func(RawSRevCallbackArgs)
+	ifIDF    func(IFIDCallbackArgs)
 }
 
 // Init takes callback functions provided by the router and stores them for use
 // by the rpkt package.
-func Init(revTokenF func(RevTokenCallbackArgs), ifIDF func(IFIDCallbackArgs)) {
-	callbacks.revTokenF = revTokenF
+func Init(rawSRevF func(RawSRevCallbackArgs), ifIDF func(IFIDCallbackArgs)) {
+	callbacks.rawSRevF = rawSRevF
 	callbacks.ifIDF = ifIDF
 }
 

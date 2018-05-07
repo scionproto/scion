@@ -222,7 +222,7 @@ func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
 	// Extract RevInfo buffer and send it to path manager
-	c.scionNet.pathResolver.Revoke(info.RevToken)
+	c.scionNet.pathResolver.Revoke(info.RawSRev)
 }
 
 // WriteToSCION sends b to raddr.

@@ -26,8 +26,8 @@ import (
 var _ proto.Cerealizable = (*SegRecs)(nil)
 
 type SegRecs struct {
-	Recs     []*seg.Meta
-	RevInfos []*RevInfo
+	Recs      []*seg.Meta
+	SRevInfos []*SignedRevInfo
 }
 
 func (s *SegRecs) ProtoId() proto.ProtoIdType {
@@ -39,9 +39,9 @@ func (s *SegRecs) String() string {
 	for _, m := range s.Recs {
 		desc = append(desc, m.String())
 	}
-	if len(s.RevInfos) > 0 {
+	if len(s.SRevInfos) > 0 {
 		desc = append(desc, "RevInfos")
-		for _, info := range s.RevInfos {
+		for _, info := range s.SRevInfos {
 			desc = append(desc, info.String())
 		}
 	}

@@ -53,8 +53,8 @@ type Router struct {
 	confDir string
 	// freePkts is a ring-buffer of unused packets.
 	freePkts *ringbuf.Ring
-	// revInfoQ is a channel for handling RevInfo payloads.
-	revInfoQ chan rpkt.RevTokenCallbackArgs
+	// sRevInfoQ is a channel for handling SignedRevInfo payloads.
+	sRevInfoQ chan rpkt.RawSRevCallbackArgs
 	// iFID is a channel for handling IFID packets from the local BS
 	ifIDQ chan rpkt.IFIDCallbackArgs
 	// pktErrorQ is a channel for handling packet errors
