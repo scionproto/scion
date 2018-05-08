@@ -55,18 +55,16 @@ func NewServer(network string, address string, msger infra.Messenger, logger log
 	}
 }
 
-// ListenAndServe listens on the UNIX stream socket at address, and
-// repeatedly accepts connections from clients. Stream data is interpreted
-// according to the Reliable Socket protocol described in go/lib/sock/reliable.
-// For each accepted connection, a SCIONDMsg server is started as a separate
-// goroutine; the server will manage the connection until it is closed by the
-// client.
+// ListenAndServe starts listening on srv's address, and repeatedly accepts
+// connections from clients. For each accepted connection, a SCIONDMsg server
+// is started as a separate goroutine; the server will manage the connection
+// until it is closed by the client.
 func (srv *Server) ListenAndServe() error {
 	srv.mu.Lock()
 	listener, err := srv.listen()
 	srv.mu.Unlock()
 	if err != nil {
-		return common.NewBasicError("unable to listen on reliable socket", nil,
+		return common.NewBasicError("unable to listen on socket", nil,
 			"address", srv.address, "err", err)
 	}
 	srv.listener = listener
@@ -74,7 +72,7 @@ func (srv *Server) ListenAndServe() error {
 	for {
 		conn, err := srv.listener.Accept()
 		if err != nil {
-			srv.log.Warn("unable to accept reliable socket conn", "err", err)
+			srv.log.Warn("unable to accept conn", "err", err)
 			continue
 		}
 
@@ -98,26 +96,27 @@ func (srv *Server) listen() (net.Listener, error) {
 	case "rsock":
 		return reliable.Listen(srv.address)
 	default:
-		return nil, common.NewBasicError("Unknown network", nil, "net", srv.network)
+		return nil, common.NewBasicError("unknown network", nil, "net", srv.network)
 	}
 }
 
-// Close makes the ReliableSockServer stop listening for new reliable socket
-// connections, and immediately closes all running SCIONDMsg servers that have
-// been launched by this server.
+// Close makes the Server stop listening for new connections, and immediately
+// closes all running SCIONDMsg servers that have been launched by this server.
 func (srv *Server) Close() error {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
 	if srv.listener == nil {
-		return common.NewBasicError("unitialized RSockServer", nil)
+		return common.NewBasicError("unitialized server", nil)
 	}
 	return srv.listener.Close()
+	// FIXME(scrye): shut down running servers once we actually implement the
+	// handlers.
 }
 
-// Shutdown makes the ReliableSockServer stop listening for new reliable socket
-// connections, and cleanly shuts down all running SCIONDMsg servers that have
-// been launched by this server.
+// Shutdown makes the Server stop listening for new connections, and cleanly
+// shuts down all running SCIONDMsg servers that have been launched by this
+// server.
 func (srv *Server) Shutdown(ctx context.Context) error {
 	// Ignore context during close as it should rarely block for non-negligible
 	// time.
