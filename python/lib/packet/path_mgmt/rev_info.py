@@ -76,6 +76,9 @@ class SignedRevInfo(ProtoSignedBlob):
         if not super().verify(key):
             raise SignedRevInfoVerificationError("Failed to verify RevInfo signature!")
 
+    def __eq__(self, other):
+        return self.rev_info().cmp_str() == other.rev_info().cmp_str()
+
     def __hash__(self):
         return hash(self.rev_info().cmp_str())
 
