@@ -282,37 +282,41 @@ func (ae *ASEntry) monitorHealth() {
 	ticker := time.NewTicker(healthMonitorTick)
 	defer ticker.Stop()
 	ae.Info("Health monitor starting")
-	lastHealth := false
+	prevHealth := false
 Top:
 	for {
 		select {
 		case <-ae.healthMonitorStop:
 			break Top
 		case <-ticker.C:
-			ae.RLock()
-			curHealth := ae.checkHealth()
-			if curHealth != lastHealth {
-				// Generate slice of networks.
-				// XXX: This could become a bottleneck, namely in case of a large number
-				// of remote prefixes and flappy health.
-				nets := make([]*net.IPNet, 0, len(ae.Nets))
-				for _, n := range ae.Nets {
-					nets = append(nets, n)
-				}
-				// Overall health has changed. Generate event.
-				params := RemoteHealthChangedParams{
-					RemoteIA: ae.IA,
-					Nets:     nets,
-					Healthy:  curHealth,
-				}
-				RemoteHealthChanged(params)
-				lastHealth = curHealth
-			}
-			ae.RUnlock()
+			prevHealth = ae.performHealthCheck(prevHealth)
 		}
 	}
 	close(ae.healthMonitorStop)
 	ae.Info("Health monitor stopping")
+}
+
+func (ae *ASEntry) performHealthCheck(prevHealth bool) bool {
+	ae.RLock()
+	defer ae.RUnlock()
+	curHealth := ae.checkHealth()
+	if curHealth != prevHealth {
+		// Generate slice of networks.
+		// XXX: This could become a bottleneck, namely in case of a large number
+		// of remote prefixes and flappy health.
+		nets := make([]*net.IPNet, 0, len(ae.Nets))
+		for _, n := range ae.Nets {
+			nets = append(nets, n)
+		}
+		// Overall health has changed. Generate event.
+		params := RemoteHealthChangedParams{
+			RemoteIA: ae.IA,
+			Nets:     nets,
+			Healthy:  curHealth,
+		}
+		RemoteHealthChanged(params)
+	}
+	return curHealth
 }
 
 func (ae *ASEntry) checkHealth() bool {
