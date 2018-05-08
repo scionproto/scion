@@ -208,11 +208,12 @@ class SCIONDaemon(SCIONElement):
 
         req = path_reply.req()
         key = req.dst_ia(), req.flags()
-        r = self.requested_paths.get(key)
-        if r:
-            r.notify_reply(path_reply)
-        else:
-            logging.warning("No outstanding request found for %s", key)
+        with self.req_path_lock:
+            r = self.requested_paths.get(key)
+            if r:
+                r.notify_reply(path_reply)
+            else:
+                logging.warning("No outstanding request found for %s", key)
         for type_, pcb in recs.iter_pcbs():
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                    meta, type_, params=(r,))
