@@ -55,7 +55,7 @@ func newSignedPld(cpld *Pld, sign *proto.SignS, key common.RawBytes) (*SignedPld
 func NewSignedPldFromRaw(b common.RawBytes) (*SignedPld, error) {
 	sp := &SignedPld{}
 	if len(b) < 4 {
-		return nil, common.NewBasicError("Invalid ctrl payload length", nil,
+		return nil, common.NewBasicError("Ctrl payload length field to short", nil,
 			"minimum", 4, "actual", len(b))
 	}
 	n := common.Order.Uint32(b)
