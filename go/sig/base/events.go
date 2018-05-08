@@ -28,41 +28,65 @@ type (
 	SigChangedCb          func(SigChangedParams)
 )
 
+// NetworkChangedParams contains the parameters that are passed along with a NetworkChanged event.
 type NetworkChangedParams struct {
+	// RemoteIA is the remote IA for which network information changed.
 	RemoteIA addr.IA
-	IpNet    net.IPNet
-	Added    bool
+	// IpNet contains the network prefix that was added/removed.
+	IpNet net.IPNet
+	// Added is true if the prefix was added, false otherwise.
+	Added bool
 }
 
-type RemoteHealthChangedParams struct {
-	RemoteIA addr.IA
-	Nets     map[string]*net.IPNet
-	Healthy  bool
-}
-
+// SigChangedParams contains the parameters that are passed along with a SigChanged event.
 type SigChangedParams struct {
-	RemoteIA  addr.IA
-	Id        siginfo.SigIdType
-	Host      addr.HostAddr
-	CtrlPort  int
+	// RemoteIA is the IA for which SIG information changed.
+	RemoteIA addr.IA
+	// Id is the id of the SIG.
+	Id siginfo.SigIdType
+	// Host is the host address of the SIG.
+	Host addr.HostAddr
+	// CtrlPort is the port on which the SIG accepts control traffic.
+	CtrlPort int
+	// EncapPort is the port on which the SIG accepts encapsulated SIG-SIG frames.
 	EncapPort int
-	Static    bool
-	Added     bool
+	// Static is true, if this SIG was statically configured and false if it was discovered
+	// dynamically.
+	Static bool
+	// Added is true if the SIG was added, false otherwise.
+	Added bool
 }
 
+// RemoteHealthChangedParams contains the parameters that are passed along with a
+// RemoteHealthChanged event.
+type RemoteHealthChangedParams struct {
+	// RemoteIA is the IA for which the reachability status changed.
+	RemoteIA addr.IA
+	// Nets contains all network prefixes the remote IA announced.
+	Nets []*net.IPNet
+	// Healthy is true if the remote IA is reachable, false otherwise.
+	Healthy bool
+}
+
+// EventCallbacks can be used by a listener to register for certain events by setting the
+// corresponding function pointer in the struct. Note, that the callback MUST NOT BLOCK. Long
+// running or potentially blocking operations should be executed in a separate go-routine.
 type EventCallbacks struct {
-	NetworkChanged      NetworkChangedCb
-	SigChanged          SigChangedCb
+	// NetworkChanged is called when a remote network was added or removed from the configuration.
+	NetworkChanged NetworkChangedCb
+	// SigChanged is called when a remote SIG is was added or removed from the configuration.
+	SigChanged SigChangedCb
+	// RemoteHealthChanged is called when the reachability status of a remote AS changed.
 	RemoteHealthChanged RemoteHealthChangedCb
 }
 
 var lock sync.RWMutex
-var listeners map[string]EventCallbacks = make(map[string]EventCallbacks)
+var listeners = make(map[string]EventCallbacks)
 
-func AddEventListener(moduleName string, cbs EventCallbacks) {
+func AddEventListener(listenerName string, cbs EventCallbacks) {
 	lock.Lock()
 	defer lock.Unlock()
-	listeners[moduleName] = cbs
+	listeners[listenerName] = cbs
 }
 
 func RemoveEventListener(listenerName string) {
@@ -76,7 +100,7 @@ func NetworkChanged(params NetworkChangedParams) {
 	defer lock.RUnlock()
 	for _, cbs := range listeners {
 		if cbs.NetworkChanged != nil {
-			go cbs.NetworkChanged(params)
+			cbs.NetworkChanged(params)
 		}
 	}
 }
@@ -86,7 +110,7 @@ func RemoteHealthChanged(params RemoteHealthChangedParams) {
 	defer lock.RUnlock()
 	for _, cbs := range listeners {
 		if cbs.RemoteHealthChanged != nil {
-			go cbs.RemoteHealthChanged(params)
+			cbs.RemoteHealthChanged(params)
 		}
 	}
 }
@@ -96,7 +120,7 @@ func SigChanged(params SigChangedParams) {
 	defer lock.RUnlock()
 	for _, cbs := range listeners {
 		if cbs.SigChanged != nil {
-			go cbs.SigChanged(params)
+			cbs.SigChanged(params)
 		}
 	}
 }
