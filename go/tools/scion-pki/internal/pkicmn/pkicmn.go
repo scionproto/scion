@@ -31,6 +31,8 @@ const (
 	CoreCertNameFmt    = "ISD%d-AS%s-V%d-core.crt"
 	TrcNameFmt         = "ISD%d-V%d.trc"
 	ErrInvalidSelector = "Invalid selector."
+	ErrNoISDDirFound   = "No ISD directories found"
+	ErrNoASDirFound    = "No AS directories found"
 	TRCsDir            = "trcs"
 	CertsDir           = "certs"
 	KeysDir            = "keys"
@@ -64,16 +66,18 @@ func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
 		}
 	}
 	if asTok != "*" {
-		if _, err := addr.ASFromString(asTok); err != nil {
+		as, err := addr.ASFromString(asTok)
+		if err != nil {
 			return nil, common.NewBasicError(ErrInvalidSelector, err, "selector", selector)
 		}
+		asTok = as.FileFmt()
 	}
 	isdDirs, err := filepath.Glob(filepath.Join(RootDir, fmt.Sprintf("ISD%s", isdTok)))
 	if err != nil {
 		return nil, err
 	}
 	if len(isdDirs) == 0 {
-		return nil, common.NewBasicError("No ISD directories found", nil, "selector", selector)
+		return nil, common.NewBasicError(ErrNoISDDirFound, nil, "selector", selector)
 	}
 	res := make(map[addr.ISD][]addr.IA)
 	for _, dir := range isdDirs {
@@ -86,7 +90,7 @@ func ProcessSelector(selector string) (map[addr.ISD][]addr.IA, error) {
 			return nil, err
 		}
 		if len(dirs) == 0 {
-			return nil, common.NewBasicError("No AS directories found", nil, "selector", selector)
+			return nil, common.NewBasicError(ErrNoASDirFound, nil, "selector", selector)
 		}
 		ases := make([]addr.IA, len(dirs))
 		for i, asDir := range dirs {
