@@ -75,6 +75,7 @@ type EventCallbacks struct {
 	// NetworkChanged is called when a remote network was added or removed from the configuration.
 	NetworkChanged NetworkChangedCb
 	// SigChanged is called when a remote SIG is was added or removed from the configuration.
+	// TODO(shitz): This event does not get generated yet.
 	SigChanged SigChangedCb
 	// RemoteHealthChanged is called when the reachability status of a remote AS changed.
 	RemoteHealthChanged RemoteHealthChangedCb
