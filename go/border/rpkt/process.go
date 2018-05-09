@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-
 	"github.com/scionproto/scion/go/border/ifstate"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"

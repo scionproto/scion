@@ -15,7 +15,6 @@
 package spath
 
 import (
-
 	"github.com/scionproto/scion/go/lib/common"
 )
 

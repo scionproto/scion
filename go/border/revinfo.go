@@ -17,12 +17,12 @@
 package main
 
 import (
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 // RawSRevCallback is called to enqueue RevInfos for handling by the

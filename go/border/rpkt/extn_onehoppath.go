@@ -20,9 +20,9 @@ package rpkt
 import (
 	"hash"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 )

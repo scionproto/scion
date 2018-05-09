@@ -17,7 +17,6 @@ package ctrl
 import (
 	"fmt"
 
-
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
