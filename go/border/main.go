@@ -40,6 +40,7 @@ var (
 )
 
 func main() {
+	os.Setenv("TZ", "UTC")
 	// Parse and check flags.
 	log.AddLogFileFlags()
 	log.AddLogConsFlags()
@@ -48,7 +49,6 @@ func main() {
 		log.Crit("No element ID specified")
 		os.Exit(1)
 	}
-	os.Setenv("TZ", "UTC")
 	if err := log.SetupFromFlags(*id); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()

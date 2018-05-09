@@ -282,7 +282,7 @@ Top:
 }
 
 func (ae *ASEntry) monitorHealth() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	ticker := time.NewTicker(healthMonitorTick)
 	defer ticker.Stop()
 	ae.Info("Health monitor starting")

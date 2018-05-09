@@ -16,7 +16,6 @@ package main
 
 import (
 	"flag"
-	//	"fmt"
 	"io"
 	"net"
 	_ "net/http/pprof"
