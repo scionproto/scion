@@ -22,15 +22,13 @@ import (
 	"os"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
@@ -66,7 +64,7 @@ func realMain() int {
 		flag.Usage()
 		return 1
 	}
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 
 	// Initialize SignedCtrlPld server
 	// FIXME(scrye): enable this once we have SCIOND-less snet and a TrustStore
@@ -86,7 +84,7 @@ func realMain() int {
 		server, shutdownF := NewServer("rsock", *reliableSockPath, Env)
 		defer shutdownF()
 		go func() {
-			defer liblog.LogPanicAndExit()
+			defer log.LogPanicAndExit()
 			if err := server.ListenAndServe(); err != nil {
 				fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", nil,
 					"err", err)
@@ -98,7 +96,7 @@ func realMain() int {
 		server, shutdownF := NewServer("unixpacket", *unixPath, Env)
 		defer shutdownF()
 		go func() {
-			defer liblog.LogPanicAndExit()
+			defer log.LogPanicAndExit()
 			if err := server.ListenAndServe(); err != nil {
 				fatalC <- common.NewBasicError("UnixServer ListenAndServe error", nil, "err", err)
 			}
@@ -107,7 +105,7 @@ func realMain() int {
 
 	if Env.HTTPAddress != "" {
 		go func() {
-			defer liblog.LogPanicAndExit()
+			defer log.LogPanicAndExit()
 			if err := http.ListenAndServe(Env.HTTPAddress, nil); err != nil {
 				fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
 			}

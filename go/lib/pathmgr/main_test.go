@@ -17,8 +17,6 @@ package pathmgr
 import (
 	"os"
 	"testing"
-
-	log "github.com/inconshreveable/log15"
 )
 
 // Disable logging in all tests

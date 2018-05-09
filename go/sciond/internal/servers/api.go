@@ -23,11 +23,9 @@ import (
 	"net"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -78,7 +76,7 @@ func (srv *API) Serve() error {
 			return err
 		}
 		go func() {
-			defer liblog.LogPanicAndExit()
+			defer log.LogPanicAndExit()
 			srv.Handle(b, address)
 		}()
 	}
