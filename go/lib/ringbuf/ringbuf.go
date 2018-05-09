@@ -17,7 +17,6 @@ package ringbuf
 import (
 	"sync"
 
-	//"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

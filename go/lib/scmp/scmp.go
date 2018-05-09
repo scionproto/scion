@@ -16,7 +16,6 @@ package scmp
 
 import (
 	"fmt"
-	//"github.com/scionproto/scion/go/lib/log"
 )
 
 // https://github.com/scionproto/scion/blob/master/lib/packet/scmp/types.py

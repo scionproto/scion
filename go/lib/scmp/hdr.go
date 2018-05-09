@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	//"github.com/scionproto/scion/go/lib/log"
 	"gopkg.in/restruct.v1"
 
 	"github.com/scionproto/scion/go/lib/common"

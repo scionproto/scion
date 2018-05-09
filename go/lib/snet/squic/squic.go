@@ -18,7 +18,6 @@ package squic
 import (
 	"crypto/tls"
 
-	//log "github.com/inconshreveable/log15"
 	"github.com/lucas-clemente/quic-go"
 
 	"github.com/scionproto/scion/go/lib/addr"
