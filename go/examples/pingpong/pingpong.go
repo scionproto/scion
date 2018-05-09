@@ -244,7 +244,9 @@ func Server() {
 		qsess, err := qsock.Accept()
 		if err != nil {
 			log.Error("Unable to accept quic session", "err", err)
-			continue
+			// the quic implementation keeps the error present for the
+			// rest of the life of the socket. We quit
+			return
 		}
 		log.Debug("Quic session accepted", "src", qsess.RemoteAddr())
 		go handleClient(qsess)
@@ -266,11 +268,11 @@ func initNetwork() {
 func handleClient(qsess quic.Session) {
 	defer qsess.Close(nil)
 	qstream, err := qsess.AcceptStream()
-	defer qstream.Close()
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
 		return
 	}
+	defer qstream.Close()
 
 	b := make([]byte, 1<<12)
 	reqMsgLen := len(ReqMsg)
