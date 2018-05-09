@@ -17,6 +17,8 @@ package pathmgr
 import (
 	"os"
 	"testing"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 // Disable logging in all tests
