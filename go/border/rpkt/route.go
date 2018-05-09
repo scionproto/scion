@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"math/rand"
 
-	//"github.com/scionproto/scion/go/lib/log"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/metrics"

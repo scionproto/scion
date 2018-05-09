@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 
-	//"github.com/scionproto/scion/go/lib/log"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 
