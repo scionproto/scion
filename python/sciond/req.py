@@ -35,7 +35,7 @@ class RequestState:  # pragma: no cover
             if self._done:
                 return
             if self._segs_to_verify > 0:
-                logging.error("Received duplicate reply")
+                logging.error("Received duplicate reply %s", reply)
                 return
             self._segs_to_verify = reply.recs().num_segs()
             if self._segs_to_verify > 0:
