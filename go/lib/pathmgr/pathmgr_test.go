@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
