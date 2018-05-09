@@ -34,6 +34,8 @@ type NetworkChangedParams struct {
 	RemoteIA addr.IA
 	// IpNet contains the network prefix that was added/removed.
 	IpNet net.IPNet
+	// Healthy is true if the remote IA can be reached.
+	Healthy bool
 	// Added is true if the prefix was added, false otherwise.
 	Added bool
 }
