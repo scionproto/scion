@@ -34,7 +34,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -42,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/transport"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 )
