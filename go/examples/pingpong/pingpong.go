@@ -244,9 +244,8 @@ func Server() {
 		qsess, err := qsock.Accept()
 		if err != nil {
 			log.Error("Unable to accept quic session", "err", err)
-			// the quic implementation keeps the error present for the
-			// rest of the life of the socket. We quit
-			return
+			// Accept failing means the socket is unusable.
+			break
 		}
 		log.Debug("Quic session accepted", "src", qsess.RemoteAddr())
 		go handleClient(qsess)
