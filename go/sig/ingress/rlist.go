@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/log"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/sigcmn"

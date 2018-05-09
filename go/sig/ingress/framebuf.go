@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/log"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/util"
