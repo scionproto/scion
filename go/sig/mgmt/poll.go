@@ -17,7 +17,6 @@ package mgmt
 import (
 	"fmt"
 
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/proto"
 )

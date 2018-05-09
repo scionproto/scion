@@ -17,9 +17,9 @@ package egress
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"

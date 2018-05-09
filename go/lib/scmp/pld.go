@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"fmt"
 
-
 	"github.com/scionproto/scion/go/lib/common"
 )
 

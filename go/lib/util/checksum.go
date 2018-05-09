@@ -17,7 +17,6 @@ package util
 import (
 	"unsafe"
 
-
 	"github.com/scionproto/scion/go/lib/common"
 )
 

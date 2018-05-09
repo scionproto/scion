@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"strings"
 
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"

@@ -17,7 +17,6 @@ package ringbuf
 import (
 	"sync"
 
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
