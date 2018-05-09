@@ -295,18 +295,18 @@ Top:
 		case <-ae.healthMonitorStop:
 			break Top
 		case <-ticker.C:
-			prevHealth, prevVersion = ae.performHealthCheck(prevHealth, prevVersion)
+			ae.performHealthCheck(&prevHealth, &prevVersion)
 		}
 	}
 	close(ae.healthMonitorStop)
 	ae.Info("Health monitor stopping")
 }
 
-func (ae *ASEntry) performHealthCheck(prevHealth bool, prevVersion uint64) (bool, uint64) {
+func (ae *ASEntry) performHealthCheck(prevHealth *bool, prevVersion *uint64) {
 	ae.RLock()
 	defer ae.RUnlock()
 	curHealth := ae.checkHealth()
-	if curHealth != prevHealth || ae.version != prevVersion {
+	if curHealth != *prevHealth || ae.version != *prevVersion {
 		// Generate slice of networks.
 		// XXX: This could become a bottleneck, namely in case of a large number
 		// of remote prefixes and flappy health.
@@ -322,7 +322,8 @@ func (ae *ASEntry) performHealthCheck(prevHealth bool, prevVersion uint64) (bool
 		}
 		RemoteHealthChanged(params)
 	}
-	return curHealth, ae.version
+	*prevHealth = curHealth
+	*prevVersion = ae.version
 }
 
 func (ae *ASEntry) checkHealth() bool {
