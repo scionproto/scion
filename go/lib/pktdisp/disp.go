@@ -16,7 +16,6 @@ package pktdisp
 
 import (
 	"github.com/scionproto/scion/go/lib/log"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 )

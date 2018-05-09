@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
-
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/pktcls"

@@ -18,7 +18,6 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/go/lib/log"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/disp"
