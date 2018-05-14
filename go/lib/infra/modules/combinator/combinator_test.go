@@ -57,7 +57,7 @@ func TestBadPeering(t *testing.T) {
 		Ups   []*seg.PathSegment
 		Cores []*seg.PathSegment
 		Downs []*seg.PathSegment
-		Exp   [][]PathField
+		Exp   [][]pathField
 	}{
 		{
 			Name:  "broken peering",
@@ -72,7 +72,7 @@ func TestBadPeering(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1215, 1518}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1714},
@@ -96,7 +96,7 @@ func TestBadPeering(t *testing.T) {
 				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 				SoMsg("result",
 					fmt.Sprintf("%v", result),
-					ShouldResemble,
+					ShouldEqual,
 					fmt.Sprintf("%v", tc.Exp),
 				)
 			})
@@ -115,7 +115,7 @@ func TestMultiPeering(t *testing.T) {
 		Ups   []*seg.PathSegment
 		Cores []*seg.PathSegment
 		Downs []*seg.PathSegment
-		Exp   [][]PathField
+		Exp   [][]pathField
 	}{
 		{
 			Name:  "two peerings between same ases",
@@ -130,7 +130,7 @@ func TestMultiPeering(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1215, 1518}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1714},
@@ -178,7 +178,7 @@ func TestMultiPeering(t *testing.T) {
 				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 				SoMsg("result",
 					fmt.Sprintf("%v", result),
-					ShouldResemble,
+					ShouldEqual,
 					fmt.Sprintf("%v", tc.Exp),
 				)
 			})
@@ -196,7 +196,7 @@ func TestComputePath(t *testing.T) {
 		Ups   []*seg.PathSegment
 		Cores []*seg.PathSegment
 		Downs []*seg.PathSegment
-		Exp   [][]PathField
+		Exp   [][]pathField
 	}{
 		{
 			Name:  "#0 simple up-core-down",
@@ -211,7 +211,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1613},
@@ -236,7 +236,7 @@ func TestComputePath(t *testing.T) {
 				g.Beacon([]common.IFIDType{1113}),
 			},
 			Downs: []*seg.PathSegment{},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1613},
@@ -256,7 +256,7 @@ func TestComputePath(t *testing.T) {
 			},
 			Cores: []*seg.PathSegment{},
 			Downs: []*seg.PathSegment{},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1613},
@@ -275,7 +275,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1311},
@@ -295,7 +295,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, ISD: 1},
 					{Type: HF, OutIF: 1114},
@@ -316,7 +316,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114}),
 			},
-			Exp: [][]PathField{},
+			Exp: [][]pathField{},
 		},
 		{
 			Name:  "#6 simple long up-core-down",
@@ -331,7 +331,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2123, 2325}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1916},
@@ -359,7 +359,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1215, 1518}),
 			},
-			Exp: [][]PathField{},
+			Exp: [][]pathField{},
 		},
 		{
 			Name:  "#8 missing core",
@@ -372,7 +372,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2123}),
 			},
-			Exp: [][]PathField{},
+			Exp: [][]pathField{},
 		},
 		{
 			Name:  "#9 missing down",
@@ -385,7 +385,7 @@ func TestComputePath(t *testing.T) {
 				g.Beacon([]common.IFIDType{1211, 1113}),
 			},
 			Downs: []*seg.PathSegment{},
-			Exp:   [][]PathField{},
+			Exp:   [][]pathField{},
 		},
 		{
 			Name:  "#10 simple up-core-down, multiple cores",
@@ -401,7 +401,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1114, 1417}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1916},
@@ -442,7 +442,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1019},
@@ -473,7 +473,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, Up: 1, ISD: 1},
 					{Type: HF, InIF: 1019},
@@ -515,7 +515,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{1316, 1619}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, ISD: 1},
 					{Type: HF, Vonly: 1, InIF: 0, OutIF: 1316},
@@ -544,7 +544,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2123, 2326}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, Up: 1, ISD: 2},
 					{Type: HF, InIF: 2523},
@@ -580,7 +580,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2224, 2426}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 2},
 					{Type: HF, InIF: 2523},
@@ -621,7 +621,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2123, 2325}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 1},
 					{Type: HF, Xover: 1, InIF: 1411},
@@ -660,7 +660,7 @@ func TestComputePath(t *testing.T) {
 			Downs: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{2123}),
 			},
-			Exp: [][]PathField{
+			Exp: [][]pathField{
 				{
 					{Type: IF, Shortcut: 1, Peer: 1, Up: 1, ISD: 1},
 					{Type: HF, Xover: 1, InIF: 1411},
@@ -692,7 +692,7 @@ func TestComputePath(t *testing.T) {
 				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
 				SoMsg("result",
 					fmt.Sprintf("%v", result),
-					ShouldResemble,
+					ShouldEqual,
 					fmt.Sprintf("%v", tc.Exp),
 				)
 			})

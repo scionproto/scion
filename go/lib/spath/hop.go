@@ -142,6 +142,7 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	return tag[:MacLen], err
 }
 
+// WriteTo implements the io.WriterTo interface.
 func (h *HopField) WriteTo(w io.Writer) (int64, error) {
 	h.Write()
 	n, err := w.Write(h.data)
