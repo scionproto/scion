@@ -64,7 +64,7 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	liblog.Setup(*id)
+	liblog.Setup(*id, true)
 	defer liblog.LogPanicAndExit()
 	setupSignals()
 	var err error

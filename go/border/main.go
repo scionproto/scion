@@ -48,7 +48,7 @@ func main() {
 		log.Crit("No element ID specified")
 		os.Exit(1)
 	}
-	liblog.Setup(*id)
+	liblog.Setup(*id, true)
 	defer liblog.LogPanicAndExit()
 	if err := checkPerms(); err != nil {
 		log.Crit("Permissions checks failed", "err", err)
