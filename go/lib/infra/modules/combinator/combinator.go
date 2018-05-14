@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -37,39 +38,25 @@ import (
 // segments. All possible paths are returned (except paths that completely
 // contain a shortcut path), sorted according to weight (on equal weight, see
 // pathSolutionList.Less for the tie-breaking algorithm).
-func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) [][]*PathField {
+func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 	paths := NewDAMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
 
-	var fieldsSlice [][]*PathField
+	var pathSlice []*Path
 	for _, path := range paths {
-		fieldsSlice = append(fieldsSlice, path.GetFwdPathMetadata())
+		pathSlice = append(pathSlice, path.GetFwdPathMetadata())
 	}
-	return fieldsSlice
+	return pathSlice
 }
 
-// RawFwdPathWriteTo dumps the contents of fields to w. It returns the number
-// of bytes written, and an error (if one occurred).
-func RawFwdPathWriteTo(fields []*PathField, w io.Writer) (int, error) {
-	var total int
-	for _, field := range fields {
-		n, err := field.WriteTo(w)
-		total += int(n)
-		if err != nil {
-			return total, err
-		}
-	}
-	return total, nil
-}
-
-// Segment is a local representation of a path segment that includes the
+// InputSegment is a local representation of a path segment that includes the
 // segment's type.
-type Segment struct {
-	ASEntries []*seg.ASEntry
-	Type      SegmentType
+type InputSegment struct {
+	*seg.PathSegment
+	Type SegmentType
 }
 
 // UpFlag returns 1 if the segment is an UpSegment or CoreSegment.
-func (s *Segment) UpFlag() int {
+func (s *InputSegment) UpFlag() int {
 	if s.Type == UpSegment || s.Type == CoreSegment {
 		return 1
 	}
@@ -126,18 +113,18 @@ func NewDAMG(ups, cores, downs []*seg.PathSegment) *DAMG {
 		Adjacencies: make(map[Vertex]VertexInfo),
 	}
 	for _, segment := range ups {
-		g.traverseSegment(&Segment{ASEntries: segment.ASEntries, Type: UpSegment})
+		g.traverseSegment(&InputSegment{PathSegment: segment, Type: UpSegment})
 	}
 	for _, segment := range cores {
-		g.traverseSegment(&Segment{ASEntries: segment.ASEntries, Type: CoreSegment})
+		g.traverseSegment(&InputSegment{PathSegment: segment, Type: CoreSegment})
 	}
 	for _, segment := range downs {
-		g.traverseSegment(&Segment{ASEntries: segment.ASEntries, Type: DownSegment})
+		g.traverseSegment(&InputSegment{PathSegment: segment, Type: DownSegment})
 	}
 	return g
 }
 
-func (g *DAMG) traverseSegment(segment *Segment) {
+func (g *DAMG) traverseSegment(segment *InputSegment) {
 	asEntries := segment.ASEntries
 
 	// Last AS in the PCB is the root for edge addition. For Ups and Cores,
@@ -195,7 +182,7 @@ func (g *DAMG) traverseSegment(segment *Segment) {
 	}
 }
 
-func (g *DAMG) AddEdge(src, dst Vertex, segment *Segment, edge *Edge) {
+func (g *DAMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
 	if _, ok := g.Adjacencies[src]; !ok {
 		g.Adjacencies[src] = make(map[Vertex]EdgeList)
 	}
@@ -274,8 +261,7 @@ func (g *DAMG) String() string {
 // Vertex is a union-like type for the AS vertices and Peering link vertices in
 // a DAMG that can be used as key in maps.
 type Vertex struct {
-	IA addr.IA
-
+	IA       addr.IA
 	UpIA     addr.IA
 	UpIFID   common.IFIDType
 	DownIA   addr.IA
@@ -307,7 +293,7 @@ func (v Vertex) Reverse() Vertex {
 
 // EdgeList is used to keep the set of edges going from one vertex to another.
 // The edges are keyed by path segment pointer.
-type EdgeList map[*Segment]*Edge
+type EdgeList map[*InputSegment]*Edge
 
 // Edge represents an edge for the DAMG.
 type Edge struct {
@@ -338,37 +324,24 @@ type PathSolution struct {
 
 // GetFwdPathMetadata builds the complete metadata for a forwarding path by
 // extracting it from a path between source and destination in the DAMG.
-func (solution *PathSolution) GetFwdPathMetadata() []*PathField {
-	var fields []*PathField
-	var downStart, downEnd int
-
+func (solution *PathSolution) GetFwdPathMetadata() *Path {
+	var path = &Path{}
 	solutionEdges := solution.edges
 	for edgeIdx, solEdge := range solutionEdges {
-		asEntries := solEdge.segment.ASEntries
-
-		// Create new InfoField. Hop field initialization might set additional
-		// flags in currentIF.
-		currentIF := &PathField{
-			Type: IF,
-			Up:   solEdge.segment.UpFlag(),
-			ISD:  asEntries[0].IA().I,
-		}
-		fields = append(fields, currentIF)
-
-		if solEdge.segment.Type == DownSegment {
-			downStart = len(fields)
-		}
+		// VERY DANGEROUS, FIX REFERENCE MUTATION
+		currentSegment := &Segment{Type: solEdge.segment.Type}
+		currentSegment.SetIF(solEdge.segment.PathSegment)
+		currentSegment.InfoField.Up = (solEdge.segment.UpFlag() == 1)
+		path.Segments = append(path.Segments, currentSegment)
 
 		// Go through each ASEntry, starting from the last one, until we
 		// find a shortcut (which can be 0, meaning the end of the segment).
+		asEntries := solEdge.segment.ASEntries
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
 			asEntry := asEntries[asEntryIdx]
 
 			// Normal hop field.
-			asEntryHF := NewHFPathField(asEntry.HopEntries[0])
-			fields = append(fields, asEntryHF)
-			currentIF.Hops++
-
+			newHF := currentSegment.AppendHF(asEntry.HopEntries[0])
 			if asEntryIdx == solEdge.edge.Shortcut {
 				// We've reached the ASEntry where we want to switch
 				// segments; this can happen either when we reach the end
@@ -379,47 +352,27 @@ func (solution *PathSolution) GetFwdPathMetadata() []*PathField {
 
 				// If this is not the last segment in the path, set Xover flag.
 				if edgeIdx != len(solutionEdges)-1 {
-					asEntryHF.Xover = 1
+					newHF.Xover = true
 				}
 
 				if solEdge.edge.Shortcut != 0 && solEdge.edge.Peer != 0 {
-					// Crossing peering link. Include the peer entry hop field,
-					// and always set Xover of normal hop field even if this is
-					// the last segment in the path.
-					asEntryHF.Xover = 1
-					currentIF.Peer = 1
-					asEntryHF := NewHFPathField(asEntry.HopEntries[solEdge.edge.Peer])
-					asEntryHF.Xover = 1
-					fields = append(fields, asEntryHF)
-					currentIF.Hops++
+					newHF.Xover = true
+					currentSegment.InfoField.Peer = true
+					newHF := currentSegment.AppendHF(asEntry.HopEntries[solEdge.edge.Peer])
+					newHF.Xover = true
 				}
 
 				if solEdge.edge.Shortcut != 0 {
 					// Normal or peering shortcut. Include the verify-only hop field.
-					currentIF.Shortcut = 1
-					asEntryHF := NewHFPathField(asEntries[asEntryIdx-1].HopEntries[0])
-					asEntryHF.Vonly = 1
-					fields = append(fields, asEntryHF)
-					currentIF.Hops++
+					currentSegment.InfoField.Shortcut = true
+					newHF := currentSegment.AppendHF(asEntries[asEntryIdx-1].HopEntries[0])
+					newHF.VerifyOnly = true
 				}
 			}
 		}
-
-		if solEdge.segment.Type == DownSegment {
-			downEnd = len(fields)
-		}
 	}
-
-	// Reverse down-segment. If no down-segment, this is a no-op.
-	reverseFields(fields, downStart, downEnd)
-	return fields
-}
-
-// reverseFields reverses the order of the fields between start and end-1.
-func reverseFields(fields []*PathField, start, end int) {
-	for i, j := start, end-1; i < j; i, j = i+1, j-1 {
-		fields[i], fields[j] = fields[j], fields[i]
-	}
+	path.ReverseDownSegment()
+	return path
 }
 
 // PathSolutionList is a sort.Interface implementation for a slice of solutions.
@@ -496,12 +449,152 @@ type solutionEdge struct {
 	src  Vertex
 	dst  Vertex
 	// The segment associated with this edge, used during forwarding path construction
-	segment *Segment
+	segment *InputSegment
 }
 
-// PathField contains metadata about info fields or hop fields.
-type PathField struct {
-	Type FieldType
+type Path struct {
+	Segments []*Segment
+}
+
+func (p *Path) String() string {
+	var strs []string
+	for _, segment := range p.Segments {
+		strs = append(strs, segment.InfoField.String())
+		for _, hopField := range segment.HopFields {
+			strs = append(strs, hopField.String())
+		}
+	}
+	return "[" + strings.Join(strs, " ") + "]"
+}
+
+func (p *Path) WriteTo(w io.Writer) (n int64, err error) {
+	for _, segment := range p.Segments {
+		m, e := segment.InfoField.WriteTo(w)
+		n += m
+		if err != nil {
+			return n, e
+		}
+
+		for _, hopField := range segment.HopFields {
+			m, e := hopField.WriteTo(w)
+			n += m
+			if e != nil {
+				return n, e
+			}
+		}
+	}
+	return n, nil
+}
+
+func (p *Path) ReverseDownSegment() {
+	for _, segment := range p.Segments {
+		if segment.Type == DownSegment {
+			segment.Reverse()
+		}
+	}
+}
+
+type Segment struct {
+	InfoField *InfoField
+	HopFields []*HopField
+	Type      SegmentType
+}
+
+func (segment *Segment) SetIF(pathSegment *seg.PathSegment) {
+	infoField, err := pathSegment.InfoF()
+	if err != nil {
+		panic(err)
+	}
+	segment.InfoField = &InfoField{
+		InfoField: infoField,
+	}
+}
+
+func (segment *Segment) AppendHF(entry *seg.HopEntry) *HopField {
+	inputHopField, err := entry.HopField()
+	if err != nil {
+		panic(err)
+	}
+	hopField := &HopField{
+		HopField: inputHopField,
+	}
+	segment.HopFields = append(segment.HopFields, hopField)
+	if segment.InfoField.Hops == 0xff {
+		panic("too many hops")
+	}
+	segment.InfoField.Hops += 1
+	return hopField
+}
+
+func (segment *Segment) Reverse() {
+	for i, j := 0, len(segment.HopFields)-1; i < j; i, j = i+1, j-1 {
+		segment.HopFields[i], segment.HopFields[j] = segment.HopFields[j], segment.HopFields[i]
+	}
+}
+
+type InfoField struct {
+	*spath.InfoField
+}
+
+func (field *InfoField) String() string {
+	return fmt.Sprintf("(IF %s%s%s ISD=%d)",
+		flagPrint("P", boolToInt(field.Peer)),
+		flagPrint("S", boolToInt(field.Shortcut)),
+		flagPrint("U", boolToInt(field.Up)),
+		field.ISD)
+}
+
+func (field *InfoField) PathField() *pathField {
+	return &pathField{
+		Type:     IF,
+		Up:       boolToInt(field.Up),
+		Peer:     boolToInt(field.Peer),
+		Shortcut: boolToInt(field.Shortcut),
+		ISD:      addr.ISD(field.ISD),
+		Hops:     field.Hops,
+	}
+}
+
+type HopField struct {
+	*spath.HopField
+}
+
+func (field *HopField) String() string {
+	return fmt.Sprintf("(HF %s%s InIF=%d OutIF=%d)",
+		flagPrint("V", boolToInt(field.VerifyOnly)),
+		flagPrint("X", boolToInt(field.Xover)),
+		field.Ingress,
+		field.Egress)
+}
+
+func (field *HopField) PathField() *pathField {
+	return &pathField{
+		Type:  HF,
+		Xover: boolToInt(field.Xover),
+		Vonly: boolToInt(field.VerifyOnly),
+		InIF:  field.Ingress,
+		OutIF: field.Egress,
+	}
+}
+
+func flagPrint(name string, value int) string {
+	if value == 0 {
+		return "."
+	}
+	return name
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// pathField contains metadata about info fields or hop fields. It is used to
+// simplify testing.
+type pathField struct {
+	Type fieldType
 
 	// IF specific
 	Up       int
@@ -518,20 +611,7 @@ type PathField struct {
 	RawHF []byte
 }
 
-func NewHFPathField(he *seg.HopEntry) *PathField {
-	hf, err := he.HopField()
-	if err != nil {
-		panic(err)
-	}
-	return &PathField{
-		Type:  HF,
-		InIF:  hf.Ingress,
-		OutIF: hf.Egress,
-		RawHF: he.RawHopField,
-	}
-}
-
-func (pf PathField) String() string {
+func (pf pathField) String() string {
 	switch pf.Type {
 	case IF:
 		return fmt.Sprintf("(IF %s%s%s ISD=%d)",
@@ -544,36 +624,9 @@ func (pf PathField) String() string {
 	}
 }
 
-func (pf PathField) WriteTo(w io.Writer) (n int64, err error) {
-	switch pf.Type {
-	case IF:
-		infoField := spath.InfoField{
-			Up:       pf.Up == 1,
-			Shortcut: pf.Shortcut == 1,
-			Peer:     pf.Peer == 1,
-			TsInt:    0,
-			ISD:      uint16(pf.ISD),
-			Hops:     pf.Hops,
-		}
-		return infoField.WriteTo(w)
-	case HF:
-		n, err := w.Write(pf.RawHF)
-		return int64(n), err
-	default:
-		panic("unknown type")
-	}
-}
-
-type FieldType int
+type fieldType int
 
 const (
-	IF FieldType = iota
+	IF fieldType = iota
 	HF
 )
-
-func flagPrint(name string, value int) string {
-	if value == 0 {
-		return "."
-	}
-	return name
-}
