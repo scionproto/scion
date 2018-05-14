@@ -353,6 +353,12 @@
 			"revisionTime": "2016-09-02T21:22:55Z"
 		},
 		{
+			"checksumSHA1": "9ZSqjmvF/JE6Qj/5xOoCAmUgXz8=",
+			"path": "github.com/sirupsen/logrus",
+			"revision": "778f2e774c725116edbc3d039dc0dfc1cc62aae8",
+			"revisionTime": "2018-03-29T22:59:52Z"
+		},
+		{
 			"checksumSHA1": "6AYg4fjEvFuAVN3wHakGApjhZAM=",
 			"license": "MIT",
 			"path": "github.com/smartystreets/assertions",
@@ -480,6 +486,12 @@
 			"path": "golang.org/x/crypto/salsa20/salsa",
 			"revision": "94eea52f7b742c7cbe0b03b22f0c4c8631ece122",
 			"revisionTime": "2017-11-28T01:43:40Z"
+		},
+		{
+			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
+			"path": "golang.org/x/crypto/ssh/terminal",
+			"revision": "034e5325b6ab92faa14d15c30e86919e911cf8e0",
+			"revisionTime": "2018-05-10T15:18:46Z"
 		},
 		{
 			"checksumSHA1": "uX2McdP4VcQ6zkAF0Q4oyd0rFtU=",

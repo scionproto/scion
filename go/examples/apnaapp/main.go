@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/scionproto/scion/go/examples/apna/cmd"
+	"github.com/scionproto/scion/go/examples/apnaapp/cmd"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
