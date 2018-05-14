@@ -84,6 +84,7 @@ func (inf *InfoField) Timestamp() time.Time {
 	return time.Unix(int64(inf.TsInt), 0)
 }
 
+// WriteTo implements the io.WriterTo interface.
 func (inf *InfoField) WriteTo(w io.Writer) (int64, error) {
 	b := make(common.RawBytes, common.LineLen)
 	inf.Write(b)

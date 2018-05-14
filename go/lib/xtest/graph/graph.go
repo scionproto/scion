@@ -22,7 +22,6 @@
 package graph
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -195,23 +194,30 @@ func (g *Graph) GetPaths(xIA string, yIA string) [][]common.IFIDType {
 	return solution
 }
 
-// Beacon constructs PCBs across a series of egress ifids. The parent AS of the
-// first IFID is the origin of the beacon, and the beacon propagates up to the
-// parent AS of the remote counterpart of the last IFID. The constructed
-// segment includes peering links. The hop fields in the returned segment do
-// not contain valid MACs.
+// Beacon constructs path segments across a series of egress ifids. The parent
+// AS of the first IFID is the origin of the beacon, and the beacon propagates
+// down to the parent AS of the remote counterpart of the last IFID. The
+// constructed segment includes peering links. The hop fields in the returned
+// segment do not contain valid MACs.
 func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 	var remoteInIF, inIF, outIF, remoteOutIF common.IFIDType
 	var inIA, currIA, outIA addr.IA
 
-	var segment seg.PathSegment
+	var segment *seg.PathSegment
 	if len(ifids) == 0 {
-		return &segment
+		return segment
+	}
+
+	segment, err := seg.NewSeg(
+		&spath.InfoField{
+			ISD: uint16(g.parents[ifids[0]].I),
+		})
+	if err != nil {
+		panic(err)
 	}
 
 	currIA = g.parents[ifids[0]]
-Loop:
-	for i := 0; ; i++ {
+	for i := 0; i <= len(ifids); i++ {
 		switch {
 		case i < len(ifids):
 			outIF = ifids[i]
@@ -221,37 +227,29 @@ Loop:
 			outIF = 0
 			remoteOutIF = 0
 			outIA = addr.IA{}
-		default:
-			break Loop
 		}
 
 		asEntry := &seg.ASEntry{
 			RawIA: currIA.IAInt(),
 		}
 
-		hopField := spath.NewHopField(make(common.RawBytes, spath.HopFieldLength), inIF, outIF)
-		buffer := new(bytes.Buffer)
-		if _, err := hopField.WriteTo(buffer); err != nil {
-			panic(err)
-		}
+		b := make(common.RawBytes, spath.HopFieldLength)
+		_ = spath.NewHopField(b, inIF, outIF)
 		localHopEntry := &seg.HopEntry{
 			RawInIA:     inIA.IAInt(),
 			RemoteInIF:  remoteInIF,
 			InMTU:       1280,
 			RawOutIA:    outIA.IAInt(),
 			RemoteOutIF: remoteOutIF,
-			RawHopField: buffer.Bytes(),
+			RawHopField: b,
 		}
 		asEntry.HopEntries = append(asEntry.HopEntries, localHopEntry)
 
 		as := g.ases[currIA]
 		for peeringLocalIF := range as.IFIDs {
 			if g.isPeer[peeringLocalIF] {
-				peerHopField := spath.NewHopField(make(common.RawBytes, spath.HopFieldLength), peeringLocalIF, outIF)
-				buffer := new(bytes.Buffer)
-				if _, err := peerHopField.WriteTo(buffer); err != nil {
-					panic(err)
-				}
+				b := make(common.RawBytes, spath.HopFieldLength)
+				_ = spath.NewHopField(b, peeringLocalIF, outIF)
 				peeringRemoteIF := g.links[peeringLocalIF]
 				peeringIA := g.parents[peeringRemoteIF]
 				peerHopEntry := &seg.HopEntry{
@@ -260,7 +258,7 @@ Loop:
 					InMTU:       1280,
 					RawOutIA:    outIA.IAInt(),
 					RemoteOutIF: remoteOutIF,
-					RawHopField: buffer.Bytes(),
+					RawHopField: b,
 				}
 				asEntry.HopEntries = append(asEntry.HopEntries, peerHopEntry)
 			}
@@ -272,7 +270,7 @@ Loop:
 		inIA = currIA
 		currIA = g.parents[remoteOutIF]
 	}
-	return &segment
+	return segment
 }
 
 // DeleteInterface removes ifid from the graph without deleting its remote
