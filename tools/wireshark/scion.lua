@@ -109,7 +109,7 @@ local maxSegTTL = 12 * 60 * 60
 local segExpUnit = maxSegTTL / 2^8
 local us_in_s = UInt64.new(1e6)
 
-local scion_packet = ProtoField.bytes("scion.packet", "Raw SCION packet", base.HEX)
+local scion_packet = ProtoField.bytes("scion.packet", "Raw SCION packet")
 
 local scion_ch_version = ProtoField.uint8("scion.ch.version", "Version", base.HEX)
 local scion_ch_dsttype = ProtoField.uint8("scion.ch.dst_type", "Destination address type", base.HEX, addrTypes)
