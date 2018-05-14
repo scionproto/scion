@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # Stdlib
+import logging
 import threading
 
 # How long to wait (at most) after segments are received before considering the request done.
@@ -32,6 +33,9 @@ class RequestState:  # pragma: no cover
     def notify_reply(self, reply):
         with self._lock:
             if self._done:
+                return
+            if self._segs_to_verify > 0:
+                logging.error("Received duplicate reply %s", reply)
                 return
             self._segs_to_verify = reply.recs().num_segs()
             if self._segs_to_verify > 0:
