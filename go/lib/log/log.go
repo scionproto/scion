@@ -111,12 +111,14 @@ func setHandlers() {
 }
 
 func AddLogConsFlags() {
-	flag.StringVar(&logConsole, "log.console", "crit", "Console logging level: debug|info|warn|error|crit")
+	flag.StringVar(&logConsole, "log.console", "crit",
+		"Console logging level: debug|info|warn|error|crit")
 }
 
 func AddLogFileFlags() {
 	flag.StringVar(&logDir, "log.dir", "logs", "Log directory")
-	flag.StringVar(&logLevel, "log.level", "debug", "File logging level: debug|info|warn|error|crit")
+	flag.StringVar(&logLevel, "log.level", "debug",
+		"File logging level: debug|info|warn|error|crit")
 	flag.IntVar(&logSize, "log.size", 50, "Max size of log file in MiB")
 	flag.IntVar(&logAge, "log.age", 7, "Max age of log file in days")
 	flag.IntVar(&logFlush, "log.flush", 5, "How frequently to flush to the log file, in seconds")

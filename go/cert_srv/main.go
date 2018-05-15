@@ -57,6 +57,7 @@ func init() {
 // main initializes the certificate server and starts the dispatcher.
 func main() {
 	var err error
+	os.Setenv("TZ", "UTC")
 	log.AddLogFileFlags()
 	log.AddLogConsFlags()
 	flag.Parse()
@@ -65,7 +66,6 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	os.Setenv("TZ", "UTC")
 	if err = log.SetupFromFlags(*id); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()

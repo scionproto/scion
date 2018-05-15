@@ -55,6 +55,7 @@ var (
 )
 
 func main() {
+	os.Setenv("TZ", "UTC")
 	log.AddLogFileFlags()
 	log.AddLogConsFlags()
 	flag.Parse()
@@ -63,7 +64,6 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	os.Setenv("TZ", "UTC")
 	if err := log.SetupFromFlags(*id); err != nil {
 		log.Crit(err.Error())
 		flag.Usage()
