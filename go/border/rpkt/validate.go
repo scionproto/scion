@@ -18,6 +18,7 @@ package rpkt
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -31,6 +32,9 @@ const (
 // Validate performs basic validation of a packet, including calling any
 // registered validation hooks.
 func (rp *RtrPkt) Validate() error {
+	if assert.On {
+		assert.Mustf(rp.ifCurr != nil, rp.ErrStr, "rp.ifCurr must not be nil")
+	}
 	intf, ok := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	if !ok {
 		return common.NewBasicError(errCurrIntfInvalid, nil, "ifid", *rp.ifCurr)
@@ -54,6 +58,9 @@ func (rp *RtrPkt) Validate() error {
 			"totalLen", rp.CmnHdr.TotalLen, "actual", len(rp.Raw),
 		)
 	}
+	if err := rp.validateIFMatch(); err != nil {
+		return err
+	}
 	if err := rp.validatePath(rp.DirFrom); err != nil {
 		return err
 	}
@@ -75,4 +82,17 @@ func (rp *RtrPkt) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (rp *RtrPkt) validateIFMatch() error {
+	for _, ifid := range rp.Ingress.IfIDs {
+		if *rp.ifCurr == ifid {
+			return nil
+		}
+	}
+	return common.NewBasicError(
+		"Interface in packet not in set of expected interfaces",
+		scmp.NewError(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets(), nil),
+		"expected", rp.Ingress.IfIDs, "actual", *rp.ifCurr,
+	)
 }
