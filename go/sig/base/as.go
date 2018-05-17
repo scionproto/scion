@@ -26,7 +26,10 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/config"
-	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/dispatcher"
+	"github.com/scionproto/scion/go/sig/egress/router"
+	"github.com/scionproto/scion/go/sig/egress/session"
+	"github.com/scionproto/scion/go/sig/egress/worker"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/siginfo"
 )
@@ -49,7 +52,7 @@ type ASEntry struct {
 	version           uint64 // used to track certain changes made to ASEntry
 	log.Logger
 
-	Session *egress.Session
+	Session *session.Session
 }
 
 func newASEntry(ia addr.IA) (*ASEntry, error) {
@@ -63,7 +66,11 @@ func newASEntry(ia addr.IA) (*ASEntry, error) {
 		healthMonitorStop: make(chan struct{}),
 	}
 	var err error
-	if ae.Session, err = egress.NewSession(ia, 0, ae.Sigs, ae.Logger); err != nil {
+	pool, err := session.NewPathPool(ia)
+	if err != nil {
+		return nil, err
+	}
+	if ae.Session, err = session.NewSession(ia, 0, ae.Sigs, ae.Logger, pool, worker.DefaultFactory); err != nil {
 		return nil, err
 	}
 	return ae, nil
@@ -129,7 +136,7 @@ func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 	if _, ok := ae.Nets[key]; ok {
 		return nil
 	}
-	if err := egress.NetMap.Add(ipnet, ae.IA, ae.egressRing); err != nil {
+	if err := router.NetMap.Add(ipnet, ae.IA, ae.egressRing); err != nil {
 		return err
 	}
 	ae.Nets[key] = ipnet
@@ -158,7 +165,7 @@ func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
 	if _, ok := ae.Nets[key]; !ok {
 		return common.NewBasicError("DelNet: no network found", nil, "ia", ae.IA, "net", ipnet)
 	}
-	if err := egress.NetMap.Delete(ipnet); err != nil {
+	if err := router.NetMap.Delete(ipnet); err != nil {
 		return err
 	}
 	delete(ae.Nets, key)
@@ -349,15 +356,19 @@ func (ae *ASEntry) Cleanup() error {
 }
 
 func (ae *ASEntry) cleanSessions() {
+	pool := ae.Session.PathPool()
 	if err := ae.Session.Cleanup(); err != nil {
 		ae.Session.Error("Error cleaning up session", "err", err)
+	}
+	if err := pool.Destroy(); err != nil {
+		ae.Session.Error("Error destroying path pool", "err", err)
 	}
 }
 
 func (ae *ASEntry) setupNet() error {
 	ae.egressRing = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
-	go egress.NewDispatcher(ae.IA, ae.egressRing, ae.Session).Run()
+	go dispatcher.NewDispatcher(ae.IA, ae.egressRing, ae.Session).Run()
 	go ae.sigMgr()
 	go ae.monitorHealth()
 	ae.Session.Start()

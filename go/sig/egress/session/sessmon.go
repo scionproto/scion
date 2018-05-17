@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package egress
+package session
 
 import (
 	"time"
@@ -20,9 +20,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"
+	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/siginfo"
@@ -41,13 +41,13 @@ type sessMonitor struct {
 	// the Session this instance is monitoring.
 	sess *Session
 	// the (filtered) pool of paths to the remote AS, maintained by pathmgr.
-	pool *pathmgr.SyncPaths
+	pool egress.PathPool
 	// the pool of paths this session is currently using, frequently refreshed from pool.
-	sessPathPool sessPathPool
+	sessPathPool egress.SessPathPool
 	// the remote Info (remote SIG, and path) used for sending polls. This
 	// differs from the parent session's remote info when the session monitor
 	// is polling a new SIG or over a new path, and is waiting for a response.
-	smRemote *RemoteInfo
+	smRemote *egress.RemoteInfo
 	// this flag is set whenever sessMonitor is trying to switch SIGs/paths.
 	// When a successful response is received, this flag will cause the
 	// sessions remoteInfo to be updated from smRemote.
@@ -62,7 +62,7 @@ type sessMonitor struct {
 
 func newSessMonitor(sess *Session) *sessMonitor {
 	return &sessMonitor{
-		Logger: sess.Logger, sess: sess, pool: sess.pool, sessPathPool: make(sessPathPool),
+		Logger: sess.Logger, sess: sess, pool: sess.pool, sessPathPool: make(egress.SessPathPool),
 	}
 }
 
@@ -74,7 +74,7 @@ func (sm *sessMonitor) run() {
 	defer reqTick.Stop()
 	// Register with SIG ctrl dispatcher
 	regc := make(disp.RegPldChan, 1)
-	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA, sm.sess.SessId), regc)
+	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId), regc)
 	sm.lastReply = time.Now()
 	sm.Info("sessMonitor: starting")
 Top:
@@ -84,14 +84,14 @@ Top:
 			break Top
 		case <-reqTick.C:
 			// Update paths and sigs
-			sm.sessPathPool.update(sm.pool.Load().APS)
+			sm.sessPathPool.Update(sm.pool.Paths())
 			sm.updateRemote()
 			sm.sendReq()
 		case rpld := <-regc:
 			sm.handleRep(rpld)
 		}
 	}
-	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA,
+	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(),
 		sm.sess.SessId))
 	if err != nil {
 		log.Error("sessMonitor: unable to unregister from ctrl dispatcher", "err", err)
@@ -102,12 +102,12 @@ Top:
 func (sm *sessMonitor) updateRemote() {
 	currRemote := sm.smRemote
 	var currSig *siginfo.Sig
-	var currSessPath *sessPath
+	var currSessPath *egress.SessPath
 	if currRemote == nil {
 		sm.needUpdate = true
 	} else {
 		currSig = currRemote.Sig
-		currSessPath = currRemote.sessPath
+		currSessPath = currRemote.SessPath
 	}
 	since := time.Since(sm.lastReply)
 	if since > tout {
@@ -117,7 +117,7 @@ func (sm *sessMonitor) updateRemote() {
 		if currSessPath != nil {
 			// FIXME(kormat): these debug statements should be converted to prom metrics.
 			sm.Debug("Timeout", "remote", currRemote, "duration", since)
-			currSessPath.fail()
+			currSessPath.Fail()
 		}
 		currSig = sm.getNewSig(currSig)
 		currSessPath = sm.getNewPath(currSessPath)
@@ -138,7 +138,7 @@ func (sm *sessMonitor) updateRemote() {
 			sm.Debug("No path", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
-		} else if _, ok := sm.sessPathPool[currSessPath.key]; !ok {
+		} else if _, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
 			sm.Debug("Current path invalid", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
@@ -146,7 +146,7 @@ func (sm *sessMonitor) updateRemote() {
 		}
 	}
 	sm.sess.healthy.Store(!sm.needUpdate)
-	sm.smRemote = &RemoteInfo{Sig: currSig, sessPath: currSessPath}
+	sm.smRemote = &egress.RemoteInfo{Sig: currSig, SessPath: currSessPath}
 }
 
 func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
@@ -160,19 +160,19 @@ func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
 	return sm.sess.sigMap.GetSig("")
 }
 
-func (sm *sessMonitor) getNewPath(old *sessPath) *sessPath {
+func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
 	if old != nil {
 		// Try to get a different path, if possible.
-		if sp := sm.sessPathPool.get(old.key); sp != nil {
+		if sp := sm.sessPathPool.Get(old.Key()); sp != nil {
 			return sp
 		}
 	}
 	// Get path with lowest failure count
-	return sm.sessPathPool.get("")
+	return sm.sessPathPool.Get("")
 }
 
 func (sm *sessMonitor) sendReq() {
-	if sm.smRemote == nil || sm.smRemote.Sig == nil || sm.smRemote.sessPath == nil {
+	if sm.smRemote == nil || sm.smRemote.Sig == nil || sm.smRemote.SessPath == nil {
 		return
 	}
 	now := time.Now()
@@ -202,12 +202,12 @@ func (sm *sessMonitor) sendReq() {
 		return
 	}
 	raddr := sm.smRemote.Sig.CtrlSnetAddr()
-	raddr.Path = spath.New(sm.smRemote.sessPath.pathEntry.Path.FwdPath)
+	raddr.Path = spath.New(sm.smRemote.SessPath.PathEntry().Path.FwdPath)
 	if err := raddr.Path.InitOffsets(); err != nil {
 		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
 	}
-	raddr.NextHopHost = sm.smRemote.sessPath.pathEntry.HostInfo.Host()
-	raddr.NextHopPort = sm.smRemote.sessPath.pathEntry.HostInfo.Port
+	raddr.NextHopHost = sm.smRemote.SessPath.PathEntry().HostInfo.Host()
+	raddr.NextHopPort = sm.smRemote.SessPath.PathEntry().HostInfo.Port
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both
 	// goroutines write to it.
@@ -224,9 +224,9 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 			"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
 		return
 	}
-	if !sm.sess.IA.Eq(rpld.Addr.IA) {
+	if !sm.sess.IA().Eq(rpld.Addr.IA) {
 		sm.Error("sessMonitor: SIGPollRep from wrong IA",
-			"expected", sm.sess.IA, "actual", rpld.Addr.IA)
+			"expected", sm.sess.IA(), "actual", rpld.Addr.IA)
 		return
 	}
 	sm.lastReply = time.Now()

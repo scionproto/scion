@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package egress
+package worker
 
 import (
 	"time"
@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
@@ -53,10 +54,14 @@ const (
 	MaxSeq     = (1 << 24) - 1
 )
 
+func DefaultFactory(sess egress.Session, logger log.Logger) egress.Worker {
+	return NewWorker(sess, logger)
+}
+
 type worker struct {
 	log.Logger
 	iaString      string
-	sess          *Session
+	sess          egress.Session
 	currSig       *siginfo.Sig
 	currPathEntry *sciond.PathReplyEntry
 	frameSentCtrs metrics.CtrPair
@@ -66,16 +71,16 @@ type worker struct {
 	pkts  ringbuf.EntryList
 }
 
-func NewWorker(sess *Session, logger log.Logger) *worker {
+func NewWorker(sess egress.Session, logger log.Logger) *worker {
 	return &worker{
 		Logger:   logger,
-		iaString: sess.IA.String(),
+		iaString: sess.IA().String(),
 		sess:     sess,
 		frameSentCtrs: metrics.CtrPair{
-			Pkts:  metrics.FramesSent.WithLabelValues(sess.IA.String(), sess.SessId.String()),
-			Bytes: metrics.FrameBytesSent.WithLabelValues(sess.IA.String(), sess.SessId.String()),
+			Pkts:  metrics.FramesSent.WithLabelValues(sess.IA().String(), sess.ID().String()),
+			Bytes: metrics.FrameBytesSent.WithLabelValues(sess.IA().String(), sess.ID().String()),
 		},
-		pkts: make(ringbuf.EntryList, 0, egressBufPkts),
+		pkts: make(ringbuf.EntryList, 0, egress.EgressBufPkts),
 	}
 }
 
@@ -110,13 +115,13 @@ TopLoop:
 			}
 		}
 		// Return processed pkts to the free pool, and remove references.
-		egressFreePkts.Write(w.pkts, true)
+		egress.EgressFreePkts.Write(w.pkts, true)
 		for i := range w.pkts {
 			w.pkts[i] = nil
 		}
 	}
 	w.Info("EgressWorker: stopping")
-	close(w.sess.workerStopped)
+	w.sess.AnnounceWorkerStopped()
 }
 
 func (w *worker) processPkt(f *frame, pkt common.RawBytes) error {
@@ -143,7 +148,7 @@ func (w *worker) processPkt(f *frame, pkt common.RawBytes) error {
 // Return false if the ringbuf is closed.
 func (w *worker) read(block bool) bool {
 	w.pkts = w.pkts[:cap(w.pkts)]
-	n, _ := w.sess.ring.Read(w.pkts, block)
+	n, _ := w.sess.Ring().Read(w.pkts, block)
 	if n < 0 {
 		return false
 	}
@@ -175,13 +180,13 @@ func (w *worker) write(f *frame) error {
 	if w.seq == 0 {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}
-	f.writeHdr(w.sess.SessId, w.epoch, w.seq)
+	f.writeHdr(w.sess.ID(), w.epoch, w.seq)
 	// Update sequence number for next packet
 	w.seq += 1
 	if w.seq > MaxSeq {
 		w.seq = 0
 	}
-	bytesWritten, err := w.sess.conn.WriteToSCION(f.raw(), snetAddr)
+	bytesWritten, err := w.sess.Conn().WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewBasicError("Egress write error", err)
 	}
@@ -199,8 +204,8 @@ func (w *worker) resetFrame(f *frame) {
 		if w.currSig != nil {
 			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host, sigcmn.Host))
 		}
-		if remote.sessPath != nil {
-			w.currPathEntry = remote.sessPath.pathEntry
+		if remote.SessPath != nil {
+			w.currPathEntry = remote.SessPath.PathEntry()
 		}
 		if w.currPathEntry != nil {
 			mtu = w.currPathEntry.Path.Mtu
