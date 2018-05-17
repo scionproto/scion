@@ -63,7 +63,6 @@ const (
 func handleRequest(buf []byte, addr *net.UDPAddr) (ephID *EphID) {
 	ephID = &EphID{}
 	copy(ephID.host[:], generateHostID(addr.IP)[:3])
-
 	switch buf[0] {
 	case 0x00:
 		ephID.kind[0] = 0
@@ -83,12 +82,17 @@ func handleConnection(serverConn *net.UDPConn, quit chan struct{}) {
 			log.WithField("err", err).Error("Read Failed")
 			quit <- struct{}{}
 		} else {
+			ephID := handleRequest(buf, addr)
+			iv, finalEphID := getEphID(ephID)
 			log.WithFields(log.Fields{
 				"data": string(buf[0:n]),
 				"addr": addr,
 			}).Info("Received information")
 			log.WithFields(log.Fields{
-				"ephId": handleRequest(buf, addr),
+				"hostId": ephID,
+				"ephId":  finalEphID,
+				"iv":     iv,
+				"mac":    computeMac(iv, finalEphID),
 			}).Info("EphID Generation")
 		}
 	}
