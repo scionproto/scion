@@ -20,7 +20,6 @@ import (
 	"io"
 	"net"
 
-	//log "github.com/inconshreveable/log15"
 	"github.com/songgao/water"
 	"github.com/vishvananda/netlink"
 

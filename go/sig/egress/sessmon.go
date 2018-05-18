@@ -17,11 +17,9 @@ package egress
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"
@@ -69,7 +67,7 @@ func newSessMonitor(sess *Session) *sessMonitor {
 }
 
 func (sm *sessMonitor) run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	defer close(sm.sess.sessMonStopped)
 	// Setup timers
 	reqTick := time.NewTicker(tickLen)

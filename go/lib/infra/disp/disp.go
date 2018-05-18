@@ -43,12 +43,9 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/inconshreveable/log15"
-	logext "github.com/inconshreveable/log15/ext"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -94,7 +91,7 @@ func New(t infra.Transport, adapter MessageAdapter, logger log.Logger) *Dispatch
 		readEvents:  make(chan *readEventDesc, maxReadEvents),
 		stoppedChan: make(chan struct{}),
 		closedChan:  make(chan struct{}),
-		log:         logger.New("id", logext.RandId(4), "goroutine", "dispatcher_bck"),
+		log:         logger.New("id", log.RandId(4), "goroutine", "dispatcher_bck"),
 	}
 	d.goBackgroundReceiver()
 	return d
@@ -171,7 +168,7 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, net.Addr
 
 func (d *Dispatcher) goBackgroundReceiver() {
 	go func() {
-		defer liblog.LogPanicAndExit()
+		defer log.LogPanicAndExit()
 		d.log.Info("Started")
 		defer d.log.Info("Stopped")
 		defer close(d.stoppedChan)

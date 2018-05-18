@@ -24,12 +24,9 @@ import (
 	"net"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-	logext "github.com/inconshreveable/log15/ext"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/util/bufpool"
@@ -124,7 +121,7 @@ func New(conn net.PacketConn, logger log.Logger) *RPT {
 		readEvents: make(chan *readEventDesc, maxReadEvents),
 		closedChan: make(chan struct{}),
 		doneChan:   make(chan struct{}),
-		log:        logger.New("id", logext.RandId(4), "goroutine", "transport_bck"),
+		log:        logger.New("id", log.RandId(4), "goroutine", "transport_bck"),
 		writeLock:  util.NewChannelLock(),
 	}
 	t.goBackgroundReceiver()
@@ -263,7 +260,7 @@ func (t *RPT) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
 // in the ACK table.
 func (t *RPT) goBackgroundReceiver() {
 	go func() {
-		defer liblog.LogPanicAndExit()
+		defer log.LogPanicAndExit()
 		t.log.Info("Started")
 		defer t.log.Info("Stopped")
 		defer close(t.doneChan)

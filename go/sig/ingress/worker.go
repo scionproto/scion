@@ -17,11 +17,10 @@ package ingress
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/metrics"
@@ -74,12 +73,12 @@ func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 }
 
 func (w *Worker) Stop() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	w.Ring.Close()
 }
 
 func (w *Worker) Run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	w.Info("IngressWorker starting")
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()

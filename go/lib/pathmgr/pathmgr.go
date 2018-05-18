@@ -42,12 +42,10 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -224,7 +222,7 @@ func (r *PR) Revoke(revInfo common.RawBytes) {
 	// Revoke asynchronously to prevent cases where waiting on SCIOND
 	// blocks the data plane receiver which got the SCMP packet.
 	go func() {
-		defer liblog.LogPanicAndExit()
+		defer log.LogPanicAndExit()
 		r.Lock()
 		defer r.Unlock()
 		r.revoke(revInfo)

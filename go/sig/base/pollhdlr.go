@@ -15,11 +15,9 @@
 package base
 
 import (
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/mgmt"
@@ -27,7 +25,7 @@ import (
 )
 
 func PollReqHdlr() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	log.Info("PollReqHdlr: starting")
 	for rpld := range disp.Dispatcher.PollReqC {
 		req, ok := rpld.P.(*mgmt.PollReq)

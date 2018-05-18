@@ -21,9 +21,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/inconshreveable/log15"
-	logext "github.com/inconshreveable/log15/ext"
-
 	"github.com/scionproto/scion/go/border/conf"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -87,7 +84,7 @@ func (r *Router) Run() error {
 
 // confSig handles reloading the configuration when SIGHUP is received.
 func (r *Router) confSig() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	for range sighup {
 		var err error
 		var config *conf.Conf
@@ -104,7 +101,7 @@ func (r *Router) confSig() {
 }
 
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	defer close(stopped)
 	pkts := make(ringbuf.EntryList, processBufCnt)
 	log.Debug("handleSock starting", "sock", *s)
@@ -135,7 +132,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		assert.Must(rp.Ctx != nil, "Context must be set")
 	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
-	rp.Id = logext.RandId(4)
+	rp.Id = log.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	// XXX(kormat): uncomment for debugging:
 	//rp.Debug("processPacket", "raw", rp.Raw)

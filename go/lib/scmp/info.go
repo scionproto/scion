@@ -17,7 +17,6 @@ package scmp
 import (
 	"fmt"
 
-	//log "github.com/inconshreveable/log15"
 	"gopkg.in/restruct.v1"
 
 	"github.com/scionproto/scion/go/lib/common"

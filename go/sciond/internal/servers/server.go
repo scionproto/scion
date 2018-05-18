@@ -19,12 +19,10 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/transport"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
@@ -78,7 +76,7 @@ func (srv *Server) ListenAndServe() error {
 
 		// Launch server for SCIONDMsg messages on the accepted conn
 		go func() {
-			defer liblog.LogPanicAndExit()
+			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
 			NewAPI(transport.NewPacketTransport(pconn)).Serve()
 		}()

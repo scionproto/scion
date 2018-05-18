@@ -17,12 +17,10 @@ package pathmgr
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
-	liblog "github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
@@ -44,7 +42,7 @@ type resolver struct {
 // updates the path cache with the result. Periodic requests are readded to the
 // channel.
 func (r *resolver) run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	for request := range r.requestQueue {
 		aps := r.lookup(request.src, request.dst)
 		switch request.reqType {

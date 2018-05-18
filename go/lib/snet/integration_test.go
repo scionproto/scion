@@ -25,11 +25,10 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
 

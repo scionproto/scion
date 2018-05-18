@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 
-	//log "github.com/inconshreveable/log15"
 	"zombiezen.com/go/capnproto2"
 	"zombiezen.com/go/capnproto2/pogs"
 

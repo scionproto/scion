@@ -18,7 +18,7 @@ import (
 	"os"
 	"testing"
 
-	log "github.com/inconshreveable/log15"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 // Disable logging in all tests

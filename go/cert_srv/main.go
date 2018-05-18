@@ -16,16 +16,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -57,17 +56,23 @@ func init() {
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
-	liblog.AddDefaultLogFlags()
+	var err error
+	os.Setenv("TZ", "UTC")
+	log.AddLogFileFlags()
+	log.AddLogConsFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
 		flag.Usage()
 		os.Exit(1)
 	}
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
+	if err = log.SetupFromFlags(*id); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
+	defer log.LogPanicAndExit()
 	setupSignals()
-	var err error
 	if err = checkFlags(); err != nil {
 		fatal(err.Error())
 	}
@@ -105,14 +110,14 @@ func setupSignals() {
 	go func() {
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}()
 	go configSig()
 }
 
 func configSig() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	for range sighup {
 		log.Info("Reload config")
 		if err := setup(); err != nil {
@@ -124,6 +129,6 @@ func configSig() {
 
 func fatal(msg string, args ...interface{}) {
 	log.Crit(msg, args...)
-	liblog.Flush()
+	log.Flush()
 	os.Exit(1)
 }

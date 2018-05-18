@@ -19,14 +19,12 @@ package rpkt
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
-	logext "github.com/inconshreveable/log15/ext"
-
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -37,7 +35,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, 
 	totalLen := sp.TotalLen()
 	hdrLen := sp.HdrLen() / common.LineLen
 	rp.TimeIn = time.Now()
-	rp.Id = logext.RandId(4)
+	rp.Id = log.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	rp.DirFrom = rcmn.DirSelf
 	rp.DirTo = dirTo

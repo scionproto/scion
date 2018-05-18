@@ -20,17 +20,16 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"os/user"
 	"syscall"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/profile"
 )
 
@@ -41,18 +40,24 @@ var (
 )
 
 func main() {
+	os.Setenv("TZ", "UTC")
 	// Parse and check flags.
-	liblog.AddDefaultLogFlags()
+	log.AddLogFileFlags()
+	log.AddLogConsFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
 		os.Exit(1)
 	}
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
+	if err := log.SetupFromFlags(*id); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
+	defer log.LogPanicAndExit()
 	if err := checkPerms(); err != nil {
 		log.Crit("Permissions checks failed", "err", err)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}
 	if *profFlag {
@@ -63,7 +68,7 @@ func main() {
 	r, err := NewRouter(*id, *confDir)
 	if err != nil {
 		log.Crit("Startup failed", "err", err)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}
 	if assert.On {
@@ -74,7 +79,7 @@ func main() {
 	log.Info("Starting up", "id", *id, "pid", os.Getpid())
 	if err := r.Run(); err != nil {
 		log.Crit("Run failed", "err", err)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}
 }
@@ -87,7 +92,7 @@ func setupSignals() {
 		<-sig
 		log.Info("Exiting")
 		profile.Stop()
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}()
 }

@@ -17,8 +17,6 @@
 package main
 
 import (
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -40,7 +38,7 @@ func (r *Router) RawSRevCallback(args rpkt.RawSRevCallbackArgs) {
 // RevInfoFwd takes RevInfos, and forwards them to the local Beacon Service
 // (BS) and Path Service (PS).
 func (r *Router) RevInfoFwd() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	// Run forever.
 	for args := range r.sRevInfoQ {
 		revInfo, err := args.SignedRevInfo.RevInfo()

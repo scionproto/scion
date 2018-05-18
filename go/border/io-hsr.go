@@ -22,14 +22,13 @@ import (
 	"net"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/hsr"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type HSRInputFunc func(*Router, chan struct{}, chan struct{})
@@ -67,7 +66,7 @@ func (hi *HSRInput) Stop() {
 // is only updated once), readHSRInput uses a map of port IDs to keep track of
 // which metrics need updating.
 func readHSRInput(r *Router, stopChan chan struct{}, stoppedChan chan struct{}) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	defer close(stoppedChan)
 	// Allocate slice of empty packets.
 	rpkts := make([]*rpkt.RtrPkt, hsr.MaxPkts)

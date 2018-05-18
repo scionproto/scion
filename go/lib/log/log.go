@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package liblog
+package log
 
 import (
 	"flag"
@@ -22,65 +22,106 @@ import (
 	"runtime/debug"
 	"time"
 
-	log "github.com/inconshreveable/log15"
+	"github.com/inconshreveable/log15"
+	logext "github.com/inconshreveable/log15/ext"
 	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+type Logger log15.Logger
+type Handler log15.Handler
+
 var (
-	logDir     string
-	logLevel   string
-	logConsole string
-	logSize    int
-	logAge     int
-	logFlush   int
-	logBuf     *syncBuf
+	logDir         string
+	logLevel       string
+	logConsole     string
+	logSize        int
+	logAge         int
+	logFlush       int
+	logBuf         *syncBuf
+	logFileHandler Handler
+	logConsHandler Handler
 )
 
 func init() {
-	os.Setenv("TZ", "UTC")
 	fmt15.TimeFmt = common.TimeFmt
 }
 
-func Setup(name string) {
-	logLvl, consLvl := parseLvls()
+func SetupFromFlags(name string) error {
+	var err error
+	if logConsole != "" {
+		err = SetupLogConsole(logConsole)
+		if err != nil {
+			return err
+		}
+	}
+	// if name passed, the caller wants to setup a log file
+	if name != "" {
+		if logDir == "" {
+			return common.NewBasicError("Log file flags not set", nil)
+		}
+		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logFlush)
+	}
+	return err
+}
+
+func SetupLogFile(name string, logDir string, logLevel string, logSize int, logAge int,
+	logFlush int) error {
+
+	logLvl, err := log15.LvlFromString(logLevel)
+	if err != nil {
+		return common.NewBasicError("Unable to parse log.level flag:", err)
+	}
 	logBuf = newSyncBuf(mkLogfile(name))
-	handler := log.MultiHandler(
-		log.LvlFilterHandler(logLvl, log.StreamHandler(logBuf, fmt15.Fmt15Format(nil))),
-		log.LvlFilterHandler(consLvl, log.StreamHandler(os.Stdout,
-			fmt15.Fmt15Format(fmt15.ColorMap))),
-	)
-	log.Root().SetHandler(handler)
+	logFileHandler = log15.LvlFilterHandler(logLvl,
+		log15.StreamHandler(logBuf, fmt15.Fmt15Format(nil)))
+	setHandlers()
 	go func() {
 		for range time.Tick(time.Duration(logFlush) * time.Second) {
 			Flush()
 		}
 	}()
+	return nil
 }
 
-func AddDefaultLogFlags() {
+func SetupLogConsole(logConsole string) error {
+	logLvl, err := log15.LvlFromString(logConsole)
+	if err != nil {
+		return common.NewBasicError("Unable to parse log.console flag:", err)
+	}
+	logConsHandler = log15.LvlFilterHandler(logLvl, log15.StreamHandler(os.Stdout,
+		fmt15.Fmt15Format(fmt15.ColorMap)))
+	setHandlers()
+	return nil
+}
+
+func setHandlers() {
+	var handler log15.Handler
+	switch {
+	case logFileHandler != nil && logConsHandler != nil:
+		handler = log15.MultiHandler(logFileHandler, logConsHandler)
+	case logFileHandler != nil: // logConsHandler == nil
+		handler = logFileHandler
+	case logConsHandler != nil: // logFileHandler == nil
+		handler = logConsHandler
+	}
+	log15.Root().SetHandler(handler)
+}
+
+func AddLogConsFlags() {
+	flag.StringVar(&logConsole, "log.console", "crit",
+		"Console logging level: debug|info|warn|error|crit")
+}
+
+func AddLogFileFlags() {
 	flag.StringVar(&logDir, "log.dir", "logs", "Log directory")
-	flag.StringVar(&logLevel, "log.level", "debug", "Logging level")
-	flag.StringVar(&logConsole, "log.console", "crit", "Console logging level")
+	flag.StringVar(&logLevel, "log.level", "debug",
+		"File logging level: debug|info|warn|error|crit")
 	flag.IntVar(&logSize, "log.size", 50, "Max size of log file in MiB")
 	flag.IntVar(&logAge, "log.age", 7, "Max age of log file in days")
 	flag.IntVar(&logFlush, "log.flush", 5, "How frequently to flush to the log file, in seconds")
-}
-
-func parseLvls() (log.Lvl, log.Lvl) {
-	logLvl, err := log.LvlFromString(logLevel)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to parse log.Level flag: %v", err)
-		os.Exit(1)
-	}
-	consLvl, err := log.LvlFromString(logConsole)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to parse log.Console flag: %v", err)
-		os.Exit(1)
-	}
-	return logLvl, consLvl
 }
 
 func mkLogfile(name string) io.WriteCloser {
@@ -93,7 +134,7 @@ func mkLogfile(name string) io.WriteCloser {
 
 func LogPanicAndExit() {
 	if msg := recover(); msg != nil {
-		log.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
+		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
 		Flush()
 		os.Exit(255)
 	}
@@ -101,4 +142,40 @@ func LogPanicAndExit() {
 
 func Flush() {
 	logBuf.Flush()
+}
+
+func New(ctx ...interface{}) Logger {
+	return log15.New(ctx...)
+}
+
+func DiscardHandler() Handler {
+	return log15.DiscardHandler()
+}
+
+func Root() Logger {
+	return log15.Root()
+}
+
+func Debug(msg string, ctx ...interface{}) {
+	log15.Debug(msg, ctx...)
+}
+
+func Info(msg string, ctx ...interface{}) {
+	log15.Info(msg, ctx...)
+}
+
+func Warn(msg string, ctx ...interface{}) {
+	log15.Warn(msg, ctx...)
+}
+
+func Error(msg string, ctx ...interface{}) {
+	log15.Error(msg, ctx...)
+}
+
+func Crit(msg string, ctx ...interface{}) {
+	log15.Crit(msg, ctx...)
+}
+
+func RandId(idlen int) string {
+	return logext.RandId(idlen)
 }

@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	//log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/hsr"

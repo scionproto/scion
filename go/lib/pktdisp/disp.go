@@ -15,10 +15,8 @@
 package pktdisp
 
 import (
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -33,7 +31,7 @@ type DispatchFunc func(*DispPkt)
 // N.B. the DispPkt passed to f is reused, so applications should make a copy if
 // this is a problem.
 func PktDispatcher(c *snet.Conn, f DispatchFunc) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	var err error
 	var n int
 	dp := &DispPkt{Raw: make(common.RawBytes, common.MaxMTU)}

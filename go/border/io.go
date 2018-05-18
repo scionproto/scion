@@ -22,7 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"golang.org/x/net/ipv4"
 
 	"github.com/scionproto/scion/go/border/metrics"
@@ -49,7 +48,7 @@ const (
 )
 
 func (r *Router) posixInput(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	defer close(stopped)
 	dst := s.Conn.LocalAddr()
 	log.Info("posixInput starting", "addr", dst)
@@ -190,7 +189,7 @@ func (r *Router) posixInputRead(msgs []ipv4.Message, metas []conn.ReadMeta,
 }
 
 func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	defer close(stopped)
 	src := s.Conn.LocalAddr()
 	dst := s.Conn.RemoteAddr()

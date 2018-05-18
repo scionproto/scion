@@ -25,12 +25,11 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/syndtr/gocapability/capability"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/disp"
@@ -56,15 +55,21 @@ var (
 )
 
 func main() {
-	liblog.AddDefaultLogFlags()
+	os.Setenv("TZ", "UTC")
+	log.AddLogFileFlags()
+	log.AddLogConsFlags()
 	flag.Parse()
 	if *id == "" {
 		log.Crit("No element ID specified")
 		flag.Usage()
 		os.Exit(1)
 	}
-	liblog.Setup(*id)
-	defer liblog.LogPanicAndExit()
+	if err := log.SetupFromFlags(*id); err != nil {
+		log.Crit(err.Error())
+		flag.Usage()
+		os.Exit(1)
+	}
+	defer log.LogPanicAndExit()
 	setupSignals()
 	if err := checkPerms(); err != nil {
 		fatal("Permissions checks failed", "err", err)
@@ -114,7 +119,7 @@ func setupSignals() {
 	go func() {
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
-		liblog.Flush()
+		log.Flush()
 		os.Exit(1)
 	}()
 }
@@ -161,7 +166,7 @@ func setupTun() (io.ReadWriteCloser, error) {
 }
 
 func reloadOnSIGHUP(path string) {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	log.Info("reloadOnSIGHUP: started")
 	for range sighup {
 		log.Info("reloadOnSIGHUP: reloading...")
@@ -187,6 +192,6 @@ func loadConfig(path string) bool {
 
 func fatal(msg string, args ...interface{}) {
 	log.Crit(msg, args...)
-	liblog.Flush()
+	log.Flush()
 	os.Exit(1)
 }

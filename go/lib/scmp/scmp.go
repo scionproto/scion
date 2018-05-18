@@ -16,7 +16,6 @@ package scmp
 
 import (
 	"fmt"
-	//log "github.com/inconshreveable/log15"
 )
 
 // https://github.com/scionproto/scion/blob/master/lib/packet/scmp/types.py

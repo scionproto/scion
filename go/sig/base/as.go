@@ -19,12 +19,11 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/egress"
@@ -261,7 +260,7 @@ func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 
 // manage the Sig map
 func (ae *ASEntry) sigMgr() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	ticker := time.NewTicker(sigMgrTick)
 	defer ticker.Stop()
 	ae.Info("sigMgr starting")
@@ -283,7 +282,7 @@ Top:
 }
 
 func (ae *ASEntry) monitorHealth() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	ticker := time.NewTicker(healthMonitorTick)
 	defer ticker.Stop()
 	ae.Info("Health monitor starting")

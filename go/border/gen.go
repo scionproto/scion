@@ -20,8 +20,6 @@ package main
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
@@ -96,7 +94,7 @@ func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
 // interface state changes, so this is only needed as a fail-safe after
 // startup.
 func (r *Router) IFStateUpdate() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	r.genIFStateReq()
 	for range time.Tick(ifStateFreq) {
 		r.genIFStateReq()

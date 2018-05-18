@@ -17,11 +17,9 @@ package egress
 import (
 	"time"
 
-	log "github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
-	liblog "github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -82,7 +80,7 @@ func NewWorker(sess *Session, logger log.Logger) *worker {
 }
 
 func (w *worker) Run() {
-	defer liblog.LogPanicAndExit()
+	defer log.LogPanicAndExit()
 	w.Info("EgressWorker: starting")
 	f := newFrame()
 
