@@ -58,9 +58,22 @@ class FwdPathMeta(Cerealizable):  # pragma: no cover
         for if_ in self.p.interfaces:
             yield PathInterface(if_)
 
+    def ifs_desc(self):
+        s = []
+        if len(self.p.interfaces) == 0:
+            return []
+        intf = PathInterface(self.p.interfaces[0])
+        s.append("%s %s" % (intf.isd_as(), intf.p.ifID))
+        for i in range(1, len(self.p.interfaces) - 1, 2):
+            inIntf = PathInterface(self.p.interfaces[i])
+            outIntf = PathInterface(self.p.interfaces[i+1])
+            s.append("%s %s %s" % (inIntf.p.ifID, inIntf.isd_as(), outIntf.p.ifID))
+        intf = PathInterface(self.p.interfaces[-1])
+        s.append("%s %s" % (intf.p.ifID, intf.isd_as()))
+        return s
+
     def short_desc(self):
-        if_str = ", ".join([if_.short_desc() for if_ in self.iter_ifs()])
-        return "Interfaces: %s MTU: %d" % (if_str, self.p.mtu)
+        return "Interfaces: [%s] MTU: %d" % (">".join(self.ifs_desc()), self.p.mtu)
 
     def __eq__(self, other):
         return list(self.iter_ifs()) == list(other.iter_ifs())
@@ -87,7 +100,7 @@ class PathInterface(Cerealizable):  # pragma: no cover
             "Invalid index used on PathInterface object: %d" % idx)
 
     def short_desc(self):
-        return "%s:%s" % (self.isd_as(), self.p.ifID)
+        return "%s#%s" % (self.isd_as(), self.p.ifID)
 
     def __str__(self):
         return self.short_desc()

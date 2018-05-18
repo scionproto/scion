@@ -131,7 +131,7 @@ type PathReply struct {
 }
 
 type PathReplyEntry struct {
-	Path     FwdPathMeta
+	Path     *FwdPathMeta
 	HostInfo HostInfo
 }
 
@@ -170,7 +170,7 @@ type FwdPathMeta struct {
 	ExpTime    uint32
 }
 
-func (fpm FwdPathMeta) SrcIA() addr.IA {
+func (fpm *FwdPathMeta) SrcIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
 		return addr.IA{}
@@ -178,7 +178,7 @@ func (fpm FwdPathMeta) SrcIA() addr.IA {
 	return ifaces[0].ISD_AS()
 }
 
-func (fpm FwdPathMeta) DstIA() addr.IA {
+func (fpm *FwdPathMeta) DstIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
 		return addr.IA{}
@@ -186,16 +186,30 @@ func (fpm FwdPathMeta) DstIA() addr.IA {
 	return ifaces[len(ifaces)-1].ISD_AS()
 }
 
-func (fpm FwdPathMeta) Expiry() time.Time {
+func (fpm *FwdPathMeta) Expiry() time.Time {
 	return util.USecsToTime(uint64(fpm.ExpTime))
 }
 
-func (fpm FwdPathMeta) String() string {
+func (fpm *FwdPathMeta) String() string {
+	hops := fpm.fmtIfaces()
+	return fmt.Sprintf("Hops: [%s] Mtu: %d", strings.Join(hops, ">"), fpm.Mtu)
+}
+
+func (fpm *FwdPathMeta) fmtIfaces() []string {
 	var hops []string
-	for _, intf := range fpm.Interfaces {
-		hops = append(hops, intf.String())
+	if len(fpm.Interfaces) == 0 {
+		return hops
 	}
-	return fmt.Sprintf("Hops: %s Mtu: %d", strings.Join(hops, ">"), fpm.Mtu)
+	intf := fpm.Interfaces[0]
+	hops = append(hops, fmt.Sprintf("%s %d", intf.ISD_AS(), intf.IfID))
+	for i := 1; i < len(fpm.Interfaces)-1; i += 2 {
+		inIntf := fpm.Interfaces[i]
+		outIntf := fpm.Interfaces[i+1]
+		hops = append(hops, fmt.Sprintf("%d %s %d", inIntf.IfID, inIntf.ISD_AS(), outIntf.IfID))
+	}
+	intf = fpm.Interfaces[len(fpm.Interfaces)-1]
+	hops = append(hops, fmt.Sprintf("%d %s", intf.IfID, intf.ISD_AS()))
+	return hops
 }
 
 type PathInterface struct {
@@ -208,7 +222,7 @@ func (iface *PathInterface) ISD_AS() addr.IA {
 }
 
 func (iface PathInterface) String() string {
-	return fmt.Sprintf("%v#%v", iface.ISD_AS(), iface.IfID)
+	return fmt.Sprintf("%s#%d", iface.ISD_AS(), iface.IfID)
 }
 
 type ASInfoReq struct {

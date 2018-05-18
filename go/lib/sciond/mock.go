@@ -95,7 +95,7 @@ func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRep
 		}
 		entries = append(entries,
 			PathReplyEntry{
-				Path: FwdPathMeta{
+				Path: &FwdPathMeta{
 					Interfaces: pathInterfaces,
 					ExpTime:    uint32(time.Now().Add(spath.MaxTTL * time.Second).Unix()),
 				},
