@@ -108,8 +108,8 @@ func (h *HopField) Write() {
 }
 
 func (h *HopField) String() string {
-	return fmt.Sprintf(
-		"ConsIngress: %v ConsEgress: %v ExpTime: %v Xover: %v VerifyOnly: %v ForwardOnly: %v Mac: %v",
+	return fmt.Sprintf("ConsIngress: %v ConsEgress: %v ExpTime: %v Xover: %v VerifyOnly: %v "+
+		"ForwardOnly: %v Mac: %v",
 		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.ForwardOnly, h.Mac)
 }
 
