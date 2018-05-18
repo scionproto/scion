@@ -208,6 +208,10 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		return segment
 	}
 
+	if _, ok := g.parents[ifids[0]]; !ok {
+		panic(fmt.Sprintf("%d unknown ifid", ifids[0]))
+	}
+
 	segment, err := seg.NewSeg(
 		&spath.InfoField{
 			ISD: uint16(g.parents[ifids[0]].I),
@@ -220,8 +224,11 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 	for i := 0; i <= len(ifids); i++ {
 		switch {
 		case i < len(ifids):
+			var ok bool
 			outIF = ifids[i]
-			remoteOutIF = g.links[outIF]
+			if remoteOutIF, ok = g.links[outIF]; !ok {
+				panic(fmt.Sprintf("%d unknown ifid", outIF))
+			}
 			outIA = g.parents[remoteOutIF]
 		case i == len(ifids):
 			outIF = 0
@@ -234,7 +241,7 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		}
 
 		b := make(common.RawBytes, spath.HopFieldLength)
-		_ = spath.NewHopField(b, inIF, outIF)
+		spath.NewHopField(b, inIF, outIF)
 		localHopEntry := &seg.HopEntry{
 			RawInIA:     inIA.IAInt(),
 			RemoteInIF:  remoteInIF,
@@ -249,7 +256,7 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		for peeringLocalIF := range as.IFIDs {
 			if g.isPeer[peeringLocalIF] {
 				b := make(common.RawBytes, spath.HopFieldLength)
-				_ = spath.NewHopField(b, peeringLocalIF, outIF)
+				spath.NewHopField(b, peeringLocalIF, outIF)
 				peeringRemoteIF := g.links[peeringLocalIF]
 				peeringIA := g.parents[peeringRemoteIF]
 				peerHopEntry := &seg.HopEntry{
@@ -361,13 +368,25 @@ type EdgeDesc struct {
 }
 
 // Graph description of the topology in doc/fig/default-topo.pdf.
+// Comments mention root name for IFIDs.
 var DefaultGraphDescription = &Description{
 	Nodes: []string{
-		"1-ff00:0:110", "1-ff00:0:111", "1-ff00:0:112",
-		"1-ff00:0:120", "1-ff00:0:121", "1-ff00:0:122",
-		"1-ff00:0:130", "1-ff00:0:131", "1-ff00:0:132", "1-ff00:0:133",
-		"2-ff00:0:210", "2-ff00:0:211", "2-ff00:0:212",
-		"2-ff00:0:220", "2-ff00:0:221", "2-ff00:0:222",
+		"1-ff00:0:110", // 11
+		"1-ff00:0:111", // 14
+		"1-ff00:0:112", // 17
+		"1-ff00:0:120", // 12
+		"1-ff00:0:121", // 15
+		"1-ff00:0:122", // 18
+		"1-ff00:0:130", // 13
+		"1-ff00:0:131", // 16
+		"1-ff00:0:132", // 19
+		"1-ff00:0:133", // 10
+		"2-ff00:0:210", // 21
+		"2-ff00:0:211", // 23
+		"2-ff00:0:212", // 25
+		"2-ff00:0:220", // 22
+		"2-ff00:0:221", // 24
+		"2-ff00:0:222", // 26
 	},
 	Edges: []EdgeDesc{
 		{"1-ff00:0:110", 1112, "1-ff00:0:120", 1211, false},
