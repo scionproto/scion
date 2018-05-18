@@ -131,7 +131,7 @@ type PathReply struct {
 }
 
 type PathReplyEntry struct {
-	Path     FwdPathMeta
+	Path     *FwdPathMeta
 	HostInfo HostInfo
 }
 
@@ -170,7 +170,7 @@ type FwdPathMeta struct {
 	ExpTime    uint32
 }
 
-func (fpm FwdPathMeta) SrcIA() addr.IA {
+func (fpm *FwdPathMeta) SrcIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
 		return addr.IA{}
@@ -178,7 +178,7 @@ func (fpm FwdPathMeta) SrcIA() addr.IA {
 	return ifaces[0].ISD_AS()
 }
 
-func (fpm FwdPathMeta) DstIA() addr.IA {
+func (fpm *FwdPathMeta) DstIA() addr.IA {
 	ifaces := fpm.Interfaces
 	if len(ifaces) == 0 {
 		return addr.IA{}
@@ -186,16 +186,16 @@ func (fpm FwdPathMeta) DstIA() addr.IA {
 	return ifaces[len(ifaces)-1].ISD_AS()
 }
 
-func (fpm FwdPathMeta) Expiry() time.Time {
+func (fpm *FwdPathMeta) Expiry() time.Time {
 	return util.USecsToTime(uint64(fpm.ExpTime))
 }
 
-func (fpm FwdPathMeta) String() string {
+func (fpm *FwdPathMeta) String() string {
 	hops := fpm.fmtIfaces()
 	return fmt.Sprintf("Hops: [%s] Mtu: %d", strings.Join(hops, ">"), fpm.Mtu)
 }
 
-func (fpm FwdPathMeta) fmtIfaces() []string {
+func (fpm *FwdPathMeta) fmtIfaces() []string {
 	var hops []string
 	if len(fpm.Interfaces) == 0 {
 		return hops
