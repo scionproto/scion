@@ -44,6 +44,19 @@ func StartServer(server *snet.Addr) {
 	conn := connectToApnaManager()
 	msg := []byte{1}
 	conn.Write(msg)
+	finalEphID := make([]byte, 16)
+	n, err := conn.Read(finalEphID)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("ephid: ", finalEphID)
+	fmt.Printf("bytes read: %v\n", n)
+
+	verify := make([]byte, 1)
+	verify[0] = 0x02
+	verify = append(verify, finalEphID...)
+	fmt.Println("msg to be send: ", verify)
+	conn.Write(verify)
 
 	sconn, err := snet.ListenSCION("udp4", server)
 	if err != nil {
