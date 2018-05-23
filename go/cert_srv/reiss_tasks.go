@@ -22,8 +22,8 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -90,8 +90,11 @@ func (l *SelfIssuer) createLeafCert(leaf *cert.Certificate, config *conf.Conf) e
 	if chain.Issuer.ExpirationTime < chain.Leaf.ExpirationTime {
 		chain.Leaf.ExpirationTime = chain.Issuer.ExpirationTime
 	}
-	if err := chain.Leaf.Sign(config.GetIssSigningKey(), crypto.Ed25519); err != nil {
+	if err := chain.Leaf.Sign(config.GetIssSigningKey(), issCrt.SignAlgorithm); err != nil {
 		return common.NewBasicError("Unable to sign leaf certificate", err, "chain", chain)
+	}
+	if err := config.Store.VerifyChain(config.PublicAddr.IA, chain); err != nil {
+		return common.NewBasicError("Unable to verify chain", err, "chain", chain)
 	}
 	if err := config.Store.AddChain(chain, true); err != nil {
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
@@ -115,14 +118,34 @@ func (l *SelfIssuer) createIssuerCert(config *conf.Conf) error {
 	crt.IssuingTime = uint64(time.Now().Unix())
 	crt.CanIssue = true
 	crt.ExpirationTime = crt.IssuingTime + cert.DefaultIssuerCertValidity
-	if err = crt.Sign(config.GetOnRootKey(), crypto.Ed25519); err != nil {
+	coreAS, err := l.getCoreASEntry(config)
+	if err != nil {
+		return common.NewBasicError("Unable to get core AS entry", err, "cert", crt)
+	}
+	if err = crt.Sign(config.GetOnRootKey(), coreAS.OnlineKeyAlg); err != nil {
 		return common.NewBasicError("Unable to sign issuer certificate", err, "cert", crt)
+	}
+	if err = crt.Verify(crt.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
+		return common.NewBasicError("Invalid issuer certificate signature", err, "cert", crt)
 	}
 	if err = setIssuerCert(crt, config); err != nil {
 		return common.NewBasicError("Unable to store issuer certificate", err, "cert", crt)
 	}
 	log.Info("Created issuer certificate", "cert", crt)
 	return nil
+}
+
+func (l *SelfIssuer) getCoreASEntry(config *conf.Conf) (*trc.CoreAS, error) {
+	maxTrc := config.Store.GetNewestTRC(config.PublicAddr.IA.I)
+	if maxTrc == nil {
+		return nil, common.NewBasicError("Unable to find local TRC", nil)
+	}
+	coreAS := maxTrc.CoreASes[config.PublicAddr.IA]
+	if coreAS == nil {
+		return nil, common.NewBasicError("Local AS is not a core AS in the max TRC",
+			nil, "maxTrc", maxTrc)
+	}
+	return coreAS, nil
 }
 
 func getIssuerCert(config *conf.Conf) (*cert.Certificate, error) {

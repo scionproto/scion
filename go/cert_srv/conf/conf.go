@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -31,9 +32,6 @@ import (
 )
 
 const (
-	// LeafReissTime is the default value for Conf.LeafReissTime. It is the same
-	// as the default segment TTL in order to provide optimal coverage.
-	LeafReissTime = 6 * time.Hour
 	// IssuerReissTime is the default value for Conf.IssuerReissTime. It is the same
 	// as the leaf certificate validity period in order to provide optimal coverage.
 	IssuerReissTime = cert.DefaultLeafCertValidity * time.Second
@@ -100,9 +98,11 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 		ConfDir:         confDir,
 		CacheDir:        cacheDir,
 		StateDir:        stateDir,
-		LeafReissTime:   LeafReissTime,
 		IssuerReissTime: IssuerReissTime,
 		ReissRate:       ReissReqRate,
+	}
+	if err := c.loadLeafReissTime(); err != nil {
+		return nil, err
 	}
 	if err := c.loadTopo(); err != nil {
 		return nil, err
@@ -142,9 +142,11 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 		ConfDir:         oldConf.ConfDir,
 		CacheDir:        oldConf.CacheDir,
 		StateDir:        oldConf.StateDir,
-		LeafReissTime:   LeafReissTime,
 		IssuerReissTime: IssuerReissTime,
 		ReissRate:       ReissReqRate,
+	}
+	if err := c.loadLeafReissTime(); err != nil {
+		return nil, err
 	}
 	if err := c.loadTopo(); err != nil {
 		return nil, err
@@ -210,6 +212,16 @@ func (c *Conf) loadKeyConf() (err error) {
 	if err != nil {
 		return common.NewBasicError(ErrorKeyConf, err)
 	}
+	return nil
+}
+
+// loadLeafReissTime loads the as conf and sets the LeafReissTime to the PathSegmentTTL
+// to provide optimal coverage.
+func (c *Conf) loadLeafReissTime() error {
+	if err := as_conf.Load(filepath.Join(c.ConfDir, as_conf.CfgName)); err != nil {
+		return err
+	}
+	c.LeafReissTime = time.Duration(as_conf.CurrConf.PathSegmentTTL) * time.Second
 	return nil
 }
 

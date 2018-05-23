@@ -18,15 +18,14 @@ import (
 	"bytes"
 	"time"
 
-	log "github.com/inconshreveable/log15"
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -56,8 +55,8 @@ func (h *ReissHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq,
 			"addr", addr, "req", req)
 		return
 	}
-	// Verify the request was correctly signed by the requester
-	verChain, err := h.verifySign(addr, signed, config)
+	// Validate the request was correctly signed by the requester
+	verChain, err := h.validateSign(addr, signed, config)
 	if err != nil {
 		h.logDropReq(addr, req, err)
 		return
@@ -72,7 +71,7 @@ func (h *ReissHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq,
 	maxChain := config.Store.GetNewestChain(verChain.Leaf.Subject)
 	if maxChain != nil && crt.Version <= maxChain.Leaf.Version {
 		log.Info("Resending certificate chain", "addr", addr, "req", req)
-		if err = h.sendRep(addr, maxChain); err != nil {
+		if err = h.sendRep(addr, maxChain, config); err != nil {
 			log.Error("Unable to resend certificate chain", "addr", addr,
 				"req", req, "err", err)
 		}
@@ -85,7 +84,7 @@ func (h *ReissHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq,
 		return
 	}
 	// Verify request and check the verifying key matches
-	if err = h.validateReq(crt, verKey, verChain, config); err != nil {
+	if err = h.validateReq(crt, verKey, verChain, maxChain, config); err != nil {
 		h.logDropReq(addr, req, err)
 		return
 	}
@@ -96,15 +95,15 @@ func (h *ReissHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq,
 		return
 	}
 	// Send issued certificate chain
-	if err = h.sendRep(addr, newChain); err != nil {
+	if err = h.sendRep(addr, newChain, config); err != nil {
 		log.Error("Unable to send reissued certificate chain", "addr", addr,
 			"req", req, "err", err)
 	}
 }
 
-// verifySign verifies that the signer matches the requester and returns the
-// certificate chain used to verify the signature.
-func (h *ReissHandler) verifySign(addr *snet.Addr, signed *ctrl.SignedPld,
+// verifySign validates that the signer matches the requester and returns the
+// certificate chain used when verifying the signature.
+func (h *ReissHandler) validateSign(addr *snet.Addr, signed *ctrl.SignedPld,
 	config *conf.Conf) (*cert.Chain, error) {
 
 	if signed.Sign == nil {
@@ -114,12 +113,13 @@ func (h *ReissHandler) verifySign(addr *snet.Addr, signed *ctrl.SignedPld,
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := config.GetVerifier().(*SigVerifier).getChainForSign(src)
+	verChain, err := getChainForSign(src)
 	if err != nil {
 		return nil, err
 	}
 	if signed.Sign.Type.String() != verChain.Leaf.SignAlgorithm {
-		return nil, common.NewBasicError("Invalid sign type", nil, "type", signed.Sign.Type)
+		return nil, common.NewBasicError("Invalid sign type", nil,
+			"expected", verChain.Leaf.SignAlgorithm, "actual", signed.Sign.Type)
 	}
 	// Verify that the requester matches the signer
 	if !verChain.Leaf.Subject.Eq(addr.IA) {
@@ -131,12 +131,16 @@ func (h *ReissHandler) verifySign(addr *snet.Addr, signed *ctrl.SignedPld,
 
 // validateReq validates the requested certificate. Additionally, it validates that
 // the request was verified with the same verifying key as in the customer mapping.
-func (h *ReissHandler) validateReq(c *cert.Certificate, key common.RawBytes,
-	chain *cert.Chain, config *conf.Conf) error {
+func (h *ReissHandler) validateReq(c *cert.Certificate, vKey common.RawBytes,
+	vChain, maxChain *cert.Chain, config *conf.Conf) error {
 
-	if !c.Subject.Eq(chain.Leaf.Subject) {
+	if !c.Subject.Eq(vChain.Leaf.Subject) {
 		return common.NewBasicError("Requester does not match subject", nil, "ia",
-			chain.Leaf.Subject, "sub", c.Subject)
+			vChain.Leaf.Subject, "sub", c.Subject)
+	}
+	if maxChain.Leaf.Version+1 != c.Version {
+		return common.NewBasicError("Invalid version", nil, "expected", maxChain.Leaf.Version,
+			"actual", c.Version)
 	}
 	if !c.Issuer.Eq(config.PublicAddr.IA) {
 		return common.NewBasicError("Requested Issuer is not this AS", nil, "iss",
@@ -145,7 +149,7 @@ func (h *ReissHandler) validateReq(c *cert.Certificate, key common.RawBytes,
 	if c.CanIssue {
 		return common.NewBasicError("CanIssue not allowed to be true", nil)
 	}
-	if !bytes.Equal(key, chain.Leaf.SubjectSignKey) {
+	if !bytes.Equal(vKey, vChain.Leaf.SubjectSignKey) {
 		return common.NewBasicError("Request signed with wrong signing key", nil)
 	}
 	return nil
@@ -169,7 +173,11 @@ func (h *ReissHandler) issueChain(c *cert.Certificate, vKey common.RawBytes,
 	if chain.Issuer.ExpirationTime < chain.Leaf.ExpirationTime {
 		chain.Leaf.ExpirationTime = chain.Issuer.ExpirationTime
 	}
-	if err = chain.Leaf.Sign(config.GetIssSigningKey(), crypto.Ed25519); err != nil {
+	if err = chain.Leaf.Sign(config.GetIssSigningKey(), chain.Issuer.SignAlgorithm); err != nil {
+		return nil, err
+	}
+	err = chain.Leaf.Verify(c.Subject, issCert.SubjectSignKey, issCert.SignAlgorithm)
+	if err != nil {
 		return nil, err
 	}
 	// Set verifying key.
@@ -184,7 +192,7 @@ func (h *ReissHandler) issueChain(c *cert.Certificate, vKey common.RawBytes,
 }
 
 // sendRep creates a certificate chain reply and sends it to the requester.
-func (h *ReissHandler) sendRep(addr *snet.Addr, chain *cert.Chain) error {
+func (h *ReissHandler) sendRep(addr *snet.Addr, chain *cert.Chain, config *conf.Conf) error {
 	raw, err := chain.Compress()
 	if err != nil {
 		return err
@@ -194,7 +202,7 @@ func (h *ReissHandler) sendRep(addr *snet.Addr, chain *cert.Chain) error {
 		return err
 	}
 	log.Info("Send reissued certificate chain", "chain", chain, "addr", addr)
-	return SendPayload(h.conn, cpld, addr)
+	return SendSignedPayload(h.conn, cpld, addr, config)
 }
 
 // HandleRep handles certificate chain reissue replies.
@@ -239,7 +247,7 @@ func (h *ReissHandler) validateRep(chain *cert.Chain, config *conf.Conf) error {
 		return common.NewBasicError("Invalid Issuer", nil, "expected",
 			issuer, "actual", chain.Leaf.Issuer)
 	}
-	return nil
+	return config.Store.VerifyChain(config.PublicAddr.IA, chain)
 }
 
 func (h *ReissHandler) logDropReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq, err error) {

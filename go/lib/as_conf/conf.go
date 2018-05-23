@@ -27,6 +27,7 @@ import (
 type ASConf struct {
 	CertChainVersion int           `yaml:"CertChainVersion"`
 	MasterASKey      util.B64Bytes `yaml:"MasterASKey"`
+	PathSegmentTTL   int           `yaml:"PathSegmentTTL"`
 	PropagateTime    int           `yaml:"PropagateTime"`
 	RegisterPath     bool          `yaml:"RegisterPath"`
 	RegisterTime     int           `yaml:"RegisterTime"`

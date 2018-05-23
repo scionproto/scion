@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 )
@@ -235,4 +236,28 @@ func (s *Store) GetTRCList() []*trc.TRC {
 		list = append(list, s.trcMap[*trc.NewKey(isd, ver)])
 	}
 	return list
+}
+
+// VerifyChain verifies the chain based on the TRCs present in the store.
+func (s *Store) VerifyChain(subject addr.IA, chain *cert.Chain) error {
+	maxTrc := s.GetNewestTRC(chain.Issuer.Issuer.I)
+	if maxTrc == nil {
+		return common.NewBasicError("TRC not present", nil, "isd", chain.Issuer.Issuer.I)
+	}
+	if err := maxTrc.CheckActive(maxTrc); err != nil {
+		return common.NewBasicError("Newest TRC not active", err)
+	}
+	if err := chain.Verify(subject, maxTrc); err != nil {
+		var graceTrc *trc.TRC
+		if maxTrc.Version > 1 {
+			graceTrc = s.GetTRC(maxTrc.ISD, maxTrc.Version-1)
+		}
+		if graceTrc == nil || graceTrc.CheckActive(maxTrc) != nil {
+			return common.NewBasicError("Unable to verify chain", err)
+		}
+		if errG := chain.Verify(subject, graceTrc); errG != nil {
+			return common.NewBasicError("Unable to verify chain", err, "errGraceTRC", errG)
+		}
+	}
+	return nil
 }
