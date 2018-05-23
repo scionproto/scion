@@ -771,7 +771,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             exp = min(chain.as_cert.expiration_time, chain.core_as_cert.expiration_time)
             diff = exp - int(time.time())
             if diff > self.config.segment_ttl:
-                time.sleep(max(0, diff - self.config.segment_ttl))
+                time.sleep(diff - self.config.segment_ttl)
                 continue
             cs_meta = self._get_cs()
             req = CertChainRequest.from_values(

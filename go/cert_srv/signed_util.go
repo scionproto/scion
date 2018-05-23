@@ -116,14 +116,14 @@ func (v *SigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes, erro
 	if err != nil {
 		return nil, err
 	}
-	chain, err := v.getChainForSign(sigSrc)
+	chain, err := getChainForSign(sigSrc)
 	if err != nil {
 		return nil, err
 	}
 	return chain.Leaf.SubjectSignKey, nil
 }
 
-func (v *SigVerifier) getChainForSign(s *ctrl.SignSrcDef) (*cert.Chain, error) {
+func getChainForSign(s *ctrl.SignSrcDef) (*cert.Chain, error) {
 	c := conf.Get().Store.GetChain(s.IA, s.ChainVer)
 	if c == nil {
 		return nil, common.NewBasicError("Unable to get certificate chain", nil,
