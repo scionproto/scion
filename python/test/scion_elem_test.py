@@ -16,7 +16,7 @@
 =====================================================
 """
 # Stdlib
-from unittest.mock import patch, Mock
+from unittest.mock import Mock
 from test.testcommon import create_mock_full
 
 # External packages
@@ -24,17 +24,17 @@ import nose
 import nose.tools as ntools
 
 # SCION
-from sciond.sciond import SCIONDaemon
-from lib.rev_cache import RevCache
 from lib.packet.path_mgmt.rev_info import RevocationInfo, SignedRevInfo
-from lib.types import LinkType
 from lib.packet.proto_sign import ProtoSignType
 from lib.packet.scion_addr import ISD_AS
+from lib.rev_cache import RevCache
+from lib.types import LinkType
+from scion_elem.scion_elem import SCIONElement
 
 
-class TestSCIONDSegmentValidation(object):
+class TestSCIONElementRevokedInterfaceCheck(object):
     """
-    Unit tests for sciond._validate_segment
+    Unit tests for scion_elem.scion_elem.SCIONElement.check_revoked_interface
     """
 
     def _mk_pcb(self, exp=0):
@@ -55,24 +55,20 @@ class TestSCIONDSegmentValidation(object):
 
     def test_not_revoked(self):
         pcb = self._mk_pcb()
-        with patch('sciond.sciond.SCIONDaemon') as SCIOND:
-            inst = SCIOND()
-            inst.rev_cache = RevCache()
-            inst._validate_segment = SCIONDaemon._validate_segment
-            ntools.eq_(inst._validate_segment(inst, pcb), True)
+        inst = Mock()
+        inst.check_revoked_interface = SCIONElement.check_revoked_interface
+        ntools.eq_(inst.check_revoked_interface(inst, pcb, RevCache()), True)
 
     def test_revoked(self):
         pcb = self._mk_pcb()
-        with patch('sciond.sciond.SCIONDaemon') as SCIOND:
-            inst = SCIOND()
-            inst.rev_cache = Mock()
-            rev_info = RevocationInfo.from_values(
-                ISD_AS("1-1"), 1, LinkType.PARENT, 1)
-            srev_info = SignedRevInfo.from_values(rev_info.copy().pack(),
-                                                  ProtoSignType.ED25519, "src".encode())
-            inst.rev_cache.get.return_value = srev_info
-            inst._validate_segment = SCIONDaemon._validate_segment
-            ntools.eq_(inst._validate_segment(inst, pcb), False)
+        inst = Mock()
+        rev_info = RevocationInfo.from_values(ISD_AS("1-1"), 1, LinkType.PARENT, 1)
+        srev_info = SignedRevInfo.from_values(rev_info.copy().pack(),
+                                              ProtoSignType.ED25519, "src".encode())
+        rev_cache = Mock()
+        rev_cache.get.return_value = srev_info
+        inst.check_revoked_interface = SCIONElement.check_revoked_interface
+        ntools.eq_(inst.check_revoked_interface(inst, pcb, rev_cache), False)
 
 
 if __name__ == "__main__":

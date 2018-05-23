@@ -229,7 +229,7 @@ class SCIONDaemon(SCIONElement):
         pcb = seg_meta.seg
         type_ = seg_meta.type
         # Check that segment does not contain a revoked interface.
-        if not self._validate_segment(pcb):
+        if not self.check_revoked_interface(pcb, self.rev_cache):
             return
         map_ = {
             PST.UP: self._handle_up_seg,
@@ -240,24 +240,6 @@ class SCIONDaemon(SCIONElement):
         r = seg_meta.params[0]
         if r:
             r.verified_segment()
-
-    def _validate_segment(self, seg):
-        """
-        Check segment for revoked upstream/downstream interfaces.
-        :param seg: The PathSegment object.
-        :return: False, if the path segment contains a revoked upstream/
-            downstream interface (not peer). True otherwise.
-        """
-        for asm in seg.iter_asms():
-            pcbm = asm.pcbm(0)
-            for if_id in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
-                srev_info = self.rev_cache.get((asm.isd_as(), if_id))
-                if srev_info:
-                    rev_info = srev_info.rev_info()
-                    logging.info("Found revoked interface (%d, %s) in segment %s." %
-                                 (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
-                    return False
-        return True
 
     def _handle_up_seg(self, pcb):
         if self.addr.isd_as != pcb.last_ia():
