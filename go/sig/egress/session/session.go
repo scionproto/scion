@@ -35,8 +35,6 @@ import (
 
 // Session contains a pool of paths to the remote AS, metrics about those paths,
 // as well as maintaining the currently favoured path and remote SIG to use.
-// The Anapaya version uses packet classification and path predicates to all
-// configurable routing.
 type Session struct {
 	log.Logger
 	ia     addr.IA
