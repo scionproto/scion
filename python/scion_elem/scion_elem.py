@@ -1273,10 +1273,11 @@ class SCIONElement(object):
     def check_revoked_interface(self, seg, revocations):
         """
         Check segment for revoked upstream/downstream interfaces.
+
         :param seg: The PathSegment object.
-        :param revocations: A RevCache
+        :param revocations: A RevCache containing the currently known revocations
         :return: False, if the path segment contains a revoked
-        upstream/downstream interface (not peer). True otherwise.
+            upstream/downstream interface (not peer). True otherwise.
         """
         for asm in seg.iter_asms():
             pcbm = asm.pcbm(0)
@@ -1284,7 +1285,7 @@ class SCIONElement(object):
                 srev_info = revocations.get((asm.isd_as(), if_id))
                 if srev_info:
                     rev_info = srev_info.rev_info()
-                    logging.info("Found revoked interface (%d, %s) in segment %s." %
-                                 (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
+                    logging.debug("Found revoked interface (%d, %s) in segment %s." %
+                                  (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
                     return False
         return True

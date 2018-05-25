@@ -39,8 +39,8 @@ class TestSCIONElementRevokedInterfaceCheck(object):
 
     def _mk_pcb(self, exp=0):
         ia = [
-            {"isdas": ISD_AS("1-1"), "ingress_if": 1, "egress_if": 2},
-            {"isdas": ISD_AS("1-2"), "ingress_if": 3, "egress_if": 4}
+            {"isdas": ISD_AS("1-ff00:0:300"), "ingress_if": 1, "egress_if": 2},
+            {"isdas": ISD_AS("1-ff00:0:301"), "ingress_if": 3, "egress_if": 4}
         ]
         asms = []
         for j in range(len(ia)):
@@ -62,7 +62,7 @@ class TestSCIONElementRevokedInterfaceCheck(object):
     def test_revoked(self):
         pcb = self._mk_pcb()
         inst = Mock()
-        rev_info = RevocationInfo.from_values(ISD_AS("1-1"), 1, LinkType.PARENT, 1)
+        rev_info = RevocationInfo.from_values(ISD_AS("1-ff00:0:300"), 1, LinkType.PARENT, 1)
         srev_info = SignedRevInfo.from_values(rev_info.copy().pack(),
                                               ProtoSignType.ED25519, "src".encode())
         rev_cache = Mock()

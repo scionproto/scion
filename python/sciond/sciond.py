@@ -189,9 +189,6 @@ class SCIONDaemon(SCIONElement):
         """
         Handle path reply from local path server.
         """
-        # FIXME(kormat): sciond does not cache non-peer revocations, so if the PS gives us a path
-        # that has been revoked, this won't be caught. This will be fixed in the upcoming rewrite of
-        # sciond.
         pmgt = cpld.union
         path_reply = pmgt.union
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
