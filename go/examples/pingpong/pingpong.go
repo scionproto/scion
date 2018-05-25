@@ -46,7 +46,7 @@ const (
 )
 
 func GetDefaultSCIONDPath(ia addr.IA) string {
-	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
+	return sd.GetDefaultSCIONDSocket(&ia)
 }
 
 var (

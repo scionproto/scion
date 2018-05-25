@@ -71,11 +71,15 @@ func validateFlags() {
 	if err != nil {
 		LogFatal("Unable to parse destination IA: %v\n", err)
 	}
+	srcIA, err = addr.IAFromString(*srcIAStr)
+	if err != nil {
+		LogFatal("Unable to parse source IA: %v\n", err)
+	}
 	if *sciondPath == "" {
 		if *srcIAStr == "" {
 			*sciondPath = "/run/shm/sciond/default.sock"
 		} else {
-			*sciondPath = "/run/shm/sciond/sd" + *srcIAStr + ".sock"
+			*sciondPath = sciond.GetDefaultSCIONDSocket(&srcIA)
 		}
 	} else if *srcIAStr != "" {
 		fmt.Printf("srcIA ignored! sciond takes precedence\n")
@@ -83,10 +87,6 @@ func validateFlags() {
 	if *srcIAStr == "" {
 		// Set any value, required by Query() but does not affect result
 		*srcIAStr = "1-ff00:0:310"
-	}
-	srcIA, err = addr.IAFromString(*srcIAStr)
-	if err != nil {
-		LogFatal("Unable to parse source IA: %v\n", err)
 	}
 }
 
