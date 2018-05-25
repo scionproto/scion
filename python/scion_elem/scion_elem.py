@@ -1269,3 +1269,23 @@ class SCIONElement(object):
                 "Failed to fetch cert for SRevInfo: %s" % srev_info.short_desc())
         srev_info.verify(cert.as_cert.subject_sig_key_raw)
         logging.debug("Successfully validated and verified RevInfo %s" % rev_info)
+
+    def check_revoked_interface(self, seg, revocations):
+        """
+        Check segment for revoked upstream/downstream interfaces.
+
+        :param seg: The PathSegment object.
+        :param revocations: A RevCache containing the currently known revocations
+        :return: False, if the path segment contains a revoked
+            upstream/downstream interface (not peer). True otherwise.
+        """
+        for asm in seg.iter_asms():
+            pcbm = asm.pcbm(0)
+            for if_id in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
+                srev_info = revocations.get((asm.isd_as(), if_id))
+                if srev_info:
+                    rev_info = srev_info.rev_info()
+                    logging.debug("Found revoked interface (%d, %s) in segment %s." %
+                                  (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
+                    return False
+        return True

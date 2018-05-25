@@ -433,7 +433,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
 
     def _dispatch_segment_record(self, type_, seg, **kwargs):
         # Check that segment does not contain a revoked interface.
-        if not self._validate_segment(seg):
+        if not self.check_revoked_interface(seg, self.revocations):
             return
         handle_map = {
             PST.UP: self._handle_up_segment_record,
@@ -442,25 +442,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         }
         with self.seglock:
             handle_map[type_](seg, **kwargs)
-
-    def _validate_segment(self, seg):
-        """
-        Check segment for revoked upstream/downstream interfaces.
-
-        :param seg: The PathSegment object.
-        :return: False, if the path segment contains a revoked upstream/
-            downstream interface (not peer). True otherwise.
-        """
-        for asm in seg.iter_asms():
-            pcbm = asm.pcbm(0)
-            for if_id in [pcbm.hof().ingress_if, pcbm.hof().egress_if]:
-                srev_info = self.revocations.get((asm.isd_as(), if_id))
-                if srev_info:
-                    rev_info = srev_info.rev_info()
-                    logging.debug("Found revoked interface (%d, %s) in segment %s." %
-                                  (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
-                    return False
-        return True
 
     def _dispatch_params(self, pld, meta):
         return {}
