@@ -27,7 +27,6 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/qerr"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	sd "github.com/scionproto/scion/go/lib/sciond"
@@ -44,10 +43,6 @@ const (
 	ReplyMsg        = "pong!"
 	TSLen           = 8
 )
-
-func GetDefaultSCIONDPath(ia addr.IA) string {
-	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
-}
 
 var (
 	local       snet.Addr
@@ -106,7 +101,7 @@ func validateFlags() {
 		LogFatal("Missing local address")
 	}
 	if *sciond == "" {
-		*sciond = GetDefaultSCIONDPath(local.IA)
+		*sciond = sd.GetDefaultSCIONDPath(&local.IA)
 	}
 	if *count < 0 || *count > MaxPings {
 		LogFatal("Invalid count", "min", 0, "max", MaxPings, "actual", *count)
