@@ -40,8 +40,7 @@ var (
 )
 
 const (
-	SCIONDPath = "/run/shm/sciond/sd%s.sock"
-	DispPath   = "/run/shm/dispatcher/default.sock"
+	DispPath = "/run/shm/dispatcher/default.sock"
 )
 
 type TestCase struct {
@@ -90,11 +89,9 @@ func ClientServer(idx int, tc TestCase) {
 		tc.dstPort), func(c C) {
 		b := make([]byte, 128)
 
-		clientNet, err := NewNetwork(tc.srcIA, fmt.Sprintf(SCIONDPath, tc.srcIA.FileFmt(false)),
-			DispPath)
+		clientNet, err := NewNetwork(tc.srcIA, addr.GetSCIONDPathFromIA(tc.srcIA), DispPath)
 		SoMsg("Client network error", err, ShouldBeNil)
-		serverNet, err := NewNetwork(tc.dstIA, fmt.Sprintf(SCIONDPath, tc.dstIA.FileFmt(false)),
-			DispPath)
+		serverNet, err := NewNetwork(tc.dstIA, addr.GetSCIONDPathFromIA(tc.dstIA), DispPath)
 		SoMsg("Server network error", err, ShouldBeNil)
 
 		clientAddr, err := AddrFromString(

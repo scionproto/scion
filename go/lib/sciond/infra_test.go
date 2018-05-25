@@ -17,7 +17,6 @@
 package sciond
 
 import (
-	"fmt"
 	"math/rand"
 	"os"
 	"testing"
@@ -25,6 +24,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -43,7 +43,7 @@ func TestRevNotification(t *testing.T) {
 		SoMsg("AS selection len", len(asList), ShouldBeGreaterThan, 0)
 		localIA := asList[rand.Intn(len(asList))]
 
-		service := NewService(fmt.Sprintf("/run/shm/sciond/sd%s.sock", localIA.FileFmt(false)))
+		service := NewService(addr.GetSCIONDPathFromIA(localIA))
 		conn, err := service.Connect()
 		SoMsg("Connect error", err, ShouldBeNil)
 

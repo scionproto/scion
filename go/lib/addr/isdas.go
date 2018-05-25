@@ -254,3 +254,8 @@ type IAInt uint64
 func (iaI IAInt) IA() IA {
 	return IA{I: ISD(iaI >> ASBits), A: AS(iaI & MaxAS)}
 }
+
+// GetSCIONDPathFromIA return sciond path for a given IA
+func GetSCIONDPathFromIA(ia IA) string {
+	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
+}
