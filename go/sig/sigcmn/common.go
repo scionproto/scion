@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
@@ -67,7 +68,7 @@ func Init(ia addr.IA, ip net.IP) error {
 	}
 	MgmtAddr = mgmt.NewAddr(Host, uint16(*CtrlPort), uint16(*EncapPort))
 	if *sciondPath == "" {
-		*sciondPath = fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
+		*sciondPath = sciond.GetDefaultSCIONDPath(&ia)
 	}
 	// Initialize SCION local networking module
 	err = snet.Init(ia, *sciondPath, *dispatcherPath)
