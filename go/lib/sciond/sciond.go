@@ -28,6 +28,7 @@ package sciond
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -338,4 +339,13 @@ func (c *connector) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevRepl
 
 func (c *connector) Close() error {
 	return c.dispatcher.Close(context.Background())
+}
+
+// GetDefaultSCIONDPath return default sciond path for a given IA
+func GetDefaultSCIONDPath(ia *addr.IA) string {
+	emptyAddr := addr.IA{}
+	if ia == nil || *ia == emptyAddr {
+		return "/run/shm/sciond/default.sock"
+	}
+	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
 }
