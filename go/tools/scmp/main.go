@@ -34,10 +34,6 @@ import (
 	"github.com/scionproto/scion/go/tools/scmp/traceroute"
 )
 
-func GetDefaultSCIONDPath(ia addr.IA) string {
-	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
-}
-
 var (
 	sciondPath = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
@@ -50,7 +46,7 @@ func main() {
 	cmn.ValidateFlags()
 
 	if *sciondPath == "" {
-		*sciondPath = GetDefaultSCIONDPath(cmn.Local.IA)
+		*sciondPath = sciond.GetDefaultSCIONDPath(&cmn.Local.IA)
 	}
 	// Initialize default SCION networking context
 	if err := snet.Init(cmn.Local.IA, *sciondPath, *dispatcher); err != nil {
