@@ -37,11 +37,8 @@ type Sock struct {
 	Conn conn.Conn
 	// Dir is the direction that a packet is being read from/written to.
 	Dir rcmn.Dir
-	// Ifids is the list of interface IDs associated with a connection.
-	Ifids []common.IFIDType
-	// LocIdx is the local address index. It is only meaningful for packets
-	// received from the local AS.
-	LocIdx int
+	// Ifid is the interface ID associated with a connection.
+	Ifid common.IFIDType
 	// Labels holds the exported prometheus labels.
 	Labels prometheus.Labels
 	// Reader is an optional function that reads from Sock.Ring. It is spawned
@@ -57,9 +54,10 @@ type Sock struct {
 }
 
 func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir,
-	ifids []common.IFIDType, locIdx int, labels prometheus.Labels, reader, writer SockFunc) *Sock {
+	ifid common.IFIDType, labels prometheus.Labels, reader, writer SockFunc) *Sock {
+
 	s := &Sock{
-		Ring: ring, Conn: conn, Dir: dir, Ifids: ifids, LocIdx: locIdx, Labels: labels,
+		Ring: ring, Conn: conn, Dir: dir, Ifid: ifid, Labels: labels,
 		Reader: reader, Writer: writer, stop: make(chan struct{}),
 	}
 	if s.Reader != nil {
@@ -92,15 +90,15 @@ func (s *Sock) Stop() {
 	if s.running {
 		log.Debug("Sock routines stopping", "addr", s.Conn.LocalAddr())
 		close(s.stop)
-		s.Ring.Close()
-		if err := s.Conn.Close(); err != nil {
-			log.Error("Error stopping socket", "err", err)
-		}
 		if s.Writer != nil {
 			<-s.writerStopped
 		}
 		if s.Reader != nil {
 			<-s.readerStopped
+		}
+		s.Ring.Close()
+		if err := s.Conn.Close(); err != nil {
+			log.Error("Error stopping socket", "err", err)
 		}
 		s.running = false
 		log.Info("Sock routines stopped", "addr", s.Conn.LocalAddr())

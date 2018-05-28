@@ -40,6 +40,7 @@ const (
 
 type IFIDCallbackArgs struct {
 	RtrPkt *RtrPkt
+	IfID   common.IFIDType
 }
 
 // NeedsLocalProcessing determines if the router needs to do more than just
@@ -58,25 +59,19 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 	// Check to see if the destination IP is the address the packet was received
 	// on.
 	dstHost := addr.HostFromIP(rp.dstHost.IP())
-	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	extPub := intf.IFAddr
-	locPub := rp.Ctx.Conf.Net.IntfLocalAddr(*rp.ifCurr)
+	var pub *topology.TopoAddr
 	if rp.DirFrom == rcmn.DirExternal {
-		port, equal, err := extPub.PubL4PortFromAddr(dstHost)
-		if err != nil {
-			return err
-		}
-		if equal {
-			return rp.isDestSelf(port)
-		}
+		intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
+		pub = intf.IFAddr
 	} else if rp.DirFrom == rcmn.DirLocal {
-		port, equal, err := locPub.PubL4PortFromAddr(dstHost)
-		if err != nil {
-			return err
-		}
-		if equal {
-			return rp.isDestSelf(port)
-		}
+		pub = rp.Ctx.Conf.Net.LocAddr
+	}
+	port, equal, err := pub.PubL4PortFromAddr(dstHost)
+	if err != nil {
+		return err
+	}
+	if equal {
+		return rp.isDestSelf(port)
 	}
 	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
@@ -161,7 +156,7 @@ func (rp *RtrPkt) processDestSelf() (HookResult, error) {
 // processIFID handles IFID (interface ID) packets
 func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 	if rp.DirFrom == rcmn.DirLocal {
-		callbacks.ifIDF(IFIDCallbackArgs{RtrPkt: rp})
+		callbacks.ifIDF(IFIDCallbackArgs{RtrPkt: rp, IfID: ifid.OrigIfID})
 		return HookFinish, nil
 	} else {
 		return rp.processRemoteIFID(ifid)
@@ -171,7 +166,7 @@ func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 // processRemoteIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
 func (rp *RtrPkt) processRemoteIFID(ifid *ifid.IFID) (HookResult, error) {
 	// Set the RelayIF field in the payload to the current interface ID.
-	ifid.RelayIfID = uint64(*rp.ifCurr)
+	ifid.RelayIfID = *rp.ifCurr
 	cpld, err := ctrl.NewPld(ifid, nil)
 	if err != nil {
 		return HookError, err
@@ -183,8 +178,7 @@ func (rp *RtrPkt) processRemoteIFID(ifid *ifid.IFID) (HookResult, error) {
 	if err = rp.SetPld(scpld); err != nil {
 		return HookError, err
 	}
-	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-	srcAddr := rp.Ctx.Conf.Net.LocAddr[intf.LocAddrIdx].PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+	srcAddr := rp.Ctx.Conf.Net.LocAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
 	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
 		DstIA: rp.Ctx.Conf.IA, SrcIA: rp.Ctx.Conf.IA,

@@ -56,7 +56,7 @@ func (r *Router) RevInfoFwd() {
 func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
-	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Topo.Overlay)
+	srcAddr := ctx.Conf.Net.LocAddr.PublicAddrInfo(ctx.Conf.Topo.Overlay)
 	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)

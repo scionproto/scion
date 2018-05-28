@@ -161,7 +161,7 @@ func (rp *RtrPkt) Release() {
 type addrIFPair struct {
 	Dst    *topology.AddrInfo
 	Src    *topology.AddrInfo
-	IfIDs  []common.IFIDType
+	IfID   common.IFIDType
 	LocIdx int // only set for packets from the local AS.
 	Sock   string
 }
@@ -221,7 +221,7 @@ func (rp *RtrPkt) Reset() {
 	rp.DirTo = rcmn.DirUnset
 	rp.Ingress.Dst = nil
 	rp.Ingress.Src = nil
-	rp.Ingress.IfIDs = nil
+	rp.Ingress.IfID = 0
 	rp.Ingress.LocIdx = -1
 	rp.Egress = rp.Egress[:0]
 	// CmnHdr doesn't contain any references.
