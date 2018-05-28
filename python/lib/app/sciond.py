@@ -425,3 +425,16 @@ def get_segtype_hops(seg_type, connector=None):  # pragma: no cover
     if not connector:
         raise SCIONDLibNotInitializedError
     return connector.get_segtype_hops(seg_type)
+
+
+def get_default_sciond_path(ia=None):
+    """Return sciond socket path for a given IA
+    :param ia: ISD_AS addr
+    :returns: Format string representing path of sciond socket
+    """
+    sock_path = ""
+    if ia is None or ia.is_zero():
+        sock_path = SCIOND_API_DEFAULT_SOCK
+    else:
+        sock_path = "sd%s.sock" % (ia.file_fmt())
+    return "%s/%s" % (SCIOND_API_SOCKDIR, sock_path)
