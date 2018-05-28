@@ -189,7 +189,7 @@ func (t *TopoAddr) addrInfo(ot overlay.Type, public bool) *AddrInfo {
 
 func (t *TopoAddr) mkAddrInfo(ti *topoAddrInt, ot overlay.Type, public bool) *AddrInfo {
 	ai := &AddrInfo{Overlay: ot.ToIP(), IP: ti.bindIP, L4Port: ti.bindL4Port}
-	if public || ai.IP == nil {
+	if public || ti.bindIP == nil {
 		ai.IP = ti.pubIP
 		ai.L4Port = ti.pubL4Port
 	}

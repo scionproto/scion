@@ -44,25 +44,21 @@ func removeSrvBind(svc map[string]RawAddrInfo) {
 
 func removeBRBind(brs map[string]RawBRInfo) {
 	for name, bri := range brs {
-		newIntAddrs := make([]RawAddrInfo, 0)
-		for _, ia := range bri.InternalAddrs {
-			newIntAddrs = append(newIntAddrs, RawAddrInfo{Public: ia.Public})
-		}
+		newIntAddr := &RawAddrInfo{Public: bri.InternalAddr.Public}
 		newifs := make(map[common.IFIDType]RawBRIntf, 0)
 		for id, brintf := range bri.Interfaces {
 			// The nil elements are of no interest to the public
 			newifs[id] = RawBRIntf{
-				InternalAddrIdx: brintf.InternalAddrIdx,
-				Overlay:         "",
-				Bind:            nil,
-				Public:          nil,
-				Remote:          nil,
-				Bandwidth:       brintf.Bandwidth,
-				ISD_AS:          brintf.ISD_AS,
-				LinkTo:          brintf.LinkTo,
-				MTU:             brintf.MTU,
+				Overlay:   "",
+				Bind:      nil,
+				Public:    nil,
+				Remote:    nil,
+				Bandwidth: brintf.Bandwidth,
+				ISD_AS:    brintf.ISD_AS,
+				LinkTo:    brintf.LinkTo,
+				MTU:       brintf.MTU,
 			}
 		}
-		brs[name] = RawBRInfo{InternalAddrs: newIntAddrs, Interfaces: newifs}
+		brs[name] = RawBRInfo{InternalAddr: newIntAddr, Interfaces: newifs}
 	}
 }
