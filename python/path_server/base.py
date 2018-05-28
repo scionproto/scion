@@ -401,6 +401,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing, meta,
                                    type_, params)
             self._process_path_seg(seg_meta, req_id)
+        self._handle_pending_requests()
 
     def continue_seg_processing(self, seg_meta):
         """
@@ -415,7 +416,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         params = seg_meta.params
         self.handle_ext(pcb)
         self._dispatch_segment_record(type_, pcb, **params)
-        self._handle_pending_requests()
 
     def handle_ext(self, pcb):
         """
