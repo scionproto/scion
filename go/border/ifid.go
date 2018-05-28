@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 )
@@ -43,18 +44,13 @@ func (r *Router) IFIDFwd() {
 	defer log.LogPanicAndExit()
 	// Run forever.
 	for args := range r.ifIDQ {
-		r.fwdLocalIFID(args.RtrPkt)
+		r.fwdLocalIFID(args.RtrPkt, args.IfID)
 		args.RtrPkt.Release()
 	}
 }
 
 // fwdLocalIFID creates RtrPkts and sends them to the remote BR
-func (r *Router) fwdLocalIFID(rp *rpkt.RtrPkt) {
-	ifCurr, err := rp.IFCurr()
-	if err != nil {
-		log.Error("Error getting current IF from RtrPkt", "err", err)
-		return
-	}
+func (r *Router) fwdLocalIFID(rp *rpkt.RtrPkt, ifid common.IFIDType) {
 	// Create ScnPkt from RtrPkt
 	spkt, err := rp.ToScnPkt(true)
 	if err != nil {
@@ -62,7 +58,7 @@ func (r *Router) fwdLocalIFID(rp *rpkt.RtrPkt) {
 		return
 	}
 	ctx := rctx.Get()
-	intf := ctx.Conf.Net.IFs[*ifCurr]
+	intf := ctx.Conf.Net.IFs[ifid]
 	// Set remote BR as Dst
 	spkt.DstIA = intf.RemoteIA
 	spkt.DstHost = addr.HostFromIP(intf.RemoteAddr.IP)
@@ -79,6 +75,6 @@ func (r *Router) fwdLocalIFID(rp *rpkt.RtrPkt) {
 		return
 	}
 	// Forward to remote BR directly
-	fwdrp.Egress = append(fwdrp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[*ifCurr]})
+	fwdrp.Egress = append(fwdrp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	fwdrp.Route()
 }

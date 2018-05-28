@@ -30,10 +30,10 @@ type Ctx struct {
 	Conf *conf.Conf
 	// LockSockIn is a slice of Sock's for receiving packets from the local AS,
 	// indexed by the local address index.
-	LocSockIn []*Sock
+	LocSockIn *Sock
 	// LocSockOut is a slice of Sock's for sending packets to the local AS,
 	// indexed by the local address index.
-	LocSockOut []*Sock
+	LocSockOut *Sock
 	// ExtSockIn is a map of Sock's for receiving packets from neighbouring
 	// ASes, keyed by the interface ID of the relevant link.
 	ExtSockIn map[common.IFIDType]*Sock
@@ -43,12 +43,10 @@ type Ctx struct {
 }
 
 // New returns a new Ctx instance.
-func New(conf *conf.Conf, intAddrCnt int) *Ctx {
+func New(conf *conf.Conf) *Ctx {
 	ctx := &Ctx{
 		Conf:       conf,
-		LocSockOut: make([]*Sock, intAddrCnt),
 		ExtSockOut: make(map[common.IFIDType]*Sock),
-		LocSockIn:  make([]*Sock, intAddrCnt),
 		ExtSockIn:  make(map[common.IFIDType]*Sock),
 	}
 	return ctx

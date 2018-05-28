@@ -73,7 +73,7 @@ func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
 			if srcAddr.Overlay.IsUDP() {
 				ai.OverlayPort = overlay.EndhostPort
 			}
-			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut[0], Dst: ai})
+			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut, Dst: ai})
 		}
 	} else {
 		ifid, ok := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]
@@ -106,7 +106,7 @@ func (r *Router) IFStateUpdate() {
 func (r *Router) genIFStateReq() {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
-	srcAddr := ctx.Conf.Net.LocAddr[0].PublicAddrInfo(ctx.Conf.Net.LocAddr[0].Overlay)
+	srcAddr := ctx.Conf.Net.LocAddr.PublicAddrInfo(ctx.Conf.Net.LocAddr.Overlay)
 	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
 	if err != nil {
 		log.Error("Error generating IFStateReq Ctrl payload", "err", err)
