@@ -55,13 +55,13 @@ type RawTopo struct {
 }
 
 type RawBRInfo struct {
-	InternalAddrs []RawAddrInfo
-	Interfaces    map[common.IFIDType]RawBRIntf
+	InternalAddr *RawAddrInfo
+	Interfaces   map[common.IFIDType]RawBRIntf
 }
 
 func (b RawBRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", b.InternalAddrs))
+	s = append(s, fmt.Sprintf("Loc addr:\n  %s\nInterfaces:", b.InternalAddr))
 	for ifid, intf := range b.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}
@@ -69,15 +69,14 @@ func (b RawBRInfo) String() string {
 }
 
 type RawBRIntf struct {
-	InternalAddrIdx int
-	Overlay         string       `json:",omitempty"`
-	Bind            *RawAddrPort `json:",omitempty"`
-	Public          *RawAddrPort `json:",omitempty"`
-	Remote          *RawAddrPort `json:",omitempty"`
-	Bandwidth       int
-	ISD_AS          string
-	LinkTo          string
-	MTU             int
+	Overlay   string       `json:",omitempty"`
+	Bind      *RawAddrPort `json:",omitempty"`
+	Public    *RawAddrPort `json:",omitempty"`
+	Remote    *RawAddrPort `json:",omitempty"`
+	Bandwidth int
+	ISD_AS    string
+	LinkTo    string
+	MTU       int
 }
 
 // Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)

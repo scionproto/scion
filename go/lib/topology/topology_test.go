@@ -222,8 +222,8 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[8] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.2"), pubL4Port: 30097},
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::2"), pubL4Port: 30097},
+			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
+			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv4,
 		Local: &TopoAddr{
