@@ -172,7 +172,7 @@ func (rp *RtrPkt) setDirTo() {
 	if rp.DirFrom == rcmn.DirExternal {
 		taddr = rp.Ctx.Conf.Net.IFs[*rp.ifCurr].IFAddr
 	} else {
-		taddr = rp.Ctx.Conf.Net.LocAddr[rp.Ingress.LocIdx]
+		taddr = rp.Ctx.Conf.Net.LocAddr
 	}
 	locIP := taddr.PublicAddrInfo(rp.Ingress.Dst.Overlay).IP
 	if locIP.Equal(rp.dstHost.IP()) {

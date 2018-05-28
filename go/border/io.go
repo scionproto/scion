@@ -126,8 +126,7 @@ Top:
 			// Make a copy, as meta.Src will be overwritten.
 			src := meta.Src
 			rp.Ingress.Src = &src
-			rp.Ingress.IfIDs = s.Ifids
-			rp.Ingress.LocIdx = s.LocIdx
+			rp.Ingress.IfID = s.Ifid
 			rp.Ingress.Sock = sock
 			inputBytes.Add(float64(msg.N))
 			inputPktSize.Observe(float64(msg.N))

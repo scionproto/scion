@@ -33,9 +33,14 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	if assert.On {
 		assert.Mustf(rp.ifCurr != nil, rp.ErrStr, "rp.ifCurr must not be nil")
 	}
+	// XXX validate() already validates rp.ifCurr
 	// First check to make sure the current interface is known and not revoked.
-	if err := rp.validateLocalIF(rp.ifCurr); err != nil {
-		return err
+	if *rp.ifCurr != 0 {
+		// IFID control packets received from the local AS have no path, and thus their ifCurr
+		// would have value 0, as they arrive in the internal interface
+		if err := rp.validateLocalIF(rp.ifCurr); err != nil {
+			return err
+		}
 	}
 	if rp.infoF == nil || rp.hopF == nil {
 		// If there's no path, then there's nothing to check.
@@ -434,8 +439,8 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 			return rp.checkSetCurrIF(&rp.hopF.ConsEgress)
 		}
 	}
-	// Default to the first IfID from Ingress.IfIDs
-	return rp.checkSetCurrIF(&rp.Ingress.IfIDs[0])
+	rp.ifCurr = &rp.Ingress.IfID
+	return &rp.Ingress.IfID, nil
 }
 
 // checkSetCurrIF is a helper function that ensures the given interface ID is

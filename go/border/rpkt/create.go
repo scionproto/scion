@@ -230,7 +230,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 // address to use when replying to a packet.
 func (rp *RtrPkt) replyEgress() (EgressPair, error) {
 	if rp.DirFrom == rcmn.DirLocal {
-		return EgressPair{S: rp.Ctx.LocSockOut[rp.Ingress.LocIdx], Dst: rp.Ingress.Src}, nil
+		return EgressPair{S: rp.Ctx.LocSockOut, Dst: rp.Ingress.Src}, nil
 	}
 	ifid, err := rp.IFCurr()
 	if err != nil {

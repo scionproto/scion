@@ -128,7 +128,6 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
-		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
 		assert.Must(rp.Ctx != nil, "Context must be set")
 	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
