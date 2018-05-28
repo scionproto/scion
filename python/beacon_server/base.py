@@ -427,7 +427,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     # Inform BRs about the interface coming up.
                     metas = []
                     for br in self.topology.border_routers:
-                        br_addr, br_port = br.int_addrs[0].public[0]
+                        br_addr, br_port = br.int_addrs.public[0]
                         metas.append(UDPMetadata.from_values(host=br_addr, port=br_port))
                     info = IFStateInfo.from_values(ifid, True)
                     self._send_ifstate_update([info], metas)
@@ -575,7 +575,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         border_metas = []
         # Add all BRs.
         for br in self.topology.border_routers:
-            br_addr, br_port = br.int_addrs[0].public[0]
+            br_addr, br_port = br.int_addrs.public[0]
             border_metas.append(UDPMetadata.from_values(host=br_addr, port=br_port))
         # Add local path server.
         ps_meta = []
@@ -765,7 +765,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             # send keep-alives on all known BR interfaces
             for ifid in self.ifid2br:
                 br = self.ifid2br[ifid]
-                br_addr, br_port = br.int_addrs[0].public[0]
+                br_addr, br_port = br.int_addrs.public[0]
                 meta = self._build_meta(host=br_addr, port=br_port)
                 self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
                                meta, (meta.host, meta.port))

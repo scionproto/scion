@@ -298,8 +298,7 @@ class SCIONElement(object):
 
     def get_border_addr(self, ifid):
         br = self.ifid2br[ifid]
-        addr_idx = br.interfaces[ifid].addr_idx
-        br_addr, br_port = br.int_addrs[addr_idx].public[0]
+        br_addr, br_port = br.int_addrs.public[0]
         return br_addr, br_port
 
     def handle_msg_meta(self, msg, meta):
