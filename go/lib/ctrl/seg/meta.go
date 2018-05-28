@@ -20,14 +20,14 @@ import (
 
 type Meta struct {
 	Type    Type
-	Segment PathSegment `capnp:"pcb"`
+	Segment PathSegment `capnp:"pathSeg"`
 }
 
 func (m *Meta) String() string {
 	return fmt.Sprintf("Type: %v, Segment: %v", m.Type, m.Segment)
 }
 
-type Type uint8
+type Type uint16
 
 const (
 	UpSegment   Type = 0
