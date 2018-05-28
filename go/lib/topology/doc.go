@@ -69,7 +69,6 @@ structs:
 type IFInfo struct {
     BRName          string
     InternalAddr    *TopoAddr
-    InternalAddrIdx int
     Overlay         overlay.Type
     Local           *TopoAddr
     Remote          *AddrInfo
