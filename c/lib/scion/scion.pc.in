@@ -1,0 +1,10 @@
+prefix=$PREFIX
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: scion
+Description: SCION base library
+Version: 0.1
+Cflags: -I${includedir}/scion
+Libs: -L${libdir} -lscion

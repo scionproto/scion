@@ -50,12 +50,12 @@ uint16_t get_fwd_if(uint8_t *buf)
  */
 uint32_t get_ingress_egress(uint8_t *hof)
 {
-    uint8_t in_eg_bytes[4];
+    uint32_t in_eg = 0;
+    uint8_t *in_eg_bytes = (uint8_t*)&in_eg;
     int i;
     for (i = 0; i < 3; i++)
         in_eg_bytes[1 + i] = *(hof + 2 + i);
-    in_eg_bytes[0] = 0;
-    return ntohl(*(uint32_t *)(in_eg_bytes));
+    return ntohl(in_eg);
 }
 
 /*

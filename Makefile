@@ -21,22 +21,22 @@ gohsr: libhsr
 clibs: libscion libfilter liblwip libtcpmw
 
 libscion:
-	$(MAKE) -C c/lib/scion install
+	$(MAKE) -C c/lib/scion $(target)
 
 libfilter: libscion
-	$(MAKE) -C c/lib/filter install
+	$(MAKE) -C c/lib/filter $(target)
 
 liblwip: libscion
-	$(MAKE) -C sub/lwip-contrib install
+	$(MAKE) -C sub/lwip-contrib $(target)
 
 libtcpmw: libscion liblwip
-	$(MAKE) -C c/lib/tcp install
+	$(MAKE) -C c/lib/tcp $(target)
 
 dispatcher: clibs
-	$(MAKE) -C c/dispatcher install
+	$(MAKE) -C c/dispatcher $(target)
 
 libhsr: libscion
-	$(MAKE) -C c/lib/hsr doinstall
+	$(MAKE) -C c/lib/hsr $(target)
 
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
