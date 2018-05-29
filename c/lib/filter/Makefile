@@ -1,18 +1,18 @@
 .PHONY: all clean install uninstall
-
-CC = clang
-CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared -Wl,-z,defs -lscion -lzlog
-
 LIB_DIR = ..
-INC = -I$(LIB_DIR)
+
+EXTRA_CFLAGS = -Wall -Werror -fPIC -I$(LIB_DIR)
+EXTRA_LDFLAGS = -shared -Wl,-z,defs -Wl,-soname,libfilter.so.0 -lzlog -L$(LIB_DIR)/scion -lscion
 
 SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
 STATIC = libfilter.a
 DYNAMIC = libfilter.so
 TARGETS = $(STATIC) $(DYNAMIC)
-PREFIX ?= /usr/local
+
+ifeq ($(PREFIX),)
+	PREFIX = /usr/local
+endif
 
 all: $(TARGETS)
 
@@ -23,22 +23,16 @@ clean:
 # can be recompiled if any of the included header files changed.
 -include *.d
 %.o: %.c
-	$(CC) $(CFLAGS) $(INC) -MMD -c -o $@ $<
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(INC) -MMD -c -o $@ $<
 
 $(STATIC): $(OBJS)
 	ar rcs $@ $(OBJS)
 
 $(DYNAMIC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	$(CC) $(OBJS) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@
 
-install: .installstamp
-
-.installstamp: $(TARGETS)
-	sudo cp $(TARGETS) $(PREFIX)/lib/
-	sudo ldconfig
-	touch .installstamp
+install: $(TARGETS)
+	echo "Install not implemented yet"
 
 uninstall:
-	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
-	sudo ldconfig
-	rm -f .installstamp
+	echo "Uninstall not implemented yet"
