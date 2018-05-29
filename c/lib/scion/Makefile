@@ -1,8 +1,8 @@
 .PHONY: all clean install uninstall
 
 #CC = clang
-CFLAGS ?= -Wall -Werror -g -fPIC -O2
-LDFLAGS ?= -shared -Wl,-z,defs
+EXTRA_CFLAGS = -Wall -Werror -fPIC
+EXTRA_LDFLAGS = -shared -Wl,-z,defs -Wl,-soname,libscion.so.0
 
 SRCS = $(filter-out $(BINARY).c, $(wildcard *.c))
 HDRS = $(wildcard *.h)
@@ -25,16 +25,16 @@ clean:
 # can be recompiled if any of the included header files changed.
 -include *.d
 %.o: %.c
-	$(CC) $(CFLAGS) -MMD -c -o $@ $<
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MMD -c -o $@ $<
 
 $(STATIC): $(OBJS)
 	ar rcs $@ $(OBJS)
 
 $(DYNAMIC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	$(CC) $(LDFLAGS) $(EXTRA_LDFLAGS) -o $@ $(OBJS)
 
 $(BINARY): $(BINARY).c $(DYNAMIC)
-	$(CC) $(CFLAGS) -MMD -o $@ $< -L. -lscion
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -MMD -o $@ $< -L. -lscion
 
 install: $(TARGETS)
 	install -d $(DESTDIR)$(PREFIX)/lib/pkgconfig/
