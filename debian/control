@@ -1,0 +1,15 @@
+Source: scion
+Section: net
+Priority: optional
+Maintainer: Martin Koppehel <mkoppehel@embedded.enterprises>
+Build-Depends: debhelper (>=9)
+Standards-Version: 3.9.6
+Homepage: https://scion-architecture.net
+Vcs-Git: git://github.com/scionproto/scion.git
+Vcs-Browser: https://github.com/scionproto/scion.git
+
+Package: libscion
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: SCION base library
+ Basic library for scion
