@@ -49,7 +49,7 @@ func (a *Addr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	s := fmt.Sprintf("%s,[%s]:%d", a.IA, a.Host, a.L4Port)
+	s := fmt.Sprintf("%s,[%v]:%d", a.IA, a.Host, a.L4Port)
 	return s
 }
 
@@ -105,10 +105,18 @@ func AddrFromString(s string) (*Addr, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Invalid IA string", err, "ia", ia)
 	}
-	ip := net.ParseIP(parts["host"])
-	if ip == nil {
-		return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
+
+	var host addr.HostAddr
+	if hostSVC := addr.HostSVCFromString(parts["host"]); hostSVC != addr.SvcNone {
+		host = hostSVC
+	} else {
+		ip := net.ParseIP(parts["host"])
+		if ip == nil {
+			return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
+		}
+		host = addr.HostFromIP(ip)
 	}
+
 	var port uint64
 	if parts["port"] != "" {
 		var err error
@@ -118,7 +126,7 @@ func AddrFromString(s string) (*Addr, error) {
 			return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"][1:])
 		}
 	}
-	return &Addr{IA: ia, Host: addr.HostFromIP(ip), L4Port: uint16(port)}, nil
+	return &Addr{IA: ia, Host: host, L4Port: uint16(port)}, nil
 }
 
 func parseAddr(s string) (map[string]string, error) {
