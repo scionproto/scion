@@ -12,13 +12,24 @@
 #export DEB_CFLAGS_MAINT_APPEND  = -Wall -pedantic
 # package maintainers to append LDFLAGS
 #export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
-
+BUILDDIR := debian/build
+DESTDIR := ${CURDIR}/${BUILDDIR}
 
 %:
 	dh $@ 
 
 override_dh_auto_clean:
 	make libscion target=clean
+
+override_dh_auto_build:
+	make libscion
+override_dh_auto_install:
+	make libscion target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	cp ${DESTDIR}/usr/lib/libscion.so debian/libscion/usr/lib/libscion.so
+	cp ${DESTDIR}/usr/lib/pkgconfig/scion.pc debian/libscion-dev/usr/lib/pkgconfig/scion.pc
+	cp ${DESTDIR}/usr/lib/libscion.a debian/libscion-dev/usr/lib/libscion.a
+	cp -r ${DESTDIR}/usr/include/scion/* debian/libscion-dev/usr/include/scion
+
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )
 #override_dh_auto_configure:

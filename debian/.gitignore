@@ -1,0 +1,6 @@
+*.debhelper.log
+build
+debhelper-build-stamp
+libscion/*
+libscion-dev/*
+libfilter/*

@@ -9,7 +9,19 @@ Vcs-Git: git://github.com/scionproto/scion.git
 Vcs-Browser: https://github.com/scionproto/scion.git
 
 Package: libscion
-Architecture: any
+Architecture: amd64 i386
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: SCION base library
  Basic library for scion
+
+Package: libscion-dev
+Architecture: amd64 i386
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: SCION base library - development files
+ Basic library for scion, headers and static library
+
+Package: libfilter
+Architecture: amd64 i386
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: SCION filter library
+ Library for filtering packets
