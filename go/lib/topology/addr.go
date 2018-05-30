@@ -139,33 +139,33 @@ func (t *TopoAddr) validate() string {
 }
 
 // Extract the relevant (v4 or v6) L4Port from a TopoAddr
-func (t *TopoAddr) PubL4PortFromAddr(a addr.HostAddr) (int, bool, error) {
+func (t *TopoAddr) PubL4PortFromAddr(a addr.HostAddr) (int, error) {
 	switch a.Type() {
 	case addr.HostTypeIPv4:
 		if t.IPv4 == nil {
-			return 0, false, common.NewBasicError(
+			return 0, common.NewBasicError(
 				"HostAddr is v4, but Topoaddr does not have v4 address", nil,
 				"topoaddr", t, "hostaddr", a,
 			)
 		}
 		if !t.Overlay.IsIPv4() {
-			return 0, false, common.NewBasicError("HostAddr is v4, but TopoAddr has non-v4 overlay",
+			return 0, common.NewBasicError("HostAddr is v4, but TopoAddr has non-v4 overlay",
 				nil, "topoaddr", t, "hostaddr", a)
 		}
-		return t.IPv4.pubL4Port, t.IPv4.pubIP.Equal(a.IP()), nil
+		return t.IPv4.pubL4Port, nil
 	case addr.HostTypeIPv6:
 		if t.IPv6 == nil {
-			return 0, false, common.NewBasicError(
+			return 0, common.NewBasicError(
 				"HostAddr is v6, but Topoaddr does not have v6 address", nil,
 				"topoaddr", t, "hostaddr", a)
 		}
 		if !t.Overlay.IsIPv6() {
-			return 0, false, common.NewBasicError("HostAddr is v6, but TopoAddr has non-v6 overlay",
+			return 0, common.NewBasicError("HostAddr is v6, but TopoAddr has non-v6 overlay",
 				nil, "topoaddr", t, "hostaddr", a)
 		}
-		return t.IPv6.pubL4Port, t.IPv6.pubIP.Equal(a.IP()), nil
+		return t.IPv6.pubL4Port, nil
 	default:
-		return 0, false, common.NewBasicError("Unknown HostAddr type", nil, "type", a)
+		return 0, common.NewBasicError("Unknown HostAddr type", nil, "type", a)
 	}
 }
 

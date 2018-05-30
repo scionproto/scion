@@ -18,7 +18,6 @@ package rpkt
 
 import (
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -32,12 +31,9 @@ const (
 // Validate performs basic validation of a packet, including calling any
 // registered validation hooks.
 func (rp *RtrPkt) Validate() error {
-	if assert.On {
-		assert.Mustf(rp.ifCurr != nil, rp.ErrStr, "rp.ifCurr must not be nil")
-	}
-	// XXX ifCurr would be 0 if the packet was received in the internal interface and it had no HopF.
+	// XXX ifCurr would be nil if the packet was received in the internal interface and had no HopF.
 	var mtu int
-	if *rp.ifCurr != 0 {
+	if rp.ifCurr != nil {
 		intf, ok := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 		if !ok {
 			return common.NewBasicError(errCurrIntfInvalid, nil, "ifid", *rp.ifCurr)
