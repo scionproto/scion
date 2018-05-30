@@ -140,8 +140,7 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 	}
 }
 
-// forwardFromExternal forwards packets that have been received from a
-// neighbouring ISD-AS.
+// forwardFromExternal forwards packets that have been received from a neighbouring ISD-AS.
 func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	if assert.On {
 		assert.Mustf(rp.hopF != nil, rp.ErrStr, "rp.hopF must not be nil")
@@ -223,6 +222,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 			if _, err = rp.IFCurr(); err != nil {
 				return err
 			}
+			// IFCurr should never return nil given that for xover there has to be a path
 			origIF = origIFCurr
 			newIF = *rp.ifCurr
 		}
@@ -272,9 +272,6 @@ func (rp *RtrPkt) forwardFromLocal() (HookResult, error) {
 		if _, err := rp.IncPath(); err != nil {
 			return HookError, err
 		}
-	}
-	if assert.On {
-		assert.Must(*rp.ifCurr != 0, "rp.ifCurr must not be 0 if forwarding from local")
 	}
 	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.ExtSockOut[*rp.ifCurr], nil})
 	return HookContinue, nil

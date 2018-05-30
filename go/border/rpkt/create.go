@@ -232,10 +232,6 @@ func (rp *RtrPkt) replyEgress() (EgressPair, error) {
 	if rp.DirFrom == rcmn.DirLocal {
 		return EgressPair{S: rp.Ctx.LocSockOut, Dst: rp.Ingress.Src}, nil
 	}
-	ifid, err := rp.IFCurr()
-	if err != nil {
-		return EgressPair{}, err
-	}
-	intf := rp.Ctx.Conf.Net.IFs[*ifid]
-	return EgressPair{S: rp.Ctx.ExtSockOut[*ifid], Dst: intf.RemoteAddr}, nil
+	intf := rp.Ctx.Conf.Net.IFs[rp.Ingress.IfID]
+	return EgressPair{S: rp.Ctx.ExtSockOut[rp.Ingress.IfID], Dst: intf.RemoteAddr}, nil
 }
