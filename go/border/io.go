@@ -263,6 +263,7 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 // Buffers and Addr based on the corresponding entries in epkts.
 func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
 	ring *ringbuf.Ring, connected bool) (ringbuf.EntryList, bool) {
+
 	if len(epkts) == 0 {
 		epkts = epkts[:cap(epkts)]
 		n, _ := ring.Read(epkts, true)

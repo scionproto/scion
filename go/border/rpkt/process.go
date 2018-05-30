@@ -56,22 +56,9 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
 		return nil
 	}
-	// Check to see if the destination IP is the address the packet was received
-	// on.
-	dstHost := addr.HostFromIP(rp.dstHost.IP())
-	var pub *topology.TopoAddr
-	if rp.DirFrom == rcmn.DirExternal {
-		intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-		pub = intf.IFAddr
-	} else if rp.DirFrom == rcmn.DirLocal {
-		pub = rp.Ctx.Conf.Net.LocAddr
-	}
-	port, equal, err := pub.PubL4PortFromAddr(dstHost)
-	if err != nil {
-		return err
-	}
-	if equal {
-		return rp.isDestSelf(port)
+	// Check to see if the destination IP is the address the packet was received on.
+	if rp.DirTo == rcmn.DirSelf {
+		return rp.isDestSelf(rp.Ingress.Dst.L4Port)
 	}
 	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
@@ -97,11 +84,11 @@ func (rp *RtrPkt) isDestSelf(ownPort int) error {
 		// determine the real destination.
 		goto Self
 	}
+	// Forward to dispatcher in local host
 	rp.DirTo = rcmn.DirLocal
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 	return nil
 Self:
-	rp.DirTo = rcmn.DirSelf
 	rp.hooks.Payload = append(rp.hooks.Payload, rp.parseCtrlPayload)
 	rp.hooks.Process = append(rp.hooks.Process, rp.processDestSelf)
 	return nil
@@ -166,7 +153,7 @@ func (rp *RtrPkt) processIFID(ifid *ifid.IFID) (HookResult, error) {
 // processRemoteIFID handles IFID (interface ID) packets from neighbouring ISD-ASes.
 func (rp *RtrPkt) processRemoteIFID(ifid *ifid.IFID) (HookResult, error) {
 	// Set the RelayIF field in the payload to the current interface ID.
-	ifid.RelayIfID = *rp.ifCurr
+	ifid.RelayIfID = rp.Ingress.IfID
 	cpld, err := ctrl.NewPld(ifid, nil)
 	if err != nil {
 		return HookError, err
