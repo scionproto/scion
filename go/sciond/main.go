@@ -17,10 +17,13 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"time"
+
+	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -38,27 +41,39 @@ const (
 )
 
 var (
-	reliableSockPath = flag.String("reliable", "",
-		`UNIX Domain Socket address to listen on for SCIOND connections from
-		local applications. Data on the socket is interpreted according to the
-		reliable socket protocol. If unspecified, no reliable socket is
-		opened.`)
-	unixPath = flag.String("unix", "",
-		`UNIX Domain Socket address to listen on for SCIOND Messages. If
-		unspecified, no unix socket is opened`)
-	scionAddress = flag.String("net", "",
-		`Network address to bind to for SCION Infra control messages. (Required)`)
-)
+	flagConfig = flag.String("config", "", "Service TOML config file (required)")
 
-var Env *env.Env
+	Config struct {
+		env.Config
+		SD struct {
+			// Address to listen on via the reliable socket protocol. If empty,
+			// a reliable socket server is not started.
+			Reliable string
+			// Address to listen on for normal unixgram messages. If empty, a
+			// unixgram server is not started.
+			Unix string
+		}
+	}
+)
 
 func main() {
 	os.Exit(realMain())
 }
 
 func realMain() int {
-	var err error
-	Env, err = env.Init(nil)
+	flag.Parse()
+	if *flagConfig == "" {
+		fmt.Fprintln(os.Stderr, "Missing config file")
+		flag.Usage()
+		return 1
+	}
+	if _, err := toml.DecodeFile(*flagConfig, &Config); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	env.SetDefaults(&Config.Config)
+	environment, err := env.Init(&Config.Config, nil)
 	if err != nil {
 		log.Crit("Error", "err", err)
 		flag.Usage()
@@ -80,8 +95,8 @@ func realMain() int {
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
 
-	if *reliableSockPath != "" {
-		server, shutdownF := NewServer("rsock", *reliableSockPath, Env)
+	if Config.SD.Reliable != "" {
+		server, shutdownF := NewServer("rsock", Config.SD.Reliable, environment)
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()
@@ -92,8 +107,8 @@ func realMain() int {
 		}()
 	}
 
-	if *unixPath != "" {
-		server, shutdownF := NewServer("unixpacket", *unixPath, Env)
+	if Config.SD.Unix != "" {
+		server, shutdownF := NewServer("unixpacket", Config.SD.Unix, environment)
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()
@@ -103,17 +118,17 @@ func realMain() int {
 		}()
 	}
 
-	if Env.HTTPAddress != "" {
+	if environment.HTTPAddress != "" {
 		go func() {
 			defer log.LogPanicAndExit()
-			if err := http.ListenAndServe(Env.HTTPAddress, nil); err != nil {
+			if err := http.ListenAndServe(environment.HTTPAddress, nil); err != nil {
 				fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
 			}
 		}()
 	}
 
 	select {
-	case <-Env.AppShutdownSignal:
+	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		// Deferred shutdowns for all running servers run now.
 		return 0
