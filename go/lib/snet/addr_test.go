@@ -85,9 +85,13 @@ func Test_AddrFromString(t *testing.T) {
 			ia:   "4-ff00:0:300",
 			host: "BS A (0x0000)",
 			port: 0},
-		{address: "4-ff00:0:300,[PS]",
+		{address: "4-ff00:0:300,[PS_A]",
 			ia:   "4-ff00:0:300",
 			host: "PS A (0x0001)",
+			port: 0},
+		{address: "4-ff00:0:300,[CS_M]",
+			ia:   "4-ff00:0:300",
+			host: "CS M (0x8002)",
 			port: 0},
 	}
 	Convey("Function AddrFromString", t, func() {
