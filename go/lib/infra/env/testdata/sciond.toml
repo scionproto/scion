@@ -1,0 +1,32 @@
+id = "sd0-test-0"
+bind = "1-ff00:0:133,[127.0.0.1]:50000"
+
+[logging]
+  [logging.file]
+    path = "logs/sciond.test.log"
+    # File logging level (debug|info|warn|error|crit) (default debug)
+    level = "debug"
+    # Max size of log file in MiB (default 50)
+    # size = 50
+    # Max age of log file in days (default 7)
+    # max_age = 7
+	# How frequently to flush to the log file, in seconds. If 0, all messages
+	# are immediately flushed. If negative, messages are never flushed
+	# automatically.
+    flush_interval = 10
+  [logging.console]
+    level = "warn"
+  [logging.metrics]
+    # prometheus = "127.0.0.1:8000"
+
+[databases]
+  trust = "trustdb"
+  topology = "gen/whatever/foo"
+
+[sd]
+  # Address to listen on via the reliable socket protocol. If empty, a reliable
+  # socket server is not started.
+  reliable = "/run/shm/test-sd-reliable.sock"
+  # Address to listen on for normal unixgram messages. If empty, a unixgram
+  # server is not started.
+  unix = "/run/shm/test-sd-unix.sock"
