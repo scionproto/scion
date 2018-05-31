@@ -172,8 +172,10 @@ var _ HostAddr = (*HostSVC)(nil)
 
 type HostSVC uint16
 
-// HostSVCFromString returns the SVC address corresponding to str. Valid values
-// for str are BS, PS, CS, and SB. For invalid values, SvcNone is returned.
+// HostSVCFromString returns the SVC address corresponding to str. For anycast
+// SVC addresses, use BS_A, PS_A, CS_A, and SB_A; shorthand versions without
+// the _A suffix (e.g., PS) also return anycast SVC addresses. For multicast,
+// use BS_M, PS_M, CS_M, and SB_M.
 func HostSVCFromString(str string) HostSVC {
 	m := HostSVC(0)
 	switch {
