@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -174,15 +175,23 @@ type HostSVC uint16
 // HostSVCFromString returns the SVC address corresponding to str. Valid values
 // for str are BS, PS, CS, and SB. For invalid values, SvcNone is returned.
 func HostSVCFromString(str string) HostSVC {
+	m := HostSVC(0)
+	switch {
+	case strings.HasSuffix(str, "_A"):
+		str = strings.TrimSuffix(str, "_A")
+	case strings.HasSuffix(str, "_M"):
+		str = strings.TrimSuffix(str, "_M")
+		m = SVCMcast
+	}
 	switch str {
 	case "BS":
-		return SvcBS
+		return SvcBS | m
 	case "PS":
-		return SvcPS
+		return SvcPS | m
 	case "CS":
-		return SvcCS
+		return SvcCS | m
 	case "SB":
-		return SvcSB
+		return SvcSB | m
 	default:
 		return SvcNone
 	}
