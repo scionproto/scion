@@ -25,12 +25,11 @@
 package env
 
 import (
-	"flag"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
@@ -41,21 +40,11 @@ func init() {
 	signal.Notify(sighupC, syscall.SIGHUP)
 }
 
-var (
-	id = flag.String("id", "", "Element ID (e.g., 'cs4-ff00:0:2f'). (Required)")
-	// FIXME(scrye): Enable this when config loading is needed
-	//confDir      = flag.String("confd", "", "Configuration directory (Required)")
-	// FIXME(scrye): Enable this when trust store becomes available.
-	//databasePath = flag.String("trustdb", "trust.db", "Trust database file")
-	prom = flag.String("prom", "",
-		"Address to export prometheus metrics on. If not set, metrics are not exported.")
-)
-
 // Env aggregates command-line flags, config information and
 // environment variables (if any are ever needed).
 type Env struct {
-	// Element ID, used for determining the name of the logging files
-	ID string
+	// Config contains the information loaded from the server's config file.
+	Config *Config
 	// Root logger (conforms to log15 Logger interface)
 	Log log.Logger
 	// Address to run the local HTTP server on (e.g., for Prometheus)
@@ -66,32 +55,49 @@ type Env struct {
 }
 
 // Init performs common set up for infra services. This includes parsing and
-// validating flags and environment variables, setting up logging, and setting
-// up signals.
+// validating flags, loading the service config, setting up logging, and
+// setting up signals.
 //
 // On SIGHUP, reloadF is called in a fresh goroutine. SIGHUP signals are not
 // buffered pending registration, and might be drained before the function is
-// registered.  Function reloadF itself must ensure that panics are logged.
-func Init(reloadF func()) (*Env, error) {
-	env := &Env{}
-	log.AddLogFileFlags()
-	log.AddLogConsFlags()
-	flag.Parse()
+// registered. Function reloadF itself must ensure that panics are logged.
+func Init(cfg *Config, reloadF func()) (*Env, error) {
+	env := &Env{
+		Config: cfg,
+	}
 	if err := env.setupLogging(); err != nil {
 		return nil, err
 	}
 	env.setupSignals(reloadF)
-	env.HTTPAddress = *prom
+	if env.Config.Logging.Metrics.Prometheus != "" {
+		env.HTTPAddress = env.Config.Logging.Metrics.Prometheus
+	}
 	return env, nil
 }
 
 // setupLogging initializes logging and sets the root logger Log.
 func (env *Env) setupLogging() error {
-	if *id == "" {
-		return common.NewBasicError("No element ID specified", nil)
+	if env.Config.Logging.File.Level != "" {
+		err := log.SetupLogFile(
+			filepath.Base(env.Config.Logging.File.Path),
+			filepath.Dir(env.Config.Logging.File.Path),
+			env.Config.Logging.File.Level,
+			int(env.Config.Logging.File.Size),
+			int(env.Config.Logging.File.MaxAge),
+			int(env.Config.Logging.File.FlushInterval),
+		)
+		if err != nil {
+			return err
+		}
 	}
-	env.ID = *id
-	log.SetupFromFlags(env.ID)
+
+	if env.Config.Logging.Console.Level != "" {
+		err := log.SetupLogConsole(env.Config.Logging.Console.Level)
+		if err != nil {
+			return err
+		}
+	}
+
 	env.Log = log.Root()
 	return nil
 }
