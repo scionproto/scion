@@ -267,3 +267,7 @@ func (r *PR) revoke(b common.RawBytes) {
 		log.Warn("Found invalid revocation notification", "revInfo", revInfo)
 	}
 }
+
+func (r *PR) Sciond() sciond.Service {
+	return r.sciondService
+}

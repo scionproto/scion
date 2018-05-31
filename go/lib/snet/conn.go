@@ -76,7 +76,8 @@ type Conn struct {
 	recvBuffer common.RawBytes
 	sendBuffer common.RawBytes
 	// Pointer to slice of paths updated by continous lookups; these are
-	// used by default when creating a connection via Dial
+	// used by default when creating a connection via Dial on SCIOND-enabled
+	// networks. For SCIOND-less operation, this is set to nil.
 	sp *pathmgr.SyncPaths
 	// Reference to SCION networking context
 	scionNet *Network
@@ -220,8 +221,10 @@ func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 			"type", common.TypeOf(scmpPayload.Info))
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
-	// Extract RevInfo buffer and send it to path manager
-	c.scionNet.pathResolver.Revoke(info.RawSRev)
+	// If we have a path manager, extract RevInfo buffer and send it
+	if c.scionNet.pathResolver != nil {
+		c.scionNet.pathResolver.Revoke(info.RawSRev)
+	}
 }
 
 // WriteToSCION sends b to raddr.
@@ -270,6 +273,11 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 			nextHopHost = raddr.NextHopHost
 			nextHopPort = raddr.NextHopPort
 		} else {
+			if c.sp == nil {
+				return 0, common.NewBasicError("Trying to send traffic outside local AS, "+
+					"but no path is specified and SCIOND is disabled", nil)
+			}
+
 			pathEntry, err := c.selectPathEntry(raddr)
 			if err != nil {
 				return 0, err
