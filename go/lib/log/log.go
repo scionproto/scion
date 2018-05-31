@@ -20,6 +20,7 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/inconshreveable/log15"
@@ -74,15 +75,34 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 	if err != nil {
 		return common.NewBasicError("Unable to parse log.level flag:", err)
 	}
-	logBuf = newSyncBuf(mkLogfile(name))
+
+	// Strip .log extension s.t. config files can contain the exact filename
+	// while not breaking existing behavior for apps that don't contain the
+	// extension.
+	name = strings.TrimSuffix(name, ".log")
+	var fileLogger io.WriteCloser
+	fileLogger = &lumberjack.Logger{
+		Filename: fmt.Sprintf("%s/%s.log", logDir, name),
+		MaxSize:  logSize, // MiB
+		MaxAge:   logAge,  // days
+	}
+
+	if logFlush != 0 {
+		logBuf = newSyncBuf(fileLogger)
+		fileLogger = logBuf
+	}
+
 	logFileHandler = log15.LvlFilterHandler(logLvl,
-		log15.StreamHandler(logBuf, fmt15.Fmt15Format(nil)))
+		log15.StreamHandler(fileLogger, fmt15.Fmt15Format(nil)))
 	setHandlers()
-	go func() {
-		for range time.Tick(time.Duration(logFlush) * time.Second) {
-			Flush()
-		}
-	}()
+
+	if logFlush > 0 {
+		go func() {
+			for range time.Tick(time.Duration(logFlush) * time.Second) {
+				Flush()
+			}
+		}()
+	}
 	return nil
 }
 
@@ -124,14 +144,6 @@ func AddLogFileFlags() {
 	flag.IntVar(&logFlush, "log.flush", 5, "How frequently to flush to the log file, in seconds")
 }
 
-func mkLogfile(name string) io.WriteCloser {
-	return &lumberjack.Logger{
-		Filename: fmt.Sprintf("%s/%s.log", logDir, name),
-		MaxSize:  logSize, // MiB
-		MaxAge:   logAge,  // days
-	}
-}
-
 func LogPanicAndExit() {
 	if msg := recover(); msg != nil {
 		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
@@ -141,7 +153,9 @@ func LogPanicAndExit() {
 }
 
 func Flush() {
-	logBuf.Flush()
+	if logBuf != nil {
+		logBuf.Flush()
+	}
 }
 
 func New(ctx ...interface{}) Logger {
