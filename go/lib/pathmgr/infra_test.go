@@ -44,7 +44,7 @@ func ExamplePR() {
 		fmt.Println("Unable to parse dstIA", *dstStr, "err", err)
 	}
 	// Initialize path resolver
-	sciondPath := fmt.Sprintf("/run/shm/sciond/sd%s.sock", src.FileFmt(false))
+	sciondPath := sciond.GetDefaultSCIONDPath(&src)
 	sciondService := sciond.NewService(sciondPath)
 	pr, err := New(sciondService, time.Second, time.Minute, log.Root())
 	if err != nil {

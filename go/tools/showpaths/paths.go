@@ -27,11 +27,12 @@ import (
 )
 
 var (
-	dstIAStr   = flag.String("dstIA", "", "Destination IA address: ISD-AS")
-	srcIAStr   = flag.String("srcIA", "", "Source IA address: ISD-AS")
-	sciondPath = flag.String("sciond", "", "SCIOND socket path")
-	timeout    = flag.Duration("timeout", 2*time.Second, "SCIOND connection timeout")
-	maxPaths   = flag.Int("maxpaths", 10, "Maximum number of paths")
+	dstIAStr     = flag.String("dstIA", "", "Destination IA address: ISD-AS")
+	srcIAStr     = flag.String("srcIA", "", "Source IA address: ISD-AS")
+	sciondPath   = flag.String("sciond", "", "SCIOND socket path")
+	timeout      = flag.Duration("timeout", 2*time.Second, "SCIOND connection timeout")
+	maxPaths     = flag.Int("maxpaths", 10, "Maximum number of paths")
+	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 )
 
 var (
@@ -71,22 +72,23 @@ func validateFlags() {
 	if err != nil {
 		LogFatal("Unable to parse destination IA: %v\n", err)
 	}
-	if *sciondPath == "" {
-		if *srcIAStr == "" {
-			*sciondPath = "/run/shm/sciond/default.sock"
-		} else {
-			*sciondPath = "/run/shm/sciond/sd" + *srcIAStr + ".sock"
+
+	if *srcIAStr != "" {
+		if srcIA, err = addr.IAFromString(*srcIAStr); err != nil {
+			LogFatal("Unable to parse source IA: %v\n", err)
 		}
-	} else if *srcIAStr != "" {
-		fmt.Printf("srcIA ignored! sciond takes precedence\n")
 	}
-	if *srcIAStr == "" {
-		// Set any value, required by Query() but does not affect result
-		*srcIAStr = "1-ff00:0:310"
-	}
-	srcIA, err = addr.IAFromString(*srcIAStr)
-	if err != nil {
-		LogFatal("Unable to parse source IA: %v\n", err)
+
+	if *sciondFromIA {
+		if *sciondPath != "" {
+			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
+		}
+		if srcIA.IsZero() {
+			LogFatal("-srcIA flag is missing")
+		}
+		*sciondPath = sciond.GetDefaultSCIONDPath(&srcIA)
+	} else if *sciondPath == "" {
+		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
 }
 
