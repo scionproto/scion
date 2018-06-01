@@ -41,9 +41,9 @@
 // header.
 //
 // Important: not draining SCMP errors via Read calls can cause the dispatcher
-// to shutdown the socket (see PR #1356). To prevent this on a Conn object with
-// only Write calls, run a separate goroutine that continuously calls Read on
-// the Conn.
+// to shutdown the socket (see https://github.com/scionproto/scion/pull/1356).
+// To prevent this on a Conn object with only Write calls, run a separate
+// goroutine that continuously calls Read on the Conn.
 package snet
 
 import (
@@ -64,8 +64,8 @@ var (
 )
 
 // Init initializes the default SCION networking context.
-func Init(ia addr.IA, sPath string, dPath string) error {
-	network, err := NewNetwork(ia, sPath, dPath)
+func Init(ia addr.IA, sciondPath string, dispatcherPath string) error {
+	network, err := NewNetwork(ia, sciondPath, dispatcherPath)
 	if err != nil {
 		return err
 	}
@@ -101,27 +101,27 @@ type Network struct {
 
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dPath string, pr *pathmgr.PR) *Network {
+func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *Network {
 	return &Network{
-		dispatcherPath: dPath,
+		dispatcherPath: dispatcherPath,
 		pathResolver:   pr,
 		localIA:        ia,
 	}
 }
 
 // NewNetwork creates a new networking context, on which future Dial or Listen
-// calls can be made. The new connections use the SCIOND server at sPath, the
-// dispatcher at dPath, and ia for the local ISD-AS.
+// calls can be made. The new connections use the SCIOND server at sciondPath,
+// the dispatcher at dispatcherPath, and ia for the local ISD-AS.
 //
-// If sPath is the empty string, the network will run without SCIOND. In this
-// mode of operation, the app is fully responsible with supplying paths for
-// sent traffic.
-func NewNetwork(ia addr.IA, sPath string, dPath string) (*Network, error) {
+// If sciondPath is the empty string, the network will run without SCIOND. In
+// this mode of operation, the app is fully responsible with supplying paths
+// for sent traffic.
+func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*Network, error) {
 	var pathResolver *pathmgr.PR
-	if sPath != "" {
+	if sciondPath != "" {
 		var err error
 		pathResolver, err = pathmgr.New(
-			sciond.NewService(sPath),
+			sciond.NewService(sciondPath),
 			&pathmgr.Timers{
 				NormalRefire: time.Minute,
 				ErrorRefire:  3 * time.Second,
@@ -133,7 +133,7 @@ func NewNetwork(ia addr.IA, sPath string, dPath string) (*Network, error) {
 			return nil, common.NewBasicError("Unable to initialize path resolver", err)
 		}
 	}
-	return NewNetworkWithPR(ia, dPath, pathResolver), nil
+	return NewNetworkWithPR(ia, dispatcherPath, pathResolver), nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
