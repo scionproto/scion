@@ -73,11 +73,10 @@ func SetupFromFlags(name string) error {
 // logLevel can be one of debug, info, warn, error, and crit and states the
 // minimum level of logging events that get written to the file. logSize is the
 // maximum size, in MiB, until the log rotates. logAge is the maximum number of
-// days to retain old log files. logFlush is the interval, in seconds, on which
-// log messages are flushed from memory to file; a logFlush of 0 means always
-// flush each message immediately, and a negative logFlush means never flush
-// automatically. In the latter case, the log can still be flushed by calling
-// Flush manually.
+// days to retain old log files. If logFlush > 0, logging output is buffered,
+// and flushed every logFlush seconds.  If logFlush < 0: logging output is
+// buffered, but must be manually flushed by calling Flush(). If logFlush = 0
+// logging output is unbuffered and Flush() is a no-op.
 func SetupLogFile(name string, logDir string, logLevel string, logSize int, logAge int,
 	logFlush int) error {
 
