@@ -118,7 +118,6 @@ func (g *DAMG) traverseSegment(segment *InputSegment) {
 			weight := len(asEntries) - 1 - asEntryIndex
 			he, err := hop.HopField()
 			if err != nil {
-				// should've been caught during signature verification, abort
 				panic(err)
 			}
 
@@ -361,6 +360,8 @@ func (sl PathSolutionList) Len() int {
 //  - total path cost (number of hops)
 //  - number of segments
 //  - segmentIDs
+//  - shortcut index
+//  - peer entry index
 func (sl PathSolutionList) Less(i, j int) bool {
 	if sl[i].cost != sl[j].cost {
 		return sl[i].cost < sl[j].cost
@@ -382,7 +383,7 @@ func (sl PathSolutionList) Less(i, j int) bool {
 		}
 		idcmp := bytes.Compare(idI, idJ)
 		if idcmp != 0 {
-			return idcmp == 1
+			return idcmp == -1
 		}
 		if trailI[ki].edge.Shortcut != trailJ[ki].edge.Shortcut {
 			return trailI[ki].edge.Shortcut < trailJ[ki].edge.Shortcut
