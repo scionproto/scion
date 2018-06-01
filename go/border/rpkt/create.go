@@ -170,9 +170,10 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	if err = sp.Reverse(); err != nil {
 		return nil, err
 	}
-	// Use the ingress address as the source host
 	sp.SrcIA = rp.Ctx.Conf.IA
-	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
+	// Use the internal address as the source host
+	pubInt := rp.Ctx.Conf.Net.LocAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+	sp.SrcHost = addr.HostFromIP(pubInt.IP)
 	return sp, nil
 }
 
@@ -208,7 +209,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 					return nil, err
 				}
 			}
-		} else if rp.DirFrom == rcmn.DirExternal {
+		} else if rp.Ingress.IfID != 0 {
 			reply.InfoF()
 			reply.ConsDirFlag()
 			// Increase path if the current HOF is not xover and
@@ -229,7 +230,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
 func (rp *RtrPkt) replyEgress() (EgressPair, error) {
-	if rp.DirFrom == rcmn.DirLocal {
+	if rp.Ingress.IfID == 0 {
 		return EgressPair{S: rp.Ctx.LocSockOut, Dst: rp.Ingress.Src}, nil
 	}
 	intf := rp.Ctx.Conf.Net.IFs[rp.Ingress.IfID]

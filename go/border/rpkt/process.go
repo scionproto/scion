@@ -51,6 +51,7 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
 		return nil
 	}
+	// Check SVC before DirTo, there could be services in the same host.
 	if rp.CmnHdr.DstType == addr.HostTypeSVC {
 		// SVC address needs to be resolved for delivery.
 		rp.hooks.Route = append(rp.hooks.Route, rp.RouteResolveSVC)
