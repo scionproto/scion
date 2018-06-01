@@ -190,7 +190,7 @@ func (d *Dispatcher) goBackgroundReceiver() {
 
 // recvNext reads the next packet from the transport. On fatal errors, it
 // returns true.
-func (d *Dispatcher) recvNext() (fatalError bool) {
+func (d *Dispatcher) recvNext() bool {
 	// Once the transport is closed, RecvFrom returns immediately.
 	b, address, err := d.transport.RecvFrom(context.Background())
 	if err != nil {
