@@ -177,7 +177,7 @@ type HostSVC uint16
 // the _A suffix (e.g., PS) also return anycast SVC addresses. For multicast,
 // use BS_M, PS_M, CS_M, and SB_M.
 func HostSVCFromString(str string) HostSVC {
-	m := HostSVC(0)
+	var m HostSVC
 	switch {
 	case strings.HasSuffix(str, "_A"):
 		str = strings.TrimSuffix(str, "_A")
