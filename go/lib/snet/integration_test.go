@@ -158,7 +158,7 @@ func ClientServer(haveSciond bool, idx int, tc TestCase) {
 		// due to needing a path in SCIOND-less mode of operation.
 		if tc.expectWriteError == false {
 			n, err := cconn.Write([]byte("Hello!"))
-			xtest.SoMsgError("Client write error", err, tc.expectWriteError)
+			xtest.SoMsgError("Client write error", err, false)
 			SoMsg("Client written bytes", n, ShouldEqual, len("Hello!"))
 
 			n, raddr, err := sconn.ReadFromSCION(b)
