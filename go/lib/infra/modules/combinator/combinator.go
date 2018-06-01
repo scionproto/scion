@@ -27,9 +27,9 @@ package combinator
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -39,6 +39,9 @@ import (
 // Combine constructs paths between src and dst using the supplied
 // segments. All possible paths are returned, sorted according to weight (on
 // equal weight, see pathSolutionList.Less for the tie-breaking algorithm).
+//
+// If Combine cannot extract a hop field or info field from the segments, it
+// panics.
 func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 	paths := NewDAMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
 
@@ -66,7 +69,7 @@ type Path struct {
 	Weight     int
 	Mtu        uint16
 	Interfaces []sciond.PathInterface
-	ExpTime    uint32
+	ExpTime    time.Time
 }
 
 func (p *Path) writeTestString(w io.Writer) {
@@ -85,10 +88,9 @@ func (p *Path) writeTestString(w io.Writer) {
 }
 
 func (p *Path) reverseDownSegment() {
-	for _, segment := range p.Segments {
-		if segment.Type == proto.PathSegType_down {
-			segment.reverse()
-		}
+	segment := p.Segments[len(p.Segments)-1]
+	if segment.Type == proto.PathSegType_down {
+		segment.reverse()
 	}
 }
 
@@ -99,17 +101,14 @@ func (p *Path) aggregateInterfaces() {
 	}
 }
 
-func getPathInterfaces(ia addr.IA, inIFID, outIFID common.IFIDType) []sciond.PathInterface {
-	var result []sciond.PathInterface
-	if inIFID != 0 {
-		result = append(result,
-			sciond.PathInterface{RawIsdas: ia.IAInt(), IfID: inIFID})
+func (p *Path) computeExpTime() {
+	p.ExpTime = time.Unix(1<<63-1, 0)
+	for _, segment := range p.Segments {
+		t := time.Unix(int64(segment.ExpTime+segment.InfoField.TsInt), 0)
+		if t.Before(p.ExpTime) {
+			p.ExpTime = t
+		}
 	}
-	if outIFID != 0 {
-		result = append(result,
-			sciond.PathInterface{RawIsdas: ia.IAInt(), IfID: outIFID})
-	}
-	return result
 }
 
 type Segment struct {
@@ -117,6 +116,7 @@ type Segment struct {
 	HopFields  []*HopField
 	Type       proto.PathSegType
 	Interfaces []sciond.PathInterface
+	ExpTime    uint32
 }
 
 // initInfoFieldFrom copies the info field in pathSegment, and sets it as the
