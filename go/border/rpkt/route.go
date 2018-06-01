@@ -132,7 +132,8 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 	case rcmn.DirExternal:
 		return rp.forwardFromExternal()
 	case rcmn.DirLocal:
-		return rp.forwardFromLocal()
+		// XXX We do not support forwarding from Local to Local
+		return rp.forwardToExternal(*rp.ifCurr)
 	default:
 		return HookError, common.NewBasicError("Unsupported forwarding DirFrom", nil,
 			"dirFrom", rp.DirFrom)
@@ -143,20 +144,19 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	if assert.On {
 		assert.Mustf(rp.hopF != nil, rp.ErrStr, "rp.hopF must not be nil")
-	}
-	if rp.hopF.VerifyOnly { // Should have been caught by validatePath
-		return HookError, common.NewBasicError("BUG: Non-routing HopF, refusing to forward", nil,
-			"hopF", rp.hopF)
+		assert.Mustf(!rp.hopF.VerifyOnly, rp.ErrStr, "Non-routing HopF")
 	}
 	// FIXME(kormat): this needs to be cleaner, as it won't work with
 	// extensions that replace the path header.
-	var onLastSeg = rp.CmnHdr.InfoFOffBytes()+int(rp.infoF.Hops+1)*common.LineLen ==
-		rp.CmnHdr.HdrLenBytes()
-	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
+	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
+		var onLastSeg = rp.CmnHdr.InfoFOffBytes()+int(rp.infoF.Hops+1)*common.LineLen ==
+			rp.CmnHdr.HdrLenBytes()
+		if !onLastSeg {
+			return HookError, common.NewBasicError("Destination ISD-AS not in the last segment", nil)
+		}
 		// Destination is a host in the local ISD-AS.
-		if rp.hopF.ForwardOnly { // Should have been caught by validatePath
-			return HookError, common.NewBasicError("BUG: Delivery forbidden for Forward-only HopF",
-				nil, "hopF", rp.hopF)
+		if assert.On {
+			assert.Mustf(!rp.hopF.ForwardOnly, rp.ErrStr, "Delivery forbidden for Forward-only HopF")
 		}
 		ot := overlay.OverlayFromIP(rp.dstHost.IP(), rp.Ctx.Conf.Topo.Overlay)
 		dst := &topology.AddrInfo{
@@ -175,9 +175,21 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	} else if err := rp.validateLocalIF(rp.ifNext); err != nil {
 		return HookError, err
 	}
-	// Destination is in a remote ISD-AS, so forward to egress router.
-	// FIXME(kormat): this will need to change when multiple interfaces per
-	// router are supported.
+	// Destination is in a remote ISD-AS.
+	if _, ok := rp.Ctx.Conf.Net.IFs[*rp.ifNext]; ok {
+		rp.DirFrom = rcmn.DirLocal
+		rp.ifCurr = rp.ifNext
+		// Current Egress interface is local to BR
+		// Re-Process the packet, there should only be HBH hooks
+		if err := rp.Process(); err != nil {
+			return HookError, err
+		}
+		if rp.DirTo != rcmn.DirSelf {
+			return rp.forwardToExternal(*rp.ifNext)
+		} else {
+			return HookFinish, nil
+		}
+	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
 	nextAI := nextBR.InternalAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
 	ot := overlay.OverlayFromIP(nextAI.IP, rp.Ctx.Conf.Topo.Overlay)
@@ -264,14 +276,12 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	return nil
 }
 
-// forwardFromLocal handles packet received from the local ISD-AS, to be
-// forwarded to neighbouring ISD-ASes.
-func (rp *RtrPkt) forwardFromLocal() (HookResult, error) {
-	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
-		if _, err := rp.IncPath(); err != nil {
-			return HookError, err
-		}
+// forwardToExternal handles packet to be forwarded to neighbouring ISD-ASes.
+func (rp *RtrPkt) forwardToExternal(ifid common.IFIDType) (HookResult, error) {
+	if _, err := rp.IncPath(); err != nil {
+		return HookError, err
 	}
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.ExtSockOut[*rp.ifCurr], nil})
+	// IncPath updates ifNext but does not update ifCurr
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.ExtSockOut[ifid], nil})
 	return HookContinue, nil
 }
