@@ -75,7 +75,7 @@ type Conn struct {
 	writeMutex sync.Mutex
 	recvBuffer common.RawBytes
 	sendBuffer common.RawBytes
-	// Pointer to slice of paths updated by continous lookups; these are
+	// Pointer to slice of paths updated by continuous lookups; these are
 	// used by default when creating a connection via Dial on SCIOND-enabled
 	// networks. For SCIOND-less operation, this is set to nil.
 	sp *pathmgr.SyncPaths
