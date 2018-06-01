@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -170,6 +171,33 @@ func (h HostIPv6) String() string {
 var _ HostAddr = (*HostSVC)(nil)
 
 type HostSVC uint16
+
+// HostSVCFromString returns the SVC address corresponding to str. For anycast
+// SVC addresses, use BS_A, PS_A, CS_A, and SB_A; shorthand versions without
+// the _A suffix (e.g., PS) also return anycast SVC addresses. For multicast,
+// use BS_M, PS_M, CS_M, and SB_M.
+func HostSVCFromString(str string) HostSVC {
+	var m HostSVC
+	switch {
+	case strings.HasSuffix(str, "_A"):
+		str = strings.TrimSuffix(str, "_A")
+	case strings.HasSuffix(str, "_M"):
+		str = strings.TrimSuffix(str, "_M")
+		m = SVCMcast
+	}
+	switch str {
+	case "BS":
+		return SvcBS | m
+	case "PS":
+		return SvcPS | m
+	case "CS":
+		return SvcCS | m
+	case "SB":
+		return SvcSB | m
+	default:
+		return SvcNone
+	}
+}
 
 func (h HostSVC) Size() int {
 	return HostLenSVC
