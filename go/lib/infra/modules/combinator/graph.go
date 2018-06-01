@@ -15,11 +15,13 @@
 package combinator
 
 import (
+	"bytes"
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -87,7 +89,7 @@ func (g *DAMG) traverseSegment(segment *InputSegment) {
 	asEntries := segment.ASEntries
 
 	// Directly process core segments, because we're not interested in
-	// shortcuts. Add edge from first entry IA to last entry IA.
+	// shortcuts. Add edge from last entry IA to first entry IA.
 	if segment.Type == proto.PathSegType_core {
 		g.AddEdge(
 			VertexFromIA(asEntries[len(asEntries)-1].IA()),
@@ -98,7 +100,7 @@ func (g *DAMG) traverseSegment(segment *InputSegment) {
 		return
 	}
 
-	// Up or Core segment. Last AS in the PCB is the root for edge addition.
+	// Up or Down segment. Last AS in the PCB is the root for edge addition.
 	// For Ups, edges will originate from pinnedIA. For Downs, edges will go
 	// towards pinnedIA.
 	pinnedIA := asEntries[len(asEntries)-1].IA()
@@ -156,10 +158,10 @@ func (g *DAMG) traverseSegment(segment *InputSegment) {
 
 func (g *DAMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
 	if _, ok := g.Adjacencies[src]; !ok {
-		g.Adjacencies[src] = make(map[Vertex]EdgeMap)
+		g.Adjacencies[src] = make(VertexInfo)
 	}
 	if _, ok := g.Adjacencies[dst]; !ok {
-		g.Adjacencies[dst] = make(map[Vertex]EdgeMap)
+		g.Adjacencies[dst] = make(VertexInfo)
 	}
 	neighborMap := g.Adjacencies[src]
 	if _, ok := neighborMap[dst]; !ok {
@@ -171,7 +173,6 @@ func (g *DAMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
 // GetPaths returns all the paths from src to dst, sorted according to weight.
 func (g *DAMG) GetPaths(src, dst Vertex) PathSolutionList {
 	var solutions PathSolutionList
-
 	queue := PathSolutionList{&PathSolution{currentVertex: src}}
 	for len(queue) > 0 {
 		currentPathSolution := queue[0]
@@ -196,16 +197,16 @@ func (g *DAMG) GetPaths(src, dst Vertex) PathSolutionList {
 						src:     currentPathSolution.currentVertex,
 						dst:     nextVertex,
 					})
-				queue = append(queue, newSolution)
 
 				if nextVertex == dst {
 					solutions = append(solutions, newSolution)
 					// Do not break, because we want all solutions
+				} else {
+					queue = append(queue, newSolution)
 				}
 			}
 		}
 	}
-
 	sort.Sort(solutions)
 	return solutions
 }
@@ -267,12 +268,14 @@ type PathSolution struct {
 // extracting it from a path between source and destination in the DAMG.
 func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	path := &Path{
-		Weight:  solution.cost,
-		ExpTime: spath.MaxTimestamp,
-		Mtu:     ^uint16(0),
+		Weight: solution.cost,
+		Mtu:    ^uint16(0),
 	}
 	for edgeIdx, solEdge := range solution.edges {
-		currentSeg := &Segment{Type: solEdge.segment.Type}
+		currentSeg := &Segment{
+			Type:    solEdge.segment.Type,
+			ExpTime: spath.MaxTimestamp,
+		}
 		currentSeg.initInfoFieldFrom(solEdge.segment.PathSegment)
 		currentSeg.InfoField.Up = solEdge.segment.UpFlag()
 		currentSeg.InfoField.Shortcut = solEdge.edge.Shortcut != 0
@@ -283,13 +286,14 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 		// find a shortcut (which can be 0, meaning the end of the segment).
 		asEntries := solEdge.segment.ASEntries
 		for asEntryIdx := len(asEntries) - 1; asEntryIdx >= solEdge.edge.Shortcut; asEntryIdx-- {
-			inIFID, outIFID := common.IFIDType(0), common.IFIDType(0)
+			var inIFID, outIFID common.IFIDType
 			asEntry := asEntries[asEntryIdx]
 			path.Mtu = minUint16(path.Mtu, asEntry.MTU)
 
 			// Normal hop field.
 			newHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[0])
-			path.ExpTime = minUint32(path.ExpTime, uint32(newHF.ExpTime)*spath.ExpTimeUnit)
+			currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
+				uint32(newHF.ExpTime)*spath.ExpTimeUnit)
 			inIFID, outIFID = newHF.Egress, newHF.Ingress
 
 			// If we've transitioned from a previous segment, set Xover flag.
@@ -321,21 +325,18 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 						// for the current hop field, even if on last segment.
 						newHF.Xover = true
 						// Add a new hop field for the peering entry, and set Xover.
-						newHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[solEdge.edge.Peer])
-						newHF.Xover = true
-						path.ExpTime = minUint32(path.ExpTime,
-							uint32(newHF.ExpTime)*spath.ExpTimeUnit)
-						inIFID, outIFID = newHF.Egress, newHF.Ingress
+						pHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[solEdge.edge.Peer])
+						pHF.Xover = true
+						currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
+							uint32(pHF.ExpTime)*spath.ExpTimeUnit)
+						inIFID, outIFID = pHF.Egress, pHF.Ingress
 					} else {
 						// Normal shortcut, so only half of this HF is traversed by the packet
 						outIFID = 0
 					}
 
-					// Normal or peering shortcut. Include the verify-only hop field.
 					newHF := currentSeg.appendHopFieldFrom(asEntries[asEntryIdx-1].HopEntries[0])
 					newHF.VerifyOnly = true
-					path.ExpTime = minUint32(path.ExpTime,
-						uint32(newHF.ExpTime)*spath.ExpTimeUnit)
 				}
 			}
 
@@ -345,6 +346,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	}
 	path.reverseDownSegment()
 	path.aggregateInterfaces()
+	path.computeExpTime()
 	return path
 }
 
@@ -370,39 +372,23 @@ func (sl PathSolutionList) Less(i, j int) bool {
 	}
 
 	for ki := range trailI {
-		entriesI, entriesJ := trailI[ki].segment.ASEntries, trailJ[ki].segment.ASEntries
-		if len(entriesI) != len(entriesJ) {
-			return len(entriesI) < len(entriesJ)
+		idI, err := trailI[ki].segment.ID()
+		if err != nil {
+			panic(err)
 		}
-
-		iaI, iaJ := entriesI[ki].IA(), entriesJ[ki].IA()
-		if !iaI.Eq(iaJ) {
-			return iaI.IAInt() < iaJ.IAInt()
+		idJ, err := trailJ[ki].segment.ID()
+		if err != nil {
+			panic(err)
 		}
-
-		edgeI, edgeJ := trailI[ki].edge, trailJ[ki].edge
-		for kj := range entriesI {
-			idxI, idxJ := 0, 0
-			if kj == edgeI.Shortcut {
-				idxI = edgeI.Peer
-			}
-			if kj == edgeJ.Shortcut {
-				idxJ = edgeJ.Peer
-			}
-
-			heI, heJ := entriesI[kj].HopEntries[idxI], entriesJ[kj].HopEntries[idxJ]
-			hfI, err := heI.HopField()
-			if err != nil {
-				panic(err)
-			}
-			hfJ, err := heJ.HopField()
-			if err != nil {
-				panic(err)
-			}
-
-			if hfI.Ingress != hfJ.Ingress {
-				return hfI.Ingress < hfJ.Ingress
-			}
+		idcmp := bytes.Compare(idI, idJ)
+		if idcmp != 0 {
+			return idcmp == 1
+		}
+		if trailI[ki].edge.Shortcut != trailJ[ki].edge.Shortcut {
+			return trailI[ki].edge.Shortcut < trailJ[ki].edge.Shortcut
+		}
+		if trailI[ki].edge.Peer != trailJ[ki].edge.Peer {
+			return trailI[ki].edge.Peer < trailJ[ki].edge.Peer
 		}
 	}
 	return false
@@ -434,4 +420,17 @@ func minUint16(x, y uint16) uint16 {
 		return x
 	}
 	return y
+}
+
+func getPathInterfaces(ia addr.IA, inIFID, outIFID common.IFIDType) []sciond.PathInterface {
+	var result []sciond.PathInterface
+	if inIFID != 0 {
+		result = append(result,
+			sciond.PathInterface{RawIsdas: ia.IAInt(), IfID: inIFID})
+	}
+	if outIFID != 0 {
+		result = append(result,
+			sciond.PathInterface{RawIsdas: ia.IAInt(), IfID: outIFID})
+	}
+	return result
 }

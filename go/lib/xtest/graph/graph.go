@@ -23,6 +23,7 @@ package graph
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -253,7 +254,16 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		asEntry.HopEntries = append(asEntry.HopEntries, localHopEntry)
 
 		as := g.ases[currIA]
+
+		// use int to avoid implementing sort.Interface
+		var ifids []int
 		for peeringLocalIF := range as.IFIDs {
+			ifids = append(ifids, int(peeringLocalIF))
+		}
+		sort.Ints(ifids)
+
+		for _, intIFID := range ifids {
+			peeringLocalIF := common.IFIDType(intIFID)
 			if g.isPeer[peeringLocalIF] {
 				b := make(common.RawBytes, spath.HopFieldLength)
 				spath.NewHopField(b, peeringLocalIF, outIF)
