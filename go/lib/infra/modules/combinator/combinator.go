@@ -104,7 +104,7 @@ func (p *Path) aggregateInterfaces() {
 func (p *Path) computeExpTime() {
 	p.ExpTime = time.Unix(1<<63-1, 0)
 	for _, segment := range p.Segments {
-		t := time.Unix(int64(segment.ExpTime+segment.InfoField.TsInt), 0)
+		t := segment.InfoField.Timestamp().Add(time.Duration(segment.ExpTime) * time.Second)
 		if t.Before(p.ExpTime) {
 			p.ExpTime = t
 		}
