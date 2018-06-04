@@ -145,8 +145,8 @@ class PathSegmentType(TypeBase):
 
 
 class DRKeyMgmtType(object):
-    FIRST_ORDER_REQUEST = "drkeyReq"
-    FIRST_ORDER_REPLY = "drkeyRep"
+    FIRST_ORDER_REQUEST = "drkeyLvl1Req"
+    FIRST_ORDER_REPLY = "drkeyLvl1Rep"
 
 
 ############################

@@ -17,6 +17,7 @@ package ctrl
 import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/extn"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -32,8 +33,8 @@ type union struct {
 	IfID        *ifid.IFID       `capnp:"ifid"`
 	CertMgmt    *cert_mgmt.Pld
 	PathMgmt    *path_mgmt.Pld
-	Sibra       []byte `capnp:"-"` // Omit for now
-	DRKeyMgmt   []byte `capnp:"-"` // Omit for now
+	Sibra       []byte          `capnp:"-"` // Omit for now
+	DRKeyMgmt   *drkey_mgmt.Pld `capnp:"drkeyMgmt"`
 	Sig         *sigmgmt.Pld
 	Extn        *extn.CtrlExtnDataList
 }
@@ -49,6 +50,9 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *path_mgmt.Pld:
 		u.Which = proto.CtrlPld_Which_pathMgmt
 		u.PathMgmt = p
+	case *drkey_mgmt.Pld:
+		u.Which = proto.CtrlPld_Which_drkeyMgmt
+		u.DRKeyMgmt = p
 	case *sigmgmt.Pld:
 		u.Which = proto.CtrlPld_Which_sig
 		u.Sig = p
@@ -73,6 +77,8 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.IfID, nil
 	case proto.CtrlPld_Which_pathMgmt:
 		return u.PathMgmt, nil
+	case proto.CtrlPld_Which_drkeyMgmt:
+		return u.DRKeyMgmt, nil
 	case proto.CtrlPld_Which_sig:
 		return u.Sig, nil
 	case proto.CtrlPld_Which_certMgmt:
