@@ -58,6 +58,7 @@ struct DRKeyLvl2Rep {
     misc :union {         # Additional information (optional)
         unset @4 :Void;
     }
+
 }
 
 struct DRKeyMgmt {
