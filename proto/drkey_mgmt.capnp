@@ -6,16 +6,15 @@ $Go.import("github.com/scionproto/scion/go/proto");
 
 struct DRKeyReq {
     isdas @0 :UInt64;      # Src ISD-AS of the requested DRKey
-    valTime @1 :UInt64;    # Point in time where requested DRKey is valid
-    certVer @2 :UInt32;    # Version cert used to sign
+    valTime @1 :UInt32;    # Point in time where requested DRKey is valid
 }
 
 struct DRKeyRep {
     isdas @0 :UInt64;      # Src ISD-AS of the DRKey
-    expTime @1 :UInt64;    # Expiration time of the DRKey
+    expTime @1 :UInt32;    # Expiration time of the DRKey
     cipher @2 :Data;       # Encrypted DRKey
-    certVerSrc @3 :UInt32; # Version of cert used to sign
-    certVerDst @4 :UInt32; # Version of cert of public key used to encrypt
+    certVerSrc @3 :UInt64; # Version of cert used to sign
+    certVerDst @4 :UInt64; # Version of cert of public key used to encrypt
 }
 
 struct DRKeyMgmt {

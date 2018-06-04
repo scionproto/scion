@@ -28,10 +28,10 @@ var _ proto.Cerealizable = (*DRKeyRep)(nil)
 
 type DRKeyRep struct {
 	SrcIA      addr.IAInt `capnp:"isdas"`
-	ExpTime    uint64
+	ExpTime    uint32
 	Cipher     common.RawBytes
-	CertVerSrc uint32
-	CertVerDst uint32
+	CertVerSrc uint64
+	CertVerDst uint64
 }
 
 func (c *DRKeyRep) IA() addr.IA {

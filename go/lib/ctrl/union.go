@@ -33,8 +33,8 @@ type union struct {
 	IfID        *ifid.IFID       `capnp:"ifid"`
 	CertMgmt    *cert_mgmt.Pld
 	PathMgmt    *path_mgmt.Pld
-	Sibra       []byte `capnp:"-"` // Omit for now
-	DRKeyMgmt   *drkey_mgmt.Pld
+	Sibra       []byte          `capnp:"-"` // Omit for now
+	DRKeyMgmt   *drkey_mgmt.Pld `capnp:"drkeyMgmt"`
 	Sig         *sigmgmt.Pld
 	Extn        *extn.CtrlExtnDataList
 }

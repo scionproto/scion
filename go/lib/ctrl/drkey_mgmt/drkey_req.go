@@ -27,8 +27,7 @@ var _ proto.Cerealizable = (*DRKeyReq)(nil)
 
 type DRKeyReq struct {
 	SrcIA   addr.IAInt `capnp:"isdas"`
-	ValTime uint64
-	CertVer uint32
+	ValTime uint32
 }
 
 func (c *DRKeyReq) IA() addr.IA {
@@ -40,6 +39,6 @@ func (c *DRKeyReq) ProtoId() proto.ProtoIdType {
 }
 
 func (c *DRKeyReq) String() string {
-	return fmt.Sprintf("Src ISD-AS: %s ValTime: %v CertVersion: %v",
-		c.IA(), c.ValTime, c.CertVer)
+	return fmt.Sprintf("Src ISD-AS: %s ValTime: %v",
+		c.IA(), c.ValTime)
 }
