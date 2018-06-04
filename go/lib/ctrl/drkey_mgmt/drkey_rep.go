@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the Go representation of Certificate Chain requests.
+// This file contains the Go representation of first order DRKey responses.
 
 package drkey_mgmt
 
@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -43,6 +44,6 @@ func (c *DRKeyRep) ProtoId() proto.ProtoIdType {
 }
 
 func (c *DRKeyRep) String() string {
-	return fmt.Sprintf("Src ISD-AS: %s ExpTime: %v CertVerSig: %v CertVerEnc: %v",
-		c.IA(), c.ExpTime, c.CertVerSrc, c.CertVerDst)
+	return fmt.Sprintf("SrcIA: %v ExpTime: %v CertVerSig: %d CertVerEnc: %d",
+		c.IA(), util.TimeToString(util.USecsToTime(uint64(c.ExpTime))), c.CertVerSrc, c.CertVerDst)
 }
