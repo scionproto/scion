@@ -36,7 +36,7 @@ class DRKeyMgmt(CerealBox):  # pragma: no cover
 class DRKeyRequest(Cerealizable):
     """ First order DRKey request. """
     NAME = "DRKeyRequest"
-    P_CLS = P.DRKeyReq
+    P_CLS = P.DRKeyLvl1Req
 
     def __init__(self, p):
         super().__init__(p)
@@ -68,7 +68,7 @@ class DRKeyRequest(Cerealizable):
 
 class DRKeyReply(Cerealizable):
     NAME = "DRKeyReply"
-    P_CLS = P.DRKeyRep
+    P_CLS = P.DRKeyLvl1Rep
 
     def __init__(self, p):
         super().__init__(p)
