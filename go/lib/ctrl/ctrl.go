@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/drkey_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -57,6 +58,16 @@ func NewCertMgmtPld(u proto.Cerealizable, certD *cert_mgmt.Data, ctrlD *Data) (*
 		return nil, err
 	}
 	return NewPld(cpld, ctrlD)
+}
+
+// NewDRKeyMgmtPld creates a new control payload, containing a new drkey_mgmt payload,
+// which in turn contains the supplied Cerealizable instance.
+func NewDRKeyMgmtPld(u proto.Cerealizable, drkeyD *drkey_mgmt.Data, ctrlD *Data) (*Pld, error) {
+	kpld, err := drkey_mgmt.NewPld(u, drkeyD)
+	if err != nil {
+		return nil, err
+	}
+	return NewPld(kpld, ctrlD)
 }
 
 func NewPldFromRaw(b common.RawBytes) (*Pld, error) {
