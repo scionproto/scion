@@ -67,6 +67,14 @@ func regenerateCrypto() error {
 	dir, cleanF := xtest.MustTempDir("", "test-trust")
 	defer cleanF()
 
+	// Generate output dir structure.
+	for _, ia := range ias {
+		path := filepath.Join(dir, fmt.Sprintf("ISD%s/AS%s", ia.I, ia.A))
+		if err := os.MkdirAll(path, 0755); err != nil {
+			panic(err)
+		}
+	}
+
 	b := &loader.Binary{
 		Target: "github.com/scionproto/scion/go/tools/scion-pki",
 		Dir:    dir,
@@ -79,21 +87,18 @@ func regenerateCrypto() error {
 	if err != nil {
 		return err
 	}
-
-	cmd := b.Cmd("keys", "gen", "-f", "*-*")
-	cmd.Dir = filepath.Join(wd, "/testdata")
+	confDir := filepath.Join(wd, "/testdata")
+	cmd := b.Cmd("keys", "gen", "-d", confDir, "-o", dir, "*-*")
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("scion-pki: %s", msg)
 	}
 
-	cmd = b.Cmd("trc", "gen", "-f", "*")
-	cmd.Dir = filepath.Join(wd, "/testdata")
+	cmd = b.Cmd("trc", "gen", "-d", confDir, "-o", dir, "*")
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("scion-pki: %s", msg)
 	}
 
-	cmd = b.Cmd("certs", "gen", "-f", "*-*")
-	cmd.Dir = filepath.Join(wd, "/testdata")
+	cmd = b.Cmd("certs", "gen", "-d", confDir, "-o", dir, "*-*")
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("scion-pki: %s", msg)
 	}
