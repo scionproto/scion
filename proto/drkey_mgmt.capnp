@@ -13,7 +13,6 @@ struct DRKeyReq {
     flags :group {
         prefetch @5 :Bool; # Indicator request for current (false) or next (true) DRKey
     }
-
 }
 
 struct DRKeyRep {
