@@ -212,7 +212,7 @@ class PathSegment(Cerealizable):
         asms = list(self.iter_asms())
         if reverse_direction:
             asms = reversed(asms)
-            info.up_flag ^= True
+            info.cons_dir_flag ^= True
         for asm in asms:
             hofs.append(asm.pcbm(0).hof())
         return SCIONPath.from_values(info, hofs)

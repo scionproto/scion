@@ -54,7 +54,7 @@ func (rp *RtrPkt) Parse() error {
 	if _, err := rp.HopF(); err != nil {
 		return err
 	}
-	if _, err := rp.UpFlag(); err != nil {
+	if _, err := rp.ConsDirFlag(); err != nil {
 		return err
 	}
 	if _, err := rp.IFCurr(); err != nil {

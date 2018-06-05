@@ -44,12 +44,12 @@ func runGenKey(args []string) {
 		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
 	for isd, ases := range asMap {
-		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(isd))
+		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(pkicmn.RootDir, isd))
 		if err != nil {
 			pkicmn.ErrorAndExit("Error reading isd.ini: %s\n", err)
 		}
 		for _, ia := range ases {
-			dir := pkicmn.GetAsPath(ia)
+			dir := pkicmn.GetAsPath(pkicmn.OutDir, ia)
 			core := pkicmn.Contains(iconf.Trc.CoreIAs, ia)
 			fmt.Println("Generating keys for", ia)
 			if err = genAll(filepath.Join(dir, pkicmn.KeysDir), core); err != nil {

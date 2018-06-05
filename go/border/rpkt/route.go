@@ -226,7 +226,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		}
 		origIF := origIFNext
 		newIF := *rp.ifNext
-		if infoF.Up {
+		if !infoF.ConsDir {
 			rp.ifCurr = nil
 			if _, err = rp.IFCurr(); err != nil {
 				return err
@@ -255,7 +255,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
 	}
 	// Only allowed to switch from up- to up-segment if the next link is CORE.
-	if infoF.Up && rp.infoF.Up && nextLink != topology.CoreLink {
+	if !infoF.ConsDir && !rp.infoF.ConsDir && nextLink != topology.CoreLink {
 		return common.NewBasicError(
 			"Segment change from up segment to up segment with non-CORE next link",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),
@@ -263,7 +263,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		)
 	}
 	// Only allowed to switch from down- to down-segment if the previous link is CORE.
-	if !infoF.Up && !rp.infoF.Up && prevLink != topology.CoreLink {
+	if infoF.ConsDir && rp.infoF.ConsDir && prevLink != topology.CoreLink {
 		return common.NewBasicError(
 			"Segment change from down segment to down segment with non-CORE previous link",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),

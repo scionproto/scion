@@ -42,7 +42,7 @@ PathSegFlags = FlagBase((
 ))
 
 InfoOFFlags = FlagBase((
-    (1, "UP", "DOWN"),
+    (1, "CONS_DIR", "NOT_CONS_DIR"),
     (2, "SHORTCUT", ""),
     (4, "PEER_SHORTCUT", ""),
 ))

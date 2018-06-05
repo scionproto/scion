@@ -40,6 +40,7 @@ const (
 
 var (
 	RootDir string
+	OutDir  string
 	Force   bool
 )
 
@@ -149,12 +150,12 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 	return nil
 }
 
-func GetAsPath(ia addr.IA) string {
-	return filepath.Join(RootDir, fmt.Sprintf("ISD%d/AS%s", ia.I, ia.A.FileFmt()))
+func GetAsPath(baseDir string, ia addr.IA) string {
+	return filepath.Join(baseDir, fmt.Sprintf("ISD%d/AS%s", ia.I, ia.A.FileFmt()))
 }
 
-func GetIsdPath(isd addr.ISD) string {
-	return filepath.Join(RootDir, fmt.Sprintf("ISD%d", isd))
+func GetIsdPath(baseDir string, isd addr.ISD) string {
+	return filepath.Join(baseDir, fmt.Sprintf("ISD%d", isd))
 }
 
 func ErrorAndExit(format string, a ...interface{}) {

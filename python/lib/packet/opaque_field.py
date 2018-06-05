@@ -156,7 +156,7 @@ class InfoOpaqueField(OpaqueField):
     NAME = "InfoOpaqueField"
 
     def __init__(self, raw=None):  # pragma: no cover
-        self.up_flag = False
+        self.cons_dir_flag = False
         self.shortcut = False
         self.peer = False
         self.timestamp = 0
@@ -171,8 +171,8 @@ class InfoOpaqueField(OpaqueField):
         self._parse_flags(flags)
 
     def _parse_flags(self, flags):  # pragma: no cover
-        if flags & InfoOFFlags.UP:
-            self.up_flag = True
+        if flags & InfoOFFlags.CONS_DIR:
+            self.cons_dir_flag = True
         if flags & InfoOFFlags.SHORTCUT:
             self.shortcut = True
         if flags & InfoOFFlags.PEER_SHORTCUT:
@@ -184,10 +184,10 @@ class InfoOpaqueField(OpaqueField):
         assert not(not self.shortcut and self.peer)
 
     @classmethod
-    def from_values(cls, timestamp, isd, up_flag=False, shortcut=False,
+    def from_values(cls, timestamp, isd, cons_dir_flag=True, shortcut=False,
                     peer=False, hops=0):  # pragma: no cover
         inst = cls()
-        inst.up_flag = up_flag
+        inst.cons_dir_flag = cons_dir_flag
         inst.shortcut = shortcut
         inst.peer = peer
         inst.timestamp = timestamp
@@ -203,8 +203,8 @@ class InfoOpaqueField(OpaqueField):
     def _pack_flags(self):  # pragma: no cover
         self._check_flags()
         flags = 0
-        if self.up_flag:
-            flags |= InfoOFFlags.UP
+        if self.cons_dir_flag:
+            flags |= InfoOFFlags.CONS_DIR
         if self.shortcut:
             flags |= InfoOFFlags.SHORTCUT
         if self.peer:
@@ -374,9 +374,9 @@ class OpaqueFieldList(object):
             raise SCIONKeyError("Opaque field label (%s) unknown"
                                 % label) from None
 
-    def reverse_up_flag(self, label):
+    def reverse_cons_dir_flag(self, label):
         """
-        Reverse the Up flag of the first OF in a label, assuming the label isn't
+        Reverse the ConsDir flag of the first OF in a label, assuming the label isn't
         empty. Used to change direction of IOFs.
 
         :param str label: The label to modify.
@@ -389,7 +389,7 @@ class OpaqueFieldList(object):
             raise SCIONKeyError("Opaque field label (%s) unknown"
                                 % label) from None
         if len(group) > 0:
-            group[0].up_flag ^= True
+            group[0].cons_dir_flag ^= True
 
     def pack(self):
         """

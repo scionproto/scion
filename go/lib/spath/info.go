@@ -27,7 +27,8 @@ const (
 )
 
 type InfoField struct {
-	Up       bool
+	// Previously Up, ConsDir = !Up
+	ConsDir  bool
 	Shortcut bool
 	Peer     bool
 	TsInt    uint32
@@ -42,7 +43,7 @@ func InfoFFromRaw(b []byte) (*InfoField, error) {
 	}
 	inf := &InfoField{}
 	flags := b[0]
-	inf.Up = flags&0x1 != 0
+	inf.ConsDir = flags&0x1 != 0
 	inf.Shortcut = flags&0x2 != 0
 	inf.Peer = flags&0x4 != 0
 	offset := 1
@@ -56,7 +57,7 @@ func InfoFFromRaw(b []byte) (*InfoField, error) {
 
 func (inf *InfoField) Write(b common.RawBytes) {
 	b[0] = 0
-	if inf.Up {
+	if inf.ConsDir {
 		b[0] |= 0x1
 	}
 	if inf.Shortcut {
@@ -74,8 +75,8 @@ func (inf *InfoField) Write(b common.RawBytes) {
 }
 
 func (inf *InfoField) String() string {
-	return fmt.Sprintf("ISD: %v TS: %v Hops: %v Up: %v Shortcut: %v Peer: %v",
-		inf.ISD, inf.Timestamp(), inf.Hops, inf.Up, inf.Shortcut, inf.Peer)
+	return fmt.Sprintf("ISD: %v TS: %v Hops: %v ConsDir: %v Shortcut: %v Peer: %v",
+		inf.ISD, inf.Timestamp(), inf.Hops, inf.ConsDir, inf.Shortcut, inf.Peer)
 }
 
 func (inf *InfoField) Timestamp() time.Time {

@@ -42,20 +42,20 @@ type hookRoute func() (HookResult, error)
 // of the router register to handle certain functions by adding a callback to
 // the relevant slice.
 type hooks struct {
-	DstIA    []hookIA
-	SrcIA    []hookIA
-	DstHost  []hookHost
-	SrcHost  []hookHost
-	Infof    []hookInfoF
-	HopF     []hookHopF
-	UpFlag   []hookBool
-	IFCurr   []hookIntf
-	IFNext   []hookIntf
-	Validate []hookValidate
-	L4       []hookL4
-	Payload  []hookPayload
-	Process  []hookProcess
-	Route    []hookRoute
+	DstIA       []hookIA
+	SrcIA       []hookIA
+	DstHost     []hookHost
+	SrcHost     []hookHost
+	Infof       []hookInfoF
+	HopF        []hookHopF
+	ConsDirFlag []hookBool
+	IFCurr      []hookIntf
+	IFNext      []hookIntf
+	Validate    []hookValidate
+	L4          []hookL4
+	Payload     []hookPayload
+	Process     []hookProcess
+	Route       []hookRoute
 }
 
 type HookResult int

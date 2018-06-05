@@ -194,7 +194,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 		}
 		if hopF != nil && hopF.Xover {
 			reply.InfoF()
-			reply.UpFlag()
+			reply.ConsDirFlag()
 			// Always increment reversed path on a xover point.
 			if _, err := reply.IncPath(); err != nil {
 				return nil, err
@@ -210,7 +210,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 			}
 		} else if rp.DirFrom == rcmn.DirExternal {
 			reply.InfoF()
-			reply.UpFlag()
+			reply.ConsDirFlag()
 			// Increase path if the current HOF is not xover and
 			// this router is an ingress router.
 			if _, err := reply.IncPath(); err != nil {

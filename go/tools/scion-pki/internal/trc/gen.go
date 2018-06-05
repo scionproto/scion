@@ -45,18 +45,19 @@ func runGenTrc(args []string) {
 }
 
 func genTrc(isd addr.ISD) error {
-	dir := pkicmn.GetIsdPath(isd)
+	confDir := pkicmn.GetIsdPath(pkicmn.RootDir, isd)
 	// Check that isd.ini exists, otherwise skip directory.
-	cpath := filepath.Join(dir, conf.IsdConfFileName)
+	cpath := filepath.Join(confDir, conf.IsdConfFileName)
 	if _, err := os.Stat(cpath); os.IsNotExist(err) {
 		return nil
 	}
-	iconf, err := conf.LoadIsdConf(dir)
+	iconf, err := conf.LoadIsdConf(confDir)
 	if err != nil {
 		return common.NewBasicError("Error loading TRC conf", err)
 	}
 	fmt.Printf("Generating TRC for ISD %d\n", isd)
-	t, err := newTrc(isd, iconf, dir)
+	outDir := pkicmn.GetIsdPath(pkicmn.OutDir, isd)
+	t, err := newTrc(isd, iconf, outDir)
 	if err != nil {
 		return err
 	}
@@ -65,7 +66,7 @@ func genTrc(isd addr.ISD) error {
 		return common.NewBasicError("Error json-encoding TRC", err)
 	}
 	// Check if output directory exists.
-	outDir := filepath.Join(dir, pkicmn.TRCsDir)
+	outDir = filepath.Join(outDir, pkicmn.TRCsDir)
 	if _, err = os.Stat(outDir); os.IsNotExist(err) {
 		if err = os.MkdirAll(outDir, 0755); err != nil {
 			return common.NewBasicError("Cannot create output dir", err, "path", outDir)
@@ -100,9 +101,8 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 		var as coreAS
 		var err error
 		as.IA = cia
-		aspath := pkicmn.GetAsPath(cia)
-		cpath := filepath.Join(aspath, conf.AsConfFileName)
-		a, err := conf.LoadAsConf(aspath)
+		cpath := filepath.Join(pkicmn.GetAsPath(pkicmn.RootDir, cia), conf.AsConfFileName)
+		a, err := conf.LoadAsConf(filepath.Dir(cpath))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading as.ini", err, "path", cpath)
 		}
@@ -118,11 +118,12 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 		if a.KeyAlgorithms.Offline != "" {
 			as.OfflineKeyAlg = a.KeyAlgorithms.Offline
 		}
-		as.OnlineKey, err = trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OnKeyFile))
+		keysPath := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, cia), pkicmn.KeysDir)
+		as.OnlineKey, err = trust.LoadKey(filepath.Join(keysPath, trust.OnKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
 		}
-		as.OfflineKey, err = trust.LoadKey(filepath.Join(aspath, pkicmn.KeysDir, trust.OffKeyFile))
+		as.OfflineKey, err = trust.LoadKey(filepath.Join(keysPath, trust.OffKeyFile))
 		if err != nil {
 			return nil, common.NewBasicError("Error loading offline key", err)
 		}
