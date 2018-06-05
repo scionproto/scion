@@ -136,7 +136,7 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 	// Check if file already exists.
 	if _, err := os.Stat(path); err == nil {
 		if !Force {
-			Printf("%s already exists. Use -f to overwrite.\n", path)
+			PrintCmd("%s already exists. Use -f to overwrite.\n", path)
 			return nil
 		}
 		// Nuke file to ensure correct permissions.
@@ -147,7 +147,7 @@ func WriteToFile(raw common.RawBytes, path string, perm os.FileMode) error {
 	if err := ioutil.WriteFile(path, append(raw, "\n"...), perm); err != nil {
 		return err
 	}
-	Printf("Successfully written %s\n", path)
+	PrintCmd("Successfully written %s\n", path)
 	return nil
 }
 
@@ -164,7 +164,7 @@ func ErrorAndExit(format string, a ...interface{}) {
 	os.Exit(2)
 }
 
-func Printf(format string, a ...interface{}) {
+func PrintCmd(format string, a ...interface{}) {
 	if !Quiet {
 		fmt.Printf(format, a...)
 	}

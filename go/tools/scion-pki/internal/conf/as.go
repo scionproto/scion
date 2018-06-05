@@ -69,7 +69,7 @@ func (a *As) Write(path string, force bool) error {
 	if !force {
 		// Check if the file already exists.
 		if _, err := os.Stat(path); err == nil {
-			pkicmn.Printf("%s already exists. Use -f to overwrite.\n", path)
+			pkicmn.PrintCmd("%s already exists. Use -f to overwrite.\n", path)
 			return nil
 		}
 	}
@@ -80,7 +80,7 @@ func (a *As) Write(path string, force bool) error {
 	if err := iniCfg.SaveTo(path); err != nil {
 		return err
 	}
-	pkicmn.Printf("Successfully written %s\n", path)
+	pkicmn.PrintCmd("Successfully written %s\n", path)
 	return nil
 }
 
