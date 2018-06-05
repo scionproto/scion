@@ -27,7 +27,7 @@ func runGenIsdTmpl(args []string) {
 	if err != nil {
 		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
-	pkicmn.PrintCmd("Generating trc config templates.\n")
+	pkicmn.QuietPrint("Generating trc config templates.\n")
 	for isd := range asMap {
 		genIsdTmpl(isd)
 	}
@@ -35,7 +35,7 @@ func runGenIsdTmpl(args []string) {
 
 func genIsdTmpl(isd addr.ISD) error {
 	dir := pkicmn.GetIsdPath(pkicmn.RootDir, isd)
-	pkicmn.PrintCmd("Generating configuration template for ISD%d\n", isd)
+	pkicmn.QuietPrint("Generating configuration template for ISD%d\n", isd)
 	i := &conf.Isd{Trc: &conf.Trc{Version: 1}}
 	return i.Write(filepath.Join(dir, conf.IsdConfFileName), pkicmn.Force)
 }

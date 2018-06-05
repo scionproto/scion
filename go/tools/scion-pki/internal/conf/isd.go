@@ -75,7 +75,7 @@ func (i *Isd) Write(path string, force bool) error {
 	// Check if file exists and do not override without -f
 	if !force {
 		if _, err := os.Stat(path); err == nil {
-			pkicmn.PrintCmd("%s already exists. Use -f to overwrite.\n", path)
+			pkicmn.QuietPrint("%s already exists. Use -f to overwrite.\n", path)
 			return nil
 		}
 	}
@@ -94,7 +94,7 @@ func (i *Isd) Write(path string, force bool) error {
 	if err := iniCfg.SaveTo(path); err != nil {
 		return err
 	}
-	pkicmn.PrintCmd("Successfully written %s\n", path)
+	pkicmn.QuietPrint("Successfully written %s\n", path)
 	return nil
 }
 

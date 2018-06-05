@@ -50,7 +50,7 @@ func runGenKey(args []string) {
 		for _, ia := range ases {
 			dir := pkicmn.GetAsPath(pkicmn.OutDir, ia)
 			core := pkicmn.Contains(iconf.Trc.CoreIAs, ia)
-			pkicmn.PrintCmd("Generating keys for %s\n", ia)
+			pkicmn.QuietPrint("Generating keys for %s\n", ia)
 			if err = genAll(filepath.Join(dir, pkicmn.KeysDir), core); err != nil {
 				pkicmn.ErrorAndExit("Error generating keys: %s\n", err)
 			}

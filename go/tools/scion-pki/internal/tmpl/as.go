@@ -26,7 +26,7 @@ func runGenAsTmpl(args []string) {
 	if err != nil {
 		pkicmn.ErrorAndExit("Error: %s\n", err)
 	}
-	pkicmn.PrintCmd("Generating cert config templates.\n")
+	pkicmn.QuietPrint("Generating cert config templates.\n")
 	for isd, ases := range asMap {
 		iconf, err := conf.LoadIsdConf(pkicmn.GetIsdPath(pkicmn.RootDir, isd))
 		if err != nil {

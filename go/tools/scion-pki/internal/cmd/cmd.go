@@ -64,12 +64,12 @@ var autoCompleteCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if zsh {
 			RootCmd.GenZshCompletionFile(zshCompletionScript)
-			pkicmn.PrintCmd("Generated %s\n", zshCompletionScript)
-			pkicmn.PrintCmd(zshInstruction)
+			pkicmn.QuietPrint("Generated %s\n", zshCompletionScript)
+			pkicmn.QuietPrint(zshInstruction)
 		} else {
 			RootCmd.GenBashCompletionFile(bashCompletionScript)
-			pkicmn.PrintCmd("Generated %s\n", bashCompletionScript)
-			pkicmn.PrintCmd(bashInstruction)
+			pkicmn.QuietPrint("Generated %s\n", bashCompletionScript)
+			pkicmn.QuietPrint(bashInstruction)
 		}
 	},
 }
