@@ -41,11 +41,11 @@ func runVerify(args []string) {
 			continue
 		}
 		if err = verifyChain(chain, chain.Leaf.Subject); err != nil {
-			fmt.Printf("Verification of %s FAILED. Reason: %s\n", certPath, err)
+			pkicmn.Printf("Verification of %s FAILED. Reason: %s\n", certPath, err)
 			exitStatus = 2
 			continue
 		}
-		fmt.Printf("Verification of %s SUCCEEDED.\n", certPath)
+		pkicmn.Printf("Verification of %s SUCCEEDED.\n", certPath)
 	}
 	os.Exit(exitStatus)
 }
