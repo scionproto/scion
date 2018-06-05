@@ -72,7 +72,7 @@ func genCert(ia addr.IA, isIssuer bool) error {
 	// Check that as.ini exists, otherwise skip directory.
 	cpath := filepath.Join(confDir, conf.AsConfFileName)
 	if _, err = os.Stat(cpath); os.IsNotExist(err) {
-		fmt.Printf("Skipping %s. Missing %s\n", confDir, conf.AsConfFileName)
+		pkicmn.QuietPrint("Skipping %s. Missing %s\n", confDir, conf.AsConfFileName)
 		return nil
 	}
 	a, err := conf.LoadAsConf(confDir)
@@ -87,10 +87,10 @@ func genCert(ia addr.IA, isIssuer bool) error {
 	fname := fmt.Sprintf(pkicmn.CertNameFmt, ia.I, ia.A.FileFmt(), a.AsCert.Version)
 	_, err = os.Stat(filepath.Join(outDir, pkicmn.CertsDir, fname))
 	if err == nil && !pkicmn.Force {
-		fmt.Printf("%s already exists. Use -f to overwrite.\n", fname)
+		pkicmn.QuietPrint("%s already exists. Use -f to overwrite.\n", fname)
 		return nil
 	}
-	fmt.Println("Generating Certificate Chain for", ia)
+	pkicmn.QuietPrint("Generating Certificate Chain for %s\n", ia)
 	// If we are an issuer then we need to generate an issuer cert first.
 	var issuerCert *cert.Certificate
 	if isIssuer {
