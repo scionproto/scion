@@ -67,14 +67,6 @@ func regenerateCrypto() error {
 	dir, cleanF := xtest.MustTempDir("", "test-trust")
 	defer cleanF()
 
-	// Generate output dir structure.
-	for _, ia := range ias {
-		path := filepath.Join(dir, fmt.Sprintf("ISD%s/AS%s", ia.I, ia.A))
-		if err := os.MkdirAll(path, 0755); err != nil {
-			panic(err)
-		}
-	}
-
 	b := &loader.Binary{
 		Target: "github.com/scionproto/scion/go/tools/scion-pki",
 		Dir:    dir,
