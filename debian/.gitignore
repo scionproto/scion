@@ -1,6 +1,8 @@
 *.debhelper.log
 build
 debhelper-build-stamp
-libscion/*
-libscion-dev/*
-libfilter/*
+libscion0/*
+libscion0-dev/*
+libfilter0/*
+libfilter0-dev/*
+.debhelper/*

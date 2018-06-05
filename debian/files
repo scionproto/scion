@@ -1,3 +1,4 @@
-libfilter_0.1-1ubuntu0_amd64.deb net optional
-libscion-dev_0.1-1ubuntu0_amd64.deb net optional
-libscion_0.1-1ubuntu0_amd64.deb net optional
+libfilter0-dev_0.1-1ubuntu0_amd64.deb libdevel optional
+libfilter0_0.1-1ubuntu0_amd64.deb net optional
+libscion0-dev_0.1-1ubuntu0_amd64.deb libdevel optional
+libscion0_0.1-1ubuntu0_amd64.deb net optional

@@ -19,16 +19,31 @@ DESTDIR := ${CURDIR}/${BUILDDIR}
 	dh $@ 
 
 override_dh_auto_clean:
+	make libfilter target=clean
 	make libscion target=clean
 
 override_dh_auto_build:
 	make libscion
+	make libfilter
 override_dh_auto_install:
 	make libscion target=install DESTDIR=${DESTDIR} PREFIX=/usr
-	cp ${DESTDIR}/usr/lib/libscion.so debian/libscion/usr/lib/libscion.so
-	cp ${DESTDIR}/usr/lib/pkgconfig/scion.pc debian/libscion-dev/usr/lib/pkgconfig/scion.pc
-	cp ${DESTDIR}/usr/lib/libscion.a debian/libscion-dev/usr/lib/libscion.a
-	cp -r ${DESTDIR}/usr/include/scion/* debian/libscion-dev/usr/include/scion
+	cp ${DESTDIR}/usr/lib/libscion.so debian/libscion0/usr/lib/libscion.so
+	ln -s libscion.so debian/libscion0/usr/lib/libscion.so.0
+	
+	cp ${DESTDIR}/usr/lib/pkgconfig/scion.pc debian/libscion0-dev/usr/lib/pkgconfig/scion.pc
+	cp ${DESTDIR}/usr/lib/libscion.a debian/libscion0-dev/usr/lib/libscion.a
+	cp -r ${DESTDIR}/usr/include/scion/* debian/libscion0-dev/usr/include/scion
+	
+	make libfilter target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	cp ${DESTDIR}/usr/lib/libfilter.so debian/libfilter0/usr/lib/libfilter.so
+	ln -s libfilter.so debian/libfilter0/usr/lib/libfilter.so.0
+	
+	cp ${DESTDIR}/usr/lib/pkgconfig/scion-filter.pc debian/libfilter0-dev/usr/lib/pkgconfig/scion-filter.pc
+	cp ${DESTDIR}/usr/lib/libfilter.a debian/libfilter0-dev/usr/lib/libfilter.a
+	cp -r ${DESTDIR}/usr/include/scion-filter/* debian/libscion0-dev/usr/include/scion-filter
+
+override_dh_shlibdeps:
+	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/debian/libscion0/usr/lib dh_shlibdeps --dpkg-shlibdeps-params="--ignore-missing-info"
 
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )

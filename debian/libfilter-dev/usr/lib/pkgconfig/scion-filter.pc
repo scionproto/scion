@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: scion-filter
+Description: SCION filter library
+Version: 0.1
+Cflags: -I${includedir}/scion-filter
+Libs: -L${libdir} -lfilter

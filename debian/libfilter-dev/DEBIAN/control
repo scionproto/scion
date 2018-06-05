@@ -1,0 +1,12 @@
+Package: libfilter-dev
+Source: scion
+Version: 0.1-1ubuntu0
+Architecture: amd64
+Maintainer: Martin Koppehel <mkoppehel@embedded.enterprises>
+Installed-Size: 26
+Depends: libscion-dev
+Section: net
+Priority: optional
+Homepage: https://scion-architecture.net
+Description: SCION filter library - development files
+ Library for filtering packets

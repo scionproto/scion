@@ -220,7 +220,8 @@ void format_filter(Filter *f, char **str)
     format_scionaddr(&f->src, &src);
     format_scionaddr(&f->dst, &dst);
     format_scionaddr(&f->hop, &hop);
-    asprintf(str, "src = %s\ndst = %s\nhop = %s\noptions = %d", src, dst, hop, f->options);
+    int rv = asprintf(str, "src = %s\ndst = %s\nhop = %s\noptions = %d", src, dst, hop, f->options);
+    if (rv < 0) str = NULL;
     free(src);
     free(dst);
     free(hop);
@@ -230,8 +231,9 @@ void format_scionaddr(SCIONAddr *addr, char **str)
 {
     char buf[MAX_HOST_ADDR_STR];
     format_host(addr->host.addr_type, addr->host.addr, buf, MAX_HOST_ADDR_STR);
-    asprintf(str, "[ISD-AS : %d-%" PRId64 ", IP : %s, Port : %d]",
+    int rv = asprintf(str, "[ISD-AS : %d-%" PRId64 ", IP : %s, Port : %d]",
              ISD(addr->isd_as), AS(addr->isd_as), buf, addr->host.port);
+    if (rv < 0) *str = NULL;
 }
 
 int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop, int on_egress)
