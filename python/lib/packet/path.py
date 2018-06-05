@@ -195,16 +195,16 @@ class SCIONPath(Serializable):
             # Peer shortcut paths have two extra HOFs; 1 for the peering
             # interface, and another from the upstream interface, used for
             # verification only.
-            ingress_up = {(True, False): +2, (True, True): +1,
-                          (False, False): -1, (False, True): -2}
+            ingress_cons_dir = {(True, False): +2, (True, True): +1,
+                                (False, False): -1, (False, True): -2}
         else:
             # Non-peer shortcut paths have an extra HOF above the last hop, used
             # for verification of the last hop in that segment.
-            ingress_up = {(True, False): None, (True, True): -1,
-                          (False, False): +1, (False, True): None}
+            ingress_cons_dir = {(True, False): None, (True, True): -1,
+                                (False, False): +1, (False, True): None}
         # Map the local direction of travel and the IOF consDir flag to the required
         # offset of the verification HOF (or None, if there's no relevant HOF).
-        offset = ingress_up[ingress, iof.cons_dir_flag]
+        offset = ingress_cons_dir[ingress, iof.cons_dir_flag]
         if offset is None:
             return None
         return self._ofs.get_by_idx(self._hof_idx + offset)
