@@ -52,9 +52,13 @@ var (
 		xtest.MustParseIA("5-ff00:0:d"), xtest.MustParseIA("5-ff00:0:e"),
 		xtest.MustParseIA("5-ff00:0:f"),
 	}
+	tmpDir string
 )
 
 func TestMain(m *testing.M) {
+	var cleanF func()
+	tmpDir, cleanF = xtest.MustTempDir("", "test-trust")
+	defer cleanF()
 	if err := regenerateCrypto(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -64,12 +68,9 @@ func TestMain(m *testing.M) {
 }
 
 func regenerateCrypto() error {
-	dir, cleanF := xtest.MustTempDir("", "test-trust")
-	defer cleanF()
-
 	b := &loader.Binary{
 		Target: "github.com/scionproto/scion/go/tools/scion-pki",
-		Dir:    dir,
+		Dir:    tmpDir,
 	}
 	if err := b.Build(); err != nil {
 		panic(err)
@@ -79,21 +80,18 @@ func regenerateCrypto() error {
 	if err != nil {
 		return err
 	}
-
-	cmd := b.Cmd("keys", "gen", "-f", "*-*")
-	cmd.Dir = filepath.Join(wd, "/testdata")
+	confDir := filepath.Join(wd, "/testdata")
+	cmd := b.Cmd("keys", "gen", "-d", confDir, "-o", tmpDir, "*-*")
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("scion-pki: %s", msg)
 	}
 
-	cmd = b.Cmd("trc", "gen", "-f", "*")
-	cmd.Dir = filepath.Join(wd, "/testdata")
+	cmd = b.Cmd("trc", "gen", "-d", confDir, "-o", tmpDir, "*")
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("scion-pki: %s", msg)
 	}
 
-	cmd = b.Cmd("certs", "gen", "-f", "*-*")
-	cmd.Dir = filepath.Join(wd, "/testdata")
+	cmd = b.Cmd("certs", "gen", "-d", confDir, "-o", tmpDir, "*-*")
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("scion-pki: %s", msg)
 	}
@@ -745,12 +743,12 @@ func loadCrypto(t *testing.T, isds []addr.ISD,
 }
 
 func getTRCFileName(isd addr.ISD, version uint64) string {
-	return fmt.Sprintf("testdata/ISD%d/trcs/ISD%d-V%d.trc", isd, isd, version)
+	return fmt.Sprintf("%s/ISD%d/trcs/ISD%d-V%d.trc", tmpDir, isd, isd, version)
 }
 
 func getChainFileName(ia addr.IA, version uint64) string {
-	return fmt.Sprintf("testdata/ISD%d/AS%s/certs/ISD%d-AS%s-V%d.crt",
-		ia.I, ia.A.FileFmt(), ia.I, ia.A.FileFmt(), version)
+	return fmt.Sprintf("%s/ISD%d/AS%s/certs/ISD%d-AS%s-V%d.crt",
+		tmpDir, ia.I, ia.A.FileFmt(), ia.I, ia.A.FileFmt(), version)
 }
 
 func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func()) {

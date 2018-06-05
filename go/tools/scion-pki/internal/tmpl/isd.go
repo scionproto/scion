@@ -35,7 +35,7 @@ func runGenIsdTmpl(args []string) {
 }
 
 func genIsdTmpl(isd addr.ISD) error {
-	dir := pkicmn.GetIsdPath(isd)
+	dir := pkicmn.GetIsdPath(pkicmn.RootDir, isd)
 	fmt.Printf("Generating configuration template for ISD%d\n", isd)
 	i := &conf.Isd{Trc: &conf.Trc{Version: 1}}
 	return i.Write(filepath.Join(dir, conf.IsdConfFileName), pkicmn.Force)
