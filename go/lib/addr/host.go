@@ -271,11 +271,9 @@ func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 
 func HostFromIP(ip net.IP) HostAddr {
 	if ip.To4() != nil {
-		h := HostIPv4(ip)
-		return &h
+		return HostIPv4(ip)
 	}
-	h := HostIPv6(ip)
-	return &h
+	return HostIPv6(ip)
 }
 
 func HostLen(htype HostAddrType) (uint8, error) {
