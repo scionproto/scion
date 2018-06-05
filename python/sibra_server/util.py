@@ -39,10 +39,10 @@ def find_last_ifid(pkt, ext):
         path = pkt.path
         iof = path.get_iof()
         hof = path.get_hof()
-        if iof.up_flag:
-            return hof.egress_if
-        else:
+        if iof.cons_dir_flag:
             return hof.ingress_if
+        else:
+            return hof.egress_if
     sof = ext.active_blocks[0].sofs[ext.curr_hop]
     if ext.fwd:
         return sof.ingress

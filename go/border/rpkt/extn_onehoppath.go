@@ -61,7 +61,7 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, error) {
 	if err != nil {
 		return HookError, nil, err
 	}
-	if currHopF.Ingress != 0 || currHopF.Egress != 0 {
+	if currHopF.ConsIngress != 0 || currHopF.ConsEgress != 0 {
 		// The current hop field has already been generated.
 		return HookContinue, nil, nil
 	}
