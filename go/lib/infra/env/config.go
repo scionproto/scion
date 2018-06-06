@@ -14,15 +14,26 @@
 
 package env
 
+const (
+	DefaultLoggingFileSize   = 50
+	DefaultLoggingFileMaxAge = 7
+)
+
 type Config struct {
+	General General
+	// Logging and metrics information.
+	Logging Logging
+}
+
+type General struct {
 	// ID is the element ID.
 	ID string
 	// Bind is the local address to listen on for SCION messages.
 	Bind string
-	// Logging and metrics information.
-	Logging Logging
-	// Databases contains the location of various databases.
-	Databases Databases
+	// Trust is the file path for the local trustdb.
+	TrustDB string
+	// Topology is the file path for the local topology JSON file.
+	Topology string
 }
 
 type Logging struct {
@@ -58,13 +69,6 @@ type Metrics struct {
 	Prometheus string
 }
 
-type Databases struct {
-	// Trust is the file path for the local trustdb.
-	Trust string
-	// Topology is the file path for the local topology JSON file.
-	Topology string
-}
-
 // SetDefaults populates unset fields in cfg to their default values (if they
 // have one).
 func SetDefaults(cfg *Config) {
@@ -75,8 +79,3 @@ func SetDefaults(cfg *Config) {
 		cfg.Logging.File.MaxAge = DefaultLoggingFileMaxAge
 	}
 }
-
-const (
-	DefaultLoggingFileSize   = 50
-	DefaultLoggingFileMaxAge = 7
-)
