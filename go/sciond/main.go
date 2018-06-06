@@ -40,20 +40,22 @@ const (
 	ShutdownWaitTimeout = 5 * time.Second
 )
 
+type ConfigT struct {
+	env.Config
+	SD struct {
+		// Address to listen on via the reliable socket protocol. If empty,
+		// a reliable socket server is not started.
+		Reliable string
+		// Address to listen on for normal unixgram messages. If empty, a
+		// unixgram server is not started.
+		Unix string
+	}
+}
+
 var (
 	flagConfig = flag.String("config", "", "Service TOML config file (required)")
 
-	Config struct {
-		env.Config
-		SD struct {
-			// Address to listen on via the reliable socket protocol. If empty,
-			// a reliable socket server is not started.
-			Reliable string
-			// Address to listen on for normal unixgram messages. If empty, a
-			// unixgram server is not started.
-			Unix string
-		}
-	}
+	Config ConfigT
 )
 
 func main() {
