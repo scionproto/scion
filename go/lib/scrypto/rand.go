@@ -16,10 +16,16 @@ package scrypto
 
 import (
 	"crypto/rand"
+	"io"
 	mrand "math/rand"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
+)
+
+const (
+	InvalidNonceSize      = "Invalid nonce size"
+	UnableToGenerateNonce = "Unable to generate nonce"
 )
 
 func RandUint64() uint64 {
@@ -44,4 +50,17 @@ func MathRandSeed() {
 	mathSeedOnce.Do(func() {
 		mrand.Seed(RandInt64())
 	})
+}
+
+// Nonce takes an input length and returns a random nonce of the given length.
+func Nonce(l int) (common.RawBytes, error) {
+	if l <= 0 {
+		return nil, common.NewBasicError(InvalidNonceSize, nil)
+	}
+	nonce := make([]byte, l)
+	_, err := io.ReadFull(rand.Reader, nonce)
+	if err != nil {
+		return nil, common.NewBasicError(UnableToGenerateNonce, err)
+	}
+	return nonce, nil
 }
