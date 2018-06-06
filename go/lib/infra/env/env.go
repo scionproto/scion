@@ -36,6 +36,8 @@ import (
 var sighupC chan os.Signal
 
 func init() {
+	os.Setenv("TZ", "UTC")
+
 	sighupC = make(chan os.Signal, 1)
 	signal.Notify(sighupC, syscall.SIGHUP)
 }

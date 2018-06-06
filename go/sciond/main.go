@@ -74,7 +74,7 @@ func realMain() int {
 		return 1
 	}
 
-	env.SetDefaults(&Config.Config)
+	Config.SetDefaults()
 	environment, err := env.Init(&Config.Config, nil)
 	if err != nil {
 		log.Crit("Error", "err", err)
