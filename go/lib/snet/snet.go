@@ -258,7 +258,10 @@ func (n *Network) PathResolver() *pathmgr.PR {
 
 // Sciond returns the sciond.Service that the network is using.
 func (n *Network) Sciond() sciond.Service {
-	return n.pathResolver.Sciond()
+	if n.pathResolver != nil {
+		return n.pathResolver.Sciond()
+	}
+	return nil
 }
 
 // IA returns the ISD-AS assigned to n
