@@ -341,7 +341,9 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 // running SCIOND-less.
 func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var pathSet spathmeta.AppPathSet
-	assert.Must(c.scionNet.pathResolver != nil, "must run with SCIOND for path selection")
+	if assert.On {
+		assert.Must(c.scionNet.pathResolver != nil, "must run with SCIOND for path selection")
+	}
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
 	if c.raddr == nil {
