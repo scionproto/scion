@@ -1,5 +1,8 @@
-id = "sd0-test-0"
-bind = "1-ff00:0:133,[127.0.0.1]:50000"
+[general]
+  id = "sd0-test-0"
+  bind = "1-ff00:0:133,[127.0.0.1]:50000"
+  trustdb = "trustdb"
+  topology = "gen/whatever/foo"
 
 [logging]
   [logging.file]
@@ -10,18 +13,14 @@ bind = "1-ff00:0:133,[127.0.0.1]:50000"
     # size = 50
     # Max age of log file in days (default 7)
     # max_age = 7
-	# How frequently to flush to the log file, in seconds. If 0, all messages
-	# are immediately flushed. If negative, messages are never flushed
-	# automatically.
+    # How frequently to flush to the log file, in seconds. If 0, all messages
+    # are immediately flushed. If negative, messages are never flushed
+    # automatically.
     flush_interval = 10
   [logging.console]
     level = "warn"
   [logging.metrics]
     # prometheus = "127.0.0.1:8000"
-
-[databases]
-  trust = "trustdb"
-  topology = "gen/whatever/foo"
 
 [sd]
   # Address to listen on via the reliable socket protocol. If empty, a reliable
