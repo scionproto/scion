@@ -59,6 +59,7 @@ func (cfg *Cfg) postprocess() {
 }
 
 type ASEntry struct {
+	Name string
 	Nets []*IPNet
 	Sigs SIGSet
 }
