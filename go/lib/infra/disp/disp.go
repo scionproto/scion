@@ -40,6 +40,7 @@ package disp
 
 import (
 	"context"
+	"io"
 	"net"
 	"sync"
 
@@ -196,7 +197,7 @@ func (d *Dispatcher) recvNext() bool {
 	if err != nil {
 		d.log.Warn("error", "err",
 			common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom"))
-		if err.Error() == "EOF" {
+		if err == io.EOF {
 			return true
 		}
 		return false
