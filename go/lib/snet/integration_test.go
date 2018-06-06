@@ -154,11 +154,11 @@ func ClientServer(haveSciond bool, idx int, tc TestCase) {
 		cconn.SetDeadline(time.Now().Add(5 * time.Second))
 		SoMsg("Client deadline error", err, ShouldBeNil)
 
+		n, err := cconn.Write([]byte("Hello!"))
+		xtest.SoMsgError("Client write error", err, tc.expectWriteError)
 		// Only run the message exchange in cases where snet doesn't error out
 		// due to needing a path in SCIOND-less mode of operation.
 		if tc.expectWriteError == false {
-			n, err := cconn.Write([]byte("Hello!"))
-			xtest.SoMsgError("Client write error", err, false)
 			SoMsg("Client written bytes", n, ShouldEqual, len("Hello!"))
 
 			n, raddr, err := sconn.ReadFromSCION(b)
