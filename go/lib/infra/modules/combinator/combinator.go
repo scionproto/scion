@@ -59,9 +59,9 @@ type InputSegment struct {
 	Type proto.PathSegType
 }
 
-// UpFlag returns 1 if the segment is an UpSegment or CoreSegment.
-func (s *InputSegment) UpFlag() bool {
-	return s.Type == proto.PathSegType_up || s.Type == proto.PathSegType_core
+// ConsDir returns 1 if the segment is a DownSegment.
+func (s *InputSegment) ConsDir() bool {
+	return s.Type == proto.PathSegType_down
 }
 
 type Path struct {
@@ -163,7 +163,7 @@ type InfoField struct {
 
 func (field *InfoField) String() string {
 	return fmt.Sprintf("IF %s%s%s ISD=%d",
-		flagPrint("U", field.Up),
+		flagPrint("C", field.ConsDir),
 		flagPrint("S", field.Shortcut),
 		flagPrint("P", field.Peer),
 		field.ISD)
@@ -177,8 +177,8 @@ func (field *HopField) String() string {
 	return fmt.Sprintf("HF %s%s InIF=%d OutIF=%d",
 		flagPrint("X", field.Xover),
 		flagPrint("V", field.VerifyOnly),
-		field.Ingress,
-		field.Egress)
+		field.ConsIngress,
+		field.ConsEgress)
 }
 
 func flagPrint(name string, b bool) string {

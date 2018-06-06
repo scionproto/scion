@@ -1,7 +1,7 @@
 Path #0:
   Weight: 2
   Fields:
-    IF U.. ISD=2
+    IF ... ISD=2
       HF .. InIF=1311 OutIF=0
       HF .. InIF=1121 OutIF=1113
       HF .. InIF=0 OutIF=2111
@@ -13,7 +13,7 @@ Path #0:
 Path #1:
   Weight: 3
   Fields:
-    IF U.. ISD=2
+    IF ... ISD=2
       HF .. InIF=1312 OutIF=0
       HF .. InIF=1211 OutIF=1213
       HF .. InIF=1121 OutIF=1112
@@ -28,7 +28,7 @@ Path #1:
 Path #2:
   Weight: 4
   Fields:
-    IF U.. ISD=2
+    IF ... ISD=2
       HF .. InIF=1311 OutIF=0
       HF .. InIF=1112 OutIF=1113
       HF .. InIF=1222 OutIF=1211

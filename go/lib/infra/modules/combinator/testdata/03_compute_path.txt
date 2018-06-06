@@ -1,10 +1,10 @@
 Path #0:
   Weight: 2
   Fields:
-    IF U.. ISD=1
+    IF ... ISD=1
       HF .. InIF=1311 OutIF=0
       HF X. InIF=0 OutIF=1113
-    IF ... ISD=1
+    IF C.. ISD=1
       HF X. InIF=0 OutIF=1114
       HF .. InIF=1411 OutIF=0
   Interfaces:

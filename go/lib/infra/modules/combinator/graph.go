@@ -132,7 +132,7 @@ func (g *DAMG) traverseSegment(segment *InputSegment) {
 				}
 				dstVertex = VertexFromIA(currentIA)
 			} else {
-				dstVertex = VertexFromPeering(currentIA, he.Ingress, hop.InIA(), hop.RemoteInIF)
+				dstVertex = VertexFromPeering(currentIA, he.ConsIngress, hop.InIA(), hop.RemoteInIF)
 			}
 
 			if segment.Type == proto.PathSegType_down {
@@ -276,7 +276,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 			ExpTime: spath.MaxTimestamp,
 		}
 		currentSeg.initInfoFieldFrom(solEdge.segment.PathSegment)
-		currentSeg.InfoField.Up = solEdge.segment.UpFlag()
+		currentSeg.InfoField.ConsDir = solEdge.segment.ConsDir()
 		currentSeg.InfoField.Shortcut = solEdge.edge.Shortcut != 0
 		currentSeg.InfoField.Peer = solEdge.edge.Peer != 0
 		path.Segments = append(path.Segments, currentSeg)
@@ -293,14 +293,14 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 			newHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[0])
 			currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
 				uint32(newHF.ExpTime)*spath.ExpTimeUnit)
-			inIFID, outIFID = newHF.Egress, newHF.Ingress
+			inIFID, outIFID = newHF.ConsEgress, newHF.ConsIngress
 
 			// If we've transitioned from a previous segment, set Xover flag.
 			if edgeIdx > 0 {
-				if solEdge.segment.UpFlag() && asEntryIdx == len(asEntries)-1 {
+				if !solEdge.segment.ConsDir() && asEntryIdx == len(asEntries)-1 {
 					newHF.Xover = true
 				}
-				if !solEdge.segment.UpFlag() && asEntryIdx == 0 {
+				if solEdge.segment.ConsDir() && asEntryIdx == 0 {
 					newHF.Xover = true
 				}
 			}
@@ -328,7 +328,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 						pHF.Xover = true
 						currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
 							uint32(pHF.ExpTime)*spath.ExpTimeUnit)
-						inIFID, outIFID = pHF.Egress, pHF.Ingress
+						inIFID, outIFID = pHF.ConsEgress, pHF.ConsIngress
 					} else {
 						// Normal shortcut, so only half of this HF is traversed by the packet
 						outIFID = 0

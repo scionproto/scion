@@ -1,7 +1,7 @@
 Path #0:
   Weight: 1
   Fields:
-    IF ... ISD=1
+    IF C.. ISD=1
       HF .. InIF=0 OutIF=1114
       HF .. InIF=1411 OutIF=0
   Interfaces:

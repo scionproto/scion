@@ -1,13 +1,13 @@
 Path #0:
   Weight: 3
   Fields:
-    IF U.. ISD=1
+    IF ... ISD=1
       HF .. InIF=1613 OutIF=0
       HF X. InIF=0 OutIF=1316
-    IF U.. ISD=1
+    IF ... ISD=1
       HF X. InIF=1311 OutIF=0
       HF X. InIF=0 OutIF=1113
-    IF ... ISD=1
+    IF C.. ISD=1
       HF X. InIF=0 OutIF=1114
       HF .. InIF=1411 OutIF=0
   Interfaces:

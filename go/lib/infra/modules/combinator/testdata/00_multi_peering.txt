@@ -1,12 +1,12 @@
 Path #0:
   Weight: 3
   Fields:
-    IF USP ISD=1
+    IF .SP ISD=1
       HF .. InIF=1714 OutIF=0
       HF X. InIF=1411 OutIF=1417
       HF X. InIF=1415 OutIF=1417
       HF .V InIF=0 OutIF=1114
-    IF .SP ISD=1
+    IF CSP ISD=1
       HF .V InIF=0 OutIF=1215
       HF X. InIF=1514 OutIF=1518
       HF X. InIF=1512 OutIF=1518
@@ -21,12 +21,12 @@ Path #0:
 Path #1:
   Weight: 3
   Fields:
-    IF USP ISD=1
+    IF .SP ISD=1
       HF .. InIF=1714 OutIF=0
       HF X. InIF=1411 OutIF=1417
       HF X. InIF=4001 OutIF=1417
       HF .V InIF=0 OutIF=1114
-    IF .SP ISD=1
+    IF CSP ISD=1
       HF .V InIF=0 OutIF=1215
       HF X. InIF=4002 OutIF=1518
       HF X. InIF=1512 OutIF=1518
@@ -41,14 +41,14 @@ Path #1:
 Path #2:
   Weight: 5
   Fields:
-    IF U.. ISD=1
+    IF ... ISD=1
       HF .. InIF=1714 OutIF=0
       HF .. InIF=1411 OutIF=1417
       HF X. InIF=0 OutIF=1114
-    IF U.. ISD=1
+    IF ... ISD=1
       HF X. InIF=1112 OutIF=0
       HF X. InIF=0 OutIF=1211
-    IF ... ISD=1
+    IF C.. ISD=1
       HF X. InIF=0 OutIF=1215
       HF .. InIF=1512 OutIF=1518
       HF .. InIF=1815 OutIF=0

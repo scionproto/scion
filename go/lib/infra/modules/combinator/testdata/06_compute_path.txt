@@ -1,15 +1,15 @@
 Path #0:
   Weight: 6
   Fields:
-    IF U.. ISD=1
+    IF ... ISD=1
       HF .. InIF=1916 OutIF=0
       HF .. InIF=1613 OutIF=1619
       HF X. InIF=0 OutIF=1316
-    IF U.. ISD=2
+    IF ... ISD=2
       HF X. InIF=1311 OutIF=0
       HF .. InIF=1121 OutIF=1113
       HF X. InIF=0 OutIF=2111
-    IF ... ISD=2
+    IF C.. ISD=2
       HF X. InIF=0 OutIF=2123
       HF .. InIF=2321 OutIF=2325
       HF .. InIF=2523 OutIF=0
