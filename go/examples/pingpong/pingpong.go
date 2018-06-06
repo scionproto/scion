@@ -57,8 +57,10 @@ var (
 		fmt.Sprintf("Number of pings, between 0 and %d; a count of 0 means infinity", MaxPings))
 	timeout = flag.Duration("timeout", DefaultTimeout,
 		"Timeout for the ping response")
-	interval = flag.Duration("interval", DefaultInterval, "time between pings")
-	verbose  = flag.Bool("v", false, "sets verbose output")
+	interval     = flag.Duration("interval", DefaultInterval, "time between pings")
+	verbose      = flag.Bool("v", false, "sets verbose output")
+	sciondFromIA = flag.Bool("sciondFromIA", false,
+		"SCIOND socket path from IA address:ISD-AS")
 )
 
 func init() {
@@ -100,8 +102,16 @@ func validateFlags() {
 	if local.Host == nil {
 		LogFatal("Missing local address")
 	}
-	if *sciond == "" {
+	if *sciondFromIA {
+		if *sciond != "" {
+			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
+		}
+		if local.IA.IsZero() {
+			LogFatal("-local flag is missing")
+		}
 		*sciond = sd.GetDefaultSCIONDPath(&local.IA)
+	} else if *sciond == "" {
+		*sciond = sd.GetDefaultSCIONDPath(nil)
 	}
 	if *count < 0 || *count > MaxPings {
 		LogFatal("Invalid count", "min", 0, "max", MaxPings, "actual", *count)

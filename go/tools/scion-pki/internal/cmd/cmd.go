@@ -64,19 +64,19 @@ var autoCompleteCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if zsh {
 			RootCmd.GenZshCompletionFile(zshCompletionScript)
-			fmt.Printf("Generated %s\n", zshCompletionScript)
-			fmt.Println(zshInstruction)
+			pkicmn.QuietPrint("Generated %s\n", zshCompletionScript)
+			pkicmn.QuietPrint(zshInstruction)
 		} else {
 			RootCmd.GenBashCompletionFile(bashCompletionScript)
-			fmt.Printf("Generated %s\n", bashCompletionScript)
-			fmt.Println(bashInstruction)
+			pkicmn.QuietPrint("Generated %s\n", bashCompletionScript)
+			pkicmn.QuietPrint(bashInstruction)
 		}
 	},
 }
 
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }
@@ -91,6 +91,8 @@ func init() {
 			"directory if -out/-o is not specified.")
 	RootCmd.PersistentFlags().StringVarP(&pkicmn.OutDir, "out", "o", "",
 		"Output directory where certificates and keys will be placed. Defaults to -root/-d.")
+	RootCmd.PersistentFlags().BoolVarP(&pkicmn.Quiet, "quiet", "q", false,
+		"Quiet mode, i.e., only errors will be printed.")
 	autoCompleteCmd.PersistentFlags().BoolVarP(&zsh, "zsh", "z", false,
 		"Generate autocompletion script for zsh")
 

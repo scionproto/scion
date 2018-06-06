@@ -38,15 +38,24 @@ var (
 	sciondPath = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"Path to dispatcher socket")
+	sciondFromIA = flag.Bool("sciondFromIA", false,
+		"SCIOND socket path from IA address:ISD-AS")
 )
 
 func main() {
 	var err error
 	cmd := cmn.ParseFlags()
 	cmn.ValidateFlags()
-
-	if *sciondPath == "" {
+	if *sciondFromIA {
+		if *sciondPath != "" {
+			cmn.Fatal("Only one of -sciond or -sciondFromIA can be specified")
+		}
+		if cmn.Local.IA.IsZero() {
+			cmn.Fatal("-local flag is missing")
+		}
 		*sciondPath = sciond.GetDefaultSCIONDPath(&cmn.Local.IA)
+	} else if *sciondPath == "" {
+		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
 	// Initialize default SCION networking context
 	if err := snet.Init(cmn.Local.IA, *sciondPath, *dispatcher); err != nil {

@@ -15,7 +15,6 @@
 package conf
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -26,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
 const (
@@ -69,7 +69,7 @@ func (a *As) Write(path string, force bool) error {
 	if !force {
 		// Check if the file already exists.
 		if _, err := os.Stat(path); err == nil {
-			fmt.Printf("%s already exists. Use -f to overwrite.\n", path)
+			pkicmn.QuietPrint("%s already exists. Use -f to overwrite.\n", path)
 			return nil
 		}
 	}
@@ -80,7 +80,7 @@ func (a *As) Write(path string, force bool) error {
 	if err := iniCfg.SaveTo(path); err != nil {
 		return err
 	}
-	fmt.Println("Successfully written", path)
+	pkicmn.QuietPrint("Successfully written %s\n", path)
 	return nil
 }
 

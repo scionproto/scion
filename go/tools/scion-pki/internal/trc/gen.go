@@ -55,7 +55,7 @@ func genTrc(isd addr.ISD) error {
 	if err != nil {
 		return common.NewBasicError("Error loading TRC conf", err)
 	}
-	fmt.Printf("Generating TRC for ISD %d\n", isd)
+	pkicmn.QuietPrint("Generating TRC for ISD %d\n", isd)
 	outDir := pkicmn.GetIsdPath(pkicmn.OutDir, isd)
 	t, err := newTrc(isd, iconf, outDir)
 	if err != nil {
