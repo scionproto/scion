@@ -19,14 +19,12 @@ import (
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestLoad(t *testing.T) {
 	Convey("Load", t, func() {
 		var cfg Config
 		_, err := toml.DecodeFile("testdata/sciond.toml", &cfg)
-		xtest.FailOnErr(t, err)
+		SoMsg("err", err, ShouldBeNil)
 	})
 }
