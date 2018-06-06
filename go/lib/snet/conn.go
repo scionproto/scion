@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
@@ -75,8 +76,9 @@ type Conn struct {
 	writeMutex sync.Mutex
 	recvBuffer common.RawBytes
 	sendBuffer common.RawBytes
-	// Pointer to slice of paths updated by continous lookups; these are
-	// used by default when creating a connection via Dial
+	// Pointer to slice of paths updated by continuous lookups; these are
+	// used by default when creating a connection via Dial on SCIOND-enabled
+	// networks. For SCIOND-less operation, this is set to nil.
 	sp *pathmgr.SyncPaths
 	// Reference to SCION networking context
 	scionNet *Network
@@ -220,8 +222,14 @@ func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 			"type", common.TypeOf(scmpPayload.Info))
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
-	// Extract RevInfo buffer and send it to path manager
-	c.scionNet.pathResolver.Revoke(info.RawSRev)
+	// If we have a path manager, extract RevInfo buffer and send it
+	//
+	// FIXME(scrye): this completely hides the revocation from the application.
+	// This is problematic for applications that manage their own paths, as
+	// they need to be informed that they should try to use a different one.
+	if c.scionNet.pathResolver != nil {
+		c.scionNet.pathResolver.Revoke(info.RawSRev)
+	}
 }
 
 // WriteToSCION sends b to raddr.
@@ -270,6 +278,10 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 			nextHopHost = raddr.NextHopHost
 			nextHopPort = raddr.NextHopPort
 		} else {
+			if c.scionNet.pathResolver == nil {
+				return 0, common.NewBasicError("Path required, but no path manager configured", nil)
+			}
+
 			pathEntry, err := c.selectPathEntry(raddr)
 			if err != nil {
 				return 0, err
@@ -325,22 +337,18 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	return pkt.Pld.Len(), nil
 }
 
+// selectPathEntry chooses a path to raddr. This must not be called if
+// running SCIOND-less.
 func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
-	var err error
 	var pathSet spathmeta.AppPathSet
+	if assert.On {
+		assert.Must(c.scionNet.pathResolver != nil, "must run with SCIOND for path selection")
+	}
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
 	if c.raddr == nil {
 		pathSet = c.scionNet.pathResolver.Query(c.laddr.IA, raddr.IA)
 	} else {
-		// Sanity check, as Dial already initializes this
-		if c.sp == nil {
-			c.sp, err = c.scionNet.pathResolver.Watch(c.laddr.IA, c.raddr.IA)
-			if err != nil {
-				return nil, common.NewBasicError("Unable to register src-dst IAs", err,
-					"src", c.laddr.IA, "dst", raddr.IA)
-			}
-		}
 		pathSet = c.sp.Load().APS
 	}
 

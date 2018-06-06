@@ -18,7 +18,6 @@ package snet
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -31,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var _ = log.Root
@@ -56,43 +56,84 @@ type TestCase struct {
 
 	request []byte
 	reply   []byte
+
+	expectWriteError bool
 }
 
-func generateTests(asList []addr.IA, count int) []TestCase {
+func generateTests(asList []addr.IA, count int, haveSciond bool) []TestCase {
 	rand.Seed(time.Now().UnixNano())
 	tests := make([]TestCase, 0, 0)
 	var cIndex, sIndex int32
 	for i := 0; i < count; i++ {
 		cIndex = rand.Int31n(int32(len(asList)))
 		sIndex = rand.Int31n(int32(len(asList)))
-		tc := TestCase{srcIA: asList[cIndex], dstIA: asList[sIndex],
-			srcPort: uint16(40000 + 2*i), dstPort: uint16(40001 + 2*i),
+		srcIA := asList[cIndex]
+		dstIA := asList[sIndex]
+		tc := TestCase{
+			srcIA:    srcIA,
+			dstIA:    dstIA,
+			srcPort:  uint16(40000 + 2*i),
+			dstPort:  uint16(40001 + 2*i),
 			srcLocal: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
 			dstLocal: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-			request:  []byte("ping!"), reply: []byte("pong!")}
+			request:  []byte("ping!"),
+			reply:    []byte("pong!"),
+			// if we don't have sciond, we can't talk to a different AS without
+			// an explicit path
+			expectWriteError: haveSciond == false && !srcIA.Eq(dstIA),
+		}
 		tests = append(tests, tc)
 	}
 	return tests
 }
 
 func TestIntegration(t *testing.T) {
-	tests := generateTests(asList, 100)
+	testCases := []struct {
+		Name       string
+		HaveSciond bool
+		Tests      []TestCase
+	}{
+		{
+			Name:       "SCIOND Mode",
+			HaveSciond: true,
+			Tests:      generateTests(asList, 100, true),
+		},
+		{
+			Name:       "SCIOND-less Mode",
+			HaveSciond: false,
+			Tests:      generateTests(asList, 100, false),
+		},
+	}
+
 	Convey("E2E test", t, func() {
-		for idx, test := range tests {
-			ClientServer(idx, test)
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				for idx, test := range tc.Tests {
+					ClientServer(tc.HaveSciond, idx, test)
+				}
+			})
 		}
 	})
 }
 
-func ClientServer(idx int, tc TestCase) {
+func ClientServer(haveSciond bool, idx int, tc TestCase) {
 	Convey(fmt.Sprintf("Test %v: (%v-%v,%v):%v <-> (%v-%v,%v):%v", idx, tc.srcIA.I,
 		tc.srcIA.A, tc.srcLocal, tc.srcPort, tc.dstIA.I, tc.dstIA.A, tc.dstLocal,
 		tc.dstPort), func(c C) {
 		b := make([]byte, 128)
 
-		clientNet, err := NewNetwork(tc.srcIA, sciond.GetDefaultSCIONDPath(&tc.srcIA), DispPath)
+		clientSciond := ""
+		if haveSciond {
+			clientSciond = sciond.GetDefaultSCIONDPath(&tc.srcIA)
+		}
+		clientNet, err := NewNetwork(tc.srcIA, clientSciond, DispPath)
 		SoMsg("Client network error", err, ShouldBeNil)
-		serverNet, err := NewNetwork(tc.dstIA, sciond.GetDefaultSCIONDPath(&tc.dstIA), DispPath)
+
+		serverSciond := ""
+		if haveSciond {
+			serverSciond = sciond.GetDefaultSCIONDPath(&tc.dstIA)
+		}
+		serverNet, err := NewNetwork(tc.dstIA, serverSciond, DispPath)
 		SoMsg("Server network error", err, ShouldBeNil)
 
 		clientAddr, err := AddrFromString(
@@ -114,21 +155,25 @@ func ClientServer(idx int, tc TestCase) {
 		SoMsg("Client deadline error", err, ShouldBeNil)
 
 		n, err := cconn.Write([]byte("Hello!"))
-		SoMsg("Client write error", err, ShouldBeNil)
-		SoMsg("Client written bytes", n, ShouldEqual, len("Hello!"))
+		xtest.SoMsgError("Client write error", err, tc.expectWriteError)
+		// Only run the message exchange in cases where snet doesn't error out
+		// due to needing a path in SCIOND-less mode of operation.
+		if tc.expectWriteError == false {
+			SoMsg("Client written bytes", n, ShouldEqual, len("Hello!"))
 
-		n, raddr, err := sconn.ReadFromSCION(b)
-		SoMsg("Server read error", err, ShouldBeNil)
-		SoMsg("Server remote addr", clientAddr.EqAddr(raddr), ShouldBeTrue)
-		SoMsg("Server read message", b[:n], ShouldResemble, []byte("Hello!"))
+			n, raddr, err := sconn.ReadFromSCION(b)
+			SoMsg("Server read error", err, ShouldBeNil)
+			SoMsg("Server remote addr", clientAddr.EqAddr(raddr), ShouldBeTrue)
+			SoMsg("Server read message", b[:n], ShouldResemble, []byte("Hello!"))
 
-		n, err = sconn.WriteToSCION([]byte("Bye!"), raddr)
-		SoMsg("Server write error", err, ShouldBeNil)
-		SoMsg("Server written bytes", n, ShouldEqual, len("Bye!"))
+			n, err = sconn.WriteToSCION([]byte("Bye!"), raddr)
+			SoMsg("Server write error", err, ShouldBeNil)
+			SoMsg("Server written bytes", n, ShouldEqual, len("Bye!"))
 
-		n, err = cconn.Read(b)
-		SoMsg("Client read error", err, ShouldBeNil)
-		SoMsg("Client read message", b[:n], ShouldResemble, []byte("Bye!"))
+			n, err = cconn.Read(b)
+			SoMsg("Client read error", err, ShouldBeNil)
+			SoMsg("Client read message", b[:n], ShouldResemble, []byte("Bye!"))
+		}
 
 		err = cconn.Close()
 		SoMsg("Client close error", err, ShouldBeNil)
@@ -189,7 +234,7 @@ func TestMain(m *testing.M) {
 		fmt.Println("Test setup error", err)
 		return
 	}
-	// Comment out below for logging during tests
-	log.Root().SetHandler(log.StreamHandler(ioutil.Discard, log.LogfmtFormat()))
+	// Comment the line below for logging during tests
+	log.Root().SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }

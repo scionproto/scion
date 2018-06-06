@@ -41,8 +41,9 @@
 // header.
 //
 // Important: not draining SCMP errors via Read calls can cause the dispatcher
-// to block (see Issue #1278). To prevent this on a Conn object with only Write
-// calls, run a separate goroutine that continuously calls Read on the Conn.
+// to shutdown the socket (see https://github.com/scionproto/scion/pull/1356).
+// To prevent this on a Conn object with only Write calls, run a separate
+// goroutine that continuously calls Read on the Conn.
 package snet
 
 import (
@@ -63,8 +64,8 @@ var (
 )
 
 // Init initializes the default SCION networking context.
-func Init(ia addr.IA, sPath string, dPath string) error {
-	network, err := NewNetwork(ia, sPath, dPath)
+func Init(ia addr.IA, sciondPath string, dispatcherPath string) error {
+	network, err := NewNetwork(ia, sciondPath, dispatcherPath)
 	if err != nil {
 		return err
 	}
@@ -91,40 +92,48 @@ func IA() addr.IA {
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
 // Path resolver.
 type Network struct {
-	sciond         sciond.Service
-	sciondPath     string
 	dispatcherPath string
-	pathResolver   *pathmgr.PR
-	localIA        addr.IA
+	// pathResolver references the default source of paths for a Network. This
+	// is set to nil when operating on a SCIOND-less Network.
+	pathResolver *pathmgr.PR
+	localIA      addr.IA
 }
 
-// NewNetworkBasic creates a minimal networking context without a path resolver.
-// It is meant to be amended with a custom path resolver.
-func NewNetworkBasic(ia addr.IA, sPath string, dPath string) *Network {
+// NewNetworkWithPR creates a new networking context with path resolver pr. A
+// nil path resolver means the Network will run without SCIOND.
+func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *Network {
 	return &Network{
-		sciond:         sciond.NewService(sPath),
-		sciondPath:     sPath,
-		dispatcherPath: dPath,
+		dispatcherPath: dispatcherPath,
+		pathResolver:   pr,
 		localIA:        ia,
 	}
 }
 
 // NewNetwork creates a new networking context, on which future Dial or Listen
-// calls can be made. The new connections use the SCIOND server at sPath, the
-// dispatcher at dPath, and ia for the local ISD-AS.
-func NewNetwork(ia addr.IA, sPath string, dPath string) (*Network, error) {
-	network := NewNetworkBasic(ia, sPath, dPath)
-	timers := &pathmgr.Timers{
-		NormalRefire: time.Minute,
-		ErrorRefire:  3 * time.Second,
-		MaxAge:       time.Hour,
+// calls can be made. The new connections use the SCIOND server at sciondPath,
+// the dispatcher at dispatcherPath, and ia for the local ISD-AS.
+//
+// If sciondPath is the empty string, the network will run without SCIOND. In
+// this mode of operation, the app is fully responsible with supplying paths
+// for sent traffic.
+func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*Network, error) {
+	var pathResolver *pathmgr.PR
+	if sciondPath != "" {
+		var err error
+		pathResolver, err = pathmgr.New(
+			sciond.NewService(sciondPath),
+			&pathmgr.Timers{
+				NormalRefire: time.Minute,
+				ErrorRefire:  3 * time.Second,
+				MaxAge:       time.Hour,
+			},
+			log.Root(),
+		)
+		if err != nil {
+			return nil, common.NewBasicError("Unable to initialize path resolver", err)
+		}
 	}
-	pathResolver, err := pathmgr.New(network.sciond, timers, log.Root())
-	if err != nil {
-		return nil, common.NewBasicError("Unable to initialize path resolver", err)
-	}
-	network.pathResolver = pathResolver
-	return network, nil
+	return NewNetworkWithPR(ia, dispatcherPath, pathResolver), nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
@@ -147,9 +156,11 @@ func (n *Network) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr
 		return nil, err
 	}
 	conn.raddr = raddr.Copy()
-	conn.sp, err = n.pathResolver.Watch(conn.laddr.IA, conn.raddr.IA)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to establish path", err)
+	if n.pathResolver != nil {
+		conn.sp, err = n.pathResolver.Watch(conn.laddr.IA, conn.raddr.IA)
+		if err != nil {
+			return nil, common.NewBasicError("Unable to establish path", err)
+		}
 	}
 	return conn, nil
 }
@@ -245,18 +256,12 @@ func (n *Network) PathResolver() *pathmgr.PR {
 	return n.pathResolver
 }
 
-// SetPathResolver set the pathmgr.PR that the networking is using. It can only
-// be set once and will be ignored if there is already a path resolver set.
-func (n *Network) SetPathResolver(resolver *pathmgr.PR) {
-	if n.pathResolver != nil {
-		return
-	}
-	n.pathResolver = resolver
-}
-
 // Sciond returns the sciond.Service that the network is using.
 func (n *Network) Sciond() sciond.Service {
-	return n.sciond
+	if n.pathResolver != nil {
+		return n.pathResolver.Sciond()
+	}
+	return nil
 }
 
 // IA returns the ISD-AS assigned to n
