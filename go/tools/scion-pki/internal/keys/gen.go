@@ -23,11 +23,11 @@ import (
 	"path/filepath"
 
 	"golang.org/x/crypto/ed25519"
-	"golang.org/x/crypto/nacl/box"
 
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -116,19 +116,19 @@ func genKey(fname, outDir string, keyGenF keyGenFunc) error {
 }
 
 func genSignKey(rand io.Reader) ([]byte, error) {
-	_, private, err := ed25519.GenerateKey(rand)
+	_, private, err := scrypto.GenKeyPair(scrypto.Ed25519)
 	if err != nil {
 		return nil, err
 	}
-	return private.Seed(), nil
+	return ed25519.PrivateKey(private).Seed(), nil
 }
 
 func genEncKey(rand io.Reader) ([]byte, error) {
-	_, private, err := box.GenerateKey(rand)
+	_, private, err := scrypto.GenKeyPair(scrypto.Curve25519xSalsa20Poly1305)
 	if err != nil {
 		return nil, err
 	}
-	return (*private)[:], nil
+	return private, nil
 }
 
 func genMasterKey(rand io.Reader) ([]byte, error) {
