@@ -1,0 +1,10 @@
+[general]
+  id = "sd0-test-0"
+  bind = "1-ff00:0:133,[127.0.0.1]:50001"
+
+[logging]
+  [logging.console]
+    level = "crit"
+
+[sd]
+  reliable = "/run/shm/test-sd-reliable.sock"
