@@ -59,8 +59,8 @@ type InputSegment struct {
 	Type proto.PathSegType
 }
 
-// ConsDir returns 1 if the segment is a DownSegment.
-func (s *InputSegment) ConsDir() bool {
+// IsDownSeg returns 1 if the segment is a DownSegment.
+func (s *InputSegment) IsDownSeg() bool {
 	return s.Type == proto.PathSegType_down
 }
 

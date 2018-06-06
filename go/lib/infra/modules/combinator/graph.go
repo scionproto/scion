@@ -276,7 +276,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 			ExpTime: spath.MaxTimestamp,
 		}
 		currentSeg.initInfoFieldFrom(solEdge.segment.PathSegment)
-		currentSeg.InfoField.ConsDir = solEdge.segment.ConsDir()
+		currentSeg.InfoField.ConsDir = solEdge.segment.IsDownSeg()
 		currentSeg.InfoField.Shortcut = solEdge.edge.Shortcut != 0
 		currentSeg.InfoField.Peer = solEdge.edge.Peer != 0
 		path.Segments = append(path.Segments, currentSeg)
@@ -297,10 +297,10 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 
 			// If we've transitioned from a previous segment, set Xover flag.
 			if edgeIdx > 0 {
-				if !solEdge.segment.ConsDir() && asEntryIdx == len(asEntries)-1 {
+				if !solEdge.segment.IsDownSeg() && asEntryIdx == len(asEntries)-1 {
 					newHF.Xover = true
 				}
-				if solEdge.segment.ConsDir() && asEntryIdx == 0 {
+				if solEdge.segment.IsDownSeg() && asEntryIdx == 0 {
 					newHF.Xover = true
 				}
 			}
