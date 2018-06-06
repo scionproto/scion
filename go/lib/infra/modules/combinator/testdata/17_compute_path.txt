@@ -1,0 +1,33 @@
+Path #0:
+  Weight: 1
+  Fields:
+    IF .SP ISD=1
+      HF X. InIF=1411 OutIF=0
+      HF X. InIF=1423 OutIF=0
+      HF .V InIF=0 OutIF=1114
+    IF CSP ISD=2
+      HF .V InIF=0 OutIF=2123
+      HF X. InIF=2314 OutIF=0
+      HF X. InIF=2321 OutIF=0
+  Interfaces:
+    1-ff00:0:111#1423
+    2-ff00:0:211#2314
+Path #1:
+  Weight: 3
+  Fields:
+    IF ... ISD=1
+      HF .. InIF=1411 OutIF=0
+      HF X. InIF=0 OutIF=1114
+    IF ... ISD=2
+      HF X. InIF=1121 OutIF=0
+      HF X. InIF=0 OutIF=2111
+    IF C.. ISD=2
+      HF X. InIF=0 OutIF=2123
+      HF .. InIF=2321 OutIF=0
+  Interfaces:
+    1-ff00:0:111#1411
+    1-ff00:0:110#1114
+    1-ff00:0:110#1121
+    2-ff00:0:210#2111
+    2-ff00:0:210#2123
+    2-ff00:0:211#2321

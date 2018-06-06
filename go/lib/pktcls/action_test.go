@@ -226,42 +226,42 @@ func TestActionAct(t *testing.T) {
 		SubTestCases []subTestCase
 	}{
 		{
-			Name: "CondAllOf(1-ff00:0:121#121122, 1-ff00:0:120#0)",
+			Name: "CondAllOf(1-ff00:0:121#1518, 1-ff00:0:120#0)",
 			Action: &ActionFilterPaths{
-				Name: "go through 1-ff00:0:121#121122, followed by 1-ff00:0:120#0",
+				Name: "go through 1-ff00:0:121#1518, followed by 1-ff00:0:120#0",
 				Cond: CondAllOf{
-					mustCondPathPredicate(t, "1-ff00:0:121#121122"),
+					mustCondPathPredicate(t, "1-ff00:0:121#1518"),
 					mustCondPathPredicate(t, "1-ff00:0:120#0"),
 				},
 			},
 			SubTestCases: []subTestCase{
 				{
 					Name:           "2-ff00:0:212 -> 2-ff00:0:210",
-					Src:            addr.IA{I: 2, A: 0xff0000000212},
-					Dst:            addr.IA{I: 2, A: 0xff0000000210},
+					Src:            xtest.MustParseIA("2-ff00:0:212"),
+					Dst:            xtest.MustParseIA("2-ff00:0:210"),
 					ExpPathStrings: map[string]struct{}{},
 				},
 				{
 					Name: "1-ff00:0:122 -> 2-ff00:0:220",
-					Src:  addr.IA{I: 1, A: 0xff0000000122},
-					Dst:  addr.IA{I: 2, A: 0xff0000000220},
+					Src:  xtest.MustParseIA("1-ff00:0:122"),
+					Dst:  xtest.MustParseIA("2-ff00:0:220"),
 					ExpPathStrings: map[string]struct{}{
-						"[1-ff00:0:122#122121 1-ff00:0:121#121122 " +
-							"1-ff00:0:121#121120 1-ff00:0:120#120121 " +
-							"1-ff00:0:120#120220 2-ff00:0:220#220120]": {},
+						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
+							"1-ff00:0:121#1512 1-ff00:0:120#1215 " +
+							"1-ff00:0:120#1222 2-ff00:0:220#2212]": {},
 					},
 				},
 				{
 					Name: "1-ff00:0:122 -> 1-ff00:0:110",
-					Src:  addr.IA{I: 1, A: 0xff0000000122},
-					Dst:  addr.IA{I: 1, A: 0xff0000000110},
+					Src:  xtest.MustParseIA("1-ff00:0:122"),
+					Dst:  xtest.MustParseIA("1-ff00:0:110"),
 					ExpPathStrings: map[string]struct{}{
-						"[1-ff00:0:122#122121 1-ff00:0:121#121122 " +
-							"1-ff00:0:121#121120 1-ff00:0:120#120121 " +
-							"1-ff00:0:120#120110 1-ff00:0:110#110120]": {},
-						//"[1-ff00:0:122#122121 1-ff00:0:121#121122 " +
-						//    "1-ff00:0:121#121111 "1-ff00:0:111#111121 " +
-						//    "1-ff00:0:111#111110 1-ff00:0:110#110111]", Filtered
+						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
+							"1-ff00:0:121#1512 1-ff00:0:120#1215 " +
+							"1-ff00:0:120#1211 1-ff00:0:110#1112]": {},
+						//"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
+						//    "1-ff00:0:121#1514 "1-ff00:0:111#1415 " +
+						//    "1-ff00:0:111#1411 1-ff00:0:110#1114]", Filtered
 					},
 				},
 			},
@@ -283,34 +283,34 @@ func TestActionAct(t *testing.T) {
 			SubTestCases: []subTestCase{
 				{
 					Name: "1-ff00:0:122 -> 2-ff00:0:220",
-					Src:  addr.IA{I: 1, A: 0xff0000000122},
-					Dst:  addr.IA{I: 2, A: 0xff0000000220},
+					Src:  xtest.MustParseIA("1-ff00:0:122"),
+					Dst:  xtest.MustParseIA("2-ff00:0:220"),
 					ExpPathStrings: map[string]struct{}{
-						"[1-ff00:0:122#122121 1-ff00:0:121#121122 " +
-							"1-ff00:0:121#121120 1-ff00:0:120#120121 " +
-							"1-ff00:0:120#120220 2-ff00:0:220#220120]": {},
+						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
+							"1-ff00:0:121#1512 1-ff00:0:120#1215 " +
+							"1-ff00:0:120#1222 2-ff00:0:220#2212]": {},
 					},
 				},
 				{
 					Name: "1-ff00:0:131 -> 1-ff00:0:120",
-					Src:  addr.IA{I: 1, A: 0xff0000000131},
-					Dst:  addr.IA{I: 1, A: 0xff0000000120},
+					Src:  xtest.MustParseIA("1-ff00:0:131"),
+					Dst:  xtest.MustParseIA("1-ff00:0:120"),
 					ExpPathStrings: map[string]struct{}{
-						"[1-ff00:0:131#131130 1-ff00:0:130#130131 " +
-							"1-ff00:0:130#130120 1-ff00:0:120#120130]": {},
-						"[1-ff00:0:131#131121 1-ff00:0:121#121131 " +
-							"1-ff00:0:121#121120 1-ff00:0:120#120121]": {},
+						"[1-ff00:0:131#1613 1-ff00:0:130#1316 " +
+							"1-ff00:0:130#1312 1-ff00:0:120#1213]": {},
+						"[1-ff00:0:131#1615 1-ff00:0:121#1516 " +
+							"1-ff00:0:121#1512 1-ff00:0:120#1215]": {},
 					},
 				},
 				{
 					Name:           "2-ff00:0:221 -> 2-ff00:0:210",
-					Src:            addr.IA{I: 2, A: 0xff0000000221},
-					Dst:            addr.IA{I: 2, A: 0xff0000000210},
+					Src:            xtest.MustParseIA("2-ff00:0:221"),
+					Dst:            xtest.MustParseIA("2-ff00:0:210"),
 					ExpPathStrings: map[string]struct{}{
-					//"[2-ff00:0:221#221211 2-ff00:0:211#211221 " +
-					//    "2-ff00:0:211#211210 2-ff00:0:210#210211]", Filtered
-					//"[2-ff00:0:221#221220 2-ff00:0:220#220221 " +
-					//    "2-ff00:0:220#220210 2-ff00:0:210#210220]", Filtered
+					//"[2-ff00:0:221#2423 2-ff00:0:211#2324 " +
+					//    "2-ff00:0:211#2321 2-ff00:0:210#2123]", Filtered
+					//"[2-ff00:0:221#2422 2-ff00:0:220#2224 " +
+					//    "2-ff00:0:220#2221 2-ff00:0:210#2122]", Filtered
 					},
 				},
 			},

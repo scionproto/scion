@@ -1,0 +1,9 @@
+Path #0:
+  Weight: 1
+  Fields:
+    IF C.. ISD=1
+      HF .. InIF=0 OutIF=1114
+      HF .. InIF=1411 OutIF=0
+  Interfaces:
+    1-ff00:0:110#1114
+    1-ff00:0:111#1411
