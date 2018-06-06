@@ -59,7 +59,7 @@ type InputSegment struct {
 	Type proto.PathSegType
 }
 
-// IsDownSeg returns 1 if the segment is a DownSegment.
+// IsDownSeg returns true if the segment is a DownSegment.
 func (s *InputSegment) IsDownSeg() bool {
 	return s.Type == proto.PathSegType_down
 }
