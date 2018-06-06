@@ -18,6 +18,7 @@ package drkey_mgmt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -43,7 +44,12 @@ func (c *DRKeyRep) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyRep_TypeID
 }
 
+// Time returns the expiration time
+func (c *DRKeyRep) Time() time.Time {
+	return util.USecsToTime(uint64(c.ExpTime))
+}
+
 func (c *DRKeyRep) String() string {
 	return fmt.Sprintf("SrcIA: %v ExpTime: %v CertVerSig: %d CertVerEnc: %d",
-		c.IA(), util.TimeToString(util.USecsToTime(uint64(c.ExpTime))), c.CertVerSrc, c.CertVerDst)
+		c.IA(), util.TimeToString(c.Time()), c.CertVerSrc, c.CertVerDst)
 }

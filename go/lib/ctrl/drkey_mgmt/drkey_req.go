@@ -18,6 +18,7 @@ package drkey_mgmt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/util"
@@ -39,7 +40,12 @@ func (c *DRKeyReq) ProtoId() proto.ProtoIdType {
 	return proto.DRKeyReq_TypeID
 }
 
+// Time returns the validity time
+func (c *DRKeyReq) Time() time.Time {
+	return util.USecsToTime(uint64(c.ValTime))
+}
+
 func (c *DRKeyReq) String() string {
 	return fmt.Sprintf("SrcIA: %s ValTime: %v",
-		c.IA(), util.TimeToString(util.USecsToTime(uint64(c.ValTime))))
+		c.IA(), util.TimeToString(c.Time()))
 }
