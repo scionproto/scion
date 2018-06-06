@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -29,11 +30,13 @@ import (
 )
 
 func TestASInfo(t *testing.T) {
-	dir, deleteDirTree := setupDirTree(t)
-	defer deleteDirTree()
-	sock := xtest.MustTempFileName(dir, "rsock")
-	defer StartServer(t, dir, sock)()
-	conn, stopClient := StartClient(t, sock)
+	var Config ConfigT
+	_, err := toml.DecodeFile("testdata/sciond.toml", &Config)
+	xtest.FailOnErr(t, err)
+
+	defer os.Remove(Config.SD.Reliable)
+	defer StartServer(t, "testdata/sciond.toml")()
+	conn, stopClient := StartClient(t, Config.SD.Reliable)
 	defer stopClient()
 
 	Convey("Send and receive ASInfo", t, func() {
@@ -64,10 +67,10 @@ func setupDirTree(t *testing.T) (string, func()) {
 	}
 }
 
-func StartClient(t *testing.T, file string) (sciond.Connector, func()) {
+func StartClient(t *testing.T, reliableSocket string) (sciond.Connector, func()) {
 	t.Helper()
 
-	sd := sciond.NewService(file)
+	sd := sciond.NewService(reliableSocket)
 	conn, err := sd.Connect()
 	if err != nil {
 		t.Fatalf("unable to connect to sciond err=%v", err)
@@ -78,14 +81,12 @@ func StartClient(t *testing.T, file string) (sciond.Connector, func()) {
 	}
 }
 
-func StartServer(t *testing.T, dir, file string) func() {
+func StartServer(t *testing.T, configFile string) func() {
 	t.Helper()
 
 	cmd := exec.Command(
 		"../../bin/sciond",
-		"-id", "sdtest",
-		"-reliable", file,
-		"-log.console", "crit",
+		"-config", configFile,
 	)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
