@@ -26,21 +26,47 @@ import (
 )
 
 const (
+	NonceSize      = 24
+	PublicKeySize  = 32
+	PrivateKeySize = 32
+
 	Ed25519                    = "ed25519"
 	Curve25519xSalsa20Poly1305 = "curve25519xsalsa20poly1305"
 	InvalidKeySize             = "Invalid key size"
 	InvalidNonceSize           = "Invalid nonce size"
-	UnsupportedSignAlgo        = "Unsupported signing algorithm"
 	InvalidSignature           = "Invalid signature"
-	FailedToGenerateKeyPairs   = "Failed to generate key pairs"
-	FailedToGenerateNonce      = "Failed to generate nonce"
-	FailedToDecrypt            = "Failed to decrypt message"
+	UnsupportedSignAlgo        = "Unsupported signing algorithm"
+	UnableToGenerateKeyPair    = "Unable to generate key pair"
+	UnableToGenerateNonce      = "Unable to generate nonce"
+	UnableToDecrypt            = "Unable to decrypt message"
 	UnsupportedEncAlgo         = "Unsupported encryption algorithm"
 	UnsupportedDecAlgo         = "Unsupported decryption algorithm"
 )
 
+// GenKeyPairs generates a public/private key pair.
+func GenKeyPairs(algo string) (common.RawBytes, common.RawBytes, error) {
+	switch strings.ToLower(algo) {
+	case Curve25519xSalsa20Poly1305:
+		pubkey, privkey, err := box.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, nil, common.NewBasicError(UnableToGenerateKeyPair, err,
+				"algo", algo)
+		}
+		return pubkey[:], privkey[:], nil
+	case Ed25519:
+		pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
+		if err != nil {
+			return nil, nil, common.NewBasicError(UnableToGenerateKeyPair, err,
+				"algo", algo)
+		}
+		return common.RawBytes(pubkey), common.RawBytes(privkey), nil
+	default:
+		return nil, nil, common.NewBasicError(UnsupportedSignAlgo, nil, "algo", algo)
+	}
+}
+
 // Sign takes a signature input and a signing key to create a signature. Currently only
-// ed25519 is supported
+// ed25519 is supported.
 func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, error) {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
@@ -72,83 +98,62 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	}
 }
 
-// GenKeyPairs generates a public/private key pair
-func GenKeyPairs(keygenAlgo string) (common.RawBytes, common.RawBytes, error) {
-	switch strings.ToLower(keygenAlgo) {
-	case Curve25519xSalsa20Poly1305:
-		pubkey, privkey, err := box.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, nil, common.NewBasicError(FailedToGenerateKeyPairs, err,
-				"keygenAlgo", keygenAlgo)
-		}
-		return pubkey[:], privkey[:], nil
-	case Ed25519:
-		pubkey, privkey, err := ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return nil, nil, common.NewBasicError(FailedToGenerateKeyPairs, err,
-				"keygenAlgo", keygenAlgo)
-		}
-		return common.RawBytes(pubkey), common.RawBytes(privkey), nil
-	default:
-		return nil, nil, common.NewBasicError(UnsupportedSignAlgo, nil, "algo", keygenAlgo)
-	}
-}
-
-// GenNonce takes an input length and returns a random nonce of the given length
-func GenNonce(len uint16) (common.RawBytes, error) {
+// Nonce takes an input length and returns a random nonce of the given length.
+func Nonce(len int) (common.RawBytes, error) {
 	nonce := make([]byte, len)
-	_, err := io.ReadFull(rand.Reader, nonce[:])
+	_, err := io.ReadFull(rand.Reader, nonce)
 	if err != nil {
-		return nil, common.NewBasicError(FailedToGenerateNonce, err)
+		return nil, common.NewBasicError(UnableToGenerateNonce, err)
 	}
 	return nonce, nil
 }
 
 // Encrypt takes a message, a nonce and a public/private keypair and
-// returns the encrypted and authenticated message
+// returns the encrypted and authenticated message.
 // Note: Nonce must be different for each message that is encrypted with the same key.
 func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
-		if len(nonce) != 24 {
+		if len(nonce) != NonceSize {
 			return nil, common.NewBasicError(InvalidNonceSize, nil, "algo", algo)
 		}
-		if len(pubkey) != 32 || len(privkey) != 32 {
+		if len(pubkey) != PublicKeySize || len(privkey) != PrivateKeySize {
 			return nil, common.NewBasicError(InvalidKeySize, nil, "algo", algo)
 		}
-		// 192 bits of randomness should provide a sufficiently small probability of repeats.
-		var nc *[24]byte
-		copy(nc[:], nonce)
-		var pubk, privk *[32]byte
-		copy(pubk[:], pubkey[:32])
-		copy(privk[:], privkey[:32])
-		return box.Seal(nil, msg, nc, pubk, privk), nil
+		var nonceRaw [NonceSize]byte
+		var pubKeyRaw [PublicKeySize]byte
+		var privKeyRaw [PrivateKeySize]byte
+		copy(nonceRaw[:], nonce)
+		copy(pubKeyRaw[:], pubkey)
+		copy(privKeyRaw[:], privkey)
+		return box.Seal(nil, msg, &nonceRaw, &pubKeyRaw, &privKeyRaw), nil
 	default:
 		return nil, common.NewBasicError(UnsupportedEncAlgo, nil, "algo", algo)
 	}
 }
 
-// Decrypt decrypts a message for a given nonce and public/private keypair
+// Decrypt decrypts a message for a given nonce and public/private keypair.
 func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
-		if len(nonce) != 24 {
+		if len(nonce) != NonceSize {
 			return nil, common.NewBasicError(InvalidNonceSize, nil, "algo", algo)
 		}
-		if len(pubkey) != 32 || len(privkey) != 32 {
+		if len(pubkey) != PublicKeySize || len(privkey) != PrivateKeySize {
 			return nil, common.NewBasicError(InvalidKeySize, nil, "algo", algo)
 		}
-		var nc [24]byte
-		copy(nc[:], nonce[:24])
-		var pubk, privk *[32]byte
-		copy(pubk[:], pubkey[:32])
-		copy(privk[:], privkey[:32])
-		dec, ok := box.Open(nil, msg[24:], &nc, pubk, privk)
+		var nonceRaw [NonceSize]byte
+		var pubKeyRaw [PublicKeySize]byte
+		var privKeyRaw [PrivateKeySize]byte
+		copy(nonceRaw[:], nonce)
+		copy(pubKeyRaw[:], pubkey)
+		copy(privKeyRaw[:], privkey)
+		dec, ok := box.Open(nil, msg, &nonceRaw, &pubKeyRaw, &privKeyRaw)
 		if !ok {
-			return nil, common.NewBasicError(FailedToDecrypt, nil, "algo", algo)
+			return nil, common.NewBasicError(UnableToDecrypt, nil, "algo", algo)
 		}
 		return dec, nil
 	default:
-		return nil, common.NewBasicError(UnsupportedEncAlgo, nil, "algo", algo)
+		return nil, common.NewBasicError(UnsupportedDecAlgo, nil, "algo", algo)
 	}
 }
