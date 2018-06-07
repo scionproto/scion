@@ -69,7 +69,6 @@ func TestLoadFromFile(t *testing.T) {
 						},
 					},
 					xtest.MustParseIA("1-ff00:0:2"): {
-						Name: "AS 2",
 						Nets: []*IPNet{
 							{
 								IP:   net.IP{203, 0, 113, 0},
@@ -79,7 +78,6 @@ func TestLoadFromFile(t *testing.T) {
 						Sigs: SIGSet{},
 					},
 					xtest.MustParseIA("1-ff00:0:3"): {
-						Name: "AS 3",
 						Nets: []*IPNet{},
 						Sigs: SIGSet{},
 					},
