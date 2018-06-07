@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/trust"
 )
@@ -45,9 +46,9 @@ type Conf struct {
 	// of interface IDs to routers, and the actual topology.
 	Topo *topology.Topo
 	// BindAddr is the local bind address.
-	BindAddr *snet.Addr
+	BindAddr snet.Addr
 	// PublicAddr is the public address.
-	PublicAddr *snet.Addr
+	PublicAddr snet.Addr
 	// Store is the trust store.
 	Store *trust.Store
 	// TrustDB is the trust DB.
@@ -143,11 +144,11 @@ func (c *Conf) loadTopo() (err error) {
 		return common.NewBasicError(ErrorAddr, nil, "err", "Element ID not found", "id", c.ID)
 	}
 	publicInfo := topoAddr.PublicAddrInfo(c.Topo.Overlay)
-	c.PublicAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
-		L4Port: uint16(publicInfo.L4Port)}
+	c.PublicAddr = snetutils.NewSnetAddr(c.Topo.ISD_AS, addr.HostFromIP(publicInfo.IP),
+		uint16(publicInfo.L4Port))
 	bindInfo := topoAddr.BindAddrInfo(c.Topo.Overlay)
-	tmpBind := &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
-		L4Port: uint16(bindInfo.L4Port)}
+	tmpBind := snetutils.NewSnetAddr(c.Topo.ISD_AS, addr.HostFromIP(bindInfo.IP),
+		uint16(bindInfo.L4Port))
 	if !tmpBind.EqAddr(c.PublicAddr) {
 		c.BindAddr = tmpBind
 	}

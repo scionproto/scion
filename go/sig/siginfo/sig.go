@@ -22,6 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 )
 
 const (
@@ -104,12 +105,12 @@ func NewSig(ia addr.IA, id SigIdType, host addr.HostAddr,
 	}
 }
 
-func (s *Sig) CtrlSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: s.Host, L4Port: uint16(s.CtrlL4Port)}
+func (s *Sig) CtrlSnetAddr() snet.Addr {
+	return snetutils.NewSnetAddr(s.IA, s.Host, uint16(s.CtrlL4Port))
 }
 
-func (s *Sig) EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: s.Host, L4Port: uint16(s.EncapL4Port)}
+func (s *Sig) EncapSnetAddr() snet.Addr {
+	return snetutils.NewSnetAddr(s.IA, s.Host, uint16(s.EncapL4Port))
 }
 
 func (s *Sig) FailCount() uint16 {

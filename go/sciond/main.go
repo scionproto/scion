@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
 
@@ -127,11 +127,11 @@ func realMain() int {
 
 func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
 	// Initialize messenger for talking with other infra elements
-	snetAddress, err := snet.AddrFromString(scionAddress)
+	snetAddress, err := snetutils.NewEmptySnetAddr().AddrFromString(scionAddress)
 	if err != nil {
 		return nil, common.NewBasicError("snet address parse error", err)
 	}
-	conn, err := snet.ListenSCION("udp", snetAddress)
+	conn, err := snetutils.ListenSCION("udp", snetAddress)
 	if err != nil {
 		return nil, common.NewBasicError("snet listen error", err)
 	}

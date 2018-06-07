@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pktdisp"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/siginfo"
@@ -47,7 +48,7 @@ type Session struct {
 	// bool
 	healthy        atomic.Value
 	ring           *ringbuf.Ring
-	conn           *snet.Conn
+	conn           snet.Conn
 	sessMonStop    chan struct{}
 	sessMonStopped chan struct{}
 	workerStopped  chan struct{}
@@ -70,7 +71,10 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType,
 	s.ring = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": dstIA.String(), "sessId": sessId.String()})
 	// Not using a fixed local port, as this is for outgoing data only.
-	s.conn, err = snet.ListenSCION("udp4", &snet.Addr{IA: sigcmn.IA, Host: sigcmn.Host})
+	snetAddr := snetutils.NewEmptySnetAddr()
+	snetAddr.SetIA(sigcmn.IA)
+	snetAddr.SetHost(sigcmn.Host)
+	s.conn, err = snetutils.ListenSCION("udp4", snetAddr)
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
 	go pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger)
 	s.sessMonStop = make(chan struct{})

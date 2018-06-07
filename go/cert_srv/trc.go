@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 )
 
 var (
@@ -33,17 +34,17 @@ var (
 )
 
 type TRCHandler struct {
-	conn *snet.Conn
+	conn snet.Conn
 	ia   addr.IA
 }
 
-func NewTRCHandler(conn *snet.Conn, ia addr.IA) *TRCHandler {
+func NewTRCHandler(conn snet.Conn, ia addr.IA) *TRCHandler {
 	return &TRCHandler{conn: conn, ia: ia}
 }
 
 // HandleReq handles TRC requests. If the TRC is not already cached and the cache-only flag is set
 // or the requester is from a remote AS, the request is dropped.
-func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq, config *conf.Conf) {
+func (h *TRCHandler) HandleReq(a snet.Addr, req *cert_mgmt.TRCReq, config *conf.Conf) {
 	log.Info("Received TRC request", "addr", a, "req", req)
 	var t *trc.TRC
 	if req.Version == cert_mgmt.NewestVersion {
@@ -51,7 +52,7 @@ func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq, config *conf
 	} else {
 		t = config.Store.GetTRC(req.ISD, req.Version)
 	}
-	srcLocal := config.PublicAddr.IA.Eq(a.IA)
+	srcLocal := config.PublicAddr.GetIA().Eq(a.GetIA())
 	if t != nil {
 		if err := h.sendTRCRep(a, t); err != nil {
 			log.Error("Unable to send TRC reply", "addr", a, "req", req, "err", err)
@@ -66,7 +67,7 @@ func (h *TRCHandler) HandleReq(a *snet.Addr, req *cert_mgmt.TRCReq, config *conf
 }
 
 // sendTRCRep creates a TRC response and sends it to the requester.
-func (h *TRCHandler) sendTRCRep(a *snet.Addr, t *trc.TRC) error {
+func (h *TRCHandler) sendTRCRep(a snet.Addr, t *trc.TRC) error {
 	raw, err := t.Compress()
 	if err != nil {
 		return err
@@ -80,7 +81,7 @@ func (h *TRCHandler) sendTRCRep(a *snet.Addr, t *trc.TRC) error {
 }
 
 // fetchTRC fetches a TRC from the remote AS.
-func (h *TRCHandler) fetchTRC(a *snet.Addr, req *cert_mgmt.TRCReq) error {
+func (h *TRCHandler) fetchTRC(a snet.Addr, req *cert_mgmt.TRCReq) error {
 	key := trc.NewKey(req.ISD, req.Version).String()
 	sendReq := trcReqCache.Put(key, a)
 	if sendReq { // rate limit
@@ -96,18 +97,20 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 	if err != nil {
 		return err
 	}
-	pathSet := snet.DefNetwork.PathResolver().Query(h.ia, req.IA())
+	pathSet := snetutils.DefNetwork.PathResolver().Query(h.ia, req.IA())
 	path := pathSet.GetAppPath("")
 	if path == nil {
 		return common.NewBasicError("Unable to find core AS", nil)
 	}
-	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.SvcCS}
+	a := snetutils.NewEmptySnetAddr()
+	a.SetIA(path.Entry.Path.DstIA())
+	a.SetHost(addr.SvcCS)
 	log.Debug("Send TRC request", "req", req, "addr", a)
 	return SendPayload(h.conn, cpld, a)
 }
 
 // HandleRep handles TRC replies. Pending requests are answered and removed.
-func (h *TRCHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.TRC, config *conf.Conf) {
+func (h *TRCHandler) HandleRep(a snet.Addr, rep *cert_mgmt.TRC, config *conf.Conf) {
 	log.Info("Received TRC reply", "addr", a, "rep", rep)
 	t, err := rep.TRC()
 	if err != nil {

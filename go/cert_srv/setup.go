@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 )
 
 const (
@@ -55,7 +55,7 @@ func setup() error {
 	conf.Set(newConf)
 	// Initialize snet with retries if not already initialized
 	if oldConf == nil {
-		if err = initSNET(newConf.PublicAddr.IA, initAttempts, initInterval); err != nil {
+		if err = initSNET(newConf.PublicAddr.GetIA(), initAttempts, initInterval); err != nil {
 			return common.NewBasicError(ErrorSNET, err)
 		}
 	}
@@ -80,7 +80,7 @@ func loadConf(oldConf *conf.Conf) (*conf.Conf, error) {
 // setDefaultSignerVerifier sets the signer and verifier. The newest certificate chain version is
 // used.
 func setDefaultSignerVerifier(c *conf.Conf) error {
-	sign, err := CreateSign(c.PublicAddr.IA, c.Store)
+	sign, err := CreateSign(c.PublicAddr.GetIA(), c.Store)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func setDefaultSignerVerifier(c *conf.Conf) error {
 func initSNET(ia addr.IA, attempts int, sleep time.Duration) (err error) {
 	// Initialize SCION local networking module
 	for i := 0; i < attempts; i++ {
-		if err = snet.Init(ia, *sciondPath, *dispPath); err == nil {
+		if err = snetutils.Init(ia, *sciondPath, *dispPath); err == nil {
 			break
 		}
 		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", err)

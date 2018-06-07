@@ -58,9 +58,9 @@ func init() {
 	flag.DurationVar(&Interval, "interval", DefaultInterval, "time between packets (echo only)")
 	flag.DurationVar(&Timeout, "timeout", DefaultTimeout, "timeout per packet")
 	flag.UintVar(&Count, "c", 0, "Total number of packet to send (echo only). Maximum value 65535")
-	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
-	flag.Var((*snet.Addr)(&Bind), "bind", "address to bind to, if running behind NAT")
+	flag.Var((snet.Addr)(Local), "local", "(Mandatory) address to listen on")
+	flag.Var((snet.Addr)(Remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var((snet.Addr)(Bind), "bind", "address to bind to, if running behind NAT")
 	flag.Usage = scmpUsage
 	// Initialize random
 	seed := rand.NewSource(time.Now().UnixNano())
@@ -106,18 +106,18 @@ func ParseFlags() string {
 }
 
 func ValidateFlags() {
-	if Local.Host == nil {
+	if Local.GetHost() == nil {
 		Fatal("Invalid local address")
 	}
-	if Remote.Host == nil {
+	if Remote.GetHost() == nil {
 		Fatal("Invalid remote address")
 	}
 	// scmp-tool does not use ports, thus they should not be set
 	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
-	if Local.L4Port != 0 {
+	if Local.GetL4Port() != 0 {
 		Fatal("Local port should not be provided")
 	}
-	if Remote.L4Port != 0 {
+	if Remote.GetL4Port() != 0 {
 		Fatal("Remote port should not be provided")
 	}
 	if Interval == 0 {
@@ -140,11 +140,11 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 		exts = []common.Extension{ext}
 	}
 	pkt := &spkt.ScnPkt{
-		DstIA:   Remote.IA,
-		SrcIA:   Local.IA,
-		DstHost: Remote.Host,
-		SrcHost: Local.Host,
-		Path:    Remote.Path,
+		DstIA:   Remote.GetIA(),
+		SrcIA:   Local.GetIA(),
+		DstHost: Remote.GetHost(),
+		SrcHost: Local.GetHost(),
+		Path:    Remote.GetPath(),
 		HBHExt:  exts,
 		L4:      scmpHdr,
 		Pld:     pld,
@@ -153,9 +153,9 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 }
 
 func NextHopAddr() net.Addr {
-	nhAddr := reliable.AppAddr{Addr: Remote.NextHopHost, Port: Remote.NextHopPort}
-	if Remote.NextHopHost == nil {
-		nhAddr = reliable.AppAddr{Addr: Remote.Host, Port: overlay.EndhostPort}
+	nhAddr := reliable.AppAddr{Addr: Remote.GetNextHopHost(), Port: Remote.GetNextHopPort()}
+	if Remote.GetNextHopHost() == nil {
+		nhAddr = reliable.AppAddr{Addr: Remote.GetHost(), Port: overlay.EndhostPort}
 	}
 	return &nhAddr
 }

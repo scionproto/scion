@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
-func Init(conn *snet.Conn) {
+func Init(conn snet.Conn) {
 	go pktdisp.PktDispatcher(conn, dispFunc)
 }
 
@@ -48,7 +48,7 @@ func (rt RegType) String() string {
 type RegPld struct {
 	Id   mgmt.MsgIdType
 	P    interface{}
-	Addr *snet.Addr
+	Addr snet.Addr
 }
 
 type RegPldChan chan *RegPld
@@ -94,7 +94,7 @@ func (dm *dispRegistry) Unregister(regType RegType, key RegPollKey) error {
 	return nil
 }
 
-func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
+func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr snet.Addr) {
 	dm.Lock()
 	defer dm.Unlock()
 	u, err := pld.Union()
@@ -112,7 +112,7 @@ func (dm *dispRegistry) sigCtrl(pld *mgmt.Pld, addr *snet.Addr) {
 			log.Error("Incomplete SIG PollRep received", "src", addr, "pld", pld)
 			return
 		}
-		entry, ok := dm.pollRep[MkRegPollKey(addr.IA, pld.Session)]
+		entry, ok := dm.pollRep[MkRegPollKey(addr.GetIA(), pld.Session)]
 		if !ok {
 			log.Warn("Unexpected SIG PollRep received", "src", addr, "pld", pld)
 			return

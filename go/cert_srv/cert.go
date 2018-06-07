@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 )
 
 var (
@@ -32,16 +33,16 @@ var (
 )
 
 type ChainHandler struct {
-	conn *snet.Conn
+	conn snet.Conn
 }
 
-func NewChainHandler(conn *snet.Conn) *ChainHandler {
+func NewChainHandler(conn snet.Conn) *ChainHandler {
 	return &ChainHandler{conn: conn}
 }
 
 // HandleReq handles certificate chain requests. If the certificate chain is not already cached
 // and the cache-only flag is set or the requester is from a remote AS, the request is dropped.
-func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq, config *conf.Conf) {
+func (h *ChainHandler) HandleReq(a snet.Addr, req *cert_mgmt.ChainReq, config *conf.Conf) {
 	log.Info("Received certificate chain request", "addr", a, "req", req)
 	var chain *cert.Chain
 	if req.Version == cert_mgmt.NewestVersion {
@@ -49,7 +50,7 @@ func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq, config *
 	} else {
 		chain = config.Store.GetChain(req.IA(), req.Version)
 	}
-	srcLocal := config.PublicAddr.IA.Eq(a.IA)
+	srcLocal := config.PublicAddr.GetIA().Eq(a.GetIA())
 	if chain != nil {
 		if err := h.sendChainRep(a, chain); err != nil {
 			log.Error("Unable to send certificate chain reply",
@@ -66,7 +67,7 @@ func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq, config *
 }
 
 // sendChainRep creates a certificate chain response and sends it to the requester.
-func (h *ChainHandler) sendChainRep(a *snet.Addr, chain *cert.Chain) error {
+func (h *ChainHandler) sendChainRep(a snet.Addr, chain *cert.Chain) error {
 	raw, err := chain.Compress()
 	if err != nil {
 		return err
@@ -80,7 +81,7 @@ func (h *ChainHandler) sendChainRep(a *snet.Addr, chain *cert.Chain) error {
 }
 
 // fetchChain fetches certificate chain from the remote AS.
-func (h *ChainHandler) fetchChain(a *snet.Addr, req *cert_mgmt.ChainReq) error {
+func (h *ChainHandler) fetchChain(a snet.Addr, req *cert_mgmt.ChainReq) error {
 	key := cert.NewKey(req.IA(), req.Version).String()
 	sendReq := chainReqCache.Put(key, a)
 	if sendReq { // rate limit
@@ -97,13 +98,15 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 	if err != nil {
 		return err
 	}
-	a := &snet.Addr{IA: req.IA(), Host: addr.SvcCS}
+	a := snetutils.NewEmptySnetAddr()
+	a.SetIA(req.IA())
+	a.SetHost(addr.SvcCS)
 	log.Debug("Send certificate chain request", "req", req, "addr", a)
 	return SendPayload(h.conn, cpld, a)
 }
 
 // HandleRep handles certificate chain replies. Pending requests are answered and removed.
-func (h *ChainHandler) HandleRep(a *snet.Addr, rep *cert_mgmt.Chain, config *conf.Conf) {
+func (h *ChainHandler) HandleRep(a snet.Addr, rep *cert_mgmt.Chain, config *conf.Conf) {
 	log.Info("Received certificate chain reply", "addr", a, "rep", rep)
 	chain, err := rep.Chain()
 	if err != nil {

@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
@@ -52,7 +53,7 @@ var (
 	IA       addr.IA
 	Host     addr.HostAddr
 	PathMgr  *pathmgr.PR
-	CtrlConn *snet.Conn
+	CtrlConn snet.Conn
 	MgmtAddr *mgmt.Addr
 )
 
@@ -71,29 +72,25 @@ func Init(ia addr.IA, ip net.IP) error {
 		*sciondPath = sciond.GetDefaultSCIONDPath(&ia)
 	}
 	// Initialize SCION local networking module
-	err = snet.Init(ia, *sciondPath, *dispatcherPath)
+	err = snetutils.Init(ia, *sciondPath, *dispatcherPath)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
-	PathMgr = snet.DefNetwork.PathResolver()
-	CtrlConn, err = snet.ListenSCION(
-		"udp4", &snet.Addr{IA: IA, Host: Host, L4Port: uint16(*CtrlPort)})
+	PathMgr = snetutils.DefNetwork.PathResolver()
+	CtrlConn, err = snetutils.ListenSCION(
+		"udp4", snetutils.NewSnetAddr(IA, Host, uint16(*CtrlPort)))
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
 	}
 	return nil
 }
 
-func CtrlSnetAddr() *snet.Addr {
-	return &snet.Addr{
-		IA: IA, Host: Host, L4Port: uint16(*CtrlPort),
-	}
+func CtrlSnetAddr() snet.Addr {
+	return snetutils.NewSnetAddr(IA, Host, uint16(*CtrlPort))
 }
 
-func EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{
-		IA: IA, Host: Host, L4Port: uint16(*EncapPort),
-	}
+func EncapSnetAddr() snet.Addr {
+	return snetutils.NewSnetAddr(IA, Host, uint16(*EncapPort))
 }
 
 func ValidatePort(desc string, port int) error {

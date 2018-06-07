@@ -364,11 +364,11 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	// We need to send out a network request, but only do so if we're
 	// servicing a request coming from our own AS.
 	if requester != nil {
-		switch saddr, ok := requester.(*snet.Addr); {
+		switch saddr, ok := requester.(snet.Addr); {
 		case !ok:
 			return nil, common.NewBasicError("Unable to determine AS of requester",
 				nil, "addr", requester)
-		case !store.ia.Eq(saddr.IA):
+		case !store.ia.Eq(saddr.GetIA()):
 			return nil, common.NewBasicError("Chain not found in DB, and recursion not "+
 				"allowed for clients outside AS", nil, "client", saddr)
 		}
@@ -466,11 +466,11 @@ func (store *Store) isLocal(address net.Addr) error {
 	// We need to send out a network request, but only do so if we're
 	// servicing a request coming from our own AS.
 	if address != nil {
-		switch saddr, ok := address.(*snet.Addr); {
+		switch saddr, ok := address.(snet.Addr); {
 		case !ok:
 			return common.NewBasicError("Unable to determine AS of address",
 				nil, "addr", address)
-		case !store.ia.Eq(saddr.IA):
+		case !store.ia.Eq(saddr.GetIA()):
 			return common.NewBasicError("Object not found in DB, and recursion not "+
 				"allowed for clients outside AS", nil, "addr", address)
 		}

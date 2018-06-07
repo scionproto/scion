@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
@@ -42,7 +43,7 @@ const (
 )
 
 var (
-	extConn            *snet.Conn
+	extConn            snet.Conn
 	tunIO              io.ReadWriteCloser
 	freeFrames         *ringbuf.Ring
 	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair
@@ -52,7 +53,7 @@ var (
 // source ISD-AS -> source host Addr -> Sess Id and hands it off to the
 // appropriate Worker, starting a new one if none currently exists.
 type Dispatcher struct {
-	laddr   *snet.Addr
+	laddr   snet.Addr
 	workers map[string]*Worker
 }
 
@@ -71,7 +72,7 @@ func Init(tio io.ReadWriteCloser) error {
 
 func (d *Dispatcher) Run() error {
 	var err error
-	extConn, err = snet.ListenSCION("udp4", d.laddr)
+	extConn, err = snetutils.ListenSCION("udp4", d.laddr)
 	if err != nil {
 		return common.NewBasicError("Unable to initialize extConn", err)
 	}
@@ -93,7 +94,7 @@ func (d *Dispatcher) read() {
 			} else {
 				frame.frameLen = read
 				frame.sessId = mgmt.SessionType((frame.raw[0]))
-				updateMetrics(src.IA.IAInt(), frame.sessId, read)
+				updateMetrics(src.GetIA().IAInt(), frame.sessId, read)
 				d.dispatch(frame, src)
 			}
 			// Clear FrameBuf reference
@@ -108,8 +109,8 @@ func (d *Dispatcher) read() {
 
 // dispatch dispatches a frame to the corresponding worker, spawning one if none
 // exist yet. Dispatching is done based on source ISD-AS -> source host Addr -> Sess Id.
-func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
-	dispatchStr := fmt.Sprintf("%s/%s/%s", src.IA, src.Host, frame.sessId)
+func (d *Dispatcher) dispatch(frame *FrameBuf, src snet.Addr) {
+	dispatchStr := fmt.Sprintf("%s/%s/%s", src.GetIA(), src.GetHost(), frame.sessId)
 	// Check if we already have a worker running and start one if not.
 	worker, ok := d.workers[dispatchStr]
 	if !ok {

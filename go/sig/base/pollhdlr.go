@@ -18,7 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
@@ -55,11 +55,11 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error packing signed Ctrl payload", "err", err)
 			break
 		}
-		sigCtrlAddr := &snet.Addr{
-			IA: rpld.Addr.IA, Host: req.Addr.Ctrl.Host(), L4Port: req.Addr.Ctrl.Port,
-			Path: rpld.Addr.Path, NextHopHost: rpld.Addr.NextHopHost,
-			NextHopPort: rpld.Addr.NextHopPort,
-		}
+		sigCtrlAddr := snetutils.NewSnetAddr(rpld.Addr.GetIA(), req.Addr.Ctrl.Host(),
+			req.Addr.Ctrl.Port)
+		sigCtrlAddr.SetPath(rpld.Addr.GetPath())
+		sigCtrlAddr.SetNextHopHost(rpld.Addr.GetNextHopHost())
+		sigCtrlAddr.SetNextHopPort(rpld.Addr.GetNextHopPort())
 		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
 		if err != nil {
 			log.Error("PollReqHdlr: Error sending Ctrl payload", "dest", rpld.Addr, "err", err)

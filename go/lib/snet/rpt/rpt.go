@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/internal"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/util/bufpool"
 )
@@ -270,7 +270,7 @@ func (t *RPT) goBackgroundReceiver() {
 			if err != nil {
 				// FIXME(scrye): For now just log and continue on SCMP errors,
 				// and destroy the background receiver on other errors.
-				if opErr, ok := err.(*snet.OpError); ok && opErr.SCMP() != nil {
+				if opErr, ok := err.(*internal.OpError); ok && opErr.SCMP() != nil {
 					t.log.Warn("Received SCMP message", "msg", opErr.SCMP())
 					bufpool.Put(b)
 					continue

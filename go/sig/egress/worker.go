@@ -165,12 +165,12 @@ func (w *worker) write(f *frame) error {
 		return nil
 	}
 	snetAddr := w.currSig.EncapSnetAddr()
-	snetAddr.Path = spath.New(w.currPathEntry.Path.FwdPath)
-	if err := snetAddr.Path.InitOffsets(); err != nil {
+	snetAddr.SetPath(spath.New(w.currPathEntry.Path.FwdPath))
+	if err := snetAddr.GetPath().InitOffsets(); err != nil {
 		return common.NewBasicError("Error initializing path offsets", err)
 	}
-	snetAddr.NextHopHost = w.currPathEntry.HostInfo.Host()
-	snetAddr.NextHopPort = w.currPathEntry.HostInfo.Port
+	snetAddr.SetNextHopHost(w.currPathEntry.HostInfo.Host())
+	snetAddr.SetNextHopPort(w.currPathEntry.HostInfo.Port)
 
 	if w.seq == 0 {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)

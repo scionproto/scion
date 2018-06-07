@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/lib/snet/squic"
 	"github.com/scionproto/scion/go/lib/spath"
 )
@@ -64,8 +65,8 @@ var (
 )
 
 func init() {
-	flag.Var((*snet.Addr)(&local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+	flag.Var((snet.Addr)(local), "local", "(Mandatory) address to listen on")
+	flag.Var((snet.Addr)(remote), "remote", "(Mandatory for clients) address to connect to")
 }
 
 func main() {
@@ -79,11 +80,11 @@ func main() {
 	defer log.LogPanicAndExit()
 	switch *mode {
 	case "client":
-		if remote.Host == nil {
+		if remote.GetHost() == nil {
 			LogFatal("Missing remote address")
 		}
-		if remote.L4Port == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.L4Port)
+		if remote.GetL4Port() == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.GetL4Port())
 		}
 		Client()
 	case "server":
@@ -96,20 +97,21 @@ func validateFlags() {
 	if *mode != "client" && *mode != "server" {
 		LogFatal("Unknown mode, must be either 'client' or 'server'")
 	}
-	if *mode == "client" && remote.Host == nil {
+	if *mode == "client" && remote.GetHost() == nil {
 		LogFatal("Missing remote address")
 	}
-	if local.Host == nil {
+	if local.GetHost() == nil {
 		LogFatal("Missing local address")
 	}
 	if *sciondFromIA {
 		if *sciond != "" {
 			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
 		}
-		if local.IA.IsZero() {
+		if local.GetIA().IsZero() {
 			LogFatal("-local flag is missing")
 		}
-		*sciond = sd.GetDefaultSCIONDPath(&local.IA)
+		localIA := local.GetIA()
+		*sciond = sd.GetDefaultSCIONDPath(&localIA)
 	} else if *sciond == "" {
 		*sciond = sd.GetDefaultSCIONDPath(nil)
 	}
@@ -127,22 +129,22 @@ func Client() {
 
 	// Needs to happen before DialSCION, as it will 'copy' the remote to the connection.
 	// If remote is not in local AS, we need a path!
-	if !remote.IA.Eq(local.IA) {
+	if !remote.GetIA().Eq(local.GetIA()) {
 		pathEntry := choosePath(*interactive)
 		if pathEntry == nil {
 			LogFatal("No paths available to remote destination")
 		}
-		remote.Path = spath.New(pathEntry.Path.FwdPath)
-		remote.Path.InitOffsets()
-		remote.NextHopHost = pathEntry.HostInfo.Host()
-		remote.NextHopPort = pathEntry.HostInfo.Port
+		remote.SetPath(spath.New(pathEntry.Path.FwdPath))
+		remote.GetPath().InitOffsets()
+		remote.SetNextHopHost(pathEntry.HostInfo.Host())
+		remote.SetNextHopPort(pathEntry.HostInfo.Port)
 	}
 
 	// Connect to remote address. Note that currently the SCION library
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	qsess, err := squic.DialSCION(nil, &local, &remote)
+	qsess, err := squic.DialSCION(nil, local, remote)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -243,7 +245,7 @@ func Server() {
 	initNetwork()
 
 	// Listen on SCION address
-	qsock, err := squic.ListenSCION(nil, &local)
+	qsock, err := squic.ListenSCION(nil, local)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
@@ -262,7 +264,7 @@ func Server() {
 
 func initNetwork() {
 	// Initialize default SCION networking context
-	if err := snet.Init(local.IA, *sciond, *dispatcher); err != nil {
+	if err := snetutils.Init(local.GetIA(), *sciond, *dispatcher); err != nil {
 		LogFatal("Unable to initialize SCION network", "err", err)
 	}
 	log.Debug("SCION network successfully initialized")
@@ -327,8 +329,8 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	var paths []*sd.PathReplyEntry
 	var pathIndex uint64
 
-	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathMgr := snetutils.DefNetwork.PathResolver()
+	pathSet := pathMgr.Query(local.GetIA(), remote.GetIA())
 
 	if len(pathSet) == 0 {
 		return nil
@@ -337,7 +339,7 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 		paths = append(paths, p.Entry)
 	}
 	if interactive {
-		fmt.Printf("Available paths to %v\n", remote.IA)
+		fmt.Printf("Available paths to %v\n", remote.GetIA())
 		for i := range paths {
 			fmt.Printf("[%2d] %s\n", i, paths[i].Path.String())
 		}

@@ -41,7 +41,7 @@ type sender interface {
 // Worker handles decapsulation of SIG frames.
 type Worker struct {
 	log.Logger
-	Remote           *snet.Addr
+	Remote           snet.Addr
 	SessId           mgmt.SessionType
 	Ring             *ringbuf.Ring
 	rlists           map[int]*ReassemblyList
@@ -49,12 +49,12 @@ type Worker struct {
 	sentCtrs         metrics.CtrPair
 }
 
-func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
+func NewWorker(remote snet.Addr, sessId mgmt.SessionType) *Worker {
 	// FIXME(kormat): these labels don't allow us to identify traffic from a
 	// specific remote sig, but adding the remote sig addr would cause a label
 	// explosion :/
 	ringLabels := prometheus.Labels{
-		"ringId": remote.IA.String(), "sessId": sessId.String(),
+		"ringId": remote.GetIA().String(), "sessId": sessId.String(),
 	}
 	worker := &Worker{
 		Logger: log.New("ingress", remote.String(), "sessId", sessId),
@@ -63,9 +63,9 @@ func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 		Ring:   ringbuf.New(64, nil, "ingress", ringLabels),
 		rlists: make(map[int]*ReassemblyList),
 		sentCtrs: metrics.CtrPair{
-			Pkts: metrics.PktsSent.WithLabelValues(remote.IA.String(),
+			Pkts: metrics.PktsSent.WithLabelValues(remote.GetIA().String(),
 				sessId.String()),
-			Bytes: metrics.PktBytesSent.WithLabelValues(remote.IA.String(),
+			Bytes: metrics.PktBytesSent.WithLabelValues(remote.GetIA().String(),
 				sessId.String()),
 		},
 	}

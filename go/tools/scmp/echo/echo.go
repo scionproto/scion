@@ -140,7 +140,7 @@ func recvPkts() {
 }
 
 func summary() {
-	fmt.Printf("\n--- %s,[%s] statistics ---\n", cmn.Remote.IA, cmn.Remote.Host)
+	fmt.Printf("\n--- %s,[%s] statistics ---\n", cmn.Remote.GetIA(), cmn.Remote.GetHost())
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
 		cmn.Stats.Sent, cmn.Stats.Recv, 100-cmn.Stats.Recv*100/cmn.Stats.Sent,
 		time.Since(cmn.Start).Round(time.Microsecond))

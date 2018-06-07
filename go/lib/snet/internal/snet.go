@@ -44,7 +44,7 @@
 // to shutdown the socket (see https://github.com/scionproto/scion/pull/1356).
 // To prevent this on a Conn object with only Write calls, run a separate
 // goroutine that continuously calls Read on the Conn.
-package snet
+package internal
 
 import (
 	"net"
@@ -55,31 +55,38 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
+
+const (
+	// Receive and send buffer sizes
+	BufSize = 1<<16 - 1
+)
+
+type Error interface {
+	error
+	SCMP() *scmp.Hdr
+}
+
+var _ Error = (*OpError)(nil)
+
+type OpError struct {
+	scmp *scmp.Hdr
+}
+
+func (e *OpError) SCMP() *scmp.Hdr {
+	return e.scmp
+}
+
+func (e *OpError) Error() string {
+	return e.scmp.String()
+}
 
 var (
 	// Default SCION networking context for package-level Dial and Listen
 	DefNetwork *Network
 )
-
-// Init initializes the default SCION networking context.
-func Init(ia addr.IA, sciondPath string, dispatcherPath string) error {
-	network, err := NewNetwork(ia, sciondPath, dispatcherPath)
-	if err != nil {
-		return err
-	}
-	return InitWithNetwork(network)
-}
-
-// InitWithNetwork initializes snet with the provided SCION networking context.
-func InitWithNetwork(network *Network) error {
-	if DefNetwork != nil {
-		return common.NewBasicError("Cannot initialize global SCION network twice", nil)
-	}
-	DefNetwork = network
-	return nil
-}
 
 // IA returns the default ISD-AS
 func IA() addr.IA {
@@ -101,7 +108,7 @@ type Network struct {
 
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *Network {
+func newNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *Network {
 	return &Network{
 		dispatcherPath: dispatcherPath,
 		pathResolver:   pr,
@@ -133,13 +140,13 @@ func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*Network,
 			return nil, common.NewBasicError("Unable to initialize path resolver", err)
 		}
 	}
-	return NewNetworkWithPR(ia, dispatcherPath, pathResolver), nil
+	return newNetworkWithPR(ia, dispatcherPath, pathResolver), nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
-func (n *Network) DialSCION(network string, laddr *Addr, raddr *Addr) (*Conn, error) {
+func (n *Network) DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	return n.DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone)
 }
 
@@ -155,7 +162,7 @@ func (n *Network) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr
 	if err != nil {
 		return nil, err
 	}
-	conn.raddr = raddr.Copy()
+	conn.raddr = raddr.Copy().(*Addr)
 	if n.pathResolver != nil {
 		conn.sp, err = n.pathResolver.Watch(conn.laddr.IA, conn.raddr.IA)
 		if err != nil {
@@ -212,7 +219,7 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	// NOTE: keep nil address logic for now, even though we do not support
 	// it yet
 	if laddr != nil {
-		conn.laddr = laddr.Copy()
+		conn.laddr = laddr.Copy().(*Addr)
 		regAddr.Port = conn.laddr.L4Port
 	} else {
 		conn.laddr = &Addr{}
@@ -231,7 +238,7 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	}
 
 	if baddr != nil {
-		conn.baddr = baddr.Copy()
+		conn.baddr = baddr.Copy().(*Addr)
 		bindAddr = &reliable.AppAddr{Addr: conn.baddr.Host, Port: conn.baddr.L4Port}
 		if !conn.baddr.IA.Eq(conn.scionNet.localIA) {
 			return nil, common.NewBasicError("Unable to listen on non-local IA", nil,

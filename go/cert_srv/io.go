@@ -22,13 +22,14 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 )
 
 const MaxReadBufSize = 2 << 16
 
 // Dispatcher handles incoming SCION packets.
 type Dispatcher struct {
-	conn         *snet.Conn
+	conn         snet.Conn
 	buf          common.RawBytes
 	stop         chan struct{}
 	stopped      chan struct{}
@@ -38,8 +39,8 @@ type Dispatcher struct {
 }
 
 // NewDispatcher creates a new dispatcher listening to SCION traffic on the specified address.
-func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
-	conn, err := snet.ListenSCIONWithBindSVC("udp4", public, bind, addr.SvcCS)
+func NewDispatcher(public, bind snet.Addr) (*Dispatcher, error) {
+	conn, err := snetutils.ListenSCIONWithBindSVC("udp4", public, bind, addr.SvcCS)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,7 @@ func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
 		stop:         make(chan struct{}),
 		stopped:      make(chan struct{}),
 		chainHandler: NewChainHandler(conn),
-		trcHandler:   NewTRCHandler(conn, public.IA),
+		trcHandler:   NewTRCHandler(conn, public.GetIA()),
 	}
 	return d, nil
 }
@@ -79,7 +80,7 @@ func (d *Dispatcher) Run() {
 }
 
 // dispatch hands payload over tho the associated handlers.
-func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, config *conf.Conf) error {
+func (d *Dispatcher) dispatch(addr snet.Addr, buf common.RawBytes, config *conf.Conf) error {
 	signed, err := ctrl.NewSignedPldFromRaw(buf)
 	if err != nil {
 		return common.NewBasicError("Unable to parse signed payload", err, "addr", addr)
@@ -139,7 +140,7 @@ func (d *Dispatcher) Close() error {
 }
 
 // SendPayload is used to send payloads to the specified address using snet.
-func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
+func SendPayload(conn snet.Conn, cpld *ctrl.Pld, addr snet.Addr) error {
 	buf, err := cpld.PackPld()
 	if err != nil {
 		return err
@@ -149,7 +150,7 @@ func SendPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr) error {
 }
 
 // SendSignedPayload is used to send signed payloads to the specified address using snet.
-func SendSignedPayload(conn *snet.Conn, cpld *ctrl.Pld, addr *snet.Addr, config *conf.Conf) error {
+func SendSignedPayload(conn snet.Conn, cpld *ctrl.Pld, addr snet.Addr, config *conf.Conf) error {
 	signer := config.GetSigner()
 	signed, err := signer.Sign(cpld)
 	if err != nil {

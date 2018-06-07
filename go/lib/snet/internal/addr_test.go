@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snet
+package internal
 
 import (
 	"fmt"
@@ -101,14 +101,15 @@ func Test_AddrFromString(t *testing.T) {
 	Convey("Function AddrFromString", t, func() {
 		for _, test := range tests {
 			Convey(fmt.Sprintf("given address %q", test.address), func() {
-				a, err := AddrFromString(test.address)
+				temp := &Addr{}
+				a, err := temp.AddrFromString(test.address)
 				if test.isError {
 					SoMsg("error", err, ShouldNotBeNil)
 				} else {
 					SoMsg("error", err, ShouldBeNil)
-					SoMsg("ia", a.IA.String(), ShouldResemble, test.ia)
-					SoMsg("host", a.Host.String(), ShouldResemble, test.host)
-					SoMsg("port", a.L4Port, ShouldEqual, test.port)
+					SoMsg("ia", a.GetIA().String(), ShouldResemble, test.ia)
+					SoMsg("host", a.GetHost().String(), ShouldResemble, test.host)
+					SoMsg("port", a.GetL4Port(), ShouldEqual, test.port)
 				}
 			})
 		}

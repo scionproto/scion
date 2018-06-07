@@ -42,12 +42,12 @@ func NewReqCache(expire, cleanup, delta time.Duration) *ReqCache {
 
 // Put adds an address to the expiring cache. The return value indicates whether the delta has
 // passed and the caller should issue a new request.
-func (c *ReqCache) Put(key string, addr *snet.Addr) bool {
+func (c *ReqCache) Put(key string, addr snet.Addr) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	val, ok := c.cache.Get(key)
 	if !ok {
-		val = &AddrSet{Addrs: make(map[string]*snet.Addr)}
+		val = &AddrSet{Addrs: make(map[string]snet.Addr)}
 		c.cache.SetDefault(key, val)
 	}
 	reqs := val.(*AddrSet)
@@ -75,7 +75,7 @@ func (c *ReqCache) Pop(key string) *AddrSet {
 // the timestamp, when the last request was sent for rate limiting.
 type AddrSet struct {
 	// Addrs is a set of addresses for an pending request.
-	Addrs map[string]*snet.Addr
+	Addrs map[string]snet.Addr
 	// LastReq is a timestamp when the last request has been issued.
 	LastReq time.Time
 }

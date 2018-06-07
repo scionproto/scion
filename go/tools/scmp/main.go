@@ -24,10 +24,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetutils"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
-
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 	"github.com/scionproto/scion/go/tools/scmp/echo"
 	"github.com/scionproto/scion/go/tools/scmp/recordpath"
@@ -50,24 +49,25 @@ func main() {
 		if *sciondPath != "" {
 			cmn.Fatal("Only one of -sciond or -sciondFromIA can be specified")
 		}
-		if cmn.Local.IA.IsZero() {
+		if cmn.Local.GetIA().IsZero() {
 			cmn.Fatal("-local flag is missing")
 		}
-		*sciondPath = sciond.GetDefaultSCIONDPath(&cmn.Local.IA)
+		localIA := cmn.Local.GetIA()
+		*sciondPath = sciond.GetDefaultSCIONDPath(&localIA)
 	} else if *sciondPath == "" {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
 	// Initialize default SCION networking context
-	if err := snet.Init(cmn.Local.IA, *sciondPath, *dispatcher); err != nil {
+	if err := snetutils.Init(cmn.Local.GetIA(), *sciondPath, *dispatcher); err != nil {
 		cmn.Fatal("Unable to initialize SCION network\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
-	address := &reliable.AppAddr{Addr: cmn.Local.Host}
+	address := &reliable.AppAddr{Addr: cmn.Local.GetHost()}
 	var bindAddress *reliable.AppAddr
-	if cmn.Bind.Host != nil {
-		bindAddress = &reliable.AppAddr{Addr: cmn.Bind.Host}
+	if cmn.Bind.GetHost() != nil {
+		bindAddress = &reliable.AppAddr{Addr: cmn.Bind.GetHost()}
 	}
-	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, address,
+	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.GetIA(), address,
 		bindAddress, addr.SvcNone)
 	if err != nil {
 		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local, err)
@@ -76,7 +76,7 @@ func main() {
 
 	// If remote is not in local AS, we need a path!
 	var pathStr string
-	if !cmn.Remote.IA.Eq(cmn.Local.IA) {
+	if !cmn.Remote.GetIA().Eq(cmn.Local.GetIA()) {
 		cmn.Mtu = setPathAndMtu()
 		pathStr = cmn.PathEntry.Path.String()
 	} else {
@@ -112,8 +112,8 @@ func choosePath() *sciond.PathReplyEntry {
 	var paths []*sciond.PathReplyEntry
 	var pathIndex uint64
 
-	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(cmn.Local.IA, cmn.Remote.IA)
+	pathMgr := snetutils.DefNetwork.PathResolver()
+	pathSet := pathMgr.Query(cmn.Local.GetIA(), cmn.Remote.GetIA())
 
 	if len(pathSet) == 0 {
 		return nil
@@ -122,7 +122,7 @@ func choosePath() *sciond.PathReplyEntry {
 		paths = append(paths, p.Entry)
 	}
 	if cmn.Interactive {
-		fmt.Printf("Available paths to %v\n", cmn.Remote.IA)
+		fmt.Printf("Available paths to %v\n", cmn.Remote.GetIA())
 		for i := range paths {
 			fmt.Printf("[%2d] %s\n", i, paths[i].Path.String())
 		}
@@ -146,16 +146,16 @@ func setPathAndMtu() uint16 {
 	if cmn.PathEntry == nil {
 		cmn.Fatal("No paths available to remote destination")
 	}
-	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
-	cmn.Remote.Path.InitOffsets()
-	cmn.Remote.NextHopHost = cmn.PathEntry.HostInfo.Host()
-	cmn.Remote.NextHopPort = cmn.PathEntry.HostInfo.Port
+	cmn.Remote.SetPath(spath.New(cmn.PathEntry.Path.FwdPath))
+	cmn.Remote.GetPath().InitOffsets()
+	cmn.Remote.SetNextHopHost(cmn.PathEntry.HostInfo.Host())
+	cmn.Remote.SetNextHopPort(cmn.PathEntry.HostInfo.Port)
 	return cmn.PathEntry.Path.Mtu
 }
 
 func setLocalMtu() uint16 {
 	// Use local AS MTU when we have no path
-	sd := snet.DefNetwork.Sciond()
+	sd := snetutils.DefNetwork.Sciond()
 	c, err := sd.Connect()
 	if err != nil {
 		cmn.Fatal("Unable to connect to sciond")

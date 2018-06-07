@@ -202,12 +202,12 @@ func (sm *sessMonitor) sendReq() {
 		return
 	}
 	raddr := sm.smRemote.Sig.CtrlSnetAddr()
-	raddr.Path = spath.New(sm.smRemote.sessPath.pathEntry.Path.FwdPath)
-	if err := raddr.Path.InitOffsets(); err != nil {
+	raddr.SetPath(spath.New(sm.smRemote.sessPath.pathEntry.Path.FwdPath))
+	if err := raddr.GetPath().InitOffsets(); err != nil {
 		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
 	}
-	raddr.NextHopHost = sm.smRemote.sessPath.pathEntry.HostInfo.Host()
-	raddr.NextHopPort = sm.smRemote.sessPath.pathEntry.HostInfo.Port
+	raddr.SetNextHopHost(sm.smRemote.sessPath.pathEntry.HostInfo.Host())
+	raddr.SetNextHopPort(sm.smRemote.sessPath.pathEntry.HostInfo.Port)
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both
 	// goroutines write to it.
@@ -224,9 +224,9 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 			"src", rpld.Addr, "type", common.TypeOf(rpld.P), "pld", rpld.P)
 		return
 	}
-	if !sm.sess.IA.Eq(rpld.Addr.IA) {
+	if !sm.sess.IA.Eq(rpld.Addr.GetIA()) {
 		sm.Error("sessMonitor: SIGPollRep from wrong IA",
-			"expected", sm.sess.IA, "actual", rpld.Addr.IA)
+			"expected", sm.sess.IA, "actual", rpld.Addr.GetIA())
 		return
 	}
 	sm.lastReply = time.Now()
