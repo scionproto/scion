@@ -101,22 +101,22 @@ func TestHooksSrcDstHost(t *testing.T) {
 		var host addr.HostAddr
 
 		host, err = rpkt.DstHost()
-		SoMsg("Destination host wrong", host, ShouldEqual, dstHost)
+		SoMsg("Destination host wrong", addr.HostEq(host, dstHost), ShouldBeTrue)
 		SoMsg("Should be no error when calling destination host getter", err, ShouldBeNil)
 
 		host, err = rpkt.DstHost()
-		SoMsg("Destination host wrong on second getter call", host, ShouldEqual, dstHost)
+		SoMsg("Destination host wrong on second getter call", addr.HostEq(host, dstHost), ShouldBeTrue)
 		SoMsg("Should be no error when calling destination host getter for cached value", err,
 			ShouldBeNil)
 		SoMsg("Destination host must only be fetched once, cached value must be reused on the "+
 			"second call", fetched, ShouldEqual, 1)
 
 		host, err = rpkt.SrcHost()
-		SoMsg("Source host wrong", host, ShouldEqual, srcHost)
+		SoMsg("Source host wrong", addr.HostEq(host, srcHost), ShouldBeTrue)
 		SoMsg("Should be no error when calling source host getter", err, ShouldBeNil)
 
 		host, err = rpkt.SrcHost()
-		SoMsg("Source host wrong on cached getter call", host, ShouldEqual, srcHost)
+		SoMsg("Source host wrong on cached getter call", addr.HostEq(host, srcHost), ShouldBeTrue)
 		SoMsg("Should be no error when calling destination host getter for cached value", err,
 			ShouldBeNil)
 		SoMsg("Two fetches are expected (both source and destination host, each exactly once)",
