@@ -89,14 +89,20 @@ func (s *Sock) Start() {
 func (s *Sock) Stop() {
 	if s.running {
 		log.Debug("Sock routines stopping", "addr", s.Conn.LocalAddr())
+		// The order of the sequence below is important:
+		// Close the Sock, which effectively only signals the Reader to finish.
 		close(s.stop)
-		if s.Writer != nil {
-			<-s.writerStopped
-		}
 		if s.Reader != nil {
 			<-s.readerStopped
 		}
+		// Close the ringbuf which in turn will make the Writer to close after it has processed
+		// all packets in the ringbuf.
+		// This is the only way to signal the Writer to finish.
 		s.Ring.Close()
+		if s.Writer != nil {
+			<-s.writerStopped
+		}
+		// Close the posix sockets.
 		if err := s.Conn.Close(); err != nil {
 			log.Error("Error stopping socket", "err", err)
 		}

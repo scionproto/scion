@@ -25,6 +25,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -33,8 +34,7 @@ import (
 // NetConf contains the local addresses, interface config, and some maps for
 // accessing these by different methods.
 type NetConf struct {
-	// LocAddr is a slice containing the local addresses in order from the
-	// topology.
+	// LocAddr is the local addresses from the topology.
 	LocAddr *topology.TopoAddr
 	// IFs maps interface IDs to Interfaces.
 	IFs map[common.IFIDType]*Interface
@@ -51,9 +51,8 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 		ifinfo := infomap[ifid]
 		if n.LocAddr == nil {
 			n.LocAddr = ifinfo.InternalAddr
-		} else if n.LocAddr != ifinfo.InternalAddr {
-			return nil, common.NewBasicError("Duplicate local address index", nil,
-				"first", n.LocAddr, "second", ifinfo.InternalAddr)
+		} else if assert.On {
+			assert.Must(n.LocAddr == ifinfo.InternalAddr, "Cannot have multiple local addresses")
 		}
 		v, ok := n.IFs[ifid]
 		newIF := intfFromTopoIF(&ifinfo, ifid)
