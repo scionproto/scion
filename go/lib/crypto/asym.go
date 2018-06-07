@@ -27,13 +27,11 @@ import (
 
 // Available asymmetric crypto algorithms. The values must be lower case.
 const (
-	NonceSize      = 24
-	PublicKeySize  = 32
-	PrivateKeySize = 32
+	NaClBoxNonceSize = 24
+	NaClBoxKeySize   = 32
 
 	Ed25519                    = "ed25519"
 	Curve25519xSalsa20Poly1305 = "curve25519xsalsa20poly1305"
-<<<<<<< 314a16e25be32b89855fa5f43d966c96a99f6771
 )
 
 const (
@@ -46,17 +44,6 @@ const (
 	UnsupportedSignAlgo      = "Unsupported signing algorithm"
 	UnsupportedEncAlgo       = "Unsupported encryption algorithm"
 	UnsupportedDecAlgo       = "Unsupported decryption algorithm"
-=======
-	InvalidKeySize             = "Invalid key size"
-	InvalidNonceSize           = "Invalid nonce size"
-	InvalidSignature           = "Invalid signature"
-	UnsupportedSignAlgo        = "Unsupported signing algorithm"
-	UnableToGenerateKeyPair    = "Unable to generate key pair"
-	UnableToGenerateNonce      = "Unable to generate nonce"
-	UnableToDecrypt            = "Unable to decrypt message"
-	UnsupportedEncAlgo         = "Unsupported encryption algorithm"
-	UnsupportedDecAlgo         = "Unsupported decryption algorithm"
->>>>>>> Feedback#1 addressed
 )
 
 // GenKeyPairs generates a public/private key pair.
@@ -130,15 +117,14 @@ func Nonce(len int) (common.RawBytes, error) {
 func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
-		if len(nonce) != NonceSize {
+		if len(nonce) != NaClBoxNonceSize {
 			return nil, common.NewBasicError(InvalidNonceSize, nil, "algo", algo)
 		}
-		if len(pubkey) != PublicKeySize || len(privkey) != PrivateKeySize {
+		if len(pubkey) != NaClBoxKeySize || len(privkey) != NaClBoxKeySize {
 			return nil, common.NewBasicError(InvalidKeySize, nil, "algo", algo)
 		}
-		var nonceRaw [NonceSize]byte
-		var pubKeyRaw [PublicKeySize]byte
-		var privKeyRaw [PrivateKeySize]byte
+		var nonceRaw [NaClBoxNonceSize]byte
+		var pubKeyRaw, privKeyRaw [NaClBoxKeySize]byte
 		copy(nonceRaw[:], nonce)
 		copy(pubKeyRaw[:], pubkey)
 		copy(privKeyRaw[:], privkey)
@@ -152,15 +138,14 @@ func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
-		if len(nonce) != NonceSize {
+		if len(nonce) != NaClBoxNonceSize {
 			return nil, common.NewBasicError(InvalidNonceSize, nil, "algo", algo)
 		}
-		if len(pubkey) != PublicKeySize || len(privkey) != PrivateKeySize {
+		if len(pubkey) != NaClBoxKeySize || len(privkey) != NaClBoxKeySize {
 			return nil, common.NewBasicError(InvalidKeySize, nil, "algo", algo)
 		}
-		var nonceRaw [NonceSize]byte
-		var pubKeyRaw [PublicKeySize]byte
-		var privKeyRaw [PrivateKeySize]byte
+		var nonceRaw [NaClBoxNonceSize]byte
+		var pubKeyRaw, privKeyRaw [NaClBoxKeySize]byte
 		copy(nonceRaw[:], nonce)
 		copy(pubKeyRaw[:], pubkey)
 		copy(privKeyRaw[:], privkey)
@@ -170,6 +155,6 @@ func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 		}
 		return dec, nil
 	default:
-		return nil, common.NewBasicError(UnsupportedDecAlgo, nil, "algo", algo)
+		return nil, common.NewBasicError(UnsupportedEncAlgo, nil, "algo", algo)
 	}
 }
