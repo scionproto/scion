@@ -80,8 +80,7 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, error) {
 		return HookError, common.NewBasicError("Destination host is NOT an SVC address", nil,
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	// Use any local output sock in case the packet has no path (e.g., ifstate requests)
-	// FIXME Choose LocSock based on overlay type
+	// FIXME(sgmonroy) Choose LocSock based on overlay type
 	if svc.IsMulticast() {
 		return rp.RouteResolveSVCMulti(svc)
 	}

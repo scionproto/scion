@@ -28,11 +28,9 @@ import (
 type Ctx struct {
 	// Conf contains the router state for this context.
 	Conf *conf.Conf
-	// LockSockIn is a slice of Sock's for receiving packets from the local AS,
-	// indexed by the local address index.
+	// LockSockIn is a Sock for receiving packets from the local AS,
 	LocSockIn *Sock
-	// LocSockOut is a slice of Sock's for sending packets to the local AS,
-	// indexed by the local address index.
+	// LocSockOut is a Sock for sending packets to the local AS,
 	LocSockOut *Sock
 	// ExtSockIn is a map of Sock's for receiving packets from neighbouring
 	// ASes, keyed by the interface ID of the relevant link.

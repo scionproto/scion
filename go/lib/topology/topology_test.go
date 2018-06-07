@@ -274,17 +274,6 @@ var l4port_extract_cases = []struct {
 	{mkTAv6("::1", 3000, "", 0, overlay.IPv46, 0), addr.HostIPv6(net.ParseIP("::1")), 3000},
 }
 
-func Test_PubL4PortFromAddr(t *testing.T) {
-	Convey("Testing L4 port extraction", t, func() {
-		for _, tt := range l4port_extract_cases {
-			Convey(fmt.Sprintf("%+v %+v -> %v", tt.intopo, tt.inae, tt.outint), func() {
-				oi, _ := tt.intopo.PubL4PortFromAddr(tt.inae)
-				So(oi, ShouldEqual, tt.outint)
-			})
-		}
-	})
-}
-
 var mkai_cases = []struct {
 	intopo   TopoAddr
 	inot     overlay.Type
