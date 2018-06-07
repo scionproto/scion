@@ -74,15 +74,12 @@ from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
-from lib.packet.path_mgmt.rev_info import (
-    SignedRevInfoCertFetchError,
-    RevInfoExpiredError
-)
 from lib.packet.scion import (
     SCIONBasePacket,
     SCIONL4Packet,
     build_base_hdrs,
 )
+from lib.packet.signed_util import DefaultSignSrc
 from lib.packet.svc import SVC_TO_SERVICE, SERVICE_TO_SVC_A
 from lib.packet.scion_addr import SCIONAddr
 from lib.packet.scion_udp import SCIONUDPHeader
@@ -210,6 +207,8 @@ class SCIONElement(object):
         self.req_trcs_lock = threading.Lock()
         self.requested_certs = {}
         self.req_certs_lock = threading.Lock()
+        self.revocation_callbacks = {}
+        self.rev_certs_lock = threading.Lock()
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
@@ -327,6 +326,7 @@ class SCIONElement(object):
             start = time.time()
             self._check_cert_reqs()
             self._check_trc_reqs()
+            self._check_rev_certs()
             sleep_interval(start, check_cyle, "Elem._check_trc_cert_reqs cycle")
 
     def _check_trc_reqs(self):
@@ -365,6 +365,25 @@ class SCIONElement(object):
                     if self._labels:
                         PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(
                             len(self.requested_certs))
+
+    def _check_rev_certs(self):
+        """
+        Check if certificate for revocation is present, if not register it
+        """
+        with self.rev_certs_lock:
+            for (isd, ver), (srev_info, callback) in self.revocation_callbacks.items():
+                rev_info = srev_info.rev_info()
+                if not rev_info.active():
+                    del self.revocation_callbacks[(isd, ver)]
+                    return
+                else:
+                    cert = self.trust_store.get_cert(srev_info.rev_info().isd_as())
+                    if cert:
+                        callback()
+                        del self.revocation_callbacks[(isd, ver)]
+                    else:
+                        # add to fetch queue
+                        pass
 
     def _process_path_seg(self, seg_meta, req_id=None):
         """
@@ -1253,21 +1272,30 @@ class SCIONElement(object):
         logging.warning("Unable to get path to %s from SCIOND.", isd_as)
         return None
 
-    def check_revocation(self, srev_info):
+    def check_revocation(self, srev_info, callback):
         """
         Checks if the revocation is valid and processing should continue
         """
-        rev_info = srev_info.rev_info()
-        rev_info.validate()
-        if not rev_info.active():
-            raise RevInfoExpiredError("RevocationInfo has expired: %s" % rev_info.short_desc())
-        # FIXME(worxli): different cert versions should be handled (#1545)
-        cert = self.trust_store.get_cert(rev_info.isd_as())
+        srev_info.rev_info().validate()
+        src = DefaultSignSrc(srev_info.psign.p.src)
+        ver = src.chain_ver
+        cert = self.trust_store.get_cert(srev_info.rev_info().isd_as())
         if not cert:
-            raise SignedRevInfoCertFetchError(
-                "Failed to fetch cert for SRevInfo: %s" % srev_info.short_desc())
-        srev_info.verify(cert.as_cert.subject_sig_key_raw)
-        logging.debug("Successfully validated and verified RevInfo %s" % rev_info)
+            with self.rev_certs_lock:
+                self.revocation_callbacks[(srev_info.rev_info().isd_as(), ver)] = (srev_info,
+                                                                                   callback)
+            return
+        try:
+            srev_info.verify(cert.as_cert.subject_sig_key_raw)
+        except SCIONBaseError as e:
+            logging.error("Revocation check failed for %s:\n%s",
+                          srev_info.short_desc(), e)
+            # return the error to the callback (SCIOND wants it)
+            callback(e)
+
+        logging.debug("Successfully validated and verified SRevInfo %s" % srev_info.short_desc())
+        # Return a None error to the callback
+        callback(None)
 
     def check_revoked_interface(self, seg, revocations):
         """
