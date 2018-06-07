@@ -216,11 +216,12 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 		}
 		for ifid, sock := range oldCtx.ExtSockIn {
 			if _, ok := ctx.ExtSockIn[ifid]; !ok {
+				// When closing the In socket, it closes the ringbuf between SockIn and SockOut
+				// which in turn will trigger SockOut to exit once all the packets in the ringbuf
+				// have been processed.
 				sock.Stop()
 			}
 		}
-		// XXX We assume both In/Out are using the same unserlying Conn/Socket
-		// but shouldn't we do proper clean up anyway? ie. SockOut go routine
 	}
 	return nil
 }
@@ -229,11 +230,8 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	// No old context. This happens during startup of the router.
-	// Get Bind address if set, Public otherwise
-	bai := ctx.Conf.Net.LocAddr.BindAddrInfo(ctx.Conf.Topo.Overlay)
 	if oldCtx != nil {
-		oldBai := oldCtx.Conf.Net.LocAddr.BindAddrInfo(oldCtx.Conf.Topo.Overlay)
-		if bai.IP.Equal(oldBai.IP) {
+		if ctx.Conf.Net.LocAddr.Equal(oldCtx.Conf.Net.LocAddr) {
 			log.Debug("No change detected for local socket.")
 			// Nothing changed. Copy I/O functions from old context.
 			ctx.LocSockIn = oldCtx.LocSockIn
@@ -242,6 +240,8 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 		}
 	}
 	// New bind address. Configure Posix I/O.
+	// Get Bind address if set, Public otherwise
+	bai := ctx.Conf.Net.LocAddr.BindAddrInfo(ctx.Conf.Topo.Overlay)
 	if err := addPosixLocal(r, ctx, bai, labels); err != nil {
 		return rpkt.HookError, err
 	}

@@ -111,17 +111,17 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 }
 
 func (t *Topo) populateBR(raw *RawTopo) error {
-	var err error
 	for name, rawBr := range raw.BorderRouters {
-		brInfo := BRInfo{}
-		var intAddr *TopoAddr
-		if rawBr.InternalAddr != nil {
-			intAddr, err = rawBr.InternalAddr.ToTopoAddr(t.Overlay)
-			if err != nil {
-				return err
-			}
+		if rawBr.InternalAddr == nil {
+			return common.NewBasicError("Missing Internal Address", nil)
 		}
+		intAddr, err := rawBr.InternalAddr.ToTopoAddr(t.Overlay)
+		if err != nil {
+			return err
+		}
+		brInfo := BRInfo{}
 		for ifid, rawIntf := range rawBr.Interfaces {
+			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
 			ifinfo := IFInfo{BRName: name, InternalAddr: intAddr}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {

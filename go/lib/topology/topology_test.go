@@ -248,43 +248,6 @@ func Test_IFInfoMap(t *testing.T) {
 
 }
 
-var l4port_extract_cases = []struct {
-	intopo TopoAddr
-	inae   addr.HostAddr
-	outint int
-}{
-	// Non working cases
-	// topo and overlay agree, addr mismatch
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv6(net.ParseIP("::1")), 0},
-	// topo and addr agree, overlay mismatch
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv6(net.ParseIP("::1")), 0},
-	// overlay and addr agree, topo mismatch
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 0},
-	// overlay support both v4 and v6, but topo and addr disagree
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv46, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 0},
-
-	// Working cases
-	// all-v6
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv6, 0), addr.HostIPv6(net.ParseIP("::1")), 3000},
-	// all-v4
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 3000},
-	// v4 topo, v4 addr, v4/v6 overlay
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv46, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 3000},
-	// v6 topo, v6 addr, v4/v6 overlay
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv46, 0), addr.HostIPv6(net.ParseIP("::1")), 3000},
-}
-
-func Test_PubL4PortFromAddr(t *testing.T) {
-	Convey("Testing L4 port extraction", t, func() {
-		for _, tt := range l4port_extract_cases {
-			Convey(fmt.Sprintf("%+v %+v -> %v", tt.intopo, tt.inae, tt.outint), func() {
-				oi, _ := tt.intopo.PubL4PortFromAddr(tt.inae)
-				So(oi, ShouldEqual, tt.outint)
-			})
-		}
-	})
-}
-
 var mkai_cases = []struct {
 	intopo   TopoAddr
 	inot     overlay.Type
