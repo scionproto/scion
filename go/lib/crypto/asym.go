@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -103,6 +103,9 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 
 // Nonce takes an input length and returns a random nonce of the given length.
 func Nonce(len int) (common.RawBytes, error) {
+	if len <= 0 {
+		return nil, common.NewBasicError(InvalidNonceSize, nil)
+	}
 	nonce := make([]byte, len)
 	_, err := io.ReadFull(rand.Reader, nonce)
 	if err != nil {
