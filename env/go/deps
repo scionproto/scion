@@ -58,7 +58,7 @@ go_install() {
     file="${tmpdir:?}/$(basename ${src:?})"
     echo "$sum  $file"  > "$tmpdir/SHA256SUM"
     echo "Downloading $src to $file"
-    curl -L# "$src" -o "$file"
+    curl -L $CURL_PARAM "$src" -o "$file"
     echo "$sum $file" | sha256sum -c -
     echo "Installing to /usr/local/go. Ensure that /usr/local/go/bin is in your \$PATH"
     sudo tar -C /usr/local -xf "$file"

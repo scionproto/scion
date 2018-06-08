@@ -31,3 +31,9 @@ pip_install() {
     local req="${2:?}"
     "$pip" --disable-pip-version-check install --user --require-hashes -r "$req"
 }
+
+if [ -t 1 ]; then
+    CURL_PARAM="-#"
+else
+    CURL_PARAM="-s"
+fi
