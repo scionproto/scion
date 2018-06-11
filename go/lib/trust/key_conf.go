@@ -19,8 +19,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
+
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto"
 )
 
 type KeyConf struct {
@@ -37,16 +41,19 @@ type KeyConf struct {
 }
 
 const (
-	IssSigKeyFile = "core-sig.key" // TODO(roosd): rename "core-sig.key" -> "iss-sig.key"
+	IssSigKeyFile = "core-sig.seed" // TODO(roosd): rename "core-sig.key" -> "iss-sig.key"
 	DecKeyFile    = "as-decrypt.key"
-	OffKeyFile    = "offline-root.key"
-	OnKeyFile     = "online-root.key"
-	SigKeyFile    = "as-sig.key"
+	OffKeyFile    = "offline-root.seed"
+	OnKeyFile     = "online-root.seed"
+	SigKeyFile    = "as-sig.seed"
 )
 
+const RawKey = "raw"
+
 const (
-	ErrorOpen  = "Unable to load key"
-	ErrorParse = "Unable to parse key"
+	ErrorOpen    = "Unable to load key"
+	ErrorParse   = "Unable to parse key file"
+	ErrorUnknown = "Unknown algorithm"
 )
 
 // LoadKeyConf loads key configuration from specified path.
@@ -54,33 +61,39 @@ const (
 func LoadKeyConf(path string, issSigKey, onKey, offKey bool) (*KeyConf, error) {
 	conf := &KeyConf{}
 	var err error
-	if conf.DecryptKey, err = loadKeyCond(filepath.Join(path, DecKeyFile), true); err != nil {
+	conf.DecryptKey, err = loadKeyCond(filepath.Join(path, DecKeyFile),
+		crypto.Curve25519xSalsa20Poly1305, true)
+	if err != nil {
 		return nil, err
 	}
-	if conf.SignKey, err = loadKeyCond(filepath.Join(path, SigKeyFile), true); err != nil {
+	conf.SignKey, err = loadKeyCond(filepath.Join(path, SigKeyFile), crypto.Ed25519, true)
+	if err != nil {
 		return nil, err
 	}
-	if conf.IssSigKey, err = loadKeyCond(filepath.Join(path, IssSigKeyFile), issSigKey); err != nil {
-
-	}
-	if conf.OffRootKey, err = loadKeyCond(filepath.Join(path, OffKeyFile), offKey); err != nil {
+	conf.IssSigKey, err = loadKeyCond(filepath.Join(path, IssSigKeyFile), crypto.Ed25519, issSigKey)
+	if err != nil {
 		return nil, err
 	}
-	if conf.OnRootKey, err = loadKeyCond(filepath.Join(path, OnKeyFile), onKey); err != nil {
+	conf.OffRootKey, err = loadKeyCond(filepath.Join(path, OffKeyFile), crypto.Ed25519, offKey)
+	if err != nil {
+		return nil, err
+	}
+	conf.OnRootKey, err = loadKeyCond(filepath.Join(path, OnKeyFile), crypto.Ed25519, onKey)
+	if err != nil {
 		return nil, err
 	}
 	return conf, nil
 }
 
-func loadKeyCond(file string, load bool) (common.RawBytes, error) {
+func loadKeyCond(file string, algo string, load bool) (common.RawBytes, error) {
 	if !load {
 		return nil, nil
 	}
-	return LoadKey(file)
+	return LoadKey(file, algo)
 }
 
 // LoadKey decodes a base64 encoded key stored in file and returns the raw bytes.
-func LoadKey(file string) (common.RawBytes, error) {
+func LoadKey(file string, algo string) (common.RawBytes, error) {
 	b, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, common.NewBasicError(ErrorOpen, err)
@@ -90,7 +103,15 @@ func LoadKey(file string) (common.RawBytes, error) {
 	if err != nil {
 		return nil, common.NewBasicError(ErrorParse, err)
 	}
-	return dbuf[:n], nil
+	dbuf = dbuf[:n]
+	switch strings.ToLower(algo) {
+	case RawKey, crypto.Curve25519xSalsa20Poly1305:
+		return dbuf, nil
+	case crypto.Ed25519:
+		return common.RawBytes(ed25519.NewKeyFromSeed(dbuf)), nil
+	default:
+		return nil, common.NewBasicError(ErrorUnknown, nil, "algo", algo)
+	}
 }
 
 func (a *KeyConf) String() string {

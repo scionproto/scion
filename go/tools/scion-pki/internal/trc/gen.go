@@ -119,11 +119,12 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 			as.OfflineKeyAlg = a.KeyAlgorithms.Offline
 		}
 		keysPath := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, cia), pkicmn.KeysDir)
-		as.OnlineKey, err = trust.LoadKey(filepath.Join(keysPath, trust.OnKeyFile))
+		as.OnlineKey, err = trust.LoadKey(filepath.Join(keysPath, trust.OnKeyFile), as.OnlineKeyAlg)
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
 		}
-		as.OfflineKey, err = trust.LoadKey(filepath.Join(keysPath, trust.OffKeyFile))
+		as.OfflineKey, err = trust.LoadKey(
+			filepath.Join(keysPath, trust.OffKeyFile), as.OfflineKeyAlg)
 		if err != nil {
 			return nil, common.NewBasicError("Error loading offline key", err)
 		}
