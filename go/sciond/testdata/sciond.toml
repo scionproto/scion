@@ -1,6 +1,7 @@
 [general]
-  id = "sd0-test-0"
-  bind = "1-ff00:0:133,[127.0.0.1]:50001"
+  ID = "sd0-test-0"
+  Bind = "1-ff00:0:133,[127.0.0.1]:50001"
+  Topology = "testdata/topology.json"
 
 [logging]
   [logging.console]

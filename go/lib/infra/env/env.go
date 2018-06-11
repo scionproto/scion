@@ -71,8 +71,8 @@ func Init(cfg *Config, reloadF func()) (*Env, error) {
 		return nil, err
 	}
 	env.setupSignals(reloadF)
-	if env.Config.Logging.Metrics.Prometheus != "" {
-		env.HTTPAddress = env.Config.Logging.Metrics.Prometheus
+	if env.Config.Metrics.Prometheus != "" {
+		env.HTTPAddress = env.Config.Metrics.Prometheus
 	}
 	return env, nil
 }

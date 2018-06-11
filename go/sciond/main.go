@@ -23,8 +23,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
@@ -55,7 +53,7 @@ type ConfigT struct {
 var (
 	flagConfig = flag.String("config", "", "Service TOML config file (required)")
 
-	Config ConfigT
+	config ConfigT
 )
 
 func main() {
@@ -69,13 +67,12 @@ func realMain() int {
 		flag.Usage()
 		return 1
 	}
-	if _, err := toml.DecodeFile(*flagConfig, &Config); err != nil {
+	if err := env.LoadConfig(os.Stderr, *flagConfig, &config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 
-	Config.SetDefaults()
-	environment, err := env.Init(&Config.Config, nil)
+	environment, err := env.Init(&config.Config, nil)
 	if err != nil {
 		log.Crit("Error", "err", err)
 		flag.Usage()
@@ -97,8 +94,8 @@ func realMain() int {
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
 
-	if Config.SD.Reliable != "" {
-		server, shutdownF := NewServer("rsock", Config.SD.Reliable, environment)
+	if config.SD.Reliable != "" {
+		server, shutdownF := NewServer("rsock", config.SD.Reliable, environment)
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()
@@ -109,8 +106,8 @@ func realMain() int {
 		}()
 	}
 
-	if Config.SD.Unix != "" {
-		server, shutdownF := NewServer("unixpacket", Config.SD.Unix, environment)
+	if config.SD.Unix != "" {
+		server, shutdownF := NewServer("unixpacket", config.SD.Unix, environment)
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()

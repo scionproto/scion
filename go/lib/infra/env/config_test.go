@@ -15,16 +15,30 @@
 package env
 
 import (
+	"fmt"
+	"io/ioutil"
 	"testing"
 
-	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestLoad(t *testing.T) {
+func TestLoadBase(t *testing.T) {
 	Convey("Load", t, func() {
 		var cfg Config
-		_, err := toml.DecodeFile("testdata/sciond.toml", &cfg)
+		err := LoadConfig(ioutil.Discard, "testdata/sciond.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
+		fmt.Printf("%+v\n", cfg)
+	})
+}
+
+func TestLoadDerived(t *testing.T) {
+	Convey("Load", t, func() {
+		var cfg struct {
+			Config
+			Extra int
+		}
+		err := LoadConfig(ioutil.Discard, "testdata/sciond.toml", &cfg)
+		SoMsg("err", err, ShouldBeNil)
+		fmt.Printf("%+v\n", cfg)
 	})
 }
