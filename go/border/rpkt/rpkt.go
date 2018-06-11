@@ -159,11 +159,10 @@ func (rp *RtrPkt) Release() {
 // addrIFPair contains the overlay destination/source addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
-	Dst    *topology.AddrInfo
-	Src    *topology.AddrInfo
-	IfIDs  []common.IFIDType
-	LocIdx int // only set for packets from the local AS.
-	Sock   string
+	Dst  *topology.AddrInfo
+	Src  *topology.AddrInfo
+	IfID common.IFIDType
+	Sock string
 }
 
 // EgressPair contains the output function to send a packet with, along with an
@@ -221,8 +220,7 @@ func (rp *RtrPkt) Reset() {
 	rp.DirTo = rcmn.DirUnset
 	rp.Ingress.Dst = nil
 	rp.Ingress.Src = nil
-	rp.Ingress.IfIDs = nil
-	rp.Ingress.LocIdx = -1
+	rp.Ingress.IfID = 0
 	rp.Egress = rp.Egress[:0]
 	// CmnHdr doesn't contain any references.
 	rp.IncrementedPath = false

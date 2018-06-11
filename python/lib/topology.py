@@ -97,7 +97,6 @@ class InterfaceElement(Element):
         :param dict interface_dict: contains information about the interface.
         """
         self.if_id = int(if_id)
-        self.addr_idx = interface_dict['InternalAddrIdx']
         self.isd_as = ISD_AS(interface_dict['ISD_AS'])
         self.link_type = interface_dict['LinkTo'].lower()
         self.bandwidth = interface_dict['Bandwidth']
@@ -121,9 +120,8 @@ class RouterElement(object):
         :param str name: router element name or id
         """
         self.name = name
-        self.int_addrs = []
-        for addrs in router_dict['InternalAddrs']:
-            self.int_addrs.append(Element(public=addrs["Public"], bind=addrs.get("Bind")))
+        addrs = router_dict['InternalAddr']
+        self.int_addrs = Element(public=addrs["Public"], bind=addrs.get("Bind"))
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)

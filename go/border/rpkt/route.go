@@ -24,7 +24,6 @@ import (
 
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
-	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
@@ -81,22 +80,16 @@ func (rp *RtrPkt) RouteResolveSVC() (HookResult, error) {
 		return HookError, common.NewBasicError("Destination host is NOT an SVC address", nil,
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	// Use any local output sock in case the packet has no path (e.g., ifstate requests)
-	s := rp.Ctx.LocSockOut[0]
-	if rp.ifCurr != nil {
-		intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
-		s = rp.Ctx.LocSockOut[intf.LocAddrIdx]
-	}
+	// FIXME(sgmonroy) Choose LocSock based on overlay type
 	if svc.IsMulticast() {
-		return rp.RouteResolveSVCMulti(svc, s)
+		return rp.RouteResolveSVCMulti(svc)
 	}
-	return rp.RouteResolveSVCAny(svc, s)
+	return rp.RouteResolveSVCAny(svc)
 }
 
 // RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
 // a single instance of a local infrastructure service).
-func (rp *RtrPkt) RouteResolveSVCAny(
-	svc addr.HostSVC, s *rctx.Sock) (HookResult, error) {
+func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC) (HookResult, error) {
 	names, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -106,15 +99,14 @@ func (rp *RtrPkt) RouteResolveSVCAny(
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
 	dst := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
-	rp.Egress = append(rp.Egress, EgressPair{s, dst})
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, dst})
 	return HookContinue, nil
 }
 
 // RouteResolveSVCMulti handles routing a packet to a multicast SVC address
 // (i.e. one packet per machine hosting instances for a local infrastructure
 // service).
-func (rp *RtrPkt) RouteResolveSVCMulti(
-	svc addr.HostSVC, s *rctx.Sock) (HookResult, error) {
+func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC) (HookResult, error) {
 	_, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
 	if err != nil {
 		return HookError, err
@@ -130,7 +122,7 @@ func (rp *RtrPkt) RouteResolveSVCMulti(
 			continue
 		}
 		seen[strIP] = struct{}{}
-		rp.Egress = append(rp.Egress, EgressPair{s, ai})
+		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, ai})
 	}
 	return HookContinue, nil
 }
@@ -147,8 +139,7 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 	}
 }
 
-// forwardFromExternal forwards packets that have been received from a
-// neighbouring ISD-AS.
+// forwardFromExternal forwards packets that have been received from a neighbouring ISD-AS.
 func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	if assert.On {
 		assert.Mustf(rp.hopF != nil, rp.ErrStr, "rp.hopF must not be nil")
@@ -157,7 +148,6 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return HookError, common.NewBasicError("BUG: Non-routing HopF, refusing to forward", nil,
 			"hopF", rp.hopF)
 	}
-	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	// FIXME(kormat): this needs to be cleaner, as it won't work with
 	// extensions that replace the path header.
 	var onLastSeg = rp.CmnHdr.InfoFOffBytes()+int(rp.infoF.Hops+1)*common.LineLen ==
@@ -174,7 +164,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 			IP:          rp.dstHost.IP(),
 			OverlayPort: overlay.EndhostPort,
 		}
-		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut[intf.LocAddrIdx], dst})
+		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, dst})
 		return HookContinue, nil
 	}
 	// If this is a cross-over Hop Field, increment the path.
@@ -197,7 +187,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		L4Port:      nextAI.L4Port,
 		OverlayPort: nextAI.L4Port,
 	}
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut[intf.LocAddrIdx], dst})
+	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, dst})
 	return HookContinue, nil
 }
 
@@ -231,6 +221,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 			if _, err = rp.IFCurr(); err != nil {
 				return err
 			}
+			// IFCurr should never return nil given that for xover there has to be a path
 			origIF = origIFCurr
 			newIF = *rp.ifCurr
 		}

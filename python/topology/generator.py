@@ -692,15 +692,14 @@ class TopoGenerator(object):
             local_br, remote_br)
 
         self.topo_dicts[local]["BorderRouters"][local_br] = {
-            'InternalAddrs': [{
+            'InternalAddr': {
                 'Public': [{
                     'Addr': self._reg_addr(local, local_br),
                     'L4Port': random.randint(30050, 30100),
                 }]
-            }],
+            },
             'Interfaces': {
                 ifid: {  # Interface ID.
-                    'InternalAddrIdx': 0,
                     'Overlay': self.overlay,
                     'Public': {
                         'Addr': public_addr,
@@ -1165,7 +1164,7 @@ def _json_default(o):
 
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
-    int_addr = br_ele['InternalAddrs'][0]['Public'][0]
+    int_addr = br_ele['InternalAddr']['Public'][0]
     return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port'] + 1)
 
 

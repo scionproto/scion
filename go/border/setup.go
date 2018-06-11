@@ -42,8 +42,8 @@ import (
 
 type setupNetHook func(r *Router, ctx *rctx.Ctx,
 	oldCtx *rctx.Ctx) (rpkt.HookResult, error)
-type setupAddLocalHook func(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error)
+type setupAddLocalHook func(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
+	oldCtx *rctx.Ctx) (rpkt.HookResult, error)
 type setupAddExtHook func(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error)
 
@@ -123,19 +123,15 @@ func (r *Router) loadNewConfig() (*conf.Conf, error) {
 // setupNewContext sets up a new router context.
 func (r *Router) setupNewContext(config *conf.Conf) error {
 	oldCtx := rctx.Get()
-	ctx := rctx.New(config, len(config.Net.LocAddr))
+	ctx := rctx.New(config)
 	if err := r.setupNet(ctx, oldCtx); err != nil {
 		return err
 	}
 	rctx.Set(ctx)
 	// Start local input functions.
-	for _, s := range ctx.LocSockIn {
-		s.Start()
-	}
+	ctx.LocSockIn.Start()
 	// Start local output functions.
-	for _, s := range ctx.LocSockOut {
-		s.Start()
-	}
+	ctx.LocSockOut.Start()
 	// Start external input functions.
 	for _, s := range ctx.ExtSockIn {
 		s.Start()
@@ -172,18 +168,16 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 		}
 	}
 	// Iterate over local addresses, configuring them via provided hooks.
-	for i, a := range ctx.Conf.Net.LocAddr {
-		labels := prometheus.Labels{"sock": fmt.Sprintf("loc:%d", i)}
-		for _, f := range setupAddLocalHooks {
-			ret, err := f(r, ctx, i, a, labels, oldCtx)
-			switch {
-			case err != nil:
-				return err
-			case ret == rpkt.HookContinue:
-				continue
-			case ret == rpkt.HookFinish:
-				break
-			}
+	labels := prometheus.Labels{"sock": "loc"}
+	for _, f := range setupAddLocalHooks {
+		ret, err := f(r, ctx, labels, oldCtx)
+		switch {
+		case err != nil:
+			return err
+		case ret == rpkt.HookContinue:
+			continue
+		case ret == rpkt.HookFinish:
+			break
 		}
 	}
 	// Iterate over interfaces, configuring them via provided hooks.
@@ -217,11 +211,14 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 	}
 	// Stop input functions that are no longer needed.
 	if oldCtx != nil {
-		for i := len(ctx.LocSockIn); i < len(oldCtx.LocSockIn); i++ {
-			oldCtx.LocSockIn[i].Stop()
+		if ctx.LocSockIn != oldCtx.LocSockIn {
+			oldCtx.LocSockIn.Stop()
 		}
 		for ifid, sock := range oldCtx.ExtSockIn {
 			if _, ok := ctx.ExtSockIn[ifid]; !ok {
+				// When closing the In socket, it closes the ringbuf between SockIn and SockOut
+				// which in turn will trigger SockOut to exit once all the packets in the ringbuf
+				// have been processed.
 				sock.Stop()
 			}
 		}
@@ -230,54 +227,39 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 }
 
 // setupPosixAddLocal configures a local POSIX(/BSD) socket.
-func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, idx int, ta *topology.TopoAddr,
-	labels prometheus.Labels, oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
+func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
+	oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
 	// No old context. This happens during startup of the router.
-	pai := ta.PublicAddrInfo(ctx.Conf.Topo.Overlay)
-	bai := ta.BindAddrInfo(ctx.Conf.Topo.Overlay)
-	if oldCtx == nil {
-		if err := addPosixLocal(r, ctx, idx, bai, labels); err != nil {
-			return rpkt.HookError, err
+	if oldCtx != nil {
+		if ctx.Conf.Net.LocAddr.Equal(oldCtx.Conf.Net.LocAddr) {
+			log.Debug("No change detected for local socket.")
+			// Nothing changed. Copy I/O functions from old context.
+			ctx.LocSockIn = oldCtx.LocSockIn
+			ctx.LocSockOut = oldCtx.LocSockOut
+			return rpkt.HookFinish, nil
 		}
-		return rpkt.HookFinish, nil
 	}
-	// FIXME(kormat): cases not currently handled:
-	// - a local addr moves idx
-	// - a local addr has its bind address change
-	if oldIdx, ok := oldCtx.Conf.Net.LocAddrMap[pai.Key()]; !ok {
-		// New local address got added. Configure Posix I/O.
-		if err := addPosixLocal(r, ctx, idx, bai, labels); err != nil {
-			return rpkt.HookError, err
-		}
-	} else {
-		log.Debug("No change detected for local socket.", "pubAddr", pai)
-		// Nothing changed. Copy I/O functions from old context.
-		ctx.LocSockIn[idx] = oldCtx.LocSockIn[oldIdx]
-		ctx.LocSockOut[idx] = oldCtx.LocSockOut[oldIdx]
+	// New bind address. Configure Posix I/O.
+	// Get Bind address if set, Public otherwise
+	bai := ctx.Conf.Net.LocAddr.BindAddrInfo(ctx.Conf.Topo.Overlay)
+	if err := addPosixLocal(r, ctx, bai, labels); err != nil {
+		return rpkt.HookError, err
 	}
 	return rpkt.HookFinish, nil
 }
 
-func addPosixLocal(r *Router, ctx *rctx.Ctx, idx int, ba *topology.AddrInfo,
+func addPosixLocal(r *Router, ctx *rctx.Ctx, ba *topology.AddrInfo,
 	labels prometheus.Labels) error {
-	// FIXME(kormat): this does not support dual-stack local addresses (e.g. ipv4+6).
 	// Listen on the socket.
 	over, err := conn.New(ba, nil, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on local socket", err)
 	}
-	// Find interfaces that use this local address.
-	var ifids []common.IFIDType
-	for _, intf := range ctx.Conf.Net.IFs {
-		if intf.LocAddrIdx == idx {
-			ifids = append(ifids, intf.Id)
-		}
-	}
 	// Setup input goroutine.
-	ctx.LocSockIn[idx] = rctx.NewSock(ringbuf.New(64, nil, "locIn", mkRingLabels(labels)),
-		over, rcmn.DirLocal, ifids, idx, labels, r.posixInput, r.handleSock)
-	ctx.LocSockOut[idx] = rctx.NewSock(ringbuf.New(64, nil, "locOut", mkRingLabels(labels)),
-		over, rcmn.DirLocal, ifids, idx, labels, nil, r.posixOutput)
+	ctx.LocSockIn = rctx.NewSock(ringbuf.New(64, nil, "locIn", mkRingLabels(labels)),
+		over, rcmn.DirLocal, 0, labels, r.posixInput, r.handleSock)
+	ctx.LocSockOut = rctx.NewSock(ringbuf.New(64, nil, "locOut", mkRingLabels(labels)),
+		over, rcmn.DirLocal, 0, labels, nil, r.posixOutput)
 	log.Debug("Set up new local socket.", "conn", over.LocalAddr())
 	return nil
 }
@@ -333,12 +315,11 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
-	ifids := []common.IFIDType{intf.Id}
 	// Setup input goroutine.
 	ctx.ExtSockIn[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extIn", mkRingLabels(labels)),
-		c, rcmn.DirExternal, ifids, -1, labels, r.posixInput, r.handleSock)
+		c, rcmn.DirExternal, intf.Id, labels, r.posixInput, r.handleSock)
 	ctx.ExtSockOut[intf.Id] = rctx.NewSock(ringbuf.New(64, nil, "extOut", mkRingLabels(labels)),
-		c, rcmn.DirExternal, ifids, -1, labels, nil, r.posixOutput)
+		c, rcmn.DirExternal, intf.Id, labels, nil, r.posixOutput)
 	log.Debug("Set up new external socket.", "intf", intf)
 	return nil
 }

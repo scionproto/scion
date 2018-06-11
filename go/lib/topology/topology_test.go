@@ -222,8 +222,8 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[8] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.2"), pubL4Port: 30097},
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::2"), pubL4Port: 30097},
+			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
+			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv4,
 		Local: &TopoAddr{
@@ -246,45 +246,6 @@ func Test_IFInfoMap(t *testing.T) {
 		})
 	}
 
-}
-
-var l4port_extract_cases = []struct {
-	intopo  TopoAddr
-	inae    addr.HostAddr
-	outint  int
-	outbool bool
-}{
-	// Non working cases
-	// topo and overlay agree, addr mismatch
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv6(net.ParseIP("::1")), 0, false},
-	// topo and addr agree, overlay mismatch
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv6(net.ParseIP("::1")), 0, false},
-	// overlay and addr agree, topo mismatch
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 0, false},
-	// overlay support both v4 and v6, but topo and addr disagree
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv46, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 0, false},
-
-	// Working cases
-	// all-v6
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv6, 0), addr.HostIPv6(net.ParseIP("::1")), 3000, true},
-	// all-v4
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv4, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 3000, true},
-	// v4 topo, v4 addr, v4/v6 overlay
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv46, 0), addr.HostIPv4(net.ParseIP("127.0.0.1")), 3000, true},
-	// v6 topo, v6 addr, v4/v6 overlay
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv46, 0), addr.HostIPv6(net.ParseIP("::1")), 3000, true},
-}
-
-func Test_PubL4PortFromAddr(t *testing.T) {
-	Convey("Testing L4 port extraction", t, func() {
-		for _, tt := range l4port_extract_cases {
-			Convey(fmt.Sprintf("%+v %+v -> %v %v", tt.intopo, tt.inae, tt.outint, tt.outbool), func() {
-				oi, ob, _ := tt.intopo.PubL4PortFromAddr(tt.inae)
-				So(oi, ShouldEqual, tt.outint)
-				So(ob, ShouldEqual, tt.outbool)
-			})
-		}
-	})
 }
 
 var mkai_cases = []struct {

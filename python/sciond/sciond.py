@@ -314,8 +314,7 @@ class SCIONDaemon(SCIONElement):
             haddr, port = None, None
             if fwd_if:
                 br = self.ifid2br[fwd_if]
-                addr_idx = br.interfaces[fwd_if].addr_idx
-                haddr, port = br.int_addrs[addr_idx].public[0]
+                haddr, port = br.int_addrs.public[0]
             addrs = [haddr] if haddr else []
             first_hop = HostInfo.from_values(addrs, port)
             reply_entry = SCIONDPathReplyEntry.from_values(
@@ -353,8 +352,7 @@ class SCIONDaemon(SCIONElement):
         if_entries = []
         for if_id, br in self.ifid2br.items():
             if all_brs or if_id in if_list:
-                addr_idx = br.interfaces[if_id].addr_idx
-                br_addr, br_port = br.int_addrs[addr_idx].public[0]
+                br_addr, br_port = br.int_addrs.public[0]
                 info = HostInfo.from_values([br_addr], br_port)
                 reply_entry = SCIONDIFInfoReplyEntry.from_values(if_id, info)
                 if_entries.append(reply_entry)

@@ -111,16 +111,19 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 }
 
 func (t *Topo) populateBR(raw *RawTopo) error {
-	var err error
 	for name, rawBr := range raw.BorderRouters {
+		if rawBr.InternalAddr == nil {
+			return common.NewBasicError("Missing Internal Address", nil)
+		}
+		intAddr, err := rawBr.InternalAddr.ToTopoAddr(t.Overlay)
+		if err != nil {
+			return err
+		}
 		brInfo := BRInfo{}
 		for ifid, rawIntf := range rawBr.Interfaces {
+			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
-			ifinfo := IFInfo{BRName: name}
-			intAddr := rawBr.InternalAddrs[rawIntf.InternalAddrIdx]
-			if ifinfo.InternalAddr, err = intAddr.ToTopoAddr(t.Overlay); err != nil {
-				return err
-			}
+			ifinfo := IFInfo{BRName: name, InternalAddr: intAddr}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
@@ -212,22 +215,21 @@ type BRInfo struct {
 }
 
 type IFInfo struct {
-	BRName          string
-	InternalAddr    *TopoAddr
-	InternalAddrIdx int
-	Overlay         overlay.Type
-	Local           *TopoAddr
-	Remote          *AddrInfo
-	RemoteIFID      common.IFIDType
-	Bandwidth       int
-	ISD_AS          addr.IA
-	LinkType        LinkType
-	MTU             int
+	BRName       string
+	InternalAddr *TopoAddr
+	Overlay      overlay.Type
+	Local        *TopoAddr
+	Remote       *AddrInfo
+	RemoteIFID   common.IFIDType
+	Bandwidth    int
+	ISD_AS       addr.IA
+	LinkType     LinkType
+	MTU          int
 }
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf(
-		"IFinfo: Name[%s] IntAddr[%+v]#%d Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
-		i.BRName, i.InternalAddr, i.InternalAddrIdx, i.Overlay, i.Local, i.Remote, i.Bandwidth,
-		i.ISD_AS, i.LinkType, i.MTU)
+		"IFinfo: Name[%s] IntAddr[%+v] Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
+		i.BRName, i.InternalAddr, i.Overlay, i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType,
+		i.MTU)
 }
