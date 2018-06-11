@@ -700,7 +700,6 @@ class TopoGenerator(object):
             },
             'Interfaces': {
                 ifid: {  # Interface ID.
-                    'InternalAddrIdx': 0,
                     'Overlay': self.overlay,
                     'Public': {
                         'Addr': public_addr,
