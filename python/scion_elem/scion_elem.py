@@ -207,8 +207,11 @@ class SCIONElement(object):
         self.req_trcs_lock = threading.Lock()
         self.requested_certs = {}
         self.req_certs_lock = threading.Lock()
-        self.revocation_callbacks = {}
-        self.rev_certs_lock = threading.Lock()
+        # new cert/trc fetching implementation
+        self.unv_certs = {}
+        self.unv_certs_lock = threading.Lock()
+        self.cert_reqs = {}
+        self.cert_reqs_lock = threading.Lock()
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
         host_addr, self._port = self.public[0]
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
@@ -326,7 +329,7 @@ class SCIONElement(object):
             start = time.time()
             self._check_cert_reqs()
             self._check_trc_reqs()
-            self._check_rev_certs()
+            self._check_certs()
             sleep_interval(start, check_cyle, "Elem._check_trc_cert_reqs cycle")
 
     def _check_trc_reqs(self):
@@ -366,24 +369,28 @@ class SCIONElement(object):
                         PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(
                             len(self.requested_certs))
 
-    def _check_rev_certs(self):
+    def _check_certs(self):
         """
-        Check if certificate for revocation is present, if not register it
+        Check all CertRequests, add them to requested_certs and requested_trcs if needed
+        Remove the CertRequest when the certificate is present
         """
-        with self.rev_certs_lock:
-            for (isd, ver), (srev_info, callback) in self.revocation_callbacks.items():
-                rev_info = srev_info.rev_info()
-                if not rev_info.active():
-                    del self.revocation_callbacks[(isd, ver)]
-                    return
-                else:
-                    cert = self.trust_store.get_cert(srev_info.rev_info().isd_as())
-                    if cert:
-                        callback()
-                        del self.revocation_callbacks[(isd, ver)]
-                    else:
-                        # add to fetch queue
-                        pass
+        with self.cert_reqs_lock:
+            for (isd_as, vers), cert_reqs in self.cert_reqs.items():
+                src = cert_reqs[0].src
+                cert = self.trust_store.get_cert(isd_as, src.chain_ver)
+                if cert:
+                    # Release waiting threads
+                    cert_reqs.e.set()
+                    self.cert_reqs.pop((isd_as, vers))
+                    continue
+
+                trc = self.trust_store.get_trc(isd_as[0], src.trc_ver)
+                if not trc:
+                    # TRC must also be fetched
+                    with self.req_trcs_lock:
+                        self.requested_trcs[(isd_as[0], src.trc_ver)] = (time.time(), None)
+                with self.req_certs_lock:
+                    self.requested_certs[(isd_as, vers)] = (time.time(), None)
 
     def _process_path_seg(self, seg_meta, req_id=None):
         """
@@ -600,6 +607,7 @@ class SCIONElement(object):
             cs_meta.close()
         # Remove received TRC from map
         self._check_segs_with_rec_trc(isd, ver)
+        self._verify_certs()
 
     def _check_segs_with_rec_trc(self, isd, ver):
         """
@@ -641,7 +649,7 @@ class SCIONElement(object):
         isd_as, ver = rep.chain.get_leaf_isd_as_ver()
         logging.info("Cert chain reply received for %sv%s from %s [id: %s]",
                      isd_as, ver, meta, cpld.req_id_str())
-        self.trust_store.add_cert(rep.chain, True)
+        self._verify_cert(rep.chain)
         with self.req_certs_lock:
             self.requested_certs.pop((isd_as, ver), None)
             if self._labels:
@@ -651,8 +659,35 @@ class SCIONElement(object):
             cs_meta = self._get_cs()
             self.send_meta(CtrlPayload(CertMgmt(rep)), cs_meta)
             cs_meta.close()
+
+    def _verify_cert(self, cert):
+        """
+        Return if verification was successful
+        """
+        # Received cert chain
+        isd_as, ver = cert.get_leaf_isd_as_ver()
+        trc = self.trust_store.get_trc(isd_as[0], ver)
+        if not trc:
+            # TRC still being requested
+            with self.unv_certs_lock:
+                self.unv_certs[(isd_as, ver)] = cert
+        try:
+            verify_chain_trc(isd_as, cert, trc)
+        except SCIONVerificationError as e:
+            logging.error("Certificate chain verification failed for %s, %s: %s" %
+                          (cert, trc, e))
+            return
+        self.trust_store.add_cert(cert, True)
+        with self.unv_certs_lock:
+            self.unv_certs.pop((isd_as, ver), None)
         # Remove received cert chain from map
-        self._check_segs_with_rec_cert(isd_as, ver)
+        self._check_segs_with_rec_cert(isd_as, ver)  # TODO handle with callbacks / events
+
+    def _verify_certs(self):
+        # Got a TRC, thus check all unverified certificates
+        with self.unv_certs_lock:
+            for (isd_as, ver), cert in self.unv_certs.items():  # TODO check if save
+                self._verify_cert(cert)
 
     def _check_segs_with_rec_cert(self, isd_as, ver):
         """
@@ -1278,13 +1313,26 @@ class SCIONElement(object):
         """
         srev_info.rev_info().validate()
         src = DefaultSignSrc(srev_info.psign.p.src)
-        ver = src.chain_ver
-        cert = self.trust_store.get_cert(srev_info.rev_info().isd_as())
+        cert = self.trust_store.get_cert(src.ia)
         if not cert:
-            with self.rev_certs_lock:
-                self.revocation_callbacks[(srev_info.rev_info().isd_as(), ver)] = (srev_info,
-                                                                                   callback)
+            threading.Thread(target=self.wait_for_cert(src, srev_info, callback))
+        else:
+            self.verify_revocation(src, srev_info, callback)
+
+    def wait_for_cert(self, src, srev_info, callback):
+        cert_req = self.register_cert_req(src)
+        n_timeout = cert_req.e.wait(srev_info.rev_info().p.ttl)  # TODO fix timeout
+        if not n_timeout:
+            logging.info("Certificate fetching for %s failed with a timeout." % src.ia)
+            callback(
+                SCIONBaseError("Fetching the certificate for %s resulted in a timeout." % src.ia)
+            )
             return
+        # certificate has been successfully fetched
+        self.verify_revocation(src, srev_info, callback)
+
+    def verify_revocation(self, src, srev_info, callback):
+        cert = self.trust_store.get_cert(src.ia)
         try:
             srev_info.verify(cert.as_cert.subject_sig_key_raw)
         except SCIONBaseError as e:
@@ -1316,3 +1364,23 @@ class SCIONElement(object):
                                   (rev_info.p.ifID, rev_info.isd_as(), seg.short_desc()))
                     return False
         return True
+
+    def register_cert_req(self, src):
+        cert_req = CertRequest(src.ia, src)
+        with self.cert_reqs_lock:
+            cert_reqs = self.cert_reqs.pop((src.ia, src.chain_ver), list())
+            cert_reqs.append(cert_req)
+            self.cert_reqs[(src.ia, src.chain_ver)] = cert_reqs
+        return cert_req
+
+
+class CertRequest(object):
+
+    def __init__(self, isd_as, src):
+        self.isd_as = isd_as
+        self.src = src
+        self.e = threading.Event()
+        self.error = None
+
+    def set_error(self, error):
+        self.error = error
