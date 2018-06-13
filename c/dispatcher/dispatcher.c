@@ -176,7 +176,7 @@ int main(int argc, char **argv)
     if (!zlog_cfg)
         zlog_cfg = "c/dispatcher/dispatcher.conf";
     if (zlog_init(zlog_cfg) < 0) {
-        fprintf(stderr, "failed to init zlog (cfg: %s)\n", zlog_cfg);
+        fprintf(stderr, "failed to init zlog (cfg: %s): %s\n", zlog_cfg, strerror(errno));
         return -1;
     }
     zc = zlog_get_category("dispatcher");

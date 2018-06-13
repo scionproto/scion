@@ -2,7 +2,7 @@
 
 SRC_DIRS = c/lib/scion c/lib/filter sub/lwip-contrib c/lib/tcp c/dispatcher
 
-all: clibs dispatcher go
+all: tags clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
@@ -42,4 +42,4 @@ uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
 
 tags:
-	{ git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | ctags -L -
+	which ctags >/dev/null 2>&1 || exit 0; { git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | ctags -L -
