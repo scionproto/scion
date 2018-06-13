@@ -66,6 +66,7 @@ from lib.packet.cert_mgmt import (
     CertMgmt,
     CertChainReply,
     CertChainRequest,
+    CertRequest,
     TRCReply,
     TRCRequest,
 )
@@ -375,22 +376,26 @@ class SCIONElement(object):
         Remove the CertRequest when the certificate is present
         """
         with self.cert_reqs_lock:
-            for (isd_as, vers), cert_reqs in self.cert_reqs.items():
+            for (isd_as, ver) in list(self.cert_reqs):
+                cert_reqs = self.cert_reqs[(isd_as, ver)]
                 src = cert_reqs[0].src
                 cert = self.trust_store.get_cert(isd_as, src.chain_ver)
                 if cert:
+                    logging.info("Certificate for %sv%s was fetched, continue processing." %
+                                 (src.ia, src.chain_ver))
                     # Release waiting threads
-                    cert_reqs.e.set()
-                    self.cert_reqs.pop((isd_as, vers))
+                    for cert_req in cert_reqs:
+                        cert_req.e.set()
+                    self.cert_reqs.pop((isd_as, ver))
                     continue
 
                 trc = self.trust_store.get_trc(isd_as[0], src.trc_ver)
                 if not trc:
                     # TRC must also be fetched
                     with self.req_trcs_lock:
-                        self.requested_trcs[(isd_as[0], src.trc_ver)] = (time.time(), None)
+                        self._request_trc(src.ia[0], src.trc_ver, self._get_cs())
                 with self.req_certs_lock:
-                    self.requested_certs[(isd_as, vers)] = (time.time(), None)
+                    self._request_cert(isd_as, src.chain_ver, self._get_cs())
 
     def _process_path_seg(self, seg_meta, req_id=None):
         """
@@ -482,20 +487,22 @@ class SCIONElement(object):
                     # There is already an outstanding request for the missing TRC
                     # to the local CS and we don't have a new meta.
                     continue
-            trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
             if not meta:
                 logging.error("Couldn't find a CS to request TRC for PCB %s",
                               seg_meta.seg.short_id())
                 continue
-            req_id = mk_ctrl_req_id()
-            logging.info("Requesting %sv%s TRC from %s, for PCB %s [id: %016x]",
-                         isd, ver, meta, seg_meta.seg.short_id(), req_id)
-            with self.req_trcs_lock:
-                self.requested_trcs[(isd, ver)] = (time.time(), seg_meta.meta)
-                if self._labels:
-                    PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
-            self.send_meta(CtrlPayload(CertMgmt(trc_req), req_id=req_id), meta)
+            self._request_trc(isd, ver, meta)
+
+    def _request_trc(self, isd, ver, meta):
+        trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
+        req_id = mk_ctrl_req_id()
+        logging.info("Requesting %sv%s TRC from %s, [id: %016x]", isd, ver, meta, req_id)
+        with self.req_trcs_lock:
+            self.requested_trcs[(isd, ver)] = (time.time(), meta)
+            if self._labels:
+                PENDING_TRC_REQS_TOTAL.labels(**self._labels).set(len(self.requested_trcs))
+        self.send_meta(CtrlPayload(CertMgmt(trc_req), req_id=req_id), meta)
 
     def _request_missing_certs(self, seg_meta):
         """
@@ -523,20 +530,26 @@ class SCIONElement(object):
                     # There is already an outstanding request for the missing cert
                     # to the local CS and we don't have a new meta.
                     continue
-            cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
             meta = seg_meta.meta or self._get_cs()
             if not meta:
                 logging.error("Couldn't find a CS to request CERTCHAIN for PCB %s",
                               seg_meta.seg.short_id())
                 continue
-            req_id = mk_ctrl_req_id()
-            logging.info("Requesting %sv%s CERTCHAIN from %s for PCB %s [id: %016x]",
-                         isd_as, ver, meta, seg_meta.seg.short_id(), req_id)
-            with self.req_certs_lock:
-                self.requested_certs[(isd_as, ver)] = (time.time(), seg_meta.meta)
-                if self._labels:
-                    PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(len(self.requested_certs))
-            self.send_meta(CtrlPayload(CertMgmt(cert_req), req_id=req_id), meta)
+            self._request_cert(isd_as, ver, meta)
+
+    def _request_cert(self, isd_as, ver, meta):
+        req_cert = self.requested_certs.get((isd_as, ver))
+        if req_cert:
+            logging.debug("Request for %sv%s CERTCHAIN already registered" % (isd_as, ver))
+            return
+        cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+        req_id = mk_ctrl_req_id()
+        logging.info("Requesting %sv%s CERTCHAIN from %s [id: %016x]", isd_as, ver, meta, req_id)
+        with self.req_certs_lock:
+            self.requested_certs[(isd_as, ver)] = (time.time(), meta)
+            if self._labels:
+                PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(len(self.requested_certs))
+        self.send_meta(CtrlPayload(CertMgmt(cert_req), req_id=req_id), meta)
 
     def _missing_trc_versions(self, trc_versions):
         """
@@ -1309,21 +1322,33 @@ class SCIONElement(object):
 
     def check_revocation(self, srev_info, callback):
         """
-        Checks if the revocation is valid and processing should continue
+        Checks if the revocation is valid and a certificate is present,
+        otherwise start a new thread that waits for the certificate to be fetched
         """
         srev_info.rev_info().validate()
         src = DefaultSignSrc(srev_info.psign.p.src)
         cert = self.trust_store.get_cert(src.ia)
         if not cert:
-            threading.Thread(target=self.wait_for_cert(src, srev_info, callback))
+            logging.info("Start new thread for certificate (%sv%s) fetching!" %
+                         (src.ia, src.chain_ver))
+            threading.Thread(
+                target=thread_safety_net, args=(self.wait_for_cert, src, srev_info,
+                                                callback),).start()
         else:
             self.verify_revocation(src, srev_info, callback)
 
     def wait_for_cert(self, src, srev_info, callback):
+        """
+        Should run in a thread!
+        Registers a certificate request and waits for an event to continue processing.
+        """
         cert_req = self.register_cert_req(src)
-        n_timeout = cert_req.e.wait(srev_info.rev_info().p.ttl)  # TODO fix timeout
-        if not n_timeout:
-            logging.info("Certificate fetching for %s failed with a timeout." % src.ia)
+        # Wait until revocation has expired
+        wait = time.time() - srev_info.rev_info().p.timestamp + srev_info.rev_info().p.ttl
+        done = cert_req.e.wait(wait)
+        if not done:
+            logging.info("Certificate fetching for %sv%s failed with a timeout." %
+                         (src.ia, src.chain_ver))
             callback(
                 SCIONBaseError("Fetching the certificate for %s resulted in a timeout." % src.ia)
             )
@@ -1332,6 +1357,10 @@ class SCIONElement(object):
         self.verify_revocation(src, srev_info, callback)
 
     def verify_revocation(self, src, srev_info, callback):
+        """
+        Certificate should be available when method is invoked
+        Try to verify the revocation and invoke the callback
+        """
         cert = self.trust_store.get_cert(src.ia)
         try:
             srev_info.verify(cert.as_cert.subject_sig_key_raw)
@@ -1341,7 +1370,7 @@ class SCIONElement(object):
             # return the error to the callback (SCIOND wants it)
             callback(e)
 
-        logging.debug("Successfully validated and verified SRevInfo %s" % srev_info.short_desc())
+        logging.debug("Successfully validated and verified %s" % srev_info.short_desc())
         # Return a None error to the callback
         callback(None)
 
@@ -1366,21 +1395,12 @@ class SCIONElement(object):
         return True
 
     def register_cert_req(self, src):
+        """
+        Register a CertRequest object for a certificate (isd_as, ver) pair
+        """
         cert_req = CertRequest(src.ia, src)
         with self.cert_reqs_lock:
             cert_reqs = self.cert_reqs.pop((src.ia, src.chain_ver), list())
             cert_reqs.append(cert_req)
             self.cert_reqs[(src.ia, src.chain_ver)] = cert_reqs
         return cert_req
-
-
-class CertRequest(object):
-
-    def __init__(self, isd_as, src):
-        self.isd_as = isd_as
-        self.src = src
-        self.e = threading.Event()
-        self.error = None
-
-    def set_error(self, error):
-        self.error = error

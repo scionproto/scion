@@ -427,33 +427,33 @@ class SCIONDaemon(SCIONElement):
         logging.debug("Received revocation: %s from %s", srev_info.short_desc(), meta)
         self.check_revocation(srev_info, lambda e: self.process_revocation(e, srev_info, meta, pld))
 
-    def process_revocation(self, e, srev_info, meta, pld):
+    def process_revocation(self, error, srev_info, meta, pld):
         rev_info = srev_info.rev_info()
         status = None
-        if type(e) == RevInfoValidationError:
-            logging.error("Failed to validate RevInfo %s from %s: %s",
-                          srev_info.short_desc(), meta, e)
-            status = SCIONDRevReplyStatus.INVALID
-        if type(e) == RevInfoExpiredError:
-            logging.info("Ignoring expired Revinfo, %s from %s", srev_info.short_desc(), meta)
-            status = SCIONDRevReplyStatus.STALE
-        if type(e) == SignedRevInfoCertFetchError:
-            logging.error("Failed to fetch certificate for SignedRevInfo %s from %s: %s",
-                          srev_info.short_desc(), meta, e)
-            status = SCIONDRevReplyStatus.UNKNOWN
-        if type(e) == SignedRevInfoVerificationError:
-            logging.error("Failed to verify SRevInfo %s from %s: %s",
-                          srev_info.short_desc(), meta, e)
-            status = SCIONDRevReplyStatus.SIGFAIL
-        if type(e) == SCIONBaseError:
-            logging.error("Revocation check failed for %s from %s:\n%s",
-                          srev_info.short_desc(), meta, e)
-            status = SCIONDRevReplyStatus.UNKNOWN
-        if not status:
+        if error is None:
             status = SCIONDRevReplyStatus.VALID
-
-        self.rev_cache.add(srev_info)
-        self.remove_revoked_segments(rev_info)
+            self.rev_cache.add(srev_info)
+            self.remove_revoked_segments(rev_info)
+        else:
+            if type(error) == RevInfoValidationError:
+                logging.error("Failed to validate RevInfo %s from %s: %s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.INVALID
+            if type(error) == RevInfoExpiredError:
+                logging.info("Ignoring expired Revinfo, %s from %s", srev_info.short_desc(), meta)
+                status = SCIONDRevReplyStatus.STALE
+            if type(error) == SignedRevInfoCertFetchError:
+                logging.error("Failed to fetch certificate for SignedRevInfo %s from %s: %s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.UNKNOWN
+            if type(error) == SignedRevInfoVerificationError:
+                logging.error("Failed to verify SRevInfo %s from %s: %s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.SIGFAIL
+            if type(error) == SCIONBaseError:
+                logging.error("Revocation check failed for %s from %s:\n%s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.UNKNOWN
 
         if pld:
             rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
