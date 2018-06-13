@@ -32,6 +32,10 @@ pip_install() {
     "$pip" --disable-pip-version-check install --user --require-hashes -r "$req"
 }
 
+sudo_preload() {
+    LD_PRELOAD= sudo LD_PRELOAD="$LD_PRELOAD" "$@"
+}
+
 if [ -t 1 ]; then
     CURL_PARAM="-#"
 else
