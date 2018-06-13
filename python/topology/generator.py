@@ -33,8 +33,6 @@ from string import Template
 
 # External packages
 import yaml
-
-from nacl.signing import SigningKey
 from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
@@ -44,10 +42,8 @@ from lib.crypto.asymcrypto import (
     generate_enc_keypair,
     generate_sign_keypair,
     get_core_sig_key_file_path,
-    get_core_sig_key_raw_file_path,
     get_enc_key_file_path,
     get_sig_key_file_path,
-    get_sig_key_raw_file_path,
 )
 from lib.crypto.certificate import Certificate
 from lib.crypto.certificate_chain import CertificateChain, get_cert_chain_file_path
@@ -63,9 +59,7 @@ from lib.crypto.util import (
     get_ca_cert_file_path,
     get_ca_private_key_file_path,
     get_offline_key_file_path,
-    get_offline_key_raw_file_path,
     get_online_key_file_path,
-    get_online_key_raw_file_path,
 )
 from lib.defines import (
     AS_CONF_FILE,
@@ -380,11 +374,8 @@ class CertGenerator(object):
         self.enc_priv_keys[topo_id] = enc_priv
         sig_path = get_sig_key_file_path("")
         enc_path = get_enc_key_file_path("")
-        sig_raw_path = get_sig_key_raw_file_path("")
         self.cert_files[topo_id][sig_path] = base64.b64encode(sig_priv).decode()
         self.cert_files[topo_id][enc_path] = base64.b64encode(enc_priv).decode()
-        self.cert_files[topo_id][sig_raw_path] = base64.b64encode(
-            SigningKey(sig_priv)._signing_key).decode()
         if self.is_core(as_conf):
             # generate_sign_key_pair uses Ed25519
             on_root_pub, on_root_priv = generate_sign_keypair()
@@ -397,20 +388,11 @@ class CertGenerator(object):
             self.pub_core_sig_keys[topo_id] = core_sig_pub
             self.priv_core_sig_keys[topo_id] = core_sig_priv
             online_key_path = get_online_key_file_path("")
-            online_key_raw_path = get_online_key_raw_file_path("")
             offline_key_path = get_offline_key_file_path("")
-            offline_key_raw_path = get_offline_key_raw_file_path("")
             core_sig_path = get_core_sig_key_file_path("")
-            core_sig_raw_path = get_core_sig_key_raw_file_path("")
             self.cert_files[topo_id][online_key_path] = base64.b64encode(on_root_priv).decode()
-            self.cert_files[topo_id][online_key_raw_path] = base64.b64encode(
-                SigningKey(on_root_priv)._signing_key).decode()
             self.cert_files[topo_id][offline_key_path] = base64.b64encode(off_root_priv).decode()
-            self.cert_files[topo_id][offline_key_raw_path] = base64.b64encode(
-                SigningKey(off_root_priv)._signing_key).decode()
             self.cert_files[topo_id][core_sig_path] = base64.b64encode(core_sig_priv).decode()
-            self.cert_files[topo_id][core_sig_raw_path] = base64.b64encode(
-                SigningKey(core_sig_priv)._signing_key).decode()
 
     def _gen_as_certs(self, topo_id, as_conf):
         # Self-signed if cert_issuer is missing.

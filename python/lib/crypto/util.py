@@ -31,25 +31,11 @@ def get_online_key_file_path(conf_dir):
     return os.path.join(conf_dir, KEYS_DIR, "online-root.seed")
 
 
-def get_online_key_raw_file_path(conf_dir):
-    """
-    Return the raw online key file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "online-root.key")
-
-
 def get_offline_key_file_path(conf_dir):
     """
     Return the offline key file path.
     """
     return os.path.join(conf_dir, KEYS_DIR, "offline-root.seed")
-
-
-def get_offline_key_raw_file_path(conf_dir):
-    """
-    Return the raw offline key file path.
-    """
-    return os.path.join(conf_dir, KEYS_DIR, "offline-root.key")
 
 
 def get_ca_private_key_file_path(conf_dir, name):
