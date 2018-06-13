@@ -58,6 +58,10 @@ local scmpTypes = {
         [0] = "UNSPECIFIED",
         [1] = "ECHO_REQUEST",
         [2] = "ECHO_REPLY",
+        [3] = "TRACE_ROUTE_REQUEST",
+        [4] = "TRACE_ROUTE_REPLY",
+        [5] = "RECORD_PATH_REQUEST",
+        [6] = "RECORD_PATH_REPLY",
     },
     ["ROUTING"] = {
         [0] = "UNREACH_NET",
@@ -121,9 +125,9 @@ local scion_ch_hopoff = ProtoField.uint8("scion.ch.hop_off", "Hop Field offset",
 local scion_ch_nexthdr = ProtoField.uint8("scion.ch.next_hdr", "Next header", base.DEC, hdrTypes)
 
 local scion_addr_dst_isd = ProtoField.uint16("scion.addr.dst_isd", "Dest ISD", base.DEC)
-local scion_addr_dst_as = ProtoField.uint64("scion.addr.dst_as", "Dest AS", base.DEC)
+local scion_addr_dst_as = ProtoField.string("scion.addr.dst_as", "Dest AS")
 local scion_addr_src_isd = ProtoField.uint16("scion.addr.src_isd", "Src ISD", base.DEC)
-local scion_addr_src_as = ProtoField.uint64("scion.addr.src_as", "Src AS", base.DEC)
+local scion_addr_src_as = ProtoField.string("scion.addr.src_as", "Src AS")
 local scion_addr_dst_ipv4 = ProtoField.ipv4("scion.addr.dst_ipv4", "Dest IPv4")
 local scion_addr_dst_ipv6 = ProtoField.ipv6("scion.addr.dst_ipv6", "Dest IPv6")
 local scion_addr_dst_svc = ProtoField.uint16("scion.addr.dst_svc", "Dest SVC", base.HEX, svcTypes)
@@ -409,20 +413,32 @@ function parse_cmn_hdr(buffer, tree, meta)
     return ch
 end
 
+function format_as(as)
+    local asDec = as:uint64()
+    if asDec > 1 and asDec <= 0xffffffff then
+        asStr = string.format("%d", asDec)
+    else
+        asStr = string.format("%x:%x:%x", as:bitfield(0, 16), as:bitfield(16, 16), as:bitfield(32, 16))
+    end
+    return asStr
+end
+
 function parse_addr_hdr(buffer, tree, meta)
     local t = tree:add(buffer, string.format("SCION Address header [%dB]", meta.addrTotalLen))
     -- dst ISD-AS
     local dstIaT = t:add(buffer(0, iaLen), string.format("Destination ISD-AS [%dB]", iaLen))
     meta["dstIsd"] = buffer(0, 2):bitfield(0, 16)
     dstIaT:add(scion_addr_dst_isd, buffer(0, 2), meta.dstIsd)
-    meta["dstAs"] = buffer(0, iaLen):bitfield(16, 48)
-    dstIaT:add(scion_addr_dst_as, buffer(1, iaLen-1), meta.dstAs)
+    local dstAs = buffer(2, iaLen - 2)
+    meta["dstAs"] = format_as(dstAs)
+    dstIaT:add(scion_addr_dst_as, dstAs, meta.dstAs)
     -- src ISD-AS
     local srcIaT = t:add(buffer(iaLen, iaLen), string.format("Source ISD-AS [%dB]", iaLen))
     meta["srcIsd"] = buffer(iaLen, 2):bitfield(0, 16)
     srcIaT:add(scion_addr_src_isd, buffer(iaLen, 2), meta.srcIsd)
-    meta["srcAs"] = buffer(iaLen, iaLen):bitfield(16, 48)
-    srcIaT:add(scion_addr_src_as, buffer(iaLen+1, iaLen-1), meta.srcAs)
+    local srcAs = buffer(iaLen + 2, iaLen - 2)
+    meta["srcAs"] = format_as(srcAs)
+    srcIaT:add(scion_addr_src_as, srcAs, meta.srcAs)
     -- dst addr
     local dstBuf = buffer(iaLen * 2, addrLens[meta.dstType])
     local dstProto, dstAddr
