@@ -413,6 +413,16 @@ function parse_cmn_hdr(buffer, tree, meta)
     return ch
 end
 
+function format_as(as)
+    local asDec = as:uint64()
+    if asDec > 1 and asDec <= 0xffffffff then
+        asStr = string.format("%d", asDec)
+    else
+        asStr = string.format("%x:%x:%x", as:bitfield(0, 16), as:bitfield(16, 16), as:bitfield(32, 16))
+    end
+    return asStr
+end
+
 function parse_addr_hdr(buffer, tree, meta)
     local t = tree:add(buffer, string.format("SCION Address header [%dB]", meta.addrTotalLen))
     -- dst ISD-AS
@@ -420,14 +430,14 @@ function parse_addr_hdr(buffer, tree, meta)
     meta["dstIsd"] = buffer(0, 2):bitfield(0, 16)
     dstIaT:add(scion_addr_dst_isd, buffer(0, 2), meta.dstIsd)
     local dstAs = buffer(2, iaLen - 2)
-    meta["dstAs"] = string.format("%x:%x:%x", dstAs:bitfield(0, 16), dstAs:bitfield(16, 16), dstAs:bitfield(32, 16))
+    meta["dstAs"] = format_as(dstAs)
     dstIaT:add(scion_addr_dst_as, dstAs, meta.dstAs)
     -- src ISD-AS
     local srcIaT = t:add(buffer(iaLen, iaLen), string.format("Source ISD-AS [%dB]", iaLen))
     meta["srcIsd"] = buffer(iaLen, 2):bitfield(0, 16)
     srcIaT:add(scion_addr_src_isd, buffer(iaLen, 2), meta.srcIsd)
     local srcAs = buffer(iaLen + 2, iaLen - 2)
-    meta["srcAs"] = string.format("%x:%x:%x", srcAs:bitfield(0, 16), srcAs:bitfield(16, 16), srcAs:bitfield(32, 16))
+    meta["srcAs"] = format_as(srcAs)
     srcIaT:add(scion_addr_src_as, srcAs, meta.srcAs)
     -- dst addr
     local dstBuf = buffer(iaLen * 2, addrLens[meta.dstType])
