@@ -175,6 +175,30 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 	return nil
 }
 
+// GetTopoAddr is a helper method that returns the TopoAddress for a specific
+// element ID of type t. nodeType must be one of BS, PS, CS, RS or DS. If the
+// ID is not found, nil is returned.
+func (t *Topo) GetTopoAddr(nodeType string, id string) *TopoAddr {
+	var addressMap map[string]TopoAddr
+	switch nodeType {
+	case "BS":
+		addressMap = t.BS
+	case "CS":
+		addressMap = t.CS
+	case "PS":
+		addressMap = t.PS
+	case "RS":
+		addressMap = t.RS
+	case "DS":
+		addressMap = t.DS
+	}
+	if _, ok := addressMap[id]; ok {
+		cp := addressMap[id]
+		return &cp
+	}
+	return nil
+}
+
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
 // stype is only used for error reporting
 func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]TopoAddr,

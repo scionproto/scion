@@ -1,11 +1,11 @@
 [general]
   ID = "sd0-test-0"
-  Bind = "1-ff00:0:133,[127.0.0.1]:50001"
   Topology = "testdata/topology.json"
 
 [logging]
   [logging.console]
-    level = "crit"
+    Level = "crit"
 
 [sd]
-  reliable = "/run/shm/test-sd-reliable.sock"
+  Reliable = "/run/shm/test-sd-reliable.sock"
+  Public = "1-ff00:0:133,[127.0.0.1]:50001"

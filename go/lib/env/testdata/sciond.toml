@@ -3,26 +3,13 @@
   # topology file for some services.
   ID = "ps1-ff00_0_110-1"
 
-  # Home IA
-  IA = "1-ff00:0:110"
-
   # Directory for loading AS information, certs, keys, path policy, topology
   ConfigDir = "testdata/dir"
 
-  # Explicit topology file. If one is already found in directory, this takes
-  # priority over it.
+  # Topology file. If not specified, topology.json is loaded from the config
+  # directory.
   # Topology = "testdata/dir/topology.json"
 
-  # Bind address
-  Bind = "1-ff00:0:110,[127.0.1.1]:50000"
-
-  # Public address
-  Public = "1-ff00:0:110,[127.0.1.1]:50000"
-
-  # Database for trust information. If a file already exists, it is treated as
-  # initial trust information. If a file does not exist, it is created from the
-  # initial information found under directory/certs (not implemented yet).
-  TrustDB = "trustdb"
 [logging]
   [logging.file]
     # Location of the logging file.
@@ -49,10 +36,16 @@
   # exported.
   # Prometheus = "127.0.0.1:8000"
 
-[sd]
-  # Address to listen on via the reliable socket protocol. If empty, a reliable
-  # socket server is not started.
-  Reliable = "/run/shm/test-sd-reliable.sock"
-  # Address to listen on for normal unixgram messages. If empty, a unixgram
-  # server is not started.
-  Unix = "/run/shm/test-sd-unix.sock"
+[infra]
+  # Node type. Must be one of BS, PS, CS, RS or DS.
+  Type = "PS"
+  # Bind address
+  Bind = "1-ff00:0:110,[127.0.1.1]:50000"
+  # Public address
+  Public = "1-ff00:0:110,[127.0.1.1]:50000"
+
+[trust]
+  # Database for trust information. If a file already exists, it is treated as
+  # initial trust information. If a file does not exist, it is created from the
+  # initial information found under directory/certs (not implemented yet).
+  TrustDB = "trustdb"

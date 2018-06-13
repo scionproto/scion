@@ -15,30 +15,34 @@
 package env
 
 import (
-	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestLoadBase(t *testing.T) {
-	Convey("Load", t, func() {
-		var cfg Config
-		err := LoadConfig(ioutil.Discard, "testdata/sciond.toml", &cfg)
-		SoMsg("err", err, ShouldBeNil)
-		fmt.Printf("%+v\n", cfg)
-	})
+type TestConfig struct {
+	General General
+	Logging Logging
+	Metrics Metrics
+	Infra   Infra
+	Trust   Trust
 }
 
-func TestLoadDerived(t *testing.T) {
+func TestLoadBase(t *testing.T) {
 	Convey("Load", t, func() {
-		var cfg struct {
-			Config
-			Extra int
-		}
-		err := LoadConfig(ioutil.Discard, "testdata/sciond.toml", &cfg)
+		var cfg TestConfig
+		_, err := toml.DecodeFile("testdata/sciond.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
-		fmt.Printf("%+v\n", cfg)
+
+		_, err = InitGeneral(&cfg.General, nil)
+		SoMsg("err", err, ShouldBeNil)
+		err = InitLogging(&cfg.Logging)
+		SoMsg("err", err, ShouldBeNil)
+		err = InitMetrics(&cfg.Metrics)
+		SoMsg("err", err, ShouldBeNil)
+		err = InitInfra(&cfg.Infra, cfg.General.ID, os.Stderr, cfg.General.Topology)
+		SoMsg("err", err, ShouldBeNil)
 	})
 }

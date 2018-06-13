@@ -23,10 +23,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/BurntSushi/toml"
+
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/env"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
@@ -39,25 +41,62 @@ const (
 )
 
 type ConfigT struct {
-	env.Config
-	SD struct {
+	General env.General
+	Logging env.Logging
+	Metrics env.Metrics
+	Trust   env.Trust
+	SD      struct {
 		// Address to listen on via the reliable socket protocol. If empty,
 		// a reliable socket server is not started.
 		Reliable string
 		// Address to listen on for normal unixgram messages. If empty, a
 		// unixgram server is not started.
 		Unix string
+		// If set, Bind is the preferred local address to listen on for SCION
+		// messages.
+		Bind snet.Addr
+		// Public is the local address to listen on for SCION messages (if Bind is
+		// not set), and to send out messages to other nodes.
+		Public snet.Addr
 	}
 }
 
+var Config ConfigT
+
+var Environment *env.Env
+
 var (
 	flagConfig = flag.String("config", "", "Service TOML config file (required)")
-
-	config ConfigT
 )
 
 func main() {
 	os.Exit(realMain())
+}
+
+func Init(configName string) error {
+	_, err := toml.DecodeFile(configName, &Config)
+	if err != nil {
+		return err
+	}
+	Environment, err = env.InitGeneral(&Config.General, nil)
+	if err != nil {
+		return err
+	}
+	err = env.InitLogging(&Config.Logging)
+	if err != nil {
+		return err
+	}
+	err = env.InitMetrics(&Config.Metrics)
+	if err != nil {
+		return err
+	}
+	if Config.SD.Reliable == "" {
+		Config.SD.Reliable = "/run/shm/sciond/default.sock"
+	}
+	if Config.SD.Unix == "" {
+		Config.SD.Unix = "/run/shm/sciond/default-unix.sock"
+	}
+	return nil
 }
 
 func realMain() int {
@@ -67,14 +106,8 @@ func realMain() int {
 		flag.Usage()
 		return 1
 	}
-	if err := env.LoadConfig(os.Stderr, *flagConfig, &config); err != nil {
+	if err := Init(*flagConfig); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-
-	environment, err := env.Init(&config.Config, nil)
-	if err != nil {
-		log.Crit("Error", "err", err)
 		flag.Usage()
 		return 1
 	}
@@ -83,7 +116,7 @@ func realMain() int {
 	// Initialize SignedCtrlPld server
 	// FIXME(scrye): enable this once we have SCIOND-less snet and a TrustStore
 	/*
-		msger, err := NewMessenger(*scionAddress, Env)
+		msger, err := NewMessenger(...)
 		if err != nil {
 			log.Crit("unable to initialize infra Messenger", "err", err)
 			return 1
@@ -94,8 +127,8 @@ func realMain() int {
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
 
-	if config.SD.Reliable != "" {
-		server, shutdownF := NewServer("rsock", config.SD.Reliable, environment)
+	if Config.SD.Reliable != "" {
+		server, shutdownF := NewServer("rsock", Config.SD.Reliable, log.Root())
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()
@@ -106,8 +139,8 @@ func realMain() int {
 		}()
 	}
 
-	if config.SD.Unix != "" {
-		server, shutdownF := NewServer("unixpacket", config.SD.Unix, environment)
+	if Config.SD.Unix != "" {
+		server, shutdownF := NewServer("unixpacket", Config.SD.Unix, log.Root())
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()
@@ -117,17 +150,17 @@ func realMain() int {
 		}()
 	}
 
-	if environment.HTTPAddress != "" {
+	if Config.Metrics.Prometheus != "" {
 		go func() {
 			defer log.LogPanicAndExit()
-			if err := http.ListenAndServe(environment.HTTPAddress, nil); err != nil {
+			if err := http.ListenAndServe(Config.Metrics.Prometheus, nil); err != nil {
 				fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
 			}
 		}()
 	}
 
 	select {
-	case <-environment.AppShutdownSignal:
+	case <-Environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		// Deferred shutdowns for all running servers run now.
 		return 0
@@ -139,7 +172,7 @@ func realMain() int {
 	}
 }
 
-func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
+func NewMessenger(scionAddress string, logger log.Logger) (infra.Messenger, error) {
 	// Initialize messenger for talking with other infra elements
 	snetAddress, err := snet.AddrFromString(scionAddress)
 	if err != nil {
@@ -149,15 +182,15 @@ func NewMessenger(scionAddress string, env *env.Env) (infra.Messenger, error) {
 	if err != nil {
 		return nil, common.NewBasicError("snet listen error", err)
 	}
-	dispatcher := disp.New(transport.NewPacketTransport(conn), messenger.DefaultAdapter, env.Log)
+	dispatcher := disp.New(transport.NewPacketTransport(conn), messenger.DefaultAdapter, logger)
 	// TODO: initialize actual trust store once it is available
 	trustStore := infra.TrustStore(nil)
-	return messenger.New(dispatcher, trustStore, env.Log), nil
+	return messenger.New(dispatcher, trustStore, logger), nil
 }
 
-func NewServer(network string, rsockPath string, env *env.Env) (*servers.Server, func()) {
+func NewServer(network string, rsockPath string, logger log.Logger) (*servers.Server, func()) {
 	// FIXME(scrye): enable msger below
-	server := servers.NewServer(network, rsockPath, nil, env.Log)
+	server := servers.NewServer(network, rsockPath, nil, logger)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)
