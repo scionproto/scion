@@ -121,7 +121,6 @@ static chk_input *chk_udp_input;
 static zlog_category_t *zc;
 
 void handle_signal(int signal);
-int init_tcpmw();
 int run();
 
 int create_sockets();
@@ -205,9 +204,6 @@ int main(int argc, char **argv)
     zlog_info(zc, "dispatcher with zlog starting up");
 
     if (create_sockets() < 0)
-        return -1;
-
-    if (init_tcpmw() < 0)
         return -1;
 
     res = run();
@@ -397,18 +393,6 @@ int bind_data_sockets()
             return -1;
         }
         zlog_info(zc, "data v6 socket bound to %s:%d", str, ntohs(sin6->sin6_port));
-    }
-    return 0;
-}
-
-int init_tcpmw()
-{
-    pthread_t tid;
-    tcp_scion_output = &send_data;
-    zc_tcp = zc;
-    if (pthread_create(&tid, NULL, &tcpmw_main_thread, NULL)) {
-        zlog_fatal(zc, "pthread_create(): %s", strerror(errno));
-        return -1;
     }
     return 0;
 }
