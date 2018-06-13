@@ -103,7 +103,7 @@ uint8_t * get_src_addr(uint8_t *buf)
  * Returns "UNKOWN" if the address type isn't supported.
  * return type: char pointer to description string.
  */
-char *addr_type_str(int addr_type) {
+char *addr_type_str(uint8_t addr_type) {
     switch (addr_type) {
         case ADDR_IPV4_TYPE:
             return "IPv4";

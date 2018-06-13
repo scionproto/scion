@@ -90,6 +90,6 @@ uint8_t * get_dst_addr(uint8_t *buf);
 uint8_t * get_src_addr(uint8_t *buf);
 void format_host(int, uint8_t *, char *, int);
 void print_addresses(uint8_t *buf);
-char *addr_type_str(int addr_type);
+char *addr_type_str(uint8_t addr_type);
 
 #endif

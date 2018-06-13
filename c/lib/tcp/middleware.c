@@ -219,7 +219,7 @@ void tcpmw_bind(struct conn_args *args, char *buf, int len){
     u16_t port, svc;
     char *p = buf;
     s8_t lwip_err = 0;
-    const int HEADER_LEN =5;
+    const int HEADER_LEN = 5;
 
     zlog_info(zc_tcp, "BIND received");
     if (len < HEADER_LEN) { /* Minimum length (with empty scion_addr) */
@@ -302,6 +302,12 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
         goto exit;
     }
 
+    int raw_addr_len = len - HEADER_LEN - path_len;
+    if (scion_addr_from_raw(&addr, addr_type, p + path_len + 1, raw_addr_len) < 0) {
+        lwip_err = ERR_MW;
+        zlog_error(zc_tcp, "tcpmw_connect(): wrong payload length: %dB", raw_addr_len);
+        goto exit;
+    }
     /* Add path to the TCP/IP state */
     spath_t *path = malloc(sizeof *path);
     path->raw_path = malloc(path_len);
@@ -309,19 +315,13 @@ void tcpmw_connect(struct conn_args *args, char *buf, int len){
     path->len = path_len;
     args->conn->pcb.ip->path = path;
     zlog_info(zc_tcp, "Path added, len %d", path_len);
-    p += path_len + 1;  /* skip path and haddr_type*/
 
-    int raw_addr_len = len - HEADER_LEN - path_len;
-    if (scion_addr_from_raw(&addr, addr_type, p, raw_addr_len) < 0) {
-        lwip_err = ERR_MW;
-        zlog_error(zc_tcp, "tcpmw_connect(): wrong payload length: %dB", raw_addr_len);
-        goto exit;
-    }
     if (addr.type == ADDR_SVC_TYPE) { /* set svc for TCP/IP context */
         args->conn->pcb.ip->svc = *(u16_t*)(addr.addr + ISD_AS_LEN);
     }
+    /* skip path, haddr_type and scion_addr */
+    p += path_len + 1 + ISD_AS_LEN + get_addr_len(addr.type);
     /* Set first hop. */
-    p += 1 + ISD_AS_LEN + get_addr_len(addr.type);
     /* TODO(PSz): don't assume IPv4 */
     path->first_hop.addr_type = ADDR_IPV4_TYPE;
     memcpy(path->first_hop.addr, p, 4);
