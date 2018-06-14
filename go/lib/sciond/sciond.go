@@ -347,7 +347,7 @@ func (c *connector) Close() error {
 // GetDefaultSCIONDPath return default sciond path for a given IA
 func GetDefaultSCIONDPath(ia *addr.IA) string {
 	if ia == nil || ia.IsZero() {
-		return "/run/shm/sciond/default.sock"
+		return DefaultSCIONDPath
 	}
 	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
 }
