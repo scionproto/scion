@@ -1,6 +1,6 @@
 .PHONY: all clean install uninstall
 
-CC = clang
+#CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
 LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion -lzlog -llwip
 

@@ -44,7 +44,11 @@ void *tcpmw_main_thread(void *unused) {
     if (!env)
         env = DEFAULT_DISPATCHER_ID;
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s.sock", LWIP_SOCK_DIR, env);
-    strncpy(sock_path, addr.sun_path, sizeof(addr.sun_path));
+    size_t length = sizeof(addr.sun_path);
+    if (length > UNIX_PATH_MAX) {
+        length = UNIX_PATH_MAX;
+    }
+    strncpy(sock_path, addr.sun_path, length);
 
     if (atexit(tcpmw_unlink_sock)){
         zlog_fatal(zc_tcp, "tcpmw_main_thread: atexit()");
