@@ -1,0 +1,97 @@
+version: "3"
+services:
+  dispatcher:
+    image: dispatcher
+    network_mode: "host"
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../gen/dispatcher:/share/conf"
+      - "../logs:/share/logs"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+  border:
+    image: border
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../logs:/share/logs"
+      - "../gen:/share/gen"
+    command: ["/app/border", "-id=br1-ff00_0_110-1", "-confd=/share/gen/ISD1/ASff00_0_110/br1-ff00_0_110-1", "-prom=[127.0.0.49]:30093", "-overlay.conn.sizeIgnore=false"]
+  sig:
+    image: sig
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../logs:/share/logs"
+      - "../go/sig/config/testdata:/share/sig"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "/dev/net/tun:/dev/net/tun"
+    command: ["/app/sig", "-id=sig1", "-config=/share/sig/01-loadfromfile.json", "-log.dir=/share/logs", "-log.level=debug", "-ip=192.168.6.244", "-ia=64-196722", "-sciond=/run/shm/sciond/sd1-ff00_0_110.sock", "-prom=:9504"]
+  sciond:
+    image: sciond
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../logs:/share/logs"
+      - "../gen:/share/gen:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+    command: ["/app/bin/sciond", "--api-addr", "/run/shm/sciond/sd1-ff00_0_110.sock", "--log_dir=/share/logs", "sd1-ff00_0_110", "/share/gen/ISD1/ASff00_0_110/endhost"]
+  path:
+    image: path
+    network_mode: "host"
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../logs:/share/logs"
+      - "../gen:/share/gen:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+    command: ["/app/bin/path_server", "--prom", "[127.0.0.55]:30080", "ps1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1"]
+  beacon:
+    image: beacon
+    network_mode: "host"
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../logs:/share/logs"
+      - "../gen:/share/gen:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+    command: ["/app/bin/beacon_server", "--prom", "[127.0.0.53]:30092", "bs1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/bs1-ff00_0_110-1"]
+  cert:
+    image: certificate
+    network_mode: "host"
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../logs:/share/logs"
+      - "../gen:/share/gen:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+    command: ["/app/bin/cert_server", "--prom", "[127.0.0.54]:30082", "cs1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1"]
