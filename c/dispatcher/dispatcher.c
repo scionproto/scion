@@ -342,7 +342,11 @@ int bind_app_socket()
     if (!env)
         env = (char *)DEFAULT_DISPATCHER_ID;
     snprintf(su.sun_path, sizeof(su.sun_path), "%s/%s.sock", DISPATCHER_DIR, env);
-    strncpy(socket_path, su.sun_path, sizeof(su.sun_path));
+    size_t length = sizeof(su.sun_path);
+    if (length > UNIX_PATH_MAX) {
+        length = UNIX_PATH_MAX;
+    }
+    strncpy(socket_path, su.sun_path, length);
     if (mkdir(DISPATCHER_DIR, 0755)) {
         if (errno != EEXIST) {
             zlog_fatal(zc, "failed to create dispatcher socket directory: %s", strerror(errno));
