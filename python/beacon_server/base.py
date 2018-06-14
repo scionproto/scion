@@ -594,7 +594,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
         self.check_revocation(srev_info, lambda x:
-                              self._process_revocation(srev_info) if not x else False)
+                              self._process_revocation(srev_info) if not x else False, meta)
 
     def handle_rev_objs(self):
         with self._rev_seg_lock:

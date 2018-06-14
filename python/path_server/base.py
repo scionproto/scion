@@ -251,7 +251,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
                          (meta, srev_info.short_desc()))
             return
         self.check_revocation(srev_info, lambda x: self._continue_revocation_processing(meta,
-                              srev_info) if not x else False)
+                              srev_info) if not x else False, meta)
 
     def _continue_revocation_processing(self, meta, srev_info):
         self.revocations.add(srev_info)

@@ -32,9 +32,10 @@ from lib.types import CertMgmtType
 
 class CertRequest(object):
 
-    def __init__(self, isd_as, src):
-        self.isd_as = isd_as
+    def __init__(self, src, meta):
+        self.isd_as = src.ia
         self.src = src
+        self.meta = meta
         self.e = threading.Event()
 
 
