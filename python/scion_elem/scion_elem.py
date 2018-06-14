@@ -679,6 +679,7 @@ class SCIONElement(object):
             # TRC still being requested
             with self.unv_certs_lock:
                 self.unv_certs[(isd_as, ver)] = cert
+            return
         try:
             verify_chain_trc(isd_as, cert, trc)
         except SCIONVerificationError as e:
