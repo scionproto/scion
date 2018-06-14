@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -e
+
+target="$(basename ${1:?})"
+shift
+dfile="${1:?}"
+shift
+src="${1}"
+
+# If the target has a _debug suffix, build a :debug version, otherwise build :latest.
+case "$target" in
+    *_debug)
+        target=${target%_debug}
+        ver="debug"
+        ;;
+esac
+img="scion_$target"
+tag="$img:${ver:-latest}"
+
+if [ -n "$src" ]; then
+    docker build -t "$tag" $DOCKER_ARGS -f "$dfile" "$src"
+else
+    docker build -t "$tag" $DOCKER_ARGS - < "$dfile"
+fi
+./docker_hash "$img" $ver
