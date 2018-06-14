@@ -2,7 +2,7 @@
 
 #CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
-LDFLAGS ?= -shared -Wl,-z,defs -lpthread -lscion -lzlog -llwip
+LDFLAGS ?= -shared -Wl,-z,defs -Wl,-soname,libtcpmw.so.0 -lpthread -lzlog -L ../scion -lscion -L ../../../sub/lwip-contrib/ports/unix/proj/scion -llwip
 
 LIB_DIR = ..
 LWIP_DIR = ../../../sub/lwip/src/include
