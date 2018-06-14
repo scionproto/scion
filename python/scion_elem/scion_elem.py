@@ -332,8 +332,14 @@ class SCIONElement(object):
             start = time.time()
             self._check_cert_reqs()
             self._check_trc_reqs()
-            self._check_certs()
             sleep_interval(start, check_cyle, "Elem._check_trc_cert_reqs cycle")
+
+    def _process_cert_reqs(self):
+        check_cyle = 1.0
+        while self.run_flag.is_set():
+            start = time.time()
+            self._check_certs()
+            sleep_interval(start, check_cyle, "Elem._process_cert_reqs cycle")
 
     def _check_trc_reqs(self):
         """

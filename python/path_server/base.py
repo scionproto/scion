@@ -585,4 +585,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self._check_trc_cert_reqs,),
             name="Elem.check_trc_cert_reqs", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._process_cert_reqs,),
+            name="Elem.process_cert_reqs", daemon=True).start()
         super().run()
