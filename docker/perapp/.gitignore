@@ -1,0 +1,3 @@
+# Ignore Vim swap files.
+.*.sw?
+hashes/

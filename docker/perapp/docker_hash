@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -e
+
+mkdir -p hashes
+
+img="${1}"
+ver="${2:-latest}"
+out="hashes/${1#scion_}${2:+_$ver}"
+tag="$img:$ver"
+
+h="$(docker image ls "$tag" --format '{{ .ID }}')"
+if [ ! -f "$out" ] || [ "$h" != "$(cat "$out")" ]; then
+    echo "$h" > "$out"
+    echo "$out updated to $h"
+else
+    echo "$out up to date"
+fi
