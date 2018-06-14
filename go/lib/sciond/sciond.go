@@ -52,6 +52,9 @@ const (
 	ASInfoTTL  = time.Hour
 	IFInfoTTL  = time.Hour
 	SVCInfoTTL = 10 * time.Second
+	// DefaultSCIONDPath contains the system default for a SCIOND socket. For
+	// IA-specific sockets, use GetDefaultSCIONDPath.
+	DefaultSCIONDPath = "/run/shm/sciond/default.sock"
 )
 
 // Service describes a SCIOND endpoint. New connections to SCIOND can be

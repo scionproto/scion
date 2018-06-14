@@ -47,7 +47,7 @@ const (
 	// Default max age of log file in days
 	DefaultLoggingFileMaxAge = 7
 	// Default file name for topology file (only the last element of the path)
-	DefaultTopologyName = "topology.json"
+	DefaultTopologyPath = "topology.json"
 )
 
 var sighupC chan os.Signal
@@ -64,8 +64,8 @@ type General struct {
 	ID string
 	// ConfigDir for loading extra files (currently, only topology.json)
 	ConfigDir string
-	// TopologyName is the file path for the local topology JSON file.
-	TopologyName string `toml:"Topology"`
+	// TopologyPath is the file path for the local topology JSON file.
+	TopologyPath string `toml:"Topology"`
 	// Topology is the loaded topology file.
 	Topology *topology.Topo `toml:"-"`
 }
@@ -84,8 +84,8 @@ func (cfg *General) setFiles() error {
 			fmt.Sprintf("%v is not a directory", cfg.ConfigDir), nil)
 	}
 	// Fill in file names, but do not override specifics
-	if cfg.TopologyName == "" {
-		cfg.TopologyName = filepath.Join(cfg.ConfigDir, DefaultTopologyName)
+	if cfg.TopologyPath == "" {
+		cfg.TopologyPath = filepath.Join(cfg.ConfigDir, DefaultTopologyPath)
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ type Env struct {
 
 func InitGeneral(cfg *General, reloadF func()) (*Env, error) {
 	cfg.setFiles()
-	topo, err := topology.LoadFromFile(cfg.TopologyName)
+	topo, err := topology.LoadFromFile(cfg.TopologyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +125,7 @@ func (e *Env) setupSignals(reloadF func()) {
 		<-sighupC
 		log.Info("Received config reload signal")
 		if reloadF != nil {
-			go reloadF()
+			reloadF()
 		}
 	}()
 }
@@ -227,11 +227,6 @@ type Metrics struct {
 	Prometheus string
 }
 
-func InitMetrics(cfg *Metrics) error {
-	// included for consistency with the other Init* functions
-	return nil
-}
-
 // Trust contains information that is BS, CS, PS, SD specific.
 type Trust struct {
 	// TrustDB is the database for trust information.
@@ -251,21 +246,17 @@ type Infra struct {
 }
 
 func InitInfra(cfg *Infra, id string, warnings io.Writer, topo *topology.Topo) error {
-
 	var publicAddress, bindAddress *snet.Addr
 	topoAddress := topo.GetTopoAddr(cfg.Type, id)
 	if topoAddress != nil {
 		bindAddress = getBindSnetAddress(topo.ISD_AS, topoAddress)
 		publicAddress = getPublicSnetAddress(topo.ISD_AS, topoAddress)
-		if publicAddress == nil {
-			publicAddress = bindAddress
-		}
 	}
 	if publicAddress != nil {
 		// If both config file and topology file specify this, warn the user
 		// that the config value is discarded
 		if !cfg.Public.IsZero() {
-			fmt.Fprintf(warnings, "Warning: Discarding config general.public=%v because config "+
+			fmt.Fprintf(warnings, "Warning: Discarding address general.public=%v because config "+
 				"was also found in topology file\n", cfg.Public)
 		}
 		cfg.Public = *publicAddress
@@ -274,7 +265,7 @@ func InitInfra(cfg *Infra, id string, warnings io.Writer, topo *topology.Topo) e
 		if !cfg.Bind.IsZero() {
 			// If both config file and topology file specify this, warn the user
 			// that the config value is discarded
-			fmt.Fprintf(warnings, "Warning: Discarding config general.bind=%v because config "+
+			fmt.Fprintf(warnings, "Warning: Discarding address general.bind=%v because config "+
 				"was also found in topology file\n", cfg.Bind)
 		}
 		cfg.Bind = *bindAddress

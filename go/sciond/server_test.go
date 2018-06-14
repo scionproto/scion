@@ -30,13 +30,13 @@ import (
 )
 
 func TestASInfo(t *testing.T) {
-	var Config ConfigT
-	_, err := toml.DecodeFile("testdata/sciond.toml", &Config)
+	var config Config
+	_, err := toml.DecodeFile("testdata/sciond.toml", &config)
 	xtest.FailOnErr(t, err)
 
-	defer os.Remove(Config.SD.Reliable)
+	defer os.Remove(config.SD.Reliable)
 	defer StartServer(t, "testdata/sciond.toml")()
-	conn, stopClient := StartClient(t, Config.SD.Reliable)
+	conn, stopClient := StartClient(t, config.SD.Reliable)
 	defer stopClient()
 
 	Convey("Send and receive ASInfo", t, func() {

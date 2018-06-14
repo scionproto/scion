@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
@@ -40,7 +41,7 @@ const (
 	ShutdownWaitTimeout = 5 * time.Second
 )
 
-type ConfigT struct {
+type Config struct {
 	General env.General
 	Logging env.Logging
 	Metrics env.Metrics
@@ -61,7 +62,7 @@ type ConfigT struct {
 	}
 }
 
-var Config ConfigT
+var config Config
 
 var Environment *env.Env
 
@@ -74,27 +75,23 @@ func main() {
 }
 
 func Init(configName string) error {
-	_, err := toml.DecodeFile(configName, &Config)
+	_, err := toml.DecodeFile(configName, &config)
 	if err != nil {
 		return err
 	}
-	Environment, err = env.InitGeneral(&Config.General, nil)
+	Environment, err = env.InitGeneral(&config.General, nil)
 	if err != nil {
 		return err
 	}
-	err = env.InitLogging(&Config.Logging)
+	err = env.InitLogging(&config.Logging)
 	if err != nil {
 		return err
 	}
-	err = env.InitMetrics(&Config.Metrics)
-	if err != nil {
-		return err
+	if config.SD.Reliable == "" {
+		config.SD.Reliable = sciond.DefaultSCIONDPath
 	}
-	if Config.SD.Reliable == "" {
-		Config.SD.Reliable = "/run/shm/sciond/default.sock"
-	}
-	if Config.SD.Unix == "" {
-		Config.SD.Unix = "/run/shm/sciond/default-unix.sock"
+	if config.SD.Unix == "" {
+		config.SD.Unix = "/run/shm/sciond/default-unix.sock"
 	}
 	return nil
 }
@@ -127,8 +124,8 @@ func realMain() int {
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
 
-	if Config.SD.Reliable != "" {
-		server, shutdownF := NewServer("rsock", Config.SD.Reliable, log.Root())
+	if config.SD.Reliable != "" {
+		server, shutdownF := NewServer("rsock", config.SD.Reliable, log.Root())
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()
@@ -139,8 +136,8 @@ func realMain() int {
 		}()
 	}
 
-	if Config.SD.Unix != "" {
-		server, shutdownF := NewServer("unixpacket", Config.SD.Unix, log.Root())
+	if config.SD.Unix != "" {
+		server, shutdownF := NewServer("unixpacket", config.SD.Unix, log.Root())
 		defer shutdownF()
 		go func() {
 			defer log.LogPanicAndExit()
@@ -150,10 +147,10 @@ func realMain() int {
 		}()
 	}
 
-	if Config.Metrics.Prometheus != "" {
+	if config.Metrics.Prometheus != "" {
 		go func() {
 			defer log.LogPanicAndExit()
-			if err := http.ListenAndServe(Config.Metrics.Prometheus, nil); err != nil {
+			if err := http.ListenAndServe(config.Metrics.Prometheus, nil); err != nil {
 				fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
 			}
 		}()

@@ -4,11 +4,11 @@
   ID = "ps1-ff00_0_110-1"
 
   # Directory for loading AS information, certs, keys, path policy, topology
-  ConfigDir = "testdata/dir"
+  ConfigDir = "testdata"
 
   # Topology file. If not specified, topology.json is loaded from the config
   # directory.
-  # Topology = "testdata/dir/topology.json"
+  Topology = "testdata/dir/topology.json"
 
 [logging]
   [logging.file]

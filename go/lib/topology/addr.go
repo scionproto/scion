@@ -284,9 +284,3 @@ func (til *topoAddrInt) String() string {
 	return fmt.Sprintf("public: [%s]:%d bind: [%s]:%d overlayPort: %d",
 		til.pubIP, til.pubL4Port, til.bindIP, til.bindL4Port, til.OverlayPort)
 }
-
-func dupIP(x net.IP) net.IP {
-	y := make(net.IP, len(x))
-	copy(y, x)
-	return y
-}
