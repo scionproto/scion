@@ -391,11 +391,11 @@ class SCIONElement(object):
                     self.cert_reqs.pop((isd_as, ver))
                     continue
 
-                # Try to find a meta, worst case the local CS gets asked
+                # Try to find a valid meta, otherwise the CS is asked
                 meta = None
                 for cert_req in cert_reqs:
-                    meta = cert_req.meta
-                    if meta:
+                    if cert_req.meta and not isinstance(cert_req.meta, SCMPMetadata):
+                        meta = cert_req.meta
                         break
                 # Finally register the necessary requests
                 trc = self.trust_store.get_trc(isd_as[0], src.trc_ver)
@@ -492,7 +492,9 @@ class SCIONElement(object):
                 self.requested_trcs[(isd, ver)] = (req_time, meta)
                 logging.debug("Request for %sv%s TRC already registered" % (isd, ver))
                 return
-        meta = meta or self._get_cs()
+        # Ask CS if meta is SCMP or not set
+        if not meta or isinstance(meta, SCMPMetadata):
+            meta = self._get_cs()
         if not meta:
             logging.error("Couldn't find a CS to request %sv%s TRC" % (isd, ver))
             return
@@ -529,7 +531,9 @@ class SCIONElement(object):
                 self.requested_certs[(isd_as, ver)] = (req_time, meta)
                 logging.debug("Request for %sv%s CERTCHAIN already registered" % (isd_as, ver))
                 return
-        meta = meta or self._get_cs()
+        # Ask CS if meta is SCMP or not set
+        if not meta or isinstance(meta, SCMPMetadata):
+            meta = self._get_cs()
         if not meta:
             logging.error("Couldn't find a CS to request %sv%s CERTCHAIN" % (isd_as, ver))
             return
