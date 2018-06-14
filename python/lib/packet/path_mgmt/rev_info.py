@@ -23,7 +23,7 @@ import capnp  # noqa
 
 # SCION
 import proto.rev_info_capnp as P
-from lib.defines import MIN_REVOCATION_TTL
+from lib.defines import MIN_REVOCATION_TTL, REVOCATION_GRACE
 from lib.errors import SCIONBaseError
 from lib.packet.packet_base import Cerealizable
 from lib.packet.proto_sign import DefaultSignSrc, ProtoSignedBlob
@@ -118,7 +118,7 @@ class RevocationInfo(Cerealizable):
         return self._isd_as
 
     def validate(self):
-        if self.p.timestamp > int(time.time()) + 1:
+        if self.p.timestamp > int(time.time()) + REVOCATION_GRACE:
             raise RevInfoValidationError("Timestamp in the future: %s" % self.p.timestamp)
         if self.p.ttl < MIN_REVOCATION_TTL:
             raise RevInfoValidationError(
@@ -132,7 +132,7 @@ class RevocationInfo(Cerealizable):
     def active(self):
         now = int(time.time())
         # Make sure the revocation timestamp is within the validity window
-        assert self.p.timestamp <= now + 1, self.p.timestamp
+        assert self.p.timestamp <= now + REVOCATION_GRACE, self.p.timestamp
         return now <= (self.p.timestamp + self.p.ttl)
 
     def cmp_str(self):

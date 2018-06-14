@@ -40,6 +40,7 @@ from lib.defines import (
     CERTIFICATE_SERVICE,
     GEN_CACHE_PATH,
     PATH_SERVICE,
+    REVOCATION_GRACE,
     SCION_UDP_EH_DATA_PORT,
     SCIOND_API_SOCKDIR,
     SERVICE_TYPES,
@@ -75,6 +76,7 @@ from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.host_addr import HostAddrNone
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path import SCIONPath
+from lib.packet.path_mgmt.rev_info import RevInfoExpiredError
 from lib.packet.scion import (
     SCIONBasePacket,
     SCIONL4Packet,
@@ -211,7 +213,7 @@ class SCIONElement(object):
         # new cert/trc fetching implementation
         self.unv_certs = {}
         self.unv_certs_lock = threading.Lock()
-        self.cert_reqs = {}
+        self.cert_reqs = defaultdict(list)
         self.cert_reqs_lock = threading.Lock()
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
         host_addr, self._port = self.public[0]
@@ -381,7 +383,7 @@ class SCIONElement(object):
                 src = cert_reqs[0].src
                 cert = self.trust_store.get_cert(isd_as, src.chain_ver)
                 if cert:
-                    logging.info("Certificate for %sv%s was fetched, continue processing." %
+                    logging.info("Certificate for %sv%s was fetched, unblock thread." %
                                  (src.ia, src.chain_ver))
                     # Release waiting threads
                     for cert_req in cert_reqs:
@@ -389,13 +391,18 @@ class SCIONElement(object):
                     self.cert_reqs.pop((isd_as, ver))
                     continue
 
+                # Try to find a meta, worst case the local CS gets asked
+                meta = None
+                for cert_req in cert_reqs:
+                    meta = cert_req.meta
+                    if meta:
+                        break
+                # Finally register the necessary requests
                 trc = self.trust_store.get_trc(isd_as[0], src.trc_ver)
                 if not trc:
                     # TRC must also be fetched
-                    with self.req_trcs_lock:
-                        self._request_trc(src.ia[0], src.trc_ver, self._get_cs())
-                with self.req_certs_lock:
-                    self._request_cert(isd_as, src.chain_ver, self._get_cs())
+                    self._request_trc(src.ia[0], src.trc_ver, meta)
+                self._request_cert(isd_as, src.chain_ver, meta)
 
     def _process_path_seg(self, seg_meta, req_id=None):
         """
@@ -474,27 +481,21 @@ class SCIONElement(object):
         if not missing_trcs:
             return
         for isd, ver in missing_trcs:
-            with self.req_trcs_lock:
-                req_time, meta = self.requested_trcs.get((isd, ver), (None, None))
-                if meta:
-                    # There is already an outstanding request for the missing TRC
-                    # from somewhere else than than the local CS
-                    if seg_meta.meta:
-                        # Update the stored meta with the latest known server that has the TRC.
-                        self.requested_trcs[(isd, ver)] = (req_time, seg_meta.meta)
-                    continue
-                if req_time and not seg_meta.meta:
-                    # There is already an outstanding request for the missing TRC
-                    # to the local CS and we don't have a new meta.
-                    continue
-            meta = seg_meta.meta or self._get_cs()
-            if not meta:
-                logging.error("Couldn't find a CS to request TRC for PCB %s",
-                              seg_meta.seg.short_id())
-                continue
-            self._request_trc(isd, ver, meta)
+            self._request_trc(isd, ver, seg_meta.meta)
 
     def _request_trc(self, isd, ver, meta):
+        with self.req_trcs_lock:
+            req_time, req_meta = self.requested_trcs.get((isd, ver), (None, None))
+            if req_meta and meta:
+                # There is already an outstanding request for the missing TRC
+                # Update the stored meta with the latest known server that has the TRC.
+                self.requested_trcs[(isd, ver)] = (req_time, meta)
+                logging.debug("Request for %sv%s TRC already registered" % (isd, ver))
+                return
+        meta = meta or self._get_cs()
+        if not meta:
+            logging.error("Couldn't find a CS to request %sv%s TRC" % (isd, ver))
+            return
         trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
         req_id = mk_ctrl_req_id()
         logging.info("Requesting %sv%s TRC from %s, [id: %016x]", isd, ver, meta, req_id)
@@ -517,30 +518,20 @@ class SCIONElement(object):
         if not missing_certs:
             return
         for isd_as, ver in missing_certs:
-            with self.req_certs_lock:
-                req_time, meta = self.requested_certs.get((isd_as, ver), (None, None))
-                if meta:
-                    # There is already an outstanding request for the missing cert
-                    # from somewhere else than than the local CS
-                    if seg_meta.meta:
-                        # Update the stored meta with the latest known server that has the cert.
-                        self.requested_certs[(isd_as, ver)] = (req_time, seg_meta.meta)
-                    continue
-                if req_time and not seg_meta.meta:
-                    # There is already an outstanding request for the missing cert
-                    # to the local CS and we don't have a new meta.
-                    continue
-            meta = seg_meta.meta or self._get_cs()
-            if not meta:
-                logging.error("Couldn't find a CS to request CERTCHAIN for PCB %s",
-                              seg_meta.seg.short_id())
-                continue
-            self._request_cert(isd_as, ver, meta)
+            self._request_cert(isd_as, ver, seg_meta.meta)
 
     def _request_cert(self, isd_as, ver, meta):
-        req_cert = self.requested_certs.get((isd_as, ver))
-        if req_cert:
-            logging.debug("Request for %sv%s CERTCHAIN already registered" % (isd_as, ver))
+        with self.req_certs_lock:
+            req_time, req_meta = self.requested_certs.get((isd_as, ver), (None, None))
+            if req_meta and meta:
+                # There is already an outstanding request for the missing cert
+                # Update the stored meta with the latest known server that has the cert.
+                self.requested_certs[(isd_as, ver)] = (req_time, meta)
+                logging.debug("Request for %sv%s CERTCHAIN already registered" % (isd_as, ver))
+                return
+        meta = meta or self._get_cs()
+        if not meta:
+            logging.error("Couldn't find a CS to request %sv%s CERTCHAIN" % (isd_as, ver))
             return
         cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
         req_id = mk_ctrl_req_id()
@@ -1320,32 +1311,43 @@ class SCIONElement(object):
         logging.warning("Unable to get path to %s from SCIOND.", isd_as)
         return None
 
-    def check_revocation(self, srev_info, callback):
+    def check_revocation(self, srev_info, callback, meta=None):
         """
         Checks if the revocation is valid and a certificate is present,
         otherwise start a new thread that waits for the certificate to be fetched
         """
-        srev_info.rev_info().validate()
+        rev_info = srev_info.rev_info()
+        try:
+            rev_info.validate()
+            if not rev_info.active():
+                raise RevInfoExpiredError("RevocationInfo has expired: %s" % rev_info.short_desc())
+        except SCIONBaseError as e:
+            logging.error("Revocation check failed for %s from %s:\n%s",
+                          srev_info.short_desc(), meta, e)
+            callback(e)
+            return
+        # Revocation is valid and still active, try to verify it
         src = DefaultSignSrc(srev_info.psign.p.src)
         cert = self.trust_store.get_cert(src.ia)
         if not cert:
             logging.info("Start new thread for certificate (%sv%s) fetching!" %
                          (src.ia, src.chain_ver))
             threading.Thread(
-                target=thread_safety_net, args=(self.wait_for_cert, src, srev_info,
-                                                callback),).start()
+                target=thread_safety_net, args=(self.wait_for_rev_cert, src, srev_info, meta,
+                                                callback), daemon=True).start()
         else:
-            self.verify_revocation(src, srev_info, callback)
+            self.verify_revocation(src, srev_info, meta, callback)
 
-    def wait_for_cert(self, src, srev_info, callback):
+    def wait_for_rev_cert(self, src, srev_info, meta, callback):
         """
         Should run in a thread!
         Registers a certificate request and waits for an event to continue processing.
         """
-        cert_req = self.register_cert_req(src)
+        cert_req = self.register_cert_req(src, meta)
         # Wait until revocation has expired
-        wait = time.time() - srev_info.rev_info().p.timestamp + srev_info.rev_info().p.ttl
-        done = cert_req.e.wait(wait)
+        rev_info = srev_info.rev_info()
+        val_window = rev_info.p.timestamp + rev_info.p.ttl - int(time.time()) + REVOCATION_GRACE
+        done = cert_req.e.wait(val_window)
         if not done:
             logging.info("Certificate fetching for %sv%s failed with a timeout." %
                          (src.ia, src.chain_ver))
@@ -1354,9 +1356,9 @@ class SCIONElement(object):
             )
             return
         # certificate has been successfully fetched
-        self.verify_revocation(src, srev_info, callback)
+        self.verify_revocation(src, srev_info, meta, callback)
 
-    def verify_revocation(self, src, srev_info, callback):
+    def verify_revocation(self, src, srev_info, meta, callback):
         """
         Certificate should be available when method is invoked
         Try to verify the revocation and invoke the callback
@@ -1365,8 +1367,8 @@ class SCIONElement(object):
         try:
             srev_info.verify(cert.as_cert.subject_sig_key_raw)
         except SCIONBaseError as e:
-            logging.error("Revocation check failed for %s:\n%s",
-                          srev_info.short_desc(), e)
+            logging.error("Revocation check failed for %s:\n%s from %s",
+                          srev_info.short_desc(), e, meta)
             # return the error to the callback (SCIOND wants it)
             callback(e)
 
@@ -1394,13 +1396,14 @@ class SCIONElement(object):
                     return False
         return True
 
-    def register_cert_req(self, src):
+    def register_cert_req(self, src, meta):
         """
         Register a CertRequest object for a certificate (isd_as, ver) pair
         """
-        cert_req = CertRequest(src.ia, src)
+        cert_req = CertRequest(src, meta)
         with self.cert_reqs_lock:
             cert_reqs = self.cert_reqs.pop((src.ia, src.chain_ver), list())
             cert_reqs.append(cert_req)
             self.cert_reqs[(src.ia, src.chain_ver)] = cert_reqs
+            logging.debug("Added CertRequest for %sv%s from %s" % (src.ia, src.chain_ver, meta))
         return cert_req

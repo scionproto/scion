@@ -195,7 +195,7 @@ class SCIONDaemon(SCIONElement):
         recs = path_reply.recs()
         for srev_info in recs.iter_srev_infos():
             self.check_revocation(srev_info, lambda x: self.continue_revocation_processing(
-                                  srev_info) if not x else False)
+                                  srev_info) if not x else False, meta)
 
         req = path_reply.req()
         key = req.dst_ia(), req.flags()
@@ -425,7 +425,8 @@ class SCIONDaemon(SCIONElement):
         rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation: %s from %s", srev_info.short_desc(), meta)
-        self.check_revocation(srev_info, lambda e: self.process_revocation(e, srev_info, meta, pld))
+        self.check_revocation(srev_info,
+                              lambda e: self.process_revocation(e, srev_info, meta, pld), meta)
 
     def process_revocation(self, error, srev_info, meta, pld):
         rev_info = srev_info.rev_info()
