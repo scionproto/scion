@@ -1,0 +1,12 @@
+[general]
+  ID = "sd0-test-0"
+  Topology = "testdata/topology.json"
+
+[logging]
+  [logging.console]
+    Level = "crit"
+
+[sd]
+  Reliable = "/tmp/test-reliable.sock"
+  Unix = "/tmp/test-unix.sock"
+  Public = "1-ff00:0:133,[127.0.0.1]:50001"

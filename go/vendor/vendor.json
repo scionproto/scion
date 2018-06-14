@@ -3,6 +3,18 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "Pc2ORQp+VY3Un/dkh4QwLC7R6lE=",
+			"path": "github.com/BurntSushi/toml",
+			"revision": "a368813c5e648fee92e5f6c30e3944ff9d5e8895",
+			"revisionTime": "2017-06-26T11:06:00Z"
+		},
+		{
+			"checksumSHA1": "nL9rhKaYuuSwxTtYF6udPMP0IJk=",
+			"path": "github.com/BurntSushi/toml/cmd/tomlv",
+			"revision": "a368813c5e648fee92e5f6c30e3944ff9d5e8895",
+			"revisionTime": "2017-06-26T11:06:00Z"
+		},
+		{
 			"checksumSHA1": "CRskBANKJfxFhfOCiYbR0aRhw18=",
 			"path": "github.com/aead/chacha20",
 			"revision": "e2538746bfea853aaa589feb8ec46bd46ee78f86",
