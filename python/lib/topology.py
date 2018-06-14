@@ -26,7 +26,7 @@ from lib.defines import (
     ROUTER_SERVICE,
     SIBRA_SERVICE,
 )
-from lib.errors import SCIONKeyError
+from lib.errors import SCIONKeyError, SCIONParseError
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.scion_addr import ISD_AS
 from lib.types import LinkType
@@ -224,7 +224,12 @@ class Topology(object):
 
     def _parse_zk_dicts(self, topology):
         for zk in topology.get('ZookeeperService', {}).values():
-            haddr = haddr_parse_interface(zk['Addr'])
+            try:
+                haddr = haddr_parse_interface(zk['Addr'])
+            except SCIONParseError as e:
+                logging.debug("Could not parse zookeeper addr: %s." % e)
+                logging.debug("Use addr: \"%s\" directly." % zk['Addr'])
+                haddr = zk['Addr']
             zk_host = "[%s]:%s" % (haddr, zk['L4Port'])
             self.zookeepers.append(zk_host)
 

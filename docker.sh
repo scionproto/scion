@@ -31,13 +31,6 @@ cmd_build() {
     docker_build
 }
 
-cmd_app() {
-    set -e
-    set -o pipefail
-    docker build $DOCKER_ARGS -t "scion_app" - < docker/Dockerfile.app
-}
-
-
 copy_tree() {
     set -e
     set -o pipefail
@@ -52,7 +45,6 @@ copy_tree() {
     } | rsync -a --files-from=- . "${build_dir}/scion.git/"
     echo
 }
-
 
 docker_build() {
     set -e
@@ -145,7 +137,6 @@ cmd_help() {
 	Usage:
 	    $PROGRAM base
 	    $PROGRAM build
-	    $PROGRAM app
 	    $PROGRAM run
 	        Run the Docker image.
 	    $PROGRAM clean
@@ -173,7 +164,6 @@ fi
 case $COMMAND in
     base)               cmd_base ;;
     build)              cmd_build ;;
-    app)                cmd_app ;;
     clean)              shift; cmd_clean "$@" ;;
     run)                shift; cmd_run "$@" ;;
     help)               cmd_help ;;
