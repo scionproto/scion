@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package environment contains common command line and initialization code for
-// SCION Infrastructure services. If something is specific to one app, it
-// should go into that app's code and not here.
+// Package env contains common command line and initialization code for SCION
+// Infrastructure services. If something is specific to one app, it should go
+// into that app's code and not here.
 //
 // During initialization, SIGHUPs are masked. To call a function on each
 // SIGHUP, pass the function when calling Init.
@@ -96,22 +96,25 @@ type Env struct {
 	AppShutdownSignal chan struct{}
 }
 
-func InitGeneral(cfg *General, reloadF func()) (*Env, error) {
+func InitGeneral(cfg *General) error {
 	cfg.setFiles()
 	topo, err := topology.LoadFromFile(cfg.TopologyPath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	cfg.Topology = topo
-
-	e := &Env{}
-	e.setupSignals(reloadF)
-	return e, nil
+	return nil
 }
 
+func SetupEnv(reloadF func()) *Env {
+	e := &Env{}
+	e.setupSignals(reloadF)
+	return e
+}
+
+// setupSignals sets up a goroutine that closes AppShutdownSignal on received
+// SIGTERM/SIGINT signals, and calls reloadF on SIGHUP.
 func (e *Env) setupSignals(reloadF func()) {
-	// setupSignals sets up a goroutine that closes AppShutdownSignal if
-	// SIGTERM/SIGINT signals are received by the app.
 	e.AppShutdownSignal = make(chan struct{})
 	sig := make(chan os.Signal, 2)
 	signal.Notify(sig, os.Interrupt)
@@ -237,12 +240,12 @@ type Trust struct {
 type Infra struct {
 	// Type must be one of BS, CS or PS.
 	Type string
-	// If set, Bind is the preferred local address to listen on for SCION
-	// messages.
-	Bind snet.Addr
 	// Public is the local address to listen on for SCION messages (if Bind is
 	// not set), and to send out messages to other nodes.
 	Public snet.Addr
+	// If set, Bind is the preferred local address to listen on for SCION
+	// messages.
+	Bind snet.Addr
 }
 
 func InitInfra(cfg *Infra, id string, warnings io.Writer, topo *topology.Topo) error {

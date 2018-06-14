@@ -33,10 +33,10 @@ type TestConfig struct {
 func TestLoadBase(t *testing.T) {
 	Convey("Load", t, func() {
 		var cfg TestConfig
-		_, err := toml.DecodeFile("testdata/sciond.toml", &cfg)
+		_, err := toml.DecodeFile("testdata/ps.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
-		_, err = InitGeneral(&cfg.General, nil)
+		err = InitGeneral(&cfg.General)
 		SoMsg("err", err, ShouldBeNil)
 		err = InitLogging(&cfg.Logging)
 		SoMsg("err", err, ShouldBeNil)

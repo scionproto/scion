@@ -154,22 +154,28 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 func (t *Topo) populateServices(raw *RawTopo) error {
 	// Populate BS, CS, PS, SB, RS and DS maps
 	var err error
-	if t.BSNames, err = svcMapFromRaw(raw.BeaconService, "BS", t.BS, t.Overlay); err != nil {
+	t.BSNames, err = svcMapFromRaw(raw.BeaconService, common.BS, t.BS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.CSNames, err = svcMapFromRaw(raw.CertificateService, "CS", t.CS, t.Overlay); err != nil {
+	t.CSNames, err = svcMapFromRaw(raw.CertificateService, common.CS, t.CS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.PSNames, err = svcMapFromRaw(raw.PathService, "PS", t.PS, t.Overlay); err != nil {
+	t.PSNames, err = svcMapFromRaw(raw.PathService, common.PS, t.PS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.SBNames, err = svcMapFromRaw(raw.SibraService, "SB", t.SB, t.Overlay); err != nil {
+	t.SBNames, err = svcMapFromRaw(raw.SibraService, common.SB, t.SB, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.RSNames, err = svcMapFromRaw(raw.RainsService, "RS", t.RS, t.Overlay); err != nil {
+	t.RSNames, err = svcMapFromRaw(raw.RainsService, common.RS, t.RS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.DSNames, err = svcMapFromRaw(raw.DiscoveryService, "DS", t.DS, t.Overlay); err != nil {
+	t.DSNames, err = svcMapFromRaw(raw.DiscoveryService, common.DS, t.DS, t.Overlay)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -181,15 +187,15 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 func (t *Topo) GetTopoAddr(nodeType string, id string) *TopoAddr {
 	var addressMap map[string]TopoAddr
 	switch nodeType {
-	case "BS":
+	case common.BS:
 		addressMap = t.BS
-	case "CS":
+	case common.CS:
 		addressMap = t.CS
-	case "PS":
+	case common.PS:
 		addressMap = t.PS
-	case "RS":
+	case common.RS:
 		addressMap = t.RS
-	case "DS":
+	case common.DS:
 		addressMap = t.DS
 	}
 	if _, ok := addressMap[id]; ok {

@@ -48,23 +48,23 @@ type Config struct {
 	Trust   env.Trust
 	SD      struct {
 		// Address to listen on via the reliable socket protocol. If empty,
-		// a reliable socket server is not started.
+		// a reliable socket server on the default socket is started.
 		Reliable string
 		// Address to listen on for normal unixgram messages. If empty, a
-		// unixgram server is not started.
+		// unixgram server on the default socket is started.
 		Unix string
-		// If set, Bind is the preferred local address to listen on for SCION
-		// messages.
-		Bind snet.Addr
 		// Public is the local address to listen on for SCION messages (if Bind is
 		// not set), and to send out messages to other nodes.
 		Public snet.Addr
+		// If set, Bind is the preferred local address to listen on for SCION
+		// messages.
+		Bind snet.Addr
 	}
 }
 
 var config Config
 
-var Environment *env.Env
+var environment *env.Env
 
 var (
 	flagConfig = flag.String("config", "", "Service TOML config file (required)")
@@ -72,28 +72,6 @@ var (
 
 func main() {
 	os.Exit(realMain())
-}
-
-func Init(configName string) error {
-	_, err := toml.DecodeFile(configName, &config)
-	if err != nil {
-		return err
-	}
-	Environment, err = env.InitGeneral(&config.General, nil)
-	if err != nil {
-		return err
-	}
-	err = env.InitLogging(&config.Logging)
-	if err != nil {
-		return err
-	}
-	if config.SD.Reliable == "" {
-		config.SD.Reliable = sciond.DefaultSCIONDPath
-	}
-	if config.SD.Unix == "" {
-		config.SD.Unix = "/run/shm/sciond/default-unix.sock"
-	}
-	return nil
 }
 
 func realMain() int {
@@ -124,28 +102,24 @@ func realMain() int {
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
 
-	if config.SD.Reliable != "" {
-		server, shutdownF := NewServer("rsock", config.SD.Reliable, log.Root())
-		defer shutdownF()
-		go func() {
-			defer log.LogPanicAndExit()
-			if err := server.ListenAndServe(); err != nil {
-				fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", nil,
-					"err", err)
-			}
-		}()
-	}
+	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, log.Root())
+	defer shutdownF()
+	go func() {
+		defer log.LogPanicAndExit()
+		if err := rsockServer.ListenAndServe(); err != nil {
+			fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", nil,
+				"err", err)
+		}
+	}()
 
-	if config.SD.Unix != "" {
-		server, shutdownF := NewServer("unixpacket", config.SD.Unix, log.Root())
-		defer shutdownF()
-		go func() {
-			defer log.LogPanicAndExit()
-			if err := server.ListenAndServe(); err != nil {
-				fatalC <- common.NewBasicError("UnixServer ListenAndServe error", nil, "err", err)
-			}
-		}()
-	}
+	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, log.Root())
+	defer shutdownF()
+	go func() {
+		defer log.LogPanicAndExit()
+		if err := unixpacketServer.ListenAndServe(); err != nil {
+			fatalC <- common.NewBasicError("UnixServer ListenAndServe error", nil, "err", err)
+		}
+	}()
 
 	if config.Metrics.Prometheus != "" {
 		go func() {
@@ -157,7 +131,7 @@ func realMain() int {
 	}
 
 	select {
-	case <-Environment.AppShutdownSignal:
+	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		// Deferred shutdowns for all running servers run now.
 		return 0
@@ -167,6 +141,29 @@ func realMain() int {
 		log.Crit("Unable to listen and serve", "err", err)
 		return 1
 	}
+}
+
+func Init(configName string) error {
+	_, err := toml.DecodeFile(configName, &config)
+	if err != nil {
+		return err
+	}
+	err = env.InitGeneral(&config.General)
+	if err != nil {
+		return err
+	}
+	environment = env.SetupEnv(nil)
+	err = env.InitLogging(&config.Logging)
+	if err != nil {
+		return err
+	}
+	if config.SD.Reliable == "" {
+		config.SD.Reliable = sciond.DefaultSCIONDPath
+	}
+	if config.SD.Unix == "" {
+		config.SD.Unix = "/run/shm/sciond/default-unix.sock"
+	}
+	return nil
 }
 
 func NewMessenger(scionAddress string, logger log.Logger) (infra.Messenger, error) {
