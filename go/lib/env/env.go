@@ -90,12 +90,6 @@ func (cfg *General) setFiles() error {
 	return nil
 }
 
-type Env struct {
-	// AppShutdownSignal is closed when the process receives a signal to close
-	// (e.g., SIGTERM).
-	AppShutdownSignal chan struct{}
-}
-
 func InitGeneral(cfg *General) error {
 	cfg.setFiles()
 	topo, err := topology.LoadFromFile(cfg.TopologyPath)
@@ -104,6 +98,12 @@ func InitGeneral(cfg *General) error {
 	}
 	cfg.Topology = topo
 	return nil
+}
+
+type Env struct {
+	// AppShutdownSignal is closed when the process receives a signal to close
+	// (e.g., SIGTERM).
+	AppShutdownSignal chan struct{}
 }
 
 func SetupEnv(reloadF func()) *Env {
