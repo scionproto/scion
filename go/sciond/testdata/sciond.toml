@@ -7,5 +7,6 @@
     Level = "crit"
 
 [sd]
-  Reliable = "/run/shm/test-sd-reliable.sock"
+  Reliable = "/tmp/test-reliable.sock"
+  Unix = "/tmp/test-unix.sock"
   Public = "1-ff00:0:133,[127.0.0.1]:50001"

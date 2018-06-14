@@ -35,6 +35,7 @@ func TestASInfo(t *testing.T) {
 	xtest.FailOnErr(t, err)
 
 	defer os.Remove(config.SD.Reliable)
+	defer os.Remove(config.SD.Unix)
 	defer StartServer(t, "testdata/sciond.toml")()
 	conn, stopClient := StartClient(t, config.SD.Reliable)
 	defer stopClient()
