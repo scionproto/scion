@@ -33,6 +33,8 @@ const (
 	ErrorNoPaths
 	ErrorPSTimeout
 	ErrorInternal
+	ErrorBadSrcIA
+	ErrorBadDstIA
 )
 
 func (c PathErrorCode) String() string {
@@ -118,6 +120,15 @@ type PathReq struct {
 	Src      addr.IAInt
 	MaxPaths uint16
 	Flags    PathReqFlags
+}
+
+func (pathReq *PathReq) Copy() *PathReq {
+	return &PathReq{
+		Dst:      pathReq.Dst,
+		Src:      pathReq.Src,
+		MaxPaths: pathReq.MaxPaths,
+		Flags:    pathReq.Flags,
+	}
 }
 
 type PathReqFlags struct {

@@ -366,7 +366,7 @@ func Test_GetMixed(t *testing.T) {
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
 			SegID:    segID1,
-			SegTypes: []seg.Type{0},
+			SegTypes: []seg.Type{seg.UpSegment},
 		}
 		// Call
 		res, err := b.Get(params)

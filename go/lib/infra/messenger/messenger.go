@@ -76,10 +76,12 @@ import (
 )
 
 const (
-	ChainRequest = "ChainRequest"
-	Chain        = "Chain"
-	TRCRequest   = "TRCRequest"
-	TRC          = "TRC"
+	ChainRequest       = "ChainRequest"
+	Chain              = "Chain"
+	TRCRequest         = "TRCRequest"
+	TRC                = "TRC"
+	PathSegmentRequest = "PathSegmentRequest"
+	PathSegmentReply   = "PathSegmentReply"
 )
 
 var _ infra.Messenger = (*Messenger)(nil)
@@ -225,6 +227,9 @@ func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
 	if !ok {
 		return nil, newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
 	}
+	if err := reply.ParseRaw(); err != nil {
+		return nil, err
+	}
 	return reply, nil
 }
 
@@ -323,6 +328,17 @@ func (m *Messenger) validate(pld *ctrl.Pld) (string, proto.Cerealizable, error) 
 			return "", nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type",
 					nil, "capnp_which", pld.CertMgmt.Which)
+		}
+	case proto.CtrlPld_Which_pathMgmt:
+		switch pld.PathMgmt.Which {
+		case proto.PathMgmt_Which_segReq:
+			return PathSegmentRequest, pld.PathMgmt.SegReq, nil
+		case proto.PathMgmt_Which_segReply:
+			return PathSegmentReply, pld.PathMgmt.SegReply, nil
+		default:
+			return "", nil,
+				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",
+					nil, "capnp_which", pld.PathMgmt.Which)
 		}
 	default:
 		return "", nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",

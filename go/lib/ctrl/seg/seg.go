@@ -60,7 +60,7 @@ func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
 		return nil, err
 	}
 	for i := range ps.RawASEntries {
-		ase, err := newASEntryFromRaw(ps.RawASEntries[i].Blob)
+		ase, err := NewASEntryFromRaw(ps.RawASEntries[i].Blob)
 		if err != nil {
 			return nil, err
 		}

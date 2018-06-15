@@ -1,0 +1,40 @@
+{
+    "CertLogs": {},
+    "CoreASes": {
+        "1-ff00:0:110": {
+            "OfflineKey": "/BwiBvUvCGG2A3FMErFv9uwgPbA8vb78oCJHKzfLLTg=",
+            "OfflineKeyAlg": "ed25519",
+            "OnlineKey": "9NXAHq5xsAtiisw9MIcfBT9c/sQnnBmtIPAg+jrc07M=",
+            "OnlineKeyAlg": "ed25519"
+        },
+        "1-ff00:0:120": {
+            "OfflineKey": "II5iCQ2ADXRfcjCNNBlo4FSRq9gI1+jSmfGm0m/RZAQ=",
+            "OfflineKeyAlg": "ed25519",
+            "OnlineKey": "aTQuAYsZirR/spf+qh5PxkkD68Eck4OK44R0CiEVYts=",
+            "OnlineKeyAlg": "ed25519"
+        },
+        "1-ff00:0:130": {
+            "OfflineKey": "rwpK8UoET4T48RI+/eEdGdX7CFliuAqKqtEKdfOAHjg=",
+            "OfflineKeyAlg": "ed25519",
+            "OnlineKey": "rXmbHkxVoCHTrz25AIzWGlqL7f9vLoVpVUxurJzRZuk=",
+            "OnlineKeyAlg": "ed25519"
+        }
+    },
+    "CreationTime": 1528991887,
+    "Description": "ISD 1",
+    "ExpirationTime": 1560527887,
+    "GracePeriod": 0,
+    "ISD": 1,
+    "Quarantine": false,
+    "QuorumCAs": 0,
+    "QuorumTRC": 3,
+    "RAINS": {},
+    "RootCAs": {},
+    "Signatures": {
+        "1-ff00:0:110": "jJwGgoQoaiCbCIPEH2khxpW0NM4SOeHKxjXz5+HzwZQbRQWjJFiwBuAVXerHq+Q+o5kt/lEbMpzTYhKO1kuSBA==",
+        "1-ff00:0:120": "TC4F9+gBYl3WREYLu7SA0m3LOQh/VZvm5mxokNSdpPrFgaDxBL8nwfUFhtm/ezRNb0LRfGP0y11SRfkOw/7WCA==",
+        "1-ff00:0:130": "AyRenSUl1PbOvRLy2JuuqXQ155Lp5X794/nhemUVKiAoJjlwei7tMUn2po0xA6CgXrtAUePmDoXPTAWDEVE8Cg=="
+    },
+    "ThresholdEEPKI": 0,
+    "Version": 1
+}
