@@ -30,9 +30,10 @@ func (m *Meta) String() string {
 type Type uint16
 
 const (
-	UpSegment   Type = 0
-	DownSegment Type = 1
-	CoreSegment Type = 2
+	UnsetSegment Type = 0
+	UpSegment    Type = 1
+	DownSegment  Type = 2
+	CoreSegment  Type = 3
 )
 
 func (t Type) String() string {
