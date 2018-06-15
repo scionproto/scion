@@ -30,7 +30,7 @@ from lib.packet.scion_addr import ISD_AS
 from lib.types import CertMgmtType
 
 
-class CertRequest(object):
+class CertRequestState(object):
 
     def __init__(self, src, meta):
         self.isd_as = src.ia

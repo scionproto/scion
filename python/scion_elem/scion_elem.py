@@ -67,7 +67,7 @@ from lib.packet.cert_mgmt import (
     CertMgmt,
     CertChainReply,
     CertChainRequest,
-    CertRequest,
+    CertRequestState,
     TRCReply,
     TRCRequest,
 )
@@ -212,7 +212,7 @@ class SCIONElement(object):
         self.req_certs_lock = threading.Lock()
         # new cert/trc fetching implementation
         self.unv_certs = {}
-        self.unv_certs_lock = threading.Lock()
+        self.unv_certs_lock = threading.RLock()
         self.cert_reqs = defaultdict(list)
         self.cert_reqs_lock = threading.Lock()
         # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
@@ -380,8 +380,8 @@ class SCIONElement(object):
 
     def _check_certs(self):
         """
-        Check all CertRequests, add them to requested_certs and requested_trcs if needed
-        Remove the CertRequest when the certificate is present
+        Check all CertRequestStates, add them to requested_certs and requested_trcs if needed
+        Remove the CertRequestState when the certificate is present
         """
         with self.cert_reqs_lock:
             for (isd_as, ver) in list(self.cert_reqs):
@@ -399,8 +399,8 @@ class SCIONElement(object):
 
                 # Try to find a valid meta, otherwise the CS is asked
                 meta = None
-                for cert_req in cert_reqs:
-                    if cert_req.meta and not isinstance(cert_req.meta, SCMPMetadata):
+                for cert_req in reversed(cert_reqs):
+                    if cert_req.meta:
                         meta = cert_req.meta
                         break
                 # Finally register the necessary requests
@@ -498,13 +498,12 @@ class SCIONElement(object):
                 self.requested_trcs[(isd, ver)] = (req_time, meta)
                 logging.debug("Request for %sv%s TRC already registered" % (isd, ver))
                 return
-        # Ask CS if meta is SCMP or not set
-        if not meta or isinstance(meta, SCMPMetadata):
-            meta = self._get_cs()
+        # Ask CS if meta is not set
+        meta = meta or self._get_cs()
         if not meta:
             logging.error("Couldn't find a CS to request %sv%s TRC" % (isd, ver))
             return
-        trc_req = TRCRequest.from_values(isd, ver, cache_only=True)
+        trc_req = TRCRequest.from_values(isd, ver)
         req_id = mk_ctrl_req_id()
         logging.info("Requesting %sv%s TRC from %s, [id: %016x]", isd, ver, meta, req_id)
         with self.req_trcs_lock:
@@ -537,13 +536,12 @@ class SCIONElement(object):
                 self.requested_certs[(isd_as, ver)] = (req_time, meta)
                 logging.debug("Request for %sv%s CERTCHAIN already registered" % (isd_as, ver))
                 return
-        # Ask CS if meta is SCMP or not set
-        if not meta or isinstance(meta, SCMPMetadata):
-            meta = self._get_cs()
+        # Ask CS if meta is not set
+        meta = meta or self._get_cs()
         if not meta:
             logging.error("Couldn't find a CS to request %sv%s CERTCHAIN" % (isd_as, ver))
             return
-        cert_req = CertChainRequest.from_values(isd_as, ver, cache_only=True)
+        cert_req = CertChainRequest.from_values(isd_as, ver)
         req_id = mk_ctrl_req_id()
         logging.info("Requesting %sv%s CERTCHAIN from %s [id: %016x]", isd_as, ver, meta, req_id)
         with self.req_certs_lock:
@@ -682,7 +680,8 @@ class SCIONElement(object):
         isd_as, ver = cert.get_leaf_isd_as_ver()
         trc = self.trust_store.get_trc(isd_as[0], ver)
         if not trc:
-            # TRC still being requested
+            # Request TRC just to make sure
+            self._request_trc(isd_as[0], ver, None)
             with self.unv_certs_lock:
                 self.unv_certs[(isd_as, ver)] = cert
             return
@@ -696,13 +695,13 @@ class SCIONElement(object):
         with self.unv_certs_lock:
             self.unv_certs.pop((isd_as, ver), None)
         # Remove received cert chain from map
-        self._check_segs_with_rec_cert(isd_as, ver)  # TODO handle with callbacks / events
+        self._check_segs_with_rec_cert(isd_as, ver)
 
     def _verify_certs(self):
         # Got a TRC, thus check all unverified certificates
-        with self.unv_certs_lock:
-            for (isd_as, ver), cert in self.unv_certs.items():  # TODO check if save
-                self._verify_cert(cert)
+        unv_certs = self.unv_certs.copy()
+        for _, cert in unv_certs.items():
+            self._verify_cert(cert)
 
     def _check_segs_with_rec_cert(self, isd_as, ver):
         """
@@ -1333,7 +1332,7 @@ class SCIONElement(object):
             if not rev_info.active():
                 raise RevInfoExpiredError("RevocationInfo has expired: %s" % rev_info.short_desc())
         except SCIONBaseError as e:
-            logging.error("Revocation check failed for %s from %s:\n%s",
+            logging.error("Revocation validation failed for %s from %s:\n%s",
                           srev_info.short_desc(), meta, e)
             callback(e)
             return
@@ -1354,7 +1353,7 @@ class SCIONElement(object):
         Should run in a thread!
         Registers a certificate request and waits for an event to continue processing.
         """
-        cert_req = self.register_cert_req(src, meta)
+        cert_req = self.register_cert_req(src)
         # Wait until revocation has expired
         rev_info = srev_info.rev_info()
         val_window = rev_info.p.timestamp + rev_info.p.ttl - int(time.time()) + REVOCATION_GRACE
@@ -1378,7 +1377,7 @@ class SCIONElement(object):
         try:
             srev_info.verify(cert.as_cert.subject_sig_key_raw)
         except SCIONBaseError as e:
-            logging.error("Revocation check failed for %s:\n%s from %s",
+            logging.error("Revocation verification failed for %s:\n%s from %s",
                           srev_info.short_desc(), e, meta)
             # return the error to the callback (SCIOND wants it)
             callback(e)
@@ -1407,14 +1406,14 @@ class SCIONElement(object):
                     return False
         return True
 
-    def register_cert_req(self, src, meta):
+    def register_cert_req(self, src):
         """
-        Register a CertRequest object for a certificate (isd_as, ver) pair
+        Register a CertRequestState object for a certificate (isd_as, ver) pair
         """
-        cert_req = CertRequest(src, meta)
+        meta = self._get_cs()
+        cert_req = CertRequestState(src, meta)
         with self.cert_reqs_lock:
-            cert_reqs = self.cert_reqs.pop((src.ia, src.chain_ver), list())
-            cert_reqs.append(cert_req)
-            self.cert_reqs[(src.ia, src.chain_ver)] = cert_reqs
-            logging.debug("Added CertRequest for %sv%s from %s" % (src.ia, src.chain_ver, meta))
+            self.cert_reqs[(src.ia, src.chain_ver)].append(cert_req)
+            logging.debug("Added CertRequestState for %sv%s from %s" % (src.ia,
+                          src.chain_ver, meta))
         return cert_req
