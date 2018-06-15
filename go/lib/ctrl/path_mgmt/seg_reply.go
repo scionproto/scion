@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -45,4 +46,25 @@ func (s *SegReply) Write(b common.RawBytes) (int, error) {
 
 func (s *SegReply) String() string {
 	return fmt.Sprintf("Req: %s Reply:\n%s", s.Req, s.Recs)
+}
+
+// ParseRaw populates the non-capnp fields of s based on data from the raw
+// capnp fields.
+func (s *SegReply) ParseRaw() error {
+	for i, segment := range s.Recs.Recs {
+		for _, rawASEntry := range segment.Segment.RawASEntries {
+			asEntry, err := seg.NewASEntryFromRaw(rawASEntry.Blob)
+			if err != nil {
+				return common.NewBasicError("Unable to parse raw AS Entry", err,
+					"entry_idx", i)
+			}
+			segment.Segment.ASEntries = append(segment.Segment.ASEntries, asEntry)
+		}
+		sdata, err := seg.NewPathSegmentSignedDataFromRaw(segment.Segment.RawSData)
+		if err != nil {
+			return common.NewBasicError("Unable to parse raw SData", err)
+		}
+		segment.Segment.SData = sdata
+	}
+	return nil
 }
