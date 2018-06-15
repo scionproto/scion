@@ -39,7 +39,7 @@ type ASEntry struct {
 	}
 }
 
-func newASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
+func NewASEntryFromRaw(b common.RawBytes) (*ASEntry, error) {
 	ase := &ASEntry{}
 	return ase, proto.ParseFromRaw(ase, ase.ProtoId(), b)
 }

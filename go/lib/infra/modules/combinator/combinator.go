@@ -111,6 +111,25 @@ func (p *Path) computeExpTime() {
 	}
 }
 
+func (p *Path) WriteTo(w io.Writer) (int64, error) {
+	var total int64
+	for _, segment := range p.Segments {
+		n, err := segment.InfoField.WriteTo(w)
+		total += n
+		if err != nil {
+			return total, err
+		}
+		for _, hopField := range segment.HopFields {
+			n, err := hopField.WriteTo(w)
+			total += n
+			if err != nil {
+				return total, err
+			}
+		}
+	}
+	return total, nil
+}
+
 type Segment struct {
 	InfoField  *InfoField
 	HopFields  []*HopField
