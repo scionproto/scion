@@ -70,9 +70,9 @@ func (u *PacketTransport) SendUnreliableMsgTo(ctx context.Context, b common.RawB
 	}
 	n, err := u.conn.WriteTo(b, address)
 	if n != len(b) {
-		return common.NewBasicError("Wrote incomplete message", nil, "wrote", n, "expected", len(b))
+		return common.NewBasicError("Wrote incomplete message", err, "wrote", n, "expected", len(b))
 	}
-	return err
+	return nil
 }
 
 func (u *PacketTransport) SendMsgTo(ctx context.Context, b common.RawBytes,
