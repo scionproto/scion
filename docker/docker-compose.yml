@@ -52,7 +52,7 @@ services:
       - "../gen-cache:/share/gen-cache:ro"
       - "/run/shm/sciond:/run/shm/sciond"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
-    command: ["/app/bin/sciond", "--api-addr", "/run/shm/sciond/sd1-ff00_0_110.sock", "--log_dir=/share/logs", "sd1-ff00_0_110", "/share/gen/ISD1/ASff00_0_110/endhost"]
+    command: ["python3.5", "/app/bin/sciond", "--api-addr", "/run/shm/sciond/sd1-ff00_0_110.sock", "--log_dir=/share/logs", "sd1-ff00_0_110", "/share/gen/ISD1/ASff00_0_110/endhost"]
   path:
     image: path
     network_mode: "host"
