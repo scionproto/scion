@@ -52,7 +52,7 @@ services:
       - "../gen-cache:/share/gen-cache:ro"
       - "/run/shm/sciond:/run/shm/sciond"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
-    command: ["python3.5", "/app/bin/sciond", "--api-addr", "/run/shm/sciond/sd1-ff00_0_110.sock", "--log_dir=/share/logs", "sd1-ff00_0_110", "/share/gen/ISD1/ASff00_0_110/endhost"]
+    command: ["python", "/app/bin/sciond", "--api-addr", "/run/shm/sciond/sd1-ff00_0_110.sock", "--log_dir=/share/logs", "sd1-ff00_0_110", "/share/gen/ISD1/ASff00_0_110/endhost"]
   path:
     image: path
     network_mode: "host"
@@ -66,7 +66,7 @@ services:
       - "../gen-cache:/share/gen-cache:ro"
       - "/run/shm/sciond:/run/shm/sciond"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
-    command: ["/app/bin/path_server", "--prom", "[127.0.0.55]:30080", "ps1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1"]
+    command: ["python", "/app/bin/path_server", "--prom", "[127.0.0.55]:30080", "ps1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1"]
   beacon:
     image: beacon
     network_mode: "host"
@@ -80,7 +80,7 @@ services:
       - "../gen-cache:/share/gen-cache:ro"
       - "/run/shm/sciond:/run/shm/sciond"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
-    command: ["/app/bin/beacon_server", "--prom", "[127.0.0.53]:30092", "bs1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/bs1-ff00_0_110-1"]
+    command: ["python", "/app/bin/beacon_server", "--prom", "[127.0.0.53]:30092", "bs1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/bs1-ff00_0_110-1"]
   cert:
     image: certificate
     network_mode: "host"
@@ -94,4 +94,4 @@ services:
       - "../gen-cache:/share/gen-cache:ro"
       - "/run/shm/sciond:/run/shm/sciond"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
-    command: ["/app/bin/cert_server", "--prom", "[127.0.0.54]:30082", "cs1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1"]
+    command: ["python", "/app/bin/cert_server", "--prom", "[127.0.0.54]:30082", "cs1-ff00_0_110-1", "gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1"]
