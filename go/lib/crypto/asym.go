@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2017 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,15 +35,15 @@ const (
 )
 
 const (
-	InvalidKeySize           = "Invalid key size"
-	InvalidNonceSize         = "Invalid nonce size"
-	InvalidSignature         = "Invalid signature"
-	FailedToGenerateKeyPairs = "Failed to generate key pairs"
-	FailedToGenerateNonce    = "Failed to generate nonce"
-	FailedToDecrypt          = "Failed to decrypt message"
-	UnsupportedSignAlgo      = "Unsupported signing algorithm"
-	UnsupportedEncAlgo       = "Unsupported encryption algorithm"
-	UnsupportedDecAlgo       = "Unsupported decryption algorithm"
+	InvalidKeySize          = "Invalid key size"
+	InvalidNonceSize        = "Invalid nonce size"
+	InvalidSignature        = "Invalid signature"
+	UnableToGenerateKeyPair = "Unable to generate key pair"
+	UnableToGenerateNonce   = "Unable to generate nonce"
+	UnableToDecrypt         = "Unable to decrypt message"
+	UnsupportedSignAlgo     = "Unsupported signing algorithm"
+	UnsupportedEncAlgo      = "Unsupported encryption algorithm"
+	UnsupportedDecAlgo      = "Unsupported decryption algorithm"
 )
 
 // GenKeyPairs generates a public/private key pair.

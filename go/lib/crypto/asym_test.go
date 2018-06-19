@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"golang.org/x/crypto/ed25519"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -29,9 +30,8 @@ var (
 		0x10, 0xc3, 0x87, 0xcc, 0xfe, 0xb9, 0x84, 0xd7, 0x83, 0xaf, 0x8f, 0xbb, 0x0f, 0x40, 0xfa,
 		0x7d, 0xb1, 0x26, 0xd8, 0x89, 0xf6, 0xda, 0xdd}
 	Ed25519TestPublicKey = common.RawBytes{0x77, 0xf4, 0x8b, 0x59, 0xca, 0xed, 0xa7, 0x77, 0x51,
-		0xed, 0x13,
-		0x8b, 0x0e, 0xc6, 0x67, 0xff, 0x50, 0xf8, 0x76, 0x8c, 0x25, 0xd4, 0x83, 0x09, 0xa8, 0xf3,
-		0x86, 0xa2, 0xba, 0xd1, 0x87, 0xfb}
+		0xed, 0x13, 0x8b, 0x0e, 0xc6, 0x67, 0xff, 0x50, 0xf8, 0x76, 0x8c, 0x25, 0xd4, 0x83, 0x09,
+		0xa8, 0xf3, 0x86, 0xa2, 0xba, 0xd1, 0x87, 0xfb}
 	Ed25519TestMsg = common.RawBytes{0x91, 0x6c, 0x7d, 0x1d, 0x26, 0x8f, 0xc0, 0xe7, 0x7c, 0x1b,
 		0xef, 0x23, 0x84, 0x32, 0x57, 0x3c, 0x39, 0xbe, 0x57, 0x7b, 0xbe, 0xa0, 0x99, 0x89, 0x36,
 		0xad, 0xd2, 0xb5, 0x0a, 0x65, 0x31, 0x71, 0xce, 0x18, 0xa5, 0x42, 0xb0, 0xb7, 0xf9, 0x6c,
@@ -50,10 +50,13 @@ var (
 		0xef, 0x7b, 0x9b, 0xcc, 0x3c, 0x40, 0xc0, 0xff, 0x75, 0x09}
 
 	// NaClBox test vectors
-	// Taken from the NaCl distribution
-	NaClBoxTestKey = common.RawBytes{0x1b, 0x27, 0x55, 0x64, 0x73, 0xe9, 0x85, 0xd4, 0x62, 0xcd,
-		0x51, 0x19, 0x7a, 0x9a, 0x46, 0xc7, 0x60, 0x09, 0x54, 0x9e, 0xac, 0x64, 0x74, 0xf2, 0x06,
-		0xc4, 0xee, 0x08, 0x44, 0xf6, 0x83, 0x89}
+	// Taken from the NaCl distribution: https://github.com/jedisct1/libsodium/blob/1.0.16/test/default/box.c
+	NaClBoxTestPrivateKey = common.RawBytes{0x77, 0x07, 0x6d, 0x0a, 0x73, 0x18, 0xa5, 0x7d, 0x3c,
+		0x16, 0xc1, 0x72, 0x51, 0xb2, 0x66, 0x45, 0xdf, 0x4c, 0x2f, 0x87, 0xeb, 0xc0, 0x99, 0x2a,
+		0xb1, 0x77, 0xfb, 0xa5, 0x1d, 0xb9, 0x2c, 0x2a}
+	NaClBoxTestPublicKey = common.RawBytes{0xde, 0x9e, 0xdb, 0x7d, 0x7b, 0x7d, 0xc1, 0xb4, 0xd3,
+		0x5b, 0x61, 0xc2, 0xec, 0xe4, 0x35, 0x37, 0x3f, 0x83, 0x43, 0xc8, 0x5b, 0x78, 0x67, 0x4d,
+		0xad, 0xfc, 0x7e, 0x14, 0x6f, 0x88, 0x2b, 0x4f}
 	NaClBoxTestNonce = common.RawBytes{0x69, 0x69, 0x6e, 0xe9, 0x55, 0xb6, 0x2b, 0x73, 0xcd, 0x62,
 		0xbd, 0xa8, 0x75, 0xfc, 0x73, 0xd6, 0x82, 0x19, 0xe0, 0x03, 0x6b, 0x7a, 0x0b, 0x37}
 	NaClBoxTestMsg = common.RawBytes{0xbe, 0x07, 0x5f, 0xc5, 0x3c, 0x81, 0xf2, 0xd5, 0xcf, 0x14,
@@ -79,18 +82,47 @@ var (
 		0xe3, 0x55, 0xa5}
 )
 
+func TestGenKeyPairs(t *testing.T) {
+	Convey("GenKeyPairs should return a valid Curve25519xSalsa20Poly1305 key pair", t, func() {
+		rawPubkey, rawPrivkey, err := GenKeyPairs(Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("rawPubkey", len(rawPubkey), ShouldResemble, NaClBoxKeySize)
+		SoMsg("rawPrivkey", len(rawPrivkey), ShouldResemble, NaClBoxKeySize)
+		newPubkey, newPrivkey, err := GenKeyPairs(Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
+		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
+	})
+
+	Convey("GenKeyPairs should return a valid Ed25519 key pair", t, func() {
+		rawPubkey, rawPrivkey, err := GenKeyPairs(Ed25519)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("rawPubkey", len(rawPubkey), ShouldResemble, ed25519.PublicKeySize)
+		SoMsg("rawPrivkey", len(rawPrivkey), ShouldResemble, ed25519.PrivateKeySize)
+		newPubkey, newPrivkey, err := GenKeyPairs(Ed25519)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
+		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
+	})
+
+	Convey("GenKeyPairs should throw error for unknown algo", t, func() {
+		_, _, err := GenKeyPairs("asdf")
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+}
+
 func TestSign(t *testing.T) {
 	// Note from: https://godoc.org/golang.org/x/crypto/ed25519
 	// "...this package's private key representation includes a public key suffix to make
 	// multiple signing operations with the same key more efficient...""
 	Convey("Sign should sign message correctly", t, func() {
-		sig, err := Sign(Ed25519TestMsg, append(Ed25519TestPrivateKey, Ed25519TestPublicKey...), "Ed25519")
+		sig, err := Sign(Ed25519TestMsg, append(Ed25519TestPrivateKey, Ed25519TestPublicKey...), Ed25519)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("sig", sig, ShouldResemble, Ed25519TestSignature)
 	})
 
 	Convey("Sign should throw error for invalid key size", t, func() {
-		_, err := Sign(Ed25519TestMsg, append(Ed25519TestPrivateKey, Ed25519TestPublicKey...)[:63], "Ed25519")
+		_, err := Sign(Ed25519TestMsg, append(Ed25519TestPrivateKey, Ed25519TestPublicKey...)[:63], Ed25519)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 
@@ -102,17 +134,17 @@ func TestSign(t *testing.T) {
 
 func TestVerify(t *testing.T) {
 	Convey("Verify should verify signature correctly", t, func() {
-		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey, "Ed25519")
+		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey, Ed25519)
 		SoMsg("err", err, ShouldBeNil)
 	})
 
 	Convey("Verify should throw an error for an invalid signature", t, func() {
-		err := Verify(Ed25519TestMsg, Ed25519TestSignature[:63], Ed25519TestPublicKey, "Ed25519")
+		err := Verify(Ed25519TestMsg, Ed25519TestSignature[:63], Ed25519TestPublicKey, Ed25519)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 
 	Convey("Verify should throw an error for an invalid key size", t, func() {
-		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey[:31], "Ed25519")
+		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey[:31], Ed25519)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 
@@ -144,6 +176,72 @@ func TestNonce(t *testing.T) {
 		_, err := Nonce(0)
 		SoMsg("err", err, ShouldNotBeNil)
 		_, err = Nonce(-1)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+}
+
+func TestEncrypt(t *testing.T) {
+	Convey("Encrypt should encrypt a plaintext correctly", t, func() {
+		rawCipher, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("rawCipher", rawCipher, ShouldResemble, NaClBoxTestCiphertext)
+	})
+
+	Convey("Encrypt should throw error for invalid nonce size", t, func() {
+		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce[:23], NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+
+	Convey("Encrypt should throw error for invalid public key size", t, func() {
+		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey[:31],
+			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+
+	Convey("Encrypt should throw error for invalid private key size", t, func() {
+		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey[:31], Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+
+	Convey("Encrypt should throw an error for unknown algo", t, func() {
+		_, err := Encrypt(NaClBoxTestMsg, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, "asdf")
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+}
+
+func TestDecrypt(t *testing.T) {
+	Convey("Decrypt should decrypt a ciphertex correctly", t, func() {
+		rawMsg, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("rawMsg", rawMsg, ShouldResemble, NaClBoxTestMsg)
+	})
+
+	Convey("Decrypt should throw error for invalid nonce size", t, func() {
+		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce[:23], NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+
+	Convey("Decrypt should throw error for invalid public key size", t, func() {
+		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey[:31],
+			NaClBoxTestPrivateKey, Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+
+	Convey("Decrypt should throw error for invalid private key size", t, func() {
+		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey[:31], Curve25519xSalsa20Poly1305)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
+
+	Convey("Decrypt should throw an error for unknown algo", t, func() {
+		_, err := Decrypt(NaClBoxTestCiphertext, NaClBoxTestNonce, NaClBoxTestPublicKey,
+			NaClBoxTestPrivateKey, "asdf")
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 }
