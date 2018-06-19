@@ -17,10 +17,10 @@ package crypto
 import (
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/common"
+	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/crypto/ed25519"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 var (
