@@ -18,7 +18,7 @@ gohsr: libhsr
 	cd go && $(MAKE) hsr
 
 # Order is important
-clibs: libscion libfilter liblwip libtcpmw
+clibs: libscion libfilter libtcpmw
 
 libscion:
 	$(MAKE) -C c/lib/scion $(target)
@@ -29,7 +29,7 @@ libfilter: libscion
 liblwip: libscion
 	$(MAKE) -C sub/lwip-contrib $(target)
 
-libtcpmw: libscion liblwip
+libtcpmw: libscion #liblwip
 	$(MAKE) -C c/lib/tcp $(target)
 
 dispatcher: clibs

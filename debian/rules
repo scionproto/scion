@@ -27,6 +27,7 @@ override_dh_auto_clean:
 override_dh_auto_build:
 	make libscion
 	make libfilter
+	make liblwip
 	make libtcpmw
 	make dispatcher
 
@@ -48,14 +49,18 @@ override_dh_auto_install:
 	cp -r ${DESTDIR}/usr/include/scion-filter/* debian/libscion0-dev/usr/include/scion-filter
 	
 	make libtcpmw target=install DESTDIR=${DESTDIR} PREFIX=/usr
-	cp ${DESTDIR}/usr/lib/libtcpmw.so debian/libtcpmw0/usr/lib/libctpmw.so
+	cp ${DESTDIR}/usr/lib/libtcpmw.so debian/libtcpmw0/usr/lib/libtcpmw.so
 	cp ${DESTDIR}/usr/lib/liblwip.so debian/libtcpmw0/usr/lib/liblwip.so
 	ln -s libtcpmw.so debian/libtcpmw0/usr/lib/libtcpmw.so.0
-	ln -s liblwip.so debian/libtcpmw0/ust/lib/liblwip.so.0
+	ln -s liblwip.so debian/libtcpmw0/usr/lib/liblwip.so.0
+	
+	make dispatcher target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	cp ${DESTDIR}/usr/bin/dispatcher debian/scion-dispatcher/usr/bin/dispatcher
+	cp ${DESTDIR}/etc/scion/dispatcher.conf debian/scion-dispatcher/etc/scion/dispatcher.conf
 
 
 override_dh_shlibdeps:
-	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/debian/libscion0/usr/lib dh_shlibdeps --dpkg-shlibdeps-params="--ignore-missing-info"
+	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/debian/libscion0/usr/lib:$(pwd)/debian/libfilter0/usr/lib:$(pwd)/debian/libtcpmw0/usr/lib dh_shlibdeps --dpkg-shlibdeps-params="--ignore-missing-info"
 
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )

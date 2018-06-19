@@ -41,6 +41,8 @@ install: $(TARGETS)
 	install -d $(DESTDIR)$(PREFIX)/lib/pkgconfig/
 	install -m 644 $(STATIC) $(DESTDIR)$(PREFIX)/lib/
 	install -m 755 $(DYNAMIC) $(DESTDIR)$(PREFIX)/lib/
+	install -m 644 $(LWIPPORT_DIR)/proj/scion/liblwip.a $(DESTDIR)$(PREFIX)/lib/
+	install -m 755 $(LWIPPORT_DIR)/proj/scion/liblwip.so $(DESTDIR)$(PREFIX)/lib/
 	install -d $(DESTDIR)$(PREFIX)/include/scion-tcpmw/
 	install -m 644 $(HDRS) $(DESTDIR)$(PREFIX)/include/scion-tcpmw/
 	$(eval TMP:= $(shell mktemp -d))
@@ -51,5 +53,7 @@ install: $(TARGETS)
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/lib/$(STATIC)
 	rm -f $(DESTDIR)$(PREFIX)/lib/$(DYNAMIC)
+	rm -f $(DESTDIR)$(PREFIX)/lib/liblwip.a
+	rm -f $(DESTDIR)$(PREFIX)/lib/liblwip.so
 	rm -rf $(DESTDIR)$(PREFIX)/include/scion-tcpmw/
 	rm -f $(DESTDIR)$(PREFIX)/lib/pkgconfig/scion-tcpmw.pc

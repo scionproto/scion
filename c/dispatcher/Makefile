@@ -24,10 +24,12 @@ clean:
 dispatcher: dispatcher.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(INC) -MMD -o $@ $< $(LDFLAGS) $(EXTRA_LDFLAGS)
 
-install: $(INSTALL)
-
-$(INSTALL): dispatcher
-	cp -f dispatcher $@
+install: dispatcher
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -d $(DESTDIR)/etc/scion
+	install -m 755 dispatcher $(DESTDIR)$(PREFIX)/bin
+	install -m 644 dispatcher.conf $(DESTDIR)/etc/scion
 
 uninstall:
-	rm -f $(INSTALL)
+	rm -f $(DESTDIR)$(PREFIX)/bin/dispatcher
+	rm -f $(DESTDIR)/etc/scion/dispatcher.conf
