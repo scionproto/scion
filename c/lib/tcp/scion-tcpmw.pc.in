@@ -1,0 +1,10 @@
+prefix=$PREFIX
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${prefix}/lib
+
+Name: scion-tcpmw
+Description: SCION lwip tcp library
+Version: 0.1
+Cflags: -I${includedir}/scion-tcpmw
+Libs: -L${libdir} -ltcpmw -llwip

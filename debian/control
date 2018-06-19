@@ -3,7 +3,7 @@ Section: net
 Priority: optional
 Maintainer: Martin Koppehel <mkoppehel@embedded.enterprises>
 Build-Depends: debhelper (>=9)
-Standards-Version: 3.9.6
+Standards-Version: 3.9.7
 Homepage: https://scion-architecture.net
 Vcs-Git: git://github.com/scionproto/scion.git
 Vcs-Browser: https://github.com/scionproto/scion.git
@@ -17,7 +17,7 @@ Description: SCION base library
 Package: libscion0-dev
 Section: libdevel
 Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0
 Description: SCION base library - development files
  Basic library for scion, headers and static library
 
@@ -30,6 +30,26 @@ Description: SCION filter library
 Package: libfilter0-dev
 Section: libdevel
 Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libfilter0
 Description: SCION filter library - development files
  Library for filtering packets
+
+Package: libtcpmw0
+Architecture: amd64 i386
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0
+Description: SCION tcp library
+ supportive library for scion
+
+Package: libtcpmw0-dev
+Section: libdevel
+Architecture: amd64 i386
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0-dev, libtcpmw0
+Description: SCION tcp library - development files
+ supportive library for scion
+
+Package: scion-dispatcher
+Section: net
+Architecture: amd64 i386
+Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libfilter0, libtcpmw0
+Description: SCION dispatcher service
+ supportive scion service

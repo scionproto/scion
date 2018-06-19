@@ -18,7 +18,7 @@ endif
 all: $(TARGETS)
 
 clean:
-	rm -f *.d *.so *.a *.o .installstamp $(TARGETS)
+	rm -f *.d *.so *.a *.o $(TARGETS)
 
 # Compile .c files, while also automatically generating dependencies so they
 # can be recompiled if any of the included header files changed.

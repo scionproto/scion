@@ -21,10 +21,15 @@ DESTDIR := ${CURDIR}/${BUILDDIR}
 override_dh_auto_clean:
 	make libfilter target=clean
 	make libscion target=clean
+	make libtcpmw target=clean
+	make dispatcher target=clean
 
 override_dh_auto_build:
 	make libscion
 	make libfilter
+	make libtcpmw
+	make dispatcher
+
 override_dh_auto_install:
 	make libscion target=install DESTDIR=${DESTDIR} PREFIX=/usr
 	cp ${DESTDIR}/usr/lib/libscion.so debian/libscion0/usr/lib/libscion.so
@@ -41,6 +46,13 @@ override_dh_auto_install:
 	cp ${DESTDIR}/usr/lib/pkgconfig/scion-filter.pc debian/libfilter0-dev/usr/lib/pkgconfig/scion-filter.pc
 	cp ${DESTDIR}/usr/lib/libfilter.a debian/libfilter0-dev/usr/lib/libfilter.a
 	cp -r ${DESTDIR}/usr/include/scion-filter/* debian/libscion0-dev/usr/include/scion-filter
+	
+	make libtcpmw target=install DESTDIR=${DESTDIR} PREFIX=/usr
+	cp ${DESTDIR}/usr/lib/libtcpmw.so debian/libtcpmw0/usr/lib/libctpmw.so
+	cp ${DESTDIR}/usr/lib/liblwip.so debian/libtcpmw0/usr/lib/liblwip.so
+	ln -s libtcpmw.so debian/libtcpmw0/usr/lib/libtcpmw.so.0
+	ln -s liblwip.so debian/libtcpmw0/ust/lib/liblwip.so.0
+
 
 override_dh_shlibdeps:
 	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/debian/libscion0/usr/lib dh_shlibdeps --dpkg-shlibdeps-params="--ignore-missing-info"

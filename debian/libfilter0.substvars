@@ -1,3 +1,0 @@
-shlibs:Depends=libc6 (>= 2.8), libscion0, libzlog1
-misc:Depends=
-misc:Pre-Depends=

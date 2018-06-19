@@ -1,8 +1,8 @@
 .PHONY: all clean install uninstall
 
 #CC = clang
-CFLAGS ?= -Wall -Werror -g -O2 -fno-strict-aliasing
-LDFLAGS ?= -lpthread -lzlog -Wl,-Bstatic -L../lib/tcp -ltcpmw -L../../sub/lwip-contrib/ports/unix/proj/scion -llwip -L../lib/filter -lfilter -L../lib/scion -lscion -Wl,-Bdynamic
+EXTRA_CFLAGS ?= -Wall -Werror -g -O2 -fno-strict-aliasing
+EXTRA_LDFLAGS ?= -lpthread -lzlog -Wl,-Bstatic -L../lib/tcp -ltcpmw -L../../sub/lwip-contrib/ports/unix/proj/scion -llwip -L../lib/filter -lfilter -L../lib/scion -lscion -Wl,-Bdynamic
 
 LIB_DIR = ../lib
 LWIPDIR = ../../sub/lwip/src/include
@@ -22,7 +22,7 @@ clean:
 # can be recompiled if any of the included header files changed.
 -include *.d
 dispatcher: dispatcher.c
-	$(CC) $(CFLAGS) $(INC) -MMD -o $@ $< $(LDFLAGS)
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(INC) -MMD -o $@ $< $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 install: $(INSTALL)
 
