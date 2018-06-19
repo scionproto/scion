@@ -32,7 +32,7 @@ $(STATIC): $(OBJS)
 	ar rcs $@ $(OBJS)
 
 $(DYNAMIC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
 install: .installstamp
 
