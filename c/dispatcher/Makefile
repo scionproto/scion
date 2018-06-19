@@ -1,7 +1,7 @@
 .PHONY: all clean install uninstall
 
 #CC = clang
-CFLAGS ?= -Wall -Werror -g -O2
+CFLAGS ?= -Wall -Werror -g -O2 -fno-strict-aliasing
 LDFLAGS ?= -lpthread -lzlog -Wl,-Bstatic -L../lib/tcp -ltcpmw -L../../sub/lwip-contrib/ports/unix/proj/scion -llwip -L../lib/filter -lfilter -L../lib/scion -lscion -Wl,-Bdynamic
 
 LIB_DIR = ../lib
