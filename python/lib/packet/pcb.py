@@ -171,11 +171,12 @@ class PathSegment(Cerealizable):
         if idx is None:
             idx = len(self.p.asEntries) - 1
         b = [self.p.sdata]
-        for i in range(idx+1):
+        for i in range(idx):
             sblob = self.p.asEntries[i]
             b.append(sblob.blob)
             ssign = ProtoSign(sblob.sign)
-            b.append(ssign.sig_pack(i != idx))
+            b.append(ssign.sig_pack())
+        b.append(self.p.asEntries[idx].blob)
         return b"".join(b)
 
     def add_asm(self, asm, sig_type=ProtoSignType.NONE, sig_src=b""):  # pragma: no cover
