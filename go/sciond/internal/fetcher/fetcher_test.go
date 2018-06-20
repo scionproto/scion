@@ -14,7 +14,7 @@
 
 // +build infrarunning
 
-package fetchsegs
+package fetcher
 
 import (
 	"context"
