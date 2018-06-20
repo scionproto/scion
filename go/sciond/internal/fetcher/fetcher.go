@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fetchsegs
+package fetcher
 
 import (
 	"bytes"
 	"context"
 	"fmt"
 	"math/rand"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
+	"github.com/scionproto/scion/go/lib/infra/modules/verifysegs"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -40,6 +40,8 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 )
+
+type trigger = verifysegs.Trigger
 
 const (
 	DefaultWorkerLifetime = 10 * time.Second
@@ -109,7 +111,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// network. The spawned goroutine takes care of updating the path database
 	// and revocation cache.
 	subCtx, cancelF := context.WithTimeout(context.Background(), DefaultWorkerLifetime)
-	earlyTrigger := newTrigger(earlyReplyInterval)
+	earlyTrigger := verifysegs.NewTrigger(earlyReplyInterval)
 	go f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger)
 	// Wait for deadlines while also waiting for the early reply. If that
 	// fires, try to build paths from local information again.
@@ -377,10 +379,10 @@ func (t *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 		defer timer.Stop()
 	}
 	// Build verification units
-	units := t.buildVerificationUnits(reply.Recs.Recs, reply.Recs.SRevInfos)
-	unitResultsC := make(chan UnitVerificationResult, len(units))
+	units := verifysegs.BuildVerificationUnits(reply.Recs.Recs, reply.Recs.SRevInfos)
+	unitResultsC := make(chan verifysegs.UnitVerificationResult, len(units))
 	for _, unit := range units {
-		go t.verifyUnit(ctx, unit, unitResultsC)
+		go verifysegs.VerifyUnit(ctx, unit, unitResultsC)
 	}
 Loop:
 	for numResults := 0; numResults < len(units); numResults++ {
@@ -390,16 +392,16 @@ Loop:
 				log.Info("Segment verification failed", "errors", result.Errors[-1])
 			} else {
 				// Verification succeeded
-				_, err := t.pathDB.Insert(&result.Unit.segMeta.Segment,
-					[]seg.Type{result.Unit.segMeta.Type})
+				_, err := t.pathDB.Insert(&result.Unit.SegMeta.Segment,
+					[]seg.Type{result.Unit.SegMeta.Type})
 				if err != nil {
 					log.Warn("Unable to insert segment into path database", "err", err)
 					continue
 				}
-				log.Debug("Inserted segment into path database", "segment", result.Unit.segMeta)
+				log.Debug("Inserted segment into path database", "segment", result.Unit.SegMeta)
 			}
 			// Insert successfully verified revocations into the revcache
-			for index, revocation := range result.Unit.sRevInfos {
+			for index, revocation := range result.Unit.SRevInfos {
 				if _, ok := result.Errors[index]; !ok {
 					// Verification succeeded for this revocation, so we can add it to the cache
 					info, err := revocation.RevInfo()
@@ -484,103 +486,12 @@ func (f *Fetcher) Sanitize(reply *path_mgmt.SegReply) *path_mgmt.SegReply {
 	return newReply
 }
 
-func (f *Fetcher) buildVerificationUnits(segMetas []*seg.Meta,
-	sRevInfos []*path_mgmt.SignedRevInfo) []*verificationUnit {
-
-	var units []*verificationUnit
-	for _, segMeta := range segMetas {
-		unit := &verificationUnit{segMeta: segMeta}
-		for _, sRevInfo := range sRevInfos {
-			revInfo, err := sRevInfo.RevInfo()
-			if err != nil {
-				panic(err)
-			}
-			if f.metaContainsInterface(segMeta, revInfo.IA(), common.IFIDType(revInfo.IfID)) {
-				unit.sRevInfos = append(unit.sRevInfos, sRevInfo)
-			}
-		}
-		units = append(units, unit)
+func getStartIAs(segments []*seg.PathSegment) []addr.IA {
+	var startIAs []addr.IA
+	for _, segment := range segments {
+		startIAs = append(startIAs, segment.ASEntries[0].IA())
 	}
-	return units
-}
-
-func (f *Fetcher) metaContainsInterface(segMeta *seg.Meta, ia addr.IA, ifid common.IFIDType) bool {
-	for _, asEntry := range segMeta.Segment.ASEntries {
-		for _, entry := range asEntry.HopEntries {
-			hf, err := entry.HopField()
-			if err != nil {
-				panic(err)
-			}
-			if asEntry.IA().Eq(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// verifyUnit spawns goroutines
-func (f *Fetcher) verifyUnit(ctx context.Context, unit *verificationUnit,
-	unitResults chan UnitVerificationResult) {
-
-	subCtx, subCtxCancelF := context.WithCancel(ctx)
-	// We return when either (1) ctx is done, (2) all verification succeeds,
-	// (3) any verification fails. In all these cases, it's ok to immediately
-	// cancel all workers.
-	defer subCtxCancelF()
-	// Build trail here because we need to pass it into VerifyRevInfo as it
-	// doesn't have enough topology information to build it
-	var trail []addr.ISD
-	for _, asEntry := range unit.segMeta.Segment.ASEntries {
-		trail = append(trail, asEntry.IA().I)
-	}
-	responses := make(chan VerificationResult, unit.Len())
-	go f.verifySegment(subCtx, unit.segMeta, trail, responses)
-	for index, sRevInfo := range unit.sRevInfos {
-		subtrail := getTrailSlice(sRevInfo, trail)
-		go f.verifyRevInfo(subCtx, index, sRevInfo, subtrail, responses)
-	}
-	// Response writers must guarantee that the for returns before (or very
-	// close around) ctx.Done()
-	errs := make(map[int]error)
-	for numResults := 0; numResults < unit.Len(); numResults++ {
-		result := <-responses
-		if result.Error != nil {
-			errs[result.Index] = result.Error
-		}
-	}
-	select {
-	case unitResults <- UnitVerificationResult{Unit: unit, Errors: errs}:
-	default:
-		panic("would block on channel")
-	}
-}
-
-func (f *Fetcher) verifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD,
-	ch chan VerificationResult) {
-
-	for i, asEntry := range segment.Segment.ASEntries {
-		// TODO(scrye): get valid chain, then verify ASEntry at index i with
-		// the key from the chain
-		_, _ = i, asEntry
-	}
-	select {
-	case ch <- VerificationResult{Index: -1, Error: nil}:
-	default:
-		panic("would block on channel")
-	}
-}
-
-func (f *Fetcher) verifyRevInfo(ctx context.Context, index int, signedRevInfo *path_mgmt.SignedRevInfo,
-	trail []addr.ISD, ch chan VerificationResult) {
-
-	// TODO(scrye): get valid chain, then verify signedRevInfo.Blob with the
-	// key from the chain
-	select {
-	case ch <- VerificationResult{Index: index, Error: nil}:
-	default:
-		panic("would block on channel")
-	}
+	return startIAs
 }
 
 func revCacheKey(ia addr.IA, ifid common.IFIDType) string {
@@ -596,99 +507,10 @@ func iaInSlice(ia addr.IA, slice []addr.IA) bool {
 	return false
 }
 
-func getStartIAs(segments []*seg.PathSegment) []addr.IA {
-	var startIAs []addr.IA
-	for _, segment := range segments {
-		startIAs = append(startIAs, segment.ASEntries[0].IA())
-	}
-	return startIAs
-}
-
-func getTrailSlice(sRevInfo *path_mgmt.SignedRevInfo, trail []addr.ISD) []addr.ISD {
-	info, err := sRevInfo.RevInfo()
-	if err != nil {
-		// Should be caught in first pass
-		panic(err)
-	}
-
-	isd := info.IA().I
-	for i := range trail {
-		if trail[i] == isd {
-			return trail[:i+1]
-		}
-	}
-	// should never happen, the ISD in the revinfo has already been matched
-	// when the verification unit was constructed
-	panic(fmt.Sprintf("isd %d not in trail %v", isd, trail))
-}
-
-type VerificationResult struct {
-	Index int
-	Error error
-}
-
-type UnitVerificationResult struct {
-	Unit   *verificationUnit
-	Errors map[int]error
-}
-
-// verificationUnit contains multiple verification items.
-type verificationUnit struct {
-	segMeta   *seg.Meta
-	sRevInfos []*path_mgmt.SignedRevInfo
-}
-
-func (unit *verificationUnit) Len() int {
-	return len(unit.sRevInfos) + 1
-}
-
 type counter uint64
 
 // Next is a concurrency-safe generator of unique request IDs for the
 // messenger.
 func (c *counter) Next() uint64 {
 	return atomic.AddUint64((*uint64)(c), 1)
-}
-
-// trigger represents a timer with delayed arming. Once Arm is called, the
-// object's Done() method will return after d time. If d is 0, Done will
-// instead block forever.
-type trigger struct {
-	d    time.Duration
-	ch   chan struct{}
-	once sync.Once
-}
-
-func newTrigger(d time.Duration) *trigger {
-	return &trigger{
-		d:  d,
-		ch: make(chan struct{}, 0),
-	}
-}
-
-func (t *trigger) Done() <-chan struct{} {
-	return t.ch
-}
-
-// Arm starts the trigger's preset timer, and returns the corresponding timer
-// object. If the trigger is not configured with a timer, nil is returned.
-func (t *trigger) Arm() *time.Timer {
-	var timer *time.Timer
-	t.once.Do(
-		func() {
-			if t.d != 0 {
-				timer = time.AfterFunc(t.d, func() { close(t.ch) })
-			}
-		},
-	)
-	return timer
-}
-
-func (t *trigger) Triggered() bool {
-	select {
-	case <-t.ch:
-		return true
-	default:
-		return false
-	}
 }
