@@ -464,7 +464,7 @@ class SCIONElement(object):
         try:
             self._verify_path_seg(seg_meta)
         except SCIONVerificationError as e:
-            logging.error("Signature verification failed for %s: %s" %
+            logging.error("Signature verification of segment failed for %s: %s" %
                           (seg_meta.seg.short_id(), e))
             return
         with self.unv_segs_lock:
