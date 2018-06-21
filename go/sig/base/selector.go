@@ -21,7 +21,7 @@ import (
 
 var _ egress.SessionSelector = (*SingleSession)(nil)
 
-// SingleSession implements egress.SingleSession, returning the contained
+// SingleSession implements egress.SessionSelector, returning the contained
 // session on ChooseSess.
 type SingleSession struct {
 	Session egress.Session

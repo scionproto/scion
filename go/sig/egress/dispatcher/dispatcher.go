@@ -84,5 +84,4 @@ func (ed *egressDispatcher) updateMetrics(remoteIA addr.IAInt, sessId mgmt.Sessi
 	}
 	counters.Pkts.Inc()
 	counters.Bytes.Add(float64(read))
-
 }

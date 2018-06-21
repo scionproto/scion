@@ -62,7 +62,8 @@ type Session interface {
 	Remote() *RemoteInfo
 	// Cleanup shuts down the session and cleans resources.
 	Cleanup() error
-	// Healthy returns true if the session is receiving keepalives from the remote SIG.
+	// Healthy returns true if the session has a remote SIG and is receiving
+	// keepalive responses from it.
 	Healthy() bool
 	// PathPool returns the session's available pool of paths.
 	PathPool() PathPool
