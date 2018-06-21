@@ -356,12 +356,8 @@ func (ae *ASEntry) Cleanup() error {
 }
 
 func (ae *ASEntry) cleanSessions() {
-	pool := ae.Session.PathPool()
 	if err := ae.Session.Cleanup(); err != nil {
 		ae.Session.Error("Error cleaning up session", "err", err)
-	}
-	if err := pool.Destroy(); err != nil {
-		ae.Session.Error("Error destroying path pool", "err", err)
 	}
 }
 

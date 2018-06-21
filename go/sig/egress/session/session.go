@@ -102,6 +102,9 @@ func (s *Session) Cleanup() error {
 	if err := s.conn.Close(); err != nil {
 		return common.NewBasicError("Unable to close conn", err)
 	}
+	if err := s.pool.Destroy(); err != nil {
+		return common.NewBasicError("Error destroying path pool", err)
+	}
 	return nil
 }
 
