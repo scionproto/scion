@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package dispatcher reads from input ring buffer, decides on a Session and
+// puts data on the ring buffer of the Session.
 package dispatcher
 
 import (
@@ -23,6 +25,8 @@ import (
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
+
+var _ egress.Runner = (*egressDispatcher)(nil)
 
 type egressDispatcher struct {
 	log.Logger

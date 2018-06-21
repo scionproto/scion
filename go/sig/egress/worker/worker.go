@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package worker implements the logic for reading packets from a session's
+// ring buffer, encapsulating them and writing them to the network as frames.
 package worker
 
 import (
@@ -54,9 +56,11 @@ const (
 	MaxSeq     = (1 << 24) - 1
 )
 
-func DefaultFactory(sess egress.Session, logger log.Logger) egress.Worker {
+func DefaultFactory(sess egress.Session, logger log.Logger) egress.Runner {
 	return NewWorker(sess, logger)
 }
+
+var _ egress.Runner = (*worker)(nil)
 
 type worker struct {
 	log.Logger

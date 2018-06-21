@@ -368,7 +368,7 @@ func (ae *ASEntry) cleanSessions() {
 func (ae *ASEntry) setupNet() error {
 	ae.egressRing = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
-	go dispatcher.NewDispatcher(ae.IA, ae.egressRing, ae.Session).Run()
+	go dispatcher.NewDispatcher(ae.IA, ae.egressRing, &SingleSession{Session: ae.Session}).Run()
 	go ae.sigMgr()
 	go ae.monitorHealth()
 	ae.Session.Start()
