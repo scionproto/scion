@@ -46,32 +46,37 @@ const (
 
 var EgressFreePkts *ringbuf.Ring
 
+// Session defines a stateful context for sending traffic to a remote AS.
 type Session interface {
+	// Logger defines common logging primitives
 	log.Logger
+	// IA returns the session's remote IA
 	IA() addr.IA
+	// ID returns the session's ID.
 	ID() mgmt.SessionType
+	// Conn returns the session's outbound snet Conn
 	Conn() *snet.Conn
+	// Ring returns the session's ring buffer.
 	Ring() *ringbuf.Ring
+	// Remote returns the session's currently chosen SIG and path.
 	Remote() *RemoteInfo
+	// Cleanup shuts down the session and cleans resources.
 	Cleanup() error
+	// Healthy returns true if the session is receiving keepalives from the remote SIG.
 	Healthy() bool
+	// PathPool returns the session's available pool of paths.
 	PathPool() PathPool
+	// AnnounceWorkerStopped is used to inform the session that its worker needed to shut down.
 	AnnounceWorkerStopped()
 }
 
-type Worker interface {
+// Runner is implemented by objects that operate as goroutines.
+type Runner interface {
 	Run()
 }
 
-type WorkerFactory func(Session, log.Logger) Worker
-
-type Reader interface {
-	Run()
-}
-
-type Dispatcher interface {
-	Run()
-}
+// WorkerFactory build a worker for a specific session.
+type WorkerFactory func(Session, log.Logger) Runner
 
 type RemoteInfo struct {
 	Sig      *siginfo.Sig
@@ -82,8 +87,12 @@ func (r *RemoteInfo) String() string {
 	return fmt.Sprintf("Sig: %s Path: %s", r.Sig, r.SessPath)
 }
 
+// PathPool is implemented by objects that maintain sets of paths. PathPools
+// must be safe for concurrent use by multiple goroutines.
 type PathPool interface {
+	// Paths returns the paths contained in the pool.
 	Paths() spathmeta.AppPathSet
+	// Destroy cleans up any resources associated with the PathPool.
 	Destroy() error
 }
 
@@ -129,6 +138,7 @@ func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
 	}
 }
 
+// A SessPath contains a path and metadata related to path health.
 type SessPath struct {
 	key       spathmeta.PathKey
 	pathEntry *sciond.PathReplyEntry

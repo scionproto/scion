@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package session monitors session health and maintains a concurrency-safe
+// remote SIG address (that includes a working path) for each session.
 package session
 
 import (
@@ -33,6 +35,8 @@ import (
 	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
+var _ egress.Session = (*Session)(nil)
+
 // Session contains a pool of paths to the remote AS, metrics about those paths,
 // as well as maintaining the currently favoured path and remote SIG to use.
 type Session struct {
@@ -40,7 +44,6 @@ type Session struct {
 	ia     addr.IA
 	SessId mgmt.SessionType
 
-	// FIXME(scrye): initialize pool
 	// pool of paths, managed by pathmgr
 	pool egress.PathPool
 	// remote SIGs
@@ -57,10 +60,8 @@ type Session struct {
 	factory        egress.WorkerFactory
 }
 
-func NewSession(dstIA addr.IA, sessId mgmt.SessionType,
-	sigMap *siginfo.SigMap, logger log.Logger,
-	pool egress.PathPool,
-	factory egress.WorkerFactory) (*Session, error) {
+func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, logger log.Logger,
+	pool egress.PathPool, factory egress.WorkerFactory) (*Session, error) {
 
 	var err error
 	s := &Session{
@@ -138,21 +139,18 @@ func (s *Session) AnnounceWorkerStopped() {
 	close(s.workerStopped)
 }
 
-func (s *Session) ChooseSess(b common.RawBytes) egress.Session {
-	return s
-}
-
 type PathPool struct {
 	ia   addr.IA
 	pool *pathmgr.SyncPaths
 }
+
+var _ egress.PathPool = (*PathPool)(nil)
 
 func NewPathPool(dst addr.IA) (*PathPool, error) {
 	pool, err := sigcmn.PathMgr.Watch(sigcmn.IA, dst)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to register watch", err)
 	}
-
 	return &PathPool{
 		ia:   dst,
 		pool: pool,

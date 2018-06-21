@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package router implements an IPv4/IPv6 router. The routes map destination
+// addresses to ring buffers.
 package router
 
 import (

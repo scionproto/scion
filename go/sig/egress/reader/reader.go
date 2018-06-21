@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package reader implements a reader object that reads from tun, routes with
+// support from egress/router to determine the correct egressDispatcher, and
+// puts data on the ring buffer of the egressDispatcher.
 package reader
 
 import (
@@ -32,6 +35,8 @@ const (
 	ip4DstOff = 16
 	ip6DstOff = 24
 )
+
+var _ egress.Runner = (*Reader)(nil)
 
 type Reader struct {
 	log   log.Logger
