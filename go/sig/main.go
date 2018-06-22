@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/reader"
 	"github.com/scionproto/scion/go/sig/ingress"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/sigcmn"
@@ -105,7 +106,7 @@ func main() {
 	}
 	go reloadOnSIGHUP(*cfgPath)
 	// Spawn egress reader
-	go egress.NewReader(tunIO).Run()
+	go reader.NewReader(tunIO).Run()
 	// Spawn ingress Dispatcher.
 	if err := ingress.Init(tunIO); err != nil {
 		fatal("Unable to spawn ingress dispatcher", "err", err)
@@ -184,10 +185,11 @@ func loadConfig(path string) bool {
 		return false
 	}
 	ok := base.Map.ReloadConfig(cfg)
-	if ok {
-		atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
+	if !ok {
+		return false
 	}
-	return ok
+	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
+	return true
 }
 
 func fatal(msg string, args ...interface{}) {

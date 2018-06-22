@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mgmt
+package base
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/sig/egress"
 )
 
-type SessionType uint8
+var _ egress.SessionSelector = (*SingleSession)(nil)
 
-func (st SessionType) String() string {
-	return fmt.Sprintf("0x%02x", uint8(st))
+// SingleSession implements egress.SessionSelector, returning the contained
+// session on ChooseSess.
+type SingleSession struct {
+	Session egress.Session
 }
 
-func (st SessionType) MarshalJSON() ([]byte, error) {
-	// Stop JSON from converting []SessionType to a string
-	return json.Marshal(int(st))
+func (ss *SingleSession) ChooseSess(b common.RawBytes) egress.Session {
+	return ss.Session
 }
