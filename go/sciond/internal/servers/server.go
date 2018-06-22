@@ -20,21 +20,22 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/proto"
 )
+
+type HandlerMap map[proto.SCIONDMsg_Which]Handler
 
 // Server listens for new connections on a "unixpacket" or "rsock" network.
 // Whenever a new connection is accepted, a SCIOND API server is created to
 // handle the connection.
 type Server struct {
-	network string
-	address string
-	msger   infra.Messenger
-	log     log.Logger
-
+	network  string
+	address  string
+	log      log.Logger
+	handlers map[proto.SCIONDMsg_Which]Handler
 	mu       sync.Mutex // protect access to listener during init/close
 	listener net.Listener
 }
@@ -44,12 +45,12 @@ type Server struct {
 // call ListenAndServe.
 //
 // Network must be "unixpacket" or "rsock".
-func NewServer(network string, address string, msger infra.Messenger, logger log.Logger) *Server {
+func NewServer(network string, address string, handlers HandlerMap, logger log.Logger) *Server {
 	return &Server{
-		network: network,
-		address: address,
-		msger:   msger,
-		log:     logger,
+		network:  network,
+		address:  address,
+		handlers: handlers,
+		log:      logger,
 	}
 }
 
@@ -78,7 +79,7 @@ func (srv *Server) ListenAndServe() error {
 		go func() {
 			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
-			NewAPI(transport.NewPacketTransport(pconn)).Serve()
+			NewAPI(transport.NewPacketTransport(pconn), srv.handlers).Serve()
 		}()
 	}
 }
