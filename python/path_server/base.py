@@ -246,10 +246,6 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if srev_info in self.revocations:
             return
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        if meta.ia[0] != self.addr.isd_as[0]:
-            logging.info("Dropping revocation received from a different ISD. Src: %s SRevInfo: %s" %
-                         (meta, srev_info.short_desc()))
-            return
         self.check_revocation(srev_info, lambda x: self._continue_revocation_processing(meta,
                               srev_info) if not x else False, meta)
 
