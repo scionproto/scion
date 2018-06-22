@@ -107,17 +107,22 @@ type ElemResult struct {
 }
 
 func verifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD, ch chan ElemResult) {
-
 	for i, asEntry := range segment.Segment.ASEntries {
 		// TODO(scrye): get valid chain, then verify ASEntry at index i with
 		// the key from the chain
 		_, _ = i, asEntry
 	}
+	err := VerifySegment(ctx, segment, trail)
 	select {
-	case ch <- ElemResult{Index: -1, Error: nil}:
+	case ch <- ElemResult{Index: -1, Error: err}:
 	default:
 		panic("would block on channel")
 	}
+}
+
+func VerifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD) error {
+	// TODO(scrye): placeholder, implement this
+	return nil
 }
 
 func verifyRevInfo(ctx context.Context, index int, signedRevInfo *path_mgmt.SignedRevInfo,
@@ -125,9 +130,17 @@ func verifyRevInfo(ctx context.Context, index int, signedRevInfo *path_mgmt.Sign
 
 	// TODO(scrye): get valid chain, then verify signedRevInfo.Blob with the
 	// key from the chain
+	err := VerifyRevInfo(ctx, signedRevInfo, trail)
 	select {
-	case ch <- ElemResult{Index: index, Error: nil}:
+	case ch <- ElemResult{Index: index, Error: err}:
 	default:
 		panic("would block on channel")
 	}
+}
+
+func VerifyRevInfo(ctx context.Context, signedRevInfo *path_mgmt.SignedRevInfo,
+	trail []addr.ISD) error {
+
+	// TODO(scrye): placeholder, implement this
+	return nil
 }

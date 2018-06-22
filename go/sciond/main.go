@@ -24,16 +24,22 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
 
@@ -59,6 +65,8 @@ type Config struct {
 		// If set, Bind is the preferred local address to listen on for SCION
 		// messages.
 		Bind snet.Addr
+		// PathDB contains the file location  of the path segment database.
+		PathDB string
 	}
 }
 
@@ -88,21 +96,90 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 
-	// Initialize SignedCtrlPld server
-	// FIXME(scrye): enable this once we have SCIOND-less snet and a TrustStore
-	/*
-		msger, err := NewMessenger(...)
-		if err != nil {
-			log.Crit("unable to initialize infra Messenger", "err", err)
-			return 1
-		}
-		go msger.ListenAndServe()
-	*/
-
+	pathDB, err := pathdb.New(config.SD.PathDB, "sqlite")
+	if err != nil {
+		log.Crit("Unable to initialize pathDB", "err", err)
+		return 1
+	}
+	trustDB, err := trustdb.New(config.Trust.TrustDB)
+	if err != nil {
+		log.Crit("Unable to initialize trustDB", "err", err)
+		return 1
+	}
+	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS, 1337, log.Root())
+	if err != nil {
+		log.Crit("Unable to initialize trust store", "err", err)
+		return 1
+	}
+	err = snet.Init(config.General.Topology.ISD_AS, "", "/run/shm/dispatcher/default.sock")
+	if err != nil {
+		log.Crit("Unable to initialize snet", "err", err)
+		return 1
+	}
+	conn, err := snet.ListenSCION("udp4", &config.SD.Public)
+	if err != nil {
+		log.Crit("Unable to listen on SCION", "err", err)
+		return 1
+	}
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	localTRC, err := trustStore.GetValidTRC(
+		ctx,
+		config.General.Topology.ISD_AS.I,
+		config.General.Topology.ISD_AS.I,
+	)
+	cancelF()
+	if err != nil {
+		log.Crit("Unable to load local TRC from trust store", "err", err)
+		return 1
+	}
+	msger := messenger.New(
+		disp.New(
+			transport.NewPacketTransport(conn),
+			messenger.DefaultAdapter,
+			log.Root(),
+		),
+		trustStore,
+		log.Root(),
+	)
+	trustStore.SetMessenger(msger)
+	revCache := fetcher.NewRevCache(cache.NoExpiration, time.Second)
+	// Route messages to their correct handlers
+	handlers := servers.HandlerMap{
+		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
+			Fetcher: fetcher.NewFetcher(
+				config.General.Topology,
+				msger,
+				pathDB,
+				localTRC.CoreASList(),
+				trustStore,
+				revCache,
+			),
+			Logger: log.Root(),
+		},
+		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
+			TrustStore: trustStore,
+			CoreASes:   localTRC.CoreASList(),
+			Messenger:  msger,
+			Topology:   config.General.Topology,
+			Logger:     log.Root(),
+		},
+		proto.SCIONDMsg_Which_ifInfoRequest: &servers.IFInfoRequestHandler{
+			Topology: config.General.Topology,
+			Logger:   log.Root(),
+		},
+		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{
+			Topology: config.General.Topology,
+			Logger:   log.Root(),
+		},
+		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
+			RevCache: revCache,
+			Logger:   log.Root(),
+		},
+	}
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
-
-	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, log.Root())
+	// Start servers
+	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, handlers, log.Root())
 	defer shutdownF()
 	go func() {
 		defer log.LogPanicAndExit()
@@ -111,8 +188,7 @@ func realMain() int {
 				"err", err)
 		}
 	}()
-
-	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, log.Root())
+	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, handlers, log.Root())
 	defer shutdownF()
 	go func() {
 		defer log.LogPanicAndExit()
@@ -120,7 +196,6 @@ func realMain() int {
 			fatalC <- common.NewBasicError("UnixServer ListenAndServe error", nil, "err", err)
 		}
 	}()
-
 	if config.Metrics.Prometheus != "" {
 		go func() {
 			defer log.LogPanicAndExit()
@@ -129,7 +204,6 @@ func realMain() int {
 			}
 		}()
 	}
-
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -182,9 +256,11 @@ func NewMessenger(scionAddress string, logger log.Logger) (infra.Messenger, erro
 	return messenger.New(dispatcher, trustStore, logger), nil
 }
 
-func NewServer(network string, rsockPath string, logger log.Logger) (*servers.Server, func()) {
+func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
+	logger log.Logger) (*servers.Server, func()) {
+
 	// FIXME(scrye): enable msger below
-	server := servers.NewServer(network, rsockPath, nil, logger)
+	server := servers.NewServer(network, rsockPath, handlers, logger)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)
 		server.Shutdown(ctx)
