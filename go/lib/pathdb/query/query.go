@@ -18,6 +18,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // TODO(shitz): This should be moved when we have hidden path sets.
@@ -39,7 +40,7 @@ type IntfSpec struct {
 
 type Params struct {
 	SegID    common.RawBytes
-	SegTypes []seg.Type
+	SegTypes []proto.PathSegType
 	HpCfgIDs []*HPCfgID
 	Intfs    []*IntfSpec
 	StartsAt []addr.IA

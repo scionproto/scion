@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package fetcher implements path segment fetching, verification and
+// combination logic for SCIOND.
 package fetcher
 
 import (
@@ -19,17 +21,16 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"sync/atomic"
 	"time"
 
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/verifysegs"
 	"github.com/scionproto/scion/go/lib/log"
@@ -39,16 +40,16 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
-
-type trigger = verifysegs.Trigger
 
 const (
 	DefaultWorkerLifetime = 10 * time.Second
 )
 
 // requestID is used to generate unique request IDs for the messenger.
-var requestID counter
+var requestID messenger.Counter
 
 type Fetcher struct {
 	topology        *topology.Topo
@@ -61,7 +62,7 @@ type Fetcher struct {
 }
 
 func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.DB,
-	localTRC *trc.TRC, trustStore infra.TrustStore) *Fetcher {
+	coreASes []addr.IA, trustStore infra.TrustStore) *Fetcher {
 
 	return &Fetcher{
 		topology:        topo,
@@ -69,7 +70,7 @@ func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.D
 		pathDB:          pathDB,
 		trustStore:      trustStore,
 		revocationCache: cache.New(cache.NoExpiration, time.Second),
-		coreASes:        localTRC.CoreASList(),
+		coreASes:        coreASes,
 	}
 }
 
@@ -111,10 +112,9 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// network. The spawned goroutine takes care of updating the path database
 	// and revocation cache.
 	subCtx, cancelF := context.WithTimeout(context.Background(), DefaultWorkerLifetime)
-	earlyTrigger := verifysegs.NewTrigger(earlyReplyInterval)
+	earlyTrigger := util.NewTrigger(earlyReplyInterval)
 	go f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger)
-	// Wait for deadlines while also waiting for the early reply. If that
-	// fires, try to build paths from local information again.
+	// Wait for deadlines while also waiting for the early reply.
 	select {
 	case <-earlyTrigger.Done():
 	case <-subCtx.Done():
@@ -247,7 +247,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	// guaranteed to not create network traffic here. This will be fixed when
 	// the trust store adds support for address hints and trailless local
 	// queries.
-	trcObj, err := f.trustStore.GetValidTRC(context.TODO(), req.Dst.IA().I, req.Dst.IA().I)
+	dstTrc, err := f.trustStore.GetValidTRC(ctx, req.Dst.IA().I, req.Dst.IA().I)
 	if err != nil {
 		// There are situations where we cannot tell if the remote is core. In
 		// these cases we just error out, and calling code will try to get path
@@ -260,7 +260,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 		return nil, err
 	}
 	srcIsCore := iaInSlice(f.topology.ISD_AS, f.coreASes)
-	dstIsCore := iaInSlice(req.Dst.IA(), trcObj.CoreASList())
+	dstIsCore := iaInSlice(req.Dst.IA(), dstTrc.CoreASList())
 	// pathdb expects slices
 	srcIASlice := []addr.IA{req.Src.IA()}
 	dstIASlice := []addr.IA{req.Dst.IA()}
@@ -274,48 +274,33 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	case srcIsCore && !dstIsCore:
-		if f.topology.ISD_AS.I == req.Dst.IA().I {
-			// Only going down
-			downs, err = f.getSegmentsFromDB(srcIASlice, dstIASlice)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			cores, err = f.getSegmentsFromDB(trcObj.CoreASList(), srcIASlice)
-			if err != nil {
-				return nil, err
-			}
-			downs, err = f.getSegmentsFromDB(trcObj.CoreASList(), dstIASlice)
-			if err != nil {
-				return nil, err
-			}
+		cores, err = f.getSegmentsFromDB(dstTrc.CoreASList(), srcIASlice)
+		if err != nil {
+			return nil, err
+		}
+		downs, err = f.getSegmentsFromDB(dstTrc.CoreASList(), dstIASlice)
+		if err != nil {
+			return nil, err
 		}
 	case !srcIsCore && dstIsCore:
-		if f.topology.ISD_AS.I == req.Dst.IA().I {
-			// Am I going up?
-			ups, err = f.getSegmentsFromDB(dstIASlice, srcIASlice)
-		} else {
-			ups, err = f.getSegmentsFromDB(f.coreASes, srcIASlice)
-			if err != nil {
-				return nil, err
-			}
-			cores, err = f.getSegmentsFromDB(dstIASlice, f.coreASes)
-			if err != nil {
-				return nil, err
-			}
+		ups, err = f.getSegmentsFromDB(f.coreASes, srcIASlice)
+		if err != nil {
+			return nil, err
+		}
+		cores, err = f.getSegmentsFromDB(dstIASlice, f.coreASes)
+		if err != nil {
+			return nil, err
 		}
 	case !srcIsCore && !dstIsCore:
 		ups, err = f.getSegmentsFromDB(f.coreASes, srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(trcObj.CoreASList(), dstIASlice)
+		downs, err = f.getSegmentsFromDB(dstTrc.CoreASList(), dstIASlice)
 		if err != nil {
 			return nil, err
 		}
-		startUps := getStartIAs(ups)
-		startDowns := getStartIAs(downs)
-		cores, err = f.getSegmentsFromDB(startDowns, startUps)
+		cores, err = f.getSegmentsFromDB(getStartIAs(downs), getStartIAs(ups))
 		if err != nil {
 			return nil, err
 		}
@@ -333,9 +318,9 @@ func (f *Fetcher) getSegmentsFromDB(startsAt, endsAt []addr.IA) ([]*seg.PathSegm
 	if err != nil {
 		return nil, err
 	}
-	var segments []*seg.PathSegment
-	for _, result := range results {
-		segments = append(segments, result.Seg)
+	segments := make([]*seg.PathSegment, len(results))
+	for i := range results {
+		segments[i] = results[i].Seg
 	}
 	return segments, nil
 }
@@ -365,7 +350,7 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 // successfully verified are added to the pathDB. Revocations that are
 // successfully verified are added to the revocation cache.
 func (t *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc,
-	req *sciond.PathReq, earlyTrigger *trigger) {
+	req *sciond.PathReq, earlyTrigger *util.Trigger) {
 
 	defer cancelF()
 	reply, err := t.getSegmentsFromNetwork(ctx, req)
@@ -379,26 +364,31 @@ func (t *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 		defer timer.Stop()
 	}
 	// Build verification units
-	units := verifysegs.BuildVerificationUnits(reply.Recs.Recs, reply.Recs.SRevInfos)
-	unitResultsC := make(chan verifysegs.UnitVerificationResult, len(units))
+	units := verifysegs.BuildUnits(reply.Recs.Recs, reply.Recs.SRevInfos)
+	unitResultsC := make(chan verifysegs.UnitResult, len(units))
 	for _, unit := range units {
-		go verifysegs.VerifyUnit(ctx, unit, unitResultsC)
+		go unit.Verify(ctx, unitResultsC)
 	}
 Loop:
 	for numResults := 0; numResults < len(units); numResults++ {
 		select {
 		case result := <-unitResultsC:
 			if _, ok := result.Errors[-1]; ok {
-				log.Info("Segment verification failed", "errors", result.Errors[-1])
+				log.Info("Segment verification failed",
+					"segment", result.Unit.SegMeta.Segment.String(), "err", result.Errors[-1])
 			} else {
 				// Verification succeeded
-				_, err := t.pathDB.Insert(&result.Unit.SegMeta.Segment,
-					[]seg.Type{result.Unit.SegMeta.Type})
+				n, err := t.pathDB.Insert(&result.Unit.SegMeta.Segment,
+					[]proto.PathSegType{result.Unit.SegMeta.Type})
 				if err != nil {
-					log.Warn("Unable to insert segment into path database", "err", err)
+					log.Warn("Unable to insert segment into path database",
+						"segment", result.Unit.SegMeta.Segment.String(), "err", err)
 					continue
 				}
-				log.Debug("Inserted segment into path database", "segment", result.Unit.SegMeta)
+				if n > 0 {
+					log.Debug("Inserted segment into path database",
+						"segment", result.Unit.SegMeta.Segment.String())
+				}
 			}
 			// Insert successfully verified revocations into the revcache
 			for index, revocation := range result.Unit.SRevInfos {
@@ -406,12 +396,13 @@ Loop:
 					// Verification succeeded for this revocation, so we can add it to the cache
 					info, err := revocation.RevInfo()
 					if err != nil {
+						// This should be caught during network message sanitization
 						panic(err)
 					}
 					t.revocationCache.Add(
 						revCacheKey(info.IA(), common.IFIDType(info.IfID)),
 						revocation,
-						info.GetLifetime(time.Now()),
+						info.RelativeTTL(time.Now()),
 					)
 				}
 			}
@@ -425,11 +416,16 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	req *sciond.PathReq) (*path_mgmt.SegReply, error) {
 
 	// Randomly choose a path server
-	psName := f.topology.PSNames[rand.Intn(len(f.topology.PSNames))]
+	numPSServers := len(f.topology.PSNames)
+	if numPSServers == 0 {
+		return nil, common.NewBasicError("Need PS for segments, but none found in topology", nil)
+	}
+	psName := f.topology.PSNames[rand.Intn(numPSServers)]
 	topoAddr := f.topology.PS[psName]
 	info := topoAddr.PublicAddrInfo(f.topology.Overlay)
 	if info == nil {
-		return nil, common.NewBasicError("Need PS for segments, but none found in topology", nil)
+		return nil, common.NewBasicError("PS address not found", nil, "name", psName,
+			"overlay", f.topology.Overlay)
 	}
 	ps := &snet.Addr{
 		IA:     f.topology.ISD_AS,
@@ -440,50 +436,20 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	msg := &path_mgmt.SegReq{
 		RawSrcIA: req.Src,
 		RawDstIA: req.Dst,
+		Flags: struct {
+			Sibra     bool
+			CacheOnly bool
+		}{
+			Sibra:     req.Flags.Sibra,
+			CacheOnly: false,
+		},
 	}
-	reply, err := f.messenger.GetPaths(ctx, msg, ps, requestID.Next())
+	reply, err := f.messenger.GetPathSegs(ctx, msg, ps, requestID.Next())
 	if err != nil {
 		return nil, err
 	}
 	// Sanitize input. There's no point in propagating garbage all throughout other modules.
-	return f.Sanitize(reply), nil
-}
-
-// Sanitize returns a fresh SegReply containing only the correct segments and
-// revocations in argument reply.  . This greatly simplifies error processing
-// in the rest of the module. Note that pointers in the returned value
-// reference the same memory as the argument.
-func (f *Fetcher) Sanitize(reply *path_mgmt.SegReply) *path_mgmt.SegReply {
-	newReply := &path_mgmt.SegReply{
-		Req:  reply.Req,
-		Recs: &path_mgmt.SegRecs{},
-	}
-	for _, segment := range reply.Recs.Recs {
-		ok := true
-		for _, asEntry := range segment.Segment.ASEntries {
-			for _, hopEntry := range asEntry.HopEntries {
-				_, err := hopEntry.HopField()
-				if err != nil {
-					// Discard the whole segment. This should be a rare occurrence anyway.
-					ok = false
-				}
-			}
-		}
-		if !ok {
-			f.logger.Warn("Discarding bad segment", "segment", segment)
-		} else {
-			newReply.Recs.Recs = append(newReply.Recs.Recs, segment)
-		}
-	}
-	for _, revocation := range reply.Recs.SRevInfos {
-		_, err := revocation.RevInfo()
-		if err != nil {
-			f.logger.Warn("Discarding bad revocation", "revocation", revocation, "err", err)
-		} else {
-			newReply.Recs.SRevInfos = append(newReply.Recs.SRevInfos, revocation)
-		}
-	}
-	return newReply
+	return reply.Sanitize(f.logger), nil
 }
 
 func getStartIAs(segments []*seg.PathSegment) []addr.IA {
@@ -505,12 +471,4 @@ func iaInSlice(ia addr.IA, slice []addr.IA) bool {
 		}
 	}
 	return false
-}
-
-type counter uint64
-
-// Next is a concurrency-safe generator of unique request IDs for the
-// messenger.
-func (c *counter) Next() uint64 {
-	return atomic.AddUint64((*uint64)(c), 1)
 }

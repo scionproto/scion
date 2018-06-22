@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -51,20 +52,62 @@ func (s *SegReply) String() string {
 // ParseRaw populates the non-capnp fields of s based on data from the raw
 // capnp fields.
 func (s *SegReply) ParseRaw() error {
-	for i, segment := range s.Recs.Recs {
-		for _, rawASEntry := range segment.Segment.RawASEntries {
-			asEntry, err := seg.NewASEntryFromRaw(rawASEntry.Blob)
-			if err != nil {
-				return common.NewBasicError("Unable to parse raw AS Entry", err,
-					"entry_idx", i)
-			}
-			segment.Segment.ASEntries = append(segment.Segment.ASEntries, asEntry)
-		}
-		sdata, err := seg.NewPathSegmentSignedDataFromRaw(segment.Segment.RawSData)
+	for i, segMeta := range s.Recs.Recs {
+		err := segMeta.Segment.ParseRaw()
 		if err != nil {
-			return common.NewBasicError("Unable to parse raw SData", err)
+			return common.NewBasicError("Unable to parse segment", err, "seg_index", i)
 		}
-		segment.Segment.SData = sdata
+	}
+	return nil
+}
+
+// Sanitize returns a fresh SegReply containing only the correct segments and
+// revocations in s. Note that pointers in the returned value reference the
+// same memory as s.
+//
+// Since Sanitize is always successful, pass in a logger to be informed of any
+// discarded objects. If logger is nil, no logging is performed and the reply
+// is silently sanitized.
+func (s *SegReply) Sanitize(logger log.Logger) *SegReply {
+	newReply := &SegReply{
+		Req:  s.Req,
+		Recs: &SegRecs{},
+	}
+	for _, segment := range s.Recs.Recs {
+		err := walkHopEntries(segment.Segment.ASEntries)
+		if err != nil {
+			if logger != nil {
+				logger.Warn("Discarding bad segment", err, "segment", segment)
+			}
+		} else {
+			newReply.Recs.Recs = append(newReply.Recs.Recs, segment)
+		}
+	}
+	for _, revocation := range s.Recs.SRevInfos {
+		_, err := revocation.RevInfo()
+		if err != nil {
+			if logger != nil {
+				logger.Warn("Discarding bad revocation", "revocation", revocation, "err", err)
+			}
+		} else {
+			newReply.Recs.SRevInfos = append(newReply.Recs.SRevInfos, revocation)
+		}
+	}
+	return newReply
+}
+
+// walkHopEntries iterates through the hop entries of asEntries, checking that
+// they can be parsed. If an parse error is found, the function immediately
+// returns with an error.
+func walkHopEntries(asEntries []*seg.ASEntry) error {
+	for _, asEntry := range asEntries {
+		for _, hopEntry := range asEntry.HopEntries {
+			_, err := hopEntry.HopField()
+			if err != nil {
+				return common.NewBasicError("invalid hop field found in ASEntry",
+					err, "asEntry", asEntry)
+			}
+		}
 	}
 	return nil
 }

@@ -122,7 +122,7 @@ type Messenger interface {
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
 		id uint64) (*cert_mgmt.Chain, error)
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
-	GetPaths(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
+	GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
 	AddHandler(msgType string, h Handler)
 	ListenAndServe()

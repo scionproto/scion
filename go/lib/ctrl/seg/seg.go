@@ -55,18 +55,26 @@ func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps.SData, err = NewPathSegmentSignedDataFromRaw(ps.RawSData)
-	if err != nil {
+	if err := ps.ParseRaw(); err != nil {
 		return nil, err
 	}
-	for i := range ps.RawASEntries {
-		ase, err := NewASEntryFromRaw(ps.RawASEntries[i].Blob)
-		if err != nil {
-			return nil, err
-		}
-		ps.ASEntries = append(ps.ASEntries, ase)
-	}
 	return ps, ps.Validate()
+}
+
+func (ps *PathSegment) ParseRaw() error {
+	for _, rawASEntry := range ps.RawASEntries {
+		asEntry, err := NewASEntryFromRaw(rawASEntry.Blob)
+		if err != nil {
+			return err
+		}
+		ps.ASEntries = append(ps.ASEntries, asEntry)
+	}
+	sdata, err := NewPathSegmentSignedDataFromRaw(ps.RawSData)
+	if err != nil {
+		return err
+	}
+	ps.SData = sdata
+	return nil
 }
 
 func (ps *PathSegment) ID() (common.RawBytes, error) {
@@ -114,6 +122,21 @@ func (ps *PathSegment) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool {
+	for _, asEntry := range ps.ASEntries {
+		for _, entry := range asEntry.HopEntries {
+			hf, err := entry.HopField()
+			if err != nil {
+				panic(err)
+			}
+			if asEntry.IA().Eq(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,
