@@ -185,10 +185,11 @@ func loadConfig(path string) bool {
 		return false
 	}
 	ok := base.Map.ReloadConfig(cfg)
-	if ok {
-		atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
+	if !ok {
+		return false
 	}
-	return ok
+	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
+	return true
 }
 
 func fatal(msg string, args ...interface{}) {
