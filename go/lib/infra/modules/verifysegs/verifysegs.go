@@ -12,13 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package verifysegs implements primitives for verifying path segments.
+//
+// A Unit contains a path segment, and all the revocations that reference IFIDs
+// in that path segment.
+//
+// When a unit is verified, it spawns one goroutine for the path segment's
+// verification, and one goroutine for the verification of each revocation. It
+// then collects the results from all workers (forcefully terminating them if
+// the unit's context is Done). A UnitResult object is returned, containing a
+// reference to the Unit itself and a map of errors. The map only contains
+// non-nil errors as values, and the keys are represented by the following:
+//   - If the path segment verification failed, its error is contained at key -1
+//   - If a revocation verification failed, its error is contained at key x,
+//   where x is the position of the revocation in the slice of SignedRevInfos
+//   passed to BuildVerificationUnits.
 package verifysegs
 
 import (
 	"context"
-	"fmt"
-	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -26,20 +38,26 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 )
 
-// BuildVerificationUnits constructs one verification unit for each segment,
-// together with its associated revocations.
-func BuildVerificationUnits(segMetas []*seg.Meta,
-	sRevInfos []*path_mgmt.SignedRevInfo) []*VerificationUnit {
+// Unit contains multiple verification items.
+type Unit struct {
+	SegMeta   *seg.Meta
+	SRevInfos []*path_mgmt.SignedRevInfo
+}
 
-	var units []*VerificationUnit
+// BuildUnits constructs one verification unit for each segment,
+// together with its associated revocations.
+func BuildUnits(segMetas []*seg.Meta,
+	sRevInfos []*path_mgmt.SignedRevInfo) []*Unit {
+
+	var units []*Unit
 	for _, segMeta := range segMetas {
-		unit := &VerificationUnit{SegMeta: segMeta}
+		unit := &Unit{SegMeta: segMeta}
 		for _, sRevInfo := range sRevInfos {
 			revInfo, err := sRevInfo.RevInfo()
 			if err != nil {
 				panic(err)
 			}
-			if metaContainsInterface(segMeta, revInfo.IA(), common.IFIDType(revInfo.IfID)) {
+			if segMeta.Segment.ContainsInterface(revInfo.IA(), common.IFIDType(revInfo.IfID)) {
 				unit.SRevInfos = append(unit.SRevInfos, sRevInfo)
 			}
 		}
@@ -48,61 +66,48 @@ func BuildVerificationUnits(segMetas []*seg.Meta,
 	return units
 }
 
-func metaContainsInterface(segMeta *seg.Meta, ia addr.IA, ifid common.IFIDType) bool {
-	for _, asEntry := range segMeta.Segment.ASEntries {
-		for _, entry := range asEntry.HopEntries {
-			hf, err := entry.HopField()
-			if err != nil {
-				panic(err)
-			}
-			if asEntry.IA().Eq(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
-				return true
-			}
-		}
-	}
-	return false
+func (u *Unit) Len() int {
+	return len(u.SRevInfos) + 1
 }
 
-// VerifyUnit verifies a single unit, putting the results of verifications on
+// Verify verifies a single unit, putting the results of verifications on
 // unitResults.
-func VerifyUnit(ctx context.Context, unit *VerificationUnit,
-	unitResults chan UnitVerificationResult) {
+func (u *Unit) Verify(ctx context.Context, unitResults chan UnitResult) {
 
-	subCtx, subCtxCancelF := context.WithCancel(ctx)
-	// We return when either (1) ctx is done, (2) all verification succeeds,
-	// (3) any verification fails. In all these cases, it's ok to immediately
-	// cancel all workers.
-	defer subCtxCancelF()
-	// Build trail here because we need to pass it into VerifyRevInfo as it
-	// doesn't have enough topology information to build it
 	var trail []addr.ISD
-	for _, asEntry := range unit.SegMeta.Segment.ASEntries {
-		trail = append(trail, asEntry.IA().I)
-	}
-	responses := make(chan VerificationResult, unit.Len())
-	go verifySegment(subCtx, unit.SegMeta, trail, responses)
-	for index, sRevInfo := range unit.SRevInfos {
-		subtrail := getTrailSlice(sRevInfo, trail)
-		go verifyRevInfo(subCtx, index, sRevInfo, subtrail, responses)
+	responses := make(chan ElemResult, u.Len())
+	go verifySegment(ctx, u.SegMeta, trail, responses)
+	for index, sRevInfo := range u.SRevInfos {
+		// FIXME(scrye): build actual trust trail here
+		go verifyRevInfo(ctx, index, sRevInfo, []addr.ISD{}, responses)
 	}
 	// Response writers must guarantee that the for returns before (or very
 	// close around) ctx.Done()
 	errs := make(map[int]error)
-	for numResults := 0; numResults < unit.Len(); numResults++ {
+	for numResults := 0; numResults < u.Len(); numResults++ {
 		result := <-responses
 		if result.Error != nil {
 			errs[result.Index] = result.Error
 		}
 	}
 	select {
-	case unitResults <- UnitVerificationResult{Unit: unit, Errors: errs}:
+	case unitResults <- UnitResult{Unit: u, Errors: errs}:
 	default:
 		panic("would block on channel")
 	}
 }
 
-func verifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD,
-	ch chan VerificationResult) {
+type UnitResult struct {
+	Unit   *Unit
+	Errors map[int]error
+}
+
+type ElemResult struct {
+	Index int
+	Error error
+}
+
+func verifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD, ch chan ElemResult) {
 
 	for i, asEntry := range segment.Segment.ASEntries {
 		// TODO(scrye): get valid chain, then verify ASEntry at index i with
@@ -110,101 +115,20 @@ func verifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD,
 		_, _ = i, asEntry
 	}
 	select {
-	case ch <- VerificationResult{Index: -1, Error: nil}:
+	case ch <- ElemResult{Index: -1, Error: nil}:
 	default:
 		panic("would block on channel")
 	}
 }
 
 func verifyRevInfo(ctx context.Context, index int, signedRevInfo *path_mgmt.SignedRevInfo,
-	trail []addr.ISD, ch chan VerificationResult) {
+	trail []addr.ISD, ch chan ElemResult) {
 
 	// TODO(scrye): get valid chain, then verify signedRevInfo.Blob with the
 	// key from the chain
 	select {
-	case ch <- VerificationResult{Index: index, Error: nil}:
+	case ch <- ElemResult{Index: index, Error: nil}:
 	default:
 		panic("would block on channel")
-	}
-}
-
-func getTrailSlice(sRevInfo *path_mgmt.SignedRevInfo, trail []addr.ISD) []addr.ISD {
-	info, err := sRevInfo.RevInfo()
-	if err != nil {
-		// Should be caught in first pass
-		panic(err)
-	}
-
-	isd := info.IA().I
-	for i := range trail {
-		if trail[i] == isd {
-			return trail[:i+1]
-		}
-	}
-	// should never happen, the ISD in the revinfo has already been matched
-	// when the verification unit was constructed
-	panic(fmt.Sprintf("isd %d not in trail %v", isd, trail))
-}
-
-type VerificationResult struct {
-	Index int
-	Error error
-}
-
-type UnitVerificationResult struct {
-	Unit   *VerificationUnit
-	Errors map[int]error
-}
-
-// VerificationUnit contains multiple verification items.
-type VerificationUnit struct {
-	SegMeta   *seg.Meta
-	SRevInfos []*path_mgmt.SignedRevInfo
-}
-
-func (unit *VerificationUnit) Len() int {
-	return len(unit.SRevInfos) + 1
-}
-
-// Trigger represents a timer with delayed arming. Once Arm is called, the
-// object's Done() method will return after d time. If d is 0, Done will
-// instead block forever.
-type Trigger struct {
-	d    time.Duration
-	ch   chan struct{}
-	once sync.Once
-}
-
-func NewTrigger(d time.Duration) *Trigger {
-	return &Trigger{
-		d:  d,
-		ch: make(chan struct{}, 0),
-	}
-}
-
-func (t *Trigger) Done() <-chan struct{} {
-	return t.ch
-}
-
-// Arm starts the trigger's preset timer, and returns the corresponding timer
-// object. If the trigger is not configured with a timer, nil is returned.
-func (t *Trigger) Arm() *time.Timer {
-	var timer *time.Timer
-	t.once.Do(
-		func() {
-			if t.d != 0 {
-				timer = time.AfterFunc(t.d, func() { close(t.ch) })
-			}
-		},
-	)
-	return timer
-}
-
-func (t *Trigger) Triggered() bool {
-	select {
-	case <-t.ch:
-		return true
-	default:
-		return false
 	}
 }
