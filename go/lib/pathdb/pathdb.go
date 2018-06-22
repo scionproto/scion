@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type DB struct {
@@ -47,14 +48,14 @@ func New(path string, backend string) (*DB, error) {
 
 // Insert inserts or updates a path segment. It returns the number of path segments
 // that have been inserted/updated.
-func (db *DB) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, error) {
+func (db *DB) Insert(pseg *seg.PathSegment, segTypes []proto.PathSegType) (int, error) {
 	return db.conn.Insert(pseg, segTypes)
 }
 
 // InsertWithCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
 // returns the number of path segments that have been inserted/updated.
 func (db *DB) InsertWithHPCfgIDs(pseg *seg.PathSegment,
-	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) (int, error) {
+	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) (int, error) {
 	return db.conn.InsertWithHPCfgIDs(pseg, segTypes, hpCfgIDs)
 }
 

@@ -66,7 +66,7 @@ func TestFetch(t *testing.T) {
 			parameters: &Parameters{
 				pathDBPath:   "/tmp/test1.pathdb",
 				trustDBPath:  "/tmp/test1.trustdb",
-				topologyPath: "testdata/topology1.json",
+				topologyPath: "../../../../gen/ISD1/ASff00_0_133/endhost/topology.json",
 				localSnet:    "1-ff00:0:133,[127.0.0.1]:60001",
 				localIA:      xtest.MustParseIA("1-ff00:0:133"),
 				dispatcher:   "/run/shm/dispatcher/default.sock",
@@ -78,9 +78,7 @@ func TestFetch(t *testing.T) {
 						Src:      xtest.MustParseIA("1-ff00:0:133").IAInt(),
 						Dst:      xtest.MustParseIA("1-ff00:0:130").IAInt(),
 						MaxPaths: 5,
-						Flags:    sciond.PathReqFlags{Flush: false, Sibra: false},
 					},
-					EarlyReply: 10 * time.Second,
 				},
 				{
 					Name: "up core",
@@ -88,9 +86,7 @@ func TestFetch(t *testing.T) {
 						Src:      xtest.MustParseIA("1-ff00:0:133").IAInt(),
 						Dst:      xtest.MustParseIA("2-ff00:0:210").IAInt(),
 						MaxPaths: 5,
-						Flags:    sciond.PathReqFlags{Flush: false, Sibra: false},
 					},
-					EarlyReply: 10 * time.Second,
 				},
 				{
 					Name: "up core down",
@@ -98,9 +94,7 @@ func TestFetch(t *testing.T) {
 						Src:      xtest.MustParseIA("1-ff00:0:133").IAInt(),
 						Dst:      xtest.MustParseIA("2-ff00:0:222").IAInt(),
 						MaxPaths: 5,
-						Flags:    sciond.PathReqFlags{Flush: false, Sibra: false},
 					},
-					EarlyReply: 10 * time.Second,
 				},
 			},
 		},
@@ -109,7 +103,7 @@ func TestFetch(t *testing.T) {
 			parameters: &Parameters{
 				pathDBPath:   "/tmp/test2.pathdb",
 				trustDBPath:  "/tmp/test2.trustdb",
-				topologyPath: "testdata/topology2.json",
+				topologyPath: "../../../../gen/ISD1/ASff00_0_110/endhost/topology.json",
 				localSnet:    "1-ff00:0:110,[127.0.0.1]:60002",
 				localIA:      xtest.MustParseIA("1-ff00:0:110"),
 				dispatcher:   "/run/shm/dispatcher/default.sock",
@@ -121,9 +115,7 @@ func TestFetch(t *testing.T) {
 						Src:      xtest.MustParseIA("1-ff00:0:110").IAInt(),
 						Dst:      xtest.MustParseIA("2-ff00:0:220").IAInt(),
 						MaxPaths: 5,
-						Flags:    sciond.PathReqFlags{Flush: false, Sibra: false},
 					},
-					EarlyReply: 10 * time.Second,
 				},
 				{
 					Name: "core down",
@@ -131,9 +123,7 @@ func TestFetch(t *testing.T) {
 						Src:      xtest.MustParseIA("1-ff00:0:110").IAInt(),
 						Dst:      xtest.MustParseIA("2-ff00:0:212").IAInt(),
 						MaxPaths: 5,
-						Flags:    sciond.PathReqFlags{Flush: false, Sibra: false},
 					},
-					EarlyReply: 10 * time.Second,
 				},
 			},
 		},
@@ -199,5 +189,5 @@ func Init(t *testing.T, parameters *Parameters) *Fetcher {
 		log.Root(),
 	)
 	trustStore.SetMessenger(msger)
-	return NewFetcher(topo, msger, pathDB, trcobjA, trustStore)
+	return NewFetcher(topo, msger, pathDB, trcobjA.CoreASList(), trustStore)
 }

@@ -105,10 +105,10 @@ func (r *RevInfo) String() string {
 		r.LinkType, util.TimeToString(r.Timestamp()), r.TTL())
 }
 
-// GetLifetime returns the duration r is still valid for, relative to
+// RelativeTTL returns the duration r is still valid for, relative to
 // reference. If the revocation is already expired, the returned value is 0.
-func (r *RevInfo) GetLifetime(reference time.Time) time.Duration {
-	expiration := time.Unix(int64(r.Timestamp), 0).Add(time.Duration(r.TTL) * time.Second)
+func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
+	expiration := time.Unix(int64(r.RawTimestamp), 0).Add(time.Duration(r.RawTTL) * time.Second)
 	if expiration.Before(reference) {
 		return 0
 	}
