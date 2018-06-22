@@ -40,7 +40,6 @@ from lib.defines import (
     PATH_SERVICE,
 )
 from lib.errors import (
-    SCIONBaseError,
     SCIONKeyError,
     SCIONParseError,
     SCIONPathPolicyViolated,
@@ -534,13 +533,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                     logging.error(
                         "Error parsing revocation info from ZK: %s", e)
                     continue
-                try:
-                    self.check_revocation(srev_info)
-                except SCIONBaseError as e:
-                    logging.error("Revocation check from zookeeper for %s failed:\n%s",
-                                  srev_info.short_desc(), e)
-                    continue
-                self.local_rev_cache.add(srev_info)
+                self.check_revocation(srev_info, lambda x: lambda:
+                                      self.local_rev_cache.add(srev_info) if not x else False)
 
     def _issue_revocations(self, revoked_ifs):
         """
@@ -599,13 +593,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        try:
-            self.check_revocation(srev_info)
-        except SCIONBaseError as e:
-            logging.error("Revocation check failed for %s from %s:\n%s",
-                          srev_info.short_desc(), meta, e)
-            return
-        self._process_revocation(srev_info)
+        self.check_revocation(srev_info, lambda x:
+                              self._process_revocation(srev_info) if not x else False, meta)
 
     def handle_rev_objs(self):
         with self._rev_seg_lock:

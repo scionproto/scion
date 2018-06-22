@@ -140,8 +140,8 @@ class DefaultSignSrc(Serializable):
         except SCIONParseError as e:
             raise SCIONParseError(
                 "Unable to parse IA. Decoded: %s error: %s" % (decoded, e)) from None
-        self.chain_ver = groups[0][1]
-        self.trc_ver = groups[0][2]
+        self.chain_ver = int(groups[0][1])
+        self.trc_ver = int(groups[0][2])
 
     @classmethod
     def from_values(cls, ia: ISD_AS, chain_ver: int, trc_ver: int) -> 'DefaultSignSrc':

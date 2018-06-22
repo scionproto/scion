@@ -184,13 +184,8 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         for raw in raw_entries:
             srev_info = SignedRevInfo.from_raw(raw)
             rev_info = srev_info.rev_info()
-            try:
-                self.check_revocation(srev_info)
-            except SCIONBaseError as e:
-                logging.error("Revocation check from zookeeper failed for %s:\n%s",
-                              srev_info.short_desc(), e)
-                continue
-            self._remove_revoked_segments(rev_info)
+            self.check_revocation(srev_info, lambda x:
+                                  self._remove_revoked_segments(rev_info) if not x else False)
 
     @abstractmethod
     def _handle_up_segment_record(self, pcb, **kwargs):
@@ -251,21 +246,14 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         if srev_info in self.revocations:
             return
         logging.debug("Received revocation from %s: %s", meta, rev_info.short_desc())
-        try:
-            self.check_revocation(srev_info)
-        except SCIONBaseError as e:
-            logging.error("Revocation check failed for %s from %s:\n%s",
-                          srev_info.short_desc(), meta, e)
-            return
+        self.check_revocation(srev_info, lambda x: self._continue_revocation_processing(meta,
+                              srev_info) if not x else False, meta)
 
-        if meta.ia[0] != self.addr.isd_as[0]:
-            logging.info("Dropping revocation received from a different ISD. Src: %s RevInfo: %s" %
-                         (meta, rev_info.short_desc()))
-            return
+    def _continue_revocation_processing(self, meta, srev_info):
         self.revocations.add(srev_info)
         self._revs_to_zk[srev_info] = srev_info.copy().pack()  # have to pack copy
         # Remove segments that contain the revoked interface.
-        self._remove_revoked_segments(rev_info)
+        self._remove_revoked_segments(srev_info.rev_info())
         # Forward revocation to other path servers.
         self._forward_revocation(srev_info, meta)
 

@@ -194,14 +194,8 @@ class SCIONDaemon(SCIONElement):
         assert isinstance(path_reply, PathSegmentReply), type(path_reply)
         recs = path_reply.recs()
         for srev_info in recs.iter_srev_infos():
-            try:
-                self.check_revocation(srev_info)
-            except SCIONBaseError as e:
-                logging.error("Revocation check failed for %s from %s:\n%s",
-                              srev_info.short_desc(), meta, e)
-                continue
-            self.rev_cache.add(srev_info)
-            self.remove_revoked_segments(srev_info.rev_info())
+            self.check_revocation(srev_info, lambda x: self.continue_revocation_processing(
+                                  srev_info) if not x else False, meta)
 
         req = path_reply.req()
         key = req.dst_ia(), req.flags()
@@ -215,6 +209,10 @@ class SCIONDaemon(SCIONElement):
             seg_meta = PathSegMeta(pcb, self.continue_seg_processing,
                                    meta, type_, params=(r,))
             self._process_path_seg(seg_meta, cpld.req_id)
+
+    def continue_revocation_processing(self, srev_info):
+        self.rev_cache.add(srev_info)
+        self.remove_revoked_segments(srev_info.rev_info())
 
     def continue_seg_processing(self, seg_meta):
         """
@@ -382,9 +380,7 @@ class SCIONDaemon(SCIONElement):
     def _api_handle_rev_notification(self, pld, meta):
         request = pld.union
         assert isinstance(request, SCIONDRevNotification), type(request)
-        status = self.handle_revocation(CtrlPayload(PathMgmt(request.srev_info())), meta)
-        rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
-        self.send_meta(rev_reply.pack(), meta)
+        self.handle_revocation(CtrlPayload(PathMgmt(request.srev_info())), meta, pld)
 
     def _api_handle_seg_type_request(self, pld, meta):
         request = pld.union
@@ -423,37 +419,46 @@ class SCIONDaemon(SCIONElement):
         srev_info = SignedRevInfo.from_raw(pld.info.srev_info)
         self.handle_revocation(CtrlPayload(PathMgmt(srev_info)), meta)
 
-    def handle_revocation(self, cpld, meta):
+    def handle_revocation(self, cpld, meta, pld=None):
         pmgt = cpld.union
         srev_info = pmgt.union
         rev_info = srev_info.rev_info()
         assert isinstance(rev_info, RevocationInfo), type(rev_info)
         logging.debug("Received revocation: %s from %s", srev_info.short_desc(), meta)
-        try:
-            self.check_revocation(srev_info)
-        except RevInfoValidationError as e:
-            logging.error("Failed to validate RevInfo %s from %s: %s",
-                          srev_info.short_desc(), meta, e)
-            return SCIONDRevReplyStatus.INVALID
-        except RevInfoExpiredError as e:
-            logging.info("Ignoring expired Revinfo, %s from %s", srev_info.short_desc(), meta)
-            return SCIONDRevReplyStatus.STALE
-        except SignedRevInfoCertFetchError as e:
-            logging.error("Failed to fetch certificate for SignedRevInfo %s from %s: %s",
-                          srev_info.short_desc(), meta, e)
-            return SCIONDRevReplyStatus.UNKNOWN
-        except SignedRevInfoVerificationError as e:
-            logging.error("Failed to verify SRevInfo %s from %s: %s",
-                          srev_info.short_desc(), meta, e)
-            return SCIONDRevReplyStatus.SIGFAIL
-        except SCIONBaseError as e:
-            logging.error("Revocation check failed for %s from %s:\n%s",
-                          srev_info.short_desc(), meta, e)
-            return SCIONDRevReplyStatus.UNKNOWN
+        self.check_revocation(srev_info,
+                              lambda e: self.process_revocation(e, srev_info, meta, pld), meta)
 
-        self.rev_cache.add(srev_info)
-        self.remove_revoked_segments(rev_info)
-        return SCIONDRevReplyStatus.VALID
+    def process_revocation(self, error, srev_info, meta, pld):
+        rev_info = srev_info.rev_info()
+        status = None
+        if error is None:
+            status = SCIONDRevReplyStatus.VALID
+            self.rev_cache.add(srev_info)
+            self.remove_revoked_segments(rev_info)
+        else:
+            if type(error) == RevInfoValidationError:
+                logging.error("Failed to validate RevInfo %s from %s: %s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.INVALID
+            if type(error) == RevInfoExpiredError:
+                logging.info("Ignoring expired Revinfo, %s from %s", srev_info.short_desc(), meta)
+                status = SCIONDRevReplyStatus.STALE
+            if type(error) == SignedRevInfoCertFetchError:
+                logging.error("Failed to fetch certificate for SignedRevInfo %s from %s: %s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.UNKNOWN
+            if type(error) == SignedRevInfoVerificationError:
+                logging.error("Failed to verify SRevInfo %s from %s: %s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.SIGFAIL
+            if type(error) == SCIONBaseError:
+                logging.error("Revocation check failed for %s from %s:\n%s",
+                              srev_info.short_desc(), meta, error)
+                status = SCIONDRevReplyStatus.UNKNOWN
+
+        if pld:
+            rev_reply = SCIONDMsg(SCIONDRevReply.from_values(status), pld.id)
+            self.send_meta(rev_reply.pack(), meta)
 
     def remove_revoked_segments(self, rev_info):
         # Go through all segment databases and remove affected segments.
