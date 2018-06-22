@@ -19,11 +19,8 @@ package fetcher
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
-
-	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -56,20 +53,20 @@ type Fetcher struct {
 	messenger       infra.Messenger
 	pathDB          *pathdb.DB
 	trustStore      infra.TrustStore
-	revocationCache *cache.Cache
+	revocationCache *RevCache
 	coreASes        []addr.IA
 	logger          log.Logger
 }
 
 func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.DB,
-	coreASes []addr.IA, trustStore infra.TrustStore) *Fetcher {
+	coreASes []addr.IA, trustStore infra.TrustStore, revCache *RevCache) *Fetcher {
 
 	return &Fetcher{
 		topology:        topo,
 		messenger:       messenger,
 		pathDB:          pathDB,
 		trustStore:      trustStore,
-		revocationCache: cache.New(cache.NoExpiration, time.Second),
+		revocationCache: revCache,
 		coreASes:        coreASes,
 	}
 }
@@ -345,7 +342,7 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 		for _, iface := range path.Interfaces {
 			// cache automatically expires outdated revocations every second,
 			// so a cache hit implies revocation is still active.
-			if _, ok := f.revocationCache.Get(revCacheKey(iface.ISD_AS(), iface.IfID)); ok {
+			if _, ok := f.revocationCache.Get(iface.ISD_AS(), iface.IfID); ok {
 				revoked = true
 			}
 		}
@@ -413,7 +410,8 @@ Loop:
 						panic(err)
 					}
 					t.revocationCache.Add(
-						revCacheKey(info.IA(), common.IFIDType(info.IfID)),
+						info.IA(),
+						common.IFIDType(info.IfID),
 						revocation,
 						info.RelativeTTL(time.Now()),
 					)
@@ -471,10 +469,6 @@ func getStartIAs(segments []*seg.PathSegment) []addr.IA {
 		startIAs = append(startIAs, segment.ASEntries[0].IA())
 	}
 	return startIAs
-}
-
-func revCacheKey(ia addr.IA, ifid common.IFIDType) string {
-	return fmt.Sprintf("%s#%s", ia, ifid)
 }
 
 func iaInSlice(ia addr.IA, slice []addr.IA) bool {
