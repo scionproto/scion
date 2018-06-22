@@ -52,10 +52,10 @@ type RevInfo struct {
 	IfID     uint64
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	// LinkType of revocation
-	LinkType  proto.LinkType
-	Timestamp uint64
-	// TTL validity period of the revocation in seconds
-	TTL uint32 `capnp:"ttl"`
+	LinkType     proto.LinkType
+	RawTimestamp uint64 `capnp:"timestamp"`
+	// RawTTL validity period of the revocation in seconds
+	RawTTL uint32 `capnp:"ttl"`
 }
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
@@ -68,18 +68,18 @@ func (r *RevInfo) IA() addr.IA {
 }
 
 func (r *RevInfo) Active() error {
-	if r.TTL < uint32(MinRevTTL.Seconds()) {
+	if r.RawTTL < uint32(MinRevTTL.Seconds()) {
 		return common.NewBasicError("Revocation TTL smaller than MinRevTTL.", nil,
-			"TTL", r.TTL, "MinRevTTL", MinRevTTL.Seconds())
+			"TTL", r.RawTTL, "MinRevTTL", MinRevTTL.Seconds())
 	}
 	now := uint64(time.Now().Unix())
 	// Revocation is not valid if timestamp is not within the TTL window
-	if r.Timestamp+uint64(r.TTL) < now {
-		return NewRevTimeError(r.Timestamp, r.TTL)
+	if r.RawTimestamp+uint64(r.RawTTL) < now {
+		return NewRevTimeError(r.RawTimestamp, r.RawTTL)
 	}
-	if r.Timestamp > now+1 {
+	if r.RawTimestamp > now+1 {
 		return common.NewBasicError("Revocation timestamp is in the future.", nil,
-			"timestamp", util.TimeToString(util.USecsToTime(r.Timestamp)))
+			"timestamp", util.TimeToString(util.USecsToTime(r.RawTimestamp)))
 	}
 	return nil
 }
@@ -90,13 +90,13 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %ds", r.IA(), r.IfID,
-		r.LinkType, util.TimeToString(util.USecsToTime(uint64(r.Timestamp))), r.TTL)
+		r.LinkType, util.TimeToString(util.USecsToTime(uint64(r.RawTimestamp))), r.RawTTL)
 }
 
-// GetLifetime returns the duration r is still valid for, relative to
+// RelativeTTL returns the duration r is still valid for, relative to
 // reference. If the revocation is already expired, the returned value is 0.
-func (r *RevInfo) GetLifetime(reference time.Time) time.Duration {
-	expiration := time.Unix(int64(r.Timestamp), 0).Add(time.Duration(r.TTL) * time.Second)
+func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
+	expiration := time.Unix(int64(r.RawTimestamp), 0).Add(time.Duration(r.RawTTL) * time.Second)
 	if expiration.Before(reference) {
 		return 0
 	}

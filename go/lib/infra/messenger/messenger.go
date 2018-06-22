@@ -206,9 +206,9 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	return m.requester.Notify(ctx, pld, a)
 }
 
-// GetPaths asks the server at the remote address for the paths specified by
+// GetPathSegs asks the server at the remote address for the paths specified by
 // msg, and returns a verified reply.
-func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
+func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})

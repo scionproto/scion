@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/sqlite"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type segMeta struct {
@@ -84,12 +85,12 @@ func (b *Backend) commit() error {
 	return nil
 }
 
-func (b *Backend) Insert(pseg *seg.PathSegment, segTypes []seg.Type) (int, error) {
+func (b *Backend) Insert(pseg *seg.PathSegment, segTypes []proto.PathSegType) (int, error) {
 	return b.InsertWithHPCfgIDs(pseg, segTypes, []*query.HPCfgID{&query.NullHpCfgID})
 }
 
 func (b *Backend) InsertWithHPCfgIDs(pseg *seg.PathSegment,
-	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) (int, error) {
+	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) (int, error) {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
@@ -152,7 +153,7 @@ func (b *Backend) get(segID common.RawBytes) (*segMeta, error) {
 }
 
 func (b *Backend) updateExisting(meta *segMeta,
-	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) error {
+	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) error {
 	// Create new transaction
 	if err := b.begin(); err != nil {
 		return err
@@ -196,7 +197,7 @@ func (b *Backend) updateSeg(meta *segMeta) error {
 	return nil
 }
 
-func (b *Backend) insertType(segRowID int64, segType seg.Type) error {
+func (b *Backend) insertType(segRowID int64, segType proto.PathSegType) error {
 	_, err := b.tx.Exec("INSERT INTO SegTypes (SegRowID, Type) VALUES (?, ?)",
 		segRowID, segType)
 	if err != nil {
@@ -216,7 +217,7 @@ func (b *Backend) insertHPCfgID(segRowID int64, hpCfgID *query.HPCfgID) error {
 }
 
 func (b *Backend) insertFull(pseg *seg.PathSegment,
-	segTypes []seg.Type, hpCfgIDs []*query.HPCfgID) error {
+	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) error {
 	// Create new transaction
 	if err := b.begin(); err != nil {
 		return err
