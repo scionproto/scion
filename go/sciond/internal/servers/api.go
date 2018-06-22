@@ -38,34 +38,18 @@ const (
 type API struct {
 	Transport infra.Transport
 
-	// State for request handlers
-	handlers map[proto.SCIONDMsg_Which]handler
+	// State for request Handlers
+	Handlers map[proto.SCIONDMsg_Which]Handler
 }
 
-type handler interface {
-	Handle(pld *sciond.Pld, src net.Addr)
+type Handler interface {
+	Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld)
 }
 
-func NewAPI(transport infra.Transport) *API {
+func NewAPI(transport infra.Transport, handlers HandlerMap) *API {
 	return &API{
 		Transport: transport,
-		handlers: map[proto.SCIONDMsg_Which]handler{
-			proto.SCIONDMsg_Which_pathReq: &PathRequestHandler{
-				Transport: transport,
-			},
-			proto.SCIONDMsg_Which_asInfoReq: &ASInfoRequestHandler{
-				Transport: transport,
-			},
-			proto.SCIONDMsg_Which_ifInfoRequest: &IFInfoRequestHandler{
-				Transport: transport,
-			},
-			proto.SCIONDMsg_Which_serviceInfoRequest: &SVCInfoRequestHandler{
-				Transport: transport,
-			},
-			proto.SCIONDMsg_Which_revNotification: &RevNotificationHandler{
-				Transport: transport,
-			},
-		},
+		Handlers:  handlers,
 	}
 }
 
@@ -88,12 +72,12 @@ func (srv *API) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("capnp error", "err", err)
 		return
 	}
-	handler, ok := srv.handlers[p.Which]
+	handler, ok := srv.Handlers[p.Which]
 	if !ok {
 		log.Error("handler not found for capnp message", "which", p.Which)
 		return
 	}
-	handler.Handle(p, address)
+	handler.Handle(srv.Transport, address, p)
 }
 
 func (srv *API) Close() error {
