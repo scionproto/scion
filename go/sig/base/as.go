@@ -70,7 +70,8 @@ func newASEntry(ia addr.IA) (*ASEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ae.Session, err = session.NewSession(ia, 0, ae.Sigs, ae.Logger, pool, worker.DefaultFactory); err != nil {
+	ae.Session, err = session.NewSession(ia, 0, ae.Sigs, ae.Logger, pool, worker.DefaultFactory)
+	if err != nil {
 		return nil, err
 	}
 	return ae, nil
@@ -128,9 +129,7 @@ func (ae *ASEntry) AddNet(ipnet *net.IPNet) error {
 func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 	if ae.egressRing == nil {
 		// Ensure that the network setup is done
-		if err := ae.setupNet(); err != nil {
-			return err
-		}
+		ae.setupNet()
 	}
 	key := ipnet.String()
 	if _, ok := ae.Nets[key]; ok {
@@ -361,7 +360,7 @@ func (ae *ASEntry) cleanSessions() {
 	}
 }
 
-func (ae *ASEntry) setupNet() error {
+func (ae *ASEntry) setupNet() {
 	ae.egressRing = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
 	go dispatcher.NewDispatcher(ae.IA, ae.egressRing, &SingleSession{Session: ae.Session}).Run()
@@ -369,5 +368,4 @@ func (ae *ASEntry) setupNet() error {
 	go ae.monitorHealth()
 	ae.Session.Start()
 	ae.Info("Network setup done")
-	return nil
 }
