@@ -74,9 +74,8 @@ func (u *Unit) Len() int {
 // unitResults.
 func (u *Unit) Verify(ctx context.Context, unitResults chan UnitResult) {
 
-	var trail []addr.ISD
 	responses := make(chan ElemResult, u.Len())
-	go verifySegment(ctx, u.SegMeta, trail, responses)
+	go verifySegment(ctx, u.SegMeta, []addr.ISD{}, responses)
 	for index, sRevInfo := range u.SRevInfos {
 		// FIXME(scrye): build actual trust trail here
 		go verifyRevInfo(ctx, index, sRevInfo, []addr.ISD{}, responses)
