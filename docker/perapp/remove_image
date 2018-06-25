@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+image="scion_${1:?}:${2:?}"
+
+if [ -n "$(docker images -q $image)" ]; then
+    echo "Deleting image: $image"
+    echo "======================"
+    docker rmi "$image"
+fi

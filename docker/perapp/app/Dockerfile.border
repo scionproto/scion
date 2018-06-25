@@ -1,0 +1,5 @@
+FROM scion_app_base:latest
+COPY --from=scion_app_builder:latest /home/scion/go/src/github.com/scionproto/scion/bin/border /app/
+RUN ["setcap", "cap_net_admin+ei", "/app/border"]
+
+ENTRYPOINT ["/sbin/su-exec", "/app/border", "-confd=/share/conf"]
