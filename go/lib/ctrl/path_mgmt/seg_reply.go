@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -53,17 +52,17 @@ func (s *SegReply) String() string {
 // capnp fields.
 func (s *SegReply) ParseRaw() error {
 	for i, segMeta := range s.Recs.Recs {
-		err := segMeta.Segment.ParseRaw()
-		if err != nil {
-			return common.NewBasicError("Unable to parse segment", err, "seg_index", i)
+		if err := segMeta.Segment.ParseRaw(); err != nil {
+			return common.NewBasicError("Unable to parse segment", err, "seg_index", i,
+				"segment", segMeta.Segment)
 		}
 	}
 	return nil
 }
 
-// Sanitize returns a fresh SegReply containing only the correct segments and
-// revocations in s. Note that pointers in the returned value reference the
-// same memory as s.
+// Sanitize returns a fresh SegReply containing only the segments and
+// revocations in s that could be parsed successfully. Note that pointers in
+// the returned value reference the same memory as s.
 //
 // Since Sanitize is always successful, pass in a logger to be informed of any
 // discarded objects. If logger is nil, no logging is performed and the reply
@@ -74,7 +73,7 @@ func (s *SegReply) Sanitize(logger log.Logger) *SegReply {
 		Recs: &SegRecs{},
 	}
 	for _, segment := range s.Recs.Recs {
-		err := walkHopEntries(segment.Segment.ASEntries)
+		err := segment.Segment.WalkHopEntries()
 		if err != nil {
 			if logger != nil {
 				logger.Warn("Discarding bad segment", err, "segment", segment)
@@ -94,20 +93,4 @@ func (s *SegReply) Sanitize(logger log.Logger) *SegReply {
 		}
 	}
 	return newReply
-}
-
-// walkHopEntries iterates through the hop entries of asEntries, checking that
-// they can be parsed. If an parse error is found, the function immediately
-// returns with an error.
-func walkHopEntries(asEntries []*seg.ASEntry) error {
-	for _, asEntry := range asEntries {
-		for _, hopEntry := range asEntry.HopEntries {
-			_, err := hopEntry.HopField()
-			if err != nil {
-				return common.NewBasicError("invalid hop field found in ASEntry",
-					err, "asEntry", asEntry)
-			}
-		}
-	}
-	return nil
 }

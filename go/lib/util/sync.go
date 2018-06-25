@@ -49,8 +49,8 @@ func (l *ChannelLock) Unlock() {
 }
 
 // Trigger represents a timer with delayed arming. Once Arm is called, the
-// object's Done() method will return after d time. If d is 0, the read from
-// channel Done() will instead block forever.
+// channel return by Done() will be closed after d time. If d is 0, the channel
+// is never closed.
 type Trigger struct {
 	d    time.Duration
 	ch   chan struct{}
@@ -70,6 +70,9 @@ func (t *Trigger) Done() <-chan struct{} {
 
 // Arm starts the trigger's preset timer, and returns the corresponding timer
 // object. If the trigger is not configured with a timer, nil is returned.
+//
+// Calling Arm multiple times on the same object is a no-op. Every successive
+// call will return nil.
 func (t *Trigger) Arm() *time.Timer {
 	var timer *time.Timer
 	t.once.Do(
