@@ -55,26 +55,23 @@ func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := ps.ParseRaw(); err != nil {
-		return nil, err
-	}
-	return ps, ps.Validate()
+	return ps, ps.ParseRaw()
 }
 
 func (ps *PathSegment) ParseRaw() error {
-	for _, rawASEntry := range ps.RawASEntries {
-		asEntry, err := NewASEntryFromRaw(rawASEntry.Blob)
-		if err != nil {
-			return err
-		}
-		ps.ASEntries = append(ps.ASEntries, asEntry)
-	}
-	sdata, err := NewPathSegmentSignedDataFromRaw(ps.RawSData)
+	var err error
+	ps.SData, err = NewPathSegmentSignedDataFromRaw(ps.RawSData)
 	if err != nil {
 		return err
 	}
-	ps.SData = sdata
-	return nil
+	ps.ASEntries = make([]*ASEntry, len(ps.RawASEntries))
+	for i, rawASEntry := range ps.RawASEntries {
+		ps.ASEntries[i], err = NewASEntryFromRaw(rawASEntry.Blob)
+		if err != nil {
+			return err
+		}
+	}
+	return ps.Validate()
 }
 
 func (ps *PathSegment) ID() (common.RawBytes, error) {
@@ -137,6 +134,22 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 		}
 	}
 	return false
+}
+
+// walkHopEntries iterates through the hop entries of asEntries, checking that
+// the hop fields within can be parsed. If an parse error is found, the
+// function immediately returns with an error.
+func (ps *PathSegment) WalkHopEntries() error {
+	for _, asEntry := range ps.ASEntries {
+		for _, hopEntry := range asEntry.HopEntries {
+			_, err := hopEntry.HopField()
+			if err != nil {
+				return common.NewBasicError("invalid hop field found in ASEntry",
+					err, "asEntry", asEntry)
+			}
+		}
+	}
+	return nil
 }
 
 func (ps *PathSegment) AddASEntry(ase *ASEntry, signType proto.SignType,
