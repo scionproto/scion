@@ -102,10 +102,12 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	}
 	// Try to build paths from local information first
 	paths, err := f.buildPathsFromDB(ctx, req)
-	if err != nil {
+	switch {
+	case ctx.Err() != nil:
+		return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+	case err != nil:
 		return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
-	}
-	if err == nil && len(paths) > 0 {
+	case err == nil && len(paths) > 0:
 		return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
 	}
 	// We don't have enough local information, grab fresh segments from the
@@ -121,10 +123,12 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case <-ctx.Done():
 	}
 	paths, err = f.buildPathsFromDB(ctx, req)
-	if err != nil {
+	switch {
+	case ctx.Err() != nil:
+		return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+	case err != nil:
 		return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
-	}
-	if err == nil && len(paths) > 0 {
+	case err == nil && len(paths) > 0:
 		return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
 	}
 	// If we reached this point because the early reply fired but we still
@@ -136,11 +140,13 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 		case <-ctx.Done():
 		}
 		paths, err := f.buildPathsFromDB(ctx, req)
-		if err != nil {
+		switch {
+		case ctx.Err() != nil:
+			return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+		case err != nil:
 			return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
-		}
-		if err == nil && len(paths) > 0 {
-			return f.buildSCIONDReply(paths, sciond.ErrorOk), err
+		case err == nil && len(paths) > 0:
+			return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
 		}
 	}
 	// Your paths are in another castle
@@ -375,19 +381,19 @@ Loop:
 		case result := <-unitResultsC:
 			if _, ok := result.Errors[-1]; ok {
 				log.Info("Segment verification failed",
-					"segment", result.Unit.SegMeta.Segment.String(), "err", result.Errors[-1])
+					"segment", result.Unit.SegMeta.Segment, "err", result.Errors[-1])
 			} else {
 				// Verification succeeded
 				n, err := t.pathDB.Insert(&result.Unit.SegMeta.Segment,
 					[]proto.PathSegType{result.Unit.SegMeta.Type})
 				if err != nil {
 					log.Warn("Unable to insert segment into path database",
-						"segment", result.Unit.SegMeta.Segment.String(), "err", err)
+						"segment", result.Unit.SegMeta.Segment, "err", err)
 					continue
 				}
 				if n > 0 {
 					log.Debug("Inserted segment into path database",
-						"segment", result.Unit.SegMeta.Segment.String())
+						"segment", result.Unit.SegMeta.Segment)
 				}
 			}
 			// Insert successfully verified revocations into the revcache

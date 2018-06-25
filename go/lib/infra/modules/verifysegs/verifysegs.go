@@ -81,8 +81,8 @@ func (u *Unit) Verify(ctx context.Context, unitResults chan UnitResult) {
 		// FIXME(scrye): build actual trust trail here
 		go verifyRevInfo(ctx, index, sRevInfo, []addr.ISD{}, responses)
 	}
-	// Response writers must guarantee that the for returns before (or very
-	// close around) ctx.Done()
+	// Response writers must guarantee that the for loop below returns before
+	// (or very close around) ctx.Done()
 	errs := make(map[int]error)
 	for numResults := 0; numResults < u.Len(); numResults++ {
 		result := <-responses
