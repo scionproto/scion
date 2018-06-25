@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -56,6 +57,9 @@ type Parameters struct {
 }
 
 func TestFetch(t *testing.T) {
+	dir, cleanF := xtest.MustTempDir("", "fetcher")
+	defer cleanF()
+
 	testCases := []struct {
 		name       string
 		parameters *Parameters
@@ -64,8 +68,8 @@ func TestFetch(t *testing.T) {
 		{
 			name: "non-core AS",
 			parameters: &Parameters{
-				pathDBPath:   "/tmp/test1.pathdb",
-				trustDBPath:  "/tmp/test1.trustdb",
+				pathDBPath:   filepath.Join(dir, "test1.pathdb"),
+				trustDBPath:  filepath.Join(dir, "test1.trustdb"),
 				topologyPath: "../../../../gen/ISD1/ASff00_0_133/endhost/topology.json",
 				localSnet:    "1-ff00:0:133,[127.0.0.1]:60001",
 				localIA:      xtest.MustParseIA("1-ff00:0:133"),
@@ -101,8 +105,8 @@ func TestFetch(t *testing.T) {
 		{
 			name: "core AS",
 			parameters: &Parameters{
-				pathDBPath:   "/tmp/test2.pathdb",
-				trustDBPath:  "/tmp/test2.trustdb",
+				pathDBPath:   filepath.Join(dir, "test2.pathdb"),
+				trustDBPath:  filepath.Join(dir, "test2.trustdb"),
 				topologyPath: "../../../../gen/ISD1/ASff00_0_110/endhost/topology.json",
 				localSnet:    "1-ff00:0:110,[127.0.0.1]:60002",
 				localIA:      xtest.MustParseIA("1-ff00:0:110"),
@@ -162,11 +166,13 @@ func Init(t *testing.T, parameters *Parameters) *Fetcher {
 	xtest.FailOnErr(t, err)
 	trustDB, err := trustdb.New(parameters.trustDBPath)
 	xtest.FailOnErr(t, err)
-	trcobjA, err := trc.TRCFromFile("testdata/ISD1-V1.trc", false)
+	trcobjA, err := trc.TRCFromFile(
+		"../../../../gen/ISD1/ASff00_0_110/endhost/certs/ISD1-V1.trc", false)
 	xtest.FailOnErr(t, err)
 	_, err = trustDB.InsertTRC(trcobjA)
 	xtest.FailOnErr(t, err)
-	trcobjB, err := trc.TRCFromFile("testdata/ISD2-V1.trc", false)
+	trcobjB, err := trc.TRCFromFile(
+		"../../../../gen/ISD2/ASff00_0_220/endhost/certs/ISD2-V1.trc", false)
 	xtest.FailOnErr(t, err)
 	_, err = trustDB.InsertTRC(trcobjB)
 	xtest.FailOnErr(t, err)

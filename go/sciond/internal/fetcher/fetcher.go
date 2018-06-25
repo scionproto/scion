@@ -45,7 +45,7 @@ import (
 )
 
 const (
-	DefaultWorkerLifetime = 10 * time.Second
+	DefaultMinWorkerLifetime = 10 * time.Second
 )
 
 // requestID is used to generate unique request IDs for the messenger.
@@ -113,7 +113,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// We don't have enough local information, grab fresh segments from the
 	// network. The spawned goroutine takes care of updating the path database
 	// and revocation cache.
-	subCtx, cancelF := context.WithTimeout(context.Background(), DefaultWorkerLifetime)
+	subCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
 	earlyTrigger := util.NewTrigger(earlyReplyInterval)
 	go f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger)
 	// Wait for deadlines while also waiting for the early reply.
@@ -446,7 +446,7 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 			Sibra     bool
 			CacheOnly bool
 		}{
-			Sibra:     req.Flags.Sibra,
+			Sibra:     false,
 			CacheOnly: false,
 		},
 	}
@@ -477,4 +477,37 @@ func iaInSlice(ia addr.IA, slice []addr.IA) bool {
 		}
 	}
 	return false
+}
+
+// NewExtendedContext returns a new _independent_ context that can extend past
+// refCtx's lifetime, guaranteeing a minimum lifetime of minLifetime. If
+// refCtx has a deadline, the newly created context will have a deadline equal
+// to the maximum of refCtx's deadline and (minLifetime + currentTime). If
+// refCtx does not have a deadline, the newly created context will also not
+// have a deadline.
+//
+// Because the returned context is independent, calling refCtx's cancellation
+// function will not result in the cancellation of the returned context.
+func NewExtendedContext(refCtx context.Context,
+	minLifetime time.Duration) (context.Context, context.CancelFunc) {
+
+	var subCtx context.Context
+	var cancelF context.CancelFunc
+	deadline, ok := refCtx.Deadline()
+	if !ok {
+		// Reference context set to last forever, so we make the workers inherit
+		// this behavior (this will probably only be used during testing)
+		subCtx, cancelF = context.WithCancel(context.Background())
+	} else {
+		otherDeadline := time.Now().Add(minLifetime)
+		subCtx, cancelF = context.WithDeadline(context.Background(), max(deadline, otherDeadline))
+	}
+	return subCtx, cancelF
+}
+
+func max(x, y time.Time) time.Time {
+	if x.Before(y) {
+		return y
+	}
+	return x
 }

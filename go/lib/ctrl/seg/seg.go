@@ -118,6 +118,10 @@ func (ps *PathSegment) Validate() error {
 			return err
 		}
 	}
+	// Check that all hop fields can be extracted
+	if err := ps.WalkHopEntries(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -126,6 +130,8 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 		for _, entry := range asEntry.HopEntries {
 			hf, err := entry.HopField()
 			if err != nil {
+				// This should not happen, as Validate already checks that it
+				// is possible to extract the hop field.
 				panic(err)
 			}
 			if asEntry.IA().Eq(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
