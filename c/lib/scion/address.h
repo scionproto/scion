@@ -39,18 +39,30 @@ typedef struct {
 #define SCION_ADDR_PAD 8
 
 // Address types and lens
-// Null address type
-#define ADDR_NONE_TYPE  0
-#define ADDR_NONE_LEN   0
-// IPv4 address type
-#define ADDR_IPV4_TYPE  1
-#define ADDR_IPV4_LEN   4
-// IPv6 address type
-#define ADDR_IPV6_TYPE  2
-#define ADDR_IPV6_LEN   16
-// SCION Service address type
-#define ADDR_SVC_TYPE   3
-#define ADDR_SVC_LEN    2
+#define foreach_addr_type_len \
+_(NONE, 0)  \
+_(IPV4, 4)  \
+_(IPV6, 16) \
+_(SVC, 2)
+
+enum {
+#define _(type, len) ADDR_##type##_TYPE,
+    foreach_addr_type_len
+#undef _
+    ADDR_TYPE_N
+};
+
+enum {
+#define _(type, len) ADDR_##type##_LEN = len,
+    foreach_addr_type_len
+#undef _
+};
+
+static const uint32_t ADDR_LENS[] = {
+#define _(type, len) len,
+    foreach_addr_type_len
+#undef _
+};
 
 // SVC addresses
 #define SVC_BEACON 0
@@ -68,7 +80,7 @@ typedef struct {
 #define DST_IA_OFFSET sizeof(SCIONCommonHeader)
 #define SRC_IA_OFFSET sizeof(SCIONCommonHeader) + ISD_AS_LEN
 
-int get_addr_len(int type);
+int get_addr_len(uint8_t type);
 isdas_t get_dst_isd_as(uint8_t *buf);
 isdas_t get_src_isd_as(uint8_t *buf);
 uint8_t get_dst_len(uint8_t *buf);
@@ -78,5 +90,6 @@ uint8_t * get_dst_addr(uint8_t *buf);
 uint8_t * get_src_addr(uint8_t *buf);
 void format_host(int, uint8_t *, char *, int);
 void print_addresses(uint8_t *buf);
+char *addr_type_str(uint8_t addr_type);
 
 #endif

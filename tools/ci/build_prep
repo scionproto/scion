@@ -6,6 +6,8 @@ git submodule sync --recursive
 git submodule update --init --recursive
 # Restore the go dependency cache from scion_base
 tar xf ~/go_vendor.tar.gz -C go/vendor/
+# Restore the python dependency cache from scion_base
+tar xf ~/python_local.tar.gz -C ~
 # Ensure none of the dependency information has changed since scion_base was
 # last built. If any has, exit non-zero at the end of this step.
 ./docker/deps_check || rt=1

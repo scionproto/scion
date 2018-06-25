@@ -30,13 +30,7 @@ import (
 
 // validatePath validates the path header.
 func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
-	if assert.On {
-		assert.Mustf(rp.ifCurr != nil, rp.ErrStr, "rp.ifCurr must not be nil")
-	}
-	// First check to make sure the current interface is known and not revoked.
-	if err := rp.validateLocalIF(rp.ifCurr); err != nil {
-		return err
-	}
+	// First check if there is a path
 	if rp.infoF == nil || rp.hopF == nil {
 		// If there's no path, then there's nothing to check.
 		if rp.DirTo == rcmn.DirSelf {
@@ -46,6 +40,10 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 		}
 		return common.NewBasicError("Path required",
 			scmp.NewError(scmp.C_Path, scmp.T_P_PathRequired, nil, nil))
+	}
+	// There is a path, so ifCurr will be set
+	if err := rp.validateLocalIF(rp.ifCurr); err != nil {
+		return err
 	}
 	// A verify-only Hop Field cannot be used for routing.
 	if rp.hopF.VerifyOnly {
@@ -404,7 +402,8 @@ func (rp *RtrPkt) ConsDirFlag() (*bool, error) {
 	return rp.consDirFlag, nil
 }
 
-// IFCurr retrieves the current interface ID if not already known.
+// IFCurr retrieves the current interface ID from the packet headers/extensions,
+// if not already known.
 func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 	if rp.ifCurr != nil {
 		return rp.ifCurr, nil
@@ -434,8 +433,7 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 			return rp.checkSetCurrIF(&rp.hopF.ConsEgress)
 		}
 	}
-	// Default to the first IfID from Ingress.IfIDs
-	return rp.checkSetCurrIF(&rp.Ingress.IfIDs[0])
+	return nil, nil
 }
 
 // checkSetCurrIF is a helper function that ensures the given interface ID is

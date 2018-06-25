@@ -42,22 +42,22 @@ func TestQuery(t *testing.T) {
 			aps := pm.Query(srcIA, dstIA)
 			SoMsg("aps len", len(aps), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(aps), ShouldContain,
-				"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-					"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 		})
 		Convey("Wait 200ms for paths to expire, then query and get new paths", func() {
 			// Add new path between 1-ff00:0:133 and 1-ff00:0:131
-			g.AddLink("1-ff00:0:133", 13313202, "1-ff00:0:132", 13213302)
+			g.AddLink("1-ff00:0:133", 101902, "1-ff00:0:132", 191002, false)
 			// Wait for two seconds to guarantee that the pathmgr refreshes the paths
 			<-time.After(200 * time.Millisecond)
 			aps := pm.Query(srcIA, dstIA)
 			SoMsg("aps len", len(aps), ShouldEqual, 2)
 			SoMsg("path #1", getPathStrings(aps), ShouldContain,
-				"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-					"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 			SoMsg("path #2", getPathStrings(aps), ShouldContain,
-				"[1-ff00:0:133#13313202 1-ff00:0:132#13213302 "+
-					"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+				"[1-ff00:0:133#101902 1-ff00:0:132#191002 "+
+					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 		})
 	})
 }
@@ -78,8 +78,8 @@ func TestQueryFilter(t *testing.T) {
 		aps := pm.QueryFilter(srcIA, dstIA, filter)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
-			"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-				"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 	})
 }
 
@@ -88,7 +88,7 @@ func TestRegister(t *testing.T) {
 		g := graph.NewDefaultGraph()
 		// Remove link between 1-ff00:0:132 and 1-ff00:0:131 so that the initial path set is
 		// nil
-		g.RemoveLink(133132)
+		g.RemoveLink(1019)
 		pm := NewPR(t, g, 100, 100, 100)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -101,35 +101,35 @@ func TestRegister(t *testing.T) {
 			// Re-add the link between 1-ff00:0:132 and 1-ff00:0:131; the path manager will
 			// update APS behind the scenes (after a normal refire of one
 			// second), so it should contain the path after 4 seconds.
-			g.AddLink("1-ff00:0:133", 133132, "1-ff00:0:132", 132133)
+			g.AddLink("1-ff00:0:133", 1019, "1-ff00:0:132", 1910, false)
 			<-time.After(200 * time.Millisecond)
 			SoMsg("aps", len(sp.Load().APS), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
-				"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-					"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 		})
 	})
 }
 
 func TestRegisterFilter(t *testing.T) {
-	Convey("Register filter 1-ff00:0:132#132133", t, func() {
+	Convey("Register filter 1-ff00:0:132#1910", t, func() {
 		g := graph.NewDefaultGraph()
 		pm := NewPR(t, g, 500, 500, 1000)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#132133")
+		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#1910")
 		xtest.FailOnErr(t, err)
 
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#131132",
+		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#1619",
 			pktcls.NewCondPathPredicate(pp))
 
 		sp, err := pm.WatchFilter(srcIA, dstIA, filter)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("len aps", len(sp.Load().APS), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
-			"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-				"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 	})
 }
 
@@ -146,66 +146,66 @@ func TestRevoke(t *testing.T) {
 
 		aps := pm.Query(querySrc, queryDst)
 		apsCheckPaths("path", aps,
-			"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-				"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 
 		sp, err := pm.Watch(watchSrc, watchDst)
 		SoMsg("watch: ee", err, ShouldBeNil)
 		apsCheckPaths("watch", sp.Load().APS,
-			"[1-ff00:0:122#122121 1-ff00:0:121#121122 1-ff00:0:121#121120 "+
-				"1-ff00:0:120#120121 1-ff00:0:120#120220 2-ff00:0:220#220120]")
+			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
+				"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 
-		pp, err := spathmeta.NewPathPredicate("1-ff00:0:121#121122")
+		pp, err := spathmeta.NewPathPredicate("1-ff00:0:121#1518")
 		xtest.FailOnErr(t, err)
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:121#121122",
+		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:121#1518",
 			pktcls.NewCondPathPredicate(pp))
 		spf, err := pm.WatchFilter(watchSrc, watchDst, filter)
 		SoMsg("watch filter: err", err, ShouldBeNil)
 		apsCheckPaths("watch filter", spf.Load().APS,
-			"[1-ff00:0:122#122121 1-ff00:0:121#121122 1-ff00:0:121#121120 "+
-				"1-ff00:0:120#120121 1-ff00:0:120#120220 2-ff00:0:220#220120]")
+			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
+				"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 
 		Convey("Revoke a path that's not part of any path set", func() {
-			g.RemoveLink(130110)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"), 130110))
+			g.RemoveLink(1311)
+			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"), 1311))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps,
-				"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-					"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 			apsCheckPaths("watch", sp.Load().APS,
-				"[1-ff00:0:122#122121 1-ff00:0:121#121122 1-ff00:0:121#121120 "+
-					"1-ff00:0:120#120121 1-ff00:0:120#120220 2-ff00:0:220#220120]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
+					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 			apsCheckPaths("watch filter", spf.Load().APS,
-				"[1-ff00:0:122#122121 1-ff00:0:121#121122 1-ff00:0:121#121120 "+
-					"1-ff00:0:120#120121 1-ff00:0:120#120220 2-ff00:0:220#220120]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
+					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 		})
 		Convey("Revoke a path that's in Query, but not in Watch/WatchFilter path sets", func() {
-			// Disconnect #133132
+			// Disconnect #1019
 			// Note that the revoke below only invalidates the cache and
 			// does not inform sciond. This means that the path manager
 			// reaches 0 paths after the revocation, thus forcing a requery
 			// to sciond behind the scenes, which gets back the same path.
-			g.RemoveLink(133132)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:133"), 133132))
+			g.RemoveLink(1019)
+			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:133"), 1019))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps)
 			apsCheckPaths("watch", sp.Load().APS,
-				"[1-ff00:0:122#122121 1-ff00:0:121#121122 1-ff00:0:121#121120 "+
-					"1-ff00:0:120#120121 1-ff00:0:120#120220 2-ff00:0:220#220120]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
+					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 			apsCheckPaths("watch filter", spf.Load().APS,
-				"[1-ff00:0:122#122121 1-ff00:0:121#121122 1-ff00:0:121#121120 "+
-					"1-ff00:0:120#120121 1-ff00:0:120#120220 2-ff00:0:220#220120]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
+					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 		})
 		Convey("Revoke a path that's in Watch and WatchFilter, but not in Query", func() {
-			// Disconnect #122121
+			// Disconnect #1815
 			// The revoke below only invalidates the cache. Because watches
 			// do not requery sciond automatically (like the previous
 			// test), they will be left with 0 paths.
-			g.RemoveLink(122121)
-			pm.cache.revoke(uifidFromValues(watchSrc, 122121))
+			g.RemoveLink(1815)
+			pm.cache.revoke(uifidFromValues(watchSrc, 1815))
 			apsCheckPaths("path", aps,
-				"[1-ff00:0:133#133132 1-ff00:0:132#132133 "+
-					"1-ff00:0:132#132131 1-ff00:0:131#131132]")
+				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 			apsCheckPaths("watch", sp.Load().APS)
 			apsCheckPaths("watch filter", spf.Load().APS)
 		})

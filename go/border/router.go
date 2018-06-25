@@ -128,8 +128,12 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
 		assert.Must(rp.Ingress.Src != nil, "Ingress.Src must be set")
-		assert.Must(len(rp.Ingress.IfIDs) > 0, "Ingress.IfIDs must not be empty")
 		assert.Must(rp.Ctx != nil, "Context must be set")
+		if rp.DirFrom == rcmn.DirLocal {
+			assert.Must(rp.Ingress.IfID == 0, "Ingress.IfID must not be set for DirFrom==DirLocal")
+		} else {
+			assert.Must(rp.Ingress.IfID > 0, "Ingress.IfID must be set for DirFrom==DirExternal")
+		}
 	}
 	// Assign a pseudorandom ID to the packet, for correlating log entries.
 	rp.Id = log.RandId(4)
@@ -142,8 +146,12 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	}
 	// Validation looks for errors in the packet that didn't break basic
 	// parsing.
-	if err := rp.Validate(); err != nil {
+	valid, err := rp.Validate()
+	if err != nil {
 		r.handlePktError(rp, err, "Error validating packet")
+		return
+	}
+	if !valid {
 		return
 	}
 	// Check if the packet needs to be processed locally, and if so register

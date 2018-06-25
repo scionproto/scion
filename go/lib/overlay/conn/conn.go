@@ -334,7 +334,7 @@ func (m *ReadMeta) SetSrc(rai *topology.AddrInfo, raddr *net.UDPAddr, ot overlay
 	m.Src.Overlay = ot
 	m.Src.IP = raddr.IP
 	m.Src.L4Port = raddr.Port
-	m.Src.OverlayPort = overlay.EndhostPort
+	m.Src.OverlayPort = raddr.Port
 }
 
 func NewReadMessages(n int) []ipv4.Message {

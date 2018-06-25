@@ -144,7 +144,7 @@ func genIssuerCert(issuerConf *conf.IssuerCert, s addr.IA) (*cert.Certificate, e
 	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, c.Issuer), pkicmn.KeysDir,
 		trust.OnKeyFile)
 	// Load online root key to sign the certificate.
-	issuerKey, err := trust.LoadKey(issuerKeyPath)
+	issuerKey, err := trust.LoadKey(issuerKeyPath, issuerConf.SignAlgorithm)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 	}
 	issuerKeyPath := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, conf.IssuerIA), pkicmn.KeysDir,
 		trust.IssSigKeyFile)
-	issuerKey, err := trust.LoadKey(issuerKeyPath)
+	issuerKey, err := trust.LoadKey(issuerKeyPath, issuerCert.SignAlgorithm)
 	if err != nil {
 		return nil, err
 	}
@@ -212,12 +212,12 @@ func genASCert(conf *conf.AsCert, s addr.IA, issuerCert *cert.Certificate) (*cer
 func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Certificate, error) {
 	// Load signing and decryption keys that will be in the certificate.
 	keyDir := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, s), pkicmn.KeysDir)
-	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname))
+	signKey, err := trust.LoadKey(filepath.Join(keyDir, signKeyFname), bc.SignAlgorithm)
 	if err != nil {
 		return nil, err
 	}
 	signPub := common.RawBytes(ed25519.PrivateKey(signKey).Public().(ed25519.PublicKey))
-	decKey, err := trust.LoadKey(filepath.Join(keyDir, trust.DecKeyFile))
+	decKey, err := trust.LoadKey(filepath.Join(keyDir, trust.DecKeyFile), bc.EncAlgorithm)
 	if err != nil {
 		return nil, err
 	}

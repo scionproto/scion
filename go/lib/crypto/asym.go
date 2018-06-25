@@ -22,12 +22,16 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+// Available asymmetric crypto algorithms. The values must be lower case.
 const (
 	Ed25519                    = "ed25519"
 	Curve25519xSalsa20Poly1305 = "curve25519xsalsa20poly1305"
-	InvalidKeySize             = "Invalid key size"
-	UnsupportedSignAlgo        = "Unsupported signing algorithm"
-	InvalidSignature           = "Invalid signature"
+)
+
+const (
+	InvalidKeySize      = "Invalid key size"
+	UnsupportedSignAlgo = "Unsupported signing algorithm"
+	InvalidSignature    = "Invalid signature"
 )
 
 // Sign takes a signature input and a signing key to create a signature. Currently only

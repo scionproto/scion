@@ -52,6 +52,8 @@ const (
 	ASInfoTTL  = time.Hour
 	IFInfoTTL  = time.Hour
 	SVCInfoTTL = 10 * time.Second
+	// DefaultSCIONDPath contains the system default for a SCIOND socket.
+	DefaultSCIONDPath = "/run/shm/sciond/default.sock"
 )
 
 // Service describes a SCIOND endpoint. New connections to SCIOND can be
@@ -344,7 +346,7 @@ func (c *connector) Close() error {
 // GetDefaultSCIONDPath return default sciond path for a given IA
 func GetDefaultSCIONDPath(ia *addr.IA) string {
 	if ia == nil || ia.IsZero() {
-		return "/run/shm/sciond/default.sock"
+		return DefaultSCIONDPath
 	}
 	return fmt.Sprintf("/run/shm/sciond/sd%s.sock", ia.FileFmt(false))
 }

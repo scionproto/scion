@@ -9,11 +9,11 @@ BASE=$(dirname "$0")
 
 tmpdir=$(mktemp -d /tmp/zlog.XXXXXXX)
 cd "${tmpdir:?}"
-curl -L https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1
-make -j6
+curl -L $CURL_PARAM https://github.com/HardySimpson/zlog/archive/1.2.12.tar.gz | tar xzf - --strip-components=1
+make -sj6
 echo "ldconfig" >> postinstall-pak
 echo "ldconfig" >> postremove-pak
-sudo checkinstall -D --pkgname zlog --nodoc -y --deldoc --deldesc --strip=no --stripso=no --pkgversion 1.2.12
-sudo rm *deb
+sudo_preload checkinstall -D --pkgname zlog --nodoc -y --deldoc --deldesc --strip=no --stripso=no --pkgversion 1.2.12 &> checkinstall.log || cat checkinstall.log
+sudo_preload rm *deb
 cd -
 rm -r "${tmpdir:?}"

@@ -111,16 +111,19 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 }
 
 func (t *Topo) populateBR(raw *RawTopo) error {
-	var err error
 	for name, rawBr := range raw.BorderRouters {
+		if rawBr.InternalAddr == nil {
+			return common.NewBasicError("Missing Internal Address", nil)
+		}
+		intAddr, err := rawBr.InternalAddr.ToTopoAddr(t.Overlay)
+		if err != nil {
+			return err
+		}
 		brInfo := BRInfo{}
 		for ifid, rawIntf := range rawBr.Interfaces {
+			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
-			ifinfo := IFInfo{BRName: name}
-			intAddr := rawBr.InternalAddrs[rawIntf.InternalAddrIdx]
-			if ifinfo.InternalAddr, err = intAddr.ToTopoAddr(t.Overlay); err != nil {
-				return err
-			}
+			ifinfo := IFInfo{BRName: name, InternalAddr: intAddr}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
@@ -151,23 +154,53 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 func (t *Topo) populateServices(raw *RawTopo) error {
 	// Populate BS, CS, PS, SB, RS and DS maps
 	var err error
-	if t.BSNames, err = svcMapFromRaw(raw.BeaconService, "BS", t.BS, t.Overlay); err != nil {
+	t.BSNames, err = svcMapFromRaw(raw.BeaconService, common.BS, t.BS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.CSNames, err = svcMapFromRaw(raw.CertificateService, "CS", t.CS, t.Overlay); err != nil {
+	t.CSNames, err = svcMapFromRaw(raw.CertificateService, common.CS, t.CS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.PSNames, err = svcMapFromRaw(raw.PathService, "PS", t.PS, t.Overlay); err != nil {
+	t.PSNames, err = svcMapFromRaw(raw.PathService, common.PS, t.PS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.SBNames, err = svcMapFromRaw(raw.SibraService, "SB", t.SB, t.Overlay); err != nil {
+	t.SBNames, err = svcMapFromRaw(raw.SibraService, common.SB, t.SB, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.RSNames, err = svcMapFromRaw(raw.RainsService, "RS", t.RS, t.Overlay); err != nil {
+	t.RSNames, err = svcMapFromRaw(raw.RainsService, common.RS, t.RS, t.Overlay)
+	if err != nil {
 		return err
 	}
-	if t.DSNames, err = svcMapFromRaw(raw.DiscoveryService, "DS", t.DS, t.Overlay); err != nil {
+	t.DSNames, err = svcMapFromRaw(raw.DiscoveryService, common.DS, t.DS, t.Overlay)
+	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// GetTopoAddr is a helper method that returns the TopoAddress for a specific
+// element ID of type t. nodeType must be one of BS, PS, CS, RS or DS. If the
+// ID is not found, nil is returned.
+func (t *Topo) GetTopoAddr(nodeType string, id string) *TopoAddr {
+	var addressMap map[string]TopoAddr
+	switch nodeType {
+	case common.BS:
+		addressMap = t.BS
+	case common.CS:
+		addressMap = t.CS
+	case common.PS:
+		addressMap = t.PS
+	case common.RS:
+		addressMap = t.RS
+	case common.DS:
+		addressMap = t.DS
+	}
+	if _, ok := addressMap[id]; ok {
+		cp := addressMap[id]
+		return &cp
 	}
 	return nil
 }
@@ -212,22 +245,21 @@ type BRInfo struct {
 }
 
 type IFInfo struct {
-	BRName          string
-	InternalAddr    *TopoAddr
-	InternalAddrIdx int
-	Overlay         overlay.Type
-	Local           *TopoAddr
-	Remote          *AddrInfo
-	RemoteIFID      common.IFIDType
-	Bandwidth       int
-	ISD_AS          addr.IA
-	LinkType        LinkType
-	MTU             int
+	BRName       string
+	InternalAddr *TopoAddr
+	Overlay      overlay.Type
+	Local        *TopoAddr
+	Remote       *AddrInfo
+	RemoteIFID   common.IFIDType
+	Bandwidth    int
+	ISD_AS       addr.IA
+	LinkType     LinkType
+	MTU          int
 }
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf(
-		"IFinfo: Name[%s] IntAddr[%+v]#%d Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
-		i.BRName, i.InternalAddr, i.InternalAddrIdx, i.Overlay, i.Local, i.Remote, i.Bandwidth,
-		i.ISD_AS, i.LinkType, i.MTU)
+		"IFinfo: Name[%s] IntAddr[%+v] Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
+		i.BRName, i.InternalAddr, i.Overlay, i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType,
+		i.MTU)
 }

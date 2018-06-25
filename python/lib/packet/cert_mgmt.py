@@ -15,6 +15,9 @@
 :mod:`cert_mgmt` --- SCION cert/trc managment packets
 =====================================================
 """
+# Stdlib
+import threading
+
 # External
 import capnp  # noqa
 
@@ -25,6 +28,15 @@ from lib.crypto.trc import TRC
 from lib.packet.packet_base import CerealBox, Cerealizable
 from lib.packet.scion_addr import ISD_AS
 from lib.types import CertMgmtType
+
+
+class CertRequestState(object):
+
+    def __init__(self, src, meta):
+        self.isd_as = src.ia
+        self.src = src
+        self.meta = meta
+        self.e = threading.Event()
 
 
 class CertMgmt(CerealBox):  # pragma: no cover

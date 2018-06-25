@@ -40,6 +40,7 @@ package disp
 
 import (
 	"context"
+	"io"
 	"net"
 	"sync"
 
@@ -172,43 +173,52 @@ func (d *Dispatcher) goBackgroundReceiver() {
 		d.log.Info("Started")
 		defer d.log.Info("Stopped")
 		defer close(d.stoppedChan)
+	Loop:
 		for {
 			// On each iteration, check for termination signal
 			select {
 			case <-d.closedChan:
 				return
 			default:
-				d.recvNext()
+				if fatal := d.recvNext(); fatal {
+					// fatal error
+					break Loop
+				}
 			}
 		}
 	}()
 }
 
-func (d *Dispatcher) recvNext() {
+// recvNext reads the next packet from the transport. On fatal errors, it
+// returns true.
+func (d *Dispatcher) recvNext() bool {
 	// Once the transport is closed, RecvFrom returns immediately.
 	b, address, err := d.transport.RecvFrom(context.Background())
 	if err != nil {
 		d.log.Warn("error", "err",
 			common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom"))
-		return
+		if err == io.EOF {
+			return true
+		}
+		return false
 	}
 
 	msg, err := d.adapter.RawToMsg(b)
 	if err != nil {
 		d.log.Warn("error", "err",
 			common.NewBasicError(infra.StrAdapterError, err, "op", "RawToMsg"))
-		return
+		return false
 	}
 
 	found, err := d.waitTable.reply(msg)
 	if err != nil {
 		d.log.Warn("error", "err",
 			common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.Reply"))
-		return
+		return false
 	}
 	if found {
 		// If a waiting goroutine was found the message has already been forwarded
-		return
+		return false
 	}
 
 	event := &readEventDesc{address: address, msg: msg}
@@ -218,6 +228,7 @@ func (d *Dispatcher) recvNext() {
 	default:
 		d.log.Warn("Internal queue full, dropped message", "msg", msg)
 	}
+	return false
 }
 
 // Close shuts down the background goroutine and closes the transport.

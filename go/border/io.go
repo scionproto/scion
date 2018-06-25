@@ -126,8 +126,7 @@ Top:
 			// Make a copy, as meta.Src will be overwritten.
 			src := meta.Src
 			rp.Ingress.Src = &src
-			rp.Ingress.IfIDs = s.Ifids
-			rp.Ingress.LocIdx = s.LocIdx
+			rp.Ingress.IfID = s.Ifid
 			rp.Ingress.Sock = sock
 			inputBytes.Add(float64(msg.N))
 			inputPktSize.Observe(float64(msg.N))
@@ -264,6 +263,7 @@ func (r *Router) posixOutput(s *rctx.Sock, _, stopped chan struct{}) {
 // Buffers and Addr based on the corresponding entries in epkts.
 func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
 	ring *ringbuf.Ring, connected bool) (ringbuf.EntryList, bool) {
+
 	if len(epkts) == 0 {
 		epkts = epkts[:cap(epkts)]
 		n, _ := ring.Read(epkts, true)

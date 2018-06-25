@@ -19,7 +19,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 )
@@ -138,37 +137,6 @@ func (t *TopoAddr) validate() string {
 	return ""
 }
 
-// Extract the relevant (v4 or v6) L4Port from a TopoAddr
-func (t *TopoAddr) PubL4PortFromAddr(a addr.HostAddr) (int, bool, error) {
-	switch a.Type() {
-	case addr.HostTypeIPv4:
-		if t.IPv4 == nil {
-			return 0, false, common.NewBasicError(
-				"HostAddr is v4, but Topoaddr does not have v4 address", nil,
-				"topoaddr", t, "hostaddr", a,
-			)
-		}
-		if !t.Overlay.IsIPv4() {
-			return 0, false, common.NewBasicError("HostAddr is v4, but TopoAddr has non-v4 overlay",
-				nil, "topoaddr", t, "hostaddr", a)
-		}
-		return t.IPv4.pubL4Port, t.IPv4.pubIP.Equal(a.IP()), nil
-	case addr.HostTypeIPv6:
-		if t.IPv6 == nil {
-			return 0, false, common.NewBasicError(
-				"HostAddr is v6, but Topoaddr does not have v6 address", nil,
-				"topoaddr", t, "hostaddr", a)
-		}
-		if !t.Overlay.IsIPv6() {
-			return 0, false, common.NewBasicError("HostAddr is v6, but TopoAddr has non-v6 overlay",
-				nil, "topoaddr", t, "hostaddr", a)
-		}
-		return t.IPv6.pubL4Port, t.IPv6.pubIP.Equal(a.IP()), nil
-	default:
-		return 0, false, common.NewBasicError("Unknown HostAddr type", nil, "type", a)
-	}
-}
-
 func (t *TopoAddr) PublicAddrInfo(ot overlay.Type) *AddrInfo {
 	return t.addrInfo(ot, true)
 }
@@ -189,7 +157,7 @@ func (t *TopoAddr) addrInfo(ot overlay.Type, public bool) *AddrInfo {
 
 func (t *TopoAddr) mkAddrInfo(ti *topoAddrInt, ot overlay.Type, public bool) *AddrInfo {
 	ai := &AddrInfo{Overlay: ot.ToIP(), IP: ti.bindIP, L4Port: ti.bindL4Port}
-	if public || ai.IP == nil {
+	if public || ti.bindIP == nil {
 		ai.IP = ti.pubIP
 		ai.L4Port = ti.pubL4Port
 	}

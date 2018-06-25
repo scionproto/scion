@@ -72,7 +72,7 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, error) {
 	// Retrieve the previous HopF, create a new HopF for this AS, and write it into the path header.
 	prevIdx := hOff - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : hOff]
-	inIFid := o.rp.Ingress.IfIDs[0]
+	inIFid := o.rp.Ingress.IfID
 	hopF := spath.NewHopField(o.rp.Raw[hOff:], inIFid, 0)
 	hfmac := o.rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
 	mac, err := hopF.CalcMac(hfmac, infoF.TsInt, prevHof)

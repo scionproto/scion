@@ -7,23 +7,14 @@
     "Core": false,
     "BorderRouters": {
         "br1-ff00:0:311-1": {
-            "InternalAddrs": [
-                {
-                  "Public": [
+            "InternalAddr": {
+                "Public": [
                     {"Addr": "10.1.0.1", "L4Port": 30097},
                     {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30097}
                   ]
-                },
-                {
-                  "Public": [
-                    {"Addr": "10.1.0.2", "L4Port": 30097},
-                    {"Addr": "2001:db8:a0b:12f0::2", "L4Port": 30097}
-                  ]
-                }
-            ],
+            },
             "Interfaces": {
                 "1": {
-                    "InternalAddrIdx": 0,
                     "Overlay": "UDP/IPv4",
                     "Bind": {"Addr": "10.0.0.1", "L4Port": 30090},
                     "Public": {"Addr": "192.0.2.1", "L4Port": 44997},
@@ -34,7 +25,6 @@
                     "MTU": 1472
                 },
                 "3": {
-                    "InternalAddrIdx": 0,
                     "Overlay": "IPv6",
                     "Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 50000},
                     "Remote": {"Addr":"2001:db8:a0b:12f0::2", "L4Port": 50000},
@@ -45,7 +35,6 @@
                     "MTU": 4430
                 },
                 "8": {
-                    "InternalAddrIdx": 1,
                     "Overlay": "IPv4",
                     "Bind": {"Addr": "10.0.0.2", "L4Port": 40000},
                     "Public": {"Addr": "192.0.2.2", "L4Port": 50000},
@@ -66,9 +55,9 @@
         "bs1-ff00:0:311-1": {"Public": [{"Addr": "127.0.0.65", "L4Port": 30054}]},
         "bs1-ff00:0:311-2": {"Public": [{"Addr": "2001:db8:f00:b43::65", "L4Port": 30054}]},
         "bs1-ff00:0:311-3": {"Public": [
-		{"Addr": "2001:db8:f00:b43::123", "L4Port": 10054},
-		{"Addr": "127.0.0.123", "L4Port": 10054}
-	]}
+            {"Addr": "2001:db8:f00:b43::123", "L4Port": 10054},
+            {"Addr": "127.0.0.123", "L4Port": 10054}
+        ]}
     },
     "CertificateService": {
         "cs1-ff00:0:311-1": {

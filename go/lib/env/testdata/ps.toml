@@ -1,0 +1,51 @@
+[general]
+  # The ID of the service. This is used to choose the relevant portion of the
+  # topology file for some services.
+  ID = "ps1-ff00_0_110-1"
+
+  # Directory for loading AS information, certs, keys, path policy, topology
+  ConfigDir = "testdata"
+
+  # Topology file. If not specified, topology.json is loaded from the config
+  # directory.
+  Topology = "testdata/dir/topology.json"
+
+[logging]
+  [logging.file]
+    # Location of the logging file.
+    Path = "logs/sciond.test.log"
+
+    # File logging level (debug|info|warn|error|crit) (default debug)
+    Level = "debug"
+
+    # Max size of log file in MiB (default 50)
+    # Size = 50
+
+    # Max age of log file in days (default 7)
+    # MaxAge = 7
+
+    # How frequently to flush to the log file, in seconds. If 0, all messages
+    # are immediately flushed. If negative, messages are never flushed
+    # automatically.
+    FlushInterval = 10
+  [logging.console]
+    Level = "warn"
+
+[metrics]
+  # The address to export prometheus metrics on. If not set, metrics are not
+  # exported.
+  # Prometheus = "127.0.0.1:8000"
+
+[infra]
+  # Node type. Must be one of BS, PS, CS, RS or DS.
+  Type = "PS"
+  # Public address
+  Public = "1-ff00:0:110,[127.0.1.1]:50000"
+  # Bind address
+  Bind = "1-ff00:0:110,[127.0.1.1]:50000"
+
+[trust]
+  # Database for trust information. If a file already exists, it is treated as
+  # initial trust information. If a file does not exist, it is created from the
+  # initial information found under directory/certs (not implemented yet).
+  TrustDB = "trustdb"

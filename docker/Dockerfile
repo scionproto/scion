@@ -7,6 +7,9 @@ RUN sudo chown -R scion: $BASE
 # Restore the go dependency cache from scion_base
 RUN tar xf ~/go_vendor.tar.gz -C go/vendor/
 
+# Restore the python dependency cache from scion_base
+RUN tar xf ~/python_local.tar.gz -C ~
+
 # Make sure dependencies haven't been changed since scion_base was rebuilt
 RUN docker/deps_check
 

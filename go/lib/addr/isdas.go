@@ -208,6 +208,10 @@ func (ia IA) MarshalText() ([]byte, error) {
 
 // allows IA to be used as a map key in JSON.
 func (ia *IA) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*ia = IA{}
+		return nil
+	}
 	newIA, err := IAFromString(string(text))
 	if err != nil {
 		return err

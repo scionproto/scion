@@ -12,38 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package egress
+// Package reader implements a reader object that reads from tun, routes with
+// support from egress/router to determine the correct egressDispatcher, and
+// puts data on the ring buffer of the egressDispatcher.
+package reader
 
 import (
 	"io"
 	"net"
 	"os"
 
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/sig/egress"
+	"github.com/scionproto/scion/go/sig/egress/router"
 )
 
 const (
-	// FIXME(kormat): these relative sizes will fail if there are lots of egress dispatchers.
-	egressFreePktsCap = 1024
-	egressBufPkts     = 32
-
 	ip4Ver    = 0x4
 	ip6Ver    = 0x6
 	ip4DstOff = 16
 	ip6DstOff = 24
 )
 
-var egressFreePkts *ringbuf.Ring
-
-func Init() {
-	egressFreePkts = ringbuf.New(egressFreePktsCap, func() interface{} {
-		return make(common.RawBytes, common.MaxMTU)
-	}, "egress", prometheus.Labels{"ringId": "freePkts", "sessId": ""})
-}
+var _ egress.Runner = (*Reader)(nil)
 
 type Reader struct {
 	log   log.Logger
@@ -57,10 +50,10 @@ func NewReader(tunIO io.ReadWriteCloser) *Reader {
 func (r *Reader) Run() {
 	defer log.LogPanicAndExit()
 	r.log.Info("EgressReader: starting")
-	bufs := make(ringbuf.EntryList, egressBufPkts)
+	bufs := make(ringbuf.EntryList, egress.EgressBufPkts)
 BatchLoop:
 	for {
-		n, _ := egressFreePkts.Read(bufs, true)
+		n, _ := egress.EgressFreePkts.Read(bufs, true)
 		if n < 0 {
 			break
 		}
@@ -88,28 +81,28 @@ BatchLoop:
 			dstIP, err := r.getDestIP(buf)
 			if err != nil {
 				// Release buffer back to free buffer pool
-				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
 				r.log.Error("EgressReader: unable to get dest IP", "err", err)
 				continue
 			}
-			dstIA, dstRing := NetMap.Lookup(dstIP)
+			dstIA, dstRing := router.NetMap.Lookup(dstIP)
 			if dstRing == nil {
 				// Release buffer back to free buffer pool
-				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
 				r.log.Error("EgressReader: unable to find dest IA", "ip", dstIP)
 				continue
 			}
 			if n, _ := dstRing.Write(ringbuf.EntryList{buf}, false); n != 1 {
 				// Release buffer back to free buffer pool
-				egressFreePkts.Write(ringbuf.EntryList{buf}, true)
+				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
 				// FIXME(kormat): replace with metric.
 				r.log.Error("EgressReader: no space in egress worker queue", "ia", dstIA)
 			}
 		}
 	}
-	r.log.Info("EgressDispatcher: stopping")
+	r.log.Info("EgressReader: stopping")
 }
 
 func (r *Reader) getDestIP(b common.RawBytes) (net.IP, error) {

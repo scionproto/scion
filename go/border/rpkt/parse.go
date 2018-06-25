@@ -63,12 +63,6 @@ func (rp *RtrPkt) Parse() error {
 	if _, err := rp.IFNext(); err != nil {
 		return err
 	}
-	if !rp.dstIA.Eq(rp.Ctx.Conf.IA) {
-		// If the destination isn't local, parse the next interface ID as well.
-		if _, err := rp.IFNext(); err != nil {
-			return err
-		}
-	}
 	rp.setDirTo()
 	return nil
 }
@@ -154,7 +148,6 @@ func (rp *RtrPkt) setDirTo() {
 	if assert.On {
 		assert.Mustf(rp.DirFrom != rcmn.DirSelf, rp.ErrStr, "DirFrom must not be DirSelf.")
 		assert.Mustf(rp.DirFrom != rcmn.DirUnset, rp.ErrStr, "DirFrom must not be DirUnset.")
-		assert.Mustf(rp.ifCurr != nil, rp.ErrStr, "rp.ifCurr must not be nil.")
 	}
 	if !rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Packet is not destined to the local AS, so it can't be DirSelf.
@@ -168,11 +161,12 @@ func (rp *RtrPkt) setDirTo() {
 		return
 	}
 	// Local AS is the destination, so figure out if it's DirLocal or DirSelf.
+	// Compare the packet dst address against the address of the interface we received the packet.
 	var taddr *topology.TopoAddr
 	if rp.DirFrom == rcmn.DirExternal {
-		taddr = rp.Ctx.Conf.Net.IFs[*rp.ifCurr].IFAddr
+		taddr = rp.Ctx.Conf.Net.IFs[rp.Ingress.IfID].IFAddr
 	} else {
-		taddr = rp.Ctx.Conf.Net.LocAddr[rp.Ingress.LocIdx]
+		taddr = rp.Ctx.Conf.Net.LocAddr
 	}
 	locIP := taddr.PublicAddrInfo(rp.Ingress.Dst.Overlay).IP
 	if locIP.Equal(rp.dstHost.IP()) {

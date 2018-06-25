@@ -7,17 +7,14 @@
     "Overlay": "IPv4+6",
     "BorderRouters": {
         "borderrouter6-ff00:0:362-1": {
-            "InternalAddrs": [
-                {
+            "InternalAddr": {
                   "Public": [
                     {"Addr": "10.1.0.1", "L4Port": 30097},
                     {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30097}
                   ]
-                }
-            ],
+            },
             "Interfaces": {
                 "91": {
-                    "InternalAddrIdx": 0,
                     "Overlay": "UDP/IPv4",
                     "Bind": {"Addr": "10.0.0.1", "L4Port": 3090},
                     "Public": {"Addr": "192.0.2.1", "L4Port": 4997},
@@ -30,17 +27,14 @@
             }
         },
         "borderrouter6-ff00:0:362-9": {
-            "InternalAddrs": [
-                {
+            "InternalAddr": {
                   "Public": [
                     {"Addr": "10.1.0.2", "L4Port": 3097},
                     {"Addr": "2001:db8:a0b:12f0::2", "L4Port": 3097}
                   ]
-                }
-            ],
+            },
             "Interfaces": {
                 "32": {
-                    "InternalAddrIdx": 0,
                     "Overlay": "IPv6",
                     "Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 50000},
                     "Remote": {"Addr":"2001:db8:a0b:12f0::2", "L4Port": 50000},

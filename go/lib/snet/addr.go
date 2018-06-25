@@ -94,6 +94,24 @@ func (a *Addr) Copy() *Addr {
 	return newA
 }
 
+// UnmarshalText implements encoding.TextUnmarshaler
+func (a *Addr) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*a = Addr{}
+	}
+	other, err := AddrFromString(string(text))
+	if err != nil {
+		return err
+	}
+	*a = *other
+	return nil
+}
+
+func (a *Addr) IsZero() bool {
+	return a.IA.IsZero() && a.Host == nil && a.L4Port == 0 && a.Path == nil &&
+		a.NextHopHost == nil && a.NextHopPort == 0
+}
+
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port
 // (e.g., 1-ff00:0:300,[192.168.1.1]:80) to a SCION address.
 func AddrFromString(s string) (*Addr, error) {

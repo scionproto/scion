@@ -75,7 +75,6 @@ class TestInterfaceElementInit(object):
     @patch("lib.topology.Element.__init__", autospec=True)
     def test_full(self, super_init, isd_as, parse):
         intf_dict = {
-            'InternalAddrIdx': 0,
             'Overlay': 'UDP/IPv4',
             'Public': {
                 'Addr': 'addr',

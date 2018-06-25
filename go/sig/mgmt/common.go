@@ -15,6 +15,7 @@
 package mgmt
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -22,4 +23,9 @@ type SessionType uint8
 
 func (st SessionType) String() string {
 	return fmt.Sprintf("0x%02x", uint8(st))
+}
+
+func (st SessionType) MarshalJSON() ([]byte, error) {
+	// Stop JSON from converting []SessionType to a string
+	return json.Marshal(int(st))
 }
