@@ -82,6 +82,10 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	earlyReplyInterval time.Duration) (*sciond.PathReply, error) {
 
 	req = req.Copy()
+	// Check context
+	if _, ok := ctx.Deadline(); !ok {
+		return nil, common.NewBasicError("Context must have deadline set", nil)
+	}
 	// Check source
 	if req.Src.IA().IsZero() {
 		req.Src = f.topology.ISD_AS.IAInt()
