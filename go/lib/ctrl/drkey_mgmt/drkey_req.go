@@ -25,7 +25,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ proto.Cerealizable = (*DRKeyLvl1Rep)(nil)
+var _ proto.Cerealizable = (*DRKeyLvl1Req)(nil)
 
 type DRKeyLvl1Req struct {
 	SrcIA   addr.IAInt `capnp:"isdas"`
@@ -46,6 +46,5 @@ func (c *DRKeyLvl1Req) Time() time.Time {
 }
 
 func (c *DRKeyLvl1Req) String() string {
-	return fmt.Sprintf("SrcIA: %s ValTime: %v",
-		c.IA(), util.TimeToString(c.Time()))
+	return fmt.Sprintf("SrcIA: %s ValTime: %v", c.IA(), util.TimeToString(c.Time()))
 }
