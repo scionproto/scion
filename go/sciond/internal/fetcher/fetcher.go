@@ -379,9 +379,9 @@ Loop:
 	for numResults := 0; numResults < len(units); numResults++ {
 		select {
 		case result := <-unitResultsC:
-			if _, ok := result.Errors[-1]; ok {
+			if err, ok := result.Errors[-1]; ok {
 				log.Info("Segment verification failed",
-					"segment", result.Unit.SegMeta.Segment, "err", result.Errors[-1])
+					"segment", result.Unit.SegMeta.Segment, "err", err)
 			} else {
 				// Verification succeeded
 				n, err := t.pathDB.Insert(&result.Unit.SegMeta.Segment,
@@ -398,7 +398,10 @@ Loop:
 			}
 			// Insert successfully verified revocations into the revcache
 			for index, revocation := range result.Unit.SRevInfos {
-				if _, ok := result.Errors[index]; !ok {
+				if err, ok := result.Errors[index]; ok {
+					log.Info("Revocation verification failed",
+						"revocation", revocation, "err", err)
+				} else {
 					// Verification succeeded for this revocation, so we can add it to the cache
 					info, err := revocation.RevInfo()
 					if err != nil {
@@ -483,26 +486,19 @@ func iaInSlice(ia addr.IA, slice []addr.IA) bool {
 // refCtx's lifetime, guaranteeing a minimum lifetime of minLifetime. If
 // refCtx has a deadline, the newly created context will have a deadline equal
 // to the maximum of refCtx's deadline and (minLifetime + currentTime). If
-// refCtx does not have a deadline, the newly created context will also not
-// have a deadline.
+// refCtx does not have a deadline, the function panics.
 //
 // Because the returned context is independent, calling refCtx's cancellation
 // function will not result in the cancellation of the returned context.
 func NewExtendedContext(refCtx context.Context,
 	minLifetime time.Duration) (context.Context, context.CancelFunc) {
 
-	var subCtx context.Context
-	var cancelF context.CancelFunc
 	deadline, ok := refCtx.Deadline()
 	if !ok {
-		// Reference context set to last forever, so we make the workers inherit
-		// this behavior (this will probably only be used during testing)
-		subCtx, cancelF = context.WithCancel(context.Background())
-	} else {
-		otherDeadline := time.Now().Add(minLifetime)
-		subCtx, cancelF = context.WithDeadline(context.Background(), max(deadline, otherDeadline))
+		panic("reference context needs to have deadline")
 	}
-	return subCtx, cancelF
+	otherDeadline := time.Now().Add(minLifetime)
+	return context.WithDeadline(context.Background(), max(deadline, otherDeadline))
 }
 
 func max(x, y time.Time) time.Time {
