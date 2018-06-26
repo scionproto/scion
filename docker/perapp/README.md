@@ -1,4 +1,4 @@
-# scion-distroless
+# Per-application Docker images for SCION
 
 Per-application Docker images for SCION
 
