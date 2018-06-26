@@ -467,7 +467,7 @@ func getStartIAs(segments []*seg.PathSegment) []addr.IA {
 }
 
 func revCacheKey(ia addr.IA, ifid common.IFIDType) string {
-	return fmt.Sprintf("%v#%v", ia, ifid)
+	return fmt.Sprintf("%s#%s", ia, ifid)
 }
 
 func iaInSlice(ia addr.IA, slice []addr.IA) bool {
