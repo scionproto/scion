@@ -20,7 +20,6 @@ import logging
 import os
 import selectors
 import struct
-import time
 from abc import abstractmethod
 from errno import EHOSTUNREACH, ENETUNREACH
 from socket import (
@@ -34,29 +33,19 @@ from socket import (
     SO_REUSEADDR,
     socket,
 )
-import threading
 
 # External
 from external import ipaddress
 
 # SCION
-from lib.defines import SCION_BUFLEN, TCP_TIMEOUT
+from lib.defines import SCION_BUFLEN
 from lib.dispatcher import reg_dispatcher
-from lib.errors import (
-    SCIONBaseError,
-    SCIONIOError,
-    SCIONTCPError,
-    SCIONTCPTimeout,
-)
-from lib.log import log_exception
-from lib.msg_meta import TCPMetadata
+from lib.errors import SCIONIOError
 from lib.packet.host_addr import haddr_get_type, haddr_parse_interface
-from lib.packet.ctrl_pld import SignedCtrlPayload
 from lib.packet.scmp.errors import SCMPUnreachHost, SCMPUnreachNet
 from lib.util import recv_all
 from lib.thread import kill_self
 from lib.types import AddrType
-from lib.util import hex_str
 
 
 class Socket(object):
@@ -339,8 +328,6 @@ class SocketMgr(object):
         """
         if not sock.is_active():
             return
-        if isinstance(sock, TCPSocketWrapper):
-            sock.sock.setblocking(False)
         self._sel.register(sock.sock, selectors.EVENT_READ, (sock, callback))
 
     def remove(self, sock):  # pragma: no cover
@@ -350,18 +337,6 @@ class SocketMgr(object):
         :param UDPSocket sock: UDPSocket to remove.
         """
         self._sel.unregister(sock.sock)
-
-    def remove_inactive(self):
-        """
-        Removes inactive TCP sockets.
-        """
-        mapping = self._sel.get_map()
-        if mapping:
-            for entry in list(mapping.values()):
-                sock = entry.data[0]
-                if not sock.is_active():
-                    self.remove(sock)
-                    sock.close()
 
     def select_(self, timeout=None):
         """
@@ -385,93 +360,3 @@ class SocketMgr(object):
                 self.remove(sock)
                 sock.close()
         self._sel.close()
-
-
-class TCPSocketWrapper(object):
-    """
-    Base class for accepted and connected TCP sockets used by SCION services.
-    """
-    RECV_SIZE = 8092
-
-    def __init__(self, sock, addr, path, active=True):
-        self._buf = bytearray()
-        self._tcp_sock = sock
-        self.sock = None  # Used by the selector.
-        if self._tcp_sock:
-            self.sock = self._tcp_sock._lwip_sock
-        self.active = active
-        self._addr = addr
-        self._path = path
-        self._lock = threading.RLock()
-        self._last_io = time.time()
-
-    def _get_meta(self):
-        return TCPMetadata.from_values(ia=self._addr.isd_as,
-                                       host=self._addr.host, path=self._path,
-                                       sock=self)
-
-    def _get_msg(self):
-        if len(self._buf) < 4:
-            return None
-        msg_len = struct.unpack("!I", self._buf[:4])[0]
-        if msg_len + 4 > len(self._buf):
-            return None
-        msg = self._buf[4:4 + msg_len]
-        self._buf = self._buf[4 + msg_len:]
-        try:
-            return SignedCtrlPayload.from_raw(msg).pld()
-        except SCIONBaseError:
-            log_exception("Error parsing message: %s" % hex_str(msg),
-                          level=logging.ERROR)
-            return None
-
-    def get_msg_meta(self):
-        with self._lock:
-            msg = self._get_msg()
-            if msg:
-                return msg, self._get_meta()
-            if not self.active:
-                logging.debug("TCP: get_msg_meta(): inactive socket")
-                return None, self._get_meta()
-            try:
-                read = self._tcp_sock.recv(self.RECV_SIZE)
-                if not read:
-                    self.active = False
-                    return None, None
-                self._buf += read
-                self._last_io = time.time()
-            except SCIONTCPTimeout:
-                return None, self._get_meta()
-            except SCIONTCPError:
-                logging.debug("TCP: inactivating socket after socket error")
-                self.active = False
-            return self._get_msg(), self._get_meta()
-
-    def send_msg(self, raw):
-        with self._lock:
-            if not self.active:
-                logging.debug("TCP: send_msg(): inactive socket")
-                return False
-            try:
-                self._tcp_sock.send(raw)
-                self._last_io = time.time()
-                return True
-            except SCIONTCPError:
-                logging.debug("TCP: inactivating after socket error")
-                self.active = False
-        return False
-
-    def close(self):
-        with self._lock:
-            if not self.active:
-                logging.debug("TCP: close(): inactive socket")
-                return
-            try:
-                self._tcp_sock.close()
-            except SCIONTCPError as e:
-                logging.warning("Error on close(): %s", e)
-            self.active = False
-            logging.debug("Leaving close()")
-
-    def is_active(self):
-        return self.active and (time.time() - self._last_io <= TCP_TIMEOUT)
