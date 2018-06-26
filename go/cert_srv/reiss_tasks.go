@@ -35,7 +35,7 @@ import (
 type SelfIssuer struct{}
 
 // Run periodically issues certificate chains for the local AS.
-func (l *SelfIssuer) Run() {
+func (s *SelfIssuer) Run() {
 	if !conf.Get().Topo.Core {
 		log.Info("Stopping SelfIssuer on non-issuer CS")
 		return
@@ -61,13 +61,13 @@ func (l *SelfIssuer) Run() {
 			continue
 		}
 		if iSleep > 0 {
-			if err = l.createLeafCert(leafCrt, config); err != nil {
+			if err = s.createLeafCert(leafCrt, config); err != nil {
 				log.Error("Unable to issue certificate chain", "err", err)
 				time.Sleep(config.ReissRate)
 				continue
 			}
 		} else {
-			if err = l.createIssuerCert(config); err != nil {
+			if err = s.createIssuerCert(config); err != nil {
 				log.Error("Unable to create issuer certificate", "err", err)
 				time.Sleep(config.ReissRate)
 				continue
@@ -77,7 +77,7 @@ func (l *SelfIssuer) Run() {
 }
 
 // createLeafCert creates a leaf certificate.
-func (l *SelfIssuer) createLeafCert(leaf *cert.Certificate, config *conf.Conf) error {
+func (s *SelfIssuer) createLeafCert(leaf *cert.Certificate, config *conf.Conf) error {
 	issCrt, err := getIssuerCert(config)
 	if err != nil {
 		return nil
@@ -109,7 +109,7 @@ func (l *SelfIssuer) createLeafCert(leaf *cert.Certificate, config *conf.Conf) e
 }
 
 // createIssuerCert creates an issuer certificate.
-func (l *SelfIssuer) createIssuerCert(config *conf.Conf) error {
+func (s *SelfIssuer) createIssuerCert(config *conf.Conf) error {
 	crt, err := getIssuerCert(config)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (l *SelfIssuer) createIssuerCert(config *conf.Conf) error {
 	crt.IssuingTime = uint64(time.Now().Unix())
 	crt.CanIssue = true
 	crt.ExpirationTime = crt.IssuingTime + cert.DefaultIssuerCertValidity
-	coreAS, err := l.getCoreASEntry(config)
+	coreAS, err := s.getCoreASEntry(config)
 	if err != nil {
 		return common.NewBasicError("Unable to get core AS entry", err, "cert", crt)
 	}
@@ -135,7 +135,7 @@ func (l *SelfIssuer) createIssuerCert(config *conf.Conf) error {
 	return nil
 }
 
-func (l *SelfIssuer) getCoreASEntry(config *conf.Conf) (*trc.CoreAS, error) {
+func (s *SelfIssuer) getCoreASEntry(config *conf.Conf) (*trc.CoreAS, error) {
 	maxTrc := config.Store.GetNewestTRC(config.PublicAddr.IA.I)
 	if maxTrc == nil {
 		return nil, common.NewBasicError("Unable to find local TRC", nil)
@@ -186,14 +186,14 @@ func NewReissRequester(conn *snet.Conn) *ReissRequester {
 }
 
 // Run periodically requests reissued certificate chains from the issuer AS.
-func (l *ReissRequester) Run() {
+func (r *ReissRequester) Run() {
 	if conf.Get().Topo.Core {
 		log.Info("Stopping ReissRequester on issuer CS")
 		return
 	}
 	for {
 		select {
-		case <-l.stop:
+		case <-r.stop:
 			return
 		default:
 			config := conf.Get()
@@ -210,7 +210,7 @@ func (l *ReissRequester) Run() {
 				time.Sleep(sleep)
 				continue
 			}
-			if err := l.sendReq(chain, config); err != nil {
+			if err := r.sendReq(chain, config); err != nil {
 				log.Error("Unable to send certificate reissue request", "err", err)
 			}
 			time.Sleep(config.ReissRate)
@@ -220,7 +220,7 @@ func (l *ReissRequester) Run() {
 
 // sendReq creates and sends a certificate chain reissue request based on the newest
 // currently active certificate chain.
-func (l *ReissRequester) sendReq(chain *cert.Chain, config *conf.Conf) error {
+func (r *ReissRequester) sendReq(chain *cert.Chain, config *conf.Conf) error {
 	c := chain.Leaf.Copy()
 	c.IssuingTime = uint64(time.Now().Unix())
 	c.ExpirationTime = c.IssuingTime + (chain.Leaf.ExpirationTime - chain.Leaf.IssuingTime)
@@ -239,10 +239,10 @@ func (l *ReissRequester) sendReq(chain *cert.Chain, config *conf.Conf) error {
 	}
 	a := &snet.Addr{IA: c.Issuer, Host: addr.SvcCS}
 	log.Debug("Send certificate reissue request", "req", req, "addr", a)
-	return SendSignedPayload(l.conn, cpld, a, config)
+	return SendSignedPayload(r.conn, cpld, a, config)
 }
 
 // Close terminates the ReissRequester.
-func (l *ReissRequester) Close() {
-	close(l.stop)
+func (r *ReissRequester) Close() {
+	close(r.stop)
 }

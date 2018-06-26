@@ -101,7 +101,7 @@ func (h *ReissHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq,
 	}
 }
 
-// verifySign validates that the signer matches the requester and returns the
+// validateSign validates that the signer matches the requester and returns the
 // certificate chain used when verifying the signature.
 func (h *ReissHandler) validateSign(addr *snet.Addr, signed *ctrl.SignedPld,
 	config *conf.Conf) (*cert.Chain, error) {

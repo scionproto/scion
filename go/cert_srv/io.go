@@ -80,7 +80,7 @@ func (d *Dispatcher) Run() {
 	}
 }
 
-// dispatch hands payload over tho the associated handlers.
+// dispatch hands payload over to the associated handlers.
 func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, config *conf.Conf) error {
 	signed, err := ctrl.NewSignedPldFromRaw(buf)
 	if err != nil {
