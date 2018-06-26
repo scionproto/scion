@@ -94,7 +94,7 @@ func (p *Pld) GetCertMgmt() (*cert_mgmt.Pld, *Data, error) {
 	return certP, p.Data, nil
 }
 
-// GetCertMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
+// GetPathMgmt returns the PathMgmt payload and the CtrlPld's non-union Data.
 // If the union type is not PathMgmt, an error is returned.
 func (p *Pld) GetPathMgmt() (*path_mgmt.Pld, *Data, error) {
 	u, err := p.Union()
@@ -107,6 +107,21 @@ func (p *Pld) GetPathMgmt() (*path_mgmt.Pld, *Data, error) {
 			"expected", "*path_mgmt.Pld", "actual", common.TypeOf(u))
 	}
 	return pathP, p.Data, nil
+}
+
+// GetDRKeyMgmt returns the DRKeyMgmt payload and the CtrlPld's non-union Data.
+// If the union type is not DRKeyMgmt, an error is returned.
+func (p *Pld) GetDRKeyMgmt() (*drkey_mgmt.Pld, *Data, error) {
+	u, err := p.Union()
+	if err != nil {
+		return nil, nil, err
+	}
+	drkeyP, ok := u.(*drkey_mgmt.Pld)
+	if !ok {
+		return nil, nil, common.NewBasicError("Non-matching ctrl pld contents", nil,
+			"expected", "*drkey_mgmt.Pld", "actual", common.TypeOf(u))
+	}
+	return drkeyP, p.Data, nil
 }
 
 func (p *Pld) Len() int {
