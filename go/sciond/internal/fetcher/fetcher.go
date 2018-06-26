@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
-	"github.com/scionproto/scion/go/lib/infra/modules/verifysegs"
+	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -370,8 +370,8 @@ func (t *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 		defer timer.Stop()
 	}
 	// Build verification units
-	units := verifysegs.BuildUnits(reply.Recs.Recs, reply.Recs.SRevInfos)
-	unitResultsC := make(chan verifysegs.UnitResult, len(units))
+	units := segverifier.BuildUnits(reply.Recs.Recs, reply.Recs.SRevInfos)
+	unitResultsC := make(chan segverifier.UnitResult, len(units))
 	for _, unit := range units {
 		go unit.Verify(ctx, unitResultsC)
 	}
