@@ -105,6 +105,16 @@ func (r *RevInfo) String() string {
 		r.LinkType, util.TimeToString(r.Timestamp()), r.TTL())
 }
 
+// RelativeTTL returns the duration r is still valid for, relative to
+// reference. If the revocation is already expired, the returned value is 0.
+func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
+	expiration := r.Expiration()
+	if expiration.Before(reference) {
+		return 0
+	}
+	return expiration.Sub(reference)
+}
+
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)
 
 type SignedRevInfo struct {

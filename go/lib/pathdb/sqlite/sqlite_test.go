@@ -44,7 +44,7 @@ var (
 		&query.NullHpCfgID,
 		{ia330, 0xdeadbeef},
 	}
-	types = []seg.Type{seg.UpSegment, seg.DownSegment}
+	types = []proto.PathSegType{proto.PathSegType_up, proto.PathSegType_down}
 
 	ifspecs = []query.IntfSpec{
 		{IA: ia330, IfID: 5},
@@ -133,7 +133,7 @@ func tempFilename(t *testing.T) string {
 }
 
 func insertSeg(t *testing.T, b *Backend,
-	pseg *seg.PathSegment, types []seg.Type, hpCfgIDs []*query.HPCfgID) int {
+	pseg *seg.PathSegment, types []proto.PathSegType, hpCfgIDs []*query.HPCfgID) int {
 	inserted, err := b.InsertWithHPCfgIDs(pseg, types, hpCfgIDs)
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +189,7 @@ func checkStartsAtOrEndsAt(t *testing.T, b *Backend, table string, segRowID int,
 	SoMsg("StartsAt", segID, ShouldEqual, segRowID)
 }
 
-func checkSegTypes(t *testing.T, b *Backend, segRowID int, types []seg.Type) {
+func checkSegTypes(t *testing.T, b *Backend, segRowID int, types []proto.PathSegType) {
 	for _, segType := range types {
 		var count int
 		err := b.db.QueryRow("SELECT COUNT(*) FROM SegTypes WHERE SegRowID=? AND Type=?",
@@ -236,7 +236,7 @@ type ExpectedInsert struct {
 	Intfs    []query.IntfSpec
 	StartsAt addr.IA
 	EndsAt   addr.IA
-	Types    []seg.Type
+	Types    []proto.PathSegType
 	HpCfgIDs []*query.HPCfgID
 }
 
@@ -366,7 +366,7 @@ func Test_GetMixed(t *testing.T) {
 		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
 			SegID:    segID1,
-			SegTypes: []seg.Type{0},
+			SegTypes: []proto.PathSegType{proto.PathSegType_up},
 		}
 		// Call
 		res, err := b.Get(params)

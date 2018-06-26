@@ -33,6 +33,8 @@ const (
 	ErrorNoPaths
 	ErrorPSTimeout
 	ErrorInternal
+	ErrorBadSrcIA
+	ErrorBadDstIA
 )
 
 func (c PathErrorCode) String() string {
@@ -120,6 +122,16 @@ type PathReq struct {
 	Flags    PathReqFlags
 }
 
+func (pathReq *PathReq) Copy() *PathReq {
+	return &PathReq{
+		Dst:      pathReq.Dst,
+		Src:      pathReq.Src,
+		MaxPaths: pathReq.MaxPaths,
+		Flags:    pathReq.Flags,
+	}
+}
+
+// TODO(scrye): Remove Flush and Sibra flags, add Refresh.
 type PathReqFlags struct {
 	Flush bool
 	Sibra bool

@@ -1,4 +1,4 @@
-// Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package seg
+package messenger
 
-import (
-	"fmt"
+import "sync/atomic"
 
-	"github.com/scionproto/scion/go/proto"
-)
+type Counter uint64
 
-type Meta struct {
-	Type    proto.PathSegType
-	Segment PathSegment `capnp:"pathSeg"`
-}
-
-func (m *Meta) String() string {
-	return fmt.Sprintf("Type: %v, Segment: %v", m.Type, m.Segment)
+// Next is a concurrency-safe generator of unique request IDs for the
+// messenger.
+func (c *Counter) Next() uint64 {
+	return atomic.AddUint64((*uint64)(c), 1)
 }

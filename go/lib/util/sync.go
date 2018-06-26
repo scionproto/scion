@@ -14,6 +14,11 @@
 
 package util
 
+import (
+	"sync"
+	"time"
+)
+
 // ChannelLock implements a sync.Mutex-like API that uses a 1-value channel
 // behind the scenes. This makes it usable in selects that also need to meet
 // context deadlines.
@@ -40,5 +45,51 @@ func (l *ChannelLock) Unlock() {
 	default:
 		// Programming error, double unlock
 		panic("double unlock")
+	}
+}
+
+// Trigger represents a timer with delayed arming. Once Arm is called, the
+// channel return by Done() will be closed after d time. If d is 0, the channel
+// is never closed.
+type Trigger struct {
+	d    time.Duration
+	ch   chan struct{}
+	once sync.Once
+}
+
+func NewTrigger(d time.Duration) *Trigger {
+	return &Trigger{
+		d:  d,
+		ch: make(chan struct{}),
+	}
+}
+
+func (t *Trigger) Done() <-chan struct{} {
+	return t.ch
+}
+
+// Arm starts the trigger's preset timer, and returns the corresponding timer
+// object. If the trigger is not configured with a timer, nil is returned.
+//
+// Calling Arm multiple times on the same object is a no-op. Every successive
+// call will return nil.
+func (t *Trigger) Arm() *time.Timer {
+	var timer *time.Timer
+	t.once.Do(
+		func() {
+			if t.d != 0 {
+				timer = time.AfterFunc(t.d, func() { close(t.ch) })
+			}
+		},
+	)
+	return timer
+}
+
+func (t *Trigger) Triggered() bool {
+	select {
+	case <-t.ch:
+		return true
+	default:
+		return false
 	}
 }

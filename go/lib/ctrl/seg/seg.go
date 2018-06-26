@@ -55,18 +55,23 @@ func NewSegFromRaw(b common.RawBytes) (*PathSegment, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ps, ps.ParseRaw()
+}
+
+func (ps *PathSegment) ParseRaw() error {
+	var err error
 	ps.SData, err = NewPathSegmentSignedDataFromRaw(ps.RawSData)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	for i := range ps.RawASEntries {
-		ase, err := newASEntryFromRaw(ps.RawASEntries[i].Blob)
+	ps.ASEntries = make([]*ASEntry, len(ps.RawASEntries))
+	for i, rawASEntry := range ps.RawASEntries {
+		ps.ASEntries[i], err = NewASEntryFromRaw(rawASEntry.Blob)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		ps.ASEntries = append(ps.ASEntries, ase)
 	}
-	return ps, ps.Validate()
+	return ps.Validate()
 }
 
 func (ps *PathSegment) ID() (common.RawBytes, error) {
@@ -111,6 +116,43 @@ func (ps *PathSegment) Validate() error {
 		}
 		if err := ps.ASEntries[i].Validate(prevIA, nextIA); err != nil {
 			return err
+		}
+	}
+	// Check that all hop fields can be extracted
+	if err := ps.WalkHopEntries(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool {
+	for _, asEntry := range ps.ASEntries {
+		for _, entry := range asEntry.HopEntries {
+			hf, err := entry.HopField()
+			if err != nil {
+				// This should not happen, as Validate already checks that it
+				// is possible to extract the hop field.
+				panic(err)
+			}
+			if asEntry.IA().Eq(ia) && (hf.ConsEgress == ifid || hf.ConsIngress == ifid) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// walkHopEntries iterates through the hop entries of asEntries, checking that
+// the hop fields within can be parsed. If an parse error is found, the
+// function immediately returns with an error.
+func (ps *PathSegment) WalkHopEntries() error {
+	for _, asEntry := range ps.ASEntries {
+		for _, hopEntry := range asEntry.HopEntries {
+			_, err := hopEntry.HopField()
+			if err != nil {
+				return common.NewBasicError("invalid hop field found in ASEntry",
+					err, "asEntry", asEntry)
+			}
 		}
 	}
 	return nil

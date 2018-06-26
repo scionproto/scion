@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -121,6 +122,8 @@ type Messenger interface {
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
 		id uint64) (*cert_mgmt.Chain, error)
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
+	GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
+		id uint64) (*path_mgmt.SegReply, error)
 	AddHandler(msgType string, h Handler)
 	ListenAndServe()
 	CloseServer() error

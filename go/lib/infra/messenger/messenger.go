@@ -76,10 +76,12 @@ import (
 )
 
 const (
-	ChainRequest = "ChainRequest"
-	Chain        = "Chain"
-	TRCRequest   = "TRCRequest"
-	TRC          = "TRC"
+	ChainRequest       = "ChainRequest"
+	Chain              = "Chain"
+	TRCRequest         = "TRCRequest"
+	TRC                = "TRC"
+	PathSegmentRequest = "PathSegmentRequest"
+	PathSegmentReply   = "PathSegmentReply"
 )
 
 var _ infra.Messenger = (*Messenger)(nil)
@@ -204,9 +206,9 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	return m.requester.Notify(ctx, pld, a)
 }
 
-// GetPaths asks the server at the remote address for the paths specified by
-// msg, and returns a verified reply.
-func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
+// GetPathSegs asks the server at the remote address for the path segments that
+// satisfy msg, and returns a verified reply.
+func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
@@ -224,6 +226,9 @@ func (m *Messenger) GetPaths(ctx context.Context, msg *path_mgmt.SegReq,
 	reply, ok := replyMsg.(*path_mgmt.SegReply)
 	if !ok {
 		return nil, newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
+	}
+	if err := reply.ParseRaw(); err != nil {
+		return nil, err
 	}
 	return reply, nil
 }
@@ -323,6 +328,17 @@ func (m *Messenger) validate(pld *ctrl.Pld) (string, proto.Cerealizable, error) 
 			return "", nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type",
 					nil, "capnp_which", pld.CertMgmt.Which)
+		}
+	case proto.CtrlPld_Which_pathMgmt:
+		switch pld.PathMgmt.Which {
+		case proto.PathMgmt_Which_segReq:
+			return PathSegmentRequest, pld.PathMgmt.SegReq, nil
+		case proto.PathMgmt_Which_segReply:
+			return PathSegmentReply, pld.PathMgmt.SegReply, nil
+		default:
+			return "", nil,
+				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",
+					nil, "capnp_which", pld.PathMgmt.Which)
 		}
 	default:
 		return "", nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",

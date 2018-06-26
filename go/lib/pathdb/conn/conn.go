@@ -20,13 +20,14 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type Conn interface {
 	// Insert or update a path segment.
-	Insert(*seg.PathSegment, []seg.Type) (int, error)
+	Insert(*seg.PathSegment, []proto.PathSegType) (int, error)
 	// Insert or update a path segment with a given label.
-	InsertWithHPCfgIDs(*seg.PathSegment, []seg.Type, []*query.HPCfgID) (int, error)
+	InsertWithHPCfgIDs(*seg.PathSegment, []proto.PathSegType, []*query.HPCfgID) (int, error)
 	// Deletes a path segment with a given ID. Returns the number of deleted
 	// path segments (0 or 1).
 	Delete(common.RawBytes) (int, error)
