@@ -23,6 +23,7 @@ override_dh_auto_clean:
 	make libscion target=clean
 	make libtcpmw target=clean
 	make dispatcher target=clean
+	rm -rf bin/*
 
 override_dh_auto_build:
 	make libscion
@@ -30,6 +31,7 @@ override_dh_auto_build:
 	make liblwip
 	make libtcpmw
 	make dispatcher
+	./build-in-tmp.sh
 
 override_dh_auto_install:
 	make libscion target=install DESTDIR=${DESTDIR} PREFIX=/usr
@@ -57,7 +59,8 @@ override_dh_auto_install:
 	make dispatcher target=install DESTDIR=${DESTDIR} PREFIX=/usr
 	cp ${DESTDIR}/usr/bin/dispatcher debian/scion-dispatcher/usr/bin/dispatcher
 	cp ${DESTDIR}/etc/scion/dispatcher.conf debian/scion-dispatcher/etc/scion/dispatcher.conf
-
+	
+	cp bin/* debian/scion-daemons/usr/bin/
 
 override_dh_shlibdeps:
 	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$(pwd)/debian/libscion0/usr/lib:$(pwd)/debian/libfilter0/usr/lib:$(pwd)/debian/libtcpmw0/usr/lib dh_shlibdeps --dpkg-shlibdeps-params="--ignore-missing-info"

@@ -40,7 +40,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, libscion0, libzlog1
 Description: SCION tcp library
  supportive library for scion
 
-
 # libtcpmw0-dev is not viable
 # It requires packing the lwip headers in a very obscure way.
 # Since the static lib is available when we build in-source packages
@@ -59,3 +58,10 @@ Architecture: amd64 i386
 Depends: ${shlibs:Depends}, ${misc:Depends}, libzlog1
 Description: SCION dispatcher service
  supportive scion service
+
+Package: scion-daemons
+Section: net
+Architecture: amd64 i386
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: SCION daemons
+ All golang daemons of scion
