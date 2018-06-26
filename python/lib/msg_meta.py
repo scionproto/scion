@@ -38,7 +38,7 @@ class MetadataBase(object):
         inst.path = path
         inst.ext_hdrs = ext_hdrs
         inst.port = port
-        inst.reuse = reuse  # Indicates to reuse a socket (useful for TCP)
+        inst.reuse = reuse
         return inst
 
     def get_addr(self):
@@ -65,22 +65,6 @@ class SCMPMetadata(MetadataBase):
     """
     def __str__(self):
         return "SCMPMetadata: %s:%d" % (self.get_addr(), self.port)
-
-
-class TCPMetadata(MetadataBase):
-    """
-    Class for TCP message metadata
-    """
-    @classmethod
-    def from_values(cls, ia=None, host=None, path=None,
-                    ext_hdrs=(), port=0, sock=None, flags=0):
-        inst = super().from_values(ia, host, path, ext_hdrs, port)
-        inst.sock = sock
-        inst.flags = flags
-        return inst
-
-    def close(self):
-        self.sock.active = False
 
 
 class SockOnlyMetadata:
