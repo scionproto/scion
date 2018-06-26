@@ -2,13 +2,10 @@
 
 CC = clang
 CFLAGS ?= -Wall -Werror -g -O2
-LDFLAGS ?= -lpthread -Wl,-Bstatic -lzlog -ltcpmw -llwip -lfilter -lscion -Wl,-Bdynamic
+LDFLAGS ?= -lpthread -Wl,-Bstatic -lzlog -lfilter -lscion -Wl,-Bdynamic
 
 LIB_DIR = ../lib
-LWIPDIR = ../../sub/lwip/src/include
-LWIPPORTDIR = ../../sub/lwip-contrib/ports/unix
-INC = -I$(LIB_DIR) -I$(LWIPDIR) -I$(LWIPDIR)/scion -I$(LWIPDIR)/ipv4
-INC += -I$(LWIPPORTDIR)/include -I$(LWIPPORTDIR)/proj/scion
+INC = -I$(LIB_DIR)
 
 TARGETS = dispatcher
 INSTALL = ../../bin/dispatcher
