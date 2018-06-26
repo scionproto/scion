@@ -191,8 +191,7 @@ func (ps *PathSegment) VerifyASEntry(key common.RawBytes, idx int) error {
 }
 
 func (ps *PathSegment) sigPack(idx int) (common.RawBytes, error) {
-	err := ps.validateIdx(idx)
-	if err != nil {
+	if err := ps.validateIdx(idx); err != nil {
 		return nil, err
 	}
 	data := append(common.RawBytes(nil), ps.RawSData...)

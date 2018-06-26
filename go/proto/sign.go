@@ -56,7 +56,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 	case SignType_none:
 		return nil, nil
 	case SignType_ed25519:
-		return crypto.Sign(message, key, crypto.Ed25519)
+		return crypto.Sign(s.sigPack(message, false), key, crypto.Ed25519)
 	}
 	return nil, common.NewBasicError("SignS.Sign: Unsupported SignType", nil, "type", s.Type)
 }
@@ -81,18 +81,25 @@ func (s *SignS) Verify(key, message common.RawBytes) error {
 	case SignType_none:
 		return nil
 	case SignType_ed25519:
-		return crypto.Verify(message, s.Signature, key, crypto.Ed25519)
+		return crypto.Verify(s.sigPack(message, false), s.Signature, key, crypto.Ed25519)
 	}
 	return common.NewBasicError("SignS.Verify: Unsupported SignType", nil, "type", s.Type)
 }
 
 func (s *SignS) Pack() common.RawBytes {
-	raw := make(common.RawBytes, 8)
-	common.Order.PutUint64(raw, s.Timestamp)
-	raw = append(raw, common.RawBytes(s.Type.String())...)
-	raw = append(raw, s.Src...)
-	raw = append(raw, s.Signature...)
-	return raw
+	return s.sigPack(nil, true)
+}
+
+// sigPack appends the type, src, signature (if needed) and timestamp fields to msg
+func (s *SignS) sigPack(msg common.RawBytes, inclSig bool) common.RawBytes {
+	msg = append(msg, common.RawBytes(s.Type.String())...)
+	msg = append(msg, s.Src...)
+	if inclSig {
+		msg = append(msg, s.Signature...)
+	}
+	t := make(common.RawBytes, 8)
+	common.Order.PutUint64(t, s.Timestamp)
+	return append(msg, t...)
 }
 
 func (s *SignS) ProtoId() ProtoIdType {
