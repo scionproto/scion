@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const MaxReadBufSize = 2 << 16
@@ -33,6 +34,7 @@ type Dispatcher struct {
 	stop         chan struct{}
 	stopped      chan struct{}
 	chainHandler *ChainHandler
+	reissHandler *ReissHandler
 	trcHandler   *TRCHandler
 	closed       bool
 }
@@ -49,6 +51,7 @@ func NewDispatcher(public, bind *snet.Addr) (*Dispatcher, error) {
 		stop:         make(chan struct{}),
 		stopped:      make(chan struct{}),
 		chainHandler: NewChainHandler(conn),
+		reissHandler: NewReissHandler(conn),
 		trcHandler:   NewTRCHandler(conn, public.IA),
 	}
 	return d, nil
@@ -73,22 +76,18 @@ func (d *Dispatcher) Run() {
 			if err = d.dispatch(addr, buf, config); err != nil {
 				log.Error("Unable to dispatch", "err", err)
 			}
-
 		}
 	}
 }
 
-// dispatch hands payload over tho the associated handlers.
+// dispatch hands payload over to the associated handlers.
 func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, config *conf.Conf) error {
 	signed, err := ctrl.NewSignedPldFromRaw(buf)
 	if err != nil {
 		return common.NewBasicError("Unable to parse signed payload", err, "addr", addr)
 	}
-	if signed.Sign != nil {
-		verifier := config.GetVerifier()
-		if err := ctrl.VerifySig(signed, verifier); err != nil {
-			return common.NewBasicError("Unable to verify signed payload", err, "addr", addr)
-		}
+	if err := d.verifySign(signed, config.GetVerifier(), addr); err != nil {
+		return common.NewBasicError("Unable to verify sign", err, "addr", addr)
 	}
 	cpld, err := signed.Pld()
 	if err != nil {
@@ -104,21 +103,48 @@ func (d *Dispatcher) dispatch(addr *snet.Addr, buf common.RawBytes, config *conf
 		if err != nil {
 			return common.NewBasicError("Unable to unpack cert_mgmt union", err)
 		}
-		switch pld.(type) {
+		switch pld := pld.(type) {
+		case *cert_mgmt.ChainIssReq:
+			d.reissHandler.HandleReq(addr, pld, signed, config)
+		case *cert_mgmt.ChainIssRep:
+			d.reissHandler.HandleRep(addr, pld, config)
 		case *cert_mgmt.Chain:
-			d.chainHandler.HandleRep(addr, pld.(*cert_mgmt.Chain), config)
+			d.chainHandler.HandleRep(addr, pld, config)
 		case *cert_mgmt.ChainReq:
-			d.chainHandler.HandleReq(addr, pld.(*cert_mgmt.ChainReq), config)
+			d.chainHandler.HandleReq(addr, pld, config)
 		case *cert_mgmt.TRC:
-			d.trcHandler.HandleRep(addr, pld.(*cert_mgmt.TRC), config)
+			d.trcHandler.HandleRep(addr, pld, config)
 		case *cert_mgmt.TRCReq:
-			d.trcHandler.HandleReq(addr, pld.(*cert_mgmt.TRCReq), config)
+			d.trcHandler.HandleReq(addr, pld, config)
 		default:
 			return common.NewBasicError("Handler for cert_mgmt.pld not implemented", nil,
 				"protoID", pld.ProtoId())
 		}
 	default:
 		return common.NewBasicError("Handler for cpld not implemented", nil, "protoID", c.ProtoId())
+	}
+	return nil
+}
+
+func (d *Dispatcher) verifySign(signed *ctrl.SignedPld, verifier ctrl.SigVerifier,
+	addr *snet.Addr) error {
+
+	if signed.Sign == nil {
+		return nil
+	}
+	if err := ctrl.VerifySig(signed, verifier); err != nil {
+		return common.NewBasicError("Unable to verify signature", err)
+	}
+	if signed.Sign.Type == proto.SignType_none {
+		return nil
+	}
+	src, err := ctrl.NewSignSrcDefFromRaw(signed.Sign.Src)
+	if err != nil {
+		return err
+	}
+	if !addr.IA.Eq(src.IA) {
+		return common.NewBasicError("Requester IA does not match signed src IA", nil,
+			"expected", src.IA, "actual", addr.IA)
 	}
 	return nil
 }

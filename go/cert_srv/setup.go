@@ -50,6 +50,7 @@ func setup() error {
 		if err := disp.Close(); err != nil {
 			return common.NewBasicError(ErrorDispClose, err)
 		}
+		reissReq.Close()
 	}
 	// Set the new configuration.
 	conf.Set(newConf)
@@ -58,13 +59,16 @@ func setup() error {
 		if err = initSNET(newConf.PublicAddr.IA, initAttempts, initInterval); err != nil {
 			return common.NewBasicError(ErrorSNET, err)
 		}
+		go (&SelfIssuer{}).Run()
 	}
 	// Create new dispatcher if it does not exist or is closed
 	if oldConf == nil || disp.closed {
 		if disp, err = NewDispatcher(newConf.PublicAddr, newConf.BindAddr); err != nil {
 			return common.NewBasicError(ErrorDispInit, err)
 		}
-		defer func() { go disp.Run() }()
+		go disp.Run()
+		reissReq = NewReissRequester(disp.conn)
+		go reissReq.Run()
 	}
 	return nil
 }

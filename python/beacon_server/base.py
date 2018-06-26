@@ -46,6 +46,7 @@ from lib.errors import (
     SCIONServiceLookupError,
 )
 from lib.msg_meta import UDPMetadata
+from lib.packet.cert_mgmt import CertChainRequest, CertMgmt
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.path_seg_meta import PathSegMeta
 from lib.packet.ctrl_pld import CtrlPayload
@@ -120,6 +121,8 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     IF_TIMEOUT_INTERVAL = 1
     # Interval to send keep-alive msgs
     IFID_INTERVAL = 1
+    # Interval between two consecutive requests (in seconds).
+    CERT_REQ_RATE = 10
 
     def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
         """
@@ -448,6 +451,9 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         threading.Thread(
             target=thread_safety_net, args=(self._check_trc_cert_reqs,),
             name="Elem.check_trc_cert_reqs", daemon=True).start()
+        threading.Thread(
+            target=thread_safety_net, args=(self._check_local_cert,),
+            name="BS._check_local_cert", daemon=True).start()
         super().run()
 
     def worker(self):
@@ -758,6 +764,22 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 meta = self._build_meta(host=br_addr, port=br_port)
                 self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
                                meta, (meta.host, meta.port))
+
+    def _check_local_cert(self):
+        while self.run_flag.is_set():
+            chain = self._get_my_cert()
+            exp = min(chain.as_cert.expiration_time, chain.core_as_cert.expiration_time)
+            diff = exp - int(time.time())
+            if diff > self.config.segment_ttl:
+                time.sleep(diff - self.config.segment_ttl)
+                continue
+            cs_meta = self._get_cs()
+            req = CertChainRequest.from_values(
+                self.addr.isd_as, chain.as_cert.version+1, cache_only=True)
+            logging.info("Request new certificate chain. Req: %s", req)
+            self.send_meta(CtrlPayload(CertMgmt(req)), cs_meta)
+            cs_meta.close()
+            time.sleep(self.CERT_REQ_RATE)
 
     def _init_metrics(self):
         super()._init_metrics()

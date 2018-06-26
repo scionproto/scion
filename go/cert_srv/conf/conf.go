@@ -18,9 +18,12 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -29,7 +32,14 @@ import (
 )
 
 const (
+	// IssuerReissTime is the default value for Conf.IssuerReissTime. It is the same
+	// as the leaf certificate validity period in order to provide optimal coverage.
+	IssuerReissTime = cert.DefaultLeafCertValidity * time.Second
+	// ReissReqRate is the default interval between two consecutive reissue requests.
+	ReissReqRate = 10 * time.Second
+
 	ErrorAddr      = "Unable to load addresses"
+	ErrorIssCert   = "Unable to load issuer certificate"
 	ErrorKeyConf   = "Unable to load KeyConf"
 	ErrorConfNil   = "Unable to reload conf from nil value"
 	ErrorStore     = "Unable to load TrustStore"
@@ -73,15 +83,26 @@ type Conf struct {
 	verifier ctrl.SigVerifier
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
+	// LeafReissTime is the time between starting reissue requests and leaf cert expiration.
+	LeafReissTime time.Duration
+	// IssuerReissTime is the time between self issuing core cert and core cert expiration.
+	IssuerReissTime time.Duration
+	// ReissRate is the interval between two consecutive reissue requests.
+	ReissRate time.Duration
 }
 
 // Load initializes the configuration by loading it from confDir.
 func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, error) {
 	c := &Conf{
-		ID:       id,
-		ConfDir:  confDir,
-		CacheDir: cacheDir,
-		StateDir: stateDir,
+		ID:              id,
+		ConfDir:         confDir,
+		CacheDir:        cacheDir,
+		StateDir:        stateDir,
+		IssuerReissTime: IssuerReissTime,
+		ReissRate:       ReissReqRate,
+	}
+	if err := c.loadLeafReissTime(); err != nil {
+		return nil, err
 	}
 	if err := c.loadTopo(); err != nil {
 		return nil, err
@@ -100,6 +121,9 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 		if c.Customers, err = c.LoadCustomers(); err != nil {
 			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
+		if err = c.loadIssCert(); err != nil {
+			return nil, err
+		}
 	}
 	return c, nil
 }
@@ -112,12 +136,17 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 	// FIXME(roosd): Changing keys for customers outside of the process on-disk
 	// requires a restart of the certificate server in order to be visible.
 	c := &Conf{
-		ID:        oldConf.ID,
-		TrustDB:   oldConf.TrustDB,
-		Customers: oldConf.Customers,
-		ConfDir:   oldConf.ConfDir,
-		CacheDir:  oldConf.CacheDir,
-		StateDir:  oldConf.StateDir,
+		ID:              oldConf.ID,
+		TrustDB:         oldConf.TrustDB,
+		Customers:       oldConf.Customers,
+		ConfDir:         oldConf.ConfDir,
+		CacheDir:        oldConf.CacheDir,
+		StateDir:        oldConf.StateDir,
+		IssuerReissTime: IssuerReissTime,
+		ReissRate:       ReissReqRate,
+	}
+	if err := c.loadLeafReissTime(); err != nil {
+		return nil, err
 	}
 	if err := c.loadTopo(); err != nil {
 		return nil, err
@@ -127,6 +156,11 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 	}
 	if err := c.loadKeyConf(); err != nil {
 		return nil, err
+	}
+	if c.Topo.Core {
+		if err := c.loadIssCert(); err != nil {
+			return nil, err
+		}
 	}
 	return c, nil
 }
@@ -181,11 +215,40 @@ func (c *Conf) loadKeyConf() (err error) {
 	return nil
 }
 
+// loadLeafReissTime loads the as conf and sets the LeafReissTime to the PathSegmentTTL
+// to provide optimal coverage.
+func (c *Conf) loadLeafReissTime() error {
+	if err := as_conf.Load(filepath.Join(c.ConfDir, as_conf.CfgName)); err != nil {
+		return err
+	}
+	c.LeafReissTime = time.Duration(as_conf.CurrConf.PathSegmentTTL) * time.Second
+	return nil
+}
+
+// loadKeyConf inserts the issuer certificate of the newest certificate chain into the trustdb.
+func (c *Conf) loadIssCert() error {
+	chain := c.Store.GetNewestChain(c.PublicAddr.IA)
+	if chain == nil {
+		return common.NewBasicError(ErrorIssCert, nil, "err", "No certificate chain present")
+	}
+	if _, err := c.TrustDB.InsertIssCert(chain.Issuer); err != nil {
+		return common.NewBasicError(ErrorIssCert, err)
+	}
+	return nil
+}
+
 // GetSigningKey returns the signing key of the current key configuration.
 func (c *Conf) GetSigningKey() common.RawBytes {
 	c.keyConfLock.RLock()
 	defer c.keyConfLock.RUnlock()
 	return c.keyConf.SignKey
+}
+
+// GetIssSigningKey returns the issuer signing key of the current key configuration.
+func (c *Conf) GetIssSigningKey() common.RawBytes {
+	c.keyConfLock.RLock()
+	defer c.keyConfLock.RUnlock()
+	return c.keyConf.IssSigKey
 }
 
 // GetDecryptKey returns the decryption key of the current key configuration.
