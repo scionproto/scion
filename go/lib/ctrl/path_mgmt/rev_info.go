@@ -32,10 +32,10 @@ var _ common.Timeout = (*RevTimeError)(nil)
 
 type RevTimeError string
 
-func NewRevTimeError(ts uint64, ttl uint32) RevTimeError {
+func NewRevTimeError(r *RevInfo) RevTimeError {
 	return RevTimeError(fmt.Sprintf(
-		"Revocation is expired, timestamp: %s, TTL %ds.",
-		util.TimeToString(util.USecsToTime(ts)), ttl))
+		"Revocation is expired, timestamp: %s, TTL %s.",
+		util.TimeToString(r.Timestamp()), r.TTL()))
 }
 
 func (ee RevTimeError) Timeout() bool {
@@ -52,10 +52,10 @@ type RevInfo struct {
 	IfID     uint64
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	// LinkType of revocation
-	LinkType  proto.LinkType
-	Timestamp uint64
-	// TTL validity period of the revocation in seconds
-	TTL uint32 `capnp:"ttl"`
+	LinkType     proto.LinkType
+	RawTimestamp uint64 `capnp:"timestamp"`
+	// RawTTL validity period of the revocation in seconds
+	RawTTL uint32 `capnp:"ttl"`
 }
 
 func NewRevInfoFromRaw(b common.RawBytes) (*RevInfo, error) {
@@ -67,19 +67,31 @@ func (r *RevInfo) IA() addr.IA {
 	return r.RawIsdas.IA()
 }
 
+func (r *RevInfo) Timestamp() time.Time {
+	return util.USecsToTime(r.RawTimestamp)
+}
+
+func (r *RevInfo) TTL() time.Duration {
+	return time.Duration(r.RawTTL) * time.Second
+}
+
+func (r *RevInfo) Expiration() time.Time {
+	return r.Timestamp().Add(r.TTL())
+}
+
 func (r *RevInfo) Active() error {
-	if r.TTL < uint32(MinRevTTL.Seconds()) {
+	if r.TTL() < MinRevTTL {
 		return common.NewBasicError("Revocation TTL smaller than MinRevTTL.", nil,
-			"TTL", r.TTL, "MinRevTTL", MinRevTTL.Seconds())
+			"TTL", r.TTL().Seconds(), "MinRevTTL", MinRevTTL.Seconds())
 	}
-	now := uint64(time.Now().Unix())
+	now := time.Now()
 	// Revocation is not valid if timestamp is not within the TTL window
-	if r.Timestamp+uint64(r.TTL) < now {
-		return NewRevTimeError(r.Timestamp, r.TTL)
+	if r.Expiration().Before(now) {
+		return NewRevTimeError(r)
 	}
-	if r.Timestamp > now+1 {
+	if r.Timestamp().After(now.Add(time.Second)) {
 		return common.NewBasicError("Revocation timestamp is in the future.", nil,
-			"timestamp", util.TimeToString(util.USecsToTime(r.Timestamp)))
+			"timestamp", util.TimeToString(r.Timestamp()))
 	}
 	return nil
 }
@@ -89,8 +101,8 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 }
 
 func (r *RevInfo) String() string {
-	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %ds", r.IA(), r.IfID,
-		r.LinkType, util.TimeToString(util.USecsToTime(uint64(r.Timestamp))), r.TTL)
+	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfID,
+		r.LinkType, util.TimeToString(r.Timestamp()), r.TTL())
 }
 
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)
