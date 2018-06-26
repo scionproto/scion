@@ -58,7 +58,10 @@ struct DRKeyLvl2Rep {
     misc :union {         # Additional information (optional)
         unset @4 :Void;
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 15b7df5... Second level drkey message representation
 }
 
 struct DRKeyMgmt {
