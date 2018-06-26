@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package verifysegs implements primitives for verifying path segments.
+// Package segverifier implements primitives for verifying path segments.
 //
 // A Unit contains a path segment, and all the revocations that reference IFIDs
 // in that path segment.
@@ -27,7 +27,7 @@
 //   - If a revocation verification failed, its error is contained at key x,
 //   where x is the position of the revocation in the slice of SignedRevInfos
 //   passed to BuildVerificationUnits.
-package verifysegs
+package segverifier
 
 import (
 	"context"
