@@ -108,7 +108,7 @@ func (r *RevInfo) String() string {
 // RelativeTTL returns the duration r is still valid for, relative to
 // reference. If the revocation is already expired, the returned value is 0.
 func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
-	expiration := time.Unix(int64(r.RawTimestamp), 0).Add(time.Duration(r.RawTTL) * time.Second)
+	expiration := r.Expiration()
 	if expiration.Before(reference) {
 		return 0
 	}
