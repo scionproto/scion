@@ -1,0 +1,123 @@
+version: "3"
+services:
+  zookeeper:
+    image: zookeeper:latest
+    restart: always
+    environment:
+      ZOO_USER: "$LOGNAME"
+      ZOO_DATA_DIR: "/var/lib/zookeeper"
+      ZOO_DATA_LOG_DIR: "/dev/shm/zookeeper"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "./zoo-container.cfg:/conf/zoo.cfg"
+      - "/var/lib/docker-zk:/var/lib/zookeeper"
+      - "/run/shm/docker-zk:/dev/shm/zookeeper"
+  dispatcher:
+    image: scion_dispatcher
+    network_mode: "host"
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "../gen/dispatcher:/share/conf"
+      - "../logs:/share/logs"
+  border:
+    image: scion_border
+    network_mode: "host"
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "../gen/ISD1/ASff00_0_110/br1-ff00_0_110-1:/share/conf"
+      - "../logs:/share/logs"
+    command: ["-id=br1-ff00_0_110-1", "-prom=[127.0.0.49]:30093"]
+  sig:
+    image: scion_sig
+    network_mode: "host"
+    restart: on-failure # FIXME(worxli) #1621: Restarts the SIG when SCIOND was too slow
+    depends_on:
+      - sciond
+      - dispatcher
+    cap_add:
+      - NET_ADMIN
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "/dev/net/tun:/dev/net/tun"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "../go/sig/config/testdata:/share/sig"
+      - "../logs:/share/logs"
+    command: ["-id=sig1", "-config=/share/sig/01-loadfromfile.json", "-log.dir=logs", "-log.level=debug", "-ip=127.0.0.1", "-ia=1-ff00_0_110-1", "-sciond=/run/shm/sciond/sd1-ff00_0_110.sock", "-prom=:9504"]
+  sciond:
+    image: scion_sciond
+    depends_on:
+      - dispatcher
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "../gen/ISD1/ASff00_0_110/endhost:/share/conf:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "../logs:/share/logs"
+    command: ["--api-addr", "/run/shm/sciond/sd1-ff00_0_110.sock", "--log_dir=/share/logs", "sd1-ff00_0_110", "conf"]
+  path:
+    image: scion_path
+    depends_on:
+      - sciond
+      - dispatcher
+      - zookeeper
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "../gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1:/share/conf:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "../logs:/share/logs"
+    command: ["--prom", "[127.0.0.55]:30080", "ps1-ff00_0_110-1", "conf"]
+  beacon:
+    image: scion_beacon
+    depends_on:
+      - sciond
+      - dispatcher
+      - zookeeper
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "../gen/ISD1/ASff00_0_110/bs1-ff00_0_110-1:/share/conf:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "../logs:/share/logs"
+    command: ["--prom", "[127.0.0.53]:30092", "bs1-ff00_0_110-1", "conf"]
+  cert:
+    image: scion_cert
+    depends_on:
+      - sciond
+      - dispatcher
+      - zookeeper
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "/run/shm/sciond:/run/shm/sciond"
+      - "../gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1:/share/conf:ro"
+      - "../gen-cache:/share/gen-cache:ro"
+      - "../logs:/share/logs"
+    command: ["--prom", "[127.0.0.54]:30082", "cs1-ff00_0_110-1", "conf"]

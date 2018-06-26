@@ -48,6 +48,7 @@ topology/mininet/*.pyc
 # Docker working directory
 ##########################
 /docker/_build/
+/docker/perapp/hashes/
 
 # Test coverage
 ##########################
