@@ -33,7 +33,6 @@ import lib.app.sciond as lib_sciond
 from lib.config import Config
 from lib.crypto.certificate_chain import verify_chain_trc
 from lib.errors import SCIONParseError, SCIONVerificationError
-from lib.flagtypes import TCPFlags
 from lib.defines import (
     AS_CONF_FILE,
     BEACON_SERVICE,
@@ -46,21 +45,17 @@ from lib.defines import (
     SERVICE_TYPES,
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
-    TCP_ACCEPT_POLLING_TOUT,
     TOPO_FILE,
 )
 from lib.errors import (
     SCIONBaseError,
     SCIONChecksumFailed,
-    SCIONTCPError,
-    SCIONTCPTimeout,
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
 from lib.msg_meta import (
     SCMPMetadata,
     SockOnlyMetadata,
-    TCPMetadata,
     UDPMetadata,
 )
 from lib.packet.cert_mgmt import (
@@ -102,8 +97,7 @@ from lib.packet.scmp.errors import (
 )
 from lib.packet.scmp.types import SCMPClass
 from lib.packet.scmp.util import scmp_type_name
-from lib.socket import ReliableSocket, SocketMgr, TCPSocketWrapper
-from lib.tcp.socket import SCIONTCPSocket, SockOpt
+from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net, kill_self
 from lib.trust_store import TrustStore
 from lib.types import AddrType, L4Proto, PayloadClass
@@ -147,7 +141,6 @@ class SCIONElement(object):
     """
     SERVICE_TYPE = None
     STARTUP_QUIET_PERIOD = STARTUP_QUIET_PERIOD
-    USE_TCP = False
     # Timeout for TRC or Certificate requests.
     TRC_CC_REQ_TIMEOUT = 3
 
@@ -200,10 +193,7 @@ class SCIONElement(object):
         self._in_buf = queue.Queue(MAX_QUEUE)
         self._socks = SocketMgr()
         self._startup = time.time()
-        if self.USE_TCP:
-            self._DefaultMeta = TCPMetadata
-        else:
-            self._DefaultMeta = UDPMetadata
+        self._DefaultMeta = UDPMetadata
         self.unverified_segs = ExpiringDict(500, 60 * 60)
         self.unv_segs_lock = threading.RLock()
         self.requested_trcs = {}
@@ -231,14 +221,10 @@ class SCIONElement(object):
         """
         Setup incoming socket and register with dispatcher
         """
-        self._tcp_sock = None
-        self._tcp_new_conns = queue.Queue(MAX_QUEUE)  # New TCP connections.
         if self._port is None:
             # No scion socket desired.
             return
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
-        # Setup TCP "accept" socket.
-        self._setup_tcp_accept_socket(svc)
         # Setup UDP socket
         if self.bind:
             # TODO(jonghoonkwon): Fix me to setup socket for a proper bind address,
@@ -257,25 +243,6 @@ class SCIONElement(object):
             CONNECTED_TO_DISPATCHER.labels(**self._labels).set(1)
         self._port = self._udp_sock.port
         self._socks.add(self._udp_sock, self.handle_recv)
-
-    def _setup_tcp_accept_socket(self, svc):
-        if not self.USE_TCP:
-            return
-        MAX_TRIES = 40
-        for i in range(MAX_TRIES):
-            try:
-                self._tcp_sock = SCIONTCPSocket()
-                self._tcp_sock.setsockopt(SockOpt.SOF_REUSEADDR)
-                self._tcp_sock.set_recv_tout(TCP_ACCEPT_POLLING_TOUT)
-                self._tcp_sock.bind((self.addr, self._port), svc=svc)
-                self._tcp_sock.listen()
-                break
-            except SCIONTCPError as e:
-                logging.warning("TCP: Cannot connect to LWIP socket: %s" % e)
-            time.sleep(1)  # Wait for dispatcher
-        else:
-            logging.critical("TCP: cannot init TCP socket.")
-            kill_self()
 
     def init_ifid2br(self):
         for br in self.topology.border_routers:
@@ -949,10 +916,7 @@ class SCIONElement(object):
         return self._udp_sock.send(packet.pack(), (dst, dst_port))
 
     def send_meta(self, msg, meta, next_hop_port=None):
-        if isinstance(meta, TCPMetadata):
-            assert not next_hop_port, next_hop_port
-            return self._send_meta_tcp(msg, meta)
-        elif isinstance(meta, SockOnlyMetadata):
+        if isinstance(meta, SockOnlyMetadata):
             assert not next_hop_port, next_hop_port
             return meta.sock.send(msg)
         elif isinstance(meta, UDPMetadata):
@@ -970,52 +934,11 @@ class SCIONElement(object):
             return False
         return self.send(pkt, *next_hop_port)
 
-    def _send_meta_tcp(self, msg, meta):
-        if not meta.sock:
-            tcp_sock = self._tcp_sock_from_meta(meta)
-            meta.sock = tcp_sock
-            self._tcp_conns_put(tcp_sock)
-        return meta.sock.send_msg(msg.pack())
-
-    def _tcp_sock_from_meta(self, meta):
-        assert meta.host
-        dst = meta.get_addr()
-        first_ip, first_port = self._get_first_hop(meta.path, dst)
-        active = True
-        try:
-            # Create low-level TCP socket and connect
-            sock = SCIONTCPSocket()
-            sock.bind((self.addr, 0))
-            sock.connect(dst, meta.port, meta.path, first_ip, first_port,
-                         flags=meta.flags)
-        except SCIONTCPError:
-            log_exception("TCP: connection init error, marking socket inactive")
-            sock = None
-            active = False
-        # Create and return TCPSocketWrapper
-        return TCPSocketWrapper(sock, dst, meta.path, active)
-
-    def _tcp_conns_put(self, sock):
-        dropped = 0
-        while True:
-            try:
-                self._tcp_new_conns.put(sock, block=False)
-            except queue.Full:
-                old_sock = self._tcp_new_conns.get_nowait()
-                old_sock.close()
-                logging.error("TCP: _tcp_new_conns is full. Closing old socket")
-                dropped += 1
-            else:
-                break
-        if dropped > 0:
-            logging.warning("%d TCP connection(s) dropped" % dropped)
-
     def run(self):
         """
         Main routine to receive packets and pass them to
         :func:`handle_request()`.
         """
-        self._tcp_start()
         threading.Thread(
             target=thread_safety_net, args=(self.packet_recv,),
             name="Elem.packet_recv", daemon=True).start()
@@ -1130,7 +1053,6 @@ class SCIONElement(object):
                 self._setup_sockets(False)
             for sock, callback in self._socks.select_(timeout=0.1):
                 callback(sock)
-            self._tcp_socks_update()
         self._socks.close()
         self.stopped_flag.set()
 
@@ -1148,79 +1070,12 @@ class SCIONElement(object):
             except queue.Empty:
                 continue
 
-    def _tcp_start(self):
-        if not self.USE_TCP:
-            return
-        if not self._tcp_sock:
-            logging.warning("TCP: accept socket is unset, port:%d", self._port)
-            return
-        threading.Thread(
-            target=thread_safety_net, args=(self._tcp_accept_loop,),
-            name="Elem._tcp_accept_loop", daemon=True).start()
-
-    def _tcp_accept_loop(self):
-        while self.run_flag.is_set():
-            try:
-                logging.debug("TCP: waiting for connections")
-                self._tcp_conns_put(TCPSocketWrapper(*self._tcp_sock.accept()))
-                logging.debug("TCP: accepted connection")
-            except SCIONTCPTimeout:
-                pass
-            except SCIONTCPError:
-                log_exception("TCP: error on accept()")
-                logging.error("TCP: leaving the accept loop")
-                break
-        try:
-            self._tcp_sock.close()
-        except SCIONTCPError:
-            log_exception("TCP: error on closing _tcp_sock")
-
-    def _tcp_socks_update(self):
-        if not self.USE_TCP:
-            return
-        self._socks.remove_inactive()
-        self._tcp_add_waiting()
-
-    def _tcp_add_waiting(self):
-        while True:
-            try:
-                self._socks.add(self._tcp_new_conns.get_nowait(),
-                                self._tcp_handle_recv)
-            except queue.Empty:
-                break
-
-    def _tcp_handle_recv(self, sock):
-        """
-        Callback to handle a ready recving socket
-        """
-        msg, meta = sock.get_msg_meta()
-        logging.debug("tcp_handle_recv:%s, %s", msg, meta)
-        if msg is None and meta is None:
-            self._socks.remove(sock)
-            sock.close()
-            return
-        if msg:
-            self._in_buf_put((msg, meta))
-
-    def _tcp_clean(self):
-        if not hasattr(self, "_tcp_sock") or not self._tcp_sock:
-            return
-        # Close all TCP sockets.
-        while not self._tcp_new_conns.empty():
-            try:
-                tcp_sock = self._tcp_new_conns.get_nowait()
-            except queue.Empty:
-                break
-            tcp_sock.close()
-
     def stop(self):
         """Shut down the daemon thread."""
         # Signal that the thread should stop
         self.run_flag.clear()
         # Wait for the thread to finish
         self.stopped_flag.wait(5)
-        # Close tcp sockets.
-        self._tcp_clean()
 
     def _quiet_startup(self):
         return (time.time() - self._startup) < self.STARTUP_QUIET_PERIOD
@@ -1279,10 +1134,6 @@ class SCIONElement(object):
         if not one_hop:
             return self._DefaultMeta.from_values(ia, host, path, port=port,
                                                  reuse=reuse)
-        # One hop path extension in handled in a different way in TCP and UDP
-        if self._DefaultMeta == TCPMetadata:
-            return TCPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
-                                           flags=TCPFlags.ONEHOPPATH)
         return UDPMetadata.from_values(ia, host, path, port=port, reuse=reuse,
                                        ext_hdrs=[OneHopPathExt()])
 
