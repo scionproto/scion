@@ -19,8 +19,6 @@ services:
   border:
     image: scion_border
     network_mode: "host"
-    cap_add:
-      - NET_ADMIN
     environment:
       SU_EXEC_USERSPEC: "$LOGNAME"
     volumes:
@@ -28,7 +26,7 @@ services:
       - "/etc/group:/etc/group:ro"
       - "../gen/ISD1/ASff00_0_110/br1-ff00_0_110-1:/share/conf"
       - "../logs:/share/logs"
-    command: ["-id=br1-ff00_0_110-1", "-prom=[127.0.0.49]:30093", "-overlay.conn.sizeIgnore=false"]
+    command: ["-id=br1-ff00_0_110-1", "-prom=[127.0.0.49]:30093"]
   sig:
     image: scion_sig
     network_mode: "host"
@@ -48,7 +46,7 @@ services:
       - "/run/shm/sciond:/run/shm/sciond"
       - "../go/sig/config/testdata:/share/sig"
       - "../logs:/share/logs"
-    command: ["-id=sig1", "-config=/share/sig/01-loadfromfile.json", "-log.dir=logs", "-log.level=debug", "-ip=192.168.6.244", "-ia=64-196722", "-sciond=/run/shm/sciond/sd1-ff00_0_110.sock", "-prom=:9504"]
+    command: ["-id=sig1", "-config=/share/sig/01-loadfromfile.json", "-log.dir=logs", "-log.level=debug", "-ip=127.0.0.1", "-ia=1-ff00_0_110-1", "-sciond=/run/shm/sciond/sd1-ff00_0_110.sock", "-prom=:9504"]
   sciond:
     image: scion_sciond
     depends_on:
