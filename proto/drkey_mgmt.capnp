@@ -38,10 +38,55 @@ struct DRKeyLvl1Rep {
 >>>>>>> 621dc11... Mapping of FirstOrder Messages of Capnp to go/lib
 }
 
+struct DRKeyHost {
+    type @0 :UInt8; # AddrType
+    host @1 :Data;  # Host address
+}
+
+struct DRKeyLvl2Req {
+    protocol @0 :Data;    # Protocol identifier
+    reqID @1 :UInt64;     # Request identifier
+    timestamp @2 :UInt64; # Timestamp
+    reqType @3 :UInt8;    # Requested DRKeyProtoKeyType
+    srcIA @4 :UInt64;     # Src ISD-AS of the requested DRKey
+    dstIA @5 :UInt64;     # Dst ISD-AS of the requested DRKey
+    addIA :union {        # Additional ISD-AS of the requested DRKey (optional)
+        unset @6 :Void;
+        ia @7 :UInt64;
+    }
+    srcHost :union {      # Src Host of the request DRKey (optional)
+        unset @8 :Void;
+        host @9 :DRKeyHost;
+    }
+    dstHost :union {      # Dst Host of the request DRKey (optional)
+        unset @10 :Void;
+        host @11 :DRKeyHost;
+    }
+    addHost :union {      # Additional Host of the request DRKey (optional)
+        unset @12 :Void;
+        host @13 :DRKeyHost;
+    }
+    misc :union {         # Additional information for DRKey derivation (optional)
+        unset @14 :Void;
+    }
+}
+
+struct DRKeyLvl2Rep {
+    reqID @0 :UInt64;     # Request identifier
+    timestamp @1 :UInt64; # Timestamp
+    drkey @2 :Data;       # Derived DRKey
+    expTime @3 :UInt32;   # Expiration time of DRKey
+    misc :union {         # Additional information (optional)
+        unset @4 :Void;
+    }
+}
+
 struct DRKeyMgmt {
     union {
         unset @0 :Void;
         drkeyLvl1Req @1 :DRKeyLvl1Req;
         drkeyLvl1Rep @2 :DRKeyLvl1Rep;
+        drkeyLvl2Req @3 :DRKeyLvl2Req;
+        drkeyLvl2Rep @4 :DRKeyLvl2Rep;
     }
 }
