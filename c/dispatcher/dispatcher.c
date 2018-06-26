@@ -24,7 +24,6 @@
 #include <uthash.h>
 
 #include "scion/scion.h"
-#include "tcp/middleware.h"
 
 #define APP_BUFSIZE 32
 #define DATA_BUFSIZE 65535
@@ -139,7 +138,6 @@ static inline uint16_t get_next_port();
 
 void handle_data(int v6);
 void count_drops(int v6, uint32_t new_drops);
-void deliver_tcp(uint8_t *buf, int len, HostAddr *from);
 void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst);
 
@@ -187,18 +185,6 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    /* TCPMW uses many open files, set limit as high as possible */
-    struct rlimit rlim;
-    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
-        zlog_fatal(zc, "getrlimit(): %s", strerror(errno));
-        return -1;
-    }
-    zlog_debug(zc, "Changing RLIMIT_NOFILE %lu -> %lu", rlim.rlim_cur, rlim.rlim_max);
-    rlim.rlim_cur = rlim.rlim_max;
-    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0) {
-        zlog_fatal(zc, "setrlimit(): %s", strerror(errno));
-        return -1;
-    }
     /* Allocate for later use */
     chk_udp_input = mk_chk_input(UDP_CHK_INPUT_SIZE);
 
@@ -793,9 +779,6 @@ void handle_data(int v6)
         case L4_UDP:
             deliver_udp(buf, len, &from, &dst);
             break;
-        case L4_TCP:
-            deliver_tcp(buf, len, &from);
-            break;
         default:
             zlog_error(zc, "delivery: unsupported L4 protocol %d", l4);
             break;
@@ -907,16 +890,6 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
     for (i = 0; i < se->count; i++) {
         deliver_data(se->sockets[i], from, buf, len);
     }
-}
-
-void deliver_tcp(uint8_t *buf, int len, HostAddr *from)
-{
-    /* Allocate buffer for LWIP's processing. */
-    struct pbuf *p = pbuf_alloc(PBUF_RAW, sizeof(HostAddr) + len, PBUF_RAM);
-    memcpy(p->payload, from, sizeof(HostAddr));
-    memcpy(p->payload + sizeof(HostAddr), buf, len);
-    /* Put [from (HostAddr) || raw_spkt] to the TCP queue. */
-    tcpip_input(p, (struct netif *)NULL);
 }
 
 void process_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
