@@ -8,7 +8,8 @@ if [ -n "$2" ]; then
 fi
 copyright=/usr/share/doc/"$1"/copyright
 if [ -e "$copyright" ]; then
-    files+=" $copyright"
+    mkdir -p /rootfs/LICENSES/"$1"
+    cp "$copyright" /rootfs/LICENSES/"$1"/
 fi
 for f in $files /etc/services; do
     [ ! -d "$f" ] || continue

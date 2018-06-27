@@ -11,19 +11,17 @@ ARG SU_EXEC_COMMIT=537b381606f9e455469a355b2de51ce49cd33973
 RUN set -e; mkdir su-exec; \
     curl -SL https://github.com/anapaya/su-exec/archive/${SU_EXEC_COMMIT}.tar.gz | tar xz -C su-exec --strip-components=1; \
     make -C su-exec; mkdir -p /rootfs/sbin; mv su-exec/su-exec /rootfs/sbin/; \
-    mkdir -p /usr/share/doc/su-exec; cp su-exec/LICENSE /usr/share/doc/su-exec/LICENSE; \
+    mkdir -p /rootfs/LICENSES/su-exec; cp su-exec/LICENSE /rootfs/LICENSES/su-exec/LICENSE; \
     rm -r su-exec;
 
 # Collect go licenses
-RUN set -e; mkdir go-licenses; \
+RUN set -e; mkdir /rootfs/LICENSES/go; \
     cd /home/scion/go/src/github.com/scionproto/scion/go/vendor; \
-    find . -name '*LICENSE*' -exec cp --parents \{\} /root/scion-docker/go-licenses \; ; \
-    find . -name '*COPYING*' -exec cp --parents \{\} /root/scion-docker/go-licenses \;
+    find . -iregex '.*\(LICENSE\|COPYING\).*' -exec cp --parents '{}' /rootfs/LICENSES/go ';'
 
 # Base image with minimal content
 FROM scratch
 WORKDIR /share
 COPY --from=0 /rootfs /
-COPY --from=0 /root/scion-docker/go-licenses /LICENSES/go
 ENV TZ=UTC
 ENTRYPOINT ["/sbin/su-exec"]
