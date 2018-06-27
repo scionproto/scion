@@ -228,11 +228,14 @@ class ReliableSocket(Socket):
 
     def bind(self, addr, desc=None):
         self.addr = addr
+        # Use 0666 for socket permissions
+        old_mask = os.umask(0o111)
         try:
             self.sock.bind(addr)
         except OSError as e:
             logging.critical("Error binding to %s: %s", addr, e)
             kill_self()
+        os.umask(old_mask)
         self.sock.listen(5)
         if desc:
             logging.debug("%s bound to %s", desc, addr)
