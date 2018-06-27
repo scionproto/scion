@@ -16,10 +16,49 @@ package drkey
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
+
+// DRKeyType represents the second level DRKey type.
+type DRKeyType uint8
+
+const (
+	AS2AS       DRKeyType = 0
+	AS2Host     DRKeyType = 1
+	Host2Host   DRKeyType = 2
+	AS2HostPair DRKeyType = 3
+)
+
+func (t DRKeyType) String() string {
+	switch t {
+	case AS2AS:
+		return "AS-to-AS"
+	case AS2Host:
+		return "AS-to-host"
+	case Host2Host:
+		return "host-to-host"
+	case AS2HostPair:
+		return "AS-to-host pair"
+	default:
+		return fmt.Sprintf("UNKNOWN (%d)", t)
+	}
+}
+
+// DRKeyLvl2 represents a second level DRKey
+type DRKeyLvl2 struct {
+	T       DRKeyType
+	SrcIa   addr.IA
+	DstIa   addr.IA
+	AddIa   addr.IA
+	SrcHost addr.HostAddr
+	DstHost addr.HostAddr
+	AddHost addr.HostAddr
+	ExpTime time.Time
+	Key     common.RawBytes
+}
 
 // InputType is used to determine the input of the PRF for the second level derivation. It
 // represents the combination of host address types and distinguishes between IPv4, IPv6 and SVC.
