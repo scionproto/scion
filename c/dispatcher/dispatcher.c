@@ -13,6 +13,7 @@
 #include <sys/resource.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -349,10 +350,13 @@ int bind_app_socket()
             return -1;
         }
     }
+    /* Use 0666 for socket permissions */
+    mode_t old_mask = umask(0111);
     if (bind(app_socket, (struct sockaddr *)&su, sizeof(su)) < 0) {
         zlog_fatal(zc, "failed to bind app socket to %s", su.sun_path);
         return -1;
     }
+    umask(old_mask);
     if (listen(app_socket, MAX_BACKLOG) < 0) {
         zlog_fatal(zc, "failed to listen on app socket");
         return -1;
