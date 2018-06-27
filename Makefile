@@ -33,3 +33,6 @@ libhsr: libscion
 
 uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
+
+tags:
+	which ctags >/dev/null 2>&1 || exit 0; git ls-files | ctags -L -
