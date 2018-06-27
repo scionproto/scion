@@ -25,6 +25,7 @@ clean:
 BASE_TARGETS = app_builder app_base python_base debug_base
 .PHONY: $(BASE_TARGETS)
 base: $(BASE_TARGETS)
+$(BASE_TARGETS): | scion_hash
 
 app_builder: hashes/app_builder
 hashes/app_builder: base/Dockerfile.builder hashes/scion
@@ -46,6 +47,7 @@ hashes/debug_base: base/Dockerfile.debug hashes/scion
 APP_TARGETS = border dispatcher sig path beacon cert sciond
 .PHONY: $(APP_TARGETS)
 apps: $(APP_TARGETS)
+$(APP_TARGETS): | scion_hash
 
 border: hashes/border
 hashes/border: app/Dockerfile.border hashes/app_base hashes/app_builder
@@ -79,6 +81,7 @@ hashes/sciond: app/Dockerfile.sciond hashes/python_base
 DEBUG_TARGETS = border_debug dispatcher_debug sig_debug path_debug beacon_debug cert_debug sciond_debug
 .PHONY: $(DEBUG_TARGETS)
 debug: $(DEBUG_TARGETS)
+$(DEBUG_TARGETS): | scion_hash
 
 border_debug: hashes/border_debug
 hashes/border_debug: debug/Dockerfile.border hashes/debug_base hashes/border
