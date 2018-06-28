@@ -78,7 +78,7 @@ class ProtoSign(Cerealizable):
         b = [str(self.p.type).encode("utf-8"), self.p.src]
         if incl_sig:
             b.append(self.p.signature)
-        b.append(self.p.timestamp.to_bytes(8, 'big'))
+        b.append(self.p.timestamp.to_bytes(4, 'big'))
         return b"".join(b)
 
     def _sig_input(self, msg):

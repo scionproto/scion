@@ -167,7 +167,7 @@ func (h *ReissHandler) issueChain(c *cert.Certificate, vKey common.RawBytes,
 	chain := &cert.Chain{Leaf: c.Copy(), Issuer: issCert}
 	chain.Leaf.CanIssue = false
 	chain.Leaf.TRCVersion = chain.Issuer.TRCVersion
-	chain.Leaf.IssuingTime = uint64(time.Now().Unix())
+	chain.Leaf.IssuingTime = uint32(time.Now().Unix())
 	chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + cert.DefaultLeafCertValidity
 	// Leaf certificate must expire before issuer certificate
 	if chain.Issuer.ExpirationTime < chain.Leaf.ExpirationTime {

@@ -53,7 +53,7 @@ type RevInfo struct {
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	// LinkType of revocation
 	LinkType     proto.LinkType
-	RawTimestamp uint64 `capnp:"timestamp"`
+	RawTimestamp uint32 `capnp:"timestamp"`
 	// RawTTL validity period of the revocation in seconds
 	RawTTL uint32 `capnp:"ttl"`
 }

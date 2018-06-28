@@ -79,13 +79,13 @@ func genTrc(isd addr.ISD) error {
 func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 	issuingTime := iconf.Trc.IssuingTime
 	if issuingTime == 0 {
-		issuingTime = uint64(time.Now().Unix())
+		issuingTime = uint32(time.Now().Unix())
 	}
 	t := &trc.TRC{
 		CreationTime:   iconf.Trc.IssuingTime,
 		Description:    iconf.Desc,
-		ExpirationTime: issuingTime + uint64(iconf.Trc.Validity.Seconds()),
-		GracePeriod:    uint64(iconf.Trc.GracePeriod),
+		ExpirationTime: issuingTime + uint32(iconf.Trc.Validity.Seconds()),
+		GracePeriod:    uint32(iconf.Trc.GracePeriod.Seconds()),
 		ISD:            isd,
 		QuorumTRC:      iconf.Trc.QuorumTRC,
 		Version:        iconf.Trc.Version,

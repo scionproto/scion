@@ -46,7 +46,7 @@ func (h *ChainHandler) HandleReq(a *snet.Addr, req *cert_mgmt.ChainReq, config *
 	var chain *cert.Chain
 	if req.Version == cert_mgmt.NewestVersion {
 		chain = config.Store.GetNewestChain(req.IA())
-		if chain != nil && chain.Leaf.VerifyTime(uint64(time.Now().Unix())) != nil {
+		if chain != nil && chain.Leaf.VerifyTime(uint32(time.Now().Unix())) != nil {
 			chain = nil
 		}
 	} else {
