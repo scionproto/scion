@@ -99,7 +99,7 @@ func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC) (HookResult, error) {
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
 	dst := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, dst})
+	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }
 
@@ -116,13 +116,13 @@ func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC) (HookResult, error) {
 	// IP address.
 	seen := make(map[string]struct{})
 	for _, elem := range elemMap {
-		ai := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
-		strIP := fmt.Sprintf("%s:%d", ai.IP, ai.OverlayPort)
+		dst := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+		strIP := fmt.Sprintf("%s:%d", dst.IP, dst.OverlayPort)
 		if _, ok := seen[strIP]; ok {
 			continue
 		}
 		seen[strIP] = struct{}{}
-		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, ai})
+		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	}
 	return HookContinue, nil
 }
@@ -132,8 +132,7 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 	case rcmn.DirExternal:
 		return rp.forwardFromExternal()
 	case rcmn.DirLocal:
-		// XXX We do not support forwarding from Local to Local
-		return rp.forwardToExternal(*rp.ifCurr)
+		return rp.forwardFromLocal()
 	default:
 		return HookError, common.NewBasicError("Unsupported forwarding DirFrom", nil,
 			"dirFrom", rp.DirFrom)
@@ -148,12 +147,9 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	}
 	// FIXME(kormat): this needs to be cleaner, as it won't work with
 	// extensions that replace the path header.
-	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
-		var onLastSeg = rp.CmnHdr.InfoFOffBytes()+int(rp.infoF.Hops+1)*common.LineLen ==
-			rp.CmnHdr.HdrLenBytes()
-		if !onLastSeg {
-			return HookError, common.NewBasicError("Destination ISD-AS not in the last segment", nil)
-		}
+	var onLastSeg = rp.CmnHdr.InfoFOffBytes()+int(rp.infoF.Hops+1)*common.LineLen ==
+		rp.CmnHdr.HdrLenBytes()
+	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
 		if assert.On {
 			assert.Mustf(!rp.hopF.ForwardOnly, rp.ErrStr, "Delivery forbidden for Forward-only HopF")
@@ -164,7 +160,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 			IP:          rp.dstHost.IP(),
 			OverlayPort: overlay.EndhostPort,
 		}
-		rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, dst})
+		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return HookContinue, nil
 	}
 	// If this is a cross-over Hop Field, increment the path.
@@ -177,18 +173,10 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	}
 	// Destination is in a remote ISD-AS.
 	if _, ok := rp.Ctx.Conf.Net.IFs[*rp.ifNext]; ok {
-		rp.DirFrom = rcmn.DirLocal
-		rp.ifCurr = rp.ifNext
-		// Current Egress interface is local to BR
-		// Re-Process the packet, there should only be HBH hooks
-		if err := rp.Process(); err != nil {
-			return HookError, err
-		}
-		if rp.DirTo != rcmn.DirSelf {
-			return rp.forwardToExternal(*rp.ifNext)
-		} else {
-			return HookFinish, nil
-		}
+		// Egress interface is local so re-inject the packet
+		// and make it look like it arrived in the internal interface
+		rp.RefInc(1)
+		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
 	nextAI := nextBR.InternalAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
@@ -199,7 +187,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		L4Port:      nextAI.L4Port,
 		OverlayPort: nextAI.L4Port,
 	}
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.LocSockOut, dst})
+	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }
 
@@ -276,12 +264,43 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	return nil
 }
 
-// forwardToExternal handles packet to be forwarded to neighbouring ISD-ASes.
-func (rp *RtrPkt) forwardToExternal(ifid common.IFIDType) (HookResult, error) {
-	if _, err := rp.IncPath(); err != nil {
-		return HookError, err
+// forwardFromLocal handles packet received from the local ISD-AS, to be
+// forwarded to neighbouring ISD-ASes.
+func (rp *RtrPkt) forwardFromLocal() (HookResult, error) {
+	if rp.infoF != nil || len(rp.idxs.hbhExt) > 0 {
+		if _, err := rp.IncPath(); err != nil {
+			return HookError, err
+		}
 	}
-	// IncPath updates ifNext but does not update ifCurr
-	rp.Egress = append(rp.Egress, EgressPair{rp.Ctx.ExtSockOut[ifid], nil})
+	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.ExtSockOut[*rp.ifCurr]})
 	return HookContinue, nil
+}
+
+func (rp *RtrPkt) reprocess() (HookResult, error) {
+	// save
+	ctx := rp.Ctx
+	free := rp.Free
+	timeIn := rp.TimeIn
+	raw := rp.Raw
+	// reset
+	rp.Reset()
+	// restore
+	rp.Ctx = ctx
+	rp.Free = free
+	rp.Raw = raw
+	rp.TimeIn = timeIn
+	// set as incoming from local interface
+	rp.DirFrom = rcmn.DirLocal
+	s := rp.Ctx.LocSockIn
+	rp.Ingress.Dst = s.Conn.LocalAddr()
+	rp.Ingress.Src = s.Conn.LocalAddr()
+	rp.Ingress.IfID = s.Ifid
+	rp.Ingress.Sock = s.Labels["sock"]
+	// XXX This hook is meant to be called only when processing packets from external to external
+	// interface. Thus, the goroutine writing to the LocIn ringbuffer should always be the ones
+	// NOT reading from it to avoid deadlock, ie. goroutines handling packets from external
+	// interfaces.
+	s.Ring.Write(ringbuf.EntryList{rp}, true)
+	// Stop routing the packet after enqueuing it back into the ringbuffer.
+	return HookFinish, nil
 }
