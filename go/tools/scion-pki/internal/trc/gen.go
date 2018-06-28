@@ -85,7 +85,7 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 		CreationTime:   iconf.Trc.IssuingTime,
 		Description:    iconf.Desc,
 		ExpirationTime: issuingTime + uint32(iconf.Trc.Validity.Seconds()),
-		GracePeriod:    uint32(iconf.Trc.GracePeriod),
+		GracePeriod:    uint32(iconf.Trc.GracePeriod.Seconds()),
 		ISD:            isd,
 		QuorumTRC:      iconf.Trc.QuorumTRC,
 		Version:        iconf.Trc.Version,
