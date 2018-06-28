@@ -2,7 +2,7 @@
 
 SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
-all: clibs dispatcher go
+all: tags clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
