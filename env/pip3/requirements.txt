@@ -1,17 +1,32 @@
-nose-descriptionfixer==0.0.4 --hash=sha256:4c74bd38f6fcf158b0681ea4ccb6b4f64c09867d039d5ef9a8c1856395dbac7c # Direct dependency
-pockets==0.3 --hash=sha256:dc870d57992cebaf4bb9dabdad55972ef915429521142af77f6a1efb9e3646de
-six==1.10.0 --hash=sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1
+# pycapnp: licenses/BSD-2-Clause
 pycapnp==0.6.1 --hash=sha256:ea60837533307849e98bb3494555cea28a52ea0c301cfdf32bce661931940696 # Direct dependency
+# PyDbLite: licenses/BSD-3-Clause
 PyDbLite==3.0.4 --hash=sha256:79ed97d17b5954c6fa8927d9f36033cb4486d1304005057d506ac1dee999bad6 # Direct dependency
+# sphinxcontrib-napoleon: licenses/sphinxcontrib-napoleon
 sphinxcontrib-napoleon==0.5.3 --hash=sha256:a809ab437a5617442ae4f919e50a3f953faff1730e9234bcc502fdf594bbbfbb # Direct dependency
+# cryptography: licenses/cryptography
 cryptography==1.8.1 --hash=sha256:323524312bb467565ebca7e50c8ae5e9674e544951d28a2904a50012a8828190 # Direct dependency
+# pockets: licenses/BSD-3-Clause
+pockets==0.3 --hash=sha256:dc870d57992cebaf4bb9dabdad55972ef915429521142af77f6a1efb9e3646de
+# six: licenses/MIT
+six==1.10.0 --hash=sha256:0ff78c403d9bccf5a425a6d31a12aa6b47f1c21ca4dc2573a7e2f32a97335eb1
+# idna: licenses/inda
 idna==2.5 --hash=sha256:cc19709fd6d0cbfed39ea875d29ba6d4e22c0cebc510a76d6302a28385e8bb70
+# asn1crypto: licenses/MIT
 asn1crypto==0.22.0 --hash=sha256:d232509fefcfcdb9a331f37e9c9dc20441019ad927c7d2176cf18ed5da0ba097
+# packaging: licenses/BSD-2-Clause
 packaging==16.8 --hash=sha256:99276dc6e3a7851f32027a68f1095cd3f77c148091b092ea867a351811cfe388
+# setuptools: licenses/MIT
 setuptools==35.0.2 --hash=sha256:19d753940f8cdbee7548da318f8b56159aead279ef811a6efc8b8a33d89c86a4
+# cffi: licenses/MIT
 cffi==1.10.0 --hash=sha256:b3b02911eb1f6ada203b0763ba924234629b51586f72a21faacc638269f4ced5 --hash=sha256:4fc9c2ff7924b3a1fa326e1799e5dd58cac585d7fb25fe53ccaa1333b0453d65 --hash=sha256:afa7d8b8d38ad40db8713ee053d41b36d87d6ae5ec5ad36f9210b548a18dc214 # tarball, x86_64 wheel, i686 wheel
+# pyparsing: licenses/MIT
 pyparsing==2.2.0 --hash=sha256:fee43f17a9c4087e7ed1605bd6df994c6173c1e977d7ade7b651292fab2bd010
+# appdirs: licenses/MIT
 appdirs==1.4.3 --hash=sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e
+# pycparser: licenses/pycparser
 pycparser==2.17 --hash=sha256:0aac31e917c24cb3357f5a4d5566f2cc91a19ca41862f6c3c22dc60a629673b6
+# prometheus-client: licenses/Apache-2.0
 prometheus-client==0.0.19 --hash=sha256:ce4ddcb89a870ee771ca5427df123029bf5344ea84f535ded4a1787e29a22a3f # Direct dependency
+# pypacker: licenses/GPLv2
 pypacker==4.1 --hash=sha256:05bc5c873cfef620ce8b07df4aa286ea199e328b5b1eabd0b10aa0bb699c464f # Direct dependency

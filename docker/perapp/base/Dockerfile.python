@@ -29,6 +29,8 @@ COPY --from=0 /home/scion/go/src/github.com/scionproto/scion/python /app/
 COPY --from=0 /home/scion/go/src/github.com/scionproto/scion/proto /app/proto
 # Copy pip packages
 COPY --from=0 /home/scion/.local/lib/python3.5/site-packages /usr/lib/python3.5
+COPY --from=0 /home/scion/go/src/github.com/scionproto/scion/env/pip3/licenses /LICENSES/pip
+COPY --from=0 /home/scion/go/src/github.com/scionproto/scion/env/pip3/requirements.txt /LICENSES/pip/
 # Copy prepared python binaries
 COPY --from=0 /rootfs /
 
