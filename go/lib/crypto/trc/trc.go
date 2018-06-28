@@ -79,14 +79,14 @@ type TRC struct {
 	// CoreASes is a map from core ASes to their online and offline key.
 	CoreASes map[addr.IA]*CoreAS
 	// CreationTime is the unix timestamp in seconds at which the TRC was created.
-	CreationTime uint64
+	CreationTime uint32
 	// Description is an human-readable description of the ISD.
 	Description string
 	// ExpirationTime is the unix timestamp in seconds at which the TRC expires.
-	ExpirationTime uint64
+	ExpirationTime uint32
 	// GracePeriod is the period during which the TRC is valid after creation of a new TRC in
 	// seconds.
-	GracePeriod uint64
+	GracePeriod uint32
 	// ISD is the integer identifier from 1 to 4095.
 	ISD addr.ISD
 	// Quarantine describes if the TRC is an early announcement (true) or valid (false).
@@ -168,7 +168,7 @@ func (t *TRC) CheckActive(maxTRC *TRC) error {
 	if t.Quarantine {
 		return common.NewBasicError(EarlyAnnouncement, nil)
 	}
-	currTime := uint64(time.Now().Unix())
+	currTime := uint32(time.Now().Unix())
 	if currTime < t.CreationTime {
 		return common.NewBasicError(EarlyUsage, nil,
 			"now", timeToString(currTime), "creation", timeToString(t.CreationTime))
@@ -324,6 +324,6 @@ func (t *TRC) String() string {
 	return fmt.Sprintf("TRC %dv%d", t.ISD, t.Version)
 }
 
-func timeToString(t uint64) string {
+func timeToString(t uint32) string {
 	return util.TimeToString(util.USecsToTime(t))
 }
