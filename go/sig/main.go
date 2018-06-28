@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/sig/base"
+	"github.com/scionproto/scion/go/sig/base/core"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/egress"
@@ -184,7 +185,7 @@ func loadConfig(path string) bool {
 		log.Error("loadConfig: Failed", "err", err)
 		return false
 	}
-	ok := base.Map.ReloadConfig(cfg)
+	ok := core.Map.ReloadConfig(cfg)
 	if !ok {
 		return false
 	}

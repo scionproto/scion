@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package base contains the tables for remote SIGs, ASes and their prefixes
-package base
+// Package core contains the tables for remote SIGs, ASes and their prefixes
+package core
 
 import (
 	"sync"

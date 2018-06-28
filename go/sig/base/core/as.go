@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package base
+package core
 
 import (
 	"net"
@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/config"
 	"github.com/scionproto/scion/go/sig/egress/dispatcher"
 	"github.com/scionproto/scion/go/sig/egress/router"
@@ -141,13 +142,13 @@ func (ae *ASEntry) addNet(ipnet *net.IPNet) error {
 	ae.Nets[key] = ipnet
 	ae.version++
 	// Generate NetworkChanged event
-	params := NetworkChangedParams{
+	params := base.NetworkChangedParams{
 		RemoteIA: ae.IA,
 		IpNet:    *ipnet,
 		Healthy:  ae.checkHealth(),
 		Added:    true,
 	}
-	NetworkChanged(params)
+	base.NetworkChanged(params)
 	ae.Info("Added network", "net", ipnet)
 	return nil
 }
@@ -170,13 +171,13 @@ func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
 	delete(ae.Nets, key)
 	ae.version++
 	// Generate NetworkChanged event
-	params := NetworkChangedParams{
+	params := base.NetworkChangedParams{
 		RemoteIA: ae.IA,
 		IpNet:    *ipnet,
 		Healthy:  ae.checkHealth(),
 		Added:    false,
 	}
-	NetworkChanged(params)
+	base.NetworkChanged(params)
 	ae.Info("Removed network", "net", ipnet)
 	return nil
 }
@@ -320,12 +321,12 @@ func (ae *ASEntry) performHealthCheck(prevHealth *bool, prevVersion *uint64) {
 			nets = append(nets, n)
 		}
 		// Overall health has changed. Generate event.
-		params := RemoteHealthChangedParams{
+		params := base.RemoteHealthChangedParams{
 			RemoteIA: ae.IA,
 			Nets:     nets,
 			Healthy:  curHealth,
 		}
-		RemoteHealthChanged(params)
+		base.RemoteHealthChanged(params)
 	}
 	*prevHealth = curHealth
 	*prevVersion = ae.version
@@ -363,7 +364,8 @@ func (ae *ASEntry) cleanSessions() {
 func (ae *ASEntry) setupNet() {
 	ae.egressRing = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
-	go dispatcher.NewDispatcher(ae.IA, ae.egressRing, &SingleSession{Session: ae.Session}).Run()
+	go dispatcher.NewDispatcher(ae.IA, ae.egressRing,
+		&base.SingleSession{Session: ae.Session}).Run()
 	go ae.sigMgr()
 	go ae.monitorHealth()
 	ae.Session.Start()
