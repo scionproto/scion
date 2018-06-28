@@ -101,7 +101,7 @@ func (i *Isd) Write(path string, force bool) error {
 // Trc holds the parameters that are used to generate a Trc.
 type Trc struct {
 	Version        uint64        `comment:"The version of the TRC. Must not be 0."`
-	IssuingTime    uint64        `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
+	IssuingTime    uint32        `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
 	Validity       time.Duration `ini:"-"`
 	RawValidity    string        `ini:"Validity" comment:"The validity of the certificate as duration string, e.g., 180d or 36h"`
 	CoreIAs        []addr.IA     `ini:"-"`
@@ -113,7 +113,7 @@ type Trc struct {
 
 func (t *Trc) validate() error {
 	if t.IssuingTime == 0 {
-		t.IssuingTime = uint64(time.Now().Unix())
+		t.IssuingTime = uint32(time.Now().Unix())
 	}
 	if t.Version == 0 {
 		return common.NewBasicError(ErrTrcVersionNotSet, nil)

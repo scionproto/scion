@@ -153,7 +153,7 @@ type BaseCert struct {
 	Comment       string        `comment:"Description of the AS and certificate"`
 	EncAlgorithm  string        `comment:"Encryption algorithm used by AS, e.g., curve25519xsalsa20poly1305"`
 	SignAlgorithm string        `comment:"Signing algotirhm used by AS, e.g., ed25519"`
-	IssuingTime   uint64        `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
+	IssuingTime   uint32        `comment:"Time of issuance as UNIX epoch. If 0 will be set to now."`
 	TRCVersion    uint64        `comment:"The version of the current TRC"`
 	Version       uint64        `comment:"The version of the certificate. Cannot be 0"`
 	Validity      time.Duration `ini:"-"`

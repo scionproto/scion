@@ -46,11 +46,11 @@ type Certificate struct {
 	// EncAlgorithm is the algorithm associated with SubjectEncKey.
 	EncAlgorithm string
 	// ExpirationTime is the unix timestamp in seconds at which the certificate expires.
-	ExpirationTime uint64
+	ExpirationTime uint32
 	// Issuer is the certificate issuer. It can only be a issuing AS.
 	Issuer addr.IA
 	// IssuingTime is the unix timestamp in seconds at which the certificate was created.
-	IssuingTime uint64
+	IssuingTime uint32
 	// SignAlgorithm is the algorithm associated with SubjectSigKey.
 	SignAlgorithm string
 	// Signature is the certificate signature. It is computed over the rest of the certificate.
@@ -86,7 +86,7 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 		return common.NewBasicError(InvalidSubject, nil,
 			"expected", c.Subject, "actual", subject)
 	}
-	if err := c.VerifyTime(uint64(time.Now().Unix())); err != nil {
+	if err := c.VerifyTime(uint32(time.Now().Unix())); err != nil {
 		return err
 	}
 	return c.VerifySignature(verifyKey, signAlgo)
@@ -94,7 +94,7 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 
 // VerifyTime checks that the time ts is between issuing and expiration time. This function does
 // not check the validity of the signature.
-func (c *Certificate) VerifyTime(ts uint64) error {
+func (c *Certificate) VerifyTime(ts uint32) error {
 	if ts < c.IssuingTime {
 		return common.NewBasicError(EarlyUsage, nil,
 			"IssuingTime", util.TimeToString(util.USecsToTime(c.IssuingTime)),

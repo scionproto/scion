@@ -26,7 +26,7 @@ import (
 var _ Cerealizable = (*SignS)(nil)
 
 type SignS struct {
-	Timestamp uint64
+	Timestamp uint32
 	Type      SignType
 	// Src holds the required metadata to verify the signature. The format is "STRING: METADATA".
 	// The prefix consists of "STRING: " and is required to match the regex "^\w+\: ".
@@ -63,7 +63,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 
 func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 	var err error
-	s.Timestamp = uint64(time.Now().Unix())
+	s.Timestamp = uint32(time.Now().Unix())
 	s.Signature, err = s.Sign(key, message)
 	return err
 }
@@ -97,8 +97,8 @@ func (s *SignS) sigPack(msg common.RawBytes, inclSig bool) common.RawBytes {
 	if inclSig {
 		msg = append(msg, s.Signature...)
 	}
-	t := make(common.RawBytes, 8)
-	common.Order.PutUint64(t, s.Timestamp)
+	t := make(common.RawBytes, 4)
+	common.Order.PutUint32(t, s.Timestamp)
 	return append(msg, t...)
 }
 

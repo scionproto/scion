@@ -132,6 +132,6 @@ struct SegTypeHopReply {
 
 struct SegTypeHopReplyEntry {
     interfaces @0 :List(PathInterface);  # List of interfaces for the segment
-    timestamp @1 :UInt64;  # Creation timestamp, seconds since Unix Epoch
-    expTime @2 :UInt64;  # Expiration timestamp, seconds since Unix Epoch
+    timestamp @1 :UInt32;                # Creation timestamp, seconds since Unix Epoch
+    expTime @2 :UInt32;                  # Expiration timestamp, seconds since Unix Epoch
 }

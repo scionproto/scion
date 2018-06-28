@@ -227,9 +227,9 @@ func genCertCommon(bc *conf.BaseCert, s addr.IA, signKeyFname string) (*cert.Cer
 	// Determine issuingTime and calculate expiration time from validity.
 	issuingTime := bc.IssuingTime
 	if issuingTime == 0 {
-		issuingTime = uint64(time.Now().Unix())
+		issuingTime = uint32(time.Now().Unix())
 	}
-	expirationTime := issuingTime + uint64(bc.Validity.Seconds())
+	expirationTime := issuingTime + uint32(bc.Validity.Seconds())
 	return &cert.Certificate{
 		Comment:        bc.Comment,
 		SubjectSignKey: signPub,
