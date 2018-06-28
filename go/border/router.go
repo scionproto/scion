@@ -174,8 +174,7 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
-	// If the packet's destination is this router, there's no need to forward
-	// it.
+	// If the packet's destination is this router, there's no need to forward it.
 	if rp.DirTo != rcmn.DirSelf {
 		if err := rp.Route(); err != nil {
 			r.handlePktError(rp, err, "Error routing packet")
