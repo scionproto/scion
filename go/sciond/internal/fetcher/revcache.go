@@ -44,7 +44,9 @@ func (c *RevCache) Get(ia addr.IA, ifid common.IFIDType) (*path_mgmt.SignedRevIn
 	return obj.(*path_mgmt.SignedRevInfo), true
 }
 
-func (c *RevCache) Add(ia addr.IA, ifid common.IFIDType, rev *path_mgmt.SignedRevInfo, ttl time.Duration) {
+func (c *RevCache) Add(ia addr.IA, ifid common.IFIDType, rev *path_mgmt.SignedRevInfo,
+	ttl time.Duration) {
+
 	c.c.Add(revCacheKey(ia, ifid), rev, ttl)
 }
 
