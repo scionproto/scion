@@ -54,12 +54,11 @@ type Fetcher struct {
 	pathDB          *pathdb.DB
 	trustStore      infra.TrustStore
 	revocationCache *RevCache
-	coreASes        []addr.IA
 	logger          log.Logger
 }
 
 func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.DB,
-	coreASes []addr.IA, trustStore infra.TrustStore, revCache *RevCache) *Fetcher {
+	trustStore infra.TrustStore, revCache *RevCache) *Fetcher {
 
 	return &Fetcher{
 		topology:        topo,
@@ -67,7 +66,6 @@ func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.D
 		pathDB:          pathDB,
 		trustStore:      trustStore,
 		revocationCache: revCache,
-		coreASes:        coreASes,
 	}
 }
 
@@ -266,7 +264,11 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 		// it sees an error.
 		return nil, err
 	}
-	srcIsCore := iaInSlice(f.topology.ISD_AS, f.coreASes)
+	localTrc, err := f.trustStore.GetValidTRC(ctx, f.topology.ISD_AS.I, f.topology.ISD_AS.I)
+	if err != nil {
+		return nil, err
+	}
+	srcIsCore := iaInSlice(f.topology.ISD_AS, localTrc.CoreASList())
 	dstIsCore := iaInSlice(req.Dst.IA(), dstTrc.CoreASList())
 	// pathdb expects slices
 	srcIASlice := []addr.IA{req.Src.IA()}
@@ -290,16 +292,16 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	case !srcIsCore && dstIsCore:
-		ups, err = f.getSegmentsFromDB(f.coreASes, srcIASlice)
+		ups, err = f.getSegmentsFromDB(localTrc.CoreASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(dstIASlice, f.coreASes)
+		cores, err = f.getSegmentsFromDB(dstIASlice, localTrc.CoreASList())
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && !dstIsCore:
-		ups, err = f.getSegmentsFromDB(f.coreASes, srcIASlice)
+		ups, err = f.getSegmentsFromDB(localTrc.CoreASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
