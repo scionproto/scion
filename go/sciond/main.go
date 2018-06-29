@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -26,9 +27,9 @@ import (
 	"github.com/BurntSushi/toml"
 	cache "github.com/patrickmn/go-cache"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -106,7 +107,8 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
-	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS, 1337, log.Root())
+	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS,
+		rand.Uint64(), log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
@@ -116,20 +118,10 @@ func realMain() int {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	conn, err := snet.ListenSCION("udp4", &config.SD.Public)
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", &config.SD.Public,
+		&config.SD.Bind, addr.SvcNone)
 	if err != nil {
 		log.Crit("Unable to listen on SCION", "err", err)
-		return 1
-	}
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	localTRC, err := trustStore.GetValidTRC(
-		ctx,
-		config.General.Topology.ISD_AS.I,
-		config.General.Topology.ISD_AS.I,
-	)
-	cancelF()
-	if err != nil {
-		log.Crit("Unable to load local TRC from trust store", "err", err)
 		return 1
 	}
 	msger := messenger.New(
@@ -147,33 +139,29 @@ func realMain() int {
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
 			Fetcher: fetcher.NewFetcher(
+				// FIXME(scrye): This doesn't allow for topology updates. When
+				// reloading support is implemented, fresh topology information
+				// should be loaded from file.
 				config.General.Topology,
 				msger,
 				pathDB,
-				localTRC.CoreASList(),
 				trustStore,
 				revCache,
 			),
-			Logger: log.Root(),
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
 			TrustStore: trustStore,
-			CoreASes:   localTRC.CoreASList(),
 			Messenger:  msger,
 			Topology:   config.General.Topology,
-			Logger:     log.Root(),
 		},
 		proto.SCIONDMsg_Which_ifInfoRequest: &servers.IFInfoRequestHandler{
 			Topology: config.General.Topology,
-			Logger:   log.Root(),
 		},
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{
 			Topology: config.General.Topology,
-			Logger:   log.Root(),
 		},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
 			RevCache: revCache,
-			Logger:   log.Root(),
 		},
 	}
 	// Create a channel where server goroutines can signal fatal errors
@@ -240,26 +228,9 @@ func Init(configName string) error {
 	return nil
 }
 
-func NewMessenger(scionAddress string, logger log.Logger) (infra.Messenger, error) {
-	// Initialize messenger for talking with other infra elements
-	snetAddress, err := snet.AddrFromString(scionAddress)
-	if err != nil {
-		return nil, common.NewBasicError("snet address parse error", err)
-	}
-	conn, err := snet.ListenSCION("udp", snetAddress)
-	if err != nil {
-		return nil, common.NewBasicError("snet listen error", err)
-	}
-	dispatcher := disp.New(transport.NewPacketTransport(conn), messenger.DefaultAdapter, logger)
-	// TODO: initialize actual trust store once it is available
-	trustStore := infra.TrustStore(nil)
-	return messenger.New(dispatcher, trustStore, logger), nil
-}
-
 func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
 	logger log.Logger) (*servers.Server, func()) {
 
-	// FIXME(scrye): enable msger below
 	server := servers.NewServer(network, rsockPath, handlers, logger)
 	shutdownF := func() {
 		ctx, cancelF := context.WithTimeout(context.Background(), ShutdownWaitTimeout)

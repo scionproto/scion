@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -34,24 +35,32 @@ import (
 
 const (
 	DefaultHandlerLifetime = 10 * time.Second
-	DefaultEarlyReply      = 2 * time.Second
+	DefaultEarlyReply      = 200 * time.Millisecond
+	// DefaultServiceTTL is the TTL value for ServiceInfoReply objects,
+	// expressed in seconds.
+	DefaultServiceTTL uint32 = 300
 )
+
+type Handler interface {
+	Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld, logger log.Logger)
+}
 
 // PathRequestHandler represents the shared global state for the handling of all
 // PathRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each PathRequest it receives.
 type PathRequestHandler struct {
 	Fetcher *fetcher.Fetcher
-	Logger  log.Logger
 }
 
-func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld) {
+func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
+	logger log.Logger) {
+
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
 	defer cancelF()
-	req := pld.PathReq
-	getPathsReply, err := h.Fetcher.GetPaths(ctx, &req, DefaultEarlyReply)
+	pathReq := &pld.PathReq
+	getPathsReply, err := h.Fetcher.GetPaths(ctx, pathReq, DefaultEarlyReply)
 	if err != nil {
-		h.Logger.Warn("Unable to get paths", "err", err)
+		logger.Warn("Unable to get paths", "err", err)
 	}
 	// Always reply, as the Fetcher will fill in the relevant error bits of the reply
 	reply := &sciond.Pld{
@@ -66,7 +75,7 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 		panic(err)
 	}
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
-		h.Logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Warn("Unable to reply to client", "client", src, "err", err)
 	}
 }
 
@@ -78,17 +87,18 @@ type ASInfoRequestHandler struct {
 	CoreASes   []addr.IA
 	Messenger  infra.Messenger
 	Topology   *topology.Topo
-	Logger     log.Logger
 }
 
-func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld) {
+func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
+	logger log.Logger) {
+
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
 	defer cancelF()
 	// FIXME(scrye): Only support single-homed SCIONDs for now (returned slice
 	// will at most contain one element).
-	asInfoRequest := pld.AsInfoReq
+	reqIA := pld.AsInfoReq.Isdas.IA()
 	asInfoReply := sciond.ASInfoReply{}
-	if asInfoRequest.Isdas.IA().IsZero() || asInfoRequest.Isdas.IA().Eq(h.Topology.ISD_AS) {
+	if reqIA.IsZero() || reqIA.Eq(h.Topology.ISD_AS) {
 		// Requested AS is us
 		asInfoReply.Entries = []sciond.ASInfoReplyEntry{
 			{
@@ -99,7 +109,7 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		}
 	} else {
 		// Requested AS is not us
-		trcObj, err := h.TrustStore.GetTRC(context.TODO(), asInfoRequest.Isdas.IA().I, 0)
+		trcObj, err := h.TrustStore.GetValidTRC(ctx, reqIA.I, reqIA.I)
 		if err != nil {
 			// FIXME(scrye): return a zero AS because the protocol doesn't
 			// support errors, but we probably want to return an error here in
@@ -108,9 +118,9 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		} else {
 			asInfoReply.Entries = []sciond.ASInfoReplyEntry{
 				{
-					RawIsdas: asInfoRequest.Isdas,
+					RawIsdas: reqIA.IAInt(),
 					Mtu:      0,
-					IsCore:   iaInSlice(asInfoRequest.Isdas.IA(), trcObj.CoreASList()),
+					IsCore:   iaInSlice(reqIA, trcObj.CoreASList()),
 				},
 			}
 		}
@@ -122,10 +132,10 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	}
 	b, err := proto.PackRoot(reply)
 	if err != nil {
-		log.Error("unable to serialize SCIONDMsg reply")
+		panic(err)
 	}
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
-		h.Logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Warn("Unable to reply to client", "client", src, "err", err)
 	}
 }
 
@@ -134,10 +144,11 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 // for each IFInfoRequest it receives.
 type IFInfoRequestHandler struct {
 	Topology *topology.Topo
-	Logger   log.Logger
 }
 
-func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld) {
+func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
+	logger log.Logger) {
+
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
 	defer cancelF()
 	ifInfoRequest := pld.IfInfoRequest
@@ -147,7 +158,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		for ifid, ifInfo := range h.Topology.IFInfoMap {
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: topoAddrToHostInfo(*ifInfo.InternalAddr),
+				HostInfo: topoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
 			})
 		}
 	} else {
@@ -155,12 +166,12 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		for _, ifid := range ifInfoRequest.IfIDs {
 			ifInfo, ok := h.Topology.IFInfoMap[ifid]
 			if !ok {
-				log.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
+				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: topoAddrToHostInfo(*ifInfo.InternalAddr),
+				HostInfo: topoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
 			})
 		}
 	}
@@ -171,10 +182,10 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	}
 	b, err := proto.PackRoot(reply)
 	if err != nil {
-		log.Error("unable to serialize SCIONDMsg reply")
+		panic(err)
 	}
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
-		h.Logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Warn("Unable to reply to client", "client", src, "err", err)
 	}
 }
 
@@ -183,10 +194,11 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 // for each SVCInfoRequest it receives.
 type SVCInfoRequestHandler struct {
 	Topology *topology.Topo
-	Logger   log.Logger
 }
 
-func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld) {
+func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
+	logger log.Logger) {
+
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
 	defer cancelF()
 	svcInfoRequest := pld.ServiceInfoRequest
@@ -195,19 +207,17 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 		var hostInfos []sciond.HostInfo
 		switch t {
 		case sciond.SvcBS:
-			hostInfos = makeHostInfos(h.Topology.BS)
+			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.BS)
 		case sciond.SvcPS:
-			hostInfos = makeHostInfos(h.Topology.PS)
+			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.PS)
 		case sciond.SvcCS:
-			hostInfos = makeHostInfos(h.Topology.CS)
-		case sciond.SvcBR:
-			hostInfos = makeBRHostInfos(h.Topology.BR, h.Topology.IFInfoMap)
+			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.CS)
 		case sciond.SvcSB:
-			hostInfos = makeHostInfos(h.Topology.SB)
+			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.SB)
 		}
 		replyEntry := sciond.ServiceInfoReplyEntry{
 			ServiceType: t,
-			Ttl:         1337,
+			Ttl:         DefaultServiceTTL,
 			HostInfos:   hostInfos,
 		}
 		svcInfoReply.Entries = append(svcInfoReply.Entries, replyEntry)
@@ -219,44 +229,40 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 	}
 	b, err := proto.PackRoot(reply)
 	if err != nil {
-		log.Error("unable to serialize SCIONDMsg reply")
+		panic(err)
 	}
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
-		h.Logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Warn("Unable to reply to client", "client", src, "err", err)
 	}
 }
 
-func makeHostInfos(addrMap map[string]topology.TopoAddr) []sciond.HostInfo {
+func makeHostInfos(ot overlay.Type, addrMap map[string]topology.TopoAddr) []sciond.HostInfo {
 	hostInfos := make([]sciond.HostInfo, 0, len(addrMap))
 	for _, a := range addrMap {
-		hostInfos = append(hostInfos, topoAddrToHostInfo(a))
+		hostInfos = append(hostInfos, topoAddrToHostInfo(ot, a))
 	}
 	return hostInfos
 }
 
-func makeBRHostInfos(brMap map[string]topology.BRInfo,
-	ifInfoMap map[common.IFIDType]topology.IFInfo) []sciond.HostInfo {
-
-	hostInfos := make([]sciond.HostInfo, 0, len(brMap))
-	for _, brInfo := range brMap {
-		// One IFID is enough to find the unique internal address. Panic if no
-		// IFIDs exist.
-		ifid := brInfo.IFIDs[0]
-		hostInfos = append(hostInfos, topoAddrToHostInfo(*ifInfoMap[ifid].InternalAddr))
+func topoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.HostInfo {
+	var v4, v6 net.IP
+	if ot.IsIPv4() {
+		v4 = topoAddr.PublicAddrInfo(ot.To4()).IP
 	}
-	return hostInfos
-}
-
-func topoAddrToHostInfo(topoAddr topology.TopoAddr) sciond.HostInfo {
+	if ot.IsIPv6() {
+		v6 = topoAddr.PublicAddrInfo(ot.To6()).IP
+	}
+	port := topoAddr.PublicAddrInfo(ot).L4Port
 	// FIXME(scrye): also add support for IPv6
 	return sciond.HostInfo{
 		Addrs: struct {
 			Ipv4 []byte
 			Ipv6 []byte
 		}{
-			Ipv4: topoAddr.IPv4.PublicAddr(),
+			Ipv4: v4,
+			Ipv6: v6,
 		},
-		Port: uint16(topoAddr.IPv4.PublicL4Port()),
+		Port: uint16(port),
 	}
 }
 
@@ -265,10 +271,11 @@ func topoAddrToHostInfo(topoAddr topology.TopoAddr) sciond.HostInfo {
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
 	RevCache *fetcher.RevCache
-	Logger   log.Logger
 }
 
-func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld) {
+func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
+	logger log.Logger) {
+
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
 	defer cancelF()
 	revNotification := pld.RevNotification
@@ -297,10 +304,10 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	}
 	b, err := proto.PackRoot(reply)
 	if err != nil {
-		log.Error("unable to serialize SCIONDMsg reply")
+		panic(err)
 	}
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
-		h.Logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Warn("Unable to reply to client", "client", src, "err", err)
 	}
 }
 

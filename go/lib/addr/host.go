@@ -59,12 +59,12 @@ const (
 	ErrorBadHostAddrType = "Unsupported host address type"
 )
 
-var (
-	SvcBS   = HostSVC(0x0000)
-	SvcPS   = HostSVC(0x0001)
-	SvcCS   = HostSVC(0x0002)
-	SvcSB   = HostSVC(0x0003)
-	SvcNone = HostSVC(0xffff)
+const (
+	SvcBS   HostSVC = 0x0000
+	SvcPS   HostSVC = 0x0001
+	SvcCS   HostSVC = 0x0002
+	SvcSB   HostSVC = 0x0003
+	SvcNone HostSVC = 0xffff
 )
 
 type HostAddr interface {

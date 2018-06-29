@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"net"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -30,30 +29,27 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-const (
-	DefaultRequestTimeout = 3 * time.Second
-)
-
-// API is a SCIOND API server running on top of a Transport.
-type API struct {
+// TransportHandler is a SCIOND API server running on top of a Transport. It
+// reads messages from the transport, and passes them to the relevant request
+// handler.
+type TransportHandler struct {
 	Transport infra.Transport
-
 	// State for request Handlers
 	Handlers map[proto.SCIONDMsg_Which]Handler
+	Logger   log.Logger
 }
 
-type Handler interface {
-	Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld)
-}
+func NewTransportHandler(transport infra.Transport,
+	handlers HandlerMap, logger log.Logger) *TransportHandler {
 
-func NewAPI(transport infra.Transport, handlers HandlerMap) *API {
-	return &API{
+	return &TransportHandler{
 		Transport: transport,
 		Handlers:  handlers,
+		Logger:    logger,
 	}
 }
 
-func (srv *API) Serve() error {
+func (srv *TransportHandler) Serve() error {
 	for {
 		b, address, err := srv.Transport.RecvFrom(context.Background())
 		if err != nil {
@@ -66,7 +62,7 @@ func (srv *API) Serve() error {
 	}
 }
 
-func (srv *API) Handle(b common.RawBytes, address net.Addr) {
+func (srv *TransportHandler) Handle(b common.RawBytes, address net.Addr) {
 	p := &sciond.Pld{}
 	if err := proto.ParseFromReader(p, proto.SCIONDMsg_TypeID, bytes.NewReader(b)); err != nil {
 		log.Error("capnp error", "err", err)
@@ -77,16 +73,16 @@ func (srv *API) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("handler not found for capnp message", "which", p.Which)
 		return
 	}
-	handler.Handle(srv.Transport, address, p)
+	handler.Handle(srv.Transport, address, p, srv.Logger.New("id", p.Id))
 }
 
-func (srv *API) Close() error {
+func (srv *TransportHandler) Close() error {
 	// FIXME(scrye): propagate correct contexts
 	return srv.Transport.Close(context.TODO())
 }
 
 // Shutdown cleanly stops the server from handling future requests, while
 // allowing pending requests to finish.
-func (srv *API) Shutdown() error {
+func (srv *TransportHandler) Shutdown() error {
 	panic("not implemented")
 }

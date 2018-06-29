@@ -34,15 +34,15 @@ type HandlerMap map[proto.SCIONDMsg_Which]Handler
 type Server struct {
 	network  string
 	address  string
-	log      log.Logger
 	handlers map[proto.SCIONDMsg_Which]Handler
+	log      log.Logger
 	mu       sync.Mutex // protect access to listener during init/close
 	listener net.Listener
 }
 
 // NewServer initializes a new server at address on the specified network. The
-// server will use msger for network access. To start listening on the address,
-// call ListenAndServe.
+// server will route requests to their correct handlers based on the
+// HandlerMap. To start listening on the address, call ListenAndServe.
 //
 // Network must be "unixpacket" or "rsock".
 func NewServer(network string, address string, handlers HandlerMap, logger log.Logger) *Server {
@@ -61,12 +61,13 @@ func NewServer(network string, address string, handlers HandlerMap, logger log.L
 func (srv *Server) ListenAndServe() error {
 	srv.mu.Lock()
 	listener, err := srv.listen()
-	srv.mu.Unlock()
 	if err != nil {
+		srv.mu.Unlock()
 		return common.NewBasicError("unable to listen on socket", nil,
 			"address", srv.address, "err", err)
 	}
 	srv.listener = listener
+	srv.mu.Unlock()
 
 	for {
 		conn, err := srv.listener.Accept()
@@ -75,11 +76,14 @@ func (srv *Server) ListenAndServe() error {
 			continue
 		}
 
-		// Launch server for SCIONDMsg messages on the accepted conn
+		// Launch transport handler for SCIONDMsg messages on the accepted conn
 		go func() {
 			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
-			NewAPI(transport.NewPacketTransport(pconn), srv.handlers).Serve()
+			hdl := NewTransportHandler(transport.NewPacketTransport(pconn), srv.handlers, srv.log)
+			if err := hdl.Serve(); err != nil {
+				srv.log.Error("Transport handler error", "err", err)
+			}
 		}()
 	}
 }
