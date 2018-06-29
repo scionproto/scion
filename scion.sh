@@ -45,12 +45,22 @@ cmd_run() {
         bash gen/zk_datalog_dirs.sh || exit 1
     fi
     python/integration/set_ipv6_addr.py -a
-    supervisor/supervisor.sh start all
+    if [ -f gen/docker-compose.yml ]; then
+        systemctl is-active --quiet zookeeper && service zookeeper stop
+        docker-compose -f gen/docker-compose.yml up -d
+    else
+        systemctl is-active --quiet zookeeper || service zookeeper start
+        supervisor/supervisor.sh start all
+    fi
 }
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
-    supervisor/supervisor.sh stop all
+    if [ -f gen/docker-compose.yml ]; then
+        docker-compose -f gen/docker-compose.yml down
+    else
+        supervisor/supervisor.sh stop all
+    fi
     if [ "$1" = "clean" ]; then
         python/integration/set_ipv6_addr.py -d
     fi
@@ -58,7 +68,11 @@ cmd_stop() {
 }
 
 cmd_status() {
-    supervisor/supervisor.sh status | grep -v RUNNING
+    if [ -f gen/docker-compose.yml ]; then
+        docker-compose -f gen/docker-compose.yml ps | grep -v Up
+    else
+        supervisor/supervisor.sh status | grep -v RUNNING
+    fi
     # If all tasks are running, then return 0. Else return 1.
     [ $? -eq 1 ]
     return
