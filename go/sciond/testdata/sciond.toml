@@ -4,6 +4,7 @@
 [general]
   ID = "sd-test"
   Topology = "{{.Topology}}"
+  ConfigDir = "../../gen/ISD1/ASff00_0_133/endhost/"
 
 # Dispatcher?
 
