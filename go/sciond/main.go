@@ -22,6 +22,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -29,7 +30,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -118,10 +121,17 @@ func realMain() int {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
+	log.Warn("public", config.SD.Public, "bind", config.SD.Bind)
 	conn, err := snet.ListenSCIONWithBindSVC("udp4", &config.SD.Public,
 		&config.SD.Bind, addr.SvcNone)
 	if err != nil {
 		log.Crit("Unable to listen on SCION", "err", err)
+		return 1
+	}
+
+	err = LoadAuthoritativeTRC(trustDB, trustStore)
+	if err != nil {
+		log.Crit("TRC error", "err", err)
 		return 1
 	}
 	msger := messenger.New(
@@ -225,6 +235,9 @@ func Init(configName string) error {
 	if config.SD.Unix == "" {
 		config.SD.Unix = "/run/shm/sciond/default-unix.sock"
 	}
+	if config.SD.Bind.IsZero() {
+		config.SD.Bind = config.SD.Public
+	}
 	return nil
 }
 
@@ -238,4 +251,43 @@ func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
 		cancelF()
 	}
 	return server, shutdownF
+}
+
+func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
+	fileTRC, err := trc.TRCFromDir(
+		filepath.Join(config.General.ConfigDir, "certs"),
+		config.General.Topology.ISD_AS.I,
+		func(err error) {
+			log.Warn("Error reading TRC", "err", err)
+		})
+	if err != nil {
+		return common.NewBasicError("Unable to load TRC from directory", err)
+	}
+
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	dbTRC, err := store.GetValidTRC(
+		ctx,
+		config.General.Topology.ISD_AS.I,
+		config.General.Topology.ISD_AS.I,
+	)
+	cancelF()
+	switch {
+	case err != nil && fileTRC == nil:
+		return common.NewBasicError("No TRC found", nil)
+	case err != nil && fileTRC != nil:
+		_, err := db.InsertTRC(fileTRC)
+		if err != nil {
+			return err
+		}
+	case err == nil && fileTRC == nil:
+		// Nothing to do, no TRC to load from file but we already have one in the DB
+		return nil
+	case err == nil && fileTRC != nil:
+		// Check if the TRCs match
+		if fileTRC.String() != dbTRC.String() {
+			return common.NewBasicError("Conflicting TRCs found", nil, "db", dbTRC, "file", fileTRC)
+		}
+		return nil
+	}
+	panic("unreachable")
 }

@@ -223,7 +223,7 @@ func TestSVCInfo(t *testing.T) {
 				Entries: []sciond.ServiceInfoReplyEntry{
 					{
 						ServiceType: sciond.SvcBS,
-						Ttl:         1337,
+						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
 							{
 								Port: 30087,
@@ -240,36 +240,13 @@ func TestSVCInfo(t *testing.T) {
 			},
 		},
 		{
-			Name:     "ask for BR",
-			SVCTypes: []sciond.ServiceType{sciond.SvcBR},
-			Expected: &sciond.ServiceInfoReply{
-				Entries: []sciond.ServiceInfoReplyEntry{
-					{
-						ServiceType: sciond.SvcBR,
-						Ttl:         1337,
-						HostInfos: []sciond.HostInfo{
-							{
-								Port: 30088,
-								Addrs: struct {
-									Ipv4 []byte
-									Ipv6 []byte
-								}{
-									Ipv4: net.ParseIP("127.0.0.169"),
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
 			Name:     "ask for CS and PS",
 			SVCTypes: []sciond.ServiceType{sciond.SvcCS, sciond.SvcPS},
 			Expected: &sciond.ServiceInfoReply{
 				Entries: []sciond.ServiceInfoReplyEntry{
 					{
 						ServiceType: sciond.SvcCS,
-						Ttl:         1337,
+						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
 							{
 								Port: 30085,
@@ -284,7 +261,7 @@ func TestSVCInfo(t *testing.T) {
 					},
 					{
 						ServiceType: sciond.SvcPS,
-						Ttl:         1337,
+						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
 							{
 								Port: 30083,

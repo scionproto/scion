@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -143,6 +144,37 @@ func TRCFromFile(path string, lz4_ bool) (*TRC, error) {
 		return nil, err
 	}
 	return TRCFromRaw(raw, lz4_)
+}
+
+// TRCFromDir reads all the *.trc files contained directly in dir (no
+// subdirectories), and out of those that match ISD isd returns the newest one.
+// The TRCs must not be compressed. If an error occurs when parsing one of the
+// files, f() is called with the error as argument. Execution continues with
+// the remaining files.
+//
+// If no TRC is found, the returned TRC is nil and the error is set to nil.
+func TRCFromDir(dir string, isd addr.ISD, f func(err error)) (*TRC, error) {
+	infos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var bestVersion uint64
+	var bestTRC *TRC
+	for _, info := range infos {
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".trc") {
+			trcObj, err := TRCFromFile(filepath.Join(dir, info.Name()), false)
+			if err != nil {
+				f(common.NewBasicError("Unable to read TRC file", err))
+				continue
+			}
+			fileISD, version := trcObj.IsdVer()
+			if fileISD == isd && version > bestVersion {
+				bestTRC = trcObj
+				bestVersion = version
+			}
+		}
+	}
+	return bestTRC, nil
 }
 
 func (t *TRC) IsdVer() (addr.ISD, uint64) {

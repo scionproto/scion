@@ -57,8 +57,7 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
 	defer cancelF()
-	pathReq := &pld.PathReq
-	getPathsReply, err := h.Fetcher.GetPaths(ctx, pathReq, DefaultEarlyReply)
+	getPathsReply, err := h.Fetcher.GetPaths(ctx, &pld.PathReq, DefaultEarlyReply)
 	if err != nil {
 		logger.Warn("Unable to get paths", "err", err)
 	}
@@ -253,7 +252,6 @@ func topoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.Host
 		v6 = topoAddr.PublicAddrInfo(ot.To6()).IP
 	}
 	port := topoAddr.PublicAddrInfo(ot).L4Port
-	// FIXME(scrye): also add support for IPv6
 	return sciond.HostInfo{
 		Addrs: struct {
 			Ipv4 []byte
