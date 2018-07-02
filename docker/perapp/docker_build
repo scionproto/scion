@@ -19,8 +19,8 @@ img="scion_$target"
 tag="$img:${ver:-latest}"
 
 if [ -n "$src" ]; then
-    docker build -t "$tag" $DOCKER_ARGS -f "$dfile" "$src"
+    docker build -t "$tag" $DOCKER_ARGS -f "$PWD/$dfile" "$src"
 else
-    docker build -t "$tag" $DOCKER_ARGS - < "$dfile"
+    docker build -t "$tag" $DOCKER_ARGS - < "$PWD/$dfile"
 fi
 ./docker_hash "$img" $ver
