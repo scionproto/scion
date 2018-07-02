@@ -83,9 +83,8 @@ jobs:
     #             path: logs/nosetests.xml
 
     # deploy:
-        docker:
-            - image: scionproto/scion_base:latest
-        working_directory: /home/scion/go/src/github.com/scionproto/scion/docker/perapp
+        <<: *base_image
+        working_directory: /home/scion/go/src/github.com/scionproto/scion
         filters:
             branches:
                 only: versioning
@@ -109,10 +108,15 @@ jobs:
                 ls
                 id
                 pwd
-                docker images
-                make app_builder
+                # sudo docker images
+                cd docker/perapp
+                cat Makefile
+                make base
 
 scion_defaults:
+    base_image: &base_image
+        docker:
+            - image: scionproto/scion_base@sha256:466cb6db16e5ca755c03d21fbb240e768947dab094429990d0126f83ca63f869
     job: &job
         working_directory: /home/scion/go/src/github.com/scionproto/scion
         environment:
