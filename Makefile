@@ -1,14 +1,13 @@
-.PHONY: all clean go gohsr clibs libscion libfilter liblwip libtcpmw dispatcher libhsr uninstall tags
+.PHONY: all clean go gohsr clibs libscion libfilter dispatcher libhsr uninstall tags
 
-SRC_DIRS = c/lib/scion c/lib/filter sub/lwip-contrib c/lib/tcp c/dispatcher
+SRC_DIRS = c/lib/scion c/lib/filter c/dispatcher
 
 all: tags clibs dispatcher go
 
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 	cd go && $(MAKE) clean
-	rm -f bin/*
-	rm -f tags
+	rm -f bin/* tags
 
 go: libscion
 	@# `make -C go` breaks if there are symlinks in $PWD
@@ -18,19 +17,13 @@ gohsr: libhsr
 	cd go && $(MAKE) hsr
 
 # Order is important
-clibs: libscion libfilter liblwip libtcpmw
+clibs: libscion libfilter
 
 libscion:
 	$(MAKE) -C c/lib/scion install
 
 libfilter: libscion
 	$(MAKE) -C c/lib/filter install
-
-liblwip: libscion
-	$(MAKE) -C sub/lwip-contrib install
-
-libtcpmw: libscion liblwip
-	$(MAKE) -C c/lib/tcp install
 
 dispatcher: clibs
 	$(MAKE) -C c/dispatcher install
@@ -42,4 +35,4 @@ uninstall:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) uninstall || exit 1;)
 
 tags:
-	which ctags >/dev/null 2>&1 || exit 0; { git ls-files; git submodule --quiet foreach 'git ls-files | sed "s|^|$$path/|"'; } | ctags -L -
+	which ctags >/dev/null 2>&1 || exit 0; git ls-files | ctags -L -

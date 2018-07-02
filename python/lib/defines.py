@@ -136,11 +136,6 @@ MAX_HOST_ADDR_LEN = 16
 MIN_REVOCATION_TTL = 10
 REVOCATION_GRACE = 1
 
-# TCP polling timeouts, used by accept() and recv().
-TCP_ACCEPT_POLLING_TOUT = 1.0
-# SCION control-plane TCP connection timeout.
-TCP_TIMEOUT = 5.0
-
 # Max time for a path lookup to succeed/fail.
 PATH_REQ_TOUT = 2
 

@@ -69,14 +69,6 @@ class SCIONChecksumFailed(SCIONBaseError):
     """Checksum failed"""
 
 
-class SCIONTCPError(SCIONBaseError):
-    """SCION TCP error"""
-
-
-class SCIONTCPTimeout(SCIONBaseError):
-    """SCION TCP timeout"""
-
-
 class SCIONSigVerError(SCIONBaseError):
     """SCION Signature Version error"""
 
