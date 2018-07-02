@@ -110,7 +110,7 @@ jobs:
                 id
                 pwd
                 docker images
-                make base
+                make app_builder
 
 scion_defaults:
     job: &job
