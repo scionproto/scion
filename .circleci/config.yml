@@ -107,9 +107,9 @@ jobs:
                 ls
                 id
                 pwd
-                # sudo docker images
+                ./docker.sh build
+                docker images
                 cd docker/perapp
-                # cat Makefile
                 make base
 
 scion_defaults:
