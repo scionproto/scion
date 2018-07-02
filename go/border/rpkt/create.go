@@ -22,10 +22,12 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spkt"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
@@ -170,9 +172,10 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	if err = sp.Reverse(); err != nil {
 		return nil, err
 	}
-	// Use the ingress address as the source host
 	sp.SrcIA = rp.Ctx.Conf.IA
-	sp.SrcHost = addr.HostFromIP(rp.Ingress.Dst.IP)
+	// Use the local address as the source host
+	pubInt := rp.Ctx.Conf.Net.LocAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+	sp.SrcHost = addr.HostFromIP(pubInt.IP)
 	return sp, nil
 }
 
@@ -218,20 +221,46 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 			}
 		}
 	}
-	egress, err := rp.replyEgress()
-	if err != nil {
+	if err := reply.replyEgress(rp.DirFrom, rp.Ingress.Src, rp.Ingress.IfID); err != nil {
 		return nil, err
 	}
-	reply.Egress = append(reply.Egress, egress)
 	return reply, nil
 }
 
 // replyEgress calculates the corresponding egress function and destination
 // address to use when replying to a packet.
-func (rp *RtrPkt) replyEgress() (EgressPair, error) {
-	if rp.DirFrom == rcmn.DirLocal {
-		return EgressPair{S: rp.Ctx.LocSockOut, Dst: rp.Ingress.Src}, nil
+func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *topology.AddrInfo, ifid common.IFIDType) error {
+	// Destination is the local AS
+	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
+		// Write to local socket
+		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
+		return nil
 	}
-	intf := rp.Ctx.Conf.Net.IFs[rp.Ingress.IfID]
-	return EgressPair{S: rp.Ctx.ExtSockOut[rp.Ingress.IfID], Dst: intf.RemoteAddr}, nil
+	// Destination AS is not local
+	if dir == rcmn.DirExternal {
+		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.ExtSockOut[ifid]})
+		return nil
+	}
+	if assert.On {
+		assert.Must(dir == rcmn.DirLocal, "Wrong direction value")
+	}
+	// DirFrom Local and destination is remote AS
+	// At this point we should have a valid path to route the packet
+	if _, err := rp.IFNext(); err != nil {
+		return err
+	}
+	if err := rp.validateLocalIF(rp.ifNext); err != nil {
+		return err
+	}
+	if _, ok := rp.Ctx.Conf.Net.IFs[*rp.ifNext]; ok {
+		// Egress interface is on this BR
+		// Re-inject to process the reply as an "Egress br"
+		// and make it look like it arrived in the local socket
+		rp.hooks.Route = append(rp.hooks.Route, rp.reprocess)
+		return nil
+	}
+	// Egress interface is not on this BR
+	// Write to local socket
+	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
+	return nil
 }
