@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
@@ -172,7 +173,7 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 		return nil, err
 	}
 	sp.SrcIA = rp.Ctx.Conf.IA
-	// Use the ingress address as the source host
+	// Use the local address as the source host
 	pubInt := rp.Ctx.Conf.Net.LocAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
 	sp.SrcHost = addr.HostFromIP(pubInt.IP)
 	return sp, nil
@@ -231,7 +232,7 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *topology.AddrInfo, ifid common.IFIDType) error {
 	// Destination is the local AS
 	if rp.dstIA.Eq(rp.Ctx.Conf.IA) {
-		// Write to internal interface
+		// Write to local socket
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return nil
 	}
@@ -239,6 +240,9 @@ func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *topology.AddrInfo, ifid common.
 	if dir == rcmn.DirExternal {
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.ExtSockOut[ifid]})
 		return nil
+	}
+	if assert.On {
+		assert.Must(dir == rcmn.DirLocal, "Wrong direction value")
 	}
 	// DirFrom Local and destination is remote AS
 	// At this point we should have a valid path to route the packet
@@ -249,14 +253,14 @@ func (rp *RtrPkt) replyEgress(dir rcmn.Dir, dst *topology.AddrInfo, ifid common.
 		return err
 	}
 	if _, ok := rp.Ctx.Conf.Net.IFs[*rp.ifNext]; ok {
-		// Egress interface is local
+		// Egress interface is on this BR
 		// Re-inject to process the reply as an "Egress br"
-		// and make it look like it arrived in the internal interface
+		// and make it look like it arrived in the local socket
 		rp.hooks.Route = append(rp.hooks.Route, rp.reprocess)
 		return nil
 	}
-	// Egress interface is not local
-	// Write to internal interface
+	// Egress interface is not on this BR
+	// Write to local socket
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return nil
 }
