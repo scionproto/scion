@@ -7,7 +7,7 @@ all: tags clibs dispatcher go
 clean:
 	$(foreach var,$(SRC_DIRS),$(MAKE) -C $(var) clean || exit 1;)
 	cd go && $(MAKE) clean
-	rm -f bin/*
+	rm -f bin/* tags
 
 go: libscion
 	@# `make -C go` breaks if there are symlinks in $PWD
