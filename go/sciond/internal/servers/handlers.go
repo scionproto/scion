@@ -157,7 +157,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		for ifid, ifInfo := range h.Topology.IFInfoMap {
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: topoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
+				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
 			})
 		}
 	} else {
@@ -170,7 +170,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: topoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
+				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
 			})
 		}
 	}
@@ -238,12 +238,12 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 func makeHostInfos(ot overlay.Type, addrMap map[string]topology.TopoAddr) []sciond.HostInfo {
 	hostInfos := make([]sciond.HostInfo, 0, len(addrMap))
 	for _, a := range addrMap {
-		hostInfos = append(hostInfos, topoAddrToHostInfo(ot, a))
+		hostInfos = append(hostInfos, TopoAddrToHostInfo(ot, a))
 	}
 	return hostInfos
 }
 
-func topoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.HostInfo {
+func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.HostInfo {
 	var v4, v6 net.IP
 	if ot.IsIPv4() {
 		v4 = topoAddr.PublicAddrInfo(ot.To4()).IP
@@ -262,6 +262,19 @@ func topoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.Host
 		},
 		Port: uint16(port),
 	}
+}
+
+func MakeBRHostInfos(ot overlay.Type, brMap map[string]topology.BRInfo,
+	ifInfoMap map[common.IFIDType]topology.IFInfo) []sciond.HostInfo {
+
+	hostInfos := make([]sciond.HostInfo, 0, len(brMap))
+	for _, brInfo := range brMap {
+		// One IFID is enough to find the unique internal address. Panic if no
+		// IFIDs exist.
+		ifid := brInfo.IFIDs[0]
+		hostInfos = append(hostInfos, TopoAddrToHostInfo(ot, *ifInfoMap[ifid].InternalAddr))
+	}
+	return hostInfos
 }
 
 // RevNotificationHandler represents the shared global state for the handling of all

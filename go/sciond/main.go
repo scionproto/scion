@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -65,10 +66,10 @@ type Config struct {
 		Unix string
 		// Public is the local address to listen on for SCION messages (if Bind is
 		// not set), and to send out messages to other nodes.
-		Public snet.Addr
+		Public *snet.Addr
 		// If set, Bind is the preferred local address to listen on for SCION
 		// messages.
-		Bind snet.Addr
+		Bind *snet.Addr
 		// PathDB contains the file location  of the path segment database.
 		PathDB string
 	}
@@ -121,9 +122,8 @@ func realMain() int {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	log.Warn("public", config.SD.Public, "bind", config.SD.Bind)
-	conn, err := snet.ListenSCIONWithBindSVC("udp4", &config.SD.Public,
-		&config.SD.Bind, addr.SvcNone)
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", config.SD.Public,
+		config.SD.Bind, addr.SvcNone)
 	if err != nil {
 		log.Crit("Unable to listen on SCION", "err", err)
 		return 1
@@ -235,7 +235,7 @@ func Init(configName string) error {
 	if config.SD.Unix == "" {
 		config.SD.Unix = "/run/shm/sciond/default-unix.sock"
 	}
-	if config.SD.Bind.IsZero() {
+	if config.SD.Bind == nil {
 		config.SD.Bind = config.SD.Public
 	}
 	return nil
@@ -272,9 +272,12 @@ func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
 	)
 	cancelF()
 	switch {
-	case err != nil && fileTRC == nil:
-		return common.NewBasicError("No TRC found", nil)
-	case err != nil && fileTRC != nil:
+	case err != nil && err != trust.ErrEndOfTrail:
+		// Unexpected error in trust store
+		return err
+	case err == trust.ErrEndOfTrail && fileTRC == nil:
+		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
+	case err == trust.ErrEndOfTrail && fileTRC != nil:
 		_, err := db.InsertTRC(fileTRC)
 		if err != nil {
 			return err
@@ -284,10 +287,28 @@ func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
 		return nil
 	case err == nil && fileTRC != nil:
 		// Check if the TRCs match
-		if fileTRC.String() != dbTRC.String() {
+		eq, err := equals(fileTRC, dbTRC)
+		if err != nil {
+			return common.NewBasicError("Unable to compare TRCs", err)
+		}
+		if !eq {
 			return common.NewBasicError("Conflicting TRCs found", nil, "db", dbTRC, "file", fileTRC)
 		}
 		return nil
 	}
 	panic("unreachable")
+}
+
+// equals checks if two TRCs are the same based on their JSON serializations
+func equals(x, y *trc.TRC) (bool, error) {
+	xj, err := x.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+	yj, err := y.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+
+	return bytes.Compare(xj, yj) == 0, nil
 }

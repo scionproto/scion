@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,11 +35,12 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
 
 func TestPaths(t *testing.T) {
 	// XXX(scrye): this does not contain expected values because due to the
-	// random IFIDs, set up and checking are too clumsy.
+	// random IFIDs, setup and checking are too clumsy.
 	conn, _, cleanF := Setup(t, "testdata/sciond.toml")
 	defer cleanF()
 	testCases := []struct {
@@ -140,9 +140,8 @@ func TestIFInfo(t *testing.T) {
 	conn, topo, cleanF := Setup(t, "testdata/sciond.toml")
 	defer cleanF()
 
-	// FIXME(scrye): IFIDs are randomly generated, so these tests cannot use
-	// hardcoded numbers. Thus, we load the topology and use some numbers from
-	// there
+	// XXX: This depends on the test having a single IFID in this AS. Also, it
+	// will panic if there are none.
 	var ifids []common.IFIDType
 	for ifid := range topo.IFInfoMap {
 		ifids = append(ifids, ifid)
@@ -158,16 +157,8 @@ func TestIFInfo(t *testing.T) {
 			Expected: &sciond.IFInfoReply{
 				RawEntries: []sciond.IFInfoReplyEntry{
 					{
-						IfID: ifids[0],
-						HostInfo: sciond.HostInfo{
-							Port: 30088,
-							Addrs: struct {
-								Ipv4 []byte
-								Ipv6 []byte
-							}{
-								Ipv4: net.ParseIP("127.0.0.169"),
-							},
-						},
+						IfID:     ifids[0],
+						HostInfo: servers.MakeBRHostInfos(topo.Overlay, topo.BR, topo.IFInfoMap)[0],
 					},
 				},
 			},
@@ -178,16 +169,8 @@ func TestIFInfo(t *testing.T) {
 			Expected: &sciond.IFInfoReply{
 				RawEntries: []sciond.IFInfoReplyEntry{
 					{
-						IfID: ifids[0],
-						HostInfo: sciond.HostInfo{
-							Port: 30088,
-							Addrs: struct {
-								Ipv4 []byte
-								Ipv6 []byte
-							}{
-								Ipv4: net.ParseIP("127.0.0.169"),
-							},
-						},
+						IfID:     ifids[0],
+						HostInfo: servers.MakeBRHostInfos(topo.Overlay, topo.BR, topo.IFInfoMap)[0],
 					},
 				},
 			},
@@ -208,8 +191,14 @@ func TestIFInfo(t *testing.T) {
 }
 
 func TestSVCInfo(t *testing.T) {
-	conn, _, cleanF := Setup(t, "testdata/sciond.toml")
+	conn, topo, cleanF := Setup(t, "testdata/sciond.toml")
 	defer cleanF()
+
+	// XXX: To keep this simple, this depends on the test having a single
+	// BS/CS/PS in this AS. Also, it will panic if there are none.  Note that
+	// due to the randomly generated topology, expected value initialization
+	// uses some of the same functions the SCIOND server itself uses. This can
+	// hide some bugs related to topology parsing.
 
 	testCases := []struct {
 		Name     string
@@ -225,15 +214,7 @@ func TestSVCInfo(t *testing.T) {
 						ServiceType: sciond.SvcBS,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
-							{
-								Port: 30087,
-								Addrs: struct {
-									Ipv4 []byte
-									Ipv6 []byte
-								}{
-									Ipv4: net.ParseIP("127.0.0.170"),
-								},
-							},
+							servers.TopoAddrToHostInfo(topo.Overlay, topo.BS[topo.BSNames[0]]),
 						},
 					},
 				},
@@ -248,30 +229,14 @@ func TestSVCInfo(t *testing.T) {
 						ServiceType: sciond.SvcCS,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
-							{
-								Port: 30085,
-								Addrs: struct {
-									Ipv4 []byte
-									Ipv6 []byte
-								}{
-									Ipv4: net.ParseIP("127.0.0.171"),
-								},
-							},
+							servers.TopoAddrToHostInfo(topo.Overlay, topo.CS[topo.CSNames[0]]),
 						},
 					},
 					{
 						ServiceType: sciond.SvcPS,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
-							{
-								Port: 30083,
-								Addrs: struct {
-									Ipv4 []byte
-									Ipv6 []byte
-								}{
-									Ipv4: net.ParseIP("127.0.0.172"),
-								},
-							},
+							servers.TopoAddrToHostInfo(topo.Overlay, topo.PS[topo.PSNames[0]]),
 						},
 					},
 				},
