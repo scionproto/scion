@@ -275,27 +275,30 @@ func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
 		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
 	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC != nil:
 		_, err := db.InsertTRC(fileTRC)
-		if err != nil {
-			return err
-		}
+		return err
 	case err == nil && fileTRC == nil:
 		// Nothing to do, no TRC to load from file but we already have one in the DB
 		return nil
-	case err == nil && fileTRC != nil:
-		// If the file TRC is a newer version, try to insert it
-		if fileTRC.Version > dbTRC.Version {
+	default:
+		// Found a TRC file on disk, and found a TRC in the DB. Check versions.
+		switch {
+		case fileTRC.Version > dbTRC.Version:
 			_, err := db.InsertTRC(fileTRC)
 			return err
+		case fileTRC.Version == dbTRC.Version:
+			// Because it is the same version, check if the TRCs match
+			eq, err := fileTRC.JSONEquals(dbTRC)
+			if err != nil {
+				return common.NewBasicError("Unable to compare TRCs", err)
+			}
+			if !eq {
+				return common.NewBasicError("Conflicting TRCs found for same version", nil,
+					"db", dbTRC, "file", fileTRC)
+			}
+			return nil
+		default:
+			// file TRC is older than DB TRC, so we just ignore it
+			return nil
 		}
-		// Because it is an older version, check if the TRCs match
-		eq, err := fileTRC.JSONEquals(dbTRC)
-		if err != nil {
-			return common.NewBasicError("Unable to compare TRCs", err)
-		}
-		if !eq {
-			return common.NewBasicError("Conflicting TRCs found", nil, "db", dbTRC, "file", fileTRC)
-		}
-		return nil
 	}
-	panic("unreachable")
 }
