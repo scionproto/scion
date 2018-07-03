@@ -104,13 +104,10 @@ jobs:
                     tar -xz -C /tmp -f /tmp/docker-$VER.tgz
                     sudo mv /tmp/docker/* /usr/bin
             - run: |
-                ls
-                id
-                pwd
-                ./docker.sh build
-                docker images
+                sudo docker build -f docker/Dockerfile -t latest .
+                sudo docker images
                 cd docker/perapp
-                make base
+                sudo make base
 
 scion_defaults:
     base_image: &base_image
