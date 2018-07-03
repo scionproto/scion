@@ -23,6 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -33,12 +34,14 @@ var (
 func TestLoadFromFile(t *testing.T) {
 	testCases := []struct {
 		Name     string
+		Err      error
 		FileName string
 		Config   Cfg
 	}{
 		{
 			Name:     "simple",
 			FileName: "01-loadfromfile",
+			Err:      nil,
 			Config: Cfg{
 				ASes: map[addr.IA]*ASEntry{
 					xtest.MustParseIA("1-ff00:0:1"): {
@@ -95,6 +98,26 @@ func TestLoadFromFile(t *testing.T) {
 				ConfigVersion: 9001,
 			},
 		},
+		{
+			Name:     "verify fails for not network address",
+			FileName: "01-not-network",
+			Err: common.NewBasicError("Unable to parse SIG config",
+				common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "192.0.2.43/24", "byte", 3)),
+			Config: Cfg{
+				ASes: map[addr.IA]*ASEntry{
+					xtest.MustParseIA("1-ff00:0:1"): {
+						Name: "AS 1",
+						Nets: []*IPNet{
+							{
+								IP:   net.IP{192, 0, 2, 43},
+								Mask: net.CIDRMask(24, 8*net.IPv4len),
+							},
+						},
+					},
+				},
+				ConfigVersion: 9001,
+			},
+		},
 	}
 
 	Convey("Test SIG config marshal/unmarshal", t, func() {
@@ -105,8 +128,70 @@ func TestLoadFromFile(t *testing.T) {
 				}
 
 				cfg, err := LoadFromFile(filepath.Join("testdata", tc.FileName+".json"))
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("cfg", *cfg, ShouldResemble, tc.Config)
+				SoMsg("err", err, ShouldResemble, tc.Err)
+				if tc.Err == nil {
+					SoMsg("cfg", *cfg, ShouldResemble, tc.Config)
+				}
+			})
+		}
+	})
+}
+
+func TestVerifyNetworkAddr(t *testing.T) {
+	testCases := []struct {
+		Name string
+		Err  error
+		CIDR string
+	}{
+		{
+			Name: "Correct Network IPv4 Addr using 32 bits",
+			Err:  nil,
+			CIDR: "192.0.2.255/32",
+		},
+		{
+			Name: "Correct Network IPv4 Addr using 0 bit",
+			Err:  nil,
+			CIDR: "0.0.0.0/0",
+		},
+		{
+			Name: "Correct Network IPv4 Addr using 1 bit",
+			Err:  nil,
+			CIDR: "128.0.0.0/1",
+		},
+		{
+			Name: "Invalid Network IPv4 Addr using 24 bit",
+			Err:  common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "10.0.0.55/24", "byte", 3),
+			CIDR: "10.0.0.55/24",
+		},
+
+		{
+			Name: "Correct Network IPv6 Addr using 128 bits",
+			Err:  nil,
+			CIDR: "2001:0db8:0123:4567:89ab:cdef:1234:5678/128",
+		},
+		{
+			Name: "Correct Network IPv6 Addr using 0 bit",
+			Err:  nil,
+			CIDR: "::/0",
+		},
+		{
+			Name: "Correct Network IPv6 Addr using 1 bit",
+			Err:  nil,
+			CIDR: "8000::/1",
+		},
+		{
+			Name: "Invalid Network IPv6 Addr using 24 bit",
+			Err:  common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "2001::f1/24", "byte", 15),
+			CIDR: "2001::f1/24",
+		},
+	}
+
+	Convey("Test verify network addr in sig.json", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				ip, ipnet, _ := net.ParseCIDR(tc.CIDR)
+				err := verifyNetworkAddr(ip, ipnet.Mask, tc.CIDR)
+				SoMsg("err", err, ShouldResemble, tc.Err)
 			})
 		}
 	})
