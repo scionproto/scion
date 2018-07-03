@@ -19,7 +19,8 @@ import os
 import logging
 
 # SCION
-from sciond.sciond import SCIONDaemon, SCIOND_API_SOCKDIR
+from sciond.sciond import SCIONDaemon
+from lib.app.sciond import get_default_sciond_path
 from lib.log import init_logging
 from lib.main import main_wrapper
 from lib.packet.host_addr import haddr_parse_interface
@@ -35,8 +36,7 @@ def sciond_default():
     parser.add_argument('--addr', default='127.0.0.1',
                         help='Address to bind to (Default: 127.0.0.1)')
     parser.add_argument('--api-addr',
-                        help='Address to bind to (Default: %s)' %
-                        os.path.join(SCIOND_API_SOCKDIR, "ISD-AS.sock"))
+                        help='Address to bind to (Default: %s)' % get_default_sciond_path())
     parser.add_argument('sciond_id', help='Sciond identifier')
     parser.add_argument('conf_dir', nargs='?', default='.',
                         help='Configuration directory (Default: ./)')

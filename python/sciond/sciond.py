@@ -26,6 +26,7 @@ from itertools import product
 from external.expiring_dict import ExpiringDict
 
 # SCION
+from lib.app.sciond import get_default_sciond_path
 from lib.defines import (
     GEN_CACHE_PATH,
     PATH_FLAG_SIBRA,
@@ -127,9 +128,7 @@ class SCIONDaemon(SCIONElement):
         self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
-        self.api_addr = (api_addr or
-                         os.path.join(SCIOND_API_SOCKDIR,
-                                      "%s.sock" % self.addr.isd_as))
+        self.api_addr = (api_addr or get_default_sciond_path())
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
