@@ -127,9 +127,7 @@ class SCIONDaemon(SCIONElement):
         self._api_sock = None
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
-        self.api_addr = (api_addr or
-                         os.path.join(SCIOND_API_SOCKDIR,
-                                      "%s.sock" % self.addr.isd_as))
+        self.api_addr = (api_addr or os.path.join(SCIOND_API_SOCKDIR, "default.sock"))
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {

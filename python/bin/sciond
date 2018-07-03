@@ -36,7 +36,7 @@ def sciond_default():
                         help='Address to bind to (Default: 127.0.0.1)')
     parser.add_argument('--api-addr',
                         help='Address to bind to (Default: %s)' %
-                        os.path.join(SCIOND_API_SOCKDIR, "ISD-AS.sock"))
+                        os.path.join(SCIOND_API_SOCKDIR, "default.sock"))
     parser.add_argument('sciond_id', help='Sciond identifier')
     parser.add_argument('conf_dir', nargs='?', default='.',
                         help='Configuration directory (Default: ./)')
