@@ -41,15 +41,20 @@ cmd_run() {
         openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
     fi
     echo "Running the network..."
-    if [ -e gen/zk_datalog_dirs.sh ]; then
-        bash gen/zk_datalog_dirs.sh || exit 1
-    fi
     python/integration/set_ipv6_addr.py -a
+    # Create dispatcher and sciond dirs or change owner
+    local disp_dir="/run/shm/dispatcher"
+    [ -d "$disp_dir" ] || mkdir "$disp_dir"
+    [ $(stat -c "%U" "$disp_dir") != "root" ] || sudo chown $USER:$USER "$disp_dir"
+    local sciond_dir="/run/shm/sciond"
+    [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
+    [ $(stat -c "%U" "$sciond_dir") != "root" ] || sudo chown $USER:$USER "$sciond_dir"
+    # Run with docker-compose or supervisor
     if [ -f gen/docker-compose.yml ]; then
-        systemctl is-active --quiet zookeeper && service zookeeper stop
+        systemctl is-active --quiet zookeeper && systemctl stop zookeeper
         docker-compose -f gen/docker-compose.yml up -d
     else
-        systemctl is-active --quiet zookeeper || service zookeeper start
+        systemctl is-active --quiet zookeeper || systemctl start zookeeper
         supervisor/supervisor.sh start all
     fi
 }
@@ -69,7 +74,7 @@ cmd_stop() {
 
 cmd_status() {
     if [ -f gen/docker-compose.yml ]; then
-        docker-compose -f gen/docker-compose.yml ps | grep -v Up
+        docker-compose -f gen/docker-compose.yml ps | tail -n +3 | grep -v '\<Up\>'
     else
         supervisor/supervisor.sh status | grep -v RUNNING
     fi
