@@ -1014,7 +1014,7 @@ class DockerGenerator(object):
 
     def _br_conf(self, topo, base):
         raw_entry = {
-            'image': 'scionproto/border',
+            'image': 'scion_border',
             'restart': 'always',
             'network_mode': 'host',
             'environment': {
@@ -1025,9 +1025,7 @@ class DockerGenerator(object):
                 '/etc/group:/etc/group:ro',
                 '${PWD}/logs:/share/logs:rw'
             ],
-            'command': [
-                '-log.dir=logs'
-            ]
+            'command': []
         }
         for k, v in topo.get("BorderRouters", {}).items():
             entry = copy.deepcopy(raw_entry)
@@ -1039,7 +1037,7 @@ class DockerGenerator(object):
 
     def _cs_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scionproto/cert',
+            'image': 'scion_cert',
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1058,7 +1056,6 @@ class DockerGenerator(object):
                 '${PWD}/logs:/share/logs:rw'
             ],
             'command': [
-                '--log_dir=logs',
                 '--spki_cache_dir=cache'
             ]
         }
@@ -1073,7 +1070,7 @@ class DockerGenerator(object):
 
     def _bs_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scionproto/beacon',
+            'image': 'scion_beacon',
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1092,7 +1089,6 @@ class DockerGenerator(object):
                 '${PWD}/logs:/share/logs:rw'
             ],
             'command': [
-                '--log_dir=logs',
                 '--spki_cache_dir=cache'
             ]
         }
@@ -1107,7 +1103,7 @@ class DockerGenerator(object):
 
     def _ps_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scionproto/path',
+            'image': 'scion_path',
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1126,7 +1122,6 @@ class DockerGenerator(object):
                 '${PWD}/logs:/share/logs:rw'
             ],
             'command': [
-                '--log_dir=logs',
                 '--spki_cache_dir=cache'
             ]
         }
@@ -1164,7 +1159,7 @@ class DockerGenerator(object):
 
     def _dispatcher_conf(self):
         entry = {
-            'image': 'scionproto/dispatcher',
+            'image': 'scion_dispatcher',
             'container_name': 'dispatcher',
             'restart': 'always',
             'network_mode': 'host',
@@ -1189,7 +1184,7 @@ class DockerGenerator(object):
     def _sciond_conf(self, topo_id, base):
         name = self._sciond_name(topo_id)
         entry = {
-            'image': 'scionproto/sciond',
+            'image': 'scion_sciond',
             'restart': 'always',
             'container_name': name,
             'depends_on': [
