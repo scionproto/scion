@@ -31,6 +31,36 @@ cmd_run() {
         echo "Compiling..."
         cmd_build || exit 1
     fi
+    run_setup
+    echo "Running the network..."
+    # Run with docker-compose or supervisor
+    if [ -f gen/docker-compose.yml ]; then
+        systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
+        docker-compose -f gen/docker-compose.yml up -d
+    else
+        systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
+        supervisor/supervisor.sh start all
+    fi
+}
+
+cmd_mstart() {
+    run_setup
+    # Run with docker-compose or supervisor
+    if [ -f gen/docker-compose.yml ]; then
+        declare -a services
+        for i in $(glob_proc $@); do
+            services+=("$i")
+        done
+        [ ${#services[*]} == 0 ] && { echo "$@: ERROR no process matched!"; exit 1; }
+        systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
+        docker-compose -f gen/docker-compose.yml up -d ${services[*]}
+    else
+        systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
+        supervisor/supervisor.sh mstart $@
+    fi
+}
+
+run_setup() {
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)
         echo "Generating TLS cert"
@@ -40,23 +70,14 @@ cmd_run() {
         umask "$old"
         openssl req -new -x509 -key "gen-certs/tls.key" -out "gen-certs/tls.pem" -days 3650 -subj /CN=scion_def_srv
     fi
-    echo "Running the network..."
     python/integration/set_ipv6_addr.py -a
-    # Create dispatcher and sciond dirs or change owner
+     # Create dispatcher and sciond dirs or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
-    [ $(stat -c "%U" "$disp_dir") != "root" ] || sudo chown $USER:$USER "$disp_dir"
+    [ $(stat -c "%U" "$disp_dir") != "root" ] || sudo chown $LOGNAME: "$disp_dir"
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
-    [ $(stat -c "%U" "$sciond_dir") != "root" ] || sudo chown $USER:$USER "$sciond_dir"
-    # Run with docker-compose or supervisor
-    if [ -f gen/docker-compose.yml ]; then
-        systemctl is-active --quiet zookeeper && systemctl stop zookeeper
-        docker-compose -f gen/docker-compose.yml up -d
-    else
-        systemctl is-active --quiet zookeeper || systemctl start zookeeper
-        supervisor/supervisor.sh start all
-    fi
+    [ $(stat -c "%U" "$sciond_dir") != "root" ] || sudo chown $LOGNAME: "$sciond_dir"
 }
 
 cmd_stop() {
@@ -72,6 +93,20 @@ cmd_stop() {
     find /run/shm/dispatcher /run/shm/sciond -type s -print0 | xargs -r0 rm -v
 }
 
+cmd_mstop() {
+    echo "Stopping: ${services[*]}"
+    if [ -f gen/docker-compose.yml ]; then
+        declare -a services
+        for i in $(glob_proc $@); do
+            services+=("$i")
+        done
+        [ ${#services[*]} == 0 ] && { echo "$@: ERROR no process matched!"; exit 1; }
+        docker-compose -f gen/docker-compose.yml stop ${services[*]}
+    else
+        supervisor/supervisor.sh mstop $@
+    fi
+}
+
 cmd_status() {
     if [ -f gen/docker-compose.yml ]; then
         docker-compose -f gen/docker-compose.yml ps | tail -n +3 | grep -v '\<Up\>'
@@ -81,6 +116,46 @@ cmd_status() {
     # If all tasks are running, then return 0. Else return 1.
     [ $? -eq 1 ]
     return
+}
+
+cmd_mstatus() {
+    echo "Status of $@"
+    if [ -f gen/docker-compose.yml ]; then
+        declare -a services
+        for i in $(glob_proc $@); do
+            services+=("$i")
+        done
+        [ ${#services[*]} == 0 ] && { echo "$@: ERROR no process matched!"; exit 0; }
+        services=$( IFS='|'; echo "${services[*]}" )
+        docker-compose -f gen/docker-compose.yml ps | tail -n +3 | egrep "$services"
+    else
+        supervisor/supervisor.sh status $@
+    fi
+    # If all tasks are running, then return 0. Else return 1.
+    [ $? -eq 1 ]
+    return
+}
+
+glob_proc() {
+    [ $# -ge 1 ] || set -- '*'
+    matches=
+    for proc in $(docker-compose -f gen/docker-compose.yml config --services); do
+        for spec in "$@"; do
+            if glob_match $proc "$spec"; then
+                matches="$matches $proc"
+                break
+            fi
+        done
+    done
+    echo $matches
+}
+
+glob_match() {
+    # If $1 is matched by $2, return true
+    case "$1" in
+        $2) return 0;;
+    esac
+    return 1
 }
 
 cmd_test(){
@@ -202,10 +277,16 @@ cmd_help() {
 	    $PROGRAM sciond ISD AS [ADDR]
 	        Start sciond with provided ISD and AS parameters. A third optional
 	        parameter is the address to bind when not running on localhost.
+        $PROGRAM mstart PROCESS
+            Start multiple processes
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
+        $PROGRAM mstop PROCESS
+            Stop multiple processes
 	    $PROGRAM status
 	        Show all non-running tasks.
+        $PROGRAM mstatus PROCESS
+            Show status of provided processes
 	    $PROGRAM test
 	        Run all unit tests.
 	    $PROGRAM coverage
@@ -223,7 +304,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;
