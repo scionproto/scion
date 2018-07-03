@@ -20,36 +20,37 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/proto"
 )
+
+type HandlerMap map[proto.SCIONDMsg_Which]Handler
 
 // Server listens for new connections on a "unixpacket" or "rsock" network.
 // Whenever a new connection is accepted, a SCIOND API server is created to
 // handle the connection.
 type Server struct {
-	network string
-	address string
-	msger   infra.Messenger
-	log     log.Logger
-
+	network  string
+	address  string
+	handlers map[proto.SCIONDMsg_Which]Handler
+	log      log.Logger
 	mu       sync.Mutex // protect access to listener during init/close
 	listener net.Listener
 }
 
 // NewServer initializes a new server at address on the specified network. The
-// server will use msger for network access. To start listening on the address,
-// call ListenAndServe.
+// server will route requests to their correct handlers based on the
+// HandlerMap. To start listening on the address, call ListenAndServe.
 //
 // Network must be "unixpacket" or "rsock".
-func NewServer(network string, address string, msger infra.Messenger, logger log.Logger) *Server {
+func NewServer(network string, address string, handlers HandlerMap, logger log.Logger) *Server {
 	return &Server{
-		network: network,
-		address: address,
-		msger:   msger,
-		log:     logger,
+		network:  network,
+		address:  address,
+		handlers: handlers,
+		log:      logger,
 	}
 }
 
@@ -60,12 +61,13 @@ func NewServer(network string, address string, msger infra.Messenger, logger log
 func (srv *Server) ListenAndServe() error {
 	srv.mu.Lock()
 	listener, err := srv.listen()
-	srv.mu.Unlock()
 	if err != nil {
+		srv.mu.Unlock()
 		return common.NewBasicError("unable to listen on socket", nil,
 			"address", srv.address, "err", err)
 	}
 	srv.listener = listener
+	srv.mu.Unlock()
 
 	for {
 		conn, err := srv.listener.Accept()
@@ -74,11 +76,14 @@ func (srv *Server) ListenAndServe() error {
 			continue
 		}
 
-		// Launch server for SCIONDMsg messages on the accepted conn
+		// Launch transport handler for SCIONDMsg messages on the accepted conn
 		go func() {
 			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
-			NewAPI(transport.NewPacketTransport(pconn)).Serve()
+			hdl := NewTransportHandler(transport.NewPacketTransport(pconn), srv.handlers, srv.log)
+			if err := hdl.Serve(); err != nil {
+				srv.log.Error("Transport handler error", "err", err)
+			}
 		}()
 	}
 }

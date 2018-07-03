@@ -1,12 +1,26 @@
+# This file is a template, not an actual TOML file. It is loaded and populated
+# during test set up. The resulting config is then loaded by SCIOND.
+
 [general]
-  ID = "sd0-test-0"
-  Topology = "testdata/topology.json"
+  ID = "sd-test"
+  Topology = "{{.Topology}}"
+  ConfigDir = "../../gen/ISD1/ASff00_0_133/endhost/"
+
+# Dispatcher?
 
 [logging]
+  [logging.file]
+    Path = "{{.Dir}}/sciond.log"
+    Level = "debug"
+
   [logging.console]
     Level = "crit"
 
+[trust]
+  TrustDB = "{{.TrustDB}}"
+
 [sd]
-  Reliable = "/tmp/test-reliable.sock"
-  Unix = "/tmp/test-unix.sock"
-  Public = "1-ff00:0:133,[127.0.0.1]:50001"
+  Reliable = "{{.Reliable}}"
+  Unix = "{{.Dir}}/test-unix.sock"
+  Public = "1-ff00:0:133,[127.0.0.1]:60001"
+  PathDB = "{{.Dir}}/path.db"

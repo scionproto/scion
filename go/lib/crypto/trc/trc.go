@@ -15,10 +15,12 @@
 package trc
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -143,6 +145,37 @@ func TRCFromFile(path string, lz4_ bool) (*TRC, error) {
 		return nil, err
 	}
 	return TRCFromRaw(raw, lz4_)
+}
+
+// TRCFromDir reads all the *.trc files contained directly in dir (no
+// subdirectories), and out of those that match ISD isd returns the newest one.
+// The TRCs must not be compressed. If an error occurs when parsing one of the
+// files, f() is called with the error as argument. Execution continues with
+// the remaining files.
+//
+// If no TRC is found, the returned TRC is nil and the error is set to nil.
+func TRCFromDir(dir string, isd addr.ISD, f func(err error)) (*TRC, error) {
+	infos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var bestVersion uint64
+	var bestTRC *TRC
+	for _, info := range infos {
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".trc") {
+			trcObj, err := TRCFromFile(filepath.Join(dir, info.Name()), false)
+			if err != nil {
+				f(common.NewBasicError("Unable to read TRC file", err))
+				continue
+			}
+			fileISD, version := trcObj.IsdVer()
+			if fileISD == isd && version > bestVersion {
+				bestTRC = trcObj
+				bestVersion = version
+			}
+		}
+	}
+	return bestTRC, nil
 }
 
 func (t *TRC) IsdVer() (addr.ISD, uint64) {
@@ -318,6 +351,20 @@ func (t *TRC) JSON(indent bool) ([]byte, error) {
 		return json.MarshalIndent(t, "", strings.Repeat(" ", 4))
 	}
 	return json.Marshal(t)
+}
+
+// JSONEquals checks if two TRCs are the same based on their JSON
+// serializations.
+func (t *TRC) JSONEquals(other *TRC) (bool, error) {
+	tj, err := t.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+	oj, err := other.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+	return bytes.Compare(tj, oj) == 0, nil
 }
 
 func (t *TRC) String() string {
