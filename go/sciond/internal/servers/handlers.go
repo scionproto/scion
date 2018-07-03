@@ -264,19 +264,6 @@ func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.Host
 	}
 }
 
-func MakeBRHostInfos(ot overlay.Type, brMap map[string]topology.BRInfo,
-	ifInfoMap map[common.IFIDType]topology.IFInfo) []sciond.HostInfo {
-
-	hostInfos := make([]sciond.HostInfo, 0, len(brMap))
-	for _, brInfo := range brMap {
-		// One IFID is enough to find the unique internal address. Panic if no
-		// IFIDs exist.
-		ifid := brInfo.IFIDs[0]
-		hostInfos = append(hostInfos, TopoAddrToHostInfo(ot, *ifInfoMap[ifid].InternalAddr))
-	}
-	return hostInfos
-}
-
 // RevNotificationHandler represents the shared global state for the handling of all
 // RevNotification announcements. The SCIOND API spawns a goroutine with method Handle
 // for each RevNotification it receives.

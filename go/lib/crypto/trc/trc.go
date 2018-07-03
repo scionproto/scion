@@ -15,6 +15,7 @@
 package trc
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -350,6 +351,20 @@ func (t *TRC) JSON(indent bool) ([]byte, error) {
 		return json.MarshalIndent(t, "", strings.Repeat(" ", 4))
 	}
 	return json.Marshal(t)
+}
+
+// JSONEquals checks if two TRCs are the same based on their JSON
+// serializations.
+func (t *TRC) JSONEquals(other *TRC) (bool, error) {
+	tj, err := t.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+	oj, err := other.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+	return bytes.Compare(tj, oj) == 0, nil
 }
 
 func (t *TRC) String() string {

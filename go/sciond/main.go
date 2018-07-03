@@ -15,7 +15,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -235,9 +234,6 @@ func Init(configName string) error {
 	if config.SD.Unix == "" {
 		config.SD.Unix = "/run/shm/sciond/default-unix.sock"
 	}
-	if config.SD.Bind == nil {
-		config.SD.Bind = config.SD.Public
-	}
 	return nil
 }
 
@@ -272,12 +268,12 @@ func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
 	)
 	cancelF()
 	switch {
-	case err != nil && err != trust.ErrEndOfTrail:
+	case err != nil && common.GetErrorMsg(err) != trust.ErrEndOfTrail:
 		// Unexpected error in trust store
 		return err
-	case err == trust.ErrEndOfTrail && fileTRC == nil:
+	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC == nil:
 		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
-	case err == trust.ErrEndOfTrail && fileTRC != nil:
+	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC != nil:
 		_, err := db.InsertTRC(fileTRC)
 		if err != nil {
 			return err
@@ -286,8 +282,13 @@ func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
 		// Nothing to do, no TRC to load from file but we already have one in the DB
 		return nil
 	case err == nil && fileTRC != nil:
-		// Check if the TRCs match
-		eq, err := equals(fileTRC, dbTRC)
+		// If the file TRC is a newer version, try to insert it
+		if fileTRC.Version > dbTRC.Version {
+			_, err := db.InsertTRC(fileTRC)
+			return err
+		}
+		// Because it is an older version, check if the TRCs match
+		eq, err := fileTRC.JSONEquals(dbTRC)
 		if err != nil {
 			return common.NewBasicError("Unable to compare TRCs", err)
 		}
@@ -297,18 +298,4 @@ func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
 		return nil
 	}
 	panic("unreachable")
-}
-
-// equals checks if two TRCs are the same based on their JSON serializations
-func equals(x, y *trc.TRC) (bool, error) {
-	xj, err := x.JSON(false)
-	if err != nil {
-		return false, common.NewBasicError("Unable to build JSON", err)
-	}
-	yj, err := y.JSON(false)
-	if err != nil {
-		return false, common.NewBasicError("Unable to build JSON", err)
-	}
-
-	return bytes.Compare(xj, yj) == 0, nil
 }

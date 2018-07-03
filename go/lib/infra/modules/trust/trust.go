@@ -42,7 +42,7 @@ const (
 )
 
 var (
-	ErrEndOfTrail = common.NewBasicError("reached end of trail, but no trusted TRC found", nil)
+	ErrEndOfTrail = "Reached end of trail, but no trusted TRC found"
 )
 
 // Store manages requests for TRC and Certificate Chain objects.
@@ -188,7 +188,7 @@ func (store *Store) getValidTRC(ctx context.Context, trail []addr.ISD,
 	if len(trail) == 0 {
 		// We've reached the end of the trail and did not find a trust anchor,
 		// propagate this information to the caller.
-		return nil, ErrEndOfTrail
+		return nil, common.NewBasicError(ErrEndOfTrail, nil)
 	}
 
 	if trail[0] == 0 {
