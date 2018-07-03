@@ -111,3 +111,62 @@ func TestLoadFromFile(t *testing.T) {
 		}
 	})
 }
+
+func TestIPNetUnmarshalJSON(t *testing.T) {
+	testCases := []struct {
+		Name  string
+		Error bool
+		JSON  string
+	}{
+		{
+			Name:  "Correct Network IPv4 Addr using 32 bits",
+			Error: false,
+			JSON:  `"192.0.2.255/32"`,
+		},
+		{
+			Name:  "Correct Network IPv4 Addr using 0 bit",
+			Error: false,
+			JSON:  `"0.0.0.0/0"`,
+		},
+		{
+			Name:  "Correct Network IPv4 Addr using 1 bit",
+			Error: false,
+			JSON:  `"128.0.0.0/1"`,
+		},
+		{
+			Name:  "Invalid Network IPv4 Addr using 24 bit",
+			Error: true,
+			JSON:  `"192.0.2.43/24"`,
+		},
+		{
+			Name:  "Correct Network IPv6 Addr using 128 bits",
+			Error: false,
+			JSON:  `"2001:0db8:0123:4567:89ab:cdef:1234:5678/128"`,
+		},
+		{
+			Name:  "Correct Network IPv6 Addr using 0 bit",
+			Error: false,
+			JSON:  `"::/0"`,
+		},
+		{
+			Name:  "Correct Network IPv6 Addr using 1 bit",
+			Error: false,
+			JSON:  `"8000::/1"`,
+		},
+		{
+			Name:  "Invalid Network IPv6 Addr using 24 bit",
+			Error: true,
+			JSON:  `"2001::f1/24"`,
+		},
+	}
+
+	Convey("Test verify network addr in sig.json", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				ipn := &IPNet{}
+				err := ipn.UnmarshalJSON([]byte(tc.JSON))
+				xtest.SoMsgError("err", err, tc.Error)
+			})
+		}
+	})
+}

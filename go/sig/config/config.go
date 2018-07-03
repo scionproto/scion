@@ -72,9 +72,13 @@ func (in *IPNet) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &s); err != nil {
 		return common.NewBasicError("Unable to unmarshal IPnet from JSON", err, "raw", b)
 	}
-	_, ipnet, err := net.ParseCIDR(s)
+	ip, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		return common.NewBasicError("Unable to parse IPnet string", err, "raw", s)
+	}
+	if !ip.Equal(ipnet.IP) {
+		return common.NewBasicError("Network is not canonical (should not be host address).",
+			nil, "raw", s)
 	}
 	*in = IPNet(*ipnet)
 	return nil
