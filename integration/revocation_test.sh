@@ -20,7 +20,7 @@ log() {
 }
 
 check_br_exists() {
-    ./supervisor/supervisor.sh status ${br} | grep -qF ERROR
+    ./scion.sh mstatus ${br} | grep -qF ERROR
     if [ $? -eq 0 ]; then
         return 1
     fi
@@ -38,7 +38,7 @@ export PYTHONPATH=python/:.
 # Bring down routers.
 SLEEP=4
 log "Stopping routers and waiting for ${SLEEP}s."
-./supervisor/supervisor.sh stop "$@"
+./scion.sh mstop "$@"
 if [ $? -ne 0 ]; then
     log "Failed stopping routers."
     exit 1
