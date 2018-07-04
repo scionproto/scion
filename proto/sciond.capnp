@@ -107,8 +107,7 @@ struct ServiceInfoRequest {
         bs @0;  # Beacon service
         ps @1;  # Path service
         cs @2;  # Certificate service
-        br @3;  # Router service
-        sb @4;  # SIBRA service
+        sb @3;  # SIBRA service
     }
 }
 

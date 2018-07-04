@@ -325,7 +325,6 @@ const (
 	SvcBS ServiceType = iota
 	SvcPS
 	SvcCS
-	SvcBR
 	SvcSB
 )
 
@@ -337,8 +336,6 @@ func (st ServiceType) String() string {
 		return "PS"
 	case SvcCS:
 		return "CS"
-	case SvcBR:
-		return "BR"
 	case SvcSB:
 		return "SB"
 	default:
