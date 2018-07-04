@@ -102,7 +102,7 @@ func TestLoadFromFile(t *testing.T) {
 			Name:     "verify fails for not network address",
 			FileName: "01-not-network",
 			Err: common.NewBasicError("Unable to parse SIG config",
-				common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "192.0.2.43/24", "byte", 3)),
+				common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "192.0.2.43/24")),
 			Config: Cfg{
 				ASes: map[addr.IA]*ASEntry{
 					xtest.MustParseIA("1-ff00:0:1"): {
@@ -160,7 +160,7 @@ func TestVerifyNetworkAddr(t *testing.T) {
 		},
 		{
 			Name: "Invalid Network IPv4 Addr using 24 bit",
-			Err:  common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "10.0.0.55/24", "byte", 3),
+			Err:  common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "10.0.0.55/24"),
 			CIDR: "10.0.0.55/24",
 		},
 
@@ -181,7 +181,7 @@ func TestVerifyNetworkAddr(t *testing.T) {
 		},
 		{
 			Name: "Invalid Network IPv6 Addr using 24 bit",
-			Err:  common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "2001::f1/24", "byte", 15),
+			Err:  common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", "2001::f1/24"),
 			CIDR: "2001::f1/24",
 		},
 	}
@@ -190,7 +190,7 @@ func TestVerifyNetworkAddr(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				ip, ipnet, _ := net.ParseCIDR(tc.CIDR)
-				err := verifyNetworkAddr(ip, ipnet.Mask, tc.CIDR)
+				err := verifyNetworkAddr(ip, *ipnet, tc.CIDR)
 				SoMsg("err", err, ShouldResemble, tc.Err)
 			})
 		}

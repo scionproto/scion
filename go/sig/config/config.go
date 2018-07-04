@@ -76,23 +76,16 @@ func (in *IPNet) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return common.NewBasicError("Unable to parse IPnet string", err, "raw", s)
 	}
-	if err = verifyNetworkAddr(ip, ipnet.Mask, s); err != nil {
+	if err = verifyNetworkAddr(ip, *ipnet, s); err != nil {
 		return err
 	}
 	*in = IPNet(*ipnet)
 	return nil
 }
 
-func verifyNetworkAddr(ip net.IP, mask net.IPMask, rawCIDR string) error {
-	// by default the ip address comes with 16 bytes, but for ip v4 the mask is only 4 bytes.
-	if ip4 := ip.To4(); ip4 != nil {
-		ip = ip4
-	}
-	for i := range mask {
-		if uint8(ip[i])&^uint8(mask[i]) != 0 {
-			return common.NewBasicError("Not a valid network, it refers to a host.", nil,
-				"raw", rawCIDR, "byte", i)
-		}
+func verifyNetworkAddr(ip net.IP, ipnet net.IPNet, rawCIDR string) error {
+	if !ip.Equal(ipnet.IP) {
+		return common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", rawCIDR)
 	}
 	return nil
 }
