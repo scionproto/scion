@@ -30,8 +30,7 @@ struct PathReq {
     src @1 :UInt64;  # Source ISD-AS
     maxPaths @2: UInt16;  # Maximum number of paths requested
     flags :group {
-        flush @3 :Bool;  # Flush all paths to dst.
-        sibra @4 :Bool;  # True, if SIBRA paths are requested
+        refresh @3 :Bool; # Fetch segments again for dst.
     }
 }
 

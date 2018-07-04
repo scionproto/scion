@@ -1160,8 +1160,8 @@ class SCIONElement(object):
         PENDING_CERT_REQS_TOTAL.labels(**self._labels).set(0)
         CONNECTED_TO_DISPATCHER.labels(**self._labels).set(0)
 
-    def _get_path_via_sciond(self, isd_as, flush=False):
-        flags = lib_sciond.PathRequestFlags(flush=flush)
+    def _get_path_via_sciond(self, isd_as, refresh=False):
+        flags = lib_sciond.PathRequestFlags(refresh=refresh)
         start = time.time()
         while time.time() - start < API_TOUT:
             try:

@@ -144,7 +144,7 @@ class TestClientBase(TestBase):
         self.first_hop = (fh_addr, port)
 
     def _try_sciond_api(self, flush=False):
-        flags = lib_sciond.PathRequestFlags(flush=flush)
+        flags = lib_sciond.PathRequestFlags(refresh=flush)
         start = time.time()
         while time.time() - start < API_TOUT:
             try:

@@ -99,15 +99,19 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if req.Dst.IA().Eq(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, sciond.ErrorOk), nil
 	}
-	// Try to build paths from local information first
-	paths, err := f.buildPathsFromDB(ctx, req)
-	switch {
-	case ctx.Err() != nil:
-		return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
-	case err != nil:
-		return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
-	case err == nil && len(paths) > 0:
-		return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
+
+	if !req.Flags.Refresh {
+		// Try to build paths from local information first, if we don't have to
+		// get fresh segments.
+		paths, err := f.buildPathsFromDB(ctx, req)
+		switch {
+		case ctx.Err() != nil:
+			return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+		case err != nil:
+			return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
+		case err == nil && len(paths) > 0:
+			return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
+		}
 	}
 	// We don't have enough local information, grab fresh segments from the
 	// network. The spawned goroutine takes care of updating the path database
@@ -121,7 +125,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case <-subCtx.Done():
 	case <-ctx.Done():
 	}
-	paths, err = f.buildPathsFromDB(ctx, req)
+	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
 	case ctx.Err() != nil:
 		return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil

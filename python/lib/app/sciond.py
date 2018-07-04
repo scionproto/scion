@@ -86,9 +86,8 @@ class SCIONDResponseError(SCIONDLibError):
 
 
 class PathRequestFlags:  # pragma: no cover
-    def __init__(self, flush=False, sibra=False):
-        self.flush = flush
-        self.sibra = sibra
+    def __init__(self, refresh=False):
+        self.refresh = refresh
 
 
 class _Counter:  # pragma: no cover
@@ -121,10 +120,10 @@ class SCIONDConnector:
 
     def get_paths(self, dst_ia, src_ia, max_paths, flags=None):
         if not flags:
-            flags = PathRequestFlags(flush=False, sibra=False)
+            flags = PathRequestFlags(refresh=False)
         req_id = self._req_id.inc()
         request = SCIONDMsg(SCIONDPathRequest.from_values(
-            dst_ia, src_ia, max_paths, flags.flush, flags.sibra), req_id)
+            dst_ia, src_ia, max_paths, flags.refresh), req_id)
         with closing(self._create_socket()) as socket:
             if not socket.send(request.pack()):
                 raise SCIONDRequestError
