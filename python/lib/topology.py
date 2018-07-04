@@ -19,17 +19,13 @@
 import logging
 
 # SCION
-from lib.defines import (
-    BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
-    PATH_SERVICE,
-    ROUTER_SERVICE,
-    SIBRA_SERVICE,
-)
 from lib.errors import SCIONKeyError
 from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.scion_addr import ISD_AS
-from lib.types import LinkType
+from lib.types import (
+    LinkType,
+    ServiceType
+)
 from lib.util import load_yaml_file
 
 
@@ -244,11 +240,10 @@ class Topology(object):
 
     def get_own_config(self, server_type, server_id):
         type_map = {
-            BEACON_SERVICE: self.beacon_servers,
-            CERTIFICATE_SERVICE: self.certificate_servers,
-            PATH_SERVICE: self.path_servers,
-            ROUTER_SERVICE: self.border_routers,
-            SIBRA_SERVICE: self.sibra_servers,
+            ServiceType.BS: self.beacon_servers,
+            ServiceType.CS: self.certificate_servers,
+            ServiceType.PS: self.path_servers,
+            ServiceType.SIBRA: self.sibra_servers,
         }
         try:
             target = type_map[server_type]

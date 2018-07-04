@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ Service = (*MockService)(nil)
@@ -128,7 +129,7 @@ func (m *MockConn) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 }
 
 // SVCInfo is not implemented.
-func (m *MockConn) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
+func (m *MockConn) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
 	panic("not implemented")
 }
 

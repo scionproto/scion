@@ -35,14 +35,9 @@ from lib.crypto.certificate_chain import verify_chain_trc
 from lib.errors import SCIONParseError, SCIONVerificationError
 from lib.defines import (
     AS_CONF_FILE,
-    BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
     GEN_CACHE_PATH,
-    PATH_SERVICE,
     REVOCATION_GRACE,
     SCION_UDP_EH_DATA_PORT,
-    SERVICE_TYPES,
-    SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
     TOPO_FILE,
 )
@@ -99,7 +94,7 @@ from lib.packet.scmp.util import scmp_type_name
 from lib.socket import ReliableSocket, SocketMgr
 from lib.thread import thread_safety_net, kill_self
 from lib.trust_store import TrustStore
-from lib.types import AddrType, L4Proto, PayloadClass
+from lib.types import AddrType, L4Proto, PayloadClass, ServiceType
 from lib.topology import Topology
 from lib.util import hex_str, sleep_interval
 
@@ -448,7 +443,7 @@ class SCIONElement(object):
         Lookup certificate servers address and return meta.
         """
         try:
-            addr, port = self.dns_query_topo(CERTIFICATE_SERVICE)[0]
+            addr, port = self.dns_query_topo(ServiceType.CS)[0]
         except SCIONServiceLookupError as e:
             logging.warning("Lookup for certificate service failed: %s", e)
             return None
@@ -1089,12 +1084,11 @@ class SCIONElement(object):
 
         :param str qname: Service to query for.
         """
-        assert qname in SERVICE_TYPES
         service_map = {
-            BEACON_SERVICE: self.topology.beacon_servers,
-            CERTIFICATE_SERVICE: self.topology.certificate_servers,
-            PATH_SERVICE: self.topology.path_servers,
-            SIBRA_SERVICE: self.topology.sibra_servers,
+            ServiceType.BS: self.topology.beacon_servers,
+            ServiceType.CS: self.topology.certificate_servers,
+            ServiceType.PS: self.topology.path_servers,
+            ServiceType.SIBRA: self.topology.sibra_servers,
         }
         # Generate fallback from local topology
         results = []

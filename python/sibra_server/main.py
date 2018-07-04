@@ -23,7 +23,6 @@ from queue import Queue
 
 # SCION
 from lib.crypto.asymcrypto import get_sig_key
-from lib.defines import SIBRA_SERVICE
 from lib.packet.ext_util import find_ext_hdr
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.path_db import DBResult, PathSegmentDB
@@ -36,6 +35,7 @@ from lib.types import (
     PathMgmtType as PMT,
     PathSegmentType as PST,
     PayloadClass,
+    ServiceType,
 )
 from lib.util import (
     SCIONTime,
@@ -62,7 +62,7 @@ class SibraServerBase(SCIONElement):
     Base class for the SIBRA service, which is responsible for managing steady
     paths on all interfaces in the local AS.
     """
-    SERVICE_TYPE = SIBRA_SERVICE
+    SERVICE_TYPE = ServiceType.SIBRA
     PST_TYPE = None
 
     def __init__(self, server_id, conf_dir, prom_export=None):
@@ -91,7 +91,7 @@ class SibraServerBase(SCIONElement):
         self._find_links()
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                 [(self.addr.host, self._port)]).pack()
-        self.zk = Zookeeper(self.addr.isd_as, SIBRA_SERVICE, zkid,
+        self.zk = Zookeeper(self.addr.isd_as, self.SERVICE_TYPE, zkid,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
 

@@ -32,12 +32,10 @@ from beacon_server.if_state import InterfaceState
 from lib.crypto.asymcrypto import get_sig_key
 from lib.crypto.symcrypto import kdf
 from lib.defines import (
-    BEACON_SERVICE,
     EXP_TIME_UNIT,
     GEN_CACHE_PATH,
     MIN_REVOCATION_TTL,
     PATH_POLICY_FILE,
-    PATH_SERVICE,
 )
 from lib.errors import (
     SCIONKeyError,
@@ -77,6 +75,7 @@ from lib.types import (
     CertMgmtType,
     PathMgmtType as PMT,
     PayloadClass,
+    ServiceType,
 )
 from lib.util import (
     SCIONTime,
@@ -106,7 +105,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     """
     The SCION PathConstructionBeacon Server.
     """
-    SERVICE_TYPE = BEACON_SERVICE
+    SERVICE_TYPE = ServiceType.BS
     # ZK path for incoming PCBs
     ZK_PCB_CACHE_PATH = "pcb_cache"
     # ZK path for revocations.
@@ -169,7 +168,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
 
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                 [(self.addr.host, self._port)]).pack()
-        self.zk = Zookeeper(self.addr.isd_as, BEACON_SERVICE, zkid,
+        self.zk = Zookeeper(self.addr.isd_as, self.SERVICE_TYPE, zkid,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.pcb_cache = ZkSharedCache(
@@ -583,7 +582,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         ps_meta = []
         if self.topology.path_servers:
             try:
-                addr, port = self.dns_query_topo(PATH_SERVICE)[0]
+                addr, port = self.dns_query_topo(ServiceType.PS)[0]
             except SCIONServiceLookupError:
                 addr, port = None, None
             # Create a meta if there is a local path service
