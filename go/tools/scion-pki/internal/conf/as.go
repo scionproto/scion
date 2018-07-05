@@ -35,6 +35,8 @@ const (
 	ErrTRCVersionNotSet        = "Parameter TRCVersion not set in Base Certificate"
 	ErrValidityDurationNotSet  = "Validity duration not set"
 	ErrVersionNotSet           = "Parameter Version not set for Base Certificate"
+	ErrInvalidSignAlgorithm    = "Invalid sign algorithm"
+	ErrInvalidEncAlgorithm     = "Invalid encryption algorithm"
 )
 
 const (
@@ -42,6 +44,11 @@ const (
 	KeyAlgSectionName = "Key Algorithms"
 	AsSectionName     = "AS Certificate"
 	IssuerSectionName = "Issuer Certificate"
+)
+
+var (
+	validSignAlgorithms = []string{crypto.Ed25519}
+	validEncAlgorithms  = []string{crypto.Curve25519xSalsa20Poly1305}
 )
 
 // As contains the as.ini configuration parameters.
@@ -58,10 +65,15 @@ func (a *As) validate() error {
 	if err := a.AsCert.validate(); err != nil {
 		return err
 	}
-	if a.IssuerCert == nil || a.IssuerCert.BaseCert == nil {
-		return nil
+	if a.IssuerCert != nil && a.IssuerCert.BaseCert != nil {
+		if err := a.IssuerCert.validate(); err != nil {
+			return err
+		}
 	}
-	return a.IssuerCert.validate()
+	if a.KeyAlgorithms != nil {
+		return a.KeyAlgorithms.validate()
+	}
+	return nil
 }
 
 func (a *As) Write(path string, force bool) error {
@@ -170,8 +182,14 @@ func (c *BaseCert) validate() error {
 	if c.EncAlgorithm == "" {
 		c.EncAlgorithm = crypto.Curve25519xSalsa20Poly1305
 	}
+	if err := validateEncAlgorithm(c.EncAlgorithm); err != nil {
+		return err
+	}
 	if c.SignAlgorithm == "" {
 		c.SignAlgorithm = crypto.Ed25519
+	}
+	if err := validateSignAlgorithm(c.SignAlgorithm); err != nil {
+		return err
 	}
 	if c.TRCVersion == 0 {
 		return common.NewBasicError(ErrTRCVersionNotSet, nil)
@@ -191,6 +209,37 @@ func (c *BaseCert) validate() error {
 		return common.NewBasicError(ErrValidityDurationNotSet, nil)
 	}
 	return nil
+}
+
+func (ka *KeyAlgorithms) validate() error {
+	if ka.Online == "" {
+		ka.Online = crypto.Ed25519
+	}
+	if err := validateSignAlgorithm(ka.Online); err != nil {
+		return err
+	}
+	if ka.Offline == "" {
+		ka.Offline = crypto.Ed25519
+	}
+	return validateSignAlgorithm(ka.Offline)
+}
+
+func validateSignAlgorithm(algorithm string) error {
+	return validateAlgorithm(algorithm, validSignAlgorithms, ErrInvalidSignAlgorithm)
+
+}
+
+func validateEncAlgorithm(algorithm string) error {
+	return validateAlgorithm(algorithm, validEncAlgorithms, ErrInvalidEncAlgorithm)
+}
+
+func validateAlgorithm(algorithm string, valid []string, errMsg string) error {
+	for _, a := range valid {
+		if a == algorithm {
+			return nil
+		}
+	}
+	return common.NewBasicError(errMsg, nil, "algorithm", algorithm)
 }
 
 func NewTemplateCertConf(trcVer uint64) *BaseCert {

@@ -131,6 +131,70 @@ func TestValidatingAsConf(t *testing.T) {
 				},
 				err: "",
 			},
+			{
+				scenario: "With invalid sign algorithm",
+				as: &As{
+					AsCert: &AsCert{
+						Issuer: "1-ff00:0:10",
+						BaseCert: &BaseCert{
+							SignAlgorithm: "curve25519xsalsa20poly1305",
+							TRCVersion:    1,
+							Version:       1,
+							RawValidity:   "180s",
+						},
+					},
+				},
+				err: ErrInvalidSignAlgorithm,
+			},
+			{
+				scenario: "With invalid enc algorithm",
+				as: &As{
+					AsCert: &AsCert{
+						Issuer: "1-ff00:0:10",
+						BaseCert: &BaseCert{
+							EncAlgorithm: "ed25519",
+							TRCVersion:   1,
+							Version:      1,
+							RawValidity:  "180s",
+						},
+					},
+				},
+				err: ErrInvalidEncAlgorithm,
+			},
+			{
+				scenario: "With invalid online key",
+				as: &As{
+					AsCert: &AsCert{
+						Issuer: "1-ff00:0:10",
+						BaseCert: &BaseCert{
+							TRCVersion:  1,
+							Version:     1,
+							RawValidity: "180s",
+						},
+					},
+					KeyAlgorithms: &KeyAlgorithms{
+						Online: "foo",
+					},
+				},
+				err: ErrInvalidSignAlgorithm,
+			},
+			{
+				scenario: "With invalid offline key",
+				as: &As{
+					AsCert: &AsCert{
+						Issuer: "1-ff00:0:10",
+						BaseCert: &BaseCert{
+							TRCVersion:  1,
+							Version:     1,
+							RawValidity: "180s",
+						},
+					},
+					KeyAlgorithms: &KeyAlgorithms{
+						Offline: "foo",
+					},
+				},
+				err: ErrInvalidSignAlgorithm,
+			},
 		}
 		for _, test := range tests {
 			Convey(test.scenario, func() {
