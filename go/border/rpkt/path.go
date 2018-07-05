@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // validatePath validates the path header.
@@ -44,6 +45,13 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	// There is a path, so ifCurr will be set
 	if err := rp.validateLocalIF(rp.ifCurr); err != nil {
 		return err
+	}
+	// Check for shorcuts in packets from core links
+	if rp.infoF.Shortcut {
+		currentLinkType := rp.Ctx.Conf.Net.IFs[*rp.ifCurr].Type
+		if currentLinkType == proto.LinkType_core {
+			return common.NewBasicError("Shortcut not allowed on core segment", nil)
+		}
 	}
 	// A verify-only Hop Field cannot be used for routing.
 	if rp.hopF.VerifyOnly {
