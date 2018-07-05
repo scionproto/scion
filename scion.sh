@@ -47,16 +47,13 @@ cmd_mstart() {
     run_setup
     # Run with docker-compose or supervisor
     if [ -f gen/docker-compose.yml ]; then
-        declare -a services
-        for i in $(glob_proc $@); do
-            services+=("$i")
-        done
-        [ ${#services[*]} == 0 ] && { echo "$@: ERROR no process matched!"; exit 1; }
+        services="$(glob_docker "$@")"
+        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 1; }
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
-        docker-compose -f gen/docker-compose.yml up -d ${services[*]}
+        docker-compose -f gen/docker-compose.yml up -d $services
     else
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
-        supervisor/supervisor.sh mstart $@
+        supervisor/supervisor.sh mstart "$@"
     fi
 }
 
@@ -74,10 +71,10 @@ run_setup() {
      # Create dispatcher and sciond dirs or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
-    [ $(stat -c "%U" "$disp_dir") != "root" ] || sudo chown $LOGNAME: "$disp_dir"
+    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || sudo chown $LOGNAME: "$disp_dir"
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
-    [ $(stat -c "%U" "$sciond_dir") != "root" ] || sudo chown $LOGNAME: "$sciond_dir"
+    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || sudo chown $LOGNAME: "$sciond_dir"
 }
 
 cmd_stop() {
@@ -96,47 +93,38 @@ cmd_stop() {
 cmd_mstop() {
     echo "Stopping: ${services[*]}"
     if [ -f gen/docker-compose.yml ]; then
-        declare -a services
-        for i in $(glob_proc $@); do
-            services+=("$i")
-        done
-        [ ${#services[*]} == 0 ] && { echo "$@: ERROR no process matched!"; exit 1; }
-        docker-compose -f gen/docker-compose.yml stop ${services[*]}
+        services="$(glob_docker "$@")"
+        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 1; }
+        docker-compose -f gen/docker-compose.yml stop $services | grep -v ERROR
     else
-        supervisor/supervisor.sh mstop $@
+        supervisor/supervisor.sh mstop "$@" | grep -v ERROR
     fi
+    [ $? -eq 1 ]
 }
 
 cmd_status() {
-    if [ -f gen/docker-compose.yml ]; then
-        docker-compose -f gen/docker-compose.yml ps | tail -n +3 | grep -v '\<Up\>'
-    else
-        supervisor/supervisor.sh status | grep -v RUNNING
-    fi
-    # If all tasks are running, then return 0. Else return 1.
-    [ $? -eq 1 ]
-    return
+    cmd_mstatus
 }
 
 cmd_mstatus() {
     echo "Status of $@"
     if [ -f gen/docker-compose.yml ]; then
-        declare -a services
-        for i in $(glob_proc $@); do
-            services+=("$i")
-        done
-        [ ${#services[*]} == 0 ] && { echo "$@: ERROR no process matched!"; exit 0; }
-        services=$( IFS='|'; echo "${services[*]}" )
-        docker-compose -f gen/docker-compose.yml ps | tail -n +3 | egrep "$services"
+        services="$(glob_docker "$@")"
+        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 0; }
+        out=$(docker-compose -f gen/docker-compose.yml ps $services | tail -n +3)
+        rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
+        tscount=$(echo "$services" | wc -w) # Number of all globed services
+        echo "$out" | grep -v '\<Up\>'
+        [ $rscount -eq $tscount ]
     else
-        supervisor/supervisor.sh status $@
+        supervisor/supervisor.sh status "$@" | grep -v RUNNING
+        [ $? -eq 1 ]
     fi
     # If all tasks are running, then return 0. Else return 1.
-    [ $? -eq 1 ]
     return
 }
 
-glob_proc() {
+glob_docker() {
     [ $# -ge 1 ] || set -- '*'
     matches=
     for proc in $(docker-compose -f gen/docker-compose.yml config --services); do

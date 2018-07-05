@@ -19,16 +19,8 @@ log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"
 }
 
-check_br_exists() {
-    ./scion.sh mstatus ${br} | grep -qF ERROR
-    if [ $? -eq 0 ]; then
-        return 1
-    fi
-    return 0
-}
-
 for br in "$@"; do
-    if ! check_br_exists "$br"; then
+    if ! ./scion.sh mstatus "$br"; then
         log "${br} does not exist. Skipping revocation test."
         exit 0
     fi
