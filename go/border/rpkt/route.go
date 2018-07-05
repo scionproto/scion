@@ -152,10 +152,6 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		rp.CmnHdr.HdrLenBytes()
 	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
-		if assert.On {
-			assert.Mustf(!rp.hopF.ForwardOnly, rp.ErrStr,
-				"Delivery forbidden for Forward-only HopF")
-		}
 		ot := overlay.OverlayFromIP(rp.dstHost.IP(), rp.Ctx.Conf.Topo.Overlay)
 		dst := &topology.AddrInfo{
 			Overlay:     ot,

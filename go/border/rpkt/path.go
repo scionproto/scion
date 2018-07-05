@@ -50,12 +50,6 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 		return common.NewBasicError("Hop field is VERIFY_ONLY",
 			scmp.NewError(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets(), nil))
 	}
-	// A forward-only Hop Field cannot be used for local delivery.
-	if rp.hopF.ForwardOnly && rp.dstIA == rp.Ctx.Conf.IA {
-		return common.NewBasicError("Hop field is FORWARD_ONLY",
-
-			scmp.NewError(scmp.C_Path, scmp.T_P_DeliveryFwdOnly, rp.mkInfoPathOffsets(), nil))
-	}
 	// Check if Hop Field has expired.
 	hopfExpiry := rp.infoF.Timestamp().Add(
 		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
