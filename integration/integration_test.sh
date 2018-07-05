@@ -65,6 +65,10 @@ python/integration/cert_req_test.py -l ERROR
 EOF
 result=$?
 
+# Run go intergration test
+make -sC go test_running
+result=$((result+$?))
+
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
 result=$((result+$?))
