@@ -61,14 +61,14 @@ class TestSCIONDConnectorGetPaths(SCIONDConnectorTestBase):
     def test(self, sciond_msg, path_req):
         connector = self._setup_connector(
             self._create_response(["1", "2"], False))
-        flags = PathRequestFlags(flush=True, sibra=False)
+        flags = PathRequestFlags(refresh=True)
         dst_src_maxpaths = (1, 2, 5)
         # Call
         paths = connector.get_paths(*dst_src_maxpaths, flags=flags)
         # Tests
         ntools.eq_(paths, ["1", "2"])
         sciond_msg.assert_called_once_with(path_req.return_value, self.REQ_ID)
-        path_req.assert_called_once_with(*dst_src_maxpaths, flags.flush, flags.sibra)
+        path_req.assert_called_once_with(*dst_src_maxpaths, flags.refresh)
         connector._create_socket.assert_called_once_with()
         connector._get_response.assert_called_once_with(ANY, 1, SMT.PATH_REPLY)
 

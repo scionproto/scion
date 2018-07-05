@@ -32,13 +32,11 @@ class SCIONDPathRequest(Cerealizable):  # pragma: no cover
     P_CLS = P.PathReq
 
     @classmethod
-    def from_values(cls, dst_ia, src_ia=None, max_paths=5,
-                    flush=False, sibra=False):
+    def from_values(cls, dst_ia, src_ia=None, max_paths=5, refresh=False):
         p = cls.P_CLS.new_message(dst=int(dst_ia), maxPaths=max_paths)
         if src_ia is not None:
             p.src = int(src_ia)
-        p.flags.flush = flush
-        p.flags.sibra = sibra
+        p.flags.refresh = refresh
         return cls(p)
 
     def dst_ia(self):
@@ -54,10 +52,8 @@ class SCIONDPathRequest(Cerealizable):  # pragma: no cover
         if self.p.src:
             desc.append("src=%s" % self.src_ia())
         desc.append("max_paths=%d" % self.p.maxPaths)
-        if self.p.flags.flush:
-            desc.append("FLUSH")
-        if self.p.flags.sibra:
-            desc.append("SIBRA")
+        if self.p.flags.refresh:
+            desc.append("REFRESH")
         return " ".join(desc)
 
 

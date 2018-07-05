@@ -131,10 +131,8 @@ func (pathReq *PathReq) Copy() *PathReq {
 	}
 }
 
-// TODO(scrye): Remove Flush and Sibra flags, add Refresh.
 type PathReqFlags struct {
-	Flush bool
-	Sibra bool
+	Refresh bool
 }
 
 type PathReply struct {

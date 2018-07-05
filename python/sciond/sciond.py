@@ -286,12 +286,6 @@ class SCIONDaemon(SCIONElement):
         request = pld.union
         assert isinstance(request, SCIONDPathRequest), type(request)
         req_id = pld.id
-        if request.p.flags.sibra:
-            logging.warning(
-                "Requesting SIBRA paths over SCIOND API not supported yet.")
-            self._send_path_reply(
-                req_id, [], SCIONDPathReplyError.INTERNAL, meta)
-            return
 
         dst_ia = request.dst_ia()
         src_ia = request.src_ia()
@@ -300,7 +294,7 @@ class SCIONDaemon(SCIONElement):
         thread = threading.current_thread()
         thread.name = "SCIONDaemon API id:%s %s -> %s" % (
             thread.ident, src_ia, dst_ia)
-        paths, error = self.get_paths(dst_ia, flush=request.p.flags.flush)
+        paths, error = self.get_paths(dst_ia, flush=request.p.flags.refresh)
         if request.p.maxPaths:
             paths = paths[:request.p.maxPaths]
 
