@@ -109,7 +109,7 @@ type Connector interface {
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
 	// service types is returned.
-	SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error)
+	SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error)
 	// RevNotification sends a raw revocation to SCIOND, as contained in an
 	// SCMP message.
 	RevNotificationFromRaw(b []byte) (*RevReply, error)
@@ -260,12 +260,12 @@ func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 	return &ifInfoReply, nil
 }
 
-func (c *connector) SVCInfo(svcTypes []ServiceType) (*ServiceInfoReply, error) {
+func (c *connector) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	// Store uncached SVC Types
-	uncachedSVCs := make([]ServiceType, 0, len(svcTypes))
+	uncachedSVCs := make([]proto.ServiceType, 0, len(svcTypes))
 	cachedEntries := make([]ServiceInfoReplyEntry, 0, len(svcTypes))
 	for _, svcType := range svcTypes {
 		key := strconv.FormatUint(uint64(svcType), 10)

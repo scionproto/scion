@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
 
@@ -203,16 +204,16 @@ func TestSVCInfo(t *testing.T) {
 
 	testCases := []struct {
 		Name     string
-		SVCTypes []sciond.ServiceType
+		SVCTypes []proto.ServiceType
 		Expected *sciond.ServiceInfoReply
 	}{
 		{
 			Name:     "ask for BS",
-			SVCTypes: []sciond.ServiceType{sciond.SvcBS},
+			SVCTypes: []proto.ServiceType{proto.ServiceType_bs},
 			Expected: &sciond.ServiceInfoReply{
 				Entries: []sciond.ServiceInfoReplyEntry{
 					{
-						ServiceType: sciond.SvcBS,
+						ServiceType: proto.ServiceType_bs,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
 							servers.TopoAddrToHostInfo(topo.Overlay, topo.BS[topo.BSNames[0]]),
@@ -223,18 +224,18 @@ func TestSVCInfo(t *testing.T) {
 		},
 		{
 			Name:     "ask for CS and PS",
-			SVCTypes: []sciond.ServiceType{sciond.SvcCS, sciond.SvcPS},
+			SVCTypes: []proto.ServiceType{proto.ServiceType_cs, proto.ServiceType_ps},
 			Expected: &sciond.ServiceInfoReply{
 				Entries: []sciond.ServiceInfoReplyEntry{
 					{
-						ServiceType: sciond.SvcCS,
+						ServiceType: proto.ServiceType_cs,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
 							servers.TopoAddrToHostInfo(topo.Overlay, topo.CS[topo.CSNames[0]]),
 						},
 					},
 					{
-						ServiceType: sciond.SvcPS,
+						ServiceType: proto.ServiceType_ps,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
 							servers.TopoAddrToHostInfo(topo.Overlay, topo.PS[topo.PSNames[0]]),
@@ -245,7 +246,7 @@ func TestSVCInfo(t *testing.T) {
 		},
 		{
 			Name:     "ask for nothing",
-			SVCTypes: []sciond.ServiceType{},
+			SVCTypes: []proto.ServiceType{},
 			Expected: &sciond.ServiceInfoReply{},
 		},
 	}

@@ -10,3 +10,10 @@ enum LinkType {
     child @3;
     peer @4;
 }
+
+enum ServiceType {
+    bs @0;  # Beacon service
+    ps @1;  # Path service
+    cs @2;  # Certificate service
+    sb @3;  # SIBRA service
+}
