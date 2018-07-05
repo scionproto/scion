@@ -45,12 +45,10 @@ class HopOpaqueField(OpaqueField):
     NAME = "HopOpaqueField"
     MAC_LEN = 3  # MAC length in bytes.
     MAC_BLOCK_LEN = 16
-    VERIFY_FLAGS = HopOFFlags.FORWARD_ONLY
 
     def __init__(self, raw=None):  # pragma: no cover
         self.xover = False
         self.verify_only = False
-        self.forward_only = False
         self.recurse = False
         self.exp_time = 0
         self.ingress_if = 0
@@ -70,17 +68,15 @@ class HopOpaqueField(OpaqueField):
     def _parse_flags(self, flags):  # pragma: no cover
         self.xover = bool(flags & HopOFFlags.XOVER)
         self.verify_only = bool(flags & HopOFFlags.VERIFY_ONLY)
-        self.forward_only = bool(flags & HopOFFlags.FORWARD_ONLY)
         self.recurse = bool(flags & HopOFFlags.RECURSE)
 
     @classmethod
     def from_values(cls, exp_time, ingress_if=0, egress_if=0,
                     mac=None, xover=False, verify_only=False,
-                    forward_only=False, recurse=False):  # pragma: no cover
+                    recurse=False):  # pragma: no cover
         inst = cls()
         inst.xover = xover
         inst.verify_only = verify_only
-        inst.forward_only = forward_only
         inst.recurse = recurse
         inst.exp_time = exp_time
         inst.ingress_if = ingress_if
@@ -92,7 +88,7 @@ class HopOpaqueField(OpaqueField):
         packed = []
         flags = self._pack_flags()
         if mac:
-            flags &= self.VERIFY_FLAGS
+            flags = 0  # Do not verify flags
         packed.append(struct.pack("!B", flags))
         packed.append(struct.pack("!B", self.exp_time))
         ifs = (self.ingress_if << 12) | self.egress_if
@@ -108,8 +104,6 @@ class HopOpaqueField(OpaqueField):
             flags |= HopOFFlags.XOVER
         if self.verify_only:
             flags |= HopOFFlags.VERIFY_ONLY
-        if self.forward_only:
-            flags |= HopOFFlags.FORWARD_ONLY
         if self.recurse:
             flags |= HopOFFlags.RECURSE
         return flags

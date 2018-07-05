@@ -155,10 +155,6 @@ class SCMPNonRoutingHOF(SCMPPathError):
     TYPE = SCMPPathClass.NON_ROUTING_HOF
 
 
-class SCMPDeliveryFwdOnly(SCMPPathError):
-    TYPE = SCMPPathClass.DELIVERY_FWD_ONLY
-
-
 class SCMPDeliveryNonLocal(SCMPPathError):
     TYPE = SCMPPathClass.DELIVERY_NON_LOCAL
 

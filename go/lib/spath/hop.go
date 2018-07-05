@@ -28,7 +28,6 @@ type HopField struct {
 	data        common.RawBytes
 	Xover       bool
 	VerifyOnly  bool
-	ForwardOnly bool
 	Recurse     bool
 	ExpTime     uint8
 	ConsIngress common.IFIDType
@@ -38,12 +37,14 @@ type HopField struct {
 }
 
 const (
-	HopFieldVerifyFlags = 0x4 // Forward-only
-	HopFieldLength      = common.LineLen
-	DefaultHopFExpiry   = 63
-	MacLen              = 3
-	ErrorHopFTooShort   = "HopF too short"
-	ErrorHopFBadMac     = "Bad HopF MAC"
+	HopFieldLength    = common.LineLen
+	DefaultHopFExpiry = 63
+	MacLen            = 3
+	ErrorHopFTooShort = "HopF too short"
+	ErrorHopFBadMac   = "Bad HopF MAC"
+	XoverMask         = 0x01
+	VerifyOnlyMask    = 0x02
+	RecurseMask       = 0x04
 )
 
 func NewHopField(b common.RawBytes, in common.IFIDType, out common.IFIDType) *HopField {
@@ -69,10 +70,9 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 	h := &HopField{}
 	h.data = b[:HopFieldLength]
 	flags := h.data[0]
-	h.Xover = flags&0x1 != 0
-	h.VerifyOnly = flags&0x2 != 0
-	h.ForwardOnly = flags&0x4 != 0
-	h.Recurse = flags&0x8 != 0
+	h.Xover = flags&XoverMask != 0
+	h.VerifyOnly = flags&VerifyOnlyMask != 0
+	h.Recurse = flags&RecurseMask != 0
 	offset := 1
 	h.ExpTime = h.data[offset]
 	offset += 1
@@ -93,16 +93,13 @@ func (h *HopField) Len() int {
 func (h *HopField) Write() {
 	var flags uint8
 	if h.Xover {
-		flags |= 0x1
+		flags |= XoverMask
 	}
 	if h.VerifyOnly {
-		flags |= 0x2
-	}
-	if h.ForwardOnly {
-		flags |= 0x4
+		flags |= VerifyOnlyMask
 	}
 	if h.Recurse {
-		flags |= 0x8
+		flags |= RecurseMask
 	}
 	h.data[0] = flags
 	h.data[1] = h.ExpTime
@@ -115,8 +112,8 @@ func (h *HopField) Write() {
 
 func (h *HopField) String() string {
 	return fmt.Sprintf("ConsIngress: %v ConsEgress: %v ExpTime: %v Xover: %v VerifyOnly: %v "+
-		"ForwardOnly: %v Mac: %v",
-		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.ForwardOnly, h.Mac)
+		"Mac: %v",
+		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
 }
 
 func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) error {
@@ -133,7 +130,7 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	prev common.RawBytes) (common.RawBytes, error) {
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
-	all[4] = h.data[0] & HopFieldVerifyFlags
+	all[4] = 0 // Ignore flags
 	copy(all[5:], h.data[1:5])
 	copy(all[9:], prev)
 	tag, err := util.Mac(mac, all)
