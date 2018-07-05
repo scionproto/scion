@@ -47,8 +47,8 @@ const (
 )
 
 var (
-	validSignAlgorithms = [...]string{crypto.Ed25519}
-	validEncAlgorithms  = [...]string{crypto.Curve25519xSalsa20Poly1305}
+	validSignAlgorithms = []string{crypto.Ed25519}
+	validEncAlgorithms  = []string{crypto.Curve25519xSalsa20Poly1305}
 )
 
 // As contains the as.ini configuration parameters.
