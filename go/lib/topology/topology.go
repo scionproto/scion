@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Structures used by Go code, filled in by populate()
@@ -253,7 +254,7 @@ type IFInfo struct {
 	RemoteIFID   common.IFIDType
 	Bandwidth    int
 	ISD_AS       addr.IA
-	LinkType     LinkType
+	LinkType     proto.LinkType
 	MTU          int
 }
 

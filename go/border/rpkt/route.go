@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // Route handles routing of packets. Registered hooks are called, allowing them
@@ -242,12 +243,12 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	prevLink := rp.Ctx.Conf.Net.IFs[origIFCurr].Type
 	nextLink := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext].LinkType
 	// Never allowed to switch between core segments.
-	if prevLink == topology.CoreLink && nextLink == topology.CoreLink {
+	if prevLink == proto.LinkType_core && nextLink == proto.LinkType_core {
 		return common.NewBasicError("Segment change between CORE links",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
 	}
 	// Only allowed to switch from up- to up-segment if the next link is CORE.
-	if !infoF.ConsDir && !rp.infoF.ConsDir && nextLink != topology.CoreLink {
+	if !infoF.ConsDir && !rp.infoF.ConsDir && nextLink != proto.LinkType_core {
 		return common.NewBasicError(
 			"Segment change from up segment to up segment with non-CORE next link",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),
@@ -255,7 +256,7 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		)
 	}
 	// Only allowed to switch from down- to down-segment if the previous link is CORE.
-	if infoF.ConsDir && rp.infoF.ConsDir && prevLink != topology.CoreLink {
+	if infoF.ConsDir && rp.infoF.ConsDir && prevLink != proto.LinkType_core {
 		return common.NewBasicError(
 			"Segment change from down segment to down segment with non-CORE previous link",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),

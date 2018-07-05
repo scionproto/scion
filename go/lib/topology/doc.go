@@ -75,7 +75,7 @@ type IFInfo struct {
     RemoteIFID      common.IFIDType
     Bandwidth       int
     ISD_AS          addr.IA
-    LinkType        LinkType
+    LinkType        proto.LinkType
     MTU             int
 }
 

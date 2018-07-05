@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // NetConf contains the local addresses, interface config, and some maps for
@@ -95,8 +96,7 @@ type Interface struct {
 	MTU int
 	// Type describes the type of link, in terms of relationship between this
 	// AS and the remote AS.
-	// TODO(kormat): switch to a non-string type.
-	Type topology.LinkType
+	Type proto.LinkType
 }
 
 // intfFromTopoIF is a constructor to create a new Interface instance from a
