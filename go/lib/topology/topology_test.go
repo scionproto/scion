@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var testTopo *Topo
@@ -194,7 +195,7 @@ func Test_IFInfoMap(t *testing.T) {
 			L4Port: 44998, OverlayPort: 44998},
 		Bandwidth: 1000,
 		ISD_AS:    isdas,
-		LinkType:  ParentLink,
+		LinkType:  proto.LinkType_parent,
 		MTU:       1472,
 	}
 	isdas, _ = addr.IAFromString("1-ff00:0:314")
@@ -215,7 +216,7 @@ func Test_IFInfoMap(t *testing.T) {
 
 		Bandwidth: 5000,
 		ISD_AS:    isdas,
-		LinkType:  ChildLink,
+		LinkType:  proto.LinkType_child,
 		MTU:       4430,
 	}
 	isdas, _ = addr.IAFromString("1-ff00:0:313")
@@ -234,7 +235,7 @@ func Test_IFInfoMap(t *testing.T) {
 		Remote:    &AddrInfo{Overlay: overlay.IPv4, IP: net.ParseIP("192.0.2.3"), L4Port: 50001},
 		Bandwidth: 2000,
 		ISD_AS:    isdas,
-		LinkType:  PeerLink,
+		LinkType:  proto.LinkType_peer,
 		MTU:       1480,
 	}
 	fn := "testdata/basic.json"
@@ -303,7 +304,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			L4Port: 4998, OverlayPort: 4998},
 		Bandwidth: 100000,
 		ISD_AS:    isdas,
-		LinkType:  CoreLink,
+		LinkType:  proto.LinkType_core,
 		MTU:       1472,
 	}
 	isdas, _ = addr.IAFromString("6-ff00:0:364")
@@ -324,7 +325,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			L4Port: 50000},
 		Bandwidth: 5000,
 		ISD_AS:    isdas,
-		LinkType:  ChildLink,
+		LinkType:  proto.LinkType_child,
 		MTU:       4430,
 	}
 	fn := "testdata/core.json"

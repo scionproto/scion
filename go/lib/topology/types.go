@@ -15,21 +15,10 @@
 package topology
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
-)
-
-// AS link types
-type LinkType int
-
-const (
-	InvalidLink LinkType = iota
-	CoreLink
-	ParentLink
-	ChildLink
-	PeerLink
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -39,32 +28,10 @@ const (
 	PeerLinkName   = "PEER"
 )
 
-func LinkTypeFromString(s string) (LinkType, error) {
-	switch strings.ToUpper(s) {
-	case CoreLinkName:
-		return CoreLink, nil
-	case ParentLinkName:
-		return ParentLink, nil
-	case ChildLinkName:
-		return ChildLink, nil
-	case PeerLinkName:
-		return PeerLink, nil
-	default:
-		return InvalidLink, common.NewBasicError("Unknown link type", nil, "type", s)
+func LinkTypeFromString(s string) (proto.LinkType, error) {
+	linkType := proto.LinkTypeFromString(strings.ToLower(s))
+	if linkType == 0 || linkType == proto.LinkType_unset {
+		return proto.LinkType_unset, common.NewBasicError("Unknown link type", nil, "type", s)
 	}
-}
-
-func (l LinkType) String() string {
-	switch l {
-	case CoreLink:
-		return CoreLinkName
-	case ParentLink:
-		return ParentLinkName
-	case ChildLink:
-		return ChildLinkName
-	case PeerLink:
-		return PeerLinkName
-	default:
-		return fmt.Sprintf("Link type %+v unknown", int(l))
-	}
+	return linkType, nil
 }

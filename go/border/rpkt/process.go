@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -334,8 +335,8 @@ func (rp *RtrPkt) processSCMPRevocation() error {
 
 	intf := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
 	rp.SrcIA() // Ensure that rp.srcIA has been set
-	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.CoreLink) ||
-		(rp.srcIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == topology.ParentLink) {
+	if (rp.dstIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == proto.LinkType_core) ||
+		(rp.srcIA.I == rp.Ctx.Conf.Topo.ISD_AS.I && intf.Type == proto.LinkType_parent) {
 		// Case 1 & 2
 		args.Addrs = append(args.Addrs, addr.SvcBS)
 		if len(rp.Ctx.Conf.Topo.PS) > 0 {
