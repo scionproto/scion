@@ -174,7 +174,7 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 		// Extract remote address
 		remote = &Addr{
 			IA:   pkt.SrcIA,
-			Host: pkt.SrcHost,
+			Host: pkt.SrcHost.Copy(),
 		}
 		// Extract path and last hop
 		if lastHop != nil {
@@ -184,7 +184,7 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 					common.NewBasicError("Unable to reverse path on received packet", err)
 			}
 			remote.Path = path
-			remote.NextHopHost = lastHop.Addr
+			remote.NextHopHost = lastHop.Addr.Copy()
 			remote.NextHopPort = lastHop.Port
 		}
 		switch hdr := pkt.L4.(type) {

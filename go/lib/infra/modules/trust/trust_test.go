@@ -760,7 +760,12 @@ func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func())
 		t.Fatal(err)
 	}
 
-	store, err := NewStore(db, ia, 0, log.Root())
+	options := &Options{
+		LocalCSes: []net.Addr{
+			&messenger.MockAddress{},
+		},
+	}
+	store, err := NewStore(db, ia, 0, options, log.Root())
 	if err != nil {
 		t.Fatal(err)
 	}
