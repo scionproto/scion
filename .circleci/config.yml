@@ -104,7 +104,8 @@ jobs:
                     tar -xz -C /tmp -f /tmp/docker-$VER.tgz
                     sudo mv /tmp/docker/* /usr/bin
             - run: |
-                sudo docker build -f docker/Dockerfile -t latest .
+                sudo docker images
+                sudo docker build -f docker/Dockerfile -t scion:latest .
                 sudo docker images
                 cd docker/perapp
                 sudo make base
