@@ -18,10 +18,12 @@
 package cert
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	"github.com/pierrec/lz4"
@@ -101,6 +103,34 @@ func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
 		return nil, err
 	}
 	return ChainFromRaw(raw, lz4_)
+}
+
+// ChainFromDir reads all the *.crt files contained directly in dir (no
+// subdirectories), and out of those that match IA ia returns the newest one.
+// The chains must not be compressed. If an error occurs when parsing one
+// of the files, f() is called with the error as argument. Execution continues
+// with the remaining files.
+//
+// If no chain is found, the returned chain is nil and the error is set to nil.
+func ChainFromDir(dir string, ia addr.IA, f func(err error)) (*Chain, error) {
+	files, err := filepath.Glob(fmt.Sprintf("%s/*.crt", dir))
+	if err != nil {
+		return nil, err
+	}
+	var bestVersion uint64
+	var bestChain *Chain
+	for _, file := range files {
+		chain, err := ChainFromFile(file, false)
+		if err != nil {
+			f(common.NewBasicError("Unable to read Chain file", err))
+			continue
+		}
+		if chain.Leaf.Subject.Eq(ia) && chain.Leaf.Version > bestVersion {
+			bestChain = chain
+			bestVersion = chain.Leaf.Version
+		}
+	}
+	return bestChain, nil
 }
 
 // ChainFromSlice creates a certificate chain from a list of certificates. The first certificate is
@@ -200,6 +230,20 @@ func (c *Chain) UnmarshalJSON(b []byte) error {
 	// After switching to go 1.10 we might make use of
 	// https://golang.org/pkg/encoding/json/#Decoder.DisallowUnknownFields.
 	return json.Unmarshal(b, (*Alias)(c))
+}
+
+// JSONEquals checks if two Chains are the same based on their JSON
+// serializations.
+func (c *Chain) JSONEquals(other *Chain) (bool, error) {
+	cj, err := c.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+	oj, err := other.JSON(false)
+	if err != nil {
+		return false, common.NewBasicError("Unable to build JSON", err)
+	}
+	return bytes.Compare(cj, oj) == 0, nil
 }
 
 func (c *Chain) Eq(o *Chain) bool {
