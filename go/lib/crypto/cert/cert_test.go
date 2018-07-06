@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 // Interface assertions
@@ -72,10 +73,10 @@ func Test_CertificateFromRaw(t *testing.T) {
 
 	Convey("CertificateFromRaw should fail for unknown fields", t, func() {
 		var m map[string]interface{}
-		err := json.Unmarshal(loadRaw(fnLeaf, t), &m)
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnLeaf, t), &m))
 		m["xeno"] = "UNKNOWN"
 		b, err := json.Marshal(m)
-		SoMsg("err", err, ShouldBeNil)
+		xtest.FailOnErr(t, err)
 		_, err = CertificateFromRaw(b)
 		SoMsg("err", err, ShouldNotBeNil)
 
@@ -83,10 +84,10 @@ func Test_CertificateFromRaw(t *testing.T) {
 
 	Convey("CertificateFromRaw should fail for missing fields", t, func() {
 		var m map[string]interface{}
-		err := json.Unmarshal(loadRaw(fnLeaf, t), &m)
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnLeaf, t), &m))
 		delete(m, signature)
 		b, err := json.Marshal(m)
-		SoMsg("err", err, ShouldBeNil)
+		xtest.FailOnErr(t, err)
 		_, err = CertificateFromRaw(b)
 		SoMsg("err", err, ShouldNotBeNil)
 	})

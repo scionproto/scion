@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 // Interface assertions
@@ -72,10 +73,10 @@ func Test_ChainFromRaw(t *testing.T) {
 
 	Convey("ChainFromRaw should fail for unknown fields", t, func() {
 		var m map[string]interface{}
-		err := json.Unmarshal(loadRaw(fnTRC, t), &m)
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnTRC, t), &m))
 		m["xeno"] = "UNKNOWN"
 		b, err := json.Marshal(m)
-		SoMsg("err", err, ShouldBeNil)
+		xtest.FailOnErr(t, err)
 		_, err = ChainFromRaw(b, false)
 		SoMsg("err", err, ShouldNotBeNil)
 
@@ -83,10 +84,10 @@ func Test_ChainFromRaw(t *testing.T) {
 
 	Convey("ChainFromRaw should fail for missing fields", t, func() {
 		var m map[string]interface{}
-		err := json.Unmarshal(loadRaw(fnTRC, t), &m)
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnTRC, t), &m))
 		delete(m, "0")
 		b, err := json.Marshal(m)
-		SoMsg("err", err, ShouldBeNil)
+		xtest.FailOnErr(t, err)
 		_, err = ChainFromRaw(b, false)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
