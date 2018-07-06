@@ -71,7 +71,7 @@ type Request struct {
 	Message proto.Cerealizable
 	// The top-level SignedCtrlPld message read from the wire
 	FullMessage proto.Cerealizable
-	// The node that sent this request
+	// Peer is the node that sent this request
 	Peer net.Addr
 
 	ID uint64
@@ -124,6 +124,10 @@ type Messenger interface {
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
 	GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
+	RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
+		id uint64) (*cert_mgmt.ChainIssRep, error)
+	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
+		id uint64) error
 	AddHandler(msgType string, h Handler)
 	ListenAndServe()
 	CloseServer() error

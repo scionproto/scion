@@ -15,16 +15,22 @@
 package ctrl
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
+
+const SignatureValidity = 2 * time.Second
 
 // Signer takes a Pld and signs it, producing a SignedPld.
 type Signer interface {
@@ -50,8 +56,6 @@ func (b *BasicSigner) Sign(pld *Pld) (*SignedPld, error) {
 
 // NullSigner is a Signer that creates SignedPld's with no signature.
 var NullSigner Signer = NewBasicSigner(nil, nil)
-
-type trustStore struct{} // TODO(kormat): replace this with trust store interface
 
 // VerifySig does some sanity checks on p, and then verifies the signature using sigV.
 func VerifySig(p *SignedPld, sigV SigVerifier) error {
@@ -79,31 +83,43 @@ var _ SigVerifier = (*BasicSigVerifier)(nil)
 // BasicSigVerifier is a SigVerifier that ignores signatures on cert_mgmt.TRC
 // and cert_mgmt.Chain messages, to avoid dependency cycles.
 type BasicSigVerifier struct {
-	tStore *trustStore
+	tStore infra.TrustStore
 }
 
-func NewBasicSigVerifier(tStore *trustStore) *BasicSigVerifier {
+func NewBasicSigVerifier(tStore infra.TrustStore) *BasicSigVerifier {
 	return &BasicSigVerifier{
 		tStore: tStore,
 	}
 }
 
-func (b *BasicSigVerifier) Verify(p *SignedPld) error {
+func (v *BasicSigVerifier) Verify(p *SignedPld) error {
 	cpld, err := p.Pld()
 	if err != nil {
 		return err
 	}
-	if b.ignoreSign(cpld) {
+	if v.ignoreSign(cpld) {
 		return nil
 	}
-	vKey, err := b.getVerifyKeyForSign(p.Sign)
+	now := time.Now()
+	ts := p.Sign.Time()
+	diff := now.Sub(ts)
+	if diff < 0 {
+		return common.NewBasicError("Invalid timestamp. Signature from future", nil,
+			"ts", util.TimeToString(ts), "now", util.TimeToString(now))
+	}
+	if diff > SignatureValidity {
+		return common.NewBasicError("Invalid timestamp. Signature expired", nil,
+			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
+			"validity", SignatureValidity)
+	}
+	vKey, err := v.getVerifyKeyForSign(p.Sign)
 	if err != nil {
 		return err
 	}
 	return p.Sign.Verify(vKey, p.Blob)
 }
 
-func (b *BasicSigVerifier) ignoreSign(p *Pld) bool {
+func (v *BasicSigVerifier) ignoreSign(p *Pld) bool {
 	u0, _ := p.Union()
 	outer, ok := u0.(*cert_mgmt.Pld)
 	if !ok {
@@ -111,14 +127,17 @@ func (b *BasicSigVerifier) ignoreSign(p *Pld) bool {
 	}
 	u1, _ := outer.Union()
 	switch u1.(type) {
-	case *cert_mgmt.Chain, *cert_mgmt.TRC:
+	// FIXME(roosd): ChainIssRep is disregarded to avoid deadlock when
+	// the issuer updates its leaf certificate at the same time. Remove
+	// it when trust store supports lookup of missing certificates.
+	case *cert_mgmt.Chain, *cert_mgmt.TRC, *cert_mgmt.ChainIssRep:
 		return true
 	default:
 		return false
 	}
 }
 
-func (b *BasicSigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes, error) {
+func (v *BasicSigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes, error) {
 	if s.Type == proto.SignType_none {
 		return nil, nil
 	}
@@ -126,19 +145,37 @@ func (b *BasicSigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes,
 	if err != nil {
 		return nil, err
 	}
-	chain, err := b.getChainForSign(sigSrc)
+	chain, err := GetChainForSign(sigSrc, v.tStore)
 	if err != nil {
 		return nil, err
-	}
-	if chain == nil { // FIXME(roosd): remove after getChainForSign is implemented
-		return nil, nil
 	}
 	return chain.Leaf.SubjectSignKey, nil
 }
 
-func (b *BasicSigVerifier) getChainForSign(s *SignSrcDef) (*cert.Chain, error) {
-	// TODO(kormat): query b.tStore
-	return nil, nil
+// FIXME(scrye): Get rid of context.TODO(), either by retrieving crypto before
+// calling, or by passing in a context.
+
+func GetChainForSign(s *SignSrcDef, tStore infra.TrustStore) (*cert.Chain, error) {
+	c, err := tStore.GetChain(context.TODO(), s.IA, s.ChainVer)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to get certificate chain", err)
+	}
+	t, err := tStore.GetTRC(context.TODO(), s.IA.I, s.TRCVer)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to get TRC", err)
+	}
+	maxTRC, err := tStore.GetValidTRC(context.TODO(), t.ISD, t.ISD)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to get maxTRC", err)
+	}
+	if err := t.CheckActive(maxTRC); err != nil {
+		// The certificate chain might still be verifiable with the max TRC
+		t = maxTRC
+	}
+	if err := c.Verify(c.Leaf.Subject, t); err != nil {
+		return nil, common.NewBasicError("Unable to verify certificate chain", err)
+	}
+	return c, nil
 }
 
 const (
