@@ -27,7 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 )
 
 const (
