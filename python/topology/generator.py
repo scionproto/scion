@@ -195,14 +195,16 @@ class ConfigGenerator(object):
             def_network = defaults.get("subnet")
         if not def_network:
             if self.ipv6:
-                priv_net = DEFAULT6_PRIV_NETWORK
                 def_network = DEFAULT6_NETWORK
             else:
-                priv_net = DEFAULT_PRIV_NETWORK
                 if self.mininet:
                     def_network = DEFAULT_MININET_NETWORK
                 else:
                     def_network = DEFAULT_NETWORK
+        if self.ipv6:
+            priv_net = DEFAULT6_PRIV_NETWORK
+        else:
+            priv_net = DEFAULT_PRIV_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
         self.prvnet_gen = SubnetGenerator(priv_net)
         for key, val in defaults.get("zookeepers", {}).items():
