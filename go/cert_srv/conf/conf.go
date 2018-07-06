@@ -15,6 +15,8 @@
 package conf
 
 import (
+	"context"
+	"math/rand"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -25,10 +27,12 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/lib/trust"
 )
 
 const (
@@ -69,8 +73,6 @@ type Conf struct {
 	// Customers is a mapping from non-core ASes assigned to this core AS to their public
 	// verifying key.
 	Customers *Customers
-	// CacheDir is the cache directory.
-	CacheDir string
 	// ConfDir is the configuration directory.
 	ConfDir string
 	// StateDir is the state directory.
@@ -89,14 +91,15 @@ type Conf struct {
 	IssuerReissTime time.Duration
 	// ReissRate is the interval between two consecutive reissue requests.
 	ReissRate time.Duration
+	// RequestID is used to generate unique request IDs for the messenger
+	RequestID messenger.Counter
 }
 
 // Load initializes the configuration by loading it from confDir.
-func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, error) {
+func Load(id string, confDir string, stateDir string) (*Conf, error) {
 	c := &Conf{
 		ID:              id,
 		ConfDir:         confDir,
-		CacheDir:        cacheDir,
 		StateDir:        stateDir,
 		IssuerReissTime: IssuerReissTime,
 		ReissRate:       ReissReqRate,
@@ -107,10 +110,10 @@ func Load(id string, confDir string, cacheDir string, stateDir string) (*Conf, e
 	if err := c.loadTopo(); err != nil {
 		return nil, err
 	}
-	if err := c.loadStore(); err != nil {
+	if err := c.loadTrustDB(); err != nil {
 		return nil, err
 	}
-	if err := c.loadTrustDB(); err != nil {
+	if err := c.loadStore(); err != nil {
 		return nil, err
 	}
 	if err := c.loadKeyConf(); err != nil {
@@ -140,7 +143,6 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 		TrustDB:         oldConf.TrustDB,
 		Customers:       oldConf.Customers,
 		ConfDir:         oldConf.ConfDir,
-		CacheDir:        oldConf.CacheDir,
 		StateDir:        oldConf.StateDir,
 		IssuerReissTime: IssuerReissTime,
 		ReissRate:       ReissReqRate,
@@ -190,9 +192,23 @@ func (c *Conf) loadTopo() (err error) {
 
 // loadStore loads the trust store.
 func (c *Conf) loadStore() (err error) {
-	c.Store, err = trust.NewStore(filepath.Join(c.ConfDir, "certs"), c.CacheDir, c.ID)
+	c.Store, err = trust.NewStore(
+		c.TrustDB,
+		c.Topo.ISD_AS,
+		rand.Uint64(),
+		&trust.Options{
+			MustHaveLocalChain: true,
+		},
+		log.Root(),
+	)
 	if err != nil {
 		return common.NewBasicError(ErrorStore, err)
+	}
+	if err := c.Store.LoadAuthoritativeTRC(filepath.Join(c.ConfDir, "certs")); err != nil {
+		return err
+	}
+	if err := c.Store.LoadAuthoritativeChain(filepath.Join(c.ConfDir, "certs")); err != nil {
+		return err
 	}
 	return nil
 }
@@ -227,7 +243,10 @@ func (c *Conf) loadLeafReissTime() error {
 
 // loadKeyConf inserts the issuer certificate of the newest certificate chain into the trustdb.
 func (c *Conf) loadIssCert() error {
-	chain := c.Store.GetNewestChain(c.PublicAddr.IA)
+	chain, err := c.Store.GetValidChain(context.TODO(), c.PublicAddr.IA, c.PublicAddr.IA.I)
+	if err != nil {
+		return err
+	}
 	if chain == nil {
 		return common.NewBasicError(ErrorIssCert, nil, "err", "No certificate chain present")
 	}

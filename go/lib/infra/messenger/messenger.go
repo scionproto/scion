@@ -72,6 +72,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -82,6 +83,8 @@ const (
 	TRC                = "TRC"
 	PathSegmentRequest = "PathSegmentRequest"
 	PathSegmentReply   = "PathSegmentReply"
+	ChainIssueRequest  = "ChainIssueRequest"
+	ChainIssueReply    = "ChainIssueReply"
 )
 
 var _ infra.Messenger = (*Messenger)(nil)
@@ -90,11 +93,15 @@ var _ infra.Messenger = (*Messenger)(nil)
 type Messenger struct {
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
-	// Keep a reference for the signer and verifier if we need manual access
-	signer   ctrl.Signer
+
+	cryptoLock sync.RWMutex
+	// signer is used to sign selected outgoing messages
+	signer ctrl.Signer
+	// signMask specifies which messages are signed when sent out
+	signMask map[string]struct{}
+	// verifier is used to verify selected incoming messages
 	verifier ctrl.SigVerifier
-	// Request/response encapsulation/decapsulation (and signature) support
-	requester *ctrl_msg.Requester
+
 	// Source for crypto objects (certificates and TRCs)
 	trustStore infra.TrustStore
 
@@ -120,13 +127,10 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger)
 	// processed in the relevant handlers which have their own reference to the
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
-	signer := ctrl.NullSigner
-	verifier := ctrl.NullSigVerifier
 	return &Messenger{
 		dispatcher: dispatcher,
-		signer:     signer,
-		verifier:   verifier,
-		requester:  ctrl_msg.NewRequester(signer, verifier, dispatcher),
+		signer:     ctrl.NullSigner,
+		verifier:   ctrl.NullSigVerifier,
 		trustStore: store,
 		handlers:   make(map[string]infra.Handler),
 		closeChan:  make(chan struct{}),
@@ -134,8 +138,6 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger)
 		cancelF:    cancelF,
 		log:        logger,
 	}
-	// XXX(scrye): More crypto is needed to send signed messages (a local
-	// signing key, at a minimum).
 }
 
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
@@ -147,7 +149,8 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	if err != nil {
 		return nil, err
 	}
-	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Request", "type", TRCRequest, "to", a, "id", id)
+	replyCtrlPld, _, err := m.getRequester(TRCRequest, TRC).Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +171,8 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	if err != nil {
 		return err
 	}
-	return m.requester.Notify(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Notify", "type", TRC, "to", a, "id", id)
+	return m.getRequester(TRC, "").Notify(ctx, pld, a)
 }
 
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
@@ -180,7 +184,8 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	if err != nil {
 		return nil, err
 	}
-	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Request", "type", ChainRequest, "to", a, "id", id)
+	replyCtrlPld, _, err := m.getRequester(ChainRequest, Chain).Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +208,8 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	if err != nil {
 		return err
 	}
-	return m.requester.Notify(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Notify", "type", Chain, "to", a, "id", id)
+	return m.getRequester(Chain, "").Notify(ctx, pld, a)
 }
 
 // GetPathSegs asks the server at the remote address for the path segments that
@@ -215,7 +221,8 @@ func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	if err != nil {
 		return nil, err
 	}
-	replyCtrlPld, _, err := m.requester.Request(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Request", "type", PathSegmentRequest, "to", a, "id", id)
+	replyCtrlPld, _, err := m.getRequester(PathSegmentRequest, PathSegmentReply).Request(ctx, pld, a)
 	if err != nil {
 		return nil, err
 	}
@@ -231,6 +238,39 @@ func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 		return nil, err
 	}
 	return reply, nil
+}
+
+func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
+	id uint64) (*cert_mgmt.ChainIssRep, error) {
+
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return nil, err
+	}
+	m.log.Debug("[Messenger] Sending Request", "type", ChainIssueRequest, "to", a, "id", id)
+	replyCtrlPld, _, err := m.getRequester(ChainIssueRequest, ChainIssueReply).Request(ctx, pld, a)
+	if err != nil {
+		return nil, err
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return nil, err
+	}
+	reply, ok := replyMsg.(*cert_mgmt.ChainIssRep)
+	if !ok {
+		return nil, newTypeAssertErr("*cert_mgmt.ChainIssReply", replyMsg)
+	}
+	return reply, nil
+}
+
+func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr, id uint64) error {
+
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	m.log.Debug("[Messenger] Sending Notify", "type", ChainIssueReply, "to", a, "id", id)
+	return m.getRequester(ChainIssueReply, "").Notify(ctx, pld, a)
 }
 
 // AddHandler registers a handler for msgType.
@@ -266,44 +306,75 @@ func (m *Messenger) ListenAndServe() {
 
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
-			m.log.Error("Type assertion failure", "expected", "*ctrl.SignedPld",
+			m.log.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
 				"actual", common.TypeOf(genericMsg))
 			continue
 		}
 
-		err = m.verifier.Verify(signedPld)
-		if err != nil {
-			m.log.Error("Verification error", "err", err)
-			continue
+		// Skip top-level signature verification if running on top of non-snet
+		// transports because we cannot detect the signer's identity.
+		if a, ok := address.(*snet.Addr); ok {
+			// FIXME(scrye): Always use default signature verifier here, as some
+			// functionality in the main ctrl libraries is still missing.
+			err = m.verifySignedPld(signedPld, m.verifier, a)
+			if err != nil {
+				m.log.Error("Verification error", "from", address, "err", err)
+				continue
+			}
 		}
 
 		pld, err := signedPld.Pld()
 		if err != nil {
-			m.log.Error("Unable to extract Pld from CtrlPld", "err", err)
+			m.log.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
 			continue
 		}
-		m.serve(pld, address)
+		m.serve(pld, signedPld, address)
 	}
 }
 
-func (m *Messenger) serve(pld *ctrl.Pld, address net.Addr) {
+func (m *Messenger) verifySignedPld(signedPld *ctrl.SignedPld, verifier ctrl.SigVerifier,
+	addr *snet.Addr) error {
+
+	if signedPld.Sign == nil {
+		return nil
+	}
+	if err := ctrl.VerifySig(signedPld, verifier); err != nil {
+		return common.NewBasicError("Unable to verify signature", err)
+	}
+	if signedPld.Sign.Type == proto.SignType_none {
+		return nil
+	}
+	src, err := ctrl.NewSignSrcDefFromRaw(signedPld.Sign.Src)
+	if err != nil {
+		return err
+	}
+	if !addr.IA.Eq(src.IA) {
+		return common.NewBasicError("Sender IA does not match signed src IA", nil,
+			"expected", src.IA, "actual", addr.IA)
+	}
+	return nil
+}
+
+func (m *Messenger) serve(pld *ctrl.Pld, signedPld *ctrl.SignedPld, address net.Addr) {
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
 	msgType, msg, err := m.validate(pld)
 	if err != nil {
-		m.log.Error("Received message, but unable to validate message", "err", err)
+		m.log.Error("Received message, but unable to validate message", "from", address, "err", err)
 		return
 	}
+	m.log.Debug("[Messenger] Received Message", "type", msgType, "from", address, "id", pld.ReqId)
 
 	m.handlersLock.RLock()
 	handler := m.handlers[msgType]
 	m.handlersLock.RUnlock()
 	if handler == nil {
-		m.log.Error("Received message, but handler not found", "msgType", msgType)
+		m.log.Error("Received message, but handler not found", "from", address,
+			"msgType", msgType)
 		return
 	}
 	serveCtx := infra.NewContextWithMessenger(m.ctx, m)
-	go handler.Handle(infra.NewRequest(serveCtx, msg, pld, address, pld.ReqId))
+	go handler.Handle(infra.NewRequest(serveCtx, msg, signedPld, address, pld.ReqId))
 }
 
 // validate checks that msg is one of the acceptable message types for SCION
@@ -324,6 +395,10 @@ func (m *Messenger) validate(pld *ctrl.Pld) (string, proto.Cerealizable, error) 
 			return TRCRequest, pld.CertMgmt.TRCReq, nil
 		case proto.CertMgmt_Which_trc:
 			return TRC, pld.CertMgmt.TRCRep, nil
+		case proto.CertMgmt_Which_certChainIssReq:
+			return ChainIssueRequest, pld.CertMgmt.ChainIssReq, nil
+		case proto.CertMgmt_Which_certChainIssRep:
+			return ChainIssueReply, pld.CertMgmt.ChainIssRep, nil
 		default:
 			return "", nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type",
@@ -360,6 +435,46 @@ func (m *Messenger) CloseServer() error {
 		m.cancelF()
 	}
 	return nil
+}
+
+// UpdateSigner enables signing of messages with signer. Only the messages in
+// types are signed, the rest are left with a null signature.
+func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []string) {
+	m.cryptoLock.Lock()
+	defer m.cryptoLock.Unlock()
+	m.signMask = make(map[string]struct{})
+	for _, t := range types {
+		m.signMask[t] = struct{}{}
+	}
+	m.signer = signer
+}
+
+// UpdateVerifier enables verifying of messages with verifier.
+//
+// FIXME(scrye): Verifiers are usually bound to a trust store to which the
+// messenger already holds a reference. We should decouple the trust store from
+// either one or the other.
+func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
+	m.cryptoLock.Lock()
+	defer m.cryptoLock.Unlock()
+	m.verifier = verifier
+}
+
+// getRequester returns a requester object with customized crypto keys.
+//
+// If message type reqT is to be signed, the key is initialized from m.signer.
+// Otherwise it is set to a null signer.
+//
+// If message type respT is to be verified, the key is initialized from
+// m.verifier. Otherwise, it is set to a null verifier.
+func (m *Messenger) getRequester(reqT, respT string) *ctrl_msg.Requester {
+	m.cryptoLock.RLock()
+	defer m.cryptoLock.RUnlock()
+	signer := ctrl.NullSigner
+	if _, ok := m.signMask[reqT]; ok {
+		signer = m.signer
+	}
+	return ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher)
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {
