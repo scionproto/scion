@@ -24,7 +24,7 @@ const (
 
 var certFields = []string{canIssue, comment, encAlgorithm, expirationTime,
 	issuer, issuingTime, signAlgorithm, signature, subject, subjectEncKey,
-	subjectSignKey, tRCVersion, version}
+	subjectSignKey, trcVersion, version}
 
 var chainFields = []string{"0", "1"}
 

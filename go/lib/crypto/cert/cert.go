@@ -50,7 +50,7 @@ const (
 	subject        = "Subject"
 	subjectEncKey  = "SubjectEncKey"
 	subjectSignKey = "SubjectSignKey"
-	tRCVersion     = "TRCVersion"
+	trcVersion     = "TRCVersion"
 	version        = "Version"
 )
 
@@ -165,7 +165,7 @@ func (c *Certificate) sigPack() (common.RawBytes, error) {
 	m[subject] = c.Subject
 	m[subjectEncKey] = c.SubjectEncKey
 	m[subjectSignKey] = c.SubjectSignKey
-	m[tRCVersion] = c.TRCVersion
+	m[trcVersion] = c.TRCVersion
 	m[version] = c.Version
 	sigInput, err := json.Marshal(m)
 	if err != nil {
@@ -216,6 +216,7 @@ func (c *Certificate) UnmarshalJSON(b []byte) error {
 	if err = validateFields(m, certFields); err != nil {
 		return common.NewBasicError(UnableValidateFields, err)
 	}
+	// XXX(roosd): Unmarshalling twice might affect performance.
 	return json.Unmarshal(b, (*Alias)(c))
 }
 

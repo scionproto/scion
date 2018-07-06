@@ -395,6 +395,7 @@ func (t *TRC) UnmarshalJSON(b []byte) error {
 	if err = validateFields(m, trcFields); err != nil {
 		return common.NewBasicError(UnableValidateFields, err)
 	}
+	// XXX(roosd): Unmarshalling twice might affect performance.
 	return json.Unmarshal(b, (*Alias)(t))
 }
 
