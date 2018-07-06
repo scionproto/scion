@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -68,13 +67,6 @@ func (rp *RtrPkt) Validate() (bool, error) {
 	// ValidatePath checks that ifCurr is valid
 	if err := rp.validatePath(rp.DirFrom); err != nil {
 		return false, err
-	}
-	// Validate not shortcut for core segments
-	if rp.infoF != nil && rp.infoF.Shortcut && rp.ifCurr != nil {
-		currentLinkType := rp.Ctx.Conf.Net.IFs[*rp.ifCurr].Type
-		if currentLinkType == proto.LinkType_core {
-			return false, common.NewBasicError("Shortcut not allowed on core segment", nil)
-		}
 	}
 	if err := rp.validateExtns(); err != nil {
 		return false, err
