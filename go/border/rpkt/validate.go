@@ -70,7 +70,7 @@ func (rp *RtrPkt) Validate() (bool, error) {
 		return false, err
 	}
 	// Validate not shortcut for core segments
-	if rp.infoF.Shortcut && rp.ifCurr != nil {
+	if rp.infoF != nil && rp.infoF.Shortcut && rp.ifCurr != nil {
 		currentLinkType := rp.Ctx.Conf.Net.IFs[*rp.ifCurr].Type
 		if currentLinkType == proto.LinkType_core {
 			return false, common.NewBasicError("Shortcut not allowed on core segment", nil)
