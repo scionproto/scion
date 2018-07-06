@@ -47,7 +47,7 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 		return err
 	}
 	// Check for shorcuts in packets from core links
-	if rp.infoF.Shortcut && rp.ifCurr != nil {
+	if rp.infoF.Shortcut {
 		currentLinkType := rp.Ctx.Conf.Net.IFs[*rp.ifCurr].Type
 		if currentLinkType == proto.LinkType_core {
 			return common.NewBasicError("Shortcut not allowed on core segment", nil)
