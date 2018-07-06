@@ -186,6 +186,22 @@ func (c *Chain) JSON(indent bool) ([]byte, error) {
 	return json.Marshal(c)
 }
 
+func (c *Chain) UnmarshalJSON(b []byte) error {
+	type Alias Chain
+	var m map[string]interface{}
+	err := json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+	if err = validateFields(m, chainFields); err != nil {
+		return common.NewBasicError(UnableValidateFields, err)
+	}
+	// XXX(roosd): Unmarshalling twice might affect performance.
+	// After switching to go 1.10 we might make use of
+	// https://golang.org/pkg/encoding/json/#Decoder.DisallowUnknownFields.
+	return json.Unmarshal(b, (*Alias)(c))
+}
+
 func (c *Chain) Eq(o *Chain) bool {
 	return c.Leaf.Eq(o.Leaf) && c.Issuer.Eq(o.Issuer)
 }

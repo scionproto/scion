@@ -38,6 +38,22 @@ const (
 	UnableSigPack   = "Cert: Unable to create signature input"
 )
 
+const (
+	canIssue       = "CanIssue"
+	comment        = "Comment"
+	encAlgorithm   = "EncAlgorithm"
+	expirationTime = "ExpirationTime"
+	issuer         = "Issuer"
+	issuingTime    = "IssuingTime"
+	signAlgorithm  = "SignAlgorithm"
+	signature      = "Signature"
+	subject        = "Subject"
+	subjectEncKey  = "SubjectEncKey"
+	subjectSignKey = "SubjectSignKey"
+	trcVersion     = "TRCVersion"
+	version        = "Version"
+)
+
 type Certificate struct {
 	// CanIssue describes whether the subject is able to issue certificates.
 	CanIssue bool
@@ -139,18 +155,18 @@ func (c *Certificate) sigPack() (common.RawBytes, error) {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	m := make(map[string]interface{})
-	m["CanIssue"] = c.CanIssue
-	m["Comment"] = c.Comment
-	m["EncAlgorithm"] = c.EncAlgorithm
-	m["ExpirationTime"] = c.ExpirationTime
-	m["Issuer"] = c.Issuer
-	m["IssuingTime"] = c.IssuingTime
-	m["SignAlgorithm"] = c.SignAlgorithm
-	m["Subject"] = c.Subject
-	m["SubjectEncKey"] = c.SubjectEncKey
-	m["SubjectSignKey"] = c.SubjectSignKey
-	m["TRCVersion"] = c.TRCVersion
-	m["Version"] = c.Version
+	m[canIssue] = c.CanIssue
+	m[comment] = c.Comment
+	m[encAlgorithm] = c.EncAlgorithm
+	m[expirationTime] = c.ExpirationTime
+	m[issuer] = c.Issuer
+	m[issuingTime] = c.IssuingTime
+	m[signAlgorithm] = c.SignAlgorithm
+	m[subject] = c.Subject
+	m[subjectEncKey] = c.SubjectEncKey
+	m[subjectSignKey] = c.SubjectSignKey
+	m[trcVersion] = c.TRCVersion
+	m[version] = c.Version
 	sigInput, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
@@ -188,6 +204,22 @@ func (c *Certificate) JSON(indent bool) ([]byte, error) {
 		return json.MarshalIndent(c, "", strings.Repeat(" ", 4))
 	}
 	return json.Marshal(c)
+}
+
+func (c *Certificate) UnmarshalJSON(b []byte) error {
+	type Alias Certificate
+	var m map[string]interface{}
+	err := json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+	if err = validateFields(m, certFields); err != nil {
+		return common.NewBasicError(UnableValidateFields, err)
+	}
+	// XXX(roosd): Unmarshalling twice might affect performance.
+	// After switching to go 1.10 we might make use of
+	// https://golang.org/pkg/encoding/json/#Decoder.DisallowUnknownFields.
+	return json.Unmarshal(b, (*Alias)(c))
 }
 
 func (c *Certificate) Eq(o *Certificate) bool {

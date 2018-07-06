@@ -15,6 +15,7 @@
 package cert
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 // Interface assertions
@@ -67,6 +69,27 @@ func Test_CertificateFromRaw(t *testing.T) {
 		SoMsg("Signature", cert.Signature, ShouldResemble, rawSignature)
 		SoMsg("EncKey", cert.SubjectEncKey, ShouldResemble, rawEncKey)
 		SoMsg("SigKey", cert.SubjectSignKey, ShouldResemble, rawSigKey)
+	})
+
+	Convey("CertificateFromRaw should fail for unknown fields", t, func() {
+		var m map[string]interface{}
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnLeaf, t), &m))
+		m["xeno"] = "UNKNOWN"
+		b, err := json.Marshal(m)
+		xtest.FailOnErr(t, err)
+		_, err = CertificateFromRaw(b)
+		SoMsg("err", err, ShouldNotBeNil)
+
+	})
+
+	Convey("CertificateFromRaw should fail for missing fields", t, func() {
+		var m map[string]interface{}
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnLeaf, t), &m))
+		delete(m, signature)
+		b, err := json.Marshal(m)
+		xtest.FailOnErr(t, err)
+		_, err = CertificateFromRaw(b)
+		SoMsg("err", err, ShouldNotBeNil)
 	})
 
 	Convey("CertificateFromRaw should throw error for invalid bytes", t, func() {

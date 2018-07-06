@@ -16,6 +16,7 @@ package trc
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -28,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 // Interface assertions
@@ -39,7 +41,7 @@ var (
 )
 
 func Test_TRCFromRaw(t *testing.T) {
-	Convey("ChainFromRaw should parse bytes correctly", t, func() {
+	Convey("TRCFromRaw should parse bytes correctly", t, func() {
 		trc, err := TRCFromRaw(loadRaw(fnTRC, t), false)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("CreationTime", trc.CreationTime, ShouldEqual, 1510146554)
@@ -136,6 +138,51 @@ func Test_TRCFromRaw(t *testing.T) {
 					0x17, 0xcd, 0x3d, 0x7c, 0x42, 0x05})
 		})
 
+	})
+
+	Convey("TRCFromRaw should fail for unknown fields", t, func() {
+		var m map[string]interface{}
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnTRC, t), &m))
+		Convey("Additional field", func() {
+			m["xeno"] = "UNKNOWN"
+			b, err := json.Marshal(m)
+			xtest.FailOnErr(t, err)
+			_, err = TRCFromRaw(b, false)
+			SoMsg("err", err, ShouldNotBeNil)
+		})
+
+		Convey("Additional CoreASes field", func() {
+			for _, v := range m[coreASes].(map[string]interface{}) {
+				v.(map[string]interface{})["xeno"] = "UNKNOWN"
+			}
+			b, err := json.Marshal(m)
+			xtest.FailOnErr(t, err)
+			_, err = TRCFromRaw(b, false)
+			SoMsg("err", err, ShouldNotBeNil)
+		})
+
+	})
+
+	Convey("TRCFromRaw should fail for missing fields", t, func() {
+		var m map[string]interface{}
+		xtest.FailOnErr(t, json.Unmarshal(loadRaw(fnTRC, t), &m))
+		Convey("Missing field", func() {
+			delete(m, coreASes)
+			b, err := json.Marshal(m)
+			xtest.FailOnErr(t, err)
+			_, err = TRCFromRaw(b, false)
+			SoMsg("err", err, ShouldNotBeNil)
+		})
+
+		Convey("Missing CoreASes field", func() {
+			for _, v := range m[coreASes].(map[string]interface{}) {
+				delete(v.(map[string]interface{}), "OnlineKey")
+			}
+			b, err := json.Marshal(m)
+			xtest.FailOnErr(t, err)
+			_, err = TRCFromRaw(b, false)
+			SoMsg("err", err, ShouldNotBeNil)
+		})
 	})
 
 	Convey("TRCFromRaw should avoid unpack bombs", t, func() {

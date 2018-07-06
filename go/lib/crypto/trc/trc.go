@@ -50,6 +50,24 @@ const (
 	UnableSigPack       = "TRC: Unable to create signature input"
 )
 
+const (
+	certLogs       = "CertLogs"
+	coreASes       = "CoreASes"
+	creationTime   = "CreationTime"
+	description    = "Description"
+	expirationTime = "ExpirationTime"
+	gracePeriod    = "GracePeriod"
+	isd            = "ISD"
+	quarantine     = "Quarantine"
+	quorumCAs      = "QuorumCAs"
+	quorumTRC      = "QuorumTRC"
+	rains          = "RAINS"
+	rootCAs        = "RootCAs"
+	signatures     = "Signatures"
+	thresholdEEPKI = "ThresholdEEPKI"
+	version        = "Version"
+)
+
 type Key struct {
 	ISD addr.ISD
 	Ver uint64
@@ -103,7 +121,7 @@ type TRC struct {
 	// RootCAs is a map from root CA names to their RootCA entry.
 	RootCAs map[string]*RootCA
 	// Signatures is a map from entity names to their signatures.
-	Signatures map[string]common.RawBytes `json:",omitempty"`
+	Signatures map[string]common.RawBytes
 	// ThresholdEEPKI is the threshold number of trusted parties (CAs and one log) required to
 	// assert a domain’s policy.
 	ThresholdEEPKI uint32
@@ -308,20 +326,20 @@ func (t *TRC) sigPack() (common.RawBytes, error) {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	m := make(map[string]interface{})
-	m["CertLogs"] = t.CertLogs
-	m["CreationTime"] = t.CreationTime
-	m["Description"] = t.Description
-	m["ExpirationTime"] = t.ExpirationTime
-	m["GracePeriod"] = t.GracePeriod
-	m["ISD"] = t.ISD
-	m["Quarantine"] = t.Quarantine
-	m["QuorumCAs"] = t.QuorumCAs
-	m["QuorumTRC"] = t.QuorumTRC
-	m["RAINS"] = t.RAINS
-	m["RootCAs"] = t.RootCAs
-	m["ThresholdEEPKI"] = t.ThresholdEEPKI
-	m["Version"] = t.Version
-	m["CoreASes"] = t.CoreASes
+	m[certLogs] = t.CertLogs
+	m[creationTime] = t.CreationTime
+	m[description] = t.Description
+	m[expirationTime] = t.ExpirationTime
+	m[gracePeriod] = t.GracePeriod
+	m[isd] = t.ISD
+	m[quarantine] = t.Quarantine
+	m[quorumCAs] = t.QuorumCAs
+	m[quorumTRC] = t.QuorumTRC
+	m[rains] = t.RAINS
+	m[rootCAs] = t.RootCAs
+	m[thresholdEEPKI] = t.ThresholdEEPKI
+	m[version] = t.Version
+	m[coreASes] = t.CoreASes
 	sigInput, err := json.Marshal(m)
 	if err != nil {
 		return nil, common.NewBasicError(UnableSigPack, err)
@@ -365,6 +383,22 @@ func (t *TRC) JSONEquals(other *TRC) (bool, error) {
 		return false, common.NewBasicError("Unable to build JSON", err)
 	}
 	return bytes.Compare(tj, oj) == 0, nil
+}
+
+func (t *TRC) UnmarshalJSON(b []byte) error {
+	type Alias TRC
+	var m map[string]interface{}
+	err := json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+	if err = validateFields(m, trcFields); err != nil {
+		return common.NewBasicError(UnableValidateFields, err)
+	}
+	// XXX(roosd): Unmarshalling twice might affect performance.
+	// After switching to go 1.10 we might make use of
+	// https://golang.org/pkg/encoding/json/#Decoder.DisallowUnknownFields.
+	return json.Unmarshal(b, (*Alias)(t))
 }
 
 func (t *TRC) String() string {
