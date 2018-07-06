@@ -38,9 +38,23 @@ type CoreAS struct {
 	OnlineKeyAlg string
 }
 
+func (t *CoreAS) UnmarshalJSON(b []byte) error {
+	type Alias CoreAS
+	var m map[string]interface{}
+	err := json.Unmarshal(b, &m)
+	if err != nil {
+		return err
+	}
+	if err = validateFields(m, coreASFields); err != nil {
+		return common.NewBasicError(UnableValidateFields, err)
+	}
+	return json.Unmarshal(b, (*Alias)(t))
+}
+
 // RootCA is the root CA entry.
 type RootCA struct {
 	// All fields need to be sorted in alphabetic order of the field names.
+	// FIXME(roosd): Validate fields when EE-PKI is enabled
 
 	// ARPKIKey is the arpki key.
 	ARPKIKey common.RawBytes
@@ -59,6 +73,7 @@ type RootCA struct {
 // Rains is the rains entry.
 type Rains struct {
 	// All fields need to be sorted in alphabetic order of the field names.
+	// FIXME(roosd): Validate fields when NS-PKI is enabled
 
 	// OnlineKey is the online verification key.
 	OnlineKey common.RawBytes `json:",omitempty"`

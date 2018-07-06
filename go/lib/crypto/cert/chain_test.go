@@ -15,6 +15,7 @@
 package cert
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -68,6 +69,27 @@ func Test_ChainFromRaw(t *testing.T) {
 	//		SoMsg("Issuer", chain.Issuer.Eq(cert), ShouldBeTrue)
 	//	})
 	//})
+
+	Convey("ChainFromRaw should fail for unknown fields", t, func() {
+		var m map[string]interface{}
+		err := json.Unmarshal(loadRaw(fnTRC, t), &m)
+		m["xeno"] = "UNKNOWN"
+		b, err := json.Marshal(m)
+		SoMsg("err", err, ShouldBeNil)
+		_, err = ChainFromRaw(b, false)
+		SoMsg("err", err, ShouldNotBeNil)
+
+	})
+
+	Convey("ChainFromRaw should fail for missing fields", t, func() {
+		var m map[string]interface{}
+		err := json.Unmarshal(loadRaw(fnTRC, t), &m)
+		delete(m, "0")
+		b, err := json.Marshal(m)
+		SoMsg("err", err, ShouldBeNil)
+		_, err = ChainFromRaw(b, false)
+		SoMsg("err", err, ShouldNotBeNil)
+	})
 
 	Convey("ChainFromRaw should avoid unpack bombs", t, func() {
 		raw := []byte{0xFF, 0xFF, 0xFF, 0xFF}
@@ -172,11 +194,11 @@ func Test_Key_String(t *testing.T) {
 }
 
 func loadChain(filename string, t *testing.T) *Chain {
-	trc, err := ChainFromRaw(loadRaw(filename, t), false)
+	chain, err := ChainFromRaw(loadRaw(filename, t), false)
 	if err != nil {
 		t.Fatalf("Error loading Certificate Chain from '%s': %v", filename, err)
 	}
-	return trc
+	return chain
 }
 
 func loadTRC(filename string, t *testing.T) *trc.TRC {
