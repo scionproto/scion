@@ -217,6 +217,8 @@ func (c *Certificate) UnmarshalJSON(b []byte) error {
 		return common.NewBasicError(UnableValidateFields, err)
 	}
 	// XXX(roosd): Unmarshalling twice might affect performance.
+	// After switching to go 1.10 we might make use of
+	// https://golang.org/pkg/encoding/json/#Decoder.DisallowUnknownFields.
 	return json.Unmarshal(b, (*Alias)(c))
 }
 
