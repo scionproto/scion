@@ -42,6 +42,9 @@ const (
 	MacLen            = 3
 	ErrorHopFTooShort = "HopF too short"
 	ErrorHopFBadMac   = "Bad HopF MAC"
+	XoverMask         = 0x01
+	VerifyOnlyMask    = 0x02
+	RecurseMask       = 0x04
 )
 
 func NewHopField(b common.RawBytes, in common.IFIDType, out common.IFIDType) *HopField {
@@ -67,9 +70,9 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 	h := &HopField{}
 	h.data = b[:HopFieldLength]
 	flags := h.data[0]
-	h.Xover = flags&0x1 != 0
-	h.VerifyOnly = flags&0x2 != 0
-	h.Recurse = flags&0x4 != 0
+	h.Xover = flags&XoverMask != 0
+	h.VerifyOnly = flags&VerifyOnlyMask != 0
+	h.Recurse = flags&RecurseMask != 0
 	offset := 1
 	h.ExpTime = h.data[offset]
 	offset += 1
@@ -90,13 +93,13 @@ func (h *HopField) Len() int {
 func (h *HopField) Write() {
 	var flags uint8
 	if h.Xover {
-		flags |= 0x1
+		flags |= XoverMask
 	}
 	if h.VerifyOnly {
-		flags |= 0x2
+		flags |= VerifyOnlyMask
 	}
 	if h.Recurse {
-		flags |= 0x4
+		flags |= RecurseMask
 	}
 	h.data[0] = flags
 	h.data[1] = h.ExpTime
