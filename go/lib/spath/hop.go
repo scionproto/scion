@@ -69,7 +69,7 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 	flags := h.data[0]
 	h.Xover = flags&0x1 != 0
 	h.VerifyOnly = flags&0x2 != 0
-	h.Recurse = flags&0x8 != 0
+	h.Recurse = flags&0x4 != 0
 	offset := 1
 	h.ExpTime = h.data[offset]
 	offset += 1
@@ -96,7 +96,7 @@ func (h *HopField) Write() {
 		flags |= 0x2
 	}
 	if h.Recurse {
-		flags |= 0x8
+		flags |= 0x4
 	}
 	h.data[0] = flags
 	h.data[1] = h.ExpTime

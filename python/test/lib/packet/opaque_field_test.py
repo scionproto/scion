@@ -74,7 +74,7 @@ class TestHopOpaqueFieldPack(object):
         inst.ingress_if = 0x0a0
         inst.egress_if = 0xb0c
         inst.mac = bytes.fromhex('012345')
-        expected = bytes.fromhex('04 2a 0a0b0c')
+        expected = bytes.fromhex('00 2a 0a0b0c')
         # Call
         ntools.eq_(inst.pack(mac=True), expected)
 

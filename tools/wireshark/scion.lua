@@ -89,11 +89,10 @@ local scmpTypes = {
         [3] = "BAD_IF",
         [4] = "REVOKED_IF",
         [5] = "NON_ROUTING_HOPF",
-        [6] = "DELIVERY_FWD_ONLY",
-        [7] = "DELIVERY_NON_LOCAL",
-        [8] = "BAD_SEGMENT",
-        [9] = "BAD_INFO_FIELD",
-        [10] = "BAD_HOP_FIELD",
+        [6] = "DELIVERY_NON_LOCAL",
+        [7] = "BAD_SEGMENT",
+        [8] = "BAD_INFO_FIELD",
+        [9] = "BAD_HOP_FIELD",
     },
     ["EXT"] = {
         [0] = "TOO_MANY_HOPBYHOP",
@@ -151,9 +150,7 @@ local scion_path_info_hops = ProtoField.uint8("scion.path.info.hops", "Hops", ba
 
 local scion_path_hop_flags = ProtoField.uint8("scion.path.hop.flags", "Flags", base.HEX)
 local scion_path_hop_flags_recurse = ProtoField.bool("scion.path.hop.flags.recurse",
-    "Recurse", 8, nil, 0x8)
-local scion_path_hop_flags_fwdonly = ProtoField.bool("scion.path.hop.flags.fwdonly",
-    "Forward-Only", 8, nil, 0x4)
+    "Recurse", 8, nil, 0x4)
 local scion_path_hop_flags_verifyonly = ProtoField.bool("scion.path.hop.flags.verifyonly",
     "Verify-Only", 8, nil, 0x2)
 local scion_path_hop_flags_xover = ProtoField.bool("scion.path.hop.flags.xover",
@@ -245,7 +242,6 @@ scion_proto.fields={
     scion_path_info_hops,
     scion_path_hop_flags,
     scion_path_hop_flags_recurse,
-    scion_path_hop_flags_fwdonly,
     scion_path_hop_flags_verifyonly,
     scion_path_hop_flags_xover,
     scion_path_hop_exp_raw,
@@ -537,7 +533,6 @@ function parse_hop_field(buffer, tree, hopNr, ts)
     local flagsT = t:add(scion_path_hop_flags, flags)
     flagsT:append_text(", " .. hop_flag_desc(flags:uint()))
     flagsT:add(scion_path_hop_flags_recurse, flags)
-    flagsT:add(scion_path_hop_flags_fwdonly, flags)
     flagsT:add(scion_path_hop_flags_verifyonly, flags)
     flagsT:add(scion_path_hop_flags_xover, flags)
     local rawExpTime = buffer(1, 1):uint()
@@ -563,9 +558,6 @@ function hop_flag_desc(flag)
         table.insert(desc, "VERIFY-ONLY")
     end
     if bit.band(flag, 0x4) > 0 then
-        table.insert(desc, "FORWARD-ONLY")
-    end
-    if bit.band(flag, 0x8) > 0 then
         table.insert(desc, "RECURSE")
     end
     if #desc == 0 then

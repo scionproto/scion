@@ -53,10 +53,7 @@ HopOFFlags = FlagBase((
     (1, "XOVER", ""),
     # Marks HOFs that aren't used for routing, just for mac verification.
     (2, "VERIFY_ONLY", ""),
-    # Used by an AS to disallow local delivery of packets (AKA a forward-only
-    # AS).
-    (4, "FORWARD_ONLY", ""),
     # Flag used with an SVC address to redirect a packet to the local service at
     # a given hop. Set by the endhost.
-    (8, "RECURSE", ""),
+    (4, "RECURSE", ""),
 ))
