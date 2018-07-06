@@ -88,7 +88,7 @@ class HopOpaqueField(OpaqueField):
         packed = []
         flags = self._pack_flags()
         if mac:
-            flags = 0 # Do not verify flags
+            flags = 0  # Do not verify flags
         packed.append(struct.pack("!B", flags))
         packed.append(struct.pack("!B", self.exp_time))
         ifs = (self.ingress_if << 12) | self.egress_if
