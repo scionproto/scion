@@ -107,7 +107,6 @@ _(EXPIRED_HOF)                                   \
 _(BAD_IF)                                        \
 _(REVOKED_IF)                                    \
 _(NON_ROUTING_HOF)                               \
-_(DELIVERY_FWD_ONLY)                             \
 _(DELIVERY_NON_LOCAL)
 
 typedef enum {

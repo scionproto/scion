@@ -185,14 +185,10 @@ class SCMPPathClass(TypeBase):
     # Info: IOF idx, HOF idx
     # Payload: basic, path
     NON_ROUTING_HOF = 5
-    #: Delivery disallowed by HOF's FORWARD_ONLY flag.
-    # Info: IOF idx, HOF idx
-    # Payload: basic, path
-    DELIVERY_FWD_ONLY = 6
     #: Delivery disallowed as destination is not local.
     # Info: IOF idx, HOF idx
     # Payload: basic, path
-    DELIVERY_NON_LOCAL = 7
+    DELIVERY_NON_LOCAL = 6
 
 
 class SCMPExtClass(TypeBase):
