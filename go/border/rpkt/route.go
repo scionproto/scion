@@ -285,13 +285,15 @@ func (rp *RtrPkt) reprocess() (HookResult, error) {
 	// XXX We might need to reconsider keeping timeIn value due to effect on metrics.
 	timeIn := rp.TimeIn
 	raw := rp.Raw
+	refCnt := rp.refCnt
 	// reset
 	rp.Reset()
 	// restore
 	rp.Ctx = ctx
 	rp.Free = free
-	rp.Raw = raw
 	rp.TimeIn = timeIn
+	rp.Raw = raw
+	rp.refCnt = refCnt
 	// set as incoming from local interface
 	rp.DirFrom = rcmn.DirLocal
 	s := rp.Ctx.LocSockIn
