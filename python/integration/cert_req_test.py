@@ -23,6 +23,7 @@ import threading
 
 # SCION
 import lib.app.sciond as lib_sciond
+from lib.errors import SCIONBaseError
 from lib.main import main_wrapper
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.cert_mgmt import CertChainRequest, CertMgmt, TRCRequest
@@ -83,7 +84,11 @@ class TestCertClient(TestClientBase):
             logging.error("Cert query failed")
             return ResponseRV.FAILURE
         if self.dst_ia[0] == pld.trc.get_isd_ver()[0]:
-            self.cert.verify(str(self.dst_ia), pld.trc)
+            try:
+                self.cert.verify(str(self.dst_ia), pld.trc)
+            except SCIONBaseError as e:
+                logging.error("CERT verification failed: %s" % e)
+                return ResponseRV.FAILURE
             logging.debug("TRC query success")
             self.success = True
             self.finished.set()
