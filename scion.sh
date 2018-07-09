@@ -8,7 +8,11 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 cmd_topology() {
     local zkclean
-    echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
+    if [ -f gen/docker-compose.yml ]; then
+        echo "Shutting down docker-compose: $(docker-compose -f gen/docker-compose.yml down)"
+    else
+        echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
+    fi
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
     [ -e gen-cache ] && rm -r gen-cache
@@ -48,7 +52,7 @@ cmd_mstart() {
     # Run with docker-compose or supervisor
     if [ -f gen/docker-compose.yml ]; then
         services="$(glob_docker "$@")"
-        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 1; }
+        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
         docker-compose -f gen/docker-compose.yml up -d $services
     else
@@ -91,37 +95,54 @@ cmd_stop() {
 }
 
 cmd_mstop() {
-    echo "Stopping: ${services[*]}"
     if [ -f gen/docker-compose.yml ]; then
         services="$(glob_docker "$@")"
-        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 1; }
-        docker-compose -f gen/docker-compose.yml stop $services | grep -v ERROR
+        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
+        docker-compose -f gen/docker-compose.yml stop $services
     else
-        supervisor/supervisor.sh mstop "$@" | grep -v ERROR
+        supervisor/supervisor.sh mstop "$@"
     fi
-    [ $? -eq 1 ]
 }
 
 cmd_status() {
-    cmd_mstatus
+    cmd_mstatus '*'
 }
 
 cmd_mstatus() {
-    echo "Status of $@"
     if [ -f gen/docker-compose.yml ]; then
         services="$(glob_docker "$@")"
-        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 0; }
+        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
         out=$(docker-compose -f gen/docker-compose.yml ps $services | tail -n +3)
         rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
         tscount=$(echo "$services" | wc -w) # Number of all globed services
         echo "$out" | grep -v '\<Up\>'
         [ $rscount -eq $tscount ]
     else
-        supervisor/supervisor.sh status "$@" | grep -v RUNNING
+        if [ $# -ne 0 ]; then
+            services="$(glob_supervisor "$@")"
+            [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
+            supervisor/supervisor.sh status "$services" | grep -v RUNNING
+        else
+            supervisor/supervisor.sh status | grep -v RUNNING
+        fi
         [ $? -eq 1 ]
     fi
     # If all tasks are running, then return 0. Else return 1.
     return
+}
+
+glob_supervisor() {
+    [ $# -ge 1 ] || set -- '*'
+    matches=
+    for proc in $(supervisor/supervisor.sh status | awk '{ print $1 }'); do
+        for spec in "$@"; do
+            if glob_match $proc "$spec"; then
+                matches="$matches $proc"
+                break
+            fi
+        done
+    done
+    echo $matches
 }
 
 glob_docker() {
