@@ -17,8 +17,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -45,8 +48,10 @@ const (
 )
 
 var (
-	local       snet.Addr
-	remote      snet.Addr
+	local  snet.Addr
+	remote snet.Addr
+	file   = flag.String("file", "",
+		"File containing the data to send, optional to test larger data")
 	interactive = flag.Bool("i", false, "Interactive mode")
 	id          = flag.String("id", "pingpong", "Element ID")
 	mode        = flag.String("mode", "client", "Run in client or server mode")
@@ -61,6 +66,7 @@ var (
 	verbose      = flag.Bool("v", false, "sets verbose output")
 	sciondFromIA = flag.Bool("sciondFromIA", false,
 		"SCIOND socket path from IA address:ISD-AS")
+	fileData []byte
 )
 
 func init() {
@@ -71,6 +77,7 @@ func init() {
 func main() {
 	log.AddLogConsFlags()
 	validateFlags()
+	initFileData()
 	if err := log.SetupFromFlags(""); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
@@ -118,6 +125,16 @@ func validateFlags() {
 	}
 }
 
+func initFileData() {
+	if *file != "" {
+		dat, err := ioutil.ReadFile(*file)
+		if err != nil {
+			LogFatal("Could not read data file")
+		}
+		fileData = dat
+	}
+}
+
 // Client dials to a remote SCION address and repeatedly sends ping messages
 // while receiving pong messages. For each successful ping-pong, a message
 // with the round trip time is printed. On errors (including timeouts),
@@ -159,9 +176,10 @@ func Client() {
 }
 
 func Send(qstream quic.Stream) {
-	reqMsgLen := len(ReqMsg)
+	reqMsg := requestMsg()
+	reqMsgLen := len(reqMsg)
 	payload := make([]byte, reqMsgLen+TSLen)
-	copy(payload[0:], ReqMsg)
+	copy(payload[0:], reqMsg)
 	for i := 0; i < *count || *count == 0; i++ {
 		if i != 0 && *interval != 0 {
 			time.Sleep(*interval)
@@ -180,8 +198,8 @@ func Send(qstream quic.Stream) {
 			log.Error("Unable to write", "err", err)
 			continue
 		}
-		if written != len(ReqMsg)+TSLen {
-			log.Error("Wrote incomplete message", "expected", len(ReqMsg)+TSLen,
+		if written != reqMsgLen+TSLen {
+			log.Error("Wrote incomplete message", "expected", reqMsgLen+TSLen,
 				"actual", written)
 			continue
 		}
@@ -195,10 +213,11 @@ func Send(qstream quic.Stream) {
 
 func Read(qstream quic.Stream) {
 	// Receive pong message (with final timeout)
-	b := make([]byte, 1<<12)
-	replyMsgLen := len(ReplyMsg)
+	replyMsg := replyMsg()
+	b := make([]byte, len(replyMsg)+TSLen)
+	replyMsgLen := len(replyMsg)
 	for i := 0; i < *count || *count == 0; i++ {
-		read, err := qstream.Read(b)
+		read, err := io.ReadFull(qstream, b)
 		after := time.Now()
 		if err != nil {
 			qer := qerr.ToQuicError(err)
@@ -215,14 +234,18 @@ func Read(qstream quic.Stream) {
 			log.Error("Unable to read", "err", err)
 			continue
 		}
-		if read < replyMsgLen || string(b[:replyMsgLen]) != ReplyMsg {
-			fmt.Println("Received bad message", "expected", ReplyMsg,
-				"actual", string(b[:read]))
+		if read < replyMsgLen {
+			fmt.Println("Received bad message", "expectedLen", len(replyMsg),
+				"readLen", read)
 			continue
 		}
 		if read < replyMsgLen+TSLen {
-			fmt.Println("Received bad message missing timestamp",
-				"actual", string(b[:read]))
+			fmt.Println("Received bad message missing timestamp")
+			continue
+		}
+		if !bytes.Equal(b[:replyMsgLen], replyMsg) {
+			fmt.Println("Received different message than expected", "expectedLen", len(replyMsg),
+				"readLen", read)
 			continue
 		}
 		before := time.Unix(0, int64(common.Order.Uint64(b[replyMsgLen:replyMsgLen+TSLen])))
@@ -281,11 +304,12 @@ func handleClient(qsess quic.Session) {
 	}
 	defer qstream.Close()
 
-	b := make([]byte, 1<<12)
-	reqMsgLen := len(ReqMsg)
+	reqMsg := requestMsg()
+	b := make([]byte, len(reqMsg)+TSLen)
+	reqMsgLen := len(reqMsg)
 	for {
 		// Receive ping message
-		read, err := qstream.Read(b)
+		read, err := io.ReadFull(qstream, b)
 		if err != nil {
 			qer := qerr.ToQuicError(err)
 			if qer.ErrorCode == qerr.PeerGoingAway {
@@ -295,24 +319,25 @@ func handleClient(qsess quic.Session) {
 			log.Error("Unable to read", "err", err)
 			break
 		}
-		if string(b[:reqMsgLen]) != ReqMsg {
-			fmt.Println("Received bad message", "expected", ReqMsg,
+		if !bytes.Equal(b[:reqMsgLen], reqMsg) {
+			fmt.Println("Received bad message", "expected", reqMsg,
 				"actual", string(b[:reqMsgLen]), "full", string(b[:read]))
 		}
 		// extract timestamp
 		ts := common.Order.Uint64(b[reqMsgLen:])
 
 		// Send pong message
-		replyMsgLen := len(ReplyMsg)
-		copy(b[:replyMsgLen], ReplyMsg)
+		replyMsg := replyMsg()
+		replyMsgLen := len(replyMsg)
+		copy(b[:replyMsgLen], replyMsg)
 		common.Order.PutUint64(b[replyMsgLen:], ts)
 		written, err := qstream.Write(b[:replyMsgLen+TSLen])
 		if err != nil {
 			log.Error("Unable to write", "err", err)
 			continue
-		} else if written != len(ReplyMsg)+TSLen {
+		} else if written != replyMsgLen+TSLen {
 			log.Error("Wrote incomplete message",
-				"expected", len(ReplyMsg)+TSLen, "actual", written)
+				"expected", replyMsgLen+TSLen, "actual", written)
 			continue
 		}
 	}
@@ -355,4 +380,22 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	}
 	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
 	return paths[pathIndex]
+}
+
+func requestMsg() []byte {
+	return msg(ReqMsg)
+}
+
+func replyMsg() []byte {
+	return msg(ReplyMsg)
+}
+
+func msg(prefix string) []byte {
+	if fileData != nil {
+		res := make([]byte, len(prefix)+len(fileData))
+		copy(res[0:], prefix)
+		copy(res[len(prefix):], fileData)
+		return res
+	}
+	return []byte(prefix)
 }
