@@ -37,6 +37,7 @@ from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
 # SCION
+from lib.app.sciond import get_default_sciond_path
 from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_enc_keypair,
@@ -842,7 +843,9 @@ class SupervisorGenerator(object):
         entries = []
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
-            entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem), elem_id, conf_dir]))
+            entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem),
+                                      "--sciond_path", get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
+                                      elem_id, conf_dir]))
         return entries
 
     def _br_entries(self, topo, cmd, base):

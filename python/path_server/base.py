@@ -91,14 +91,16 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
     # TTL of segments in the queue for ZK (in seconds)
     SEGS_TO_ZK_TTL = 10 * 60
 
-    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH,
+                 prom_export=None, sciond_path=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
+        :param str sciond_path: path to sciond socket.
         """
         super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
-                         prom_export=prom_export)
+                         prom_export=prom_export, sciond_path=sciond_path)
         self.config = self._load_as_conf()
         down_labels = {**self._labels, "type": "down"} if self._labels else None
         core_labels = {**self._labels, "type": "core"} if self._labels else None

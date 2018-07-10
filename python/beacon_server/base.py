@@ -124,14 +124,16 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     # Interval between two consecutive requests (in seconds).
     CERT_REQ_RATE = 10
 
-    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH,
+                 prom_export=None, sciond_path=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
+        :param str sciond_path: path to sciond socket.
         """
         super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
-                         prom_export=prom_export)
+                         prom_export=prom_export, sciond_path=sciond_path)
         self.config = self._load_as_conf()
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
