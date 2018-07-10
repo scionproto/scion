@@ -844,7 +844,8 @@ class SupervisorGenerator(object):
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
             entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem),
-                                      "--sciond_path", get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
+                                      "--sciond_path",
+                                      get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
                                       elem_id, conf_dir]))
         return entries
 
