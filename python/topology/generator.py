@@ -916,9 +916,6 @@ class SupervisorGenerator(object):
                 sd_name = "sd-" + elem
                 config["program:%s" % sd_name] = self._sciond_entry(
                     sd_name, elem_dir)
-                path = self._sciond_path(sd_name)
-            else:
-                path = self._sciond_path("sd%s" % topo_id.file_fmt())
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
