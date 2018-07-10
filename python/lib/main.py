@@ -73,15 +73,18 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
 
     if local_type is None:
         inst = type_(args.server_id, args.conf_dir, prom_export=args.prom,
+                     sciond_path=sciond_path,
                      spki_cache_dir=args.spki_cache_dir, **kwargs)
     else:
         # Load the topology to check if this is a core AD or not
         topo = Topology.from_file(os.path.join(args.conf_dir, TOPO_FILE))
         if topo.is_core_as:
             inst = type_(args.server_id, args.conf_dir, prom_export=args.prom,
+                         sciond_path=sciond_path,
                          spki_cache_dir=args.spki_cache_dir, **kwargs)
         else:
-            inst = local_type(args.server_id, args.conf_dir, prom_export=args.prom,
+            inst = local_type(args.server_id, args.conf_dir,
+                              prom_export=args.prom, sciond_path=sciond_path,
                               spki_cache_dir=args.spki_cache_dir, **kwargs)
     if trace_:
         trace(inst.id)
