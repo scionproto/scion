@@ -34,7 +34,7 @@ const (
 
 var (
 	id         = flag.String("id", "", "Element ID (Required. E.g. 'cs4-ff00:0:2f')")
-	sciondPath = flag.String("sciond", "", "SCIOND socket path")
+	sciondPath = flag.String("sciond", "/run/shm/sciond/default.sock", "SCIOND socket path")
 	dispPath   = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"SCION Dispatcher path")
 	confDir  = flag.String("confd", "", "Configuration directory (Required)")
