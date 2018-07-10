@@ -304,16 +304,11 @@ def init(api_addr=None):  # pragma: no cover
     global _counter
     if not _counter:
         _counter = _Counter(random.randint(0, 2**32 - 1))
-    api_addr = api_addr or _get_api_addr()
+    api_addr = api_addr or get_default_sciond_path()
     connector = SCIONDConnector(api_addr, _counter)
     if not _connector:
         _connector = connector
     return connector
-
-
-def _get_api_addr():  # pragma: no cover
-    return os.getenv(SCIOND_API_PATH_ENV_VAR,
-                     os.path.join(SCIOND_API_SOCKDIR, SCIOND_API_DEFAULT_SOCK))
 
 
 def get_paths(dst_ia, src_ia=None, max_paths=5, flags=None, connector=None):  # pragma: no cover
