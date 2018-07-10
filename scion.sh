@@ -49,6 +49,7 @@ cmd_run() {
 run_zk() {
     if [ -f gen/docker-compose.yml ]; then
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
+        docker-compose -f gen/docker-compose.yml up -d zookeeper
     else
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
     fi
