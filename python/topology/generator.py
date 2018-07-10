@@ -917,11 +917,8 @@ class SupervisorGenerator(object):
                 config["program:%s" % sd_name] = self._sciond_entry(
                     sd_name, elem_dir)
                 path = self._sciond_path(sd_name)
-                prog['environment'] += ',SCIOND_PATH="%s"' % path
             else:
-                # Else set the SCIOND_PATH env to point to the per-AS sciond.
                 path = self._sciond_path("sd%s" % topo_id.file_fmt())
-                prog['environment'] += ',SCIOND_PATH="%s"' % path
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog

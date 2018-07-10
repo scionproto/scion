@@ -31,7 +31,6 @@ from external.expiring_dict import ExpiringDict
 from lib.defines import (
     SCION_UDP_EH_DATA_PORT,
     SCIOND_API_DEFAULT_SOCK,
-    SCIOND_API_PATH_ENV_VAR,
     SCIOND_API_SOCKDIR,
 )
 from lib.errors import SCIONBaseError, SCIONIOError, SCIONParseError
