@@ -844,7 +844,7 @@ class SupervisorGenerator(object):
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
             entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem),
-                                      "--sciond_path",
+                                      "--sciond_path", 
                                       get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
                                       elem_id, conf_dir]))
         return entries
@@ -864,7 +864,8 @@ class SupervisorGenerator(object):
         for k, v in topo.get("CertificateService", {}).items():
             conf_dir = os.path.join(base, k)
             entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
-                                "-prom=%s" % _prom_addr_infra(v)]))
+                                "-prom=%s" % _prom_addr_infra(v), "--sciond_path",
+                                get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
