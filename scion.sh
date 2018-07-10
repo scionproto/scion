@@ -23,6 +23,7 @@ cmd_topology() {
     fi
     echo "Create topology, configuration, and execution files."
     python/topology/generator.py "$@" || exit 1
+    run_zk
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
         rm -rf /run/shm/scion-zk
@@ -39,11 +40,17 @@ cmd_run() {
     echo "Running the network..."
     # Run with docker-compose or supervisor
     if [ -f gen/docker-compose.yml ]; then
-        systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
         docker-compose -f gen/docker-compose.yml up -d
     else
-        systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
         supervisor/supervisor.sh start all
+    fi
+}
+
+run_zk() {
+    if [ -f gen/docker-compose.yml ]; then
+        systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
+    else
+        systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
     fi
 }
 
@@ -52,7 +59,7 @@ cmd_mstart() {
     # Run with docker-compose or supervisor
     if [ -f gen/docker-compose.yml ]; then
         services="$(glob_docker "$@")"
-        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
+        [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
         docker-compose -f gen/docker-compose.yml up -d $services
     else
@@ -97,7 +104,7 @@ cmd_stop() {
 cmd_mstop() {
     if [ -f gen/docker-compose.yml ]; then
         services="$(glob_docker "$@")"
-        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
+        [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         docker-compose -f gen/docker-compose.yml stop $services
     else
         supervisor/supervisor.sh mstop "$@"
@@ -111,7 +118,7 @@ cmd_status() {
 cmd_mstatus() {
     if [ -f gen/docker-compose.yml ]; then
         services="$(glob_docker "$@")"
-        [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
+        [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         out=$(docker-compose -f gen/docker-compose.yml ps $services | tail -n +3)
         rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
         tscount=$(echo "$services" | wc -w) # Number of all globed services
@@ -120,7 +127,7 @@ cmd_mstatus() {
     else
         if [ $# -ne 0 ]; then
             services="$(glob_supervisor "$@")"
-            [ -z "$services" ] && { echo "$@: ERROR no process matched!"; exit 255; }
+            [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
             supervisor/supervisor.sh status "$services" | grep -v RUNNING
         else
             supervisor/supervisor.sh status | grep -v RUNNING
@@ -286,16 +293,16 @@ cmd_help() {
 	    $PROGRAM sciond ISD AS [ADDR]
 	        Start sciond with provided ISD and AS parameters. A third optional
 	        parameter is the address to bind when not running on localhost.
-        $PROGRAM mstart PROCESS
-            Start multiple processes
+	    $PROGRAM mstart PROCESS
+	        Start multiple processes
 	    $PROGRAM stop
 	        Terminate this run of the SCION infrastructure.
-        $PROGRAM mstop PROCESS
-            Stop multiple processes
+	    $PROGRAM mstop PROCESS
+	        Stop multiple processes
 	    $PROGRAM status
 	        Show all non-running tasks.
-        $PROGRAM mstatus PROCESS
-            Show status of provided processes
+	    $PROGRAM mstatus PROCESS
+	        Show status of provided processes
 	    $PROGRAM test
 	        Run all unit tests.
 	    $PROGRAM coverage
