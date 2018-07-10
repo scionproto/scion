@@ -37,6 +37,7 @@ from external.ipaddress import ip_address, ip_interface, ip_network
 from OpenSSL import crypto
 
 # SCION
+from lib.app.sciond import get_default_sciond_path
 from lib.config import Config
 from lib.crypto.asymcrypto import (
     generate_enc_keypair,
@@ -842,7 +843,10 @@ class SupervisorGenerator(object):
         entries = []
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
-            entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem), elem_id, conf_dir]))
+            entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem),
+                                      "--sciond_path",
+                                      get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
+                                      elem_id, conf_dir]))
         return entries
 
     def _br_entries(self, topo, cmd, base):
@@ -860,7 +864,8 @@ class SupervisorGenerator(object):
         for k, v in topo.get("CertificateService", {}).items():
             conf_dir = os.path.join(base, k)
             entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
-                                "-prom=%s" % _prom_addr_infra(v)]))
+                                "-prom=%s" % _prom_addr_infra(v), "-sciond",
+                                get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
@@ -912,12 +917,6 @@ class SupervisorGenerator(object):
                 sd_name = "sd-" + elem
                 config["program:%s" % sd_name] = self._sciond_entry(
                     sd_name, elem_dir)
-                path = self._sciond_path(sd_name)
-                prog['environment'] += ',SCIOND_PATH="%s"' % path
-            else:
-                # Else set the SCIOND_PATH env to point to the per-AS sciond.
-                path = self._sciond_path("sd%s" % topo_id.file_fmt())
-                prog['environment'] += ',SCIOND_PATH="%s"' % path
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog

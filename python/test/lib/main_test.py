@@ -74,6 +74,7 @@ class TestMainDefault(object):
         args.conf_dir = "confdir"
         args.prom = "prom"
         args.spki_cache_dir = "gen-cache"
+        args.sciond_path = "default.sock"
         # Call
         main_default(type_, trace_=True, kwarg1="kwarg1")
         # Tests
@@ -83,7 +84,9 @@ class TestMainDefault(object):
         parser.parse_args.assert_called_once_with()
         init_log.assert_called_once_with("logging/srvid")
         type_.assert_called_once_with("srvid", "confdir", spki_cache_dir="gen-cache",
-                                      prom_export="prom", kwarg1="kwarg1")
+                                      prom_export="prom",
+                                      sciond_path="default.sock",
+                                      kwarg1="kwarg1")
         trace.assert_called_once_with(inst.id)
         inst.run.assert_called_once_with()
 

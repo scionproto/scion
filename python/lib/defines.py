@@ -77,8 +77,6 @@ DISPATCHER_DIR = "/run/shm/dispatcher"
 DEFAULT_DISPATCHER_ID = "default"
 #: Default SCION daemon UNIX socket directory
 SCIOND_API_SOCKDIR = "/run/shm/sciond/"
-#: Environment variable to specify the SCION daemon API address
-SCIOND_API_PATH_ENV_VAR = "SCIOND_PATH"
 #: Default SCION daemon API UNIX socket
 SCIOND_API_DEFAULT_SOCK = "default.sock"
 

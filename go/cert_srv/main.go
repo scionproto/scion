@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 const (
@@ -34,9 +35,8 @@ const (
 
 var (
 	id         = flag.String("id", "", "Element ID (Required. E.g. 'cs4-ff00:0:2f')")
-	sciondPath = flag.String("sciond", "",
-		"SCIOND socket path (Optional if SCIOND_PATH is set)")
-	dispPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
+	sciondPath = flag.String("sciond", sciond.GetDefaultSCIONDPath(nil), "SCIOND socket path")
+	dispPath   = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
 		"SCION Dispatcher path")
 	confDir  = flag.String("confd", "", "Configuration directory (Required)")
 	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
@@ -87,11 +87,8 @@ func main() {
 // checkFlags checks that all required flags are set.
 func checkFlags() error {
 	if *sciondPath == "" {
-		*sciondPath = os.Getenv("SCIOND_PATH")
-		if *sciondPath == "" {
-			flag.Usage()
-			return common.NewBasicError("No SCIOND path specified", nil)
-		}
+		flag.Usage()
+		return common.NewBasicError("No SCIOND path specified", nil)
 	}
 	if *confDir == "" {
 		flag.Usage()

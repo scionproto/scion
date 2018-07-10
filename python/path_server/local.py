@@ -35,14 +35,16 @@ class LocalPathServer(PathServer):
     registers down-segments with the CPS. Can cache segments learned from a CPS.
     """
 
-    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
+    def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH,
+                 prom_export=None, sciond_path=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
+        :param str sciond_path: path to sciond socket.
         """
         super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
-                         prom_export=prom_export)
+                         prom_export=prom_export, sciond_path=sciond_path)
         # Sanity check that we should indeed be a local path server.
         assert not self.topology.is_core_as, "This shouldn't be a core PS!"
         # Database of up-segments to the core.

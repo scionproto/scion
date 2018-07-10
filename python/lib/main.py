@@ -22,6 +22,7 @@ import os
 import sys
 
 # SCION
+from lib.app.sciond import get_default_sciond_path
 from lib.defines import TOPO_FILE
 from lib.log import init_logging, log_exception
 from lib.topology import Topology
@@ -62,6 +63,8 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
     parser.add_argument('--spki_cache_dir', default="gen-cache/",
                         help='Cache dir for SCION TRCs and cert chains (Default: gen-cache/)')
     parser.add_argument('--prom', type=str, help='Address to export prometheus metrics on')
+    parser.add_argument('--sciond_path', type=str, help='Sciond socket path '
+                        '(Default: %s)' % get_default_sciond_path())
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('conf_dir', nargs='?', default='.',
                         help='Configuration directory (Default: ./)')
@@ -70,15 +73,19 @@ def main_default(type_, local_type=None, trace_=False, **kwargs):
 
     if local_type is None:
         inst = type_(args.server_id, args.conf_dir, prom_export=args.prom,
+                     sciond_path=args.sciond_path,
                      spki_cache_dir=args.spki_cache_dir, **kwargs)
     else:
         # Load the topology to check if this is a core AD or not
         topo = Topology.from_file(os.path.join(args.conf_dir, TOPO_FILE))
         if topo.is_core_as:
             inst = type_(args.server_id, args.conf_dir, prom_export=args.prom,
+                         sciond_path=args.sciond_path,
                          spki_cache_dir=args.spki_cache_dir, **kwargs)
         else:
-            inst = local_type(args.server_id, args.conf_dir, prom_export=args.prom,
+            inst = local_type(args.server_id, args.conf_dir,
+                              prom_export=args.prom,
+                              sciond_path=args.sciond_path,
                               spki_cache_dir=args.spki_cache_dir, **kwargs)
     if trace_:
         trace(inst.id)

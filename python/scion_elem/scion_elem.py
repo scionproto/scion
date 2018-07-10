@@ -41,7 +41,6 @@ from lib.defines import (
     PATH_SERVICE,
     REVOCATION_GRACE,
     SCION_UDP_EH_DATA_PORT,
-    SCIOND_API_SOCKDIR,
     SERVICE_TYPES,
     SIBRA_SERVICE,
     STARTUP_QUIET_PERIOD,
@@ -145,7 +144,7 @@ class SCIONElement(object):
     TRC_CC_REQ_TIMEOUT = 3
 
     def __init__(self, server_id, conf_dir, public=None, bind=None, spki_cache_dir=GEN_CACHE_PATH,
-                 prom_export=None):
+                 prom_export=None, sciond_path=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
@@ -161,6 +160,8 @@ class SCIONElement(object):
         :param str prom_export:
             String of the form 'addr:port' specifying the prometheus endpoint.
             If no string is provided, no metrics are exported.
+        :param str sciond_path:
+            String that specifies the location of sciond's socket.
         """
         self.id = server_id
         self.conf_dir = conf_dir
@@ -212,7 +213,7 @@ class SCIONElement(object):
             self._export_metrics(prom_export)
             self._init_metrics()
         self._setup_sockets(True)
-        lib_sciond.init(os.path.join(SCIOND_API_SOCKDIR, "sd%s.sock" % self.addr.isd_as.file_fmt()))
+        lib_sciond.init(sciond_path)
 
     def _load_as_conf(self):
         return Config.from_file(os.path.join(self.conf_dir, AS_CONF_FILE))
