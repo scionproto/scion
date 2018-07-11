@@ -51,6 +51,8 @@ class AddrType(TypeBase):
 ############################
 class ServiceType(TypeBase):
     # these values must be kept in sync with the common.capnp ServiceType enum
+    #: Unset
+    UNSET = "unset"
     #: Beacon service
     BS = "bs"
     #: Path service

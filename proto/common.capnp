@@ -12,8 +12,9 @@ enum LinkType {
 }
 
 enum ServiceType {
-    bs @0;  # Beacon service
-    ps @1;  # Path service
-    cs @2;  # Certificate service
-    sb @3;  # SIBRA service
+    unset @0; # Not set
+    bs @1;  # Beacon service
+    ps @2;  # Path service
+    cs @3;  # Certificate service
+    sb @4;  # SIBRA service
 }

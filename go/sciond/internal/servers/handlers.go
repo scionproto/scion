@@ -205,6 +205,8 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 	for _, t := range svcInfoRequest.ServiceTypes {
 		var hostInfos []sciond.HostInfo
 		switch t {
+		case proto.ServiceType_unset:
+			continue
 		case proto.ServiceType_bs:
 			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.BS)
 		case proto.ServiceType_ps:
