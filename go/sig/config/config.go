@@ -76,17 +76,11 @@ func (in *IPNet) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return common.NewBasicError("Unable to parse IPnet string", err, "raw", s)
 	}
-	if err = verifyNetworkAddr(ip, *ipnet, s); err != nil {
-		return err
+	if !ip.Equal(ipnet.IP) {
+		return common.NewBasicError("Network is not canonical (should not be host address).",
+			nil, "raw", s)
 	}
 	*in = IPNet(*ipnet)
-	return nil
-}
-
-func verifyNetworkAddr(ip net.IP, ipnet net.IPNet, rawCIDR string) error {
-	if !ip.Equal(ipnet.IP) {
-		return common.NewBasicError("Not a valid network, it refers to a host.", nil, "raw", rawCIDR)
-	}
 	return nil
 }
 
