@@ -645,10 +645,11 @@ class SCIONElement(object):
         """
         # Received cert chain
         isd_as, ver = cert.get_leaf_isd_as_ver()
-        trc = self.trust_store.get_trc(isd_as[0], ver)
+        trc_ver = cert.core_as_cert.trc_version
+        trc = self.trust_store.get_trc(isd_as[0], trc_ver)
         if not trc:
             # Request TRC just to make sure
-            self._request_trc(isd_as[0], ver, None)
+            self._request_trc(isd_as[0], trc_ver, None)
             with self.unv_certs_lock:
                 self.unv_certs[(isd_as, ver)] = cert
             logging.error("Certificate chain verification for %s failed because of missing TRC" %
