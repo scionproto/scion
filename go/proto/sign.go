@@ -92,6 +92,7 @@ func (s *SignS) Pack() common.RawBytes {
 
 // sigPack appends the type, src, signature (if needed) and timestamp fields to msg
 func (s *SignS) sigPack(msg common.RawBytes, inclSig bool) common.RawBytes {
+	msg = append(common.RawBytes(nil), msg...)
 	msg = append(msg, common.RawBytes(s.Type.String())...)
 	msg = append(msg, s.Src...)
 	if inclSig {
