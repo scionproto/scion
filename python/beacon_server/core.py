@@ -29,10 +29,7 @@ from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.path_store import PathStore
-from lib.types import (
-    PathSegmentType as PST,
-    ServiceType
-)
+from lib.types import PathSegmentType as PST, ServiceType
 from lib.util import SCIONTime
 
 

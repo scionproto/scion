@@ -145,7 +145,7 @@ class CertServer(SCIONElement):
 
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                 [(self.addr.host, self._port)]).pack()
-        self.zk = Zookeeper(self.topology.isd_as, ServiceType.CS,
+        self.zk = Zookeeper(self.topology.isd_as, self.SERVICE_TYPE,
                             zkid, self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
         self.trc_cache = ZkSharedCache(self.zk, self.ZK_TRC_CACHE_PATH,

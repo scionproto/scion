@@ -91,7 +91,7 @@ class SibraServerBase(SCIONElement):
         self._find_links()
         zkid = ZkID.from_values(self.addr.isd_as, self.id,
                                 [(self.addr.host, self._port)]).pack()
-        self.zk = Zookeeper(self.addr.isd_as, ServiceType.SIBRA, zkid,
+        self.zk = Zookeeper(self.addr.isd_as, self.SERVICE_TYPE, zkid,
                             self.topology.zookeepers)
         self.zk.retry("Joining party", self.zk.party_setup)
 

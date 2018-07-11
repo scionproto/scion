@@ -1082,7 +1082,6 @@ class SCIONElement(object):
 
         :param str qname: Service to query for.
         """
-        assert qname in ServiceType.all()
         service_map = {
             ServiceType.BS: self.topology.beacon_servers,
             ServiceType.CS: self.topology.certificate_servers,
