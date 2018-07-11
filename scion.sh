@@ -26,6 +26,8 @@ cmd_topology() {
     run_zk
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
+        # Wait some time, such that zookeeper accepts connections again after startup
+        sleep 3
         rm -rf /run/shm/scion-zk
         tools/zkcleanslate --zk 127.0.0.1:2181
     fi
