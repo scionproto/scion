@@ -259,6 +259,10 @@ func (rp *RtrPkt) xoverFromExternal() error {
 			"prevLink", prevLink, "nextLink", nextLink,
 		)
 	}
+	// Make sure we drop packets with shortcuts in core links.
+	if rp.infoF.Shortcut && nextLink == proto.LinkType_core {
+		return common.NewBasicError("Shortcut not allowed on core segment", nil)
+	}
 	return nil
 }
 
