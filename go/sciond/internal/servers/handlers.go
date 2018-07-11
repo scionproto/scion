@@ -206,7 +206,8 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 		var hostInfos []sciond.HostInfo
 		switch t {
 		case proto.ServiceType_unset:
-			// FIXME: inform client about this, see https://github.com/scionproto/scion/issues/1673
+			// FIXME(lukedirtwalker): inform client about this:
+			// see https://github.com/scionproto/scion/issues/1673
 			continue
 		case proto.ServiceType_bs:
 			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.BS)

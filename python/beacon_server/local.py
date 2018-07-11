@@ -28,10 +28,7 @@ from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.svc import SVCType
 from lib.path_store import PathStore
-from lib.types import (
-    PathSegmentType as PST,
-    ServiceType,
-)
+from lib.types import PathSegmentType as PST, ServiceType
 
 
 class LocalBeaconServer(BeaconServer):
