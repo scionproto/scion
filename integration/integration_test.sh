@@ -66,8 +66,11 @@ EOF
 result=$?
 
 # Run go intergration test
-make -sC go test_running
-result=$((result+$?))
+GO_INFRA_TEST="go test -tags infrarunning"
+for i in ./go/lib/{snet,pathmgr}; do
+    ${GO_INFRA_TEST} $i
+    result=$((result+$?))
+done
 
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
