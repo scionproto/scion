@@ -346,6 +346,9 @@ func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.IA,
 		return db.GetChainMaxVersionCtx(ctx, ia)
 	}
 	rows, err := db.getChainVersionStmt.QueryContext(ctx, ia.I, ia.A, version, ia.I, ia.A, version)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	return parseChain(rows, err)
 }
@@ -357,6 +360,9 @@ func (db *DB) GetChainMaxVersion(ia addr.IA) (*cert.Chain, error) {
 func (db *DB) GetChainMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Chain, error) {
 	rows, err := db.getChainMaxVersionStmt.QueryContext(ctx, ia.I, ia.A, ia.I, ia.A, ia.I, ia.A,
 		ia.I, ia.A)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	return parseChain(rows, err)
 }
