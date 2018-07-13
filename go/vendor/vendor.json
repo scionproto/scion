@@ -184,10 +184,10 @@
 			"revisionTime": "2017-10-27T16:34:21Z"
 		},
 		{
-			"checksumSHA1": "cSBXv/4jH3rW01oeFg7WLyT9J0U=",
+			"checksumSHA1": "bSiorvjqpeIFFLEvD7h+QiJmO4k=",
 			"path": "github.com/lucas-clemente/quic-go",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
 			"checksumSHA1": "OA9E+y7g05x/mWJJHmA7oPxWKQo=",
@@ -196,58 +196,58 @@
 			"revisionTime": "2016-08-23T09:51:56Z"
 		},
 		{
-			"checksumSHA1": "dTYiy5TEH7AUVcOvpq9VGOxhQ1k=",
+			"checksumSHA1": "q5Mmgdu/11zEFx8Qew7wt0BvR34=",
 			"path": "github.com/lucas-clemente/quic-go/internal/ackhandler",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "fgR0+53I1EVdnNitOUoBSfvrs8Q=",
+			"checksumSHA1": "i1yfut7QQqMehw5yE9llhWNnrxk=",
 			"path": "github.com/lucas-clemente/quic-go/internal/congestion",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "z5LMbu1cMUmDvp/L0ayFhxF9EJU=",
+			"checksumSHA1": "UHZLcr1DMPEfc+4F67yGF4nF1EM=",
 			"path": "github.com/lucas-clemente/quic-go/internal/crypto",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "ruhHXEvJ1rJKekXb9nv5h1jmYa0=",
+			"checksumSHA1": "rnRicg73lPAeRh9Nko6a0CZQS5I=",
 			"path": "github.com/lucas-clemente/quic-go/internal/flowcontrol",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "TRZ6SSq1nsZDcGFmUCc5/ZZFnM0=",
+			"checksumSHA1": "VDAmO1aQcHrZGfHBolw4bMjlCIo=",
 			"path": "github.com/lucas-clemente/quic-go/internal/handshake",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "2fOOJgJgtDfl4b5h+SbUxw0EoNs=",
+			"checksumSHA1": "bRdC+JFUV5SDsdRTt3s4Xr/dYIE=",
 			"path": "github.com/lucas-clemente/quic-go/internal/protocol",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "Ic0zAQD4P+oIM1qZrDWp8nUek8s=",
+			"checksumSHA1": "0vSbWIQ7O34u4kDMR+FHr7/FINk=",
 			"path": "github.com/lucas-clemente/quic-go/internal/utils",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "Kk2fcnF/GOTBsxh6mtKUrbH0/Cw=",
+			"checksumSHA1": "XffpGTFqeLH70f+ToHMqmmt4wjE=",
 			"path": "github.com/lucas-clemente/quic-go/internal/wire",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
-			"checksumSHA1": "RDQseWt5/NQ/e+ycN8Q7Ifmj0Nw=",
+			"checksumSHA1": "bFSC4TOZGOZGBJEFmLAT3V4ieoo=",
 			"path": "github.com/lucas-clemente/quic-go/qerr",
-			"revision": "5e82335005e9fca83846f46e252031708def8708",
-			"revisionTime": "2018-04-03T10:17:31Z"
+			"revision": "deffae864a3363cf4cd4a0030fc8106e16ec5723",
+			"revisionTime": "2018-06-23T06:33:31Z"
 		},
 		{
 			"checksumSHA1": "SaVXxoFG75x104SdXULcP0g7uwc=",
