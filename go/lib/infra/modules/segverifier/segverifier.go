@@ -31,11 +31,12 @@ package segverifier
 
 import (
 	"context"
+	"net"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
 )
 
 const (
@@ -137,13 +138,13 @@ func (u *Unit) Len() int {
 
 // Verify verifies a single unit, putting the results of verifications on
 // unitResults.
-func (u *Unit) Verify(ctx context.Context, unitResults chan UnitResult) {
+func (u *Unit) Verify(ctx context.Context, store infra.TrustStore,
+	source net.Addr, unitResults chan UnitResult) {
 
 	responses := make(chan ElemResult, u.Len())
-	go verifySegment(ctx, u.SegMeta, []addr.ISD{}, responses)
+	go verifySegment(ctx, store, source, u.SegMeta, responses)
 	for index, sRevInfo := range u.SRevInfos {
-		// FIXME(scrye): build actual trust trail here
-		go verifyRevInfo(ctx, index, sRevInfo, []addr.ISD{}, responses)
+		go verifyRevInfo(ctx, store, source, index, sRevInfo, responses)
 	}
 	// Response writers must guarantee that the for loop below returns before
 	// (or very close around) ctx.Done()
@@ -179,13 +180,10 @@ type ElemResult struct {
 	Error error
 }
 
-func verifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD, ch chan ElemResult) {
-	for i, asEntry := range segment.Segment.ASEntries {
-		// TODO(scrye): get valid chain, then verify ASEntry at index i with
-		// the key from the chain
-		_, _ = i, asEntry
-	}
-	err := VerifySegment(ctx, segment, trail)
+func verifySegment(ctx context.Context, store infra.TrustStore, source net.Addr, segment *seg.Meta,
+	ch chan ElemResult) {
+
+	err := VerifySegment(ctx, store, source, segment)
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
 	default:
@@ -193,17 +191,26 @@ func verifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD, ch 
 	}
 }
 
-func VerifySegment(ctx context.Context, segment *seg.Meta, trail []addr.ISD) error {
-	// TODO(scrye): placeholder, implement this
+func VerifySegment(ctx context.Context, store infra.TrustStore, source net.Addr,
+	segment *seg.Meta) error {
+
+	for i, asEntry := range segment.Segment.ASEntries {
+		chain, err := store.GetValidChain(ctx, source, asEntry.IA())
+		if err != nil {
+			return err
+		}
+		err = segment.Segment.VerifyASEntry(chain.Leaf.SubjectSignKey, i)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func verifyRevInfo(ctx context.Context, index int, signedRevInfo *path_mgmt.SignedRevInfo,
-	trail []addr.ISD, ch chan ElemResult) {
+func verifyRevInfo(ctx context.Context, store infra.TrustStore, source net.Addr, index int,
+	signedRevInfo *path_mgmt.SignedRevInfo, ch chan ElemResult) {
 
-	// TODO(scrye): get valid chain, then verify signedRevInfo.Blob with the
-	// key from the chain
-	err := VerifyRevInfo(ctx, signedRevInfo, trail)
+	err := VerifyRevInfo(ctx, store, source, signedRevInfo)
 	select {
 	case ch <- ElemResult{Index: index, Error: err}:
 	default:
@@ -211,9 +218,16 @@ func verifyRevInfo(ctx context.Context, index int, signedRevInfo *path_mgmt.Sign
 	}
 }
 
-func VerifyRevInfo(ctx context.Context, signedRevInfo *path_mgmt.SignedRevInfo,
-	trail []addr.ISD) error {
+func VerifyRevInfo(ctx context.Context, store infra.TrustStore, source net.Addr,
+	signedRevInfo *path_mgmt.SignedRevInfo) error {
 
-	// TODO(scrye): placeholder, implement this
-	return nil
+	revInfo, err := signedRevInfo.RevInfo()
+	if err != nil {
+		return err
+	}
+	chain, err := store.GetValidChain(ctx, source, revInfo.IA())
+	if err != nil {
+		return err
+	}
+	return signedRevInfo.Sign.Verify(chain.Leaf.SubjectSignKey, signedRevInfo.Blob)
 }

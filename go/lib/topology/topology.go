@@ -16,6 +16,7 @@ package topology
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
 	"time"
 
@@ -204,6 +205,36 @@ func (t *Topo) GetTopoAddr(nodeType string, id string) *TopoAddr {
 		return &cp
 	}
 	return nil
+}
+
+// GetRandomPS returns the IA, Host and L4 Port for a random PS, with
+// randomness taken from the default source.
+func (t *Topo) GetRandomPS() *addr.AppAddr {
+	numPSServers := len(t.PSNames)
+	if numPSServers == 0 {
+		return nil
+	}
+	psName := t.PSNames[rand.Intn(numPSServers)]
+	topoAddr := t.GetTopoAddr("PS", psName)
+	if topoAddr == nil {
+		return nil
+	}
+	return topoAddr.PublicAddr(t.Overlay)
+}
+
+// GetRandomCS returns the IA, Host and L4 Port for a random CS, with
+// randomness taken from the default source.
+func (t *Topo) GetRandomCS() *addr.AppAddr {
+	numCSServers := len(t.CSNames)
+	if numCSServers == 0 {
+		return nil
+	}
+	csName := t.CSNames[rand.Intn(numCSServers)]
+	topoAddr := t.GetTopoAddr("CS", csName)
+	if topoAddr == nil {
+		return nil
+	}
+	return topoAddr.PublicAddr(t.Overlay)
 }
 
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names

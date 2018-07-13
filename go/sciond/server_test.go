@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
 	"os"
@@ -327,6 +328,11 @@ func Setup(t *testing.T, configTmpl string) (sciond.Connector, *topology.Topo, f
 }
 
 func TestMain(m *testing.M) {
+	log.AddLogConsFlags()
+	flag.Parse()
+	if err := log.SetupFromFlags(""); err != nil {
+		panic(err)
+	}
 	if !testing.Verbose() {
 		log.Root().SetHandler(log.DiscardHandler())
 	}
