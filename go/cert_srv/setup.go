@@ -74,6 +74,7 @@ func setupNewConf(newConf *conf.Conf) error {
 		return err
 	}
 	msger := messenger.New(
+		newConf.Topo.ISD_AS,
 		disp.New(
 			transport.NewPacketTransport(conn),
 			messenger.DefaultAdapter,

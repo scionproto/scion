@@ -7,7 +7,7 @@ Path #0:
       HF .V InIF=0 OutIF=2123
     IF CS. ISD=2
       HF .V InIF=0 OutIF=2123
-      HF .. InIF=2321 OutIF=2326
+      HF X. InIF=2321 OutIF=2326
       HF .. InIF=2623 OutIF=0
   Interfaces:
     2-ff00:0:212#2523

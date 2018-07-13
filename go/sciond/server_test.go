@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
 	"os"
@@ -260,6 +261,11 @@ func TestSVCInfo(t *testing.T) {
 }
 
 func Setup(t *testing.T, configTmpl string) (sciond.Connector, *topology.Topo, func()) {
+	log.Debug("Debug")
+	log.Info("Info")
+	log.Warn("Warn")
+	log.Error("Error")
+	log.Crit("Critical")
 	// Load config template
 	tmpl, err := template.ParseFiles(configTmpl)
 	xtest.FailOnErr(t, err)
@@ -327,6 +333,11 @@ func Setup(t *testing.T, configTmpl string) (sciond.Connector, *topology.Topo, f
 }
 
 func TestMain(m *testing.M) {
+	log.AddLogConsFlags()
+	flag.Parse()
+	if err := log.SetupFromFlags(""); err != nil {
+		panic(err)
+	}
 	if !testing.Verbose() {
 		log.Root().SetHandler(log.DiscardHandler())
 	}

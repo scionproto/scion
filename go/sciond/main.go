@@ -133,6 +133,7 @@ func realMain() int {
 		return 1
 	}
 	msger := messenger.New(
+		config.General.Topology.ISD_AS,
 		disp.New(
 			transport.NewPacketTransport(conn),
 			messenger.DefaultAdapter,
@@ -160,7 +161,6 @@ func realMain() int {
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
 			TrustStore: trustStore,
-			Messenger:  msger,
 			Topology:   config.General.Topology,
 		},
 		proto.SCIONDMsg_Which_ifInfoRequest: &servers.IFInfoRequestHandler{
@@ -170,7 +170,8 @@ func realMain() int {
 			Topology: config.General.Topology,
 		},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
-			RevCache: revCache,
+			RevCache:   revCache,
+			TrustStore: trustStore,
 		},
 	}
 	// Create a channel where server goroutines can signal fatal errors
