@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/log"
 )
 
 // trcReqHandler contains the state of a handler for a specific TRC Request
@@ -28,21 +27,21 @@ import (
 type trcReqHandler struct {
 	request *infra.Request
 	store   *Store
-	log     log.Logger
 	// set to true if this handler is allowed to issue new requests over the
 	// network
 	recurse bool
 }
 
 func (h *trcReqHandler) Handle() {
+	logger := h.request.Logger
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
-		h.log.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
+		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("trcReq", trcReq, "peer", h.request.Peer)
-	logger.Debug("[TrustStore:trcReqHandler] Received request")
+	logger.Debug("[TrustStore:trcReqHandler] Received request", "trcReq", trcReq,
+		"peer", h.request.Peer)
 	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcReqHandler] Unable to service request, no Messenger found")
@@ -56,7 +55,7 @@ func (h *trcReqHandler) Handle() {
 	// between verified/unverified retrieval based on message content. For now,
 	// call getTRC instead of getValidTRC.
 	trcObj, err := h.store.getTRC(h.request.Context(), trcReq.ISD, trcReq.Version,
-		h.recurse && !trcReq.CacheOnly, h.request.Peer)
+		h.recurse && !trcReq.CacheOnly, h.request.Peer, nil)
 	if err != nil {
 		logger.Error("[TrustStore:trcReqHandler] Unable to retrieve TRC", "err", err)
 		return
@@ -83,21 +82,21 @@ func (h *trcReqHandler) Handle() {
 type chainReqHandler struct {
 	request *infra.Request
 	store   *Store
-	log     log.Logger
 	// set to true if this handler is allowed to issue new requests over the
 	// network
 	recurse bool
 }
 
 func (h *chainReqHandler) Handle() {
+	logger := h.request.Logger
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
-		h.log.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
+		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("chainReq", chainReq, "peer", h.request.Peer)
-	logger.Debug("[TrustStore:chainReqHandler] Received request")
+	logger.Debug("[TrustStore:chainReqHandler] Received request", "chainReq", chainReq,
+		"peer", h.request.Peer)
 	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, no Messenger found")
@@ -137,22 +136,22 @@ func (h *chainReqHandler) Handle() {
 type trcPushHandler struct {
 	request *infra.Request
 	store   *Store
-	log     log.Logger
 }
 
 func (h *trcPushHandler) Handle() {
+	logger := h.request.Logger
 	// FIXME(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the
 	// gracePeriod, manual intervention is required to install a valid chain.
 	trcPush, ok := h.request.Message.(*cert_mgmt.TRC)
 	if !ok {
-		h.log.Error("[TrustStore:trcPushHandler] Wrong message type, expected cert_mgmt.TRC",
+		logger.Error("[TrustStore:trcPushHandler] Wrong message type, expected cert_mgmt.TRC",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("trcPush", trcPush, "peer", h.request.Peer)
-	logger.Debug("[TrustStore:trcPushHandler] Received push")
+	logger.Debug("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
+		"peer", h.request.Peer)
 	// FIXME(scrye): Verify that the TRC is valid by using the trust store and
 	// known trust topology. Use h.Request.Peer to retrieve missing TRCs.
 	trcObj, err := trcPush.TRC()
@@ -175,18 +174,18 @@ func (h *trcPushHandler) Handle() {
 type chainPushHandler struct {
 	request *infra.Request
 	store   *Store
-	log     log.Logger
 }
 
 func (h *chainPushHandler) Handle() {
+	logger := h.request.Logger
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
-		h.log.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
+		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("chainPush", chainPush, "peer", h.request.Peer)
-	logger.Debug("[TrustStore:chainPushHandler] Received push")
+	logger.Debug("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
+		"peer", h.request.Peer)
 	// FIXME(scrye): Verify that the chain is valid by using the trust store.
 	chain, err := chainPush.Chain()
 	if err != nil {

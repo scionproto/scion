@@ -16,6 +16,7 @@ package topology
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
 	"time"
 
@@ -204,6 +205,42 @@ func (t *Topo) GetTopoAddr(nodeType string, id string) *TopoAddr {
 		return &cp
 	}
 	return nil
+}
+
+// GetRandomPS returns the IA, Host and L4 Port for a random PS, with
+// randomness taken from the default source.
+func (t *Topo) GetRandomPS() (addr.IA, addr.HostAddr, uint16, error) {
+	numPSServers := len(t.PSNames)
+	if numPSServers == 0 {
+		return addr.IA{}, nil, 0,
+			common.NewBasicError("Need PS for segments, but none found in topology", nil)
+	}
+	psName := t.PSNames[rand.Intn(numPSServers)]
+	topoAddr := t.PS[psName]
+	info := topoAddr.PublicAddrInfo(t.Overlay)
+	if info == nil {
+		return addr.IA{}, nil, 0, common.NewBasicError("PS address not found", nil, "name", psName,
+			"overlay", t.Overlay)
+	}
+	return t.ISD_AS, addr.HostFromIP(info.IP), uint16(info.L4Port), nil
+}
+
+// GetRandomCS returns the IA, Host and L4 Port for a random CS, with
+// randomness taken from the default source.
+func (t *Topo) GetRandomCS() (addr.IA, addr.HostAddr, uint16, error) {
+	numCSServers := len(t.CSNames)
+	if numCSServers == 0 {
+		return addr.IA{}, nil, 0,
+			common.NewBasicError("Need CS for segments, but none found in topology", nil)
+	}
+	csName := t.CSNames[rand.Intn(numCSServers)]
+	topoAddr := t.CS[csName]
+	info := topoAddr.PublicAddrInfo(t.Overlay)
+	if info == nil {
+		return addr.IA{}, nil, 0, common.NewBasicError("CS address not found", nil, "name", csName,
+			"overlay", t.Overlay)
+	}
+	return t.ISD_AS, addr.HostFromIP(info.IP), uint16(info.L4Port), nil
 }
 
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
