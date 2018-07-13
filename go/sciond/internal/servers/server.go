@@ -16,6 +16,7 @@ package servers
 
 import (
 	"context"
+	"io"
 	"net"
 	"sync"
 
@@ -81,7 +82,7 @@ func (srv *Server) ListenAndServe() error {
 			defer log.LogPanicAndExit()
 			pconn := conn.(net.PacketConn)
 			hdl := NewTransportHandler(transport.NewPacketTransport(pconn), srv.handlers, srv.log)
-			if err := hdl.Serve(); err != nil {
+			if err := hdl.Serve(); err != nil && err != io.EOF {
 				srv.log.Error("Transport handler error", "err", err)
 			}
 		}()

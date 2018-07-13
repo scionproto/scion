@@ -78,6 +78,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	}
 	// Initialize messenger with verification capabilities (trustStore-backed)
 	server.messenger = messenger.New(
+		xtest.MustParseIA("1-ff00:0:1"),
 		dispatcherLayer,
 		server.trustStore,
 		log.Root(),

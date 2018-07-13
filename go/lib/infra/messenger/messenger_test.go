@@ -23,6 +23,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -59,8 +60,8 @@ func MockTRCHandler(request *infra.Request) {
 func TestTRCExchange(t *testing.T) {
 	Convey("Setup", t, func() {
 		c2s, s2c := p2p.New()
-		clientMessenger := setupMessenger(c2s, "client")
-		serverMessenger := setupMessenger(s2c, "server")
+		clientMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), c2s, "client")
+		serverMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), s2c, "server")
 
 		Convey("Client/server", xtest.Parallel(func(sc *xtest.SC) {
 			// The client sends a TRC request to the server, and receives the
@@ -84,11 +85,11 @@ func TestTRCExchange(t *testing.T) {
 	})
 }
 
-func setupMessenger(conn net.PacketConn, name string) *Messenger {
+func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *Messenger {
 	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, DefaultAdapter, log.New("name", name))
 	config := &Config{DisableSignatureVerification: true}
-	return New(dispatcher, nil, log.Root().New("name", name), config)
+	return New(ia, dispatcher, nil, log.Root().New("name", name), config)
 }
 
 func TestMain(m *testing.M) {

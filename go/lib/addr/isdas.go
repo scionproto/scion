@@ -261,3 +261,7 @@ type IAInt uint64
 func (iaI IAInt) IA() IA {
 	return IA{I: ISD(iaI >> ASBits), A: AS(iaI & MaxAS)}
 }
+
+func (iaI IAInt) String() string {
+	return iaI.IA().String()
+}
