@@ -42,47 +42,78 @@ jobs:
 
 
     build:
-        docker:
-            - image: scionproto/scion_base@sha256:466cb6db16e5ca755c03d21fbb240e768947dab094429990d0126f83ca63f869
-        <<: *job
+    #     docker:
+    #         - image: scionproto/scion_base@sha256:466cb6db16e5ca755c03d21fbb240e768947dab094429990d0126f83ca63f869
+    #     <<: *job
+    #     steps:
+    #         - checkout
+    #         - run: *env_setup
+    #         - run:
+    #             name: Build prep
+    #             command: ./tools/ci/build_prep |& tee logs/build_prep.run
+    #             when: always
+
+    #         # Common:
+    #         - run:
+    #             name: Build
+    #             command: make -s |& tee logs/make.run
+    #             when: always
+    #         - run:
+    #             name: Lint
+    #             command: ./scion.sh lint |& tee logs/lint.run
+    #             when: always
+    #         - run:
+    #             name: Unit tests & Coverage
+    #             command: '{ ./scion.sh coverage py; make -sC go test; } |& tee logs/coverage.run'
+    #             when: always
+    #         - run:
+    #             name: Python documentation (sphinx)
+    #             command: make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
+    #             when: always
+    #         - run:
+    #             name: Integration tests
+    #             command: ./integration/integration_test.sh |& tee logs/integration.run
+    #             when: always
+    #         - run: *artifacts
+
+    #         - store_artifacts:
+    #             path: /tmp/artifacts.out
+    #             destination: /
+    #         - store_test_results:
+    #             path: logs/nosetests.xml
+
+    # deploy:
+        <<: *base_image
+        working_directory: /home/scion/go/src/github.com/scionproto/scion
+        filters:
+            branches:
+                only: versioning
+                #ignore: /.*/
+            tags:
+                only: /^v.*/
         steps:
             - checkout
-            - run: *env_setup
+            - setup_remote_docker:
+                docker_layer_caching: true
             - run:
-                name: Build prep
-                command: ./tools/ci/build_prep |& tee logs/build_prep.run
-                when: always
-
-            # Common:
-            - run:
-                name: Build
-                command: make -s |& tee logs/make.run
-                when: always
-            - run:
-                name: Lint
-                command: ./scion.sh lint |& tee logs/lint.run
-                when: always
-            - run:
-                name: Unit tests & Coverage
-                command: '{ ./scion.sh coverage py; make -sC go test; } |& tee logs/coverage.run'
-                when: always
-            - run:
-                name: Python documentation (sphinx)
-                command: make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
-                when: always
-            - run:
-                name: Integration tests
-                command: ./integration/integration_test.sh |& tee logs/integration.run
-                when: always
-            - run: *artifacts
-
-            - store_artifacts:
-                path: /tmp/artifacts.out
-                destination: /
-            - store_test_results:
-                path: logs/nosetests.xml
+                name: Install Docker client
+                command: |
+                    set -x
+                    VER="18.03.0-ce"
+                    curl -L -o /tmp/docker-$VER.tgz https://download.docker.com/linux/static/stable/x86_64/docker-$VER.tgz
+                    tar -xz -C /tmp -f /tmp/docker-$VER.tgz
+                    sudo mv /tmp/docker/* /usr/bin
+            - run: |
+                sudo docker images
+                sudo docker build -f docker/Dockerfile -t scion:latest .
+                sudo docker images
+                cd docker/perapp
+                sudo make base
 
 scion_defaults:
+    base_image: &base_image
+        docker:
+            - image: scionproto/scion_base@sha256:466cb6db16e5ca755c03d21fbb240e768947dab094429990d0126f83ca63f869
     job: &job
         working_directory: /home/scion/go/src/github.com/scionproto/scion
         environment:
