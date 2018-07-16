@@ -1,0 +1,84 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package integration
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/log"
+)
+
+var (
+	// Docker if set to true, execute tests in containers
+	Docker bool
+	// DockerCmd is the script to run tests in docker
+	DockerCmd = "./tools/dc.sh"
+)
+
+// Setup initiates the integration test and loads the AS list
+func Setup(name string) error {
+	flag.BoolVar(&Docker, "d", false, "Execute tests in dockerized environment")
+	if err := integration.Init(name); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
+		return err
+	}
+	defer log.LogPanicAndExit()
+	defer log.Flush()
+	return nil
+}
+
+// RunBinaryTests runs the client and server for each IAPair.
+// In case of an error the function is terminated immediately.
+func RunBinaryTests(in integration.Integration, pairs []integration.IAPair) error {
+	return integration.ExecuteTimed(in.Name(), func() error {
+		for i, pair := range pairs {
+			// Start server
+			c, err := integration.StartServer(in, pair.Dst)
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+			// Start client
+			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst, i+1,
+				len(pairs)))
+			if err := integration.RunClient(in, pair, 1*time.Second); err != nil {
+				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// RunUnaryTests runs the client for each IAPair.
+// In case of an error the function is terminated immediately.
+func RunUnaryTests(in integration.Integration, pairs []integration.IAPair) error {
+	return integration.ExecuteTimed(in.Name(), func() error {
+		for i, pair := range pairs {
+			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
+				in.Name(), pair.Src, pair.Dst, i+1, len(pairs)))
+			// Start client
+			if err := integration.RunClient(in, pair, 1*time.Second); err != nil {
+				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+				return err
+			}
+		}
+		return nil
+	})
+}

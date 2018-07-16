@@ -30,6 +30,13 @@ yet or made local changes then first run `make`.
 It's possible to run the entire infrastructure in a docker container. For more information
 see `docker/README.md`.
 
+### Perall Docker
+It's possible to run every service in it's own docker container. When creating the topology,
+specify the `-d` flag. To run the integration tests in this setup,
+run `./integration/integration.sh docker`.
+
+If you want to use `docker-compose` commands, `./tools/dc.sh` might be helpful.
+
 ### Circle-CI
 The SCION project uses Circle-CI as its continuous integration platform. To run a local version
 of Circle-CI first build a docker image as described in `docker/README.md` and then run
