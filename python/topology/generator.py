@@ -102,7 +102,9 @@ DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
 HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
-DOCKER_CONF = 'docker-compose.yml'
+DOCKER_BASE_CONF = 'base-dc.yml'
+DOCKER_SCION_CONF = 'scion-dc.yml'
+DOCKER_UTIL_CONF = 'utils-dc.yml'
 COMMON_DIR = 'endhost'
 
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
@@ -999,11 +1001,15 @@ class DockerGenerator(object):
     def __init__(self, out_dir, topo_dicts, cs):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self.dc_conf = {'version': '3', 'services': {}}
+        self.dc_base_conf = {'version': '3', 'networks': {}}
+        self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
+        self.dc_util_conf = {'version': '3', 'services': {}}
 
     def generate(self):
+        self._base_conf()
         self._zookeeper_conf()
         self._dispatcher_conf()
+        self._test_conf()
         for topo_id, topo in self.topo_dicts.items():
             base = topo_id.base_dir(self.out_dir)
             self._br_conf(topo, base)
@@ -1011,8 +1017,16 @@ class DockerGenerator(object):
             self._bs_conf(topo_id, topo, base)
             self._ps_conf(topo_id, topo, base)
             self._sciond_conf(topo_id, base)
-        write_file(os.path.join(self.out_dir, DOCKER_CONF),
+        write_file(os.path.join(self.out_dir, DOCKER_SCION_CONF),
                    yaml.dump(self.dc_conf, default_flow_style=False))
+        write_file(os.path.join(self.out_dir, DOCKER_UTIL_CONF),
+                   yaml.dump(self.dc_util_conf, default_flow_style=False))
+        write_file(os.path.join(self.out_dir, DOCKER_BASE_CONF),
+                   yaml.dump(self.dc_base_conf, default_flow_style=False))
+
+    def _base_conf(self):
+        default_net = {'ipam': {'config': [{'subnet': '172.18.0.0/24'}]}}
+        self.dc_base_conf['networks']['default'] = default_net
 
     def _br_conf(self, topo, base):
         raw_entry = {
@@ -1158,6 +1172,24 @@ class DockerGenerator(object):
             ]
         }
         self.dc_conf['services']['zookeeper'] = entry
+
+    def _test_conf(self):
+        entry = {
+            'image': 'scion_app_builder',
+            'volumes': [
+                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
+                '/run/shm/sciond:/run/shm/sciond:rw',
+                '${PWD}/logs:/home/scion/go/src/github.com/scionproto/scion/logs:rw'
+            ],
+            'entrypoint': [],
+            'command': [
+                'tail',
+                '-f',
+                '/dev/null'
+            ]
+        }
+        entry['container_name'] = 'tester'
+        self.dc_util_conf['services']['tester'] = entry
 
     def _dispatcher_conf(self):
         entry = {

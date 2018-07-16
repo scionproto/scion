@@ -18,9 +18,12 @@
 """
 # Stdlib
 import logging
+import sys
 
 # SCION
 from lib.main import main_wrapper
+from lib.packet.host_addr import haddr_parse_interface
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.scmp.info import SCMPInfoEcho
 from lib.packet.scmp.payload import SCMPPayload
@@ -30,8 +33,6 @@ from lib.types import L4Proto
 from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
-    TestClientServerBase,
-    TestServerBase,
     ResponseRV
 )
 
@@ -68,43 +69,15 @@ class SCMPEchoClient(TestClientBase):
             return ResponseRV.FAILURE
 
 
-class SCMPEchoServer(TestServerBase):
-    """
-    SCMP Echo server app
-    Since SCMP Echo is handled directly by the dispatcher, do nothing
-    """
-    def _handle_request(self, spkt):
-        pass
-
-    def run(self):
-        self.success = True
-
-
-class TestSCMPEcho(TestClientServerBase):
-    """
-    End to end packet transmission test.
-    For this test a infrastructure must be running.
-    """
-    NAME = "SCMPEcho"
-
-    def __init__(self, client, server, sources, destinations, local=True):
-        super().__init__(client, server, sources, destinations)
-        self.src = client
-        self.dst = server
-        self.client_name = "E2E Client"
-        self.server_name = "E2E Server"
-        self.thread_name = "E2E.MainThread"
-
-    def _create_server(self, data, finished, addr):
-        return SCMPEchoServer(data, finished, addr)
-
-    def _create_client(self, data, finished, src, dst, port):
-        return SCMPEchoClient(data, finished, src, dst, port)
-
-
 def main():
-    args, srcs, dsts = setup_main("scmp_echo_test")
-    TestSCMPEcho(args.client, args.server, srcs, dsts).run()
+    args = setup_main("scmp_echo_test")
+    if args.run_server:
+        sys.exit(1)
+        logging.critical("Test cannot run as server")
+
+    src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
+    dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+    SCMPEchoClient(args.data.encode("utf-8"), src, dst, dport=int(args.port)).run()
 
 
 if __name__ == "__main__":

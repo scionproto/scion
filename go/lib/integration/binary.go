@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -28,6 +29,8 @@ import (
 )
 
 const (
+	// ServerPortReplace is a placeholder for the server port in the arguments.
+	ServerPortReplace = "<ServerPort>"
 	// SrcIAReplace is a placeholder for the source IA in the arguments.
 	SrcIAReplace = "<SRCIA>"
 	// DstIAReplace is a placeholder for the destination IA in the arguments.
@@ -40,12 +43,19 @@ const (
 	// It can be used to guard certain statements, like printing the ReadySignal,
 	// in a program under test.
 	GoIntegrationEnv = "SCION_GO_INTEGRATION"
+	// portString is the string a server prints to specify the port it's listening on.
+	portString = "Port="
 )
 
 var _ Integration = (*binaryIntegration)(nil)
 
+var (
+	serverPort = "40004"
+)
+
 type binaryIntegration struct {
 	name       string
+	cmd        string
 	clientArgs []string
 	serverArgs []string
 }
@@ -55,9 +65,10 @@ type binaryIntegration struct {
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
-func NewBinaryIntegration(name string, clientArgs, serverArgs []string) Integration {
+func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []string) Integration {
 	return &binaryIntegration{
 		name:       name,
+		cmd:        cmd,
 		clientArgs: clientArgs,
 		serverArgs: serverArgs,
 	}
@@ -71,8 +82,9 @@ func (bi *binaryIntegration) Name() string {
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
 	r := &binaryWaiter{
-		exec.CommandContext(ctx, bi.name, args...),
+		exec.CommandContext(ctx, bi.cmd, args...),
 	}
+	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	ep, err := r.StderrPipe()
 	if err != nil {
@@ -93,6 +105,9 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 		scanner := bufio.NewScanner(sp)
 		for scanner.Scan() {
 			line := scanner.Text()
+			if strings.HasPrefix(line, portString) {
+				serverPort = strings.TrimPrefix(line, portString)
+			}
 			if init && signal == line {
 				close(ready)
 				init = false
@@ -115,9 +130,11 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
 	args := replacePattern(SrcIAReplace, src.String(), bi.clientArgs)
 	args = replacePattern(DstIAReplace, dst.String(), args)
+	args = replacePattern(ServerPortReplace, serverPort, args)
 	r := &binaryWaiter{
-		exec.CommandContext(ctx, bi.name, args...),
+		exec.CommandContext(ctx, bi.cmd, args...),
 	}
+	r.Env = os.Environ()
 	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	ep, err := r.StderrPipe()
 	if err != nil {

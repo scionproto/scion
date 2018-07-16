@@ -8,11 +8,7 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 cmd_topology() {
     local zkclean
-    if [ -f gen/docker-compose.yml ]; then
-        echo "Shutting down docker-compose: $(docker-compose -f gen/docker-compose.yml down)"
-    else
-        echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
-    fi
+    echo "Shutting down: $(./scion.sh stop)"
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
     [ -e gen-cache ] && rm -r gen-cache
@@ -34,24 +30,24 @@ cmd_topology() {
 }
 
 cmd_run() {
-    if [ "$1" != "nobuild" ]; then
+    if [ "$1" != "nobuild" ] && [ ! -f gen/scion-dc.yml ]; then
         echo "Compiling..."
         cmd_build || exit 1
     fi
     run_setup
     echo "Running the network..."
     # Run with docker-compose or supervisor
-    if [ -f gen/docker-compose.yml ]; then
-        docker-compose -f gen/docker-compose.yml up -d
+    if [ -f gen/scion-dc.yml ]; then
+        ./tools/dc.sh scion up -d
     else
         supervisor/supervisor.sh start all
     fi
 }
 
 run_zk() {
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
-        docker-compose -f gen/docker-compose.yml up -d zookeeper
+        ./tools/dc.sh scion up -d zookeeper
     else
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
     fi
@@ -60,11 +56,11 @@ run_zk() {
 cmd_mstart() {
     run_setup
     # Run with docker-compose or supervisor
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
-        docker-compose -f gen/docker-compose.yml up -d $services
+        ./tools/dc.sh scion up -d $services
     else
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
         supervisor/supervisor.sh mstart "$@"
@@ -93,8 +89,9 @@ run_setup() {
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
-    if [ -f gen/docker-compose.yml ]; then
-        docker-compose -f gen/docker-compose.yml down
+    if [ -f gen/scion-dc.yml ]; then
+        ./tools/dc.sh scion down
+        ./tools/dc.sh utils down
     else
         supervisor/supervisor.sh stop all
     fi
@@ -105,10 +102,10 @@ cmd_stop() {
 }
 
 cmd_mstop() {
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        docker-compose -f gen/docker-compose.yml stop $services
+        ./tools/dc.sh scion stop $services
     else
         supervisor/supervisor.sh mstop "$@"
     fi
@@ -119,10 +116,10 @@ cmd_status() {
 }
 
 cmd_mstatus() {
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        out=$(docker-compose -f gen/docker-compose.yml ps $services | tail -n +3)
+        out=$(./tools/dc.sh scion ps $services | tail -n +3)
         rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
         tscount=$(echo "$services" | wc -w) # Number of all globed services
         echo "$out" | grep -v '\<Up\>'
@@ -158,7 +155,7 @@ glob_supervisor() {
 glob_docker() {
     [ $# -ge 1 ] || set -- '*'
     matches=
-    for proc in $(docker-compose -f gen/docker-compose.yml config --services); do
+    for proc in $(./tools/dc.sh scion config --services); do
         for spec in "$@"; do
             if glob_match $proc "$spec"; then
                 matches="$matches $proc"
@@ -282,6 +279,10 @@ cmd_sciond() {
     exit $?
 }
 
+cmd_dc() {
+    ./tools/dc.sh scion "$@"
+}
+
 cmd_help() {
 	cmd_version
 	echo
@@ -293,6 +294,8 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
+	    $PROGRAM dc
+	        Run arguments with docker-compose
 	    $PROGRAM sciond ISD-AS [ADDR]
 	        Start sciond with provided ISD and AS parameters, and bind to ADDR.
 	        ISD-AS must be in file format (e.g., 1-ff00_0_133). If ADDR is not
@@ -324,7 +327,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|run|dc|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

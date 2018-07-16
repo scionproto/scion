@@ -19,7 +19,7 @@
 
 # Stdlib
 import logging
-import threading
+import sys
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -27,21 +27,21 @@ from lib.errors import SCIONBaseError
 from lib.main import main_wrapper
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.cert_mgmt import CertChainRequest, CertMgmt, TRCRequest
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from lib.types import ServiceType
 from integration.base_cli_srv import (
     get_sciond_api_addr,
     setup_main,
     ResponseRV,
     TestClientBase,
-    TestClientServerBase,
 )
 
 
 class TestCertClient(TestClientBase):
-    def __init__(self, finished, addr, dst_ia):
+    def __init__(self, addr, dst_ia):
         # We need the lib sciond here already.
         connector = lib_sciond.init(get_sciond_api_addr(addr))
         cs_info = lib_sciond.get_service_info(
@@ -49,7 +49,7 @@ class TestCertClient(TestClientBase):
         cs = cs_info.host_info(0)
         cs_addr = SCIONAddr.from_values(addr.isd_as, cs.ipv4() or cs.ipv6())
         self.cert = None
-        super().__init__("", finished, addr, cs_addr, cs.p.port, retries=2)
+        super().__init__("", addr, cs_addr, cs.p.port, retries=2)
         self.dst_ia = dst_ia
 
     def _get_path(self, api, flush=None):
@@ -91,32 +91,21 @@ class TestCertClient(TestClientBase):
                 return ResponseRV.FAILURE
             logging.debug("TRC query success")
             self.success = True
-            self.finished.set()
+            self.finished = True
             return ResponseRV.SUCCESS
         logging.error("TRC query failed")
         return ResponseRV.FAILURE
 
 
-class TestCertReq(TestClientServerBase):
-    NAME = "CertReqTest"
-
-    def _run_test(self, src, dst):
-        logging.info("Testing: %s -> %s", src.isd_as, dst.isd_as)
-        finished = threading.Event()
-        client = self._create_client(finished, src, dst.isd_as)
-        client.run()
-        if client.success:
-            return True
-        logging.error("Client success? %s", client.success)
-        return False
-
-    def _create_client(self, finished, addr, dst_ia):
-        return TestCertClient(finished, addr, dst_ia)
-
-
 def main():
-    args, srcs, dsts = setup_main("certreq")
-    TestCertReq(args.client, args.server, srcs, dsts, max_runs=args.runs).run()
+    args = setup_main("certreq")
+    if args.run_server:
+        sys.exit(1)
+        logging.critical("Test cannot run as server")
+
+    src = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.client))
+    dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+    TestCertClient(src, dst.isd_as).run()
 
 
 if __name__ == "__main__":
