@@ -23,8 +23,10 @@ import logging
 # SCION
 import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import SignedRevInfo
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.thread import kill_self
 from lib.types import L4Proto
@@ -32,7 +34,6 @@ from integration.base_cli_srv import (
     ResponseRV,
     setup_main,
     TestClientBase,
-    TestClientServerBase,
     TestServerBase,
 )
 
@@ -124,7 +125,7 @@ class E2EServer(TestServerBase):
         spkt.set_payload(self._create_payload(spkt))
         self._send_pkt(spkt)
         self.success = True
-        self.finished.set()
+        self.finished = True
         return True
 
     def _create_payload(self, spkt):
@@ -134,24 +135,16 @@ class E2EServer(TestServerBase):
         return PayloadRaw(data + bytes(padding))
 
 
-class TestEnd2End(TestClientServerBase):
-    """
-    End to end packet transmission test.
-    For this test a infrastructure must be running.
-    """
-    NAME = "End2End"
-
-    def _create_server(self, data, finished, addr):
-        return E2EServer(data, finished, addr)
-
-    def _create_client(self, data, finished, src, dst, port):
-        return E2EClient(data, finished, src, dst, port, retries=self.retries)
-
-
 def main():
-    args, srcs, dsts = setup_main("end2end")
-    TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs,
-                retries=args.retries).run()
+    args = setup_main("end2end")
+    if args.run_server:
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        E2EServer(args.data.encode('utf-8'), dst, port=int(args.port)).run()
+    else:
+        src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        E2EClient(args.data.encode("utf-8"), src, dst, dport=int(args.port),
+                  retries=args.retries).run()
 
 
 if __name__ == "__main__":

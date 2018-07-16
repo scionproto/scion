@@ -38,7 +38,7 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	in := integration.NewBinaryIntegration("./bin/pingpong",
+	in := integration.NewBinaryIntegration("pingpong", "./bin/pingpong",
 		[]string{"-mode", "client", "-sciondFromIA", "-log.console", "debug", "-count", "1",
 			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
 			"-remote", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort},
