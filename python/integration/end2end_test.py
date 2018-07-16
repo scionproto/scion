@@ -18,12 +18,15 @@
 """
 # Stdlib
 import logging
+import threading
 
 # SCION
 import lib.app.sciond as lib_sciond
 from lib.main import main_wrapper
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
 from lib.packet.path_mgmt.rev_info import SignedRevInfo
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from lib.packet.scmp.types import SCMPClass, SCMPPathClass
 from lib.thread import kill_self
 from lib.types import L4Proto
@@ -149,8 +152,22 @@ class TestEnd2End(TestClientServerBase):
 
 def main():
     args, srcs, dsts = setup_main("end2end")
-    TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs,
-                retries=args.retries).run()
+    if args.client_only:
+        if not args.data:
+            args.data = 'ping'
+        finished = threading.Event()
+        src = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.client))
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        E2EClient(args.data.encode('utf-8'), finished, src, dst, dport=int(args.port)).run()
+    elif args.server_only:
+        if not args.data:
+            args.data = 'ping'
+        finished = threading.Event()
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        E2EServer(args.data.encode('utf-8'), finished, dst, port=int(args.port)).run()
+    else:
+        TestEnd2End(args.client, args.server, srcs, dsts, max_runs=args.runs,
+                    retries=args.retries, docker=args.docker).run()
 
 
 if __name__ == "__main__":
