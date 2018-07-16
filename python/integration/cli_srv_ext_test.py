@@ -30,11 +30,12 @@ from lib.packet.ext.path_transport import (
     PathTransOFPath,
     PathTransType,
 )
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
-    TestClientServerBase,
     TestServerBase,
 )
 
@@ -62,7 +63,7 @@ class ExtClient(TestClientBase):
     def _handle_response(self, spkt):
         logging.debug('Received response:\n%s', spkt)
         self.success = True
-        self.finished.set()
+        self.finished = True
         return True
 
 
@@ -80,28 +81,20 @@ class ExtServer(TestServerBase):
         spkt.set_payload(PayloadRaw(b"response"))
         self._send_pkt(spkt)
         self.success = True
-        self.finished.set()
+        self.finished = True
         return True
 
 
-class TestClientServerExtension(TestClientServerBase):
-    """
-    End to end packet transmission test with extension.
-    For this test a infrastructure must be running.
-    """
-    NAME = "CliSrvExt"
-
-    def _create_server(self, data, finished, addr):
-        return ExtServer(data, finished, addr)
-
-    def _create_client(self, data, finished, src, dst, port):
-        return ExtClient(data, finished, src, dst, port)
-
-
 def main():
-    args, srcs, dsts = setup_main("cli_srv_ext_test")
-    TestClientServerExtension(args.client, args.server, srcs, dsts, local=False,
-                              max_runs=args.runs).run()
+    args = setup_main("cli_srv_ext_test")
+    if args.run_server:
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        ExtServer(args.data.encode('utf-8'), dst, port=int(args.port)).run()
+    else:
+        src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        ExtClient(args.data.encode('utf-8'), src, dst, dport=int(args.port),
+                  retries=args.retries).run()
 
 
 if __name__ == "__main__":
