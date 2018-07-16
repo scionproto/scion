@@ -16,13 +16,8 @@
 ================================
 """
 # SCION
-from lib.defines import (
-    BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
-    PATH_SERVICE,
-    SIBRA_SERVICE,
-)
 from lib.packet.host_addr import HostAddrSVC
+from lib.types import ServiceType
 
 
 class SVCType(object):
@@ -47,16 +42,16 @@ class SVCType(object):
     NONE = HostAddrSVC(0xffff, raw=False)
 
 SVC_TO_SERVICE = {
-    SVCType.BS_A.addr: BEACON_SERVICE,
-    SVCType.BS_M.addr: BEACON_SERVICE,
-    SVCType.PS_A.addr: PATH_SERVICE,
-    SVCType.CS_A.addr: CERTIFICATE_SERVICE,
-    SVCType.SB_A.addr: SIBRA_SERVICE,
+    SVCType.BS_A.addr: ServiceType.BS,
+    SVCType.BS_M.addr: ServiceType.BS,
+    SVCType.PS_A.addr: ServiceType.PS,
+    SVCType.CS_A.addr: ServiceType.CS,
+    SVCType.SB_A.addr: ServiceType.SIBRA,
 }
 
 SERVICE_TO_SVC_A = {
-    BEACON_SERVICE: SVCType.BS_A,
-    CERTIFICATE_SERVICE: SVCType.CS_A,
-    PATH_SERVICE: SVCType.PS_A,
-    SIBRA_SERVICE: SVCType.SB_A,
+    ServiceType.BS: SVCType.BS_A,
+    ServiceType.CS: SVCType.CS_A,
+    ServiceType.PS: SVCType.PS_A,
+    ServiceType.SIBRA: SVCType.SB_A,
 }

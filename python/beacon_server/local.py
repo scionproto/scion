@@ -21,14 +21,14 @@ from collections import defaultdict
 
 # SCION
 from beacon_server.base import BeaconServer
-from lib.defines import GEN_CACHE_PATH, PATH_SERVICE
+from lib.defines import GEN_CACHE_PATH
 from lib.errors import SCIONServiceLookupError
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.svc import SVCType
 from lib.path_store import PathStore
-from lib.types import PathSegmentType as PST
+from lib.types import PathSegmentType as PST, ServiceType
 
 
 class LocalBeaconServer(BeaconServer):
@@ -136,12 +136,12 @@ class LocalBeaconServer(BeaconServer):
             if not new_pcb:
                 continue
             try:
-                dst_meta = self.register_up_segment(new_pcb, PATH_SERVICE)
+                dst_meta = self.register_up_segment(new_pcb, ServiceType.PS)
             except SCIONServiceLookupError as e:
                 logging.warning("Unable to send up-segment registration: %s", e)
                 continue
             # Keep the ID of the not-terminated PCB to relate to previously received ones.
-            registered_paths[(str(dst_meta), PATH_SERVICE)].append(pcb.short_id())
+            registered_paths[(str(dst_meta), ServiceType.PS)].append(pcb.short_id())
         self._log_registrations(registered_paths, "up")
 
     def register_down_segments(self):
@@ -157,5 +157,5 @@ class LocalBeaconServer(BeaconServer):
                 continue
             dst_ps = self.register_down_segment(new_pcb)
             # Keep the ID of the not-terminated PCB to relate to previously received ones.
-            registered_paths[(str(dst_ps), PATH_SERVICE)].append(pcb.short_id())
+            registered_paths[(str(dst_ps), ServiceType.PS)].append(pcb.short_id())
         self._log_registrations(registered_paths, "down")

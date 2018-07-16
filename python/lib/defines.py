@@ -80,22 +80,6 @@ SCIOND_API_SOCKDIR = "/run/shm/sciond/"
 #: Default SCION daemon API UNIX socket
 SCIOND_API_DEFAULT_SOCK = "default.sock"
 
-BEACON_SERVICE = "bs"
-CERTIFICATE_SERVICE = "cs"
-DNS_SERVICE = "ds"
-PATH_SERVICE = "ps"
-ROUTER_SERVICE = "br"
-SIBRA_SERVICE = "sb"
-#: All the service types
-SERVICE_TYPES = (
-    BEACON_SERVICE,
-    CERTIFICATE_SERVICE,
-    DNS_SERVICE,
-    PATH_SERVICE,
-    ROUTER_SERVICE,
-    SIBRA_SERVICE,
-)
-
 #: Dispatcher registration timeout
 DISPATCHER_TIMEOUT = 60.0
 

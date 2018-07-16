@@ -21,7 +21,7 @@ from collections import defaultdict
 
 # SCION
 from beacon_server.base import BeaconServer, BEACONS_PROPAGATED
-from lib.defines import GEN_CACHE_PATH, PATH_SERVICE
+from lib.defines import GEN_CACHE_PATH
 from lib.errors import SCIONServiceLookupError
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.opaque_field import InfoOpaqueField
@@ -29,7 +29,7 @@ from lib.packet.path_mgmt.base import PathMgmt
 from lib.packet.path_mgmt.seg_recs import PathRecordsReg
 from lib.packet.pcb import PathSegment
 from lib.path_store import PathStore
-from lib.types import PathSegmentType as PST
+from lib.types import PathSegmentType as PST, ServiceType
 from lib.util import SCIONTime
 
 
@@ -185,12 +185,12 @@ class CoreBeaconServer(BeaconServer):
             if not new_pcb:
                 continue
             try:
-                dst_meta = self.register_core_segment(new_pcb, PATH_SERVICE)
+                dst_meta = self.register_core_segment(new_pcb, ServiceType.PS)
             except SCIONServiceLookupError as e:
                 logging.warning("Unable to send core-segment registration: %s", e)
                 continue
             # Keep the ID of the not-terminated PCB to relate to previously received ones.
-            registered_paths[(str(dst_meta), PATH_SERVICE)].append(pcb.short_id())
+            registered_paths[(str(dst_meta), ServiceType.PS)].append(pcb.short_id())
         self._log_registrations(registered_paths, "core")
 
     def _remove_revoked_pcbs(self, rev_info):

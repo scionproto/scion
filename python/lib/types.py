@@ -46,11 +46,20 @@ class AddrType(TypeBase):
     SVC = 3
 
 
+############################
+# Service types
+############################
 class ServiceType(TypeBase):
+    # these values must be kept in sync with the common.capnp ServiceType enum
+    #: Unset
+    UNSET = "unset"
+    #: Beacon service
     BS = "bs"
+    #: Path service
     PS = "ps"
+    #: Certificate service
     CS = "cs"
-    BR = "br"
+    #: SIBRA service
     SIBRA = "sb"
 
 

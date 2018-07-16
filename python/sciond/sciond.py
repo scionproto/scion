@@ -31,7 +31,6 @@ from lib.defines import (
     GEN_CACHE_PATH,
     PATH_FLAG_SIBRA,
     PATH_REQ_TOUT,
-    PATH_SERVICE,
     SCIOND_API_SOCKDIR,
 )
 from lib.errors import SCIONBaseError, SCIONParseError, SCIONServiceLookupError
@@ -698,7 +697,7 @@ class SCIONDaemon(SCIONElement):
         Called to fetch the requested path.
         """
         try:
-            addr, port = self.dns_query_topo(PATH_SERVICE)[0]
+            addr, port = self.dns_query_topo(ServiceType.PS)[0]
         except SCIONServiceLookupError:
             log_exception("Error querying path service:")
             return

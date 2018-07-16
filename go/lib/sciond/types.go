@@ -314,34 +314,7 @@ type IFInfoReplyEntry struct {
 }
 
 type ServiceInfoRequest struct {
-	ServiceTypes []ServiceType
-}
-
-type ServiceType uint16
-
-const (
-	SvcBS ServiceType = iota
-	SvcPS
-	SvcCS
-	SvcBR
-	SvcSB
-)
-
-func (st ServiceType) String() string {
-	switch st {
-	case SvcBS:
-		return "BS"
-	case SvcPS:
-		return "PS"
-	case SvcCS:
-		return "CS"
-	case SvcBR:
-		return "BR"
-	case SvcSB:
-		return "SB"
-	default:
-		return "??"
-	}
+	ServiceTypes []proto.ServiceType
 }
 
 type ServiceInfoReply struct {
@@ -349,7 +322,7 @@ type ServiceInfoReply struct {
 }
 
 type ServiceInfoReplyEntry struct {
-	ServiceType ServiceType
+	ServiceType proto.ServiceType
 	Ttl         uint32
 	HostInfos   []HostInfo
 }

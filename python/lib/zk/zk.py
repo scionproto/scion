@@ -72,7 +72,7 @@ class Zookeeper(object):
 
         :param ISD_AS isd_as: The local ISD-AS.
         :param str srv_type:
-            a service type from :const:`lib.defines.SERVICE_TYPES`
+            a service type from :const:`lib.types.ServiceType`
         :param str srv_id: Service instance identifier.
         :param list zk_hosts:
             List of Zookeeper instances to connect to, in the form of
