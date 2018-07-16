@@ -215,3 +215,93 @@ func ExtractUniqueDsts(pairs []IAPair) []addr.IA {
 	}
 	return res
 }
+
+// RunBinaryTests runs the client and server for each IAPair. A number of tests are run in parallel
+// In case of an error the function is terminated immediately.
+func RunBinaryTests(in Integration, pairs []IAPair) error {
+	return ExecuteTimed(in.Name(), func() error {
+		errors := make(chan error)
+		done := make(chan error, len(pairs))
+		// Run maximal 5 tests in parallel
+		tokens := make(chan struct{}, 2)
+		for i := range pairs {
+			go func(i int, pair IAPair) {
+				tokens <- struct{}{}
+				// Start server
+				s, err := StartServer(in, pair.Dst)
+				defer s.Close()
+				if err != nil {
+					<-tokens
+					errors <- err
+					return
+				}
+				// Start client
+				log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst,
+					i+1, len(pairs)))
+				if err := RunClient(in, pair, 5*time.Second); err != nil {
+					fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+					<-tokens
+					errors <- err
+					return
+				}
+				<-tokens
+				done <- nil
+			}(i, pairs[i])
+		}
+		// Wait for all goroutines to finish and abort if there was an error
+		ctr := 0
+		for {
+			select {
+			case err := <-errors:
+				close(done)
+				return err
+			case <-done:
+				ctr++
+				if ctr == len(pairs) {
+					return nil
+				}
+			}
+		}
+	})
+}
+
+// RunUnaryTests runs the client for each IAPair.
+// In case of an error the function is terminated immediately.
+func RunUnaryTests(in Integration, pairs []IAPair) error {
+	return ExecuteTimed(in.Name(), func() error {
+		errors := make(chan error, len(pairs))
+		done := make(chan error, len(pairs))
+		// Run maximal 5 tests in parallel
+		tokens := make(chan struct{}, 4)
+		for i := range pairs {
+			go func(i int, pair IAPair) {
+				tokens <- struct{}{}
+				log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
+					in.Name(), pair.Src, pair.Dst, i+1, len(pairs)))
+				// Start client
+				if err := RunClient(in, pair, 5*time.Second); err != nil {
+					fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+					<-tokens
+					errors <- err
+					return
+				}
+				<-tokens
+				done <- nil
+			}(i, pairs[i])
+		}
+		// Wait for all goroutines to finish and abort if there was an error
+		ctr := 0
+		for {
+			select {
+			case err := <-errors:
+				close(done)
+				return err
+			case <-done:
+				ctr++
+				if ctr == len(pairs) {
+					return nil
+				}
+			}
+		}
+	})
+}
