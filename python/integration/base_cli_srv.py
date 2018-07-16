@@ -22,7 +22,9 @@ import copy
 import logging
 import os
 import random
+import signal
 import socket
+from subprocess import PIPE, Popen, TimeoutExpired
 import sys
 import threading
 import time
@@ -66,12 +68,13 @@ class ResponseRV:
 
 
 class TestBase(object, metaclass=ABCMeta):
-    def __init__(self, data, finished, addr, timeout=1.0, api_addr=None):
+    def __init__(self, data, finished, addr, timeout=1.0, api_addr=None, port=0):
         self.api_addr = api_addr or get_sciond_api_addr(addr)
         self.data = data
         self.finished = finished
         self.addr = addr
         self._timeout = timeout
+        self.port = port
         self.sock = self._create_socket(addr)
         assert self.sock
         self.success = None
@@ -82,7 +85,7 @@ class TestBase(object, metaclass=ABCMeta):
         raise NotImplementedError
 
     def _create_socket(self, addr):
-        sock = ReliableSocket(reg=(addr, 0, True, None))
+        sock = ReliableSocket(reg=(addr, self.port, True, None))
         sock.settimeout(self._timeout)
         return sock
 
@@ -256,7 +259,7 @@ class TestClientServerBase(object):
     NAME = ""
 
     def __init__(self, client, server, sources, destinations, local=True,
-                 max_runs=None, retries=0):
+                 max_runs=None, retries=0, docker=False):
         assert self.NAME
         t = threading.current_thread()
         t.name = self.NAME
@@ -267,6 +270,7 @@ class TestClientServerBase(object):
         self.local = local
         self.max_runs = max_runs
         self.retries = retries
+        self.docker = docker
 
     def run(self):
         """
@@ -296,25 +300,59 @@ class TestClientServerBase(object):
         Run client and server, wait for both to finish
         """
         logging.info("Testing: %s -> %s", src.isd_as, dst.isd_as)
-        # finished is used by the client/server to signal to the other that they
-        # are stopping.
-        finished = threading.Event()
         data = self._create_data(src, dst)
-        server = self._create_server(data, finished, dst)
-        client = self._create_client(data, finished, src, dst, server.sock.port)
-        server_name = "%s %s > %s server" % (self.NAME, src.isd_as, dst.isd_as)
-        s_thread = threading.Thread(
-            target=thread_safety_net, args=(server.run,), name=server_name,
-            daemon=True)
-        s_thread.start()
-        client.run()
-        # If client is finished, server should finish within ~1s (due to recv
-        # timeout). If it hasn't, then there was a problem.
-        s_thread.join(5.0)
-        if s_thread.is_alive():
-            logging.error("Timeout waiting for server thread to terminate")
+        if self.docker:
+            port = random.randint(1024, 65535)
+            base_cmd = [
+                "/home/lukas/.local/bin/docker-compose",
+                "-f", "gen/util-dc.yml", "run",
+                "-e", "PYTHONPATH=python/:", "--rm", "--entrypoint="]
+            server_cmd = base_cmd + [
+                "server",
+                "./python/integration/end2end_test.py", "-d",
+                "-so", "--data", data, "--server", str(self.server_ip),
+                "--port", str(port), str(src.isd_as), str(dst.isd_as)]
+            server = Popen(server_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=os.setsid)
+            time.sleep(0.5)
+            client_cmd = base_cmd + [
+                "client",
+                "./python/integration/end2end_test.py", "-d",
+                "-co", "--data", data, "--client", str(self.client_ip),
+                "--port", str(port), str(src.isd_as), str(dst.isd_as)]
+            client = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+            try:
+                (server_code, client_code) = [p.wait(5.0) for p in [server, client]]
+            except TimeoutExpired:
+                os.killpg(os.getpgid(server.pid), signal.SIGTERM)
+                logging.error("Timeout waiting for subprocesses to terminate")
+                return False
+
+            if not client_code and not server_code:
+                logging.debug("Success")
+                return True
+            logging.error("Client success? %s Server success? %s",
+                          not client_code, not server_code)
             return False
-        return self._check_result(client, server)
+        else:
+            # finished is used by the client/server to signal to the other that they
+            # are stopping.
+            finished = threading.Event()
+            server = self._create_server(data, finished, dst)
+            client = self._create_client(data, finished, src, dst, server.sock.port)
+            server_name = "%s %s > %s server" % (self.NAME, src.isd_as, dst.isd_as)
+            s_thread = threading.Thread(
+                target=thread_safety_net, args=(server.run,), name=server_name,
+                daemon=True)
+            s_thread.start()
+            client.run()
+            # If client is finished, server should finish within ~1s (due to recv
+            # timeout). If it hasn't, then there was a problem.
+            s_thread.join(5.0)
+            if s_thread.is_alive():
+                logging.error("Timeout waiting for server thread to terminate")
+                return False
+            return self._check_result(client, server)
 
     def _check_result(self, client, server):
         if client.success and server.success:
@@ -380,6 +418,14 @@ def setup_main(name, parser=None):
                         help="Time in seconds to wait before running")
     parser.add_argument("--retries", type=int, default=0,
                         help="Number of retries before giving up.")
+    parser.add_argument('-d', '--docker', action='store_true', default=False,
+                        help="Run with docker")
+    parser.add_argument('-co', '--client_only', action='store_true', default=False,
+                        help="Run only client")
+    parser.add_argument('-so', '--server_only', action='store_true', default=False,
+                        help="Run only server")
+    parser.add_argument('--data', default=None, help="Data for client / server split run")
+    parser.add_argument('--port', default=30000, help="Port for client / server split run")
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', nargs='?', help='Dst isd-as')
     args = parser.parse_args()
