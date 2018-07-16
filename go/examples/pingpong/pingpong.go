@@ -79,10 +79,54 @@ func init() {
 	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
 }
 
+func main() {
+	log.AddLogConsFlags()
+	validateFlags()
+	if err := log.SetupFromFlags(""); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
+	defer log.LogPanicAndExit()
+	switch *mode {
+	case ModeClient:
+		if remote.Host == nil {
+			LogFatal("Missing remote address")
+		}
+		if remote.L4Port == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.L4Port)
+		}
+		c := newClient()
+		setSignalHandler(c)
+		c.run()
+	case ModeServer:
+		server{}.run()
+	}
+}
+
 type message struct {
 	PingPong  string
 	Data      []byte
 	Timestamp int64
+}
+
+func requestMsg() *message {
+	return &message{
+		PingPong: ReqMsg,
+		Data:     fileData,
+	}
+}
+
+func replyMsg(request *message) *message {
+	return &message{
+		ReplyMsg,
+		request.Data,
+		request.Timestamp,
+	}
+}
+
+func (m *message) len() int {
+	return len(m.PingPong) + len(m.Data) + 8
 }
 
 type quicStream struct {
@@ -91,28 +135,12 @@ type quicStream struct {
 	decoder *gob.Decoder
 }
 
-type client struct {
-	*quicStream
-	qsess *quic.Session
-}
-
-type server struct {
-}
-
 func newQuicStream(qstream *quic.Stream) *quicStream {
 	return &quicStream{
 		qstream,
 		gob.NewEncoder(*qstream),
 		gob.NewDecoder(*qstream),
 	}
-}
-
-func newClient() *client {
-	return &client{nil, nil}
-}
-
-func (m *message) len() int {
-	return len(m.PingPong) + len(m.Data) + 8
 }
 
 func (qs quicStream) WriteMsg(msg *message) error {
@@ -126,6 +154,15 @@ func (qs quicStream) ReadMsg() (*message, error) {
 		return nil, err
 	}
 	return &msg, err
+}
+
+type client struct {
+	*quicStream
+	qsess *quic.Session
+}
+
+func newClient() *client {
+	return &client{nil, nil}
 }
 
 // run dials to a remote SCION address and repeatedly sends ping messages
@@ -240,6 +277,9 @@ func (c client) read() {
 	}
 }
 
+type server struct {
+}
+
 // run listens on a SCION address and replies to any ping message.
 // On any error, the server exits.
 func (s server) run() {
@@ -300,31 +340,6 @@ func (s server) handleClient(qsess quic.Session) {
 			log.Error("Unable to write", "err", err)
 			continue
 		}
-	}
-}
-
-func main() {
-	log.AddLogConsFlags()
-	validateFlags()
-	if err := log.SetupFromFlags(""); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
-		flag.Usage()
-		os.Exit(1)
-	}
-	defer log.LogPanicAndExit()
-	switch *mode {
-	case ModeClient:
-		if remote.Host == nil {
-			LogFatal("Missing remote address")
-		}
-		if remote.L4Port == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.L4Port)
-		}
-		c := newClient()
-		setSignalHandler(c)
-		c.run()
-	case ModeServer:
-		server{}.run()
 	}
 }
 
@@ -425,19 +440,4 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	}
 	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
 	return paths[pathIndex]
-}
-
-func requestMsg() *message {
-	return &message{
-		PingPong: ReqMsg,
-		Data:     fileData,
-	}
-}
-
-func replyMsg(request *message) *message {
-	return &message{
-		ReplyMsg,
-		request.Data,
-		request.Timestamp,
-	}
 }
