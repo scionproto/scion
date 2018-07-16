@@ -8,8 +8,8 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 cmd_topology() {
     local zkclean
-    if [ -f gen/docker-compose.yml ]; then
-        echo "Shutting down docker-compose: $(docker-compose -f gen/docker-compose.yml down)"
+    if [ -f gen/scion-dc.yml ]; then
+        echo "Shutting down docker-compose: $(docker-compose -f gen/scion-dc.yml down)"
     else
         echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     fi
@@ -41,17 +41,17 @@ cmd_run() {
     run_setup
     echo "Running the network..."
     # Run with docker-compose or supervisor
-    if [ -f gen/docker-compose.yml ]; then
-        docker-compose -f gen/docker-compose.yml up -d
+    if [ -f gen/scion-dc.yml ]; then
+        docker-compose -f gen/scion-dc.yml up -d
     else
         supervisor/supervisor.sh start all
     fi
 }
 
 run_zk() {
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
-        docker-compose -f gen/docker-compose.yml up -d zookeeper
+        docker-compose -f gen/scion-dc.yml up -d zookeeper
     else
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
     fi
@@ -60,11 +60,11 @@ run_zk() {
 cmd_mstart() {
     run_setup
     # Run with docker-compose or supervisor
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
-        docker-compose -f gen/docker-compose.yml up -d $services
+        docker-compose -f gen/scion-dc.yml up -d $services
     else
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
         supervisor/supervisor.sh mstart "$@"
@@ -93,8 +93,9 @@ run_setup() {
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
-    if [ -f gen/docker-compose.yml ]; then
-        docker-compose -f gen/docker-compose.yml down
+    if [ -f gen/scion-dc.yml ]; then
+        docker-compose -f gen/scion-dc.yml down
+        docker-compose -f gen/util-dc.yml down
     else
         supervisor/supervisor.sh stop all
     fi
@@ -105,10 +106,10 @@ cmd_stop() {
 }
 
 cmd_mstop() {
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        docker-compose -f gen/docker-compose.yml stop $services
+        docker-compose -f gen/scion-dc.yml stop $services
     else
         supervisor/supervisor.sh mstop "$@"
     fi
@@ -119,10 +120,10 @@ cmd_status() {
 }
 
 cmd_mstatus() {
-    if [ -f gen/docker-compose.yml ]; then
+    if [ -f gen/scion-dc.yml ]; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        out=$(docker-compose -f gen/docker-compose.yml ps $services | tail -n +3)
+        out=$(docker-compose -f gen/scion-dc.yml ps $services | tail -n +3)
         rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
         tscount=$(echo "$services" | wc -w) # Number of all globed services
         echo "$out" | grep -v '\<Up\>'
@@ -158,7 +159,7 @@ glob_supervisor() {
 glob_docker() {
     [ $# -ge 1 ] || set -- '*'
     matches=
-    for proc in $(docker-compose -f gen/docker-compose.yml config --services); do
+    for proc in $(docker-compose -f gen/scion-dc.yml config --services); do
         for spec in "$@"; do
             if glob_match $proc "$spec"; then
                 matches="$matches $proc"
