@@ -104,6 +104,49 @@ func main() {
 	}
 }
 
+func validateFlags() {
+	flag.Parse()
+	if *mode != ModeClient && *mode != ModeServer {
+		LogFatal("Unknown mode, must be either '" + ModeClient + "' or '" + ModeServer + "'")
+	}
+	if *mode == ModeClient && remote.Host == nil {
+		LogFatal("Missing remote address")
+	}
+	if local.Host == nil {
+		LogFatal("Missing local address")
+	}
+	if *sciondFromIA {
+		if *sciond != "" {
+			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
+		}
+		if local.IA.IsZero() {
+			LogFatal("-local flag is missing")
+		}
+		*sciond = sd.GetDefaultSCIONDPath(&local.IA)
+	} else if *sciond == "" {
+		*sciond = sd.GetDefaultSCIONDPath(nil)
+	}
+	if *count < 0 || *count > MaxPings {
+		LogFatal("Invalid count", "min", 0, "max", MaxPings, "actual", *count)
+	}
+	if *file != "" {
+		if *mode == ModeClient {
+			var err error
+			fileData, err = ioutil.ReadFile(*file)
+			if err != nil {
+				LogFatal("Could not read data file")
+			}
+		} else {
+			log.Info("file argument is ignored for mode " + ModeServer)
+		}
+	}
+}
+
+func LogFatal(msg string, a ...interface{}) {
+	log.Crit(msg, a...)
+	os.Exit(1)
+}
+
 type message struct {
 	PingPong  string
 	Data      []byte
@@ -343,59 +386,6 @@ func (s server) handleClient(qsess quic.Session) {
 	}
 }
 
-func validateFlags() {
-	flag.Parse()
-	if *mode != ModeClient && *mode != ModeServer {
-		LogFatal("Unknown mode, must be either '" + ModeClient + "' or '" + ModeServer + "'")
-	}
-	if *mode == ModeClient && remote.Host == nil {
-		LogFatal("Missing remote address")
-	}
-	if local.Host == nil {
-		LogFatal("Missing local address")
-	}
-	if *sciondFromIA {
-		if *sciond != "" {
-			LogFatal("Only one of -sciond or -sciondFromIA can be specified")
-		}
-		if local.IA.IsZero() {
-			LogFatal("-local flag is missing")
-		}
-		*sciond = sd.GetDefaultSCIONDPath(&local.IA)
-	} else if *sciond == "" {
-		*sciond = sd.GetDefaultSCIONDPath(nil)
-	}
-	if *count < 0 || *count > MaxPings {
-		LogFatal("Invalid count", "min", 0, "max", MaxPings, "actual", *count)
-	}
-	if *file != "" {
-		if *mode == ModeClient {
-			var err error
-			fileData, err = ioutil.ReadFile(*file)
-			if err != nil {
-				LogFatal("Could not read data file")
-			}
-		} else {
-			log.Info("file argument is ignored for mode " + ModeServer)
-		}
-	}
-}
-
-func setSignalHandler(closer io.Closer) {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		closer.Close()
-		os.Exit(1)
-	}()
-}
-
-func LogFatal(msg string, a ...interface{}) {
-	log.Crit(msg, a...)
-	os.Exit(1)
-}
-
 func initNetwork() {
 	// Initialize default SCION networking context
 	if err := snet.Init(local.IA, *sciond, *dispatcher); err != nil {
@@ -440,4 +430,14 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	}
 	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
 	return paths[pathIndex]
+}
+
+func setSignalHandler(closer io.Closer) {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		closer.Close()
+		os.Exit(1)
+	}()
 }
