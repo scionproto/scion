@@ -219,7 +219,7 @@ void parse_cmdline(int argc, char **argv) {
         int option_index = 0;
         static struct option long_options[] = {
             {"help",        no_argument, 0, 'h' },
-            {"delete-sock", no_argument, 0, 'd' },
+            {"delete-sock", no_argument, 0, 0   },
             {0,             0,           0, 0   }
         };
         c = getopt_long(argc, argv, "hd", long_options, &option_index);
