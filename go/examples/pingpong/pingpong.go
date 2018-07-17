@@ -88,6 +88,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer log.LogPanicAndExit()
+	initNetwork()
 	switch *mode {
 	case ModeClient:
 		if remote.Host == nil {
@@ -145,6 +146,18 @@ func validateFlags() {
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
 	os.Exit(1)
+}
+
+func initNetwork() {
+	// Initialize default SCION networking context
+	if err := snet.Init(local.IA, *sciond, *dispatcher); err != nil {
+		LogFatal("Unable to initialize SCION network", "err", err)
+	}
+	log.Debug("SCION network successfully initialized")
+	if err := squic.Init("", ""); err != nil {
+		LogFatal("Unable to initialize QUIC/SCION", "err", err)
+	}
+	log.Debug("QUIC/SCION successfully initialized")
 }
 
 type message struct {
@@ -205,7 +218,7 @@ type client struct {
 }
 
 func newClient() *client {
-	return &client{nil, nil}
+	return &client{}
 }
 
 // run dials to a remote SCION address and repeatedly sends ping messages
@@ -213,7 +226,6 @@ func newClient() *client {
 // with the round trip time is printed. On errors (including timeouts),
 // the Client exits.
 func (c *client) run() {
-	initNetwork()
 	// Needs to happen before DialSCION, as it will 'copy' the remote to the connection.
 	// If remote is not in local AS, we need a path!
 	c.setupPath()
@@ -245,6 +257,11 @@ func (c *client) Close() error {
 		err = (*c.qstream).Close()
 	}
 	if err == nil && c.qsess != nil {
+		// Note closing the session here is fine since we know that all the traffic went through.
+		// If you are not sure that this is the case you should probably not close the session.
+		// E.g. if you are just sending something to a server and closing the session immediately
+		// it might be that the server does not see the message.
+		// See also: https://github.com/lucas-clemente/quic-go/issues/464
 		err = (*c.qsess).Close(nil)
 	}
 	return err
@@ -326,8 +343,6 @@ type server struct {
 // run listens on a SCION address and replies to any ping message.
 // On any error, the server exits.
 func (s server) run() {
-	initNetwork()
-
 	// Listen on SCION address
 	qsock, err := squic.ListenSCION(nil, &local)
 	if err != nil {
@@ -384,18 +399,6 @@ func (s server) handleClient(qsess quic.Session) {
 			continue
 		}
 	}
-}
-
-func initNetwork() {
-	// Initialize default SCION networking context
-	if err := snet.Init(local.IA, *sciond, *dispatcher); err != nil {
-		LogFatal("Unable to initialize SCION network", "err", err)
-	}
-	log.Debug("SCION network successfully initialized")
-	if err := squic.Init("", ""); err != nil {
-		LogFatal("Unable to initialize QUIC/SCION", "err", err)
-	}
-	log.Debug("QUIC/SCION successfully initialized")
 }
 
 func choosePath(interactive bool) *sd.PathReplyEntry {
