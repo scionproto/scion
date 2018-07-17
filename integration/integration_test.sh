@@ -49,19 +49,25 @@ log "Starting scion (without building)"
 log "Scion status:"
 ./scion.sh status || exit 1
 
+DC=""
+if [ "$1" = "docker" ]; then
+    COMPOSE_FILE=gen/util-dc.yml ./scion.sh dc up -d
+    DC="-d"
+fi
+
 sleep 5
 # Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
 [ -n "$CIRCLECI" ] && sleep 10
 
 cat << EOF | parallel --no-notice -n2 -j2 run
 End2End
-python/integration/end2end_test.py -l ERROR
+python/integration/end2end_test.py -l ERROR $DC
 C2S_extn
-python/integration/cli_srv_ext_test.py -l ERROR
+python/integration/cli_srv_ext_test.py -l ERROR $DC
 SCMP error
-python/integration/scmp_error_test.py -l ERROR --runs 60
+python/integration/scmp_error_test.py -l ERROR --runs 60 $DC
 Cert/TRC request
-python/integration/cert_req_test.py -l ERROR
+python/integration/cert_req_test.py -l ERROR $DC
 EOF
 result=$?
 

@@ -22,6 +22,7 @@
 
 # Stdlib
 import logging
+import threading
 
 # SCION
 from lib.main import main_wrapper
@@ -30,7 +31,9 @@ from lib.packet.ext.path_transport import (
     PathTransOFPath,
     PathTransType,
 )
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.packet_base import PayloadRaw
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from integration.base_cli_srv import (
     setup_main,
     TestClientBase,
@@ -97,11 +100,24 @@ class TestClientServerExtension(TestClientServerBase):
     def _create_client(self, data, finished, src, dst, port):
         return ExtClient(data, finished, src, dst, port)
 
+    def _test_cmd(self):
+        return "./python/integration/cli_srv_ext_test.py"
+
 
 def main():
     args, srcs, dsts = setup_main("cli_srv_ext_test")
-    TestClientServerExtension(args.client, args.server, srcs, dsts, local=False,
-                              max_runs=args.runs).run()
+    if args.client_only:
+        finished = threading.Event()
+        src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        ExtClient(args.data.encode('utf-8'), finished, src, dst, dport=int(args.port)).run()
+    elif args.server_only:
+        finished = threading.Event()
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        ExtServer(args.data.encode('utf-8'), finished, dst, port=int(args.port)).run()
+    else:
+        TestClientServerExtension(args.client, args.server, srcs, dsts, local=False,
+                                  max_runs=args.runs, docker=args.docker).run()
 
 
 if __name__ == "__main__":

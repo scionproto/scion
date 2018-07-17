@@ -149,19 +149,18 @@ class TestEnd2End(TestClientServerBase):
     def _create_client(self, data, finished, src, dst, port):
         return E2EClient(data, finished, src, dst, port, retries=self.retries)
 
+    def _test_cmd(self):
+        return "./python/integration/end2end_test.py"
+
 
 def main():
     args, srcs, dsts = setup_main("end2end")
     if args.client_only:
-        if not args.data:
-            args.data = 'ping'
         finished = threading.Event()
-        src = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.client))
+        src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
         dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
         E2EClient(args.data.encode('utf-8'), finished, src, dst, dport=int(args.port)).run()
     elif args.server_only:
-        if not args.data:
-            args.data = 'ping'
         finished = threading.Event()
         dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
         E2EServer(args.data.encode('utf-8'), finished, dst, port=int(args.port)).run()
