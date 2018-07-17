@@ -164,7 +164,6 @@ char socket_path[UNIX_PATH_MAX];
 #define MAX_NUMBER_PINGS MAX_SOCKETS
 PingEntry *ping_list = NULL;
 
-bool do_help=false;
 bool delete_sock=false;
 
 int main(int argc, char **argv)
@@ -219,10 +218,10 @@ void parse_cmdline(int argc, char **argv) {
         int option_index = 0;
         static struct option long_options[] = {
             {"help",        no_argument, 0, 'h' },
-            {"delete-sock", no_argument, 0, 0   },
+            {"delete-sock", no_argument, 0, 'd' },
             {0,             0,           0, 0   }
         };
-        c = getopt_long(argc, argv, "hd", long_options, &option_index);
+        c = getopt_long(argc, argv, "h", long_options, &option_index);
         if (c == -1)
             break;
 
@@ -233,9 +232,15 @@ void parse_cmdline(int argc, char **argv) {
                    argv[0]);
            exit(1);
        case 'd':
-           unlink_socket();
+           delete_sock = true;
            break;
+       default:
+           fprintf(stderr, "Unknown option '%s'\n", argv[option_index+1]);
+           exit(2);
        }
+    }
+    if (delete_sock) {
+       unlink_socket();
     }
 }
 
