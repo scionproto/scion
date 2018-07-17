@@ -3,12 +3,14 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <sys/resource.h>
 #include <sys/select.h>
@@ -121,6 +123,8 @@ static chk_input *chk_udp_input;
 static zlog_category_t *zc;
 
 void handle_signal(int signal);
+void parse_cmdline(int argc, char **argv);
+void unlink_socket();
 int run();
 
 int create_sockets();
@@ -160,6 +164,9 @@ char socket_path[UNIX_PATH_MAX];
 #define MAX_NUMBER_PINGS MAX_SOCKETS
 PingEntry *ping_list = NULL;
 
+bool do_help=false;
+bool delete_sock=false;
+
 int main(int argc, char **argv)
 {
     signal(SIGTERM, handle_signal);
@@ -184,6 +191,7 @@ int main(int argc, char **argv)
         zlog_fini();
         return -1;
     }
+    parse_cmdline(argc, argv);
 
     /* Allocate for later use */
     chk_udp_input = mk_chk_input(UDP_CHK_INPUT_SIZE);
@@ -202,6 +210,48 @@ int main(int argc, char **argv)
 
     zlog_fini();
     return res;
+}
+
+void parse_cmdline(int argc, char **argv) {
+    int c;
+
+    while (1) {
+        int option_index = 0;
+        static struct option long_options[] = {
+            {"help",        no_argument, 0, 'h' },
+            {"delete-sock", no_argument, 0, 'd' },
+            {0,             0,           0, 0   }
+	};
+	c = getopt_long(argc, argv, "hd", long_options, &option_index);
+        if (c== -1)
+            break;
+
+       switch(c) {
+       case 'h':
+           fprintf(stderr, "Usage: %s [flags]\n    -h,--help: this message\n"
+                   "    -d,--delete-sock: delete Unix domain socket on start\n",
+                   argv[0]);
+           exit(1);
+       case 'd':
+           unlink_socket();
+           break;
+       }
+    }
+}
+
+void unlink_socket() {
+    char *sockpath=NULL;
+    asprintf(&sockpath, "%s/default.sock", DISPATCHER_DIR);
+    if (unlink(sockpath)) {
+        if (errno == ENOENT) {
+            zlog_info(zc, "'%s' does not exist, ignoring -d flag.", sockpath);
+            return;
+        }
+        zlog_error(zc, "could not unlink '%s': %s",
+                sockpath, strerror(errno));
+        exit(2);
+    }
+    zlog_info(zc, "successfully deleted '%s'", sockpath);
 }
 
 void handle_signal(int sig)
