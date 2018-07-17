@@ -229,7 +229,7 @@ void parse_cmdline(int argc, char **argv) {
        switch(c) {
        case 'h':
            fprintf(stderr, "Usage: %s [flags]\n    -h,--help: this message\n"
-                   "    -d,--delete-sock: delete Unix domain socket on start\n",
+                   "    --delete-sock: delete Unix domain socket on start\n",
                    argv[0]);
            exit(1);
        case 'd':
@@ -245,7 +245,7 @@ void unlink_socket() {
     errno = 0;
     if (unlink(sockpath)) {
         if (errno == ENOENT) {
-            zlog_info(zc, "'%s' does not exist, ignoring -d flag.", sockpath);
+            zlog_info(zc, "'%s' does not exist, ignoring --delete-sock flag.", sockpath);
             return;
         }
         zlog_error(zc, "could not unlink '%s': %s",
