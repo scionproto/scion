@@ -1000,7 +1000,7 @@ class DockerGenerator(object):
     def __init__(self, out_dir, topo_dicts, cs):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self.dc_conf = {'version': '3', 'services': {}}
+        self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
         self.dc_util_conf = {'version': '3', 'services': {}}
 
     def generate(self):
@@ -1148,8 +1148,6 @@ class DockerGenerator(object):
             'restart': 'always',
             'environment': {
                 'ZOO_USER': '$LOGNAME',
-                'ZOO_DATA_DIR': '/var/lib/zookeeper',
-                'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
@@ -1163,6 +1161,7 @@ class DockerGenerator(object):
             ]
         }
         self.dc_conf['services']['zookeeper'] = entry
+        self.dc_conf['networks']['default'] = {'ipam': {'config': [{'subnet': '172.18.0.1/24'}]}}
 
     def _test_conf(self):
         raw_entry = {
@@ -1171,6 +1170,11 @@ class DockerGenerator(object):
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 '/run/shm/sciond:/run/shm/sciond:rw',
                 '${PWD}/logs:/home/scion/go/src/github.com/scionproto/scion/logs:rw'
+            ],
+            'entrypoint': [
+                'tail',
+                '-f',
+                '/dev/null'
             ]
         }
         for svc in ['client', 'server']:

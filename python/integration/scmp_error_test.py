@@ -19,6 +19,7 @@
 # Stdlib
 import copy
 import logging
+from subprocess import PIPE, Popen
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -364,22 +365,32 @@ class SCMPErrorTest(TestClientServerBase):
     NAME = "SCMPErr"
 
     def _run_test(self, src, dst):
-        logging.info("=======================> Testing: %s -> %s",
-                     src.isd_as, dst.isd_as)
-        data = ("%s<->%s" % (src, dst)).encode("UTF-8")
-        for cls_ in GEN_LIST:
-            logging.info("===========> Testing: %s", cls_.DESC)
-            client = cls_(copy.deepcopy(data), None, copy.deepcopy(src),
-                          copy.deepcopy(dst), 0, api=True)
-            if not client.run():
-                return False
-        return True
+        if self.docker:
+            client_cmd = ["client", "./python/integration/scmp_error_test.py",
+                          "--client", str(self.client_ip), "--server", str(self.server_ip)]
+            client_cmd = self._base_cmd() + client_cmd + self._cmd_args(src, dst)
+            client_code = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE).wait()
+            if not client_code:
+                logging.debug("Success")
+                return True
+            return False
+        else:
+            logging.info("=======================> Testing: %s -> %s",
+                         src.isd_as, dst.isd_as)
+            data = ("%s<->%s" % (src, dst)).encode("UTF-8")
+            for cls_ in GEN_LIST:
+                logging.info("===========> Testing: %s", cls_.DESC)
+                client = cls_(copy.deepcopy(data), None, copy.deepcopy(src),
+                              copy.deepcopy(dst), 0, api=True)
+                if not client.run():
+                    return False
+            return True
 
 
 def main():
     args, srcs, dsts = setup_main("scmp_error_test")
-    SCMPErrorTest(args.client, args.server, srcs, dsts, local=False,
-                  max_runs=args.runs).run()
+    SCMPErrorTest(args.client, args.server, srcs, dsts, local=False, max_runs=args.runs,
+                  docker=args.docker).run()
 
 
 if __name__ == "__main__":
