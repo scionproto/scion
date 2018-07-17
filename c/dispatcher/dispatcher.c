@@ -223,7 +223,7 @@ void parse_cmdline(int argc, char **argv) {
             {0,             0,           0, 0   }
         };
         c = getopt_long(argc, argv, "hd", long_options, &option_index);
-        if (c== -1)
+        if (c == -1)
             break;
 
        switch(c) {
@@ -240,7 +240,7 @@ void parse_cmdline(int argc, char **argv) {
 }
 
 void unlink_socket() {
-    char *sockpath=NULL;
+    char *sockpath = NULL;
     asprintf(&sockpath, "%s/default.sock", DISPATCHER_DIR);
     if (unlink(sockpath)) {
         if (errno == ENOENT) {
