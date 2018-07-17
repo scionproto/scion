@@ -186,16 +186,16 @@ func (m *message) len() int {
 }
 
 type quicStream struct {
-	qstream *quic.Stream
+	qstream quic.Stream
 	encoder *gob.Encoder
 	decoder *gob.Decoder
 }
 
-func newQuicStream(qstream *quic.Stream) *quicStream {
+func newQuicStream(qstream quic.Stream) *quicStream {
 	return &quicStream{
 		qstream,
-		gob.NewEncoder(*qstream),
-		gob.NewDecoder(*qstream),
+		gob.NewEncoder(qstream),
+		gob.NewDecoder(qstream),
 	}
 }
 
@@ -214,7 +214,7 @@ func (qs quicStream) ReadMsg() (*message, error) {
 
 type client struct {
 	*quicStream
-	qsess *quic.Session
+	qsess quic.Session
 }
 
 func newClient() *client {
@@ -223,8 +223,7 @@ func newClient() *client {
 
 // run dials to a remote SCION address and repeatedly sends ping messages
 // while receiving pong messages. For each successful ping-pong, a message
-// with the round trip time is printed. On errors (including timeouts),
-// the Client exits.
+// with the round trip time is printed.
 func (c *client) run() {
 	// Needs to happen before DialSCION, as it will 'copy' the remote to the connection.
 	// If remote is not in local AS, we need a path!
@@ -235,17 +234,17 @@ func (c *client) run() {
 	// does not support automatic binding to local addresses, so the local
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
-	qsess, err := squic.DialSCION(nil, &local, &remote)
+	var err error
+	c.qsess, err = squic.DialSCION(nil, &local, &remote)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
-	c.qsess = &qsess
 
-	qstream, err := qsess.OpenStreamSync()
+	qstream, err := c.qsess.OpenStreamSync()
 	if err != nil {
 		LogFatal("quic OpenStream failed", "err", err)
 	}
-	c.quicStream = newQuicStream(&qstream)
+	c.quicStream = newQuicStream(qstream)
 	log.Debug("Quic stream opened", "local", &local, "remote", &remote)
 	go c.send()
 	c.read()
@@ -254,7 +253,7 @@ func (c *client) run() {
 func (c *client) Close() error {
 	var err error
 	if c.qstream != nil {
-		err = (*c.qstream).Close()
+		err = c.qstream.Close()
 	}
 	if err == nil && c.qsess != nil {
 		// Note closing the session here is fine since we know that all the traffic went through.
@@ -262,7 +261,7 @@ func (c *client) Close() error {
 		// E.g. if you are just sending something to a server and closing the session immediately
 		// it might be that the server does not see the message.
 		// See also: https://github.com/lucas-clemente/quic-go/issues/464
-		err = (*c.qsess).Close(nil)
+		err = c.qsess.Close(nil)
 	}
 	return err
 }
@@ -297,7 +296,7 @@ func (c client) send() {
 		}
 	}
 	// After sending the last ping, set a ReadDeadline on the stream
-	err := (*c.qstream).SetReadDeadline(time.Now().Add(*timeout))
+	err := c.qstream.SetReadDeadline(time.Now().Add(*timeout))
 	if err != nil {
 		LogFatal("SetReadDeadline failed", "err", err)
 	}
@@ -348,7 +347,7 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
-	log.Debug("Listening", "local", qsock.Addr())
+	log.Info("Listening", "local", qsock.Addr())
 	for {
 		qsess, err := qsock.Accept()
 		if err != nil {
@@ -356,7 +355,7 @@ func (s server) run() {
 			// Accept failing means the socket is unusable.
 			break
 		}
-		log.Debug("Quic session accepted", "src", qsess.RemoteAddr())
+		log.Info("Quic session accepted", "src", qsess.RemoteAddr())
 		go s.handleClient(qsess)
 	}
 }
@@ -370,7 +369,7 @@ func (s server) handleClient(qsess quic.Session) {
 	}
 	defer qstream.Close()
 
-	qs := newQuicStream(&qstream)
+	qs := newQuicStream(qstream)
 	for {
 		// Receive ping message
 		msg, err := qs.ReadMsg()
@@ -378,13 +377,13 @@ func (s server) handleClient(qsess quic.Session) {
 			qer := qerr.ToQuicError(err)
 			// There are several normal "errors" how a client can exit:
 			// 1. PeerGoingAway is the standard case, when the peer closes the connection.
-			// 2. NetworkIdleTimeOut if the peer exits ungracefully
-			//    we will not get noticed about him leaving so we run in a time out.
+			// 2. NetworkIdleTimeOut if the peer exits ungracefully we will not be notified,
+			//    and the session will time out.
 			// 3. EOF the peer closed the connection.
 			if qer.ErrorCode == qerr.PeerGoingAway ||
 				qer.ErrorCode == qerr.NetworkIdleTimeout ||
 				err == io.EOF {
-				log.Debug("Quic peer disconnected", "err", err)
+				log.Info("Quic peer disconnected", "err", err)
 				break
 			}
 			log.Error("Unable to read", "err", err)
@@ -396,7 +395,7 @@ func (s server) handleClient(qsess quic.Session) {
 		err = qs.WriteMsg(replyMsg)
 		if err != nil {
 			log.Error("Unable to write", "err", err)
-			continue
+			break
 		}
 	}
 }
