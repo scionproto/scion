@@ -221,8 +221,8 @@ void parse_cmdline(int argc, char **argv) {
             {"help",        no_argument, 0, 'h' },
             {"delete-sock", no_argument, 0, 'd' },
             {0,             0,           0, 0   }
-	};
-	c = getopt_long(argc, argv, "hd", long_options, &option_index);
+        };
+        c = getopt_long(argc, argv, "hd", long_options, &option_index);
         if (c== -1)
             break;
 
