@@ -19,6 +19,7 @@
 
 # Stdlib
 import logging
+from subprocess import PIPE, Popen
 import threading
 
 # SCION
@@ -27,9 +28,10 @@ from lib.errors import SCIONBaseError
 from lib.main import main_wrapper
 from lib.packet.ctrl_pld import CtrlPayload
 from lib.packet.cert_mgmt import CertChainRequest, CertMgmt, TRCRequest
+from lib.packet.host_addr import haddr_parse_interface
 from lib.packet.path import SCIONPath
 from lib.packet.scion import SCIONL4Packet, build_base_hdrs
-from lib.packet.scion_addr import SCIONAddr
+from lib.packet.scion_addr import SCIONAddr, ISD_AS
 from lib.types import ServiceType
 from integration.base_cli_srv import (
     get_sciond_api_addr,
@@ -102,21 +104,40 @@ class TestCertReq(TestClientServerBase):
 
     def _run_test(self, src, dst):
         logging.info("Testing: %s -> %s", src.isd_as, dst.isd_as)
-        finished = threading.Event()
-        client = self._create_client(finished, src, dst.isd_as)
-        client.run()
-        if client.success:
-            return True
-        logging.error("Client success? %s", client.success)
-        return False
+        if self.docker:
+            client_cmd = self._client_cmd(self.client_ip) + self._cmd_args(src, dst)
+            client_code = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE).wait()
+
+            if not client_code:
+                logging.debug("Success")
+                return True
+            return False
+        else:
+            finished = threading.Event()
+            client = self._create_client(finished, src, dst.isd_as)
+            client.run()
+            if client.success:
+                return True
+            logging.error("Client success? %s", client.success)
+            return False
 
     def _create_client(self, finished, addr, dst_ia):
         return TestCertClient(finished, addr, dst_ia)
 
+    def _test_cmd(self):
+        return "./python/integration/cert_req_test.py"
+
 
 def main():
     args, srcs, dsts = setup_main("certreq")
-    TestCertReq(args.client, args.server, srcs, dsts, max_runs=args.runs).run()
+    if args.client_only:
+        finished = threading.Event()
+        src = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.client))
+        dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+        TestCertClient(finished, src, dst.isd_as).run()
+    else:
+        TestCertReq(args.client, args.server, srcs, dsts, max_runs=args.runs,
+                    docker=args.docker).run()
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 cmd_topology() {
     local zkclean
     if [ -f gen/scion-dc.yml ]; then
-        echo "Shutting down docker-compose: $(docker-compose -f gen/scion-dc.yml down)"
+        echo "Shutting down docker-compose: $(./scion.sh stop)"
     else
         echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
     fi
@@ -283,6 +283,14 @@ cmd_sciond() {
     exit $?
 }
 
+cmd_dc() {
+    if [ -v COMPOSE_FILE ]; then
+        docker-compose $@
+    else
+        COMPOSE_FILE="gen/scion-dc.yml" docker-compose $@
+    fi
+}
+
 cmd_help() {
 	cmd_version
 	echo
@@ -294,6 +302,8 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
+	    $PROGRAM dc
+	        Run arguments with docker-compose
 	    $PROGRAM sciond ISD AS [ADDR]
 	        Start sciond with provided ISD and AS parameters. A third optional
 	        parameter is the address to bind when not running on localhost.
@@ -324,7 +334,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    coverage|help|lint|run|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
+    coverage|help|lint|run|dc|mstart|mstatus|mstop|stop|status|test|topology|version|build|clean|sciond)
         "cmd_$COMMAND" "$@" ;;
     start) cmd_run "$@" ;;
     *)  cmd_help; exit 1 ;;

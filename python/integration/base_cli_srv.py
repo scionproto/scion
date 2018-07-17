@@ -202,7 +202,7 @@ class TestClientBase(TestBase):
 
     def _send(self):
         self._send_pkt(self._build_pkt(), self.first_hop)
-        logging.debug(self.path_meta)
+        logging.debug("Path meta: %s" % self.path_meta)
 
     def _build_pkt(self, path=None):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
@@ -303,26 +303,16 @@ class TestClientServerBase(object):
         data = self._create_data(src, dst)
         if self.docker:
             port = random.randint(1024, 65535)
-            base_cmd = [
-                "/home/lukas/.local/bin/docker-compose",
-                "-f", "gen/util-dc.yml", "run",
-                "-e", "PYTHONPATH=python/:", "--rm", "--entrypoint="]
-            server_cmd = base_cmd + [
-                "server",
-                "./python/integration/end2end_test.py", "-d",
-                "-so", "--data", data, "--server", str(self.server_ip),
-                "--port", str(port), str(src.isd_as), str(dst.isd_as)]
+            args = self._cmd_args(src, dst, ["--data", data, "--port", str(port)])
+            server_cmd = self._server_cmd(self.server_ip) + args
+            client_cmd = self._client_cmd(self.client_ip) + args
+            # Run exec commands, wait a bit for the server to be ready
             server = Popen(server_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=os.setsid)
-            time.sleep(0.5)
-            client_cmd = base_cmd + [
-                "client",
-                "./python/integration/end2end_test.py", "-d",
-                "-co", "--data", data, "--client", str(self.client_ip),
-                "--port", str(port), str(src.isd_as), str(dst.isd_as)]
+            time.sleep(0.2)
             client = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
             try:
-                (server_code, client_code) = [p.wait(5.0) for p in [server, client]]
+                (server_code, client_code) = [p.wait(10.0) for p in [server, client]]
             except TimeoutExpired:
                 os.killpg(os.getpgid(server.pid), signal.SIGTERM)
                 logging.error("Timeout waiting for subprocesses to terminate")
@@ -377,6 +367,19 @@ class TestClientServerBase(object):
         """
         return TestClientBase(data, finished, src, dst, port, retries=self.retries)
 
+    def _base_cmd(self):
+        return ["docker-compose", "-f", "gen/util-dc.yml",
+                "exec", "-T", "-e", "PYTHONPATH=python/:"]
+
+    def _server_cmd(self, ip):
+        return self._base_cmd() + ["server", self._test_cmd(), "--server_only", "--server", str(ip)]
+
+    def _client_cmd(self, ip):
+        return self._base_cmd() + ["client", self._test_cmd(), "--client_only", "--client", str(ip)]
+
+    def _cmd_args(self, src, dst, cmd=[]):
+        return cmd + [str(src.isd_as), str(dst.isd_as)]
+
 
 def _load_as_list():
     as_dict = load_yaml_file(os.path.join(GEN_PATH, AS_LIST_FILE))
@@ -420,9 +423,9 @@ def setup_main(name, parser=None):
                         help="Number of retries before giving up.")
     parser.add_argument('-d', '--docker', action='store_true', default=False,
                         help="Run with docker")
-    parser.add_argument('-co', '--client_only', action='store_true', default=False,
+    parser.add_argument('--client_only', action='store_true', default=False,
                         help="Run only client")
-    parser.add_argument('-so', '--server_only', action='store_true', default=False,
+    parser.add_argument('--server_only', action='store_true', default=False,
                         help="Run only server")
     parser.add_argument('--data', default=None, help="Data for client / server split run")
     parser.add_argument('--port', default=30000, help="Port for client / server split run")
