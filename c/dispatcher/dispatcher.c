@@ -242,6 +242,7 @@ void parse_cmdline(int argc, char **argv) {
 void unlink_socket() {
     char *sockpath = NULL;
     asprintf(&sockpath, "%s/default.sock", DISPATCHER_DIR);
+    errno = 0;
     if (unlink(sockpath)) {
         if (errno == ENOENT) {
             zlog_info(zc, "'%s' does not exist, ignoring -d flag.", sockpath);
