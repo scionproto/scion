@@ -121,8 +121,8 @@ type Connector interface {
 
 type connector struct {
 	sync.Mutex
-	dispatcher *disp.Dispatcher
 	requestID  uint64
+	dispatcher *disp.Dispatcher
 
 	// TODO(kormat): Move the caches to `service`, so they can be shared across connectors.
 	asInfos  *cache.Cache

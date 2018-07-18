@@ -133,7 +133,7 @@ func (as AS) FileFmt() string {
 
 func (as AS) fmt(sep byte) string {
 	if as > MaxAS {
-		return fmt.Sprintf("%d [Illegal AS: larger than %d]", as, MaxAS)
+		return fmt.Sprintf("%d [Illegal AS: larger than %d]", as, AS(MaxAS))
 	}
 	// Format BGP ASes as decimal
 	if as <= MaxBGPAS {

@@ -30,7 +30,7 @@ typedef struct {
 
 #define ISD_BITS 16
 #define AS_BITS 48
-#define AS_MASK ((1L << AS_BITS) - 1)
+#define AS_MASK (((uint64_t)1 << AS_BITS) - 1)
 
 #define ISD(isd_as) ((uint16_t)((isd_as) >> AS_BITS))
 #define AS(isd_as) ((isd_as) & AS_MASK)

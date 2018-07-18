@@ -808,7 +808,7 @@ void count_drops(int v6, uint32_t new_drops) {
     time_t now = time(NULL);
     // Only report if it's a new second, and packets have been dropped since the last report.
     if (now != last_report && drop_count > 0) {
-        zlog_warn(zc, "Dropped UDP packets: %lu", drop_count);
+        zlog_warn(zc, "Dropped UDP packets: %" PRIu64, drop_count);
         last_report = now;
         drop_count = 0;
     }
