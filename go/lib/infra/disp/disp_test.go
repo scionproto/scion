@@ -71,12 +71,10 @@ func quicSetup(t *testing.T) (*Dispatcher, *Dispatcher, *customObject, *customOb
 	xtest.FailOnErr(t, err)
 	addrA := a2b.LocalAddr()
 	addrB := b2a.LocalAddr()
-	trA, err := transport.NewQuicTransport(a2b, nil, nil,
-		"../../../../gen-certs/tls.pem", "../../../../gen-certs/tls.key")
+	trA, err := transport.NewQuicTransport(a2b, nil, nil, "testdata/tls.pem", "testdata/tls.key")
 	xtest.FailOnErr(t, err)
 	log.Debug("Init a")
-	trB, err := transport.NewQuicTransport(b2a, nil, nil,
-		"../../../../gen-certs/tls.pem", "../../../../gen-certs/tls.key")
+	trB, err := transport.NewQuicTransport(b2a, nil, nil, "testdata/tls.pem", "testdata/tls.key")
 	xtest.FailOnErr(t, err)
 	log.Debug("Init b")
 	dispA := New(trA, testAdapter, log.Root())
