@@ -163,9 +163,6 @@ char socket_path[UNIX_PATH_MAX];
 
 #define MAX_NUMBER_PINGS MAX_SOCKETS
 PingEntry *ping_list = NULL;
-
-bool delete_sock=false;
-
 int main(int argc, char **argv)
 {
     signal(SIGTERM, handle_signal);
@@ -213,31 +210,34 @@ int main(int argc, char **argv)
 
 void parse_cmdline(int argc, char **argv) {
     int c;
+    bool delete_sock=false;
+
 
     while (1) {
         int option_index = 0;
-        static struct option long_options[] = {
-            {"help",        no_argument, 0, 'h' },
-            {"delete-sock", no_argument, 0, 'd' },
-            {0,             0,           0, 0   }
+        const static struct option long_options[] = {
+            {"help",        no_argument, NULL, 'h' },
+            {"delete-sock", no_argument, NULL, 'd' },
+            {NULL,          0,           NULL, 0   }
         };
         c = getopt_long(argc, argv, "h", long_options, &option_index);
-        if (c == -1)
+        if (c == -1) {
             break;
+	}
 
-       switch(c) {
-       case 'h':
-           fprintf(stderr, "Usage: %s [flags]\n    -h,--help: this message\n"
-                   "    --delete-sock: delete Unix domain socket on start\n",
-                   argv[0]);
-           exit(1);
-       case 'd':
-           delete_sock = true;
-           break;
-       default:
-           fprintf(stderr, "Unknown option '%s'\n", argv[option_index+1]);
-           exit(2);
-       }
+        switch(c) {
+        case 'h':
+            fprintf(stderr, "Usage: %s [flags]\n    -h,--help: this message\n"
+                    "    --delete-sock: delete Unix domain socket on start\n",
+                    argv[0]);
+            exit(1);
+        case 'd':
+            delete_sock = true;
+            break;
+        default:
+            fprintf(stderr, "Unknown option '%s'\n", argv[option_index+1]);
+            exit(2);
+        }
     }
     if (delete_sock) {
        unlink_socket();
@@ -250,14 +250,14 @@ void unlink_socket() {
     errno = 0;
     if (unlink(sockpath)) {
         if (errno == ENOENT) {
-            zlog_info(zc, "'%s' does not exist, ignoring --delete-sock flag.", sockpath);
+            zlog_debug(zc, "'%s' does not exist, ignoring --delete-sock flag.", sockpath);
             return;
         }
-        zlog_error(zc, "could not unlink '%s': %s",
-                sockpath, strerror(errno));
+        zlog_error(zc, "could not unlink '%s': %s", sockpath, strerror(errno));
         exit(2);
     }
     zlog_info(zc, "successfully deleted '%s'", sockpath);
+    free(&sockpath);
 }
 
 void handle_signal(int sig)
