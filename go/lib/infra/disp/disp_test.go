@@ -71,11 +71,11 @@ func quicSetup(t *testing.T) (*Dispatcher, *Dispatcher, *customObject, *customOb
 	xtest.FailOnErr(t, err)
 	addrA := a2b.LocalAddr()
 	addrB := b2a.LocalAddr()
-	trA, err := transport.NewQuicTransport(a2b,
+	trA, err := transport.NewQuicTransport(a2b, nil, nil,
 		"../../../../gen-certs/tls.pem", "../../../../gen-certs/tls.key")
 	xtest.FailOnErr(t, err)
 	log.Debug("Init a")
-	trB, err := transport.NewQuicTransport(b2a,
+	trB, err := transport.NewQuicTransport(b2a, nil, nil,
 		"../../../../gen-certs/tls.pem", "../../../../gen-certs/tls.key")
 	xtest.FailOnErr(t, err)
 	log.Debug("Init b")
@@ -91,7 +91,7 @@ func TestRequestReply(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.name+": Setup", func() {
 				dispA, dispB, request, reply, addrA, addrB := tc.setup(t)
-				Convey(tc.name+": Request and reply (Parallel)", xtest.Parallel(func(sc *xtest.SC) {
+				Convey("Request and reply (Parallel)", xtest.Parallel(func(sc *xtest.SC) {
 					ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 					defer cancelF()
 					recvReply, err := dispA.Request(ctx, request, addrB)
@@ -116,7 +116,7 @@ func TestRequestNoReceiver(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.name+": Setup", func() {
 				dispA, _, request, _, _, addrB := tc.setup(t)
-				Convey(tc.name+": Request without receiver", func() {
+				Convey("Request without receiver", func() {
 					ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 					defer cancelF()
 					recvReply, err := dispA.Request(ctx, request, addrB)
@@ -134,7 +134,7 @@ func TestRequestBadReply(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.name+":Setup", func() {
 				dispA, dispB, request, _, addrA, addrB := tc.setup(t)
-				Convey(tc.name+": Request, and receive bad reply (Parallel)",
+				Convey("Request, and receive bad reply (Parallel)",
 					xtest.Parallel(func(sc *xtest.SC) {
 						ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 						defer cancelF()
@@ -164,7 +164,7 @@ func TestNotifyOk(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.name+": Setup", func() {
 				dispA, dispB, notification, _, _, addrB := tc.setup(t)
-				Convey(tc.name+": Notify and receive (Parallel)",
+				Convey("Notify and receive (Parallel)",
 					xtest.Parallel(func(sc *xtest.SC) {
 						ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 						defer cancelF()
@@ -188,7 +188,7 @@ func TestUnreliableNotify(t *testing.T) {
 		tc := testCases[0] // Makes only sense for un-reliable transport.
 		Convey(tc.name+": Setup", func() {
 			dispA, dispB, notification, _, _, addrB := tc.setup(t)
-			Convey(tc.name+": Unreliable notify and return immediately", func() {
+			Convey("Unreliable notify and return immediately", func() {
 				// Close dispB to make sure its transport layer doesn't ACK
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()

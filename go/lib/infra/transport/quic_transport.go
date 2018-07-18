@@ -22,24 +22,25 @@ import (
 
 	quic "github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/qerr"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (
-	defKeyFile  = "gen-certs/tls.key"
-	defCertFile = "gen-certs/tls.pem"
-	maxReadMsgs = 1 << 8
+	quicDefKeyFile  = "gen-certs/tls.key"
+	quicDefCertFile = "gen-certs/tls.pem"
+	quicMaxReadMsgs = 1 << 8
 )
-
-var _ infra.Transport = (*QuicTransport)(nil)
 
 type receivedMessage struct {
 	data common.RawBytes
 	peer net.Addr
 	err  error
 }
+
+var _ infra.Transport = (*QuicTransport)(nil)
 
 // QuicTransport implements interface Transport by creating a QUIC connection around the given
 // net.PacketConn. Since QUIC is a reliable protocol both Send methods will be reliable.
@@ -48,20 +49,23 @@ type receivedMessage struct {
 // that sends the received data to the receive method.
 type QuicTransport struct {
 	conn          net.PacketConn
-	listener      *quic.Listener
+	listener      quic.Listener
 	recvChan      chan receivedMessage
 	clientTLSConf *tls.Config
-	exit          bool
+	clientConf    *quic.Config
+	exit          chan struct{}
 }
 
-// NewQuicTransport creates a new QuicTransport, this also create a listener to acccept data.
+// NewQuicTransport creates a new QuicTransport, this also creates a listener to acccept data.
 // In case the listener creation failed nil and the error is returned.
-func NewQuicTransport(conn net.PacketConn, tlsCertFile, tlsCertKey string) (*QuicTransport, error) {
+// Use clientConf and serverConf to configure the quic connection.
+func NewQuicTransport(conn net.PacketConn, clientConf, serverConf *quic.Config,
+	tlsCertFile, tlsCertKey string) (*QuicTransport, error) {
 	servTLSConf, err := initTls(tlsCertFile, tlsCertKey)
 	if err != nil {
 		return nil, err
 	}
-	listener, err := quic.Listen(conn, servTLSConf, nil)
+	listener, err := quic.Listen(conn, servTLSConf, serverConf)
 	if err != nil {
 		return nil, err
 	}
@@ -71,23 +75,40 @@ func NewQuicTransport(conn net.PacketConn, tlsCertFile, tlsCertKey string) (*Qui
 
 	t := &QuicTransport{
 		conn:          conn,
-		listener:      &listener,
-		recvChan:      make(chan receivedMessage, maxReadMsgs),
+		listener:      listener,
+		recvChan:      make(chan receivedMessage, quicMaxReadMsgs),
 		clientTLSConf: clientTLSConf,
+		clientConf:    clientConf,
+		exit:          make(chan struct{}),
 	}
 	go t.clientAcceptor()
-	// just to make sure that the acceptor is running
-	<-t.recvChan
 	return t, nil
 }
 
+func initTls(tlsCertFile, tlsKeyFile string) (*tls.Config, error) {
+	certFile := tlsCertFile
+	if certFile == "" {
+		certFile = quicDefCertFile
+	}
+	keyFile := tlsKeyFile
+	if keyFile == "" {
+		keyFile = quicDefKeyFile
+	}
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, common.NewBasicError("squic: Unable to load TLS cert/key", err)
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}}, nil
+}
+
 func (t *QuicTransport) clientAcceptor() {
-	// just to make sure that the acceptor is running
-	t.recvChan <- receivedMessage{}
+	defer log.LogPanicAndExit()
 	for {
-		qsess, err := (*t.listener).Accept()
-		if t.exit {
+		qsess, err := t.listener.Accept()
+		select {
+		case <-t.exit:
 			break
+		default:
 		}
 		if err != nil {
 			log.Crit("Error during accept", "err", err)
@@ -98,6 +119,7 @@ func (t *QuicTransport) clientAcceptor() {
 }
 
 func (t *QuicTransport) handleClient(qsess quic.Session) {
+	defer log.LogPanicAndExit()
 	qstream, err := qsess.AcceptStream()
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
@@ -148,7 +170,7 @@ func (t *QuicTransport) SendUnreliableMsgTo(ctx context.Context, b common.RawByt
 
 func (t *QuicTransport) SendMsgTo(ctx context.Context, b common.RawBytes,
 	address net.Addr) error {
-	qsess, err := quic.DialAddrContext(ctx, address.String(), t.clientTLSConf, nil)
+	qsess, err := quic.DialAddrContext(ctx, address.String(), t.clientTLSConf, t.clientConf)
 	if err != nil {
 		return err
 	}
@@ -157,6 +179,9 @@ func (t *QuicTransport) SendMsgTo(ctx context.Context, b common.RawBytes,
 		return err
 	}
 	defer qstream.Close()
+	if deadline, ok := ctx.Deadline(); ok {
+		qstream.SetWriteDeadline(deadline)
+	}
 	written, err := qstream.Write(b)
 	if err != nil {
 		return err
@@ -168,28 +193,16 @@ func (t *QuicTransport) SendMsgTo(ctx context.Context, b common.RawBytes,
 }
 
 func (t *QuicTransport) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
-	msg := <-t.recvChan
-	log.Debug("Message recvd", "msg", string(msg.data))
-	return msg.data, msg.peer, msg.err
+	select {
+	case msg := <-t.recvChan:
+		log.Debug("Message recvd", "msg", string(msg.data))
+		return msg.data, msg.peer, msg.err
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	}
 }
 
 func (t *QuicTransport) Close(context.Context) error {
-	t.exit = true
-	return (*t.listener).Close()
-}
-
-func initTls(tlsCertFile, tlsKeyFile string) (*tls.Config, error) {
-	certFile := tlsCertFile
-	if certFile == "" {
-		certFile = defCertFile
-	}
-	keyFile := tlsKeyFile
-	if keyFile == "" {
-		keyFile = defKeyFile
-	}
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, common.NewBasicError("squic: Unable to load TLS cert/key", err)
-	}
-	return &tls.Config{Certificates: []tls.Certificate{cert}}, nil
+	close(t.exit)
+	return t.listener.Close()
 }
