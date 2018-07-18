@@ -223,7 +223,7 @@ void parse_cmdline(int argc, char **argv) {
         c = getopt_long(argc, argv, "h", long_options, &option_index);
         if (c == -1) {
             break;
-	}
+        }
 
         switch(c) {
         case 'h':
@@ -251,6 +251,7 @@ void unlink_socket() {
     if (unlink(sockpath)) {
         if (errno == ENOENT) {
             zlog_debug(zc, "'%s' does not exist, ignoring --delete-sock flag.", sockpath);
+            free(&sockpath);
             return;
         }
         zlog_error(zc, "could not unlink '%s': %s", sockpath, strerror(errno));
