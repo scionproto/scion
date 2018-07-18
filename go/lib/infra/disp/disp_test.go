@@ -67,20 +67,27 @@ func quicSetup(t *testing.T) (*Dispatcher, *Dispatcher, *customObject, *customOb
 	net.Addr, net.Addr) {
 	a2b, err := net.ListenPacket("udp", "127.0.0.1:")
 	xtest.FailOnErr(t, err)
-	b2a, err := net.ListenPacket("udp", "127.0.0.1:")
-	xtest.FailOnErr(t, err)
 	addrA := a2b.LocalAddr()
-	addrB := b2a.LocalAddr()
 	trA, err := transport.NewQuicTransport(a2b, nil, nil, "testdata/tls.pem", "testdata/tls.key")
 	xtest.FailOnErr(t, err)
 	log.Debug("Init a")
+	// Make sure the listener is started.
+	time.Sleep(100 * time.Millisecond)
+
+	b2a, err := net.ListenPacket("udp", "127.0.0.1:")
+	xtest.FailOnErr(t, err)
+	addrB := b2a.LocalAddr()
 	trB, err := transport.NewQuicTransport(b2a, nil, nil, "testdata/tls.pem", "testdata/tls.key")
 	xtest.FailOnErr(t, err)
 	log.Debug("Init b")
+	// Make sure the listener is started.
+	time.Sleep(100 * time.Millisecond)
+
 	dispA := New(trA, testAdapter, log.Root())
 	dispB := New(trB, testAdapter, log.Root())
 	request := &customObject{8, "request"}
 	reply := &customObject{8, "reply"}
+
 	return dispA, dispB, request, reply, addrA, addrB
 }
 
