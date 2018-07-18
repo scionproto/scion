@@ -100,6 +100,12 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, 
 		rp.CmnHdr.TotalLen = uint16(len(rp.Raw))
 		rp.CmnHdr.Write(rp.Raw)
 	}
+	if _, err := rp.InfoF(); err != nil {
+		return nil, err
+	}
+	if _, err := rp.ConsDirFlag(); err != nil {
+		return nil, err
+	}
 	return rp, nil
 }
 
@@ -195,8 +201,6 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 		if err != nil {
 			return nil, err
 		}
-		reply.InfoF()
-		reply.ConsDirFlag()
 		if hopF != nil && hopF.Xover {
 			// Always increment reversed path on a xover point.
 			if _, err := reply.IncPath(); err != nil {
