@@ -40,7 +40,7 @@ void simple_test() {
         chk_add_chunk(input, data, sizeof(data));
         checksum(input);
     }
-    printf("simple_test(%zu = %zuB): %"PRId64" in %ds (%.2lfM calls/s)\n",
+    printf("simple_test(%zu = %zuB): %" PRIu64 " in %ds (%.2lfM calls/s)\n",
         sizeof(data), sizeof(data), i, RUN_TIME, ((double)i/RUN_TIME)/1000000);
 }
 
