@@ -85,7 +85,7 @@ class TrustStore(object):
         with self._trcs_lock:
             if not self._trcs[isd]:
                 return None
-            if version is None:
+            if version is None or version == 0:
                 # Return the most recent TRC.
                 _, trc = max(self._trcs[isd])
                 return trc
@@ -106,7 +106,7 @@ class TrustStore(object):
         with self._certs_lock:
             if not self._certs[isd_as]:
                 return None
-            if version is None:
+            if version is None or version == 0:
                 # Return the most recent cert.
                 _, cert = max(self._certs[isd_as])
                 return cert
