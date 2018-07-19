@@ -37,6 +37,8 @@ def sciond_default():
                         help='Address to bind to (Default: 127.0.0.1)')
     parser.add_argument('--api-addr',
                         help='Address to bind to (Default: %s)' % get_default_sciond_path())
+    parser.add_argument('--delete-sock', action='store_true',
+                        help='Delete Unix domain socket on start')
     parser.add_argument('sciond_id', help='Sciond identifier')
     parser.add_argument('conf_dir', nargs='?', default='.',
                         help='Configuration directory (Default: ./)')
@@ -46,7 +48,7 @@ def sciond_default():
     addr = haddr_parse_interface(args.addr)
 
     inst = SCIONDaemon(args.conf_dir, addr, args.api_addr, spki_cache_dir=args.spki_cache_dir,
-                       run_local_api=True, port=0)
+                       run_local_api=True, port=0, delete_sock=args.delete_sock)
     logging.info("Started %s", args.sciond_id)
     inst.run()
 
