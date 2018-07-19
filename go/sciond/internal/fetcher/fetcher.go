@@ -320,7 +320,6 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	}
 	paths := combinator.Combine(req.Src.IA(), req.Dst.IA(), ups, cores, downs)
 	paths = f.filterRevokedPaths(paths)
-	paths = combinator.FilterLongPaths(paths)
 	return paths, nil
 }
 

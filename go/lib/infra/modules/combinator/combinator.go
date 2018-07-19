@@ -215,13 +215,13 @@ func FilterLongPaths(paths []*Path) []*Path {
 	var newPaths []*Path
 	for _, path := range paths {
 		long := false
-		seenIFIDs := make(map[sciond.PathInterface]struct{})
+		iaCounts := make(map[addr.IA]int)
 		for _, iface := range path.Interfaces {
-			if _, ok := seenIFIDs[iface]; ok {
+			iaCounts[iface.ISD_AS()]++
+			if iaCounts[iface.ISD_AS()] > 2 {
 				long = true
 				break
 			}
-			seenIFIDs[iface] = struct{}{}
 		}
 		if !long {
 			newPaths = append(newPaths, path)
