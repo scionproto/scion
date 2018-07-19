@@ -115,6 +115,19 @@ func NewContextWithMessenger(ctx context.Context, msger Messenger) context.Conte
 	return context.WithValue(ctx, messengerContextKey, msger)
 }
 
+type MessageType string
+
+const (
+	ChainRequest       MessageType = "ChainRequest"
+	Chain              MessageType = "Chain"
+	TRCRequest         MessageType = "TRCRequest"
+	TRC                MessageType = "TRC"
+	PathSegmentRequest MessageType = "PathSegmentRequest"
+	PathSegmentReply   MessageType = "PathSegmentReply"
+	ChainIssueRequest  MessageType = "ChainIssueRequest"
+	ChainIssueReply    MessageType = "ChainIssueReply"
+)
+
 type Messenger interface {
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
 		id uint64) (*cert_mgmt.TRC, error)
@@ -128,7 +141,7 @@ type Messenger interface {
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
 		id uint64) error
-	AddHandler(msgType string, h Handler)
+	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error
 }

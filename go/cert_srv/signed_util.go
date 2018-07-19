@@ -63,7 +63,7 @@ func VerifyChain(subject addr.IA, chain *cert.Chain, store *trust.Store) error {
 	if err != nil {
 		return common.NewBasicError("TRC not present", nil, "isd", chain.Issuer.Issuer.I)
 	}
-	if err := maxTrc.CheckActive(maxTrc); err != nil {
+	if err := maxTrc.IsActive(maxTrc); err != nil {
 		return common.NewBasicError("Newest TRC not active", err)
 	}
 	if err := chain.Verify(subject, maxTrc); err != nil {
@@ -74,7 +74,7 @@ func VerifyChain(subject addr.IA, chain *cert.Chain, store *trust.Store) error {
 				return err
 			}
 		}
-		if graceTrc == nil || graceTrc.CheckActive(maxTrc) != nil {
+		if graceTrc == nil || graceTrc.IsActive(maxTrc) != nil {
 			return common.NewBasicError("Unable to verify chain", err)
 		}
 		if errG := chain.Verify(subject, graceTrc); errG != nil {
