@@ -210,7 +210,8 @@ func flagPrint(name string, b bool) string {
 }
 
 // FilterLongPaths returns a new slice containing only those paths that do not
-// contain the same IFID twice.
+// go more than twice through interfaces belonging to the same AS (thus
+// filtering paths containing useless loops).
 func FilterLongPaths(paths []*Path) []*Path {
 	var newPaths []*Path
 	for _, path := range paths {
