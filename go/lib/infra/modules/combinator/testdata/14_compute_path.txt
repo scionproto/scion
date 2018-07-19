@@ -14,23 +14,3 @@ Path #0:
     2-ff00:0:211#2325
     2-ff00:0:211#2326
     2-ff00:0:222#2623
-Path #1:
-  Weight: 4
-  Fields:
-    IF ... ISD=2
-      HF .. InIF=2523 OutIF=0
-      HF .. InIF=2321 OutIF=2325
-      HF X. InIF=0 OutIF=2123
-    IF C.. ISD=2
-      HF X. InIF=0 OutIF=2123
-      HF .. InIF=2321 OutIF=2326
-      HF .. InIF=2623 OutIF=0
-  Interfaces:
-    2-ff00:0:212#2523
-    2-ff00:0:211#2325
-    2-ff00:0:211#2321
-    2-ff00:0:210#2123
-    2-ff00:0:210#2123
-    2-ff00:0:211#2321
-    2-ff00:0:211#2326
-    2-ff00:0:222#2623
