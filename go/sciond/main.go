@@ -185,14 +185,12 @@ func realMain() int {
 		if config.SD.DeleteSocket {
 			if _, err := os.Stat(config.SD.Reliable); !os.IsNotExist(err) {
 				if err := os.Remove(config.SD.Reliable); err != nil {
-					fatalC <- common.NewBasicError("ReliableSockServer SocketRemoval error", nil,
-						"err", err)
+					fatalC <- common.NewBasicError("ReliableSockServer SocketRemoval error", err)
 				}
 			}
 		}
 		if err := rsockServer.ListenAndServe(); err != nil {
-			fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", nil,
-				"err", err)
+			fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", err)
 		}
 	}()
 	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, handlers, log.Root())
@@ -202,20 +200,19 @@ func realMain() int {
 		if config.SD.DeleteSocket {
 			if _, err := os.Stat(config.SD.Unix); !os.IsNotExist(err) {
 				if err := os.Remove(config.SD.Unix); err != nil {
-					fatalC <- common.NewBasicError("UnixServer SocketRemoval error", nil,
-						"err", err)
+					fatalC <- common.NewBasicError("UnixServer SocketRemoval error", err)
 				}
 			}
 		}
 		if err := unixpacketServer.ListenAndServe(); err != nil {
-			fatalC <- common.NewBasicError("UnixServer ListenAndServe error", nil, "err", err)
+			fatalC <- common.NewBasicError("UnixServer ListenAndServe error", err)
 		}
 	}()
 	if config.Metrics.Prometheus != "" {
 		go func() {
 			defer log.LogPanicAndExit()
 			if err := http.ListenAndServe(config.Metrics.Prometheus, nil); err != nil {
-				fatalC <- common.NewBasicError("HTTP ListenAndServe error", nil, "err", err)
+				fatalC <- common.NewBasicError("HTTP ListenAndServe error", err)
 			}
 		}()
 	}
