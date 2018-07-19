@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/transport"
@@ -56,48 +57,54 @@ func setup() error {
 
 	// Initialize infra messaging stack if not already initialized
 	if oldConf == nil {
-		if err = initSNET(newConf.PublicAddr.IA, initAttempts, initInterval); err != nil {
-			return common.NewBasicError(ErrorSNET, err)
-		}
-		conn, err := snet.ListenSCIONWithBindSVC("udp4", newConf.PublicAddr, newConf.BindAddr,
-			addr.SvcCS)
-		if err != nil {
-			return err
-		}
-		msger := messenger.New(
-			disp.New(
-				transport.NewPacketTransport(conn),
-				messenger.DefaultAdapter,
-				log.Root(),
-			),
-			newConf.Store,
+		return setupNewConf(newConf)
+	}
+	return nil
+}
+
+func setupNewConf(newConf *conf.Conf) error {
+	var err error
+	if err = initSNET(newConf.PublicAddr.IA, initAttempts, initInterval); err != nil {
+		return common.NewBasicError(ErrorSNET, err)
+	}
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", newConf.PublicAddr, newConf.BindAddr,
+		addr.SvcCS)
+	if err != nil {
+		return err
+	}
+	msger := messenger.New(
+		disp.New(
+			transport.NewPacketTransport(conn),
+			messenger.DefaultAdapter,
 			log.Root(),
-		)
-		newConf.Store.SetMessenger(msger)
-		msger.AddHandler(messenger.ChainRequest, newConf.Store.NewChainReqHandler(true))
-		msger.AddHandler(messenger.TRCRequest, newConf.Store.NewTRCReqHandler(true))
-		msger.AddHandler(messenger.Chain, newConf.Store.NewChainPushHandler())
-		msger.AddHandler(messenger.TRC, newConf.Store.NewTRCPushHandler())
-		msger.AddHandler(messenger.ChainIssueRequest, &ReissHandler{})
-		msger.UpdateSigner(newConf.GetSigner(), []string{messenger.ChainIssueRequest})
-		msger.UpdateVerifier(newConf.GetVerifier())
+		),
+		newConf.Store,
+		log.Root(),
+	)
+	newConf.Store.SetMessenger(msger)
+	msger.AddHandler(infra.ChainRequest, newConf.Store.NewChainReqHandler(true))
+	msger.AddHandler(infra.TRCRequest, newConf.Store.NewTRCReqHandler(true))
+	msger.AddHandler(infra.Chain, newConf.Store.NewChainPushHandler())
+	msger.AddHandler(infra.TRC, newConf.Store.NewTRCPushHandler())
+	msger.AddHandler(infra.ChainIssueRequest, &ReissHandler{})
+	msger.UpdateSigner(newConf.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
+	msger.UpdateVerifier(newConf.GetVerifier())
+	go func() {
+		defer log.LogPanicAndExit()
+		msger.ListenAndServe()
+	}()
+	if newConf.Topo.Core {
 		go func() {
-			log.LogPanicAndExit()
-			msger.ListenAndServe()
+			selfIssuer := &SelfIssuer{}
+			defer log.LogPanicAndExit()
+			selfIssuer.Run()
 		}()
-		if newConf.Topo.Core {
-			go func() {
-				selfIssuer := &SelfIssuer{}
-				log.LogPanicAndExit()
-				selfIssuer.Run()
-			}()
-		} else {
-			go func() {
-				reissRequester := NewReissRequester(msger)
-				log.LogPanicAndExit()
-				reissRequester.Run()
-			}()
-		}
+	} else {
+		go func() {
+			reissRequester := NewReissRequester(msger)
+			defer log.LogPanicAndExit()
+			reissRequester.Run()
+		}()
 	}
 	return nil
 }

@@ -41,9 +41,8 @@ func (h *trcReqHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("trcReq", trcReq)
-	logger.Debug("[TrustStore:trcReqHandler] Received request",
-		"request", trcReq, "peer", h.request.Peer)
+	logger := h.log.New("trcReq", trcReq, "peer", h.request.Peer)
+	logger.Debug("[TrustStore:trcReqHandler] Received request")
 	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:trcReqHandler] Unable to service request, no Messenger found")
@@ -97,9 +96,8 @@ func (h *chainReqHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("chainReq", chainReq)
-	logger.Debug("[TrustStore:chainReqHandler] Received request",
-		"request", chainReq, "peer", h.request.Peer)
+	logger := h.log.New("chainReq", chainReq, "peer", h.request.Peer)
+	logger.Debug("[TrustStore:chainReqHandler] Received request")
 	messenger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Warn("[TrustStore:chainReqHandler] Unable to service request, no Messenger found")
@@ -149,9 +147,8 @@ func (h *trcPushHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("trcPush", trcPush)
-	logger.Debug("[TrustStore:trcPushHandler] Received push",
-		"push", trcPush, "peer", h.request.Peer)
+	logger := h.log.New("trcPush", trcPush, "peer", h.request.Peer)
+	logger.Debug("[TrustStore:trcPushHandler] Received push")
 	// FIXME(scrye): Verify that the TRC is valid by using the trust store and
 	// known trust topology. Use h.Request.Peer to retrieve missing TRCs.
 	trcObj, err := trcPush.TRC()
@@ -167,8 +164,7 @@ func (h *trcPushHandler) Handle() {
 		return
 	}
 	if n != 0 {
-		logger.Debug("[TrustStore:trcPushHandler] Inserted TRC into DB",
-			"trc", trcObj, "peer", h.request.Peer)
+		logger.Debug("[TrustStore:trcPushHandler] Inserted TRC into DB", "trc", trcObj)
 	}
 }
 
@@ -185,9 +181,8 @@ func (h *chainPushHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	logger := h.log.New("chainPush", chainPush)
-	logger.Debug("[TrustStore:chainPushHandler] Received push",
-		"push", chainPush, "peer", h.request.Peer)
+	logger := h.log.New("chainPush", chainPush, "peer", h.request.Peer)
+	logger.Debug("[TrustStore:chainPushHandler] Received push")
 	// FIXME(scrye): Verify that the chain is valid by using the trust store.
 	chain, err := chainPush.Chain()
 	if err != nil {
@@ -203,7 +198,6 @@ func (h *chainPushHandler) Handle() {
 		return
 	}
 	if n != 0 {
-		logger.Debug("[TrustStore:chainPushHandler] Inserted chain into DB",
-			"chain", chain, "peer", h.request.Peer)
+		logger.Debug("[TrustStore:chainPushHandler] Inserted chain into DB", "chain", chain)
 	}
 }

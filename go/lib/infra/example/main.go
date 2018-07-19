@@ -42,9 +42,9 @@ func main() {
 	// Initialize networking and modules
 	serverApp := InitDefaultNetworking(s2c)
 	// Initialize Server
-	serverApp.messenger.AddHandler(messenger.ChainRequest,
+	serverApp.messenger.AddHandler(infra.ChainRequest,
 		serverApp.trustStore.NewChainReqHandler(false))
-	serverApp.messenger.AddHandler(messenger.TRCRequest,
+	serverApp.messenger.AddHandler(infra.TRCRequest,
 		serverApp.trustStore.NewTRCReqHandler(false))
 	go serverApp.messenger.ListenAndServe()
 	// Do work

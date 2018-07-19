@@ -78,7 +78,7 @@ func TestTRCExchange(t *testing.T) {
 		}, func(sc *xtest.SC) {
 			// The server receives a TRC request from the client, passes it to
 			// the mock TRCRequest handler which sends back the result.
-			serverMessenger.AddHandler(TRCRequest, infra.HandlerFunc(MockTRCHandler))
+			serverMessenger.AddHandler(infra.TRCRequest, infra.HandlerFunc(MockTRCHandler))
 			serverMessenger.ListenAndServe()
 		}))
 	})

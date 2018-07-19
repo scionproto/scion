@@ -95,7 +95,8 @@ func NewStore(db *trustdb.DB, local addr.IA, startID uint64, options *Options,
 	return store, nil
 }
 
-// SetMessenger enables network access for the trust store via msger.
+// SetMessenger enables network access for the trust store via msger. The
+// messenger can only be set once.
 func (store *Store) SetMessenger(msger infra.Messenger) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
@@ -116,7 +117,7 @@ func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) 
 		Version:   req.version,
 		CacheOnly: req.cacheOnly,
 	}
-	trcMsg, err := store.msger.GetTRC(ctx, trcReqMsg, req.source, req.id)
+	trcMsg, err := store.msger.GetTRC(ctx, trcReqMsg, req.server, req.id)
 	if err != nil {
 		return wrapErr(err)
 	}
@@ -144,7 +145,7 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 		Version:   req.version,
 		CacheOnly: req.cacheOnly,
 	}
-	chainMsg, err := store.msger.GetCertChain(ctx, chainReqMsg, req.source, req.id)
+	chainMsg, err := store.msger.GetCertChain(ctx, chainReqMsg, req.server, req.id)
 	if err != nil {
 		return wrapErr(common.NewBasicError("Unable to get CertChain from peer", err))
 	}
@@ -190,7 +191,7 @@ func (store *Store) GetValidTRC(ctx context.Context, isd addr.ISD,
 // the validator. Once it gets the TRC for ISD2, it returns it. The TRC for
 // ISD2 is then used to download the TRC for ISD1.
 func (store *Store) getValidTRC(ctx context.Context, trail []addr.ISD,
-	recurse bool, source net.Addr) (*trc.TRC, error) {
+	recurse bool, server net.Addr) (*trc.TRC, error) {
 
 	if len(trail) == 0 {
 		// We've reached the end of the trail and did not find a trust anchor,
@@ -209,7 +210,7 @@ func (store *Store) getValidTRC(ctx context.Context, trail []addr.ISD,
 
 	// The TRC needed to perform verification is not in trustdb; advance the
 	// trail and recursively try to get the next TRC.
-	nextTRC, err := store.getValidTRC(ctx, trail[1:], recurse, source)
+	nextTRC, err := store.getValidTRC(ctx, trail[1:], recurse, server)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +222,7 @@ func (store *Store) getValidTRC(ctx context.Context, trail []addr.ISD,
 		isd:      trail[0],
 		version:  0,
 		id:       store.nextID(),
-		source:   source,
+		server:   server,
 		postHook: store.newTRCValidator(nextTRC),
 	})
 }
@@ -254,15 +255,16 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 	if err := store.isLocal(requester); err != nil {
 		return nil, err
 	}
-	source, err := store.ChooseSource(addr.IA{I: isd})
+	server, err := store.ChooseServer(addr.IA{I: isd})
 	if err != nil {
-		return nil, common.NewBasicError("Error determining information source", err)
+		return nil, common.NewBasicError("Error determining server to query", err,
+			"requested_isd", isd, "requested_version", version)
 	}
 	return store.getTRCFromNetwork(ctx, &trcRequest{
 		isd:      isd,
 		version:  version,
 		id:       store.nextID(),
-		source:   source,
+		server:   server,
 		postHook: nil, // Disable verification / database insertion
 	})
 }
@@ -313,23 +315,24 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 	}
 
 	// FIXME(scrye): Currently send message to CS in remote AS, but this should
-	// change once source hints can be passed to the trust store.
+	// change once server hints can be passed to the trust store.
 	return store.getValidChain(ctx, ia, trail, true, &snet.Addr{IA: ia, Host: addr.SvcCS})
 }
 
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, trail []addr.ISD,
-	recurse bool, source net.Addr) (*cert.Chain, error) {
+	recurse bool, server net.Addr) (*cert.Chain, error) {
 
 	chain, err := store.trustdb.GetChainVersionCtx(ctx, ia, 0)
 	if err != nil || chain != nil {
 		return chain, err
 	}
 	if store.options.MustHaveLocalChain && store.ia.Eq(ia) {
-		return nil, common.NewBasicError(ErrMissingAuthoritative, nil)
+		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
+			"requested_ia", ia)
 	}
 	// Chain not found, so we'll need to fetch one. First, fetch the TRC we'll
 	// need during certificate chain validation.
-	trcObj, err := store.getValidTRC(ctx, trail, recurse, source)
+	trcObj, err := store.getValidTRC(ctx, trail, recurse, server)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +345,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, trail []addr.
 		ia:       ia,
 		version:  0,
 		id:       store.nextID(),
-		source:   source,
+		server:   server,
 		postHook: store.newChainValidator(trcObj),
 	})
 }
@@ -371,7 +374,8 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	}
 	// If we're authoritative for the requested IA, error out now.
 	if store.options.MustHaveLocalChain && store.ia.Eq(ia) {
-		return nil, common.NewBasicError(ErrMissingAuthoritative, nil)
+		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
+			"requested ia", ia)
 	}
 	if recurse == false {
 		return nil, common.NewBasicError("Chain not found in DB, and recursion disabled", nil,
@@ -380,15 +384,16 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	if err := store.isLocal(client); err != nil {
 		return nil, err
 	}
-	source, err := store.ChooseSource(ia)
+	server, err := store.ChooseServer(ia)
 	if err != nil {
-		return nil, common.NewBasicError("Error determining information source", err)
+		return nil, common.NewBasicError("Error determining server to query", err,
+			"requested_ia", ia, "requested_version", version)
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
 		version:  version,
 		id:       store.nextID(),
-		source:   source,
+		server:   server,
 		postHook: nil,
 	})
 }
@@ -619,9 +624,9 @@ func (store *Store) isLocal(address net.Addr) error {
 	return nil
 }
 
-// ChooseSource builds a CS address for crypto material regarding the
+// ChooseServer builds a CS address for crypto material regarding the
 // destination AS.
-func (store *Store) ChooseSource(destination addr.IA) (net.Addr, error) {
+func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 	if len(store.options.LocalCSes) != 0 {
 		return store.options.LocalCSes[rand.Intn(len(store.options.LocalCSes))], nil
 	}
