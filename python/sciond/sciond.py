@@ -18,6 +18,7 @@
 # Stdlib
 import logging
 import os
+import errno
 import threading
 import time
 from itertools import product
@@ -108,7 +109,7 @@ class SCIONDaemon(SCIONElement):
     EMPTY_PATH_TTL = SEGMENT_TTL
 
     def __init__(self, conf_dir, addr, api_addr, run_local_api=False,
-                 port=None, spki_cache_dir=GEN_CACHE_PATH, prom_export=None):
+                 port=None, spki_cache_dir=GEN_CACHE_PATH, prom_export=None, delete_sock=False):
         """
         Initialize an instance of the class SCIONDaemon.
         """
@@ -128,6 +129,12 @@ class SCIONDaemon(SCIONElement):
         self.daemon_thread = None
         os.makedirs(SCIOND_API_SOCKDIR, exist_ok=True)
         self.api_addr = (api_addr or get_default_sciond_path())
+        if delete_sock:
+            try:
+                os.remove(self.api_addr)
+            except OSError as e:
+                if e.errno != errno.ENOENT:
+                    logging.error("Could not delete socket %s: %s" % (self.api_addr, e))
 
         self.CTRL_PLD_CLASS_MAP = {
             PayloadClass.PATH: {
