@@ -34,6 +34,7 @@ import (
 	"github.com/lucas-clemente/quic-go/qerr"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -345,6 +346,10 @@ func (s server) run() {
 	qsock, err := squic.ListenSCION(nil, &local)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
+	}
+	if len(os.Getenv(integration.GoIntegrationEnv)) > 0 {
+		// Needed for integration test ready signal.
+		fmt.Printf("%s%s\n", integration.ReadySignal, local.IA)
 	}
 	log.Info("Listening", "local", qsock.Addr())
 	for {
