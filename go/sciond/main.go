@@ -63,6 +63,8 @@ type Config struct {
 		// Address to listen on for normal unixgram messages. If empty, a
 		// unixgram server on the default socket is started.
 		Unix string
+		// If set to True, the socket is removed before being created
+		DeleteSocket bool
 		// Public is the local address to listen on for SCION messages (if Bind is
 		// not set), and to send out messages to other nodes.
 		Public *snet.Addr
@@ -180,6 +182,14 @@ func realMain() int {
 	defer shutdownF()
 	go func() {
 		defer log.LogPanicAndExit()
+		if config.SD.DeleteSocket {
+			if _, err := os.Stat(config.SD.Reliable); !os.IsNotExist(err) {
+				if err := os.Remove(config.SD.Reliable); err != nil {
+					fatalC <- common.NewBasicError("ReliableSockServer SocketRemoval error", nil,
+						"err", err)
+				}
+			}
+		}
 		if err := rsockServer.ListenAndServe(); err != nil {
 			fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", nil,
 				"err", err)
@@ -189,6 +199,14 @@ func realMain() int {
 	defer shutdownF()
 	go func() {
 		defer log.LogPanicAndExit()
+		if config.SD.DeleteSocket {
+			if _, err := os.Stat(config.SD.Unix); !os.IsNotExist(err) {
+				if err := os.Remove(config.SD.Unix); err != nil {
+					fatalC <- common.NewBasicError("UnixServer SocketRemoval error", nil,
+						"err", err)
+				}
+			}
+		}
 		if err := unixpacketServer.ListenAndServe(); err != nil {
 			fatalC <- common.NewBasicError("UnixServer ListenAndServe error", nil, "err", err)
 		}
