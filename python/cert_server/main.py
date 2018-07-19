@@ -275,7 +275,6 @@ class CertServer(SCIONElement):
 
     def _check_cc(self, key):
         isd_as, ver = key
-        ver = None if ver == CertChainRequest.NEWEST_VERSION else ver
         cert_chain = self.trust_store.get_cert(isd_as, ver)
         if cert_chain:
             return True
@@ -304,7 +303,6 @@ class CertServer(SCIONElement):
 
     def _reply_cc(self, key, req_info):
         isd_as, ver = key
-        ver = None if ver == CertChainRequest.NEWEST_VERSION else ver
         meta = req_info[0]
         req_id = req_info[2]
         cert_chain = self.trust_store.get_cert(isd_as, ver)
