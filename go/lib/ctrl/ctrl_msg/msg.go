@@ -54,7 +54,7 @@ func (r *Requester) Request(ctx context.Context, pld *ctrl.Pld,
 		return nil, nil, common.NewBasicError("ctrl_msg: reply is not a ctrl.SignedPld", nil,
 			"type", common.TypeOf(reply), "reply", reply)
 	}
-	if err := r.sigv.Verify(rspld); err != nil {
+	if err := r.sigv.Verify(ctx, rspld); err != nil {
 		return nil, rspld.Sign, err
 	}
 	rpld, err := rspld.Pld()

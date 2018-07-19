@@ -165,15 +165,15 @@ func TRCFromFile(path string, lz4_ bool) (*TRC, error) {
 	return TRCFromRaw(raw, lz4_)
 }
 
-// TRCFromDir reads all the *.trc files contained directly in dir (no
-// subdirectories), and out of those that match ISD isd returns the newest one.
-// The TRCs must not be compressed. If an error occurs when parsing one of the
-// files, f() is called with the error as argument. Execution continues with
-// the remaining files.
+// TRCFromDir reads all the {ISD}-V*.trc (e.g., ISD1-V17.trc) files
+// contained directly in dir (no subdirectories), and out of those that match
+// ISD isd returns the newest one.  The TRCs must not be compressed. If an
+// error occurs when parsing one of the files, f() is called with the error as
+// argument. Execution continues with the remaining files.
 //
 // If no TRC is found, the returned TRC is nil and the error is set to nil.
 func TRCFromDir(dir string, isd addr.ISD, f func(err error)) (*TRC, error) {
-	files, err := filepath.Glob(fmt.Sprintf("%s/*.trc", dir))
+	files, err := filepath.Glob(fmt.Sprintf("%s/ISD%v-V*.trc", dir, isd))
 	if err != nil {
 		return nil, err
 	}
@@ -211,9 +211,9 @@ func (t *TRC) CoreASList() []addr.IA {
 	return l
 }
 
-// CheckActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
+// IsActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
 // the newest active TRC of the same ISD which we know of.
-func (t *TRC) CheckActive(maxTRC *TRC) error {
+func (t *TRC) IsActive(maxTRC *TRC) error {
 	if t.Quarantine {
 		return common.NewBasicError(EarlyAnnouncement, nil)
 	}

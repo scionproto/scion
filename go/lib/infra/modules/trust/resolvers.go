@@ -34,7 +34,7 @@ type trcRequest struct {
 	version   uint64
 	cacheOnly bool
 	id        uint64
-	source    net.Addr
+	server    net.Addr
 	// If postHook is set, run the callback to verify the downloaded object and insert into
 	// the database. Also, used to generate different DedupeKeys for requests
 	// for valid vs invalid crypto.
@@ -46,7 +46,7 @@ func (req *trcRequest) DedupeKey() string {
 	// allows callers to request both verified and unverified crypto at the
 	// same (thus avoiding the case where unverified requests block verified
 	// requests from running).
-	return fmt.Sprintf("%dv%d %t %s", req.isd, req.version, req.postHook != nil, req.source)
+	return fmt.Sprintf("%dv%d %t %s", req.isd, req.version, req.postHook != nil, req.server)
 }
 
 func (req *trcRequest) BroadcastKey() string {
@@ -62,7 +62,7 @@ type chainRequest struct {
 	version   uint64
 	cacheOnly bool
 	id        uint64
-	source    net.Addr
+	server    net.Addr
 	// If postHook is set, run the callback to verify the downloaded object and insert into
 	// the database. Also, used to generate different DedupeKeys for requests
 	// for valid vs invalid crypto.
@@ -74,7 +74,7 @@ func (req *chainRequest) DedupeKey() string {
 	// allows callers to request both verified and unverified crypto at the
 	// same (thus avoiding the case where unverified requests block verified
 	// requests from running).
-	return fmt.Sprintf("%sv%d %t %s", req.ia, req.version, req.postHook != nil, req.source)
+	return fmt.Sprintf("%sv%d %t %s", req.ia, req.version, req.postHook != nil, req.server)
 }
 
 func (req *chainRequest) BroadcastKey() string {

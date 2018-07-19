@@ -99,7 +99,7 @@ func (m *MockMessenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.
 	panic("not implemented")
 }
 
-func (m *MockMessenger) AddHandler(msgType string, h infra.Handler) {
+func (m *MockMessenger) AddHandler(msgType infra.MessageType, h infra.Handler) {
 	panic("not implemented")
 }
 

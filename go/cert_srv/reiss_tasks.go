@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
@@ -287,7 +288,7 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 	}
 
 	r.msger.UpdateSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()),
-		[]string{messenger.ChainIssueRequest})
+		[]infra.MessageType{infra.ChainIssueRequest})
 	return nil
 }
 

@@ -65,7 +65,7 @@ func (h *ReissHandler) HandleReq(r *infra.Request, config *conf.Conf) {
 		return
 	}
 	// Validate the request was correctly signed by the requester
-	verChain, err := h.validateSign(saddr, signed, config)
+	verChain, err := h.validateSign(ctx, saddr, signed, config)
 	if err != nil {
 		h.logDropReq(saddr, req, err)
 		return
@@ -116,7 +116,7 @@ func (h *ReissHandler) HandleReq(r *infra.Request, config *conf.Conf) {
 
 // validateSign validates that the signer matches the requester and returns the
 // certificate chain used when verifying the signature.
-func (h *ReissHandler) validateSign(addr *snet.Addr, signed *ctrl.SignedPld,
+func (h *ReissHandler) validateSign(ctx context.Context, addr *snet.Addr, signed *ctrl.SignedPld,
 	config *conf.Conf) (*cert.Chain, error) {
 
 	if signed.Sign == nil {
@@ -126,7 +126,7 @@ func (h *ReissHandler) validateSign(addr *snet.Addr, signed *ctrl.SignedPld,
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := ctrl.GetChainForSign(src, conf.Get().Store)
+	verChain, err := ctrl.GetChainForSign(ctx, src, conf.Get().Store)
 	if err != nil {
 		return nil, err
 	}

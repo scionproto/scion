@@ -58,7 +58,7 @@ func (b *BasicSigner) Sign(pld *Pld) (*SignedPld, error) {
 var NullSigner Signer = NewBasicSigner(nil, nil)
 
 // VerifySig does some sanity checks on p, and then verifies the signature using sigV.
-func VerifySig(p *SignedPld, sigV SigVerifier) error {
+func VerifySig(ctx context.Context, p *SignedPld, sigV SigVerifier) error {
 	// Perform common checks before calling real checker.
 	if p.Sign.Type == proto.SignType_none && len(p.Sign.Signature) == 0 {
 		// Nothing to check.
@@ -70,12 +70,12 @@ func VerifySig(p *SignedPld, sigV SigVerifier) error {
 	if len(p.Sign.Signature) == 0 {
 		return common.NewBasicError("SignedPld is missing signature", nil, "type", p.Sign.Type)
 	}
-	return sigV.Verify(p)
+	return sigV.Verify(ctx, p)
 }
 
 // SigVerifier verifies the signature of a SignedPld.
 type SigVerifier interface {
-	Verify(*SignedPld) error
+	Verify(context.Context, *SignedPld) error
 }
 
 var _ SigVerifier = (*BasicSigVerifier)(nil)
@@ -92,7 +92,7 @@ func NewBasicSigVerifier(tStore infra.TrustStore) *BasicSigVerifier {
 	}
 }
 
-func (v *BasicSigVerifier) Verify(p *SignedPld) error {
+func (v *BasicSigVerifier) Verify(ctx context.Context, p *SignedPld) error {
 	cpld, err := p.Pld()
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func (v *BasicSigVerifier) Verify(p *SignedPld) error {
 			"ts", util.TimeToString(ts), "now", util.TimeToString(now),
 			"validity", SignatureValidity)
 	}
-	vKey, err := v.getVerifyKeyForSign(p.Sign)
+	vKey, err := v.getVerifyKeyForSign(ctx, p.Sign)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,9 @@ func (v *BasicSigVerifier) ignoreSign(p *Pld) bool {
 	}
 }
 
-func (v *BasicSigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes, error) {
+func (v *BasicSigVerifier) getVerifyKeyForSign(ctx context.Context,
+	s *proto.SignS) (common.RawBytes, error) {
+
 	if s.Type == proto.SignType_none {
 		return nil, nil
 	}
@@ -145,30 +147,29 @@ func (v *BasicSigVerifier) getVerifyKeyForSign(s *proto.SignS) (common.RawBytes,
 	if err != nil {
 		return nil, err
 	}
-	chain, err := GetChainForSign(sigSrc, v.tStore)
+	chain, err := GetChainForSign(ctx, sigSrc, v.tStore)
 	if err != nil {
 		return nil, err
 	}
 	return chain.Leaf.SubjectSignKey, nil
 }
 
-// FIXME(scrye): Get rid of context.TODO(), either by retrieving crypto before
-// calling, or by passing in a context.
+func GetChainForSign(ctx context.Context, s *SignSrcDef,
+	tStore infra.TrustStore) (*cert.Chain, error) {
 
-func GetChainForSign(s *SignSrcDef, tStore infra.TrustStore) (*cert.Chain, error) {
-	c, err := tStore.GetChain(context.TODO(), s.IA, s.ChainVer)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to get certificate chain", err)
-	}
-	t, err := tStore.GetTRC(context.TODO(), s.IA.I, s.TRCVer)
+	t, err := tStore.GetTRC(ctx, s.IA.I, s.TRCVer)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get TRC", err)
 	}
-	maxTRC, err := tStore.GetValidTRC(context.TODO(), t.ISD, t.ISD)
+	c, err := tStore.GetChain(ctx, s.IA, s.ChainVer)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to get certificate chain", err)
+	}
+	maxTRC, err := tStore.GetValidTRC(ctx, t.ISD, t.ISD)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get maxTRC", err)
 	}
-	if err := t.CheckActive(maxTRC); err != nil {
+	if err := t.IsActive(maxTRC); err != nil {
 		// The certificate chain might still be verifiable with the max TRC
 		t = maxTRC
 	}
@@ -228,6 +229,6 @@ var NullSigVerifier SigVerifier = &nullSigVerifier{}
 
 type nullSigVerifier struct{}
 
-func (_ *nullSigVerifier) Verify(p *SignedPld) error {
+func (_ *nullSigVerifier) Verify(_ context.Context, p *SignedPld) error {
 	return nil
 }
