@@ -37,8 +37,10 @@ import (
 )
 
 // Combine constructs paths between src and dst using the supplied
-// segments. All possible paths are returned, sorted according to weight (on
-// equal weight, see pathSolutionList.Less for the tie-breaking algorithm).
+// segments. All possible paths are first computed, and then filtered according
+// to FilterLongPaths. The remaining paths are returned sorted according to
+// weight (on equal weight, see pathSolutionList.Less for the tie-breaking
+// algorithm).
 //
 // If Combine cannot extract a hop field or info field from the segments, it
 // panics.
@@ -49,7 +51,7 @@ func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
 	for _, path := range paths {
 		pathSlice = append(pathSlice, path.GetFwdPathMetadata())
 	}
-	return pathSlice
+	return FilterLongPaths(pathSlice)
 }
 
 // InputSegment is a local representation of a path segment that includes the
@@ -205,4 +207,25 @@ func flagPrint(name string, b bool) string {
 		return "."
 	}
 	return name
+}
+
+// FilterLongPaths returns a new slice containing only those paths that do not
+// contain the same IFID twice.
+func FilterLongPaths(paths []*Path) []*Path {
+	var newPaths []*Path
+	for _, path := range paths {
+		long := false
+		iaCounts := make(map[addr.IA]int)
+		for _, iface := range path.Interfaces {
+			iaCounts[iface.ISD_AS()]++
+			if iaCounts[iface.ISD_AS()] > 2 {
+				long = true
+				break
+			}
+		}
+		if !long {
+			newPaths = append(newPaths, path)
+		}
+	}
+	return newPaths
 }
