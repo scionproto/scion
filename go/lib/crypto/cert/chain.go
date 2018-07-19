@@ -105,15 +105,15 @@ func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
 	return ChainFromRaw(raw, lz4_)
 }
 
-// ChainFromDir reads all the *.crt files contained directly in dir (no
-// subdirectories), and out of those that match IA ia returns the newest one.
-// The chains must not be compressed. If an error occurs when parsing one
-// of the files, f() is called with the error as argument. Execution continues
-// with the remaining files.
+// ChainFromDir reads all the {IA}-V*.crt (e.g., ISD1-ASff00_0_1-V17.crt) files
+// contained directly in dir (no subdirectories), and out of those that match
+// IA ia returns the newest one.  The chains must not be compressed. If an
+// error occurs when parsing one of the files, f() is called with the error as
+// argument. Execution continues with the remaining files.
 //
 // If no chain is found, the returned chain is nil and the error is set to nil.
 func ChainFromDir(dir string, ia addr.IA, f func(err error)) (*Chain, error) {
-	files, err := filepath.Glob(fmt.Sprintf("%s/*.crt", dir))
+	files, err := filepath.Glob(fmt.Sprintf("%s/%s-V*.crt", dir, ia.FileFmt(true)))
 	if err != nil {
 		return nil, err
 	}

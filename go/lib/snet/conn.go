@@ -173,7 +173,9 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	if c.net == "udp4" {
 		// Extract remote address
 		remote = &Addr{
-			IA:   pkt.SrcIA,
+			IA: pkt.SrcIA,
+			// Copy the address to prevent races. See
+			// https://github.com/scionproto/scion/issues/1659.
 			Host: pkt.SrcHost.Copy(),
 		}
 		// Extract path and last hop
@@ -184,6 +186,8 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 					common.NewBasicError("Unable to reverse path on received packet", err)
 			}
 			remote.Path = path
+			// Copy the address to prevent races. See
+			// https://github.com/scionproto/scion/issues/1659.
 			remote.NextHopHost = lastHop.Addr.Copy()
 			remote.NextHopPort = lastHop.Port
 		}
