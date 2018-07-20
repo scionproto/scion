@@ -47,10 +47,6 @@ type Integration interface {
 	WaitClient() error
 }
 
-var (
-	scionPath string
-)
-
 // Init initializes the integration test, it adds and validates the command line flags.
 func Init() error {
 	addTestFlags()
