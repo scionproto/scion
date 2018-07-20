@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 func main() {
@@ -26,11 +27,11 @@ func main() {
 }
 
 func realMain() int {
-	err := integration.Init()
-	if err != nil {
+	if err := integration.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
+	defer log.LogPanicAndExit()
 	asList, err := integration.LoadASList()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load AS-list: %s\n", err)
@@ -44,8 +45,7 @@ func realMain() int {
 			"-remote", integration.RemoteAddrReplace + ",[127.0.0.1]:40004"},
 		[]string{"-mode", "server", "-sciondFromIA",
 			"-local", integration.LocalAddrReplace + ",[127.0.0.1]:40004"})
-	err = integration.RunTests(in, integration.GenerateAllSrcDst(asList))
-	if err != nil {
+	if err = integration.RunTests(in, integration.GenerateAllSrcDst(asList)); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}

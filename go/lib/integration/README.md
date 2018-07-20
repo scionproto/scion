@@ -13,3 +13,11 @@ $ ./scion.sh build
 $ ./scion.sh start
 $ ./bin/pp_integration
 ```
+
+## Implementation of your own integration test
+
+* An integration test should be a standalone binary, i.e. should have a main method.
+* The binary should be named *_integration.
+* It should exit (`os.Exit()`) with 0 on success and with a non-zero value on error.
+* The `Integration` interface and the methods in integration should be used to implement the test.
+* An example can be found in `go/examples/pingpong/pp_integration`.
