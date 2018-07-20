@@ -125,7 +125,11 @@ func ChainFromDir(dir string, ia addr.IA, f func(err error)) (*Chain, error) {
 			f(common.NewBasicError("Unable to read Chain file", err))
 			continue
 		}
-		if chain.Leaf.Subject.Eq(ia) && chain.Leaf.Version > bestVersion {
+		if !chain.Leaf.Subject.Eq(ia) {
+			return nil, common.NewBasicError("IA mismatch", nil, "expected", ia,
+				"found", chain.Leaf.Subject)
+		}
+		if chain.Leaf.Version > bestVersion {
 			bestChain = chain
 			bestVersion = chain.Leaf.Version
 		}

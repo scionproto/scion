@@ -65,7 +65,7 @@ type Store struct {
 	trustdb      *trustdb.DB
 	trcDeduper   *dedupe.Deduper
 	chainDeduper *dedupe.Deduper
-	options      *Options
+	options      *Config
 	// local AS
 	ia  addr.IA
 	log log.Logger
@@ -79,11 +79,11 @@ type Store struct {
 // is used during request forwarding decisions). When sending infra messages,
 // the trust store will use IDs starting from startID, and increment by one for
 // each message.
-func NewStore(db *trustdb.DB, local addr.IA, startID uint64, options *Options,
+func NewStore(db *trustdb.DB, local addr.IA, startID uint64, options *Config,
 	logger log.Logger) (*Store, error) {
 
 	if options == nil {
-		options = &Options{}
+		options = &Config{}
 	}
 	store := &Store{
 		trustdb: db,

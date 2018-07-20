@@ -80,6 +80,7 @@ func setupNewConf(newConf *conf.Conf) error {
 		),
 		newConf.Store,
 		log.Root(),
+		nil,
 	)
 	newConf.Store.SetMessenger(msger)
 	msger.AddHandler(infra.ChainRequest, newConf.Store.NewChainReqHandler(true))
@@ -95,14 +96,14 @@ func setupNewConf(newConf *conf.Conf) error {
 	}()
 	if newConf.Topo.Core {
 		go func() {
-			selfIssuer := &SelfIssuer{}
 			defer log.LogPanicAndExit()
+			selfIssuer := &SelfIssuer{}
 			selfIssuer.Run()
 		}()
 	} else {
 		go func() {
-			reissRequester := NewReissRequester(msger)
 			defer log.LogPanicAndExit()
+			reissRequester := NewReissRequester(msger)
 			reissRequester.Run()
 		}()
 	}
