@@ -40,7 +40,7 @@ func TestParseFrom(t *testing.T) {
 			Name:  "SingleLineTest",
 			Input: "2018-07-19 14:39:29.489625+0000 [ERROR] Txt",
 			Entries: []Logentry{
-				Logentry{
+				{
 					Timestamp: defaultTs,
 					Level:     LvlError,
 					Entry:     "Txt",
@@ -52,7 +52,7 @@ func TestParseFrom(t *testing.T) {
 			Input: "2018-07-19 14:39:29.489625+0000 [CRIT] (CliSrvExt 2-ff00:0: > ...\n" +
 				"> SCIONDPathReplyEntry:",
 			Entries: []Logentry{
-				Logentry{
+				{
 					Timestamp: defaultTs,
 					Level:     LvlCrit,
 					Entry: "(CliSrvExt 2-ff00:0: > ...\n" +
@@ -64,7 +64,7 @@ func TestParseFrom(t *testing.T) {
 			Name:  "MissingLevel",
 			Input: "2018-07-19 14:39:29.489625+0000 Txt",
 			Entries: []Logentry{
-				Logentry{
+				{
 					Timestamp: defaultTs,
 					Level:     LvlDebug,
 					Entry:     "Txt",
@@ -76,12 +76,12 @@ func TestParseFrom(t *testing.T) {
 			Input: "2018-07-19 14:39:29.489625+0000 [ERROR] Txt\n" +
 				"2018-07-19 14:39:30.489625+0000 [INFO] Txt2",
 			Entries: []Logentry{
-				Logentry{
+				{
 					Timestamp: defaultTs,
 					Level:     LvlError,
 					Entry:     "Txt",
 				},
-				Logentry{
+				{
 					Timestamp: mustParse("2018-07-19 14:39:30.489625+0000", t),
 					Level:     LvlInfo,
 					Entry:     "Txt2",
