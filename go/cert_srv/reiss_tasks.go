@@ -262,11 +262,6 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 		return nil
 	}
 	log.Info("[ReissRequester] Received certificate reissue reply", "addr", a, "rep", rep)
-	if config.Topo.Core {
-		log.Warn("[ReissRequester] Received certificate reissue reply as issuer AS", "addr", a,
-			"req", rep)
-		return nil
-	}
 	repChain, err := rep.Chain()
 	if err != nil {
 		r.logDropRep(a, rep, err)
@@ -286,7 +281,6 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 	if err != nil {
 		return common.NewBasicError("Unable to set new signer", err)
 	}
-
 	r.msger.UpdateSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()),
 		[]infra.MessageType{infra.ChainIssueRequest})
 	return nil
@@ -313,11 +307,6 @@ func (r *ReissRequester) validateRep(ctx context.Context,
 			issuer, "actual", chain.Leaf.Issuer)
 	}
 	return VerifyChain(config.PublicAddr.IA, chain, config.Store)
-}
-
-func (r *ReissRequester) logDropReq(addr net.Addr, req *cert_mgmt.ChainIssReq, err error) {
-	log.Error("[ReissRequester] Dropping certificate reissue request", "addr", addr, "req", req,
-		"err", err)
 }
 
 func (r *ReissRequester) logDropRep(addr net.Addr, rep *cert_mgmt.ChainIssRep, err error) {

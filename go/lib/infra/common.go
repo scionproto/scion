@@ -16,6 +16,7 @@ package infra
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -150,7 +151,7 @@ func (mt MessageType) String() string {
 	case ChainIssueReply:
 		return "ChainIssueReply"
 	default:
-		return "Unknown"
+		return fmt.Sprintf("Unknown (%d)", mt)
 	}
 }
 
