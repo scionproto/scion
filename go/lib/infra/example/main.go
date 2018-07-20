@@ -77,7 +77,14 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 		os.Exit(-1)
 	}
 	// Initialize messenger with verification capabilities (trustStore-backed)
-	server.messenger = messenger.New(dispatcherLayer, server.trustStore, log.Root())
+	server.messenger = messenger.New(
+		dispatcherLayer,
+		server.trustStore,
+		log.Root(),
+		&messenger.Config{
+			DisableSignatureVerification: true,
+		},
+	)
 	// Enable network access for trust store request handling
 	server.trustStore.SetMessenger(server.messenger)
 	return server

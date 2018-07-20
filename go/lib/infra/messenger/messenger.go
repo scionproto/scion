@@ -14,9 +14,7 @@
 
 // Package messenger contains the default implementation for interface
 // infra.Messenger. Sent and received messages must be one of the supported
-// types below.
-//
-// The following message types are valid messages:
+// types below:
 //  infra.ChainRequest        -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainReq
 //  infra.Chain               -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain
 //  infra.TRCRequest          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
@@ -25,9 +23,6 @@
 //  infra.PathSegmentReply    -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
-//
-// The word "reliable" in method descriptions means a reliable protocol is used
-// to deliver that message.
 //
 // To start processing messages received via the Messenger, call
 // ListenAndServe. The method runs in the current goroutine, and spawns new
@@ -85,10 +80,30 @@ const (
 	DefaultHandlerTimeout = 10 * time.Second
 )
 
+// Config can be used to customize the behavior of the Messenger.
+type Config struct {
+	// HandlerTimeout is the amount of time allocated to the processing of a
+	// received message. This includes the time needed to verify the signature
+	// and the execution of a registered handler (if one exists). If the
+	// timeout is 0, the default is used.
+	HandlerTimeout time.Duration
+	// DisableSignatureVerification can be set to true to disable the
+	// verification of the top level signature in received signed control
+	// payloads.
+	DisableSignatureVerification bool
+}
+
+func (c *Config) loadDefaults() {
+	if c.HandlerTimeout == 0 {
+		c.HandlerTimeout = DefaultHandlerTimeout
+	}
+}
+
 var _ infra.Messenger = (*Messenger)(nil)
 
 // Messenger exposes the API for sending and receiving CtrlPld messages.
 type Messenger struct {
+	config *Config
 	// Networking layer for sending and receiving messages
 	dispatcher *disp.Dispatcher
 
@@ -118,7 +133,13 @@ type Messenger struct {
 
 // New creates a new Messenger that uses dispatcher for sending and receiving
 // messages, and trustStore as crypto information database.
-func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger) *Messenger {
+func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger,
+	config *Config) *Messenger {
+
+	if config == nil {
+		config = &Config{}
+	}
+	config.loadDefaults()
 	// XXX(scrye): A trustStore object is passed to the Messenger as it is required
 	// to verify top-level signatures. This is never used right now since only
 	// unsigned messages are supported. The content of received messages is
@@ -126,6 +147,7 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger)
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
+		config:     config,
 		dispatcher: dispatcher,
 		signer:     ctrl.NullSigner,
 		verifier:   ctrl.NullSigVerifier,
@@ -170,7 +192,7 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 		return err
 	}
 	m.log.Debug("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
-	return m.getRequester(infra.TRC, "").Notify(ctx, pld, a)
+	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
 }
 
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
@@ -207,7 +229,7 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 		return err
 	}
 	m.log.Debug("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
-	return m.getRequester(infra.Chain, "").Notify(ctx, pld, a)
+	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
 }
 
 // GetPathSegs asks the server at the remote address for the path segments that
@@ -271,7 +293,7 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 		return err
 	}
 	m.log.Debug("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
-	return m.getRequester(infra.ChainIssueReply, "").Notify(ctx, pld, a)
+	return m.getRequester(infra.ChainIssueReply, infra.None).Notify(ctx, pld, a)
 }
 
 // AddHandler registers a handler for msgType.
@@ -313,13 +335,11 @@ func (m *Messenger) ListenAndServe() {
 		}
 
 		serveCtx := infra.NewContextWithMessenger(m.ctx, m)
-		serveCtx, serveCancelF := context.WithTimeout(serveCtx, DefaultHandlerTimeout)
-		// Skip top-level signature verification if running on top of non-snet
-		// transports because we cannot detect the signer's identity.
-		if a, ok := address.(*snet.Addr); ok {
+		serveCtx, serveCancelF := context.WithTimeout(serveCtx, m.config.HandlerTimeout)
+		if !m.config.DisableSignatureVerification {
 			// FIXME(scrye): Always use default signature verifier here, as some
 			// functionality in the main ctrl libraries is still missing.
-			err = m.verifySignedPld(serveCtx, signedPld, m.verifier, a)
+			err = m.verifySignedPld(serveCtx, signedPld, m.verifier, address.(*snet.Addr))
 			if err != nil {
 				m.log.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
@@ -386,8 +406,8 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 
 // validate checks that msg is one of the acceptable message types for SCION
 // infra communication (listed in package level documentation), and returns the
-// message type ID string, the message (the inner proto.Cerealizable object),
-// and an error (if one occurred).
+// message type, the message (the inner proto.Cerealizable object), and an
+// error (if one occurred).
 func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizable, error) {
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported.
@@ -407,7 +427,7 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 		case proto.CertMgmt_Which_certChainIssRep:
 			return infra.ChainIssueReply, pld.CertMgmt.ChainIssRep, nil
 		default:
-			return "", nil,
+			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.CertMgmt.Xxx message type",
 					nil, "capnp_which", pld.CertMgmt.Which)
 		}
@@ -418,12 +438,12 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 		case proto.PathMgmt_Which_segReply:
 			return infra.PathSegmentReply, pld.PathMgmt.SegReply, nil
 		default:
-			return "", nil,
+			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",
 					nil, "capnp_which", pld.PathMgmt.Which)
 		}
 	default:
-		return "", nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
+		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)
 	}
 }

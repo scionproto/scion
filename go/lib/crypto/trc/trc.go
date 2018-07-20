@@ -186,7 +186,10 @@ func TRCFromDir(dir string, isd addr.ISD, f func(err error)) (*TRC, error) {
 			continue
 		}
 		fileISD, version := trcObj.IsdVer()
-		if fileISD == isd && version > bestVersion {
+		if fileISD != isd {
+			return nil, common.NewBasicError("ISD mismatch", nil, "expected", isd, "found", fileISD)
+		}
+		if version > bestVersion {
 			bestTRC = trcObj
 			bestVersion = version
 		}
