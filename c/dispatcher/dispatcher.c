@@ -251,14 +251,14 @@ void unlink_socket() {
     if (unlink(sockpath)) {
         if (errno == ENOENT) {
             zlog_debug(zc, "'%s' does not exist, ignoring --delete-sock flag.", sockpath);
-            free(&sockpath);
+            free(sockpath);
             return;
         }
         zlog_error(zc, "could not unlink '%s': %s", sockpath, strerror(errno));
         exit(2);
     }
     zlog_info(zc, "successfully deleted '%s'", sockpath);
-    free(&sockpath);
+    free(sockpath);
 }
 
 void handle_signal(int sig)
