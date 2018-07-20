@@ -65,7 +65,7 @@ type Store struct {
 	trustdb      *trustdb.DB
 	trcDeduper   *dedupe.Deduper
 	chainDeduper *dedupe.Deduper
-	options      *Config
+	config       *Config
 	// local AS
 	ia  addr.IA
 	log log.Logger
@@ -88,7 +88,7 @@ func NewStore(db *trustdb.DB, local addr.IA, startID uint64, options *Config,
 	store := &Store{
 		trustdb: db,
 		ia:      local,
-		options: options,
+		config:  options,
 		log:     logger,
 		msgID:   startID,
 	}
@@ -326,7 +326,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, trail []addr.
 	if err != nil || chain != nil {
 		return chain, err
 	}
-	if store.options.MustHaveLocalChain && store.ia.Eq(ia) {
+	if store.config.MustHaveLocalChain && store.ia.Eq(ia) {
 		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
 			"requested_ia", ia)
 	}
@@ -373,7 +373,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 		return chain, err
 	}
 	// If we're authoritative for the requested IA, error out now.
-	if store.options.MustHaveLocalChain && store.ia.Eq(ia) {
+	if store.config.MustHaveLocalChain && store.ia.Eq(ia) {
 		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
 			"requested ia", ia)
 	}
@@ -627,8 +627,8 @@ func (store *Store) isLocal(address net.Addr) error {
 // ChooseServer builds a CS address for crypto material regarding the
 // destination AS.
 func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
-	if len(store.options.LocalCSes) != 0 {
-		return store.options.LocalCSes[rand.Intn(len(store.options.LocalCSes))], nil
+	if len(store.config.LocalCSes) != 0 {
+		return store.config.LocalCSes[rand.Intn(len(store.config.LocalCSes))], nil
 	}
 	if destination.A == 0 {
 		pathSet := snet.DefNetwork.PathResolver().Query(store.ia, addr.IA{I: destination.I})
