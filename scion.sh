@@ -293,9 +293,9 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
-	    $PROGRAM sciond ISD AS [ADDR]
-	        Start sciond with provided ISD and AS parameters. A third optional
-	        parameter is the address to bind when not running on localhost.
+	    $PROGRAM sciond ISD-AS ADDR
+	        Start sciond with provided ISD and AS parameters, and bind to ADDR.
+	        ISD-AS must be in file format (e.g., 1-ff00_0_133).
 	    $PROGRAM mstart PROCESS
 	        Start multiple processes
 	    $PROGRAM stop
