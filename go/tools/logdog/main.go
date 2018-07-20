@@ -43,7 +43,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"math"
@@ -51,11 +50,10 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"time"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
-const ts_format = "2006-01-02 15:04:05.000000+0000"
-const entry_offset = len(ts_format) + 1
 const indent_size = 15
 const indent = "                 " // 17 spaces
 
@@ -74,22 +72,16 @@ func main() {
 			fmt.Printf("%s %s", indent, entry)
 		} else {
 			lastelement = entry.Element
-			fmt.Printf("[%-15s] %s", entry.Element, entry)
+			fmt.Printf("[%-15s] %s", entry.Element, String(entry))
 		}
 	}
 }
 
-type Logentry struct {
-	Timestamp time.Time
-	Element   string
-	Entry     string
+func String(l log.Logentry) string {
+	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(log.TsFormat), l.Level, l.Entry)
 }
 
-func (l Logentry) String() string {
-	return fmt.Sprintf("%s %s\n", l.Timestamp.Format(ts_format), l.Entry)
-}
-
-type LogEntries []Logentry
+type LogEntries []log.Logentry
 
 var entries LogEntries
 
@@ -122,41 +114,14 @@ func printUsage() {
 
 func entriesFromFile(fn string) LogEntries {
 	var entries LogEntries
-	var ts time.Time
 	f, err := os.Open(fn)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not open file %s: %s\n", fn, err)
 		return entries // empty slice
 	}
-	scanner := bufio.NewScanner(f)
-	lineno := 0
-	for scanner.Scan() {
-		lineno += 1
-		line := scanner.Text()
-		if strings.HasPrefix(line, "> ") || strings.HasPrefix(line, " ") {
-			// Continuation
-			// If this is a continuation at the start of the file, just drop it
-			if len(entries) == 0 {
-				continue
-			}
-			entries[len(entries)-1].Entry += fmt.Sprintf("\n%s %s", indent, line)
-			continue
-		}
-		if len(line) < entry_offset-1 {
-			fmt.Fprintf(os.Stderr, "Short line at %s:%d: '%+v'\n", fn, lineno, line)
-			continue
-		}
-		ts, err = time.Parse(ts_format, line[:entry_offset-1])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s:%d: Could not parse timestamp %+v: %+v\n",
-				fn, lineno, line[:entry_offset-1], err)
-			continue
-		}
-		entries = append(entries, Logentry{
-			Timestamp: ts,
-			Element:   fnToEName(fn),
-			Entry:     line[entry_offset:],
-		})
-	}
+	defer f.Close()
+	log.ParseFrom(f, indent, fn, fnToEName(fn), func(e log.Logentry) {
+		entries = append(entries, e)
+	})
 	return entries
 }
