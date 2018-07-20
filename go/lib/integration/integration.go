@@ -64,7 +64,7 @@ func addTestFlags() {
 func validateFlags() error {
 	flag.Parse()
 	if err := log.SetupFromFlags(""); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		flag.Usage()
 		return err
 	}
@@ -131,11 +131,11 @@ func RunTests(in Integration, connections []Connection) error {
 		defer cancel()
 		err := in.StartClient(ctx, conn.Src, conn.Dst)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error during start of the client", "err", err)
+			fmt.Fprintf(os.Stderr, "Error during start of the client: %s\n", err)
 			return err
 		}
 		if err = in.WaitClient(); err != nil {
-			fmt.Fprintln(os.Stderr, "Error during client execution", "err", err)
+			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 			return err
 		}
 	}

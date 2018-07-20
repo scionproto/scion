@@ -28,12 +28,12 @@ func main() {
 func realMain() int {
 	err := integration.Init()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to init", err)
+		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
 	asList, err := integration.LoadASList()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to load AS-list", err)
+		fmt.Fprintf(os.Stderr, "Failed to load AS-list: %s\n", err)
 		return 1
 	}
 	// TODO(lukedirtwalker) we should enable logging
@@ -46,7 +46,7 @@ func realMain() int {
 			"-local", integration.LocalAddrReplace + ",[127.0.0.1]:40004"})
 	err = integration.RunTests(in, integration.GenerateAllSrcDst(asList))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to run tests", err)
+		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}
 	return 0
