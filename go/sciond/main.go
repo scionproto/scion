@@ -141,6 +141,7 @@ func realMain() int {
 		),
 		trustStore,
 		log.Root(),
+		nil,
 	)
 	trustStore.SetMessenger(msger)
 	revCache := fetcher.NewRevCache(cache.NoExpiration, time.Second)

@@ -115,18 +115,44 @@ func NewContextWithMessenger(ctx context.Context, msger Messenger) context.Conte
 	return context.WithValue(ctx, messengerContextKey, msger)
 }
 
-type MessageType string
+type MessageType int
 
 const (
-	ChainRequest       MessageType = "ChainRequest"
-	Chain              MessageType = "Chain"
-	TRCRequest         MessageType = "TRCRequest"
-	TRC                MessageType = "TRC"
-	PathSegmentRequest MessageType = "PathSegmentRequest"
-	PathSegmentReply   MessageType = "PathSegmentReply"
-	ChainIssueRequest  MessageType = "ChainIssueRequest"
-	ChainIssueReply    MessageType = "ChainIssueReply"
+	None MessageType = iota
+	TRC
+	TRCRequest
+	Chain
+	ChainRequest
+	PathSegmentRequest
+	PathSegmentReply
+	ChainIssueRequest
+	ChainIssueReply
 )
+
+func (mt MessageType) String() string {
+	switch mt {
+	case None:
+		return "None"
+	case ChainRequest:
+		return "ChainRequest"
+	case Chain:
+		return "Chain"
+	case TRCRequest:
+		return "TRCRequest"
+	case TRC:
+		return "TRC"
+	case PathSegmentRequest:
+		return "PathSegmentRequest"
+	case PathSegmentReply:
+		return "PathSegmentReply"
+	case ChainIssueRequest:
+		return "ChainIssueRequest"
+	case ChainIssueReply:
+		return "ChainIssueReply"
+	default:
+		return "Unknown"
+	}
+}
 
 type Messenger interface {
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,

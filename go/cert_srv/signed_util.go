@@ -61,7 +61,7 @@ func CreateSign(ia addr.IA, store *trust.Store) (*proto.SignS, error) {
 func VerifyChain(subject addr.IA, chain *cert.Chain, store *trust.Store) error {
 	maxTrc, err := store.GetValidTRC(context.TODO(), chain.Issuer.Issuer.I, chain.Issuer.Issuer.I)
 	if err != nil {
-		return common.NewBasicError("TRC not present", nil, "isd", chain.Issuer.Issuer.I)
+		return common.NewBasicError("Unable to find TRC", nil, "isd", chain.Issuer.Issuer.I)
 	}
 	if err := maxTrc.IsActive(maxTrc); err != nil {
 		return common.NewBasicError("Newest TRC not active", err)

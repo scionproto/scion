@@ -715,7 +715,8 @@ func TestChainReqHandler(t *testing.T) {
 func setupMessenger(conn net.PacketConn, store *Store, name string) infra.Messenger {
 	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
-	return messenger.New(dispatcher, store, log.Root().New("name", name))
+	config := &messenger.Config{DisableSignatureVerification: true}
+	return messenger.New(dispatcher, store, log.Root().New("name", name), config)
 }
 
 func loadCrypto(t *testing.T, isds []addr.ISD,
@@ -760,7 +761,7 @@ func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func())
 		t.Fatal(err)
 	}
 
-	options := &Options{
+	options := &Config{
 		LocalCSes: []net.Addr{
 			&messenger.MockAddress{},
 		},

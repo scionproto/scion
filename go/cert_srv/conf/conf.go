@@ -168,7 +168,8 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 }
 
 // loadTopo loads the topology information.
-func (c *Conf) loadTopo() (err error) {
+func (c *Conf) loadTopo() error {
+	var err error
 	path := filepath.Join(c.ConfDir, topology.CfgName)
 	if c.Topo, err = topology.LoadFromFile(path); err != nil {
 		return common.NewBasicError(ErrorTopo, err)
@@ -191,12 +192,13 @@ func (c *Conf) loadTopo() (err error) {
 }
 
 // loadStore loads the trust store.
-func (c *Conf) loadStore() (err error) {
+func (c *Conf) loadStore() error {
+	var err error
 	c.Store, err = trust.NewStore(
 		c.TrustDB,
 		c.Topo.ISD_AS,
 		rand.Uint64(),
-		&trust.Options{
+		&trust.Config{
 			MustHaveLocalChain: true,
 		},
 		log.Root(),
@@ -214,7 +216,8 @@ func (c *Conf) loadStore() (err error) {
 }
 
 // loadTrustDB loads the trustdb.
-func (c *Conf) loadTrustDB() (err error) {
+func (c *Conf) loadTrustDB() error {
+	var err error
 	if c.TrustDB, err = trustdb.New(filepath.Join(c.StateDir, trustdb.Path)); err != nil {
 		return common.NewBasicError(ErrorTrustDB, err)
 	}
@@ -222,7 +225,8 @@ func (c *Conf) loadTrustDB() (err error) {
 }
 
 // loadKeyConf loads the key configuration.
-func (c *Conf) loadKeyConf() (err error) {
+func (c *Conf) loadKeyConf() error {
+	var err error
 	c.keyConf, err = trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
 		c.Topo.Core, false)
 	if err != nil {

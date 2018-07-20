@@ -20,7 +20,7 @@ import "net"
 // all the reloadable aspects of the trust store. Instead of direct access,
 // accessors should be preferred to ensure concurrency-safe reads.
 
-type Options struct {
+type Config struct {
 	// MustHaveLocalChain states that chain requests for the trust store's own
 	// IA must always return a valid chain. This is set to true on CSes and to
 	// false on others.
