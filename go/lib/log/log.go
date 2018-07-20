@@ -61,7 +61,7 @@ func SetupFromFlags(name string) error {
 	// if name passed, the caller wants to setup a log file
 	if name != "" {
 		if logDir == "" {
-			return common.NewBasicError("Log file flags not set", nil)
+			return common.NewBasicError("Log dir flag not set", nil)
 		}
 		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logFlush)
 	}
@@ -120,7 +120,7 @@ func SetupLogConsole(logConsole string) error {
 	if err != nil {
 		return common.NewBasicError("Unable to parse log.console flag:", err)
 	}
-	logConsHandler = log15.LvlFilterHandler(logLvl, log15.StreamHandler(os.Stdout,
+	logConsHandler = log15.LvlFilterHandler(logLvl, log15.StreamHandler(os.Stderr,
 		fmt15.Fmt15Format(fmt15.ColorMap)))
 	setHandlers()
 	return nil
