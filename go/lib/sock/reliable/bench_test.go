@@ -21,6 +21,8 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	_ "github.com/scionproto/scion/go/lib/common" // Ensure math/rand is seeded.
 )
 
 type SetupFunc func() interface{}
@@ -144,7 +146,6 @@ func benchmark(b *testing.B, setup SetupFunc, client EndpointFunc, server Endpoi
 }
 
 func setupTestNFunc() interface{} {
-	rand.Seed(time.Now().UnixNano())
 	msgs := make([]Msg, 1000)
 	for i := 0; i < len(msgs); i++ {
 		msgs[i].Buffer = make([]byte, rand.Intn(1280))

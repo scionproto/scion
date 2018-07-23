@@ -47,7 +47,6 @@ var (
 	Conn      *reliable.Conn
 	Mtu       uint16
 	PathEntry *sciond.PathReplyEntry
-	rnd       *rand.Rand
 	Stats     *ScmpStats
 	Start     time.Time
 )
@@ -62,9 +61,6 @@ func init() {
 	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
 	flag.Var((*snet.Addr)(&Bind), "bind", "address to bind to, if running behind NAT")
 	flag.Usage = scmpUsage
-	// Initialize random
-	seed := rand.NewSource(time.Now().UnixNano())
-	rnd = rand.New(seed)
 	Stats = &ScmpStats{}
 	Start = time.Now()
 }
@@ -161,7 +157,7 @@ func NextHopAddr() net.Addr {
 }
 
 func Rand() uint64 {
-	return rnd.Uint64()
+	return rand.Uint64()
 }
 
 func UpdatePktTS(pkt *spkt.ScnPkt, ts time.Time) {

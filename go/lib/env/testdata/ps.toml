@@ -10,9 +10,6 @@
   # directory.
   Topology = "testdata/dir/topology.json"
 
-  # Seed for the PRNG. A value of 0 means use current UNIX time as seed.
-  Seed = 0
-
 [logging]
   [logging.file]
     # Location of the logging file.

@@ -27,6 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	_ "github.com/scionproto/scion/go/lib/common" // Ensure math/rand is seeded.
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/util"
@@ -61,7 +62,6 @@ type TestCase struct {
 }
 
 func generateTests(asList []addr.IA, count int, haveSciond bool) []TestCase {
-	rand.Seed(time.Now().UnixNano())
 	tests := make([]TestCase, 0, 0)
 	var cIndex, sIndex int32
 	for i := 0; i < count; i++ {
