@@ -15,12 +15,12 @@
 // Read and interleave Python and Go log files as produced by log15/fmt15, zlog
 // and Python logging
 //
-// 2017-05-16T13:18:16.539536145+0000 [DBUG] Topology loaded topo=
+// 2017-05-16 13:18:16.539536145+0000 [DBUG] Topology loaded topo=
 // >  Loc addrs:
 // >    127.0.0.65:30066
 // >  Interfaces:
 // >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-ff00:0:312 MTU: 1472 BW: 1000
-// 2017-05-16T13:18:16.539658666+0000 [INFO] Starting up id=br1-ff00:0:311-1
+// 2017-05-16 13:18:16.539658666+0000 [INFO] Starting up id=br1-ff00:0:311-1
 //
 // Lines starting with "> " or a space are assumed to be continuations, i.e.
 // they belong with the line(s) above them.
@@ -50,11 +50,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log/logparse"
 )
 
 const indent_size = 15
-const indent = "                 " // 17 spaces
+const indent = "                  " // 18 spaces
 
 func main() {
 	flag.Usage = printUsage
@@ -68,19 +69,19 @@ func main() {
 	lastelement := ""
 	for _, entry := range entries {
 		if entry.Element == lastelement {
-			fmt.Printf("%s %s", indent, entry)
+			fmt.Printf("%s%s", indent, fmtEntry(entry))
 		} else {
 			lastelement = entry.Element
-			fmt.Printf("[%-15s] %s", entry.Element, String(entry))
+			fmt.Printf("[%-15s] %s", entry.Element, fmtEntry(entry))
 		}
 	}
 }
 
-func String(l log.Logentry) string {
-	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(log.TsFormat), l.Level, l.Entry)
+func fmtEntry(l log.LogEntry) string {
+	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(common.TimeFmt), l.Level, l.Entry)
 }
 
-type LogEntries []log.Logentry
+type LogEntries []log.LogEntry
 
 var entries LogEntries
 
@@ -119,7 +120,7 @@ func entriesFromFile(fn string) LogEntries {
 		return entries // empty slice
 	}
 	defer f.Close()
-	log.ParseFrom(f, indent, fn, fnToEName(fn), func(e log.Logentry) {
+	log.ParseFrom(f, indent, fn, fnToEName(fn), func(e log.LogEntry) {
 		entries = append(entries, e)
 	})
 	return entries

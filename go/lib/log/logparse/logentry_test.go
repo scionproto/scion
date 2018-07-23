@@ -20,6 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
+
 	"github.com/scionproto/scion/go/lib/xtest"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -34,12 +37,12 @@ func TestParseFrom(t *testing.T) {
 	tests := []struct {
 		Name    string
 		Input   string
-		Entries []Logentry
+		Entries []LogEntry
 	}{
 		{
 			Name:  "SingleLineTest",
 			Input: "2018-07-19 14:39:29.489625+0000 [ERROR] Txt",
-			Entries: []Logentry{
+			Entries: []LogEntry{
 				{
 					Timestamp: defaultTs,
 					Level:     LvlError,
@@ -51,31 +54,24 @@ func TestParseFrom(t *testing.T) {
 			Name: "MultilineTest",
 			Input: "2018-07-19 14:39:29.489625+0000 [CRIT] (CliSrvExt 2-ff00:0: > ...\n" +
 				"> SCIONDPathReplyEntry:",
-			Entries: []Logentry{
+			Entries: []LogEntry{
 				{
 					Timestamp: defaultTs,
 					Level:     LvlCrit,
 					Entry: "(CliSrvExt 2-ff00:0: > ...\n" +
-						indent + " > SCIONDPathReplyEntry:",
+						indent + "> SCIONDPathReplyEntry:",
 				},
 			},
 		},
 		{
 			Name:  "MissingLevel",
 			Input: "2018-07-19 14:39:29.489625+0000 Txt",
-			Entries: []Logentry{
-				{
-					Timestamp: defaultTs,
-					Level:     LvlDebug,
-					Entry:     "Txt",
-				},
-			},
 		},
 		{
 			Name: "MultiEntry",
 			Input: "2018-07-19 14:39:29.489625+0000 [ERROR] Txt\n" +
 				"2018-07-19 14:39:30.489625+0000 [INFO] Txt2",
-			Entries: []Logentry{
+			Entries: []LogEntry{
 				{
 					Timestamp: defaultTs,
 					Level:     LvlError,
@@ -93,9 +89,9 @@ func TestParseFrom(t *testing.T) {
 		for _, tc := range tests {
 			Convey(tc.Name, func() {
 				r := strings.NewReader(tc.Input)
-				var entries []Logentry
+				var entries []LogEntry
 				ParseFrom(r, indent, tc.Name, tc.Name,
-					func(e Logentry) { entries = append(entries, e) })
+					func(e LogEntry) { entries = append(entries, e) })
 				SoMsg("entries len", len(entries), ShouldEqual, len(tc.Entries))
 				for i, e := range entries {
 					SoMsg("entry ts", e.Timestamp, ShouldResemble, tc.Entries[i].Timestamp)
@@ -109,13 +105,13 @@ func TestParseFrom(t *testing.T) {
 }
 
 func mustParse(ts string, t *testing.T) time.Time {
-	tts, err := time.Parse(TsFormat, ts)
+	tts, err := time.Parse(common.TimeFmt, ts)
 	xtest.FailOnErr(t, err)
 	return tts
 }
 
 func TestMain(m *testing.M) {
-	l := Root()
-	l.SetHandler(DiscardHandler())
+	l := log.Root()
+	l.SetHandler(log.DiscardHandler())
 	os.Exit(m.Run())
 }

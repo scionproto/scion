@@ -18,8 +18,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 
 	"github.com/inconshreveable/log15"
 )
@@ -32,23 +36,24 @@ const (
 	LvlWarn  = Lvl(log15.LvlWarn)
 	LvlInfo  = Lvl(log15.LvlInfo)
 	LvlDebug = Lvl(log15.LvlDebug)
+)
 
-	TsFormat = "2006-01-02 15:04:05.000000+0000"
+var (
+	lineRegex = regexp.MustCompile(`([\d-]+[ T][\d:]+\.[\d+-]+) \[(\w+)\] (.+)`)
 )
 
 func LvlFromString(lvl string) (Lvl, error) {
-	l := strings.ToLower(lvl)
 	// Since we also parse python log entries we also have to handle the levels of python.
-	switch l {
-	case "debug", "dbug":
+	switch strings.ToUpper(lvl) {
+	case "DEBUG", "DBUG":
 		return LvlDebug, nil
-	case "info":
+	case "INFO":
 		return LvlInfo, nil
-	case "warn", "warning":
+	case "WARN", "WARNING":
 		return LvlWarn, nil
-	case "error", "eror":
+	case "ERROR", "EROR":
 		return LvlError, nil
-	case "crit", "critical":
+	case "CRIT", "CRITICAL":
 		return LvlCrit, nil
 	default:
 		return LvlDebug, fmt.Errorf("Unknown level: %v", lvl)
@@ -59,18 +64,18 @@ func (l Lvl) String() string {
 	return strings.ToUpper(log15.Lvl(l).String())
 }
 
-// Logentry is one entry in a log.
+// LogEntry is one entry in a log.
 // Note that the Entry might be multiple lines if the log entry spanned over multiple lines.
-type Logentry struct {
+type LogEntry struct {
 	Timestamp time.Time
-	// Element describes the source of this Logentry, e.g. the file name.
+	// Element describes the source of this LogEntry, e.g. the file name.
 	Element string
 	Level   Lvl
 	Entry   string
 }
 
-func (l Logentry) String() string {
-	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(TsFormat), l.Level, l.Entry)
+func (l LogEntry) String() string {
+	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(common.TimeFmt), l.Level, l.Entry)
 }
 
 // ParseFrom parses log lines from the reader.
@@ -79,7 +84,7 @@ func (l Logentry) String() string {
 // >  Loc addrs:
 // >    127.0.0.65:30066
 // >  Interfaces:
-// >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-ff00:0:312 MTU: 1472 BW: 1000
+// >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-ff00:0:312
 // 2017-05-16T13:18:16.539658666+0000 [INFO] Starting up id=br1-ff00:0:311-1
 //
 // Lines starting with "> " or a space are assumed to be continuations, i.e.
@@ -87,32 +92,27 @@ func (l Logentry) String() string {
 //
 // Continuation lines are indented with the given indent.
 // The fileName is used for logging.
-// The element is put in Logentry.Element.
+// The element is put in LogEntry.Element.
 // Parsed entries are passed to the entryConsumer.
 func ParseFrom(reader io.Reader, indent, fileName, element string,
-	entryConsumer func(Logentry)) {
-	var prevEntry *Logentry
+	entryConsumer func(LogEntry)) {
+
+	var prevEntry *LogEntry
 	scanner := bufio.NewScanner(reader)
-	lineno := 0
-	for scanner.Scan() {
-		lineno++
+	for lineno := 1; scanner.Scan(); lineno++ {
 		line := scanner.Text()
 		if isContinuation(line) {
 			// If this is a continuation at the start of the reader, just drop it
 			if prevEntry == nil {
 				continue
 			}
-			prevEntry.Entry += fmt.Sprintf("\n%s %s", indent, line)
-			continue
-		}
-		entry := parseInitialEntry(line, fileName, element, lineno)
-		if entry == nil {
+			prevEntry.Entry += fmt.Sprintf("\n%s%s", indent, line)
 			continue
 		}
 		if prevEntry != nil {
 			entryConsumer(*prevEntry)
 		}
-		prevEntry = entry
+		prevEntry = parseInitialEntry(line, fileName, element, lineno)
 	}
 	if prevEntry != nil {
 		entryConsumer(*prevEntry)
@@ -120,39 +120,30 @@ func ParseFrom(reader io.Reader, indent, fileName, element string,
 }
 
 // parseInitialEntry parses a line with the pattern <TS> [<Level>] <Entry>.
-func parseInitialEntry(line, fileName, element string, lineno int) *Logentry {
-	tsLen := len(TsFormat)
-
-	if len(line) < tsLen {
-		Error(fmt.Sprintf("Short line at %s:%d: '%+v'\n", fileName, lineno, line))
+func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
+	matches := lineRegex.FindStringSubmatch(line)
+	if matches == nil || len(matches) < 4 {
+		log.Error(fmt.Sprintf("Line %s:%d does not match regexep: %s",
+			fileName, lineno, lineRegex))
 		return nil
 	}
-	ts, err := time.Parse(TsFormat, line[:tsLen])
+	ts, err := time.Parse(common.TimeFmt, matches[1])
 	if err != nil {
-		Error(fmt.Sprintf("%s:%d: Could not parse timestamp %+v: %+v\n",
-			fileName, lineno, line[:tsLen], err))
+		log.Error(fmt.Sprintf("%s:%d: Could not parse timestamp %+v: %+v\n",
+			fileName, lineno, matches[1], err))
 		return nil
 	}
-	idx := strings.IndexRune(line[tsLen:min(len(line), tsLen+15)], ']')
-	lvl := LvlDebug
-	entry := line[tsLen+1:]
-	if idx < 0 {
-		Error(fmt.Sprintf("%s:%d: Missing log level\n", fileName, lineno))
-	} else {
-		levelStart := tsLen + 2 // space and [
-		levelEnd := tsLen + idx
-		lvlS := line[levelStart:levelEnd]
-		lvl, err = LvlFromString(lvlS)
-		if err != nil {
-			Error(fmt.Sprintf("%s:%d: Unknown log level: %v: %v\n", fileName, lineno, lvlS, err))
-		}
-		entry = line[min(len(line), levelEnd+2):] // ] and space
+
+	lvl, err := LvlFromString(matches[2])
+	if err != nil {
+		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v: %v\n",
+			fileName, lineno, matches[2], err))
 	}
-	return &Logentry{
+	return &LogEntry{
 		Timestamp: ts,
 		Element:   element,
 		Level:     lvl,
-		Entry:     entry,
+		Entry:     matches[3],
 	}
 }
 
