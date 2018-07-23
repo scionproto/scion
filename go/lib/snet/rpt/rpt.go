@@ -63,11 +63,6 @@ const (
 	maxReadEvents = 1 << 8
 )
 
-var (
-	// Used to initialize the first packet ID
-	generator = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-)
-
 var _ infra.Transport = (*RPT)(nil)
 
 // RPT (Reliable Packet Transport) implements a simple packet-oriented protocol
@@ -117,7 +112,7 @@ type RPT struct {
 func New(conn net.PacketConn, logger log.Logger) *RPT {
 	t := &RPT{
 		conn:       conn,
-		nextPktID:  uint56(generator.Int63n(maxUint56 + 1)),
+		nextPktID:  uint56(rand.Int63n(maxUint56 + 1)),
 		readEvents: make(chan *readEventDesc, maxReadEvents),
 		closedChan: make(chan struct{}),
 		doneChan:   make(chan struct{}),

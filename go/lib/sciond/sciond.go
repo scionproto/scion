@@ -29,7 +29,6 @@ package sciond
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -139,8 +138,6 @@ func connectTimeout(socketName string, timeout time.Duration) (*connector, error
 	if err != nil {
 		return nil, err
 	}
-	rand.Seed(time.Now().UnixNano())
-
 	return &connector{
 		dispatcher: disp.New(
 			transport.NewPacketTransport(conn),

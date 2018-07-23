@@ -27,15 +27,14 @@ package env
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -58,6 +57,7 @@ func init() {
 	os.Setenv("TZ", "UTC")
 	sighupC = make(chan os.Signal, 1)
 	signal.Notify(sighupC, syscall.SIGHUP)
+	crypto.MathRandSeed()
 }
 
 type General struct {
@@ -70,8 +70,6 @@ type General struct {
 	TopologyPath string `toml:"Topology"`
 	// Topology is the loaded topology file.
 	Topology *topology.Topo `toml:"-"`
-	// Seed for the PRNG. A value of 0 means use current UNIX time as seed.
-	Seed int64
 }
 
 // setFiles determines the values for extra config files (e.g., topology.json).
@@ -101,12 +99,6 @@ func InitGeneral(cfg *General) error {
 		return err
 	}
 	cfg.Topology = topo
-	// Initialize default PRNG
-	if cfg.Seed == 0 {
-		rand.Seed(time.Now().Unix())
-	} else {
-		rand.Seed(cfg.Seed)
-	}
 	return nil
 }
 
