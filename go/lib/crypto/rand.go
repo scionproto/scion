@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package crypto
 
 import (
 	"crypto/rand"
 	mrand "math/rand"
+	"sync"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func RandUint64() uint64 {
@@ -26,14 +29,18 @@ func RandUint64() uint64 {
 		// OS, and there's nothing we can do about it.
 		panic("No random numbers available")
 	}
-	return NativeOrder.Uint64(b)
+	return common.NativeOrder.Uint64(b)
 }
 
 func RandInt64() int64 {
 	return int64(RandUint64())
 }
 
-func init() {
-	// Make sure math/rand's default generator is seeded with a random value on start.
-	mrand.Seed(RandInt64())
+var mathSeedOnce sync.Once
+
+// Seed math/rand's default generator with a random value, once.
+func MathRandSeed() {
+	mathSeedOnce.Do(func() {
+		mrand.Seed(RandInt64())
+	})
 }

@@ -27,7 +27,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	_ "github.com/scionproto/scion/go/lib/common" // Ensure math/rand is seeded.
+	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/util"
@@ -219,7 +219,7 @@ func TestListen(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	var err error
-
+	crypto.MathRandSeed()
 	// Load topology information
 	asStruct, err := util.LoadASList("../../../gen/as_list.yml")
 	if err != nil {

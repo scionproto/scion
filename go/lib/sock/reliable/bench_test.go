@@ -22,8 +22,12 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	_ "github.com/scionproto/scion/go/lib/common" // Ensure math/rand is seeded.
+	"github.com/scionproto/scion/go/lib/crypto"
 )
+
+func init() {
+	crypto.MathRandSeed()
+}
 
 type SetupFunc func() interface{}
 type EndpointFunc func(*Conn, interface{})

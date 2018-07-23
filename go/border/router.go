@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
@@ -41,6 +42,7 @@ func init() {
 	// used by confSig below.
 	sighup = make(chan os.Signal, 1)
 	signal.Notify(sighup, syscall.SIGHUP)
+	crypto.MathRandSeed()
 }
 
 type Router struct {
