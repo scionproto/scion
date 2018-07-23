@@ -77,11 +77,11 @@ func main() {
 	}
 }
 
-func fmtEntry(l log.LogEntry) string {
+func fmtEntry(l logparse.LogEntry) string {
 	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(common.TimeFmt), l.Level, l.Entry)
 }
 
-type LogEntries []log.LogEntry
+type LogEntries []logparse.LogEntry
 
 var entries LogEntries
 
@@ -120,7 +120,7 @@ func entriesFromFile(fn string) LogEntries {
 		return entries // empty slice
 	}
 	defer f.Close()
-	log.ParseFrom(f, indent, fn, fnToEName(fn), func(e log.LogEntry) {
+	logparse.ParseFrom(f, indent, fn, fnToEName(fn), func(e logparse.LogEntry) {
 		entries = append(entries, e)
 	})
 	return entries
