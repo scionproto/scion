@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,11 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
-)
-
-const (
-	defKeyPath = "gen-certs/tls.key"
-	defPemPath = "gen-certs/tls.pem"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var (
@@ -36,19 +33,10 @@ var (
 	srvTlsCfg = &tls.Config{}
 )
 
-func Init(keyPath, pemPath string) error {
-	if keyPath == "" {
-		keyPath = defKeyPath
-	}
-	if pemPath == "" {
-		pemPath = defPemPath
-	}
-	cert, err := tls.LoadX509KeyPair(pemPath, keyPath)
-	if err != nil {
-		return common.NewBasicError("squic: Unable to load TLS cert/key", err)
-	}
-	srvTlsCfg.Certificates = []tls.Certificate{cert}
-	return nil
+func Init(tlsCertFile, tlsKeyFile string) error {
+	var err error
+	srvTlsCfg, err = util.CreateTLSConfig(tlsCertFile, tlsKeyFile)
+	return err
 }
 
 func DialSCION(network *snet.Network, laddr, raddr *snet.Addr) (quic.Session, error) {
