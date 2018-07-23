@@ -17,7 +17,6 @@ package transport
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"net"
 
@@ -105,7 +104,6 @@ func initTls(tlsCertFile, tlsKeyFile string) (*tls.Config, error) {
 func (t *QuicTransport) clientAcceptor() {
 	defer log.LogPanicAndExit()
 	for {
-		fmt.Println("Calling accept")
 		qsess, err := t.listener.Accept()
 		select {
 		case <-t.exit:
@@ -122,7 +120,6 @@ func (t *QuicTransport) clientAcceptor() {
 
 func (t *QuicTransport) handleClient(qsess quic.Session) {
 	defer log.LogPanicAndExit()
-	fmt.Println("handling client")
 	qstream, err := qsess.AcceptStream()
 	if err != nil {
 		log.Error("Unable to accept quic stream", "err", err)
@@ -177,7 +174,6 @@ func (t *QuicTransport) SendMsgTo(ctx context.Context, b common.RawBytes,
 	if err != nil {
 		return err
 	}
-	fmt.Println("Dial succeeded")
 	qstream, err := qsess.OpenStreamSync()
 	if err != nil {
 		return err
