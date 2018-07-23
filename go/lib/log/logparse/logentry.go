@@ -39,7 +39,8 @@ const (
 )
 
 var (
-	lineRegex = regexp.MustCompile(`([\d-]+[ T][\d:]+\.[\d+-]+) \[(\w+)\] (.+)`)
+	colorRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	lineRegex  = regexp.MustCompile(`([\d-]+[ T][\d:]+\.[\d+-]+) \[(\w+)\] (.+)`)
 )
 
 func LvlFromString(lvl string) (Lvl, error) {
@@ -101,6 +102,7 @@ func ParseFrom(reader io.Reader, indent, fileName, element string,
 	scanner := bufio.NewScanner(reader)
 	for lineno := 1; scanner.Scan(); lineno++ {
 		line := scanner.Text()
+		line = colorRegex.ReplaceAllString(line, "")
 		if isContinuation(line) {
 			// If this is a continuation at the start of the reader, just drop it
 			if prevEntry == nil {

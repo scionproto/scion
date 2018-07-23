@@ -84,6 +84,17 @@ func TestParseFrom(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:  "Entry with color",
+			Input: "2018-07-19 14:39:29.489625+0000 [\x1b[36mDBUG\x1b[0m] SCION network ...",
+			Entries: []LogEntry{
+				{
+					Timestamp: defaultTs,
+					Level:     LvlDebug,
+					Entry:     "SCION network ...",
+				},
+			},
+		},
 	}
 	Convey("ParseFrom", t, func() {
 		for _, tc := range tests {
