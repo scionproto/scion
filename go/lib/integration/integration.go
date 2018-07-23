@@ -28,23 +28,24 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+// Integration can be used to run integration tests.
 type Integration interface {
 	// Name returns the name of the test
 	Name() string
 	// StartServer should start the server listening on the address local.
 	// StartServer should return immediately.
 	// The context should be used to make the server cancellable.
-	StartServer(ctx context.Context, local addr.IA) error
-	// WaitServer should block until the server is terminated.
-	// WaitServer should only be called after making sure that the server will stop,
-	//  e.g. by cancelling the context.
-	WaitServer() error
+	StartServer(ctx context.Context, local addr.IA) (Runner, error)
 	// StartClient should start the client on the local address connecting to the remote address.
 	// StartClient should return immediately.
 	// The context should be used to make the client cancellable.
-	StartClient(ctx context.Context, local, remote addr.IA) error
-	// WaitClient should block until the client is terminated.
-	WaitClient() error
+	StartClient(ctx context.Context, local, remote addr.IA) (Runner, error)
+}
+
+// Runner is a descriptor of a process running in the integration test.
+type Runner interface {
+	// Wait should block until the underlying program is terminated.
+	Wait() error
 }
 
 // Init initializes the integration test, it adds and validates the command line flags.
@@ -111,11 +112,13 @@ func RunTests(in Integration, connections []Connection) error {
 	dsts := extraceDsts(connections)
 	for _, dst := range dsts {
 		serverCtx, serverCancel := context.WithCancel(context.Background())
-		defer serverCancel()
-		err := in.StartServer(serverCtx, dst)
+		s, err := in.StartServer(serverCtx, dst)
 		if err != nil {
+			serverCancel()
 			return err
 		}
+		defer s.Wait()
+		defer serverCancel()
 	}
 
 	// Now start the clients for srcDest pair
@@ -125,12 +128,12 @@ func RunTests(in Integration, connections []Connection) error {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
-		err := in.StartClient(ctx, conn.Src, conn.Dst)
+		c, err := in.StartClient(ctx, conn.Src, conn.Dst)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error during start of the client: %s\n", err)
 			return err
 		}
-		if err = in.WaitClient(); err != nil {
+		if err = c.Wait(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 			return err
 		}

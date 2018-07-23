@@ -16,7 +16,6 @@ package integration
 
 import (
 	"context"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -35,8 +34,6 @@ type BinaryIntegration struct {
 	name       string
 	clientArgs []string
 	serverArgs []string
-	serverCmd  *exec.Cmd
-	clientCmd  *exec.Cmd
 }
 
 func NewBinaryIntegration(name string, clientArgs, serverArgs []string) *BinaryIntegration {
@@ -51,33 +48,24 @@ func (bi *BinaryIntegration) Name() string {
 	return bi.name
 }
 
-func (bi *BinaryIntegration) StartServer(ctx context.Context, local addr.IA) error {
+func (bi *BinaryIntegration) StartServer(ctx context.Context, local addr.IA) (Runner, error) {
+
 	args := replacePattern(LocalAddrReplace, local.String(), bi.serverArgs)
-	bi.serverCmd = exec.CommandContext(ctx, bi.name, args...)
-	bi.serverCmd.Stderr = os.Stderr
-	return bi.serverCmd.Start()
-}
-
-func (bi *BinaryIntegration) WaitServer() error {
-	if bi.serverCmd != nil {
-		return bi.serverCmd.Wait()
+	r := &BinaryRunner{
+		exec.CommandContext(ctx, bi.name, args...),
 	}
-	return nil
+	return r, r.Start()
 }
 
-func (bi *BinaryIntegration) StartClient(ctx context.Context, local, remote addr.IA) error {
+func (bi *BinaryIntegration) StartClient(ctx context.Context, local, remote addr.IA) (
+	Runner, error) {
+
 	args := replacePattern(LocalAddrReplace, local.String(), bi.clientArgs)
 	args = replacePattern(RemoteAddrReplace, remote.String(), args)
-	bi.clientCmd = exec.CommandContext(ctx, bi.name, args...)
-	bi.clientCmd.Stderr = os.Stderr
-	return bi.clientCmd.Start()
-}
-
-func (bi *BinaryIntegration) WaitClient() error {
-	if bi.clientCmd != nil {
-		return bi.clientCmd.Wait()
+	r := &BinaryRunner{
+		exec.CommandContext(ctx, bi.name, args...),
 	}
-	return nil
+	return r, r.Start()
 }
 
 func replacePattern(pattern string, replacement string, args []string) []string {
@@ -89,4 +77,10 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 		}
 	}
 	return argsCopy
+}
+
+var _ Runner = (*BinaryRunner)(nil)
+
+type BinaryRunner struct {
+	*exec.Cmd
 }
