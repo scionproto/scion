@@ -20,7 +20,7 @@
 // >    127.0.0.65:30066
 // >  Interfaces:
 // >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-ff00:0:312 MTU: 1472 BW: 1000
-// 2017-05-16T13:18:16.539633390+0000 [DBUG] AS Conf loaded conf="CertChainVersion:0 MasterASKey:e856d81efb0878512f78f207bb8aadb3 PropagateTime:5 RegisterPath:true RegisterTime:5"
+// 2017-05-16T13:18:16.539633390+0000 [DBUG] AS Conf loaded conf="CertChainVersion:0 PropagateTime:5 RegisterPath:true RegisterTime:5"
 // 2017-05-16T13:18:16.539658666+0000 [INFO] Starting up id=br1-ff00:0:311-1
 //
 // Lines starting with "> " or a space are assumed to be continuations, i.e.

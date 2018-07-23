@@ -61,6 +61,6 @@ func Parse(data []byte, path string) error {
 
 func (a ASConf) String() string {
 	return fmt.Sprintf(
-		"CertChainVersion:%d MasterASKey:%s PropagateTime:%d RegisterPath:%t RegisterTime:%d",
-		a.CertChainVersion, a.MasterASKey, a.PropagateTime, a.RegisterPath, a.RegisterTime)
+		"CertChainVersion:%d PropagateTime:%d RegisterPath:%t RegisterTime:%d",
+		a.CertChainVersion, a.PropagateTime, a.RegisterPath, a.RegisterTime)
 }

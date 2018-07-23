@@ -117,5 +117,7 @@ func LoadKey(file string, algo string) (common.RawBytes, error) {
 func (a *KeyConf) String() string {
 	return fmt.Sprintf(
 		"DecryptKey:%s SigningKey:%s IssSigningKey: %s OfflineRootKey:%s OnlineRootKey:%s",
-		a.DecryptKey, a.SignKey, a.IssSigKey, a.OffRootKey, a.OnRootKey)
+		//XXX(shitz): Uncomment for debugging.
+		//a.DecryptKey, a.SignKey, a.IssSigKey, a.OffRootKey, a.OnRootKey)
+		"<redacted>", "<redacted>", "<redacted>", "<redacted>", "<redacted>")
 }
