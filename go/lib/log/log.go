@@ -26,6 +26,7 @@ import (
 	"github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
 	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
+	"github.com/mattn/go-isatty"
 	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -120,8 +121,12 @@ func SetupLogConsole(logConsole string) error {
 	if err != nil {
 		return common.NewBasicError("Unable to parse log.console flag:", err)
 	}
-	logConsHandler = log15.LvlFilterHandler(logLvl, log15.StreamHandler(os.Stderr,
-		fmt15.Fmt15Format(fmt15.ColorMap)))
+	var cMap map[log15.Lvl]int
+	if isatty.IsTerminal(os.Stderr.Fd()) {
+		cMap = fmt15.ColorMap
+	}
+	logConsHandler = log15.LvlFilterHandler(logLvl,
+		log15.StreamHandler(os.Stderr, fmt15.Fmt15Format(cMap)))
 	setHandlers()
 	return nil
 }
