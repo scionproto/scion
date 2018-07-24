@@ -69,6 +69,7 @@ func validateFlags() error {
 	return nil
 }
 
+// LoadASList loads the AS list from the as_list yaml file.
 func LoadASList() (*util.ASList, error) {
 	return util.LoadASList("gen/as_list.yml")
 }
@@ -118,8 +119,11 @@ func RunTests(in Integration, pairs []IAPair) error {
 			serverCancel()
 			return err
 		}
-		defer s.Wait()
-		defer serverCancel()
+		defer func() {
+			// make sure the server is properly killed.
+			serverCancel()
+			s.Wait()
+		}()
 	}
 
 	// Now start the clients for srcDest pair

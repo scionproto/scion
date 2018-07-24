@@ -23,21 +23,24 @@ import (
 )
 
 const (
+	// SrcIAReplace is a placeholder for the source IA in the arguments.
 	SrcIAReplace = "<SRCIA>"
+	// DstIAReplace is a placeholder for the destination IA in the arguments.
 	DstIAReplace = "<DSTIA>"
 )
 
 var _ Integration = (*binaryIntegration)(nil)
 
-// binaryIntegration implements the Integration interface. It can be used to run binary programs.
-// Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
-// When starting a client/server the placeholders will be replaced with the actual values.
 type binaryIntegration struct {
 	name       string
 	clientArgs []string
 	serverArgs []string
 }
 
+// NewBinaryIntegration returns an implementation of the Integration interface.
+// Start* will run the binary programm with name and use the given arguments for the client/server.
+// Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
+// When starting a client/server the placeholders will be replaced with the actual values.
 func NewBinaryIntegration(name string, clientArgs, serverArgs []string) Integration {
 	return &binaryIntegration{
 		name:       name,
