@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,10 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
+const (
+	serverPort = "40004"
+)
+
 func main() {
 	os.Exit(realMain())
 }
@@ -41,10 +45,10 @@ func realMain() int {
 	// depeding on the main log parameter it should either go to a file or to console stderr.
 	in := integration.NewBinaryIntegration("./bin/pingpong",
 		[]string{"-mode", "client", "-sciondFromIA", "-count", "1",
-			"-local", integration.LocalAddrReplace + ",[127.0.0.1]:0",
-			"-remote", integration.RemoteAddrReplace + ",[127.0.0.1]:40004"},
+			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
+			"-remote", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort},
 		[]string{"-mode", "server", "-sciondFromIA",
-			"-local", integration.LocalAddrReplace + ",[127.0.0.1]:40004"})
+			"-local", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort})
 	if err = integration.RunTests(in, integration.GenerateAllSrcDst(asList)); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

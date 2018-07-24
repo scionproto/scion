@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,18 +32,19 @@ import (
 type Integration interface {
 	// Name returns the name of the test
 	Name() string
-	// StartServer should start the server listening on the address local.
+	// StartServer should start the server listening on the address dst.
 	// StartServer should return immediately.
 	// The context should be used to make the server cancellable.
-	StartServer(ctx context.Context, local addr.IA) (Runner, error)
-	// StartClient should start the client on the local address connecting to the remote address.
+	StartServer(ctx context.Context, dst addr.IA) (Waiter, error)
+	// StartClient should start the client on the src address connecting to the dst address.
 	// StartClient should return immediately.
 	// The context should be used to make the client cancellable.
-	StartClient(ctx context.Context, local, remote addr.IA) (Runner, error)
+	StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error)
 }
 
-// Runner is a descriptor of a process running in the integration test.
-type Runner interface {
+// Waiter is a descriptor of a process running in the integration test.
+// It should be used to wait on completion of the process.
+type Waiter interface {
 	// Wait should block until the underlying program is terminated.
 	Wait() error
 }
@@ -72,27 +73,27 @@ func LoadASList() (*util.ASList, error) {
 	return util.LoadASList("gen/as_list.yml")
 }
 
-// Connection is a source, destination pair. The client (Src) will dial the server (Dst).
-type Connection struct {
+// IAPair is a source, destination pair. The client (Src) will dial the server (Dst).
+type IAPair struct {
 	Src addr.IA
 	Dst addr.IA
 }
 
 // GenerateAllSrcDst generates the cartesian product shuffle(asList) x shuffle(asList).
-func GenerateAllSrcDst(asList *util.ASList) []Connection {
-	allAs := append(asList.Core, asList.NonCore...)
-	allAs2 := append([]addr.IA(nil), allAs...)
-	shuffle(len(allAs), func(i, j int) {
-		allAs[i], allAs[j] = allAs[j], allAs[i]
-		allAs2[i], allAs2[j] = allAs2[j], allAs2[i]
+func GenerateAllSrcDst(asList *util.ASList) []IAPair {
+	allSrcASes := append(asList.Core, asList.NonCore...)
+	allDstASes := append([]addr.IA(nil), allSrcASes...)
+	shuffle(len(allSrcASes), func(i, j int) {
+		allSrcASes[i], allSrcASes[j] = allSrcASes[j], allSrcASes[i]
+		allDstASes[i], allDstASes[j] = allDstASes[j], allDstASes[i]
 	})
-	sd := make([]Connection, 0, len(allAs)*len(allAs2))
-	for _, src := range allAs {
-		for _, dst := range allAs2 {
-			sd = append(sd, Connection{src, dst})
+	pairs := make([]IAPair, 0, len(allSrcASes)*len(allDstASes))
+	for _, src := range allSrcASes {
+		for _, dst := range allDstASes {
+			pairs = append(pairs, IAPair{src, dst})
 		}
 	}
-	return sd
+	return pairs
 }
 
 // interface kept similar to go 1.10
@@ -103,13 +104,13 @@ func shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-// RunTests runs the client and server for each connection.
+// RunTests runs the client and server for each IAPair.
 // In case of an error the function is terminated immediately.
-func RunTests(in Integration, connections []Connection) error {
+func RunTests(in Integration, pairs []IAPair) error {
 	start := time.Now()
 
 	// First run all servers
-	dsts := extraceDsts(connections)
+	dsts := extractUniqueDsts(pairs)
 	for _, dst := range dsts {
 		serverCtx, serverCancel := context.WithCancel(context.Background())
 		s, err := in.StartServer(serverCtx, dst)
@@ -122,9 +123,9 @@ func RunTests(in Integration, connections []Connection) error {
 	}
 
 	// Now start the clients for srcDest pair
-	for i, conn := range connections {
+	for i, conn := range pairs {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-			in.Name(), conn.Src, conn.Dst, i, len(connections)))
+			in.Name(), conn.Src, conn.Dst, i, len(pairs)))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -145,16 +146,14 @@ func RunTests(in Integration, connections []Connection) error {
 	return nil
 }
 
-func extraceDsts(connections []Connection) []addr.IA {
+func extractUniqueDsts(pairs []IAPair) []addr.IA {
 	uniqueDsts := make(map[addr.IA]bool)
-	for _, endp := range connections {
-		if !uniqueDsts[endp.Dst] {
-			uniqueDsts[endp.Dst] = true
+	var res []addr.IA
+	for _, pair := range pairs {
+		if !uniqueDsts[pair.Dst] {
+			res = append(res, pair.Dst)
+			uniqueDsts[pair.Dst] = true
 		}
-	}
-	res := make([]addr.IA, 0, len(uniqueDsts))
-	for dst := range uniqueDsts {
-		res = append(res, dst)
 	}
 	return res
 }
