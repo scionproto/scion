@@ -24,12 +24,12 @@ import os
 import random
 import signal
 import socket
+import subprocess
 import sys
 import threading
 import time
 from abc import ABCMeta, abstractmethod
 from itertools import product
-from subprocess import PIPE, Popen, TimeoutExpired
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -312,13 +312,15 @@ class TestClientServerBase(object):
         server_cmd = self._server_cmd(self.server_ip) + args
         client_cmd = self._client_cmd(self.client_ip) + args
         # Run exec commands, wait a bit for the server to be ready
-        server = Popen(server_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, start_new_session=True)
+        server = subprocess.Popen(server_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, start_new_session=True)
         time.sleep(0.2)
-        client = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        client = subprocess.Popen(client_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
 
         try:
             (server_code, client_code) = [p.wait(10.0) for p in [server, client]]
-        except TimeoutExpired:
+        except subprocess.TimeoutExpired:
             os.killpg(os.getpgid(server.pid), signal.SIGTERM)
             logging.error("Timeout waiting for subprocesses to terminate")
             return False

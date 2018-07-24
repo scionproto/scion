@@ -19,7 +19,7 @@
 
 # Stdlib
 import logging
-from subprocess import PIPE, Popen
+import subprocess
 import threading
 
 # SCION
@@ -106,7 +106,8 @@ class TestCertReq(TestClientServerBase):
         logging.info("Testing: %s -> %s", src.isd_as, dst.isd_as)
         if self.docker:
             client_cmd = self._client_cmd(self.client_ip) + self._cmd_args(src, dst)
-            client_code = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE).wait()
+            client_code = subprocess.Popen(client_cmd, stdin=subprocess.PIPE,
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
 
             if not client_code:
                 logging.debug("Success")

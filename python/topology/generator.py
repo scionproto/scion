@@ -102,6 +102,7 @@ DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
 HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
+DOCKER_BASE_CONF = 'base-dc.yml'
 DOCKER_SCION_CONF = 'scion-dc.yml'
 DOCKER_UTIL_CONF = 'util-dc.yml'
 COMMON_DIR = 'endhost'
@@ -1000,10 +1001,12 @@ class DockerGenerator(object):
     def __init__(self, out_dir, topo_dicts, cs):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
+        self.dc_base_conf = {'version': '3', 'networks': {}}
         self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
         self.dc_util_conf = {'version': '3', 'services': {}}
 
     def generate(self):
+        self._base_conf()
         self._zookeeper_conf()
         self._dispatcher_conf()
         self._test_conf()
@@ -1018,6 +1021,12 @@ class DockerGenerator(object):
                    yaml.dump(self.dc_conf, default_flow_style=False))
         write_file(os.path.join(self.out_dir, DOCKER_UTIL_CONF),
                    yaml.dump(self.dc_util_conf, default_flow_style=False))
+        write_file(os.path.join(self.out_dir, DOCKER_BASE_CONF),
+                   yaml.dump(self.dc_base_conf, default_flow_style=False))
+
+    def _base_conf(self):
+        default_net = {'ipam': {'config': [{'subnet': '172.18.0.0/24'}]}}
+        self.dc_base_conf['networks']['default'] = default_net
 
     def _br_conf(self, topo, base):
         raw_entry = {
@@ -1148,6 +1157,8 @@ class DockerGenerator(object):
             'restart': 'always',
             'environment': {
                 'ZOO_USER': '$LOGNAME',
+                'ZOO_DATA_DIR': '/var/lib/zookeeper',
+                'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
@@ -1161,7 +1172,6 @@ class DockerGenerator(object):
             ]
         }
         self.dc_conf['services']['zookeeper'] = entry
-        self.dc_conf['networks']['default'] = {'ipam': {'config': [{'subnet': '172.18.0.1/24'}]}}
 
     def _test_conf(self):
         raw_entry = {
@@ -1171,7 +1181,8 @@ class DockerGenerator(object):
                 '/run/shm/sciond:/run/shm/sciond:rw',
                 '${PWD}/logs:/home/scion/go/src/github.com/scionproto/scion/logs:rw'
             ],
-            'entrypoint': [
+            'entrypoint': [],
+            'command': [
                 'tail',
                 '-f',
                 '/dev/null'

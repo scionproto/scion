@@ -19,7 +19,7 @@
 # Stdlib
 import copy
 import logging
-from subprocess import PIPE, Popen
+import subprocess
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -369,7 +369,8 @@ class SCMPErrorTest(TestClientServerBase):
             client_cmd = ["client", "./python/integration/scmp_error_test.py",
                           "--client", str(self.client_ip), "--server", str(self.server_ip)]
             client_cmd = self._base_cmd() + client_cmd + self._cmd_args(src, dst)
-            client_code = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE).wait()
+            client_code = subprocess.Popen(client_cmd, stdin=subprocess.PIPE,
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE).wait()
             if not client_code:
                 logging.debug("Success")
                 return True

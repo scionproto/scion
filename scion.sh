@@ -8,11 +8,7 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 
 cmd_topology() {
     local zkclean
-    if [ -f gen/scion-dc.yml ]; then
-        echo "Shutting down docker-compose: $(./scion.sh stop)"
-    else
-        echo "Shutting down supervisord: $(supervisor/supervisor.sh shutdown)"
-    fi
+    echo "Shutting down docker-compose: $(./scion.sh stop)"
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
     [ -e gen-cache ] && rm -r gen-cache
@@ -284,11 +280,7 @@ cmd_sciond() {
 }
 
 cmd_dc() {
-    if [ -v COMPOSE_FILE ]; then
-        docker-compose $@
-    else
-        COMPOSE_FILE="gen/scion-dc.yml" docker-compose $@
-    fi
+    COMPOSE_FILE="gen/base-dc.yml:${COMPOSE_FILE:-gen/scion-dc.yml}" docker-compose "$@"
 }
 
 cmd_help() {
