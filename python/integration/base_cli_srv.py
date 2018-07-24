@@ -24,12 +24,12 @@ import os
 import random
 import signal
 import socket
-from subprocess import PIPE, Popen, TimeoutExpired
 import sys
 import threading
 import time
 from abc import ABCMeta, abstractmethod
 from itertools import product
+from subprocess import PIPE, Popen, TimeoutExpired
 
 # SCION
 import lib.app.sciond as lib_sciond
@@ -300,49 +300,56 @@ class TestClientServerBase(object):
         Run client and server, wait for both to finish
         """
         logging.info("Testing: %s -> %s", src.isd_as, dst.isd_as)
-        data = self._create_data(src, dst)
         if self.docker:
-            port = random.randint(1024, 65535)
-            args = self._cmd_args(src, dst, ["--data", data, "--port", str(port)])
-            server_cmd = self._server_cmd(self.server_ip) + args
-            client_cmd = self._client_cmd(self.client_ip) + args
-            # Run exec commands, wait a bit for the server to be ready
-            server = Popen(server_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=os.setsid)
-            time.sleep(0.2)
-            client = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-
-            try:
-                (server_code, client_code) = [p.wait(10.0) for p in [server, client]]
-            except TimeoutExpired:
-                os.killpg(os.getpgid(server.pid), signal.SIGTERM)
-                logging.error("Timeout waiting for subprocesses to terminate")
-                return False
-
-            if not client_code and not server_code:
-                logging.debug("Success")
-                return True
-            logging.error("Client success? %s Server success? %s",
-                          not client_code, not server_code)
-            return False
+            return self._run_test_docker(src, dst)
         else:
-            # finished is used by the client/server to signal to the other that they
-            # are stopping.
-            finished = threading.Event()
-            server = self._create_server(data, finished, dst)
-            client = self._create_client(data, finished, src, dst, server.sock.port)
-            server_name = "%s %s > %s server" % (self.NAME, src.isd_as, dst.isd_as)
-            s_thread = threading.Thread(
-                target=thread_safety_net, args=(server.run,), name=server_name,
-                daemon=True)
-            s_thread.start()
-            client.run()
-            # If client is finished, server should finish within ~1s (due to recv
-            # timeout). If it hasn't, then there was a problem.
-            s_thread.join(5.0)
-            if s_thread.is_alive():
-                logging.error("Timeout waiting for server thread to terminate")
-                return False
-            return self._check_result(client, server)
+            return self._run_test_native(src, dst)
+
+    def _run_test_docker(self, src, dst):
+        data = self._create_data(src, dst)
+        port = random.randint(1024, 65535)
+        args = self._cmd_args(src, dst, ["--data", data, "--port", str(port)])
+        server_cmd = self._server_cmd(self.server_ip) + args
+        client_cmd = self._client_cmd(self.client_ip) + args
+        # Run exec commands, wait a bit for the server to be ready
+        server = Popen(server_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, start_new_session=True)
+        time.sleep(0.2)
+        client = Popen(client_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+        try:
+            (server_code, client_code) = [p.wait(10.0) for p in [server, client]]
+        except TimeoutExpired:
+            os.killpg(os.getpgid(server.pid), signal.SIGTERM)
+            logging.error("Timeout waiting for subprocesses to terminate")
+            return False
+
+        if not client_code and not server_code:
+            logging.debug("Success")
+            return True
+        logging.error("Client success? %s Server success? %s",
+                      not client_code, not server_code)
+        return False
+
+    def _run_test_native(self, src, dst):
+        # finished is used by the client/server to signal to the other that they
+        # are stopping.
+        finished = threading.Event()
+        data = self._create_data(src, dst)
+        server = self._create_server(data, finished, dst)
+        client = self._create_client(data, finished, src, dst, server.sock.port)
+        server_name = "%s %s > %s server" % (self.NAME, src.isd_as, dst.isd_as)
+        s_thread = threading.Thread(
+            target=thread_safety_net, args=(server.run,), name=server_name,
+            daemon=True)
+        s_thread.start()
+        client.run()
+        # If client is finished, server should finish within ~1s (due to recv
+        # timeout). If it hasn't, then there was a problem.
+        s_thread.join(5.0)
+        if s_thread.is_alive():
+            logging.error("Timeout waiting for server thread to terminate")
+            return False
+        return self._check_result(client, server)
 
     def _check_result(self, client, server):
         if client.success and server.success:
