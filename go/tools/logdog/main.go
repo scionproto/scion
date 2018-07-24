@@ -45,41 +45,46 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log/logparse"
 )
 
-const indent_size = 15
-const indent = "                  " // 18 spaces
-
 func main() {
 	flag.Usage = printUsage
 	flag.Parse()
+	maxENameLen := 0
 	// Read in all files
 	for _, fn := range flag.Args() {
 		entries = append(entries, entriesFromFile(fn)...)
+		eNameLen := len(fnToEName(fn))
+		if eNameLen > maxENameLen {
+			maxENameLen = eNameLen
+		}
 	}
+	indent := strings.Repeat(" ", maxENameLen+3)
+	fmtL := "[%-" + strconv.Itoa(maxENameLen) + "s] %s"
 	// Sort by timestamp and output
 	sort.Sort(entries)
 	lastelement := ""
 	for _, entry := range entries {
 		if entry.Element == lastelement {
-			fmt.Printf("%s%s", indent, fmtEntry(entry))
+			fmt.Printf("%s%s", indent, fmtEntry(entry, indent))
 		} else {
 			lastelement = entry.Element
-			fmt.Printf("[%-15s] %s", entry.Element, fmtEntry(entry))
+			fmt.Printf(fmtL, entry.Element, fmtEntry(entry, indent))
 		}
 	}
 }
 
-func fmtEntry(l logparse.LogEntry) string {
-	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(common.TimeFmt), l.Level, l.Entry)
+func fmtEntry(l logparse.LogEntry, indent string) string {
+	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(common.TimeFmt), l.Level,
+		strings.Join(l.Lines, "\n"+indent))
 }
 
 type LogEntries []logparse.LogEntry
@@ -104,8 +109,7 @@ func (e LogEntries) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
 // If the name is still longer than indent_size characters, truncate.
 func fnToEName(s string) string {
 	ext := path.Ext(s)
-	name := strings.TrimSuffix(path.Base(s), ext)
-	return name[:int64(math.Min(float64(len(name)), indent_size))]
+	return strings.TrimSuffix(path.Base(s), ext)
 }
 
 func printUsage() {
@@ -121,7 +125,7 @@ func entriesFromFile(fn string) LogEntries {
 		return entries // empty slice
 	}
 	defer f.Close()
-	logparse.ParseFrom(f, indent, fn, fnToEName(fn), func(e logparse.LogEntry) {
+	logparse.ParseFrom(f, fn, fnToEName(fn), func(e logparse.LogEntry) {
 		entries = append(entries, e)
 	})
 	return entries

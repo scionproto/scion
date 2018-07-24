@@ -39,8 +39,7 @@ const (
 )
 
 var (
-	colorRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	lineRegex  = regexp.MustCompile(`([\d-]+[ T][\d:]+\.[\d+-]+) \[(\w+)\] (.+)`)
+	lineRegex = regexp.MustCompile(` \[(\w+)\] (.+)`)
 )
 
 func LvlFromString(lvl string) (Lvl, error) {
@@ -66,17 +65,16 @@ func (l Lvl) String() string {
 }
 
 // LogEntry is one entry in a log.
-// Note that the Entry might be multiple lines if the log entry spanned over multiple lines.
 type LogEntry struct {
 	Timestamp time.Time
 	// Element describes the source of this LogEntry, e.g. the file name.
 	Element string
 	Level   Lvl
-	Entry   string
+	Lines   []string
 }
 
 func (l LogEntry) String() string {
-	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(common.TimeFmt), l.Level, l.Entry)
+	return fmt.Sprintf("%s [%s] %s\n", l.Timestamp.Format(common.TimeFmt), l.Level, l.Lines)
 }
 
 // ParseFrom parses log lines from the reader.
@@ -91,24 +89,20 @@ func (l LogEntry) String() string {
 // Lines starting with "> " or a space are assumed to be continuations, i.e.
 // they belong with the line(s) above them.
 //
-// Continuation lines are indented with the given indent.
 // The fileName is used for logging.
 // The element is put in LogEntry.Element.
 // Parsed entries are passed to the entryConsumer.
-func ParseFrom(reader io.Reader, indent, fileName, element string,
-	entryConsumer func(LogEntry)) {
-
+func ParseFrom(reader io.Reader, fileName, element string, entryConsumer func(LogEntry)) {
 	var prevEntry *LogEntry
 	scanner := bufio.NewScanner(reader)
 	for lineno := 1; scanner.Scan(); lineno++ {
 		line := scanner.Text()
-		line = colorRegex.ReplaceAllString(line, "")
 		if isContinuation(line) {
 			// If this is a continuation at the start of the reader, just drop it
 			if prevEntry == nil {
 				continue
 			}
-			prevEntry.Entry += fmt.Sprintf("\n%s%s", indent, line)
+			prevEntry.Lines = append(prevEntry.Lines, line)
 			continue
 		}
 		if prevEntry != nil {
@@ -123,29 +117,33 @@ func ParseFrom(reader io.Reader, indent, fileName, element string,
 
 // parseInitialEntry parses a line with the pattern <TS> [<Level>] <Entry>.
 func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
-	matches := lineRegex.FindStringSubmatch(line)
-	if matches == nil || len(matches) < 4 {
+	tsLen := len(common.TimeFmt)
+
+	if len(line) < tsLen {
+		log.Error(fmt.Sprintf("Short line at %s:%d: '%+v'\n", fileName, lineno, line))
+	}
+	ts, err := time.Parse(common.TimeFmt, line[:tsLen])
+	if err != nil {
+		log.Error(fmt.Sprintf("%s:%d: Could not parse timestamp %+v: %+v\n",
+			fileName, lineno, line[:tsLen], err))
+		return nil
+	}
+	matches := lineRegex.FindStringSubmatch(line[tsLen:])
+	if matches == nil || len(matches) < 3 {
 		log.Error(fmt.Sprintf("Line %s:%d does not match regexep: %s",
 			fileName, lineno, lineRegex))
 		return nil
 	}
-	ts, err := time.Parse(common.TimeFmt, matches[1])
-	if err != nil {
-		log.Error(fmt.Sprintf("%s:%d: Could not parse timestamp %+v: %+v\n",
-			fileName, lineno, matches[1], err))
-		return nil
-	}
-
-	lvl, err := LvlFromString(matches[2])
+	lvl, err := LvlFromString(matches[1])
 	if err != nil {
 		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v: %v\n",
-			fileName, lineno, matches[2], err))
+			fileName, lineno, matches[1], err))
 	}
 	return &LogEntry{
 		Timestamp: ts,
 		Element:   element,
 		Level:     lvl,
-		Entry:     matches[3],
+		Lines:     []string{matches[2]},
 	}
 }
 

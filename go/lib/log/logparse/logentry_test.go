@@ -27,10 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-const (
-	indent = "<ind>"
-)
-
 func TestParseFrom(t *testing.T) {
 	defaultTs := mustParse("2018-07-19 14:39:29.489625+0000", t)
 	tests := []struct {
@@ -45,7 +41,7 @@ func TestParseFrom(t *testing.T) {
 				{
 					Timestamp: defaultTs,
 					Level:     LvlError,
-					Entry:     "Txt",
+					Lines:     []string{"Txt"},
 				},
 			},
 		},
@@ -57,8 +53,7 @@ func TestParseFrom(t *testing.T) {
 				{
 					Timestamp: defaultTs,
 					Level:     LvlCrit,
-					Entry: "(CliSrvExt 2-ff00:0: > ...\n" +
-						indent + "> SCIONDPathReplyEntry:",
+					Lines:     []string{"(CliSrvExt 2-ff00:0: > ...", "> SCIONDPathReplyEntry:"},
 				},
 			},
 		},
@@ -70,8 +65,7 @@ func TestParseFrom(t *testing.T) {
 				{
 					Timestamp: defaultTs,
 					Level:     LvlCrit,
-					Entry: "(CliSrvExt 2-ff00:0: > ...\n" +
-						indent + " SCIONDPathReplyEntry:",
+					Lines:     []string{"(CliSrvExt 2-ff00:0: > ...", " SCIONDPathReplyEntry:"},
 				},
 			},
 		},
@@ -87,23 +81,12 @@ func TestParseFrom(t *testing.T) {
 				{
 					Timestamp: defaultTs,
 					Level:     LvlError,
-					Entry:     "Txt",
+					Lines:     []string{"Txt"},
 				},
 				{
 					Timestamp: mustParse("2018-07-19 14:39:30.489625+0000", t),
 					Level:     LvlInfo,
-					Entry:     "Txt2",
-				},
-			},
-		},
-		{
-			Name:  "Entry with color",
-			Input: "2018-07-19 14:39:29.489625+0000 [\x1b[36mDBUG\x1b[0m] SCION network ...",
-			Entries: []LogEntry{
-				{
-					Timestamp: defaultTs,
-					Level:     LvlDebug,
-					Entry:     "SCION network ...",
+					Lines:     []string{"Txt2"},
 				},
 			},
 		},
@@ -113,14 +96,14 @@ func TestParseFrom(t *testing.T) {
 			Convey(tc.Name, func() {
 				r := strings.NewReader(tc.Input)
 				var entries []LogEntry
-				ParseFrom(r, indent, tc.Name, tc.Name,
+				ParseFrom(r, tc.Name, tc.Name,
 					func(e LogEntry) { entries = append(entries, e) })
 				SoMsg("entries len", len(entries), ShouldEqual, len(tc.Entries))
 				for i, e := range entries {
 					SoMsg("entry ts", e.Timestamp, ShouldResemble, tc.Entries[i].Timestamp)
 					SoMsg("entry element", e.Element, ShouldEqual, tc.Name)
 					SoMsg("entry level", e.Level, ShouldEqual, tc.Entries[i].Level)
-					SoMsg("entry entry", e.Entry, ShouldResemble, tc.Entries[i].Entry)
+					SoMsg("entry entry", e.Lines, ShouldResemble, tc.Entries[i].Lines)
 				}
 			})
 		}
