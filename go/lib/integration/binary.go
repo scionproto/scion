@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,46 +23,45 @@ import (
 )
 
 const (
-	LocalAddrReplace  = "<LOCALADDR>"
-	RemoteAddrReplace = "<REMOTEADDR>"
+	SrcIAReplace = "<SRCIA>"
+	DstIAReplace = "<DSTIA>"
 )
 
-var _ Integration = (*BinaryIntegration)(nil)
+var _ Integration = (*binaryIntegration)(nil)
 
-// BinaryIntegration implements the Integration interface. It can be used to run binary programs.
-type BinaryIntegration struct {
+// binaryIntegration implements the Integration interface. It can be used to run binary programs.
+// Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
+// When starting a client/server the placeholders will be replaced with the actual values.
+type binaryIntegration struct {
 	name       string
 	clientArgs []string
 	serverArgs []string
 }
 
-func NewBinaryIntegration(name string, clientArgs, serverArgs []string) *BinaryIntegration {
-	return &BinaryIntegration{
+func NewBinaryIntegration(name string, clientArgs, serverArgs []string) Integration {
+	return &binaryIntegration{
 		name:       name,
 		clientArgs: clientArgs,
 		serverArgs: serverArgs,
 	}
 }
 
-func (bi *BinaryIntegration) Name() string {
+func (bi *binaryIntegration) Name() string {
 	return bi.name
 }
 
-func (bi *BinaryIntegration) StartServer(ctx context.Context, local addr.IA) (Runner, error) {
-
-	args := replacePattern(LocalAddrReplace, local.String(), bi.serverArgs)
-	r := &BinaryRunner{
+func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
+	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
+	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.name, args...),
 	}
 	return r, r.Start()
 }
 
-func (bi *BinaryIntegration) StartClient(ctx context.Context, local, remote addr.IA) (
-	Runner, error) {
-
-	args := replacePattern(LocalAddrReplace, local.String(), bi.clientArgs)
-	args = replacePattern(RemoteAddrReplace, remote.String(), args)
-	r := &BinaryRunner{
+func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
+	args := replacePattern(SrcIAReplace, src.String(), bi.clientArgs)
+	args = replacePattern(DstIAReplace, dst.String(), args)
+	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.name, args...),
 	}
 	return r, r.Start()
@@ -79,8 +78,8 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	return argsCopy
 }
 
-var _ Runner = (*BinaryRunner)(nil)
+var _ Waiter = (*binaryWaiter)(nil)
 
-type BinaryRunner struct {
+type binaryWaiter struct {
 	*exec.Cmd
 }
