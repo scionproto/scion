@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/inconshreveable/log15"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-
-	"github.com/inconshreveable/log15"
 )
 
 type Lvl log15.Lvl

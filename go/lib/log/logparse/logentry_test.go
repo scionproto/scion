@@ -20,12 +20,11 @@ import (
 	"testing"
 	"time"
 
+	. "github.com/smartystreets/goconvey/convey"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-
 	"github.com/scionproto/scion/go/lib/xtest"
-
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 const (
@@ -51,7 +50,7 @@ func TestParseFrom(t *testing.T) {
 			},
 		},
 		{
-			Name: "MultilineTest",
+			Name: "MultilineTest>",
 			Input: "2018-07-19 14:39:29.489625+0000 [CRIT] (CliSrvExt 2-ff00:0: > ...\n" +
 				"> SCIONDPathReplyEntry:",
 			Entries: []LogEntry{
@@ -60,6 +59,19 @@ func TestParseFrom(t *testing.T) {
 					Level:     LvlCrit,
 					Entry: "(CliSrvExt 2-ff00:0: > ...\n" +
 						indent + "> SCIONDPathReplyEntry:",
+				},
+			},
+		},
+		{
+			Name: "MultilineTestSpace",
+			Input: "2018-07-19 14:39:29.489625+0000 [CRIT] (CliSrvExt 2-ff00:0: > ...\n" +
+				" SCIONDPathReplyEntry:",
+			Entries: []LogEntry{
+				{
+					Timestamp: defaultTs,
+					Level:     LvlCrit,
+					Entry: "(CliSrvExt 2-ff00:0: > ...\n" +
+						indent + " SCIONDPathReplyEntry:",
 				},
 			},
 		},
