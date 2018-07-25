@@ -1,5 +1,57 @@
 version: 2
 
+scion_defaults:
+    job: &job
+        working_directory: /home/scion/go/src/github.com/scionproto/scion
+        environment:
+            - BASH_ENV: /home/scion/.profile
+
+    env_setup: &env_setup
+        name: Environment setup
+        command: ./tools/ci/env_setup |& tee logs/env_setup.run
+        when: always
+
+    artifacts: &artifacts
+        name: Gather test artifacts
+        command: |
+            set +e -x
+            mv -n python/htmlcov logs gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
+            cp -a /tmp/test_flags "/tmp/artifacts/$ARTIFACTS"
+            tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS" || exit 1
+        when: always
+
+    docker_artifacts: &docker_artifacts
+        name: Gather test artifacts from container
+        command: |
+            set +e -x
+            TARGET="${CIRCLE_PR_NUMBER:-$CIRCLE_BRANCH}"
+            TARGET="${TARGET//\//_}"
+            REPO="${CIRCLE_PROJECT_REPONAME:-local}"
+            BUILD=$(date +%s)
+            [ -n "$CIRCLE_BUILD_NUM" ] && BUILD="build${CIRCLE_BUILD_NUM}"
+            ARTIFACTS=\"circleci.${CIRCLE_PROJECT_USERNAME}.${REPO}.${TARGET}.${BUILD}\"
+            mkdir -p "/tmp/artifacts/${ARTIFACTS:?}" "/tmp/artifacts.out"
+            docker cp scion:/home/scion/go/src/github.com/scionproto/scion/python/htmlcov "/tmp/artifacts/$ARTIFACTS"
+            docker cp scion:/home/scion/go/src/github.com/scionproto/scion/logs "/tmp/artifacts/$ARTIFACTS"
+            docker cp scion:/home/scion/go/src/github.com/scionproto/scion/gen "/tmp/artifacts/$ARTIFACTS"
+            docker cp scion:/home/scion/go/src/github.com/scionproto/scion/sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
+            tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS" || exit 1
+        when: always
+
+workflows:
+    version: 2
+    build:
+        jobs:
+            - build_docker
+    deploy:
+        jobs:
+            - publish:
+                filters:
+                    tags:
+                        only: /^v.*/
+                    branches:
+                        ignore: /.*/
+
 jobs:
     local:
         docker:
@@ -41,65 +93,73 @@ jobs:
                 when: always
 
 
-    build:
-        docker:
-            - image: scionproto/scion_base@sha256:fc1d63f0870b97f9b2a2aeef3c8051bf371b8f5767434157d50f3742fe76e2c6
-        <<: *job
+    build_docker:
+        machine: true
         steps:
+            # Setup
             - checkout
-            - run: *env_setup
             - run:
-                name: Build prep
-                command: ./tools/ci/build_prep |& tee logs/build_prep.run
-                when: always
+                name: Docker pull scion_base
+                command: docker pull scionproto/scion_base@sha256:fc1d63f0870b97f9b2a2aeef3c8051bf371b8f5767434157d50f3742fe76e2c6
+            - run:
+                name: Docker tag
+                command: docker tag scionproto/scion_base@sha256:fc1d63f0870b97f9b2a2aeef3c8051bf371b8f5767434157d50f3742fe76e2c6 scion_base:latest
+            - run:
+                name: Docker build scion
+                command: ./docker.sh build
 
             # Common:
             - run:
+                name: Create container
+                command: docker create --name="scion" --entrypoint= scion:latest tail -f /dev/null
+            - run:
+                name: Start container
+                command: docker container start scion
+            - run:
                 name: Build
-                command: make -s |& tee logs/make.run
-                when: always
+                command: docker container exec scion bash -c "set -eo pipefail; make -s |& tee logs/make.run"
             - run:
                 name: Lint
-                command: ./scion.sh lint |& tee logs/lint.run
-                when: always
+                command: docker container exec scion bash -c "set -eo pipefail; ./scion.sh lint |& tee logs/lint.run"
             - run:
                 name: Unit tests & Coverage
-                command: '{ ./scion.sh coverage py; make -sC go test; } |& tee logs/coverage.run'
-                when: always
+                command: docker container exec scion bash -c "set -eo pipefail; { ./scion.sh coverage py; make -sC go test; } |& tee logs/coverage.run"
             - run:
                 name: Python documentation (sphinx)
-                command: make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run
-                when: always
+                command: docker container exec -it -e "PYTHONPATH=python/:." scion bash -c "set -eo pipefail; make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run"
             - run:
                 name: Integration tests
-                command: ./integration/integration_test.sh |& tee logs/integration.run
-                when: always
-            - run: *artifacts
-
+                command: docker container exec scion bash -c "set -eo pipefail; sudo service zookeeper start; ./integration/integration_test.sh |& tee logs/integration.run"
+            
+            # Clean up
+            - run: *docker_artifacts
+            - run:
+                name: Stop container
+                command: docker stop scion
             - store_artifacts:
                 path: /tmp/artifacts.out
                 destination: /
             - store_test_results:
                 path: logs/nosetests.xml
 
-scion_defaults:
-    job: &job
-        working_directory: /home/scion/go/src/github.com/scionproto/scion
-        environment:
-            - BASH_ENV: /home/scion/.profile
-
-    env_setup: &env_setup
-        name: Environment setup
-        command: ./tools/ci/env_setup |& tee logs/env_setup.run
-        when: always
-
-    artifacts: &artifacts
-        name: Gather test artifacts
-        command: |
-            set +e -x
-            mv -n python/htmlcov logs gen sphinx-doc/_build/html/ "/tmp/artifacts/$ARTIFACTS"
-            cp -a /tmp/test_flags "/tmp/artifacts/$ARTIFACTS"
-            tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS" || exit 1
-        when: always
+    publish:
+        machine: true
+        steps:
+            - checkout
+            - run:
+                name: Docker upgrade
+                command: sudo apt-get update && sudo apt-get install --only-upgrade docker-ce
+            - run:
+                name: Build base
+                command: ./docker.sh base
+            - run:
+                name: Build image
+                command: ./docker.sh build
+            - run:
+                name: Build app images
+                command: make -C docker/perapp
+            - run:
+                name: Push images
+                command: ./docker/perapp/publish "$CIRCLE_TAG"
 
 # vim: expandtab:sw=4:sts=4
