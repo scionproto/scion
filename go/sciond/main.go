@@ -42,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
@@ -119,7 +118,7 @@ func realMain() int {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = snet.Init(config.General.Topology.ISD_AS, "", reliable.DefaultDispPath)
+	err = snet.Init(config.General.Topology.ISD_AS, "", "")
 	if err != nil {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1

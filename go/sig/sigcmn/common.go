@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
@@ -39,7 +38,7 @@ var (
 	CtrlPort       = flag.Int("ctrlport", DefaultCtrlPort, "control data port (e.g., keepalives)")
 	EncapPort      = flag.Int("encapport", DefaultEncapPort, "encapsulation data port")
 	sciondPath     = flag.String("sciond", sciond.GetDefaultSCIONDPath(nil), "SCIOND socket path")
-	dispatcherPath = flag.String("dispatcher", reliable.DefaultDispPath, "SCION Dispatcher path")
+	dispatcherPath = flag.String("dispatcher", "", "SCION Dispatcher path")
 	SigTun         = flag.String("tun", "sig", "Name of TUN device to create")
 )
 

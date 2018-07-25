@@ -36,7 +36,7 @@ import (
 
 var (
 	sciondPath   = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher   = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
+	dispatcher   = flag.String("dispatcher", "", "Path to dispatcher socket")
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 )
 

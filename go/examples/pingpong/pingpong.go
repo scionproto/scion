@@ -38,7 +38,6 @@ import (
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -62,7 +61,7 @@ var (
 	id          = flag.String("id", "pingpong", "Element ID")
 	mode        = flag.String("mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	sciond      = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher  = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
+	dispatcher  = flag.String("dispatcher", "", "Path to dispatcher socket")
 	count       = flag.Int("count", 0,
 		fmt.Sprintf("Number of pings, between 0 and %d; a count of 0 means infinity", MaxPings))
 	timeout = flag.Duration("timeout", DefaultTimeout,

@@ -102,6 +102,9 @@ type Network struct {
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
 func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *Network {
+	if dispatcherPath == "" {
+		dispatcherPath = reliable.DefaultDispPath
+	}
 	return &Network{
 		dispatcherPath: dispatcherPath,
 		pathResolver:   pr,

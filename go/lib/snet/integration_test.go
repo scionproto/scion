@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -123,14 +122,14 @@ func ClientServer(haveSciond bool, idx int, tc TestCase) {
 		if haveSciond {
 			clientSciond = sciond.GetDefaultSCIONDPath(&tc.srcIA)
 		}
-		clientNet, err := NewNetwork(tc.srcIA, clientSciond, reliable.DefaultDispPath)
+		clientNet, err := NewNetwork(tc.srcIA, clientSciond, "")
 		SoMsg("Client network error", err, ShouldBeNil)
 
 		serverSciond := ""
 		if haveSciond {
 			serverSciond = sciond.GetDefaultSCIONDPath(&tc.dstIA)
 		}
-		serverNet, err := NewNetwork(tc.dstIA, serverSciond, reliable.DefaultDispPath)
+		serverNet, err := NewNetwork(tc.dstIA, serverSciond, "")
 		SoMsg("Server network error", err, ShouldBeNil)
 
 		clientAddr, err := AddrFromString(
@@ -226,7 +225,7 @@ func TestMain(m *testing.M) {
 	asList = append(asStruct.Core, asStruct.NonCore...)
 
 	localIA = asList[rand.Intn(len(asList))]
-	err = Init(localIA, sciond.GetDefaultSCIONDPath(&localIA), reliable.DefaultDispPath)
+	err = Init(localIA, sciond.GetDefaultSCIONDPath(&localIA), "")
 	if err != nil {
 		fmt.Println("Test setup error", err)
 		return
