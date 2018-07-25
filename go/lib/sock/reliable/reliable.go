@@ -81,6 +81,8 @@ var (
 )
 
 const (
+	// DefaultDispPath contains the system default for a dispatcher socket.
+	DefaultDispPath = "/run/shm/dispatcher/default.sock"
 	regBindFlag     = 0x04 // Bind address flag (0x04)
 	regBindHdrLen   = 3    // port (2 bytes) + addr type (1 byte)
 	regCommandField = 0x03 // Register command (0x01) with SCMP enabled (0x02)

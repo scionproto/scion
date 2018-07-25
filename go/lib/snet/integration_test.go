@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -39,10 +40,6 @@ var _ = log.Root
 var (
 	asList  []addr.IA
 	localIA addr.IA
-)
-
-const (
-	DispPath = "/run/shm/dispatcher/default.sock"
 )
 
 type TestCase struct {
@@ -126,14 +123,14 @@ func ClientServer(haveSciond bool, idx int, tc TestCase) {
 		if haveSciond {
 			clientSciond = sciond.GetDefaultSCIONDPath(&tc.srcIA)
 		}
-		clientNet, err := NewNetwork(tc.srcIA, clientSciond, DispPath)
+		clientNet, err := NewNetwork(tc.srcIA, clientSciond, reliable.DefaultDispPath)
 		SoMsg("Client network error", err, ShouldBeNil)
 
 		serverSciond := ""
 		if haveSciond {
 			serverSciond = sciond.GetDefaultSCIONDPath(&tc.dstIA)
 		}
-		serverNet, err := NewNetwork(tc.dstIA, serverSciond, DispPath)
+		serverNet, err := NewNetwork(tc.dstIA, serverSciond, reliable.DefaultDispPath)
 		SoMsg("Server network error", err, ShouldBeNil)
 
 		clientAddr, err := AddrFromString(
@@ -229,7 +226,7 @@ func TestMain(m *testing.M) {
 	asList = append(asStruct.Core, asStruct.NonCore...)
 
 	localIA = asList[rand.Intn(len(asList))]
-	err = Init(localIA, sciond.GetDefaultSCIONDPath(&localIA), "/run/shm/dispatcher/default.sock")
+	err = Init(localIA, sciond.GetDefaultSCIONDPath(&localIA), reliable.DefaultDispPath)
 	if err != nil {
 		fmt.Println("Test setup error", err)
 		return
