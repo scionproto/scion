@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,6 +141,14 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 		}
 	}
 	return false
+}
+
+func (ps *PathSegment) FirstIA() addr.IA {
+	return ps.ASEntries[0].IA()
+}
+
+func (ps *PathSegment) LastIA() addr.IA {
+	return ps.ASEntries[len(ps.ASEntries)-1].IA()
 }
 
 // walkHopEntries iterates through the hop entries of asEntries, checking that

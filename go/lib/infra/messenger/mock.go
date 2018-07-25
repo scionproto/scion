@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,9 +30,16 @@ import (
 
 var _ infra.Messenger = (*MockMessenger)(nil)
 
+type SentSegReply struct {
+	Msg  *path_mgmt.SegReply
+	Addr net.Addr
+	ID   uint64
+}
+
 type MockMessenger struct {
-	TRCs   map[addr.ISD]*trc.TRC
-	Chains map[addr.IA]*cert.Chain
+	TRCs           map[addr.ISD]*trc.TRC
+	Chains         map[addr.IA]*cert.Chain
+	SentSegReplies []*SentSegReply
 }
 
 func (m *MockMessenger) RecvMsg(ctx context.Context) (proto.Cerealizable, net.Addr, error) {
@@ -83,6 +90,21 @@ func (m *MockMessenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain,
 
 func (m *MockMessenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 	id uint64) (*path_mgmt.SegReply, error) {
+
+	panic("not implemented")
+}
+
+func (m *MockMessenger) SendSegReply(ctx context.Context, msg *path_mgmt.SegReply,
+	a net.Addr, id uint64) error {
+
+	m.SentSegReplies = append(m.SentSegReplies, &SentSegReply{
+		Msg: msg, Addr: a, ID: id,
+	})
+	return nil
+}
+
+func (m *MockMessenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
+	a net.Addr, id uint64) error {
 
 	panic("not implemented")
 }

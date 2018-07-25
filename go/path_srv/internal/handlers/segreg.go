@@ -1,0 +1,139 @@
+// Copyright 2018 Anapaya Systems
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package handlers
+
+import (
+	"context"
+	"net"
+
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/pathdb/conn"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/revcache"
+	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/proto"
+)
+
+type segRegHandler struct {
+	baseHandler
+	localIA  addr.IA
+	syncDown bool
+}
+
+func NewSegRegHandler(pathDB conn.Conn, revCache revcache.RevCache, trustStore infra.TrustStore,
+	topology *topology.Topo, syncDown bool) infra.Handler {
+
+	f := func(r *infra.Request) {
+		handler := &segRegHandler{
+			baseHandler: baseHandler{
+				request:    r,
+				pathDB:     pathDB,
+				revCache:   revCache,
+				trustStore: trustStore,
+				topology:   topology,
+				logger:     r.Logger,
+			},
+			localIA:  topology.ISD_AS,
+			syncDown: syncDown,
+		}
+		handler.Handle()
+	}
+	return infra.HandlerFunc(f)
+}
+
+func (h *segRegHandler) Handle() {
+	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
+	if !ok {
+		h.logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
+			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
+		return
+	}
+	if err := segReg.ParseRaw(); err != nil {
+		h.logger.Error("[segRegHandler] Failed to parse message", "err", err)
+		return
+	}
+	h.logger.Debug("[segRegHandler] Received message", "seg", segRecs(segReg.SegRecs))
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+	h.verifyAndStore(subCtx, h.request.Peer, h.forwardDownSegs, segReg.Recs, segReg.SRevInfos)
+}
+
+// TODO(lukedirtwalker): what about revocations? In the end version we should forward only after
+// the whole verification is done and the segments are stored.
+// XXX(lukedirtwalker): if verifyAndStore returns all verified stuff,
+// we should send segSync only once.
+func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
+	if !h.syncDown || sm.Type == proto.PathSegType_core || sm.Type == proto.PathSegType_up {
+		return
+	}
+	// down segment needs to be forwarded:
+	msger, ok := infra.MessengerFromContext(h.request.Context())
+	if !ok {
+		h.logger.Warn("[forwardDownSegs] no Messenger found")
+		return
+	}
+	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, trust.LatestVersion)
+	if err != nil {
+		h.logger.Error("[forwardDownSegs]", "err", err)
+		return
+	}
+	for _, coreIA := range trc.CoreASes.ASList() {
+		if coreIA != h.localIA {
+			// TODO(lukedirtwalker): Use go routines here, send is blocking.
+			cPS, err := h.corePSAddr(ctx, coreIA)
+			if err != nil {
+				h.logger.Error("[forwardDownSegs] failed to get add of cPS",
+					"dstIA", coreIA, "err", err)
+				continue
+			}
+			segSync := &path_mgmt.SegSync{
+				SegRecs: &path_mgmt.SegRecs{
+					Recs: []*seg.Meta{sm},
+				},
+			}
+			err = msger.SendSegSync(ctx, segSync, cPS, h.request.ID)
+			if err != nil {
+				h.logger.Error("[forwardDownSegs] failed to send segSync",
+					"dstIA", coreIA, "err", err)
+			}
+		}
+	}
+}
+
+// XXX(lukedirtwalker): very similar to segReqCoreHandler version.
+func (h *segRegHandler) corePSAddr(ctx context.Context, dstIA addr.IA) (net.Addr, error) {
+	coreSegs, err := h.dbSegs(ctx, &query.Params{
+		SegTypes: []proto.PathSegType{proto.PathSegType_core},
+		StartsAt: []addr.IA{dstIA},
+		EndsAt:   []addr.IA{h.localIA},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(coreSegs) < 1 {
+		return nil, common.NewBasicError("No core segments found!", nil)
+	}
+	paths := combinator.Combine(h.localIA, dstIA, nil, coreSegs, nil)
+	if len(paths) < 1 {
+		return nil, common.NewBasicError("No path to local cPS", nil)
+	}
+	return h.addrFromPath(paths, dstIA)
+}
