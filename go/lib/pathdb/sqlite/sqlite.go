@@ -473,8 +473,13 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 		joins = append(joins, "JOIN StartsAt st ON st.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, as := range params.StartsAt {
-			subQ = append(subQ, "(st.IsdID=? AND st.AsID=?)")
-			args = append(args, as.I, as.A)
+			if as.A == 0 {
+				subQ = append(subQ, "(st.IsdID=?)")
+				args = append(args, as.I)
+			} else {
+				subQ = append(subQ, "(st.IsdID=? AND st.AsID=?)")
+				args = append(args, as.I, as.A)
+			}
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
@@ -482,8 +487,13 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 		joins = append(joins, "JOIN EndsAt e ON e.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, as := range params.EndsAt {
-			subQ = append(subQ, "(e.IsdID=? AND e.AsID=?)")
-			args = append(args, as.I, as.A)
+			if as.A == 0 {
+				subQ = append(subQ, "(e.IsdID=?)")
+				args = append(args, as.I)
+			} else {
+				subQ = append(subQ, "(e.IsdID=? AND e.AsID=?)")
+				args = append(args, as.I, as.A)
+			}
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}

@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,11 +52,8 @@ func (s *SegReply) String() string {
 // ParseRaw populates the non-capnp fields of s based on data from the raw
 // capnp fields.
 func (s *SegReply) ParseRaw() error {
-	for i, segMeta := range s.Recs.Recs {
-		if err := segMeta.Segment.ParseRaw(); err != nil {
-			return common.NewBasicError("Unable to parse segment", err, "seg_index", i,
-				"segment", segMeta.Segment)
-		}
+	if s.Recs != nil {
+		return s.Recs.ParseRaw()
 	}
 	return nil
 }
@@ -71,6 +69,9 @@ func (s *SegReply) Sanitize(logger log.Logger) *SegReply {
 	newReply := &SegReply{
 		Req:  s.Req,
 		Recs: &SegRecs{},
+	}
+	if s.Recs == nil {
+		return newReply
 	}
 	for _, segment := range s.Recs.Recs {
 		err := segment.Segment.WalkHopEntries()

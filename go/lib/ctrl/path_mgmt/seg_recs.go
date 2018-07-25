@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +20,7 @@ package path_mgmt
 import (
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -46,6 +48,18 @@ func (s *SegRecs) String() string {
 		}
 	}
 	return strings.Join(desc, "\n")
+}
+
+// ParseRaw populates the non-capnp fields of s based on data from the raw
+// capnp fields.
+func (s *SegRecs) ParseRaw() error {
+	for i, segMeta := range s.Recs {
+		if err := segMeta.Segment.ParseRaw(); err != nil {
+			return common.NewBasicError("Unable to parse segment", err, "seg_index", i,
+				"segment", segMeta.Segment)
+		}
+	}
+	return nil
 }
 
 var _ proto.Cerealizable = (*SegReg)(nil)
