@@ -159,7 +159,7 @@ def main():
         finished = threading.Event()
         src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
         dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
-        E2EClient(args.data.encode('utf-8'), finished, src, dst, dport=int(args.port)).run()
+        E2EClient(args.data.encode("utf-8"), finished, src, dst, dport=int(args.port)).run()
     elif args.server_only:
         finished = threading.Event()
         dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))

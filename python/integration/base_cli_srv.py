@@ -308,7 +308,7 @@ class TestClientServerBase(object):
     def _run_test_docker(self, src, dst):
         data = self._create_data(src, dst)
         port = random.randint(1024, 65535)
-        args = self._cmd_args(src, dst, ["--data", data, "--port", str(port)])
+        args = self._cmd_args(src, dst, ["--data", data.decode(), "--port", str(port)])
         server_cmd = self._server_cmd(self.server_ip) + args
         client_cmd = self._client_cmd(self.client_ip) + args
         # Run exec commands, wait a bit for the server to be ready
@@ -377,8 +377,7 @@ class TestClientServerBase(object):
         return TestClientBase(data, finished, src, dst, port, retries=self.retries)
 
     def _base_cmd(self):
-        return ["docker-compose", "-f", "gen/util-dc.yml",
-                "exec", "-T", "-e", "PYTHONPATH=python/:"]
+        return ["./tools/dc.sh", "utils", "exec", "-T", "-e", "PYTHONPATH=python/:"]
 
     def _server_cmd(self, ip):
         return self._base_cmd() + ["server", self._test_cmd(), "--server_only", "--server", str(ip)]

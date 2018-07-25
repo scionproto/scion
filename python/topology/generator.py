@@ -104,7 +104,7 @@ HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
 DOCKER_BASE_CONF = 'base-dc.yml'
 DOCKER_SCION_CONF = 'scion-dc.yml'
-DOCKER_UTIL_CONF = 'util-dc.yml'
+DOCKER_UTIL_CONF = 'utils-dc.yml'
 COMMON_DIR = 'endhost'
 
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"

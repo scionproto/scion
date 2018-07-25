@@ -51,7 +51,7 @@ log "Scion status:"
 
 DC=""
 if [ "$1" = "docker" ]; then
-    COMPOSE_FILE=gen/util-dc.yml ./scion.sh dc up -d
+    ./tools/dc.sh utils up -d
     DC="-d"
 fi
 
