@@ -144,6 +144,14 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 	return false
 }
 
+func (ps *PathSegment) FirstIA() addr.IA {
+	return ps.ASEntries[0].IA()
+}
+
+func (ps *PathSegment) LastIA() addr.IA {
+	return ps.ASEntries[len(ps.ASEntries)-1].IA()
+}
+
 // walkHopEntries iterates through the hop entries of asEntries, checking that
 // the hop fields within can be parsed. If an parse error is found, the
 // function immediately returns with an error.

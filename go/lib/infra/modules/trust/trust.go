@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,6 +39,8 @@ import (
 const (
 	// Handler lifetime
 	HandlerTimeout = 3 * time.Second
+	// LatestVersion can be used in GetTRC as the version argument to get the latest version.
+	LatestVersion = 0
 )
 
 var (
