@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2014 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -118,6 +119,7 @@ DEFAULT_LINK_BW = 1000
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVER = "py"
 DEFAULT_SCIOND = "py"
+DEFAULT_PATH_SERVER = "py"
 DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
@@ -161,7 +163,7 @@ class ConfigGenerator(object):
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
                  use_mininet=False, use_docker=False, bind_addr=GENERATE_BIND_ADDRESS,
                  pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER,
-                 sd=DEFAULT_SCIOND):
+                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -176,6 +178,7 @@ class ConfigGenerator(object):
         :param int pseg_ttl: The TTL for path segments (in seconds)
         :param string cs: Use go or python implementation of certificate server
         :param string sd: Use go or python implementation of SCIOND
+        :param string ps: Use go or python implementation of path server
         """
         self.ipv6 = ipv6
         self.out_dir = out_dir
@@ -193,11 +196,15 @@ class ConfigGenerator(object):
         self._read_defaults(network)
         self.cs = cs
         self.sd = sd
+        self.ps = ps
         if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
             logging.critical("Cannot use non-default CS with docker!")
             sys.exit(1)
         if self.docker and self.sd is not DEFAULT_SCIOND:
             logging.critical("Cannot use non-default SCIOND with docker!")
+            sys.exit(1)
+        if self.docker and self.ps is not DEFAULT_PATH_SERVER:
+            logging.critical("Cannot use non-default PS with docker!")
             sys.exit(1)
 
     def _read_defaults(self, network):
@@ -238,6 +245,8 @@ class ConfigGenerator(object):
         go_gen = GoGenerator(self.out_dir, topo_dicts)
         if self.sd == "go":
             go_gen.generate_sciond()
+        if self.ps == "go":
+            go_gen.generate_ps()
         if self.docker:
             self._generate_docker(topo_dicts)
         else:
@@ -278,12 +287,12 @@ class ConfigGenerator(object):
             overlay = 'UDP/IPv4'
         topo_gen = TopoGenerator(
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
-            self.default_mtu, self.gen_bind_addr, self.docker, overlay)
+            self.default_mtu, self.gen_bind_addr, self.docker, overlay, self.cs, self.ps)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
         super_gen = SupervisorGenerator(
-            self.out_dir, topo_dicts, self.mininet, self.cs, self.sd)
+            self.out_dir, topo_dicts, self.mininet, self.cs, self.sd, self.ps)
         super_gen.generate()
 
     def _generate_docker(self, topo_dicts):
@@ -604,7 +613,7 @@ class CA_Generator(object):
 
 class TopoGenerator(object):
     def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, overlay):
+                 default_mtu, gen_bind_addr, docker, overlay, cs, ps):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
@@ -621,6 +630,8 @@ class TopoGenerator(object):
         self.links = defaultdict(list)
         self.ifid_map = {}
         self.overlay = overlay
+        self.cs = cs
+        self.ps = ps
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -719,6 +730,10 @@ class TopoGenerator(object):
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
                        topo_key):
         count = as_conf.get(conf_key, def_num)
+        # only a single Go-PS/Go-CS per AS is currently supported
+        if ((conf_key == "path_servers" and self.ps == "go") or
+           (conf_key == "certificate_servers" and self.cs == "go")):
+            count = 1
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             d = {
@@ -894,12 +909,13 @@ class PrometheusGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, mininet, cs, sd):
+    def __init__(self, out_dir, topo_dicts, mininet, cs, sd, ps):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.mininet = mininet
         self.cs = cs
         self.sd = sd
+        self.ps = ps
 
     def generate(self):
         self._write_dispatcher_conf()
@@ -909,13 +925,10 @@ class SupervisorGenerator(object):
     def _as_conf(self, topo_id, topo):
         entries = []
         base = topo_id.base_dir(self.out_dir)
-        for key, cmd in (
-            ("BeaconService", "python/bin/beacon_server"),
-            ("PathService", "python/bin/path_server"),
-        ):
-            entries.extend(self._std_entries(topo, key, cmd, base))
-        entries.extend(self._cs_entries(topo, base))
         entries.extend(self._br_entries(topo, "bin/border", base))
+        entries.extend(self._bs_entries(topo, base))
+        entries.extend(self._cs_entries(topo, base))
+        entries.extend(self._ps_entries(topo, base))
         self._write_as_conf(topo_id, entries)
 
     def _std_entries(self, topo, topo_key, cmd, base):
@@ -936,15 +949,31 @@ class SupervisorGenerator(object):
                                 "-prom=%s" % _prom_addr_br(v)]))
         return entries
 
+    def _bs_entries(self, topo, base):
+        return self._std_entries(topo, "BeaconService", "python/bin/beacon_server", base)
+
     def _cs_entries(self, topo, base):
         if self.cs == "py":
             return self._std_entries(topo, "CertificateService", "python/bin/cert_server", base)
         entries = []
         for k, v in topo.get("CertificateService", {}).items():
-            conf_dir = os.path.join(base, k)
-            entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
-                                "-prom=%s" % _prom_addr_infra(v), "-sciond",
-                                get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
+            # only a single Go-CS per AS is currently supported
+            if k.endswith("-1"):
+                conf_dir = os.path.join(base, k)
+                entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
+                                    "-prom=%s" % _prom_addr_infra(v), "-sciond",
+                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
+        return entries
+
+    def _ps_entries(self, topo, base):
+        if self.ps == "py":
+            return self._std_entries(topo, "PathService", "python/bin/path_server", base)
+        entries = []
+        for k, v in topo.get("PathService", {}).items():
+            # only a single Go-PS per AS is currently supported
+            if k.endswith("-1"):
+                conf = os.path.join(base, k, "psconfig.toml")
+                entries.append((k, ["bin/path_srv", "-config", conf]))
         return entries
 
     def _sciond_entry(self, name, conf_dir):
@@ -1058,6 +1087,43 @@ class GoGenerator(object):
     def __init__(self, out_dir, topo_dicts):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
+
+    def generate_ps(self):
+        for topo_id, topo in self.topo_dicts.items():
+            for k, v in topo.get("PathService", {}).items():
+                # only a single Go-PS per AS is currently supported
+                if k.endswith("-1"):
+                    base = topo_id.base_dir(self.out_dir)
+                    ps_conf = self._build_ps_conf(topo_id, topo["ISD_AS"], base, k)
+                    write_file(os.path.join(base, k, "psconfig.toml"), toml.dumps(ps_conf))
+
+    def _build_ps_conf(self, topo_id, ia, base, name):
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': os.path.join(base, name),
+            },
+            'logging': {
+                'file': {
+                    'Path': os.path.join('logs', "%s.log" % name),
+                    'Level': 'debug',
+                },
+                'console': {
+                    'Level': 'crit',
+                },
+            },
+            'trust': {
+                'TrustDB': os.path.join('gen-cache', '%s.trust.db' % name),
+            },
+            'infra': {
+                'Type': "PS"
+            },
+            'ps': {
+                'PathDB': os.path.join('gen-cache', '%s.path.db' % name),
+                'SegSync': True,
+            },
+        }
+        return raw_entry
 
     def generate_sciond(self):
         for topo_id, topo in self.topo_dicts.items():
@@ -1553,11 +1619,13 @@ def main():
                         help='Certificate Server implementation to use ("go" or "py")')
     parser.add_argument('-sd', '--sciond', default=DEFAULT_SCIOND,
                         help='SCIOND implementation to use ("go" or "py")')
+    parser.add_argument('-ps', '--path-server', default=DEFAULT_PATH_SERVER,
+                        help='Path Server implementation to use ("go or "py")')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
         args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
-        args.sciond)
+        args.sciond, args.path_server)
     confgen.generate_all()
 
 
