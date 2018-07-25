@@ -100,11 +100,13 @@ setup(
     #
     packages=[
         'beacon_server',
+        'bin',
         'cert_server',
         'integration',
         'lib',
         'mininet',
         'path_server',
+        'proto',
         'scion_elem',
         'sciond',
         'sibra_server',
@@ -138,6 +140,7 @@ setup(
         'pynacl==1.0.1',
         'pyopenssl==0.15.1',
         'pyyaml==3.11',
+        'pygments==2.1',
     ],  # Optional
 
     # List additional groups of dependencies here (e.g. development
@@ -150,7 +153,6 @@ setup(
     # projects.
     extras_require={  # Optional
         'dev': [
-            'pygments==2.1',
             'nose==1.3.7',
             'nose-cov==1.6',
             'sphinx==1.2.3',
@@ -158,37 +160,9 @@ setup(
             'nose-descriptionfixer==0.0.4',
             'sphinxcontrib-napoleon==0.5.3',
         ],
-        'test': ['coverage'],
     },
 
-    # If there are data files included in your packages that need to be
-    # installed, specify them here.
-    #
-    # If using Python 2.6 or earlier, then these have to be included in
-    # MANIFEST.in as well.
-    package_data={  # Optional
-        'sample': ['package_data.dat'],
-    },
-
-    # To provide executable scripts, use entry points in preference to the
-    # "scripts" keyword. Entry points provide cross-platform support and allow
-    # `pip` to create the appropriate form of executable for the target
-    # platform.
-    entry_points={  # Optional
-        'console_scripts': [
-            'sample=sample:main',
-        ],
-    },
-
-    # List additional URLs that are relevant to your project as a dict.
-    #
-    # This field corresponds to the "Project-URL" metadata fields:
-    # https://packaging.python.org/specifications/core-metadata/#project-url-multiple-use
-    #
-    # Examples listed include a pattern for specifying where the package tracks
-    # issues, where the source is hosted, where to say thanks to the package
-    # maintainers, and where to support the project financially. The key is
-    # what's used to render the link text on PyPI.
+    scripts=['bin/beacon_server', 'bin/cert_server', 'bin/path_server', 'bin/sibra_server', 'bin/sciond'],
     project_urls={  # Optional
         'Bug Reports': 'https://github.com/pypa/sampleproject/issues',
         'Funding': 'https://donate.pypi.org',

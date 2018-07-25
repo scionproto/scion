@@ -13,6 +13,7 @@ export GOPATH=$TMPDIR/go
 export GOBIN=$GOPATH/bin
 export PATH=$PATH:/usr/lib/go-1.9/bin:$GOBIN
 
+echo "Source dir: $SRC_DIR"
 echo "Go environment:"
 go env
 
@@ -28,6 +29,9 @@ echo "Compiling code"
 
 echo "Copying back binaries"
 (cd $GOPATH/src/github.com/scionproto/scion/bin && cp * $SRC_DIR/bin)
+
+echo "Copying back go.capnp"
+(cd $GOPATH/src/github.com/scionproto/scion/go && cp vendor/zombiezen.com/go/capnproto2/std/go.capnp $SRC_DIR/proto/go.capnp)
 
 echo "Cleaning up"
 rm -rf $TMPDIR
