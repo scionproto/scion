@@ -38,9 +38,8 @@ var (
 	CtrlPort       = flag.Int("ctrlport", DefaultCtrlPort, "control data port (e.g., keepalives)")
 	EncapPort      = flag.Int("encapport", DefaultEncapPort, "encapsulation data port")
 	sciondPath     = flag.String("sciond", sciond.GetDefaultSCIONDPath(nil), "SCIOND socket path")
-	dispatcherPath = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
-		"SCION Dispatcher path")
-	SigTun = flag.String("tun", "sig", "Name of TUN device to create")
+	dispatcherPath = flag.String("dispatcher", "", "SCION Dispatcher path")
+	SigTun         = flag.String("tun", "sig", "Name of TUN device to create")
 )
 
 var (

@@ -36,15 +36,14 @@ const (
 var (
 	id         = flag.String("id", "", "Element ID (Required. E.g. 'cs4-ff00:0:2f')")
 	sciondPath = flag.String("sciond", sciond.GetDefaultSCIONDPath(nil), "SCIOND socket path")
-	dispPath   = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
-		"SCION Dispatcher path")
-	confDir  = flag.String("confd", "", "Configuration directory (Required)")
-	cacheDir = flag.String("cached", "gen-cache", "Caching directory")
-	stateDir = flag.String("stated", "", "State directory (Defaults to confd)")
-	prom     = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
-	disp     *Dispatcher
-	reissReq *ReissRequester
-	sighup   chan os.Signal
+	dispPath   = flag.String("dispatcher", "", "SCION Dispatcher path")
+	confDir    = flag.String("confd", "", "Configuration directory (Required)")
+	cacheDir   = flag.String("cached", "gen-cache", "Caching directory")
+	stateDir   = flag.String("stated", "", "State directory (Defaults to confd)")
+	prom       = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
+	disp       *Dispatcher
+	reissReq   *ReissRequester
+	sighup     chan os.Signal
 )
 
 func init() {

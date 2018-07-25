@@ -41,10 +41,6 @@ var (
 	localIA addr.IA
 )
 
-const (
-	DispPath = "/run/shm/dispatcher/default.sock"
-)
-
 type TestCase struct {
 	srcIA addr.IA
 	dstIA addr.IA
@@ -126,14 +122,14 @@ func ClientServer(haveSciond bool, idx int, tc TestCase) {
 		if haveSciond {
 			clientSciond = sciond.GetDefaultSCIONDPath(&tc.srcIA)
 		}
-		clientNet, err := NewNetwork(tc.srcIA, clientSciond, DispPath)
+		clientNet, err := NewNetwork(tc.srcIA, clientSciond, "")
 		SoMsg("Client network error", err, ShouldBeNil)
 
 		serverSciond := ""
 		if haveSciond {
 			serverSciond = sciond.GetDefaultSCIONDPath(&tc.dstIA)
 		}
-		serverNet, err := NewNetwork(tc.dstIA, serverSciond, DispPath)
+		serverNet, err := NewNetwork(tc.dstIA, serverSciond, "")
 		SoMsg("Server network error", err, ShouldBeNil)
 
 		clientAddr, err := AddrFromString(
@@ -229,7 +225,7 @@ func TestMain(m *testing.M) {
 	asList = append(asStruct.Core, asStruct.NonCore...)
 
 	localIA = asList[rand.Intn(len(asList))]
-	err = Init(localIA, sciond.GetDefaultSCIONDPath(&localIA), "/run/shm/dispatcher/default.sock")
+	err = Init(localIA, sciond.GetDefaultSCIONDPath(&localIA), "")
 	if err != nil {
 		fmt.Println("Test setup error", err)
 		return

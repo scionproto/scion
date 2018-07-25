@@ -35,11 +35,9 @@ import (
 )
 
 var (
-	sciondPath = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher = flag.String("dispatcher", "/run/shm/dispatcher/default.sock",
-		"Path to dispatcher socket")
-	sciondFromIA = flag.Bool("sciondFromIA", false,
-		"SCIOND socket path from IA address:ISD-AS")
+	sciondPath   = flag.String("sciond", "", "Path to sciond socket")
+	dispatcher   = flag.String("dispatcher", "", "Path to dispatcher socket")
+	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 )
 
 func main() {

@@ -118,7 +118,7 @@ func realMain() int {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = snet.Init(config.General.Topology.ISD_AS, "", "/run/shm/dispatcher/default.sock")
+	err = snet.Init(config.General.Topology.ISD_AS, "", "")
 	if err != nil {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
