@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package integration provides function to simplify the creation of integration tests.
+// Package integration simplifies the creation of integration tests.
 package integration
 
 import (
@@ -152,8 +152,12 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 func ExecuteTimed(name string, f func() error) error {
 	start := time.Now()
 	err := f()
+	result := "successful"
+	if err != nil {
+		result = "failed"
+	}
 	elapsed := time.Since(start)
-	fmt.Printf("Test %v successful, used %v\n", name, elapsed)
+	fmt.Printf("Test %s %s, used %v\n", name, result, elapsed)
 	return err
 }
 

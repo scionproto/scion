@@ -43,7 +43,7 @@ func realMain() int {
 		return 1
 	}
 	// TODO(lukedirtwalker) we should enable logging
-	// depeding on the main log parameter it should either go to a file or to console stderr.
+	// depending on the main log parameter it should either go to a file or to console stderr.
 	in := integration.NewBinaryIntegration("./bin/pingpong",
 		[]string{"-mode", "client", "-sciondFromIA", "-count", "1",
 			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
@@ -62,7 +62,6 @@ func realMain() int {
 // In case of an error the function is terminated immediately.
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
-
 		// First run all servers
 		dsts := integration.ExtractUniqueDsts(pairs)
 		for _, dst := range dsts {
@@ -72,7 +71,6 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 			}
 			defer c.Close()
 		}
-
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
