@@ -63,7 +63,7 @@ var _ net.Conn = (*Conn)(nil)
 var _ net.PacketConn = (*Conn)(nil)
 
 type Conn struct {
-	conn *reliable.Conn
+	conn reliable.DispatcherConn
 	// Local, remote and bind SCION addresses (IA, L3, L4)
 	laddr *Addr
 	raddr *Addr
