@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"time"
@@ -74,23 +75,28 @@ func LoadASList() (*util.ASList, error) {
 	return util.LoadASList("gen/as_list.yml")
 }
 
+// AllIAs returns all IA from asList.
+func AllIAs(asList *util.ASList) []addr.IA {
+	return append([]addr.IA(nil), append(asList.Core, asList.NonCore...)...)
+}
+
 // IAPair is a source, destination pair. The client (Src) will dial the server (Dst).
 type IAPair struct {
 	Src addr.IA
 	Dst addr.IA
 }
 
-// GenerateAllSrcDst generates the cartesian product shuffle(asList) x shuffle(asList).
-func GenerateAllSrcDst(asList *util.ASList) []IAPair {
-	allSrcASes := append(asList.Core, asList.NonCore...)
-	allDstASes := append([]addr.IA(nil), allSrcASes...)
-	shuffle(len(allSrcASes), func(i, j int) {
-		allSrcASes[i], allSrcASes[j] = allSrcASes[j], allSrcASes[i]
-		allDstASes[i], allDstASes[j] = allDstASes[j], allDstASes[i]
+// GenerateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
+func GenerateAllSrcDst(srcASes, dstASes []addr.IA) []IAPair {
+	shuffle(len(srcASes), func(i, j int) {
+		srcASes[i], srcASes[j] = srcASes[j], srcASes[i]
 	})
-	pairs := make([]IAPair, 0, len(allSrcASes)*len(allDstASes))
-	for _, src := range allSrcASes {
-		for _, dst := range allDstASes {
+	shuffle(len(dstASes), func(i, j int) {
+		dstASes[i], dstASes[j] = dstASes[j], dstASes[i]
+	})
+	pairs := make([]IAPair, 0, len(srcASes)*len(dstASes))
+	for _, src := range srcASes {
+		for _, dst := range dstASes {
 			pairs = append(pairs, IAPair{src, dst})
 		}
 	}
@@ -105,52 +111,54 @@ func shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-// RunTests runs the client and server for each IAPair.
-// In case of an error the function is terminated immediately.
-func RunTests(in Integration, pairs []IAPair) error {
-	start := time.Now()
+type serverStop struct {
+	cancel context.CancelFunc
+	wait   Waiter
+}
 
-	// First run all servers
-	dsts := extractUniqueDsts(pairs)
-	for _, dst := range dsts {
-		serverCtx, serverCancel := context.WithCancel(context.Background())
-		s, err := in.StartServer(serverCtx, dst)
-		if err != nil {
-			serverCancel()
-			return err
-		}
-		defer func() {
-			// make sure the server is properly killed.
-			serverCancel()
-			s.Wait()
-		}()
-	}
-
-	// Now start the clients for srcDest pair
-	for i, conn := range pairs {
-		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-			in.Name(), conn.Src, conn.Dst, i, len(pairs)))
-
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		c, err := in.StartClient(ctx, conn.Src, conn.Dst)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error during start of the client: %s\n", err)
-			return err
-		}
-		if err = c.Wait(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
-			return err
-		}
-	}
-
-	elapsed := time.Since(start)
-	fmt.Printf("Test %v successful, used %v\n", in.Name(), elapsed)
-
+func (s *serverStop) Close() error {
+	s.cancel()
+	s.wait.Wait()
 	return nil
 }
 
-func extractUniqueDsts(pairs []IAPair) []addr.IA {
+// StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
+func StartServer(in Integration, dst addr.IA) (io.Closer, error) {
+	serverCtx, serverCancel := context.WithCancel(context.Background()) // add method to run a single server that returns a closer (go chanel to close).
+	s, err := in.StartServer(serverCtx, dst)
+	if err != nil {
+		serverCancel()
+		return nil, err
+	}
+	return &serverStop{serverCancel, s}, nil
+}
+
+// RunClient runs a client on the given IAPair.
+// If the client does not finish until timeout it is killed.
+func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
+	if err != nil {
+		return err
+	}
+	if err = c.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ExecuteTimed executes f and prints how long f took to StdOut. Returns the error of f.
+func ExecuteTimed(name string, f func() error) error {
+	start := time.Now()
+	err := f()
+	elapsed := time.Since(start)
+	fmt.Printf("Test %v successful, used %v\n", name, elapsed)
+	return err
+}
+
+// ExtractUniqueDsts returns all unique destinations in pairs.
+func ExtractUniqueDsts(pairs []IAPair) []addr.IA {
 	uniqueDsts := make(map[addr.IA]bool)
 	var res []addr.IA
 	for _, pair := range pairs {
