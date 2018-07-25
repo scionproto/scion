@@ -28,6 +28,8 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+var _ conn.Conn = (*DB)(nil)
+
 type DB struct {
 	conn conn.Conn
 }
