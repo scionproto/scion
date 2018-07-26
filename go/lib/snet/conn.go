@@ -151,7 +151,11 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	if err != nil {
 		return 0, nil, common.NewBasicError("Dispatcher read error", err)
 	}
-	lastHop := lastHopNetAddr.(*reliable.AppAddr)
+	lastHop := addr.ToOverlayAddr(lastHopNetAddr)
+	if lastHop == nil {
+		return 0, nil, common.NewBasicError("Invalid lastHop address Type", nil,
+			"Actual", lastHopNetAddr)
+	}
 	if !from {
 		lastHop = nil
 	}
@@ -174,9 +178,6 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 		// Extract remote address
 		remote = &Addr{
 			IA: pkt.SrcIA,
-			// Copy the address to prevent races. See
-			// https://github.com/scionproto/scion/issues/1659.
-			Host: pkt.SrcHost.Copy(),
 		}
 		// Extract path and last hop
 		if lastHop != nil {
@@ -188,20 +189,24 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 			remote.Path = path
 			// Copy the address to prevent races. See
 			// https://github.com/scionproto/scion/issues/1659.
-			remote.NextHopHost = lastHop.Addr.Copy()
-			remote.NextHopPort = lastHop.Port
+			remote.NextHop = addr.NewOverlayAddr(lastHop.Addr().Copy().IP(), lastHop.Port())
 		}
+		var port uint16
+		var err error
 		switch hdr := pkt.L4.(type) {
 		case *l4.UDP:
-			remote.L4Port = hdr.SrcPort
-			return n, remote, nil
+			port = hdr.SrcPort
 		case *scmp.Hdr:
 			c.handleSCMP(hdr, pkt)
-			return n, remote, &OpError{scmp: hdr}
+			err = &OpError{scmp: hdr}
 		default:
-			return n, remote, common.NewBasicError("Unexpected SCION L4 protocol", nil,
+			err = common.NewBasicError("Unexpected SCION L4 protocol", nil,
 				"expected", "UDP or SCMP", "actual", pkt.L4.L4Type())
 		}
+		// Copy the address to prevent races. See
+		// https://github.com/scionproto/scion/issues/1659.
+		remote.Host = addr.NewAppAddr(pkt.SrcHost.Copy(), port)
+		return n, remote, err
 	}
 	return 0, nil, common.NewBasicError("Unknown network", nil, "net", c.net)
 }
@@ -269,14 +274,12 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	defer c.writeMutex.Unlock()
 	var err error
 	var path *spath.Path
-	var nextHopHost addr.HostAddr
-	var nextHopPort uint16
+	var nextHop addr.OverlayAddr
 	// If src and dst are in the same AS, the path will be empty
 	if !c.laddr.IA.Eq(raddr.IA) {
-		if raddr.Path != nil && raddr.NextHopHost != nil && raddr.NextHopPort != 0 {
+		if raddr.Path != nil && raddr.NextHop.Addr() != nil && raddr.NextHop.Port() != 0 {
 			path = raddr.Path
-			nextHopHost = raddr.NextHopHost
-			nextHopPort = raddr.NextHopPort
+			nextHop = raddr.NextHop
 		} else {
 			if c.scionNet.pathResolver == nil {
 				return 0, common.NewBasicError("Path required, but no path manager configured", nil)
@@ -287,49 +290,38 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 				return 0, err
 			}
 			path = spath.New(pathEntry.Path.FwdPath)
-			nextHopHost = pathEntry.HostInfo.Host()
-			nextHopPort = pathEntry.HostInfo.Port
+			nextHop = addr.NewOverlayAddr(pathEntry.HostInfo.Host().IP(), pathEntry.HostInfo.Port)
 			err = path.InitOffsets()
 			if err != nil {
 				return 0, common.NewBasicError("Unable to initialize path", err)
 			}
 		}
 	}
-
 	// Prepare packet fields
 	udpHdr := &l4.UDP{
-		SrcPort: c.laddr.L4Port, DstPort: raddr.L4Port, TotalLen: uint16(l4.UDPLen + len(b)),
+		SrcPort: c.laddr.Host.Port(), DstPort: raddr.Host.Port(), TotalLen: uint16(l4.UDPLen + len(b)),
 	}
 	pkt := &spkt.ScnPkt{
 		DstIA:   raddr.IA,
 		SrcIA:   c.laddr.IA,
-		DstHost: raddr.Host,
-		SrcHost: c.laddr.Host,
+		DstHost: raddr.Host.Addr(),
+		SrcHost: c.laddr.Host.Addr(),
 		Path:    path,
 		L4:      udpHdr,
 		Pld:     common.RawBytes(b),
 	}
-
 	// Serialize packet to internal buffer
 	n, err := hpkt.WriteScnPkt(pkt, c.sendBuffer)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to serialize SCION packet", err)
 	}
-
 	// Construct overlay next-hop
-	var appAddr reliable.AppAddr
 	if path == nil {
 		// Overlay next-hop is destination
-		appAddr = reliable.AppAddr{
-			Addr: pkt.DstHost,
-			Port: overlay.EndhostPort}
-	} else {
-		// Overlay next-hop is contained in path
-		appAddr = reliable.AppAddr{Addr: nextHopHost, Port: nextHopPort}
+		nextHop = addr.NewOverlayAddr(pkt.DstHost.IP(), overlay.EndhostPort)
 	}
-
 	// Send message
-	n, err = c.conn.WriteTo(c.sendBuffer[:n], &appAddr)
+	n, err = c.conn.WriteTo(c.sendBuffer[:n], nextHop)
 	if err != nil {
 		return 0, common.NewBasicError("Dispatcher write error", err)
 	}

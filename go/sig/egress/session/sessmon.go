@@ -17,6 +17,7 @@ package session
 import (
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
@@ -206,8 +207,8 @@ func (sm *sessMonitor) sendReq() {
 	if err := raddr.Path.InitOffsets(); err != nil {
 		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
 	}
-	raddr.NextHopHost = sm.smRemote.SessPath.PathEntry().HostInfo.Host()
-	raddr.NextHopPort = sm.smRemote.SessPath.PathEntry().HostInfo.Port
+	raddr.NextHop = addr.NewOverlayAddr(sm.smRemote.SessPath.PathEntry().HostInfo.Host().IP(),
+		sm.smRemote.SessPath.PathEntry().HostInfo.Port)
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both
 	// goroutines write to it.

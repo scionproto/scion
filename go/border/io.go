@@ -125,7 +125,7 @@ Top:
 			rp.Ingress.Dst = dst
 			// Make a copy, as meta.Src will be overwritten.
 			src := meta.Src
-			rp.Ingress.Src = &src
+			rp.Ingress.Src = src
 			rp.Ingress.IfID = s.Ifid
 			rp.Ingress.Sock = sock
 			inputBytes.Add(float64(msg.N))
@@ -283,8 +283,8 @@ func (r *Router) posixPrepOutput(epkts ringbuf.EntryList, msgs []ipv4.Message,
 		if !connected {
 			// Unconnected socket, use supplied address
 			uaddr := msgs[i].Addr.(*net.UDPAddr)
-			uaddr.IP = erp.Dst.IP
-			uaddr.Port = erp.Dst.OverlayPort
+			uaddr.IP = erp.Dst.Addr().IP()
+			uaddr.Port = int(erp.Dst.Port())
 		}
 	}
 	return epkts, true

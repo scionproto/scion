@@ -26,16 +26,14 @@ import (
 
 func Test_Addr_String(t *testing.T) {
 	ia, _ := addr.IAFromString("1-ff00:0:320")
-	host4 := addr.HostFromIP(net.IPv4(1, 2, 3, 4))
-	host6 := addr.HostFromIP(net.ParseIP("2001::1"))
+	host4 := addr.NewAppAddrUDPIPv4(net.IPv4(1, 2, 3, 4), 10000)
+	host6 := addr.NewAppAddrUDPIPv6(net.ParseIP("2001::1"), 20000)
 	tests := []struct {
 		address *Addr
 		result  string
 	}{
-		{address: &Addr{IA: ia, Host: host4, L4Port: 10000},
-			result: "1-ff00:0:320,[1.2.3.4]:10000"},
-		{address: &Addr{IA: ia, Host: host6, L4Port: 20000},
-			result: "1-ff00:0:320,[2001::1]:20000"},
+		{address: &Addr{IA: ia, Host: host4}, result: "1-ff00:0:320,[1.2.3.4]:10000"},
+		{address: &Addr{IA: ia, Host: host6}, result: "1-ff00:0:320,[2001::1]:20000"},
 	}
 	Convey("Method String", t, func() {
 		for _, test := range tests {
@@ -107,8 +105,8 @@ func Test_AddrFromString(t *testing.T) {
 				} else {
 					SoMsg("error", err, ShouldBeNil)
 					SoMsg("ia", a.IA.String(), ShouldResemble, test.ia)
-					SoMsg("host", a.Host.String(), ShouldResemble, test.host)
-					SoMsg("port", a.L4Port, ShouldEqual, test.port)
+					SoMsg("host", a.Host.Addr().String(), ShouldResemble, test.host)
+					SoMsg("port", a.Host.Port(), ShouldEqual, test.port)
 				}
 			})
 		}
