@@ -1,5 +1,4 @@
 // Copyright 2018 ETH Zurich
-// Copyright 2018 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,33 +25,18 @@
 package env
 
 import (
-	"context"
-	"flag"
 	"fmt"
 	"io"
-	"math/rand"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
-
-	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
-	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
-	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -67,56 +51,13 @@ const (
 	DefaultTopologyPath = "topology.json"
 )
 
-var (
-	sighupC chan os.Signal
-
-	configFile string
-)
+var sighupC chan os.Signal
 
 func init() {
 	os.Setenv("TZ", "UTC")
 	sighupC = make(chan os.Signal, 1)
 	signal.Notify(sighupC, syscall.SIGHUP)
 	crypto.MathRandSeed()
-}
-
-type Config interface {
-	General() *General
-	Logging() *Logging
-	Metrics() *Metrics
-	Trust() *Trust
-	PathDB() string
-	// Public is the local address to listen on for SCION messages (if Bind is
-	// not set), and to send out messages to other nodes.
-	Public() *snet.Addr
-	// If set, Bind is the preferred local address to listen on for SCION
-	// messages.
-	Bind() *snet.Addr
-}
-
-func AddConfigFlags() {
-	flag.StringVar(&configFile, "config", "", "Service TOML config file (required)")
-}
-
-func Init(c Config, reloadF func()) (*Env, error) {
-	AddConfigFlags()
-	flag.Parse()
-	if configFile == "" {
-		return nil, common.NewBasicError("Missing config flag", nil)
-	}
-	_, err := toml.DecodeFile(configFile, &c)
-	if err != nil {
-		return nil, err
-	}
-	err = InitGeneral(c.General())
-	if err != nil {
-		return nil, err
-	}
-	err = InitLogging(c.Logging())
-	if err != nil {
-		return nil, err
-	}
-	return SetupEnv(reloadF), nil
 }
 
 type General struct {
@@ -291,121 +232,10 @@ type Metrics struct {
 	Prometheus string
 }
 
-func StartPrometheus(c Config, fatalC chan error) {
-	if c.Metrics().Prometheus != "" {
-		go func() {
-			defer log.LogPanicAndExit()
-			if err := http.ListenAndServe(c.Metrics().Prometheus, nil); err != nil {
-				fatalC <- common.NewBasicError("HTTP ListenAndServe error", err)
-			}
-		}()
-	}
-}
-
 // Trust contains information that is BS, CS, PS, SD specific.
 type Trust struct {
 	// TrustDB is the database for trust information.
 	TrustDB string
-}
-
-func InitConnections(config Config) (*pathdb.DB, *messenger.Messenger, *trust.Store, error) {
-	pathDB, err := pathdb.New(config.PathDB(), "sqlite")
-	if err != nil {
-		log.Crit("Unable to initialize pathDB", "err", err)
-		return nil, nil, nil, err
-	}
-	trustDB, err := trustdb.New(config.Trust().TrustDB)
-	if err != nil {
-		log.Crit("Unable to initialize trustDB", "err", err)
-		return nil, nil, nil, err
-	}
-	trustStore, err := trust.NewStore(trustDB, config.General().Topology.ISD_AS,
-		rand.Uint64(), log.Root())
-	if err != nil {
-		log.Crit("Unable to initialize trust store", "err", err)
-		return nil, nil, nil, err
-	}
-	err = snet.Init(config.General().Topology.ISD_AS, "", "")
-	if err != nil {
-		log.Crit("Unable to initialize snet", "err", err)
-		return nil, nil, nil, err
-	}
-	conn, err := snet.ListenSCIONWithBindSVC("udp4", config.Public(),
-		config.Bind(), addr.SvcNone)
-	if err != nil {
-		log.Crit("Unable to listen on SCION", "err", err)
-		return nil, nil, nil, err
-	}
-	err = LoadAuthoritativeTRC(trustDB, trustStore, config)
-	if err != nil {
-		log.Crit("TRC error", "err", err)
-		return nil, nil, nil, err
-	}
-	msger := messenger.New(
-		disp.New(
-			transport.NewPacketTransport(conn),
-			messenger.DefaultAdapter,
-			log.Root(),
-		),
-		trustStore,
-		log.Root(),
-	)
-	trustStore.SetMessenger(msger)
-	return pathDB, msger, trustStore, nil
-}
-
-func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore, c Config) error {
-	fileTRC, err := trc.TRCFromDir(
-		filepath.Join(c.General().ConfigDir, "certs"),
-		c.General().Topology.ISD_AS.I,
-		func(err error) {
-			log.Warn("Error reading TRC", "err", err)
-		})
-	if err != nil {
-		return common.NewBasicError("Unable to load TRC from directory", err)
-	}
-
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	dbTRC, err := store.GetValidTRC(
-		ctx,
-		c.General().Topology.ISD_AS.I,
-		c.General().Topology.ISD_AS.I,
-	)
-	cancelF()
-	switch {
-	case err != nil && common.GetErrorMsg(err) != trust.ErrEndOfTrail:
-		// Unexpected error in trust store
-		return err
-	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC == nil:
-		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
-	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC != nil:
-		_, err := db.InsertTRC(fileTRC)
-		return err
-	case err == nil && fileTRC == nil:
-		// Nothing to do, no TRC to load from file but we already have one in the DB
-		return nil
-	default:
-		// Found a TRC file on disk, and found a TRC in the DB. Check versions.
-		switch {
-		case fileTRC.Version > dbTRC.Version:
-			_, err := db.InsertTRC(fileTRC)
-			return err
-		case fileTRC.Version == dbTRC.Version:
-			// Because it is the same version, check if the TRCs match
-			eq, err := fileTRC.JSONEquals(dbTRC)
-			if err != nil {
-				return common.NewBasicError("Unable to compare TRCs", err)
-			}
-			if !eq {
-				return common.NewBasicError("Conflicting TRCs found for same version", nil,
-					"db", dbTRC, "file", fileTRC)
-			}
-			return nil
-		default:
-			// file TRC is older than DB TRC, so we just ignore it
-			return nil
-		}
-	}
 }
 
 // Infra contains information that is BS, CS, PS specific.

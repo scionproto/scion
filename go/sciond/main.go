@@ -1,5 +1,4 @@
 // Copyright 2018 ETH Zurich
-// Copyright 2018 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,15 +18,28 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	cache "github.com/patrickmn/go-cache"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
@@ -39,14 +51,12 @@ const (
 	ShutdownWaitTimeout = 5 * time.Second
 )
 
-var _ env.Config = (*Config)(nil)
-
 type Config struct {
-	G  env.General `toml:"General"`
-	L  env.Logging `toml:"Logging"`
-	M  env.Metrics `toml:"Metrics"`
-	T  env.Trust   `toml:"Trust"`
-	SD struct {
+	General env.General
+	Logging env.Logging
+	Metrics env.Metrics
+	Trust   env.Trust
+	SD      struct {
 		// Address to listen on via the reliable socket protocol. If empty,
 		// a reliable socket server on the default socket is started.
 		Reliable string
@@ -66,37 +76,12 @@ type Config struct {
 	}
 }
 
-func (c *Config) General() *env.General {
-	return &c.G
-}
+var config Config
 
-func (c *Config) Logging() *env.Logging {
-	return &c.L
-}
-
-func (c *Config) Metrics() *env.Metrics {
-	return &c.M
-}
-
-func (c *Config) Trust() *env.Trust {
-	return &c.T
-}
-
-func (c *Config) PathDB() string {
-	return c.SD.PathDB
-}
-
-func (c *Config) Public() *snet.Addr {
-	return c.SD.Public
-}
-
-func (c *Config) Bind() *snet.Addr {
-	return c.SD.Bind
-}
+var environment *env.Env
 
 var (
-	config      Config
-	environment *env.Env
+	flagConfig = flag.String("config", "", "Service TOML config file (required)")
 )
 
 func main() {
@@ -104,16 +89,62 @@ func main() {
 }
 
 func realMain() int {
-	if err := Init(); err != nil {
+	flag.Parse()
+	if *flagConfig == "" {
+		fmt.Fprintln(os.Stderr, "Missing config file")
+		flag.Usage()
+		return 1
+	}
+	if err := Init(*flagConfig); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		flag.Usage()
 		return 1
 	}
 	defer log.LogPanicAndExit()
-	pathDB, msger, trustStore, err := env.InitConnections(&config)
+
+	pathDB, err := pathdb.New(config.SD.PathDB, "sqlite")
 	if err != nil {
+		log.Crit("Unable to initialize pathDB", "err", err)
 		return 1
 	}
+	trustDB, err := trustdb.New(config.Trust.TrustDB)
+	if err != nil {
+		log.Crit("Unable to initialize trustDB", "err", err)
+		return 1
+	}
+	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS,
+		rand.Uint64(), log.Root())
+	if err != nil {
+		log.Crit("Unable to initialize trust store", "err", err)
+		return 1
+	}
+	err = snet.Init(config.General.Topology.ISD_AS, "", "")
+	if err != nil {
+		log.Crit("Unable to initialize snet", "err", err)
+		return 1
+	}
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", config.SD.Public,
+		config.SD.Bind, addr.SvcNone)
+	if err != nil {
+		log.Crit("Unable to listen on SCION", "err", err)
+		return 1
+	}
+
+	err = LoadAuthoritativeTRC(trustDB, trustStore)
+	if err != nil {
+		log.Crit("TRC error", "err", err)
+		return 1
+	}
+	msger := messenger.New(
+		disp.New(
+			transport.NewPacketTransport(conn),
+			messenger.DefaultAdapter,
+			log.Root(),
+		),
+		trustStore,
+		log.Root(),
+	)
+	trustStore.SetMessenger(msger)
 	revCache := fetcher.NewRevCache(cache.NoExpiration, time.Second)
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
@@ -122,7 +153,7 @@ func realMain() int {
 				// FIXME(scrye): This doesn't allow for topology updates. When
 				// reloading support is implemented, fresh topology information
 				// should be loaded from file.
-				config.General().Topology,
+				config.General.Topology,
 				msger,
 				pathDB,
 				trustStore,
@@ -132,13 +163,13 @@ func realMain() int {
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
 			TrustStore: trustStore,
 			Messenger:  msger,
-			Topology:   config.General().Topology,
+			Topology:   config.General.Topology,
 		},
 		proto.SCIONDMsg_Which_ifInfoRequest: &servers.IFInfoRequestHandler{
-			Topology: config.General().Topology,
+			Topology: config.General.Topology,
 		},
 		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{
-			Topology: config.General().Topology,
+			Topology: config.General.Topology,
 		},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
 			RevCache: revCache,
@@ -149,11 +180,42 @@ func realMain() int {
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, handlers, log.Root())
 	defer shutdownF()
-	StartServer("ReliableSockServer", config.SD.Reliable, rsockServer, fatalC)
+	go func() {
+		defer log.LogPanicAndExit()
+		if config.SD.DeleteSocket {
+			if _, err := os.Stat(config.SD.Reliable); !os.IsNotExist(err) {
+				if err := os.Remove(config.SD.Reliable); err != nil {
+					fatalC <- common.NewBasicError("ReliableSockServer SocketRemoval error", err)
+				}
+			}
+		}
+		if err := rsockServer.ListenAndServe(); err != nil {
+			fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", err)
+		}
+	}()
 	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, handlers, log.Root())
 	defer shutdownF()
-	StartServer("UnixServer", config.SD.Unix, unixpacketServer, fatalC)
-	env.StartPrometheus(&config, fatalC)
+	go func() {
+		defer log.LogPanicAndExit()
+		if config.SD.DeleteSocket {
+			if _, err := os.Stat(config.SD.Unix); !os.IsNotExist(err) {
+				if err := os.Remove(config.SD.Unix); err != nil {
+					fatalC <- common.NewBasicError("UnixServer SocketRemoval error", err)
+				}
+			}
+		}
+		if err := unixpacketServer.ListenAndServe(); err != nil {
+			fatalC <- common.NewBasicError("UnixServer ListenAndServe error", err)
+		}
+	}()
+	if config.Metrics.Prometheus != "" {
+		go func() {
+			defer log.LogPanicAndExit()
+			if err := http.ListenAndServe(config.Metrics.Prometheus, nil); err != nil {
+				fatalC <- common.NewBasicError("HTTP ListenAndServe error", err)
+			}
+		}()
+	}
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -167,9 +229,17 @@ func realMain() int {
 	}
 }
 
-func Init() error {
-	var err error
-	environment, err = env.Init(&config, nil)
+func Init(configName string) error {
+	_, err := toml.DecodeFile(configName, &config)
+	if err != nil {
+		return err
+	}
+	err = env.InitGeneral(&config.General)
+	if err != nil {
+		return err
+	}
+	environment = env.SetupEnv(nil)
+	err = env.InitLogging(&config.Logging)
 	if err != nil {
 		return err
 	}
@@ -194,18 +264,56 @@ func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
 	return server, shutdownF
 }
 
-func StartServer(name, sockPath string, server *servers.Server, fatalC chan error) {
-	go func() {
-		defer log.LogPanicAndExit()
-		if config.SD.DeleteSocket {
-			if _, err := os.Stat(sockPath); !os.IsNotExist(err) {
-				if err := os.Remove(sockPath); err != nil {
-					fatalC <- common.NewBasicError(name+" SocketRemoval error", err)
-				}
+func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
+	fileTRC, err := trc.TRCFromDir(
+		filepath.Join(config.General.ConfigDir, "certs"),
+		config.General.Topology.ISD_AS.I,
+		func(err error) {
+			log.Warn("Error reading TRC", "err", err)
+		})
+	if err != nil {
+		return common.NewBasicError("Unable to load TRC from directory", err)
+	}
+
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	dbTRC, err := store.GetValidTRC(
+		ctx,
+		config.General.Topology.ISD_AS.I,
+		config.General.Topology.ISD_AS.I,
+	)
+	cancelF()
+	switch {
+	case err != nil && common.GetErrorMsg(err) != trust.ErrEndOfTrail:
+		// Unexpected error in trust store
+		return err
+	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC == nil:
+		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
+	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC != nil:
+		_, err := db.InsertTRC(fileTRC)
+		return err
+	case err == nil && fileTRC == nil:
+		// Nothing to do, no TRC to load from file but we already have one in the DB
+		return nil
+	default:
+		// Found a TRC file on disk, and found a TRC in the DB. Check versions.
+		switch {
+		case fileTRC.Version > dbTRC.Version:
+			_, err := db.InsertTRC(fileTRC)
+			return err
+		case fileTRC.Version == dbTRC.Version:
+			// Because it is the same version, check if the TRCs match
+			eq, err := fileTRC.JSONEquals(dbTRC)
+			if err != nil {
+				return common.NewBasicError("Unable to compare TRCs", err)
 			}
+			if !eq {
+				return common.NewBasicError("Conflicting TRCs found for same version", nil,
+					"db", dbTRC, "file", fileTRC)
+			}
+			return nil
+		default:
+			// file TRC is older than DB TRC, so we just ignore it
+			return nil
 		}
-		if err := server.ListenAndServe(); err != nil {
-			fatalC <- common.NewBasicError(name+" ListenAndServe error", err)
-		}
-	}()
+	}
 }
