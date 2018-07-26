@@ -66,11 +66,11 @@ func (f HandlerFunc) Handle(r *Request) {
 // exchange initiated by the local node. A Request includes its associated
 // context.
 type Request struct {
-	// The inner proto.Cerealizable message, as supported by
+	// Message is the inner proto.Cerealizable message, as supported by
 	// messenger.Messenger (e.g., a *cert_mgmt.ChainReq). For information about
 	// possible messages, see the package documentation for that package.
 	Message proto.Cerealizable
-	// The top-level SignedCtrlPld message read from the wire
+	// FullMessage is the top-level SignedCtrlPld message read from the wire
 	FullMessage proto.Cerealizable
 	// Peer is the node that sent this request
 	Peer net.Addr

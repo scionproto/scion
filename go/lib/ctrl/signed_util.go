@@ -23,7 +23,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/util"
@@ -127,10 +129,7 @@ func (v *BasicSigVerifier) ignoreSign(p *Pld) bool {
 	}
 	u1, _ := outer.Union()
 	switch u1.(type) {
-	// FIXME(roosd): ChainIssRep is disregarded to avoid deadlock when
-	// the issuer updates its leaf certificate at the same time. Remove
-	// it when trust store supports lookup of missing certificates.
-	case *cert_mgmt.Chain, *cert_mgmt.TRC, *cert_mgmt.ChainIssRep:
+	case *cert_mgmt.Chain, *cert_mgmt.TRC:
 		return true
 	default:
 		return false
@@ -230,5 +229,68 @@ var NullSigVerifier SigVerifier = &nullSigVerifier{}
 type nullSigVerifier struct{}
 
 func (_ *nullSigVerifier) Verify(_ context.Context, p *SignedPld) error {
+	return nil
+}
+
+// FIXME(scrye): Reconsider whether these functions should access the trust
+// store directly, as that means propagating the context all the way here.
+// Callers already know what crypto is needed, so they can pass it in.
+// Also, change context.TODO() to something that does not risk blocking
+// forever.
+
+func CreateSign(ia addr.IA, store infra.TrustStore) (*proto.SignS, error) {
+	c, err := store.GetValidChain(context.TODO(), ia, ia.I)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to find local certificate chain", err)
+	}
+	t, err := store.GetValidTRC(context.TODO(), ia.I, ia.I)
+	if err != nil {
+		return nil, common.NewBasicError("Unable to find local TRC", err)
+	}
+	var sigType proto.SignType
+	switch c.Leaf.SignAlgorithm {
+	case crypto.Ed25519:
+		sigType = proto.SignType_ed25519
+	default:
+		return nil, common.NewBasicError("Unsupported signing algorithm", nil, "algo",
+			c.Leaf.SignAlgorithm)
+	}
+	src := &SignSrcDef{
+		IA:       ia,
+		ChainVer: c.Leaf.Version,
+		TRCVer:   t.Version}
+	return proto.NewSignS(sigType, src.Pack()), nil
+}
+
+// VerifyChain verifies the chain based on the TRCs present in the store.
+func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) error {
+	maxTrc, err := store.GetValidTRC(context.TODO(), chain.Issuer.Issuer.I, chain.Issuer.Issuer.I)
+	if err != nil {
+		return common.NewBasicError("Unable to find TRC", nil, "isd", chain.Issuer.Issuer.I)
+	}
+	if err := maxTrc.IsActive(maxTrc); err != nil {
+		return common.NewBasicError("Newest TRC not active", err)
+	}
+	if err := chain.Verify(subject, maxTrc); err != nil {
+		var graceTrc *trc.TRC
+		if maxTrc.Version > 1 {
+			graceTrc, err = store.GetTRC(context.TODO(), maxTrc.ISD, maxTrc.Version-1)
+			if err != nil {
+				return err
+			}
+		}
+		if graceTrc == nil || graceTrc.IsActive(maxTrc) != nil {
+			return common.NewBasicError("Unable to verify chain", err)
+		}
+		if chain.Issuer.TRCVersion <= graceTrc.Version &&
+			common.GetErrorMsg(err) == cert.IssCertInvalid {
+
+			if errG := chain.Verify(subject, graceTrc); errG != nil {
+				return common.NewBasicError("Unable to verify chain", err, "errGraceTRC", errG)
+			}
+		} else {
+			return common.NewBasicError("Unable to verify chain", err)
+		}
+	}
 	return nil
 }

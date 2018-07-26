@@ -97,7 +97,7 @@ func setupNewConf(newConf *conf.Conf) error {
 	if newConf.Topo.Core {
 		go func() {
 			defer log.LogPanicAndExit()
-			selfIssuer := &SelfIssuer{}
+			selfIssuer := NewSelfIssuer(msger)
 			selfIssuer.Run()
 		}()
 	} else {
@@ -121,7 +121,7 @@ func loadConf(oldConf *conf.Conf) (*conf.Conf, error) {
 // setDefaultSignerVerifier sets the signer and verifier. The newest certificate chain version is
 // used.
 func setDefaultSignerVerifier(c *conf.Conf) error {
-	sign, err := CreateSign(c.PublicAddr.IA, c.Store)
+	sign, err := ctrl.CreateSign(c.PublicAddr.IA, c.Store)
 	if err != nil {
 		return err
 	}

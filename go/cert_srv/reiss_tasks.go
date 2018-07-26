@@ -43,7 +43,19 @@ const (
 
 // SelfIssuer periodically issues self-signed certificate chains
 // on an issuer AS before the old one expires.
-type SelfIssuer struct{}
+type SelfIssuer struct {
+	// msger is used to propagate key updates to the messenger, and not for network traffic
+	msger *messenger.Messenger
+}
+
+// NewSelfIssuer creates a new periodic certificate chain reissuer for the
+// local AS. Argument msger is only used to propagate key changes, and not for
+// network traffic.
+func NewSelfIssuer(msger *messenger.Messenger) *SelfIssuer {
+	return &SelfIssuer{
+		msger: msger,
+	}
+}
 
 // Run periodically issues certificate chains for the local AS.
 func (s *SelfIssuer) Run() {
@@ -60,12 +72,12 @@ func (s *SelfIssuer) Run() {
 			log.Crit("[SelfIssuer] Unable to get issuer certificate", "err", err)
 			break
 		}
-		cert, err := config.Store.GetChain(context.Background(), config.PublicAddr.IA, 0)
+		chain, err := config.Store.GetChain(context.Background(), config.PublicAddr.IA, 0)
 		if err != nil {
 			log.Crit("[SelfIssuer] Unable to get certificate", "err", err)
 			break
 		}
-		leafCrt := cert.Leaf
+		leafCrt := chain.Leaf
 		iSleep := time.Unix(int64(issCrt.ExpirationTime), 0).Sub(now) - config.IssuerReissTime
 		lSleep := time.Unix(int64(leafCrt.ExpirationTime), 0).Sub(now) - config.LeafReissTime
 		if lSleep > 0 && iSleep > 0 {
@@ -109,18 +121,20 @@ func (s *SelfIssuer) createLeafCert(leaf *cert.Certificate, config *conf.Conf) e
 	if err := chain.Leaf.Sign(config.GetIssSigningKey(), issCrt.SignAlgorithm); err != nil {
 		return common.NewBasicError("Unable to sign leaf certificate", err, "chain", chain)
 	}
-	if err := VerifyChain(config.PublicAddr.IA, chain, config.Store); err != nil {
+	if err := ctrl.VerifyChain(config.PublicAddr.IA, chain, config.Store); err != nil {
 		return common.NewBasicError("Unable to verify chain", err, "chain", chain)
 	}
 	if _, err := config.TrustDB.InsertChain(chain); err != nil {
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
 	}
 	log.Info("[SelfIssuer] Created certificate chain", "chain", chain)
-	sign, err := CreateSign(config.PublicAddr.IA, config.Store)
+	sign, err := ctrl.CreateSign(config.PublicAddr.IA, config.Store)
 	if err != nil {
 		log.Error("[SelfIssuer] Unable to set create new sign", "err", err)
 	}
-	config.SetSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()))
+	signer := ctrl.NewBasicSigner(sign, config.GetSigningKey())
+	config.SetSigner(signer)
+	s.msger.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueReply})
 	return nil
 }
 
@@ -277,12 +291,13 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 		return nil
 	}
 
-	sign, err := CreateSign(config.PublicAddr.IA, config.Store)
+	sign, err := ctrl.CreateSign(config.PublicAddr.IA, config.Store)
 	if err != nil {
 		return common.NewBasicError("Unable to set new signer", err)
 	}
-	r.msger.UpdateSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()),
-		[]infra.MessageType{infra.ChainIssueRequest})
+	signer := ctrl.NewBasicSigner(sign, config.GetSigningKey())
+	config.SetSigner(signer)
+	r.msger.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
 	return nil
 }
 
@@ -306,7 +321,7 @@ func (r *ReissRequester) validateRep(ctx context.Context,
 		return common.NewBasicError("Invalid Issuer", nil, "expected",
 			issuer, "actual", chain.Leaf.Issuer)
 	}
-	return VerifyChain(config.PublicAddr.IA, chain, config.Store)
+	return ctrl.VerifyChain(config.PublicAddr.IA, chain, config.Store)
 }
 
 func (r *ReissRequester) logDropRep(addr net.Addr, rep *cert_mgmt.ChainIssRep, err error) {

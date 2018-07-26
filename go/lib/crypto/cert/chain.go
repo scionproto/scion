@@ -18,7 +18,6 @@
 package cert
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -234,20 +233,6 @@ func (c *Chain) UnmarshalJSON(b []byte) error {
 	// After switching to go 1.10 we might make use of
 	// https://golang.org/pkg/encoding/json/#Decoder.DisallowUnknownFields.
 	return json.Unmarshal(b, (*Alias)(c))
-}
-
-// JSONEquals checks if two Chains are the same based on their JSON
-// serializations.
-func (c *Chain) JSONEquals(other *Chain) (bool, error) {
-	cj, err := c.JSON(false)
-	if err != nil {
-		return false, common.NewBasicError("Unable to build JSON", err)
-	}
-	oj, err := other.JSON(false)
-	if err != nil {
-		return false, common.NewBasicError("Unable to build JSON", err)
-	}
-	return bytes.Compare(cj, oj) == 0, nil
 }
 
 func (c *Chain) Eq(o *Chain) bool {

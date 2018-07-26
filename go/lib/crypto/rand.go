@@ -32,6 +32,7 @@ func RandUint64() uint64 {
 	return common.NativeOrder.Uint64(b)
 }
 
+// RandInt64 returns a random int64 value. The returned value can be negative.
 func RandInt64() int64 {
 	return int64(RandUint64())
 }
