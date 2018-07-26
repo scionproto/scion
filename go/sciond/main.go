@@ -19,7 +19,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -180,42 +179,11 @@ func realMain() int {
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, handlers, log.Root())
 	defer shutdownF()
-	go func() {
-		defer log.LogPanicAndExit()
-		if config.SD.DeleteSocket {
-			if _, err := os.Stat(config.SD.Reliable); !os.IsNotExist(err) {
-				if err := os.Remove(config.SD.Reliable); err != nil {
-					fatalC <- common.NewBasicError("ReliableSockServer SocketRemoval error", err)
-				}
-			}
-		}
-		if err := rsockServer.ListenAndServe(); err != nil {
-			fatalC <- common.NewBasicError("ReliableSockServer ListenAndServe error", err)
-		}
-	}()
+	StartServer("ReliableSockServer", config.SD.Reliable, rsockServer, fatalC)
 	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, handlers, log.Root())
 	defer shutdownF()
-	go func() {
-		defer log.LogPanicAndExit()
-		if config.SD.DeleteSocket {
-			if _, err := os.Stat(config.SD.Unix); !os.IsNotExist(err) {
-				if err := os.Remove(config.SD.Unix); err != nil {
-					fatalC <- common.NewBasicError("UnixServer SocketRemoval error", err)
-				}
-			}
-		}
-		if err := unixpacketServer.ListenAndServe(); err != nil {
-			fatalC <- common.NewBasicError("UnixServer ListenAndServe error", err)
-		}
-	}()
-	if config.Metrics.Prometheus != "" {
-		go func() {
-			defer log.LogPanicAndExit()
-			if err := http.ListenAndServe(config.Metrics.Prometheus, nil); err != nil {
-				fatalC <- common.NewBasicError("HTTP ListenAndServe error", err)
-			}
-		}()
-	}
+	StartServer("UnixServer", config.SD.Unix, unixpacketServer, fatalC)
+	config.Metrics.StartPrometheus(fatalC)
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -262,6 +230,20 @@ func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
 		cancelF()
 	}
 	return server, shutdownF
+}
+
+func StartServer(name, sockPath string, server *servers.Server, fatalC chan error) {
+	go func() {
+		defer log.LogPanicAndExit()
+		if config.SD.DeleteSocket {
+			if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
+				fatalC <- common.NewBasicError(name+" SocketRemoval error", err)
+			}
+		}
+		if err := server.ListenAndServe(); err != nil {
+			fatalC <- common.NewBasicError(name+" ListenAndServe error", err)
+		}
+	}()
 }
 
 func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {

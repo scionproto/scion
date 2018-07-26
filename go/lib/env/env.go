@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package env contains common command line and initialization code for SCION
-// Infrastructure services. If something is specific to one app, it should go
-// into that app's code and not here.
+// Package env contains common command line and initialization code for SCION services.
+// If something is specific to one app, it should go into that app's code and not here.
 //
 // During initialization, SIGHUPs are masked. To call a function on each
 // SIGHUP, pass the function when calling Init.
-//
-// TODO(scrye): Also common stuff like trustdb initialization, messenger
-// initialization and handler registration can go here. Everything that can be
-// shared by infra apps, to reduce duplicated code.
 package env
 
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -230,6 +226,17 @@ type Metrics struct {
 	// Prometheus contains the address to export prometheus metrics on. If
 	// not set, metrics are not exported.
 	Prometheus string
+}
+
+func (cfg *Metrics) StartPrometheus(fatalC chan error) {
+	if cfg.Prometheus != "" {
+		go func() {
+			defer log.LogPanicAndExit()
+			if err := http.ListenAndServe(cfg.Prometheus, nil); err != nil {
+				fatalC <- common.NewBasicError("HTTP ListenAndServe error", err)
+			}
+		}()
+	}
 }
 
 // Trust contains information that is BS, CS, PS, SD specific.
