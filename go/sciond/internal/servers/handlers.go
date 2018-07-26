@@ -249,23 +249,32 @@ func makeHostInfos(ot overlay.Type, addrMap map[string]topology.TopoAddr) []scio
 }
 
 func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.HostInfo {
-	var v4, v6 net.IP
+	var v4Addr, v6Addr addr.AppAddr
+	var ipv4, ipv6 net.IP
+	var port uint16
 	if ot.IsIPv4() {
-		v4 = topoAddr.PublicAddrInfo(ot.To4()).IP
+		v4Addr = topoAddr.PublicAddr(ot.To4())
+		if v4Addr != nil {
+			ipv4 = v4Addr.Addr().IP()
+			port = v4Addr.Port()
+		}
 	}
 	if ot.IsIPv6() {
-		v6 = topoAddr.PublicAddrInfo(ot.To6()).IP
+		v6Addr = topoAddr.PublicAddr(ot.To6())
+		if v6Addr != nil {
+			ipv6 = v6Addr.Addr().IP()
+			port = v6Addr.Port()
+		}
 	}
-	port := topoAddr.PublicAddrInfo(ot).L4Port
 	return sciond.HostInfo{
 		Addrs: struct {
 			Ipv4 []byte
 			Ipv6 []byte
 		}{
-			Ipv4: v4,
-			Ipv6: v6,
+			Ipv4: ipv4,
+			Ipv6: ipv6,
 		},
-		Port: uint16(port),
+		Port: port,
 	}
 }
 

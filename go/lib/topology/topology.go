@@ -250,7 +250,7 @@ type IFInfo struct {
 	InternalAddr *TopoAddr
 	Overlay      overlay.Type
 	Local        *TopoAddr
-	Remote       *AddrInfo
+	Remote       addr.OverlayAddr
 	RemoteIFID   common.IFIDType
 	Bandwidth    int
 	ISD_AS       addr.IA
