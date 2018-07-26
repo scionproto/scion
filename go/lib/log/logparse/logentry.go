@@ -120,11 +120,11 @@ func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
 	tsLen := len(common.TimeFmt)
 
 	if len(line) < tsLen {
-		log.Error(fmt.Sprintf("Short line at %s:%d: '%+v'\n", fileName, lineno, line))
+		log.Error(fmt.Sprintf("Short line at %s:%d: '%+v'", fileName, lineno, line))
 	}
 	ts, err := time.Parse(common.TimeFmt, line[:tsLen])
 	if err != nil {
-		log.Error(fmt.Sprintf("%s:%d: Could not parse timestamp %+v: %+v\n",
+		log.Error(fmt.Sprintf("%s:%d: Could not parse timestamp %+v: %+v",
 			fileName, lineno, line[:tsLen], err))
 		return nil
 	}
@@ -136,7 +136,7 @@ func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
 	}
 	lvl, err := LvlFromString(matches[1])
 	if err != nil {
-		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v\n", fileName, lineno, err))
+		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v", fileName, lineno, err))
 	}
 	return &LogEntry{
 		Timestamp: ts,
