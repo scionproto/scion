@@ -183,7 +183,7 @@ func realMain() int {
 	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, handlers, log.Root())
 	defer shutdownF()
 	StartServer("UnixServer", config.SD.Unix, unixpacketServer, fatalC)
-	env.StartPrometheus(&config.Metrics, fatalC)
+	config.Metrics.StartPrometheus(fatalC)
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -236,10 +236,8 @@ func StartServer(name, sockPath string, server *servers.Server, fatalC chan erro
 	go func() {
 		defer log.LogPanicAndExit()
 		if config.SD.DeleteSocket {
-			if _, err := os.Stat(sockPath); !os.IsNotExist(err) {
-				if err := os.Remove(sockPath); err != nil {
-					fatalC <- common.NewBasicError(name+" SocketRemoval error", err)
-				}
+			if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
+				fatalC <- common.NewBasicError(name+" SocketRemoval error", err)
 			}
 		}
 		if err := server.ListenAndServe(); err != nil {

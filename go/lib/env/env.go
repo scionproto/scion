@@ -228,7 +228,7 @@ type Metrics struct {
 	Prometheus string
 }
 
-func StartPrometheus(cfg *Metrics, fatalC chan error) {
+func (cfg *Metrics) StartPrometheus(fatalC chan error) {
 	if cfg.Prometheus != "" {
 		go func() {
 			defer log.LogPanicAndExit()
