@@ -14,21 +14,12 @@
 // limitations under the License.
 
 // Read and interleave Python and Go log files as produced by log15/fmt15, zlog
-// and Python logging
-//
-// 2017-05-16 13:18:16.539536145+0000 [DBUG] Topology loaded topo=
-// >  Loc addrs:
-// >    127.0.0.65:30066
-// >  Interfaces:
-// >    IFID: 41 Link: CORE Local: 127.0.0.6:50000 Remote: 127.0.0.7:50000 IA: 1-ff00:0:312 MTU: 1472 BW: 1000
-// 2017-05-16 13:18:16.539658666+0000 [INFO] Starting up id=br1-ff00:0:311-1
-//
-// Lines starting with "> " or a space are assumed to be continuations, i.e.
-// they belong with the line(s) above them.
+// and Python logging.
+// See the documentation for go/lib/log/logparse for the format of the log lines.
 //
 // Further, the code prefixes all log entries with the processed filename of
 // the line was read from, stripped of the path and extension. I.e.
-// foo/bar/br1-ff00:0:311-1.log turns into the prefix br1-ff00:0:311-1.
+// foo/bar/br1-ff00_0_311-1.log turns into the prefix br1-ff00_0_311-1.
 // The prefix is only printed once for blocks coming from the same file. The
 // timestamp format of the output is the same as the input format, i.e. ISO8601
 // with a space instead of "T".
@@ -102,11 +93,10 @@ func (e LogEntries) Less(i, j int) bool {
 
 func (e LogEntries) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
 
-// Turn a path name like "foo/bar/logs/br1-ff00:0:311-1.log" into "br1-ff00:0:311-1"
+// Turn a path name like "foo/bar/logs/br1-ff00_0_311-1.log" into "br1-ff00_0_311-1"
 // Note that sthis also strips the suffix, no matter its contents, i.e. it will
 // strip .log, .DEBUG, .INFO etc., basically anything after (and including) the
 // rightmost dot in the basename of the path
-// If the name is still longer than indent_size characters, truncate.
 func fnToEName(s string) string {
 	ext := path.Ext(s)
 	return strings.TrimSuffix(path.Base(s), ext)

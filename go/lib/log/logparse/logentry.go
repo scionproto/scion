@@ -136,8 +136,7 @@ func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
 	}
 	lvl, err := LvlFromString(matches[1])
 	if err != nil {
-		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v: %v\n",
-			fileName, lineno, matches[1], err))
+		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v\n", fileName, lineno, err))
 	}
 	return &LogEntry{
 		Timestamp: ts,
