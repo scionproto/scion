@@ -465,13 +465,17 @@ func (m *Messenger) CloseServer() error {
 }
 
 // UpdateSigner enables signing of messages with signer. Only the messages in
-// types are signed, the rest are left with a null signature.
+// types are signed, the rest are left with a null signature. If len(types) is
+// 0, only the signer is updated and the existing internal list of types is
+// unchanged.
 func (m *Messenger) UpdateSigner(signer ctrl.Signer, types []infra.MessageType) {
 	m.cryptoLock.Lock()
 	defer m.cryptoLock.Unlock()
-	m.signMask = make(map[infra.MessageType]struct{})
-	for _, t := range types {
-		m.signMask[t] = struct{}{}
+	if len(types) != 0 {
+		m.signMask = make(map[infra.MessageType]struct{})
+		for _, t := range types {
+			m.signMask[t] = struct{}{}
+		}
 	}
 	m.signer = signer
 }

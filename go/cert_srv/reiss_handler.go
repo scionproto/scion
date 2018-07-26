@@ -126,7 +126,7 @@ func (h *ReissHandler) validateSign(ctx context.Context, addr *snet.Addr, signed
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := ctrl.GetChainForSign(ctx, src, conf.Get().Store)
+	verChain, err := ctrl.GetChainForSign(ctx, src, config.Store)
 	if err != nil {
 		return nil, err
 	}

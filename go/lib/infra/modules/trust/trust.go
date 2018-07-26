@@ -524,11 +524,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 			return err
 		case fileChain.Leaf.Version == dbChain.Leaf.Version:
 			// Because it is the same version, check if the chains match
-			eq, err := fileChain.JSONEquals(dbChain)
-			if err != nil {
-				return common.NewBasicError("Unable to compare chains", err)
-			}
-			if !eq {
+			if !fileChain.Eq(dbChain) {
 				return common.NewBasicError("Conflicting chains found for same version", nil,
 					"db", dbChain, "file", fileChain)
 			}

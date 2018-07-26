@@ -16,7 +16,6 @@ package conf
 
 import (
 	"context"
-	"math/rand"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -25,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -124,7 +124,7 @@ func Load(id string, confDir string, stateDir string) (*Conf, error) {
 		if c.Customers, err = c.LoadCustomers(); err != nil {
 			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
-		if err = c.loadIssCert(); err != nil {
+		if err = c.checkIssCert(); err != nil {
 			return nil, err
 		}
 	}
@@ -160,7 +160,7 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 		return nil, err
 	}
 	if c.Topo.Core {
-		if err := c.loadIssCert(); err != nil {
+		if err := c.checkIssCert(); err != nil {
 			return nil, err
 		}
 	}
@@ -197,7 +197,7 @@ func (c *Conf) loadStore() error {
 	c.Store, err = trust.NewStore(
 		c.TrustDB,
 		c.Topo.ISD_AS,
-		rand.Uint64(),
+		crypto.RandUint64(),
 		&trust.Config{
 			MustHaveLocalChain: true,
 		},
@@ -245,17 +245,14 @@ func (c *Conf) loadLeafReissTime() error {
 	return nil
 }
 
-// loadKeyConf inserts the issuer certificate of the newest certificate chain into the trustdb.
-func (c *Conf) loadIssCert() error {
-	chain, err := c.Store.GetValidChain(context.TODO(), c.PublicAddr.IA, c.PublicAddr.IA.I)
+// checkIssCert checks that the trust store contains the issuer certificate.
+func (c *Conf) checkIssCert() error {
+	chain, err := c.Store.GetValidChain(context.Background(), c.PublicAddr.IA, c.PublicAddr.IA.I)
 	if err != nil {
 		return err
 	}
 	if chain == nil {
 		return common.NewBasicError(ErrorIssCert, nil, "err", "No certificate chain present")
-	}
-	if _, err := c.TrustDB.InsertIssCert(chain.Issuer); err != nil {
-		return common.NewBasicError(ErrorIssCert, err)
 	}
 	return nil
 }
