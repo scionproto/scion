@@ -21,6 +21,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 )
@@ -96,17 +97,17 @@ func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, error) {
 }
 
 // make an AddrInfo object from a BR interface Remote entry
-func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (*AddrInfo, error) {
+func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (addr.OverlayAddr, error) {
 	ip := net.ParseIP(b.Remote.Addr)
 	if ip == nil {
 		return nil, common.NewBasicError("Could not parse remote IP from string", nil,
 			"ip", b.Remote.Addr)
 	}
-	ai := &AddrInfo{Overlay: o, IP: ip, L4Port: b.Remote.L4Port}
+	var port uint16
 	if o.IsUDP() {
-		ai.OverlayPort = b.Remote.L4Port
+		port = uint16(b.Remote.L4Port)
 	}
-	return ai, nil
+	return addr.NewOverlayAddr(ip, port), nil
 }
 
 type RawAddrInfo struct {

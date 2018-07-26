@@ -148,7 +148,7 @@ func prettyPrint(pkt *spkt.ScnPkt, info *scmp.InfoTraceRoute, rtt time.Duration)
 
 // hopPktOff returns HopF offset relative to the packet
 func hopPktOff(offset int) uint8 {
-	off := spkt.CmnHdrLen + spkt.AddrHdrLen(cmn.Local.Host, cmn.Remote.Host) + offset
+	off := spkt.CmnHdrLen + spkt.AddrHdrLen(cmn.Local.Host.Addr(), cmn.Remote.Host.Addr()) + offset
 	return uint8(off / common.LineLen)
 }
 

@@ -183,7 +183,7 @@ func (c *connector) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
 				Flags:    f,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -213,7 +213,7 @@ func (c *connector) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, er
 				Isdas: ia.IAInt(),
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -245,7 +245,7 @@ func (c *connector) IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFIn
 				IfIDs: remainingIfs,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -300,7 +300,7 @@ func (c *connector) SVCInfoCtx(ctx context.Context,
 				ServiceTypes: remainingSVCs,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -363,7 +363,7 @@ func (c *connector) RevNotificationCtx(ctx context.Context,
 				SRevInfo: sRevInfo,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err

@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // pktBufSize is the maxiumum size of a packet buffer.
@@ -159,8 +158,8 @@ func (rp *RtrPkt) Release() {
 // addrIFPair contains the overlay destination/source addresses, as well as the
 // list of associated interface IDs.
 type addrIFPair struct {
-	Dst  *topology.AddrInfo
-	Src  *topology.AddrInfo
+	Dst  addr.OverlayAddr
+	Src  addr.OverlayAddr
 	IfID common.IFIDType
 	Sock string
 }
@@ -169,12 +168,12 @@ type addrIFPair struct {
 // overlay destination address.
 type EgressPair struct {
 	S   *rctx.Sock
-	Dst *topology.AddrInfo
+	Dst addr.OverlayAddr
 }
 
 type EgressRtrPkt struct {
 	Rp  *RtrPkt
-	Dst *topology.AddrInfo
+	Dst addr.OverlayAddr
 }
 
 // packetIdxs provides offsets into a packet buffer to the start of various
