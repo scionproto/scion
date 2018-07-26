@@ -15,6 +15,7 @@
 package base
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
@@ -56,9 +57,10 @@ func PollReqHdlr() {
 			break
 		}
 		sigCtrlAddr := &snet.Addr{
-			IA: rpld.Addr.IA, Host: req.Addr.Ctrl.Host(), L4Port: req.Addr.Ctrl.Port,
-			Path: rpld.Addr.Path, NextHopHost: rpld.Addr.NextHopHost,
-			NextHopPort: rpld.Addr.NextHopPort,
+			IA:      rpld.Addr.IA,
+			Host:    addr.NewAppAddr(req.Addr.Ctrl.Host(), req.Addr.Ctrl.Port),
+			Path:    rpld.Addr.Path,
+			NextHop: rpld.Addr.NextHop.Copy(),
 		}
 		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
 		if err != nil {

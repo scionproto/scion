@@ -100,7 +100,7 @@ func (h *ChainHandler) sendChainReq(req *cert_mgmt.ChainReq) error {
 	if err != nil {
 		return err
 	}
-	a := &snet.Addr{IA: req.IA(), Host: addr.SvcCS}
+	a := &snet.Addr{IA: req.IA(), Host: addr.NewAppAddrSVC(addr.SvcCS)}
 	log.Debug("Send certificate chain request", "req", req, "addr", a)
 	return SendPayload(h.conn, cpld, a)
 }

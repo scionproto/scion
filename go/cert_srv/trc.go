@@ -101,7 +101,7 @@ func (h *TRCHandler) sendTRCReq(req *cert_mgmt.TRCReq) error {
 	if path == nil {
 		return common.NewBasicError("Unable to find core AS", nil)
 	}
-	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.SvcCS}
+	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewAppAddrSVC(addr.SvcCS)}
 	log.Debug("Send TRC request", "req", req, "addr", a)
 	return SendPayload(h.conn, cpld, a)
 }

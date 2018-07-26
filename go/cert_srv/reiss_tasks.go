@@ -237,7 +237,7 @@ func (r *ReissRequester) sendReq(chain *cert.Chain, config *conf.Conf) error {
 	if err != nil {
 		return err
 	}
-	a := &snet.Addr{IA: c.Issuer, Host: addr.SvcCS}
+	a := &snet.Addr{IA: c.Issuer, Host: addr.NewAppAddrSVC(addr.SvcCS)}
 	log.Debug("Send certificate reissue request", "req", req, "addr", a)
 	return SendSignedPayload(r.conn, cpld, a, config)
 }

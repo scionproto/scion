@@ -74,7 +74,7 @@ func Init(ia addr.IA, ip net.IP) error {
 	}
 	PathMgr = snet.DefNetwork.PathResolver()
 	CtrlConn, err = snet.ListenSCION(
-		"udp4", &snet.Addr{IA: IA, Host: Host, L4Port: uint16(*CtrlPort)})
+		"udp4", &snet.Addr{IA: IA, Host: addr.NewAppAddr(Host, uint16(*CtrlPort))})
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
 	}
@@ -82,15 +82,11 @@ func Init(ia addr.IA, ip net.IP) error {
 }
 
 func CtrlSnetAddr() *snet.Addr {
-	return &snet.Addr{
-		IA: IA, Host: Host, L4Port: uint16(*CtrlPort),
-	}
+	return &snet.Addr{IA: IA, Host: addr.NewAppAddr(Host, uint16(*CtrlPort))}
 }
 
 func EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{
-		IA: IA, Host: Host, L4Port: uint16(*EncapPort),
-	}
+	return &snet.Addr{IA: IA, Host: addr.NewAppAddr(Host, uint16(*EncapPort))}
 }
 
 func ValidatePort(desc string, port int) error {

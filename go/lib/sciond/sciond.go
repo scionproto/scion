@@ -171,7 +171,7 @@ func (c *connector) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRe
 				Flags:    f,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -199,7 +199,7 @@ func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
 				Isdas: ia.IAInt(),
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -238,7 +238,7 @@ func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 				IfIDs: uncachedIfs,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -287,7 +287,7 @@ func (c *connector) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, er
 				ServiceTypes: uncachedSVCs,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
@@ -327,7 +327,7 @@ func (c *connector) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevRepl
 				SRevInfo: sRevInfo,
 			},
 		},
-		reliable.NilAppAddr,
+		nil,
 	)
 	if err != nil {
 		return nil, err
