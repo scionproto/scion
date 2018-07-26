@@ -33,6 +33,7 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/qerr"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -94,8 +95,8 @@ func main() {
 		if remote.Host == nil {
 			LogFatal("Missing remote address")
 		}
-		if remote.L4Port == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.L4Port)
+		if remote.Host.Port() == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.Host.Port())
 		}
 		c := newClient()
 		setSignalHandler(c)
@@ -274,8 +275,7 @@ func (c client) setupPath() {
 		}
 		remote.Path = spath.New(pathEntry.Path.FwdPath)
 		remote.Path.InitOffsets()
-		remote.NextHopHost = pathEntry.HostInfo.Host()
-		remote.NextHopPort = pathEntry.HostInfo.Port
+		remote.NextHop = addr.NewOverlayAddr(pathEntry.HostInfo.Host().IP(), pathEntry.HostInfo.Port)
 	}
 }
 

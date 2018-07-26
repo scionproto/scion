@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -133,31 +132,29 @@ func (e *Env) setupSignals(reloadF func()) {
 
 func getPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	// snet only supports udp4 for now
-	if topoAddr.Overlay != overlay.UDPIPv4 {
+	if topoAddr.IPv4 == nil || topoAddr.IPv4.PublicAddr().Type() != addr.AppAddrTypeUDPIPv4 {
 		panic("unsupported overlay")
 	}
-	info := topoAddr.PublicAddrInfo(topoAddr.Overlay)
-	return snetAddressFromAddrInfo(ia, info)
+	pub := topoAddr.PublicAddr(topoAddr.Overlay)
+	return snetAddressFromAddrInfo(ia, pub)
 }
 
 func getBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	// snet only supports udp4 for now
-	if topoAddr.Overlay != overlay.UDPIPv4 {
+	if topoAddr.IPv4 == nil || topoAddr.IPv4.BindAddr().Type() != addr.AppAddrTypeUDPIPv4 {
 		panic("unsupported overlay")
 	}
-	info := topoAddr.BindAddrInfo(topoAddr.Overlay)
-	return snetAddressFromAddrInfo(ia, info)
+	bind := topoAddr.BindAddr(topoAddr.Overlay)
+	return snetAddressFromAddrInfo(ia, bind)
 }
 
-func snetAddressFromAddrInfo(ia addr.IA, info *topology.AddrInfo) *snet.Addr {
-	if info == nil {
+func snetAddressFromAddrInfo(ia addr.IA, a addr.AppAddr) *snet.Addr {
+	if a == nil {
 		return nil
 	}
 	return &snet.Addr{
-		IA:          ia,
-		Host:        addr.HostFromIP(info.IP),
-		L4Port:      uint16(info.L4Port),
-		NextHopPort: uint16(info.OverlayPort),
+		IA:   ia,
+		Host: a,
 	}
 }
 

@@ -236,10 +236,10 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 					Ipv4 []byte
 					Ipv6 []byte
 				}{
-					Ipv4: nextHop.InternalAddr.IPv4.PublicAddr(),
+					Ipv4: nextHop.InternalAddr.IPv4.PublicAddr().Addr().IP(),
 					// FIXME(scrye): also add support for IPv6
 				},
-				Port: uint16(nextHop.InternalAddr.IPv4.PublicL4Port()),
+				Port: uint16(nextHop.InternalAddr.IPv4.PublicAddr().Port()),
 			},
 		})
 	}
@@ -441,15 +441,13 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	}
 	psName := f.topology.PSNames[rand.Intn(numPSServers)]
 	topoAddr := f.topology.PS[psName]
-	info := topoAddr.PublicAddrInfo(f.topology.Overlay)
-	if info == nil {
+	ps := &snet.Addr{
+		IA:   f.topology.ISD_AS,
+		Host: topoAddr.PublicAddr(f.topology.Overlay).Copy(),
+	}
+	if ps.Host == nil {
 		return nil, common.NewBasicError("PS address not found", nil, "name", psName,
 			"overlay", f.topology.Overlay)
-	}
-	ps := &snet.Addr{
-		IA:     f.topology.ISD_AS,
-		Host:   addr.HostFromIP(info.IP),
-		L4Port: uint16(info.L4Port),
 	}
 	// Get segments from path server
 	msg := &path_mgmt.SegReq{

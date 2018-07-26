@@ -19,6 +19,7 @@ package worker
 import (
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
@@ -178,8 +179,8 @@ func (w *worker) write(f *frame) error {
 	if err := snetAddr.Path.InitOffsets(); err != nil {
 		return common.NewBasicError("Error initializing path offsets", err)
 	}
-	snetAddr.NextHopHost = w.currPathEntry.HostInfo.Host()
-	snetAddr.NextHopPort = w.currPathEntry.HostInfo.Port
+	snetAddr.NextHop = addr.NewOverlayAddr(w.currPathEntry.HostInfo.Host().IP(),
+		w.currPathEntry.HostInfo.Port)
 
 	if w.seq == 0 {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)

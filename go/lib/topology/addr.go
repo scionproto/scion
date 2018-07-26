@@ -19,6 +19,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 )
@@ -38,8 +39,8 @@ const (
 )
 
 type TopoAddr struct {
-	IPv4    *topoAddrInt
-	IPv6    *topoAddrInt
+	IPv4    *pubBindAddr
+	IPv6    *pubBindAddr
 	Overlay overlay.Type
 }
 
@@ -51,39 +52,56 @@ func TopoAddrFromRAI(s *RawAddrInfo, ot overlay.Type) (*TopoAddr, error) {
 	default:
 		return nil, common.NewBasicError("Unsupported overlay type", nil, "type", ot)
 	}
-	t := &TopoAddr{Overlay: ot}
-	if err := t.FromRAI(s); err != nil {
+	t := &TopoAddr{}
+	if err := t.FromRAI(s, ot); err != nil {
 		return nil, err
 	}
-	if t.IPv4 != nil && ot.IsUDP() && t.IPv4.OverlayPort == 0 {
-		t.IPv4.OverlayPort = overlay.EndhostPort
-	}
-	if t.IPv6 != nil && ot.IsUDP() && t.IPv6.OverlayPort == 0 {
-		t.IPv6.OverlayPort = overlay.EndhostPort
-	}
 	if desc := t.validate(); len(desc) > 0 {
-		return nil, common.NewBasicError(desc, nil, "addr", s, "overlay", t.Overlay)
+		return nil, common.NewBasicError(desc, nil, "addr", s, "overlay", ot)
 	}
 	return t, nil
 }
 
-func (t *TopoAddr) FromRAI(s *RawAddrInfo) error {
+func (t *TopoAddr) FromRAI(s *RawAddrInfo, ot overlay.Type) error {
+	t.Overlay = ot
 	// Public addresses
 	for _, pub := range s.Public {
 		ip := net.ParseIP(pub.Addr)
 		if ip == nil {
 			return common.NewBasicError(ErrInvalidPub, nil, "addr", s, "ip", pub.Addr)
 		}
+		oport := uint16(pub.OverlayPort)
+		if pub.OverlayPort == 0 {
+			oport = overlay.EndhostPort
+		}
 		if ip.To4() != nil {
 			if t.IPv4 != nil {
 				return common.NewBasicError(ErrTooManyPubV4, nil, "addr", s)
 			}
-			t.IPv4 = &topoAddrInt{pubIP: ip, pubL4Port: pub.L4Port, OverlayPort: pub.OverlayPort}
+			t.IPv4 = &pubBindAddr{}
+			t.IPv4.pub = addr.NewAppAddrUDPIPv4(ip, uint16(pub.L4Port))
+			if ot.IsUDP() {
+				t.IPv4.overlay = addr.NewOverlayAddrUDPIPv4(ip, oport)
+			} else {
+				if pub.OverlayPort != 0 {
+					return common.NewBasicError(ErrOverlayPort, nil, "addr", s)
+				}
+				t.IPv4.overlay = addr.NewOverlayAddrIPv4(ip)
+			}
 		} else {
 			if t.IPv6 != nil {
 				return common.NewBasicError(ErrTooManyPubV6, nil, "addr", s)
 			}
-			t.IPv6 = &topoAddrInt{pubIP: ip, pubL4Port: pub.L4Port, OverlayPort: pub.OverlayPort}
+			t.IPv6 = &pubBindAddr{}
+			t.IPv6.pub = addr.NewAppAddrUDPIPv6(ip, uint16(pub.L4Port))
+			if ot.IsUDP() {
+				t.IPv6.overlay = addr.NewOverlayAddrUDPIPv6(ip, oport)
+			} else {
+				if pub.OverlayPort != 0 {
+					return common.NewBasicError(ErrOverlayPort, nil, "addr", s)
+				}
+				t.IPv6.overlay = addr.NewOverlayAddrIPv6(ip)
+			}
 		}
 	}
 	// Bind Addresses
@@ -96,21 +114,28 @@ func (t *TopoAddr) FromRAI(s *RawAddrInfo) error {
 			if t.IPv4 == nil {
 				return common.NewBasicError(ErrBindWithoutPubV4, nil, "addr", s, "ip", bind.Addr)
 			}
-			if t.IPv4.bindIP != nil {
+			if t.IPv4.bind != nil {
 				return common.NewBasicError(ErrTooManyBindV4, nil, "addr", s)
 			}
-			t.IPv4.bindIP = ip
-			t.IPv4.bindL4Port = bind.L4Port
+			t.IPv4.bind = addr.NewAppAddrUDPIPv4(ip, uint16(bind.L4Port))
 		} else {
 			if t.IPv6 == nil {
 				return common.NewBasicError(ErrBindWithoutPubV6, nil, "addr", s, "ip", bind.Addr)
 			}
-			if t.IPv6.bindIP != nil {
+			if t.IPv6.bind != nil {
 				return common.NewBasicError(ErrTooManyBindV6, nil, "addr", s)
 			}
-			t.IPv6.bindIP = ip
-			t.IPv6.bindL4Port = bind.L4Port
+			t.IPv6.bind = addr.NewAppAddrUDPIPv6(ip, uint16(bind.L4Port))
 		}
+	}
+	// Use Public as Bind address if Bind was not specified
+	// Check IPv4
+	if t.IPv4 != nil && t.IPv4.bind == nil {
+		t.IPv4.bind = t.IPv4.pub
+	}
+	// Check IPv6
+	if t.IPv6 != nil && t.IPv6.bind == nil {
+		t.IPv6.bind = t.IPv6.pub
 	}
 	return nil
 }
@@ -128,48 +153,78 @@ func (t *TopoAddr) validate() string {
 			return ErrAtLeastOnePub
 		}
 	}
-	if !t.Overlay.IsUDP() {
-		if (t.IPv4 != nil && t.IPv4.OverlayPort != 0) ||
-			(t.IPv6 != nil && t.IPv6.OverlayPort != 0) {
-			return ErrOverlayPort
-		}
-	}
 	return ""
 }
 
-func (t *TopoAddr) PublicAddrInfo(ot overlay.Type) *AddrInfo {
-	return t.addrInfo(ot, true)
+/* FIXME
+func (t *TopoAddr) Type() overlay.Type {
+	t1 := t.IPv4
+	t2 := t.IPv6
+	switch {
+	case t1.isUDP() && t2.isUDP():
+		return overlay.UDPIPv46
+	case t1 != nil && t2 != nil:
+		return overlay.IPv46
+	case t1 != nil:
+		return toOverlayType(t1)
+	case t2 != nil:
+		return toOverlayType(t2)
+	}
+	return overlay.Invalid
 }
 
-func (t *TopoAddr) BindAddrInfo(ot overlay.Type) *AddrInfo {
-	return t.addrInfo(ot, false)
+func toOverlayType(t addr.OverlayType) overlay.Type {
+	switch t.(type) {
+	case addr.OverlayTypeIPv4:
+		return overlay.IPv4
+	case addr.OverlayTypeIPv6:
+		return overlay.IPv6
+	case addr.OverlayTypeUDPIPv4:
+		return overlay.UDPIPv4
+	case addr.OverlayTypeUDPIPv6:
+		return overlay.UDPIPv6
+	}
+	return overlay.Invalid
 }
 
-func (t *TopoAddr) addrInfo(ot overlay.Type, public bool) *AddrInfo {
+func isUDP(t addr.OverlayType) bool {
+	switch t.(type) {
+	case addr.OverlayTypeUDPIPv4:
+		return true
+	case addr.OverlayTypeUDPIPv6:
+		return true
+	}
+	return false
+}
+*/
+
+func (t *TopoAddr) PublicAddr(ot overlay.Type) addr.AppAddr {
+	return t.getAddr(ot).PublicAddr()
+}
+
+func (t *TopoAddr) BindAddr(ot overlay.Type) addr.AppAddr {
+	return t.getAddr(ot).BindAddr()
+}
+
+func (t *TopoAddr) OverlayAddr(ot overlay.Type) addr.OverlayAddr {
+	return t.getAddr(ot).OverlayAddr()
+}
+
+func (t *TopoAddr) getAddr(ot overlay.Type) *pubBindAddr {
 	if t.IPv6 != nil && ot.IsIPv6() {
-		return t.mkAddrInfo(t.IPv6, ot.To6(), public)
+		return t.IPv6
 	}
 	if t.IPv4 != nil && ot.IsIPv4() {
-		return t.mkAddrInfo(t.IPv4, ot.To4(), public)
+		return t.IPv4
 	}
 	return nil
 }
 
-func (t *TopoAddr) mkAddrInfo(ti *topoAddrInt, ot overlay.Type, public bool) *AddrInfo {
-	ai := &AddrInfo{Overlay: ot.ToIP(), IP: ti.bindIP, L4Port: ti.bindL4Port}
-	if public || ti.bindIP == nil {
-		ai.IP = ti.pubIP
-		ai.L4Port = ti.pubL4Port
-	}
-	if ot.IsUDP() {
-		ai.Overlay = ot
-		ai.OverlayPort = ti.OverlayPort
-	}
-	return ai
-}
-
 func (t1 *TopoAddr) Equal(t2 *TopoAddr) bool {
-	if t1.Overlay != t2.Overlay {
+	if (t1.IPv4 == nil) != (t2.IPv4 == nil) {
+		return false
+	}
+	if (t1.IPv6 == nil) != (t2.IPv6 == nil) {
 		return false
 	}
 	if !t1.IPv4.equal(t2.IPv4) {
@@ -190,32 +245,7 @@ func (t *TopoAddr) String() string {
 	if t.IPv6 != nil {
 		s = append(s, fmt.Sprintf("IPv6:{%s},", t.IPv6))
 	}
-	s = append(s, fmt.Sprintf("Overlay: %s}", t.Overlay))
 	return strings.Join(s, "")
-}
-
-type AddrInfo struct {
-	Overlay     overlay.Type
-	IP          net.IP
-	L4Port      int
-	OverlayPort int
-}
-
-func (a *AddrInfo) Key() string {
-	return fmt.Sprintf("%s:%d", a.IP, a.L4Port)
-}
-
-func (a *AddrInfo) Reset() {
-	a.Overlay = overlay.Invalid
-	a.IP = a.IP[:0]
-	a.L4Port = 0
-	a.OverlayPort = 0
-}
-
-func (a *AddrInfo) String() string {
-	// using %+v here would cause infinite recursion
-	return fmt.Sprintf("Addrinfo{Overlay: %s, IP: %s, L4Port: %d, OverlayPort: %d}",
-		a.Overlay, a.IP, a.L4Port, a.OverlayPort)
 }
 
 // Note: TopoAddrV4 and V6 *must* have their pubIP and pubL4Port members set to
@@ -223,64 +253,53 @@ func (a *AddrInfo) String() string {
 // optional, but if either of bindIP or bindL4Port is set, the other Bind
 // variable must also be set. OverlayPort is currently only valid for UDP
 // overlays. Setting it for "native" topologies will result in an error.
-type topoAddrInt struct {
-	pubIP       net.IP
-	pubL4Port   int
-	bindIP      net.IP
-	bindL4Port  int
-	OverlayPort int
+type pubBindAddr struct {
+	pub     addr.AppAddr
+	bind    addr.AppAddr
+	overlay addr.OverlayAddr
 }
 
-func (t topoAddrInt) PublicAddr() net.IP {
-	return t.pubIP
+func (t *pubBindAddr) PublicAddr() addr.AppAddr {
+	return t.pub
 }
 
-func (t topoAddrInt) PublicL4Port() int {
-	return t.pubL4Port
+func (t *pubBindAddr) BindAddr() addr.AppAddr {
+	return t.bind
 }
 
-func (t topoAddrInt) BindAddr() net.IP {
-	if len(t.bindIP) > 0 {
-		return t.bindIP
-	} else {
-		return t.pubIP
-	}
+func (t *pubBindAddr) OverlayAddr() addr.OverlayAddr {
+	return t.overlay
 }
 
-func (t topoAddrInt) BindL4Port() int {
-	if len(t.bindIP) > 0 {
-		return t.bindL4Port
-	} else {
-		return t.pubL4Port
-	}
-}
-
-func (ti1 *topoAddrInt) equal(ti2 *topoAddrInt) bool {
-	if ti1 == nil && ti2 == nil {
+func (t1 *pubBindAddr) equal(t2 *pubBindAddr) bool {
+	if (t1 == nil) && (t2 == nil) {
 		return true
 	}
-	if ti1 == nil || ti2 == nil {
+	if (t1 == nil) != (t2 == nil) {
 		return false
 	}
-	if ti1.pubL4Port != ti2.pubL4Port {
+	if (t1.pub == nil) != (t2.pub == nil) {
 		return false
 	}
-	if ti1.bindL4Port != ti2.bindL4Port {
+	if (t1.bind == nil) != (t2.bind == nil) {
 		return false
 	}
-	if ti1.OverlayPort != ti2.OverlayPort {
+	if (t1.overlay == nil) != (t2.overlay == nil) {
 		return false
 	}
-	if !ti1.pubIP.Equal(ti2.pubIP) {
+	if !t1.pub.Eq(t2.pub) {
 		return false
 	}
-	if !ti1.bindIP.Equal(ti2.bindIP) {
+	if !t1.bind.Eq(t2.bind) {
+		return false
+	}
+	if !t1.overlay.Eq(t2.overlay) {
 		return false
 	}
 	return true
 }
 
-func (til *topoAddrInt) String() string {
-	return fmt.Sprintf("public: [%s]:%d bind: [%s]:%d overlayPort: %d",
-		til.pubIP, til.pubL4Port, til.bindIP, til.bindL4Port, til.OverlayPort)
+func (a *pubBindAddr) String() string {
+	return fmt.Sprintf("public: [%s]:%d bind: [%s]:%d overlay: [%s]:%d",
+		a.pub.Addr(), a.pub.Port(), a.bind.Addr(), a.bind.Port(), a.overlay.Addr(), a.overlay.Port())
 }

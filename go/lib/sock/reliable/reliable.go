@@ -92,7 +92,7 @@ const (
 type Msg struct {
 	Buffer []byte
 	Copied int
-	Addr   *AppAddr
+	Addr   addr.OverlayAddr
 }
 
 var _ net.Conn = (*Conn)(nil)
@@ -149,10 +149,18 @@ func newConn(c net.Conn) *Conn {
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *AppAddr, svc addr.HostSVC,
+func RegisterTimeout(dispatcher string, ia addr.IA, public, bind addr.AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
-	if public.Addr.Type() == addr.HostTypeNone {
-		return nil, 0, common.NewBasicError("Cannot register with NoneType address", nil)
+
+	if public == nil {
+		return nil, 0, common.NewBasicError("Cannot register without public address", nil)
+	}
+	// Check address is IP
+	if public.Addr().IP() == nil {
+		return nil, 0, common.NewBasicError("Public is not an IP address", nil)
+	}
+	if bind != nil && public.Type() != bind.Type() {
+		return nil, 0, common.NewBasicError("Different public/bind addresses types", nil)
 	}
 
 	deadline := time.Now().Add(timeout)
@@ -165,14 +173,11 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *AppAddr, svc a
 	if timeout != 0 {
 		conn.SetDeadline(deadline)
 	}
-	svcLen, bindLen := 0, 0
+	reqSize := regBaseHeaderLen + public.Addr().Size() + svc.Size()
 	if bind != nil {
-		bindLen = regBindHdrLen + bind.Addr.Size()
+		reqSize += regBindHdrLen + bind.Addr().Size()
 	}
-	if svc != addr.SvcNone {
-		svcLen = svc.Size()
-	}
-	request := make([]byte, regBaseHeaderLen+public.Addr.Size()+bindLen+svcLen)
+	request := make([]byte, reqSize)
 	offset := 0
 	// Enable SCMP
 	request[offset] = regCommandField
@@ -199,7 +204,7 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *AppAddr, svc a
 	if svc != addr.SvcNone {
 		copy(request[offset:], svc.Pack())
 	}
-	_, err = conn.Write(request)
+	_, err = conn.WriteTo(request, nil)
 	if err != nil {
 		conn.Close()
 		return nil, 0, err
@@ -212,7 +217,7 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *AppAddr, svc a
 		return nil, 0, err
 	}
 	replyPort := common.Order.Uint16(reply[:read])
-	if public.Port != 0 && public.Port != replyPort {
+	if public.Port() != 0 && public.Port() != replyPort {
 		conn.Close()
 		return nil, 0, common.NewBasicError("Port mismatch when registering with dispatcher", nil,
 			"expected", public.Port, "actual", replyPort)
@@ -223,25 +228,23 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *AppAddr, svc a
 	return conn, replyPort, nil
 }
 
-func writeAppAddr(request []byte, a *AppAddr) (int, error) {
+func writeAppAddr(request []byte, a addr.AppAddr) (int, error) {
 	offset := 0
-	a.writePort(request[offset : offset+2])
+	common.Order.PutUint16(request[offset:offset+2], a.Port())
 	offset += 2
-	if a.Addr.Type() == addr.HostTypeNone {
-		return offset, common.NewBasicError("Cannot register NoneType address", nil)
-	}
-	request[offset] = byte(a.Addr.Type())
+	request[offset] = byte(a.Addr().Type())
 	offset++
-	a.writeAddr(request[offset : offset+a.Addr.Size()])
-	offset += a.Addr.Size()
+	copy(request[offset:offset+a.Addr().Size()], a.Addr().Pack())
+	offset += a.Addr().Size()
 	return offset, nil
 }
 
 // Register connects to a SCION Dispatcher's UNIX socket.
 // Future messages for address a in AS ia which arrive at the dispatcher can be read by
 // calling Read on the returned Conn structure.
-func Register(dispatcher string, ia addr.IA, public, bind *AppAddr,
+func Register(dispatcher string, ia addr.IA, public, bind addr.AppAddr,
 	svc addr.HostSVC) (*Conn, uint16, error) {
+
 	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
 }
 
@@ -314,9 +317,8 @@ func (conn *Conn) ReadN(msgs []Msg) (int, error) {
 }
 
 func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
-	var lastHop *AppAddr
+	var lastHop addr.OverlayAddr
 	var err error
-	var addrLen int
 	// Peek to see if packet complete
 	peekData := conn.recvBuf[conn.recvReadHead:conn.recvWriteHead]
 	peekOffset := 0
@@ -340,15 +342,15 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	switch rcvdAddrType {
 	case addr.HostTypeNone:
 		// No first hop
-	case addr.HostTypeIPv4, addr.HostTypeIPv6, addr.HostTypeSVC:
+	case addr.HostTypeIPv4, addr.HostTypeIPv6:
 		addrLenU8, _ := addr.HostLen(rcvdAddrType)
-		addrLen = int(addrLenU8)
+		addrLen := int(addrLenU8)
 		// Look at 2 additional bytes for port
 		if len(peekData) < peekOffset+addrLen+2 {
 			return false, nil
 		}
 		addrBuf := peekData[peekOffset : peekOffset+addrLen+2]
-		lastHop, err = AppAddrFromRaw(addrBuf, rcvdAddrType)
+		lastHop, err = appAddrFromRaw(addrBuf)
 		if err != nil {
 			conn.Close()
 			return false, common.NewBasicError("Unable to parse received address", err)
@@ -370,11 +372,26 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	return true, nil
 }
 
-// Write blocks until it sends buf as a single framed message through conn.
-// On error, the number of bytes returned is meaningless. On success, the number
-// of bytes is always len(buf).
-func (conn *Conn) Write(buf []byte) (int, error) {
-	return conn.WriteTo(buf, NilAppAddr)
+/*
+func hostAddrLen(ot addr.OverlayType) int {
+	switch ot {
+	case addr.OverlayTypeIPv4, addr.OverlayTypeUDPIPv4:
+		return addr.HostLenIPv4
+	case addr.OverlayTypeIPv6, addr.OverlayTypeUDPIPv6:
+		return addr.HostLenIPv6
+	}
+	return 0
+}
+*/
+
+func appAddrFromRaw(buf common.RawBytes) (addr.OverlayAddr, error) {
+	addrLen := len(buf) - 2
+	ip := net.IP(buf[:addrLen])
+	if ip.To4() == nil && ip.To16() == nil {
+		return nil, common.NewBasicError("Address is not IP", nil)
+	}
+	port := common.Order.Uint16(buf[addrLen:])
+	return addr.NewOverlayAddr(ip, port), nil
 }
 
 // WriteTo works similarly to Write. In addition to Write, the ReliableSocket message header
@@ -382,10 +399,14 @@ func (conn *Conn) Write(buf []byte) (int, error) {
 func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	conn.writeMutex.Lock()
 	defer conn.writeMutex.Unlock()
+	odst := addr.ToOverlayAddr(dst)
+	if dst != nil && odst == nil {
+		return 0, common.NewBasicError("Not an Overlay address", nil, "value", dst)
+	}
 	msgs := []Msg{
 		{
 			Buffer: buf,
-			Addr:   dst.(*AppAddr),
+			Addr:   odst,
 		},
 	}
 	for {
@@ -471,20 +492,19 @@ func (conn *Conn) String() string {
 
 // copyMsg returns the new index and copied messsages count on success.
 func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
-	var dst *AppAddr
-	if msg.Addr == nil {
-		dst = NilAppAddr
-	} else {
-		dst = msg.Addr
+	var dstLen int
+	var dstType addr.HostAddrType
+	if msg.Addr != nil {
+		dstLen = msg.Addr.Addr().Size() + 2
+		dstType = msg.Addr.Addr().Type()
 	}
-	destLen := dst.Len()
 	// If we do not have enough space for another message, break
-	if len(conn.sendBuf[index:]) < hdrLen+destLen+len(msg.Buffer) {
+	if len(conn.sendBuf[index:]) < hdrLen+dstLen+len(msg.Buffer) {
 		if copiedMsgs == 0 {
 			// We are unable to fit the first message in the buffer
 			return 0, 0, common.NewBasicError("Unable to copy first message", nil,
 				"details", "message too large", "bufSize", len(conn.sendBuf[index:]),
-				"want", hdrLen+destLen+len(msg.Buffer),
+				"want", hdrLen+dstLen+len(msg.Buffer),
 			)
 		}
 		return index, copiedMsgs, nil
@@ -492,14 +512,14 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	// Cookie
 	index += copy(conn.sendBuf[index:], cookie)
 	// Addr type
-	conn.sendBuf[index] = byte(dst.Addr.Type())
+	conn.sendBuf[index] = byte(dstType)
 	index++
 	// Payload length
 	common.Order.PutUint32(conn.sendBuf[index:], uint32(len(msg.Buffer)))
 	index += 4
 	// Addr bytes
-	dst.Write(conn.sendBuf[index:])
-	index += dst.Len()
+	write(msg.Addr, conn.sendBuf[index:])
+	index += dstLen
 	// Payload
 	index += copy(conn.sendBuf[index:], msg.Buffer)
 
@@ -508,6 +528,20 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	// we reset the unused Copied field to 0
 	msg.Copied = 0
 	return index, copiedMsgs, nil
+}
+
+func write(a addr.OverlayAddr, buf common.RawBytes) (int, error) {
+	if a == nil {
+		return 0, nil
+	}
+	addrLen := a.Addr().Size() + 2
+	if len(buf) < addrLen {
+		return 0, common.NewBasicError("Unable to write AppAddr, buffer too small", nil,
+			"expected", addrLen, "actual", len(buf))
+	}
+	copy(buf, a.Addr().Pack())
+	common.Order.PutUint16(buf[a.Addr().Size():], a.Port())
+	return addrLen, nil
 }
 
 // Listener listens on Unix sockets and returns Conn sockets on Accept().

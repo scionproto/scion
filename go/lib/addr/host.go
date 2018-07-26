@@ -68,11 +68,12 @@ const (
 )
 
 type HostAddr interface {
+	Copy() HostAddr
+	Eq(HostAddr) bool
+	IP() net.IP
+	Pack() common.RawBytes
 	Size() int
 	Type() HostAddrType
-	Pack() common.RawBytes
-	IP() net.IP
-	Copy() HostAddr
 	fmt.Stringer
 }
 
@@ -82,28 +83,33 @@ var _ HostAddr = (HostNone)(nil)
 
 type HostNone net.IP
 
-func (h HostNone) Size() int {
-	return HostLenNone
+func (h HostNone) Copy() HostAddr {
+	return HostNone{}
 }
 
-func (h HostNone) Type() HostAddrType {
-	return HostTypeNone
-}
-
-func (h HostNone) Pack() common.RawBytes {
-	return common.RawBytes{}
+func (h HostNone) Eq(a HostAddr) bool {
+	_, ok := a.(HostNone)
+	return ok
 }
 
 func (h HostNone) IP() net.IP {
 	return nil
 }
 
-func (h HostNone) Copy() HostAddr {
-	return HostNone{}
+func (h HostNone) Pack() common.RawBytes {
+	return common.RawBytes{}
+}
+
+func (h HostNone) Size() int {
+	return HostLenNone
 }
 
 func (h HostNone) String() string {
 	return "<None>"
+}
+
+func (h HostNone) Type() HostAddrType {
+	return HostTypeNone
 }
 
 // Host IPv4 type
@@ -112,28 +118,33 @@ var _ HostAddr = (HostIPv4)(nil)
 
 type HostIPv4 net.IP
 
-func (h HostIPv4) Size() int {
-	return HostLenIPv4
+func (h HostIPv4) Copy() HostAddr {
+	return HostIPv4(append(net.IP(nil), h...))
 }
 
-func (h HostIPv4) Type() HostAddrType {
-	return HostTypeIPv4
-}
-
-func (h HostIPv4) Pack() common.RawBytes {
-	return common.RawBytes(net.IP(h).To4())
+func (h HostIPv4) Eq(a HostAddr) bool {
+	ha, ok := a.(HostIPv4)
+	return ok && net.IP(h).Equal(net.IP(ha))
 }
 
 func (h HostIPv4) IP() net.IP {
 	return net.IP(h)
 }
 
-func (h HostIPv4) Copy() HostAddr {
-	return HostIPv4(append(net.IP(nil), h...))
+func (h HostIPv4) Pack() common.RawBytes {
+	return common.RawBytes(net.IP(h).To4())
+}
+
+func (h HostIPv4) Size() int {
+	return HostLenIPv4
 }
 
 func (h HostIPv4) String() string {
 	return h.IP().String()
+}
+
+func (h HostIPv4) Type() HostAddrType {
+	return HostTypeIPv4
 }
 
 // Host IPv6 type
@@ -142,28 +153,33 @@ var _ HostAddr = (HostIPv6)(nil)
 
 type HostIPv6 net.IP
 
-func (h HostIPv6) Size() int {
-	return HostLenIPv6
+func (h HostIPv6) Copy() HostAddr {
+	return HostIPv6(append(net.IP(nil), h...))
 }
 
-func (h HostIPv6) Type() HostAddrType {
-	return HostTypeIPv6
-}
-
-func (h HostIPv6) Pack() common.RawBytes {
-	return common.RawBytes(h)[:HostLenIPv6]
+func (h HostIPv6) Eq(a HostAddr) bool {
+	ha, ok := a.(HostIPv6)
+	return ok && net.IP(h).Equal(net.IP(ha))
 }
 
 func (h HostIPv6) IP() net.IP {
 	return net.IP(h)
 }
 
-func (h HostIPv6) Copy() HostAddr {
-	return HostIPv6(append(net.IP(nil), h...))
+func (h HostIPv6) Size() int {
+	return HostLenIPv6
+}
+
+func (h HostIPv6) Pack() common.RawBytes {
+	return common.RawBytes(h)[:HostLenIPv6]
 }
 
 func (h HostIPv6) String() string {
 	return h.IP().String()
+}
+
+func (h HostIPv6) Type() HostAddrType {
+	return HostTypeIPv6
 }
 
 // Host SVC type
@@ -199,12 +215,17 @@ func HostSVCFromString(str string) HostSVC {
 	}
 }
 
-func (h HostSVC) Size() int {
-	return HostLenSVC
+func (h HostSVC) Copy() HostAddr {
+	return h
 }
 
-func (h HostSVC) Type() HostAddrType {
-	return HostTypeSVC
+func (h HostSVC) Eq(a HostAddr) bool {
+	ha, ok := a.(HostSVC)
+	return ok && h == ha
+}
+
+func (h HostSVC) IP() net.IP {
+	return nil
 }
 
 func (h HostSVC) Pack() common.RawBytes {
@@ -213,8 +234,11 @@ func (h HostSVC) Pack() common.RawBytes {
 	return out
 }
 
-func (h HostSVC) IP() net.IP {
-	return nil
+func (h HostSVC) Size() int {
+	if h != SvcNone {
+		return HostLenSVC
+	}
+	return 0
 }
 
 func (h HostSVC) IsMulticast() bool {
@@ -227,10 +251,6 @@ func (h HostSVC) Base() HostSVC {
 
 func (h HostSVC) Multicast() HostSVC {
 	return h | HostSVC(SVCMcast)
-}
-
-func (h HostSVC) Copy() HostAddr {
-	return h
 }
 
 func (h HostSVC) String() string {
@@ -254,6 +274,11 @@ func (h HostSVC) String() string {
 	return fmt.Sprintf("%v %c (0x%04x)", name, cast, uint16(h))
 }
 
+func (h HostSVC) Type() HostAddrType {
+	return HostTypeSVC
+}
+
+// Misc
 func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 	switch htype {
 	case HostTypeNone:
@@ -291,10 +316,6 @@ func HostLen(htype HostAddrType) (uint8, error) {
 		return 0, common.NewBasicError(ErrorBadHostAddrType, nil, "type", htype)
 	}
 	return length, nil
-}
-
-func HostEq(a, b HostAddr) bool {
-	return a.Type() == b.Type() && a.String() == b.String()
 }
 
 func HostTypeCheck(t HostAddrType) bool {

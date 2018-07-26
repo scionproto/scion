@@ -32,8 +32,8 @@ import (
 type TestCase struct {
 	msg       string
 	ia        addr.IA
-	dst       *AppAddr
-	bind      *AppAddr
+	dst       addr.AppAddr
+	bind      addr.AppAddr
 	svc       addr.HostSVC
 	want      []byte
 	timeoutOK bool
@@ -43,25 +43,28 @@ func TestRegister(t *testing.T) {
 	testCases := []TestCase{
 		{
 			ia: addr.IA{I: 1, A: 10},
-			dst: &AppAddr{
-				Addr: addr.HostNone{},
-				Port: 0,
-			},
+			dst: addr.NewAppAddr(
+				addr.HostNone{},
+				0,
+			),
 			bind: nil, svc: addr.SvcNone,
 			want: nil, timeoutOK: true,
 		}, {
 			ia: addr.IA{I: 2, A: 21},
-			dst: &AppAddr{
-				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				Port: 80,
-			},
+			dst: addr.NewAppAddr(
+				addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
+				80,
+			),
 			bind: nil, svc: addr.SvcNone,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 17,
 				3, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80, 1, 127, 0, 0, 1},
 			timeoutOK: false,
 		}, {
-			ia:   addr.IA{I: 2, A: 21},
-			dst:  &AppAddr{Addr: addr.HostFromIP(net.IPv6loopback), Port: 80},
+			ia: addr.IA{I: 2, A: 21},
+			dst: addr.NewAppAddr(
+				addr.HostFromIP(net.IPv6loopback),
+				80,
+			),
 			bind: nil, svc: addr.SvcNone,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 29,
 				3, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80, 2,
@@ -69,24 +72,24 @@ func TestRegister(t *testing.T) {
 			timeoutOK: false,
 		}, {
 			ia: addr.IA{I: 2, A: 21},
-			dst: &AppAddr{
-				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				Port: 80,
-			},
-			bind: &AppAddr{
-				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 2)),
-				Port: 81,
-			}, svc: addr.SvcNone,
+			dst: addr.NewAppAddr(
+				addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
+				80,
+			),
+			bind: addr.NewAppAddr(
+				addr.HostFromIP(net.IPv4(127, 0, 0, 2)),
+				81,
+			), svc: addr.SvcNone,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 24,
 				7, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80,
 				1, 127, 0, 0, 1, 0, 81, 1, 127, 0, 0, 2},
 			timeoutOK: false,
 		}, {
 			ia: addr.IA{I: 2, A: 21},
-			dst: &AppAddr{
-				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				Port: 80,
-			},
+			dst: addr.NewAppAddr(
+				addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
+				80,
+			),
 			bind: nil, svc: addr.SvcCS,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 19,
 				3, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80, 1, 127, 0, 0, 1, 0, 2},
@@ -142,7 +145,7 @@ func TestRegisterTimeout(t *testing.T) {
 		Convey("Register to \"dispatcher\" returns timeout error", func() {
 			var expectedT *net.OpError
 			ia := addr.IA{I: 1, A: 10}
-			appAddr := &AppAddr{Addr: addr.HostFromIP(net.IPv4(1, 2, 3, 4)), Port: 0}
+			appAddr := addr.NewAppAddr(addr.HostFromIP(net.IPv4(1, 2, 3, 4)), 0)
 
 			before := time.Now()
 			conn, port, err := RegisterTimeout(sockName, ia, appAddr, nil,
@@ -162,33 +165,27 @@ func TestRegisterTimeout(t *testing.T) {
 func TestWriteTo(t *testing.T) {
 	testCases := []TestCase{
 		{
-			msg: "",
-			dst: &AppAddr{
-				Addr: addr.HostNone{},
-				Port: 0,
-			},
+			msg:  "",
+			dst:  nil,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 0},
 		}, {
-			msg: "test",
-			dst: &AppAddr{
-				Addr: addr.HostNone{},
-				Port: 0,
-			},
+			msg:  "test",
+			dst:  nil,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 4, 't', 'e', 's', 't'},
 		}, {
 			msg: "foo",
-			dst: &AppAddr{
-				Addr: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				Port: 80,
-			},
+			dst: addr.NewAppAddr(
+				addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
+				80,
+			),
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 3,
 				127, 0, 0, 1, 0, 80, 'f', 'o', 'o'},
 		}, {
 			msg: "bar",
-			dst: &AppAddr{
-				Addr: addr.HostFromIP(net.IPv6loopback),
-				Port: 80,
-			},
+			dst: addr.NewAppAddr(
+				addr.HostFromIP(net.IPv6loopback),
+				80,
+			),
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 0, 0, 0, 3,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 				0, 80, 'b', 'a', 'r'},
@@ -214,7 +211,11 @@ func TestWriteTo(t *testing.T) {
 					cconn, err := DialTimeout(sockName, time.Second)
 					sc.SoMsg("dial err", err, ShouldBeNil)
 
-					n, err := cconn.WriteTo([]byte(tc.msg), tc.dst)
+					var dst addr.OverlayAddr
+					if tc.dst != nil {
+						dst = addr.NewOverlayAddr(tc.dst.Addr().IP(), tc.dst.Port())
+					}
+					n, err := cconn.WriteTo([]byte(tc.msg), dst)
 					sc.SoMsg("client write err", err, ShouldBeNil)
 					sc.SoMsg("client written bytes", n, ShouldEqual, len(tc.msg))
 

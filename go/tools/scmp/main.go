@@ -60,13 +60,8 @@ func main() {
 		cmn.Fatal("Unable to initialize SCION network\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
-	address := &reliable.AppAddr{Addr: cmn.Local.Host}
-	var bindAddress *reliable.AppAddr
-	if cmn.Bind.Host != nil {
-		bindAddress = &reliable.AppAddr{Addr: cmn.Bind.Host}
-	}
-	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, address,
-		bindAddress, addr.SvcNone)
+	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host, cmn.Bind.Host,
+		addr.SvcNone)
 	if err != nil {
 		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local, err)
 	}
@@ -146,8 +141,8 @@ func setPathAndMtu() uint16 {
 	}
 	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
 	cmn.Remote.Path.InitOffsets()
-	cmn.Remote.NextHopHost = cmn.PathEntry.HostInfo.Host()
-	cmn.Remote.NextHopPort = cmn.PathEntry.HostInfo.Port
+	cmn.Remote.NextHop = addr.NewOverlayAddr(cmn.PathEntry.HostInfo.Host().IP(),
+		cmn.PathEntry.HostInfo.Port)
 	return cmn.PathEntry.Path.Mtu
 }
 
