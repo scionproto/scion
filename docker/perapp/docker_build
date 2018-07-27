@@ -19,7 +19,9 @@ img="scion_$target"
 tag="$img:${ver:-latest}"
 
 if [ -n "$src" ]; then
-    docker build -t "$tag" $DOCKER_ARGS -f "$dfile" "$src"
+    # Allowing out of build context Dockerfile for 17.06+
+    # see https://github.com/docker/compose/issues/4926#issuecomment-343002431
+    docker build -t "$tag" $DOCKER_ARGS -f - "$src" < "$dfile"
 else
     docker build -t "$tag" $DOCKER_ARGS - < "$dfile"
 fi
