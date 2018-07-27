@@ -10,8 +10,8 @@ echo "Tag: ${1:-}"
 for app in border dispatcher sig beacon cert path sciond; do
     docker tag "scion_$app:latest" "$REMOTE/$app:latest"
     docker tag "scion_$app:latest" "$REMOTE/$app:$1"
-    docker tag "scion_$app:debug" "$REMOTE/$app:debug"
+    docker tag "scion_$app:debug" "$REMOTE/${app}_debug:$1"
     docker push "$REMOTE/$app:latest"
     docker push "$REMOTE/$app:$1"
-    docker push "$REMOTE/$app:debug"
+    docker push "$REMOTE/${app}_debug:$1"
 done

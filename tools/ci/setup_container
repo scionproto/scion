@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -ex
+
+docker create --name=${1:-scion_ci} --entrypoint= scion:latest tail -f /dev/null
+docker container start ${1:-scion_ci}
