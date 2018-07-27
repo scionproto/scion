@@ -19,7 +19,7 @@ img="scion_$target"
 tag="$img:${ver:-latest}"
 
 if [ -n "$src" ]; then
-    docker build -t "$tag" $DOCKER_ARGS -f "$dfile" "$src"
+    docker build -t "$tag" $DOCKER_ARGS -f - "$src" < "$dfile"
 else
     docker build -t "$tag" $DOCKER_ARGS - < "$dfile"
 fi
