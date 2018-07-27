@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
@@ -41,7 +42,6 @@ var (
 	cacheDir   = flag.String("cached", "gen-cache", "Caching directory")
 	stateDir   = flag.String("stated", "", "State directory (Defaults to confd)")
 	prom       = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
-	disp       *Dispatcher
 	reissReq   *ReissRequester
 	sighup     chan os.Signal
 )
@@ -52,6 +52,7 @@ func init() {
 	// used by configSig below.
 	sighup = make(chan os.Signal, 1)
 	signal.Notify(sighup, syscall.SIGHUP)
+	crypto.MathRandSeed()
 }
 
 // main initializes the certificate server and starts the dispatcher.
@@ -79,8 +80,7 @@ func main() {
 	if err = setup(); err != nil {
 		fatal("Setup failed", "err", err.Error())
 	}
-	var wait chan struct{}
-	<-wait
+	select {}
 }
 
 // checkFlags checks that all required flags are set.
@@ -116,11 +116,7 @@ func setupSignals() {
 func configSig() {
 	defer log.LogPanicAndExit()
 	for range sighup {
-		log.Info("Reload config")
-		if err := setup(); err != nil {
-			fatal("Unable to reload config", "err", err.Error())
-		}
-		log.Info("Config reloaded")
+		log.Info("Reloading is not supported")
 	}
 }
 

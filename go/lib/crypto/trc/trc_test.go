@@ -243,28 +243,28 @@ func Test_TRC_CheckActive(t *testing.T) {
 		t2.ExpirationTime = t2.CreationTime + 1<<20
 
 		Convey("TRC is active", func() {
-			err := t1.CheckActive(t2)
+			err := t1.IsActive(t2)
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Early usage", func() {
 			t1.CreationTime = uint32(time.Now().Unix()) + 1<<20
-			err := t1.CheckActive(t2)
+			err := t1.IsActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Late usage", func() {
 			t1.ExpirationTime = uint32(time.Now().Unix()) - 1<<20
-			err := t1.CheckActive(t2)
+			err := t1.IsActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Outdated version", func() {
 			t2.Version += 1
-			err := t1.CheckActive(t2)
+			err := t1.IsActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Grace period passed", func() {
 			t2.CreationTime -= 1
 			t2.GracePeriod = 0
-			err := t1.CheckActive(t2)
+			err := t1.IsActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
@@ -317,8 +317,36 @@ func Test_TRC_Key(t *testing.T) {
 	})
 }
 
+func Test_TRCFromFile(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		TRCFilename   string
+		ShouldBeError bool
+	}{
+		{
+			Name:          "normal file",
+			TRCFilename:   fnTRC,
+			ShouldBeError: false,
+		},
+		{
+			Name:          "directory",
+			TRCFilename:   "testdata",
+			ShouldBeError: true,
+		},
+	}
+	Convey("TRCFromFile", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				_, err := TRCFromFile(tc.TRCFilename, false)
+				fmt.Printf("[%v]\n", err)
+				xtest.SoMsgError("err", err, tc.ShouldBeError)
+			})
+		}
+	})
+}
+
 func loadTRC(filename string, t *testing.T) *TRC {
-	trc, err := TRCFromRaw(loadRaw(filename, t), false)
+	trc, err := TRCFromFile(filename, false)
 	if err != nil {
 		t.Fatalf("Error loading TRC from '%s': %v", filename, err)
 	}

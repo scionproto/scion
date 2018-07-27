@@ -87,7 +87,19 @@ func (m *MockMessenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, 
 	panic("not implemented")
 }
 
-func (m *MockMessenger) AddHandler(msgType string, h infra.Handler) {
+func (m *MockMessenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq,
+	a net.Addr, id uint64) (*cert_mgmt.ChainIssRep, error) {
+
+	panic("not implemented")
+}
+
+func (m *MockMessenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep,
+	a net.Addr, id uint64) error {
+
+	panic("not implemented")
+}
+
+func (m *MockMessenger) AddHandler(msgType infra.MessageType, h infra.Handler) {
 	panic("not implemented")
 }
 

@@ -569,7 +569,7 @@ func TestTRCReqHandler(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				handler := store.NewTRCReqHandler(tc.RecursionEnabled)
-				serverMessenger.AddHandler(messenger.TRCRequest, handler)
+				serverMessenger.AddHandler(infra.TRCRequest, handler)
 				go serverMessenger.ListenAndServe()
 				defer serverMessenger.CloseServer()
 
@@ -688,7 +688,7 @@ func TestChainReqHandler(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				handler := store.NewChainReqHandler(tc.RecursionEnabled)
-				serverMessenger.AddHandler(messenger.ChainRequest, handler)
+				serverMessenger.AddHandler(infra.ChainRequest, handler)
 				go serverMessenger.ListenAndServe()
 				defer serverMessenger.CloseServer()
 
@@ -715,7 +715,8 @@ func TestChainReqHandler(t *testing.T) {
 func setupMessenger(conn net.PacketConn, store *Store, name string) infra.Messenger {
 	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
-	return messenger.New(dispatcher, store, log.Root().New("name", name))
+	config := &messenger.Config{DisableSignatureVerification: true}
+	return messenger.New(dispatcher, store, log.Root().New("name", name), config)
 }
 
 func loadCrypto(t *testing.T, isds []addr.ISD,
@@ -760,7 +761,12 @@ func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func())
 		t.Fatal(err)
 	}
 
-	store, err := NewStore(db, ia, 0, log.Root())
+	options := &Config{
+		LocalCSes: []net.Addr{
+			&messenger.MockAddress{},
+		},
+	}
+	store, err := NewStore(db, ia, 0, options, log.Root())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 
 	"github.com/pierrec/lz4"
@@ -101,6 +102,38 @@ func ChainFromFile(path string, lz4_ bool) (*Chain, error) {
 		return nil, err
 	}
 	return ChainFromRaw(raw, lz4_)
+}
+
+// ChainFromDir reads all the {IA}-V*.crt (e.g., ISD1-ASff00_0_1-V17.crt) files
+// contained directly in dir (no subdirectories), and out of those that match
+// IA ia returns the newest one.  The chains must not be compressed. If an
+// error occurs when parsing one of the files, f() is called with the error as
+// argument. Execution continues with the remaining files.
+//
+// If no chain is found, the returned chain is nil and the error is set to nil.
+func ChainFromDir(dir string, ia addr.IA, f func(err error)) (*Chain, error) {
+	files, err := filepath.Glob(fmt.Sprintf("%s/%s-V*.crt", dir, ia.FileFmt(true)))
+	if err != nil {
+		return nil, err
+	}
+	var bestVersion uint64
+	var bestChain *Chain
+	for _, file := range files {
+		chain, err := ChainFromFile(file, false)
+		if err != nil {
+			f(common.NewBasicError("Unable to read Chain file", err))
+			continue
+		}
+		if !chain.Leaf.Subject.Eq(ia) {
+			return nil, common.NewBasicError("IA mismatch", nil, "expected", ia,
+				"found", chain.Leaf.Subject)
+		}
+		if chain.Leaf.Version > bestVersion {
+			bestChain = chain
+			bestVersion = chain.Leaf.Version
+		}
+	}
+	return bestChain, nil
 }
 
 // ChainFromSlice creates a certificate chain from a list of certificates. The first certificate is

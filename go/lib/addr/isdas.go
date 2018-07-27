@@ -244,6 +244,9 @@ func (ia IA) String() string {
 	return fmt.Sprintf("%d-%s", ia.I, ia.A)
 }
 
+// FileFmt returns a file-system friendly representation of ia. If prefixes is
+// true, the format will be in the form of ISD%d-AS%d. If it is false, the
+// format is just %d-%d.
 func (ia IA) FileFmt(prefixes bool) string {
 	fmts := "%d-%s"
 	if prefixes {

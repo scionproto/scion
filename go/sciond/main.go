@@ -29,9 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -112,7 +110,7 @@ func realMain() int {
 		return 1
 	}
 	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS,
-		rand.Uint64(), log.Root())
+		rand.Uint64(), nil, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
@@ -129,7 +127,7 @@ func realMain() int {
 		return 1
 	}
 
-	err = LoadAuthoritativeTRC(trustDB, trustStore)
+	err = trustStore.LoadAuthoritativeTRC(filepath.Join(config.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("TRC error", "err", err)
 		return 1
@@ -142,6 +140,7 @@ func realMain() int {
 		),
 		trustStore,
 		log.Root(),
+		nil,
 	)
 	trustStore.SetMessenger(msger)
 	revCache := fetcher.NewRevCache(cache.NoExpiration, time.Second)
@@ -244,58 +243,4 @@ func StartServer(name, sockPath string, server *servers.Server, fatalC chan erro
 			fatalC <- common.NewBasicError(name+" ListenAndServe error", err)
 		}
 	}()
-}
-
-func LoadAuthoritativeTRC(db *trustdb.DB, store infra.TrustStore) error {
-	fileTRC, err := trc.TRCFromDir(
-		filepath.Join(config.General.ConfigDir, "certs"),
-		config.General.Topology.ISD_AS.I,
-		func(err error) {
-			log.Warn("Error reading TRC", "err", err)
-		})
-	if err != nil {
-		return common.NewBasicError("Unable to load TRC from directory", err)
-	}
-
-	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	dbTRC, err := store.GetValidTRC(
-		ctx,
-		config.General.Topology.ISD_AS.I,
-		config.General.Topology.ISD_AS.I,
-	)
-	cancelF()
-	switch {
-	case err != nil && common.GetErrorMsg(err) != trust.ErrEndOfTrail:
-		// Unexpected error in trust store
-		return err
-	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC == nil:
-		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
-	case common.GetErrorMsg(err) == trust.ErrEndOfTrail && fileTRC != nil:
-		_, err := db.InsertTRC(fileTRC)
-		return err
-	case err == nil && fileTRC == nil:
-		// Nothing to do, no TRC to load from file but we already have one in the DB
-		return nil
-	default:
-		// Found a TRC file on disk, and found a TRC in the DB. Check versions.
-		switch {
-		case fileTRC.Version > dbTRC.Version:
-			_, err := db.InsertTRC(fileTRC)
-			return err
-		case fileTRC.Version == dbTRC.Version:
-			// Because it is the same version, check if the TRCs match
-			eq, err := fileTRC.JSONEquals(dbTRC)
-			if err != nil {
-				return common.NewBasicError("Unable to compare TRCs", err)
-			}
-			if !eq {
-				return common.NewBasicError("Conflicting TRCs found for same version", nil,
-					"db", dbTRC, "file", fileTRC)
-			}
-			return nil
-		default:
-			// file TRC is older than DB TRC, so we just ignore it
-			return nil
-		}
-	}
 }

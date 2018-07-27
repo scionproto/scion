@@ -16,94 +16,107 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"net"
 	"time"
-
-	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
+const (
+	HandlerTimeout = 5 * time.Second
+)
+
 // ReissHandler handles certificate chain reissue requests and replies.
 //
-// Reissue requests sent by non-issuer ASes to issuer ASes. The request
-// needs to be signed with the private key associated with the newest
-// verifying key in the customer mapping. Certificate chains are issued
-// automatically by the issuer ASes.
-type ReissHandler struct {
-	conn *snet.Conn
-}
+// Reissue requests are sent by non-issuer ASes to issuer ASes. The request
+// needs to be signed with the private key associated with the newest verifying
+// key in the customer mapping. Certificate chains are issued automatically by
+// the issuer ASes.
+type ReissHandler struct{}
 
-func NewReissHandler(conn *snet.Conn) *ReissHandler {
-	return &ReissHandler{conn: conn}
+func (h *ReissHandler) Handle(r *infra.Request) {
+	// Bind the handler to a snapshot of the current config
+	h.HandleReq(r, conf.Get())
 }
 
 // HandleReq handles certificate chain reissue requests. If the requested
 // certificate chain is already present, the existing certificate chain is
 // resent. Otherwise, a new certificate chain is issued.
-func (h *ReissHandler) HandleReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq,
-	signed *ctrl.SignedPld, config *conf.Conf) {
+func (h *ReissHandler) HandleReq(r *infra.Request, config *conf.Conf) {
+	ctx, cancelF := context.WithTimeout(r.Context(), HandlerTimeout)
+	defer cancelF()
 
-	log.Info("Received certificate reissue request", "addr", addr, "req", req)
+	saddr := r.Peer.(*snet.Addr)
+	req := r.Message.(*cert_mgmt.ChainIssReq)
+	signed := r.FullMessage.(*ctrl.SignedPld)
+
+	log.Debug("[ReissHandler] Received certificate reissue request", "addr", saddr, "req", req)
 	if !config.Topo.Core {
-		log.Warn("Received certificate reissue request as non-issuer AS",
-			"addr", addr, "req", req)
+		log.Warn("[ReissHandler] Received certificate reissue request as non-issuer AS",
+			"addr", saddr, "req", req)
 		return
 	}
 	// Validate the request was correctly signed by the requester
-	verChain, err := h.validateSign(addr, signed, config)
+	verChain, err := h.validateSign(ctx, saddr, signed, config)
 	if err != nil {
-		h.logDropReq(addr, req, err)
+		h.logDropReq(saddr, req, err)
 		return
 	}
 	// Parse the requested certificate
 	crt, err := req.Cert()
 	if err != nil {
-		h.logDropReq(addr, req, err)
+		h.logDropReq(saddr, req, err)
 		return
 	}
 	// Respond with max chain for outdated requests.
-	maxChain := config.Store.GetNewestChain(verChain.Leaf.Subject)
+	maxChain, err := config.Store.GetChain(ctx, verChain.Leaf.Subject, 0)
+	if err != nil {
+		h.logDropReq(saddr, req, err)
+		return
+	}
 	if maxChain != nil && crt.Version <= maxChain.Leaf.Version {
-		log.Info("Resending certificate chain", "addr", addr, "req", req)
-		if err = h.sendRep(addr, maxChain, config); err != nil {
-			log.Error("Unable to resend certificate chain", "addr", addr,
+		log.Debug("[ReissHandler] Resending certificate chain", "addr", saddr, "req", req)
+		if err := h.sendRep(ctx, saddr, maxChain, r.ID); err != nil {
+			log.Error("[ReissHandler] Unable to resend certificate chain", "addr", saddr,
 				"req", req, "err", err)
 		}
 		return
 	}
 	// Get the verifying key from the customer mapping
-	verKey, err := config.Customers.GetVerifyingKey(addr.IA)
+	verKey, err := config.Customers.GetVerifyingKey(saddr.IA)
 	if err != nil {
-		h.logDropReq(addr, req, err)
+		h.logDropReq(saddr, req, err)
 		return
 	}
 	// Verify request and check the verifying key matches
 	if err = h.validateReq(crt, verKey, verChain, maxChain, config); err != nil {
-		h.logDropReq(addr, req, err)
+		h.logDropReq(saddr, req, err)
 		return
 	}
 	// Issue certificate chain
-	newChain, err := h.issueChain(crt, verKey, config)
+	newChain, err := h.issueChain(ctx, crt, verKey, config)
 	if err != nil {
-		log.Error("Unable to reissue certificate chain", "err", err)
+		log.Error("[ReissHandler] Unable to reissue certificate chain", "err", err)
 		return
 	}
 	// Send issued certificate chain
-	if err = h.sendRep(addr, newChain, config); err != nil {
-		log.Error("Unable to send reissued certificate chain", "addr", addr,
+	if err := h.sendRep(ctx, saddr, newChain, r.ID); err != nil {
+		log.Error("[ReissHandler] Unable to send reissued certificate chain", "addr", saddr,
 			"req", req, "err", err)
 	}
 }
 
 // validateSign validates that the signer matches the requester and returns the
 // certificate chain used when verifying the signature.
-func (h *ReissHandler) validateSign(addr *snet.Addr, signed *ctrl.SignedPld,
+func (h *ReissHandler) validateSign(ctx context.Context, addr *snet.Addr, signed *ctrl.SignedPld,
 	config *conf.Conf) (*cert.Chain, error) {
 
 	if signed.Sign == nil {
@@ -113,7 +126,7 @@ func (h *ReissHandler) validateSign(addr *snet.Addr, signed *ctrl.SignedPld,
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := getChainForSign(src)
+	verChain, err := ctrl.GetChainForSign(ctx, src, config.Store)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +170,7 @@ func (h *ReissHandler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 
 // issueChain creates a certificate chain for the certificate and adds it to the
 // trust store.
-func (h *ReissHandler) issueChain(c *cert.Certificate, vKey common.RawBytes,
+func (h *ReissHandler) issueChain(ctx context.Context, c *cert.Certificate, vKey common.RawBytes,
 	config *conf.Conf) (*cert.Chain, error) {
 
 	issCert, err := getIssuerCert(config)
@@ -185,75 +198,34 @@ func (h *ReissHandler) issueChain(c *cert.Certificate, vKey common.RawBytes,
 	if err != nil {
 		return nil, err
 	}
-	if err = config.Store.AddChain(chain, true); err != nil {
-		log.Error("Unable to write reissued certificate chain to disk", "err", err)
+	if _, err = config.TrustDB.InsertChain(chain); err != nil {
+		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
+		return nil, err
 	}
 	return chain, nil
 }
 
-// sendRep creates a certificate chain reply and sends it to the requester.
-func (h *ReissHandler) sendRep(addr *snet.Addr, chain *cert.Chain, config *conf.Conf) error {
+func (h *ReissHandler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain,
+	id uint64) error {
+
 	raw, err := chain.Compress()
 	if err != nil {
 		return err
 	}
-	cpld, err := ctrl.NewCertMgmtPld(&cert_mgmt.ChainIssRep{RawChain: raw}, nil, nil)
-	if err != nil {
-		return err
+	msger, ok := infra.MessengerFromContext(ctx)
+	if !ok {
+		return common.NewBasicError("[ReissHandler] Unable to service request, no messenger found",
+			nil)
 	}
-	log.Info("Send reissued certificate chain", "chain", chain, "addr", addr)
-	return SendSignedPayload(h.conn, cpld, addr, config)
+	return msger.SendChainIssueReply(ctx, &cert_mgmt.ChainIssRep{RawChain: raw}, addr, id)
 }
 
-// HandleRep handles certificate chain reissue replies.
-func (h *ReissHandler) HandleRep(addr *snet.Addr, rep *cert_mgmt.ChainIssRep, config *conf.Conf) {
-	log.Info("Received certificate reissue reply", "addr", addr, "rep", rep)
-	if config.Topo.Core {
-		log.Warn("Received certificate reissue reply as issuer AS", "addr", addr, "req", rep)
-		return
-	}
-	chain, err := rep.Chain()
-	if err != nil {
-		h.logDropRep(addr, rep, err)
-		return
-	}
-	if err = h.validateRep(chain, config); err != nil {
-		h.logDropRep(addr, rep, err)
-		return
-	}
-	if err = config.Store.AddChain(chain, true); err != nil {
-		log.Error("Unable to write reissued certificate chain to disk", "chain", chain, "err", err)
-		return
-	}
-	sign, err := CreateSign(config.PublicAddr.IA, config.Store)
-	if err != nil {
-		log.Error("Unable to set new signer", "err", err)
-		return
-	}
-	config.SetSigner(ctrl.NewBasicSigner(sign, config.GetSigningKey()))
+func (h *ReissHandler) logDropReq(addr net.Addr, req *cert_mgmt.ChainIssReq, err error) {
+	log.Error("[ReissHandler] Dropping certificate reissue request", "addr", addr, "req", req,
+		"err", err)
 }
 
-// validateRep validates that the received certificate chain can be added to the trust store.
-func (h *ReissHandler) validateRep(chain *cert.Chain, config *conf.Conf) error {
-	verKey := common.RawBytes(ed25519.PrivateKey(
-		config.GetSigningKey()).Public().(ed25519.PublicKey))
-	if !bytes.Equal(chain.Leaf.SubjectSignKey, verKey) {
-		return common.NewBasicError("Invalid SubjectSignKey", nil, "expected",
-			verKey, "actual", chain.Leaf.SubjectSignKey)
-	}
-	// FIXME(roosd): validate SubjectEncKey
-	issuer := config.Store.GetNewestChain(config.PublicAddr.IA).Leaf.Issuer
-	if !chain.Leaf.Issuer.Eq(issuer) {
-		return common.NewBasicError("Invalid Issuer", nil, "expected",
-			issuer, "actual", chain.Leaf.Issuer)
-	}
-	return config.Store.VerifyChain(config.PublicAddr.IA, chain)
-}
-
-func (h *ReissHandler) logDropReq(addr *snet.Addr, req *cert_mgmt.ChainIssReq, err error) {
-	log.Error("Dropping certificate reissue request", "addr", addr, "req", req, "err", err)
-}
-
-func (h *ReissHandler) logDropRep(addr *snet.Addr, rep *cert_mgmt.ChainIssRep, err error) {
-	log.Error("Dropping certificate reissue reply", "addr", addr, "rep", rep, "err", err)
+func (h *ReissHandler) logDropRep(addr net.Addr, rep *cert_mgmt.ChainIssRep, err error) {
+	log.Error("[ReissHandler] Dropping certificate reissue reply", "addr", addr, "rep", rep,
+		"err", err)
 }

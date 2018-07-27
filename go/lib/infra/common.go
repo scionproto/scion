@@ -16,6 +16,7 @@ package infra
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -65,13 +66,13 @@ func (f HandlerFunc) Handle(r *Request) {
 // exchange initiated by the local node. A Request includes its associated
 // context.
 type Request struct {
-	// The inner proto.Cerealizable message, as supported by
+	// Message is the inner proto.Cerealizable message, as supported by
 	// messenger.Messenger (e.g., a *cert_mgmt.ChainReq). For information about
 	// possible messages, see the package documentation for that package.
 	Message proto.Cerealizable
-	// The top-level SignedCtrlPld message read from the wire
+	// FullMessage is the top-level SignedCtrlPld message read from the wire
 	FullMessage proto.Cerealizable
-	// The node that sent this request
+	// Peer is the node that sent this request
 	Peer net.Addr
 
 	ID uint64
@@ -115,6 +116,45 @@ func NewContextWithMessenger(ctx context.Context, msger Messenger) context.Conte
 	return context.WithValue(ctx, messengerContextKey, msger)
 }
 
+type MessageType int
+
+const (
+	None MessageType = iota
+	TRC
+	TRCRequest
+	Chain
+	ChainRequest
+	PathSegmentRequest
+	PathSegmentReply
+	ChainIssueRequest
+	ChainIssueReply
+)
+
+func (mt MessageType) String() string {
+	switch mt {
+	case None:
+		return "None"
+	case ChainRequest:
+		return "ChainRequest"
+	case Chain:
+		return "Chain"
+	case TRCRequest:
+		return "TRCRequest"
+	case TRC:
+		return "TRC"
+	case PathSegmentRequest:
+		return "PathSegmentRequest"
+	case PathSegmentReply:
+		return "PathSegmentReply"
+	case ChainIssueRequest:
+		return "ChainIssueRequest"
+	case ChainIssueReply:
+		return "ChainIssueReply"
+	default:
+		return fmt.Sprintf("Unknown (%d)", mt)
+	}
+}
+
 type Messenger interface {
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
 		id uint64) (*cert_mgmt.TRC, error)
@@ -124,7 +164,11 @@ type Messenger interface {
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
 	GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
-	AddHandler(msgType string, h Handler)
+	RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
+		id uint64) (*cert_mgmt.ChainIssRep, error)
+	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
+		id uint64) error
+	AddHandler(msgType MessageType, h Handler)
 	ListenAndServe()
 	CloseServer() error
 }

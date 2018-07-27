@@ -42,9 +42,9 @@ func main() {
 	// Initialize networking and modules
 	serverApp := InitDefaultNetworking(s2c)
 	// Initialize Server
-	serverApp.messenger.AddHandler(messenger.ChainRequest,
+	serverApp.messenger.AddHandler(infra.ChainRequest,
 		serverApp.trustStore.NewChainReqHandler(false))
-	serverApp.messenger.AddHandler(messenger.TRCRequest,
+	serverApp.messenger.AddHandler(infra.TRCRequest,
 		serverApp.trustStore.NewTRCReqHandler(false))
 	go serverApp.messenger.ListenAndServe()
 	// Do work
@@ -71,13 +71,20 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 		log.Error("Unable to initialize trustdb", "err", err)
 		os.Exit(-1)
 	}
-	server.trustStore, err = trust.NewStore(db, xtest.MustParseIA("1-ff00:0:1"), 0, log.Root())
+	server.trustStore, err = trust.NewStore(db, xtest.MustParseIA("1-ff00:0:1"), 0, nil, log.Root())
 	if err != nil {
 		log.Error("Unable to create trust store", "err", err)
 		os.Exit(-1)
 	}
 	// Initialize messenger with verification capabilities (trustStore-backed)
-	server.messenger = messenger.New(dispatcherLayer, server.trustStore, log.Root())
+	server.messenger = messenger.New(
+		dispatcherLayer,
+		server.trustStore,
+		log.Root(),
+		&messenger.Config{
+			DisableSignatureVerification: true,
+		},
+	)
 	// Enable network access for trust store request handling
 	server.trustStore.SetMessenger(server.messenger)
 	return server

@@ -21,6 +21,11 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/disp"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
@@ -33,7 +38,11 @@ const (
 	ErrorSNET      = "Unable to create local SCION Network context"
 )
 
-// setup loads and sets the newest configuration. If needed, the snet/dispatcher are initialized.
+// setup loads and sets the newest configuration. If needed, the
+// snet/dispatcher are initialized.
+//
+// FIXME(scrye): Reloading is currently disabled, so this function is currently
+// only called once.
 func setup() error {
 	oldConf := conf.Get()
 	newConf, err := loadConf(oldConf)
@@ -44,31 +53,60 @@ func setup() error {
 	if err = setDefaultSignerVerifier(newConf); err != nil {
 		return common.NewBasicError(ErrorSign, err)
 	}
-	// Close dispatcher if the addresses are changed
-	if oldConf != nil && (!oldConf.PublicAddr.EqAddr(newConf.PublicAddr) ||
-		!oldConf.BindAddr.EqAddr(newConf.BindAddr)) {
-		if err := disp.Close(); err != nil {
-			return common.NewBasicError(ErrorDispClose, err)
-		}
-		reissReq.Close()
-	}
 	// Set the new configuration.
 	conf.Set(newConf)
-	// Initialize snet with retries if not already initialized
+
+	// Initialize infra messaging stack if not already initialized
 	if oldConf == nil {
-		if err = initSNET(newConf.PublicAddr.IA, initAttempts, initInterval); err != nil {
-			return common.NewBasicError(ErrorSNET, err)
-		}
-		go (&SelfIssuer{}).Run()
+		return setupNewConf(newConf)
 	}
-	// Create new dispatcher if it does not exist or is closed
-	if oldConf == nil || disp.closed {
-		if disp, err = NewDispatcher(newConf.PublicAddr, newConf.BindAddr); err != nil {
-			return common.NewBasicError(ErrorDispInit, err)
-		}
-		go disp.Run()
-		reissReq = NewReissRequester(disp.conn)
-		go reissReq.Run()
+	return nil
+}
+
+func setupNewConf(newConf *conf.Conf) error {
+	var err error
+	if err = initSNET(newConf.PublicAddr.IA, initAttempts, initInterval); err != nil {
+		return common.NewBasicError(ErrorSNET, err)
+	}
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", newConf.PublicAddr, newConf.BindAddr,
+		addr.SvcCS)
+	if err != nil {
+		return err
+	}
+	msger := messenger.New(
+		disp.New(
+			transport.NewPacketTransport(conn),
+			messenger.DefaultAdapter,
+			log.Root(),
+		),
+		newConf.Store,
+		log.Root(),
+		nil,
+	)
+	newConf.Store.SetMessenger(msger)
+	msger.AddHandler(infra.ChainRequest, newConf.Store.NewChainReqHandler(true))
+	msger.AddHandler(infra.TRCRequest, newConf.Store.NewTRCReqHandler(true))
+	msger.AddHandler(infra.Chain, newConf.Store.NewChainPushHandler())
+	msger.AddHandler(infra.TRC, newConf.Store.NewTRCPushHandler())
+	msger.AddHandler(infra.ChainIssueRequest, &ReissHandler{})
+	msger.UpdateSigner(newConf.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
+	msger.UpdateVerifier(newConf.GetVerifier())
+	go func() {
+		defer log.LogPanicAndExit()
+		msger.ListenAndServe()
+	}()
+	if newConf.Topo.Core {
+		go func() {
+			defer log.LogPanicAndExit()
+			selfIssuer := NewSelfIssuer(msger)
+			selfIssuer.Run()
+		}()
+	} else {
+		go func() {
+			defer log.LogPanicAndExit()
+			reissRequester := NewReissRequester(msger)
+			reissRequester.Run()
+		}()
 	}
 	return nil
 }
@@ -78,18 +116,18 @@ func loadConf(oldConf *conf.Conf) (*conf.Conf, error) {
 	if oldConf != nil {
 		return conf.ReloadConf(oldConf)
 	}
-	return conf.Load(*id, *confDir, *cacheDir, *stateDir)
+	return conf.Load(*id, *confDir, *stateDir)
 }
 
 // setDefaultSignerVerifier sets the signer and verifier. The newest certificate chain version is
 // used.
 func setDefaultSignerVerifier(c *conf.Conf) error {
-	sign, err := CreateSign(c.PublicAddr.IA, c.Store)
+	sign, err := trust.CreateSign(c.PublicAddr.IA, c.Store)
 	if err != nil {
 		return err
 	}
 	c.SetSigner(ctrl.NewBasicSigner(sign, c.GetSigningKey()))
-	c.SetVerifier(&SigVerifier{&ctrl.BasicSigVerifier{}})
+	c.SetVerifier(ctrl.NewBasicSigVerifier(c.Store))
 	return nil
 }
 
