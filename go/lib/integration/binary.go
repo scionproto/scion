@@ -95,6 +95,7 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 }
 
 func redirectLog(name, pName string, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
 	defer ep.Close()
 	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
 		logLogEntry(name, e)
