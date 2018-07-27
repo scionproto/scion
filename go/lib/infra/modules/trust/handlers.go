@@ -141,8 +141,10 @@ type trcPushHandler struct {
 }
 
 func (h *trcPushHandler) Handle() {
-	// FIXME(scrye): If a TRC updated invalidates the local certificate chain,
-	// CSes have to fetch a new one from the issuer.
+	// FIXME(scrye): If a TRC update invalidates the local certificate chain,
+	// CSes must use the gracePeriod to fetch a new one from the issuer. If a
+	// chain is not obtained within the gracePeriod, manual intervention is
+	// required to install a valid chain.
 	trcPush, ok := h.request.Message.(*cert_mgmt.TRC)
 	if !ok {
 		h.log.Error("[TrustStore:trcPushHandler] Wrong message type, expected cert_mgmt.TRC",

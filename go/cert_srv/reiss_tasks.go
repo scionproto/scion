@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -121,14 +122,14 @@ func (s *SelfIssuer) createLeafCert(leaf *cert.Certificate, config *conf.Conf) e
 	if err := chain.Leaf.Sign(config.GetIssSigningKey(), issCrt.SignAlgorithm); err != nil {
 		return common.NewBasicError("Unable to sign leaf certificate", err, "chain", chain)
 	}
-	if err := ctrl.VerifyChain(config.PublicAddr.IA, chain, config.Store); err != nil {
+	if err := trust.VerifyChain(config.PublicAddr.IA, chain, config.Store); err != nil {
 		return common.NewBasicError("Unable to verify chain", err, "chain", chain)
 	}
 	if _, err := config.TrustDB.InsertChain(chain); err != nil {
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
 	}
 	log.Info("[SelfIssuer] Created certificate chain", "chain", chain)
-	sign, err := ctrl.CreateSign(config.PublicAddr.IA, config.Store)
+	sign, err := trust.CreateSign(config.PublicAddr.IA, config.Store)
 	if err != nil {
 		log.Error("[SelfIssuer] Unable to set create new sign", "err", err)
 	}
@@ -291,7 +292,7 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 		return nil
 	}
 
-	sign, err := ctrl.CreateSign(config.PublicAddr.IA, config.Store)
+	sign, err := trust.CreateSign(config.PublicAddr.IA, config.Store)
 	if err != nil {
 		return common.NewBasicError("Unable to set new signer", err)
 	}
@@ -321,7 +322,7 @@ func (r *ReissRequester) validateRep(ctx context.Context,
 		return common.NewBasicError("Invalid Issuer", nil, "expected",
 			issuer, "actual", chain.Leaf.Issuer)
 	}
-	return ctrl.VerifyChain(config.PublicAddr.IA, chain, config.Store)
+	return trust.VerifyChain(config.PublicAddr.IA, chain, config.Store)
 }
 
 func (r *ReissRequester) logDropRep(addr net.Addr, rep *cert_mgmt.ChainIssRep, err error) {

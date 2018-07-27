@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -121,7 +122,7 @@ func loadConf(oldConf *conf.Conf) (*conf.Conf, error) {
 // setDefaultSignerVerifier sets the signer and verifier. The newest certificate chain version is
 // used.
 func setDefaultSignerVerifier(c *conf.Conf) error {
-	sign, err := ctrl.CreateSign(c.PublicAddr.IA, c.Store)
+	sign, err := trust.CreateSign(c.PublicAddr.IA, c.Store)
 	if err != nil {
 		return err
 	}
