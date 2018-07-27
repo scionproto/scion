@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -ex
+
+docker container exec ${1:-scion_ci} bash -c "set -eo pipefail; ./scion.sh lint |& tee logs/lint.run"

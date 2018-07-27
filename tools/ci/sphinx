@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -ex
+
+docker container exec -it -e "PYTHONPATH=python/:." ${1:-scion_ci} bash -c "set -eo pipefail; make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run"
