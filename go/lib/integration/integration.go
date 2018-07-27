@@ -22,11 +22,39 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/util"
+)
+
+type iaArgs []addr.IA
+
+func (a *iaArgs) String() string {
+	rawIAs := make([]string, len(*a))
+	for i, ia := range *a {
+		rawIAs[i] = ia.String()
+	}
+	return strings.Join(rawIAs, ",")
+}
+
+func (a *iaArgs) Set(value string) error {
+	rawIAs := strings.Split(value, ",")
+	for _, rawIA := range rawIAs {
+		ia, err := addr.IAFromString(rawIA)
+		if err != nil {
+			return err
+		}
+		*a = append(*a, ia)
+	}
+	return nil
+}
+
+var (
+	srcIAs iaArgs
+	dstIAs iaArgs
 )
 
 // Integration can be used to run integration tests.
@@ -50,34 +78,38 @@ type Waiter interface {
 	Wait() error
 }
 
-// Init initializes the integration test, it adds and validates the command line flags.
-func Init() error {
+// Init initializes the integration test, it adds and validates the command line flags,
+// and initializes logging.
+func Init(name string) error {
 	addTestFlags()
-	return validateFlags()
+	return validateFlags(name)
 }
 
 func addTestFlags() {
 	log.AddLogConsFlags()
+	log.AddLogFileFlags()
+	flag.Var(&srcIAs, "src", "Source ISD-ASes (comma separated list)")
+	flag.Var(&dstIAs, "dst", "Destination ISD-ASes (comma separated list)")
 }
 
-func validateFlags() error {
+func validateFlags(name string) error {
 	flag.Parse()
-	if err := log.SetupFromFlags(""); err != nil {
+	if err := log.SetupFromFlags(name); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		flag.Usage()
 		return err
 	}
+	asList, err := util.LoadASList("gen/as_list.yml")
+	if err != nil {
+		return err
+	}
+	if len(srcIAs) == 0 {
+		srcIAs = asList.AllASes()
+	}
+	if len(dstIAs) == 0 {
+		dstIAs = asList.AllASes()
+	}
 	return nil
-}
-
-// LoadASList loads the AS list from the as_list yaml file.
-func LoadASList() (*util.ASList, error) {
-	return util.LoadASList("gen/as_list.yml")
-}
-
-// AllIAs returns all IA from asList.
-func AllIAs(asList *util.ASList) []addr.IA {
-	return append([]addr.IA(nil), append(asList.Core, asList.NonCore...)...)
 }
 
 // IAPair is a source, destination pair. The client (Src) will dial the server (Dst).
@@ -86,8 +118,13 @@ type IAPair struct {
 	Dst addr.IA
 }
 
+// IAPairs returns all IAPairs that should be tested.
+func IAPairs() []IAPair {
+	return generateAllSrcDst(srcIAs, dstIAs)
+}
+
 // GenerateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
-func GenerateAllSrcDst(srcASes, dstASes []addr.IA) []IAPair {
+func generateAllSrcDst(srcASes, dstASes []addr.IA) []IAPair {
 	shuffle(len(srcASes), func(i, j int) {
 		srcASes[i], srcASes[j] = srcASes[j], srcASes[i]
 	})
@@ -124,7 +161,7 @@ func (s *serverStop) Close() error {
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
 func StartServer(in Integration, dst addr.IA) (io.Closer, error) {
-	serverCtx, serverCancel := context.WithCancel(context.Background()) // add method to run a single server that returns a closer (go chanel to close).
+	serverCtx, serverCancel := context.WithCancel(context.Background())
 	s, err := in.StartServer(serverCtx, dst)
 	if err != nil {
 		serverCancel()

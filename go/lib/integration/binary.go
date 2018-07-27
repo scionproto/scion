@@ -16,10 +16,13 @@ package integration
 
 import (
 	"context"
+	"io"
 	"os/exec"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log/logparse"
 )
 
 const (
@@ -58,6 +61,11 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.name, args...),
 	}
+	ep, err := r.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	go redirectLog("Server", "ServerErr", ep)
 	return r, r.Start()
 }
 
@@ -67,6 +75,11 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) 
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.name, args...),
 	}
+	ep, err := r.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	go redirectLog("Client", "ClientErr", ep)
 	return r, r.Start()
 }
 
@@ -79,6 +92,31 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 		}
 	}
 	return argsCopy
+}
+
+func redirectLog(name, pName string, ep io.ReadCloser) {
+	defer ep.Close()
+	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
+		logLogEntry(name, e)
+	})
+}
+
+func logLogEntry(name string, e logparse.LogEntry) {
+	var logFun func(string, ...interface{})
+	switch e.Level {
+	case logparse.LvlDebug:
+		logFun = log.Debug
+	case logparse.LvlInfo:
+		logFun = log.Info
+	case logparse.LvlWarn:
+		logFun = log.Warn
+	case logparse.LvlError:
+		logFun = log.Error
+	case logparse.LvlCrit:
+		logFun = log.Crit
+	}
+	indent := strings.Repeat(" ", len(name)+2)
+	logFun(name + ": " + strings.Join(e.Lines, "\n"+indent))
 }
 
 var _ Waiter = (*binaryWaiter)(nil)

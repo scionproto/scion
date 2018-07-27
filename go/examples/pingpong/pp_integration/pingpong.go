@@ -32,26 +32,19 @@ func main() {
 }
 
 func realMain() int {
-	if err := integration.Init(); err != nil {
+	if err := integration.Init("pp_integration"); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
 	defer log.LogPanicAndExit()
-	asList, err := integration.LoadASList()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load AS-list: %s\n", err)
-		return 1
-	}
-	// TODO(lukedirtwalker) we should enable logging
-	// depending on the main log parameter it should either go to a file or to console stderr.
+	defer log.Flush()
 	in := integration.NewBinaryIntegration("./bin/pingpong",
-		[]string{"-mode", "client", "-sciondFromIA", "-count", "1",
+		[]string{"-mode", "client", "-sciondFromIA", "-log.console", "debug", "-count", "1",
 			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
 			"-remote", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort},
-		[]string{"-mode", "server", "-sciondFromIA",
+		[]string{"-mode", "server", "-sciondFromIA", "-log.console", "debug",
 			"-local", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort})
-	pairs := integration.GenerateAllSrcDst(integration.AllIAs(asList), integration.AllIAs(asList))
-	if err = runTests(in, pairs); err != nil {
+	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}
@@ -71,10 +64,12 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 			}
 			defer c.Close()
 		}
+		// give the servers some time to start.
+		time.Sleep(100 * time.Millisecond)
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src, conn.Dst, i, len(pairs)))
+				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
 
 			if err := integration.RunClient(in, conn, 1*time.Second); err != nil {
 				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
