@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +18,8 @@
 package conn
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -25,15 +28,16 @@ import (
 
 type Conn interface {
 	// Insert or update a path segment.
-	Insert(*seg.PathSegment, []proto.PathSegType) (int, error)
+	Insert(context.Context, *seg.PathSegment, []proto.PathSegType) (int, error)
 	// Insert or update a path segment with a given label.
-	InsertWithHPCfgIDs(*seg.PathSegment, []proto.PathSegType, []*query.HPCfgID) (int, error)
+	InsertWithHPCfgIDs(context.Context, *seg.PathSegment, []proto.PathSegType, []*query.HPCfgID) (
+		int, error)
 	// Deletes a path segment with a given ID. Returns the number of deleted
 	// path segments (0 or 1).
-	Delete(common.RawBytes) (int, error)
+	Delete(context.Context, common.RawBytes) (int, error)
 	// Deletes all path segments that contain a given interface. Returns the number
 	// of path segments deleted.
-	DeleteWithIntf(query.IntfSpec) (int, error)
+	DeleteWithIntf(context.Context, query.IntfSpec) (int, error)
 	// Get returns all path segment(s) matching the parameters specified.
-	Get(*query.Params) ([]*query.Result, error)
+	Get(context.Context, *query.Params) ([]*query.Result, error)
 }

@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +17,12 @@ package sqlite
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -62,6 +65,8 @@ var (
 		SegTypesTable,
 		HpCfgIdsTable,
 	}
+
+	timeout = time.Second
 )
 
 func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common.RawBytes) {
@@ -132,9 +137,10 @@ func tempFilename(t *testing.T) string {
 	return f.Name()
 }
 
-func insertSeg(t *testing.T, b *Backend,
+func insertSeg(t *testing.T, ctx context.Context, b *Backend,
 	pseg *seg.PathSegment, types []proto.PathSegType, hpCfgIDs []*query.HPCfgID) int {
-	inserted, err := b.InsertWithHPCfgIDs(pseg, types, hpCfgIDs)
+
+	inserted, err := b.InsertWithHPCfgIDs(ctx, pseg, types, hpCfgIDs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,8 +253,11 @@ func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 		defer os.Remove(tmpF)
 		TS := uint32(10)
 		pseg, segID := allocPathSegment(ifs1, TS)
+
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		// Call
-		inserted, err := b.InsertWithHPCfgIDs(pseg, types, hpCfgIDs)
+		inserted, err := b.InsertWithHPCfgIDs(ctx, pseg, types, hpCfgIDs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -265,12 +274,14 @@ func Test_UpdateExisting(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		oldTS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		oldSeg, _ := allocPathSegment(ifs1, oldTS)
 		newTS := uint32(20)
 		newSeg, newSegID := allocPathSegment(ifs1, newTS)
-		insertSeg(t, b, oldSeg, types[:1], hpCfgIDs[:1])
+		insertSeg(t, ctx, b, oldSeg, types[:1], hpCfgIDs[:1])
 		// Call
-		inserted := insertSeg(t, b, newSeg, types, hpCfgIDs)
+		inserted := insertSeg(t, ctx, b, newSeg, types, hpCfgIDs)
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert
@@ -285,12 +296,14 @@ func Test_OlderIgnored(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		newTS := uint32(20)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		newSeg, newSegID := allocPathSegment(ifs1, newTS)
 		oldTS := uint32(10)
 		oldSeg, _ := allocPathSegment(ifs1, oldTS)
-		insertSeg(t, b, newSeg, types, hpCfgIDs)
+		insertSeg(t, ctx, b, newSeg, types, hpCfgIDs)
 		// Call
-		inserted := insertSeg(t, b, oldSeg, types[:1], hpCfgIDs[:1])
+		inserted := insertSeg(t, ctx, b, oldSeg, types[:1], hpCfgIDs[:1])
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 0)
 		// Check Insert
@@ -316,10 +329,12 @@ func Test_Delete(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg, segID := allocPathSegment(ifs1, TS)
-		insertSeg(t, b, pseg, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg, types, hpCfgIDs)
 		// Call
-		deleted, err := b.Delete(segID)
+		deleted, err := b.Delete(ctx, segID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -339,12 +354,14 @@ func Test_DeleteWithIntf(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, b, pseg2, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types, hpCfgIDs)
 		// Call
-		deleted, err := b.DeleteWithIntf(query.IntfSpec{IA: ia331, IfID: 2})
+		deleted, err := b.DeleteWithIntf(ctx, query.IntfSpec{IA: ia331, IfID: 2})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -360,16 +377,18 @@ func Test_GetMixed(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg1, segID1 := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
 			SegID:    segID1,
 			SegTypes: []proto.PathSegType{proto.PathSegType_up},
 		}
 		// Call
-		res, err := b.Get(params)
+		res, err := b.Get(ctx, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -387,12 +406,14 @@ func Test_GetAll(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg1, segID1 := allocPathSegment(ifs1, TS)
 		pseg2, segID2 := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
-		res, err := b.Get(nil)
+		res, err := b.Get(ctx, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -417,17 +438,19 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
-		res, err := b.Get(&query.Params{StartsAt: []addr.IA{ia330, ia332}})
+		res, err := b.Get(ctx, &query.Params{StartsAt: []addr.IA{ia330, ia332}})
 		if err != nil {
 			t.Fatal(err)
 		}
 		SoMsg("Result count", len(res), ShouldEqual, 2)
-		res, err = b.Get(&query.Params{EndsAt: []addr.IA{ia330, ia332}})
+		res, err = b.Get(ctx, &query.Params{EndsAt: []addr.IA{ia330, ia332}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -442,10 +465,12 @@ func Test_GetWithIntfs(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
 			Intfs: []*query.IntfSpec{
 				{ia330, 5},
@@ -453,7 +478,7 @@ func Test_GetWithIntfs(t *testing.T) {
 			},
 		}
 		// Call
-		res, err := b.Get(params)
+		res, err := b.Get(ctx, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -468,15 +493,17 @@ func Test_GetWithHpCfgIDs(t *testing.T) {
 		defer b.db.Close()
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg1, _ := allocPathSegment(ifs1, TS)
 		pseg2, _ := allocPathSegment(ifs2, TS)
-		insertSeg(t, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, b, pseg2, types[:1], hpCfgIDs[:1])
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
 			HpCfgIDs: hpCfgIDs[1:],
 		}
 		// Call
-		res, err := b.Get(params)
+		res, err := b.Get(ctx, params)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -489,8 +516,10 @@ func Test_OpenExisting(t *testing.T) {
 		b, tmpF := setupDB(t)
 		defer os.Remove(tmpF)
 		TS := uint32(10)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
 		pseg1, _ := allocPathSegment(ifs1, TS)
-		insertSeg(t, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
 		b.db.Close()
 		// Call
 		b, err := New(tmpF)
@@ -499,7 +528,7 @@ func Test_OpenExisting(t *testing.T) {
 		}
 		// Test
 		// Check that path segment is still there.
-		res, err := b.Get(nil)
+		res, err := b.Get(ctx, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
