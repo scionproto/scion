@@ -32,9 +32,12 @@ type InfoField struct {
 	ConsDir  bool
 	Shortcut bool
 	Peer     bool
-	TsInt    uint32
-	ISD      uint16
-	Hops     uint8
+	// TsInt is the timestamp that denotes when the propagation of a path segment started.
+	// Use Timestamp() to get a time.Time value.
+	TsInt uint32
+	// ISD denotes the origin ISD of a path segment.
+	ISD  uint16
+	Hops uint8
 }
 
 func InfoFFromRaw(b []byte) (*InfoField, error) {
@@ -80,6 +83,7 @@ func (inf *InfoField) String() string {
 		inf.ISD, inf.Timestamp(), inf.Hops, inf.ConsDir, inf.Shortcut, inf.Peer)
 }
 
+// Timestamp returns TsInt as a time.Time.
 func (inf *InfoField) Timestamp() time.Time {
 	return time.Unix(int64(inf.TsInt), 0)
 }
