@@ -2,7 +2,7 @@
 
 set -ex
 
-docker cp ${2:-scion_ci}:/home/scion/go/src/github.com/scionproto/scion/logs "${1:?"Directory needs to be specified!"}"
-docker cp ${2:-scion_ci}:/home/scion/go/src/github.com/scionproto/scion/gen "$1"
+docker cp ${1:-scion_ci}:/home/scion/go/src/github.com/scionproto/scion/logs "${2:?"Directory needs to be specified!"}"
+docker cp ${1:-scion_ci}:/home/scion/go/src/github.com/scionproto/scion/gen "$2"
 
-docker stop ${2:-scion_ci}
+docker stop ${1:-scion_ci}

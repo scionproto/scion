@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -ex
-
-docker container exec ${1:-scion_ci} bash -c "set -eo pipefail; { ./scion.sh coverage py; make -sC go test; } |& tee logs/coverage.run"
