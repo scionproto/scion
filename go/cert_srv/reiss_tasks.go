@@ -270,7 +270,7 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 		return err
 	}
 	request := &cert_mgmt.ChainIssReq{RawCert: raw}
-	a := &snet.Addr{IA: c.Issuer, Host: addr.SvcCS}
+	a := &snet.Addr{IA: c.Issuer, Host: &addr.AppAddr{L3: addr.SvcCS}}
 	rep, err := r.msger.RequestChainIssue(ctx, request, a, conf.Get().RequestID.Next())
 	if err != nil {
 		log.Warn("[ReissRequester] Unable to request chain issue", "err", err)

@@ -168,8 +168,8 @@ func (rp *RtrPkt) setDirTo() {
 	} else {
 		taddr = rp.Ctx.Conf.Net.LocAddr
 	}
-	loc := taddr.PublicAddr(rp.Ingress.Dst.Type().ToOverlayType())
-	if loc.Addr().Eq(rp.dstHost) {
+	loc := taddr.PublicAddr(rp.Ingress.Dst.Type())
+	if loc.L3.Eq(rp.dstHost) {
 		rp.DirTo = rcmn.DirSelf
 	} else {
 		rp.DirTo = rcmn.DirLocal

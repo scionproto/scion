@@ -96,18 +96,19 @@ func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, error) {
 	return s.ToTopoAddr(o)
 }
 
-// make an AddrInfo object from a BR interface Remote entry
-func (b RawBRIntf) remoteAddrInfo(o overlay.Type) (addr.OverlayAddr, error) {
+// make an OverlayAddr object from a BR interface Remote entry
+func (b RawBRIntf) remoteAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
 	ip := net.ParseIP(b.Remote.Addr)
 	if ip == nil {
 		return nil, common.NewBasicError("Could not parse remote IP from string", nil,
 			"ip", b.Remote.Addr)
 	}
-	var port uint16
+	l3 := addr.HostFromIP(ip)
+	var l4 addr.L4Info
 	if o.IsUDP() {
-		port = uint16(b.Remote.L4Port)
+		l4 = addr.NewL4Info(common.L4UDP, uint16(b.Remote.L4Port))
 	}
-	return addr.NewOverlayAddr(ip, port), nil
+	return overlay.NewOverlayAddr(l3, l4)
 }
 
 type RawAddrInfo struct {

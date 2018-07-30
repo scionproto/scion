@@ -34,7 +34,7 @@ var (
 
 func Run() {
 	var n, pktLen int
-	var ext *scmp.Extn
+	var ext common.Extension
 
 	cmn.SetupSignals(nil)
 	if cmn.PathEntry != nil {

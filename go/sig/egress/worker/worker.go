@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -179,9 +180,15 @@ func (w *worker) write(f *frame) error {
 	if err := snetAddr.Path.InitOffsets(); err != nil {
 		return common.NewBasicError("Error initializing path offsets", err)
 	}
-	snetAddr.NextHop = addr.NewOverlayAddr(w.currPathEntry.HostInfo.Host().IP(),
-		w.currPathEntry.HostInfo.Port)
-
+	var l4 addr.L4Info
+	if w.currPathEntry.HostInfo.Port != 0 {
+		l4 = addr.NewL4Info(common.L4UDP, w.currPathEntry.HostInfo.Port)
+	}
+	nh, err := overlay.NewOverlayAddr(w.currPathEntry.HostInfo.Host(), l4)
+	if err != nil {
+		return common.NewBasicError("Egress unsupported NextHop", err)
+	}
+	snetAddr.NextHop = nh
 	if w.seq == 0 {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}

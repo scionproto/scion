@@ -60,7 +60,7 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 	}
 	// Check to see if the destination IP is the address the packet was received on.
 	if rp.DirTo == rcmn.DirSelf {
-		return rp.isDestSelf(rp.Ingress.Dst.Port())
+		return rp.isDestSelf(rp.Ingress.Dst.L4().Port())
 	}
 	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
@@ -171,8 +171,8 @@ func (rp *RtrPkt) processRemoteIFID(ifid *ifid.IFID) (HookResult, error) {
 	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
 		DstIA: rp.Ctx.Conf.IA, SrcIA: rp.Ctx.Conf.IA,
-		DstHost: addr.SvcBS.Multicast(), SrcHost: pub.Addr(),
-		L4: &l4.UDP{SrcPort: pub.Port(), DstPort: 0},
+		DstHost: addr.SvcBS.Multicast(), SrcHost: pub.L3,
+		L4: &l4.UDP{SrcPort: pub.L4.Port(), DstPort: 0},
 	}, rcmn.DirLocal, rp.Ctx)
 	if err != nil {
 		return HookError, err
