@@ -1,16 +1,15 @@
 #!/bin/bash
 
 CONTAINER="scion_ci"
-docker stop "$CONTAINER" || true
-docker rm "$CONTAINER" || true
+docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
 ./tools/ci/setup_container "$CONTAINER"
 ./tools/ci/build "$CONTAINER"
 ./tools/ci/lint "$CONTAINER"
-./tools/ci/test "$CONTAINER"
+./tools/ci/unittest "$CONTAINER"
 ./tools/ci/sphinx "$CONTAINER"
 ./tools/ci/integration "$CONTAINER"
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 
-./tools/ci/clean_up "$tmpdir"
+./tools/ci/clean_up "$CONTAINER" "$tmpdir"
 echo "Artifacts dir: $tmpdir"

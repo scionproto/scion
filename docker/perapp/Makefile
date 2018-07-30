@@ -13,10 +13,7 @@ scion_hash:
 .PHONY: clean
 clean:
 	@rm -f hashes/*; \
-	for i in $(APP_TARGETS); do \
-		./remove_image $$i debug; \
-	done ; \
-	for i in $(APP_TARGETS) $(BASE_TARGETS); do \
+	for i in $(APP_TARGETS) $(BASE_TARGETS) $(DEBUG_TARGETS); do \
 		./remove_image $$i latest; \
 	done; \
 	docker image prune -f
