@@ -72,8 +72,9 @@ for i in ./go/lib/{snet,pathmgr}; do
     result=$((result+$?))
 done
 
-run Revocation "integration/revocation_test.sh\
- ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
+DEF_REV_BRS="*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-2 *br1-ff00_0_131-2"
+DEF_REV_BRS="$DEF_REV_BRS *br2-ff00_0_220-2 *br2-ff00_0_210-4 *br2-ff00_0_212-1"
+run Revocation "integration/revocation_test.sh ${REV_BRS:-$DEF_REV_BRS}"
 result=$((result+$?))
 
 shutdown
