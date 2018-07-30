@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,15 +26,21 @@ import (
 )
 
 type HopField struct {
-	data        common.RawBytes
-	Xover       bool
-	VerifyOnly  bool
-	Recurse     bool
-	ExpTime     uint8
+	data       common.RawBytes
+	Xover      bool
+	VerifyOnly bool
+	Recurse    bool
+	// ExpTime defines for how long this HopField is valid,
+	// relative to the PathSegments's InfoField.Timestamp().
+	ExpTime uint8
+	// ConsIngress is the interface the PCB entered the AS during path construction.
 	ConsIngress common.IFIDType
-	ConsEgress  common.IFIDType
-	Mac         common.RawBytes
-	length      int
+	// ConsEgress is the interface the PCB exited the AS during path construction.
+	ConsEgress common.IFIDType
+	// Mac is the message authentication code of this HF,
+	// see CalcMac() to see how it should be calculated.
+	Mac    common.RawBytes
+	length int
 }
 
 const (
@@ -125,7 +132,7 @@ func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) err
 	return nil
 }
 
-// CalcMac calculates the MAC of a Hop Field and its preceeding Hop Field, if any.
+// CalcMac calculates the MAC of a HopField and its preceeding HopField, if any.
 func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	prev common.RawBytes) (common.RawBytes, error) {
 	all := make(common.RawBytes, macInputLen)
