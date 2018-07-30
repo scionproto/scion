@@ -11,5 +11,5 @@ docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 
-./tools/ci/clean_up "$CONTAINER" "$tmpdir"
+./tools/ci/clean_up "$tmpdir" "$CONTAINER"
 echo "Artifacts dir: $tmpdir"
