@@ -346,6 +346,7 @@ func (s server) run() {
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
+	fmt.Printf("Listening ia=%s\n", local.IA) // Needed for integration test ready signal.
 	log.Info("Listening", "local", qsock.Addr())
 	for {
 		qsess, err := qsock.Accept()

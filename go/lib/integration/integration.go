@@ -32,14 +32,15 @@ import (
 
 type iaArgs []addr.IA
 
-func (a *iaArgs) String() string {
-	rawIAs := make([]string, len(*a))
-	for i, ia := range *a {
+func (a iaArgs) String() string {
+	rawIAs := make([]string, len(a))
+	for i, ia := range a {
 		rawIAs[i] = ia.String()
 	}
 	return strings.Join(rawIAs, ",")
 }
 
+// Set implements flag.Value.Set().
 func (a *iaArgs) Set(value string) error {
 	rawIAs := strings.Split(value, ",")
 	for _, rawIA := range rawIAs {
@@ -62,7 +63,7 @@ type Integration interface {
 	// Name returns the name of the test
 	Name() string
 	// StartServer should start the server listening on the address dst.
-	// StartServer should return immediately.
+	// StartServer should return after it is ready to accept clients.
 	// The context should be used to make the server cancellable.
 	StartServer(ctx context.Context, dst addr.IA) (Waiter, error)
 	// StartClient should start the client on the src address connecting to the dst address.
@@ -160,6 +161,7 @@ func (s *serverStop) Close() error {
 }
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
+// To start a server with a custom context use in.StartServer directly.
 func StartServer(in Integration, dst addr.IA) (io.Closer, error) {
 	serverCtx, serverCancel := context.WithCancel(context.Background())
 	s, err := in.StartServer(serverCtx, dst)

@@ -15,7 +15,9 @@
 package integration
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"os/exec"
 	"strings"
@@ -30,6 +32,10 @@ const (
 	SrcIAReplace = "<SRCIA>"
 	// DstIAReplace is a placeholder for the destination IA in the arguments.
 	DstIAReplace = "<DSTIA>"
+	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
+	// The message should always be `Listening ia=<IA>`
+	// where <IA> is the IA the server is listening on.
+	ReadySignal = "Listening ia="
 )
 
 var _ Integration = (*binaryIntegration)(nil)
@@ -44,6 +50,7 @@ type binaryIntegration struct {
 // Start* will run the binary programm with name and use the given arguments for the client/server.
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
+// The server should output the ReadySignal to Stdout once it is ready to accept clients.
 func NewBinaryIntegration(name string, clientArgs, serverArgs []string) Integration {
 	return &binaryIntegration{
 		name:       name,
@@ -56,6 +63,7 @@ func (bi *binaryIntegration) Name() string {
 	return bi.name
 }
 
+// StartServer starts a server and blocks until the ReadySignal is received on Stdout.
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
 	r := &binaryWaiter{
@@ -65,8 +73,35 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	if err != nil {
 		return nil, err
 	}
-	go redirectLog("Server", "ServerErr", ep)
-	return r, r.Start()
+	sp, err := r.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	ready := make(chan struct{})
+	// parse until we have the ready signal.
+	go func() {
+		defer log.LogPanicAndExit()
+		defer sp.Close()
+		scanner := bufio.NewScanner(sp)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if fmt.Sprintf("%s%s", ReadySignal, dst) == line {
+				close(ready)
+				return
+			}
+		}
+	}()
+	go redirectLog("Server", "ServerErr", dst, ep)
+	err = r.Start()
+	if err != nil {
+		return nil, err
+	}
+	select {
+	case <-ready:
+		return r, err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
@@ -79,7 +114,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) 
 	if err != nil {
 		return nil, err
 	}
-	go redirectLog("Client", "ClientErr", ep)
+	go redirectLog("Client", "ClientErr", src, ep)
 	return r, r.Start()
 }
 
@@ -94,30 +129,16 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	return argsCopy
 }
 
-func redirectLog(name, pName string, ep io.ReadCloser) {
+func redirectLog(name, pName string, local addr.IA, ep io.ReadCloser) {
 	defer log.LogPanicAndExit()
 	defer ep.Close()
 	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
-		logLogEntry(name, e)
+		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
 	})
 }
 
-func logLogEntry(name string, e logparse.LogEntry) {
-	var logFun func(string, ...interface{})
-	switch e.Level {
-	case logparse.LvlDebug:
-		logFun = log.Debug
-	case logparse.LvlInfo:
-		logFun = log.Info
-	case logparse.LvlWarn:
-		logFun = log.Warn
-	case logparse.LvlError:
-		logFun = log.Error
-	case logparse.LvlCrit:
-		logFun = log.Crit
-	}
-	indent := strings.Repeat(" ", len(name)+2)
-	logFun(name + ": " + strings.Join(e.Lines, "\n"+indent))
+func readyConsumer(local addr.IA) {
+
 }
 
 var _ Waiter = (*binaryWaiter)(nil)
