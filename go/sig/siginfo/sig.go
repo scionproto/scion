@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -105,11 +106,13 @@ func NewSig(ia addr.IA, id SigIdType, host addr.HostAddr,
 }
 
 func (s *Sig) CtrlSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: addr.NewAppAddr(s.Host, uint16(s.CtrlL4Port))}
+	l4 := addr.NewL4Info(common.L4UDP, uint16(s.CtrlL4Port))
+	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: l4}}
 }
 
 func (s *Sig) EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: addr.NewAppAddr(s.Host, uint16(s.EncapL4Port))}
+	l4 := addr.NewL4Info(common.L4UDP, uint16(s.EncapL4Port))
+	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: l4}}
 }
 
 func (s *Sig) FailCount() uint16 {

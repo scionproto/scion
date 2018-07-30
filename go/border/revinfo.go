@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
@@ -47,7 +48,7 @@ func (r *Router) RevInfoFwd() {
 		}
 		log.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
-			r.fwdRevInfo(args.SignedRevInfo, &svcAddr)
+			r.fwdRevInfo(args.SignedRevInfo, svcAddr)
 		}
 	}
 }
@@ -67,8 +68,9 @@ func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.Host
 		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
 		return
 	}
-	dst := addr.NewAppAddrSVC(*dstHost.(*addr.HostSVC))
-	if err = r.genPkt(ctx.Conf.IA, dst, pub, scpld); err != nil {
+	l4 := addr.NewL4Info(common.L4UDP, 0)
+	dst := &addr.AppAddr{L3: dstHost, L4: l4}
+	if err = r.genPkt(ctx.Conf.IA, dst, pub, nil, scpld); err != nil {
 		log.Error("Error generating RevInfo packet", "err", err)
 	}
 }

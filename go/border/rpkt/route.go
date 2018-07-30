@@ -151,7 +151,11 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		rp.CmnHdr.HdrLenBytes()
 	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
-		dst := addr.NewOverlayAddr(rp.dstHost.IP(), overlay.EndhostPort)
+		l4 := addr.NewL4Info(common.L4UDP, overlay.EndhostPort)
+		dst, err := overlay.NewOverlayAddr(rp.dstHost, l4)
+		if err != nil {
+			return HookError, err
+		}
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return HookContinue, nil
 	}
@@ -175,7 +179,10 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	// Currently, the BR ignores the OverlayPort value from the topology and always
 	// uses the L4Port as the Overlay port.
 	dstPub := nextBR.InternalAddr.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
-	dst := addr.NewOverlayAddr(dstPub.Addr().IP(), dstPub.Port())
+	dst, err := overlay.NewOverlayAddr(dstPub.L3, dstPub.L4)
+	if err != nil {
+		return HookError, err
+	}
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }
