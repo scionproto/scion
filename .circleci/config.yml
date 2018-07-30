@@ -2,10 +2,10 @@ version: 2
 
 workflows:
     version: 2
-    build_and_test:
+    scion_build_test:
         jobs:
             - build
-    push_images:
+    scion_publish:
         jobs:
             - publish:
                 filters:
@@ -17,8 +17,6 @@ workflows:
 jobs:
     build:
         machine: true
-        environment:
-            CONTAINER: scion_ci
         steps:
             # Setup
             - checkout
@@ -34,27 +32,27 @@ jobs:
             # Build and run tests:
             - run:
                 name: Create and start container
-                command: ./tools/ci/setup_container "$CONTAINER"
+                command: ./tools/ci/setup_container
                 when: always
             - run:
                 name: Build
-                command: ./tools/ci/build "$CONTAINER"
+                command: ./tools/ci/build
                 when: always
             - run:
                 name: Lint
-                command: ./tools/ci/lint "$CONTAINER"
+                command: ./tools/ci/lint
                 when: always
             - run:
                 name: Unit tests
-                command: ./tools/ci/unittest "$CONTAINER"
+                command: ./tools/ci/unittest
                 when: always
             - run:
                 name: Python documentation (sphinx)
-                command: ./tools/ci/sphinx "$CONTAINER"
+                command: ./tools/ci/sphinx
                 when: always
             - run:
                 name: Integration tests
-                command: ./tools/ci/integration "$CONTAINER"
+                command: ./tools/ci/integration
                 when: always
 
             # Clean up
@@ -68,7 +66,7 @@ jobs:
                     [ -n "$CIRCLE_BUILD_NUM" ] && BUILD="build${CIRCLE_BUILD_NUM}"
                     ARTIFACTS="circleci.${CIRCLE_PROJECT_USERNAME}.${CIRCLE_PROJECT_REPONAME}.${TARGET}.${BUILD}"
                     mkdir -p "/tmp/artifacts/$ARTIFACTS" "/tmp/artifacts.out"
-                    ./tools/ci/clean_up "$CONTAINER" /tmp/artifacts/$ARTIFACTS
+                    ./tools/ci/clean_up /tmp/artifacts/$ARTIFACTS
                     tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS"
                 when: always
             - store_artifacts:
