@@ -17,36 +17,46 @@ workflows:
 jobs:
     build:
         machine: true
+        environment:
+            CONTAINER: scion_ci
         steps:
             # Setup
             - checkout
             - run:
                 name: Pull and tag scion_base image
                 command: ./tools/ci/prepare_image fc1d63f0870b97f9b2a2aeef3c8051bf371b8f5767434157d50f3742fe76e2c6
+                when: always
             - run:
                 name: Build scion:latest image
                 command: ./docker.sh build
+                when: always
 
             # Build and run tests:
             - run:
                 name: Create and start container
-                command: ./tools/ci/setup_container
+                command: ./tools/ci/setup_container "$CONTAINER"
+                when: always
             - run:
                 name: Build
-                command: ./tools/ci/build
+                command: ./tools/ci/build "$CONTAINER"
+                when: always
             - run:
                 name: Lint
-                command: ./tools/ci/lint
+                command: ./tools/ci/lint "$CONTAINER"
+                when: always
             - run:
-                name: Unit tests & Coverage
-                command: ./tools/ci/test
+                name: Unit tests
+                command: ./tools/ci/unittest "$CONTAINER"
+                when: always
             - run:
                 name: Python documentation (sphinx)
-                command: ./tools/ci/sphinx
+                command: ./tools/ci/sphinx "$CONTAINER"
+                when: always
             - run:
                 name: Integration tests
-                command: ./tools/ci/integration
-            
+                command: ./tools/ci/integration "$CONTAINER"
+                when: always
+
             # Clean up
             - run:
                 name: Gather logs and stop container
@@ -54,12 +64,11 @@ jobs:
                     set +e -x
                     TARGET="${CIRCLE_PR_NUMBER:-$CIRCLE_BRANCH}"
                     TARGET="${TARGET//\//_}"
-                    REPO="${CIRCLE_PROJECT_REPONAME:-local}"
                     BUILD=$(date +%s)
                     [ -n "$CIRCLE_BUILD_NUM" ] && BUILD="build${CIRCLE_BUILD_NUM}"
-                    ARTIFACTS="circleci.${CIRCLE_PROJECT_USERNAME}.${REPO}.${TARGET}.${BUILD}"
+                    ARTIFACTS="circleci.${CIRCLE_PROJECT_USERNAME}.${CIRCLE_PROJECT_REPONAME}.${TARGET}.${BUILD}"
                     mkdir -p "/tmp/artifacts/$ARTIFACTS" "/tmp/artifacts.out"
-                    ./tools/ci/clean_up /tmp/artifacts/$ARTIFACTS
+                    ./tools/ci/clean_up "$CONTAINER" /tmp/artifacts/$ARTIFACTS
                     tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS"
                 when: always
             - store_artifacts:
