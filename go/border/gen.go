@@ -40,8 +40,15 @@ const (
 )
 
 // genPkt is a generic function to generate packets that originate at the router.
-func (r *Router) genPkt(dstIA addr.IA, dst, src addr.AppAddr, pld common.Payload) error {
+func (r *Router) genPkt(dstIA addr.IA, dst, src *addr.AppAddr, oAddr *overlay.OverlayAddr,
+	pld common.Payload) error {
 
+	if dst == nil {
+		return common.NewBasicError("genPkt: Missing dst", nil)
+	}
+	if src == nil {
+		return common.NewBasicError("genPkt: Missing src", nil)
+	}
 	ctx := rctx.Get()
 	dirTo := rcmn.DirExternal
 	if dstIA.Eq(ctx.Conf.IA) {
@@ -49,9 +56,11 @@ func (r *Router) genPkt(dstIA addr.IA, dst, src addr.AppAddr, pld common.Payload
 	}
 	// Create base packet
 	sp := &spkt.ScnPkt{
-		DstIA: dstIA, SrcIA: ctx.Conf.IA, DstHost: dst.Addr(), SrcHost: src.Addr(),
+		DstIA: dstIA, SrcIA: ctx.Conf.IA, DstHost: dst.L3, SrcHost: src.L3,
 	}
-	sp.L4 = &l4.UDP{SrcPort: src.Port(), DstPort: dst.Port()}
+	if src.L4 != nil && dst.L4 != nil {
+		sp.L4 = &l4.UDP{SrcPort: src.L4.Port(), DstPort: dst.L4.Port()}
+	}
 	rp, err := rpkt.RtrPktFromScnPkt(sp, dirTo, ctx)
 	if err != nil {
 		return err
@@ -61,20 +70,12 @@ func (r *Router) genPkt(dstIA addr.IA, dst, src addr.AppAddr, pld common.Payload
 	}
 	if dstIA.Eq(ctx.Conf.IA) {
 		// Packet is destined to local AS
-		if _, ok := dst.(addr.AppAddrSVC); ok {
+		if dst.L3.Type() == addr.HostTypeSVC {
 			if _, err := rp.RouteResolveSVC(); err != nil {
 				return err
 			}
 		} else {
-			var port uint16
-			switch dst.(type) {
-			case addr.AppAddrUDPIPv4:
-				port = overlay.EndhostPort
-			case addr.AppAddrUDPIPv6:
-				port = overlay.EndhostPort
-			}
-			dst := addr.NewOverlayAddr(dst.Addr().IP(), port)
-			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut, Dst: dst})
+			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut, Dst: oAddr})
 		}
 	} else {
 		ifid, ok := ctx.Conf.Net.IFAddrMap[src.String()]
@@ -118,8 +119,9 @@ func (r *Router) genIFStateReq() {
 		log.Error("Error generating IFStateReq signed Ctrl payload", "err", err)
 		return
 	}
-	dst := addr.NewAppAddrSVC(addr.SvcBS.Multicast())
-	if err := r.genPkt(ctx.Conf.IA, dst, src, scpld); err != nil {
+	l4 := addr.NewL4Info(common.L4UDP, 0)
+	dst := &addr.AppAddr{L3: addr.SvcBS.Multicast(), L4: l4}
+	if err := r.genPkt(ctx.Conf.IA, dst, src, nil, scpld); err != nil {
 		log.Error("Error generating IFStateReq packet", "err", err)
 	}
 }

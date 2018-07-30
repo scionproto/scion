@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -95,8 +96,8 @@ func main() {
 		if remote.Host == nil {
 			LogFatal("Missing remote address")
 		}
-		if remote.Host.Port() == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.Host.Port())
+		if remote.Host.L4.Port() == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
 		}
 		c := newClient()
 		setSignalHandler(c)
@@ -275,7 +276,11 @@ func (c client) setupPath() {
 		}
 		remote.Path = spath.New(pathEntry.Path.FwdPath)
 		remote.Path.InitOffsets()
-		remote.NextHop = addr.NewOverlayAddr(pathEntry.HostInfo.Host().IP(), pathEntry.HostInfo.Port)
+		var l4 addr.L4Info
+		if pathEntry.HostInfo.Port != 0 {
+			l4 = addr.NewL4Info(common.L4UDP, pathEntry.HostInfo.Port)
+		}
+		remote.NextHop, _ = overlay.NewOverlayAddr(pathEntry.HostInfo.Host(), l4)
 	}
 }
 

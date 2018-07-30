@@ -18,6 +18,6 @@ import (
 	"net"
 )
 
-func UDPAddrEqual(a, b *net.UDPAddr) bool {
-	return a.IP.Equal(b.IP) && a.Port == b.Port
+func UDPAddrEqual(a, o *net.UDPAddr) bool {
+	return a.IP.Equal(o.IP) && a.Port == o.Port
 }
