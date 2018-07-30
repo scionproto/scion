@@ -66,92 +66,112 @@ var raiV46UDPBoth = mkRAI([]testRAIOver{v4PubUDP, v6PubUDP}, []RawAddrPort{v6Bin
 var raiV46UDPPub = mkRAI([]testRAIOver{v4PubUDP, v6PubUDP}, nil)
 var raiV46Bind = mkRAI(nil, []RawAddrPort{v4Bind, v6Bind})
 
+var hV4Pub = addr.HostIPv4(net.ParseIP(rawV4Pub))
+var hV4Bind = addr.HostIPv4(net.ParseIP(rawV4Bind))
+var hV6Pub = addr.HostIPv6(net.ParseIP(rawV6Pub))
+var hV6Bind = addr.HostIPv6(net.ParseIP(rawV6Bind))
+
+var oV4, _ = overlay.NewOverlayAddr(hV4Pub, nil)
+var oV6, _ = overlay.NewOverlayAddr(hV6Pub, nil)
+var oV4UDP, _ = overlay.NewOverlayAddr(hV4Pub, addr.NewL4Info(common.L4UDP, 30041))
+var oV6UDP, _ = overlay.NewOverlayAddr(hV6Pub, addr.NewL4Info(common.L4UDP, 30041))
+
 // TopoAddr's for ipv4
 var taV4Both = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40000),
-	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Bind), 40002),
-	overlay: addr.NewOverlayAddrIPv4(net.ParseIP(rawV4Pub)),
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
+	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4Info(common.L4UDP, 40002)},
+	overlay: oV4,
 }
 var taV4Pub = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40000),
-	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40000),
-	overlay: addr.NewOverlayAddrIPv4(net.ParseIP(rawV4Pub)),
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
+	bind:    &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
+	overlay: oV4,
 }
 var taV4UDPBoth = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40001),
-	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Bind), 40002),
-	overlay: addr.NewOverlayAddrUDPIPv4(net.ParseIP(rawV4Pub), 30041),
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40001)},
+	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4Info(common.L4UDP, 40002)},
+	overlay: oV4UDP,
 }
 var taV4UDPPub = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40001),
-	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40001),
-	overlay: addr.NewOverlayAddrUDPIPv4(net.ParseIP(rawV4Pub), 30041),
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40001)},
+	bind:    &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40001)},
+	overlay: oV4UDP,
 }
 
 // TopoAddr's for ipv6
 var taV6Both = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60000),
-	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Bind), 60002),
-	overlay: addr.NewOverlayAddrIPv6(net.ParseIP(rawV6Pub)),
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60000)},
+	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4Info(common.L4UDP, 60002)},
+	overlay: oV6,
 }
 var taV6Pub = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60000),
-	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60000),
-	overlay: addr.NewOverlayAddrIPv6(net.ParseIP(rawV6Pub)),
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60000)},
+	bind:    &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60000)},
+	overlay: oV6,
 }
 var taV6UDPBoth = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60001),
-	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Bind), 60002),
-	overlay: addr.NewOverlayAddrUDPIPv6(net.ParseIP(rawV6Pub), 30041),
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60001)},
+	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4Info(common.L4UDP, 60002)},
+	overlay: oV6UDP,
 }
 var taV6UDPPub = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60001),
-	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60001),
-	overlay: addr.NewOverlayAddrUDPIPv6(net.ParseIP(rawV6Pub), 30041),
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60001)},
+	bind:    &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60001)},
+	overlay: oV6UDP,
 }
 
 // TopoAddr's for ipv4+6
+var taV46Both4 = taV4Both
+var taV46Both6 = taV6Both
+var taV46Pub4 = taV4Pub
+var taV46Pub6 = taV6Pub
+var taV46UDPBoth4 = taV4UDPBoth
+var taV46UDPBoth6 = taV6UDPBoth
+var taV46UDPPub4 = taV4UDPPub
+var taV46UDPPub6 = taV6UDPPub
+
+/*
 var taV46Both4 = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40000),
-	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Bind), 40002),
-	overlay: addr.NewOverlayAddrIPv4(net.ParseIP(rawV4Pub)),
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
+	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4Info(common.L4UDP, 40002)},
+	overlay: overlay.NewOverlayAddr(hV4Pub),
 }
 var taV46Both6 = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60000),
-	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Bind), 60002),
-	overlay: addr.NewOverlayAddrIPv6(net.ParseIP(rawV6Pub)),
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60000)},
+	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4Info(common.L4UDP, 60002)},
+	overlay: overlay.NewOverlayAddr(hV6Pub),
 }
 var taV46Pub4 = &pubBindAddr{
-	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40000),
-	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40000),
-	overlay: addr.NewOverlayAddrIPv4(net.ParseIP(rawV4Pub)),
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
+	bind:    &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
+	overlay: overlay.NewOverlayAddr(hV4Pub),
 }
 var taV46Pub6 = &pubBindAddr{
 	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60000),
 	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60000),
-	overlay: addr.NewOverlayAddrIPv6(net.ParseIP(rawV6Pub)),
+	overlay: overlay.NewOverlayAddrIPv6(net.ParseIP(rawV6Pub)),
 }
 var taV46UDPBoth4 = &pubBindAddr{
 	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40001),
 	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Bind), 40002),
-	overlay: addr.NewOverlayAddrUDPIPv4(net.ParseIP(rawV4Pub), 30041),
+	overlay: overlay.NewOverlayAddrUDPIPv4(net.ParseIP(rawV4Pub), 30041),
 }
 var taV46UDPBoth6 = &pubBindAddr{
 	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60001),
 	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Bind), 60002),
-	overlay: addr.NewOverlayAddrUDPIPv6(net.ParseIP(rawV6Pub), 30041),
+	overlay: overlay.NewOverlayAddrUDPIPv6(net.ParseIP(rawV6Pub), 30041),
 }
 var taV46UDPPub4 = &pubBindAddr{
 	pub:     addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40001),
 	bind:    addr.NewAppAddrUDPIPv4(net.ParseIP(rawV4Pub), 40001),
-	overlay: addr.NewOverlayAddrUDPIPv4(net.ParseIP(rawV4Pub), 30041),
+	overlay: overlay.NewOverlayAddrUDPIPv4(net.ParseIP(rawV4Pub), 30041),
 }
 var taV46UDPPub6 = &pubBindAddr{
 	pub:     addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60001),
 	bind:    addr.NewAppAddrUDPIPv6(net.ParseIP(rawV6Pub), 60001),
-	overlay: addr.NewOverlayAddrUDPIPv6(net.ParseIP(rawV6Pub), 30041),
+	overlay: overlay.NewOverlayAddrUDPIPv6(net.ParseIP(rawV6Pub), 30041),
 }
-
+*/
 func mkRAI(pub []testRAIOver, bind []RawAddrPort) *RawAddrInfo {
 	rai := &RawAddrInfo{}
 	for _, entry := range pub {

@@ -113,10 +113,10 @@ func ValidateFlags() {
 	}
 	// scmp-tool does not use ports, thus they should not be set
 	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
-	if Local.Host.Port() != 0 {
+	if Local.Host.L4 != nil {
 		Fatal("Local port should not be provided")
 	}
-	if Remote.Host.Port() != 0 {
+	if Remote.Host.L4 != nil {
 		Fatal("Remote port should not be provided")
 	}
 	if Interval == 0 {
@@ -141,8 +141,8 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 	pkt := &spkt.ScnPkt{
 		DstIA:   Remote.IA,
 		SrcIA:   Local.IA,
-		DstHost: Remote.Host.Addr(),
-		SrcHost: Local.Host.Addr(),
+		DstHost: Remote.Host.L3,
+		SrcHost: Local.Host.L3,
 		Path:    Remote.Path,
 		HBHExt:  exts,
 		L4:      scmpHdr,
@@ -152,11 +152,12 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 }
 
 func NextHopAddr() net.Addr {
-	var nhAddr addr.OverlayAddr
+	var nhAddr *overlay.OverlayAddr
 	if Remote.NextHop == nil {
-		nhAddr = addr.NewOverlayAddr(Remote.Host.Addr().IP(), overlay.EndhostPort)
+		l4 := addr.NewL4Info(common.L4UDP, overlay.EndhostPort)
+		nhAddr, _ = overlay.NewOverlayAddr(Remote.Host.L3, l4)
 	} else {
-		nhAddr = addr.NewOverlayAddr(Remote.NextHop.Addr().IP(), Remote.NextHop.Port())
+		nhAddr = Remote.NextHop
 	}
 	return nhAddr
 }

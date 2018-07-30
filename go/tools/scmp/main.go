@@ -23,8 +23,10 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
 
@@ -36,8 +38,9 @@ import (
 
 var (
 	sciondPath   = flag.String("sciond", "", "Path to sciond socket")
-	dispatcher   = flag.String("dispatcher", "", "Path to dispatcher socket")
+	dispatcher   = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
+	pathRes      *pathmgr.PR
 )
 
 func main() {
@@ -55,9 +58,9 @@ func main() {
 	} else if *sciondPath == "" {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
-	// Initialize default SCION networking context
-	if err := snet.Init(cmn.Local.IA, *sciondPath, *dispatcher); err != nil {
-		cmn.Fatal("Unable to initialize SCION network\nerr=%v", err)
+	pathRes, err = pathmgr.New(sciond.NewService(*sciondPath), &pathmgr.Timers{}, nil)
+	if err != nil {
+		cmn.Fatal("Unable to initialize pathmgr\nerr=%v", err)
 	}
 	// Connect directly to the dispatcher
 	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host, cmn.Bind.Host,
@@ -105,8 +108,7 @@ func choosePath() *sciond.PathReplyEntry {
 	var paths []*sciond.PathReplyEntry
 	var pathIndex uint64
 
-	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(cmn.Local.IA, cmn.Remote.IA)
+	pathSet := pathRes.Query(cmn.Local.IA, cmn.Remote.IA)
 
 	if len(pathSet) == 0 {
 		return nil
@@ -141,14 +143,14 @@ func setPathAndMtu() uint16 {
 	}
 	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
 	cmn.Remote.Path.InitOffsets()
-	cmn.Remote.NextHop = addr.NewOverlayAddr(cmn.PathEntry.HostInfo.Host().IP(),
-		cmn.PathEntry.HostInfo.Port)
+	l4 := addr.NewL4Info(common.L4UDP, cmn.PathEntry.HostInfo.Port)
+	cmn.Remote.NextHop, _ = overlay.NewOverlayAddr(cmn.PathEntry.HostInfo.Host(), l4)
 	return cmn.PathEntry.Path.Mtu
 }
 
 func setLocalMtu() uint16 {
 	// Use local AS MTU when we have no path
-	sd := snet.DefNetwork.Sciond()
+	sd := pathRes.Sciond()
 	c, err := sd.Connect()
 	if err != nil {
 		cmn.Fatal("Unable to connect to sciond")

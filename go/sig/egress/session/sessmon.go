@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/egress"
@@ -207,8 +208,15 @@ func (sm *sessMonitor) sendReq() {
 	if err := raddr.Path.InitOffsets(); err != nil {
 		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
 	}
-	raddr.NextHop = addr.NewOverlayAddr(sm.smRemote.SessPath.PathEntry().HostInfo.Host().IP(),
-		sm.smRemote.SessPath.PathEntry().HostInfo.Port)
+	var l4 addr.L4Info
+	if sm.smRemote.SessPath.PathEntry().HostInfo.Port != 0 {
+		l4 = addr.NewL4Info(common.L4UDP, sm.smRemote.SessPath.PathEntry().HostInfo.Port)
+	}
+	nh, err := overlay.NewOverlayAddr(sm.smRemote.SessPath.PathEntry().HostInfo.Host(), l4)
+	if err != nil {
+		sm.Error("sessMonitor: Unsupported NextHop", "err", err)
+	}
+	raddr.NextHop = nh
 	// XXX(kormat): if this blocks, both the sessMon and egress worker
 	// goroutines will block. Can't just use SetWriteDeadline, as both
 	// goroutines write to it.

@@ -195,11 +195,12 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	if laddr == nil {
 		return nil, common.NewBasicError("Nil laddr not supported", nil)
 	}
-	if laddr.Host.Type() != addr.AppAddrTypeUDPIPv4 {
+	if laddr.Host.L3.Type() != addr.HostTypeIPv4 || laddr.Host.L4.Type() != common.L4UDP {
 		return nil, common.NewBasicError("Supplied local address does not match network", nil,
-			"expected", addr.AppAddrTypeUDPIPv4, "actual", laddr.Host.Type())
+			"expected L3", addr.HostTypeIPv4, "actual L3", laddr.Host.L3.Type(),
+			"expected L4", common.L4UDP, "actual L4", laddr.Host.L4.Type())
 	}
-	if laddr.Host.Addr().IP().Equal(net.IPv4zero) {
+	if laddr.Host.L3.IP().Equal(net.IPv4zero) {
 		return nil, common.NewBasicError("Binding to 0.0.0.0 not supported", nil)
 	}
 	conn := &Conn{
@@ -213,8 +214,9 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	if laddr != nil {
 		conn.laddr = laddr.Copy()
 	} else {
+		l4 := addr.NewL4Info(common.L4UDP, 0)
 		conn.laddr = &Addr{}
-		conn.laddr.Host = addr.NewAppAddrUDPIPv4(net.IPv4zero, 0)
+		conn.laddr.Host = &addr.AppAddr{L3: addr.HostIPv4(net.IPv4zero), L4: l4}
 		conn.laddr.IA = conn.scionNet.localIA
 	}
 	if conn.laddr.IA.IsZero() {
@@ -224,7 +226,7 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 		return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA, "type", "public")
 	}
-	var bindAddr addr.AppAddr
+	var bindAddr *addr.AppAddr
 	if baddr != nil {
 		conn.baddr = baddr.Copy()
 		bindAddr = baddr.Host
@@ -238,12 +240,12 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to register with dispatcher", err)
 	}
-	log.Info("Registered with dispatcher", "ia", conn.scionNet.localIA,
-		"host", conn.laddr.Host.Addr(), "port", port)
-	if port != conn.laddr.Host.Port() {
+	if port != conn.laddr.Host.L4.Port() {
 		// Update port
-		conn.laddr.Host = addr.NewAppAddr(conn.laddr.Host.Addr(), port)
+		l4 := addr.NewL4Info(conn.laddr.Host.L4.Type(), port)
+		conn.laddr.Host = &addr.AppAddr{L3: conn.laddr.Host.L3, L4: l4}
 	}
+	log.Info("Registered with dispatcher", "addr", conn.laddr)
 	conn.conn = rconn
 	return conn, nil
 }

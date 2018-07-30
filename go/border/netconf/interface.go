@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -86,7 +87,7 @@ type Interface struct {
 	IFAddr *topology.TopoAddr
 	// RemoteAddr is the public address of the border router on the other end
 	// of the link.
-	RemoteAddr addr.OverlayAddr
+	RemoteAddr *overlay.OverlayAddr
 	// RemoteIA is the ISD-AS of the other end of the link.
 	RemoteIA addr.IA
 	// BW is the bandwidth of the link.

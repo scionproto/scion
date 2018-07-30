@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -248,9 +249,12 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	return rpkt.HookFinish, nil
 }
 
-func addPosixLocal(r *Router, ctx *rctx.Ctx, bind addr.AppAddr, labels prometheus.Labels) error {
+func addPosixLocal(r *Router, ctx *rctx.Ctx, bind *addr.AppAddr, labels prometheus.Labels) error {
 	// Listen on the socket.
-	b := addr.NewOverlayAddr(bind.Addr().IP(), bind.Port())
+	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
+	if err != nil {
+		return common.NewBasicError("Unsupported listen address", err)
+	}
 	over, err := conn.New(b, nil, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on local socket", err)
@@ -311,7 +315,10 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels) error {
 	// Connect to remote address.
 	bind := intf.IFAddr.BindAddr(intf.IFAddr.Overlay)
-	b := addr.NewOverlayAddr(bind.Addr().IP(), bind.Port())
+	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
+	if err != nil {
+		return common.NewBasicError("Unsupported listen address", err)
+	}
 	c, err := conn.New(b, intf.RemoteAddr, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)

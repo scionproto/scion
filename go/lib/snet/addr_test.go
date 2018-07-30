@@ -22,12 +22,19 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func Test_Addr_String(t *testing.T) {
 	ia, _ := addr.IAFromString("1-ff00:0:320")
-	host4 := addr.NewAppAddrUDPIPv4(net.IPv4(1, 2, 3, 4), 10000)
-	host6 := addr.NewAppAddrUDPIPv6(net.ParseIP("2001::1"), 20000)
+	host4 := &addr.AppAddr{
+		L3: addr.HostIPv4(net.IPv4(1, 2, 3, 4)),
+		L4: addr.NewL4Info(common.L4UDP, 10000),
+	}
+	host6 := &addr.AppAddr{
+		L3: addr.HostIPv6(net.ParseIP("2001::1")),
+		L4: addr.NewL4Info(common.L4UDP, 20000),
+	}
 	tests := []struct {
 		address *Addr
 		result  string
@@ -51,7 +58,7 @@ func Test_AddrFromString(t *testing.T) {
 		isError bool
 		ia      string
 		host    string
-		port    uint16
+		l4      addr.L4Info
 	}{
 		{address: "foo", isError: true},
 		{address: "5-", isError: true},
@@ -66,35 +73,35 @@ func Test_AddrFromString(t *testing.T) {
 		{address: "1-ff00:0:300,[1.2.3.4]:80",
 			ia:   "1-ff00:0:300",
 			host: "1.2.3.4",
-			port: 80},
+			l4:   addr.NewL4Info(common.L4UDP, 80)},
 		{address: "1-ff00:0:301,[1.2.3.4]",
 			ia:   "1-ff00:0:301",
 			host: "1.2.3.4",
-			port: 0},
+		},
 		{address: "50-ff00:0:350,[1.1.1.1]:5",
 			ia:   "50-ff00:0:350",
 			host: "1.1.1.1",
-			port: 5},
+			l4:   addr.NewL4Info(common.L4UDP, 5)},
 		{address: "1-ff00:0:302,[::1]:60000",
 			ia:   "1-ff00:0:302",
 			host: "::1",
-			port: 60000},
+			l4:   addr.NewL4Info(common.L4UDP, 60000)},
 		{address: "4-ff00:0:300,[BS]",
 			ia:   "4-ff00:0:300",
 			host: "BS A (0x0000)",
-			port: 0},
+		},
 		{address: "4-ff00:0:300,[PS]",
 			ia:   "4-ff00:0:300",
 			host: "PS A (0x0001)",
-			port: 0},
+		},
 		{address: "4-ff00:0:300,[PS_A]",
 			ia:   "4-ff00:0:300",
 			host: "PS A (0x0001)",
-			port: 0},
+		},
 		{address: "4-ff00:0:300,[CS_M]",
 			ia:   "4-ff00:0:300",
 			host: "CS M (0x8002)",
-			port: 0},
+		},
 	}
 	Convey("Function AddrFromString", t, func() {
 		for _, test := range tests {
@@ -105,8 +112,8 @@ func Test_AddrFromString(t *testing.T) {
 				} else {
 					SoMsg("error", err, ShouldBeNil)
 					SoMsg("ia", a.IA.String(), ShouldResemble, test.ia)
-					SoMsg("host", a.Host.Addr().String(), ShouldResemble, test.host)
-					SoMsg("port", a.Host.Port(), ShouldEqual, test.port)
+					SoMsg("host", a.Host.L3.String(), ShouldResemble, test.host)
+					SoMsg("port", a.Host.L4, ShouldResemble, test.l4)
 				}
 			})
 		}

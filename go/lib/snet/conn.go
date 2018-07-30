@@ -151,13 +151,14 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	if err != nil {
 		return 0, nil, common.NewBasicError("Dispatcher read error", err)
 	}
-	lastHop := addr.ToOverlayAddr(lastHopNetAddr)
-	if lastHop == nil {
-		return 0, nil, common.NewBasicError("Invalid lastHop address Type", nil,
-			"Actual", lastHopNetAddr)
-	}
-	if !from {
-		lastHop = nil
+	var lastHop *overlay.OverlayAddr
+	if from {
+		var ok bool
+		lastHop, ok = lastHopNetAddr.(*overlay.OverlayAddr)
+		if !ok {
+			return 0, nil, common.NewBasicError("Invalid lastHop address Type", nil,
+				"Actual", lastHopNetAddr)
+		}
 	}
 	pkt := &spkt.ScnPkt{
 		DstIA: addr.IA{},
@@ -189,7 +190,7 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 			remote.Path = path
 			// Copy the address to prevent races. See
 			// https://github.com/scionproto/scion/issues/1659.
-			remote.NextHop = addr.NewOverlayAddr(lastHop.Addr().Copy().IP(), lastHop.Port())
+			remote.NextHop = lastHop.Copy()
 		}
 		var port uint16
 		var err error
@@ -205,7 +206,8 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 		}
 		// Copy the address to prevent races. See
 		// https://github.com/scionproto/scion/issues/1659.
-		remote.Host = addr.NewAppAddr(pkt.SrcHost.Copy(), port)
+		l4 := addr.NewL4Info(pkt.L4.L4Type(), port)
+		remote.Host = &addr.AppAddr{L3: pkt.SrcHost.Copy(), L4: l4}
 		return n, remote, err
 	}
 	return 0, nil, common.NewBasicError("Unknown network", nil, "net", c.net)
@@ -274,10 +276,10 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	defer c.writeMutex.Unlock()
 	var err error
 	var path *spath.Path
-	var nextHop addr.OverlayAddr
+	var nextHop *overlay.OverlayAddr
 	// If src and dst are in the same AS, the path will be empty
 	if !c.laddr.IA.Eq(raddr.IA) {
-		if raddr.Path != nil && raddr.NextHop.Addr() != nil && raddr.NextHop.Port() != 0 {
+		if raddr.Path != nil && raddr.NextHop != nil {
 			path = raddr.Path
 			nextHop = raddr.NextHop
 		} else {
@@ -290,7 +292,14 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 				return 0, err
 			}
 			path = spath.New(pathEntry.Path.FwdPath)
-			nextHop = addr.NewOverlayAddr(pathEntry.HostInfo.Host().IP(), pathEntry.HostInfo.Port)
+			var l4 addr.L4Info
+			if pathEntry.HostInfo.Port != 0 {
+				l4 = addr.NewL4Info(common.L4UDP, pathEntry.HostInfo.Port)
+			}
+			nextHop, err = overlay.NewOverlayAddr(pathEntry.HostInfo.Host(), l4)
+			if err != nil {
+				return 0, common.NewBasicError("Unsupported Overlay Addr", err)
+			}
 			err = path.InitOffsets()
 			if err != nil {
 				return 0, common.NewBasicError("Unable to initialize path", err)
@@ -299,13 +308,15 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	}
 	// Prepare packet fields
 	udpHdr := &l4.UDP{
-		SrcPort: c.laddr.Host.Port(), DstPort: raddr.Host.Port(), TotalLen: uint16(l4.UDPLen + len(b)),
+		SrcPort:  c.laddr.Host.L4.Port(),
+		DstPort:  raddr.Host.L4.Port(),
+		TotalLen: uint16(l4.UDPLen + len(b)),
 	}
 	pkt := &spkt.ScnPkt{
 		DstIA:   raddr.IA,
 		SrcIA:   c.laddr.IA,
-		DstHost: raddr.Host.Addr(),
-		SrcHost: c.laddr.Host.Addr(),
+		DstHost: raddr.Host.L3,   // XXX should we copy here?
+		SrcHost: c.laddr.Host.L3, // XXX should we copy here?
 		Path:    path,
 		L4:      udpHdr,
 		Pld:     common.RawBytes(b),
@@ -318,7 +329,14 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	// Construct overlay next-hop
 	if path == nil {
 		// Overlay next-hop is destination
-		nextHop = addr.NewOverlayAddr(pkt.DstHost.IP(), overlay.EndhostPort)
+		// XXX So currently we cannot send packets to BR without path?
+		// XXX this should get fixed once ControlPlane is on top of dispatcher
+		l4 := addr.NewL4Info(common.L4UDP, overlay.EndhostPort)
+		var err error
+		nextHop, err = overlay.NewOverlayAddr(pkt.DstHost, l4)
+		if err != nil {
+			return 0, common.NewBasicError("Bad overlay address", err)
+		}
 	}
 	// Send message
 	n, err = c.conn.WriteTo(c.sendBuffer[:n], nextHop)

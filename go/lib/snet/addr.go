@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -34,9 +35,9 @@ var addrRegexp = regexp.MustCompile(
 
 type Addr struct {
 	IA      addr.IA
-	Host    addr.AppAddr
+	Host    *addr.AppAddr
 	Path    *spath.Path
-	NextHop addr.OverlayAddr
+	NextHop *overlay.OverlayAddr
 }
 
 func (a *Addr) Network() string {
@@ -50,26 +51,25 @@ func (a *Addr) String() string {
 	if a.Host == nil {
 		return fmt.Sprintf("%s,<nil>", a.IA)
 	}
-	return fmt.Sprintf("%s,[%v]:%d", a.IA, a.Host.Addr(), a.Host.Port())
+	return fmt.Sprintf("%s,[%v]:%v", a.IA, a.Host.L3, a.Host.L4)
 }
 
 func (a *Addr) Desc() string {
 	if a == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("%s Path: %t NextHop: [%v]:%d", a, a.Path != nil,
-		a.Host.Addr(), a.Host.Port())
+	return fmt.Sprintf("%s Path: %t NextHop: %v", a, a.Path != nil, a.NextHop)
 }
 
 // EqAddr compares the IA/Host/L4port values with the supplied Addr
-func (a *Addr) EqAddr(b *Addr) bool {
-	if a == nil || b == nil {
-		return a == b
+func (a *Addr) EqAddr(o *Addr) bool {
+	if a == nil || o == nil {
+		return a == o
 	}
-	if !a.IA.Eq(b.IA) {
+	if !a.IA.Eq(o.IA) {
 		return false
 	}
-	return a.Host.Eq(b.Host)
+	return a.Host.Eq(o.Host)
 }
 
 func (a *Addr) Copy() *Addr {
@@ -117,28 +117,26 @@ func AddrFromString(s string) (*Addr, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Invalid IA string", err, "ia", ia)
 	}
-
-	var hostAddr addr.HostAddr
+	var l3 addr.HostAddr
 	if hostSVC := addr.HostSVCFromString(parts["host"]); hostSVC != addr.SvcNone {
-		hostAddr = hostSVC
+		l3 = hostSVC
 	} else {
 		ip := net.ParseIP(parts["host"])
 		if ip == nil {
 			return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
 		}
-		hostAddr = addr.HostFromIP(ip)
+		l3 = addr.HostFromIP(ip)
 	}
-
-	var port uint16
+	var l4 addr.L4Info
 	if parts["port"] != "" {
 		// skip the : (first character) from the port string
 		p, err := strconv.ParseUint(parts["port"][1:], 10, 16)
 		if err != nil {
 			return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"][1:])
 		}
-		port = uint16(p)
+		l4 = addr.NewL4Info(common.L4UDP, uint16(p))
 	}
-	return &Addr{IA: ia, Host: addr.NewAppAddr(hostAddr, port)}, nil
+	return &Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}, nil
 }
 
 func parseAddr(s string) (map[string]string, error) {

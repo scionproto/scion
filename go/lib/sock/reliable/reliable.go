@@ -70,6 +70,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 )
 
 var (
@@ -92,7 +93,7 @@ const (
 type Msg struct {
 	Buffer []byte
 	Copied int
-	Addr   addr.OverlayAddr
+	Addr   *overlay.OverlayAddr
 }
 
 var _ net.Conn = (*Conn)(nil)
@@ -149,18 +150,23 @@ func newConn(c net.Conn) *Conn {
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func RegisterTimeout(dispatcher string, ia addr.IA, public, bind addr.AppAddr, svc addr.HostSVC,
+func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *addr.AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
 
 	if public == nil {
-		return nil, 0, common.NewBasicError("Cannot register without public address", nil)
+		return nil, 0, common.NewBasicError("Cannot register without public address", nil,
+			"public", public)
 	}
 	// Check address is IP
-	if public.Addr().IP() == nil {
+	switch public.L3.Type() {
+	case addr.HostTypeIPv4:
+	case addr.HostTypeIPv6:
+	default:
 		return nil, 0, common.NewBasicError("Public is not an IP address", nil)
 	}
-	if bind != nil && public.Type() != bind.Type() {
-		return nil, 0, common.NewBasicError("Different public/bind addresses types", nil)
+	if bind != nil && !public.EqType(bind) {
+		return nil, 0, common.NewBasicError("Different public/bind addresses types", nil,
+			"public", public, "bind", bind)
 	}
 
 	deadline := time.Now().Add(timeout)
@@ -173,9 +179,12 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind addr.AppAddr, s
 	if timeout != 0 {
 		conn.SetDeadline(deadline)
 	}
-	reqSize := regBaseHeaderLen + public.Addr().Size() + svc.Size()
+	reqSize := regBaseHeaderLen + public.L3.Size()
 	if bind != nil {
-		reqSize += regBindHdrLen + bind.Addr().Size()
+		reqSize += regBindHdrLen + bind.L3.Size()
+	}
+	if svc != addr.SvcNone {
+		reqSize += svc.Size()
 	}
 	request := make([]byte, reqSize)
 	offset := 0
@@ -217,10 +226,14 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind addr.AppAddr, s
 		return nil, 0, err
 	}
 	replyPort := common.Order.Uint16(reply[:read])
-	if public.Port() != 0 && public.Port() != replyPort {
+	var pubPort uint16
+	if public.L4 != nil {
+		pubPort = public.L4.Port()
+	}
+	if pubPort != 0 && pubPort != replyPort {
 		conn.Close()
 		return nil, 0, common.NewBasicError("Port mismatch when registering with dispatcher", nil,
-			"expected", public.Port, "actual", replyPort)
+			"expected", pubPort, "actual", replyPort)
 	}
 
 	// Disable deadline to not affect calling code
@@ -228,21 +241,25 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind addr.AppAddr, s
 	return conn, replyPort, nil
 }
 
-func writeAppAddr(request []byte, a addr.AppAddr) (int, error) {
+func writeAppAddr(request []byte, a *addr.AppAddr) (int, error) {
 	offset := 0
-	common.Order.PutUint16(request[offset:offset+2], a.Port())
+	var port uint16
+	if a.L4 != nil {
+		port = a.L4.Port()
+	}
+	common.Order.PutUint16(request[offset:offset+2], port)
 	offset += 2
-	request[offset] = byte(a.Addr().Type())
+	request[offset] = byte(a.L3.Type())
 	offset++
-	copy(request[offset:offset+a.Addr().Size()], a.Addr().Pack())
-	offset += a.Addr().Size()
+	copy(request[offset:offset+a.L3.Size()], a.L3.Pack())
+	offset += a.L3.Size()
 	return offset, nil
 }
 
 // Register connects to a SCION Dispatcher's UNIX socket.
-// Future messages for address a in AS ia which arrive at the dispatcher can be read by
-// calling Read on the returned Conn structure.
-func Register(dispatcher string, ia addr.IA, public, bind addr.AppAddr,
+// Future messages for address public or bind in AS ia which arrive at the dispatcher can be
+// read by calling Read on the returned Conn structure.
+func Register(dispatcher string, ia addr.IA, public, bind *addr.AppAddr,
 	svc addr.HostSVC) (*Conn, uint16, error) {
 
 	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
@@ -317,7 +334,7 @@ func (conn *Conn) ReadN(msgs []Msg) (int, error) {
 }
 
 func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
-	var lastHop addr.OverlayAddr
+	var lastHop *overlay.OverlayAddr
 	var err error
 	// Peek to see if packet complete
 	peekData := conn.recvBuf[conn.recvReadHead:conn.recvWriteHead]
@@ -372,35 +389,15 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	return true, nil
 }
 
-/*
-func hostAddrLen(ot addr.OverlayType) int {
-	switch ot {
-	case addr.OverlayTypeIPv4, addr.OverlayTypeUDPIPv4:
-		return addr.HostLenIPv4
-	case addr.OverlayTypeIPv6, addr.OverlayTypeUDPIPv6:
-		return addr.HostLenIPv6
-	}
-	return 0
-}
-*/
-
-func appAddrFromRaw(buf common.RawBytes) (addr.OverlayAddr, error) {
-	addrLen := len(buf) - 2
-	ip := net.IP(buf[:addrLen])
-	if ip.To4() == nil && ip.To16() == nil {
-		return nil, common.NewBasicError("Address is not IP", nil)
-	}
-	port := common.Order.Uint16(buf[addrLen:])
-	return addr.NewOverlayAddr(ip, port), nil
-}
-
-// WriteTo works similarly to Write. In addition to Write, the ReliableSocket message header
-// will contain the address and port information in dst.
+// WriteTo block until it sends buf as a single framed message through conn.
+// The ReliableSocket message header will contain the address and port information in dst.
+// On error, the number of bytes returned is meaningless. On success, the number of bytes
+// is always len(buf).
 func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	conn.writeMutex.Lock()
 	defer conn.writeMutex.Unlock()
-	odst := addr.ToOverlayAddr(dst)
-	if dst != nil && odst == nil {
+	odst, ok := dst.(*overlay.OverlayAddr)
+	if dst != nil && !ok {
 		return 0, common.NewBasicError("Not an Overlay address", nil, "value", dst)
 	}
 	msgs := []Msg{
@@ -495,8 +492,8 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	var dstLen int
 	var dstType addr.HostAddrType
 	if msg.Addr != nil {
-		dstLen = msg.Addr.Addr().Size() + 2
-		dstType = msg.Addr.Addr().Type()
+		dstLen = msg.Addr.L3().Size() + msg.Addr.L4().Size()
+		dstType = msg.Addr.L3().Type()
 	}
 	// If we do not have enough space for another message, break
 	if len(conn.sendBuf[index:]) < hdrLen+dstLen+len(msg.Buffer) {
@@ -530,17 +527,28 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 	return index, copiedMsgs, nil
 }
 
-func write(a addr.OverlayAddr, buf common.RawBytes) (int, error) {
+func appAddrFromRaw(buf common.RawBytes) (*overlay.OverlayAddr, error) {
+	addrLen := len(buf) - 2
+	ip := net.IP(buf[:addrLen])
+	if ip.To4() == nil && ip.To16() == nil {
+		return nil, common.NewBasicError("Address is not IP", nil)
+	}
+	port := common.Order.Uint16(buf[addrLen:])
+	// XXX We need to encode L4 protocol in reliable, currently assuming UDP
+	return overlay.NewOverlayAddr(addr.HostFromIP(ip), addr.NewL4Info(common.L4UDP, port))
+}
+
+func write(a *overlay.OverlayAddr, buf common.RawBytes) (int, error) {
 	if a == nil {
 		return 0, nil
 	}
-	addrLen := a.Addr().Size() + 2
+	addrLen := a.L3().Size() + 2
 	if len(buf) < addrLen {
 		return 0, common.NewBasicError("Unable to write AppAddr, buffer too small", nil,
 			"expected", addrLen, "actual", len(buf))
 	}
-	copy(buf, a.Addr().Pack())
-	common.Order.PutUint16(buf[a.Addr().Size():], a.Port())
+	copy(buf, a.L3().Pack())
+	common.Order.PutUint16(buf[a.L3().Size():], a.L4().Port())
 	return addrLen, nil
 }
 

@@ -45,14 +45,14 @@ type Conn interface {
 	Read(common.RawBytes) (int, *ReadMeta, error)
 	ReadBatch([]ipv4.Message, []ReadMeta) (int, error)
 	Write(common.RawBytes) (int, error)
-	WriteTo(common.RawBytes, addr.OverlayAddr) (int, error)
+	WriteTo(common.RawBytes, *overlay.OverlayAddr) (int, error)
 	WriteBatch([]ipv4.Message) (int, error)
-	LocalAddr() addr.OverlayAddr
-	RemoteAddr() addr.OverlayAddr
+	LocalAddr() *overlay.OverlayAddr
+	RemoteAddr() *overlay.OverlayAddr
 	Close() error
 }
 
-func New(listen, remote addr.OverlayAddr, labels prometheus.Labels) (Conn, error) {
+func New(listen, remote *overlay.OverlayAddr, labels prometheus.Labels) (Conn, error) {
 	if assert.On {
 		assert.Must(listen != nil || remote != nil, "Either listen or remote must be set")
 	}
@@ -60,10 +60,10 @@ func New(listen, remote addr.OverlayAddr, labels prometheus.Labels) (Conn, error
 	if remote != nil {
 		a = remote
 	}
-	switch a.(type) {
-	case addr.OverlayAddrUDPIPv6:
+	switch a.Type() {
+	case overlay.UDPIPv6:
 		return newConnUDPIPv6(listen, remote, labels)
-	case addr.OverlayAddrUDPIPv4:
+	case overlay.UDPIPv4:
 		return newConnUDPIPv4(listen, remote, labels)
 	}
 	return nil, common.NewBasicError("Unsupported overlay type", nil, "overlay", a.Type())
@@ -74,7 +74,7 @@ type connUDPIPv4 struct {
 	pconn *ipv4.PacketConn
 }
 
-func newConnUDPIPv4(listen, remote addr.OverlayAddr,
+func newConnUDPIPv4(listen, remote *overlay.OverlayAddr,
 	labels prometheus.Labels) (*connUDPIPv4, error) {
 
 	cc := &connUDPIPv4{}
@@ -117,7 +117,7 @@ type connUDPIPv6 struct {
 	pconn *ipv6.PacketConn
 }
 
-func newConnUDPIPv6(listen, remote addr.OverlayAddr,
+func newConnUDPIPv6(listen, remote *overlay.OverlayAddr,
 	labels prometheus.Labels) (*connUDPIPv6, error) {
 
 	cc := &connUDPIPv6{}
@@ -157,20 +157,20 @@ func (c *connUDPIPv6) WriteBatch(msgs []ipv4.Message) (int, error) {
 
 type connUDPBase struct {
 	conn     *net.UDPConn
-	Listen   addr.OverlayAddr
-	Remote   addr.OverlayAddr
+	Listen   *overlay.OverlayAddr
+	Remote   *overlay.OverlayAddr
 	oob      common.RawBytes
 	closed   bool
 	readMeta ReadMeta
 }
 
-func (cc *connUDPBase) initConnUDP(network string, listen, remote addr.OverlayAddr) error {
+func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.OverlayAddr) error {
 	var laddr, raddr *net.UDPAddr
 	var c *net.UDPConn
 	var err error
 	// XXX Should we not send an error if listen == nil ?
 	if listen != nil {
-		laddr = &net.UDPAddr{IP: listen.Addr().IP(), Port: int(listen.Port())}
+		laddr = &net.UDPAddr{IP: listen.L3().IP(), Port: int(listen.L4().Port())}
 	}
 	if remote == nil {
 		if c, err = net.ListenUDP(network, laddr); err != nil {
@@ -178,7 +178,7 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote addr.OverlayAd
 				"network", network, "listen", listen)
 		}
 	} else {
-		raddr = &net.UDPAddr{IP: remote.Addr().IP(), Port: int(remote.Port())}
+		raddr = &net.UDPAddr{IP: remote.L3().IP(), Port: int(remote.L4().Port())}
 		if c, err = net.DialUDP(network, laddr, raddr); err != nil {
 			return common.NewBasicError("Error setting up connection", err,
 				"network", network, "listen", listen, "remote", remote)
@@ -234,7 +234,9 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 	if c.Remote != nil {
 		c.readMeta.Src = c.Remote
 	} else {
-		c.readMeta.Src = addr.NewOverlayAddr(src.IP, uint16(src.Port))
+		l3 := addr.HostFromIP(src.IP)
+		l4 := addr.NewL4Info(common.L4UDP, uint16(src.Port))
+		c.readMeta.Src, _ = overlay.NewOverlayAddr(l3, l4)
 	}
 	return n, &c.readMeta, err
 }
@@ -277,22 +279,22 @@ func (c *connUDPBase) Write(b common.RawBytes) (int, error) {
 	return c.conn.Write(b)
 }
 
-func (c *connUDPBase) WriteTo(b common.RawBytes, dst addr.OverlayAddr) (int, error) {
+func (c *connUDPBase) WriteTo(b common.RawBytes, dst *overlay.OverlayAddr) (int, error) {
 	if c.Remote != nil {
 		return c.conn.Write(b)
 	}
 	if assert.On {
-		assert.Must(dst.Port() != 0, "OverlayPort must not be 0")
+		assert.Must(dst.L4().Port() != 0, "OverlayPort must not be 0")
 	}
-	addr := &net.UDPAddr{IP: dst.Addr().IP(), Port: int(dst.Port())}
+	addr := &net.UDPAddr{IP: dst.L3().IP(), Port: int(dst.L4().Port())}
 	return c.conn.WriteTo(b, addr)
 }
 
-func (c *connUDPBase) LocalAddr() addr.OverlayAddr {
+func (c *connUDPBase) LocalAddr() *overlay.OverlayAddr {
 	return c.Listen
 }
 
-func (c *connUDPBase) RemoteAddr() addr.OverlayAddr {
+func (c *connUDPBase) RemoteAddr() *overlay.OverlayAddr {
 	return c.Remote
 }
 
@@ -305,7 +307,7 @@ func (c *connUDPBase) Close() error {
 }
 
 type ReadMeta struct {
-	Src       addr.OverlayAddr
+	Src       *overlay.OverlayAddr
 	RcvOvfl   int
 	Recvd     time.Time
 	read      time.Time
@@ -320,11 +322,16 @@ func (m *ReadMeta) Reset() {
 	m.ReadDelay = 0
 }
 
-func (m *ReadMeta) SetSrc(a addr.OverlayAddr, raddr *net.UDPAddr, ot overlay.Type) {
+func (m *ReadMeta) SetSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay.Type) {
 	if a != nil {
 		m.Src = a
 	} else {
-		m.Src = addr.NewOverlayAddr(raddr.IP, uint16(raddr.Port))
+		l3 := addr.HostFromIP(raddr.IP)
+		var l4 addr.L4Info
+		if ot.IsUDP() {
+			l4 = addr.NewL4Info(common.L4UDP, uint16(raddr.Port))
+		}
+		m.Src, _ = overlay.NewOverlayAddr(l3, l4)
 	}
 }
 
