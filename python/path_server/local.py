@@ -99,9 +99,10 @@ class LocalPathServer(PathServer):
             self._send_path_segments(req, cpld.req_id, meta, logger, up_segs, core_segs, down_segs)
             return True
         if new_request:
+            with self.pen_req_lock:
+                self.pending_req[(dst_ia, req.p.flags.sibra)][str(meta)] = (
+                    req, cpld.req_id, meta, logger)
             self._request_paths_from_core(req, logger)
-            self.pending_req[(dst_ia, req.p.flags.sibra)][str(meta)] = (
-                req, cpld.req_id, meta, logger)
         return False
 
     def _resolve_core(self, req, up_segs, core_segs):
