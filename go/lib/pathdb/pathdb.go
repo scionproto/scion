@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +18,8 @@
 package pathdb
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/conn"
@@ -48,30 +51,33 @@ func New(path string, backend string) (*DB, error) {
 
 // Insert inserts or updates a path segment. It returns the number of path segments
 // that have been inserted/updated.
-func (db *DB) Insert(pseg *seg.PathSegment, segTypes []proto.PathSegType) (int, error) {
-	return db.conn.Insert(pseg, segTypes)
+func (db *DB) Insert(ctx context.Context, pseg *seg.PathSegment,
+	segTypes []proto.PathSegType) (int, error) {
+
+	return db.conn.Insert(ctx, pseg, segTypes)
 }
 
-// InsertWithCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
+// InsertWithHPCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
 // returns the number of path segments that have been inserted/updated.
-func (db *DB) InsertWithHPCfgIDs(pseg *seg.PathSegment,
+func (db *DB) InsertWithHPCfgIDs(ctx context.Context, pseg *seg.PathSegment,
 	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) (int, error) {
-	return db.conn.InsertWithHPCfgIDs(pseg, segTypes, hpCfgIDs)
+
+	return db.conn.InsertWithHPCfgIDs(ctx, pseg, segTypes, hpCfgIDs)
 }
 
 // Delete deletes a path segment with a given ID. Returns the number of deleted
 // path segments (0 or 1).
-func (db *DB) Delete(segID common.RawBytes) (int, error) {
-	return db.conn.Delete(segID)
+func (db *DB) Delete(ctx context.Context, segID common.RawBytes) (int, error) {
+	return db.conn.Delete(ctx, segID)
 }
 
 // DeleteWithIntf deletes all path segments that contain a given interface. Returns
 // the number of path segments deleted.
-func (db *DB) DeleteWithIntf(intf query.IntfSpec) (int, error) {
-	return db.conn.DeleteWithIntf(intf)
+func (db *DB) DeleteWithIntf(ctx context.Context, intf query.IntfSpec) (int, error) {
+	return db.conn.DeleteWithIntf(ctx, intf)
 }
 
 // Get returns all path segment(s) matching the parameters specified.
-func (db *DB) Get(params *query.Params) ([]*query.Result, error) {
-	return db.conn.Get(params)
+func (db *DB) Get(ctx context.Context, params *query.Params) ([]*query.Result, error) {
+	return db.conn.Get(ctx, params)
 }

@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -282,38 +283,38 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	switch {
 	case srcIsCore && dstIsCore:
 		// Gone corin'
-		cores, err = f.getSegmentsFromDB(dstIASlice, srcIASlice)
+		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, srcIASlice)
 		if err != nil {
 			return nil, err
 		}
 	case srcIsCore && !dstIsCore:
-		cores, err = f.getSegmentsFromDB(dstTrc.CoreASList(), srcIASlice)
+		cores, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(dstTrc.CoreASList(), dstIASlice)
+		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASList(), dstIASlice)
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && dstIsCore:
-		ups, err = f.getSegmentsFromDB(localTrc.CoreASList(), srcIASlice)
+		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(dstIASlice, localTrc.CoreASList())
+		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASList())
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && !dstIsCore:
-		ups, err = f.getSegmentsFromDB(localTrc.CoreASList(), srcIASlice)
+		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(dstTrc.CoreASList(), dstIASlice)
+		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASList(), dstIASlice)
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(getStartIAs(downs), getStartIAs(ups))
+		cores, err = f.getSegmentsFromDB(ctx, getStartIAs(downs), getStartIAs(ups))
 		if err != nil {
 			return nil, err
 		}
@@ -323,8 +324,10 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	return paths, nil
 }
 
-func (f *Fetcher) getSegmentsFromDB(startsAt, endsAt []addr.IA) ([]*seg.PathSegment, error) {
-	results, err := f.pathDB.Get(&query.Params{
+func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
+	endsAt []addr.IA) ([]*seg.PathSegment, error) {
+
+	results, err := f.pathDB.Get(ctx, &query.Params{
 		StartsAt: startsAt,
 		EndsAt:   endsAt,
 	})
@@ -391,7 +394,7 @@ Loop:
 					"segment", result.Unit.SegMeta.Segment, "err", err)
 			} else {
 				// Verification succeeded
-				n, err := t.pathDB.Insert(&result.Unit.SegMeta.Segment,
+				n, err := t.pathDB.Insert(ctx, &result.Unit.SegMeta.Segment,
 					[]proto.PathSegType{result.Unit.SegMeta.Type})
 				if err != nil {
 					log.Warn("Unable to insert segment into path database",
