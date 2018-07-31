@@ -72,6 +72,12 @@ for i in ./go/lib/{snet,pathmgr}; do
     result=$((result+$?))
 done
 
+# Run (new) go integration tests
+for i in ./bin/*_integration; do
+    $i
+    result=$((result+$?))
+done
+
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
 result=$((result+$?))

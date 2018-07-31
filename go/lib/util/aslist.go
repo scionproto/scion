@@ -68,3 +68,8 @@ func parse(names []string) ([]addr.IA, error) {
 	}
 	return iaList, nil
 }
+
+// AllASes returns all ASes in the ASList as a slice.
+func (al *ASList) AllASes() []addr.IA {
+	return append([]addr.IA(nil), append(al.Core, al.NonCore...)...)
+}

@@ -22,54 +22,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/inconshreveable/log15"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
-)
-
-type Lvl log15.Lvl
-
-const (
-	LvlCrit  = Lvl(log15.LvlCrit)
-	LvlError = Lvl(log15.LvlError)
-	LvlWarn  = Lvl(log15.LvlWarn)
-	LvlInfo  = Lvl(log15.LvlInfo)
-	LvlDebug = Lvl(log15.LvlDebug)
 )
 
 var (
 	lineRegex = regexp.MustCompile(` \[(\w+)\] (.+)`)
 )
 
-func LvlFromString(lvl string) (Lvl, error) {
-	// Since we also parse python log entries we also have to handle the levels of python.
-	switch strings.ToUpper(lvl) {
-	case "DEBUG", "DBUG":
-		return LvlDebug, nil
-	case "INFO":
-		return LvlInfo, nil
-	case "WARN", "WARNING":
-		return LvlWarn, nil
-	case "ERROR", "EROR":
-		return LvlError, nil
-	case "CRIT", "CRITICAL":
-		return LvlCrit, nil
-	default:
-		return LvlDebug, fmt.Errorf("Unknown level: %v", lvl)
-	}
-}
-
-func (l Lvl) String() string {
-	return strings.ToUpper(log15.Lvl(l).String())
-}
-
 // LogEntry is one entry in a log.
 type LogEntry struct {
 	Timestamp time.Time
 	// Element describes the source of this LogEntry, e.g. the file name.
 	Element string
-	Level   Lvl
+	Level   log.Lvl
 	Lines   []string
 }
 
@@ -134,7 +100,7 @@ func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
 			fileName, lineno, lineRegex))
 		return nil
 	}
-	lvl, err := LvlFromString(matches[1])
+	lvl, err := log.LvlFromString(matches[1])
 	if err != nil {
 		log.Error(fmt.Sprintf("%s:%d: Unknown log level: %v", fileName, lineno, err))
 	}
