@@ -339,11 +339,13 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         return list(srevs_to_add)
 
     def _handle_pending_requests(self):
+        logging.debug("PENDING_REQ")
         rem_keys = []
         # Serve pending requests.
         with self.pen_req_lock:
             for key in self.pending_req:
                 for req_key, (req, req_id, meta, logger) in self.pending_req[key].items():
+                    logger.debug("%s\n\t%d\n\t%s", req.short_desc(), req_id, meta)
                     if self.path_resolution(CtrlPayload(PathMgmt(req), req_id=req_id), meta,
                                             new_request=False, logger=logger):
                         meta.close()
@@ -370,6 +372,7 @@ class PathServer(SCIONElement, metaclass=ABCMeta):
         pmgt = cpld.union
         reply = pmgt.union
         assert isinstance(reply, PathSegmentReply), type(reply)
+        logging.debug("Received PATH_REPLY %s from %s" % (reply, meta))
         self._handle_seg_recs(reply.recs(), cpld.req_id, meta)
 
     def handle_seg_recs(self, cpld, meta):

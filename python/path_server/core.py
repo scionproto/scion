@@ -304,6 +304,7 @@ class CorePathServer(PathServer):
         if not core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
             # Segments not found and it is a new request.
             with self.pen_req_lock:
+                logger.debug("Adding PENDING_REQ\n\t%s\n\t%d\n\t%s", req.short_desc(), req_id, meta)
                 self.pending_req[(dst_ia, sibra)][str(meta)] = (req, req_id, meta, logger)
             # If dst is in remote ISD then a segment may be kept by master.
             if dst_ia[0] != self.addr.isd_as[0]:
@@ -336,6 +337,7 @@ class CorePathServer(PathServer):
             if not tmp_core_segs and new_request and PATH_FLAG_CACHEONLY not in flags:
                 # Core segment not found and it is a new request.
                 with self.pen_req_lock:
+                    logger.debug("Adding PENDING_REQ\n\t%s\n\t%d\n\t%s", seg_req.short_desc(), req_id, meta)
                     self.pending_req[(dseg_ia, sibra)][str(meta)] = (seg_req, req_id, meta, logger)
                 if dst_ia[0] != self.addr.isd_as[0]:
                     # Master may know a segment.
@@ -353,6 +355,7 @@ class CorePathServer(PathServer):
         """
         sibra = PATH_FLAG_SIBRA in flags
         with self.pen_req_lock:
+            logger.debug("Adding PENDING_REQ\n\t%s\n\t%d\n\t%s", seg_req.short_desc(), req_id, meta)
             self.pending_req[(dst_ia, sibra)][str(meta)] = (seg_req, req_id, meta, logger)
         if dst_ia[0] == self.addr.isd_as[0]:
             # Master may know down segment as dst is in local ISD.

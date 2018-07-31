@@ -100,6 +100,7 @@ class LocalPathServer(PathServer):
             return True
         if new_request:
             with self.pen_req_lock:
+                logger.debug("Adding PENDING_REQ\n\t%s\n\t%d\n\t%s", req.short_desc(), cpld.req_id, meta)
                 self.pending_req[(dst_ia, req.p.flags.sibra)][str(meta)] = (
                     req, cpld.req_id, meta, logger)
             self._request_paths_from_core(req, logger)
@@ -109,6 +110,7 @@ class LocalPathServer(PathServer):
         """
         Dst is core AS.
         """
+        logging.debug("_resolve_core")
         dst_ia = req.dst_ia()
         params = dst_ia.params()
         params["sibra"] = req.p.flags.sibra
@@ -117,10 +119,12 @@ class LocalPathServer(PathServer):
             up_segs.update(self.up_segments(**params))
         # Check whether dst is known core AS.
         for cseg in self.core_segments(**params):
+            logging.debug("  CSEG %s" % cseg.short_desc())
             # Check do we have an up-seg that is connected to core_seg.
             tmp_up_segs = self.up_segments(first_ia=cseg.last_ia(),
                                            sibra=req.p.flags.sibra)
             if tmp_up_segs:
+                logging.debug("    UPSEGS %s" % (", ".join([s.short_desc() for s in tmp_up_segs])))
                 up_segs.update(tmp_up_segs)
                 core_segs.add(cseg)
 
@@ -128,9 +132,11 @@ class LocalPathServer(PathServer):
         """
         Dst is regular AS.
         """
+        logging.debug("_resolve_not_core")
         sibra = req.p.flags.sibra
         # Check if there exists down-seg to DST.
         for dseg in self.down_segments(last_ia=req.dst_ia(), sibra=sibra):
+            logging.debug("DSEG %s" % dseg.short_desc())
             first_ia = dseg.first_ia()
             if req.dst_ia()[0] == self.addr.isd_as[0]:
                 # Dst in local ISD. First try to find direct up-seg.
@@ -141,10 +147,12 @@ class LocalPathServer(PathServer):
             # Now try core segments that connect to down segment.
             # PSz: it might make sense to start with up_segments instead.
             for cseg in self.core_segments(first_ia=first_ia, sibra=sibra):
+                logging.debug("  CSEG %s" % cseg.short_desc())
                 # And up segments that connect to core segment.
                 up_core_segs = self.up_segments(first_ia=cseg.last_ia(),
                                                 sibra=sibra)
                 if up_core_segs:
+                    logging.debug("    UPSEGS %s" % (", ".join([s.short_desc() for s in up_core_segs])))
                     up_segs.update(up_core_segs)
                     core_segs.add(cseg)
                     down_segs.add(dseg)
