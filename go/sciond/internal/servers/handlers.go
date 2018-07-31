@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
@@ -272,7 +273,7 @@ func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.Host
 // RevNotification announcements. The SCIOND API spawns a goroutine with method Handle
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
-	RevCache *fetcher.RevCache
+	RevCache revcache.RevCache
 }
 
 func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
@@ -284,7 +285,7 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	revReply := sciond.RevReply{}
 	revInfo, err := h.verifySRevInfo(ctx, revNotification.SRevInfo)
 	if err == nil {
-		h.RevCache.Add(revInfo.RawIsdas.IA(), common.IFIDType(revInfo.IfID),
+		h.RevCache.Set(revcache.NewKey(revInfo.RawIsdas.IA(), common.IFIDType(revInfo.IfID)),
 			revNotification.SRevInfo, revInfo.TTL())
 	}
 	switch {
