@@ -1,4 +1,3 @@
-// Copyright 2018 ETH Zurich
 // Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -54,12 +54,12 @@ type Fetcher struct {
 	messenger       infra.Messenger
 	pathDB          *pathdb.DB
 	trustStore      infra.TrustStore
-	revocationCache *RevCache
+	revocationCache revcache.RevCache
 	logger          log.Logger
 }
 
 func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.DB,
-	trustStore infra.TrustStore, revCache *RevCache) *Fetcher {
+	trustStore infra.TrustStore, revCache revcache.RevCache) *Fetcher {
 
 	return &Fetcher{
 		topology:        topo,
@@ -351,7 +351,7 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 		for _, iface := range path.Interfaces {
 			// cache automatically expires outdated revocations every second,
 			// so a cache hit implies revocation is still active.
-			if _, ok := f.revocationCache.Get(iface.ISD_AS(), iface.IfID); ok {
+			if _, ok := f.revocationCache.Get(revcache.NewKey(iface.ISD_AS(), iface.IfID)); ok {
 				revoked = true
 			}
 		}
@@ -418,9 +418,8 @@ Loop:
 						// This should be caught during network message sanitization
 						panic(err)
 					}
-					t.revocationCache.Add(
-						info.IA(),
-						common.IFIDType(info.IfID),
+					t.revocationCache.Set(
+						revcache.NewKey(info.IA(), common.IFIDType(info.IfID)),
 						revocation,
 						info.RelativeTTL(time.Now()),
 					)
