@@ -272,7 +272,7 @@ cmd_sciond() {
     IFS=- read -a ia <<< $1
     ISD=${ia[0]:?No ISD provided}
     AS=${ia[1]:?No AS provided}
-    ADDR=${2:-127.${ISD}.${AS}.254}
+    ADDR=${2:-127.0.0.1}
     GENDIR=gen/ISD${ISD}/AS${AS}/endhost
     [ -d "$GENDIR" ] || { echo "Topology directory for $ISD-$AS doesn't exist: $GENDIR"; exit 1; }
     APIADDR="/run/shm/sciond/${ISD}-${AS}.sock"
@@ -293,9 +293,10 @@ cmd_help() {
 	        other arguments or options are passed to topology/generator.py
 	    $PROGRAM run
 	        Run network.
-	    $PROGRAM sciond ISD AS [ADDR]
-	        Start sciond with provided ISD and AS parameters. A third optional
-	        parameter is the address to bind when not running on localhost.
+	    $PROGRAM sciond ISD-AS [ADDR]
+	        Start sciond with provided ISD and AS parameters, and bind to ADDR.
+	        ISD-AS must be in file format (e.g., 1-ff00_0_133). If ADDR is not
+	        supplied, sciond will bind to 127.0.0.1.
 	    $PROGRAM mstart PROCESS
 	        Start multiple processes
 	    $PROGRAM stop
