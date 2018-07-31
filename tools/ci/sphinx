@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -ex
+
+docker container exec ${1:-scion_ci} bash -lc "set -eo pipefail; make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run"

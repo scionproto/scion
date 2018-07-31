@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -ex
+
+docker container exec ${1:-scion_ci} bash -c "set -eo pipefail; sudo service zookeeper start; ./integration/integration_test.sh |& tee logs/integration.run"

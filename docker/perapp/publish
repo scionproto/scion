@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -ex
+
+REMOTE="scionproto"
+
+echo "Tag: ${1:-}"
+
+# Tag local apps and push to remote
+for app in border dispatcher sig beacon cert path sciond; do
+    local_img="scion_$app"
+    remote_img="$REMOTE/$app"
+    docker tag "$local_img:latest" "$remote_img:$1"
+    docker tag "${local_img}_debug:latest" "${remote_img}_debug:$1"
+    docker push "$remote_img:$1"
+    docker push "${remote_img}_debug:$1"
+done
