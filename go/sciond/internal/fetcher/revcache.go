@@ -48,7 +48,7 @@ func (c *RevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
 	return obj.(*path_mgmt.SignedRevInfo), true
 }
 
-func (c *RevCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) {
+func (c *RevCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := k.String()
@@ -56,5 +56,7 @@ func (c *RevCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.D
 	// If not yet in cache set, otherwise update expiry if it is later than current one.
 	if !ok || time.Now().Add(ttl).After(exp) {
 		c.c.Set(key, rev, ttl)
+		return true
 	}
+	return false
 }

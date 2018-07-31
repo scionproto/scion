@@ -44,11 +44,12 @@ func (k Key) String() string {
 // RevCache is a cache for revocations.
 type RevCache interface {
 	// Get item with key k from the cache. Returns the item or nil,
-	// and a bool indicating wheter the key was found.
+	// and a bool indicating whether the key was found.
 	Get(k *Key) (*path_mgmt.SignedRevInfo, bool)
 	// Set sets maps the key k to the revocation rev.
 	// The revocation should only be returned for the given ttl.
-	// If an item with key k exists, it must have the same value as rev.
-	// The expiry should only be updated if the new ttl would set it to a later point in time.
-	Set(k *Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration)
+	// If an item with key k exists, it must be updated
+	// if now + ttl is at a later point in time than the current expiry.
+	// Returns whether an update was performed or not.
+	Set(k *Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool
 }
