@@ -90,6 +90,9 @@ jobs:
                 name: Build app images
                 command: make -C docker/perapp
             - run:
+                name: Docker login
+                command: docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
+            - run:
                 name: Push images
                 command: ./docker/perapp/publish "$CIRCLE_TAG"
 
