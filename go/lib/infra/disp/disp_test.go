@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	testCtxTimeout = 50 * time.Millisecond
+	testCtxTimeout = 200 * time.Millisecond
 )
 
 func Setup() (*Dispatcher, *Dispatcher, *customObject, *customObject) {

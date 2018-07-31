@@ -40,6 +40,10 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
 )
 
+const (
+	testCtxTimeout = 200 * time.Millisecond
+)
+
 var (
 	isds = []addr.ISD{1, 2, 3, 4, 5}
 	ias  = []addr.IA{
@@ -175,7 +179,7 @@ func TestGetValidTRC(t *testing.T) {
 
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
 				trcObj, err := store.GetValidTRC(ctx, tc.ISD, tc.Trail...)
@@ -271,7 +275,7 @@ func TestGetTRC(t *testing.T) {
 
 		for _, tc := range testCases[4:5] {
 			Convey(tc.Name, func() {
-				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
 				trcObj, err := store.GetTRC(ctx, tc.ISD, tc.Version)
@@ -336,7 +340,7 @@ func TestGetValidChain(t *testing.T) {
 
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
 				chain, err := store.GetValidChain(ctx, tc.IA, tc.Trail...)
@@ -434,7 +438,7 @@ func TestGetChain(t *testing.T) {
 
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
 				chain, err := store.GetChain(ctx, tc.IA, tc.Version)
@@ -573,7 +577,7 @@ func TestTRCReqHandler(t *testing.T) {
 				go serverMessenger.ListenAndServe()
 				defer serverMessenger.CloseServer()
 
-				ctx, cancelF := context.WithTimeout(context.Background(), 100*time.Millisecond)
+				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
 				msg := &cert_mgmt.TRCReq{
@@ -692,7 +696,7 @@ func TestChainReqHandler(t *testing.T) {
 				go serverMessenger.ListenAndServe()
 				defer serverMessenger.CloseServer()
 
-				ctx, cancelF := context.WithTimeout(context.Background(), 100*time.Millisecond)
+				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
 				msg := &cert_mgmt.ChainReq{
