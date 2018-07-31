@@ -36,6 +36,10 @@ const (
 	// The message should always be `Listening ia=<IA>`
 	// where <IA> is the IA the server is listening on.
 	ReadySignal = "Listening ia="
+	// GoIntegrationEnv is an environment variable that is set for the binary under test.
+	// It can be used to guard certain statements, like printing the ReadySignal,
+	// in a program under test.
+	GoIntegrationEnv = "SCION_GO_INTEGRATION"
 )
 
 var _ Integration = (*binaryIntegration)(nil)
@@ -69,6 +73,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.name, args...),
 	}
+	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
@@ -79,15 +84,18 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	}
 	ready := make(chan struct{})
 	// parse until we have the ready signal.
+	// and then discard the output until the end (required by StdoutPipe).
 	go func() {
 		defer log.LogPanicAndExit()
 		defer sp.Close()
+		signal := fmt.Sprintf("%s%s", ReadySignal, dst)
+		init := true
 		scanner := bufio.NewScanner(sp)
 		for scanner.Scan() {
 			line := scanner.Text()
-			if fmt.Sprintf("%s%s", ReadySignal, dst) == line {
+			if init && signal == line {
 				close(ready)
-				return
+				init = false
 			}
 		}
 	}()
@@ -110,6 +118,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) 
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.name, args...),
 	}
+	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
 	ep, err := r.StderrPipe()
 	if err != nil {
 		return nil, err
@@ -135,10 +144,6 @@ func redirectLog(name, pName string, local addr.IA, ep io.ReadCloser) {
 	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
 		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
 	})
-}
-
-func readyConsumer(local addr.IA) {
-
 }
 
 var _ Waiter = (*binaryWaiter)(nil)
