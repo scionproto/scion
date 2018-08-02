@@ -4,9 +4,9 @@ CandidatesSetSize: 20
 HistoryLimit: 20
 PropertyRanges:
   AvailableBandwidth: 0-100
-  DelayTime: 0-60
+  DelayTime: 0-14400  # <= 4hr old
   GuaranteedBandwidth: 0-100
-  HopsLength: 1-10
+  HopsLength: 1-30
   PeerLinks: 0-100
   TotalBandwidth: 0-100
 PropertyWeights:
