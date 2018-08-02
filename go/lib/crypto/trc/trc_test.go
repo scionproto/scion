@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -201,7 +202,7 @@ func (i ISDAS) Less(k, j int) bool { return i[k].I <= i[j].I && i[k].A < i[j].A 
 func Test_TRC_CoreASList(t *testing.T) {
 	Convey("CoreASList should return CoreASes correctly", t, func() {
 		trc := loadTRC(fnTRC, t)
-		list := trc.CoreASList()
+		list := trc.CoreASes.ASList()
 		sort.Sort(ISDAS(list))
 		SoMsg("CoreASList", list, ShouldResemble, []addr.IA{{I: 1, A: 0xff0000000300},
 			{I: 1, A: 0xff0000000301}, {I: 1, A: 0xff0000000302}})

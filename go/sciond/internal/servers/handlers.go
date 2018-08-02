@@ -120,7 +120,7 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 				{
 					RawIsdas: reqIA.IAInt(),
 					Mtu:      0,
-					IsCore:   iaInSlice(reqIA, trcObj.CoreASList()),
+					IsCore:   trcObj.CoreASes.Contains(reqIA),
 				},
 			}
 		}

@@ -273,8 +273,8 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	srcIsCore := iaInSlice(f.topology.ISD_AS, localTrc.CoreASList())
-	dstIsCore := iaInSlice(req.Dst.IA(), dstTrc.CoreASList())
+	srcIsCore := localTrc.CoreASes.Contains(f.topology.ISD_AS)
+	dstIsCore := dstTrc.CoreASes.Contains(req.Dst.IA())
 	// pathdb expects slices
 	srcIASlice := []addr.IA{req.Src.IA()}
 	dstIASlice := []addr.IA{req.Dst.IA()}
@@ -288,29 +288,29 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	case srcIsCore && !dstIsCore:
-		cores, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASList(), srcIASlice)
+		cores, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASList(), dstIASlice)
+		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice)
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASList(), srcIASlice)
+		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASList())
+		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASes.ASList())
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && !dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASList(), srcIASlice)
+		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASList(), dstIASlice)
+		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice)
 		if err != nil {
 			return nil, err
 		}
@@ -477,15 +477,6 @@ func getStartIAs(segments []*seg.PathSegment) []addr.IA {
 		startIAs = append(startIAs, segment.ASEntries[0].IA())
 	}
 	return startIAs
-}
-
-func iaInSlice(ia addr.IA, slice []addr.IA) bool {
-	for _, otherIA := range slice {
-		if ia.Eq(otherIA) {
-			return true
-		}
-	}
-	return false
 }
 
 // NewExtendedContext returns a new _independent_ context that can extend past
