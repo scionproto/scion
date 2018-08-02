@@ -22,7 +22,7 @@ import (
 	"io"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/lib/crypto"
 )
 
 type HopField struct {
@@ -140,7 +140,7 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	all[4] = 0 // Ignore flags
 	copy(all[5:], h.data[1:5])
 	copy(all[9:], prev)
-	tag, err := util.Mac(mac, all)
+	tag, err := crypto.Mac(mac, all)
 	return tag[:MacLen], err
 }
 
