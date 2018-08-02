@@ -67,7 +67,7 @@ result=$?
 
 # Run go integration test
 GO_INFRA_TEST="go test -tags infrarunning"
-for i in ./go/lib/{snet,pathmgr}; do
+for i in ./go/lib/{snet,pathmgr,infra/disp}; do
     ${GO_INFRA_TEST} $i
     result=$((result+$?))
 done
