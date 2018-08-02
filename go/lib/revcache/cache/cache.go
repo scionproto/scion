@@ -12,33 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fetcher
+package cache
 
 import (
 	"sync"
 	"time"
 
-	cache "github.com/patrickmn/go-cache"
+	gocache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/revcache"
 )
 
-var _ revcache.RevCache = (*RevCache)(nil)
+var _ revcache.RevCache = (*revCache)(nil)
 
-type RevCache struct {
+type revCache struct {
 	// Do not embed or use type directly to reduce the cache's API surface
-	c    *cache.Cache
+	c    *gocache.Cache
 	lock sync.RWMutex
 }
 
+// NewRevCache creates a new RevCache, backed by an in memory cache.
 func NewRevCache(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
-	return &RevCache{
-		c: cache.New(defaultExpiration, cleanupInterval),
+	return &revCache{
+		c: gocache.New(defaultExpiration, cleanupInterval),
 	}
 }
 
-func (c *RevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
+func (c *revCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	obj, ok := c.c.Get(k.String())
@@ -48,7 +49,7 @@ func (c *RevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
 	return obj.(*path_mgmt.SignedRevInfo), true
 }
 
-func (c *RevCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool {
+func (c *revCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := k.String()
