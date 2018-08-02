@@ -407,8 +407,10 @@ class SCIONElement(object):
         missing_trcs = self._missing_trc_versions(seg_meta.trc_vers)
         missing_certs = self._missing_cert_versions(seg_meta.cert_vers)
         # Update missing TRCs/certs map
-        seg_meta.missing_trcs.update(missing_trcs)
-        seg_meta.missing_certs.update(missing_certs)
+        with seg_meta.miss_trc_lock:
+            seg_meta.missing_trcs.update(missing_trcs)
+        with seg_meta.miss_cert_lock:
+            seg_meta.missing_certs.update(missing_certs)
         # If all necessary TRCs/certs available, try to verify
         if seg_meta.verifiable():
             self._try_to_verify_seg(seg_meta)
@@ -711,7 +713,13 @@ class SCIONElement(object):
         for i, asm in enumerate(seg.iter_asms()):
             cert_ia = asm.isd_as()
             trc = self.trust_store.get_trc(cert_ia[0], asm.p.trcVer)
+            if not trc:
+                logging.error("Could not get TRC %sv%s" (cert_ia[0], asm.p.trcVer))
+                continue
             chain = self.trust_store.get_cert(asm.isd_as(), asm.p.certVer)
+            if not chain:
+                logging.error("Could not get cert chain %sv%s" % (asm.isd_as(), asm.p.certVer))
+                continue
             self._verify_exp_time(exp_time, chain)
             verify_chain_trc(cert_ia, chain, trc)
             seg.verify(chain.as_cert.subject_sig_key_raw, i)
