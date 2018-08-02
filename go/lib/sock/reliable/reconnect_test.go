@@ -45,6 +45,7 @@ var (
 	sysErrorEPIPE      = &net.OpError{Err: os.NewSyscallError("foo", syscall.EPIPE)}
 	sysErrorECONNRESET = &net.OpError{Err: os.NewSyscallError("foo", syscall.ECONNRESET)}
 	ErrorTimeout       = common.NewBasicError("Timed out", nil)
+	ErrorOther         = common.NewBasicError("Miscellaneous error", nil)
 )
 
 func TestReconnectingRegister(t *testing.T) {
@@ -64,10 +65,7 @@ func TestReconnectingRegister(t *testing.T) {
 				gomock.InOrder(
 					dispatcher.EXPECT().
 						Register(IA, AppAddr, nil, addr.SvcNone).
-						DoAndReturn(
-							func(_, _, _, _ interface{}) (reliable.DispatcherConn, uint16, error) {
-								return nil, AppAddr.Port, nil
-							}),
+						Return(nil, AppAddr.Port, nil),
 				)
 				return dispatcher
 			},
@@ -133,6 +131,7 @@ func TestReconnectingRegister(t *testing.T) {
 				dispatcher := tc.MockDispatcherSetup(ctrl)
 				reconnectingDispatcher := reliable.NewReconnectingDispatcher(dispatcher,
 					tc.ClientAttempts, tc.MaxTimeoutPerAttempt, tc.MinRetryInterval)
+
 				_, _, err := reconnectingDispatcher.Register(IA, AppAddr, nil, addr.SvcNone)
 				xtest.SoMsgError("err", err, tc.ShouldError)
 			})
@@ -176,7 +175,7 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 				gomock.InOrder(
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE),
+						Return(nil, uint16(0), ErrorOther),
 				)
 				return dispatcher
 			},
@@ -227,7 +226,7 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 							func(_, _, _, _, timeout interface{}) (reliable.DispatcherConn,
 								uint16, error) {
 								time.Sleep(timeout.(time.Duration))
-								return nil, uint16(1234), nil
+								return nil, uint16(AppAddr.Port), nil
 							}),
 				)
 				return dispatcher
@@ -244,13 +243,13 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 				gomock.InOrder(
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE),
+						Return(nil, uint16(0), ErrorOther),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE),
+						Return(nil, uint16(0), ErrorOther),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(1234), nil),
+						Return(nil, uint16(AppAddr.Port), nil),
 				)
 				return dispatcher
 			},
@@ -266,7 +265,7 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 				gomock.InOrder(
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE),
+						Return(nil, uint16(0), ErrorOther),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
 						Return(nil, AppAddr.Port, nil),
@@ -285,7 +284,7 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 				gomock.InOrder(
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE).
+						Return(nil, uint16(0), ErrorOther).
 						Times(3),
 				)
 				return dispatcher
@@ -303,10 +302,10 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
 						DoAndReturn(
-							func(_, _, _, _, timeout interface{}) (reliable.DispatcherConn,
+							func(_, _, _, _, _ interface{}) (reliable.DispatcherConn,
 								uint16, error) {
 								time.Sleep(20 * time.Millisecond)
-								return nil, uint16(0), sysErrorEPIPE
+								return nil, uint16(0), ErrorTimeout
 							}).MinTimes(1).MaxTimes(3), // never reach 10 attempts due to timeout
 				)
 				return dispatcher
@@ -314,17 +313,16 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 			ShouldError: true,
 		},
 		{
-			Name:                 "Ten attempts, but not all go through due to minRetryInterval",
-			ClientAttempts:       10,
-			MaxTimeoutPerAttempt: time.Second,
-			MinRetryInterval:     10 * time.Millisecond,
-			RegisterTimeout:      50 * time.Millisecond,
+			Name:             "Ten attempts, but not all go through due to minRetryInterval",
+			ClientAttempts:   10,
+			MinRetryInterval: 10 * time.Millisecond,
+			RegisterTimeout:  50 * time.Millisecond,
 			MockDispatcherSetup: func(ctrl *gomock.Controller) *mock_reliable.MockDispatcher {
 				dispatcher := mock_reliable.NewMockDispatcher(ctrl)
 				gomock.InOrder(
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE).
+						Return(nil, uint16(0), ErrorOther).
 						MaxTimes(6),
 				)
 				return dispatcher
@@ -350,6 +348,10 @@ func TestReconnectingRegisterTimeout(t *testing.T) {
 	})
 }
 
+func TestRegisterOtherError(t *testing.T) {
+
+}
+
 func TestReconnectingRegisterEarlyExit(t *testing.T) {
 	testCases := []struct {
 		Name                 string
@@ -361,24 +363,22 @@ func TestReconnectingRegisterEarlyExit(t *testing.T) {
 		ShouldError          bool
 	}{
 		{
-			Name:                 "Two attempts, but return early due to minRetryInterval",
-			ClientAttempts:       2,
-			MaxTimeoutPerAttempt: 50 * time.Millisecond,
-			MinRetryInterval:     500 * time.Millisecond,
-			RegisterTimeout:      300 * time.Millisecond,
+			Name:             "Two attempts, but return early due to minRetryInterval",
+			ClientAttempts:   2,
+			MinRetryInterval: 50 * time.Millisecond,
+			RegisterTimeout:  20 * time.Millisecond,
 			MockDispatcherSetup: func(ctrl *gomock.Controller) *mock_reliable.MockDispatcher {
 				dispatcher := mock_reliable.NewMockDispatcher(ctrl)
 				gomock.InOrder(
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE),
+						Return(nil, uint16(0), ErrorOther),
 				)
 				return dispatcher
 			},
 			ShouldError: true,
 		},
 	}
-
 	Convey("Main", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
@@ -395,9 +395,8 @@ func TestReconnectingRegisterEarlyExit(t *testing.T) {
 				_, _, err := reconnectingDispatcher.RegisterTimeout(IA, AppAddr, nil,
 					addr.SvcNone, tc.RegisterTimeout)
 				endTime := time.Now()
-				SoMsg("timing", endTime, ShouldHappenBefore, startTime.Add(50*time.Millisecond))
-
 				xtest.SoMsgError("err", err, tc.ShouldError)
+				SoMsg("timing", endTime, ShouldHappenBefore, startTime.Add(tc.RegisterTimeout))
 			})
 		}
 	})
@@ -502,7 +501,7 @@ func TestReconnectWriteTo(t *testing.T) {
 				conn := mock_reliable.NewMockDispatcherConn(ctrl)
 				gomock.InOrder(
 					conn.EXPECT().SetWriteDeadline(gomock.Any()),
-					conn.EXPECT().WriteTo(gomock.Any(), RemoteAppAddr).Return(0, sysErrorEPIPE),
+					conn.EXPECT().WriteTo(gomock.Any(), RemoteAppAddr).Return(0, sysErrorECONNRESET),
 				)
 				dispatcher := mock_reliable.NewMockDispatcher(ctrl)
 				gomock.InOrder(
@@ -511,7 +510,7 @@ func TestReconnectWriteTo(t *testing.T) {
 						Return(conn, AppAddr.Port, nil),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE),
+						Return(nil, uint16(0), ErrorOther),
 				)
 				return dispatcher
 			},
@@ -575,13 +574,13 @@ func TestReconnectWriteTo(t *testing.T) {
 						Return(connA, AppAddr.Port, nil),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE).MaxTimes(4),
+						Return(nil, uint16(0), ErrorOther).MaxTimes(4),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
 						Return(connB, AppAddr.Port, nil),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE).MaxTimes(4),
+						Return(nil, uint16(0), ErrorOther).MaxTimes(4),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
 						Return(connC, AppAddr.Port, nil),
@@ -723,7 +722,7 @@ func TestReconnectReadFrom(t *testing.T) {
 						Return(conn, AppAddr.Port, nil),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE),
+						Return(nil, uint16(0), ErrorOther),
 				)
 				return dispatcher
 			},
@@ -787,13 +786,13 @@ func TestReconnectReadFrom(t *testing.T) {
 						Return(connA, AppAddr.Port, nil),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE).MaxTimes(4),
+						Return(nil, uint16(0), ErrorOther).MaxTimes(4),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
 						Return(connB, AppAddr.Port, nil),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
-						Return(nil, uint16(0), sysErrorEPIPE).MaxTimes(4),
+						Return(nil, uint16(0), ErrorOther).MaxTimes(4),
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, AppAddr, nil, addr.SvcNone, gomock.Any()).
 						Return(connC, AppAddr.Port, nil),
@@ -820,11 +819,10 @@ func TestReconnectReadFrom(t *testing.T) {
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, gomock.Any(), nil, addr.SvcNone, gomock.Any()).
 						DoAndReturn(
-							func(_, _, _, _,
-								timeout interface{}) (reliable.DispatcherConn, uint16, error) {
-
+							func(_, _, _, _, _ interface{}) (reliable.DispatcherConn,
+								uint16, error) {
 								time.Sleep(20 * time.Millisecond)
-								return nil, uint16(0), ErrorTimeout
+								return nil, uint16(0), ErrorOther
 							}).MinTimes(1).MaxTimes(3),
 				)
 				return dispatcher
@@ -853,11 +851,10 @@ func TestReconnectReadFrom(t *testing.T) {
 					dispatcher.EXPECT().
 						RegisterTimeout(IA, gomock.Any(), nil, addr.SvcNone, gomock.Any()).
 						DoAndReturn(
-							func(_, _, _, _,
-								timeout interface{}) (reliable.DispatcherConn, uint16, error) {
-
+							func(_, _, _, _, _ interface{}) (reliable.DispatcherConn,
+								uint16, error) {
 								time.Sleep(20 * time.Millisecond)
-								return nil, uint16(0), ErrorTimeout
+								return nil, uint16(0), ErrorOther
 							}).Times(3),
 				)
 				return dispatcher
