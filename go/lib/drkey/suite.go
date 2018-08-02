@@ -18,6 +18,7 @@ import (
 	"crypto/sha256"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/crypto"
 
 	"golang.org/x/crypto/pbkdf2"
 
@@ -109,10 +110,25 @@ func DeriveDRKeyLvl2(in *DRKeyLvl1, out *DRKeyLvl2) error {
 	return nil
 }
 
-// func EncryptDRKeyLvl1(drkey DRKeyLvl1) common.RawBytes {
-// 	return nil
-// }
+func EncryptDRKeyLvl1(drkey *DRKeyLvl1, nonce, pubkey,
+	privkey common.RawBytes) (common.RawBytes, error) {
+	keyLen := len(drkey.Key)
+	msg := make(common.RawBytes, addr.IABytes+keyLen)
+	drkey.SrcIa.Write(msg)
+	copy(msg[addr.IABytes:], drkey.Key)
+	cipher, err := crypto.Encrypt(msg, nonce, pubkey, privkey, "Curve25519xSalsa20Poly1305")
+	if err != nil {
+		return nil, err
+	}
+	return cipher, nil
+}
 
-// func DecryptDRKeyLvl1(common.RawBytes) DRKeyLvl1 {
-
-// }
+func DecryptDRKeyLvl1(cipher, nonce, pubkey, privkey common.RawBytes) (*DRKeyLvl1, error) {
+	msg, err := crypto.Decrypt(cipher, nonce, pubkey, privkey, "Curve25519xSalsa20Poly1305")
+	if err != nil {
+		return nil, err
+	}
+	srcIa := addr.IAFromRaw(msg[:addr.IABytes])
+	key := msg[addr.IABytes:]
+	return &DRKeyLvl1{SrcIa: srcIa, Key: key}, nil
+}
