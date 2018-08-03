@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
+	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -39,7 +40,6 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
-	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -365,11 +365,11 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 // fetchAndVerify downloads path segments from the network. Segments that are
 // successfully verified are added to the pathDB. Revocations that are
 // successfully verified are added to the revocation cache.
-func (t *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc,
+func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc,
 	req *sciond.PathReq, earlyTrigger *util.Trigger) {
 
 	defer cancelF()
-	reply, err := t.getSegmentsFromNetwork(ctx, req)
+	reply, err := f.getSegmentsFromNetwork(ctx, req)
 	if err != nil {
 		log.Warn("Unable to retrieve paths from network", "err", err)
 		return
@@ -379,56 +379,24 @@ func (t *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 	if timer != nil {
 		defer timer.Stop()
 	}
-	// Build verification units
-	units := segverifier.BuildUnits(reply.Recs.Recs, reply.Recs.SRevInfos)
-	unitResultsC := make(chan segverifier.UnitResult, len(units))
-	for _, unit := range units {
-		go unit.Verify(ctx, unitResultsC)
-	}
-Loop:
-	for numResults := 0; numResults < len(units); numResults++ {
-		select {
-		case result := <-unitResultsC:
-			if err, ok := result.Errors[-1]; ok {
-				log.Info("Segment verification failed",
-					"segment", result.Unit.SegMeta.Segment, "err", err)
-			} else {
-				// Verification succeeded
-				n, err := t.pathDB.Insert(ctx, &result.Unit.SegMeta.Segment,
-					[]proto.PathSegType{result.Unit.SegMeta.Type})
-				if err != nil {
-					log.Warn("Unable to insert segment into path database",
-						"segment", result.Unit.SegMeta.Segment, "err", err)
-					continue
-				}
-				if n > 0 {
-					log.Debug("Inserted segment into path database",
-						"segment", result.Unit.SegMeta.Segment)
-				}
-			}
-			// Insert successfully verified revocations into the revcache
-			for index, revocation := range result.Unit.SRevInfos {
-				if err, ok := result.Errors[index]; ok {
-					log.Info("Revocation verification failed",
-						"revocation", revocation, "err", err)
-				} else {
-					// Verification succeeded for this revocation, so we can add it to the cache
-					info, err := revocation.RevInfo()
-					if err != nil {
-						// This should be caught during network message sanitization
-						panic(err)
-					}
-					t.revocationCache.Set(
-						revcache.NewKey(info.IA(), common.IFIDType(info.IfID)),
-						revocation,
-						info.RelativeTTL(time.Now()),
-					)
-				}
-			}
-		case <-ctx.Done():
-			break Loop
+	// verify and store the segments
+	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
+		if err := segsaver.StoreSeg(ctx, s, f.pathDB, f.logger); err != nil {
+			f.logger.Error("Unable to insert segment into path database",
+				"seg", s.Segment, "err", err)
 		}
 	}
+	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
+		segsaver.StoreRevocation(rev, f.revocationCache)
+	}
+	segErr := func(s *seg.Meta, err error) {
+		f.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
+	}
+	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
+		f.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
+	}
+	segverifier.Verify(ctx, reply.Recs.Recs, reply.Recs.SRevInfos,
+		verifiedSeg, verifiedRev, segErr, revErr)
 }
 
 func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
