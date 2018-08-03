@@ -24,24 +24,15 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-var (
-	// Docker if set to true, execute tests in containers
-	Docker bool
+const (
 	// DockerCmd is the script to run tests in docker
 	DockerCmd = "./tools/dc.sh"
 )
 
-// Setup initiates the integration test and loads the AS list
-func Setup(name string) error {
-	flag.BoolVar(&Docker, "d", false, "Execute tests in dockerized environment")
-	if err := integration.Init(name); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
-		return err
-	}
-	defer log.LogPanicAndExit()
-	defer log.Flush()
-	return nil
-}
+var (
+	// Docker flag
+	Docker = flag.Bool("d", false, "Execute tests in dockerized environment")
+)
 
 // RunBinaryTests runs the client and server for each IAPair.
 // In case of an error the function is terminated immediately.
@@ -57,7 +48,7 @@ func RunBinaryTests(in integration.Integration, pairs []integration.IAPair) erro
 			// Start client
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst, i+1,
 				len(pairs)))
-			if err := integration.RunClient(in, pair, 1*time.Second); err != nil {
+			if err := integration.RunClient(in, pair, 5*time.Second); err != nil {
 				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 				return err
 			}
@@ -74,7 +65,7 @@ func RunUnaryTests(in integration.Integration, pairs []integration.IAPair) error
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), pair.Src, pair.Dst, i+1, len(pairs)))
 			// Start client
-			if err := integration.RunClient(in, pair, 1*time.Second); err != nil {
+			if err := integration.RunClient(in, pair, 5*time.Second); err != nil {
 				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 				return err
 			}

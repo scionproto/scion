@@ -15,17 +15,22 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
 	base "github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var (
-	name       = "scmp_error"
+	name       = "end2end"
+	commonArgs = []string{"--data", "ping"}
 	dockerArgs = []string{"tester", cmd}
-	cmd        = "./python/integration/scmp_error_test.py"
+	cmd        = "python/integration/end2end_test.py"
+	retries    = flag.Int("retries", 0, "Number of retries before giving up.")
 )
 
 func main() {
@@ -33,19 +38,23 @@ func main() {
 }
 
 func realMain() int {
-	err := base.Setup(name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to setup test: %s\n", err)
+	if err := integration.Init(name); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
-	clientArgs := []string{integration.SrcIAReplace, integration.DstIAReplace}
+	defer log.LogPanicAndExit()
+	defer log.Flush()
+	clientArgs := append(commonArgs, []string{"--port", integration.ServerPortReplace, "--retries",
+		strconv.Itoa(*retries), integration.SrcIAReplace, integration.DstIAReplace}...)
+	serverArgs := append(commonArgs, []string{"--run_server", integration.DstIAReplace}...)
 	// Redefine command and adjust args if run in docker
-	if base.Docker {
+	if *base.Docker {
 		clientArgs = append(dockerArgs, clientArgs...)
+		serverArgs = append(dockerArgs, serverArgs...)
 		cmd = base.DockerCmd
 	}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
-	if err = base.RunUnaryTests(in, integration.IAPairs()); err != nil {
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
+	if err := base.RunBinaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}

@@ -20,13 +20,13 @@ import (
 
 	base "github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var (
-	name       = "end2end"
-	commonArgs = []string{"--data", "ping"}
+	name       = "certreq"
+	cmd        = "python/integration/cert_req_test.py"
 	dockerArgs = []string{"tester", cmd}
-	cmd        = "python/integration/end2end_test.py"
 )
 
 func main() {
@@ -34,21 +34,19 @@ func main() {
 }
 
 func realMain() int {
-	if err := base.Setup(name); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to setup test: %s\n", err)
+	if err := integration.Init(name); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
-	clientArgs := append(commonArgs, []string{"--port", integration.ServerPortReplace,
-		integration.SrcIAReplace, integration.DstIAReplace}...)
-	serverArgs := append(commonArgs, []string{"--run_server", integration.DstIAReplace}...)
-	// Redefine command and adjust args if run in docker
-	if base.Docker {
+	defer log.LogPanicAndExit()
+	defer log.Flush()
+	clientArgs := []string{integration.SrcIAReplace, integration.DstIAReplace}
+	if *base.Docker {
 		clientArgs = append(dockerArgs, clientArgs...)
-		serverArgs = append(dockerArgs, serverArgs...)
 		cmd = base.DockerCmd
 	}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
-	if err := base.RunBinaryTests(in, integration.IAPairs()); err != nil {
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
+	if err := base.RunUnaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}

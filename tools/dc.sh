@@ -8,6 +8,8 @@ cmd_help() {
 	        Run docker-compose command for scion services.
 	    $PROGRAM utils [docker-compose command]
 	        Run docker-compose command for util services.
+	    $PROGRAM tester [command]
+	        Run a command in the `tester` container.
 	_EOF
 }
 

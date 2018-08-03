@@ -20,6 +20,7 @@ import (
 
 	base "github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var (
@@ -33,22 +34,23 @@ func main() {
 }
 
 func realMain() int {
-	err := base.Setup(name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to setup test: %s\n", err)
+	if err := integration.Init(name); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
+	defer log.LogPanicAndExit()
+	defer log.Flush()
 	clientArgs := []string{"--port", integration.ServerPortReplace,
 		integration.SrcIAReplace, integration.DstIAReplace}
 	serverArgs := []string{"--run_server", integration.DstIAReplace}
 	// Redefine command and adjust args if run in docker
-	if base.Docker {
+	if *base.Docker {
 		clientArgs = append(dockerArgs, clientArgs...)
 		serverArgs = append(dockerArgs, serverArgs...)
 		cmd = base.DockerCmd
 	}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
-	if err = base.RunBinaryTests(in, integration.IAPairs()); err != nil {
+	if err := base.RunBinaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}

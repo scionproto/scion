@@ -49,41 +49,29 @@ log "Starting scion (without building)"
 log "Scion status:"
 ./scion.sh status || exit 1
 
+DC=""
+if [ "$1" = "docker" ]; then
+    ./tools/dc.sh utils up -d
+    DC="-d"
+fi
+
 sleep 5
 # Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
 [ -n "$CIRCLECI" ] && sleep 10
 
-if [ "$1" = "docker" ]; then
-./tools/dc.sh utils up -d
 cat << EOF | parallel --no-notice -n2 -j2 run
 End2End
-bin/end2end_integration -log.level error -d
+bin/end2end_pyintegration -log.console error $(echo $DC)
 C2S_extn
-bin/cli_srv_ext_integration -log.level error -d
+bin/cli_srv_ext_pyintegration -log.console error $(echo $DC)
 SCMP echo
-bin/scmp_echo_integration -log.level error -d
+bin/scmp_echo_pyintegration -log.console error $(echo $DC)
 SCMP error
-bin/scmp_error_integration -log.level error -d
+bin/scmp_error_pyintegration -log.console error $(echo $DC)
 Cert/TRC request
-bin/cert_req_integration -log.level error -d
+bin/cert_req_pyintegration -log.console error $(echo $DC)
 EOF
 result=$?
-else
-cat << EOF | parallel --no-notice -n2 -j2 run
-End2End
-bin/end2end_integration -log.level error
-C2S_extn
-bin/cli_srv_ext_integration -log.level error
-SCMP echo
-bin/scmp_echo_integration -log.level error
-SCMP error
-bin/scmp_error_integration -log.level error
-Cert/TRC request
-bin/cert_req_integration -log.level error
-EOF
-result=$?
-fi
-
 
 # Run go integration test
 GO_INFRA_TEST="go test -tags infrarunning"
@@ -93,10 +81,10 @@ for i in ./go/lib/{snet,pathmgr}; do
 done
 
 # Run (new) go integration tests
-# for i in ./bin/*_integration; do
-./bin/pp_integration
-result=$((result+$?))
-# done
+for i in ./bin/*_integration; do
+    $i
+    result=$((result+$?))
+done
 
 run Revocation "integration/revocation_test.sh\
  ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"

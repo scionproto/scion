@@ -20,12 +20,13 @@ import (
 
 	base "github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/integration"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var (
-	name       = "scmp_echo"
+	name       = "scmp_error"
 	dockerArgs = []string{"tester", cmd}
-	cmd        = "python/integration/scmp_echo_test.py"
+	cmd        = "./python/integration/scmp_error_test.py"
 )
 
 func main() {
@@ -33,19 +34,20 @@ func main() {
 }
 
 func realMain() int {
-	err := base.Setup(name)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to setup test: %s\n", err)
+	if err := integration.Init(name); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
+	defer log.LogPanicAndExit()
+	defer log.Flush()
 	clientArgs := []string{integration.SrcIAReplace, integration.DstIAReplace}
 	// Redefine command and adjust args if run in docker
-	if base.Docker {
+	if *base.Docker {
 		clientArgs = append(dockerArgs, clientArgs...)
 		cmd = base.DockerCmd
 	}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
-	if err = base.RunUnaryTests(in, integration.IAPairs()); err != nil {
+	if err := base.RunUnaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}

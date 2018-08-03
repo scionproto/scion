@@ -261,7 +261,7 @@ def get_overlay():
 def setup_main(name, parser=None):
     handle_signals()
     parser = parser or argparse.ArgumentParser()
-    parser.add_argument('-l', '--loglevel', default="INFO",
+    parser.add_argument('-l', '--loglevel', default=logging.DEBUG,
                         help='Console logging level (Default: %(default)s)')
     parser.add_argument('-c', '--client', help='Client address')
     parser.add_argument('-s', '--server', help='Server address')
@@ -276,7 +276,7 @@ def setup_main(name, parser=None):
     parser.add_argument('src_ia', nargs='?', help='Src isd-as')
     parser.add_argument('dst_ia', help='Dst isd-as')
     args = parser.parse_args()
-    init_logging("logs/%s" % name, console_level=args.loglevel)
+    init_logging(None, file_level=logging.NOTSET, console_level=args.loglevel)
 
     overlay = get_overlay()
     if "IPv6" in overlay:
