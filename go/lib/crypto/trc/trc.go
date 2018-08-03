@@ -93,16 +93,16 @@ func (tvr *TRCVerResult) QuorumOk() bool {
 	return uint32(len(tvr.Verified)) >= tvr.Quorum
 }
 
-type CoreASes map[addr.IA]*CoreAS
+type CoreASMap map[addr.IA]*CoreAS
 
 // Contains returns whether a is in c.
-func (c CoreASes) Contains(a addr.IA) bool {
+func (c CoreASMap) Contains(a addr.IA) bool {
 	_, ok := c[a]
 	return ok
 }
 
 // ASList returns a list of core ASes' addresses.
-func (c CoreASes) ASList() []addr.IA {
+func (c CoreASMap) ASList() []addr.IA {
 	l := make([]addr.IA, 0, len(c))
 	for key := range c {
 		l = append(l, key)
@@ -115,7 +115,7 @@ type TRC struct {
 	// certificate.
 	CertLogs map[string]*CertLog
 	// CoreASes is a map from core ASes to their online and offline key.
-	CoreASes CoreASes
+	CoreASes CoreASMap
 	// CreationTime is the unix timestamp in seconds at which the TRC was created.
 	CreationTime uint32
 	// Description is an human-readable description of the ISD.
