@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fetcher
+package memrevcache
 
 import (
 	"sync"
@@ -24,21 +24,22 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 )
 
-var _ revcache.RevCache = (*RevCache)(nil)
+var _ revcache.RevCache = (*memRevCache)(nil)
 
-type RevCache struct {
+type memRevCache struct {
 	// Do not embed or use type directly to reduce the cache's API surface
 	c    *cache.Cache
 	lock sync.RWMutex
 }
 
-func NewRevCache(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
-	return &RevCache{
+// New creates a new RevCache, backed by an in memory cache.
+func New(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
+	return &memRevCache{
 		c: cache.New(defaultExpiration, cleanupInterval),
 	}
 }
 
-func (c *RevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
+func (c *memRevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	obj, ok := c.c.Get(k.String())
@@ -48,7 +49,7 @@ func (c *RevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
 	return obj.(*path_mgmt.SignedRevInfo), true
 }
 
-func (c *RevCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool {
+func (c *memRevCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	key := k.String()
