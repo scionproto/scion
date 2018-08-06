@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -92,12 +93,29 @@ func (tvr *TRCVerResult) QuorumOk() bool {
 	return uint32(len(tvr.Verified)) >= tvr.Quorum
 }
 
+type CoreASMap map[addr.IA]*CoreAS
+
+// Contains returns whether a is in c.
+func (c CoreASMap) Contains(a addr.IA) bool {
+	_, ok := c[a]
+	return ok
+}
+
+// ASList returns a list of core ASes' IDs.
+func (c CoreASMap) ASList() []addr.IA {
+	l := make([]addr.IA, 0, len(c))
+	for key := range c {
+		l = append(l, key)
+	}
+	return l
+}
+
 type TRC struct {
 	// CertLogs is a map from end-entity certificate logs to their addresses and public-key
 	// certificate.
 	CertLogs map[string]*CertLog
 	// CoreASes is a map from core ASes to their online and offline key.
-	CoreASes map[addr.IA]*CoreAS
+	CoreASes CoreASMap
 	// CreationTime is the unix timestamp in seconds at which the TRC was created.
 	CreationTime uint32
 	// Description is an human-readable description of the ISD.
@@ -203,15 +221,6 @@ func (t *TRC) IsdVer() (addr.ISD, uint64) {
 
 func (t *TRC) Key() *Key {
 	return NewKey(t.ISD, t.Version)
-}
-
-// CoreASList returns a list of core ASes' addresses.
-func (t *TRC) CoreASList() []addr.IA {
-	l := make([]addr.IA, 0, len(t.CoreASes))
-	for key := range t.CoreASes {
-		l = append(l, key)
-	}
-	return l
 }
 
 // IsActive checks if TRC is active and can be used for certificate chain verification. MaxTRC is
