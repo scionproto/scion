@@ -241,11 +241,7 @@ func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 	if c.conn == nil {
 		return 0, common.NewBasicError("Connection not initialized", nil)
 	}
-	n, err := c.write(b, raddr)
-	if err != nil {
-		return 0, common.NewBasicError("Dispatcher error", err)
-	}
-	return n, err
+	return c.write(b, raddr)
 }
 
 func (c *Conn) WriteTo(b []byte, raddr net.Addr) (int, error) {
