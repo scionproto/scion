@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	gocache "github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -37,7 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/revcache/memcache"
+	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
@@ -144,7 +144,7 @@ func realMain() int {
 		nil,
 	)
 	trustStore.SetMessenger(msger)
-	revCache := memcache.NewMemRevCache(gocache.NoExpiration, time.Second)
+	revCache := memrevcache.NewMemRevCache(cache.NoExpiration, time.Second)
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
