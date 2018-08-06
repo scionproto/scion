@@ -32,8 +32,8 @@ type memRevCache struct {
 	lock sync.RWMutex
 }
 
-// NewMemRevCache creates a new RevCache, backed by an in memory cache.
-func NewMemRevCache(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
+// New creates a new RevCache, backed by an in memory cache.
+func New(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
 	return &memRevCache{
 		c: cache.New(defaultExpiration, cleanupInterval),
 	}

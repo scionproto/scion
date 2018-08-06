@@ -144,7 +144,7 @@ func realMain() int {
 		nil,
 	)
 	trustStore.SetMessenger(msger)
-	revCache := memrevcache.NewMemRevCache(cache.NoExpiration, time.Second)
+	revCache := memrevcache.New(cache.NoExpiration, time.Second)
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
