@@ -15,6 +15,7 @@
 package sciond
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -118,8 +119,20 @@ func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRep
 	}, nil
 }
 
+// PathsCtx is not implemented.
+func (m *MockConn) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
+	f PathReqFlags) (*PathReply, error) {
+
+	panic("not implemented")
+}
+
 // ASInfo is not implemented.
 func (m *MockConn) ASInfo(ia addr.IA) (*ASInfoReply, error) {
+	panic("not implemented")
+}
+
+// ASInfoCtx is not implemented.
+func (m *MockConn) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	panic("not implemented")
 }
 
@@ -128,13 +141,30 @@ func (m *MockConn) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 	panic("not implemented")
 }
 
+// IFInfoCtx is not implemented.
+func (m *MockConn) IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
+	panic("not implemented")
+}
+
 // SVCInfo is not implemented.
 func (m *MockConn) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
 	panic("not implemented")
 }
 
+// SVCInfoCtx is not implemented.
+func (m *MockConn) SVCInfoCtx(ctx context.Context,
+	svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
+
+	panic("not implemented")
+}
+
 // RevNotificationFromRaw is not implemented.
 func (m *MockConn) RevNotificationFromRaw(b []byte) (*RevReply, error) {
+	panic("not implemented")
+}
+
+// RevNotificationFromRawCtx is not implemented.
+func (m *MockConn) RevNotificationFromRawCtx(ctx context.Context, b []byte) (*RevReply, error) {
 	panic("not implemented")
 }
 
@@ -151,8 +181,20 @@ func (m *MockConn) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply
 	}, nil
 }
 
+// RevNotificationCtx is not implemented.
+func (m *MockConn) RevNotificationCtx(ctx context.Context,
+	sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
+
+	panic("not implemented")
+}
+
 // Close is a no-op.
 func (m *MockConn) Close() error {
+	return nil
+}
+
+// CloseCtx is a no-op.
+func (m *MockConn) CloseCtx(ctx context.Context) error {
 	return nil
 }
 

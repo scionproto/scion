@@ -98,24 +98,31 @@ type Connector interface {
 	// Paths requests from SCIOND a set of end to end paths between src and
 	// dst. max specifices the maximum number of paths returned.
 	Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
+	PathsCtx(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ia addr.IA) (*ASInfoReply, error)
+	ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
 	// IFInfo requests from SCIOND addresses and ports of interfaces.  Slice
 	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
 	// answer containing all interfaces is returned.
 	IFInfo(ifs []common.IFIDType) (*IFInfoReply, error)
+	IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error)
 	// SVCInfo requests from SCIOND information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
 	// service types is returned.
 	SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error)
+	SVCInfoCtx(ctx context.Context, svcTypes []proto.ServiceType) (*ServiceInfoReply, error)
 	// RevNotification sends a raw revocation to SCIOND, as contained in an
 	// SCMP message.
 	RevNotificationFromRaw(b []byte) (*RevReply, error)
+	RevNotificationFromRawCtx(ctx context.Context, b []byte) (*RevReply, error)
 	// RevNotification sends a RevocationInfo message to SCIOND.
 	RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
+	RevNotificationCtx(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
 	// Close shuts down the connection to a SCIOND server.
 	Close() error
+	CloseCtx(ctx context.Context) error
 }
 
 type connector struct {
@@ -156,11 +163,16 @@ func (c *connector) nextID() uint64 {
 }
 
 func (c *connector) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error) {
+	return c.PathsCtx(context.Background(), dst, src, max, f)
+}
+
+func (c *connector) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
+	f PathReqFlags) (*PathReply, error) {
+
 	c.Lock()
 	defer c.Unlock()
-
 	reply, err := c.dispatcher.Request(
-		context.Background(),
+		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_pathReq,
@@ -180,18 +192,20 @@ func (c *connector) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRe
 }
 
 func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
+	return c.ASInfoCtx(context.Background(), ia)
+}
+
+func (c *connector) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
-
 	// Check if information for this ISD-AS is cached
 	key := ia.String()
 	if value, found := c.asInfos.Get(key); found {
 		return value.(*ASInfoReply), nil
 	}
-
 	// Value not in cache, so we ask SCIOND
 	pld, err := c.dispatcher.Request(
-		context.Background(),
+		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_asInfoReq,
@@ -210,32 +224,25 @@ func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
 }
 
 func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
+	return c.IFInfoCtx(context.Background(), ifs)
+}
+
+func (c *connector) IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
-	// Store uncached interface IDs
-	uncachedIfs := make([]common.IFIDType, 0, len(ifs))
-	cachedEntries := make([]IFInfoReplyEntry, 0, len(ifs))
-	for _, iface := range ifs {
-		if value, found := c.ifInfos.Get(iface.String()); found {
-			cachedEntries = append(cachedEntries, value.(IFInfoReplyEntry))
-		} else {
-			uncachedIfs = append(uncachedIfs, iface)
-		}
+	foundEntries, remainingIfs := c.getIFEntriesFromCache(ifs)
+	if len(remainingIfs) == 0 && len(ifs) != 0 {
+		return &IFInfoReply{RawEntries: foundEntries}, nil
 	}
-
-	if len(uncachedIfs) == 0 && len(ifs) != 0 {
-		return &IFInfoReply{RawEntries: cachedEntries}, nil
-	}
-
 	// Some values were not in the cache, so we ask SCIOND for them
 	pld, err := c.dispatcher.Request(
-		context.Background(),
+		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_ifInfoRequest,
 			IfInfoRequest: IFInfoRequest{
-				IfIDs: uncachedIfs,
+				IfIDs: remainingIfs,
 			},
 		},
 		reliable.NilAppAddr,
@@ -244,47 +251,53 @@ func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
 		return nil, err
 	}
 	ifInfoReply := pld.(*Pld).IfInfoReply
-
 	// Add new information to cache
 	// If SCIOND does not find HostInfo for a requested IFID, the
 	// null answer is not added to the cache.
 	for _, entry := range ifInfoReply.RawEntries {
 		c.ifInfos.SetDefault(entry.IfID.String(), entry)
 	}
-
 	// Append old cached entries to our reply
-	ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, cachedEntries...)
+	ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, foundEntries...)
 	return &ifInfoReply, nil
 }
 
-func (c *connector) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
-	c.Lock()
-	defer c.Unlock()
+func (c *connector) getIFEntriesFromCache(
+	ifs []common.IFIDType) ([]IFInfoReplyEntry, []common.IFIDType) {
 
-	// Store uncached SVC Types
-	uncachedSVCs := make([]proto.ServiceType, 0, len(svcTypes))
-	cachedEntries := make([]ServiceInfoReplyEntry, 0, len(svcTypes))
-	for _, svcType := range svcTypes {
-		key := strconv.FormatUint(uint64(svcType), 10)
-		if value, found := c.svcInfos.Get(key); found {
-			cachedEntries = append(cachedEntries, value.(ServiceInfoReplyEntry))
+	var remainingIfs []common.IFIDType
+	var foundEntries []IFInfoReplyEntry
+	for _, iface := range ifs {
+		if value, found := c.ifInfos.Get(iface.String()); found {
+			foundEntries = append(foundEntries, value.(IFInfoReplyEntry))
 		} else {
-			uncachedSVCs = append(uncachedSVCs, svcType)
+			remainingIfs = append(remainingIfs, iface)
 		}
 	}
+	return foundEntries, remainingIfs
+}
 
-	if len(uncachedSVCs) == 0 && len(svcTypes) != 0 {
-		return &ServiceInfoReply{Entries: cachedEntries}, nil
+func (c *connector) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
+	return c.SVCInfoCtx(context.Background(), svcTypes)
+}
+
+func (c *connector) SVCInfoCtx(ctx context.Context,
+	svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
+
+	c.Lock()
+	defer c.Unlock()
+	foundEntries, remainingSVCs := c.getSVCEntriesFromCache(svcTypes)
+	if len(remainingSVCs) == 0 && len(svcTypes) != 0 {
+		return &ServiceInfoReply{Entries: foundEntries}, nil
 	}
-
 	// Some values were not in the cache, so we ask SCIOND for them
 	pld, err := c.dispatcher.Request(
-		context.Background(),
+		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_serviceInfoRequest,
 			ServiceInfoRequest: ServiceInfoRequest{
-				ServiceTypes: uncachedSVCs,
+				ServiceTypes: remainingSVCs,
 			},
 		},
 		reliable.NilAppAddr,
@@ -293,33 +306,56 @@ func (c *connector) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, er
 		return nil, err
 	}
 	serviceInfoReply := pld.(*Pld).ServiceInfoReply
-
 	// Add new information to cache
 	for _, entry := range serviceInfoReply.Entries {
 		key := strconv.FormatUint(uint64(entry.ServiceType), 10)
 		c.svcInfos.SetDefault(key, entry)
 	}
-
-	serviceInfoReply.Entries = append(serviceInfoReply.Entries, cachedEntries...)
+	serviceInfoReply.Entries = append(serviceInfoReply.Entries, foundEntries...)
 	return &serviceInfoReply, nil
 }
 
+func (c *connector) getSVCEntriesFromCache(
+	svcTypes []proto.ServiceType) ([]ServiceInfoReplyEntry, []proto.ServiceType) {
+
+	remainingSVCs := make([]proto.ServiceType, 0, len(svcTypes))
+	foundEntries := make([]ServiceInfoReplyEntry, 0, len(svcTypes))
+	for _, svcType := range svcTypes {
+		key := strconv.FormatUint(uint64(svcType), 10)
+		if value, found := c.svcInfos.Get(key); found {
+			foundEntries = append(foundEntries, value.(ServiceInfoReplyEntry))
+		} else {
+			remainingSVCs = append(remainingSVCs, svcType)
+		}
+	}
+	return foundEntries, remainingSVCs
+}
+
 func (c *connector) RevNotificationFromRaw(b []byte) (*RevReply, error) {
+	return c.RevNotificationFromRawCtx(context.Background(), b)
+}
+
+func (c *connector) RevNotificationFromRawCtx(ctx context.Context, b []byte) (*RevReply, error) {
 	// Extract information from notification
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(b)
 	if err != nil {
 		return nil, err
 	}
-	return c.RevNotification(sRevInfo)
+	return c.RevNotificationCtx(ctx, sRevInfo)
 }
 
 func (c *connector) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
+	return c.RevNotificationCtx(context.Background(), sRevInfo)
+}
+
+func (c *connector) RevNotificationCtx(ctx context.Context,
+	sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
+
 	c.Lock()
 	defer c.Unlock()
-
 	// Encapsulate RevInfo item in RevNotification object
 	reply, err := c.dispatcher.Request(
-		context.Background(),
+		ctx,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_revNotification,
@@ -332,12 +368,15 @@ func (c *connector) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevRepl
 	if err != nil {
 		return nil, err
 	}
-
 	return &reply.(*Pld).RevReply, nil
 }
 
 func (c *connector) Close() error {
-	return c.dispatcher.Close(context.Background())
+	return c.CloseCtx(context.Background())
+}
+
+func (c *connector) CloseCtx(ctx context.Context) error {
+	return c.dispatcher.Close(ctx)
 }
 
 // GetDefaultSCIONDPath return default sciond path for a given IA
