@@ -19,6 +19,7 @@ import (
 	"time"
 
 	cache "github.com/patrickmn/go-cache"
+
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/revcache"
 )
