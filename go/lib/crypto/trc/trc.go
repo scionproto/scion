@@ -101,7 +101,7 @@ func (c CoreASMap) Contains(a addr.IA) bool {
 	return ok
 }
 
-// ASList returns a list of core ASes' addresses.
+// ASList returns a list of core ASes' IDs.
 func (c CoreASMap) ASList() []addr.IA {
 	l := make([]addr.IA, 0, len(c))
 	for key := range c {
