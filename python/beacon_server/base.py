@@ -31,6 +31,11 @@ from prometheus_client import Counter, Gauge
 from beacon_server.if_state import InterfaceState
 from lib.crypto.asymcrypto import get_sig_key
 from lib.crypto.symcrypto import kdf
+from lib.crypto.util import (
+    get_master_key,
+    MASTER_KEY_0,
+    MASTER_KEY_1
+)
 from lib.defines import (
     EXP_TIME_UNIT,
     GEN_CACHE_PATH,
@@ -134,11 +139,13 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
                          prom_export=prom_export, sciond_path=sciond_path)
         self.config = self._load_as_conf()
+        self.master_key_0 = get_master_key(self.conf_dir, MASTER_KEY_0)
+        self.master_key_1 = get_master_key(self.conf_dir, MASTER_KEY_1)
         # TODO: add 2 policies
         self.path_policy = PathPolicy.from_file(
             os.path.join(conf_dir, PATH_POLICY_FILE))
         self.signing_key = get_sig_key(self.conf_dir)
-        self.of_gen_key = kdf(self.config.master_as_key, b"Derive OF Key")
+        self.of_gen_key = kdf(self.master_key_0, b"Derive OF Key")
         # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
         self.default_hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT)
         self.ifid_state = {}

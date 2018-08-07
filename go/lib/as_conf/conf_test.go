@@ -18,8 +18,6 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 func Test_ASConf(t *testing.T) {
@@ -29,7 +27,7 @@ func Test_ASConf(t *testing.T) {
 		}
 		c := CurrConf
 		So(c, ShouldResemble, &ASConf{
-			1, util.B64Bytes("VV?=tJ\xae\x85s\r8\x9d\xfc\xe5\x94\xa5"), 21600, 5, true, 60,
+			1, 21600, 5, true, 60,
 		})
 	})
 }

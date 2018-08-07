@@ -32,6 +32,7 @@ from lib.crypto.certificate_chain import CertificateChain, verify_sig_chain_trc
 from lib.crypto.trc import TRC
 from lib.crypto.symcrypto import crypto_hash
 from lib.crypto.symcrypto import kdf
+from lib.crypto.util import get_master_key, MASTER_KEY_0
 from lib.defines import GEN_CACHE_PATH
 from lib.drkey.drkey_mgmt import (
     DRKeyMgmt,
@@ -156,6 +157,7 @@ class CertServer(SCIONElement):
                                       self._cached_certs_handler)
         self.drkey_cache = ZkSharedCache(self.zk, self.ZK_DRKEY_PATH,
                                          self._cached_drkeys_handler)
+        self.master_key = get_master_key(self.conf_dir, MASTER_KEY_0)
         self.signing_key = get_sig_key(self.conf_dir)
         self.private_key = get_enc_key(self.conf_dir)
         self.drkey_secrets = ExpiringDict(DRKEY_MAX_SV, DRKEY_MAX_TTL)
@@ -572,7 +574,7 @@ class CertServer(SCIONElement):
         """
         sv = self.drkey_secrets.get(exp_time)
         if not sv:
-            sv = DRKeySecretValue(kdf(self.config.master_as_key, b"Derive DRKey Key"), exp_time)
+            sv = DRKeySecretValue(kdf(self.master_key, b"Derive DRKey Key"), exp_time)
             self.drkey_secrets[sv.exp_time] = sv
         return sv
 

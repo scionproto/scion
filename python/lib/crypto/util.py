@@ -18,10 +18,34 @@
 Various utilities for SCION functionality.
 """
 # Stdlib
+import base64
 import os
+
+# SCION
+from lib.util import read_file
 
 CERT_DIR = 'certs'
 KEYS_DIR = 'keys'
+
+MASTER_KEY_0 = "master0.key"
+MASTER_KEY_1 = "master1.key"
+
+
+def get_master_key_file_path(conf_dir, master_key):
+    """
+    Return the master key file path.
+    """
+    return os.path.join(conf_dir, KEYS_DIR, master_key)
+
+
+def get_master_key(conf_dir, master_key):
+    """
+    Return the raw master key.
+
+    :rtype: bytes
+    """
+    return base64.b64decode(
+        read_file(get_master_key_file_path(conf_dir, master_key)))
 
 
 def get_online_key_file_path(conf_dir):
