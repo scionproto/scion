@@ -22,11 +22,11 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 func init() {
-	crypto.MathRandSeed()
+	scrypto.MathRandSeed()
 }
 
 type SetupFunc func() interface{}

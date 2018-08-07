@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 const (
@@ -52,7 +52,7 @@ func init() {
 	// used by configSig below.
 	sighup = make(chan os.Signal, 1)
 	signal.Notify(sighup, syscall.SIGHUP)
-	crypto.MathRandSeed()
+	scrypto.MathRandSeed()
 }
 
 // main initializes the certificate server and starts the dispatcher.

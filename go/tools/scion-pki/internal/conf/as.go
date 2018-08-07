@@ -23,7 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -47,8 +47,8 @@ const (
 )
 
 var (
-	validSignAlgorithms = []string{crypto.Ed25519}
-	validEncAlgorithms  = []string{crypto.Curve25519xSalsa20Poly1305}
+	validSignAlgorithms = []string{scrypto.Ed25519}
+	validEncAlgorithms  = []string{scrypto.Curve25519xSalsa20Poly1305}
 )
 
 // As contains the as.ini configuration parameters.
@@ -111,8 +111,8 @@ func NewTemplateAsConf(subject addr.IA, trcVer uint64, core bool) *As {
 		}
 		a.AsCert.Issuer = subject.String()
 		a.KeyAlgorithms = &KeyAlgorithms{
-			Online:  crypto.Ed25519,
-			Offline: crypto.Ed25519,
+			Online:  scrypto.Ed25519,
+			Offline: scrypto.Ed25519,
 		}
 	}
 	return a
@@ -180,13 +180,13 @@ type KeyAlgorithms struct {
 
 func (c *BaseCert) validate() error {
 	if c.EncAlgorithm == "" {
-		c.EncAlgorithm = crypto.Curve25519xSalsa20Poly1305
+		c.EncAlgorithm = scrypto.Curve25519xSalsa20Poly1305
 	}
 	if err := validateEncAlgorithm(c.EncAlgorithm); err != nil {
 		return err
 	}
 	if c.SignAlgorithm == "" {
-		c.SignAlgorithm = crypto.Ed25519
+		c.SignAlgorithm = scrypto.Ed25519
 	}
 	if err := validateSignAlgorithm(c.SignAlgorithm); err != nil {
 		return err
@@ -213,13 +213,13 @@ func (c *BaseCert) validate() error {
 
 func (ka *KeyAlgorithms) validate() error {
 	if ka.Online == "" {
-		ka.Online = crypto.Ed25519
+		ka.Online = scrypto.Ed25519
 	}
 	if err := validateSignAlgorithm(ka.Online); err != nil {
 		return err
 	}
 	if ka.Offline == "" {
-		ka.Offline = crypto.Ed25519
+		ka.Offline = scrypto.Ed25519
 	}
 	return validateSignAlgorithm(ka.Offline)
 }
@@ -244,8 +244,8 @@ func validateAlgorithm(algorithm string, valid []string, errMsg string) error {
 
 func NewTemplateCertConf(trcVer uint64) *BaseCert {
 	return &BaseCert{
-		EncAlgorithm:  crypto.Curve25519xSalsa20Poly1305,
-		SignAlgorithm: crypto.Ed25519,
+		EncAlgorithm:  scrypto.Curve25519xSalsa20Poly1305,
+		SignAlgorithm: scrypto.Ed25519,
 		Version:       1,
 		TRCVersion:    trcVer,
 	}

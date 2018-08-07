@@ -26,7 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -58,10 +58,10 @@ func Test_CertificateFromRaw(t *testing.T) {
 		SoMsg("err", err, ShouldEqual, nil)
 		SoMsg("CanIssue", cert.CanIssue, ShouldEqual, false)
 		SoMsg("Comment", cert.Comment, ShouldEqual, "AS Certificate☂☂☂☂")
-		SoMsg("EncAlgo", cert.EncAlgorithm, ShouldEqual, crypto.Curve25519xSalsa20Poly1305)
+		SoMsg("EncAlgo", cert.EncAlgorithm, ShouldEqual, scrypto.Curve25519xSalsa20Poly1305)
 		SoMsg("ExpTime", cert.ExpirationTime, ShouldEqual, 1539868933)
 		SoMsg("IssueTime", cert.IssuingTime, ShouldEqual, 1508332933)
-		SoMsg("SignAlgo", cert.SignAlgorithm, ShouldEqual, crypto.Ed25519)
+		SoMsg("SignAlgo", cert.SignAlgorithm, ShouldEqual, scrypto.Ed25519)
 		SoMsg("TRCVer", cert.TRCVersion, ShouldEqual, 2)
 		SoMsg("Ver", cert.Version, ShouldEqual, 1)
 		SoMsg("Issuer", cert.Issuer.String(), ShouldEqual, "1-ff00:0:310")
@@ -109,21 +109,21 @@ func Test_Certificate_Verify(t *testing.T) {
 
 		cert.IssuingTime = uint32(time.Now().Unix())
 		cert.ExpirationTime = cert.IssuingTime + 1<<20
-		cert.Sign(privRaw, crypto.Ed25519)
+		cert.Sign(privRaw, scrypto.Ed25519)
 
 		Convey("Certificate is verifiable", func() {
-			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, scrypto.Ed25519)
 			SoMsg("err", err, ShouldBeNil)
 		})
 
 		Convey("Wrong subject throws error", func() {
-			err := cert.Verify(addr.IA{I: 1, A: 14}, pubRaw, crypto.Ed25519)
+			err := cert.Verify(addr.IA{I: 1, A: 14}, pubRaw, scrypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 		Convey("Wrong pub throws error", func() {
 			pubRaw[0] ^= 0xFF
-			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, scrypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
@@ -134,23 +134,23 @@ func Test_Certificate_Verify(t *testing.T) {
 
 		Convey("Wrong signature throws error", func() {
 			cert.Signature[0] ^= 0xFF
-			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, scrypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 		Convey("Early usage throws error", func() {
 			cert.IssuingTime = uint32(time.Now().Unix()) + 1<<20
 			cert.ExpirationTime = cert.IssuingTime + 1<<20
-			cert.Sign(privRaw, crypto.Ed25519)
-			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
+			cert.Sign(privRaw, scrypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, scrypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 
 		Convey("Late usage throws error", func() {
 			cert.IssuingTime = uint32(time.Now().Unix()) - 1<<20
 			cert.ExpirationTime = uint32(time.Now().Unix()) - 1
-			cert.Sign(privRaw, crypto.Ed25519)
-			err := cert.Verify(subject, pubRaw, crypto.Ed25519)
+			cert.Sign(privRaw, scrypto.Ed25519)
+			err := cert.Verify(subject, pubRaw, scrypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
@@ -167,7 +167,7 @@ func xxxTest_Certificate_Sign(t *testing.T) {
 			0x58, 0x97, 0xd5, 0x1f, 0x5d, 0x3f, 0x6a, 0x91, 0xf6, 0xef, 0xcb, 0xda,
 			0xaf, 0x97, 0x9c, 0xdc, 0x06, 0x08, 0x53, 0x92, 0xe3, 0x75, 0x2d, 0x67,
 			0xed, 0x23, 0xf9, 0xfa, 0x9f}
-		err := cert.Sign(key, crypto.Ed25519)
+		err := cert.Sign(key, scrypto.Ed25519)
 		So(err, ShouldEqual, nil)
 		So(cert.Signature, ShouldResemble, rawSignature)
 	})

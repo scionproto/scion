@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -82,13 +82,13 @@ func Load(id, confDir string) (*Conf, error) {
 	hfGenKey := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive OF Key"), 1000, 16, sha256.New)
 
 	// First check for MAC creation errors.
-	if _, err = crypto.InitMac(hfGenKey); err != nil {
+	if _, err = scrypto.InitMac(hfGenKey); err != nil {
 		return nil, err
 	}
 	// Create a pool of MAC instances.
 	conf.HFMacPool = sync.Pool{
 		New: func() interface{} {
-			mac, _ := crypto.InitMac(hfGenKey)
+			mac, _ := scrypto.InitMac(hfGenKey)
 			return mac
 		},
 	}

@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/crypto/cert"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
 
