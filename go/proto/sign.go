@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -56,7 +56,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 	case SignType_none:
 		return nil, nil
 	case SignType_ed25519:
-		return crypto.Sign(s.sigPack(message, false), key, crypto.Ed25519)
+		return scrypto.Sign(s.sigPack(message, false), key, scrypto.Ed25519)
 	}
 	return nil, common.NewBasicError("SignS.Sign: Unsupported SignType", nil, "type", s.Type)
 }
@@ -81,7 +81,7 @@ func (s *SignS) Verify(key, message common.RawBytes) error {
 	case SignType_none:
 		return nil
 	case SignType_ed25519:
-		return crypto.Verify(s.sigPack(message, false), s.Signature, key, crypto.Ed25519)
+		return scrypto.Verify(s.sigPack(message, false), s.Signature, key, scrypto.Ed25519)
 	}
 	return common.NewBasicError("SignS.Verify: Unsupported SignType", nil, "type", s.Type)
 }

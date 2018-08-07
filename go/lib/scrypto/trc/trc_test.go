@@ -29,7 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -73,7 +73,7 @@ func Test_TRCFromRaw(t *testing.T) {
 			SoMsg("1-ff00:0:300", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}], ShouldNotBeNil)
 			SoMsg("1-ff00:0:301", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000301}], ShouldNotBeNil)
 			SoMsg("1-ff00:0:302", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000302}], ShouldNotBeNil)
-			entry := &CoreAS{OfflineKeyAlg: crypto.Ed25519, OnlineKeyAlg: crypto.Ed25519}
+			entry := &CoreAS{OfflineKeyAlg: scrypto.Ed25519, OnlineKeyAlg: scrypto.Ed25519}
 			entry.OfflineKey = []byte{0x2b, 0x75, 0x84, 0xd7, 0xb4, 0x3d, 0xb3, 0xff,
 				0x38, 0x76, 0x38, 0x9d, 0xd3, 0x44, 0x51, 0x12, 0x77, 0xba, 0x48,
 				0x93, 0xd0, 0x0b, 0xb8, 0x29, 0x61, 0x20, 0x0b, 0x47, 0x69, 0xaf,
@@ -92,7 +92,7 @@ func Test_TRCFromRaw(t *testing.T) {
 				0xba, 0xca, 0x6e, 0x3f, 0xb5, 0x49, 0x54, 0x21, 0xbd, 0x4f, 0x02,
 				0x7d, 0x6d, 0xbc, 0xc6, 0x41, 0xd9, 0xf5, 0x83, 0x05, 0x65, 0x1b,
 				0x12, 0x31, 0xff, 0x7c, 0x51, 0xdc, 0x2b, 0xfa, 0xc1})
-			SoMsg("OnlineKeyAlg", trc.RAINS.OnlineKeyAlg, ShouldResemble, crypto.Ed25519)
+			SoMsg("OnlineKeyAlg", trc.RAINS.OnlineKeyAlg, ShouldResemble, scrypto.Ed25519)
 			SoMsg("RootRAINSKey", trc.RAINS.RootRAINSKey, ShouldResemble,
 				common.RawBytes{0x23, 0xbe, 0x50, 0x51, 0x7d, 0x67, 0x7a, 0x71,
 					0xfe, 0x2c, 0x18, 0x91, 0xe2, 0x50, 0x5e, 0x8f, 0x7f, 0x72,
@@ -108,7 +108,7 @@ func Test_TRCFromRaw(t *testing.T) {
 			SoMsg("CA1-1", trc.RootCAs["CA1-1"], ShouldNotBeNil)
 			SoMsg("CA1-2", trc.RootCAs["CA1-2"], ShouldNotBeNil)
 			SoMsg("CA1-3", trc.RootCAs["CA1-3"], ShouldNotBeNil)
-			entry := &RootCA{OnlineKeyAlg: crypto.Ed25519}
+			entry := &RootCA{OnlineKeyAlg: scrypto.Ed25519}
 			entry.ARPKIKey = []byte{0x20, 0x88, 0xbe, 0xac, 0xd2, 0xd7, 0xc7, 0x66,
 				0x38, 0xe8, 0x7d, 0xf0, 0x16, 0x2b, 0x7c, 0x25, 0xda, 0x23, 0x3d,
 				0xca, 0x8a, 0xea, 0x16, 0x9c, 0xd6, 0x24, 0x3e, 0x22, 0x9e, 0x1a,
@@ -215,8 +215,8 @@ func xxxTest_TRC_Sign(t *testing.T) {
 	Convey("Sign should sign TRC correctly", t, func() {
 		trc := loadTRC(fnTRC, t)
 		packd, _ := trc.sigPack()
-		err := crypto.Verify(packd, trc.Signatures["1-ff00:0:300"],
-			trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}].OnlineKey, crypto.Ed25519)
+		err := scrypto.Verify(packd, trc.Signatures["1-ff00:0:300"],
+			trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}].OnlineKey, scrypto.Ed25519)
 		SoMsg("err", err, ShouldBeNil)
 		key := []byte{0xaf, 0x00, 0x0e, 0xb6, 0x26, 0x4f, 0xbd, 0x20, 0xd1, 0x36, 0xed,
 			0xae, 0x42, 0x65, 0xeb, 0x29, 0x15, 0x8e, 0xa6, 0x35, 0xef, 0x3d, 0x2a,
@@ -227,7 +227,7 @@ func xxxTest_TRC_Sign(t *testing.T) {
 		orig := trc.Signatures["1-ff00:0:300"]
 		_ = orig
 		delete(trc.Signatures, "1-ff00:0:300")
-		trc.Sign("1-ff00:0:300", key, crypto.Ed25519)
+		trc.Sign("1-ff00:0:300", key, scrypto.Ed25519)
 		SoMsg("Equal signature", trc.Signatures["1-ff00:0:300"], ShouldResemble, orig)
 	})
 }

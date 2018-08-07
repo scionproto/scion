@@ -24,13 +24,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
-	"github.com/scionproto/scion/go/lib/crypto/cert"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -197,7 +197,7 @@ func (c *Conf) loadStore() error {
 	c.Store, err = trust.NewStore(
 		c.TrustDB,
 		c.Topo.ISD_AS,
-		crypto.RandUint64(),
+		scrypto.RandUint64(),
 		&trust.Config{
 			MustHaveLocalChain: true,
 		},

@@ -29,11 +29,11 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"

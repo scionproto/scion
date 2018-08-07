@@ -29,7 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -257,7 +257,7 @@ func (t *TRC) Sign(name string, signKey common.RawBytes, signAlgo string) error 
 	if err != nil {
 		return common.NewBasicError("Unable to pack TRC for signing", err)
 	}
-	sig, err := crypto.Sign(sigInput, signKey, signAlgo)
+	sig, err := scrypto.Sign(sigInput, signKey, signAlgo)
 	if err != nil {
 		return common.NewBasicError("Unable to create signature", err)
 	}
@@ -310,7 +310,7 @@ func (t *TRC) verifySignatures(old *TRC) (*TRCVerResult, error) {
 			tvr.Failed[signer] = common.NewBasicError(SignatureMissing, nil, "as", signer)
 			continue
 		}
-		err = crypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
+		err = scrypto.Verify(sigInput, sig, coreAS.OnlineKey, coreAS.OnlineKeyAlg)
 		if err == nil {
 			tvr.Verified = append(tvr.Verified, signer)
 		} else {

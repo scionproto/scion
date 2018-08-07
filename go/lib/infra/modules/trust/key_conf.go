@@ -24,7 +24,7 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 type KeyConf struct {
@@ -62,23 +62,23 @@ func LoadKeyConf(path string, issSigKey, onKey, offKey bool) (*KeyConf, error) {
 	conf := &KeyConf{}
 	var err error
 	conf.DecryptKey, err = loadKeyCond(filepath.Join(path, DecKeyFile),
-		crypto.Curve25519xSalsa20Poly1305, true)
+		scrypto.Curve25519xSalsa20Poly1305, true)
 	if err != nil {
 		return nil, err
 	}
-	conf.SignKey, err = loadKeyCond(filepath.Join(path, SigKeyFile), crypto.Ed25519, true)
+	conf.SignKey, err = loadKeyCond(filepath.Join(path, SigKeyFile), scrypto.Ed25519, true)
 	if err != nil {
 		return nil, err
 	}
-	conf.IssSigKey, err = loadKeyCond(filepath.Join(path, IssSigKeyFile), crypto.Ed25519, issSigKey)
+	conf.IssSigKey, err = loadKeyCond(filepath.Join(path, IssSigKeyFile), scrypto.Ed25519, issSigKey)
 	if err != nil {
 		return nil, err
 	}
-	conf.OffRootKey, err = loadKeyCond(filepath.Join(path, OffKeyFile), crypto.Ed25519, offKey)
+	conf.OffRootKey, err = loadKeyCond(filepath.Join(path, OffKeyFile), scrypto.Ed25519, offKey)
 	if err != nil {
 		return nil, err
 	}
-	conf.OnRootKey, err = loadKeyCond(filepath.Join(path, OnKeyFile), crypto.Ed25519, onKey)
+	conf.OnRootKey, err = loadKeyCond(filepath.Join(path, OnKeyFile), scrypto.Ed25519, onKey)
 	if err != nil {
 		return nil, err
 	}
@@ -105,9 +105,9 @@ func LoadKey(file string, algo string) (common.RawBytes, error) {
 	}
 	dbuf = dbuf[:n]
 	switch strings.ToLower(algo) {
-	case RawKey, crypto.Curve25519xSalsa20Poly1305:
+	case RawKey, scrypto.Curve25519xSalsa20Poly1305:
 		return dbuf, nil
-	case crypto.Ed25519:
+	case scrypto.Ed25519:
 		return common.RawBytes(ed25519.NewKeyFromSeed(dbuf)), nil
 	default:
 		return nil, common.NewBasicError(ErrorUnknown, nil, "algo", algo)

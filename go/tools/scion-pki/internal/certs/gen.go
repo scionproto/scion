@@ -26,9 +26,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto/cert"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )

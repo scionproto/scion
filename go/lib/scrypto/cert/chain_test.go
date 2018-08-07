@@ -25,8 +25,8 @@ import (
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/crypto"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
@@ -110,12 +110,12 @@ func Test_Chain_Verify(t *testing.T) {
 
 		chain.Leaf.IssuingTime = uint32(time.Now().Unix())
 		chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
-		chain.Leaf.Sign(privCoreRaw, crypto.Ed25519)
+		chain.Leaf.Sign(privCoreRaw, scrypto.Ed25519)
 
 		chain.Issuer.SubjectSignKey = pubCoreRaw
 		chain.Issuer.IssuingTime = uint32(time.Now().Unix())
 		chain.Issuer.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
-		chain.Issuer.Sign(privTRCRaw, crypto.Ed25519)
+		chain.Issuer.Sign(privTRCRaw, scrypto.Ed25519)
 
 		trc_.CoreASes[chain.Issuer.Issuer].OnlineKey = pubTRCRaw
 		trc_.ExpirationTime = chain.Issuer.ExpirationTime

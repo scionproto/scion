@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/proto"
 )
 

@@ -30,9 +30,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -53,7 +53,7 @@ func init() {
 	os.Setenv("TZ", "UTC")
 	sighupC = make(chan os.Signal, 1)
 	signal.Notify(sighupC, syscall.SIGHUP)
-	crypto.MathRandSeed()
+	scrypto.MathRandSeed()
 }
 
 type General struct {

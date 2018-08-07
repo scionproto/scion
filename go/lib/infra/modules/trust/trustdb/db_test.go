@@ -22,8 +22,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/crypto/cert"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
 
 func TestTRC(t *testing.T) {

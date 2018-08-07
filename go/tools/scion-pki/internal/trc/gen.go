@@ -24,9 +24,9 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -110,11 +110,11 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 			return nil, common.NewBasicError(fmt.Sprintf("'%s' section missing from as.ini",
 				conf.KeyAlgSectionName), nil, "path", cpath)
 		}
-		as.OnlineKeyAlg = crypto.Ed25519
+		as.OnlineKeyAlg = scrypto.Ed25519
 		if a.KeyAlgorithms.Online != "" {
 			as.OnlineKeyAlg = a.KeyAlgorithms.Online
 		}
-		as.OfflineKeyAlg = crypto.Ed25519
+		as.OfflineKeyAlg = scrypto.Ed25519
 		if a.KeyAlgorithms.Offline != "" {
 			as.OfflineKeyAlg = a.KeyAlgorithms.Offline
 		}
@@ -157,7 +157,7 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 
 func getPubKey(privKey common.RawBytes, keyType string) (common.RawBytes, error) {
 	switch keyType {
-	case crypto.Ed25519:
+	case scrypto.Ed25519:
 		return common.RawBytes(ed25519.PrivateKey(privKey).Public().(ed25519.PublicKey)), nil
 	}
 	return nil, common.NewBasicError("Unsupported key type", nil, "type", keyType)

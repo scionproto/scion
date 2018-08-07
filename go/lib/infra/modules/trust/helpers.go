@@ -19,11 +19,11 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
-	"github.com/scionproto/scion/go/lib/crypto/cert"
-	"github.com/scionproto/scion/go/lib/crypto/trc"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/scrypto"
+	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -44,7 +44,7 @@ func CreateSign(ia addr.IA, store infra.TrustStore) (*proto.SignS, error) {
 	}
 	var sigType proto.SignType
 	switch c.Leaf.SignAlgorithm {
-	case crypto.Ed25519:
+	case scrypto.Ed25519:
 		sigType = proto.SignType_ed25519
 	default:
 		return nil, common.NewBasicError("Unsupported signing algorithm", nil, "algo",

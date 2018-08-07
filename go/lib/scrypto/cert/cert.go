@@ -26,7 +26,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -131,7 +131,7 @@ func (c *Certificate) VerifySignature(verifyKey common.RawBytes, signAlgo string
 	if err != nil {
 		return common.NewBasicError(UnableSigPack, err)
 	}
-	return crypto.Verify(sigInput, c.Signature, verifyKey, signAlgo)
+	return scrypto.Verify(sigInput, c.Signature, verifyKey, signAlgo)
 }
 
 // Sign adds signature to the certificate. The signature is computed over the certificate
@@ -141,7 +141,7 @@ func (c *Certificate) Sign(signKey common.RawBytes, signAlgo string) error {
 	if err != nil {
 		return err
 	}
-	sig, err := crypto.Sign(sigInput, signKey, signAlgo)
+	sig, err := scrypto.Sign(sigInput, signKey, signAlgo)
 	if err != nil {
 		return err
 	}

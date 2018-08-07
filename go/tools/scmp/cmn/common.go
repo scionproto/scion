@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/crypto"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spkt"
@@ -64,7 +64,7 @@ func init() {
 	flag.Usage = scmpUsage
 	Stats = &ScmpStats{}
 	Start = time.Now()
-	crypto.MathRandSeed()
+	scrypto.MathRandSeed()
 }
 
 func scmpUsage() {
