@@ -17,6 +17,7 @@
 """
 # Stdlib
 import logging
+from collections import defaultdict
 
 # SCION
 from lib.defines import GEN_CACHE_PATH
@@ -105,49 +106,128 @@ class LocalPathServer(PathServer):
             self._request_paths_from_core(req, logger)
         return False
 
+    def _segs_from_buckets(self, buckets, total_segs):
+        """
+        Returns a set of reachable core ASes from all available segments.
+        """
+        segs = []
+        ias = set()
+        while total_segs > 0:
+            for core_ia in buckets:
+                if len(segs) == self.MAX_SEG_NO:
+                    return segs
+                if len(buckets[core_ia]) > 0:
+                    segs.append(buckets[core_ia].pop(0))
+                    total_segs -= 1
+                    ias.add(core_ia)
+        return segs, ias
+
+    def _core_segs(self, first_ias, last_ias, sibra):
+        buckets = {}
+        num_segs = 0
+        for first_ia in first_ias:
+            for last_ia in last_ias:
+                csegs = self.core_segments(first_ia=first_ia, last_ia=last_ia, sibra=sibra)
+                if csegs:
+                    buckets[(first_ia, last_ia)] = csegs
+                    num_segs += len(csegs)
+        return buckets, num_segs
+
+    def _up_segs(self, sibra):
+        # Get list of reachable core ASes (core ASes that we have up segments for).
+        buckets = defaultdict(list)
+        num_segs = 0
+        for useg in self.up_segments(sibra=sibra, full=True):
+            buckets[useg.first_ia()].append(useg)
+            num_segs += 1
+        return buckets, num_segs
+
+    def _down_segs(self, ia, sibra):
+        # Get list of reachable core ASes (core ASes that we have down segments for).
+        buckets = defaultdict(list)
+        num_segs = 0
+        for dseg in self.down_segments(last_ia=ia, sibra=sibra, full=True):
+            buckets[dseg.first_ia()].append(dseg)
+            num_segs += 1
+        return buckets, num_segs
+
+    def _first_last_ias(self, ias):
+        first_ias = set()
+        last_ias = set()
+        for (first, last) in ias:
+            first_ias.add(first)
+            last_ias.add(last)
+        return first_ias, last_ias
+
+    def _filter_buckets(self, buckets, ias):
+        filtered_buckets = {}
+        num_segs = 0
+        for ia in ias:
+            bucket = buckets[ia]
+            filtered_buckets[ia] = bucket
+            num_segs += len(bucket)
+        return filtered_buckets, num_segs
+
     def _resolve_core(self, req, up_segs, core_segs):
         """
-        Dst is core AS.
+        Dst is core as.
         """
         dst_ia = req.dst_ia()
-        params = dst_ia.params()
-        params["sibra"] = req.p.flags.sibra
+        sibra = req.p.flags.sibra
         if dst_ia[0] == self.addr.isd_as[0]:
             # Dst in local ISD. First check whether DST is a (super)-parent.
-            up_segs.update(self.up_segments(**params))
-        # Check whether dst is known core AS.
-        for cseg in self.core_segments(**params):
-            # Check do we have an up-seg that is connected to core_seg.
-            tmp_up_segs = self.up_segments(first_ia=cseg.last_ia(),
-                                           sibra=req.p.flags.sibra)
-            if tmp_up_segs:
-                up_segs.update(tmp_up_segs)
-                core_segs.add(cseg)
+            up_segs.update(self.up_segments(first_ia=dst_ia, sibra=sibra))
+        # Get list of reachable core ASes (core ASes that we have up segments for).
+        buckets_up, num_up_segs = self._up_segs(sibra)
+        # Get core segments between the destination and each reachable core AS.
+        buckets_core, num_core_segs = self._core_segs([dst_ia], buckets_up.keys(), sibra)
+        # Get usable core segments
+        segs, ias = self._segs_from_buckets(buckets_core, num_core_segs)
+        if segs:
+            core_segs.update(segs)
+            first_ias, last_ias = self._first_last_ias(ias)
+            # In this use case, first_ias is always the destination core AS
+            buckets, num_segs = self._filter_buckets(buckets_up, last_ias)
+            segs, ias = self._segs_from_buckets(buckets, num_segs)
+            up_segs.update(segs)
 
     def _resolve_not_core(self, req, up_segs, core_segs, down_segs):
         """
         Dst is regular AS.
         """
+        dst_ia = req.dst_ia()
         sibra = req.p.flags.sibra
-        # Check if there exists down-seg to DST.
-        for dseg in self.down_segments(last_ia=req.dst_ia(), sibra=sibra):
-            first_ia = dseg.first_ia()
-            if req.dst_ia()[0] == self.addr.isd_as[0]:
-                # Dst in local ISD. First try to find direct up-seg.
-                dir_up_segs = self.up_segments(first_ia=first_ia, sibra=sibra)
-                if dir_up_segs:
-                    up_segs.update(dir_up_segs)
-                    down_segs.add(dseg)
-            # Now try core segments that connect to down segment.
-            # PSz: it might make sense to start with up_segments instead.
-            for cseg in self.core_segments(first_ia=first_ia, sibra=sibra):
-                # And up segments that connect to core segment.
-                up_core_segs = self.up_segments(first_ia=cseg.last_ia(),
-                                                sibra=sibra)
-                if up_core_segs:
-                    up_segs.update(up_core_segs)
-                    core_segs.add(cseg)
-                    down_segs.add(dseg)
+        buckets_up, num_up_segs = self._up_segs(sibra)
+        buckets_down, num_down_segs = self._down_segs(dst_ia, sibra)
+        up_core_ias = set(buckets_up.keys())
+        down_core_ias = set(buckets_down.keys())
+        buckets_core, num_core_segs = self._core_segs(down_core_ias, up_core_ias, sibra)
+        common_core_ias = up_core_ias & down_core_ias
+        for ia in common_core_ias:
+            # Dst in local ISD. First add paths that do not require a core segment.
+            # Get up segments to common core AS
+            bucket = buckets_up[ia]
+            up_segs.update(bucket)
+            buckets_up[ia] = {}
+            num_up_segs -= len(bucket)
+            # Get down segments to common core AS
+            bucket = buckets_down[ia]
+            down_segs.update(bucket)
+            buckets_down[ia] = {}
+            num_down_segs -= len(bucket)
+        # Get usable core segments
+        segs, ias = self._segs_from_buckets(buckets_core, num_core_segs)
+        if segs:
+            core_segs.update(segs)
+            first_ias, last_ias = self._first_last_ias(ias)
+            # Up segments
+            buckets, num_segs = self._filter_buckets(buckets_up, last_ias)
+            segs, ias = self._segs_from_buckets(buckets, num_segs)
+            up_segs.update(segs)
+            # Down segments
+            buckets, num_segs = self._filter_buckets(buckets_down, first_ias)
+            segs, ias = self._segs_from_buckets(buckets, num_segs)
+            down_segs.update(segs)
 
     def _request_paths_from_core(self, req, logger):
         """
