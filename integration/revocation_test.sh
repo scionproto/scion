@@ -19,6 +19,37 @@ log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"
 }
 
+run_docker() {
+    cmd="$@"
+    docker container exec $container bash -c "PYTHONPATH=python/:. $cmd"
+    return $?
+}
+
+run() {
+    test="${1:?}"
+    shift
+    log "$test: starting"
+    if [ -z "$container" ]; then
+        time $@
+    else
+        time run_docker "$@"
+    fi
+    local result=$?
+    if [ $result -eq 0 ]; then
+        log "$test: success"
+    else
+        log "$test: failure"
+    fi
+    return $result
+}
+
+# See if docker is wanted and get the testing container
+if [ "$1" = "docker" ]; then
+    shift
+    container="${1:-scion_ci}"
+    shift
+fi
+
 for br in "$@"; do
     if ! ./scion.sh mstatus "$br"; then
         log "${br} does not exist. Skipping revocation test."
@@ -29,6 +60,7 @@ done
 export PYTHONPATH=python/:.
 # Bring down routers.
 SLEEP=4
+log "Revocation: starting"
 log "Stopping routers and waiting for ${SLEEP}s."
 ./scion.sh mstop "$@"
 if [ $? -ne 0 ]; then
@@ -38,9 +70,5 @@ fi
 sleep ${SLEEP}s
 # Do another round of e2e test with retries
 log "Testing connectivity between all the hosts (with retries)."
-python/integration/end2end_test.py -l ERROR --retries 3
-result=$?
-if [ $result -ne 0 ]; then
-    log "E2E test with failed routers failed. (${result})"
-fi
-exit ${result}
+run Revocation "python/integration/end2end_test.py -l ERROR --retries 3"
+exit $?

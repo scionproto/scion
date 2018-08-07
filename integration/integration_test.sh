@@ -29,14 +29,26 @@ shutdown() {
     log "Scion stopped"
 }
 
+run_docker() {
+    cmd="$@"
+    docker container exec $container bash -c "PYTHONPATH=python/:. $cmd"
+    return $?
+}
+
 run() {
-    log "${1:?}: starting"
-    time ${2:?}
+    test="${1:?}"
+    shift
+    log "$test: starting"
+    if [ -z "$container" ]; then
+        time $@
+    else
+        time run_docker "$@"
+    fi
     local result=$?
     if [ $result -eq 0 ]; then
-        log "$1: success"
+        log "$test: success"
     else
-        log "$1: failure"
+        log "$test: failure"
     fi
     return $result
 }
@@ -49,37 +61,47 @@ log "Starting scion (without building)"
 log "Scion status:"
 ./scion.sh status || exit 1
 
-sleep 5
-# Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
-[ -n "$CIRCLECI" ] && sleep 10
+# See if docker is wanted and get the testing container
+if [ "$1" = "docker" ]; then
+    shift
+    container="${1:-scion_ci}"
+    docker inspect "$container" &>/dev/null || \
+    { echo "Container $container not found, aborting!"; shutdown; exit 1; }
+    shift
+fi
 
-cat << EOF | parallel --no-notice -n2 -j2 run
-End2End
-python/integration/end2end_test.py -l ERROR
-C2S_extn
-python/integration/cli_srv_ext_test.py -l ERROR
-SCMP error
-python/integration/scmp_error_test.py -l ERROR --runs 60
-Cert/TRC request
-python/integration/cert_req_test.py -l ERROR
-EOF
+sleep 5
+
+# Run integration tests
+run End2End python/integration/end2end_test.py -l ERROR
 result=$?
+run C2S_extn python/integration/cli_srv_ext_test.py -l ERROR
+result=$((result+$?))
+run SCMP_error python/integration/scmp_error_test.py -l ERROR --runs 60
+result=$((result+$?))
+run Cert/TRC_request python/integration/cert_req_test.py -l ERROR
+result=$((result+$?))
 
 # Run go integration test
 GO_INFRA_TEST="go test -tags infrarunning"
 for i in ./go/lib/{snet,pathmgr,infra/disp}; do
-    ${GO_INFRA_TEST} $i
+    run "Go Infra: $i" ${GO_INFRA_TEST} $i
     result=$((result+$?))
 done
 
 # Run (new) go integration tests
 for i in ./bin/*_integration; do
-    $i
+    run "Go Integration: $i" "$i"
     result=$((result+$?))
 done
 
-run Revocation "integration/revocation_test.sh\
- ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
+if [ -z $container ]; then
+    integration/revocation_test.sh\
+    ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}
+else
+    integration/revocation_test.sh docker $container\
+    ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}
+fi
 result=$((result+$?))
 
 shutdown

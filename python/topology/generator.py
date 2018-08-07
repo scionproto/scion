@@ -106,7 +106,7 @@ DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
 HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
-DOCKER_CONF = 'docker-compose.yml'
+DOCKER_CONF = 'scion-dc.yml'
 COMMON_DIR = 'endhost'
 
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
@@ -134,6 +134,9 @@ THRESHOLD_EEPKI = 0
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
+
+DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
+ZOOKEEPER_ADDR = "172.18.0.1"
 
 SCION_SERVICE_NAMES = (
     "BeaconService",
@@ -748,8 +751,8 @@ class TopoGenerator(object):
         zk_conf = {}
         if "zookeepers" in self.topo_config.get("defaults", {}):
             zk_conf = self.topo_config["defaults"]["zookeepers"]
-        if self.docker and "docker-zks" in self.topo_config.get("defaults", {}):
-            zk_conf = self.topo_config["defaults"]["docker-zks"]
+        if self.docker:
+            zk_conf[1] = {'addr': ZOOKEEPER_ADDR}
         for key, val in zk_conf.items():
             self._gen_zk_entry(topo_id, key, val)
 
@@ -1022,9 +1025,10 @@ class DockerGenerator(object):
     def __init__(self, out_dir, topo_dicts, cs):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self.dc_conf = {'version': '3', 'services': {}}
+        self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
 
     def generate(self):
+        self._base_conf()
         self._zookeeper_conf()
         self._dispatcher_conf()
         for topo_id, topo in self.topo_dicts.items():
@@ -1036,6 +1040,10 @@ class DockerGenerator(object):
             self._sciond_conf(topo_id, base)
         write_file(os.path.join(self.out_dir, DOCKER_CONF),
                    yaml.dump(self.dc_conf, default_flow_style=False))
+
+    def _base_conf(self):
+        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
+        self.dc_conf['networks']['default'] = default_net
 
     def _br_conf(self, topo, base):
         raw_entry = {
