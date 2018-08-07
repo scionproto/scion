@@ -78,7 +78,8 @@ func Load(id, confDir string) (*Conf, error) {
 	}
 	conf.ASConf = as_conf.CurrConf
 	// Load master keys
-	if conf.MasterKeys, err = as_conf.LoadMasterKeys(conf.Dir); err != nil {
+	conf.MasterKeys, err = as_conf.LoadMasterKeys(filepath.Join(conf.Dir, "keys"))
+	if err != nil {
 		return nil, common.NewBasicError("Unable to load master keys", err)
 	}
 	// Generate keys

@@ -33,13 +33,13 @@ type MasterKeys struct {
 	Key1 common.RawBytes
 }
 
-func LoadMasterKeys(confDir string) (*MasterKeys, error) {
+func LoadMasterKeys(keyDir string) (*MasterKeys, error) {
 	var err error
 	keys := &MasterKeys{}
-	if keys.Key0, err = loadMasterKey(filepath.Join(confDir, "keys", MasterKey0)); err != nil {
+	if keys.Key0, err = loadMasterKey(filepath.Join(keyDir, MasterKey0)); err != nil {
 		return nil, err
 	}
-	if keys.Key1, err = loadMasterKey(filepath.Join(confDir, "keys", MasterKey1)); err != nil {
+	if keys.Key1, err = loadMasterKey(filepath.Join(keyDir, MasterKey1)); err != nil {
 		return nil, err
 	}
 	return keys, nil
