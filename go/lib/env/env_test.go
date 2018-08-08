@@ -15,7 +15,6 @@
 package env
 
 import (
-	"io/ioutil"
 	"testing"
 
 	"github.com/BurntSushi/toml"
@@ -40,14 +39,8 @@ func TestLoadBase(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 		err = InitLogging(&cfg.Logging)
 		SoMsg("err", err, ShouldBeNil)
-		err = InitInfra(&cfg.Infra, cfg.General.ID, ioutil.Discard, cfg.General.Topology)
-		SoMsg("err", err, ShouldBeNil)
 
 		SoMsg("specific topology is preferred", cfg.General.TopologyPath, ShouldEqual,
 			"testdata/dir/topology.json")
-		SoMsg("topology bind is preferred", cfg.Infra.Bind.String(), ShouldEqual,
-			"1-ff00:0:110,[127.0.0.55]:30073")
-		SoMsg("topology public is preferred", cfg.Infra.Public.String(), ShouldEqual,
-			"1-ff00:0:110,[127.0.0.55]:30073")
 	})
 }

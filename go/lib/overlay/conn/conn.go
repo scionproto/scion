@@ -168,9 +168,12 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 	var laddr, raddr *net.UDPAddr
 	var c *net.UDPConn
 	var err error
-	// XXX Should we not send an error if listen == nil ?
-	if listen != nil {
-		laddr = &net.UDPAddr{IP: listen.L3().IP(), Port: int(listen.L4().Port())}
+	if listen == nil {
+		return common.NewBasicError("listen address must be specified", nil)
+	}
+	laddr = listen.ToUDPAddr()
+	if laddr == nil {
+		return common.NewBasicError("Invalid listen address", nil)
 	}
 	if remote == nil {
 		if c, err = net.ListenUDP(network, laddr); err != nil {
@@ -178,7 +181,10 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 				"network", network, "listen", listen)
 		}
 	} else {
-		raddr = &net.UDPAddr{IP: remote.L3().IP(), Port: int(remote.L4().Port())}
+		raddr = remote.ToUDPAddr()
+		if raddr == nil {
+			return common.NewBasicError("Invalid remote address", nil)
+		}
 		if c, err = net.DialUDP(network, laddr, raddr); err != nil {
 			return common.NewBasicError("Error setting up connection", err,
 				"network", network, "listen", listen, "remote", remote)
