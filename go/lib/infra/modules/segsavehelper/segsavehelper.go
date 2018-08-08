@@ -1,4 +1,4 @@
-// Copyright 2018 Anapaya Systems
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package segstorage
+package segsavehelper
 
 import (
 	"context"
@@ -28,24 +28,9 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-type SegStorage struct {
-	conn     conn.Conn
-	revcache revcache.RevCache
-	log      log.Logger
-}
-
-// New creates a SegStorage from the given conn and revcache.
-// The log is used during operations on the segstorage.
-func New(conn conn.Conn, revcache revcache.RevCache, log log.Logger) *SegStorage {
-	return &SegStorage{
-		conn:     conn,
-		revcache: revcache,
-		log:      log,
-	}
-}
-
 // VerifyAndStore verifies recs and revInfos and stores them in the SegStorage.
-func (s *SegStorage) VerifyAndStore(ctx context.Context,
+func VerifyAndStore(ctx context.Context,
+	conn conn.Conn, rcache revcache.RevCache, log log.Logger,
 	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) error {
 	units := segverifier.BuildUnits(recs, revInfos)
 	unitResultsC := make(chan segverifier.UnitResult, len(units))
@@ -57,26 +42,26 @@ Loop:
 		select {
 		case result := <-unitResultsC:
 			if err, ok := result.Errors[-1]; ok {
-				s.log.Info("Segment verification failed",
+				log.Info("Segment verification failed",
 					"segment", result.Unit.SegMeta.Segment, "err", err)
 			} else {
 				// Verification succeeded
-				n, err := s.conn.Insert(ctx, &result.Unit.SegMeta.Segment,
+				n, err := conn.Insert(ctx, &result.Unit.SegMeta.Segment,
 					[]proto.PathSegType{result.Unit.SegMeta.Type})
 				if err != nil {
-					s.log.Warn("Unable to insert segment into path database",
+					log.Warn("Unable to insert segment into path database",
 						"segment", result.Unit.SegMeta.Segment, "err", err)
 					return err
 				}
 				if n > 0 {
-					s.log.Debug("Inserted segment into path database",
+					log.Debug("Inserted segment into path database",
 						"segment", result.Unit.SegMeta.Segment)
 				}
 			}
 			// Insert successfully verified revocations into the revcache
 			for index, revocation := range result.Unit.SRevInfos {
 				if err, ok := result.Errors[index]; ok {
-					s.log.Info("Revocation verification failed",
+					log.Info("Revocation verification failed",
 						"revocation", revocation, "err", err)
 				} else {
 					// Verification succeeded for this revocation, so we can add it to the cache
@@ -85,7 +70,7 @@ Loop:
 						// This should be caught during network message sanitization
 						panic(err)
 					}
-					s.revcache.Set(
+					rcache.Set(
 						revcache.NewKey(info.IA(), common.IFIDType(info.IfID)),
 						revocation,
 						info.RelativeTTL(time.Now()),
