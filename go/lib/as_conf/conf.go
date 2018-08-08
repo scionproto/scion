@@ -21,16 +21,14 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/util"
 )
 
 type ASConf struct {
-	CertChainVersion int           `yaml:"CertChainVersion"`
-	MasterASKey      util.B64Bytes `yaml:"MasterASKey"`
-	PathSegmentTTL   int           `yaml:"PathSegmentTTL"`
-	PropagateTime    int           `yaml:"PropagateTime"`
-	RegisterPath     bool          `yaml:"RegisterPath"`
-	RegisterTime     int           `yaml:"RegisterTime"`
+	CertChainVersion int  `yaml:"CertChainVersion"`
+	PathSegmentTTL   int  `yaml:"PathSegmentTTL"`
+	PropagateTime    int  `yaml:"PropagateTime"`
+	RegisterPath     bool `yaml:"RegisterPath"`
+	RegisterTime     int  `yaml:"RegisterTime"`
 }
 
 const CfgName = "as.yml"

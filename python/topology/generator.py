@@ -62,6 +62,10 @@ from lib.crypto.util import (
     get_ca_private_key_file_path,
     get_offline_key_file_path,
     get_online_key_file_path,
+    get_master_key,
+    get_master_key_file_path,
+    MASTER_KEY_0,
+    MASTER_KEY_1,
 )
 from lib.defines import (
     AS_CONF_FILE,
@@ -231,6 +235,7 @@ class ConfigGenerator(object):
         self._write_trust_files(topo_dicts, trc_files)
         self._write_cust_files(topo_dicts, cust_files)
         self._write_conf_policies(topo_dicts)
+        self._write_master_keys(topo_dicts)
         self._write_networks_conf(networks, NETWORKS_FILE)
         if self.gen_bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
@@ -317,9 +322,7 @@ class ConfigGenerator(object):
         PathPolicy.from_file(self.path_policy_file)
 
     def _gen_as_conf(self, as_topo):
-        master_as_key = base64.b64encode(os.urandom(16))
         return {
-            'MasterASKey': master_as_key.decode("utf-8"),
             'RegisterTime': 5,
             'PropagateTime': 5,
             'CertChainVersion': 0,
@@ -327,6 +330,26 @@ class ConfigGenerator(object):
             'RegisterPath': True if as_topo["PathService"] else False,
             'PathSegmentTTL': self.pseg_ttl,
         }
+
+    def _write_master_keys(self, topo_dicts):
+        """
+        Write AS master keys.
+        """
+        master_keys = {}
+        for topo_id, as_topo, base in _srv_iter(
+                topo_dicts, self.out_dir, common=True):
+
+            master_keys.setdefault(topo_id, self._gen_master_keys())
+            write_file(get_master_key_file_path(base, MASTER_KEY_0),
+                       base64.b64encode(master_keys[topo_id][0]).decode())
+            write_file(get_master_key_file_path(base, MASTER_KEY_1),
+                       base64.b64encode(master_keys[topo_id][1]).decode())
+            # Confirm that keys parse correctly.
+            assert get_master_key(base, MASTER_KEY_0) == master_keys[topo_id][0]
+            assert get_master_key(base, MASTER_KEY_1) == master_keys[topo_id][1]
+
+    def _gen_master_keys(self):
+        return os.urandom(16), os.urandom(16)
 
     def _write_networks_conf(self, networks, out_file):
         config = configparser.ConfigParser(interpolation=None)

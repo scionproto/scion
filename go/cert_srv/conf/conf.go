@@ -58,6 +58,10 @@ type Conf struct {
 	// Topo contains the names of all local infrastructure elements, a map
 	// of interface IDs to routers, and the actual topology.
 	Topo *topology.Topo
+	// ASConf is the local AS configuration.
+	ASConf *as_conf.ASConf
+	// MasterKeys holds the local AS master keys.
+	MasterKeys *as_conf.MasterKeys
 	// BindAddr is the local bind address.
 	BindAddr *snet.Addr
 	// PublicAddr is the public address.
@@ -110,6 +114,12 @@ func Load(id string, confDir string, stateDir string) (*Conf, error) {
 	if err := c.loadTopo(); err != nil {
 		return nil, err
 	}
+	if err := c.loadAsConf(); err != nil {
+		return nil, err
+	}
+	if err := c.loadMasterKeys(); err != nil {
+		return nil, err
+	}
 	if err := c.loadTrustDB(); err != nil {
 		return nil, err
 	}
@@ -153,6 +163,12 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 	if err := c.loadTopo(); err != nil {
 		return nil, err
 	}
+	if err := c.loadAsConf(); err != nil {
+		return nil, err
+	}
+	if err := c.loadMasterKeys(); err != nil {
+		return nil, err
+	}
 	if err := c.loadStore(); err != nil {
 		return nil, err
 	}
@@ -187,6 +203,25 @@ func (c *Conf) loadTopo() error {
 		L4Port: uint16(bindInfo.L4Port)}
 	if !tmpBind.EqAddr(c.PublicAddr) {
 		c.BindAddr = tmpBind
+	}
+	return nil
+}
+
+// loadASConf loads the local AS configuration.
+func (c *Conf) loadAsConf() error {
+	if err := as_conf.Load(filepath.Join(c.ConfDir, as_conf.CfgName)); err != nil {
+		return common.NewBasicError("Unable to load ASConf", err)
+	}
+	c.ASConf = as_conf.CurrConf
+	return nil
+}
+
+// loadMasterKeys loads the local AS master keys.
+func (c *Conf) loadMasterKeys() error {
+	var err error
+	c.MasterKeys, err = as_conf.LoadMasterKeys(filepath.Join(c.ConfDir, "keys"))
+	if err != nil {
+		return common.NewBasicError("Unable to load master keys", err)
 	}
 	return nil
 }

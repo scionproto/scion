@@ -42,6 +42,8 @@ type Conf struct {
 	BR *topology.BRInfo
 	// ASConf is the local AS configuration.
 	ASConf *as_conf.ASConf
+	// MasterKeys holds the local AS master keys.
+	MasterKeys *as_conf.MasterKeys
 	// HFMacPool is the pool of Hop Field MAC generation instances.
 	HFMacPool sync.Pool
 	// Net is the network configuration of this router.
@@ -75,11 +77,15 @@ func Load(id, confDir string) (*Conf, error) {
 		return nil, err
 	}
 	conf.ASConf = as_conf.CurrConf
-
+	// Load master keys
+	conf.MasterKeys, err = as_conf.LoadMasterKeys(filepath.Join(conf.Dir, "keys"))
+	if err != nil {
+		return nil, common.NewBasicError("Unable to load master keys", err)
+	}
 	// Generate keys
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(conf.ASConf.MasterASKey, []byte("Derive OF Key"), 1000, 16, sha256.New)
+	hfGenKey := pbkdf2.Key(conf.MasterKeys.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
 
 	// First check for MAC creation errors.
 	if _, err = scrypto.InitMac(hfGenKey); err != nil {

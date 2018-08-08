@@ -1,4 +1,4 @@
-// Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,16 +18,19 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
-func Test_ASConf(t *testing.T) {
-	Convey("Loading test config `testdata/basic.yml`", t, func() {
-		if err := Load("testdata/basic.yml"); err != nil {
+func Test_MasterKeys(t *testing.T) {
+	Convey("Loading test master keys `testdata/masterX.key`", t, func() {
+		keys, err := LoadMasterKeys("testdata")
+		if err != nil {
 			t.Fatalf("Error loading config: %v", err)
 		}
-		c := CurrConf
-		So(c, ShouldResemble, &ASConf{
-			1, 21600, 5, true, 60,
-		})
+		SoMsg("Key0", keys.Key0, ShouldResemble,
+			common.RawBytes("\xac\x93\x08{\xb5\x1c\x1d41\x9b\xd9u\xdd;\x88\xdc"))
+		SoMsg("Key1", keys.Key1, ShouldResemble,
+			common.RawBytes("X\x89\xff9\xa2\x12_#\x82-\xe8J4w\x0c*"))
 	})
 }

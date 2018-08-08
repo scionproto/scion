@@ -25,15 +25,11 @@ import (
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/nacl/box"
 
+	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
-)
-
-const (
-	seedFileExt    = ".seed"
-	masterKeyFname = "master.key"
 )
 
 func runGenKey(args []string) {
@@ -66,8 +62,11 @@ func genAll(outDir string, core bool) error {
 	if err := genKey(trust.DecKeyFile, outDir, genEncKey); err != nil {
 		return err
 	}
-	// Generate AS master key.
-	if err := genKey(masterKeyFname, outDir, genMasterKey); err != nil {
+	// Generate AS master keys.
+	if err := genKey(as_conf.MasterKey0, outDir, genMasterKey); err != nil {
+		return err
+	}
+	if err := genKey(as_conf.MasterKey1, outDir, genMasterKey); err != nil {
 		return err
 	}
 	if !core {

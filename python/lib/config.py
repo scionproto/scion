@@ -15,8 +15,6 @@
 :mod:`config` --- SCION configuration parser
 ============================================
 """
-# Stdlib
-import base64
 
 # SCION
 from lib.defines import DEFAULT_SEGMENT_TTL
@@ -28,7 +26,6 @@ class Config(object):
     The Config class parses the configuration file of an AS and stores such
     information for further use.
 
-    :ivar bytes master_as_key: AS certificate servers priv key.
     :ivar int propagation_time: the interval at which PCBs are propagated.
     :ivar int registration_time: the interval at which paths are registered.
     :ivar int registers_paths: whether or not the AS registers paths.
@@ -37,7 +34,6 @@ class Config(object):
     """
 
     def __init__(self):  # pragma: no cover
-        self.master_as_key = 0
         self.propagation_time = 0
         self.registration_time = 0
         self.registers_paths = 0
@@ -74,7 +70,6 @@ class Config(object):
 
         :param dict config: the name of the configuration file.
         """
-        self.master_as_key = base64.b64decode(config['MasterASKey'])
         self.propagation_time = config['PropagateTime']
         self.registration_time = config['RegisterTime']
         self.registers_paths = config['RegisterPath']
