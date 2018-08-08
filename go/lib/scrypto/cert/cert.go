@@ -102,7 +102,7 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 		return common.NewBasicError(InvalidSubject, nil,
 			"expected", c.Subject, "actual", subject)
 	}
-	if err := c.VerifyTime(uint32(time.Now().Unix())); err != nil {
+	if err := c.VerifyTime(util.TimeToSecs(time.Now())); err != nil {
 		return err
 	}
 	return c.VerifySignature(verifyKey, signAlgo)
@@ -113,13 +113,13 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 func (c *Certificate) VerifyTime(ts uint32) error {
 	if ts < c.IssuingTime {
 		return common.NewBasicError(EarlyUsage, nil,
-			"IssuingTime", util.TimeToString(util.USecsToTime(c.IssuingTime)),
-			"current", util.TimeToString(util.USecsToTime(ts)))
+			"IssuingTime", util.TimeToString(util.SecsToTime(c.IssuingTime)),
+			"current", util.TimeToString(util.SecsToTime(ts)))
 	}
 	if ts > c.ExpirationTime {
 		return common.NewBasicError(Expired, nil,
-			"ExpirationTime", util.TimeToString(util.USecsToTime(c.ExpirationTime)),
-			"current", util.TimeToString(util.USecsToTime(ts)))
+			"ExpirationTime", util.TimeToString(util.SecsToTime(c.ExpirationTime)),
+			"current", util.TimeToString(util.SecsToTime(ts)))
 	}
 	return nil
 }

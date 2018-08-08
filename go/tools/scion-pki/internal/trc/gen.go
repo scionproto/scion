@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
 )
@@ -79,7 +80,7 @@ func genTrc(isd addr.ISD) error {
 func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 	issuingTime := iconf.Trc.IssuingTime
 	if issuingTime == 0 {
-		issuingTime = uint32(time.Now().Unix())
+		issuingTime = util.TimeToSecs(time.Now())
 	}
 	t := &trc.TRC{
 		CreationTime:   iconf.Trc.IssuingTime,

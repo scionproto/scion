@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -99,7 +100,7 @@ func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRep
 			PathReplyEntry{
 				Path: &FwdPathMeta{
 					Interfaces: pathInterfaces,
-					ExpTime:    uint32(time.Now().Add(spath.MaxTTL * time.Second).Unix()),
+					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				},
 				HostInfo: HostInfo{
 				// TODO(scrye): leave nil for now since no tests use this

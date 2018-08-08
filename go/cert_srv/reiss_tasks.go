@@ -113,7 +113,7 @@ func (s *SelfIssuer) createLeafCert(leaf *cert.Certificate, config *conf.Conf) e
 	}
 	chain := &cert.Chain{Leaf: leaf.Copy(), Issuer: issCrt}
 	chain.Leaf.Version += 1
-	chain.Leaf.IssuingTime = uint32(time.Now().Unix())
+	chain.Leaf.IssuingTime = util.TimeToSecs(time.Now())
 	chain.Leaf.CanIssue = false
 	chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + cert.DefaultLeafCertValidity
 	if chain.Issuer.ExpirationTime < chain.Leaf.ExpirationTime {
@@ -146,7 +146,7 @@ func (s *SelfIssuer) createIssuerCert(config *conf.Conf) error {
 		return err
 	}
 	crt.Version += 1
-	crt.IssuingTime = uint32(time.Now().Unix())
+	crt.IssuingTime = util.TimeToSecs(time.Now())
 	crt.CanIssue = true
 	crt.ExpirationTime = crt.IssuingTime + cert.DefaultIssuerCertValidity
 	coreAS, err := s.getCoreASEntry(config)
@@ -233,7 +233,7 @@ func (r *ReissRequester) Run() {
 				panic(err)
 			}
 			now := time.Now()
-			exp := util.USecsToTime(chain.Leaf.ExpirationTime)
+			exp := util.SecsToTime(chain.Leaf.ExpirationTime)
 			diff := exp.Sub(now)
 			if diff < 0 {
 				log.Error("[ReissRequester] Certificate expired without being reissued",
@@ -259,7 +259,7 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 
 	defer cancelF()
 	c := chain.Leaf.Copy()
-	c.IssuingTime = uint32(time.Now().Unix())
+	c.IssuingTime = util.TimeToSecs(time.Now())
 	c.ExpirationTime = c.IssuingTime + (chain.Leaf.ExpirationTime - chain.Leaf.IssuingTime)
 	c.Version += 1
 	if err := c.Sign(config.GetSigningKey(), chain.Leaf.SignAlgorithm); err != nil {

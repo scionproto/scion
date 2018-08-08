@@ -207,7 +207,7 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 					FwdPath:    []byte{},
 					Mtu:        uint16(f.topology.MTU),
 					Interfaces: []sciond.PathInterface{},
-					ExpTime:    uint32(time.Now().Add(spath.MaxTTL * time.Second).Unix()),
+					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				},
 			},
 		}
@@ -229,7 +229,7 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 				FwdPath:    x.Bytes(),
 				Mtu:        path.Mtu,
 				Interfaces: path.Interfaces,
-				ExpTime:    uint32(path.ExpTime.Unix()),
+				ExpTime:    util.TimeToSecs(path.ExpTime),
 			},
 			HostInfo: sciond.HostInfo{
 				Addrs: struct {

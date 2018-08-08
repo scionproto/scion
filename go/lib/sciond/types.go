@@ -197,7 +197,7 @@ func (fpm *FwdPathMeta) DstIA() addr.IA {
 }
 
 func (fpm *FwdPathMeta) Expiry() time.Time {
-	return util.USecsToTime(fpm.ExpTime)
+	return util.SecsToTime(fpm.ExpTime)
 }
 
 func (fpm *FwdPathMeta) String() string {

@@ -63,7 +63,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 
 func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 	var err error
-	s.Timestamp = uint32(time.Now().Unix())
+	s.Timestamp = util.TimeToSecs(time.Now())
 	s.Signature, err = s.Sign(key, message)
 	return err
 }
@@ -71,7 +71,7 @@ func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 // Time returns the timestamp. If the receiver is nil, the zero value is returned.
 func (s *SignS) Time() time.Time {
 	if s != nil {
-		return util.USecsToTime(s.Timestamp)
+		return util.SecsToTime(s.Timestamp)
 	}
 	return time.Time{}
 }
