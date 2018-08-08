@@ -38,7 +38,7 @@ fi
 sleep ${SLEEP}s
 # Do another round of e2e test with retries
 log "Testing connectivity between all the hosts (with retries)."
-python/integration/end2end_test.py -l ERROR --retries 3
+python/integration/end2end_test.py -l ERROR --retries 5
 result=$?
 if [ $result -ne 0 ]; then
     log "E2E test with failed routers failed. (${result})"
