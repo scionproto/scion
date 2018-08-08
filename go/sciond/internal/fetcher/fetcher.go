@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
+	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -378,8 +379,21 @@ func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 	if timer != nil {
 		defer timer.Stop()
 	}
-	segsaver.VerifyAndStore(ctx, f.pathDB, f.revocationCache, log.Root(),
-		reply.Recs.Recs, reply.Recs.SRevInfos)
+	// verify and store the segments
+	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
+		segsaver.StoreSeg(ctx, s, f.pathDB, f.logger)
+	}
+	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
+		segsaver.StoreRevocation(rev, f.revocationCache)
+	}
+	segErr := func(s *seg.Meta, err error) {
+		f.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
+	}
+	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
+		f.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
+	}
+	segverifier.Verify(ctx, reply.Recs.Recs, reply.Recs.SRevInfos,
+		verifiedSeg, verifiedRev, segErr, revErr)
 }
 
 func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
