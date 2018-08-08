@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
-	"github.com/scionproto/scion/go/lib/infra/modules/segsavehelper"
+	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -378,7 +378,7 @@ func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 	if timer != nil {
 		defer timer.Stop()
 	}
-	segsavehelper.VerifyAndStore(ctx, f.pathDB, f.revocationCache, log.Root(),
+	segsaver.VerifyAndStore(ctx, f.pathDB, f.revocationCache, log.Root(),
 		reply.Recs.Recs, reply.Recs.SRevInfos)
 }
 
