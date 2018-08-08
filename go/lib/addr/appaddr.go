@@ -28,21 +28,15 @@ func (a *AppAddr) Copy() *AppAddr {
 }
 
 func (a *AppAddr) Eq(o *AppAddr) bool {
-	if (a == nil) && (o == nil) {
-		return true
-	}
 	if (a == nil) || (o == nil) {
-		return false
+		return a == o
 	}
 	return a.L3.Eq(o.L3) && a.L4.Eq(o.L4)
 }
 
 func (a *AppAddr) EqType(o *AppAddr) bool {
-	if (a == nil) && (o == nil) {
-		return true
-	}
 	if (a == nil) || (o == nil) {
-		return false
+		return a == o
 	}
 	return a.L3.Type() == o.L3.Type() && a.L4.Type() == o.L4.Type()
 }
@@ -54,5 +48,8 @@ func (a *AppAddr) Network() string {
 }
 
 func (a *AppAddr) String() string {
-	return fmt.Sprintf("[%s]:%s", a.L3, a.L4)
+	if a.L4 != nil {
+		return fmt.Sprintf("[%v]:%d", a.L3, a.L4.Port())
+	}
+	return fmt.Sprintf("[%v]", a.L3)
 }
