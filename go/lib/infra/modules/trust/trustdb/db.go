@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -173,6 +173,11 @@ func New(path string) (*DB, error) {
 			db.db.Close()
 		}
 	}()
+	// prevent weird errors. (see https://stackoverflow.com/a/35805826)
+	db.db.SetMaxOpenConns(1)
+	if _, err = db.db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return nil, common.NewBasicError("Unable to set WAL journal mode", err)
+	}
 	if db.getIssCertVersionStmt, err = db.db.Prepare(getIssCertVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getIssCertVersion", err)
 	}
