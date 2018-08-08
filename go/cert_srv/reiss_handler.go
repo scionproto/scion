@@ -181,7 +181,7 @@ func (h *ReissHandler) issueChain(ctx context.Context, c *cert.Certificate, vKey
 	chain := &cert.Chain{Leaf: c.Copy(), Issuer: issCert}
 	chain.Leaf.CanIssue = false
 	chain.Leaf.TRCVersion = chain.Issuer.TRCVersion
-	chain.Leaf.IssuingTime = util.TimeToUSecs(time.Now())
+	chain.Leaf.IssuingTime = util.TimeToSecs(time.Now())
 	chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + cert.DefaultLeafCertValidity
 	// Leaf certificate must expire before issuer certificate
 	if chain.Issuer.ExpirationTime < chain.Leaf.ExpirationTime {

@@ -239,9 +239,9 @@ func Test_TRC_CheckActive(t *testing.T) {
 		t2 := loadTRC(fnTRC, t)
 		t2.Version += 1
 
-		t1.CreationTime = util.TimeToUSecs(time.Now())
+		t1.CreationTime = util.TimeToSecs(time.Now())
 		t1.ExpirationTime = t1.CreationTime + 1<<20
-		t2.CreationTime = util.TimeToUSecs(time.Now())
+		t2.CreationTime = util.TimeToSecs(time.Now())
 		t2.ExpirationTime = t2.CreationTime + 1<<20
 
 		Convey("TRC is active", func() {
@@ -249,12 +249,12 @@ func Test_TRC_CheckActive(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("Early usage", func() {
-			t1.CreationTime = util.TimeToUSecs(time.Now()) + 1<<20
+			t1.CreationTime = util.TimeToSecs(time.Now()) + 1<<20
 			err := t1.IsActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
 		Convey("Late usage", func() {
-			t1.ExpirationTime = util.TimeToUSecs(time.Now()) - 1<<20
+			t1.ExpirationTime = util.TimeToSecs(time.Now()) - 1<<20
 			err := t1.IsActive(t2)
 			SoMsg("err", err, ShouldNotBeNil)
 		})

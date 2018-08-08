@@ -100,7 +100,7 @@ func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRep
 			PathReplyEntry{
 				Path: &FwdPathMeta{
 					Interfaces: pathInterfaces,
-					ExpTime:    util.TimeToUSecs(time.Now().Add(spath.MaxTTL * time.Second)),
+					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				},
 				HostInfo: HostInfo{
 				// TODO(scrye): leave nil for now since no tests use this

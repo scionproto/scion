@@ -113,7 +113,7 @@ type Trc struct {
 
 func (t *Trc) validate() error {
 	if t.IssuingTime == 0 {
-		t.IssuingTime = util.TimeToUSecs(time.Now())
+		t.IssuingTime = util.TimeToSecs(time.Now())
 	}
 	if t.Version == 0 {
 		return common.NewBasicError(ErrTrcVersionNotSet, nil)

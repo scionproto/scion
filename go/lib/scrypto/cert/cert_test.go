@@ -108,7 +108,7 @@ func Test_Certificate_Verify(t *testing.T) {
 		subject := addr.IA{I: 1, A: 0xff0000000311}
 		pubRaw, privRaw := []byte(pub), []byte(priv)
 
-		cert.IssuingTime = util.TimeToUSecs(time.Now())
+		cert.IssuingTime = util.TimeToSecs(time.Now())
 		cert.ExpirationTime = cert.IssuingTime + 1<<20
 		cert.Sign(privRaw, scrypto.Ed25519)
 
@@ -140,7 +140,7 @@ func Test_Certificate_Verify(t *testing.T) {
 		})
 
 		Convey("Early usage throws error", func() {
-			cert.IssuingTime = util.TimeToUSecs(time.Now()) + 1<<20
+			cert.IssuingTime = util.TimeToSecs(time.Now()) + 1<<20
 			cert.ExpirationTime = cert.IssuingTime + 1<<20
 			cert.Sign(privRaw, scrypto.Ed25519)
 			err := cert.Verify(subject, pubRaw, scrypto.Ed25519)
@@ -148,8 +148,8 @@ func Test_Certificate_Verify(t *testing.T) {
 		})
 
 		Convey("Late usage throws error", func() {
-			cert.IssuingTime = util.TimeToUSecs(time.Now()) - 1<<20
-			cert.ExpirationTime = util.TimeToUSecs(time.Now()) - 1
+			cert.IssuingTime = util.TimeToSecs(time.Now()) - 1<<20
+			cert.ExpirationTime = util.TimeToSecs(time.Now()) - 1
 			cert.Sign(privRaw, scrypto.Ed25519)
 			err := cert.Verify(subject, pubRaw, scrypto.Ed25519)
 			SoMsg("err", err, ShouldNotBeNil)

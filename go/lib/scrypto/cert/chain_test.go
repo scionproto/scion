@@ -109,12 +109,12 @@ func Test_Chain_Verify(t *testing.T) {
 		pubTRCRaw, privTRCRaw := []byte(pub), []byte(priv)
 		trc_ := loadTRC(fnTRC, t)
 
-		chain.Leaf.IssuingTime = util.TimeToUSecs(time.Now())
+		chain.Leaf.IssuingTime = util.TimeToSecs(time.Now())
 		chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
 		chain.Leaf.Sign(privCoreRaw, scrypto.Ed25519)
 
 		chain.Issuer.SubjectSignKey = pubCoreRaw
-		chain.Issuer.IssuingTime = util.TimeToUSecs(time.Now())
+		chain.Issuer.IssuingTime = util.TimeToSecs(time.Now())
 		chain.Issuer.ExpirationTime = chain.Leaf.IssuingTime + 1<<20
 		chain.Issuer.Sign(privTRCRaw, scrypto.Ed25519)
 

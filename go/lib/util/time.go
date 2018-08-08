@@ -20,13 +20,13 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// USecsToTime takes seconds stored in a uint32.
-func USecsToTime(t uint32) time.Time {
+// SecsToTime takes seconds stored in a uint32.
+func SecsToTime(t uint32) time.Time {
 	return time.Unix(int64(t), 0)
 }
 
-// TimeToUSecs returns seconds stored as uint32.
-func TimeToUSecs(t time.Time) uint32 {
+// TimeToSecs returns seconds stored as uint32.
+func TimeToSecs(t time.Time) uint32 {
 	return uint32(t.Unix())
 }
 

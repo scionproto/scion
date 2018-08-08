@@ -80,7 +80,7 @@ func genTrc(isd addr.ISD) error {
 func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 	issuingTime := iconf.Trc.IssuingTime
 	if issuingTime == 0 {
-		issuingTime = util.TimeToUSecs(time.Now())
+		issuingTime = util.TimeToSecs(time.Now())
 	}
 	t := &trc.TRC{
 		CreationTime:   iconf.Trc.IssuingTime,

@@ -157,13 +157,13 @@ func ChainFromSlice(certs []*Certificate) (*Chain, error) {
 func (c *Chain) Verify(subject addr.IA, t *trc.TRC) error {
 	if c.Leaf.IssuingTime < c.Issuer.IssuingTime {
 		return common.NewBasicError(LeafIssuedBefore, nil,
-			"leaf", util.TimeToString(util.USecsToTime(c.Leaf.IssuingTime)),
-			"issuer", util.TimeToString(util.USecsToTime(c.Issuer.IssuingTime)))
+			"leaf", util.TimeToString(util.SecsToTime(c.Leaf.IssuingTime)),
+			"issuer", util.TimeToString(util.SecsToTime(c.Issuer.IssuingTime)))
 	}
 	if c.Leaf.ExpirationTime > c.Issuer.ExpirationTime {
 		return common.NewBasicError(LeafExpiresAfter, nil,
-			"leaf", util.TimeToString(util.USecsToTime(c.Leaf.ExpirationTime)),
-			"issuer", util.TimeToString(util.USecsToTime(c.Issuer.ExpirationTime)))
+			"leaf", util.TimeToString(util.SecsToTime(c.Leaf.ExpirationTime)),
+			"issuer", util.TimeToString(util.SecsToTime(c.Issuer.ExpirationTime)))
 	}
 	if !c.Issuer.CanIssue {
 		return common.NewBasicError(IssCertInvalid, nil, "CanIssue", false)
@@ -173,8 +173,8 @@ func (c *Chain) Verify(subject addr.IA, t *trc.TRC) error {
 	}
 	if c.Issuer.ExpirationTime > t.ExpirationTime {
 		return common.NewBasicError(IssExpiresAfter, nil,
-			"issuer", util.TimeToString(util.USecsToTime(c.Issuer.ExpirationTime)),
-			"TRC", util.TimeToString(util.USecsToTime(t.ExpirationTime)))
+			"issuer", util.TimeToString(util.SecsToTime(c.Issuer.ExpirationTime)),
+			"TRC", util.TimeToString(util.SecsToTime(t.ExpirationTime)))
 	}
 	coreAS, ok := t.CoreASes[c.Issuer.Issuer]
 	if !ok {

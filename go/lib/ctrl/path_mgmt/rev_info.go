@@ -68,7 +68,7 @@ func (r *RevInfo) IA() addr.IA {
 }
 
 func (r *RevInfo) Timestamp() time.Time {
-	return util.USecsToTime(r.RawTimestamp)
+	return util.SecsToTime(r.RawTimestamp)
 }
 
 func (r *RevInfo) TTL() time.Duration {
