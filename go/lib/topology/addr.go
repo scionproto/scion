@@ -125,15 +125,6 @@ func (t *TopoAddr) fromRAI(s *RawAddrInfo) error {
 			t.IPv6.bind = &addr.AppAddr{L3: l3, L4: l4}
 		}
 	}
-	// Use Public as Bind address if Bind was not specified
-	// Check IPv4
-	if t.IPv4 != nil && t.IPv4.bind == nil {
-		t.IPv4.bind = t.IPv4.pub
-	}
-	// Check IPv6
-	if t.IPv6 != nil && t.IPv6.bind == nil {
-		t.IPv6.bind = t.IPv6.pub
-	}
 	return nil
 }
 
@@ -163,6 +154,10 @@ func (t *TopoAddr) BindAddr(ot overlay.Type) *addr.AppAddr {
 
 func (t *TopoAddr) OverlayAddr(ot overlay.Type) *overlay.OverlayAddr {
 	return t.getAddr(ot).OverlayAddr()
+}
+
+func (t *TopoAddr) PublicOrBind(ot overlay.Type) *addr.AppAddr {
+	return t.getAddr(ot).PublicOrBind()
 }
 
 func (t *TopoAddr) getAddr(ot overlay.Type) *pubBindAddr {
@@ -223,6 +218,13 @@ func (t *pubBindAddr) BindAddr() *addr.AppAddr {
 
 func (t *pubBindAddr) OverlayAddr() *overlay.OverlayAddr {
 	return t.overlay
+}
+
+func (t *pubBindAddr) PublicOrBind() *addr.AppAddr {
+	if t.bind == nil {
+		return t.pub
+	}
+	return t.bind
 }
 
 func (t1 *pubBindAddr) equal(t2 *pubBindAddr) bool {

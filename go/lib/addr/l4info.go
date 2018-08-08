@@ -60,5 +60,5 @@ func (a *l4AddrInfo) Eq(other L4Info) bool {
 }
 
 func (l *l4AddrInfo) String() string {
-	return fmt.Sprintf("%d", l.port)
+	return fmt.Sprintf("%d (%s)", l.port, l.pType)
 }

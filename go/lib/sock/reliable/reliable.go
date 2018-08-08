@@ -154,15 +154,14 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *addr.AppAddr, 
 	timeout time.Duration) (*Conn, uint16, error) {
 
 	if public == nil {
-		return nil, 0, common.NewBasicError("Cannot register without public address", nil,
-			"public", public)
+		return nil, 0, common.NewBasicError("Cannot register without public address", nil)
 	}
 	// Check address is IP
 	switch public.L3.Type() {
-	case addr.HostTypeIPv4:
-	case addr.HostTypeIPv6:
+	case addr.HostTypeIPv4, addr.HostTypeIPv6:
 	default:
-		return nil, 0, common.NewBasicError("Public is not an IP address", nil)
+		return nil, 0, common.NewBasicError("Public is not an IP address", nil,
+			"public", public)
 	}
 	if bind != nil && !public.EqType(bind) {
 		return nil, 0, common.NewBasicError("Different public/bind addresses types", nil,
@@ -389,7 +388,7 @@ func (conn *Conn) copyNextPacket(msg *Msg) (bool, error) {
 	return true, nil
 }
 
-// WriteTo block until it sends buf as a single framed message through conn.
+// WriteTo blocks until it sends buf as a single framed message through conn.
 // The ReliableSocket message header will contain the address and port information in dst.
 // On error, the number of bytes returned is meaningless. On success, the number of bytes
 // is always len(buf).
@@ -530,7 +529,7 @@ func (conn *Conn) copyMsg(msg *Msg, index, copiedMsgs int) (int, int, error) {
 func appAddrFromRaw(buf common.RawBytes) (*overlay.OverlayAddr, error) {
 	addrLen := len(buf) - 2
 	ip := net.IP(buf[:addrLen])
-	if ip.To4() == nil && ip.To16() == nil {
+	if ip.To16() == nil {
 		return nil, common.NewBasicError("Address is not IP", nil)
 	}
 	port := common.Order.Uint16(buf[addrLen:])

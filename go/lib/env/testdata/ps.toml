@@ -39,10 +39,6 @@
 [infra]
   # Node type. Must be one of BS, PS, CS, RS or DS.
   Type = "PS"
-  # Public address
-  Public = "1-ff00:0:110,[127.0.1.1]:50000"
-  # Bind address
-  Bind = "1-ff00:0:110,[127.0.1.1]:50000"
 
 [trust]
   # Database for trust information. If a file already exists, it is treated as

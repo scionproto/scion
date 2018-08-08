@@ -58,9 +58,7 @@ func mkPBO(pub, bind addr.HostAddr, port, bindport, op int) *pubBindAddr {
 	if port != 0 {
 		pbo.pub.L4 = addr.NewL4Info(common.L4UDP, uint16(port))
 	}
-	if bind == nil {
-		pbo.bind = pbo.pub
-	} else {
+	if bind != nil {
 		pbo.bind = &addr.AppAddr{L3: bind}
 		if bindport != 0 {
 			pbo.bind.L4 = addr.NewL4Info(common.L4UDP, uint16(bindport))

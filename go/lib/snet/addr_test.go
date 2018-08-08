@@ -39,8 +39,8 @@ func Test_Addr_String(t *testing.T) {
 		address *Addr
 		result  string
 	}{
-		{address: &Addr{IA: ia, Host: host4}, result: "1-ff00:0:320,[1.2.3.4]:10000"},
-		{address: &Addr{IA: ia, Host: host6}, result: "1-ff00:0:320,[2001::1]:20000"},
+		{address: &Addr{IA: ia, Host: host4}, result: "1-ff00:0:320,[1.2.3.4]:10000 (UDP)"},
+		{address: &Addr{IA: ia, Host: host6}, result: "1-ff00:0:320,[2001::1]:20000 (UDP)"},
 	}
 	Convey("Method String", t, func() {
 		for _, test := range tests {

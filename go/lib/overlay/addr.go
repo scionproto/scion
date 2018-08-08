@@ -16,6 +16,7 @@ package overlay
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -29,11 +30,18 @@ type OverlayAddr struct {
 func NewOverlayAddr(l3 addr.HostAddr, l4 addr.L4Info) (*OverlayAddr, error) {
 	if l3 == nil {
 		return nil, common.NewBasicError("L3 required", nil)
-	} else if l3.Type() != addr.HostTypeIPv4 && l3.Type() != addr.HostTypeIPv6 {
+	}
+	switch l3.Type() {
+	case addr.HostTypeIPv4, addr.HostTypeIPv6:
+	default:
 		return nil, common.NewBasicError("Unsupported L3 protocol", nil, "type", l3.Type())
 	}
-	if l4 != nil && l4.Type() != common.L4UDP {
-		return nil, common.NewBasicError("Unsupported L4 protocol", nil, "type", l4.Type())
+	if l4 != nil {
+		switch l4.Type() {
+		case common.L4UDP:
+		default:
+			return nil, common.NewBasicError("Unsupported L4 protocol", nil, "type", l4.Type())
+		}
 	}
 	return &OverlayAddr{l3: l3, l4: l4}, nil
 }
@@ -97,5 +105,15 @@ func (a *OverlayAddr) Network() string {
 }
 
 func (a *OverlayAddr) String() string {
-	return fmt.Sprintf("[%s]:%s", a.l3, a.l4)
+	if a.l4 != nil {
+		return fmt.Sprintf("[%s]:%d", a.l3, a.l4.Port())
+	}
+	return fmt.Sprintf("[%s]", a.l3)
+}
+
+func (a *OverlayAddr) ToUDPAddr() *net.UDPAddr {
+	if a.l3 == nil || a.l4 == nil || a.l4.Type() != common.L4UDP {
+		return nil
+	}
+	return &net.UDPAddr{IP: a.l3.IP(), Port: int(a.l4.Port())}
 }
