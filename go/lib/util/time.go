@@ -25,9 +25,9 @@ func USecsToTime(t uint32) time.Time {
 	return time.Unix(int64(t), 0)
 }
 
-// SecsToTime takes seconds stored in a int64.
-func SecsToTime(t int64) time.Time {
-	return time.Unix(t, 0)
+// TimeToUSecs returns seconds stored as uint32.
+func TimeToUSecs(t time.Time) uint32 {
+	return uint32(t.Unix())
 }
 
 func TimeToString(t time.Time) string {

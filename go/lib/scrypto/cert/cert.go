@@ -102,7 +102,7 @@ func (c *Certificate) Verify(subject addr.IA, verifyKey common.RawBytes, signAlg
 		return common.NewBasicError(InvalidSubject, nil,
 			"expected", c.Subject, "actual", subject)
 	}
-	if err := c.VerifyTime(uint32(time.Now().Unix())); err != nil {
+	if err := c.VerifyTime(util.TimeToUSecs(time.Now())); err != nil {
 		return err
 	}
 	return c.VerifySignature(verifyKey, signAlgo)

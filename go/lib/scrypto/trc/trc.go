@@ -229,7 +229,7 @@ func (t *TRC) IsActive(maxTRC *TRC) error {
 	if t.Quarantine {
 		return common.NewBasicError(EarlyAnnouncement, nil)
 	}
-	currTime := uint32(time.Now().Unix())
+	currTime := util.TimeToUSecs(time.Now())
 	if currTime < t.CreationTime {
 		return common.NewBasicError(EarlyUsage, nil,
 			"now", timeToString(currTime), "creation", timeToString(t.CreationTime))

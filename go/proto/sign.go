@@ -63,7 +63,7 @@ func (s *SignS) Sign(key, message common.RawBytes) (common.RawBytes, error) {
 
 func (s *SignS) SignAndSet(key, message common.RawBytes) error {
 	var err error
-	s.Timestamp = uint32(time.Now().Unix())
+	s.Timestamp = util.TimeToUSecs(time.Now())
 	s.Signature, err = s.Sign(key, message)
 	return err
 }
