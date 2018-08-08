@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// VerifyAndStore verifies recs and revInfos and stores them in the SegStorage.
+// VerifyAndStore verifies recs and revInfos and stores them in the given conn and revcache.
 func VerifyAndStore(ctx context.Context,
 	conn conn.Conn, rcache revcache.RevCache, log log.Logger,
 	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) error {
