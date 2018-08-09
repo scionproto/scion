@@ -106,16 +106,17 @@ class LocalPathServer(PathServer):
             self._request_paths_from_core(req, logger)
         return False
 
-    def _segs_from_buckets(self, buckets, total_segs):
+    def _get_segs_from_buckets(self, buckets, total_segs):
         """
-        Returns a set of reachable core ASes from all available segments.
+        Returns up to MAX_SEG_NO segments from all available segments in the buckets in
+        Round-Robin fashion.
         """
         segs = []
         ias = set()
         while total_segs > 0:
             for core_ia in buckets:
                 if len(segs) == self.MAX_SEG_NO:
-                    return segs
+                    return segs, ias
                 if len(buckets[core_ia]) > 0:
                     segs.append(buckets[core_ia].pop(0))
                     total_segs -= 1
@@ -151,18 +152,10 @@ class LocalPathServer(PathServer):
             num_segs += 1
         return buckets, num_segs
 
-    def _first_last_ias(self, ias):
-        first_ias = set()
-        last_ias = set()
-        for (first, last) in ias:
-            first_ias.add(first)
-            last_ias.add(last)
-        return first_ias, last_ias
-
     def _filter_buckets(self, buckets, ias):
         filtered_buckets = {}
         num_segs = 0
-        for ia in ias:
+        for ia in set(ias):
             bucket = buckets[ia]
             filtered_buckets[ia] = bucket
             num_segs += len(bucket)
@@ -170,7 +163,7 @@ class LocalPathServer(PathServer):
 
     def _resolve_core(self, req, up_segs, core_segs):
         """
-        Dst is core as.
+        Dst is core AS.
         """
         dst_ia = req.dst_ia()
         sibra = req.p.flags.sibra
@@ -182,13 +175,13 @@ class LocalPathServer(PathServer):
         # Get core segments between the destination and each reachable core AS.
         buckets_core, num_core_segs = self._core_segs([dst_ia], buckets_up.keys(), sibra)
         # Get usable core segments
-        segs, ias = self._segs_from_buckets(buckets_core, num_core_segs)
+        segs, ia_pairs = self._get_segs_from_buckets(buckets_core, num_core_segs)
         if segs:
             core_segs.update(segs)
-            first_ias, last_ias = self._first_last_ias(ias)
+            first_ias, last_ias = zip(*ia_pairs)
             # In this use case, first_ias is always the destination core AS
             buckets, num_segs = self._filter_buckets(buckets_up, last_ias)
-            segs, ias = self._segs_from_buckets(buckets, num_segs)
+            segs, ias = self._get_segs_from_buckets(buckets, num_segs)
             up_segs.update(segs)
 
     def _resolve_not_core(self, req, up_segs, core_segs, down_segs):
@@ -216,17 +209,17 @@ class LocalPathServer(PathServer):
             buckets_down[ia] = {}
             num_down_segs -= len(bucket)
         # Get usable core segments
-        segs, ias = self._segs_from_buckets(buckets_core, num_core_segs)
+        segs, ia_pairs = self._get_segs_from_buckets(buckets_core, num_core_segs)
         if segs:
             core_segs.update(segs)
-            first_ias, last_ias = self._first_last_ias(ias)
+            first_ias, last_ias = zip(*ia_pairs)
             # Up segments
             buckets, num_segs = self._filter_buckets(buckets_up, last_ias)
-            segs, ias = self._segs_from_buckets(buckets, num_segs)
+            segs, ias = self._get_segs_from_buckets(buckets, num_segs)
             up_segs.update(segs)
             # Down segments
             buckets, num_segs = self._filter_buckets(buckets_down, first_ias)
-            segs, ias = self._segs_from_buckets(buckets, num_segs)
+            segs, ias = self._get_segs_from_buckets(buckets, num_segs)
             down_segs.update(segs)
 
     def _request_paths_from_core(self, req, logger):
