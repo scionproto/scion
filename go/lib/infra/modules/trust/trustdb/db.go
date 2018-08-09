@@ -268,7 +268,8 @@ func (db *DB) InsertIssCertCtx(ctx context.Context, crt *cert.Certificate) (int6
 	}
 	db.Lock()
 	defer db.Unlock()
-	res, err := db.insertIssCertStmt.ExecContext(ctx, crt.Subject.I, crt.Subject.A, crt.Version, raw)
+	res, err := db.insertIssCertStmt.ExecContext(ctx,
+		crt.Subject.I, crt.Subject.A, crt.Version, raw)
 	if err != nil {
 		return 0, err
 	}
@@ -339,7 +340,8 @@ func (db *DB) InsertLeafCertCtx(ctx context.Context, crt *cert.Certificate) (int
 	}
 	db.Lock()
 	defer db.Unlock()
-	res, err := db.insertLeafCertStmt.ExecContext(ctx, crt.Subject.I, crt.Subject.A, crt.Version, raw)
+	res, err := db.insertLeafCertStmt.ExecContext(ctx,
+		crt.Subject.I, crt.Subject.A, crt.Version, raw)
 	if err != nil {
 		return 0, err
 	}
@@ -460,7 +462,9 @@ func (db *DB) GetTRCVersion(isd addr.ISD, version uint64) (*trc.TRC, error) {
 }
 
 // GetTRCVersionCtx is the context aware version of GetTRCVersion.
-func (db *DB) GetTRCVersionCtx(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error) {
+func (db *DB) GetTRCVersionCtx(ctx context.Context,
+	isd addr.ISD, version uint64) (*trc.TRC, error) {
+
 	if version == 0 {
 		return db.GetTRCMaxVersionCtx(ctx, isd)
 	}
