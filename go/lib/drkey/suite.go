@@ -32,8 +32,14 @@ const (
 func (sv *DRKeySV) SetKey(secret, date common.RawBytes) error {
 	msLen := len(secret)
 	all := make(common.RawBytes, msLen+len(date))
-	secret.WritePld(all[:msLen])
-	date.WritePld(all[msLen:])
+	_, err := secret.WritePld(all[:msLen])
+	if err != nil {
+		return err
+	}
+	_, err = date.WritePld(all[msLen:])
+	if err != nil {
+		return err
+	}
 	key := pbkdf2.Key(all, []byte(drkeySalt), 1000, 16, sha256.New)
 	sv.Key = key
 	return nil
@@ -63,6 +69,8 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	pLen := len(p)
 	inputLen := 1 + pLen
 	switch k.Type {
+	case AS2AS:
+		break
 	case AS2Host:
 		it, err := InputTypeFromHostTypes(k.DstHost.Type(), addr.HostTypeNone)
 		if err != nil {
@@ -88,6 +96,8 @@ func (k *DRKeyLvl2) SetKey(secret common.RawBytes) error {
 	copy(all[:1], common.RawBytes{uint8(pLen)})
 	copy(all[1:], p)
 	switch k.Type {
+	case AS2AS:
+		break
 	case AS2Host:
 		copy(all[pLen+1:], k.DstHost.Pack())
 	case Host2Host:
