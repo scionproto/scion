@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 package trustdb
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -24,12 +22,13 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestTRC(t *testing.T) {
 	Convey("Initialize DB and load TRC", t, func() {
-		db, cleanF := newDatabase(t)
-		defer cleanF()
+		db := newDatabase(t)
+		defer db.Close()
 
 		trcobj, err := trc.TRCFromFile("testdata/ISD1-V1.trc", false)
 		SoMsg("err trc", err, ShouldBeNil)
@@ -73,8 +72,8 @@ func TestTRC(t *testing.T) {
 
 func TestIssCert(t *testing.T) {
 	Convey("Initialize DB and load issuer Cert", t, func() {
-		db, cleanF := newDatabase(t)
-		defer cleanF()
+		db := newDatabase(t)
+		defer db.Close()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
 		if err != nil {
@@ -122,8 +121,8 @@ func TestIssCert(t *testing.T) {
 
 func TestLeafCert(t *testing.T) {
 	Convey("Initialize DB and load leaf Cert", t, func() {
-		db, cleanF := newDatabase(t)
-		defer cleanF()
+		db := newDatabase(t)
+		defer db.Close()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
 		if err != nil {
@@ -171,8 +170,8 @@ func TestLeafCert(t *testing.T) {
 
 func TestChain(t *testing.T) {
 	Convey("Initialize DB and load Chain", t, func() {
-		db, cleanF := newDatabase(t)
-		defer cleanF()
+		db := newDatabase(t)
+		defer db.Close()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
 		if err != nil {
@@ -215,21 +214,8 @@ func TestChain(t *testing.T) {
 	})
 }
 
-func newDatabase(t *testing.T) (*DB, func()) {
-	file, err := ioutil.TempFile("", "db-test-")
-	if err != nil {
-		t.Fatalf("unable to create temp file")
-	}
-	name := file.Name()
-	if err := file.Close(); err != nil {
-		t.Fatalf("unable to close temp file")
-	}
-	db, err := New(name)
-	if err != nil {
-		t.Fatalf("unable to initialize database")
-	}
-	return db, func() {
-		db.Close()
-		os.Remove(name)
-	}
+func newDatabase(t *testing.T) *DB {
+	db, err := New(":memory:")
+	xtest.FailOnErr(t, err)
+	return db
 }
