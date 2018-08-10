@@ -104,7 +104,7 @@ func TestDRKeyLvl2(t *testing.T) {
 		SoMsg("drkey", drkeyLvl1, ShouldNotBeNil)
 		drkeyLvl2 := &drkey.DRKeyLvl2{
 			Proto:   "test",
-			Type:    drkey.AS2AS,
+			Type:    drkey.Host2Host,
 			SrcIa:   srcIa,
 			DstIa:   dstIa,
 			AddIa:   addr.IAFromRaw(rawAddIA),
@@ -127,6 +127,15 @@ func TestDRKeyLvl2(t *testing.T) {
 				newKey, err := db.GetDRKeyLvl2(drkeyLvl2, util.TimeToSecs(time.Now()))
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("drkey", newKey, ShouldResemble, drkeyLvl2.Key)
+			})
+
+			Convey("Remove outdated drkeys", func() {
+				db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(-timeOffset)))
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("rows", rows, ShouldEqual, 0)
+				rows, err = db.RemoveOutdatedDRKeyLvl2(util.TimeToSecs(time.Now().Add(2 * timeOffset)))
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("rows", rows, ShouldBeGreaterThan, 0)
 			})
 		})
 	})

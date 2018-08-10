@@ -105,6 +105,7 @@ type DB struct {
 	removeOutdatedDRKeyLvl1Stmt *sql.Stmt
 	getDRKeyLvl2Stmt            *sql.Stmt
 	insertDRKeyLvl2Stmt         *sql.Stmt
+	removeOutdatedDRKeyLvl2Stmt *sql.Stmt
 }
 
 // New creates a database and prepares all prepares all statements.
@@ -136,6 +137,9 @@ func New(path string) (*DB, error) {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
 	if db.insertDRKeyLvl2Stmt, err = db.db.Prepare(insertDRKeyLvl2); err != nil {
+		return nil, common.NewBasicError(UnableToPrepareStmt, err)
+	}
+	if db.removeOutdatedDRKeyLvl2Stmt, err = db.db.Prepare(removeOutdatedDRKeyLvl2); err != nil {
 		return nil, common.NewBasicError(UnableToPrepareStmt, err)
 	}
 	return db, nil
@@ -185,7 +189,7 @@ func (db *DB) RemoveOutdatedDRKeyLvl1(expTime uint32) (int64, error) {
 	return db.RemoveOutdatedDRKeyLvl1Ctx(context.Background(), expTime)
 }
 
-// RemoveOutdatedDRKeyLvl1Ctx is the context-aware version of InsertDRKey.
+// RemoveOutdatedDRKeyLvl1Ctx is the context-aware version of RemoveOutdatedDRKeyLvl1.
 func (db *DB) RemoveOutdatedDRKeyLvl1Ctx(ctx context.Context, expTime uint32) (int64, error) {
 	res, err := db.removeOutdatedDRKeyLvl1Stmt.ExecContext(ctx, expTime)
 	if err != nil {
@@ -225,6 +229,20 @@ func (db *DB) InsertDRKeyLvl2Ctx(ctx context.Context, key *drkey.DRKeyLvl2,
 	res, err := db.insertDRKeyLvl2Stmt.ExecContext(ctx, key.Proto, key.Type, key.SrcIa.I,
 		key.SrcIa.A, key.DstIa.I, key.DstIa.A, key.AddIa.I, key.AddIa.A, key.SrcHost, key.DstHost,
 		key.AddHost, expTime, key.Key)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// RemoveOutdatedDRKeyLvl2 removes all expired second level DRKeys.
+func (db *DB) RemoveOutdatedDRKeyLvl2(expTime uint32) (int64, error) {
+	return db.RemoveOutdatedDRKeyLvl2Ctx(context.Background(), expTime)
+}
+
+// RemoveOutdatedDRKeyLvl2Ctx is the context-aware version of RemoveOutdatedDRKeyLvl2.
+func (db *DB) RemoveOutdatedDRKeyLvl2Ctx(ctx context.Context, expTime uint32) (int64, error) {
+	res, err := db.removeOutdatedDRKeyLvl2Stmt.ExecContext(ctx, expTime)
 	if err != nil {
 		return 0, err
 	}
