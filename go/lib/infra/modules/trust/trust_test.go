@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -756,15 +756,10 @@ func getChainFileName(ia addr.IA, version uint64) string {
 		tmpDir, ia.I, ia.A.FileFmt(), ia.I, ia.A.FileFmt(), version)
 }
 
-func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func()) {
+func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func() error) {
 	t.Helper()
-
-	dbFile := xtest.MustTempFileName("", "truststore-test")
-	db, err := trustdb.New(dbFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	db, err := trustdb.New(":memory:")
+	xtest.FailOnErr(t, err)
 	options := &Config{
 		LocalCSes: []net.Addr{
 			&messenger.MockAddress{},
@@ -774,13 +769,9 @@ func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func())
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	// Enable fake network access for trust database
 	store.SetMessenger(msger)
-	return store, func() {
-		db.Close()
-		os.Remove(dbFile)
-	}
+	return store, db.Close
 }
 
 func insertTRC(t *testing.T, store *Store, trcObj *trc.TRC) {
