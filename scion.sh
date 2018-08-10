@@ -177,15 +177,11 @@ glob_match() {
 }
 
 is_docker() {
-    if [ -f gen/scion-dc.yml ]; then
-        return 0
-    fi
-    return 1
+    [ -f gen/scion-dc.yml ]
 }
- is_supervisor() {
-    is_docker
-    [ $? -eq 1 ]
-    return
+
+is_supervisor() {
+   [ -f gen/dispatcher/supervisord.conf ]
 }
 
 cmd_test(){

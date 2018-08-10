@@ -13,42 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -o pipefail
-
-log() {
-    echo "========> ($(date -u --rfc-3339=seconds)) $@"
-}
-
-run_docker() {
-    cmd="$@"
-    docker container exec $container bash -c "PYTHONPATH=python/:. $cmd"
-    return $?
-}
-
-run() {
-    test="${1:?}"
-    shift
-    log "$test: starting"
-    if [ -z "$container" ]; then
-        time $@
-    else
-        time run_docker "$@"
-    fi
-    local result=$?
-    if [ $result -eq 0 ]; then
-        log "$test: success"
-    else
-        log "$test: failure"
-    fi
-    return $result
-}
-
-# See if docker is wanted and get the testing container
-if [ "$1" = "docker" ]; then
-    shift
-    container="${1:-scion_ci}"
-    shift
-fi
+. integration/common.sh
 
 for br in "$@"; do
     if ! ./scion.sh mstatus "$br"; then
@@ -57,7 +22,6 @@ for br in "$@"; do
     fi
 done
 
-export PYTHONPATH=python/:.
 # Bring down routers.
 SLEEP=4
 log "Revocation: starting"

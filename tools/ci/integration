@@ -2,10 +2,12 @@
 
 set -ex
 
-docker container exec ${1:-scion_ci} bash -c "./scion.sh topology -d"
-docker cp ${1:-scion_ci}:/home/scion/go/src/github.com/scionproto/scion/gen .
-docker cp ${1:-scion_ci}:/home/scion/go/src/github.com/scionproto/scion/gen-cache .
-docker cp ${1:-scion_ci}:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
+ctnr=${1:-scion_ci}
+
+docker container exec $ctnr bash -c "./scion.sh topology -d"
+docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen .
+docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-cache .
+docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
 ./scion.sh start nobuild
 sleep 40
-./integration/integration_test.sh docker
+./integration/integration_test.sh -docker
