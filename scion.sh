@@ -47,12 +47,13 @@ cmd_run() {
         cmd_build || exit 1
     fi
     run_setup
-    echo "Running the network..."
+    echo "($(date -u --rfc-3339=seconds)) Running the network..."
     # Run with docker-compose or supervisor
     if is_docker; then
-        ./tools/dc.sh scion up -d
+        time ./tools/dc.sh scion up --no-start
+        time ./tools/dc.sh scion start
     else
-        supervisor/supervisor.sh start all
+        time supervisor/supervisor.sh start all
     fi
 }
 
