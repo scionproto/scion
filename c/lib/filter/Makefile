@@ -4,6 +4,10 @@ CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC
 LDFLAGS ?= -shared -Wl,-z,defs -lscion -lzlog
 
+ifeq ($(D),1)
+CFLAGS += -gdwarf-2 -O0
+endif
+
 LIB_DIR = ..
 INC = -I$(LIB_DIR)
 

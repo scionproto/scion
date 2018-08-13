@@ -4,6 +4,10 @@ CC = clang
 CFLAGS ?= -Wall -Werror -g -fPIC -O2
 LDFLAGS ?= -shared -Wl,-z,defs
 
+ifeq ($(D),1)
+CFLAGS += -gdwarf-2 -O0
+endif
+
 SRCS = $(filter-out $(BINARY).c, $(wildcard *.c))
 OBJS = $(SRCS:.c=.o)
 STATIC = libscion.a
