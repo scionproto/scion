@@ -43,21 +43,33 @@ run() {
     return $result
 }
 
-export -f run run_docker log
-export PYTHONPATH=python/:.
+usage() {
+    printf "Usage: %s: [-b brs] [-d ctr_name]\n" $0
+    exit 1
+}
 
-# Check for docker flag and if the container is present
-while test $# -gt 0; do
-    case "$1" in
-        -docker)
-            shift
-            CONTAINER=${1:-scion_ci}
-            docker inspect "$CONTAINER" &>/dev/null || \
-                { echo "Container $CONTAINER not found, aborting!"; exit 1; }
-            shift
-        ;;
-        *)
-            break
-        ;;
-    esac
-done
+opts() {
+    while getopts ":b:d:" opt; do
+        case $opt in
+            d)
+                CONTAINER=$OPTARG
+                docker inspect "$CONTAINER" &>/dev/null || \
+                    { echo "Container $CONTAINER not found, aborting!"; exit 1; }
+                ;;
+            b)
+                BRS=$OPTARG
+                ;;
+            \?)
+                echo "Invalid option: -$OPTARG" >&2
+                usage
+                ;;
+            :)
+                echo "Option -$OPTARG requires an argument." >&2
+                usage
+                ;;
+        esac
+    done
+}
+
+export -f run run_docker log opts
+export PYTHONPATH=python/:.

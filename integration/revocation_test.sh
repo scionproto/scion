@@ -15,7 +15,10 @@
 
 . integration/common.sh
 
-for br in "$@"; do
+# Get docker flag, container name and BRS
+opts "$@"
+
+for br in $BRS; do
     if ! ./scion.sh mstatus "$br"; then
         log "${br} does not exist. Skipping revocation test."
         exit 0
@@ -24,9 +27,9 @@ done
 
 # Bring down routers.
 SLEEP=4
-log "Revocation: starting"
+log "Revocation test"
 log "Stopping routers and waiting for ${SLEEP}s."
-./scion.sh mstop "$@"
+./scion.sh mstop $BRS
 if [ $? -ne 0 ]; then
     log "Failed stopping routers."
     exit 1

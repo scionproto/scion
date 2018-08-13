@@ -15,6 +15,9 @@
 
 . integration/common.sh
 
+# Get docker flag and container name
+opts "$@"
+
 wait_startup() {
     count=0
     while true; do
@@ -43,8 +46,8 @@ log "Starting scion (without building)"
 log "Scion status:"
 ./scion.sh status || exit 1
 
-
 sleep 5
+[ -n "$CIRCLECI" ] && sleep 30
 
 # Run integration tests
 run End2End python/integration/end2end_test.py -l ERROR
@@ -71,10 +74,10 @@ done
 
 if [ -z $CONTAINER ]; then
     integration/revocation_test.sh\
-    ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}
+    -b "${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
 else
-    integration/revocation_test.sh -docker $CONTAINER\
-    ${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}
+    integration/revocation_test.sh -d $CONTAINER \
+    -b "${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
 fi
 result=$((result+$?))
 
