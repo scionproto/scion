@@ -14,6 +14,6 @@ DC_ENV="$1"
 shift
 
 case "$DC_ENV" in
-    "scion") COMPOSE_FILE="gen/scion-dc.yml" docker-compose "$@" ;;
+    "scion") COMPOSE_FILE="gen/scion-dc.yml" docker-compose --no-ansi "$@" ;;
     *)  cmd_help; exit 1 ;;
 esac

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -ex -o pipefail
 
 ctnr=${1:-scion_ci}
 
@@ -8,4 +8,4 @@ docker container exec $ctnr bash -c "./scion.sh topology -d"
 docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen .
 docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-cache .
 docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
-./integration/integration_test.sh -d $ctnr
+./integration/integration_test.sh -d $ctnr |& tee logs/integration.run

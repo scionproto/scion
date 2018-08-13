@@ -48,7 +48,7 @@ log "Scion status:"
 
 sleep 5
 # Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
-[ -n "$CIRCLECI" ] && sleep 35
+[ -n "$CIRCLECI" ] && sleep 50
 
 # Run integration tests
 run End2End python/integration/end2end_test.py -l ERROR
