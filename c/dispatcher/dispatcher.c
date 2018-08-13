@@ -594,8 +594,10 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
     isdas_t isd_as = be64toh(*(isdas_t *)(buf + 2));
     uint16_t port = ntohs(*(uint16_t *)(buf + 2 + ISD_AS_LEN));
     int common = 2 + ISD_AS_LEN + 2 + 1; // start of (protocol/addrtype)-dependent data
+    char isd_as_str[MAX_ISD_AS_STR];
 
-    zlog_info(zc, "registration for isd_as %d-%" PRId64, ISD(isd_as), AS(isd_as));
+    format_isd_as(isd_as_str, MAX_ISD_AS_STR, isd_as);
+    zlog_info(zc, "registration for isd_as %s", isd_as_str);
 
     Entry *e = (Entry *)malloc(sizeof(Entry));
     if (!e) {
@@ -675,13 +677,14 @@ Entry * parse_request(uint8_t *buf, int len, int proto, int sock)
                 se->bind_key.isd_as = isd_as;
 
                 HASH_ADD(bindhh, bind_svc_list, bind_key, sizeof(SVCKey), se);
-                zlog_info(zc, "Adding Bind SVC entry. SVC:%d ISD_AS:%d-%" PRId64 " Host:%s",
-                    se->bind_key.addr, ISD(se->bind_key.isd_as), AS(se->bind_key.isd_as),
-                    addr_to_str(se->bind_key.host, type, NULL));
+                format_isd_as(isd_as_str, MAX_ISD_AS_STR, se->bind_key.isd_as);
+                zlog_info(zc, "Adding Bind SVC entry. SVC:%d ISD_AS:%s Host:%s",
+                    se->bind_key.addr, isd_as_str, addr_to_str(se->bind_key.host, type, NULL));
             }
             HASH_ADD(hh, svc_list, key, sizeof(SVCKey), se);
-            zlog_info(zc, "Adding SVC entry. SVC:%d ISD_AS:%d-%" PRId64 " Host:%s",
-                    se->key.addr, ISD(se->key.isd_as), AS(se->key.isd_as), addr_to_str(se->key.host, type, NULL));
+            format_isd_as(isd_as_str, MAX_ISD_AS_STR, se->key.isd_as);
+            zlog_info(zc, "Adding SVC entry. SVC:%d ISD_AS:%s Host:%s",
+                    se->key.addr, isd_as_str, addr_to_str(se->key.host, type, NULL));
         }
         e->se = se;
     }
@@ -925,9 +928,10 @@ void deliver_udp(uint8_t *buf, int len, HostAddr *from, HostAddr *dst)
         /* Find dst info from the bind address list if the lookup fails with the public address list*/
         HASH_FIND(bindhh, bind_udp_port_list, &key, sizeof(key), e);
         if (!e) {
-            zlog_warn(zc, "entry for (%d-%" PRId64 "):%s:%d not found",
-                    ISD(key.isd_as), AS(key.isd_as),
-                    addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
+            char isd_as_str[MAX_ISD_AS_STR];
+            format_isd_as(isd_as_str, MAX_ISD_AS_STR, key.isd_as);
+            zlog_warn(zc, "entry for (%s):%s:%d not found",
+                    isd_as_str, addr_to_str(key.host, DST_TYPE(sch), NULL), key.port);
             return;
         }
     }
@@ -938,6 +942,8 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
     SVCKey svc_key;
     memset(&svc_key, 0, sizeof(SVCKey));
     uint16_t addr = ntohs(*(uint16_t *)get_dst_addr(buf));
+    char isd_as_str[MAX_ISD_AS_STR];
+
     svc_key.addr = addr & ~SVC_MULTICAST;  // Mask off top multicast bit
     svc_key.isd_as = get_dst_isd_as(buf);
     memcpy(svc_key.host, dst->addr, get_addr_len(dst->addr_type));
@@ -948,16 +954,17 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
         /* Find dst info from the bind address list if the lookup fails with the public address list*/
         HASH_FIND(bindhh, bind_svc_list, &svc_key, sizeof(SVCKey), se);
         if (!se) {
-            zlog_warn(zc, "Entry not found: ISD-AS: %d-%" PRId64 " SVC: %02x IP: %s",
-                    ISD(svc_key.isd_as), AS(svc_key.isd_as), svc_key.addr,
+            format_isd_as(isd_as_str, MAX_ISD_AS_STR, svc_key.isd_as);
+            zlog_warn(zc, "Entry not found: ISD-AS: %s SVC: %02x IP: %s",
+                    isd_as_str, svc_key.addr,
                     addr_to_str(dst->addr, dst->addr_type, NULL));
             return;
         }
     }
     char dststr[MAX_HOST_ADDR_STR] __attribute__ ((unused));
     char svcstr[MAX_HOST_ADDR_STR] __attribute__ ((unused));
-    zlog_debug(zc, "deliver UDP packet to (%d-%" PRId64 "):%s SVC:%s",
-            ISD(svc_key.isd_as), AS(svc_key.isd_as),
+    zlog_debug(zc, "deliver UDP packet to (%s):%s SVC:%s",
+            format_isd_as(isd_as_str, MAX_ISD_AS_STR, svc_key.isd_as),
             addr_to_str(dst->addr, dst->addr_type, dststr),
             addr_to_str(get_dst_addr(buf), ADDR_SVC_TYPE, svcstr));
     if (!(addr & SVC_MULTICAST)) {  // Anycast SVC address
@@ -1052,6 +1059,7 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
 
     Entry *e;
     L4Key key;
+    char isd_as_str[MAX_ISD_AS_STR];
     memset(&key, 0, sizeof(key));
     key.isd_as = be64toh(*(isdas_t *)(pld->addr + ISD_AS_LEN));
     memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
@@ -1061,13 +1069,13 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
             key.port = ntohs(*(uint16_t *)(pld->l4hdr));
             HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
             if (!e) {
-                zlog_info(zc, "SCMP entry for %d-%" PRId64 " %s:%d not found",
-                        ISD(key.isd_as), AS(key.isd_as),
+                format_isd_as(isd_as_str, MAX_ISD_AS_STR, key.isd_as);
+                zlog_info(zc, "SCMP entry for %s %s:%d not found", isd_as_str,
                         addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
                 goto cleanup;
             }
-            zlog_debug(zc, "SCMP entry %d-%" PRId64 " for %s:%d found",
-                    ISD(key.isd_as), AS(key.isd_as),
+            zlog_debug(zc, "SCMP entry for %s %s:%d found",
+                    format_isd_as(isd_as_str, MAX_ISD_AS_STR, key.isd_as),
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
             break;
         default:
