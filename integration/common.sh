@@ -15,6 +15,8 @@
 
 set -o pipefail
 
+REV_BRS="*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2"
+
 log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"
 }
@@ -44,20 +46,20 @@ run() {
 }
 
 usage() {
-    printf "Usage: %s: [-b brs] [-d ctr_name]\n" $0
+    echo "Usage: $0: [-b brs] [-d ctr_name]\n"
     exit 1
 }
 
 opts() {
     while getopts ":b:d:" opt; do
-        case $opt in
+        case "$opt" in
             d)
-                CONTAINER=$OPTARG
+                CONTAINER="$OPTARG"
                 docker inspect "$CONTAINER" &>/dev/null || \
                     { echo "Container $CONTAINER not found, aborting!"; exit 1; }
                 ;;
             b)
-                BRS=$OPTARG
+                REV_BRS="$OPTARG"
                 ;;
             \?)
                 echo "Invalid option: -$OPTARG" >&2
@@ -67,9 +69,12 @@ opts() {
                 echo "Option -$OPTARG requires an argument." >&2
                 usage
                 ;;
+            *)
+                usage
+                ;;
         esac
     done
+    shift $((OPTIND-1))
 }
 
-export -f run run_docker log opts
 export PYTHONPATH=python/:.

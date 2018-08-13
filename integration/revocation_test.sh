@@ -13,12 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -f
+
 . integration/common.sh
 
 # Get docker flag, container name and BRS
 opts "$@"
 
-for br in $BRS; do
+for br in $REV_BRS; do
     if ! ./scion.sh mstatus "$br"; then
         log "${br} does not exist. Skipping revocation test."
         exit 0
@@ -29,7 +31,7 @@ done
 SLEEP=4
 log "Revocation test"
 log "Stopping routers and waiting for ${SLEEP}s."
-./scion.sh mstop $BRS
+./scion.sh mstop $REV_BRS
 if [ $? -ne 0 ]; then
     log "Failed stopping routers."
     exit 1

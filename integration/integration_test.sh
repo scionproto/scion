@@ -47,7 +47,8 @@ log "Scion status:"
 ./scion.sh status || exit 1
 
 sleep 5
-[ -n "$CIRCLECI" ] && sleep 30
+# Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
+[ -n "$CIRCLECI" ] && sleep 35
 
 # Run integration tests
 run End2End python/integration/end2end_test.py -l ERROR
@@ -72,13 +73,8 @@ for i in ./bin/*_integration; do
     result=$((result+$?))
 done
 
-if [ -z $CONTAINER ]; then
-    integration/revocation_test.sh\
-    -b "${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
-else
-    integration/revocation_test.sh -d $CONTAINER \
-    -b "${REV_BRS:-*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2}"
-fi
+[ -n "$CONTAINER" ] && rev_args="-d $CONTAINER"
+integration/revocation_test.sh -b "$REV_BRS" $rev_args
 result=$((result+$?))
 
 shutdown
