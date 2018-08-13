@@ -214,7 +214,7 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	if laddr != nil {
 		conn.laddr = laddr.Copy()
 	} else {
-		l4 := addr.NewL4Info(common.L4UDP, 0)
+		l4 := addr.NewL4UDPInfo(0)
 		conn.laddr = &Addr{}
 		conn.laddr.Host = &addr.AppAddr{L3: addr.HostIPv4(net.IPv4zero), L4: l4}
 		conn.laddr.IA = conn.scionNet.localIA
@@ -242,8 +242,7 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	}
 	if port != conn.laddr.Host.L4.Port() {
 		// Update port
-		l4 := addr.NewL4Info(conn.laddr.Host.L4.Type(), port)
-		conn.laddr.Host = &addr.AppAddr{L3: conn.laddr.Host.L3, L4: l4}
+		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
 	}
 	log.Info("Registered with dispatcher", "addr", conn.laddr)
 	conn.conn = rconn

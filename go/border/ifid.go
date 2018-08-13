@@ -65,8 +65,8 @@ func (r *Router) fwdLocalIFID(rp *rpkt.RtrPkt, ifid common.IFIDType) {
 		log.Error("Error forwarding IFID packet: Path is present on ScnPkt.")
 		return
 	}
-	pub := intf.IFAddr.PublicAddr(intf.IFAddr.Overlay)
-	spkt.L4 = &l4.UDP{SrcPort: pub.L4.Port(), DstPort: uint16(intf.RemoteAddr.L4().Port())}
+	src := intf.IFAddr.PublicAddr(intf.IFAddr.Overlay)
+	spkt.L4 = &l4.UDP{SrcPort: src.L4.Port(), DstPort: uint16(intf.RemoteAddr.L4().Port())}
 	// Convert back to RtrPkt
 	fwdrp, err := rpkt.RtrPktFromScnPkt(spkt, rcmn.DirExternal, ctx)
 	if err != nil {

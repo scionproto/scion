@@ -75,10 +75,10 @@ func (t *TopoAddr) fromRAI(s *RawAddrInfo) error {
 		} else if !t.Overlay.IsUDP() {
 			return common.NewBasicError(ErrOverlayPort, nil, "addr", s)
 		}
-		l4 := addr.NewL4Info(common.L4UDP, uint16(pub.L4Port))
+		l4 := addr.NewL4UDPInfo(uint16(pub.L4Port))
 		var ol4 addr.L4Info
 		if t.Overlay.IsUDP() {
-			ol4 = addr.NewL4Info(common.L4UDP, oPort)
+			ol4 = addr.NewL4UDPInfo(oPort)
 		}
 		if ip.To4() != nil {
 			if t.IPv4 != nil {
@@ -104,7 +104,7 @@ func (t *TopoAddr) fromRAI(s *RawAddrInfo) error {
 		if ip == nil {
 			return common.NewBasicError(ErrInvalidBind, nil, "addr", s, "ip", bind.Addr)
 		}
-		l4 := addr.NewL4Info(common.L4UDP, uint16(bind.L4Port))
+		l4 := addr.NewL4UDPInfo(uint16(bind.L4Port))
 		if ip.To4() != nil {
 			if t.IPv4 == nil {
 				return common.NewBasicError(ErrBindWithoutPubV4, nil, "addr", s, "ip", bind.Addr)
@@ -112,8 +112,7 @@ func (t *TopoAddr) fromRAI(s *RawAddrInfo) error {
 			if t.IPv4.bind != nil {
 				return common.NewBasicError(ErrTooManyBindV4, nil, "addr", s)
 			}
-			l3 := addr.HostIPv4(ip)
-			t.IPv4.bind = &addr.AppAddr{L3: l3, L4: l4}
+			t.IPv4.bind = &addr.AppAddr{L3: addr.HostIPv4(ip), L4: l4}
 		} else {
 			if t.IPv6 == nil {
 				return common.NewBasicError(ErrBindWithoutPubV6, nil, "addr", s, "ip", bind.Addr)
@@ -121,8 +120,7 @@ func (t *TopoAddr) fromRAI(s *RawAddrInfo) error {
 			if t.IPv6.bind != nil {
 				return common.NewBasicError(ErrTooManyBindV6, nil, "addr", s)
 			}
-			l3 := addr.HostIPv6(ip)
-			t.IPv6.bind = &addr.AppAddr{L3: l3, L4: l4}
+			t.IPv6.bind = &addr.AppAddr{L3: addr.HostIPv6(ip), L4: l4}
 		}
 	}
 	return nil
@@ -156,8 +154,8 @@ func (t *TopoAddr) OverlayAddr(ot overlay.Type) *overlay.OverlayAddr {
 	return t.getAddr(ot).OverlayAddr()
 }
 
-func (t *TopoAddr) PublicOrBind(ot overlay.Type) *addr.AppAddr {
-	return t.getAddr(ot).PublicOrBind()
+func (t *TopoAddr) BindOrPublic(ot overlay.Type) *addr.AppAddr {
+	return t.getAddr(ot).BindOrPublic()
 }
 
 func (t *TopoAddr) getAddr(ot overlay.Type) *pubBindAddr {
@@ -172,12 +170,6 @@ func (t *TopoAddr) getAddr(ot overlay.Type) *pubBindAddr {
 
 func (t *TopoAddr) Equal(o *TopoAddr) bool {
 	if t.Overlay != o.Overlay {
-		return false
-	}
-	if (t.IPv4 == nil) != (o.IPv4 == nil) {
-		return false
-	}
-	if (t.IPv6 == nil) != (o.IPv6 == nil) {
 		return false
 	}
 	if !t.IPv4.equal(o.IPv4) {
@@ -220,7 +212,7 @@ func (t *pubBindAddr) OverlayAddr() *overlay.OverlayAddr {
 	return t.overlay
 }
 
-func (t *pubBindAddr) PublicOrBind() *addr.AppAddr {
+func (t *pubBindAddr) BindOrPublic() *addr.AppAddr {
 	if t.bind == nil {
 		return t.pub
 	}

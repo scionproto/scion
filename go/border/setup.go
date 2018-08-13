@@ -242,7 +242,7 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	}
 	// New bind address. Configure Posix I/O.
 	// Get Bind address if set, Public otherwise
-	bind := ctx.Conf.Net.LocAddr.PublicOrBind(ctx.Conf.Topo.Overlay)
+	bind := ctx.Conf.Net.LocAddr.BindOrPublic(ctx.Conf.Topo.Overlay)
 	if err := addPosixLocal(r, ctx, bind, labels); err != nil {
 		return rpkt.HookError, err
 	}
@@ -253,7 +253,7 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, bind *addr.AppAddr, labels promethe
 	// Listen on the socket.
 	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
 	if err != nil {
-		return common.NewBasicError("Unsupported listen address", err)
+		return common.NewBasicError("Unsupported listen address", err, "addr", bind)
 	}
 	over, err := conn.New(b, nil, labels)
 	if err != nil {
@@ -314,10 +314,10 @@ func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bo
 func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels) error {
 	// Connect to remote address.
-	bind := intf.IFAddr.PublicOrBind(intf.IFAddr.Overlay)
+	bind := intf.IFAddr.BindOrPublic(intf.IFAddr.Overlay)
 	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
 	if err != nil {
-		return common.NewBasicError("Unsupported listen address", err)
+		return common.NewBasicError("Unsupported listen address", err, "addr", bind)
 	}
 	c, err := conn.New(b, intf.RemoteAddr, labels)
 	if err != nil {

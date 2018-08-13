@@ -17,11 +17,9 @@ package session
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/sig/disp"
 	"github.com/scionproto/scion/go/sig/egress"
@@ -208,11 +206,7 @@ func (sm *sessMonitor) sendReq() {
 	if err := raddr.Path.InitOffsets(); err != nil {
 		sm.Error("sessMonitor: Error initializing path offsets", "err", err)
 	}
-	var l4 addr.L4Info
-	if sm.smRemote.SessPath.PathEntry().HostInfo.Port != 0 {
-		l4 = addr.NewL4Info(common.L4UDP, sm.smRemote.SessPath.PathEntry().HostInfo.Port)
-	}
-	nh, err := overlay.NewOverlayAddr(sm.smRemote.SessPath.PathEntry().HostInfo.Host(), l4)
+	nh, err := sm.smRemote.SessPath.PathEntry().HostInfo.Overlay()
 	if err != nil {
 		sm.Error("sessMonitor: Unsupported NextHop", "err", err)
 	}

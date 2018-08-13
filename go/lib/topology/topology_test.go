@@ -39,7 +39,7 @@ func mkO(l3 addr.HostAddr, op int) *overlay.OverlayAddr {
 	if op == 0 {
 		o, _ = overlay.NewOverlayAddr(l3, nil)
 	} else {
-		o, _ = overlay.NewOverlayAddr(l3, addr.NewL4Info(common.L4UDP, uint16(op)))
+		o, _ = overlay.NewOverlayAddr(l3, addr.NewL4UDPInfo(uint16(op)))
 	}
 	return o
 }
@@ -56,12 +56,12 @@ func mkPBO(pub, bind addr.HostAddr, port, bindport, op int) *pubBindAddr {
 	pbo := &pubBindAddr{}
 	pbo.pub = &addr.AppAddr{L3: pub}
 	if port != 0 {
-		pbo.pub.L4 = addr.NewL4Info(common.L4UDP, uint16(port))
+		pbo.pub.L4 = addr.NewL4UDPInfo(uint16(port))
 	}
 	if bind != nil {
 		pbo.bind = &addr.AppAddr{L3: bind}
 		if bindport != 0 {
-			pbo.bind.L4 = addr.NewL4Info(common.L4UDP, uint16(bindport))
+			pbo.bind.L4 = addr.NewL4UDPInfo(uint16(bindport))
 		}
 	}
 	pbo.overlay = mkO(pub, op)

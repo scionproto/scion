@@ -34,8 +34,12 @@ type l4AddrInfo struct {
 	port  uint16
 }
 
-func NewL4Info(t common.L4ProtocolType, p uint16) L4Info {
-	return &l4AddrInfo{pType: t, port: p}
+func NewL4UDPInfo(p uint16) L4Info {
+	return &l4AddrInfo{pType: common.L4UDP, port: p}
+}
+
+func NewL4SCMPInfo() L4Info {
+	return &l4AddrInfo{pType: common.L4SCMP}
 }
 
 func (l *l4AddrInfo) Size() int {

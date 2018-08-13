@@ -534,7 +534,7 @@ func appAddrFromRaw(buf common.RawBytes) (*overlay.OverlayAddr, error) {
 	}
 	port := common.Order.Uint16(buf[addrLen:])
 	// XXX We need to encode L4 protocol in reliable, currently assuming UDP
-	return overlay.NewOverlayAddr(addr.HostFromIP(ip), addr.NewL4Info(common.L4UDP, port))
+	return overlay.NewOverlayAddr(addr.HostFromIP(ip), addr.NewL4UDPInfo(port))
 }
 
 func write(a *overlay.OverlayAddr, buf common.RawBytes) (int, error) {

@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
@@ -57,7 +56,7 @@ func (r *Router) RevInfoFwd() {
 func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
-	pub := ctx.Conf.Net.LocAddr.PublicAddr(ctx.Conf.Topo.Overlay)
+	src := ctx.Conf.Net.LocAddr.PublicAddr(ctx.Conf.Topo.Overlay)
 	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
@@ -68,9 +67,8 @@ func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.Host
 		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
 		return
 	}
-	l4 := addr.NewL4Info(common.L4UDP, 0)
-	dst := &addr.AppAddr{L3: dstHost, L4: l4}
-	if err = r.genPkt(ctx.Conf.IA, dst, pub, nil, scpld); err != nil {
+	dst := &addr.AppAddr{L3: dstHost, L4: addr.NewL4UDPInfo(0)}
+	if err = r.genPkt(ctx.Conf.IA, dst, src, nil, scpld); err != nil {
 		log.Error("Error generating RevInfo packet", "err", err)
 	}
 }
