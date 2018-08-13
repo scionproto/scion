@@ -229,9 +229,11 @@ void format_filter(Filter *f, char **str)
 void format_scionaddr(SCIONAddr *addr, char **str)
 {
     char buf[MAX_HOST_ADDR_STR];
+    char isd_as_str[MAX_ISD_AS_STR];
+
     format_host(addr->host.addr_type, addr->host.addr, buf, MAX_HOST_ADDR_STR);
-    asprintf(str, "[ISD-AS : %d-%" PRId64 ", IP : %s, Port : %d]",
-             ISD(addr->isd_as), AS(addr->isd_as), buf, addr->host.port);
+    format_isd_as(isd_as_str, MAX_ISD_AS_STR, addr->isd_as);
+    asprintf(str, "[ISD-AS : %s, IP : %s, Port : %d]", isd_as_str, buf, addr->host.port);
 }
 
 int is_blocked_by_filter(FilterSocket *fs, uint8_t *buf, SCIONAddr *hop, int on_egress)
