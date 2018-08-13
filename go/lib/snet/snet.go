@@ -92,7 +92,7 @@ func IA() addr.IA {
 // SCION networking context, containing local ISD-AS, SCIOND, Dispatcher and
 // Path resolver.
 type Network struct {
-	dispatcherPath string
+	dispatcher reliable.Dispatcher
 	// pathResolver references the default source of paths for a Network. This
 	// is set to nil when operating on a SCIOND-less Network.
 	pathResolver *pathmgr.PR
@@ -105,11 +105,8 @@ func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *Networ
 	if dispatcherPath == "" {
 		dispatcherPath = reliable.DefaultDispPath
 	}
-	return &Network{
-		dispatcherPath: dispatcherPath,
-		pathResolver:   pr,
-		localIA:        ia,
-	}
+	dispatcher := reliable.NewDispatcher(dispatcherPath)
+	return NewCustomNetworkWithPR(ia, dispatcher, pr)
 }
 
 // NewNetwork creates a new networking context, on which future Dial or Listen
@@ -120,6 +117,25 @@ func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *Networ
 // this mode of operation, the app is fully responsible with supplying paths
 // for sent traffic.
 func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*Network, error) {
+	dispatcher := reliable.NewDispatcher(dispatcherPath)
+	return NewCustomNetwork(ia, sciondPath, dispatcher)
+}
+
+// NewCustomNetworkWithPR is the same as NewNetworkWithPR, except it takes a
+// custom dispatcher as argument.
+func NewCustomNetworkWithPR(ia addr.IA, dispatcher reliable.Dispatcher, pr *pathmgr.PR) *Network {
+	return &Network{
+		dispatcher:   dispatcher,
+		pathResolver: pr,
+		localIA:      ia,
+	}
+}
+
+// NewCustomNetwork is the same as NewNetwork, except it takes a custom
+// dispatcher as argument.
+func NewCustomNetwork(ia addr.IA, sciondPath string,
+	dispatcher reliable.Dispatcher) (*Network, error) {
+
 	var pathResolver *pathmgr.PR
 	if sciondPath != "" {
 		var err error
@@ -136,7 +152,7 @@ func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*Network,
 			return nil, common.NewBasicError("Unable to initialize path resolver", err)
 		}
 	}
-	return NewNetworkWithPR(ia, dispatcherPath, pathResolver), nil
+	return NewCustomNetworkWithPR(ia, dispatcher, pathResolver), nil
 }
 
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
@@ -242,8 +258,7 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 		}
 	}
 
-	rconn, port, err := reliable.Register(conn.scionNet.dispatcherPath,
-		conn.laddr.IA, regAddr, bindAddr, svc)
+	rconn, port, err := n.dispatcher.Register(conn.laddr.IA, regAddr, bindAddr, svc)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to register with dispatcher", err)
 	}

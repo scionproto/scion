@@ -114,7 +114,7 @@ func TestRegister(t *testing.T) {
 					server(sc, &tc, listener)
 				}, func(sc *xtest.SC) {
 					_, _, err := RegisterTimeout(sockName, tc.ia, tc.dst,
-						tc.bind, tc.svc, time.Second)
+						tc.bind, tc.svc, 20*time.Millisecond)
 					if tc.timeoutOK {
 						sc.SoMsg("register err", err, ShouldNotBeNil)
 						return
@@ -146,9 +146,10 @@ func TestRegisterTimeout(t *testing.T) {
 
 			before := time.Now()
 			conn, port, err := RegisterTimeout(sockName, ia, appAddr, nil,
-				addr.SvcNone, 3*time.Second)
+				addr.SvcNone, 60*time.Millisecond)
 			after := time.Now()
-			SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second), before.Add(4*time.Second))
+			SoMsg("timing", after, ShouldHappenBetween,
+				before.Add(40*time.Millisecond), before.Add(80*time.Millisecond))
 
 			SoMsg("conn", conn, ShouldBeNil)
 			SoMsg("port", port, ShouldEqual, 0)
@@ -211,7 +212,7 @@ func TestWriteTo(t *testing.T) {
 				func(sc *xtest.SC) {
 					server(sc, &tc, listener)
 				}, func(sc *xtest.SC) {
-					cconn, err := DialTimeout(sockName, time.Second)
+					cconn, err := DialTimeout(sockName, 50*time.Millisecond)
 					sc.SoMsg("dial err", err, ShouldBeNil)
 
 					n, err := cconn.WriteTo([]byte(tc.msg), tc.dst)
@@ -227,7 +228,7 @@ func TestWriteTo(t *testing.T) {
 }
 
 func server(sc *xtest.SC, tc *TestCase, listener *Listener) {
-	err := listener.SetDeadline(time.Now().Add(time.Second))
+	err := listener.SetDeadline(time.Now().Add(100 * time.Millisecond))
 	sc.SoMsg("listener deadline err", err, ShouldBeNil)
 
 	sconn, err := listener.Accept()
