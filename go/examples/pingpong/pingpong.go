@@ -33,11 +33,9 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/qerr"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	sd "github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/squic"
@@ -276,11 +274,7 @@ func (c client) setupPath() {
 		}
 		remote.Path = spath.New(pathEntry.Path.FwdPath)
 		remote.Path.InitOffsets()
-		var l4 addr.L4Info
-		if pathEntry.HostInfo.Port != 0 {
-			l4 = addr.NewL4Info(common.L4UDP, pathEntry.HostInfo.Port)
-		}
-		remote.NextHop, _ = overlay.NewOverlayAddr(pathEntry.HostInfo.Host(), l4)
+		remote.NextHop, _ = pathEntry.HostInfo.Overlay()
 	}
 }
 

@@ -106,7 +106,7 @@ func (b RawBRIntf) remoteAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
 	l3 := addr.HostFromIP(ip)
 	var l4 addr.L4Info
 	if o.IsUDP() {
-		l4 = addr.NewL4Info(common.L4UDP, uint16(b.Remote.L4Port))
+		l4 = addr.NewL4UDPInfo(uint16(b.Remote.L4Port))
 	}
 	return overlay.NewOverlayAddr(l3, l4)
 }

@@ -192,12 +192,13 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 			// https://github.com/scionproto/scion/issues/1659.
 			remote.NextHop = lastHop.Copy()
 		}
-		var port uint16
 		var err error
+		var l4i addr.L4Info
 		switch hdr := pkt.L4.(type) {
 		case *l4.UDP:
-			port = hdr.SrcPort
+			l4i = addr.NewL4UDPInfo(hdr.SrcPort)
 		case *scmp.Hdr:
+			l4i = addr.NewL4SCMPInfo()
 			c.handleSCMP(hdr, pkt)
 			err = &OpError{scmp: hdr}
 		default:
@@ -206,8 +207,7 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 		}
 		// Copy the address to prevent races. See
 		// https://github.com/scionproto/scion/issues/1659.
-		l4 := addr.NewL4Info(pkt.L4.L4Type(), port)
-		remote.Host = &addr.AppAddr{L3: pkt.SrcHost.Copy(), L4: l4}
+		remote.Host = &addr.AppAddr{L3: pkt.SrcHost.Copy(), L4: l4i}
 		return n, remote, err
 	}
 	return 0, nil, common.NewBasicError("Unknown network", nil, "net", c.net)
@@ -292,13 +292,10 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 				return 0, err
 			}
 			path = spath.New(pathEntry.Path.FwdPath)
-			var l4 addr.L4Info
-			if pathEntry.HostInfo.Port != 0 {
-				l4 = addr.NewL4Info(common.L4UDP, pathEntry.HostInfo.Port)
-			}
-			nextHop, err = overlay.NewOverlayAddr(pathEntry.HostInfo.Host(), l4)
+			nextHop, err = pathEntry.HostInfo.Overlay()
 			if err != nil {
-				return 0, common.NewBasicError("Unsupported Overlay Addr", err)
+				return 0, common.NewBasicError("Unsupported Overlay Addr", err,
+					"addr", pathEntry.HostInfo)
 			}
 			err = path.InitOffsets()
 			if err != nil {
@@ -315,8 +312,8 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	pkt := &spkt.ScnPkt{
 		DstIA:   raddr.IA,
 		SrcIA:   c.laddr.IA,
-		DstHost: raddr.Host.L3,   // XXX should we copy here?
-		SrcHost: c.laddr.Host.L3, // XXX should we copy here?
+		DstHost: raddr.Host.L3,
+		SrcHost: c.laddr.Host.L3,
 		Path:    path,
 		L4:      udpHdr,
 		Pld:     common.RawBytes(b),
@@ -329,13 +326,11 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	// Construct overlay next-hop
 	if path == nil {
 		// Overlay next-hop is destination
-		// XXX So currently we cannot send packets to BR without path?
-		// XXX this should get fixed once ControlPlane is on top of dispatcher
-		l4 := addr.NewL4Info(common.L4UDP, overlay.EndhostPort)
-		var err error
-		nextHop, err = overlay.NewOverlayAddr(pkt.DstHost, l4)
+		// XXX Currently we cannot send packets to BR without path.
+		// XXX This should get fixed once ControlPlane is on top of dispatcher.
+		nextHop, err = overlay.NewOverlayAddr(pkt.DstHost, addr.NewL4UDPInfo(overlay.EndhostPort))
 		if err != nil {
-			return 0, common.NewBasicError("Bad overlay address", err)
+			return 0, common.NewBasicError("Bad overlay address", err, "Host", pkt.DstHost)
 		}
 	}
 	// Send message

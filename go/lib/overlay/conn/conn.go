@@ -173,7 +173,7 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 	}
 	laddr = listen.ToUDPAddr()
 	if laddr == nil {
-		return common.NewBasicError("Invalid listen address", nil)
+		return common.NewBasicError("Invalid listen address", nil, "addr", listen)
 	}
 	if remote == nil {
 		if c, err = net.ListenUDP(network, laddr); err != nil {
@@ -183,7 +183,7 @@ func (cc *connUDPBase) initConnUDP(network string, listen, remote *overlay.Overl
 	} else {
 		raddr = remote.ToUDPAddr()
 		if raddr == nil {
-			return common.NewBasicError("Invalid remote address", nil)
+			return common.NewBasicError("Invalid remote address", nil, "addr", remote)
 		}
 		if c, err = net.DialUDP(network, laddr, raddr); err != nil {
 			return common.NewBasicError("Error setting up connection", err,
@@ -241,7 +241,7 @@ func (c *connUDPBase) Read(b common.RawBytes) (int, *ReadMeta, error) {
 		c.readMeta.Src = c.Remote
 	} else {
 		l3 := addr.HostFromIP(src.IP)
-		l4 := addr.NewL4Info(common.L4UDP, uint16(src.Port))
+		l4 := addr.NewL4UDPInfo(uint16(src.Port))
 		c.readMeta.Src, _ = overlay.NewOverlayAddr(l3, l4)
 	}
 	return n, &c.readMeta, err
@@ -335,7 +335,7 @@ func (m *ReadMeta) SetSrc(a *overlay.OverlayAddr, raddr *net.UDPAddr, ot overlay
 		l3 := addr.HostFromIP(raddr.IP)
 		var l4 addr.L4Info
 		if ot.IsUDP() {
-			l4 = addr.NewL4Info(common.L4UDP, uint16(raddr.Port))
+			l4 = addr.NewL4UDPInfo(uint16(raddr.Port))
 		}
 		m.Src, _ = overlay.NewOverlayAddr(l3, l4)
 	}

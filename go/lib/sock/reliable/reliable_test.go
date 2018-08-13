@@ -26,7 +26,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -47,55 +46,50 @@ func TestRegister(t *testing.T) {
 			ia: addr.IA{I: 1, A: 10},
 			dst: &addr.AppAddr{
 				L3: addr.HostNone{},
-				L4: nil,
 			},
-			bind: nil, svc: addr.SvcNone,
-			want: nil, timeoutOK: true,
+			svc:       addr.SvcNone,
+			timeoutOK: true,
 		}, {
 			ia: addr.IA{I: 2, A: 21},
 			dst: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				L4: addr.NewL4Info(common.L4UDP, 80),
+				L4: addr.NewL4UDPInfo(80),
 			},
-			bind: nil, svc: addr.SvcNone,
+			svc: addr.SvcNone,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 17,
 				3, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80, 1, 127, 0, 0, 1},
-			timeoutOK: false,
 		}, {
 			ia: addr.IA{I: 2, A: 21},
 			dst: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv6loopback),
-				L4: addr.NewL4Info(common.L4UDP, 80),
+				L4: addr.NewL4UDPInfo(80),
 			},
-			bind: nil, svc: addr.SvcNone,
+			svc: addr.SvcNone,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 29,
 				3, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80, 2,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-			timeoutOK: false,
 		}, {
 			ia: addr.IA{I: 2, A: 21},
 			dst: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				L4: addr.NewL4Info(common.L4UDP, 80),
+				L4: addr.NewL4UDPInfo(80),
 			},
 			bind: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv4(127, 0, 0, 2)),
-				L4: addr.NewL4Info(common.L4UDP, 81),
+				L4: addr.NewL4UDPInfo(81),
 			}, svc: addr.SvcNone,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 24,
 				7, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80,
 				1, 127, 0, 0, 1, 0, 81, 1, 127, 0, 0, 2},
-			timeoutOK: false,
 		}, {
 			ia: addr.IA{I: 2, A: 21},
 			dst: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				L4: addr.NewL4Info(common.L4UDP, 80),
+				L4: addr.NewL4UDPInfo(80),
 			},
-			bind: nil, svc: addr.SvcCS,
+			svc: addr.SvcCS,
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 0, 0, 0, 0, 19,
 				3, 17, 0, 2, 0, 0, 0, 0, 0, 21, 0, 80, 1, 127, 0, 0, 1, 0, 2},
-			timeoutOK: false,
 		},
 	}
 
@@ -149,7 +143,7 @@ func TestRegisterTimeout(t *testing.T) {
 			ia := addr.IA{I: 1, A: 10}
 			appAddr := &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv4(1, 2, 3, 4)),
-				L4: addr.NewL4Info(common.L4UDP, 0),
+				L4: addr.NewL4UDPInfo(0),
 			}
 
 			before := time.Now()
@@ -181,7 +175,7 @@ func TestWriteTo(t *testing.T) {
 			msg: "foo",
 			dst: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv4(127, 0, 0, 1)),
-				L4: addr.NewL4Info(common.L4UDP, 80),
+				L4: addr.NewL4UDPInfo(80),
 			},
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 1, 0, 0, 0, 3,
 				127, 0, 0, 1, 0, 80, 'f', 'o', 'o'},
@@ -189,7 +183,7 @@ func TestWriteTo(t *testing.T) {
 			msg: "bar",
 			dst: &addr.AppAddr{
 				L3: addr.HostFromIP(net.IPv6loopback),
-				L4: addr.NewL4Info(common.L4UDP, 80),
+				L4: addr.NewL4UDPInfo(80),
 			},
 			want: []byte{0xde, 0, 0xad, 1, 0xbe, 2, 0xef, 3, 2, 0, 0, 0, 3,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,

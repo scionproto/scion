@@ -73,49 +73,49 @@ var hV6Bind = addr.HostIPv6(net.ParseIP(rawV6Bind))
 
 var oV4, _ = overlay.NewOverlayAddr(hV4Pub, nil)
 var oV6, _ = overlay.NewOverlayAddr(hV6Pub, nil)
-var oV4UDP, _ = overlay.NewOverlayAddr(hV4Pub, addr.NewL4Info(common.L4UDP, 30041))
-var oV6UDP, _ = overlay.NewOverlayAddr(hV6Pub, addr.NewL4Info(common.L4UDP, 30041))
+var oV4UDP, _ = overlay.NewOverlayAddr(hV4Pub, addr.NewL4UDPInfo(30041))
+var oV6UDP, _ = overlay.NewOverlayAddr(hV6Pub, addr.NewL4UDPInfo(30041))
 
 // TopoAddr's for ipv4
 var taV4Both = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
-	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4Info(common.L4UDP, 40002)},
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40000)},
+	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4UDPInfo(40002)},
 	overlay: oV4,
 }
 var taV4Pub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40000)},
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40000)},
 	bind:    nil,
 	overlay: oV4,
 }
 var taV4UDPBoth = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40001)},
-	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4Info(common.L4UDP, 40002)},
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40001)},
+	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4UDPInfo(40002)},
 	overlay: oV4UDP,
 }
 var taV4UDPPub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4Info(common.L4UDP, 40001)},
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40001)},
 	bind:    nil,
 	overlay: oV4UDP,
 }
 
 // TopoAddr's for ipv6
 var taV6Both = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60000)},
-	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4Info(common.L4UDP, 60002)},
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60000)},
+	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4UDPInfo(60002)},
 	overlay: oV6,
 }
 var taV6Pub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60000)},
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60000)},
 	bind:    nil,
 	overlay: oV6,
 }
 var taV6UDPBoth = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60001)},
-	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4Info(common.L4UDP, 60002)},
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60001)},
+	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4UDPInfo(60002)},
 	overlay: oV6UDP,
 }
 var taV6UDPPub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4Info(common.L4UDP, 60001)},
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60001)},
 	bind:    nil,
 	overlay: oV6UDP,
 }

@@ -179,7 +179,7 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	sp.SrcIA = rp.Ctx.Conf.IA
 	// Use the local address as the source host
 	pub := rp.Ctx.Conf.Net.LocAddr.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
-	sp.SrcHost = pub.L3.Copy()
+	sp.SrcHost = pub.L3
 	return sp, nil
 }
 

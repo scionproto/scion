@@ -443,7 +443,7 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	topoAddr := f.topology.PS[psName]
 	ps := &snet.Addr{
 		IA:   f.topology.ISD_AS,
-		Host: topoAddr.PublicAddr(f.topology.Overlay).Copy(),
+		Host: topoAddr.PublicAddr(f.topology.Overlay),
 	}
 	if ps.Host == nil {
 		return nil, common.NewBasicError("PS address not found", nil, "name", psName,

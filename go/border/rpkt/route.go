@@ -151,7 +151,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		rp.CmnHdr.HdrLenBytes()
 	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
-		l4 := addr.NewL4Info(common.L4UDP, overlay.EndhostPort)
+		l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
 		dst, err := overlay.NewOverlayAddr(rp.dstHost, l4)
 		if err != nil {
 			return HookError, err

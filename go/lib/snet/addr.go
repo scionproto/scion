@@ -134,7 +134,7 @@ func AddrFromString(s string) (*Addr, error) {
 		if err != nil {
 			return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"][1:])
 		}
-		l4 = addr.NewL4Info(common.L4UDP, uint16(p))
+		l4 = addr.NewL4UDPInfo(uint16(p))
 	}
 	return &Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}, nil
 }

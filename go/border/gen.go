@@ -119,8 +119,7 @@ func (r *Router) genIFStateReq() {
 		log.Error("Error generating IFStateReq signed Ctrl payload", "err", err)
 		return
 	}
-	l4 := addr.NewL4Info(common.L4UDP, 0)
-	dst := &addr.AppAddr{L3: addr.SvcBS.Multicast(), L4: l4}
+	dst := &addr.AppAddr{L3: addr.SvcBS.Multicast(), L4: addr.NewL4UDPInfo(0)}
 	if err := r.genPkt(ctx.Conf.IA, dst, src, nil, scpld); err != nil {
 		log.Error("Error generating IFStateReq packet", "err", err)
 	}

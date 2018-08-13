@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -171,6 +172,18 @@ func (h *HostInfo) Host() addr.HostAddr {
 		return addr.HostIPv6(h.Addrs.Ipv6)
 	}
 	return nil
+}
+
+func (h *HostInfo) Overlay() (*overlay.OverlayAddr, error) {
+	var l4 addr.L4Info
+	if h.Port != 0 {
+		l4 = addr.NewL4UDPInfo(h.Port)
+	}
+	return overlay.NewOverlayAddr(h.Host(), l4)
+}
+
+func (h *HostInfo) String() string {
+	return fmt.Sprintf("[%v]:%d", h.Host(), h.Port)
 }
 
 type FwdPathMeta struct {

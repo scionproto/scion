@@ -197,9 +197,8 @@ func (c *Conf) loadTopo() error {
 	pub := topoAddr.PublicAddr(c.Topo.Overlay)
 	c.PublicAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: pub}
 	bind := topoAddr.BindAddr(c.Topo.Overlay)
-	tmpBind := &snet.Addr{IA: c.Topo.ISD_AS, Host: bind}
-	if !tmpBind.EqAddr(c.PublicAddr) {
-		c.BindAddr = tmpBind
+	if bind != nil {
+		c.BindAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: bind}
 	}
 	return nil
 }

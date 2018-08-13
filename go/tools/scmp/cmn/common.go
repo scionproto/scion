@@ -112,7 +112,6 @@ func ValidateFlags() {
 		Fatal("Invalid remote address")
 	}
 	// scmp-tool does not use ports, thus they should not be set
-	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
 	if Local.Host.L4 != nil {
 		Fatal("Local port should not be provided")
 	}
@@ -154,7 +153,7 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 func NextHopAddr() net.Addr {
 	var nhAddr *overlay.OverlayAddr
 	if Remote.NextHop == nil {
-		l4 := addr.NewL4Info(common.L4UDP, overlay.EndhostPort)
+		l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
 		nhAddr, _ = overlay.NewOverlayAddr(Remote.Host.L3, l4)
 	} else {
 		nhAddr = Remote.NextHop

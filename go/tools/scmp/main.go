@@ -23,8 +23,6 @@ import (
 	"strconv"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -143,8 +141,7 @@ func setPathAndMtu() uint16 {
 	}
 	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
 	cmn.Remote.Path.InitOffsets()
-	l4 := addr.NewL4Info(common.L4UDP, cmn.PathEntry.HostInfo.Port)
-	cmn.Remote.NextHop, _ = overlay.NewOverlayAddr(cmn.PathEntry.HostInfo.Host(), l4)
+	cmn.Remote.NextHop, _ = cmn.PathEntry.HostInfo.Overlay()
 	return cmn.PathEntry.Path.Mtu
 }
 

@@ -73,7 +73,7 @@ func Init(ia addr.IA, ip net.IP) error {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
 	PathMgr = snet.DefNetwork.PathResolver()
-	l4 := addr.NewL4Info(common.L4UDP, uint16(*CtrlPort))
+	l4 := addr.NewL4UDPInfo(uint16(*CtrlPort))
 	CtrlConn, err = snet.ListenSCION(
 		"udp4", &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}})
 	if err != nil {
@@ -83,12 +83,12 @@ func Init(ia addr.IA, ip net.IP) error {
 }
 
 func CtrlSnetAddr() *snet.Addr {
-	l4 := addr.NewL4Info(common.L4UDP, uint16(*CtrlPort))
+	l4 := addr.NewL4UDPInfo(uint16(*CtrlPort))
 	return &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}}
 }
 
 func EncapSnetAddr() *snet.Addr {
-	l4 := addr.NewL4Info(common.L4UDP, uint16(*EncapPort))
+	l4 := addr.NewL4UDPInfo(uint16(*EncapPort))
 	return &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}}
 }
 
