@@ -44,8 +44,10 @@
 FilterSocket *filter_socket = NULL;
 #endif
 
+#ifndef ZLOG_DEBUG
 #undef zlog_debug
 #define zlog_debug(...)
+#endif
 
 #define CMSG_CTRL_SIZE (CMSG_SPACE(sizeof(struct in6_pktinfo)) + CMSG_SPACE(sizeof(uint32_t)))
 #define DSTADDR(x) (((struct in_pktinfo *)CMSG_DATA(x))->ipi_addr)
@@ -212,7 +214,6 @@ int main(int argc, char **argv)
 void parse_cmdline(int argc, char **argv) {
     int c;
     bool delete_sock=false;
-
 
     while (1) {
         int option_index = 0;
@@ -953,8 +954,8 @@ void deliver_udp_svc(uint8_t *buf, int len, HostAddr *from, HostAddr *dst) {
             return;
         }
     }
-    //char dststr[MAX_HOST_ADDR_STR];
-    //char svcstr[MAX_HOST_ADDR_STR];
+    char dststr[MAX_HOST_ADDR_STR] __attribute__ ((unused));
+    char svcstr[MAX_HOST_ADDR_STR] __attribute__ ((unused));
     zlog_debug(zc, "deliver UDP packet to (%d-%" PRId64 "):%s SVC:%s",
             ISD(svc_key.isd_as), AS(svc_key.isd_as),
             addr_to_str(dst->addr, dst->addr_type, dststr),
