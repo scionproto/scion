@@ -13,24 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -o pipefail
+set -f
 
-log() {
-    echo "========> ($(date -u --rfc-3339=seconds)) $@"
-}
+. integration/common.sh
 
-for br in "$@"; do
+# Get docker flag, container name and BRS
+opts "$@"
+
+for br in $REV_BRS; do
     if ! ./scion.sh mstatus "$br"; then
         log "${br} does not exist. Skipping revocation test."
         exit 0
     fi
 done
 
-export PYTHONPATH=python/:.
 # Bring down routers.
 SLEEP=4
+log "Revocation test"
 log "Stopping routers and waiting for ${SLEEP}s."
-./scion.sh mstop "$@"
+./scion.sh mstop $REV_BRS
 if [ $? -ne 0 ]; then
     log "Failed stopping routers."
     exit 1
@@ -38,9 +39,5 @@ fi
 sleep ${SLEEP}s
 # Do another round of e2e test with retries
 log "Testing connectivity between all the hosts (with retries)."
-python/integration/end2end_test.py -l ERROR --retries 3
-result=$?
-if [ $result -ne 0 ]; then
-    log "E2E test with failed routers failed. (${result})"
-fi
-exit ${result}
+run Revocation "python/integration/end2end_test.py -l ERROR --retries 3"
+exit $?

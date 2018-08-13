@@ -3,9 +3,6 @@ defaults:
   zookeepers:
     1:
       addr: 127.0.0.1
-  docker-zks:
-    1:
-      addr: 172.18.0.1
 ASes:
   "1-ff00:0:110": # old 1-11
     core: true

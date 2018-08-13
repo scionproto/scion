@@ -2,4 +2,10 @@
 
 set -ex
 
-docker container exec ${1:-scion_ci} bash -c "set -eo pipefail; sudo service zookeeper start; ./integration/integration_test.sh |& tee logs/integration.run"
+ctnr=${1:-scion_ci}
+
+docker container exec $ctnr bash -c "./scion.sh topology -d"
+docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen .
+docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-cache .
+docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
+./integration/integration_test.sh -d $ctnr
