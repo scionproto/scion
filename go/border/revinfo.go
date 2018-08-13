@@ -47,7 +47,7 @@ func (r *Router) RevInfoFwd() {
 		}
 		log.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", args.Addrs)
 		for _, svcAddr := range args.Addrs {
-			r.fwdRevInfo(args.SignedRevInfo, &svcAddr)
+			r.fwdRevInfo(args.SignedRevInfo, svcAddr)
 		}
 	}
 }
@@ -56,7 +56,7 @@ func (r *Router) RevInfoFwd() {
 func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
-	srcAddr := ctx.Conf.Net.LocAddr.PublicAddrInfo(ctx.Conf.Topo.Overlay)
+	src := ctx.Conf.Net.LocAddr.PublicAddr(ctx.Conf.Topo.Overlay)
 	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
 	if err != nil {
 		log.Error("Error generating RevInfo Ctrl payload", "err", err)
@@ -67,7 +67,8 @@ func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.Host
 		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
 		return
 	}
-	if err = r.genPkt(ctx.Conf.IA, *dstHost.(*addr.HostSVC), 0, srcAddr, scpld); err != nil {
+	dst := &addr.AppAddr{L3: dstHost, L4: addr.NewL4UDPInfo(0)}
+	if err = r.genPkt(ctx.Conf.IA, dst, src, nil, scpld); err != nil {
 		log.Error("Error generating RevInfo packet", "err", err)
 	}
 }

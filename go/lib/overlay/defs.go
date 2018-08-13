@@ -44,6 +44,12 @@ const (
 	UDPIPv46Name = "UDP/IPv4+6"
 )
 
+const (
+	// EndhostPort is the overlay port that the dispatcher binds to on non-routers. Subject to
+	// change during standardisation.
+	EndhostPort = 30041
+)
+
 func (o Type) String() string {
 	switch o {
 	case IPv4:

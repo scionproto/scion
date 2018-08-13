@@ -21,7 +21,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -195,14 +194,11 @@ func (c *Conf) loadTopo() error {
 	if !ok {
 		return common.NewBasicError(ErrorAddr, nil, "err", "Element ID not found", "id", c.ID)
 	}
-	publicInfo := topoAddr.PublicAddrInfo(c.Topo.Overlay)
-	c.PublicAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(publicInfo.IP),
-		L4Port: uint16(publicInfo.L4Port)}
-	bindInfo := topoAddr.BindAddrInfo(c.Topo.Overlay)
-	tmpBind := &snet.Addr{IA: c.Topo.ISD_AS, Host: addr.HostFromIP(bindInfo.IP),
-		L4Port: uint16(bindInfo.L4Port)}
-	if !tmpBind.EqAddr(c.PublicAddr) {
-		c.BindAddr = tmpBind
+	pub := topoAddr.PublicAddr(c.Topo.Overlay)
+	c.PublicAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: pub}
+	bind := topoAddr.BindAddr(c.Topo.Overlay)
+	if bind != nil {
+		c.BindAddr = &snet.Addr{IA: c.Topo.ISD_AS, Host: bind}
 	}
 	return nil
 }

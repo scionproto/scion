@@ -195,11 +195,12 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	if laddr == nil {
 		return nil, common.NewBasicError("Nil laddr not supported", nil)
 	}
-	if laddr.Host.Type() != addr.HostTypeIPv4 {
+	if laddr.Host.L3.Type() != addr.HostTypeIPv4 || laddr.Host.L4.Type() != common.L4UDP {
 		return nil, common.NewBasicError("Supplied local address does not match network", nil,
-			"expected", addr.HostTypeIPv4, "actual", laddr.Host.Type())
+			"expected L3", addr.HostTypeIPv4, "actual L3", laddr.Host.L3.Type(),
+			"expected L4", common.L4UDP, "actual L4", laddr.Host.L4.Type())
 	}
-	if laddr.Host.IP().Equal(net.IPv4zero) {
+	if laddr.Host.L3.IP().Equal(net.IPv4zero) {
 		return nil, common.NewBasicError("Binding to 0.0.0.0 not supported", nil)
 	}
 	conn := &Conn{
@@ -208,48 +209,42 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 		recvBuffer: make(common.RawBytes, BufSize),
 		sendBuffer: make(common.RawBytes, BufSize),
 		svc:        svc}
-
 	// Initialize local bind address
-	regAddr := &reliable.AppAddr{}
-	var bindAddr *reliable.AppAddr
-	// NOTE: keep nil address logic for now, even though we do not support
-	// it yet
+	// NOTE: keep nil address logic for now, even though we do not support it yet
 	if laddr != nil {
 		conn.laddr = laddr.Copy()
-		regAddr.Port = conn.laddr.L4Port
 	} else {
+		l4 := addr.NewL4UDPInfo(0)
 		conn.laddr = &Addr{}
-		conn.laddr.Host = addr.HostFromIP(net.IPv4zero)
+		conn.laddr.Host = &addr.AppAddr{L3: addr.HostIPv4(net.IPv4zero), L4: l4}
 		conn.laddr.IA = conn.scionNet.localIA
 	}
-	regAddr.Addr = conn.laddr.Host
-
 	if conn.laddr.IA.IsZero() {
 		conn.laddr.IA = n.IA()
 	}
-
 	if !conn.laddr.IA.Eq(conn.scionNet.localIA) {
 		return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA, "type", "public")
 	}
-
+	var bindAddr *addr.AppAddr
 	if baddr != nil {
 		conn.baddr = baddr.Copy()
-		bindAddr = &reliable.AppAddr{Addr: conn.baddr.Host, Port: conn.baddr.L4Port}
+		bindAddr = baddr.Host
 		if !conn.baddr.IA.Eq(conn.scionNet.localIA) {
 			return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}
 	}
-
 	rconn, port, err := reliable.Register(conn.scionNet.dispatcherPath,
-		conn.laddr.IA, regAddr, bindAddr, svc)
+		conn.laddr.IA, conn.laddr.Host, bindAddr, svc)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to register with dispatcher", err)
 	}
-	log.Info("Registered with dispatcher", "ia", conn.scionNet.localIA, "host", regAddr.Addr,
-		"port", port)
-	conn.laddr.L4Port = port
+	if port != conn.laddr.Host.L4.Port() {
+		// Update port
+		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
+	}
+	log.Info("Registered with dispatcher", "addr", conn.laddr)
 	conn.conn = rconn
 	return conn, nil
 }

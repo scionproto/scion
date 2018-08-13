@@ -23,6 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -33,12 +34,10 @@ var addrRegexp = regexp.MustCompile(
 	`^(?P<ia>\d+-[\d:A-Fa-f]+),\[(?P<host>[^\]]+)\](?P<port>:\d+)?$`)
 
 type Addr struct {
-	IA          addr.IA
-	Host        addr.HostAddr
-	L4Port      uint16
-	Path        *spath.Path
-	NextHopHost addr.HostAddr
-	NextHopPort uint16
+	IA      addr.IA
+	Host    *addr.AppAddr
+	Path    *spath.Path
+	NextHop *overlay.OverlayAddr
 }
 
 func (a *Addr) Network() string {
@@ -49,16 +48,17 @@ func (a *Addr) String() string {
 	if a == nil {
 		return "<nil>"
 	}
-	s := fmt.Sprintf("%s,[%v]:%d", a.IA, a.Host, a.L4Port)
-	return s
+	if a.Host == nil {
+		return fmt.Sprintf("%s,<nil>", a.IA)
+	}
+	return fmt.Sprintf("%s,[%v]:%v", a.IA, a.Host.L3, a.Host.L4)
 }
 
 func (a *Addr) Desc() string {
 	if a == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("%s Path: %t NextHop: [%v]:%d",
-		a, a.Path != nil, a.NextHopHost, a.NextHopPort)
+	return fmt.Sprintf("%s Path: %t NextHop: %v", a, a.Path != nil, a.NextHop)
 }
 
 // EqAddr compares the IA/Host/L4port values with the supplied Addr
@@ -69,10 +69,7 @@ func (a *Addr) EqAddr(o *Addr) bool {
 	if !a.IA.Eq(o.IA) {
 		return false
 	}
-	if !addr.HostEq(a.Host, o.Host) {
-		return false
-	}
-	return a.L4Port == o.L4Port
+	return a.Host.Eq(o.Host)
 }
 
 func (a *Addr) Copy() *Addr {
@@ -80,16 +77,14 @@ func (a *Addr) Copy() *Addr {
 		return nil
 	}
 	newA := &Addr{
-		IA:          a.IA,
-		Host:        a.Host.Copy(),
-		L4Port:      a.L4Port,
-		NextHopPort: a.NextHopPort,
+		IA:   a.IA,
+		Host: a.Host.Copy(),
 	}
 	if a.Path != nil {
 		newA.Path = a.Path.Copy()
 	}
-	if a.NextHopHost != nil {
-		newA.NextHopHost = a.NextHopHost.Copy()
+	if a.NextHop != nil {
+		newA.NextHop = a.NextHop.Copy()
 	}
 	return newA
 }
@@ -108,8 +103,7 @@ func (a *Addr) UnmarshalText(text []byte) error {
 }
 
 func (a *Addr) IsZero() bool {
-	return a.IA.IsZero() && a.Host == nil && a.L4Port == 0 && a.Path == nil &&
-		a.NextHopHost == nil && a.NextHopPort == 0
+	return a.IA.IsZero() && a.Host == nil && a.Path == nil && a.NextHop == nil
 }
 
 // AddrFromString converts an address string of format isd-as,[ipaddr]:port
@@ -123,28 +117,27 @@ func AddrFromString(s string) (*Addr, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Invalid IA string", err, "ia", ia)
 	}
-
-	var host addr.HostAddr
+	var l3 addr.HostAddr
 	if hostSVC := addr.HostSVCFromString(parts["host"]); hostSVC != addr.SvcNone {
-		host = hostSVC
+		l3 = hostSVC
 	} else {
 		ip := net.ParseIP(parts["host"])
 		if ip == nil {
 			return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
 		}
-		host = addr.HostFromIP(ip)
+		l3 = addr.HostFromIP(ip)
 	}
-
-	var port uint64
+	var l4 addr.L4Info
 	if parts["port"] != "" {
-		var err error
 		// skip the : (first character) from the port string
-		port, err = strconv.ParseUint(parts["port"][1:], 10, 16)
+		p, err := strconv.ParseUint(parts["port"][1:], 10, 16)
 		if err != nil {
 			return nil, common.NewBasicError("Invalid port string", err, "port", parts["port"][1:])
 		}
+		// FIXME(sgmonroy) We should not assume UDP as the L4 protocol
+		l4 = addr.NewL4UDPInfo(uint16(p))
 	}
-	return &Addr{IA: ia, Host: host, L4Port: uint16(port)}, nil
+	return &Addr{IA: ia, Host: &addr.AppAddr{L3: l3, L4: l4}}, nil
 }
 
 func parseAddr(s string) (map[string]string, error) {
@@ -168,6 +161,6 @@ func (a *Addr) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	a.IA, a.Host, a.L4Port = other.IA, other.Host, other.L4Port
+	a.IA, a.Host = other.IA, other.Host
 	return nil
 }

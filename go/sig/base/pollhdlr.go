@@ -15,6 +15,7 @@
 package base
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
@@ -55,10 +56,12 @@ func PollReqHdlr() {
 			log.Error("PollReqHdlr: Error packing signed Ctrl payload", "err", err)
 			break
 		}
+		l4 := addr.NewL4UDPInfo(req.Addr.Ctrl.Port)
 		sigCtrlAddr := &snet.Addr{
-			IA: rpld.Addr.IA, Host: req.Addr.Ctrl.Host(), L4Port: req.Addr.Ctrl.Port,
-			Path: rpld.Addr.Path, NextHopHost: rpld.Addr.NextHopHost,
-			NextHopPort: rpld.Addr.NextHopPort,
+			IA:      rpld.Addr.IA,
+			Host:    &addr.AppAddr{L3: req.Addr.Ctrl.Host(), L4: l4},
+			Path:    rpld.Addr.Path,
+			NextHop: rpld.Addr.NextHop.Copy(),
 		}
 		_, err = sigcmn.CtrlConn.WriteToSCION(raw, sigCtrlAddr)
 		if err != nil {

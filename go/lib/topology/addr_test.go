@@ -21,6 +21,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 )
@@ -65,27 +66,69 @@ var raiV46UDPBoth = mkRAI([]testRAIOver{v4PubUDP, v6PubUDP}, []RawAddrPort{v6Bin
 var raiV46UDPPub = mkRAI([]testRAIOver{v4PubUDP, v6PubUDP}, nil)
 var raiV46Bind = mkRAI(nil, []RawAddrPort{v4Bind, v6Bind})
 
+var hV4Pub = addr.HostIPv4(net.ParseIP(rawV4Pub))
+var hV4Bind = addr.HostIPv4(net.ParseIP(rawV4Bind))
+var hV6Pub = addr.HostIPv6(net.ParseIP(rawV6Pub))
+var hV6Bind = addr.HostIPv6(net.ParseIP(rawV6Bind))
+
+var oV4, _ = overlay.NewOverlayAddr(hV4Pub, nil)
+var oV6, _ = overlay.NewOverlayAddr(hV6Pub, nil)
+var oV4UDP, _ = overlay.NewOverlayAddr(hV4Pub, addr.NewL4UDPInfo(30041))
+var oV6UDP, _ = overlay.NewOverlayAddr(hV6Pub, addr.NewL4UDPInfo(30041))
+
 // TopoAddr's for ipv4
-var taV4Both = &topoAddrInt{net.ParseIP(rawV4Pub), 40000, net.ParseIP(rawV4Bind), 40002, 0}
-var taV4Pub = &topoAddrInt{net.ParseIP(rawV4Pub), 40000, nil, 0, 0}
-var taV4UDPBoth = &topoAddrInt{net.ParseIP(rawV4Pub), 40001, net.ParseIP(rawV4Bind), 40002, 30041}
-var taV4UDPPub = &topoAddrInt{net.ParseIP(rawV4Pub), 40001, nil, 0, 30041}
+var taV4Both = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40000)},
+	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4UDPInfo(40002)},
+	overlay: oV4,
+}
+var taV4Pub = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40000)},
+	bind:    nil,
+	overlay: oV4,
+}
+var taV4UDPBoth = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40001)},
+	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4UDPInfo(40002)},
+	overlay: oV4UDP,
+}
+var taV4UDPPub = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40001)},
+	bind:    nil,
+	overlay: oV4UDP,
+}
 
 // TopoAddr's for ipv6
-var taV6Both = &topoAddrInt{net.ParseIP(rawV6Pub), 60000, net.ParseIP(rawV6Bind), 60002, 0}
-var taV6Pub = &topoAddrInt{net.ParseIP(rawV6Pub), 60000, nil, 0, 0}
-var taV6UDPBoth = &topoAddrInt{net.ParseIP(rawV6Pub), 60001, net.ParseIP(rawV6Bind), 60002, 30041}
-var taV6UDPPub = &topoAddrInt{net.ParseIP(rawV6Pub), 60001, nil, 0, 30041}
+var taV6Both = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60000)},
+	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4UDPInfo(60002)},
+	overlay: oV6,
+}
+var taV6Pub = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60000)},
+	bind:    nil,
+	overlay: oV6,
+}
+var taV6UDPBoth = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60001)},
+	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4UDPInfo(60002)},
+	overlay: oV6UDP,
+}
+var taV6UDPPub = &pubBindAddr{
+	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60001)},
+	bind:    nil,
+	overlay: oV6UDP,
+}
 
 // TopoAddr's for ipv4+6
-var taV46Both4 = &topoAddrInt{net.ParseIP(rawV4Pub), 40000, net.ParseIP(rawV4Bind), 40002, 0}
-var taV46Both6 = &topoAddrInt{net.ParseIP(rawV6Pub), 60000, net.ParseIP(rawV6Bind), 60002, 0}
-var taV46Pub4 = &topoAddrInt{net.ParseIP(rawV4Pub), 40000, nil, 0, 0}
-var taV46Pub6 = &topoAddrInt{net.ParseIP(rawV6Pub), 60000, nil, 0, 0}
-var taV46UDPBoth4 = &topoAddrInt{net.ParseIP(rawV4Pub), 40001, net.ParseIP(rawV4Bind), 40002, 30041}
-var taV46UDPBoth6 = &topoAddrInt{net.ParseIP(rawV6Pub), 60001, net.ParseIP(rawV6Bind), 60002, 30041}
-var taV46UDPPub4 = &topoAddrInt{net.ParseIP(rawV4Pub), 40001, nil, 0, 30041}
-var taV46UDPPub6 = &topoAddrInt{net.ParseIP(rawV6Pub), 60001, nil, 0, 30041}
+var taV46Both4 = taV4Both
+var taV46Both6 = taV6Both
+var taV46Pub4 = taV4Pub
+var taV46Pub6 = taV6Pub
+var taV46UDPBoth4 = taV4UDPBoth
+var taV46UDPBoth6 = taV6UDPBoth
+var taV46UDPPub4 = taV4UDPPub
+var taV46UDPPub6 = taV6UDPPub
 
 func mkRAI(pub []testRAIOver, bind []RawAddrPort) *RawAddrInfo {
 	rai := &RawAddrInfo{}
@@ -99,7 +142,7 @@ func mkRAI(pub []testRAIOver, bind []RawAddrPort) *RawAddrInfo {
 }
 
 func shouldEqTopoAddr(actual interface{}, expected ...interface{}) string {
-	if actual.(*topoAddrInt).equal(expected[0].(*topoAddrInt)) {
+	if actual.(*pubBindAddr).equal(expected[0].(*pubBindAddr)) {
 		return ""
 	}
 	return fmt.Sprintf("Expected: %+v\nActual: %+v", expected[0], actual)
@@ -119,8 +162,8 @@ func Test_ToTopoAddr_Basic(t *testing.T) {
 		name  string
 		ot    overlay.Type
 		in    *RawAddrInfo
-		expV4 *topoAddrInt
-		expV6 *topoAddrInt
+		expV4 *pubBindAddr
+		expV6 *pubBindAddr
 	}{
 		{"IPv4 Both", overlay.IPv4, raiV4Both, taV4Both, nil},
 		{"IPv4 Pub", overlay.IPv4, raiV4Pub, taV4Pub, nil},

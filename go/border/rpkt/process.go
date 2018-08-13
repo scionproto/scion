@@ -60,7 +60,7 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 	}
 	// Check to see if the destination IP is the address the packet was received on.
 	if rp.DirTo == rcmn.DirSelf {
-		return rp.isDestSelf(rp.Ingress.Dst.L4Port)
+		return rp.isDestSelf(rp.Ingress.Dst.L4().Port())
 	}
 	// Non-SVC packet to local AS, just forward.
 	rp.hooks.Route = append(rp.hooks.Route, rp.forward)
@@ -70,7 +70,7 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 // isDestSelf checks if the packet's destination port (if any) matches the
 // router's L4 port. If it does, hooks are registered to parse and process the
 // payload. Otherwise it is forwarded to the local dispatcher.
-func (rp *RtrPkt) isDestSelf(ownPort int) error {
+func (rp *RtrPkt) isDestSelf(ownPort uint16) error {
 	if _, err := rp.L4Hdr(true); err != nil {
 		if common.GetErrorMsg(err) != UnsupportedL4 {
 			return err
@@ -78,7 +78,7 @@ func (rp *RtrPkt) isDestSelf(ownPort int) error {
 	}
 	switch h := rp.l4.(type) {
 	case *l4.UDP:
-		if int(h.DstPort) == ownPort {
+		if h.DstPort == ownPort {
 			goto Self
 		}
 	case *scmp.Hdr:
@@ -167,12 +167,12 @@ func (rp *RtrPkt) processRemoteIFID(ifid *ifid.IFID) (HookResult, error) {
 	if err = rp.SetPld(scpld); err != nil {
 		return HookError, err
 	}
-	srcAddr := rp.Ctx.Conf.Net.LocAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+	pub := rp.Ctx.Conf.Net.LocAddr.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
 	// Create base packet to local beacon service (multicast).
 	fwdrp, err := RtrPktFromScnPkt(&spkt.ScnPkt{
 		DstIA: rp.Ctx.Conf.IA, SrcIA: rp.Ctx.Conf.IA,
-		DstHost: addr.SvcBS.Multicast(), SrcHost: addr.HostFromIP(srcAddr.IP),
-		L4: &l4.UDP{SrcPort: uint16(srcAddr.L4Port), DstPort: 0},
+		DstHost: addr.SvcBS.Multicast(), SrcHost: pub.L3,
+		L4: &l4.UDP{SrcPort: pub.L4.Port(), DstPort: 0},
 	}, rcmn.DirLocal, rp.Ctx)
 	if err != nil {
 		return HookError, err

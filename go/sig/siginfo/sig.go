@@ -105,11 +105,13 @@ func NewSig(ia addr.IA, id SigIdType, host addr.HostAddr,
 }
 
 func (s *Sig) CtrlSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: s.Host, L4Port: uint16(s.CtrlL4Port)}
+	l4 := addr.NewL4UDPInfo(uint16(s.CtrlL4Port))
+	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: l4}}
 }
 
 func (s *Sig) EncapSnetAddr() *snet.Addr {
-	return &snet.Addr{IA: s.IA, Host: s.Host, L4Port: uint16(s.EncapL4Port)}
+	l4 := addr.NewL4UDPInfo(uint16(s.EncapL4Port))
+	return &snet.Addr{IA: s.IA, Host: &addr.AppAddr{L3: s.Host, L4: l4}}
 }
 
 func (s *Sig) FailCount() uint16 {

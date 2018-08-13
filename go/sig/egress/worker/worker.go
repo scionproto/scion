@@ -178,9 +178,11 @@ func (w *worker) write(f *frame) error {
 	if err := snetAddr.Path.InitOffsets(); err != nil {
 		return common.NewBasicError("Error initializing path offsets", err)
 	}
-	snetAddr.NextHopHost = w.currPathEntry.HostInfo.Host()
-	snetAddr.NextHopPort = w.currPathEntry.HostInfo.Port
-
+	nh, err := w.currPathEntry.HostInfo.Overlay()
+	if err != nil {
+		return common.NewBasicError("Egress unsupported NextHop", err)
+	}
+	snetAddr.NextHop = nh
 	if w.seq == 0 {
 		w.epoch = uint16(time.Now().Unix() & 0xFFFF)
 	}

@@ -67,10 +67,10 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	for ifid, intf := range n.IFs {
 		// Add mapping of interface public address to this interface ID.
 		if intf.IFAddr.IPv4 != nil {
-			n.IFAddrMap[keyFromTopoAddr(intf.IFAddr, overlay.IPv4)] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv4.PublicAddr())] = ifid
 		}
 		if intf.IFAddr.IPv6 != nil {
-			n.IFAddrMap[keyFromTopoAddr(intf.IFAddr, overlay.IPv6)] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv6.PublicAddr())] = ifid
 		}
 	}
 	return n, nil
@@ -87,7 +87,7 @@ type Interface struct {
 	IFAddr *topology.TopoAddr
 	// RemoteAddr is the public address of the border router on the other end
 	// of the link.
-	RemoteAddr *topology.AddrInfo
+	RemoteAddr *overlay.OverlayAddr
 	// RemoteIA is the ISD-AS of the other end of the link.
 	RemoteIA addr.IA
 	// BW is the bandwidth of the link.
@@ -111,12 +111,4 @@ func intfFromTopoIF(t *topology.IFInfo, ifid common.IFIDType) *Interface {
 	intf.MTU = t.MTU
 	intf.Type = t.LinkType
 	return &intf
-}
-
-// This format must be kept in sync with AddrInfo.Key() (from lib/topology/addr.go)
-func keyFromTopoAddr(t *topology.TopoAddr, ot overlay.Type) string {
-	if ot.IsIPv4() {
-		return fmt.Sprintf("%s:%d", t.IPv4.PublicAddr(), t.IPv4.PublicL4Port())
-	}
-	return fmt.Sprintf("%s:%d", t.IPv6.PublicAddr(), t.IPv6.PublicL4Port())
 }

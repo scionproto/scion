@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -111,11 +112,10 @@ func ValidateFlags() {
 		Fatal("Invalid remote address")
 	}
 	// scmp-tool does not use ports, thus they should not be set
-	// Still, the user could set port as 0 ie, ISD-AS,[host]:0 and be valid
-	if Local.L4Port != 0 {
+	if Local.Host.L4 != nil {
 		Fatal("Local port should not be provided")
 	}
-	if Remote.L4Port != 0 {
+	if Remote.Host.L4 != nil {
 		Fatal("Remote port should not be provided")
 	}
 	if Interval == 0 {
@@ -140,8 +140,8 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 	pkt := &spkt.ScnPkt{
 		DstIA:   Remote.IA,
 		SrcIA:   Local.IA,
-		DstHost: Remote.Host,
-		SrcHost: Local.Host,
+		DstHost: Remote.Host.L3,
+		SrcHost: Local.Host.L3,
 		Path:    Remote.Path,
 		HBHExt:  exts,
 		L4:      scmpHdr,
@@ -151,11 +151,14 @@ func NewSCMPPkt(t scmp.Type, info scmp.Info, ext common.Extension) *spkt.ScnPkt 
 }
 
 func NextHopAddr() net.Addr {
-	nhAddr := reliable.AppAddr{Addr: Remote.NextHopHost, Port: Remote.NextHopPort}
-	if Remote.NextHopHost == nil {
-		nhAddr = reliable.AppAddr{Addr: Remote.Host, Port: overlay.EndhostPort}
+	var nhAddr *overlay.OverlayAddr
+	if Remote.NextHop == nil {
+		l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
+		nhAddr, _ = overlay.NewOverlayAddr(Remote.Host.L3, l4)
+	} else {
+		nhAddr = Remote.NextHop
 	}
-	return &nhAddr
+	return nhAddr
 }
 
 func Rand() uint64 {

@@ -32,12 +32,13 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 type setupNetHook func(r *Router, ctx *rctx.Ctx,
@@ -241,17 +242,20 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	}
 	// New bind address. Configure Posix I/O.
 	// Get Bind address if set, Public otherwise
-	bai := ctx.Conf.Net.LocAddr.BindAddrInfo(ctx.Conf.Topo.Overlay)
-	if err := addPosixLocal(r, ctx, bai, labels); err != nil {
+	bind := ctx.Conf.Net.LocAddr.BindOrPublic(ctx.Conf.Topo.Overlay)
+	if err := addPosixLocal(r, ctx, bind, labels); err != nil {
 		return rpkt.HookError, err
 	}
 	return rpkt.HookFinish, nil
 }
 
-func addPosixLocal(r *Router, ctx *rctx.Ctx, ba *topology.AddrInfo,
-	labels prometheus.Labels) error {
+func addPosixLocal(r *Router, ctx *rctx.Ctx, bind *addr.AppAddr, labels prometheus.Labels) error {
 	// Listen on the socket.
-	over, err := conn.New(ba, nil, labels)
+	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
+	if err != nil {
+		return common.NewBasicError("Unsupported listen address", err, "addr", bind)
+	}
+	over, err := conn.New(b, nil, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on local socket", err)
 	}
@@ -291,7 +295,7 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 	} else {
 		log.Debug("No change detected for external socket.", "conn",
-			intf.IFAddr.BindAddrInfo(ctx.Conf.Topo.Overlay))
+			intf.IFAddr.BindAddr(ctx.Conf.Topo.Overlay))
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
 		ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
@@ -310,8 +314,12 @@ func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bo
 func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels) error {
 	// Connect to remote address.
-	ba := intf.IFAddr.BindAddrInfo(intf.IFAddr.Overlay)
-	c, err := conn.New(ba, intf.RemoteAddr, labels)
+	bind := intf.IFAddr.BindOrPublic(intf.IFAddr.Overlay)
+	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
+	if err != nil {
+		return common.NewBasicError("Unsupported listen address", err, "addr", bind)
+	}
+	c, err := conn.New(b, intf.RemoteAddr, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}

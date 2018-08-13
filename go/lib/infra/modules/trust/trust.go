@@ -174,7 +174,8 @@ func (store *Store) GetValidTRC(ctx context.Context, isd addr.ISD,
 			nil, "trail", trail)
 	}
 	// FIXME(scrye): This needs support for anycasting to remote core ISDs
-	return store.getValidTRC(ctx, trail, true, &snet.Addr{IA: addr.IA{I: isd}, Host: addr.SvcCS})
+	return store.getValidTRC(ctx, trail, true,
+		&snet.Addr{IA: addr.IA{I: isd}, Host: &addr.AppAddr{L3: addr.SvcCS}})
 }
 
 // getValidTRC recursively follows trail to create a fully validated trust
@@ -316,7 +317,8 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 
 	// FIXME(scrye): Currently send message to CS in remote AS, but this should
 	// change once server hints can be passed to the trust store.
-	return store.getValidChain(ctx, ia, trail, true, &snet.Addr{IA: ia, Host: addr.SvcCS})
+	return store.getValidChain(ctx, ia, trail, true,
+		&snet.Addr{IA: ia, Host: &addr.AppAddr{L3: addr.SvcCS}})
 }
 
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, trail []addr.ISD,
@@ -632,10 +634,10 @@ func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 		if path == nil {
 			return nil, common.NewBasicError("Unable to find core AS", nil)
 		}
-		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.SvcCS}
+		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: &addr.AppAddr{L3: addr.SvcCS}}
 		return a, nil
 	}
-	a := &snet.Addr{IA: destination, Host: addr.SvcCS}
+	a := &snet.Addr{IA: destination, Host: &addr.AppAddr{L3: addr.SvcCS}}
 	return a, nil
 }
 

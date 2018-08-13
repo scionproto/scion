@@ -37,7 +37,7 @@ var (
 
 func Run() {
 	var hopOff uint8
-	var ext *scmp.Extn
+	var ext common.Extension
 	var path *spath.Path
 	var total uint = 1
 
@@ -148,7 +148,7 @@ func prettyPrint(pkt *spkt.ScnPkt, info *scmp.InfoTraceRoute, rtt time.Duration)
 
 // hopPktOff returns HopF offset relative to the packet
 func hopPktOff(offset int) uint8 {
-	off := spkt.CmnHdrLen + spkt.AddrHdrLen(cmn.Local.Host, cmn.Remote.Host) + offset
+	off := spkt.CmnHdrLen + spkt.AddrHdrLen(cmn.Local.Host.L3, cmn.Remote.Host.L3) + offset
 	return uint8(off / common.LineLen)
 }
 

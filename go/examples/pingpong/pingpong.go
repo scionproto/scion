@@ -94,8 +94,8 @@ func main() {
 		if remote.Host == nil {
 			LogFatal("Missing remote address")
 		}
-		if remote.L4Port == 0 {
-			LogFatal("Invalid remote port", "remote port", remote.L4Port)
+		if remote.Host.L4.Port() == 0 {
+			LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
 		}
 		c := newClient()
 		setSignalHandler(c)
@@ -274,8 +274,7 @@ func (c client) setupPath() {
 		}
 		remote.Path = spath.New(pathEntry.Path.FwdPath)
 		remote.Path.InitOffsets()
-		remote.NextHopHost = pathEntry.HostInfo.Host()
-		remote.NextHopPort = pathEntry.HostInfo.Port
+		remote.NextHop, _ = pathEntry.HostInfo.Overlay()
 	}
 }
 

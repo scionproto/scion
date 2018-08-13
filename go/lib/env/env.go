@@ -21,7 +21,6 @@ package env
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -136,8 +135,11 @@ func getPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	if topoAddr.Overlay != overlay.UDPIPv4 {
 		panic("unsupported overlay")
 	}
-	info := topoAddr.PublicAddrInfo(topoAddr.Overlay)
-	return snetAddressFromAddrInfo(ia, info)
+	pub := topoAddr.PublicAddr(topoAddr.Overlay)
+	if pub == nil {
+		return nil
+	}
+	return &snet.Addr{IA: ia, Host: pub}
 }
 
 func getBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
@@ -145,20 +147,11 @@ func getBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	if topoAddr.Overlay != overlay.UDPIPv4 {
 		panic("unsupported overlay")
 	}
-	info := topoAddr.BindAddrInfo(topoAddr.Overlay)
-	return snetAddressFromAddrInfo(ia, info)
-}
-
-func snetAddressFromAddrInfo(ia addr.IA, info *topology.AddrInfo) *snet.Addr {
-	if info == nil {
+	bind := topoAddr.BindAddr(topoAddr.Overlay)
+	if bind == nil {
 		return nil
 	}
-	return &snet.Addr{
-		IA:          ia,
-		Host:        addr.HostFromIP(info.IP),
-		L4Port:      uint16(info.L4Port),
-		NextHopPort: uint16(info.OverlayPort),
-	}
+	return &snet.Addr{IA: ia, Host: bind}
 }
 
 type Logging struct {
@@ -249,38 +242,4 @@ type Trust struct {
 type Infra struct {
 	// Type must be one of BS, CS or PS.
 	Type string
-	// Public is the local address to listen on for SCION messages (if Bind is
-	// not set), and to send out messages to other nodes.
-	Public snet.Addr
-	// If set, Bind is the preferred local address to listen on for SCION
-	// messages.
-	Bind snet.Addr
-}
-
-func InitInfra(cfg *Infra, id string, warnings io.Writer, topo *topology.Topo) error {
-	var publicAddress, bindAddress *snet.Addr
-	topoAddress := topo.GetTopoAddr(cfg.Type, id)
-	if topoAddress != nil {
-		bindAddress = getBindSnetAddress(topo.ISD_AS, topoAddress)
-		publicAddress = getPublicSnetAddress(topo.ISD_AS, topoAddress)
-	}
-	if publicAddress != nil {
-		// If both config file and topology file specify this, warn the user
-		// that the config value is discarded
-		if !cfg.Public.IsZero() {
-			fmt.Fprintf(warnings, "Warning: Discarding address general.public=%v because config "+
-				"was also found in topology file\n", cfg.Public)
-		}
-		cfg.Public = *publicAddress
-	}
-	if bindAddress != nil {
-		if !cfg.Bind.IsZero() {
-			// If both config file and topology file specify this, warn the user
-			// that the config value is discarded
-			fmt.Fprintf(warnings, "Warning: Discarding address general.bind=%v because config "+
-				"was also found in topology file\n", cfg.Bind)
-		}
-		cfg.Bind = *bindAddress
-	}
-	return nil
 }

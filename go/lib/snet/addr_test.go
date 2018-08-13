@@ -26,16 +26,20 @@ import (
 
 func Test_Addr_String(t *testing.T) {
 	ia, _ := addr.IAFromString("1-ff00:0:320")
-	host4 := addr.HostFromIP(net.IPv4(1, 2, 3, 4))
-	host6 := addr.HostFromIP(net.ParseIP("2001::1"))
+	host4 := &addr.AppAddr{
+		L3: addr.HostIPv4(net.IPv4(1, 2, 3, 4)),
+		L4: addr.NewL4UDPInfo(10000),
+	}
+	host6 := &addr.AppAddr{
+		L3: addr.HostIPv6(net.ParseIP("2001::1")),
+		L4: addr.NewL4UDPInfo(20000),
+	}
 	tests := []struct {
 		address *Addr
 		result  string
 	}{
-		{address: &Addr{IA: ia, Host: host4, L4Port: 10000},
-			result: "1-ff00:0:320,[1.2.3.4]:10000"},
-		{address: &Addr{IA: ia, Host: host6, L4Port: 20000},
-			result: "1-ff00:0:320,[2001::1]:20000"},
+		{address: &Addr{IA: ia, Host: host4}, result: "1-ff00:0:320,[1.2.3.4]:10000 (UDP)"},
+		{address: &Addr{IA: ia, Host: host6}, result: "1-ff00:0:320,[2001::1]:20000 (UDP)"},
 	}
 	Convey("Method String", t, func() {
 		for _, test := range tests {
@@ -53,7 +57,7 @@ func Test_AddrFromString(t *testing.T) {
 		isError bool
 		ia      string
 		host    string
-		port    uint16
+		l4      addr.L4Info
 	}{
 		{address: "foo", isError: true},
 		{address: "5-", isError: true},
@@ -68,35 +72,35 @@ func Test_AddrFromString(t *testing.T) {
 		{address: "1-ff00:0:300,[1.2.3.4]:80",
 			ia:   "1-ff00:0:300",
 			host: "1.2.3.4",
-			port: 80},
+			l4:   addr.NewL4UDPInfo(80)},
 		{address: "1-ff00:0:301,[1.2.3.4]",
 			ia:   "1-ff00:0:301",
 			host: "1.2.3.4",
-			port: 0},
+		},
 		{address: "50-ff00:0:350,[1.1.1.1]:5",
 			ia:   "50-ff00:0:350",
 			host: "1.1.1.1",
-			port: 5},
+			l4:   addr.NewL4UDPInfo(5)},
 		{address: "1-ff00:0:302,[::1]:60000",
 			ia:   "1-ff00:0:302",
 			host: "::1",
-			port: 60000},
+			l4:   addr.NewL4UDPInfo(60000)},
 		{address: "4-ff00:0:300,[BS]",
 			ia:   "4-ff00:0:300",
 			host: "BS A (0x0000)",
-			port: 0},
+		},
 		{address: "4-ff00:0:300,[PS]",
 			ia:   "4-ff00:0:300",
 			host: "PS A (0x0001)",
-			port: 0},
+		},
 		{address: "4-ff00:0:300,[PS_A]",
 			ia:   "4-ff00:0:300",
 			host: "PS A (0x0001)",
-			port: 0},
+		},
 		{address: "4-ff00:0:300,[CS_M]",
 			ia:   "4-ff00:0:300",
 			host: "CS M (0x8002)",
-			port: 0},
+		},
 	}
 	Convey("Function AddrFromString", t, func() {
 		for _, test := range tests {
@@ -107,8 +111,8 @@ func Test_AddrFromString(t *testing.T) {
 				} else {
 					SoMsg("error", err, ShouldBeNil)
 					SoMsg("ia", a.IA.String(), ShouldResemble, test.ia)
-					SoMsg("host", a.Host.String(), ShouldResemble, test.host)
-					SoMsg("port", a.L4Port, ShouldEqual, test.port)
+					SoMsg("host", a.Host.L3.String(), ShouldResemble, test.host)
+					SoMsg("port", a.Host.L4, ShouldResemble, test.l4)
 				}
 			})
 		}

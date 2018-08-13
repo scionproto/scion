@@ -131,7 +131,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			if ifinfo.Local, err = rawIntf.localTopoAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
-			if ifinfo.Remote, err = rawIntf.remoteAddrInfo(ifinfo.Overlay); err != nil {
+			if ifinfo.Remote, err = rawIntf.remoteAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
 			ifinfo.Bandwidth = rawIntf.Bandwidth
@@ -250,7 +250,7 @@ type IFInfo struct {
 	InternalAddr *TopoAddr
 	Overlay      overlay.Type
 	Local        *TopoAddr
-	Remote       *AddrInfo
+	Remote       *overlay.OverlayAddr
 	RemoteIFID   common.IFIDType
 	Bandwidth    int
 	ISD_AS       addr.IA

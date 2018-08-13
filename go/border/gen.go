@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spkt"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 const (
@@ -41,8 +40,15 @@ const (
 )
 
 // genPkt is a generic function to generate packets that originate at the router.
-func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
-	srcAddr *topology.AddrInfo, pld common.Payload) error {
+func (r *Router) genPkt(dstIA addr.IA, dst, src *addr.AppAddr, oAddr *overlay.OverlayAddr,
+	pld common.Payload) error {
+
+	if dst == nil {
+		return common.NewBasicError("genPkt: Missing dst", nil)
+	}
+	if src == nil {
+		return common.NewBasicError("genPkt: Missing src", nil)
+	}
 	ctx := rctx.Get()
 	dirTo := rcmn.DirExternal
 	if dstIA.Eq(ctx.Conf.IA) {
@@ -50,11 +56,10 @@ func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
 	}
 	// Create base packet
 	sp := &spkt.ScnPkt{
-		DstIA: dstIA, SrcIA: ctx.Conf.IA, DstHost: dstHost, SrcHost: addr.HostFromIP(srcAddr.IP),
+		DstIA: dstIA, SrcIA: ctx.Conf.IA, DstHost: dst.L3, SrcHost: src.L3,
 	}
-	// TODO(klausman, kormat): What if it isn't UDP? Handle other overlay types
-	if srcAddr.Overlay.IsUDP() {
-		sp.L4 = &l4.UDP{SrcPort: uint16(srcAddr.L4Port), DstPort: uint16(dstL4Port)}
+	if src.L4 != nil && dst.L4 != nil {
+		sp.L4 = &l4.UDP{SrcPort: src.L4.Port(), DstPort: dst.L4.Port()}
 	}
 	rp, err := rpkt.RtrPktFromScnPkt(sp, dirTo, ctx)
 	if err != nil {
@@ -64,22 +69,19 @@ func (r *Router) genPkt(dstIA addr.IA, dstHost addr.HostAddr, dstL4Port int,
 		return err
 	}
 	if dstIA.Eq(ctx.Conf.IA) {
-		if dstHost.Type() == addr.HostTypeSVC {
+		// Packet is destined to local AS
+		if dst.L3.Type() == addr.HostTypeSVC {
 			if _, err := rp.RouteResolveSVC(); err != nil {
 				return err
 			}
 		} else {
-			ai := &topology.AddrInfo{Overlay: srcAddr.Overlay, IP: dstHost.IP(), L4Port: dstL4Port}
-			if srcAddr.Overlay.IsUDP() {
-				ai.OverlayPort = overlay.EndhostPort
-			}
-			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut, Dst: ai})
+			rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.LocSockOut, Dst: oAddr})
 		}
 	} else {
-		ifid, ok := ctx.Conf.Net.IFAddrMap[srcAddr.Key()]
+		ifid, ok := ctx.Conf.Net.IFAddrMap[src.String()]
 		if !ok {
 			return common.NewBasicError("genPkt: unable to find ifid for address",
-				nil, "addr", srcAddr)
+				nil, "addr", src)
 		}
 		rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	}
@@ -106,7 +108,7 @@ func (r *Router) IFStateUpdate() {
 func (r *Router) genIFStateReq() {
 	ctx := rctx.Get()
 	// Pick first local address from topology as source.
-	srcAddr := ctx.Conf.Net.LocAddr.PublicAddrInfo(ctx.Conf.Net.LocAddr.Overlay)
+	src := ctx.Conf.Net.LocAddr.PublicAddr(ctx.Conf.Net.LocAddr.Overlay)
 	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
 	if err != nil {
 		log.Error("Error generating IFStateReq Ctrl payload", "err", err)
@@ -117,7 +119,8 @@ func (r *Router) genIFStateReq() {
 		log.Error("Error generating IFStateReq signed Ctrl payload", "err", err)
 		return
 	}
-	if err := r.genPkt(ctx.Conf.IA, addr.SvcBS.Multicast(), 0, srcAddr, scpld); err != nil {
+	dst := &addr.AppAddr{L3: addr.SvcBS.Multicast(), L4: addr.NewL4UDPInfo(0)}
+	if err := r.genPkt(ctx.Conf.IA, dst, src, nil, scpld); err != nil {
 		log.Error("Error generating IFStateReq packet", "err", err)
 	}
 }

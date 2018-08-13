@@ -30,7 +30,6 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -99,7 +98,7 @@ func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC) (HookResult, error) {
 	// consistent selection for a given source.
 	name := names[rand.Intn(len(names))]
 	elem := elemMap[name]
-	dst := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
+	dst := elem.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }
@@ -117,8 +116,8 @@ func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC) (HookResult, error) {
 	// IP address.
 	seen := make(map[string]struct{})
 	for _, elem := range elemMap {
-		dst := elem.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
-		strIP := fmt.Sprintf("%s:%d", dst.IP, dst.OverlayPort)
+		dst := elem.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
+		strIP := dst.String()
 		if _, ok := seen[strIP]; ok {
 			continue
 		}
@@ -152,11 +151,10 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		rp.CmnHdr.HdrLenBytes()
 	if onLastSeg && rp.dstIA.Eq(rp.Ctx.Conf.IA) {
 		// Destination is a host in the local ISD-AS.
-		ot := overlay.OverlayFromIP(rp.dstHost.IP(), rp.Ctx.Conf.Topo.Overlay)
-		dst := &topology.AddrInfo{
-			Overlay:     ot,
-			IP:          rp.dstHost.IP(),
-			OverlayPort: overlay.EndhostPort,
+		l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
+		dst, err := overlay.NewOverlayAddr(rp.dstHost, l4)
+		if err != nil {
+			return HookError, err
 		}
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 		return HookContinue, nil
@@ -177,13 +175,13 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
-	nextAI := nextBR.InternalAddr.PublicAddrInfo(rp.Ctx.Conf.Topo.Overlay)
-	ot := overlay.OverlayFromIP(nextAI.IP, rp.Ctx.Conf.Topo.Overlay)
-	dst := &topology.AddrInfo{
-		Overlay:     ot,
-		IP:          nextAI.IP,
-		L4Port:      nextAI.L4Port,
-		OverlayPort: nextAI.L4Port,
+	// XXX (sgmonroy) this would need to change with the Control/Data plane split.
+	// Currently, the BR ignores the OverlayPort value from the topology and always
+	// uses the L4Port as the Overlay port.
+	dstPub := nextBR.InternalAddr.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
+	dst, err := overlay.NewOverlayAddr(dstPub.L3, dstPub.L4)
+	if err != nil {
+		return HookError, err
 	}
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil

@@ -34,34 +34,66 @@ import (
 var testTopo *Topo
 
 // Helpers
-func mkTAv4(ip string, port int, bindip string, bindport int, ot overlay.Type, op int) TopoAddr {
-	if bindip == "" {
-		return TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP(ip), pubL4Port: port, OverlayPort: op},
-			Overlay: ot,
+func mkO(l3 addr.HostAddr, op int) *overlay.OverlayAddr {
+	var o *overlay.OverlayAddr
+	if op == 0 {
+		o, _ = overlay.NewOverlayAddr(l3, nil)
+	} else {
+		o, _ = overlay.NewOverlayAddr(l3, addr.NewL4UDPInfo(uint16(op)))
+	}
+	return o
+}
+
+func mkOv4(ip string, port int) *overlay.OverlayAddr {
+	return mkO(addr.HostIPv4(net.ParseIP(ip)), port)
+}
+
+func mkOv6(ip string, port int) *overlay.OverlayAddr {
+	return mkO(addr.HostIPv6(net.ParseIP(ip)), port)
+}
+
+func mkPBO(pub, bind addr.HostAddr, port, bindport, op int) *pubBindAddr {
+	pbo := &pubBindAddr{}
+	pbo.pub = &addr.AppAddr{L3: pub}
+	if port != 0 {
+		pbo.pub.L4 = addr.NewL4UDPInfo(uint16(port))
+	}
+	if bind != nil {
+		pbo.bind = &addr.AppAddr{L3: bind}
+		if bindport != 0 {
+			pbo.bind.L4 = addr.NewL4UDPInfo(uint16(bindport))
 		}
 	}
-	tai := &topoAddrInt{
-		pubIP: net.ParseIP(ip), pubL4Port: port,
-		bindIP: net.ParseIP(bindip), bindL4Port: bindport,
-		OverlayPort: op,
+	pbo.overlay = mkO(pub, op)
+	return pbo
+}
+
+func mkPBOv4(ip string, port int, bindip string, bindport int, op int) *pubBindAddr {
+	pub := addr.HostIPv4(net.ParseIP(ip))
+	var bind addr.HostAddr
+	if bindip != "" {
+		bind = addr.HostIPv4(net.ParseIP(bindip))
 	}
-	return TopoAddr{IPv4: tai, Overlay: ot}
+	return mkPBO(pub, bind, port, bindport, op)
+}
+
+func mkPBOv6(ip string, port int, bindip string, bindport int, op int) *pubBindAddr {
+	pub := addr.HostIPv6(net.ParseIP(ip))
+	var bind addr.HostAddr
+	if bindip != "" {
+		bind = addr.HostIPv6(net.ParseIP(bindip))
+	}
+	return mkPBO(pub, bind, port, bindport, op)
+}
+
+func mkTAv4(ip string, port int, bindip string, bindport int, ot overlay.Type, op int) TopoAddr {
+	pbo := mkPBOv4(ip, port, bindip, bindport, op)
+	return TopoAddr{IPv4: pbo, Overlay: ot}
 }
 
 func mkTAv6(ip string, port int, bindip string, bindport int, ot overlay.Type, op int) TopoAddr {
-	if bindip == "" {
-		return TopoAddr{
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP(ip), pubL4Port: port, OverlayPort: op},
-			Overlay: ot,
-		}
-	}
-	tai := &topoAddrInt{
-		pubIP: net.ParseIP(ip), pubL4Port: port,
-		bindIP: net.ParseIP(bindip), bindL4Port: bindport,
-		OverlayPort: op,
-	}
-	return TopoAddr{IPv6: tai, Overlay: ot}
+	pbo := mkPBOv6(ip, port, bindip, bindport, op)
+	return TopoAddr{IPv6: pbo, Overlay: ot}
 }
 
 func loadTopo(filename string, t *testing.T) {
@@ -180,19 +212,14 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[1] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
+			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
 		Overlay: overlay.UDPIPv4,
 		Local: &TopoAddr{
-			IPv4: &topoAddrInt{
-				pubIP: net.ParseIP("192.0.2.1"), pubL4Port: 44997,
-				bindIP: net.ParseIP("10.0.0.1"), bindL4Port: 30090,
-				OverlayPort: 44997,
-			},
+			IPv4:    mkPBOv4("192.0.2.1", 44997, "10.0.0.1", 30090, 44997),
 			Overlay: overlay.UDPIPv4},
-		Remote: &AddrInfo{Overlay: overlay.UDPIPv4, IP: net.ParseIP("192.0.2.2"),
-			L4Port: 44998, OverlayPort: 44998},
+		Remote:    mkOv4("192.0.2.2", 44998),
 		Bandwidth: 1000,
 		ISD_AS:    isdas,
 		LinkType:  proto.LinkType_parent,
@@ -202,18 +229,14 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[3] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
+			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv6,
 		Local: &TopoAddr{
-			IPv6: &topoAddrInt{
-				pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 50000,
-				bindIP: net.ParseIP("2001:db8:a0b:12f0::8"), bindL4Port: 10000,
-			},
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 50000, "2001:db8:a0b:12f0::8", 10000, 0),
 			Overlay: overlay.IPv6},
-		Remote: &AddrInfo{Overlay: overlay.IPv6, IP: net.ParseIP("2001:db8:a0b:12f0::2"), L4Port: 50000},
-
+		Remote:    mkOv6("2001:db8:a0b:12f0::2", 0),
 		Bandwidth: 5000,
 		ISD_AS:    isdas,
 		LinkType:  proto.LinkType_child,
@@ -223,16 +246,14 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[8] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddr: &TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
+			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv4,
 		Local: &TopoAddr{
-			IPv4: &topoAddrInt{
-				pubIP: net.ParseIP("192.0.2.2"), pubL4Port: 50000,
-				bindIP: net.ParseIP("10.0.0.2"), bindL4Port: 40000},
+			IPv4:    mkPBOv4("192.0.2.2", 50000, "10.0.0.2", 40000, 0),
 			Overlay: overlay.IPv4},
-		Remote:    &AddrInfo{Overlay: overlay.IPv4, IP: net.ParseIP("192.0.2.3"), L4Port: 50001},
+		Remote:    mkOv4("192.0.2.3", 0),
 		Bandwidth: 2000,
 		ISD_AS:    isdas,
 		LinkType:  proto.LinkType_peer,
@@ -249,59 +270,20 @@ func Test_IFInfoMap(t *testing.T) {
 
 }
 
-var mkai_cases = []struct {
-	intopo   TopoAddr
-	inot     overlay.Type
-	inpublic bool
-	outai    *AddrInfo
-}{
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv4, 0),
-		overlay.IPv4, true,
-		&AddrInfo{Overlay: overlay.IPv4, IP: net.ParseIP("127.0.0.1"), L4Port: 3000, OverlayPort: 0}},
-	{mkTAv6("::1", 3000, "", 0, overlay.IPv6, 0),
-		overlay.IPv6, true,
-		&AddrInfo{Overlay: overlay.IPv6, IP: net.ParseIP("::1"), L4Port: 3000, OverlayPort: 0}},
-	{mkTAv6("::1", 3000, "", 0, overlay.UDPIPv6, 10000),
-		overlay.UDPIPv6, true,
-		&AddrInfo{Overlay: overlay.UDPIPv6, IP: net.ParseIP("::1"), L4Port: 3000, OverlayPort: 10000}},
-	// These cases result in nil due to overlay/address type mismatch
-	{mkTAv4("127.0.0.1", 3000, "", 0, overlay.IPv4, 0),
-		overlay.UDPIPv6, true,
-		nil},
-	{mkTAv6("::1", 3000, "", 0, overlay.UDPIPv6, 10000),
-		overlay.UDPIPv4, true,
-		nil},
-}
-
-func Test_addrInfo(t *testing.T) {
-	Convey("Testing generation of AddrInfo from TopoAddr", t, func() {
-		for _, tt := range mkai_cases {
-			Convey(fmt.Sprintf("%v %v %v -> %v", tt.intopo, tt.inot, tt.inpublic, tt.outai), func() {
-				ai := tt.intopo.addrInfo(tt.inot, tt.inpublic)
-				So(ai, ShouldResemble, tt.outai)
-			})
-		}
-	})
-}
 func Test_IFInfoMap_COREAS(t *testing.T) {
 	ifm := make(map[common.IFIDType]IFInfo)
 	isdas, _ := addr.IAFromString("6-ff00:0:363")
 	ifm[91] = IFInfo{
 		BRName: "borderrouter6-ff00:0:362-1",
 		InternalAddr: &TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.1"), pubL4Port: 30097},
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 30097},
+			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
 		Overlay: overlay.UDPIPv4,
 		Local: &TopoAddr{
-			IPv4: &topoAddrInt{
-				pubIP: net.ParseIP("192.0.2.1"), pubL4Port: 4997,
-				bindIP: net.ParseIP("10.0.0.1"), bindL4Port: 3090,
-				OverlayPort: 4997,
-			},
+			IPv4:    mkPBOv4("192.0.2.1", 4997, "10.0.0.1", 3090, 4997),
 			Overlay: overlay.UDPIPv4},
-		Remote: &AddrInfo{Overlay: overlay.UDPIPv4, IP: net.ParseIP("192.0.2.2"),
-			L4Port: 4998, OverlayPort: 4998},
+		Remote:    mkOv4("192.0.2.2", 4998),
 		Bandwidth: 100000,
 		ISD_AS:    isdas,
 		LinkType:  proto.LinkType_core,
@@ -311,18 +293,14 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	ifm[32] = IFInfo{
 		BRName: "borderrouter6-ff00:0:362-9",
 		InternalAddr: &TopoAddr{
-			IPv4:    &topoAddrInt{pubIP: net.ParseIP("10.1.0.2"), pubL4Port: 3097},
-			IPv6:    &topoAddrInt{pubIP: net.ParseIP("2001:db8:a0b:12f0::2"), pubL4Port: 3097},
+			IPv4:    mkPBOv4("10.1.0.2", 3097, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::2", 3097, "", 0, 0),
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv6,
 		Local: &TopoAddr{
-			IPv6: &topoAddrInt{
-				pubIP: net.ParseIP("2001:db8:a0b:12f0::1"), pubL4Port: 50000,
-				bindIP: net.ParseIP("2001:db8:a0b:12f0::8"), bindL4Port: 10000,
-			},
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 50000, "2001:db8:a0b:12f0::8", 10000, 0),
 			Overlay: overlay.IPv6},
-		Remote: &AddrInfo{Overlay: overlay.IPv6, IP: net.ParseIP("2001:db8:a0b:12f0::2"),
-			L4Port: 50000},
+		Remote:    mkOv6("2001:db8:a0b:12f0::2", 0),
 		Bandwidth: 5000,
 		ISD_AS:    isdas,
 		LinkType:  proto.LinkType_child,
