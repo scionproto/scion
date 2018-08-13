@@ -15,6 +15,8 @@
 
 set -o pipefail
 
+REV_BRS="*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2"
+
 log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"
 }
@@ -57,7 +59,7 @@ opts() {
                     { echo "Container $CONTAINER not found, aborting!"; exit 1; }
                 ;;
             b)
-                BRS=$OPTARG
+                REV_BRS=$OPTARG
                 ;;
             \?)
                 echo "Invalid option: -$OPTARG" >&2
@@ -71,5 +73,4 @@ opts() {
     done
 }
 
-export -f run run_docker log opts
 export PYTHONPATH=python/:.
