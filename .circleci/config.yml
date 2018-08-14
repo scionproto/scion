@@ -21,6 +21,9 @@ jobs:
             # Setup
             - checkout
             - run:
+                name: Update docker
+                command: ./tools/ci/docker_update
+            - run:
                 name: Pull and tag scion_base image
                 command: ./tools/ci/prepare_image fc1d63f0870b97f9b2a2aeef3c8051bf371b8f5767434157d50f3742fe76e2c6
                 when: always
@@ -28,12 +31,9 @@ jobs:
                 name: Build scion:latest image
                 command: ./docker.sh build
                 when: always
-            - run:
-                name: Build app images
-                command: make -C docker/perapp
-            - run:
-                name: Upgrade docker-compose
-                command: sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
+            # - run:
+            #     name: Build app images
+            #     command: make -C docker/perapp
 
             # Build and run tests:
             - run:
@@ -83,9 +83,6 @@ jobs:
         machine: true
         steps:
             - checkout
-            - run:
-                name: Docker upgrade
-                command: sudo apt-get update && sudo apt-get install --only-upgrade docker-ce
             - run:
                 name: Build base
                 command: ./docker.sh base

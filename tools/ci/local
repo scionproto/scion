@@ -1,13 +1,23 @@
 #!/bin/bash
 
+. tools/ci/common
+opts "$@"
+[ "$DOCKER" = true ] && args="-d"
+
 CONTAINER="scion_ci"
 docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
-./tools/ci/setup_container "$CONTAINER"
+./tools/ci/setup_container "$args" "$CONTAINER"
 ./tools/ci/build "$CONTAINER"
 ./tools/ci/lint "$CONTAINER"
 ./tools/ci/unittest "$CONTAINER"
 ./tools/ci/sphinx "$CONTAINER"
-./tools/ci/integration "$CONTAINER"
+
+if [ "$DOCKER" = true ]; then
+    echo "Stop local zookeeper"
+    sudo service zookeeper stop
+    ./scion.sh stop
+fi
+./tools/ci/integration "$args" "$CONTAINER"
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 

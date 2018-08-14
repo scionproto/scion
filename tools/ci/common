@@ -1,0 +1,24 @@
+#!/bin/bash
+
+usage() {
+    echo "Usage: $0: [-d]\n"
+    exit 1
+}
+
+opts() {
+    while getopts ":d" opt; do
+        case "$opt" in
+            d)
+                DOCKER=true
+                ;;
+            \?)
+                echo "Invalid option: -$OPTARG" >&2
+                usage
+                ;;
+            *)
+                usage
+                ;;
+        esac
+    done
+    shift $((OPTIND-1))
+}

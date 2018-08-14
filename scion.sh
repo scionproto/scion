@@ -58,9 +58,11 @@ cmd_run() {
 
 run_zk() {
     if is_docker; then
+        echo "Stop local zookeeper"
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
         ./tools/dc.sh scion up -d zookeeper
     else
+        echo "Start local zookeeper"
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
     fi
 }
@@ -71,9 +73,11 @@ cmd_mstart() {
     if is_docker; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
+        echo "Stop local zookeeper"
         systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
         ./tools/dc.sh scion up -d $services
     else
+        echo "Start local zookeeper"
         systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
         supervisor/supervisor.sh mstart "$@"
     fi
