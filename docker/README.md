@@ -10,9 +10,9 @@ topology`). A full build from scratch will take 5-10mins on a fast machine
 with a decent net connection. Subsequent rebuilds are Much faster; if you
 haven't changed deps.sh or the dependency list, a rebuild takes <= 15s.
 
-Before you start, make sure you have Docker installed. On debian-based systems:
-
-    sudo apt-get install docker.io
+Before you start, make sure you have Docker installed. Please follow the instructions for
+[docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/), you may also want to install
+[docker-compse](https://docs.docker.com/compose/install/).
 
 The `scion_base` docker image contains all the dependencies of scion, and so it
 needs to be regenerated any time the dependencies change. It is built via: 
