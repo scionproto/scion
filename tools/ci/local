@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Stop local zookeeper"
+sudo service zookeeper stop
+
 CONTAINER="scion_ci"
 docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
 ./tools/ci/setup_container "$CONTAINER"
