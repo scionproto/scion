@@ -381,7 +381,11 @@ func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 	}
 	// verify and store the segments
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		segsaver.StoreSeg(ctx, s, f.pathDB, f.logger)
+		err := segsaver.StoreSeg(ctx, s, f.pathDB, f.logger)
+		if err != nil {
+			f.logger.Error("Unable to insert segment into path database",
+				"seg", s.Segment, "err", err)
+		}
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
 		segsaver.StoreRevocation(rev, f.revocationCache)

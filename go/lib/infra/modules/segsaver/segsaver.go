@@ -28,12 +28,10 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// StoreSeg saves s to the given pdbconn. In case of failure the error is logged and returned.
+// StoreSeg saves s to the given pdbconn. In case of failure the error is returned.
 func StoreSeg(ctx context.Context, s *seg.Meta, pdbconn conn.Conn, log log.Logger) error {
 	n, err := pdbconn.Insert(ctx, &s.Segment, []proto.PathSegType{s.Type})
 	if err != nil {
-		log.Error("Unable to insert segment into path database",
-			"segment", s.Segment, "err", err)
 		return err
 	}
 	if n > 0 {
