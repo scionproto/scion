@@ -1,4 +1,3 @@
-#!/bin/bash
 # Copyright 2018 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,7 +73,6 @@ opts() {
                 ;;
         esac
     done
-    shift $((OPTIND-1))
 }
 
 export PYTHONPATH=python/:.
