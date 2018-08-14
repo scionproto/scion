@@ -1,12 +1,9 @@
 #!/bin/bash
 
 set -exo pipefail
+
 . tools/ci/common
-
-opts "$@"
-
 if [ "$DOCKER" = true ]; then
-    shift
     ctnr=${1:-scion_ci}
     docker container exec $ctnr bash -c "./scion.sh topology -d"
     rm -rf gen/ gen-cache/ gen-certs/
