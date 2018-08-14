@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package segsaver contains helper methods to save segments and revocations.
 package segsaver
 
 import (
@@ -27,16 +28,18 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-// StoreSeg saves s to the given conn. In case of failure an error is logged to log.
-func StoreSeg(ctx context.Context, s *seg.Meta, conn conn.Conn, log log.Logger) {
-	n, err := conn.Insert(ctx, &s.Segment, []proto.PathSegType{s.Type})
+// StoreSeg saves s to the given pdbconn. In case of failure the error is logged and returned.
+func StoreSeg(ctx context.Context, s *seg.Meta, pdbconn conn.Conn, log log.Logger) error {
+	n, err := pdbconn.Insert(ctx, &s.Segment, []proto.PathSegType{s.Type})
 	if err != nil {
 		log.Error("Unable to insert segment into path database",
 			"segment", s.Segment, "err", err)
+		return err
 	}
 	if n > 0 {
 		log.Debug("Inserted segment into path database", "segment", s.Segment)
 	}
+	return nil
 }
 
 // StoreRevocation stores a revocation in the revcache.

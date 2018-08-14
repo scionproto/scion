@@ -51,11 +51,11 @@ type SegVerified func(context.Context, *seg.Meta)
 type SegVerificationFailed func(*seg.Meta, error)
 
 // RevVerified is the callback for a successful revocation verification.
-// The function must not be short-running.
+// The function must adhere to the given context.
 type RevVerified func(context.Context, *path_mgmt.SignedRevInfo)
 
 // RevVerificationFailed is the callback for a failed revocation verification.
-// The function must not be short-running.
+// The function must return immediately.
 type RevVerificationFailed func(*path_mgmt.SignedRevInfo, error)
 
 // Verify starts the verification for the given segMeta and sRevInfos.
