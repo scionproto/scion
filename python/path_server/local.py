@@ -115,7 +115,7 @@ class LocalPathServer(PathServer):
         ias = set()
         while total_segs > 0:
             for core_ia in buckets:
-                if len(segs) == self.MAX_SEG_NO:
+                if len(segs) == self.MAX_SEG_NO or total_segs == 0:
                     return segs, ias
                 if len(buckets[core_ia]) > 0:
                     segs.append(buckets[core_ia].pop(0))
@@ -171,18 +171,19 @@ class LocalPathServer(PathServer):
             # Dst in local ISD. First check whether DST is a (super)-parent.
             up_segs.update(self.up_segments(first_ia=dst_ia, sibra=sibra))
         # Get list of reachable core ASes (core ASes that we have up segments for).
-        buckets_up, num_up_segs = self._up_segs(sibra)
+        buckets_up, _ = self._up_segs(sibra)
         # Get core segments between the destination and each reachable core AS.
         buckets_core, num_core_segs = self._core_segs([dst_ia], buckets_up.keys(), sibra)
         # Get usable core segments
         segs, ia_pairs = self._get_segs_from_buckets(buckets_core, num_core_segs)
-        if segs:
-            core_segs.update(segs)
-            first_ias, last_ias = zip(*ia_pairs)
-            # In this use case, first_ias is always the destination core AS
-            buckets, num_segs = self._filter_buckets(buckets_up, last_ias)
-            segs, ias = self._get_segs_from_buckets(buckets, num_segs)
-            up_segs.update(segs)
+        if not segs:
+            return
+        core_segs.update(segs)
+        first_ias, last_ias = zip(*ia_pairs)
+        # In this use case, first_ias is always the destination core AS
+        buckets_up, num_up_segs = self._filter_buckets(buckets_up, last_ias)
+        segs, _ = self._get_segs_from_buckets(buckets_up, num_up_segs)
+        up_segs.update(segs)
 
     def _resolve_not_core(self, req, up_segs, core_segs, down_segs):
         """
@@ -190,8 +191,8 @@ class LocalPathServer(PathServer):
         """
         dst_ia = req.dst_ia()
         sibra = req.p.flags.sibra
-        buckets_up, num_up_segs = self._up_segs(sibra)
-        buckets_down, num_down_segs = self._down_segs(dst_ia, sibra)
+        buckets_up, _ = self._up_segs(sibra)
+        buckets_down, _ = self._down_segs(dst_ia, sibra)
         up_core_ias = set(buckets_up.keys())
         down_core_ias = set(buckets_down.keys())
         buckets_core, num_core_segs = self._core_segs(down_core_ias, up_core_ias, sibra)
@@ -202,25 +203,24 @@ class LocalPathServer(PathServer):
             bucket = buckets_up[ia]
             up_segs.update(bucket)
             buckets_up[ia] = {}
-            num_up_segs -= len(bucket)
             # Get down segments to common core AS
             bucket = buckets_down[ia]
             down_segs.update(bucket)
             buckets_down[ia] = {}
-            num_down_segs -= len(bucket)
         # Get usable core segments
         segs, ia_pairs = self._get_segs_from_buckets(buckets_core, num_core_segs)
-        if segs:
-            core_segs.update(segs)
-            first_ias, last_ias = zip(*ia_pairs)
-            # Up segments
-            buckets, num_segs = self._filter_buckets(buckets_up, last_ias)
-            segs, ias = self._get_segs_from_buckets(buckets, num_segs)
-            up_segs.update(segs)
-            # Down segments
-            buckets, num_segs = self._filter_buckets(buckets_down, first_ias)
-            segs, ias = self._get_segs_from_buckets(buckets, num_segs)
-            down_segs.update(segs)
+        if not segs:
+            return
+        core_segs.update(segs)
+        first_ias, last_ias = zip(*ia_pairs)
+        # Up segments
+        buckets_up, num_segs = self._filter_buckets(buckets_up, last_ias)
+        segs, _ = self._get_segs_from_buckets(buckets_up, num_segs)
+        up_segs.update(segs)
+        # Down segments
+        buckets_down, num_segs = self._filter_buckets(buckets_down, first_ias)
+        segs, _ = self._get_segs_from_buckets(buckets_down, num_segs)
+        down_segs.update(segs)
 
     def _request_paths_from_core(self, req, logger):
         """
