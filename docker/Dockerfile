@@ -14,7 +14,4 @@ RUN tar xf ~/python_local.tar.gz -C ~
 RUN docker/deps_check
 
 # Syncing should be a no-op, just need installation to run
-RUN make -C go deps
-
-# Build topology files
-RUN ./scion.sh topology
+RUN make -sC go deps

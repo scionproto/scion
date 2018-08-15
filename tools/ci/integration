@@ -1,14 +1,10 @@
 #!/bin/bash
 
 . tools/ci/common.sh
-set -exo pipefail
+set -eo pipefail
 
-if [ "$DOCKER" = true ]; then
-    ctnr=${1:-scion_ci}
-    docker container exec $ctnr bash -c "./scion.sh topology -d"
-    docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen .
-    docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
-    ./integration/integration_test.sh -d $ctnr |& tee logs/integration.run
+if [ -n "$DOCKER" ]; then
+    ./integration/integration_test.sh -d "${1:-scion_ci}" |& tee logs/integration.run
 else
     docker container exec ${1:-scion_ci} bash -c "set -eo pipefail; sudo service zookeeper start; ./integration/integration_test.sh |& tee logs/integration.run"
 fi

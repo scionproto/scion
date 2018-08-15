@@ -1,0 +1,8 @@
+#!/bin/bash
+
+tf=$(mktemp --tmpdir scion-quiet.XXXXXXX)
+"$@" &>"$tf"
+result=$?
+[ $result -eq 0 ] || cat "$tf"
+rm "$tf"
+exit $result
