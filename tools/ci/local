@@ -3,7 +3,13 @@
 CONTAINER="scion_ci"
 
 . tools/ci/common.sh
-[ "$DOCKER" = true ] && args="-d $CONTAINER"
+if [ "$DOCKER" = true ]; then
+    args="-d $CONTAINER"
+    # Stop a local scion run because we don't want to interfere
+    ./scion.sh stop
+    echo "Stop local zookeeper"
+    systemctl is-active --quiet zookeeper && { sudo service zookeeper stop || exit 1; }
+fi
 
 docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
 ./docker.sh build || exit 1
@@ -19,10 +25,7 @@ result=$((result+$?))
 result=$((result+$?))
 
 if [ "$DOCKER" = true ]; then
-    ./scion.sh stop
-    echo "Stop local zookeeper"
-    systemctl is-active --quiet zookeeper && { sudo service zookeeper stop || exit 1; }
-    make -C docker/perapp || exit 1
+    make -sC docker/perapp || exit 1
     rm -r gen/* gen-cache/* gen-certs/* logs/*
 fi
 ./tools/ci/integration $args "$CONTAINER"
