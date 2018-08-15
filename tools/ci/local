@@ -8,7 +8,7 @@ CONTAINER="scion_ci"
 docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
 ./docker.sh build || exit 1
 ./tools/ci/setup_container $args || exit 1
-result=$?
+result=0
 ./tools/ci/build "$CONTAINER"
 result=$((result+$?))
 ./tools/ci/lint "$CONTAINER"
@@ -21,7 +21,7 @@ result=$((result+$?))
 if [ "$DOCKER" = true ]; then
     ./scion.sh stop
     echo "Stop local zookeeper"
-    systemctl is-active --quiet zookeeper && sudo service zookeeper stop
+    systemctl is-active --quiet zookeeper && { sudo service zookeeper stop || exit 1; }
     make -C docker/perapp || exit 1
     rm -r gen/* gen-cache/* gen-certs/* logs/*
 fi
