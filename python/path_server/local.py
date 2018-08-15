@@ -200,13 +200,9 @@ class LocalPathServer(PathServer):
         for ia in common_core_ias:
             # Dst in local ISD. First add paths that do not require a core segment.
             # Get up segments to common core AS
-            bucket = buckets_up[ia]
-            up_segs.update(bucket)
-            buckets_up[ia] = {}
+            up_segs.update(buckets_up.pop(ia))
             # Get down segments to common core AS
-            bucket = buckets_down[ia]
-            down_segs.update(bucket)
-            buckets_down[ia] = {}
+            down_segs.update(buckets_down.pop(ia))
         # Get usable core segments
         segs, ia_pairs = self._get_segs_from_buckets(buckets_core, num_core_segs)
         if not segs:
