@@ -1,15 +1,46 @@
 #!/bin/bash
 
 CONTAINER="scion_ci"
+
+. tools/ci/common.sh
+if [ "$DOCKER" = true ]; then
+    args="-d $CONTAINER"
+    # Stop a local scion run because we don't want to interfere
+    ./scion.sh stop
+    echo "Stop local zookeeper"
+    systemctl is-active --quiet zookeeper && { sudo service zookeeper stop || exit 1; }
+fi
+
 docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
-./tools/ci/setup_container "$CONTAINER"
+./docker.sh build || exit 1
+./tools/ci/setup_container $args || exit 1
+result=0
 ./tools/ci/build "$CONTAINER"
+result=$((result+$?))
 ./tools/ci/lint "$CONTAINER"
+result=$((result+$?))
 ./tools/ci/unittest "$CONTAINER"
+result=$((result+$?))
 ./tools/ci/sphinx "$CONTAINER"
-./tools/ci/integration "$CONTAINER"
+result=$((result+$?))
+
+if [ "$DOCKER" = true ]; then
+    make -sC docker/perapp || exit 1
+    rm -r gen/* gen-cache/* gen-certs/* logs/*
+fi
+./tools/ci/integration $args "$CONTAINER"
+result=$((result+$?))
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
-
-./tools/ci/clean_up "$tmpdir" "$CONTAINER"
+./tools/ci/clean_up "$tmpdir" "$CONTAINER" || exit 1
 echo "Artifacts dir: $tmpdir"
+
+docker rm -f "$CONTAINER"
+./scion.sh stop
+
+if [ $result -eq 0 ]; then
+    echo "All tests successful"
+else
+    echo "$result tests failed"
+fi
+exit $result

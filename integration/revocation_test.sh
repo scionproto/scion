@@ -19,6 +19,7 @@ set -f
 
 # Get docker flag, container name and BRS
 opts "$@"
+shift $((OPTIND-1))
 
 for br in $REV_BRS; do
     if ! ./scion.sh mstatus "$br"; then

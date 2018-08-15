@@ -17,21 +17,7 @@
 
 # Get docker flag and container name
 opts "$@"
-
-wait_startup() {
-    count=0
-    while true; do
-        log "Waiting for host ZK to be up (count:$count)"
-        { echo "ruok" | nc localhost 2181 | grep -q 'imok'; } && break
-        count=$((count+1))
-        if [ $count -gt 20 ]; then
-            log "Host ZK failed to come up within 1 minute"
-            exit 1
-        fi
-        sleep 3
-    done
-    log "Host ZK up"
-}
+shift $((OPTIND-1))
 
 shutdown() {
     log "Scion status:"
@@ -48,7 +34,10 @@ log "Scion status:"
 
 sleep 5
 # Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
-[ -n "$CIRCLECI" ] && sleep 35
+if [ -n "$CIRCLECI" ]; then
+    sleep 10
+    [ -n "$CONTAINER"] && sleep 40
+fi
 
 # Run integration tests
 run End2End python/integration/end2end_test.py -l ERROR
@@ -80,8 +69,8 @@ result=$((result+$?))
 shutdown
 
 if [ $result -eq 0 ]; then
-    log "All tests successful"
+    log "All integration tests successful"
 else
-    log "$result tests failed"
+    log "$result integration tests failed"
 fi
 exit $result

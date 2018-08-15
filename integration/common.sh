@@ -1,4 +1,3 @@
-#!/bin/bash
 # Copyright 2018 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +45,7 @@ run() {
 }
 
 usage() {
-    echo "Usage: $0: [-b brs] [-d ctr_name]\n"
+    echo "Usage: $0: [-b brs] [-d ctr_name]"
     exit 1
 }
 
@@ -74,7 +73,6 @@ opts() {
                 ;;
         esac
     done
-    shift $((OPTIND-1))
 }
 
 export PYTHONPATH=python/:.
