@@ -6,9 +6,7 @@ set -exo pipefail
 if [ "$DOCKER" = true ]; then
     ctnr=${1:-scion_ci}
     docker container exec $ctnr bash -c "./scion.sh topology -d"
-    rm -rf gen/ gen-cache/ gen-certs/
     docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen .
-    docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-cache .
     docker cp $ctnr:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
     ./integration/integration_test.sh -d $ctnr |& tee logs/integration.run
 else
