@@ -158,6 +158,7 @@ func realMain() int {
 				pathDB,
 				trustStore,
 				revCache,
+				log.Root(),
 			),
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{

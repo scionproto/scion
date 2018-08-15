@@ -62,11 +62,11 @@ type RevVerificationFailed func(*path_mgmt.SignedRevInfo, error)
 // Verify starts the verification for the given segMeta and sRevInfos.
 // The verifiedSeg and verifiedRev callbacks are called for verified segs/revs.
 // The segError/revError callbacks are called for verification errors.
-func Verify(ctx context.Context, segMetas []*seg.Meta,
+func Verify(ctx context.Context, store infra.TrustStore, server net.Addr, segMetas []*seg.Meta,
 	sRevInfos []*path_mgmt.SignedRevInfo, verifiedSeg SegVerified, verifiedRev RevVerified,
 	segError SegVerificationFailed, revError RevVerificationFailed) {
 
-	unitResultsC, units := StartVerification(ctx, segMetas, sRevInfos)
+	unitResultsC, units := StartVerification(ctx, store, server, segMetas, sRevInfos)
 Loop:
 	for numResults := 0; numResults < units; numResults++ {
 		select {
@@ -93,13 +93,13 @@ Loop:
 // StartVerification builds the units for the given segMetas and sRevInfos
 // and spawns verify method on the units.
 // StartVerification returns a channel for the UnitResult and the expected amount of results.
-func StartVerification(ctx context.Context, segMetas []*seg.Meta,
-	sRevInfos []*path_mgmt.SignedRevInfo) (chan UnitResult, int) {
+func StartVerification(ctx context.Context, store infra.TrustStore, server net.Addr,
+	segMetas []*seg.Meta, sRevInfos []*path_mgmt.SignedRevInfo) (chan UnitResult, int) {
 
 	units := BuildUnits(segMetas, sRevInfos)
 	unitResultsC := make(chan UnitResult, len(units))
 	for _, unit := range units {
-		go unit.Verify(ctx, unitResultsC)
+		go unit.Verify(ctx, store, server, unitResultsC)
 	}
 	return unitResultsC, len(units)
 }
@@ -195,7 +195,7 @@ func VerifySegment(ctx context.Context, store infra.TrustStore, source net.Addr,
 	segment *seg.Meta) error {
 
 	for i, asEntry := range segment.Segment.ASEntries {
-		chain, err := store.GetValidChain(ctx, source, asEntry.IA())
+		chain, err := store.GetValidChain(ctx, asEntry.IA(), source)
 		if err != nil {
 			return err
 		}
@@ -225,7 +225,7 @@ func VerifyRevInfo(ctx context.Context, store infra.TrustStore, source net.Addr,
 	if err != nil {
 		return err
 	}
-	chain, err := store.GetValidChain(ctx, source, revInfo.IA())
+	chain, err := store.GetValidChain(ctx, revInfo.IA(), source)
 	if err != nil {
 		return err
 	}

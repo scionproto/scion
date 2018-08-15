@@ -19,15 +19,15 @@ import (
 	"math/rand"
 )
 
-// TraceID is used to correlate behavior in logs. A TraceID is allocated
+// DebugID is used to correlate behavior in logs. A DebugID is allocated
 // for each outgoing request/response or notify message exchange, and for each
 // handler executed during ListenAndServe.
-type TraceID uint32
+type DebugID uint32
 
-func GetTraceID() TraceID {
-	return TraceID(rand.Uint32())
+func GetDebugID() DebugID {
+	return DebugID(rand.Uint32())
 }
 
-func (id TraceID) String() string {
+func (id DebugID) String() string {
 	return fmt.Sprintf("%08x", uint32(id))
 }

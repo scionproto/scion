@@ -167,8 +167,8 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 // GetValidTRC asks the trust store to return a valid TRC for isd. Server is
 // queried over the network if the TRC is not available locally. Otherwise, the
 // default server is queried.
-func (store *Store) GetValidTRC(ctx context.Context, server net.Addr,
-	isd addr.ISD) (*trc.TRC, error) {
+func (store *Store) GetValidTRC(ctx context.Context, isd addr.ISD,
+	server net.Addr) (*trc.TRC, error) {
 
 	// FIXME(scrye): fall back to getTRC for now, although getValidTRC should
 	// perform additional validations in the future.
@@ -215,10 +215,10 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 	}
 	if server == nil {
 		server, err = store.ChooseServer(addr.IA{I: isd})
-	}
-	if err != nil {
-		return nil, common.NewBasicError("Error determining server to query", err,
-			"requested_isd", isd, "requested_version", version)
+		if err != nil {
+			return nil, common.NewBasicError("Error determining server to query", err,
+				"isd", isd, "version", version)
+		}
 	}
 	return store.getTRCFromNetwork(ctx, &trcRequest{
 		isd:      isd,
@@ -248,8 +248,7 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 // TRC into the database.
 func (store *Store) newInsertTRCHook() ValidateTRCF {
 	return func(ctx context.Context, trcObj *trc.TRC) error {
-		_, err := store.trustdb.InsertTRCCtx(ctx, trcObj)
-		if err != nil {
+		if _, err := store.trustdb.InsertTRCCtx(ctx, trcObj); err != nil {
 			return common.NewBasicError("Unable to store TRC in database", err)
 		}
 		return nil
@@ -257,11 +256,9 @@ func (store *Store) newInsertTRCHook() ValidateTRCF {
 }
 
 // GetValidChain asks the trust store to return a valid certificate chain for ia.
-// Trail should contain a sequence of cross-signing ISDs to be used during
-// validation, with the ISD of the certificate chain being the first one.
 // Server is queried over the network if the chain is not available locally.
-func (store *Store) GetValidChain(ctx context.Context, server net.Addr,
-	ia addr.IA) (*cert.Chain, error) {
+func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
+	server net.Addr) (*cert.Chain, error) {
 
 	if server == nil {
 		server = &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: addr.SvcCS}}
@@ -575,7 +572,8 @@ func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 		pathSet := snet.DefNetwork.PathResolver().Query(store.ia, addr.IA{I: destination.I})
 		path := pathSet.GetAppPath("")
 		if path == nil {
-			return nil, common.NewBasicError("Unable to find core AS", nil)
+			return nil, common.NewBasicError("Unable to find path to any core AS", nil,
+				"isd", destination.I)
 		}
 		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: &addr.AppAddr{L3: addr.SvcCS}}
 		return a, nil
