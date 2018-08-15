@@ -1,9 +1,12 @@
 #!/bin/bash
 
 . tools/ci/common.sh
-set -ex
 
-[ "$DOCKER" = true ] && mount="-v "/run/shm/dispatcher:/run/shm/dispatcher:rw" -v "/run/shm/sciond:/run/shm/sciond:rw""
+cntr=${1:-scion_ci}
 
-docker create --name=${1:-scion_ci} --entrypoint= $mount scion:latest tail -f /dev/null
-docker container start ${1:-scion_ci}
+set -e
+
+[ -n "$DOCKER" ] && mount="-v /run/shm/dispatcher:/run/shm/dispatcher:rw -v /run/shm/sciond:/run/shm/sciond:rw"
+
+docker create --name=$cntr --entrypoint= $mount scion:latest tail -f /dev/null
+docker container start $cntr

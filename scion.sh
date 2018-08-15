@@ -9,9 +9,7 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 cmd_topology() {
     local zkclean
     echo "Shutting down: $(./scion.sh stop)"
-    if is_supervisor; then
-        supervisor/supervisor.sh shutdown
-    fi
+    supervisor/supervisor.sh shutdown
     mkdir -p logs traces
     [ -e gen ] && rm -r gen
     [ -e gen-cache ] && rm -r gen-cache
@@ -50,9 +48,9 @@ cmd_run() {
     echo "Running the network..."
     # Run with docker-compose or supervisor
     if is_docker; then
-        ./tools/dc.sh scion up -d
+        ./tools/quiet ./tools/dc.sh scion up -d
     else
-        supervisor/supervisor.sh start all
+        ./tools/quiet ./supervisor/supervisor.sh start all
     fi
 }
 
@@ -97,14 +95,16 @@ run_setup() {
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     if is_docker; then
-        ./tools/dc.sh scion down
+        ./tools/quiet ./tools/dc.sh scion down
     else
-        supervisor/supervisor.sh stop all
+        ./tools/quiet ./supervisor/supervisor.sh stop all
     fi
     if [ "$1" = "clean" ]; then
         python/integration/set_ipv6_addr.py -d
     fi
-    find /run/shm/dispatcher /run/shm/sciond -type s -print0 | xargs -r0 rm -v
+    for i in /run/shm/{dispatcher,sciond}/; do
+        [ -e "$i" ] && find "$i" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
+    done
 }
 
 cmd_mstop() {

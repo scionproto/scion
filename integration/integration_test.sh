@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -o pipefail
+
 . integration/common.sh
 
 # Get docker flag and container name
@@ -28,7 +30,7 @@ shutdown() {
 }
 
 log "Starting scion (without building)"
-./scion.sh run nobuild | grep -v "started"
+./scion.sh run nobuild | grep -v "started" || exit 1
 log "Scion status:"
 ./scion.sh status || exit 1
 

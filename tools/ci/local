@@ -1,41 +1,41 @@
 #!/bin/bash
 
-CONTAINER="scion_ci"
-
 . tools/ci/common.sh
-if [ "$DOCKER" = true ]; then
-    args="-d $CONTAINER"
+
+cntr="${1:-scion_ci}"
+
+if [ -n "$DOCKER" ]; then
+    args="-d $cntr"
     # Stop a local scion run because we don't want to interfere
     ./scion.sh stop
     echo "Stop local zookeeper"
     systemctl is-active --quiet zookeeper && { sudo service zookeeper stop || exit 1; }
 fi
 
-docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
 ./docker.sh build || exit 1
+[ -n "$DOCKER" ] && { make -sC docker/perapp || exit 1; }
+
+docker inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
 ./tools/ci/setup_container $args || exit 1
+
 result=0
-./tools/ci/build "$CONTAINER"
+./tools/ci/build "$cntr"
 result=$((result+$?))
-./tools/ci/lint "$CONTAINER"
+./tools/ci/lint "$cntr"
 result=$((result+$?))
-./tools/ci/unittest "$CONTAINER"
+./tools/ci/unittest "$cntr"
 result=$((result+$?))
-./tools/ci/sphinx "$CONTAINER"
+./tools/ci/sphinx "$cntr"
 result=$((result+$?))
 
-if [ "$DOCKER" = true ]; then
-    make -sC docker/perapp || exit 1
-    rm -r gen/* gen-cache/* gen-certs/* logs/*
-fi
-./tools/ci/integration $args "$CONTAINER"
+./tools/ci/integration $args "$cntr"
 result=$((result+$?))
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
-./tools/ci/clean_up "$tmpdir" "$CONTAINER" || exit 1
+./tools/ci/clean_up "$tmpdir" "$cntr" || exit 1
 echo "Artifacts dir: $tmpdir"
 
-docker rm -f "$CONTAINER"
+[ $result -eq 0 ] && docker rm -f "$cntr"
 ./scion.sh stop
 
 if [ $result -eq 0 ]; then
