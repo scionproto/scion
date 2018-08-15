@@ -1,8 +1,8 @@
 #!/bin/bash
 
+. tools/ci/common.sh
 set -ex
 
-. tools/ci/common.sh
 [ "$DOCKER" = true ] && mount="-v "/run/shm/dispatcher:/run/shm/dispatcher:rw" -v "/run/shm/sciond:/run/shm/sciond:rw""
 
 docker create --name=${1:-scion_ci} --entrypoint= $mount scion:latest tail -f /dev/null
