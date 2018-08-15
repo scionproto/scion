@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,9 +25,21 @@ import (
 // no database exists a new database is be created. If the schema version of the
 // stored database is different from schemaVersion, an error is returned.
 func New(path string, schema string, schemaVersion int) (*sql.DB, error) {
+	var err error
 	db, err := open(path)
 	if err != nil {
 		return nil, err
+	}
+	// On future errors, close the sql database before exiting
+	defer func() {
+		if err != nil {
+			db.Close()
+		}
+	}()
+	// prevent weird errors. (see https://stackoverflow.com/a/35805826)
+	db.SetMaxOpenConns(1)
+	if _, err = db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return nil, common.NewBasicError("Unable to set WAL journal mode", err)
 	}
 	// Check the schema version and set up new DB if necessary.
 	var existingVersion int
@@ -36,7 +48,7 @@ func New(path string, schema string, schemaVersion int) (*sql.DB, error) {
 		return nil, common.NewBasicError("Failed to check schema version", err)
 	}
 	if existingVersion == 0 {
-		if err := setup(db, schema, schemaVersion); err != nil {
+		if err = setup(db, schema, schemaVersion); err != nil {
 			return nil, err
 		}
 	} else if existingVersion != schemaVersion {
@@ -47,13 +59,19 @@ func New(path string, schema string, schemaVersion int) (*sql.DB, error) {
 }
 
 func open(path string) (*sql.DB, error) {
+	var err error
 	// Add foreign_key parameter to path to enable foreign key support.
 	uri := fmt.Sprintf("%s?_foreign_keys=1", path)
-	var err error
 	db, err := sql.Open("sqlite3", uri)
 	if err != nil {
 		return nil, common.NewBasicError("Couldn't open SQLite database", err)
 	}
+	// On future errors, close the sql database before exiting
+	defer func() {
+		if err != nil {
+			db.Close()
+		}
+	}()
 	// Ensure foreign keys are supported and enabled.
 	var enabled bool
 	err = db.QueryRow("PRAGMA foreign_keys;").Scan(&enabled)
@@ -64,6 +82,7 @@ func open(path string) (*sql.DB, error) {
 		return nil, common.NewBasicError("Failed to check for foreign key support", err)
 	}
 	if !enabled {
+		db.Close()
 		return nil, common.NewBasicError("Failed to enable foreign key support", nil)
 	}
 	return db, nil
