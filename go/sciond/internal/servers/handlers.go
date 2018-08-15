@@ -112,7 +112,7 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		reqIA = h.Topology.ISD_AS
 	}
 	asInfoReply := sciond.ASInfoReply{}
-	trcObj, err := h.TrustStore.GetValidTRC(workCtx, nil, reqIA.I)
+	trcObj, err := h.TrustStore.GetValidTRC(workCtx, reqIA.I, nil)
 	if err != nil {
 		// FIXME(scrye): return a zero AS because the protocol doesn't
 		// support errors, but we probably want to return an error here in
@@ -397,13 +397,4 @@ func isInvalid(err error) bool {
 // verification ended with an outcome of unknown.
 func isUnknown(err error) bool {
 	return err != nil
-}
-
-func iaInSlice(ia addr.IA, s []addr.IA) bool {
-	for _, otherIA := range s {
-		if otherIA.Eq(ia) {
-			return true
-		}
-	}
-	return false
 }

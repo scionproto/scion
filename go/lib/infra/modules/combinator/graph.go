@@ -319,11 +319,6 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 				}
 
 				if solEdge.edge.Shortcut != 0 {
-					// XXX(scrye): Path reversal doesn't build valid reverse
-					// paths (both in Python and in Go) if the X-flag isn't
-					// included after the Verify-only flag HF in the
-					// down-segment (see the common upstream test for an
-					// example).
 					if solEdge.segment.IsDownSeg() && edgeIdx == 1 {
 						newHF.Xover = true
 					}

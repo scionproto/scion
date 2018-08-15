@@ -184,8 +184,8 @@ func MessengerFromContext(ctx context.Context) (Messenger, bool) {
 }
 
 type TrustStore interface {
-	GetValidChain(ctx context.Context, source net.Addr, ia addr.IA) (*cert.Chain, error)
-	GetValidTRC(ctx context.Context, source net.Addr, isd addr.ISD) (*trc.TRC, error)
+	GetValidChain(ctx context.Context, ia addr.IA, source net.Addr) (*cert.Chain, error)
+	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
 	GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	GetChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
 	GetTRC(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error)

@@ -171,7 +171,7 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	logger := m.log.New("trace_id", util.GetTraceID())
+	logger := m.log.New("debug_id", util.GetDebugID())
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -190,8 +190,9 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	}
 	reply, ok := replyMsg.(*cert_mgmt.TRC)
 	if !ok {
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
 		logger.Info("[Messenger] type assertion failed", "err", err)
-		return nil, newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, err
 	}
 	logger.Debug("[Messenger] Received reply", "reply", reply)
 	return reply, nil
@@ -212,7 +213,7 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
-	logger := m.log.New("trace_id", util.GetTraceID())
+	logger := m.log.New("debug_id", util.GetDebugID())
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -255,7 +256,7 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
-	logger := m.log.New("trace_id", util.GetTraceID())
+	logger := m.log.New("debug_id", util.GetDebugID())
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -289,7 +290,7 @@ func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
-	logger := m.log.New("trace_id", util.GetTraceID())
+	logger := m.log.New("debug_id", util.GetDebugID())
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -357,7 +358,7 @@ func (m *Messenger) ListenAndServe() {
 			}
 			continue
 		}
-		logger := m.log.New("trace_id", util.GetTraceID())
+		logger := m.log.New("debug_id", util.GetDebugID())
 
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
@@ -530,7 +531,7 @@ func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
 //
 // If message type respT is to be verified, the key is initialized from
 // m.verifier. Otherwise, it is set to a null verifier.
-func (m *Messenger) getRequester(reqT, respT infra.MessageType) *PathingRequester {
+func (m *Messenger) getRequester(reqT, respT infra.MessageType) *pathingRequester {
 	m.cryptoLock.RLock()
 	defer m.cryptoLock.RUnlock()
 	signer := ctrl.NullSigner
@@ -545,7 +546,7 @@ func newTypeAssertErr(typeStr string, msg interface{}) error {
 	return common.NewBasicError(errStr, nil, "msg", msg)
 }
 
-// PathingRequester is a requester with an attached local IA. It resolves the
+// pathingRequester is a requester with an attached local IA. It resolves the
 // SCION path to construct complete snet addresses that rarely block on writes.
 //
 // FIXME(scrye): This is just a hack to improve performance in the default
@@ -554,21 +555,21 @@ func newTypeAssertErr(typeStr string, msg interface{}) error {
 // Resolver were to be used). This logic should be moved to snet internals
 // once the path resolver has support for concurrent queries and context
 // awareness.
-type PathingRequester struct {
+type pathingRequester struct {
 	requester *ctrl_msg.Requester
 	local     addr.IA
 }
 
 func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
-	local addr.IA) *PathingRequester {
+	local addr.IA) *pathingRequester {
 
-	return &PathingRequester{
+	return &pathingRequester{
 		requester: ctrl_msg.NewRequester(signer, sigv, d),
 		local:     local,
 	}
 }
 
-func (pr *PathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
+func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
 
 	newAddr, err := pr.getBlockingPath(a)
@@ -578,7 +579,7 @@ func (pr *PathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	return pr.requester.Request(ctx, pld, newAddr)
 }
 
-func (pr *PathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
 	newAddr, err := pr.getBlockingPath(a)
 	if err != nil {
 		return err
@@ -586,7 +587,7 @@ func (pr *PathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Add
 	return pr.requester.Notify(ctx, pld, newAddr)
 }
 
-func (pr *PathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
 	newAddr, err := pr.getBlockingPath(a)
 	if err != nil {
 		return err
@@ -594,7 +595,7 @@ func (pr *PathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld,
 	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
 }
 
-func (pr *PathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
+func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
 	// for SCIOND-less operation do not try to resolve paths
 	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
 		return a, nil

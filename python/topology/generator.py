@@ -175,6 +175,7 @@ class ConfigGenerator(object):
         :param bool use_docker: Create a docker-compose config
         :param int pseg_ttl: The TTL for path segments (in seconds)
         :param string cs: Use go or python implementation of certificate server
+        :param string sd: Use go or python implementation of SCIOND
         """
         self.ipv6 = ipv6
         self.out_dir = out_dir
@@ -234,7 +235,9 @@ class ConfigGenerator(object):
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
-        self._generate_go(topo_dicts)
+        go_gen = GoGenerator(self.out_dir, topo_dicts)
+        if self.sd == "go":
+            go_gen.generate_sciond()
         if self.docker:
             self._generate_docker(topo_dicts)
         else:
@@ -277,10 +280,6 @@ class ConfigGenerator(object):
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
             self.default_mtu, self.gen_bind_addr, self.docker, overlay)
         return topo_gen.generate()
-
-    def _generate_go(self, topo_dicts):
-        go_gen = GoGenerator(self.out_dir, topo_dicts)
-        go_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
         super_gen = SupervisorGenerator(
@@ -936,7 +935,7 @@ class SupervisorGenerator(object):
             return self._common_entry(
                 name, ["python/bin/sciond", "--api-addr", path, name, conf_dir])
         return self._common_entry(
-                name, ["bin/sciond", "-config", os.path.join(conf_dir, "config.toml")])
+                name, ["bin/sciond", "-config", os.path.join(conf_dir, "sciond.toml")])
 
     def _sciond_path(self, name):
         return os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)
@@ -1042,19 +1041,18 @@ class GoGenerator(object):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
 
-    def generate(self):
+    def generate_sciond(self):
         for topo_id, topo in self.topo_dicts.items():
             base = topo_id.base_dir(self.out_dir)
             sciond_conf = self._build_sciond_conf(topo_id, topo["ISD_AS"], base)
-            write_file(os.path.join(base, "endhost", "config.toml"), toml.dumps(sciond_conf))
+            write_file(os.path.join(base, COMMON_DIR, "sciond.toml"), toml.dumps(sciond_conf))
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = self._sciond_name(topo_id)
         raw_entry = {
             'general': {
                 'ID': name,
-                'Topology': os.path.join(base, "endhost", 'topology.json'),
-                'ConfigDir': os.path.join(base, "endhost"),
+                'ConfigDir': os.path.join(base, COMMON_DIR),
             },
             'logging': {
                 'file': {
@@ -1519,10 +1517,13 @@ def main():
                         help='Path segment TTL (in seconds)')
     parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
                         help='Certificate Server implementation to use ("go" or "py")')
+    parser.add_argument('-sd', '--sciond', default=DEFAULT_SCIOND,
+                        help='SCIOND implementation to use ("go" or "py")')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server)
+        args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
+        args.sciond)
     confgen.generate_all()
 
 

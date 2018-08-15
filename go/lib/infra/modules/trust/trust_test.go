@@ -138,7 +138,7 @@ func TestGetValidTRC(t *testing.T) {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
-				trcObj, err := store.GetValidTRC(ctx, nil, tc.ISD)
+				trcObj, err := store.GetValidTRC(ctx, tc.ISD, nil)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", trcObj, ShouldResemble, tc.ExpData)
 
@@ -285,7 +285,7 @@ func TestGetValidChain(t *testing.T) {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
-				chain, err := store.GetValidChain(ctx, nil, tc.IA)
+				chain, err := store.GetValidChain(ctx, tc.IA, nil)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", chain, ShouldResemble, tc.ExpData)
 

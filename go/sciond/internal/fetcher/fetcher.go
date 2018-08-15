@@ -60,7 +60,7 @@ type Fetcher struct {
 }
 
 func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.DB,
-	trustStore infra.TrustStore, revCache revcache.RevCache) *Fetcher {
+	trustStore infra.TrustStore, revCache revcache.RevCache, logger log.Logger) *Fetcher {
 
 	return &Fetcher{
 		topology:        topo,
@@ -68,6 +68,7 @@ func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.D
 		pathDB:          pathDB,
 		trustStore:      trustStore,
 		revocationCache: revCache,
+		logger:          logger,
 	}
 }
 
@@ -93,7 +94,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	}
 
 	// Commit to a path server, and use it for path and crypto queries
-	psAppAddr := f.topology.GetRandomPS()
+	psAppAddr := f.topology.GetRandomServer(common.PS)
 	if psAppAddr == nil {
 		return nil, common.NewBasicError("PS not found in topology", nil)
 	}
@@ -104,8 +105,12 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, sciond.ErrorBadDstIA),
 			common.NewBasicError("Bad destination AS", nil, "ia", req.Dst.IA())
 	}
+	// FIXME(scrye): If there are multiple core ASes in the remote ISD, we
+	// might attempt to build paths towards one that is unreachable. SCIOND
+	// should attempt to build paths towards multiple remote core ASes, and
+	// return to the client one that is actually reachable.
 	if req.Dst.IA().A == 0 {
-		remoteTRC, err := f.trustStore.GetValidTRC(ctx, ps, req.Dst.IA().I)
+		remoteTRC, err := f.trustStore.GetValidTRC(ctx, req.Dst.IA().I, ps)
 		if err != nil {
 			return f.buildSCIONDReply(nil, sciond.ErrorInternal),
 				common.NewBasicError("Unable to select from remote core", err)
@@ -123,12 +128,11 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// Try to build paths from local information first, if we don't have to
 	// get fresh segments.
 	if !req.Flags.Refresh {
-		paths, err := f.buildPathsFromDB(ctx, req, ps)
+		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
 			return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
 		case err != nil && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
-			break
 		case err != nil:
 			return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
 		case err == nil && len(paths) > 0:
@@ -147,7 +151,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case <-subCtx.Done():
 	case <-ctx.Done():
 	}
-	paths, err := f.buildPathsFromDB(ctx, req, ps)
+	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
 	case ctx.Err() != nil:
 		return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
@@ -164,7 +168,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 		case <-subCtx.Done():
 		case <-ctx.Done():
 		}
-		paths, err := f.buildPathsFromDB(ctx, req, ps)
+		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
 			return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
@@ -270,7 +274,7 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 // buildPathsFromDB attempts to build paths only from information contained in the
 // local path database, taking the revocation cache into account.
 func (f *Fetcher) buildPathsFromDB(ctx context.Context,
-	req *sciond.PathReq, ps *snet.Addr) ([]*combinator.Path, error) {
+	req *sciond.PathReq) ([]*combinator.Path, error) {
 
 	// Try to determine whether the destination AS is core or not
 	subCtx, subCancelF := context.WithTimeout(ctx, time.Second)
@@ -283,7 +287,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 		// function will proceed to the next part.
 		return nil, err
 	}
-	localTrc, err := f.trustStore.GetValidTRC(ctx, nil, f.topology.ISD_AS.I)
+	localTrc, err := f.trustStore.GetValidTRC(ctx, f.topology.ISD_AS.I, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +413,7 @@ func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
 		f.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
-	segverifier.Verify(ctx, reply.Recs.Recs, reply.Recs.SRevInfos,
+	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, reply.Recs.SRevInfos,
 		verifiedSeg, verifiedRev, segErr, revErr)
 }
 
