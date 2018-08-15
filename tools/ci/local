@@ -10,11 +10,6 @@ if [ -n "$DOCKER" ]; then
     ./scion.sh stop
     echo "Stop local zookeeper"
     systemctl is-active --quiet zookeeper && { sudo service zookeeper stop || exit 1; }
-    for i in gen gen-certs; do
-        [ -e "$i" ] && rm -r "$i"
-    done
-    rm -f ./logs/* ./gen-cache/*
-    mkdir -p gen-cache
 fi
 
 ./docker.sh build || exit 1
@@ -33,11 +28,6 @@ result=$((result+$?))
 ./tools/ci/sphinx "$cntr"
 result=$((result+$?))
 
-docker container exec $cntr bash -c "set -x; ./scion.sh topology ${DOCKER:+-d}"
-if [ -n "$DOCKER" ]; then
-    docker cp $cntr:/home/scion/go/src/github.com/scionproto/scion/gen .
-    docker cp $cntr:/home/scion/go/src/github.com/scionproto/scion/gen-certs .
-fi
 ./tools/ci/integration $args "$cntr"
 result=$((result+$?))
 
