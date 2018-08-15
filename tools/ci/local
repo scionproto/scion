@@ -2,7 +2,7 @@
 
 CONTAINER="scion_ci"
 
-. tools/ci/common
+. tools/ci/common.sh
 [ "$DOCKER" = true ] && args="-d $CONTAINER"
 
 docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"

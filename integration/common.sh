@@ -45,7 +45,7 @@ run() {
 }
 
 usage() {
-    echo "Usage: $0: [-b brs] [-d ctr_name]\n"
+    echo "Usage: $0: [-b brs] [-d ctr_name]"
     exit 1
 }
 

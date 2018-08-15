@@ -1,5 +1,5 @@
 usage() {
-    echo "Usage: $0: [-d]\n"
+    echo "Usage: $0: [-d]"
     exit 1
 }
 
@@ -17,4 +17,4 @@ while getopts ":d" opt; do
         ;;
     esac
 done
-shift "$((OPTIND-1))"
+shift $((OPTIND-1))

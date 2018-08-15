@@ -2,7 +2,7 @@
 
 set -exo pipefail
 
-. tools/ci/common
+. tools/ci/common.sh
 if [ "$DOCKER" = true ]; then
     ctnr=${1:-scion_ci}
     docker container exec $ctnr bash -c "./scion.sh topology -d"

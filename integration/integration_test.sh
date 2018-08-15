@@ -17,6 +17,7 @@
 
 # Get docker flag and container name
 opts "$@"
+shift $((OPTIND-1))
 
 shutdown() {
     log "Scion status:"
