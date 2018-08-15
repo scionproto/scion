@@ -69,8 +69,8 @@ result=$((result+$?))
 shutdown
 
 if [ $result -eq 0 ]; then
-    log "All tests successful"
+    log "All integration tests successful"
 else
-    log "$result tests failed"
+    log "$result integration tests failed"
 fi
 exit $result
