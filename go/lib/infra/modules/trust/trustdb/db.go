@@ -469,7 +469,7 @@ func (db *DB) GetTRCVersionCtx(ctx context.Context,
 		return db.GetTRCMaxVersionCtx(ctx, isd)
 	}
 	db.RLock()
-	db.RUnlock()
+	defer db.RUnlock()
 	var raw common.RawBytes
 	err := db.getTRCVersionStmt.QueryRowContext(ctx, isd, version).Scan(&raw)
 	if err == sql.ErrNoRows {
