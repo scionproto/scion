@@ -1,12 +1,13 @@
 #!/bin/bash
 
-. tools/ci/common
-[ "$DOCKER" = true ] && args="-d"
-
 CONTAINER="scion_ci"
+
+. tools/ci/common
+[ "$DOCKER" = true ] && args="-d $CONTAINER"
+
 docker inspect "$CONTAINER" &>/dev/null && docker rm -f "$CONTAINER"
 ./docker.sh build
-./tools/ci/setup_container $args "$CONTAINER"
+./tools/ci/setup_container $args
 ./tools/ci/build "$CONTAINER"
 ./tools/ci/lint "$CONTAINER"
 ./tools/ci/unittest "$CONTAINER"
@@ -17,6 +18,7 @@ if [ "$DOCKER" = true ]; then
     echo "Stop local zookeeper"
     systemctl is-active --quiet zookeeper && sudo service zookeeper stop
     make -C docker/perapp
+    rm -rf gen/ gen-cache/ gen-certs/ logs/
 fi
 ./tools/ci/integration $args "$CONTAINER"
 
