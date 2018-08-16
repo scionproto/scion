@@ -184,7 +184,7 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 }
 
 // GetTopoAddr is a helper method that returns the TopoAddress for a specific
-// element ID of type t. nodeType must be one of BS, CS or CP. If the ID is not
+// element ID of type t. nodeType must be one of BS, CS or PS. If the ID is not
 // found, nil is returned.
 func (t *Topo) GetTopoAddr(serviceType proto.ServiceType, id string) *TopoAddr {
 	var addressMap map[string]TopoAddr
