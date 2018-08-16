@@ -28,6 +28,7 @@ import math
 import os
 import random
 import sys
+import toml
 from collections import defaultdict
 from io import StringIO
 from string import Template
@@ -116,6 +117,7 @@ DEFAULT_LINK_BW = 1000
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVER = "py"
+DEFAULT_SCIOND = "py"
 DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
@@ -158,7 +160,8 @@ class ConfigGenerator(object):
                  path_policy_file=DEFAULT_PATH_POLICY_FILE,
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
                  use_mininet=False, use_docker=False, bind_addr=GENERATE_BIND_ADDRESS,
-                 pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER):
+                 pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER,
+                 sd=DEFAULT_SCIOND):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -172,6 +175,7 @@ class ConfigGenerator(object):
         :param bool use_docker: Create a docker-compose config
         :param int pseg_ttl: The TTL for path segments (in seconds)
         :param string cs: Use go or python implementation of certificate server
+        :param string sd: Use go or python implementation of SCIOND
         """
         self.ipv6 = ipv6
         self.out_dir = out_dir
@@ -188,8 +192,12 @@ class ConfigGenerator(object):
         self.pseg_ttl = pseg_ttl
         self._read_defaults(network)
         self.cs = cs
+        self.sd = sd
         if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
             logging.critical("Cannot use non-default CS with docker!")
+            sys.exit(1)
+        if self.docker and self.sd is not DEFAULT_SCIOND:
+            logging.critical("Cannot use non-default SCIOND with docker!")
             sys.exit(1)
 
     def _read_defaults(self, network):
@@ -227,6 +235,9 @@ class ConfigGenerator(object):
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
+        go_gen = GoGenerator(self.out_dir, topo_dicts)
+        if self.sd == "go":
+            go_gen.generate_sciond()
         if self.docker:
             self._generate_docker(topo_dicts)
         else:
@@ -272,7 +283,7 @@ class ConfigGenerator(object):
 
     def _generate_supervisor(self, topo_dicts):
         super_gen = SupervisorGenerator(
-            self.out_dir, topo_dicts, self.mininet, self.cs)
+            self.out_dir, topo_dicts, self.mininet, self.cs, self.sd)
         super_gen.generate()
 
     def _generate_docker(self, topo_dicts):
@@ -865,11 +876,12 @@ class PrometheusGenerator(object):
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, mininet, cs):
+    def __init__(self, out_dir, topo_dicts, mininet, cs, sd):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.mininet = mininet
         self.cs = cs
+        self.sd = sd
 
     def generate(self):
         self._write_dispatcher_conf()
@@ -919,8 +931,11 @@ class SupervisorGenerator(object):
 
     def _sciond_entry(self, name, conf_dir):
         path = self._sciond_path(name)
+        if self.sd == "py":
+            return self._common_entry(
+                name, ["python/bin/sciond", "--api-addr", path, name, conf_dir])
         return self._common_entry(
-            name, ["python/bin/sciond", "--api-addr", path, name, conf_dir])
+                name, ["bin/sciond", "-config", os.path.join(conf_dir, "sciond.toml")])
 
     def _sciond_path(self, name):
         return os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)
@@ -1019,6 +1034,49 @@ class SupervisorGenerator(object):
     def _mk_cmd(self, name, cmd_args):
         return "bash -c 'exec %s &>logs/%s.OUT'" % (
             " ".join(['"%s"' % arg for arg in cmd_args]), name)
+
+
+class GoGenerator(object):
+    def __init__(self, out_dir, topo_dicts):
+        self.out_dir = out_dir
+        self.topo_dicts = topo_dicts
+
+    def generate_sciond(self):
+        for topo_id, topo in self.topo_dicts.items():
+            base = topo_id.base_dir(self.out_dir)
+            sciond_conf = self._build_sciond_conf(topo_id, topo["ISD_AS"], base)
+            write_file(os.path.join(base, COMMON_DIR, "sciond.toml"), toml.dumps(sciond_conf))
+
+    def _build_sciond_conf(self, topo_id, ia, base):
+        name = self._sciond_name(topo_id)
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': os.path.join(base, COMMON_DIR),
+            },
+            'logging': {
+                'file': {
+                    'Path': os.path.join('logs', "%s.log" % name),
+                    'Level': 'debug',
+                },
+                'console': {
+                    'Level': 'crit',
+                },
+            },
+            'trust': {
+                'TrustDB': os.path.join('gen-cache', '%s.trust.db' % name),
+            },
+            'sd': {
+                'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
+                'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
+                'Public': '%s,[127.0.0.1]:0' % ia,
+                'PathDB': os.path.join('gen-cache', '%s.path.db' % name),
+            },
+        }
+        return raw_entry
+
+    def _sciond_name(self, topo_id):
+        return 'sd' + topo_id.file_fmt()
 
 
 class DockerGenerator(object):
@@ -1459,10 +1517,13 @@ def main():
                         help='Path segment TTL (in seconds)')
     parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
                         help='Certificate Server implementation to use ("go" or "py")')
+    parser.add_argument('-sd', '--sciond', default=DEFAULT_SCIOND,
+                        help='SCIOND implementation to use ("go" or "py")')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server)
+        args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
+        args.sciond)
     confgen.generate_all()
 
 

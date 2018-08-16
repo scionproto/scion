@@ -278,7 +278,7 @@ func (c *Conf) loadLeafReissTime() error {
 
 // checkIssCert checks that the trust store contains the issuer certificate.
 func (c *Conf) checkIssCert() error {
-	chain, err := c.Store.GetValidChain(context.Background(), c.PublicAddr.IA, c.PublicAddr.IA.I)
+	chain, err := c.Store.GetValidChain(context.Background(), c.PublicAddr.IA, nil)
 	if err != nil {
 		return err
 	}

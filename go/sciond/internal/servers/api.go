@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -73,7 +74,7 @@ func (srv *TransportHandler) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("handler not found for capnp message", "which", p.Which)
 		return
 	}
-	handler.Handle(srv.Transport, address, p, srv.Logger.New("id", p.Id))
+	handler.Handle(srv.Transport, address, p, srv.Logger.New("debug_id", util.GetDebugID()))
 }
 
 func (srv *TransportHandler) Close() error {

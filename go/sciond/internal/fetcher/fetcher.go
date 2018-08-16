@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
@@ -40,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -59,7 +61,7 @@ type Fetcher struct {
 }
 
 func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.DB,
-	trustStore infra.TrustStore, revCache revcache.RevCache) *Fetcher {
+	trustStore infra.TrustStore, revCache revcache.RevCache, logger log.Logger) *Fetcher {
 
 	return &Fetcher{
 		topology:        topo,
@@ -67,6 +69,7 @@ func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.D
 		pathDB:          pathDB,
 		trustStore:      trustStore,
 		revocationCache: revCache,
+		logger:          logger,
 	}
 }
 
@@ -90,24 +93,47 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
+
+	// Commit to a path server, and use it for path and crypto queries
+	psAppAddr, err := f.topology.GetRandomServer(proto.ServiceType_ps)
+	if err != nil {
+		return nil, common.NewBasicError("PS not found in topology", err)
+	}
+	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAppAddr}
+
 	// Check destination
-	// FIXME(scrye): disallow remote AS = 0 for now, although we should add
-	// support for this eventually
-	if req.Dst.IA().I == 0 || req.Dst.IA().A == 0 {
+	if req.Dst.IA().I == 0 {
 		return f.buildSCIONDReply(nil, sciond.ErrorBadDstIA),
 			common.NewBasicError("Bad destination AS", nil, "ia", req.Dst.IA())
+	}
+	// FIXME(scrye): If there are multiple core ASes in the remote ISD, we
+	// might attempt to build paths towards one that is unreachable. SCIOND
+	// should attempt to build paths towards multiple remote core ASes, and
+	// return to the client one that is actually reachable.
+	if req.Dst.IA().A == 0 {
+		remoteTRC, err := f.trustStore.GetValidTRC(ctx, req.Dst.IA().I, ps)
+		if err != nil {
+			return f.buildSCIONDReply(nil, sciond.ErrorInternal),
+				common.NewBasicError("Unable to select from remote core", err)
+		}
+		coreASes := remoteTRC.CoreASes.ASList()
+		if len(coreASes) == 0 {
+			return f.buildSCIONDReply(nil, sciond.ErrorInternal),
+				common.NewBasicError("No remote core AS found", nil)
+		}
+		req.Dst = coreASes[rand.Intn(len(coreASes))].IAInt()
 	}
 	if req.Dst.IA().Eq(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, sciond.ErrorOk), nil
 	}
-
+	// Try to build paths from local information first, if we don't have to
+	// get fresh segments.
 	if !req.Flags.Refresh {
-		// Try to build paths from local information first, if we don't have to
-		// get fresh segments.
 		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
 			return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+		case err != nil && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
 		case err != nil:
 			return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
 		case err == nil && len(paths) > 0:
@@ -119,7 +145,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// and revocation cache.
 	subCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
 	earlyTrigger := util.NewTrigger(earlyReplyInterval)
-	go f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger)
+	go f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger, ps)
 	// Wait for deadlines while also waiting for the early reply.
 	select {
 	case <-earlyTrigger.Done():
@@ -236,7 +262,7 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 					Ipv4 []byte
 					Ipv6 []byte
 				}{
-					Ipv4: nextHop.InternalAddr.IPv4.PublicAddr().L3.IP(),
+					Ipv4: nextHop.InternalAddr.IPv4.PublicAddr().L3.IP().To4(),
 					// FIXME(scrye): also add support for IPv6
 				},
 				Port: nextHop.InternalAddr.IPv4.PublicAddr().L4.Port(),
@@ -252,24 +278,17 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	req *sciond.PathReq) ([]*combinator.Path, error) {
 
 	// Try to determine whether the destination AS is core or not
-	// FIXME(scrye): The trail below is incorrect. The tests are written with
-	// this in mind, and they populate the database s.t. the trust store is
-	// guaranteed to not create network traffic here. This will be fixed when
-	// the trust store adds support for address hints and trailless local
-	// queries.
-	dstTrc, err := f.trustStore.GetValidTRC(ctx, req.Dst.IA().I, req.Dst.IA().I)
+	subCtx, subCancelF := context.WithTimeout(ctx, time.Second)
+	defer subCancelF()
+	dstTrc, err := f.trustStore.GetValidCachedTRC(subCtx, req.Dst.IA().I)
 	if err != nil {
 		// There are situations where we cannot tell if the remote is core. In
 		// these cases we just error out, and calling code will try to get path
 		// segments. When buildPaths is called again, err should be nil and the
 		// function will proceed to the next part.
-		// FIXME(scrye): We want to differentiate between critical errors and
-		// "I didn't find what you're looking for in the DB" errors. We want to
-		// mask out the latter, s.t. calling code doesn't halt execution when
-		// it sees an error.
 		return nil, err
 	}
-	localTrc, err := f.trustStore.GetValidTRC(ctx, f.topology.ISD_AS.I, f.topology.ISD_AS.I)
+	localTrc, err := f.trustStore.GetValidTRC(ctx, f.topology.ISD_AS.I, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -366,10 +385,10 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 // successfully verified are added to the pathDB. Revocations that are
 // successfully verified are added to the revocation cache.
 func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc,
-	req *sciond.PathReq, earlyTrigger *util.Trigger) {
+	req *sciond.PathReq, earlyTrigger *util.Trigger, ps *snet.Addr) {
 
 	defer cancelF()
-	reply, err := f.getSegmentsFromNetwork(ctx, req)
+	reply, err := f.getSegmentsFromNetwork(ctx, req, ps)
 	if err != nil {
 		log.Warn("Unable to retrieve paths from network", "err", err)
 		return
@@ -395,28 +414,13 @@ func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
 		f.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
-	segverifier.Verify(ctx, reply.Recs.Recs, reply.Recs.SRevInfos,
+	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, reply.Recs.SRevInfos,
 		verifiedSeg, verifiedRev, segErr, revErr)
 }
 
 func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
-	req *sciond.PathReq) (*path_mgmt.SegReply, error) {
+	req *sciond.PathReq, ps *snet.Addr) (*path_mgmt.SegReply, error) {
 
-	// Randomly choose a path server
-	numPSServers := len(f.topology.PSNames)
-	if numPSServers == 0 {
-		return nil, common.NewBasicError("Need PS for segments, but none found in topology", nil)
-	}
-	psName := f.topology.PSNames[rand.Intn(numPSServers)]
-	topoAddr := f.topology.PS[psName]
-	ps := &snet.Addr{
-		IA:   f.topology.ISD_AS,
-		Host: topoAddr.PublicAddr(f.topology.Overlay),
-	}
-	if ps.Host == nil {
-		return nil, common.NewBasicError("PS address not found", nil, "name", psName,
-			"overlay", f.topology.Overlay)
-	}
 	// Get segments from path server
 	msg := &path_mgmt.SegReq{
 		RawSrcIA: req.Src,

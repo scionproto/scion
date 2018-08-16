@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -74,15 +75,18 @@ type Request struct {
 	FullMessage proto.Cerealizable
 	// Peer is the node that sent this request
 	Peer net.Addr
-
+	// ID is the CtrlPld top-level ID.
 	ID uint64
+	// Logger can be used to write handler-scope messages in a way that can be
+	// easily correlated with server request/responses.
+	Logger log.Logger
 	// ctx is a server context, used in handlers when receiving messages from
 	// the network.
 	ctx context.Context
 }
 
 func NewRequest(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr,
-	id uint64) *Request {
+	id uint64, logger log.Logger) *Request {
 
 	return &Request{
 		Message:     msg,
@@ -90,6 +94,7 @@ func NewRequest(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.A
 		Peer:        peer,
 		ctx:         ctx,
 		ID:          id,
+		Logger:      logger,
 	}
 }
 
@@ -179,8 +184,9 @@ func MessengerFromContext(ctx context.Context) (Messenger, bool) {
 }
 
 type TrustStore interface {
-	GetValidChain(ctx context.Context, ia addr.IA, trail ...addr.ISD) (*cert.Chain, error)
-	GetValidTRC(ctx context.Context, isd addr.ISD, trail ...addr.ISD) (*trc.TRC, error)
+	GetValidChain(ctx context.Context, ia addr.IA, source net.Addr) (*cert.Chain, error)
+	GetValidTRC(ctx context.Context, isd addr.ISD, source net.Addr) (*trc.TRC, error)
+	GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	GetChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error)
 	GetTRC(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error)
 	NewTRCReqHandler(recurseAllowed bool) Handler

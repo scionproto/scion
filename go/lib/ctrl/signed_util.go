@@ -162,7 +162,7 @@ func GetChainForSign(ctx context.Context, s *SignSrcDef,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get certificate chain", err)
 	}
-	maxTRC, err := tStore.GetValidTRC(ctx, t.ISD, t.ISD)
+	maxTRC, err := tStore.GetValidTRC(ctx, t.ISD, nil)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get maxTRC", err)
 	}

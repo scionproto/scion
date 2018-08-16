@@ -34,11 +34,11 @@ import (
 // forever.
 
 func CreateSign(ia addr.IA, store infra.TrustStore) (*proto.SignS, error) {
-	c, err := store.GetValidChain(context.TODO(), ia, ia.I)
+	c, err := store.GetValidChain(context.TODO(), ia, nil)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local certificate chain", err)
 	}
-	t, err := store.GetValidTRC(context.TODO(), ia.I, ia.I)
+	t, err := store.GetValidTRC(context.TODO(), ia.I, nil)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local TRC", err)
 	}
@@ -59,7 +59,7 @@ func CreateSign(ia addr.IA, store infra.TrustStore) (*proto.SignS, error) {
 
 // VerifyChain verifies the chain based on the TRCs present in the store.
 func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) error {
-	maxTrc, err := store.GetValidTRC(context.TODO(), chain.Issuer.Issuer.I, chain.Issuer.Issuer.I)
+	maxTrc, err := store.GetValidTRC(context.TODO(), chain.Issuer.Issuer.I, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to find TRC", nil, "isd", chain.Issuer.Issuer.I)
 	}

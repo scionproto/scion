@@ -64,6 +64,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -72,7 +73,10 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -128,12 +132,13 @@ type Messenger struct {
 	ctx     context.Context
 	cancelF context.CancelFunc
 
+	ia  addr.IA
 	log log.Logger
 }
 
 // New creates a new Messenger that uses dispatcher for sending and receiving
 // messages, and trustStore as crypto information database.
-func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger,
+func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger,
 	config *Config) *Messenger {
 
 	if config == nil {
@@ -147,6 +152,7 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger,
 	// trustStore.
 	ctx, cancelF := context.WithCancel(context.Background())
 	return &Messenger{
+		ia:         ia,
 		config:     config,
 		dispatcher: dispatcher,
 		signer:     ctrl.NullSigner,
@@ -165,23 +171,30 @@ func New(dispatcher *disp.Dispatcher, store infra.TrustStore, logger log.Logger,
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	m.log.Debug("[Messenger] Sending Request", "type", infra.TRCRequest, "to", a, "id", id)
+	logger.Debug("[Messenger] Sending request", "req_type", infra.TRCRequest,
+		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest, infra.TRC).Request(ctx, pld, a)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.TRC)
 	if !ok {
-		return nil, newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
+	logger.Debug("[Messenger] Received reply", "reply", reply)
 	return reply, nil
 }
 
@@ -200,23 +213,30 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	m.log.Debug("[Messenger] Sending Request", "type", infra.ChainRequest, "to", a, "id", id)
+	logger.Debug("[Messenger] Sending request", "req_type", infra.ChainRequest,
+		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest, infra.Chain).Request(ctx, pld, a)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.Chain)
 	if !ok {
-		return nil, newTypeAssertErr("*cert_mgmt.Chain", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
+	logger.Debug("[Messenger] Received reply", "reply", reply)
 	return reply, nil
 }
 
@@ -237,51 +257,66 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	m.log.Debug("[Messenger] Sending Request", "type", infra.PathSegmentRequest, "to", a, "id", id)
+	logger.Debug("[Messenger] Sending request", "req_type", infra.PathSegmentRequest,
+		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.PathSegmentRequest, infra.PathSegmentReply).Request(ctx, pld, a)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*path_mgmt.SegReply)
 	if !ok {
-		return nil, newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
 	if err := reply.ParseRaw(); err != nil {
+		logger.Info("[Messneger] Reply parse error")
 		return nil, err
 	}
+	logger.Debug("[Messenger] Received reply")
 	return reply, nil
 }
 
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	m.log.Debug("[Messenger] Sending Request", "type", infra.ChainIssueRequest, "to", a, "id", id)
+	logger.Debug("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
+		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.ChainIssueRequest, infra.ChainIssueReply).Request(ctx, pld, a)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.ChainIssRep)
 	if !ok {
-		return nil, newTypeAssertErr("*cert_mgmt.ChainIssReply", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
+	logger.Debug("[Messenger] Received reply")
 	return reply, nil
 }
 
@@ -326,10 +361,11 @@ func (m *Messenger) ListenAndServe() {
 			}
 			continue
 		}
+		logger := m.log.New("debug_id", util.GetDebugID())
 
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
-			m.log.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
+			logger.Error("Type assertion failure", "from", address, "expected", "*ctrl.SignedPld",
 				"actual", common.TypeOf(genericMsg))
 			continue
 		}
@@ -341,7 +377,7 @@ func (m *Messenger) ListenAndServe() {
 			// functionality in the main ctrl libraries is still missing.
 			err = m.verifySignedPld(serveCtx, signedPld, m.verifier, address.(*snet.Addr))
 			if err != nil {
-				m.log.Error("Verification error", "from", address, "err", err)
+				logger.Error("Verification error", "from", address, "err", err)
 				serveCancelF()
 				continue
 			}
@@ -349,11 +385,11 @@ func (m *Messenger) ListenAndServe() {
 
 		pld, err := signedPld.Pld()
 		if err != nil {
-			m.log.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
+			logger.Error("Unable to extract Pld from CtrlPld", "from", address, "err", err)
 			serveCancelF()
 			continue
 		}
-		m.serve(serveCtx, serveCancelF, pld, signedPld, address)
+		m.serve(serveCtx, serveCancelF, pld, signedPld, address, logger)
 	}
 }
 
@@ -378,29 +414,29 @@ func (m *Messenger) verifySignedPld(ctx context.Context, signedPld *ctrl.SignedP
 }
 
 func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
-	signedPld *ctrl.SignedPld, address net.Addr) {
+	signedPld *ctrl.SignedPld, address net.Addr, logger log.Logger) {
 
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
 	msgType, msg, err := m.validate(pld)
 	if err != nil {
-		m.log.Error("Received message, but unable to validate message", "from", address, "err", err)
+		logger.Error("Received message, but unable to validate message", "from", address, "err", err)
 		return
 	}
-	m.log.Debug("[Messenger] Received Message", "type", msgType, "from", address, "id", pld.ReqId)
+	logger.Debug("[Messenger] Received message", "type", msgType, "from", address, "id", pld.ReqId)
 
 	m.handlersLock.RLock()
 	handler := m.handlers[msgType]
 	m.handlersLock.RUnlock()
 	if handler == nil {
-		m.log.Error("Received message, but handler not found", "from", address,
+		logger.Error("Received message, but handler not found", "from", address,
 			"msgType", msgType)
 		return
 	}
 	go func() {
 		defer cancelF()
 		defer log.LogPanicAndExit()
-		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId))
+		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId, logger))
 	}()
 }
 
@@ -498,17 +534,92 @@ func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
 //
 // If message type respT is to be verified, the key is initialized from
 // m.verifier. Otherwise, it is set to a null verifier.
-func (m *Messenger) getRequester(reqT, respT infra.MessageType) *ctrl_msg.Requester {
+func (m *Messenger) getRequester(reqT, respT infra.MessageType) *pathingRequester {
 	m.cryptoLock.RLock()
 	defer m.cryptoLock.RUnlock()
 	signer := ctrl.NullSigner
 	if _, ok := m.signMask[reqT]; ok {
 		signer = m.signer
 	}
-	return ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher)
+	return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {
 	errStr := fmt.Sprintf("Unable to type assert disp.Message to %s", typeStr)
 	return common.NewBasicError(errStr, nil, "msg", msg)
+}
+
+// pathingRequester is a requester with an attached local IA. It resolves the
+// SCION path to construct complete snet addresses that rarely block on writes.
+//
+// FIXME(scrye): This is just a hack to improve performance in the default
+// topology, by allowing each goroutine to issue a request to SCIOND in
+// parallel (as opposed of one goroutine waiting for another if the Path
+// Resolver were to be used). This logic should be moved to snet internals
+// once the path resolver has support for concurrent queries and context
+// awareness.
+type pathingRequester struct {
+	requester *ctrl_msg.Requester
+	local     addr.IA
+}
+
+func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
+	local addr.IA) *pathingRequester {
+
+	return &pathingRequester{
+		requester: ctrl_msg.NewRequester(signer, sigv, d),
+		local:     local,
+	}
+}
+
+func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
+	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
+
+	newAddr, err := pr.getBlockingPath(a)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pr.requester.Request(ctx, pld, newAddr)
+}
+
+func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	newAddr, err := pr.getBlockingPath(a)
+	if err != nil {
+		return err
+	}
+	return pr.requester.Notify(ctx, pld, newAddr)
+}
+
+func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
+	newAddr, err := pr.getBlockingPath(a)
+	if err != nil {
+		return err
+	}
+	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
+}
+
+func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
+	// for SCIOND-less operation do not try to resolve paths
+	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
+		return a, nil
+	}
+	snetAddress := a.(*snet.Addr).Copy()
+	sdService := snet.DefNetwork.PathResolver().Sciond()
+	conn, err := sdService.Connect()
+	if err != nil {
+		return nil, err
+	}
+	paths, err := conn.Paths(snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
+	if err != nil {
+		return nil, err
+	}
+	if len(paths.Entries) == 0 {
+		return nil, common.NewBasicError("unable to find path", nil)
+	}
+	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
+	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
+	if err != nil {
+		return nil, common.NewBasicError("unable to build next hop", err)
+	}
+	return snetAddress, nil
 }

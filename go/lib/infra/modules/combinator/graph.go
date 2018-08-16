@@ -319,9 +319,13 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 				}
 
 				if solEdge.edge.Shortcut != 0 {
+					if solEdge.segment.IsDownSeg() && edgeIdx == 1 {
+						newHF.Xover = true
+					}
+
 					if solEdge.edge.Peer != 0 {
-						// We're crossing a peering shortcut. Always set Xover flag
-						// for the current hop field, even if on last segment.
+						// Always set Xover flag for the current hop field,
+						// even if on last segment.
 						newHF.Xover = true
 						// Add a new hop field for the peering entry, and set Xover.
 						pHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[solEdge.edge.Peer])

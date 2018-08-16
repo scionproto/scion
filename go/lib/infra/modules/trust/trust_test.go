@@ -108,62 +108,18 @@ func TestGetValidTRC(t *testing.T) {
 	testCases := []struct {
 		Name          string
 		ISD           addr.ISD
-		Trail         []addr.ISD
 		ExpData       *trc.TRC
 		ExpError      bool
 		DBTRCInChecks []*trc.TRC // Check that these objects were saved to persistent storage
 	}{
 		{
-			Name: "bad ISD=0",
-			ISD:  0, Trail: []addr.ISD{0},
-			ExpData: nil, ExpError: true,
+			Name: "bad ISD=0", ISD: 0, ExpData: nil, ExpError: true,
 		},
 		{
-			Name: "local ISD=1",
-			ISD:  1, Trail: []addr.ISD{1},
-			ExpData: trcs[1], ExpError: false,
+			Name: "local ISD=1", ISD: 1, ExpData: trcs[1], ExpError: false,
 		},
 		{
-			Name: "unknown ISD=2, nil trail",
-			ISD:  2, Trail: nil,
-			ExpData: nil, ExpError: true,
-		},
-		{
-			Name: "unknown ISD=2, empty trail",
-			ISD:  2, Trail: []addr.ISD{},
-			ExpData: nil, ExpError: true,
-		},
-		{
-			Name: "unknown ISD=5, bad trail",
-			ISD:  5, Trail: []addr.ISD{1, 2, 3},
-			ExpData: nil, ExpError: true,
-		},
-		{
-			Name: "unknown ISD=2, 2-length trail, no trust root in trail",
-			ISD:  2, Trail: []addr.ISD{2, 3},
-			ExpData: nil, ExpError: true,
-		},
-		{
-			Name: "unknown ISD=2, 2-length trail, trust root in trail",
-			ISD:  2, Trail: []addr.ISD{2, 1},
-			ExpData: trcs[2], ExpError: false,
-		},
-		{
-			Name: "unknown ISD=2, 3-length trail, trust root mid-trail ",
-			ISD:  2, Trail: []addr.ISD{2, 1, 3},
-			ExpData: trcs[2], ExpError: false,
-			DBTRCInChecks: []*trc.TRC{trcs[2]},
-		},
-		{
-			Name: "unknown ISD=2, 3-length trail, trust root at end of trail",
-			ISD:  2, Trail: []addr.ISD{2, 3, 1},
-			ExpData: trcs[2], ExpError: false,
-			DBTRCInChecks: []*trc.TRC{trcs[2], trcs[3]},
-		},
-		{
-			Name: "bogus ISD=42, 2-length trail",
-			ISD:  42, Trail: []addr.ISD{42, 1},
-			ExpData: nil, ExpError: true,
+			Name: "unknown ISD=6", ISD: 6, ExpData: nil, ExpError: true,
 		},
 	}
 
@@ -182,7 +138,7 @@ func TestGetValidTRC(t *testing.T) {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
-				trcObj, err := store.GetValidTRC(ctx, tc.ISD, tc.Trail...)
+				trcObj, err := store.GetValidTRC(ctx, tc.ISD, nil)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", trcObj, ShouldResemble, tc.ExpData)
 
@@ -206,8 +162,6 @@ func TestGetTRC(t *testing.T) {
 		Version  uint64
 		ExpData  *trc.TRC
 		ExpError bool
-
-		DBTRCNotInChecks []*trc.TRC // Explicitly check that these objects where not saved to DB
 	}{
 		{
 			Name: "bad ISD=0",
@@ -233,7 +187,6 @@ func TestGetTRC(t *testing.T) {
 			Name: "unknown ISD=2, version 1",
 			ISD:  2, Version: 1,
 			ExpData: trcs[2], ExpError: false,
-			DBTRCNotInChecks: []*trc.TRC{trcs[2]},
 		},
 		{
 			Name: "unknown ISD=2, max version",
@@ -277,17 +230,9 @@ func TestGetTRC(t *testing.T) {
 			Convey(tc.Name, func() {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
-
 				trcObj, err := store.GetTRC(ctx, tc.ISD, tc.Version)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", trcObj, ShouldResemble, tc.ExpData)
-
-				// Post-check DB state to verify that unverified objects were not inserted
-				for _, trcObj := range tc.DBTRCNotInChecks {
-					get, err := store.trustdb.GetTRCVersion(trcObj.ISD, trcObj.Version)
-					SoMsg("db err", err, ShouldBeNil)
-					SoMsg("db trc", get, ShouldBeNil)
-				}
 			})
 		}
 	})
@@ -300,29 +245,28 @@ func TestGetValidChain(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		IA              addr.IA
-		Trail           []addr.ISD
 		ExpData         *cert.Chain
 		ExpError        bool
 		DBChainInChecks []*cert.Chain // Check that these objects were saved to persistent storage
 	}{
 		{
-			Name: "bad IA=0-1",
-			IA:   xtest.MustParseIA("0-ff00:0:1"), Trail: []addr.ISD{0},
+			Name:    "bad IA=0-1",
+			IA:      xtest.MustParseIA("0-ff00:0:1"),
 			ExpData: nil, ExpError: true,
 		},
 		{
-			Name: "bad IA=1-0",
-			IA:   addr.IA{I: 1, A: 0}, Trail: []addr.ISD{0},
+			Name:    "bad IA=1-0",
+			IA:      addr.IA{I: 1, A: 0},
 			ExpData: nil, ExpError: true,
 		},
 		{
-			Name: "local IA=1-1",
-			IA:   xtest.MustParseIA("1-ff00:0:1"), Trail: []addr.ISD{1},
+			Name:    "local IA=1-1",
+			IA:      xtest.MustParseIA("1-ff00:0:1"),
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 		},
 		{
-			Name: "remote IA=2-4",
-			IA:   xtest.MustParseIA("2-ff00:0:4"), Trail: []addr.ISD{2, 1},
+			Name:    "remote IA=2-4",
+			IA:      xtest.MustParseIA("2-ff00:0:4"),
 			ExpData: chains[xtest.MustParseIA("2-ff00:0:4")], ExpError: false,
 			DBChainInChecks: []*cert.Chain{chains[xtest.MustParseIA("2-ff00:0:4")]},
 		},
@@ -335,15 +279,13 @@ func TestGetValidChain(t *testing.T) {
 		}
 		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
-
 		insertTRC(t, store, trcs[1])
-
-		for _, tc := range testCases {
+		for _, tc := range testCases[3:4] {
 			Convey(tc.Name, func() {
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
 				defer cancelF()
 
-				chain, err := store.GetValidChain(ctx, tc.IA, tc.Trail...)
+				chain, err := store.GetValidChain(ctx, tc.IA, nil)
 				xtest.SoMsgError("err", err, tc.ExpError)
 				SoMsg("trc", chain, ShouldResemble, tc.ExpData)
 
@@ -366,7 +308,6 @@ func TestGetChain(t *testing.T) {
 		Name               string
 		IA                 addr.IA
 		Version            uint64
-		Trail              []addr.ISD
 		ExpData            *cert.Chain
 		ExpError           bool
 		DBChainNotInChecks []*cert.Chain // Check that these objects were not saved to DB
@@ -566,9 +507,9 @@ func TestTRCReqHandler(t *testing.T) {
 
 		c2s, s2c := p2p.New()
 		// each test initiates a request from the client messenger
-		clientMessenger := setupMessenger(c2s, nil, "client")
+		clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, nil, "client")
 		// the server messenger runs ListenAndServe, backed by the trust store
-		serverMessenger := setupMessenger(s2c, store, "server")
+		serverMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), s2c, store, "server")
 
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
@@ -685,9 +626,9 @@ func TestChainReqHandler(t *testing.T) {
 
 		c2s, s2c := p2p.New()
 		// each test initiates a request from the client messenger
-		clientMessenger := setupMessenger(c2s, nil, "client")
+		clientMessenger := setupMessenger(xtest.MustParseIA("2-ff00:0:1"), c2s, nil, "client")
 		// the server messenger runs ListenAndServe, backed by the trust store
-		serverMessenger := setupMessenger(s2c, store, "server")
+		serverMessenger := setupMessenger(xtest.MustParseIA("1-ff00:0:1"), s2c, store, "server")
 
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
@@ -716,11 +657,11 @@ func TestChainReqHandler(t *testing.T) {
 	})
 }
 
-func setupMessenger(conn net.PacketConn, store *Store, name string) infra.Messenger {
+func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) infra.Messenger {
 	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
 	config := &messenger.Config{DisableSignatureVerification: true}
-	return messenger.New(dispatcher, store, log.Root().New("name", name), config)
+	return messenger.New(ia, dispatcher, store, log.Root().New("name", name), config)
 }
 
 func loadCrypto(t *testing.T, isds []addr.ISD,

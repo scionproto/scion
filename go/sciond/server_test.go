@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"html/template"
 	"os"
@@ -327,6 +328,14 @@ func Setup(t *testing.T, configTmpl string) (sciond.Connector, *topology.Topo, f
 }
 
 func TestMain(m *testing.M) {
+	// FIXME(scrye): Logging to stdout/stderr is messy in tests because logging
+	// gets mixed with normal test output. Integration tests should log to
+	// files instead.
+	log.AddLogConsFlags()
+	flag.Parse()
+	if err := log.SetupFromFlags(""); err != nil {
+		panic(err)
+	}
 	if !testing.Verbose() {
 		log.Root().SetHandler(log.DiscardHandler())
 	}

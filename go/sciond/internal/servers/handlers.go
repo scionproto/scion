@@ -35,8 +35,12 @@ import (
 )
 
 const (
-	DefaultHandlerLifetime = 10 * time.Second
-	DefaultEarlyReply      = 200 * time.Millisecond
+	// DefaultReplyTimeout is allocated to SCIOND handlers to reply back to the client.
+	DefaultReplyTimeout = 2 * time.Second
+	// DefaultWorkTimeout is allocated to SCIOND handlers work (e.g., network
+	// traffic and crypto operations)
+	DefaultWorkTimeout = 10 * time.Second
+	DefaultEarlyReply  = 200 * time.Millisecond
 	// DefaultServiceTTL is the TTL value for ServiceInfoReply objects,
 	// expressed in seconds.
 	DefaultServiceTTL uint32 = 300
@@ -56,11 +60,13 @@ type PathRequestHandler struct {
 func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
-	defer cancelF()
-	getPathsReply, err := h.Fetcher.GetPaths(ctx, &pld.PathReq, DefaultEarlyReply)
+	logger = logger.New("pathReq", &pld.PathReq)
+	logger.Debug("[SCIOND:PathRequestHandler] Received request")
+	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
+	defer workCancelF()
+	getPathsReply, err := h.Fetcher.GetPaths(workCtx, &pld.PathReq, DefaultEarlyReply)
 	if err != nil {
-		logger.Warn("Unable to get paths", "err", err)
+		logger.Warn("[SCIOND:PathRequestHandler] Unable to get paths", "err", err)
 	}
 	// Always reply, as the Fetcher will fill in the relevant error bits of the reply
 	reply := &sciond.Pld{
@@ -74,9 +80,14 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 		// it is a bug.
 		panic(err)
 	}
+	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
-		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		logger.Warn("[SCIOND:PathRequestHandler] Unable to reply to client",
+			"client", src, "err", err)
+		return
 	}
+	logger.Debug("[SCIOND:PathRequestHandler] Replied to path request", "paths", getPathsReply)
 }
 
 // ASInfoRequestHandler represents the shared global state for the handling of all
@@ -84,45 +95,47 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 // for each ASInfoRequest it receives.
 type ASInfoRequestHandler struct {
 	TrustStore infra.TrustStore
-	CoreASes   []addr.IA
-	Messenger  infra.Messenger
 	Topology   *topology.Topo
 }
 
 func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
-	defer cancelF()
-	// FIXME(scrye): Only support single-homed SCIONDs for now (returned slice
+	logger = logger.New("asInfoReq", &pld.AsInfoReq)
+	logger.Debug("[SCIOND:ASInfoRequestHandler] Received request")
+	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
+	defer workCancelF()
+	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
 	// will at most contain one element).
 	reqIA := pld.AsInfoReq.Isdas.IA()
+	if reqIA.IsZero() {
+		reqIA = h.Topology.ISD_AS
+	}
 	asInfoReply := sciond.ASInfoReply{}
+	trcObj, err := h.TrustStore.GetValidTRC(workCtx, reqIA.I, nil)
+	if err != nil {
+		// FIXME(scrye): return a zero AS because the protocol doesn't
+		// support errors, but we probably want to return an error here in
+		// the future.
+		asInfoReply.Entries = []sciond.ASInfoReplyEntry{}
+	}
 	if reqIA.IsZero() || reqIA.Eq(h.Topology.ISD_AS) {
 		// Requested AS is us
 		asInfoReply.Entries = []sciond.ASInfoReplyEntry{
 			{
 				RawIsdas: h.Topology.ISD_AS.IAInt(),
 				Mtu:      uint16(h.Topology.MTU),
-				IsCore:   iaInSlice(h.Topology.ISD_AS, h.CoreASes),
+				IsCore:   trcObj.CoreASes.Contains(h.Topology.ISD_AS),
 			},
 		}
 	} else {
 		// Requested AS is not us
-		trcObj, err := h.TrustStore.GetValidTRC(ctx, reqIA.I, reqIA.I)
-		if err != nil {
-			// FIXME(scrye): return a zero AS because the protocol doesn't
-			// support errors, but we probably want to return an error here in
-			// the future.
-			asInfoReply.Entries = []sciond.ASInfoReplyEntry{}
-		} else {
-			asInfoReply.Entries = []sciond.ASInfoReplyEntry{
-				{
-					RawIsdas: reqIA.IAInt(),
-					Mtu:      0,
-					IsCore:   trcObj.CoreASes.Contains(reqIA),
-				},
-			}
+		asInfoReply.Entries = []sciond.ASInfoReplyEntry{
+			{
+				RawIsdas: reqIA.IAInt(),
+				Mtu:      0,
+				IsCore:   trcObj.CoreASes.Contains(reqIA),
+			},
 		}
 	}
 	reply := &sciond.Pld{
@@ -134,9 +147,13 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	if err != nil {
 		panic(err)
 	}
+	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		return
 	}
+	logger.Debug("[SCIOND:ASInfoRequestHandler] Sent reply", "asInfo", asInfoReply)
 }
 
 // IFInfoRequestHandler represents the shared global state for the handling of all
@@ -149,8 +166,8 @@ type IFInfoRequestHandler struct {
 func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
-	defer cancelF()
+	logger = logger.New("ifInfoReq", &pld.IfInfoRequest)
+	logger.Debug("[SCIOND:IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := sciond.IFInfoReply{}
 	if len(ifInfoRequest.IfIDs) == 0 {
@@ -184,9 +201,13 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	if err != nil {
 		panic(err)
 	}
+	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		return
 	}
+	logger.Debug("[SCIOND:IFInfoRequestHandler] Sent reply", "ifInfo", ifInfoReply)
 }
 
 // SVCInfoRequestHandler represents the shared global state for the handling of all
@@ -199,8 +220,8 @@ type SVCInfoRequestHandler struct {
 func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
-	defer cancelF()
+	logger = logger.New("svcInfoReq", &pld.ServiceInfoRequest)
+	logger.Debug("[SCIOND:SVCInfoRequestHandler] Received request")
 	svcInfoRequest := pld.ServiceInfoRequest
 	svcInfoReply := sciond.ServiceInfoReply{}
 	for _, t := range svcInfoRequest.ServiceTypes {
@@ -235,9 +256,13 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 	if err != nil {
 		panic(err)
 	}
+	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		return
 	}
+	logger.Debug("[SCIOND:SVCInfoRequestHandler] Sent reply", "svcInfo", svcInfoReply)
 }
 
 func makeHostInfos(ot overlay.Type, addrMap map[string]topology.TopoAddr) []sciond.HostInfo {
@@ -255,7 +280,9 @@ func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.Host
 	if ot.IsIPv4() {
 		v4Addr = topoAddr.IPv4.PublicAddr()
 		if v4Addr != nil {
-			ipv4 = v4Addr.L3.IP()
+			// XXX(scrye): Force 4-byte representation of IPv4 addresses
+			// because Python code doesn't understand Go's 16-byte format.
+			ipv4 = v4Addr.L3.IP().To4()
 			port = v4Addr.L4.Port()
 		}
 	}
@@ -283,17 +310,20 @@ func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.Host
 // RevNotification announcements. The SCIOND API spawns a goroutine with method Handle
 // for each RevNotification it receives.
 type RevNotificationHandler struct {
-	RevCache revcache.RevCache
+	RevCache   revcache.RevCache
+	TrustStore infra.TrustStore
 }
 
 func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultHandlerLifetime)
-	defer cancelF()
+	logger = logger.New("revNotification", &pld.RevNotification)
+	logger.Debug("[SCIOND:RevNotificationHandler] Received request")
+	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
+	defer workCancelF()
 	revNotification := pld.RevNotification
 	revReply := sciond.RevReply{}
-	revInfo, err := h.verifySRevInfo(ctx, revNotification.SRevInfo)
+	revInfo, err := h.verifySRevInfo(workCtx, revNotification.SRevInfo)
 	if err == nil {
 		h.RevCache.Set(revcache.NewKey(revInfo.RawIsdas.IA(), common.IFIDType(revInfo.IfID)),
 			revNotification.SRevInfo, revInfo.TTL())
@@ -319,9 +349,13 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	if err != nil {
 		panic(err)
 	}
+	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
+		return
 	}
+	logger.Debug("[SCIOND:RevNotificationHandler] Sent reply", "revInfo", revInfo)
 }
 
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,
@@ -335,15 +369,13 @@ func (h *RevNotificationHandler) verifySRevInfo(ctx context.Context,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to extract RevInfo", nil)
 	}
-	// FIXME(scrye): pass in trail here
-	err = segverifier.VerifyRevInfo(ctx, sRevInfo, []addr.ISD{})
+	err = segverifier.VerifyRevInfo(ctx, h.TrustStore, nil, sRevInfo)
 	return info, err
 }
 
 // isValid is a placeholder. It should return true if and only if revocation
 // verification ended with an outcome of valid.
 func isValid(err error) bool {
-	// FIXME(scrye): implement this once we have verification
 	return err == nil
 }
 
@@ -364,15 +396,5 @@ func isInvalid(err error) bool {
 // isUnknown is a placeholder. It should return true if and only if revocation
 // verification ended with an outcome of unknown.
 func isUnknown(err error) bool {
-	// FIXME(scrye): implement this once we have verification
 	return err != nil
-}
-
-func iaInSlice(ia addr.IA, s []addr.IA) bool {
-	for _, otherIA := range s {
-		if otherIA.Eq(ia) {
-			return true
-		}
-	}
-	return false
 }
