@@ -652,6 +652,23 @@ class TopoGenerator(object):
         self._write_overlay()
         return self.topo_dicts, self.zookeepers, networks, prv_networks
 
+    def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
+        br_name = ep.br_name()
+        if br_name:
+            # BR with multiple interfaces, reuse assigned id
+            br_id = assigned_br_id.get(br_name)
+            if br_id is None:
+                # assign new id
+                br_ids[ep] += 1
+                assigned_br_id[br_name] = br_id = br_ids[ep]
+        else:
+            # BR with single interface
+            br_ids[ep] += 1
+            br_id = br_ids[ep]
+        br = "br%s-%d" % (ep.file_fmt(), br_id)
+        ifid = if_ids[ep].new()
+        return br, ifid
+
     def _read_links(self):
         assigned_br_id = {}
         br_ids = defaultdict(int)
@@ -665,33 +682,8 @@ class TopoGenerator(object):
             if linkto.lower() == LinkType.CHILD:
                 linkto_a = LinkType.PARENT
                 linkto_b = LinkType.CHILD
-            a_br_name = a.br_name()
-            if a_br_name is not None:
-                # BR with multiple interfaces, reuse assigned id
-                a_br_id = assigned_br_id.get(a_br_name)
-                if a_br_id is None:
-                    # assign new id
-                    br_ids[a] += 1
-                    a_br_id = br_ids[a]
-                    assigned_br_id[a_br_name] = a_br_id
-            else:
-                # BR with single interface
-                br_ids[a] += 1
-                a_br_id = br_ids[a]
-            a_br = "br%s-%d" % (a.file_fmt(), a_br_id)
-            a_ifid = if_ids[a].new()
-            b_br_name = b.br_name()
-            if b_br_name is not None:
-                b_br_id = assigned_br_id.get(b_br_name)
-                if b_br_id is None:
-                    br_ids[b] += 1
-                    b_br_id = br_ids[b]
-                    assigned_br_id[b_br_name] = b_br_id
-            else:
-                br_ids[b] += 1
-                b_br_id = br_ids[b]
-            b_br = "br%s-%d" % (b.file_fmt(), b_br_id)
-            b_ifid = if_ids[b].new()
+            a_br, a_ifid = self._br_name(a, assigned_br_id, br_ids, if_ids)
+            b_br, b_ifid = self._br_name(b, assigned_br_id, br_ids, if_ids)
             self.links[a].append((linkto_b, b, attrs, a_br, b_br, a_ifid, b_ifid))
             self.links[b].append((linkto_a, a, attrs, b_br, a_br, b_ifid, a_ifid))
             a_desc = "%s %s" % (a_br, a_ifid)
