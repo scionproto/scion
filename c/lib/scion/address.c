@@ -162,7 +162,8 @@ char *format_as(char *str, uint32_t size, isdas_t isd_as) {
         // BGP number - lower 32 bits
         snprintf(str, size, "%u", (uint32_t)as);
     } else {
-        snprintf(str, size, "%hx:%hx:%hx", (uint16_t)(as >> 32), (uint16_t)(as >> 16), (uint16_t)as);
+        snprintf(str, size, "%hx:%hx:%hx",
+                (uint16_t)(as >> 32), (uint16_t)(as >> 16), (uint16_t)as);
     }
     return str;
 }
