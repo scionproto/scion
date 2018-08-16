@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -185,21 +184,17 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 }
 
 // GetTopoAddr is a helper method that returns the TopoAddress for a specific
-// element ID of type t. nodeType must be one of BS, PS, CS, RS or DS. If the
-// ID is not found, nil is returned.
-func (t *Topo) GetTopoAddr(nodeType string, id string) *TopoAddr {
+// element ID of type t. nodeType must be one of BS, CS or CP. If the ID is not
+// found, nil is returned.
+func (t *Topo) GetTopoAddr(serviceType proto.ServiceType, id string) *TopoAddr {
 	var addressMap map[string]TopoAddr
-	switch nodeType {
-	case common.BS:
+	switch serviceType {
+	case proto.ServiceType_bs:
 		addressMap = t.BS
-	case common.CS:
+	case proto.ServiceType_cs:
 		addressMap = t.CS
-	case common.PS:
+	case proto.ServiceType_ps:
 		addressMap = t.PS
-	case common.RS:
-		addressMap = t.RS
-	case common.DS:
-		addressMap = t.DS
 	}
 	if _, ok := addressMap[id]; ok {
 		cp := addressMap[id]
@@ -221,12 +216,7 @@ func (t *Topo) GetRandomServer(serviceType proto.ServiceType) (*addr.AppAddr, er
 		return nil, common.NewBasicError("Found no servers of requested type", nil,
 			"type", serviceType)
 	}
-	topoAddr := t.GetTopoAddr(
-		// FIXME(scrye): remove this once the wire format is tested for
-		// uppercase service names
-		strings.ToUpper(serviceType.String()),
-		names[rand.Intn(numServers)],
-	)
+	topoAddr := t.GetTopoAddr(serviceType, names[rand.Intn(numServers)])
 	return topoAddr.PublicAddr(t.Overlay), nil
 
 }
