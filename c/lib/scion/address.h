@@ -4,6 +4,8 @@
 #include "defines.h"
 
 #define ISD_AS_LEN 8
+#define MAX_ISD_AS_STR 21
+#define MAX_AS_STR 15
 // Maximum length string needed to describe any host address.
 #define MAX_HOST_ADDR_STR INET6_ADDRSTRLEN
 
@@ -89,6 +91,8 @@ uint8_t get_addrs_len(uint8_t *buf);
 uint8_t * get_dst_addr(uint8_t *buf);
 uint8_t * get_src_addr(uint8_t *buf);
 void format_host(int, uint8_t *, char *, int);
+char *format_isd_as(char *str, uint32_t size, isdas_t isd_as);
+char *format_as(char *str, uint32_t size, isdas_t isd_as);
 void print_addresses(uint8_t *buf);
 char *addr_type_str(uint8_t addr_type);
 

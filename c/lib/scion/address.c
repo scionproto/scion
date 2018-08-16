@@ -144,6 +144,30 @@ void format_host(int addr_type, uint8_t *addr, char *buf, int size) {
     inet_ntop(af, (void *)addr, buf, size);
 }
 
+char *format_isd_as(char *str, uint32_t size, isdas_t isd_as) {
+    isdas_t as = AS(isd_as);
+    if ((as >> 32) == 0) {
+        // BGP number - lower 32 bits
+        snprintf(str, size, "%hu-%u", ISD(isd_as), (uint32_t)as);
+    } else {
+        snprintf(str, size, "%hu-%hx:%hx:%hx", ISD(isd_as),
+                (uint16_t)(as >> 32), (uint16_t)(as >> 16), (uint16_t)as);
+    }
+    return str;
+}
+
+char *format_as(char *str, uint32_t size, isdas_t isd_as) {
+    isdas_t as = AS(isd_as);
+    if ((as >> 32) == 0) {
+        // BGP number - lower 32 bits
+        snprintf(str, size, "%u", (uint32_t)as);
+    } else {
+        snprintf(str, size, "%hx:%hx:%hx",
+                (uint16_t)(as >> 32), (uint16_t)(as >> 16), (uint16_t)as);
+    }
+    return str;
+}
+
 /*
  * Print address header to stderr
  * buf: Pointer to start of packet.
@@ -153,10 +177,15 @@ void print_addresses(uint8_t *buf) {
     isdas_t dst_isd_as = get_dst_isd_as(buf);
     isdas_t src_isd_as = get_src_isd_as(buf);
     char host_str[MAX_HOST_ADDR_STR];
+    char isd_as_str[MAX_ISD_AS_STR];
+
     format_host(DST_TYPE(sch), get_dst_addr(buf), host_str, sizeof(host_str));
-    fprintf(stderr, "Dst: ISD-AS: %d-%" PRId64 " Host(%s): %s\n", ISD(dst_isd_as),
-            AS(dst_isd_as), addr_type_str(DST_TYPE(sch)), host_str);
+    format_isd_as(isd_as_str, MAX_ISD_AS_STR, dst_isd_as);
+    fprintf(stderr, "Dst: ISD-AS: %s Host(%s): %s\n", isd_as_str,
+            addr_type_str(DST_TYPE(sch)), host_str);
+
     format_host(SRC_TYPE(sch), get_src_addr(buf), host_str, sizeof(host_str));
-    fprintf(stderr, "Src: ISD-AS: %d-%" PRId64 " Host(%s): %s\n", ISD(src_isd_as),
-            AS(src_isd_as), addr_type_str(SRC_TYPE(sch)), host_str);
+    format_isd_as(isd_as_str, MAX_ISD_AS_STR, src_isd_as);
+    fprintf(stderr, "Src: ISD-AS: %s Host(%s): %s\n", isd_as_str,
+            addr_type_str(SRC_TYPE(sch)), host_str);
 }
