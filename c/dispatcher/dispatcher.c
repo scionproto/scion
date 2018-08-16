@@ -136,7 +136,8 @@ void handle_app();
 void register_udp(uint8_t *buf, int len, int sock);
 Entry * parse_request(uint8_t *buf, int len, int proto, int sock);
 int add_bind_addr(Entry *e, uint8_t *buf, isdas_t isd_as, int offset);
-int find_available_port(Entry *list, L4Key *key);
+int find_available_udp_port(L4Key *key);
+int find_available_bind_port(L4Key *key);
 void reply(int sock, int port);
 static inline uint16_t get_next_port();
 
@@ -556,9 +557,15 @@ void register_udp(uint8_t *buf, int len, int sock)
 {
     zlog_info(zc, "UDP registration request");
     Entry *e = parse_request(buf, len, L4_UDP, sock);
+    if (memcmp(&e->l4_key, &e->bind_key, sizeof(L4Key)) == 0) {
+        zlog_error(zc, "Not supported same public and bind address");
+        reply(sock, 0);
+        cleanup_socket(sock, num_sockets - 1, EINVAL);
+        return;
+    }
     if (!e)
         return;
-    if (find_available_port(udp_port_list, &e->l4_key) < 0) {
+    if (find_available_udp_port(&e->l4_key) < 0) {
         reply(sock, 0);
         cleanup_socket(sock, num_sockets - 1, EINVAL);
         return;
@@ -568,7 +575,7 @@ void register_udp(uint8_t *buf, int len, int sock)
 
     /* Register bind address info if the app has a bind address */
     if (IS_BIND_SOCKET(*buf)) {
-        if (find_available_port(bind_udp_port_list, &e->bind_key) < 0) {
+        if (find_available_bind_port(&e->bind_key) < 0) {
             reply(sock, 0);
             cleanup_socket(sock, num_sockets - 1, EINVAL);
             return;
@@ -698,7 +705,7 @@ int add_bind_addr(Entry *e, uint8_t *buf, isdas_t isd_as, int offset)
     return offset + port_len + type_len + b_addr_len;
 }
 
-int find_available_port(Entry *list, L4Key *key)
+int find_available_port(bool bind, L4Key *key)
 {
     Entry *old;
     int requested = 1;
@@ -709,7 +716,11 @@ int find_available_port(Entry *list, L4Key *key)
     int start_port = key->port;
     while (1) {
         // Find an available port number between 1025 and 65535.
-        HASH_FIND(hh, list, key, sizeof(L4Key), old);
+        if (bind) {
+            HASH_FIND(bindhh, bind_udp_port_list, key, sizeof(L4Key), old);
+        } else {
+            HASH_FIND(hh, udp_port_list, key, sizeof(L4Key), old);
+        }
         if (old) {
             if (requested) {
                 // If app requested unavailable port number, reply with failure message
@@ -728,6 +739,16 @@ int find_available_port(Entry *list, L4Key *key)
         }
     }
     return 0;
+}
+
+inline int find_available_udp_port(L4Key *key)
+{
+    return find_available_port(false, key);
+}
+
+inline int find_available_bind_port(L4Key *key)
+{
+    return find_available_port(true, key);
 }
 
 void reply(int sock, int port)
