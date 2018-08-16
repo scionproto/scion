@@ -139,12 +139,12 @@ func (u *Unit) Len() int {
 // Verify verifies a single unit, putting the results of verifications on
 // unitResults.
 func (u *Unit) Verify(ctx context.Context, store infra.TrustStore,
-	source net.Addr, unitResults chan UnitResult) {
+	server net.Addr, unitResults chan UnitResult) {
 
 	responses := make(chan ElemResult, u.Len())
-	go verifySegment(ctx, store, source, u.SegMeta, responses)
+	go verifySegment(ctx, store, server, u.SegMeta, responses)
 	for index, sRevInfo := range u.SRevInfos {
-		go verifyRevInfo(ctx, store, source, index, sRevInfo, responses)
+		go verifyRevInfo(ctx, store, server, index, sRevInfo, responses)
 	}
 	// Response writers must guarantee that the for loop below returns before
 	// (or very close around) ctx.Done()
@@ -180,10 +180,10 @@ type ElemResult struct {
 	Error error
 }
 
-func verifySegment(ctx context.Context, store infra.TrustStore, source net.Addr, segment *seg.Meta,
+func verifySegment(ctx context.Context, store infra.TrustStore, server net.Addr, segment *seg.Meta,
 	ch chan ElemResult) {
 
-	err := VerifySegment(ctx, store, source, segment)
+	err := VerifySegment(ctx, store, server, segment)
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
 	default:
@@ -191,11 +191,11 @@ func verifySegment(ctx context.Context, store infra.TrustStore, source net.Addr,
 	}
 }
 
-func VerifySegment(ctx context.Context, store infra.TrustStore, source net.Addr,
+func VerifySegment(ctx context.Context, store infra.TrustStore, server net.Addr,
 	segment *seg.Meta) error {
 
 	for i, asEntry := range segment.Segment.ASEntries {
-		chain, err := store.GetValidChain(ctx, asEntry.IA(), source)
+		chain, err := store.GetValidChain(ctx, asEntry.IA(), server)
 		if err != nil {
 			return err
 		}
@@ -207,10 +207,10 @@ func VerifySegment(ctx context.Context, store infra.TrustStore, source net.Addr,
 	return nil
 }
 
-func verifyRevInfo(ctx context.Context, store infra.TrustStore, source net.Addr, index int,
+func verifyRevInfo(ctx context.Context, store infra.TrustStore, server net.Addr, index int,
 	signedRevInfo *path_mgmt.SignedRevInfo, ch chan ElemResult) {
 
-	err := VerifyRevInfo(ctx, store, source, signedRevInfo)
+	err := VerifyRevInfo(ctx, store, server, signedRevInfo)
 	select {
 	case ch <- ElemResult{Index: index, Error: err}:
 	default:
@@ -218,14 +218,14 @@ func verifyRevInfo(ctx context.Context, store infra.TrustStore, source net.Addr,
 	}
 }
 
-func VerifyRevInfo(ctx context.Context, store infra.TrustStore, source net.Addr,
+func VerifyRevInfo(ctx context.Context, store infra.TrustStore, server net.Addr,
 	signedRevInfo *path_mgmt.SignedRevInfo) error {
 
 	revInfo, err := signedRevInfo.RevInfo()
 	if err != nil {
 		return err
 	}
-	chain, err := store.GetValidChain(ctx, revInfo.IA(), source)
+	chain, err := store.GetValidChain(ctx, revInfo.IA(), server)
 	if err != nil {
 		return err
 	}

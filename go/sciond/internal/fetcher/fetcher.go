@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -94,9 +95,9 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	}
 
 	// Commit to a path server, and use it for path and crypto queries
-	psAppAddr := f.topology.GetRandomServer(common.PS)
-	if psAppAddr == nil {
-		return nil, common.NewBasicError("PS not found in topology", nil)
+	psAppAddr, err := f.topology.GetRandomServer(proto.ServiceType_ps)
+	if err != nil {
+		return nil, common.NewBasicError("PS not found in topology", err)
 	}
 	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAppAddr}
 

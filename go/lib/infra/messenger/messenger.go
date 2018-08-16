@@ -171,7 +171,8 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	logger := m.log.New("debug_id", util.GetDebugID())
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -180,19 +181,18 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest, infra.TRC).Request(ctx, pld, a)
 	if err != nil {
-		logger.Info("[Messenger] Request error", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		logger.Info("[Messenger] Reply validation failed", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.TRC)
 	if !ok {
 		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
-		logger.Info("[Messenger] type assertion failed", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
 	logger.Debug("[Messenger] Received reply", "reply", reply)
 	return reply, nil
@@ -213,7 +213,8 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
-	logger := m.log.New("debug_id", util.GetDebugID())
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -222,18 +223,18 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest, infra.Chain).Request(ctx, pld, a)
 	if err != nil {
-		logger.Info("[Messenger] Request error", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		logger.Info("[Messenger] Reply validation error", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.Chain)
 	if !ok {
-		logger.Info("[Messenger] Type assertion failed")
-		return nil, newTypeAssertErr("*cert_mgmt.Chain", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
 	logger.Debug("[Messenger] Received reply", "reply", reply)
 	return reply, nil
@@ -256,7 +257,8 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
-	logger := m.log.New("debug_id", util.GetDebugID())
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -266,18 +268,18 @@ func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.PathSegmentRequest, infra.PathSegmentReply).Request(ctx, pld, a)
 	if err != nil {
-		logger.Info("[Messenger] Request error", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		logger.Info("[Messenger] Reply validation error", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*path_mgmt.SegReply)
 	if !ok {
-		logger.Info("[Messenger] Type assertion failed")
-		return nil, newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
 	if err := reply.ParseRaw(); err != nil {
 		logger.Info("[Messneger] Reply parse error")
@@ -290,7 +292,8 @@ func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
-	logger := m.log.New("debug_id", util.GetDebugID())
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -300,18 +303,18 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.ChainIssueRequest, infra.ChainIssueReply).Request(ctx, pld, a)
 	if err != nil {
-		logger.Info("[Messenger] Request error", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		logger.Info("[Messenger] Reply validation error", "err", err)
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.ChainIssRep)
 	if !ok {
-		logger.Info("[Messenger] Type assertion failed")
-		return nil, newTypeAssertErr("*cert_mgmt.ChainIssReply", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
 	}
 	logger.Debug("[Messenger] Received reply")
 	return reply, nil

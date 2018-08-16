@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -208,32 +209,38 @@ func (t *Topo) GetTopoAddr(nodeType string, id string) *TopoAddr {
 }
 
 // GetRandomServer returns the application address for a random service of type
-// t; BS, PS, and CS are currently supported.. Randomness is taken from the
-// default source. If no server is found, the returned address is nil.
-func (t *Topo) GetRandomServer(serviceTypeStr string) *addr.AppAddr {
-	names := t.extractServerNames(serviceTypeStr)
+// t; BS, PS, and CS are currently supported. Randomness is taken from the
+// default source. If no server is found, an error is returned.
+func (t *Topo) GetRandomServer(serviceType proto.ServiceType) (*addr.AppAddr, error) {
+	names, err := t.extractServerNames(serviceType)
+	if err != nil {
+		return nil, err
+	}
 	numServers := len(names)
 	if numServers == 0 {
-		return nil
+		return nil, common.NewBasicError("Found no servers of requested type", nil,
+			"type", serviceType)
 	}
-	topoAddr := t.GetTopoAddr(serviceTypeStr, names[rand.Intn(numServers)])
-	if topoAddr == nil {
-		return nil
-	}
-	return topoAddr.PublicAddr(t.Overlay)
+	topoAddr := t.GetTopoAddr(
+		// FIXME(scrye): remove this once the wire format is tested for
+		// uppercase service names
+		strings.ToUpper(serviceType.String()),
+		names[rand.Intn(numServers)],
+	)
+	return topoAddr.PublicAddr(t.Overlay), nil
 
 }
 
-func (t *Topo) extractServerNames(serviceTypeStr string) []string {
-	switch serviceTypeStr {
-	case common.BS:
-		return t.BSNames
-	case common.CS:
-		return t.CSNames
-	case common.PS:
-		return t.PSNames
+func (t *Topo) extractServerNames(serviceType proto.ServiceType) ([]string, error) {
+	switch serviceType {
+	case proto.ServiceType_bs:
+		return t.BSNames, nil
+	case proto.ServiceType_cs:
+		return t.CSNames, nil
+	case proto.ServiceType_ps:
+		return t.PSNames, nil
 	default:
-		return nil
+		return nil, common.NewBasicError("Unknown service type", nil, "type", serviceType)
 	}
 }
 
