@@ -4,7 +4,7 @@
 #include "defines.h"
 
 #define ISD_AS_LEN 8
-#define MAX_ISD_AS_STR 20
+#define MAX_ISD_AS_STR 21
 #define MAX_AS_STR 15
 // Maximum length string needed to describe any host address.
 #define MAX_HOST_ADDR_STR INET6_ADDRSTRLEN
