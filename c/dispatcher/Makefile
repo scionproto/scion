@@ -4,6 +4,10 @@ CC = clang
 CFLAGS ?= -Wall -Werror -g -O2
 LDFLAGS ?= -lpthread -Wl,-Bstatic -lzlog -lfilter -lscion -Wl,-Bdynamic
 
+ifeq ($(D),1)
+CFLAGS += -gdwarf-2 -O0 -DZLOG_DEBUG
+endif
+
 LIB_DIR = ../lib
 INC = -I$(LIB_DIR)
 

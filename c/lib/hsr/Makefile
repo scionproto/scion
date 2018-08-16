@@ -49,6 +49,10 @@ SRCS-y := hsr_dpdk.c
 CFLAGS += -O3 -I$(S)/.. -I$(S)/../scion -Wall -fno-strict-aliasing -g
 #CFLAGS += $(WERROR_FLAGS)
 
+ifeq ($(D),1)
+CFLAGS += -gdwarf-2 -O0
+endif
+
 EXTRA_LDFLAGS += -lscion -lrte_lpm
 
 include $(RTE_SDK)/mk/rte.extshared.mk
