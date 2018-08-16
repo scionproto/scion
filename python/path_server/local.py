@@ -113,22 +113,26 @@ class LocalPathServer(PathServer):
         """
         segs = []
         ias = set()
-        while total_segs > 0:
-            for core_ia in buckets:
+        if not total_segs:
+            return segs, ias
+        while True:
+            for key in buckets:
                 if len(segs) == self.MAX_SEG_NO or total_segs == 0:
                     return segs, ias
-                if len(buckets[core_ia]) > 0:
-                    segs.append(buckets[core_ia].pop(0))
+                if len(buckets[key]) > 0:
+                    segs.append(buckets[key].pop(0))
                     total_segs -= 1
-                    ias.add(core_ia)
-        return segs, ias
+                    ias.add(key)
 
     def _core_segs(self, first_ias, last_ias, sibra):
         buckets = {}
         num_segs = 0
         for first_ia in first_ias:
             for last_ia in last_ias:
-                csegs = self.core_segments(first_ia=first_ia, last_ia=last_ia, sibra=sibra)
+                params = first_ia.params()
+                params["sibra"] = sibra
+                params["last_ia"] = last_ia
+                csegs = self.core_segments(**params)
                 if csegs:
                     buckets[(first_ia, last_ia)] = csegs
                     num_segs += len(csegs)
@@ -166,10 +170,12 @@ class LocalPathServer(PathServer):
         Dst is core AS.
         """
         dst_ia = req.dst_ia()
+        params = dst_ia.params()
         sibra = req.p.flags.sibra
+        params["sibra"] = sibra
         if dst_ia[0] == self.addr.isd_as[0]:
             # Dst in local ISD. First check whether DST is a (super)-parent.
-            up_segs.update(self.up_segments(first_ia=dst_ia, sibra=sibra))
+            up_segs.update(self.up_segments(**params))
         # Get list of reachable core ASes (core ASes that we have up segments for).
         buckets_up, _ = self._up_segs(sibra)
         # Get core segments between the destination and each reachable core AS.
