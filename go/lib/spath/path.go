@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +21,7 @@ import (
 
 const (
 	MaxTTL       = 24 * 60 * 60 // One day in seconds
-	ExpTimeUnit  = MaxTTL / (1 << 8)
+	expTimeUnit  = MaxTTL / (1 << 8)
 	macInputLen  = 16
 	MaxTimestamp = ^uint32(0)
 )

@@ -30,9 +30,7 @@ type HopField struct {
 	Xover      bool
 	VerifyOnly bool
 	Recurse    bool
-	// ExpTime defines for how long this HopField is valid,
-	// relative to the PathSegments's InfoField.Timestamp().
-	ExpTime uint8
+	expTime    uint8
 	// ConsIngress is the interface the PCB entered the AS during path construction.
 	ConsIngress common.IFIDType
 	// ConsEgress is the interface the PCB exited the AS during path construction.
@@ -57,7 +55,7 @@ const (
 func NewHopField(b common.RawBytes, in common.IFIDType, out common.IFIDType) *HopField {
 	h := &HopField{}
 	h.data = b
-	h.ExpTime = DefaultHopFExpiry
+	h.expTime = DefaultHopFExpiry
 	h.ConsIngress = in
 	h.ConsEgress = out
 	h.Write()
@@ -81,7 +79,7 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 	h.VerifyOnly = flags&VerifyOnlyMask != 0
 	h.Recurse = flags&RecurseMask != 0
 	offset := 1
-	h.ExpTime = h.data[offset]
+	h.expTime = h.data[offset]
 	offset += 1
 	// Interface IDs are 12b each, encoded into 3B
 	h.ConsIngress = common.IFIDType(int(h.data[offset])<<4 | int(h.data[offset+1])>>4)
@@ -109,7 +107,7 @@ func (h *HopField) Write() {
 		flags |= RecurseMask
 	}
 	h.data[0] = flags
-	h.data[1] = h.ExpTime
+	h.data[1] = h.expTime
 	// Interface IDs are 12b each, encoded into 3B
 	h.data[2] = byte(h.ConsIngress >> 4)
 	h.data[3] = byte((h.ConsIngress&0x0F)<<4 | h.ConsEgress>>8)
@@ -117,10 +115,16 @@ func (h *HopField) Write() {
 	copy(h.data[5:], h.Mac)
 }
 
+// ExpTime defines for how long this HopField is valid,
+// relative to the PathSegments's InfoField.Timestamp().
+func (h *HopField) ExpTime() uint32 {
+	return uint32(h.expTime) * uint32(ExpTimeUnit)
+}
+
 func (h *HopField) String() string {
-	return fmt.Sprintf("ConsIngress: %v ConsEgress: %v ExpTime: %v Xover: %v VerifyOnly: %v "+
+	return fmt.Sprintf("ConsIngress: %v ConsEgress: %v expTime: %v Xover: %v VerifyOnly: %v "+
 		"Mac: %v",
-		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
+		h.ConsIngress, h.ConsEgress, h.expTime, h.Xover, h.VerifyOnly, h.Mac)
 }
 
 func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) error {
