@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -242,7 +242,7 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		}
 
 		b := make(common.RawBytes, spath.HopFieldLength)
-		spath.NewHopField(b, inIF, outIF)
+		spath.NewHopField(b, inIF, outIF, spath.DefaultHopFExpiry)
 		localHopEntry := &seg.HopEntry{
 			RawInIA:     inIA.IAInt(),
 			RemoteInIF:  remoteInIF,
@@ -266,7 +266,7 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 			peeringLocalIF := common.IFIDType(intIFID)
 			if g.isPeer[peeringLocalIF] {
 				b := make(common.RawBytes, spath.HopFieldLength)
-				spath.NewHopField(b, peeringLocalIF, outIF)
+				spath.NewHopField(b, peeringLocalIF, outIF, spath.DefaultHopFExpiry)
 				peeringRemoteIF := g.links[peeringLocalIF]
 				peeringIA := g.parents[peeringRemoteIF]
 				peerHopEntry := &seg.HopEntry{

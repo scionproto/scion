@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,8 +60,7 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 			scmp.NewError(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets(), nil))
 	}
 	// Check if Hop Field has expired.
-	hopfExpiry := rp.infoF.Timestamp().Add(
-		time.Duration(rp.hopF.ExpTime) * spath.ExpTimeUnit * time.Second)
+	hopfExpiry := rp.infoF.Timestamp().Add(rp.hopF.ExpTime.ToDuration())
 	if time.Now().After(hopfExpiry) {
 		return common.NewBasicError(
 			"Hop field expired",

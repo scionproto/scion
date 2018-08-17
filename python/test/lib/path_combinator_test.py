@@ -1,4 +1,5 @@
 # Copyright 2017 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -153,7 +154,7 @@ class TestPathCombinatorCopySegment(object):
             hof = create_mock(["xover"])
             hof.xover = False
             hofs.append(hof)
-        copy_hofs.return_value = hofs, None, 1
+        copy_hofs.return_value = hofs, None, 0
         # Call
         ntools.eq_(path_combinator._copy_segment(seg, True, True),
                    (info, hofs, None, 12345 + EXP_TIME_UNIT))
@@ -172,7 +173,7 @@ class TestPathCombinatorCopySegment(object):
         info = create_mock(["cons_dir_flag", "timestamp"])
         info.timestamp = 12345
         seg.infoF.return_value = info
-        copy_hofs.return_value = "hofs", None, 1
+        copy_hofs.return_value = "hofs", None, 0
         # Call
         ntools.eq_(path_combinator._copy_segment(seg, False, False, cons_dir=True),
                    (info, "hofs", None, 12345 + EXP_TIME_UNIT))
@@ -468,7 +469,7 @@ class TestPathCombinatorCopySegmentShortcut(object):
         hofs = []
         for _ in range(6):
             hofs.append(create_mock(["xover"]))
-        copy_hofs.return_value = hofs, "mtu", 1
+        copy_hofs.return_value = hofs, "mtu", 0
         return seg, info, hofs, upstream_hof
 
     @patch("lib.path_combinator._copy_hofs",
