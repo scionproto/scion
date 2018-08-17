@@ -616,8 +616,8 @@ func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
 	if len(paths.Entries) == 0 {
 		return nil, common.NewBasicError("unable to find path", nil)
 	}
-	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
 	if snetAddress.IA != pr.local {
+		snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
 		snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
 		if err != nil {
 			return nil, common.NewBasicError("unable to build next hop", err)
