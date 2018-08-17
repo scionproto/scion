@@ -261,7 +261,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 	server net.Addr) (*cert.Chain, error) {
 
 	if server == nil {
-		server = &snet.Addr{IA: ia, Host: &addr.AppAddr{L3: addr.SvcCS}}
+		server = &snet.Addr{IA: ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	}
 	return store.getValidChain(ctx, ia, true, nil, server)
 }
@@ -575,10 +575,10 @@ func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 			return nil, common.NewBasicError("Unable to find path to any core AS", nil,
 				"isd", destination.I)
 		}
-		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: &addr.AppAddr{L3: addr.SvcCS}}
+		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 		return a, nil
 	}
-	a := &snet.Addr{IA: destination, Host: &addr.AppAddr{L3: addr.SvcCS}}
+	a := &snet.Addr{IA: destination, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	return a, nil
 }
 

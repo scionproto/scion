@@ -604,6 +604,9 @@ func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
 		return a, nil
 	}
 	snetAddress := a.(*snet.Addr).Copy()
+	if snetAddress.IA == pr.local {
+		return snetAddress, nil
+	}
 	sdService := snet.DefNetwork.PathResolver().Sciond()
 	conn, err := sdService.Connect()
 	if err != nil {
