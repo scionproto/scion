@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crypto
+package scrypto
 
 import (
 	"testing"
@@ -85,29 +85,29 @@ var (
 
 func TestGenKeyPairs(t *testing.T) {
 	Convey("GenKeyPairs should return a valid Curve25519xSalsa20Poly1305 key pair", t, func() {
-		rawPubkey, rawPrivkey, err := GenKeyPairs(Curve25519xSalsa20Poly1305)
+		rawPubkey, rawPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", len(rawPubkey), ShouldResemble, NaClBoxKeySize)
-		SoMsg("rawPrivkey", len(rawPrivkey), ShouldResemble, NaClBoxKeySize)
-		newPubkey, newPrivkey, err := GenKeyPairs(Curve25519xSalsa20Poly1305)
+		SoMsg("rawPubkey", len(rawPubkey), ShouldEqual, NaClBoxKeySize)
+		SoMsg("rawPrivkey", len(rawPrivkey), ShouldEqual, NaClBoxKeySize)
+		newPubkey, newPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
-		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
+		SoMsg("rawPubkey", rawPubkey, ShouldNotEqual, newPubkey)
+		SoMsg("rawPrivkey", rawPrivkey, ShouldNotEqual, newPrivkey)
 	})
 
 	Convey("GenKeyPairs should return a valid Ed25519 key pair", t, func() {
-		rawPubkey, rawPrivkey, err := GenKeyPairs(Ed25519)
+		rawPubkey, rawPrivkey, err := GenKeyPair(Ed25519)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", len(rawPubkey), ShouldResemble, ed25519.PublicKeySize)
-		SoMsg("rawPrivkey", len(rawPrivkey), ShouldResemble, ed25519.PrivateKeySize)
-		newPubkey, newPrivkey, err := GenKeyPairs(Ed25519)
+		SoMsg("rawPubkey", len(rawPubkey), ShouldEqual, ed25519.PublicKeySize)
+		SoMsg("rawPrivkey", len(rawPrivkey), ShouldEqual, ed25519.PrivateKeySize)
+		newPubkey, newPrivkey, err := GenKeyPair(Ed25519)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
-		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
+		SoMsg("rawPubkey", rawPubkey, ShouldNotEqual, newPubkey)
+		SoMsg("rawPrivkey", rawPrivkey, ShouldNotEqual, newPrivkey)
 	})
 
 	Convey("GenKeyPairs should throw error for unknown algo", t, func() {
-		_, _, err := GenKeyPairs("asdf")
+		_, _, err := GenKeyPair("asdf")
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 }
@@ -116,22 +116,20 @@ func TestSign(t *testing.T) {
 	// Note from: https://godoc.org/golang.org/x/crypto/ed25519
 	// "...this package's private key representation includes a public key suffix to make
 	// multiple signing operations with the same key more efficient...""
+	privKey := common.RawBytes(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey))
 	Convey("Sign should sign message correctly", t, func() {
-		sig, err := Sign(Ed25519TestMsg,
-			common.RawBytes(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey)), Ed25519)
+		sig, err := Sign(Ed25519TestMsg, privKey, Ed25519)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("sig", sig, ShouldResemble, Ed25519TestSignature)
 	})
 
 	Convey("Sign should throw error for invalid key size", t, func() {
-		_, err := Sign(Ed25519TestMsg,
-			common.RawBytes(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey))[:63], Ed25519)
+		_, err := Sign(Ed25519TestMsg, privKey[:63], Ed25519)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 
 	Convey("Sign should throw error for unknown algo", t, func() {
-		_, err := Sign(Ed25519TestMsg,
-			common.RawBytes(ed25519.NewKeyFromSeed(Ed25519TestPrivateKey)), "asdf")
+		_, err := Sign(Ed25519TestMsg, privKey, "asdf")
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 }

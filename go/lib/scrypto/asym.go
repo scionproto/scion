@@ -35,7 +35,8 @@ const (
 )
 
 const (
-	InvalidKeySize          = "Invalid key size"
+	InvalidPubKeySize       = "Invalid public key size"
+	InvalidPrivKeySize      = "Invalid private key size"
 	InvalidNonceSize        = "Invalid nonce size"
 	InvalidSignature        = "Invalid signature"
 	UnableToGenerateKeyPair = "Unable to generate key pair"
@@ -45,8 +46,8 @@ const (
 	UnsupportedEncAlgo      = "Unsupported encryption algorithm"
 )
 
-// GenKeyPairs generates a public/private key pair.
-func GenKeyPairs(algo string) (common.RawBytes, common.RawBytes, error) {
+// GenKeyPair generates a public/private key pair.
+func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
 		pubkey, privkey, err := box.GenerateKey(rand.Reader)
@@ -73,7 +74,7 @@ func Sign(sigInput, signKey common.RawBytes, signAlgo string) (common.RawBytes, 
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(signKey) != ed25519.PrivateKeySize {
-			return nil, common.NewBasicError(InvalidKeySize, nil, "expected",
+			return nil, common.NewBasicError(InvalidPrivKeySize, nil, "expected",
 				ed25519.PrivateKeySize, "actual", len(signKey))
 		}
 		return ed25519.Sign(ed25519.PrivateKey(signKey), sigInput), nil
@@ -88,7 +89,7 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	switch strings.ToLower(signAlgo) {
 	case Ed25519:
 		if len(verifyKey) != ed25519.PublicKeySize {
-			return common.NewBasicError(InvalidKeySize, nil,
+			return common.NewBasicError(InvalidPubKeySize, nil,
 				"expected", ed25519.PublicKeySize, "actual", len(verifyKey))
 		}
 		if !ed25519.Verify(ed25519.PublicKey(verifyKey), sigInput, sig) {
@@ -119,18 +120,11 @@ func Nonce(len int) (common.RawBytes, error) {
 func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
-		if len(nonce) != NaClBoxNonceSize {
-			return nil, common.NewBasicError(InvalidNonceSize, nil, "algo", algo)
+		nonceRaw, pubKeyRaw, privKeyRaw, err := prepNaClBox(nonce, pubkey, privkey)
+		if err != nil {
+			return nil, err
 		}
-		if len(pubkey) != NaClBoxKeySize || len(privkey) != NaClBoxKeySize {
-			return nil, common.NewBasicError(InvalidKeySize, nil, "algo", algo)
-		}
-		var nonceRaw [NaClBoxNonceSize]byte
-		var pubKeyRaw, privKeyRaw [NaClBoxKeySize]byte
-		copy(nonceRaw[:], nonce)
-		copy(pubKeyRaw[:], pubkey)
-		copy(privKeyRaw[:], privkey)
-		return box.Seal(nil, msg, &nonceRaw, &pubKeyRaw, &privKeyRaw), nil
+		return box.Seal(nil, msg, nonceRaw, pubKeyRaw, privKeyRaw), nil
 	default:
 		return nil, common.NewBasicError(UnsupportedEncAlgo, nil, "algo", algo)
 	}
@@ -140,18 +134,11 @@ func Encrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.RawBytes, error) {
 	switch strings.ToLower(algo) {
 	case Curve25519xSalsa20Poly1305:
-		if len(nonce) != NaClBoxNonceSize {
-			return nil, common.NewBasicError(InvalidNonceSize, nil, "algo", algo)
+		nonceRaw, pubKeyRaw, privKeyRaw, err := prepNaClBox(nonce, pubkey, privkey)
+		if err != nil {
+			return nil, err
 		}
-		if len(pubkey) != NaClBoxKeySize || len(privkey) != NaClBoxKeySize {
-			return nil, common.NewBasicError(InvalidKeySize, nil, "algo", algo)
-		}
-		var nonceRaw [NaClBoxNonceSize]byte
-		var pubKeyRaw, privKeyRaw [NaClBoxKeySize]byte
-		copy(nonceRaw[:], nonce)
-		copy(pubKeyRaw[:], pubkey)
-		copy(privKeyRaw[:], privkey)
-		dec, ok := box.Open(nil, msg, &nonceRaw, &pubKeyRaw, &privKeyRaw)
+		dec, ok := box.Open(nil, msg, nonceRaw, pubKeyRaw, privKeyRaw)
 		if !ok {
 			return nil, common.NewBasicError(UnableToDecrypt, nil, "algo", algo)
 		}
@@ -159,4 +146,26 @@ func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 	default:
 		return nil, common.NewBasicError(UnsupportedEncAlgo, nil, "algo", algo)
 	}
+}
+
+func prepNaClBox(nonce, pubkey, privkey common.RawBytes) (*[NaClBoxNonceSize]byte,
+	*[NaClBoxKeySize]byte, *[NaClBoxKeySize]byte, error) {
+	if len(nonce) != NaClBoxNonceSize {
+		return nil, nil, nil, common.NewBasicError(InvalidNonceSize, nil, "algo",
+			Curve25519xSalsa20Poly1305)
+	}
+	if len(pubkey) != NaClBoxKeySize {
+		return nil, nil, nil, common.NewBasicError(InvalidPubKeySize, nil, "algo",
+			Curve25519xSalsa20Poly1305)
+	}
+	if len(privkey) != NaClBoxKeySize {
+		return nil, nil, nil, common.NewBasicError(InvalidPrivKeySize, nil, "algo",
+			Curve25519xSalsa20Poly1305)
+	}
+	var nonceRaw [NaClBoxNonceSize]byte
+	var pubKeyRaw, privKeyRaw [NaClBoxKeySize]byte
+	copy(nonceRaw[:], nonce)
+	copy(pubKeyRaw[:], pubkey)
+	copy(privKeyRaw[:], privkey)
+	return &nonceRaw, &pubKeyRaw, &privKeyRaw, nil
 }
