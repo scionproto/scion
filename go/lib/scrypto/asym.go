@@ -27,11 +27,14 @@ import (
 
 // Available asymmetric crypto algorithms. The values must be lower case.
 const (
-	NaClBoxNonceSize = 24
-	NaClBoxKeySize   = 32
-
 	Ed25519                    = "ed25519"
 	Curve25519xSalsa20Poly1305 = "curve25519xsalsa20poly1305"
+)
+
+// Constants for nacl/box implementation of Curve25519xSalsa20Poly1305
+const (
+	NaClBoxNonceSize = 24
+	NaClBoxKeySize   = 32
 )
 
 const (
