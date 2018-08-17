@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/sqlite"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -132,7 +133,8 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, pseg *seg.PathSegment,
 }
 
 func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, error) {
-	rows, err := b.db.QueryContext(ctx, "SELECT * FROM Segments WHERE SegID=?", segID)
+	query := "SELECT RowID, SegID, LastUpdated, Segment FROM Segments WHERE SegID=?"
+	rows, err := b.db.QueryContext(ctx, query, segID)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to lookup segment", err)
 	}
@@ -194,8 +196,12 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	if err != nil {
 		return err
 	}
-	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=? WHERE RowID=?`
-	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.Unix(), packedSeg, meta.RowID)
+	exp, err := expiry(meta.Seg)
+	if err != nil {
+		return err
+	}
+	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=?, Expiry=? WHERE RowID=?`
+	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.Unix(), packedSeg, exp, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
 	}
@@ -240,9 +246,13 @@ func (b *Backend) insertFull(ctx context.Context, pseg *seg.PathSegment,
 	if err != nil {
 		return err
 	}
+	exp, err := expiry(pseg)
+	if err != nil {
+		return common.NewBasicError("Failed to calculate expiry", err)
+	}
 	// Insert path segment.
-	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment) VALUES (?, ?, ?)`
-	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().Unix(), packedSeg)
+	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment, Expiry) VALUES (?, ?, ?, ?)`
+	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().Unix(), packedSeg, exp)
 	if err != nil {
 		b.tx.Rollback()
 		return common.NewBasicError("Failed to insert path segment", err)
@@ -336,29 +346,27 @@ func (b *Backend) insertStartOrEnd(ctx context.Context, as *seg.ASEntry,
 }
 
 func (b *Backend) Delete(ctx context.Context, segID common.RawBytes) (int, error) {
-	b.Lock()
-	defer b.Unlock()
-	if b.db == nil {
-		return 0, common.NewBasicError("No database open", nil)
-	}
-	// Create new transaction
-	if err := b.begin(ctx); err != nil {
-		return 0, err
-	}
-	res, err := b.tx.ExecContext(ctx, "DELETE FROM Segments WHERE SegID=?", segID)
-	if err != nil {
-		b.tx.Rollback()
-		return 0, common.NewBasicError("Failed to delete segment", err)
-	}
-	// Commit transaction
-	if err := b.commit(); err != nil {
-		return 0, err
-	}
-	deleted, _ := res.RowsAffected()
-	return int(deleted), nil
+	return b.deleteInTrx(ctx, func() (sql.Result, error) {
+		return b.tx.ExecContext(ctx, "DELETE FROM Segments WHERE SegID=?", segID)
+	})
 }
 
 func (b *Backend) DeleteWithIntf(ctx context.Context, intf query.IntfSpec) (int, error) {
+	return b.deleteInTrx(ctx, func() (sql.Result, error) {
+		delStmt := `DELETE FROM Segments WHERE EXISTS (
+			SELECT * FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=?)`
+		return b.tx.ExecContext(ctx, delStmt, intf.IA.I, intf.IA.A, intf.IfID)
+	})
+}
+
+func (b *Backend) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
+	return b.deleteInTrx(ctx, func() (sql.Result, error) {
+		delStmt := `DELETE FROM Segments WHERE Expiry < ?`
+		return b.tx.ExecContext(ctx, delStmt, now.Unix())
+	})
+}
+
+func (b *Backend) deleteInTrx(ctx context.Context, delete func() (sql.Result, error)) (int, error) {
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
@@ -368,9 +376,7 @@ func (b *Backend) DeleteWithIntf(ctx context.Context, intf query.IntfSpec) (int,
 	if err := b.begin(ctx); err != nil {
 		return 0, err
 	}
-	delStmt := `DELETE FROM Segments WHERE EXISTS (
-		SELECT * FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=?)`
-	res, err := b.tx.ExecContext(ctx, delStmt, intf.IA.I, intf.IA.A, intf.IfID)
+	res, err := delete()
 	if err != nil {
 		b.tx.Rollback()
 		return 0, common.NewBasicError("Failed to delete segments", err)
@@ -505,4 +511,33 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 		query = append(query, fmt.Sprintf("WHERE %s", strings.Join(where, " AND\n")))
 	}
 	return strings.Join(query, "\n"), args
+}
+
+func expiry(pseg *seg.PathSegment) (int64, error) {
+	info, err := pseg.InfoF()
+	if err != nil {
+		return 0, err
+	}
+	// find max hopf expiry:
+	exp := int64(info.TsInt)
+	maxExp := exp
+	for _, asEntry := range pseg.ASEntries {
+		for _, he := range asEntry.HopEntries {
+			hf, err := he.HopField()
+			if err != nil {
+				// This should not happen, as Validate already checks that it
+				// is possible to extract the hop field.
+				panic(err)
+			}
+			maxExp = maxInt64(maxExp, exp+int64(int64(hf.ExpTime)*spath.ExpTimeUnit))
+		}
+	}
+	return maxExp, nil
+}
+
+func maxInt64(x, y int64) int64 {
+	if x > y {
+		return x
+	}
+	return y
 }
