@@ -19,5 +19,8 @@ import (
 )
 
 func NewSVCUDPAppAddr(svc addr.HostSVC) *addr.AppAddr {
-	return &addr.AppAddr{L3: svc, L4: addr.NewL4UDPInfo(0)}
+	return &addr.AppAddr{
+		L3: svc,
+		L4: addr.NewL4UDPInfo(0),
+	}
 }
