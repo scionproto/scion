@@ -16,6 +16,10 @@ The path service needs to handle multiple requests. We use the messenger to regi
 
 In the ISD-core the ASes must have the same set of down segments. A core PS in an AS should periodically request path changes (since last query) at the PSes in all other core ASes. Once the PS knows what changed, it should fetch the locally missing down segments.
 
+## Deletion of expired path segments and revocations
+
+The PS should periodically delete expired path segments and revocations in its DB.
+
 ## Path lookup
 
 ### Logic flow
@@ -28,7 +32,7 @@ Local means in the same ISD as the current PS, remote means in a different ISD.
 * For non-core PS: Check source (R.RawSrcIA): must either be unset, or set to the local IA otherwise return an error/empty reply
 * Check destination (R.RawDstIA):
   * If the R.RawDstIA is not set or invalid (i.e., ISD is 0) or represents the local IA, immediately return an error/empty reply
-* Define `GetCached(Seg, cPS)` := if last lookup Seg.Dst is longer than a configured time ago, request at cPS and save result in cache, then return cached version. If we currently do not have a path to cPS we should hold the request until either we have a path or the request timed out.
+* Define `GetCached(Seg, cPS)` := if last lookup Seg.Dst is longer than a configured time ago (Note comments on the cache refresh interval in chapter below), request at cPS and save result in cache, then return cached version. If we currently do not have a path to cPS we should hold the request until either we have a path or the request timed out.
 * Request Paths: Note that results should always be filtered, any segments with revoked on-path interface should be dropped. See steps below.
 
 #### Non-core PS
@@ -36,7 +40,7 @@ Local means in the same ISD as the current PS, remote means in a different ISD.
 * If Dst == Core-AS:
   * For each local core-AS x, for which an up segment exists && isNot(dst):
     * GetCached(coreSeg{dst->x}, x)
-  * Return up-segments, which have a connecting core segment or which end in dst, and the core segments (5.1.1.1.1).
+  * Return up-segments, which have a connecting core segment or which end in dst, and the core segments.
 * Else // Dst == Non-Core-AS:
   * GetCached(downSeg{*->dst}, any local cPS)
   * Filter down segments, remove revoked ones.
@@ -59,6 +63,23 @@ Local means in the same ISD as the current PS, remote means in a different ISD.
   * Else
     * If request from different AS: return GetCached(downSeg{*->dst}, any cPS in DestISD)
     * Else return GetCached(downSeg{*->dst}, any cPS in DestISD) and for each core AS x, that is at the start of a down segment return the coreSegs{x->self}
+
+### Cache refresh interval
+
+If there are paths available for a certain destination an interval of, e.g. 5 min would be fine. However if no paths are available we should retry more frequently, e.g. each second (maybe with back-off). Also if there are less that k paths available in the cache we should also query the PS again sooner than if enough paths are available.
+
+### DoS / High load Prevention
+
+A client could request paths to random (non-existing) ASes and with this put a lot of load on the Path Service Infra. To prevent this we need caching of which ASes exist. https://github.com/scionproto/scion/issues/1486 Describes how we can find out if an AS exists. A core PS that receives a path request for a non existing AS can reply with an error (AS does not exist), the local PS can then cache this result, so it can immediately reply if the same request is received again.
+
+Also we should consider: https://github.com/scionproto/scion/issues/1725
+
+### Policy
+
+Path lookup should have policy support. Currently it is not yet clear what policies we might want. For sure there has to be support for AS black-/white-listing. But the interface should be generic enough to support more policies.
+
+A note on caching:
+If we refresh the cache we might need to remember which policy was used for updating the cache. It could be that for two policies we get a disjoint set of segments. Saving a policy might impose a strong limitation on the expressionism of a policy.
 
 ## Revocations
 
