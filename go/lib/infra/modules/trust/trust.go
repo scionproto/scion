@@ -29,7 +29,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
-	"github.com/scionproto/scion/go/lib/infra/infranet"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -262,7 +261,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 	server net.Addr) (*cert.Chain, error) {
 
 	if server == nil {
-		server = &snet.Addr{IA: ia, Host: infranet.NewSVCUDPAppAddr(addr.SvcCS)}
+		server = &snet.Addr{IA: ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	}
 	return store.getValidChain(ctx, ia, true, nil, server)
 }
@@ -576,10 +575,10 @@ func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 			return nil, common.NewBasicError("Unable to find path to any core AS", nil,
 				"isd", destination.I)
 		}
-		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: infranet.NewSVCUDPAppAddr(addr.SvcCS)}
+		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 		return a, nil
 	}
-	a := &snet.Addr{IA: destination, Host: infranet.NewSVCUDPAppAddr(addr.SvcCS)}
+	a := &snet.Addr{IA: destination, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	return a, nil
 }
 

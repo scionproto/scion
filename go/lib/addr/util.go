@@ -27,3 +27,10 @@ func IsIPv4(ip net.IP) bool {
 func IsIPv6(ip net.IP) bool {
 	return len(ip) == net.IPv6len
 }
+
+func NewSVCUDPAppAddr(svc HostSVC) *AppAddr {
+	return &AppAddr{
+		L3: svc,
+		L4: NewL4UDPInfo(0),
+	}
+}
