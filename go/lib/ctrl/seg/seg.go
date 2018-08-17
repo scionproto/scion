@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -98,6 +99,9 @@ func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
 }
 
 func (ps *PathSegment) Validate() error {
+	if err := ps.SData.Validate(); err != nil {
+		return err
+	}
 	if len(ps.RawASEntries) == 0 {
 		return common.NewBasicError("PathSegment has no AS Entries", nil)
 	}
@@ -142,6 +146,48 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 		}
 	}
 	return false
+}
+
+// MaxExpiry returns the maximum expiry of all hop fields.
+// Assumes segment is validated.
+func (ps *PathSegment) MaxExpiry() time.Time {
+	return ps.expiry(0, func(hfTtl time.Duration, ttl time.Duration) bool {
+		return hfTtl > ttl
+	})
+}
+
+// MinExpiry returns the minimum expiry of all hop fields.
+// Assumes segment is validated.
+func (ps *PathSegment) MinExpiry() time.Time {
+	return ps.expiry(spath.MaxTTL*time.Second, func(hfTtl time.Duration, ttl time.Duration) bool {
+		return hfTtl < ttl
+	})
+}
+
+func (ps *PathSegment) expiry(initTtl time.Duration,
+	compare func(time.Duration, time.Duration) bool) time.Time {
+
+	info, err := ps.InfoF()
+	if err != nil {
+		// This should not happen, as Validate already checks that infoF can be parsed.
+		panic(err)
+	}
+	ttl := initTtl
+	for _, asEntry := range ps.ASEntries {
+		for _, he := range asEntry.HopEntries {
+			hf, err := he.HopField()
+			if err != nil {
+				// This should not happen, as Validate already checks that it
+				// is possible to extract the hop field.
+				panic(err)
+			}
+			hfTtl := hf.ExpTime.ToDuration()
+			if compare(hfTtl, ttl) {
+				ttl = hfTtl
+			}
+		}
+	}
+	return info.Timestamp().Add(ttl)
 }
 
 // FirstIA returns the IA of the first ASEntry.

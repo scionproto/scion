@@ -372,6 +372,33 @@ func Test_DeleteWithIntf(t *testing.T) {
 	})
 }
 
+func Test_DeleteExpired(t *testing.T) {
+	Convey("DeleteExpired should delete expired segments", t, func() {
+		b, tmpF := setupDB(t)
+		defer b.db.Close()
+		defer os.Remove(tmpF)
+		ts1 := uint32(10)
+		ts2 := uint32(20)
+		// defaultExp is the default expiry of the hopfields.
+		defaultExp := spath.DefaultHopFExpiry.ToDuration()
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		pseg1, _ := allocPathSegment(ifs1, ts1)
+		pseg2, _ := allocPathSegment(ifs2, ts2)
+		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types, hpCfgIDs)
+		deleted, err := b.DeleteExpired(ctx, time.Unix(10, 0).Add(defaultExp))
+		xtest.FailOnErr(t, err)
+		SoMsg("Deleted", deleted, ShouldEqual, 0)
+		deleted, err = b.DeleteExpired(ctx, time.Unix(20, 0).Add(defaultExp))
+		xtest.FailOnErr(t, err)
+		SoMsg("Deleted", deleted, ShouldEqual, 1)
+		deleted, err = b.DeleteExpired(ctx, time.Unix(30, 0).Add(defaultExp))
+		xtest.FailOnErr(t, err)
+		SoMsg("Deleted", deleted, ShouldEqual, 1)
+	})
+}
+
 func Test_GetMixed(t *testing.T) {
 	Convey("Get should return the correct path segments", t, func() {
 		// Setup
