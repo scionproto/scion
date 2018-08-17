@@ -604,24 +604,25 @@ func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
 		return a, nil
 	}
 	snetAddress := a.(*snet.Addr).Copy()
-	if snetAddress.IA != pr.local {
-		sdService := snet.DefNetwork.PathResolver().Sciond()
-		conn, err := sdService.Connect()
-		if err != nil {
-			return nil, err
-		}
-		paths, err := conn.Paths(snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
-		if err != nil {
-			return nil, err
-		}
-		if len(paths.Entries) == 0 {
-			return nil, common.NewBasicError("unable to find path", nil)
-		}
-		snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
-		snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
-		if err != nil {
-			return nil, common.NewBasicError("unable to build next hop", err)
-		}
+	if snetAddress.IA == pr.local {
+		return snetAddress, nil
+	}
+	sdService := snet.DefNetwork.PathResolver().Sciond()
+	conn, err := sdService.Connect()
+	if err != nil {
+		return nil, err
+	}
+	paths, err := conn.Paths(snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
+	if err != nil {
+		return nil, err
+	}
+	if len(paths.Entries) == 0 {
+		return nil, common.NewBasicError("unable to find path", nil)
+	}
+	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
+	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
+	if err != nil {
+		return nil, common.NewBasicError("unable to build next hop", err)
 	}
 	return snetAddress, nil
 }
