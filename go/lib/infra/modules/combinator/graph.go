@@ -17,6 +17,7 @@ package combinator
 import (
 	"bytes"
 	"sort"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -291,7 +292,8 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 
 			// Normal hop field.
 			newHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[0])
-			currentSeg.ExpTime = minUint32(currentSeg.ExpTime, newHF.ExpTime())
+			currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
+				uint32(newHF.ExpTime.ToDuration()/time.Second))
 			inIFID, outIFID = newHF.ConsEgress, newHF.ConsIngress
 
 			// If we've transitioned from a previous segment, set Xover flag.
@@ -329,7 +331,8 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 						// Add a new hop field for the peering entry, and set Xover.
 						pHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[solEdge.edge.Peer])
 						pHF.Xover = true
-						currentSeg.ExpTime = minUint32(currentSeg.ExpTime, pHF.ExpTime())
+						currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
+							uint32(pHF.ExpTime.ToDuration()/time.Second))
 						inIFID, outIFID = pHF.ConsEgress, pHF.ConsIngress
 					} else {
 						// Normal shortcut, so only half of this HF is traversed by the packet

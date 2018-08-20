@@ -1,4 +1,5 @@
 # Copyright 2014 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -267,7 +268,7 @@ class PathSegment(Cerealizable):
         (XXX(kormat): not currently implemented).
         Otherwise fall-back to the standard expiration time calculation.
         """
-        return self.infoF().timestamp + int(self._min_exp * EXP_TIME_UNIT)
+        return self.infoF().timestamp + int((self._min_exp + 1) * EXP_TIME_UNIT)
 
     def short_id(self):  # pragma: no cover
         """

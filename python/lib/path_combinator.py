@@ -1,4 +1,5 @@
 # Copyright 2017 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -433,4 +434,4 @@ def _calc_exp_time(info_ts: int, min_hof_exp: int) -> int:
     :returns: the real expiration time in seconds since epoch
     :rtype: int
     """
-    return info_ts + (min_hof_exp * EXP_TIME_UNIT)
+    return info_ts + ((min_hof_exp + 1) * EXP_TIME_UNIT)
