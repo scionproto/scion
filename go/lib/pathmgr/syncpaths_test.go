@@ -44,5 +44,31 @@ func TestSyncPathsTimestamp(t *testing.T) {
 				SoMsg("timestamp", data.RefreshTime, ShouldHappenOnOrBetween, beforeStore, afterStore)
 			})
 		})
+
+		Convey("Update must not modify snapshot", func() {
+			data := sp.Load()
+			snap := *data
+			sp.update(spathmeta.AppPathSet(nil))
+			Convey("Modify timestamp should not change", func() {
+				SoMsg("timestamp", data.ModifyTime, ShouldResemble, snap.ModifyTime)
+			})
+			Convey("Refresh timestamp should not change", func() {
+				SoMsg("timestamp", data.RefreshTime, ShouldResemble, snap.RefreshTime)
+			})
+		})
+
+		Convey("Modifying snapshot must not affect other snapshots", func() {
+			data := sp.Load()
+			snap := *data
+			other := sp.Load()
+			other.ModifyTime = time.Unix(0, 0)
+			other.RefreshTime = time.Unix(0, 0)
+			Convey("Modify timestamp should not change", func() {
+				SoMsg("timestamp", data.ModifyTime, ShouldResemble, snap.ModifyTime)
+			})
+			Convey("Refresh timestamp should not change", func() {
+				SoMsg("timestamp", data.RefreshTime, ShouldResemble, snap.RefreshTime)
+			})
+		})
 	})
 }

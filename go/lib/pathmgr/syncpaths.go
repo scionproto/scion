@@ -68,7 +68,7 @@ func NewSyncPaths() *SyncPaths {
 func (sp *SyncPaths) update(newAPS spathmeta.AppPathSet) {
 	sp.mutex.Lock()
 	defer sp.mutex.Unlock()
-	value := sp.value.Load().(*SyncPathsData)
+	value := sp.Load()
 	value.RefreshTime = time.Now()
 	toAdd := setSubtract(newAPS, value.APS)
 	toRemove := setSubtract(value.APS, newAPS)
@@ -81,7 +81,8 @@ func (sp *SyncPaths) update(newAPS spathmeta.AppPathSet) {
 
 // Load returns a SyncPathsData snapshot of the data within sp.
 func (sp *SyncPaths) Load() *SyncPathsData {
-	return sp.value.Load().(*SyncPathsData)
+	val := *sp.value.Load().(*SyncPathsData)
+	return &val
 }
 
 func setSubtract(x, y spathmeta.AppPathSet) spathmeta.AppPathSet {
