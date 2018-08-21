@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,7 +74,7 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, error) {
 	prevIdx := hOff - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : hOff]
 	inIFid := o.rp.Ingress.IfID
-	hopF := spath.NewHopField(o.rp.Raw[hOff:], inIFid, 0)
+	hopF := spath.NewHopField(o.rp.Raw[hOff:], inIFid, 0, spath.DefaultHopFExpiry)
 	hfmac := o.rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
 	mac, err := hopF.CalcMac(hfmac, infoF.TsInt, prevHof)
 	o.rp.Ctx.Conf.HFMacPool.Put(hfmac)
