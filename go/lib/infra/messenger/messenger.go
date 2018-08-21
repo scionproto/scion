@@ -19,6 +19,7 @@
 //  infra.Chain               -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain
 //  infra.TRCRequest          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
 //  infra.TRC                 -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC
+//  infra.IfStateInfos        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateInfos
 //  infra.SegReq              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
 //  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
@@ -506,6 +507,8 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 			return infra.SegSync, pld.PathMgmt.SegSync, nil
 		case proto.PathMgmt_Which_sRevInfo:
 			return infra.SegRev, pld.PathMgmt.SRevInfo, nil
+		case proto.PathMgmt_Which_ifStateInfos:
+			return infra.IfStateInfos, pld.PathMgmt.IFStateInfos, nil
 		default:
 			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",

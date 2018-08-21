@@ -129,6 +129,7 @@ const (
 	TRCRequest
 	Chain
 	ChainRequest
+	IfStateInfos
 	SegReg
 	SegRequest
 	SegReply
@@ -150,6 +151,8 @@ func (mt MessageType) String() string {
 		return "TRCRequest"
 	case TRC:
 		return "TRC"
+	case IfStateInfos:
+		return "IFStateInfos"
 	case SegReg:
 		return "SegReg"
 	case SegRequest:

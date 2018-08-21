@@ -150,6 +150,7 @@ func realMain() int {
 	}
 	msger.AddHandler(infra.SegRequest, segReqHandler)
 	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args, config.PS.SegSync && core))
+	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStatInfoHandler(args))
 	if config.PS.SegSync && core {
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
