@@ -86,10 +86,10 @@ run_setup() {
      # Create dispatcher and sciond dirs or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
-    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || sudo chown $LOGNAME: "$disp_dir"
+    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { echo "Fix ownership of $disp_dir"; sudo chown $LOGNAME: "$disp_dir"; }
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
-    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || sudo chown $LOGNAME: "$sciond_dir"
+    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { echo "Fix ownership of $sciond_dir"; sudo chown $LOGNAME: "$sciond_dir"; }
 }
 
 cmd_stop() {

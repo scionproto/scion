@@ -63,11 +63,13 @@ doinstall: .installstamp
 PREFIX ?= /usr/local
 build/$(SHARED): $(SHARED)
 .installstamp: build/$(SHARED)
+	@sudo -vp "c/lib/hsr:install [sudo] password for %p: "
 	sudo cp build/$(SHARED) $(PREFIX)/lib/
 	sudo ldconfig
 	touch .installstamp
 
 uninstall:
+	@sudo -vp "c/lib/hsr:uninstall [sudo] password for %p: "
 	sudo rm -r $(PREFIX)/lib/$(SHARED)
 	sudo ldconfig
 	rm -f .installstamp
