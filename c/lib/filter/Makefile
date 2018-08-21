@@ -38,11 +38,13 @@ $(DYNAMIC): $(OBJS)
 install: .installstamp
 
 .installstamp: $(TARGETS)
+	@sudo -vp "c/lib/filter:install [sudo] password for %p: "
 	sudo cp $(TARGETS) $(PREFIX)/lib/
 	sudo ldconfig
 	touch .installstamp
 
 uninstall:
+	@sudo -vp "c/lib/filter:uninstall [sudo] password for %p: "
 	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
 	sudo ldconfig
 	rm -f .installstamp

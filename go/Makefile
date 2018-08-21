@@ -73,4 +73,5 @@ libs: deps_proto
 
 hsr: libs
 	GOBIN=${LOCAL_GOBIN} go install -v -tags "$(GOTAGS) hsr" ./border/...
+	sudo -vp "go:hsr [sudo] password for %p: "
 	sudo setcap cap_dac_read_search,cap_dac_override,cap_sys_admin,cap_net_raw+ep ../bin/border
