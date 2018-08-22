@@ -118,6 +118,8 @@ class RouterElement(object):
         self.name = name
         addrs = router_dict['InternalAddr']
         self.int_addrs = Element(public=addrs["Public"], bind=addrs.get("Bind"))
+        addrs = router_dict['CtrlAddr']
+        self.ctrl_addrs = Element(public=addrs["Public"], bind=addrs.get("Bind"))
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)

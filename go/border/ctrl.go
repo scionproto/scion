@@ -49,6 +49,7 @@ func initSNET(ia addr.IA, dispPath string, attempts int, sleep time.Duration) er
 	var err error
 	// Initialize SCION local networking module
 	for i := 0; i < attempts; i++ {
+		// XXX(sgmonroy) manage snet dispatcher reconnect?
 		if err = snet.Init(ia, "", dispPath); err == nil {
 			break
 		}
@@ -67,15 +68,15 @@ func (r *Router) Control() {
 	if err = initSNET(ia, dispPath, initAttempts, initInterval); err != nil {
 		logger.Error("Initializing SNET", "err", err)
 	}
-	loc := ctx.Conf.Net.LocAddr
-	pub := &snet.Addr{IA: ia, Host: loc.IPv4.PublicAddr()}
-	bind := &snet.Addr{IA: ia, Host: loc.IPv4.BindAddr()}
+	ctrlAddr := ctx.Conf.Net.CtrlAddr
+	pub := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.PublicAddr()}
+	bind := &snet.Addr{IA: ia, Host: ctrlAddr.IPv4.BindAddr()}
 	if bind.Host == nil {
 		bind = nil
 	}
 	snetConn, err = snet.ListenSCIONWithBindSVC("udp4", pub, bind, addr.SvcNone)
 	if err != nil {
-		logger.Error("Listening on address", "addr", loc, "err", err)
+		logger.Error("Listening on address", "addr", ctrlAddr, "err", err)
 	}
 	go ifStateUpdate()
 	processCtrl()
