@@ -143,15 +143,19 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 	return false
 }
 
+// FirstIA returns the IA of the first ASEntry.
+// Note that if the seg contains no ASEntries this method will panic.
 func (ps *PathSegment) FirstIA() addr.IA {
 	return ps.ASEntries[0].IA()
 }
 
+// LastIA returns the IA of the last ASEntry.
+// Note that if the seg contains no ASEntries this method will panic.
 func (ps *PathSegment) LastIA() addr.IA {
 	return ps.ASEntries[len(ps.ASEntries)-1].IA()
 }
 
-// walkHopEntries iterates through the hop entries of asEntries, checking that
+// WalkHopEntries iterates through the hop entries of asEntries, checking that
 // the hop fields within can be parsed. If an parse error is found, the
 // function immediately returns with an error.
 func (ps *PathSegment) WalkHopEntries() error {

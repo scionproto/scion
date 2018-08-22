@@ -39,7 +39,8 @@ import (
 const (
 	// Handler lifetime
 	HandlerTimeout = 3 * time.Second
-	// LatestVersion can be used in GetTRC as the version argument to get the latest version.
+	// LatestVersion can be used in GetTRC/GetChain as the version argument
+	// to get the latest version.
 	LatestVersion = 0
 )
 
@@ -271,7 +272,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	client, server net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainVersionCtx(ctx, ia, 0)
+	chain, err := store.trustdb.GetChainVersionCtx(ctx, ia, LatestVersion)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -291,7 +292,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
-		version:  0,
+		version:  LatestVersion,
 		id:       store.nextID(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),

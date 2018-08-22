@@ -287,7 +287,7 @@ class ConfigGenerator(object):
             overlay = 'UDP/IPv4'
         topo_gen = TopoGenerator(
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
-            self.default_mtu, self.gen_bind_addr, self.docker, overlay, self.ps)
+            self.default_mtu, self.gen_bind_addr, self.docker, overlay, self.cs, self.ps)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
@@ -613,7 +613,7 @@ class CA_Generator(object):
 
 class TopoGenerator(object):
     def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, overlay, ps):
+                 default_mtu, gen_bind_addr, docker, overlay, cs, ps):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
@@ -630,6 +630,7 @@ class TopoGenerator(object):
         self.links = defaultdict(list)
         self.ifid_map = {}
         self.overlay = overlay
+        self.cs = cs
         self.ps = ps
 
     def _reg_addr(self, topo_id, elem_id):
@@ -716,8 +717,9 @@ class TopoGenerator(object):
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
                        topo_key):
         count = as_conf.get(conf_key, def_num)
-        # only a single Go-PS per AS is currently supported
-        if conf_key == "path_servers" and self.ps == "go":
+        # only a single Go-PS/Go-CS per AS is currently supported
+        if ((conf_key == "path_servers" and self.ps == "go") or
+           (conf_key == "certificate_servers" and self.cs == "go")):
             count = 1
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
@@ -905,10 +907,10 @@ class SupervisorGenerator(object):
     def _as_conf(self, topo_id, topo):
         entries = []
         base = topo_id.base_dir(self.out_dir)
-        entries.extend(self._bs_entries(topo, base))
-        entries.extend(self._ps_entries(topo, base))
-        entries.extend(self._cs_entries(topo, base))
         entries.extend(self._br_entries(topo, "bin/border", base))
+        entries.extend(self._bs_entries(topo, base))
+        entries.extend(self._cs_entries(topo, base))
+        entries.extend(self._ps_entries(topo, base))
         self._write_as_conf(topo_id, entries)
 
     def _std_entries(self, topo, topo_key, cmd, base):
@@ -937,10 +939,12 @@ class SupervisorGenerator(object):
             return self._std_entries(topo, "CertificateService", "python/bin/cert_server", base)
         entries = []
         for k, v in topo.get("CertificateService", {}).items():
-            conf_dir = os.path.join(base, k)
-            entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
-                                "-prom=%s" % _prom_addr_infra(v), "-sciond",
-                                get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
+            # only a single Go-CS per AS is currently supported
+            if k.endswith("-1"):
+                conf_dir = os.path.join(base, k)
+                entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
+                                    "-prom=%s" % _prom_addr_infra(v), "-sciond",
+                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
         return entries
 
     def _ps_entries(self, topo, base):
