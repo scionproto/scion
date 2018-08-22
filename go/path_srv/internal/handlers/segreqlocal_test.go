@@ -195,7 +195,7 @@ func TestSegReqLocal(t *testing.T) {
 			SrcIA:    as1_132,
 			DstIA:    core1_110,
 			Cores:    []*seg.PathSegment{seg110_130},
-			Expected: []*seg.Meta{},
+			Expected: nil,
 		},
 		{
 			Name:  "CoreDST: Multi up, single core",
