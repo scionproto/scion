@@ -29,8 +29,8 @@ import (
 
 type IDAddrMap map[string]TopoAddr
 
-// GetAddrOrNil returns the TopoAddr for the given ID, or nil if there is none.
-func (m IDAddrMap) GetAddrOrNil(id string) *TopoAddr {
+// GetById returns the TopoAddr for the given ID, or nil if there is none.
+func (m IDAddrMap) GetById(id string) *TopoAddr {
 	if _, ok := m[id]; ok {
 		cp := m[id]
 		return &cp
