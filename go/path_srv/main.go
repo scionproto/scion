@@ -18,9 +18,12 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/topology"
 
 	"github.com/BurntSushi/toml"
 	cache "github.com/patrickmn/go-cache"
@@ -38,7 +41,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
-	"github.com/scionproto/scion/go/proto"
 )
 
 type Config struct {
@@ -91,7 +93,7 @@ func realMain() int {
 	}
 	topo := config.General.Topology
 	trustConf := &trust.Config{
-		LocalCSes: topo.GetAllServerAddresses(proto.ServiceType_cs),
+		LocalCSes: getAllCSAddresses(topo),
 	}
 	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
 		rand.Uint64(), trustConf, log.Root())
@@ -104,11 +106,10 @@ func realMain() int {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	topoAddress := topo.GetTopoAddr(proto.ServiceType_ps, config.General.ID)
+	topoAddress := topo.PS.GetAddrOrNil(config.General.ID)
 	publicAddr := env.GetPublicSnetAddress(topo.ISD_AS, topoAddress)
-	// Use nil bind addr, since it is the same as the public addr,
-	// and that would lead to a dispatcher problem.
-	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, nil, addr.SvcPS)
+	bindAddr := env.GetBindSnetAddress(topo.ISD_AS, topoAddress)
+	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, bindAddr, addr.SvcPS)
 	if err != nil {
 		log.Crit("Unable to listen on SCION", "err", err)
 		return 1
@@ -175,18 +176,28 @@ func realMain() int {
 }
 
 func setup(configName string) error {
-	_, err := toml.DecodeFile(configName, &config)
-	if err != nil {
+	if _, err := toml.DecodeFile(configName, &config); err != nil {
 		return err
 	}
-	err = env.InitGeneral(&config.General)
-	if err != nil {
+	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
-	err = env.InitLogging(&config.Logging)
-	if err != nil {
+	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
+	// TODO(lukedirtwalker): SUPPORT RELOADING!!!
 	environment = env.SetupEnv(nil)
 	return nil
+}
+
+func getAllCSAddresses(topo *topology.Topo) []net.Addr {
+	addrs := make([]net.Addr, 0, len(topo.CS))
+	for _, server := range topo.CS {
+		appAddr := server.PublicAddr(topo.Overlay)
+		addrs = append(addrs, &snet.Addr{
+			IA:   topo.ISD_AS,
+			Host: appAddr,
+		})
+	}
+	return addrs
 }
