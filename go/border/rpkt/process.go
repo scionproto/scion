@@ -38,8 +38,6 @@ func (rp *RtrPkt) NeedsLocalProcessing() error {
 		// Packet not destined to local AS, just forward.
 		// Non-SVC packet to local AS, just forward.
 		rp.hooks.Route = append(rp.hooks.Route, rp.forward)
-		// Packet to self should be sent to local dispatcher
-		//rp.DirTo = rcmn.DirLocal
 	}
 	return nil
 }
@@ -124,9 +122,10 @@ func (rp *RtrPkt) processSCMPTraceRoute() error {
 	if err != nil {
 		return err
 	}
+	// Forward reply
 	reply.Route()
-	// Change direction of current packet so it is not forwarded
-	rp.DirTo = rcmn.DirSelf
+	// Drop original packet prepending drop hook so it is the first one to run.
+	rp.hooks.Route = append([]hookRoute{rp.drop}, rp.hooks.Route...)
 	return nil
 }
 

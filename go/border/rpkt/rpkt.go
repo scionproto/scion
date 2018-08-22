@@ -68,8 +68,6 @@ type RtrPkt struct {
 	TimeIn time.Time
 	// DirFrom is the direction from which the packet was received. (RECV)
 	DirFrom rcmn.Dir
-	// DirTo is the direction to which the packet is travelling. (PARSE)
-	DirTo rcmn.Dir
 	// Ingress contains the incoming overlay metadata the packet arrived with, and the (list of)
 	// interface(s) it arrived on. (RECV)
 	Ingress addrIFPair
@@ -215,7 +213,6 @@ func (rp *RtrPkt) Reset() {
 	// Reset the length of the buffer to the max size.
 	rp.Raw = rp.Raw[:cap(rp.Raw)]
 	rp.DirFrom = rcmn.DirUnset
-	rp.DirTo = rcmn.DirUnset
 	rp.Ingress.Dst = nil
 	rp.Ingress.Src = nil
 	rp.Ingress.IfID = 0
@@ -334,8 +331,8 @@ func (rp *RtrPkt) String() string {
 	rp.SrcHost()
 	rp.InfoF()
 	rp.HopF()
-	return fmt.Sprintf("Id: %v Dir from/to: %v/%v Dst: %v %v Src: %v %v\n  InfoF: %v\n  HopF: %v",
-		rp.Id, rp.DirFrom, rp.DirTo, rp.dstIA, rp.dstHost, rp.srcIA, rp.srcHost, rp.infoF, rp.hopF)
+	return fmt.Sprintf("Id: %v Dir from: %v Dst: %v %v Src: %v %v\n  InfoF: %v\n  HopF: %v",
+		rp.Id, rp.DirFrom, rp.dstIA, rp.dstHost, rp.srcIA, rp.srcHost, rp.infoF, rp.hopF)
 }
 
 // ErrStr is a small utility method to combine an error message with a string

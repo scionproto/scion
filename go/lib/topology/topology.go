@@ -129,7 +129,14 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 				iAddr.OverlayPort = iAddr.L4Port
 			}
 		}
+		if rawBr.CtrlAddr == nil {
+			return common.NewBasicError("Missing Control Address", nil)
+		}
 		intAddr, err := rawBr.InternalAddr.ToTopoAddr(t.Overlay)
+		if err != nil {
+			return err
+		}
+		ctrlAddr, err := rawBr.CtrlAddr.ToTopoAddr(t.Overlay)
 		if err != nil {
 			return err
 		}
@@ -137,7 +144,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
-			ifinfo := IFInfo{BRName: name, InternalAddr: intAddr}
+			ifinfo := IFInfo{BRName: name, InternalAddr: intAddr, CtrlAddr: ctrlAddr}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
@@ -288,6 +295,7 @@ type BRInfo struct {
 type IFInfo struct {
 	BRName       string
 	InternalAddr *TopoAddr
+	CtrlAddr     *TopoAddr
 	Overlay      overlay.Type
 	Local        *TopoAddr
 	Remote       *overlay.OverlayAddr
@@ -299,8 +307,7 @@ type IFInfo struct {
 }
 
 func (i IFInfo) String() string {
-	return fmt.Sprintf(
-		"IFinfo: Name[%s] IntAddr[%+v] Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
-		i.BRName, i.InternalAddr, i.Overlay, i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType,
-		i.MTU)
+	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v"+
+		"Remote:+%v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddr, i.CtrlAddr, i.Overlay,
+		i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
 }

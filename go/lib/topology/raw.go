@@ -57,12 +57,14 @@ type RawTopo struct {
 
 type RawBRInfo struct {
 	InternalAddr *RawAddrInfo
+	CtrlAddr     *RawAddrInfo
 	Interfaces   map[common.IFIDType]RawBRIntf
 }
 
 func (b RawBRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addr:\n  %s\nInterfaces:", b.InternalAddr))
+	s = append(s, fmt.Sprintf("Loc addr:\n  %s\nControl addr:\n  %s\nInterfaces:",
+		b.InternalAddr, b.CtrlAddr))
 	for ifid, intf := range b.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}
