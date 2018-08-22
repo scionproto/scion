@@ -91,8 +91,8 @@ func TestGenKeyPairs(t *testing.T) {
 		SoMsg("rawPrivkey", len(rawPrivkey), ShouldEqual, NaClBoxKeySize)
 		newPubkey, newPrivkey, err := GenKeyPair(Curve25519xSalsa20Poly1305)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", rawPubkey, ShouldNotEqual, newPubkey)
-		SoMsg("rawPrivkey", rawPrivkey, ShouldNotEqual, newPrivkey)
+		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
+		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
 	})
 
 	Convey("GenKeyPairs should return a valid Ed25519 key pair", t, func() {
@@ -102,8 +102,8 @@ func TestGenKeyPairs(t *testing.T) {
 		SoMsg("rawPrivkey", len(rawPrivkey), ShouldEqual, ed25519.PrivateKeySize)
 		newPubkey, newPrivkey, err := GenKeyPair(Ed25519)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawPubkey", rawPubkey, ShouldNotEqual, newPubkey)
-		SoMsg("rawPrivkey", rawPrivkey, ShouldNotEqual, newPrivkey)
+		SoMsg("rawPubkey", rawPubkey, ShouldNotResemble, newPubkey)
+		SoMsg("rawPrivkey", rawPrivkey, ShouldNotResemble, newPrivkey)
 	})
 
 	Convey("GenKeyPairs should throw error for unknown algo", t, func() {
@@ -152,32 +152,6 @@ func TestVerify(t *testing.T) {
 
 	Convey("Verify should throw an error for unknown algo", t, func() {
 		err := Verify(Ed25519TestMsg, Ed25519TestSignature, Ed25519TestPublicKey, "asdf")
-		SoMsg("err", err, ShouldNotBeNil)
-	})
-}
-
-func TestNonce(t *testing.T) {
-	Convey("Nonce should return a random byte sequence", t, func() {
-		rawNonce, err := Nonce(32)
-		SoMsg("err", err, ShouldBeNil)
-		newNonce, err := Nonce(32)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawNonce", rawNonce, ShouldNotResemble, newNonce)
-	})
-
-	Convey("Nonce length is equal to input", t, func() {
-		rawNonce, err := Nonce(24)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawNonce", len(rawNonce), ShouldResemble, 24)
-		rawNonce, err = Nonce(32)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("rawNonce", len(rawNonce), ShouldResemble, 32)
-	})
-
-	Convey("Nonce should throw an error for an invalid length", t, func() {
-		_, err := Nonce(0)
-		SoMsg("err", err, ShouldNotBeNil)
-		_, err = Nonce(-1)
 		SoMsg("err", err, ShouldNotBeNil)
 	})
 }

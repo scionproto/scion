@@ -16,7 +16,6 @@ package scrypto
 
 import (
 	"crypto/rand"
-	"io"
 	"strings"
 
 	"golang.org/x/crypto/ed25519"
@@ -45,6 +44,7 @@ const (
 	UnableToGenerateKeyPair = "Unable to generate key pair"
 	UnableToGenerateNonce   = "Unable to generate nonce"
 	UnableToDecrypt         = "Unable to decrypt message"
+	UnsupportedAlgo         = "Unsupported algorithm"
 	UnsupportedSignAlgo     = "Unsupported signing algorithm"
 	UnsupportedEncAlgo      = "Unsupported encryption algorithm"
 )
@@ -67,7 +67,7 @@ func GenKeyPair(algo string) (common.RawBytes, common.RawBytes, error) {
 		}
 		return common.RawBytes(pubkey), common.RawBytes(privkey), nil
 	default:
-		return nil, nil, common.NewBasicError(UnsupportedSignAlgo, nil, "algo", algo)
+		return nil, nil, common.NewBasicError(UnsupportedAlgo, nil, "algo", algo)
 	}
 }
 
@@ -102,19 +102,6 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 	default:
 		return common.NewBasicError(UnsupportedSignAlgo, nil, "algo", signAlgo)
 	}
-}
-
-// Nonce takes an input length and returns a random nonce of the given length.
-func Nonce(len int) (common.RawBytes, error) {
-	if len <= 0 {
-		return nil, common.NewBasicError(InvalidNonceSize, nil)
-	}
-	nonce := make([]byte, len)
-	_, err := io.ReadFull(rand.Reader, nonce)
-	if err != nil {
-		return nil, common.NewBasicError(UnableToGenerateNonce, err)
-	}
-	return nonce, nil
 }
 
 // Encrypt takes a message, a nonce and a public/private keypair and
@@ -153,17 +140,20 @@ func Decrypt(msg, nonce, pubkey, privkey common.RawBytes, algo string) (common.R
 
 func prepNaClBox(nonce, pubkey, privkey common.RawBytes) (*[NaClBoxNonceSize]byte,
 	*[NaClBoxKeySize]byte, *[NaClBoxKeySize]byte, error) {
+
 	if len(nonce) != NaClBoxNonceSize {
 		return nil, nil, nil, common.NewBasicError(InvalidNonceSize, nil, "algo",
-			Curve25519xSalsa20Poly1305)
+			Curve25519xSalsa20Poly1305, "expected size", NaClBoxNonceSize, "actual size",
+			len(nonce))
 	}
 	if len(pubkey) != NaClBoxKeySize {
 		return nil, nil, nil, common.NewBasicError(InvalidPubKeySize, nil, "algo",
-			Curve25519xSalsa20Poly1305)
+			Curve25519xSalsa20Poly1305, "expected size", NaClBoxKeySize, "actual size", len(pubkey))
 	}
 	if len(privkey) != NaClBoxKeySize {
 		return nil, nil, nil, common.NewBasicError(InvalidPrivKeySize, nil, "algo",
-			Curve25519xSalsa20Poly1305)
+			Curve25519xSalsa20Poly1305, "expected size", NaClBoxKeySize, "actual size",
+			len(privkey))
 	}
 	var nonceRaw [NaClBoxNonceSize]byte
 	var pubKeyRaw, privKeyRaw [NaClBoxKeySize]byte

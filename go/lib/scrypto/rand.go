@@ -16,6 +16,7 @@ package scrypto
 
 import (
 	"crypto/rand"
+	"io"
 	mrand "math/rand"
 	"sync"
 
@@ -44,4 +45,17 @@ func MathRandSeed() {
 	mathSeedOnce.Do(func() {
 		mrand.Seed(RandInt64())
 	})
+}
+
+// Nonce takes an input length and returns a random nonce of the given length.
+func Nonce(len int) (common.RawBytes, error) {
+	if len <= 0 {
+		return nil, common.NewBasicError(InvalidNonceSize, nil)
+	}
+	nonce := make([]byte, len)
+	_, err := io.ReadFull(rand.Reader, nonce)
+	if err != nil {
+		return nil, common.NewBasicError(UnableToGenerateNonce, err)
+	}
+	return nonce, nil
 }
