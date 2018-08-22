@@ -70,8 +70,8 @@ func newBaseHandler(request *infra.Request, args *HandlerArgs) *baseHandler {
 	}
 }
 
-// dbSegs gets segments from the path DB and filters revoked segments.
-func (h *baseHandler) dbSegs(ctx context.Context,
+// fetchSegsFromDB gets segments from the path DB and filters revoked segments.
+func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	params *query.Params) ([]*seg.PathSegment, error) {
 
 	res, err := h.pathDB.Get(ctx, params)
@@ -93,8 +93,7 @@ func (h *baseHandler) noRevokedInterface(seg *seg.PathSegment) bool {
 	return true
 }
 
-func (h *baseHandler) addrFromPath(paths []*combinator.Path, dstIA addr.IA) (net.Addr, error) {
-	path := paths[0]
+func (h *baseHandler) addrFromPath(path *combinator.Path, dstIA addr.IA) (net.Addr, error) {
 	nextHop, ok := h.topology.IFInfoMap[path.Interfaces[0].IfID]
 	if !ok {
 		h.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
@@ -216,8 +215,6 @@ type segInterface struct {
 	IA   addr.IA
 	IFID common.IFIDType
 }
-
-var empty struct{}
 
 // onSegmentInterfaces returns all segInterfaces that are on the segments hopfields
 // (no peer interfaces).
