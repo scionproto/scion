@@ -142,7 +142,7 @@ func GetPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	return &snet.Addr{IA: ia, Host: pub}
 }
 
-func getBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
+func GetBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	// snet only supports udp4 for now
 	if topoAddr.Overlay != overlay.UDPIPv4 {
 		panic("unsupported overlay")
