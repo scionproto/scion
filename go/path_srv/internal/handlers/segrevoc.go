@@ -26,18 +26,13 @@ import (
 )
 
 type revocHandler struct {
-	baseHandler
+	*baseHandler
 }
 
-func NewRevocHandler(revCache revcache.RevCache, trustStore infra.TrustStore) infra.Handler {
+func NewRevocHandler(args *HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &revocHandler{
-			baseHandler: baseHandler{
-				request:    r,
-				revCache:   revCache,
-				trustStore: trustStore,
-				logger:     r.Logger,
-			},
+			baseHandler: newBaseHandler(r, args),
 		}
 		handler.Handle()
 	}

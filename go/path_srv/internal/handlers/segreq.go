@@ -29,7 +29,7 @@ import (
 )
 
 type segReqHandler struct {
-	baseHandler
+	*baseHandler
 	localIA  addr.IA
 	srcTRC   *trc.TRC
 	dstLocal bool
@@ -98,19 +98,19 @@ func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegmen
 	for i, s := range upSegs {
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs[i] = &seg.Meta{Type: proto.PathSegType_up, Segment: *upSegs[i]}
+		recs[i] = &seg.Meta{Type: proto.PathSegType_up, Segment: upSegs[i]}
 	}
 	l := len(upSegs)
 	for i, s := range coreSegs {
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs[l+i] = &seg.Meta{Type: proto.PathSegType_core, Segment: *coreSegs[i]}
+		recs[l+i] = &seg.Meta{Type: proto.PathSegType_core, Segment: coreSegs[i]}
 	}
 	l = len(upSegs) + len(coreSegs)
 	for i, s := range downSegs {
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs[l+i] = &seg.Meta{Type: proto.PathSegType_down, Segment: *downSegs[i]}
+		recs[l+i] = &seg.Meta{Type: proto.PathSegType_down, Segment: downSegs[i]}
 	}
 	return recs
 }

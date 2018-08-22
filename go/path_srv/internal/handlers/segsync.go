@@ -21,28 +21,18 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
-	"github.com/scionproto/scion/go/lib/revcache"
 )
 
 type syncHandler struct {
-	baseHandler
+	*baseHandler
 	localIA addr.IA
 }
 
-func NewSyncHandler(pathDB conn.Conn, revCache revcache.RevCache, trustStore infra.TrustStore,
-	localIA addr.IA) infra.Handler {
-
+func NewSyncHandler(args *HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &syncHandler{
-			baseHandler: baseHandler{
-				request:    r,
-				pathDB:     pathDB,
-				revCache:   revCache,
-				trustStore: trustStore,
-				logger:     r.Logger,
-			},
-			localIA: localIA,
+			baseHandler: newBaseHandler(r, args),
+			localIA:     args.Topology.ISD_AS,
 		}
 		handler.Handle()
 	}
@@ -60,7 +50,7 @@ func (h *syncHandler) Handle() {
 		h.logger.Error("[syncHandler] Failed to parse message", "err", err)
 		return
 	}
-	h.logger.Debug("[syncHandler] Received message", "seg", segRecs(segSync.SegRecs))
+	h.logger.Debug("[syncHandler] Received message", "seg", segSync.SegRecs)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	h.verifyAndStore(subCtx, h.request.Peer, ignore, segSync.Recs, segSync.SRevInfos)

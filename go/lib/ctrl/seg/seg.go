@@ -295,5 +295,5 @@ func (ps *PathSegment) String() string {
 	}
 	// TODO(shitz): Add extensions.
 	desc = append(desc, strings.Join(hops_desc, ">"))
-	return strings.Join(desc, "")
+	return strings.Join(desc, " ")
 }

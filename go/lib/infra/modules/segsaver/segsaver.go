@@ -30,7 +30,7 @@ import (
 
 // StoreSeg saves s to the given pathDB. In case of failure the error is returned.
 func StoreSeg(ctx context.Context, s *seg.Meta, pathDB pathdb.PathDB, log log.Logger) error {
-	n, err := pathDB.Insert(ctx, &s.Segment, []proto.PathSegType{s.Type})
+	n, err := pathDB.Insert(ctx, s.Segment, []proto.PathSegType{s.Type})
 	if err != nil {
 		return err
 	}

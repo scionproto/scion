@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +18,11 @@ package topology
 import (
 	"fmt"
 	"math/rand"
+	"net"
 	"sort"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/snet"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -199,15 +203,7 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 // element ID of type t. nodeType must be one of BS, CS or PS. If the ID is not
 // found, nil is returned.
 func (t *Topo) GetTopoAddr(serviceType proto.ServiceType, id string) *TopoAddr {
-	var addressMap map[string]TopoAddr
-	switch serviceType {
-	case proto.ServiceType_bs:
-		addressMap = t.BS
-	case proto.ServiceType_cs:
-		addressMap = t.CS
-	case proto.ServiceType_ps:
-		addressMap = t.PS
-	}
+	addressMap := t.extractAddressMap(serviceType)
 	if _, ok := addressMap[id]; ok {
 		cp := addressMap[id]
 		return &cp
@@ -215,14 +211,39 @@ func (t *Topo) GetTopoAddr(serviceType proto.ServiceType, id string) *TopoAddr {
 	return nil
 }
 
+func (t *Topo) extractAddressMap(serviceType proto.ServiceType) map[string]TopoAddr {
+	switch serviceType {
+	case proto.ServiceType_bs:
+		return t.BS
+	case proto.ServiceType_ps:
+		return t.PS
+	case proto.ServiceType_cs:
+		return t.CS
+	case proto.ServiceType_sb:
+		return t.SB
+	}
+	panic(fmt.Sprintf("Unhandled service type: '%v'", serviceType))
+}
+
+// GetAllServerAddresses returns all addresses for the given service type.
+func (t *Topo) GetAllServerAddresses(serviceType proto.ServiceType) []net.Addr {
+	addressMap := t.extractAddressMap(serviceType)
+	addrs := make([]net.Addr, 0, len(addressMap))
+	for _, server := range addressMap {
+		appAddr := server.PublicAddr(t.Overlay)
+		addrs = append(addrs, &snet.Addr{
+			IA:   t.ISD_AS,
+			Host: appAddr,
+		})
+	}
+	return addrs
+}
+
 // GetRandomServer returns the application address for a random service of type
 // t; BS, PS, and CS are currently supported. Randomness is taken from the
 // default source. If no server is found, an error is returned.
 func (t *Topo) GetRandomServer(serviceType proto.ServiceType) (*addr.AppAddr, error) {
-	names, err := t.extractServerNames(serviceType)
-	if err != nil {
-		return nil, err
-	}
+	names := t.extractServerNames(serviceType)
 	numServers := len(names)
 	if numServers == 0 {
 		return nil, common.NewBasicError("Found no servers of requested type", nil,
@@ -230,20 +251,20 @@ func (t *Topo) GetRandomServer(serviceType proto.ServiceType) (*addr.AppAddr, er
 	}
 	topoAddr := t.GetTopoAddr(serviceType, names[rand.Intn(numServers)])
 	return topoAddr.PublicAddr(t.Overlay), nil
-
 }
 
-func (t *Topo) extractServerNames(serviceType proto.ServiceType) ([]string, error) {
+func (t *Topo) extractServerNames(serviceType proto.ServiceType) []string {
 	switch serviceType {
 	case proto.ServiceType_bs:
-		return t.BSNames, nil
-	case proto.ServiceType_cs:
-		return t.CSNames, nil
+		return t.BSNames
 	case proto.ServiceType_ps:
-		return t.PSNames, nil
-	default:
-		return nil, common.NewBasicError("Unknown service type", nil, "type", serviceType)
+		return t.PSNames
+	case proto.ServiceType_cs:
+		return t.CSNames
+	case proto.ServiceType_sb:
+		return t.SBNames
 	}
+	panic(fmt.Sprintf("Unhandled service type: '%v'", serviceType))
 }
 
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
