@@ -81,6 +81,8 @@ func (h *segReqLocalHandler) Handle() {
 	h.dstLocal = segReq.DstIA().I == h.localIA.I
 	h.dstCore, err = h.isCoreDst(subCtx, msger, segReq)
 	if err != nil {
+		h.logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
+		h.sendEmptySegReply(subCtx, segReq, msger)
 		return
 	}
 	// DD 5
@@ -97,7 +99,7 @@ func (h *segReqLocalHandler) validSrcDst(segReq *path_mgmt.SegReq) bool {
 			"srcIA", segReq.SrcIA())
 		return false
 	}
-	return h.validDst(segReq)
+	return h.isValidDst(segReq)
 }
 
 // DD 5.1.1
@@ -105,7 +107,7 @@ func (h *segReqLocalHandler) handleCoreDst(ctx context.Context, segReq *path_mgm
 	msger infra.Messenger, dst addr.IA) {
 
 	h.logger.Debug("[segReqHandler] handleCoreDst", "remote", !h.dstLocal)
-	upSegs, err := h.upSegs(ctx)
+	upSegs, err := h.fetchUpSegsFromDB(ctx)
 	if err != nil {
 		h.logger.Error("[segReqHandler] Failed to find up segments", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
@@ -123,7 +125,7 @@ func (h *segReqLocalHandler) handleCoreDst(ctx context.Context, segReq *path_mgm
 	var coreSegs []*seg.PathSegment
 	for _, src := range firstIAs(upSegs) {
 		if !src.Eq(dst) {
-			res, err := h.coreSegs(ctx, msger, src, dst, segReq.Flags.CacheOnly)
+			res, err := h.fetchCoreSegs(ctx, msger, src, dst, segReq.Flags.CacheOnly)
 			if err != nil {
 				h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
 				continue
@@ -138,13 +140,19 @@ func (h *segReqLocalHandler) handleCoreDst(ctx context.Context, segReq *path_mgm
 func (h *segReqLocalHandler) handleNonCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	msger infra.Messenger, dstIA addr.IA) {
 
-	downSegs, err := h.downSegs(ctx, msger, dstIA, segReq.Flags.CacheOnly)
+	cPS, err := h.corePSAddr(ctx, addr.IA{})
+	if err != nil {
+		h.logger.Error("Could not find corePS to ask for down segs", "err", err)
+		h.sendEmptySegReply(ctx, segReq, msger)
+		return
+	}
+	downSegs, err := h.fetchDownSegs(ctx, msger, dstIA, cPS, segReq.Flags.CacheOnly)
 	if err != nil {
 		h.logger.Error("Failed to find down segs", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
-	upSegs, err := h.upSegs(ctx)
+	upSegs, err := h.fetchUpSegsFromDB(ctx)
 	if err != nil {
 		h.logger.Error("Failed to find up segs", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
@@ -165,7 +173,7 @@ func (h *segReqLocalHandler) handleNonCoreDst(ctx context.Context, segReq *path_
 			if src.Eq(dst) {
 				continue
 			}
-			cs, err := h.coreSegs(ctx, msger, src, dst, segReq.Flags.CacheOnly)
+			cs, err := h.fetchCoreSegs(ctx, msger, src, dst, segReq.Flags.CacheOnly)
 			if err != nil {
 				h.logger.Error("Failed to find core segs", "src", src, "dst", dst, "err", err)
 				continue
@@ -178,26 +186,26 @@ func (h *segReqLocalHandler) handleNonCoreDst(ctx context.Context, segReq *path_
 	h.sendReply(ctx, msger, upSegs, coreSegs, downSegs, segReq)
 }
 
-func (h *segReqLocalHandler) upSegs(ctx context.Context) ([]*seg.PathSegment, error) {
+func (h *segReqLocalHandler) fetchUpSegsFromDB(ctx context.Context) ([]*seg.PathSegment, error) {
 	cASes := h.srcTRC.CoreASes.ASList()
-	return h.dbSegs(ctx, &query.Params{
+	return h.fetchSegsFromDB(ctx, &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_up},
 		StartsAt: cASes,
 		EndsAt:   []addr.IA{h.localIA},
 	})
 }
 
-func (h *segReqLocalHandler) coreSegs(ctx context.Context,
+func (h *segReqLocalHandler) fetchCoreSegs(ctx context.Context,
 	msger infra.Messenger, src, dst addr.IA, dbOnly bool) ([]*seg.PathSegment, error) {
 
-	h.logger.Debug("[segReqHanlder:coreSegs]", "query", fmt.Sprintf("%v->%v", src, dst))
+	h.logger.Debug("[segReqHanlder:fetchCoreSegs]", "query", fmt.Sprintf("%v->%v", src, dst))
 	// try local cache first, inverse query since core segs are stored in inverse direction.
 	q := &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_core},
 		StartsAt: []addr.IA{dst},
 		EndsAt:   []addr.IA{src},
 	}
-	segs, err := h.dbSegs(ctx, q)
+	segs, err := h.fetchSegsFromDB(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -205,60 +213,28 @@ func (h *segReqLocalHandler) coreSegs(ctx context.Context,
 	if dbOnly || len(segs) > 0 {
 		return segs, nil
 	}
-	// try remote: // TODO here we should pass the cPS we want to ask!
-	_, err = h.fetchAndSaveSegs(ctx, msger, src, dst, requestID.Next())
+	// try remote:
+	cPS, err := h.corePSAddr(ctx, src)
+	if err != nil {
+		return nil, err
+	}
+	_, err = h.fetchAndSaveSegs(ctx, msger, src, dst, cPS, requestID.Next())
 	if err != nil {
 		return nil, err
 	}
 	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
-	return h.dbSegs(ctx, q)
+	return h.fetchSegsFromDB(ctx, q)
 }
 
-func (h *segReqLocalHandler) downSegs(ctx context.Context,
-	msger infra.Messenger, dst addr.IA, dbOnly bool) ([]*seg.PathSegment, error) {
-
-	// try local cache first
-	q := &query.Params{
-		SegTypes: []proto.PathSegType{proto.PathSegType_down},
-		EndsAt:   []addr.IA{dst},
-	}
-	segs, err := h.dbSegs(ctx, q)
+func (h *segReqLocalHandler) corePSAddr(ctx context.Context, core addr.IA) (net.Addr, error) {
+	upSegs, err := h.fetchUpSegsFromDB(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// TODO(lukedirtwalker): also query core if we haven't for a long time.
-	// TODO(lukedirtwalker): handle expired segments!
-	if dbOnly || len(segs) > 0 {
-		return segs, nil
-	}
-	_, err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, requestID.Next())
-	if err != nil {
-		return nil, err
-	}
-	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
-	return h.dbSegs(ctx, q)
-}
-
-func (h *segReqLocalHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messenger,
-	src, dst addr.IA, id uint64) (*path_mgmt.SegReply, error) {
-
-	cPS, err := h.corePSAddr(ctx)
-	if err != nil {
-		return nil, err
-	}
-	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
-	segs, err := msger.GetPathSegs(ctx, r, cPS, id)
-	if err != nil {
-		return nil, err
-	}
-	h.verifyAndStore(ctx, cPS, ignore, segs.Recs.Recs, segs.Recs.SRevInfos)
-	return segs, nil
-}
-
-func (h *segReqLocalHandler) corePSAddr(ctx context.Context) (net.Addr, error) {
-	upSegs, err := h.upSegs(ctx)
-	if err != nil {
-		return nil, err
+	if !core.IsZero() {
+		upSegs = filterSegs(upSegs, func(s *seg.PathSegment) bool {
+			return s.FirstIA().Eq(core)
+		})
 	}
 	if len(upSegs) < 1 {
 		// TODO(lukedirtwalker): We should hold the request until the timeout of the context,
@@ -271,5 +247,5 @@ func (h *segReqLocalHandler) corePSAddr(ctx context.Context) (net.Addr, error) {
 	if len(paths) < 1 {
 		return nil, common.NewBasicError("No path to local cPS", nil)
 	}
-	return h.addrFromPath(paths, dstIA)
+	return h.addrFromPath(paths[0], dstIA)
 }

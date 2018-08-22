@@ -1,0 +1,106 @@
+{
+  "ISD_AS": "1-ff00:0:132",
+  "Overlay": "UDP/IPv4",
+  "ZookeeperService": {
+    "1": {
+      "Addr": "127.0.0.1",
+      "L4Port": 2181
+    }
+  },
+  "BorderRouters": {
+    "br1-ff00_0_132-1": {
+      "InternalAddr": {
+        "Public": [
+          {
+            "Addr": "127.0.0.161",
+            "L4Port": 30052
+          }
+        ]
+      },
+      "Interfaces": {
+        "1916": {
+          "LinkTo": "PARENT",
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "1-ff00:0:131",
+          "MTU": 1472,
+          "Bandwidth": 1000,
+          "Remote": {
+            "Addr": "127.0.0.30",
+            "L4Port": 50000
+          },
+          "Public": {
+            "Addr": "127.0.0.31",
+            "L4Port": 50000
+          }
+        }
+      }
+    },
+    "br1-ff00_0_132-2": {
+      "InternalAddr": {
+        "Public": [
+          {
+            "Addr": "127.0.0.162",
+            "L4Port": 30093
+          }
+        ]
+      },
+      "Interfaces": {
+        "1910": {
+          "LinkTo": "CHILD",
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "1-ff00:0:133",
+          "MTU": 1472,
+          "Bandwidth": 1000,
+          "Remote": {
+            "Addr": "127.0.0.33",
+            "L4Port": 50000
+          },
+          "Public": {
+            "Addr": "127.0.0.32",
+            "L4Port": 50000
+          }
+        }
+      }
+    }
+  },
+  "CertificateService": {
+    "cs1-ff00_0_132-1": {
+      "Public": [
+        {
+          "Addr": "127.0.0.164",
+          "L4Port": 30063
+        }
+      ]
+    }
+  },
+  "BeaconService": {
+    "bs1-ff00_0_132-1": {
+      "Public": [
+        {
+          "Addr": "127.0.0.163",
+          "L4Port": 30088
+        }
+      ]
+    }
+  },
+  "Core": false,
+  "MTU": 1472,
+  "PathService": {
+    "ps1-ff00_0_132-2": {
+      "Public": [
+        {
+          "Addr": "127.0.0.166",
+          "L4Port": 30069
+        }
+      ]
+    },
+    "ps1-ff00_0_132-1": {
+      "Public": [
+        {
+          "Addr": "127.0.0.165",
+          "L4Port": 30066
+        }
+      ]
+    }
+  }
+}

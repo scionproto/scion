@@ -111,7 +111,7 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 
 // XXX(lukedirtwalker): very similar to segReqCoreHandler version.
 func (h *segRegHandler) corePSAddr(ctx context.Context, dstIA addr.IA) (net.Addr, error) {
-	coreSegs, err := h.dbSegs(ctx, &query.Params{
+	coreSegs, err := h.fetchSegsFromDB(ctx, &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_core},
 		StartsAt: []addr.IA{dstIA},
 		EndsAt:   []addr.IA{h.localIA},
@@ -126,5 +126,5 @@ func (h *segRegHandler) corePSAddr(ctx context.Context, dstIA addr.IA) (net.Addr
 	if len(paths) < 1 {
 		return nil, common.NewBasicError("No path to local cPS", nil)
 	}
-	return h.addrFromPath(paths, dstIA)
+	return h.addrFromPath(paths[0], dstIA)
 }
