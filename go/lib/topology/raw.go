@@ -64,13 +64,15 @@ func (ras RawSrvInfo) String() string {
 }
 
 type RawBRInfo struct {
-	InternalAddrs RawAddrMap
+	InternalAddrs *RawAddrMap
+	CtrlAddr      *RawAddrMap
 	Interfaces    map[common.IFIDType]*RawBRIntf
 }
 
 func (b RawBRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", b.InternalAddrs))
+	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nControl addrs:\n  %s\nInterfaces:",
+		b.InternalAddrs, b.CtrlAddr))
 	for ifid, intf := range b.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}

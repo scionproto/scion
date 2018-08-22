@@ -761,13 +761,22 @@ class TopoGenerator(object):
     def _gen_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
                       local_br, remote_br):
         public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid)
+        int_addr = self._reg_addr(local, local_br)
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
                 'InternalAddrs': {
                     self.addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(local, local_br),
+                            'Addr': int_addr,
+                            'L4Port': random.randint(30050, 30100),
+                        }
+                    }
+                },
+                'CtrlAddr': {
+                    self.addr_type: {
+                        'Public': {
+                            'Addr': int_addr,
                             'L4Port': random.randint(30050, 30100),
                         }
                     }

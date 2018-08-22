@@ -40,8 +40,7 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, 
 	rp.TimeIn = time.Now()
 	rp.Id = log.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
-	rp.DirFrom = rcmn.DirSelf
-	rp.DirTo = dirTo
+	rp.DirFrom = rcmn.DirLocal
 	// Fill in common header.
 	rp.CmnHdr.DstType = sp.DstHost.Type()
 	rp.CmnHdr.SrcType = sp.SrcHost.Type()

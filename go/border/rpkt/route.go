@@ -51,14 +51,13 @@ func (rp *RtrPkt) Route() error {
 		case ret == HookContinue:
 			continue
 		case ret == HookFinish:
-			// HookFinish in this context means "the packet has already been
-			// routed".
+			// HookFinish in this context means "the packet has already been routed".
 			return nil
 		}
 	}
 	if len(rp.Egress) == 0 {
 		return common.NewBasicError("No routing information found", nil,
-			"egress", rp.Egress, "dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
+			"egress", rp.Egress, "dirFrom", rp.DirFrom, "raw", rp.Raw)
 	}
 	rp.RefInc(len(rp.Egress))
 	// Call all egress functions.
@@ -157,9 +156,6 @@ func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
 }
 
 func (rp *RtrPkt) forward() (HookResult, error) {
-	if rp.DirTo == rcmn.DirSelf {
-		return rp.forwardToLocalDispatcher()
-	}
 	switch rp.DirFrom {
 	case rcmn.DirExternal:
 		return rp.forwardFromExternal()
@@ -171,14 +167,8 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 	}
 }
 
-func (rp *RtrPkt) forwardToLocalDispatcher() (HookResult, error) {
-	l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
-	dst, err := overlay.NewOverlayAddr(rp.dstHost, l4)
-	if err != nil {
-		return HookError, err
-	}
-	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
-	return HookContinue, nil
+func (rp *RtrPkt) drop() (HookResult, error) {
+	return HookFinish, nil
 }
 
 // forwardFromExternal forwards packets that have been received from a neighbouring ISD-AS.
@@ -217,9 +207,8 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
-	// XXX (sgmonroy) this would need to change with the Control/Data plane split.
-	// Currently, the BR ignores the OverlayPort value from the topology and always
-	// uses the L4Port as the Overlay port.
+	// XXX (sgmonroy) BR ignores the OverlayPort value from the topology and
+	// always uses the L4Port as the Overlay port.
 	dstPub := nextBR.InternalAddrs.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
 	dst, err := overlay.NewOverlayAddr(dstPub.L3, dstPub.L4)
 	if err != nil {
