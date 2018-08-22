@@ -178,16 +178,16 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	if c.net == "udp4" {
 		// Extract remote address
 		remote = &Addr{
-			IA: pkt.SrcIA,
+			IA:   pkt.SrcIA,
+			Path: pkt.Path,
 		}
-		// Extract path and last hop
+		// Extract path
+		if err = remote.Path.Reverse(); err != nil {
+			return 0, nil, common.NewBasicError("Unable to reverse path on received packet", err)
+		}
+		// Extract last hop
 		if lastHop != nil {
-			path := pkt.Path
-			if err = path.Reverse(); err != nil {
-				return 0, nil,
-					common.NewBasicError("Unable to reverse path on received packet", err)
-			}
-			remote.Path = path
+			// XXX When do we not get a lastHop?
 			// Copy the address to prevent races. See
 			// https://github.com/scionproto/scion/issues/1659.
 			remote.NextHop = lastHop.Copy()
@@ -275,33 +275,34 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 	c.writeMutex.Lock()
 	defer c.writeMutex.Unlock()
 	var err error
-	var path *spath.Path
-	var nextHop *overlay.OverlayAddr
-	// If src and dst are in the same AS, the path will be empty
-	if !c.laddr.IA.Eq(raddr.IA) {
-		if raddr.Path != nil && raddr.NextHop != nil {
-			path = raddr.Path
-			nextHop = raddr.NextHop
-		} else {
-			if c.scionNet.pathResolver == nil {
-				return 0, common.NewBasicError("Path required, but no path manager configured", nil)
-			}
-
-			pathEntry, err := c.selectPathEntry(raddr)
-			if err != nil {
-				return 0, err
-			}
-			path = spath.New(pathEntry.Path.FwdPath)
-			nextHop, err = pathEntry.HostInfo.Overlay()
-			if err != nil {
-				return 0, common.NewBasicError("Unsupported Overlay Addr", err,
-					"addr", pathEntry.HostInfo)
-			}
-			err = path.InitOffsets()
-			if err != nil {
-				return 0, common.NewBasicError("Unable to initialize path", err)
-			}
+	path := raddr.Path
+	nextHop := raddr.NextHop
+	emptyPath := path == nil || len(path.Raw) == 0
+	if !emptyPath && nextHop == nil {
+		return 0, common.NewBasicError("NextHop required with Path", nil)
+	}
+	if !c.laddr.IA.Eq(raddr.IA) && emptyPath {
+		if c.scionNet.pathResolver == nil {
+			return 0, common.NewBasicError("Path required, but no path manager configured", nil)
 		}
+
+		pathEntry, err := c.selectPathEntry(raddr)
+		if err != nil {
+			return 0, err
+		}
+		path = spath.New(pathEntry.Path.FwdPath)
+		nextHop, err = pathEntry.HostInfo.Overlay()
+		if err != nil {
+			return 0, common.NewBasicError("Unsupported Overlay Addr", err,
+				"addr", pathEntry.HostInfo)
+		}
+		err = path.InitOffsets()
+		if err != nil {
+			return 0, common.NewBasicError("Unable to initialize path", err)
+		}
+	} else if c.laddr.IA.Eq(raddr.IA) && !emptyPath {
+		// If src and dst are in the same AS, the path should be empty
+		return 0, common.NewBasicError("Path should be nil when sending to local AS", err)
 	}
 	// Prepare packet fields
 	udpHdr := &l4.UDP{
@@ -324,10 +325,8 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 		return 0, common.NewBasicError("Unable to serialize SCION packet", err)
 	}
 	// Construct overlay next-hop
-	if path == nil {
+	if nextHop == nil {
 		// Overlay next-hop is destination
-		// XXX Currently we cannot send packets to BR without path.
-		// XXX This should get fixed once ControlPlane is on top of dispatcher.
 		nextHop, err = overlay.NewOverlayAddr(pkt.DstHost, addr.NewL4UDPInfo(overlay.EndhostPort))
 		if err != nil {
 			return 0, common.NewBasicError("Bad overlay address", err, "Host", pkt.DstHost)
