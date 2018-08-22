@@ -226,6 +226,10 @@ func Test_IFInfoMap(t *testing.T) {
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
+		CtrlAddr: &TopoAddr{
+			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
+			Overlay: overlay.IPv46},
 		Overlay: overlay.UDPIPv4,
 		Local: &TopoAddr{
 			IPv4:    mkPBOv4("192.0.2.1", 44997, "10.0.0.1", 30090, 44997),
@@ -243,6 +247,10 @@ func Test_IFInfoMap(t *testing.T) {
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
+		CtrlAddr: &TopoAddr{
+			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
+			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv6,
 		Local: &TopoAddr{
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 50000, "2001:db8:a0b:12f0::8", 10000, 0),
@@ -259,6 +267,10 @@ func Test_IFInfoMap(t *testing.T) {
 		InternalAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
+			Overlay: overlay.IPv46},
+		CtrlAddr: &TopoAddr{
+			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv4,
 		Local: &TopoAddr{
@@ -289,6 +301,10 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
+		CtrlAddr: &TopoAddr{
+			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
+			Overlay: overlay.IPv46},
 		Overlay: overlay.UDPIPv4,
 		Local: &TopoAddr{
 			IPv4:    mkPBOv4("192.0.2.1", 4997, "10.0.0.1", 3090, 4997),
@@ -305,6 +321,10 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 		InternalAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.2", 3097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::2", 3097, "", 0, 0),
+			Overlay: overlay.IPv46},
+		CtrlAddr: &TopoAddr{
+			IPv4:    mkPBOv4("10.1.0.2", 3098, "", 0, 0),
+			IPv6:    mkPBOv6("2001:db8:a0b:12f0::2", 3098, "", 0, 0),
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv6,
 		Local: &TopoAddr{
