@@ -768,7 +768,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
                 br_addr, br_port = br.int_addrs.public
                 one_hop_path = self._create_one_hop_path(ifid)
                 meta = self._build_meta(ia=br.interfaces[ifid].isd_as, host=SVCType.BS_M,
-                        path=one_hop_path, one_hop=True)
+                                        path=one_hop_path, one_hop=True)
                 self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
                                meta, (br_addr, br_port))
 
