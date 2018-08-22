@@ -56,8 +56,6 @@ def parse_extensions(data, next_hdr):
             "!BBB", data.pop(ExtensionHeader.SUBHDR_LEN))
         # Calculate correct hdr_len in bytes
         hdr_len *= ExtensionHeader.LINE_LEN
-        logging.debug("Found extension hdr of type (%d, %d) with len %dB",
-                      cur_hdr_type, ext_no, hdr_len)
         ext_class = EXTENSION_MAP.get((cur_hdr_type, ext_no))
         ext_data = data.pop(hdr_len - ExtensionHeader.SUBHDR_LEN)
         if ext_class:

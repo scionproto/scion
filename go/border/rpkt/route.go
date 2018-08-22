@@ -24,12 +24,14 @@ import (
 
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -127,7 +129,37 @@ func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC) (HookResult, error) {
 	return HookContinue, nil
 }
 
+// getSVCNamesMap returns the slice of instance names and addresses for a given
+// SVC address.
+func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
+	[]string, map[string]topology.TopoAddr, error) {
+	t := ctx.Conf.Topo
+	var names []string
+	var elemMap map[string]topology.TopoAddr
+	switch svc.Base() {
+	case addr.SvcBS:
+		names, elemMap = t.BSNames, t.BS
+	case addr.SvcPS:
+		names, elemMap = t.PSNames, t.PS
+	case addr.SvcCS:
+		names, elemMap = t.CSNames, t.CS
+	case addr.SvcSB:
+		names, elemMap = t.SBNames, t.SB
+	default:
+		return nil, nil, common.NewBasicError("Unsupported SVC address",
+			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
+	}
+	if len(elemMap) == 0 {
+		return nil, nil, common.NewBasicError("No instances found for SVC address",
+			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
+	}
+	return names, elemMap, nil
+}
+
 func (rp *RtrPkt) forward() (HookResult, error) {
+	if rp.DirTo == rcmn.DirSelf {
+		return rp.forwardToLocalDispatcher()
+	}
 	switch rp.DirFrom {
 	case rcmn.DirExternal:
 		return rp.forwardFromExternal()
@@ -137,6 +169,16 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 		return HookError, common.NewBasicError("Unsupported forwarding DirFrom", nil,
 			"dirFrom", rp.DirFrom)
 	}
+}
+
+func (rp *RtrPkt) forwardToLocalDispatcher() (HookResult, error) {
+	l4 := addr.NewL4UDPInfo(overlay.EndhostPort)
+	dst, err := overlay.NewOverlayAddr(rp.dstHost, l4)
+	if err != nil {
+		return HookError, err
+	}
+	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
+	return HookContinue, nil
 }
 
 // forwardFromExternal forwards packets that have been received from a neighbouring ISD-AS.
