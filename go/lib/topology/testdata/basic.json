@@ -11,6 +11,12 @@
                 "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30097}},
                 "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30097}}
             },
+            "CtrlAddr": {
+                  "Public": [
+                    {"Addr": "10.1.0.1", "L4Port": 30098},
+                    {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098}
+                  ]
+            },
             "Interfaces": {
                 "1": {
                     "Overlay": "UDP/IPv4",
