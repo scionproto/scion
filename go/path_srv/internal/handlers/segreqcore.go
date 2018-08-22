@@ -26,10 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -37,21 +34,12 @@ type segReqCoreHandler struct {
 	segReqHandler
 }
 
-func NewSegReqCoreHandler(pathDB conn.Conn, revCache revcache.RevCache,
-	topology *topology.Topo, trustStore *trust.Store) infra.Handler {
-
+func NewSegReqCoreHandler(args *HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &segReqCoreHandler{
 			segReqHandler: segReqHandler{
-				baseHandler: baseHandler{
-					request:    r,
-					pathDB:     pathDB,
-					revCache:   revCache,
-					trustStore: trustStore,
-					topology:   topology,
-					logger:     r.Logger,
-				},
-				localIA: topology.ISD_AS,
+				baseHandler: newBaseHandler(r, args),
+				localIA:     args.Topology.ISD_AS,
 			},
 		}
 		handler.Handle()
@@ -112,8 +100,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 	}
 	var coreSegs []*seg.PathSegment
 	// if request came from same AS also return core segs, to start of down segs.
-	if segReq.SrcIA().Eq(h.localIA) {
-		// TODO handle downSegs empty case!!!
+	if len(downSegs) > 0 && segReq.SrcIA().Eq(h.localIA) {
 		coreSegs, err = h.coreSegs(ctx, firstIAs(downSegs))
 		if err != nil {
 			h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)

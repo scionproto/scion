@@ -1098,7 +1098,7 @@ class GoGenerator(object):
             },
             'ps': {
                 'PathDB': os.path.join('gen-cache', '%s.path.db' % name),
-                'PathSync': True,
+                'SegSync': True,
             },
         }
         return raw_entry

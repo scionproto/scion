@@ -17,9 +17,7 @@ package handlers
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -44,6 +42,14 @@ const (
 	HandlerTimeout = 3 * time.Second
 )
 
+// HandlerArgs are the values required to create the path server's handlers.
+type HandlerArgs struct {
+	PathDB     conn.Conn
+	RevCache   revcache.RevCache
+	TrustStore infra.TrustStore
+	Topology   *topology.Topo
+}
+
 type baseHandler struct {
 	request    *infra.Request
 	pathDB     conn.Conn
@@ -51,6 +57,17 @@ type baseHandler struct {
 	trustStore infra.TrustStore
 	topology   *topology.Topo
 	logger     log.Logger
+}
+
+func newBaseHandler(request *infra.Request, args *HandlerArgs) *baseHandler {
+	return &baseHandler{
+		request:    request,
+		pathDB:     args.PathDB,
+		revCache:   args.RevCache,
+		trustStore: args.TrustStore,
+		topology:   args.Topology,
+		logger:     request.Logger,
+	}
 }
 
 // dbSegs gets segments from the path DB and filters revoked segments.
@@ -109,6 +126,8 @@ func (h *baseHandler) addrFromPath(paths []*combinator.Path, dstIA addr.IA) (net
 	}, nil
 }
 
+// ignore is a convenience function that can be passed into verifyAndStore if no further action
+// should be taken when a segment was verified.
 func ignore(context.Context, *seg.Meta) {}
 
 func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
@@ -191,53 +210,6 @@ func extractIAs(segs []*seg.PathSegment, extract func(*seg.PathSegment) addr.IA)
 		}
 	}
 	return ias
-}
-
-// print helper
-func segRecs(sr *path_mgmt.SegRecs) string {
-	desc := []string{"Recs:"}
-	for _, m := range sr.Recs {
-		desc = append(desc, fmt.Sprintf("%v: %v", m.Type, hopDesc(&m.Segment)))
-	}
-	if len(sr.SRevInfos) > 0 {
-		desc = append(desc, "RevInfos")
-		for _, info := range sr.SRevInfos {
-			desc = append(desc, revInfo(info))
-		}
-	}
-	return strings.Join(desc, "\n")
-}
-
-// print helper
-func revInfo(rv *path_mgmt.SignedRevInfo) string {
-	i, err := rv.RevInfo()
-	if err != nil {
-		return fmt.Sprintf("unable to get revInfo: %v", err)
-	}
-	return i.String()
-}
-
-// print helper
-func hopDesc(ps *seg.PathSegment) string {
-	hopsDesc := []string{}
-	for _, ase := range ps.ASEntries {
-		hopEntry := ase.HopEntries[0]
-		hop, err := hopEntry.HopField()
-		if err != nil {
-			hopsDesc = append(hopsDesc, err.Error())
-			continue
-		}
-		hopDesc := []string{}
-		if hop.ConsIngress > 0 {
-			hopDesc = append(hopDesc, fmt.Sprintf("%v ", hop.ConsIngress))
-		}
-		hopDesc = append(hopDesc, ase.IA().String())
-		if hop.ConsEgress > 0 {
-			hopDesc = append(hopDesc, fmt.Sprintf(" %v", hop.ConsEgress))
-		}
-		hopsDesc = append(hopsDesc, strings.Join(hopDesc, ""))
-	}
-	return strings.Join(hopsDesc, ">")
 }
 
 type segInterface struct {

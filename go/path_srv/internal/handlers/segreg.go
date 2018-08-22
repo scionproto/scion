@@ -25,34 +25,22 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
 type segRegHandler struct {
-	baseHandler
+	*baseHandler
 	localIA  addr.IA
 	syncDown bool
 }
 
-func NewSegRegHandler(pathDB conn.Conn, revCache revcache.RevCache, trustStore infra.TrustStore,
-	topology *topology.Topo, syncDown bool) infra.Handler {
-
+func NewSegRegHandler(args *HandlerArgs, syncDown bool) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &segRegHandler{
-			baseHandler: baseHandler{
-				request:    r,
-				pathDB:     pathDB,
-				revCache:   revCache,
-				trustStore: trustStore,
-				topology:   topology,
-				logger:     r.Logger,
-			},
-			localIA:  topology.ISD_AS,
-			syncDown: syncDown,
+			baseHandler: newBaseHandler(r, args),
+			localIA:     args.Topology.ISD_AS,
+			syncDown:    syncDown,
 		}
 		handler.Handle()
 	}
@@ -70,7 +58,7 @@ func (h *segRegHandler) Handle() {
 		h.logger.Error("[segRegHandler] Failed to parse message", "err", err)
 		return
 	}
-	h.logger.Debug("[segRegHandler] Received message", "seg", segRecs(segReg.SegRecs))
+	h.logger.Debug("[segRegHandler] Received message", "seg", segReg.SegRecs)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	h.verifyAndStore(subCtx, h.request.Peer, h.forwardDownSegs, segReg.Recs, segReg.SRevInfos)
@@ -80,6 +68,9 @@ func (h *segRegHandler) Handle() {
 // the whole verification is done and the segments are stored.
 // XXX(lukedirtwalker): if verifyAndStore returns all verified stuff,
 // we should send segSync only once.
+// TODO(lukedirtwalker): we should use a new context for this. As also commented above,
+// it probably makes more sense to only forward after everything has been verified,
+// with a new context.
 func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 	if !h.syncDown || sm.Type == proto.PathSegType_core || sm.Type == proto.PathSegType_up {
 		return

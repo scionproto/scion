@@ -103,13 +103,13 @@ func insertSegs(t *testing.T, conn conn.Conn, segs []*seg.PathSegment, st proto.
 func expectedSegs(ups, cores, downs []*seg.PathSegment) []*seg.Meta {
 	e := make([]*seg.Meta, 0, len(ups)+len(cores)+len(downs))
 	for _, u := range ups {
-		e = append(e, &seg.Meta{Type: proto.PathSegType_up, Segment: *u})
+		e = append(e, &seg.Meta{Type: proto.PathSegType_up, Segment: u})
 	}
 	for _, c := range cores {
-		e = append(e, &seg.Meta{Type: proto.PathSegType_core, Segment: *c})
+		e = append(e, &seg.Meta{Type: proto.PathSegType_core, Segment: c})
 	}
 	for _, d := range downs {
-		e = append(e, &seg.Meta{Type: proto.PathSegType_down, Segment: *d})
+		e = append(e, &seg.Meta{Type: proto.PathSegType_down, Segment: d})
 	}
 	return e
 }
@@ -289,7 +289,7 @@ func TestSegReqLocal(t *testing.T) {
 				)
 				h := &segReqLocalHandler{
 					segReqHandler: segReqHandler{
-						baseHandler: baseHandler{
+						baseHandler: &baseHandler{
 							request:    req,
 							pathDB:     db,
 							revCache:   memrevcache.New(time.Minute, time.Minute),
