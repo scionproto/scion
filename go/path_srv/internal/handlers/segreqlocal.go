@@ -28,10 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -42,21 +39,12 @@ type segReqLocalHandler struct {
 	segReqHandler
 }
 
-func NewSegReqLocalHandler(pathDB conn.Conn, revCache revcache.RevCache,
-	topology *topology.Topo, trustStore *trust.Store) infra.Handler {
-
+func NewSegReqLocalHandler(args *HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &segReqLocalHandler{
 			segReqHandler: segReqHandler{
-				baseHandler: baseHandler{
-					request:    r,
-					pathDB:     pathDB,
-					revCache:   revCache,
-					trustStore: trustStore,
-					topology:   topology,
-					logger:     r.Logger,
-				},
-				localIA: topology.ISD_AS,
+				baseHandler: newBaseHandler(r, args),
+				localIA:     args.Topology.ISD_AS,
 			},
 		}
 		handler.Handle()
@@ -119,7 +107,14 @@ func (h *segReqLocalHandler) handleCoreDst(ctx context.Context, segReq *path_mgm
 	h.logger.Debug("[segReqHandler] handleCoreDst", "remote", !h.dstLocal)
 	upSegs, err := h.upSegs(ctx)
 	if err != nil {
-		h.logger.Error("Failed to find up segments", "err", err)
+		h.logger.Error("[segReqHandler] Failed to find up segments", "err", err)
+		h.sendEmptySegReply(ctx, segReq, msger)
+		return
+	}
+	if len(upSegs) == 0 {
+		// TODO(lukedirtwalker): We should hold the request until the timeout of the context,
+		// and continue processing as soon as we have up segments.
+		h.logger.Warn("[segReqHandler] No up segments found")
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
@@ -130,7 +125,7 @@ func (h *segReqLocalHandler) handleCoreDst(ctx context.Context, segReq *path_mgm
 		if !src.Eq(dst) {
 			res, err := h.coreSegs(ctx, msger, src, dst, segReq.Flags.CacheOnly)
 			if err != nil {
-				h.logger.Error("Failed to find core segs", "err", err)
+				h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
 				continue
 			}
 			coreSegs = append(coreSegs, res...)
@@ -152,6 +147,13 @@ func (h *segReqLocalHandler) handleNonCoreDst(ctx context.Context, segReq *path_
 	upSegs, err := h.upSegs(ctx)
 	if err != nil {
 		h.logger.Error("Failed to find up segs", "err", err)
+		h.sendEmptySegReply(ctx, segReq, msger)
+		return
+	}
+	if len(downSegs) == 0 {
+		// TODO(lukedirtwalker): We should hold the request until the timeout of the context,
+		// and continue processing as soon as we have down segments.
+		h.logger.Warn("[segReqHandler] No down segments found")
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
@@ -259,6 +261,8 @@ func (h *segReqLocalHandler) corePSAddr(ctx context.Context) (net.Addr, error) {
 		return nil, err
 	}
 	if len(upSegs) < 1 {
+		// TODO(lukedirtwalker): We should hold the request until the timeout of the context,
+		// and continue processing as soon as we have up segments.
 		return nil, common.NewBasicError("No up segments found!", nil)
 	}
 	// select random reachable core AS.

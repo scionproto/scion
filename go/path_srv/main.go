@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -38,7 +37,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -50,8 +48,10 @@ type Config struct {
 	Trust   env.Trust
 	Infra   env.Infra
 	PS      struct {
-		PathSync bool
-		PathDB   string
+		// SegSync enables the "old" replication of down segments between cores,
+		// using SegSync messages.
+		SegSync bool
+		PathDB  string
 	}
 }
 
@@ -89,20 +89,23 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
-	trustConf := &trust.Config{LocalCSes: csAddresses(config.General.Topology)}
-	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS,
+	topo := config.General.Topology
+	trustConf := &trust.Config{
+		LocalCSes: topo.GetAllServerAddresses(proto.ServiceType_cs),
+	}
+	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
 		rand.Uint64(), trustConf, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = snet.Init(config.General.Topology.ISD_AS, "", "")
+	err = snet.Init(topo.ISD_AS, "", "")
 	if err != nil {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	topoAddress := config.General.Topology.GetTopoAddr(proto.ServiceType_ps, config.General.ID)
-	publicAddr := env.GetPublicSnetAddress(config.General.Topology.ISD_AS, topoAddress)
+	topoAddress := topo.GetTopoAddr(proto.ServiceType_ps, config.General.ID)
+	publicAddr := env.GetPublicSnetAddress(topo.ISD_AS, topoAddress)
 	// Use nil bind addr, since it is the same as the public addr,
 	// and that would lead to a dispatcher problem.
 	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, nil, addr.SvcPS)
@@ -116,7 +119,7 @@ func realMain() int {
 		return 1
 	}
 	msger := messenger.New(
-		config.General.Topology.ISD_AS,
+		topo.ISD_AS,
 		disp.New(
 			transport.NewPacketTransport(conn),
 			messenger.DefaultAdapter,
@@ -129,25 +132,29 @@ func realMain() int {
 	revCache := memrevcache.New(cache.NoExpiration, time.Second)
 	trustStore.SetMessenger(msger)
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
+	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
+	// and cert requests.
 	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
-	core := config.General.Topology.Core
+	args := &handlers.HandlerArgs{
+		PathDB:     pathDB,
+		RevCache:   revCache,
+		TrustStore: trustStore,
+		Topology:   topo,
+	}
+	core := topo.Core
 	var segReqHandler infra.Handler
 	if core {
-		segReqHandler = handlers.NewSegReqCoreHandler(pathDB, revCache,
-			config.General.Topology, trustStore)
+		segReqHandler = handlers.NewSegReqCoreHandler(args)
 	} else {
-		segReqHandler = handlers.NewSegReqLocalHandler(pathDB, revCache,
-			config.General.Topology, trustStore)
+		segReqHandler = handlers.NewSegReqLocalHandler(args)
 	}
 	msger.AddHandler(infra.PathSegmentRequest, segReqHandler)
 	msger.AddHandler(infra.PathSegmentRegistration,
-		handlers.NewSegRegHandler(pathDB, revCache, trustStore, config.General.Topology,
-			config.PS.PathSync && core))
-	if config.PS.PathSync && core {
-		msger.AddHandler(infra.PathSynchronization,
-			handlers.NewSyncHandler(pathDB, revCache, trustStore,
-				config.General.Topology.ISD_AS))
+		handlers.NewSegRegHandler(args, config.PS.SegSync && core))
+	if config.PS.SegSync && core {
+		msger.AddHandler(infra.PathSynchronization, handlers.NewSyncHandler(args))
 	}
+	msger.AddHandler(infra.PathSegmentRevocation, handlers.NewRevocHandler(args))
 	// Create a channel where prometheus can signal fatal errors
 	fatalC := make(chan error, 1)
 	config.Metrics.StartPrometheus(fatalC)
@@ -159,11 +166,9 @@ func realMain() int {
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
-		// Deferred shutdowns for all running servers run now.
 		return 0
 	case err := <-fatalC:
-		// At least one of the servers was unable to run or encountered a
-		// fatal error while running.
+		// Prometheus encountered a fatal error, thus we exit.
 		log.Crit("Unable to listen and serve", "err", err)
 		return 1
 	}
@@ -184,24 +189,4 @@ func setup(configName string) error {
 	}
 	environment = env.SetupEnv(nil)
 	return nil
-}
-
-// csAddresses returns addresses of CSes in the given topo.
-func csAddresses(t *topology.Topo) []net.Addr {
-	cses := make([]net.Addr, 0, len(t.CS))
-	for _, cs := range t.CS {
-		appAddr := cs.PublicAddr(t.Overlay)
-		cses = append(cses, &snet.Addr{
-			IA:   t.ISD_AS,
-			Host: appAddr,
-		})
-	}
-	return cses
-}
-
-type logWriter struct{}
-
-func (l logWriter) Write(p []byte) (int, error) {
-	log.Warn(string(p))
-	return len(p), nil
 }
