@@ -224,8 +224,9 @@ func mkErrorTestsSingle(ot overlay.Type) []errorTest {
 			[]testRAIOver{{"bad pub ip", 40000, 0}}, nil, ErrInvalidPub),
 		mkErrorTest("bind parse error", info.pubs,
 			[]RawAddrPort{{"bad bind ip", 40002}}, ErrInvalidBind),
-		mkErrorTest("no addrs", nil, nil, ErrExactlyOnePub),
-		mkErrorTest("no pub addr", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6),
+		mkErrorTest("no addrs", nil, nil, ErrExactlyOnePub, ErrAtLeastOnePub),
+		mkErrorTest("no pub addr", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6,
+			ErrAtLeastOnePub),
 		mkErrorTest("too many pub addrs", append(info.pubs, info.pubs[0]), nil,
 			ErrTooManyPubV4, ErrTooManyPubV6),
 		mkErrorTest("too many bind addrs", info.pubs, append(info.binds, info.binds[0]),
@@ -248,7 +249,8 @@ func mkErrorTestsDual(ot overlay.Type) []errorTest {
 	info := over_info[ot]
 	tests := []errorTest{
 		mkErrorTest("no addrs", nil, nil, ErrAtLeastOnePub),
-		mkErrorTest("no pub addrs", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6),
+		mkErrorTest("no pub addrs", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6,
+			ErrAtLeastOnePub),
 		mkErrorTest("too many pub v4", append(info.pubs, info.pubs[0]), nil, ErrTooManyPubV4),
 		mkErrorTest("too many pub v6", append(info.pubs, info.pubs[1]), nil, ErrTooManyPubV6),
 		mkErrorTest("too many bind v4", info.pubs, append(info.binds, info.binds[0]),
