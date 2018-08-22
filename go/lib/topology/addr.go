@@ -25,17 +25,18 @@ import (
 )
 
 const (
-	ErrInvalidPub       = "Invalid public IP address in topology"
-	ErrInvalidBind      = "Invalid bind IP address in topology"
-	ErrTooManyPubV4     = "Too many public IPv4 addresses"
-	ErrTooManyPubV6     = "Too many public IPv6 addresses"
-	ErrTooManyBindV4    = "Too many bind IPv4 addresses"
-	ErrTooManyBindV6    = "Too many bind IPv6 addresses"
-	ErrBindWithoutPubV4 = "Bind IPv4 address without any public IPv4 address"
-	ErrBindWithoutPubV6 = "Bind IPv6 address without any public IPv6 address"
-	ErrExactlyOnePub    = "Overlay requires exactly one public address"
-	ErrAtLeastOnePub    = "Overlay requires at least one public address"
-	ErrOverlayPort      = "Overlay port set for non-UDP overlay"
+	ErrInvalidPub        = "Invalid public IP address in topology"
+	ErrInvalidBind       = "Invalid bind IP address in topology"
+	ErrTooManyPubV4      = "Too many public IPv4 addresses"
+	ErrTooManyPubV6      = "Too many public IPv6 addresses"
+	ErrTooManyBindV4     = "Too many bind IPv4 addresses"
+	ErrTooManyBindV6     = "Too many bind IPv6 addresses"
+	ErrBindWithoutPubV4  = "Bind IPv4 address without any public IPv4 address"
+	ErrBindWithoutPubV6  = "Bind IPv6 address without any public IPv6 address"
+	ErrExactlyOnePub     = "Overlay requires exactly one public address"
+	ErrAtLeastOnePub     = "Overlay requires at least one public address"
+	ErrOverlayPort       = "Overlay port set for non-UDP overlay"
+	ErrBindAddrEqPubAddr = "Bind address equal to Public address"
 )
 
 type TopoAddr struct {
@@ -121,6 +122,17 @@ func (t *TopoAddr) fromRAI(s *RawAddrInfo) error {
 				return common.NewBasicError(ErrTooManyBindV6, nil, "addr", s)
 			}
 			t.IPv6.bind = &addr.AppAddr{L3: addr.HostIPv6(ip), L4: l4}
+		}
+	}
+	if t.IPv4 != nil {
+		if t.IPv4.bind.Eq(t.IPv4.pub) {
+			return common.NewBasicError(ErrBindAddrEqPubAddr, nil, "bindAddr", t.IPv4.bind,
+				"pubAddr", t.IPv4.pub)
+		}
+	} else if t.IPv6 != nil {
+		if t.IPv6.bind.Eq(t.IPv6.pub) {
+			return common.NewBasicError(ErrBindAddrEqPubAddr, nil, "bindAddr", t.IPv6.bind,
+				"pubAddr", t.IPv6.pub)
 		}
 	}
 	return nil
