@@ -174,4 +174,13 @@ func (rp *RtrPkt) setDirTo() {
 	} else {
 		rp.DirTo = rcmn.DirLocal
 	}
+	/* XXX
+	if !rp.dstIA.Eq(rp.Ctx.Conf.IA) && rp.DirFrom == rcmn.DirLocal {
+		// Packet is not destined to the local AS
+		rp.DirTo = rcmn.DirExternal
+	}
+	// If the packet is not destined to the local AS, the egress ifid could be in this router.
+	// We check this during forwarding and reprocess the packet faking the packet direction.
+	rp.DirTo = rcmn.DirLocal
+	*/
 }

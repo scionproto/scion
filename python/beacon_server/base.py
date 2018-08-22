@@ -420,7 +420,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         """
         pld = cpld.union
         assert isinstance(pld, IFIDPayload), type(pld)
-        ifid = pld.p.relayIF
+        # FIXME get ifid from OneHopPath extension
+        # Find OHP extension
+        # XXX Error if no OHP extension?
+        ifid = meta.pkt.path.get_hof().ingress_if
         with self.ifid_state_lock:
             if ifid not in self.ifid_state:
                 raise SCIONKeyError("Invalid IF %d in IFIDPayload" % ifid)
@@ -751,8 +754,10 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         server_metas = server_metas or []
         payload = CtrlPayload(PathMgmt(IFStatePayload.from_values(state_infos)))
         for meta in border_metas:
+            logging.debug("IFState update to BR %s:%d", meta.host, meta.port)
             self.send_meta(payload.copy(), meta, (meta.host, meta.port))
         for meta in server_metas:
+            logging.debug("IFState update to service %s:%d", meta.host, meta.port)
             self.send_meta(payload.copy(), meta)
 
     def _send_ifid_updates(self):
@@ -769,9 +774,11 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
             for ifid in self.ifid2br:
                 br = self.ifid2br[ifid]
                 br_addr, br_port = br.int_addrs.public
-                meta = self._build_meta(host=br_addr, port=br_port)
+                one_hop_path = self._create_one_hop_path(ifid)
+                meta = self._build_meta(ia=br.interfaces[ifid].isd_as, host=SVCType.BS_M,
+                        path=one_hop_path, one_hop=True)
                 self.send_meta(CtrlPayload(IFIDPayload.from_values(ifid)),
-                               meta, (meta.host, meta.port))
+                               meta, (br_addr, br_port))
 
     def _check_local_cert(self):
         while self.run_flag.is_set():

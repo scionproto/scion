@@ -5,5 +5,4 @@ $Go.import("github.com/scionproto/scion/go/proto");
 
 struct IFID {
    origIF @0 :UInt64;
-   relayIF @1 :UInt64;
 }

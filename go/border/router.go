@@ -54,8 +54,6 @@ type Router struct {
 	freePkts *ringbuf.Ring
 	// sRevInfoQ is a channel for handling SignedRevInfo payloads.
 	sRevInfoQ chan rpkt.RawSRevCallbackArgs
-	// iFID is a channel for handling IFID packets from the local BS
-	ifIDQ chan rpkt.IFIDCallbackArgs
 	// pktErrorQ is a channel for handling packet errors
 	pktErrorQ chan pktErrorArgs
 }
@@ -72,11 +70,10 @@ func NewRouter(id, confDir string) (*Router, error) {
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
 func (r *Router) Run() error {
-	go r.IFStateUpdate()
 	go r.RevInfoFwd()
-	go r.IFIDFwd()
 	go r.PacketError()
 	go r.confSig()
+	go r.Control()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
 	var wait chan struct{}
@@ -176,10 +173,8 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
-	// If the packet's destination is this router, there's no need to forward it.
-	if rp.DirTo != rcmn.DirSelf {
-		if err := rp.Route(); err != nil {
-			r.handlePktError(rp, err, "Error routing packet")
-		}
+	// Forward the packet. Even packets destined to self are forward to the local dispatcher.
+	if err := rp.Route(); err != nil {
+		r.handlePktError(rp, err, "Error routing packet")
 	}
 }

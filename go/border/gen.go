@@ -18,25 +18,14 @@
 package main
 
 import (
-	"time"
-
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/l4"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/spkt"
-)
-
-const (
-	// ifStateFreq is how often the router will request an Interface State update
-	// from the beacon service.
-	ifStateFreq = 30 * time.Second
 )
 
 // genPkt is a generic function to generate packets that originate at the router.
@@ -86,41 +75,4 @@ func (r *Router) genPkt(dstIA addr.IA, dst, src *addr.AppAddr, oAddr *overlay.Ov
 		rp.Egress = append(rp.Egress, rpkt.EgressPair{S: ctx.ExtSockOut[ifid]})
 	}
 	return rp.Route()
-}
-
-// IFStateUpdate handles generating periodic Interface State Request (IFStateReq)
-// packets that are sent to the local Beacon Service (BS), as well as
-// processing the Interface State updates. IFStateReqs are mostly needed on
-// startup, to make sure the border router is aware of the status of the local
-// interfaces. The BS normally updates the border routers everytime an
-// interface state changes, so this is only needed as a fail-safe after
-// startup.
-func (r *Router) IFStateUpdate() {
-	defer log.LogPanicAndExit()
-	r.genIFStateReq()
-	for range time.Tick(ifStateFreq) {
-		r.genIFStateReq()
-	}
-}
-
-// genIFStateReq generates an Interface State request packet to the local
-// beacon service.
-func (r *Router) genIFStateReq() {
-	ctx := rctx.Get()
-	// Pick first local address from topology as source.
-	src := ctx.Conf.Net.LocAddr.PublicAddr(ctx.Conf.Net.LocAddr.Overlay)
-	cpld, err := ctrl.NewPathMgmtPld(&path_mgmt.IFStateReq{}, nil, nil)
-	if err != nil {
-		log.Error("Error generating IFStateReq Ctrl payload", "err", err)
-		return
-	}
-	scpld, err := cpld.SignedPld(ctrl.NullSigner)
-	if err != nil {
-		log.Error("Error generating IFStateReq signed Ctrl payload", "err", err)
-		return
-	}
-	dst := &addr.AppAddr{L3: addr.SvcBS.Multicast(), L4: addr.NewL4UDPInfo(0)}
-	if err := r.genPkt(ctx.Conf.IA, dst, src, nil, scpld); err != nil {
-		log.Error("Error generating IFStateReq packet", "err", err)
-	}
 }
