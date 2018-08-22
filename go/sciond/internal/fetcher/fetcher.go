@@ -98,7 +98,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if err != nil {
 		return nil, common.NewBasicError("PS not found in topology", err)
 	}
-	psAppAddr := f.topology.PS.GetAddrOrNil(psID).PublicAddr(f.topology.Overlay)
+	psAppAddr := f.topology.PS.GetById(psID).PublicAddr(f.topology.Overlay)
 	if psAppAddr == nil {
 		return nil, common.NewBasicError("PS not found in topology", nil)
 	}

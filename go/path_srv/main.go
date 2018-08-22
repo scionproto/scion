@@ -23,8 +23,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/topology"
-
 	"github.com/BurntSushi/toml"
 	cache "github.com/patrickmn/go-cache"
 
@@ -40,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 )
 
@@ -106,7 +105,7 @@ func realMain() int {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	topoAddress := topo.PS.GetAddrOrNil(config.General.ID)
+	topoAddress := topo.PS.GetById(config.General.ID)
 	publicAddr := env.GetPublicSnetAddress(topo.ISD_AS, topoAddress)
 	bindAddr := env.GetBindSnetAddress(topo.ISD_AS, topoAddress)
 	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, bindAddr, addr.SvcPS)
