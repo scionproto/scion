@@ -17,8 +17,11 @@ package handlers
 import (
 	"context"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/topology"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -68,6 +71,12 @@ var (
 	seg220_210 = g.Beacon([]common.IFIDType{2221})
 	seg220_221 = g.Beacon([]common.IFIDType{2224})
 	seg220_222 = g.Beacon([]common.IFIDType{2224, 2426})
+
+	topoFiles = map[addr.IA]string{
+		as1_132: "topology_as1_132.json",
+		as2_211: "topology_as2_211.json",
+		as2_222: "topology_as2_222.json",
+	}
 )
 
 type testCase struct {
@@ -112,6 +121,16 @@ func expectedSegs(ups, cores, downs []*seg.PathSegment) []*seg.Meta {
 		e = append(e, &seg.Meta{Type: proto.PathSegType_down, Segment: d})
 	}
 	return e
+}
+
+func loadTopo(t *testing.T, ia addr.IA) *topology.Topo {
+	fileName, ok := topoFiles[ia]
+	if !ok {
+		t.Fatalf("Missing %v in topoFile maps", ia)
+	}
+	topo, err := topology.LoadFromFile(filepath.Join("testdata", fileName))
+	xtest.FailOnErr(t, err)
+	return topo
 }
 
 type mockTS struct {
@@ -294,6 +313,7 @@ func TestSegReqLocal(t *testing.T) {
 							pathDB:     db,
 							revCache:   memrevcache.New(time.Minute, time.Minute),
 							trustStore: defaultTS(),
+							topology:   loadTopo(t, tc.SrcIA),
 							logger:     req.Logger,
 						},
 						localIA:  tc.SrcIA,

@@ -1,0 +1,98 @@
+{
+  "ISD_AS": "2-ff00:0:222",
+  "Overlay": "UDP/IPv4",
+  "ZookeeperService": {
+    "1": {
+      "Addr": "127.0.0.1",
+      "L4Port": 2181
+    }
+  },
+  "BorderRouters": {
+    "br2-ff00_0_222-1": {
+      "InternalAddr": {
+        "Public": [
+          {
+            "Addr": "127.0.0.225",
+            "L4Port": 30071
+          }
+        ]
+      },
+      "Interfaces": {
+        "2623": {
+          "LinkTo": "PARENT",
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "2-ff00:0:211",
+          "MTU": 1472,
+          "Bandwidth": 1000,
+          "Remote": {
+            "Addr": "127.0.0.42",
+            "L4Port": 50000
+          },
+          "Public": {
+            "Addr": "127.0.0.43",
+            "L4Port": 50000
+          }
+        }
+      }
+    },
+    "br2-ff00_0_222-2": {
+      "InternalAddr": {
+        "Public": [
+          {
+            "Addr": "127.0.0.226",
+            "L4Port": 30093
+          }
+        ]
+      },
+      "Interfaces": {
+        "2624": {
+          "LinkTo": "PARENT",
+          "Overlay": "UDP/IPv4",
+          "ISD_AS": "2-ff00:0:221",
+          "MTU": 1472,
+          "Bandwidth": 1000,
+          "Remote": {
+            "Addr": "127.0.0.46",
+            "L4Port": 50000
+          },
+          "Public": {
+            "Addr": "127.0.0.47",
+            "L4Port": 50000
+          }
+        }
+      }
+    }
+  },
+  "CertificateService": {
+    "cs2-ff00_0_222-1": {
+      "Public": [
+        {
+          "Addr": "127.0.0.228",
+          "L4Port": 30064
+        }
+      ]
+    }
+  },
+  "BeaconService": {
+    "bs2-ff00_0_222-1": {
+      "Public": [
+        {
+          "Addr": "127.0.0.227",
+          "L4Port": 30093
+        }
+      ]
+    }
+  },
+  "Core": false,
+  "MTU": 1472,
+  "PathService": {
+    "ps2-ff00_0_222-1": {
+      "Public": [
+        {
+          "Addr": "127.0.0.229",
+          "L4Port": 30052
+        }
+      ]
+    }
+  }
+}
