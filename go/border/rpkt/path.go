@@ -93,6 +93,8 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 			"ifid", *ifid,
 		)
 	}
+	// FIXME ignore revocations for OneHopPath extension
+
 	state, ok := ifstate.LoadState(*ifid)
 	if !ok || state.Active || rp.DirTo == rcmn.DirSelf {
 		// Either the interface isn't revoked, or the packet is to this
