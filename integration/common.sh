@@ -14,7 +14,8 @@
 
 set -o pipefail
 
-REV_BRS="*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2"
+REV_BRS="*br1-ff00_0_110-3 *br2-ff00_0_222-2 *br1-ff00_0_111-2 *br1-ff00_0_111-3 *br1-ff00_0_131-2"
+REV_BRS="$REV_BRS *br2-ff00_0_220-2 *br2-ff00_0_210-4 *br2-ff00_0_212-1"
 
 log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"

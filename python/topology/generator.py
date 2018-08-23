@@ -630,8 +630,9 @@ class TopoGenerator(object):
         prvnet = self.prvnet_gen.register(topo_id)
         return prvnet.register(elem_id)
 
-    def _reg_link_addrs(self, local_br, remote_br):
+    def _reg_link_addrs(self, local_br, remote_br, local_ifid, remote_ifid):
         link_name = str(sorted((local_br, remote_br)))
+        link_name += str(sorted((local_ifid, remote_ifid)))
         subnet = self.subnet_gen.register(link_name)
         return subnet.register(local_br), subnet.register(remote_br)
 
@@ -651,28 +652,40 @@ class TopoGenerator(object):
         self._write_overlay()
         return self.topo_dicts, self.zookeepers, networks, prv_networks
 
+    def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
+        br_name = ep.br_name()
+        if br_name:
+            # BR with multiple interfaces, reuse assigned id
+            br_id = assigned_br_id.get(br_name)
+            if br_id is None:
+                # assign new id
+                br_ids[ep] += 1
+                assigned_br_id[br_name] = br_id = br_ids[ep]
+        else:
+            # BR with single interface
+            br_ids[ep] += 1
+            br_id = br_ids[ep]
+        br = "br%s-%d" % (ep.file_fmt(), br_id)
+        ifid = if_ids[ep].new()
+        return br, ifid
+
     def _read_links(self):
+        assigned_br_id = {}
         br_ids = defaultdict(int)
         if_ids = defaultdict(lambda: IFIDGenerator())
         if not self.topo_config.get("links", None):
             return
         for attrs in self.topo_config["links"]:
-            # Pop the basic attributes, then append the remainder to the link
-            # entry.
-            a = TopoID(attrs.pop("a"))
-            b = TopoID(attrs.pop("b"))
+            a = LinkEP(attrs.pop("a"))
+            b = LinkEP(attrs.pop("b"))
             linkto = linkto_a = linkto_b = attrs.pop("linkAtoB")
             if linkto.lower() == LinkType.CHILD:
                 linkto_a = LinkType.PARENT
                 linkto_b = LinkType.CHILD
-            br_ids[a] += 1
-            a_br = "br%s-%d" % (a.file_fmt(), br_ids[a])
-            a_ifid = if_ids[a].new()
-            br_ids[b] += 1
-            b_br = "br%s-%d" % (b.file_fmt(), br_ids[b])
-            b_ifid = if_ids[b].new()
-            self.links[a].append((linkto_b, b, attrs, a_br, b_br, a_ifid))
-            self.links[b].append((linkto_a, a, attrs, b_br, a_br, b_ifid))
+            a_br, a_ifid = self._br_name(a, assigned_br_id, br_ids, if_ids)
+            b_br, b_ifid = self._br_name(b, assigned_br_id, br_ids, if_ids)
+            self.links[a].append((linkto_b, b, attrs, a_br, b_br, a_ifid, b_ifid))
+            self.links[b].append((linkto_a, a, attrs, b_br, a_br, b_ifid, a_ifid))
             a_desc = "%s %s" % (a_br, a_ifid)
             b_desc = "%s %s" % (b_br, b_ifid)
             self.ifid_map.setdefault(str(a), {})
@@ -722,41 +735,46 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_br_entries(self, topo_id):
-        for (linkto, remote, attrs, local_br,
-             remote_br, ifid) in self.links[topo_id]:
-            self._gen_br_entry(topo_id, ifid, remote, linkto, attrs, local_br,
-                               remote_br)
+        for (linkto, remote, attrs, l_br, r_br, l_ifid, r_ifid) in self.links[topo_id]:
+            self._gen_br_entry(topo_id, l_ifid, remote, r_ifid, linkto, attrs, l_br, r_br)
 
-    def _gen_br_entry(self, local, ifid, remote, remote_type, attrs, local_br,
-                      remote_br):
-        public_addr, remote_addr = self._reg_link_addrs(
-            local_br, remote_br)
+    def _gen_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
+                      local_br, remote_br):
+        public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid)
 
-        self.topo_dicts[local]["BorderRouters"][local_br] = {
-            'InternalAddr': {
-                'Public': [{
-                    'Addr': self._reg_addr(local, local_br),
-                    'L4Port': random.randint(30050, 30100),
-                }]
-            },
-            'Interfaces': {
-                ifid: {  # Interface ID.
-                    'Overlay': self.overlay,
-                    'Public': {
-                        'Addr': public_addr,
-                        'L4Port': SCION_ROUTER_PORT
-                    },
-                    'Remote': {
-                        'Addr': remote_addr,
-                        'L4Port': SCION_ROUTER_PORT
-                    },
-                    'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
-                    'ISD_AS': str(remote),
-                    'LinkTo': LinkType.to_str(remote_type.lower()),
-                    'MTU': attrs.get('mtu', DEFAULT_MTU)
+        if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
+            self.topo_dicts[local]["BorderRouters"][local_br] = {
+                'InternalAddr': {
+                    'Public': [{
+                        'Addr': self._reg_addr(local, local_br),
+                        'L4Port': random.randint(30050, 30100),
+                    }]
+                },
+                'Interfaces': {
+                    l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
                 }
             }
-        }
+        else:
+            # There is already a BR entry, add interface
+            intf = self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
+            self.topo_dicts[local]["BorderRouters"][local_br]['Interfaces'][l_ifid] = intf
+
+    def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
+        return {
+            'Overlay': self.overlay,
+            'Public': {
+                'Addr': public_addr,
+                'L4Port': SCION_ROUTER_PORT
+                },
+            'Remote': {
+                'Addr': remote_addr,
+                'L4Port': SCION_ROUTER_PORT
+                },
+            'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
+            'ISD_AS': str(remote),
+            'LinkTo': LinkType.to_str(remote_type.lower()),
+            'MTU': attrs.get('mtu', DEFAULT_MTU)
+            }
 
     def _gen_zk_entries(self, topo_id, as_conf):
         zk_conf = {}
@@ -1328,6 +1346,22 @@ class TopoID(ISD_AS):
 
     def __repr__(self):
         return "<TopoID: %s>" % self
+
+
+class LinkEP(TopoID):
+    def __init__(self, raw):
+        self._brid = None
+        isd_as = raw
+        parts = raw.split("-")
+        if len(parts) == 3:
+            self._brid = parts[2]
+            isd_as = "%s-%s" % (parts[0], parts[1])
+        super().__init__(isd_as)
+
+    def br_name(self):
+        if self._brid is not None:
+            return "%s-%s" % (self.file_fmt(), self._brid)
+        return None
 
 
 class ZKTopo(object):
