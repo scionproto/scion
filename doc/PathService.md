@@ -16,6 +16,36 @@ The path service needs to handle multiple requests. We use the messenger to regi
 
 In the ISD-core the ASes must have the same set of down segments. A core PS in an AS should periodically request path changes (since last query) at the PSes in all other core ASes. Once the PS knows what changed, it should fetch the locally missing down segments.
 
+Message Types:
+
+```go
+type SegChangesIDReq struct {
+  LastCheck uint64
+}
+
+type SegIDs struct {
+  SegID common.RawBytes
+  FullID common.RawBytes
+}
+
+type SegChangesIDReply struct {
+  IDs []SegIDs
+}
+
+type SegChangesReq struct {
+  SegIDs []common.RawBytes
+}
+
+type SegChangesReply struct {
+  *SegRecs
+}
+```
+
+`FullID` is an ID that also considers peer fields and not only the hop fields as in the normal ID.
+Both sides should store the `SegID` and the `FullID` in their PathDB.
+The `SegChangesReq` will only contain the `ID` since it could be that the `FullID` has changed between the `SegChangesIDReply` and the `SegChangesReq`.
+If a `SegChangesReq` for an unknown `ID` is received an empty reply has to be sent back. The client can assume that this segment no longer exists.
+
 ## Deletion of expired path segments and revocations
 
 The PS should periodically delete expired path segments and revocations in its DB.
