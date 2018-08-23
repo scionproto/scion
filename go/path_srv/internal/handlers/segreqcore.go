@@ -106,9 +106,14 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		h.logger.Error("[segReqHandler] Failed to find down segs", "err", err)
 		return
 	}
+	if len(downSegs) == 0 {
+		h.logger.Debug("[segReqHandler] No downSegs found")
+		h.sendEmptySegReply(ctx, segReq, msger)
+		return
+	}
 	var coreSegs []*seg.PathSegment
 	// if request came from same AS also return core segs, to start of down segs.
-	if len(downSegs) > 0 && segReq.SrcIA().Eq(h.localIA) {
+	if segReq.SrcIA().Eq(h.localIA) {
 		coreSegs, err = h.fetchCoreSegsFromDB(ctx, firstIAs(downSegs))
 		if err != nil {
 			h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
