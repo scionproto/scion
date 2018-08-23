@@ -14,7 +14,7 @@ from io import open
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, '../README.md'), encoding='utf-8') as f:
+with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Arguments marked as "Required" below must be included for upload to PyPI.
@@ -32,7 +32,7 @@ setup(
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
-    version='0.0.1',  # Required
+    version='0.0.7',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -98,20 +98,11 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=[
-        'beacon_server',
-        'bin',
-        'cert_server',
-        'integration',
-        'lib',
-        'mininet',
-        'path_server',
-        'proto',
-        'scion_elem',
-        'sciond',
-        'sibra_server',
-        'topology'
-    ],  # Required
+    packages=find_packages(),
+    package_data={
+        '': ['README.md'],
+        'proto': ['*.capnp'],
+    },
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
