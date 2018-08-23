@@ -32,7 +32,7 @@ import (
 )
 
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
-func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, error) {
+func RtrPktFromScnPkt(sp *spkt.ScnPkt, ctx *rctx.Ctx) (*RtrPkt, error) {
 	rp := NewRtrPkt()
 	rp.Ctx = ctx
 	totalLen := sp.TotalLen()
@@ -186,7 +186,7 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 
 func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 	// Convert back to RtrPkt
-	reply, err := RtrPktFromScnPkt(sp, rp.DirFrom, rp.Ctx)
+	reply, err := RtrPktFromScnPkt(sp, rp.Ctx)
 	if err != nil {
 		return nil, err
 	}
