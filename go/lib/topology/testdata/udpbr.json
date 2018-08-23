@@ -1,0 +1,28 @@
+{
+    "ISD_AS": "6-ff00:0:362",
+    "Overlay": "UDP/IPv4+6",
+    "BorderRouters": {
+        "borderrouter6-ff00:0:362-1": {
+            "InternalAddr": {
+                  "Public": [
+                    {"Addr": "192.0.128.1", "L4Port": 30097},
+                    {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098}
+                  ],
+                  "Bind": [
+                    {"Addr": "10.0.0.1", "L4Port": 30197},
+                    {"Addr": "fe80::", "L4Port": 30198}
+                  ]
+            },
+            "Interfaces": {
+                "101": {
+                    "Overlay": "UDP/IPv4",
+                    "Public": {"Addr": "192.0.2.1", "L4Port": 4997},
+                    "Remote": {"Addr": "192.0.2.2", "L4Port": 4998},
+                    "Bandwidth": 100000,
+                    "ISD_AS": "6-ff00:0:363",
+                    "LinkTo": "CORE"
+                }
+            }
+        }
+    }
+}

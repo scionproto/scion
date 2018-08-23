@@ -173,7 +173,8 @@ func Test_Service_Details(t *testing.T) {
 }
 
 func Test_Service_Count(t *testing.T) {
-	// This just checks the count of all the service types, actual population testing is done elsewhere
+	// This just checks the count of all the service types, actual population
+	// testing is done elsewhere
 	// The simple counting check for CS is done in the detailed population test as well
 	fn := "testdata/basic.json"
 	loadTopo(fn, t)
@@ -267,7 +268,6 @@ func Test_IFInfoMap(t *testing.T) {
 			So(c.IFInfoMap[id], ShouldResemble, ifm[id])
 		})
 	}
-
 }
 
 func Test_IFInfoMap_COREAS(t *testing.T) {
@@ -314,7 +314,23 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			So(c.IFInfoMap[id], ShouldResemble, ifm[id])
 		})
 	}
+}
 
+func Test_IFInfo_InternalAddr(t *testing.T) {
+	ifm := make(map[common.IFIDType]*TopoAddr)
+	ifm[101] = &TopoAddr{
+		IPv4:    mkPBOv4("192.0.128.1", 30097, "10.0.0.1", 30197, 30097),
+		IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "fe80::", 30198, 30098),
+		Overlay: overlay.UDPIPv46,
+	}
+	fn := "testdata/udpbr.json"
+	loadTopo(fn, t)
+	for _, id := range []common.IFIDType{101} {
+		Convey(fmt.Sprintf("Checking IFInfoMap entry for Interface %d", id), t, func() {
+			c := testTopo
+			So(c.IFInfoMap[id].InternalAddr, ShouldResemble, ifm[id])
+		})
+	}
 }
 
 var br_cases = []struct {
