@@ -389,8 +389,8 @@ func (b *Backend) Get(ctx context.Context, params *query.Params) ([]*query.Resul
 	if b.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
-	stmt := b.buildQuery(params)
-	rows, err := b.db.QueryContext(ctx, stmt)
+	stmt, args := b.buildQuery(params)
+	rows, err := b.db.QueryContext(ctx, stmt, args...)
 	if err != nil {
 		return nil, common.NewBasicError("Error looking up path segment", err, "q", stmt)
 	}
@@ -428,32 +428,35 @@ func (b *Backend) Get(ctx context.Context, params *query.Params) ([]*query.Resul
 	return res, nil
 }
 
-func (b *Backend) buildQuery(params *query.Params) string {
+func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
+	var args []interface{}
 	query := []string{
 		"SELECT DISTINCT s.RowID, s.Segment, h.IsdID, h.AsID, h.CfgID FROM Segments s",
 		"JOIN HpCfgIds h ON h.SegRowID=s.RowID",
 	}
 	if params == nil {
-		return strings.Join(query, "\n")
+		return strings.Join(query, "\n"), args
 	}
 	joins := []string{}
 	where := []string{}
 	if len(params.SegID) > 0 {
-		where = append(where, fmt.Sprintf("s.SegID=x'%s'", params.SegID))
+		where = append(where, "s.SegID=?")
+		args = append(args, params.SegID)
 	}
 	if len(params.SegTypes) > 0 {
 		joins = append(joins, "JOIN SegTypes t ON t.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, segType := range params.SegTypes {
-			subQ = append(subQ, fmt.Sprintf("t.Type='%d'", segType))
+			subQ = append(subQ, "t.Type=?")
+			args = append(args, segType)
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.HpCfgIDs) > 0 {
 		subQ := []string{}
 		for _, hpCfgID := range params.HpCfgIDs {
-			subQ = append(subQ, fmt.Sprintf("(h.IsdID='%d' AND h.AsID='%d' AND h.CfgID='%d')",
-				hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID))
+			subQ = append(subQ, "(h.IsdID=? AND h.AsID=? AND h.CfgID=?)")
+			args = append(args, hpCfgID.IA.I, hpCfgID.IA.A, hpCfgID.ID)
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
@@ -461,8 +464,8 @@ func (b *Backend) buildQuery(params *query.Params) string {
 		joins = append(joins, "JOIN IntfToSeg i ON i.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, spec := range params.Intfs {
-			subQ = append(subQ, fmt.Sprintf("(i.IsdID='%d' AND i.AsID='%d' AND i.IntfID='%d')",
-				spec.IA.I, spec.IA.A, spec.IfID))
+			subQ = append(subQ, "(i.IsdID=? AND i.AsID=? AND i.IntfID=?)")
+			args = append(args, spec.IA.I, spec.IA.A, spec.IfID)
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
@@ -470,7 +473,8 @@ func (b *Backend) buildQuery(params *query.Params) string {
 		joins = append(joins, "JOIN StartsAt st ON st.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, as := range params.StartsAt {
-			subQ = append(subQ, fmt.Sprintf("(st.IsdID='%d' AND st.AsID='%d')", as.I, as.A))
+			subQ = append(subQ, "(st.IsdID=? AND st.AsID=?)")
+			args = append(args, as.I, as.A)
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
@@ -478,7 +482,8 @@ func (b *Backend) buildQuery(params *query.Params) string {
 		joins = append(joins, "JOIN EndsAt e ON e.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, as := range params.EndsAt {
-			subQ = append(subQ, fmt.Sprintf("(e.IsdID='%d' AND e.AsID='%d')", as.I, as.A))
+			subQ = append(subQ, "(e.IsdID=? AND e.AsID=?)")
+			args = append(args, as.I, as.A)
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
@@ -489,5 +494,5 @@ func (b *Backend) buildQuery(params *query.Params) string {
 	if len(where) > 0 {
 		query = append(query, fmt.Sprintf("WHERE %s", strings.Join(where, " AND\n")))
 	}
-	return strings.Join(query, "\n")
+	return strings.Join(query, "\n"), args
 }
