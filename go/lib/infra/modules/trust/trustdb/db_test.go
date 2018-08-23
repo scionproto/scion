@@ -32,41 +32,41 @@ func TestTRC(t *testing.T) {
 
 		trcobj, err := trc.TRCFromFile("testdata/ISD1-V1.trc", false)
 		SoMsg("err trc", err, ShouldBeNil)
-		SoMsg("trc", trcobj, ShouldNotBeNil) /
-			Convey("Insert into database", func() {
-				rows, err := db.InsertTRC(trcobj)
+		SoMsg("trc", trcobj, ShouldNotBeNil)
+		Convey("Insert into database", func() {
+			rows, err := db.InsertTRC(trcobj)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldNotEqual, 0)
+			rows, err = db.InsertTRC(trcobj)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("rows", rows, ShouldEqual, 0)
+			Convey("Get TRC from database", func() {
+				newTRCobj, err := db.GetTRCVersion(1, 1)
 				SoMsg("err", err, ShouldBeNil)
-				SoMsg("rows", rows, ShouldNotEqual, 0)
-				rows, err = db.InsertTRC(trcobj)
-				SoMsg("err", err, ShouldBeNil)
-				SoMsg("rows", rows, ShouldEqual, 0)
-				Convey("Get TRC from database", func() {
-					newTRCobj, err := db.GetTRCVersion(1, 1)
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
-				})
-				Convey("Get Max TRC from database", func() {
-					newTRCobj, err := db.GetTRCMaxVersion(1)
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
-					newTRCobj, err = db.GetTRCVersion(1, 0)
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
-				})
-				Convey("Get missing TRC from database", func() {
-					newTRCobj, err := db.GetTRCVersion(2, 10)
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("trc", newTRCobj, ShouldBeNil)
-				})
-				Convey("Get missing Max TRC from database", func() {
-					newTRCobj, err := db.GetTRCVersion(2, 0)
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("trc", newTRCobj, ShouldBeNil)
-					newTRCobj, err = db.GetTRCMaxVersion(2)
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("trc", newTRCobj, ShouldBeNil)
-				})
+				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
+			Convey("Get Max TRC from database", func() {
+				newTRCobj, err := db.GetTRCMaxVersion(1)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+				newTRCobj, err = db.GetTRCVersion(1, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
+			})
+			Convey("Get missing TRC from database", func() {
+				newTRCobj, err := db.GetTRCVersion(2, 10)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldBeNil)
+			})
+			Convey("Get missing Max TRC from database", func() {
+				newTRCobj, err := db.GetTRCVersion(2, 0)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldBeNil)
+				newTRCobj, err = db.GetTRCMaxVersion(2)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("trc", newTRCobj, ShouldBeNil)
+			})
+		})
 	})
 }
 
