@@ -219,8 +219,8 @@ func allRevKeys(upSegs, coreSegs, downSegs []*seg.PathSegment) map[revcache.Key]
 }
 
 // addRevKeys adds all revocations keys for the given segments to the keys set.
-// If first only is set, only the first hop entry is considered.
-func addRevKeys(segs []*seg.PathSegment, keys map[revcache.Key]struct{}, firstOnly bool) {
+// If hopOnly is set, only the first hop entry is considered.
+func addRevKeys(segs []*seg.PathSegment, keys map[revcache.Key]struct{}, hopOnly bool) {
 	for _, s := range segs {
 		for _, asEntry := range s.ASEntries {
 			for _, entry := range asEntry.HopEntries {
@@ -236,7 +236,7 @@ func addRevKeys(segs []*seg.PathSegment, keys map[revcache.Key]struct{}, firstOn
 				if hf.ConsEgress != 0 {
 					keys[*revcache.NewKey(asEntry.IA(), hf.ConsEgress)] = struct{}{}
 				}
-				if firstOnly {
+				if hopOnly {
 					break
 				}
 			}

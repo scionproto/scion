@@ -79,11 +79,12 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 		return nil, err
 	}
 	segs := extractSegs(res)
-	return filterSegs(segs, h.noRevokedInterface), nil
+	// XXX(lukedirtwalker): Consider cases where segment with revoked interfaces should be returned.
+	return filterSegs(segs, h.noRevokedHopIntf), nil
 }
 
-// noRevokedInterface returns true if there is no revoked on-segment interface on the segment s.
-func (h *baseHandler) noRevokedInterface(s *seg.PathSegment) bool {
+// noRevokedHopIntf returns true if there is no revoked on-segment interface on the segment s.
+func (h *baseHandler) noRevokedHopIntf(s *seg.PathSegment) bool {
 	revKeys := make(map[revcache.Key]struct{})
 	addRevKeys([]*seg.PathSegment{s}, revKeys, true)
 	for rk := range revKeys {
