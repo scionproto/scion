@@ -346,6 +346,10 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
 	endsAt []addr.IA) ([]*seg.PathSegment, error) {
 
+	// We shouldn't query with zero length slices. Doing so would return too many segments.
+	if len(startsAt) == 0 || len(endsAt) == 0 {
+		return nil, nil
+	}
 	results, err := f.pathDB.Get(ctx, &query.Params{
 		StartsAt: startsAt,
 		EndsAt:   endsAt,
