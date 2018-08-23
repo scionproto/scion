@@ -175,7 +175,7 @@ func TestGetTRC(t *testing.T) {
 		},
 		{
 			Name: "local ISD=1, max version",
-			ISD:  1, Version: LatestVersion,
+			ISD:  1, Version: 0,
 			ExpData: trcs[1], ExpError: false,
 		},
 		{
@@ -190,7 +190,7 @@ func TestGetTRC(t *testing.T) {
 		},
 		{
 			Name: "unknown ISD=2, max version",
-			ISD:  2, Version: LatestVersion,
+			ISD:  2, Version: 0,
 			ExpData: trcs[2], ExpError: false,
 		},
 		{
@@ -200,7 +200,7 @@ func TestGetTRC(t *testing.T) {
 		},
 		{
 			Name: "remote ISD=3, max version",
-			ISD:  3, Version: LatestVersion,
+			ISD:  3, Version: 0,
 			ExpData: trcs[3], ExpError: false,
 		},
 		{
@@ -314,12 +314,12 @@ func TestGetChain(t *testing.T) {
 	}{
 		{
 			Name: "bad IA=0-1",
-			IA:   xtest.MustParseIA("0-ff00:0:1"), Version: LatestVersion,
+			IA:   xtest.MustParseIA("0-ff00:0:1"), Version: 0,
 			ExpData: nil, ExpError: true,
 		},
 		{
 			Name: "bad IA=1-0",
-			IA:   addr.IA{I: 1, A: 0}, Version: LatestVersion,
+			IA:   addr.IA{I: 1, A: 0}, Version: 0,
 			ExpData: nil, ExpError: true,
 		},
 		{
@@ -329,7 +329,7 @@ func TestGetChain(t *testing.T) {
 		},
 		{
 			Name: "local IA=1-1, max version",
-			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: LatestVersion,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 		},
 		{
@@ -349,7 +349,7 @@ func TestGetChain(t *testing.T) {
 		},
 		{
 			Name: "remote IA=3-9, max version",
-			IA:   xtest.MustParseIA("3-ff00:0:9"), Version: LatestVersion,
+			IA:   xtest.MustParseIA("3-ff00:0:9"), Version: 0,
 			ExpData: chains[xtest.MustParseIA("3-ff00:0:9")], ExpError: false,
 		},
 		{

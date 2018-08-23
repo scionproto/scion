@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -81,7 +80,7 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 		h.logger.Warn("[forwardDownSegs] no Messenger found")
 		return
 	}
-	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, trust.LatestVersion)
+	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, 0)
 	if err != nil {
 		h.logger.Error("[forwardDownSegs]", "err", err)
 		return

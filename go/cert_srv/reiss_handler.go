@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@ import (
 	"context"
 	"net"
 	"time"
-
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 
 	"github.com/scionproto/scion/go/cert_srv/conf"
 	"github.com/scionproto/scion/go/lib/common"
@@ -80,7 +78,7 @@ func (h *ReissHandler) HandleReq(r *infra.Request, config *conf.Conf) {
 		return
 	}
 	// Respond with max chain for outdated requests.
-	maxChain, err := config.Store.GetChain(ctx, verChain.Leaf.Subject, trust.LatestVersion)
+	maxChain, err := config.Store.GetChain(ctx, verChain.Leaf.Subject, 0)
 	if err != nil {
 		h.logDropReq(saddr, req, err)
 		return

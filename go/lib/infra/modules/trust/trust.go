@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,9 +39,6 @@ import (
 const (
 	// Handler lifetime
 	HandlerTimeout = 3 * time.Second
-	// LatestVersion can be used in GetTRC/GetChain as the version argument
-	// to get the latest version.
-	LatestVersion = 0
 )
 
 var (
@@ -272,7 +269,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	client, server net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainVersionCtx(ctx, ia, LatestVersion)
+	chain, err := store.trustdb.GetChainVersionCtx(ctx, ia, 0)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -292,7 +289,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
-		version:  LatestVersion,
+		version:  0,
 		id:       store.nextID(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),

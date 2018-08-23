@@ -25,7 +25,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -66,7 +65,7 @@ func (h *segReqCoreHandler) Handle() {
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	var err error
-	h.srcTRC, err = h.trustStore.GetTRC(subCtx, h.localIA.I, trust.LatestVersion)
+	h.srcTRC, err = h.trustStore.GetTRC(subCtx, h.localIA.I, 0)
 	if err != nil {
 		h.logger.Error("[segReqHandler] Failed to get TRC for src", "err", err)
 		h.sendEmptySegReply(subCtx, segReq, msger)
