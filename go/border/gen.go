@@ -18,7 +18,6 @@
 package main
 
 import (
-	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -39,10 +38,6 @@ func (r *Router) genPkt(dstIA addr.IA, dst, src *addr.AppAddr, oAddr *overlay.Ov
 		return common.NewBasicError("genPkt: Missing src", nil)
 	}
 	ctx := rctx.Get()
-	dirTo := rcmn.DirExternal
-	if dstIA.Eq(ctx.Conf.IA) {
-		dirTo = rcmn.DirLocal
-	}
 	// Create base packet
 	sp := &spkt.ScnPkt{
 		DstIA: dstIA, SrcIA: ctx.Conf.IA, DstHost: dst.L3, SrcHost: src.L3,
@@ -50,7 +45,7 @@ func (r *Router) genPkt(dstIA addr.IA, dst, src *addr.AppAddr, oAddr *overlay.Ov
 	if src.L4 != nil && dst.L4 != nil {
 		sp.L4 = &l4.UDP{SrcPort: src.L4.Port(), DstPort: dst.L4.Port()}
 	}
-	rp, err := rpkt.RtrPktFromScnPkt(sp, dirTo, ctx)
+	rp, err := rpkt.RtrPktFromScnPkt(sp, ctx)
 	if err != nil {
 		return err
 	}
