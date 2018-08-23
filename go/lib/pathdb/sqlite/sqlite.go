@@ -30,7 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/sqlite"
 	"github.com/scionproto/scion/go/proto"
@@ -43,7 +43,7 @@ type segMeta struct {
 	Seg         *seg.PathSegment
 }
 
-var _ conn.Conn = (*Backend)(nil)
+var _ pathdb.PathDB = (*Backend)(nil)
 
 type Backend struct {
 	sync.RWMutex
