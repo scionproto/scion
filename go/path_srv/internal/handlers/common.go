@@ -82,11 +82,12 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	return filterSegs(segs, h.noRevokedInterface), nil
 }
 
-// noRevokedInterface returns true if there is no revoked interface on the path segment seg.
-func (h *baseHandler) noRevokedInterface(seg *seg.PathSegment) bool {
-	rks := revKeys(seg)
-	for _, rk := range rks {
-		if _, ok := h.revCache.Get(rk); ok {
+// noRevokedInterface returns true if there is no revoked on-segment interface on the segment s.
+func (h *baseHandler) noRevokedInterface(s *seg.PathSegment) bool {
+	revKeys := make(map[revcache.Key]struct{})
+	addRevKeys([]*seg.PathSegment{s}, revKeys, true)
+	for rk := range revKeys {
+		if _, ok := h.revCache.Get(&rk); ok {
 			return false
 		}
 	}
@@ -155,16 +156,6 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
 }
 
-// revKeys returns the revocation keys for the given path segment.
-func revKeys(seg *seg.PathSegment) []*revcache.Key {
-	ifaces := onSegmentInterfaces(seg)
-	keys := make([]*revcache.Key, 0, len(ifaces))
-	for _, intf := range ifaces {
-		keys = append(keys, revcache.NewKey(intf.IA, intf.IFID))
-	}
-	return keys
-}
-
 func filterSegs(segs []*seg.PathSegment, keep func(*seg.PathSegment) bool) []*seg.PathSegment {
 	filtered := segs[:0]
 	for _, s := range segs {
@@ -209,33 +200,4 @@ func extractIAs(segs []*seg.PathSegment, extract func(*seg.PathSegment) addr.IA)
 		}
 	}
 	return ias
-}
-
-type segInterface struct {
-	IA   addr.IA
-	IFID common.IFIDType
-}
-
-// onSegmentInterfaces returns all segInterfaces that are on the segments hopfields
-// (no peer interfaces).
-func onSegmentInterfaces(s *seg.PathSegment) []*segInterface {
-	ifaces := make([]*segInterface, 0, 2*len(s.ASEntries))
-	for _, asEntry := range s.ASEntries {
-		if len(asEntry.HopEntries) > 0 {
-			entry := asEntry.HopEntries[0]
-			hf, err := entry.HopField()
-			if err != nil {
-				// This should not happen, as Validate already checks that it
-				// is possible to extract the hop field.
-				panic(err)
-			}
-			if hf.ConsIngress != 0 {
-				ifaces = append(ifaces, &segInterface{asEntry.IA(), hf.ConsIngress})
-			}
-			if hf.ConsEgress != 0 {
-				ifaces = append(ifaces, &segInterface{asEntry.IA(), hf.ConsEgress})
-			}
-		}
-	}
-	return ifaces
 }
