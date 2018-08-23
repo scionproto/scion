@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -56,7 +55,7 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, msger infra.Messenger,
 	if h.dstLocal {
 		return h.srcTRC.CoreASes.Contains(segReq.DstIA()), nil
 	}
-	dstTRC, err := h.trustStore.GetTRC(ctx, segReq.DstIA().I, trust.LatestVersion)
+	dstTRC, err := h.trustStore.GetTRC(ctx, segReq.DstIA().I, 0)
 	if err != nil {
 		return false, common.NewBasicError("Failed to get TRC for dst", err)
 	}
