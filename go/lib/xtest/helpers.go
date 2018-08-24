@@ -16,12 +16,16 @@ package xtest
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
+
+	"github.com/scionproto/scion/go/lib/common"
 
 	"github.com/scionproto/scion/go/lib/addr"
 )
@@ -140,11 +144,28 @@ func MustParseIA(s string) addr.IA {
 }
 
 // MustParseAS parses s and returns the corresponding addr.AS object. It panics
-// if s is not valid AS representation
+// if s is not valid AS representation.
 func MustParseAS(s string) addr.AS {
 	ia, err := addr.ASFromString(s)
 	if err != nil {
 		panic(err)
 	}
 	return ia
+}
+
+// MustParseHexString parses s and returns the corresponding byte slice.
+// It panics if the decoding fails.
+func MustParseHexString(s string) common.RawBytes {
+	// remove whitespace
+	reg, err := regexp.Compile(`\s+`)
+	if err != nil {
+		panic(err)
+	}
+	s = reg.ReplaceAllString(s, "")
+
+	decoded, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return decoded
 }
