@@ -157,7 +157,7 @@ func MustParseAS(s string) addr.AS {
 // It panics if the decoding fails.
 func MustParseHexString(s string) common.RawBytes {
 	// remove whitespace
-	reg, err := regexp.Compile(`[\s]+`)
+	reg, err := regexp.Compile(`\s+`)
 	if err != nil {
 		panic(err)
 	}
