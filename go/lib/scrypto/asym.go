@@ -39,10 +39,8 @@ const (
 const (
 	InvalidPubKeySize       = "Invalid public key size"
 	InvalidPrivKeySize      = "Invalid private key size"
-	InvalidNonceSize        = "Invalid nonce size"
 	InvalidSignature        = "Invalid signature"
 	UnableToGenerateKeyPair = "Unable to generate key pair"
-	UnableToGenerateNonce   = "Unable to generate nonce"
 	UnableToDecrypt         = "Unable to decrypt message"
 	UnsupportedAlgo         = "Unsupported algorithm"
 	UnsupportedSignAlgo     = "Unsupported signing algorithm"
