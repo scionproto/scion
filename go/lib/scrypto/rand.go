@@ -23,6 +23,11 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+const (
+	InvalidNonceSize      = "Invalid nonce size"
+	UnableToGenerateNonce = "Unable to generate nonce"
+)
+
 func RandUint64() uint64 {
 	b := make([]byte, 8)
 	if _, err := rand.Read(b); err != nil {
@@ -48,11 +53,11 @@ func MathRandSeed() {
 }
 
 // Nonce takes an input length and returns a random nonce of the given length.
-func Nonce(len int) (common.RawBytes, error) {
-	if len <= 0 {
+func Nonce(l int) (common.RawBytes, error) {
+	if l <= 0 {
 		return nil, common.NewBasicError(InvalidNonceSize, nil)
 	}
-	nonce := make([]byte, len)
+	nonce := make([]byte, l)
 	_, err := io.ReadFull(rand.Reader, nonce)
 	if err != nil {
 		return nil, common.NewBasicError(UnableToGenerateNonce, err)
