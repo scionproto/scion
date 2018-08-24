@@ -156,8 +156,8 @@ func MustParseAS(s string) addr.AS {
 // MustParseHexString parses s and returns the corresponding byte slice.
 // It panics if the decoding fails.
 func MustParseHexString(s string) common.RawBytes {
-	// remove non-hex bytes
-	reg, err := regexp.Compile("[^A-Fa-f0-9]+")
+	// remove whitespace
+	reg, err := regexp.Compile(`[\s]+`)
 	if err != nil {
 		panic(err)
 	}
