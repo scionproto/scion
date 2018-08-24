@@ -124,7 +124,8 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 					nil, "br", name, "intAddr", iAddr)
 			}
 			if t.Overlay.IsUDP() {
-				// Set the overlay port to the L4 port as the BR does not run on top of the dispatcher.
+				// Set the overlay port to the L4 port as the BR does not run
+				// on top of the dispatcher.
 				iAddr.OverlayPort = iAddr.L4Port
 			}
 		}
