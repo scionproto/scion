@@ -133,7 +133,7 @@ func setDefaultSignerVerifier(c *conf.Conf) error {
 }
 
 // initSNET initializes snet. The number of attempts is specified, as well as the sleep duration.
-// This is needed, since supervisord might take some time, until sciond is initialized.
+// This allows the service to wait for a limited time for sciond to become available
 func initSNET(ia addr.IA, attempts int, sleep time.Duration) (err error) {
 	// Initialize SCION local networking module
 	for i := 0; i < attempts; i++ {
