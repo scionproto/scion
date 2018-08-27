@@ -767,9 +767,9 @@ class TopoGenerator(object):
             self.topo_dicts[local]["BorderRouters"][local_br] = {
                 'InternalAddrs': {
                     self.addr_type: {
-                        'Public': {
+                        'PublicOverlay': {
                             'Addr': int_addr,
-                            'L4Port': random.randint(30050, 30100),
+                            'OverlayPort': random.randint(30050, 30100),
                         }
                     }
                 },
@@ -793,13 +793,13 @@ class TopoGenerator(object):
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
         return {
             'Overlay': self.overlay,
-            'Public': {
+            'PublicOverlay': {
                 'Addr': public_addr,
-                'L4Port': SCION_ROUTER_PORT
+                'OverlayPort': SCION_ROUTER_PORT
                 },
-            'Remote': {
+            'RemoteOverlay': {
                 'Addr': remote_addr,
-                'L4Port': SCION_ROUTER_PORT
+                'OverlayPort': SCION_ROUTER_PORT
                 },
             'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
             'ISD_AS': str(remote),
@@ -1596,12 +1596,14 @@ def _json_default(o):
 
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
-    return _prom_addr(br_ele['InternalAddrs'])
+    pub = _get_pub(br_ele['InternalAddrs'])
+    return "[%s]:%s" % (pub['PublicOverlay']['Addr'].ip, pub['PublicOverlay']['OverlayPort'] + 1)
 
 
 def _prom_addr_infra(infra_ele):
     """Get the prometheus address for an infrastructure element."""
-    return _prom_addr(infra_ele['Addrs'])
+    pub = _get_pub(infra_ele['Addrs'])
+    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['Port'] + 1)
 
 
 def _prom_addr(ele):
@@ -1613,11 +1615,8 @@ def _prom_addr(ele):
 def _get_pub(topo_addr):
     pub = topo_addr.get('IPv6')
     if pub is not None:
-        return pub['Public']
-    pub = topo_addr.get('IPv4')
-    if pub is not None:
-        return pub['Public']
-    return None
+        return pub
+    return topo_addr['IPv4']
 
 
 def main():

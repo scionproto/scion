@@ -64,9 +64,9 @@ func (ras RawSrvInfo) String() string {
 }
 
 type RawBRInfo struct {
-	InternalAddrs *RawAddrMap
-	CtrlAddr      *RawAddrMap
-	Interfaces    map[common.IFIDType]*RawBRIntf
+	InternalAddr *RawBRAddrMap
+	CtrlAddr     *RawAddrMap
+	Interfaces   map[common.IFIDType]RawBRIntf
 }
 
 func (b RawBRInfo) String() string {
@@ -79,44 +79,126 @@ func (b RawBRInfo) String() string {
 	return strings.Join(s, "\n")
 }
 
+type RawBRAddrMap map[string]*RawOverlayBind
+
+func (roa RawBRAddrMap) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
+	return topoAddrFromRaw(roa, ot)
+}
+
+func (roa RawBRAddrMap) String() string {
+	var s []string
+	for k, v := range roa {
+		s = append(s, fmt.Sprintf("%s: %s", k, v))
+	}
+	return strings.Join(s, "\n")
+}
+
+type RawOverlayBind struct {
+	PublicOverlay RawAddrOverlay
+	BindOverlay   RawAddr `json:",omitempty"`
+}
+
+func (s RawBRIntAddr) intTopoAddr(ot overlay.Type) (*TopoAddr, error) {
+	t := &TopoAddr{Overlay: ot}
+	// Public addresses
+	for _, pub := range s.PublicOverlay {
+		if ot.IsUDP() == (pub.OverlayPort == 0) {
+			return nil, common.NewBasicError(ErrOverlayPort, nil, "addr", pub)
+		}
+		ip := net.ParseIP(pub.Addr)
+		if ip == nil {
+			return nil, common.NewBasicError(ErrInvalidPub, nil, "addr", s, "ip", pub.Addr)
+		}
+		var ol4 addr.L4Info
+		if ot.IsUDP() {
+			ol4 = addr.NewL4UDPInfo(uint16(pub.OverlayPort))
+		}
+		if ip.To4() != nil {
+			if t.IPv4 != nil {
+				return nil, common.NewBasicError(ErrTooManyPubV4, nil, "addr", s)
+			}
+			t.IPv4 = &pubBindAddr{}
+			t.IPv4.overlay, _ = overlay.NewOverlayAddr(addr.HostIPv4(ip), ol4)
+		} else {
+			if t.IPv6 != nil {
+				return nil, common.NewBasicError(ErrTooManyPubV6, nil, "addr", s)
+			}
+			t.IPv6 = &pubBindAddr{}
+			t.IPv6.overlay, _ = overlay.NewOverlayAddr(addr.HostIPv6(ip), ol4)
+		}
+	}
+	// Bind Addresses
+	for _, bind := range s.BindOverlay {
+		ip := net.ParseIP(bind.Addr)
+		if ip == nil {
+			return nil, common.NewBasicError(ErrInvalidBind, nil, "addr", s, "ip", bind.Addr)
+		}
+		if ip.To4() != nil {
+			if t.IPv4 == nil {
+				return nil, common.NewBasicError(ErrBindWithoutPubV4, nil, "addr", s, "ip", bind.Addr)
+			}
+			if t.IPv4.bind != nil {
+				return nil, common.NewBasicError(ErrTooManyBindV4, nil, "addr", s)
+			}
+			t.IPv4.bind = &addr.AppAddr{L3: addr.HostIPv4(ip), L4: t.IPv4.overlay.L4()}
+		} else {
+			if t.IPv6 == nil {
+				return nil, common.NewBasicError(ErrBindWithoutPubV6, nil, "addr", s, "ip", bind.Addr)
+			}
+			if t.IPv6.bind != nil {
+				return nil, common.NewBasicError(ErrTooManyBindV6, nil, "addr", s)
+			}
+			t.IPv6.bind = &addr.AppAddr{L3: addr.HostIPv6(ip), L4: t.IPv6.overlay.L4()}
+		}
+	}
+	if desc := t.validate(); len(desc) > 0 {
+		return nil, common.NewBasicError(desc, nil, "addr", s, "overlay", ot)
+	}
+	return t, nil
+}
+
+func (b RawBRIntAddr) String() string {
+	var s []string
+	s = append(s, fmt.Sprintf("PublicOverlay: %s", b.PublicOverlay))
+	if len(b.BindOverlay) > 0 {
+		s = append(s, fmt.Sprintf("BindOverlay: %s", b.BindOverlay))
+	}
+	return strings.Join(s, "\n")
+}
+
 type RawBRIntf struct {
-	Overlay   string       `json:",omitempty"`
-	Bind      *RawAddrPort `json:",omitempty"`
-	Public    *RawAddrPort `json:",omitempty"`
-	Remote    *RawAddrPort `json:",omitempty"`
-	Bandwidth int
-	ISD_AS    string
-	LinkTo    string
-	MTU       int
+	Overlay       string          `json:",omitempty"`
+	PublicOverlay *RawAddrOverlay `json:",omitempty"`
+	BindOverlay   *RawAddr        `json:",omitempty"`
+	RemoteOverlay *RawAddrOverlay `json:",omitempty"`
+	Bandwidth     int
+	ISD_AS        string
+	LinkTo        string
+	MTU           int
 }
 
 // Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
 func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, error) {
-	ram := make(RawAddrMap)
-	rpbo := &RawPubBindOverlay{
-		Public: RawAddrPortOverlay{RawAddrPort: *b.Public},
-		Bind:   b.Bind,
+	rbram := make(RawBRAddrMap)
+	rbram[o.ToIP().String()] = &RawOverlayBind{
+		PublicOverlay: b.PublicOverlay,
+		BindOverlay:   b.BindOverlay,
 	}
-	if o.IsUDP() {
-		rpbo.Public.OverlayPort = b.Public.L4Port
-	}
-	ram[o.ToIP().String()] = rpbo
-	return ram.ToTopoAddr(o)
+	return rbram.ToTopoAddr(o)
 }
 
 // make an OverlayAddr object from a BR interface Remote entry
 func (b RawBRIntf) remoteAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
-	ip := net.ParseIP(b.Remote.Addr)
+	ip := net.ParseIP(b.RemoteOverlay.Addr)
 	if ip == nil {
 		return nil, common.NewBasicError("Could not parse remote IP from string", nil,
-			"ip", b.Remote.Addr)
+			"ip", b.RemoteOverlay.Addr)
 	}
-	l3 := addr.HostFromIP(ip)
-	var l4 addr.L4Info
-	if o.IsUDP() {
-		l4 = addr.NewL4UDPInfo(uint16(b.Remote.L4Port))
+	if o.IsUDP() == (b.RemoteOverlay.OverlayPort == 0) {
+		return nil, common.NewBasicError(ErrOverlayPort, nil, "addr", b.RemoteOverlay)
 	}
-	return overlay.NewOverlayAddr(l3, l4)
+	l4 := addr.NewL4UDPInfo(uint16(b.RemoteOverlay.OverlayPort))
+	return overlay.NewOverlayAddr(addr.HostFromIP(ip), l4)
 }
 
 type RawAddrMap map[string]*RawPubBindOverlay
@@ -145,7 +227,14 @@ func (rpbo RawPubBindOverlay) String() string {
 		s = append(s, fmt.Sprintf("Bind: %s", rpbo.Bind))
 	}
 	return strings.Join(s, ", ")
+}
 
+type RawAddr struct {
+	Addr string
+}
+
+func (a RawAddr) String() string {
+	return fmt.Sprintf("%s", a.Addr)
 }
 
 type RawAddrPort struct {
@@ -155,6 +244,15 @@ type RawAddrPort struct {
 
 func (a RawAddrPort) String() string {
 	return fmt.Sprintf("%s:%d", a.Addr, a.L4Port)
+}
+
+type RawAddrOverlay struct {
+	Addr        string
+	OverlayPort int `json:",omitempty"`
+}
+
+func (a RawAddrOverlay) String() string {
+	return fmt.Sprintf("%s:%d", a.Addr, a.OverlayPort)
 }
 
 // Since Public addresses may be associated with an Overlay port, extend the

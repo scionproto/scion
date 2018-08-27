@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -242,20 +241,17 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	}
 	// New bind address. Configure Posix I/O.
 	// Get Bind address if set, Public otherwise
-	bind := ctx.Conf.Net.LocAddr.BindOrPublic(ctx.Conf.Topo.Overlay)
+	bind := ctx.Conf.Net.LocAddr.BindOrOverlay(ctx.Conf.Topo.Overlay)
 	if err := addPosixLocal(r, ctx, bind, labels); err != nil {
 		return rpkt.HookError, err
 	}
 	return rpkt.HookFinish, nil
 }
 
-func addPosixLocal(r *Router, ctx *rctx.Ctx, bind *addr.AppAddr, labels prometheus.Labels) error {
+func addPosixLocal(r *Router, ctx *rctx.Ctx, bind *overlay.OverlayAddr,
+	labels prometheus.Labels) error {
 	// Listen on the socket.
-	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
-	if err != nil {
-		return common.NewBasicError("Unsupported listen address", err, "addr", bind)
-	}
-	over, err := conn.New(b, nil, labels)
+	over, err := conn.New(bind, nil, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on local socket", err)
 	}
@@ -314,12 +310,9 @@ func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bo
 func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels) error {
 	// Connect to remote address.
-	bind := intf.IFAddr.BindOrPublic(intf.IFAddr.Overlay)
-	b, err := overlay.NewOverlayAddr(bind.L3, bind.L4)
-	if err != nil {
-		return common.NewBasicError("Unsupported listen address", err, "addr", bind)
-	}
-	c, err := conn.New(b, intf.RemoteAddr, labels)
+	log.Debug("Set up new external socket.", "intf", intf)
+	bind := intf.IFAddr.BindOrOverlay(intf.IFAddr.Overlay)
+	c, err := conn.New(bind, intf.RemoteAddr, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
