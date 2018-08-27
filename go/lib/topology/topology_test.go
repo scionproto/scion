@@ -86,6 +86,36 @@ func mkPBOv6(ip string, port int, bindip string, bindport int, op int) *pubBindA
 	return mkPBO(pub, bind, port, bindport, op)
 }
 
+func mkOB(overlay addr.HostAddr, port int, bind addr.HostAddr) *pubBindAddr {
+	pbo := &pubBindAddr{}
+	if bind != nil {
+		pbo.bind = &addr.AppAddr{L3: bind}
+		if port != 0 {
+			pbo.bind.L4 = addr.NewL4UDPInfo(uint16(port))
+		}
+	}
+	pbo.overlay = mkO(overlay, port)
+	return pbo
+}
+
+func mkOBv4(ip string, port int, bindip string) *pubBindAddr {
+	overlay := addr.HostIPv4(net.ParseIP(ip))
+	var bind addr.HostAddr
+	if bindip != "" {
+		bind = addr.HostIPv4(net.ParseIP(bindip))
+	}
+	return mkOB(overlay, port, bind)
+}
+
+func mkOBv6(ip string, port int, bindip string) *pubBindAddr {
+	overlay := addr.HostIPv6(net.ParseIP(ip))
+	var bind addr.HostAddr
+	if bindip != "" {
+		bind = addr.HostIPv6(net.ParseIP(bindip))
+	}
+	return mkOB(overlay, port, bind)
+}
+
 func mkTAv4(ip string, port int, bindip string, bindport int, ot overlay.Type, op int) TopoAddr {
 	pbo := mkPBOv4(ip, port, bindip, bindport, op)
 	return TopoAddr{IPv4: pbo, Overlay: ot}
@@ -219,8 +249,8 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[1] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddrs: &TopoAddr{
-			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
-			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
+			IPv4:    mkOBv4("10.1.0.1", 0, ""),
+			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
 		CtrlAddr: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
@@ -228,7 +258,7 @@ func Test_IFInfoMap(t *testing.T) {
 			Overlay: overlay.IPv46},
 		Overlay: overlay.UDPIPv4,
 		Local: &TopoAddr{
-			IPv4:    mkPBOv4("192.0.2.1", 44997, "10.0.0.1", 30090, 44997),
+			IPv4:    mkOBv4("192.0.2.1", 44997, "10.0.0.1"),
 			Overlay: overlay.UDPIPv4},
 		Remote:    mkOv4("192.0.2.2", 44998),
 		Bandwidth: 1000,
@@ -240,8 +270,8 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[3] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddrs: &TopoAddr{
-			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
-			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
+			IPv4:    mkOBv4("10.1.0.1", 0, ""),
+			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
 		CtrlAddr: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
@@ -249,7 +279,7 @@ func Test_IFInfoMap(t *testing.T) {
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv6,
 		Local: &TopoAddr{
-			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 50000, "2001:db8:a0b:12f0::8", 10000, 0),
+			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, "2001:db8:a0b:12f0::8"),
 			Overlay: overlay.IPv6},
 		Remote:    mkOv6("2001:db8:a0b:12f0::2", 0),
 		Bandwidth: 5000,
@@ -261,8 +291,8 @@ func Test_IFInfoMap(t *testing.T) {
 	ifm[8] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
 		InternalAddrs: &TopoAddr{
-			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
-			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
+			IPv4:    mkOBv4("10.1.0.1", 0, ""),
+			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
 		CtrlAddr: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
@@ -270,7 +300,7 @@ func Test_IFInfoMap(t *testing.T) {
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv4,
 		Local: &TopoAddr{
-			IPv4:    mkPBOv4("192.0.2.2", 50000, "10.0.0.2", 40000, 0),
+			IPv4:    mkOBv4("192.0.2.2", 0, "10.0.0.2"),
 			Overlay: overlay.IPv4},
 		Remote:    mkOv4("192.0.2.3", 0),
 		Bandwidth: 2000,
@@ -294,8 +324,8 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	ifm[91] = IFInfo{
 		BRName: "borderrouter6-ff00:0:362-1",
 		InternalAddrs: &TopoAddr{
-			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
-			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
+			IPv4:    mkOBv4("10.1.0.1", 0, ""),
+			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
 		CtrlAddr: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
@@ -303,7 +333,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			Overlay: overlay.IPv46},
 		Overlay: overlay.UDPIPv4,
 		Local: &TopoAddr{
-			IPv4:    mkPBOv4("192.0.2.1", 4997, "10.0.0.1", 3090, 4997),
+			IPv4:    mkOBv4("192.0.2.1", 4997, "10.0.0.1"),
 			Overlay: overlay.UDPIPv4},
 		Remote:    mkOv4("192.0.2.2", 4998),
 		Bandwidth: 100000,
@@ -315,8 +345,8 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	ifm[32] = IFInfo{
 		BRName: "borderrouter6-ff00:0:362-9",
 		InternalAddrs: &TopoAddr{
-			IPv4:    mkPBOv4("10.1.0.2", 3097, "", 0, 0),
-			IPv6:    mkPBOv6("2001:db8:a0b:12f0::2", 3097, "", 0, 0),
+			IPv4:    mkOBv4("10.1.0.2", 0, ""),
+			IPv6:    mkOBv6("2001:db8:a0b:12f0::2", 0, ""),
 			Overlay: overlay.IPv46},
 		CtrlAddr: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.2", 3098, "", 0, 0),
@@ -324,7 +354,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			Overlay: overlay.IPv46},
 		Overlay: overlay.IPv6,
 		Local: &TopoAddr{
-			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 50000, "2001:db8:a0b:12f0::8", 10000, 0),
+			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, "2001:db8:a0b:12f0::8"),
 			Overlay: overlay.IPv6},
 		Remote:    mkOv6("2001:db8:a0b:12f0::2", 0),
 		Bandwidth: 5000,
