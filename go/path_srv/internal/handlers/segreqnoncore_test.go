@@ -21,8 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/topology"
-
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -38,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 	"github.com/scionproto/scion/go/proto"
@@ -306,7 +305,7 @@ func TestSegReqLocal(t *testing.T) {
 					1,
 					log.New(),
 				)
-				h := &segReqLocalHandler{
+				h := &segReqNonCoreHandler{
 					segReqHandler: segReqHandler{
 						baseHandler: &baseHandler{
 							request:    req,
@@ -316,8 +315,7 @@ func TestSegReqLocal(t *testing.T) {
 							topology:   loadTopo(t, tc.SrcIA),
 							logger:     req.Logger,
 						},
-						localIA:  tc.SrcIA,
-						dstLocal: tc.SrcIA.I == tc.DstIA.I,
+						localIA: tc.SrcIA,
 					},
 				}
 				h.Handle()

@@ -29,7 +29,7 @@ type revocHandler struct {
 	*baseHandler
 }
 
-func NewRevocHandler(args *HandlerArgs) infra.Handler {
+func NewRevocHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &revocHandler{
 			baseHandler: newBaseHandler(r, args),
@@ -42,7 +42,7 @@ func NewRevocHandler(args *HandlerArgs) infra.Handler {
 func (h *revocHandler) Handle() {
 	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
-		h.logger.Error("[revocHandler] wrong message type, expected path_mgmt.SigneRevInfo",
+		h.logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}

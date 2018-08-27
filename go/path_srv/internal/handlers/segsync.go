@@ -28,7 +28,7 @@ type syncHandler struct {
 	localIA addr.IA
 }
 
-func NewSyncHandler(args *HandlerArgs) infra.Handler {
+func NewSyncHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &syncHandler{
 			baseHandler: newBaseHandler(r, args),

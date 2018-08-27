@@ -16,6 +16,7 @@ package handlers
 
 import (
 	"context"
+	"math/rand"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -23,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -34,7 +34,7 @@ type segRegHandler struct {
 	syncDown bool
 }
 
-func NewSegRegHandler(args *HandlerArgs, syncDown bool) infra.Handler {
+func NewSegRegHandler(args HandlerArgs, syncDown bool) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &segRegHandler{
 			baseHandler: newBaseHandler(r, args),
@@ -77,7 +77,7 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 	// down segment needs to be forwarded:
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
-		h.logger.Warn("[forwardDownSegs] no Messenger found")
+		h.logger.Error("[forwardDownSegs] no Messenger found")
 		return
 	}
 	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, 0)
@@ -85,25 +85,25 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 		h.logger.Error("[forwardDownSegs]", "err", err)
 		return
 	}
+	segSync := &path_mgmt.SegSync{
+		SegRecs: &path_mgmt.SegRecs{
+			Recs: []*seg.Meta{sm},
+		},
+	}
 	for _, coreIA := range trc.CoreASes.ASList() {
-		if coreIA != h.localIA {
-			// TODO(lukedirtwalker): Use go routines here, send is blocking.
-			cPS, err := h.corePSAddr(ctx, coreIA)
-			if err != nil {
-				h.logger.Error("[forwardDownSegs] failed to get add of cPS",
-					"dstIA", coreIA, "err", err)
-				continue
-			}
-			segSync := &path_mgmt.SegSync{
-				SegRecs: &path_mgmt.SegRecs{
-					Recs: []*seg.Meta{sm},
-				},
-			}
-			err = msger.SendSegSync(ctx, segSync, cPS, h.request.ID)
-			if err != nil {
-				h.logger.Error("[forwardDownSegs] failed to send segSync",
-					"dstIA", coreIA, "err", err)
-			}
+		if coreIA == h.localIA {
+			continue
+		}
+		// TODO(lukedirtwalker): Use go routines here, send is blocking.
+		cPS, err := h.corePSAddr(ctx, coreIA)
+		if err != nil {
+			h.logger.Error("[forwardDownSegs] failed to create the snet addr",
+				"dstIA", coreIA, "err", err)
+			continue
+		}
+		if err := msger.SendSegSync(ctx, segSync, cPS, h.request.ID); err != nil {
+			h.logger.Error("[forwardDownSegs] failed to send segSync",
+				"dstIA", coreIA, "err", err)
 		}
 	}
 }
@@ -118,12 +118,9 @@ func (h *segRegHandler) corePSAddr(ctx context.Context, dstIA addr.IA) (net.Addr
 	if err != nil {
 		return nil, err
 	}
-	if len(coreSegs) < 1 {
+	if len(coreSegs) == 0 {
 		return nil, common.NewBasicError("No core segments found!", nil)
 	}
-	paths := combinator.Combine(h.localIA, dstIA, nil, coreSegs, nil)
-	if len(paths) < 1 {
-		return nil, common.NewBasicError("No path to local cPS", nil)
-	}
-	return h.addrFromPath(paths[0], dstIA)
+	seg := coreSegs[rand.Intn(len(coreSegs))]
+	return h.psAddrFromSeg(seg, seg.FirstIA())
 }

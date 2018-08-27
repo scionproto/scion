@@ -25,11 +25,9 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -39,7 +37,7 @@ import (
 )
 
 const (
-	HandlerTimeout = 3 * time.Second
+	HandlerTimeout = 30 * time.Second
 )
 
 // HandlerArgs are the values required to create the path server's handlers.
@@ -59,7 +57,7 @@ type baseHandler struct {
 	logger     log.Logger
 }
 
-func newBaseHandler(request *infra.Request, args *HandlerArgs) *baseHandler {
+func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 	return &baseHandler{
 		request:    request,
 		pathDB:     args.PathDB,
@@ -78,9 +76,8 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	segs := extractSegs(res)
 	// XXX(lukedirtwalker): Consider cases where segment with revoked interfaces should be returned.
-	return filterSegs(segs, h.noRevokedHopIntf), nil
+	return filterSegs(extractSegs(res), h.noRevokedHopIntf), nil
 }
 
 // noRevokedHopIntf returns true if there is no revoked on-segment interface on the segment s.
@@ -95,41 +92,33 @@ func (h *baseHandler) noRevokedHopIntf(s *seg.PathSegment) bool {
 	return true
 }
 
-func (h *baseHandler) addrFromPath(path *combinator.Path, dstIA addr.IA) (net.Addr, error) {
-	nextHop, ok := h.topology.IFInfoMap[path.Interfaces[0].IfID]
-	if !ok {
-		h.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
-		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil)
-	}
-	pAddr := nextHop.InternalAddr.PublicAddr(h.topology.Overlay)
-	x := &bytes.Buffer{}
-	_, err := path.WriteTo(x)
+func (h *baseHandler) psAddrFromSeg(s *seg.PathSegment, dstIA addr.IA) (net.Addr, error) {
+	ifID, err := firstInterface(s)
 	if err != nil {
-		// In-memory write should never fail
-		panic(err)
+		return nil, err
+	}
+	nextHop, ok := h.topology.IFInfoMap[ifID]
+	if !ok {
+		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifid", ifID)
+	}
+	x := &bytes.Buffer{}
+	if _, err := s.RawWriteTo(x); err != nil {
+		return nil, common.NewBasicError("Failed to write segment to buffer", err)
 	}
 	p := spath.New(x.Bytes())
-	if err = p.InitOffsets(); err != nil {
-		return nil, err
+	if err = p.Reverse(); err != nil {
+		return nil, common.NewBasicError("Failed to reverse path", err)
 	}
-	nhAddr, err := overlay.NewOverlayAddr(pAddr.L3, pAddr.L4)
-	if err != nil {
-		return nil, err
+	if err = p.InitOffsets(); err != nil {
+		return nil, common.NewBasicError("Failed to init offsets", err)
 	}
 	return &snet.Addr{
-		IA: dstIA,
-		Host: &addr.AppAddr{
-			L3: addr.SvcPS,
-			L4: addr.NewL4UDPInfo(0),
-		},
+		IA:      dstIA,
+		Host:    addr.NewSVCUDPAppAddr(addr.SvcPS),
 		Path:    p,
-		NextHop: nhAddr,
+		NextHop: nextHop.InternalAddr.OverlayAddr(h.topology.Overlay),
 	}, nil
 }
-
-// ignore is a convenience function that can be passed into verifyAndStore if no further action
-// should be taken when a segment was verified.
-func ignore(context.Context, *seg.Meta) {}
 
 func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	segVerified func(context.Context, *seg.Meta),
@@ -155,6 +144,30 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	}
 	segverifier.Verify(ctx, h.trustStore, src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
+}
+
+// ignore is a convenience function that can be passed into verifyAndStore if no further action
+// should be taken when a segment was verified.
+func ignore(context.Context, *seg.Meta) {}
+
+func firstInterface(s *seg.PathSegment) (common.IFIDType, error) {
+	if len(s.ASEntries) == 0 {
+		return 0, common.NewBasicError("Could not find first IFID, No ASEntries", nil, "seg", s)
+	}
+	asEntry := s.ASEntries[len(s.ASEntries)-1]
+	for _, hopEntry := range asEntry.HopEntries {
+		hf, err := hopEntry.HopField()
+		if err != nil {
+			return 0, err
+		}
+		if hf.ConsEgress != 0 {
+			return hf.ConsEgress, nil
+		}
+		if hf.ConsIngress != 0 {
+			return hf.ConsIngress, nil
+		}
+	}
+	return 0, common.NewBasicError("Could not find first IFID, No HopEntry", nil, "seg", s)
 }
 
 func filterSegs(segs []*seg.PathSegment, keep func(*seg.PathSegment) bool) []*seg.PathSegment {
@@ -190,13 +203,12 @@ func lastIAs(segs []*seg.PathSegment) []addr.IA {
 }
 
 func extractIAs(segs []*seg.PathSegment, extract func(*seg.PathSegment) addr.IA) []addr.IA {
-	var empty struct{}
 	var ias []addr.IA
 	addrs := make(map[addr.IA]struct{})
 	for _, s := range segs {
 		ia := extract(s)
 		if _, ok := addrs[ia]; !ok {
-			addrs[ia] = empty
+			addrs[ia] = struct{}{}
 			ias = append(ias, ia)
 		}
 	}

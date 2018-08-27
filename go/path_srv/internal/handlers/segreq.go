@@ -19,13 +19,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/pathdb/query"
-
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -33,10 +32,7 @@ import (
 
 type segReqHandler struct {
 	*baseHandler
-	localIA  addr.IA
-	srcTRC   *trc.TRC
-	dstLocal bool
-	dstCore  bool
+	localIA addr.IA
 }
 
 func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
@@ -52,14 +48,19 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, msger infra.Messenger,
 	if segReq.DstIA().A == 0 {
 		return true, nil
 	}
-	if h.dstLocal {
-		return h.srcTRC.CoreASes.Contains(segReq.DstIA()), nil
-	}
 	dstTRC, err := h.trustStore.GetTRC(ctx, segReq.DstIA().I, 0)
 	if err != nil {
 		return false, common.NewBasicError("Failed to get TRC for dst", err)
 	}
 	return dstTRC.CoreASes.Contains(segReq.DstIA()), nil
+}
+
+func (h *segReqHandler) coreASes(ctx context.Context) (trc.CoreASMap, error) {
+	srcTRC, err := h.trustStore.GetTRC(ctx, h.localIA.I, 0)
+	if err != nil {
+		return nil, common.NewBasicError("Failed to get TRC for localIA", err)
+	}
+	return srcTRC.CoreASes, nil
 }
 
 func (h *segReqHandler) fetchDownSegs(ctx context.Context,
@@ -79,9 +80,7 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context,
 	if dbOnly || len(segs) > 0 {
 		return segs, nil
 	}
-
-	_, err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cPSAddr, requestID.Next())
-	if err != nil {
+	if err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cPSAddr); err != nil {
 		return nil, err
 	}
 	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
@@ -89,27 +88,32 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context,
 }
 
 func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messenger,
-	src, dst addr.IA, cPSAddr net.Addr, id uint64) (*path_mgmt.SegReply, error) {
+	src, dst addr.IA, cPSAddr net.Addr) error {
 
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
-	segs, err := msger.GetPathSegs(ctx, r, cPSAddr, id)
+	segs, err := msger.GetPathSegs(ctx, r, cPSAddr, requestID.Next())
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var recs []*seg.Meta
 	var revInfos []*path_mgmt.SignedRevInfo
 	if segs.Recs != nil {
 		recs = segs.Recs.Recs
 		revInfos = segs.Recs.SRevInfos
+		h.verifyAndStore(ctx, cPSAddr, ignore, recs, revInfos)
 	}
-	h.verifyAndStore(ctx, cPSAddr, ignore, recs, revInfos)
-	return segs, nil
+	return nil
 }
 
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
 
-	upSegs, coreSegs, downSegs = removeDisconnectedSegs(upSegs, coreSegs, downSegs)
+	if h.topology.Core {
+		coreSegs, downSegs = removeDisconnectedSegsCore(coreSegs, downSegs, h.localIA)
+	} else {
+		upSegs, coreSegs, downSegs = removeDisconnectedSegsNonCore(upSegs,
+			coreSegs, downSegs, segReq.DstIA())
+	}
 	recs := &path_mgmt.SegRecs{
 		Recs:      h.collectSegs(upSegs, coreSegs, downSegs),
 		SRevInfos: h.relevantRevInfos(upSegs, coreSegs, downSegs),
@@ -139,44 +143,65 @@ func (h *segReqHandler) relevantRevInfos(upSegs, coreSegs,
 }
 
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {
-	recs := make([]*seg.Meta, len(upSegs)+len(coreSegs)+len(downSegs))
-	for i, s := range upSegs {
+	recs := make([]*seg.Meta, 0, len(upSegs)+len(coreSegs)+len(downSegs))
+	for i := range upSegs {
+		s := upSegs[i]
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs[i] = &seg.Meta{Type: proto.PathSegType_up, Segment: upSegs[i]}
+		recs = append(recs, &seg.Meta{
+			Type:    proto.PathSegType_up,
+			Segment: s,
+		})
 	}
-	l := len(upSegs)
-	for i, s := range coreSegs {
+	for i := range coreSegs {
+		s := coreSegs[i]
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs[l+i] = &seg.Meta{Type: proto.PathSegType_core, Segment: coreSegs[i]}
+		recs = append(recs, &seg.Meta{
+			Type:    proto.PathSegType_core,
+			Segment: s,
+		})
 	}
-	l = len(upSegs) + len(coreSegs)
-	for i, s := range downSegs {
+	for i := range downSegs {
+		s := downSegs[i]
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs[l+i] = &seg.Meta{Type: proto.PathSegType_down, Segment: downSegs[i]}
+		recs = append(recs, &seg.Meta{
+			Type:    proto.PathSegType_down,
+			Segment: s,
+		})
 	}
 	return recs
 }
 
-// segsToMap converts the segs slice to a map of IAs to segments.
-// The IA (key) is selected using the key function.
-func segsToMap(segs []*seg.PathSegment,
-	key func(*seg.PathSegment) addr.IA) map[addr.IA][]*seg.PathSegment {
+// removeDisconnectedSegsCore removes down/up segs that have no corresponding core seg.
+func removeDisconnectedSegsCore(coreSegs, downSegs []*seg.PathSegment,
+	localIA addr.IA) ([]*seg.PathSegment, []*seg.PathSegment) {
 
-	if len(segs) == 0 {
-		return nil
+	downCount := len(downSegs)
+	downs := segsToMap(downSegs, firstIA)
+	// remove unconnected core segs
+	coreSegs = filterSegs(coreSegs, func(s *seg.PathSegment) bool {
+		_, downExists := downs[s.FirstIA()]
+		return downCount == 0 || downExists
+	})
+	if len(coreSegs) == 0 {
+		// in the core it could happen that we only have down segments.
+		return coreSegs, downSegs
 	}
-	res := make(map[addr.IA][]*seg.PathSegment)
-	for _, s := range segs {
-		res[key(s)] = append(res[key(s)], s)
-	}
-	return res
+	coreDowns := segsToMap(coreSegs, firstIA)
+	coreDowns[localIA] = struct{}{}
+	// remove unconnected down segs
+	downSegs = filterSegs(downSegs, func(s *seg.PathSegment) bool {
+		_, coreExists := coreDowns[s.FirstIA()]
+		return coreExists
+	})
+	return coreSegs, downSegs
 }
 
-// removeDisconnectedSegs removes down/up segs that have no corresponding core seg.
-func removeDisconnectedSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) ([]*seg.PathSegment,
+// removeDisconnectedSegsNonCore removes down/up segs that have no corresponding core seg.
+func removeDisconnectedSegsNonCore(upSegs, coreSegs,
+	downSegs []*seg.PathSegment, dstIA addr.IA) ([]*seg.PathSegment,
 	[]*seg.PathSegment, []*seg.PathSegment) {
 
 	upCount := len(upSegs)
@@ -187,26 +212,39 @@ func removeDisconnectedSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) ([]*s
 	coreSegs = filterSegs(coreSegs, func(s *seg.PathSegment) bool {
 		_, upExists := ups[s.LastIA()]
 		_, downExists := downs[s.FirstIA()]
-		return (upCount == 0 || upExists) &&
-			(downCount == 0 || downExists)
+		return s.FirstIA().Eq(dstIA) ||
+			((upCount == 0 || upExists) &&
+				(downCount == 0 || downExists))
 	})
 	coreUps := segsToMap(coreSegs, lastIA)
 	coreDowns := segsToMap(coreSegs, firstIA)
-	// If we have both up and down segments there has to be some connection via a core AS.
-	coreHasToExist := upCount > 0 && downCount > 0
+	// only up segments
+	onlyUps := upCount > 0 && downCount == 0 && len(coreSegs) == 0
 	// remove unconnected up segs
 	upSegs = filterSegs(upSegs, func(s *seg.PathSegment) bool {
 		_, coreExists := coreUps[s.FirstIA()]
 		_, downExists := downs[s.FirstIA()]
-		return (!coreHasToExist && len(coreSegs) == 0) || coreExists || downExists
+		return onlyUps || s.FirstIA().Eq(dstIA) || coreExists || downExists
 	})
 	// remove unconnected down segs
 	downSegs = filterSegs(downSegs, func(s *seg.PathSegment) bool {
 		_, coreExists := coreDowns[s.FirstIA()]
 		_, upExists := ups[s.FirstIA()]
-		return (!coreHasToExist && len(coreSegs) == 0) || coreExists || upExists
+		return coreExists || upExists
 	})
 	return upSegs, coreSegs, downSegs
+}
+
+// segsToMap converts the segs slice to a map of IAs to segments.
+// The IA (key) is selected using the key function.
+func segsToMap(segs []*seg.PathSegment,
+	key func(*seg.PathSegment) addr.IA) map[addr.IA]struct{} {
+
+	res := make(map[addr.IA]struct{})
+	for _, s := range segs {
+		res[key(s)] = struct{}{}
+	}
+	return res
 }
 
 func allRevKeys(upSegs, coreSegs, downSegs []*seg.PathSegment) map[revcache.Key]struct{} {
