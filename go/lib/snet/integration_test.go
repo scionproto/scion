@@ -139,13 +139,13 @@ func ClientServer(haveSciond bool, idx int, tc TestCase) {
 			fmt.Sprintf("%v,[%v]:%d", tc.dstIA, tc.dstLocal, tc.dstPort))
 		SoMsg("Server address error", err, ShouldBeNil)
 
-		sconn, err := serverNet.ListenSCION("udp4", serverAddr)
+		sconn, err := serverNet.ListenSCION("udp4", serverAddr, -1)
 		SoMsg("Listen error", err, ShouldBeNil)
 
 		err = sconn.SetDeadline(time.Now().Add(5 * time.Second))
 		SoMsg("Server deadline error", err, ShouldBeNil)
 
-		cconn, err := clientNet.DialSCION("udp4", clientAddr, serverAddr)
+		cconn, err := clientNet.DialSCION("udp4", clientAddr, serverAddr, -1)
 		SoMsg("Client dial error", err, ShouldBeNil)
 		cconn.SetDeadline(time.Now().Add(5 * time.Second))
 		SoMsg("Client deadline error", err, ShouldBeNil)

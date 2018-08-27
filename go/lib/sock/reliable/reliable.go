@@ -168,14 +168,14 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *addr.AppAddr, 
 			"public", public, "bind", bind)
 	}
 
-	deadline := time.Now().Add(timeout)
 	conn, err := DialTimeout(dispatcher, timeout)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// If a timeout was specified, make reads and writes return if deadline exceeded
-	if timeout != 0 {
+	if timeout >= 0 {
+		deadline := time.Now().Add(timeout)
 		conn.SetDeadline(deadline)
 	}
 	reqSize := regBaseHeaderLen + public.L3.Size()
