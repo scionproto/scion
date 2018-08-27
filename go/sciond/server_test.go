@@ -175,6 +175,10 @@ func TestIFInfo(t *testing.T) {
 						IfID:     ifids[0],
 						HostInfo: MakeBRHostInfos(topo.Overlay, topo.BR, topo.IFInfoMap)[0],
 					},
+					{
+						IfID:     ifids[1],
+						HostInfo: MakeBRHostInfos(topo.Overlay, topo.BR, topo.IFInfoMap)[1],
+					},
 				},
 			},
 		},
