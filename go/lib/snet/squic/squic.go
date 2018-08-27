@@ -86,5 +86,5 @@ func sListen(network *snet.Network, laddr, baddr *snet.Addr,
 	if network == nil {
 		network = snet.DefNetwork
 	}
-	return network.ListenSCIONWithBindSVC("udp4", laddr, baddr, svc)
+	return network.ListenSCIONWithBindSVC("udp4", laddr, baddr, svc, -1)
 }

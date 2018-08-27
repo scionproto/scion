@@ -86,37 +86,41 @@ type Conn struct {
 	prefPathKey spathmeta.PathKey
 }
 
-// DialSCION calls DialSCION on the default networking context.
+// DialSCION calls DialSCION with infinite timeout on the default networking
+// context.
 func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.DialSCION(network, laddr, raddr)
+	return DefNetwork.DialSCION(network, laddr, raddr, -1)
 }
 
-// DialSCIONWithBindSVC calls DialSCIONWithBindSVC on the default networking context.
+// DialSCIONWithBindSVC calls DialSCIONWithBindSVC with infinite timeout on the
+// default networking context.
 func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 	svc addr.HostSVC) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc)
+	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc, -1)
 }
 
-// ListenSCION calls ListenSCION on the default networking context.
+// ListenSCION calls ListenSCION with infinite timeout on the default
+// networking context.
 func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.ListenSCION(network, laddr)
+	return DefNetwork.ListenSCION(network, laddr, -1)
 }
 
-// ListenSCIONWithBindSVC calls ListenSCIONWithBindSVC on the default networking context.
+// ListenSCIONWithBindSVC calls ListenSCIONWithBindSVC with infinite timeout on
+// the default networking context.
 func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc)
+	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc, -1)
 }
 
 // ReadFromSCION reads data into b, returning the length of copied data and the

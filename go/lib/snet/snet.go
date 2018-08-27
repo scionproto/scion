@@ -142,19 +142,26 @@ func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*Network,
 // DialSCION returns a SCION connection to raddr. Nil values for laddr are not
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
-func (n *Network) DialSCION(network string, laddr *Addr, raddr *Addr) (*Conn, error) {
-	return n.DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone)
+//
+// A negative timeout means infinite timeout.
+func (n *Network) DialSCION(network string, laddr, raddr *Addr,
+	timeout time.Duration) (*Conn, error) {
+
+	return n.DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone, timeout)
 }
 
 // DialSCIONWithBindSVC returns a SCION connection to raddr. Nil values for laddr are not
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
+//
+// A negative timeout means infinite timeout.
 func (n *Network) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
-	svc addr.HostSVC) (*Conn, error) {
+	svc addr.HostSVC, timeout time.Duration) (*Conn, error) {
+
 	if raddr == nil {
 		return nil, common.NewBasicError("Unable to dial to nil remote", nil)
 	}
-	conn, err := n.ListenSCIONWithBindSVC(network, laddr, baddr, svc)
+	conn, err := n.ListenSCIONWithBindSVC(network, laddr, baddr, svc, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -172,16 +179,20 @@ func (n *Network) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr
 // not supported yet. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
-func (n *Network) ListenSCION(network string, laddr *Addr) (*Conn, error) {
-	return n.ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone)
+//
+// A negative timeout means infinite timeout.
+func (n *Network) ListenSCION(network string, laddr *Addr, timeout time.Duration) (*Conn, error) {
+	return n.ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone, timeout)
 }
 
 // ListenSCIONWithBindSVC registers laddr with the dispatcher. Nil values for laddr are
 // not supported yet. The returned connection's ReadFrom and WriteTo methods
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
+//
+// A negative timeout means infinite timeout.
 func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
-	svc addr.HostSVC) (*Conn, error) {
+	svc addr.HostSVC, timeout time.Duration) (*Conn, error) {
 	if network != "udp4" {
 		return nil, common.NewBasicError("Network not implemented", nil, "net", network)
 	}
@@ -235,8 +246,8 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
 		}
 	}
-	rconn, port, err := reliable.Register(conn.scionNet.dispatcherPath,
-		conn.laddr.IA, conn.laddr.Host, bindAddr, svc)
+	rconn, port, err := reliable.RegisterTimeout(conn.scionNet.dispatcherPath,
+		conn.laddr.IA, conn.laddr.Host, bindAddr, svc, timeout)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to register with dispatcher", err)
 	}
