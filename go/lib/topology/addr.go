@@ -123,6 +123,10 @@ func (t *TopoAddr) BindOrPublic(ot overlay.Type) *addr.AppAddr {
 	return t.getAddr(ot).BindOrPublic()
 }
 
+func (t *TopoAddr) BindOrOverlay(ot overlay.Type) *overlay.OverlayAddr {
+	return t.getAddr(ot).BindOrOverlay()
+}
+
 func (t *TopoAddr) getAddr(ot overlay.Type) *pubBindAddr {
 	if t.IPv6 != nil && ot.IsIPv6() {
 		return t.IPv6
@@ -209,6 +213,14 @@ func (t *pubBindAddr) BindOrPublic() *addr.AppAddr {
 		return t.pub
 	}
 	return t.bind
+}
+
+func (t *pubBindAddr) BindOrOverlay() *overlay.OverlayAddr {
+	if t.bind == nil {
+		return t.overlay
+	}
+	addr, _ := overlay.NewOverlayAddr(t.bind.L3, t.bind.L4)
+	return addr
 }
 
 func (t1 *pubBindAddr) equal(t2 *pubBindAddr) bool {

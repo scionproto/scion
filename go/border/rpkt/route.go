@@ -207,13 +207,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
-	// XXX (sgmonroy) BR ignores the OverlayPort value from the topology and
-	// always uses the L4Port as the Overlay port.
-	dstPub := nextBR.InternalAddrs.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
-	dst, err := overlay.NewOverlayAddr(dstPub.L3, dstPub.L4)
-	if err != nil {
-		return HookError, err
-	}
+	dst := nextBR.InternalAddr.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }
