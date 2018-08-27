@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -33,7 +32,7 @@ type segReqCoreHandler struct {
 	segReqHandler
 }
 
-func NewSegReqCoreHandler(args *HandlerArgs) infra.Handler {
+func NewSegReqCoreHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &segReqCoreHandler{
 			segReqHandler: segReqHandler{
@@ -59,22 +58,9 @@ func (h *segReqCoreHandler) Handle() {
 		h.logger.Warn("[segReqCoreHandler] Unable to service request, no Messenger found")
 		return
 	}
-	if !h.isValidDst(segReq) {
-		return
-	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
-	var err error
-	h.srcTRC, err = h.trustStore.GetTRC(subCtx, h.localIA.I, 0)
-	if err != nil {
-		h.logger.Error("[segReqHandler] Failed to get TRC for src", "err", err)
-		h.sendEmptySegReply(subCtx, segReq, msger)
-		return
-	}
-	h.dstLocal = segReq.DstIA().I == h.localIA.I
-	h.dstCore, err = h.isCoreDst(subCtx, msger, segReq)
-	if err != nil {
-		h.logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
+	if !h.isValidDst(segReq) {
 		h.sendEmptySegReply(subCtx, segReq, msger)
 		return
 	}
@@ -84,11 +70,18 @@ func (h *segReqCoreHandler) Handle() {
 func (h *segReqCoreHandler) handleReq(ctx context.Context,
 	msger infra.Messenger, segReq *path_mgmt.SegReq) {
 
-	if h.dstLocal && segReq.DstIA().A == 0 {
+	dstISDLocal := segReq.DstIA().I == h.localIA.I
+	if dstISDLocal && segReq.DstIA().A == 0 {
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
-	if h.dstCore {
+	dstCore, err := h.isCoreDst(ctx, msger, segReq)
+	if err != nil {
+		h.logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
+		h.sendEmptySegReply(ctx, segReq, msger)
+		return
+	}
+	if dstCore {
 		h.handleCoreDst(ctx, msger, segReq)
 		return
 	}
@@ -100,7 +93,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		return
 	}
 	downSegs, err := h.fetchDownSegs(ctx, msger, segReq.DstIA(), cPS,
-		h.dstLocal || segReq.Flags.CacheOnly)
+		dstISDLocal || segReq.Flags.CacheOnly)
 	if err != nil {
 		h.logger.Error("[segReqHandler] Failed to find down segs", "err", err)
 		return
@@ -116,7 +109,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		coreSegs, err = h.fetchCoreSegsFromDB(ctx, firstIAs(downSegs))
 		if err != nil {
 			h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
-			return
+			// Fallthrough maybe the client can still use the down segs.
 		}
 	}
 	h.logger.Debug("[segReqHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
@@ -166,10 +159,6 @@ func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (n
 		return nil, common.NewBasicError("No core segments found!", nil)
 	}
 	// select random reachable core AS.
-	dstIA := coreSegs[rand.Intn(len(coreSegs))].FirstIA()
-	paths := combinator.Combine(h.localIA, dstIA, nil, coreSegs, nil)
-	if len(paths) < 1 {
-		return nil, common.NewBasicError("No path to local cPS", nil)
-	}
-	return h.addrFromPath(paths[0], dstIA)
+	seg := coreSegs[rand.Intn(len(coreSegs))]
+	return h.psAddrFromSeg(seg, seg.FirstIA())
 }

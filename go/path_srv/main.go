@@ -135,7 +135,7 @@ func realMain() int {
 	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.
 	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
-	args := &handlers.HandlerArgs{
+	args := handlers.HandlerArgs{
 		PathDB:     pathDB,
 		RevCache:   revCache,
 		TrustStore: trustStore,
@@ -146,7 +146,7 @@ func realMain() int {
 	if core {
 		segReqHandler = handlers.NewSegReqCoreHandler(args)
 	} else {
-		segReqHandler = handlers.NewSegReqLocalHandler(args)
+		segReqHandler = handlers.NewSegReqNonCoreHandler(args)
 	}
 	msger.AddHandler(infra.PathSegmentRequest, segReqHandler)
 	msger.AddHandler(infra.PathSegmentRegistration,
