@@ -60,7 +60,7 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 		if n.CtrlAddr == nil {
 			n.CtrlAddr = ifinfo.CtrlAddr
 		} else if assert.On {
-			assert.Must(n.CtrlAddr == ifinfo.InternalAddr, "Cannot have multiple control addresses")
+			assert.Must(n.CtrlAddr == ifinfo.CtrlAddr, "Cannot have multiple control addresses")
 		}
 		v, ok := n.IFs[ifid]
 		newIF := intfFromTopoIF(&ifinfo, ifid)
@@ -74,10 +74,10 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	for ifid, intf := range n.IFs {
 		// Add mapping of interface public address to this interface ID.
 		if intf.IFAddr.IPv4 != nil {
-			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv4.PublicAddr())] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv4.OverlayAddr())] = ifid
 		}
 		if intf.IFAddr.IPv6 != nil {
-			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv6.PublicAddr())] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv6.OverlayAddr())] = ifid
 		}
 	}
 	return n, nil

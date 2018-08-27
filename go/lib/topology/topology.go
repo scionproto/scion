@@ -132,7 +132,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if rawBr.CtrlAddr == nil {
 			return common.NewBasicError("Missing Control Address", nil)
 		}
-		intAddr, err := rawBr.InternalAddr.ToTopoAddr(t.Overlay)
+		intAddr, err := rawBr.InternalAddr.intTopoAddr(t.Overlay)
 		if err != nil {
 			return err
 		}

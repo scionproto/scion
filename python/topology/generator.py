@@ -746,9 +746,9 @@ class TopoGenerator(object):
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
                 'InternalAddr': {
-                    'Public': [{
+                    'PublicOverlay': [{
                         'Addr': int_addr,
-                        'L4Port': random.randint(30050, 30100),
+                        'OverlayPort': random.randint(30050, 30100),
                     }]
                 },
                 'CtrlAddr': {
@@ -769,13 +769,13 @@ class TopoGenerator(object):
     def _gen_br_intf(self, remote, public_addr, remote_addr, attrs, remote_type):
         return {
             'Overlay': self.overlay,
-            'Public': {
+            'PublicOverlay': {
                 'Addr': public_addr,
-                'L4Port': SCION_ROUTER_PORT
+                'OverlayPort': SCION_ROUTER_PORT
                 },
-            'Remote': {
+            'RemoteOverlay': {
                 'Addr': remote_addr,
-                'L4Port': SCION_ROUTER_PORT
+                'OverlayPort': SCION_ROUTER_PORT
                 },
             'Bandwidth': attrs.get('bw', DEFAULT_LINK_BW),
             'ISD_AS': str(remote),
@@ -1521,8 +1521,8 @@ def _json_default(o):
 
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
-    int_addr = br_ele['InternalAddr']['Public'][0]
-    return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port'] + 1)
+    int_addr = br_ele['InternalAddr']['PublicOverlay'][0]
+    return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['OverlayPort'] + 1)
 
 
 def _prom_addr_infra(infra_ele):
