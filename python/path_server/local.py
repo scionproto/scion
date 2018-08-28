@@ -1,4 +1,5 @@
 # Copyright 2014 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -95,7 +96,7 @@ class LocalPathServer(PathServer):
         if self.is_core_as(dst_ia) or dst_ia[1] == 0:
             self._resolve_core(req, up_segs, core_segs)
         else:
-            self._resolve_not_core(req, up_segs, core_segs, down_segs)
+            self._resolve_not_core(req, up_segs, core_segs, down_segs, logger)
         if up_segs | core_segs | down_segs:
             self._send_path_segments(req, cpld.req_id, meta, logger, up_segs, core_segs, down_segs)
             return True
@@ -115,14 +116,17 @@ class LocalPathServer(PathServer):
         ias = set()
         if not total_segs:
             return segs, ias
-        while True:
-            for key in buckets:
+        while buckets:
+            for key in list(buckets.keys()):
                 if len(segs) == self.MAX_SEG_NO or total_segs == 0:
                     return segs, ias
                 if len(buckets[key]) > 0:
                     segs.append(buckets[key].pop(0))
                     total_segs -= 1
                     ias.add(key)
+                else:
+                    del buckets[key]
+        return segs, ias
 
     def _core_segs(self, first_ias, last_ias, sibra):
         buckets = {}
@@ -191,14 +195,14 @@ class LocalPathServer(PathServer):
         segs, _ = self._get_segs_from_buckets(buckets_up, num_up_segs)
         up_segs.update(segs)
 
-    def _resolve_not_core(self, req, up_segs, core_segs, down_segs):
+    def _resolve_not_core(self, req, up_segs, core_segs, down_segs, logger):
         """
         Dst is regular AS.
         """
         dst_ia = req.dst_ia()
         sibra = req.p.flags.sibra
-        buckets_up, _ = self._up_segs(sibra)
-        buckets_down, _ = self._down_segs(dst_ia, sibra)
+        buckets_up, up_seg_c = self._up_segs(sibra)
+        buckets_down, down_seg_c = self._down_segs(dst_ia, sibra)
         up_core_ias = set(buckets_up.keys())
         down_core_ias = set(buckets_down.keys())
         buckets_core, num_core_segs = self._core_segs(down_core_ias, up_core_ias, sibra)
@@ -212,6 +216,16 @@ class LocalPathServer(PathServer):
         # Get usable core segments
         segs, ia_pairs = self._get_segs_from_buckets(buckets_core, num_core_segs)
         if not segs:
+            usegs, _ = self._get_segs_from_buckets(buckets_up, up_seg_c)
+            dsegs, _ = self._get_segs_from_buckets(buckets_down, down_seg_c)
+            # Compatibility with GO PS, we have to fetch missing core segs.
+            for dseg in dsegs:
+                for useg in usegs:
+                    # Request missing_ias
+                    src, dst = useg.first_ia(), dseg.first_ia()
+                    if src != dst:
+                        creq = PathSegmentReq.from_values(src_ia=src, dst_ia=dst)
+                        self._request_paths_from_core(creq, logger)
             return
         core_segs.update(segs)
         first_ias, last_ias = zip(*ia_pairs)
