@@ -39,13 +39,13 @@ checksum_bench: checksum_bench.c $(DYNAMIC)
 install: .installstamp
 
 .installstamp: $(TARGETS)
-	@sudo -vp "c/lib/scion:install [sudo] password for %p: "
+	@sudo -p "c/lib/scion:install [sudo] password for %p: " true
 	sudo cp $(TARGETS) $(PREFIX)/lib/
 	sudo ldconfig
 	touch .installstamp
 
 uninstall:
-	@sudo -vp "c/lib/scion:uninstall [sudo] password for %p: "
+	@sudo -p "c/lib/scion:uninstall [sudo] password for %p: " true
 	$(foreach var,$(TARGETS),sudo rm -f $(PREFIX)/lib/$(var);)
 	sudo ldconfig
 	rm -f .installstamp
