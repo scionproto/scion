@@ -206,6 +206,16 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	if laddr == nil {
 		return nil, common.NewBasicError("Nil laddr not supported", nil)
 	}
+	if laddr.Host == nil {
+		return nil, common.NewBasicError("Nil Host laddr not supported", nil)
+	}
+	if laddr.Host.L3 == nil {
+		return nil, common.NewBasicError("Nil Host L3 laddr not supported", nil)
+	}
+	if laddr.Host.L4 == nil {
+		// If no port has been specified, default to 0 to get a random port from the dispatcher
+		laddr.Host.L4 = addr.NewL4UDPInfo(0)
+	}
 	if laddr.Host.L3.Type() != addr.HostTypeIPv4 || laddr.Host.L4.Type() != common.L4UDP {
 		return nil, common.NewBasicError("Supplied local address does not match network", nil,
 			"expected L3", addr.HostTypeIPv4, "actual L3", laddr.Host.L3.Type(),
