@@ -1,4 +1,5 @@
 # Copyright 2017 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +18,7 @@ import logging
 import threading
 
 # How long to wait (at most) after segments are received before considering the request done.
-_WAIT_TIME = 0.2
+_WAIT_TIME = 0.5
 
 
 class RequestState:  # pragma: no cover
