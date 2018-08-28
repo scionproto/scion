@@ -4,16 +4,20 @@
     "BorderRouters": {
         "borderrouter6-ff00:0:362-1": {
             "InternalAddrs": {
-                "IPv4": {"Public": {"Addr": "192.0.128.1", "L4Port": 30097},
-                         "Bind": {"Addr": "10.0.0.1", "L4Port": 30197}},
-                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098},
-                         "Bind": {"Addr": "fe80::", "L4Port": 30198}}
+                "IPv4": {"PublicOverlay": {"Addr": "192.0.128.1", "OverlayPort": 30097},
+                         "BindOverlay": {"Addr": "10.0.0.1"}},
+                "IPv6": {"PublicOverlay": {"Addr": "2001:db8:a0b:12f0::1", "OverlayPort": 30098},
+                         "BindOverlay": {"Addr": "fe80::"}}
+            },
+            "CtrlAddr": {
+                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30298}}
+                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30298}},
             },
             "Interfaces": {
                 "101": {
                     "Overlay": "UDP/IPv4",
-                    "Public": {"Addr": "192.0.2.1", "L4Port": 4997},
-                    "Remote": {"Addr": "192.0.2.2", "L4Port": 4998},
+                    "PublicOverlay": {"Addr": "192.0.2.1", "OverlayPort": 4997},
+                    "RemoteOverlay": {"Addr": "192.0.2.2", "OverlayPort": 4998},
                     "Bandwidth": 100000,
                     "ISD_AS": "6-ff00:0:363",
                     "LinkTo": "CORE"

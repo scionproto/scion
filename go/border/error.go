@@ -18,6 +18,7 @@
 package main
 
 import (
+	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -60,7 +61,7 @@ func (r *Router) PacketError() {
 // generated and sent.
 func (r *Router) doPktError(rp *rpkt.RtrPkt, perr error) {
 	serr := scmp.ToError(perr)
-	if serr == nil || rp.SCMPError {
+	if serr == nil || rp.DirFrom == rcmn.DirSelf || rp.SCMPError {
 		// No scmp error data, packet is from self, or packet is already an SCMPError, so no reply.
 		return
 	}

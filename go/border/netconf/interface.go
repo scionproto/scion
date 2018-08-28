@@ -35,9 +35,9 @@ import (
 // NetConf contains the local addresses, interface config, and some maps for
 // accessing these by different methods.
 type NetConf struct {
-	// LocAddr is the local addresses from the topology.
+	// LocAddr is the local data-plane addresses from the topology.
 	LocAddr *topology.TopoAddr
-	// CtrlAddr is the local addresses from the topology.
+	// CtrlAddr is the local control-plane addresses from the topology.
 	CtrlAddr *topology.TopoAddr
 	// IFs maps interface IDs to Interfaces.
 	IFs map[common.IFIDType]*Interface
@@ -55,12 +55,14 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 		if n.LocAddr == nil {
 			n.LocAddr = ifinfo.InternalAddrs
 		} else if assert.On {
-			assert.Must(n.LocAddr == ifinfo.InternalAddrs, "Cannot have multiple local addresses")
+			assert.Must(n.LocAddr == ifinfo.InternalAddrs,
+				"Cannot have multiple local data-plane addresses")
 		}
 		if n.CtrlAddr == nil {
 			n.CtrlAddr = ifinfo.CtrlAddr
 		} else if assert.On {
-			assert.Must(n.CtrlAddr == ifinfo.CtrlAddr, "Cannot have multiple control addresses")
+			assert.Must(n.CtrlAddr == ifinfo.CtrlAddr,
+				"Cannot have multiple local control-plane addresses")
 		}
 		v, ok := n.IFs[ifid]
 		newIF := intfFromTopoIF(&ifinfo, ifid)
