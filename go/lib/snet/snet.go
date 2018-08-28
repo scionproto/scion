@@ -143,7 +143,7 @@ func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*Network,
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
 //
-// A negative timeout means infinite timeout.
+// A timeout of 0 means infinite timeout.
 func (n *Network) DialSCION(network string, laddr, raddr *Addr,
 	timeout time.Duration) (*Conn, error) {
 
@@ -154,7 +154,7 @@ func (n *Network) DialSCION(network string, laddr, raddr *Addr,
 // supported yet.  Parameter network must be "udp4". The returned connection's
 // Read and Write methods can be used to receive and send SCION packets.
 //
-// A negative timeout means infinite timeout.
+// A timeout of 0 means infinite timeout.
 func (n *Network) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (*Conn, error) {
 
@@ -180,7 +180,7 @@ func (n *Network) DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
 //
-// A negative timeout means infinite timeout.
+// A timeout of 0 means infinite timeout.
 func (n *Network) ListenSCION(network string, laddr *Addr, timeout time.Duration) (*Conn, error) {
 	return n.ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone, timeout)
 }
@@ -190,7 +190,7 @@ func (n *Network) ListenSCION(network string, laddr *Addr, timeout time.Duration
 // can be used to receive and send SCION packets with per-packet addressing.
 // Parameter network must be "udp4".
 //
-// A negative timeout means infinite timeout.
+// A timeout of 0 means infinite timeout.
 func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (*Conn, error) {
 	// FIXME(scrye): If no local address is specified, we want to

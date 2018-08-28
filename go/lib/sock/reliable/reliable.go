@@ -113,18 +113,14 @@ type Conn struct {
 
 // DialTimeout acts like Dial but takes a timeout.
 //
-// A negative timeout means infinite timeout.
+// A timeout of 0 means infinite timeout.
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
 func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 	var err error
 	var c net.Conn
-	if timeout < 0 {
-		c, err = net.Dial("unix", address)
-	} else {
-		c, err = net.DialTimeout("unix", address, timeout)
-	}
+	c, err = net.DialTimeout("unix", address, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +129,7 @@ func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 
 // Dial connects to the UNIX socket specified by address.
 func Dial(address string) (*Conn, error) {
-	return DialTimeout(address, time.Duration(-1))
+	return DialTimeout(address, 0)
 }
 
 func newConn(c net.Conn) *Conn {
@@ -146,7 +142,7 @@ func newConn(c net.Conn) *Conn {
 
 // RegisterTimeout acts like Register but takes a timeout.
 //
-// A negative timeout means infinite timeout.
+// A timeout of 0 means infinite timeout.
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
@@ -168,14 +164,15 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *addr.AppAddr, 
 			"public", public, "bind", bind)
 	}
 
+	// Compute deadline prior to Dial, because timeout is relative to current time.
+	deadline := time.Now().Add(timeout)
 	conn, err := DialTimeout(dispatcher, timeout)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// If a timeout was specified, make reads and writes return if deadline exceeded
-	if timeout >= 0 {
-		deadline := time.Now().Add(timeout)
+	// If a timeout was specified, make reads and writes return if deadline exceeded.
+	if timeout != 0 {
 		conn.SetDeadline(deadline)
 	}
 	reqSize := regBaseHeaderLen + public.L3.Size()
