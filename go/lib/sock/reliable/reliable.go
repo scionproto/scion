@@ -120,11 +120,7 @@ type Conn struct {
 func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 	var err error
 	var c net.Conn
-	if timeout < 0 {
-		c, err = net.Dial("unix", address)
-	} else {
-		c, err = net.DialTimeout("unix", address, timeout)
-	}
+	c, err = net.DialTimeout("unix", address, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +129,7 @@ func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 
 // Dial connects to the UNIX socket specified by address.
 func Dial(address string) (*Conn, error) {
-	return DialTimeout(address, time.Duration(-1))
+	return DialTimeout(address, 0)
 }
 
 func newConn(c net.Conn) *Conn {

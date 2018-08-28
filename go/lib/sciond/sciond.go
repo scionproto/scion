@@ -137,7 +137,7 @@ type connector struct {
 }
 
 func connect(socketName string) (*connector, error) {
-	return connectTimeout(socketName, time.Duration(-1))
+	return connectTimeout(socketName, 0)
 }
 
 func connectTimeout(socketName string, timeout time.Duration) (*connector, error) {
