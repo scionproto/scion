@@ -379,8 +379,8 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 func Test_IFInfo_InternalAddr(t *testing.T) {
 	ifm := make(map[common.IFIDType]*TopoAddr)
 	ifm[101] = &TopoAddr{
-		IPv4:    mkPBOv4("192.0.128.1", 30097, "10.0.0.1", 30197, 30097),
-		IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "fe80::", 30198, 30098),
+		IPv4:    mkOBv4("192.0.128.1", 30097, "10.0.0.1"),
+		IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 30098, "fe80::"),
 		Overlay: overlay.UDPIPv46,
 	}
 	fn := "testdata/udpbr.json"
