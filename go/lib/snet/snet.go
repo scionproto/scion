@@ -193,9 +193,6 @@ func (n *Network) ListenSCION(network string, laddr *Addr, timeout time.Duration
 // A negative timeout means infinite timeout.
 func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	svc addr.HostSVC, timeout time.Duration) (*Conn, error) {
-	if network != "udp4" {
-		return nil, common.NewBasicError("Network not implemented", nil, "net", network)
-	}
 	// FIXME(scrye): If no local address is specified, we want to
 	// bind to the address of the outbound interface on a random
 	// free port. However, the current dispatcher version cannot
@@ -203,16 +200,40 @@ func (n *Network) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr,
 	// normal operating system semantics for binding on 0.0.0.0 (it
 	// considers it to be a fixed address instead of a wildcard). To avoid
 	// misuse, disallow binding to nil or 0.0.0.0 addresses for now.
+	var l3Type addr.HostAddrType
+	var l4Type common.L4ProtocolType
+	var defL4 addr.L4Info
+	switch network {
+	case "udp4":
+		l3Type = addr.HostTypeIPv4
+		l4Type = common.L4UDP
+		defL4 = addr.NewL4UDPInfo(0)
+	default:
+		return nil, common.NewBasicError("Network not implemented", nil, "net", network)
+	}
 	if laddr == nil {
 		return nil, common.NewBasicError("Nil laddr not supported", nil)
 	}
-	if laddr.Host.L3.Type() != addr.HostTypeIPv4 || laddr.Host.L4.Type() != common.L4UDP {
-		return nil, common.NewBasicError("Supplied local address does not match network", nil,
-			"expected L3", addr.HostTypeIPv4, "actual L3", laddr.Host.L3.Type(),
-			"expected L4", common.L4UDP, "actual L4", laddr.Host.L4.Type())
+	if laddr.Host == nil {
+		return nil, common.NewBasicError("Nil Host laddr not supported", nil)
 	}
-	if laddr.Host.L3.IP().Equal(net.IPv4zero) {
-		return nil, common.NewBasicError("Binding to 0.0.0.0 not supported", nil)
+	if laddr.Host.L3 == nil {
+		return nil, common.NewBasicError("Nil Host L3 laddr not supported", nil)
+	}
+	if laddr.Host.L3.Type() != l3Type {
+		return nil, common.NewBasicError("Supplied local address does not match network", nil,
+			"expected L3", l3Type, "actual L3", laddr.Host.L3.Type())
+	}
+	if laddr.Host.L3.IP().IsUnspecified() {
+		return nil, common.NewBasicError("Binding to unspecified address not supported", nil)
+	}
+	if laddr.Host.L4 == nil {
+		// If no port has been specified, default to 0 to get a random port from the dispatcher
+		laddr.Host.L4 = defL4
+	}
+	if laddr.Host.L4.Type() != l4Type {
+		return nil, common.NewBasicError("Supplied local address does not match network", nil,
+			"expected L4", l4Type, "actual L4", laddr.Host.L4.Type())
 	}
 	conn := &Conn{
 		net:        network,
