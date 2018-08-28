@@ -117,18 +117,6 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if rawBr.InternalAddr == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		for i := range rawBr.InternalAddr.Public {
-			iAddr := &rawBr.InternalAddr.Public[i]
-			if iAddr.OverlayPort != 0 {
-				return common.NewBasicError("BR internal address may not have overlay port set",
-					nil, "br", name, "intAddr", iAddr)
-			}
-			if t.Overlay.IsUDP() {
-				// Set the overlay port to the L4 port as the BR does not run
-				// on top of the dispatcher.
-				iAddr.OverlayPort = iAddr.L4Port
-			}
-		}
 		if rawBr.CtrlAddr == nil {
 			return common.NewBasicError("Missing Control Address", nil)
 		}

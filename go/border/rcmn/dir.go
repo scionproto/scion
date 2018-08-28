@@ -23,6 +23,8 @@ type Dir int
 const (
 	// DirUnset is the zero-value for Dir, and means the direction hasn't been initialized.
 	DirUnset Dir = iota
+	// DirSelf means the packet is going to/coming from this router.
+	DirSelf
 	// DirLocal means the packet is going to/coming from the local ISD-AS.
 	DirLocal
 	// DirExternal means the packet is going to/coming from another ISD-AS.
@@ -33,6 +35,8 @@ func (d Dir) String() string {
 	switch d {
 	case DirUnset:
 		return "Unset"
+	case DirSelf:
+		return "Self"
 	case DirLocal:
 		return "Local"
 	case DirExternal:

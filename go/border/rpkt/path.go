@@ -95,7 +95,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 	}
 	state, ok := ifstate.LoadState(*ifid)
 	if !ok || state.Active {
-		// Ignore revocation if the interface isn't revoked
+		// Interface is not revoked
 		return nil
 	}
 	// Interface is revoked.

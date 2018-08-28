@@ -167,13 +167,12 @@ func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 		rp.Error("Error parsing payload", "err", err)
 		return
 	}
-	// Process the packet, if a previous step has registered a relevant hook
-	// for doing so.
+	// Process the packet, if a previous step has registered a relevant hook for doing so.
 	if err := rp.Process(); err != nil {
 		r.handlePktError(rp, err, "Error processing packet")
 		return
 	}
-	// Forward the packet. Even packets destined to self are forward to the local dispatcher.
+	// Forward the packet. Packets destined to self are forwarded to the local dispatcher.
 	if err := rp.Route(); err != nil {
 		r.handlePktError(rp, err, "Error routing packet")
 	}

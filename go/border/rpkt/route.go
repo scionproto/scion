@@ -128,33 +128,6 @@ func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC) (HookResult, error) {
 	return HookContinue, nil
 }
 
-// getSVCNamesMap returns the slice of instance names and addresses for a given
-// SVC address.
-func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
-	[]string, map[string]topology.TopoAddr, error) {
-	t := ctx.Conf.Topo
-	var names []string
-	var elemMap map[string]topology.TopoAddr
-	switch svc.Base() {
-	case addr.SvcBS:
-		names, elemMap = t.BSNames, t.BS
-	case addr.SvcPS:
-		names, elemMap = t.PSNames, t.PS
-	case addr.SvcCS:
-		names, elemMap = t.CSNames, t.CS
-	case addr.SvcSB:
-		names, elemMap = t.SBNames, t.SB
-	default:
-		return nil, nil, common.NewBasicError("Unsupported SVC address",
-			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
-	}
-	if len(elemMap) == 0 {
-		return nil, nil, common.NewBasicError("No instances found for SVC address",
-			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
-	}
-	return names, elemMap, nil
-}
-
 func (rp *RtrPkt) forward() (HookResult, error) {
 	switch rp.DirFrom {
 	case rcmn.DirExternal:
@@ -331,4 +304,31 @@ func (rp *RtrPkt) reprocess() (HookResult, error) {
 	s.Ring.Write(ringbuf.EntryList{rp}, true)
 	// Stop routing the packet after enqueuing it back into the ringbuffer.
 	return HookFinish, nil
+}
+
+// getSVCNamesMap returns the slice of instance names and addresses for a given
+// SVC address.
+func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
+	[]string, map[string]topology.TopoAddr, error) {
+	t := ctx.Conf.Topo
+	var names []string
+	var elemMap map[string]topology.TopoAddr
+	switch svc.Base() {
+	case addr.SvcBS:
+		names, elemMap = t.BSNames, t.BS
+	case addr.SvcPS:
+		names, elemMap = t.PSNames, t.PS
+	case addr.SvcCS:
+		names, elemMap = t.CSNames, t.CS
+	case addr.SvcSB:
+		names, elemMap = t.SBNames, t.SB
+	default:
+		return nil, nil, common.NewBasicError("Unsupported SVC address",
+			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
+	}
+	if len(elemMap) == 0 {
+		return nil, nil, common.NewBasicError("No instances found for SVC address",
+			scmp.NewError(scmp.C_Routing, scmp.T_R_UnreachHost, nil, nil), "svc", svc)
+	}
+	return names, elemMap, nil
 }
