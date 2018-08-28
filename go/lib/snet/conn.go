@@ -92,7 +92,7 @@ func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.DialSCION(network, laddr, raddr, -1)
+	return DefNetwork.DialSCION(network, laddr, raddr, 0)
 }
 
 // DialSCIONWithBindSVC calls DialSCIONWithBindSVC with infinite timeout on the
@@ -102,7 +102,7 @@ func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc, -1)
+	return DefNetwork.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc, 0)
 }
 
 // ListenSCION calls ListenSCION with infinite timeout on the default
@@ -111,7 +111,7 @@ func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.ListenSCION(network, laddr, -1)
+	return DefNetwork.ListenSCION(network, laddr, 0)
 }
 
 // ListenSCIONWithBindSVC calls ListenSCIONWithBindSVC with infinite timeout on
@@ -120,7 +120,7 @@ func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
-	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc, -1)
+	return DefNetwork.ListenSCIONWithBindSVC(network, laddr, baddr, svc, 0)
 }
 
 // ReadFromSCION reads data into b, returning the length of copied data and the
