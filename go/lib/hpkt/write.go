@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -76,7 +77,7 @@ func WriteScnPkt(s *spkt.ScnPkt, b common.RawBytes) (int, error) {
 	offset += addrPad
 
 	// Forwarding Path
-	if s.Path != nil {
+	if !s.Path.IsEmpty() {
 		cmnHdr.CurrInfoF = uint8((offset + s.Path.InfOff) / common.LineLen)
 		cmnHdr.CurrHopF = uint8((offset + s.Path.HopOff) / common.LineLen)
 		offset += copy(b[offset:], s.Path.Raw)

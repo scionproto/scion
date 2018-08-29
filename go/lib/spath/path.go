@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -148,6 +149,10 @@ func (path *Path) IncOffsets() error {
 		return common.NewBasicError("Hop Field parse error", err, "offset", path.HopOff)
 	}
 	return path.incOffsets(hopF.Len())
+}
+
+func (path *Path) IsEmpty() bool {
+	return path == nil || len(path.Raw) == 0
 }
 
 // incOffsets jumps ahead skip bytes, and searches for the first routing Hop
