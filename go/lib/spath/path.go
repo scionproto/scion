@@ -111,7 +111,7 @@ func (path *Path) InitOffsets() error {
 	path.InfOff = 0
 	path.HopOff = common.LineLen
 	// Cannot initialize an empty path
-	if path == nil || len(path.Raw) == 0 {
+	if path.IsEmpty() {
 		return common.NewBasicError("Unable to initialize empty path", nil)
 	}
 	// Skip Peer with Xover HF
@@ -151,6 +151,7 @@ func (path *Path) IncOffsets() error {
 	return path.incOffsets(hopF.Len())
 }
 
+// IsEmpty returns true if the path is nil or empty (no raw data).
 func (path *Path) IsEmpty() bool {
 	return path == nil || len(path.Raw) == 0
 }
@@ -189,6 +190,9 @@ func (path *Path) GetInfoField(offset int) (*InfoField, error) {
 	if offset < 0 {
 		return nil, common.NewBasicError("Negative InfoF offset", nil, "offset", offset)
 	}
+	if path.IsEmpty() {
+		return nil, common.NewBasicError("Unable to get infoField from empty path", nil)
+	}
 	infoF, err := InfoFFromRaw(path.Raw[offset:])
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse Info Field", err, "offset", offset)
@@ -199,6 +203,9 @@ func (path *Path) GetInfoField(offset int) (*InfoField, error) {
 func (path *Path) GetHopField(offset int) (*HopField, error) {
 	if offset < 0 {
 		return nil, common.NewBasicError("Negative HopF offset", nil, "offset", offset)
+	}
+	if path.IsEmpty() {
+		return nil, common.NewBasicError("Unable to get hopField from empty path", nil)
 	}
 	hopF, err := HopFFromRaw(path.Raw[offset:])
 	if err != nil {
