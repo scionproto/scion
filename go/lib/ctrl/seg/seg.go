@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -216,6 +218,36 @@ func (ps *PathSegment) validateIdx(idx int) error {
 
 func (ps *PathSegment) Write(b common.RawBytes) (int, error) {
 	return proto.WriteRoot(ps, b)
+}
+
+// RawWriteTo writes the PathSegment to the writer in a form that is understood by spath/Path.
+func (ps *PathSegment) RawWriteTo(w io.Writer) (int64, error) {
+	var total int64
+	inf, err := ps.InfoF()
+	if err != nil {
+		return total, err
+	}
+	inf.Hops = uint8(len(ps.ASEntries))
+	n, err := inf.WriteTo(w)
+	total += n
+	if err != nil {
+		return total, err
+	}
+	for _, asEntry := range ps.ASEntries {
+		if len(asEntry.HopEntries) == 0 {
+			return total, common.NewBasicError("ASEntry has no HopEntry", nil, "asEntry", asEntry)
+		}
+		hf, err := asEntry.HopEntries[0].HopField()
+		if err != nil {
+			return total, err
+		}
+		n, err = hf.WriteTo(w)
+		total += n
+		if err != nil {
+			return total, err
+		}
+	}
+	return total, nil
 }
 
 func (ps *PathSegment) Pack() (common.RawBytes, error) {
