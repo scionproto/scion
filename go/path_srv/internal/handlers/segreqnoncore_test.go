@@ -31,7 +31,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -89,7 +88,7 @@ type testCase struct {
 	Expected []*seg.Meta
 }
 
-func setupDB(t *testing.T, tc testCase) conn.Conn {
+func setupDB(t *testing.T, tc testCase) pathdb.PathDB {
 	db, err := pathdbbe.New(":memory:")
 	xtest.FailOnErr(t, err)
 	insertSegs(t, db, tc.Ups, proto.PathSegType_up)
