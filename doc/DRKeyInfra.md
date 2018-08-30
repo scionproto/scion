@@ -35,8 +35,6 @@ DRKey is used for:
     SV_A                  AS A's local secret value
     K_{A→B}               symmetric key between AS A and AS B
     K_{A:H_A→B:H_B}^{p}   symmetric key between host H_A in AS A and host H_B in AS B for protocol 'p'
-    K_{A→B,C}             symmetric key between AS A, AS B and AS C
-    K_{A→B:H_B,C:H_C}^{p} symmetric key between AS A, host H_B in AS B and host H_C in AS C for protocol 'p'
 
 ## Design
 
@@ -140,14 +138,11 @@ certificate server initiates a first level key exchange.
 End hosts request a second-level key from their local certificate server with
 the following request format:
 
-    {type, requestID, protocol, source, destination, additional, misc)}
+    {type, requestID, protocol, srcIA, dstIA, srcHost, dstHost, misc)}
 
 `type` defines which type of second-level key is requested. Currently, there
-exist four types of second-level keys: AS-to-AS, AS-to-end-host,
-end-host-to-end-host, and AS-to-end-host-pair. The last type is used if an AS
-infrastructure node needs to send a message to two end hosts (e.g., for OPT).
-`additional` specifies this second end host and is only used for keys of
-type AS-to-end-host. `misc` is used to supply additional information, that
+exist three types of second-level keys: AS-to-AS, AS-to-end-host, and
+end-host-to-end-host. `misc` is used to supply additional information, that
 might be required for protocol-specific keys (e.g., shorter key lifetime).
 
 An end host H\_A in AS A uses this format for issuing the following request to
@@ -164,20 +159,16 @@ using the second-level key, or authorized separately by the AS.
 The following second level requests exist:
 
     1. AS → AS:
-    Request: { 0, req.ID, prot, A, B, ⊥, ⊥ }
+    Request: { 0, req.ID, prot, A, B, ⊥, ⊥, ⊥ }
     Key Derivation: K_{A→B}^prot = PRF_{A→B}(“prot”)
 
     2. AS → end host
-    Request: { 1, req.ID, prot, A, H_B , ⊥, ⊥ }
+    Request: { 1, req.ID, prot, A, B, ⊥, H_B, ⊥ }
     Key Derivation: K_{A→B:H_B}^prot = PRF_{A→B} (“prot” | H_B )
 
     3. end host → end host:
-    Request: { 2, req.ID, prot, H_A , H_B , ⊥, ⊥ }
+    Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
     Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{A→B} (“prot” | H_A | H_B )
-
-    4. AS → end host pair:
-    Request: { 3, req.ID, prot, A, H_B , H_C, ⊥ }
-    Key Derivation: K_{A→B:H_B,C:H_C}^prot = PRF_{A→B,C} (“prot” | H_B | H_C )
 
 ### Key Expiration
 
@@ -279,15 +270,6 @@ Data input:
     SrcHost     []byte
     DstHost     []byte
 
-    4. AS → end host pair:
-    ProtoLen    uint8
-    Protocol    []byte
-    Type        uint8
-    DstHostLen  uint8
-    AddHostLen  uint8
-    DstHost     []byte
-    AddHost     []byte
-
 The input size of the PRF depends on the address type that is used to
 address end hosts.
 
@@ -321,10 +303,8 @@ The second level key response will also be transmitted with SignedCtrlPld.
         reqType     UInt8   # Requested DRKeyProtoKeyType
         srcIA       UInt64  # Src ISD-AS of the requested DRKey
         dstIA       UInt64  # Dst ISD-AS of the requested DRKey
-        addIA       UInt64  # Additional ISD-AS of the requested DRKey (optional)
         srcHost     Data    # Src Host of the request DRKey (optional)
         dstHost     Data    # Dst Host of the request DRKey (optional)
-        addHost     Data    # Additional Host of the request DRKey (optional)
         misc        Data    # Additional information for DRKey derivation (optional)
     }
 
