@@ -79,7 +79,8 @@ type Certificate struct {
 	SubjectSignKey common.RawBytes
 	// TRCVersion is the version of the issuing trc.
 	TRCVersion uint64
-	// Version is the certificate version. The value 0 is reserved and shall not be used.
+	// Version is the certificate version.
+	// The value cert_mgmt.NewestVersion is reserved and shall not be used.
 	Version uint64
 }
 
