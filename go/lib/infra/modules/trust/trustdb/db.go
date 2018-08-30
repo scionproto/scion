@@ -224,7 +224,7 @@ func (db *DB) Close() error {
 }
 
 // GetIssCertVersion returns the specified version of the issuer certificate for
-// ia. If version is 0, this is equivalent to GetCertMaxVersion.
+// ia. If version is cert_mgmt.NewestVersion, this is equivalent to GetCertMaxVersion.
 func (db *DB) GetIssCertVersion(ia addr.IA, version uint64) (*cert.Certificate, error) {
 	return db.GetIssCertVersionCtx(context.Background(), ia, version)
 }
@@ -278,7 +278,7 @@ func (db *DB) InsertIssCertCtx(ctx context.Context, crt *cert.Certificate) (int6
 }
 
 // GetLeafCertVersion returns the specified version of the issuer certificate for
-// ia. If version is 0, this is equivalent to GetCertMaxVersion.
+// ia. If version is cert_mgmt.NewestVersion, this is equivalent to GetCertMaxVersion.
 func (db *DB) GetLeafCertVersion(ia addr.IA, version uint64) (*cert.Certificate, error) {
 	return db.GetLeafCertVersionCtx(context.Background(), ia, version)
 }
@@ -350,7 +350,7 @@ func (db *DB) InsertLeafCertCtx(ctx context.Context, crt *cert.Certificate) (int
 }
 
 // GetChainVersion returns the specified version of the certificate chain for
-// ia. If version is 0, this is equivalent to GetChainMaxVersion.
+// ia. If version is cert_mgmt.NewestVersion, this is equivalent to GetChainMaxVersion.
 func (db *DB) GetChainVersion(ia addr.IA, version uint64) (*cert.Chain, error) {
 	return db.GetChainVersionCtx(context.Background(), ia, version)
 }
@@ -457,7 +457,7 @@ func (db *DB) getIssCertRowIDCtx(ctx context.Context, ia addr.IA, ver uint64) (i
 }
 
 // GetTRCVersion returns the specified version of the TRC for
-// isd. If version is 0, this is equivalent to GetTRCMaxVersion.
+// isd. If version is cert_mgmt.NewestVersion, this is equivalent to GetTRCMaxVersion.
 func (db *DB) GetTRCVersion(isd addr.ISD, version uint64) (*trc.TRC, error) {
 	return db.GetTRCVersionCtx(context.Background(), isd, version)
 }
