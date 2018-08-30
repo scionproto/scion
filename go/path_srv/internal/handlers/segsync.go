@@ -17,7 +17,6 @@ package handlers
 import (
 	"context"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -25,14 +24,12 @@ import (
 
 type syncHandler struct {
 	*baseHandler
-	localIA addr.IA
 }
 
 func NewSyncHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &syncHandler{
 			baseHandler: newBaseHandler(r, args),
-			localIA:     args.Topology.ISD_AS,
 		}
 		handler.Handle()
 	}
@@ -53,5 +50,5 @@ func (h *syncHandler) Handle() {
 	h.logger.Debug("[syncHandler] Received message", "seg", segSync.SegRecs)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
-	h.verifyAndStore(subCtx, h.request.Peer, ignore, segSync.Recs, segSync.SRevInfos)
+	h.verifyAndStore(subCtx, h.request.Peer, segSync.Recs, segSync.SRevInfos)
 }

@@ -42,6 +42,7 @@ import (
 	"github.com/scionproto/scion/go/path_srv/internal/cleaner"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/periodic"
+	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
 )
 
 type Config struct {
@@ -151,10 +152,19 @@ func realMain() int {
 		segReqHandler = handlers.NewSegReqNonCoreHandler(args)
 	}
 	msger.AddHandler(infra.SegRequest, segReqHandler)
-	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args, config.PS.SegSync && core))
+	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
 	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStatInfoHandler(args))
 	if config.PS.SegSync && core {
+		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
+		segSyncers, err := segsyncer.StartAll(args, msger)
+		if err != nil {
+			log.Crit("Unable to start seg syncer", "err", err)
+			return 1
+		}
+		for _, segsync := range segSyncers {
+			defer segsync.Stop()
+		}
 	}
 	msger.AddHandler(infra.SegRev, handlers.NewRevocHandler(args))
 	// Create a channel where prometheus can signal fatal errors
