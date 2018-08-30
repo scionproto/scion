@@ -143,7 +143,8 @@ type TRC struct {
 	// ThresholdEEPKI is the threshold number of trusted parties (CAs and one log) required to
 	// assert a domain’s policy.
 	ThresholdEEPKI uint32
-	// Version is the version number of the TRC. The value 0 is reserved and shall not be used.
+	// Version is the version number of the TRC.
+	// The value cert_mgmt.NewestVersion is reserved and shall not be used.
 	Version uint64
 }
 
