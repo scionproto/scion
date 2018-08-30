@@ -26,16 +26,18 @@ import (
 
 // PathDB defines the interface that all PathDB backends have to implement.
 type PathDB interface {
-	// Insert or update a path segment.
+	// Insert inserts or updates a path segment. It returns the number of path segments
+	// that have been inserted/updated.
 	Insert(context.Context, *seg.PathSegment, []proto.PathSegType) (int, error)
-	// Insert or update a path segment with a given label.
+	// InsertWithHPCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
+	// returns the number of path segments that have been inserted/updated.
 	InsertWithHPCfgIDs(context.Context, *seg.PathSegment, []proto.PathSegType, []*query.HPCfgID) (
 		int, error)
-	// Deletes a path segment with a given ID. Returns the number of deleted
+	// Delete deletes a path segment with a given ID. Returns the number of deleted
 	// path segments (0 or 1).
 	Delete(context.Context, common.RawBytes) (int, error)
-	// Deletes all path segments that contain a given interface. Returns the number
-	// of path segments deleted.
+	// DeleteWithIntf deletes all path segments that contain a given interface. Returns
+	// the number of path segments deleted.
 	DeleteWithIntf(context.Context, query.IntfSpec) (int, error)
 	// Get returns all path segment(s) matching the parameters specified.
 	Get(context.Context, *query.Params) ([]*query.Result, error)
