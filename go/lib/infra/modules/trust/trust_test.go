@@ -175,7 +175,7 @@ func TestGetTRC(t *testing.T) {
 		},
 		{
 			Name: "local ISD=1, max version",
-			ISD:  1, Version: 0,
+			ISD:  1, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[1], ExpError: false,
 		},
 		{
@@ -190,7 +190,7 @@ func TestGetTRC(t *testing.T) {
 		},
 		{
 			Name: "unknown ISD=2, max version",
-			ISD:  2, Version: 0,
+			ISD:  2, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[2], ExpError: false,
 		},
 		{
@@ -200,7 +200,7 @@ func TestGetTRC(t *testing.T) {
 		},
 		{
 			Name: "remote ISD=3, max version",
-			ISD:  3, Version: 0,
+			ISD:  3, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[3], ExpError: false,
 		},
 		{
@@ -314,12 +314,12 @@ func TestGetChain(t *testing.T) {
 	}{
 		{
 			Name: "bad IA=0-1",
-			IA:   xtest.MustParseIA("0-ff00:0:1"), Version: 0,
+			IA:   xtest.MustParseIA("0-ff00:0:1"), Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 		},
 		{
 			Name: "bad IA=1-0",
-			IA:   addr.IA{I: 1, A: 0}, Version: 0,
+			IA:   addr.IA{I: 1, A: 0}, Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 		},
 		{
@@ -329,7 +329,7 @@ func TestGetChain(t *testing.T) {
 		},
 		{
 			Name: "local IA=1-1, max version",
-			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: cert_mgmt.NewestVersion,
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 		},
 		{
@@ -349,7 +349,7 @@ func TestGetChain(t *testing.T) {
 		},
 		{
 			Name: "remote IA=3-9, max version",
-			IA:   xtest.MustParseIA("3-ff00:0:9"), Version: 0,
+			IA:   xtest.MustParseIA("3-ff00:0:9"), Version: cert_mgmt.NewestVersion,
 			ExpData: chains[xtest.MustParseIA("3-ff00:0:9")], ExpError: false,
 		},
 		{
@@ -412,25 +412,25 @@ func TestTRCReqHandler(t *testing.T) {
 	}{
 		{
 			Name: "ask for known isd=1, version=max, cache-only, recursive",
-			ISD:  1, Version: 0,
+			ISD:  1, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[1], ExpError: false,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for known isd=1, version=max, cache-only, non-recursive",
-			ISD:  1, Version: 0,
+			ISD:  1, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[1], ExpError: false,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for known isd=1, version=max, cache-only=false, recursive",
-			ISD:  1, Version: 0,
+			ISD:  1, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[1], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for known isd=1, version=max, cache-only=false, non-recursive",
-			ISD:  1, Version: 0,
+			ISD:  1, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[1], ExpError: false,
 			RecursionEnabled: false, CacheOnly: false,
 		},
@@ -448,37 +448,37 @@ func TestTRCReqHandler(t *testing.T) {
 		},
 		{
 			Name: "ask for unknown isd=2, version=max, cache-only, recursive",
-			ISD:  2, Version: 0,
+			ISD:  2, Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown isd=2, version=max, cache-only, non-recursive",
-			ISD:  2, Version: 0,
+			ISD:  2, Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown isd=2, version=max, cache-only=false, recursive",
-			ISD:  2, Version: 0,
+			ISD:  2, Version: cert_mgmt.NewestVersion,
 			ExpData: trcs[2], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for known isd=2, version=max, cache-only=false, non-recursive",
-			ISD:  2, Version: 0,
+			ISD:  2, Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: false,
 		},
 		{
 			Name: "ask for bogus isd=42, version=max, cache-only=false, recursive",
-			ISD:  42, Version: 0,
+			ISD:  42, Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for bogus isd=42, version=max, cache-only=true, non-recursive",
-			ISD:  42, Version: 0,
+			ISD:  42, Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: true,
 		},
@@ -552,25 +552,25 @@ func TestChainReqHandler(t *testing.T) {
 	}{
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only, recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: cert_mgmt.NewestVersion,
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only, non-recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: cert_mgmt.NewestVersion,
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only=false, recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: cert_mgmt.NewestVersion,
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for known chain=1-1, version=max, cache-only=false, non-recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:1"), Version: cert_mgmt.NewestVersion,
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:1")], ExpError: false,
 			RecursionEnabled: false, CacheOnly: false,
 		},
@@ -588,25 +588,25 @@ func TestChainReqHandler(t *testing.T) {
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: true, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only, non-recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: true,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only=false, recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: cert_mgmt.NewestVersion,
 			ExpData: chains[xtest.MustParseIA("1-ff00:0:2")], ExpError: false,
 			RecursionEnabled: true, CacheOnly: false,
 		},
 		{
 			Name: "ask for unknown chain=1-2, version=max, cache-only=false, non-recursive",
-			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: 0,
+			IA:   xtest.MustParseIA("1-ff00:0:2"), Version: cert_mgmt.NewestVersion,
 			ExpData: nil, ExpError: true,
 			RecursionEnabled: false, CacheOnly: false,
 		},
