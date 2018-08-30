@@ -3,8 +3,8 @@
 This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
-- Author: Benjamin Rothenberger  
-- Last updated: 11.07.2018  
+- Author: Benjamin Rothenberger
+- Last updated: 30-08-2018
 - Status: draft
 
 ## Overview
@@ -14,8 +14,8 @@ cryptographic keys on-the-fly from a single local secret.
 
 DRKey is used for:
 
-- SCMP  
-- OPT  
+- SCMP
+- OPT
 - Security Extension
 
 ## Notation
@@ -35,6 +35,8 @@ DRKey is used for:
     SV_A                  AS A's local secret value
     K_{A→B}               symmetric key between AS A and AS B
     K_{A:H_A→B:H_B}^{p}   symmetric key between host H_A in AS A and host H_B in AS B for protocol 'p'
+    K_{A→B,C}             symmetric key between AS A, AS B and AS C
+    K_{A→B:H_B,C:H_C}^{p} symmetric key between AS A, host H_B in AS B and host H_C in AS C for protocol 'p'
 
 ## Design
 
@@ -112,7 +114,7 @@ already expired or because it will become valid in the future. For example,
 prefetching future keys allows for seamless transition to the new key.  
 To obtain valid AS-level certificates to sign and encrypt the first level key
 exchange, we can use the SCION control-plane PKI. The request token is signed
-with B’s private key to prove authenticity of the request Upon receiving the
+with B’s private key to prove authenticity of the request. Upon receiving the
 initial request, CS\_A checks the signature and timestamp for authenticity and
 expiration. If the request has not yet expired, the certificate server CS\_A
 will reply with an encrypted and signed first-level key derived from the local
@@ -138,7 +140,15 @@ certificate server initiates a first level key exchange.
 End hosts request a second-level key from their local certificate server with
 the following request format:
 
-    {type, requestID, protocol, source, destination, optional, misc)}
+    {type, requestID, protocol, source, destination, additional, misc)}
+
+`type` defines which type of second-level key is requested. Currently, there
+exist four types of second-level keys: AS-to-AS, AS-to-end-host,
+end-host-to-end-host, and AS-to-end-host-pair. The last type is used if an AS
+infrastructure node needs to send a message to two end hosts (e.g., for OPT).
+`additional` specifies this second end host and is only used for keys of
+type AS-to-end-host. `misc` is used to supply additional information, that
+might be required for protocol-specific keys (e.g., shorter key lifetime).
 
 An end host H\_A in AS A uses this format for issuing the following request to
 its local certificate server CS\_A:
@@ -151,35 +161,40 @@ The certificate server only replies with a key to requests with a valid
 timestamp, and if the querying host is authorized to use the key. An authorized
 host must either be an end point of the communication that is authenticated
 using the second-level key, or authorized separately by the AS.  
-The following second level requests exist:  
+The following second level requests exist:
 
     1. AS → AS:
+    Request: { 0, req.ID, prot, A, B, ⊥, ⊥ }
     Key Derivation: K_{A→B}^prot = PRF_{A→B}(“prot”)
-    Request: { 0, req.ID, prot, A, B, ⊥ }
 
     2. AS → end host
+    Request: { 1, req.ID, prot, A, H_B , ⊥, ⊥ }
     Key Derivation: K_{A→B:H_B}^prot = PRF_{A→B} (“prot” | H_B )
-    Request: { 1, req.ID, prot, A, H_B , ⊥ }
 
     3. end host → end host:
+    Request: { 2, req.ID, prot, H_A , H_B , ⊥, ⊥ }
     Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{A→B} (“prot” | H_A | H_B )
-    Request: { 2, req.ID, prot, H_A , H_B , ⊥ }
 
     4. AS → end host pair:
+    Request: { 3, req.ID, prot, A, H_B , H_C, ⊥ }
     Key Derivation: K_{A→B:H_B,C:H_C}^prot = PRF_{A→B,C} (“prot” | H_B | H_C )
-    Request: { 3, req.ID, prot, A, H_B , H_C }
 
 ### Key Expiration
 
 Secret values must be renewed every 24 hours. Thus, also lower level keys must
-be renewed. However, in order to avoid race condition, the validity of
-second-level keys must be higher than the corresponding refresh period. Thus, we
-assume the following key validity periods:
+be renewed. However, if a packet is authenticated immediately before a key
+expires, but arrives at destination when already the new key is used, a race
+condition occurs as the packet's authenticity can not be verified. To avoid
+race conditions, the validity of second-level keys must be longer than the
+corresponding refresh period. We assume the following key validity periods:
 
 - Secret value: 24 hours
 - First-level keys: 24 hours (inherited)
-- Second-level keys: 24 + 0.1 hours
+- Second-level keys: 24 (inherited) + 0.1 hours
 
+First- and second-level keys are valid during the same time frame as the
+corresponding secret value. Second-level have a slightly extended validity
+period to avoid race conditions as specified above.
 If a specific protocol requires shorter key expiration times, this will be
 implemented as an extension to the basic protocol. The 'misc' part in the
 key exchange is used to supply such additional information.
@@ -215,15 +230,33 @@ derivation function looks as follows:
 
 #### 0th-level
 
+As secret values are directly derived from an AS-specific secret, we need to use
+a secure password-based key derivation function. We use `PBKDF2` with at least
+1000 iterations of `Sha256`.
+
+Data input:
+
     secLen      uint8
     secret      []byte
     date        []byte
 
 #### 1st-level
 
+Key input:
+
+    SV_A        []byte
+
+Data input:
+
     DstIA       uint64
 
 #### 2nd-level
+
+Key input:
+
+    K_{A->B}    []byte
+
+Data input:
 
     1. AS → AS:
     ProtoLen    uint8
@@ -234,14 +267,15 @@ derivation function looks as follows:
     ProtoLen    uint8
     Protocol    []byte
     Type        uint8
-    HostLen     uint8
+    DstHostLen  uint8
     DstHost     []byte
 
     3. end host → end host:
     ProtoLen    uint8
     Protocol    []byte
     Type        uint8
-    HostLen     uint8
+    SrcHostLen  uint8
+    DstHostLen  uint8
     SrcHost     []byte
     DstHost     []byte
 
@@ -249,31 +283,32 @@ derivation function looks as follows:
     ProtoLen    uint8
     Protocol    []byte
     Type        uint8
-    HostLen     uint8
+    DstHostLen  uint8
+    AddHostLen  uint8
     DstHost     []byte
     AddHost     []byte
 
-All hosts are addressed using IPv4 (4 B), IPv6 (16 B) or using a SCION SVC
-address (2 B). Thus, the input size of the PRF depends on which address type
-is used.
+The input size of the PRF depends on the address type that is used to
+address end hosts.
 
 ### First Level Key Exchange
 
 For the first level key exchange between CS, we can use SignedCtrlPld. Thus,
-the timestamp, signature, certificate and TRC version do not need to be part
-of the protocol. For the response, certVerSrc and certVerDst describe the
-version of the certificate used to sign and encrypt the message.
+the request ID, timestamp, signature, certificate and TRC version do not need
+to be part of the protocol. For the response, certVerDst describes the version
+of the certificate used to encrypt the message. Furthermore, all time-specific
+data such as timestamps, validity time, or expiration time are specified as
+the time in microseconds since the unix epoch.
 
     DRKeyLvl1Req {
         isdas       UInt64  # Src ISD-AS of the requested DRKey
-        valTime     UInt32  # Point in time where requested DRKey is valid
+        valTime     UInt64  # Point in time where requested DRKey is valid
     }
 
     DRKeyLvl1Rep {
         isdas       UInt64  # Src ISD-AS of the DRKey
-        expTime     UInt32  # Expiration time of the DRKey
+        expTime     UInt64  # Expiration time of the DRKey
         cipher      Data    # Encrypted DRKey
-        certVerSrc  UInt64  # Version of cert used to sign
         certVerDst  UInt64  # Version of cert of public key used to encrypt
     }
 
@@ -283,8 +318,6 @@ The second level key response will also be transmitted with SignedCtrlPld.
 
     DRKeyLvl2Req {
         protocol    Data    # Protocol identifier
-        reqID       UInt64  # Request identifier
-        timestamp   UInt64  # Timestamp
         reqType     UInt8   # Requested DRKeyProtoKeyType
         srcIA       UInt64  # Src ISD-AS of the requested DRKey
         dstIA       UInt64  # Dst ISD-AS of the requested DRKey
@@ -296,7 +329,6 @@ The second level key response will also be transmitted with SignedCtrlPld.
     }
 
     DRKeyLvl2Rep {
-        reqID       UInt64  # Request identifier
         timestamp   UInt64  # Timestamp
         drkey       Data    # Derived DRKey
         expTime     UInt32  # Expiration time of DRKey
