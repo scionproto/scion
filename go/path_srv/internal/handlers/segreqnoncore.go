@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -269,5 +270,5 @@ func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
 	}
 	// select a core AS we have an up segment to.
 	seg := upSegs[rand.Intn(len(upSegs))]
-	return h.psAddrFromSeg(seg, seg.FirstIA())
+	return addrutil.GetPath(addr.SvcPS, seg, seg.FirstIA(), h.topology)
 }

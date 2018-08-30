@@ -37,8 +37,9 @@ type Runner struct {
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
-// The ticker regulates the periodicity. The tiemout is used for the context timeout of the task.
-// The timeout should be less than the periodicity of the ticker.
+// The ticker regulates the periodicity. The timeout is used for the context timeout of the task.
+// The timeout can be larger than the periodicity of the ticker. That means if a tasks takes a long
+// time it will be immediately retriggered.
 func StartPeriodicTask(task Task, ticker *time.Ticker, timeout time.Duration) *Runner {
 	runner := &Runner{
 		task:    task,

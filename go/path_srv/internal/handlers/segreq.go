@@ -112,7 +112,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 	if segs.Recs != nil {
 		recs = segs.Recs.Recs
 		revInfos = segs.Recs.SRevInfos
-		h.verifyAndStore(ctx, cPSAddr, ignore, recs, revInfos)
+		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
 	}
 	return nil
 }

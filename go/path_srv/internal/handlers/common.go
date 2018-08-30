@@ -15,13 +15,10 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -31,8 +28,6 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
@@ -114,43 +109,12 @@ func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,
 	}
 }
 
-func (h *baseHandler) psAddrFromSeg(s *seg.PathSegment, dstIA addr.IA) (net.Addr, error) {
-	x := &bytes.Buffer{}
-	if _, err := s.RawWriteTo(x); err != nil {
-		return nil, common.NewBasicError("Failed to write segment to buffer", err)
-	}
-	p := spath.New(x.Bytes())
-	if err := p.Reverse(); err != nil {
-		return nil, common.NewBasicError("Failed to reverse path", err)
-	}
-	if err := p.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("Failed to init offsets", err)
-	}
-	hopF, err := p.GetHopField(p.HopOff)
-	if err != nil {
-		return nil, common.NewBasicError("Failed to extract first HopField", err, "p", p)
-	}
-	ifId := hopF.ConsIngress
-	nextHop, ok := h.topology.IFInfoMap[ifId]
-	if !ok {
-		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifId", ifId)
-	}
-	return &snet.Addr{
-		IA:      dstIA,
-		Host:    addr.NewSVCUDPAppAddr(addr.SvcPS),
-		Path:    p,
-		NextHop: nextHop.InternalAddr.OverlayAddr(h.topology.Overlay),
-	}, nil
-}
-
 func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
-	segVerified func(context.Context, *seg.Meta),
 	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) {
 	// TODO(lukedirtwalker): collect the verified segs/revoc and return them.
 
 	// verify and store the segments
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		segVerified(ctx, s)
 		if err := segsaver.StoreSeg(ctx, s, h.pathDB, h.logger); err != nil {
 			h.logger.Error("Unable to insert segment into path database",
 				"seg", s.Segment, "err", err)
@@ -168,7 +132,3 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	segverifier.Verify(ctx, h.trustStore, src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
 }
-
-// ignore is a convenience function that can be passed into verifyAndStore if no further action
-// should be taken when a segment was verified.
-func ignore(context.Context, *seg.Meta) {}
