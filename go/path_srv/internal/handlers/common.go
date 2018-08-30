@@ -28,7 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -42,7 +42,7 @@ const (
 
 // HandlerArgs are the values required to create the path server's handlers.
 type HandlerArgs struct {
-	PathDB     conn.Conn
+	PathDB     pathdb.PathDB
 	RevCache   revcache.RevCache
 	TrustStore infra.TrustStore
 	Topology   *topology.Topo
@@ -50,7 +50,7 @@ type HandlerArgs struct {
 
 type baseHandler struct {
 	request    *infra.Request
-	pathDB     conn.Conn
+	pathDB     pathdb.PathDB
 	revCache   revcache.RevCache
 	trustStore infra.TrustStore
 	topology   *topology.Topo

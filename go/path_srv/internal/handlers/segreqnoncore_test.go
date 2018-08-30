@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/conn"
+	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -89,7 +90,7 @@ type testCase struct {
 }
 
 func setupDB(t *testing.T, tc testCase) conn.Conn {
-	db, err := pathdb.New(":memory:", "sqlite")
+	db, err := pathdbbe.New(":memory:")
 	xtest.FailOnErr(t, err)
 	insertSegs(t, db, tc.Ups, proto.PathSegType_up)
 	insertSegs(t, db, tc.Cores, proto.PathSegType_core)
@@ -97,13 +98,13 @@ func setupDB(t *testing.T, tc testCase) conn.Conn {
 	return db
 }
 
-func insertSegs(t *testing.T, conn conn.Conn, segs []*seg.PathSegment, st proto.PathSegType) {
+func insertSegs(t *testing.T, pathDB pathdb.PathDB, segs []*seg.PathSegment, st proto.PathSegType) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	for _, s := range segs {
 		err := s.Validate()
 		xtest.FailOnErr(t, err)
-		_, err = conn.Insert(ctx, s, []proto.PathSegType{st})
+		_, err = pathDB.Insert(ctx, s, []proto.PathSegType{st})
 		xtest.FailOnErr(t, err)
 	}
 }
