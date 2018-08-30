@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 30-08-2018
+- Last updated: 2018-08-30
 - Status: draft
 
 ## Overview
