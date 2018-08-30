@@ -54,13 +54,13 @@ var requestID messenger.Counter
 type Fetcher struct {
 	topology        *topology.Topo
 	messenger       infra.Messenger
-	pathDB          *pathdb.DB
+	pathDB          pathdb.PathDB
 	trustStore      infra.TrustStore
 	revocationCache revcache.RevCache
 	logger          log.Logger
 }
 
-func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB *pathdb.DB,
+func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB pathdb.PathDB,
 	trustStore infra.TrustStore, revCache revcache.RevCache, logger log.Logger) *Fetcher {
 
 	return &Fetcher{

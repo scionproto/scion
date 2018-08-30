@@ -13,8 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains the PathSegment Database frontend.
-
 package pathdb
 
 import (
@@ -22,62 +20,25 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/proto"
 )
 
-type DB struct {
-	conn conn.Conn
-}
-
-// New creates a new or open an existing PathDB at a given path using the
-// given backend.
-func New(path string, backend string) (*DB, error) {
-	db := &DB{}
-	var err error
-	switch backend {
-	case "sqlite":
-		db.conn, err = sqlite.New(path)
-	default:
-		return nil, common.NewBasicError("Unknown backend", nil, "backend", backend)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
-// Insert inserts or updates a path segment. It returns the number of path segments
-// that have been inserted/updated.
-func (db *DB) Insert(ctx context.Context, pseg *seg.PathSegment,
-	segTypes []proto.PathSegType) (int, error) {
-
-	return db.conn.Insert(ctx, pseg, segTypes)
-}
-
-// InsertWithHPCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
-// returns the number of path segments that have been inserted/updated.
-func (db *DB) InsertWithHPCfgIDs(ctx context.Context, pseg *seg.PathSegment,
-	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) (int, error) {
-
-	return db.conn.InsertWithHPCfgIDs(ctx, pseg, segTypes, hpCfgIDs)
-}
-
-// Delete deletes a path segment with a given ID. Returns the number of deleted
-// path segments (0 or 1).
-func (db *DB) Delete(ctx context.Context, segID common.RawBytes) (int, error) {
-	return db.conn.Delete(ctx, segID)
-}
-
-// DeleteWithIntf deletes all path segments that contain a given interface. Returns
-// the number of path segments deleted.
-func (db *DB) DeleteWithIntf(ctx context.Context, intf query.IntfSpec) (int, error) {
-	return db.conn.DeleteWithIntf(ctx, intf)
-}
-
-// Get returns all path segment(s) matching the parameters specified.
-func (db *DB) Get(ctx context.Context, params *query.Params) ([]*query.Result, error) {
-	return db.conn.Get(ctx, params)
+// PathDB defines the interface that all PathDB backends have to implement.
+type PathDB interface {
+	// Insert inserts or updates a path segment. It returns the number of path segments
+	// that have been inserted/updated.
+	Insert(context.Context, *seg.PathSegment, []proto.PathSegType) (int, error)
+	// InsertWithHPCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
+	// returns the number of path segments that have been inserted/updated.
+	InsertWithHPCfgIDs(context.Context, *seg.PathSegment, []proto.PathSegType, []*query.HPCfgID) (
+		int, error)
+	// Delete deletes a path segment with a given ID. Returns the number of deleted
+	// path segments (0 or 1).
+	Delete(context.Context, common.RawBytes) (int, error)
+	// DeleteWithIntf deletes all path segments that contain a given interface. Returns
+	// the number of path segments deleted.
+	DeleteWithIntf(context.Context, query.IntfSpec) (int, error)
+	// Get returns all path segment(s) matching the parameters specified.
+	Get(context.Context, *query.Params) ([]*query.Result, error)
 }

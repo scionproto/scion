@@ -23,14 +23,14 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb/conn"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// StoreSeg saves s to the given pdbconn. In case of failure the error is returned.
-func StoreSeg(ctx context.Context, s *seg.Meta, pdbconn conn.Conn, log log.Logger) error {
-	n, err := pdbconn.Insert(ctx, &s.Segment, []proto.PathSegType{s.Type})
+// StoreSeg saves s to the given pathDB. In case of failure the error is returned.
+func StoreSeg(ctx context.Context, s *seg.Meta, pathDB pathdb.PathDB, log log.Logger) error {
+	n, err := pathDB.Insert(ctx, &s.Segment, []proto.PathSegType{s.Type})
 	if err != nil {
 		return err
 	}

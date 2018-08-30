@@ -36,7 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb"
+	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -100,7 +100,7 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 
-	pathDB, err := pathdb.New(config.SD.PathDB, "sqlite")
+	pathDB, err := pathdbbe.New(config.SD.PathDB)
 	if err != nil {
 		log.Crit("Unable to initialize pathDB", "err", err)
 		return 1
