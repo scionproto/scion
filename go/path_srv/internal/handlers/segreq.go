@@ -119,12 +119,6 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
 
-	if h.topology.Core {
-		coreSegs, downSegs = removeDisconnectedSegsCore(coreSegs, downSegs, h.localIA)
-	} else {
-		upSegs, coreSegs, downSegs = removeDisconnectedSegsNonCore(upSegs,
-			coreSegs, downSegs, segReq.DstIA())
-	}
 	recs := &path_mgmt.SegRecs{
 		Recs:      h.collectSegs(upSegs, coreSegs, downSegs),
 		SRevInfos: h.relevantRevInfos(upSegs, coreSegs, downSegs),
@@ -183,66 +177,6 @@ func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegmen
 		})
 	}
 	return recs
-}
-
-// removeDisconnectedSegsCore removes down/up segs that have no corresponding core seg.
-func removeDisconnectedSegsCore(coreSegs, downSegs []*seg.PathSegment,
-	localIA addr.IA) ([]*seg.PathSegment, []*seg.PathSegment) {
-
-	downCount := len(downSegs)
-	downs := segsToMap(downSegs, firstIA)
-	// remove unconnected core segs
-	coreSegs = filterSegs(coreSegs, func(s *seg.PathSegment) bool {
-		_, downExists := downs[s.FirstIA()]
-		return downCount == 0 || downExists
-	})
-	if len(coreSegs) == 0 {
-		// in the core it could happen that we only have down segments.
-		return coreSegs, downSegs
-	}
-	coreDowns := segsToMap(coreSegs, firstIA)
-	coreDowns[localIA] = struct{}{}
-	// remove unconnected down segs
-	downSegs = filterSegs(downSegs, func(s *seg.PathSegment) bool {
-		_, coreExists := coreDowns[s.FirstIA()]
-		return coreExists
-	})
-	return coreSegs, downSegs
-}
-
-// removeDisconnectedSegsNonCore removes down/up segs that have no corresponding core seg.
-// Assumes len(upSegs) > 0
-func removeDisconnectedSegsNonCore(upSegs, coreSegs,
-	downSegs []*seg.PathSegment, dstIA addr.IA) ([]*seg.PathSegment,
-	[]*seg.PathSegment, []*seg.PathSegment) {
-
-	downCount := len(downSegs)
-	ups := segsToMap(upSegs, firstIA)
-	downs := segsToMap(downSegs, firstIA)
-	// remove unconnected core segs
-	coreSegs = filterSegs(coreSegs, func(s *seg.PathSegment) bool {
-		_, upExists := ups[s.LastIA()]
-		_, downExists := downs[s.FirstIA()]
-		return s.FirstIA().Eq(dstIA) ||
-			(upExists && (downCount == 0 || downExists))
-	})
-	coreUps := segsToMap(coreSegs, lastIA)
-	coreDowns := segsToMap(coreSegs, firstIA)
-	// only up segments
-	onlyUps := downCount == 0 && len(coreSegs) == 0
-	// remove unconnected up segs
-	upSegs = filterSegs(upSegs, func(s *seg.PathSegment) bool {
-		_, coreExists := coreUps[s.FirstIA()]
-		_, downExists := downs[s.FirstIA()]
-		return onlyUps || s.FirstIA().Eq(dstIA) || coreExists || downExists
-	})
-	// remove unconnected down segs
-	downSegs = filterSegs(downSegs, func(s *seg.PathSegment) bool {
-		_, coreExists := coreDowns[s.FirstIA()]
-		_, upExists := ups[s.FirstIA()]
-		return coreExists || upExists
-	})
-	return upSegs, coreSegs, downSegs
 }
 
 // segsToMap converts the segs slice to a map of IAs to segments.

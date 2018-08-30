@@ -93,24 +93,25 @@ func (h *baseHandler) noRevokedHopIntf(s *seg.PathSegment) bool {
 }
 
 func (h *baseHandler) psAddrFromSeg(s *seg.PathSegment, dstIA addr.IA) (net.Addr, error) {
-	ifID, err := firstInterface(s)
-	if err != nil {
-		return nil, err
-	}
-	nextHop, ok := h.topology.IFInfoMap[ifID]
-	if !ok {
-		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifid", ifID)
-	}
 	x := &bytes.Buffer{}
 	if _, err := s.RawWriteTo(x); err != nil {
 		return nil, common.NewBasicError("Failed to write segment to buffer", err)
 	}
 	p := spath.New(x.Bytes())
-	if err = p.Reverse(); err != nil {
+	if err := p.Reverse(); err != nil {
 		return nil, common.NewBasicError("Failed to reverse path", err)
 	}
-	if err = p.InitOffsets(); err != nil {
+	if err := p.InitOffsets(); err != nil {
 		return nil, common.NewBasicError("Failed to init offsets", err)
+	}
+	hopF, err := p.GetHopField(p.HopOff)
+	if err != nil {
+		return nil, common.NewBasicError("Failed to extrace first HopField", err, "p", p)
+	}
+	ifId := hopF.ConsIngress
+	nextHop, ok := h.topology.IFInfoMap[ifId]
+	if !ok {
+		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifId", ifId)
 	}
 	return &snet.Addr{
 		IA:      dstIA,

@@ -85,21 +85,14 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		h.handleCoreDst(ctx, msger, segReq)
 		return
 	}
-	// down segs
-	cPS, err := h.corePSAddr(ctx, segReq.DstIA().I)
-	if err != nil {
-		h.logger.Error("Failed to find core to request down segs", "err", err)
-		h.sendEmptySegReply(ctx, segReq, msger)
-		return
+	var downSegs []*seg.PathSegment
+	if dstISDLocal || segReq.Flags.CacheOnly {
+		downSegs, err = h.fetchDownSegsFromDB(ctx, segReq.DstIA())
+	} else {
+		downSegs, err = h.fetchDownSegsFromRemoteCore(ctx, msger, segReq.DstIA())
 	}
-	downSegs, err := h.fetchDownSegs(ctx, msger, segReq.DstIA(), cPS,
-		dstISDLocal || segReq.Flags.CacheOnly)
 	if err != nil {
-		h.logger.Error("[segReqHandler] Failed to find down segs", "err", err)
-		return
-	}
-	if len(downSegs) == 0 {
-		h.logger.Debug("[segReqHandler] No downSegs found")
+		h.logger.Error("Failed to fetch down segments", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
@@ -109,8 +102,18 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		coreSegs, err = h.fetchCoreSegsFromDB(ctx, firstIAs(downSegs))
 		if err != nil {
 			h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
-			// Fallthrough maybe the client can still use the down segs.
+			h.sendEmptySegReply(ctx, segReq, msger)
+			return
 		}
+		// Remove disconnected down segs.
+		// Core segments can only end at the given down segs, thus do not need to be filtered.
+		coreDowns := segsToMap(coreSegs, firstIA)
+		// localIA is always a valid start point
+		coreDowns[h.localIA] = struct{}{}
+		downSegs = filterSegs(downSegs, func(s *seg.PathSegment) bool {
+			_, coreExists := coreDowns[s.FirstIA()]
+			return coreExists
+		})
 	}
 	h.logger.Debug("[segReqHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, downSegs, segReq)
@@ -136,6 +139,30 @@ func (h *segReqCoreHandler) fetchCoreSegsFromDB(ctx context.Context,
 		StartsAt: dstIAs,
 		EndsAt:   []addr.IA{h.localIA},
 	})
+}
+
+func (h *segReqCoreHandler) fetchDownSegsFromDB(ctx context.Context,
+	dstIA addr.IA) ([]*seg.PathSegment, error) {
+	q := &query.Params{
+		SegTypes: []proto.PathSegType{proto.PathSegType_down},
+		EndsAt:   []addr.IA{dstIA},
+	}
+	return h.fetchSegsFromDB(ctx, q)
+}
+
+func (h *segReqCoreHandler) fetchDownSegsFromRemoteCore(ctx context.Context, msger infra.Messenger,
+	dstIA addr.IA) ([]*seg.PathSegment, error) {
+
+	// down segs
+	cPS, err := h.corePSAddr(ctx, dstIA.I)
+	if err != nil {
+		return nil, err
+	}
+	downSegs, err := h.fetchDownSegs(ctx, msger, dstIA, cPS, false)
+	if err != nil {
+		return nil, err
+	}
+	return downSegs, nil
 }
 
 func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (net.Addr, error) {

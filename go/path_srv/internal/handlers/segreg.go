@@ -97,7 +97,7 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 		// TODO(lukedirtwalker): Use go routines here, send is blocking.
 		cPS, err := h.corePSAddr(ctx, coreIA)
 		if err != nil {
-			h.logger.Error("[forwardDownSegs] failed to create the snet addr",
+			h.logger.Error("[forwardDownSegs] failed to get path to core",
 				"dstIA", coreIA, "err", err)
 			continue
 		}
