@@ -1,12 +1,6 @@
 {
   "ISD_AS": "2-ff00:0:211",
   "Overlay": "UDP/IPv4",
-  "ZookeeperService": {
-    "1": {
-      "Addr": "127.0.0.1",
-      "L4Port": 2181
-    }
-  },
   "BorderRouters": {
     "br2-ff00_0_211-2": {
       "InternalAddr": {
@@ -32,19 +26,7 @@
             "Addr": "127.0.0.37",
             "L4Port": 50000
           }
-        }
-      }
-    },
-    "br2-ff00_0_211-1": {
-      "InternalAddr": {
-        "Public": [
-          {
-            "Addr": "127.0.0.193",
-            "L4Port": 30070
-          }
-        ]
-      },
-      "Interfaces": {
+        },
         "2314": {
           "LinkTo": "PEER",
           "Overlay": "UDP/IPv4",
@@ -59,19 +41,7 @@
             "Addr": "127.0.0.15",
             "L4Port": 50000
           }
-        }
-      }
-    },
-    "br2-ff00_0_211-3": {
-      "InternalAddr": {
-        "Public": [
-          {
-            "Addr": "127.0.0.195",
-            "L4Port": 30096
-          }
-        ]
-      },
-      "Interfaces": {
+        },
         "2324": {
           "LinkTo": "PEER",
           "Overlay": "UDP/IPv4",
@@ -86,19 +56,7 @@
             "Addr": "127.0.0.38",
             "L4Port": 50000
           }
-        }
-      }
-    },
-    "br2-ff00_0_211-4": {
-      "InternalAddr": {
-        "Public": [
-          {
-            "Addr": "127.0.0.196",
-            "L4Port": 30081
-          }
-        ]
-      },
-      "Interfaces": {
+        },
         "2325": {
           "LinkTo": "CHILD",
           "Overlay": "UDP/IPv4",
@@ -113,19 +71,7 @@
             "Addr": "127.0.0.40",
             "L4Port": 50000
           }
-        }
-      }
-    },
-    "br2-ff00_0_211-5": {
-      "InternalAddr": {
-        "Public": [
-          {
-            "Addr": "127.0.0.197",
-            "L4Port": 30070
-          }
-        ]
-      },
-      "Interfaces": {
+        },
         "2326": {
           "LinkTo": "CHILD",
           "Overlay": "UDP/IPv4",
@@ -142,26 +88,6 @@
           }
         }
       }
-    }
-  },
-  "CertificateService": {
-    "cs2-ff00_0_211-1": {
-      "Public": [
-        {
-          "Addr": "127.0.0.199",
-          "L4Port": 30052
-        }
-      ]
-    }
-  },
-  "BeaconService": {
-    "bs2-ff00_0_211-1": {
-      "Public": [
-        {
-          "Addr": "127.0.0.198",
-          "L4Port": 30060
-        }
-      ]
     }
   },
   "Core": false,

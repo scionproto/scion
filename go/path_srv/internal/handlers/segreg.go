@@ -108,7 +108,6 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 	}
 }
 
-// XXX(lukedirtwalker): very similar to segReqCoreHandler version.
 func (h *segRegHandler) corePSAddr(ctx context.Context, dstIA addr.IA) (net.Addr, error) {
 	coreSegs, err := h.fetchSegsFromDB(ctx, &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_core},

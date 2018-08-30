@@ -133,7 +133,7 @@ const (
 	PathSegmentRequest
 	PathSegmentReply
 	PathSegmentRevocation
-	PathSynchronization
+	PathSegmentSynchronization
 	ChainIssueRequest
 	ChainIssueReply
 )
@@ -158,8 +158,8 @@ func (mt MessageType) String() string {
 		return "PathSegmentReply"
 	case PathSegmentRevocation:
 		return "PathSegmentRevocation"
-	case PathSynchronization:
-		return "PathSynchronization"
+	case PathSegmentSynchronization:
+		return "PathSegmentSynchronization"
 	case ChainIssueRequest:
 		return "ChainIssueRequest"
 	case ChainIssueReply:

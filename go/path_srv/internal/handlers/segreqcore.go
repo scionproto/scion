@@ -128,17 +128,6 @@ func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 	h.sendReply(ctx, msger, nil, coreSegs, nil, segReq)
 }
 
-// isValidDst returns true if segReq contains a valid destination for segReq handlers,
-// false otherwise.
-func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
-	// No validation on source here!
-	if segReq.DstIA().IsZero() || segReq.DstIA().I == 0 || segReq.DstIA().Eq(h.localIA) {
-		h.logger.Warn("[segReqHandler] Drop, invalid dstIA", "dstIA", segReq.DstIA())
-		return false
-	}
-	return true
-}
-
 func (h *segReqCoreHandler) fetchCoreSegsFromDB(ctx context.Context,
 	dstIAs []addr.IA) ([]*seg.PathSegment, error) {
 
@@ -149,7 +138,6 @@ func (h *segReqCoreHandler) fetchCoreSegsFromDB(ctx context.Context,
 	})
 }
 
-// XXX(lukedirtwalker): very similar to segReqHandler version.
 func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (net.Addr, error) {
 	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{{I: destISD}})
 	if err != nil {

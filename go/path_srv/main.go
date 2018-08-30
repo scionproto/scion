@@ -152,7 +152,7 @@ func realMain() int {
 	msger.AddHandler(infra.PathSegmentRegistration,
 		handlers.NewSegRegHandler(args, config.PS.SegSync && core))
 	if config.PS.SegSync && core {
-		msger.AddHandler(infra.PathSynchronization, handlers.NewSyncHandler(args))
+		msger.AddHandler(infra.PathSegmentSynchronization, handlers.NewSyncHandler(args))
 	}
 	msger.AddHandler(infra.PathSegmentRevocation, handlers.NewRevocHandler(args))
 	// Create a channel where prometheus can signal fatal errors

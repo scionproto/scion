@@ -309,8 +309,9 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify", "type", infra.PathSynchronization, "to", a, "id", id)
-	return m.getRequester(infra.PathSynchronization, infra.None).Notify(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Notify",
+		"type", infra.PathSegmentSynchronization, "to", a, "id", id)
+	return m.getRequester(infra.PathSegmentSynchronization, infra.None).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
@@ -500,7 +501,7 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 		case proto.PathMgmt_Which_segReg:
 			return infra.PathSegmentRegistration, pld.PathMgmt.SegReg, nil
 		case proto.PathMgmt_Which_segSync:
-			return infra.PathSynchronization, pld.PathMgmt.SegSync, nil
+			return infra.PathSegmentSynchronization, pld.PathMgmt.SegSync, nil
 		case proto.PathMgmt_Which_sRevInfo:
 			return infra.PathSegmentRevocation, pld.PathMgmt.SRevInfo, nil
 		default:

@@ -51,7 +51,6 @@ func NewSegReqNonCoreHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *segReqNonCoreHandler) Handle() {
-	// DD 1
 	segReq, ok := h.request.Message.(*path_mgmt.SegReq)
 	if !ok {
 		h.logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
@@ -76,7 +75,6 @@ func (h *segReqNonCoreHandler) Handle() {
 		h.sendEmptySegReply(subCtx, segReq, msger)
 		return
 	}
-	// DD 5
 	if dstCore {
 		h.handleCoreDst(subCtx, segReq, msger, segReq.DstIA())
 	} else {
@@ -93,7 +91,6 @@ func (h *segReqNonCoreHandler) validSrcDst(segReq *path_mgmt.SegReq) bool {
 	return h.isValidDst(segReq)
 }
 
-// DD 5.1.1
 func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	msger infra.Messenger, dst addr.IA) {
 

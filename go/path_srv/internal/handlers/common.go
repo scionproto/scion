@@ -155,19 +155,15 @@ func firstInterface(s *seg.PathSegment) (common.IFIDType, error) {
 		return 0, common.NewBasicError("Could not find first IFID, No ASEntries", nil, "seg", s)
 	}
 	asEntry := s.ASEntries[len(s.ASEntries)-1]
-	for _, hopEntry := range asEntry.HopEntries {
-		hf, err := hopEntry.HopField()
-		if err != nil {
-			return 0, err
-		}
-		if hf.ConsEgress != 0 {
-			return hf.ConsEgress, nil
-		}
-		if hf.ConsIngress != 0 {
-			return hf.ConsIngress, nil
-		}
+	if len(asEntry.HopEntries) == 0 {
+		return 0, common.NewBasicError("ASEntry is missing HopEntries", nil, "asEntry", asEntry)
 	}
-	return 0, common.NewBasicError("Could not find first IFID, No HopEntry", nil, "seg", s)
+	hopEntry := asEntry.HopEntries[0]
+	hf, err := hopEntry.HopField()
+	if err != nil {
+		return 0, err
+	}
+	return hf.ConsIngress, nil
 }
 
 func filterSegs(segs []*seg.PathSegment, keep func(*seg.PathSegment) bool) []*seg.PathSegment {

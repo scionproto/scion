@@ -42,6 +42,17 @@ func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
 		h.request.Peer, h.request.ID)
 }
 
+// isValidDst returns true if segReq contains a valid destination for segReq handlers,
+// false otherwise.
+func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
+	// No validation on source here!
+	if segReq.DstIA().IsZero() || segReq.DstIA().I == 0 || segReq.DstIA().Eq(h.localIA) {
+		h.logger.Warn("[segReqHandler] Drop, invalid dstIA", "dstIA", segReq.DstIA())
+		return false
+	}
+	return true
+}
+
 func (h *segReqHandler) isCoreDst(ctx context.Context, msger infra.Messenger,
 	segReq *path_mgmt.SegReq) (bool, error) {
 
@@ -200,11 +211,11 @@ func removeDisconnectedSegsCore(coreSegs, downSegs []*seg.PathSegment,
 }
 
 // removeDisconnectedSegsNonCore removes down/up segs that have no corresponding core seg.
+// Assumes len(upSegs) > 0
 func removeDisconnectedSegsNonCore(upSegs, coreSegs,
 	downSegs []*seg.PathSegment, dstIA addr.IA) ([]*seg.PathSegment,
 	[]*seg.PathSegment, []*seg.PathSegment) {
 
-	upCount := len(upSegs)
 	downCount := len(downSegs)
 	ups := segsToMap(upSegs, firstIA)
 	downs := segsToMap(downSegs, firstIA)
@@ -213,13 +224,12 @@ func removeDisconnectedSegsNonCore(upSegs, coreSegs,
 		_, upExists := ups[s.LastIA()]
 		_, downExists := downs[s.FirstIA()]
 		return s.FirstIA().Eq(dstIA) ||
-			((upCount == 0 || upExists) &&
-				(downCount == 0 || downExists))
+			(upExists && (downCount == 0 || downExists))
 	})
 	coreUps := segsToMap(coreSegs, lastIA)
 	coreDowns := segsToMap(coreSegs, firstIA)
 	// only up segments
-	onlyUps := upCount > 0 && downCount == 0 && len(coreSegs) == 0
+	onlyUps := downCount == 0 && len(coreSegs) == 0
 	// remove unconnected up segs
 	upSegs = filterSegs(upSegs, func(s *seg.PathSegment) bool {
 		_, coreExists := coreUps[s.FirstIA()]
