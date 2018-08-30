@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/sqlite"
@@ -232,7 +233,7 @@ func (db *DB) GetIssCertVersion(ia addr.IA, version uint64) (*cert.Certificate, 
 func (db *DB) GetIssCertVersionCtx(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
-	if version == 0 {
+	if version == cert_mgmt.NewestVersion {
 		return db.GetIssCertMaxVersionCtx(ctx, ia)
 	}
 	db.RLock()
@@ -253,7 +254,7 @@ func (db *DB) GetIssCertMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.Ce
 	defer db.RUnlock()
 	var raw common.RawBytes
 	err := db.getIssCertMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
-	return parseCert(raw, ia, 0, err)
+	return parseCert(raw, ia, cert_mgmt.NewestVersion, err)
 }
 
 // InsertIssCert inserts the issuer certificate.
@@ -286,7 +287,7 @@ func (db *DB) GetLeafCertVersion(ia addr.IA, version uint64) (*cert.Certificate,
 func (db *DB) GetLeafCertVersionCtx(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
-	if version == 0 {
+	if version == cert_mgmt.NewestVersion {
 		return db.GetLeafCertMaxVersionCtx(ctx, ia)
 	}
 	db.RLock()
@@ -307,7 +308,7 @@ func (db *DB) GetLeafCertMaxVersionCtx(ctx context.Context, ia addr.IA) (*cert.C
 	defer db.RUnlock()
 	var raw common.RawBytes
 	err := db.getLeafCertMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
-	return parseCert(raw, ia, 0, err)
+	return parseCert(raw, ia, cert_mgmt.NewestVersion, err)
 }
 
 func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Certificate, error) {
@@ -319,7 +320,7 @@ func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Cert
 	}
 	crt, err := cert.CertificateFromRaw(raw)
 	if err != nil {
-		if v == 0 {
+		if v == cert_mgmt.NewestVersion {
 			return nil, common.NewBasicError("Cert parse error", err, "ia", ia, "version", "max")
 		} else {
 			return nil, common.NewBasicError("Cert parse error", err, "ia", ia, "version", v)
@@ -358,7 +359,7 @@ func (db *DB) GetChainVersion(ia addr.IA, version uint64) (*cert.Chain, error) {
 func (db *DB) GetChainVersionCtx(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Chain, error) {
 
-	if version == 0 {
+	if version == cert_mgmt.NewestVersion {
 		return db.GetChainMaxVersionCtx(ctx, ia)
 	}
 	db.RLock()
@@ -465,7 +466,7 @@ func (db *DB) GetTRCVersion(isd addr.ISD, version uint64) (*trc.TRC, error) {
 func (db *DB) GetTRCVersionCtx(ctx context.Context,
 	isd addr.ISD, version uint64) (*trc.TRC, error) {
 
-	if version == 0 {
+	if version == cert_mgmt.NewestVersion {
 		return db.GetTRCMaxVersionCtx(ctx, isd)
 	}
 	db.RLock()
