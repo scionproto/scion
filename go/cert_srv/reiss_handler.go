@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
@@ -78,7 +79,7 @@ func (h *ReissHandler) HandleReq(r *infra.Request, config *conf.Conf) {
 		return
 	}
 	// Respond with max chain for outdated requests.
-	maxChain, err := config.Store.GetChain(ctx, verChain.Leaf.Subject, 0)
+	maxChain, err := config.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.LatestVer)
 	if err != nil {
 		h.logDropReq(saddr, req, err)
 		return

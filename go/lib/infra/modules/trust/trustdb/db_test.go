@@ -20,6 +20,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -49,7 +50,7 @@ func TestTRC(t *testing.T) {
 				newTRCobj, err := db.GetTRCMaxVersion(1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
-				newTRCobj, err = db.GetTRCVersion(1, 0)
+				newTRCobj, err = db.GetTRCVersion(1, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
@@ -59,7 +60,7 @@ func TestTRC(t *testing.T) {
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
 			Convey("Get missing Max TRC from database", func() {
-				newTRCobj, err := db.GetTRCVersion(2, 0)
+				newTRCobj, err := db.GetTRCVersion(2, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 				newTRCobj, err = db.GetTRCMaxVersion(2)
@@ -96,7 +97,7 @@ func TestIssCert(t *testing.T) {
 				crt, err := db.GetIssCertMaxVersion(ia)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
-				crt, err = db.GetIssCertVersion(ia, 0)
+				crt, err = db.GetIssCertVersion(ia, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 			})
@@ -108,7 +109,7 @@ func TestIssCert(t *testing.T) {
 			})
 			Convey("Get missing issuer max certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000320}
-				crt, err := db.GetIssCertVersion(otherIA, 0)
+				crt, err := db.GetIssCertVersion(otherIA, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 				crt, err = db.GetIssCertMaxVersion(otherIA)
@@ -145,7 +146,7 @@ func TestLeafCert(t *testing.T) {
 				crt, err := db.GetLeafCertMaxVersion(ia)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
-				crt, err = db.GetLeafCertVersion(ia, 0)
+				crt, err = db.GetLeafCertVersion(ia, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
 			})
@@ -157,7 +158,7 @@ func TestLeafCert(t *testing.T) {
 			})
 			Convey("Get missing leaf max certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000321}
-				crt, err := db.GetLeafCertVersion(otherIA, 0)
+				crt, err := db.GetLeafCertVersion(otherIA, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 				crt, err = db.GetLeafCertMaxVersion(otherIA)
@@ -191,7 +192,7 @@ func TestChain(t *testing.T) {
 				newChain, err := db.GetChainMaxVersion(ia)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldResemble, chain)
-				newChain, err = db.GetChainVersion(ia, 0)
+				newChain, err = db.GetChainVersion(ia, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldResemble, chain)
 			})
@@ -203,7 +204,7 @@ func TestChain(t *testing.T) {
 			})
 			Convey("Get missing max certificate chain from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000320}
-				newChain, err := db.GetChainVersion(otherIA, 0)
+				newChain, err := db.GetChainVersion(otherIA, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldBeNil)
 				newChain, err = db.GetChainMaxVersion(otherIA)

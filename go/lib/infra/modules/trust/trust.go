@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -127,7 +128,7 @@ func (store *Store) trcRequestFunc(ctx context.Context, request dedupe.Request) 
 		return wrapErr(common.NewBasicError("Unable to parse TRC message", err, "msg", trcMsg))
 	}
 
-	if req.version != 0 && trcObj.Version != req.version {
+	if req.version != scrypto.LatestVer && trcObj.Version != req.version {
 		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
 			"got", trcObj.Version, "expected", req.version))
 	}
@@ -154,7 +155,7 @@ func (store *Store) chainRequestFunc(ctx context.Context, request dedupe.Request
 	if err != nil {
 		return wrapErr(common.NewBasicError("Unable to parse CertChain message", err))
 	}
-	if req.version != 0 && chain.Leaf.Version != req.version {
+	if req.version != scrypto.LatestVer && chain.Leaf.Version != req.version {
 		return wrapErr(common.NewBasicError("Remote server responded with bad version", nil,
 			"got", chain.Leaf.Version, "expected", req.version))
 	}
@@ -172,13 +173,13 @@ func (store *Store) GetValidTRC(ctx context.Context, isd addr.ISD,
 
 	// FIXME(scrye): fall back to getTRC for now, although getValidTRC should
 	// perform additional validations in the future.
-	return store.getTRC(ctx, isd, 0, true, nil, server)
+	return store.getTRC(ctx, isd, scrypto.LatestVer, true, nil, server)
 }
 
 // GetValidCachedTRC asks the trust store to return a valid TRC for isd without
 // accessing the network.
 func (store *Store) GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
-	trcObj, err := store.getTRC(ctx, isd, 0, false, nil, nil)
+	trcObj, err := store.getTRC(ctx, isd, scrypto.LatestVer, false, nil, nil)
 	if err != nil {
 		return nil, common.NewBasicError(ErrNotFoundLocally, err)
 	}
@@ -269,7 +270,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	client, server net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainVersionCtx(ctx, ia, 0)
+	chain, err := store.trustdb.GetChainMaxVersionCtx(ctx, ia)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -279,7 +280,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	}
 	// Chain not found, so we'll need to fetch one. First, fetch the TRC we'll
 	// need during certificate chain validation.
-	trcObj, err := store.getTRC(ctx, ia.I, 0, recurse, client, server)
+	trcObj, err := store.getTRC(ctx, ia.I, scrypto.LatestVer, recurse, client, server)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +290,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	}
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
-		version:  0,
+		version:  scrypto.LatestVer,
 		id:       store.nextID(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),
@@ -398,7 +399,7 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 	}
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
-	dbTRC, err := store.getTRC(ctx, store.ia.I, 0, false, nil, nil)
+	dbTRC, err := store.getTRC(ctx, store.ia.I, scrypto.LatestVer, false, nil, nil)
 	cancelF()
 	switch {
 	case err != nil && common.GetErrorMsg(err) != ErrNotFoundLocally:
