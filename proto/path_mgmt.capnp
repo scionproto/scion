@@ -7,14 +7,15 @@ using PSeg = import "path_seg.capnp";
 using IFState = import "if_state.capnp";
 using Sign = import "sign.capnp";
 
+struct SegReqFlags {
+    sibra @0 :Bool;
+    cacheOnly @1 :Bool;
+}
+
 struct SegReq {
     srcIA @0 :UInt64;
     dstIA @1 :UInt64;
-    flags :group {
-        sibra @2 :Bool;
-        cacheOnly @3 :Bool;
-    }
-
+    flags @2 :SegReqFlags;
 }
 
 struct SegRecs {

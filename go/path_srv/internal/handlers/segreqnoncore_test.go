@@ -292,10 +292,9 @@ func TestSegReqLocal(t *testing.T) {
 				segReq := &path_mgmt.SegReq{
 					RawSrcIA: tc.SrcIA.IAInt(),
 					RawDstIA: tc.DstIA.IAInt(),
-					Flags: struct {
-						Sibra     bool
-						CacheOnly bool
-					}{CacheOnly: true},
+					Flags: path_mgmt.SegReqFlags{
+						CacheOnly: true,
+					},
 				}
 				msger := &messenger.MockMessenger{}
 				req := infra.NewRequest(
