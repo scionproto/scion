@@ -106,7 +106,7 @@ func (h *baseHandler) psAddrFromSeg(s *seg.PathSegment, dstIA addr.IA) (net.Addr
 	}
 	hopF, err := p.GetHopField(p.HopOff)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to extrace first HopField", err, "p", p)
+		return nil, common.NewBasicError("Failed to extract first HopField", err, "p", p)
 	}
 	ifId := hopF.ConsIngress
 	nextHop, ok := h.topology.IFInfoMap[ifId]
@@ -170,17 +170,13 @@ func extractSegs(res []*query.Result) []*seg.PathSegment {
 	return segs
 }
 
-func firstIA(s *seg.PathSegment) addr.IA { return s.FirstIA() }
-
 // XXX(lukedirtwalker): this code is also in fetcher (getStartIAs)
 func firstIAs(segs []*seg.PathSegment) []addr.IA {
-	return extractIAs(segs, firstIA)
+	return extractIAs(segs, (*seg.PathSegment).FirstIA)
 }
 
-func lastIA(s *seg.PathSegment) addr.IA { return s.LastIA() }
-
 func lastIAs(segs []*seg.PathSegment) []addr.IA {
-	return extractIAs(segs, lastIA)
+	return extractIAs(segs, (*seg.PathSegment).LastIA)
 }
 
 func extractIAs(segs []*seg.PathSegment, extract func(*seg.PathSegment) addr.IA) []addr.IA {

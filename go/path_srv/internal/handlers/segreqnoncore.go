@@ -129,8 +129,8 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 				h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
 				continue
 			}
-			coreSegs = append(coreSegs, res...)
 			if len(res) > 0 {
+				coreSegs = append(coreSegs, res...)
 				connFirstIAs[src] = struct{}{}
 			}
 		} else {
@@ -162,8 +162,6 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 		return
 	}
 	if len(downSegs) == 0 {
-		// TODO(lukedirtwalker): We should hold the request until the timeout of the context,
-		// and continue processing as soon as we have down segments. (only if !CacheOnly)
 		h.logger.Warn("[segReqHandler] No down segments found")
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
@@ -194,8 +192,8 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 				h.logger.Error("Failed to find core segs", "src", src, "dst", dst, "err", err)
 				continue
 			}
-			coreSegs = append(coreSegs, cs...)
 			if len(cs) > 0 {
+				coreSegs = append(coreSegs, cs...)
 				connUpFirstIAs[src] = struct{}{}
 				connDownFirstIAs[dst] = struct{}{}
 			}

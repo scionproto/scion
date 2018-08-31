@@ -107,7 +107,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		}
 		// Remove disconnected down segs.
 		// Core segments can only end at the given down segs, thus do not need to be filtered.
-		coreDowns := segsToMap(coreSegs, firstIA)
+		coreDowns := segsToMap(coreSegs, (*seg.PathSegment).FirstIA)
 		// localIA is always a valid start point
 		coreDowns[h.localIA] = struct{}{}
 		downSegs = filterSegs(downSegs, func(s *seg.PathSegment) bool {
@@ -143,6 +143,7 @@ func (h *segReqCoreHandler) fetchCoreSegsFromDB(ctx context.Context,
 
 func (h *segReqCoreHandler) fetchDownSegsFromDB(ctx context.Context,
 	dstIA addr.IA) ([]*seg.PathSegment, error) {
+
 	q := &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_down},
 		EndsAt:   []addr.IA{dstIA},
