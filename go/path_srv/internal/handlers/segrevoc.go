@@ -16,13 +16,12 @@ package handlers
 
 import (
 	"context"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
-	"github.com/scionproto/scion/go/lib/revcache"
 )
 
 type revocHandler struct {
@@ -58,13 +57,5 @@ func (h *revocHandler) verifyAndStore(ctx context.Context, revocation *path_mgmt
 		h.logger.Warn("[revocHandler] couldn't verify revocation", "err", err)
 		return
 	}
-	info, err := revocation.RevInfo()
-	if err != nil {
-		// This should be caught during network message sanitization
-		panic(err)
-	}
-	h.revCache.Set(
-		revcache.NewKey(info.IA(), common.IFIDType(info.IfID)),
-		revocation,
-		info.RelativeTTL(time.Now()))
+	segsaver.StoreRevocation(revocation, h.revCache)
 }
