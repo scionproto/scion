@@ -14,6 +14,6 @@
 
 package scrypto
 
-// MaxVersion is the wildcard version indicating the highest available version
+// LatestVer is the wildcard version indicating the highest available version
 // when requesting certificate chains and TRCs.
-const MaxVersion uint64 = 0
+const LatestVer uint64 = 0

@@ -60,7 +60,7 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, msger infra.Messenger,
 	if segReq.DstIA().A == 0 {
 		return true, nil
 	}
-	dstTRC, err := h.trustStore.GetTRC(ctx, segReq.DstIA().I, scrypto.MaxVersion)
+	dstTRC, err := h.trustStore.GetTRC(ctx, segReq.DstIA().I, scrypto.LatestVer)
 	if err != nil {
 		return false, common.NewBasicError("Failed to get TRC for dst", err)
 	}
@@ -68,7 +68,7 @@ func (h *segReqHandler) isCoreDst(ctx context.Context, msger infra.Messenger,
 }
 
 func (h *segReqHandler) coreASes(ctx context.Context) (trc.CoreASMap, error) {
-	srcTRC, err := h.trustStore.GetTRC(ctx, h.localIA.I, scrypto.MaxVersion)
+	srcTRC, err := h.trustStore.GetTRC(ctx, h.localIA.I, scrypto.LatestVer)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to get TRC for localIA", err)
 	}
