@@ -19,8 +19,11 @@
 //  infra.Chain               -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain
 //  infra.TRCRequest          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
 //  infra.TRC                 -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC
-//  infra.PathSegmentRequest  -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
-//  infra.PathSegmentReply    -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
+//  infra.SegReq              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
+//  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
+//  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
+//  infra.SegRev              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SRevInfo
+//  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
 //
