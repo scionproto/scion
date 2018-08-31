@@ -26,6 +26,13 @@ type Meta struct {
 	Segment *PathSegment `capnp:"pathSeg"`
 }
 
+func NewMeta(s *PathSegment, t proto.PathSegType) *Meta {
+	return &Meta{
+		Type:    t,
+		Segment: s,
+	}
+}
+
 func (m *Meta) String() string {
 	return fmt.Sprintf("Type: %v, Segment: %v", m.Type, m.Segment)
 }

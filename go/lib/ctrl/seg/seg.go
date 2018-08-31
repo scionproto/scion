@@ -347,3 +347,41 @@ func (ps *PathSegment) String() string {
 	desc = append(desc, strings.Join(hops_desc, ">"))
 	return strings.Join(desc, " ")
 }
+
+// Segments is just a helper type to have additional methods on top of a slice of PathSegments.
+type Segments []*PathSegment
+
+// FilterSegs filters the given segs and only keeps the segments for which keep returns true.
+// Modifies the Segments variable.
+func (segs *Segments) FilterSegs(keep func(*PathSegment) bool) {
+	filtered := (*segs)[:0]
+	for _, s := range *segs {
+		if keep(s) {
+			filtered = append(filtered, s)
+		}
+	}
+	*segs = filtered
+}
+
+// FirstIAs returns the slice of FirstIAs in the given segments. Each FirstIA appears just once.
+func (segs Segments) FirstIAs() []addr.IA {
+	return extractIAs(segs, (*PathSegment).FirstIA)
+}
+
+// LastIAs returns the slice of LastIAs in the given segments. Each LastIA appears just once.
+func (segs Segments) LastIAs() []addr.IA {
+	return extractIAs(segs, (*PathSegment).LastIA)
+}
+
+func extractIAs(segs []*PathSegment, extract func(*PathSegment) addr.IA) []addr.IA {
+	var ias []addr.IA
+	addrs := make(map[addr.IA]struct{})
+	for _, s := range segs {
+		ia := extract(s)
+		if _, ok := addrs[ia]; !ok {
+			addrs[ia] = struct{}{}
+			ias = append(ias, ia)
+		}
+	}
+	return ias
+}
