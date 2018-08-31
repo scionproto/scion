@@ -151,22 +151,6 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 // should be taken when a segment was verified.
 func ignore(context.Context, *seg.Meta) {}
 
-func firstInterface(s *seg.PathSegment) (common.IFIDType, error) {
-	if len(s.ASEntries) == 0 {
-		return 0, common.NewBasicError("Could not find first IFID, No ASEntries", nil, "seg", s)
-	}
-	asEntry := s.ASEntries[len(s.ASEntries)-1]
-	if len(asEntry.HopEntries) == 0 {
-		return 0, common.NewBasicError("ASEntry is missing HopEntries", nil, "asEntry", asEntry)
-	}
-	hopEntry := asEntry.HopEntries[0]
-	hf, err := hopEntry.HopField()
-	if err != nil {
-		return 0, err
-	}
-	return hf.ConsIngress, nil
-}
-
 func filterSegs(segs []*seg.PathSegment, keep func(*seg.PathSegment) bool) []*seg.PathSegment {
 	filtered := segs[:0]
 	for _, s := range segs {
