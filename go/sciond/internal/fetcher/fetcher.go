@@ -432,13 +432,6 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	msg := &path_mgmt.SegReq{
 		RawSrcIA: req.Src,
 		RawDstIA: req.Dst,
-		Flags: struct {
-			Sibra     bool
-			CacheOnly bool
-		}{
-			Sibra:     false,
-			CacheOnly: false,
-		},
 	}
 	reply, err := f.messenger.GetSegs(ctx, msg, ps, requestID.Next())
 	if err != nil {
