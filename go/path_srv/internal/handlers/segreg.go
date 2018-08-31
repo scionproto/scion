@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 type segRegHandler struct {
@@ -80,7 +81,7 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 		h.logger.Error("[forwardDownSegs] no Messenger found")
 		return
 	}
-	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, 0)
+	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, scrypto.MaxVersion)
 	if err != nil {
 		h.logger.Error("[forwardDownSegs]", "err", err)
 		return
