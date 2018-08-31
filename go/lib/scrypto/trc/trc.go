@@ -144,7 +144,7 @@ type TRC struct {
 	// assert a domain’s policy.
 	ThresholdEEPKI uint32
 	// Version is the version number of the TRC.
-	// The value cert_mgmt.NewestVersion is reserved and shall not be used.
+	// The value scrypto.MaxVersion is reserved and shall not be used.
 	Version uint64
 }
 
@@ -170,7 +170,7 @@ func TRCFromRaw(raw common.RawBytes, lz4_ bool) (*TRC, error) {
 	if err := json.Unmarshal(raw, t); err != nil {
 		return nil, err
 	}
-	if t.Version == 0 {
+	if t.Version == scrypto.MaxVersion {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	return t, nil
@@ -333,7 +333,7 @@ func (t *TRC) verifyXSig(trust *TRC) error {
 
 // sigPack creates a sorted json object of all fields, except for the signature map.
 func (t *TRC) sigPack() (common.RawBytes, error) {
-	if t.Version == 0 {
+	if t.Version == scrypto.MaxVersion {
 		return nil, common.NewBasicError(ReservedVersion, nil)
 	}
 	m := make(map[string]interface{})
