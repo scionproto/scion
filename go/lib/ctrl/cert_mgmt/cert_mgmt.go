@@ -22,8 +22,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-const NewestVersion = 0
-
 type union struct {
 	Which       proto.CertMgmt_Which
 	ChainReq    *ChainReq    `capnp:"certChainReq"`

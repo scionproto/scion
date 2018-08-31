@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -73,8 +74,7 @@ func (s *SelfIssuer) Run() {
 			log.Crit("[SelfIssuer] Unable to get issuer certificate", "err", err)
 			break
 		}
-		chain, err := config.Store.GetChain(context.Background(), config.PublicAddr.IA,
-			cert_mgmt.NewestVersion)
+		chain, err := config.Store.GetChain(context.Background(), config.PublicAddr.IA, scrypto.MaxVersion)
 		if err != nil {
 			log.Crit("[SelfIssuer] Unable to get certificate", "err", err)
 			break
@@ -168,8 +168,7 @@ func (s *SelfIssuer) createIssuerCert(config *conf.Conf) error {
 }
 
 func (s *SelfIssuer) getCoreASEntry(config *conf.Conf) (*trc.CoreAS, error) {
-	maxTrc, err := config.Store.GetTRC(context.Background(), config.PublicAddr.IA.I,
-		cert_mgmt.NewestVersion)
+	maxTrc, err := config.Store.GetTRC(context.Background(), config.PublicAddr.IA.I, scrypto.MaxVersion)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local TRC", err)
 	}
@@ -230,8 +229,7 @@ func (r *ReissRequester) Run() {
 			return
 		default:
 			config := conf.Get()
-			chain, err := config.Store.GetChain(context.Background(), config.PublicAddr.IA,
-				cert_mgmt.NewestVersion)
+			chain, err := config.Store.GetChain(context.Background(), config.PublicAddr.IA, scrypto.MaxVersion)
 			if err != nil {
 				panic(err)
 			}
@@ -316,7 +314,7 @@ func (r *ReissRequester) validateRep(ctx context.Context,
 			verKey, "actual", chain.Leaf.SubjectSignKey)
 	}
 	// FIXME(roosd): validate SubjectEncKey
-	chain, err := config.Store.GetChain(ctx, config.PublicAddr.IA, cert_mgmt.NewestVersion)
+	chain, err := config.Store.GetChain(ctx, config.PublicAddr.IA, scrypto.MaxVersion)
 	if err != nil {
 		return err
 	}
