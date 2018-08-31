@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -289,6 +289,31 @@ func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	return reply, nil
 }
 
+// SendSegReply sends a reliable path_mgmt.SegReply to address a.
+func (m *Messenger) SendSegReply(ctx context.Context,
+	msg *path_mgmt.SegReply, a net.Addr, id uint64) error {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	m.log.Debug("[Messenger] Sending Notify", "type", infra.PathSegmentReply, "to", a, "id", id)
+	return m.getRequester(infra.PathSegmentReply, infra.None).Notify(ctx, pld, a)
+}
+
+// SendSegSync sends a reliable path_mgmt.SegSync to address a.
+func (m *Messenger) SendSegSync(ctx context.Context,
+	msg *path_mgmt.SegSync, a net.Addr, id uint64) error {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	m.log.Debug("[Messenger] Sending Notify",
+		"type", infra.PathSegmentSynchronization, "to", a, "id", id)
+	return m.getRequester(infra.PathSegmentSynchronization, infra.None).Notify(ctx, pld, a)
+}
+
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
@@ -473,6 +498,12 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 			return infra.PathSegmentRequest, pld.PathMgmt.SegReq, nil
 		case proto.PathMgmt_Which_segReply:
 			return infra.PathSegmentReply, pld.PathMgmt.SegReply, nil
+		case proto.PathMgmt_Which_segReg:
+			return infra.PathSegmentRegistration, pld.PathMgmt.SegReg, nil
+		case proto.PathMgmt_Which_segSync:
+			return infra.PathSegmentSynchronization, pld.PathMgmt.SegSync, nil
+		case proto.PathMgmt_Which_sRevInfo:
+			return infra.PathSegmentRevocation, pld.PathMgmt.SRevInfo, nil
 		default:
 			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",

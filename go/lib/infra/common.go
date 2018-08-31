@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -129,8 +129,11 @@ const (
 	TRCRequest
 	Chain
 	ChainRequest
+	PathSegmentRegistration
 	PathSegmentRequest
 	PathSegmentReply
+	PathSegmentRevocation
+	PathSegmentSynchronization
 	ChainIssueRequest
 	ChainIssueReply
 )
@@ -147,10 +150,16 @@ func (mt MessageType) String() string {
 		return "TRCRequest"
 	case TRC:
 		return "TRC"
+	case PathSegmentRegistration:
+		return "PathSegmentRegistration"
 	case PathSegmentRequest:
 		return "PathSegmentRequest"
 	case PathSegmentReply:
 		return "PathSegmentReply"
+	case PathSegmentRevocation:
+		return "PathSegmentRevocation"
+	case PathSegmentSynchronization:
+		return "PathSegmentSynchronization"
 	case ChainIssueRequest:
 		return "ChainIssueRequest"
 	case ChainIssueReply:
@@ -169,6 +178,8 @@ type Messenger interface {
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
 	GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
+	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
+	SendSegSync(ctx context.Context, msg *path_mgmt.SegSync, a net.Addr, id uint64) error
 	RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,

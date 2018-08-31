@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ func (e *Env) setupSignals(reloadF func()) {
 	}()
 }
 
-func getPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
+func GetPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	// snet only supports udp4 for now
 	if topoAddr.Overlay != overlay.UDPIPv4 {
 		panic("unsupported overlay")
@@ -142,7 +142,7 @@ func getPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	return &snet.Addr{IA: ia, Host: pub}
 }
 
-func getBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
+func GetBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	// snet only supports udp4 for now
 	if topoAddr.Overlay != overlay.UDPIPv4 {
 		panic("unsupported overlay")

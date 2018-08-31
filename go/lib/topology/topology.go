@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +27,28 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+type IDAddrMap map[string]TopoAddr
+
+// GetById returns the TopoAddr for the given ID, or nil if there is none.
+func (m IDAddrMap) GetById(id string) *TopoAddr {
+	if _, ok := m[id]; ok {
+		cp := m[id]
+		return &cp
+	}
+	return nil
+}
+
+type ServiceNames []string
+
+// GetRandom returns a random entry, or an error if the slice is empty.
+func (s ServiceNames) GetRandom() (string, error) {
+	numServers := len(s)
+	if numServers == 0 {
+		return "", common.NewBasicError("No names present", nil)
+	}
+	return s[rand.Intn(numServers)], nil
+}
+
 // Structures used by Go code, filled in by populate()
 
 // Topo is the main struct encompassing topology information for use in Go code.
@@ -44,18 +67,18 @@ type Topo struct {
 	// if they want to use a given interface.
 	IFInfoMap map[common.IFIDType]IFInfo
 
-	BS      map[string]TopoAddr
-	BSNames []string
-	CS      map[string]TopoAddr
-	CSNames []string
-	PS      map[string]TopoAddr
-	PSNames []string
-	SB      map[string]TopoAddr
-	SBNames []string
-	RS      map[string]TopoAddr
-	RSNames []string
-	DS      map[string]TopoAddr
-	DSNames []string
+	BS      IDAddrMap
+	BSNames ServiceNames
+	CS      IDAddrMap
+	CSNames ServiceNames
+	PS      IDAddrMap
+	PSNames ServiceNames
+	SB      IDAddrMap
+	SBNames ServiceNames
+	RS      IDAddrMap
+	RSNames ServiceNames
+	DS      IDAddrMap
+	DSNames ServiceNames
 
 	ZK map[int]TopoAddr
 }
@@ -64,12 +87,12 @@ type Topo struct {
 func NewTopo() *Topo {
 	return &Topo{
 		BR:        make(map[string]BRInfo),
-		BS:        make(map[string]TopoAddr),
-		CS:        make(map[string]TopoAddr),
-		PS:        make(map[string]TopoAddr),
-		SB:        make(map[string]TopoAddr),
-		RS:        make(map[string]TopoAddr),
-		DS:        make(map[string]TopoAddr),
+		BS:        make(IDAddrMap),
+		CS:        make(IDAddrMap),
+		PS:        make(IDAddrMap),
+		SB:        make(IDAddrMap),
+		RS:        make(IDAddrMap),
+		DS:        make(IDAddrMap),
 		ZK:        make(map[int]TopoAddr),
 		IFInfoMap: make(map[common.IFIDType]IFInfo),
 	}
@@ -195,61 +218,11 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 	return nil
 }
 
-// GetTopoAddr is a helper method that returns the TopoAddress for a specific
-// element ID of type t. nodeType must be one of BS, CS or PS. If the ID is not
-// found, nil is returned.
-func (t *Topo) GetTopoAddr(serviceType proto.ServiceType, id string) *TopoAddr {
-	var addressMap map[string]TopoAddr
-	switch serviceType {
-	case proto.ServiceType_bs:
-		addressMap = t.BS
-	case proto.ServiceType_cs:
-		addressMap = t.CS
-	case proto.ServiceType_ps:
-		addressMap = t.PS
-	}
-	if _, ok := addressMap[id]; ok {
-		cp := addressMap[id]
-		return &cp
-	}
-	return nil
-}
-
-// GetRandomServer returns the application address for a random service of type
-// t; BS, PS, and CS are currently supported. Randomness is taken from the
-// default source. If no server is found, an error is returned.
-func (t *Topo) GetRandomServer(serviceType proto.ServiceType) (*addr.AppAddr, error) {
-	names, err := t.extractServerNames(serviceType)
-	if err != nil {
-		return nil, err
-	}
-	numServers := len(names)
-	if numServers == 0 {
-		return nil, common.NewBasicError("Found no servers of requested type", nil,
-			"type", serviceType)
-	}
-	topoAddr := t.GetTopoAddr(serviceType, names[rand.Intn(numServers)])
-	return topoAddr.PublicAddr(t.Overlay), nil
-
-}
-
-func (t *Topo) extractServerNames(serviceType proto.ServiceType) ([]string, error) {
-	switch serviceType {
-	case proto.ServiceType_bs:
-		return t.BSNames, nil
-	case proto.ServiceType_cs:
-		return t.CSNames, nil
-	case proto.ServiceType_ps:
-		return t.PSNames, nil
-	default:
-		return nil, common.NewBasicError("Unknown service type", nil, "type", serviceType)
-	}
-}
-
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
 // stype is only used for error reporting
-func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap map[string]TopoAddr,
+func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap IDAddrMap,
 	ot overlay.Type) ([]string, error) {
+
 	var snames []string
 	for name, svc := range rais {
 		svcTopoAddr, err := svc.ToTopoAddr(ot)
