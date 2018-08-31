@@ -112,13 +112,13 @@ func insertSegs(t *testing.T, pathDB pathdb.PathDB, segs []*seg.PathSegment, st 
 func expectedSegs(ups, cores, downs []*seg.PathSegment) []*seg.Meta {
 	e := make([]*seg.Meta, 0, len(ups)+len(cores)+len(downs))
 	for _, u := range ups {
-		e = append(e, &seg.Meta{Type: proto.PathSegType_up, Segment: u})
+		e = append(e, seg.NewMeta(u, proto.PathSegType_up))
 	}
 	for _, c := range cores {
-		e = append(e, &seg.Meta{Type: proto.PathSegType_core, Segment: c})
+		e = append(e, seg.NewMeta(c, proto.PathSegType_core))
 	}
 	for _, d := range downs {
-		e = append(e, &seg.Meta{Type: proto.PathSegType_down, Segment: d})
+		e = append(e, seg.NewMeta(d, proto.PathSegType_down))
 	}
 	return e
 }

@@ -25,9 +25,9 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -76,7 +76,7 @@ func (h *segReqHandler) coreASes(ctx context.Context) (trc.CoreASMap, error) {
 }
 
 func (h *segReqHandler) fetchDownSegs(ctx context.Context,
-	msger infra.Messenger, dst addr.IA, cPSAddr net.Addr, dbOnly bool) ([]*seg.PathSegment, error) {
+	msger infra.Messenger, dst addr.IA, cPSAddr net.Addr, dbOnly bool) (seg.Segments, error) {
 
 	// try local cache first
 	q := &query.Params{
@@ -122,7 +122,7 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 
 	recs := &path_mgmt.SegRecs{
 		Recs:      h.collectSegs(upSegs, coreSegs, downSegs),
-		SRevInfos: h.relevantRevInfos(upSegs, coreSegs, downSegs),
+		SRevInfos: segutil.RelevantRevInfos(h.revCache, upSegs, coreSegs, downSegs),
 	}
 	reply := &path_mgmt.SegReply{
 		Req:  segReq,
@@ -135,47 +135,25 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	h.logger.Debug("[segReqHandler] reply sent", "id", h.request.ID)
 }
 
-func (h *segReqHandler) relevantRevInfos(upSegs, coreSegs,
-	downSegs []*seg.PathSegment) []*path_mgmt.SignedRevInfo {
-
-	revKeys := allRevKeys(upSegs, coreSegs, downSegs)
-	var revs []*path_mgmt.SignedRevInfo
-	for rk := range revKeys {
-		if revInfo, ok := h.revCache.Get(&rk); ok {
-			revs = append(revs, revInfo)
-		}
-	}
-	return revs
-}
-
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {
 	recs := make([]*seg.Meta, 0, len(upSegs)+len(coreSegs)+len(downSegs))
 	for i := range upSegs {
 		s := upSegs[i]
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs = append(recs, &seg.Meta{
-			Type:    proto.PathSegType_up,
-			Segment: s,
-		})
+		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
 	}
 	for i := range coreSegs {
 		s := coreSegs[i]
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs = append(recs, &seg.Meta{
-			Type:    proto.PathSegType_core,
-			Segment: s,
-		})
+		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
 	}
 	for i := range downSegs {
 		s := downSegs[i]
 		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()))
-		recs = append(recs, &seg.Meta{
-			Type:    proto.PathSegType_down,
-			Segment: s,
-		})
+		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}
 	return recs
 }
@@ -190,38 +168,4 @@ func segsToMap(segs []*seg.PathSegment,
 		res[key(s)] = struct{}{}
 	}
 	return res
-}
-
-func allRevKeys(upSegs, coreSegs, downSegs []*seg.PathSegment) map[revcache.Key]struct{} {
-	revKeys := make(map[revcache.Key]struct{}, 2*(len(upSegs)+len(coreSegs)+len(downSegs)))
-	addRevKeys(upSegs, revKeys, false)
-	addRevKeys(coreSegs, revKeys, false)
-	addRevKeys(downSegs, revKeys, false)
-	return revKeys
-}
-
-// addRevKeys adds all revocations keys for the given segments to the keys set.
-// If hopOnly is set, only the first hop entry is considered.
-func addRevKeys(segs []*seg.PathSegment, keys map[revcache.Key]struct{}, hopOnly bool) {
-	for _, s := range segs {
-		for _, asEntry := range s.ASEntries {
-			for _, entry := range asEntry.HopEntries {
-				hf, err := entry.HopField()
-				if err != nil {
-					// This should not happen, as Validate already checks that it
-					// is possible to extract the hop field.
-					panic(err)
-				}
-				if hf.ConsIngress != 0 {
-					keys[*revcache.NewKey(asEntry.IA(), hf.ConsIngress)] = struct{}{}
-				}
-				if hf.ConsEgress != 0 {
-					keys[*revcache.NewKey(asEntry.IA(), hf.ConsEgress)] = struct{}{}
-				}
-				if hopOnly {
-					break
-				}
-			}
-		}
-	}
 }

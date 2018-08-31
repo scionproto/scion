@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,4 +51,16 @@ type Params struct {
 type Result struct {
 	Seg      *seg.PathSegment
 	HpCfgIDs []*HPCfgID
+}
+
+// Results is a type for convenience methods on a slice of Results.
+type Results []*Result
+
+// Segs returns the segments in the Results slice.
+func (r Results) Segs() seg.Segments {
+	segs := make(seg.Segments, len(r))
+	for i, r := range r {
+		segs[i] = r.Seg
+	}
+	return segs
 }

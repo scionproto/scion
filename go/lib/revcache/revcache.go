@@ -53,3 +53,14 @@ type RevCache interface {
 	// Returns whether an update was performed or not.
 	Set(k *Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool
 }
+
+// GetAll gets all revocations for the given keys from the given revCache.
+func GetAll(revCache RevCache, keys map[Key]struct{}) []*path_mgmt.SignedRevInfo {
+	revs := make([]*path_mgmt.SignedRevInfo, 0, len(keys))
+	for k := range keys {
+		if revInfo, ok := revCache.Get(&k); ok {
+			revs = append(revs, revInfo)
+		}
+	}
+	return revs
+}

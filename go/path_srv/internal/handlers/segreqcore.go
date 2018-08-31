@@ -85,7 +85,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		h.handleCoreDst(ctx, msger, segReq)
 		return
 	}
-	var downSegs []*seg.PathSegment
+	var downSegs seg.Segments
 	if dstISDLocal || segReq.Flags.CacheOnly {
 		downSegs, err = h.fetchDownSegsFromDB(ctx, segReq.DstIA())
 	} else {
@@ -99,7 +99,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 	var coreSegs []*seg.PathSegment
 	// if request came from same AS also return core segs, to start of down segs.
 	if segReq.SrcIA().Eq(h.localIA) {
-		coreSegs, err = h.fetchCoreSegsFromDB(ctx, firstIAs(downSegs))
+		coreSegs, err = h.fetchCoreSegsFromDB(ctx, downSegs.FirstIAs())
 		if err != nil {
 			h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
 			h.sendEmptySegReply(ctx, segReq, msger)
@@ -110,7 +110,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		coreDowns := segsToMap(coreSegs, (*seg.PathSegment).FirstIA)
 		// localIA is always a valid start point
 		coreDowns[h.localIA] = struct{}{}
-		downSegs = filterSegs(downSegs, func(s *seg.PathSegment) bool {
+		downSegs.FilterSegs(func(s *seg.PathSegment) bool {
 			_, coreExists := coreDowns[s.FirstIA()]
 			return coreExists
 		})

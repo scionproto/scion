@@ -301,7 +301,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	srcIASlice := []addr.IA{req.Src.IA()}
 	dstIASlice := []addr.IA{req.Dst.IA()}
 	// query pathdb and fill in the relevant segments below
-	var ups, cores, downs []*seg.PathSegment
+	var ups, cores, downs seg.Segments
 	switch {
 	case srcIsCore && dstIsCore:
 		// Gone corin'
@@ -336,7 +336,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(ctx, getStartIAs(downs), getStartIAs(ups))
+		cores, err = f.getSegmentsFromDB(ctx, downs.FirstIAs(), ups.FirstIAs())
 		if err != nil {
 			return nil, err
 		}
@@ -360,11 +360,7 @@ func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
 	if err != nil {
 		return nil, err
 	}
-	segments := make([]*seg.PathSegment, len(results))
-	for i := range results {
-		segments[i] = results[i].Seg
-	}
-	return segments, nil
+	return query.Results(results).Segs(), nil
 }
 
 // filterRevokedPaths returns a new slice containing only those paths that do
@@ -439,14 +435,6 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	}
 	// Sanitize input. There's no point in propagating garbage all throughout other modules.
 	return reply.Sanitize(f.logger), nil
-}
-
-func getStartIAs(segments []*seg.PathSegment) []addr.IA {
-	var startIAs []addr.IA
-	for _, segment := range segments {
-		startIAs = append(startIAs, segment.ASEntries[0].IA())
-	}
-	return startIAs
 }
 
 // NewExtendedContext returns a new _independent_ context that can extend past
