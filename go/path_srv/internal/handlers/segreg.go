@@ -81,7 +81,7 @@ func (h *segRegHandler) forwardDownSegs(ctx context.Context, sm *seg.Meta) {
 		h.logger.Error("[forwardDownSegs] no Messenger found")
 		return
 	}
-	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, scrypto.MaxVersion)
+	trc, err := h.trustStore.GetTRC(ctx, h.localIA.I, scrypto.LatestVer)
 	if err != nil {
 		h.logger.Error("[forwardDownSegs]", "err", err)
 		return

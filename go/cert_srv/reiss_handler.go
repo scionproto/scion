@@ -79,7 +79,7 @@ func (h *ReissHandler) HandleReq(r *infra.Request, config *conf.Conf) {
 		return
 	}
 	// Respond with max chain for outdated requests.
-	maxChain, err := config.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.MaxVersion)
+	maxChain, err := config.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.LatestVer)
 	if err != nil {
 		h.logDropReq(saddr, req, err)
 		return
