@@ -33,6 +33,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
+	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -302,7 +303,7 @@ func TestSegReqLocal(t *testing.T) {
 					segReq,
 					nil,
 					&snet.Addr{IA: addr.IA{}},
-					1,
+					scrypto.RandUint64(),
 					log.New(),
 				)
 				h := &segReqNonCoreHandler{
