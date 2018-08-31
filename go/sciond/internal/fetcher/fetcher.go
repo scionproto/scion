@@ -440,7 +440,7 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 			CacheOnly: false,
 		},
 	}
-	reply, err := f.messenger.GetPathSegs(ctx, msg, ps, requestID.Next())
+	reply, err := f.messenger.GetSegs(ctx, msg, ps, requestID.Next())
 	if err != nil {
 		return nil, err
 	}

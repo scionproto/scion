@@ -19,8 +19,11 @@
 //  infra.Chain               -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain
 //  infra.TRCRequest          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
 //  infra.TRC                 -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC
-//  infra.PathSegmentRequest  -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
-//  infra.PathSegmentReply    -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
+//  infra.SegReq              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
+//  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
+//  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
+//  infra.SegRev              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SRevInfo
+//  infra.SegSync             -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegSync
 //  infra.ChainIssueRequest   -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssReq
 //  infra.ChainIssueReply     -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.ChainIssRep
 //
@@ -252,9 +255,9 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
 }
 
-// GetPathSegs asks the server at the remote address for the path segments that
+// GetSegs asks the server at the remote address for the path segments that
 // satisfy msg, and returns a verified reply.
-func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
+func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	debug_id := util.GetDebugID()
@@ -263,10 +266,10 @@ func (m *Messenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.PathSegmentRequest,
+	logger.Debug("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
-		m.getRequester(infra.PathSegmentRequest, infra.PathSegmentReply).Request(ctx, pld, a)
+		m.getRequester(infra.SegRequest, infra.SegReply).Request(ctx, pld, a)
 	if err != nil {
 		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
 	}
@@ -297,8 +300,8 @@ func (m *Messenger) SendSegReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify", "type", infra.PathSegmentReply, "to", a, "id", id)
-	return m.getRequester(infra.PathSegmentReply, infra.None).Notify(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
+	return m.getRequester(infra.SegReply, infra.None).Notify(ctx, pld, a)
 }
 
 // SendSegSync sends a reliable path_mgmt.SegSync to address a.
@@ -309,9 +312,8 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify",
-		"type", infra.PathSegmentSynchronization, "to", a, "id", id)
-	return m.getRequester(infra.PathSegmentSynchronization, infra.None).Notify(ctx, pld, a)
+	m.log.Debug("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
+	return m.getRequester(infra.SegSync, infra.None).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
@@ -495,15 +497,15 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 	case proto.CtrlPld_Which_pathMgmt:
 		switch pld.PathMgmt.Which {
 		case proto.PathMgmt_Which_segReq:
-			return infra.PathSegmentRequest, pld.PathMgmt.SegReq, nil
+			return infra.SegRequest, pld.PathMgmt.SegReq, nil
 		case proto.PathMgmt_Which_segReply:
-			return infra.PathSegmentReply, pld.PathMgmt.SegReply, nil
+			return infra.SegReply, pld.PathMgmt.SegReply, nil
 		case proto.PathMgmt_Which_segReg:
-			return infra.PathSegmentRegistration, pld.PathMgmt.SegReg, nil
+			return infra.SegReg, pld.PathMgmt.SegReg, nil
 		case proto.PathMgmt_Which_segSync:
-			return infra.PathSegmentSynchronization, pld.PathMgmt.SegSync, nil
+			return infra.SegSync, pld.PathMgmt.SegSync, nil
 		case proto.PathMgmt_Which_sRevInfo:
-			return infra.PathSegmentRevocation, pld.PathMgmt.SRevInfo, nil
+			return infra.SegRev, pld.PathMgmt.SRevInfo, nil
 		default:
 			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",

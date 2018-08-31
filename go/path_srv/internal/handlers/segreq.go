@@ -102,7 +102,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 	src, dst addr.IA, cPSAddr net.Addr) error {
 
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
-	segs, err := msger.GetPathSegs(ctx, r, cPSAddr, requestID.Next())
+	segs, err := msger.GetSegs(ctx, r, cPSAddr, requestID.Next())
 	if err != nil {
 		return err
 	}

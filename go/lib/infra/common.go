@@ -129,11 +129,11 @@ const (
 	TRCRequest
 	Chain
 	ChainRequest
-	PathSegmentRegistration
-	PathSegmentRequest
-	PathSegmentReply
-	PathSegmentRevocation
-	PathSegmentSynchronization
+	SegReg
+	SegRequest
+	SegReply
+	SegRev
+	SegSync
 	ChainIssueRequest
 	ChainIssueReply
 )
@@ -150,16 +150,16 @@ func (mt MessageType) String() string {
 		return "TRCRequest"
 	case TRC:
 		return "TRC"
-	case PathSegmentRegistration:
-		return "PathSegmentRegistration"
-	case PathSegmentRequest:
-		return "PathSegmentRequest"
-	case PathSegmentReply:
-		return "PathSegmentReply"
-	case PathSegmentRevocation:
-		return "PathSegmentRevocation"
-	case PathSegmentSynchronization:
-		return "PathSegmentSynchronization"
+	case SegReg:
+		return "SegReg"
+	case SegRequest:
+		return "SegRequest"
+	case SegReply:
+		return "SegReply"
+	case SegRev:
+		return "SegRev"
+	case SegSync:
+		return "SegSync"
 	case ChainIssueRequest:
 		return "ChainIssueRequest"
 	case ChainIssueReply:
@@ -176,7 +176,7 @@ type Messenger interface {
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
 		id uint64) (*cert_mgmt.Chain, error)
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
-	GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
+	GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
 	SendSegSync(ctx context.Context, msg *path_mgmt.SegSync, a net.Addr, id uint64) error

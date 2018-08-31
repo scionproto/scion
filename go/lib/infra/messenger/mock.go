@@ -88,7 +88,7 @@ func (m *MockMessenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain,
 	panic("not implemented")
 }
 
-func (m *MockMessenger) GetPathSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
+func (m *MockMessenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 	id uint64) (*path_mgmt.SegReply, error) {
 
 	panic("not implemented")
