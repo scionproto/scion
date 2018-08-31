@@ -148,13 +148,12 @@ func realMain() int {
 	} else {
 		segReqHandler = handlers.NewSegReqNonCoreHandler(args)
 	}
-	msger.AddHandler(infra.PathSegmentRequest, segReqHandler)
-	msger.AddHandler(infra.PathSegmentRegistration,
-		handlers.NewSegRegHandler(args, config.PS.SegSync && core))
+	msger.AddHandler(infra.SegRequest, segReqHandler)
+	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args, config.PS.SegSync && core))
 	if config.PS.SegSync && core {
-		msger.AddHandler(infra.PathSegmentSynchronization, handlers.NewSyncHandler(args))
+		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
-	msger.AddHandler(infra.PathSegmentRevocation, handlers.NewRevocHandler(args))
+	msger.AddHandler(infra.SegRev, handlers.NewRevocHandler(args))
 	// Create a channel where prometheus can signal fatal errors
 	fatalC := make(chan error, 1)
 	config.Metrics.StartPrometheus(fatalC)
