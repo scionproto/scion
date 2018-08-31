@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 2018-08-30
+- Last updated: 2018-08-31
 - Status: draft
 
 ## Overview
@@ -15,8 +15,9 @@ cryptographic keys on-the-fly from a single local secret.
 DRKey is used for:
 
 - SCMP
-- OPT
+- SIBRA
 - Security Extension
+- OPT
 
 ## Notation
 
@@ -138,10 +139,10 @@ certificate server initiates a first level key exchange.
 End hosts request a second-level key from their local certificate server with
 the following request format:
 
-    {type, requestID, protocol, srcIA, dstIA, srcHost, dstHost, misc)}
+    {keyType, requestID, protocol, srcIA, dstIA, srcHost, dstHost, misc)}
 
-`type` defines which type of second-level key is requested. Currently, there
-exist three types of second-level keys: AS-to-AS, AS-to-end-host, and
+`keyType` defines which type of second-level key is requested. Currently,
+there exist three types of second-level keys: AS-to-AS, AS-to-end-host, and
 end-host-to-end-host. `misc` is used to supply additional information, that
 might be required for protocol-specific keys (e.g., shorter key lifetime).
 
@@ -252,19 +253,19 @@ Data input:
     1. AS → AS:
     ProtoLen    uint8
     Protocol    []byte
-    Type        uint8
+    KeyType     uint8
 
     2. AS → end host:
     ProtoLen    uint8
     Protocol    []byte
-    Type        uint8
+    KeyType     uint8
     DstHostLen  uint8
     DstHost     []byte
 
     3. end host → end host:
     ProtoLen    uint8
     Protocol    []byte
-    Type        uint8
+    KeyType     uint8
     SrcHostLen  uint8
     DstHostLen  uint8
     SrcHost     []byte
@@ -280,16 +281,16 @@ the request ID, timestamp, signature, certificate and TRC version do not need
 to be part of the protocol. For the response, certVerDst describes the version
 of the certificate used to encrypt the message. Furthermore, all time-specific
 data such as timestamps, validity time, or expiration time are specified as
-the time in microseconds since the unix epoch.
+the time in seconds since the unix epoch.
 
     DRKeyLvl1Req {
         isdas       UInt64  # Src ISD-AS of the requested DRKey
-        valTime     UInt64  # Point in time where requested DRKey is valid
+        valTime     UInt32  # Point in time where requested DRKey is valid
     }
 
     DRKeyLvl1Rep {
         isdas       UInt64  # Src ISD-AS of the DRKey
-        expTime     UInt64  # Expiration time of the DRKey
+        expTime     UInt32  # Expiration time of the DRKey
         cipher      Data    # Encrypted DRKey
         certVerDst  UInt64  # Version of cert of public key used to encrypt
     }
@@ -300,7 +301,7 @@ The second level key response will also be transmitted with SignedCtrlPld.
 
     DRKeyLvl2Req {
         protocol    Data    # Protocol identifier
-        reqType     UInt8   # Requested DRKeyProtoKeyType
+        keyType     UInt8   # Key type of requested DRKey
         srcIA       UInt64  # Src ISD-AS of the requested DRKey
         dstIA       UInt64  # Dst ISD-AS of the requested DRKey
         srcHost     Data    # Src Host of the request DRKey (optional)
@@ -309,7 +310,7 @@ The second level key response will also be transmitted with SignedCtrlPld.
     }
 
     DRKeyLvl2Rep {
-        timestamp   UInt64  # Timestamp
+        timestamp   UInt32  # Timestamp
         drkey       Data    # Derived DRKey
         expTime     UInt32  # Expiration time of DRKey
         misc        Data    # Additional information (optional)
