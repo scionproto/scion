@@ -128,11 +128,13 @@ Once the requesting certificate server CS\_B has received the key, it shares it
 among other local certificate servers to ensure a consistent view. Each
 certificate server can now respond to queries by entities within the same AS
 requesting second-level keys derived from K_{A->B}.  
-All first-level keys for other ASes are prefetched such that second-level keys
-can be derived without delay. However, on-demand key exchange between ASes is
-also possible. For example, in case a certificate server is missing a
-first-level key that is required for the derivation of a second-level key, the
-certificate server initiates a first level key exchange.
+First-level keys of frequently contacted ASes are prefetched such that
+second-level keys can be derived without delay. In case a certificate server is
+missing a first-level key that is required for the derivation of a second-level
+key, the certificate server initiates a first level key exchange. The amount of
+cached first-level keys is configurable by each AS. We suggest a default policy
+of caching 10'000 first-level keys, where the least frequently used keys get
+replaced.
 
 #### Second Level Key Exchange
 
