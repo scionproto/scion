@@ -26,126 +26,222 @@ import (
 	"github.com/scionproto/scion/go/lib/overlay"
 )
 
-type testRAIOver struct {
-	ip       string
-	l4port   int
-	overPort int
-}
+var (
+	pubIPv4    = RawAddrPortOverlay{RawAddrPort{"192.168.1.1", 40000}, 0}
+	pubUDPIPv4 = RawAddrPortOverlay{RawAddrPort{"192.168.1.1", 40001}, 30041}
+	bindIPv4   = RawAddrPort{"127.0.0.1", 40002}
+	pubIPv6    = RawAddrPortOverlay{RawAddrPort{"2001:db8:a0b:12f0::1", 60000}, 0}
+	pubUDPIPv6 = RawAddrPortOverlay{RawAddrPort{"2001:db8:a0b:12f0::1", 60001}, 30041}
+	bindIPv6   = RawAddrPort{"::1", 60002}
+	pubBad     = RawAddrPortOverlay{RawAddrPort{"BadIPAddress", 40000}, 0}
+	bindBad    = RawAddrPort{"BadIPAddress", 40000}
+)
 
-var rawV4Pub = "192.168.1.1"
-var rawV4Bind = "127.0.0.1"
-var rawV6Pub = "2001:db8:a0b:12f0::1"
-var rawV6Bind = "::1"
-
-// Basic addresses to combine for tests.
-var v4Pub = testRAIOver{rawV4Pub, 40000, 0}
-var v4PubUDP = testRAIOver{rawV4Pub, 40001, 30041}
-var v4Bind = RawAddrPort{rawV4Bind, 40002}
-var v6Pub = testRAIOver{rawV6Pub, 60000, 0}
-var v6PubUDP = testRAIOver{rawV6Pub, 60001, 30041}
-var v6Bind = RawAddrPort{rawV6Bind, 60002}
-
-// RawAddrInfo's for ipv4
-var raiV4Both = mkRAI([]testRAIOver{v4Pub}, []RawAddrPort{v4Bind})
-var raiV4Pub = mkRAI([]testRAIOver{v4Pub}, nil)
-var raiV4UDPBoth = mkRAI([]testRAIOver{v4PubUDP}, []RawAddrPort{v4Bind})
-var raiV4UDPPub = mkRAI([]testRAIOver{v4PubUDP}, nil)
-var raiV4Bind = mkRAI(nil, []RawAddrPort{v4Bind})
-
-// RawAddrInfo's for ipv6
-var raiV6Both = mkRAI([]testRAIOver{v6Pub}, []RawAddrPort{v6Bind})
-var raiV6Pub = mkRAI([]testRAIOver{v6Pub}, nil)
-var raiV6UDPBoth = mkRAI([]testRAIOver{v6PubUDP}, []RawAddrPort{v6Bind})
-var raiV6UDPPub = mkRAI([]testRAIOver{v6PubUDP}, nil)
-var raiV6Bind = mkRAI(nil, []RawAddrPort{v6Bind})
-
-// RawAddrInfo's for ipv4+6
-var raiV46Both = mkRAI([]testRAIOver{v4Pub, v6Pub}, []RawAddrPort{v4Bind, v6Bind})
-var raiV46Pub = mkRAI([]testRAIOver{v6Pub, v4Pub}, nil)
-var raiV46UDPBoth = mkRAI([]testRAIOver{v4PubUDP, v6PubUDP}, []RawAddrPort{v6Bind, v4Bind})
-var raiV46UDPPub = mkRAI([]testRAIOver{v4PubUDP, v6PubUDP}, nil)
-var raiV46Bind = mkRAI(nil, []RawAddrPort{v4Bind, v6Bind})
-
-var hV4Pub = addr.HostIPv4(net.ParseIP(rawV4Pub))
-var hV4Bind = addr.HostIPv4(net.ParseIP(rawV4Bind))
-var hV6Pub = addr.HostIPv6(net.ParseIP(rawV6Pub))
-var hV6Bind = addr.HostIPv6(net.ParseIP(rawV6Bind))
-
-var oV4, _ = overlay.NewOverlayAddr(hV4Pub, nil)
-var oV6, _ = overlay.NewOverlayAddr(hV6Pub, nil)
-var oV4UDP, _ = overlay.NewOverlayAddr(hV4Pub, addr.NewL4UDPInfo(30041))
-var oV6UDP, _ = overlay.NewOverlayAddr(hV6Pub, addr.NewL4UDPInfo(30041))
-
-// TopoAddr's for ipv4
-var taV4Both = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40000)},
-	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4UDPInfo(40002)},
-	overlay: oV4,
-}
-var taV4Pub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40000)},
-	bind:    nil,
-	overlay: oV4,
-}
-var taV4UDPBoth = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40001)},
-	bind:    &addr.AppAddr{L3: hV4Bind, L4: addr.NewL4UDPInfo(40002)},
-	overlay: oV4UDP,
-}
-var taV4UDPPub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV4Pub, L4: addr.NewL4UDPInfo(40001)},
-	bind:    nil,
-	overlay: oV4UDP,
-}
-
-// TopoAddr's for ipv6
-var taV6Both = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60000)},
-	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4UDPInfo(60002)},
-	overlay: oV6,
-}
-var taV6Pub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60000)},
-	bind:    nil,
-	overlay: oV6,
-}
-var taV6UDPBoth = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60001)},
-	bind:    &addr.AppAddr{L3: hV6Bind, L4: addr.NewL4UDPInfo(60002)},
-	overlay: oV6UDP,
-}
-var taV6UDPPub = &pubBindAddr{
-	pub:     &addr.AppAddr{L3: hV6Pub, L4: addr.NewL4UDPInfo(60001)},
-	bind:    nil,
-	overlay: oV6UDP,
-}
-
-// TopoAddr's for ipv4+6
-var taV46Both4 = taV4Both
-var taV46Both6 = taV6Both
-var taV46Pub4 = taV4Pub
-var taV46Pub6 = taV6Pub
-var taV46UDPBoth4 = taV4UDPBoth
-var taV46UDPBoth6 = taV6UDPBoth
-var taV46UDPPub4 = taV4UDPPub
-var taV46UDPPub6 = taV6UDPPub
-
-func mkRAI(pub []testRAIOver, bind []RawAddrPort) *RawAddrInfo {
-	rai := &RawAddrInfo{}
-	for _, entry := range pub {
-		rai.Public = append(rai.Public, RawAddrPortOverlay{
-			RawAddrPort: RawAddrPort{Addr: entry.ip, L4Port: entry.l4port},
-			OverlayPort: entry.overPort})
+func Test_TopoAddrFromRAI_Basic(t *testing.T) {
+	var basic_tests = []struct {
+		name    string
+		overlay overlay.Type
+		pub     []RawAddrPortOverlay
+		bind    []RawAddrPort
+		ipv4    *pubBindAddr
+		ipv6    *pubBindAddr
+	}{
+		// IPv4
+		{"IPv4 PubBind", overlay.IPv4,
+			pubAddrs(pubIPv4), bindAddrs(bindIPv4),
+			&pubBindAddr{newPub(&pubIPv4), newBind(&bindIPv4), newOverlay(&pubIPv4)},
+			nil},
+		{"IPv4 Pub", overlay.IPv4,
+			pubAddrs(pubIPv4), nil,
+			&pubBindAddr{newPub(&pubIPv4), nil, newOverlay(&pubIPv4)},
+			nil},
+		// IPv4+UDP
+		{"IPv4+UDP PubBind", overlay.UDPIPv4,
+			pubAddrs(pubUDPIPv4), bindAddrs(bindIPv4),
+			&pubBindAddr{newPub(&pubUDPIPv4), newBind(&bindIPv4), newOverlay(&pubUDPIPv4)},
+			nil},
+		{"IPv4+UDP Pub", overlay.UDPIPv4,
+			pubAddrs(pubUDPIPv4), nil,
+			&pubBindAddr{newPub(&pubUDPIPv4), nil, newOverlay(&pubUDPIPv4)},
+			nil},
+		// IPv6
+		{"IPv6 PubBind", overlay.IPv6,
+			pubAddrs(pubIPv6), bindAddrs(bindIPv6),
+			nil,
+			&pubBindAddr{newPub(&pubIPv6), newBind(&bindIPv6), newOverlay(&pubIPv6)}},
+		{"IPv6 Pub", overlay.IPv6,
+			pubAddrs(pubIPv6), nil,
+			nil,
+			&pubBindAddr{newPub(&pubIPv6), nil, newOverlay(&pubIPv6)}},
+		// IPv6+UDP
+		{"IPv6+UDP PubBind", overlay.UDPIPv6,
+			pubAddrs(pubUDPIPv6), bindAddrs(bindIPv6),
+			nil,
+			&pubBindAddr{newPub(&pubUDPIPv6), newBind(&bindIPv6), newOverlay(&pubUDPIPv6)}},
+		{"IPv6+UDP Pub", overlay.UDPIPv6,
+			pubAddrs(pubUDPIPv6), nil,
+			nil,
+			&pubBindAddr{newPub(&pubUDPIPv6), nil, newOverlay(&pubUDPIPv6)}},
+		// IPv46
+		{"IPv46 PubBind", overlay.IPv46,
+			pubAddrs(pubIPv4, pubIPv6), bindAddrs(bindIPv4, bindIPv6),
+			&pubBindAddr{newPub(&pubIPv4), newBind(&bindIPv4), newOverlay(&pubIPv4)},
+			&pubBindAddr{newPub(&pubIPv6), newBind(&bindIPv6), newOverlay(&pubIPv6)}},
+		{"IPv46 Pub", overlay.IPv46,
+			pubAddrs(pubIPv4, pubIPv6), nil,
+			&pubBindAddr{newPub(&pubIPv4), nil, newOverlay(&pubIPv4)},
+			&pubBindAddr{newPub(&pubIPv6), nil, newOverlay(&pubIPv6)}},
+		// IPv46+UDP
+		{"IPv46+UDP PubBind", overlay.UDPIPv46,
+			pubAddrs(pubUDPIPv4, pubUDPIPv6), bindAddrs(bindIPv4, bindIPv6),
+			&pubBindAddr{newPub(&pubUDPIPv4), newBind(&bindIPv4), newOverlay(&pubUDPIPv4)},
+			&pubBindAddr{newPub(&pubUDPIPv6), newBind(&bindIPv6), newOverlay(&pubUDPIPv6)}},
+		{"IPv46+UDP Pub", overlay.UDPIPv46,
+			pubAddrs(pubUDPIPv4, pubUDPIPv6), nil,
+			&pubBindAddr{newPub(&pubUDPIPv4), nil, newOverlay(&pubUDPIPv4)},
+			&pubBindAddr{newPub(&pubUDPIPv6), nil, newOverlay(&pubUDPIPv6)}},
 	}
-	rai.Bind = bind
-	return rai
+	for i, test := range basic_tests {
+		desc := fmt.Sprintf("TopoAddrFromRAI_Basic %d. %s", i, test.name)
+		rai := &RawAddrInfo{Public: test.pub, Bind: test.bind}
+		exp := &TopoAddr{
+			Overlay: test.overlay,
+			IPv4:    test.ipv4,
+			IPv6:    test.ipv6,
+		}
+		Convey(desc, t, func() {
+			t, err := TopoAddrFromRAI(rai, test.overlay)
+			SoMsg("Error", err, ShouldBeNil)
+			SoMsg("TopoAddr", t, shouldEqTopoAddr, exp)
+		})
+	}
+}
+
+func Test_TopoAddrFromRAI_Errors(t *testing.T) {
+	var basic_tests = []struct {
+		name    string
+		overlay overlay.Type
+		err     []string
+		pub     []RawAddrPortOverlay
+		bind    []RawAddrPort
+	}{
+		{"Unsupported Overlay", overlay.Invalid,
+			errors(ErrUnsupportedOverlay),
+			nil, nil},
+		{"Pub Parse Error", overlay.IPv4,
+			errors(ErrInvalidPub),
+			pubAddrs(pubBad), nil},
+		{"Bind Parse Error", overlay.IPv4,
+			errors(ErrInvalidBind),
+			pubAddrs(pubIPv4), bindAddrs(bindBad)},
+		{"No Addresses", overlay.IPv4,
+			errors(ErrAtLeastOnePub),
+			nil, nil},
+		{"No Pub Address", overlay.IPv4,
+			errors(ErrAtLeastOnePub),
+			nil, bindAddrs(bindBad)},
+		{"No UDP Overlay", overlay.IPv4,
+			errors(ErrOverlayPort),
+			pubAddrs(pubUDPIPv4), nil},
+		// IPv4
+		{"IPv4 Too Many Pub Addresses", overlay.IPv4,
+			errors(ErrTooManyPubV4),
+			pubAddrs(pubIPv4, pubIPv4), nil},
+		{"IPv4 Too Many Bind Addresses", overlay.IPv4,
+			errors(ErrTooManyBindV4),
+			pubAddrs(pubIPv4), bindAddrs(bindIPv4, bindIPv4)},
+		{"IPv4 Bind Without Pub Addresses", overlay.IPv4,
+			errors(ErrBindWithoutPubV4),
+			pubAddrs(pubIPv6), bindAddrs(bindIPv4)},
+		{"IPv4 Only One Pub Address", overlay.IPv4,
+			errors(ErrExactlyOnePub),
+			pubAddrs(pubIPv4, pubIPv6), nil},
+		{"IPv4 Bind Equals Pub Address", overlay.IPv4,
+			errors(ErrBindAddrEqPubAddr),
+			pubAddrs(pubIPv4), bindFromPubAddrs(pubIPv4)},
+		// IPv6
+		{"IPv6 Too Many Pub Addresses", overlay.IPv6,
+			errors(ErrTooManyPubV6),
+			pubAddrs(pubIPv6, pubIPv6), nil},
+		{"IPv6 Too Many Bind Addresses", overlay.IPv6,
+			errors(ErrTooManyBindV6),
+			pubAddrs(pubIPv6), bindAddrs(bindIPv6, bindIPv6)},
+		{"IPv6 Bind Without Pub Addresses", overlay.IPv6,
+			errors(ErrBindWithoutPubV6),
+			pubAddrs(pubIPv4), bindAddrs(bindIPv6)},
+		{"IPv6 Only One Pub Address", overlay.IPv6,
+			errors(ErrExactlyOnePub),
+			pubAddrs(pubIPv4, pubIPv6), nil},
+		{"IPv6 Bind Equals Pub Address", overlay.IPv6,
+			errors(ErrBindAddrEqPubAddr),
+			pubAddrs(pubIPv6), bindFromPubAddrs(pubIPv6)},
+		// IPv46
+		{"IPv46 Too Many IPv4 Pub Addresses", overlay.IPv46,
+			errors(ErrTooManyPubV4),
+			pubAddrs(pubIPv4, pubIPv6, pubIPv4), nil},
+		{"IPv46 Too Many IPv6 Pub Addresses", overlay.IPv46,
+			errors(ErrTooManyPubV6),
+			pubAddrs(pubIPv4, pubIPv6, pubIPv6), nil},
+	}
+	for i, test := range basic_tests {
+		desc := fmt.Sprintf("TopoAddrFromRAI_Errors %d. %s", i, test.name)
+		rai := &RawAddrInfo{Public: test.pub, Bind: test.bind}
+		Convey(desc, t, func() {
+			t, err := TopoAddrFromRAI(rai, test.overlay)
+			SoMsg("TopoAddr", t, ShouldBeNil)
+			SoMsg("Error", err, ShouldNotBeNil)
+			SoMsg("Error description", common.GetErrorMsg(err), shouldBeInStrings, test.err)
+		})
+	}
+}
+
+func pubAddrs(addrs ...RawAddrPortOverlay) []RawAddrPortOverlay {
+	return addrs
+}
+
+func bindAddrs(addrs ...RawAddrPort) []RawAddrPort {
+	return addrs
+}
+
+func bindFromPubAddrs(addrs ...RawAddrPortOverlay) []RawAddrPort {
+	binds := []RawAddrPort{}
+	for _, addr := range addrs {
+		binds = append(binds, addr.RawAddrPort)
+	}
+	return binds
+}
+
+func newPub(rapo *RawAddrPortOverlay) *addr.AppAddr {
+	return &addr.AppAddr{
+		L3: addr.HostFromIP(net.ParseIP(rapo.Addr)),
+		L4: addr.NewL4UDPInfo(uint16(rapo.L4Port)),
+	}
+}
+func newBind(rap *RawAddrPort) *addr.AppAddr {
+	return &addr.AppAddr{
+		L3: addr.HostFromIP(net.ParseIP(rap.Addr)),
+		L4: addr.NewL4UDPInfo(uint16(rap.L4Port)),
+	}
+}
+func newOverlay(rapo *RawAddrPortOverlay) *overlay.OverlayAddr {
+	var l4 addr.L4Info
+	if rapo.OverlayPort != 0 {
+		l4 = addr.NewL4UDPInfo(uint16(rapo.OverlayPort))
+	}
+	o, _ := overlay.NewOverlayAddr(addr.HostFromIP(net.ParseIP(rapo.Addr)), l4)
+	return o
 }
 
 func shouldEqTopoAddr(actual interface{}, expected ...interface{}) string {
-	if actual.(*pubBindAddr).equal(expected[0].(*pubBindAddr)) {
+	//fmt.Printf("\nExpected: %+v\nActual: %+v", expected[0], actual)
+	if actual.(*TopoAddr).Equal(expected[0].(*TopoAddr)) {
 		return ""
 	}
-	return fmt.Sprintf("Expected: %+v\nActual: %+v", expected[0], actual)
+	return fmt.Sprintf("Expected:\n\t%+v\nActual:\n\t%+v", expected[0], actual)
+}
+
+func errors(err ...string) []string {
+	return err
 }
 
 func shouldBeInStrings(actual interface{}, expected ...interface{}) string {
@@ -155,136 +251,4 @@ func shouldBeInStrings(actual interface{}, expected ...interface{}) string {
 		}
 	}
 	return fmt.Sprintf("Expected a member of: %+q\nActual: %+q", expected, actual)
-}
-
-func Test_ToTopoAddr_Basic(t *testing.T) {
-	var basic_tests = []struct {
-		name  string
-		ot    overlay.Type
-		in    *RawAddrInfo
-		expV4 *pubBindAddr
-		expV6 *pubBindAddr
-	}{
-		{"IPv4 Both", overlay.IPv4, raiV4Both, taV4Both, nil},
-		{"IPv4 Pub", overlay.IPv4, raiV4Pub, taV4Pub, nil},
-		{"IPv4+UDP Both", overlay.UDPIPv4, raiV4UDPBoth, taV4UDPBoth, nil},
-		{"IPv4+UDP Pub", overlay.UDPIPv4, raiV4UDPPub, taV4UDPPub, nil},
-		{"IPv6 Both", overlay.IPv6, raiV6Both, nil, taV6Both},
-		{"IPv6 Pub", overlay.IPv6, raiV6Pub, nil, taV6Pub},
-		{"IPv6+UDP Both", overlay.UDPIPv6, raiV6UDPBoth, nil, taV6UDPBoth},
-		{"IPv6+UDP Pub", overlay.UDPIPv6, raiV6UDPPub, nil, taV6UDPPub},
-		{"IPv4+6 Both", overlay.IPv46, raiV46Both, taV46Both4, taV46Both6},
-		{"IPv4+6 Pub", overlay.IPv46, raiV46Pub, taV46Pub4, taV46Pub6},
-		{"IPv4+6+UDP Both", overlay.UDPIPv46, raiV46UDPBoth, taV46UDPBoth4, taV46UDPBoth6},
-		{"IPv4+6+UDP Pub", overlay.UDPIPv46, raiV46UDPPub, taV46UDPPub4, taV46UDPPub6},
-	}
-	for i, test := range basic_tests {
-		desc := fmt.Sprintf("ToTopoAddr_Basic %d. %s", i, test.name)
-		Convey(desc, t, func() {
-			t, err := test.in.ToTopoAddr(test.ot)
-			SoMsg("Error", err, ShouldBeNil)
-			SoMsg("IPv4", t.IPv4, shouldEqTopoAddr, test.expV4)
-			SoMsg("IPv6", t.IPv6, shouldEqTopoAddr, test.expV6)
-			SoMsg("Overlay", t.Overlay, ShouldEqual, test.ot)
-		})
-	}
-}
-
-type errorTest struct {
-	name    string
-	in      *RawAddrInfo
-	errDesc []string
-}
-
-func mkErrorTests(ot overlay.Type) []errorTest {
-	if ot.IsIPv4() != ot.IsIPv6() {
-		return mkErrorTestsSingle(ot)
-	}
-	return mkErrorTestsDual(ot)
-}
-
-func mkErrorTest(name string, pubAddrs []testRAIOver,
-	bindAddrs []RawAddrPort, desc ...string) errorTest {
-	return errorTest{name, mkRAI(pubAddrs, bindAddrs), desc}
-}
-
-func mkErrorTestsSingle(ot overlay.Type) []errorTest {
-	over_info := map[overlay.Type]struct {
-		pubs  []testRAIOver
-		binds []RawAddrPort
-	}{
-		overlay.IPv4:    {[]testRAIOver{v4Pub}, []RawAddrPort{v4Bind}},
-		overlay.UDPIPv4: {[]testRAIOver{v4PubUDP}, []RawAddrPort{v4Bind}},
-		overlay.IPv6:    {[]testRAIOver{v6Pub}, []RawAddrPort{v6Bind}},
-		overlay.UDPIPv6: {[]testRAIOver{v6PubUDP}, []RawAddrPort{v6Bind}},
-	}
-	info := over_info[ot]
-	tests := []errorTest{
-		mkErrorTest("pub parse error",
-			[]testRAIOver{{"bad pub ip", 40000, 0}}, nil, ErrInvalidPub),
-		mkErrorTest("bind parse error", info.pubs,
-			[]RawAddrPort{{"bad bind ip", 40002}}, ErrInvalidBind),
-		mkErrorTest("no addrs", nil, nil, ErrExactlyOnePub, ErrAtLeastOnePub),
-		mkErrorTest("no pub addr", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6,
-			ErrAtLeastOnePub),
-		mkErrorTest("too many pub addrs", append(info.pubs, info.pubs[0]), nil,
-			ErrTooManyPubV4, ErrTooManyPubV6),
-		mkErrorTest("too many bind addrs", info.pubs, append(info.binds, info.binds[0]),
-			ErrTooManyBindV4, ErrTooManyBindV6),
-	}
-	if !ot.IsUDP() {
-		tests = append(tests, mkErrorTestNotUDP(info.pubs))
-	}
-	return tests
-}
-
-func mkErrorTestsDual(ot overlay.Type) []errorTest {
-	over_info := map[overlay.Type]struct {
-		pubs  []testRAIOver
-		binds []RawAddrPort
-	}{
-		overlay.IPv46:   {[]testRAIOver{v4Pub, v6Pub}, []RawAddrPort{v4Bind, v6Bind}},
-		overlay.UDPIPv4: {[]testRAIOver{v4PubUDP, v6PubUDP}, []RawAddrPort{v4Bind, v6Bind}},
-	}
-	info := over_info[ot]
-	tests := []errorTest{
-		mkErrorTest("no addrs", nil, nil, ErrAtLeastOnePub),
-		mkErrorTest("no pub addrs", nil, info.binds, ErrBindWithoutPubV4, ErrBindWithoutPubV6,
-			ErrAtLeastOnePub),
-		mkErrorTest("too many pub v4", append(info.pubs, info.pubs[0]), nil, ErrTooManyPubV4),
-		mkErrorTest("too many pub v6", append(info.pubs, info.pubs[1]), nil, ErrTooManyPubV6),
-		mkErrorTest("too many bind v4", info.pubs, append(info.binds, info.binds[0]),
-			ErrTooManyBindV4),
-		mkErrorTest("too many bind v6", info.pubs, append(info.binds, info.binds[1]),
-			ErrTooManyBindV6),
-		mkErrorTest("bind v4 without pub", info.pubs[1:], info.binds, ErrBindWithoutPubV4),
-		mkErrorTest("bind v6 without pub", info.pubs[:1], info.binds, ErrBindWithoutPubV6),
-	}
-	if !ot.IsUDP() {
-		tests = append(tests, mkErrorTestNotUDP(info.pubs))
-	}
-	return tests
-}
-
-func mkErrorTestNotUDP(pubAddrs []testRAIOver) errorTest {
-	// Copy the public addrs
-	badOverlay := append([]testRAIOver(nil), pubAddrs...)
-	// Set the overlay port of the first public addr
-	badOverlay[0].overPort = 1
-	return mkErrorTest("overlay port set", badOverlay, nil, ErrOverlayPort)
-}
-
-func Test_ToTopoAddr_Errors(t *testing.T) {
-	for _, ot := range []overlay.Type{
-		overlay.IPv4, overlay.UDPIPv4, overlay.IPv6, overlay.UDPIPv6, overlay.IPv46,
-	} {
-		for i, test := range mkErrorTests(ot) {
-			desc := fmt.Sprintf("ToTopoAddr_Errors %s %d. %s", ot, i, test.name)
-			Convey(desc, t, func() {
-				_, err := test.in.ToTopoAddr(ot)
-				SoMsg("Error returned", err, ShouldNotBeNil)
-				SoMsg("Error description", common.GetErrorMsg(err), shouldBeInStrings, test.errDesc)
-			})
-		}
-	}
 }
