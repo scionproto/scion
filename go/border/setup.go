@@ -241,7 +241,7 @@ func setupPosixAddLocal(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 	}
 	// New bind address. Configure Posix I/O.
 	// Get Bind address if set, Public otherwise
-	bind := ctx.Conf.Net.LocAddr.BindOrOverlay(ctx.Conf.Topo.Overlay)
+	bind := ctx.Conf.Net.LocAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay)
 	if err := addPosixLocal(r, ctx, bind, labels); err != nil {
 		return rpkt.HookError, err
 	}
@@ -291,7 +291,7 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 	} else {
 		log.Debug("No change detected for external socket.", "conn",
-			intf.IFAddr.BindAddr(ctx.Conf.Topo.Overlay))
+			intf.IFAddr.BindOverlay(ctx.Conf.Topo.Overlay))
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
 		ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
@@ -311,7 +311,7 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	labels prometheus.Labels) error {
 	// Connect to remote address.
 	log.Debug("Set up new external socket.", "intf", intf)
-	bind := intf.IFAddr.BindOrOverlay(intf.IFAddr.Overlay)
+	bind := intf.IFAddr.BindOrPublicOverlay(intf.IFAddr.Overlay)
 	c, err := conn.New(bind, intf.RemoteAddr, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)

@@ -150,17 +150,17 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 
 func (t *Topo) populateBR(raw *RawTopo) error {
 	for name, rawBr := range raw.BorderRouters {
+		if rawBr.CtrlAddr == nil {
+			return common.NewBasicError("Missing Control Address", nil, "br", name)
+		}
 		if rawBr.InternalAddrs == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		if rawBr.CtrlAddr == nil {
-			return common.NewBasicError("Missing Control Address", nil)
-		}
-		intAddr, err := rawBr.InternalAddrs.ToTopoAddr(t.Overlay)
+		ctrlAddr, err := topoAddrFromRAM(rawBr.CtrlAddr, t.Overlay)
 		if err != nil {
 			return err
 		}
-		ctrlAddr, err := rawBr.CtrlAddr.ToTopoAddr(t.Overlay)
+		intAddr, err := TopoBRAddrFromRaw(rawBr.InternalAddr, t.Overlay)
 		if err != nil {
 			return err
 		}
@@ -172,10 +172,10 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
-			if ifinfo.Local, err = rawIntf.localTopoAddr(ifinfo.Overlay); err != nil {
+			if ifinfo.Local, err = rawIntf.localTopoBRAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
-			if ifinfo.Remote, err = rawIntf.remoteAddr(ifinfo.Overlay); err != nil {
+			if ifinfo.Remote, err = rawIntf.remoteBRAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
 			ifinfo.Bandwidth = rawIntf.Bandwidth
@@ -272,21 +272,21 @@ type BRInfo struct {
 // applications should send traffic for the link to (InternalAddrs) and information about
 // the link itself and the remote side of it.
 type IFInfo struct {
-	BRName        string
-	InternalAddrs *TopoAddr
-	CtrlAddr      *TopoAddr
-	Overlay       overlay.Type
-	Local         *TopoAddr
-	Remote        *overlay.OverlayAddr
-	RemoteIFID    common.IFIDType
-	Bandwidth     int
-	ISD_AS        addr.IA
-	LinkType      proto.LinkType
-	MTU           int
+	BRName       string
+	CtrlAddr     *TopoAddr
+	Overlay      overlay.Type
+	InternalAddr *TopoBRAddr
+	Local        *TopoBRAddr
+	Remote       *overlay.OverlayAddr
+	RemoteIFID   common.IFIDType
+	Bandwidth    int
+	ISD_AS       addr.IA
+	LinkType     proto.LinkType
+	MTU          int
 }
 
 func (i IFInfo) String() string {
-	return fmt.Sprintf("IFinfo: Name[%s] IntAddrs[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v"+
-		"Remote:+%v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddrs, i.CtrlAddr, i.Overlay,
+	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
+		"Remote:+%v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddr, i.CtrlAddr, i.Overlay,
 		i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
 }

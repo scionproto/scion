@@ -123,10 +123,6 @@ func (t *TopoAddr) BindOrPublic(ot overlay.Type) *addr.AppAddr {
 	return t.getAddr(ot).BindOrPublic()
 }
 
-func (t *TopoAddr) BindOrOverlay(ot overlay.Type) *overlay.OverlayAddr {
-	return t.getAddr(ot).BindOrOverlay()
-}
-
 func (t *TopoAddr) getAddr(ot overlay.Type) *pubBindAddr {
 	if t.IPv6 != nil && ot.IsIPv6() {
 		return t.IPv6
@@ -215,14 +211,6 @@ func (t *pubBindAddr) BindOrPublic() *addr.AppAddr {
 	return t.bind
 }
 
-func (t *pubBindAddr) BindOrOverlay() *overlay.OverlayAddr {
-	if t.bind == nil {
-		return t.overlay
-	}
-	addr, _ := overlay.NewOverlayAddr(t.bind.L3, t.bind.L4)
-	return addr
-}
-
 func (t1 *pubBindAddr) equal(t2 *pubBindAddr) bool {
 	if (t1 == nil) && (t2 == nil) {
 		return true
@@ -257,4 +245,162 @@ func newOverlayAddr(udpOverlay bool, l3 addr.HostAddr, port int) (*overlay.Overl
 		ol4 = addr.NewL4UDPInfo(uint16(port))
 	}
 	return overlay.NewOverlayAddr(l3, ol4)
+}
+
+type TopoBRAddr struct {
+	IPv4    *overBindAddr
+	IPv6    *overBindAddr
+	Overlay overlay.Type
+}
+
+// Create TopoAddr from RawAddrMap, depending on supplied Overlay type
+func topoBRAddrFromRAM(s RawBRAddrMap, ot overlay.Type) (*TopoBRAddr, error) {
+	switch ot {
+	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
+		overlay.UDPIPv6, overlay.UDPIPv46:
+	default:
+		return nil, common.NewBasicError(ErrUnsupportedOverlay, nil, "type", ot)
+	}
+	t := &TopoBRAddr{Overlay: ot}
+	if err := t.fromRBRAM(s); err != nil {
+		return nil, common.NewBasicError("Failed to parse raw topo address", err, "addr", s)
+	}
+	return t, nil
+}
+
+func (t *TopoBRAddr) fromRBRAM(s RawBRAddrMap) error {
+	for k, rpbo := range s {
+		var hostType addr.HostAddrType
+		pbo := &pubBindAddr{}
+		switch k {
+		case "IPv4":
+			if !t.Overlay.IsIPv4() {
+				return common.NewBasicError(ErrMismatchOverlayAddr, nil, "Overlay", t.Overlay)
+			}
+			t.IPv4 = pbo
+			hostType = addr.HostTypeIPv4
+		case "IPv6":
+			if !t.Overlay.IsIPv6() {
+				return common.NewBasicError(ErrMismatchOverlayAddr, nil, "Overlay", t.Overlay)
+			}
+			t.IPv6 = pbo
+			hostType = addr.HostTypeIPv6
+		default:
+			return common.NewBasicError(ErrUnsupportedAddrType, nil, "Type", k)
+		}
+		if err := pbo.fromRPBO(rpbo, t.Overlay.IsUDP()); err != nil {
+			return err
+		}
+		// Check parsed addresses match the expected address type
+		if pbo.pub.L3.Type() != hostType {
+			return common.NewBasicError(ErrMismatchPubAddrType, nil,
+				"AddrType", hostType, "Addr", pbo.pub)
+		}
+		if pbo.bind != nil {
+			if pbo.bind.L3.Type() != hostType {
+				return common.NewBasicError(ErrMismatchBindAddrType, nil,
+					"AddrType", hostType, "Addr", pbo.bind)
+			}
+			// Check pub and bind are not the same address
+			if pbo.pub.Eq(pbo.bind) {
+				return common.NewBasicError(ErrBindAddrEqPubAddr, nil,
+					"bindAddr", pbo.bind, "pubAddr", pbo.pub)
+			}
+		}
+	}
+	if t.IPv4 == nil && t.IPv6 == nil {
+		// Both are empty.
+		return common.NewBasicError(ErrAtLeastOnePub, nil)
+	}
+	return nil
+}
+
+func (t *TopoBRAddr) PublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
+	return t.getAddr(ot).PublicOverlay
+}
+
+func (t *TopoBRAddr) BindOverlay(ot overlay.Type) *overlay.OverlayAddr {
+	return t.getAddr(ot).BindOverlay
+}
+
+func (t *TopoBRAddr) BindOrPublicOverlay(ot overlay.Type) *overlay.OverlayAddr {
+	return t.getAddr(ot).BindOrPublicOverlay()
+}
+
+func (t *TopoBRAddr) getAddr(ot overlay.Type) *overBindAddr {
+	if t.IPv6 != nil && ot.IsIPv6() {
+		return t.IPv6
+	}
+	if t.IPv4 != nil && ot.IsIPv4() {
+		return t.IPv4
+	}
+	return nil
+}
+
+func (t *TopoBRAddr) Equal(o *TopoBRAddr) bool {
+	if t.Overlay != o.Overlay {
+		return false
+	}
+	if !t.IPv4.equal(o.IPv4) {
+		return false
+	}
+	if !t.IPv6.equal(o.IPv6) {
+		return false
+	}
+	return true
+}
+
+func (t *TopoBRAddr) String() string {
+	var s []string
+	s = append(s, "TopoBRAddr{")
+	if t.IPv4 != nil {
+		s = append(s, fmt.Sprintf("IPv4:{%s},", t.IPv4))
+	}
+	if t.IPv6 != nil {
+		s = append(s, fmt.Sprintf("IPv6:{%s},", t.IPv6))
+	}
+	s = append(s, fmt.Sprintf("Overlay: %s}", t.Overlay))
+	return strings.Join(s, "")
+}
+
+type overBindAddr struct {
+	PublicOverlay *overlay.OverlayAddr
+	BindOverlay   *overlay.OverlayAddr
+}
+
+func (t *overBindAddr) BindOrPublicOverlay() *overlay.OverlayAddr {
+	if t.BindOverlay != nil {
+		return t.BindOverlay
+	}
+	return t.PublicOverlay
+}
+
+func (t1 *overBindAddr) equal(t2 *overBindAddr) bool {
+	if (t1 == nil) && (t2 == nil) {
+		return true
+	}
+	if (t1 == nil) != (t2 == nil) {
+		return false
+	}
+	if !t1.PublicOverlay.Eq(t2.PublicOverlay) {
+		return false
+	}
+	if !t1.BindOverlay.Eq(t2.BindOverlay) {
+		return false
+	}
+	return true
+}
+
+func (a *overBindAddr) String() string {
+	return fmt.Sprintf("PublicOverlay: %v BindOverlay: %v", a.PublicOverlay, a.BindOverlay)
+}
+
+func overlayCheck(ot overlay.Type) error {
+	switch ot {
+	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
+		overlay.UDPIPv6, overlay.UDPIPv46:
+	default:
+		return common.NewBasicError(ErrUnsupportedOverlay, nil, "type", ot)
+	}
+	return nil
 }
