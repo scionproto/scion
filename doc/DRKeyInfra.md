@@ -302,6 +302,7 @@ the time in seconds since the unix epoch.
 The second level key response will also be transmitted with SignedCtrlPld.
 
     DRKeyLvl2Req {
+        valTime     UInt32  # Point in time where requested DRKey is valid
         protocol    Data    # Protocol identifier
         keyType     UInt8   # Key type of requested DRKey
         srcIA       UInt64  # Src ISD-AS of the requested DRKey
