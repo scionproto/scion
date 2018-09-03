@@ -45,7 +45,7 @@ func (h *ifStateInfoHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	h.logger.Debug("[ifStateHandler] Received IfInfo", "ifInfo", ifStateInfo)
+	h.logger.Debug("[ifStateHandler] Received IfStateInfo", "ifStateInfo", ifStateInfo)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	for _, info := range ifStateInfo.Infos {
