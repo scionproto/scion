@@ -18,7 +18,6 @@ package rpkt
 
 import (
 	"fmt"
-	"math/rand"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -73,56 +72,19 @@ func (rp *RtrPkt) Route() error {
 	return nil
 }
 
-// RouteResolveSVC is a hook to resolve SVC addresses for routing packets to
-// the local ISD-AS.
+// RouteResolveSVC is a hook to resolve SVC addresses for routing packets to the local ISD-AS.
 func (rp *RtrPkt) RouteResolveSVC() (HookResult, error) {
 	svc, ok := rp.dstHost.(addr.HostSVC)
 	if !ok {
 		return HookError, common.NewBasicError("Destination host is NOT an SVC address", nil,
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	// FIXME(sgmonroy) Choose LocSock based on overlay type
-	if svc.IsMulticast() {
-		return rp.RouteResolveSVCMulti(svc)
-	}
-	return rp.RouteResolveSVCAny(svc)
-}
-
-// RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
-// a single instance of a local infrastructure service).
-func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC) (HookResult, error) {
-	names, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
+	addrs, err := rp.Ctx.ResolveSVC(svc)
 	if err != nil {
 		return HookError, err
 	}
-	// XXX(kormat): just pick one randomly. TCP will remove the need to have
-	// consistent selection for a given source.
-	name := names[rand.Intn(len(names))]
-	elem := elemMap[name]
-	dst := elem.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
-	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
-	return HookContinue, nil
-}
-
-// RouteResolveSVCMulti handles routing a packet to a multicast SVC address
-// (i.e. one packet per machine hosting instances for a local infrastructure
-// service).
-func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC) (HookResult, error) {
-	_, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
-	if err != nil {
-		return HookError, err
-	}
-	// Only send once per IP:OverlayPort combination. Adding the overlay port
-	// allows this to work even when multiple instances are NAT'd to the same
-	// IP address.
-	seen := make(map[string]struct{})
-	for _, elem := range elemMap {
-		dst := elem.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
-		strIP := dst.String()
-		if _, ok := seen[strIP]; ok {
-			continue
-		}
-		seen[strIP] = struct{}{}
+	for _, dst := range addrs {
+		// FIXME(sgmonroy) Choose LocSock based on overlay type for dual-stack support
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	}
 	return HookContinue, nil
@@ -180,7 +142,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
-	dst := nextBR.InternalAddr.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
+	dst := nextBR.InternalAddr.PublicOverlay(rp.Ctx.Conf.Topo.Overlay)
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }
@@ -306,10 +268,10 @@ func (rp *RtrPkt) reprocess() (HookResult, error) {
 	return HookFinish, nil
 }
 
-// getSVCNamesMap returns the slice of instance names and addresses for a given
-// SVC address.
-func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) (
-	[]string, map[string]topology.TopoAddr, error) {
+// getSVCNamesMap returns the slice of instance names and addresses for a given SVC address.
+func getSVCNamesMap(svc addr.HostSVC, ctx *rctx.Ctx) ([]string,
+	map[string]topology.TopoAddr, error) {
+
 	t := ctx.Conf.Topo
 	var names []string
 	var elemMap map[string]topology.TopoAddr

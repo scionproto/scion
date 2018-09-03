@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/border/conf"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
@@ -70,10 +71,9 @@ func NewRouter(id, confDir string) (*Router, error) {
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
 func (r *Router) Run() error {
-	go r.RevInfoFwd()
 	go r.PacketError()
 	go r.confSig()
-	go r.Control()
+	go rctrl.Control(r.sRevInfoQ)
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
 	var wait chan struct{}

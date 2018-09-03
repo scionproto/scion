@@ -36,7 +36,7 @@ import (
 // accessing these by different methods.
 type NetConf struct {
 	// LocAddr is the local data-plane addresses from the topology.
-	LocAddr *topology.TopoAddr
+	LocAddr *topology.TopoBRAddr
 	// CtrlAddr is the local control-plane addresses from the topology.
 	CtrlAddr *topology.TopoAddr
 	// IFs maps interface IDs to Interfaces.
@@ -76,10 +76,10 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	for ifid, intf := range n.IFs {
 		// Add mapping of interface public address to this interface ID.
 		if intf.IFAddr.IPv4 != nil {
-			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv4.OverlayAddr())] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv4.PublicOverlay)] = ifid
 		}
 		if intf.IFAddr.IPv6 != nil {
-			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv6.OverlayAddr())] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv6.PublicOverlay)] = ifid
 		}
 	}
 	return n, nil
@@ -93,7 +93,7 @@ type Interface struct {
 	// interface. Normally these are the same, but for example in the case of
 	// NAT, the bind address may differ from the address visible from outside
 	// the AS.
-	IFAddr *topology.TopoAddr
+	IFAddr *topology.TopoBRAddr
 	// RemoteAddr is the public address of the border router on the other end
 	// of the link.
 	RemoteAddr *overlay.OverlayAddr

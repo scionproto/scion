@@ -15,7 +15,7 @@
 // This file provides a generic interface to periodically generate SCION packets
 // and send them out.
 
-package main
+package rctrl
 
 import (
 	"github.com/scionproto/scion/go/border/rctx"
@@ -28,7 +28,7 @@ import (
 )
 
 // genPkt is a generic function to generate packets that originate at the router.
-func (r *Router) genPkt(dstIA addr.IA, dst, src *addr.AppAddr, oAddr *overlay.OverlayAddr,
+func genPkt(dstIA addr.IA, dst, src *addr.AppAddr, oAddr *overlay.OverlayAddr,
 	pld common.Payload) error {
 
 	if dst == nil {
