@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +16,8 @@
 package query
 
 import (
+	"time"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -39,12 +42,13 @@ type IntfSpec struct {
 }
 
 type Params struct {
-	SegID    common.RawBytes
-	SegTypes []proto.PathSegType
-	HpCfgIDs []*HPCfgID
-	Intfs    []*IntfSpec
-	StartsAt []addr.IA
-	EndsAt   []addr.IA
+	SegIDs        []common.RawBytes
+	SegTypes      []proto.PathSegType
+	HpCfgIDs      []*HPCfgID
+	Intfs         []*IntfSpec
+	StartsAt      []addr.IA
+	EndsAt        []addr.IA
+	MinLastUpdate *time.Time
 }
 
 type Result struct {
