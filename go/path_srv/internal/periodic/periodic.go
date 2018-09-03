@@ -37,10 +37,10 @@ type Runner struct {
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
-func StartPeriodicTask(task Task, interval time.Duration) *Runner {
+func StartPeriodicTask(task Task, ticker time.Ticker, interval time.Duration) *Runner {
 	runner := &Runner{
 		task:     task,
-		ticker:   time.NewTicker(interval),
+		ticker:   &ticker,
 		interval: interval,
 		stop:     make(chan struct{}),
 		stopped:  make(chan struct{}),

@@ -29,15 +29,20 @@ func (tf taskFunc) Run(ctx context.Context) {
 }
 
 func Test_PeriodicExecution(t *testing.T) {
-	Convey("Test context timeout", t, func() {
+	Convey("Test periodic execution", t, func() {
 		cnt := 0
 		fn := taskFunc(func(ctx context.Context) {
 			cnt++
 		})
-		// note that below 100 microseconds this test no longer works accurately.
-		r := StartPeriodicTask(fn, 100*time.Microsecond)
-		time.Sleep(300 * time.Microsecond)
+		tickC := make(chan time.Time)
+		ticker := time.Ticker{
+			C: tickC,
+		}
+		r := StartPeriodicTask(fn, ticker, time.Microsecond)
+		tickC <- time.Now()
+		tickC <- time.Now()
+		tickC <- time.Now()
 		r.Stop()
-		SoMsg("Must have executed at least twice", cnt, ShouldBeGreaterThanOrEqualTo, 3)
+		SoMsg("Must have executed 3 times", cnt, ShouldEqual, 3)
 	})
 }
