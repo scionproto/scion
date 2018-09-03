@@ -14,7 +14,6 @@ struct SegReq {
         sibra @2 :Bool;
         cacheOnly @3 :Bool;
     }
-
 }
 
 struct SegRecs {
