@@ -47,10 +47,10 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 	for i := range ias {
 		ia := ias[i]
 		inIA := addr.IA{}
-		outIA := ia
 		if i > 0 {
 			inIA = ias[i-1]
 		}
+		outIA := ia
 		if i == len(ases)-1 {
 			outIA = addr.IA{}
 		}
@@ -62,7 +62,6 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 	info := &spath.InfoField{
 		TsInt: uint32(time.Now().Unix()),
 		ISD:   uint16(ias[0].I),
-		Hops:  uint8(len(ases)),
 	}
 	pseg, _ := NewSeg(info)
 	for _, ase := range ases {
@@ -103,8 +102,8 @@ func Test_FilterSegments(t *testing.T) {
 		{
 			Name:     "First IA core 1_110",
 			Segs:     []*PathSegment{seg110_120, seg120_110},
-			Filtered: []*PathSegment{seg110_120},
-			KeepF:    func(s *PathSegment) bool { return core1_110.Eq(s.FirstIA()) },
+			Filtered: []*PathSegment{seg120_110},
+			KeepF:    func(s *PathSegment) bool { return core1_120.Eq(s.FirstIA()) },
 		},
 	}
 	Convey("Test filtering segments", t, func() {
