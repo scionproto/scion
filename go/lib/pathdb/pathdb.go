@@ -17,6 +17,7 @@ package pathdb
 
 import (
 	"context"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -39,6 +40,9 @@ type PathDB interface {
 	// DeleteWithIntf deletes all path segments that contain a given interface. Returns
 	// the number of path segments deleted.
 	DeleteWithIntf(context.Context, query.IntfSpec) (int, error)
+	// DeleteExpired deletes all paths segments that are expired, using now as a reference.
+	// Returns the number of deleted segments.
+	DeleteExpired(ctx context.Context, now time.Time) (int, error)
 	// Get returns all path segment(s) matching the parameters specified.
 	Get(context.Context, *query.Params) ([]*query.Result, error)
 }

@@ -39,7 +39,9 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/path_srv/internal/cleaner"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
+	"github.com/scionproto/scion/go/path_srv/internal/periodic"
 )
 
 type Config struct {
@@ -163,6 +165,9 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		msger.ListenAndServe()
 	}()
+	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
+		time.NewTicker(300*time.Second), 295*time.Second)
+	defer cleaner.Stop()
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
