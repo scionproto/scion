@@ -55,6 +55,7 @@ type baseHandler struct {
 	revCache   revcache.RevCache
 	trustStore infra.TrustStore
 	topology   *topology.Topo
+	retryInt   time.Duration
 	logger     log.Logger
 }
 
@@ -65,6 +66,7 @@ func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 		revCache:   args.RevCache,
 		trustStore: args.TrustStore,
 		topology:   args.Topology,
+		retryInt:   time.Second,
 		logger:     request.Logger,
 	}
 }
@@ -83,6 +85,33 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 		return segutil.NoRevokedHopIntf(h.revCache, s)
 	})
 	return segs, nil
+}
+
+// fetchSegsFromDBRetry calls fetchSegsFromDB and if this results in no segments,
+// this method retries until either there is a result, or the context timed out.
+//
+// Note that looping is not the most efficient way to do this. We could also have a channel
+// from the segReg handler to the segReq handlers, but this leads to a more complex logic
+// (handlers are no longer independent).
+// Also this would need to make sure that this is the only process that writes to the DB.
+//
+// If this is ever not performant enough it makes sense to change the logic.
+// Retries should happen mostly at startup and otherwise very rarely.
+func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,
+	params *query.Params) ([]*seg.PathSegment, error) {
+
+	for {
+		upSegs, err := h.fetchSegsFromDB(ctx, params)
+		if err != nil || len(upSegs) > 0 {
+			return upSegs, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(h.retryInt):
+			// retry
+		}
+	}
 }
 
 func (h *baseHandler) psAddrFromSeg(s *seg.PathSegment, dstIA addr.IA) (net.Addr, error) {
