@@ -151,7 +151,7 @@ func (ps *PathSegment) ContainsInterface(ia addr.IA, ifid common.IFIDType) bool 
 // MaxExpiry returns the maximum expiry of all hop fields.
 // Assumes segment is validated.
 func (ps *PathSegment) MaxExpiry() time.Time {
-	return ps.expiry(time.Duration(0), func(hfTtl time.Duration, ttl time.Duration) bool {
+	return ps.expiry(0, func(hfTtl time.Duration, ttl time.Duration) bool {
 		return hfTtl > ttl
 	})
 }
