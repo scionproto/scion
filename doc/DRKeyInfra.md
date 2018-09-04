@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 2018-08-31
+- Last updated: 2018-09-06
 - Status: draft
 
 ## Overview
@@ -44,9 +44,9 @@ In the DRKey protocol, key establishment is offloaded to the certificate server
 with trustworthy entities in the same AS, it is never shared outside the AS. The
 secret value will serve as the root of a symmetric key hierarchy, where keys of
 a level are derived from keys of the preceding level using an efficient
-Pseudo-Random Function (PRF). Thanks to the one-way property of the PRF
-function, the derived key can be shared with another entity without disclosing
-the higher level symmetric key.
+Pseudo-Random Function (PRF). Thanks to the one-way property of the PRF, the
+derived key can be shared with another entity without disclosing the higher level
+symmetric key.
 
 ### Key Hierarchy
 
@@ -65,7 +65,7 @@ the higher level symmetric key.
 On the zeroth level of the hierarchy, each AS A randomly generates a local
 secret symmetric and AS-specific secret value key SV\_A. The secret value
 represents the per-AS basis of the hierarchy and is renewed frequently.
-This is is not shared with any entity outside the corresponding AS.
+This is not shared with any entity outside the AS.
 
 #### 1st-level
 
@@ -90,62 +90,96 @@ key between end hosts H\_A in AS A and H\_B in AS B is derived as follows:
     K_{A:H_A→B:H_B}^{prot} = PRF_K_{A→B} (“prot” | H_A | H_B)
 
 where “prot” denotes an arbitrary protocol, and H\_A and H\_B represent host
-addresses. We distinguish between IPv4, IPv6 and service addresses. For other
-second-level keys (e.g., between an AS infrastructure node and an end host), the
-derivation process is adapted by including an ISD-AS identifier.
+addresses. We distinguish between IPv4, IPv6 and service addresses.
+
+### Key Validity
+
+#### Epochs
+
+An epoch is an interval between a starting and end point in time. The length of
+epochs of can be chosen by a given AS and can change over time. However, no
+epochs must overlap. Thus, a secret value is associated with exactly one epoch.
+
+#### Validity Periods
+
+Secret values must be renewed for every epoch. Thus, also lower level keys
+must be renewed at the beginning of a new epoch. However, if a packet is
+authenticated immediately before a key expires, but arrives at destination when
+already the new key is used, a race condition occurs as the packet's authenticity
+cannot be verified. To avoid race conditions, the validity of second-level keys
+exceeds the epoch end time by a small extent. By default, we assume a epoch length
+of 24 hours and the following key validity periods:
+
+- Secret value: 24 hours
+- First-level keys: 24 hours (inherited)
+- Second-level keys: 24 (inherited) + 0.1 hours
+
+First- and second-level keys are valid during the same time frame as the
+corresponding secret value. If a specific protocol requires shorter key expiration
+times, this will be implemented as an extension to the basic protocol. The 'misc'
+part in the key exchange is used to supply such additional information.
 
 ### Key Establishment
 
-#### First Level Key Exchange
+#### First-Level Key Exchange
 
-The certificate servers are not only responsible for first-level key
-establishment, they also derive second-level keys and provide them to hosts
-within the same AS. To exchange a first-level key the certificate servers of
-corresponding ASes perform the key exchange protocol. The key exchange is
-initialized by CS\_B by sending the following request:
+To exchange a first-level key the certificate servers of corresponding ASes
+perform the key exchange protocol. The key exchange is initialized by CS\_B by
+sending the following request:
 
     token = A | val_time | timestamp  
     CS_B → CS A : A | B | token | {token}_PK_B^−1
 
-where 'val\_time' specifies a point in time at which the requested key is valid.
+where `val_time` specifies a point in time at which the requested key is valid.
 The requested key may not be valid at the time of request, either because it
 already expired or because it will become valid in the future. For example,
-prefetching future keys allows for seamless transition to the new key.  
+prefetching future keys allows for seamless transition to the new key. Thus,
+`val_time` is used to identify the epoch in which the requested key can be used.
+
 To obtain valid AS-level certificates to sign and encrypt the first level key
 exchange, we can use the SCION control-plane PKI. The request token is signed
 with B’s private key to prove authenticity of the request. Upon receiving the
 initial request, CS\_A checks the signature and timestamp for authenticity and
 expiration. If the request has not yet expired, the certificate server CS\_A
 will reply with an encrypted and signed first-level key derived from the local
-secret value SV\_A.
+secret value SV\_A. SV\_A is chosen according to the epoch identified by
+`val_time`.
 
     K_{A→B} = PRF_{SV_A} (B)  
     ciphertext = {A | K_{A→B}}_PK_B  
-    signature = {ciphertext | exp_time | timestamp}_PK_A^−1  
-    CS_A → CS_B : ciphertext | exp_time | timestamp | signature
+    signature = {ciphertext | epoch_begin | epoch_end | timestamp}_PK_A^−1  
+    CS_A → CS_B : ciphertext | epoch_begin | epoch_end | timestamp | signature
 
 Once the requesting certificate server CS\_B has received the key, it shares it
 among other local certificate servers to ensure a consistent view. Each
 certificate server can now respond to queries by entities within the same AS
-requesting second-level keys derived from K_{A->B}.  
-First-level keys of frequently contacted ASes are prefetched such that
-second-level keys can be derived without delay. In case a certificate server is
-missing a first-level key that is required for the derivation of a second-level
-key, the certificate server initiates a first level key exchange. The amount of
-cached first-level keys is configurable by each AS. We suggest a default policy
-of caching 10'000 first-level keys, where the least frequently used keys get
-replaced.
+requesting second-level keys derived from K_{A->B}.
 
-#### Second Level Key Exchange
+The first-level key is accompanied by `epoch_begin` and `epoch_end` that denote
+the begin and end of the validity period of the corresponding key. These values
+are determined by the AS that issues the key. The beginning of an epoch should
+not overlap with with the end of the previous epoch, as otherwise multiple
+DRKeys need to be checked for verification.
+
+First-level keys of frequently contacted ASes are prefetched such that
+second-level keys can be instantaneously derived. In case a certificate server
+is missing a first-level key that is required for the derivation of a
+second-level key, the certificate server initiates a first-level key exchange.
+The amount of cached first-level keys is configurable by each AS. We suggest a
+default policy of caching 10'000 first-level keys, where the least frequently
+used keys get replaced. This requires fetching on average one first-level key
+every 8 seconds.
+
+#### Second-Level Key Exchange
 
 End hosts request a second-level key from their local certificate server with
 the following request format:
 
-    {keyType, requestID, protocol, srcIA, dstIA, srcHost, dstHost, misc)}
+    {keyType, requestID, protocol, srcIA, dstIA, srcHost, dstHost, misc}
 
 `keyType` defines which type of second-level key is requested. Currently,
 there exist three types of second-level keys: AS-to-AS, AS-to-end-host, and
-end-host-to-end-host. `misc` is used to supply additional information, that
+end-host-to-end-host. `misc` is used to supply additional information that
 might be required for protocol-specific keys (e.g., shorter key lifetime).
 
 An end host H\_A in AS A uses this format for issuing the following request to
@@ -156,10 +190,10 @@ its local certificate server CS\_A:
 Similar to the first-level key exchange, 'val\_time' specifies a point in time at
 which the requested key is valid.
 The certificate server only replies with a key to requests with a valid
-timestamp, and if the querying host is authorized to use the key. An authorized
-host must either be an end point of the communication that is authenticated
-using the second-level key, or authorized separately by the AS.  
-The following second level requests exist:
+timestamp, and if the querying host is authorized to use the key at the specified
+point in time. An authorized host must either be an end point of the communication
+that is authenticated using the second-level key, or authorized separately by the
+AS. The following second-level requests exist:
 
     1. AS → AS:
     Request: { 0, req.ID, prot, A, B, ⊥, ⊥, ⊥ }
@@ -172,26 +206,6 @@ The following second level requests exist:
     3. end host → end host:
     Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
     Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{A→B} (“prot” | H_A | H_B )
-
-### Key Expiration
-
-Secret values must be renewed every 24 hours. Thus, also lower level keys must
-be renewed. However, if a packet is authenticated immediately before a key
-expires, but arrives at destination when already the new key is used, a race
-condition occurs as the packet's authenticity can not be verified. To avoid
-race conditions, the validity of second-level keys must be longer than the
-corresponding refresh period. We assume the following key validity periods:
-
-- Secret value: 24 hours
-- First-level keys: 24 hours (inherited)
-- Second-level keys: 24 (inherited) + 0.1 hours
-
-First- and second-level keys are valid during the same time frame as the
-corresponding secret value. Second-level have a slightly extended validity
-period to avoid race conditions as specified above.
-If a specific protocol requires shorter key expiration times, this will be
-implemented as an extension to the basic protocol. The 'misc' part in the
-key exchange is used to supply such additional information.
 
 ### Key Rollover
 
@@ -210,17 +224,28 @@ SV\_A^j that is used to derive K_{A→B} at the current sequence j such that:
 
     [ start(SV_A^j) + offset(A, B), start(SV_A^j+1) + offset(A, B) )
 
+The offset function is AS-specific. By default, we suggest to use a function
+that uniformely distributes the offset values in the following interval:
+
+    [0, minimum epoch length \ 2 )
+
+For prefetching of DRKeys, a `valTime` that exceeds the end of the current epoch
+can be selected. To allow seamless key rollover, an entity is required to store
+secret values of the current, previous, and next epoch. In case a key for a
+different epoch is requested, an AS is not required to return a corresponding
+key.
+
 ## Implementation
 
-The implementation of the protocol will consist of the first level key exchange
-between CS. The second level key exchange is implemented between sciond and CS.
+The implementation of the protocol will consist of the first-level key exchange
+between CS. The second-level key exchange is implemented between sciond and CS.
 Additionally, a key store needs to be implemented to cache keys.
 
 ### Key Derivation
 
-As a key derivation function, we will use AES-CMAC as a single block operation
-can be performed in less than 100 cycles on a modern CPU. The input to the key
-derivation function looks as follows:
+As a key derivation function we will use AES-CMAC as a single block operation,
+which can be performed in less than 100 cycles on a modern CPU. The input to
+the key derivation function looks as follows:
 
 #### 0th-level
 
@@ -278,7 +303,7 @@ address end hosts.
 
 ### First Level Key Exchange
 
-For the first level key exchange between CS, we can use SignedCtrlPld. Thus,
+For the first-level key exchange between CS, we can use SignedCtrlPld. Thus,
 the request ID, timestamp, signature, certificate and TRC version do not need
 to be part of the protocol. For the response, certVerDst describes the version
 of the certificate used to encrypt the message. Furthermore, all time-specific
@@ -287,12 +312,13 @@ the time in seconds since the unix epoch.
 
     DRKeyLvl1Req {
         isdas       UInt64  # Src ISD-AS of the requested DRKey
-        valTime     UInt32  # Point in time where requested DRKey is valid
+        valTime     UInt32  # Point in time where requested DRKey is valid. Used to identify the epoch.
     }
 
     DRKeyLvl1Rep {
         isdas       UInt64  # Src ISD-AS of the DRKey
-        expTime     UInt32  # Expiration time of the DRKey
+        epochBegin  UInt32  # Begin of validity period of DRKey
+        epochEnd    UInt32  # End of validity period of DRKey
         cipher      Data    # Encrypted DRKey
         certVerDst  UInt64  # Version of cert of public key used to encrypt
     }
@@ -302,7 +328,7 @@ the time in seconds since the unix epoch.
 The second level key response will also be transmitted with SignedCtrlPld.
 
     DRKeyLvl2Req {
-        valTime     UInt32  # Point in time where requested DRKey is valid
+        valTime     UInt32  # Point in time where requested DRKey is valid. Used to identify the epoch.
         protocol    Data    # Protocol identifier
         keyType     UInt8   # Key type of requested DRKey
         srcIA       UInt64  # Src ISD-AS of the requested DRKey
@@ -315,11 +341,27 @@ The second level key response will also be transmitted with SignedCtrlPld.
     DRKeyLvl2Rep {
         timestamp   UInt32  # Timestamp
         drkey       Data    # Derived DRKey
-        expTime     UInt32  # Expiration time of DRKey
+        epochBegin  UInt32  # Begin of validity period of DRKey
+        epochEnd    UInt32  # End of validity period of DRKey
         misc        Data    # Additional information (optional)
     }
 
 ### Key Store
 
-As a key store, we will use sqlite. It is already used on sciond and CS to cache
+As a key store, we will use sqlite. It is already used in sciond and CS to cache
 certificates and TRCs.
+
+The key store also stores the begin and end of an epoch for an individual key.
+
+### Offset Function
+
+The offset function to spread out key expiration is implemented as follows:
+
+    hash(srcAS | dstAS) % mod (min epoch length / 2)
+
+As a hash function, we will use the non-cryptographic hash function
+`MurmurHash3`. It provides a good distribution, while being faster than an
+unkeyed cryptographic hash function. However, as this function is local to an AS,
+it can be replaced to receive a different key expiration spread. Remote ASes don't
+need to be aware of the offset function that is used, as the key lifetime is
+included in the exchange.
