@@ -198,7 +198,7 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	}
 	exp, err := expiry(meta.Seg)
 	if err != nil {
-		return err
+		return common.NewBasicError("Failed to calculate expiry", err)
 	}
 	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=?, Expiry=? WHERE RowID=?`
 	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.Unix(), packedSeg, exp, meta.RowID)
@@ -513,14 +513,14 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	return strings.Join(query, "\n"), args
 }
 
+// expiry returns the unix timestamp at which all hop fields are expired.
 func expiry(pseg *seg.PathSegment) (int64, error) {
 	info, err := pseg.InfoF()
 	if err != nil {
 		return 0, err
 	}
 	// find max hopf expiry:
-	exp := int64(info.TsInt)
-	maxExp := exp
+	maxTtl := time.Duration(spath.ExpTimeUnit) * time.Second
 	for _, asEntry := range pseg.ASEntries {
 		for _, he := range asEntry.HopEntries {
 			hf, err := he.HopField()
@@ -529,15 +529,11 @@ func expiry(pseg *seg.PathSegment) (int64, error) {
 				// is possible to extract the hop field.
 				panic(err)
 			}
-			maxExp = maxInt64(maxExp, exp+int64(int64(hf.ExpTime)*spath.ExpTimeUnit))
+			hfTtl := hf.ExpTime.ToDuration()
+			if hfTtl > maxTtl {
+				maxTtl = hfTtl
+			}
 		}
 	}
-	return maxExp, nil
-}
-
-func maxInt64(x, y int64) int64 {
-	if x > y {
-		return x
-	}
-	return y
+	return info.Timestamp().Add(maxTtl).Unix(), nil
 }
