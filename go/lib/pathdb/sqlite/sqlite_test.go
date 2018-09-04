@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -385,7 +386,7 @@ func Test_GetMixed(t *testing.T) {
 		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
 		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		params := &query.Params{
-			SegID:    segID1,
+			SegIDs:   []common.RawBytes{segID1},
 			SegTypes: []proto.PathSegType{proto.PathSegType_up},
 		}
 		// Call
@@ -552,5 +553,45 @@ func Test_OpenNewer(t *testing.T) {
 		// Test
 		SoMsg("Backend nil", b, ShouldBeNil)
 		SoMsg("Err returned", err, ShouldNotBeNil)
+	})
+}
+
+func TestGetModifiedIDs(t *testing.T) {
+	Convey("Modified IDs", t, func() {
+		// Setup
+		b, tmpF := setupDB(t)
+		defer b.db.Close()
+		defer os.Remove(tmpF)
+		TS := uint32(10)
+		now := time.Now()
+		tAfter := now.Add(time.Second)
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		pseg1, _ := allocPathSegment(ifs1, TS)
+		pseg2, _ := allocPathSegment(ifs2, TS)
+		insertSeg(t, ctx, b, pseg1, types[1:], hpCfgIDs)
+		insertSeg(t, ctx, b, pseg2, types[1:], hpCfgIDs[:1])
+		q := &query.Params{
+			MinLastUpdate: &tAfter,
+		}
+		res, err := b.Get(ctx, q)
+		xtest.FailOnErr(t, err)
+		SoMsg("Result count", len(res), ShouldEqual, 0)
+		tBefore := now.Add(-5 * time.Second)
+		q = &query.Params{
+			MinLastUpdate: &tBefore,
+		}
+		res, err = b.Get(ctx, q)
+		xtest.FailOnErr(t, err)
+		SoMsg("Result count", len(res), ShouldEqual, 2)
+		expectID1, err := pseg1.ID()
+		xtest.FailOnErr(t, err)
+		id1, err := res[0].Seg.ID()
+		xtest.FailOnErr(t, err)
+		SoMsg("ID 1", expectID1, ShouldResemble, id1)
+		expectedID2, err := pseg2.ID()
+		xtest.FailOnErr(t, err)
+		id2, err := res[1].Seg.ID()
+		SoMsg("ID 2", expectedID2, ShouldResemble, id2)
 	})
 }

@@ -439,9 +439,13 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	}
 	joins := []string{}
 	where := []string{}
-	if len(params.SegID) > 0 {
-		where = append(where, "s.SegID=?")
-		args = append(args, params.SegID)
+	if len(params.SegIDs) > 0 {
+		subQ := make([]string, 0, len(params.SegIDs))
+		for _, segID := range params.SegIDs {
+			subQ = append(subQ, "s.SegID=?")
+			args = append(args, segID)
+		}
+		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.SegTypes) > 0 {
 		joins = append(joins, "JOIN SegTypes t ON t.SegRowID=s.RowID")
@@ -496,6 +500,10 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 			}
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
+	}
+	if params.MinLastUpdate != nil {
+		where = append(where, "(LastUpdated>?)")
+		args = append(args, params.MinLastUpdate.Unix())
 	}
 	// Assemble the query.
 	if len(joins) > 0 {
