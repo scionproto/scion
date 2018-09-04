@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 2018-08-31
+- Last updated: 2018-09-04
 - Status: draft
 
 ## Overview
@@ -107,7 +107,7 @@ initialized by CS\_B by sending the following request:
     token = A | val_time | timestamp  
     CS_B → CS A : A | B | token | {token}_PK_B^−1
 
-where 'val\_time' specifies a point in time at which the requested key is valid.
+where `val_time` specifies a point in time at which the requested key is valid.
 The requested key may not be valid at the time of request, either because it
 already expired or because it will become valid in the future. For example,
 prefetching future keys allows for seamless transition to the new key.  
@@ -121,13 +121,20 @@ secret value SV\_A.
 
     K_{A→B} = PRF_{SV_A} (B)  
     ciphertext = {A | K_{A→B}}_PK_B  
-    signature = {ciphertext | exp_time | timestamp}_PK_A^−1  
-    CS_A → CS_B : ciphertext | exp_time | timestamp | signature
+    signature = {ciphertext | epoch_begin | epoch_end | timestamp}_PK_A^−1  
+    CS_A → CS_B : ciphertext | epoch_begin | epoch_end | timestamp | signature
 
 Once the requesting certificate server CS\_B has received the key, it shares it
 among other local certificate servers to ensure a consistent view. Each
 certificate server can now respond to queries by entities within the same AS
-requesting second-level keys derived from K_{A->B}.  
+requesting second-level keys derived from K_{A->B}.
+
+The first-level key is accompanied by `epoch_begin` and `epoch_end` that denote
+the begin and end of the validity period of the corresponding key. This values
+are determined by the AS that issues the key. The beginning of an epoch should
+not overlap with with the end of the previous epoch, as otherwise multiple
+DRKeys need to be checked for verification.
+
 First-level keys of frequently contacted ASes are prefetched such that
 second-level keys can be derived without delay. In case a certificate server is
 missing a first-level key that is required for the derivation of a second-level
@@ -173,14 +180,15 @@ The following second level requests exist:
     Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
     Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{A→B} (“prot” | H_A | H_B )
 
-### Key Expiration
+### Key Validity Periods
 
-Secret values must be renewed every 24 hours. Thus, also lower level keys must
-be renewed. However, if a packet is authenticated immediately before a key
-expires, but arrives at destination when already the new key is used, a race
-condition occurs as the packet's authenticity can not be verified. To avoid
-race conditions, the validity of second-level keys must be longer than the
-corresponding refresh period. We assume the following key validity periods:
+Secret values must be renewed for every epoch. Thus, also lower level keys
+must be renewed. However, if a packet is authenticated immediately before a
+key expires, but arrives at destination when already the new key is used, a
+race condition occurs as the packet's authenticity can not be verified. To
+avoid race conditions, the validity of second-level keys must be longer than
+the corresponding refresh period. By default, we assume the following key
+validity periods:
 
 - Secret value: 24 hours
 - First-level keys: 24 hours (inherited)
@@ -209,6 +217,19 @@ used to determine the validity period of a key by determining the secret value
 SV\_A^j that is used to derive K_{A→B} at the current sequence j such that:
 
     [ start(SV_A^j) + offset(A, B), start(SV_A^j+1) + offset(A, B) )
+
+The offset function is AS-specific. By default, we suggest to use a function
+that uniformely distributes the offset values in the following interval:
+
+    [0, minimum epoch length \ 2 )
+
+Thus, we guarantee that a maximum of two keys per AS need to be kept.
+
+For prefetching of DRKeys, a `valTime` that exceeds the end of the current epoch
+can be selected. To allow seamless key rollover, an entity is required to store
+secret values of the current, previous, and next epoch. In case a key for a
+different epoch is requested, an AS is not required to return a corresponding
+key.
 
 ## Implementation
 
@@ -287,12 +308,13 @@ the time in seconds since the unix epoch.
 
     DRKeyLvl1Req {
         isdas       UInt64  # Src ISD-AS of the requested DRKey
-        valTime     UInt32  # Point in time where requested DRKey is valid
+        valTime     UInt32  # Point in time where requested DRKey is valid. Used to identify the epoch.
     }
 
     DRKeyLvl1Rep {
         isdas       UInt64  # Src ISD-AS of the DRKey
-        expTime     UInt32  # Expiration time of the DRKey
+        epochBegin  UInt32  # Begin of validity period of DRKey
+        epochEnd    UInt32  # End of validity period of DRKey
         cipher      Data    # Encrypted DRKey
         certVerDst  UInt64  # Version of cert of public key used to encrypt
     }
@@ -302,7 +324,7 @@ the time in seconds since the unix epoch.
 The second level key response will also be transmitted with SignedCtrlPld.
 
     DRKeyLvl2Req {
-        valTime     UInt32  # Point in time where requested DRKey is valid
+        valTime     UInt32  # Point in time where requested DRKey is valid. Used to identify the epoch.
         protocol    Data    # Protocol identifier
         keyType     UInt8   # Key type of requested DRKey
         srcIA       UInt64  # Src ISD-AS of the requested DRKey
@@ -315,7 +337,8 @@ The second level key response will also be transmitted with SignedCtrlPld.
     DRKeyLvl2Rep {
         timestamp   UInt32  # Timestamp
         drkey       Data    # Derived DRKey
-        expTime     UInt32  # Expiration time of DRKey
+        epochBegin  UInt32  # Begin of validity period of DRKey
+        epochEnd    UInt32  # End of validity period of DRKey
         misc        Data    # Additional information (optional)
     }
 
@@ -323,3 +346,18 @@ The second level key response will also be transmitted with SignedCtrlPld.
 
 As a key store, we will use sqlite. It is already used on sciond and CS to cache
 certificates and TRCs.
+
+The key store also stores the begin and end of an epoch for an individual key.
+Thus, key lookup would work by
+
+### Offset Function
+
+The offset function to spread out key expiration is implemented as follows:
+
+    hash(srcAS | dstAS) % mod (min epoch length / 2)
+
+As a hash function, we will use the non-cryptographic hash function
+`MurmurHash3`. It provides a good distribution, while being magitudes faster
+than an unkeyed cryptographic hash function. However, as this function is
+local to an AS, it can be replaced to receive a different key expiration
+spread.
