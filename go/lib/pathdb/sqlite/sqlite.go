@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/sqlite"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -196,10 +195,7 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	if err != nil {
 		return err
 	}
-	exp, err := expiry(meta.Seg)
-	if err != nil {
-		return common.NewBasicError("Failed to calculate expiry", err)
-	}
+	exp := meta.Seg.MaxExpiry().Unix()
 	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=?, Expiry=? WHERE RowID=?`
 	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.Unix(), packedSeg, exp, meta.RowID)
 	if err != nil {
@@ -246,10 +242,7 @@ func (b *Backend) insertFull(ctx context.Context, pseg *seg.PathSegment,
 	if err != nil {
 		return err
 	}
-	exp, err := expiry(pseg)
-	if err != nil {
-		return common.NewBasicError("Failed to calculate expiry", err)
-	}
+	exp := pseg.MaxExpiry().Unix()
 	// Insert path segment.
 	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment, Expiry) VALUES (?, ?, ?, ?)`
 	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().Unix(), packedSeg, exp)
@@ -511,29 +504,4 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 		query = append(query, fmt.Sprintf("WHERE %s", strings.Join(where, " AND\n")))
 	}
 	return strings.Join(query, "\n"), args
-}
-
-// expiry returns the unix timestamp at which all hop fields are expired.
-func expiry(pseg *seg.PathSegment) (int64, error) {
-	info, err := pseg.InfoF()
-	if err != nil {
-		return 0, err
-	}
-	// find max hopf expiry:
-	maxTtl := time.Duration(spath.ExpTimeUnit) * time.Second
-	for _, asEntry := range pseg.ASEntries {
-		for _, he := range asEntry.HopEntries {
-			hf, err := he.HopField()
-			if err != nil {
-				// This should not happen, as Validate already checks that it
-				// is possible to extract the hop field.
-				panic(err)
-			}
-			hfTtl := hf.ExpTime.ToDuration()
-			if hfTtl > maxTtl {
-				maxTtl = hfTtl
-			}
-		}
-	}
-	return info.Timestamp().Add(maxTtl).Unix(), nil
 }
