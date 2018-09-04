@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
 const (
@@ -76,20 +77,12 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	segs := query.Results(res).Segs()
 	// XXX(lukedirtwalker): Consider cases where segment with revoked interfaces should be returned.
-	return filterSegs(extractSegs(res), h.noRevokedHopIntf), nil
-}
-
-// noRevokedHopIntf returns true if there is no revoked on-segment interface on the segment s.
-func (h *baseHandler) noRevokedHopIntf(s *seg.PathSegment) bool {
-	revKeys := make(map[revcache.Key]struct{})
-	addRevKeys([]*seg.PathSegment{s}, revKeys, true)
-	for rk := range revKeys {
-		if _, ok := h.revCache.Get(&rk); ok {
-			return false
-		}
-	}
-	return true
+	segs.FilterSegs(func(s *seg.PathSegment) bool {
+		return segutil.NoRevokedHopIntf(h.revCache, s)
+	})
+	return segs, nil
 }
 
 func (h *baseHandler) psAddrFromSeg(s *seg.PathSegment, dstIA addr.IA) (net.Addr, error) {
@@ -150,44 +143,3 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 // ignore is a convenience function that can be passed into verifyAndStore if no further action
 // should be taken when a segment was verified.
 func ignore(context.Context, *seg.Meta) {}
-
-func filterSegs(segs []*seg.PathSegment, keep func(*seg.PathSegment) bool) []*seg.PathSegment {
-	filtered := segs[:0]
-	for _, s := range segs {
-		if keep(s) {
-			filtered = append(filtered, s)
-		}
-	}
-	return filtered
-}
-
-// XXX(lukedirtwalker): this code is also in fetcher (inside getSegmentsFromDB)
-func extractSegs(res []*query.Result) []*seg.PathSegment {
-	segs := make([]*seg.PathSegment, len(res))
-	for i, r := range res {
-		segs[i] = r.Seg
-	}
-	return segs
-}
-
-// XXX(lukedirtwalker): this code is also in fetcher (getStartIAs)
-func firstIAs(segs []*seg.PathSegment) []addr.IA {
-	return extractIAs(segs, (*seg.PathSegment).FirstIA)
-}
-
-func lastIAs(segs []*seg.PathSegment) []addr.IA {
-	return extractIAs(segs, (*seg.PathSegment).LastIA)
-}
-
-func extractIAs(segs []*seg.PathSegment, extract func(*seg.PathSegment) addr.IA) []addr.IA {
-	var ias []addr.IA
-	addrs := make(map[addr.IA]struct{})
-	for _, s := range segs {
-		ia := extract(s)
-		if _, ok := addrs[ia]; !ok {
-			addrs[ia] = struct{}{}
-			ias = append(ias, ia)
-		}
-	}
-	return ias
-}
