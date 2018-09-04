@@ -14,7 +14,9 @@
 
 package seg
 
-import "github.com/scionproto/scion/go/lib/addr"
+import (
+	"github.com/scionproto/scion/go/lib/addr"
+)
 
 // Segments is just a helper type to have additional methods on top of a slice of PathSegments.
 type Segments []*PathSegment
