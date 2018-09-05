@@ -154,7 +154,7 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	}
 	segsToSync := query.Results(queryResult).Segs()
 	segSync := &path_mgmt.SegSync{
-		&path_mgmt.SegRecs{
+		SegRecs: &path_mgmt.SegRecs{
 			Recs:      wrapSegs(segsToSync),
 			SRevInfos: segutil.RelevantRevInfos(s.revCache, segsToSync),
 		},
