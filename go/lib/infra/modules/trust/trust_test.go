@@ -23,15 +23,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/mocks/mock_net"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -103,6 +107,45 @@ func regenerateCrypto() error {
 	return nil
 }
 
+func newMessengerMock(ctrl *gomock.Controller,
+	trcs map[addr.ISD]*trc.TRC, chains map[addr.IA]*cert.Chain) infra.Messenger {
+
+	msger := mock_infra.NewMockMessenger(ctrl)
+	msger.EXPECT().GetTRC(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, msg *cert_mgmt.TRCReq,
+			a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
+
+			trcObj, ok := trcs[msg.ISD]
+			if !ok {
+				return nil, common.NewBasicError("TRC not found", nil)
+			}
+
+			compressedTRC, err := trcObj.Compress()
+			if err != nil {
+				return nil, common.NewBasicError("Unable to compress TRC", nil)
+			}
+			return &cert_mgmt.TRC{RawTRC: compressedTRC}, nil
+		},
+	).AnyTimes()
+	msger.EXPECT().GetCertChain(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, msg *cert_mgmt.ChainReq,
+			a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
+
+			chain, ok := chains[msg.IA()]
+			if !ok {
+				return nil, common.NewBasicError("Chain not found", nil)
+			}
+
+			compressedChain, err := chain.Compress()
+			if err != nil {
+				return nil, common.NewBasicError("Unable to compress Chain", nil)
+			}
+			return &cert_mgmt.Chain{RawChain: compressedChain}, nil
+		},
+	).AnyTimes()
+	return msger
+}
+
 func TestGetValidTRC(t *testing.T) {
 	trcs, chains := loadCrypto(t, isds, ias)
 
@@ -114,22 +157,31 @@ func TestGetValidTRC(t *testing.T) {
 		DBTRCInChecks []*trc.TRC // Check that these objects were saved to persistent storage
 	}{
 		{
-			Name: "bad ISD=0", ISD: 0, ExpData: nil, ExpError: true,
+			Name:     "bad ISD=0",
+			ISD:      0,
+			ExpData:  nil,
+			ExpError: true,
 		},
 		{
-			Name: "local ISD=1", ISD: 1, ExpData: trcs[1], ExpError: false,
+			Name:          "local ISD=1",
+			ISD:           1,
+			ExpData:       trcs[1],
+			ExpError:      false,
+			DBTRCInChecks: []*trc.TRC{trcs[1]},
 		},
 		{
-			Name: "unknown ISD=6", ISD: 6, ExpData: nil, ExpError: true,
+			Name:     "unknown ISD=6",
+			ISD:      6,
+			ExpData:  nil,
+			ExpError: true,
 		},
 	}
 
 	Convey("Get valid TRCs", t, func() {
-		msger := &messenger.MockMessenger{
-			TRCs:   trcs,
-			Chains: chains,
-		}
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		msger := newMessengerMock(ctrl, trcs, chains)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -217,11 +269,10 @@ func TestGetTRC(t *testing.T) {
 	}
 
 	Convey("Get unverified TRCs", t, func() {
-		msger := &messenger.MockMessenger{
-			TRCs:   trcs,
-			Chains: chains,
-		}
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		msger := newMessengerMock(ctrl, trcs, chains)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -274,11 +325,10 @@ func TestGetValidChain(t *testing.T) {
 	}
 
 	Convey("Get Chains", t, func() {
-		msger := &messenger.MockMessenger{
-			TRCs:   trcs,
-			Chains: chains,
-		}
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		msger := newMessengerMock(ctrl, trcs, chains)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 		insertTRC(t, store, trcs[1])
 		for _, tc := range testCases[3:4] {
@@ -366,11 +416,10 @@ func TestGetChain(t *testing.T) {
 	}
 
 	Convey("Get unverified chains", t, func() {
-		msger := &messenger.MockMessenger{
-			TRCs:   trcs,
-			Chains: chains,
-		}
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		msger := newMessengerMock(ctrl, trcs, chains)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -497,11 +546,10 @@ func TestTRCReqHandler(t *testing.T) {
 	//
 	// ClientMsger runs without a trust store.
 	Convey("Test TRCReq Handler", t, func() {
-		msger := &messenger.MockMessenger{
-			TRCs:   trcs,
-			Chains: chains,
-		}
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		msger := newMessengerMock(ctrl, trcs, chains)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -615,11 +663,10 @@ func TestChainReqHandler(t *testing.T) {
 
 	// See TestTRCReqHandler for info about the testing setup.
 	Convey("Test ChainReq Handler", t, func() {
-		msger := &messenger.MockMessenger{
-			TRCs:   trcs,
-			Chains: chains,
-		}
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		msger := newMessengerMock(ctrl, trcs, chains)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -694,13 +741,17 @@ func getChainFileName(ia addr.IA, version uint64) string {
 		tmpDir, ia.I, ia.A.FileFmt(), ia.I, ia.A.FileFmt(), version)
 }
 
-func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func() error) {
+func initStore(t *testing.T, ctrl *gomock.Controller,
+	ia addr.IA, msger infra.Messenger) (*Store, func() error) {
+
 	t.Helper()
 	db, err := trustdb.New(":memory:")
 	xtest.FailOnErr(t, err)
+	csAddrStub := mock_net.NewMockAddr(ctrl)
+	csAddrStub.EXPECT().String().AnyTimes()
 	options := &Config{
 		LocalCSes: []net.Addr{
-			&messenger.MockAddress{},
+			csAddrStub,
 		},
 	}
 	store, err := NewStore(db, ia, 0, options, log.Root())

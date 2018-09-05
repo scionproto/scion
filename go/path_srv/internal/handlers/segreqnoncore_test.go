@@ -16,11 +16,13 @@ package handlers
 
 import (
 	"context"
-	"net"
+	"fmt"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -28,13 +30,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -77,6 +78,21 @@ var (
 		as2_211: "topology_as2_211.json",
 		as2_222: "topology_as2_222.json",
 	}
+	trcs = map[addr.ISD]*trc.TRC{
+		1: {
+			CoreASes: trc.CoreASMap{
+				core1_110: nil,
+				core1_120: nil,
+				core1_130: nil,
+			},
+		},
+		2: {
+			CoreASes: trc.CoreASMap{
+				core2_210: nil,
+				core2_220: nil,
+			},
+		},
+	}
 )
 
 type testCase struct {
@@ -109,6 +125,46 @@ func insertSegs(t *testing.T, pathDB pathdb.PathDB, segs []*seg.PathSegment, st 
 	}
 }
 
+var _ gomock.Matcher = (*replyMatcher)(nil)
+
+type replyMatcher struct {
+	reply *path_mgmt.SegReply
+}
+
+func (r *replyMatcher) Matches(o interface{}) bool {
+	segReply, ok := o.(*path_mgmt.SegReply)
+	if !ok {
+		return false
+	}
+	if segReply.Recs != nil {
+		// Init the id field, so that deep equal works.
+		for _, sm := range segReply.Recs.Recs {
+			sm.Segment.ID()
+		}
+	}
+	return reflect.DeepEqual(r.reply, segReply)
+}
+
+func (r *replyMatcher) String() string {
+	return fmt.Sprintf("Matches Reply: %v", r.reply)
+}
+
+func matchesSegsAndReq(req *path_mgmt.SegReq, segs []*seg.Meta) *replyMatcher {
+	var recs *path_mgmt.SegRecs
+	if segs != nil {
+		recs = &path_mgmt.SegRecs{
+			Recs:      segs,
+			SRevInfos: []*path_mgmt.SignedRevInfo{},
+		}
+	}
+	return &replyMatcher{
+		reply: &path_mgmt.SegReply{
+			Req:  req,
+			Recs: recs,
+		},
+	}
+}
+
 func expectedSegs(ups, cores, downs []*seg.PathSegment) []*seg.Meta {
 	e := make([]*seg.Meta, 0, len(ups)+len(cores)+len(downs))
 	for _, u := range ups {
@@ -131,61 +187,6 @@ func loadTopo(t *testing.T, ia addr.IA) *topology.Topo {
 	topo, err := topology.LoadFromFile(filepath.Join("testdata", fileName))
 	xtest.FailOnErr(t, err)
 	return topo
-}
-
-type mockTS struct {
-	trcs map[addr.ISD]*trc.TRC
-}
-
-var _ infra.TrustStore = (*mockTS)(nil)
-
-func (t *mockTS) GetValidChain(ctx context.Context,
-	ia addr.IA, source net.Addr) (*cert.Chain, error) {
-
-	panic("not impl.")
-}
-func (t *mockTS) GetValidTRC(ctx context.Context,
-	isd addr.ISD, source net.Addr) (*trc.TRC, error) {
-
-	panic("not impl.")
-}
-func (t *mockTS) GetValidCachedTRC(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
-	panic("not impl.")
-}
-func (t *mockTS) GetChain(ctx context.Context, ia addr.IA, version uint64) (*cert.Chain, error) {
-	panic("not impl.")
-}
-func (t *mockTS) GetTRC(ctx context.Context, isd addr.ISD, version uint64) (*trc.TRC, error) {
-	return t.trcs[isd], nil
-}
-func (t *mockTS) NewTRCReqHandler(recurseAllowed bool) infra.Handler {
-	panic("not impl.")
-}
-func (t *mockTS) NewChainReqHandler(recurseAllowed bool) infra.Handler {
-	panic("not impl.")
-}
-func (t *mockTS) SetMessenger(msger infra.Messenger) {
-	panic("not impl.")
-}
-
-func defaultTS() *mockTS {
-	return &mockTS{
-		trcs: map[addr.ISD]*trc.TRC{
-			1: {
-				CoreASes: trc.CoreASMap{
-					core1_110: nil,
-					core1_120: nil,
-					core1_130: nil,
-				},
-			},
-			2: {
-				CoreASes: trc.CoreASMap{
-					core2_210: nil,
-					core2_220: nil,
-				},
-			},
-		},
-	}
 }
 
 func TestSegReqLocal(t *testing.T) {
@@ -240,7 +241,7 @@ func TestSegReqLocal(t *testing.T) {
 			DstIA:    as2_211,
 			Ups:      []*seg.PathSegment{seg220_222},
 			Downs:    []*seg.PathSegment{seg210_211},
-			Expected: []*seg.Meta{},
+			Expected: expectedSegs(nil, nil, nil),
 		},
 		{
 			Name:  "NonCoreDst: Single up, core, down",
@@ -286,6 +287,14 @@ func TestSegReqLocal(t *testing.T) {
 		// TODO(lukedirtwalker): add test with too many segments to test pruning.
 	}
 	Convey("SegReqLocal", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		ts := mock_infra.NewMockTrustStore(ctrl)
+		ts.EXPECT().GetTRC(gomock.Any(), gomock.Any(), scrypto.LatestVer).AnyTimes().DoAndReturn(
+			func(_ context.Context, isd addr.ISD, version uint64) (*trc.TRC, error) {
+				return trcs[isd], nil
+			},
+		)
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				db := setupDB(t, tc)
@@ -296,7 +305,7 @@ func TestSegReqLocal(t *testing.T) {
 						CacheOnly: true,
 					},
 				}
-				msger := &messenger.MockMessenger{}
+				msger := mock_infra.NewMockMessenger(ctrl)
 				req := infra.NewRequest(
 					infra.NewContextWithMessenger(context.Background(), msger),
 					segReq,
@@ -311,28 +320,16 @@ func TestSegReqLocal(t *testing.T) {
 							request:    req,
 							pathDB:     db,
 							revCache:   memrevcache.New(time.Minute, time.Minute),
-							trustStore: defaultTS(),
+							trustStore: ts,
 							topology:   loadTopo(t, tc.SrcIA),
 							logger:     req.Logger,
 						},
 						localIA: tc.SrcIA,
 					},
 				}
+				msger.EXPECT().SendSegReply(gomock.Any(), matchesSegsAndReq(segReq, tc.Expected),
+					gomock.Any(), gomock.Eq(req.ID))
 				h.Handle()
-				SoMsg("Amount of sent replies", len(msger.SentSegReplies), ShouldEqual, 1)
-				reply := msger.SentSegReplies[0]
-				SoMsg("Reply ID should match request", reply.ID, ShouldEqual, req.ID)
-				SoMsg("Reply should mirror req", reply.Msg.Req, ShouldEqual, segReq)
-				if tc.Expected == nil {
-					SoMsg("Not empty", reply.Msg.Recs, ShouldBeNil)
-				} else {
-					SoMsg("Empty reply", reply.Msg.Recs, ShouldNotBeNil)
-					SoMsg("Segs", len(reply.Msg.Recs.Recs), ShouldEqual, len(tc.Expected))
-					for i, s := range tc.Expected {
-						SoMsg("RecType", reply.Msg.Recs.Recs[i].Type, ShouldEqual, s.Type)
-						SoMsg("RecSeg", reply.Msg.Recs.Recs[i].Segment, ShouldResemble, s.Segment)
-					}
-				}
 			})
 		}
 	})

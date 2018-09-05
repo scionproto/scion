@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ func MockTRCHandler(request *infra.Request) {
 	}
 	subCtx, cancelF := context.WithTimeout(request.Context(), 3*time.Second)
 	defer cancelF()
-	if err := messenger.SendTRC(subCtx, mockTRC, &MockAddress{}, request.ID); err != nil {
+	if err := messenger.SendTRC(subCtx, mockTRC, nil, request.ID); err != nil {
 		log.Error("Server error", "err", err)
 	}
 }
@@ -70,7 +70,7 @@ func TestTRCExchange(t *testing.T) {
 			defer cancelF()
 
 			msg := &cert_mgmt.TRCReq{ISD: 42, Version: 1337, CacheOnly: true}
-			trc, err := clientMessenger.GetTRC(ctx, msg, &MockAddress{}, 1337)
+			trc, err := clientMessenger.GetTRC(ctx, msg, nil, 1337)
 			// CloseServer now, to guarantee it is run even if an assertion
 			// fails and execution of the client stops
 			serverMessenger.CloseServer()
