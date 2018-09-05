@@ -54,7 +54,7 @@ var (
 )
 
 func NewMockConnWithAddrs(ctrl *gomock.Controller,
-	laddr, raddr, baddr *snet.Addr, svc addr.HostSVC) *mock_snetproxy.MockConn {
+	laddr, raddr, baddr net.Addr, svc addr.HostSVC) *mock_snetproxy.MockConn {
 
 	address := mock_snetproxy.NewMockConn(ctrl)
 	address.EXPECT().LocalAddr().Return(laddr).AnyTimes()

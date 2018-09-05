@@ -262,6 +262,7 @@ func TestProxyConnClose(t *testing.T) {
 	Convey("Create mocks", t, func() {
 		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
+		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 		Convey("Calling close on proxy conn calls close on underlying conn", func() {
 			mockReconnecter.EXPECT().Stop().AnyTimes()
 			mockConn.EXPECT().Close()
@@ -278,7 +279,6 @@ func TestProxyConnClose(t *testing.T) {
 					return writeDispatcherError
 				})
 			mockConn.EXPECT().Close()
-			proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 			go func() {
 				proxyConn.DoIO(mockIO)
 			}()
@@ -288,17 +288,37 @@ func TestProxyConnClose(t *testing.T) {
 			// unblocked immediately by the go runtime)
 			time.Sleep(tickerMultiplier(10))
 		})
+		Convey("Calling close while IO is blocked waiting for reconnect unblocks waiter", func() {
+			mockReconnecter.EXPECT().Stop().AnyTimes()
+			mockReconnecter.EXPECT().Reconnect(Any()).DoAndReturn(func(_ time.Duration) (snetproxy.Conn, error) {
+				select {}
+			})
+			mockIO := mock_snetproxy.NewMockIOOperation(ctrl)
+			mockIO.EXPECT().IsWrite().Return(true).AnyTimes()
+			mockIO.EXPECT().Do(mockConn).Return(writeDispatcherError)
+			mockConn.EXPECT().Close()
+			barrierCh := make(chan struct{})
+			go func() {
+				proxyConn.DoIO(mockIO)
+				close(barrierCh)
+			}()
+			time.Sleep(tickerMultiplier(1))
+			proxyConn.Close()
+			select {
+			case <-barrierCh:
+			case <-time.After(tickerMultiplier(20)):
+				t.Fatalf("goroutine took too long to finish")
+			}
+		})
 		Convey("Calling close twice panics", func() {
 			mockReconnecter.EXPECT().Stop().AnyTimes()
 			mockConn.EXPECT().Close()
-			proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 			proxyConn.Close()
 			SoMsg("close panic", func() { proxyConn.Close() }, ShouldPanicWith, "double close")
 		})
 		Convey("Calling close shuts down the reconnecting goroutine (if any)", func() {
 			mockReconnecter.EXPECT().Stop()
 			mockConn.EXPECT().Close()
-			proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 			proxyConn.Close()
 		})
 	})

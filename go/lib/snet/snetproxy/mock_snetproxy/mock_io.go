@@ -5,9 +5,11 @@
 package mock_snetproxy
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	snetproxy "github.com/scionproto/scion/go/lib/snet/snetproxy"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+
+	snetproxy "github.com/scionproto/scion/go/lib/snet/snetproxy"
 )
 
 // MockIOOperation is a mock of IOOperation interface

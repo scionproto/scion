@@ -28,21 +28,21 @@ import (
 func TestReconnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	Convey("Reconnections must conserve local and bind addresses", t, func() {
+	FocusConvey("Reconnections must conserve local and bind addresses", t, func() {
 		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
-		Convey("Build mocks for listen", func() {
-			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, svc)
+		FocusConvey("Build mocks for listen", func() {
+			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, nil, svc)
 			Convey("If local address and bind address do not change", func() {
 				mockNetwork.EXPECT().
-					ListenSCIONWithBindSVC("udp4", localAddr, bindAddr, svc, timeout).
+					ListenSCIONWithBindSVC("udp4", localAddr, nil, svc, timeout).
 					Return(mockConn, nil)
 				mockNetwork.EXPECT().
-					ListenSCIONWithBindSVC("udp4", localAddr, bindAddr, svc, timeout).
+					ListenSCIONWithBindSVC("udp4", localAddr, nil, svc, timeout).
 					Return(mockConn, nil)
 				Convey("reconnect must not return error.", func() {
 					proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
 					proxyConn, _ := proxyNetwork.ListenSCIONWithBindSVC("udp4",
-						localAddr, bindAddr, svc, timeout)
+						localAddr, nil, svc, timeout)
 					_, err := proxyConn.(*snetproxy.ProxyConn).Reconnect()
 					SoMsg("err", err, ShouldBeNil)
 				})

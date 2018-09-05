@@ -15,6 +15,7 @@
 package snetproxy
 
 import (
+	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -50,9 +51,9 @@ func (pn *ProxyNetwork) DialSCIONWithBindSVC(network string,
 	}
 	reconnecter := pn.newReconnecterFromDialArgs(
 		network,
-		conn.LocalAddr().(*snet.Addr),
-		conn.RemoteAddr().(*snet.Addr),
-		conn.BindAddr().(*snet.Addr),
+		toSnetAddr(conn.LocalAddr()),
+		toSnetAddr(conn.RemoteAddr()),
+		toSnetAddr(conn.BindAddr()),
 		conn.SVC(),
 	)
 	return NewProxyConn(conn, reconnecter), nil
@@ -75,8 +76,12 @@ func (pn *ProxyNetwork) ListenSCIONWithBindSVC(network string,
 	if err != nil {
 		return nil, err
 	}
-	reconnecter := pn.newReconnecterFromListenArgs(network,
-		conn.LocalAddr().(*snet.Addr), conn.BindAddr().(*snet.Addr), conn.SVC())
+	reconnecter := pn.newReconnecterFromListenArgs(
+		network,
+		toSnetAddr(conn.LocalAddr()),
+		toSnetAddr(conn.BindAddr()),
+		conn.SVC(),
+	)
 	return NewProxyConn(conn, reconnecter), nil
 }
 
@@ -87,4 +92,11 @@ func (pn *ProxyNetwork) newReconnecterFromListenArgs(network string,
 		return pn.network.ListenSCIONWithBindSVC(network, laddr, baddr, svc, timeout)
 	}
 	return NewTickingReconnecter(f)
+}
+
+func toSnetAddr(address net.Addr) *snet.Addr {
+	if address == nil {
+		return nil
+	}
+	return address.(*snet.Addr)
 }

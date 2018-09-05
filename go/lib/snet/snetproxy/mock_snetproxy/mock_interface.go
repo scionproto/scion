@@ -5,13 +5,15 @@
 package mock_snetproxy
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	addr "github.com/scionproto/scion/go/lib/addr"
-	snet "github.com/scionproto/scion/go/lib/snet"
-	snetproxy "github.com/scionproto/scion/go/lib/snet/snetproxy"
 	net "net"
 	reflect "reflect"
 	time "time"
+
+	gomock "github.com/golang/mock/gomock"
+
+	addr "github.com/scionproto/scion/go/lib/addr"
+	snet "github.com/scionproto/scion/go/lib/snet"
+	snetproxy "github.com/scionproto/scion/go/lib/snet/snetproxy"
 )
 
 // MockNetwork is a mock of Network interface
@@ -86,57 +88,6 @@ func (m *MockConn) EXPECT() *MockConnMockRecorder {
 	return m.recorder
 }
 
-// Write mocks base method
-func (m *MockConn) Write(b []byte) (int, error) {
-	ret := m.ctrl.Call(m, "Write", b)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Write indicates an expected call of Write
-func (mr *MockConnMockRecorder) Write(b interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockConn)(nil).Write), b)
-}
-
-// WriteTo mocks base method
-func (m *MockConn) WriteTo(b []byte, address net.Addr) (int, error) {
-	ret := m.ctrl.Call(m, "WriteTo", b, address)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WriteTo indicates an expected call of WriteTo
-func (mr *MockConnMockRecorder) WriteTo(b, address interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteTo", reflect.TypeOf((*MockConn)(nil).WriteTo), b, address)
-}
-
-// WriteToSCION mocks base method
-func (m *MockConn) WriteToSCION(b []byte, address *snet.Addr) (int, error) {
-	ret := m.ctrl.Call(m, "WriteToSCION", b, address)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// WriteToSCION indicates an expected call of WriteToSCION
-func (mr *MockConnMockRecorder) WriteToSCION(b, address interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteToSCION", reflect.TypeOf((*MockConn)(nil).WriteToSCION), b, address)
-}
-
-// SetWriteDeadline mocks base method
-func (m *MockConn) SetWriteDeadline(deadline time.Time) error {
-	ret := m.ctrl.Call(m, "SetWriteDeadline", deadline)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SetWriteDeadline indicates an expected call of SetWriteDeadline
-func (mr *MockConnMockRecorder) SetWriteDeadline(deadline interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWriteDeadline", reflect.TypeOf((*MockConn)(nil).SetWriteDeadline), deadline)
-}
-
 // Read mocks base method
 func (m *MockConn) Read(b []byte) (int, error) {
 	ret := m.ctrl.Call(m, "Read", b)
@@ -178,28 +129,55 @@ func (mr *MockConnMockRecorder) ReadFromSCION(b interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadFromSCION", reflect.TypeOf((*MockConn)(nil).ReadFromSCION), b)
 }
 
-// SetReadDeadline mocks base method
-func (m *MockConn) SetReadDeadline(deadline time.Time) error {
-	ret := m.ctrl.Call(m, "SetReadDeadline", deadline)
+// Write mocks base method
+func (m *MockConn) Write(b []byte) (int, error) {
+	ret := m.ctrl.Call(m, "Write", b)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Write indicates an expected call of Write
+func (mr *MockConnMockRecorder) Write(b interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockConn)(nil).Write), b)
+}
+
+// WriteTo mocks base method
+func (m *MockConn) WriteTo(b []byte, address net.Addr) (int, error) {
+	ret := m.ctrl.Call(m, "WriteTo", b, address)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WriteTo indicates an expected call of WriteTo
+func (mr *MockConnMockRecorder) WriteTo(b, address interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteTo", reflect.TypeOf((*MockConn)(nil).WriteTo), b, address)
+}
+
+// WriteToSCION mocks base method
+func (m *MockConn) WriteToSCION(b []byte, address *snet.Addr) (int, error) {
+	ret := m.ctrl.Call(m, "WriteToSCION", b, address)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WriteToSCION indicates an expected call of WriteToSCION
+func (mr *MockConnMockRecorder) WriteToSCION(b, address interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteToSCION", reflect.TypeOf((*MockConn)(nil).WriteToSCION), b, address)
+}
+
+// Close mocks base method
+func (m *MockConn) Close() error {
+	ret := m.ctrl.Call(m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetReadDeadline indicates an expected call of SetReadDeadline
-func (mr *MockConnMockRecorder) SetReadDeadline(deadline interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetReadDeadline", reflect.TypeOf((*MockConn)(nil).SetReadDeadline), deadline)
-}
-
-// SetDeadline mocks base method
-func (m *MockConn) SetDeadline(deadline time.Time) error {
-	ret := m.ctrl.Call(m, "SetDeadline", deadline)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SetDeadline indicates an expected call of SetDeadline
-func (mr *MockConnMockRecorder) SetDeadline(deadline interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDeadline", reflect.TypeOf((*MockConn)(nil).SetDeadline), deadline)
+// Close indicates an expected call of Close
+func (mr *MockConnMockRecorder) Close() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConn)(nil).Close))
 }
 
 // LocalAddr mocks base method
@@ -212,18 +190,6 @@ func (m *MockConn) LocalAddr() net.Addr {
 // LocalAddr indicates an expected call of LocalAddr
 func (mr *MockConnMockRecorder) LocalAddr() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LocalAddr", reflect.TypeOf((*MockConn)(nil).LocalAddr))
-}
-
-// RemoteAddr mocks base method
-func (m *MockConn) RemoteAddr() net.Addr {
-	ret := m.ctrl.Call(m, "RemoteAddr")
-	ret0, _ := ret[0].(net.Addr)
-	return ret0
-}
-
-// RemoteAddr indicates an expected call of RemoteAddr
-func (mr *MockConnMockRecorder) RemoteAddr() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoteAddr", reflect.TypeOf((*MockConn)(nil).RemoteAddr))
 }
 
 // BindAddr mocks base method
@@ -250,14 +216,50 @@ func (mr *MockConnMockRecorder) SVC() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SVC", reflect.TypeOf((*MockConn)(nil).SVC))
 }
 
-// Close mocks base method
-func (m *MockConn) Close() error {
-	ret := m.ctrl.Call(m, "Close")
+// RemoteAddr mocks base method
+func (m *MockConn) RemoteAddr() net.Addr {
+	ret := m.ctrl.Call(m, "RemoteAddr")
+	ret0, _ := ret[0].(net.Addr)
+	return ret0
+}
+
+// RemoteAddr indicates an expected call of RemoteAddr
+func (mr *MockConnMockRecorder) RemoteAddr() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoteAddr", reflect.TypeOf((*MockConn)(nil).RemoteAddr))
+}
+
+// SetDeadline mocks base method
+func (m *MockConn) SetDeadline(deadline time.Time) error {
+	ret := m.ctrl.Call(m, "SetDeadline", deadline)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Close indicates an expected call of Close
-func (mr *MockConnMockRecorder) Close() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConn)(nil).Close))
+// SetDeadline indicates an expected call of SetDeadline
+func (mr *MockConnMockRecorder) SetDeadline(deadline interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDeadline", reflect.TypeOf((*MockConn)(nil).SetDeadline), deadline)
+}
+
+// SetReadDeadline mocks base method
+func (m *MockConn) SetReadDeadline(deadline time.Time) error {
+	ret := m.ctrl.Call(m, "SetReadDeadline", deadline)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetReadDeadline indicates an expected call of SetReadDeadline
+func (mr *MockConnMockRecorder) SetReadDeadline(deadline interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetReadDeadline", reflect.TypeOf((*MockConn)(nil).SetReadDeadline), deadline)
+}
+
+// SetWriteDeadline mocks base method
+func (m *MockConn) SetWriteDeadline(deadline time.Time) error {
+	ret := m.ctrl.Call(m, "SetWriteDeadline", deadline)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetWriteDeadline indicates an expected call of SetWriteDeadline
+func (mr *MockConnMockRecorder) SetWriteDeadline(deadline interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetWriteDeadline", reflect.TypeOf((*MockConn)(nil).SetWriteDeadline), deadline)
 }

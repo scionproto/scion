@@ -36,20 +36,18 @@ type Network interface {
 // FIXME(scrye): Temporary interface. This will be moved to snet when the
 // module is integrated.
 type Conn interface {
-	Write(b []byte) (int, error)
-	WriteTo(b []byte, address net.Addr) (int, error)
-	WriteToSCION(b []byte, address *snet.Addr) (int, error)
-	SetWriteDeadline(deadline time.Time) error
 	Read(b []byte) (int, error)
 	ReadFrom(b []byte) (int, net.Addr, error)
 	ReadFromSCION(b []byte) (int, *snet.Addr, error)
-	SetReadDeadline(deadline time.Time) error
-	SetDeadline(deadline time.Time) error
-
+	Write(b []byte) (int, error)
+	WriteTo(b []byte, address net.Addr) (int, error)
+	WriteToSCION(b []byte, address *snet.Addr) (int, error)
+	Close() error
 	LocalAddr() net.Addr
-	RemoteAddr() net.Addr
 	BindAddr() net.Addr
 	SVC() addr.HostSVC
-
-	Close() error
+	RemoteAddr() net.Addr
+	SetDeadline(deadline time.Time) error
+	SetReadDeadline(deadline time.Time) error
+	SetWriteDeadline(deadline time.Time) error
 }

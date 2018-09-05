@@ -20,68 +20,61 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 )
 
 func TestReconnecterStop(t *testing.T) {
 	Convey("Calling stop terminates a reconnect running in the background", t, func() {
 		f := func(_ time.Duration) (snetproxy.Conn, error) {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(tickerMultiplier(1))
 			// return dispatcher error s.t. reconnecter reattempts
 			return nil, dispatcherError
 		}
 		reconnecter := snetproxy.NewTickingReconnecter(f)
 		barrierCh := make(chan struct{})
 		Convey("Stop runs before reconnect runs", func() {
+			go reconnectAfter(reconnecter, tickerMultiplier(1))
 			go func() {
-				time.Sleep(10 * time.Millisecond)
-				var ignoredTimeout time.Duration
-				reconnecter.Reconnect(ignoredTimeout)
-			}()
-			go func() {
-				reconnecter.Stop()
+				stopAfter(reconnecter, 0)
 				close(barrierCh)
 			}()
-			select {
-			case <-barrierCh:
-			case <-time.After(200 * time.Millisecond):
-				t.Fatalf("goroutine took too long to finish")
-			}
+			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
 		})
 		Convey("Stop runs after reconnect runs", func() {
 			go func() {
-				var ignoredTimeout time.Duration
-				reconnecter.Reconnect(ignoredTimeout)
+				reconnectAfter(reconnecter, 0)
 				close(barrierCh)
 			}()
-			go func() {
-				time.Sleep(10 * time.Millisecond)
-				reconnecter.Stop()
-			}()
-			select {
-			case <-barrierCh:
-			case <-time.After(200 * time.Millisecond):
-				t.Fatalf("goroutine took too long to finish")
-			}
+			go stopAfter(reconnecter, tickerMultiplier(1))
+			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
 		})
 		Convey("Error must be non-nil when timing out due to stop", func() {
 			var err error
 			go func() {
-				time.Sleep(10 * time.Millisecond)
-				var ignoredTimeout time.Duration
-				_, err = reconnecter.Reconnect(ignoredTimeout)
+				err = reconnectAfter(reconnecter, tickerMultiplier(1))
 				close(barrierCh)
 			}()
-			go func() {
-				reconnecter.Stop()
-			}()
-			select {
-			case <-barrierCh:
-			case <-time.After(200 * time.Millisecond):
-				t.Fatalf("goroutine took too long to finish")
-			}
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, snetproxy.ErrReconnecterStopped)
+			go reconnecter.Stop()
+			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
 		})
 	})
+}
+
+func reconnectAfter(reconnecter *snetproxy.TickingReconnecter, sleepAtStart time.Duration) error {
+	time.Sleep(sleepAtStart)
+	_, err := reconnecter.Reconnect(0)
+	return err
+}
+
+func stopAfter(reconnecter *snetproxy.TickingReconnecter, sleepAtStart time.Duration) {
+	time.Sleep(sleepAtStart)
+	reconnecter.Stop()
+}
+
+func assertChannelClosedBefore(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
+	select {
+	case <-ch:
+	case <-time.After(timeout):
+		t.Fatalf("goroutine took too long to finish")
+	}
 }

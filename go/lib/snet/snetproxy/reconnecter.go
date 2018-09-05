@@ -61,10 +61,6 @@ func NewTickingReconnecter(f func(timeout time.Duration) (Conn, error)) *Ticking
 func (r *TickingReconnecter) Reconnect(timeout time.Duration) (Conn, error) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
-	if r.stopping.IsTrue() {
-		return nil, common.NewBasicError(ErrReconnecterStopped, nil)
-	}
-
 	start := time.Now()
 	t := time.NewTicker(DefaultTickerInterval)
 	defer t.Stop()
@@ -77,6 +73,12 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (Conn, error) {
 		conn, err := r.reconnectF(newTimeout)
 		switch {
 		case isSysError(err):
+			// Wait until next tick to retry. If the timeout is less than the ticker
+			// interval, this means one try is made per ticker interval. If the timeout is
+			// greater than the ticket interval, and the reconnection times out, the next
+			// attempt will be made immediately. time.Ticker will conveniently drop ticks
+			// if the reads are less frequent than the ticker interval, so a maximum of 1
+			// tick will be waiting after a reconnect failure.
 			<-t.C
 			continue
 		case err != nil:

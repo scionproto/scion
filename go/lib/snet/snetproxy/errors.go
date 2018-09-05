@@ -19,18 +19,21 @@ import (
 	"net"
 	"os"
 	"syscall"
+
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (
-	ErrDispatcherDead      = "dispatcher dead"
-	ErrLocalAddressChanged = "local address changed on reconnect"
-	ErrBindAddressChanged  = "bind address changed on reconnect"
-
+	ErrDispatcherDead            = "dispatcher dead"
+	ErrLocalAddressChanged       = "local address changed on reconnect"
+	ErrBindAddressChanged        = "bind address changed on reconnect"
 	ErrReconnecterTimeoutExpired = "Timeout expired"
 	ErrReconnecterStopped        = "Stop method was called"
+	ErrClosed                    = "closed"
 )
 
 func isDispatcherError(err error) bool {
+	err = extractNestedError(err)
 	// On Linux, the following errors should prompt a reconnect:
 	//   - An EOF, when a Read happens to a connection that was closed at the
 	//   other end, and there is no outstanding outgoing data.
@@ -39,11 +42,21 @@ func isDispatcherError(err error) bool {
 	//   - An ECONNRESET, when a Read happens to a connection that was
 	//   closed at the other end, and there is outstanding outgoing data. An
 	//   ECONNRESET may be followed by EOF on repeated attempts.
-	if err == io.EOF || isSpecificSysError(err, syscall.EPIPE) || isSpecificSysError(err, syscall.ECONNRESET) {
+	if err == io.EOF ||
+		isSpecificSysError(err, syscall.EPIPE) ||
+		isSpecificSysError(err, syscall.ECONNRESET) {
 		return true
 	}
 	// All other errors can be immediately propagated back to the application.
 	return false
+}
+
+// extractNestedError returns the innermost error of err.
+func extractNestedError(err error) error {
+	if nestedError := common.GetNestedError(err); nestedError != nil {
+		return nestedError
+	}
+	return err
 }
 
 func isSpecificSysError(err error, errno syscall.Errno) bool {

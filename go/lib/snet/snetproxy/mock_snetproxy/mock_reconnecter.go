@@ -5,10 +5,12 @@
 package mock_snetproxy
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	snetproxy "github.com/scionproto/scion/go/lib/snet/snetproxy"
 	reflect "reflect"
 	time "time"
+
+	gomock "github.com/golang/mock/gomock"
+
+	snetproxy "github.com/scionproto/scion/go/lib/snet/snetproxy"
 )
 
 // MockReconnecter is a mock of Reconnecter interface
