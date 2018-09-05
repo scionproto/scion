@@ -28,8 +28,9 @@ import (
 )
 
 func Test_FetchDBRetry(t *testing.T) {
-	ctrl := gomock.NewController(t)
 	Convey("FetchDBRetry", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 		Convey("Fetching stops after context is cancelled", func() {
 			ctx, cancelF := context.WithCancel(context.Background())
 			m := mock_pathdb.NewMockPathDB(ctrl)
