@@ -481,6 +481,12 @@
 			"revisionTime": "2017-02-14T06:09:35Z"
 		},
 		{
+			"checksumSHA1": "g27xFm/EIghjjcT3DuGt976CgNo=",
+			"path": "github.com/walle/lll",
+			"revision": "8b13b3fbf7312913fcfdbfa78997b9bd1dbb11af",
+			"revisionTime": "2016-07-02T15:04:58Z"
+		},
+		{
 			"checksumSHA1": "IQkUIOnvlf0tYloFx9mLaXSvXWQ=",
 			"path": "golang.org/x/crypto/curve25519",
 			"revision": "8ac0e0d97ce45cd83d1d7243c060cb8461dda5e9",
