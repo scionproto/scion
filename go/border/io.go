@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -145,7 +146,9 @@ Top:
 
 // posixPrepInput refills pkts if it's below inputLowBufCnt, and sets the msgs
 // Buffers references to point to the corresponding buffers in pkts.
-func (r *Router) posixPrepInput(pkts ringbuf.EntryList, msgs []ipv4.Message) (ringbuf.EntryList, bool) {
+func (r *Router) posixPrepInput(pkts ringbuf.EntryList,
+	msgs []ipv4.Message) (ringbuf.EntryList, bool) {
+
 	if len(pkts) < inputLowBufCnt {
 		before := len(pkts)
 		pkts = pkts[:cap(pkts)]

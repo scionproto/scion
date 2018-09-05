@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,7 +71,8 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, 
 		rp.CmnHdr.CurrHopF = uint8((rp.idxs.path + sp.Path.HopOff) / common.LineLen)
 	}
 	// Fill in extensions
-	rp.idxs.l4 = int(hdrLen) * common.LineLen // Will be updated as necessary by extnAddHBH and extnAddE2E
+	// rp.idxs.l4 Will be updated as necessary by extnAddHBH and extnAddE2E
+	rp.idxs.l4 = int(hdrLen) * common.LineLen
 	for _, se := range sp.HBHExt {
 		if err := rp.extnAddHBH(se); err != nil {
 			return nil, err

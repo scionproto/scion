@@ -44,13 +44,15 @@ coverage: deps_gen
 	@echo
 	@echo "Go coverage report here: file://$$PWD/gocover.html"
 
-lint:
+lint: vendor/.deps.stamp
 	@echo "======> goimports"
 	out=$$(goimports -d -local github.com/scionproto ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> gofmt"
 	out=$$(gofmt -d -s ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
+	@echo "======> linelen (lll)"
+	out=$$(lll -l 100 -e 'ini:|comment:|https?:|zsh/completion' ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 
 
 deps_gen: deps proto

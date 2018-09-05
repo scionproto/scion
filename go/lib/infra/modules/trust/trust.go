@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,7 +45,8 @@ const (
 
 var (
 	ErrNotFoundLocally      = "Chain/TRC not found locally"
-	ErrMissingAuthoritative = "Trust store is authoritative for requested object, and object was not found"
+	ErrMissingAuthoritative = "Trust store is authoritative for requested object," +
+		" and object was not found"
 )
 
 var _ infra.TrustStore = (*Store)(nil)
