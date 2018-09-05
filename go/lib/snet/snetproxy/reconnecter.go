@@ -65,6 +65,7 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (Conn, error) {
 	t := time.NewTicker(DefaultTickerInterval)
 	defer t.Stop()
 
+	timeoutExpired := afterTimeout(timeout)
 	for r.stopping.IsFalse() {
 		newTimeout, ok := getNewTimeout(timeout, start)
 		if !ok {
@@ -73,13 +74,16 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (Conn, error) {
 		conn, err := r.reconnectF(newTimeout)
 		switch {
 		case isSysError(err):
-			// Wait until next tick to retry. If the timeout is less than the ticker
-			// interval, this means one try is made per ticker interval. If the timeout is
-			// greater than the ticket interval, and the reconnection times out, the next
-			// attempt will be made immediately. time.Ticker will conveniently drop ticks
-			// if the reads are less frequent than the ticker interval, so a maximum of 1
-			// tick will be waiting after a reconnect failure.
-			<-t.C
+			// Wait until next tick to retry. If the overall timeout expires
+			// before the next tick, return immediately with an error.
+			// time.Ticker will ensure that no more than one attempt is made
+			// per interval (even if the reconnection function takes longer
+			// than the interval).
+			select {
+			case <-t.C:
+			case <-timeoutExpired:
+				return nil, common.NewBasicError(ErrReconnecterTimeoutExpired, nil)
+			}
 			continue
 		case err != nil:
 			return nil, err
@@ -110,4 +114,15 @@ func getNewTimeout(timeout time.Duration, start time.Time) (time.Duration, bool)
 		return newTimeout, true
 	}
 	return 0, false
+}
+
+// afterTimeout waits for the timeout to elapse and then sends the current
+// time on the returned channel. If the timeout is 0, the current time is never
+// sent.
+func afterTimeout(timeout time.Duration) <-chan time.Time {
+	var timeoutExpired <-chan time.Time
+	if timeout != 0 {
+		timeoutExpired = time.After(timeout)
+	}
+	return timeoutExpired
 }
