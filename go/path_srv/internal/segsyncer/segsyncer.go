@@ -17,6 +17,7 @@ package segsyncer
 import (
 	"context"
 	"net"
+	"sort"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -43,7 +44,7 @@ var requestID messenger.Counter
 var _ periodic.Task = (*SegSyncer)(nil)
 
 type SegSyncer struct {
-	lastSync  time.Time
+	lastSync  *time.Time
 	pathDB    pathdb.PathDB
 	revCache  revcache.RevCache
 	topology  *topology.Topo
@@ -66,7 +67,6 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 			continue
 		}
 		syncer := &SegSyncer{
-			lastSync: time.Now().Add(-5 * time.Second),
 			pathDB:   args.PathDB,
 			revCache: args.RevCache,
 			topology: args.Topology,
@@ -74,9 +74,10 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 			dstIA:    coreAS,
 			localIA:  args.Topology.ISD_AS,
 		}
+		// TODO(lukedirtwalker): either log or add metric to indicate
+		// if task takes longer than ticker often.
 		segSyncers = append(segSyncers, periodic.StartPeriodicTask(syncer,
-			time.NewTicker(time.Second), 900*time.Millisecond))
-
+			time.NewTicker(time.Second), 3*time.Second))
 	}
 	return segSyncers, nil
 }
@@ -100,7 +101,7 @@ func (s *SegSyncer) Run(ctx context.Context) {
 		log.Debug("[segsyncer] Sent down segments", "dstIA", s.dstIA, "cnt", cnt)
 	}
 	s.repErrCnt = 0
-	s.lastSync = start
+	s.lastSync = &start
 }
 
 func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
@@ -136,6 +137,10 @@ func (s *SegSyncer) fetchCoreSegsFromDB(ctx context.Context) ([]*seg.PathSegment
 	segs.FilterSegs(func(ps *seg.PathSegment) bool {
 		return segutil.NoRevokedHopIntf(s.revCache, ps)
 	})
+	// Sort by number of hops, i.e. AS entries.
+	sort.Slice(segs, func(i, j int) bool {
+		return len(segs[i].ASEntries) < len(segs[j].ASEntries)
+	})
 	return segs, nil
 }
 
@@ -143,7 +148,7 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	q := &query.Params{
 		SegTypes:      []proto.PathSegType{proto.PathSegType_down},
 		StartsAt:      []addr.IA{s.localIA},
-		MinLastUpdate: &s.lastSync,
+		MinLastUpdate: s.lastSync,
 	}
 	queryResult, err := s.pathDB.Get(ctx, q)
 	if err != nil {
@@ -153,6 +158,8 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 		return 0, nil
 	}
 	segsToSync := query.Results(queryResult).Segs()
+	// FIXME(lukedirtwalker): This is problematic if there are lots of segments to send and we
+	// can't reliably transport long messages.
 	segSync := &path_mgmt.SegSync{
 		SegRecs: &path_mgmt.SegRecs{
 			Recs:      wrapSegs(segsToSync),
