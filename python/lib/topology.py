@@ -64,10 +64,10 @@ class Element(object):
         if addrs is None:
             return None, None
         pub_bind = addrs.get('IPv6')
-        if pub_bind != None:
+        if pub_bind is not None:
             return pub_bind['Public'], pub_bind.get('Bind')
         pub_bind = addrs.get('IPv4')
-        if pub_bind != None:
+        if pub_bind is not None:
             return pub_bind['Public'], pub_bind.get('Bind')
         return None, None
 
@@ -113,7 +113,7 @@ class InterfaceElement(Element):
         addrs = {}
         if 'IPv4' in self.overlay:
             addrType = 'IPv4'
-        else: # Assume IPv6
+        else:  # Assume IPv6
             addrType = 'IPv6'
         addrs[addrType] = {}
         addrs[addrType]['Public'] = interface_dict['Public']
