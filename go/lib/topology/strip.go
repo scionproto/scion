@@ -27,19 +27,19 @@ func StripBind(rt *RawTopo) {
 
 func StripServices(rt *RawTopo) {
 	// Clear services that don't need to be publicly visible
-	rt.BeaconService = make(map[string]*RawAddrInfo)
-	rt.SibraService = make(map[string]*RawAddrInfo)
+	rt.BeaconService = make(map[string]RawAddrMap)
+	rt.SibraService = make(map[string]RawAddrMap)
 	rt.ZookeeperService = make(map[int]*RawAddrPort)
 }
 
-func removeSrvBind(svc map[string]*RawAddrInfo) {
+func removeSrvBind(svc map[string]RawAddrMap) {
 	for _, s := range svc {
 		removeRAIBind(s)
 	}
 }
 
-func removeRAIBind(rai *RawAddrInfo) {
-	for _, v := range rai.Addrs {
+func removeRAIBind(rai RawAddrMap) {
+	for _, v := range rai {
 		v.Bind = nil
 	}
 }

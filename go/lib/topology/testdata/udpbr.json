@@ -3,12 +3,12 @@
     "Overlay": "UDP/IPv4+6",
     "BorderRouters": {
         "borderrouter6-ff00:0:362-1": {
-            "InternalAddr": {"Addrs": {
+            "InternalAddr": {
                 "IPv4": {"Public": {"Addr": "192.0.128.1", "L4Port": 30097},
                          "Bind": {"Addr": "10.0.0.1", "L4Port": 30197}},
                 "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098},
                          "Bind": {"Addr": "fe80::", "L4Port": 30198}}
-            }},
+            },
             "Interfaces": {
                 "101": {
                     "Overlay": "UDP/IPv4",

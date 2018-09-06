@@ -141,7 +141,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if rawBr.InternalAddr == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		for _, iAddr := range rawBr.InternalAddr.Addrs {
+		for _, iAddr := range rawBr.InternalAddr {
 			pub := iAddr.Public
 			if pub.OverlayPort != 0 {
 				return common.NewBasicError("BR internal address may not have overlay port set",
@@ -221,7 +221,7 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
 // stype is only used for error reporting
-func svcMapFromRaw(rais map[string]*RawAddrInfo, stype string, smap IDAddrMap,
+func svcMapFromRaw(rais map[string]RawAddrMap, stype string, smap IDAddrMap,
 	ot overlay.Type) ([]string, error) {
 
 	var snames []string
