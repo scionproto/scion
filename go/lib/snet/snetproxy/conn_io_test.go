@@ -49,7 +49,7 @@ func TestProxyConnIO(t *testing.T) {
 			)
 			proxyConn.DoIO(mockIO)
 		})
-		Convey("IO must return error a nil error if successful", func() {
+		Convey("IO must return a nil error if successful", func() {
 			mockIO.EXPECT().Do(mockConn).Return(nil)
 			err := proxyConn.DoIO(mockIO)
 			SoMsg("err", err, ShouldBeNil)
