@@ -147,7 +147,7 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	msger infra.Messenger, dstIA addr.IA, coreASes []addr.IA) {
 
-	// TODO(lukedirtwalker): on cache only we shouldn't need the address here:
+	// TODO(lukedirtwalker): if Flags.CacheOnly is set we shouldn't need the address here:
 	cPS, err := h.corePSAddr(ctx, coreASes)
 	if err != nil {
 		h.logger.Error("failed to get path to core to query for down segs", "err", err)

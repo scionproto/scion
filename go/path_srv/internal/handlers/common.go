@@ -93,6 +93,8 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 // Note that looping is not the most efficient way to do this. We could also have a channel
 // from the segReg handler to the segReq handlers, but this leads to a more complex logic
 // (handlers are no longer independent).
+// Also this would need to make sure that this is the only process that writes to the DB.
+//
 // If this is ever not performant enough it makes sense to change the logic.
 // Retries should happen mostly at startup and otherwise very rarely.
 func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,

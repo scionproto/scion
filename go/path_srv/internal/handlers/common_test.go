@@ -46,7 +46,8 @@ func Test_FetchDBRetry(t *testing.T) {
 				pathDB:   m,
 				retryInt: time.Microsecond,
 			}
-			h.fetchSegsFromDBRetry(ctx, nil)
+			_, err := h.fetchSegsFromDBRetry(ctx, nil)
+			SoMsg("Expect context err", err, ShouldEqual, ctx.Err())
 		})
 		Convey("Fetching stops after result is returned", func() {
 			m := mock_pathdb.NewMockPathDB(ctrl)
@@ -62,7 +63,8 @@ func Test_FetchDBRetry(t *testing.T) {
 				retryInt: time.Microsecond,
 				revCache: memrevcache.New(time.Second, time.Second),
 			}
-			h.fetchSegsFromDBRetry(context.Background(), nil)
+			_, err := h.fetchSegsFromDBRetry(context.Background(), nil)
+			SoMsg("Expect no err", err, ShouldBeNil)
 		})
 	})
 }

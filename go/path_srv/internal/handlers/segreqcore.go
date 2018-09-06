@@ -107,7 +107,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 			}
 		}
 		if len(downIAs) > 0 {
-			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, !segReq.Flags.CacheOnly)
+			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, false)
 			if err != nil {
 				h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
 				h.sendEmptySegReply(ctx, segReq, msger)
