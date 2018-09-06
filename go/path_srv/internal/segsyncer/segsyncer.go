@@ -44,14 +44,14 @@ var requestID messenger.Counter
 var _ periodic.Task = (*SegSyncer)(nil)
 
 type SegSyncer struct {
-	lastSync  *time.Time
-	pathDB    pathdb.PathDB
-	revCache  revcache.RevCache
-	topology  *topology.Topo
-	msger     infra.Messenger
-	dstIA     addr.IA
-	localIA   addr.IA
-	repErrCnt int
+	latestUpdate *time.Time
+	pathDB       pathdb.PathDB
+	revCache     revcache.RevCache
+	topology     *topology.Topo
+	msger        infra.Messenger
+	dstIA        addr.IA
+	localIA      addr.IA
+	repErrCnt    int
 }
 
 func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Runner, error) {
@@ -83,7 +83,6 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 }
 
 func (s *SegSyncer) Run(ctx context.Context) {
-	start := time.Now()
 	// TODO(lukedirtwalker): handle too many errors in s.repErrCnt.
 	cPs, err := s.getDstAddr(ctx)
 	if err != nil {
@@ -101,7 +100,6 @@ func (s *SegSyncer) Run(ctx context.Context) {
 		log.Debug("[segsyncer] Sent down segments", "dstIA", s.dstIA, "cnt", cnt)
 	}
 	s.repErrCnt = 0
-	s.lastSync = &start
 }
 
 func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
@@ -148,7 +146,7 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	q := &query.Params{
 		SegTypes:      []proto.PathSegType{proto.PathSegType_down},
 		StartsAt:      []addr.IA{s.localIA},
-		MinLastUpdate: s.lastSync,
+		MinLastUpdate: s.latestUpdate,
 	}
 	queryResult, err := s.pathDB.Get(ctx, q)
 	if err != nil {
@@ -157,25 +155,42 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	if len(queryResult) == 0 {
 		return 0, nil
 	}
-	segsToSync := query.Results(queryResult).Segs()
-	// FIXME(lukedirtwalker): This is problematic if there are lots of segments to send and we
-	// can't reliably transport long messages.
-	segSync := &path_mgmt.SegSync{
-		SegRecs: &path_mgmt.SegRecs{
-			Recs:      wrapSegs(segsToSync),
-			SRevInfos: segutil.RelevantRevInfos(s.revCache, segsToSync),
-		},
+	msgs := s.createMessages(queryResult)
+	sent := 0
+	for _, msgT := range msgs {
+		err := s.msger.SendSegSync(ctx, msgT.msg, cPs, requestID.Next())
+		if err != nil {
+			return sent, err
+		}
+		s.latestUpdate = &msgT.latestUpdate
+		sent++
 	}
-	return len(segsToSync), s.msger.SendSegSync(ctx, segSync, cPs, requestID.Next())
+	return sent, nil
 }
 
-func wrapSegs(segs []*seg.PathSegment) []*seg.Meta {
-	wSegs := make([]*seg.Meta, 0, len(segs))
-	for _, s := range segs {
-		wSegs = append(wSegs, &seg.Meta{
-			Type:    proto.PathSegType_down,
-			Segment: s,
+// msgWithTimestamp is a SegSync message
+// with the latest lastUpdate timestamp of the segments in the message.
+type msgWithTimestamp struct {
+	msg          *path_mgmt.SegSync
+	latestUpdate time.Time
+}
+
+// FIXME(lukedirtwalker): Sending a message per segment is quite a big overhead.
+// Depending on the underlying transport we could send all segments in a single message.
+// We should detect the transport and then split messages depending on the transport layer.
+func (s *SegSyncer) createMessages(qrs []*query.Result) []*msgWithTimestamp {
+	msgs := make([]*msgWithTimestamp, 0, len(qrs))
+	for _, qr := range qrs {
+		msg := &path_mgmt.SegSync{
+			SegRecs: &path_mgmt.SegRecs{
+				Recs:      []*seg.Meta{seg.NewMeta(qr.Seg, proto.PathSegType_down)},
+				SRevInfos: segutil.RelevantRevInfos(s.revCache, []*seg.PathSegment{qr.Seg}),
+			},
+		}
+		msgs = append(msgs, &msgWithTimestamp{
+			msg:          msg,
+			latestUpdate: qr.LastUpdate,
 		})
 	}
-	return wSegs
+	return msgs
 }

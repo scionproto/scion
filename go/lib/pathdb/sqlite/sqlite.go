@@ -140,13 +140,13 @@ func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, err
 	defer rows.Close()
 	for rows.Next() {
 		var meta segMeta
-		var lastUpdated int
+		var lastUpdated int64
 		var rawSeg sql.RawBytes
 		err = rows.Scan(&meta.RowID, &meta.SegID, &lastUpdated, &rawSeg)
 		if err != nil {
 			return nil, common.NewBasicError("Failed to extract data", err)
 		}
-		meta.LastUpdated = time.Unix(int64(lastUpdated), 0)
+		meta.LastUpdated = time.Unix(lastUpdated, 0)
 		var err error
 		meta.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
 		if err != nil {
@@ -400,8 +400,9 @@ func (b *Backend) Get(ctx context.Context, params *query.Params) ([]*query.Resul
 	for rows.Next() {
 		var segRowID int
 		var rawSeg sql.RawBytes
+		var lastUpdated int64
 		hpCfgID := &query.HPCfgID{IA: addr.IA{}}
-		err = rows.Scan(&segRowID, &rawSeg, &hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID)
+		err = rows.Scan(&segRowID, &rawSeg, &lastUpdated, &hpCfgID.IA.I, &hpCfgID.IA.A, &hpCfgID.ID)
 		if err != nil {
 			return nil, common.NewBasicError("Error reading DB response", err)
 		}
@@ -410,7 +411,9 @@ func (b *Backend) Get(ctx context.Context, params *query.Params) ([]*query.Resul
 			if curRes != nil {
 				res = append(res, curRes)
 			}
-			curRes = &query.Result{}
+			curRes = &query.Result{
+				LastUpdate: time.Unix(lastUpdated, 0),
+			}
 			var err error
 			curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
 			if err != nil {
@@ -430,7 +433,8 @@ func (b *Backend) Get(ctx context.Context, params *query.Params) ([]*query.Resul
 func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	var args []interface{}
 	query := []string{
-		"SELECT DISTINCT s.RowID, s.Segment, h.IsdID, h.AsID, h.CfgID FROM Segments s",
+		"SELECT DISTINCT s.RowID, s.Segment, s.LastUpdated," +
+			" h.IsdID, h.AsID, h.CfgID FROM Segments s",
 		"JOIN HpCfgIds h ON h.SegRowID=s.RowID",
 	}
 	if params == nil {
@@ -501,7 +505,7 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if params.MinLastUpdate != nil {
-		where = append(where, "(LastUpdated>?)")
+		where = append(where, "(s.LastUpdated>?)")
 		args = append(args, params.MinLastUpdate.Unix())
 	}
 	// Assemble the query.
@@ -511,5 +515,6 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	if len(where) > 0 {
 		query = append(query, fmt.Sprintf("WHERE %s", strings.Join(where, " AND\n")))
 	}
+	query = append(query, " ORDER BY s.LastUpdated")
 	return strings.Join(query, "\n"), args
 }

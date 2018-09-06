@@ -52,8 +52,9 @@ type Params struct {
 }
 
 type Result struct {
-	Seg      *seg.PathSegment
-	HpCfgIDs []*HPCfgID
+	Seg        *seg.PathSegment
+	LastUpdate time.Time
+	HpCfgIDs   []*HPCfgID
 }
 
 // Results is a type for convenience methods on a slice of Results.
