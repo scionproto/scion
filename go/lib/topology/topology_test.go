@@ -190,9 +190,15 @@ func Test_Service_Count(t *testing.T) {
 }
 
 func Test_ZK(t *testing.T) {
-	zks := map[int]TopoAddr{
-		1: mkTAv4("192.0.2.144", 2181, "", 0, overlay.IPv46, 0),
-		2: mkTAv6("2001:db8:ffff::1", 2181, "", 0, overlay.IPv46, 0),
+	zks := map[int]*addr.AppAddr{
+		1: &addr.AppAddr{
+			L3: addr.HostIPv4(net.ParseIP("192.0.2.144")),
+			L4: addr.NewL4UDPInfo(2181),
+		},
+		2: &addr.AppAddr{
+			L3: addr.HostIPv6(net.ParseIP("2001:db8:ffff::1")),
+			L4: addr.NewL4UDPInfo(2181),
+		},
 	}
 	fn := "testdata/basic.json"
 	loadTopo(fn, t)

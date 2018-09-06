@@ -14,10 +14,6 @@
 
 package topology
 
-import (
-	"github.com/scionproto/scion/go/lib/common"
-)
-
 func StripBind(rt *RawTopo) {
 	// These services may have Bind sections that we need to remove
 	removeSrvBind(rt.CertificateService)
@@ -31,34 +27,32 @@ func StripBind(rt *RawTopo) {
 
 func StripServices(rt *RawTopo) {
 	// Clear services that don't need to be publicly visible
-	rt.BeaconService = make(map[string]RawAddrInfo)
-	rt.SibraService = make(map[string]RawAddrInfo)
-	rt.ZookeeperService = make(map[int]RawAddrPort)
+	rt.BeaconService = make(map[string]*RawAddrInfo)
+	rt.SibraService = make(map[string]*RawAddrInfo)
+	rt.ZookeeperService = make(map[int]*RawAddrPort)
 }
 
-func removeSrvBind(svc map[string]RawAddrInfo) {
-	for name, s := range svc {
-		svc[name] = RawAddrInfo{Public: s.Public}
+func removeSrvBind(svc map[string]*RawAddrInfo) {
+	for _, s := range svc {
+		removeRAIBind(s)
 	}
 }
 
-func removeBRBind(brs map[string]RawBRInfo) {
-	for name, bri := range brs {
-		newIntAddr := &RawAddrInfo{Public: bri.InternalAddr.Public}
-		newifs := make(map[common.IFIDType]RawBRIntf, 0)
-		for id, brintf := range bri.Interfaces {
+func removeRAIBind(rai *RawAddrInfo) {
+	for _, v := range rai.Addrs {
+		v.Bind = nil
+	}
+}
+
+func removeBRBind(brs map[string]*RawBRInfo) {
+	for _, bri := range brs {
+		removeRAIBind(bri.InternalAddr)
+		for _, brintf := range bri.Interfaces {
 			// The nil elements are of no interest to the public
-			newifs[id] = RawBRIntf{
-				Overlay:   "",
-				Bind:      nil,
-				Public:    nil,
-				Remote:    nil,
-				Bandwidth: brintf.Bandwidth,
-				ISD_AS:    brintf.ISD_AS,
-				LinkTo:    brintf.LinkTo,
-				MTU:       brintf.MTU,
-			}
+			brintf.Overlay = ""
+			brintf.Bind = nil
+			brintf.Public = nil
+			brintf.Remote = nil
 		}
-		brs[name] = RawBRInfo{InternalAddr: newIntAddr, Interfaces: newifs}
 	}
 }
