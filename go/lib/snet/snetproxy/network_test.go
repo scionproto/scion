@@ -34,7 +34,7 @@ func TestReconnect(t *testing.T) {
 	defer ctrl.Finish()
 	Convey("Reconnections must conserve local and bind addresses", t, func() {
 		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
-		Convey("Build mocks for listen", func() {
+		Convey("Given a mocked underlying connection with local and bind", func() {
 			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, svc)
 			Convey("If local address and bind address do not change", func() {
 				mockNetwork.EXPECT().
@@ -84,7 +84,7 @@ func TestReconnect(t *testing.T) {
 				})
 			})
 		})
-		Convey("Build mocks for dial", func() {
+		Convey("Given a mocked underlying connection with local, remote, bind and svc", func() {
 			mockConn := NewMockConnWithAddrs(ctrl, localAddr, remoteAddr, bindAddr, svc)
 			Convey("If local address and bind address do not change", func() {
 				mockNetwork.EXPECT().
@@ -141,18 +141,18 @@ func TestReconnect(t *testing.T) {
 func TestNetworkFatalError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	Convey("Initialize proxy network", t, func() {
+	Convey("Given a proxy network running over an underlying mocked network", t, func() {
 		err := common.NewBasicError("Not dispatcher dead error, e.g., malformed register msg", nil)
 		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
 		proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
-		Convey("Dial error", func() {
+		Convey("The proxy network returns non-dispatcher dial errors from the mock", func() {
 			mockNetwork.EXPECT().
 				DialSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any(), Any()).
 				Return(nil, err)
 			_, err := proxyNetwork.DialSCIONWithBindSVC("udp4", nil, nil, nil, addr.SvcNone, 0)
 			SoMsg("err", err, ShouldNotBeNil)
 		})
-		Convey("Listen error", func() {
+		Convey("The proxy network returns non-dispatcher listen errors from the mock", func() {
 			mockNetwork.EXPECT().
 				ListenSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any()).
 				Return(nil, err)

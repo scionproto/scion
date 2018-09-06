@@ -22,31 +22,39 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
+
+// newErrorReconnF returns a dispatcher error after the duration elapses.
+func newErrorReconnF(sleep time.Duration) func(time.Duration) (snetproxy.Conn, error) {
+	return func(_ time.Duration) (snetproxy.Conn, error) {
+		time.Sleep(sleep)
+		// return dispatcher error s.t. reconnecter reattempts
+		return nil, dispatcherError
+	}
+}
 
 func TestTickingReconnectorStop(t *testing.T) {
 	Convey("Calling stop terminates a reconnect running in the background", t, func() {
-		f := func(_ time.Duration) (snetproxy.Conn, error) {
-			time.Sleep(tickerMultiplier(1))
-			// return dispatcher error s.t. reconnecter reattempts
-			return nil, dispatcherError
-		}
-		reconnecter := snetproxy.NewTickingReconnecter(f)
+		reconnecter := snetproxy.NewTickingReconnecter(newErrorReconnF(tickerMultiplier(1)))
 		barrierCh := make(chan struct{})
 		Convey("Stop returns immediately if a reconnect is not running", func() {
 			go func() {
 				stopAfter(reconnecter, 0)
 				close(barrierCh)
 			}()
-			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
+			xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(2))
 		})
-		Convey("Stop causes a running reconnect to return immediately", func() {
+		Convey("Stop causes a running reconnect to return right after the next attempt", func() {
+			// Note that because it is not possible right now to interrupt the
+			// listen/dial step of a reconnection, the soonest we can return
+			// after a Stop() is after the next Listen/Dial returns
 			go func() {
 				reconnectWithoutTimeoutAfter(reconnecter, 0)
 				close(barrierCh)
 			}()
 			go stopAfter(reconnecter, tickerMultiplier(1))
-			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
+			xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(4))
 		})
 		Convey("Error must be non-nil when timing out due to stop", func() {
 			var err error
@@ -55,8 +63,22 @@ func TestTickingReconnectorStop(t *testing.T) {
 				close(barrierCh)
 			}()
 			go reconnecter.Stop()
-			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
+			xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(4))
 			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, snetproxy.ErrReconnecterStopped)
+		})
+	})
+	Convey("Given a reconnection function that takes a long time", t, func() {
+		reconnecter := snetproxy.NewTickingReconnecter(newErrorReconnF(tickerMultiplier(4)))
+		barrierCh := make(chan struct{})
+		Convey("Stop waits for a running reconnection attempt to finish before returning", func() {
+			go func() {
+				reconnectWithoutTimeoutAfter(reconnecter, 0)
+			}()
+			go func() {
+				stopAfter(reconnecter, tickerMultiplier(1))
+				close(barrierCh)
+			}()
+			xtest.AssertReadReturnsBetween(t, barrierCh, tickerMultiplier(4), tickerMultiplier(8))
 		})
 	})
 }
@@ -72,12 +94,4 @@ func reconnectWithoutTimeoutAfter(reconnecter *snetproxy.TickingReconnecter,
 func stopAfter(reconnecter *snetproxy.TickingReconnecter, sleepAtStart time.Duration) {
 	time.Sleep(sleepAtStart)
 	reconnecter.Stop()
-}
-
-func assertChannelClosedBefore(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
-	select {
-	case <-ch:
-	case <-time.After(timeout):
-		t.Fatalf("goroutine took too long to finish")
-	}
 }

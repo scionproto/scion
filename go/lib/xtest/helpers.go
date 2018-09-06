@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 
@@ -168,4 +169,31 @@ func MustParseHexString(s string) common.RawBytes {
 		panic(err)
 	}
 	return decoded
+}
+
+// AssertReadReturnsBetween will call t.Fatalf if the first read from the
+// channel doesn't happen between after and before.
+func AssertReadReturnsBetween(t *testing.T, ch <-chan struct{}, after, before time.Duration) {
+	AssertReadDoesNotReturnBefore(t, ch, after)
+	AssertReadReturnsBefore(t, ch, before)
+}
+
+// AssertReadReturnsBefore will call t.Fatalf if the first read from the
+// channel doesn't happen before timeout.
+func AssertReadReturnsBefore(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
+	select {
+	case <-ch:
+	case <-time.After(timeout):
+		t.Fatalf("goroutine took too long to finish")
+	}
+}
+
+// AssertChannelClosedBefore will call t.Fatalf if the first read from the
+// channel happens before timeout.
+func AssertReadDoesNotReturnBefore(t *testing.T, ch <-chan struct{}, timeout time.Duration) {
+	select {
+	case <-ch:
+		t.Fatalf("goroutine finished too quickly")
+	case <-time.After(timeout):
+	}
 }

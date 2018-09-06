@@ -47,7 +47,8 @@ func TestProxyConnIO(t *testing.T) {
 				mockReconnecter.EXPECT().Reconnect(Any()).Return(connFromReconnect, nil),
 				mockIO.EXPECT().Do(connFromReconnect).Return(nil),
 			)
-			proxyConn.DoIO(mockIO)
+			err := proxyConn.DoIO(mockIO)
+			SoMsg("err", err, ShouldBeNil)
 		})
 		Convey("IO must return a nil error if successful", func() {
 			mockIO.EXPECT().Do(mockConn).Return(nil)
@@ -234,27 +235,26 @@ func TestProxyConnReadWrite(t *testing.T) {
 				SoMsg("buffer", buffer[:n], ShouldResemble, readData)
 				SoMsg("err", err, ShouldBeNil)
 			})
-			Convey("Create fake implementation of readFrom/readFromSCION", func() {
-				mockReadFunc := func(b []byte) (int, *snet.Addr, error) {
-					copy(b, readData)
-					return len(readData), remoteAddr, nil
-				}
-				Convey("ReadFrom", func() {
-					mockConn.EXPECT().ReadFrom(buffer).DoAndReturn(mockReadFunc)
-					n, remoteAddress, err := proxyConn.ReadFrom(buffer)
-					SoMsg("n", n, ShouldEqual, len(readData))
-					SoMsg("address", remoteAddress, ShouldEqual, remoteAddr)
-					SoMsg("buffer", buffer[:n], ShouldResemble, readData)
-					SoMsg("err", err, ShouldBeNil)
-				})
-				Convey("ReadFromSCION", func() {
-					mockConn.EXPECT().ReadFromSCION(buffer).DoAndReturn(mockReadFunc)
-					n, remoteAddress, err := proxyConn.ReadFromSCION(buffer)
-					SoMsg("n", n, ShouldEqual, len(readData))
-					SoMsg("address", remoteAddress, ShouldEqual, remoteAddr)
-					SoMsg("buffer", buffer[:n], ShouldResemble, readData)
-					SoMsg("err", err, ShouldBeNil)
-				})
+
+			mockReadFunc := func(b []byte) (int, *snet.Addr, error) {
+				copy(b, readData)
+				return len(readData), remoteAddr, nil
+			}
+			Convey("ReadFrom", func() {
+				mockConn.EXPECT().ReadFrom(buffer).DoAndReturn(mockReadFunc)
+				n, remoteAddress, err := proxyConn.ReadFrom(buffer)
+				SoMsg("n", n, ShouldEqual, len(readData))
+				SoMsg("address", remoteAddress, ShouldEqual, remoteAddr)
+				SoMsg("buffer", buffer[:n], ShouldResemble, readData)
+				SoMsg("err", err, ShouldBeNil)
+			})
+			Convey("ReadFromSCION", func() {
+				mockConn.EXPECT().ReadFromSCION(buffer).DoAndReturn(mockReadFunc)
+				n, remoteAddress, err := proxyConn.ReadFromSCION(buffer)
+				SoMsg("n", n, ShouldEqual, len(readData))
+				SoMsg("address", remoteAddress, ShouldEqual, remoteAddr)
+				SoMsg("buffer", buffer[:n], ShouldResemble, readData)
+				SoMsg("err", err, ShouldBeNil)
 			})
 		})
 	})
