@@ -247,7 +247,7 @@ func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
 		}
 		t.ZK[id] = &addr.AppAddr{
 			L3: addr.HostFromIP(ip),
-			L4: addr.NewL4UDPInfo(uint16(ap.L4Port)),
+			L4: addr.NewL4TCPInfo(uint16(ap.L4Port)),
 		}
 	}
 	return nil

@@ -50,8 +50,8 @@ func Test_TopoAddrFromRAI(t *testing.T) {
 		{"Unsupported Overlay", overlay.Invalid,
 			errors(ErrUnsupportedOverlay),
 			nil, nil, nil},
-		{"Invalid Address Type", overlay.IPv4,
-			errors(ErrInvalidAddrType),
+		{"Unsupported Address Type", overlay.IPv4,
+			errors(ErrUnsupportedAddrType),
 			newRAIError("MPLS", pubIPv4, nil), nil, nil},
 		{"No Addresses", overlay.IPv4,
 			errors(ErrAtLeastOnePub),
@@ -61,10 +61,10 @@ func Test_TopoAddrFromRAI(t *testing.T) {
 			errors(ErrMismatchOverlayAddr),
 			newRAI(pubIPv4, nil, nil, nil), nil, nil},
 		{"IPv4 Invalid Pub Address", overlay.IPv4,
-			errors(ErrInvalidPub),
+			errors(ErrMismatchPubAddrType),
 			newRAI(pubIPv6, nil, nil, nil), nil, nil},
 		{"IPv4 Invalid Bind Address", overlay.IPv4,
-			errors(ErrInvalidBind),
+			errors(ErrMismatchBindAddrType),
 			newRAI(pubIPv4, nil, bindIPv6, nil), nil, nil},
 		{"IPv4 Same Pub/Bind Address", overlay.IPv4,
 			errors(ErrBindAddrEqPubAddr),
@@ -74,10 +74,10 @@ func Test_TopoAddrFromRAI(t *testing.T) {
 			errors(ErrMismatchOverlayAddr),
 			newRAI(nil, pubIPv6, nil, nil), nil, nil},
 		{"IPv6 Invalid Pub Address", overlay.IPv6,
-			errors(ErrInvalidPub),
+			errors(ErrMismatchPubAddrType),
 			newRAI(nil, pubIPv4, nil, nil), nil, nil},
 		{"IPv6 Invalid Bind Address", overlay.IPv6,
-			errors(ErrInvalidBind),
+			errors(ErrMismatchBindAddrType),
 			newRAI(nil, pubIPv6, nil, bindIPv4), nil, nil},
 		{"IPv6 Same Pub/Bind Address", overlay.IPv6,
 			errors(ErrBindAddrEqPubAddr),
@@ -101,14 +101,14 @@ func Test_TopoAddrFromRAI(t *testing.T) {
 			Overlay: test.overlay,
 		}
 		Convey(desc, t, func() {
-			t, err := TopoAddrFromRAI(test.rai, test.overlay)
+			t, err := topoAddrFromRAM(test.rai, test.overlay)
 			if test.err == nil {
 				SoMsg("Error", err, ShouldBeNil)
 				SoMsg("TopoAddr", t, shouldEqTopoAddr, exp)
 			} else {
 				SoMsg("TopoAddr", t, ShouldBeNil)
 				SoMsg("Error", err, ShouldNotBeNil)
-				SoMsg("Error description", common.GetErrorMsg(err), shouldBeInStrings, test.err)
+				SoMsg("Error description", err, shouldBeInStrings, test.err)
 			}
 		})
 	}
@@ -158,7 +158,7 @@ func Test_pubBindAddr(t *testing.T) {
 				SoMsg("pubBindAddr", pbo, shouldEqPubBindAddr, exp)
 			} else {
 				SoMsg("Error", err, ShouldNotBeNil)
-				SoMsg("Error description", common.GetErrorMsg(err), shouldBeInStrings, test.err)
+				SoMsg("Error description", err, shouldBeInStrings, test.err)
 			}
 		})
 	}
@@ -235,9 +235,13 @@ func errors(err ...string) []string {
 }
 
 func shouldBeInStrings(actual interface{}, expected ...interface{}) string {
-	for _, exp := range expected[0].([]string) {
-		if actual.(string) == exp {
-			return ""
+	expErrors := expected[0].([]string)
+	for curErr := actual.(error); curErr != nil; curErr = common.GetNestedError(curErr) {
+		errMsg := common.GetErrorMsg(curErr)
+		for _, exp := range expErrors {
+			if errMsg == exp {
+				return ""
+			}
 		}
 	}
 	return fmt.Sprintf("Expected a member of: %+q\nActual: %+q", expected, actual)

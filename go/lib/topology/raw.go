@@ -112,7 +112,7 @@ func (b RawBRIntf) remoteAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
 type RawAddrMap map[string]*RawPubBindOverlay
 
 func (s RawAddrMap) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
-	return TopoAddrFromRAI(s, ot)
+	return topoAddrFromRAM(s, ot)
 }
 
 func (rai RawAddrMap) String() string {

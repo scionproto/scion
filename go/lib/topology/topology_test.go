@@ -193,11 +193,11 @@ func Test_ZK(t *testing.T) {
 	zks := map[int]*addr.AppAddr{
 		1: {
 			L3: addr.HostIPv4(net.ParseIP("192.0.2.144")),
-			L4: addr.NewL4UDPInfo(2181),
+			L4: addr.NewL4TCPInfo(2181),
 		},
 		2: {
 			L3: addr.HostIPv6(net.ParseIP("2001:db8:ffff::1")),
-			L4: addr.NewL4UDPInfo(2181),
+			L4: addr.NewL4TCPInfo(2181),
 		},
 	}
 	fn := "testdata/basic.json"

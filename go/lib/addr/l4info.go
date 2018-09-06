@@ -42,6 +42,10 @@ func NewL4SCMPInfo() L4Info {
 	return &l4AddrInfo{pType: common.L4SCMP}
 }
 
+func NewL4TCPInfo(p uint16) L4Info {
+	return &l4AddrInfo{pType: common.L4TCP, port: p}
+}
+
 func (l *l4AddrInfo) Size() int {
 	return 2
 }
