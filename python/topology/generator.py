@@ -738,17 +738,15 @@ class TopoGenerator(object):
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             d = {
-                'Addrs': {
-                    self.addr_type: {
-                        'Public': {
-                            'Addr': self._reg_addr(topo_id, elem_id),
-                            'L4Port': random.randint(30050, 30100),
-                        }
+                self.addr_type: {
+                    'Public': {
+                        'Addr': self._reg_addr(topo_id, elem_id),
+                        'L4Port': random.randint(30050, 30100),
                     }
                 }
             }
             if self.gen_bind_addr:
-                d['Addrs'][self.addr_type]['Bind'] = {
+                d[self.addr_type]['Bind'] = {
                     'Addr': self._reg_bind_addr(topo_id, elem_id),
                     'L4Port': random.randint(30050, 30100),
                 }
@@ -765,12 +763,10 @@ class TopoGenerator(object):
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
                 'InternalAddr': {
-                    'Addrs': {
-                        self.addr_type: {
-                            'Public': {
-                                'Addr': self._reg_addr(local, local_br),
-                                'L4Port': random.randint(30050, 30100),
-                            }
+                    self.addr_type: {
+                        'Public': {
+                            'Addr': self._reg_addr(local, local_br),
+                            'L4Port': random.randint(30050, 30100),
                         }
                     }
                 },
@@ -1604,10 +1600,10 @@ def _prom_addr(ele):
 
 
 def _get_pub(topo_addr):
-    pub = topo_addr['Addrs'].get('IPv6')
+    pub = topo_addr.get('IPv6')
     if pub is not None:
         return pub['Public']
-    pub = topo_addr['Addrs'].get('IPv4')
+    pub = topo_addr.get('IPv4')
     if pub is not None:
         return pub['Public']
     return None

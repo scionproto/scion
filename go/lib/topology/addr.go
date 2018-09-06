@@ -42,7 +42,7 @@ type TopoAddr struct {
 }
 
 // Create TopoAddr from RawAddrInfo, depending on supplied Overlay type
-func TopoAddrFromRAI(s *RawAddrInfo, ot overlay.Type) (*TopoAddr, error) {
+func TopoAddrFromRAI(s RawAddrMap, ot overlay.Type) (*TopoAddr, error) {
 	switch ot {
 	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
 		overlay.UDPIPv6, overlay.UDPIPv46:
@@ -56,8 +56,8 @@ func TopoAddrFromRAI(s *RawAddrInfo, ot overlay.Type) (*TopoAddr, error) {
 	return t, nil
 }
 
-func (t *TopoAddr) fromRAI(s *RawAddrInfo) error {
-	for k, rpbo := range s.Addrs {
+func (t *TopoAddr) fromRAI(s RawAddrMap) error {
+	for k, rpbo := range s {
 		var hostType addr.HostAddrType
 		pbo := &pubBindAddr{}
 		switch k {

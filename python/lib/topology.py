@@ -79,7 +79,7 @@ class ServerElement(Element):
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
         """
-        super().__init__(server_dict['Addrs'], name)
+        super().__init__(server_dict, name)
 
 
 class InterfaceElement(Element):
@@ -136,7 +136,7 @@ class RouterElement(object):
         :param str name: router element name or id
         """
         self.name = name
-        self.int_addrs = Element(router_dict['InternalAddr']['Addrs'])
+        self.int_addrs = Element(router_dict['InternalAddr'])
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)

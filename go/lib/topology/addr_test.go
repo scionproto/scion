@@ -42,7 +42,7 @@ func Test_TopoAddrFromRAI(t *testing.T) {
 		name    string
 		overlay overlay.Type
 		err     []string
-		rai     *RawAddrInfo
+		rai     RawAddrMap
 		ipv4    *pubBindAddr
 		ipv6    *pubBindAddr
 	}{
@@ -164,21 +164,21 @@ func Test_pubBindAddr(t *testing.T) {
 	}
 }
 
-func newRAI(pub4, pub6 *RawAddrPortOverlay, bind4, bind6 *RawAddrPort) *RawAddrInfo {
-	rai := &RawAddrInfo{Addrs: map[string]*RawPubBindOverlay{}}
+func newRAI(pub4, pub6 *RawAddrPortOverlay, bind4, bind6 *RawAddrPort) RawAddrMap {
+	rai := make(RawAddrMap)
 	if pub4 != nil {
-		rai.Addrs["IPv4"] = &RawPubBindOverlay{Public: *pub4, Bind: bind4}
+		rai["IPv4"] = &RawPubBindOverlay{Public: *pub4, Bind: bind4}
 	}
 	if pub6 != nil {
-		rai.Addrs["IPv6"] = &RawPubBindOverlay{Public: *pub6, Bind: bind6}
+		rai["IPv6"] = &RawPubBindOverlay{Public: *pub6, Bind: bind6}
 	}
 	return rai
 }
 
-func newRAIError(t string, pub *RawAddrPortOverlay, bind *RawAddrPort) *RawAddrInfo {
-	rai := &RawAddrInfo{Addrs: map[string]*RawPubBindOverlay{}}
+func newRAIError(t string, pub *RawAddrPortOverlay, bind *RawAddrPort) RawAddrMap {
+	rai := make(RawAddrMap)
 	if len(t) > 0 {
-		rai.Addrs[t] = &RawPubBindOverlay{Public: *pub, Bind: bind}
+		rai[t] = &RawPubBindOverlay{Public: *pub, Bind: bind}
 	}
 	return rai
 }
