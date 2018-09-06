@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -31,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/transport"
@@ -38,12 +38,12 @@ import (
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/cleaner"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/periodic"
 	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type Config struct {
@@ -89,24 +89,22 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
-	topo := config.General.Topology
-	trustConf := &trust.Config{
-		LocalCSes: getAllCSAddresses(topo),
-	}
-	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
+	topo := itopo.GetCurrentTopology()
+	trustConf := &trust.Config{}
+	trustStore, err := trust.NewStore(trustDB, topo.IA(),
 		rand.Uint64(), trustConf, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = snet.Init(topo.ISD_AS, "", "")
+	err = snet.Init(topo.IA(), "", "")
 	if err != nil {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	topoAddress := topo.PS.GetById(config.General.ID)
-	publicAddr := env.GetPublicSnetAddress(topo.ISD_AS, topoAddress)
-	bindAddr := env.GetBindSnetAddress(topo.ISD_AS, topoAddress)
+	topoAddress := topo.GetTopoAddrById(proto.ServiceType_ps, config.General.ID)
+	publicAddr := env.GetPublicSnetAddress(topo.IA(), topoAddress)
+	bindAddr := env.GetBindSnetAddress(topo.IA(), topoAddress)
 	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, bindAddr, addr.SvcPS)
 	if err != nil {
 		log.Crit("Unable to listen on SCION", "err", err)
@@ -118,7 +116,7 @@ func realMain() int {
 		return 1
 	}
 	msger := messenger.New(
-		topo.ISD_AS,
+		topo.IA(),
 		disp.New(
 			transport.NewPacketTransport(conn),
 			messenger.DefaultAdapter,
@@ -138,10 +136,10 @@ func realMain() int {
 		PathDB:     pathDB,
 		RevCache:   revCache,
 		TrustStore: trustStore,
-		Topology:   topo,
 		Config:     config.PS,
+		IA:         topo.IA(),
 	}
-	core := topo.Core
+	core := topo.Core()
 	var segReqHandler infra.Handler
 	if core {
 		segReqHandler = handlers.NewSegReqCoreHandler(args)
@@ -193,6 +191,7 @@ func setup(configName string) error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
+	itopo.SetCurrentTopologyFromBase(config.General.Topology)
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
@@ -200,16 +199,4 @@ func setup(configName string) error {
 	// TODO(lukedirtwalker): SUPPORT RELOADING!!!
 	environment = env.SetupEnv(nil)
 	return nil
-}
-
-func getAllCSAddresses(topo *topology.Topo) []net.Addr {
-	addrs := make([]net.Addr, 0, len(topo.CS))
-	for _, server := range topo.CS {
-		appAddr := server.PublicAddr(topo.Overlay)
-		addrs = append(addrs, &snet.Addr{
-			IA:   topo.ISD_AS,
-			Host: appAddr,
-		})
-	}
-	return addrs
 }
