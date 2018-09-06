@@ -107,7 +107,10 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 			}
 		}
 		if len(downIAs) > 0 {
-			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, false)
+			// If we have direct down segments (len(ias) != len(downIAs)) we don't need to retry,
+			// otherwise only if !CacheOnly.
+			retry := len(ias) == len(downIAs) && !segReq.Flags.CacheOnly
+			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, retry)
 			if err != nil {
 				h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
 				h.sendEmptySegReply(ctx, segReq, msger)
