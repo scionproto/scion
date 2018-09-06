@@ -190,14 +190,23 @@ func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error 
 }
 
 func (t *pubBindAddr) PublicAddr() *addr.AppAddr {
+	if t == nil {
+		return nil
+	}
 	return t.pub
 }
 
 func (t *pubBindAddr) BindAddr() *addr.AppAddr {
+	if t == nil {
+		return nil
+	}
 	return t.bind
 }
 
 func (t *pubBindAddr) OverlayAddr() *overlay.OverlayAddr {
+	if t == nil {
+		return nil
+	}
 	return t.overlay
 }
 

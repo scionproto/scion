@@ -26,12 +26,12 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/periodic"
@@ -47,7 +47,6 @@ type SegSyncer struct {
 	latestUpdate *time.Time
 	pathDB       pathdb.PathDB
 	revCache     revcache.RevCache
-	topology     *topology.Topo
 	msger        infra.Messenger
 	dstIA        addr.IA
 	localIA      addr.IA
@@ -57,22 +56,21 @@ type SegSyncer struct {
 func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Runner, error) {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
-	trc, err := args.TrustStore.GetTRC(ctx, args.Topology.ISD_AS.I, scrypto.LatestVer)
+	trc, err := args.TrustStore.GetTRC(ctx, args.IA.I, scrypto.LatestVer)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to get local TRC", err)
 	}
 	segSyncers := make([]*periodic.Runner, 0, len(trc.CoreASes)-1)
 	for coreAS := range trc.CoreASes {
-		if coreAS.Eq(args.Topology.ISD_AS) {
+		if coreAS.Eq(args.IA) {
 			continue
 		}
 		syncer := &SegSyncer{
 			pathDB:   args.PathDB,
 			revCache: args.RevCache,
-			topology: args.Topology,
 			msger:    msger,
 			dstIA:    coreAS,
-			localIA:  args.Topology.ISD_AS,
+			localIA:  args.IA,
 		}
 		// TODO(lukedirtwalker): either log or add metric to indicate
 		// if task takes longer than ticker often.
@@ -113,7 +111,7 @@ func (s *SegSyncer) getDstAddr(ctx context.Context) (net.Addr, error) {
 	var cPs net.Addr
 	// select a seg to reach the dst
 	for _, ps := range coreSegs {
-		cPs, err = addrutil.GetPath(addr.SvcPS, ps, ps.FirstIA(), s.topology)
+		cPs, err = addrutil.GetPath(addr.SvcPS, ps, ps.FirstIA(), itopo.GetCurrentTopology())
 		if err == nil {
 			return cPs, nil
 		}

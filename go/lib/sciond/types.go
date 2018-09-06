@@ -16,6 +16,7 @@ package sciond
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -164,6 +167,57 @@ func HostInfoFromHostAddr(host addr.HostAddr, port uint16) *HostInfo {
 	return h
 }
 
+func HostInfoFromTopoAddr(topoAddr topology.TopoAddr) HostInfo {
+	ipv4, port4 := topoAddrToIPAndPort(overlay.IPv4, topoAddr)
+	ipv6, port6 := topoAddrToIPAndPort(overlay.IPv6, topoAddr)
+	if port4 != 0 && port6 != 0 && port4 != port6 {
+		panic(fmt.Sprintf("port mismatch %v %v", port4, port6))
+	}
+	// XXX This assumes that Ipv4 and IPv6 use the same port!
+	return HostInfo{
+		Addrs: struct {
+			Ipv4 []byte
+			Ipv6 []byte
+		}{
+			Ipv4: ipv4,
+			Ipv6: ipv6,
+		},
+		Port: port4,
+	}
+}
+
+func HostInfoFromBRTopoAddr(topoBRAddr topology.TopoBRAddr) HostInfo {
+	var ipv4, ipv6 net.IP
+	var port uint16
+	if ot.IsIPv4() {
+		v4Addr := topoAddr.IPv4.PublicOverlay
+		if v4Addr != nil {
+			// XXX(scrye): Force 4-byte representation of IPv4 addresses
+			// because Python code doesn't understand Go's 16-byte format.
+			ipv4 = v4Addr.L3().IP().To4()
+			port = v4Addr.L4().Port()
+		}
+	}
+	if ot.IsIPv6() {
+		v6Addr := topoAddr.IPv6.PublicOverlay
+		if v6Addr != nil {
+			ipv6 = v6Addr.L3().IP()
+			port = v6Addr.L4().Port()
+		}
+	}
+	// XXX This assumes that Ipv4 and IPv6 use the same port!
+	return sciond.HostInfo{
+		Addrs: struct {
+			Ipv4 []byte
+			Ipv6 []byte
+		}{
+			Ipv4: ipv4,
+			Ipv6: ipv6,
+		},
+		Port: port,
+	}
+}
+
 func (h *HostInfo) Host() addr.HostAddr {
 	if len(h.Addrs.Ipv4) > 0 {
 		return addr.HostIPv4(h.Addrs.Ipv4)
@@ -184,6 +238,23 @@ func (h *HostInfo) Overlay() (*overlay.OverlayAddr, error) {
 
 func (h *HostInfo) String() string {
 	return fmt.Sprintf("[%v]:%d", h.Host(), h.Port)
+}
+
+func topoAddrToIPAndPort(ot overlay.Type, topoAddr topology.TopoAddr) (net.IP, uint16) {
+	ip, port := getPublicIPAndPort(ot, topoAddr)
+	// XXX(scrye): Force 4-byte representation of IPv4 addresses
+	// because Python code doesn't understand Go's 16-byte format.
+	if ot == overlay.IPv4 && ip != nil {
+		ip = ip.To4()
+	}
+	return ip, port
+}
+
+func getPublicIPAndPort(ot overlay.Type, topoAddr topology.TopoAddr) (net.IP, uint16) {
+	if pubAddr := topoAddr.PublicAddr(ot); pubAddr != nil {
+		return pubAddr.L3.IP(), pubAddr.L4.Port()
+	}
+	return nil, 0
 }
 
 type FwdPathMeta struct {

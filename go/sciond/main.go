@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
@@ -132,14 +133,9 @@ func realMain() int {
 		},
 		proto.SCIONDMsg_Which_asInfoReq: &servers.ASInfoRequestHandler{
 			TrustStore: trustStore,
-			Topology:   config.General.Topology,
 		},
-		proto.SCIONDMsg_Which_ifInfoRequest: &servers.IFInfoRequestHandler{
-			Topology: config.General.Topology,
-		},
-		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{
-			Topology: config.General.Topology,
-		},
+		proto.SCIONDMsg_Which_ifInfoRequest:      &servers.IFInfoRequestHandler{},
+		proto.SCIONDMsg_Which_serviceInfoRequest: &servers.SVCInfoRequestHandler{},
 		proto.SCIONDMsg_Which_revNotification: &servers.RevNotificationHandler{
 			RevCache:   revCache,
 			TrustStore: trustStore,
@@ -177,6 +173,7 @@ func Init(configName string) error {
 	if err != nil {
 		return err
 	}
+	itopo.SetCurrentTopologyFromBase(config.General.Topology)
 	environment = env.SetupEnv(nil)
 	err = env.InitLogging(&config.Logging)
 	if err != nil {

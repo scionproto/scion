@@ -21,14 +21,14 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 )
 
 // GetPath creates a path from the given segment and then creates a snet.Addr to the given dst.
 func GetPath(svc addr.HostSVC, ps *seg.PathSegment,
-	dst addr.IA, topo *topology.Topo) (net.Addr, error) {
+	dst addr.IA, topo itopo.Topology) (net.Addr, error) {
 
 	x := &bytes.Buffer{}
 	if _, err := ps.RawWriteTo(x); err != nil {
@@ -46,14 +46,14 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment,
 		return nil, common.NewBasicError("Failed to extract first HopField", err, "p", p)
 	}
 	ifId := hopF.ConsIngress
-	nextHop, ok := topo.IFInfoMap[ifId]
-	if !ok {
+	nextHop := topo.GetBROverlayAddrByIfid(ifId)
+	if nextHop == nil {
 		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifId", ifId)
 	}
 	return &snet.Addr{
 		IA:      dst,
 		Host:    addr.NewSVCUDPAppAddr(svc),
 		Path:    p,
-		NextHop: nextHop.InternalAddrs.PublicOverlay(topo.Overlay),
+		NextHop: nextHop,
 	}, nil
 }

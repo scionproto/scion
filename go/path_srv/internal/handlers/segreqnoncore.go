@@ -44,7 +44,7 @@ func NewSegReqNonCoreHandler(args HandlerArgs) infra.Handler {
 		handler := &segReqNonCoreHandler{
 			segReqHandler: segReqHandler{
 				baseHandler: newBaseHandler(r, args),
-				localIA:     args.Topology.ISD_AS,
+				localIA:     args.IA,
 			},
 		}
 		handler.Handle()
