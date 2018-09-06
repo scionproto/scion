@@ -1,10 +1,7 @@
 Regenerate the mock using:
-```
-mockgen -source=interface.go > mock_snetproxy/mock_interface.go
-goimports -w -local github.com/scionproto mock_snetproxy/mock_interface.go
-mockgen -source=reconnecter.go > mock_snetproxy/mock_reconnecter.go
-goimports -w -local github.com/scionproto mock_snetproxy/mock_reconnecter.go
-mockgen -source=io.go > mock_snetproxy/mock_io.go
-goimports -w -local github.com/scionproto mock_snetproxy/mock_io.go
-```
 
+```sh
+mockgen -source=go/lib/snet/snetproxy/interface.go > go/lib/snet/snetproxy/mock_snetproxy/mock_interface.go
+mockgen -source=go/lib/snet/snetproxy/reconnecter.go > go/lib/snet/snetproxy/mock_snetproxy/mock_reconnecter.go
+mockgen -source=go/lib/snet/snetproxy/io.go > go/lib/snet/snetproxy/mock_snetproxy/mock_io.go
+```
