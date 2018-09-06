@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
@@ -123,14 +124,14 @@ func expectedSegs(ups, cores, downs []*seg.PathSegment) []*seg.Meta {
 	return e
 }
 
-func loadTopo(t *testing.T, ia addr.IA) *topology.Topo {
+func loadTopo(t *testing.T, ia addr.IA) itopo.Topology {
 	fileName, ok := topoFiles[ia]
 	if !ok {
 		t.Fatalf("Missing %v in topoFile maps", ia)
 	}
 	topo, err := topology.LoadFromFile(filepath.Join("testdata", fileName))
 	xtest.FailOnErr(t, err)
-	return topo
+	return itopo.NewTopology(topo)
 }
 
 type mockTS struct {
