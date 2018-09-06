@@ -92,7 +92,7 @@ from lib.defines import (
 from lib.errors import SCIONParseError
 from lib.path_store import PathPolicy
 from lib.packet.scion_addr import ISD_AS
-from lib.topology import Topology, Element
+from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import (
     copy_file,
@@ -1591,23 +1591,27 @@ def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
     return _prom_addr(br_ele['InternalAddr'])
 
+
 def _prom_addr_infra(infra_ele):
     """Get the prometheus address for an infrastructure element."""
     return _prom_addr(infra_ele)
+
 
 def _prom_addr(ele):
     """Get the prometheus address for an element."""
     addr = _get_pub(ele)
     return "[%s]:%s" % (addr["Addr"].ip, addr["L4Port"] + 1)
 
+
 def _get_pub(topo_addr):
     pub = topo_addr['Addrs'].get('IPv6')
-    if pub != None:
+    if pub is not None:
         return pub['Public']
     pub = topo_addr['Addrs'].get('IPv4')
-    if pub != None:
+    if pub is not None:
         return pub['Public']
     return None
+
 
 def main():
     """
