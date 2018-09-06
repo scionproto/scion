@@ -172,10 +172,12 @@ func MustParseHexString(s string) common.RawBytes {
 }
 
 // AssertReadReturnsBetween will call t.Fatalf if the first read from the
-// channel doesn't happen between after and before.
-func AssertReadReturnsBetween(t *testing.T, ch <-chan struct{}, after, before time.Duration) {
-	AssertReadDoesNotReturnBefore(t, ch, after)
-	AssertReadReturnsBefore(t, ch, before)
+// channel doesn't happen between x and y.
+func AssertReadReturnsBetween(t *testing.T, ch <-chan struct{}, x, y time.Duration) {
+	AssertReadDoesNotReturnBefore(t, ch, x)
+	// Above aborts the test if it returns before x time passed, so if we get
+	// here x time has passed.
+	AssertReadReturnsBefore(t, ch, y-x)
 }
 
 // AssertReadReturnsBefore will call t.Fatalf if the first read from the

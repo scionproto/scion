@@ -45,7 +45,7 @@ func TestTickingReconnectorStop(t *testing.T) {
 			}()
 			xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(2))
 		})
-		Convey("Stop causes a running reconnect to return right after the next attempt", func() {
+		Convey("Stop causes reconnect to return right after the current attempt finishes", func() {
 			// Note that because it is not possible right now to interrupt the
 			// listen/dial step of a reconnection, the soonest we can return
 			// after a Stop() is after the next Listen/Dial returns
