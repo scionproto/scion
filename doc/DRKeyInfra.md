@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 2018-09-04
+- Last updated: 2018-09-06
 - Status: draft
 
 ## Overview
@@ -90,19 +90,42 @@ key between end hosts H\_A in AS A and H\_B in AS B is derived as follows:
     K_{A:H_A→B:H_B}^{prot} = PRF_K_{A→B} (“prot” | H_A | H_B)
 
 where “prot” denotes an arbitrary protocol, and H\_A and H\_B represent host
-addresses. We distinguish between IPv4, IPv6 and service addresses. For other
-second-level keys (e.g., between an AS infrastructure node and an end host), the
-derivation process is adapted by including an ISD-AS identifier.
+addresses. We distinguish between IPv4, IPv6 and service addresses.
+
+### Key Validity
+
+#### Epochs
+
+An epoch is an interval between a starting and end point in time. The length of
+epochs of can be chosen by a given AS and can change over time. However, no
+epochs must overlap. Thus, a secret value is associated with exactly one epoch.
+
+#### Validity Periods
+
+Secret values must be renewed for every epoch. Thus, also lower level keys
+must be renewed at the beginning of a new epoch. However, if a packet is
+authenticated immediately before a key expires, but arrives at destination when
+already the new key is used, a race condition occurs as the packet's authenticity
+can not be verified. To avoid race conditions, the validity of second-level keys
+exceeds the epoch end time by a small extent. By default, we assume a epoch length
+of 24 hours and the following key validity periods:
+
+- Secret value: 24 hours
+- First-level keys: 24 hours (inherited)
+- Second-level keys: 24 (inherited) + 0.1 hours
+
+First- and second-level keys are valid during the same time frame as the
+corresponding secret value. If a specific protocol requires shorter key expiration
+times, this will be implemented as an extension to the basic protocol. The 'misc'
+part in the key exchange is used to supply such additional information.
 
 ### Key Establishment
 
 #### First Level Key Exchange
 
-The certificate servers are not only responsible for first-level key
-establishment, they also derive second-level keys and provide them to hosts
-within the same AS. To exchange a first-level key the certificate servers of
-corresponding ASes perform the key exchange protocol. The key exchange is
-initialized by CS\_B by sending the following request:
+To exchange a first-level key the certificate servers of corresponding ASes
+perform the key exchange protocol. The key exchange is initialized by CS\_B by
+sending the following request:
 
     token = A | val_time | timestamp  
     CS_B → CS A : A | B | token | {token}_PK_B^−1
@@ -110,14 +133,17 @@ initialized by CS\_B by sending the following request:
 where `val_time` specifies a point in time at which the requested key is valid.
 The requested key may not be valid at the time of request, either because it
 already expired or because it will become valid in the future. For example,
-prefetching future keys allows for seamless transition to the new key.  
+prefetching future keys allows for seamless transition to the new key. Thus,
+`val_time` is used to identify the epoch in which the requested key can be used.
+
 To obtain valid AS-level certificates to sign and encrypt the first level key
 exchange, we can use the SCION control-plane PKI. The request token is signed
 with B’s private key to prove authenticity of the request. Upon receiving the
 initial request, CS\_A checks the signature and timestamp for authenticity and
 expiration. If the request has not yet expired, the certificate server CS\_A
 will reply with an encrypted and signed first-level key derived from the local
-secret value SV\_A.
+secret value SV\_A. SV\_A is chosen according to the epoch identified by
+`val_time`.
 
     K_{A→B} = PRF_{SV_A} (B)  
     ciphertext = {A | K_{A→B}}_PK_B  
@@ -180,27 +206,6 @@ The following second level requests exist:
     Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
     Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{A→B} (“prot” | H_A | H_B )
 
-### Key Validity Periods
-
-Secret values must be renewed for every epoch. Thus, also lower level keys
-must be renewed. However, if a packet is authenticated immediately before a
-key expires, but arrives at destination when already the new key is used, a
-race condition occurs as the packet's authenticity can not be verified. To
-avoid race conditions, the validity of second-level keys must be longer than
-the corresponding refresh period. By default, we assume the following key
-validity periods:
-
-- Secret value: 24 hours
-- First-level keys: 24 hours (inherited)
-- Second-level keys: 24 (inherited) + 0.1 hours
-
-First- and second-level keys are valid during the same time frame as the
-corresponding secret value. Second-level have a slightly extended validity
-period to avoid race conditions as specified above.
-If a specific protocol requires shorter key expiration times, this will be
-implemented as an extension to the basic protocol. The 'misc' part in the
-key exchange is used to supply such additional information.
-
 ### Key Rollover
 
 Shared symmetric keys are short-lived to avoid explicit key revocation. However,
@@ -222,8 +227,6 @@ The offset function is AS-specific. By default, we suggest to use a function
 that uniformely distributes the offset values in the following interval:
 
     [0, minimum epoch length \ 2 )
-
-Thus, we guarantee that a maximum of two keys per AS need to be kept.
 
 For prefetching of DRKeys, a `valTime` that exceeds the end of the current epoch
 can be selected. To allow seamless key rollover, an entity is required to store
