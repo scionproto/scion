@@ -14,8 +14,6 @@
 
 package trust
 
-import "net"
-
 // FIXME(scrye): When reloading support gets added again, Options should include
 // all the reloadable aspects of the trust store. Instead of direct access,
 // accessors should be preferred to ensure concurrency-safe reads.
@@ -25,7 +23,6 @@ type Config struct {
 	// IA must always return a valid chain. This is set to true on CSes and to
 	// false on others.
 	MustHaveLocalChain bool
-	// LocalCSes must have a length of 0 on CS nodes. On others, a random entry
-	// is queried for TRCs and Chains.
-	LocalCSes []net.Addr
+	// IsCS is set to true on CSes and false on others.
+	IsCS bool
 }
