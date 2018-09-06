@@ -18,6 +18,7 @@ package topology
 import (
 	"fmt"
 	"math/rand"
+	"net"
 	"sort"
 	"time"
 
@@ -80,7 +81,7 @@ type Topo struct {
 	DS      IDAddrMap
 	DSNames ServiceNames
 
-	ZK map[int]TopoAddr
+	ZK map[int]*addr.AppAddr
 }
 
 // Create new empty Topo object, including all possible service maps etc.
@@ -93,7 +94,7 @@ func NewTopo() *Topo {
 		SB:        make(IDAddrMap),
 		RS:        make(IDAddrMap),
 		DS:        make(IDAddrMap),
-		ZK:        make(map[int]TopoAddr),
+		ZK:        make(map[int]*addr.AppAddr),
 		IFInfoMap: make(map[common.IFIDType]IFInfo),
 	}
 }
@@ -140,16 +141,16 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if rawBr.InternalAddr == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		for i := range rawBr.InternalAddr.Public {
-			iAddr := &rawBr.InternalAddr.Public[i]
-			if iAddr.OverlayPort != 0 {
+		for _, iAddr := range rawBr.InternalAddr.Addrs {
+			pub := iAddr.Public
+			if pub.OverlayPort != 0 {
 				return common.NewBasicError("BR internal address may not have overlay port set",
 					nil, "br", name, "intAddr", iAddr)
 			}
 			if t.Overlay.IsUDP() {
 				// Set the overlay port to the L4 port as the BR does not run
 				// on top of the dispatcher.
-				iAddr.OverlayPort = iAddr.L4Port
+				iAddr.Public = RawAddrPortOverlay{pub.RawAddrPort, pub.L4Port}
 			}
 		}
 		intAddr, err := rawBr.InternalAddr.ToTopoAddr(t.Overlay)
@@ -220,7 +221,7 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 
 // Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
 // stype is only used for error reporting
-func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap IDAddrMap,
+func svcMapFromRaw(rais map[string]*RawAddrInfo, stype string, smap IDAddrMap,
 	ot overlay.Type) ([]string, error) {
 
 	var snames []string
@@ -238,14 +239,16 @@ func svcMapFromRaw(rais map[string]RawAddrInfo, stype string, smap IDAddrMap,
 	return snames, nil
 }
 
-func (t *Topo) zkSvcFromRaw(zksvc map[int]RawAddrPort) error {
+func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
 	for id, ap := range zksvc {
-		rai := RawAddrInfo{Public: []RawAddrPortOverlay{{ap, 0}}}
-		tai, err := rai.ToTopoAddr(t.Overlay)
-		if err != nil {
-			return err
+		ip := net.ParseIP(ap.Addr)
+		if ip == nil {
+			return common.NewBasicError("Parsing ZooKeeper address", nil, "addr", ap.Addr)
 		}
-		t.ZK[id] = *tai
+		t.ZK[id] = &addr.AppAddr{
+			L3: addr.HostFromIP(ip),
+			L4: addr.NewL4UDPInfo(uint16(ap.L4Port)),
+		}
 	}
 	return nil
 }

@@ -2,13 +2,8 @@
   "Overlay": "UDP/IPv4",
   "ISD_AS": "1-ff00:0:110",
   "PathService": {
-    "ps1-ff00_0_110-1": {
-      "Public": [
-        {
-          "Addr": "127.0.0.55",
-          "L4Port": 30073
-        }
-      ]
-    }
+    "ps1-ff00_0_110-1": {"Addrs": {
+        "IPv4": {"Public": {"Addr": "127.0.0.55", "L4Port": 30073}}
+    }}
   }
 }

@@ -45,19 +45,19 @@ type RawTopo struct {
 	Overlay            string
 	MTU                int
 	Core               bool
-	BorderRouters      map[string]RawBRInfo   `json:",omitempty"`
-	ZookeeperService   map[int]RawAddrPort    `json:",omitempty"`
-	BeaconService      map[string]RawAddrInfo `json:",omitempty"`
-	CertificateService map[string]RawAddrInfo `json:",omitempty"`
-	PathService        map[string]RawAddrInfo `json:",omitempty"`
-	SibraService       map[string]RawAddrInfo `json:",omitempty"`
-	RainsService       map[string]RawAddrInfo `json:",omitempty"`
-	DiscoveryService   map[string]RawAddrInfo `json:",omitempty"`
+	BorderRouters      map[string]*RawBRInfo   `json:",omitempty"`
+	ZookeeperService   map[int]*RawAddrPort    `json:",omitempty"`
+	BeaconService      map[string]*RawAddrInfo `json:",omitempty"`
+	CertificateService map[string]*RawAddrInfo `json:",omitempty"`
+	PathService        map[string]*RawAddrInfo `json:",omitempty"`
+	SibraService       map[string]*RawAddrInfo `json:",omitempty"`
+	RainsService       map[string]*RawAddrInfo `json:",omitempty"`
+	DiscoveryService   map[string]*RawAddrInfo `json:",omitempty"`
 }
 
 type RawBRInfo struct {
 	InternalAddr *RawAddrInfo
-	Interfaces   map[common.IFIDType]RawBRIntf
+	Interfaces   map[common.IFIDType]*RawBRIntf
 }
 
 func (b RawBRInfo) String() string {
@@ -82,17 +82,15 @@ type RawBRIntf struct {
 
 // Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
 func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, error) {
-	s := &RawAddrInfo{
-		Public: []RawAddrPortOverlay{
-			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
-		},
+	s := &RawAddrInfo{Addrs: map[string]*RawPubBindOverlay{}}
+	rpbo := &RawPubBindOverlay{
+		Public: RawAddrPortOverlay{RawAddrPort: *b.Public},
+		Bind:   b.Bind,
 	}
 	if o.IsUDP() {
-		s.Public[0].OverlayPort = b.Public.L4Port
+		rpbo.Public.OverlayPort = b.Public.L4Port
 	}
-	if b.Bind != nil {
-		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
-	}
+	s.Addrs[o.ToIP().String()] = rpbo
 	return s.ToTopoAddr(o)
 }
 
@@ -112,8 +110,7 @@ func (b RawBRIntf) remoteAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
 }
 
 type RawAddrInfo struct {
-	Public []RawAddrPortOverlay
-	Bind   []RawAddrPort `json:",omitempty"`
+	Addrs map[string]*RawPubBindOverlay
 }
 
 func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
@@ -122,11 +119,25 @@ func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
 
 func (rai RawAddrInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Public: %s", rai.Public))
-	if len(rai.Bind) > 0 {
-		s = append(s, fmt.Sprintf("Bind: %s", rai.Bind))
+	for k, v := range rai.Addrs {
+		s = append(s, fmt.Sprintf("%s: %s", k, v))
 	}
 	return strings.Join(s, "\n")
+}
+
+type RawPubBindOverlay struct {
+	Public RawAddrPortOverlay
+	Bind   *RawAddrPort `json:",omitempty"`
+}
+
+func (rpbo RawPubBindOverlay) String() string {
+	var s []string
+	s = append(s, fmt.Sprintf("Public: %s", rpbo.Public))
+	if rpbo.Bind != nil {
+		s = append(s, fmt.Sprintf("Bind: %s", rpbo.Bind))
+	}
+	return strings.Join(s, ", ")
+
 }
 
 type RawAddrPort struct {
