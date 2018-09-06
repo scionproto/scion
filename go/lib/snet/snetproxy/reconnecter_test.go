@@ -20,10 +20,11 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 )
 
-func TestReconnecterStop(t *testing.T) {
+func TestTickingReconnectorStop(t *testing.T) {
 	Convey("Calling stop terminates a reconnect running in the background", t, func() {
 		f := func(_ time.Duration) (snetproxy.Conn, error) {
 			time.Sleep(tickerMultiplier(1))
@@ -32,17 +33,16 @@ func TestReconnecterStop(t *testing.T) {
 		}
 		reconnecter := snetproxy.NewTickingReconnecter(f)
 		barrierCh := make(chan struct{})
-		Convey("Stop runs before reconnect runs", func() {
-			go reconnectAfter(reconnecter, tickerMultiplier(1))
+		Convey("Stop returns immediately if a reconnect is not running", func() {
 			go func() {
 				stopAfter(reconnecter, 0)
 				close(barrierCh)
 			}()
 			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
 		})
-		Convey("Stop runs after reconnect runs", func() {
+		Convey("Stop causes a running reconnect to return immediately", func() {
 			go func() {
-				reconnectAfter(reconnecter, 0)
+				reconnectWithoutTimeoutAfter(reconnecter, 0)
 				close(barrierCh)
 			}()
 			go stopAfter(reconnecter, tickerMultiplier(1))
@@ -51,16 +51,19 @@ func TestReconnecterStop(t *testing.T) {
 		Convey("Error must be non-nil when timing out due to stop", func() {
 			var err error
 			go func() {
-				err = reconnectAfter(reconnecter, tickerMultiplier(1))
+				err = reconnectWithoutTimeoutAfter(reconnecter, tickerMultiplier(1))
 				close(barrierCh)
 			}()
 			go reconnecter.Stop()
 			assertChannelClosedBefore(t, barrierCh, tickerMultiplier(20))
+			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, snetproxy.ErrReconnecterStopped)
 		})
 	})
 }
 
-func reconnectAfter(reconnecter *snetproxy.TickingReconnecter, sleepAtStart time.Duration) error {
+func reconnectWithoutTimeoutAfter(reconnecter *snetproxy.TickingReconnecter,
+	sleepAtStart time.Duration) error {
+
 	time.Sleep(sleepAtStart)
 	_, err := reconnecter.Reconnect(0)
 	return err

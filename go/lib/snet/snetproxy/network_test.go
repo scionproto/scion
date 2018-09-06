@@ -15,12 +15,16 @@
 package snetproxy_test
 
 import (
+	"net"
+	"os"
+	"syscall"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy/mock_snetproxy"
 )
@@ -28,21 +32,21 @@ import (
 func TestReconnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	FocusConvey("Reconnections must conserve local and bind addresses", t, func() {
+	Convey("Reconnections must conserve local and bind addresses", t, func() {
 		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
-		FocusConvey("Build mocks for listen", func() {
-			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, nil, svc)
+		Convey("Build mocks for listen", func() {
+			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, svc)
 			Convey("If local address and bind address do not change", func() {
 				mockNetwork.EXPECT().
-					ListenSCIONWithBindSVC("udp4", localAddr, nil, svc, timeout).
+					ListenSCIONWithBindSVC("udp4", localAddr, bindAddr, svc, timeout).
 					Return(mockConn, nil)
 				mockNetwork.EXPECT().
-					ListenSCIONWithBindSVC("udp4", localAddr, nil, svc, timeout).
+					ListenSCIONWithBindSVC("udp4", localAddr, bindAddr, svc, timeout).
 					Return(mockConn, nil)
 				Convey("reconnect must not return error.", func() {
 					proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
 					proxyConn, _ := proxyNetwork.ListenSCIONWithBindSVC("udp4",
-						localAddr, nil, svc, timeout)
+						localAddr, bindAddr, svc, timeout)
 					_, err := proxyConn.(*snetproxy.ProxyConn).Reconnect()
 					SoMsg("err", err, ShouldBeNil)
 				})
@@ -130,6 +134,90 @@ func TestReconnect(t *testing.T) {
 					SoMsg("err", err, ShouldNotBeNil)
 				})
 			})
+		})
+	})
+}
+
+func TestNetworkFatalError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	Convey("Initialize proxy network", t, func() {
+		err := common.NewBasicError("Not dispatcher dead error, e.g., malformed register msg", nil)
+		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
+		proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
+		Convey("Dial error", func() {
+			mockNetwork.EXPECT().
+				DialSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any(), Any()).
+				Return(nil, err)
+			_, err := proxyNetwork.DialSCIONWithBindSVC("udp4", nil, nil, nil, addr.SvcNone, 0)
+			SoMsg("err", err, ShouldNotBeNil)
+		})
+		Convey("Listen error", func() {
+			mockNetwork.EXPECT().
+				ListenSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any()).
+				Return(nil, err)
+			_, err := proxyNetwork.ListenSCIONWithBindSVC("udp4", nil, nil, addr.SvcNone, 0)
+			SoMsg("err", err, ShouldNotBeNil)
+		})
+	})
+}
+
+func TestNetworkDispatcherDeadError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	dispatcherError := &net.OpError{Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}
+	Convey("Listen and Dial should reattempt to connect on dispatcher down errors", t, func() {
+		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
+		proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
+		Convey("Dial tries to reconnect if no timeout set", func() {
+			mockConn := NewMockConnWithAddrs(ctrl, localAddr, remoteAddr, nil, addr.SvcNone)
+			gomock.InOrder(
+				mockNetwork.EXPECT().
+					DialSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any(), Any()).
+					Return(nil, dispatcherError).
+					Times(2),
+				mockNetwork.EXPECT().
+					DialSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any(), Any()).
+					Return(mockConn, nil),
+			)
+			_, err := proxyNetwork.DialSCIONWithBindSVC("udp4", nil, nil, nil, addr.SvcNone, 0)
+			SoMsg("err", err, ShouldBeNil)
+		})
+		Convey("Dial only retries for limited time if timeout set", func() {
+			gomock.InOrder(
+				mockNetwork.EXPECT().
+					DialSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any(), Any()).
+					Return(nil, dispatcherError).
+					MinTimes(3).MaxTimes(5),
+			)
+			_, err := proxyNetwork.DialSCIONWithBindSVC("udp4",
+				nil, nil, nil, addr.SvcNone, tickerMultiplier(4))
+			SoMsg("err", err, ShouldNotBeNil)
+		})
+		Convey("Listen tries to reconnect if no timeout set", func() {
+			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, nil, addr.SvcNone)
+			gomock.InOrder(
+				mockNetwork.EXPECT().
+					ListenSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any()).
+					Return(nil, dispatcherError).
+					Times(2),
+				mockNetwork.EXPECT().
+					ListenSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any()).
+					Return(mockConn, nil),
+			)
+			_, err := proxyNetwork.ListenSCIONWithBindSVC("udp4", nil, nil, addr.SvcNone, 0)
+			SoMsg("err", err, ShouldBeNil)
+		})
+		Convey("Listen only retries for limited time if timeout set", func() {
+			gomock.InOrder(
+				mockNetwork.EXPECT().
+					ListenSCIONWithBindSVC(Any(), Any(), Any(), Any(), Any()).
+					Return(nil, dispatcherError).
+					MinTimes(3).MaxTimes(5),
+			)
+			_, err := proxyNetwork.ListenSCIONWithBindSVC("udp4",
+				nil, nil, addr.SvcNone, tickerMultiplier(4))
+			SoMsg("err", err, ShouldNotBeNil)
 		})
 	})
 }

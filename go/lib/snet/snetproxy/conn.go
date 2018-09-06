@@ -162,6 +162,7 @@ func (conn *ProxyConn) asyncReconnectWrapper() {
 	conn.dispatcherState.SetUp()
 }
 
+// Reconnect is only used for testing purposes and should never be called.
 func (conn *ProxyConn) Reconnect() (Conn, error) {
 	newConn, err := conn.reconnecter.Reconnect(0)
 	if err != nil {
@@ -284,6 +285,9 @@ func (conn *ProxyConn) setConn(newConn Conn) {
 }
 
 func addressesEq(x, y net.Addr) bool {
+	if x == nil || y == nil {
+		return x == y
+	}
 	xSnet := x.(*snet.Addr)
 	ySnet := y.(*snet.Addr)
 	return xSnet.EqAddr(ySnet)
