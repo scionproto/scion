@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -192,5 +193,5 @@ func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (n
 	}
 	// select random reachable core AS.
 	seg := coreSegs[rand.Intn(len(coreSegs))]
-	return h.psAddrFromSeg(seg, seg.FirstIA())
+	return addrutil.GetPath(addr.SvcPS, seg, seg.FirstIA(), h.topology)
 }
