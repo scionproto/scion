@@ -20,6 +20,10 @@
 //  infra.TRCRequest          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
 //  infra.TRC                 -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC
 //  infra.IfStateInfos        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateInfos
+//  infra.SegChangesReq       -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesReq
+//  infra.SegChangesReply     -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesReply
+//  infra.SegChangesIdReq     -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesIdReq
+//  infra.SegChangesIdReply   -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesIdReply
 //  infra.SegReq              -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReg
 //  infra.SegRequest          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReq
 //  infra.SegReply            -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegReply
@@ -236,7 +240,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	}
 	reply, ok := replyMsg.(*cert_mgmt.Chain)
 	if !ok {
-		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.Chain", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
@@ -281,13 +285,13 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	}
 	reply, ok := replyMsg.(*path_mgmt.SegReply)
 	if !ok {
-		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		err := newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
 	if err := reply.ParseRaw(); err != nil {
-		logger.Info("[Messneger] Reply parse error")
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
+			"debug_id", debug_id)
 	}
 	logger.Debug("[Messenger] Received reply")
 	return reply, nil
@@ -317,6 +321,96 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 	return m.getRequester(infra.SegSync, infra.None).Notify(ctx, pld, a)
 }
 
+func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
+	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
+
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq,
+		infra.SegChangesIdReply).Request(ctx, pld, a)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
+	}
+	reply, ok := replyMsg.(*path_mgmt.SegChangesIdReply)
+	if !ok {
+		err := newTypeAssertErr("*path_mgmt.SegChangesIdReply", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
+	}
+	logger.Debug("[Messenger] Received reply")
+	return reply, nil
+}
+
+func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
+	msg *path_mgmt.SegChangesIdReply, a net.Addr, id uint64) error {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	m.log.Debug("[Messenger] Sending Notify",
+		"type", infra.SegChangesIdReply, "to", a, "id", id)
+	return m.getRequester(infra.SegChangesIdReply, infra.None).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
+	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
+
+	debug_id := util.GetDebugID()
+	logger := m.log.New("debug_id", debug_id)
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug("[Messenger] Sending request", "req_type", infra.SegChangesReq,
+		"msg_id", id, "request", msg, "peer", a)
+	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq,
+		infra.SegChangesIdReply).Request(ctx, pld, a)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
+			"debug_id", debug_id)
+	}
+	reply, ok := replyMsg.(*path_mgmt.SegChangesReply)
+	if !ok {
+		err := newTypeAssertErr("*path_mgmt.SegChangesReply", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
+	}
+	if err := reply.ParseRaw(); err != nil {
+		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
+			"debug_id", debug_id)
+	}
+	logger.Debug("[Messenger] Received reply")
+	return reply, nil
+}
+
+func (m *Messenger) SendSegChangesReply(ctx context.Context,
+	msg *path_mgmt.SegChangesReply, a net.Addr, id uint64) error {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	m.log.Debug("[Messenger] Sending Notify",
+		"type", infra.SegChangesReply, "to", a, "id", id)
+	return m.getRequester(infra.SegChangesReply, infra.None).Notify(ctx, pld, a)
+}
+
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
@@ -340,7 +434,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	}
 	reply, ok := replyMsg.(*cert_mgmt.ChainIssRep)
 	if !ok {
-		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
+		err := newTypeAssertErr("*cert_mgmt.ChainIssRep", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
@@ -509,6 +603,14 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 			return infra.SegRev, pld.PathMgmt.SRevInfo, nil
 		case proto.PathMgmt_Which_ifStateInfos:
 			return infra.IfStateInfos, pld.PathMgmt.IFStateInfos, nil
+		case proto.PathMgmt_Which_segChangesIdReq:
+			return infra.SegChangesIdReq, pld.PathMgmt.SegChangesIdReq, nil
+		case proto.PathMgmt_Which_segChangesIdReply:
+			return infra.SegChangesIdReply, pld.PathMgmt.SegChangesIdReply, nil
+		case proto.PathMgmt_Which_segChangesReq:
+			return infra.SegChangesReq, pld.PathMgmt.SegChangesReq, nil
+		case proto.PathMgmt_Which_segChangesReply:
+			return infra.SegChangesReply, pld.PathMgmt.SegChangesReply, nil
 		default:
 			return infra.None, nil,
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",
