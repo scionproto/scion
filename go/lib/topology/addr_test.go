@@ -108,7 +108,7 @@ func Test_TopoAddrFromRAM(t *testing.T) {
 			} else {
 				SoMsg("TopoAddr", t, ShouldBeNil)
 				SoMsg("Error", err, ShouldNotBeNil)
-				SoMsg("Error description", err, shouldBeInStrings, test.err)
+				SoMsg("Error description", err, shouldBeErrorMsg, test.err)
 			}
 		})
 	}
@@ -158,7 +158,7 @@ func Test_pubBindAddr(t *testing.T) {
 				SoMsg("pubBindAddr", pbo, shouldEqPubBindAddr, exp)
 			} else {
 				SoMsg("Error", err, ShouldNotBeNil)
-				SoMsg("Error description", err, shouldBeInStrings, test.err)
+				SoMsg("Error description", err, shouldBeErrorMsg, test.err)
 			}
 		})
 	}
@@ -228,7 +228,7 @@ func shouldEqPubBindAddr(actual interface{}, expected ...interface{}) string {
 	return fmt.Sprintf("Expected:\n\t%+v\nActual:\n\t%+v", expected[0], actual)
 }
 
-func shouldBeInStrings(actual interface{}, expected ...interface{}) string {
+func shouldBeErrorMsg(actual interface{}, expected ...interface{}) string {
 	expError := expected[0].(string)
 	for curErr := actual.(error); curErr != nil; curErr = common.GetNestedError(curErr) {
 		errMsg := common.GetErrorMsg(curErr)

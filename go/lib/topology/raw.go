@@ -70,7 +70,7 @@ type RawBRInfo struct {
 
 func (b RawBRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addr:\n  %s\nInterfaces:", b.InternalAddrs))
+	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", b.InternalAddrs))
 	for ifid, intf := range b.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}

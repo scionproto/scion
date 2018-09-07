@@ -291,7 +291,7 @@ type IFInfo struct {
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf(
-		"IFinfo: Name[%s] IntAddr[%+v] Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
+		"IFinfo: Name[%s] IntAddrs[%+v] Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
 		i.BRName, i.InternalAddrs, i.Overlay, i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType,
 		i.MTU)
 }
