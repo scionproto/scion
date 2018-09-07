@@ -99,11 +99,23 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 	var coreSegs []*seg.PathSegment
 	// if request came from same AS also return core segs, to start of down segs.
 	if segReq.SrcIA().Eq(h.localIA) {
-		coreSegs, err = h.fetchCoreSegsFromDB(ctx, downSegs.FirstIAs())
-		if err != nil {
-			h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
-			h.sendEmptySegReply(ctx, segReq, msger)
-			return
+		ias := downSegs.FirstIAs()
+		downIAs := ias[:0]
+		for _, ia := range ias {
+			if !ia.Eq(h.localIA) {
+				downIAs = append(downIAs, ia)
+			}
+		}
+		if len(downIAs) > 0 {
+			// If we have direct down segments (len(ias) != len(downIAs)) we don't need to retry,
+			// otherwise only if !CacheOnly.
+			retry := len(ias) == len(downIAs) && !segReq.Flags.CacheOnly
+			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, retry)
+			if err != nil {
+				h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
+				h.sendEmptySegReply(ctx, segReq, msger)
+				return
+			}
 		}
 		// Remove disconnected down segs.
 		// Core segments can only end at the given down segs, thus do not need to be filtered.
@@ -122,7 +134,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 	msger infra.Messenger, segReq *path_mgmt.SegReq) {
 
-	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{segReq.DstIA()})
+	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{segReq.DstIA()}, !segReq.Flags.CacheOnly)
 	if err != nil {
 		h.logger.Error("Failed to find core segs", "err", err)
 		return
@@ -132,13 +144,17 @@ func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 }
 
 func (h *segReqCoreHandler) fetchCoreSegsFromDB(ctx context.Context,
-	dstIAs []addr.IA) ([]*seg.PathSegment, error) {
+	dstIAs []addr.IA, retry bool) ([]*seg.PathSegment, error) {
 
-	return h.fetchSegsFromDB(ctx, &query.Params{
+	q := &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_core},
 		StartsAt: dstIAs,
 		EndsAt:   []addr.IA{h.localIA},
-	})
+	}
+	if retry {
+		return h.fetchSegsFromDBRetry(ctx, q)
+	}
+	return h.fetchSegsFromDB(ctx, q)
 }
 
 func (h *segReqCoreHandler) fetchDownSegsFromDB(ctx context.Context,
@@ -167,7 +183,7 @@ func (h *segReqCoreHandler) fetchDownSegsFromRemoteCore(ctx context.Context, msg
 }
 
 func (h *segReqCoreHandler) corePSAddr(ctx context.Context, destISD addr.ISD) (net.Addr, error) {
-	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{{I: destISD}})
+	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{{I: destISD}}, true)
 	if err != nil {
 		return nil, err
 	}

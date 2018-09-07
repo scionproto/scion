@@ -102,15 +102,13 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 
 	dstISDLocal := segReq.DstIA().I == h.localIA.I
 	h.logger.Debug("[segReqHandler] handleCoreDst", "remote", dstISDLocal)
-	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes)
+	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, !segReq.Flags.CacheOnly)
 	if err != nil {
 		h.logger.Error("[segReqHandler] Failed to find up segments", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
 	if len(upSegs) == 0 {
-		// TODO(lukedirtwalker): We should hold the request until the timeout of the context,
-		// and continue processing as soon as we have up segments. (only if !CacheOnly)
 		h.logger.Warn("[segReqHandler] No up segments found")
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
@@ -149,6 +147,7 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	msger infra.Messenger, dstIA addr.IA, coreASes []addr.IA) {
 
+	// TODO(lukedirtwalker): if Flags.CacheOnly is set we shouldn't need the address here:
 	cPS, err := h.corePSAddr(ctx, coreASes)
 	if err != nil {
 		h.logger.Error("failed to get path to core to query for down segs", "err", err)
@@ -166,7 +165,7 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
-	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes)
+	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, !segReq.Flags.CacheOnly)
 	if err != nil {
 		h.logger.Error("Failed to find up segs", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
@@ -215,12 +214,17 @@ func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *pat
 }
 
 func (h *segReqNonCoreHandler) fetchUpSegsFromDB(ctx context.Context,
-	coreASes []addr.IA) (seg.Segments, error) {
-	return h.fetchSegsFromDB(ctx, &query.Params{
+	coreASes []addr.IA, retry bool) (seg.Segments, error) {
+
+	query := &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_up},
 		StartsAt: coreASes,
 		EndsAt:   []addr.IA{h.localIA},
-	})
+	}
+	if retry {
+		return h.fetchSegsFromDBRetry(ctx, query)
+	}
+	return h.fetchSegsFromDB(ctx, query)
 }
 
 func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context,
@@ -256,13 +260,11 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context,
 func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
 	coreASes []addr.IA) (net.Addr, error) {
 
-	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes)
+	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, true)
 	if err != nil {
 		return nil, err
 	}
 	if len(upSegs) < 1 {
-		// TODO(lukedirtwalker): We should hold the request until the timeout of the context,
-		// and continue processing as soon as we have up segments. (only if !CacheOnly)
 		return nil, common.NewBasicError("No up segments found!", nil)
 	}
 	// select a core AS we have an up segment to.
