@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -247,8 +248,11 @@ func TestActionAct(t *testing.T) {
 					Dst:  xtest.MustParseIA("2-ff00:0:220"),
 					ExpPathStrings: map[string]struct{}{
 						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
-							"1-ff00:0:121#1512 1-ff00:0:120#1215 " +
-							"1-ff00:0:120#1222 2-ff00:0:220#2212]": {},
+							"1-ff00:0:121#1530 1-ff00:0:120#3015 " +
+							"1-ff00:0:120#3022 2-ff00:0:220#2230]": {},
+						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
+							"1-ff00:0:121#1530 1-ff00:0:120#3015 " +
+							"1-ff00:0:120#3122 2-ff00:0:220#2231]": {},
 					},
 				},
 				{
@@ -257,8 +261,8 @@ func TestActionAct(t *testing.T) {
 					Dst:  xtest.MustParseIA("1-ff00:0:110"),
 					ExpPathStrings: map[string]struct{}{
 						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
-							"1-ff00:0:121#1512 1-ff00:0:120#1215 " +
-							"1-ff00:0:120#1211 1-ff00:0:110#1112]": {},
+							"1-ff00:0:121#1530 1-ff00:0:120#3015 " +
+							"1-ff00:0:120#2911 1-ff00:0:110#1129]": {},
 						//"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
 						//    "1-ff00:0:121#1514 "1-ff00:0:111#1415 " +
 						//    "1-ff00:0:111#1411 1-ff00:0:110#1114]", Filtered
@@ -267,7 +271,7 @@ func TestActionAct(t *testing.T) {
 			},
 		},
 		{
-			Name: "transit 1-ff00:0:132 or 1-ff00:0:121",
+			Name: "transit 1-ff00:0:131 or 1-ff00:0:121",
 			Action: &ActionFilterPaths{
 				Cond: CondAnyOf{
 					CondAllOf{
@@ -287,8 +291,11 @@ func TestActionAct(t *testing.T) {
 					Dst:  xtest.MustParseIA("2-ff00:0:220"),
 					ExpPathStrings: map[string]struct{}{
 						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
-							"1-ff00:0:121#1512 1-ff00:0:120#1215 " +
-							"1-ff00:0:120#1222 2-ff00:0:220#2212]": {},
+							"1-ff00:0:121#1530 1-ff00:0:120#3015 " +
+							"1-ff00:0:120#3022 2-ff00:0:220#2230]": {},
+						"[1-ff00:0:122#1815 1-ff00:0:121#1518 " +
+							"1-ff00:0:121#1530 1-ff00:0:120#3015 " +
+							"1-ff00:0:120#3122 2-ff00:0:220#2231]": {},
 					},
 				},
 				{
@@ -297,9 +304,9 @@ func TestActionAct(t *testing.T) {
 					Dst:  xtest.MustParseIA("1-ff00:0:120"),
 					ExpPathStrings: map[string]struct{}{
 						"[1-ff00:0:131#1613 1-ff00:0:130#1316 " +
-							"1-ff00:0:130#1312 1-ff00:0:120#1213]": {},
+							"1-ff00:0:130#3229 1-ff00:0:120#2932]": {},
 						"[1-ff00:0:131#1615 1-ff00:0:121#1516 " +
-							"1-ff00:0:121#1512 1-ff00:0:120#1215]": {},
+							"1-ff00:0:121#1530 1-ff00:0:120#3015]": {},
 					},
 				},
 				{

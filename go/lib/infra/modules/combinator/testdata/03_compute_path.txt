@@ -2,13 +2,13 @@ Path #0:
   Weight: 2
   Fields:
     IF ... ISD=1
-      HF .. InIF=1311 OutIF=0
-      HF X. InIF=0 OutIF=1113
+      HF .. InIF=3229 OutIF=0
+      HF X. InIF=0 OutIF=2932
     IF C.. ISD=1
-      HF X. InIF=0 OutIF=1114
-      HF .. InIF=1411 OutIF=0
+      HF X. InIF=0 OutIF=3015
+      HF .. InIF=1530 OutIF=0
   Interfaces:
-    1-ff00:0:130#1311
-    1-ff00:0:110#1113
-    1-ff00:0:110#1114
-    1-ff00:0:111#1411
+    1-ff00:0:130#3229
+    1-ff00:0:120#2932
+    1-ff00:0:120#3015
+    1-ff00:0:121#1530
