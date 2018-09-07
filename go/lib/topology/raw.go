@@ -45,14 +45,22 @@ type RawTopo struct {
 	Overlay            string
 	MTU                int
 	Core               bool
-	BorderRouters      map[string]*RawBRInfo `json:",omitempty"`
-	ZookeeperService   map[int]*RawAddrPort  `json:",omitempty"`
-	BeaconService      map[string]RawAddrMap `json:",omitempty"`
-	CertificateService map[string]RawAddrMap `json:",omitempty"`
-	PathService        map[string]RawAddrMap `json:",omitempty"`
-	SibraService       map[string]RawAddrMap `json:",omitempty"`
-	RainsService       map[string]RawAddrMap `json:",omitempty"`
-	DiscoveryService   map[string]RawAddrMap `json:",omitempty"`
+	BorderRouters      map[string]*RawBRInfo  `json:",omitempty"`
+	ZookeeperService   map[int]*RawAddrPort   `json:",omitempty"`
+	BeaconService      map[string]*RawAddrSrv `json:",omitempty"`
+	CertificateService map[string]*RawAddrSrv `json:",omitempty"`
+	PathService        map[string]*RawAddrSrv `json:",omitempty"`
+	SibraService       map[string]*RawAddrSrv `json:",omitempty"`
+	RainsService       map[string]*RawAddrSrv `json:",omitempty"`
+	DiscoveryService   map[string]*RawAddrSrv `json:",omitempty"`
+}
+
+type RawAddrSrv struct {
+	Addrs RawAddrMap
+}
+
+func (ras RawAddrSrv) String() string {
+	return fmt.Sprintf("Addr: %s", ras.Addrs)
 }
 
 type RawBRInfo struct {
@@ -111,13 +119,13 @@ func (b RawBRIntf) remoteAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
 
 type RawAddrMap map[string]*RawPubBindOverlay
 
-func (s RawAddrMap) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
-	return topoAddrFromRAM(s, ot)
+func (ram RawAddrMap) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
+	return topoAddrFromRAM(ram, ot)
 }
 
-func (rai RawAddrMap) String() string {
+func (ram RawAddrMap) String() string {
 	var s []string
-	for k, v := range rai {
+	for k, v := range ram {
 		s = append(s, fmt.Sprintf("%s: %s", k, v))
 	}
 	return strings.Join(s, "\n")

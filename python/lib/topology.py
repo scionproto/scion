@@ -79,7 +79,7 @@ class ServerElement(Element):
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
         """
-        super().__init__(server_dict, name)
+        super().__init__(server_dict['Addrs'], name)
 
 
 class InterfaceElement(Element):

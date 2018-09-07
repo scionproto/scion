@@ -27,32 +27,32 @@ func StripBind(rt *RawTopo) {
 
 func StripServices(rt *RawTopo) {
 	// Clear services that don't need to be publicly visible
-	rt.BeaconService = make(map[string]RawAddrMap)
-	rt.SibraService = make(map[string]RawAddrMap)
+	rt.BeaconService = make(map[string]*RawAddrSrv)
+	rt.SibraService = make(map[string]*RawAddrSrv)
 	rt.ZookeeperService = make(map[int]*RawAddrPort)
 }
 
-func removeSrvBind(svc map[string]RawAddrMap) {
+func removeSrvBind(svc map[string]*RawAddrSrv) {
 	for _, s := range svc {
-		removeRAIBind(s)
-	}
-}
-
-func removeRAIBind(rai RawAddrMap) {
-	for _, v := range rai {
-		v.Bind = nil
+		removeRAMBind(s.Addrs)
 	}
 }
 
 func removeBRBind(brs map[string]*RawBRInfo) {
 	for _, bri := range brs {
-		removeRAIBind(bri.InternalAddr)
-		for _, brintf := range bri.Interfaces {
+		removeRAMBind(bri.InternalAddr)
+		for i, _ := range bri.Interfaces {
 			// The nil elements are of no interest to the public
-			brintf.Overlay = ""
-			brintf.Bind = nil
-			brintf.Public = nil
-			brintf.Remote = nil
+			bri.Interfaces[i].Overlay = ""
+			bri.Interfaces[i].Bind = nil
+			bri.Interfaces[i].Public = nil
+			bri.Interfaces[i].Remote = nil
 		}
+	}
+}
+
+func removeRAMBind(ram RawAddrMap) {
+	for _, v := range ram {
+		v.Bind = nil
 	}
 }
