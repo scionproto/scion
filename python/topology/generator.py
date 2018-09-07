@@ -738,15 +738,17 @@ class TopoGenerator(object):
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             d = {
-                self.addr_type: {
-                    'Public': {
-                        'Addr': self._reg_addr(topo_id, elem_id),
-                        'L4Port': random.randint(30050, 30100),
+                'Addrs': {
+                    self.addr_type: {
+                        'Public': {
+                            'Addr': self._reg_addr(topo_id, elem_id),
+                            'L4Port': random.randint(30050, 30100),
+                        }
                     }
                 }
             }
             if self.gen_bind_addr:
-                d[self.addr_type]['Bind'] = {
+                d['Addrs'][self.addr_type]['Bind'] = {
                     'Addr': self._reg_bind_addr(topo_id, elem_id),
                     'L4Port': random.randint(30050, 30100),
                 }
@@ -1590,7 +1592,7 @@ def _prom_addr_br(br_ele):
 
 def _prom_addr_infra(infra_ele):
     """Get the prometheus address for an infrastructure element."""
-    return _prom_addr(infra_ele)
+    return _prom_addr(infra_ele['Addrs'])
 
 
 def _prom_addr(ele):

@@ -43,8 +43,8 @@
   "Core": false,
   "MTU": 1472,
   "PathService": {
-    "ps1-ff00_0_132-1": {
+    "ps1-ff00_0_132-1": {"Addrs": {
       "IPv4": {"Public": {"Addr": "127.0.0.165", "L4Port": 30066}}
-    }
+    }}
   }
 }
