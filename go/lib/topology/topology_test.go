@@ -218,7 +218,7 @@ func Test_IFInfoMap(t *testing.T) {
 	isdas, _ := addr.IAFromString("1-ff00:0:312")
 	ifm[1] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
-		InternalAddr: &TopoAddr{
+		InternalAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -235,7 +235,7 @@ func Test_IFInfoMap(t *testing.T) {
 	isdas, _ = addr.IAFromString("1-ff00:0:314")
 	ifm[3] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
-		InternalAddr: &TopoAddr{
+		InternalAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -252,7 +252,7 @@ func Test_IFInfoMap(t *testing.T) {
 	isdas, _ = addr.IAFromString("1-ff00:0:313")
 	ifm[8] = IFInfo{
 		BRName: "br1-ff00:0:311-1",
-		InternalAddr: &TopoAddr{
+		InternalAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -281,7 +281,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	isdas, _ := addr.IAFromString("6-ff00:0:363")
 	ifm[91] = IFInfo{
 		BRName: "borderrouter6-ff00:0:362-1",
-		InternalAddr: &TopoAddr{
+		InternalAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30097, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -298,7 +298,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	isdas, _ = addr.IAFromString("6-ff00:0:364")
 	ifm[32] = IFInfo{
 		BRName: "borderrouter6-ff00:0:362-9",
-		InternalAddr: &TopoAddr{
+		InternalAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.2", 3097, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::2", 3097, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -334,7 +334,7 @@ func Test_IFInfo_InternalAddr(t *testing.T) {
 	for _, id := range []common.IFIDType{101} {
 		Convey(fmt.Sprintf("Checking IFInfoMap entry for Interface %d", id), t, func() {
 			c := testTopo
-			So(c.IFInfoMap[id].InternalAddr, ShouldResemble, ifm[id])
+			So(c.IFInfoMap[id].InternalAddrs, ShouldResemble, ifm[id])
 		})
 	}
 }

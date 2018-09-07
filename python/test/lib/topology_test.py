@@ -48,15 +48,16 @@ class TestElementInit(object):
         inst = Element(public)
         parse.assert_called_with("addr")
         ntools.eq_(inst.public[0], parse.return_value)
+        ntools.eq_(inst.public[1], 'port')
 
     @patch("lib.topology.haddr_parse_interface", autospec=True)
     def test_bind(self, parse):
         bind = {'IPv4': {'Bind': {'Addr': 'pub_addr', 'L4Port': 'port'},
                          'Public': {'Addr': 'bind_addr', 'L4Port': 'port'}}}
         inst = Element(bind)
-        print(parse.call_args_list)
-        assert parse.call_args_list == [call('bind_addr'), call('pub_addr')]
+        parse.assert_has_calls([call('bind_addr'), call('pub_addr')])
         ntools.eq_(inst.bind[0], parse.return_value)
+        ntools.eq_(inst.public[1], 'port')
 
     def test_name(self):
         name = create_mock(["__str__"])
@@ -92,11 +93,11 @@ class TestInterfaceElementInit(object):
             'MTU': 4242
         }
         if_id = 1
-        public = {'IPv4': {'Public': {'Addr': 'addr', 'L4Port': 6}}}
+        addrs = {'IPv4': {'Public': {'Addr': 'addr', 'L4Port': 6}}}
         # Call
         inst = InterfaceElement(if_id, intf_dict, 'name')
         # Tests
-        super_init.assert_called_once_with(inst, public, 'name')
+        super_init.assert_called_once_with(inst, addrs, 'name')
         ntools.eq_(inst.if_id, 1)
         ntools.eq_(inst.isd_as, isd_as.return_value)
         ntools.eq_(inst.link_type, "parent")

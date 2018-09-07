@@ -37,13 +37,15 @@ const (
 	ErrMismatchBindAddrType = "Mismatch bind address and type"
 )
 
+// TopoAddr wraps the possible addresses of a SCION service and describes
+// the overlay to be used for contacting said service.
 type TopoAddr struct {
 	IPv4    *pubBindAddr
 	IPv6    *pubBindAddr
 	Overlay overlay.Type
 }
 
-// Create TopoAddr from RawAddrInfo, depending on supplied Overlay type
+// Create TopoAddr from RawAddrMap, depending on supplied Overlay type
 func topoAddrFromRAM(s RawAddrMap, ot overlay.Type) (*TopoAddr, error) {
 	switch ot {
 	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,

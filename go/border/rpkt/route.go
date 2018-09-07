@@ -178,7 +178,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 	// XXX (sgmonroy) this would need to change with the Control/Data plane split.
 	// Currently, the BR ignores the OverlayPort value from the topology and always
 	// uses the L4Port as the Overlay port.
-	dstPub := nextBR.InternalAddr.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
+	dstPub := nextBR.InternalAddrs.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
 	dst, err := overlay.NewOverlayAddr(dstPub.L3, dstPub.L4)
 	if err != nil {
 		return HookError, err

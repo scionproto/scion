@@ -39,13 +39,9 @@ class Element(object):
     """
     def __init__(self, addrs=None, name=None):
         """
-        :param dict public:
-            ((addr_type, address), port) of the element's public address.
-            (i.e. the address visible to other network elements).
-        :param dict bind:
-            ((addr_type, address), port) of the element's bind address, if any
-            (i.e. the address the element uses to identify itself to the local
-            operating system, if it differs from the public address due to NAT).
+        :param dict addrs:
+            contains the public and bind addresses. Only one public/bind addresses pair
+            is chosen from all the available addresses in the map.
         :param str name: element name or id
         """
         public, bind = self._get_pub_bind(addrs)
@@ -54,11 +50,6 @@ class Element(object):
         self.name = None
         if name is not None:
             self.name = str(name)
-
-    def _parse_addrs(self, value):
-        if not value:
-            return None
-        return (haddr_parse_interface(value['Addr']), value['L4Port'])
 
     def _get_pub_bind(self, addrs):
         if addrs is None:
@@ -70,6 +61,11 @@ class Element(object):
         if pub_bind is not None:
             return pub_bind['Public'], pub_bind.get('Bind')
         return None, None
+
+    def _parse_addrs(self, value):
+        if not value:
+            return None
+        return (haddr_parse_interface(value['Addr']), value['L4Port'])
 
 
 class ServerElement(Element):
@@ -136,7 +132,7 @@ class RouterElement(object):
         :param str name: router element name or id
         """
         self.name = name
-        self.int_addrs = Element(router_dict['InternalAddr'])
+        self.int_addrs = Element(router_dict['InternalAddrs'])
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)

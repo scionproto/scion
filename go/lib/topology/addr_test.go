@@ -41,54 +41,54 @@ func Test_TopoAddrFromRAM(t *testing.T) {
 	var basic_tests = []struct {
 		name    string
 		overlay overlay.Type
-		err     []string
-		rai     RawAddrMap
+		err     string
+		ram     RawAddrMap
 		ipv4    *pubBindAddr
 		ipv6    *pubBindAddr
 	}{
 		// Common Errors
 		{"Unsupported Overlay", overlay.Invalid,
-			errors(ErrUnsupportedOverlay),
+			ErrUnsupportedOverlay,
 			nil, nil, nil},
 		{"Unsupported Address Type", overlay.IPv4,
-			errors(ErrUnsupportedAddrType),
+			ErrUnsupportedAddrType,
 			newRAMError("MPLS", pubIPv4, nil), nil, nil},
 		{"No Addresses", overlay.IPv4,
-			errors(ErrAtLeastOnePub),
-			newRAMError("", nil, nil), nil, nil},
+			ErrAtLeastOnePub,
+			make(RawAddrMap), nil, nil},
 		// IPv4 Errors
 		{"IPv4 Overlay Mismatch", overlay.IPv6,
-			errors(ErrMismatchOverlayAddr),
+			ErrMismatchOverlayAddr,
 			newRAM(pubIPv4, nil, nil, nil), nil, nil},
 		{"IPv4 Invalid Pub Address", overlay.IPv4,
-			errors(ErrMismatchPubAddrType),
+			ErrMismatchPubAddrType,
 			newRAM(pubIPv6, nil, nil, nil), nil, nil},
 		{"IPv4 Invalid Bind Address", overlay.IPv4,
-			errors(ErrMismatchBindAddrType),
+			ErrMismatchBindAddrType,
 			newRAM(pubIPv4, nil, bindIPv6, nil), nil, nil},
 		{"IPv4 Same Pub/Bind Address", overlay.IPv4,
-			errors(ErrBindAddrEqPubAddr),
+			ErrBindAddrEqPubAddr,
 			newRAM(pubIPv4, nil, &pubIPv4.RawAddrPort, nil), nil, nil},
 		// IPv6 Errors
 		{"IPv6 Overlay Mismatch", overlay.IPv4,
-			errors(ErrMismatchOverlayAddr),
+			ErrMismatchOverlayAddr,
 			newRAM(nil, pubIPv6, nil, nil), nil, nil},
 		{"IPv6 Invalid Pub Address", overlay.IPv6,
-			errors(ErrMismatchPubAddrType),
+			ErrMismatchPubAddrType,
 			newRAM(nil, pubIPv4, nil, nil), nil, nil},
 		{"IPv6 Invalid Bind Address", overlay.IPv6,
-			errors(ErrMismatchBindAddrType),
+			ErrMismatchBindAddrType,
 			newRAM(nil, pubIPv6, nil, bindIPv4), nil, nil},
 		{"IPv6 Same Pub/Bind Address", overlay.IPv6,
-			errors(ErrBindAddrEqPubAddr),
+			ErrBindAddrEqPubAddr,
 			newRAM(nil, pubIPv6, nil, &pubIPv6.RawAddrPort), nil, nil},
 		// IPv46
-		{"IPv46 PubBind", overlay.IPv46, nil,
+		{"IPv46 PubBind", overlay.IPv46, "",
 			newRAM(pubIPv4, pubIPv6, bindIPv4, bindIPv6),
 			&pubBindAddr{newPub(pubIPv4), newBind(bindIPv4), newOverlay(pubIPv4)},
 			&pubBindAddr{newPub(pubIPv6), newBind(bindIPv6), newOverlay(pubIPv6)}},
 		// IPv46+UDP
-		{"IPv46+UDP PubBind", overlay.UDPIPv46, nil,
+		{"IPv46+UDP PubBind", overlay.UDPIPv46, "",
 			newRAM(pubUDPIPv4, pubUDPIPv6, bindIPv4, bindIPv6),
 			&pubBindAddr{newPub(pubUDPIPv4), newBind(bindIPv4), newOverlay(pubUDPIPv4)},
 			&pubBindAddr{newPub(pubUDPIPv6), newBind(bindIPv6), newOverlay(pubUDPIPv6)}},
@@ -101,8 +101,8 @@ func Test_TopoAddrFromRAM(t *testing.T) {
 			Overlay: test.overlay,
 		}
 		Convey(desc, t, func() {
-			t, err := topoAddrFromRAM(test.rai, test.overlay)
-			if test.err == nil {
+			t, err := topoAddrFromRAM(test.ram, test.overlay)
+			if test.err == "" {
 				SoMsg("Error", err, ShouldBeNil)
 				SoMsg("TopoAddr", t, shouldEqTopoAddr, exp)
 			} else {
@@ -121,26 +121,26 @@ func Test_pubBindAddr(t *testing.T) {
 		pub        *RawAddrPortOverlay
 		overlay    *RawAddrPortOverlay
 		bind       *RawAddrPort
-		err        []string
+		err        string
 	}{
 		// Errors
-		{"Invaild Public IP Address", false, pubBad, nil, nil, errors(ErrInvalidPub)},
-		{"Invaild Bind IP Address", false, pubIPv4, nil, bindBad, errors(ErrInvalidBind)},
-		{"No UDP Overlay", false, pubUDPIPv4, nil, bindBad, errors(ErrOverlayPort)},
+		{"Invaild Public IP Address", false, pubBad, nil, nil, ErrInvalidPub},
+		{"Invaild Bind IP Address", false, pubIPv4, nil, bindBad, ErrInvalidBind},
+		{"No UDP Overlay", false, pubUDPIPv4, nil, bindBad, ErrOverlayPort},
 		// IPv4 Overlay
-		{"IPv4 Pub", false, pubIPv4, nil, nil, nil},
-		{"IPv4 PubBind", false, pubIPv4, nil, bindIPv4, nil},
+		{"IPv4 Pub", false, pubIPv4, nil, nil, ""},
+		{"IPv4 PubBind", false, pubIPv4, nil, bindIPv4, ""},
 		// IPv4+UDP Overlay
-		{"IPv4+UDP Pub", true, pubUDPIPv4, nil, nil, nil},
-		{"IPv4+UDP Pub Default Port", true, pubIPv4, pubUDPIPv4, nil, nil},
-		{"IPv4+UDP PubBind", true, pubUDPIPv4, nil, bindIPv4, nil},
+		{"IPv4+UDP Pub", true, pubUDPIPv4, nil, nil, ""},
+		{"IPv4+UDP Pub Default Port", true, pubIPv4, pubUDPIPv4, nil, ""},
+		{"IPv4+UDP PubBind", true, pubUDPIPv4, nil, bindIPv4, ""},
 		// IPv6 Overlay
-		{"IPv6 Pub", false, pubIPv6, nil, nil, nil},
-		{"IPv6 PubBind", false, pubIPv6, nil, bindIPv6, nil},
+		{"IPv6 Pub", false, pubIPv6, nil, nil, ""},
+		{"IPv6 PubBind", false, pubIPv6, nil, bindIPv6, ""},
 		// IPv6+UDP Overlay
-		{"IPv6+UDP Pub", true, pubUDPIPv6, nil, nil, nil},
-		{"IPv4+UDP Pub Default Port", true, pubIPv6, pubUDPIPv6, nil, nil},
-		{"IPv6+UDP PubBind", true, pubUDPIPv6, nil, bindIPv6, nil},
+		{"IPv6+UDP Pub", true, pubUDPIPv6, nil, nil, ""},
+		{"IPv4+UDP Pub Default Port", true, pubIPv6, pubUDPIPv6, nil, ""},
+		{"IPv6+UDP PubBind", true, pubUDPIPv6, nil, bindIPv6, ""},
 	}
 	for i, test := range basic_tests {
 		desc := fmt.Sprintf("pubBindAddr_%d. %s", i, test.name)
@@ -153,7 +153,7 @@ func Test_pubBindAddr(t *testing.T) {
 		Convey(desc, t, func() {
 			pbo := &pubBindAddr{}
 			err := pbo.fromRPBO(rpbo, test.udpOverlay)
-			if test.err == nil {
+			if test.err == "" {
 				SoMsg("Error", err, ShouldBeNil)
 				SoMsg("pubBindAddr", pbo, shouldEqPubBindAddr, exp)
 			} else {
@@ -176,11 +176,9 @@ func newRAM(pub4, pub6 *RawAddrPortOverlay, bind4, bind6 *RawAddrPort) RawAddrMa
 }
 
 func newRAMError(t string, pub *RawAddrPortOverlay, bind *RawAddrPort) RawAddrMap {
-	rai := make(RawAddrMap)
-	if len(t) > 0 {
-		rai[t] = &RawPubBindOverlay{Public: *pub, Bind: bind}
-	}
-	return rai
+	ram := make(RawAddrMap)
+	ram[t] = &RawPubBindOverlay{Public: *pub, Bind: bind}
+	return ram
 }
 
 func shouldEqTopoAddr(actual interface{}, expected ...interface{}) string {
@@ -230,19 +228,13 @@ func shouldEqPubBindAddr(actual interface{}, expected ...interface{}) string {
 	return fmt.Sprintf("Expected:\n\t%+v\nActual:\n\t%+v", expected[0], actual)
 }
 
-func errors(err ...string) []string {
-	return err
-}
-
 func shouldBeInStrings(actual interface{}, expected ...interface{}) string {
-	expErrors := expected[0].([]string)
+	expError := expected[0].(string)
 	for curErr := actual.(error); curErr != nil; curErr = common.GetNestedError(curErr) {
 		errMsg := common.GetErrorMsg(curErr)
-		for _, exp := range expErrors {
-			if errMsg == exp {
-				return ""
-			}
+		if errMsg == expError {
+			return ""
 		}
 	}
-	return fmt.Sprintf("Expected a member of: %+q\nActual: %+q", expected, actual)
+	return fmt.Sprintf("Expected error: %+q\nActual: %+q", expected, actual)
 }
