@@ -16,10 +16,10 @@ do
     gen_base="$folder/mock_$package"
     if [ $1 == "prepare" ]; then
         mkdir -p "$gen_base"
-        touch "$folder/mock_$package/keepme.go"
+        touch "$folder/mock_$package/tmp.go"
     fi
     if [ $1 == "mock" ]; then
-        rm "$folder/mock_$package/keepme.go"
+        rm -f "$folder/mock_$package/tmp.go"
         mockgen -destination="$folder/mock_$package/mock_$file" -source="$iface"
     fi
 done
@@ -37,10 +37,10 @@ do
     gen_base="$folder/mock_$package"
     if [ $1 == "prepare" ]; then
         mkdir -p "$gen_base"
-        touch "$folder/mock_$package/keepme.go"
+        touch "$folder/mock_$package/tmp.go"
     fi
     if [ $1 == "mock" ]; then
-        rm "$folder/mock_$package/keepme.go"
+        rm -f "$folder/mock_$package/tmp.go"
         mockgen -destination "$folder/mock_$package/mock_$file.go" $iface
     fi
 done

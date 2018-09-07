@@ -1,4 +1,4 @@
-.PHONY: all clean test coverage lint deps_proto deps depspurge proto bin libs hsr
+.PHONY: all clean test coverage lint deps_gen deps depspurge proto bin libs hsr
 
 SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
@@ -7,7 +7,7 @@ LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
 LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go' -a '!' -iname 'mock_*.go')
 GOTAGS = assert
 
-all: deps_proto mocks bin libs
+all: deps_gen bin libs
 
 clean:
 	rm -f gocover.html vendor/.deps.stamp
@@ -16,13 +16,13 @@ clean:
 	cd proto && $(MAKE) clean
 	find . -name "mock_*.go" -delete
 
-test: deps_proto
+test: deps_gen
 	GOCONVEY_REPORTER=story govendor test +local
 
-test_running: deps_proto
+test_running: deps_gen
 	GOCONVEY_REPORTER=story govendor test +local -tags infrarunning
 
-coverage: deps_proto
+coverage: deps_gen
 	set -o pipefail; GOCONVEY_REPORTER=story gocov test ${LOCAL_PKGS} | gocov-html > gocover.html
 	@echo
 	@echo "Go coverage report here: file://$$PWD/gocover.html"
@@ -35,17 +35,17 @@ lint:
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
 
-mock_prep:
+mocks_prep:
 	./genmocks.sh prepare
 
 mocks: deps
 	./genmocks.sh mock
 
-deps_proto: deps proto
+deps_gen: deps proto mocks
 
 deps: vendor/.deps.stamp ../proto/go.capnp
 
-vendor/.deps.stamp: mock_prep vendor/vendor.json
+vendor/.deps.stamp: mocks_prep vendor/vendor.json
 	@[ -z "${QUIET}" ] && echo "$$(date -Iseconds) Remove unused deps"; \
 	    govendor list -no-status +unused | while read pkg; do \
 	    grep -q '"path": "'$$pkg'"' vendor/vendor.json && continue; \
@@ -72,10 +72,10 @@ depspurge:
 proto: deps
 	$(MAKE) -C proto
 
-bin: deps_proto
+bin: deps_gen
 	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
 
-libs: deps_proto
+libs: deps_gen
 	govendor install --tags "$(GOTAGS)" -v +local,^program
 
 hsr: libs
