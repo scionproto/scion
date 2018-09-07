@@ -42,7 +42,7 @@ func TestBadPeering(t *testing.T) {
 	g.DeleteInterface(4002) // Break 4001-4002 peering, only 4001 remains in up segment
 	// Break If_111_X_121_X - If_121_X_111_X peering,
 	// only If_121_X_111_X remains in down segment
-	g.DeleteInterface(graph.If_111_X_121_X)
+	g.DeleteInterface(graph.If_111_C_121_X)
 
 	testCases := []struct {
 		Name     string
@@ -59,13 +59,13 @@ func TestBadPeering(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:112"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X, graph.If_111_X_112_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_B_111_A, graph.If_111_A_112_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_120_X_110_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_120_X_121_X, graph.If_121_X_122_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_B_121_X, graph.If_121_X_122_X}),
 			},
 		},
 	}
@@ -89,7 +89,6 @@ func TestBadPeering(t *testing.T) {
 
 func TestMultiPeering(t *testing.T) {
 	g := graph.NewDefaultGraph()
-	g.AddLink("1-ff00:0:111", 4001, "1-ff00:0:121", 4002, true)
 
 	testCases := []struct {
 		Name     string
@@ -104,15 +103,15 @@ func TestMultiPeering(t *testing.T) {
 			Name:     "two peerings between same ases",
 			FileName: "00_multi_peering.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:112"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
+			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X, graph.If_111_X_112_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_B_111_A, graph.If_111_A_112_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_120_X_110_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_120_X_121_X, graph.If_121_X_122_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
 		},
 	}
@@ -136,7 +135,6 @@ func TestMultiPeering(t *testing.T) {
 
 func TestSameCoreParent(t *testing.T) {
 	g := graph.NewDefaultGraph()
-	g.AddLink("1-ff00:0:130", 4001, "1-ff00:0:111", 4002, false)
 
 	testCases := []struct {
 		Name     string
@@ -153,10 +151,10 @@ func TestSameCoreParent(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:112"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{4001, graph.If_111_X_112_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_112_X}),
 			},
 		},
 	}
@@ -196,13 +194,13 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_X_111_B}),
 			},
 		},
 		{
@@ -211,10 +209,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:110"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_110_X_130_A}),
 			},
 		},
 		{
@@ -223,28 +221,28 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:130"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 		},
 		{
 			Name:     "#3 simple core-down",
 			FileName: "03_compute_path.txt",
 			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
-			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:121"),
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_B_121_X}),
 			},
 		},
 		{
 			Name:     "#4 simple down only",
 			FileName: "04_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:110"),
+			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_B_111_A}),
 			},
 		},
 		{
@@ -253,13 +251,13 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:111"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_110_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_B_120_A}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_X_111_B}),
 			},
 		},
 		{
@@ -268,13 +266,13 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X, graph.If_211_X_212_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X_211_A, graph.If_211_A_212_X}),
 			},
 		},
 		{
@@ -283,10 +281,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_120_X_110_X, graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_110_X, graph.If_110_X_130_A}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_120_X_121_X, graph.If_121_X_122_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_B_121_X, graph.If_121_X_122_X}),
 			},
 		},
 		{
@@ -295,10 +293,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:211"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A}),
 			},
 		},
 		{
@@ -307,10 +305,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_120_X_110_X, graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 		},
 		{
@@ -319,14 +317,14 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:112"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_120_X, graph.If_120_X_130_X}),
-				g.Beacon([]common.IFIDType{graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_110_X, graph.If_110_X_130_A}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X, graph.If_111_X_112_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_X_111_B, graph.If_111_A_112_X}),
 			},
 		},
 		{
@@ -335,11 +333,11 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:131"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X,
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X,
 					graph.If_132_X_133_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 		},
 		{
@@ -348,11 +346,11 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:133"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:132"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X,
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X,
 					graph.If_132_X_133_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 		},
 		{
@@ -361,10 +359,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
 			DstIA:    xtest.MustParseIA("1-ff00:0:132"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 		},
 		{
@@ -373,10 +371,10 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X, graph.If_211_X_212_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X, graph.If_211_X_222_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A_222_X}),
 			},
 		},
 		{
@@ -385,7 +383,7 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("2-ff00:0:212"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:222"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X, graph.If_211_X_212_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A1_212_X}),
 			},
 			Cores: []*seg.PathSegment{
 				g.Beacon([]common.IFIDType{graph.If_220_X_210_X}),
@@ -397,46 +395,46 @@ func TestComputePath(t *testing.T) {
 		{
 			Name:     "#16 start from peer",
 			FileName: "16_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:111"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:212"),
+			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:122"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X, graph.If_211_X_212_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_B_121_X, graph.If_121_X_122_X}),
 			},
 		},
 		{
 			Name:     "#17 start and end on peer",
 			FileName: "17_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:111"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:211"),
+			SrcIA:    xtest.MustParseIA("1-ff00:0:131"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:121"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_B_121_X}),
 			},
 		},
 		{
 			Name:     "#18 only end on peer",
 			FileName: "18_compute_path.txt",
-			SrcIA:    xtest.MustParseIA("1-ff00:0:112"),
-			DstIA:    xtest.MustParseIA("2-ff00:0:211"),
+			SrcIA:    xtest.MustParseIA("1-ff00:0:132"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:121"),
 			Ups: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_110_X_111_X, graph.If_111_X_112_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_131_X, graph.If_131_X_132_X}),
 			},
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_B_121_X}),
 			},
 		},
 		{
@@ -449,7 +447,7 @@ func TestComputePath(t *testing.T) {
 				g.Beacon([]common.IFIDType{graph.If_220_X_210_X, graph.If_210_X_110_X}),
 			},
 			Downs: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_211_X, graph.If_211_X_222_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X1_211_A, graph.If_211_A_222_X}),
 				g.Beacon([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X}),
 			},
 		},
@@ -459,11 +457,11 @@ func TestComputePath(t *testing.T) {
 			SrcIA:    xtest.MustParseIA("1-ff00:0:130"),
 			DstIA:    xtest.MustParseIA("2-ff00:0:210"),
 			Cores: []*seg.PathSegment{
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_X}),
-				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_X,
-					graph.If_120_X_130_X}),
-				g.Beacon([]common.IFIDType{graph.If_210_X_220_X, graph.If_220_X_120_X,
-					graph.If_120_X_110_X, graph.If_110_X_130_X}),
+				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_130_A}),
+				g.Beacon([]common.IFIDType{graph.If_210_X_110_X, graph.If_110_X_120_A,
+					graph.If_120_A_130_B}),
+				g.Beacon([]common.IFIDType{graph.If_210_X_220_X, graph.If_220_X_120_B,
+					graph.If_120_A_110_X, graph.If_110_X_130_A}),
 			},
 		},
 	}

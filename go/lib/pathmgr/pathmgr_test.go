@@ -88,9 +88,10 @@ func TestQueryFilter(t *testing.T) {
 func TestRegister(t *testing.T) {
 	Convey("Register for path, receive 0 responses", t, func() {
 		g := graph.NewDefaultGraph()
-		// Remove link between 1-ff00:0:132 and 1-ff00:0:131 so that the initial path set is
-		// nil
+		// Remove link between 1-ff00:0:132 and 1-ff00:0:131 and the peering from 1-ff00:0:133 to
+		// 1-ff00:0:122 so that the initial path set is nil
 		g.RemoveLink(graph.If_133_X_132_X)
+		g.RemoveLink(graph.If_133_X_122_X)
 		pm := NewPR(t, g, 100, 100, 100)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -139,6 +140,8 @@ func TestRegisterFilter(t *testing.T) {
 func TestRevoke(t *testing.T) {
 	Convey("Populate cache via Query, Watch, WatchFilter for different destinations", t, func() {
 		g := graph.NewDefaultGraph()
+		// Remove peering 133 -> 122 to have a simple up path 133 -> 131
+		g.RemoveLink(graph.If_133_X_122_X)
 		pm := NewPR(t, g, 60, 60, 60)
 		// Query: 1-ff00:0:133 -> 1-ff00:0:131
 		querySrc := xtest.MustParseIA("1-ff00:0:133")
@@ -149,14 +152,15 @@ func TestRevoke(t *testing.T) {
 
 		aps := pm.Query(querySrc, queryDst)
 		apsCheckPaths("path", aps,
-			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 1-ff00:0:132#1916 1-ff00:0:131#1619]")
 
 		sp, err := pm.Watch(watchSrc, watchDst)
 		SoMsg("watch: ee", err, ShouldBeNil)
 		apsCheckPaths("watch", sp.Load().APS,
-			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
-				"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
+			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+				"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
+			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+				"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
 
 		pp, err := spathmeta.NewPathPredicate("1-ff00:0:121#1518")
 		xtest.FailOnErr(t, err)
@@ -165,23 +169,28 @@ func TestRevoke(t *testing.T) {
 		spf, err := pm.WatchFilter(watchSrc, watchDst, filter)
 		SoMsg("watch filter: err", err, ShouldBeNil)
 		apsCheckPaths("watch filter", spf.Load().APS,
-			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
-				"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
+			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+				"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
+			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+				"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
 
 		Convey("Revoke a path that's not part of any path set", func() {
-			g.RemoveLink(graph.If_130_X_110_X)
+			g.RemoveLink(graph.If_130_A_110_X)
 			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"),
-				graph.If_130_X_110_X))
+				graph.If_130_A_110_X))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps,
-				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+				"[1-ff00:0:133#1019 1-ff00:0:132#1910 1-ff00:0:132#1916 1-ff00:0:131#1619]")
 			apsCheckPaths("watch", sp.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
-					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
 			apsCheckPaths("watch filter", spf.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
-					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
 		})
 		Convey("Revoke a path that's in Query, but not in Watch/WatchFilter path sets", func() {
 			// Disconnect #1019
@@ -195,11 +204,15 @@ func TestRevoke(t *testing.T) {
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps)
 			apsCheckPaths("watch", sp.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
-					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
 			apsCheckPaths("watch filter", spf.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1512 "+
-					"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
+				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
+					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
 		})
 		Convey("Revoke a path that's in Watch and WatchFilter, but not in Query", func() {
 			// Disconnect #1815
@@ -209,8 +222,7 @@ func TestRevoke(t *testing.T) {
 			g.RemoveLink(graph.If_122_X_121_X)
 			pm.cache.revoke(uifidFromValues(watchSrc, graph.If_122_X_121_X))
 			apsCheckPaths("path", aps,
-				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+				"[1-ff00:0:133#1019 1-ff00:0:132#1910 1-ff00:0:132#1916 1-ff00:0:131#1619]")
 			apsCheckPaths("watch", sp.Load().APS)
 			apsCheckPaths("watch filter", spf.Load().APS)
 		})

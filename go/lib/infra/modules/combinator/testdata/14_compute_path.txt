@@ -2,15 +2,15 @@ Path #0:
   Weight: 2
   Fields:
     IF .S. ISD=2
-      HF .. InIF=2523 OutIF=0
-      HF X. InIF=2321 OutIF=2325
-      HF .V InIF=0 OutIF=2123
+      HF .. InIF=2534 OutIF=0
+      HF X. InIF=2333 OutIF=3425
+      HF .V InIF=0 OutIF=3323
     IF CS. ISD=2
-      HF .V InIF=0 OutIF=2123
-      HF X. InIF=2321 OutIF=2326
+      HF .V InIF=0 OutIF=3323
+      HF X. InIF=2333 OutIF=2326
       HF .. InIF=2623 OutIF=0
   Interfaces:
-    2-ff00:0:212#2523
-    2-ff00:0:211#2325
+    2-ff00:0:212#2534
+    2-ff00:0:211#3425
     2-ff00:0:211#2326
     2-ff00:0:222#2623

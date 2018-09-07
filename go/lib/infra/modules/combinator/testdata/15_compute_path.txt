@@ -2,18 +2,18 @@ Path #0:
   Weight: 3
   Fields:
     IF .SP ISD=2
-      HF .. InIF=2523 OutIF=0
-      HF X. InIF=2321 OutIF=2325
-      HF X. InIF=2324 OutIF=2325
-      HF .V InIF=0 OutIF=2123
+      HF .. InIF=2534 OutIF=0
+      HF X. InIF=2333 OutIF=3425
+      HF X. InIF=2324 OutIF=3425
+      HF .V InIF=0 OutIF=3323
     IF CSP ISD=2
       HF .V InIF=0 OutIF=2224
       HF X. InIF=2423 OutIF=2426
       HF X. InIF=2422 OutIF=2426
       HF .. InIF=2624 OutIF=0
   Interfaces:
-    2-ff00:0:212#2523
-    2-ff00:0:211#2325
+    2-ff00:0:212#2534
+    2-ff00:0:211#3425
     2-ff00:0:211#2324
     2-ff00:0:221#2423
     2-ff00:0:221#2426
@@ -22,9 +22,9 @@ Path #1:
   Weight: 5
   Fields:
     IF ... ISD=2
-      HF .. InIF=2523 OutIF=0
-      HF .. InIF=2321 OutIF=2325
-      HF X. InIF=0 OutIF=2123
+      HF .. InIF=2534 OutIF=0
+      HF .. InIF=2333 OutIF=3425
+      HF X. InIF=0 OutIF=3323
     IF ... ISD=2
       HF X. InIF=2122 OutIF=0
       HF X. InIF=0 OutIF=2221
@@ -33,10 +33,10 @@ Path #1:
       HF .. InIF=2422 OutIF=2426
       HF .. InIF=2624 OutIF=0
   Interfaces:
-    2-ff00:0:212#2523
-    2-ff00:0:211#2325
-    2-ff00:0:211#2321
-    2-ff00:0:210#2123
+    2-ff00:0:212#2534
+    2-ff00:0:211#3425
+    2-ff00:0:211#2333
+    2-ff00:0:210#3323
     2-ff00:0:210#2122
     2-ff00:0:220#2221
     2-ff00:0:220#2224
