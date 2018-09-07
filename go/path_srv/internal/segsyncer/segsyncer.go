@@ -163,16 +163,9 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 			return sent, err
 		}
 		s.latestUpdate = &msgT.latestUpdate
-		sent++
+		sent += len(msgT.msg.SegRecs.Recs)
 	}
 	return sent, nil
-}
-
-// msgWithTimestamp is a SegSync message
-// with the latest lastUpdate timestamp of the segments in the message.
-type msgWithTimestamp struct {
-	msg          *path_mgmt.SegSync
-	latestUpdate time.Time
 }
 
 // FIXME(lukedirtwalker): Sending a message per segment is quite a big overhead.
@@ -193,4 +186,11 @@ func (s *SegSyncer) createMessages(qrs []*query.Result) []*msgWithTimestamp {
 		})
 	}
 	return msgs
+}
+
+// msgWithTimestamp is a SegSync message
+// with the latest lastUpdate timestamp of the segments in the message.
+type msgWithTimestamp struct {
+	msg          *path_mgmt.SegSync
+	latestUpdate time.Time
 }
