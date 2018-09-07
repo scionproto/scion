@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/mocks/mock_net"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -180,7 +181,7 @@ func TestGetValidTRC(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		msger := newMessengerMock(ctrl, trcs, chains)
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -271,7 +272,7 @@ func TestGetTRC(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		msger := newMessengerMock(ctrl, trcs, chains)
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -327,7 +328,7 @@ func TestGetValidChain(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		msger := newMessengerMock(ctrl, trcs, chains)
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 		insertTRC(t, store, trcs[1])
 		for _, tc := range testCases[3:4] {
@@ -418,7 +419,7 @@ func TestGetChain(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		msger := newMessengerMock(ctrl, trcs, chains)
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -548,7 +549,7 @@ func TestTRCReqHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		msger := newMessengerMock(ctrl, trcs, chains)
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -665,7 +666,7 @@ func TestChainReqHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		msger := newMessengerMock(ctrl, trcs, chains)
-		store, cleanF := initStore(t, xtest.MustParseIA("1-ff00:0:1"), msger)
+		store, cleanF := initStore(t, ctrl, xtest.MustParseIA("1-ff00:0:1"), msger)
 		defer cleanF()
 
 		insertTRC(t, store, trcs[1])
@@ -740,13 +741,17 @@ func getChainFileName(ia addr.IA, version uint64) string {
 		tmpDir, ia.I, ia.A.FileFmt(), ia.I, ia.A.FileFmt(), version)
 }
 
-func initStore(t *testing.T, ia addr.IA, msger infra.Messenger) (*Store, func() error) {
+func initStore(t *testing.T, ctrl *gomock.Controller,
+	ia addr.IA, msger infra.Messenger) (*Store, func() error) {
+
 	t.Helper()
 	db, err := trustdb.New(":memory:")
 	xtest.FailOnErr(t, err)
+	csAddrStub := mock_net.NewMockAddr(ctrl)
+	csAddrStub.EXPECT().String().AnyTimes()
 	options := &Config{
 		LocalCSes: []net.Addr{
-			&messenger.MockAddress{},
+			csAddrStub,
 		},
 	}
 	store, err := NewStore(db, ia, 0, options, log.Root())
