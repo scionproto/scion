@@ -117,7 +117,7 @@ func (h *baseHandler) psAddrFromSeg(s *seg.PathSegment, dstIA addr.IA) (net.Addr
 		IA:      dstIA,
 		Host:    addr.NewSVCUDPAppAddr(addr.SvcPS),
 		Path:    p,
-		NextHop: nextHop.InternalAddr.OverlayAddr(h.topology.Overlay),
+		NextHop: nextHop.InternalAddrs.OverlayAddr(h.topology.Overlay),
 	}, nil
 }
 

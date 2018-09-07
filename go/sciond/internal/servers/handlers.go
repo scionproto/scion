@@ -175,7 +175,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		for ifid, ifInfo := range h.Topology.IFInfoMap {
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
+				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
 			})
 		}
 	} else {
@@ -188,7 +188,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddr),
+				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
 			})
 		}
 	}

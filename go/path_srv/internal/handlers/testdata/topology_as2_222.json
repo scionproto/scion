@@ -3,7 +3,7 @@
   "Overlay": "UDP/IPv4",
   "BorderRouters": {
     "br2-ff00_0_222-1": {
-      "InternalAddr": {
+      "InternalAddrs": {
         "IPv4": {"Public": {"Addr": "127.0.0.255", "L4Port": 30071}}
       },
       "Interfaces": {

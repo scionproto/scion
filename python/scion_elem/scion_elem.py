@@ -201,8 +201,6 @@ class SCIONElement(object):
         self.unv_certs_lock = threading.RLock()
         self.cert_reqs = defaultdict(list)
         self.cert_reqs_lock = threading.Lock()
-        # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
-        logging.debug(self.public)
         host_addr, self._port = self.public
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
         if prom_export:
@@ -224,8 +222,6 @@ class SCIONElement(object):
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
         # Setup UDP socket
         if self.bind:
-            # TODO(jonghoonkwon): Fix me to setup socket for a proper bind address,
-            # if the element has more than one bind addresses
             host_addr, b_port = self.bind
             b_addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
             self._udp_sock = ReliableSocket(

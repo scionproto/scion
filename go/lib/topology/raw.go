@@ -47,30 +47,30 @@ type RawTopo struct {
 	Core               bool
 	BorderRouters      map[string]*RawBRInfo  `json:",omitempty"`
 	ZookeeperService   map[int]*RawAddrPort   `json:",omitempty"`
-	BeaconService      map[string]*RawAddrSrv `json:",omitempty"`
-	CertificateService map[string]*RawAddrSrv `json:",omitempty"`
-	PathService        map[string]*RawAddrSrv `json:",omitempty"`
-	SibraService       map[string]*RawAddrSrv `json:",omitempty"`
-	RainsService       map[string]*RawAddrSrv `json:",omitempty"`
-	DiscoveryService   map[string]*RawAddrSrv `json:",omitempty"`
+	BeaconService      map[string]*RawSrvInfo `json:",omitempty"`
+	CertificateService map[string]*RawSrvInfo `json:",omitempty"`
+	PathService        map[string]*RawSrvInfo `json:",omitempty"`
+	SibraService       map[string]*RawSrvInfo `json:",omitempty"`
+	RainsService       map[string]*RawSrvInfo `json:",omitempty"`
+	DiscoveryService   map[string]*RawSrvInfo `json:",omitempty"`
 }
 
-type RawAddrSrv struct {
+type RawSrvInfo struct {
 	Addrs RawAddrMap
 }
 
-func (ras RawAddrSrv) String() string {
+func (ras RawSrvInfo) String() string {
 	return fmt.Sprintf("Addr: %s", ras.Addrs)
 }
 
 type RawBRInfo struct {
-	InternalAddr RawAddrMap
-	Interfaces   map[common.IFIDType]*RawBRIntf
+	InternalAddrs RawAddrMap
+	Interfaces    map[common.IFIDType]*RawBRIntf
 }
 
 func (b RawBRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addr:\n  %s\nInterfaces:", b.InternalAddr))
+	s = append(s, fmt.Sprintf("Loc addr:\n  %s\nInterfaces:", b.InternalAddrs))
 	for ifid, intf := range b.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}

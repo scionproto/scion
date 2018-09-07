@@ -265,10 +265,10 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 					Ipv4 []byte
 					Ipv6 []byte
 				}{
-					Ipv4: nextHop.InternalAddr.IPv4.PublicAddr().L3.IP().To4(),
+					Ipv4: nextHop.InternalAddrs.IPv4.PublicAddr().L3.IP().To4(),
 					// FIXME(scrye): also add support for IPv6
 				},
-				Port: nextHop.InternalAddr.IPv4.PublicAddr().L4.Port(),
+				Port: nextHop.InternalAddrs.IPv4.PublicAddr().L4.Port(),
 			},
 		})
 	}

@@ -50,9 +50,21 @@ func (s ServiceNames) GetRandom() (string, error) {
 	return s[rand.Intn(numServers)], nil
 }
 
-// Structures used by Go code, filled in by populate()
-
 // Topo is the main struct encompassing topology information for use in Go code.
+// The first section contains metadata about the topology. All of these fields
+// should be self-explanatory.
+// The second section concerns the Border routers. BRNames is just a sorted slice
+// of the names of the BRs in this topolgy. Its contents is exactly the same as
+// the keys in the BR map.
+//
+// The BR map points from border router names to BRInfo structs, which in turn
+// are lists of IFID type slices, thus defines the IFIDs that belong to a
+// particular border router. The IFInfoMap points from interface IDs to IFInfo structs.
+//
+// The third section in Topo concerns the SCION-specific services in the topology.
+// The structure is identical between the various elements. For each service,
+// there is again a sorted slice of names of the servers that provide the service.
+// Additionally, there is a map from those names to TopoAddr structs.
 type Topo struct {
 	Timestamp      time.Time
 	TimestampHuman string // This can vary wildly in format and is only for informational purposes.
@@ -138,22 +150,22 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 
 func (t *Topo) populateBR(raw *RawTopo) error {
 	for name, rawBr := range raw.BorderRouters {
-		if rawBr.InternalAddr == nil {
+		if rawBr.InternalAddrs == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		for i, iAddr := range rawBr.InternalAddr {
-			pub := iAddr.Public
+		for i := range rawBr.InternalAddrs {
+			pub := rawBr.InternalAddrs[i].Public
 			if pub.OverlayPort != 0 {
 				return common.NewBasicError("BR internal address may not have overlay port set",
-					nil, "br", name, "intAddr", iAddr)
+					nil, "br", name, "intAddr", rawBr.InternalAddrs[i])
 			}
 			if t.Overlay.IsUDP() {
 				// Set the overlay port to the L4 port as the BR does not run
 				// on top of the dispatcher.
-				rawBr.InternalAddr[i].Public = RawAddrPortOverlay{pub.RawAddrPort, pub.L4Port}
+				rawBr.InternalAddrs[i].Public = RawAddrPortOverlay{pub.RawAddrPort, pub.L4Port}
 			}
 		}
-		intAddr, err := rawBr.InternalAddr.ToTopoAddr(t.Overlay)
+		intAddr, err := rawBr.InternalAddrs.ToTopoAddr(t.Overlay)
 		if err != nil {
 			return err
 		}
@@ -161,7 +173,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
-			ifinfo := IFInfo{BRName: name, InternalAddr: intAddr}
+			ifinfo := IFInfo{BRName: name, InternalAddrs: intAddr}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
@@ -219,9 +231,9 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 	return nil
 }
 
-// Convert map of Name->RawAddrInfo into map of Name->TopoAddr and sorted slice of Names
+// Convert map of Name->RawSrvInfo into map of Name->TopoAddr and sorted slice of Names
 // stype is only used for error reporting
-func svcMapFromRaw(ras map[string]*RawAddrSrv, stype string, smap IDAddrMap,
+func svcMapFromRaw(ras map[string]*RawSrvInfo, stype string, smap IDAddrMap,
 	ot overlay.Type) ([]string, error) {
 
 	var snames []string
@@ -229,8 +241,8 @@ func svcMapFromRaw(ras map[string]*RawAddrSrv, stype string, smap IDAddrMap,
 		svcTopoAddr, err := svc.Addrs.ToTopoAddr(ot)
 		if err != nil {
 			return nil, common.NewBasicError(
-				"Could not convert RawAddrInfo to TopoAddr", err,
-				"servicetype", stype, "RawAddrInfo", svc, "name", name)
+				"Could not convert RawAddrMap to TopoAddr", err,
+				"servicetype", stype, "RawAddrMap", svc.Addrs, "name", name)
 		}
 		smap[name] = *svcTopoAddr
 		snames = append(snames, name)
@@ -261,22 +273,25 @@ type BRInfo struct {
 	IFIDs []common.IFIDType
 }
 
+// IFInfo describes a border router link to another AS, including the internal address
+// applications should send traffic for the link to (InternalAddrs) and information about
+// the link itself and the remote side of it.
 type IFInfo struct {
-	BRName       string
-	InternalAddr *TopoAddr
-	Overlay      overlay.Type
-	Local        *TopoAddr
-	Remote       *overlay.OverlayAddr
-	RemoteIFID   common.IFIDType
-	Bandwidth    int
-	ISD_AS       addr.IA
-	LinkType     proto.LinkType
-	MTU          int
+	BRName        string
+	InternalAddrs *TopoAddr
+	Overlay       overlay.Type
+	Local         *TopoAddr
+	Remote        *overlay.OverlayAddr
+	RemoteIFID    common.IFIDType
+	Bandwidth     int
+	ISD_AS        addr.IA
+	LinkType      proto.LinkType
+	MTU           int
 }
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf(
 		"IFinfo: Name[%s] IntAddr[%+v] Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
-		i.BRName, i.InternalAddr, i.Overlay, i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType,
+		i.BRName, i.InternalAddrs, i.Overlay, i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType,
 		i.MTU)
 }

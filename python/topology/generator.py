@@ -764,7 +764,7 @@ class TopoGenerator(object):
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
-                'InternalAddr': {
+                'InternalAddrs': {
                     self.addr_type: {
                         'Public': {
                             'Addr': self._reg_addr(local, local_br),
@@ -1587,7 +1587,7 @@ def _json_default(o):
 
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
-    return _prom_addr(br_ele['InternalAddr'])
+    return _prom_addr(br_ele['InternalAddrs'])
 
 
 def _prom_addr_infra(infra_ele):
