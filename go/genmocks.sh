@@ -14,8 +14,14 @@ do
     package=$(basename $folder)
     file=$(basename "$iface")
     gen_base="$folder/mock_$package"
-    mkdir -p "$gen_base"
-    mockgen -destination="$folder/mock_$package/mock_$file" -source="$iface"
+    if [ $1 == "prepare" ]; then
+        mkdir -p "$gen_base"
+        touch "$folder/mock_$package/keepme.go"
+    fi
+    if [ $1 == "mock" ]; then
+        rm "$folder/mock_$package/keepme.go"
+        mockgen -destination="$folder/mock_$package/mock_$file" -source="$iface"
+    fi
 done
 
 declare -a lib_ifaces=(
@@ -29,6 +35,12 @@ do
     package="${parts[0]}"
     file="${parts[1],,}"
     gen_base="$folder/mock_$package"
-    mkdir -p "$gen_base"
-    mockgen -destination "$folder/mock_$package/mock_$file.go" $iface
+    if [ $1 == "prepare" ]; then
+        mkdir -p "$gen_base"
+        touch "$folder/mock_$package/keepme.go"
+    fi
+    if [ $1 == "mock" ]; then
+        rm "$folder/mock_$package/keepme.go"
+        mockgen -destination "$folder/mock_$package/mock_$file.go" $iface
+    fi
 done

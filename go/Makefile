@@ -14,6 +14,7 @@ clean:
 	GOBIN=${LOCAL_GOBIN} go clean ${LOCAL_PKGS}
 	go clean -i ./vendor/...
 	cd proto && $(MAKE) clean
+	find . -name "mock_*.go" -delete
 
 test: deps_proto
 	GOCONVEY_REPORTER=story govendor test +local
@@ -34,14 +35,17 @@ lint:
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
 
+mock_prep:
+	./genmocks.sh prepare
+
 mocks: deps
-	./genmocks.sh
+	./genmocks.sh mock
 
 deps_proto: deps proto
 
 deps: vendor/.deps.stamp ../proto/go.capnp
 
-vendor/.deps.stamp: vendor/vendor.json
+vendor/.deps.stamp: mock_prep vendor/vendor.json
 	@[ -z "${QUIET}" ] && echo "$$(date -Iseconds) Remove unused deps"; \
 	    govendor list -no-status +unused | while read pkg; do \
 	    grep -q '"path": "'$$pkg'"' vendor/vendor.json && continue; \
