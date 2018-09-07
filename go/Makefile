@@ -7,7 +7,7 @@ LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
 LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go' -a '!' -iname 'mock_*.go')
 GOTAGS = assert
 
-all: deps_proto bin libs
+all: deps_proto mocks bin libs
 
 clean:
 	rm -f gocover.html vendor/.deps.stamp
@@ -33,6 +33,9 @@ lint:
 	out=$$(gofmt -d -s ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
+
+mocks: deps
+	./genmocks.sh
 
 deps_proto: deps proto
 
