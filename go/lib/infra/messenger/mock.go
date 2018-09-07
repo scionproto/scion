@@ -109,6 +109,30 @@ func (m *MockMessenger) SendSegSync(ctx context.Context, msg *path_mgmt.SegSync,
 	panic("not implemented")
 }
 
+func (m *MockMessenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
+	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
+
+	panic("not implemented")
+}
+
+func (m *MockMessenger) SendSegChangesIdReply(ctx context.Context,
+	msg *path_mgmt.SegChangesIdReply, a net.Addr, id uint64) error {
+
+	panic("not implemented")
+}
+
+func (m *MockMessenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
+	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
+
+	panic("not implemented")
+}
+
+func (m *MockMessenger) SendSegChangesReply(ctx context.Context,
+	msg *path_mgmt.SegChangesReply, a net.Addr, id uint64) error {
+
+	panic("not implemented")
+}
+
 func (m *MockMessenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq,
 	a net.Addr, id uint64) (*cert_mgmt.ChainIssRep, error) {
 

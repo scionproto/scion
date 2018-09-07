@@ -26,6 +26,23 @@ struct SegReply {
     recs @1 :SegRecs;
 }
 
+struct SegChangesIdReq {
+    lastCheck @0 :UInt64;
+}
+
+struct SegIds {
+    segId @0 :Data;
+    fullId @1 :Data;
+}
+
+struct SegChangesIdReply {
+    ids @0 :List(SegIds);
+}
+
+struct SegChangesReq {
+    segIds @0 :List(Data);
+}
+
 struct PathMgmt {
     union {
         unset @0 :Void;
@@ -36,5 +53,9 @@ struct PathMgmt {
         sRevInfo @5 :Sign.SignedBlob;
         ifStateReq @6 :IFState.IFStateReq;
         ifStateInfos @7 :IFState.IFStateInfos;
+        segChangesIdReq @8 :SegChangesIdReq;
+        segChangesIdReply @9 :SegChangesIdReply;
+        segChangesReq @10 :SegChangesReq;
+        segChangesReply @11 :SegRecs;
     }
 }

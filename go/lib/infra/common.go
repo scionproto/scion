@@ -130,6 +130,10 @@ const (
 	Chain
 	ChainRequest
 	IfStateInfos
+	SegChangesReq
+	SegChangesReply
+	SegChangesIdReq
+	SegChangesIdReply
 	SegReg
 	SegRequest
 	SegReply
@@ -153,6 +157,14 @@ func (mt MessageType) String() string {
 		return "TRC"
 	case IfStateInfos:
 		return "IFStateInfos"
+	case SegChangesReq:
+		return "SegChangesReq"
+	case SegChangesReply:
+		return "SegChangesReply"
+	case SegChangesIdReq:
+		return "SegChangesIdReq"
+	case SegChangesIdReply:
+		return "SegChangesIdReply"
 	case SegReg:
 		return "SegReg"
 	case SegRequest:
@@ -183,6 +195,14 @@ type Messenger interface {
 		id uint64) (*path_mgmt.SegReply, error)
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
 	SendSegSync(ctx context.Context, msg *path_mgmt.SegSync, a net.Addr, id uint64) error
+	GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
+		a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error)
+	SendSegChangesIdReply(ctx context.Context,
+		msg *path_mgmt.SegChangesIdReply, a net.Addr, id uint64) error
+	GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
+		a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error)
+	SendSegChangesReply(ctx context.Context,
+		msg *path_mgmt.SegChangesReply, a net.Addr, id uint64) error
 	RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 		id uint64) (*cert_mgmt.ChainIssRep, error)
 	SendChainIssueReply(ctx context.Context, msg *cert_mgmt.ChainIssRep, a net.Addr,
