@@ -3,13 +3,8 @@
   "Overlay": "UDP/IPv4",
   "BorderRouters": {
     "br2-ff00_0_211-2": {
-      "InternalAddr": {
-        "Public": [
-          {
-            "Addr": "127.0.0.194",
-            "L4Port": 30091
-          }
-        ]
+      "InternalAddrs": {
+        "IPv4": {"Public": {"Addr": "127.0.0.194", "L4Port": 30091}}
       },
       "Interfaces": {
         "2321": {
@@ -93,13 +88,8 @@
   "Core": false,
   "MTU": 1472,
   "PathService": {
-    "ps2-ff00_0_211-1": {
-      "Public": [
-        {
-          "Addr": "127.0.0.200",
-          "L4Port": 30093
-        }
-      ]
-    }
+    "ps2-ff00_0_211-1": {"Addrs": {
+      "IPv4": {"Public": {"Addr": "127.0.0.200", "L4Port": 30093}}
+    }}
   }
 }

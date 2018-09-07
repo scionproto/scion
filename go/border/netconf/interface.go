@@ -51,9 +51,9 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	for _, ifid := range intfs {
 		ifinfo := infomap[ifid]
 		if n.LocAddr == nil {
-			n.LocAddr = ifinfo.InternalAddr
+			n.LocAddr = ifinfo.InternalAddrs
 		} else if assert.On {
-			assert.Must(n.LocAddr == ifinfo.InternalAddr, "Cannot have multiple local addresses")
+			assert.Must(n.LocAddr == ifinfo.InternalAddrs, "Cannot have multiple local addresses")
 		}
 		v, ok := n.IFs[ifid]
 		newIF := intfFromTopoIF(&ifinfo, ifid)

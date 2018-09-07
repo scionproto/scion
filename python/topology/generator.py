@@ -281,13 +281,9 @@ class ConfigGenerator(object):
         return certgen.generate()
 
     def _generate_topology(self):
-        if self.ipv6:
-            overlay = 'UDP/IPv6'
-        else:
-            overlay = 'UDP/IPv4'
         topo_gen = TopoGenerator(
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
-            self.default_mtu, self.gen_bind_addr, self.docker, overlay, self.cs, self.ps)
+            self.default_mtu, self.gen_bind_addr, self.docker, self.ipv6, self.cs, self.ps)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
@@ -613,7 +609,7 @@ class CA_Generator(object):
 
 class TopoGenerator(object):
     def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, overlay, cs, ps):
+                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
@@ -629,7 +625,12 @@ class TopoGenerator(object):
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
         self.ifid_map = {}
-        self.overlay = overlay
+        if ipv6:
+            self.overlay = "UDP/IPv6"
+            self.addr_type = "IPv6"
+        else:
+            self.overlay = "UDP/IPv4"
+            self.addr_type = "IPv4"
         self.cs = cs
         self.ps = ps
 
@@ -737,16 +738,20 @@ class TopoGenerator(object):
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             d = {
-                'Public': [{
-                    'Addr': self._reg_addr(topo_id, elem_id),
-                    'L4Port': random.randint(30050, 30100),
-                }]
+                'Addrs': {
+                    self.addr_type: {
+                        'Public': {
+                            'Addr': self._reg_addr(topo_id, elem_id),
+                            'L4Port': random.randint(30050, 30100),
+                        }
+                    }
+                }
             }
             if self.gen_bind_addr:
-                d['Bind'] = [{
+                d['Addrs'][self.addr_type]['Bind'] = {
                     'Addr': self._reg_bind_addr(topo_id, elem_id),
                     'L4Port': random.randint(30050, 30100),
-                }]
+                }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
     def _gen_br_entries(self, topo_id):
@@ -759,11 +764,13 @@ class TopoGenerator(object):
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
-                'InternalAddr': {
-                    'Public': [{
-                        'Addr': self._reg_addr(local, local_br),
-                        'L4Port': random.randint(30050, 30100),
-                    }]
+                'InternalAddrs': {
+                    self.addr_type: {
+                        'Public': {
+                            'Addr': self._reg_addr(local, local_br),
+                            'L4Port': random.randint(30050, 30100),
+                        }
+                    }
                 },
                 'Interfaces': {
                     l_ifid: self._gen_br_intf(remote, public_addr, remote_addr, attrs, remote_type)
@@ -1580,14 +1587,28 @@ def _json_default(o):
 
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
-    int_addr = br_ele['InternalAddr']['Public'][0]
-    return "[%s]:%s" % (int_addr['Addr'].ip, int_addr['L4Port'] + 1)
+    return _prom_addr(br_ele['InternalAddrs'])
 
 
 def _prom_addr_infra(infra_ele):
     """Get the prometheus address for an infrastructure element."""
-    int_addr = infra_ele["Public"][0]
-    return "[%s]:%s" % (int_addr["Addr"].ip, int_addr["L4Port"] + 1)
+    return _prom_addr(infra_ele['Addrs'])
+
+
+def _prom_addr(ele):
+    """Get the prometheus address for an element."""
+    addr = _get_pub(ele)
+    return "[%s]:%s" % (addr["Addr"].ip, addr["L4Port"] + 1)
+
+
+def _get_pub(topo_addr):
+    pub = topo_addr.get('IPv6')
+    if pub is not None:
+        return pub['Public']
+    pub = topo_addr.get('IPv4')
+    if pub is not None:
+        return pub['Public']
+    return None
 
 
 def main():

@@ -45,24 +45,32 @@ type RawTopo struct {
 	Overlay            string
 	MTU                int
 	Core               bool
-	BorderRouters      map[string]RawBRInfo   `json:",omitempty"`
-	ZookeeperService   map[int]RawAddrPort    `json:",omitempty"`
-	BeaconService      map[string]RawAddrInfo `json:",omitempty"`
-	CertificateService map[string]RawAddrInfo `json:",omitempty"`
-	PathService        map[string]RawAddrInfo `json:",omitempty"`
-	SibraService       map[string]RawAddrInfo `json:",omitempty"`
-	RainsService       map[string]RawAddrInfo `json:",omitempty"`
-	DiscoveryService   map[string]RawAddrInfo `json:",omitempty"`
+	BorderRouters      map[string]*RawBRInfo  `json:",omitempty"`
+	ZookeeperService   map[int]*RawAddrPort   `json:",omitempty"`
+	BeaconService      map[string]*RawSrvInfo `json:",omitempty"`
+	CertificateService map[string]*RawSrvInfo `json:",omitempty"`
+	PathService        map[string]*RawSrvInfo `json:",omitempty"`
+	SibraService       map[string]*RawSrvInfo `json:",omitempty"`
+	RainsService       map[string]*RawSrvInfo `json:",omitempty"`
+	DiscoveryService   map[string]*RawSrvInfo `json:",omitempty"`
+}
+
+type RawSrvInfo struct {
+	Addrs RawAddrMap
+}
+
+func (ras RawSrvInfo) String() string {
+	return fmt.Sprintf("Addr: %s", ras.Addrs)
 }
 
 type RawBRInfo struct {
-	InternalAddr *RawAddrInfo
-	Interfaces   map[common.IFIDType]RawBRIntf
+	InternalAddrs RawAddrMap
+	Interfaces    map[common.IFIDType]*RawBRIntf
 }
 
 func (b RawBRInfo) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Loc addr:\n  %s\nInterfaces:", b.InternalAddr))
+	s = append(s, fmt.Sprintf("Loc addrs:\n  %s\nInterfaces:", b.InternalAddrs))
 	for ifid, intf := range b.Interfaces {
 		s = append(s, fmt.Sprintf("%d: %+v", ifid, intf))
 	}
@@ -82,18 +90,16 @@ type RawBRIntf struct {
 
 // Convert a RawBRIntf struct (filled from JSON) to a TopoAddr (used by Go code)
 func (b RawBRIntf) localTopoAddr(o overlay.Type) (*TopoAddr, error) {
-	s := &RawAddrInfo{
-		Public: []RawAddrPortOverlay{
-			{RawAddrPort: RawAddrPort{Addr: b.Public.Addr, L4Port: b.Public.L4Port}},
-		},
+	ram := make(RawAddrMap)
+	rpbo := &RawPubBindOverlay{
+		Public: RawAddrPortOverlay{RawAddrPort: *b.Public},
+		Bind:   b.Bind,
 	}
 	if o.IsUDP() {
-		s.Public[0].OverlayPort = b.Public.L4Port
+		rpbo.Public.OverlayPort = b.Public.L4Port
 	}
-	if b.Bind != nil {
-		s.Bind = []RawAddrPort{{Addr: b.Bind.Addr, L4Port: b.Bind.L4Port}}
-	}
-	return s.ToTopoAddr(o)
+	ram[o.ToIP().String()] = rpbo
+	return ram.ToTopoAddr(o)
 }
 
 // make an OverlayAddr object from a BR interface Remote entry
@@ -111,22 +117,33 @@ func (b RawBRIntf) remoteAddr(o overlay.Type) (*overlay.OverlayAddr, error) {
 	return overlay.NewOverlayAddr(l3, l4)
 }
 
-type RawAddrInfo struct {
-	Public []RawAddrPortOverlay
-	Bind   []RawAddrPort `json:",omitempty"`
+type RawAddrMap map[string]*RawPubBindOverlay
+
+func (ram RawAddrMap) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
+	return topoAddrFromRAM(ram, ot)
 }
 
-func (s *RawAddrInfo) ToTopoAddr(ot overlay.Type) (t *TopoAddr, err error) {
-	return TopoAddrFromRAI(s, ot)
-}
-
-func (rai RawAddrInfo) String() string {
+func (ram RawAddrMap) String() string {
 	var s []string
-	s = append(s, fmt.Sprintf("Public: %s", rai.Public))
-	if len(rai.Bind) > 0 {
-		s = append(s, fmt.Sprintf("Bind: %s", rai.Bind))
+	for k, v := range ram {
+		s = append(s, fmt.Sprintf("%s: %s", k, v))
 	}
 	return strings.Join(s, "\n")
+}
+
+type RawPubBindOverlay struct {
+	Public RawAddrPortOverlay
+	Bind   *RawAddrPort `json:",omitempty"`
+}
+
+func (rpbo RawPubBindOverlay) String() string {
+	var s []string
+	s = append(s, fmt.Sprintf("Public: %s", rpbo.Public))
+	if rpbo.Bind != nil {
+		s = append(s, fmt.Sprintf("Bind: %s", rpbo.Bind))
+	}
+	return strings.Join(s, ", ")
+
 }
 
 type RawAddrPort struct {

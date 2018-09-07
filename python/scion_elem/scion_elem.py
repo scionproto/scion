@@ -201,8 +201,7 @@ class SCIONElement(object):
         self.unv_certs_lock = threading.RLock()
         self.cert_reqs = defaultdict(list)
         self.cert_reqs_lock = threading.Lock()
-        # TODO(jonghoonkwon): Fix me to setup sockets for multiple public addresses
-        host_addr, self._port = self.public[0]
+        host_addr, self._port = self.public
         self.addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
         if prom_export:
             self._export_metrics(prom_export)
@@ -223,9 +222,7 @@ class SCIONElement(object):
         svc = SERVICE_TO_SVC_A.get(self.SERVICE_TYPE)
         # Setup UDP socket
         if self.bind:
-            # TODO(jonghoonkwon): Fix me to setup socket for a proper bind address,
-            # if the element has more than one bind addresses
-            host_addr, b_port = self.bind[0]
+            host_addr, b_port = self.bind
             b_addr = SCIONAddr.from_values(self.topology.isd_as, host_addr)
             self._udp_sock = ReliableSocket(
                 reg=(self.addr, self._port, init, svc), bind_ip=(b_addr, b_port))
@@ -266,7 +263,7 @@ class SCIONElement(object):
 
     def get_border_addr(self, ifid):
         br = self.ifid2br[ifid]
-        br_addr, br_port = br.int_addrs.public[0]
+        br_addr, br_port = br.int_addrs.public
         return br_addr, br_port
 
     def handle_msg_meta(self, msg, meta):
@@ -1101,7 +1098,7 @@ class SCIONElement(object):
         # Generate fallback from local topology
         results = []
         for srv in service_map[qname]:
-            addr, port = srv.public[0]
+            addr, port = srv.public
             results.append((addr, port))
         # FIXME(kormat): replace with new discovery service when that's ready.
         if not results:

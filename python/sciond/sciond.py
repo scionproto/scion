@@ -114,7 +114,7 @@ class SCIONDaemon(SCIONElement):
         Initialize an instance of the class SCIONDaemon.
         """
         super().__init__("sciond", conf_dir, spki_cache_dir=spki_cache_dir,
-                         prom_export=prom_export, public=[(addr, port)])
+                         prom_export=prom_export, public=(addr, port))
         up_labels = {**self._labels, "type": "up"} if self._labels else None
         down_labels = {**self._labels, "type": "down"} if self._labels else None
         core_labels = {**self._labels, "type": "core"} if self._labels else None
@@ -311,7 +311,7 @@ class SCIONDaemon(SCIONElement):
             haddr, port = None, None
             if fwd_if:
                 br = self.ifid2br[fwd_if]
-                haddr, port = br.int_addrs.public[0]
+                haddr, port = br.int_addrs.public
             addrs = [haddr] if haddr else []
             first_hop = HostInfo.from_values(addrs, port)
             reply_entry = SCIONDPathReplyEntry.from_values(
@@ -349,7 +349,7 @@ class SCIONDaemon(SCIONElement):
         if_entries = []
         for if_id, br in self.ifid2br.items():
             if all_brs or if_id in if_list:
-                br_addr, br_port = br.int_addrs.public[0]
+                br_addr, br_port = br.int_addrs.public
                 info = HostInfo.from_values([br_addr], br_port)
                 reply_entry = SCIONDIFInfoReplyEntry.from_values(if_id, info)
                 if_entries.append(reply_entry)

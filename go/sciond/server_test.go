@@ -350,7 +350,8 @@ func MakeBRHostInfos(ot overlay.Type, brMap map[string]topology.BRInfo,
 		// One IFID is enough to find the unique internal address. Panic if no
 		// IFIDs exist.
 		ifid := brInfo.IFIDs[0]
-		hostInfos = append(hostInfos, servers.TopoAddrToHostInfo(ot, *ifInfoMap[ifid].InternalAddr))
+		hostInfos = append(hostInfos,
+			servers.TopoAddrToHostInfo(ot, *ifInfoMap[ifid].InternalAddrs))
 	}
 	return hostInfos
 }

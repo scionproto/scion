@@ -7,11 +7,9 @@
     "Core": false,
     "BorderRouters": {
         "br1-ff00:0:311-1": {
-            "InternalAddr": {
-                "Public": [
-                    {"Addr": "10.1.0.1", "L4Port": 30097},
-                    {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30097}
-                  ]
+            "InternalAddrs": {
+                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30097}},
+                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30097}}
             },
             "Interfaces": {
                 "1": {
@@ -52,39 +50,49 @@
       "2": {"Addr": "2001:db8:ffff::1", "L4Port": 2181}
     },
     "BeaconService": {
-        "bs1-ff00:0:311-1": {"Public": [{"Addr": "127.0.0.65", "L4Port": 30054}]},
-        "bs1-ff00:0:311-2": {"Public": [{"Addr": "2001:db8:f00:b43::65", "L4Port": 30054}]},
-        "bs1-ff00:0:311-3": {"Public": [
-            {"Addr": "2001:db8:f00:b43::123", "L4Port": 10054},
-            {"Addr": "127.0.0.123", "L4Port": 10054}
-        ]}
+        "bs1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.65", "L4Port": 30054}}}},
+        "bs1-ff00:0:311-2": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::65", "L4Port": 30054}}}},
+        "bs1-ff00:0:311-3": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::123", "L4Port": 10054}},
+            "IPv4": {"Public": {"Addr": "127.0.0.123", "L4Port": 10054}}}}
     },
     "CertificateService": {
-        "cs1-ff00:0:311-1": {
-            "Public": [{"Addr": "127.0.0.66", "L4Port": 30081}],
-            "Bind": [{"Addr": "127.0.0.67", "L4Port": 30081}]
+        "cs1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.66", "L4Port": 30081},
+                     "Bind": {"Addr": "127.0.0.67", "L4Port": 30081}}}
         },
-        "cs1-ff00:0:311-2": {"Public": [{"Addr": "127.0.0.67", "L4Port": 30073}]},
-        "cs1-ff00:0:311-3": {"Public": [{"Addr": "2001:db8:f00:b43::1", "L4Port": 23421}]},
-        "cs1-ff00:0:311-4": {
-            "Public": [{"Addr": "2001:db8:f00:b43::2", "L4Port": 23421}],
-            "Bind": [{"Addr": "2001:db8:1714::1", "L4Port": 13373}]
-        }
+        "cs1-ff00:0:311-2": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.67", "L4Port": 30073}}}},
+        "cs1-ff00:0:311-3": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::1", "L4Port": 23421}}}},
+        "cs1-ff00:0:311-4": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::2", "L4Port": 23421},
+                     "Bind": {"Addr": "2001:db8:1714::1", "L4Port": 13373}}}}
     },
     "PathService": {
-        "ps1-ff00:0:311-1": {"Public": [{"Addr": "127.0.0.73", "L4Port": 30091}]},
-        "ps1-ff00:0:311-2": {"Public": [{"Addr": "2001:db8:f00:b43::73", "L4Port": 30091}]}
+        "ps1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.73", "L4Port": 30091}}}},
+        "ps1-ff00:0:311-2": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::73", "L4Port": 30091}}}}
     },
     "SibraService": {
-        "sb1-ff00:0:311-1": {"Public": [{"Addr": "127.0.0.76", "L4Port": 30058}]},
-        "sb1-ff00:0:311-2": {"Public": [{"Addr": "2001:db8:f00:b43::76", "L4Port": 30058}]}
+        "sb1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.76", "L4Port": 30058}}}},
+        "sb1-ff00:0:311-2": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::76", "L4Port": 30058}}}}
     },
     "RainsService": {
-        "rs1-ff00:0:311-1": {"Public": [{"Addr": "127.0.0.78", "L4Port": 30098}]},
-        "rs1-ff00:0:311-2": {"Public": [{"Addr": "2001:db8:f00:b43::78", "L4Port": 30098}]}
+        "rs1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.78", "L4Port": 30098}}}},
+        "rs1-ff00:0:311-2": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::78", "L4Port": 30098}}}}
     },
     "DiscoveryService": {
-        "ds1-ff00:0:311-1": {"Public": [{"Addr": "127.0.0.99", "L4Port": 53535}]},
-        "ds1-ff00:0:311-2": {"Public": [{"Addr": "2001:db8:f00:b43::99", "L4Port": 53535}]}
+        "ds1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.99", "L4Port": 53535}}}},
+        "ds1-ff00:0:311-2": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::99", "L4Port": 53535}}}}
     }
 }

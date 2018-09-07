@@ -37,32 +37,35 @@ class Element(object):
     :ivar HostAddrBase addr: Host address of a server or border router.
     :ivar str name: element name or id
     """
-    def __init__(self, public=None, bind=None, name=None):
+    def __init__(self, addrs=None, name=None):
         """
-        :param dict public:
-            ((addr_type, address), port) of the element's public address.
-            (i.e. the address visible to other network elements).
-        :param dict bind:
-            ((addr_type, address), port) of the element's bind address, if any
-            (i.e. the address the element uses to identify itself to the local
-            operating system, if it differs from the public address due to NAT).
+        :param dict addrs:
+            contains the public and bind addresses. Only one public/bind addresses pair
+            is chosen from all the available addresses in the map.
         :param str name: element name or id
         """
+        public, bind = self._get_pub_bind(addrs)
         self.public = self._parse_addrs(public)
         self.bind = self._parse_addrs(bind)
         self.name = None
         if name is not None:
             self.name = str(name)
 
+    def _get_pub_bind(self, addrs):
+        if addrs is None:
+            return None, None
+        pub_bind = addrs.get('IPv6')
+        if pub_bind is not None:
+            return pub_bind['Public'], pub_bind.get('Bind')
+        pub_bind = addrs.get('IPv4')
+        if pub_bind is not None:
+            return pub_bind['Public'], pub_bind.get('Bind')
+        return None, None
+
     def _parse_addrs(self, value):
         if not value:
-            return []
-        addrs = []
-        if not isinstance(value, (list, tuple)):
-            value = [value]
-        for val in value:
-            addrs.append((haddr_parse_interface(val['Addr']), val['L4Port']))
-        return addrs
+            return None
+        return (haddr_parse_interface(value['Addr']), value['L4Port'])
 
 
 class ServerElement(Element):
@@ -72,7 +75,7 @@ class ServerElement(Element):
         :param dict server_dict: contains information about a particular server.
         :param str name: server element name or id
         """
-        super().__init__(server_dict['Public'], server_dict.get('Bind'), name)
+        super().__init__(server_dict['Addrs'], name)
 
 
 class InterfaceElement(Element):
@@ -100,7 +103,20 @@ class InterfaceElement(Element):
         self.overlay = interface_dict['Overlay']
         self.to_if_id = 0  # Filled in later by IFID packets
         self.remote = self._parse_addrs(interface_dict['Remote'])
-        super().__init__(interface_dict['Public'], interface_dict.get('Bind'), name)
+        super().__init__(self._new_addrs(interface_dict), name)
+
+    def _new_addrs(self, interface_dict):
+        addrs = {}
+        if 'IPv4' in self.overlay:
+            addrType = 'IPv4'
+        else:  # Assume IPv6
+            addrType = 'IPv6'
+        addrs[addrType] = {}
+        addrs[addrType]['Public'] = interface_dict['Public']
+        bind = interface_dict.get('Bind')
+        if bind is not None:
+            addrs[addrType]['Bind'] = bind
+        return addrs
 
     def __lt__(self, other):  # pragma: no cover
         return self.if_id < other.if_id
@@ -116,8 +132,7 @@ class RouterElement(object):
         :param str name: router element name or id
         """
         self.name = name
-        addrs = router_dict['InternalAddr']
-        self.int_addrs = Element(public=addrs["Public"], bind=addrs.get("Bind"))
+        self.int_addrs = Element(router_dict['InternalAddrs'])
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)
