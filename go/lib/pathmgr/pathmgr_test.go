@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,7 +72,8 @@ func TestQueryFilter(t *testing.T) {
 
 		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#0")
 		xtest.FailOnErr(t, err)
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#0", pktcls.NewCondPathPredicate(pp))
+		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#0",
+			pktcls.NewCondPathPredicate(pp))
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("filter", filter, ShouldNotBeNil)
 
@@ -88,7 +90,7 @@ func TestRegister(t *testing.T) {
 		g := graph.NewDefaultGraph()
 		// Remove link between 1-ff00:0:132 and 1-ff00:0:131 so that the initial path set is
 		// nil
-		g.RemoveLink(1019)
+		g.RemoveLink(graph.If_133_Dflt_132_Dflt)
 		pm := NewPR(t, g, 100, 100, 100)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -101,7 +103,8 @@ func TestRegister(t *testing.T) {
 			// Re-add the link between 1-ff00:0:132 and 1-ff00:0:131; the path manager will
 			// update APS behind the scenes (after a normal refire of one
 			// second), so it should contain the path after 4 seconds.
-			g.AddLink("1-ff00:0:133", 1019, "1-ff00:0:132", 1910, false)
+			g.AddLink("1-ff00:0:133", graph.If_133_Dflt_132_Dflt,
+				"1-ff00:0:132", graph.If_132_Dflt_133_Dflt, false)
 			<-time.After(200 * time.Millisecond)
 			SoMsg("aps", len(sp.Load().APS), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
