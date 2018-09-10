@@ -58,19 +58,19 @@ var (
 	as2_221   = xtest.MustParseIA("2-ff00:0:221")
 	as2_222   = xtest.MustParseIA("2-ff00:0:222")
 
-	seg130_132 = g.Beacon([]common.IFIDType{1316, 1619})
-	seg110_130 = g.Beacon([]common.IFIDType{1113})
-	seg120_210 = g.Beacon([]common.IFIDType{1222, 2221})
-	seg120_220 = g.Beacon([]common.IFIDType{1222})
+	seg130_132 = g.Beacon([]common.IFIDType{graph.If_130_X_131_X, graph.If_131_X_132_X})
+	seg110_130 = g.Beacon([]common.IFIDType{graph.If_110_X_130_X})
+	seg120_210 = g.Beacon([]common.IFIDType{graph.If_120_X_220_X, graph.If_220_X_210_X})
+	seg120_220 = g.Beacon([]common.IFIDType{graph.If_120_X_220_X})
 
-	seg210_211 = g.Beacon([]common.IFIDType{2123})
-	seg210_220 = g.Beacon([]common.IFIDType{2122})
-	seg210_222 = g.Beacon([]common.IFIDType{2123, 2326})
+	seg210_211 = g.Beacon([]common.IFIDType{graph.If_210_X_211_X})
+	seg210_220 = g.Beacon([]common.IFIDType{graph.If_210_X_220_X})
+	seg210_222 = g.Beacon([]common.IFIDType{graph.If_210_X_211_X, graph.If_211_X_222_X})
 
-	seg220_130 = g.Beacon([]common.IFIDType{2212, 1213})
-	seg220_210 = g.Beacon([]common.IFIDType{2221})
-	seg220_221 = g.Beacon([]common.IFIDType{2224})
-	seg220_222 = g.Beacon([]common.IFIDType{2224, 2426})
+	seg220_130 = g.Beacon([]common.IFIDType{graph.If_220_X_120_X, graph.If_120_X_130_X})
+	seg220_210 = g.Beacon([]common.IFIDType{graph.If_220_X_210_X})
+	seg220_221 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X})
+	seg220_222 = g.Beacon([]common.IFIDType{graph.If_220_X_221_X, graph.If_221_X_222_X})
 
 	topoFiles = map[addr.IA]string{
 		as1_132: "topology_as1_132.json",

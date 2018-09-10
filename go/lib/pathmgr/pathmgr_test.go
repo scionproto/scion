@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,7 +72,8 @@ func TestQueryFilter(t *testing.T) {
 
 		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#0")
 		xtest.FailOnErr(t, err)
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#0", pktcls.NewCondPathPredicate(pp))
+		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#0",
+			pktcls.NewCondPathPredicate(pp))
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("filter", filter, ShouldNotBeNil)
 
@@ -88,7 +90,7 @@ func TestRegister(t *testing.T) {
 		g := graph.NewDefaultGraph()
 		// Remove link between 1-ff00:0:132 and 1-ff00:0:131 so that the initial path set is
 		// nil
-		g.RemoveLink(1019)
+		g.RemoveLink(graph.If_133_X_132_X)
 		pm := NewPR(t, g, 100, 100, 100)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
@@ -101,7 +103,8 @@ func TestRegister(t *testing.T) {
 			// Re-add the link between 1-ff00:0:132 and 1-ff00:0:131; the path manager will
 			// update APS behind the scenes (after a normal refire of one
 			// second), so it should contain the path after 4 seconds.
-			g.AddLink("1-ff00:0:133", 1019, "1-ff00:0:132", 1910, false)
+			g.AddLink("1-ff00:0:133", graph.If_133_X_132_X,
+				"1-ff00:0:132", graph.If_132_X_133_X, false)
 			<-time.After(200 * time.Millisecond)
 			SoMsg("aps", len(sp.Load().APS), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
@@ -166,8 +169,9 @@ func TestRevoke(t *testing.T) {
 				"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 
 		Convey("Revoke a path that's not part of any path set", func() {
-			g.RemoveLink(1311)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"), 1311))
+			g.RemoveLink(graph.If_130_X_110_X)
+			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"),
+				graph.If_130_X_110_X))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
@@ -185,8 +189,9 @@ func TestRevoke(t *testing.T) {
 			// does not inform sciond. This means that the path manager
 			// reaches 0 paths after the revocation, thus forcing a requery
 			// to sciond behind the scenes, which gets back the same path.
-			g.RemoveLink(1019)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:133"), 1019))
+			g.RemoveLink(graph.If_133_X_132_X)
+			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:133"),
+				graph.If_133_X_132_X))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps)
 			apsCheckPaths("watch", sp.Load().APS,
@@ -201,8 +206,8 @@ func TestRevoke(t *testing.T) {
 			// The revoke below only invalidates the cache. Because watches
 			// do not requery sciond automatically (like the previous
 			// test), they will be left with 0 paths.
-			g.RemoveLink(1815)
-			pm.cache.revoke(uifidFromValues(watchSrc, 1815))
+			g.RemoveLink(graph.If_122_X_121_X)
+			pm.cache.revoke(uifidFromValues(watchSrc, graph.If_122_X_121_X))
 			apsCheckPaths("path", aps,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
