@@ -12,8 +12,8 @@
                 "IPv6": {"PublicOverlay": {"Addr": "2001:db8:a0b:12f0::1"}}
             },
             "CtrlAddr": {
-                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30098}}
-                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098}},
+                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30098}},
+                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098}}
             },
             "Interfaces": {
                 "1": {

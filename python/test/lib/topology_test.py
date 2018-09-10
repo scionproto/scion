@@ -93,7 +93,7 @@ class TestInterfaceElementInit(object):
             'MTU': 4242
         }
         if_id = 1
-        addrs = {'IPv4': {'Public': {'Addr': 'addr', 'OverlayPort': 6}}}
+        addrs = {'IPv4': {'PublicOverlay': {'Addr': 'addr', 'OverlayPort': 6}}}
         # Call
         inst = InterfaceElement(if_id, intf_dict, 'name')
         # Tests
@@ -105,7 +105,7 @@ class TestInterfaceElementInit(object):
         ntools.eq_(inst.mtu, 4242)
         ntools.eq_(inst.overlay, "UDP/IPv4")
         parse.assert_called_once_with("toaddr")
-        ntools.eq_(inst.remote, (parse.return_value, 5))
+        ntools.eq_(inst.remote[0], (parse.return_value, 5))
 
 
 class TestTopologyParseDict(object):

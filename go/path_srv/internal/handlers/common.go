@@ -113,12 +113,6 @@ func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,
 			// retry
 		}
 	}
-	return &snet.Addr{
-		IA:      dstIA,
-		Host:    addr.NewSVCUDPAppAddr(addr.SvcPS),
-		Path:    p,
-		NextHop: nextHop.InternalAddr.PublicOverlay(h.topology.Overlay),
-	}, nil
 }
 
 func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,

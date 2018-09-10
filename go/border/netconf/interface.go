@@ -59,9 +59,9 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 				"Cannot have multiple local data-plane addresses")
 		}
 		if n.CtrlAddr == nil {
-			n.CtrlAddr = ifinfo.CtrlAddr
+			n.CtrlAddr = ifinfo.CtrlAddrs
 		} else if assert.On {
-			assert.Must(n.CtrlAddr == ifinfo.CtrlAddr,
+			assert.Must(n.CtrlAddr == ifinfo.CtrlAddrs,
 				"Cannot have multiple local control-plane addresses")
 		}
 		v, ok := n.IFs[ifid]

@@ -45,9 +45,9 @@ func removeBRBind(brs map[string]*RawBRInfo) {
 		for i := range bri.Interfaces {
 			// The nil elements are of no interest to the public
 			bri.Interfaces[i].Overlay = ""
-			bri.Interfaces[i].Bind = nil
-			bri.Interfaces[i].Public = nil
-			bri.Interfaces[i].Remote = nil
+			bri.Interfaces[i].BindOverlay = nil
+			bri.Interfaces[i].PublicOverlay = nil
+			bri.Interfaces[i].RemoteOverlay = nil
 		}
 	}
 }
