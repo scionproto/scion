@@ -160,7 +160,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if err != nil {
 			return err
 		}
-		intAddr, err := TopoBRAddrFromRaw(rawBr.InternalAddr, t.Overlay)
+		intAddr, err := topoBRAddrFromRBRAM(rawBr.InternalAddrs, t.Overlay)
 		if err != nil {
 			return err
 		}
@@ -168,7 +168,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
-			ifinfo := IFInfo{BRName: name, InternalAddrs: intAddr, CtrlAddr: ctrlAddr}
+			ifinfo := IFInfo{BRName: name, InternalAddrs: intAddr, CtrlAddrs: ctrlAddr}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
@@ -272,21 +272,21 @@ type BRInfo struct {
 // applications should send traffic for the link to (InternalAddrs) and information about
 // the link itself and the remote side of it.
 type IFInfo struct {
-	BRName       string
-	CtrlAddr     *TopoAddr
-	Overlay      overlay.Type
-	InternalAddr *TopoBRAddr
-	Local        *TopoBRAddr
-	Remote       *overlay.OverlayAddr
-	RemoteIFID   common.IFIDType
-	Bandwidth    int
-	ISD_AS       addr.IA
-	LinkType     proto.LinkType
-	MTU          int
+	BRName        string
+	CtrlAddrs     *TopoAddr
+	Overlay       overlay.Type
+	InternalAddrs *TopoBRAddr
+	Local         *TopoBRAddr
+	Remote        *overlay.OverlayAddr
+	RemoteIFID    common.IFIDType
+	Bandwidth     int
+	ISD_AS        addr.IA
+	LinkType      proto.LinkType
+	MTU           int
 }
 
 func (i IFInfo) String() string {
 	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
-		"Remote:+%v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddr, i.CtrlAddr, i.Overlay,
+		"Remote:+%v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddrs, i.CtrlAddrs, i.Overlay,
 		i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
 }

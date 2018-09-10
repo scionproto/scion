@@ -117,13 +117,8 @@ class RouterAddrElement(object):
 
     def _parse_addrs(self, value):
         if not value:
-            return []
-        addrs = []
-        if not isinstance(value, (list, tuple)):
-            value = [value]
-        for val in value:
-            addrs.append((haddr_parse_interface(val['Addr']), val['OverlayPort']))
-        return addrs
+            return None
+        return (haddr_parse_interface(value['Addr']), value['OverlayPort'])
 
 
 class InterfaceElement(RouterAddrElement):

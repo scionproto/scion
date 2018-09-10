@@ -54,6 +54,6 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment,
 		IA:      dst,
 		Host:    addr.NewSVCUDPAppAddr(svc),
 		Path:    p,
-		NextHop: nextHop.InternalAddrs.OverlayAddr(topo.Overlay),
+		NextHop: nextHop.InternalAddrs.PublicOverlay(topo.Overlay),
 	}, nil
 }

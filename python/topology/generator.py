@@ -1603,7 +1603,7 @@ def _prom_addr_br(br_ele):
 def _prom_addr_infra(infra_ele):
     """Get the prometheus address for an infrastructure element."""
     pub = _get_pub(infra_ele['Addrs'])
-    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['Port'] + 1)
+    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['L4Port'] + 1)
 
 
 def _prom_addr(ele):

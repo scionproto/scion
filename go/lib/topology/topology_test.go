@@ -249,7 +249,7 @@ func Test_IFInfoMap(t *testing.T) {
 			IPv4:    mkOBv4("10.1.0.1", 0, ""),
 			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
-		CtrlAddr: &TopoAddr{
+		CtrlAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -270,7 +270,7 @@ func Test_IFInfoMap(t *testing.T) {
 			IPv4:    mkOBv4("10.1.0.1", 0, ""),
 			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
-		CtrlAddr: &TopoAddr{
+		CtrlAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -291,7 +291,7 @@ func Test_IFInfoMap(t *testing.T) {
 			IPv4:    mkOBv4("10.1.0.1", 0, ""),
 			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
-		CtrlAddr: &TopoAddr{
+		CtrlAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -324,7 +324,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			IPv4:    mkOBv4("10.1.0.1", 0, ""),
 			IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 0, ""),
 			Overlay: overlay.IPv46},
-		CtrlAddr: &TopoAddr{
+		CtrlAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.1", 30098, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::1", 30098, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -345,7 +345,7 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 			IPv4:    mkOBv4("10.1.0.2", 0, ""),
 			IPv6:    mkOBv6("2001:db8:a0b:12f0::2", 0, ""),
 			Overlay: overlay.IPv46},
-		CtrlAddr: &TopoAddr{
+		CtrlAddrs: &TopoAddr{
 			IPv4:    mkPBOv4("10.1.0.2", 3098, "", 0, 0),
 			IPv6:    mkPBOv6("2001:db8:a0b:12f0::2", 3098, "", 0, 0),
 			Overlay: overlay.IPv46},
@@ -365,23 +365,6 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 		Convey(fmt.Sprintf("Checking IFInfoMap entry for Interface %d", id), t, func() {
 			c := testTopo
 			So(c.IFInfoMap[id], ShouldResemble, ifm[id])
-		})
-	}
-}
-
-func Test_IFInfo_InternalAddr(t *testing.T) {
-	ifm := make(map[common.IFIDType]*TopoBRAddr)
-	ifm[101] = &TopoBRAddr{
-		IPv4:    mkOBv4("192.0.128.1", 30097, "10.0.0.1"),
-		IPv6:    mkOBv6("2001:db8:a0b:12f0::1", 30098, "fe80::"),
-		Overlay: overlay.UDPIPv46,
-	}
-	fn := "testdata/udpbr.json"
-	loadTopo(fn, t)
-	for _, id := range []common.IFIDType{101} {
-		Convey(fmt.Sprintf("Checking IFInfoMap entry for Interface %d", id), t, func() {
-			c := testTopo
-			So(c.IFInfoMap[id].InternalAddrs, ShouldResemble, ifm[id])
 		})
 	}
 }
