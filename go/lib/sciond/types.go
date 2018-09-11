@@ -171,7 +171,13 @@ func HostInfoFromTopoAddr(topoAddr topology.TopoAddr) HostInfo {
 	ipv4, port4 := topoAddrToIPAndPort(overlay.IPv4, topoAddr)
 	ipv6, port6 := topoAddrToIPAndPort(overlay.IPv6, topoAddr)
 	if port4 != 0 && port6 != 0 && port4 != port6 {
+		// NOTE: https://github.com/scionproto/scion/issues/1842 will change
+		// the behavior of this.
 		panic(fmt.Sprintf("port mismatch %v %v", port4, port6))
+	}
+	port := port4
+	if port == 0 {
+		port = port6
 	}
 	// XXX This assumes that Ipv4 and IPv6 use the same port!
 	return HostInfo{
@@ -182,7 +188,7 @@ func HostInfoFromTopoAddr(topoAddr topology.TopoAddr) HostInfo {
 			Ipv4: ipv4,
 			Ipv6: ipv6,
 		},
-		Port: port4,
+		Port: port,
 	}
 }
 

@@ -119,10 +119,6 @@ func realMain() int {
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
 			Fetcher: fetcher.NewFetcher(
-				// FIXME(scrye): This doesn't allow for topology updates. When
-				// reloading support is implemented, fresh topology information
-				// should be loaded from file.
-				config.General.Topology,
 				msger,
 				pathDB,
 				trustStore,

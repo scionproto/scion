@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package itopo implements convenience functions for topology-related operations.
+//
+// Additionally, it maintains a pointer to the current configuration (once one
+// is set). The package level topology setters and getters can be safely called
+// from multiple goroutines.
 package itopo
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -25,8 +29,12 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
+const (
+	ErrAddressNotFound = "Address not found"
+)
+
 var (
-	topologyMtx     sync.Mutex
+	topologyMtx     sync.RWMutex
 	currentTopology Topology = nil
 )
 
@@ -34,10 +42,10 @@ type Topology interface {
 	IA() addr.IA
 	MTU() uint16
 	Core() bool
-	GetAnyAppAddr(svc proto.ServiceType) *addr.AppAddr
-	GetAnyTopoAddr(svc proto.ServiceType) *topology.TopoAddr
-	GetTopoAddrById(svc proto.ServiceType, id string) *topology.TopoAddr
-	GetAllTopoAddrs(svc proto.ServiceType) []topology.TopoAddr
+	GetAnyAppAddr(svc proto.ServiceType) (*addr.AppAddr, *overlay.OverlayAddr, error)
+	GetAnyTopoAddr(svc proto.ServiceType) (*topology.TopoAddr, error)
+	GetTopoAddrById(svc proto.ServiceType, id string) (*topology.TopoAddr, error)
+	GetAllTopoAddrs(svc proto.ServiceType) ([]topology.TopoAddr, error)
 	GetBROverlayAddrByIfid(ifid common.IFIDType) *overlay.OverlayAddr
 	GetBRTopoAddrByIfid(ifid common.IFIDType) *topology.TopoAddr
 	GetAllBRTopoAddrs() map[common.IFIDType]*topology.TopoAddr
@@ -60,9 +68,9 @@ func SetCurrentTopology(topo Topology) {
 // GetCurrentTopology atomically returns a pointer to the package-wide
 // default topology.
 func GetCurrentTopology() Topology {
-	topologyMtx.Lock()
+	topologyMtx.RLock()
 	t := currentTopology
-	topologyMtx.Unlock()
+	topologyMtx.RUnlock()
 	return t
 }
 
@@ -86,54 +94,68 @@ func (topo *topologyS) Core() bool {
 	return topo.Topo.Core
 }
 
-func (topo *topologyS) GetAnyAppAddr(svc proto.ServiceType) *addr.AppAddr {
-	svcInfo := topo.getSvcInfo(svc)
-	if svcInfo == nil {
-		return nil
+func (topo *topologyS) GetAnyAppAddr(svc proto.ServiceType) (*addr.AppAddr, *overlay.OverlayAddr, error) {
+	svcInfo, err := topo.getSvcInfo(svc)
+	if err != nil {
+		return nil, nil, err
 	}
-	return svcInfo.getAnyAppAddr()
+	topoAddr := svcInfo.getAnyTopoAddr()
+	if topoAddr == nil {
+		return nil, nil, common.NewBasicError(ErrAddressNotFound, nil)
+	}
+	return topoAddr.PublicAddr(topo.Overlay), topoAddr.OverlayAddr(topo.Overlay), nil
 }
 
-func (topo *topologyS) GetAnyTopoAddr(svc proto.ServiceType) *topology.TopoAddr {
-	svcInfo := topo.getSvcInfo(svc)
-	if svcInfo == nil {
-		return nil
+func (topo *topologyS) GetAnyTopoAddr(svc proto.ServiceType) (*topology.TopoAddr, error) {
+	svcInfo, err := topo.getSvcInfo(svc)
+	if err != nil {
+		return nil, err
 	}
-	return svcInfo.getAnyTopoAddr()
+	topoAddr := svcInfo.getAnyTopoAddr()
+	if topoAddr == nil {
+		return nil, common.NewBasicError(ErrAddressNotFound, nil)
+	}
+	return topoAddr, nil
 }
 
-func (topo *topologyS) GetTopoAddrById(svc proto.ServiceType, id string) *topology.TopoAddr {
-	svcInfo := topo.getSvcInfo(svc)
-	if svcInfo == nil {
-		return nil
+func (topo *topologyS) GetTopoAddrById(svc proto.ServiceType, id string) (*topology.TopoAddr, error) {
+	svcInfo, err := topo.getSvcInfo(svc)
+	if err != nil {
+		return nil, err
 	}
-	return svcInfo.getTopoAddrById(id)
+	topoAddr := svcInfo.getTopoAddrById(id)
+	if topoAddr == nil {
+		return nil, common.NewBasicError(ErrAddressNotFound, nil)
+	}
+	return topoAddr, nil
 }
 
-func (topo *topologyS) GetAllTopoAddrs(svc proto.ServiceType) []topology.TopoAddr {
-	svcInfo := topo.getSvcInfo(svc)
-	if svcInfo == nil {
-		return nil
+func (topo *topologyS) GetAllTopoAddrs(svc proto.ServiceType) ([]topology.TopoAddr, error) {
+	svcInfo, err := topo.getSvcInfo(svc)
+	if err != nil {
+		return nil, err
 	}
-	return svcInfo.getAllTopoAddrs()
+	topoAddrs := svcInfo.getAllTopoAddrs()
+	if topoAddrs == nil {
+		return nil, common.NewBasicError(ErrAddressNotFound, nil)
+	}
+	return topoAddrs, nil
 }
 
-func (topo *topologyS) getSvcInfo(svc proto.ServiceType) *svcInfo {
+func (topo *topologyS) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	switch svc {
 	case proto.ServiceType_unset:
-		// FIXME(lukedirtwalker): inform client about this:
-		// see https://github.com/scionproto/scion/issues/1673
-		return nil
+		return nil, common.NewBasicError("Service type unset", nil)
 	case proto.ServiceType_bs:
-		return &svcInfo{overlay: topo.Overlay, names: topo.BSNames, idTopoAddrMap: topo.BS}
+		return &svcInfo{overlay: topo.Overlay, names: topo.BSNames, idTopoAddrMap: topo.BS}, nil
 	case proto.ServiceType_ps:
-		return &svcInfo{overlay: topo.Overlay, names: topo.PSNames, idTopoAddrMap: topo.PS}
+		return &svcInfo{overlay: topo.Overlay, names: topo.PSNames, idTopoAddrMap: topo.PS}, nil
 	case proto.ServiceType_cs:
-		return &svcInfo{overlay: topo.Overlay, names: topo.CSNames, idTopoAddrMap: topo.CS}
+		return &svcInfo{overlay: topo.Overlay, names: topo.CSNames, idTopoAddrMap: topo.CS}, nil
 	case proto.ServiceType_sb:
-		return &svcInfo{overlay: topo.Overlay, names: topo.SBNames, idTopoAddrMap: topo.SB}
+		return &svcInfo{overlay: topo.Overlay, names: topo.SBNames, idTopoAddrMap: topo.SB}, nil
 	default:
-		panic(fmt.Sprintf("unknown svc type %v", svc))
+		return nil, common.NewBasicError("Unknown service type", nil, "type", svc)
 	}
 }
 
@@ -165,14 +187,6 @@ type svcInfo struct {
 	overlay       overlay.Type
 	names         topology.ServiceNames
 	idTopoAddrMap topology.IDAddrMap
-}
-
-func (svc *svcInfo) getAnyAppAddr() *addr.AppAddr {
-	topoAddr := svc.getAnyTopoAddr()
-	if topoAddr == nil {
-		return nil
-	}
-	return topoAddr.PublicAddr(svc.overlay)
 }
 
 func (svc *svcInfo) getAnyTopoAddr() *topology.TopoAddr {

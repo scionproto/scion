@@ -39,7 +39,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
@@ -53,7 +52,6 @@ const (
 var requestID messenger.Counter
 
 type Fetcher struct {
-	topology        *topology.Topo
 	messenger       infra.Messenger
 	pathDB          pathdb.PathDB
 	trustStore      infra.TrustStore
@@ -62,12 +60,11 @@ type Fetcher struct {
 	logger          log.Logger
 }
 
-func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB pathdb.PathDB,
+func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB,
 	trustStore infra.TrustStore, revCache revcache.RevCache, cfg sdconfig.Config,
 	logger log.Logger) *Fetcher {
 
 	return &Fetcher{
-		topology:        topo,
 		messenger:       messenger,
 		pathDB:          pathDB,
 		trustStore:      trustStore,
@@ -113,11 +110,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	}
 
 	// Commit to a path server, and use it for path and crypto queries
-	psAppAddr := f.topology.GetAnyAppAddr(proto.ServiceType_ps)
-	if psAppAddr == nil {
-		return nil, common.NewBasicError("PS not found in topology", nil)
+	psAddr, psOverlayAddr, err := f.topology.GetAnyAppAddr(proto.ServiceType_ps)
+	if err != nil {
+		return nil, common.NewBasicError("PS not found in topology", err)
 	}
-	ps := &snet.Addr{IA: f.topology.IA(), Host: psAppAddr}
+	ps := &snet.Addr{IA: f.topology.IA(), Host: psAddr, NextHop: psOverlayAddr}
 
 	// Check destination
 	if req.Dst.IA().I == 0 {
