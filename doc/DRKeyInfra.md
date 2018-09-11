@@ -17,6 +17,7 @@ DRKey is used for:
 - SCMP
 - SIBRA
 - Security Extension
+- PISKES
 - OPT
 
 ## Notation
@@ -36,6 +37,7 @@ DRKey is used for:
     SV_A                  AS A's local secret value
     K_{A→B}               symmetric key between AS A and AS B
     K_{A:H_A→B:H_B}^{p}   symmetric key between host H_A in AS A and host H_B in AS B for protocol 'p'
+    DS_{A→B}^{p}          delegation secret between AS A and AS B for protocol 'p'
 
 ## Design
 
@@ -54,7 +56,7 @@ symmetric key.
                                 |
                          +------+-----....
                          |
-                     K_{A->B}                               (1st level)
+                      K_{A→B}                               (1st level)
                          |
         +----------------+-------------------+---...
         |                |                   |
@@ -153,7 +155,7 @@ secret value SV\_A. SV\_A is chosen according to the epoch identified by
 Once the requesting certificate server CS\_B has received the key, it shares it
 among other local certificate servers to ensure a consistent view. Each
 certificate server can now respond to queries by entities within the same AS
-requesting second-level keys derived from K_{A->B}.
+requesting second-level keys derived from K_{A→B}.
 
 The first-level key is accompanied by `epoch_begin` and `epoch_end` that denote
 the begin and end of the validity period of the corresponding key. These values
@@ -197,15 +199,64 @@ AS. The following second-level requests exist:
 
     1. AS → AS:
     Request: { 0, req.ID, prot, A, B, ⊥, ⊥, ⊥ }
-    Key Derivation: K_{A→B}^prot = PRF_{A→B}(“prot”)
 
     2. AS → end host
     Request: { 1, req.ID, prot, A, B, ⊥, H_B, ⊥ }
-    Key Derivation: K_{A→B:H_B}^prot = PRF_{A→B} (“prot” | H_B )
 
     3. end host → end host:
     Request: { 2, req.ID, prot, A, B, H_A , H_B, ⊥ }
-    Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{A→B} (“prot” | H_A | H_B )
+
+### Second-level Key Derivation
+
+The key derivation for second-level keys can be defined by each protocol. By
+default, the DRKey infrastructure offers two key derivation procedures. For
+these, we distinguish between protocol that perform key derivations only on
+trusted AS infrastructure (e.g., SCMP), and protocols can profit from "outsourcing"
+key derivation to non-AS infrastructure entities (e.g., PISKES). In the former
+case, key derivation can be performed as follows:
+
+    1. AS → AS:
+    Key Derivation: K_{A→B}^prot = PRF_{K_{A→B}}( “prot” )
+
+    2. AS → end host
+    Key Derivation: K_{A→B:H_B}^prot = PRF_{K_{A→B}} ( “prot” | H_B )
+
+    3. end host → end host:
+    Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{K_{A→B}} ( “prot” | H_A | H_B )
+
+In the latter case, where key derivation should be performed by non-AS entities,
+we introduce an intermediate step:
+
+    SV_A
+     |
+    K_{A→B}
+     |
+    DS_{A→B}^{prot}
+     |
+    K_{A:H_A→B:H_B}^{prot}
+
+The delegation secret `DS_{A→B}^{prot}` can be shared with services to enable
+them to locally derive second-level keys in a single derivation step. On the
+client-side, the CS is required to perform an additional derivation step to
+get a second-level key. The secret of the intermediate step is derived as
+follows:
+
+    DS_{A→B}^{prot} = PRF_{K_{A→B}} ( “prot” )
+
+Consequently, the second-level key derivation is adapted:
+
+    1. AS → AS:
+    Key Derivation: K_{A→B}^prot =  DS_{A→B}^{prot} (no derivation required)
+
+    2. AS → end host
+    Key Derivation: K_{A→B:H_B}^prot = PRF_{DS_{A→B}^{prot}} ( H_B )
+
+    3. end host → end host:
+    Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_DS_{A→B}^{prot}} ( H_A | H_B )
+
+Other protocols could also introduce other procedures to derive second-level
+keys. However, the CSes of both participating ASes must be upgraded to support
+the additional derivation mechanism.
 
 ### Key Rollover
 
@@ -269,11 +320,11 @@ Data input:
 
     DstIA       uint64
 
-#### 2nd-level
+#### 2nd-level (default)
 
 Key input:
 
-    K_{A->B}    []byte
+    K_{A→B}    []byte
 
 Data input:
 
@@ -300,6 +351,29 @@ Data input:
 
 The input size of the PRF depends on the address type that is used to
 address end hosts.
+
+#### 2nd-level (with intermediate step)
+
+Key input:
+
+    DS_{A→B}^{p} []byte
+
+Data input:
+
+    1. AS → AS:
+    KeyType     uint8
+
+    2. AS → end host:
+    KeyType     uint8
+    DstHostLen  uint8
+    DstHost     []byte
+
+    3. end host → end host:
+    KeyType     uint8
+    SrcHostLen  uint8
+    DstHostLen  uint8
+    SrcHost     []byte
+    DstHost     []byte
 
 ### First Level Key Exchange
 
