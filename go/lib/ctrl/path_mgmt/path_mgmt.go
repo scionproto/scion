@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,14 +25,18 @@ import (
 
 // union represents the contents of the unnamed capnp union.
 type union struct {
-	Which        proto.PathMgmt_Which
-	SegReq       *SegReq
-	SegReply     *SegReply
-	SegReg       *SegReg
-	SegSync      *SegSync
-	SRevInfo     *SignedRevInfo
-	IFStateReq   *IFStateReq   `capnp:"ifStateReq"`
-	IFStateInfos *IFStateInfos `capnp:"ifStateInfos"`
+	Which             proto.PathMgmt_Which
+	SegReq            *SegReq
+	SegReply          *SegReply
+	SegReg            *SegReg
+	SegSync           *SegSync
+	SRevInfo          *SignedRevInfo
+	IFStateReq        *IFStateReq   `capnp:"ifStateReq"`
+	IFStateInfos      *IFStateInfos `capnp:"ifStateInfos"`
+	SegChangesIdReq   *SegChangesIdReq
+	SegChangesIdReply *SegChangesIdReply
+	SegChangesReq     *SegChangesReq
+	SegChangesReply   *SegChangesReply
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -57,6 +62,18 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *IFStateInfos:
 		u.Which = proto.PathMgmt_Which_ifStateInfos
 		u.IFStateInfos = p
+	case *SegChangesIdReq:
+		u.Which = proto.PathMgmt_Which_segChangesIdReq
+		u.SegChangesIdReq = p
+	case *SegChangesIdReply:
+		u.Which = proto.PathMgmt_Which_segChangesIdReply
+		u.SegChangesIdReply = p
+	case *SegChangesReq:
+		u.Which = proto.PathMgmt_Which_segChangesReq
+		u.SegChangesReq = p
+	case *SegChangesReply:
+		u.Which = proto.PathMgmt_Which_segChangesReply
+		u.SegChangesReply = p
 	default:
 		return common.NewBasicError("Unsupported path mgmt union type (set)", nil,
 			"type", common.TypeOf(c))
@@ -80,6 +97,14 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.IFStateReq, nil
 	case proto.PathMgmt_Which_ifStateInfos:
 		return u.IFStateInfos, nil
+	case proto.PathMgmt_Which_segChangesIdReq:
+		return u.SegChangesIdReq, nil
+	case proto.PathMgmt_Which_segChangesIdReply:
+		return u.SegChangesIdReply, nil
+	case proto.PathMgmt_Which_segChangesReq:
+		return u.SegChangesReq, nil
+	case proto.PathMgmt_Which_segChangesReply:
+		return u.SegChangesReply, nil
 	}
 	return nil, common.NewBasicError("Unsupported path mgmt union type (get)", nil, "type", u.Which)
 }

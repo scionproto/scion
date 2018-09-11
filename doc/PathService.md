@@ -20,7 +20,7 @@ Message Types:
 
 ```go
 type SegChangesIDReq struct {
-  LastCheck uint64
+  LastCheck uint32
 }
 
 type SegIDs struct {
