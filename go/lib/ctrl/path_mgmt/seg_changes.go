@@ -35,12 +35,12 @@ func (s *SegChangesIdReq) String() string {
 	return fmt.Sprintf("LastCheck: %d", s.LastCheck)
 }
 
-var _ proto.Cerealizable = (*SegChangesIdReply)(nil)
-
 type SegIds struct {
 	SegId  common.RawBytes
 	FullId common.RawBytes
 }
+
+var _ proto.Cerealizable = (*SegChangesIdReply)(nil)
 
 type SegChangesIdReply struct {
 	Ids []*SegIds

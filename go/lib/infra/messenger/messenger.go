@@ -290,8 +290,8 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 			"debug_id", debug_id)
 	}
 	if err := reply.ParseRaw(); err != nil {
-		logger.Info("[Messneger] Reply parse error")
-		return nil, err
+		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
+			"debug_id", debug_id)
 	}
 	logger.Debug("[Messenger] Received reply")
 	return reply, nil
@@ -389,6 +389,10 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	if !ok {
 		err := newTypeAssertErr("*path_mgmt.SegChangesReply", replyMsg)
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
+			"debug_id", debug_id)
+	}
+	if err := reply.ParseRaw(); err != nil {
+		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
 			"debug_id", debug_id)
 	}
 	logger.Debug("[Messenger] Received reply")
