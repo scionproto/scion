@@ -192,7 +192,7 @@ func TestIFInfo(t *testing.T) {
 		Convey(tc.Name, t, func() {
 			reply, err := conn.IFInfo(tc.IFIDs)
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("reply", reply, ShouldResemble, tc.Expected)
+			SoMsg("reply", xtest.ContainerEq(reply, tc.Expected), ShouldBeTrue)
 		})
 	}
 }
