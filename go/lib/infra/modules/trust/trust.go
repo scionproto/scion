@@ -570,12 +570,12 @@ func (store *Store) isLocal(address net.Addr) error {
 // destination AS.
 func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 	topo := itopo.GetCurrentTopology()
-	if store.config.IsCS == false {
-		csAddr := topo.GetAnyAppAddr(proto.ServiceType_cs)
-		if csAddr == nil {
-			return nil, common.NewBasicError("Need CS, but none found", nil)
+	if !store.config.IsCS {
+		csAddr, csOverlayAddr, err := topo.GetAnyAppAddr(proto.ServiceType_cs)
+		if err != nil {
+			return nil, common.NewBasicError("Need CS, but none found", err)
 		}
-		return &snet.Addr{IA: store.ia, Host: csAddr}, nil
+		return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 	}
 	if destination.A == 0 {
 		pathSet := snet.DefNetwork.PathResolver().Query(store.ia, addr.IA{I: destination.I})
