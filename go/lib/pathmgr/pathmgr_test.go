@@ -169,8 +169,9 @@ func TestRevoke(t *testing.T) {
 				"1-ff00:0:120#1215 1-ff00:0:120#1222 2-ff00:0:220#2212]")
 
 		Convey("Revoke a path that's not part of any path set", func() {
-			g.RemoveLink(1311)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"), 1311))
+			g.RemoveLink(graph.If_130_Dflt_110_Dflt)
+			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"),
+				graph.If_130_Dflt_110_Dflt))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
@@ -188,8 +189,9 @@ func TestRevoke(t *testing.T) {
 			// does not inform sciond. This means that the path manager
 			// reaches 0 paths after the revocation, thus forcing a requery
 			// to sciond behind the scenes, which gets back the same path.
-			g.RemoveLink(1019)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:133"), 1019))
+			g.RemoveLink(graph.If_133_Dflt_132_Dflt)
+			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:133"),
+				graph.If_133_Dflt_132_Dflt))
 			aps := pm.Query(querySrc, queryDst)
 			apsCheckPaths("path", aps)
 			apsCheckPaths("watch", sp.Load().APS,
@@ -204,8 +206,8 @@ func TestRevoke(t *testing.T) {
 			// The revoke below only invalidates the cache. Because watches
 			// do not requery sciond automatically (like the previous
 			// test), they will be left with 0 paths.
-			g.RemoveLink(1815)
-			pm.cache.revoke(uifidFromValues(watchSrc, 1815))
+			g.RemoveLink(graph.If_122_Dflt_121_Dflt)
+			pm.cache.revoke(uifidFromValues(watchSrc, graph.If_122_Dflt_121_Dflt))
 			apsCheckPaths("path", aps,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
