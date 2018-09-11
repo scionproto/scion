@@ -106,7 +106,11 @@ func realMain() int {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	topoAddress := topo.GetTopoAddrById(proto.ServiceType_ps, config.General.ID)
+	topoAddress, err := topo.GetTopoAddrById(proto.ServiceType_ps, config.General.ID)
+	if err != nil {
+		log.Crit("Unable to extract topo address", "err", err)
+		return 1
+	}
 	publicAddr := env.GetPublicSnetAddress(topo.IA(), topoAddress)
 	bindAddr := env.GetBindSnetAddress(topo.IA(), topoAddress)
 	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, bindAddr, addr.SvcPS)

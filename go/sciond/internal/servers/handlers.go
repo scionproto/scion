@@ -250,7 +250,13 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 
 func makeHostInfos(topo itopo.Topology, t proto.ServiceType) []sciond.HostInfo {
 	var hostInfos []sciond.HostInfo
-	for _, a := range topo.GetAllTopoAddrs(t) {
+	addresses, err := topo.GetAllTopoAddrs(t)
+	if err != nil {
+		// FIXME(lukedirtwalker): inform client about this:
+		// see https://github.com/scionproto/scion/issues/1673
+		return hostInfos
+	}
+	for _, a := range addresses {
 		hostInfos = append(hostInfos, sciond.HostInfoFromTopoAddr(a))
 	}
 	return hostInfos

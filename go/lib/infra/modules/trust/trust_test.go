@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo/mock_itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
@@ -747,10 +748,8 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	t.Helper()
 	db, err := trustdb.New(":memory:")
 	xtest.FailOnErr(t, err)
-	ctrl := gomock.NewController(t)
-	// defer ctrl.Finish()
 	mockTopology := mock_itopo.NewMockTopology(ctrl)
-	mockTopology.EXPECT().GetAnyAppAddr(gomock.Any()).Return(&addr.AppAddr{}).AnyTimes()
+	mockTopology.EXPECT().GetAnyAppAddr(gomock.Any()).Return(&addr.AppAddr{}, nil, nil).AnyTimes()
 	itopo.SetCurrentTopology(mockTopology)
 	// FIXME(scrye): to correctly test this, the Config should specify that
 	// snet is used to determine an AS in the remote core. However, for now we
