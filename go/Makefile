@@ -14,11 +14,12 @@ LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
 LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go' -a '!' -ipath '*/mock_*/*')
 GOTAGS = assert
-MOCK_SRC_IN = lib/infra/common.go \
-	      lib/pathdb/pathdb.go \
-	      lib/snet/snetproxy/interface.go \
-	      lib/snet/snetproxy/reconnecter.go \
-	      lib/snet/snetproxy/io.go
+MOCK_SRC_IN =\
+    lib/infra/common.go \
+    lib/pathdb/pathdb.go \
+    lib/snet/snetproxy/interface.go \
+    lib/snet/snetproxy/reconnecter.go \
+    lib/snet/snetproxy/io.go
 MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))
 # This uses the format <stdlib package>/<interface>:
 MOCK_STD_IN = net/Addr
@@ -52,7 +53,7 @@ lint:
 	go vet ${LOCAL_PKGS}
 
 
-deps_gen: deps proto mocks
+deps_gen: deps proto
 
 deps: vendor/.deps.stamp ../proto/go.capnp mocks
 	@if [ -n "$$(govendor list -no-status +outside | grep -v '^context$$')" ]; then \
