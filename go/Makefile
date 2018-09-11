@@ -1,18 +1,32 @@
-.PHONY: all clean test coverage lint deps_gen deps depspurge proto mocks bin libs hsr
+.PHONY: all clean test coverage lint deps_gen deps depspurge proto mocks mocks_clean bin libs hsr
+
+## Functions to simplify rules.
+# Get parent directory of $(1), stripping trailing /
+parent = $(patsubst %/,%,$(dir $(1)))
+# Convert mock src input to mock src output.
+mock_src_in_to_out = $(dir $(1))mock_$(notdir $(call parent,$(1)))/$(notdir $(1))
+# Convert mock std input to mock std output
+mock_std_in_to_out = lib/mocks/mock_$(dir $(1))$(shell echo $(notdir $(1)) | tr 'A-Z' 'a-z').go
 
 SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
-LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go' -a '!' -iname 'mock_*.go')
+LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go' -a '!' -ipath '*/mock_*/*')
 GOTAGS = assert
-MOCK_SRC_IN = lib/infra/common.go lib/pathdb/pathdb.go lib/snet/snetproxy/interface.go lib/snet/snetproxy/reconnecter.go lib/snet/snetproxy/io.go
-MOCK_SRC_OUT = $(shell for i in $(MOCK_SRC_IN); do fn=$$(basename "$$i"); dn=$$(dirname "$$i"); pn=$$(basename "$$dn"); echo "$$dn/mock_$$pn/mock_$$fn"; done)
-MOCK_SRC_DIRS = $(shell for i in $(MOCK_SRC_IN); do dn=$$(dirname "$$i"); pn=$$(basename "$$dn"); echo "$$dn/mock_$$pn"; done | sort -u)
+MOCK_SRC_IN = lib/infra/common.go \
+	      lib/pathdb/pathdb.go \
+	      lib/snet/snetproxy/interface.go \
+	      lib/snet/snetproxy/reconnecter.go \
+	      lib/snet/snetproxy/io.go
+MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))
+# This uses the format <stdlib package>/<interface>:
+MOCK_STD_IN = net/Addr
+MOCK_STD_OUT = $(foreach in,$(MOCK_STD_IN),$(call mock_std_in_to_out,$(in)))
 
 all: deps_gen bin libs
 
-clean:
+clean: mocks_clean
 	rm -f gocover.html vendor/.deps.stamp
 	GOBIN=${LOCAL_GOBIN} go clean ${LOCAL_PKGS}
 	go clean -i ./vendor/...
@@ -69,13 +83,27 @@ depspurge:
 proto: deps
 	$(MAKE) -C proto
 
-mocks: $(MOCK_SRC_DIRS) $(MOCK_SRC_OUT)
+mocks: vendor/.deps.stamp $(MOCK_SRC_OUT) $(MOCK_STD_OUT)
 
-$(MOCK_SRC_DIRS):
-	@mkdir $@
+mocks_clean:
+	rm -f $(MOCK_SRC_OUT) $(MOCK_STD_OUT)
+	for d in $(foreach f,$(MOCK_SRC_OUT) $(MOCK_STD_OUT),$(dir $(f))); do \
+	    [ ! -e $$d ] || rmdir $$d; \
+	done
 
-mock_%.go: ../%.go
-	mockgen -destination=$@ -source=$$(realpath -s --relative-to . $<)
+define MOCK_SRC_template =
+$(call mock_src_in_to_out,$(1)): $(1)
+	@mkdir -p $$$$(dirname $$@)
+	mockgen -destination=$$@ -source=$$<
+endef
+$(foreach in,$(MOCK_SRC_IN),$(eval $(call MOCK_SRC_template,$(in))))
+
+define MOCK_STD_template =
+$(call mock_std_in_to_out,$(1)): $$(shell which go)
+	@mkdir -p $$$$(dirname $$@)
+	mockgen -destination=$$@ $(call parent,$(1)) $(notdir $(1))
+endef
+$(foreach in,$(MOCK_STD_IN),$(eval $(call MOCK_STD_template,$(in))))
 
 bin: deps_gen
 	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
