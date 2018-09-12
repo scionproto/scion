@@ -42,7 +42,7 @@ const (
 )
 
 var (
-	extConn            *snet.Conn
+	extConn            snet.Conn
 	tunIO              io.ReadWriteCloser
 	freeFrames         *ringbuf.Ring
 	framesRecvCounters map[metrics.CtrPairKey]metrics.CtrPair

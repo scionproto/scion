@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-var _ Network = (*ProxyNetwork)(nil)
+var _ snet.Network = (*ProxyNetwork)(nil)
 
 // ProxyNetwork is a wrapper network that creates conns with transparent
 // reconnection capabilities. Connections created by ProxyNetwork also validate
@@ -32,17 +32,17 @@ var _ Network = (*ProxyNetwork)(nil)
 // validating the new connection themselves should use the proxy connection
 // constructors directly.
 type ProxyNetwork struct {
-	network Network
+	network snet.Network
 }
 
 // NewProxyNetwork adds transparent reconnection capabilities to the
 // connections created by an snet network.
-func NewProxyNetwork(network Network) *ProxyNetwork {
+func NewProxyNetwork(network snet.Network) *ProxyNetwork {
 	return &ProxyNetwork{network: network}
 }
 
 func (pn *ProxyNetwork) DialSCIONWithBindSVC(network string,
-	laddr, raddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error) {
+	laddr, raddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (snet.Conn, error) {
 
 	dialer := pn.newReconnecterFromDialArgs(network, laddr, raddr, baddr, svc)
 	conn, err := dialer.Reconnect(timeout)
@@ -62,14 +62,14 @@ func (pn *ProxyNetwork) DialSCIONWithBindSVC(network string,
 func (pn *ProxyNetwork) newReconnecterFromDialArgs(network string, laddr, raddr, baddr *snet.Addr,
 	svc addr.HostSVC) *TickingReconnecter {
 
-	f := func(timeout time.Duration) (Conn, error) {
+	f := func(timeout time.Duration) (snet.Conn, error) {
 		return pn.network.DialSCIONWithBindSVC(network, laddr, raddr, baddr, svc, timeout)
 	}
 	return NewTickingReconnecter(f)
 }
 
 func (pn *ProxyNetwork) ListenSCIONWithBindSVC(network string,
-	laddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error) {
+	laddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (snet.Conn, error) {
 
 	listener := pn.newReconnecterFromListenArgs(network, laddr, baddr, svc)
 	conn, err := listener.Reconnect(timeout)
@@ -88,7 +88,7 @@ func (pn *ProxyNetwork) ListenSCIONWithBindSVC(network string,
 func (pn *ProxyNetwork) newReconnecterFromListenArgs(network string,
 	laddr, baddr *snet.Addr, svc addr.HostSVC) *TickingReconnecter {
 
-	f := func(timeout time.Duration) (Conn, error) {
+	f := func(timeout time.Duration) (snet.Conn, error) {
 		return pn.network.ListenSCIONWithBindSVC(network, laddr, baddr, svc, timeout)
 	}
 	return NewTickingReconnecter(f)
