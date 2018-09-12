@@ -16,7 +16,7 @@ GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \
     lib/pathdb/pathdb.go \
-    lib/snet/snetproxy/interface.go \
+    lib/snet/interface.go \
     lib/snet/snetproxy/reconnecter.go \
     lib/snet/snetproxy/io.go
 MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))

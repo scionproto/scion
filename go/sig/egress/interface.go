@@ -55,7 +55,7 @@ type Session interface {
 	// ID returns the session's ID.
 	ID() mgmt.SessionType
 	// Conn returns the session's outbound snet Conn
-	Conn() *snet.Conn
+	Conn() snet.Conn
 	// Ring returns the session's ring buffer.
 	Ring() *ringbuf.Ring
 	// Remote returns the session's currently chosen SIG and path.

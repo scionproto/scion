@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy/mock_snetproxy"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -89,7 +90,7 @@ func TestProxyConnIO(t *testing.T) {
 			gomock.InOrder(
 				mockIO.EXPECT().Do(mockConn).Return(writeDispatcherError),
 				mockReconnecter.EXPECT().Reconnect(Any()).DoAndReturn(
-					func(_ time.Duration) (snetproxy.Conn, error) {
+					func(_ time.Duration) (snet.Conn, error) {
 						time.Sleep(tickerMultiplier(4))
 						return mockConn, nil
 					}),
@@ -104,7 +105,7 @@ func TestProxyConnIO(t *testing.T) {
 			gomock.InOrder(
 				mockIO.EXPECT().Do(mockConn).Return(writeDispatcherError),
 				mockReconnecter.EXPECT().Reconnect(Any()).DoAndReturn(
-					func(_ time.Duration) (snetproxy.Conn, error) {
+					func(_ time.Duration) (snet.Conn, error) {
 						time.Sleep(tickerMultiplier(6))
 						return mockConn, nil
 					}),
@@ -129,7 +130,7 @@ func TestProxyConnIO(t *testing.T) {
 			gomock.InOrder(
 				mockIO.EXPECT().Do(mockConn).Return(writeDispatcherError),
 				mockReconnecter.EXPECT().Reconnect(Any()).DoAndReturn(
-					func(_ time.Duration) (snetproxy.Conn, error) {
+					func(_ time.Duration) (snet.Conn, error) {
 						time.Sleep(tickerMultiplier(6))
 						return mockConn, nil
 					}),
@@ -167,7 +168,7 @@ func TestProxyConnAddrs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	Convey("Given a proxy conn running on an underlying connection with a reconnecter", t, func() {
-		mockConn := mock_snetproxy.NewMockConn(ctrl)
+		mockConn := mock_snet.NewMockConn(ctrl)
 		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
 		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
 		Convey("Local address must call the same function on the underlying connection", func() {
@@ -278,7 +279,7 @@ func TestProxyConnClose(t *testing.T) {
 			mockIO := mock_snetproxy.NewMockIOOperation(ctrl)
 			mockIO.EXPECT().IsWrite().Return(true).AnyTimes()
 			mockIO.EXPECT().Do(mockConn).DoAndReturn(
-				func(_ snetproxy.Conn) error {
+				func(_ snet.Conn) error {
 					time.Sleep(tickerMultiplier(2))
 					return writeDispatcherError
 				})
@@ -296,7 +297,7 @@ func TestProxyConnClose(t *testing.T) {
 			mockReconnecter.EXPECT().Stop().AnyTimes()
 			mockReconnecter.EXPECT().
 				Reconnect(Any()).
-				DoAndReturn(func(_ time.Duration) (snetproxy.Conn, error) {
+				DoAndReturn(func(_ time.Duration) (snet.Conn, error) {
 					select {}
 				})
 			mockIO := mock_snetproxy.NewMockIOOperation(ctrl)

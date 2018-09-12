@@ -21,13 +21,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 // newErrorReconnF returns a dispatcher error after the duration elapses.
-func newErrorReconnF(sleep time.Duration) func(time.Duration) (snetproxy.Conn, error) {
-	return func(_ time.Duration) (snetproxy.Conn, error) {
+func newErrorReconnF(sleep time.Duration) func(time.Duration) (snet.Conn, error) {
+	return func(_ time.Duration) (snet.Conn, error) {
 		time.Sleep(sleep)
 		// return dispatcher error s.t. reconnecter reattempts
 		return nil, dispatcherError

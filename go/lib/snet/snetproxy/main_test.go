@@ -27,8 +27,8 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy/mock_snetproxy"
 )
 
 var (
@@ -54,9 +54,9 @@ var (
 )
 
 func NewMockConnWithAddrs(ctrl *gomock.Controller,
-	laddr, raddr, baddr net.Addr, svc addr.HostSVC) *mock_snetproxy.MockConn {
+	laddr, raddr, baddr net.Addr, svc addr.HostSVC) *mock_snet.MockConn {
 
-	address := mock_snetproxy.NewMockConn(ctrl)
+	address := mock_snet.NewMockConn(ctrl)
 	address.EXPECT().LocalAddr().Return(laddr).AnyTimes()
 	address.EXPECT().RemoteAddr().Return(raddr).AnyTimes()
 	address.EXPECT().BindAddr().Return(baddr).AnyTimes()
