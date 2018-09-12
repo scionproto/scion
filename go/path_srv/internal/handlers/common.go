@@ -77,7 +77,10 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	segs := query.Results(res).Segs()
 	// XXX(lukedirtwalker): Consider cases where segment with revoked interfaces should be returned.
 	segs.FilterSegs(func(s *seg.PathSegment) bool {
-		return segutil.NoRevokedHopIntf(h.revCache, s)
+		if !segutil.NoRevokedHopIntf(h.revCache, s) {
+			return false
+		}
+		return time.Now().Before(s.MaxExpiry())
 	})
 	return segs, nil
 }
