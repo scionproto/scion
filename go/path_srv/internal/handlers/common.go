@@ -19,6 +19,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
+
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -42,6 +44,7 @@ type HandlerArgs struct {
 	RevCache   revcache.RevCache
 	TrustStore infra.TrustStore
 	Topology   *topology.Topo
+	Config     psconfig.Config
 }
 
 type baseHandler struct {
@@ -51,6 +54,7 @@ type baseHandler struct {
 	trustStore infra.TrustStore
 	topology   *topology.Topo
 	retryInt   time.Duration
+	config     psconfig.Config
 	logger     log.Logger
 }
 

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -148,14 +149,10 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	msger infra.Messenger, dstIA addr.IA, coreASes []addr.IA) {
 
-	// TODO(lukedirtwalker): if Flags.CacheOnly is set we shouldn't need the address here:
-	cPS, err := h.corePSAddr(ctx, coreASes)
-	if err != nil {
-		h.logger.Error("failed to get path to core to query for down segs", "err", err)
-		h.sendEmptySegReply(ctx, segReq, msger)
-		return
+	cPSResolve := func() (net.Addr, error) {
+		return h.corePSAddr(ctx, coreASes)
 	}
-	downSegs, err := h.fetchDownSegs(ctx, msger, dstIA, cPS, segReq.Flags.CacheOnly)
+	downSegs, err := h.fetchDownSegs(ctx, msger, dstIA, cPSResolve, segReq.Flags.CacheOnly)
 	if err != nil {
 		h.logger.Error("Failed to find down segs", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
@@ -242,9 +239,17 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	// TODO(lukedirtwalker): also query core if we haven't for a long time.
 	if dbOnly || len(segs) > 0 {
-		return segs, nil
+		refetch := !dbOnly
+		if !dbOnly {
+			refetch, err = h.shouldRefetchSegsForDst(ctx, dst, time.Now())
+			if err != nil {
+				h.logger.Warn("[segReqHandler] failed to get last query", "err", err)
+			}
+		}
+		if !refetch {
+			return segs, nil
+		}
 	}
 	// try remote:
 	cPS, err := h.corePSAddr(ctx, []addr.IA{src})

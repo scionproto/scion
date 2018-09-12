@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -75,8 +76,8 @@ func (h *segReqHandler) coreASes(ctx context.Context) (trc.CoreASMap, error) {
 	return srcTRC.CoreASes, nil
 }
 
-func (h *segReqHandler) fetchDownSegs(ctx context.Context,
-	msger infra.Messenger, dst addr.IA, cPSAddr net.Addr, dbOnly bool) (seg.Segments, error) {
+func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger,
+	dst addr.IA, cPSAddr func() (net.Addr, error), dbOnly bool) (seg.Segments, error) {
 
 	// try local cache first
 	q := &query.Params{
@@ -87,11 +88,23 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	// TODO(lukedirtwalker): also query core if we haven't for a long time.
 	if dbOnly || len(segs) > 0 {
-		return segs, nil
+		refetch := !dbOnly
+		if !dbOnly {
+			refetch, err = h.shouldRefetchSegsForDst(ctx, dst, time.Now())
+			if err != nil {
+				h.logger.Warn("[segReqHandler] failed to get last query", "err", err)
+			}
+		}
+		if !refetch {
+			return segs, nil
+		}
 	}
-	if err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cPSAddr); err != nil {
+	cAddr, err := cPSAddr()
+	if err != nil {
+		return nil, err
+	}
+	if err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cAddr); err != nil {
 		return nil, err
 	}
 	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
@@ -101,6 +114,7 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context,
 func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messenger,
 	src, dst addr.IA, cPSAddr net.Addr) error {
 
+	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
 	segs, err := msger.GetSegs(ctx, r, cPSAddr, requestID.Next())
 	if err != nil {
@@ -112,6 +126,10 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 		recs = segs.Recs.Recs
 		revInfos = segs.Recs.SRevInfos
 		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
+		// TODO(lukedirtwalker): We should only do this if the segments were successfully inserted.
+		if _, err := h.pathDB.InsertLastQueried(ctx, dst, queryTime); err != nil {
+			h.logger.Warn("Failed to insert last queried", "err", err)
+		}
 	}
 	return nil
 }
@@ -155,6 +173,21 @@ func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegmen
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}
 	return recs
+}
+
+// shouldRefetchSegsForDst returns true if the segments for the given dst
+// should be fetched from the remote PS. Returns true on error, so the value can be used anyway.
+func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA,
+	now time.Time) (bool, error) {
+
+	t, err := h.pathDB.GetLastQueried(ctx, dst)
+	if err != nil {
+		return true, err
+	}
+	if t == nil {
+		return true, nil
+	}
+	return now.Add(h.config.QueryInterval.Duration).After(*t), nil
 }
 
 // segsToMap converts the segs slice to a map of IAs to segments.

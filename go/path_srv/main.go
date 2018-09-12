@@ -42,6 +42,7 @@ import (
 	"github.com/scionproto/scion/go/path_srv/internal/cleaner"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/periodic"
+	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
 )
 
@@ -51,12 +52,7 @@ type Config struct {
 	Metrics env.Metrics
 	Trust   env.Trust
 	Infra   env.Infra
-	PS      struct {
-		// SegSync enables the "old" replication of down segments between cores,
-		// using SegSync messages.
-		SegSync bool
-		PathDB  string
-	}
+	PS      psconfig.Config
 }
 
 var (
@@ -143,6 +139,7 @@ func realMain() int {
 		RevCache:   revCache,
 		TrustStore: trustStore,
 		Topology:   topo,
+		Config:     config.PS,
 	}
 	core := topo.Core
 	var segReqHandler infra.Handler
@@ -199,6 +196,7 @@ func setup(configName string) error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
+	config.PS.InitDefaults()
 	// TODO(lukedirtwalker): SUPPORT RELOADING!!!
 	environment = env.SetupEnv(nil)
 	return nil
