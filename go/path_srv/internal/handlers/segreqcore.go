@@ -97,6 +97,11 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
+	if len(downSegs) == 0 {
+		h.logger.Debug("[segReqHandler] no down segs found")
+		h.sendEmptySegReply(ctx, segReq, msger)
+		return
+	}
 	var coreSegs []*seg.PathSegment
 	// if request came from same AS also return core segs, to start of down segs.
 	if segReq.SrcIA().Eq(h.localIA) {

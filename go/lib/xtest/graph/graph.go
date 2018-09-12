@@ -25,11 +25,13 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -216,7 +218,8 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 
 	segment, err := seg.NewSeg(
 		&spath.InfoField{
-			ISD: uint16(g.parents[ifids[0]].I),
+			ISD:   uint16(g.parents[ifids[0]].I),
+			TsInt: util.TimeToSecs(time.Now()),
 		})
 	if err != nil {
 		panic(err)

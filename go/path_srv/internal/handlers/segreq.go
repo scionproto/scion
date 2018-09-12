@@ -88,7 +88,6 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context,
 		return nil, err
 	}
 	// TODO(lukedirtwalker): also query core if we haven't for a long time.
-	// TODO(lukedirtwalker): handle expired segments!
 	if dbOnly || len(segs) > 0 {
 		return segs, nil
 	}
