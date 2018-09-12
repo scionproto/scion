@@ -12,36 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// FIXME(scrye): This file will go away once all its contents are baked into snet.
-
-package snetproxy
+package snet
 
 import (
 	"net"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/snet"
 )
 
-// FIXME(scrye): Temporary interface. This will be moved to snet when the
-// module is integrated.
 type Network interface {
 	ListenSCIONWithBindSVC(network string,
-		laddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error)
+		laddr, baddr *Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error)
 	DialSCIONWithBindSVC(network string,
-		laddr, raddr, baddr *snet.Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error)
+		laddr, raddr, baddr *Addr, svc addr.HostSVC, timeout time.Duration) (Conn, error)
 }
 
-// FIXME(scrye): Temporary interface. This will be moved to snet when the
-// module is integrated.
 type Conn interface {
 	Read(b []byte) (int, error)
 	ReadFrom(b []byte) (int, net.Addr, error)
-	ReadFromSCION(b []byte) (int, *snet.Addr, error)
+	ReadFromSCION(b []byte) (int, *Addr, error)
 	Write(b []byte) (int, error)
 	WriteTo(b []byte, address net.Addr) (int, error)
-	WriteToSCION(b []byte, address *snet.Addr) (int, error)
+	WriteToSCION(b []byte, address *Addr) (int, error)
 	Close() error
 	LocalAddr() net.Addr
 	BindAddr() net.Addr

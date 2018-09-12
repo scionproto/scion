@@ -25,15 +25,15 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet/mock_snet"
 	"github.com/scionproto/scion/go/lib/snet/snetproxy"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy/mock_snetproxy"
 )
 
 func TestReconnect(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	Convey("Reconnections must conserve local and bind addresses", t, func() {
-		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
+		mockNetwork := mock_snet.NewMockNetwork(ctrl)
 		Convey("Given a mocked underlying connection with local and bind", func() {
 			mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, svc)
 			Convey("If local address and bind address do not change", func() {
@@ -143,7 +143,7 @@ func TestNetworkFatalError(t *testing.T) {
 	defer ctrl.Finish()
 	Convey("Given a proxy network running over an underlying mocked network", t, func() {
 		err := common.NewBasicError("Not dispatcher dead error, e.g., malformed register msg", nil)
-		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
+		mockNetwork := mock_snet.NewMockNetwork(ctrl)
 		proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
 		Convey("The proxy network returns non-dispatcher dial errors from the mock", func() {
 			mockNetwork.EXPECT().
@@ -167,7 +167,7 @@ func TestNetworkDispatcherDeadError(t *testing.T) {
 	defer ctrl.Finish()
 	dispatcherError := &net.OpError{Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}
 	Convey("Listen and Dial should reattempt to connect on dispatcher down errors", t, func() {
-		mockNetwork := mock_snetproxy.NewMockNetwork(ctrl)
+		mockNetwork := mock_snet.NewMockNetwork(ctrl)
 		proxyNetwork := snetproxy.NewProxyNetwork(mockNetwork)
 		Convey("Dial tries to reconnect if no timeout set", func() {
 			mockConn := NewMockConnWithAddrs(ctrl, localAddr, remoteAddr, nil, addr.SvcNone)

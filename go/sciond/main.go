@@ -30,11 +30,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
@@ -99,35 +97,21 @@ func realMain() int {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = snet.Init(config.General.Topology.ISD_AS, "", "")
-	if err != nil {
-		log.Crit("Unable to initialize snet", "err", err)
-		return 1
-	}
-	conn, err := snet.ListenSCIONWithBindSVC("udp4", config.SD.Public,
-		config.SD.Bind, addr.SvcNone)
-	if err != nil {
-		log.Crit("Unable to listen on SCION", "err", err)
-		return 1
-	}
-
 	err = trustStore.LoadAuthoritativeTRC(filepath.Join(config.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("TRC error", "err", err)
 		return 1
 	}
-	msger := messenger.New(
+	msger, err := infraenv.InitMessenger(
 		config.General.Topology.ISD_AS,
-		disp.New(
-			transport.NewPacketTransport(conn),
-			messenger.DefaultAdapter,
-			log.Root(),
-		),
-		trustStore,
-		log.Root(),
-		nil,
-	)
-	trustStore.SetMessenger(msger)
+		config.SD.Public,
+		config.SD.Bind,
+		addr.SvcNone,
+		trustStore)
+	if err != nil {
+		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
+		return 1
+	}
 	revCache := memrevcache.New(cache.NoExpiration, time.Second)
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{

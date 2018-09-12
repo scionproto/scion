@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
 
-func Init(conn *snet.Conn) {
+func Init(conn snet.Conn) {
 	go pktdisp.PktDispatcher(conn, dispFunc)
 }
 
