@@ -127,7 +127,8 @@ func choosePath() *sciond.PathReplyEntry {
 			if err == nil && int(pathIndex) < len(paths) {
 				break
 			}
-			fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n", len(paths))
+			fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n",
+				len(paths))
 		}
 	}
 	return paths[pathIndex]

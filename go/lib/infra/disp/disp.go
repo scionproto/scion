@@ -121,7 +121,8 @@ func (d *Dispatcher) Request(ctx context.Context, msg proto.Cerealizable,
 
 	reply, err := d.waitTable.waitForReply(ctx, msg)
 	if err != nil {
-		return nil, common.NewBasicError(infra.StrInternalError, err, "op", "waitTable.WaitForReply")
+		return nil, common.NewBasicError(infra.StrInternalError, err,
+			"op", "waitTable.WaitForReply")
 	}
 	return reply, nil
 }

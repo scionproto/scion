@@ -542,7 +542,8 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	// signature is correct.
 	msgType, msg, err := m.validate(pld)
 	if err != nil {
-		logger.Error("Received message, but unable to validate message", "from", address, "err", err)
+		logger.Error("Received message, but unable to validate message",
+			"from", address, "err", err)
 		return
 	}
 	logger.Debug("[Messenger] Received message", "type", msgType, "from", address, "id", pld.ReqId)

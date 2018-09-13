@@ -85,7 +85,9 @@ func Init(elem string) {
 		prometheus.MustRegister(v)
 		return v
 	}
-	newHVec := func(name, help string, lNames []string, buckets []float64) *prometheus.HistogramVec {
+	newHVec := func(name, help string,
+		lNames []string, buckets []float64) *prometheus.HistogramVec {
+
 		v := prom.NewHistogramVec(namespace, "", name, help, constLabels, lNames, buckets)
 		prometheus.MustRegister(v)
 		return v

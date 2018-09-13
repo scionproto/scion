@@ -431,7 +431,8 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 			if err == nil && int(pathIndex) < len(paths) {
 				break
 			}
-			fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n", len(paths))
+			fmt.Fprintf(os.Stderr, "ERROR: Invalid path index, valid indices range: [0, %v]\n",
+				len(paths))
 		}
 	}
 	fmt.Printf("Using path:\n  %s\n", paths[pathIndex].Path.String())
