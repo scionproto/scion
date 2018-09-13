@@ -1,0 +1,5 @@
+CertChainVersion: 0
+PathSegmentTTL: 21600
+PropagateTime: 5
+RegisterPath: true
+RegisterTime: 5

@@ -1,0 +1,14 @@
+version: "3"
+services:
+  border:
+    image: scion_border
+    network_mode: "service:dispatcher"
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "./br-core-conf:/share/conf"
+      - "../../../logs:/share/logs"
+    command: ["-id=core-brA", "-prom=[127.0.0.49]:30093"]
