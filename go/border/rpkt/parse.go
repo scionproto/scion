@@ -98,6 +98,10 @@ func (rp *RtrPkt) parseBasic() error {
 		return common.NewBasicError("Header length indicated in common header is too small", nil,
 			"min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen, "byteSize", hdrLen)
 	}
+	if len(rp.Raw) < int(rp.CmnHdr.TotalLen) {
+		return common.NewBasicError("Invalid packet length", nil,
+			"expected", rp.CmnHdr.TotalLen, "actual", len(rp.Raw))
+	}
 	return nil
 }
 
@@ -131,7 +135,7 @@ func (rp *RtrPkt) parseHopExtns() error {
 	if *offset > len(rp.Raw) {
 		// FIXME(kormat): Can't generate SCMP error in general as we can't
 		// parse anything after the hbh extensions (e.g. a layer 4 header).
-		return common.NewBasicError(ErrExtChainTooLong, nil, "curr", offset, "max", len(rp.Raw))
+		return common.NewBasicError(ErrExtChainTooLong, nil, "curr", *offset, "max", len(rp.Raw))
 	}
 	return nil
 }

@@ -100,6 +100,7 @@ Top:
 			// signal has been sent.
 			continue Top
 		}
+		log.Debug("<<DEBUG ONLY>> packets read", "num", pktsRead)
 		inputPkts.Add(float64(pktsRead))
 		// Grab current router context to attach to this batch of packets.
 		ctx := rctx.Get()
