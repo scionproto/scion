@@ -34,7 +34,6 @@ const (
 // and no error. If validation failed due to some exceptional event, returns an
 // error.
 func (rp *RtrPkt) Validate() (bool, error) {
-	// XXX ifCurr would be nil if the packet was received in the internal interface and had no HopF.
 	var mtu int
 	if rp.ifCurr != nil {
 		intf, ok := rp.Ctx.Conf.Net.IFs[*rp.ifCurr]
