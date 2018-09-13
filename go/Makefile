@@ -114,6 +114,7 @@ $(foreach in,$(MOCK_STD_IN),$(eval $(call MOCK_STD_template,$(in))))
 
 bin: deps_gen
 	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
+	sudo setcap cap_net_admin,cap_net_raw+ep ../bin/border-acceptance
 
 libs: deps_gen
 	govendor install --tags "$(GOTAGS)" -v +local,^program

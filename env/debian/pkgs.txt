@@ -17,6 +17,7 @@ libffi-dev
 libjs-jquery-hotkeys
 libjs-jquery-isonscreen
 libjs-jquery-tablesorter
+libpcap-dev
 libssl-dev
 make
 moreutils
