@@ -131,6 +131,7 @@ func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
 // everything from parsing the incoming packet, to routing the outgoing packet.
 func (r *Router) processPacket(rp *rpkt.RtrPkt) {
 	if assert.On {
+		// XXX(sgmonroy)  we shouldn't assert on len(rp.Raw)
 		assert.Must(len(rp.Raw) > 0, "Raw must not be empty")
 		assert.Must(rp.DirFrom != rcmn.DirUnset, "DirFrom must be set")
 		assert.Must(rp.Ingress.Dst != nil, "Ingress.Dst must be set")
