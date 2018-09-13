@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
 	"github.com/scionproto/scion/go/lib/util"
 )
 
