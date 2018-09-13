@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
@@ -42,6 +43,7 @@ type HandlerArgs struct {
 	RevCache   revcache.RevCache
 	TrustStore infra.TrustStore
 	Topology   *topology.Topo
+	Config     psconfig.Config
 }
 
 type baseHandler struct {
@@ -51,6 +53,7 @@ type baseHandler struct {
 	trustStore infra.TrustStore
 	topology   *topology.Topo
 	retryInt   time.Duration
+	config     psconfig.Config
 	logger     log.Logger
 }
 

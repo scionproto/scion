@@ -260,9 +260,7 @@ func Test_InsertWithHpCfgIDsFull(t *testing.T) {
 		defer cancelF()
 		// Call
 		inserted, err := b.InsertWithHPCfgIDs(ctx, pseg, types, hpCfgIDs)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert.
@@ -337,9 +335,7 @@ func Test_Delete(t *testing.T) {
 		insertSeg(t, ctx, b, pseg, types, hpCfgIDs)
 		// Call
 		deleted, err := b.Delete(ctx, segID)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		// Check return value.
 		SoMsg("Deleted", deleted, ShouldEqual, 1)
 		// Check that all tables are empty now.
@@ -364,9 +360,7 @@ func Test_DeleteWithIntf(t *testing.T) {
 		insertSeg(t, ctx, b, pseg2, types, hpCfgIDs)
 		// Call
 		deleted, err := b.DeleteWithIntf(ctx, query.IntfSpec{IA: ia331, IfID: 2})
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		// Check return value
 		SoMsg("Deleted", deleted, ShouldEqual, 2)
 	})
@@ -418,9 +412,7 @@ func Test_GetMixed(t *testing.T) {
 		}
 		// Call
 		res, err := b.Get(ctx, params)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		resSegID, _ := res[0].Seg.ID()
 		SoMsg("Result count", len(res), ShouldEqual, 1)
 		SoMsg("SegIDs match", resSegID, ShouldResemble, segID1)
@@ -443,9 +435,7 @@ func Test_GetAll(t *testing.T) {
 		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
 		res, err := b.Get(ctx, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 		for _, r := range res {
 			resSegID, _ := r.Seg.ID()
@@ -475,14 +465,10 @@ func Test_GetStartsAtEndsAt(t *testing.T) {
 		insertSeg(t, ctx, b, pseg2, types[:1], hpCfgIDs[:1])
 		// Call
 		res, err := b.Get(ctx, &query.Params{StartsAt: []addr.IA{ia330, ia332}})
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 		res, err = b.Get(ctx, &query.Params{EndsAt: []addr.IA{ia330, ia332}})
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 	})
 }
@@ -508,9 +494,7 @@ func Test_GetWithIntfs(t *testing.T) {
 		}
 		// Call
 		res, err := b.Get(ctx, params)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		SoMsg("Result count", len(res), ShouldEqual, 2)
 	})
 }
@@ -533,9 +517,7 @@ func Test_GetWithHpCfgIDs(t *testing.T) {
 		}
 		// Call
 		res, err := b.Get(ctx, params)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		SoMsg("Result count", len(res), ShouldEqual, 1)
 	})
 }
@@ -552,15 +534,11 @@ func Test_OpenExisting(t *testing.T) {
 		b.db.Close()
 		// Call
 		b, err := New(tmpF)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		// Test
 		// Check that path segment is still there.
 		res, err := b.Get(ctx, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		xtest.FailOnErr(t, err)
 		SoMsg("Segment still exists", len(res), ShouldEqual, 1)
 	})
 }
@@ -620,5 +598,39 @@ func TestGetModifiedIDs(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		id2, err := res[1].Seg.ID()
 		SoMsg("ID 2", expectedID2, ShouldResemble, id2)
+	})
+}
+
+func Test_LastQuery(t *testing.T) {
+	Convey("LastQuery", t, func() {
+		// Setup
+		b, tmpF := setupDB(t)
+		defer b.db.Close()
+		defer os.Remove(tmpF)
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		dst := xtest.MustParseIA("1-ff00:0:133")
+		oldT := time.Now().Add(-10 * time.Second)
+		updated, err := b.InsertLastQueried(ctx, dst, oldT)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should Insert new", updated, ShouldBeTrue)
+		dbT, err := b.GetLastQueried(ctx, dst)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should return inserted time", dbT.Unix(), ShouldEqual, oldT.Unix())
+		newT := time.Now()
+		updated, err = b.InsertLastQueried(ctx, dst, newT)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should Update existing", updated, ShouldBeTrue)
+		dbT, err = b.GetLastQueried(ctx, dst)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
+		updated, err = b.InsertLastQueried(ctx, dst, oldT)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should not update to older", updated, ShouldBeFalse)
+		dbT, err = b.GetLastQueried(ctx, dst)
+		xtest.FailOnErr(t, err)
+		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
+		dbT, err = b.GetLastQueried(ctx, xtest.MustParseIA("1-ff00:0:122"))
+		SoMsg("Should be nil", dbT, ShouldBeNil)
 	})
 }

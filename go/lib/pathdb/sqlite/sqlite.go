@@ -95,6 +95,7 @@ func (b *Backend) Insert(ctx context.Context, pseg *seg.PathSegment,
 
 func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, pseg *seg.PathSegment,
 	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) (int, error) {
+
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
@@ -517,4 +518,58 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	}
 	query = append(query, " ORDER BY s.LastUpdated")
 	return strings.Join(query, "\n"), args
+}
+
+func (b *Backend) InsertLastQueried(ctx context.Context, dst addr.IA,
+	lastQuery time.Time) (bool, error) {
+
+	b.Lock()
+	defer b.Unlock()
+	if b.db == nil {
+		return false, common.NewBasicError("No database open", nil)
+	}
+	if err := b.begin(ctx); err != nil {
+		return false, err
+	}
+	queryLines := []string{
+		"INSERT OR REPLACE INTO LastQuery",
+		// Select the data from the input only if the new LastQuery is larger than the existing
+		// or if there is no existing (LastQuery.IsdID IS NULL)
+		"SELECT data.* FROM",
+		"(SELECT ? AS IsdID, ? AS AsID, ? AS lq) AS data",
+		"LEFT JOIN LastQuery USING (IsdID, AsID)",
+		"WHERE data.lq > LastQuery.LastQuery OR LastQuery.IsdID IS NULL;",
+	}
+	q := strings.Join(queryLines, "\n")
+	r, err := b.tx.ExecContext(ctx, q, dst.I, dst.A, lastQuery.Unix())
+	if err != nil {
+		b.tx.Rollback()
+		return false, common.NewBasicError("Failed to execute statement", err)
+	}
+	if err := b.commit(); err != nil {
+		return false, err
+	}
+	n, err := r.RowsAffected()
+	return n > 0, err
+}
+
+func (b *Backend) GetLastQueried(ctx context.Context, dst addr.IA) (*time.Time, error) {
+	b.RLock()
+	defer b.RUnlock()
+	if b.db == nil {
+		return nil, common.NewBasicError("No database open", nil)
+	}
+	rows, err := b.db.Query("SELECT LastQuery from LastQuery WHERE IsdID = ? AND AsID = ?",
+		dst.I, dst.A)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return nil, nil
+	}
+	var secs int64
+	rows.Scan(&secs)
+	t := time.Unix(secs, 0)
+	return &t, nil
 }
