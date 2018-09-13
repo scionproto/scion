@@ -26,9 +26,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
-
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 // TempFileName creates a temporary file in dir with the specified prefix, and

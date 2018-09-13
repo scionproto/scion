@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"

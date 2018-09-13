@@ -189,6 +189,18 @@
 			"revisionTime": "2016-01-05T22:08:40Z"
 		},
 		{
+			"checksumSHA1": "E3l/8pxiD5GkGqpS1DP9b+wFIog=",
+			"path": "github.com/kisielk/gotool",
+			"revision": "80517062f582ea3340cd4baf70e86d539ae7d84d",
+			"revisionTime": "2018-02-21T18:54:26Z"
+		},
+		{
+			"checksumSHA1": "9jyCVFMF5GDl15Vqp2ZxRmmNftE=",
+			"path": "github.com/kisielk/gotool/internal/load",
+			"revision": "80517062f582ea3340cd4baf70e86d539ae7d84d",
+			"revisionTime": "2018-02-21T18:54:26Z"
+		},
+		{
 			"checksumSHA1": "eiKZJz+wsoOmDZQ7xdpX+sqQte4=",
 			"license": "APL 2.0",
 			"path": "github.com/kormat/fmt15",
@@ -313,6 +325,18 @@
 			"path": "github.com/patrickmn/go-cache",
 			"revision": "7ac151875ffb48b9f3ccce9ea20f020b0c1596c8",
 			"revisionTime": "2017-04-18T23:29:47Z"
+		},
+		{
+			"checksumSHA1": "3sD1fLvjcNwB8JRpeSJWj8KsGL4=",
+			"path": "github.com/pavius/impi",
+			"revision": "c1cbdcb8df2b23af8530360d87ac9a7fabc48618",
+			"revisionTime": "2018-03-02T13:45:24Z"
+		},
+		{
+			"checksumSHA1": "FptfsjsTRqvPxCAO8h+AuITYVpw=",
+			"path": "github.com/pavius/impi/cmd/impi",
+			"revision": "c1cbdcb8df2b23af8530360d87ac9a7fabc48618",
+			"revisionTime": "2018-03-02T13:45:24Z"
 		},
 		{
 			"checksumSHA1": "FGg99nQ56Fo3radSCuU1AeEUJug=",

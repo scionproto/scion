@@ -26,7 +26,8 @@ import (
 
 	"github.com/inconshreveable/log15"
 	logext "github.com/inconshreveable/log15/ext"
-	"github.com/kormat/fmt15" // Allows customization of timestamps and multi-line support
+	// Allows customization of timestamps and multi-line support
+	"github.com/kormat/fmt15"
 	"github.com/mattn/go-isatty"
 	"gopkg.in/natefinch/lumberjack.v2"
 

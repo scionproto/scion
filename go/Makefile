@@ -12,7 +12,6 @@ SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
-LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go' -a '!' -ipath '*/mock_*/*')
 GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \
@@ -44,9 +43,10 @@ coverage: deps_gen
 	@echo
 	@echo "Go coverage report here: file://$$PWD/gocover.html"
 
-lint:
-	@echo "======> goimports"
-	out=$$(goimports -d -local github.com/scionproto ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
+lint: vendor/.deps.stamp
+	@echo "======> impi"
+	@# Skip vendored, generated and CGO (https://github.com/pavius/impi/issues/5) files.
+	impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '^vendor/' --skip '\.capnp\.go$$' --skip '/mock_[^/]*/' --skip '/c\.go$$' ./...
 	@echo "======> gofmt"
 	out=$$(gofmt -d -s ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"

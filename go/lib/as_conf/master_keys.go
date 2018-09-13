@@ -17,7 +17,6 @@ package as_conf
 import (
 	"encoding/base64"
 	"io/ioutil"
-
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/common"

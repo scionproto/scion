@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
-
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 )
 

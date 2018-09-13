@@ -17,11 +17,10 @@ package pathmgr
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
-
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
 // resolver receives requests from PR and answers them by contacting SCIOND.
