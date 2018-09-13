@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
-
 	"github.com/scionproto/scion/go/tools/scmp/cmn"
 	"github.com/scionproto/scion/go/tools/scmp/echo"
 	"github.com/scionproto/scion/go/tools/scmp/recordpath"

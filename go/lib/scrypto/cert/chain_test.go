@@ -21,7 +21,6 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-
 	"golang.org/x/crypto/ed25519"
 
 	"github.com/scionproto/scion/go/lib/addr"

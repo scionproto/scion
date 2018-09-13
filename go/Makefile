@@ -45,8 +45,9 @@ coverage: deps_gen
 	@echo "Go coverage report here: file://$$PWD/gocover.html"
 
 lint:
-	@echo "======> goimports"
-	out=$$(goimports -d -local github.com/scionproto ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
+	@echo "======> impi"
+	@# Skip vendored, generated and CGO (https://github.com/pavius/impi/issues/5) files.
+	impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '^vendor/' --skip '\.capnp\.go$$' --skip '/mock_[^/]*/' --skip '/c\.go$$' ./...
 	@echo "======> gofmt"
 	out=$$(gofmt -d -s ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"
