@@ -256,11 +256,7 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	if err = h.fetchAndSaveSegs(ctx, msger, src, dst, cPS); err != nil {
-		return nil, err
-	}
-	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
-	return h.fetchSegsFromDB(ctx, q)
+	return h.fetchAndSaveSegs(ctx, msger, src, dst, cPS)
 }
 
 func (h *segReqNonCoreHandler) corePSAddr(ctx context.Context,
