@@ -41,7 +41,8 @@ func TestSyncPathsTimestamp(t *testing.T) {
 				SoMsg("timestamp", data.ModifyTime, ShouldHappenOnOrBetween, before, after)
 			})
 			Convey("Refresh timestamp should change", func() {
-				SoMsg("timestamp", data.RefreshTime, ShouldHappenOnOrBetween, beforeStore, afterStore)
+				SoMsg("timestamp", data.RefreshTime,
+					ShouldHappenOnOrBetween, beforeStore, afterStore)
 			})
 		})
 

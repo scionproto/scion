@@ -193,7 +193,8 @@ func TestHooksUp(t *testing.T) {
 
 		consDir, err = rpkt.ConsDirFlag()
 		SoMsg("Wrong ConsDirFlag on the cached getter call", *consDir, ShouldBeFalse)
-		SoMsg("Should be no error when calling ConsDirFlag getter for cached value", err, ShouldBeNil)
+		SoMsg("Should be no error when calling ConsDirFlag getter for cached value",
+			err, ShouldBeNil)
 		SoMsg("Regardless of the two calls, only one fetch of ConsDirFlag expected", fetched,
 			ShouldEqual, 1)
 	})

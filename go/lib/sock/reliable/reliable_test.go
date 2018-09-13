@@ -150,8 +150,8 @@ func TestRegisterTimeout(t *testing.T) {
 			conn, port, err := RegisterTimeout(sockName, ia, appAddr, nil,
 				addr.SvcNone, 3*time.Second)
 			after := time.Now()
-			SoMsg("timing", after, ShouldHappenBetween, before.Add(2*time.Second), before.Add(4*time.Second))
-
+			SoMsg("timing", after, ShouldHappenBetween,
+				before.Add(2*time.Second), before.Add(4*time.Second))
 			SoMsg("conn", conn, ShouldBeNil)
 			SoMsg("port", port, ShouldEqual, 0)
 			SoMsg("err underlying type", err, ShouldHaveSameTypeAs, expectedT)

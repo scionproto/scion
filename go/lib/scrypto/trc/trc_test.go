@@ -84,8 +84,8 @@ func Test_TRCFromRaw(t *testing.T) {
 				0x8d, 0xee, 0x4c, 0xf7, 0xc3, 0x70, 0xd5, 0x98, 0xf7, 0x0e, 0x42,
 				0x91, 0xd4}
 
-			SoMsg("CoreAS 1-ff00:0:300", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}], ShouldResemble,
-				entry)
+			SoMsg("CoreAS 1-ff00:0:300", trc.CoreASes[addr.IA{I: 1, A: 0xff0000000300}],
+				ShouldResemble, entry)
 		})
 
 		Convey("RAINS parsed correctly", func() {

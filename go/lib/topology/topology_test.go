@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -109,7 +110,8 @@ func Test_Meta(t *testing.T) {
 	Convey("Checking metadata", t, func() {
 		loadTopo(fn, t)
 		c := testTopo
-		SoMsg("Checking field 'Timestamp'", c.Timestamp.Equal(time.Unix(168570123, 0)), ShouldBeTrue)
+		SoMsg("Checking field 'Timestamp'",
+			c.Timestamp.Equal(time.Unix(168570123, 0)), ShouldBeTrue)
 		// Is testing this piece of data really useful?
 		SoMsg("Checking field 'TimestampHuman", c.TimestampHuman,
 			ShouldContainSubstring, "1975-05-06 01:02:03.000000+0000")
@@ -143,7 +145,9 @@ func Test_BRs(t *testing.T) {
 			So(c.BRNames, ShouldResemble, brn)
 		})
 	}
-	Convey("Checking that BR map has no extra entries ", t, func() { So(len(c.BR), ShouldEqual, len(brn)) })
+	Convey("Checking that BR map has no extra entries ", t, func() {
+		So(len(c.BR), ShouldEqual, len(brn))
+	})
 }
 
 func Test_Service_Details(t *testing.T) {

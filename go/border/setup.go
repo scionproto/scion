@@ -117,7 +117,8 @@ func (r *Router) loadNewConfig() (*conf.Conf, error) {
 	if config, err = conf.Load(r.Id, r.confDir); err != nil {
 		return nil, err
 	}
-	log.Debug("Topology and AS config loaded", "IA", config.IA, "IfIDs", config.BR, "dir", r.confDir)
+	log.Debug("Topology and AS config loaded",
+		"IA", config.IA, "IfIDs", config.BR, "dir", r.confDir)
 	return config, nil
 }
 

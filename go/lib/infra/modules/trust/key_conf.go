@@ -70,7 +70,8 @@ func LoadKeyConf(path string, issSigKey, onKey, offKey bool) (*KeyConf, error) {
 	if err != nil {
 		return nil, err
 	}
-	conf.IssSigKey, err = loadKeyCond(filepath.Join(path, IssSigKeyFile), scrypto.Ed25519, issSigKey)
+	conf.IssSigKey, err = loadKeyCond(filepath.Join(path, IssSigKeyFile),
+		scrypto.Ed25519, issSigKey)
 	if err != nil {
 		return nil, err
 	}

@@ -82,6 +82,7 @@ func TestUDPWrite(t *testing.T) {
 		err := u.Write(raw)
 
 		SoMsg("Must write without error", err, ShouldBeNil)
-		SoMsg("Wrong content written", raw, ShouldResemble, common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
+		SoMsg("Wrong content written", raw,
+			ShouldResemble, common.RawBytes{0x12, 0x34, 0x56, 0x78, 0, 0xA, 0, 0})
 	})
 }
