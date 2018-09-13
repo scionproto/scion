@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var (
@@ -30,7 +31,7 @@ type Config struct {
 	// using SegSync messages.
 	SegSync bool
 	PathDB  string
-	// QueryInterval specifies after how many seconds segments
+	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval duration
 }
@@ -49,6 +50,6 @@ type duration struct {
 
 func (d *duration) UnmarshalText(text []byte) error {
 	var err error
-	d.Duration, err = time.ParseDuration(string(text))
+	d.Duration, err = util.ParseDuration(string(text))
 	return err
 }

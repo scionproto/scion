@@ -532,9 +532,12 @@ func (b *Backend) InsertLastQueried(ctx context.Context, dst addr.IA,
 		return false, err
 	}
 	queryLines := []string{
-		"INSERT OR REPLACE INTO LastQuery SELECT data.* FROM",
-		"(SELECT ? AS isd, ? AS asID, ? AS lq) AS data",
-		"LEFT JOIN LastQuery ON data.isd = LastQuery.IsdID AND data.asID = LastQuery.AsID",
+		"INSERT OR REPLACE INTO LastQuery",
+		// Select the data from the input only if the new LastQuery is larger than the existing
+		// or if there is no existing (LastQuery.IsdID IS NULL)
+		"SELECT data.* FROM",
+		"(SELECT ? AS IsdID, ? AS AsID, ? AS lq) AS data",
+		"LEFT JOIN LastQuery USING (IsdID, AsID)",
 		"WHERE data.lq > LastQuery.LastQuery OR LastQuery.IsdID IS NULL;",
 	}
 	q := strings.Join(queryLines, "\n")

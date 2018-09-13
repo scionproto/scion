@@ -19,8 +19,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
-
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -31,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
