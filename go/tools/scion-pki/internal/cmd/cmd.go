@@ -53,7 +53,12 @@ source ~/.bashrc
 Instructions:
 mkdir -p ~/.zsh/completion
 mv _scion-pki ~/.zsh/completion
-echo "fpath=(~/.zsh/completion \$fpath)\nautload -U compinit\ncompinit\nzstyle ':completion:*' menu select=2" >> ~/.zshrc
+cat <<EOF >> ~/.zshrc
+fpath=(~/.zsh/completion \$fpath)
+autoload -U compinit
+compinit
+zstyle ':completion:*' menu select=2
+EOF
 source ~/.zshrc
 `
 )

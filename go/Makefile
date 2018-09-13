@@ -52,7 +52,7 @@ lint: vendor/.deps.stamp
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
 	@echo "======> linelen (lll)"
-	out=$$(lll -l 100 -e 'ini:|comment:|https?:|zsh/completion' ${LOCAL_NONGEN}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
+	out=$$(find . -type f -iname '*.go' -a '!' '(' -ipath './vendor/*' -o -ipath '*/*.capnp.go' -o -ipath '*/mock_*/*' ')' | lll -l 100 --files -e '`comment:"|`ini:"|https?:'); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 
 
 deps_gen: deps proto
