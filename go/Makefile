@@ -12,7 +12,6 @@ SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
-LOCAL_NONGEN = $(shell find ${LOCAL_DIRS} -type f -iname '*.go' -a '!' -iname '*.capnp.go' -a '!' -ipath '*/mock_*/*')
 GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \
