@@ -44,7 +44,7 @@ coverage: deps_gen
 	@echo
 	@echo "Go coverage report here: file://$$PWD/gocover.html"
 
-lint:
+lint: vendor/.deps.stamp
 	@echo "======> impi"
 	@# Skip vendored, generated and CGO (https://github.com/pavius/impi/issues/5) files.
 	impi --local github.com/scionproto/scion --scheme stdThirdPartyLocal --skip '^vendor/' --skip '\.capnp\.go$$' --skip '/mock_[^/]*/' --skip '/c\.go$$' ./...
