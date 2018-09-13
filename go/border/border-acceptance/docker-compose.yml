@@ -1,0 +1,56 @@
+version: "3.4"
+x-core-br: &core-br
+  environment:
+    SU_EXEC_USERSPEC: "$LOGNAME"
+  image: scion_border
+  network_mode: "service:dispatcher"
+  volumes:
+    - "/etc/passwd:/etc/passwd:ro"
+    - "/etc/group:/etc/group:ro"
+    - "/run/shm/dispatcher:/run/shm/dispatcher"
+    - "../../../logs:/share/logs"
+    - "./br-core-conf:/share/conf"
+x-br: &br
+  environment:
+    SU_EXEC_USERSPEC: "$LOGNAME"
+  image: scion_border
+  network_mode: "service:dispatcher"
+  volumes:
+    - "/etc/passwd:/etc/passwd:ro"
+    - "/etc/group:/etc/group:ro"
+    - "/run/shm/dispatcher:/run/shm/dispatcher"
+    - "../../../logs:/share/logs"
+    - "./br-non-core-conf:/share/conf"
+services:
+  dispatcher:
+    image: scion_dispatcher
+    network_mode: none
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "../../../logs:/share/logs"
+      - "./dispatcher-conf:/share/conf"
+  core-brA:
+    <<: *core-br
+    command: ["-id=core-brA", "-prom=[127.0.0.49]:30093"]
+  core-brB:
+    <<: *core-br
+    command: ["-id=core-brB", "-prom=[127.0.0.49]:30093"]
+  core-brC:
+    <<: *core-br
+    command: ["-id=core-brC", "-prom=[127.0.0.49]:30093"]
+  brA:
+    <<: *br
+    command: ["-id=brA", "-prom=[127.0.0.49]:30093"]
+  brB:
+    <<: *br
+    command: ["-id=brB", "-prom=[127.0.0.49]:30093"]
+  brC:
+    <<: *br
+    command: ["-id=brC", "-prom=[127.0.0.49]:30093"]
+  brD:
+    <<: *br
+    command: ["-id=brD", "-prom=[127.0.0.49]:30093"]
