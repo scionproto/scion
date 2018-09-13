@@ -333,6 +333,12 @@
 			"revisionTime": "2018-03-02T13:45:24Z"
 		},
 		{
+			"checksumSHA1": "FptfsjsTRqvPxCAO8h+AuITYVpw=",
+			"path": "github.com/pavius/impi/cmd/impi",
+			"revision": "c1cbdcb8df2b23af8530360d87ac9a7fabc48618",
+			"revisionTime": "2018-03-02T13:45:24Z"
+		},
+		{
 			"checksumSHA1": "FGg99nQ56Fo3radSCuU1AeEUJug=",
 			"path": "github.com/pierrec/lz4",
 			"revision": "08c27939df1bd95e881e2c2367a749964ad1fceb",
