@@ -116,11 +116,12 @@ func (h *baseHandler) fetchSegsFromDBRetry(ctx context.Context,
 }
 
 func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
-	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) {
-	// TODO(lukedirtwalker): collect the verified segs/revoc and return them.
+	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) []*seg.PathSegment {
 
+	verifiedC := make(chan *seg.PathSegment, len(recs))
 	// verify and store the segments
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
+		verifiedC <- s.Segment
 		if err := segsaver.StoreSeg(ctx, s, h.pathDB, h.logger); err != nil {
 			h.logger.Error("Unable to insert segment into path database",
 				"seg", s.Segment, "err", err)
@@ -137,4 +138,10 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	}
 	segverifier.Verify(ctx, h.trustStore, src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
+	close(verifiedC)
+	verifiedSegs := make([]*seg.PathSegment, 0, len(verifiedC))
+	for ps := range verifiedC {
+		verifiedSegs = append(verifiedSegs, ps)
+	}
+	return verifiedSegs
 }

@@ -104,34 +104,32 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger
 	if err != nil {
 		return nil, err
 	}
-	if err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cAddr); err != nil {
-		return nil, err
-	}
-	// TODO(lukedirtwalker): if fetchAndSaveSegs returns verified segs we don't need to query.
-	return h.fetchSegsFromDB(ctx, q)
+	return h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cAddr)
 }
 
 func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messenger,
-	src, dst addr.IA, cPSAddr net.Addr) error {
+	src, dst addr.IA, cPSAddr net.Addr) ([]*seg.PathSegment, error) {
 
 	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
 	segs, err := msger.GetSegs(ctx, r, cPSAddr, requestID.Next())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var recs []*seg.Meta
 	var revInfos []*path_mgmt.SignedRevInfo
-	if segs.Recs != nil {
-		recs = segs.Recs.Recs
-		revInfos = segs.Recs.SRevInfos
-		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
-		// TODO(lukedirtwalker): We should only do this if the segments were successfully inserted.
+	if segs.Recs == nil {
+		return nil, nil
+	}
+	recs = segs.Recs.Recs
+	revInfos = segs.Recs.SRevInfos
+	verifiedRecs := h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
+	if len(verifiedRecs) > 0 {
 		if _, err := h.pathDB.InsertLastQueried(ctx, dst, queryTime); err != nil {
 			h.logger.Warn("Failed to insert last queried", "err", err)
 		}
 	}
-	return nil
+	return verifiedRecs, nil
 }
 
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
