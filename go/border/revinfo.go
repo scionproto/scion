@@ -24,7 +24,7 @@ import (
 // RawSRevCallback is called to enqueue RevInfos for handling by the
 // RevInfoFwd goroutine.
 func (r *Router) RawSRevCallback(args rpkt.RawSRevCallbackArgs) {
-	// TODO filter revocations to avoid sending the same one to Control-plane multiple times.
+	// TODO #1867 filter revocations to avoid sending the same one to Control-plane multiple times.
 	select {
 	case r.sRevInfoQ <- args:
 	default:
