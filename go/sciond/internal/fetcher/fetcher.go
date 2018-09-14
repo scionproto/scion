@@ -334,7 +334,14 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	}
-	paths := combinator.Combine(req.Src.IA(), req.Dst.IA(), ups, cores, downs)
+	dsts := []addr.IA{req.Dst.IA()}
+	if req.Dst.IA().A == 0 {
+		dsts = cores.FirstIAs()
+	}
+	var paths []*combinator.Path
+	for _, dst := range dsts {
+		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
+	}
 	paths = f.filterRevokedPaths(paths)
 	return paths, nil
 }
