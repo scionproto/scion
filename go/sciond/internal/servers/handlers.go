@@ -20,7 +20,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -175,7 +174,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		for ifid, ifInfo := range h.Topology.IFInfoMap {
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
+				HostInfo: TopoBRAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
 			})
 		}
 	} else {
@@ -188,7 +187,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: TopoAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
+				HostInfo: TopoBRAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
 			})
 		}
 	}
@@ -274,11 +273,10 @@ func makeHostInfos(ot overlay.Type, addrMap map[string]topology.TopoAddr) []scio
 }
 
 func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.HostInfo {
-	var v4Addr, v6Addr *addr.AppAddr
 	var ipv4, ipv6 net.IP
 	var port uint16
 	if ot.IsIPv4() {
-		v4Addr = topoAddr.IPv4.PublicAddr()
+		v4Addr := topoAddr.IPv4.PublicAddr()
 		if v4Addr != nil {
 			// XXX(scrye): Force 4-byte representation of IPv4 addresses
 			// because Python code doesn't understand Go's 16-byte format.
@@ -287,10 +285,42 @@ func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.Host
 		}
 	}
 	if ot.IsIPv6() {
-		v6Addr = topoAddr.IPv6.PublicAddr()
+		v6Addr := topoAddr.IPv6.PublicAddr()
 		if v6Addr != nil {
 			ipv6 = v6Addr.L3.IP()
 			port = v6Addr.L4.Port()
+		}
+	}
+	// XXX This assumes that Ipv4 and IPv6 use the same port!
+	return sciond.HostInfo{
+		Addrs: struct {
+			Ipv4 []byte
+			Ipv6 []byte
+		}{
+			Ipv4: ipv4,
+			Ipv6: ipv6,
+		},
+		Port: port,
+	}
+}
+
+func TopoBRAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoBRAddr) sciond.HostInfo {
+	var ipv4, ipv6 net.IP
+	var port uint16
+	if ot.IsIPv4() {
+		v4Addr := topoAddr.IPv4.PublicOverlay
+		if v4Addr != nil {
+			// XXX(scrye): Force 4-byte representation of IPv4 addresses
+			// because Python code doesn't understand Go's 16-byte format.
+			ipv4 = v4Addr.L3().IP().To4()
+			port = v4Addr.L4().Port()
+		}
+	}
+	if ot.IsIPv6() {
+		v6Addr := topoAddr.IPv6.PublicOverlay
+		if v6Addr != nil {
+			ipv6 = v6Addr.L3().IP()
+			port = v6Addr.L4().Port()
 		}
 	}
 	// XXX This assumes that Ipv4 and IPv6 use the same port!

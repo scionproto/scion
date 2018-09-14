@@ -37,7 +37,7 @@ var (
 	bindBad    = &RawAddrPort{"BadIPAddress", 40000}
 )
 
-func Test_TopoAddrFromRAM(t *testing.T) {
+func Test_topoAddrFromRaw(t *testing.T) {
 	var basic_tests = []struct {
 		name    string
 		overlay overlay.Type
@@ -94,7 +94,7 @@ func Test_TopoAddrFromRAM(t *testing.T) {
 			&pubBindAddr{newPub(pubUDPIPv6), newBind(bindIPv6), newOverlay(pubUDPIPv6)}},
 	}
 	for i, test := range basic_tests {
-		desc := fmt.Sprintf("TopoAddrFromRAM_%d. %s", i, test.name)
+		desc := fmt.Sprintf("topoAddrFromRaw_%d. %s", i, test.name)
 		exp := &TopoAddr{
 			IPv4:    test.ipv4,
 			IPv6:    test.ipv6,
@@ -152,7 +152,7 @@ func Test_pubBindAddr(t *testing.T) {
 		exp := &pubBindAddr{newPub(test.pub), newBind(test.bind), newOverlay(overlay)}
 		Convey(desc, t, func() {
 			pbo := &pubBindAddr{}
-			err := pbo.fromRPBO(rpbo, test.udpOverlay)
+			err := pbo.fromRaw(rpbo, test.udpOverlay)
 			if test.err == "" {
 				SoMsg("Error", err, ShouldBeNil)
 				SoMsg("pubBindAddr", pbo, shouldEqPubBindAddr, exp)

@@ -18,7 +18,6 @@ package rpkt
 
 import (
 	"fmt"
-	"math/rand"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -49,14 +48,13 @@ func (rp *RtrPkt) Route() error {
 		case ret == HookContinue:
 			continue
 		case ret == HookFinish:
-			// HookFinish in this context means "the packet has already been
-			// routed".
+			// HookFinish in this context means "the packet has already been routed".
 			return nil
 		}
 	}
 	if len(rp.Egress) == 0 {
 		return common.NewBasicError("No routing information found", nil,
-			"egress", rp.Egress, "dirFrom", rp.DirFrom, "dirTo", rp.DirTo, "raw", rp.Raw)
+			"egress", rp.Egress, "dirFrom", rp.DirFrom, "raw", rp.Raw)
 	}
 	rp.RefInc(len(rp.Egress))
 	// Call all egress functions.
@@ -72,56 +70,19 @@ func (rp *RtrPkt) Route() error {
 	return nil
 }
 
-// RouteResolveSVC is a hook to resolve SVC addresses for routing packets to
-// the local ISD-AS.
+// RouteResolveSVC is a hook to resolve SVC addresses for routing packets to the local ISD-AS.
 func (rp *RtrPkt) RouteResolveSVC() (HookResult, error) {
 	svc, ok := rp.dstHost.(addr.HostSVC)
 	if !ok {
 		return HookError, common.NewBasicError("Destination host is NOT an SVC address", nil,
 			"actual", rp.dstHost, "type", fmt.Sprintf("%T", rp.dstHost))
 	}
-	// FIXME(sgmonroy) Choose LocSock based on overlay type
-	if svc.IsMulticast() {
-		return rp.RouteResolveSVCMulti(svc)
-	}
-	return rp.RouteResolveSVCAny(svc)
-}
-
-// RouteResolveSVCAny handles routing a packet to an anycast SVC address (i.e.
-// a single instance of a local infrastructure service).
-func (rp *RtrPkt) RouteResolveSVCAny(svc addr.HostSVC) (HookResult, error) {
-	names, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
+	addrs, err := rp.Ctx.ResolveSVC(svc)
 	if err != nil {
 		return HookError, err
 	}
-	// XXX(kormat): just pick one randomly. TCP will remove the need to have
-	// consistent selection for a given source.
-	name := names[rand.Intn(len(names))]
-	elem := elemMap[name]
-	dst := elem.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
-	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
-	return HookContinue, nil
-}
-
-// RouteResolveSVCMulti handles routing a packet to a multicast SVC address
-// (i.e. one packet per machine hosting instances for a local infrastructure
-// service).
-func (rp *RtrPkt) RouteResolveSVCMulti(svc addr.HostSVC) (HookResult, error) {
-	_, elemMap, err := getSVCNamesMap(svc, rp.Ctx)
-	if err != nil {
-		return HookError, err
-	}
-	// Only send once per IP:OverlayPort combination. Adding the overlay port
-	// allows this to work even when multiple instances are NAT'd to the same
-	// IP address.
-	seen := make(map[string]struct{})
-	for _, elem := range elemMap {
-		dst := elem.OverlayAddr(rp.Ctx.Conf.Topo.Overlay)
-		strIP := dst.String()
-		if _, ok := seen[strIP]; ok {
-			continue
-		}
-		seen[strIP] = struct{}{}
+	for _, dst := range addrs {
+		// FIXME(sgmonroy) Choose LocSock based on overlay type for dual-stack support
 		rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	}
 	return HookContinue, nil
@@ -137,6 +98,10 @@ func (rp *RtrPkt) forward() (HookResult, error) {
 		return HookError, common.NewBasicError("Unsupported forwarding DirFrom", nil,
 			"dirFrom", rp.DirFrom)
 	}
+}
+
+func (rp *RtrPkt) drop() (HookResult, error) {
+	return HookFinish, nil
 }
 
 // forwardFromExternal forwards packets that have been received from a neighbouring ISD-AS.
@@ -175,14 +140,7 @@ func (rp *RtrPkt) forwardFromExternal() (HookResult, error) {
 		return rp.reprocess()
 	}
 	nextBR := rp.Ctx.Conf.Topo.IFInfoMap[*rp.ifNext]
-	// XXX (sgmonroy) this would need to change with the Control/Data plane split.
-	// Currently, the BR ignores the OverlayPort value from the topology and always
-	// uses the L4Port as the Overlay port.
-	dstPub := nextBR.InternalAddrs.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
-	dst, err := overlay.NewOverlayAddr(dstPub.L3, dstPub.L4)
-	if err != nil {
-		return HookError, err
-	}
+	dst := nextBR.InternalAddrs.PublicOverlay(rp.Ctx.Conf.Topo.Overlay)
 	rp.Egress = append(rp.Egress, EgressPair{S: rp.Ctx.LocSockOut, Dst: dst})
 	return HookContinue, nil
 }

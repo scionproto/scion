@@ -47,20 +47,17 @@ type TopoAddr struct {
 
 // Create TopoAddr from RawAddrMap, depending on supplied Overlay type
 func topoAddrFromRAM(s RawAddrMap, ot overlay.Type) (*TopoAddr, error) {
-	switch ot {
-	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
-		overlay.UDPIPv6, overlay.UDPIPv46:
-	default:
-		return nil, common.NewBasicError(ErrUnsupportedOverlay, nil, "type", ot)
+	if err := overlayCheck(ot); err != nil {
+		return nil, err
 	}
 	t := &TopoAddr{Overlay: ot}
-	if err := t.fromRAM(s); err != nil {
+	if err := t.fromRaw(s); err != nil {
 		return nil, common.NewBasicError("Failed to parse raw topo address", err, "addr", s)
 	}
 	return t, nil
 }
 
-func (t *TopoAddr) fromRAM(s RawAddrMap) error {
+func (t *TopoAddr) fromRaw(s RawAddrMap) error {
 	for k, rpbo := range s {
 		var hostType addr.HostAddrType
 		pbo := &pubBindAddr{}
@@ -80,7 +77,7 @@ func (t *TopoAddr) fromRAM(s RawAddrMap) error {
 		default:
 			return common.NewBasicError(ErrUnsupportedAddrType, nil, "Type", k)
 		}
-		if err := pbo.fromRPBO(rpbo, t.Overlay.IsUDP()); err != nil {
+		if err := pbo.fromRaw(rpbo, t.Overlay.IsUDP()); err != nil {
 			return err
 		}
 		// Check parsed addresses match the expected address type
@@ -165,7 +162,7 @@ type pubBindAddr struct {
 	overlay *overlay.OverlayAddr
 }
 
-func (pbo *pubBindAddr) fromRPBO(rpbo *RawPubBindOverlay, udpOverlay bool) error {
+func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error {
 	var err error
 	ip := net.ParseIP(rpbo.Public.Addr)
 	if ip == nil {
@@ -245,4 +242,14 @@ func newOverlayAddr(udpOverlay bool, l3 addr.HostAddr, port int) (*overlay.Overl
 		ol4 = addr.NewL4UDPInfo(uint16(port))
 	}
 	return overlay.NewOverlayAddr(l3, ol4)
+}
+
+func overlayCheck(ot overlay.Type) error {
+	switch ot {
+	case overlay.IPv4, overlay.IPv6, overlay.IPv46, overlay.UDPIPv4,
+		overlay.UDPIPv6, overlay.UDPIPv46:
+	default:
+		return common.NewBasicError(ErrUnsupportedOverlay, nil, "type", ot)
+	}
+	return nil
 }

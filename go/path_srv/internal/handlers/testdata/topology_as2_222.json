@@ -4,7 +4,10 @@
   "BorderRouters": {
     "br2-ff00_0_222-1": {
       "InternalAddrs": {
-        "IPv4": {"Public": {"Addr": "127.0.0.255", "L4Port": 30071}}
+        "IPv4": {"PublicOverlay": {"Addr": "127.0.0.255", "OverlayPort": 50000}}
+      },
+      "CtrlAddr": {
+        "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30071}}
       },
       "Interfaces": {
         "2623": {
@@ -13,13 +16,13 @@
           "ISD_AS": "2-ff00:0:211",
           "MTU": 1472,
           "Bandwidth": 1000,
-          "Remote": {
+          "RemoteOverlay": {
             "Addr": "127.0.0.42",
-            "L4Port": 50000
+            "OverlayPort": 50000
           },
-          "Public": {
+          "PublicOverlay": {
             "Addr": "127.0.0.43",
-            "L4Port": 50000
+            "OverlayPort": 50000
           }
         },
         "2624": {
@@ -28,13 +31,13 @@
           "ISD_AS": "2-ff00:0:221",
           "MTU": 1472,
           "Bandwidth": 1000,
-          "Remote": {
+          "RemoteOverlay": {
             "Addr": "127.0.0.46",
-            "L4Port": 50000
+            "OverlayPort": 50000
           },
-          "Public": {
+          "PublicOverlay": {
             "Addr": "127.0.0.47",
-            "L4Port": 50000
+            "OverlayPort": 50000
           }
         }
       }

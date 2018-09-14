@@ -17,58 +17,17 @@
 package main
 
 import (
-	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
-	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
 // RawSRevCallback is called to enqueue RevInfos for handling by the
 // RevInfoFwd goroutine.
 func (r *Router) RawSRevCallback(args rpkt.RawSRevCallbackArgs) {
+	// TODO #1867 filter revocations to avoid sending the same one to Control-plane multiple times.
 	select {
 	case r.sRevInfoQ <- args:
 	default:
 		log.Debug("Dropping rev token")
-	}
-}
-
-// RevInfoFwd takes RevInfos, and forwards them to the local Beacon Service
-// (BS) and Path Service (PS).
-func (r *Router) RevInfoFwd() {
-	defer log.LogPanicAndExit()
-	// Run forever.
-	for args := range r.sRevInfoQ {
-		revInfo, err := args.SignedRevInfo.RevInfo()
-		if err != nil {
-			log.Error("Error getting RevInfo from SignedRevInfo", "err", err)
-		}
-		log.Debug("Forwarding revocation", "revInfo", revInfo.String(), "targets", args.Addrs)
-		for _, svcAddr := range args.Addrs {
-			r.fwdRevInfo(args.SignedRevInfo, svcAddr)
-		}
-	}
-}
-
-// fwdRevInfo forwards RevInfo payloads to a designated local host.
-func (r *Router) fwdRevInfo(sRevInfo *path_mgmt.SignedRevInfo, dstHost addr.HostAddr) {
-	ctx := rctx.Get()
-	// Pick first local address from topology as source.
-	src := ctx.Conf.Net.LocAddr.PublicAddr(ctx.Conf.Topo.Overlay)
-	cpld, err := ctrl.NewPathMgmtPld(sRevInfo, nil, nil)
-	if err != nil {
-		log.Error("Error generating RevInfo Ctrl payload", "err", err)
-		return
-	}
-	scpld, err := cpld.SignedPld(ctrl.NullSigner)
-	if err != nil {
-		log.Error("Error generating RevInfo signed Ctrl payload", "err", err)
-		return
-	}
-	dst := &addr.AppAddr{L3: dstHost, L4: addr.NewL4UDPInfo(0)}
-	if err = r.genPkt(ctx.Conf.IA, dst, src, nil, scpld); err != nil {
-		log.Error("Error generating RevInfo packet", "err", err)
 	}
 }

@@ -8,15 +8,19 @@
     "BorderRouters": {
         "br1-ff00:0:311-1": {
             "InternalAddrs": {
-                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30097}},
-                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30097}}
+                "IPv4": {"PublicOverlay": {"Addr": "10.1.0.1"}},
+                "IPv6": {"PublicOverlay": {"Addr": "2001:db8:a0b:12f0::1"}}
+            },
+            "CtrlAddr": {
+                "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30098}},
+                "IPv6": {"Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 30098}}
             },
             "Interfaces": {
                 "1": {
                     "Overlay": "UDP/IPv4",
-                    "Bind": {"Addr": "10.0.0.1", "L4Port": 30090},
-                    "Public": {"Addr": "192.0.2.1", "L4Port": 44997},
-                    "Remote": {"Addr": "192.0.2.2", "L4Port": 44998},
+                    "BindOverlay": {"Addr": "10.0.0.1"},
+                    "PublicOverlay": {"Addr": "192.0.2.1", "OverlayPort": 44997},
+                    "RemoteOverlay": {"Addr": "192.0.2.2", "OverlayPort": 44998},
                     "Bandwidth": 1000,
                     "ISD_AS": "1-ff00:0:312",
                     "LinkTo": "PARENT",
@@ -24,9 +28,9 @@
                 },
                 "3": {
                     "Overlay": "IPv6",
-                    "Public": {"Addr": "2001:db8:a0b:12f0::1", "L4Port": 50000},
-                    "Remote": {"Addr":"2001:db8:a0b:12f0::2", "L4Port": 50000},
-                    "Bind": {"Addr":"2001:db8:a0b:12f0::8", "L4Port": 10000},
+                    "PublicOverlay": {"Addr": "2001:db8:a0b:12f0::1"},
+                    "RemoteOverlay": {"Addr":"2001:db8:a0b:12f0::2"},
+                    "BindOverlay": {"Addr":"2001:db8:a0b:12f0::8"},
                     "Bandwidth": 5000,
                     "ISD_AS": "1-ff00:0:314",
                     "LinkTo": "CHILD",
@@ -34,9 +38,9 @@
                 },
                 "8": {
                     "Overlay": "IPv4",
-                    "Bind": {"Addr": "10.0.0.2", "L4Port": 40000},
-                    "Public": {"Addr": "192.0.2.2", "L4Port": 50000},
-                    "Remote": {"Addr": "192.0.2.3", "L4Port": 50001},
+                    "BindOverlay": {"Addr": "10.0.0.2"},
+                    "PublicOverlay": {"Addr": "192.0.2.2"},
+                    "RemoteOverlay": {"Addr": "192.0.2.3"},
                     "Bandwidth": 2000,
                     "ISD_AS": "1-ff00:0:313",
                     "LinkTo": "PEER",

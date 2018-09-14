@@ -150,22 +150,17 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 
 func (t *Topo) populateBR(raw *RawTopo) error {
 	for name, rawBr := range raw.BorderRouters {
+		if rawBr.CtrlAddr == nil {
+			return common.NewBasicError("Missing Control Address", nil, "br", name)
+		}
 		if rawBr.InternalAddrs == nil {
 			return common.NewBasicError("Missing Internal Address", nil, "br", name)
 		}
-		for i := range rawBr.InternalAddrs {
-			pub := rawBr.InternalAddrs[i].Public
-			if pub.OverlayPort != 0 {
-				return common.NewBasicError("BR internal address may not have overlay port set",
-					nil, "br", name, "intAddr", rawBr.InternalAddrs[i])
-			}
-			if t.Overlay.IsUDP() {
-				// Set the overlay port to the L4 port as the BR does not run
-				// on top of the dispatcher.
-				rawBr.InternalAddrs[i].Public = RawAddrPortOverlay{pub.RawAddrPort, pub.L4Port}
-			}
+		ctrlAddr, err := topoAddrFromRAM(rawBr.CtrlAddr, t.Overlay)
+		if err != nil {
+			return err
 		}
-		intAddr, err := rawBr.InternalAddrs.ToTopoAddr(t.Overlay)
+		intAddr, err := topoBRAddrFromRBRAM(rawBr.InternalAddrs, t.Overlay)
 		if err != nil {
 			return err
 		}
@@ -173,14 +168,14 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
-			ifinfo := IFInfo{BRName: name, InternalAddrs: intAddr}
+			ifinfo := IFInfo{BRName: name, InternalAddrs: intAddr, CtrlAddrs: ctrlAddr}
 			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
 				return err
 			}
-			if ifinfo.Local, err = rawIntf.localTopoAddr(ifinfo.Overlay); err != nil {
+			if ifinfo.Local, err = rawIntf.localTopoBRAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
-			if ifinfo.Remote, err = rawIntf.remoteAddr(ifinfo.Overlay); err != nil {
+			if ifinfo.Remote, err = rawIntf.remoteBRAddr(ifinfo.Overlay); err != nil {
 				return err
 			}
 			ifinfo.Bandwidth = rawIntf.Bandwidth
@@ -278,9 +273,10 @@ type BRInfo struct {
 // the link itself and the remote side of it.
 type IFInfo struct {
 	BRName        string
-	InternalAddrs *TopoAddr
+	CtrlAddrs     *TopoAddr
 	Overlay       overlay.Type
-	Local         *TopoAddr
+	InternalAddrs *TopoBRAddr
+	Local         *TopoBRAddr
 	Remote        *overlay.OverlayAddr
 	RemoteIFID    common.IFIDType
 	Bandwidth     int
@@ -290,8 +286,7 @@ type IFInfo struct {
 }
 
 func (i IFInfo) String() string {
-	return fmt.Sprintf(
-		"IFinfo: Name[%s] IntAddrs[%+v] Overlay:%s Local:%+v Remote:+%v Bw:%d IA:%s Type:%s MTU:%d",
-		i.BRName, i.InternalAddrs, i.Overlay, i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType,
-		i.MTU)
+	return fmt.Sprintf("IFinfo: Name[%s] IntAddr[%+v] CtrlAddr[%+v] Overlay:%s Local:%+v "+
+		"Remote:+%v Bw:%d IA:%s Type:%s MTU:%d", i.BRName, i.InternalAddrs, i.CtrlAddrs, i.Overlay,
+		i.Local, i.Remote, i.Bandwidth, i.ISD_AS, i.LinkType, i.MTU)
 }

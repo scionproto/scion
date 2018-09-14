@@ -40,13 +40,14 @@ func removeSrvBind(svc map[string]*RawSrvInfo) {
 
 func removeBRBind(brs map[string]*RawBRInfo) {
 	for _, bri := range brs {
-		removeRAMBind(bri.InternalAddrs)
+		removeRBRAMBind(bri.InternalAddrs)
+		removeRAMBind(bri.CtrlAddr)
 		for i := range bri.Interfaces {
 			// The nil elements are of no interest to the public
 			bri.Interfaces[i].Overlay = ""
-			bri.Interfaces[i].Bind = nil
-			bri.Interfaces[i].Public = nil
-			bri.Interfaces[i].Remote = nil
+			bri.Interfaces[i].BindOverlay = nil
+			bri.Interfaces[i].PublicOverlay = nil
+			bri.Interfaces[i].RemoteOverlay = nil
 		}
 	}
 }
@@ -54,5 +55,11 @@ func removeBRBind(brs map[string]*RawBRInfo) {
 func removeRAMBind(ram RawAddrMap) {
 	for _, v := range ram {
 		v.Bind = nil
+	}
+}
+
+func removeRBRAMBind(rbram RawBRAddrMap) {
+	for _, v := range rbram {
+		v.BindOverlay = nil
 	}
 }

@@ -35,8 +35,10 @@ import (
 // NetConf contains the local addresses, interface config, and some maps for
 // accessing these by different methods.
 type NetConf struct {
-	// LocAddr is the local addresses from the topology.
-	LocAddr *topology.TopoAddr
+	// LocAddr is the local data-plane addresses from the topology.
+	LocAddr *topology.TopoBRAddr
+	// CtrlAddr is the local control-plane addresses from the topology.
+	CtrlAddr *topology.TopoAddr
 	// IFs maps interface IDs to Interfaces.
 	IFs map[common.IFIDType]*Interface
 	// IFAddrMap maps external public address strings to interface IDs.
@@ -53,7 +55,14 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 		if n.LocAddr == nil {
 			n.LocAddr = ifinfo.InternalAddrs
 		} else if assert.On {
-			assert.Must(n.LocAddr == ifinfo.InternalAddrs, "Cannot have multiple local addresses")
+			assert.Must(n.LocAddr == ifinfo.InternalAddrs,
+				"Cannot have multiple local data-plane addresses")
+		}
+		if n.CtrlAddr == nil {
+			n.CtrlAddr = ifinfo.CtrlAddrs
+		} else if assert.On {
+			assert.Must(n.CtrlAddr == ifinfo.CtrlAddrs,
+				"Cannot have multiple local control-plane addresses")
 		}
 		v, ok := n.IFs[ifid]
 		newIF := intfFromTopoIF(&ifinfo, ifid)
@@ -67,10 +76,10 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 	for ifid, intf := range n.IFs {
 		// Add mapping of interface public address to this interface ID.
 		if intf.IFAddr.IPv4 != nil {
-			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv4.PublicAddr())] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv4.PublicOverlay)] = ifid
 		}
 		if intf.IFAddr.IPv6 != nil {
-			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv6.PublicAddr())] = ifid
+			n.IFAddrMap[fmt.Sprintf("%s", intf.IFAddr.IPv6.PublicOverlay)] = ifid
 		}
 	}
 	return n, nil
@@ -84,7 +93,7 @@ type Interface struct {
 	// interface. Normally these are the same, but for example in the case of
 	// NAT, the bind address may differ from the address visible from outside
 	// the AS.
-	IFAddr *topology.TopoAddr
+	IFAddr *topology.TopoBRAddr
 	// RemoteAddr is the public address of the border router on the other end
 	// of the link.
 	RemoteAddr *overlay.OverlayAddr

@@ -253,6 +253,10 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 			f.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
 			continue
 		}
+		var port uint16
+		if nextHop.InternalAddrs.IPv4.PublicOverlay.L4() != nil {
+			port = nextHop.InternalAddrs.IPv4.PublicOverlay.L4().Port()
+		}
 		entries = append(entries, sciond.PathReplyEntry{
 			Path: &sciond.FwdPathMeta{
 				FwdPath:    x.Bytes(),
@@ -265,10 +269,10 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 					Ipv4 []byte
 					Ipv6 []byte
 				}{
-					Ipv4: nextHop.InternalAddrs.IPv4.PublicAddr().L3.IP().To4(),
+					Ipv4: nextHop.InternalAddrs.IPv4.PublicOverlay.L3().IP().To4(),
 					// FIXME(scrye): also add support for IPv6
 				},
-				Port: nextHop.InternalAddrs.IPv4.PublicAddr().L4.Port(),
+				Port: port,
 			},
 		})
 	}

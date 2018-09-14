@@ -18,13 +18,10 @@
 package rpkt
 
 import (
-	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -33,8 +30,6 @@ func (rp *RtrPkt) Parse() error {
 	if err := rp.parseBasic(); err != nil {
 		return err
 	}
-	// TODO(kormat): support end2end extensions where the router is the
-	// destination
 	if err := rp.parseHopExtns(); err != nil {
 		return err
 	}
@@ -63,7 +58,6 @@ func (rp *RtrPkt) Parse() error {
 	if _, err := rp.IFNext(); err != nil {
 		return err
 	}
-	rp.setDirTo()
 	return nil
 }
 
@@ -140,38 +134,4 @@ func (rp *RtrPkt) parseHopExtns() error {
 		return common.NewBasicError(ErrExtChainTooLong, nil, "curr", offset, "max", len(rp.Raw))
 	}
 	return nil
-}
-
-// setDirTo figures out which Dir a packet is going to, and sets the DirTo
-// field accordingly.
-func (rp *RtrPkt) setDirTo() {
-	if assert.On {
-		assert.Mustf(rp.DirFrom != rcmn.DirSelf, rp.ErrStr, "DirFrom must not be DirSelf.")
-		assert.Mustf(rp.DirFrom != rcmn.DirUnset, rp.ErrStr, "DirFrom must not be DirUnset.")
-	}
-	if !rp.dstIA.Eq(rp.Ctx.Conf.IA) {
-		// Packet is not destined to the local AS, so it can't be DirSelf.
-		if rp.DirFrom == rcmn.DirLocal {
-			rp.DirTo = rcmn.DirExternal
-		} else if rp.DirFrom == rcmn.DirExternal {
-			// XXX(kormat): this logic might be too simple once a router can
-			// have multiple interfaces.
-			rp.DirTo = rcmn.DirLocal
-		}
-		return
-	}
-	// Local AS is the destination, so figure out if it's DirLocal or DirSelf.
-	// Compare the packet dst address against the address of the interface we received the packet.
-	var taddr *topology.TopoAddr
-	if rp.DirFrom == rcmn.DirExternal {
-		taddr = rp.Ctx.Conf.Net.IFs[rp.Ingress.IfID].IFAddr
-	} else {
-		taddr = rp.Ctx.Conf.Net.LocAddr
-	}
-	loc := taddr.PublicAddr(rp.Ingress.Dst.Type())
-	if loc.L3.Eq(rp.dstHost) {
-		rp.DirTo = rcmn.DirSelf
-	} else {
-		rp.DirTo = rcmn.DirLocal
-	}
 }

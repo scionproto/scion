@@ -32,7 +32,7 @@ import (
 )
 
 // RtrPktFromScnPkt creates an RtrPkt from an spkt.ScnPkt.
-func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, error) {
+func RtrPktFromScnPkt(sp *spkt.ScnPkt, ctx *rctx.Ctx) (*RtrPkt, error) {
 	rp := NewRtrPkt()
 	rp.Ctx = ctx
 	totalLen := sp.TotalLen()
@@ -41,7 +41,6 @@ func RtrPktFromScnPkt(sp *spkt.ScnPkt, dirTo rcmn.Dir, ctx *rctx.Ctx) (*RtrPkt, 
 	rp.Id = log.RandId(4)
 	rp.Logger = log.New("rpkt", rp.Id)
 	rp.DirFrom = rcmn.DirSelf
-	rp.DirTo = dirTo
 	// Fill in common header.
 	rp.CmnHdr.DstType = sp.DstHost.Type()
 	rp.CmnHdr.SrcType = sp.SrcHost.Type()
@@ -180,14 +179,14 @@ func (rp *RtrPkt) CreateReplyScnPkt() (*spkt.ScnPkt, error) {
 	}
 	sp.SrcIA = rp.Ctx.Conf.IA
 	// Use the local address as the source host
-	pub := rp.Ctx.Conf.Net.LocAddr.PublicAddr(rp.Ctx.Conf.Topo.Overlay)
-	sp.SrcHost = pub.L3
+	pub := rp.Ctx.Conf.Net.LocAddr.PublicOverlay(rp.Ctx.Conf.Topo.Overlay)
+	sp.SrcHost = pub.L3()
 	return sp, nil
 }
 
 func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 	// Convert back to RtrPkt
-	reply, err := RtrPktFromScnPkt(sp, rp.DirFrom, rp.Ctx)
+	reply, err := RtrPktFromScnPkt(sp, rp.Ctx)
 	if err != nil {
 		return nil, err
 	}

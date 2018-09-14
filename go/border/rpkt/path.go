@@ -34,12 +34,6 @@ import (
 func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	// First check if there is a path
 	if rp.infoF == nil || rp.hopF == nil {
-		// If there's no path, then there's nothing to check.
-		if rp.DirTo == rcmn.DirSelf {
-			// An empty path is legitimate when the packet's destination is
-			// this router.
-			return nil
-		}
 		return common.NewBasicError("Path required",
 			scmp.NewError(scmp.C_Path, scmp.T_P_PathRequired, nil, nil))
 	}
@@ -93,11 +87,15 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 			"ifid", *ifid,
 		)
 	}
+	for _, e := range rp.HBHExt {
+		if e.Type() == common.ExtnOneHopPathType {
+			// Ignore revocations if OneHopExtension is present
+			return nil
+		}
+	}
 	state, ok := ifstate.LoadState(*ifid)
-	if !ok || state.Active || rp.DirTo == rcmn.DirSelf {
-		// Either the interface isn't revoked, or the packet is to this
-		// router, in which case revocations are ignored to allow communication
-		// with the router.
+	if !ok || state.Active {
+		// Interface is not revoked
 		return nil
 	}
 	// Interface is revoked.
@@ -421,7 +419,7 @@ func (rp *RtrPkt) IFCurr() (*common.IFIDType, error) {
 		if rp.hopF != nil {
 			var ingress bool
 			switch rp.DirFrom {
-			case rcmn.DirSelf, rcmn.DirLocal:
+			case rcmn.DirLocal:
 				ingress = !*rp.consDirFlag
 			case rcmn.DirExternal:
 				ingress = *rp.consDirFlag
@@ -476,7 +474,7 @@ func (rp *RtrPkt) IFNext() (*common.IFIDType, error) {
 // retrival hooks.
 func (rp *RtrPkt) hookIF(consDir bool, hooks []hookIntf) (*common.IFIDType, error) {
 	for _, f := range hooks {
-		ret, intf, err := f(consDir, rp.DirFrom, rp.DirTo)
+		ret, intf, err := f(consDir, rp.DirFrom)
 		switch {
 		case err != nil:
 			return nil, err

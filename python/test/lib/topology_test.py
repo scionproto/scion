@@ -75,17 +75,17 @@ class TestInterfaceElementInit(object):
 
     @patch("lib.topology.haddr_parse_interface", autospec=True)
     @patch("lib.topology.ISD_AS", autospec=True)
-    @patch("lib.topology.Element.__init__", autospec=True)
+    @patch("lib.topology.RouterAddrElement.__init__", autospec=True)
     def test_full(self, super_init, isd_as, parse):
         intf_dict = {
             'Overlay': 'UDP/IPv4',
-            'Public': {
+            'PublicOverlay': {
                 'Addr': 'addr',
-                'L4Port': 6
+                'OverlayPort': 6
             },
-            'Remote': {
+            'RemoteOverlay': {
                 'Addr': 'toaddr',
-                'L4Port': 5
+                'OverlayPort': 5
             },
             'Bandwidth': 1001,
             'ISD_AS': '3-ff00:0:301',
@@ -93,7 +93,7 @@ class TestInterfaceElementInit(object):
             'MTU': 4242
         }
         if_id = 1
-        addrs = {'IPv4': {'Public': {'Addr': 'addr', 'L4Port': 6}}}
+        addrs = {'IPv4': {'PublicOverlay': {'Addr': 'addr', 'OverlayPort': 6}}}
         # Call
         inst = InterfaceElement(if_id, intf_dict, 'name')
         # Tests

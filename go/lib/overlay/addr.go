@@ -76,8 +76,8 @@ func (a *OverlayAddr) Copy() *OverlayAddr {
 }
 
 func (a *OverlayAddr) Eq(o *OverlayAddr) bool {
-	if (a == nil) && (o == nil) {
-		return true
+	if (a == nil) || (o == nil) {
+		return a == o
 	}
 	if a.l3 != nil {
 		if !a.l3.Eq(o.l3) {

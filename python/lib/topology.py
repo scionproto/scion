@@ -78,9 +78,52 @@ class ServerElement(Element):
         super().__init__(server_dict['Addrs'], name)
 
 
-class InterfaceElement(Element):
+class RouterAddrElement(object):
     """
-    The InterfaceElement class represents one of the interfaces of an border
+    The RouterAddrElement class is the base class for elements specified in the
+    Border router topology section.
+
+    :ivar HostAddrBase addr: Host address of a border router.
+    :ivar str name: element name or id
+    """
+    def __init__(self, addrs=None, name=None):
+        """
+        :param dict public:
+            ((addr_type, address), overlay_port) of the element's public address.
+            (i.e. the address visible to other network elements).
+        :param dict bind:
+            (addr_type, address) of the element's bind address, if any
+            (i.e. the address the element uses to identify itself to the local
+            operating system, if it differs from the public address due to NAT).
+        :param str name: element name or id
+        """
+        public, bind = self._get_pub_bind(addrs)
+        self.public = self._parse_addrs(public)
+        self.bind = self._parse_addrs(bind)
+        self.name = None
+        if name is not None:
+            self.name = str(name)
+
+    def _get_pub_bind(self, addrs):
+        if addrs is None:
+            return None, None
+        pub_bind = addrs.get('IPv6')
+        if pub_bind is not None:
+            return pub_bind['PublicOverlay'], pub_bind.get('BindOverlay')
+        pub_bind = addrs.get('IPv4')
+        if pub_bind is not None:
+            return pub_bind['PublicOverlay'], pub_bind.get('BindOverlay')
+        return None, None
+
+    def _parse_addrs(self, value):
+        if not value:
+            return None
+        return (haddr_parse_interface(value['Addr']), value['OverlayPort'])
+
+
+class InterfaceElement(RouterAddrElement):
+    """
+    The InterfaceElement class represents one of the interfaces of a border
     router.
 
     :ivar int if_id: the interface ID.
@@ -102,7 +145,7 @@ class InterfaceElement(Element):
         self.mtu = interface_dict['MTU']
         self.overlay = interface_dict['Overlay']
         self.to_if_id = 0  # Filled in later by IFID packets
-        self.remote = self._parse_addrs(interface_dict['Remote'])
+        self.remote = self._parse_addrs(interface_dict['RemoteOverlay'])
         super().__init__(self._new_addrs(interface_dict), name)
 
     def _new_addrs(self, interface_dict):
@@ -112,10 +155,10 @@ class InterfaceElement(Element):
         else:  # Assume IPv6
             addrType = 'IPv6'
         addrs[addrType] = {}
-        addrs[addrType]['Public'] = interface_dict['Public']
-        bind = interface_dict.get('Bind')
+        addrs[addrType]['PublicOverlay'] = interface_dict['PublicOverlay']
+        bind = interface_dict.get('BindOverlay')
         if bind is not None:
-            addrs[addrType]['Bind'] = bind
+            addrs[addrType]['BindOverlay'] = bind
         return addrs
 
     def __lt__(self, other):  # pragma: no cover
@@ -132,7 +175,8 @@ class RouterElement(object):
         :param str name: router element name or id
         """
         self.name = name
-        self.int_addrs = Element(router_dict['InternalAddrs'])
+        self.ctrl_addrs = Element(router_dict['CtrlAddr'])
+        self.int_addrs = RouterAddrElement(router_dict['InternalAddrs'])
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)

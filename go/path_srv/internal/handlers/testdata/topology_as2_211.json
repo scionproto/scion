@@ -4,7 +4,10 @@
   "BorderRouters": {
     "br2-ff00_0_211-2": {
       "InternalAddrs": {
-        "IPv4": {"Public": {"Addr": "127.0.0.194", "L4Port": 30091}}
+        "IPv4": {"PublicOverlay": {"Addr": "127.0.0.194", "OverlayPort": 50000}}
+      },
+      "CtrlAddr": {
+        "IPv4": {"Public": {"Addr": "10.1.0.1", "L4Port": 30091}}
       },
       "Interfaces": {
         "2321": {
@@ -13,13 +16,13 @@
           "ISD_AS": "2-ff00:0:210",
           "MTU": 1472,
           "Bandwidth": 1000,
-          "Remote": {
+          "RemoteOverlay": {
             "Addr": "127.0.0.36",
-            "L4Port": 50000
+            "OverlayPort": 50000
           },
-          "Public": {
+          "PublicOverlay": {
             "Addr": "127.0.0.37",
-            "L4Port": 50000
+            "OverlayPort": 50000
           }
         },
         "2314": {
@@ -28,13 +31,13 @@
           "ISD_AS": "1-ff00:0:111",
           "MTU": 1472,
           "Bandwidth": 1000,
-          "Remote": {
+          "RemoteOverlay": {
             "Addr": "127.0.0.14",
-            "L4Port": 50000
+            "OverlayPort": 50000
           },
-          "Public": {
+          "PublicOverlay": {
             "Addr": "127.0.0.15",
-            "L4Port": 50000
+            "OverlayPort": 50000
           }
         },
         "2324": {
@@ -43,13 +46,13 @@
           "ISD_AS": "2-ff00:0:221",
           "MTU": 1472,
           "Bandwidth": 1000,
-          "Remote": {
+          "RemoteOverlay": {
             "Addr": "127.0.0.39",
-            "L4Port": 50000
+            "OverlayPort": 50000
           },
-          "Public": {
+          "PublicOverlay": {
             "Addr": "127.0.0.38",
-            "L4Port": 50000
+            "OverlayPort": 50000
           }
         },
         "2325": {
@@ -58,13 +61,13 @@
           "ISD_AS": "2-ff00:0:212",
           "MTU": 1472,
           "Bandwidth": 1000,
-          "Remote": {
+          "RemoteOverlay": {
             "Addr": "127.0.0.41",
-            "L4Port": 50000
+            "OverlayPort": 50000
           },
-          "Public": {
+          "PublicOverlay": {
             "Addr": "127.0.0.40",
-            "L4Port": 50000
+            "OverlayPort": 50000
           }
         },
         "2326": {
@@ -73,13 +76,13 @@
           "ISD_AS": "2-ff00:0:222",
           "MTU": 1472,
           "Bandwidth": 1000,
-          "Remote": {
+          "RemoteOverlay": {
             "Addr": "127.0.0.43",
-            "L4Port": 50000
+            "OverlayPort": 50000
           },
-          "Public": {
+          "PublicOverlay": {
             "Addr": "127.0.0.42",
-            "L4Port": 50000
+            "OverlayPort": 50000
           }
         }
       }
