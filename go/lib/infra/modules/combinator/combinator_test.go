@@ -176,6 +176,56 @@ func TestSameCoreParent(t *testing.T) {
 	})
 }
 
+func TestLoops(t *testing.T) {
+	g := graph.NewDefaultGraph()
+	testCases := []struct {
+		Name     string
+		FileName string
+		SrcIA    addr.IA
+		DstIA    addr.IA
+		Ups      []*seg.PathSegment
+		Cores    []*seg.PathSegment
+		Downs    []*seg.PathSegment
+	}{
+		{
+			Name:     "core segment create a loop",
+			FileName: "00_loops.txt",
+			SrcIA:    xtest.MustParseIA("1-ff00:0:111"),
+			DstIA:    xtest.MustParseIA("1-ff00:0:112"),
+			Ups: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_120_X_111_B}),
+				g.Beacon([]common.IFIDType{graph.If_130_B_111_A}),
+			},
+			Cores: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_130_B_120_A}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_130_B}),
+				g.Beacon([]common.IFIDType{graph.If_120_A_110_X, graph.If_110_X_130_A}),
+				g.Beacon([]common.IFIDType{graph.If_130_A_110_X, graph.If_110_X_120_A}),
+			},
+			Downs: []*seg.PathSegment{
+				g.Beacon([]common.IFIDType{graph.If_130_A_112_X}),
+				g.Beacon([]common.IFIDType{graph.If_130_B_111_A, graph.If_111_A_112_X}),
+				g.Beacon([]common.IFIDType{graph.If_120_X_111_B, graph.If_111_A_112_X}),
+			},
+		},
+	}
+	Convey("TestLoops", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				result := Combine(tc.SrcIA, tc.DstIA, tc.Ups, tc.Cores, tc.Downs)
+				txtResult := writePaths(result)
+				if *update {
+					err := ioutil.WriteFile(xtest.ExpandPath(tc.FileName), txtResult.Bytes(), 0644)
+					xtest.FailOnErr(t, err)
+				}
+				expected, err := ioutil.ReadFile(xtest.ExpandPath(tc.FileName))
+				xtest.FailOnErr(t, err)
+				SoMsg("result", txtResult.String(), ShouldEqual, string(expected))
+			})
+		}
+	})
+}
+
 func TestComputePath(t *testing.T) {
 	g := graph.NewDefaultGraph()
 

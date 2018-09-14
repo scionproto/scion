@@ -1,0 +1,75 @@
+Path #0:
+  Weight: 1
+  Fields:
+    IF CS. ISD=1
+      HF .V InIF=0 OutIF=1227
+      HF .. InIF=2712 OutIF=1417
+      HF .. InIF=1714 OutIF=0
+  Interfaces:
+    1-ff00:0:111#1417
+    1-ff00:0:112#1714
+Path #1:
+  Weight: 1
+  Fields:
+    IF CS. ISD=1
+      HF .V InIF=0 OutIF=3214
+      HF .. InIF=1432 OutIF=1417
+      HF .. InIF=1714 OutIF=0
+  Interfaces:
+    1-ff00:0:111#1417
+    1-ff00:0:112#1714
+Path #2:
+  Weight: 2
+  Fields:
+    IF ... ISD=1
+      HF .. InIF=1432 OutIF=0
+      HF X. InIF=0 OutIF=3214
+    IF C.. ISD=1
+      HF X. InIF=0 OutIF=1317
+      HF .. InIF=1713 OutIF=0
+  Interfaces:
+    1-ff00:0:111#1432
+    1-ff00:0:130#3214
+    1-ff00:0:130#1317
+    1-ff00:0:112#1713
+Path #3:
+  Weight: 3
+  Fields:
+    IF ... ISD=1
+      HF .. InIF=2712 OutIF=0
+      HF X. InIF=0 OutIF=1227
+    IF ... ISD=1
+      HF X. InIF=2932 OutIF=0
+      HF X. InIF=0 OutIF=3229
+    IF C.. ISD=1
+      HF X. InIF=0 OutIF=1317
+      HF .. InIF=1713 OutIF=0
+  Interfaces:
+    1-ff00:0:111#2712
+    1-ff00:0:120#1227
+    1-ff00:0:120#2932
+    1-ff00:0:130#3229
+    1-ff00:0:130#1317
+    1-ff00:0:112#1713
+Path #4:
+  Weight: 4
+  Fields:
+    IF ... ISD=1
+      HF .. InIF=2712 OutIF=0
+      HF X. InIF=0 OutIF=1227
+    IF ... ISD=1
+      HF X. InIF=2911 OutIF=0
+      HF .. InIF=1113 OutIF=1129
+      HF X. InIF=0 OutIF=1311
+    IF C.. ISD=1
+      HF X. InIF=0 OutIF=1317
+      HF .. InIF=1713 OutIF=0
+  Interfaces:
+    1-ff00:0:111#2712
+    1-ff00:0:120#1227
+    1-ff00:0:120#2911
+    1-ff00:0:110#1129
+    1-ff00:0:110#1113
+    1-ff00:0:130#1311
+    1-ff00:0:130#1317
+    1-ff00:0:112#1713

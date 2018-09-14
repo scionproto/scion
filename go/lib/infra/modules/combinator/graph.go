@@ -16,6 +16,7 @@ package combinator
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -179,11 +180,16 @@ func (g *DAMG) GetPaths(src, dst Vertex) PathSolutionList {
 
 		for nextVertex, edgeList := range g.Adjacencies[currentPathSolution.currentVertex] {
 			for segment, edge := range edgeList {
+				// Makes sure the the segment would be valid in a path.
+				if !validNextSeg(currentPathSolution.currentSeg, segment) {
+					continue
+				}
 				// Create a copy of the old solution s.t. trail slices do not
 				// get mixed during appends.
 				newSolution := &PathSolution{
 					edges:         append([]*solutionEdge{}, currentPathSolution.edges...),
 					currentVertex: nextVertex,
+					currentSeg:    segment,
 					cost:          currentPathSolution.cost + edge.Weight,
 				}
 
@@ -259,6 +265,8 @@ type PathSolution struct {
 	edges []*solutionEdge
 	// currentVertex is the currentVertex being visited
 	currentVertex Vertex
+	// currentSeg is the current segment being visited
+	currentSeg *InputSegment
 	// cost is the sum of edge weights
 	cost int
 }
@@ -438,4 +446,24 @@ func getPathInterfaces(ia addr.IA, inIFID, outIFID common.IFIDType) []sciond.Pat
 			sciond.PathInterface{RawIsdas: ia.IAInt(), IfID: outIFID})
 	}
 	return result
+}
+
+// validNextSeg returns whether nextSeg is a valid next segment in a path from the given currSeg.
+// A path can only contain at most 1 up, 1 core, and 1 down segment.
+func validNextSeg(currSeg, nextSeg *InputSegment) bool {
+	if currSeg == nil {
+		// If we have no segment any segment can be first.
+		return true
+	}
+	switch currSeg.Type {
+	case proto.PathSegType_up:
+		return nextSeg.Type == proto.PathSegType_core || nextSeg.Type == proto.PathSegType_down
+	case proto.PathSegType_core:
+		return nextSeg.Type == proto.PathSegType_down
+	case proto.PathSegType_down:
+		return false
+	case proto.PathSegType_unset:
+		panic("Invalid segment type")
+	}
+	panic(fmt.Sprintf("Switch doesn't cover all values, new val: %v", currSeg.Type))
 }
