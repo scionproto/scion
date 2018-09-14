@@ -185,6 +185,9 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			if ifinfo.LinkType, err = LinkTypeFromString(rawIntf.LinkTo); err != nil {
 				return err
 			}
+			if err = ifinfo.Verify(t.Core, name); err != nil {
+				return err
+			}
 			ifinfo.MTU = rawIntf.MTU
 			t.IFInfoMap[ifid] = ifinfo
 
@@ -283,6 +286,25 @@ type IFInfo struct {
 	ISD_AS        addr.IA
 	LinkType      proto.LinkType
 	MTU           int
+}
+
+func (i IFInfo) Verify(isCore bool, brName string) error {
+	if isCore {
+		switch i.LinkType {
+		case proto.LinkType_core, proto.LinkType_child:
+		default:
+			return common.NewBasicError("Illegal link type for core AS", nil,
+				"type", i.LinkType, "br", brName)
+		}
+	} else {
+		switch i.LinkType {
+		case proto.LinkType_parent, proto.LinkType_child, proto.LinkType_peer:
+		default:
+			return common.NewBasicError("Illegal link type for non-core AS", nil,
+				"type", i.LinkType, "br", brName)
+		}
+	}
+	return nil
 }
 
 func (i IFInfo) String() string {
