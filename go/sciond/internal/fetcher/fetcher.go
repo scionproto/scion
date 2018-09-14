@@ -40,6 +40,7 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -111,6 +112,9 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if req.Dst.IA().Eq(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, sciond.ErrorOk), nil
 	}
+	// A ISD-0 destination is fine, we handle it correctly in the DB code,
+	// and the PS handles it correctly as well.
+
 	// Try to build paths from local information first, if we don't have to
 	// get fresh segments.
 	if !req.Flags.Refresh {
@@ -278,7 +282,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 		return nil, err
 	}
 	srcIsCore := localTrc.CoreASes.Contains(f.topology.ISD_AS)
-	dstIsCore := dstTrc.CoreASes.Contains(req.Dst.IA())
+	dstIsCore := req.Dst.IA().A == 0 || dstTrc.CoreASes.Contains(req.Dst.IA())
 	// pathdb expects slices
 	srcIASlice := []addr.IA{req.Src.IA()}
 	dstIASlice := []addr.IA{req.Dst.IA()}
@@ -287,38 +291,45 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 	switch {
 	case srcIsCore && dstIsCore:
 		// Gone corin'
-		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, srcIASlice)
+		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, srcIASlice, proto.PathSegType_core)
 		if err != nil {
 			return nil, err
 		}
 	case srcIsCore && !dstIsCore:
-		cores, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), srcIASlice)
+		cores, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), srcIASlice,
+			proto.PathSegType_core)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice)
+		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice,
+			proto.PathSegType_down)
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice)
+		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice,
+			proto.PathSegType_up)
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASes.ASList())
+		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASes.ASList(),
+			proto.PathSegType_core)
 		if err != nil {
 			return nil, err
 		}
 	case !srcIsCore && !dstIsCore:
-		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice)
+		ups, err = f.getSegmentsFromDB(ctx, localTrc.CoreASes.ASList(), srcIASlice,
+			proto.PathSegType_up)
 		if err != nil {
 			return nil, err
 		}
-		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice)
+		downs, err = f.getSegmentsFromDB(ctx, dstTrc.CoreASes.ASList(), dstIASlice,
+			proto.PathSegType_down)
 		if err != nil {
 			return nil, err
 		}
-		cores, err = f.getSegmentsFromDB(ctx, downs.FirstIAs(), ups.FirstIAs())
+		cores, err = f.getSegmentsFromDB(ctx, downs.FirstIAs(), ups.FirstIAs(),
+			proto.PathSegType_core)
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +340,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 }
 
 func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
-	endsAt []addr.IA) ([]*seg.PathSegment, error) {
+	endsAt []addr.IA, segType proto.PathSegType) ([]*seg.PathSegment, error) {
 
 	// We shouldn't query with zero length slices. Doing so would return too many segments.
 	if len(startsAt) == 0 || len(endsAt) == 0 {
@@ -338,6 +349,7 @@ func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
 	results, err := f.pathDB.Get(ctx, &query.Params{
 		StartsAt: startsAt,
 		EndsAt:   endsAt,
+		SegTypes: []proto.PathSegType{segType},
 	})
 	if err != nil {
 		return nil, err
