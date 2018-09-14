@@ -19,7 +19,6 @@ package fetcher
 import (
 	"bytes"
 	"context"
-	"math/rand"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -108,23 +107,6 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if req.Dst.IA().I == 0 {
 		return f.buildSCIONDReply(nil, sciond.ErrorBadDstIA),
 			common.NewBasicError("Bad destination AS", nil, "ia", req.Dst.IA())
-	}
-	// FIXME(scrye): If there are multiple core ASes in the remote ISD, we
-	// might attempt to build paths towards one that is unreachable. SCIOND
-	// should attempt to build paths towards multiple remote core ASes, and
-	// return to the client one that is actually reachable.
-	if req.Dst.IA().A == 0 {
-		remoteTRC, err := f.trustStore.GetValidTRC(ctx, req.Dst.IA().I, ps)
-		if err != nil {
-			return f.buildSCIONDReply(nil, sciond.ErrorInternal),
-				common.NewBasicError("Unable to select from remote core", err)
-		}
-		coreASes := remoteTRC.CoreASes.ASList()
-		if len(coreASes) == 0 {
-			return f.buildSCIONDReply(nil, sciond.ErrorInternal),
-				common.NewBasicError("No remote core AS found", nil)
-		}
-		req.Dst = coreASes[rand.Intn(len(coreASes))].IAInt()
 	}
 	if req.Dst.IA().Eq(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, sciond.ErrorOk), nil
