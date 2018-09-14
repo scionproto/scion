@@ -126,8 +126,9 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 		recs = segs.Recs.Recs
 		revInfos = segs.Recs.SRevInfos
 		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
-		// TODO(lukedirtwalker): We should only do this if the segments were successfully inserted.
-		if _, err := h.pathDB.InsertLastQueried(ctx, dst, queryTime); err != nil {
+		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
+		if _, err := h.pathDB.InsertNextQuery(ctx, dst,
+			queryTime.Add(h.config.QueryInterval())); err != nil {
 			h.logger.Warn("Failed to insert last queried", "err", err)
 		}
 	}
@@ -180,14 +181,14 @@ func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegmen
 func (h *segReqHandler) shouldRefetchSegsForDst(ctx context.Context, dst addr.IA,
 	now time.Time) (bool, error) {
 
-	t, err := h.pathDB.GetLastQueried(ctx, dst)
+	nq, err := h.pathDB.GetNextQuery(ctx, dst)
 	if err != nil {
 		return true, err
 	}
-	if t == nil {
+	if nq == nil {
 		return true, nil
 	}
-	return now.Add(h.config.QueryInterval.Duration).After(*t), nil
+	return now.After(*nq), nil
 }
 
 // segsToMap converts the segs slice to a map of IAs to segments.

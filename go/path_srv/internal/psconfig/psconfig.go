@@ -32,15 +32,19 @@ type Config struct {
 	// using SegSync messages.
 	SegSync bool
 	PathDB  string
-	// QueryInterval specifies after how much time segments
+	// queryInterval specifies after how much time segments
 	// for a destination should be refetched.
-	QueryInterval duration
+	queryInterval duration `toml:"QueryInterval"`
 }
 
 func (c *Config) InitDefaults() {
-	if c.QueryInterval.Duration == 0 {
-		c.QueryInterval.Duration = DefaultQueryInterval
+	if c.queryInterval.Duration == 0 {
+		c.queryInterval.Duration = DefaultQueryInterval
 	}
+}
+
+func (c *Config) QueryInterval() time.Duration {
+	return c.queryInterval.Duration
 }
 
 var _ (toml.TextUnmarshaler) = (*duration)(nil)
