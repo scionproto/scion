@@ -291,7 +291,7 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 	} else {
 		log.Debug("No change detected for external socket.", "conn",
-			intf.IFAddr.BindOverlay(ctx.Conf.Topo.Overlay))
+			intf.IFAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
 		// Nothing changed. Copy I/O functions from old context.
 		ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
 		ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
@@ -304,7 +304,7 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bool {
 	return (newIntf.Id != oldIntf.Id ||
 		!newIntf.IFAddr.Equal(oldIntf.IFAddr) ||
-		newIntf.RemoteAddr.String() != oldIntf.RemoteAddr.String())
+		!newIntf.RemoteAddr.Eq(oldIntf.RemoteAddr))
 }
 
 func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,

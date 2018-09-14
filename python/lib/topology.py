@@ -175,8 +175,8 @@ class RouterElement(object):
         :param str name: router element name or id
         """
         self.name = name
-        self.int_addrs = RouterAddrElement(router_dict['InternalAddrs'])
         self.ctrl_addrs = Element(router_dict['CtrlAddr'])
+        self.int_addrs = RouterAddrElement(router_dict['InternalAddrs'])
         self.interfaces = {}
         for if_id, intf in router_dict['Interfaces'].items():
             if_id = int(if_id)

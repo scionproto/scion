@@ -107,6 +107,10 @@ type RawAddrPort struct {
 	L4Port int
 }
 
+func (a RawAddrPort) String() string {
+	return fmt.Sprintf("%s:%d", a.Addr, a.L4Port)
+}
+
 // RawBRInfo contains Border Router specific information.
 type RawBRInfo struct {
 	InternalAddrs RawBRAddrMap
@@ -205,10 +209,6 @@ type RawAddr struct {
 
 func (a RawAddr) String() string {
 	return fmt.Sprintf("%s", a.Addr)
-}
-
-func (a RawAddrPort) String() string {
-	return fmt.Sprintf("%s:%d", a.Addr, a.L4Port)
 }
 
 func Load(b common.RawBytes) (*Topo, error) {

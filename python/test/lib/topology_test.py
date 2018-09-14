@@ -105,7 +105,7 @@ class TestInterfaceElementInit(object):
         ntools.eq_(inst.mtu, 4242)
         ntools.eq_(inst.overlay, "UDP/IPv4")
         parse.assert_called_once_with("toaddr")
-        ntools.eq_(inst.remote[0], (parse.return_value, 5))
+        ntools.eq_(inst.remote, (parse.return_value, 5))
 
 
 class TestTopologyParseDict(object):

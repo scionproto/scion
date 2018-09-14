@@ -765,19 +765,19 @@ class TopoGenerator(object):
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
-                'InternalAddrs': {
-                    self.addr_type: {
-                        'PublicOverlay': {
-                            'Addr': int_addr,
-                            'OverlayPort': random.randint(30050, 30100),
-                        }
-                    }
-                },
                 'CtrlAddr': {
                     self.addr_type: {
                         'Public': {
                             'Addr': int_addr,
                             'L4Port': random.randint(30050, 30100),
+                        }
+                    }
+                },
+                'InternalAddrs': {
+                    self.addr_type: {
+                        'PublicOverlay': {
+                            'Addr': int_addr,
+                            'OverlayPort': random.randint(30050, 30100),
                         }
                     }
                 },
@@ -1596,20 +1596,14 @@ def _json_default(o):
 
 def _prom_addr_br(br_ele):
     """Get the prometheus address for a border router"""
-    pub = _get_pub(br_ele['InternalAddrs'])
-    return "[%s]:%s" % (pub['PublicOverlay']['Addr'].ip, pub['PublicOverlay']['OverlayPort'] + 1)
+    pub = _get_pub(br_ele['CtrlAddr'])
+    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['L4Port'] + 1)
 
 
 def _prom_addr_infra(infra_ele):
     """Get the prometheus address for an infrastructure element."""
     pub = _get_pub(infra_ele['Addrs'])
     return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['L4Port'] + 1)
-
-
-def _prom_addr(ele):
-    """Get the prometheus address for an element."""
-    addr = _get_pub(ele)
-    return "[%s]:%s" % (addr["Addr"].ip, addr["L4Port"] + 1)
 
 
 def _get_pub(topo_addr):

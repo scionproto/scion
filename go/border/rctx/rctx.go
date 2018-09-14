@@ -14,7 +14,6 @@
 
 // Package rctx holds the current router context. The context contains a conf
 // object and slices of input and output functions.
-
 package rctx
 
 import (
@@ -108,7 +107,7 @@ func (ctx *Ctx) ResolveSVCMulti(svc addr.HostSVC) ([]*overlay.OverlayAddr, error
 	return overAddrs, nil
 }
 
-// getSVCNamesMap returns the slice of instance names and addresses for a given SVC address.
+// GetSVCNamesMap returns the slice of instance names and addresses for a given SVC address.
 func (ctx *Ctx) GetSVCNamesMap(svc addr.HostSVC) ([]string,
 	map[string]topology.TopoAddr, error) {
 

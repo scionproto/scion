@@ -76,6 +76,7 @@ func genIFStateReq() {
 		dst.NextHop = addr
 		if _, err := snetConn.WriteToSCION(pld, dst); err != nil {
 			logger.Error("Writing IFStateReq", "dst", dst, "err", err)
+			continue
 		}
 		logger.Debug("Sent IFStateReq", "dst", dst, "overlayDst", addr)
 	}
