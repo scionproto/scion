@@ -25,7 +25,7 @@ jobs:
                 command: ./tools/ci/docker_update
             - run:
                 name: Pull and tag scion_base image
-                command: ./tools/ci/prepare_image 99b394d728ab64ab04923b6217cfc603a30ce047be43639caa71bc072504882d
+                command: ./tools/ci/prepare_image a007dbee0858c868bfb1f1e5165a2a65726deab1fae5e2c49b814f4bb8720007
                 when: always
             - run:
                 name: Build scion:latest image

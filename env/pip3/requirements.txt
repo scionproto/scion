@@ -15,7 +15,7 @@ idna==2.5 --hash=sha256:cc19709fd6d0cbfed39ea875d29ba6d4e22c0cebc510a76d6302a283
 # asn1crypto: licenses/MIT
 asn1crypto==0.22.0 --hash=sha256:d232509fefcfcdb9a331f37e9c9dc20441019ad927c7d2176cf18ed5da0ba097
 # packaging: licenses/BSD-2-Clause
-packaging==16.8 --hash=sha256:99276dc6e3a7851f32027a68f1095cd3f77c148091b092ea867a351811cfe388
+packaging==17.1 --hash=sha256:e9215d2d2535d3ae866c3d6efc77d5b24a0192cce0ff20e42896cc0664f889c0
 # setuptools: licenses/MIT
 setuptools==35.0.2 --hash=sha256:19d753940f8cdbee7548da318f8b56159aead279ef811a6efc8b8a33d89c86a4
 # cffi: licenses/MIT
