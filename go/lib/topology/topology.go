@@ -185,6 +185,15 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			if ifinfo.LinkType, err = LinkTypeFromString(rawIntf.LinkTo); err != nil {
 				return err
 			}
+			if t.Core && (ifinfo.LinkType == proto.LinkType_parent ||
+				ifinfo.LinkType == proto.LinkType_peer) {
+				return common.NewBasicError("Illegal link type for core AS", nil,
+					"type", ifinfo.LinkType, "br", name)
+			}
+			if !t.Core && ifinfo.LinkType == proto.LinkType_core {
+				return common.NewBasicError("Illegal link type for non-core AS", nil,
+					"type", ifinfo.LinkType, "br", name)
+			}
 			ifinfo.MTU = rawIntf.MTU
 			t.IFInfoMap[ifid] = ifinfo
 
