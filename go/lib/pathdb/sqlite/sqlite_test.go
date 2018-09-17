@@ -601,7 +601,7 @@ func TestGetModifiedIDs(t *testing.T) {
 	})
 }
 
-func Test_LastQuery(t *testing.T) {
+func TestNextQuery(t *testing.T) {
 	Convey("LastQuery", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
@@ -611,26 +611,26 @@ func Test_LastQuery(t *testing.T) {
 		defer cancelF()
 		dst := xtest.MustParseIA("1-ff00:0:133")
 		oldT := time.Now().Add(-10 * time.Second)
-		updated, err := b.InsertLastQueried(ctx, dst, oldT)
+		updated, err := b.InsertNextQuery(ctx, dst, oldT)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should Insert new", updated, ShouldBeTrue)
-		dbT, err := b.GetLastQueried(ctx, dst)
+		dbT, err := b.GetNextQuery(ctx, dst)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should return inserted time", dbT.Unix(), ShouldEqual, oldT.Unix())
 		newT := time.Now()
-		updated, err = b.InsertLastQueried(ctx, dst, newT)
+		updated, err = b.InsertNextQuery(ctx, dst, newT)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should Update existing", updated, ShouldBeTrue)
-		dbT, err = b.GetLastQueried(ctx, dst)
+		dbT, err = b.GetNextQuery(ctx, dst)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
-		updated, err = b.InsertLastQueried(ctx, dst, oldT)
+		updated, err = b.InsertNextQuery(ctx, dst, oldT)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should not update to older", updated, ShouldBeFalse)
-		dbT, err = b.GetLastQueried(ctx, dst)
+		dbT, err = b.GetNextQuery(ctx, dst)
 		xtest.FailOnErr(t, err)
 		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
-		dbT, err = b.GetLastQueried(ctx, xtest.MustParseIA("1-ff00:0:122"))
+		dbT, err = b.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"))
 		SoMsg("Should be nil", dbT, ShouldBeNil)
 	})
 }

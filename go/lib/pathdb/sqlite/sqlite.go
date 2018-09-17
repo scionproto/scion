@@ -520,8 +520,8 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	return strings.Join(query, "\n"), args
 }
 
-func (b *Backend) InsertLastQueried(ctx context.Context, dst addr.IA,
-	lastQuery time.Time) (bool, error) {
+func (b *Backend) InsertNextQuery(ctx context.Context, dst addr.IA,
+	nextQuery time.Time) (bool, error) {
 
 	b.Lock()
 	defer b.Unlock()
@@ -532,16 +532,16 @@ func (b *Backend) InsertLastQueried(ctx context.Context, dst addr.IA,
 		return false, err
 	}
 	queryLines := []string{
-		"INSERT OR REPLACE INTO LastQuery",
-		// Select the data from the input only if the new LastQuery is larger than the existing
-		// or if there is no existing (LastQuery.IsdID IS NULL)
+		"INSERT OR REPLACE INTO NextQuery",
+		// Select the data from the input only if the new NextQuery is larger than the existing
+		// or if there is no existing (NextQuery.IsdID IS NULL)
 		"SELECT data.* FROM",
 		"(SELECT ? AS IsdID, ? AS AsID, ? AS lq) AS data",
-		"LEFT JOIN LastQuery USING (IsdID, AsID)",
-		"WHERE data.lq > LastQuery.LastQuery OR LastQuery.IsdID IS NULL;",
+		"LEFT JOIN NextQuery USING (IsdID, AsID)",
+		"WHERE data.lq > NextQuery.NextQuery OR NextQuery.IsdID IS NULL;",
 	}
 	q := strings.Join(queryLines, "\n")
-	r, err := b.tx.ExecContext(ctx, q, dst.I, dst.A, lastQuery.Unix())
+	r, err := b.tx.ExecContext(ctx, q, dst.I, dst.A, nextQuery.Unix())
 	if err != nil {
 		b.tx.Rollback()
 		return false, common.NewBasicError("Failed to execute statement", err)
@@ -553,13 +553,13 @@ func (b *Backend) InsertLastQueried(ctx context.Context, dst addr.IA,
 	return n > 0, err
 }
 
-func (b *Backend) GetLastQueried(ctx context.Context, dst addr.IA) (*time.Time, error) {
+func (b *Backend) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, error) {
 	b.RLock()
 	defer b.RUnlock()
 	if b.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
-	rows, err := b.db.Query("SELECT LastQuery from LastQuery WHERE IsdID = ? AND AsID = ?",
+	rows, err := b.db.Query("SELECT NextQuery from NextQuery WHERE IsdID = ? AND AsID = ?",
 		dst.I, dst.A)
 	if err != nil {
 		return nil, err
