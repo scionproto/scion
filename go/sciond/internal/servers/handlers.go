@@ -169,7 +169,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	topo := itopo.GetCurrentTopology()
 	if len(ifInfoRequest.IfIDs) == 0 {
 		// Reply with all the IFIDs we know
-		for ifid, topoAddr := range topo.GetAllBRTopoAddrs() {
+		for ifid, topoAddr := range topo.GetAllTopoBRAddrs() {
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
 				HostInfo: sciond.HostInfoFromTopoBRAddr(*topoAddr),
@@ -178,7 +178,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	} else {
 		// Reply with only the IFIDs the client requested
 		for _, ifid := range ifInfoRequest.IfIDs {
-			topoAddr := topo.GetBRTopoAddrByIfid(ifid)
+			topoAddr := topo.GetTopoBRAddrByIfid(ifid)
 			if topoAddr == nil {
 				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue

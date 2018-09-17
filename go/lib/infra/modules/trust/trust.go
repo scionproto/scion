@@ -573,7 +573,7 @@ func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 	if !store.config.IsCS {
 		csAddr, csOverlayAddr, err := topo.GetAnyAppAddr(proto.ServiceType_cs)
 		if err != nil {
-			return nil, common.NewBasicError("Need CS, but none found", err)
+			return nil, common.NewBasicError("Failed to look up CS in topology", err)
 		}
 		return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 	}

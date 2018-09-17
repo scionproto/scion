@@ -112,7 +112,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// Commit to a path server, and use it for path and crypto queries
 	psAddr, psOverlayAddr, err := f.topology.GetAnyAppAddr(proto.ServiceType_ps)
 	if err != nil {
-		return nil, common.NewBasicError("PS not found in topology", err)
+		return nil, common.NewBasicError("Failed to look up PS in topology", err)
 	}
 	ps := &snet.Addr{IA: f.topology.IA(), Host: psAddr, NextHop: psOverlayAddr}
 
@@ -269,7 +269,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 			// In-memory write should never fail
 			panic(err)
 		}
-		nextHop := f.topology.GetBRTopoAddrByIfid(path.Interfaces[0].IfID)
+		nextHop := f.topology.GetTopoBRAddrByIfid(path.Interfaces[0].IfID)
 		if nextHop == nil {
 			f.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
 			continue
@@ -281,7 +281,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 				Interfaces: path.Interfaces,
 				ExpTime:    util.TimeToSecs(path.ExpTime),
 			},
-			HostInfo: sciond.HostInfoFromTopoAddr(*nextHop),
+			HostInfo: sciond.HostInfoFromTopoBRAddr(*nextHop),
 		})
 	}
 	return entries

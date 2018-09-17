@@ -42,13 +42,15 @@ type Topology interface {
 	IA() addr.IA
 	MTU() uint16
 	Core() bool
+	// FIXME(scrye): Give apps the possibility to choose the overlay; see
+	// https://github.com/scionproto/scion/issues/1855
 	GetAnyAppAddr(svc proto.ServiceType) (*addr.AppAddr, *overlay.OverlayAddr, error)
 	GetAnyTopoAddr(svc proto.ServiceType) (*topology.TopoAddr, error)
 	GetTopoAddrById(svc proto.ServiceType, id string) (*topology.TopoAddr, error)
 	GetAllTopoAddrs(svc proto.ServiceType) ([]topology.TopoAddr, error)
 	GetBROverlayAddrByIfid(ifid common.IFIDType) *overlay.OverlayAddr
-	GetBRTopoAddrByIfid(ifid common.IFIDType) *topology.TopoAddr
-	GetAllBRTopoAddrs() map[common.IFIDType]*topology.TopoAddr
+	GetTopoBRAddrByIfid(ifid common.IFIDType) *topology.TopoBRAddr
+	GetAllTopoBRAddrs() map[common.IFIDType]*topology.TopoBRAddr
 }
 
 // SetCurrentTopologyFromBase atomically sets the package-wide default topology to
@@ -94,7 +96,9 @@ func (topo *topologyS) Core() bool {
 	return topo.Topo.Core
 }
 
-func (topo *topologyS) GetAnyAppAddr(svc proto.ServiceType) (*addr.AppAddr, *overlay.OverlayAddr, error) {
+func (topo *topologyS) GetAnyAppAddr(
+	svc proto.ServiceType) (*addr.AppAddr, *overlay.OverlayAddr, error) {
+
 	svcInfo, err := topo.getSvcInfo(svc)
 	if err != nil {
 		return nil, nil, err
@@ -118,7 +122,9 @@ func (topo *topologyS) GetAnyTopoAddr(svc proto.ServiceType) (*topology.TopoAddr
 	return topoAddr, nil
 }
 
-func (topo *topologyS) GetTopoAddrById(svc proto.ServiceType, id string) (*topology.TopoAddr, error) {
+func (topo *topologyS) GetTopoAddrById(svc proto.ServiceType,
+	id string) (*topology.TopoAddr, error) {
+
 	svcInfo, err := topo.getSvcInfo(svc)
 	if err != nil {
 		return nil, err
@@ -155,27 +161,27 @@ func (topo *topologyS) getSvcInfo(svc proto.ServiceType) (*svcInfo, error) {
 	case proto.ServiceType_sb:
 		return &svcInfo{overlay: topo.Overlay, names: topo.SBNames, idTopoAddrMap: topo.SB}, nil
 	default:
-		return nil, common.NewBasicError("Unknown service type", nil, "type", svc)
+		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
 	}
 }
 
 func (topo *topologyS) GetBROverlayAddrByIfid(ifid common.IFIDType) *overlay.OverlayAddr {
-	topoAddr := topo.GetBRTopoAddrByIfid(ifid)
-	if topoAddr == nil {
+	topoBRAddr := topo.GetTopoBRAddrByIfid(ifid)
+	if topoBRAddr == nil {
 		return nil
 	}
-	return topoAddr.PublicOverlay(topo.Overlay)
+	return topoBRAddr.PublicOverlay(topo.Overlay)
 }
 
-func (topo *topologyS) GetBRTopoAddrByIfid(ifid common.IFIDType) *topology.TopoAddr {
+func (topo *topologyS) GetTopoBRAddrByIfid(ifid common.IFIDType) *topology.TopoBRAddr {
 	if ifInfo, ok := topo.IFInfoMap[ifid]; ok {
 		return ifInfo.InternalAddrs
 	}
 	return nil
 }
 
-func (topo *topologyS) GetAllBRTopoAddrs() map[common.IFIDType]*topology.TopoAddr {
-	m := make(map[common.IFIDType]*topology.TopoAddr)
+func (topo *topologyS) GetAllTopoBRAddrs() map[common.IFIDType]*topology.TopoBRAddr {
+	m := make(map[common.IFIDType]*topology.TopoBRAddr)
 	for ifid, ifInfo := range topo.IFInfoMap {
 		m[ifid] = ifInfo.InternalAddrs
 	}
