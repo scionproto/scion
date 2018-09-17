@@ -112,12 +112,12 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	if req.Dst.IA().Eq(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, sciond.ErrorOk), nil
 	}
-	// A ISD-0 destination should not require a TRC lookup in sciond, it would lead to a
-	// lookup loop: To get the TRC, sciond would ask the CS, the CS would try to connect to the
-	// CS in the destination ISD and for that it will ask sciond for paths to ISD-0.
+	// A ISD-0 destination should not require a TRC lookup in sciond, it could lead to a
+	// lookup loop: If sciond doesn't have the TRC, it would as the CS, the CS would try to connect
+	// to the CS in the destination ISD and for that it will ask sciond for paths to ISD-0.
 	// Instead we consider ISD-0 always as core destination in sciond.
-	// If there are no cached paths in sciond, propagate the query to the local PS,
-	// which will propagate the query to a ISD-local core PS, so there won't be any loop.
+	// If there are no cached paths in sciond, send the query to the local PS,
+	// which will forward the query to a ISD-local core PS, so there won't be any loop.
 
 	// Try to build paths from local information first, if we don't have to
 	// get fresh segments.
