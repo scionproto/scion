@@ -31,16 +31,16 @@ import (
 // them.
 type VertexInfo map[Vertex]EdgeMap
 
-// DAMG is a Directed Acyclic Multigraph.
+// DMG is a Directed Multigraph.
 //
 // Vertices are either ASes (identified by their ISD-AS number) or peering
 // links (identified by the the ISD-AS numbers of the peers, and the IFIDs on
 // the peering link).
-type DAMG struct {
+type DMG struct {
 	Adjacencies map[Vertex]VertexInfo
 }
 
-// NewDAMG creates a new graph from sets of path segments.
+// NewDMG creates a new graph from sets of path segments.
 //
 // The input segments are traversed to construct the graph. Each segment is
 // traversed in reverse, from the last AS Entry to the first one. During this
@@ -70,8 +70,8 @@ type DAMG struct {
 // current ASEntry in the ASEntries array. The direction of the edge is from
 // pinnedIA to the peering vertex for up-segments, and the reverse for
 // down-segments. PeerID is set to the index of the current hop entry.
-func NewDAMG(ups, cores, downs []*seg.PathSegment) *DAMG {
-	g := &DAMG{
+func NewDMG(ups, cores, downs []*seg.PathSegment) *DMG {
+	g := &DMG{
 		Adjacencies: make(map[Vertex]VertexInfo),
 	}
 	for _, segment := range ups {
@@ -86,7 +86,7 @@ func NewDAMG(ups, cores, downs []*seg.PathSegment) *DAMG {
 	return g
 }
 
-func (g *DAMG) traverseSegment(segment *InputSegment) {
+func (g *DMG) traverseSegment(segment *InputSegment) {
 	asEntries := segment.ASEntries
 
 	// Directly process core segments, because we're not interested in
@@ -156,7 +156,7 @@ func (g *DAMG) traverseSegment(segment *InputSegment) {
 	}
 }
 
-func (g *DAMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
+func (g *DMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
 	if _, ok := g.Adjacencies[src]; !ok {
 		g.Adjacencies[src] = make(VertexInfo)
 	}
@@ -171,7 +171,7 @@ func (g *DAMG) AddEdge(src, dst Vertex, segment *InputSegment, edge *Edge) {
 }
 
 // GetPaths returns all the paths from src to dst, sorted according to weight.
-func (g *DAMG) GetPaths(src, dst Vertex) PathSolutionList {
+func (g *DMG) GetPaths(src, dst Vertex) PathSolutionList {
 	var solutions PathSolutionList
 	queue := PathSolutionList{&PathSolution{currentVertex: src}}
 	for len(queue) > 0 {
@@ -217,7 +217,7 @@ func (g *DAMG) GetPaths(src, dst Vertex) PathSolutionList {
 }
 
 // Vertex is a union-like type for the AS vertices and Peering link vertices in
-// a DAMG that can be used as key in maps.
+// a DMG that can be used as key in maps.
 type Vertex struct {
 	IA       addr.IA
 	UpIA     addr.IA
@@ -246,7 +246,7 @@ func (v Vertex) Reverse() Vertex {
 // The edges are keyed by path segment pointer.
 type EdgeMap map[*InputSegment]*Edge
 
-// Edge represents an edge for the DAMG.
+// Edge represents an edge for the DMG.
 type Edge struct {
 	Weight int
 	// Shortcut is the ASEntry index on where the forwarding portion of this
@@ -272,7 +272,7 @@ type PathSolution struct {
 }
 
 // GetFwdPathMetadata builds the complete metadata for a forwarding path by
-// extracting it from a path between source and destination in the DAMG.
+// extracting it from a path between source and destination in the DMG.
 func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	path := &Path{
 		Weight: solution.cost,

@@ -45,7 +45,7 @@ import (
 // If Combine cannot extract a hop field or info field from the segments, it
 // panics.
 func Combine(src, dst addr.IA, ups, cores, downs []*seg.PathSegment) []*Path {
-	paths := NewDAMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
+	paths := NewDMG(ups, cores, downs).GetPaths(VertexFromIA(src), VertexFromIA(dst))
 
 	var pathSlice []*Path
 	for _, path := range paths {
