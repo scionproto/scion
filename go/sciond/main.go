@@ -38,10 +38,10 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
+	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
 
@@ -54,24 +54,7 @@ type Config struct {
 	Logging env.Logging
 	Metrics env.Metrics
 	Trust   env.Trust
-	SD      struct {
-		// Address to listen on via the reliable socket protocol. If empty,
-		// a reliable socket server on the default socket is started.
-		Reliable string
-		// Address to listen on for normal unixgram messages. If empty, a
-		// unixgram server on the default socket is started.
-		Unix string
-		// If set to True, the socket is removed before being created
-		DeleteSocket bool
-		// Public is the local address to listen on for SCION messages (if Bind is
-		// not set), and to send out messages to other nodes.
-		Public *snet.Addr
-		// If set, Bind is the preferred local address to listen on for SCION
-		// messages.
-		Bind *snet.Addr
-		// PathDB contains the file location  of the path segment database.
-		PathDB string
-	}
+	SD      sdconfig.Config
 }
 
 var config Config
@@ -158,6 +141,7 @@ func realMain() int {
 				pathDB,
 				trustStore,
 				revCache,
+				config.SD,
 				log.Root(),
 			),
 		},
@@ -213,12 +197,7 @@ func Init(configName string) error {
 	if err != nil {
 		return err
 	}
-	if config.SD.Reliable == "" {
-		config.SD.Reliable = sciond.DefaultSCIONDPath
-	}
-	if config.SD.Unix == "" {
-		config.SD.Unix = "/run/shm/sciond/default-unix.sock"
-	}
+	config.SD.InitDefaults()
 	return nil
 }
 
