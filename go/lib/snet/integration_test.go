@@ -203,8 +203,8 @@ func TestListen(t *testing.T) {
 					SoMsg("Error", err, ShouldNotBeNil)
 				} else {
 					SoMsg("Error", err, ShouldBeNil)
-					laddr := conn.LocalSnetAddr()
-					raddr := conn.RemoteSnetAddr()
+					laddr := conn.LocalAddr().(*Addr)
+					raddr := conn.RemoteAddr().(*Addr)
 					SoMsg("Local address", laddr.EqAddr(test.laddr), ShouldBeTrue)
 					SoMsg("Remote address", raddr, ShouldBeNil)
 				}

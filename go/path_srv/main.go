@@ -103,6 +103,10 @@ func realMain() int {
 		return 1
 	}
 	topoAddress := topo.PS.GetById(config.General.ID)
+	if topoAddress == nil {
+		log.Crit("Unable to find topo address")
+		return 1
+	}
 	msger, err := infraenv.InitMessenger(
 		topo.ISD_AS,
 		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
