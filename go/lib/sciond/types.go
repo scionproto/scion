@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/overlay"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
@@ -170,58 +169,13 @@ func HostInfoFromHostAddr(host addr.HostAddr, port uint16) *HostInfo {
 func HostInfoFromTopoAddr(topoAddr topology.TopoAddr) HostInfo {
 	ipv4, port4 := topoAddrToIPAndPort(overlay.IPv4, topoAddr)
 	ipv6, port6 := topoAddrToIPAndPort(overlay.IPv6, topoAddr)
-	if port4 != 0 && port6 != 0 && port4 != port6 {
-		// NOTE: https://github.com/scionproto/scion/issues/1842 will change
-		// the behavior of this.
-		panic(fmt.Sprintf("port mismatch %v %v", port4, port6))
-	}
-	port := port4
-	if port == 0 {
-		port = port6
-	}
-	// XXX This assumes that Ipv4 and IPv6 use the same port!
-	return HostInfo{
-		Addrs: struct {
-			Ipv4 []byte
-			Ipv6 []byte
-		}{
-			Ipv4: ipv4,
-			Ipv6: ipv6,
-		},
-		Port: port,
-	}
+	return buildHostInfo(ipv4, ipv6, port4, port6)
 }
 
-func HostInfoFromBRTopoAddr(topoBRAddr topology.TopoBRAddr) HostInfo {
-	var ipv4, ipv6 net.IP
-	var port uint16
-	if ot.IsIPv4() {
-		v4Addr := topoAddr.IPv4.PublicOverlay
-		if v4Addr != nil {
-			// XXX(scrye): Force 4-byte representation of IPv4 addresses
-			// because Python code doesn't understand Go's 16-byte format.
-			ipv4 = v4Addr.L3().IP().To4()
-			port = v4Addr.L4().Port()
-		}
-	}
-	if ot.IsIPv6() {
-		v6Addr := topoAddr.IPv6.PublicOverlay
-		if v6Addr != nil {
-			ipv6 = v6Addr.L3().IP()
-			port = v6Addr.L4().Port()
-		}
-	}
-	// XXX This assumes that Ipv4 and IPv6 use the same port!
-	return sciond.HostInfo{
-		Addrs: struct {
-			Ipv4 []byte
-			Ipv6 []byte
-		}{
-			Ipv4: ipv4,
-			Ipv6: ipv6,
-		},
-		Port: port,
-	}
+func HostInfoFromTopoBRAddr(topoBRAddr topology.TopoBRAddr) HostInfo {
+	ipv4, port4 := topoBRAddrToIPAndPort(overlay.IPv4, topoBRAddr)
+	ipv6, port6 := topoBRAddrToIPAndPort(overlay.IPv6, topoBRAddr)
+	return buildHostInfo(ipv4, ipv6, port4, port6)
 }
 
 func (h *HostInfo) Host() addr.HostAddr {
@@ -256,11 +210,50 @@ func topoAddrToIPAndPort(ot overlay.Type, topoAddr topology.TopoAddr) (net.IP, u
 	return ip, port
 }
 
+func topoBRAddrToIPAndPort(ot overlay.Type, topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
+	if ot.IsIPv4() && topoBRAddr.IPv4 != nil {
+		v4Addr := topoBRAddr.IPv4.PublicOverlay
+		if v4Addr != nil {
+			return v4Addr.L3().IP().To4(), v4Addr.L4().Port()
+		}
+	}
+	if ot.IsIPv6() && topoBRAddr.IPv6 != nil {
+		v6Addr := topoBRAddr.IPv6.PublicOverlay
+		if v6Addr != nil {
+			return v6Addr.L3().IP(), v6Addr.L4().Port()
+		}
+	}
+	return nil, 0
+}
+
 func getPublicIPAndPort(ot overlay.Type, topoAddr topology.TopoAddr) (net.IP, uint16) {
 	if pubAddr := topoAddr.PublicAddr(ot); pubAddr != nil {
 		return pubAddr.L3.IP(), pubAddr.L4.Port()
 	}
 	return nil, 0
+}
+
+func buildHostInfo(ipv4, ipv6 []byte, port4, port6 uint16) HostInfo {
+	if port4 != 0 && port6 != 0 && port4 != port6 {
+		// NOTE: https://github.com/scionproto/scion/issues/1842 will change
+		// the behavior of this.
+		panic(fmt.Sprintf("port mismatch %v %v", port4, port6))
+	}
+	// XXX This assumes that Ipv4 and IPv6 use the same port!
+	port := port4
+	if port == 0 {
+		port = port6
+	}
+	return HostInfo{
+		Addrs: struct {
+			Ipv4 []byte
+			Ipv6 []byte
+		}{
+			Ipv4: ipv4,
+			Ipv6: ipv6,
+		},
+		Port: port,
+	}
 }
 
 type FwdPathMeta struct {
