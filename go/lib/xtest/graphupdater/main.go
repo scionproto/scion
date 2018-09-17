@@ -35,9 +35,9 @@ var (
 func main() {
 	err := gupdater.WriteGraphToFile(*topoFile, *graphFile)
 	if err != nil {
-		fmt.Printf("Failed to write the graph, err: %v", err)
+		fmt.Printf("Failed to write the graph, err: %v\n", err)
 		os.Exit(1)
 	} else {
-		fmt.Printf("Successfully written graph to %s", *graphFile)
+		fmt.Printf("Successfully written graph to %s\n", *graphFile)
 	}
 }

@@ -162,8 +162,8 @@ func (g *Graph) staticIfaceIdMapping() []string {
 	res := []string{
 		"StaticIfaceIdMapping = map[string]int{",
 	}
-	for i, id := range g.IfaceIds {
-		res = append(res, fmt.Sprintf(`"%s": %d,`, i.Name(), id))
+	for _, iface := range g.sortedIfaces {
+		res = append(res, fmt.Sprintf(`"%s": %d,`, iface.Name(), g.IfaceIds[iface]))
 	}
 	res = append(res, "}")
 	return res
@@ -235,7 +235,7 @@ func generateIfaceIds(ifaces []iface, staticIfaceId map[string]int) map[iface]in
 }
 
 func maxVal(m map[string]int) int {
-	max := 0
+	max := 9
 	for _, v := range m {
 		if v > max {
 			max = v

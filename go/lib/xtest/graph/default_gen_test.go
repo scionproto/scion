@@ -12,10 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package graph
+package graph_test
 
-import "testing"
+import (
+	"testing"
 
-func Test_GeneratedUpToDate(t *testing.T) {
+	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/xtest/graph"
+	"github.com/scionproto/scion/go/lib/xtest/graph/gupdater"
+)
+
+func TestGeneratedUpToDate(t *testing.T) {
+	Convey("GeneratedUpToDate", t, func() {
+		g, err := gupdater.LoadGraph("../../../../topology/Default.topo")
+		xtest.FailOnErr(t, err)
+		actual := make(map[string]int, len(g.IfaceIds))
+		for iface, id := range g.IfaceIds {
+			actual[iface.Name()] = id
+		}
+		SoMsg("Ifaces same", graph.StaticIfaceIdMapping, ShouldResemble, actual)
+	})
 }
