@@ -18,8 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	"github.com/scionproto/scion/go/lib/xtest/graph/gupdater"
 )
 
 const (
@@ -33,7 +31,7 @@ var (
 )
 
 func main() {
-	err := gupdater.WriteGraphToFile(*topoFile, *graphFile)
+	err := WriteGraphToFile(*topoFile, *graphFile)
 	if err != nil {
 		fmt.Printf("Failed to write the graph, err: %v\n", err)
 		os.Exit(1)

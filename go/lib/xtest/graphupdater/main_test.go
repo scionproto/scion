@@ -21,12 +21,11 @@ import (
 
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
-	"github.com/scionproto/scion/go/lib/xtest/graph/gupdater"
 )
 
-func Test_GeneratedUpToDate(t *testing.T) {
+func TestGeneratedUpToDate(t *testing.T) {
 	Convey("Generated up to date", t, func() {
-		g, err := gupdater.LoadGraph("../../../../" + DefaultTopoFile)
+		g, err := LoadGraph("../../../../" + DefaultTopoFile)
 		xtest.FailOnErr(t, err)
 		graphMapping := make(map[string]int)
 		for i, id := range g.IfaceIds {
