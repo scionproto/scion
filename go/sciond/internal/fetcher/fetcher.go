@@ -338,14 +338,7 @@ func (f *Fetcher) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	}
-	dsts := []addr.IA{req.Dst.IA()}
-	if req.Dst.IA().A == 0 {
-		dsts = cores.FirstIAs()
-	}
-	var paths []*combinator.Path
-	for _, dst := range dsts {
-		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
-	}
+	paths := buildPathsToAllDsts(req, ups, cores, downs)
 	paths = f.filterRevokedPaths(paths)
 	return paths, nil
 }
@@ -440,6 +433,20 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	}
 	// Sanitize input. There's no point in propagating garbage all throughout other modules.
 	return reply.Sanitize(f.logger), nil
+}
+
+func buildPathsToAllDsts(req *sciond.PathReq,
+	ups, cores, downs seg.Segments) []*combinator.Path {
+
+	dsts := []addr.IA{req.Dst.IA()}
+	if req.Dst.IA().A == 0 {
+		dsts = cores.FirstIAs()
+	}
+	var paths []*combinator.Path
+	for _, dst := range dsts {
+		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
+	}
+	return paths
 }
 
 // NewExtendedContext returns a new _independent_ context that can extend past
