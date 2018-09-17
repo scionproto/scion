@@ -41,6 +41,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
+	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
 )
 
 const (
@@ -56,11 +57,13 @@ type Fetcher struct {
 	pathDB          pathdb.PathDB
 	trustStore      infra.TrustStore
 	revocationCache revcache.RevCache
+	config          sdconfig.Config
 	logger          log.Logger
 }
 
 func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB pathdb.PathDB,
-	trustStore infra.TrustStore, revCache revcache.RevCache, logger log.Logger) *Fetcher {
+	trustStore infra.TrustStore, revCache revcache.RevCache, cfg sdconfig.Config,
+	logger log.Logger) *Fetcher {
 
 	return &Fetcher{
 		topology:        topo,
@@ -68,6 +71,7 @@ func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB pathdb.Pa
 		pathDB:          pathDB,
 		trustStore:      trustStore,
 		revocationCache: revCache,
+		config:          cfg,
 		logger:          logger,
 	}
 }
@@ -119,9 +123,13 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// If there are no cached paths in sciond, send the query to the local PS,
 	// which will forward the query to a ISD-local core PS, so there won't be any loop.
 
+	refetch, err := f.shouldRefetchSegs(ctx, req)
+	if err != nil {
+		f.logger.Warn("Failed to check if refetch is required", "err", err)
+	}
 	// Try to build paths from local information first, if we don't have to
 	// get fresh segments.
-	if !req.Flags.Refresh {
+	if !req.Flags.Refresh && !refetch {
 		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
@@ -144,6 +152,13 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case <-earlyTrigger.Done():
 	case <-subCtx.Done():
 	case <-ctx.Done():
+	}
+	if ctx.Err() == nil {
+		refetchInt := f.config.QueryInterval()
+		_, err = f.pathDB.InsertNextQuery(ctx, req.Dst.IA(), time.Now().Add(refetchInt))
+		if err != nil {
+			f.logger.Warn("Failed to update nextQuery", "err", err)
+		}
 	}
 	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
@@ -384,6 +399,14 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 		}
 	}
 	return newPaths
+}
+
+func (f *Fetcher) shouldRefetchSegs(ctx context.Context, req *sciond.PathReq) (bool, error) {
+	nq, err := f.pathDB.GetNextQuery(ctx, req.Dst.IA())
+	if err != nil || nq == nil {
+		return true, err
+	}
+	return time.Now().After(*nq), nil
 }
 
 // fetchAndVerify downloads path segments from the network. Segments that are
