@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -160,7 +159,7 @@ func TestIFInfo(t *testing.T) {
 				RawEntries: []sciond.IFInfoReplyEntry{
 					{
 						IfID: ifids[0],
-						HostInfo: servers.TopoAddrToHostInfo(topo.Overlay,
+						HostInfo: sciond.HostInfoFromTopoBRAddr(
 							*topo.IFInfoMap[ifids[0]].InternalAddrs),
 					},
 				},
@@ -173,12 +172,12 @@ func TestIFInfo(t *testing.T) {
 				RawEntries: []sciond.IFInfoReplyEntry{
 					{
 						IfID: ifids[0],
-						HostInfo: servers.TopoAddrToHostInfo(topo.Overlay,
+						HostInfo: sciond.HostInfoFromTopoBRAddr(
 							*topo.IFInfoMap[ifids[0]].InternalAddrs),
 					},
 					{
 						IfID: ifids[1],
-						HostInfo: servers.TopoAddrToHostInfo(topo.Overlay,
+						HostInfo: sciond.HostInfoFromTopoBRAddr(
 							*topo.IFInfoMap[ifids[1]].InternalAddrs),
 					},
 				},
@@ -349,17 +348,4 @@ func TestMain(m *testing.M) {
 		log.Root().SetHandler(log.DiscardHandler())
 	}
 	os.Exit(m.Run())
-}
-
-func MakeBRHostInfos(ot overlay.Type, brMap map[string]topology.BRInfo,
-	ifInfoMap map[common.IFIDType]topology.IFInfo) []sciond.HostInfo {
-
-	hostInfos := make([]sciond.HostInfo, 0, len(brMap))
-	for _, brInfo := range brMap {
-		// One IFID is enough to find the unique internal address. Panic if no
-		// IFIDs exist.
-		ifid := brInfo.IFIDs[0]
-		hostInfos = append(hostInfos, sciond.HostInfoFromTopoAddr(*ifInfoMap[ifid].InternalAddrs))
-	}
-	return hostInfos
 }
