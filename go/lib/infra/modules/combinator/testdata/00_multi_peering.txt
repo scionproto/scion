@@ -3,63 +3,66 @@ Path #0:
   Fields:
     IF .SP ISD=1
       HF .. InIF=1714 OutIF=0
-      HF X. InIF=1411 OutIF=1417
-      HF X. InIF=1415 OutIF=1417
-      HF .V InIF=0 OutIF=1114
-    IF CSP ISD=1
-      HF .V InIF=0 OutIF=1215
-      HF X. InIF=1514 OutIF=1518
-      HF X. InIF=1512 OutIF=1518
-      HF .. InIF=1815 OutIF=0
+      HF X. InIF=1432 OutIF=1417
+      HF X. InIF=2723 OutIF=1417
+      HF .V InIF=0 OutIF=3214
+    IF CSP ISD=2
+      HF .V InIF=0 OutIF=2123
+      HF X. InIF=2327 OutIF=2325
+      HF X. InIF=2321 OutIF=2325
+      HF .. InIF=2523 OutIF=0
   Interfaces:
     1-ff00:0:112#1714
     1-ff00:0:111#1417
-    1-ff00:0:111#1415
-    1-ff00:0:121#1514
-    1-ff00:0:121#1518
-    1-ff00:0:122#1815
+    1-ff00:0:111#2723
+    2-ff00:0:211#2327
+    2-ff00:0:211#2325
+    2-ff00:0:212#2523
 Path #1:
   Weight: 3
   Fields:
     IF .SP ISD=1
       HF .. InIF=1714 OutIF=0
-      HF X. InIF=1411 OutIF=1417
-      HF X. InIF=4001 OutIF=1417
-      HF .V InIF=0 OutIF=1114
-    IF CSP ISD=1
-      HF .V InIF=0 OutIF=1215
-      HF X. InIF=4002 OutIF=1518
-      HF X. InIF=1512 OutIF=1518
-      HF .. InIF=1815 OutIF=0
+      HF X. InIF=1432 OutIF=1417
+      HF X. InIF=2823 OutIF=1417
+      HF .V InIF=0 OutIF=3214
+    IF CSP ISD=2
+      HF .V InIF=0 OutIF=2123
+      HF X. InIF=2328 OutIF=2325
+      HF X. InIF=2321 OutIF=2325
+      HF .. InIF=2523 OutIF=0
   Interfaces:
     1-ff00:0:112#1714
     1-ff00:0:111#1417
-    1-ff00:0:111#4001
-    1-ff00:0:121#4002
-    1-ff00:0:121#1518
-    1-ff00:0:122#1815
+    1-ff00:0:111#2823
+    2-ff00:0:211#2328
+    2-ff00:0:211#2325
+    2-ff00:0:212#2523
 Path #2:
-  Weight: 5
+  Weight: 6
   Fields:
     IF ... ISD=1
       HF .. InIF=1714 OutIF=0
-      HF .. InIF=1411 OutIF=1417
-      HF X. InIF=0 OutIF=1114
-    IF ... ISD=1
-      HF X. InIF=1112 OutIF=0
-      HF X. InIF=0 OutIF=1211
-    IF C.. ISD=1
-      HF X. InIF=0 OutIF=1215
-      HF .. InIF=1512 OutIF=1518
-      HF .. InIF=1815 OutIF=0
+      HF .. InIF=1432 OutIF=1417
+      HF X. InIF=0 OutIF=3214
+    IF ... ISD=2
+      HF X. InIF=1311 OutIF=0
+      HF .. InIF=1121 OutIF=1113
+      HF X. InIF=0 OutIF=2111
+    IF C.. ISD=2
+      HF X. InIF=0 OutIF=2123
+      HF .. InIF=2321 OutIF=2325
+      HF .. InIF=2523 OutIF=0
   Interfaces:
     1-ff00:0:112#1714
     1-ff00:0:111#1417
-    1-ff00:0:111#1411
-    1-ff00:0:110#1114
-    1-ff00:0:110#1112
-    1-ff00:0:120#1211
-    1-ff00:0:120#1215
-    1-ff00:0:121#1512
-    1-ff00:0:121#1518
-    1-ff00:0:122#1815
+    1-ff00:0:111#1432
+    1-ff00:0:130#3214
+    1-ff00:0:130#1311
+    1-ff00:0:110#1113
+    1-ff00:0:110#1121
+    2-ff00:0:210#2111
+    2-ff00:0:210#2123
+    2-ff00:0:211#2321
+    2-ff00:0:211#2325
+    2-ff00:0:212#2523

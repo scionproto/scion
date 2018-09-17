@@ -5,15 +5,15 @@ Path #0:
       HF .. InIF=1613 OutIF=0
       HF X. InIF=0 OutIF=1316
     IF ... ISD=1
-      HF X. InIF=1311 OutIF=0
-      HF X. InIF=0 OutIF=1113
+      HF X. InIF=3229 OutIF=0
+      HF X. InIF=0 OutIF=2932
     IF C.. ISD=1
-      HF X. InIF=0 OutIF=1114
-      HF .. InIF=1411 OutIF=0
+      HF X. InIF=0 OutIF=1227
+      HF .. InIF=2712 OutIF=0
   Interfaces:
     1-ff00:0:131#1613
     1-ff00:0:130#1316
-    1-ff00:0:130#1311
-    1-ff00:0:110#1113
-    1-ff00:0:110#1114
-    1-ff00:0:111#1411
+    1-ff00:0:130#3229
+    1-ff00:0:120#2932
+    1-ff00:0:120#1227
+    1-ff00:0:111#2712

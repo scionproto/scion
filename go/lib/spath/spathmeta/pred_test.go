@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,17 +74,17 @@ func TestPathPredicates(t *testing.T) {
 		{
 			"far neighbors, match in the middle",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:120#1215", true,
+			"1-ff00:0:120#3015", true,
 		},
 		{
 			"far neighbors, match in the middle, on egress",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:120#1222", true,
+			"1-ff00:0:120#3022", true,
 		},
 		{
 			"far neighbors, match at the end",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"2-ff00:0:220#2212", true,
+			"2-ff00:0:220#2230", true,
 		},
 		{
 			"far neighbors, match at the start",
@@ -98,12 +99,12 @@ func TestPathPredicates(t *testing.T) {
 		{
 			"far neighbors, match multiple with wildcards",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:121#0,1-ff00:0:121#1512", true,
+			"1-ff00:0:121#0,1-ff00:0:121#1530", true,
 		},
 		{
 			"far neighbors, match multiple with wildcards and jumps",
 			"1-ff00:0:122", "2-ff00:0:220",
-			"1-ff00:0:120#1215,2-ff00:0:220#0", true,
+			"1-ff00:0:120#3015,2-ff00:0:220#0", true,
 		},
 		{
 			"far neighbors, not match with wildcard jumps",
@@ -164,6 +165,7 @@ func testGetSCIONDConn(t *testing.T) sciond.Connector {
 	t.Helper()
 
 	g := graph.NewFromDescription(graph.DefaultGraphDescription)
+	g.RemoveLink(graph.If_120_B1_220_X)
 	service := sciond.NewMockService(g)
 	conn, err := service.Connect()
 	if err != nil {
