@@ -184,7 +184,9 @@ func (n *SCIONNetwork) DialSCIONWithBindSVC(network string, laddr, raddr, baddr 
 // Parameter network must be "udp4".
 //
 // A timeout of 0 means infinite timeout.
-func (n *SCIONNetwork) ListenSCION(network string, laddr *Addr, timeout time.Duration) (Conn, error) {
+func (n *SCIONNetwork) ListenSCION(network string, laddr *Addr,
+	timeout time.Duration) (Conn, error) {
+
 	return n.ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone, timeout)
 }
 
