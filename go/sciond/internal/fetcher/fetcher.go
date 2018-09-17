@@ -403,11 +403,8 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 
 func (f *Fetcher) shouldRefetchSegs(ctx context.Context, req *sciond.PathReq) (bool, error) {
 	nq, err := f.pathDB.GetNextQuery(ctx, req.Dst.IA())
-	if err != nil {
+	if err != nil || nq == nil {
 		return true, err
-	}
-	if nq == nil {
-		return true, nil
 	}
 	return time.Now().After(*nq), nil
 }
