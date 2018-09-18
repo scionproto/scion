@@ -39,6 +39,7 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
@@ -85,7 +86,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 // received by the Fetcher.
 type fetcherHandler struct {
 	*Fetcher
-	topology itopo.Topology
+	topology *topology.Topo
 }
 
 // GetPaths fulfills the path request described by req. GetPaths will attempt
@@ -102,20 +103,24 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	}
 	// Check source
 	if req.Src.IA().IsZero() {
-		req.Src = f.topology.IA().IAInt()
+		req.Src = f.topology.ISD_AS.IAInt()
 	}
-	if !req.Src.IA().Eq(f.topology.IA()) {
+	if !req.Src.IA().Eq(f.topology.ISD_AS) {
 		return f.buildSCIONDReply(nil, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
-
 	// Commit to a path server, and use it for path and crypto queries
-	psAddr, psOverlayAddr, err := f.topology.GetAnyAppAddr(proto.ServiceType_ps)
+	svcInfo, err := f.topology.GetSvcInfo(proto.ServiceType_ps)
 	if err != nil {
-		return nil, common.NewBasicError("Failed to look up PS in topology", err)
+		return nil, err
 	}
-	ps := &snet.Addr{IA: f.topology.IA(), Host: psAddr, NextHop: psOverlayAddr}
-
+	topoAddr := svcInfo.GetAnyTopoAddr()
+	if topoAddr == nil {
+		return nil, common.NewBasicError("Failed to look up PS in topology", nil)
+	}
+	psAddr := topoAddr.PublicAddr(f.topology.Overlay)
+	psOverlayAddr := topoAddr.OverlayAddr(f.topology.Overlay)
+	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAddr, NextHop: psOverlayAddr}
 	// Check destination
 	if req.Dst.IA().I == 0 {
 		return f.buildSCIONDReply(nil, sciond.ErrorBadDstIA),
@@ -255,7 +260,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 			{
 				Path: &sciond.FwdPathMeta{
 					FwdPath:    []byte{},
-					Mtu:        uint16(f.topology.MTU()),
+					Mtu:        uint16(f.topology.MTU),
 					Interfaces: []sciond.PathInterface{},
 					ExpTime:    util.TimeToSecs(time.Now().Add(spath.MaxTTL * time.Second)),
 				},
@@ -269,8 +274,8 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 			// In-memory write should never fail
 			panic(err)
 		}
-		nextHop := f.topology.GetTopoBRAddrByIfid(path.Interfaces[0].IfID)
-		if nextHop == nil {
+		ifInfo, ok := f.topology.IFInfoMap[path.Interfaces[0].IfID]
+		if !ok {
 			f.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
 			continue
 		}
@@ -281,7 +286,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 				Interfaces: path.Interfaces,
 				ExpTime:    util.TimeToSecs(path.ExpTime),
 			},
-			HostInfo: sciond.HostInfoFromTopoBRAddr(*nextHop),
+			HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
 		})
 	}
 	return entries
@@ -303,7 +308,7 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		// function will proceed to the next part.
 		return nil, err
 	}
-	localTrc, err := f.trustStore.GetValidTRC(ctx, f.topology.IA().I, nil)
+	localTrc, err := f.trustStore.GetValidTRC(ctx, f.topology.ISD_AS.I, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -87,7 +87,7 @@ func realMain() int {
 	}
 	topo := itopo.GetCurrentTopology()
 	trustConf := &trust.Config{}
-	trustStore, err := trust.NewStore(trustDB, topo.IA(),
+	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
 		rand.Uint64(), trustConf, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
@@ -124,9 +124,9 @@ func realMain() int {
 		RevCache:   revCache,
 		TrustStore: trustStore,
 		Config:     config.PS,
-		IA:         topo.IA(),
+		IA:         topo.ISD_AS,
 	}
-	core := topo.Core()
+	core := topo.Core
 	var segReqHandler infra.Handler
 	if core {
 		segReqHandler = handlers.NewSegReqCoreHandler(args)
@@ -178,7 +178,7 @@ func setup(configName string) error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
-	itopo.SetCurrentTopologyFromBase(config.General.Topology)
+	itopo.SetCurrentTopology(config.General.Topology)
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}

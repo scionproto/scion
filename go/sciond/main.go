@@ -169,7 +169,7 @@ func Init(configName string) error {
 	if err != nil {
 		return err
 	}
-	itopo.SetCurrentTopologyFromBase(config.General.Topology)
+	itopo.SetCurrentTopology(config.General.Topology)
 	environment = env.SetupEnv(nil)
 	err = env.InitLogging(&config.Logging)
 	if err != nil {

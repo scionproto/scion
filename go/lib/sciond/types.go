@@ -167,14 +167,14 @@ func HostInfoFromHostAddr(host addr.HostAddr, port uint16) *HostInfo {
 }
 
 func HostInfoFromTopoAddr(topoAddr topology.TopoAddr) HostInfo {
-	ipv4, port4 := topoAddrToIPAndPort(overlay.IPv4, topoAddr)
-	ipv6, port6 := topoAddrToIPAndPort(overlay.IPv6, topoAddr)
+	ipv4, port4 := topoAddrToIPv4AndPort(topoAddr)
+	ipv6, port6 := topoAddrToIPv6AndPort(topoAddr)
 	return buildHostInfo(ipv4, ipv6, port4, port6)
 }
 
 func HostInfoFromTopoBRAddr(topoBRAddr topology.TopoBRAddr) HostInfo {
-	ipv4, port4 := topoBRAddrToIPAndPort(overlay.IPv4, topoBRAddr)
-	ipv6, port6 := topoBRAddrToIPAndPort(overlay.IPv6, topoBRAddr)
+	ipv4, port4 := topoBRAddrToIPv4AndPort(topoBRAddr)
+	ipv6, port6 := topoBRAddrToIPv6AndPort(topoBRAddr)
 	return buildHostInfo(ipv4, ipv6, port4, port6)
 }
 
@@ -200,35 +200,44 @@ func (h *HostInfo) String() string {
 	return fmt.Sprintf("[%v]:%d", h.Host(), h.Port)
 }
 
-func topoAddrToIPAndPort(ot overlay.Type, topoAddr topology.TopoAddr) (net.IP, uint16) {
-	ip, port := getPublicIPAndPort(ot, topoAddr)
+func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
+	var ip net.IP
+	var port uint16
+	if pubAddr := topoAddr.PublicAddr(overlay.IPv4); pubAddr != nil {
+		ip = pubAddr.L3.IP()
+		port = pubAddr.L4.Port()
+	}
 	// XXX(scrye): Force 4-byte representation of IPv4 addresses
 	// because Python code doesn't understand Go's 16-byte format.
-	if ot == overlay.IPv4 && ip != nil {
+	if ip != nil {
 		ip = ip.To4()
 	}
 	return ip, port
 }
 
-func topoBRAddrToIPAndPort(ot overlay.Type, topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
-	if ot.IsIPv4() && topoBRAddr.IPv4 != nil {
+func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
+	if pubAddr := topoAddr.PublicAddr(overlay.IPv6); pubAddr != nil {
+		return pubAddr.L3.IP(), pubAddr.L4.Port()
+	}
+	return nil, 0
+}
+
+func topoBRAddrToIPv4AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
+	if topoBRAddr.IPv4 != nil {
 		v4Addr := topoBRAddr.IPv4.PublicOverlay
 		if v4Addr != nil {
 			return v4Addr.L3().IP().To4(), v4Addr.L4().Port()
 		}
 	}
-	if ot.IsIPv6() && topoBRAddr.IPv6 != nil {
+	return nil, 0
+}
+
+func topoBRAddrToIPv6AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
+	if topoBRAddr.IPv6 != nil {
 		v6Addr := topoBRAddr.IPv6.PublicOverlay
 		if v6Addr != nil {
 			return v6Addr.L3().IP(), v6Addr.L4().Port()
 		}
-	}
-	return nil, 0
-}
-
-func getPublicIPAndPort(ot overlay.Type, topoAddr topology.TopoAddr) (net.IP, uint16) {
-	if pubAddr := topoAddr.PublicAddr(ot); pubAddr != nil {
-		return pubAddr.L3.IP(), pubAddr.L4.Port()
 	}
 	return nil, 0
 }
