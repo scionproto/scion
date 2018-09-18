@@ -571,10 +571,16 @@ func (store *Store) isLocal(address net.Addr) error {
 func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 	topo := itopo.GetCurrentTopology()
 	if !store.config.IsCS {
-		csAddr, csOverlayAddr, err := topo.GetAnyAppAddr(proto.ServiceType_cs)
+		svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
 		if err != nil {
-			return nil, common.NewBasicError("Failed to look up CS in topology", err)
+			return nil, err
 		}
+		topoAddr := svcInfo.GetAnyTopoAddr()
+		if topoAddr == nil {
+			return nil, common.NewBasicError("Failed to look up CS in topology", nil)
+		}
+		csAddr := topoAddr.PublicAddr(topo.Overlay)
+		csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
 		return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 	}
 	if destination.A == 0 {

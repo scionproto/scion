@@ -34,16 +34,18 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo/mock_itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet/rpt"
+	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/topology/topotestutil"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/loader"
 	"github.com/scionproto/scion/go/lib/xtest/p2p"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -748,15 +750,11 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	t.Helper()
 	db, err := trustdb.New(":memory:")
 	xtest.FailOnErr(t, err)
-	mockTopology := mock_itopo.NewMockTopology(ctrl)
-	mockTopology.EXPECT().GetAnyAppAddr(gomock.Any()).Return(&addr.AppAddr{}, nil, nil).AnyTimes()
-	itopo.SetCurrentTopology(mockTopology)
-	// FIXME(scrye): to correctly test this, the Config should specify that
-	// snet is used to determine an AS in the remote core. However, for now we
-	// set up a nil config, s.t. the trust store uses a topology mock instead
-	// to compute addresses (because we don't really care about them).
-	options := &Config{}
-	store, err := NewStore(db, ia, 0, options, log.Root())
+	topo := topology.NewTopo()
+	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",
+		topology.TestTopoAddr(nil, nil, nil, nil))
+	itopo.SetCurrentTopology(topo)
+	store, err := NewStore(db, ia, 0, &Config{}, log.Root())
 	xtest.FailOnErr(t, err)
 	// Enable fake network access for trust database
 	store.SetMessenger(msger)

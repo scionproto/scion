@@ -91,24 +91,29 @@ func realMain() int {
 	}
 	topo := itopo.GetCurrentTopology()
 	trustConf := &trust.Config{}
-	trustStore, err := trust.NewStore(trustDB, topo.IA(),
+	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
 		rand.Uint64(), trustConf, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = snet.Init(topo.IA(), "", "")
+	err = snet.Init(topo.ISD_AS, "", "")
 	if err != nil {
 		log.Crit("Unable to initialize snet", "err", err)
 		return 1
 	}
-	topoAddress, err := topo.GetTopoAddrById(proto.ServiceType_ps, config.General.ID)
+	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_ps)
 	if err != nil {
-		log.Crit("Unable to extract topo address", "err", err)
+		log.Crit("Unable to extract SVC information from topology", "err", err)
 		return 1
 	}
-	publicAddr := env.GetPublicSnetAddress(topo.IA(), topoAddress)
-	bindAddr := env.GetBindSnetAddress(topo.IA(), topoAddress)
+	topoAddress := svcInfo.GetTopoAddrById(config.General.ID)
+	if topoAddress == nil {
+		log.Crit("Unable to extract topo address, id for svc not found")
+		return 1
+	}
+	publicAddr := env.GetPublicSnetAddress(topo.ISD_AS, topoAddress)
+	bindAddr := env.GetBindSnetAddress(topo.ISD_AS, topoAddress)
 	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, bindAddr, addr.SvcPS)
 	if err != nil {
 		log.Crit("Unable to listen on SCION", "err", err)
@@ -120,7 +125,7 @@ func realMain() int {
 		return 1
 	}
 	msger := messenger.New(
-		topo.IA(),
+		topo.ISD_AS,
 		disp.New(
 			transport.NewPacketTransport(conn),
 			messenger.DefaultAdapter,
@@ -141,9 +146,9 @@ func realMain() int {
 		RevCache:   revCache,
 		TrustStore: trustStore,
 		Config:     config.PS,
-		IA:         topo.IA(),
+		IA:         topo.ISD_AS,
 	}
-	core := topo.Core()
+	core := topo.Core
 	var segReqHandler infra.Handler
 	if core {
 		segReqHandler = handlers.NewSegReqCoreHandler(args)
@@ -195,7 +200,7 @@ func setup(configName string) error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
-	itopo.SetCurrentTopologyFromBase(config.General.Topology)
+	itopo.SetCurrentTopology(config.General.Topology)
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
