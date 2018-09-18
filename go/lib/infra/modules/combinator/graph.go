@@ -462,8 +462,7 @@ func validNextSeg(currSeg, nextSeg *InputSegment) bool {
 		return nextSeg.Type == proto.PathSegType_down
 	case proto.PathSegType_down:
 		return false
-	case proto.PathSegType_unset:
-		panic("Invalid segment type")
+	default:
+		panic(fmt.Sprintf("Invalid segment type: %v", currSeg.Type))
 	}
-	panic(fmt.Sprintf("Switch doesn't cover all values, new val: %v", currSeg.Type))
 }
