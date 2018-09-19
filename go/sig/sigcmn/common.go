@@ -53,7 +53,7 @@ var (
 	IA       addr.IA
 	Host     addr.HostAddr
 	PathMgr  *pathmgr.PR
-	CtrlConn *snet.Conn
+	CtrlConn snet.Conn
 	MgmtAddr *mgmt.Addr
 )
 

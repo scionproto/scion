@@ -35,7 +35,7 @@ const (
 
 var (
 	dispPath string = reliable.DefaultDispPath
-	snetConn *snet.Conn
+	snetConn snet.Conn
 	ia       addr.IA
 	logger   log.Logger
 )

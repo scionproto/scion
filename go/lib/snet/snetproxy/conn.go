@@ -25,13 +25,13 @@ import (
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-var _ Conn = (*ProxyConn)(nil)
+var _ snet.Conn = (*ProxyConn)(nil)
 
 type ProxyConn struct {
 	// connMtx protects read/write access to the snetConn pointer. connMtx must
 	// not be held when running methods on snetConn.
 	connMtx  sync.Mutex
-	snetConn Conn
+	snetConn snet.Conn
 
 	// ioMtx is used to ensure only one worker goroutine enters the main I/O
 	// loop.
@@ -54,7 +54,7 @@ type ProxyConn struct {
 	closeMtx sync.Mutex
 }
 
-func NewProxyConn(conn Conn, reconnecter Reconnecter) *ProxyConn {
+func NewProxyConn(conn snet.Conn, reconnecter Reconnecter) *ProxyConn {
 	return &ProxyConn{
 		snetConn:             conn,
 		dispatcherState:      NewState(),
@@ -163,7 +163,7 @@ func (conn *ProxyConn) asyncReconnectWrapper() {
 }
 
 // Reconnect is only used for testing purposes and should never be called.
-func (conn *ProxyConn) Reconnect() (Conn, error) {
+func (conn *ProxyConn) Reconnect() (snet.Conn, error) {
 	newConn, err := conn.reconnecter.Reconnect(0)
 	if err != nil {
 		return nil, err
@@ -271,14 +271,14 @@ func (conn *ProxyConn) getReadDeadline() time.Time {
 	return deadline
 }
 
-func (conn *ProxyConn) getConn() Conn {
+func (conn *ProxyConn) getConn() snet.Conn {
 	conn.connMtx.Lock()
 	c := conn.snetConn
 	conn.connMtx.Unlock()
 	return c
 }
 
-func (conn *ProxyConn) setConn(newConn Conn) {
+func (conn *ProxyConn) setConn(newConn snet.Conn) {
 	conn.connMtx.Lock()
 	conn.snetConn = newConn
 	conn.connMtx.Unlock()

@@ -29,11 +29,9 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/disp"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
@@ -99,37 +97,28 @@ func realMain() int {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = snet.Init(topo.ISD_AS, "", "")
-	if err != nil {
-		log.Crit("Unable to initialize snet", "err", err)
-		return 1
-	}
-	topoAddress := topo.PS.GetById(config.General.ID)
-	publicAddr := env.GetPublicSnetAddress(topo.ISD_AS, topoAddress)
-	bindAddr := env.GetBindSnetAddress(topo.ISD_AS, topoAddress)
-	conn, err := snet.ListenSCIONWithBindSVC("udp4", publicAddr, bindAddr, addr.SvcPS)
-	if err != nil {
-		log.Crit("Unable to listen on SCION", "err", err)
-		return 1
-	}
 	err = trustStore.LoadAuthoritativeTRC(filepath.Join(config.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("TRC error", "err", err)
 		return 1
 	}
-	msger := messenger.New(
+	topoAddress := topo.PS.GetById(config.General.ID)
+	if topoAddress == nil {
+		log.Crit("Unable to find topo address")
+		return 1
+	}
+	msger, err := infraenv.InitMessenger(
 		topo.ISD_AS,
-		disp.New(
-			transport.NewPacketTransport(conn),
-			messenger.DefaultAdapter,
-			log.Root(),
-		),
+		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
+		env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
+		addr.SvcPS,
+		config.General.ReconnectToDispatcher,
 		trustStore,
-		log.Root(),
-		nil,
 	)
+	if err != nil {
+		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
+	}
 	revCache := memrevcache.New(cache.NoExpiration, time.Second)
-	trustStore.SetMessenger(msger)
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.

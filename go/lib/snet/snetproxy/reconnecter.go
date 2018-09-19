@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 // Use a var here to allow tests to inject shorter intervals for fast testing.
@@ -27,7 +28,7 @@ var (
 )
 
 type Reconnecter interface {
-	Reconnect(timeout time.Duration) (Conn, error)
+	Reconnect(timeout time.Duration) (snet.Conn, error)
 	Stop()
 }
 
@@ -39,7 +40,7 @@ type TickingReconnecter struct {
 	// context-aware dials in reliable socket is tricky. This can make stopping
 	// the reconnecter take significant time, depending on the timeout of the
 	// reconnection function.
-	reconnectF func(timeout time.Duration) (Conn, error)
+	reconnectF func(timeout time.Duration) (snet.Conn, error)
 	state      *State
 	stopping   *AtomicBool
 }
@@ -47,7 +48,7 @@ type TickingReconnecter struct {
 // NewTickingReconnecter creates a new dispatcher reconnecter. Calling
 // Reconnect in turn calls f periodically to obtain a new connection to the
 // dispatcher,
-func NewTickingReconnecter(f func(timeout time.Duration) (Conn, error)) *TickingReconnecter {
+func NewTickingReconnecter(f func(timeout time.Duration) (snet.Conn, error)) *TickingReconnecter {
 	return &TickingReconnecter{
 		reconnectF: f,
 		stopping:   &AtomicBool{},
@@ -58,7 +59,7 @@ func NewTickingReconnecter(f func(timeout time.Duration) (Conn, error)) *Ticking
 // subject to timeout. Attempts that receive dispatcher connection errors are
 // followed by reattempts. Critical errors (e.g., port mismatches) return
 // immediately.
-func (r *TickingReconnecter) Reconnect(timeout time.Duration) (Conn, error) {
+func (r *TickingReconnecter) Reconnect(timeout time.Duration) (snet.Conn, error) {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	start := time.Now()

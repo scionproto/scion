@@ -59,10 +59,11 @@ func (e *OpError) Error() string {
 	return e.scmp.String()
 }
 
-var _ net.Conn = (*Conn)(nil)
-var _ net.PacketConn = (*Conn)(nil)
+var _ net.Conn = (*SCIONConn)(nil)
+var _ net.PacketConn = (*SCIONConn)(nil)
+var _ Conn = (*SCIONConn)(nil)
 
-type Conn struct {
+type SCIONConn struct {
 	conn *reliable.Conn
 	// Local, remote and bind SCION addresses (IA, L3, L4)
 	laddr *Addr
@@ -81,14 +82,14 @@ type Conn struct {
 	// networks. For SCIOND-less operation, this is set to nil.
 	sp *pathmgr.SyncPaths
 	// Reference to SCION networking context
-	scionNet *Network
+	scionNet *SCIONNetwork
 	// Key of last used path, used to select the same path for the next packet
 	prefPathKey spathmeta.PathKey
 }
 
 // DialSCION calls DialSCION with infinite timeout on the default networking
 // context.
-func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
+func DialSCION(network string, laddr, raddr *Addr) (Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
@@ -98,7 +99,7 @@ func DialSCION(network string, laddr, raddr *Addr) (*Conn, error) {
 // DialSCIONWithBindSVC calls DialSCIONWithBindSVC with infinite timeout on the
 // default networking context.
 func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
-	svc addr.HostSVC) (*Conn, error) {
+	svc addr.HostSVC) (Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
@@ -107,7 +108,7 @@ func DialSCIONWithBindSVC(network string, laddr, raddr, baddr *Addr,
 
 // ListenSCION calls ListenSCION with infinite timeout on the default
 // networking context.
-func ListenSCION(network string, laddr *Addr) (*Conn, error) {
+func ListenSCION(network string, laddr *Addr) (Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
@@ -116,7 +117,7 @@ func ListenSCION(network string, laddr *Addr) (*Conn, error) {
 
 // ListenSCIONWithBindSVC calls ListenSCIONWithBindSVC with infinite timeout on
 // the default networking context.
-func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC) (*Conn, error) {
+func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC) (Conn, error) {
 	if DefNetwork == nil {
 		return nil, common.NewBasicError("SCION network not initialized", nil)
 	}
@@ -126,24 +127,24 @@ func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC
 // ReadFromSCION reads data into b, returning the length of copied data and the
 // address of the sender. If the remote address for the connection is already
 // known, ReadFromSCION returns an error.
-func (c *Conn) ReadFromSCION(b []byte) (int, *Addr, error) {
+func (c *SCIONConn) ReadFromSCION(b []byte) (int, *Addr, error) {
 	return c.read(b, true)
 }
 
-func (c *Conn) ReadFrom(b []byte) (int, net.Addr, error) {
+func (c *SCIONConn) ReadFrom(b []byte) (int, net.Addr, error) {
 	return c.read(b, true)
 }
 
 // Read reads data into b from a connection with a fixed remote address. If the
 // remote address for the connection is unknown, Read returns an error.
-func (c *Conn) Read(b []byte) (int, error) {
+func (c *SCIONConn) Read(b []byte) (int, error) {
 	n, _, err := c.read(b, false)
 	return n, err
 }
 
 // read returns the number of bytes read, the address that sent the bytes and
 // an error (if one occurred).
-func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
+func (c *SCIONConn) read(b []byte, from bool) (int, *Addr, error) {
 	c.readMutex.Lock()
 	defer c.readMutex.Unlock()
 	var err error
@@ -217,7 +218,7 @@ func (c *Conn) read(b []byte, from bool) (int, *Addr, error) {
 	return 0, nil, common.NewBasicError("Unknown network", nil, "net", c.net)
 }
 
-func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
+func (c *SCIONConn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	// Only handle revocations for now
 	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
 		c.handleSCMPRev(hdr, pkt)
@@ -226,7 +227,7 @@ func (c *Conn) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	}
 }
 
-func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
+func (c *SCIONConn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	scmpPayload, ok := pkt.Pld.(*scmp.Payload)
 	if !ok {
 		log.Error("Unable to type assert payload to SCMP payload", "type", common.TypeOf(pkt.Pld))
@@ -248,14 +249,14 @@ func (c *Conn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 }
 
 // WriteToSCION sends b to raddr.
-func (c *Conn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
+func (c *SCIONConn) WriteToSCION(b []byte, raddr *Addr) (int, error) {
 	if c.conn == nil {
 		return 0, common.NewBasicError("Connection not initialized", nil)
 	}
 	return c.write(b, raddr)
 }
 
-func (c *Conn) WriteTo(b []byte, raddr net.Addr) (int, error) {
+func (c *SCIONConn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 	if c.raddr != nil {
 		return 0, common.NewBasicError("Unable to WriteTo, remote address already set", nil)
 	}
@@ -268,14 +269,14 @@ func (c *Conn) WriteTo(b []byte, raddr net.Addr) (int, error) {
 
 // Write sends b through a connection with fixed remote address. If the remote
 // address for the conenction is unknown, Write returns an error.
-func (c *Conn) Write(b []byte) (int, error) {
+func (c *SCIONConn) Write(b []byte) (int, error) {
 	if c.raddr == nil {
 		return 0, common.NewBasicError("Unable to Write, remote address not set", nil)
 	}
 	return c.WriteToSCION(b, c.raddr)
 }
 
-func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
+func (c *SCIONConn) write(b []byte, raddr *Addr) (int, error) {
 	c.writeMutex.Lock()
 	defer c.writeMutex.Unlock()
 	var err error
@@ -347,7 +348,7 @@ func (c *Conn) write(b []byte, raddr *Addr) (int, error) {
 
 // selectPathEntry chooses a path to raddr. This must not be called if
 // running SCIOND-less.
-func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
+func (c *SCIONConn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	var pathSet spathmeta.AppPathSet
 	if assert.On {
 		assert.Must(c.scionNet.pathResolver != nil, "must run with SCIOND for path selection")
@@ -374,46 +375,46 @@ func (c *Conn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
 	return path.Entry, nil
 }
 
-func (c *Conn) BindAddr() net.Addr {
+func (c *SCIONConn) BindAddr() net.Addr {
 	return c.baddr
 }
 
-func (c *Conn) BindSnetAddr() *Addr {
+func (c *SCIONConn) BindSnetAddr() *Addr {
 	return c.baddr
 }
 
-func (c *Conn) LocalAddr() net.Addr {
+func (c *SCIONConn) LocalAddr() net.Addr {
 	return c.laddr
 }
 
-func (c *Conn) LocalSnetAddr() *Addr {
+func (c *SCIONConn) LocalSnetAddr() *Addr {
 	return c.laddr
 }
 
-func (c *Conn) RemoteAddr() net.Addr {
+func (c *SCIONConn) RemoteAddr() net.Addr {
 	return c.raddr
 }
 
-func (c *Conn) RemoteSnetAddr() *Addr {
+func (c *SCIONConn) RemoteSnetAddr() *Addr {
 	return c.raddr
 }
 
-func (c *Conn) SVC() addr.HostSVC {
+func (c *SCIONConn) SVC() addr.HostSVC {
 	return c.svc
 }
 
-func (c *Conn) SetDeadline(t time.Time) error {
+func (c *SCIONConn) SetDeadline(t time.Time) error {
 	return c.conn.SetDeadline(t)
 }
 
-func (c *Conn) SetReadDeadline(t time.Time) error {
+func (c *SCIONConn) SetReadDeadline(t time.Time) error {
 	return c.conn.SetReadDeadline(t)
 }
 
-func (c *Conn) SetWriteDeadline(t time.Time) error {
+func (c *SCIONConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-func (c *Conn) Close() error {
+func (c *SCIONConn) Close() error {
 	return c.conn.Close()
 }

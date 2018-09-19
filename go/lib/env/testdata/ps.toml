@@ -10,6 +10,9 @@
   # directory.
   Topology = "testdata/dir/topology.json"
 
+  # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
+  ReconnectToDispatcher = true
+
 [logging]
   [logging.file]
     # Location of the logging file.
