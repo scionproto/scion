@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
@@ -246,7 +247,7 @@ func buildHostInfo(ipv4, ipv6 []byte, port4, port6 uint16) HostInfo {
 	if port4 != 0 && port6 != 0 && port4 != port6 {
 		// NOTE: https://github.com/scionproto/scion/issues/1842 will change
 		// the behavior of this.
-		panic(fmt.Sprintf("port mismatch %v %v", port4, port6))
+		log.Warn("port mismatch", "port4", port4, "port6", port6)
 	}
 	// XXX This assumes that Ipv4 and IPv6 use the same port!
 	port := port4
