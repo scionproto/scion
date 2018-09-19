@@ -32,6 +32,7 @@ type TestConfig struct {
 func TestLoadBase(t *testing.T) {
 	Convey("Load", t, func() {
 		var cfg TestConfig
+
 		_, err := toml.DecodeFile("testdata/ps.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
@@ -42,5 +43,6 @@ func TestLoadBase(t *testing.T) {
 
 		SoMsg("specific topology is preferred", cfg.General.TopologyPath, ShouldEqual,
 			"testdata/dir/topology.json")
+		SoMsg("DispatcherReconnects", cfg.General.ReconnectToDispatcher, ShouldBeTrue)
 	})
 }

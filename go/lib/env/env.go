@@ -65,6 +65,8 @@ type General struct {
 	TopologyPath string `toml:"Topology"`
 	// Topology is the loaded topology file.
 	Topology *topology.Topo `toml:"-"`
+	// ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
+	ReconnectToDispatcher bool
 }
 
 // setFiles determines the values for extra config files (e.g., topology.json).

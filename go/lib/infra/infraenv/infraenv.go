@@ -33,9 +33,9 @@ const (
 )
 
 func InitMessenger(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	store infra.TrustStore) (infra.Messenger, error) {
+	reconnectToDispatcher bool, store infra.TrustStore) (infra.Messenger, error) {
 
-	conn, err := initNetworking(ia, public, bind, svc)
+	conn, err := initNetworking(ia, public, bind, svc, reconnectToDispatcher)
 	if err != nil {
 		return nil, err
 	}
@@ -54,13 +54,18 @@ func InitMessenger(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 	return msger, nil
 }
 
-func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC) (snet.Conn, error) {
+func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
+	reconnectToDispatcher bool) (snet.Conn, error) {
+
+	var network snet.Network
 	network, err := snet.NewNetwork(ia, "", "")
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
 	}
-	proxyNetwork := snetproxy.NewProxyNetwork(network)
-	conn, err := proxyNetwork.ListenSCIONWithBindSVC("udp4", public, bind, svc, 0)
+	if reconnectToDispatcher {
+		network = snetproxy.NewProxyNetwork(network)
+	}
+	conn, err := network.ListenSCIONWithBindSVC("udp4", public, bind, svc, 0)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}

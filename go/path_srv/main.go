@@ -112,6 +112,7 @@ func realMain() int {
 		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
 		env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
 		addr.SvcPS,
+		config.General.ReconnectToDispatcher,
 		trustStore,
 	)
 	if err != nil {

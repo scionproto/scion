@@ -36,7 +36,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
@@ -107,7 +106,9 @@ func realMain() int {
 		config.SD.Public,
 		config.SD.Bind,
 		addr.SvcNone,
-		trustStore)
+		config.General.ReconnectToDispatcher,
+		trustStore,
+	)
 	if err != nil {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
