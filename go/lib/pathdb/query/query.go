@@ -38,7 +38,7 @@ var NullHpCfgID = HPCfgID{IA: addr.IAInt(0).IA(), ID: 0}
 
 type IntfSpec struct {
 	IA   addr.IA
-	IfID uint64
+	IfID common.IFIDType
 }
 
 type Params struct {

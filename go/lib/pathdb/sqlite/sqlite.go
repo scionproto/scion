@@ -353,12 +353,13 @@ func (b *Backend) insertStartOrEnd(ctx context.Context, as *seg.ASEntry,
 	return nil
 }
 
-func (b *Backend) Delete(ctx context.Context, segID common.RawBytes) (int, error) {
+func (b *Backend) Delete(ctx context.Context, params *query.Params) (int, error) {
 	return b.deleteInTrx(ctx, func() (sql.Result, error) {
-		return b.tx.ExecContext(ctx, "DELETE FROM Segments WHERE SegID=?", segID)
+		q, args := b.buildQuery(params)
+		query := fmt.Sprintf("DELETE FROM Segments WHERE RowId IN(SELECT RowID FROM (%s))", q)
+		return b.tx.ExecContext(ctx, query, args...)
 	})
 }
-
 func (b *Backend) DeleteWithIntf(ctx context.Context, intf query.IntfSpec) (int, error) {
 	return b.deleteInTrx(ctx, func() (sql.Result, error) {
 		delStmt := `DELETE FROM Segments WHERE EXISTS (
