@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/proto"
@@ -35,12 +34,9 @@ type PathDB interface {
 	// returns the number of path segments that have been inserted/updated.
 	InsertWithHPCfgIDs(context.Context, *seg.PathSegment, []proto.PathSegType, []*query.HPCfgID) (
 		int, error)
-	// Delete deletes a path segment with a given ID. Returns the number of deleted
-	// path segments (0 or 1).
-	Delete(context.Context, common.RawBytes) (int, error)
-	// DeleteWithIntf deletes all path segments that contain a given interface. Returns
-	// the number of path segments deleted.
-	DeleteWithIntf(context.Context, query.IntfSpec) (int, error)
+	// Delete deletes all path segments that matches the given query,
+	// returning the number of deleted segments
+	Delete(context.Context, *query.Params) (int, error)
 	// DeleteExpired deletes all paths segments that are expired, using now as a reference.
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)

@@ -323,46 +323,64 @@ func checkEmpty(t *testing.T, b *Backend, table string) {
 }
 
 func Test_Delete(t *testing.T) {
+	testCases := []struct {
+		Name        string
+		Setup       func(ctx context.Context, t *testing.T, b *Backend) *query.Params
+		DeleteCount int
+		AllEmpty    bool
+	}{
+		{
+			Name: "Delete by id",
+			Setup: func(ctx context.Context, t *testing.T, b *Backend) *query.Params {
+				TS := uint32(10)
+				pseg, segID := allocPathSegment(ifs1, TS)
+				insertSeg(t, ctx, b, pseg, types, hpCfgIDs)
+				return &query.Params{SegIDs: []common.RawBytes{segID}}
+			},
+			DeleteCount: 1,
+			AllEmpty:    true,
+		},
+		{
+			Name: "Delete by interfaces",
+			Setup: func(ctx context.Context, t *testing.T, b *Backend) *query.Params {
+				TS := uint32(10)
+				pseg, _ := allocPathSegment(ifs1, TS)
+				insertSeg(t, ctx, b, pseg, types, hpCfgIDs)
+				pseg, _ = allocPathSegment(ifs2, TS)
+				insertSeg(t, ctx, b, pseg, types, hpCfgIDs)
+				return &query.Params{
+					Intfs: []*query.IntfSpec{&ifspecs[0]},
+				}
+			},
+			DeleteCount: 1,
+			AllEmpty:    false,
+		},
+	}
 	Convey("Delete should correctly remove a path segment", t, func() {
 		// Setup
 		b, tmpF := setupDB(t)
 		defer b.db.Close()
 		defer os.Remove(tmpF)
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg, segID := allocPathSegment(ifs1, TS)
-		insertSeg(t, ctx, b, pseg, types, hpCfgIDs)
-		// Call
-		deleted, err := b.Delete(ctx, segID)
-		xtest.FailOnErr(t, err)
-		// Check return value.
-		SoMsg("Deleted", deleted, ShouldEqual, 1)
-		// Check that all tables are empty now.
-		for _, table := range tables {
-			checkEmpty(t, b, table)
-		}
-	})
-}
 
-func Test_DeleteWithIntf(t *testing.T) {
-	Convey("DeleteWithIntf should correctly remove all affected path segments", t, func() {
-		// Setup
-		b, tmpF := setupDB(t)
-		defer b.db.Close()
-		defer os.Remove(tmpF)
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := allocPathSegment(ifs1, TS)
-		pseg2, _ := allocPathSegment(ifs2, TS)
-		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, ctx, b, pseg2, types, hpCfgIDs)
-		// Call
-		deleted, err := b.DeleteWithIntf(ctx, query.IntfSpec{IA: ia331, IfID: 2})
-		xtest.FailOnErr(t, err)
-		// Check return value
-		SoMsg("Deleted", deleted, ShouldEqual, 2)
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+				defer cancelF()
+
+				params := tc.Setup(ctx, t, b)
+				// Call
+				deleted, err := b.Delete(ctx, params)
+				xtest.FailOnErr(t, err)
+				// Check return value.
+				SoMsg("Deleted", deleted, ShouldEqual, tc.DeleteCount)
+				if tc.AllEmpty {
+					// Check that all tables are empty now.
+					for _, table := range tables {
+						checkEmpty(t, b, table)
+					}
+				}
+			})
+		}
 	})
 }
 

@@ -141,6 +141,14 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 			return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
 		}
 	}
+	if req.Flags.Refresh {
+		// This is a workaround for https://github.com/scionproto/scion/issues/1876
+		err := f.flushSegmentsWithFirstHopInterfaces(ctx)
+		if err != nil {
+			f.logger.Error("Failed to flush segments with first hop interfaces", "err", err)
+			// continue anyway, things might still work out for the client.
+		}
+	}
 	// We don't have enough local information, grab fresh segments from the
 	// network. The spawned goroutine takes care of updating the path database
 	// and revocation cache.
@@ -460,6 +468,21 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	}
 	// Sanitize input. There's no point in propagating garbage all throughout other modules.
 	return reply.Sanitize(f.logger), nil
+}
+
+func (f *Fetcher) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
+	intfs := make([]*query.IntfSpec, 0, len(f.topology.IFInfoMap))
+	for ifid := range f.topology.IFInfoMap {
+		intfs = append(intfs, &query.IntfSpec{
+			IA:   f.topology.ISD_AS,
+			IfID: ifid,
+		})
+	}
+	q := &query.Params{
+		Intfs: intfs,
+	}
+	_, err := f.pathDB.Delete(ctx, q)
+	return err
 }
 
 func buildPathsToAllDsts(req *sciond.PathReq,
