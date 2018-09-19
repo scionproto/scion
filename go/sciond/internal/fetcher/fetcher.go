@@ -142,7 +142,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 		}
 	}
 	if req.Flags.Refresh {
-		// This is a workaround for #1876.
+		// This is a workaround for https://github.com/scionproto/scion/issues/1876
 		err := f.flushSegmentsWithFirstHopInterfaces(ctx)
 		if err != nil {
 			f.logger.Error("Failed to flush segments with first hop interfaces", "err", err)
