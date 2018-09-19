@@ -360,13 +360,6 @@ func (b *Backend) Delete(ctx context.Context, params *query.Params) (int, error)
 		return b.tx.ExecContext(ctx, query, args...)
 	})
 }
-func (b *Backend) DeleteWithIntf(ctx context.Context, intf query.IntfSpec) (int, error) {
-	return b.deleteInTrx(ctx, func() (sql.Result, error) {
-		delStmt := `DELETE FROM Segments WHERE EXISTS (
-			SELECT * FROM IntfToSeg WHERE IsdID=? AND AsID=? AND IntfID=?)`
-		return b.tx.ExecContext(ctx, delStmt, intf.IA.I, intf.IA.A, intf.IfID)
-	})
-}
 
 func (b *Backend) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	return b.deleteInTrx(ctx, func() (sql.Result, error) {

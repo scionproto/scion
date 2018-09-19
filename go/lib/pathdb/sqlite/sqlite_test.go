@@ -384,27 +384,6 @@ func Test_Delete(t *testing.T) {
 	})
 }
 
-func Test_DeleteWithIntf(t *testing.T) {
-	Convey("DeleteWithIntf should correctly remove all affected path segments", t, func() {
-		// Setup
-		b, tmpF := setupDB(t)
-		defer b.db.Close()
-		defer os.Remove(tmpF)
-		TS := uint32(10)
-		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
-		defer cancelF()
-		pseg1, _ := allocPathSegment(ifs1, TS)
-		pseg2, _ := allocPathSegment(ifs2, TS)
-		insertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
-		insertSeg(t, ctx, b, pseg2, types, hpCfgIDs)
-		// Call
-		deleted, err := b.DeleteWithIntf(ctx, query.IntfSpec{IA: ia331, IfID: 2})
-		xtest.FailOnErr(t, err)
-		// Check return value
-		SoMsg("Deleted", deleted, ShouldEqual, 2)
-	})
-}
-
 func Test_DeleteExpired(t *testing.T) {
 	Convey("DeleteExpired should delete expired segments", t, func() {
 		b, tmpF := setupDB(t)

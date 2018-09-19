@@ -37,9 +37,6 @@ type PathDB interface {
 	// Delete deletes all path segments that matches the given query,
 	// returning the number of deleted segments
 	Delete(context.Context, *query.Params) (int, error)
-	// DeleteWithIntf deletes all path segments that contain a given interface. Returns
-	// the number of path segments deleted.
-	DeleteWithIntf(context.Context, query.IntfSpec) (int, error)
 	// DeleteExpired deletes all paths segments that are expired, using now as a reference.
 	// Returns the number of deleted segments.
 	DeleteExpired(ctx context.Context, now time.Time) (int, error)
