@@ -65,6 +65,7 @@ func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 		trustStore: args.TrustStore,
 		topology:   args.Topology,
 		retryInt:   time.Second,
+		config:     args.Config,
 		logger:     request.Logger,
 	}
 }
