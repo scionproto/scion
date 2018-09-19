@@ -50,11 +50,10 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment,
 	if !ok {
 		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifId", ifId)
 	}
-	nextHop := ifInfo.InternalAddrs.PublicOverlay(topo.Overlay)
 	return &snet.Addr{
 		IA:      dst,
 		Host:    addr.NewSVCUDPAppAddr(svc),
 		Path:    p,
-		NextHop: nextHop,
+		NextHop: ifInfo.InternalAddrs.PublicOverlay(topo.Overlay),
 	}, nil
 }

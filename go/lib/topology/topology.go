@@ -273,10 +273,6 @@ func (svc *SVCInfo) GetAnyTopoAddr() *TopoAddr {
 	return svc.idTopoAddrMap.GetById(id)
 }
 
-func (svc *SVCInfo) GetTopoAddrById(id string) *TopoAddr {
-	return svc.idTopoAddrMap.GetById(id)
-}
-
 func (svc *SVCInfo) GetAllTopoAddrs() []TopoAddr {
 	var topoAddrs []TopoAddr
 	for _, topoAddr := range svc.idTopoAddrMap {

@@ -409,7 +409,9 @@ func (f *fetcherHandler) filterRevokedPaths(paths []*combinator.Path) []*combina
 	return newPaths
 }
 
-func (f *Fetcher) shouldRefetchSegs(ctx context.Context, req *sciond.PathReq) (bool, error) {
+func (f *fetcherHandler) shouldRefetchSegs(ctx context.Context,
+	req *sciond.PathReq) (bool, error) {
+
 	nq, err := f.pathDB.GetNextQuery(ctx, req.Dst.IA())
 	if err != nil || nq == nil {
 		return true, err
@@ -470,7 +472,7 @@ func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
 	return reply.Sanitize(f.logger), nil
 }
 
-func (f *Fetcher) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
+func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
 	intfs := make([]*query.IntfSpec, 0, len(f.topology.IFInfoMap))
 	for ifid := range f.topology.IFInfoMap {
 		intfs = append(intfs, &query.IntfSpec{

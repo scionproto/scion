@@ -208,11 +208,6 @@ func topoAddrToIPv4AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 		ip = pubAddr.L3.IP()
 		port = pubAddr.L4.Port()
 	}
-	// XXX(scrye): Force 4-byte representation of IPv4 addresses
-	// because Python code doesn't understand Go's 16-byte format.
-	if ip != nil {
-		ip = ip.To4()
-	}
 	return ip, port
 }
 
@@ -225,8 +220,7 @@ func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 
 func topoBRAddrToIPv4AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 	if topoBRAddr.IPv4 != nil {
-		v4Addr := topoBRAddr.IPv4.PublicOverlay
-		if v4Addr != nil {
+		if v4Addr := topoBRAddr.IPv4.PublicOverlay; v4Addr != nil {
 			return v4Addr.L3().IP().To4(), v4Addr.L4().Port()
 		}
 	}
@@ -235,15 +229,14 @@ func topoBRAddrToIPv4AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 
 func topoBRAddrToIPv6AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 	if topoBRAddr.IPv6 != nil {
-		v6Addr := topoBRAddr.IPv6.PublicOverlay
-		if v6Addr != nil {
+		if v6Addr := topoBRAddr.IPv6.PublicOverlay; v6Addr != nil {
 			return v6Addr.L3().IP(), v6Addr.L4().Port()
 		}
 	}
 	return nil, 0
 }
 
-func buildHostInfo(ipv4, ipv6 []byte, port4, port6 uint16) HostInfo {
+func buildHostInfo(ipv4, ipv6 net.IP, port4, port6 uint16) HostInfo {
 	if port4 != 0 && port6 != 0 && port4 != port6 {
 		// NOTE: https://github.com/scionproto/scion/issues/1842 will change
 		// the behavior of this.
@@ -259,7 +252,9 @@ func buildHostInfo(ipv4, ipv6 []byte, port4, port6 uint16) HostInfo {
 			Ipv4 []byte
 			Ipv6 []byte
 		}{
-			Ipv4: ipv4,
+			// XXX(scrye): Force 4-byte representation of IPv4 addresses
+			// because Python code doesn't understand Go's 16-byte format.
+			Ipv4: ipv4.To4(),
 			Ipv6: ipv6,
 		},
 		Port: port,
