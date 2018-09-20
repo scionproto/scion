@@ -18,7 +18,6 @@ package topology
 import (
 	"fmt"
 	"math/rand"
-	"net"
 	"sort"
 	"time"
 
@@ -303,12 +302,12 @@ func svcMapFromRaw(ras map[string]*RawSrvInfo, stype string, smap IDAddrMap,
 
 func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
 	for id, ap := range zksvc {
-		ip := net.ParseIP(ap.Addr)
-		if ip == nil {
+		l3 := addr.HostFromIPStr(ap.Addr)
+		if l3 == nil {
 			return common.NewBasicError("Parsing ZooKeeper address", nil, "addr", ap.Addr)
 		}
 		t.ZK[id] = &addr.AppAddr{
-			L3: addr.HostFromIP(ip),
+			L3: l3,
 			L4: addr.NewL4TCPInfo(uint16(ap.L4Port)),
 		}
 	}

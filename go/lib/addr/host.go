@@ -127,7 +127,8 @@ func (h HostIPv4) Pack() common.RawBytes {
 }
 
 func (h HostIPv4) IP() net.IP {
-	return net.IP(h)
+	// XXX(kormat): ensure the reply is the 4-byte representation.
+	return net.IP(h).To4()
 }
 
 func (h HostIPv4) Copy() HostAddr {
@@ -283,10 +284,18 @@ func HostFromRaw(b common.RawBytes, htype HostAddrType) (HostAddr, error) {
 }
 
 func HostFromIP(ip net.IP) HostAddr {
-	if ip.To4() != nil {
-		return HostIPv4(ip)
+	if ip4 := ip.To4(); ip4 != nil {
+		return HostIPv4(ip4)
 	}
 	return HostIPv6(ip)
+}
+
+func HostFromIPStr(s string) HostAddr {
+	ip := net.ParseIP(s)
+	if ip == nil {
+		return nil
+	}
+	return HostFromIP(ip)
 }
 
 func HostLen(htype HostAddrType) (uint8, error) {

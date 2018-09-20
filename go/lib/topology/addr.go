@@ -16,7 +16,6 @@ package topology
 
 import (
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -182,12 +181,12 @@ type pubBindAddr struct {
 
 func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error {
 	var err error
-	ip := net.ParseIP(rpbo.Public.Addr)
-	if ip == nil {
+	l3 := addr.HostFromIPStr(rpbo.Public.Addr)
+	if l3 == nil {
 		return common.NewBasicError(ErrInvalidPub, nil, "ip", rpbo.Public.Addr)
 	}
 	pbo.pub = &addr.AppAddr{
-		L3: addr.HostFromIP(ip),
+		L3: l3,
 		L4: addr.NewL4UDPInfo(uint16(rpbo.Public.L4Port)),
 	}
 	pbo.overlay, err = newOverlayAddr(udpOverlay, pbo.pub.L3, rpbo.Public.OverlayPort)
@@ -195,12 +194,12 @@ func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error 
 		return err
 	}
 	if rpbo.Bind != nil {
-		ip := net.ParseIP(rpbo.Bind.Addr)
-		if ip == nil {
+		l3 := addr.HostFromIPStr(rpbo.Bind.Addr)
+		if l3 == nil {
 			return common.NewBasicError(ErrInvalidBind, nil, "ip", rpbo.Bind.Addr)
 		}
 		pbo.bind = &addr.AppAddr{
-			L3: addr.HostFromIP(ip),
+			L3: l3,
 			L4: addr.NewL4UDPInfo(uint16(rpbo.Bind.L4Port)),
 		}
 	}
