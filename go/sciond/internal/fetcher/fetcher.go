@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/combinator"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
@@ -52,7 +53,6 @@ const (
 var requestID messenger.Counter
 
 type Fetcher struct {
-	topology        *topology.Topo
 	messenger       infra.Messenger
 	pathDB          pathdb.PathDB
 	trustStore      infra.TrustStore
@@ -61,12 +61,11 @@ type Fetcher struct {
 	logger          log.Logger
 }
 
-func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB pathdb.PathDB,
+func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB,
 	trustStore infra.TrustStore, revCache revcache.RevCache, cfg sdconfig.Config,
 	logger log.Logger) *Fetcher {
 
 	return &Fetcher{
-		topology:        topo,
 		messenger:       messenger,
 		pathDB:          pathDB,
 		trustStore:      trustStore,
@@ -76,11 +75,25 @@ func NewFetcher(topo *topology.Topo, messenger infra.Messenger, pathDB pathdb.Pa
 	}
 }
 
+func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
+	earlyReplyInterval time.Duration) (*sciond.PathReply, error) {
+
+	handler := &fetcherHandler{Fetcher: f, topology: itopo.GetCurrentTopology()}
+	return handler.GetPaths(ctx, req, earlyReplyInterval)
+}
+
+// fetcherHandler contains the custom state of one path retrieval request
+// received by the Fetcher.
+type fetcherHandler struct {
+	*Fetcher
+	topology *topology.Topo
+}
+
 // GetPaths fulfills the path request described by req. GetPaths will attempt
 // to build paths at start, after earlyReplyInterval and at context expiration
 // (or whenever all background workers return). An earlyReplyInterval of 0
 // means no early reply attempt is made.
-func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
+func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	earlyReplyInterval time.Duration) (*sciond.PathReply, error) {
 
 	req = req.Copy()
@@ -96,18 +109,18 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
-
 	// Commit to a path server, and use it for path and crypto queries
-	psID, err := f.topology.PSNames.GetRandom()
+	svcInfo, err := f.topology.GetSvcInfo(proto.ServiceType_ps)
 	if err != nil {
-		return nil, common.NewBasicError("PS not found in topology", err)
+		return nil, err
 	}
-	psAppAddr := f.topology.PS.GetById(psID).PublicAddr(f.topology.Overlay)
-	if psAppAddr == nil {
-		return nil, common.NewBasicError("PS not found in topology", nil)
+	topoAddr := svcInfo.GetAnyTopoAddr()
+	if topoAddr == nil {
+		return nil, common.NewBasicError("Failed to look up PS in topology", nil)
 	}
-	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAppAddr}
-
+	psAddr := topoAddr.PublicAddr(f.topology.Overlay)
+	psOverlayAddr := topoAddr.OverlayAddr(f.topology.Overlay)
+	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAddr, NextHop: psOverlayAddr}
 	// Check destination
 	if req.Dst.IA().I == 0 {
 		return f.buildSCIONDReply(nil, sciond.ErrorBadDstIA),
@@ -209,7 +222,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 // len(paths), a path reply containing each path for which a BR could be found
 // in the topology is returned. If no such paths exist, a reply containing no
 // path and an internal error is returned.
-func (f *Fetcher) buildSCIONDReply(paths []*combinator.Path,
+func (f *fetcherHandler) buildSCIONDReply(paths []*combinator.Path,
 	errCode sciond.PathErrorCode) *sciond.PathReply {
 
 	var entries []sciond.PathReplyEntry
@@ -239,7 +252,7 @@ func (f *Fetcher) buildSCIONDReply(paths []*combinator.Path,
 // paths, as some paths might contain invalid first IFIDs that are not
 // associated to any BR. Thus, it is possible for len(paths) to be non-zero
 // length and the returned slice be of zero length.
-func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.PathReplyEntry {
+func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.PathReplyEntry {
 	var entries []sciond.PathReplyEntry
 	if len(paths) == 0 {
 		// Return a single entry with an empty path
@@ -261,14 +274,10 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 			// In-memory write should never fail
 			panic(err)
 		}
-		nextHop, ok := f.topology.IFInfoMap[path.Interfaces[0].IfID]
+		ifInfo, ok := f.topology.IFInfoMap[path.Interfaces[0].IfID]
 		if !ok {
 			f.logger.Warn("Unable to find first-hop BR for path", "ifid", path.Interfaces[0].IfID)
 			continue
-		}
-		var port uint16
-		if nextHop.InternalAddrs.IPv4.PublicOverlay.L4() != nil {
-			port = nextHop.InternalAddrs.IPv4.PublicOverlay.L4().Port()
 		}
 		entries = append(entries, sciond.PathReplyEntry{
 			Path: &sciond.FwdPathMeta{
@@ -277,16 +286,7 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 				Interfaces: path.Interfaces,
 				ExpTime:    util.TimeToSecs(path.ExpTime),
 			},
-			HostInfo: sciond.HostInfo{
-				Addrs: struct {
-					Ipv4 []byte
-					Ipv6 []byte
-				}{
-					Ipv4: nextHop.InternalAddrs.IPv4.PublicOverlay.L3().IP().To4(),
-					// FIXME(scrye): also add support for IPv6
-				},
-				Port: port,
-			},
+			HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
 		})
 	}
 	return entries
@@ -294,7 +294,7 @@ func (f *Fetcher) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.Pat
 
 // buildPathsFromDB attempts to build paths only from information contained in the
 // local path database, taking the revocation cache into account.
-func (f *Fetcher) buildPathsFromDB(ctx context.Context,
+func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 	req *sciond.PathReq) ([]*combinator.Path, error) {
 
 	// Try to determine whether the destination AS is core or not
@@ -391,7 +391,7 @@ func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
 // filterRevokedPaths returns a new slice containing only those paths that do
 // not have revoked interfaces in their forwarding path. Only the interfaces
 // that have traffic going through them are checked.
-func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Path {
+func (f *fetcherHandler) filterRevokedPaths(paths []*combinator.Path) []*combinator.Path {
 	var newPaths []*combinator.Path
 	for _, path := range paths {
 		revoked := false
@@ -409,7 +409,9 @@ func (f *Fetcher) filterRevokedPaths(paths []*combinator.Path) []*combinator.Pat
 	return newPaths
 }
 
-func (f *Fetcher) shouldRefetchSegs(ctx context.Context, req *sciond.PathReq) (bool, error) {
+func (f *fetcherHandler) shouldRefetchSegs(ctx context.Context,
+	req *sciond.PathReq) (bool, error) {
+
 	nq, err := f.pathDB.GetNextQuery(ctx, req.Dst.IA())
 	if err != nil || nq == nil {
 		return true, err
@@ -420,7 +422,7 @@ func (f *Fetcher) shouldRefetchSegs(ctx context.Context, req *sciond.PathReq) (b
 // fetchAndVerify downloads path segments from the network. Segments that are
 // successfully verified are added to the pathDB. Revocations that are
 // successfully verified are added to the revocation cache.
-func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc,
+func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc,
 	req *sciond.PathReq, earlyTrigger *util.Trigger, ps *snet.Addr) {
 
 	defer cancelF()
@@ -454,7 +456,7 @@ func (f *Fetcher) fetchAndVerify(ctx context.Context, cancelF context.CancelFunc
 		verifiedSeg, verifiedRev, segErr, revErr)
 }
 
-func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
+func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
 	req *sciond.PathReq, ps *snet.Addr) (*path_mgmt.SegReply, error) {
 
 	// Get segments from path server
@@ -470,7 +472,7 @@ func (f *Fetcher) getSegmentsFromNetwork(ctx context.Context,
 	return reply.Sanitize(f.logger), nil
 }
 
-func (f *Fetcher) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
+func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context) error {
 	intfs := make([]*query.IntfSpec, 0, len(f.topology.IFInfoMap))
 	for ifid := range f.topology.IFInfoMap {
 		intfs = append(intfs, &query.IntfSpec{

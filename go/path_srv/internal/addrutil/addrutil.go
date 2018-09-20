@@ -46,7 +46,7 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment,
 		return nil, common.NewBasicError("Failed to extract first HopField", err, "p", p)
 	}
 	ifId := hopF.ConsIngress
-	nextHop, ok := topo.IFInfoMap[ifId]
+	ifInfo, ok := topo.IFInfoMap[ifId]
 	if !ok {
 		return nil, common.NewBasicError("Unable to find first-hop BR for path", nil, "ifId", ifId)
 	}
@@ -54,6 +54,6 @@ func GetPath(svc addr.HostSVC, ps *seg.PathSegment,
 		IA:      dst,
 		Host:    addr.NewSVCUDPAppAddr(svc),
 		Path:    p,
-		NextHop: nextHop.InternalAddrs.PublicOverlay(topo.Overlay),
+		NextHop: ifInfo.InternalAddrs.PublicOverlay(topo.Overlay),
 	}, nil
 }

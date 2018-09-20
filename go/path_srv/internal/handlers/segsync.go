@@ -17,6 +17,7 @@ package handlers
 import (
 	"context"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -24,12 +25,14 @@ import (
 
 type syncHandler struct {
 	*baseHandler
+	localIA addr.IA
 }
 
 func NewSyncHandler(args HandlerArgs) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &syncHandler{
 			baseHandler: newBaseHandler(r, args),
+			localIA:     args.IA,
 		}
 		handler.Handle()
 	}

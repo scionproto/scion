@@ -37,7 +37,6 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/proto"
-	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
 
 func TestPaths(t *testing.T) {
@@ -160,7 +159,7 @@ func TestIFInfo(t *testing.T) {
 				RawEntries: []sciond.IFInfoReplyEntry{
 					{
 						IfID: ifids[0],
-						HostInfo: servers.TopoAddrToHostInfo(topo.Overlay,
+						HostInfo: sciond.HostInfoFromTopoBRAddr(
 							*topo.IFInfoMap[ifids[0]].InternalAddrs),
 					},
 				},
@@ -173,12 +172,12 @@ func TestIFInfo(t *testing.T) {
 				RawEntries: []sciond.IFInfoReplyEntry{
 					{
 						IfID: ifids[0],
-						HostInfo: servers.TopoAddrToHostInfo(topo.Overlay,
+						HostInfo: sciond.HostInfoFromTopoBRAddr(
 							*topo.IFInfoMap[ifids[0]].InternalAddrs),
 					},
 					{
 						IfID: ifids[1],
-						HostInfo: servers.TopoAddrToHostInfo(topo.Overlay,
+						HostInfo: sciond.HostInfoFromTopoBRAddr(
 							*topo.IFInfoMap[ifids[1]].InternalAddrs),
 					},
 				},
@@ -226,7 +225,7 @@ func TestSVCInfo(t *testing.T) {
 						ServiceType: proto.ServiceType_bs,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
-							servers.TopoAddrToHostInfo(topo.Overlay, topo.BS[topo.BSNames[0]]),
+							sciond.HostInfoFromTopoAddr(topo.BS[topo.BSNames[0]]),
 						},
 					},
 				},
@@ -241,14 +240,14 @@ func TestSVCInfo(t *testing.T) {
 						ServiceType: proto.ServiceType_cs,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
-							servers.TopoAddrToHostInfo(topo.Overlay, topo.CS[topo.CSNames[0]]),
+							sciond.HostInfoFromTopoAddr(topo.CS[topo.CSNames[0]]),
 						},
 					},
 					{
 						ServiceType: proto.ServiceType_ps,
 						Ttl:         300,
 						HostInfos: []sciond.HostInfo{
-							servers.TopoAddrToHostInfo(topo.Overlay, topo.PS[topo.PSNames[0]]),
+							sciond.HostInfoFromTopoAddr(topo.PS[topo.PSNames[0]]),
 						},
 					},
 				},

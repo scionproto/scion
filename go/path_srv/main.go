@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -30,13 +29,12 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
-	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/path_srv/internal/cleaner"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/periodic"
@@ -87,10 +85,8 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
-	topo := config.General.Topology
-	trustConf := &trust.Config{
-		LocalCSes: getAllCSAddresses(topo),
-	}
+	topo := itopo.GetCurrentTopology()
+	trustConf := &trust.Config{}
 	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
 		rand.Uint64(), trustConf, log.Root())
 	if err != nil {
@@ -127,8 +123,8 @@ func realMain() int {
 		PathDB:     pathDB,
 		RevCache:   revCache,
 		TrustStore: trustStore,
-		Topology:   topo,
 		Config:     config.PS,
+		IA:         topo.ISD_AS,
 	}
 	core := topo.Core
 	var segReqHandler infra.Handler
@@ -182,6 +178,7 @@ func setup(configName string) error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
+	itopo.SetCurrentTopology(config.General.Topology)
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
@@ -189,16 +186,4 @@ func setup(configName string) error {
 	// TODO(lukedirtwalker): SUPPORT RELOADING!!!
 	environment = env.SetupEnv(nil)
 	return nil
-}
-
-func getAllCSAddresses(topo *topology.Topo) []net.Addr {
-	addrs := make([]net.Addr, 0, len(topo.CS))
-	for _, server := range topo.CS {
-		appAddr := server.PublicAddr(topo.Overlay)
-		addrs = append(addrs, &snet.Addr{
-			IA:   topo.ISD_AS,
-			Host: appAddr,
-		})
-	}
-	return addrs
 }

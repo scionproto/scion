@@ -19,7 +19,6 @@ package trust
 
 import (
 	"context"
-	"math/rand"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -30,12 +29,14 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -568,8 +569,19 @@ func (store *Store) isLocal(address net.Addr) error {
 // ChooseServer builds a CS address for crypto material regarding the
 // destination AS.
 func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
-	if len(store.config.LocalCSes) != 0 {
-		return store.config.LocalCSes[rand.Intn(len(store.config.LocalCSes))], nil
+	topo := itopo.GetCurrentTopology()
+	if !store.config.IsCS {
+		svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
+		if err != nil {
+			return nil, err
+		}
+		topoAddr := svcInfo.GetAnyTopoAddr()
+		if topoAddr == nil {
+			return nil, common.NewBasicError("Failed to look up CS in topology", nil)
+		}
+		csAddr := topoAddr.PublicAddr(topo.Overlay)
+		csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
+		return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 	}
 	if destination.A == 0 {
 		pathSet := snet.DefNetwork.PathResolver().Query(store.ia, addr.IA{I: destination.I})

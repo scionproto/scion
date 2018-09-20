@@ -229,6 +229,58 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 	return nil
 }
 
+func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
+	svcInfo, err := t.GetSvcInfo(svc)
+	if err != nil {
+		return nil, err
+	}
+	topoAddrs := svcInfo.GetAllTopoAddrs()
+	if topoAddrs == nil {
+		return nil, common.NewBasicError("Address not found", nil)
+	}
+	return topoAddrs, nil
+}
+
+func (t *Topo) GetSvcInfo(svc proto.ServiceType) (*SVCInfo, error) {
+	switch svc {
+	case proto.ServiceType_unset:
+		return nil, common.NewBasicError("Service type unset", nil)
+	case proto.ServiceType_bs:
+		return &SVCInfo{overlay: t.Overlay, names: t.BSNames, idTopoAddrMap: t.BS}, nil
+	case proto.ServiceType_ps:
+		return &SVCInfo{overlay: t.Overlay, names: t.PSNames, idTopoAddrMap: t.PS}, nil
+	case proto.ServiceType_cs:
+		return &SVCInfo{overlay: t.Overlay, names: t.CSNames, idTopoAddrMap: t.CS}, nil
+	case proto.ServiceType_sb:
+		return &SVCInfo{overlay: t.Overlay, names: t.SBNames, idTopoAddrMap: t.SB}, nil
+	default:
+		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
+	}
+}
+
+// SVCInfo contains topology information for a single SCION service
+type SVCInfo struct {
+	overlay       overlay.Type
+	names         ServiceNames
+	idTopoAddrMap IDAddrMap
+}
+
+func (svc *SVCInfo) GetAnyTopoAddr() *TopoAddr {
+	id, err := svc.names.GetRandom()
+	if err != nil {
+		return nil
+	}
+	return svc.idTopoAddrMap.GetById(id)
+}
+
+func (svc *SVCInfo) GetAllTopoAddrs() []TopoAddr {
+	var topoAddrs []TopoAddr
+	for _, topoAddr := range svc.idTopoAddrMap {
+		topoAddrs = append(topoAddrs, topoAddr)
+	}
+	return topoAddrs
+}
+
 // Convert map of Name->RawSrvInfo into map of Name->TopoAddr and sorted slice of Names
 // stype is only used for error reporting
 func svcMapFromRaw(ras map[string]*RawSrvInfo, stype string, smap IDAddrMap,

@@ -23,9 +23,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/topology"
@@ -94,7 +94,6 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 // for each ASInfoRequest it receives.
 type ASInfoRequestHandler struct {
 	TrustStore infra.TrustStore
-	Topology   *topology.Topo
 }
 
 func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
@@ -107,8 +106,9 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
 	// will at most contain one element).
 	reqIA := pld.AsInfoReq.Isdas.IA()
+	topo := itopo.GetCurrentTopology()
 	if reqIA.IsZero() {
-		reqIA = h.Topology.ISD_AS
+		reqIA = topo.ISD_AS
 	}
 	asInfoReply := sciond.ASInfoReply{}
 	trcObj, err := h.TrustStore.GetValidTRC(workCtx, reqIA.I, nil)
@@ -118,13 +118,13 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		// the future.
 		asInfoReply.Entries = []sciond.ASInfoReplyEntry{}
 	}
-	if reqIA.IsZero() || reqIA.Eq(h.Topology.ISD_AS) {
+	if reqIA.IsZero() || reqIA.Eq(topo.ISD_AS) {
 		// Requested AS is us
 		asInfoReply.Entries = []sciond.ASInfoReplyEntry{
 			{
-				RawIsdas: h.Topology.ISD_AS.IAInt(),
-				Mtu:      uint16(h.Topology.MTU),
-				IsCore:   trcObj.CoreASes.Contains(h.Topology.ISD_AS),
+				RawIsdas: topo.ISD_AS.IAInt(),
+				Mtu:      uint16(topo.MTU),
+				IsCore:   trcObj.CoreASes.Contains(topo.ISD_AS),
 			},
 		}
 	} else {
@@ -158,9 +158,7 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 // IFInfoRequestHandler represents the shared global state for the handling of all
 // IFInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each IFInfoRequest it receives.
-type IFInfoRequestHandler struct {
-	Topology *topology.Topo
-}
+type IFInfoRequestHandler struct{}
 
 func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
@@ -169,25 +167,26 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	logger.Debug("[SCIOND:IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := sciond.IFInfoReply{}
+	topo := itopo.GetCurrentTopology()
 	if len(ifInfoRequest.IfIDs) == 0 {
 		// Reply with all the IFIDs we know
-		for ifid, ifInfo := range h.Topology.IFInfoMap {
+		for ifid, ifInfo := range topo.IFInfoMap {
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: TopoBRAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
+				HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
 			})
 		}
 	} else {
 		// Reply with only the IFIDs the client requested
 		for _, ifid := range ifInfoRequest.IfIDs {
-			ifInfo, ok := h.Topology.IFInfoMap[ifid]
+			ifInfo, ok := topo.IFInfoMap[ifid]
 			if !ok {
 				logger.Info("Received IF Info Request, but IFID not found", "ifid", ifid)
 				continue
 			}
 			ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, sciond.IFInfoReplyEntry{
 				IfID:     ifid,
-				HostInfo: TopoBRAddrToHostInfo(h.Topology.Overlay, *ifInfo.InternalAddrs),
+				HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
 			})
 		}
 	}
@@ -212,9 +211,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 // SVCInfoRequestHandler represents the shared global state for the handling of all
 // SVCInfoRequest queries. The SCIOND API spawns a goroutine with method Handle
 // for each SVCInfoRequest it receives.
-type SVCInfoRequestHandler struct {
-	Topology *topology.Topo
-}
+type SVCInfoRequestHandler struct{}
 
 func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
@@ -223,22 +220,10 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 	logger.Debug("[SCIOND:SVCInfoRequestHandler] Received request")
 	svcInfoRequest := pld.ServiceInfoRequest
 	svcInfoReply := sciond.ServiceInfoReply{}
+	topo := itopo.GetCurrentTopology()
 	for _, t := range svcInfoRequest.ServiceTypes {
 		var hostInfos []sciond.HostInfo
-		switch t {
-		case proto.ServiceType_unset:
-			// FIXME(lukedirtwalker): inform client about this:
-			// see https://github.com/scionproto/scion/issues/1673
-			continue
-		case proto.ServiceType_bs:
-			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.BS)
-		case proto.ServiceType_ps:
-			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.PS)
-		case proto.ServiceType_cs:
-			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.CS)
-		case proto.ServiceType_sb:
-			hostInfos = makeHostInfos(h.Topology.Overlay, h.Topology.SB)
-		}
+		hostInfos = makeHostInfos(topo, t)
 		replyEntry := sciond.ServiceInfoReplyEntry{
 			ServiceType: t,
 			Ttl:         DefaultServiceTTL,
@@ -264,76 +249,18 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 	logger.Debug("[SCIOND:SVCInfoRequestHandler] Sent reply", "svcInfo", svcInfoReply)
 }
 
-func makeHostInfos(ot overlay.Type, addrMap map[string]topology.TopoAddr) []sciond.HostInfo {
-	hostInfos := make([]sciond.HostInfo, 0, len(addrMap))
-	for _, a := range addrMap {
-		hostInfos = append(hostInfos, TopoAddrToHostInfo(ot, a))
+func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []sciond.HostInfo {
+	var hostInfos []sciond.HostInfo
+	addresses, err := topo.GetAllTopoAddrs(t)
+	if err != nil {
+		// FIXME(lukedirtwalker): inform client about this:
+		// see https://github.com/scionproto/scion/issues/1673
+		return hostInfos
+	}
+	for _, a := range addresses {
+		hostInfos = append(hostInfos, sciond.HostInfoFromTopoAddr(a))
 	}
 	return hostInfos
-}
-
-func TopoAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoAddr) sciond.HostInfo {
-	var ipv4, ipv6 net.IP
-	var port uint16
-	if ot.IsIPv4() {
-		v4Addr := topoAddr.IPv4.PublicAddr()
-		if v4Addr != nil {
-			// XXX(scrye): Force 4-byte representation of IPv4 addresses
-			// because Python code doesn't understand Go's 16-byte format.
-			ipv4 = v4Addr.L3.IP().To4()
-			port = v4Addr.L4.Port()
-		}
-	}
-	if ot.IsIPv6() {
-		v6Addr := topoAddr.IPv6.PublicAddr()
-		if v6Addr != nil {
-			ipv6 = v6Addr.L3.IP()
-			port = v6Addr.L4.Port()
-		}
-	}
-	// XXX This assumes that Ipv4 and IPv6 use the same port!
-	return sciond.HostInfo{
-		Addrs: struct {
-			Ipv4 []byte
-			Ipv6 []byte
-		}{
-			Ipv4: ipv4,
-			Ipv6: ipv6,
-		},
-		Port: port,
-	}
-}
-
-func TopoBRAddrToHostInfo(ot overlay.Type, topoAddr topology.TopoBRAddr) sciond.HostInfo {
-	var ipv4, ipv6 net.IP
-	var port uint16
-	if ot.IsIPv4() {
-		v4Addr := topoAddr.IPv4.PublicOverlay
-		if v4Addr != nil {
-			// XXX(scrye): Force 4-byte representation of IPv4 addresses
-			// because Python code doesn't understand Go's 16-byte format.
-			ipv4 = v4Addr.L3().IP().To4()
-			port = v4Addr.L4().Port()
-		}
-	}
-	if ot.IsIPv6() {
-		v6Addr := topoAddr.IPv6.PublicOverlay
-		if v6Addr != nil {
-			ipv6 = v6Addr.L3().IP()
-			port = v6Addr.L4().Port()
-		}
-	}
-	// XXX This assumes that Ipv4 and IPv6 use the same port!
-	return sciond.HostInfo{
-		Addrs: struct {
-			Ipv4 []byte
-			Ipv6 []byte
-		}{
-			Ipv4: ipv4,
-			Ipv6: ipv6,
-		},
-		Port: port,
-	}
 }
 
 // RevNotificationHandler represents the shared global state for the handling of all

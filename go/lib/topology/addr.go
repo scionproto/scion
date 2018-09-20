@@ -45,6 +45,24 @@ type TopoAddr struct {
 	Overlay overlay.Type
 }
 
+// TestTopoAddr creates a new TopoAddr. This is only for testing and should
+// never be used by apps.
+func TestTopoAddr(v4AppAddr, v6AppAddr *addr.AppAddr,
+	v4OverlayAddr, v6OverlayAddr *overlay.OverlayAddr) TopoAddr {
+
+	return TopoAddr{
+		IPv4: &pubBindAddr{
+			pub:     v4AppAddr,
+			overlay: v4OverlayAddr,
+		},
+		IPv6: &pubBindAddr{
+			pub:     v6AppAddr,
+			overlay: v6OverlayAddr,
+		},
+		Overlay: overlay.IPv46,
+	}
+}
+
 // Create TopoAddr from RawAddrMap, depending on supplied Overlay type
 func topoAddrFromRAM(s RawAddrMap, ot overlay.Type) (*TopoAddr, error) {
 	if err := overlayCheck(ot); err != nil {
@@ -190,14 +208,23 @@ func (pbo *pubBindAddr) fromRaw(rpbo *RawPubBindOverlay, udpOverlay bool) error 
 }
 
 func (t *pubBindAddr) PublicAddr() *addr.AppAddr {
+	if t == nil {
+		return nil
+	}
 	return t.pub
 }
 
 func (t *pubBindAddr) BindAddr() *addr.AppAddr {
+	if t == nil {
+		return nil
+	}
 	return t.bind
 }
 
 func (t *pubBindAddr) OverlayAddr() *overlay.OverlayAddr {
+	if t == nil {
+		return nil
+	}
 	return t.overlay
 }
 
