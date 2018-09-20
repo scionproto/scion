@@ -130,7 +130,7 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 		}
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
-		segsaver.StoreRevocation(rev, h.revCache)
+		h.revCache.Insert(rev)
 	}
 	segErr := func(s *seg.Meta, err error) {
 		h.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)

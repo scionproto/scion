@@ -282,8 +282,7 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	revReply := sciond.RevReply{}
 	revInfo, err := h.verifySRevInfo(workCtx, revNotification.SRevInfo)
 	if err == nil {
-		h.RevCache.Set(revcache.NewKey(revInfo.RawIsdas.IA(), common.IFIDType(revInfo.IfID)),
-			revNotification.SRevInfo, revInfo.TTL())
+		h.RevCache.Insert(revNotification.SRevInfo)
 	}
 	switch {
 	case isValid(err):
