@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2014 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -274,6 +275,11 @@ class CertServer(SCIONElement):
             self._share_object(rep.chain, is_trc=False)
         # Reply to all requests for this certificate chain
         self.cc_requests.put((ia_ver, None))
+        # If the new version is the max version also reply to NEWEST_VERSION requests.
+        max_ver = self.trust_store.get_cert(ia_ver[0]).get_leaf_isd_as_ver()[1]
+        if max_ver == ia_ver[1]:
+            ia_ver0 = (ia_ver[0], CertChainRequest.NEWEST_VERSION)
+            self.cc_requests.put((ia_ver0, None))
 
     def _check_cc(self, key):
         isd_as, ver = key
@@ -351,6 +357,10 @@ class CertServer(SCIONElement):
             self._share_object(trc_rep.trc, is_trc=True)
         # Reply to all requests for this TRC
         self.trc_requests.put(((isd, ver), None))
+        # If the new version is the max version also reply to NEWEST_VERSION requests.
+        max_ver = self.trust_store.get_trc(isd).get_isd_ver()[1]
+        if max_ver == ver:
+            self.trc_requests.put(((isd, TRCRequest.NEWEST_VERSION), None))
 
     def _check_trc(self, key):
         isd, ver = key
