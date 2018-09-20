@@ -64,3 +64,31 @@ func GetAll(revCache RevCache, keys map[Key]struct{}) []*path_mgmt.SignedRevInfo
 	}
 	return revs
 }
+
+// FilterNew filters the given revocations against the revCache, only the ones which are not in the
+// cache are returned.
+// Note: Modifies revocations slice.
+func FilterNew(revCache RevCache,
+	revocations []*path_mgmt.SignedRevInfo) []*path_mgmt.SignedRevInfo {
+
+	filtered := revocations[:0]
+	for _, r := range revocations {
+		info, err := r.RevInfo()
+		if err != nil {
+			panic(fmt.Sprintf("Revocation should have been sanitized, err: %s", err))
+		}
+		existingRev, ok := revCache.Get(NewKey(info.IA(), info.IfID))
+		if !ok {
+			filtered = append(filtered, r)
+			continue
+		}
+		existingInfo, err := existingRev.RevInfo()
+		if err != nil {
+			panic("Revocation should be sanitized in cache")
+		}
+		if existingInfo.Eq(info) {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}

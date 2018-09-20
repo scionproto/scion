@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
@@ -120,11 +121,12 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 	if err != nil {
 		return err
 	}
+	segs = segs.Sanitize(h.logger)
 	var recs []*seg.Meta
 	var revInfos []*path_mgmt.SignedRevInfo
 	if segs.Recs != nil {
 		recs = segs.Recs.Recs
-		revInfos = segs.Recs.SRevInfos
+		revInfos = revcache.FilterNew(h.revCache, segs.Recs.SRevInfos)
 		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
 		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
 		if _, err := h.pathDB.InsertNextQuery(ctx, dst,

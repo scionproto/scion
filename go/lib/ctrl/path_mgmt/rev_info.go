@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,7 +50,7 @@ func (ee RevTimeError) Error() string {
 var _ proto.Cerealizable = (*RevInfo)(nil)
 
 type RevInfo struct {
-	IfID     uint64
+	IfID     common.IFIDType
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	// LinkType of revocation
 	LinkType     proto.LinkType
@@ -113,6 +114,14 @@ func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
 		return 0
 	}
 	return expiration.Sub(reference)
+}
+
+func (r *RevInfo) Eq(other *RevInfo) bool {
+	return r.IfID == other.IfID &&
+		r.RawIsdas == other.RawIsdas &&
+		r.LinkType == other.LinkType &&
+		r.RawTimestamp == other.RawTimestamp &&
+		r.RawTTL == other.RawTTL
 }
 
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)

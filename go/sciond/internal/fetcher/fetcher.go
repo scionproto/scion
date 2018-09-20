@@ -452,7 +452,8 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
 		f.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
-	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, reply.Recs.SRevInfos,
+	revInfos := revcache.FilterNew(f.revocationCache, reply.Recs.SRevInfos)
+	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, revInfos,
 		verifiedSeg, verifiedRev, segErr, revErr)
 }
 
