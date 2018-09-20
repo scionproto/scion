@@ -221,7 +221,7 @@ func topoAddrToIPv6AndPort(topoAddr topology.TopoAddr) (net.IP, uint16) {
 func topoBRAddrToIPv4AndPort(topoBRAddr topology.TopoBRAddr) (net.IP, uint16) {
 	if topoBRAddr.IPv4 != nil {
 		if v4Addr := topoBRAddr.IPv4.PublicOverlay; v4Addr != nil {
-			return v4Addr.L3().IP().To4(), v4Addr.L4().Port()
+			return v4Addr.L3().IP(), v4Addr.L4().Port()
 		}
 	}
 	return nil, 0
@@ -252,9 +252,7 @@ func buildHostInfo(ipv4, ipv6 net.IP, port4, port6 uint16) HostInfo {
 			Ipv4 []byte
 			Ipv6 []byte
 		}{
-			// XXX(scrye): Force 4-byte representation of IPv4 addresses
-			// because Python code doesn't understand Go's 16-byte format.
-			Ipv4: ipv4.To4(),
+			Ipv4: ipv4,
 			Ipv6: ipv6,
 		},
 		Port: port,

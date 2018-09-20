@@ -123,7 +123,7 @@ func (h HostIPv4) Type() HostAddrType {
 }
 
 func (h HostIPv4) Pack() common.RawBytes {
-	return common.RawBytes(net.IP(h).To4())
+	return common.RawBytes(h.IP())
 }
 
 func (h HostIPv4) IP() net.IP {
