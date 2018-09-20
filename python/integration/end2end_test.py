@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2014 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -79,7 +80,7 @@ class E2EClient(TestClientBase):
             logging.info("Received revocation: %s (from %s)", rev_info.short_desc(), spkt.addrs.src)
             lib_sciond.send_rev_notification(
                 srev_info, connector=self._connector)
-            return ResponseRV.RETRY
+            return ResponseRV.RETRY_NOW
         else:
             logging.error("Received SCMP error:\n%s", spkt)
             return ResponseRV.FAILURE

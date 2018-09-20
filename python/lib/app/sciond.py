@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2017 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -231,10 +232,14 @@ class SCIONDConnector:
         return HostInfo.from_values([host], SCION_UDP_EH_DATA_PORT)
 
     def send_rev_notification(self, srev_info):  # pragma: no cover
-        rev_not = SCIONDMsg(SCIONDRevNotification.from_values(srev_info), self._req_id.inc())
+        req_id = self._req_id.inc()
+        rev_not = SCIONDMsg(SCIONDRevNotification.from_values(srev_info), req_id)
         with closing(self._create_socket()) as socket:
             if not socket.send(rev_not.pack()):
                 raise SCIONDRequestError
+            response = self._get_response(socket, req_id, SMT.REVOCATIONREPLY)
+            return response.p.result
+        return None
 
     def _create_socket(self):  # pragma: no cover
         socket = ReliableSocket()
@@ -402,7 +407,7 @@ def send_rev_notification(srev_info, connector=None):  # pragma: no cover
         connector = _connector
     if not connector:
         raise SCIONDLibNotInitializedError
-    connector.send_rev_notification(srev_info)
+    return connector.send_rev_notification(srev_info)
 
 
 def get_segtype_hops(seg_type, connector=None):  # pragma: no cover
