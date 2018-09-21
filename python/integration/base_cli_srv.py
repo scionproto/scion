@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Copyright 2016 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,6 +64,7 @@ class ResponseRV:
     SUCCESS = 1
     RETRY = 2
     CONTINUE = 3
+    RETRY_NOW = 4
 
 
 class TestBase(object, metaclass=ABCMeta):
@@ -175,6 +177,8 @@ class TestClientBase(TestBase):
                 self._stop(success=bool(r_code))
             elif r_code == ResponseRV.CONTINUE:
                 continue
+            elif r_code == ResponseRV.RETRY_NOW:
+                self._retry_or_stop()
             else:
                 # Rate limit retries to 1 request per second.
                 self._retry_or_stop(1.0 - recv_dur)
@@ -184,12 +188,21 @@ class TestClientBase(TestBase):
         if delay < 0:
             delay = 0
         if self.retries:
+            now = time.time()
+            self.path_meta = None
+            while True:
+                self._get_path(self.api, flush=flush)
+                if self.path_meta is not None:
+                    break
+                if time.time() - now > 5.0:
+                    logging.error("Could not find paths for 5s, giving up")
+                    self._stop(False)
+                time.sleep(0.5)
             self.retries -= 1
             logging.info(
                 "Retrying in %.1f s... (%d retries remaining, flush=%s)." %
                 (delay, self.retries, flush))
             time.sleep(delay)
-            self._get_path(self.api, flush=flush)
         else:
             self._stop()
 
