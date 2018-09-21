@@ -31,7 +31,7 @@ func Test_Addr_String(t *testing.T) {
 		L4: addr.NewL4UDPInfo(10000),
 	}
 	host6 := &addr.AppAddr{
-		L3: addr.HostIPv6(net.ParseIP("2001::1")),
+		L3: addr.HostFromIPStr("2001::1"),
 		L4: addr.NewL4UDPInfo(20000),
 	}
 	tests := []struct {

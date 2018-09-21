@@ -121,11 +121,10 @@ func AddrFromString(s string) (*Addr, error) {
 	if hostSVC := addr.HostSVCFromString(parts["host"]); hostSVC != addr.SvcNone {
 		l3 = hostSVC
 	} else {
-		ip := net.ParseIP(parts["host"])
-		if ip == nil {
+		l3 = addr.HostFromIPStr(parts["host"])
+		if l3 == nil {
 			return nil, common.NewBasicError("Invalid IP address string", nil, "ip", parts["host"])
 		}
-		l3 = addr.HostFromIP(ip)
 	}
 	var l4 addr.L4Info
 	if parts["port"] != "" {

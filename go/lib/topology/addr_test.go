@@ -16,7 +16,6 @@ package topology
 
 import (
 	"fmt"
-	"net"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -194,7 +193,7 @@ func newPub(rapo *RawAddrPortOverlay) *addr.AppAddr {
 		return nil
 	}
 	return &addr.AppAddr{
-		L3: addr.HostFromIP(net.ParseIP(rapo.Addr)),
+		L3: addr.HostFromIPStr(rapo.Addr),
 		L4: addr.NewL4UDPInfo(uint16(rapo.L4Port)),
 	}
 }
@@ -204,7 +203,7 @@ func newBind(rap *RawAddrPort) *addr.AppAddr {
 		return nil
 	}
 	return &addr.AppAddr{
-		L3: addr.HostFromIP(net.ParseIP(rap.Addr)),
+		L3: addr.HostFromIPStr(rap.Addr),
 		L4: addr.NewL4UDPInfo(uint16(rap.L4Port)),
 	}
 }
@@ -217,7 +216,7 @@ func newOverlay(rapo *RawAddrPortOverlay) *overlay.OverlayAddr {
 	if rapo.OverlayPort != 0 {
 		l4 = addr.NewL4UDPInfo(uint16(rapo.OverlayPort))
 	}
-	o, _ := overlay.NewOverlayAddr(addr.HostFromIP(net.ParseIP(rapo.Addr)), l4)
+	o, _ := overlay.NewOverlayAddr(addr.HostFromIPStr(rapo.Addr), l4)
 	return o
 }
 
