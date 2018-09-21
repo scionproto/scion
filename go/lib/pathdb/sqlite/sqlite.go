@@ -210,7 +210,7 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	if err != nil {
 		return err
 	}
-	exp := meta.Seg.MaxExpiry().UnixNano()
+	exp := meta.Seg.MaxExpiry().Unix()
 	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=?, Expiry=? WHERE RowID=?`
 	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.UnixNano(), packedSeg, exp, meta.RowID)
 	if err != nil {
@@ -257,7 +257,7 @@ func (b *Backend) insertFull(ctx context.Context, pseg *seg.PathSegment,
 	if err != nil {
 		return err
 	}
-	exp := pseg.MaxExpiry().UnixNano()
+	exp := pseg.MaxExpiry().Unix()
 	// Insert path segment.
 	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment, Expiry) VALUES (?, ?, ?, ?)`
 	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().UnixNano(), packedSeg, exp)
@@ -364,7 +364,7 @@ func (b *Backend) Delete(ctx context.Context, params *query.Params) (int, error)
 func (b *Backend) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	return b.deleteInTrx(ctx, func() (sql.Result, error) {
 		delStmt := `DELETE FROM Segments WHERE Expiry < ?`
-		return b.tx.ExecContext(ctx, delStmt, now.UnixNano())
+		return b.tx.ExecContext(ctx, delStmt, now.Unix())
 	})
 }
 
