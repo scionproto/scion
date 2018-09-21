@@ -444,7 +444,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 		}
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
-		segsaver.StoreRevocation(rev, f.revocationCache)
+		f.revocationCache.Insert(rev)
 	}
 	segErr := func(s *seg.Meta, err error) {
 		f.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)

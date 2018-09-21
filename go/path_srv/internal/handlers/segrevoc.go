@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 )
 
@@ -57,5 +56,5 @@ func (h *revocHandler) verifyAndStore(ctx context.Context, revocation *path_mgmt
 		h.logger.Warn("[revocHandler] couldn't verify revocation", "err", err)
 		return
 	}
-	segsaver.StoreRevocation(revocation, h.revCache)
+	h.revCache.Insert(revocation)
 }

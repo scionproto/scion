@@ -16,7 +16,6 @@ package revcache
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -46,12 +45,8 @@ type RevCache interface {
 	// Get item with key k from the cache. Returns the item or nil,
 	// and a bool indicating whether the key was found.
 	Get(k *Key) (*path_mgmt.SignedRevInfo, bool)
-	// Set sets maps the key k to the revocation rev.
-	// The revocation should only be returned for the given ttl.
-	// If an item with key k exists, it must be updated
-	// if now + ttl is at a later point in time than the current expiry.
-	// Returns whether an update was performed or not.
-	Set(k *Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool
+	// Insert inserts or updates the given revocation into the cache.
+	Insert(rev *path_mgmt.SignedRevInfo)
 }
 
 // GetAll gets all revocations for the given keys from the given revCache.
@@ -93,12 +88,8 @@ func FilterNew(revCache RevCache,
 	return filtered
 }
 
-func newerInfo(new, existing *path_mgmt.RevInfo) bool {
-	if !new.SameIntf(existing) {
-		return true
-	}
-	now := time.Now()
-	nTtl := new.RelativeTTL(now)
-	eTtl := existing.RelativeTTL(now)
-	return nTtl > eTtl
+// newerInfo returns whether the received info is newer than the existing.
+func newerInfo(existing, received *path_mgmt.RevInfo) bool {
+	return !received.SameIntf(existing) ||
+		received.Timestamp().After(existing.Timestamp())
 }

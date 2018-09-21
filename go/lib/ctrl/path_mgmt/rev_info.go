@@ -53,7 +53,8 @@ type RevInfo struct {
 	IfID     common.IFIDType
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	// LinkType of revocation
-	LinkType     proto.LinkType
+	LinkType proto.LinkType
+	// RawTimestamp the issuing timestamp in seconds.
 	RawTimestamp uint32 `capnp:"timestamp"`
 	// RawTTL validity period of the revocation in seconds
 	RawTTL uint32 `capnp:"ttl"`
@@ -68,6 +69,7 @@ func (r *RevInfo) IA() addr.IA {
 	return r.RawIsdas.IA()
 }
 
+// Timestamp returns the issuing time stamp of the revocation.
 func (r *RevInfo) Timestamp() time.Time {
 	return util.SecsToTime(r.RawTimestamp)
 }
@@ -117,9 +119,7 @@ func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
 }
 
 func (r *RevInfo) Eq(other *RevInfo) bool {
-	return r.IfID == other.IfID &&
-		r.RawIsdas == other.RawIsdas &&
-		r.LinkType == other.LinkType &&
+	return r.SameIntf(other) &&
 		r.RawTimestamp == other.RawTimestamp &&
 		r.RawTTL == other.RawTTL
 }
