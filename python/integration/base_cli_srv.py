@@ -195,7 +195,7 @@ class TestClientBase(TestBase):
                 if self.path_meta is not None:
                     break
                 if time.time() - now > 5.0:
-                    logging.error("Could not find paths since 5s, assuming error")
+                    logging.error("Could not find paths for 5s, giving up")
                     self._stop(False)
                 time.sleep(0.5)
             self.retries -= 1
