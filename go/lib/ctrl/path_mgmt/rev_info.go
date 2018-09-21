@@ -124,6 +124,13 @@ func (r *RevInfo) Eq(other *RevInfo) bool {
 		r.RawTTL == other.RawTTL
 }
 
+// SameIntf returns true if r and other both apply to the same interface.
+func (r *RevInfo) SameIntf(other *RevInfo) bool {
+	return r.IfID == other.IfID &&
+		r.RawIsdas == other.RawIsdas &&
+		r.LinkType == other.LinkType
+}
+
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)
 
 type SignedRevInfo struct {

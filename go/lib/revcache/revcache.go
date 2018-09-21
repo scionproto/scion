@@ -86,9 +86,19 @@ func FilterNew(revCache RevCache,
 		if err != nil {
 			panic("Revocation should be sanitized in cache")
 		}
-		if existingInfo.Eq(info) {
+		if newerInfo(info, existingInfo) {
 			filtered = append(filtered, r)
 		}
 	}
 	return filtered
+}
+
+func newerInfo(new, existing *path_mgmt.RevInfo) bool {
+	if !new.SameIntf(existing) {
+		return true
+	}
+	now := time.Now()
+	nTtl := new.RelativeTTL(now)
+	eTtl := existing.RelativeTTL(now)
+	return nTtl > eTtl
 }
