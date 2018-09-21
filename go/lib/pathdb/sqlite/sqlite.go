@@ -161,7 +161,7 @@ func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, err
 		if err != nil {
 			return nil, common.NewBasicError("Failed to extract data", err)
 		}
-		meta.LastUpdated = time.Unix(lastUpdated, 0)
+		meta.LastUpdated = time.Unix(0, lastUpdated)
 		var err error
 		meta.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
 		if err != nil {
@@ -210,9 +210,9 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	if err != nil {
 		return err
 	}
-	exp := meta.Seg.MaxExpiry().Unix()
+	exp := meta.Seg.MaxExpiry().UnixNano()
 	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=?, Expiry=? WHERE RowID=?`
-	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.Unix(), packedSeg, exp, meta.RowID)
+	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.UnixNano(), packedSeg, exp, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
 	}
@@ -257,10 +257,10 @@ func (b *Backend) insertFull(ctx context.Context, pseg *seg.PathSegment,
 	if err != nil {
 		return err
 	}
-	exp := pseg.MaxExpiry().Unix()
+	exp := pseg.MaxExpiry().UnixNano()
 	// Insert path segment.
 	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment, Expiry) VALUES (?, ?, ?, ?)`
-	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().Unix(), packedSeg, exp)
+	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().UnixNano(), packedSeg, exp)
 	if err != nil {
 		b.rollback()
 		return common.NewBasicError("Failed to insert path segment", err)
@@ -364,7 +364,7 @@ func (b *Backend) Delete(ctx context.Context, params *query.Params) (int, error)
 func (b *Backend) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	return b.deleteInTrx(ctx, func() (sql.Result, error) {
 		delStmt := `DELETE FROM Segments WHERE Expiry < ?`
-		return b.tx.ExecContext(ctx, delStmt, now.Unix())
+		return b.tx.ExecContext(ctx, delStmt, now.UnixNano())
 	})
 }
 
@@ -421,7 +421,7 @@ func (b *Backend) Get(ctx context.Context, params *query.Params) ([]*query.Resul
 				res = append(res, curRes)
 			}
 			curRes = &query.Result{
-				LastUpdate: time.Unix(lastUpdated, 0),
+				LastUpdate: time.Unix(0, lastUpdated),
 			}
 			var err error
 			curRes.Seg, err = seg.NewSegFromRaw(common.RawBytes(rawSeg))
@@ -515,7 +515,7 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 	}
 	if params.MinLastUpdate != nil {
 		where = append(where, "(s.LastUpdated>?)")
-		args = append(args, params.MinLastUpdate.Unix())
+		args = append(args, params.MinLastUpdate.UnixNano())
 	}
 	// Assemble the query.
 	if len(joins) > 0 {
@@ -549,7 +549,7 @@ func (b *Backend) InsertNextQuery(ctx context.Context, dst addr.IA,
 		"WHERE data.lq > NextQuery.NextQuery OR NextQuery.IsdID IS NULL;",
 	}
 	q := strings.Join(queryLines, "\n")
-	r, err := b.tx.ExecContext(ctx, q, dst.I, dst.A, nextQuery.Unix())
+	r, err := b.tx.ExecContext(ctx, q, dst.I, dst.A, nextQuery.UnixNano())
 	if err != nil {
 		b.rollback()
 		return false, common.NewBasicError("Failed to execute statement", err)
@@ -576,8 +576,8 @@ func (b *Backend) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, er
 	if !rows.Next() {
 		return nil, nil
 	}
-	var secs int64
-	rows.Scan(&secs)
-	t := time.Unix(secs, 0)
+	var nanos int64
+	rows.Scan(&nanos)
+	t := time.Unix(0, nanos)
 	return &t, nil
 }
