@@ -20,7 +20,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/segsaver"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 )
 
@@ -62,5 +61,5 @@ func (h *ifStateInfoHandler) verifyAndStore(ctx context.Context, rev *path_mgmt.
 		h.logger.Error("[ifStateHandler] Failed to verify revInfo", "rev", rev, "err", err)
 		return
 	}
-	segsaver.StoreRevocation(rev, h.revCache)
+	h.revCache.Insert(rev)
 }

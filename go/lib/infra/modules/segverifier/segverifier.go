@@ -71,11 +71,6 @@ Loop:
 	for numResults := 0; numResults < units; numResults++ {
 		select {
 		case result := <-unitResultsC:
-			if err := result.SegError(); err != nil {
-				segError(result.Unit.SegMeta, err)
-			} else {
-				verifiedSeg(ctx, result.Unit.SegMeta)
-			}
 			// Insert successfully verified revocations into the revcache
 			for index, revocation := range result.Unit.SRevInfos {
 				if err, ok := result.Errors[index]; ok {
@@ -83,6 +78,11 @@ Loop:
 				} else {
 					verifiedRev(ctx, revocation)
 				}
+			}
+			if err := result.SegError(); err != nil {
+				segError(result.Unit.SegMeta, err)
+			} else {
+				verifiedSeg(ctx, result.Unit.SegMeta)
 			}
 		case <-ctx.Done():
 			break Loop

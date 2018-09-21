@@ -17,14 +17,10 @@ package segsaver
 
 import (
 	"context"
-	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -38,19 +34,4 @@ func StoreSeg(ctx context.Context, s *seg.Meta, pathDB pathdb.PathDB, log log.Lo
 		log.Debug("Inserted segment into path database", "segment", s.Segment)
 	}
 	return nil
-}
-
-// StoreRevocation stores a revocation in the revcache.
-// Revocation must be verified before calling this.
-func StoreRevocation(revocation *path_mgmt.SignedRevInfo, rcache revcache.RevCache) {
-	info, err := revocation.RevInfo()
-	if err != nil {
-		// This should be caught during network message sanitization
-		panic(err)
-	}
-	rcache.Set(
-		revcache.NewKey(info.IA(), common.IFIDType(info.IfID)),
-		revocation,
-		info.RelativeTTL(time.Now()),
-	)
 }

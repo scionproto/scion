@@ -49,13 +49,29 @@ func (c *memRevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
 	return obj.(*path_mgmt.SignedRevInfo), true
 }
 
-func (c *memRevCache) Set(k *revcache.Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool {
+func (c *memRevCache) Insert(rev *path_mgmt.SignedRevInfo) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	newInfo, err := rev.RevInfo()
+	if err != nil {
+		panic(err)
+	}
+	ttl := newInfo.Expiration().Sub(time.Now())
+	if ttl <= 0 {
+		return false
+	}
+	k := revcache.NewKey(newInfo.IA(), newInfo.IfID)
 	key := k.String()
-	_, exp, ok := c.c.GetWithExpiration(key)
-	// If not yet in cache set, otherwise update expiry if it is later than current one.
-	if !ok || time.Now().Add(ttl).After(exp) {
+	val, ok := c.Get(k)
+	if !ok {
+		c.c.Set(key, rev, ttl)
+		return true
+	}
+	existingInfo, err := val.RevInfo()
+	if err != nil {
+		panic(err)
+	}
+	if newInfo.Timestamp().After(existingInfo.Timestamp()) {
 		c.c.Set(key, rev, ttl)
 		return true
 	}

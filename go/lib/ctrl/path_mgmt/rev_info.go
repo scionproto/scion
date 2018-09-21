@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,10 +50,11 @@ func (ee RevTimeError) Error() string {
 var _ proto.Cerealizable = (*RevInfo)(nil)
 
 type RevInfo struct {
-	IfID     uint64
+	IfID     common.IFIDType
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	// LinkType of revocation
-	LinkType     proto.LinkType
+	LinkType proto.LinkType
+	// RawTimestamp the issuing timestamp in seconds.
 	RawTimestamp uint32 `capnp:"timestamp"`
 	// RawTTL validity period of the revocation in seconds
 	RawTTL uint32 `capnp:"ttl"`
@@ -67,6 +69,7 @@ func (r *RevInfo) IA() addr.IA {
 	return r.RawIsdas.IA()
 }
 
+// Timestamp returns the issuing time stamp of the revocation.
 func (r *RevInfo) Timestamp() time.Time {
 	return util.SecsToTime(r.RawTimestamp)
 }
@@ -113,6 +116,19 @@ func (r *RevInfo) RelativeTTL(reference time.Time) time.Duration {
 		return 0
 	}
 	return expiration.Sub(reference)
+}
+
+func (r *RevInfo) Eq(other *RevInfo) bool {
+	return r.SameIntf(other) &&
+		r.RawTimestamp == other.RawTimestamp &&
+		r.RawTTL == other.RawTTL
+}
+
+// SameIntf returns true if r and other both apply to the same interface.
+func (r *RevInfo) SameIntf(other *RevInfo) bool {
+	return r.IfID == other.IfID &&
+		r.RawIsdas == other.RawIsdas &&
+		r.LinkType == other.LinkType
 }
 
 var _ proto.Cerealizable = (*SignedRevInfo)(nil)

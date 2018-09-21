@@ -16,7 +16,6 @@ package revcache
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -46,12 +45,9 @@ type RevCache interface {
 	// Get item with key k from the cache. Returns the item or nil,
 	// and a bool indicating whether the key was found.
 	Get(k *Key) (*path_mgmt.SignedRevInfo, bool)
-	// Set sets maps the key k to the revocation rev.
-	// The revocation should only be returned for the given ttl.
-	// If an item with key k exists, it must be updated
-	// if now + ttl is at a later point in time than the current expiry.
-	// Returns whether an update was performed or not.
-	Set(k *Key, rev *path_mgmt.SignedRevInfo, ttl time.Duration) bool
+	// Insert inserts or updates the given revocation into the cache.
+	// Returns whether an insert was performed.
+	Insert(rev *path_mgmt.SignedRevInfo) bool
 }
 
 // GetAll gets all revocations for the given keys from the given revCache.
@@ -63,4 +59,38 @@ func GetAll(revCache RevCache, keys map[Key]struct{}) []*path_mgmt.SignedRevInfo
 		}
 	}
 	return revs
+}
+
+// FilterNew filters the given revocations against the revCache, only the ones which are not in the
+// cache are returned.
+// Note: Modifies revocations slice.
+func FilterNew(revCache RevCache,
+	revocations []*path_mgmt.SignedRevInfo) []*path_mgmt.SignedRevInfo {
+
+	filtered := revocations[:0]
+	for _, r := range revocations {
+		info, err := r.RevInfo()
+		if err != nil {
+			panic(fmt.Sprintf("Revocation should have been sanitized, err: %s", err))
+		}
+		existingRev, ok := revCache.Get(NewKey(info.IA(), info.IfID))
+		if !ok {
+			filtered = append(filtered, r)
+			continue
+		}
+		existingInfo, err := existingRev.RevInfo()
+		if err != nil {
+			panic("Revocation should be sanitized in cache")
+		}
+		if newerInfo(info, existingInfo) {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
+// newerInfo returns whether the received info is newer than the existing.
+func newerInfo(existing, received *path_mgmt.RevInfo) bool {
+	return !received.SameIntf(existing) ||
+		received.Timestamp().After(existing.Timestamp())
 }
