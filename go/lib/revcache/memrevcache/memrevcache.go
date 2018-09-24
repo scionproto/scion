@@ -42,7 +42,11 @@ func New(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
 func (c *memRevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	obj, ok := c.c.Get(k.String())
+	return c.get(k.String())
+}
+
+func (c *memRevCache) get(key string) (*path_mgmt.SignedRevInfo, bool) {
+	obj, ok := c.c.Get(key)
 	if !ok {
 		return nil, false
 	}
@@ -62,7 +66,7 @@ func (c *memRevCache) Insert(rev *path_mgmt.SignedRevInfo) bool {
 	}
 	k := revcache.NewKey(newInfo.IA(), newInfo.IfID)
 	key := k.String()
-	val, ok := c.Get(k)
+	val, ok := c.get(key)
 	if !ok {
 		c.c.Set(key, rev, ttl)
 		return true

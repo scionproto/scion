@@ -78,7 +78,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 	}
 	dstCore, err := h.isCoreDst(ctx, msger, segReq)
 	if err != nil {
-		h.logger.Error("[segReqHandler] Failed to determine dest type", "err", err)
+		h.logger.Error("[segReqCoreHandler] Failed to determine dest type", "err", err)
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
@@ -98,7 +98,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		return
 	}
 	if len(downSegs) == 0 {
-		h.logger.Debug("[segReqHandler] no down segs found")
+		h.logger.Debug("[segReqCoreHandler] no down segs found")
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
@@ -118,7 +118,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 			retry := len(ias) == len(downIAs) && !segReq.Flags.CacheOnly
 			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, retry)
 			if err != nil {
-				h.logger.Error("[segReqHandler] Failed to find core segs", "err", err)
+				h.logger.Error("[segReqCoreHandler] Failed to find core segs", "err", err)
 				h.sendEmptySegReply(ctx, segReq, msger)
 				return
 			}
@@ -133,7 +133,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 			return coreExists
 		})
 	}
-	h.logger.Debug("[segReqHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
+	h.logger.Debug("[segReqCoreHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, downSegs, segReq)
 }
 
