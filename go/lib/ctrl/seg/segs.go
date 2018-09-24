@@ -22,8 +22,9 @@ import (
 type Segments []*PathSegment
 
 // FilterSegs filters the given segs and only keeps the segments for which keep returns true.
-// Modifies segs in-place.
-func (segs *Segments) FilterSegs(keep func(*PathSegment) bool) {
+// Modifies segs in-place. Returns the number of segments filtered out.
+func (segs *Segments) FilterSegs(keep func(*PathSegment) bool) int {
+	full := len(*segs)
 	filtered := (*segs)[:0]
 	for _, s := range *segs {
 		if keep(s) {
@@ -31,6 +32,7 @@ func (segs *Segments) FilterSegs(keep func(*PathSegment) bool) {
 		}
 	}
 	*segs = filtered
+	return full - len(*segs)
 }
 
 // FirstIAs returns the slice of FirstIAs in the given segments. Each FirstIA appears just once.

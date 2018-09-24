@@ -317,11 +317,14 @@ func (ps *PathSegment) ProtoId() proto.ProtoIdType {
 }
 
 func (ps *PathSegment) String() string {
+	if ps == nil {
+		return "<nil>"
+	}
 	desc := []string{}
 	if id, err := ps.ID(); err != nil {
 		desc = append(desc, fmt.Sprintf("ID error: %s", err))
 	} else {
-		desc = append(desc, id.String())
+		desc = append(desc, id.String()[:12])
 	}
 	info, _ := ps.InfoF()
 	desc = append(desc, util.TimeToString(info.Timestamp()))
