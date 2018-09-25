@@ -275,7 +275,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 	rconn, port, err := reliable.RegisterTimeout(conn.scionNet.dispatcherPath,
 		conn.laddr.IA, conn.laddr.Host, bindAddr, svc, timeout)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to register with dispatcher", err)
+		return nil, err
 	}
 	if port != conn.laddr.Host.L4.Port() {
 		// Update port
