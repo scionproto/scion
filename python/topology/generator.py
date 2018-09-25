@@ -1297,7 +1297,7 @@ class DockerGenerator(object):
             self.dc_conf['services'][k] = entry
 
     def _ps_conf(self, topo_id, topo, base):
-        image = 'scion_path' if self.ps == 'py' else 'scion_gopath'
+        image = 'scion_path' if self.ps == 'py' else 'scion_path_go'
         raw_entry = {
             'image': image,
             'restart': 'always',
@@ -1343,7 +1343,7 @@ class DockerGenerator(object):
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '${PWD}/docker/zoo-container.cfg:/conf/zoo.cfg',
+                '${PWD}/docker/zoo-container.cfg:/conf/zoo.cfg:rw',
                 '/var/lib/docker-zk:/var/lib/zookeeper:rw',
                 '/run/shm/docker-zk:/dev/shm/zookeeper:rw'
             ],
@@ -1379,17 +1379,7 @@ class DockerGenerator(object):
 
     def _sciond_conf(self, topo_id, base):
         name = self._sciond_name(topo_id)
-        image = 'scion_sciond' if self.sd == 'py' else 'scion_gosciond'
-        if self.sd == 'py':
-            command = [
-                    '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
-                    '--log_dir=logs',
-                    '--spki_cache_dir=cache',
-                    name,
-                    'conf'
-            ]
-        else:
-            command = []
+        image = 'scion_sciond' if self.sd == 'py' else 'scion_sciond_go'
         entry = {
             'image': image,
             'restart': 'always',
@@ -1409,8 +1399,15 @@ class DockerGenerator(object):
                 '${PWD}/gen-cache:/share/cache:rw',
                 '${PWD}/logs:/share/logs:rw'
             ],
-            'command': command,
         }
+        if self.sd == 'py':
+            entry['command'] = [
+                    '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
+                    '--log_dir=logs',
+                    '--spki_cache_dir=cache',
+                    name,
+                    'conf'
+            ]
         self.dc_conf['services'][name] = entry
 
     def _sciond_name(self, topo_id):
