@@ -41,7 +41,7 @@ hashes/debug_base: base/Dockerfile.debug hashes/scion
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $< files/
 
 # App images
-APP_TARGETS = border dispatcher sig path beacon cert sciond
+APP_TARGETS = border dispatcher sig path gopath beacon cert sciond gosciond
 .PHONY: $(APP_TARGETS)
 apps: $(APP_TARGETS)
 $(APP_TARGETS): | scion_hash
@@ -62,6 +62,10 @@ path: hashes/path
 hashes/path: app/Dockerfile.path hashes/python_base
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
+gopath: hashes/gopath
+hashes/gopath: app/Dockerfile.gopath hashes/app_base hashes/app_builder
+	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
+
 beacon: hashes/beacon
 hashes/beacon: app/Dockerfile.beacon hashes/python_base
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
@@ -72,6 +76,10 @@ hashes/cert: app/Dockerfile.cert hashes/python_base
 
 sciond: hashes/sciond
 hashes/sciond: app/Dockerfile.sciond hashes/python_base
+	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
+
+gosciond: hashes/gosciond
+hashes/gosciond: app/Dockerfile.gosciond hashes/app_base hashes/app_builder
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 # Debug images
