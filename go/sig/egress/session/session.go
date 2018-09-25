@@ -127,7 +127,6 @@ func (s *Session) IA() addr.IA {
 
 func (s *Session) ID() mgmt.SessionType {
 	return s.SessId
-
 }
 
 func (s *Session) Healthy() bool {
