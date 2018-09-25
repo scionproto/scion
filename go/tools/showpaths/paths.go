@@ -60,7 +60,8 @@ func main() {
 	i := 0
 	for _, path := range reply.Entries {
 		if *expiration {
-			fmt.Printf("[%2d] %s Expiration: %s\n", i, path.Path.String(), path.Path.Expiry())
+			fmt.Printf("[%2d] %s Expires: %s (%s)\n", i, path.Path.String(), path.Path.Expiry(),
+				time.Until(path.Path.Expiry()).Truncate(time.Second))
 		} else {
 			fmt.Printf("[%2d] %s\n", i, path.Path.String())
 		}
