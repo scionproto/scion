@@ -83,7 +83,7 @@ hashes/sciond_go: app/Dockerfile.sciond_go hashes/app_base hashes/app_builder
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 # Debug images
-DEBUG_TARGETS = border_debug dispatcher_debug sig_debug path_debug beacon_debug cert_debug sciond_debug
+DEBUG_TARGETS = border_debug dispatcher_debug sig_debug path_debug path_go_debug beacon_debug cert_debug sciond_debug sciond_go_debug
 .PHONY: $(DEBUG_TARGETS)
 debug: $(DEBUG_TARGETS)
 $(DEBUG_TARGETS): | scion_hash
@@ -104,6 +104,10 @@ path_debug: hashes/path_debug
 hashes/path_debug: debug/Dockerfile.path hashes/debug_base hashes/path
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
+path_go_debug: hashes/path_go_debug
+hashes/path_go_debug: app/Dockerfile.path_go hashes/debug_base hashes/app_builder
+	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
+
 beacon_debug: hashes/beacon_debug
 hashes/beacon_debug: debug/Dockerfile.beacon hashes/debug_base hashes/beacon
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
@@ -114,4 +118,8 @@ hashes/cert_debug: debug/Dockerfile.cert hashes/debug_base hashes/cert
 
 sciond_debug: hashes/sciond_debug
 hashes/sciond_debug: debug/Dockerfile.sciond hashes/debug_base hashes/sciond
+	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
+
+sciond_go_debug: hashes/sciond_go_debug
+hashes/sciond_go_debug: app/Dockerfile.sciond_go hashes/debug_base hashes/app_builder
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<

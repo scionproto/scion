@@ -287,7 +287,7 @@ class ConfigGenerator(object):
 
     def _generate_docker(self, topo_dicts):
         docker_gen = DockerGenerator(
-            self.out_dir, topo_dicts, self.cs, self.sd, self.ps)
+            self.out_dir, topo_dicts, self.sd, self.ps)
         docker_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
@@ -1181,10 +1181,9 @@ class GoGenerator(object):
 
 
 class DockerGenerator(object):
-    def __init__(self, out_dir, topo_dicts, cs, sd, ps):
+    def __init__(self, out_dir, topo_dicts, sd, ps):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
-        self.cs = cs
         self.sd = sd
         self.ps = ps
         self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
