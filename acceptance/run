@@ -1,0 +1,20 @@
+#!/bin/bash
+
+. acceptance/lib.sh
+
+run_all() {
+	TEST_REGEX_MATCHER=$1
+	ARTIFACTS_FOLDER="$(date +"%H-%M-%S").artifacts"
+
+	stats_passed=0
+	stats_failed=0
+	stats_skipped=0
+	stats_total=0
+
+	echo "Running acceptance tests"
+	global_setup "$ARTIFACTS_FOLDER"
+	global_run "$ARTIFACTS_FOLDER"
+	global_teardown
+}
+
+run_all
