@@ -46,6 +46,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathpcy"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -159,11 +160,10 @@ func (r *PR) Query(src, dst addr.IA) spathmeta.AppPathSet {
 	return spathmeta.AppPathSet{}
 }
 
-func (r *PR) QueryFilter(src, dst addr.IA, filter *pktcls.ActionFilterPaths) spathmeta.AppPathSet {
+func (r *PR) QueryFilter(src, dst addr.IA, policy *pathpcy.Policy) spathmeta.AppPathSet {
 	aps := r.Query(src, dst)
 	// Delete paths that do not match the predicate
-
-	return filter.Act(aps).(spathmeta.AppPathSet)
+	return policy.Act(aps).(spathmeta.AppPathSet)
 }
 
 // Watch adds pair src-dst to the list of watched paths.

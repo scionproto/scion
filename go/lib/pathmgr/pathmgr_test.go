@@ -23,6 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathpcy"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -64,24 +65,78 @@ func TestQuery(t *testing.T) {
 }
 
 func TestQueryFilter(t *testing.T) {
-	Convey("Query with filter, only one path should remain", t, func() {
+	Convey("Query with policy filter, only one path should remain", t, func() {
 		g := graph.NewDefaultGraph()
 		pm := NewPR(t, g, 0, 0, 0)
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#0")
+		pp, err := sciond.NewPathInterface("0-0#0")
 		xtest.FailOnErr(t, err)
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#0",
-			pktcls.NewCondPathPredicate(pp))
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("filter", filter, ShouldNotBeNil)
 
-		aps := pm.QueryFilter(srcIA, dstIA, filter)
+		aclEntry := pathpcy.NewACLEntry(true, &pp)
+		acl := pathpcy.NewACL(false, aclEntry)
+		policy := pathpcy.NewPolicy("", acl, nil, nil, nil)
+		SoMsg("policy", policy, ShouldNotBeNil)
+
+		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+
+		pp, err = sciond.NewPathInterface("1-ff00:0:134#1910")
+		xtest.FailOnErr(t, err)
+		SoMsg("err", err, ShouldBeNil)
+		aclEntry = pathpcy.NewACLEntry(false, &pp)
+		acl = pathpcy.NewACL(true, aclEntry)
+		policy = pathpcy.NewPolicy("", acl, nil, nil, nil)
+		SoMsg("policy", policy, ShouldNotBeNil)
+
+		aps = pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 1)
+		SoMsg("path", getPathStrings(aps), ShouldContain,
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+
+		pp, err = sciond.NewPathInterface("1-ff00:0:132#1910")
+		xtest.FailOnErr(t, err)
+		SoMsg("err", err, ShouldBeNil)
+		aclEntry = pathpcy.NewACLEntry(false, &pp)
+		acl = pathpcy.NewACL(true, aclEntry)
+		policy = pathpcy.NewPolicy("", acl, nil, nil, nil)
+		SoMsg("policy", policy, ShouldNotBeNil)
+
+		aps = pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 0)
+	})
+}
+
+func TestACLPolicyFilter(t *testing.T) {
+	Convey("Query with ACL policy filter", t, func() {
+		g := graph.NewDefaultGraph()
+		pm := NewPR(t, g, 0, 0, 0)
+		srcIA := xtest.MustParseIA("2-ff00:0:222")
+		dstIA := xtest.MustParseIA("1-ff00:0:131")
+
+		as121, _ := sciond.NewPathInterface("1-ff00:0:121#0")
+		as121Entry := pathpcy.NewACLEntry(false, &as121)
+		acl := pathpcy.NewACL(true, as121Entry)
+		policy := pathpcy.NewPolicy("", acl, nil, nil, nil)
+		SoMsg("policy", policy, ShouldNotBeNil)
+
+		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 2)
+
+		as211IF, _ := sciond.NewPathInterface("2-ff00:0:211#2327")
+		as211IFEntry := pathpcy.NewACLEntry(false, &as211IF)
+		acl = pathpcy.NewACL(true, as121Entry, as211IFEntry)
+		policy = pathpcy.NewPolicy("", acl, nil, nil, nil)
+		SoMsg("policy", policy, ShouldNotBeNil)
+
+		aps = pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 1)
 	})
 }
 
