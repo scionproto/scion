@@ -33,6 +33,7 @@ var (
 	timeout      = flag.Duration("timeout", 2*time.Second, "SCIOND connection timeout")
 	maxPaths     = flag.Int("maxpaths", 10, "Maximum number of paths")
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
+	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
 )
 
 var (
@@ -58,7 +59,11 @@ func main() {
 	fmt.Println("Available paths to", dstIA)
 	i := 0
 	for _, path := range reply.Entries {
-		fmt.Printf("[%2d] %s\n", i, path.Path.String())
+		if *expiration {
+			fmt.Printf("[%2d] %s Expiration: %s\n", i, path.Path.String(), path.Path.Expiry())
+		} else {
+			fmt.Printf("[%2d] %s\n", i, path.Path.String())
+		}
 		i++
 	}
 }
