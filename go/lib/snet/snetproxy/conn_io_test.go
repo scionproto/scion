@@ -261,6 +261,36 @@ func TestProxyConnReadWrite(t *testing.T) {
 	})
 }
 
+func TestProxyConnConcurrentReadWrite(t *testing.T) {
+	Convey("Given a server blocked in reading, writes still go through", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockConn := NewMockConnWithAddrs(ctrl, localAddr, nil, bindAddr, addr.SvcNone)
+		mockReconnecter := mock_snetproxy.NewMockReconnecter(ctrl)
+		proxyConn := snetproxy.NewProxyConn(mockConn, mockReconnecter)
+		mockConn.EXPECT().Read(Any()).DoAndReturn(
+			func(_ []byte) (int, error) {
+				// Keep the read blocked "forever"
+				time.Sleep(tickerMultiplier(50))
+				return 3, nil
+			},
+		)
+		mockConn.EXPECT().Write(Any())
+
+		barrierCh := make(chan struct{})
+		go func() {
+			buffer := make([]byte, 3)
+			proxyConn.Read(buffer)
+		}()
+		time.Sleep(tickerMultiplier(2))
+		go func() {
+			proxyConn.Write(testBuffer)
+			close(barrierCh)
+		}()
+		xtest.AssertReadReturnsBefore(t, barrierCh, tickerMultiplier(3))
+	})
+}
+
 func TestProxyConnClose(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

@@ -33,9 +33,14 @@ type ProxyConn struct {
 	connMtx  sync.Mutex
 	snetConn snet.Conn
 
-	// ioMtx is used to ensure only one worker goroutine enters the main I/O
-	// loop.
-	ioMtx sync.Mutex
+	// readMtx is used to ensure only one reader enters the main I/O loop.
+	readMtx sync.Mutex
+	// writeMtx is used to ensure only one writer enters the main I/O loop.
+	writeMtx sync.Mutex
+	// spawnReconnecterMtx is used to ensure a single goroutine starts the
+	// reconnecter. This must be acquired with either readMtx or writeMtx
+	// taken.
+	spawnReconnecterMtx sync.Mutex
 
 	writeDeadlineMtx sync.Mutex
 	writeDeadline    time.Time
@@ -110,13 +115,8 @@ func (conn *ProxyConn) WriteToSCION(b []byte, address *snet.Addr) (int, error) {
 }
 
 func (conn *ProxyConn) DoIO(op IOOperation) error {
-	// FIXME(scrye): Keep one mutex for both reads and writes until performance
-	// becomes a problem. If two goroutines can enter the for loop
-	// synchronization becomes trickier, as they (1) need to guarantee that at
-	// most one reconnecter is spawned, (2) fatal errors get drained correctly,
-	// (3) deadline change events get seen by both goroutines.
-	conn.ioMtx.Lock()
-	defer conn.ioMtx.Unlock()
+	conn.lockMutexForOpType(op)
+	defer conn.unlockMutexForOpType(op)
 	var err error
 Loop:
 	for {
@@ -128,11 +128,7 @@ Loop:
 			err = op.Do(conn.getConn())
 			if err != nil {
 				if isDispatcherError(err) && !conn.isClosing() {
-					conn.dispatcherState.SetDown()
-					go func() {
-						defer log.LogPanicAndExit()
-						conn.asyncReconnectWrapper()
-					}()
+					conn.spawnAsyncReconnecterOnce()
 					continue
 				} else {
 					return err
@@ -147,6 +143,36 @@ Loop:
 		}
 	}
 	return nil
+}
+
+func (conn *ProxyConn) lockMutexForOpType(op IOOperation) {
+	if op.IsWrite() {
+		conn.writeMtx.Lock()
+	} else {
+		conn.readMtx.Lock()
+	}
+}
+
+func (conn *ProxyConn) unlockMutexForOpType(op IOOperation) {
+	if op.IsWrite() {
+		conn.writeMtx.Unlock()
+	} else {
+		conn.readMtx.Unlock()
+	}
+}
+
+func (conn *ProxyConn) spawnAsyncReconnecterOnce() {
+	conn.spawnReconnecterMtx.Lock()
+	select {
+	case <-conn.dispatcherState.Up():
+		conn.dispatcherState.SetDown()
+		go func() {
+			defer log.LogPanicAndExit()
+			conn.asyncReconnectWrapper()
+		}()
+	default:
+	}
+	conn.spawnReconnecterMtx.Unlock()
 }
 
 func (conn *ProxyConn) asyncReconnectWrapper() {
