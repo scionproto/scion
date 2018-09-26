@@ -105,7 +105,7 @@ hashes/path_debug: debug/Dockerfile.path hashes/debug_base hashes/path
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 path_go_debug: hashes/path_go_debug
-hashes/path_go_debug: app/Dockerfile.path_go hashes/debug_base hashes/app_builder
+hashes/path_go_debug: app/Dockerfile.path_go hashes/debug_base hashes/path_go
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 beacon_debug: hashes/beacon_debug
@@ -121,5 +121,5 @@ hashes/sciond_debug: debug/Dockerfile.sciond hashes/debug_base hashes/sciond
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 sciond_go_debug: hashes/sciond_go_debug
-hashes/sciond_go_debug: app/Dockerfile.sciond_go hashes/debug_base hashes/app_builder
+hashes/sciond_go_debug: app/Dockerfile.sciond_go hashes/debug_base hashes/sciond_go
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
