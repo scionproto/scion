@@ -1,2 +1,2 @@
-FROM scion_beacon:latest
+FROM scion_cert_py:latest
 COPY --from=scion_debug_base:latest / /

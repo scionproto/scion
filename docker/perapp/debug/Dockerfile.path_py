@@ -1,2 +1,2 @@
-FROM scion_sciond:latest
+FROM scion_path_py:latest
 COPY --from=scion_debug_base:latest / /

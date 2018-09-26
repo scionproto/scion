@@ -1,2 +1,4 @@
-FROM scion_python_base:latest
-ENTRYPOINT ["/sbin/su-exec", "/app/bin/sciond"]
+FROM scion_app_base:latest
+COPY --from=scion_app_builder:latest /home/scion/go/src/github.com/scionproto/scion/bin/sciond /app/
+
+ENTRYPOINT ["/sbin/su-exec", "/app/sciond", "-config", "/share/conf/sciond.toml"]

@@ -1231,7 +1231,7 @@ class DockerGenerator(object):
 
     def _cs_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scion_cert',
+            'image': 'scion_cert_py',
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1264,7 +1264,7 @@ class DockerGenerator(object):
 
     def _bs_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scion_beacon',
+            'image': 'scion_beacon_py',
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1296,7 +1296,7 @@ class DockerGenerator(object):
             self.dc_conf['services'][k] = entry
 
     def _ps_conf(self, topo_id, topo, base):
-        image = 'scion_path' if self.ps == 'py' else 'scion_path_go'
+        image = 'scion_path_py' if self.ps == 'py' else 'scion_path'
         raw_entry = {
             'image': image,
             'restart': 'always',
@@ -1378,7 +1378,7 @@ class DockerGenerator(object):
 
     def _sciond_conf(self, topo_id, base):
         name = self._sciond_name(topo_id)
-        image = 'scion_sciond' if self.sd == 'py' else 'scion_sciond_go'
+        image = 'scion_sciond_py' if self.sd == 'py' else 'scion_sciond'
         entry = {
             'image': image,
             'restart': 'always',
