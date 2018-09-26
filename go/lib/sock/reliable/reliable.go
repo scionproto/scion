@@ -455,7 +455,7 @@ func (conn *Conn) writeN(bufs []Msg) (int, error) {
 	for copied < index {
 		n, err := conn.UnixConn.Write(conn.sendBuf[copied:index])
 		if err != nil {
-			return 0, common.NewBasicError("Error writing to UNIX socket", err)
+			return 0, err
 		}
 		copied += n
 	}
