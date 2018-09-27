@@ -200,12 +200,6 @@ class ConfigGenerator(object):
         if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
             logging.critical("Cannot use non-default CS with docker!")
             sys.exit(1)
-        if self.docker and self.sd is not DEFAULT_SCIOND:
-            logging.critical("Cannot use non-default SCIOND with docker!")
-            sys.exit(1)
-        if self.docker and self.ps is not DEFAULT_PATH_SERVER:
-            logging.critical("Cannot use non-default PS with docker!")
-            sys.exit(1)
 
     def _read_defaults(self, network):
         """
@@ -242,7 +236,7 @@ class ConfigGenerator(object):
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
-        go_gen = GoGenerator(self.out_dir, topo_dicts)
+        go_gen = GoGenerator(self.out_dir, topo_dicts, self.docker)
         if self.sd == "go":
             go_gen.generate_sciond()
         if self.ps == "go":
@@ -293,7 +287,7 @@ class ConfigGenerator(object):
 
     def _generate_docker(self, topo_dicts):
         docker_gen = DockerGenerator(
-            self.out_dir, topo_dicts, self.cs)
+            self.out_dir, topo_dicts, self.sd, self.ps)
         docker_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
@@ -1100,9 +1094,10 @@ class SupervisorGenerator(object):
 
 
 class GoGenerator(object):
-    def __init__(self, out_dir, topo_dicts):
+    def __init__(self, out_dir, topo_dicts, docker):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
+        self.docker = docker
 
     def generate_ps(self):
         for topo_id, topo in self.topo_dicts.items():
@@ -1114,14 +1109,17 @@ class GoGenerator(object):
                     write_file(os.path.join(base, k, "psconfig.toml"), toml.dumps(ps_conf))
 
     def _build_ps_conf(self, topo_id, ia, base, name):
+        config_dir = '/share/conf' if self.docker else os.path.join(base, name)
+        log_dir = '/share/logs' if self.docker else 'logs'
+        db_dir = '/share/cache' if self.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,
-                'ConfigDir': os.path.join(base, name),
+                'ConfigDir': config_dir,
             },
             'logging': {
                 'file': {
-                    'Path': os.path.join('logs', "%s.log" % name),
+                    'Path': os.path.join(log_dir, "%s.log" % name),
                     'Level': 'debug',
                 },
                 'console': {
@@ -1129,13 +1127,13 @@ class GoGenerator(object):
                 },
             },
             'trust': {
-                'TrustDB': os.path.join('gen-cache', '%s.trust.db' % name),
+                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
             },
             'infra': {
                 'Type': "PS"
             },
             'ps': {
-                'PathDB': os.path.join('gen-cache', '%s.path.db' % name),
+                'PathDB': os.path.join(db_dir, '%s.path.db' % name),
                 'SegSync': True,
             },
         }
@@ -1149,14 +1147,17 @@ class GoGenerator(object):
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = self._sciond_name(topo_id)
+        config_dir = '/share/conf' if self.docker else os.path.join(base, COMMON_DIR)
+        log_dir = '/share/logs' if self.docker else 'logs'
+        db_dir = '/share/cache' if self.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,
-                'ConfigDir': os.path.join(base, COMMON_DIR),
+                'ConfigDir': config_dir,
             },
             'logging': {
                 'file': {
-                    'Path': os.path.join('logs', "%s.log" % name),
+                    'Path': os.path.join(log_dir, "%s.log" % name),
                     'Level': 'debug',
                 },
                 'console': {
@@ -1164,13 +1165,13 @@ class GoGenerator(object):
                 },
             },
             'trust': {
-                'TrustDB': os.path.join('gen-cache', '%s.trust.db' % name),
+                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
             },
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
                 'Public': '%s,[127.0.0.1]:0' % ia,
-                'PathDB': os.path.join('gen-cache', '%s.path.db' % name),
+                'PathDB': os.path.join(db_dir, '%s.path.db' % name),
             },
         }
         return raw_entry
@@ -1180,9 +1181,11 @@ class GoGenerator(object):
 
 
 class DockerGenerator(object):
-    def __init__(self, out_dir, topo_dicts, cs):
+    def __init__(self, out_dir, topo_dicts, sd, ps):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
+        self.sd = sd
+        self.ps = ps
         self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
 
     def generate(self):
@@ -1228,7 +1231,7 @@ class DockerGenerator(object):
 
     def _cs_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scion_cert',
+            'image': 'scion_cert_py',
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1261,7 +1264,7 @@ class DockerGenerator(object):
 
     def _bs_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scion_beacon',
+            'image': 'scion_beacon_py',
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1293,8 +1296,9 @@ class DockerGenerator(object):
             self.dc_conf['services'][k] = entry
 
     def _ps_conf(self, topo_id, topo, base):
+        image = 'scion_path_py' if self.ps == 'py' else 'scion_path'
         raw_entry = {
-            'image': 'scion_path',
+            'image': image,
             'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
@@ -1312,17 +1316,17 @@ class DockerGenerator(object):
                 '${PWD}/gen-cache:/share/cache:rw',
                 '${PWD}/logs:/share/logs:rw'
             ],
-            'command': [
-                '--spki_cache_dir=cache'
-            ]
+            'command': [],
         }
         for k, v in topo.get("PathService", {}).items():
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = k
             entry['volumes'].append('${PWD}/%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=%s' % _prom_addr_infra(v))
-            entry['command'].append(k)
-            entry['command'].append('conf')
+            if self.ps == 'py':
+                entry['command'].append('--spki_cache_dir=cache')
+                entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+                entry['command'].append(k)
+                entry['command'].append('conf')
             self.dc_conf['services'][k] = entry
 
     def _zookeeper_conf(self):
@@ -1338,7 +1342,7 @@ class DockerGenerator(object):
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '${PWD}/docker/zoo-container.cfg:/conf/zoo.cfg:ro',
+                '${PWD}/docker/zoo-container.cfg:/conf/zoo.cfg:rw',
                 '/var/lib/docker-zk:/var/lib/zookeeper:rw',
                 '/run/shm/docker-zk:/dev/shm/zookeeper:rw'
             ],
@@ -1374,8 +1378,9 @@ class DockerGenerator(object):
 
     def _sciond_conf(self, topo_id, base):
         name = self._sciond_name(topo_id)
+        image = 'scion_sciond_py' if self.sd == 'py' else 'scion_sciond'
         entry = {
-            'image': 'scion_sciond',
+            'image': image,
             'restart': 'always',
             'container_name': name,
             'depends_on': [
@@ -1393,14 +1398,15 @@ class DockerGenerator(object):
                 '${PWD}/gen-cache:/share/cache:rw',
                 '${PWD}/logs:/share/logs:rw'
             ],
-            'command': [
-                '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
-                '--log_dir=logs',
-                '--spki_cache_dir=cache',
-                name,
-                'conf'
-            ]
         }
+        if self.sd == 'py':
+            entry['command'] = [
+                    '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
+                    '--log_dir=logs',
+                    '--spki_cache_dir=cache',
+                    name,
+                    'conf'
+            ]
         self.dc_conf['services'][name] = entry
 
     def _sciond_name(self, topo_id):
