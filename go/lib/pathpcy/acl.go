@@ -20,66 +20,59 @@ import (
 )
 
 type ACL struct {
-	entries []*ACLEntry
+	Entries []*ACLEntry
 }
 
-func NewACL(defAllow bool, entries ...*ACLEntry) *ACL {
-	pi, _ := sciond.NewPathInterface("0-0#0")
-	defEntry := NewACLEntry(defAllow, &pi)
+// NewACLWithDefault creates a new ACL from entries, and appends a match
+// anything ACL entry with defaultAction.
+func NewACLWithDefault(defaultAction ACLAction, entries ...*ACLEntry) *ACL {
+	defEntry := &ACLEntry{ACLAction(defaultAction), &sciond.PathInterface{}}
 	return &ACL{
-		entries: append(entries, defEntry),
+		Entries: append(entries, defEntry),
 	}
 }
 
-func (a *ACL) Eval(path *spathmeta.AppPath) bool {
+// Eval returns the set of paths that match the ACL.
+func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
+	resultSet := make(spathmeta.AppPathSet)
+	for key, path := range inputSet {
+		// Check ACL
+		if a.evalPath(path) {
+			resultSet[key] = path
+		}
+	}
+	return resultSet
+}
+
+func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
 	if a == nil {
-		return true
+		return Allow
 	}
-
-	ifaces := path.Entry.Path.Interfaces
-	for i := range ifaces {
-		if !a.allowIF(&ifaces[i]) {
-			return false
+	for _, iface := range path.Entry.Path.Interfaces {
+		if a.evalInterface(iface) == Deny {
+			return Deny
 		}
 	}
-	return true
+	return Allow
 }
 
-func (a *ACL) allowIF(iface *sciond.PathInterface) bool {
-	for _, aclEntry := range a.entries {
-		if ppWildcardEquals(iface, aclEntry.PI) {
-			if aclEntry.Type {
-				return true
-			} else {
-				return false
-			}
+func (a *ACL) evalInterface(iface sciond.PathInterface) ACLAction {
+	for _, aclEntry := range a.Entries {
+		if spathmeta.PPWildcardEquals(&iface, aclEntry.Rule) {
+			return aclEntry.Action
 		}
 	}
-	return false
-}
-
-func ppWildcardEquals(x, y *sciond.PathInterface) bool {
-	xIA, yIA := x.ISD_AS(), y.ISD_AS()
-	if xIA.I != 0 && yIA.I != 0 && xIA.I != yIA.I {
-		return false
-	}
-	if xIA.A != 0 && yIA.A != 0 && xIA.A != yIA.A {
-		return false
-	}
-	if x.IfID != 0 && y.IfID != 0 && x.IfID != y.IfID {
-		return false
-	}
-	return true
+	return Deny
 }
 
 type ACLEntry struct {
-	Type bool // deny: false, allow: true
-	PI   *sciond.PathInterface
+	Action ACLAction
+	Rule   *sciond.PathInterface
 }
 
-func NewACLEntry(tp bool, pi *sciond.PathInterface) *ACLEntry {
-	return &ACLEntry{
-		Type: tp,
-		PI:   pi,
-	}
-}
+type ACLAction bool
+
+const (
+	Deny  ACLAction = false
+	Allow ACLAction = true
+)
