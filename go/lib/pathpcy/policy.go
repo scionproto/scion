@@ -23,128 +23,68 @@ import (
 var _ pktcls.Action = (*Policy)(nil)
 
 type Policy struct {
-	name    string
-	acl     *ACL
-	list    []string
-	conds   map[string]string // bw, mtu, lat etc.
-	extends []*Policy
-	options []PolicyOption
+	Name     string
+	ACL      *ACL
+	Sequence *Sequence
+	Extends  []*Policy
+	Options  []Option
 }
 
-func NewPolicy(name string, acl *ACL, list []string, extends []*Policy,
-	options []PolicyOption) *Policy {
-	return &Policy{
-		name:    name,
-		acl:     acl,
-		list:    list,
-		extends: extends,
-		options: options}
-}
-
-// Act filters the path set accoring the policy
-// Currently implemented: ACL, List, Options
-// See planned features in doc/PathPolicy.md
+// Act filters the path set according the policy
+//
+// Currently implemented: ACL, List, Options See planned features in
+// doc/PathPolicy.md.
 func (p *Policy) Act(values interface{}) interface{} {
 	inputSet := values.(spathmeta.AppPathSet)
 	// Apply all extended policies
 	p.applyExtended()
 	// Filter on ACL
-	resultSet := p.evalPolicyACL(inputSet)
+	resultSet := p.ACL.Eval(inputSet)
 	// Filter on list
-	if len(p.list) > 0 {
-		resultSet = p.evalPolicyList(resultSet)
-	}
+	resultSet = p.Sequence.Eval(resultSet)
 	// Filter on sub policies
-	if len(p.options) > 0 {
+	if len(p.Options) > 0 {
 		resultSet = p.evalOptions(resultSet)
 	}
 	return resultSet
 }
 
 func (p *Policy) GetName() string {
-	return p.name
+	return p.Name
 }
 
 func (p *Policy) SetName(name string) {
-	p.name = name
+	p.Name = name
 }
 
 func (p *Policy) Type() string {
 	return "Policy"
 }
 
-// applyExtended addes attributes of extended policies to the extending policy if they are not
+// applyExtended adds attributes of extended policies to the extending policy if they are not
 // already set
 func (p *Policy) applyExtended() {
 	// traverse in reverse s.t. last entry of the list has precedence
-	for i := len(p.extends) - 1; i >= 0; i-- {
-		policy := p.extends[i]
+	for i := len(p.Extends) - 1; i >= 0; i-- {
+		policy := p.Extends[i]
 		policy.applyExtended()
 
 		// Replace ACL
-		if p.acl == nil && policy.acl != nil {
-			p.acl = policy.acl
+		if p.ACL == nil && policy.ACL != nil {
+			p.ACL = policy.ACL
 		}
 		// Replace options
-		if (p.options == nil || len(p.options) == 0) &&
-			(policy.options != nil && len(policy.options) > 0) {
-			p.options = policy.options
+		if (p.Options == nil || len(p.Options) == 0) &&
+			(policy.Options != nil && len(policy.Options) > 0) {
+			p.Options = policy.Options
 		}
 		// Replace list
-		if len(p.list) == 0 && len(policy.list) > 0 {
-			p.list = policy.list
-		}
-		// Replace usual attributes
-		for key := range policy.conds {
-			if _, ok := p.conds[key]; !ok {
-				p.conds[key] = policy.conds[key]
-			}
+		if p.Sequence.Length() == 0 && policy.Sequence.Length() > 0 {
+			p.Sequence = policy.Sequence
 		}
 	}
 	// all sub-policies have been set, remove them
-	p.extends = nil
-}
-
-// evalPolicyACL returns the set of paths that match the ACL
-func (p *Policy) evalPolicyACL(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
-	resultSet := make(spathmeta.AppPathSet)
-	for key, path := range inputSet {
-		// Check ACL
-		if p.acl.Eval(path) {
-			resultSet[key] = path
-		}
-	}
-	return resultSet
-}
-
-// evalPolicyList evaluates the interface sequence list and returns the set of paths that match
-// the list
-func (p *Policy) evalPolicyList(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
-	resultSet := make(spathmeta.AppPathSet)
-	for key, path := range inputSet {
-		ifaces := path.Entry.Path.Interfaces
-		if len(ifaces) != len(p.list) {
-			continue
-		}
-		matched := true
-		for i := range ifaces {
-			if p.list[i] == ".." {
-				continue
-			}
-			pi, err := sciond.NewPathInterface(p.list[i])
-			if err != nil {
-				panic(err)
-			}
-			if !ppWildcardEquals(&ifaces[i], &pi) {
-				matched = false
-				break
-			}
-		}
-		if matched {
-			resultSet[key] = path
-		}
-	}
-	return resultSet
+	p.Extends = nil
 }
 
 // evalOptions evaluates the options of a policy and returns the pathSet that matches the option
@@ -152,25 +92,84 @@ func (p *Policy) evalPolicyList(inputSet spathmeta.AppPathSet) spathmeta.AppPath
 func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	subPolicySet := make(spathmeta.AppPathSet)
 	maxWeight := 0
-	// Go through sub polcies
-	for _, option := range p.options {
-		subPolicies := option.policy.Act(inputSet).(spathmeta.AppPathSet)
+	// Go through sub policies
+	for _, option := range p.Options {
+		subPaths := option.Policy.Act(inputSet).(spathmeta.AppPathSet)
 		// Use only new policies if weight is larger than current weight
-		if option.weight > maxWeight && len(subPolicies) > 0 {
-			subPolicySet = subPolicies
-			maxWeight = option.weight
-		} else
-		// If weight is the same we return both policy sets
-		if option.weight == maxWeight {
-			for key, path := range subPolicies {
-				subPolicySet[key] = path
+		if option.Weight > maxWeight && len(subPaths) > 0 {
+			subPolicySet = subPaths
+			maxWeight = option.Weight
+		} else {
+			// If weight is the same we return both policy sets
+			if option.Weight == maxWeight {
+				for key, path := range subPaths {
+					subPolicySet[key] = path
+				}
 			}
 		}
 	}
 	return subPolicySet
 }
 
-type PolicyOption struct {
-	weight int
-	policy *Policy
+type Option struct {
+	Weight int
+	Policy *Policy
+}
+
+type Sequence struct {
+	tokens []sciond.PathInterface
+}
+
+func NewSequence(tokens []string) *Sequence {
+	list := &Sequence{}
+	for _, token := range tokens {
+		list.tokens = append(list.tokens, pathInterfaceFromToken(token))
+	}
+	return list
+}
+
+func pathInterfaceFromToken(item string) sciond.PathInterface {
+	if item == ".." {
+		return sciond.PathInterface{}
+	}
+	pi, err := sciond.NewPathInterface(item)
+	if err != nil {
+		panic(err)
+	}
+	return pi
+}
+
+func (sequence *Sequence) Length() int {
+	if sequence == nil {
+		return 0
+	}
+	return len(sequence.tokens)
+}
+
+// Eval evaluates the interface sequence list and returns the set of paths that match
+// the list
+func (sequence *Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
+	if sequence == nil || len(sequence.tokens) == 0 {
+		return inputSet
+	}
+
+	resultSet := make(spathmeta.AppPathSet)
+	for key, path := range inputSet {
+		if pathMatches(path.Entry.Path.Interfaces, sequence.tokens) {
+			resultSet[key] = path
+		}
+	}
+	return resultSet
+}
+
+func pathMatches(pathInterfaces, matcherTokens []sciond.PathInterface) bool {
+	if len(pathInterfaces) != len(matcherTokens) {
+		return false
+	}
+	for i := range pathInterfaces {
+		if !spathmeta.PPWildcardEquals(&matcherTokens[i], &pathInterfaces[i]) {
+			return false
+		}
+	}
+	return true
 }
