@@ -96,7 +96,7 @@ interface sequences.
 The following example specifies a path from any interface in AS _1-ff00:0:133_ to two subsequent
 interfaces in AS _1-ff00:0:120_, then there are two explicit wildcards each matching any interface
 (in the future one `..` wildcard will be enough to match any number of interfaces). The path must
-end with interface _1-ff00:0:110_.
+end with any interface in AS _1-ff00:0:110_.
 
 ```
 - policy:
