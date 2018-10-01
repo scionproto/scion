@@ -70,6 +70,7 @@ type ACLEntry struct {
 	Rule   *sciond.PathInterface
 }
 
+// ACLAction has two options: Deny and Allow
 type ACLAction bool
 
 const (
