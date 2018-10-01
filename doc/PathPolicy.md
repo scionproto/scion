@@ -9,9 +9,17 @@ An interface predicate is of the form **ISD-AS#IF**, whereas _0_ can be used as 
 **ISD**, **AS** and **IF** indepedently. If the **AS** identifier is set to _0_, the **IF**
 identifier must also be set to _0_.
 
-Interface predicates generally only refer to interfaces, if you want to create a predicate for an
-**ISD-AS** only, the **#IF** part may be omitted. The same applies if the predicate should only
-apply to an **ISD**, then the **AS** identifier can be omitted.
+Most of the time specifying predicates for an **ISD-AS** is what is needed. This can be accomplished
+by omitting the **#IF** part. If the **AS** identifier is omitted, the predicate only applies to an
+**ISD**.
+
+Examples:
+
+-   Match interface _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
+-   Match any interface of AS _1-ff00:0:133_: `1-ff00:0:133#0`
+-   Match any interface of ISD _1_: `1-0#0`
+-   Match any number of interfaces in AS _1-ff00:0:133_: `1-ff00:0:133`
+-   Match any number of interfaces in ISD _1_: `1`
 
 ## Operators
 
@@ -73,25 +81,25 @@ and `TOML`.
 ### ACL
 
 The ACL can be used to white- and blacklist ISDs, ASes and IFs. The first match wins and an explicit
-default action needs to be supplied.
+default action needs to be supplied. If the `acl` attribute is not used as part of a policy, by
+default everything is whitelisted.
 
 The following is an example for allowing all interfaces in ASes _1-ff00:0:133_ and _1-ff00:0:120_,
-but denying all other interfaces in ISD _1_. The last entry makes sure that any other ISD is
-allowed.
+but denying all other ASes in ISD _1_. The last entry makes sure that any other ISD is allowed.
 
 ```
 - policy:
   acl:
-  - '+ 1-ff00:0:133#0'
-  - '+ 1-ff00:0:120#0'
-  - '- 1-0#0'
+  - '+ 1-ff00:0:133'
+  - '+ 1-ff00:0:120'
+  - '- 1'
   - '+'
 ```
 
 ### Sequence
 
-The sequence is a string of space separated IFPs. The [operators](#Operators) can be used for advanced
-interface sequences.
+The sequence is a string of space separated IFPs. The [operators](#Operators) can be used for
+advanced interface sequences.
 
 The following example specifies a path from any interface in AS _1-ff00:0:133_ to two subsequent
 interfaces in AS _1-ff00:0:120_, then there are two explicit wildcards each matching any interface
