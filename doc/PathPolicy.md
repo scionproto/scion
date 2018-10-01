@@ -9,17 +9,11 @@ An interface predicate is of the form **ISD-AS#IF**, whereas _0_ can be used as 
 **ISD**, **AS** and **IF** indepedently. If the **AS** identifier is set to _0_, the **IF**
 identifier must also be set to _0_.
 
-Most of the time specifying predicates for an **ISD-AS** is what is needed. This can be accomplished
-by omitting the **#IF** part. If the **AS** identifier is omitted, the predicate only applies to an
-**ISD**.
-
 Examples:
 
 -   Match interface _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
--   Match any interface of AS _1-ff00:0:133_: `1-ff00:0:133#0`
--   Match any interface of ISD _1_: `1-0#0`
--   Match any number of interfaces in AS _1-ff00:0:133_: `1-ff00:0:133`
--   Match any number of interfaces in ISD _1_: `1`
+-   Match any interface of AS _1-ff00:0:133_: `1-ff00:0:133#0` or `1-ff00:0:133`
+-   Match any interface in ISD _1_: `1-0#0`, `1-0` or `1`
 
 ## Operators
 
@@ -32,8 +26,8 @@ ACL:
 
 Sequence:
 
--   `..` (wildcard for multiple IFPs)
 -   `?` (the preceding IFP may appear at most once)
+-   `+` (the preceding IFP must appear at least once)
 -   `!` (logical NOT)
 -   `|` (logical OR)
 -   `&` (logical AND)
@@ -42,7 +36,7 @@ Sequence:
 
 A policy is defined by a policy object. It can have the following attributes:
 
--   [`sequence`](#Sequence) (space separated list of IFPs, may contain `..` as wildcard)
+-   [`sequence`](#Sequence) (space separated list of IFPs, may contain operators)
 -   [`acl`](#ACL) (list of IFPs, preceded by `+` or `-`)
 
 Planned:
@@ -88,7 +82,7 @@ The following is an example for allowing all interfaces in ASes _1-ff00:0:133_ a
 but denying all other ASes in ISD _1_. The last entry makes sure that any other ISD is allowed.
 
 ```
-- policy:
+- acl_policy_example:
   acl:
   - '+ 1-ff00:0:133'
   - '+ 1-ff00:0:120'
@@ -102,13 +96,31 @@ The sequence is a string of space separated IFPs. The [operators](#Operators) ca
 advanced interface sequences.
 
 The following example specifies a path from any interface in AS _1-ff00:0:133_ to two subsequent
-interfaces in AS _1-ff00:0:120_, then there are two explicit wildcards each matching any interface
-(in the future one `..` wildcard will be enough to match any number of interfaces). The path must
-end with any interface in AS _1-ff00:0:110_.
+interfaces in AS _1-ff00:0:120_ (entering on interface _2_ and exiting on interface _1_), then there
+are two wildcards that each match any AS. The path must end with any interface in AS _1-ff00:0:110_.
 
 ```
-- policy:
-  sequence: "1-ff00:0:133#0 1-ff00:0:120#0 1-ff00:0:120#0 .. .. 1-ff00:0:110#0"
+- sequence_example_1:
+  sequence: "1-ff00:0:133#0 1-ff00:0:120#2 1-ff00:0:120#1 0 0 1-ff00:0:110#0"
+```
+
+Another possible way of expressing the same behaviour:
+
+```
+- sequence_example_2:
+  sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
+```
+
+Any path that is matched by the above policy must traverse three transit ASes. In many cases the
+number of ASes or hops is not know. With the regex-style it is possible to express such sequences.
+
+The following example specifies a path from interface _1-ff00:0:133#1_ through multiple ASes in ISD
+_1_, that may (but does not need to) traverse AS _2-ff00:0:1_ and then reaches its destination on
+_2-ff00:0:233#1_.
+
+```
+- sequence_more_complex:
+  sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
 ```
 
 ### Extends
@@ -121,7 +133,7 @@ always has precedence over attributes of an extended policy.
 The following example uses two sub-policies to create the top-level policy.
 
 ```
-- policy:
+- extends_example:
   extends:
   - sub_pol_1
   - sub_pol_2
@@ -132,7 +144,7 @@ The following example uses two sub-policies to create the top-level policy.
   - "+"
 
 - sub_pol_2:
-  sequence: ".. 1-ff00:0:110#0 1-ff00:0:110#0 .."
+  sequence: "0+ 1-ff00:0:110#0 1-ff00:0:110#0 0+"
 ```
 
 ### Options
@@ -149,7 +161,7 @@ the second option which denies hops in multiple ASes is used. If that again does
 third option which denies only hops in AS _1-ff00:0:133_, is used.
 
 ```
-- policy:
+- policy_with_options:
   options:
     - weight: 3
       extends: option_3
