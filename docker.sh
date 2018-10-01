@@ -21,6 +21,7 @@ cmd_base() {
     copy_tree
     docker_build "base"
     docker tag scion_base:latest "$ORG/scion_base:pending"
+    touch docker/_build/scion_base.stamp
 }
 
 cmd_build() {
@@ -64,6 +65,7 @@ docker_build() {
     echo
     docker build $DOCKER_ARGS -f "$conf" -t "$tag" "$build_dir/scion.git" | tee "$log"
     docker tag "$tag" "$image_name:latest"
+    touch docker/_build/scion.stamp
 }
 
 cmd_clean() {
