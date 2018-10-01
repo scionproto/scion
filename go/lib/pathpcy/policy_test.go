@@ -176,8 +176,10 @@ func TestACLEval(t *testing.T) {
 		ExpPathNum int
 	}{
 		{
-			Name:       "if no default action, deny",
-			ACL:        &ACL{Entries: []*ACLEntry{{Action: Allow, Rule: mustPathInterface(t, "1-0#0")}}},
+			Name: "if no default action, deny",
+			ACL: &ACL{Entries: []*ACLEntry{{
+				Action: Allow,
+				Rule:   mustPathInterface(t, "1-0#0")}}},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 0,
@@ -290,7 +292,9 @@ func TestOptionsEval(t *testing.T) {
 			Policy: &Policy{Options: []Option{
 				{
 					Policy: &Policy{
-						ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")})},
+						ACL: NewACLWithDefault(false, &ACLEntry{
+							Action: Allow,
+							Rule:   mustPathInterface(t, "0-0#0")})},
 					Weight: 0},
 			}},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
@@ -302,11 +306,15 @@ func TestOptionsEval(t *testing.T) {
 			Policy: &Policy{Options: []Option{
 				{
 					Policy: &Policy{
-						ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")})},
+						ACL: NewACLWithDefault(false, &ACLEntry{
+							Action: Allow,
+							Rule:   mustPathInterface(t, "0-0#0")})},
 					Weight: 0},
 				{
 					Policy: &Policy{
-						ACL: NewACLWithDefault(false, &ACLEntry{Action: Deny, Rule: mustPathInterface(t, "0-0#0")})},
+						ACL: NewACLWithDefault(false, &ACLEntry{
+							Action: Deny,
+							Rule:   mustPathInterface(t, "0-0#0")})},
 					Weight: 1},
 			}},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
@@ -405,10 +413,14 @@ func TestExtends(t *testing.T) {
 		{
 			Name: "one extends, use sub acl",
 			Policy: &Policy{Extends: []*Policy{
-				{ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")})},
+				{ACL: NewACLWithDefault(false, &ACLEntry{
+					Action: Allow,
+					Rule:   mustPathInterface(t, "0-0#0")})},
 			}},
 			ExtendedPolicy: &Policy{
-				ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")})},
+				ACL: NewACLWithDefault(false, &ACLEntry{
+					Action: Allow,
+					Rule:   mustPathInterface(t, "0-0#0")})},
 		},
 		{
 			Name: "use option of extension policy",
@@ -418,7 +430,9 @@ func TestExtends(t *testing.T) {
 						{
 							Weight: 1,
 							Policy: &Policy{
-								ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")}),
+								ACL: NewACLWithDefault(false, &ACLEntry{
+									Action: Allow,
+									Rule:   mustPathInterface(t, "0-0#0")}),
 							},
 						},
 					},
@@ -429,7 +443,9 @@ func TestExtends(t *testing.T) {
 					{
 						Weight: 1,
 						Policy: &Policy{
-							ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")}),
+							ACL: NewACLWithDefault(false, &ACLEntry{
+								Action: Allow,
+								Rule:   mustPathInterface(t, "0-0#0")}),
 						},
 					},
 				},
@@ -438,22 +454,30 @@ func TestExtends(t *testing.T) {
 		{
 			Name: "two extends, use sub acl and list",
 			Policy: &Policy{Extends: []*Policy{
-				{ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")})},
+				{ACL: NewACLWithDefault(false, &ACLEntry{
+					Action: Allow,
+					Rule:   mustPathInterface(t, "0-0#0")})},
 				{Sequence: NewSequence([]string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
 			}},
 			ExtendedPolicy: &Policy{
-				ACL:      NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")}),
+				ACL: NewACLWithDefault(false, &ACLEntry{
+					Action: Allow,
+					Rule:   mustPathInterface(t, "0-0#0")}),
 				Sequence: NewSequence([]string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
 		},
 		{
 			Name: "two extends, only use acl",
 			Policy: &Policy{Sequence: NewSequence([]string{"1-ff00:0:133#0", "1-ff00:0:132#0"}),
 				Extends: []*Policy{
-					{ACL: NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")})},
+					{ACL: NewACLWithDefault(false, &ACLEntry{
+						Action: Allow,
+						Rule:   mustPathInterface(t, "0-0#0")})},
 					{Sequence: NewSequence([]string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
 				}},
 			ExtendedPolicy: &Policy{
-				ACL:      NewACLWithDefault(false, &ACLEntry{Action: Allow, Rule: mustPathInterface(t, "0-0#0")}),
+				ACL: NewACLWithDefault(false, &ACLEntry{
+					Action: Allow,
+					Rule:   mustPathInterface(t, "0-0#0")}),
 				Sequence: NewSequence([]string{"1-ff00:0:133#0", "1-ff00:0:132#0"})},
 		},
 		{
@@ -464,7 +488,8 @@ func TestExtends(t *testing.T) {
 					{Sequence: NewSequence([]string{"1-ff00:0:133#1012", "1-ff00:0:132#1912"})},
 					{Sequence: NewSequence([]string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})},
 				}},
-			ExtendedPolicy: &Policy{Sequence: NewSequence([]string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})},
+			ExtendedPolicy: &Policy{
+				Sequence: NewSequence([]string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})},
 		},
 		{
 			Name: "nested extends",
@@ -475,11 +500,13 @@ func TestExtends(t *testing.T) {
 							{
 								Extends: []*Policy{
 									{
-										Sequence: NewSequence([]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+										Sequence: NewSequence(
+											[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
 								}},
 						}},
 				}},
-			ExtendedPolicy: &Policy{Sequence: NewSequence([]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+			ExtendedPolicy: &Policy{
+				Sequence: NewSequence([]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
 		},
 		{
 			Name: "nested extends, evaluating order",
@@ -491,11 +518,13 @@ func TestExtends(t *testing.T) {
 							{
 								Extends: []*Policy{
 									{
-										Sequence: NewSequence([]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+										Sequence: NewSequence(
+											[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
 								}},
 						}},
 				}},
-			ExtendedPolicy: &Policy{Sequence: NewSequence([]string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+			ExtendedPolicy: &Policy{
+				Sequence: NewSequence([]string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
 		},
 	}
 

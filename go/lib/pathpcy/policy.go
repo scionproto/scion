@@ -22,6 +22,9 @@ import (
 
 var _ pktcls.Action = (*Policy)(nil)
 
+// Policy is a path policy object
+// Currently implemented: ACL, Sequence, Extends and Options. See planned features in
+// doc/PathPolicy.md.
 type Policy struct {
 	Name     string
 	ACL      *ACL
@@ -31,16 +34,13 @@ type Policy struct {
 }
 
 // Act filters the path set according the policy
-//
-// Currently implemented: ACL, List, Options See planned features in
-// doc/PathPolicy.md.
 func (p *Policy) Act(values interface{}) interface{} {
 	inputSet := values.(spathmeta.AppPathSet)
 	// Apply all extended policies
 	p.applyExtended()
 	// Filter on ACL
 	resultSet := p.ACL.Eval(inputSet)
-	// Filter on list
+	// Filter on Sequence
 	resultSet = p.Sequence.Eval(resultSet)
 	// Filter on sub policies
 	if len(p.Options) > 0 {
@@ -78,7 +78,7 @@ func (p *Policy) applyExtended() {
 			(policy.Options != nil && len(policy.Options) > 0) {
 			p.Options = policy.Options
 		}
-		// Replace list
+		// Replace Sequence
 		if p.Sequence.Length() == 0 && policy.Sequence.Length() > 0 {
 			p.Sequence = policy.Sequence
 		}
@@ -111,15 +111,18 @@ func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet
 	return subPolicySet
 }
 
+// Option contains a weight and a policy and is used as a list item in Policy.Options
 type Option struct {
 	Weight int
 	Policy *Policy
 }
 
+// Sequence is a list of path interfaces that a path should match
 type Sequence struct {
 	tokens []sciond.PathInterface
 }
 
+// NewSequence creates a new sequence from a list of string tokens
 func NewSequence(tokens []string) *Sequence {
 	list := &Sequence{}
 	for _, token := range tokens {
