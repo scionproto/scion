@@ -3,7 +3,7 @@
 . acceptance/lib.sh
 
 cmd_help() {
-	echo
+    echo
 	cat <<-_EOF
 	    $PROGRAM setup TESTNAME
 	        only the setup phase of test TESTNAME.
@@ -24,7 +24,7 @@ case "$COMMAND" in
         TEST="$2"
         . "acceptance/${TEST}_acceptance/test.sh"
         "test_$COMMAND" ;;
-	gsetup)
-		global_setup ;;
+    gsetup)
+        global_setup ;;
     *) cmd_help; exit 1 ;;
 esac
