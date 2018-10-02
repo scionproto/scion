@@ -4,12 +4,12 @@
             "CondAllOf": [
                 {
                     "CondPathPredicate": {
-                        "PP": "0-0#123"
+                        "PP": "1-2#123"
                     }
                 },
                 {
                     "CondPathPredicate": {
-                        "PP": "0-0#134"
+                        "PP": "2-1#134"
                     }
                 }
             ]
