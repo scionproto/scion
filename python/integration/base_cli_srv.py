@@ -197,6 +197,7 @@ class TestClientBase(TestBase):
                 if time.time() - now > 5.0:
                     logging.error("Could not find paths for 5s, giving up")
                     self._stop(False)
+                    break
                 time.sleep(0.5)
             self.retries -= 1
             logging.info(
