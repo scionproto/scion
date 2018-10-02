@@ -162,7 +162,7 @@ func (r *PR) Query(src, dst addr.IA) spathmeta.AppPathSet {
 
 func (r *PR) QueryFilter(src, dst addr.IA, policy *pathpcy.Policy) spathmeta.AppPathSet {
 	aps := r.Query(src, dst)
-	// Delete paths that do not match the predicate
+	// Delete paths that do not match the path policy
 	return policy.Act(aps).(spathmeta.AppPathSet)
 }
 
