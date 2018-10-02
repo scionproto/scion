@@ -19,6 +19,7 @@ package infraenv
 import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
@@ -70,4 +71,12 @@ func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}
 	return conn, nil
+}
+
+func InitInfraEnvironment(topologyPath string) *env.Env {
+	return env.SetupEnv(
+		func() {
+			env.ReloadTopology(topologyPath)
+		},
+	)
 }

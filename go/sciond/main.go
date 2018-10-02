@@ -170,7 +170,7 @@ func Init(configName string) error {
 		return err
 	}
 	itopo.SetCurrentTopology(config.General.Topology)
-	environment = env.SetupEnv(nil)
+	environment = infraenv.InitInfraEnvironment(config.General.TopologyPath)
 	err = env.InitLogging(&config.Logging)
 	if err != nil {
 		return err

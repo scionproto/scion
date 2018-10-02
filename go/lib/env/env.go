@@ -29,6 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -119,17 +120,30 @@ func (e *Env) setupSignals(reloadF func()) {
 	signal.Notify(sig, os.Interrupt)
 	signal.Notify(sig, syscall.SIGTERM)
 	go func() {
+		defer log.LogPanicAndExit()
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
 		close(e.AppShutdownSignal)
 	}()
 	go func() {
-		<-sighupC
-		log.Info("Received config reload signal")
-		if reloadF != nil {
-			reloadF()
+		defer log.LogPanicAndExit()
+		for range sighupC {
+			log.Info("Received config reload signal")
+			if reloadF != nil {
+				reloadF()
+			}
 		}
 	}()
+}
+
+func ReloadTopology(topologyPath string) {
+	topo, err := topology.LoadFromFile(topologyPath)
+	if err != nil {
+		log.Error("Unable to reload topology", "err", err)
+		return
+	}
+	itopo.SetCurrentTopology(topo)
+	log.Info("Reloaded topology")
 }
 
 func GetPublicSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
