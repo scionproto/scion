@@ -95,14 +95,14 @@ func TestActionMap(t *testing.T) {
 			},
 		},
 		{
-			Name:     "CondAnyOf(false, 0-0#123)",
+			Name:     "CondAnyOf(false, 1-1#123)",
 			FileName: "act_5",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
 					Cond: CondAnyOf{
 						CondFalse,
-						mustCondPathPredicate(t, "0-0#123"),
+						mustCondPathPredicate(t, "1-1#123"),
 					},
 				},
 			},
@@ -126,45 +126,45 @@ func TestActionMap(t *testing.T) {
 			},
 		},
 		{
-			Name:     "CondAllOf(0-0#123, 0-0#134)",
+			Name:     "CondAllOf(1-2#123, 2-1#134)",
 			FileName: "act_7",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
 					Cond: CondAllOf{
-						mustCondPathPredicate(t, "0-0#123"),
-						mustCondPathPredicate(t, "0-0#134"),
+						mustCondPathPredicate(t, "1-2#123"),
+						mustCondPathPredicate(t, "2-1#134"),
 					},
 				},
 			},
 		},
 		{
-			Name:     "CondAnyOf(0-0#123, 0-0#134)",
+			Name:     "CondAnyOf(1-2#123, 2-1#134)",
 			FileName: "act_8",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
 					Cond: CondAnyOf{
-						mustCondPathPredicate(t, "0-0#123"),
-						mustCondPathPredicate(t, "0-0#134"),
+						mustCondPathPredicate(t, "1-2#123"),
+						mustCondPathPredicate(t, "2-1#134"),
 					},
 				},
 			},
 		},
 		{
-			Name:     "CondAnyOf(CondAllOf(0-0#123, 0-0#234), CondAllOf(0-0#345, 0-0#456))",
+			Name:     "CondAnyOf(CondAllOf(1-2#123, 2-1#234), CondAllOf(1-2#345, 2-1#456))",
 			FileName: "act_9",
 			Actions: map[string]Action{
 				"A": &ActionFilterPaths{
 					Name: "A",
 					Cond: CondAnyOf{
 						CondAllOf{
-							mustCondPathPredicate(t, "0-0#123"),
-							mustCondPathPredicate(t, "0-0#234"),
+							mustCondPathPredicate(t, "1-2#123"),
+							mustCondPathPredicate(t, "2-1#234"),
 						},
 						CondAllOf{
-							mustCondPathPredicate(t, "0-0#345"),
-							mustCondPathPredicate(t, "0-0#456"),
+							mustCondPathPredicate(t, "1-2#345"),
+							mustCondPathPredicate(t, "2-1#456"),
 						},
 					},
 				},

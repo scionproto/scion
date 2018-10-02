@@ -64,6 +64,9 @@ func TestQuery(t *testing.T) {
 	})
 }
 
+var allowEntry = &pathpcy.ACLEntry{Action: pathpcy.ACLAction(true), Rule: &sciond.PathInterface{}}
+var denyEntry = &pathpcy.ACLEntry{Action: pathpcy.ACLAction(false), Rule: &sciond.PathInterface{}}
+
 func TestQueryFilter(t *testing.T) {
 	Convey("Query with policy filter, only one path should remain", t, func() {
 		g := graph.NewDefaultGraph()
@@ -75,9 +78,10 @@ func TestQueryFilter(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		SoMsg("err", err, ShouldBeNil)
 
-		aclEntry := &pathpcy.ACLEntry{Action: pathpcy.Allow, Rule: &pp}
-		acl := pathpcy.NewACLWithDefault(false, aclEntry)
-		policy := &pathpcy.Policy{ACL: acl}
+		policy := &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
+			{Action: pathpcy.Allow, Rule: &pp},
+			denyEntry,
+		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
 
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
@@ -89,9 +93,10 @@ func TestQueryFilter(t *testing.T) {
 		pp, err = sciond.NewPathInterface("1-ff00:0:134#1910")
 		xtest.FailOnErr(t, err)
 		SoMsg("err", err, ShouldBeNil)
-		aclEntry = &pathpcy.ACLEntry{Action: pathpcy.Deny, Rule: &pp}
-		acl = pathpcy.NewACLWithDefault(true, aclEntry)
-		policy = &pathpcy.Policy{ACL: acl}
+		policy = &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
+			{Action: pathpcy.Allow, Rule: &pp},
+			allowEntry,
+		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
 
 		aps = pm.QueryFilter(srcIA, dstIA, policy)
@@ -103,9 +108,10 @@ func TestQueryFilter(t *testing.T) {
 		pp, err = sciond.NewPathInterface("1-ff00:0:132#1910")
 		xtest.FailOnErr(t, err)
 		SoMsg("err", err, ShouldBeNil)
-		aclEntry = &pathpcy.ACLEntry{Action: pathpcy.Deny, Rule: &pp}
-		acl = pathpcy.NewACLWithDefault(true, aclEntry)
-		policy = &pathpcy.Policy{ACL: acl}
+		policy = &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
+			{Action: pathpcy.Deny, Rule: &pp},
+			denyEntry,
+		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
 
 		aps = pm.QueryFilter(srcIA, dstIA, policy)
@@ -120,19 +126,28 @@ func TestACLPolicyFilter(t *testing.T) {
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-		as121, _ := sciond.NewPathInterface("1-ff00:0:121#0")
-		as121Entry := &pathpcy.ACLEntry{Action: pathpcy.Deny, Rule: &as121}
-		acl := pathpcy.NewACLWithDefault(true, as121Entry)
-		policy := &pathpcy.Policy{ACL: acl}
+		pp, _ := sciond.NewPathInterface("1-ff00:0:121#0")
+		policy := &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
+			{
+				Action: pathpcy.Deny,
+				Rule:   &pp,
+			},
+			allowEntry,
+		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
 
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 2)
 
-		as211IF, _ := sciond.NewPathInterface("2-ff00:0:211#2327")
-		as211IFEntry := &pathpcy.ACLEntry{Action: pathpcy.Deny, Rule: &as211IF}
-		acl = pathpcy.NewACLWithDefault(true, as121Entry, as211IFEntry)
-		policy = &pathpcy.Policy{ACL: acl}
+		pp2, _ := sciond.NewPathInterface("2-ff00:0:211#2327")
+		policy = &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
+			{
+				Action: pathpcy.Deny,
+				Rule:   &pp,
+			},
+			{Action: pathpcy.Deny, Rule: &pp2},
+			allowEntry,
+		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
 
 		aps = pm.QueryFilter(srcIA, dstIA, policy)
