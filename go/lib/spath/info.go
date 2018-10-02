@@ -23,6 +23,13 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+// Info Field format:
+//
+//  0      7                                   39                55       63
+// +--------+--------+--------+--------+--------+--------+--------+--------+
+// | Flags  |             Timestamp             |       ISD       |  Hops  |
+// +--------+--------+--------+--------+--------+--------+--------+--------+
+//
 const (
 	InfoFieldLength    = common.LineLen
 	ErrorInfoFTooShort = "InfoF too short"

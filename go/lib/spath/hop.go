@@ -26,6 +26,24 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
+// Hop Field format:
+//
+//  0      7        15           27           39                         63
+// +--------+--------+------------+------------+--------+--------+--------+
+// | Flags  | ExpTime| ConsIngress| ConsEgress |           MAC            |
+// +--------+--------+------------+------------+--------+--------+--------+
+//
+const (
+	HopFieldLength    = common.LineLen
+	DefaultHopFExpiry = ExpTimeType(63)
+	MacLen            = 3
+	ErrorHopFTooShort = "HopF too short"
+	ErrorHopFBadMac   = "Bad HopF MAC"
+	XoverMask         = 0x01
+	VerifyOnlyMask    = 0x02
+	RecurseMask       = 0x04
+)
+
 type ExpTimeType uint8
 
 func (e ExpTimeType) ToDuration() time.Duration {
@@ -33,7 +51,6 @@ func (e ExpTimeType) ToDuration() time.Duration {
 }
 
 type HopField struct {
-	data       common.RawBytes
 	Xover      bool
 	VerifyOnly bool
 	Recurse    bool
@@ -46,31 +63,7 @@ type HopField struct {
 	ConsEgress common.IFIDType
 	// Mac is the message authentication code of this HF,
 	// see CalcMac() to see how it should be calculated.
-	Mac    common.RawBytes
-	length int
-}
-
-const (
-	HopFieldLength    = common.LineLen
-	DefaultHopFExpiry = ExpTimeType(63)
-	MacLen            = 3
-	ErrorHopFTooShort = "HopF too short"
-	ErrorHopFBadMac   = "Bad HopF MAC"
-	XoverMask         = 0x01
-	VerifyOnlyMask    = 0x02
-	RecurseMask       = 0x04
-)
-
-func NewHopField(b common.RawBytes, in common.IFIDType,
-	out common.IFIDType, expTime ExpTimeType) *HopField {
-
-	h := &HopField{}
-	h.data = b
-	h.ExpTime = expTime
-	h.ConsIngress = in
-	h.ConsEgress = out
-	h.Write()
-	return h
+	Mac common.RawBytes
 }
 
 // HopFFromRaw returns a HopField object from the raw content in b.
@@ -84,29 +77,22 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 			"min", HopFieldLength, "actual", len(b))
 	}
 	h := &HopField{}
-	h.data = b[:HopFieldLength]
-	flags := h.data[0]
+	flags := b[0]
 	h.Xover = flags&XoverMask != 0
 	h.VerifyOnly = flags&VerifyOnlyMask != 0
 	h.Recurse = flags&RecurseMask != 0
-	offset := 1
-	h.ExpTime = ExpTimeType(h.data[offset])
-	offset += 1
+	h.ExpTime = ExpTimeType(b[1])
 	// Interface IDs are 12b each, encoded into 3B
-	h.ConsIngress = common.IFIDType(int(h.data[offset])<<4 | int(h.data[offset+1])>>4)
-	h.ConsEgress = common.IFIDType((int(h.data[offset+1])&0xF)<<8 | int(h.data[offset+2]))
-	offset += 3
-	h.Mac = h.data[offset:]
-	h.length = common.LineLen
+	ifids := common.Order.Uint32(b[1:5])
+	h.ConsEgress = common.IFIDType(ifids & 0xFFF)
+	h.ConsIngress = common.IFIDType((ifids >> 12) & 0xFFF)
+	h.Mac = make([]byte, MacLen)
+	copy(h.Mac, b[5:HopFieldLength])
+	// h.Mac = b[5:HopFieldLength]
 	return h, nil
 }
 
-// Len returns the length (in bytes)
-func (h *HopField) Len() int {
-	return h.length
-}
-
-func (h *HopField) Write() {
+func (h *HopField) Write(b common.RawBytes) {
 	var flags uint8
 	if h.Xover {
 		flags |= XoverMask
@@ -117,23 +103,20 @@ func (h *HopField) Write() {
 	if h.Recurse {
 		flags |= RecurseMask
 	}
-	h.data[0] = flags
-	h.data[1] = uint8(h.ExpTime)
+	b[0] = flags
 	// Interface IDs are 12b each, encoded into 3B
-	h.data[2] = byte(h.ConsIngress >> 4)
-	h.data[3] = byte((h.ConsIngress&0x0F)<<4 | h.ConsEgress>>8)
-	h.data[4] = byte(h.ConsEgress & 0xFF)
-	copy(h.data[5:], h.Mac)
+	tmp := uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
+	common.Order.PutUint32(b[1:5], tmp)
+	copy(b[5:], h.Mac)
 }
 
 func (h *HopField) String() string {
 	return fmt.Sprintf("ConsIngress: %v ConsEgress: %v ExpTime: %v Xover: %v VerifyOnly: %v "+
-		"Mac: %v",
-		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
+		"Mac: %v", h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
 }
 
-func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) error {
-	if mac, err := h.CalcMac(mac, tsInt, prev); err != nil {
+func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) error {
+	if mac, err := h.CalcMac(macH, tsInt, prev); err != nil {
 		return err
 	} else if !bytes.Equal(h.Mac, mac) {
 		return common.NewBasicError(ErrorHopFBadMac, nil, "expected", h.Mac, "actual", mac)
@@ -142,12 +125,15 @@ func (h *HopField) Verify(mac hash.Hash, tsInt uint32, prev common.RawBytes) err
 }
 
 // CalcMac calculates the MAC of a HopField and its preceeding HopField, if any.
+// prev does not contain flags byte.
 func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	prev common.RawBytes) (common.RawBytes, error) {
+
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
-	all[4] = 0 // Ignore flags
-	copy(all[5:], h.data[1:5])
+	//all[4] = 0 // Ignore flags
+	tmp := uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
+	common.Order.PutUint32(all[5:], tmp)
 	copy(all[9:], prev)
 	tag, err := scrypto.Mac(mac, all)
 	return tag[:MacLen], err
@@ -155,7 +141,8 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 
 // WriteTo implements the io.WriterTo interface.
 func (h *HopField) WriteTo(w io.Writer) (int64, error) {
-	h.Write()
-	n, err := w.Write(h.data)
+	b := make(common.RawBytes, HopFieldLength)
+	h.Write(b)
+	n, err := w.Write(b)
 	return int64(n), err
 }

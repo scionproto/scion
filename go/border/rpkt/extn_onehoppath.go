@@ -74,7 +74,10 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, error) {
 	prevIdx := hOff - spath.HopFieldLength
 	prevHof := o.rp.Raw[prevIdx+1 : hOff]
 	inIFid := o.rp.Ingress.IfID
-	hopF := spath.NewHopField(o.rp.Raw[hOff:], inIFid, 0, spath.DefaultHopFExpiry)
+	hopF := spath.HopField{
+		ConsIngress: inIFid,
+		ExpTime:     spath.DefaultHopFExpiry,
+	}
 	hfmac := o.rp.Ctx.Conf.HFMacPool.Get().(hash.Hash)
 	mac, err := hopF.CalcMac(hfmac, infoF.TsInt, prevHof)
 	o.rp.Ctx.Conf.HFMacPool.Put(hfmac)
@@ -82,7 +85,7 @@ func (o *rOneHopPath) HopF() (HookResult, *spath.HopField, error) {
 		return HookError, nil, err
 	}
 	hopF.Mac = mac
-	hopF.Write()
+	hopF.Write(o.rp.Raw[hOff:])
 	// Return HookContinue so that the default HopF parsing will read the newly
 	// created HopF out of the raw buffer.
 	return HookContinue, nil, nil
