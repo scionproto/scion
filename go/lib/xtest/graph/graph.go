@@ -246,7 +246,12 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 		}
 
 		b := make(common.RawBytes, spath.HopFieldLength)
-		spath.NewHopField(b, inIF, outIF, spath.DefaultHopFExpiry)
+		hf := spath.HopField{
+			ConsIngress: inIF,
+			ConsEgress:  outIF,
+			ExpTime:     spath.DefaultHopFExpiry,
+		}
+		hf.Write(b)
 		localHopEntry := &seg.HopEntry{
 			RawInIA:     inIA.IAInt(),
 			RemoteInIF:  remoteInIF,
@@ -270,7 +275,12 @@ func (g *Graph) Beacon(ifids []common.IFIDType) *seg.PathSegment {
 			peeringLocalIF := common.IFIDType(intIFID)
 			if g.isPeer[peeringLocalIF] {
 				b := make(common.RawBytes, spath.HopFieldLength)
-				spath.NewHopField(b, peeringLocalIF, outIF, spath.DefaultHopFExpiry)
+				hf := spath.HopField{
+					ConsIngress: peeringLocalIF,
+					ConsEgress:  outIF,
+					ExpTime:     spath.DefaultHopFExpiry,
+				}
+				hf.Write(b)
 				peeringRemoteIF := g.links[peeringLocalIF]
 				peeringIA := g.parents[peeringRemoteIF]
 				peerHopEntry := &seg.HopEntry{
