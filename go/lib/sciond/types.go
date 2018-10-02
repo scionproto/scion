@@ -315,22 +315,49 @@ type PathInterface struct {
 }
 
 func NewPathInterface(str string) (PathInterface, error) {
-	tokens := strings.Split(str, "#")
-	if len(tokens) != 2 {
+	var iface PathInterface
+	// Allow short form with implicit AS wildcard
+	isdParts := strings.Split(str, "-")
+	var as addr.AS
+	if len(isdParts) == 2 {
+		asParts := strings.Split(isdParts[1], "#")
+		// Allow short form with implicit IF wildcard
+		if len(asParts) == 1 {
+			iface.IfID = common.IFIDType(0)
+		} else if len(asParts) == 2 {
+			ifid, err := strconv.ParseUint(asParts[1], 10, 64)
+			if err != nil {
+				return PathInterface{}, err
+			}
+			iface.IfID = common.IFIDType(ifid)
+		} else {
+			return PathInterface{},
+				common.NewBasicError("Failed to parse interface spec", nil, "value", str)
+		}
+		var err error
+		as, err = addr.ASFromString(asParts[0])
+		if err != nil {
+			return PathInterface{}, err
+		}
+		// Check for non-wildcard IF on a wildcard AS
+		if as == addr.AS(0) {
+			if iface.IfID != 0 {
+				return PathInterface{},
+					common.NewBasicError("Failed to parse interface spec", nil, "value", str)
+			}
+		}
+	} else if len(isdParts) == 1 {
+		as = addr.AS(0)
+		iface.IfID = common.IFIDType(0)
+	} else {
 		return PathInterface{},
 			common.NewBasicError("Failed to parse interface spec", nil, "value", str)
 	}
-	var iface PathInterface
-	ia, err := addr.IAFromString(tokens[0])
+	isd, err := addr.ISDFromString(isdParts[0])
 	if err != nil {
 		return PathInterface{}, err
 	}
-	iface.RawIsdas = ia.IAInt()
-	ifid, err := strconv.ParseUint(tokens[1], 10, 64)
-	if err != nil {
-		return PathInterface{}, err
-	}
-	iface.IfID = common.IFIDType(ifid)
+	iface.RawIsdas = addr.IA{I: isd, A: as}.IAInt()
 	return iface, nil
 }
 

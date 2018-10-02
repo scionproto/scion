@@ -9,6 +9,8 @@ An interface predicate is of the form **ISD-AS#IF**, whereas _0_ can be used as 
 **ISD**, **AS** and **IF** indepedently. If the **AS** identifier is set to _0_, the **IF**
 identifier must also be set to _0_.
 
+If a tail elements in an IFP are 0, they can be omitted. See the following examples for details.
+
 Examples:
 
 -   Match interface _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
@@ -27,7 +29,8 @@ ACL:
 Sequence:
 
 -   `?` (the preceding IFP may appear at most once)
--   `+` (the preceding IFP must appear at least once)
+-   `+` (the preceding **ISD-level** IFP must appear at least once)
+-   `*` (the preceding **ISD-level** IFP may appear zero or more times)
 -   `!` (logical NOT)
 -   `|` (logical OR)
 -   `&` (logical AND)
@@ -38,6 +41,9 @@ A policy is defined by a policy object. It can have the following attributes:
 
 -   [`sequence`](#Sequence) (space separated list of IFPs, may contain operators)
 -   [`acl`](#ACL) (list of IFPs, preceded by `+` or `-`)
+-   [`extends`](#Extends) (list of extended policies)
+-   [`options`](#Options) (list of option policies)
+    -   `weight` (importance level, only valid under `options`)
 
 Planned:
 
@@ -52,31 +58,22 @@ Planned:
 -   `peer` (peer segments)
 -   `shct` (shortcut segments)
 
-Policies can be composed in two ways. The first option is to extend an existing policy:
-
--   [`extends`](#Extends) (list of policy names)
-
-The extending policy gets the attributes of the extended policy and overwrites duplicate attributes.
-
-The second option is to specify a list of _option_ policies from which the highest weighted policy
-that fulfills the condition is used. If policies have the same weight, their combined results are
-returned.
-
--   [`options`](#Options) (list of policy names)
--   `weight` (weight number)
-
-## Format
-
-The policy language can be in different formats, currently we want to add support for `YAML`, `JSON`
-and `TOML`.
-
 ## Specification
 
 ### ACL
 
-The ACL can be used to white- and blacklist ISDs, ASes and IFs. The first match wins and an explicit
-default action needs to be supplied. If the `acl` attribute is not used as part of a policy, by
-default everything is whitelisted.
+The ACL can be used to deny (blacklist) or allow (whitelist) ISDs, ASes and IFs. A deny entry is of
+the following form `- ISD-AS#IF`, whereas the second part is an [IFP](#IFP). If a deny entry matches
+any hop on a path, the path is not allowed.
+
+An allow entry uses `+` with an IFP, ie. `+ ISD-AS#IF`. For a path to be allowed, every hop of the
+path must be allowed by the ACL. When using allow and deny entries in the same ACL, the first
+matched entry wins. Thus, if an interface is denied by the first entry but allowed by the second
+entry it is still denied.
+
+Every ACL needs to specify a default, ie. the last entry of an ACL must either be `+` or `-` (ie.
+short forms of `+`/`-` `0-0#0`). If a policy has no acl attribute (and doesn't inherit one from any
+policy it extends), then by default everything is whitelisted.
 
 The following is an example for allowing all interfaces in ASes _1-ff00:0:133_ and _1-ff00:0:120_,
 but denying all other ASes in ISD _1_. The last entry makes sure that any other ISD is allowed.
@@ -104,7 +101,7 @@ are two wildcards that each match any AS. The path must end with any interface i
   sequence: "1-ff00:0:133#0 1-ff00:0:120#2 1-ff00:0:120#1 0 0 1-ff00:0:110#0"
 ```
 
-Another possible way of expressing the same behaviour:
+Another possible way of expressing the same behavior:
 
 ```
 - sequence_example_2:
@@ -112,7 +109,7 @@ Another possible way of expressing the same behaviour:
 ```
 
 Any path that is matched by the above policy must traverse three transit ASes. In many cases the
-number of ASes or hops is not know. With the regex-style it is possible to express such sequences.
+number of ASes or hops is not known. With the regex-style it is possible to express such sequences.
 
 The following example specifies a path from interface _1-ff00:0:133#1_ through multiple ASes in ISD
 _1_, that may (but does not need to) traverse AS _2-ff00:0:1_ and then reaches its destination on

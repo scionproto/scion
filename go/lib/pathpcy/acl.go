@@ -15,6 +15,7 @@
 package pathpcy
 
 import (
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
@@ -23,13 +24,13 @@ type ACL struct {
 	Entries []*ACLEntry
 }
 
-// NewACLWithDefault creates a new ACL from entries, and appends a match
-// anything ACL entry with defaultAction.
-func NewACLWithDefault(defaultAction ACLAction, entries ...*ACLEntry) *ACL {
-	defEntry := &ACLEntry{ACLAction(defaultAction), &sciond.PathInterface{}}
-	return &ACL{
-		Entries: append(entries, defEntry),
+// NewACL creates a new entry and checks for the presence of a default action
+func NewACL(entries ...*ACLEntry) (*ACL, error) {
+	lastRule := entries[len(entries)-1].Rule
+	if lastRule.IfID != 0 || lastRule.RawIsdas != 0 {
+		return nil, common.NewBasicError("ACL does not have a default", nil)
 	}
+	return &ACL{Entries: entries}, nil
 }
 
 // Eval returns the set of paths that match the ACL.
@@ -45,7 +46,7 @@ func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 }
 
 func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
-	if a == nil {
+	if a == nil || len(a.Entries) == 0 {
 		return Allow
 	}
 	for _, iface := range path.Entry.Path.Interfaces {
@@ -62,7 +63,7 @@ func (a *ACL) evalInterface(iface sciond.PathInterface) ACLAction {
 			return aclEntry.Action
 		}
 	}
-	return Deny
+	panic("Default ACL action missing")
 }
 
 type ACLEntry struct {
