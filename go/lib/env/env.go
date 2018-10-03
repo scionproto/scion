@@ -156,68 +156,6 @@ func GetBindSnetAddress(ia addr.IA, topoAddr *topology.TopoAddr) *snet.Addr {
 	return &snet.Addr{IA: ia, Host: bind}
 }
 
-type Logging struct {
-	File struct {
-		// Path is the location of the logging file. If unset, no file logging
-		// is performed.
-		Path string
-		// Level of file logging (defaults to DefaultLoggingLevel).
-		Level string
-		// Size is the max size of log file in MiB (defaults to DefaultLoggingFileSize)
-		Size uint
-		// Max age of log file in days (defaults to DefaultLoggingFileMaxAge)
-		MaxAge uint
-		// FlushInterval specifies how frequently to flush to the log file,
-		// in seconds
-		FlushInterval int
-	}
-
-	Console struct {
-		// Level of console logging. If unset, no console logging is
-		// performed.
-		Level string
-	}
-}
-
-// setDefaults populates unset fields in cfg to their default values (if they
-// have one).
-func (cfg *Logging) setDefaults() {
-	if cfg.File.Size == 0 {
-		cfg.File.Size = DefaultLoggingFileSize
-	}
-	if cfg.File.MaxAge == 0 {
-		cfg.File.MaxAge = DefaultLoggingFileMaxAge
-	}
-	if cfg.File.Level == "" {
-		cfg.File.Level = DefaultLoggingLevel
-	}
-}
-
-// InitLogging initializes logging and sets the root logger Log.
-func InitLogging(cfg *Logging) error {
-	cfg.setDefaults()
-	if cfg.File.Path != "" {
-		err := log.SetupLogFile(
-			filepath.Base(cfg.File.Path),
-			filepath.Dir(cfg.File.Path),
-			cfg.File.Level,
-			int(cfg.File.Size),
-			int(cfg.File.MaxAge),
-			int(cfg.File.FlushInterval),
-		)
-		if err != nil {
-			return err
-		}
-	}
-	if cfg.Console.Level != "" {
-		err := log.SetupLogConsole(cfg.Console.Level)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 type Metrics struct {
 	// Prometheus contains the address to export prometheus metrics on. If
 	// not set, metrics are not exported.

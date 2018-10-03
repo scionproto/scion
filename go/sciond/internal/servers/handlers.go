@@ -59,7 +59,7 @@ type PathRequestHandler struct {
 func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("pathReq", &pld.PathReq)
+	logger = log.NewSubLogger(logger, "pathReq", &pld.PathReq)
 	logger.Debug("[SCIOND:PathRequestHandler] Received request")
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
@@ -99,7 +99,7 @@ type ASInfoRequestHandler struct {
 func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("asInfoReq", &pld.AsInfoReq)
+	logger = log.NewSubLogger(logger, "asInfoReq", &pld.AsInfoReq)
 	logger.Debug("[SCIOND:ASInfoRequestHandler] Received request")
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
@@ -163,7 +163,7 @@ type IFInfoRequestHandler struct{}
 func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("ifInfoReq", &pld.IfInfoRequest)
+	logger = log.NewSubLogger(logger, "ifInfoReq", &pld.IfInfoRequest)
 	logger.Debug("[SCIOND:IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := sciond.IFInfoReply{}
@@ -216,7 +216,7 @@ type SVCInfoRequestHandler struct{}
 func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("svcInfoReq", &pld.ServiceInfoRequest)
+	logger = log.NewSubLogger(logger, "svcInfoReq", &pld.ServiceInfoRequest)
 	logger.Debug("[SCIOND:SVCInfoRequestHandler] Received request")
 	svcInfoRequest := pld.ServiceInfoRequest
 	svcInfoReply := sciond.ServiceInfoReply{}
@@ -274,7 +274,7 @@ type RevNotificationHandler struct {
 func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("revNotification", &pld.RevNotification)
+	logger = log.NewSubLogger(logger, "revNotification", &pld.RevNotification)
 	logger.Debug("[SCIOND:RevNotificationHandler] Received request")
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
