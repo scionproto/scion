@@ -179,36 +179,40 @@ type Logging struct {
 	}
 }
 
-func getLoggingFileSize(size uint) uint {
-	if size == 0 {
-		return DefaultLoggingFileSize
+func (logging *Logging) setFileSizeIfUnset() {
+	if logging.File.Size == 0 {
+		logging.File.Size = DefaultLoggingFileSize
 	}
-	return size
 }
 
-func getLoggingFileMaxAge(age uint) uint {
-	if age == 0 {
-		return DefaultLoggingFileMaxAge
+func (logging *Logging) setFileMaxAgeIfUnset() {
+	if logging.File.MaxAge == 0 {
+		logging.File.MaxAge = DefaultLoggingFileMaxAge
 	}
-	return age
 }
 
-func getLoggingFileLevel(level string) string {
-	if level == "" {
-		return DefaultLoggingLevel
+func (logging *Logging) setLevelIfUnset() {
+	if logging.File.Level == "" {
+		logging.File.Level = DefaultLoggingLevel
 	}
-	return level
+}
+
+func (logging *Logging) setDefaults() {
+	logging.setFileSizeIfUnset()
+	logging.setFileMaxAgeIfUnset()
+	logging.setLevelIfUnset()
 }
 
 // InitLogging initializes logging and sets the root logger Log.
 func InitLogging(cfg *Logging) error {
+	cfg.setDefaults()
 	if cfg.File.Path != "" {
 		err := log.SetupLogFile(
 			filepath.Base(cfg.File.Path),
 			filepath.Dir(cfg.File.Path),
-			getLoggingFileLevel(cfg.File.Level),
-			int(getLoggingFileSize(cfg.File.Size)),
-			int(getLoggingFileMaxAge(cfg.File.MaxAge)),
+			cfg.File.Level,
+			int(cfg.File.Size),
+			int(cfg.File.MaxAge),
 			int(cfg.File.FlushInterval),
 		)
 		if err != nil {
