@@ -28,7 +28,7 @@ import (
 
 // Hop Field format:
 //
-//  0      7        15           27           39                         63
+//  0b     7        15           27           39                         63
 // +--------+--------+------------+------------+--------+--------+--------+
 // | Flags  | ExpTime| ConsIngress| ConsEgress |           MAC            |
 // +--------+--------+------------+------------+--------+--------+--------+
@@ -43,8 +43,6 @@ const (
 	VerifyOnlyMask    = 0x02
 	RecurseMask       = 0x04
 )
-
-type ExpTimeType uint8
 
 func (e ExpTimeType) ToDuration() time.Duration {
 	return time.Duration(e+1) * time.Duration(ExpTimeUnit) * time.Second
@@ -67,10 +65,6 @@ type HopField struct {
 }
 
 // HopFFromRaw returns a HopField object from the raw content in b.
-//
-// The new HopField object takes ownership of the first HopFieldLength bytes in
-// b. Changing fields in the new object and calling Write will mutate the
-// initial bytes in b.
 func HopFFromRaw(b []byte) (*HopField, error) {
 	if len(b) < HopFieldLength {
 		return nil, common.NewBasicError(ErrorHopFTooShort, nil,
@@ -84,11 +78,10 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 	h.ExpTime = ExpTimeType(b[1])
 	// Interface IDs are 12b each, encoded into 3B
 	ifids := common.Order.Uint32(b[1:5])
-	h.ConsEgress = common.IFIDType(ifids & 0xFFF)
 	h.ConsIngress = common.IFIDType((ifids >> 12) & 0xFFF)
+	h.ConsEgress = common.IFIDType(ifids & 0xFFF)
 	h.Mac = make([]byte, MacLen)
 	copy(h.Mac, b[5:HopFieldLength])
-	// h.Mac = b[5:HopFieldLength]
 	return h, nil
 }
 
@@ -111,8 +104,9 @@ func (h *HopField) Write(b common.RawBytes) {
 }
 
 func (h *HopField) String() string {
-	return fmt.Sprintf("ConsIngress: %v ConsEgress: %v ExpTime: %v Xover: %v VerifyOnly: %v "+
-		"Mac: %v", h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
+	return fmt.Sprintf(
+		"ConsIngress: %v ConsEgress: %v ExpTime: %v Xover: %v VerifyOnly: %v Mac: %v",
+		h.ConsIngress, h.ConsEgress, h.ExpTime, h.Xover, h.VerifyOnly, h.Mac)
 }
 
 func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) error {
@@ -131,7 +125,7 @@ func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
-	//all[4] = 0 // Ignore flags
+	all[4] = 0 // Ignore flags
 	tmp := uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
 	common.Order.PutUint32(all[5:], tmp)
 	copy(all[9:], prev)
@@ -146,3 +140,5 @@ func (h *HopField) WriteTo(w io.Writer) (int64, error) {
 	n, err := w.Write(b)
 	return int64(n), err
 }
+
+type ExpTimeType uint8
