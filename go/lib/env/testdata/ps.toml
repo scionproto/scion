@@ -18,7 +18,7 @@
     # Location of the logging file.
     Path = "logs/sciond.test.log"
 
-    # File logging level (debug|info|warn|error|crit) (default debug)
+    # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
 
     # Max size of log file in MiB (default 50)
@@ -32,6 +32,7 @@
     # automatically.
     FlushInterval = 10
   [logging.console]
+    # Console logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "warn"
 
 [metrics]

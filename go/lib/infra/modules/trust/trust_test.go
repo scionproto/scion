@@ -712,7 +712,7 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, store *Store, name string) 
 	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, messenger.DefaultAdapter, log.New("name", name))
 	config := &messenger.Config{DisableSignatureVerification: true}
-	return messenger.New(ia, dispatcher, store, log.Root().New("name", name), config)
+	return messenger.New(ia, dispatcher, store, log.NewSubLogger(log.Root(), "name", name), config)
 }
 
 func loadCrypto(t *testing.T, isds []addr.ISD,

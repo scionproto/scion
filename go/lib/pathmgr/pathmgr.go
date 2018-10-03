@@ -117,7 +117,7 @@ func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 		cache:         newCache(timers.MaxAge),
 	}
 	if logger != nil {
-		pr.Logger = logger.New("lib", "PathResolver")
+		pr.Logger = log.NewSubLogger(logger, "lib", "PathResolver")
 	}
 	// Start resolver, which periodically refreshes paths for registered
 	// destinations

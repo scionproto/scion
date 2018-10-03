@@ -77,7 +77,7 @@ func rSPSExtFromRaw(rp *RtrPkt, start, end int) (*rSPSExtn, error) {
 	raw := rp.Raw[start:end]
 	mode := spse.SecMode(raw[0])
 	s := &rSPSExtn{&rSPSBaseExtn{rp: rp, raw: raw, SecMode: mode}}
-	s.Logger = rp.Logger.New("ext", "SCIONPacketSecurity")
+	s.Logger = log.NewSubLogger(rp.Logger, "ext", "SCIONPacketSecurity")
 	return s, nil
 }
 

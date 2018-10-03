@@ -40,7 +40,8 @@ func rSCMPExtFromRaw(rp *RtrPkt, start, end int) (*rSCMPExt, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.Logger = rp.Logger.New("ext", "scmp")
+	s.Logger = log.NewSubLogger(rp.Logger, "ext", "scmp")
+
 	if s.Extn.Error {
 		// SCMP Errors must never generate an error response.
 		rp.SCMPError = true

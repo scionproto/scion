@@ -39,7 +39,7 @@ type rOneHopPath struct {
 
 func rOneHopPathFromRaw(rp *RtrPkt) (*rOneHopPath, error) {
 	o := &rOneHopPath{rp: rp}
-	o.Logger = rp.Logger.New("ext", "OneHopPath")
+	o.Logger = log.NewSubLogger(rp.Logger, "ext", "OneHopPath")
 	o.rp = rp
 	return o, nil
 }
