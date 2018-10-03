@@ -180,7 +180,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
 	debug_id := util.GetDebugID()
-	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
 	debug_id := util.GetDebugID()
-	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -266,7 +266,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	debug_id := util.GetDebugID()
-	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -325,7 +325,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
 
 	debug_id := util.GetDebugID()
-	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -368,7 +368,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
 
 	debug_id := util.GetDebugID()
-	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -415,7 +415,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
 	debug_id := util.GetDebugID()
-	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
+	logger := m.log.New("debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -483,7 +483,7 @@ func (m *Messenger) ListenAndServe() {
 			}
 			continue
 		}
-		logger := log.NewSubLogger(m.log, "debug_id", util.GetDebugID())
+		logger := m.log.New("debug_id", util.GetDebugID())
 
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
