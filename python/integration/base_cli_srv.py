@@ -144,6 +144,7 @@ class TestClientBase(TestBase):
             fh_addr = self.dst.host
         port = fh_info.p.port or SCION_UDP_EH_DATA_PORT
         self.first_hop = (fh_addr, port)
+        return self.path_meta is not None
 
     def _try_sciond_api(self, flush=False):
         flags = lib_sciond.PathRequestFlags(refresh=flush)
@@ -191,12 +192,12 @@ class TestClientBase(TestBase):
             now = time.time()
             self.path_meta = None
             while True:
-                self._get_path(self.api, flush=flush)
-                if self.path_meta is not None:
+                if self._get_path(self.api, flush=flush):
                     break
                 if time.time() - now > 5.0:
                     logging.error("Could not find paths for 5s, giving up")
                     self._stop(False)
+                    return
                 time.sleep(0.5)
             self.retries -= 1
             logging.info(
