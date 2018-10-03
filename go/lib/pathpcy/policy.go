@@ -40,6 +40,7 @@ type Policy struct {
 
 func NewPolicy(name string, extends []*Policy, acl *ACL, sequence Sequence,
 	options []Option) *Policy {
+
 	policy := &Policy{Name: name, Extends: extends, ACL: acl, Sequence: sequence, Options: options}
 	// Apply all extended policies
 	policy.applyExtended()
@@ -87,11 +88,11 @@ func (p *Policy) applyExtended() {
 			p.ACL = policy.ACL
 		}
 		// Replace options
-		if len(p.Options) == 0 && (policy.Options != nil && len(policy.Options) > 0) {
+		if len(p.Options) == 0 {
 			p.Options = policy.Options
 		}
 		// Replace Sequence
-		if len(p.Sequence) == 0 && len(policy.Sequence) > 0 {
+		if len(p.Sequence) == 0 {
 			p.Sequence = policy.Sequence
 		}
 	}
@@ -109,17 +110,10 @@ func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet
 		if currWeight > option.Weight && len(subPolicySet) > 0 {
 			return subPolicySet
 		}
+		currWeight = option.Weight
 		subPaths := option.Policy.Act(inputSet).(spathmeta.AppPathSet)
-		// Previous policy did not match any paths
-		if currWeight > option.Weight {
-			subPolicySet = subPaths
-			currWeight = option.Weight
-		}
-		// Option has same weight as previous, add paths
-		if currWeight == option.Weight {
-			for key, path := range subPaths {
-				subPolicySet[key] = path
-			}
+		for key, path := range subPaths {
+			subPolicySet[key] = path
 		}
 	}
 	return subPolicySet
@@ -136,15 +130,15 @@ type Sequence []sciond.PathInterface
 
 // NewSequence creates a new sequence from a list of string tokens
 func NewSequence(tokens []string) (Sequence, error) {
-	list := make(Sequence, 0)
+	s := make(Sequence, 0)
 	for _, token := range tokens {
 		pi, err := sciond.NewPathInterface(token)
 		if err != nil {
 			return nil, err
 		}
-		list = append(list, pi)
+		s = append(s, pi)
 	}
-	return list, nil
+	return s, nil
 }
 
 // Eval evaluates the interface sequence list and returns the set of paths that match the list
@@ -169,7 +163,7 @@ func pathMatches(pathInterfaces, matcherTokens []sciond.PathInterface) bool {
 		return false
 	}
 	for i := range pathInterfaces {
-		if !spathmeta.PPWildcardEquals(&matcherTokens[i], &pathInterfaces[i]) {
+		if !spathmeta.PPWildcardEquals(matcherTokens[i], pathInterfaces[i]) {
 			return false
 		}
 	}

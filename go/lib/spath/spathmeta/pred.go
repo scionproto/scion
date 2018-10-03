@@ -54,7 +54,7 @@ func (pp *PathPredicate) Eval(path *sciond.PathReplyEntry) bool {
 	ifaces := path.Path.Interfaces
 	mIdx := 0
 	for i := range ifaces {
-		if PPWildcardEquals(&ifaces[i], &pp.Match[mIdx]) {
+		if PPWildcardEquals(ifaces[i], pp.Match[mIdx]) {
 			mIdx += 1
 			if mIdx == len(pp.Match) {
 				return true
@@ -91,7 +91,7 @@ func (pp *PathPredicate) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func PPWildcardEquals(x, y *sciond.PathInterface) bool {
+func PPWildcardEquals(x, y sciond.PathInterface) bool {
 	xIA, yIA := x.ISD_AS(), y.ISD_AS()
 	if xIA.I != 0 && yIA.I != 0 && xIA.I != yIA.I {
 		return false
