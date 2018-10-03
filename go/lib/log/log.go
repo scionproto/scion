@@ -78,8 +78,15 @@ func (l Lvl) String() string {
 }
 
 type Logger interface {
-	log15.Logger
+	New(ctx ...interface{}) Logger
+	GetHandler() Handler
+	SetHandler(h Handler)
 	Trace(msg string, ctx ...interface{})
+	Debug(msg string, ctx ...interface{})
+	Info(msg string, ctx ...interface{})
+	Warn(msg string, ctx ...interface{})
+	Error(msg string, ctx ...interface{})
+	Crit(msg string, ctx ...interface{})
 }
 
 var (
@@ -275,8 +282,16 @@ func (logger *loggerWithTrace) Trace(msg string, ctx ...interface{}) {
 	logger.Logger.Debug("[TRACE]"+msg, ctx...)
 }
 
-func NewSubLogger(logger Logger, ctx ...interface{}) Logger {
-	return &loggerWithTrace{Logger: logger.New(ctx...)}
+func (logger *loggerWithTrace) New(ctx ...interface{}) Logger {
+	return &loggerWithTrace{Logger: logger.Logger}
+}
+
+func (logger *loggerWithTrace) SetHandler(h Handler) {
+	logger.Logger.SetHandler(h)
+}
+
+func (logger *loggerWithTrace) GetHandler() Handler {
+	return logger.Logger.GetHandler()
 }
 
 func Trace(msg string, ctx ...interface{}) {

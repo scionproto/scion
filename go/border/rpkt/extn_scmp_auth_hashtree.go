@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/spse"
 	"github.com/scionproto/scion/go/lib/spse/scmp_auth"
 )
@@ -39,7 +38,7 @@ func rSCMPAuthHashTreeExtnFromRaw(rp *RtrPkt, start, end int) (*rSCMPAuthHashTre
 	raw := rp.Raw[start:end]
 	mode := spse.SecMode(raw[0])
 	s := &rSCMPAuthHashTreeExtn{&rSPSBaseExtn{rp: rp, raw: raw, SecMode: mode}}
-	s.Logger = log.NewSubLogger(rp.Logger, "ext", "SCMPAuthHashTreeExt")
+	s.Logger = rp.Logger.New("ext", "SCMPAuthHashTreeExt")
 	return s, nil
 }
 

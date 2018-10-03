@@ -65,7 +65,7 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, 
 
 	var err error
 	s := &Session{
-		Logger:  log.NewSubLogger(logger, "sessId", sessId),
+		Logger:  logger.New("sessId", sessId),
 		ia:      dstIA,
 		SessId:  sessId,
 		sigMap:  sigMap,
