@@ -92,7 +92,7 @@ func New(t infra.Transport, adapter MessageAdapter, logger log.Logger) *Dispatch
 		readEvents:  make(chan *readEventDesc, maxReadEvents),
 		stoppedChan: make(chan struct{}),
 		closedChan:  make(chan struct{}),
-		log:         log.NewSubLogger(logger, "id", log.RandId(4), "goroutine", "dispatcher_bck"),
+		log:         logger.New("id", log.RandId(4), "goroutine", "dispatcher_bck"),
 	}
 	d.goBackgroundReceiver()
 	return d

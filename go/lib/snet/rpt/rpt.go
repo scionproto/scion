@@ -116,7 +116,7 @@ func New(conn net.PacketConn, logger log.Logger) *RPT {
 		readEvents: make(chan *readEventDesc, maxReadEvents),
 		closedChan: make(chan struct{}),
 		doneChan:   make(chan struct{}),
-		log:        log.NewSubLogger(logger, "id", log.RandId(4), "goroutine", "transport_bck"),
+		log:        logger.New("id", log.RandId(4), "goroutine", "transport_bck"),
 		writeLock:  util.NewChannelLock(),
 	}
 	t.goBackgroundReceiver()
