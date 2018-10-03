@@ -38,7 +38,7 @@ func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	resultSet := make(spathmeta.AppPathSet)
 	for key, path := range inputSet {
 		// Check ACL
-		if a.evalPath(path) {
+		if a == nil || len(a.Entries) == 0 || a.evalPath(path) {
 			resultSet[key] = path
 		}
 	}
@@ -46,9 +46,6 @@ func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 }
 
 func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
-	if a == nil || len(a.Entries) == 0 {
-		return Allow
-	}
 	for _, iface := range path.Entry.Path.Interfaces {
 		if a.evalInterface(iface) == Deny {
 			return Deny
@@ -59,7 +56,7 @@ func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
 
 func (a *ACL) evalInterface(iface sciond.PathInterface) ACLAction {
 	for _, aclEntry := range a.Entries {
-		if spathmeta.PPWildcardEquals(&iface, aclEntry.Rule) {
+		if spathmeta.PPWildcardEquals(iface, *aclEntry.Rule) {
 			return aclEntry.Action
 		}
 	}

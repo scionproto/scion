@@ -3,15 +3,20 @@
 The path policy language will be used by the path server, SCIOND and the beacon server for different
 but overlapping purposes.
 
-## Interface Predicate (IFP)
+## Hop Predicate (HP)
 
-An interface predicate is of the form **ISD-AS#IF**, whereas _0_ can be used as a wildcard for
-**ISD**, **AS** and **IF** indepedently. If the **AS** identifier is set to _0_, the **IF**
-identifier must also be set to _0_.
+A hop predicate is of the form **ISD-AS#IF**, where _0_ can be used as a wildcard for **ISD**,
+**AS** and **IF** indepedently. If the **AS** identifier is set to _0_, the **IF** identifier must
+also be set to _0_.
 
-If a tail elements in an IFP are 0, they can be omitted. See the following examples for details.
+[//]: # "To specify both interfaces of an AS, one must separate them by `,` ie.
+**ISD-AS#IF1,IF2**."
+
+If the tail elements in a HP are 0, they can be omitted. See the following examples for details.
 
 Examples:
+
+[//]: # "TODO: worxli -   Match interface _2_ and _3_ of AS _1-ff00:0:133_: `1-ff00:0:133#2,3`"
 
 -   Match interface _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
 -   Match any interface of AS _1-ff00:0:133_: `1-ff00:0:133#0` or `1-ff00:0:133`
@@ -28,9 +33,9 @@ ACL:
 
 Sequence:
 
--   `?` (the preceding IFP may appear at most once)
--   `+` (the preceding **ISD-level** IFP must appear at least once)
--   `*` (the preceding **ISD-level** IFP may appear zero or more times)
+-   `?` (the preceding HP may appear at most once)
+-   `+` (the preceding **ISD-level** HP must appear at least once)
+-   `*` (the preceding **ISD-level** HP may appear zero or more times)
 -   `!` (logical NOT)
 -   `|` (logical OR)
 -   `&` (logical AND)
@@ -39,9 +44,9 @@ Sequence:
 
 A policy is defined by a policy object. It can have the following attributes:
 
--   [`sequence`](#Sequence) (space separated list of IFPs, may contain operators)
--   [`acl`](#ACL) (list of IFPs, preceded by `+` or `-`)
 -   [`extends`](#Extends) (list of extended policies)
+-   [`acl`](#ACL) (list of HPs, preceded by `+` or `-`)
+-   [`sequence`](#Sequence) (space separated list of HPs, may contain operators)
 -   [`options`](#Options) (list of option policies)
     -   `weight` (importance level, only valid under `options`)
 
@@ -63,17 +68,17 @@ Planned:
 ### ACL
 
 The ACL can be used to deny (blacklist) or allow (whitelist) ISDs, ASes and IFs. A deny entry is of
-the following form `- ISD-AS#IF`, whereas the second part is an [IFP](#IFP). If a deny entry matches
-any hop on a path, the path is not allowed.
+the following form `- ISD-AS#IF`, where the second part is a [HP](#HP). If a deny entry matches any
+hop on a path, the path is not allowed.
 
-An allow entry uses `+` with an IFP, ie. `+ ISD-AS#IF`. For a path to be allowed, every hop of the
+An allow entry uses `+` with a HP, ie. `+ ISD-AS#IF`. For a path to be allowed, every hop of the
 path must be allowed by the ACL. When using allow and deny entries in the same ACL, the first
 matched entry wins. Thus, if an interface is denied by the first entry but allowed by the second
 entry it is still denied.
 
-Every ACL needs to specify a default, ie. the last entry of an ACL must either be `+` or `-` (ie.
-short forms of `+`/`-` `0-0#0`). If a policy has no acl attribute (and doesn't inherit one from any
-policy it extends), then by default everything is whitelisted.
+Every ACL must end with a blanket accept or deny (i.e. `+` or `-`, or equivalent such as `+ 0-0#0`).
+If a policy has no acl attribute (and doesn't inherit one from any policy it extends), then by
+default everything is whitelisted.
 
 The following is an example for allowing all interfaces in ASes _1-ff00:0:133_ and _1-ff00:0:120_,
 but denying all other ASes in ISD _1_. The last entry makes sure that any other ISD is allowed.
@@ -89,19 +94,12 @@ but denying all other ASes in ISD _1_. The last entry makes sure that any other 
 
 ### Sequence
 
-The sequence is a string of space separated IFPs. The [operators](#Operators) can be used for
+The sequence is a string of space separated HPs. The [operators](#Operators) can be used for
 advanced interface sequences.
 
 The following example specifies a path from any interface in AS _1-ff00:0:133_ to two subsequent
 interfaces in AS _1-ff00:0:120_ (entering on interface _2_ and exiting on interface _1_), then there
 are two wildcards that each match any AS. The path must end with any interface in AS _1-ff00:0:110_.
-
-```
-- sequence_example_1:
-  sequence: "1-ff00:0:133#0 1-ff00:0:120#2 1-ff00:0:120#1 0 0 1-ff00:0:110#0"
-```
-
-Another possible way of expressing the same behavior:
 
 ```
 - sequence_example_2:
@@ -127,13 +125,15 @@ of named policies. If an attribute exists in multiple policies in that list, the
 precedence. Also, an attribute specified at top level (the policy that has the `extends` attribute)
 always has precedence over attributes of an extended policy.
 
-The following example uses two sub-policies to create the top-level policy.
+The following example uses three sub-policies to create the top-level policy. As `sub_pol_1` and
+`sub_pol_3` both define an ACL but `sub_pol_1` has precedence, the ACL of `sub_pol_3` is discarded.
 
 ```
 - extends_example:
   extends:
   - sub_pol_1
   - sub_pol_2
+  - sub_pol_3
 
 - sub_pol_1:
   acl:
@@ -142,6 +142,17 @@ The following example uses two sub-policies to create the top-level policy.
 
 - sub_pol_2:
   sequence: "0+ 1-ff00:0:110#0 1-ff00:0:110#0 0+"
+
+- sub_pol_3:
+  acl:
+   - "- 1-ff00:0:131#0"
+   - "- 1-ff00:0:132#0"
+   - "- 1-ff00:0:133#0"
+   - "+"
+  options:
+    - acl:
+      - "- 1-ff00:0:130#0"
+      - "+"
 ```
 
 ### Options
@@ -172,7 +183,7 @@ third option which denies only hops in AS _1-ff00:0:133_, is used.
 
 - option_3:
   acl:
-  - "- 1-0#0"
+  - "- 1"
   - "+"
 - option_1:
   acl:
