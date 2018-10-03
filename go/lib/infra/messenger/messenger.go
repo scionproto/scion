@@ -180,12 +180,12 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
 	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.TRCRequest,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.TRCRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest, infra.TRC).Request(ctx, pld, a)
 	if err != nil {
@@ -202,7 +202,7 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
-	logger.Debug("[Messenger] Received reply", "reply", reply)
+	logger.Trace("[Messenger] Received reply", "reply", reply)
 	return reply, nil
 }
 
@@ -222,12 +222,12 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
 	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.ChainRequest,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest, infra.Chain).Request(ctx, pld, a)
 	if err != nil {
@@ -244,7 +244,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
-	logger.Debug("[Messenger] Received reply", "reply", reply)
+	logger.Trace("[Messenger] Received reply", "reply", reply)
 	return reply, nil
 }
 
@@ -266,12 +266,12 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
 	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.SegRequest,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.SegRequest, infra.SegReply).Request(ctx, pld, a)
@@ -293,7 +293,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
 			"debug_id", debug_id)
 	}
-	logger.Debug("[Messenger] Received reply")
+	logger.Trace("[Messenger] Received reply")
 	return reply, nil
 }
 
@@ -325,12 +325,12 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
 
 	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesIdReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq,
 		infra.SegChangesIdReply).Request(ctx, pld, a)
@@ -348,7 +348,7 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
-	logger.Debug("[Messenger] Received reply")
+	logger.Trace("[Messenger] Received reply")
 	return reply, nil
 }
 
@@ -368,12 +368,12 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
 
 	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.SegChangesReq,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.SegChangesReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq,
 		infra.SegChangesIdReply).Request(ctx, pld, a)
@@ -395,7 +395,7 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
 			"debug_id", debug_id)
 	}
-	logger.Debug("[Messenger] Received reply")
+	logger.Trace("[Messenger] Received reply")
 	return reply, nil
 }
 
@@ -415,12 +415,12 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
 	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.NewSubLogger(m.log, "debug_id", debug_id)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainIssueRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.ChainIssueRequest, infra.ChainIssueReply).Request(ctx, pld, a)
@@ -438,7 +438,7 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
 			"debug_id", debug_id)
 	}
-	logger.Debug("[Messenger] Received reply")
+	logger.Trace("[Messenger] Received reply")
 	return reply, nil
 }
 
@@ -483,7 +483,7 @@ func (m *Messenger) ListenAndServe() {
 			}
 			continue
 		}
-		logger := m.log.New("debug_id", util.GetDebugID())
+		logger := log.NewSubLogger(m.log, "debug_id", util.GetDebugID())
 
 		signedPld, ok := genericMsg.(*ctrl.SignedPld)
 		if !ok {
@@ -546,7 +546,7 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 			"from", address, "err", err)
 		return
 	}
-	logger.Debug("[Messenger] Received message", "type", msgType, "from", address, "id", pld.ReqId)
+	logger.Trace("[Messenger] Received message", "type", msgType, "from", address, "id", pld.ReqId)
 
 	m.handlersLock.RLock()
 	handler := m.handlers[msgType]

@@ -89,7 +89,7 @@ func setupMessenger(ia addr.IA, conn net.PacketConn, name string) *Messenger {
 	transport := rpt.New(conn, log.New("name", name))
 	dispatcher := disp.New(transport, DefaultAdapter, log.New("name", name))
 	config := &Config{DisableSignatureVerification: true}
-	return New(ia, dispatcher, nil, log.Root().New("name", name), config)
+	return New(ia, dispatcher, nil, log.NewSubLogger(log.Root(), "name", name), config)
 }
 
 func TestMain(m *testing.M) {
