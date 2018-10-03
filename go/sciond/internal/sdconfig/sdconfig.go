@@ -16,10 +16,13 @@
 package sdconfig
 
 import (
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
@@ -65,6 +68,23 @@ func (c *Config) InitDefaults() {
 
 func (c *Config) QueryInterval() time.Duration {
 	return c.queryInterval.Duration
+}
+
+func (c *Config) CreateSocketDirs() error {
+	reliableDir := filepath.Dir(c.Reliable)
+	if _, err := os.Stat(reliableDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(reliableDir, 0755); err != nil {
+			return common.NewBasicError("Cannot create reliable socket dir", err, "dir",
+				reliableDir)
+		}
+	}
+	unixDir := filepath.Dir(c.Unix)
+	if _, err := os.Stat(unixDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(unixDir, 0755); err != nil {
+			return common.NewBasicError("Cannot create unix socket dir", err, "dir", unixDir)
+		}
+	}
+	return nil
 }
 
 var _ (toml.TextUnmarshaler) = (*duration)(nil)

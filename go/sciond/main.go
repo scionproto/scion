@@ -176,7 +176,7 @@ func Init(configName string) error {
 		return err
 	}
 	config.SD.InitDefaults()
-	return nil
+	return config.SD.CreateSocketDirs()
 }
 
 func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
