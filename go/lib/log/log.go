@@ -34,6 +34,10 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+func init() {
+	fmt15.TimeFmt = common.TimeFmt
+}
+
 type Lvl log15.Lvl
 
 const (
@@ -42,6 +46,13 @@ const (
 	LvlWarn  = Lvl(log15.LvlWarn)
 	LvlInfo  = Lvl(log15.LvlInfo)
 	LvlDebug = Lvl(log15.LvlDebug)
+)
+
+const (
+	// LvlTraceStr is only for use in config files, and not supported by the log15 backend.
+	LvlTraceStr = "trace"
+	// TraceMsgPrefix is prepended to TRACE level logging messages
+	TraceMsgPrefix = "[TRACE]"
 )
 
 func LvlFromString(lvl string) (Lvl, error) {
@@ -66,24 +77,29 @@ func (l Lvl) String() string {
 	return strings.ToUpper(log15.Lvl(l).String())
 }
 
-type Logger log15.Logger
-type Handler log15.Handler
+type Logger interface {
+	log15.Logger
+	Trace(msg string, ctx ...interface{})
+}
 
 var (
-	logDir         string
-	logLevel       string
-	logConsole     string
-	logSize        int
-	logAge         int
-	logFlush       int
-	logBuf         *syncBuf
+	logDir     string
+	logLevel   string
+	logConsole string
+	logSize    int
+	logAge     int
+	logFlush   int
+	logBuf     *syncBuf
+)
+
+type Handler interface {
+	log15.Handler
+}
+
+var (
 	logFileHandler Handler
 	logConsHandler Handler
 )
-
-func init() {
-	fmt15.TimeFmt = common.TimeFmt
-}
 
 func SetupFromFlags(name string) error {
 	var err error
@@ -105,17 +121,17 @@ func SetupFromFlags(name string) error {
 
 // SetupLogFile initializes a file for logging. The path is logDir/name.log if
 // name doesn't already contain the .log extension, or logDir/name otherwise.
-// logLevel can be one of debug, info, warn, error, and crit and states the
-// minimum level of logging events that get written to the file. logSize is the
-// maximum size, in MiB, until the log rotates. logAge is the maximum number of
-// days to retain old log files. If logFlush > 0, logging output is buffered,
-// and flushed every logFlush seconds.  If logFlush < 0: logging output is
-// buffered, but must be manually flushed by calling Flush(). If logFlush = 0
-// logging output is unbuffered and Flush() is a no-op.
+// logLevel can be one of trace, debug, info, warn, error, and crit and states
+// the minimum level of logging events that get written to the file. logSize is
+// the maximum size, in MiB, until the log rotates. logAge is the maximum
+// number of days to retain old log files. If logFlush > 0, logging output is
+// buffered, and flushed every logFlush seconds.  If logFlush < 0: logging
+// output is buffered, but must be manually flushed by calling Flush(). If
+// logFlush = 0 logging output is unbuffered and Flush() is a no-op.
 func SetupLogFile(name string, logDir string, logLevel string, logSize int, logAge int,
 	logFlush int) error {
 
-	logLvl, err := log15.LvlFromString(logLevel)
+	logLvl, err := log15.LvlFromString(changeTraceToDebug(logLevel))
 	if err != nil {
 		return common.NewBasicError("Unable to parse log.level flag:", err)
 	}
@@ -138,6 +154,10 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 
 	logFileHandler = log15.LvlFilterHandler(logLvl,
 		log15.StreamHandler(fileLogger, fmt15.Fmt15Format(nil)))
+	if logLevel != LvlTraceStr {
+		// Discard trace messages
+		logFileHandler = FilterTraceHandler(logFileHandler)
+	}
 	setHandlers()
 
 	if logFlush > 0 {
@@ -150,8 +170,11 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 	return nil
 }
 
-func SetupLogConsole(logConsole string) error {
-	logLvl, err := log15.LvlFromString(logConsole)
+// SetupLogConsole sets up logging on default output. logLevel can be one of
+// trace, debug, info, warn, error, and crit, and states the minimum level of
+// logging events that gets printed to the console.
+func SetupLogConsole(logLevel string) error {
+	lvl, err := log15.LvlFromString(changeTraceToDebug(logLevel))
 	if err != nil {
 		return common.NewBasicError("Unable to parse log.console flag:", err)
 	}
@@ -159,10 +182,21 @@ func SetupLogConsole(logConsole string) error {
 	if isatty.IsTerminal(os.Stderr.Fd()) {
 		cMap = fmt15.ColorMap
 	}
-	logConsHandler = log15.LvlFilterHandler(logLvl,
+	logConsHandler = log15.LvlFilterHandler(lvl,
 		log15.StreamHandler(os.Stderr, fmt15.Fmt15Format(cMap)))
+	if logLevel != LvlTraceStr {
+		// Discard trace messages
+		logConsHandler = FilterTraceHandler(logConsHandler)
+	}
 	setHandlers()
 	return nil
+}
+
+func changeTraceToDebug(logLevel string) string {
+	if logLevel == LvlTraceStr {
+		return "debug"
+	}
+	return logLevel
 }
 
 func setHandlers() {
@@ -207,15 +241,46 @@ func Flush() {
 }
 
 func New(ctx ...interface{}) Logger {
-	return log15.New(ctx...)
+	return &loggerWithTrace{Logger: log15.New(ctx...)}
 }
 
 func DiscardHandler() Handler {
 	return log15.DiscardHandler()
 }
 
+type filterTraceHandler struct {
+	log15.Handler
+}
+
+func (h *filterTraceHandler) Log(r *log15.Record) error {
+	if !strings.HasPrefix(r.Msg, "[TRACE]") {
+		return h.Handler.Log(r)
+	}
+	return nil
+}
+
+func FilterTraceHandler(handler log15.Handler) log15.Handler {
+	return &filterTraceHandler{Handler: handler}
+}
+
 func Root() Logger {
-	return log15.Root()
+	return &loggerWithTrace{Logger: log15.Root()}
+}
+
+type loggerWithTrace struct {
+	log15.Logger
+}
+
+func (logger *loggerWithTrace) Trace(msg string, ctx ...interface{}) {
+	logger.Logger.Debug("[TRACE]"+msg, ctx...)
+}
+
+func NewSubLogger(logger Logger, ctx ...interface{}) Logger {
+	return &loggerWithTrace{Logger: logger.New(ctx...)}
+}
+
+func Trace(msg string, ctx ...interface{}) {
+	Debug("[TRACE]"+msg, ctx)
 }
 
 func Debug(msg string, ctx ...interface{}) {
