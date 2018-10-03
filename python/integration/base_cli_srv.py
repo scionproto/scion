@@ -144,10 +144,7 @@ class TestClientBase(TestBase):
             fh_addr = self.dst.host
         port = fh_info.p.port or SCION_UDP_EH_DATA_PORT
         self.first_hop = (fh_addr, port)
-        if self.path_meta is not None:
-            return True
-        else
-            return False
+        return self.path_meta is not None
 
     def _try_sciond_api(self, flush=False):
         flags = lib_sciond.PathRequestFlags(refresh=flush)

@@ -53,7 +53,8 @@ class TestCertClient(TestClientBase):
         self.dst_ia = dst_ia
 
     def _get_path(self, api, flush=None):
-        pass  # No path required. All queries go to local CS
+        # No path required. All queries go to local CS
+        return True
 
     def _build_pkt(self):
         cmn_hdr, addr_hdr = build_base_hdrs(self.dst, self.addr)
