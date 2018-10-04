@@ -320,33 +320,45 @@ func (ps *PathSegment) String() string {
 	if ps == nil {
 		return "<nil>"
 	}
-	desc := []string{}
-	if id, err := ps.ID(); err != nil {
-		desc = append(desc, fmt.Sprintf("ID error: %s", err))
-	} else {
-		desc = append(desc, id.String()[:12])
-	}
 	info, _ := ps.InfoF()
-	desc = append(desc, util.TimeToString(info.Timestamp()))
-	hops_desc := []string{}
+	desc := []string{
+		ps.GetLoggingID(),
+		util.TimeToString(info.Timestamp()),
+		ps.getHopsDescription(),
+	}
+	return strings.Join(desc, " ")
+}
+
+func (ps *PathSegment) GetLoggingID() string {
+	id, err := ps.ID()
+	if err != nil {
+		return fmt.Sprintf("ID error: %s", err)
+	}
+	return id.String()[:12]
+}
+
+func (ps *PathSegment) getHopsDescription() string {
+	description := []string{}
 	for _, ase := range ps.ASEntries {
-		hop_entry := ase.HopEntries[0]
-		hop, err := hop_entry.HopField()
-		if err != nil {
-			hops_desc = append(hops_desc, err.Error())
-			continue
-		}
-		hop_desc := []string{}
-		if hop.ConsIngress > 0 {
-			hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.ConsIngress))
-		}
-		hop_desc = append(hop_desc, ase.IA().String())
-		if hop.ConsEgress > 0 {
-			hop_desc = append(hop_desc, fmt.Sprintf(" %v", hop.ConsEgress))
-		}
-		hops_desc = append(hops_desc, strings.Join(hop_desc, ""))
+		hop_desc := getHopDescription(ase.IA(), ase.HopEntries[0])
+		description = append(description, hop_desc)
 	}
 	// TODO(shitz): Add extensions.
-	desc = append(desc, strings.Join(hops_desc, ">"))
-	return strings.Join(desc, " ")
+	return strings.Join(description, ">")
+}
+
+func getHopDescription(ia addr.IA, hopEntry *HopEntry) string {
+	hop, err := hopEntry.HopField()
+	if err != nil {
+		return err.Error()
+	}
+	hop_desc := []string{}
+	if hop.ConsIngress > 0 {
+		hop_desc = append(hop_desc, fmt.Sprintf("%v ", hop.ConsIngress))
+	}
+	hop_desc = append(hop_desc, ia.String())
+	if hop.ConsEgress > 0 {
+		hop_desc = append(hop_desc, fmt.Sprintf(" %v", hop.ConsEgress))
+	}
+	return strings.Join(hop_desc, "")
 }

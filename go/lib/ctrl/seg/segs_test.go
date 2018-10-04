@@ -40,12 +40,8 @@ func allocPathSegment(ias []addr.IA) *PathSegment {
 	rawHops := make([][]byte, len(ias))
 	for i := 0; i < len(ias); i++ {
 		rawHops[i] = make([]byte, 8)
-		hf := spath.HopField{
-			ConsIngress: common.IFIDType(1),
-			ConsEgress:  common.IFIDType(2),
-			ExpTime:     spath.DefaultHopFExpiry,
-		}
-		hf.Write(rawHops[i])
+		spath.NewHopField(rawHops[i], common.IFIDType(1), common.IFIDType(2),
+			spath.DefaultHopFExpiry)
 	}
 	ases := make([]*ASEntry, len(ias))
 	for i := range ias {
