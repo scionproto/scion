@@ -179,28 +179,18 @@ type Logging struct {
 	}
 }
 
-func (logging *Logging) setFileSizeIfUnset() {
-	if logging.File.Size == 0 {
-		logging.File.Size = DefaultLoggingFileSize
+// setDefaults populates unset fields in cfg to their default values (if they
+// have one).
+func (cfg *Logging) setDefaults() {
+	if cfg.File.Size == 0 {
+		cfg.File.Size = DefaultLoggingFileSize
 	}
-}
-
-func (logging *Logging) setFileMaxAgeIfUnset() {
-	if logging.File.MaxAge == 0 {
-		logging.File.MaxAge = DefaultLoggingFileMaxAge
+	if cfg.File.MaxAge == 0 {
+		cfg.File.MaxAge = DefaultLoggingFileMaxAge
 	}
-}
-
-func (logging *Logging) setLevelIfUnset() {
-	if logging.File.Level == "" {
-		logging.File.Level = DefaultLoggingLevel
+	if cfg.File.Level == "" {
+		cfg.File.Level = DefaultLoggingLevel
 	}
-}
-
-func (logging *Logging) setDefaults() {
-	logging.setFileSizeIfUnset()
-	logging.setFileMaxAgeIfUnset()
-	logging.setLevelIfUnset()
 }
 
 // InitLogging initializes logging and sets the root logger Log.
