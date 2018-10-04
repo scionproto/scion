@@ -74,8 +74,12 @@ func allocPathSegment(ifs []uint64, expiration uint32) (*seg.PathSegment, common
 	rawHops := make([][]byte, len(ifs)/2)
 	for i := 0; i < len(ifs)/2; i++ {
 		rawHops[i] = make([]byte, 8)
-		spath.NewHopField(rawHops[i], common.IFIDType(ifs[2*i]), common.IFIDType(ifs[2*i+1]),
-			spath.DefaultHopFExpiry)
+		hf := spath.HopField{
+			ConsIngress: common.IFIDType(ifs[2*i]),
+			ConsEgress:  common.IFIDType(ifs[2*i+1]),
+			ExpTime:     spath.DefaultHopFExpiry,
+		}
+		hf.Write(rawHops[i])
 	}
 	ases := []*seg.ASEntry{
 		{

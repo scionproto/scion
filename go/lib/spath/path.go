@@ -20,9 +20,6 @@ import (
 )
 
 const (
-	MaxTTL       = 24 * 60 * 60 // One day in seconds
-	ExpTimeUnit  = MaxTTL / (1 << 8)
-	macInputLen  = 16
 	MaxTimestamp = ^uint32(0)
 )
 
@@ -123,7 +120,7 @@ func (path *Path) InitOffsets() error {
 			return err
 		}
 		if hopF.Xover {
-			path.HopOff += hopF.Len()
+			path.HopOff += HopFieldLength
 		}
 	}
 	err = path.incOffsets(0)
@@ -139,16 +136,15 @@ func (path *Path) InitOffsets() error {
 // IncOffsets updates the info and hop indices to the next routing field, while skipping
 // verify only fields.
 func (path *Path) IncOffsets() error {
-	var hopF *HopField
 	var err error
 	if path.HopOff == 0 {
 		// Path not initialized yet
 		return path.InitOffsets()
 	}
-	if hopF, err = path.GetHopField(path.HopOff); err != nil {
+	if _, err = path.GetHopField(path.HopOff); err != nil {
 		return common.NewBasicError("Hop Field parse error", err, "offset", path.HopOff)
 	}
-	return path.incOffsets(hopF.Len())
+	return path.incOffsets(HopFieldLength)
 }
 
 // IsEmpty returns true if the path is nil or empty (no raw data).
@@ -181,7 +177,7 @@ func (path *Path) incOffsets(skip int) error {
 		if !hopF.VerifyOnly {
 			break
 		}
-		path.HopOff += hopF.Len()
+		path.HopOff += HopFieldLength
 	}
 	return nil
 }
