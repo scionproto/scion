@@ -20,111 +20,93 @@ import (
 	"fmt"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	"github.com/scionproto/scion/go/lib/common"
+	"github.com/BurntSushi/toml"
+
+	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
-	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 )
 
-const (
-	initAttempts = 100
-	initInterval = time.Second
-)
+type Config struct {
+	General env.General
+	Logging env.Logging
+	Metrics env.Metrics
+	Trust   env.Trust
+	Infra   env.Infra
+	CS      *csconfig.Conf
+}
+
+type task interface {
+	Run()
+	Stop()
+}
 
 var (
-	id         = flag.String("id", "", "Element ID (Required. E.g. 'cs4-ff00:0:2f')")
-	sciondPath = flag.String("sciond", sciond.GetDefaultSCIONDPath(nil), "SCIOND socket path")
-	dispPath   = flag.String("dispatcher", "", "SCION Dispatcher path")
-	confDir    = flag.String("confd", "", "Configuration directory (Required)")
-	cacheDir   = flag.String("cached", "gen-cache", "Caching directory")
-	stateDir   = flag.String("stated", "", "State directory (Defaults to confd)")
-	prom       = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
-	reissReq   *ReissRequester
-	sighup     chan os.Signal
-)
+	config      *Config
+	environment *env.Env
+	flagConfig  = flag.String("config", "", "Service TOML config file (required)")
 
-func init() {
-	// Add a SIGHUP handler as soon as possible on startup, to reduce the
-	// chance that a premature SIGHUP will kill the process. This channel is
-	// used by configSig below.
-	sighup = make(chan os.Signal, 1)
-	signal.Notify(sighup, syscall.SIGHUP)
-}
+	reissTask task
+	currMsgr  *messenger.Messenger
+)
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
-	var err error
-	os.Setenv("TZ", "UTC")
-	log.AddLogFileFlags()
-	log.AddLogConsFlags()
-	flag.Parse()
-	if *id == "" {
-		log.Crit("No element ID specified")
-		flag.Usage()
-		os.Exit(1)
-	}
-	if err = log.SetupFromFlags(*id); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
-		flag.Usage()
-		os.Exit(1)
-	}
-	defer log.LogPanicAndExit()
-	setupSignals()
-	if err = checkFlags(); err != nil {
-		fatal(err.Error())
-	}
-	if err = setup(); err != nil {
-		fatal("Setup failed", "err", err.Error())
-	}
-	select {}
+	os.Exit(realMain())
 }
 
-// checkFlags checks that all required flags are set.
-func checkFlags() error {
-	if *sciondPath == "" {
+func realMain() int {
+	flag.Parse()
+	if *flagConfig == "" {
+		fmt.Fprintln(os.Stderr, "Missing config file")
 		flag.Usage()
-		return common.NewBasicError("No SCIOND path specified", nil)
+		return 1
 	}
-	if *confDir == "" {
+	if err := setup(*flagConfig); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		flag.Usage()
-		return common.NewBasicError("No configuration directory specified", nil)
+		return 1
 	}
-	if *stateDir == "" {
-		*stateDir = *confDir
+	defer log.LogPanicAndExit()
+	defer stop()
+	// Create a channel where prometheus can signal fatal errors
+	fatalC := make(chan error, 1)
+	config.Metrics.StartPrometheus(fatalC)
+	select {
+	case <-environment.AppShutdownSignal:
+		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
+		return 0
+	case err := <-fatalC:
+		// Prometheus encountered a fatal error, thus we exit.
+		log.Crit("Unable to listen and serve", "err", err)
+		return 1
 	}
+}
+
+func setup(configName string) error {
+	config = &Config{}
+	if _, err := toml.DecodeFile(configName, config); err != nil {
+		return err
+	}
+	if err := env.InitGeneral(&config.General); err != nil {
+		return err
+	}
+	itopo.SetCurrentTopology(config.General.Topology)
+	if err := env.InitLogging(&config.Logging); err != nil {
+		return err
+	}
+	if err := setConfig(config, nil); err != nil {
+		return err
+	}
+	// TODO(roosd): add reload function.
+	environment = env.SetupEnv(nil)
 	return nil
 }
 
-// setupSignals handle signals.
-func setupSignals() {
-	sig := make(chan os.Signal, 2)
-	signal.Notify(sig, os.Interrupt)
-	signal.Notify(sig, syscall.SIGTERM)
-	go func() {
-		defer log.LogPanicAndExit()
-		s := <-sig
-		log.Info("Received signal, exiting...", "signal", s)
-		log.Flush()
-		os.Exit(1)
-	}()
-	go func() {
-		defer log.LogPanicAndExit()
-		configSig()
-	}()
-}
-
-func configSig() {
-	for range sighup {
-		log.Info("Reloading is not supported")
-	}
-}
-
-func fatal(msg string, args ...interface{}) {
-	log.Crit(msg, args...)
-	log.Flush()
-	os.Exit(1)
+func stop() {
+	reissTask.Stop()
+	currMsgr.CloseServer()
 }

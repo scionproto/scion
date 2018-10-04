@@ -85,10 +85,8 @@ class SupervisorGenerator(object):
         for k, v in topo.get("CertificateService", {}).items():
             # only a single Go-CS per AS is currently supported
             if k.endswith("-1"):
-                conf_dir = os.path.join(base, k)
-                entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
-                                    "-prom=%s" % _prom_addr_infra(v), "-sciond",
-                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
+                conf = os.path.join(base, k, "csconfig.toml")
+                entries.append((k, ["bin/cert_srv", "-config", conf]))
         return entries
 
     def _ps_entries(self, topo, base):

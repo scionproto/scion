@@ -1,0 +1,10 @@
+[cs]
+
+  LeafReissueTime = "7h"
+  IssuerReissueTime = "2d"
+  ReissueRate = "12s"
+  ReissueTimeout = "6s"
+  SciondPath = "/run/shm/sciond/sd1-ff00_0_110.sock"
+	SciondTimeout = "20s"
+	SciondRetryInterval = "3s"
+  

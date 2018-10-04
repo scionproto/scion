@@ -21,6 +21,7 @@ import os
 import toml
 
 # SCION
+from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.util import write_file
 from topology.common import COMMON_DIR
@@ -118,3 +119,48 @@ class GoGenerator(object):
 
     def _sciond_name(self, topo_id):
         return 'sd' + topo_id.file_fmt()
+
+    def generate_cs(self):
+        for topo_id, topo in self.topo_dicts.items():
+            for k, v in topo.get("CertificateService", {}).items():
+                # only a single Go-CS per AS is currently supported
+                if k.endswith("-1"):
+                    base = topo_id.base_dir(self.out_dir)
+                    cs_conf = self._build_cs_conf(topo_id, topo["ISD_AS"], base, k)
+                    write_file(os.path.join(base, k, "csconfig.toml"), toml.dumps(cs_conf))
+
+    def _build_cs_conf(self, topo_id, ia, base, name):
+        config_dir = '/share/conf' if self.docker else os.path.join(base, name)
+        log_dir = '/share/logs' if self.docker else 'logs'
+        db_dir = '/share/cache' if self.docker else 'gen-cache'
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': config_dir,
+            },
+            'sd_client': {
+                'Path': get_default_sciond_path(topo_id),
+            },
+            'logging': {
+                'file': {
+                    'Path': os.path.join(log_dir, "%s.log" % name),
+                    'Level': 'debug',
+                },
+                'console': {
+                    'Level': 'crit',
+                },
+            },
+            'trust': {
+                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+            },
+            'infra': {
+                'Type': "CS"
+            },
+            'cs': {
+                'LeafReissueTime': "6h",
+                'IssuerReissueTime': "3d",
+                'ReissueRate': "10s",
+                'ReissueTimeout': "5s",
+            },
+        }
+        return raw_entry
