@@ -16,7 +16,6 @@
 package log
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -25,7 +24,6 @@ import (
 	"time"
 
 	"github.com/inconshreveable/log15"
-	logext "github.com/inconshreveable/log15/ext"
 	// Allows customization of timestamps and multi-line support
 	"github.com/kormat/fmt15"
 	"github.com/mattn/go-isatty"
@@ -38,93 +36,12 @@ func init() {
 	fmt15.TimeFmt = common.TimeFmt
 }
 
-type Lvl log15.Lvl
-
-const (
-	LvlCrit  = Lvl(log15.LvlCrit)
-	LvlError = Lvl(log15.LvlError)
-	LvlWarn  = Lvl(log15.LvlWarn)
-	LvlInfo  = Lvl(log15.LvlInfo)
-	LvlDebug = Lvl(log15.LvlDebug)
-)
-
-const (
-	// LvlTraceStr is only for use in config files, and not supported by the log15 backend.
-	LvlTraceStr = "trace"
-	// TraceMsgPrefix is prepended to TRACE level logging messages
-	TraceMsgPrefix = "[TRACE]"
-)
-
-func LvlFromString(lvl string) (Lvl, error) {
-	// Since we also parse python log entries we also have to handle the levels of python.
-	switch strings.ToUpper(lvl) {
-	case "DEBUG", "DBUG":
-		return LvlDebug, nil
-	case "INFO":
-		return LvlInfo, nil
-	case "WARN", "WARNING":
-		return LvlWarn, nil
-	case "ERROR", "EROR":
-		return LvlError, nil
-	case "CRIT", "CRITICAL":
-		return LvlCrit, nil
-	default:
-		return LvlDebug, fmt.Errorf("Unknown level: %v", lvl)
-	}
-}
-
-func (l Lvl) String() string {
-	return strings.ToUpper(log15.Lvl(l).String())
-}
-
-type Logger interface {
-	New(ctx ...interface{}) Logger
-	GetHandler() Handler
-	SetHandler(h Handler)
-	Trace(msg string, ctx ...interface{})
-	Debug(msg string, ctx ...interface{})
-	Info(msg string, ctx ...interface{})
-	Warn(msg string, ctx ...interface{})
-	Error(msg string, ctx ...interface{})
-	Crit(msg string, ctx ...interface{})
-}
-
-var (
-	logDir     string
-	logLevel   string
-	logConsole string
-	logSize    int
-	logAge     int
-	logFlush   int
-	logBuf     *syncBuf
-)
-
-type Handler interface {
-	log15.Handler
-}
+var logBuf *syncBuf
 
 var (
 	logFileHandler Handler
 	logConsHandler Handler
 )
-
-func SetupFromFlags(name string) error {
-	var err error
-	if logConsole != "" {
-		err = SetupLogConsole(logConsole)
-		if err != nil {
-			return err
-		}
-	}
-	// if name passed, the caller wants to setup a log file
-	if name != "" {
-		if logDir == "" {
-			return common.NewBasicError("Log dir flag not set", nil)
-		}
-		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logFlush)
-	}
-	return err
-}
 
 // SetupLogFile initializes a file for logging. The path is logDir/name.log if
 // name doesn't already contain the .log extension, or logDir/name otherwise.
@@ -177,7 +94,7 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 	return nil
 }
 
-// SetupLogConsole sets up logging on default output. logLevel can be one of
+// SetupLogConsole sets up logging on default error. logLevel can be one of
 // trace, debug, info, warn, error, and crit, and states the minimum level of
 // logging events that gets printed to the console.
 func SetupLogConsole(logLevel string) error {
@@ -219,20 +136,6 @@ func setHandlers() {
 	log15.Root().SetHandler(handler)
 }
 
-func AddLogConsFlags() {
-	flag.StringVar(&logConsole, "log.console", "crit",
-		"Console logging level: debug|info|warn|error|crit")
-}
-
-func AddLogFileFlags() {
-	flag.StringVar(&logDir, "log.dir", "logs", "Log directory")
-	flag.StringVar(&logLevel, "log.level", "debug",
-		"File logging level: debug|info|warn|error|crit")
-	flag.IntVar(&logSize, "log.size", 50, "Max size of log file in MiB")
-	flag.IntVar(&logAge, "log.age", 7, "Max age of log file in days")
-	flag.IntVar(&logFlush, "log.flush", 5, "How frequently to flush to the log file, in seconds")
-}
-
 func LogPanicAndExit() {
 	if msg := recover(); msg != nil {
 		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
@@ -245,96 +148,4 @@ func Flush() {
 	if logBuf != nil {
 		logBuf.Flush()
 	}
-}
-
-func New(ctx ...interface{}) Logger {
-	return &loggerWithTrace{Logger: log15.New(ctx...)}
-}
-
-func DiscardHandler() Handler {
-	return log15.DiscardHandler()
-}
-
-type filterTraceHandler struct {
-	log15.Handler
-}
-
-func (h *filterTraceHandler) Log(r *log15.Record) error {
-	if !strings.HasPrefix(r.Msg, "[TRACE]") {
-		return h.Handler.Log(r)
-	}
-	return nil
-}
-
-func FilterTraceHandler(handler log15.Handler) log15.Handler {
-	return &filterTraceHandler{Handler: handler}
-}
-
-func Root() Logger {
-	return &loggerWithTrace{Logger: log15.Root()}
-}
-
-type loggerWithTrace struct {
-	log15.Logger
-}
-
-func (logger *loggerWithTrace) Trace(msg string, ctx ...interface{}) {
-	logger.Logger.Debug("[TRACE]"+msg, ctx...)
-}
-
-func (logger *loggerWithTrace) New(ctx ...interface{}) Logger {
-	return &loggerWithTrace{Logger: logger.Logger}
-}
-
-func (logger *loggerWithTrace) SetHandler(h Handler) {
-	logger.Logger.SetHandler(h)
-}
-
-func (logger *loggerWithTrace) GetHandler() Handler {
-	return logger.Logger.GetHandler()
-}
-
-func Trace(msg string, ctx ...interface{}) {
-	Debug("[TRACE]"+msg, ctx)
-}
-
-func Debug(msg string, ctx ...interface{}) {
-	log15.Debug(msg, ctx...)
-}
-
-func Info(msg string, ctx ...interface{}) {
-	log15.Info(msg, ctx...)
-}
-
-func Warn(msg string, ctx ...interface{}) {
-	log15.Warn(msg, ctx...)
-}
-
-func Error(msg string, ctx ...interface{}) {
-	log15.Error(msg, ctx...)
-}
-
-func Crit(msg string, ctx ...interface{}) {
-	log15.Crit(msg, ctx...)
-}
-
-func Log(lvl Lvl, msg string, ctx ...interface{}) {
-	var logFun func(string, ...interface{})
-	switch lvl {
-	case LvlDebug:
-		logFun = Debug
-	case LvlInfo:
-		logFun = Info
-	case LvlWarn:
-		logFun = Warn
-	case LvlError:
-		logFun = Error
-	case LvlCrit:
-		logFun = Crit
-	}
-	logFun(msg, ctx...)
-}
-
-func RandId(idlen int) string {
-	return logext.RandId(idlen)
 }
