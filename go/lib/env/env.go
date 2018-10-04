@@ -195,6 +195,7 @@ func (cfg *Logging) setDefaults() {
 
 // InitLogging initializes logging and sets the root logger Log.
 func InitLogging(cfg *Logging) error {
+	cfg.setDefaults()
 	if cfg.File.Path != "" {
 		err := log.SetupLogFile(
 			filepath.Base(cfg.File.Path),
