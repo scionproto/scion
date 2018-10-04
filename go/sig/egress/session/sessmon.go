@@ -143,6 +143,11 @@ func (sm *sessMonitor) updateRemote() {
 			sm.Debug("Current path invalid", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
+			// Traffic must no longer be sent on the old path. This implies that the encap
+			// traffic is sent on a path that has not been tested by the session monitor yet.
+			// If the new path is unhealthy, it is changed quickly by the session monitor through
+			// the regular timeout mechanism above.
+			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: currSessPath})
 		}
 	}
 	sm.sess.healthy.Store(!sm.needUpdate)
