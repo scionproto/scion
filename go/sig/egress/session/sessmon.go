@@ -143,6 +143,8 @@ func (sm *sessMonitor) updateRemote() {
 			sm.Debug("Current path invalid", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
+			// Traffic must no longer be sent on the old path.
+			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: currSessPath})
 		}
 	}
 	sm.sess.healthy.Store(!sm.needUpdate)
