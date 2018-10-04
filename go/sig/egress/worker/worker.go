@@ -212,6 +212,8 @@ func (w *worker) resetFrame(f *frame) {
 		}
 		if remote.SessPath != nil {
 			w.currPathEntry = remote.SessPath.PathEntry()
+		} else {
+			w.currPathEntry = nil
 		}
 		if w.currPathEntry != nil {
 			mtu = w.currPathEntry.Path.Mtu
