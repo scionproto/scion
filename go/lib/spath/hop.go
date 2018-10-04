@@ -36,7 +36,7 @@ const (
 	VerifyOnlyMask    = 0x02
 	RecurseMask       = 0x04
 	MaxTTL            = 24 * 60 * 60 // One day in seconds
-	ExpTimeUnit       = MaxTTL / 256 // 5 minutes
+	ExpTimeUnit       = MaxTTL / 256 // ~5m38s
 	macInputLen       = 16
 )
 
@@ -52,8 +52,7 @@ const (
 //
 // The absolute expiration time in seconds of a Hop Field is calculated as:
 //
-// TS + ( (1 + ExpTime) * ExpTimeUnit )
-// where ExpTimeUnit = ⌊ 24 * 60 * 60 / 256 ⌋, currently 5min.
+// TS + ( (1 + ExpTime) * ExpTimeUnit ), where TS is the Info Field Timestamp.
 //
 type HopField struct {
 	Xover      bool
