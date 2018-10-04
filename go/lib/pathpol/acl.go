@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pathpcy
+package pathpol
 
 import (
 	"github.com/scionproto/scion/go/lib/common"
@@ -36,9 +36,12 @@ func NewACL(entries ...*ACLEntry) (*ACL, error) {
 // Eval returns the set of paths that match the ACL.
 func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	resultSet := make(spathmeta.AppPathSet)
+	if a == nil || len(a.Entries) == 0 {
+		return inputSet
+	}
 	for key, path := range inputSet {
 		// Check ACL
-		if a == nil || len(a.Entries) == 0 || a.evalPath(path) {
+		if a.evalPath(path) {
 			resultSet[key] = path
 		}
 	}
