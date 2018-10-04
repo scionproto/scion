@@ -43,7 +43,7 @@ func TestTraceFilterHandler(t *testing.T) {
 			})
 			Convey("trace messages are printed", func() {
 				logger.Trace("foo")
-				So(msgSeenByMockHandler, ShouldEqual, "[TRACE]foo")
+				So(msgSeenByMockHandler, ShouldEqual, log.TraceMsgPrefix+"foo")
 			})
 		})
 		Convey("if wrapped by a trace filter handler...", func() {

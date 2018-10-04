@@ -25,20 +25,19 @@ type Logging struct {
 		// Path is the location of the logging file. If unset, no file logging
 		// is performed.
 		Path string
-		// Level of file logging (defaults to DefaultLoggingLevel).
+		// Level of file logging (defaults to lib/log default).
 		Level string
-		// Size is the max size of log file in MiB (defaults to DefaultLoggingFileSize)
+		// Size is the max size of log file in MiB (defaults to lib/log default).
 		Size uint
-		// Max age of log file in days (defaults to DefaultLoggingFileMaxAge)
+		// Max age of log file in days (defaults to lib/log default).
 		MaxAge uint
 		// FlushInterval specifies how frequently to flush to the log file,
-		// in seconds
-		FlushInterval int
+		// in seconds (defaults to lib/log default).
+		FlushInterval *int
 	}
 
 	Console struct {
-		// Level of console logging. If unset, no console logging is
-		// performed.
+		// Level of console logging (defaults to lib/log default).
 		Level string
 	}
 }
@@ -46,23 +45,31 @@ type Logging struct {
 // setDefaults populates unset fields in cfg to their default values (if they
 // have one).
 func (cfg *Logging) setDefaults() {
-	if cfg.File.Size == 0 {
-		cfg.File.Size = DefaultLoggingFileSize
-	}
-	if cfg.File.MaxAge == 0 {
-		cfg.File.MaxAge = DefaultLoggingFileMaxAge
+	if cfg.Console.Level == "" {
+		cfg.Console.Level = log.DefaultConsoleLevel
 	}
 	if cfg.File.Level == "" {
-		cfg.File.Level = DefaultLoggingLevel
+		cfg.File.Level = log.DefaultFileLevel
+	}
+	if cfg.File.Size == 0 {
+		cfg.File.Size = log.DefaultFileSizeMiB
+	}
+	if cfg.File.MaxAge == 0 {
+		cfg.File.MaxAge = log.DefaultFileMaxAgeDays
+	}
+	if cfg.File.FlushInterval == nil {
+		cfg.File.FlushInterval = new(int)
+		*cfg.File.FlushInterval = log.DefaultFileFlushSeconds
 	}
 }
 
 // InitLogging initializes logging and sets the root logger Log.
 func InitLogging(cfg *Logging) error {
+	cfg.setDefaults()
 	if err := setupFileLogging(cfg); err != nil {
 		return err
 	}
-	if err := setupConsoleLogging(cfg); err != nil {
+	if err := log.SetupLogConsole(cfg.Console.Level); err != nil {
 		return err
 	}
 	return nil
@@ -76,15 +83,8 @@ func setupFileLogging(cfg *Logging) error {
 			cfg.File.Level,
 			int(cfg.File.Size),
 			int(cfg.File.MaxAge),
-			int(cfg.File.FlushInterval),
+			*cfg.File.FlushInterval,
 		)
-	}
-	return nil
-}
-
-func setupConsoleLogging(cfg *Logging) error {
-	if cfg.Console.Level != "" {
-		return log.SetupLogConsole(cfg.Console.Level)
 	}
 	return nil
 }
