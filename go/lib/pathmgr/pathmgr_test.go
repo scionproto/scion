@@ -23,7 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathpcy"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -64,8 +64,8 @@ func TestQuery(t *testing.T) {
 	})
 }
 
-var allowEntry = &pathpcy.ACLEntry{Action: pathpcy.ACLAction(true), Rule: &sciond.PathInterface{}}
-var denyEntry = &pathpcy.ACLEntry{Action: pathpcy.ACLAction(false), Rule: &sciond.PathInterface{}}
+var allowEntry = &pathpol.ACLEntry{Action: pathpol.ACLAction(true), Rule: &sciond.PathInterface{}}
+var denyEntry = &pathpol.ACLEntry{Action: pathpol.ACLAction(false), Rule: &sciond.PathInterface{}}
 
 func TestQueryFilter(t *testing.T) {
 	Convey("Query with policy filter, only one path should remain", t, func() {
@@ -78,8 +78,8 @@ func TestQueryFilter(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		SoMsg("err", err, ShouldBeNil)
 
-		policy := &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
-			{Action: pathpcy.Allow, Rule: &pp},
+		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{Action: pathpol.Allow, Rule: &pp},
 			denyEntry,
 		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
@@ -93,8 +93,8 @@ func TestQueryFilter(t *testing.T) {
 		pp, err = sciond.NewPathInterface("1-ff00:0:134#1910")
 		xtest.FailOnErr(t, err)
 		SoMsg("err", err, ShouldBeNil)
-		policy = &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
-			{Action: pathpcy.Allow, Rule: &pp},
+		policy = &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{Action: pathpol.Allow, Rule: &pp},
 			allowEntry,
 		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
@@ -108,8 +108,8 @@ func TestQueryFilter(t *testing.T) {
 		pp, err = sciond.NewPathInterface("1-ff00:0:132#1910")
 		xtest.FailOnErr(t, err)
 		SoMsg("err", err, ShouldBeNil)
-		policy = &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
-			{Action: pathpcy.Deny, Rule: &pp},
+		policy = &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{Action: pathpol.Deny, Rule: &pp},
 			denyEntry,
 		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
@@ -127,9 +127,9 @@ func TestACLPolicyFilter(t *testing.T) {
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
 
 		pp, _ := sciond.NewPathInterface("1-ff00:0:121#0")
-		policy := &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
+		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{
-				Action: pathpcy.Deny,
+				Action: pathpol.Deny,
 				Rule:   &pp,
 			},
 			allowEntry,
@@ -140,12 +140,12 @@ func TestACLPolicyFilter(t *testing.T) {
 		SoMsg("aps len", len(aps), ShouldEqual, 2)
 
 		pp2, _ := sciond.NewPathInterface("2-ff00:0:211#2327")
-		policy = &pathpcy.Policy{ACL: &pathpcy.ACL{Entries: []*pathpcy.ACLEntry{
+		policy = &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{
-				Action: pathpcy.Deny,
+				Action: pathpol.Deny,
 				Rule:   &pp,
 			},
-			{Action: pathpcy.Deny, Rule: &pp2},
+			{Action: pathpol.Deny, Rule: &pp2},
 			allowEntry,
 		}}}
 		SoMsg("policy", policy, ShouldNotBeNil)
