@@ -210,10 +210,9 @@ func (w *worker) resetFrame(f *frame) {
 		if w.currSig != nil {
 			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host, sigcmn.Host))
 		}
+		w.currPathEntry = nil
 		if remote.SessPath != nil {
 			w.currPathEntry = remote.SessPath.PathEntry()
-		} else {
-			w.currPathEntry = nil
 		}
 		if w.currPathEntry != nil {
 			mtu = w.currPathEntry.Path.Mtu
