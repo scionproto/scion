@@ -244,6 +244,8 @@ class ConfigGenerator(object):
             go_gen.generate_sciond()
         if self.ps == "go":
             go_gen.generate_ps()
+        if self.cs == "go":
+            go_gen.generate_cs()
         if self.docker:
             self._generate_docker(topo_dicts)
         else:
@@ -976,10 +978,8 @@ class SupervisorGenerator(object):
         for k, v in topo.get("CertificateService", {}).items():
             # only a single Go-CS per AS is currently supported
             if k.endswith("-1"):
-                conf_dir = os.path.join(base, k)
-                entries.append((k, ["bin/cert_srv", "-id=%s" % k, "-confd=%s" % conf_dir,
-                                    "-prom=%s" % _prom_addr_infra(v), "-sciond",
-                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"]))]))
+                conf = os.path.join(base, k, "csconfig.toml")
+                entries.append((k, ["bin/cert_srv", "-config", conf]))
         return entries
 
     def _ps_entries(self, topo, base):
@@ -1185,6 +1185,49 @@ class GoGenerator(object):
 
     def _sciond_name(self, topo_id):
         return 'sd' + topo_id.file_fmt()
+
+    def generate_cs(self):
+        for topo_id, topo in self.topo_dicts.items():
+            for k, v in topo.get("CertificateService", {}).items():
+                # only a single Go-CS per AS is currently supported
+                if k.endswith("-1"):
+                    base = topo_id.base_dir(self.out_dir)
+                    cs_conf = self._build_cs_conf(topo_id, topo["ISD_AS"], base, k)
+                    write_file(os.path.join(base, k, "csconfig.toml"), toml.dumps(cs_conf))
+
+    def _build_cs_conf(self, topo_id, ia, base, name):
+        config_dir = '/share/conf' if self.docker else os.path.join(base, name)
+        log_dir = '/share/logs' if self.docker else 'logs'
+        db_dir = '/share/cache' if self.docker else 'gen-cache'
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': config_dir,
+            },
+            'logging': {
+                'file': {
+                    'Path': os.path.join(log_dir, "%s.log" % name),
+                    'Level': 'debug',
+                },
+                'console': {
+                    'Level': 'crit',
+                },
+            },
+            'trust': {
+                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+            },
+            'infra': {
+                'Type': "CS"
+            },
+            'cs': {
+                'LeafReissueTime': "6h",
+                'IssuerReissueTime': "3d",
+                'ReissueRate': "10s",
+                'ReissueTimeout': "5s",
+                'SciondPath': get_default_sciond_path(topo_id),
+            },
+        }
+        return raw_entry
 
 
 class TopoID(ISD_AS):
