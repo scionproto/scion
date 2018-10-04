@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package segsaver contains helper methods to save segments and revocations.
-package segsaver
+package handlers
 
 import (
-	"context"
-
-	"github.com/scionproto/scion/go/lib/ctrl/seg"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb"
 )
 
-// StoreSeg saves s to the given pathDB. In case of failure the error is returned.
-func StoreSeg(ctx context.Context, s *seg.Meta, pathDB pathdb.PathDB, log log.Logger) error {
-	n, err := pathDB.Insert(ctx, s)
-	if err != nil {
-		return err
+func logSegReg(logger log.Logger, prefix string, segReg *path_mgmt.SegReg) {
+	logSegRecs(logger, prefix, segReg.SegRecs)
+	for _, revocation := range segReg.SRevInfos {
+		logger.Debug(prefix+"Received revocation", "rev", revocation.String())
 	}
-	if n > 0 {
-		log.Debug("Segment inserted in DB", "segment", s.Segment.GetLoggingID())
+}
+
+func logSegRecs(logger log.Logger, prefix string, segRecs *path_mgmt.SegRecs) {
+	for _, segMeta := range segRecs.Recs {
+		logger.Debug(prefix+"Received PCB", "seg", segMeta.Segment.String())
 	}
-	return nil
 }

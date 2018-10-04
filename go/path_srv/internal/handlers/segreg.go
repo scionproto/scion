@@ -50,7 +50,7 @@ func (h *segRegHandler) Handle() {
 		h.logger.Error("[segRegHandler] Failed to parse message", "err", err)
 		return
 	}
-	h.logger.Debug("[segRegHandler] Received message", "seg", segReg.SegRecs)
+	logSegReg(h.logger, "[segRegHandler] ", segReg)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	h.verifyAndStore(subCtx, h.request.Peer, segReg.Recs, segReg.SRevInfos)
