@@ -31,7 +31,7 @@ func StoreSeg(ctx context.Context, s *seg.Meta, pathDB pathdb.PathDB, log log.Lo
 		return err
 	}
 	if n > 0 {
-		log.Debug("Inserted segment into path database", "segment", s.Segment)
+		log.Debug("Segment inserted in DB", "segment", s.Segment.GetLoggingID())
 	}
 	return nil
 }
