@@ -23,18 +23,21 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-// Info Field format:
-//
-//  0b     7                                   39                55       63
-// +--------+--------+--------+--------+--------+--------+--------+--------+
-// | Flags  |             Timestamp             |       ISD       |  Hops  |
-// +--------+--------+--------+--------+--------+--------+--------+--------+
-//
 const (
 	InfoFieldLength    = common.LineLen
 	ErrorInfoFTooShort = "InfoF too short"
 )
 
+// Info Field format:
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |r r r r r P S C|                  Timestamp ...                |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |      ...      |              ISD              |     Hops      |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
 type InfoField struct {
 	// Previously Up, ConsDir = !Up
 	ConsDir  bool

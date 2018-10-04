@@ -26,13 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-// Hop Field format:
-//
-//  0b     7        15           27           39                         63
-// +--------+--------+------------+------------+--------+--------+--------+
-// | Flags  | ExpTime| ConsIngress| ConsEgress |           MAC            |
-// +--------+--------+------------+------------+--------+--------+--------+
-//
 const (
 	HopFieldLength    = common.LineLen
 	DefaultHopFExpiry = ExpTimeType(63)
@@ -42,18 +35,34 @@ const (
 	XoverMask         = 0x01
 	VerifyOnlyMask    = 0x02
 	RecurseMask       = 0x04
+	MaxTTL            = 24 * 60 * 60 // One day in seconds
+	ExpTimeUnit       = MaxTTL / 256 // 5 minutes
+	macInputLen       = 16
 )
 
-func (e ExpTimeType) ToDuration() time.Duration {
-	return time.Duration(e+1) * time.Duration(ExpTimeUnit) * time.Second
-}
-
+// Hop Field format:
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |r r r r r R V X|    ExpTime    |      ConsIngress      |  ...  |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  | ...ConsEgress |                      MAC                      |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// The absolute expiration time in seconds of a Hop Field is calculated as:
+//
+// TS + ( (1 + ExpTime) * ExpTimeUnit )
+// where ExpTimeUnit = ⌊ 24 * 60 * 60 / 256 ⌋, currently 5min.
+//
 type HopField struct {
 	Xover      bool
 	VerifyOnly bool
 	Recurse    bool
-	// ExpTime defines for how long this HopField is valid,
-	// relative to the PathSegments's InfoField.Timestamp().
+	// ExpTime defines for how long this HopField is valid, expressed as the number
+	// of ExpTimeUnits relative to the PathSegments's InfoField.Timestamp().
+	// A 0 value means the minimum expiration time of ExpTimeUnit.
+	// See ToDuration() for how to convert from ExpTimeUnits to Seconds.
 	ExpTime ExpTimeType
 	// ConsIngress is the interface the PCB entered the AS during path construction.
 	ConsIngress common.IFIDType
@@ -97,9 +106,7 @@ func (h *HopField) Write(b common.RawBytes) {
 		flags |= RecurseMask
 	}
 	b[0] = flags
-	// Interface IDs are 12b each, encoded into 3B
-	tmp := uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
-	common.Order.PutUint32(b[1:5], tmp)
+	common.Order.PutUint32(b[1:5], h.expTimeIfIdsPack())
 	copy(b[5:], h.Mac)
 }
 
@@ -120,14 +127,28 @@ func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) er
 
 // CalcMac calculates the MAC of a HopField and its preceeding HopField, if any.
 // prev does not contain flags byte.
+//
+// MAC input block format:
+//
+//   0                   1                   2                   3
+//   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |                           Timestamp                           |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  |       0       |    ExpTime    |      ConsIngress      |  ...  |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//  | ...ConsEgress |                                               |
+//  +-+-+-+-+-+-+-+-+                                               |
+//  |                           PrevHopF                            |
+//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
 func (h *HopField) CalcMac(mac hash.Hash, tsInt uint32,
 	prev common.RawBytes) (common.RawBytes, error) {
 
 	all := make(common.RawBytes, macInputLen)
 	common.Order.PutUint32(all, tsInt)
 	all[4] = 0 // Ignore flags
-	tmp := uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
-	common.Order.PutUint32(all[5:], tmp)
+	common.Order.PutUint32(all[5:], h.expTimeIfIdsPack())
 	copy(all[9:], prev)
 	tag, err := scrypto.Mac(mac, all)
 	return tag[:MacLen], err
@@ -141,4 +162,15 @@ func (h *HopField) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+func (h *HopField) expTimeIfIdsPack() uint32 {
+	// Interface IDs are 12 bits each, encoded into 3 Bytes.
+	return uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
+}
+
 type ExpTimeType uint8
+
+// ToDuration calculates the relative expiration time in seconds.
+// Note that for a 0 value ExpTime, the minimal duration is ExpTimeUnit.
+func (e ExpTimeType) ToDuration() time.Duration {
+	return time.Duration(e+1) * time.Duration(ExpTimeUnit) * time.Second
+}
