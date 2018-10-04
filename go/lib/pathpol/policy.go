@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package pathpcy implements path policies, documentation in doc/PathPolicy.md
+// Package pathpol implements path policies, documentation in doc/PathPolicy.md
 //
 // A policy has an Act() method that takes an AppPathSet and returns a filtered AppPathSet
-package pathpcy
+package pathpol
 
 import (
 	"sort"
@@ -108,7 +108,7 @@ func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet
 	// Go through sub policies
 	for _, option := range p.Options {
 		if currWeight > option.Weight && len(subPolicySet) > 0 {
-			return subPolicySet
+			break
 		}
 		currWeight = option.Weight
 		subPaths := option.Policy.Act(inputSet).(spathmeta.AppPathSet)
