@@ -198,6 +198,8 @@ class ConfigGenerator(object):
 
     def _generate_go(self, topo_dicts):
         go_gen = GoGenerator(self.out_dir, topo_dicts, self.docker)
+        if self.cs == "go":
+            go_gen.generate_cs()
         if self.sd == "go":
             go_gen.generate_sciond()
         if self.ps == "go":
