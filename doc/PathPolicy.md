@@ -149,10 +149,7 @@ The following example uses three sub-policies to create the top-level policy. As
    - "- 1-ff00:0:132#0"
    - "- 1-ff00:0:133#0"
    - "+"
-  options:
-    - acl:
-      - "- 1-ff00:0:130#0"
-      - "+"
+  mtu: ">=1000"
 ```
 
 ### Options
@@ -162,7 +159,8 @@ attribute to specify its importance and may have all other attributes of a polic
 evaluated in the order of their weight. The paths of the policy with the highest weight are used, if
 the heighest-weight policy does not match any paths, the next policy is evaluated. When multiple
 policies have the same weight, all of their paths are returned. The default for a weight (when it is
-omitted) is 0.
+omitted) is 0. All paths returned by an option must also match every condition of the top-level
+policy (the top-level policy is ANDed to every option).
 
 The following example has three options, the first denies ISD 1. If that doesn't match any paths,
 the second option which denies hops in multiple ASes is used. If that again does not match, the
