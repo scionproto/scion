@@ -59,6 +59,9 @@ func (l *l4AddrInfo) Port() uint16 {
 }
 
 func (l *l4AddrInfo) Copy() L4Info {
+	if l == nil {
+		return nil
+	}
 	return &l4AddrInfo{pType: l.pType, port: l.port}
 }
 
