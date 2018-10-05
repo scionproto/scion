@@ -1,7 +1,7 @@
 # Go Integration Tests
 
 Integration tests in go are standalone binaries that can be run.
-The convetion is that binaries should end in _integration.
+The convention is that binaries should end in _integration.
 We do this by putting the main of integration test in a package named *_integration.
 After building the integration test binaries end up in `./bin`
 

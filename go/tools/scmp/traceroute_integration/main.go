@@ -1,4 +1,4 @@
-// Copyright 2018 Anapaya Systems
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,18 +32,17 @@ func main() {
 }
 
 func realMain() int {
-	if err := integration.Init("pp_integration"); err != nil {
+	if err := integration.Init("traceroute_integration"); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	in := integration.NewBinaryIntegration("./bin/pingpong",
-		[]string{"-mode", "client", "-sciondFromIA", "-log.console", "debug", "-count", "1",
-			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
-			"-remote", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort},
-		[]string{"-mode", "server", "-sciondFromIA", "-log.console", "debug",
-			"-local", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort}, integration.StdLog)
+	in := integration.NewBinaryIntegration("./bin/scmp",
+		[]string{"tr", "-sciondFromIA",
+			"-local", integration.SrcIAReplace + ",[127.0.0.1]",
+			"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+		nil, integration.NonStdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
@@ -55,21 +54,12 @@ func realMain() int {
 // In case of an error the function is terminated immediately.
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
-		// First run all servers
-		dsts := integration.ExtractUniqueDsts(pairs)
-		for _, dst := range dsts {
-			c, err := integration.StartServer(in, dst)
-			if err != nil {
-				return err
-			}
-			defer c.Close()
-		}
-		// Now start the clients for srcDest pair
+		// Run for all srcDest pair
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
 			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
-				log.Error("Error during client execution", "err", err)
+				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 				return err
 			}
 		}
