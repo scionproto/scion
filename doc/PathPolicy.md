@@ -126,7 +126,7 @@ precedence. Also, an attribute specified at top level (the policy that has the `
 always has precedence over attributes of an extended policy.
 
 The following example uses three sub-policies to create the top-level policy. As `sub_pol_1` and
-`sub_pol_3` both define an ACL but `sub_pol_1` has precedence, the ACL of `sub_pol_3` is discarded.
+`sub_pol_3` both define an ACL but `sub_pol_3` has precedence, the ACL of `sub_pol_1` is discarded.
 
 ```
 - extends_example:
