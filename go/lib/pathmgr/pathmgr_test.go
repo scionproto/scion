@@ -75,12 +75,10 @@ func TestQueryFilter(t *testing.T) {
 	Convey("Query with policy filter, only one path should remain, default deny", t, func() {
 		pp, err := sciond.NewPathInterface("0-0#0")
 		xtest.FailOnErr(t, err)
-
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{Action: pathpol.Allow, Rule: &pp},
 			denyEntry,
 		}}}
-
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
@@ -95,7 +93,6 @@ func TestQueryFilter(t *testing.T) {
 			{Action: pathpol.Allow, Rule: &pp},
 			allowEntry,
 		}}}
-
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
@@ -110,7 +107,6 @@ func TestQueryFilter(t *testing.T) {
 			{Action: pathpol.Deny, Rule: &pp},
 			denyEntry,
 		}}}
-
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 0)
 	})
@@ -122,7 +118,6 @@ func TestACLPolicyFilter(t *testing.T) {
 		pm := NewPR(t, g, 0, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
-
 		pp, _ := sciond.NewPathInterface("1-ff00:0:121#0")
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{
@@ -131,7 +126,6 @@ func TestACLPolicyFilter(t *testing.T) {
 			},
 			allowEntry,
 		}}}
-
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 2)
 	})
@@ -141,7 +135,6 @@ func TestACLPolicyFilter(t *testing.T) {
 		pm := NewPR(t, g, 0, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
-
 		pp, _ := sciond.NewPathInterface("1-ff00:0:121#0")
 		pp2, _ := sciond.NewPathInterface("2-ff00:0:211#2327")
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
@@ -152,7 +145,6 @@ func TestACLPolicyFilter(t *testing.T) {
 			{Action: pathpol.Deny, Rule: &pp2},
 			allowEntry,
 		}}}
-
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 	})
