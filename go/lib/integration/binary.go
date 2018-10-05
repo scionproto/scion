@@ -48,6 +48,7 @@ type binaryIntegration struct {
 	name       string
 	clientArgs []string
 	serverArgs []string
+	logger     logger
 }
 
 // NewBinaryIntegration returns an implementation of the Integration interface.
@@ -55,11 +56,13 @@ type binaryIntegration struct {
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
-func NewBinaryIntegration(name string, clientArgs, serverArgs []string) Integration {
+func NewBinaryIntegration(name string, clientArgs, serverArgs []string,
+	logger logger) Integration {
 	return &binaryIntegration{
 		name:       name,
 		clientArgs: clientArgs,
 		serverArgs: serverArgs,
+		logger:     logger,
 	}
 }
 
@@ -99,7 +102,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 			}
 		}
 	}()
-	go redirectLog("Server", "ServerErr", dst, ep)
+	go bi.logger("Server", "ServerErr", dst, ep)
 	err = r.Start()
 	if err != nil {
 		return nil, err
@@ -123,7 +126,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) 
 	if err != nil {
 		return nil, err
 	}
-	go redirectLog("Client", "ClientErr", src, ep)
+	go bi.logger("Client", "ClientErr", src, ep)
 	return r, r.Start()
 }
 
@@ -138,12 +141,29 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	return argsCopy
 }
 
-func redirectLog(name, pName string, local addr.IA, ep io.ReadCloser) {
+type logger func(name, pName string, local addr.IA, ep io.ReadCloser)
+
+// StdLog tries to parse any log line from the standard format and logs it to the log file
+var StdLog logger = func(name, pName string, local addr.IA, ep io.ReadCloser) {
 	defer log.LogPanicAndExit()
 	defer ep.Close()
 	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
 		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
 	})
+}
+
+// NonStdLog directly logs any log lines as error to the log file
+var NonStdLog logger = func(name, pName string, local addr.IA, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
+	defer ep.Close()
+	lines := []string{}
+	scanner := bufio.NewScanner(ep)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	if len(lines) > 0 {
+		log.Error(fmt.Sprintf("%s@%s: %s", name, local, strings.Join(lines, "\n")))
+	}
 }
 
 var _ Waiter = (*binaryWaiter)(nil)

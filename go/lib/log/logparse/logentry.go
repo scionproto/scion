@@ -87,6 +87,7 @@ func parseInitialEntry(line, fileName, element string, lineno int) *LogEntry {
 
 	if len(line) < tsLen {
 		log.Error(fmt.Sprintf("Short line at %s:%d: '%+v'", fileName, lineno, line))
+		return nil
 	}
 	ts, err := time.Parse(common.TimeFmt, line[:tsLen])
 	if err != nil {
