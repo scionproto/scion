@@ -192,15 +192,15 @@ local scion_l4_pld_len = ProtoField.uint16("scion.l4.pld.len", "Length")
 local scion_ch_ver_expert = ProtoExpert.new("scion.ch.version.expert",
     "Unsupported SCION version", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_ch_addrtype_expert = ProtoExpert.new("scion.ch.addr_type.expert",
-    "", expert.group.MALFORMED, expert.severity.ERROR)
+    "Unknown address type", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_ch_totallen_expert = ProtoExpert.new("scion.ch.total_len.expert",
-    "", expert.group.MALFORMED, expert.severity.ERROR)
+    "Malformed totallen field", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_ch_hdrlen_expert = ProtoExpert.new("scion.ch.hdr_len.expert",
-    "", expert.group.MALFORMED, expert.severity.ERROR)
+    "Malformed hdr len", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_ch_infoff_expert = ProtoExpert.new("scion.ch.inf_off.expert",
-    "", expert.group.MALFORMED, expert.severity.ERROR)
+    "Malformed info field", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_ch_hopoff_expert = ProtoExpert.new("scion.ch.hop_off.expert",
-    "", expert.group.MALFORMED, expert.severity.ERROR)
+    "Malformed hop field", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_l4_type_expert = ProtoExpert.new("scion.l4.type.expert",
     "Unsupported L4 protocol", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_scmp_cls_expert = ProtoExpert.new("scion.scmp.class.expert",
@@ -208,9 +208,9 @@ local scion_scmp_cls_expert = ProtoExpert.new("scion.scmp.class.expert",
 local scion_scmp_type_expert = ProtoExpert.new("scion.scmp.type.expert",
     "Unsupported SCMP type", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_scmp_len_expert = ProtoExpert.new("scion.scmp.length.expert",
-    "", expert.group.MALFORMED, expert.severity.ERROR)
+    "Malformed SCMP length field", expert.group.MALFORMED, expert.severity.ERROR)
 local scion_udp_len_expert = ProtoExpert.new("scion.udp.length.expert",
-    "", expert.group.MALFORMED, expert.severity.ERROR)
+    "Malformed UDP length field", expert.group.MALFORMED, expert.severity.ERROR)
 
 
 scion_proto.fields={
