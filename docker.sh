@@ -6,12 +6,12 @@ build_dir=
 image_tag=
 
 get_params() {
-  # If we're on a local branch, use that. If we're on a detached HEAD from a
-  # remote branch, or from a bare rev id, use that instead.
-  branch=$(LC_ALL=C git status | head -n1 |
-           awk '/^On branch|HEAD detached at/ {print $NF}')
-  build_dir="docker/_build/$branch"
-  image_tag=$(echo "$branch" | tr '/' '.')
+    # If we're on a local branch, use that. If we're on a detached HEAD from a
+    # remote branch, or from a bare rev id, use that instead.
+    branch=$(LC_ALL=C git status | head -n1 |
+    awk '/^On branch|HEAD detached at/ {print $NF}')
+    build_dir="docker/_build/$branch"
+    image_tag=$(echo "$branch" | tr '/' '.')
 }
 
 cmd_base() {
@@ -78,22 +78,38 @@ cmd_clean() {
 }
 
 cmd_run() {
+    HOME_DIR=${HOME_DIR:-$PWD}
     # Limit to 4G of ram, don't allow swapping.
     local args="-i -t -h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
-    args+=" -v $PWD/htmlcov:/home/scion/go/src/github.com/scionproto/scion/htmlcov"
-    args+=" -v $PWD/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
-    args+=" -v $PWD/sphinx-doc/_build:/home/scion/go/src/github.com/scionproto/scion/sphinx-doc/_build"
-    # Can't use --rm in circleci, their environment doesn't allow it, so it
-    # just throws an error
-    [ -n "$CIRCLECI" ] || args+=" --rm"
+    args+=" -v /var/run/docker.sock:/var/run/docker.sock"
+    args+=" -v $HOME_DIR/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
+    args+=" -v $HOME_DIR/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
+    args+=" -v $HOME_DIR/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
+    args+=" -v $HOME_DIR/gen-cache:/home/scion/go/src/github.com/scionproto/scion/gen-cache"
+    args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
+    args+=" -v /run/shm/sciond:/run/shm/sciond"
+    args+=" --rm"
+    args+=" -e HOME_DIR=$HOME_DIR"
+    args+=" -e LOGNAME=$LOGNAME"
+    args+=" -e PYTHONPATH=python/:."
     setup_volumes
+    setup_socket_dirs
     docker run $args scion "$@"
+}
+
+setup_socket_dirs() {
+    local disp_dir="/run/shm/dispatcher"
+    [ -d "$disp_dir" ] || mkdir "$disp_dir"
+    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
+    local sciond_dir="/run/shm/sciond"
+    [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
+    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
 }
 
 setup_volumes() {
     set -e
-    for i in htmlcov logs sphinx-doc/_build; do
-        mkdir -p "$i"
+    for i in gen logs gen-certs gen-cache; do
+        mkdir -p "$HOME_DIR/$i"
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to
         # write to it.
