@@ -18,7 +18,8 @@ MOCK_SRC_IN =\
     lib/pathdb/pathdb.go \
     lib/snet/interface.go \
     lib/snet/snetproxy/reconnecter.go \
-    lib/snet/snetproxy/io.go
+    lib/snet/snetproxy/io.go \
+    lib/log/wrappers.go
 MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))
 # This uses the format <stdlib package>/<interface>:
 MOCK_STD_IN = net/Addr
