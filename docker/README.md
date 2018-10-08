@@ -41,6 +41,3 @@ Notes:
    before sending for review/etc, make sure your working directory is clean
    before building the image. Any new files must be at least added to git,
    even if you haven't committed them, otherwise docker.sh will skip them.
- * The code coverage and sphinx-docs outputs are made available outside the
-   container transparently, in the same directories (`htmlcov/` and
-   `sphinx-doc/_build`) as external builds use.
