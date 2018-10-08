@@ -22,18 +22,16 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
-	"github.com/scionproto/scion/go/proto"
 )
 
 // PathDB defines the interface that all PathDB backends have to implement.
 type PathDB interface {
 	// Insert inserts or updates a path segment. It returns the number of path segments
 	// that have been inserted/updated.
-	Insert(context.Context, *seg.PathSegment, []proto.PathSegType) (int, error)
+	Insert(context.Context, *seg.Meta) (int, error)
 	// InsertWithHPCfgIDs inserts or updates a path segment with a set of HPCfgIDs. It
 	// returns the number of path segments that have been inserted/updated.
-	InsertWithHPCfgIDs(context.Context, *seg.PathSegment, []proto.PathSegType, []*query.HPCfgID) (
-		int, error)
+	InsertWithHPCfgIDs(context.Context, *seg.Meta, []*query.HPCfgID) (int, error)
 	// Delete deletes all path segments that matches the given query,
 	// returning the number of deleted segments
 	Delete(context.Context, *query.Params) (int, error)
