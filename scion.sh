@@ -7,6 +7,7 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 # BEGIN subcommand functions
 
 cmd_topology() {
+    set -e
     local zkclean
     echo "Shutting down: $(./scion.sh stop)"
     supervisor/supervisor.sh shutdown
@@ -19,7 +20,7 @@ cmd_topology() {
         zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
-    python/topology/generator.py "$@" || exit 1
+    python/topology/generator.py "$@"
     run_zk
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
@@ -56,13 +57,21 @@ cmd_run() {
 
 run_zk() {
     if is_docker; then
-        echo "Stop local zookeeper"
-        systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
+        host_zk_stop
         ./tools/dc.sh scion up -d zookeeper
     else
-        echo "Start local zookeeper"
-        systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
+        host_zk_start
     fi
+}
+
+host_zk_start() {
+    [ -e /var/run/dbus/system_bus_socket ] || return 0
+    systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
+}
+
+host_zk_stop() {
+    [ -e /var/run/dbus/system_bus_socket ] || return 0
+    systemctl is-active --quiet zookeeper && sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
 }
 
 cmd_mstart() {
@@ -71,12 +80,10 @@ cmd_mstart() {
     if is_docker; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        echo "Stop local zookeeper"
-        systemctl is-active --quiet zookeeper && sudo systemctl stop zookeeper
+        host_zk_stop
         ./tools/dc.sh scion up -d $services
     else
-        echo "Start local zookeeper"
-        systemctl is-active --quiet zookeeper || sudo systemctl start zookeeper
+        host_zk_start
         supervisor/supervisor.sh mstart "$@"
     fi
 }
@@ -86,10 +93,10 @@ run_setup() {
      # Create dispatcher and sciond dirs or change owner
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
-    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { echo "Fix ownership of $disp_dir"; sudo chown $LOGNAME: "$disp_dir"; }
+    [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
-    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { echo "Fix ownership of $sciond_dir"; sudo chown $LOGNAME: "$sciond_dir"; }
+    [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
 }
 
 cmd_stop() {
