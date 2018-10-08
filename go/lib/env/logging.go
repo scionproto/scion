@@ -58,8 +58,8 @@ func (cfg *Logging) setDefaults() {
 		cfg.File.MaxAge = log.DefaultFileMaxAgeDays
 	}
 	if cfg.File.FlushInterval == nil {
-		cfg.File.FlushInterval = new(int)
-		*cfg.File.FlushInterval = log.DefaultFileFlushSeconds
+		s := log.DefaultFileFlushSeconds
+		cfg.File.FlushInterval = &s
 	}
 }
 

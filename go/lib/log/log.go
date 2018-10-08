@@ -94,7 +94,7 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 	return nil
 }
 
-// SetupLogConsole sets up logging on default error. logLevel can be one of
+// SetupLogConsole sets up logging on default stderr. logLevel can be one of
 // trace, debug, info, warn, error, and crit, and states the minimum level of
 // logging events that gets printed to the console.
 func SetupLogConsole(logLevel string) error {
