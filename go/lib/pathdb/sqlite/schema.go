@@ -21,10 +21,10 @@ const (
 	// SchemaVersion is the version of the SQLite schema understood by this backend.
 	// Whenever changes to the schema are made, this version number should be increased
 	// to prevent data corruption between incompatible database schemas.
-	SchemaVersion = 4
+	SchemaVersion = 5
 	// Schema is the SQLite database layout.
 	Schema = `CREATE TABLE Segments(
-		RowID INTEGER PRIMARY KEY AUTOINCREMENT,
+		RowID INTEGER PRIMARY KEY,
 		SegID DATA UNIQUE NOT NULL,
 		LastUpdated INTEGER NOT NULL,
 		Segment DATA NOT NULL,
