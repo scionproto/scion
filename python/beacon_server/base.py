@@ -387,7 +387,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if out_info["remote_ia"].int() and not out_info["remote_if"]:
             return None
         exp_time = self.hof_exp_time(ts)
-        if exp_time <= 0:
+        if exp_time < 0:
             logging.error("Invalid hop field expiration time value: %s", exp_time)
             return None
         hof = HopOpaqueField.from_values(exp_time, in_if, out_if, xover=xover)
