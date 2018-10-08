@@ -17,10 +17,8 @@ package spathmeta
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 )
@@ -42,7 +40,7 @@ func NewPathPredicate(expr string) (*PathPredicate, error) {
 	var ifaces []sciond.PathInterface
 	ifaceStrs := strings.Split(expr, ",")
 	for _, ifaceStr := range ifaceStrs {
-		iface, err := ppParseIface(ifaceStr)
+		iface, err := sciond.NewPathInterface(ifaceStr)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +54,7 @@ func (pp *PathPredicate) Eval(path *sciond.PathReplyEntry) bool {
 	ifaces := path.Path.Interfaces
 	mIdx := 0
 	for i := range ifaces {
-		if ppWildcardEquals(&ifaces[i], &pp.Match[mIdx]) {
+		if PPWildcardEquals(ifaces[i], pp.Match[mIdx]) {
 			mIdx += 1
 			if mIdx == len(pp.Match) {
 				return true
@@ -93,27 +91,7 @@ func (pp *PathPredicate) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func ppParseIface(str string) (sciond.PathInterface, error) {
-	tokens := strings.Split(str, "#")
-	if len(tokens) != 2 {
-		return sciond.PathInterface{},
-			common.NewBasicError("Failed to parse interface spec", nil, "value", str)
-	}
-	var iface sciond.PathInterface
-	ia, err := addr.IAFromString(tokens[0])
-	if err != nil {
-		return sciond.PathInterface{}, err
-	}
-	iface.RawIsdas = ia.IAInt()
-	ifid, err := strconv.ParseUint(tokens[1], 10, 64)
-	if err != nil {
-		return sciond.PathInterface{}, err
-	}
-	iface.IfID = common.IFIDType(ifid)
-	return iface, nil
-}
-
-func ppWildcardEquals(x, y *sciond.PathInterface) bool {
+func PPWildcardEquals(x, y sciond.PathInterface) bool {
 	xIA, yIA := x.ISD_AS(), y.ISD_AS()
 	if xIA.I != 0 && yIA.I != 0 && xIA.I != yIA.I {
 		return false

@@ -52,16 +52,6 @@ func TestPathPredicates(t *testing.T) {
 			"1-ff00:0:133#0", true,
 		},
 		{
-			"direct neighbors, wildcard AS match",
-			"1-ff00:0:133", "1-ff00:0:132",
-			"1-0#1019", true,
-		},
-		{
-			"direct neighbors, wildcard AS but no match",
-			"1-ff00:0:133", "1-ff00:0:132",
-			"1-0#1234", false,
-		},
-		{
 			"direct neighbors, any wildcard match",
 			"1-ff00:0:133", "1-ff00:0:132",
 			"0-0#0", true,
@@ -150,6 +140,11 @@ func TestPathPredicateString(t *testing.T) {
 				SoMsg("string", ppA.String(), ShouldEqual, tc.expr)
 			})
 		}
+	})
+
+	Convey("Compile faulty path predicate", t, func() {
+		_, err := NewPathPredicate("1-0#12")
+		SoMsg("err", err, ShouldNotBeNil)
 	})
 }
 

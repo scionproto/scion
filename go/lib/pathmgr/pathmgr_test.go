@@ -23,6 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -63,25 +64,89 @@ func TestQuery(t *testing.T) {
 	})
 }
 
+var allowEntry = &pathpol.ACLEntry{Action: pathpol.Allow, Rule: &sciond.PathInterface{}}
+var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: &sciond.PathInterface{}}
+
 func TestQueryFilter(t *testing.T) {
-	Convey("Query with filter, only one path should remain", t, func() {
-		g := graph.NewDefaultGraph()
-		pm := NewPR(t, g, 0, 0, 0)
-		srcIA := xtest.MustParseIA("1-ff00:0:133")
-		dstIA := xtest.MustParseIA("1-ff00:0:131")
-
-		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#0")
+	g := graph.NewDefaultGraph()
+	pm := NewPR(t, g, 0, 0, 0)
+	srcIA := xtest.MustParseIA("1-ff00:0:133")
+	dstIA := xtest.MustParseIA("1-ff00:0:131")
+	Convey("Query with policy filter, only one path should remain, default deny", t, func() {
+		pp, err := sciond.NewPathInterface("0-0#0")
 		xtest.FailOnErr(t, err)
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#0",
-			pktcls.NewCondPathPredicate(pp))
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("filter", filter, ShouldNotBeNil)
-
-		aps := pm.QueryFilter(srcIA, dstIA, filter)
+		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{Action: pathpol.Allow, Rule: &pp},
+			denyEntry,
+		}}}
+		aps := pm.QueryFilter(srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+	})
+
+	Convey("Query with policy filter, only one path should remain, default allow", t, func() {
+		pp, err := sciond.NewPathInterface("1-ff00:0:134#1910")
+		xtest.FailOnErr(t, err)
+		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{Action: pathpol.Allow, Rule: &pp},
+			allowEntry,
+		}}}
+		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 1)
+		SoMsg("path", getPathStrings(aps), ShouldContain,
+			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
+				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+	})
+
+	Convey("Query with policy filter, no path should remain", t, func() {
+		pp, err := sciond.NewPathInterface("1-ff00:0:132#1910")
+		xtest.FailOnErr(t, err)
+		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{Action: pathpol.Deny, Rule: &pp},
+			denyEntry,
+		}}}
+		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 0)
+	})
+}
+
+func TestACLPolicyFilter(t *testing.T) {
+	Convey("Query with ACL policy filter", t, func() {
+		g := graph.NewDefaultGraph()
+		pm := NewPR(t, g, 0, 0, 0)
+		srcIA := xtest.MustParseIA("2-ff00:0:222")
+		dstIA := xtest.MustParseIA("1-ff00:0:131")
+		pp, _ := sciond.NewPathInterface("1-ff00:0:121#0")
+		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{
+				Action: pathpol.Deny,
+				Rule:   &pp,
+			},
+			allowEntry,
+		}}}
+		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 2)
+	})
+
+	Convey("Query with longer ACL policy filter", t, func() {
+		g := graph.NewDefaultGraph()
+		pm := NewPR(t, g, 0, 0, 0)
+		srcIA := xtest.MustParseIA("2-ff00:0:222")
+		dstIA := xtest.MustParseIA("1-ff00:0:131")
+		pp, _ := sciond.NewPathInterface("1-ff00:0:121#0")
+		pp2, _ := sciond.NewPathInterface("2-ff00:0:211#2327")
+		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
+			{
+				Action: pathpol.Deny,
+				Rule:   &pp,
+			},
+			{Action: pathpol.Deny, Rule: &pp2},
+			allowEntry,
+		}}}
+		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		SoMsg("aps len", len(aps), ShouldEqual, 1)
 	})
 }
 
@@ -129,7 +194,6 @@ func TestRegisterFilter(t *testing.T) {
 			pktcls.NewCondPathPredicate(pp))
 
 		sp, err := pm.WatchFilter(srcIA, dstIA, filter)
-		SoMsg("err", err, ShouldBeNil)
 		SoMsg("len aps", len(sp.Load().APS), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+

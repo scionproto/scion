@@ -17,6 +17,7 @@ package sciond
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -311,6 +312,52 @@ func (fpm *FwdPathMeta) fmtIfaces() []string {
 type PathInterface struct {
 	RawIsdas addr.IAInt `capnp:"isdas"`
 	IfID     common.IFIDType
+}
+
+func NewPathInterface(str string) (PathInterface, error) {
+	var err error
+	var ia addr.IA
+	// Parse ISD
+	dashParts := strings.Split(str, "-")
+	ia.I, err = addr.ISDFromString(dashParts[0])
+	if err != nil {
+		return PathInterface{},
+			common.NewBasicError("Failed to parse ISD", err, "value", str)
+	}
+	if len(dashParts) == 1 {
+		return PathInterface{RawIsdas: ia.IAInt()}, nil
+	}
+	if len(dashParts) != 2 {
+		return PathInterface{},
+			common.NewBasicError("Failed to parse path interface, multiple dashes found", nil,
+				"value", str)
+	}
+	// Parse AS if present
+	hashParts := strings.Split(dashParts[1], "#")
+	ia.A, err = addr.ASFromString(hashParts[0])
+	if err != nil {
+		return PathInterface{}, common.NewBasicError("Failed to parse AS", err, "value", str)
+	}
+	if len(hashParts) == 1 {
+		return PathInterface{RawIsdas: ia.IAInt()}, nil
+	}
+	if len(hashParts) != 2 {
+		return PathInterface{},
+			common.NewBasicError("Failed to parse path interface, multiple hashes found", nil,
+				"value", str)
+	}
+	// Parse IfID if present
+	ifid, err := strconv.ParseUint(hashParts[1], 10, 64)
+	if err != nil {
+		return PathInterface{}, common.NewBasicError("Failed to parse ifid", err, "value", str)
+	}
+	// IfID cannot be set when the AS is a wildcard
+	if ifid != 0 && ia.A == 0 {
+		return PathInterface{},
+			common.NewBasicError("Failed to parse path interface, IfID must be 0",
+				nil, "value", str)
+	}
+	return PathInterface{RawIsdas: ia.IAInt(), IfID: common.IFIDType(ifid)}, nil
 }
 
 func (iface *PathInterface) ISD_AS() addr.IA {
