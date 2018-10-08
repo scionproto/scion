@@ -65,11 +65,13 @@ run_zk() {
 }
 
 host_zk_start() {
-        systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
+    [ -e /var/run/dbus/system_bus_socket ] || return 0
+    systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
 }
 
 host_zk_stop() {
-        systemctl is-active --quiet zookeeper && sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
+    [ -e /var/run/dbus/system_bus_socket ] || return 0
+    systemctl is-active --quiet zookeeper && sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
 }
 
 cmd_mstart() {
