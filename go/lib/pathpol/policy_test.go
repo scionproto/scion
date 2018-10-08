@@ -82,8 +82,9 @@ func TestSequenceEval(t *testing.T) {
 			ExpPathNum: 2,
 		},
 		{
-			Name:       "Longer Wildcard matching",
-			List:       newSequence(t, []string{"0-0#0", "0-0#0", "0-0#0", "0-0#0", "0-0#0", "0-0#0"}),
+			Name: "Longer Wildcard matching",
+			List: newSequence(t, []string{"0-0#0", "0-0#0", "0-0#0", "0-0#0", "0-0#0",
+				"0-0#0"}),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 2,
