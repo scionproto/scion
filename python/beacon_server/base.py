@@ -1,4 +1,5 @@
 # Copyright 2014 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -147,7 +148,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         self.signing_key = get_sig_key(self.conf_dir)
         self.of_gen_key = kdf(self.master_key_0, b"Derive OF Key")
         # Amount of time units a HOF is valid (time unit is EXP_TIME_UNIT).
-        self.default_hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT)
+        self.default_hof_exp_time = int(self.config.segment_ttl / EXP_TIME_UNIT) - 1
         self.ifid_state = {}
         for ifid in self.ifid2br:
             self.ifid_state[ifid] = InterfaceState()
@@ -237,7 +238,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         :rtype: int
         """
         cert_exp = self._get_my_cert().as_cert.expiration_time
-        max_exp_time = int((cert_exp-ts) / EXP_TIME_UNIT)
+        max_exp_time = int((cert_exp-ts) / EXP_TIME_UNIT) - 1
         return min(max_exp_time, self.default_hof_exp_time)
 
     def _mk_if_info(self, if_id):
@@ -386,7 +387,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
         if out_info["remote_ia"].int() and not out_info["remote_if"]:
             return None
         exp_time = self.hof_exp_time(ts)
-        if exp_time <= 0:
+        if exp_time < 0:
             logging.error("Invalid hop field expiration time value: %s", exp_time)
             return None
         hof = HopOpaqueField.from_values(exp_time, in_if, out_if, xover=xover)
