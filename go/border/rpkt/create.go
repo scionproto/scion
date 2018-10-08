@@ -221,6 +221,20 @@ func (rp *RtrPkt) CreateReply(sp *spkt.ScnPkt) (*RtrPkt, error) {
 				return nil, err
 			}
 		}
+	} else {
+		// Reply should go to local AS but the path might include a remote AS
+		srcHost, err := rp.SrcHost()
+		if err != nil {
+			return nil, err
+		}
+		dst, err := overlay.NewOverlayAddr(srcHost, addr.NewL4UDPInfo(overlay.EndhostPort))
+		if err != nil {
+			return nil, err
+		}
+		if err := reply.replyEgress(rp.DirFrom, dst, 0); err != nil {
+			return nil, err
+		}
+		return reply, nil
 	}
 	if err := reply.replyEgress(rp.DirFrom, rp.Ingress.Src, rp.Ingress.IfID); err != nil {
 		return nil, err
