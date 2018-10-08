@@ -21,7 +21,6 @@
 import argparse
 import base64
 import configparser
-import copy
 import getpass
 import json
 import logging
@@ -100,6 +99,8 @@ from lib.util import (
     read_file,
     write_file,
 )
+from topology.common import _prom_addr_br, _prom_addr_infra
+from topology.docker import DockerGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
@@ -108,7 +109,6 @@ DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
 HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
-DOCKER_CONF = 'scion-dc.yml'
 COMMON_DIR = 'endhost'
 
 ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
@@ -140,7 +140,6 @@ DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 
-DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 ZOOKEEPER_ADDR = "172.18.0.1"
 
 SCION_SERVICE_NAMES = (
@@ -1188,245 +1187,6 @@ class GoGenerator(object):
         return 'sd' + topo_id.file_fmt()
 
 
-class DockerGenerator(object):
-    def __init__(self, out_dir, topo_dicts, sd, ps):
-        self.out_dir = out_dir
-        self.topo_dicts = topo_dicts
-        self.sd = sd
-        self.ps = ps
-        self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
-
-    def generate(self):
-        self._base_conf()
-        self._zookeeper_conf()
-        self._dispatcher_conf()
-        for topo_id, topo in self.topo_dicts.items():
-            base = topo_id.base_dir(self.out_dir)
-            self._br_conf(topo, base)
-            self._cs_conf(topo_id, topo, base)
-            self._bs_conf(topo_id, topo, base)
-            self._ps_conf(topo_id, topo, base)
-            self._sciond_conf(topo_id, base)
-        write_file(os.path.join(self.out_dir, DOCKER_CONF),
-                   yaml.dump(self.dc_conf, default_flow_style=False))
-
-    def _base_conf(self):
-        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
-        self.dc_conf['networks']['default'] = default_net
-
-    def _br_conf(self, topo, base):
-        raw_entry = {
-            'image': 'scion_border',
-            'restart': 'always',
-            'network_mode': 'host',
-            'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                '${PWD}/logs:/share/logs:rw'
-            ],
-            'command': []
-        }
-        for k, v in topo.get("BorderRouters", {}).items():
-            entry = copy.deepcopy(raw_entry)
-            entry['container_name'] = k
-            entry['volumes'].append('${PWD}/%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('-id=%s' % k)
-            entry['command'].append('-prom=%s' % _prom_addr_br(v))
-            self.dc_conf['services'][k] = entry
-
-    def _cs_conf(self, topo_id, topo, base):
-        raw_entry = {
-            'image': 'scion_cert_py',
-            'restart': 'always',
-            'depends_on': [
-                self._sciond_name(topo_id),
-                'dispatcher',
-                'zookeeper'
-            ],
-            'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
-                '${PWD}/gen-cache:/share/cache:rw',
-                '${PWD}/logs:/share/logs:rw'
-            ],
-            'command': [
-                '--spki_cache_dir=cache'
-            ]
-        }
-        for k, v in topo.get("CertificateService", {}).items():
-            entry = copy.deepcopy(raw_entry)
-            entry['container_name'] = k
-            entry['volumes'].append('${PWD}/%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=%s' % _prom_addr_infra(v))
-            entry['command'].append('--sciond_path=%s' %
-                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
-            entry['command'].append(k)
-            entry['command'].append('conf')
-            self.dc_conf['services'][k] = entry
-
-    def _bs_conf(self, topo_id, topo, base):
-        raw_entry = {
-            'image': 'scion_beacon_py',
-            'restart': 'always',
-            'depends_on': [
-                self._sciond_name(topo_id),
-                'dispatcher',
-                'zookeeper'
-            ],
-            'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
-                '${PWD}/gen-cache:/share/cache:rw',
-                '${PWD}/logs:/share/logs:rw'
-            ],
-            'command': [
-                '--spki_cache_dir=cache'
-            ]
-        }
-        for k, v in topo.get("BeaconService", {}).items():
-            entry = copy.deepcopy(raw_entry)
-            entry['container_name'] = k
-            entry['volumes'].append('${PWD}/%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=%s' % _prom_addr_infra(v))
-            entry['command'].append('--sciond_path=%s' %
-                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
-            entry['command'].append(k)
-            entry['command'].append('conf')
-            self.dc_conf['services'][k] = entry
-
-    def _ps_conf(self, topo_id, topo, base):
-        image = 'scion_path_py' if self.ps == 'py' else 'scion_path'
-        raw_entry = {
-            'image': image,
-            'restart': 'always',
-            'depends_on': [
-                self._sciond_name(topo_id),
-                'dispatcher',
-                'zookeeper'
-            ],
-            'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
-                '${PWD}/gen-cache:/share/cache:rw',
-                '${PWD}/logs:/share/logs:rw'
-            ],
-            'command': [],
-        }
-        for k, v in topo.get("PathService", {}).items():
-            entry = copy.deepcopy(raw_entry)
-            entry['container_name'] = k
-            entry['volumes'].append('${PWD}/%s:/share/conf:ro' % os.path.join(base, k))
-            if self.ps == 'py':
-                entry['command'].append('--spki_cache_dir=cache')
-                entry['command'].append('--prom=%s' % _prom_addr_infra(v))
-                entry['command'].append('--sciond_path=%s' %
-                                        get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
-                entry['command'].append(k)
-                entry['command'].append('conf')
-            self.dc_conf['services'][k] = entry
-
-    def _zookeeper_conf(self):
-        entry = {
-            'image': 'zookeeper:latest',
-            'container_name': 'zookeeper',
-            'restart': 'always',
-            'environment': {
-                'ZOO_USER': '$LOGNAME',
-                'ZOO_DATA_DIR': '/var/lib/zookeeper',
-                'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                '${PWD}/docker/zoo-container.cfg:/conf/zoo.cfg:rw',
-                '/var/lib/docker-zk:/var/lib/zookeeper:rw',
-                '/run/shm/docker-zk:/dev/shm/zookeeper:rw'
-            ],
-            'ports': [
-                '2181:2181'
-            ]
-        }
-        self.dc_conf['services']['zookeeper'] = entry
-
-    def _dispatcher_conf(self):
-        entry = {
-            'image': 'scion_dispatcher',
-            'container_name': 'dispatcher',
-            'restart': 'always',
-            'network_mode': 'host',
-            'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '${PWD}/gen/dispatcher:/share/conf:rw',
-                '${PWD}/logs:/share/logs:rw'
-            ]
-        }
-        self.dc_conf['services']['dispatcher'] = entry
-
-        # Create dispatcher config
-        tmpl = Template(read_file("topology/zlog.tmpl"))
-        cfg = "gen/dispatcher/dispatcher.zlog.conf"
-        write_file(cfg, tmpl.substitute(name="dispatcher", elem="dispatcher"))
-
-    def _sciond_conf(self, topo_id, base):
-        name = self._sciond_name(topo_id)
-        image = 'scion_sciond_py' if self.sd == 'py' else 'scion_sciond'
-        entry = {
-            'image': image,
-            'restart': 'always',
-            'container_name': name,
-            'depends_on': [
-                'dispatcher',
-            ],
-            'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
-                '${PWD}/%s:/share/conf:ro' % os.path.join(base, 'endhost'),
-                '${PWD}/gen-cache:/share/cache:rw',
-                '${PWD}/logs:/share/logs:rw'
-            ],
-        }
-        if self.sd == 'py':
-            entry['command'] = [
-                    '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
-                    '--log_dir=logs',
-                    '--spki_cache_dir=cache',
-                    name,
-                    'conf'
-            ]
-        self.dc_conf['services'][name] = entry
-
-    def _sciond_name(self, topo_id):
-        return 'sd' + topo_id.file_fmt()
-
-
 class TopoID(ISD_AS):
     def ISD(self):
         return "ISD%s" % self.isd_str()
@@ -1612,25 +1372,6 @@ def _json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
-
-
-def _prom_addr_br(br_ele):
-    """Get the prometheus address for a border router"""
-    pub = _get_pub(br_ele['CtrlAddr'])
-    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['L4Port'] + 1)
-
-
-def _prom_addr_infra(infra_ele):
-    """Get the prometheus address for an infrastructure element."""
-    pub = _get_pub(infra_ele['Addrs'])
-    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['L4Port'] + 1)
-
-
-def _get_pub(topo_addr):
-    pub = topo_addr.get('IPv6')
-    if pub is not None:
-        return pub
-    return topo_addr['IPv4']
 
 
 def main():
