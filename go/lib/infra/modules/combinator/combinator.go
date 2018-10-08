@@ -27,7 +27,6 @@ package combinator
 import (
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -71,7 +70,6 @@ type Path struct {
 	Weight     int
 	Mtu        uint16
 	Interfaces []sciond.PathInterface
-	ExpTime    time.Time
 }
 
 func (p *Path) writeTestString(w io.Writer) {
@@ -103,14 +101,15 @@ func (p *Path) aggregateInterfaces() {
 	}
 }
 
-func (p *Path) computeExpTime() {
-	p.ExpTime = time.Unix(1<<63-1, 0)
+func (p *Path) ComputeExpTime() uint64 {
+	minTimestamp := spath.MaxExpirationTime
 	for _, segment := range p.Segments {
-		t := segment.InfoField.Timestamp().Add(time.Duration(segment.ExpTime) * time.Second)
-		if t.Before(p.ExpTime) {
-			p.ExpTime = t
+		expTime := segment.ComputeExpTime()
+		if minTimestamp > expTime {
+			minTimestamp = expTime
 		}
 	}
+	return minTimestamp
 }
 
 func (p *Path) WriteTo(w io.Writer) (int64, error) {
@@ -137,7 +136,6 @@ type Segment struct {
 	HopFields  []*HopField
 	Type       proto.PathSegType
 	Interfaces []sciond.PathInterface
-	ExpTime    uint32
 }
 
 // initInfoFieldFrom copies the info field in pathSegment, and sets it as the
@@ -176,6 +174,21 @@ func (segment *Segment) reverse() {
 	for i, j := 0, len(segment.Interfaces)-1; i < j; i, j = i+1, j-1 {
 		segment.Interfaces[i], segment.Interfaces[j] = segment.Interfaces[j], segment.Interfaces[i]
 	}
+}
+
+func (segment *Segment) ComputeExpTime() uint64 {
+	return uint64(segment.InfoField.TsInt) + segment.computeHopFieldsTTL()
+}
+
+func (segment *Segment) computeHopFieldsTTL() uint64 {
+	minTTL := uint64(spath.MaxTTL)
+	for _, hf := range segment.HopFields {
+		offset := uint64(hf.ExpTime.ToDuration().Seconds())
+		if minTTL > offset {
+			minTTL = offset
+		}
+	}
+	return minTTL
 }
 
 type InfoField struct {
