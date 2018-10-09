@@ -16,6 +16,7 @@ package combinator
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -29,7 +30,7 @@ func TestComputeSegmentExpTime(t *testing.T) {
 	testCases := []struct {
 		Name               string
 		Segment            *Segment
-		ExpectedExpiration uint64
+		ExpectedExpiration int64
 	}{
 		{
 			Name:               "smallest possible expiration value",
@@ -39,7 +40,7 @@ func TestComputeSegmentExpTime(t *testing.T) {
 		{
 			Name:               "non-zero hop ttl field value",
 			Segment:            buildTestSegment(0, 1),
-			ExpectedExpiration: 675,
+			ExpectedExpiration: 674,
 		},
 		{
 			Name:               "two hop fields, min should be taken",
@@ -49,28 +50,30 @@ func TestComputeSegmentExpTime(t *testing.T) {
 		{
 			Name:               "maximum ttl selected",
 			Segment:            buildTestSegment(0, 255),
-			ExpectedExpiration: 24 * 60 * 60,
+			ExpectedExpiration: 24*60*60 - 128, // rounding error drift
 		},
 		{
 			Name:               "ttl relative to info field timestamp",
 			Segment:            buildTestSegment(100, 1),
-			ExpectedExpiration: 775,
+			ExpectedExpiration: 774,
 		},
 		{
 			Name:               "ttl relative to maximum info field timestamp",
 			Segment:            buildTestSegment(4294967295, 1),
-			ExpectedExpiration: 4294967970,
+			ExpectedExpiration: 4294967969,
 		},
 		{
 			Name:               "maximum possible value",
 			Segment:            buildTestSegment(4294967295, 255),
-			ExpectedExpiration: 4295053695,
+			ExpectedExpiration: 4295053695 - 128, // rounding error drift
 		},
 	}
 	Convey("Expiration values should be correct", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				So(tc.Segment.ComputeExpTime(), ShouldEqual, tc.ExpectedExpiration)
+				computedExpiration := tc.Segment.ComputeExpTime()
+				expectedExpiration := time.Unix(tc.ExpectedExpiration, 0)
+				So(computedExpiration.Unix(), ShouldEqual, expectedExpiration.Unix())
 			})
 		}
 	})
