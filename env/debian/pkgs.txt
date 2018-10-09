@@ -44,6 +44,7 @@ python3-sphinx
 python3-wheel
 python3-yaml
 screen
+sqlite3
 sudo
 uthash-dev
 vim-common

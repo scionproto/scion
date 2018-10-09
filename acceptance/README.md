@@ -5,16 +5,13 @@ Acceptance testing framework
 To add an acceptance test, create a new `xxx_acceptance` folder in
 `/acceptance`, with `xxx` replaced by the name of your test.
 
-The folder must contain a `test.sh` file, which must define the following elements:
-* A `TEST_NAME` variable, which matches the name of the folder.
-* A `test_setup` function, which takes no arguments and will be executed by the
-  framework at the start of the test. If the return value of the function is
-  non-zero, the test is aborted.
-* A `test_run` function, which takes no arguments and contains the test itself
-  (including assertions). If the return value of the function is non-zero, the
-  test is failed.
-* A `test_teardown` function, which takes no arguments and contains cleanup to
-  be performed at the end of the test.
+The folder must contain a `test` executable, which must support the following arguments:
+* `name`, which returns the name of the acceptance test.
+* `setup`, which runs the setup portion of the acceptance test. If the return
+  value of the application is non-zero, the test is aborted.
+* `run`, which runs the test itself (including assertions). If the return value
+  of the function is non-zero, the test is considered to have failed.
+* `teardown`, which cleans up after the test.
 
 For an example, see `acceptance/reconnecting_acceptance`.
 

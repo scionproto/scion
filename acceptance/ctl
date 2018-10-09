@@ -22,8 +22,7 @@ COMMAND="$1"
 case "$COMMAND" in
     setup|run|teardown)
         TEST="$2"
-        . "acceptance/${TEST}_acceptance/test.sh"
-        "test_$COMMAND" ;;
+        "acceptance/${TEST}_acceptance/test" $COMMAND ;;
     gsetup)
         global_setup ;;
     *) cmd_help; exit 1 ;;

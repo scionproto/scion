@@ -1,23 +1,15 @@
-#!/bin/bash
-
 . acceptance/color.sh
 
 run_command() {
-    local COMMAND="$1"
-    local OUTPUT_FILE="$2"
-    if [[ -n "$OUTPUT_FILE" ]]; then
-        "$COMMAND" &>> "$OUTPUT_FILE"
-    else
-        "$COMMAND"
+    local cmd="$1"
+    local out="$2"
+
+    $cmd &>> "${out:-/dev/stdout}"
+    local ret=$?
+    if [[ -n "$out" && $ret -ne 0 ]]; then
+        cat "$out"
     fi
-    if [ $? -eq 0 ]; then
-        true
-    else
-        if [[ -n "$OUTPUT_FILE" ]]; then
-            cat "$OUTPUT_FILE"
-        fi
-        false
-    fi
+    return $ret
 }
 
 stop_infra() {
@@ -37,71 +29,77 @@ build_docker_perapp() {
 }
 
 global_setup() {
-    local ARTIFACTS_FOLDER="$1"
+    local out_dir="$ARTIFACTS_FOLDER"
     set -e
     print_green "[==========]"
     print_green "[----------]" "Global test environment set-up"
-    if [[ -n $ARTIFACTS_FOLDER ]]; then
-        mkdir "$ARTIFACTS_FOLDER"
-        local SETUP_PRE_CLEAN="${ARTIFACTS_FOLDER}/global_setup_pre_clean.out"
-        local SETUP_DOCKER_BASE="${ARTIFACTS_FOLDER}/global_setup_docker_base.out"
-        local SETUP_DOCKER_SCION="${ARTIFACTS_FOLDER}/global_setup_docker_scion.out"
-        local SETUP_DOCKER_PERAPP="${ARTIFACTS_FOLDER}/global_setup_docker_perapp.out"
-    fi
-    run_command stop_infra $SETUP_PRE_CLEAN
+    run_command stop_infra ${out_dir:+$out_dir/global_setup_pre_clean.out}
     rm -f logs/*
-    run_command build_docker_base $SETUP_DOCKER_BASE
-    run_command build_docker_scion $SETUP_DOCKER_SCION
-    run_command build_docker_perapp $SETUP_DOCKER_PERAPP
+    run_command build_docker_base ${out_dir:+$out_dir/global_setup_docker_base.out}
+    run_command build_docker_scion ${out_dir:+$out_dir/global_setup_docker_scion.out}
+    run_command build_docker_perapp ${out_dir:+$out_dir/global_setup_docker_perapp.out}
+    set +e
 }
 
 test_setup_wrapper() {
-    if run_command test_setup "$1"; then
-        print_green "[ SETUP    ]" "$TEST_NAME" && true
+    if run_command "$TEST_PROGRAM setup" "$1"; then
+        print_green "[ SETUP    ]" "$TEST_NAME"
+        return 0
     else
         stats_failed=$((stats_failed+1))
-        print_red "[ SETUP    ]" "$TEST_NAME" && false
+        print_red "[ SETUP    ]" "$TEST_NAME"
+        return 1
     fi
 }
 
 test_run_wrapper() {
     print_green "[  RUN     ]" "$TEST_NAME"
-    if run_command test_run "$1"; then
+    if run_command "$TEST_PROGRAM run" "$1"; then
         stats_passed=$((stats_passed+1))
-        print_green "[   OK     ]" "$TEST_NAME" && true
+        print_green "[   OK     ]" "$TEST_NAME"
+        return 0
     else
         stats_failed=$((stats_failed+1))
-        print_red "[   FAILED ]" "$TEST_NAME" && false
+        print_red "[   FAILED ]" "$TEST_NAME"
+        return 1
     fi
 }
 
 save_logs() {
-    local ARTIFACTS_FOLDER="$1"
-    cp -R logs "$ARTIFACTS_FOLDER/$TEST_NAME/"
+    local out="$1"
+    cp -R logs "$out/$TEST_NAME/"
 }
 
 test_teardown_wrapper() {
-    run_command test_teardown "$1"
-    if run_command test_teardown "$1"; then
-        print_green "[ TEARDOWN ]" "$TEST_NAME" && true
+    if run_command "$TEST_PROGRAM teardown" "$1"; then
+        print_green "[ TEARDOWN ]" "$TEST_NAME"
+        return 0
     else
-        print_read "[ TEARDOWN ]" "$TEST_NAME" && false
+        print_read "[ TEARDOWN ]" "$TEST_NAME"
+        return 1
     fi
 }
 
 global_run() {
-    local ARTIFACTS_FOLDER="$1"
+    local out="$ARTIFACTS_FOLDER"
+	local regex_matcher="$1"
     for i in ./acceptance/*_acceptance; do
         stats_total=$((stats_total+1))
-        . $i/test.sh
+
+		TEST_PROGRAM="$i/test"
+		TEST_NAME=$($TEST_PROGRAM name)
+
         print_green "[----------]" "Test found: $TEST_NAME"
 
-        if [[ "$TEST_NAME" =~ "$TEST_REGEX_MATCHER" ]]; then
-            mkdir -p "$ARTIFACTS_FOLDER/$TEST_NAME"
-            SETUP_FILE="$ARTIFACTS_FOLDER/$TEST_NAME/setup.out"
-            RUN_FILE="$ARTIFACTS_FOLDER/$TEST_NAME/run.out"
-            TEARDOWN_FILE="$ARTIFACTS_FOLDER/$TEST_NAME/teardown.out"
-            test_setup_wrapper "$SETUP_FILE" && test_run_wrapper "$RUN_FILE" && test_teardown_wrapper "$TEARDOWN_FILE" && save_logs "$ARTIFACTS_FOLDER"
+        if [[ "$TEST_NAME" =~ "$regex_matcher" ]]; then
+            mkdir -p "$out/$TEST_NAME"
+            SETUP_FILE="$out/$TEST_NAME/setup.out"
+            RUN_FILE="$out/$TEST_NAME/run.out"
+            TEARDOWN_FILE="$out/$TEST_NAME/teardown.out"
+            test_setup_wrapper "$SETUP_FILE" && \
+                test_run_wrapper "$RUN_FILE" && \
+                test_teardown_wrapper "$TEARDOWN_FILE" && \
+                save_logs "$out"
         else
             print_yellow "[  SKIPPED ]" "$TEST_NAME"
             stats_skipped=$((stats_skipped+1))
