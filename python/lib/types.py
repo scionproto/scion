@@ -1,4 +1,5 @@
 # Copyright 2015 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,6 +62,10 @@ class ServiceType(TypeBase):
     CS = "cs"
     #: SIBRA service
     SIBRA = "sb"
+    #: Discovery service
+    DS = "ds"
+    #: Border router
+    BR = "br"
 
 
 class ExtensionClass(TypeBase):

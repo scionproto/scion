@@ -1,4 +1,5 @@
 # Copyright 2014 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -196,6 +197,7 @@ class Topology(object):
     :ivar list beacon_servers: beacons servers in the AS.
     :ivar list certificate_servers: certificate servers in the AS.
     :ivar list path_servers: path servers in the AS.
+    :ivar list discovery_servers: discovery servers in the AS.
     :ivar list border_routers: border routers in the AS.
     :ivar list parent_interfaces: BR interfaces linking to upstream ASes.
     :ivar list child_interfaces: BR interfaces linking to downstream ASes.
@@ -211,6 +213,7 @@ class Topology(object):
         self.certificate_servers = []
         self.path_servers = []
         self.sibra_servers = []
+        self.discovery_servers = []
         self.border_routers = []
         self.parent_interfaces = []
         self.child_interfaces = []
@@ -260,6 +263,7 @@ class Topology(object):
             ("CertificateService", self.certificate_servers),
             ("PathService", self.path_servers),
             ("SibraService", self.sibra_servers),
+            ("DiscoveryService", self.discovery_servers),
         ):
             for k, v in topology.get(type_, {}).items():
                 list_.append(ServerElement(v, k))
@@ -303,6 +307,7 @@ class Topology(object):
             ServiceType.CS: self.certificate_servers,
             ServiceType.PS: self.path_servers,
             ServiceType.SIBRA: self.sibra_servers,
+            ServiceType.DS: self.discovery_servers,
         }
         try:
             target = type_map[server_type]
