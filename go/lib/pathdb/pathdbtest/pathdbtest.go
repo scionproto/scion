@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -235,7 +236,7 @@ func testGetMixed(t *testing.T, pathDB pathdb.PathDB) {
 		resSegID, _ := res[0].Seg.ID()
 		SoMsg("Result count", len(res), ShouldEqual, 1)
 		SoMsg("SegIDs match", resSegID, ShouldResemble, segID1)
-		SoMsg("HpCfgIDs match", res[0].HpCfgIDs, ShouldResemble, hpCfgIDs)
+		checkSameHpCfgs("HpCfgIDs match", res[0].HpCfgIDs, hpCfgIDs)
 	})
 }
 
@@ -256,9 +257,9 @@ func testGetAll(t *testing.T, pathDB pathdb.PathDB) {
 		for _, r := range res {
 			resSegID, _ := r.Seg.ID()
 			if bytes.Compare(resSegID, segID1) == 0 {
-				SoMsg("HpCfgIDs match", r.HpCfgIDs, ShouldResemble, hpCfgIDs)
+				checkSameHpCfgs("HpCfgIDs match", r.HpCfgIDs, hpCfgIDs)
 			} else if bytes.Compare(resSegID, segID2) == 0 {
-				SoMsg("HpCfgIDs match", r.HpCfgIDs, ShouldResemble, hpCfgIDs[:1])
+				checkSameHpCfgs("HpCfgIDs match", r.HpCfgIDs, hpCfgIDs[:1])
 			} else {
 				t.Fatal("Unexpected result", "seg", r.Seg)
 			}
@@ -469,5 +470,14 @@ func checkResult(t *testing.T, results []*query.Result, expectedSeg *seg.PathSeg
 	_, err := results[0].Seg.ID()
 	xtest.FailOnErr(t, err)
 	SoMsg("Segment should match", results[0].Seg, ShouldResemble, expectedSeg)
-	SoMsg("HiddenPath Ids should match", results[0].HpCfgIDs, ShouldResemble, hpCfgsIds)
+	checkSameHpCfgs("HiddenPath Ids should match", results[0].HpCfgIDs, hpCfgsIds)
+}
+
+func checkSameHpCfgs(msg string, actual, expected []*query.HPCfgID) {
+	sort.Slice(actual, func(i, j int) bool {
+		return actual[i].IA.I < actual[j].IA.I ||
+			actual[i].IA.I == actual[j].IA.I && actual[i].IA.A < actual[j].IA.A ||
+			actual[i].IA.Eq(actual[j].IA) && actual[i].ID < actual[j].ID
+	})
+	SoMsg(msg, actual, ShouldResemble, expected)
 }
