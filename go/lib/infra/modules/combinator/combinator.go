@@ -27,6 +27,7 @@ package combinator
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
@@ -101,11 +102,11 @@ func (p *Path) aggregateInterfaces() {
 	}
 }
 
-func (p *Path) ComputeExpTime() uint64 {
+func (p *Path) ComputeExpTime() time.Time {
 	minTimestamp := spath.MaxExpirationTime
 	for _, segment := range p.Segments {
 		expTime := segment.ComputeExpTime()
-		if minTimestamp > expTime {
+		if minTimestamp.After(expTime) {
 			minTimestamp = expTime
 		}
 	}
@@ -176,14 +177,14 @@ func (segment *Segment) reverse() {
 	}
 }
 
-func (segment *Segment) ComputeExpTime() uint64 {
-	return uint64(segment.InfoField.TsInt) + segment.computeHopFieldsTTL()
+func (segment *Segment) ComputeExpTime() time.Time {
+	return segment.InfoField.Timestamp().Add(segment.computeHopFieldsTTL())
 }
 
-func (segment *Segment) computeHopFieldsTTL() uint64 {
-	minTTL := uint64(spath.MaxTTL)
+func (segment *Segment) computeHopFieldsTTL() time.Duration {
+	minTTL := time.Duration(spath.MaxTTL) * time.Second
 	for _, hf := range segment.HopFields {
-		offset := uint64(hf.ExpTime.ToDuration().Seconds())
+		offset := hf.ExpTime.ToDuration()
 		if minTTL > offset {
 			minTTL = offset
 		}
