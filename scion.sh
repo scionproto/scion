@@ -71,7 +71,9 @@ host_zk_start() {
 
 host_zk_stop() {
     [ -e /var/run/dbus/system_bus_socket ] || return 0
-    systemctl is-active --quiet zookeeper && sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
+    if systemctl is-active --quiet zookeeper; then
+        sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
+    fi
 }
 
 cmd_mstart() {
