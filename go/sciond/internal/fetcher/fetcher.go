@@ -284,7 +284,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 				FwdPath:    x.Bytes(),
 				Mtu:        path.Mtu,
 				Interfaces: path.Interfaces,
-				ExpTime:    uint32(path.ComputeExpTime()),
+				ExpTime:    uint32(path.ComputeExpTime().Unix()),
 			},
 			HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
 		})
@@ -504,9 +504,9 @@ func buildPathsToAllDsts(req *sciond.PathReq,
 
 func filterExpiredPaths(paths []*combinator.Path) []*combinator.Path {
 	var validPaths []*combinator.Path
-	now := uint64(time.Now().Unix())
+	now := time.Now()
 	for _, path := range paths {
-		if path.ComputeExpTime() >= now {
+		if path.ComputeExpTime().After(now) {
 			validPaths = append(validPaths, path)
 		}
 	}
