@@ -71,8 +71,7 @@ func TestComputeSegmentExpTime(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				computedExpiration := tc.Segment.ComputeExpTime()
-				expectedExpiration := tc.ExpectedExpiration
-				So(computedExpiration.Unix(), ShouldEqual, expectedExpiration)
+				So(computedExpiration.Unix(), ShouldEqual, tc.ExpectedExpiration)
 			})
 		}
 	})
