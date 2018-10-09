@@ -161,18 +161,15 @@ func realMain() int {
 }
 
 func Init(configName string) error {
-	_, err := toml.DecodeFile(configName, &config)
-	if err != nil {
+	if _, err := toml.DecodeFile(configName, &config); err != nil {
 		return err
 	}
-	err = env.InitGeneral(&config.General)
-	if err != nil {
+	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
 	itopo.SetCurrentTopology(config.General.Topology)
-	environment = env.SetupEnv(nil)
-	err = env.InitLogging(&config.Logging)
-	if err != nil {
+	environment = infraenv.InitInfraEnvironment(config.General.TopologyPath)
+	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
 	config.SD.InitDefaults()

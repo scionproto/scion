@@ -179,11 +179,10 @@ func setup(configName string) error {
 		return err
 	}
 	itopo.SetCurrentTopology(config.General.Topology)
+	environment = infraenv.InitInfraEnvironment(config.General.TopologyPath)
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
 	config.PS.InitDefaults()
-	// TODO(lukedirtwalker): SUPPORT RELOADING!!!
-	environment = env.SetupEnv(nil)
 	return nil
 }
