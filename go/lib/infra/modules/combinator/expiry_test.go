@@ -16,7 +16,6 @@ package combinator
 
 import (
 	"testing"
-	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -72,8 +71,8 @@ func TestComputeSegmentExpTime(t *testing.T) {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				computedExpiration := tc.Segment.ComputeExpTime()
-				expectedExpiration := time.Unix(tc.ExpectedExpiration, 0)
-				So(computedExpiration.Unix(), ShouldEqual, expectedExpiration.Unix())
+				expectedExpiration := tc.ExpectedExpiration
+				So(computedExpiration.Unix(), ShouldEqual, expectedExpiration)
 			})
 		}
 	})

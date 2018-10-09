@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"math"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -37,7 +38,7 @@ const (
 	RecurseMask       = 0x04
 	MaxTTL            = 24 * 60 * 60 // One day in seconds
 	ExpTimeUnit       = MaxTTL / 256 // ~5m38s
-	MaxTTLField       = ExpTimeType(255)
+	MaxTTLField       = ExpTimeType(math.MaxUint8)
 	macInputLen       = 16
 )
 
