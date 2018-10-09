@@ -47,7 +47,7 @@ var (
 		&query.NullHpCfgID,
 		{ia330, 0xdeadbeef},
 	}
-	types = []proto.PathSegType{proto.PathSegType_up, proto.PathSegType_down}
+	segType = proto.PathSegType_up
 
 	ifspecs = []query.IntfSpec{
 		{IA: ia330, IfID: 5},
@@ -92,7 +92,7 @@ func testDelete(t *testing.T, setup func() pathdb.PathDB, cleanup func()) {
 			Setup: func(ctx context.Context, t *testing.T, pathDB pathdb.PathDB) *query.Params {
 				TS := uint32(10)
 				pseg, segID := AllocPathSegment(ifs1, TS)
-				InsertSeg(t, ctx, pathDB, pseg, types, hpCfgIDs)
+				InsertSeg(t, ctx, pathDB, pseg, hpCfgIDs)
 				return &query.Params{SegIDs: []common.RawBytes{segID}}
 			},
 			DeleteCount: 1,
@@ -102,9 +102,9 @@ func testDelete(t *testing.T, setup func() pathdb.PathDB, cleanup func()) {
 			Setup: func(ctx context.Context, t *testing.T, pathDB pathdb.PathDB) *query.Params {
 				TS := uint32(10)
 				pseg, _ := AllocPathSegment(ifs1, TS)
-				InsertSeg(t, ctx, pathDB, pseg, types, hpCfgIDs)
+				InsertSeg(t, ctx, pathDB, pseg, hpCfgIDs)
 				pseg, _ = AllocPathSegment(ifs2, TS)
-				InsertSeg(t, ctx, pathDB, pseg, types, hpCfgIDs)
+				InsertSeg(t, ctx, pathDB, pseg, hpCfgIDs)
 				return &query.Params{
 					Intfs: []*query.IntfSpec{&ifspecs[0]},
 				}
@@ -139,7 +139,7 @@ func testInsertWithHpCfgIDsFull(t *testing.T, pathDB pathdb.PathDB) {
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		// Call
-		inserted, err := pathDB.InsertWithHPCfgIDs(ctx, pseg, types, hpCfgIDs)
+		inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
 		xtest.FailOnErr(t, err)
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
@@ -159,9 +159,9 @@ func testUpdateExisting(t *testing.T, pathDB pathdb.PathDB) {
 		newTS := uint32(20)
 		newSeg, newSegID := AllocPathSegment(ifs1, newTS)
 		SoMsg("IDs should match", newSegID, ShouldResemble, segID)
-		InsertSeg(t, ctx, pathDB, oldSeg, types[:1], hpCfgIDs[:1])
+		InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
 		// Call
-		inserted := InsertSeg(t, ctx, pathDB, newSeg, types, hpCfgIDs)
+		inserted := InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 1)
 		// Check Insert
@@ -180,9 +180,9 @@ func testUpdateOlderIgnored(t *testing.T, pathDB pathdb.PathDB) {
 		oldTS := uint32(10)
 		oldSeg, oldSegId := AllocPathSegment(ifs1, oldTS)
 		SoMsg("IDs should match", oldSegId, ShouldResemble, newSegID)
-		InsertSeg(t, ctx, pathDB, newSeg, types, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, newSeg, hpCfgIDs)
 		// Call
-		inserted := InsertSeg(t, ctx, pathDB, oldSeg, types[:1], hpCfgIDs[:1])
+		inserted := InsertSeg(t, ctx, pathDB, oldSeg, hpCfgIDs[:1])
 		// Check return value.
 		SoMsg("Inserted", inserted, ShouldEqual, 0)
 		// Check Insert
@@ -202,8 +202,8 @@ func testDeleteExpired(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		pseg1, _ := AllocPathSegment(ifs1, ts1)
 		pseg2, _ := AllocPathSegment(ifs2, ts2)
-		InsertSeg(t, ctx, pathDB, pseg1, types, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, types, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs)
 		deleted, err := pathDB.DeleteExpired(ctx, time.Unix(10, 0).Add(defaultExp))
 		xtest.FailOnErr(t, err)
 		SoMsg("Deleted", deleted, ShouldEqual, 0)
@@ -224,8 +224,8 @@ func testGetMixed(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		pseg1, segID1 := AllocPathSegment(ifs1, TS)
 		pseg2, _ := AllocPathSegment(ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, types, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, types[:1], hpCfgIDs[:1])
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 		params := &query.Params{
 			SegIDs:   []common.RawBytes{segID1},
 			SegTypes: []proto.PathSegType{proto.PathSegType_up},
@@ -248,8 +248,8 @@ func testGetAll(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		pseg1, segID1 := AllocPathSegment(ifs1, TS)
 		pseg2, segID2 := AllocPathSegment(ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, types, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, types[:1], hpCfgIDs[:1])
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 		// Call
 		res, err := pathDB.Get(ctx, nil)
 		xtest.FailOnErr(t, err)
@@ -275,8 +275,8 @@ func testGetStartsAtEndsAt(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		pseg1, _ := AllocPathSegment(ifs1, TS)
 		pseg2, _ := AllocPathSegment(ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, types, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, types[:1], hpCfgIDs[:1])
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 		// Call
 		res, err := pathDB.Get(ctx, &query.Params{StartsAt: []addr.IA{ia330, ia332}})
 		xtest.FailOnErr(t, err)
@@ -295,8 +295,8 @@ func testGetWithIntfs(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		pseg1, _ := AllocPathSegment(ifs1, TS)
 		pseg2, _ := AllocPathSegment(ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, types, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, types[:1], hpCfgIDs[:1])
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 		params := &query.Params{
 			Intfs: []*query.IntfSpec{
 				{ia330, 5},
@@ -318,8 +318,8 @@ func testGetWithHpCfgIDs(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		pseg1, _ := AllocPathSegment(ifs1, TS)
 		pseg2, _ := AllocPathSegment(ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, types, hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, types[:1], hpCfgIDs[:1])
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 		params := &query.Params{
 			HpCfgIDs: hpCfgIDs[1:],
 		}
@@ -340,8 +340,8 @@ func testGetModifiedIDs(t *testing.T, pathDB pathdb.PathDB) {
 		defer cancelF()
 		pseg1, _ := AllocPathSegment(ifs1, TS)
 		pseg2, _ := AllocPathSegment(ifs2, TS)
-		InsertSeg(t, ctx, pathDB, pseg1, types[1:], hpCfgIDs)
-		InsertSeg(t, ctx, pathDB, pseg2, types[1:], hpCfgIDs[:1])
+		InsertSeg(t, ctx, pathDB, pseg1, hpCfgIDs)
+		InsertSeg(t, ctx, pathDB, pseg2, hpCfgIDs[:1])
 		q := &query.Params{
 			MinLastUpdate: &tAfter,
 		}
@@ -453,12 +453,10 @@ func allocHopEntry(inIA, outIA addr.IA, hopF common.RawBytes) *seg.HopEntry {
 }
 
 func InsertSeg(t *testing.T, ctx context.Context, pathDB pathdb.PathDB,
-	pseg *seg.PathSegment, types []proto.PathSegType, hpCfgIDs []*query.HPCfgID) int {
+	pseg *seg.PathSegment, hpCfgIDs []*query.HPCfgID) int {
 
-	inserted, err := pathDB.InsertWithHPCfgIDs(ctx, pseg, types, hpCfgIDs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	inserted, err := pathDB.InsertWithHPCfgIDs(ctx, seg.NewMeta(pseg, segType), hpCfgIDs)
+	xtest.FailOnErr(t, err)
 	return inserted
 }
 

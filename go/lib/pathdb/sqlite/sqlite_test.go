@@ -90,7 +90,7 @@ func TestOpenExisting(t *testing.T) {
 		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
 		defer cancelF()
 		pseg1, _ := pathdbtest.AllocPathSegment(ifs1, TS)
-		pathdbtest.InsertSeg(t, ctx, b, pseg1, types, hpCfgIDs)
+		pathdbtest.InsertSeg(t, ctx, b, pseg1, hpCfgIDs)
 		b.db.Close()
 		// Call
 		b, err := New(tmpF)
