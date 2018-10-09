@@ -120,7 +120,7 @@ func insertSegs(t *testing.T, pathDB pathdb.PathDB, segs []*seg.PathSegment, st 
 	for _, s := range segs {
 		err := s.Validate()
 		xtest.FailOnErr(t, err)
-		_, err = pathDB.Insert(ctx, s, []proto.PathSegType{st})
+		_, err = pathDB.Insert(ctx, seg.NewMeta(s, st))
 		xtest.FailOnErr(t, err)
 	}
 }

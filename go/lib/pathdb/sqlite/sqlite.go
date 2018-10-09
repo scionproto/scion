@@ -101,20 +101,19 @@ func (b *Backend) rollback() error {
 	return nil
 }
 
-func (b *Backend) Insert(ctx context.Context, pseg *seg.PathSegment,
-	segTypes []proto.PathSegType) (int, error) {
-
-	return b.InsertWithHPCfgIDs(ctx, pseg, segTypes, []*query.HPCfgID{&query.NullHpCfgID})
+func (b *Backend) Insert(ctx context.Context, segMeta *seg.Meta) (int, error) {
+	return b.InsertWithHPCfgIDs(ctx, segMeta, []*query.HPCfgID{&query.NullHpCfgID})
 }
 
-func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, pseg *seg.PathSegment,
-	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) (int, error) {
+func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
+	hpCfgIDs []*query.HPCfgID) (int, error) {
 
 	b.Lock()
 	defer b.Unlock()
 	if b.db == nil {
 		return 0, common.NewBasicError("No database open", nil)
 	}
+	pseg := segMeta.Segment
 	// Check if we already have a path segment.
 	segID, err := pseg.ID()
 	if err != nil {
@@ -132,7 +131,7 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, pseg *seg.PathSegment,
 			// Update existing path segment.
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
-			if err := b.updateExisting(ctx, meta, segTypes, hpCfgIDs); err != nil {
+			if err := b.updateExisting(ctx, meta, segMeta.Type, hpCfgIDs); err != nil {
 				return 0, err
 			}
 			return 1, nil
@@ -140,7 +139,7 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, pseg *seg.PathSegment,
 		return 0, nil
 	}
 	// Do full insert.
-	if err = b.insertFull(ctx, pseg, segTypes, hpCfgIDs); err != nil {
+	if err = b.insertFull(ctx, segMeta, hpCfgIDs); err != nil {
 		return 0, err
 	}
 	return 1, nil
@@ -173,7 +172,7 @@ func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, err
 }
 
 func (b *Backend) updateExisting(ctx context.Context, meta *segMeta,
-	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) error {
+	segType proto.PathSegType, hpCfgIDs []*query.HPCfgID) error {
 
 	// Create new transaction
 	if err := b.begin(ctx); err != nil {
@@ -184,12 +183,10 @@ func (b *Backend) updateExisting(ctx context.Context, meta *segMeta,
 		b.rollback()
 		return err
 	}
-	// Check if the existing segment is registered as the given type(s).
-	for _, segType := range segTypes {
-		if err := b.insertType(ctx, meta.RowID, segType); err != nil {
-			b.rollback()
-			return err
-		}
+	// Make sure the existing segment is registered as the given type.
+	if err := b.insertType(ctx, meta.RowID, segType); err != nil {
+		b.rollback()
+		return err
 	}
 	// Check if the existing segment is registered with the given hpCfgIDs.
 	for _, hpCfgID := range hpCfgIDs {
@@ -242,13 +239,14 @@ func (b *Backend) insertHPCfgID(ctx context.Context, segRowID int64,
 	return nil
 }
 
-func (b *Backend) insertFull(ctx context.Context, pseg *seg.PathSegment,
-	segTypes []proto.PathSegType, hpCfgIDs []*query.HPCfgID) error {
+func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
+	hpCfgIDs []*query.HPCfgID) error {
 
 	// Create new transaction
 	if err := b.begin(ctx); err != nil {
 		return err
 	}
+	pseg := segMeta.Segment
 	segID, err := pseg.ID()
 	if err != nil {
 		return err
@@ -287,11 +285,9 @@ func (b *Backend) insertFull(ctx context.Context, pseg *seg.PathSegment,
 		return err
 	}
 	// Insert segType information.
-	for _, segType := range segTypes {
-		if err = b.insertType(ctx, segRowID, segType); err != nil {
-			b.rollback()
-			return err
-		}
+	if err = b.insertType(ctx, segRowID, segMeta.Type); err != nil {
+		b.rollback()
+		return err
 	}
 	// Insert hpCfgID information.
 	for _, hpCfgID := range hpCfgIDs {
