@@ -212,7 +212,7 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
+	m.log.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
 	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
 }
 
@@ -256,7 +256,7 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
+	m.log.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
 	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
 }
 
@@ -305,7 +305,7 @@ func (m *Messenger) SendSegReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
+	m.log.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
 	return m.getRequester(infra.SegReply, infra.None).Notify(ctx, pld, a)
 }
 
@@ -317,7 +317,7 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
+	m.log.Trace("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
 	return m.getRequester(infra.SegSync, infra.None).Notify(ctx, pld, a)
 }
 
@@ -359,7 +359,7 @@ func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify",
+	m.log.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesIdReply, "to", a, "id", id)
 	return m.getRequester(infra.SegChangesIdReply, infra.None).Notify(ctx, pld, a)
 }
@@ -406,7 +406,7 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify",
+	m.log.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesReply, "to", a, "id", id)
 	return m.getRequester(infra.SegChangesReply, infra.None).Notify(ctx, pld, a)
 }
@@ -449,7 +449,7 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	if err != nil {
 		return err
 	}
-	m.log.Debug("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
+	m.log.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
 	return m.getRequester(infra.ChainIssueReply, infra.None).Notify(ctx, pld, a)
 }
 
