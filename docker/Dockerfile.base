@@ -33,12 +33,6 @@ COPY env/common.sh env/
 COPY env/debian env/debian
 RUN sudo apt-get update && APTARGS=-y env/debian/deps && sudo apt-get clean
 
-# Install docker and docker-compose
-COPY tools/install_docker install_docker
-RUN sudo ./install_docker
-RUN rm install_docker
-RUN sudo usermod -aG docker scion
-
 # Pip packages
 COPY env/pip3 env/pip3
 COPY env/pip2 env/pip2
@@ -74,6 +68,10 @@ RUN set -ex; \
     tar caf ~/go_vendor.tar.gz --owner=scion $(find * -maxdepth 0 -type d); \
     cd ../../; \
     rm -r go ~/go/.cache ~/go/pkg/
+
+# Install docker and docker-compose
+COPY tools/install_docker install_docker
+RUN sudo ./install_docker && rm install_docker && sudo usermod -aG docker scion
 
 #################################################################################
 ## Dependencies are now installed, carry on with the rest.
