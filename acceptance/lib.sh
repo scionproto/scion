@@ -32,12 +32,17 @@ global_setup() {
     local out_dir="$ARTIFACTS_FOLDER"
     set -e
     print_green "[==========]"
-    print_green "[----------]" "Global test environment set-up"
+    print_green "[>---------]" "Global test environment set-up"
+    print_green "[->--------]" "Stopping infra"
     run_command stop_infra ${out_dir:+$out_dir/global_setup_pre_clean.out}
     rm -f logs/*
+    print_green "[-->-------]" "Building scion_base docker image"
     run_command build_docker_base ${out_dir:+$out_dir/global_setup_docker_base.out}
+    print_green "[--->------]" "Building scion docker image"
     run_command build_docker_scion ${out_dir:+$out_dir/global_setup_docker_scion.out}
+    print_green "[---->-----]" "Building per-app docker images"
     run_command build_docker_perapp ${out_dir:+$out_dir/global_setup_docker_perapp.out}
+    print_green "[>>>>>>>>>>]" "Global test environment set-up finished"
     set +e
 }
 
@@ -67,7 +72,8 @@ test_run_wrapper() {
 
 save_logs() {
     local out="$1"
-    cp -R logs "$out/$TEST_NAME/"
+    mkdir -p "$out/$TEST_NAME/logs"
+    mv logs/* "$out/$TEST_NAME/logs"
 }
 
 test_teardown_wrapper() {
@@ -82,24 +88,21 @@ test_teardown_wrapper() {
 
 global_run() {
     local out="$ARTIFACTS_FOLDER"
-	local regex_matcher="$1"
+    local regex_matcher="$1"
     for i in ./acceptance/*_acceptance; do
         stats_total=$((stats_total+1))
-
-		TEST_PROGRAM="$i/test"
-		TEST_NAME=$($TEST_PROGRAM name)
-
+        TEST_PROGRAM="$i/test"
+        TEST_NAME=$($TEST_PROGRAM name)
         print_green "[----------]" "Test found: $TEST_NAME"
-
         if [[ "$TEST_NAME" =~ "$regex_matcher" ]]; then
             mkdir -p "$out/$TEST_NAME"
             SETUP_FILE="$out/$TEST_NAME/setup.out"
             RUN_FILE="$out/$TEST_NAME/run.out"
             TEARDOWN_FILE="$out/$TEST_NAME/teardown.out"
             test_setup_wrapper "$SETUP_FILE" && \
-                test_run_wrapper "$RUN_FILE" && \
-                test_teardown_wrapper "$TEARDOWN_FILE" && \
-                save_logs "$out"
+                test_run_wrapper "$RUN_FILE"
+            test_teardown_wrapper "$TEARDOWN_FILE"
+            save_logs "$out"
         else
             print_yellow "[  SKIPPED ]" "$TEST_NAME"
             stats_skipped=$((stats_skipped+1))

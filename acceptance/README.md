@@ -11,7 +11,8 @@ The folder must contain a `test` executable, which must support the following ar
   value of the application is non-zero, the test is aborted.
 * `run`, which runs the test itself (including assertions). If the return value
   of the function is non-zero, the test is considered to have failed.
-* `teardown`, which cleans up after the test.
+* `teardown`, which cleans up after the test. If the return value of the
+  function is non-zero, the run of the **entire** test suite is aborted.
 
 For an example, see `acceptance/reconnecting_acceptance`.
 
