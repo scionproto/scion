@@ -299,11 +299,7 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 	}
 	request := &cert_mgmt.ChainIssReq{RawCert: raw}
 	a := &snet.Addr{IA: c.Issuer, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-<<<<<<< HEAD
 	rep, err := r.msgr.RequestChainIssue(ctx, request, a, messenger.NextId())
-=======
-	rep, err := r.msgr.RequestChainIssue(ctx, request, a, r.state.RequestID.Next())
->>>>>>> 5ad0088... refactor state out of config. add sample file
 	if err != nil {
 		log.Warn("[ReissRequester] Unable to request chain issue", "err", err)
 		return nil
