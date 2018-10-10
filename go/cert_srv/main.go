@@ -29,11 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
-<<<<<<< HEAD
-	"github.com/scionproto/scion/go/lib/sciond"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
-=======
->>>>>>> 31d7794... CS:GO: Move to lib/env
 )
 
 type Config struct {
@@ -52,30 +48,22 @@ type task interface {
 }
 
 var (
-	config      *Config
-	environment *env.Env
-	flagConfig  = flag.String("config", "", "Service TOML config file (required)")
-	flagSample  = flag.String("sample", "",
+	flagConfig = flag.String("config", "", "Service TOML config file (required)")
+	flagSample = flag.String("sample", "",
 		"Filename for creating a sample config. If set, the CS is not started.")
 
-<<<<<<< HEAD
-func init() {
-	// Add a SIGHUP handler as soon as possible on startup, to reduce the
-	// chance that a premature SIGHUP will kill the process. This channel is
-	// used by configSig below.
-	sighup = make(chan os.Signal, 1)
-	signal.Notify(sighup, syscall.SIGHUP)
-}
-=======
-	reissTask task
-	currMsgr  *messenger.Messenger
+	config      *Config
+	environment *env.Env
+	reissTask   task
+	currMsgr    *messenger.Messenger
 )
->>>>>>> 31d7794... CS:GO: Move to lib/env
 
 func init() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-		printDefaults()
+		flag.PrintDefaults()
+		fmt.Fprintln(os.Stderr, "\nSample config file:")
+		fmt.Fprintln(os.Stderr, csconfig.Sample)
 	}
 }
 
@@ -88,12 +76,7 @@ func realMain() int {
 	flag.Parse()
 	if *flagConfig == "" {
 		if *flagSample != "" {
-			if err := writeSample(); err != nil {
-				fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
-				flag.Usage()
-				return 1
-			}
-			return 0
+			return writeSample()
 		}
 		fmt.Fprintln(os.Stderr, "Missing config file")
 		flag.Usage()
@@ -145,12 +128,12 @@ func stop() {
 	currMsgr.CloseServer()
 }
 
-func printDefaults() {
-	flag.PrintDefaults()
-	fmt.Fprintln(os.Stderr, "\nSample config file:")
-	fmt.Fprintln(os.Stderr, csconfig.Sample)
-}
-
-func writeSample() error {
-	return ioutil.WriteFile(*flagSample, []byte(csconfig.Sample), 0666)
+func writeSample() int {
+	if err := ioutil.WriteFile(*flagSample, []byte(csconfig.Sample), 0666); err != nil {
+		fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
+		flag.Usage()
+		return 1
+	}
+	fmt.Fprintln(os.Stdout, "Sample file written to: "+*flagSample)
+	return 0
 }
