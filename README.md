@@ -62,6 +62,14 @@ Necessary steps in order to run SCION:
     ```
     ./env/deps
     ```
+    This requires go version 1.9.x, x>4, to be in $PATH. To automatically install the correct go version, the script can be called as follows:
+    ```
+    bash -c 'yes | GO_INSTALL=true ./env/deps'
+    ```
+    This will install go version 1.9.4 to `/usr/local/go`. This directory needs to be added to $PATH:
+    ```
+    echo 'export PATH=/usr/local/go/bin:$PATH' >> ~/.profile
+    ```
 
 1. Configure the host Zookeeper instance. At a minimum, add `maxClientCnxns=0`
    to `/etc/zookeeper/conf/zoo.cfg`, but replacing it with `docker/zoo.cfg` is
