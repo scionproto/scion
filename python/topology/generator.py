@@ -123,6 +123,7 @@ DEFAULT_PATH_SERVER = "py"
 DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
+DEFAULT_DISCOVERY_SERVERS = 1
 
 DEFAULT_TRC_VALIDITY = 365 * 24 * 60 * 60
 DEFAULT_CORE_CERT_VALIDITY = 364 * 24 * 60 * 60
@@ -147,6 +148,7 @@ SCION_SERVICE_NAMES = (
     "CertificateService",
     "BorderRouters",
     "PathService",
+    "DiscoveryService",
 )
 
 DEFAULT_KEYGEN_ALG = 'ed25519'
@@ -163,7 +165,7 @@ class ConfigGenerator(object):
                  zk_config_file=DEFAULT_ZK_CONFIG, network=None,
                  use_mininet=False, use_docker=False, bind_addr=GENERATE_BIND_ADDRESS,
                  pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER,
-                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER):
+                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER, ds=False):
         """
         Initialize an instance of the class ConfigGenerator.
 
@@ -179,6 +181,7 @@ class ConfigGenerator(object):
         :param string cs: Use go or python implementation of certificate server
         :param string sd: Use go or python implementation of SCIOND
         :param string ps: Use go or python implementation of path server
+        :param bool ds: Use discovery service
         """
         self.ipv6 = ipv6
         self.out_dir = out_dir
@@ -197,6 +200,7 @@ class ConfigGenerator(object):
         self.cs = cs
         self.sd = sd
         self.ps = ps
+        self.ds = ds
         if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
             logging.critical("Cannot use non-default CS with docker!")
             sys.exit(1)
@@ -277,7 +281,8 @@ class ConfigGenerator(object):
     def _generate_topology(self):
         topo_gen = TopoGenerator(
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
-            self.default_mtu, self.gen_bind_addr, self.docker, self.ipv6, self.cs, self.ps)
+            self.default_mtu, self.gen_bind_addr, self.docker, self.ipv6, self.cs, self.ps,
+            self.ds)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
@@ -603,7 +608,7 @@ class CA_Generator(object):
 
 class TopoGenerator(object):
     def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps):
+                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps, ds):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
@@ -627,6 +632,7 @@ class TopoGenerator(object):
             self.addr_type = "IPv4"
         self.cs = cs
         self.ps = ps
+        self.ds = ds
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -718,6 +724,8 @@ class TopoGenerator(object):
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateService"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
+            ("discovery_servers", DEFAULT_DISCOVERY_SERVERS, "ds",
+             "DiscoveryService"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
@@ -1650,11 +1658,13 @@ def main():
                         help='SCIOND implementation to use ("go" or "py")')
     parser.add_argument('-ps', '--path-server', default=DEFAULT_PATH_SERVER,
                         help='Path Server implementation to use ("go or "py")')
+    parser.add_argument('-ds', '--discovery', action='store_true',
+                        help='Generate discovery service')
     args = parser.parse_args()
     confgen = ConfigGenerator(
         args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
         args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
-        args.sciond, args.path_server)
+        args.sciond, args.path_server, args.discovery)
     confgen.generate_all()
 
 
