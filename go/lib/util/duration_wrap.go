@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich, Anapaya Systems
+// Copyright 2018 Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package env
+package util
 
 import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-
-	"github.com/scionproto/scion/go/lib/util"
 )
 
-var _ (toml.TextUnmarshaler) = (*Duration)(nil)
-var _ (toml.TextMarshaler) = (*Duration)(nil)
+var _ (toml.TextUnmarshaler) = (*DurWrap)(nil)
+var _ (toml.TextMarshaler) = (*DurWrap)(nil)
 
-// Duration enables parsing of durations formatted as described in util.
-type Duration struct {
+// DurWrap is a wrapper to enable marshalling and unmarshalling of durations
+// with the custom format.
+type DurWrap struct {
 	time.Duration
 }
 
-func (d *Duration) UnmarshalText(text []byte) error {
+func (d *DurWrap) UnmarshalText(text []byte) error {
 	var err error
-	d.Duration, err = util.ParseDuration(string(text))
+	d.Duration, err = ParseDuration(string(text))
 	return err
 }
 
-func (d *Duration) MarshalText() (text []byte, err error) {
-	return []byte(util.FmtDuration(d.Duration)), nil
+func (d *DurWrap) MarshalText() (text []byte, err error) {
+	return []byte(FmtDuration(d.Duration)), nil
 }
