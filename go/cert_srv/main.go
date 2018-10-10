@@ -47,20 +47,22 @@ type task interface {
 }
 
 var (
-	config      *Config
-	environment *env.Env
-	flagConfig  = flag.String("config", "", "Service TOML config file (required)")
-	flagSample  = flag.String("sample", "",
+	flagConfig = flag.String("config", "", "Service TOML config file (required)")
+	flagSample = flag.String("sample", "",
 		"Filename for creating a sample config. If set, the CS is not started.")
 
-	reissTask task
-	currMsgr  *messenger.Messenger
+	config      *Config
+	environment *env.Env
+	reissTask   task
+	currMsgr    *messenger.Messenger
 )
 
 func init() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-		printDefaults()
+		flag.PrintDefaults()
+		fmt.Fprintln(os.Stderr, "\nSample config file:")
+		fmt.Fprintln(os.Stderr, csconfig.Sample)
 	}
 }
 
@@ -73,12 +75,7 @@ func realMain() int {
 	flag.Parse()
 	if *flagConfig == "" {
 		if *flagSample != "" {
-			if err := writeSample(); err != nil {
-				fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
-				flag.Usage()
-				return 1
-			}
-			return 0
+			return writeSample()
 		}
 		fmt.Fprintln(os.Stderr, "Missing config file")
 		flag.Usage()
@@ -130,12 +127,12 @@ func stop() {
 	currMsgr.CloseServer()
 }
 
-func printDefaults() {
-	flag.PrintDefaults()
-	fmt.Fprintln(os.Stderr, "\nSample config file:")
-	fmt.Fprintln(os.Stderr, csconfig.Sample)
-}
-
-func writeSample() error {
-	return ioutil.WriteFile(*flagSample, []byte(csconfig.Sample), 0666)
+func writeSample() int {
+	if err := ioutil.WriteFile(*flagSample, []byte(csconfig.Sample), 0666); err != nil {
+		fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
+		flag.Usage()
+		return 1
+	}
+	fmt.Fprintln(os.Stdout, "Sample file written to: "+*flagSample)
+	return 0
 }
