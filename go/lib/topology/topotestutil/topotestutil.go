@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@ func AddServer(topo *topology.Topo, svc proto.ServiceType, name string,
 	case proto.ServiceType_sb:
 		topo.SBNames = append(topo.SBNames, name)
 		topo.SB[name] = topoAddr
+	case proto.ServiceType_ds:
+		topo.DSNames = append(topo.DSNames, name)
+		topo.DS[name] = topoAddr
 	default:
 		panic(fmt.Sprintf("service type error %v", svc))
 	}
