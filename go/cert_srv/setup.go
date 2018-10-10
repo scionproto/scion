@@ -73,8 +73,8 @@ func setNewConfig(config *Config) error {
 	var reissHandler *handlers.ReissHandler
 	if config.General.Topology.Core {
 		reissHandler = &handlers.ReissHandler{
-			Config: config.CS,
-			IA:     config.General.Topology.ISD_AS,
+			State: config.state,
+			IA:    config.General.Topology.ISD_AS,
 		}
 	}
 	if currMsgr, err = startMessenger(config, reissHandler); err != nil {
@@ -86,31 +86,36 @@ func setNewConfig(config *Config) error {
 
 // initNewConf sets the CS field of config.
 func initNewConf(config *Config) error {
-	err := config.CS.Init(config.General.ConfigDir, config.General.Topology.Core)
-	if err != nil {
+	var err error
+	if err = config.CS.Init(config.General.ConfigDir); err != nil {
 		return common.NewBasicError("Unable to initialize CS config", err)
 	}
-	if config.CS.TrustDB, err = trustdb.New(config.Trust.TrustDB); err != nil {
+	config.state, err = csconfig.LoadState(config.General.ConfigDir, config.General.Topology.Core)
+	if err != nil {
+		return common.NewBasicError("Unable to load CS state", err)
+	}
+	if config.state.TrustDB, err = trustdb.New(config.Trust.TrustDB); err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}
 	trustConf := &trust.Config{
 		MustHaveLocalChain: true,
 		IsCS:               true,
 	}
-	config.CS.Store, err = trust.NewStore(config.CS.TrustDB, config.General.Topology.ISD_AS,
+	config.state.Store, err = trust.NewStore(config.state.TrustDB, config.General.Topology.ISD_AS,
 		rand.Uint64(), trustConf, log.Root())
 	if err != nil {
 		return common.NewBasicError("Unable to initialize trust store", err)
 	}
-	err = config.CS.Store.LoadAuthoritativeTRC(filepath.Join(config.General.ConfigDir, "certs"))
+	err = config.state.Store.LoadAuthoritativeTRC(filepath.Join(config.General.ConfigDir, "certs"))
 	if err != nil {
 		return common.NewBasicError("Unable to load local TRC", err)
 	}
-	err = config.CS.Store.LoadAuthoritativeChain(filepath.Join(config.General.ConfigDir, "certs"))
+	err = config.state.Store.LoadAuthoritativeChain(
+		filepath.Join(config.General.ConfigDir, "certs"))
 	if err != nil {
 		return common.NewBasicError("Unable to load local Chain", err)
 	}
-	if err = setDefaultSignerVerifier(config.CS, config.General.Topology.ISD_AS); err != nil {
+	if err = setDefaultSignerVerifier(config.state, config.General.Topology.ISD_AS); err != nil {
 		return common.NewBasicError("Unable to set default signer and verifier", err)
 	}
 	return nil
@@ -118,7 +123,7 @@ func initNewConf(config *Config) error {
 
 // setDefaultSignerVerifier sets the signer and verifier. The newest certificate chain version
 // in the store is used.
-func setDefaultSignerVerifier(c *csconfig.Conf, pubIA addr.IA) error {
+func setDefaultSignerVerifier(c *csconfig.State, pubIA addr.IA) error {
 	sign, err := trust.CreateSign(pubIA, c.Store)
 	if err != nil {
 		return err
@@ -150,15 +155,15 @@ func startMessenger(config *Config,
 	if err != nil {
 		return nil, common.NewBasicError("Unable to initialize SCION Messenger", err)
 	}
-	msgr.AddHandler(infra.ChainRequest, config.CS.Store.NewChainReqHandler(true))
-	msgr.AddHandler(infra.TRCRequest, config.CS.Store.NewTRCReqHandler(true))
-	msgr.AddHandler(infra.Chain, config.CS.Store.NewChainPushHandler())
-	msgr.AddHandler(infra.TRC, config.CS.Store.NewTRCPushHandler())
+	msgr.AddHandler(infra.ChainRequest, config.state.Store.NewChainReqHandler(true))
+	msgr.AddHandler(infra.TRCRequest, config.state.Store.NewTRCReqHandler(true))
+	msgr.AddHandler(infra.Chain, config.state.Store.NewChainPushHandler())
+	msgr.AddHandler(infra.TRC, config.state.Store.NewTRCPushHandler())
 	if config.General.Topology.Core {
 		msgr.AddHandler(infra.ChainIssueRequest, reissHandler)
 	}
-	msgr.UpdateSigner(config.CS.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
-	msgr.UpdateVerifier(config.CS.GetVerifier())
+	msgr.UpdateSigner(config.state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
+	msgr.UpdateVerifier(config.state.GetVerifier())
 	go func() {
 		defer log.LogPanicAndExit()
 		msgr.ListenAndServe()
@@ -178,11 +183,11 @@ func initMessenger(config *Config, public, bind *snet.Addr) (*messenger.Messenge
 			messenger.DefaultAdapter,
 			log.Root(),
 		),
-		config.CS.Store,
+		config.state.Store,
 		log.Root(),
 		nil,
 	)
-	config.CS.Store.SetMessenger(msgr)
+	config.state.Store.SetMessenger(msgr)
 	return msgr, nil
 }
 
@@ -224,17 +229,15 @@ func initNetwork(config *Config) (*snet.SCIONNetwork, error) {
 
 func startTask(config *Config, msgr *messenger.Messenger) task {
 	if config.General.Topology.Core {
-		selfIssuer := periodic.NewSelfIssuer(msgr, config.CS, config.General.Topology.ISD_AS)
-		go func() {
-			defer log.LogPanicAndExit()
-			selfIssuer.Run()
-		}()
+		selfIssuer := periodic.NewSelfIssuer(msgr, config.state, config.General.Topology.ISD_AS,
+			config.CS.IssuerReissueTime.Duration, config.CS.LeafReissueTime.Duration,
+			config.CS.ReissueRate.Duration)
+		go selfIssuer.Run()
 		return selfIssuer
 	}
-	reissRequester := periodic.NewReissRequester(msgr, config.CS, config.General.Topology.ISD_AS)
-	go func() {
-		defer log.LogPanicAndExit()
-		reissRequester.Run()
-	}()
+	reissRequester := periodic.NewReissRequester(msgr, config.state,
+		config.General.Topology.ISD_AS, config.CS.LeafReissueTime.Duration,
+		config.CS.ReissueRate.Duration, config.CS.ReissueTimeout.Duration)
+	go reissRequester.Run()
 	return reissRequester
 }
