@@ -21,9 +21,9 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 var (
@@ -49,7 +49,7 @@ type Config struct {
 	PathDB string
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
-	QueryInterval env.Duration
+	QueryInterval util.DurWrap
 }
 
 func (c *Config) InitDefaults() {
