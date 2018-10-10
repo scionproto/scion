@@ -12,9 +12,9 @@ cmd_topology() {
     echo "Shutting down: $(./scion.sh stop)"
     supervisor/supervisor.sh shutdown
     mkdir -p logs traces
-    [ -e gen ] && rm -r gen
-    [ -e gen-cache ] && rm -r gen-cache
-    mkdir gen-cache
+    [ -e gen ] && !(is_dir_empty gen) && rm -r gen/*
+    [ -e gen-cache ] && !(is_dir_empty gen-cache) && rm -r gen-cache/*
+    mkdir -p gen-cache
     if [ "$1" = "zkclean" ]; then
         shift
         zkclean="y"
@@ -195,6 +195,14 @@ is_docker() {
 
 is_supervisor() {
    [ -f gen/dispatcher/supervisord.conf ]
+}
+
+is_dir_empty() {
+    test -e "$1/"* 2>/dev/null
+    case $? in
+        1)   return 0 ;;
+        *)   return 1 ;;
+    esac
 }
 
 cmd_test(){

@@ -40,23 +40,22 @@ If you would like to execute commands from the outside of the container, use
 This will potentially overwrite your data. To avoid that you can create a temp directory and tell
 `./docker` to instead mount that.
 
-    `SCION_MOUNT=$(mktmp -d /tmp/scion_out.XXXXXX) ./docker.sh run -c "./scion.sh"`
+    `SCION_MOUNT=$(mktemp -d /tmp/scion_out.XXXXXX) ./docker.sh run "./scion.sh"`
 
 or
 
-    `SCION_MOUNT=$(mktmp -d /tmp/scion_out.XXXXXX) ./docker.sh start`
-    `./docker.sh exec "./scion.sh topology -d"`
-    `./docker.sh exec "./integration/integration_test.sh"`
+    `SCION_MOUNT=$(mktemp -d /tmp/scion_out.XXXXXX) ./docker.sh start`
+    `./docker.sh exec ./scion.sh topology -d`
+    `./docker.sh exec ./integration/integration_test.sh`
     `./docker.sh stop`
 
 Make sure you collect any relevant data from the container before running `./docker.sh stop` as this
-stops and removes the container. The temp directory will still be available though.
+stops and removes the container. The temp directory will still be available.
 
 In general:
 
 -   Make sure the host zookeeper instance is stopped
 -   Make sure you do not create a topology in an already used tmp folder
--   Docker commands do not work with `./docker.sh run`
 
 See `./docker.sh help` for further commands/usage.
 

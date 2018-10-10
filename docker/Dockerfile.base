@@ -88,5 +88,7 @@ RUN sudo sh -c "echo 'JAVA_OPTS=-Xmx150m # Added by Dockerfile.base' >> /etc/zoo
 # Fix ownership one last time:
 RUN sudo chown -R scion: $HOME
 
+COPY docker/docker-entrypoint.sh /usr/local/bin/ 
+
 CMD []
-ENTRYPOINT ["/bin/bash", "-l"]
+ENTRYPOINT ["docker-entrypoint.sh"]
