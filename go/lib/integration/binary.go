@@ -57,13 +57,13 @@ type binaryIntegration struct {
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
 func NewBinaryIntegration(name string, clientArgs, serverArgs []string,
-	logger LogRedirect) Integration {
+	logRedirect LogRedirect) Integration {
 
 	return &binaryIntegration{
 		name:        name,
 		clientArgs:  clientArgs,
 		serverArgs:  serverArgs,
-		logRedirect: logger,
+		logRedirect: logRedirect,
 	}
 }
 
