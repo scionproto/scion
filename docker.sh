@@ -77,28 +77,7 @@ cmd_clean() {
     rm -rf docker/_build/
 }
 
-cmd_run() {
-    BASE=${SCION_MOUNT:-$PWD}
-    # Limit to 4G of ram, don't allow swapping.
-    local args="-i -t -h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
-    args+=" -v $BASE/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
-    args+=" -v $BASE/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
-    args+=" -v $BASE/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
-    args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
-    args+=" -v /run/shm/sciond:/run/shm/sciond"
-    args+=" --rm"
-    args+=" -e SCION_MOUNT=$BASE"
-    args+=" -e LOGNAME=$LOGNAME"
-    args+=" -e PYTHONPATH=python/:."
-    setup_volumes
-    docker run $args scion "$@"
-}
-
-cmd_start() {
-    set -ex
-    BASE=${SCION_MOUNT:-$PWD}
-    local cntr="scion"
-    docker container inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
+common_args() {
     # Limit to 4G of ram, don't allow swapping.
     local args="-h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
     args+=" -v /var/run/docker.sock:/var/run/docker.sock"
@@ -110,16 +89,36 @@ cmd_start() {
     args+=" -e SCION_MOUNT=$BASE"
     args+=" -e LOGNAME=$LOGNAME"
     args+=" -e PYTHONPATH=python/:."
-    args+=" --name $cntr"
-    args+=" --entrypoint= "
+    args+=" -e SCION_ID=$UID"
+    args+=" -e DOCKER_ID=$(getent group docker | cut -f3 -d:)"
+    args+=" -u root"
+    echo $args
+}
+
+cmd_run() {
+    BASE=${SCION_MOUNT:-$PWD}
+    local args=$(common_args)
+    args+=" -i -t"
+    args+=" --rm"
     setup_volumes
-    docker container create $args scion tail -f /dev/null
+    docker run $args scion "$@"
+}
+
+cmd_start() {
+    BASE=${SCION_MOUNT:-$PWD}
+    echo "SCION_MOUNT directory: $BASE"
+    local cntr="scion"
+    docker container inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
+    local args=$(common_args)
+    args+=" --name $cntr"
+    setup_volumes
+    docker container create $args scion "tail -f /dev/null"
     docker start "$cntr"
 }
 
 cmd_exec() {
     set -ex
-    docker exec scion "$@"
+    docker exec -u scion scion "$@"
 }
 
 cmd_stop() {
