@@ -44,8 +44,8 @@ const (
 // key in the customer mapping. Certificate chains are issued automatically by
 // the issuer ASes.
 type ReissHandler struct {
-	Config *csconfig.Conf
-	IA     addr.IA
+	State *csconfig.State
+	IA    addr.IA
 }
 
 func (h *ReissHandler) Handle(r *infra.Request) {
@@ -77,7 +77,7 @@ func (h *ReissHandler) HandleReq(r *infra.Request) {
 		return
 	}
 	// Respond with max chain for outdated requests.
-	maxChain, err := h.Config.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.LatestVer)
+	maxChain, err := h.State.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.LatestVer)
 	if err != nil {
 		h.logDropReq(saddr, req, err)
 		return
@@ -91,7 +91,7 @@ func (h *ReissHandler) HandleReq(r *infra.Request) {
 		return
 	}
 	// Get the verifying key from the customer mapping
-	verKey, err := h.Config.Customers.GetVerifyingKey(saddr.IA)
+	verKey, err := h.State.Customers.GetVerifyingKey(saddr.IA)
 	if err != nil {
 		h.logDropReq(saddr, req, err)
 		return
@@ -126,7 +126,7 @@ func (h *ReissHandler) validateSign(ctx context.Context, addr *snet.Addr,
 	if err != nil {
 		return nil, err
 	}
-	verChain, err := ctrl.GetChainForSign(ctx, src, h.Config.Store)
+	verChain, err := ctrl.GetChainForSign(ctx, src, h.State.Store)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (h *ReissHandler) issueChain(ctx context.Context, c *cert.Certificate,
 	if chain.Issuer.ExpirationTime < chain.Leaf.ExpirationTime {
 		chain.Leaf.ExpirationTime = chain.Issuer.ExpirationTime
 	}
-	if err = chain.Leaf.Sign(h.Config.GetIssSigningKey(), chain.Issuer.SignAlgorithm); err != nil {
+	if err = chain.Leaf.Sign(h.State.GetIssSigningKey(), chain.Issuer.SignAlgorithm); err != nil {
 		return nil, err
 	}
 	err = chain.Leaf.Verify(c.Subject, issCert.SubjectSignKey, issCert.SignAlgorithm)
@@ -194,11 +194,11 @@ func (h *ReissHandler) issueChain(ctx context.Context, c *cert.Certificate,
 		return nil, err
 	}
 	// Set verifying key.
-	err = h.Config.Customers.SetVerifyingKey(c.Subject, c.Version, c.SubjectSignKey, vKey)
+	err = h.State.Customers.SetVerifyingKey(c.Subject, c.Version, c.SubjectSignKey, vKey)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = h.Config.TrustDB.InsertChain(chain); err != nil {
+	if _, err = h.State.TrustDB.InsertChain(chain); err != nil {
 		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (h *ReissHandler) sendRep(ctx context.Context, addr net.Addr, chain *cert.C
 }
 
 func (h *ReissHandler) getIssuerCert() (*cert.Certificate, error) {
-	issCrt, err := h.Config.TrustDB.GetIssCertMaxVersion(h.IA)
+	issCrt, err := h.State.TrustDB.GetIssCertMaxVersion(h.IA)
 	if err != nil {
 		return nil, err
 	}
