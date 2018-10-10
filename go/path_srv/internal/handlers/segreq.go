@@ -125,6 +125,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 	var recs []*seg.Meta
 	var revInfos []*path_mgmt.SignedRevInfo
 	if segs.Recs != nil {
+		logSegRecs(h.logger, "[segReqHandler]", cPSAddr, segs.Recs)
 		recs = segs.Recs.Recs
 		revInfos = revcache.FilterNew(h.revCache, segs.Recs.SRevInfos)
 		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
@@ -159,19 +160,19 @@ func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegmen
 	recs := make([]*seg.Meta, 0, len(upSegs)+len(coreSegs)+len(downSegs))
 	for i := range upSegs {
 		s := upSegs[i]
-		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
+		h.logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
 	}
 	for i := range coreSegs {
 		s := coreSegs[i]
-		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
+		h.logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
 	}
 	for i := range downSegs {
 		s := downSegs[i]
-		h.logger.Debug(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
+		h.logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}
