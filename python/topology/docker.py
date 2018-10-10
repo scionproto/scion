@@ -40,8 +40,8 @@ class DockerGenerator(object):
         self.sd = sd
         self.ps = ps
         self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
-        if os.environ.get('HOME_DIR'):
-            self.home_dir = os.environ['HOME_DIR']
+        if os.environ.get('SCION_MOUNT'):
+            self.home_dir = os.environ['SCION_MOUNT']
         else:
             self.home_dir = os.environ['PWD']
 

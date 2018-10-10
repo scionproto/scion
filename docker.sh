@@ -78,43 +78,73 @@ cmd_clean() {
 }
 
 cmd_run() {
-    HOME_DIR=${HOME_DIR:-$PWD}
+    BASE=${SCION_MOUNT:-$PWD}
     # Limit to 4G of ram, don't allow swapping.
     local args="-i -t -h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
-    args+=" -v /var/run/docker.sock:/var/run/docker.sock"
-    args+=" -v $HOME_DIR/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
-    args+=" -v $HOME_DIR/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
-    args+=" -v $HOME_DIR/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
-    args+=" -v $HOME_DIR/gen-cache:/home/scion/go/src/github.com/scionproto/scion/gen-cache"
+    args+=" -v $BASE/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
+    args+=" -v $BASE/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
+    args+=" -v $BASE/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
     args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
     args+=" -v /run/shm/sciond:/run/shm/sciond"
     args+=" --rm"
-    args+=" -e HOME_DIR=$HOME_DIR"
+    args+=" -e SCION_MOUNT=$BASE"
     args+=" -e LOGNAME=$LOGNAME"
     args+=" -e PYTHONPATH=python/:."
     setup_volumes
-    setup_socket_dirs
     docker run $args scion "$@"
 }
 
-setup_socket_dirs() {
+cmd_start() {
+    set -ex
+    BASE=${SCION_MOUNT:-$PWD}
+    local cntr="scion"
+    docker container inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
+    # Limit to 4G of ram, don't allow swapping.
+    local args="-h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
+    args+=" -v /var/run/docker.sock:/var/run/docker.sock"
+    args+=" -v $BASE/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
+    args+=" -v $BASE/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
+    args+=" -v $BASE/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
+    args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
+    args+=" -v /run/shm/sciond:/run/shm/sciond"
+    args+=" -e SCION_MOUNT=$BASE"
+    args+=" -e LOGNAME=$LOGNAME"
+    args+=" -e PYTHONPATH=python/:."
+    args+=" --name $cntr"
+    args+=" --entrypoint= "
+    setup_volumes
+    docker container create $args scion tail -f /dev/null
+    docker start "$cntr"
+}
+
+cmd_exec() {
+    set -ex
+    docker exec scion "$@"
+}
+
+cmd_stop() {
+    local cntr="scion"
+    echo "Stopping $cntr container"; docker stop "$cntr";
+    echo "Removing $cntr container"; docker rm "$cntr";
+}
+
+setup_volumes() {
+    set -e
+    for i in gen logs gen-certs gen-cache; do
+        mkdir -p "$BASE/$i"
+        # Check dir exists, and is owned by the current (effective) user. If
+        # it's owned by the wrong user, the docker environment won't be able to
+        # write to it.
+        [ -O "$i" ] || { echo "Error: '$i' dir not owned by $LOGNAME"; exit 1; }
+    done
+    # Make sure the socket dirs have the correct permissions. Unlike for the volumes we try to fix
+    # the permissions if necessary.
     local disp_dir="/run/shm/dispatcher"
     [ -d "$disp_dir" ] || mkdir "$disp_dir"
     [ $(stat -c "%U" "$disp_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $disp_dir - [sudo] password for %p: " chown $LOGNAME: "$disp_dir"; }
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
     [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
-}
-
-setup_volumes() {
-    set -e
-    for i in gen logs gen-certs gen-cache; do
-        mkdir -p "$HOME_DIR/$i"
-        # Check dir exists, and is owned by the current (effective) user. If
-        # it's owned by the wrong user, the docker environment won't be able to
-        # write to it.
-        [ -O "$i" ] || { echo "Error: '$i' dir not owned by $LOGNAME"; exit 1; }
-    done
 }
 
 stop_cntrs() {
@@ -184,6 +214,9 @@ case $COMMAND in
     build)              cmd_build ;;
     clean)              shift; cmd_clean "$@" ;;
     run)                shift; cmd_run "$@" ;;
+    start)              cmd_start ;;
+    exec)               shift; cmd_exec "$@" ;;
+    stop)               shift; cmd_stop "$@" ;;
     help)               cmd_help ;;
     *)                  cmd_help ;;
 esac
