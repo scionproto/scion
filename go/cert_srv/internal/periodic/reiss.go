@@ -42,23 +42,31 @@ import (
 // on an issuer AS before the old one expires.
 type SelfIssuer struct {
 	// msgr is used to propagate key updates to the messenger, and not for network traffic
-	msgr    *messenger.Messenger
-	config  *csconfig.Conf
-	ia      addr.IA
-	stop    chan struct{}
-	stopped chan struct{}
+	msgr     *messenger.Messenger
+	state    *csconfig.State
+	ia       addr.IA
+	issTime  time.Duration
+	leafTime time.Duration
+	rate     time.Duration
+	stop     chan struct{}
+	stopped  chan struct{}
 }
 
 // NewSelfIssuer creates a new periodic certificate chain reissuer for the
 // local AS. Argument msgr is only used to propagate key changes, and not for
 // network traffic.
-func NewSelfIssuer(msgr *messenger.Messenger, config *csconfig.Conf, ia addr.IA) *SelfIssuer {
+func NewSelfIssuer(msgr *messenger.Messenger, state *csconfig.State, ia addr.IA,
+	issTime, leafTime, rate time.Duration) *SelfIssuer {
+
 	return &SelfIssuer{
-		msgr:    msgr,
-		config:  config,
-		ia:      ia,
-		stop:    make(chan struct{}),
-		stopped: make(chan struct{}),
+		msgr:     msgr,
+		state:    state,
+		ia:       ia,
+		issTime:  issTime,
+		leafTime: leafTime,
+		rate:     rate,
+		stop:     make(chan struct{}),
+		stopped:  make(chan struct{}),
 	}
 }
 
@@ -66,57 +74,44 @@ func NewSelfIssuer(msgr *messenger.Messenger, config *csconfig.Conf, ia addr.IA)
 func (s *SelfIssuer) Run() {
 	defer log.LogPanicAndExit()
 	defer close(s.stopped)
-	var sleep time.Duration
-	timer := time.NewTimer(sleep)
-	defer timer.Stop()
+	ticker := time.NewTicker(s.rate)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-s.stop:
 			return
-		case now := <-timer.C:
-			sleep = 0
+		case now := <-ticker.C:
 			var err error
 			issCrt, err := s.getIssuerCert()
 			if err != nil {
 				log.Crit("[SelfIssuer] Unable to get issuer certificate", "err", err)
 				return
 			}
-			chain, err := s.config.Store.GetChain(context.Background(), s.ia, scrypto.LatestVer)
+			chain, err := s.state.Store.GetChain(context.Background(), s.ia, scrypto.LatestVer)
 			if err != nil {
 				log.Crit("[SelfIssuer] Unable to get certificate", "err", err)
 				return
 			}
 			leafCrt := chain.Leaf
-			iSleep := time.Unix(int64(issCrt.ExpirationTime), 0).Sub(now) -
-				s.config.IssuerReissueTime.Duration
-			lSleep := time.Unix(int64(leafCrt.ExpirationTime), 0).Sub(now) -
-				s.config.LeafReissueTime.Duration
+			iSleep := time.Unix(int64(issCrt.ExpirationTime), 0).Sub(now) - s.issTime
+			lSleep := time.Unix(int64(leafCrt.ExpirationTime), 0).Sub(now) - s.leafTime
 			if lSleep > 0 && iSleep > 0 {
-				sleep = lSleep
-				if iSleep < lSleep {
-					sleep = iSleep
-				}
+				// Nothing to do
 				break
 			}
-			// The leaf certificate needs to be updated.
-			if iSleep > 0 {
-				if err = s.createLeafCert(leafCrt); err != nil {
-					log.Error("[SelfIssuer] Unable to issue certificate chain", "err", err)
-					sleep = s.config.ReissueRate.Duration
+			if iSleep <= 0 {
+				// The issuer certificated needs to be updated.
+				if err = s.createIssuerCert(); err != nil {
+					log.Error("[SelfIssuer] Unable to create issuer certificate", "err", err)
 					break
 				}
-				// Sleep is zero.
-				break
 			}
-			// The issuer certificated needs to be updated.
-			if err = s.createIssuerCert(); err != nil {
-				log.Error("[SelfIssuer] Unable to create issuer certificate", "err", err)
-				sleep = s.config.ReissueRate.Duration
-				break
+			if lSleep <= 0 {
+				if err = s.createLeafCert(leafCrt); err != nil {
+					log.Error("[SelfIssuer] Unable to issue certificate chain", "err", err)
+				}
 			}
-			// Sleep is zero
 		}
-		timer.Reset(sleep)
 	}
 }
 
@@ -134,22 +129,22 @@ func (s *SelfIssuer) createLeafCert(leaf *cert.Certificate) error {
 	if chain.Issuer.ExpirationTime < chain.Leaf.ExpirationTime {
 		chain.Leaf.ExpirationTime = chain.Issuer.ExpirationTime
 	}
-	if err := chain.Leaf.Sign(s.config.GetIssSigningKey(), issCrt.SignAlgorithm); err != nil {
+	if err := chain.Leaf.Sign(s.state.GetIssSigningKey(), issCrt.SignAlgorithm); err != nil {
 		return common.NewBasicError("Unable to sign leaf certificate", err, "chain", chain)
 	}
-	if err := trust.VerifyChain(s.ia, chain, s.config.Store); err != nil {
+	if err := trust.VerifyChain(s.ia, chain, s.state.Store); err != nil {
 		return common.NewBasicError("Unable to verify chain", err, "chain", chain)
 	}
-	if _, err := s.config.TrustDB.InsertChain(chain); err != nil {
+	if _, err := s.state.TrustDB.InsertChain(chain); err != nil {
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
 	}
 	log.Info("[SelfIssuer] Created certificate chain", "chain", chain)
-	sign, err := trust.CreateSign(s.ia, s.config.Store)
+	sign, err := trust.CreateSign(s.ia, s.state.Store)
 	if err != nil {
 		log.Error("[SelfIssuer] Unable to set create new sign", "err", err)
 	}
-	signer := ctrl.NewBasicSigner(sign, s.config.GetSigningKey())
-	s.config.SetSigner(signer)
+	signer := ctrl.NewBasicSigner(sign, s.state.GetSigningKey())
+	s.state.SetSigner(signer)
 	s.msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueReply})
 	return nil
 }
@@ -168,7 +163,7 @@ func (s *SelfIssuer) createIssuerCert() error {
 	if err != nil {
 		return common.NewBasicError("Unable to get core AS entry", err, "cert", crt)
 	}
-	if err = crt.Sign(s.config.GetOnRootKey(), coreAS.OnlineKeyAlg); err != nil {
+	if err = crt.Sign(s.state.GetOnRootKey(), coreAS.OnlineKeyAlg); err != nil {
 		return common.NewBasicError("Unable to sign issuer certificate", err, "cert", crt)
 	}
 	if err = crt.Verify(crt.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
@@ -182,7 +177,7 @@ func (s *SelfIssuer) createIssuerCert() error {
 }
 
 func (s *SelfIssuer) getCoreASEntry() (*trc.CoreAS, error) {
-	maxTrc, err := s.config.Store.GetTRC(context.Background(), s.ia.I, scrypto.LatestVer)
+	maxTrc, err := s.state.Store.GetTRC(context.Background(), s.ia.I, scrypto.LatestVer)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local TRC", err)
 	}
@@ -195,7 +190,7 @@ func (s *SelfIssuer) getCoreASEntry() (*trc.CoreAS, error) {
 }
 
 func (s *SelfIssuer) getIssuerCert() (*cert.Certificate, error) {
-	issCrt, err := s.config.TrustDB.GetIssCertMaxVersion(s.ia)
+	issCrt, err := s.state.TrustDB.GetIssCertMaxVersion(s.ia)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +201,7 @@ func (s *SelfIssuer) getIssuerCert() (*cert.Certificate, error) {
 }
 
 func (s *SelfIssuer) setIssuerCert(crt *cert.Certificate) error {
-	affected, err := s.config.TrustDB.InsertIssCert(crt)
+	affected, err := s.state.TrustDB.InsertIssCert(crt)
 	if err != nil {
 		return err
 	}
@@ -225,22 +220,28 @@ func (s *SelfIssuer) Stop() {
 // ReissRequester periodically requests reissued certificate chains before
 // expiration of the currently active certificate chain.
 type ReissRequester struct {
-	msgr    *messenger.Messenger
-	config  *csconfig.Conf
-	ia      addr.IA
-	stop    chan struct{}
-	stopped chan struct{}
+	msgr     *messenger.Messenger
+	state    *csconfig.State
+	ia       addr.IA
+	leafTime time.Duration
+	rate     time.Duration
+	timeout  time.Duration
+	stop     chan struct{}
+	stopped  chan struct{}
 }
 
-func NewReissRequester(msgr *messenger.Messenger, config *csconfig.Conf,
-	ia addr.IA) *ReissRequester {
+func NewReissRequester(msgr *messenger.Messenger, state *csconfig.State, ia addr.IA,
+	leafTime, rate, timeout time.Duration) *ReissRequester {
 
 	return &ReissRequester{
-		msgr:    msgr,
-		config:  config,
-		ia:      ia,
-		stop:    make(chan struct{}),
-		stopped: make(chan struct{}),
+		msgr:     msgr,
+		state:    state,
+		ia:       ia,
+		leafTime: leafTime,
+		rate:     rate,
+		timeout:  timeout,
+		stop:     make(chan struct{}),
+		stopped:  make(chan struct{}),
 	}
 }
 
@@ -248,9 +249,8 @@ func NewReissRequester(msgr *messenger.Messenger, config *csconfig.Conf,
 func (r *ReissRequester) Run() {
 	defer log.LogPanicAndExit()
 	defer close(r.stopped)
-	var sleep time.Duration
-	timer := time.NewTimer(sleep)
-	defer timer.Stop()
+	ticker := time.NewTicker(r.rate)
+	defer ticker.Stop()
 	// Context used to cancel outstanding requests
 	ctx, cancelF := context.WithCancel(context.Background())
 	defer cancelF()
@@ -258,9 +258,8 @@ func (r *ReissRequester) Run() {
 		select {
 		case <-r.stop:
 			return
-		case now := <-timer.C:
-			sleep = 0
-			chain, err := r.config.Store.GetChain(ctx, r.ia, scrypto.LatestVer)
+		case now := <-ticker.C:
+			chain, err := r.state.Store.GetChain(ctx, r.ia, scrypto.LatestVer)
 			if err != nil {
 				log.Crit("[ReissRequester] Unable to get local certificate chain", "err", err)
 				return
@@ -272,15 +271,12 @@ func (r *ReissRequester) Run() {
 					"ExpirationTime", util.TimeToString(exp), "now", util.TimeToString(now))
 				return
 			}
-			if sleep = diff - r.config.LeafReissueTime.Duration; sleep > 0 {
+			if diff > r.leafTime {
 				break
 			}
-
-			ctxReq, cancelReq := context.WithTimeout(ctx, r.config.ReissueTimeout.Duration)
+			ctxReq, cancelReq := context.WithTimeout(ctx, r.timeout)
 			go r.sendReq(ctxReq, cancelReq, chain)
-			sleep = r.config.ReissueRate.Duration
 		}
-		timer.Reset(sleep)
 	}
 }
 
@@ -294,7 +290,7 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 	c.IssuingTime = util.TimeToSecs(time.Now())
 	c.ExpirationTime = c.IssuingTime + (chain.Leaf.ExpirationTime - chain.Leaf.IssuingTime)
 	c.Version += 1
-	if err := c.Sign(r.config.GetSigningKey(), chain.Leaf.SignAlgorithm); err != nil {
+	if err := c.Sign(r.state.GetSigningKey(), chain.Leaf.SignAlgorithm); err != nil {
 		return err
 	}
 	raw, err := c.JSON(false)
@@ -303,7 +299,11 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 	}
 	request := &cert_mgmt.ChainIssReq{RawCert: raw}
 	a := &snet.Addr{IA: c.Issuer, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+<<<<<<< HEAD
 	rep, err := r.msgr.RequestChainIssue(ctx, request, a, messenger.NextId())
+=======
+	rep, err := r.msgr.RequestChainIssue(ctx, request, a, r.state.RequestID.Next())
+>>>>>>> 5ad0088... refactor state out of config. add sample file
 	if err != nil {
 		log.Warn("[ReissRequester] Unable to request chain issue", "err", err)
 		return nil
@@ -318,18 +318,18 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 		r.logDropRep(a, rep, err)
 		return nil
 	}
-	if _, err = r.config.TrustDB.InsertChain(repChain); err != nil {
+	if _, err = r.state.TrustDB.InsertChain(repChain); err != nil {
 		log.Error("[ReissRequester] Unable to write reissued certificate chain to disk",
 			"chain", repChain, "err", err)
 		return nil
 	}
 
-	sign, err := trust.CreateSign(r.ia, r.config.Store)
+	sign, err := trust.CreateSign(r.ia, r.state.Store)
 	if err != nil {
 		return common.NewBasicError("Unable to set new signer", err)
 	}
-	signer := ctrl.NewBasicSigner(sign, r.config.GetSigningKey())
-	r.config.SetSigner(signer)
+	signer := ctrl.NewBasicSigner(sign, r.state.GetSigningKey())
+	r.state.SetSigner(signer)
 	r.msgr.UpdateSigner(signer, []infra.MessageType{infra.ChainIssueRequest})
 	return nil
 }
@@ -338,13 +338,13 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 func (r *ReissRequester) validateRep(ctx context.Context, chain *cert.Chain) error {
 
 	verKey := common.RawBytes(ed25519.PrivateKey(
-		r.config.GetSigningKey()).Public().(ed25519.PublicKey))
+		r.state.GetSigningKey()).Public().(ed25519.PublicKey))
 	if !bytes.Equal(chain.Leaf.SubjectSignKey, verKey) {
 		return common.NewBasicError("Invalid SubjectSignKey", nil, "expected",
 			verKey, "actual", chain.Leaf.SubjectSignKey)
 	}
 	// FIXME(roosd): validate SubjectEncKey
-	chain, err := r.config.Store.GetChain(ctx, r.ia, scrypto.LatestVer)
+	chain, err := r.state.Store.GetChain(ctx, r.ia, scrypto.LatestVer)
 	if err != nil {
 		return err
 	}
@@ -353,7 +353,7 @@ func (r *ReissRequester) validateRep(ctx context.Context, chain *cert.Chain) err
 		return common.NewBasicError("Invalid Issuer", nil, "expected",
 			issuer, "actual", chain.Leaf.Issuer)
 	}
-	return trust.VerifyChain(r.ia, chain, r.config.Store)
+	return trust.VerifyChain(r.ia, chain, r.state.Store)
 }
 
 func (r *ReissRequester) logDropRep(addr net.Addr, rep *cert_mgmt.ChainIssRep, err error) {

@@ -18,6 +18,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	_ "net/http/pprof"
 	"os"
 
@@ -36,7 +37,8 @@ type Config struct {
 	Metrics env.Metrics
 	Trust   env.Trust
 	Infra   env.Infra
-	CS      *csconfig.Conf
+	CS      csconfig.Conf
+	state   *csconfig.State
 }
 
 type task interface {
@@ -48,10 +50,19 @@ var (
 	config      *Config
 	environment *env.Env
 	flagConfig  = flag.String("config", "", "Service TOML config file (required)")
+	flagSample  = flag.String("sample", "",
+		"Filename for creating a sample config. If set, the CS is not started.")
 
 	reissTask task
 	currMsgr  *messenger.Messenger
 )
+
+func init() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		printDefaults()
+	}
+}
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
@@ -61,6 +72,14 @@ func main() {
 func realMain() int {
 	flag.Parse()
 	if *flagConfig == "" {
+		if *flagSample != "" {
+			if err := writeSample(); err != nil {
+				fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
+				flag.Usage()
+				return 1
+			}
+			return 0
+		}
 		fmt.Fprintln(os.Stderr, "Missing config file")
 		flag.Usage()
 		return 1
@@ -109,4 +128,14 @@ func setup(configName string) error {
 func stop() {
 	reissTask.Stop()
 	currMsgr.CloseServer()
+}
+
+func printDefaults() {
+	flag.PrintDefaults()
+	fmt.Fprintln(os.Stderr, "\nSample config file:")
+	fmt.Fprintln(os.Stderr, csconfig.Sample)
+}
+
+func writeSample() error {
+	return ioutil.WriteFile(*flagSample, []byte(csconfig.Sample), 0666)
 }

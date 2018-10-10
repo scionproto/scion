@@ -51,7 +51,7 @@ type Customers struct {
 }
 
 // LoadCustomers populates the mapping from assigned non-core ASes to their verifying key.
-func (c *Conf) LoadCustomers(stateDir string) (*Customers, error) {
+func (s *State) LoadCustomers(stateDir string) (*Customers, error) {
 	cust := &Customers{path: filepath.Join(stateDir, CustomersDir)}
 	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", cust.path))
 	if err != nil {

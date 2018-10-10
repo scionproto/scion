@@ -22,19 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/scrypto"
-)
-
-var (
-	master0 = loadKey("testdata/keys/master0.key", trust.RawKey)
-	master1 = loadKey("testdata/keys/master1.key", trust.RawKey)
-	decrypt = loadKey("testdata/keys/as-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
-	asSig   = loadKey("testdata/keys/as-sig.seed", scrypto.Ed25519)
-	issSig  = loadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
-	online  = loadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
 )
 
 type TestConfig struct {
@@ -77,7 +65,7 @@ func TestConfig_Init(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 
 		Convey("Init does not override values", func() {
-			err := cfg.CS.Init("testdata", false)
+			err := cfg.CS.Init("testdata")
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("leafTime", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 7*time.Hour)
 			SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, 48*time.Hour)
@@ -89,30 +77,6 @@ func TestConfig_Init(t *testing.T) {
 			SoMsg("sciondRetryInterval", cfg.CS.SciondRetryInterval.Duration,
 				ShouldEqual, 3*time.Second)
 		})
-
-		Convey("Init loads keys correctly for core", func() {
-			err := cfg.CS.Init("testdata", true)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("Master0", cfg.CS.MasterKeys.Key0, ShouldResemble, master0)
-			SoMsg("Master1", cfg.CS.MasterKeys.Key1, ShouldResemble, master1)
-			SoMsg("Decrypt", cfg.CS.keyConf.DecryptKey, ShouldResemble, decrypt)
-			SoMsg("AS-Sign", cfg.CS.keyConf.SignKey, ShouldResemble, asSig)
-			SoMsg("Issuer-Sign", cfg.CS.keyConf.IssSigKey, ShouldResemble, issSig)
-			SoMsg("Online", cfg.CS.keyConf.OnRootKey, ShouldResemble, online)
-			SoMsg("Offline", cfg.CS.keyConf.OffRootKey, ShouldBeZeroValue)
-		})
-
-		Convey("Init loads keys correctly for non-core", func() {
-			err := cfg.CS.Init("testdata", false)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("Master0", cfg.CS.MasterKeys.Key0, ShouldResemble, master0)
-			SoMsg("Master1", cfg.CS.MasterKeys.Key1, ShouldResemble, master1)
-			SoMsg("Decrypt", cfg.CS.keyConf.DecryptKey, ShouldResemble, decrypt)
-			SoMsg("AS-Sign", cfg.CS.keyConf.SignKey, ShouldResemble, asSig)
-			SoMsg("Issuer-Sign", cfg.CS.keyConf.IssSigKey, ShouldBeZeroValue)
-			SoMsg("Online", cfg.CS.keyConf.OnRootKey, ShouldBeZeroValue)
-			SoMsg("Offline", cfg.CS.keyConf.OffRootKey, ShouldBeZeroValue)
-		})
 	})
 
 	Convey("Load Default", t, func() {
@@ -121,7 +85,7 @@ func TestConfig_Init(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 
 		Convey("Init loads default values", func() {
-			err := cfg.CS.Init("testdata", false)
+			err := cfg.CS.Init("testdata")
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("leafTime", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 6*time.Hour)
 			SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, IssuerReissTime)
@@ -133,12 +97,4 @@ func TestConfig_Init(t *testing.T) {
 				ShouldEqual, SciondRetryInterval)
 		})
 	})
-}
-
-func loadKey(file string, algo string) common.RawBytes {
-	key, err := trust.LoadKey(file, algo)
-	if err != nil {
-		panic(err)
-	}
-	return key
 }
