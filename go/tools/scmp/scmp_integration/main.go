@@ -23,34 +23,54 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-const (
-	serverPort = "40004"
-)
-
 func main() {
 	os.Exit(realMain())
 }
 
 func realMain() int {
-	if err := integration.Init("echo_integration"); err != nil {
+	if err := integration.Init("scmp_integration"); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	in := integration.NewBinaryIntegration("./bin/scmp",
-		[]string{"echo", "-sciondFromIA", "-c", "1",
-			"-local", integration.SrcIAReplace + ",[127.0.0.1]",
-			"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
-		nil, integration.NonStdLog)
-	if err := runTests(in, integration.IAPairs()); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
-		return 1
+
+	testCases := []struct {
+		Name string
+		Args []string
+	}{
+		{
+			"echo",
+			[]string{"echo", "-sciondFromIA", "-c", "1",
+				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
+				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+		},
+		{
+			"traceroute",
+			[]string{"tr", "-sciondFromIA",
+				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
+				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+		},
+		{
+			"recordpath",
+			[]string{"rp", "-sciondFromIA",
+				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
+				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+		},
+	}
+
+	for _, tc := range testCases {
+		log.Info(fmt.Sprintf("Run scmp-%s-tests:", tc.Name))
+		in := integration.NewBinaryIntegration("./bin/scmp", tc.Args, nil, integration.NonStdLog)
+		if err := runTests(in, integration.IAPairs()); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to run scmp-%s-tests: %s\n", tc.Name, err)
+			return 1
+		}
 	}
 	return 0
 }
 
-// RunTests runs the client and server for each IAPair.
+// RunTests runs the scmp tool for each IAPair.
 // In case of an error the function is terminated immediately.
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
@@ -58,7 +78,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
-			if err := integration.RunClient(in, conn, 2*time.Second); err != nil {
+			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
 				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 				return err
 			}
