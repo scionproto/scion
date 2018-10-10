@@ -158,13 +158,9 @@ var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadClose
 var NonStdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
 	defer log.LogPanicAndExit()
 	defer ep.Close()
-	lines := []string{}
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	if len(lines) > 0 {
-		log.Error(fmt.Sprintf("%s@%s: %s", name, local, strings.Join(lines, "\n")))
+		log.Error(fmt.Sprintf("%s@%s: %s", name, local, scanner.Text()))
 	}
 }
 
