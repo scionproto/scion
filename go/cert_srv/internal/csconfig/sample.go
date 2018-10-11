@@ -14,8 +14,7 @@
 
 package csconfig
 
-const Sample = `
-[general]
+const Sample = `[general]
   # The ID of the service. This is used to choose the relevant portion of the
   # topology file for some services.
   ID = "cs1-ff00_0_110-1"
@@ -30,6 +29,12 @@ const Sample = `
   # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
   # ReconnectToDispatcher = true
 
+[sd_client]
+  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
+  # Path = "/run/shm/sciond/default.sock"
+
+  # Maximum time spent attempting to connect to sciond on start. (default 20s)
+  # InitialConnectPeriod = "20s"
 
 [logging]
   [logging.file]
@@ -76,22 +81,14 @@ const Sample = `
   # specified, this is set to PathSegmentTTL.
   # LeafReissueTime = "6h"
 
-  # Time between self issuing core cert and core cert expiration. If not 
+  # Time between self issuing core cert and core cert expiration. If not
   # specified, this is set to the defualt leaf certificate validity time.
   # IssuerReissueTime = "3d"
-  
+
   # Interval between two consecutive reissue requests. Default is 10 seconds.
   # ReissueRate = "10s"
 
   # Timeout for resissue request.  Default is 5 seconds.
   # ReissueTimeout = "5s"
-  
-  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
-  # SciondPath = "/run/shm/sciond/default.sock"
 
-  # Timeout when trying to connect to sciond. Default is 20 seconds.
-  # SciondTimeout = "20s"
-
-  # Time between sciond connect attempts. Default is 1 second.
-  # SciondRetryInterval = "1s"
 `

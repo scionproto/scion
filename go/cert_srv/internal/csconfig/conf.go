@@ -18,11 +18,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -35,10 +32,6 @@ const (
 	ReissReqRate = 10 * time.Second
 	// ReissueReqTimeout is the default timeout of a reissue request.
 	ReissueReqTimeout = 5 * time.Second
-	// SciondTimeout is the default timeout of attempting to connect to sciond.
-	SciondTimeout = 20 * time.Second
-	// SciondRetryInterval is the default time between sciond connect attempts.
-	SciondRetryInterval = time.Second
 
 	ErrorKeyConf   = "Unable to load KeyConf"
 	ErrorCustomers = "Unable to load Customers"
@@ -46,22 +39,16 @@ const (
 
 type Conf struct {
 	// LeafReissueTime is the time between starting reissue requests and leaf cert expiration.
-	LeafReissueTime duration
+	LeafReissueTime util.DurWrap
 	// IssuerReissueTime is the time between self issuing core cert and core cert expiration.
-	IssuerReissueTime duration
+	IssuerReissueTime util.DurWrap
 	// ReissueRate is the interval between two consecutive reissue requests.
-	ReissueRate duration
+	ReissueRate util.DurWrap
 	// ReissueTimeout is the timeout for resissue request.
-	ReissueTimeout duration
-	// SciondPath is the sciond path. It defaults to sciond.DefaultSCIONDPath.
-	SciondPath string
-	// SciondTimeout is the timeout when trying to connect to sciond.
-	SciondTimeout duration
-	// SciondRetryInterval is the time between sciond connect attempts.
-	SciondRetryInterval duration
+	ReissueTimeout util.DurWrap
 }
 
-// Init sets the uninitialized fields and loads the keys.
+// Init sets the uninitialized fields.
 func (c *Conf) Init(confDir string) error {
 	c.initDefaults()
 	if c.ReissueRate.Duration <= c.ReissueTimeout.Duration {
@@ -76,20 +63,7 @@ func (c *Conf) Init(confDir string) error {
 	return nil
 }
 
-// loadLeafReissTime loads the as conf and sets the LeafReissTime to the PathSegmentTTL
-// to provide optimal coverage.
-func (c *Conf) loadLeafReissTime(confDir string) error {
-	if err := as_conf.Load(filepath.Join(confDir, as_conf.CfgName)); err != nil {
-		return err
-	}
-	c.LeafReissueTime.Duration = time.Duration(as_conf.CurrConf.PathSegmentTTL) * time.Second
-	return nil
-}
-
 func (c *Conf) initDefaults() {
-	if c.SciondPath == "" {
-		c.SciondPath = sciond.DefaultSCIONDPath
-	}
 	if c.IssuerReissueTime.Duration == 0 {
 		c.IssuerReissueTime.Duration = IssuerReissTime
 	}
@@ -99,22 +73,14 @@ func (c *Conf) initDefaults() {
 	if c.ReissueTimeout.Duration == 0 {
 		c.ReissueTimeout.Duration = ReissueReqTimeout
 	}
-	if c.SciondRetryInterval.Duration == 0 {
-		c.SciondRetryInterval.Duration = SciondRetryInterval
-	}
-	if c.SciondTimeout.Duration == 0 {
-		c.SciondTimeout.Duration = SciondTimeout
-	}
 }
 
-var _ (toml.TextUnmarshaler) = (*duration)(nil)
-
-type duration struct {
-	time.Duration
-}
-
-func (d *duration) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = util.ParseDuration(string(text))
-	return err
+// loadLeafReissTime loads the as conf and sets the LeafReissTime to the PathSegmentTTL
+// to provide optimal coverage.
+func (c *Conf) loadLeafReissTime(confDir string) error {
+	if err := as_conf.Load(filepath.Join(confDir, as_conf.CfgName)); err != nil {
+		return err
+	}
+	c.LeafReissueTime.Duration = time.Duration(as_conf.CurrConf.PathSegmentTTL) * time.Second
+	return nil
 }
