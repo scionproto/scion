@@ -14,7 +14,9 @@ RUN set -ex; \
     ln -s /usr/bin/eatmydata /usr/local/bin/pip; \
     ln -s /usr/bin/eatmydata /usr/local/bin/pip3
 
-RUN useradd -s /bin/bash scion
+RUN useradd -u 30041 -s /bin/bash scion
+RUN groupadd -g 939 --system docker
+RUN usermod -aG docker scion
 RUN echo "scion ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/scion
 
 # Provide tmpfs at /run/shm while inside non-privileged docker

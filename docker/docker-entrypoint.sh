@@ -2,7 +2,7 @@
 
 set -e
 
-usermod -u $SCION_ID scion
-groupmod -g $DOCKER_ID docker
+usermod -u $SCION_UID scion
+groupmod -g $DOCKER_GID docker
 
-su scion -c "$@"
+su scion -l -c "$@"
