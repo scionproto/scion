@@ -39,8 +39,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var requestID messenger.Counter
-
 var _ periodic.Task = (*SegSyncer)(nil)
 
 type SegSyncer struct {
@@ -156,7 +154,7 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	msgs := s.createMessages(queryResult)
 	sent := 0
 	for _, msgT := range msgs {
-		err := s.msger.SendSegSync(ctx, msgT.msg, cPs, requestID.Next())
+		err := s.msger.SendSegSync(ctx, msgT.msg, cPs, messenger.NextId())
 		if err != nil {
 			return sent, err
 		}

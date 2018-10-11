@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
@@ -94,8 +93,6 @@ type Conf struct {
 	IssuerReissTime time.Duration
 	// ReissRate is the interval between two consecutive reissue requests.
 	ReissRate time.Duration
-	// RequestID is used to generate unique request IDs for the messenger
-	RequestID messenger.Counter
 }
 
 // Load initializes the configuration by loading it from confDir.
