@@ -132,7 +132,7 @@ func (logger *loggerWithTrace) Trace(msg string, ctx ...interface{}) {
 }
 
 func (logger *loggerWithTrace) New(ctx ...interface{}) Logger {
-	return &loggerWithTrace{Logger: logger.Logger}
+	return &loggerWithTrace{Logger: logger.Logger.New(ctx...)}
 }
 
 func (logger *loggerWithTrace) SetHandler(h Handler) {
