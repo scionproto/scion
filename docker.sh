@@ -89,14 +89,15 @@ common_args() {
     args+=" -e SCION_MOUNT=$BASE"
     args+=" -e LOGNAME=$LOGNAME"
     args+=" -e PYTHONPATH=python/:."
-    args+=" -e SCION_ID=$UID"
-    args+=" -e DOCKER_ID=$(getent group docker | cut -f3 -d:)"
+    args+=" -e SCION_UID=$(id -u)"
+    args+=" -e DOCKER_GID=$(getent group docker | cut -f3 -d:)"
     args+=" -u root"
     echo $args
 }
 
 cmd_run() {
-    BASE=${SCION_MOUNT:-$PWD}
+    BASE=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
+    echo "SCION_MOUNT directory: $BASE"
     local args=$(common_args)
     args+=" -i -t"
     args+=" --rm"
@@ -105,7 +106,7 @@ cmd_run() {
 }
 
 cmd_start() {
-    BASE=${SCION_MOUNT:-$PWD}
+    BASE=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $BASE"
     local cntr="scion"
     docker container inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
