@@ -37,14 +37,14 @@ func (s *SegRecs) ProtoId() proto.ProtoIdType {
 }
 
 func (s *SegRecs) String() string {
-	desc := []string{"Recs:"}
+	desc := []string{"segments:"}
 	for _, m := range s.Recs {
-		desc = append(desc, m.String())
+		desc = append(desc, "  "+m.String())
 	}
 	if len(s.SRevInfos) > 0 {
-		desc = append(desc, "RevInfos")
+		desc = append(desc, "revocations:")
 		for _, info := range s.SRevInfos {
-			desc = append(desc, info.String())
+			desc = append(desc, "  "+info.String())
 		}
 	}
 	return strings.Join(desc, "\n")
