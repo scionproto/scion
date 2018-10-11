@@ -102,7 +102,11 @@ global_run() {
             test_setup_wrapper "$SETUP_FILE" && \
                 test_run_wrapper "$RUN_FILE"
             test_teardown_wrapper "$TEARDOWN_FILE"
+			local fatal_teardown=$?
             save_logs "$out"
+			if [ $fatal_teardown -ne 0 ]; then
+				exit 1
+			fi
         else
             print_yellow "[  SKIPPED ]" "$TEST_NAME"
             stats_skipped=$((stats_skipped+1))
