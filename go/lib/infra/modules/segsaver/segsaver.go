@@ -19,16 +19,13 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 )
 
 // StoreSeg saves s to the given pathDB. In case of failure the error is
 // returned. The returned boolean is true if the segment was inserted in
 // the database.
-func StoreSeg(ctx context.Context, s *seg.Meta, pathDB pathdb.PathDB,
-	log log.Logger) (bool, error) {
-
+func StoreSeg(ctx context.Context, s *seg.Meta, pathDB pathdb.PathDB) (bool, error) {
 	n, err := pathDB.Insert(ctx, s)
 	if err != nil {
 		return false, err

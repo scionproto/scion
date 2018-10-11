@@ -439,7 +439,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	// verify and store the segments
 	var insertedSegmentIDs []string
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		wasInserted, err := segsaver.StoreSeg(ctx, s, f.pathDB, f.logger)
+		wasInserted, err := segsaver.StoreSeg(ctx, s, f.pathDB)
 		if err != nil {
 			f.logger.Error("Unable to insert segment into path database",
 				"seg", s.Segment, "err", err)
