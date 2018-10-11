@@ -17,4 +17,6 @@ enum ServiceType {
     ps @2;  # Path service
     cs @3;  # Certificate service
     sb @4;  # SIBRA service
+    ds @5;  # Discovery service
+    br @6;  # Border router
 }

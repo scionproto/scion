@@ -252,6 +252,8 @@ func (t *Topo) GetSvcInfo(svc proto.ServiceType) (*SVCInfo, error) {
 		return &SVCInfo{overlay: t.Overlay, names: t.CSNames, idTopoAddrMap: t.CS}, nil
 	case proto.ServiceType_sb:
 		return &SVCInfo{overlay: t.Overlay, names: t.SBNames, idTopoAddrMap: t.SB}, nil
+	case proto.ServiceType_ds:
+		return &SVCInfo{overlay: t.Overlay, names: t.DSNames, idTopoAddrMap: t.DS}, nil
 	default:
 		return nil, common.NewBasicError("Unsupported service type", nil, "type", svc)
 	}
