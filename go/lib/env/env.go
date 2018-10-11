@@ -49,7 +49,8 @@ const (
 	// Default file name for topology file (only the last element of the path)
 	DefaultTopologyPath = "topology.json"
 
-	// DefaultSciondTimeout is the default timeout of attempting to connect to sciond.
+	// DefaultSciondTimeout is the default total amount of time spent attempting to
+	// connect to sciond.
 	DefaultSciondTimeout = 20 * time.Second
 	// DefaultSciondRetryInterval is the default time between sciond connect attempts.
 	DefaultSciondRetryInterval = time.Second
@@ -111,7 +112,7 @@ func InitGeneral(cfg *General) error {
 type SciondClient struct {
 	// Path is the sciond path. It defaults to sciond.DefaultSCIONDPath.
 	Path string
-	// Timeout is the timeout when trying to connect to sciond.
+	// Timeout is the maximum amount of time spent attempting to connect to sciond.
 	Timeout util.DurWrap
 	// RetryInterval is the time between sciond connect attempts.
 	RetryInterval util.DurWrap
