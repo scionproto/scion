@@ -62,6 +62,7 @@ Necessary steps in order to run SCION:
     ```
     ./env/deps
     ```
+    This requires a go version >= 1.9.4 to be available on the system. If no sufficiently up-to-date version is available in the system repositories refer to [golang.org/dl](https://golang.org/dl) for installation instructions.
 
 1. Configure the host Zookeeper instance. At a minimum, add `maxClientCnxns=0`
    to `/etc/zookeeper/conf/zoo.cfg`, but replacing it with `docker/zoo.cfg` is
