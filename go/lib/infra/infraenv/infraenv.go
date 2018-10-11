@@ -39,12 +39,12 @@ func InitMessenger(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 	reconnectToDispatcher bool, store infra.TrustStore) (infra.Messenger, error) {
 
 	return InitMessengerWithSciond(ia, public, bind, svc, reconnectToDispatcher,
-		store, env.Sciond{})
+		store, env.SciondClient{})
 }
 
 func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 	reconnectToDispatcher bool, store infra.TrustStore,
-	sciond env.Sciond) (infra.Messenger, error) {
+	sciond env.SciondClient) (infra.Messenger, error) {
 
 	conn, err := initNetworking(ia, public, bind, svc, reconnectToDispatcher, sciond)
 	if err != nil {
@@ -66,7 +66,7 @@ func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostS
 }
 
 func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	reconnectToDispatcher bool, sciond env.Sciond) (snet.Conn, error) {
+	reconnectToDispatcher bool, sciond env.SciondClient) (snet.Conn, error) {
 
 	var network snet.Network
 	network, err := initNetwork(ia, sciond)
@@ -83,10 +83,10 @@ func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 	return conn, nil
 }
 
-func initNetwork(ia addr.IA, sciond env.Sciond) (snet.Network, error) {
+func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 	stop := time.Now().Add(sciond.Timeout.Duration)
 	network, err := snet.NewNetwork(ia, sciond.Path, "")
-	if sciond.Path == "" || err != nil {
+	if sciond.Path == "" || err == nil {
 		return network, err
 	}
 	// Try reconnecting.
