@@ -11,8 +11,6 @@ And the different `scion.sh` backends are
 -   supervisor
 -   docker
 
-In the following we assume the default topology is being run.
-
 ## Development with supervisor
 
 All services run native on the host, controlled by supervisor. In this case one dispatcher is run on
