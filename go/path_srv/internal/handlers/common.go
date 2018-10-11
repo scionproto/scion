@@ -125,7 +125,7 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	// verify and store the segments
 	var insertedSegmentIDs []string
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		wasInserted, err := segsaver.StoreSeg(ctx, s, h.pathDB, h.logger)
+		wasInserted, err := segsaver.StoreSeg(ctx, s, h.pathDB)
 		if err != nil {
 			h.logger.Error("Unable to insert segment into path database",
 				"seg", s.Segment, "err", err)
@@ -147,6 +147,7 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	segverifier.Verify(ctx, h.trustStore, src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
 	if len(insertedSegmentIDs) > 0 {
-		log.Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
+		log.Debug("Segments inserted in DB", "count", len(insertedSegmentIDs),
+			"segments", insertedSegmentIDs)
 	}
 }
