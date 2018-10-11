@@ -31,11 +31,13 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
+	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
@@ -139,6 +141,9 @@ func realMain() int {
 	}
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
+	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
+		time.NewTicker(300*time.Second), 295*time.Second)
+	defer cleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, handlers, log.Root())
 	defer shutdownF()
