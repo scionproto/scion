@@ -20,7 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
-	"github.com/scionproto/scion/go/path_srv/internal/periodic"
+	"github.com/scionproto/scion/go/lib/periodic"
 )
 
 var _ periodic.Task = (*Cleaner)(nil)
