@@ -2,7 +2,7 @@
 
 set -e
 
-usermod -u $SCION_UID scion
-groupmod -g $DOCKER_GID docker
+usermod -u ${SCION_UID:?} scion
+groupmod -g ${DOCKER_GID:?} docker
 
-su scion -l -c "$@"
+SU_EXEC_USERSPEC=scion /sbin/su-exec "$@"
