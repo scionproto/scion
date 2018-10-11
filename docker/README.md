@@ -6,11 +6,11 @@ and test environment for SCION.
 The docker image is a basic ubuntu environment, with your working tree, and all scion dependencies
 installed, and all SCION setup steps done (i.e. `./scion.sh topology`). A full build from scratch
 will take 5-10mins on a fast machine with a decent net connection. Subsequent rebuilds are Much
-faster; if you haven't changed deps.sh or the dependency list, a rebuild takes <= 15s.
+faster; if you haven't changed `env/` or the dependency list, a rebuild takes <= 15s.
 
 Before you start, make sure you have Docker installed. Please follow the instructions for
 [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/), you may also want to install
-[docker-compse](https://docs.docker.com/compose/install/). Or use `tools/install_docker`.
+[docker-compse](https://docs.docker.com/compose/install/).
 
 The `scion_base` docker image contains all the dependencies of scion, and so it needs to be
 regenerated any time the dependencies change. It is built via:
@@ -27,8 +27,8 @@ To run the `scion` docker image:
     ./docker.sh run
 
 This will drop you into a bash shell, in a stripped down ubuntu environment. Your current working
-tree has been copied into the image **at build time**. You can now use `./scion.sh run` to start the
-SCION processes.
+tree has been copied into the image **at build time**. You can now use `./scion.sh run` to start
+the SCION processes.
 
 If you would like to execute commands from the outside of the container, use
 
@@ -39,11 +39,11 @@ If you would like to execute commands from the outside of the container, use
 `./docker.sh` will mount the `gen`, `logs` and `gen-certs` directories from a temp directory. You
 can pass your own directory with `SCION_MOUNT`.
 
-    `SCION_MOUNT=/tmp/scion_out.XXXXXX ./docker.sh run "./scion.sh"`
+    `SCION_MOUNT=/tmp/scion_out ./docker.sh run "./scion.sh"`
 
 or
 
-    `SCION_MOUNT=/tmp/scion_out.XXXXXX ./docker.sh start`
+    `SCION_MOUNT=/tmp/scion_out ./docker.sh start`
     `./docker.sh exec ./scion.sh topology -d`
     `./docker.sh exec ./integration/integration_test.sh`
     `./docker.sh stop`
