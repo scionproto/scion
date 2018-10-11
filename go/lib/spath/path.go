@@ -16,11 +16,20 @@
 package spath
 
 import (
+	"math"
+	"time"
+
 	"github.com/scionproto/scion/go/lib/common"
 )
 
 const (
-	MaxTimestamp = ^uint32(0)
+	MaxTimestamp = math.MaxUint32
+)
+
+var (
+	// MaxExpirationTime is the maximum absolute expiration time of SCION hop
+	// fields.
+	MaxExpirationTime = time.Unix(MaxTimestamp, 0).Add(MaxTTLField.ToDuration())
 )
 
 type Path struct {

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"math"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -37,6 +38,7 @@ const (
 	RecurseMask       = 0x04
 	MaxTTL            = 24 * 60 * 60 // One day in seconds
 	ExpTimeUnit       = MaxTTL / 256 // ~5m38s
+	MaxTTLField       = ExpTimeType(math.MaxUint8)
 	macInputLen       = 16
 )
 
@@ -171,5 +173,5 @@ type ExpTimeType uint8
 // ToDuration calculates the relative expiration time in seconds.
 // Note that for a 0 value ExpTime, the minimal duration is ExpTimeUnit.
 func (e ExpTimeType) ToDuration() time.Duration {
-	return time.Duration(e+1) * time.Duration(ExpTimeUnit) * time.Second
+	return (time.Duration(e) + 1) * time.Duration(ExpTimeUnit) * time.Second
 }

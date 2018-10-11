@@ -71,7 +71,6 @@ type Path struct {
 	Weight     int
 	Mtu        uint16
 	Interfaces []sciond.PathInterface
-	ExpTime    time.Time
 }
 
 func (p *Path) writeTestString(w io.Writer) {
@@ -103,14 +102,15 @@ func (p *Path) aggregateInterfaces() {
 	}
 }
 
-func (p *Path) computeExpTime() {
-	p.ExpTime = time.Unix(1<<63-1, 0)
+func (p *Path) ComputeExpTime() time.Time {
+	minTimestamp := spath.MaxExpirationTime
 	for _, segment := range p.Segments {
-		t := segment.InfoField.Timestamp().Add(time.Duration(segment.ExpTime) * time.Second)
-		if t.Before(p.ExpTime) {
-			p.ExpTime = t
+		expTime := segment.ComputeExpTime()
+		if minTimestamp.After(expTime) {
+			minTimestamp = expTime
 		}
 	}
+	return minTimestamp
 }
 
 func (p *Path) WriteTo(w io.Writer) (int64, error) {
@@ -137,7 +137,6 @@ type Segment struct {
 	HopFields  []*HopField
 	Type       proto.PathSegType
 	Interfaces []sciond.PathInterface
-	ExpTime    uint32
 }
 
 // initInfoFieldFrom copies the info field in pathSegment, and sets it as the
@@ -176,6 +175,21 @@ func (segment *Segment) reverse() {
 	for i, j := 0, len(segment.Interfaces)-1; i < j; i, j = i+1, j-1 {
 		segment.Interfaces[i], segment.Interfaces[j] = segment.Interfaces[j], segment.Interfaces[i]
 	}
+}
+
+func (segment *Segment) ComputeExpTime() time.Time {
+	return segment.InfoField.Timestamp().Add(segment.computeHopFieldsTTL())
+}
+
+func (segment *Segment) computeHopFieldsTTL() time.Duration {
+	minTTL := time.Duration(spath.MaxTTL) * time.Second
+	for _, hf := range segment.HopFields {
+		offset := hf.ExpTime.ToDuration()
+		if minTTL > offset {
+			minTTL = offset
+		}
+	}
+	return minTTL
 }
 
 type InfoField struct {
