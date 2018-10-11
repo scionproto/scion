@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,10 @@ const (
 	InvalidNonceSize      = "Invalid nonce size"
 	UnableToGenerateNonce = "Unable to generate nonce"
 )
+
+func init() {
+	MathRandSeed()
+}
 
 func RandUint64() uint64 {
 	b := make([]byte, 8)
