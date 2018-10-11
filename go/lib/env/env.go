@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
-	"github.com/scionproto/scion/go/lib/scrypto"
+	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -53,7 +53,6 @@ func init() {
 	os.Setenv("TZ", "UTC")
 	sighupC = make(chan os.Signal, 1)
 	signal.Notify(sighupC, syscall.SIGHUP)
-	scrypto.MathRandSeed()
 }
 
 type General struct {

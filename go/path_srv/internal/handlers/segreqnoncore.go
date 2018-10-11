@@ -26,14 +26,10 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
 	"github.com/scionproto/scion/go/proto"
 )
-
-// requestID is used to generate unique request IDs for the messenger.
-var requestID messenger.Counter
 
 type segReqNonCoreHandler struct {
 	segReqHandler

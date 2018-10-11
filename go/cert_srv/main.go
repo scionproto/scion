@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/scrypto"
+	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 )
 
 const (
@@ -52,7 +53,6 @@ func init() {
 	// used by configSig below.
 	sighup = make(chan os.Signal, 1)
 	signal.Notify(sighup, syscall.SIGHUP)
-	scrypto.MathRandSeed()
 }
 
 // main initializes the certificate server and starts the dispatcher.
