@@ -81,12 +81,12 @@ common_args() {
     # Limit to 4G of ram, don't allow swapping.
     local args="-h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
     args+=" -v /var/run/docker.sock:/var/run/docker.sock"
-    args+=" -v $BASE/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
-    args+=" -v $BASE/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
-    args+=" -v $BASE/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
+    args+=" -v $SCION_MOUNT/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
+    args+=" -v $SCION_MOUNT/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
+    args+=" -v $SCION_MOUNT/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
     args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
     args+=" -v /run/shm/sciond:/run/shm/sciond"
-    args+=" -e SCION_MOUNT=$BASE"
+    args+=" -e SCION_MOUNT=$SCION_MOUNT"
     args+=" -e LOGNAME=$LOGNAME"
     args+=" -e PYTHONPATH=python/:."
     args+=" -e SCION_UID=$(id -u)"
@@ -96,8 +96,8 @@ common_args() {
 }
 
 cmd_run() {
-    BASE=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
-    echo "SCION_MOUNT directory: $BASE"
+    SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
+    echo "SCION_MOUNT directory: $SCION_MOUNT"
     local args=$(common_args)
     args+=" -i -t"
     args+=" --rm"
@@ -106,14 +106,14 @@ cmd_run() {
 }
 
 cmd_start() {
-    BASE=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
-    echo "SCION_MOUNT directory: $BASE"
+    SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
+    echo "SCION_MOUNT directory: $SCION_MOUNT"
     local cntr="scion"
     docker container inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
     local args=$(common_args)
     args+=" --name $cntr"
     setup_volumes
-    docker container create $args scion "tail -f /dev/null"
+    docker container create $args scion tail -f /dev/null
     docker start "$cntr"
 }
 
@@ -131,11 +131,11 @@ cmd_stop() {
 setup_volumes() {
     set -e
     for i in gen logs gen-certs gen-cache; do
-        mkdir -p "$BASE/$i"
+        mkdir -p "$SCION_MOUNT/$i"
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to
         # write to it.
-        [ -O "$i" ] || { echo "Error: '$i' dir not owned by $LOGNAME"; exit 1; }
+        [ -O "$SCION_MOUNT/$i" ] || { echo "Error: '$i' dir not owned by $LOGNAME"; exit 1; }
     done
     # Make sure the socket dirs have the correct permissions. Unlike for the volumes we try to fix
     # the permissions if necessary.
@@ -199,8 +199,10 @@ PROGRAM="${0##*/}"
 COMMAND="$1"
 ARG="$2"
 
-if ! ( [ $(id -u) -eq 0 ] || groups | grep -q "\<docker\>"; ); then
-    echo "Error: you must either be root, or in the 'docker' group"
+[ $(id -u) -eq 0 ] && { echo "Error: running as root is not allowed!" && exit 1; }
+
+if ! ( groups | grep -q "\<docker\>"; ); then
+    echo "Error: you must be in the 'docker' group"
     exit 1
 fi
 
