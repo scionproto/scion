@@ -36,15 +36,14 @@ If you would like to execute commands from the outside of the container, use
     ./docker.sh exec CMD
     ./docker.sh stop
 
-`./docker.sh` will mount the `gen`, `logs` and `gen-certs` directories from your working directory.
-This will potentially overwrite your data. To avoid that you can create a temp directory and tell
-`./docker` to instead mount that.
+`./docker.sh` will mount the `gen`, `logs` and `gen-certs` directories from a temp directory. You
+can pass your own directory with `SCION_MOUNT`.
 
-    `SCION_MOUNT=$(mktemp -d /tmp/scion_out.XXXXXX) ./docker.sh run "./scion.sh"`
+    `SCION_MOUNT=/tmp/scion_out.XXXXXX ./docker.sh run "./scion.sh"`
 
 or
 
-    `SCION_MOUNT=$(mktemp -d /tmp/scion_out.XXXXXX) ./docker.sh start`
+    `SCION_MOUNT=/tmp/scion_out.XXXXXX ./docker.sh start`
     `./docker.sh exec ./scion.sh topology -d`
     `./docker.sh exec ./integration/integration_test.sh`
     `./docker.sh stop`
