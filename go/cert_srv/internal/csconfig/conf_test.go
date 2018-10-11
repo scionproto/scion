@@ -21,8 +21,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 type TestConfig struct {
@@ -38,10 +36,6 @@ func TestLoadConf(t *testing.T) {
 		SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, 2*24*time.Hour)
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
-		SoMsg("sciondPath", cfg.CS.SciondPath, ShouldEqual, "/run/shm/sciond/sd1-ff00_0_110.sock")
-		SoMsg("sciondTimeout", cfg.CS.SciondTimeout.Duration, ShouldEqual, 20*time.Second)
-		SoMsg("sciondRetryInterval", cfg.CS.SciondRetryInterval.Duration,
-			ShouldEqual, 3*time.Second)
 	})
 
 	Convey("Load Default", t, func() {
@@ -52,9 +46,6 @@ func TestLoadConf(t *testing.T) {
 		SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldBeZeroValue)
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldBeZeroValue)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldBeZeroValue)
-		SoMsg("sciondPath", cfg.CS.SciondPath, ShouldBeZeroValue)
-		SoMsg("sciondTimeout", cfg.CS.SciondTimeout.Duration, ShouldBeZeroValue)
-		SoMsg("sciondRetryInterval", cfg.CS.SciondRetryInterval.Duration, ShouldBeZeroValue)
 	})
 }
 
@@ -71,11 +62,6 @@ func TestConfig_Init(t *testing.T) {
 			SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, 48*time.Hour)
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
-			SoMsg("sciondPath", cfg.CS.SciondPath, ShouldEqual,
-				"/run/shm/sciond/sd1-ff00_0_110.sock")
-			SoMsg("sciondTimeout", cfg.CS.SciondTimeout.Duration, ShouldEqual, 20*time.Second)
-			SoMsg("sciondRetryInterval", cfg.CS.SciondRetryInterval.Duration,
-				ShouldEqual, 3*time.Second)
 		})
 	})
 
@@ -91,10 +77,6 @@ func TestConfig_Init(t *testing.T) {
 			SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, IssuerReissTime)
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
-			SoMsg("sciondPath", cfg.CS.SciondPath, ShouldEqual, sciond.DefaultSCIONDPath)
-			SoMsg("sciondTimeout", cfg.CS.SciondTimeout.Duration, ShouldEqual, SciondTimeout)
-			SoMsg("sciondRetryInterval", cfg.CS.SciondRetryInterval.Duration,
-				ShouldEqual, SciondRetryInterval)
 		})
 	})
 }
