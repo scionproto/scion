@@ -22,6 +22,11 @@ import (
 	_ "net/http/pprof"
 	"os"
 
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
+
+	"github.com/scionproto/scion/go/lib/periodic"
+
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
@@ -33,6 +38,7 @@ import (
 
 type Config struct {
 	General env.General
+	Sciond  env.SciondClient `toml:"sd_client"`
 	Logging env.Logging
 	Metrics env.Metrics
 	Trust   env.Trust
@@ -41,19 +47,14 @@ type Config struct {
 	state   *csconfig.State
 }
 
-type task interface {
-	Run()
-	Stop()
-}
-
 var (
 	flagConfig = flag.String("config", "", "Service TOML config file (required)")
 	flagSample = flag.String("sample", "",
 		"Filename for creating a sample config. If set, the CS is not started.")
 
-	config      *Config
+	config      Config
 	environment *env.Env
-	reissTask   task
+	reissRunner *periodic.Runner
 	currMsgr    *messenger.Messenger
 )
 
@@ -103,8 +104,7 @@ func realMain() int {
 }
 
 func setup(configName string) error {
-	config = &Config{}
-	if _, err := toml.DecodeFile(configName, config); err != nil {
+	if _, err := toml.DecodeFile(configName, &config); err != nil {
 		return err
 	}
 	if err := env.InitGeneral(&config.General); err != nil {
@@ -114,16 +114,36 @@ func setup(configName string) error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
-	if err := setConfig(config, nil); err != nil {
+	if err := initConfig(&config); err != nil {
 		return err
 	}
-	// TODO(roosd): add reload function.
-	environment = env.SetupEnv(nil)
+	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
+		if err := reload(configName); err != nil {
+			log.Error("Unable to reload", "err", err)
+		}
+	})
+	return nil
+}
+
+func reload(configName string) error {
+	// FIXME(roosd): KeyConf reloading is not yet supported.
+	config.General.Topology = itopo.GetCurrentTopology()
+	var newConf Config
+	// Load new config to get the CS parameters.
+	if _, err := toml.DecodeFile(configName, &newConf); err != nil {
+		return err
+	}
+	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
+		return common.NewBasicError("Unable to initialize CS config", err)
+	}
+	config.CS = newConf.CS
+	reissRunner.Stop()
+	reissRunner = startReissRunner(&config, currMsgr)
 	return nil
 }
 
 func stop() {
-	reissTask.Stop()
+	reissRunner.Stop()
 	currMsgr.CloseServer()
 }
 
