@@ -50,7 +50,7 @@ func (h *syncHandler) Handle() {
 		h.logger.Error("[syncHandler] Failed to parse message", "err", err)
 		return
 	}
-	h.logger.Debug("[syncHandler] Received message", "seg", segSync.SegRecs)
+	logSegRecs(h.logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	h.verifyAndStore(subCtx, h.request.Peer, segSync.Recs, segSync.SRevInfos)

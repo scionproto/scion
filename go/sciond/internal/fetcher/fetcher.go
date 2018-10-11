@@ -437,10 +437,16 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 		defer timer.Stop()
 	}
 	// verify and store the segments
+	var insertedSegmentIDs []string
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
-		if err := segsaver.StoreSeg(ctx, s, f.pathDB, f.logger); err != nil {
+		wasInserted, err := segsaver.StoreSeg(ctx, s, f.pathDB)
+		if err != nil {
 			f.logger.Error("Unable to insert segment into path database",
 				"seg", s.Segment, "err", err)
+			return
+		}
+		if wasInserted {
+			insertedSegmentIDs = append(insertedSegmentIDs, s.Segment.GetLoggingID())
 		}
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
@@ -455,6 +461,9 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	revInfos := revcache.FilterNew(f.revocationCache, reply.Recs.SRevInfos)
 	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, revInfos,
 		verifiedSeg, verifiedRev, segErr, revErr)
+	if len(insertedSegmentIDs) > 0 {
+		log.Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
+	}
 }
 
 func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
