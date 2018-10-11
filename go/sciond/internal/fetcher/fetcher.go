@@ -175,8 +175,8 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	case <-ctx.Done():
 	}
 	if ctx.Err() == nil {
-		refetchInt := f.config.QueryInterval()
-		_, err = f.pathDB.InsertNextQuery(ctx, req.Dst.IA(), time.Now().Add(refetchInt))
+		_, err = f.pathDB.InsertNextQuery(ctx, req.Dst.IA(),
+			time.Now().Add(f.config.QueryInterval.Duration))
 		if err != nil {
 			f.logger.Warn("Failed to update nextQuery", "err", err)
 		}

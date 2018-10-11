@@ -20,8 +20,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -49,9 +47,9 @@ type Config struct {
 	Bind *snet.Addr
 	// PathDB contains the file location  of the path segment database.
 	PathDB string
-	// queryInterval specifies after how much time segments
+	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
-	queryInterval duration `toml:"QueryInterval"`
+	QueryInterval util.DurWrap
 }
 
 func (c *Config) InitDefaults() {
@@ -61,13 +59,9 @@ func (c *Config) InitDefaults() {
 	if c.Unix == "" {
 		c.Unix = "/run/shm/sciond/default-unix.sock"
 	}
-	if c.queryInterval.Duration == 0 {
-		c.queryInterval.Duration = DefaultQueryInterval
+	if c.QueryInterval.Duration == 0 {
+		c.QueryInterval.Duration = DefaultQueryInterval
 	}
-}
-
-func (c *Config) QueryInterval() time.Duration {
-	return c.queryInterval.Duration
 }
 
 func (c *Config) CreateSocketDirs() error {
@@ -85,16 +79,4 @@ func (c *Config) CreateSocketDirs() error {
 		}
 	}
 	return nil
-}
-
-var _ (toml.TextUnmarshaler) = (*duration)(nil)
-
-type duration struct {
-	time.Duration
-}
-
-func (d *duration) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = util.ParseDuration(string(text))
-	return err
 }

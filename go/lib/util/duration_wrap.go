@@ -12,31 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package psconfig contains the configuration of the path server.
-package psconfig
+package util
 
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/lib/util"
+	"github.com/BurntSushi/toml"
 )
 
-var (
-	DefaultQueryInterval = 5 * time.Minute
-)
+var _ (toml.TextUnmarshaler) = (*DurWrap)(nil)
+var _ (toml.TextMarshaler) = (*DurWrap)(nil)
 
-type Config struct {
-	// SegSync enables the "old" replication of down segments between cores,
-	// using SegSync messages.
-	SegSync bool
-	PathDB  string
-	// QueryInterval specifies after how much time segments
-	// for a destination should be refetched.
-	QueryInterval util.DurWrap
+// DurWrap is a wrapper to enable marshalling and unmarshalling of durations
+// with the custom format.
+type DurWrap struct {
+	time.Duration
 }
 
-func (c *Config) InitDefaults() {
-	if c.QueryInterval.Duration == 0 {
-		c.QueryInterval.Duration = DefaultQueryInterval
-	}
+func (d *DurWrap) UnmarshalText(text []byte) error {
+	var err error
+	d.Duration, err = ParseDuration(string(text))
+	return err
+}
+
+func (d *DurWrap) MarshalText() (text []byte, err error) {
+	return []byte(FmtDuration(d.Duration)), nil
 }

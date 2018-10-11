@@ -130,7 +130,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
 		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
 		if _, err := h.pathDB.InsertNextQuery(ctx, dst,
-			queryTime.Add(h.config.QueryInterval())); err != nil {
+			queryTime.Add(h.config.QueryInterval.Duration)); err != nil {
 			h.logger.Warn("Failed to insert last queried", "err", err)
 		}
 	}
