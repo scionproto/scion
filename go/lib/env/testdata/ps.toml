@@ -20,9 +20,6 @@
   # Timeout for trying to connect to sciond. (default 20s)
   Timeout = "20s"
 
-  # Time between sciond connect attempts. (default 1s)
-  RetryInterval = "1s"
-
 [logging]
   [logging.file]
     # Location of the logging file.
