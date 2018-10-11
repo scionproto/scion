@@ -81,7 +81,7 @@ test_teardown_wrapper() {
         print_green "[ TEARDOWN ]" "$TEST_NAME"
         return 0
     else
-        print_read "[ TEARDOWN ]" "$TEST_NAME"
+        print_red "[ TEARDOWN ]" "$TEST_NAME"
         return 1
     fi
 }
@@ -102,11 +102,12 @@ global_run() {
             test_setup_wrapper "$SETUP_FILE" && \
                 test_run_wrapper "$RUN_FILE"
             test_teardown_wrapper "$TEARDOWN_FILE"
-			local fatal_teardown=$?
+            local fatal_teardown=$?
             save_logs "$out"
-			if [ $fatal_teardown -ne 0 ]; then
-				exit 1
-			fi
+            if [ $fatal_teardown -ne 0 ]; then
+                print_red "[  FATAL   ]" "Teardown failed, stopping test suite"
+                exit 1
+            fi
         else
             print_yellow "[  SKIPPED ]" "$TEST_NAME"
             stats_skipped=$((stats_skipped+1))
