@@ -21,12 +21,8 @@ import (
 )
 
 var (
-	counter uint64
-)
-
-func init() {
 	counter = scrypto.RandUint64()
-}
+)
 
 // NextId is a concurrency-safe generator of unique request IDs for the messenger.
 func NextId() uint64 {
