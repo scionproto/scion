@@ -22,5 +22,5 @@ import (
 )
 
 func logSegRecs(logger log.Logger, prefix string, src net.Addr, segRecs *path_mgmt.SegRecs) {
-	logger.Debug(prefix+" Received SegRecs", "src", src, "data", segRecs.String())
+	logger.Debug(prefix+" Received SegRecs", "src", src, "data", segRecs)
 }
