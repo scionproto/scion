@@ -18,7 +18,6 @@ import (
 	"crypto/rand"
 	"io"
 	mrand "math/rand"
-	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -29,7 +28,8 @@ const (
 )
 
 func init() {
-	MathRandSeed()
+	// Seed math/rand's default generator with a random value, once.
+	mrand.Seed(RandInt64())
 }
 
 func RandUint64() uint64 {
@@ -45,15 +45,6 @@ func RandUint64() uint64 {
 // RandInt64 returns a random int64 value. The returned value can be negative.
 func RandInt64() int64 {
 	return int64(RandUint64())
-}
-
-var mathSeedOnce sync.Once
-
-// Seed math/rand's default generator with a random value, once.
-func MathRandSeed() {
-	mathSeedOnce.Do(func() {
-		mrand.Seed(RandInt64())
-	})
 }
 
 // Nonce takes an input length and returns a random nonce of the given length.
