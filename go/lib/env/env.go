@@ -111,7 +111,7 @@ type SciondClient struct {
 	// Path is the sciond path. It defaults to sciond.DefaultSCIONDPath.
 	Path string
 	// InitialConnectPeriod is the maximum amount of time spent attempting to
-	// connect to sciond.
+	// connect to sciond on start.
 	InitialConnectPeriod util.DurWrap
 }
 

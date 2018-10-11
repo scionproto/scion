@@ -86,19 +86,22 @@ func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 	var err error
 	var network snet.Network
-	var lastAttempt time.Time
-	stop := time.Now().Add(sciond.InitialConnectPeriod.Duration)
+	ticker := time.NewTicker(time.Second)
+	timer := time.NewTimer(sciond.InitialConnectPeriod.Duration)
+	defer ticker.Stop()
+	defer timer.Stop()
 	// XXX(roosd): Reconnecting is implemented here temporarily.
 	// In https://github.com/scionproto/scion/issues/1974 this will be
 	// done transparently and pushed to snet.NewNetwork.
-	for lastAttempt.Before(stop) {
-		lastAttempt = time.Now()
+	for {
 		if network, err = snet.NewNetwork(ia, sciond.Path, ""); err == nil || sciond.Path == "" {
 			break
 		}
-		now := time.Now()
-		time.Sleep(lastAttempt.Add(time.Second).Sub(now))
-		lastAttempt = now
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			break
+		}
 	}
 	return network, err
 }
