@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -280,8 +279,7 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	}
 	for edgeIdx, solEdge := range solution.edges {
 		currentSeg := &Segment{
-			Type:    solEdge.segment.Type,
-			ExpTime: spath.MaxTimestamp,
+			Type: solEdge.segment.Type,
 		}
 		currentSeg.initInfoFieldFrom(solEdge.segment.PathSegment)
 		currentSeg.InfoField.ConsDir = solEdge.segment.IsDownSeg()
@@ -299,8 +297,6 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 
 			// Normal hop field.
 			newHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[0])
-			currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
-				uint32(newHF.ExpTime.ToDuration().Seconds()))
 			inIFID, outIFID = newHF.ConsEgress, newHF.ConsIngress
 
 			// If we've transitioned from a previous segment, set Xover flag.
@@ -338,8 +334,6 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 						// Add a new hop field for the peering entry, and set Xover.
 						pHF := currentSeg.appendHopFieldFrom(asEntry.HopEntries[solEdge.edge.Peer])
 						pHF.Xover = true
-						currentSeg.ExpTime = minUint32(currentSeg.ExpTime,
-							uint32(pHF.ExpTime.ToDuration().Seconds()))
 						inIFID, outIFID = pHF.ConsEgress, pHF.ConsIngress
 					} else {
 						// Normal shortcut, so only half of this HF is traversed by the packet
@@ -357,7 +351,6 @@ func (solution *PathSolution) GetFwdPathMetadata() *Path {
 	}
 	path.reverseDownSegment()
 	path.aggregateInterfaces()
-	path.computeExpTime()
 	return path
 }
 

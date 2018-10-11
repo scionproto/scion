@@ -284,7 +284,7 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 				FwdPath:    x.Bytes(),
 				Mtu:        path.Mtu,
 				Interfaces: path.Interfaces,
-				ExpTime:    util.TimeToSecs(path.ExpTime),
+				ExpTime:    uint32(path.ComputeExpTime().Unix()),
 			},
 			HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
 		})
@@ -499,7 +499,18 @@ func buildPathsToAllDsts(req *sciond.PathReq,
 	for _, dst := range dsts {
 		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
 	}
-	return paths
+	return filterExpiredPaths(paths)
+}
+
+func filterExpiredPaths(paths []*combinator.Path) []*combinator.Path {
+	var validPaths []*combinator.Path
+	now := time.Now()
+	for _, path := range paths {
+		if path.ComputeExpTime().After(now) {
+			validPaths = append(validPaths, path)
+		}
+	}
+	return validPaths
 }
 
 // NewExtendedContext returns a new _independent_ context that can extend past

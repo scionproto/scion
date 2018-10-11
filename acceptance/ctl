@@ -1,0 +1,29 @@
+#!/bin/bash
+
+. acceptance/lib.sh
+
+cmd_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM setup TESTNAME
+	        only the setup phase of test TESTNAME.
+	    $PROGRAM run TESTNAME
+	        only the run phase of test TESTNAME.
+	    $PROGRAM teardown TESTNAME
+	        only the teardown phase of test TESTNAME.
+	    $PROGRAM gsetup
+	        global set up of the acceptance testing framework.
+	_EOF
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    setup|run|teardown)
+        TEST="$2"
+        "acceptance/${TEST}_acceptance/test" $COMMAND ;;
+    gsetup)
+        global_setup ;;
+    *) cmd_help; exit 1 ;;
+esac

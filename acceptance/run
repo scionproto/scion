@@ -1,0 +1,16 @@
+#!/bin/bash
+
+. acceptance/lib.sh
+
+ARTIFACTS_FOLDER=$(mktemp -d /tmp/acceptance-artifacts-$(date +"%Y%m%d-%H%M%S").XXXXXXX)
+echo "Acceptance artifacts saved to $ARTIFACTS_FOLDER"
+
+stats_passed=0
+stats_failed=0
+stats_skipped=0
+stats_total=0
+
+echo "Running acceptance tests"
+global_setup
+global_run $1
+global_teardown
