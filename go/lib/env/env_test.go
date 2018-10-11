@@ -22,11 +22,12 @@ import (
 )
 
 type TestConfig struct {
-	General General
-	Logging Logging
-	Metrics Metrics
-	Infra   Infra
-	Trust   Trust
+	General      General
+	Logging      Logging
+	Metrics      Metrics
+	Infra        Infra
+	Trust        Trust
+	SciondClient SciondClient `toml:"sd_client"`
 }
 
 func TestLoadBase(t *testing.T) {
@@ -40,9 +41,12 @@ func TestLoadBase(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 		err = InitLogging(&cfg.Logging)
 		SoMsg("err", err, ShouldBeNil)
+		InitSciondClient(&cfg.SciondClient)
 
 		SoMsg("specific topology is preferred", cfg.General.TopologyPath, ShouldEqual,
 			"testdata/dir/topology.json")
 		SoMsg("DispatcherReconnects", cfg.General.ReconnectToDispatcher, ShouldBeTrue)
+		SoMsg("specific sciond path is preferred", cfg.SciondClient.Path, ShouldEqual,
+			"/run/shm/sciond/1-ff00_0_110.sock")
 	})
 }

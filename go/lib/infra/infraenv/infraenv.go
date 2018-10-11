@@ -17,6 +17,8 @@
 package infraenv
 
 import (
+	"time"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
@@ -36,7 +38,15 @@ const (
 func InitMessenger(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 	reconnectToDispatcher bool, store infra.TrustStore) (infra.Messenger, error) {
 
-	conn, err := initNetworking(ia, public, bind, svc, reconnectToDispatcher)
+	return InitMessengerWithSciond(ia, public, bind, svc, reconnectToDispatcher,
+		store, env.Sciond{})
+}
+
+func InitMessengerWithSciond(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
+	reconnectToDispatcher bool, store infra.TrustStore,
+	sciond env.Sciond) (infra.Messenger, error) {
+
+	conn, err := initNetworking(ia, public, bind, svc, reconnectToDispatcher, sciond)
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +66,10 @@ func InitMessenger(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 }
 
 func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
-	reconnectToDispatcher bool) (snet.Conn, error) {
+	reconnectToDispatcher bool, sciond env.Sciond) (snet.Conn, error) {
 
 	var network snet.Network
-	network, err := snet.NewNetwork(ia, "", "")
+	network, err := initNetwork(ia, sciond)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to create network", err)
 	}
@@ -71,6 +81,22 @@ func initNetworking(ia addr.IA, public, bind *snet.Addr, svc addr.HostSVC,
 		return nil, common.NewBasicError("Unable to listen on SCION", err)
 	}
 	return conn, nil
+}
+
+func initNetwork(ia addr.IA, sciond env.Sciond) (snet.Network, error) {
+	stop := time.Now().Add(sciond.Timeout.Duration)
+	network, err := snet.NewNetwork(ia, sciond.Path, "")
+	if sciond.Path == "" || err != nil {
+		return network, err
+	}
+	// Try reconnecting.
+	for time.Now().Before(stop) {
+		if network, err = snet.NewNetwork(ia, sciond.Path, ""); err == nil {
+			break
+		}
+		time.Sleep(sciond.RetryInterval.Duration)
+	}
+	return network, err
 }
 
 func InitInfraEnvironment(topologyPath string) *env.Env {
