@@ -1205,6 +1205,9 @@ class GoGenerator(object):
                 'ID': name,
                 'ConfigDir': config_dir,
             },
+            'sd_client': {
+                'Path': get_default_sciond_path(topo_id),
+            },
             'logging': {
                 'file': {
                     'Path': os.path.join(log_dir, "%s.log" % name),
@@ -1225,7 +1228,6 @@ class GoGenerator(object):
                 'IssuerReissueTime': "3d",
                 'ReissueRate': "10s",
                 'ReissueTimeout': "5s",
-                'SciondPath': get_default_sciond_path(topo_id),
             },
         }
         return raw_entry

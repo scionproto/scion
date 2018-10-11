@@ -19,22 +19,22 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/periodic"
+
+	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
+
 	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
-	"github.com/scionproto/scion/go/cert_srv/internal/handlers"
-	"github.com/scionproto/scion/go/cert_srv/internal/periodic"
+	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
-	"github.com/scionproto/scion/go/lib/infra/transport"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 )
 
 const (
@@ -45,34 +45,18 @@ const (
 	ErrorSNET      = "Unable to create local SCION Network context"
 )
 
-// setConfig set initializes the new config based on the old one. The currMsgr
-// and reissTask are updated accordingly.
-//
-// FIXME(roosd): Reloading is currently disabled, this is only called with nil oldConf.
-func setConfig(newConf, oldConf *Config) error {
-	if oldConf == nil {
-		return setNewConfig(newConf)
-	}
-	return setReloadedConfig(newConf, oldConf)
-}
-
-func setReloadedConfig(newConf, oldConf *Config) error {
-	// FIXME(roosd): Following must be reloaded if necessary:
-	//  - messenger
-	//  - trustdb/store
-	//  - reissTask
-	return common.NewBasicError("Config reload not implemented", nil)
-}
-
-// setNewConfig initialize the first config. CurrMsgr and reissTask are set.
-func setNewConfig(config *Config) error {
+// initConfig initialize the config. CurrMsgr and reissTask are set.
+func initConfig(config *Config) error {
 	var err error
-	if err = initNewConf(config); err != nil {
+	if err = config.CS.Init(config.General.ConfigDir); err != nil {
+		return common.NewBasicError("Unable to initialize CS config", err)
+	}
+	if err = initState(config); err != nil {
 		return err
 	}
-	var reissHandler *handlers.ReissHandler
+	var reissHandler *reiss.Handler
 	if config.General.Topology.Core {
-		reissHandler = &handlers.ReissHandler{
+		reissHandler = &reiss.Handler{
 			State: config.state,
 			IA:    config.General.Topology.ISD_AS,
 		}
@@ -80,16 +64,13 @@ func setNewConfig(config *Config) error {
 	if currMsgr, err = startMessenger(config, reissHandler); err != nil {
 		return err
 	}
-	reissTask = startTask(config, currMsgr)
+	reissRunner = startReissRunner(config, currMsgr)
 	return nil
 }
 
-// initNewConf sets the CS field of config.
-func initNewConf(config *Config) error {
+// initState sets the state.
+func initState(config *Config) error {
 	var err error
-	if err = config.CS.Init(config.General.ConfigDir); err != nil {
-		return common.NewBasicError("Unable to initialize CS config", err)
-	}
 	config.state, err = csconfig.LoadState(config.General.ConfigDir, config.General.Topology.Core)
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)
@@ -135,8 +116,7 @@ func setDefaultSignerVerifier(c *csconfig.State, pubIA addr.IA) error {
 
 // startMessenger starts the messenger and sets the internal messenger of the store in
 // config.CS. This function may only be called once per config.
-func startMessenger(config *Config,
-	reissHandler *handlers.ReissHandler) (*messenger.Messenger, error) {
+func startMessenger(config *Config, reissHandler *reiss.Handler) (*messenger.Messenger, error) {
 
 	if config.General.Topology.Core != (reissHandler != nil) {
 		return nil, common.NewBasicError("ReissHandler does not match topology", nil,
@@ -146,14 +126,24 @@ func startMessenger(config *Config,
 	if topoAddress == nil {
 		return nil, common.NewBasicError("Unable to find topo address", nil)
 	}
-	// InitMessenger sets the messenger of the store automatically.
-	msgr, err := initMessenger(
-		config,
+	msgrI, err := infraenv.InitMessengerWithSciond(
+		config.General.Topology.ISD_AS,
 		env.GetPublicSnetAddress(config.General.Topology.ISD_AS, topoAddress),
 		env.GetBindSnetAddress(config.General.Topology.ISD_AS, topoAddress),
+		addr.SvcCS,
+		config.General.ReconnectToDispatcher,
+		config.state.Store,
+		config.Sciond,
 	)
+	// XXX(roosd): Hack to make Store.ChooseServer not panic.
+	snet.Init(config.General.Topology.ISD_AS, config.Sciond.Path, "")
 	if err != nil {
 		return nil, common.NewBasicError("Unable to initialize SCION Messenger", err)
+	}
+	// We need the actual type to set the signer and verifier.
+	msgr, ok := msgrI.(*messenger.Messenger)
+	if !ok {
+		return nil, common.NewBasicError("Unsupported messenger type", nil, "msgrI", msgrI)
 	}
 	msgr.AddHandler(infra.ChainRequest, config.state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, config.state.Store.NewTRCReqHandler(true))
@@ -171,73 +161,30 @@ func startMessenger(config *Config,
 	return msgr, nil
 }
 
-func initMessenger(config *Config, public, bind *snet.Addr) (*messenger.Messenger, error) {
-	conn, err := initNetworking(config, public, bind)
-	if err != nil {
-		return nil, err
-	}
-	msgr := messenger.New(
-		config.General.Topology.ISD_AS,
-		disp.New(
-			transport.NewPacketTransport(conn),
-			messenger.DefaultAdapter,
-			log.Root(),
-		),
-		config.state.Store,
-		log.Root(),
-		nil,
-	)
-	config.state.Store.SetMessenger(msgr)
-	return msgr, nil
-}
-
-func initNetworking(config *Config, public, bind *snet.Addr) (snet.Conn, error) {
-	var network snet.Network
-	network, err := initNetwork(config)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to create network", err)
-	}
-	if snet.DefNetwork == nil {
-		// XXX(roosd): Hack to make Store.ChooseServer not panic.
-		snet.InitWithNetwork(network.(*snet.SCIONNetwork))
-	}
-	if config.General.ReconnectToDispatcher {
-		network = snetproxy.NewProxyNetwork(network)
-	}
-	conn, err := network.ListenSCIONWithBindSVC("udp4", public, bind, addr.SvcCS, 5*time.Second)
-	if err != nil {
-		return nil, common.NewBasicError("Unable to listen on SCION", err)
-	}
-	return conn, nil
-}
-
-func initNetwork(config *Config) (*snet.SCIONNetwork, error) {
-	var err error
-	var network *snet.SCIONNetwork
-	timeout := time.Now().Add(config.CS.SciondTimeout.Duration)
-	for time.Now().Before(timeout) {
-		network, err = snet.NewNetwork(config.General.Topology.ISD_AS, config.CS.SciondPath, "")
-		if err == nil {
-			break
-		}
-		log.Error("Unable to initialize network",
-			"Retry interval", config.CS.SciondRetryInterval, "err", err)
-		time.Sleep(config.CS.SciondRetryInterval.Duration)
-	}
-	return network, err
-}
-
-func startTask(config *Config, msgr *messenger.Messenger) task {
+func startReissRunner(config *Config, msgr *messenger.Messenger) *periodic.Runner {
 	if config.General.Topology.Core {
-		selfIssuer := periodic.NewSelfIssuer(msgr, config.state, config.General.Topology.ISD_AS,
-			config.CS.IssuerReissueTime.Duration, config.CS.LeafReissueTime.Duration,
-			config.CS.ReissueRate.Duration)
-		go selfIssuer.Run()
-		return selfIssuer
+		log.Info("Starting periodic reiss.Self task")
+		return periodic.StartPeriodicTask(
+			&reiss.Self{
+				Msgr:     msgr,
+				State:    config.state,
+				IA:       config.General.Topology.ISD_AS,
+				IssTime:  config.CS.IssuerReissueTime.Duration,
+				LeafTime: config.CS.LeafReissueTime.Duration,
+			},
+			time.NewTicker(config.CS.ReissueRate.Duration),
+			config.CS.ReissueTimeout.Duration,
+		)
 	}
-	reissRequester := periodic.NewReissRequester(msgr, config.state,
-		config.General.Topology.ISD_AS, config.CS.LeafReissueTime.Duration,
-		config.CS.ReissueRate.Duration, config.CS.ReissueTimeout.Duration)
-	go reissRequester.Run()
-	return reissRequester
+	log.Info("Starting periodic reiss.Requester task")
+	return periodic.StartPeriodicTask(
+		&reiss.Requester{
+			Msgr:     msgr,
+			State:    config.state,
+			IA:       config.General.Topology.ISD_AS,
+			LeafTime: config.CS.LeafReissueTime.Duration,
+		},
+		time.NewTicker(config.CS.ReissueRate.Duration),
+		config.CS.ReissueTimeout.Duration,
+	)
 }
