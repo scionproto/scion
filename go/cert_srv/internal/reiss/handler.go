@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package handlers
+package reiss
 
 import (
 	"bytes"
@@ -37,86 +37,77 @@ const (
 	HandlerTimeout = 5 * time.Second
 )
 
-// ReissHandler handles certificate chain reissue requests.
+// Handler handles certificate chain reissue requests.
 //
 // Reissue requests are sent by non-issuer ASes to issuer ASes. The request
 // needs to be signed with the private key associated with the newest verifying
 // key in the customer mapping. Certificate chains are issued automatically by
 // the issuer ASes.
-type ReissHandler struct {
+type Handler struct {
 	State *csconfig.State
 	IA    addr.IA
 }
 
-func (h *ReissHandler) Handle(r *infra.Request) {
-	// Bind the handler to a snapshot of the current config
-	h.HandleReq(r)
+func (h *Handler) Handle(r *infra.Request) {
+	addr := r.Peer.(*snet.Addr)
+	req := r.Message.(*cert_mgmt.ChainIssReq)
+	if err := h.handle(r, addr, req); err != nil {
+		log.Error("[ReissHandler] Dropping certificate reissue request",
+			"addr", addr, "req", req, "err", err)
+	}
 }
 
-// HandleReq handles certificate chain reissue requests. If the requested
+// handle handles certificate chain reissue requests. If the requested
 // certificate chain is already present, the existing certificate chain is
 // resent. Otherwise, a new certificate chain is issued.
-func (h *ReissHandler) HandleReq(r *infra.Request) {
+func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.ChainIssReq) error {
 	ctx, cancelF := context.WithTimeout(r.Context(), HandlerTimeout)
 	defer cancelF()
-
-	saddr := r.Peer.(*snet.Addr)
-	req := r.Message.(*cert_mgmt.ChainIssReq)
 	signed := r.FullMessage.(*ctrl.SignedPld)
-	log.Debug("[ReissHandler] Received certificate reissue request", "addr", saddr, "req", req)
+	log.Trace("[ReissHandler] Received certificate reissue request", "addr", addr, "req", req)
 	// Validate the request was correctly signed by the requester
-	verChain, err := h.validateSign(ctx, saddr, signed)
+	verChain, err := h.validateSign(ctx, addr, signed)
 	if err != nil {
-		h.logDropReq(saddr, req, err)
-		return
+		return common.NewBasicError("Unable to validate chain", err)
 	}
 	// Parse the requested certificate
 	crt, err := req.Cert()
 	if err != nil {
-		h.logDropReq(saddr, req, err)
-		return
+		return common.NewBasicError("Unable to parse requested certificate", err)
 	}
 	// Respond with max chain for outdated requests.
 	maxChain, err := h.State.Store.GetChain(ctx, verChain.Leaf.Subject, scrypto.LatestVer)
 	if err != nil {
-		h.logDropReq(saddr, req, err)
-		return
+		return common.NewBasicError("Unable to fetch max chain", err)
 	}
 	if maxChain != nil && crt.Version <= maxChain.Leaf.Version {
-		log.Debug("[ReissHandler] Resending certificate chain", "addr", saddr, "req", req)
-		if err := h.sendRep(ctx, saddr, maxChain, r.ID); err != nil {
-			log.Error("[ReissHandler] Unable to resend certificate chain", "addr", saddr,
-				"req", req, "err", err)
-		}
-		return
+		log.Info("[ReissHandler] Resending certificate chain", "addr", addr, "req", req)
+		return h.sendRep(ctx, addr, maxChain, r.ID)
 	}
 	// Get the verifying key from the customer mapping
-	verKey, err := h.State.Customers.GetVerifyingKey(saddr.IA)
+	verKey, err := h.State.Customers.GetVerifyingKey(addr.IA)
 	if err != nil {
-		h.logDropReq(saddr, req, err)
-		return
+		return common.NewBasicError("Unable to get verifying key", err)
 	}
 	// Verify request and check the verifying key matches
 	if err = h.validateReq(crt, verKey, verChain, maxChain); err != nil {
-		h.logDropReq(saddr, req, err)
-		return
+		return common.NewBasicError("Unable to verify request", err)
 	}
 	// Issue certificate chain
 	newChain, err := h.issueChain(ctx, crt, verKey)
 	if err != nil {
-		log.Error("[ReissHandler] Unable to reissue certificate chain", "err", err)
-		return
+		return common.NewBasicError("Unable to reissue certificate chain", err)
 	}
 	// Send issued certificate chain
-	if err := h.sendRep(ctx, saddr, newChain, r.ID); err != nil {
-		log.Error("[ReissHandler] Unable to send reissued certificate chain", "addr", saddr,
-			"req", req, "err", err)
+	if err := h.sendRep(ctx, addr, newChain, r.ID); err != nil {
+		return common.NewBasicError("Unable to send reissued certificate chain", err)
 	}
+	return nil
 }
 
 // validateSign validates that the signer matches the requester and returns the
 // certificate chain used when verifying the signature.
-func (h *ReissHandler) validateSign(ctx context.Context, addr *snet.Addr,
+func (h *Handler) validateSign(ctx context.Context, addr *snet.Addr,
 	signed *ctrl.SignedPld) (*cert.Chain, error) {
 
 	if signed.Sign == nil {
@@ -144,7 +135,7 @@ func (h *ReissHandler) validateSign(ctx context.Context, addr *snet.Addr,
 
 // validateReq validates the requested certificate. Additionally, it validates that
 // the request was verified with the same verifying key as in the customer mapping.
-func (h *ReissHandler) validateReq(c *cert.Certificate, vKey common.RawBytes,
+func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 	vChain, maxChain *cert.Chain) error {
 
 	if !c.Subject.Eq(vChain.Leaf.Subject) {
@@ -170,7 +161,7 @@ func (h *ReissHandler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 
 // issueChain creates a certificate chain for the certificate and adds it to the
 // trust store.
-func (h *ReissHandler) issueChain(ctx context.Context, c *cert.Certificate,
+func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	vKey common.RawBytes) (*cert.Chain, error) {
 
 	issCert, err := h.getIssuerCert()
@@ -205,7 +196,7 @@ func (h *ReissHandler) issueChain(ctx context.Context, c *cert.Certificate,
 	return chain, nil
 }
 
-func (h *ReissHandler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain,
+func (h *Handler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain,
 	id uint64) error {
 
 	raw, err := chain.Compress()
@@ -214,13 +205,14 @@ func (h *ReissHandler) sendRep(ctx context.Context, addr net.Addr, chain *cert.C
 	}
 	msger, ok := infra.MessengerFromContext(ctx)
 	if !ok {
-		return common.NewBasicError("[ReissHandler] Unable to service request, no messenger found",
-			nil)
+		return common.NewBasicError("Unable to send reply, no messenger found", nil)
 	}
+	log.Trace("[ReissHandler] Sending reissued certificate chain",
+		"chain", chain, "addr", addr)
 	return msger.SendChainIssueReply(ctx, &cert_mgmt.ChainIssRep{RawChain: raw}, addr, id)
 }
 
-func (h *ReissHandler) getIssuerCert() (*cert.Certificate, error) {
+func (h *Handler) getIssuerCert() (*cert.Certificate, error) {
 	issCrt, err := h.State.TrustDB.GetIssCertMaxVersion(h.IA)
 	if err != nil {
 		return nil, err
@@ -229,14 +221,4 @@ func (h *ReissHandler) getIssuerCert() (*cert.Certificate, error) {
 		return nil, common.NewBasicError("Issuer certificate not found", nil, "ia", h.IA)
 	}
 	return issCrt, nil
-}
-
-func (h *ReissHandler) logDropReq(addr net.Addr, req *cert_mgmt.ChainIssReq, err error) {
-	log.Error("[ReissHandler] Dropping certificate reissue request", "addr", addr, "req", req,
-		"err", err)
-}
-
-func (h *ReissHandler) logDropRep(addr net.Addr, rep *cert_mgmt.ChainIssRep, err error) {
-	log.Error("[ReissHandler] Dropping certificate reissue reply", "addr", addr, "rep", rep,
-		"err", err)
 }
