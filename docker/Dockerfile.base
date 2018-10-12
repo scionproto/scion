@@ -76,7 +76,8 @@ COPY tools/install_docker install_docker
 RUN sudo ./install_docker && rm install_docker && sudo usermod -aG docker scion
 
 # Install su-exec
-ARG SU_EXEC_COMMIT=537b381606f9e455469a355b2de51ce49cd33973
+#ARG SU_EXEC_COMMIT=537b381606f9e455469a355b2de51ce49cd33973
+ARG SU_EXEC_COMMIT=a3cc494523574cd3ca01e545debc41715fc960b3
 RUN set -e; mkdir su-exec; \
     curl -SL https://github.com/anapaya/su-exec/archive/${SU_EXEC_COMMIT}.tar.gz | tar xz -C su-exec --strip-components=1; \
     make -C su-exec; sudo mv su-exec/su-exec /sbin/; \
