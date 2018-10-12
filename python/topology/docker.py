@@ -21,7 +21,9 @@ from string import Template
 # External packages
 import yaml
 # SCION
+from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
+from lib.packet.scion_addr import ISD_AS
 from lib.util import (
     read_file,
     write_file,
@@ -187,7 +189,7 @@ class DockerGenerator(object):
                 entry['command'].append('--spki_cache_dir=cache')
                 entry['command'].append('--prom=%s' % _prom_addr_infra(v))
                 entry['command'].append('--sciond_path=%s' %
-                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
+                                        get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
                 entry['command'].append(k)
                 entry['command'].append('conf')
             self.dc_conf['services'][k] = entry
