@@ -13,38 +13,43 @@
 // limitations under the License.
 
 // Package pathpol implements path policies, documentation in doc/PathPolicy.md
+// Currently implemented: ACL, Sequence, Extends and Options.
 //
 // A policy has an Act() method that takes an AppPathSet and returns a filtered AppPathSet
 package pathpol
 
 import (
+	"fmt"
 	"sort"
 
-	"github.com/scionproto/scion/go/lib/pktcls"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
-var _ pktcls.Action = (*Policy)(nil)
-
-// Policy is a path policy object
-// Currently implemented: ACL, Sequence, Extends and Options. See planned features in
-// doc/PathPolicy.md.
-type Policy struct {
-	Name     string
-	Extends  []*Policy
-	ACL      *ACL
-	Sequence Sequence
-	Options  []Option
+// ExtPolicy is an extending policy, it may have a list of policies it extends
+type ExtPolicy struct {
+	Extends []string
+	*Policy
 }
 
-func NewPolicy(name string, extends []*Policy, acl *ACL, sequence Sequence,
-	options []Option) *Policy {
+// PolicyMap is a container for Policies, keyed by their unique name. PolicyMap
+// can be used to marshal Policies to JSON. Unmarshaling back to PolicyMap is
+// guaranteed to yield an object that is identical to the initial one.
+type PolicyMap map[string]*Policy
 
-	policy := &Policy{Name: name, Extends: extends, ACL: acl, Sequence: sequence, Options: options}
-	// Apply all extended policies
-	policy.applyExtended()
-	// Sort options by weight, descending
+// Policy is a compiled path policy object, all extended policies have been merged
+type Policy struct {
+	Name     string
+	ACL      *ACL     `json:",omitempty"`
+	Sequence Sequence `json:",omitempty"`
+	Options  []Option `json:",omitempty"`
+}
+
+// NewPolicy creates a Policy and sorts its Options
+func NewPolicy(name string, acl *ACL, sequence Sequence, options []Option) *Policy {
+	policy := &Policy{Name: name, ACL: acl, Sequence: sequence, Options: options}
+	// Sort Options by weight, descending
 	sort.Slice(policy.Options, func(i, j int) bool {
 		return policy.Options[i].Weight > policy.Options[j].Weight
 	})
@@ -65,29 +70,43 @@ func (p *Policy) Act(values interface{}) interface{} {
 	return resultSet
 }
 
-func (p *Policy) GetName() string {
-	return p.Name
-}
-
-func (p *Policy) SetName(name string) {
-	p.Name = name
-}
-
-func (p *Policy) Type() string {
-	return "Policy"
+// PolicyFromExtPolicy creates a Policy from an extending Policy and the extended policies
+func PolicyFromExtPolicy(extPolicy *ExtPolicy, extended []*ExtPolicy) (*Policy, error) {
+	policy := extPolicy.Policy
+	if policy == nil {
+		policy = &Policy{}
+	}
+	// Apply all extended policies
+	if err := policy.applyExtended(extPolicy.Extends, extended); err != nil {
+		return nil, err
+	}
+	return policy, nil
 }
 
 // applyExtended adds attributes of extended policies to the extending policy if they are not
 // already set
-func (p *Policy) applyExtended() {
+func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error {
 	// traverse in reverse s.t. last entry of the list has precedence
-	for i := len(p.Extends) - 1; i >= 0; i-- {
-		policy := p.Extends[i]
+	for i := len(extends) - 1; i >= 0; i-- {
+		var policy *Policy
+		// Find extended policy
+		for _, exPol := range exPolicies {
+			if exPol.Name == extends[i] {
+				var err error
+				if policy, err = PolicyFromExtPolicy(exPol, exPolicies); err != nil {
+					return err
+				}
+			}
+		}
+		if policy == nil {
+			return common.NewBasicError(
+				fmt.Sprintf("Extended policy '%s' could not be found", extends[i]), nil)
+		}
 		// Replace ACL
 		if p.ACL == nil && policy.ACL != nil {
 			p.ACL = policy.ACL
 		}
-		// Replace options
+		// Replace Options
 		if len(p.Options) == 0 {
 			p.Options = policy.Options
 		}
@@ -96,8 +115,7 @@ func (p *Policy) applyExtended() {
 			p.Sequence = policy.Sequence
 		}
 	}
-	// all sub-policies have been set, remove them
-	p.Extends = nil
+	return nil
 }
 
 // evalOptions evaluates the options of a policy and returns the pathSet that matches the option
@@ -126,17 +144,17 @@ type Option struct {
 }
 
 // Sequence is a list of path interfaces that a path should match
-type Sequence []sciond.PathInterface
+type Sequence []HopPredicate
 
 // NewSequence creates a new sequence from a list of string tokens
 func NewSequence(tokens []string) (Sequence, error) {
 	s := make(Sequence, 0)
 	for _, token := range tokens {
-		pi, err := sciond.NewPathInterface(token)
+		hp, err := NewHopPredicate(token)
 		if err != nil {
 			return nil, err
 		}
-		s = append(s, pi)
+		s = append(s, hp)
 	}
 	return s, nil
 }
@@ -156,14 +174,14 @@ func (s Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	return resultSet
 }
 
-func pathMatches(pathInterfaces, matcherTokens []sciond.PathInterface) bool {
+func pathMatches(pathInterfaces []sciond.PathInterface, matcherTokens []HopPredicate) bool {
 	// TODO(worxli): as long as *, ? and + are not implemented, these slices must have the
 	// same length
 	if len(pathInterfaces) != len(matcherTokens) {
 		return false
 	}
 	for i := range pathInterfaces {
-		if !spathmeta.PPWildcardEquals(matcherTokens[i], pathInterfaces[i]) {
+		if !pathIFMatchHopPred(pathInterfaces[i], matcherTokens[i]) {
 			return false
 		}
 	}
