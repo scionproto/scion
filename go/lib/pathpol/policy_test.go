@@ -169,8 +169,8 @@ func TestSequenceEval(t *testing.T) {
 	})
 }
 
-var allowEntry = &ACLEntry{ACLAction(true), &sciond.PathInterface{}}
-var denyEntry = &ACLEntry{ACLAction(false), &sciond.PathInterface{}}
+var allowEntry = &ACLEntry{ACLAction(true), &HopPredicate{}}
+var denyEntry = &ACLEntry{ACLAction(false), &HopPredicate{}}
 
 func TestACLEval(t *testing.T) {
 	testCases := []struct {
@@ -183,7 +183,7 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "allow everything",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Allow, Rule: mustPathInterface(t, "0-0#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
 				denyEntry}},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
@@ -192,7 +192,7 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "allow 2-0#0, deny rest",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Allow, Rule: mustPathInterface(t, "2-0#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "2-0#0")},
 				denyEntry}},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
@@ -201,8 +201,8 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "allow 2-ff00:0:212#0 and 2-ff00:0:211, deny rest",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Allow, Rule: mustPathInterface(t, "2-ff00:0:212#0")},
-				{Action: Allow, Rule: mustPathInterface(t, "2-ff00:0:211#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "2-ff00:0:212#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "2-ff00:0:211#0")},
 				denyEntry}},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
@@ -211,7 +211,7 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "allow 2-ff00:0:212#0, deny rest",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Allow, Rule: mustPathInterface(t, "2-ff00:0:212#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "2-ff00:0:212#0")},
 				denyEntry}},
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
@@ -220,8 +220,8 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "deny 1-ff00:0:110#0, 1-ff00:0:120#0, allow rest",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:110#0")},
-				{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
+				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:110#0")},
+				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
 				allowEntry}},
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("2-ff00:0:222"),
@@ -230,9 +230,9 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "deny 1-ff00:0:110#0, 1-ff00:0:120#0 and 1-ff00:0:111#2823, allow rest",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:110#0")},
-				{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
-				{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:111#2823")},
+				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:110#0")},
+				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
+				{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:111#2823")},
 				allowEntry}},
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("2-ff00:0:222"),
@@ -241,9 +241,9 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "deny ISD1, allow certain ASes",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Allow, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
-				{Action: Allow, Rule: mustPathInterface(t, "1-ff00:0:130#0")},
-				{Action: Deny, Rule: mustPathInterface(t, "1-0#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "1-ff00:0:130#0")},
+				{Action: Deny, Rule: mustHopPredicate(t, "1-0#0")},
 				allowEntry}},
 			Src:        xtest.MustParseIA("1-ff00:0:130"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
@@ -252,9 +252,9 @@ func TestACLEval(t *testing.T) {
 		{
 			Name: "deny ISD1, allow certain ASes - wrong oder",
 			ACL: &ACL{Entries: []*ACLEntry{
-				{Action: Deny, Rule: mustPathInterface(t, "1-0#0")},
-				{Action: Allow, Rule: mustPathInterface(t, "1-ff00:0:130#0")},
-				{Action: Allow, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
+				{Action: Deny, Rule: mustHopPredicate(t, "1-0#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "1-ff00:0:130#0")},
+				{Action: Allow, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
 				allowEntry}},
 			Src:        xtest.MustParseIA("1-ff00:0:130"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
@@ -280,7 +280,7 @@ func TestACLEval(t *testing.T) {
 func TestACLPanic(t *testing.T) {
 	acl := &ACL{Entries: []*ACLEntry{{
 		Action: Allow,
-		Rule:   mustPathInterface(t, "1-0#0")}}}
+		Rule:   mustHopPredicate(t, "1-0#0")}}}
 
 	conn := testGetSCIONDConn(t)
 	Convey("TestACLPanic", t, func() {
@@ -297,15 +297,15 @@ func TestACLConstructor(t *testing.T) {
 	Convey("TestACLConstructor", t, func() {
 		_, err := NewACL(&ACLEntry{
 			Action: Allow,
-			Rule:   mustPathInterface(t, "1-0#0")})
+			Rule:   mustHopPredicate(t, "1-0#0")})
 		SoMsg("constructor", err, ShouldResemble,
 			common.NewBasicError("ACL does not have a default", nil))
 		acl, err := NewACL(&ACLEntry{
 			Action: Allow,
-			Rule:   mustPathInterface(t, "1-0#0")},
+			Rule:   mustHopPredicate(t, "1-0#0")},
 			&ACLEntry{
 				Action: Deny,
-				Rule:   mustPathInterface(t, "0-0#0")})
+				Rule:   mustHopPredicate(t, "0-0#0")})
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("acl", acl, ShouldNotBeNil)
 	})
@@ -321,13 +321,13 @@ func TestOptionsEval(t *testing.T) {
 	}{
 		{
 			Name: "one option, allow everything",
-			Policy: NewPolicy("", nil, nil, nil, []Option{
+			Policy: NewPolicy("", nil, nil, []Option{
 				{
 					Policy: &Policy{
 						ACL: &ACL{Entries: []*ACLEntry{
 							{
 								Action: Allow,
-								Rule:   mustPathInterface(t, "0-0#0")},
+								Rule:   mustHopPredicate(t, "0-0#0")},
 							denyEntry}}},
 					Weight: 0},
 			}),
@@ -337,19 +337,19 @@ func TestOptionsEval(t *testing.T) {
 		},
 		{
 			Name: "two options, deny everything",
-			Policy: NewPolicy("", nil, nil, nil, []Option{
+			Policy: NewPolicy("", nil, nil, []Option{
 				{
 					Policy: &Policy{
 						ACL: &ACL{Entries: []*ACLEntry{{
 							Action: Allow,
-							Rule:   mustPathInterface(t, "0-0#0")},
+							Rule:   mustHopPredicate(t, "0-0#0")},
 							denyEntry}}},
 					Weight: 0},
 				{
 					Policy: &Policy{
 						ACL: &ACL{Entries: []*ACLEntry{{
 							Action: Deny,
-							Rule:   mustPathInterface(t, "0-0#0")},
+							Rule:   mustHopPredicate(t, "0-0#0")},
 							denyEntry}}},
 					Weight: 1},
 			}),
@@ -359,15 +359,15 @@ func TestOptionsEval(t *testing.T) {
 		},
 		{
 			Name: "two options, first: allow everything, second: allow one path",
-			Policy: NewPolicy("", nil, nil, nil, []Option{
+			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Allow, Rule: mustPathInterface(t, "0-0#0")},
+					{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
 					denyEntry}}},
 					Weight: 0},
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:110#0")},
-					{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
-					{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:111#2823")},
+					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:110#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:111#2823")},
 					allowEntry}}},
 					Weight: 1},
 			}),
@@ -377,13 +377,13 @@ func TestOptionsEval(t *testing.T) {
 		},
 		{
 			Name: "two options, combined",
-			Policy: NewPolicy("", nil, nil, nil, []Option{
+			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
 					allowEntry}}},
 					Weight: 0},
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustPathInterface(t, "2-ff00:0:210#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
 					allowEntry}}},
 					Weight: 0},
 			}),
@@ -393,13 +393,13 @@ func TestOptionsEval(t *testing.T) {
 		},
 		{
 			Name: "two options, take first",
-			Policy: NewPolicy("", nil, nil, nil, []Option{
+			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
 					allowEntry}}},
 					Weight: 1},
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustPathInterface(t, "2-ff00:0:210#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
 					allowEntry}}},
 					Weight: 0},
 			}),
@@ -409,13 +409,13 @@ func TestOptionsEval(t *testing.T) {
 		},
 		{
 			Name: "two options, take second",
-			Policy: NewPolicy("", nil, nil, nil, []Option{
+			Policy: NewPolicy("", nil, nil, []Option{
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustPathInterface(t, "1-ff00:0:120#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
 					allowEntry}}},
 					Weight: 1},
 				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustPathInterface(t, "2-ff00:0:210#0")},
+					{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
 					allowEntry}}},
 					Weight: 10},
 			}),
@@ -443,129 +443,179 @@ func TestOptionsEval(t *testing.T) {
 func TestExtends(t *testing.T) {
 	testCases := []struct {
 		Name           string
-		Policy         *Policy
+		Policy         *ExtPolicy
+		Extended       []*ExtPolicy
 		ExtendedPolicy *Policy
 	}{
 		{
 			Name: "one extends, use sub acl",
-			Policy: &Policy{Extends: []*Policy{
-				{ACL: &ACL{Entries: []*ACLEntry{{
-					Action: Allow,
-					Rule:   mustPathInterface(t, "0-0#0")},
-					denyEntry}}},
-			}},
+			Policy: &ExtPolicy{
+				Extends: []string{"policy1"}},
+			Extended: []*ExtPolicy{
+				{
+					Policy: &Policy{Name: "policy1",
+						ACL: &ACL{Entries: []*ACLEntry{{
+							Action: Allow,
+							Rule:   mustHopPredicate(t, "0-0#0")},
+							denyEntry}}}},
+			},
 			ExtendedPolicy: &Policy{
 				ACL: &ACL{Entries: []*ACLEntry{{
 					Action: Allow,
-					Rule:   mustPathInterface(t, "0-0#0")},
+					Rule:   mustHopPredicate(t, "0-0#0")},
 					denyEntry}}},
 		},
 		{
-			Name: "use option of extension policy",
-			Policy: &Policy{Extends: []*Policy{
+			Name: "use option of extended policy",
+			Policy: &ExtPolicy{
+				Extends: []string{"policy1"}},
+			Extended: []*ExtPolicy{
 				{
-					Options: []Option{
+					Policy: &Policy{Name: "policy1", Options: []Option{
 						{
 							Weight: 1,
-							Policy: &Policy{
-								ACL: &ACL{Entries: []*ACLEntry{{
-									Action: Allow,
-									Rule:   mustPathInterface(t, "0-0#0")},
-									denyEntry}},
-							},
-						},
-					},
-				},
-			}},
-			ExtendedPolicy: &Policy{
-				Options: []Option{
-					{
-						Weight: 1,
-						Policy: &Policy{
-							ACL: &ACL{Entries: []*ACLEntry{{
+							Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
 								Action: Allow,
-								Rule:   mustPathInterface(t, "0-0#0")},
-								denyEntry}},
+								Rule:   mustHopPredicate(t, "0-0#0")},
+								denyEntry}}},
 						},
+					}}},
+			},
+			ExtendedPolicy: &Policy{Options: []Option{
+				{
+					Weight: 1,
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
+						Action: Allow,
+						Rule:   mustHopPredicate(t, "0-0#0")},
+						denyEntry}},
 					},
 				},
 			},
+			},
 		},
 		{
-			Name: "two extends, use sub acl and list",
-			Policy: &Policy{Extends: []*Policy{
-				{ACL: &ACL{Entries: []*ACLEntry{{
-					Action: Allow,
-					Rule:   mustPathInterface(t, "0-0#0")},
-					denyEntry}}},
-				{Sequence: newSequence(t, []string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
-			}},
-			ExtendedPolicy: &Policy{
-				ACL: &ACL{Entries: []*ACLEntry{{
-					Action: Allow,
-					Rule:   mustPathInterface(t, "0-0#0")},
-					denyEntry}},
+			Name:   "two extends, use sub acl and list",
+			Policy: &ExtPolicy{Extends: []string{"policy1"}},
+			Extended: []*ExtPolicy{
+				{
+					Policy: &Policy{Name: "policy1",
+						ACL: &ACL{Entries: []*ACLEntry{{
+							Action: Allow,
+							Rule:   mustHopPredicate(t, "0-0#0")},
+							denyEntry}},
+						Sequence: newSequence(t,
+							[]string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})}},
+			},
+			ExtendedPolicy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
+				Action: Allow,
+				Rule:   mustHopPredicate(t, "0-0#0")},
+				denyEntry}},
 				Sequence: newSequence(t, []string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
 		},
 		{
 			Name: "two extends, only use acl",
-			Policy: &Policy{Sequence: newSequence(t, []string{"1-ff00:0:133#0", "1-ff00:0:132#0"}),
-				Extends: []*Policy{
-					{ACL: &ACL{Entries: []*ACLEntry{{
-						Action: Allow,
-						Rule:   mustPathInterface(t, "0-0#0")},
-						denyEntry}}},
-					{Sequence: newSequence(t, []string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
-				}},
-			ExtendedPolicy: &Policy{
-				ACL: &ACL{Entries: []*ACLEntry{{
+			Policy: &ExtPolicy{
+				Policy: &Policy{
+					Sequence: newSequence(t, []string{"1-ff00:0:133#0", "1-ff00:0:132#0"})},
+				Extends: []string{"policy2"}},
+			Extended: []*ExtPolicy{
+				{Policy: &Policy{Name: "policy2", ACL: &ACL{Entries: []*ACLEntry{{
 					Action: Allow,
-					Rule:   mustPathInterface(t, "0-0#0")},
-					denyEntry}},
+					Rule:   mustHopPredicate(t, "0-0#0")},
+					denyEntry}}}},
+				{Policy: &Policy{Name: "policy1",
+					Sequence: newSequence(t,
+						[]string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
+				}},
+			ExtendedPolicy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
+				Action: Allow,
+				Rule:   mustHopPredicate(t, "0-0#0")},
+				denyEntry}},
 				Sequence: newSequence(t, []string{"1-ff00:0:133#0", "1-ff00:0:132#0"})},
 		},
 		{
 			Name: "three extends, use last list",
-			Policy: &Policy{
-				Extends: []*Policy{
-					{Sequence: newSequence(t, []string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
-					{Sequence: newSequence(t, []string{"1-ff00:0:133#1012", "1-ff00:0:132#1912"})},
-					{Sequence: newSequence(t, []string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})},
-				}},
+			Policy: &ExtPolicy{
+				Extends: []string{"p1", "p2", "p3"}},
+			Extended: []*ExtPolicy{
+				{
+					Policy: &Policy{Name: "p1",
+						Sequence: newSequence(t,
+							[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})}},
+				{
+					Policy: &Policy{Name: "p2",
+						Sequence: newSequence(t,
+							[]string{"1-ff00:0:133#1012", "1-ff00:0:132#1912"})}},
+				{
+					Policy: &Policy{Name: "p3",
+						Sequence: newSequence(t,
+							[]string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})}},
+			},
 			ExtendedPolicy: &Policy{
 				Sequence: newSequence(t, []string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})},
 		},
 		{
 			Name: "nested extends",
-			Policy: &Policy{
-				Extends: []*Policy{
-					NewPolicy("", []*Policy{
-						NewPolicy("", []*Policy{
-							{
-								Sequence: newSequence(t,
-									[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
-						}, nil, nil, nil),
-					}, nil, nil, nil),
-				}},
+			Policy: &ExtPolicy{
+				Extends: []string{"policy1"}},
+			Extended: []*ExtPolicy{
+				{
+					Policy:  &Policy{Name: "policy1"},
+					Extends: []string{"policy2"}},
+				{
+					Policy:  &Policy{Name: "policy2"},
+					Extends: []string{"policy3"}},
+				{
+					Policy: &Policy{Name: "policy3",
+						Sequence: newSequence(t,
+							[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"}),
+					}},
+			},
 			ExtendedPolicy: &Policy{
 				Sequence: newSequence(t, []string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
 		},
 		{
 			Name: "nested extends, evaluating order",
-			Policy: &Policy{
-				Extends: []*Policy{
-					{
+			Policy: &ExtPolicy{
+				Extends: []string{"policy3"}},
+			Extended: []*ExtPolicy{
+				{
+					Policy: &Policy{Name: "policy3", Sequence: newSequence(t,
+						[]string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+					Extends: []string{"policy2"}},
+				{
+					Policy:  &Policy{Name: "policy2"},
+					Extends: []string{"policy1"}},
+				{
+					Policy: &Policy{
+						Name: "policy1", Sequence: newSequence(t,
+							[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+				},
+			},
+			ExtendedPolicy: &Policy{
+				Sequence: newSequence(t, []string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+		},
+		{
+			Name: "different nested extends, evaluating order",
+			Policy: &ExtPolicy{
+				Extends: []string{"policy6"}},
+			Extended: []*ExtPolicy{
+				{
+					Policy: &Policy{Name: "policy3",
 						Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"}),
-						Extends: []*Policy{
-							{
-								Extends: []*Policy{
-									{
-										Sequence: newSequence(t,
-											[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
-								}},
-						}},
-				}},
+							[]string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+					Extends: []string{"policy2"}},
+				{
+					Policy:  &Policy{Name: "policy2"},
+					Extends: []string{"policy1"}},
+				{
+					Policy:  &Policy{Name: "policy6"},
+					Extends: []string{"policy3"}},
+				{
+					Policy: &Policy{Name: "policy1", Sequence: newSequence(t,
+						[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+				},
+			},
 			ExtendedPolicy: &Policy{
 				Sequence: newSequence(t, []string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
 		},
@@ -574,10 +624,30 @@ func TestExtends(t *testing.T) {
 	Convey("TestPolicy Extend", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				tc.Policy.applyExtended()
-				SoMsg("policies", tc.Policy, ShouldResemble, tc.ExtendedPolicy)
+				pol, err := PolicyFromExtPolicy(tc.Policy, tc.Extended)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("policies", pol, ShouldResemble, tc.ExtendedPolicy)
 			})
 		}
+	})
+
+	Convey("TestPolicy Extend not found", t, func() {
+		extPolicy := &ExtPolicy{Extends: []string{"policy1"}}
+		extended := []*ExtPolicy{
+			{
+				Policy:  &Policy{Name: "policy1"},
+				Extends: []string{"policy16"}},
+			{
+				Policy:  &Policy{Name: "policy2"},
+				Extends: []string{"policy3"}},
+			{
+				Policy: &Policy{Name: "policy3",
+					Sequence: newSequence(t,
+						[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+			},
+		}
+		_, err := PolicyFromExtPolicy(extPolicy, extended)
+		SoMsg("error", err, ShouldNotBeNil)
 	})
 }
 
@@ -618,10 +688,8 @@ func testGetSCIONDConn(t *testing.T) sciond.Connector {
 	return conn
 }
 
-func mustPathInterface(t *testing.T, str string) *sciond.PathInterface {
-	t.Helper()
-
-	pi, err := sciond.NewPathInterface(str)
+func mustPolicyFromExtPolicy(t *testing.T, extPolicy *ExtPolicy, extended []*ExtPolicy) *Policy {
+	pol, err := PolicyFromExtPolicy(extPolicy, extended)
 	xtest.FailOnErr(t, err)
-	return &pi
+	return pol
 }

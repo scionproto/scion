@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package sciond
+
+package pathpol
 
 import (
 	"testing"
@@ -25,52 +26,61 @@ func TestNewPathInterface(t *testing.T) {
 	testCases := []struct {
 		Name  string
 		In    string
-		PI    PathInterface
+		HP    *HopPredicate
 		Valid bool
 	}{
 		{
+			Name:  "ISD wildcard",
+			In:    "0",
+			HP:    mustHopPredicate(t, "0-0#0"),
+			Valid: true,
+		},
+		{
 			Name:  "AS, IF wildcard omitted",
 			In:    "1",
-			Valid: false,
+			HP:    mustHopPredicate(t, "1-0#0"),
+			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted",
 			In:    "1-0",
-			Valid: false,
+			HP:    mustHopPredicate(t, "1-0#0"),
+			Valid: true,
 		},
 		{
 			Name:  "basic wildcard",
 			In:    "1-0#0",
-			PI:    mustPathInterface(t, "1-0#0"),
+			HP:    mustHopPredicate(t, "1-0#0"),
 			Valid: true,
 		},
 		{
 			Name:  "AS wildcard, interface set",
 			In:    "1-0#1",
-			PI:    mustPathInterface(t, "1-0#1"),
-			Valid: true,
+			Valid: false,
 		},
 		{
 			Name:  "ISD wildcard, AS set",
 			In:    "0-1#0",
-			PI:    mustPathInterface(t, "0-1#0"),
+			HP:    mustHopPredicate(t, "0-1#0"),
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set, interface set",
 			In:    "0-1#1",
-			PI:    mustPathInterface(t, "0-1#1"),
+			HP:    mustHopPredicate(t, "0-1#1"),
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set and interface omitted",
 			In:    "0-1",
-			Valid: false,
+			HP:    mustHopPredicate(t, "0-1#0"),
+			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted, AS set",
 			In:    "1-1",
-			Valid: false,
+			HP:    mustHopPredicate(t, "1-1#0"),
+			Valid: true,
 		},
 		{
 			Name:  "bad -",
@@ -98,13 +108,14 @@ func TestNewPathInterface(t *testing.T) {
 			Valid: false,
 		},
 	}
-	Convey("TestNewPathInterface", t, func() {
+
+	Convey("TestNewHopPredicate", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				pi, err := NewPathInterface(tc.In)
+				pi, err := NewHopPredicate(tc.In)
 				if tc.Valid {
 					SoMsg("err", err, ShouldBeNil)
-					SoMsg("pi", pi, ShouldResemble, tc.PI)
+					SoMsg("hp", &pi, ShouldResemble, tc.HP)
 				} else {
 					SoMsg("err", err, ShouldNotBeNil)
 				}
@@ -112,9 +123,9 @@ func TestNewPathInterface(t *testing.T) {
 		}
 	})
 }
-func mustPathInterface(t *testing.T, str string) PathInterface {
-	t.Helper()
-	pi, err := NewPathInterface(str)
+
+func mustHopPredicate(t *testing.T, str string) *HopPredicate {
+	hp, err := NewHopPredicate(str)
 	xtest.FailOnErr(t, err)
-	return pi
+	return &hp
 }

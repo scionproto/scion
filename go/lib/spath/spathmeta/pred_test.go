@@ -141,11 +141,6 @@ func TestPathPredicateString(t *testing.T) {
 			})
 		}
 	})
-
-	Convey("Compile faulty path predicate", t, func() {
-		_, err := NewPathPredicate("1-0#12")
-		SoMsg("err", err, ShouldNotBeNil)
-	})
 }
 
 func MustParseIA(iaStr string) addr.IA {

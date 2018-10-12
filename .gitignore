@@ -36,6 +36,10 @@ topology/mininet/*.pyc
 #########################
 .*.sw?
 
+# VSCode folder
+#########################
+.vscode/
+
 # build files
 #########################
 .installstamp
