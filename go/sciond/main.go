@@ -57,13 +57,17 @@ type Config struct {
 	SD      sdconfig.Config
 }
 
-var config Config
-
-var environment *env.Env
-
 var (
-	flagConfig = flag.String("config", "", "Service TOML config file (required)")
+	flagConfig = env.ConfigFlag()
+	flagSample = env.SampleFlag()
+
+	config      Config
+	environment *env.Env
 )
+
+func init() {
+	flag.Usage = env.Usage(sdconfig.Sample)
+}
 
 func main() {
 	os.Exit(realMain())
@@ -71,10 +75,8 @@ func main() {
 
 func realMain() int {
 	flag.Parse()
-	if *flagConfig == "" {
-		fmt.Fprintln(os.Stderr, "Missing config file")
-		flag.Usage()
-		return 1
+	if v, ok := env.CheckFlags(*flagConfig, *flagSample, sdconfig.Sample); !ok {
+		return v
 	}
 	if err := Init(*flagConfig); err != nil {
 		fmt.Fprintln(os.Stderr, err)

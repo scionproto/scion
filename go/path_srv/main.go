@@ -52,10 +52,16 @@ type Config struct {
 }
 
 var (
+	flagConfig = env.ConfigFlag()
+	flagSample = env.SampleFlag()
+
 	config      Config
 	environment *env.Env
-	flagConfig  = flag.String("config", "", "Service TOML config file (required)")
 )
+
+func init() {
+	flag.Usage = env.Usage(psconfig.Sample)
+}
 
 // main initializes the path server and starts the dispatcher.
 func main() {
@@ -64,10 +70,8 @@ func main() {
 
 func realMain() int {
 	flag.Parse()
-	if *flagConfig == "" {
-		fmt.Fprintln(os.Stderr, "Missing config file")
-		flag.Usage()
-		return 1
+	if v, ok := env.CheckFlags(*flagConfig, *flagSample, psconfig.Sample); !ok {
+		return v
 	}
 	if err := setup(*flagConfig); err != nil {
 		fmt.Fprintln(os.Stderr, err)
