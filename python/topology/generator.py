@@ -1266,6 +1266,8 @@ class DockerGenerator(object):
             entry['container_name'] = k
             entry['volumes'].append('${PWD}/%s:/share/conf:ro' % os.path.join(base, k))
             entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+            entry['command'].append('--sciond_path=%s' %
+                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
             entry['command'].append(k)
             entry['command'].append('conf')
             self.dc_conf['services'][k] = entry
@@ -1299,6 +1301,8 @@ class DockerGenerator(object):
             entry['container_name'] = k
             entry['volumes'].append('${PWD}/%s:/share/conf:ro' % os.path.join(base, k))
             entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+            entry['command'].append('--sciond_path=%s' %
+                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
             entry['command'].append(k)
             entry['command'].append('conf')
             self.dc_conf['services'][k] = entry
@@ -1333,6 +1337,8 @@ class DockerGenerator(object):
             if self.ps == 'py':
                 entry['command'].append('--spki_cache_dir=cache')
                 entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+                entry['command'].append('--sciond_path=%s' %
+                                        get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
                 entry['command'].append(k)
                 entry['command'].append('conf')
             self.dc_conf['services'][k] = entry
