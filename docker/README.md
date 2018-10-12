@@ -5,8 +5,8 @@ and test environment for SCION.
 
 The docker image is a basic ubuntu environment, with your working tree, and all scion dependencies
 installed, and all SCION setup steps done (i.e. `./scion.sh topology`). A full build from scratch
-will take 5-10mins on a fast machine with a decent net connection. Subsequent rebuilds are Much
-faster; if you haven't changed `env/` or the dependency list, a rebuild takes <= 15s.
+will take 5-10mins on a fast machine with a decent net connection. Subsequent rebuilds are much
+faster; if you haven't changed `env/`, a rebuild takes <= 15s.
 
 Before you start, make sure you have Docker installed. Please follow the instructions for
 [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/), you may also want to install

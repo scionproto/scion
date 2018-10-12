@@ -87,15 +87,16 @@ common_args() {
     args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
     args+=" -v /run/shm/sciond:/run/shm/sciond"
     args+=" -e SCION_MOUNT=$SCION_MOUNT"
-    args+=" -e LOGNAME=$LOGNAME"
     args+=" -e PYTHONPATH=python/:."
     args+=" -e SCION_UID=$(id -u)"
+    args+=" -e SCION_GID=$(id -g)"
     args+=" -e DOCKER_GID=$(getent group docker | cut -f3 -d:)"
     args+=" -u root"
     echo $args
 }
 
 cmd_run() {
+    set -e
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local args=$(common_args)
@@ -106,6 +107,7 @@ cmd_run() {
 }
 
 cmd_start() {
+    set -e
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local cntr="scion"
@@ -113,13 +115,12 @@ cmd_start() {
     local args=$(common_args)
     args+=" --name $cntr"
     setup_volumes
-    docker container create $args scion tail -f /dev/null
+    docker container create $args scion -c "tail -f /dev/null"
     docker start "$cntr"
 }
 
 cmd_exec() {
-    set -ex
-    docker exec -u scion scion "$@"
+    docker exec -it -u scion scion "$@"
 }
 
 cmd_stop() {
@@ -135,7 +136,7 @@ setup_volumes() {
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to
         # write to it.
-        [ -O "$SCION_MOUNT/$i" ] || { echo "Error: '$i' dir not owned by $LOGNAME"; exit 1; }
+        [ -O "$SCION_MOUNT/$i" ] || { echo "Error: '$SCION_MOUNT/$i' dir not owned by $LOGNAME"; exit 1; }
     done
     # Make sure the socket dirs have the correct permissions. Unlike for the volumes we try to fix
     # the permissions if necessary.
