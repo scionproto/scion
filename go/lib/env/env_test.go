@@ -34,7 +34,7 @@ func TestLoadBase(t *testing.T) {
 	Convey("Load", t, func() {
 		var cfg TestConfig
 
-		_, err := toml.DecodeFile("testdata/ps.toml", &cfg)
+		_, err := toml.DecodeFile("testdata/cs.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
 		err = InitGeneral(&cfg.General)

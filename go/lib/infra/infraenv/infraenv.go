@@ -90,7 +90,7 @@ func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 	timer := time.NewTimer(sciond.InitialConnectPeriod.Duration)
 	defer ticker.Stop()
 	defer timer.Stop()
-	// XXX(roosd): Reconnecting is implemented here temporarily.
+	// XXX(roosd): Initial retrying is implemented here temporarily.
 	// In https://github.com/scionproto/scion/issues/1974 this will be
 	// done transparently and pushed to snet.NewNetwork.
 	for {
