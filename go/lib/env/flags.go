@@ -17,20 +17,18 @@ package env
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 )
 
 var (
 	config string
-	sample string
+	sample bool
 )
 
 // AddFlags adds the config and sample flags.
 func AddFlags() {
-	flag.StringVar(&config, "config", "", "Service TOML config file (required)")
-	flag.StringVar(&sample, "sample", "",
-		"Filename for creating a sample config. If set, the service is not started.")
+	flag.StringVar(&config, "config", "", "Service TOML config file.")
+	flag.BoolVar(&sample, "help-config", false, "Write sample config file.")
 }
 
 // ConfigFile returns the config file path passed through the flag.
@@ -41,9 +39,9 @@ func ConfigFile() string {
 // Usage returns a usage function based on the sample config.
 func Usage(sampleConfig string) func() {
 	return func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s (-config <FILE>) | -help-config\n\nArguments:\n",
+			os.Args[0])
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nSample config file:\n%s", sampleConfig)
 	}
 }
 
@@ -54,22 +52,13 @@ func Usage(sampleConfig string) func() {
 // indicates whether the program can continue with its execution or should exit.
 func CheckFlags(sampleConfig string) (int, bool) {
 	if config == "" {
-		if sample != "" {
-			return writeSample(sampleConfig), false
+		if sample {
+			fmt.Fprint(os.Stdout, sampleConfig)
+			return 0, false
 		}
-		fmt.Fprintln(os.Stderr, "Missing config file")
+		fmt.Fprint(os.Stderr, "Err: Missing config file\n\n")
 		flag.Usage()
 		return 1, false
 	}
 	return 0, true
-}
-
-func writeSample(sampleConfig string) int {
-	if err := ioutil.WriteFile(sample, []byte(sampleConfig), 0666); err != nil {
-		fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
-		flag.Usage()
-		return 1
-	}
-	fmt.Fprintln(os.Stdout, "Sample file written to: "+sample)
-	return 0
 }
