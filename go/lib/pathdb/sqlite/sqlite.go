@@ -306,14 +306,14 @@ func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
 func (b *Backend) insertInterfaces(ctx context.Context,
 	ases []*seg.ASEntry, segRowID int64) error {
 
+	stmtStr := `INSERT INTO IntfToSeg (IsdID, ASID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
+	stmt, err := b.tx.PrepareContext(ctx, stmtStr)
+	if err != nil {
+		return common.NewBasicError("Failed to prepare insert into IntfToSeg", err)
+	}
+	defer stmt.Close()
 	for _, as := range ases {
 		ia := as.IA()
-		stmtStr := `INSERT INTO IntfToSeg (IsdID, ASID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
-		stmt, err := b.tx.PrepareContext(ctx, stmtStr)
-		if err != nil {
-			return common.NewBasicError("Failed to prepare insert into IntfToSeg", err)
-		}
-		defer stmt.Close()
 		for idx, hop := range as.HopEntries {
 			hof, err := hop.HopField()
 			if err != nil {
