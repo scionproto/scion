@@ -21,15 +21,21 @@ import (
 	"os"
 )
 
-// ConfigFlag adds a config flag.
-func ConfigFlag() *string {
-	return flag.String("config", "", "Service TOML config file (required)")
+var (
+	config string
+	sample string
+)
+
+// AddFlags adds the config and sample flags.
+func AddFlags() {
+	flag.StringVar(&config, "config", "", "Service TOML config file (required)")
+	flag.StringVar(&sample, "sample", "",
+		"Filename for creating a sample config. If set, the service is not started.")
 }
 
-// SampleFlag adds a sample flag.
-func SampleFlag() *string {
-	return flag.String("sample", "",
-		"Filename for creating a sample config. If set, the service is not started.")
+// ConfigFile returns the config file path passed through the flag.
+func ConfigFile() string {
+	return config
 }
 
 // Usage returns a usage function based on the sample config.
@@ -46,10 +52,10 @@ func Usage(sampleConfig string) func() {
 // If the sample flag is set, a sample config is written to the specified file.
 // The first return value is the return code of the program. The second value
 // indicates whether the program can continue with its execution or should exit.
-func CheckFlags(flagConfig, flagSample, sampleConfig string) (int, bool) {
-	if flagConfig == "" {
-		if flagSample != "" {
-			return writeSample(flagSample, sampleConfig), false
+func CheckFlags(sampleConfig string) (int, bool) {
+	if config == "" {
+		if sample != "" {
+			return writeSample(sampleConfig), false
 		}
 		fmt.Fprintln(os.Stderr, "Missing config file")
 		flag.Usage()
@@ -58,12 +64,12 @@ func CheckFlags(flagConfig, flagSample, sampleConfig string) (int, bool) {
 	return 0, true
 }
 
-func writeSample(flagSample, sampleConfig string) int {
-	if err := ioutil.WriteFile(flagSample, []byte(sampleConfig), 0666); err != nil {
+func writeSample(sampleConfig string) int {
+	if err := ioutil.WriteFile(sample, []byte(sampleConfig), 0666); err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
 		flag.Usage()
 		return 1
 	}
-	fmt.Fprintln(os.Stdout, "Sample file written to: "+flagSample)
+	fmt.Fprintln(os.Stdout, "Sample file written to: "+sample)
 	return 0
 }

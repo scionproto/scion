@@ -58,9 +58,6 @@ type Config struct {
 }
 
 var (
-	flagConfig = env.ConfigFlag()
-	flagSample = env.SampleFlag()
-
 	config      Config
 	environment *env.Env
 )
@@ -74,11 +71,12 @@ func main() {
 }
 
 func realMain() int {
+	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(*flagConfig, *flagSample, sdconfig.Sample); !ok {
+	if v, ok := env.CheckFlags(sdconfig.Sample); !ok {
 		return v
 	}
-	if err := Init(*flagConfig); err != nil {
+	if err := Init(env.ConfigFile()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		flag.Usage()
 		return 1
