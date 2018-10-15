@@ -236,7 +236,7 @@ func (r *Requester) sendReq(ctx context.Context, chain *cert.Chain) (bool, error
 	}
 	req := &cert_mgmt.ChainIssReq{RawCert: raw}
 	a := &snet.Addr{IA: c.Issuer, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-	rep, err := r.Msgr.RequestChainIssue(ctx, req, a, r.State.RequestID.Next())
+	rep, err := r.Msgr.RequestChainIssue(ctx, req, a, messenger.NextId())
 	if err != nil {
 		return false, common.NewBasicError("Unable to request reissued certificate chain", err)
 	}
