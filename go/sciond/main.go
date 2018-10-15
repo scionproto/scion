@@ -63,7 +63,7 @@ var (
 )
 
 func init() {
-	flag.Usage = env.Usage(os.Stdout)
+	flag.Usage = env.Usage
 }
 
 func main() {
@@ -78,7 +78,7 @@ func realMain() int {
 	}
 	if err := Init(env.ConfigFile()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		env.Usage(os.Stderr)()
+		flag.Usage()
 		return 1
 	}
 	defer log.LogPanicAndExit()

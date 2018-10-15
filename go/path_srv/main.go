@@ -57,7 +57,7 @@ var (
 )
 
 func init() {
-	flag.Usage = env.Usage(os.Stdout)
+	flag.Usage = env.Usage
 }
 
 // main initializes the path server and starts the dispatcher.
@@ -73,7 +73,7 @@ func realMain() int {
 	}
 	if err := setup(env.ConfigFile()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		env.Usage(os.Stderr)()
+		flag.Usage()
 		return 1
 	}
 	defer log.LogPanicAndExit()

@@ -17,7 +17,6 @@ package env
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 )
 
@@ -37,20 +36,17 @@ func ConfigFile() string {
 	return config
 }
 
-// Usage returns a usage function which writes to the provided writer.
-func Usage(out io.Writer) func() {
-	return func() {
-		fmt.Fprintf(out, "Usage: %s -config <FILE> \n   or: %s -help-config\n\nArguments:\n",
-			os.Args[0], os.Args[0])
-		flag.CommandLine.SetOutput(out)
-		flag.PrintDefaults()
-	}
+// Usage is the usage function which writes to stdout.
+func Usage() {
+	fmt.Printf("Usage: %s -config <FILE> \n   or: %s -help-config\n\nArguments:\n",
+		os.Args[0], os.Args[0])
+	flag.CommandLine.SetOutput(os.Stdout)
+	flag.PrintDefaults()
 }
 
 // CheckFlags checks whether the config or help-config flags have been set. In case the
 // help-config flag is set, the config flag is ignored and a commented sample config
-// is written to stdout. If help-config and config are not set, the usage message is
-// written to stderr.
+// is written to stdout.
 //
 // The first return value is the return code of the program. The second value
 // indicates whether the program can continue with its execution or should exit.
@@ -60,8 +56,8 @@ func CheckFlags(sampleConfig string) (int, bool) {
 		return 0, false
 	}
 	if config == "" {
-		fmt.Fprint(os.Stderr, "Err: Missing config file\n\n")
-		Usage(os.Stderr)()
+		fmt.Fprintln(os.Stderr, "Err: Missing config file")
+		flag.Usage()
 		return 1, false
 	}
 	return 0, true
