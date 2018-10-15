@@ -39,8 +39,8 @@ func ConfigFile() string {
 // Usage returns a usage function based on the sample config.
 func Usage(sampleConfig string) func() {
 	return func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s (-config <FILE>) | -help-config\n\nArguments:\n",
-			os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s -config <FILE> \n   or: %s -help-config\n\nArguments:\n",
+			os.Args[0], os.Args[0])
 		flag.PrintDefaults()
 	}
 }
