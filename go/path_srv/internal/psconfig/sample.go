@@ -17,14 +17,14 @@ package psconfig
 const Sample = `[general]
   # The ID of the service. This is used to choose the relevant portion of the
   # topology file for some services.
-  ID = "ps1-ff00_0_110-1"
+  ID = "ps-1"
 
   # Directory for loading AS information, certs, keys, path policy, topology.
-  ConfigDir = "gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1"
+  ConfigDir = "/etc/scion"
 
   # Topology file. If not specified, topology.json is loaded from the config
   # directory.
-  # Topology = "gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1/topology.json"
+  # Topology = "/etc/scion/topology.json"
 
   # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
   # ReconnectToDispatcher = true
@@ -32,7 +32,7 @@ const Sample = `[general]
 [logging]
   [logging.file]
     # Location of the logging file.
-    Path = "logs/ps1-ff00_0_110-1.log"
+    Path = "/var/log/scion/ps-1.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
@@ -46,10 +46,10 @@ const Sample = `[general]
     # How frequently to flush to the log file, in seconds. If 0, all messages
     # are immediately flushed. If negative, messages are never flushed
     # automatically. (default 5)
-    FlushInterval = 10
+    FlushInterval = 5
   [logging.console]
     # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-    Level = "warn"
+    Level = "crit"
 
 [metrics]
   # The address to export prometheus metrics on. If not set, metrics are not
@@ -64,11 +64,11 @@ const Sample = `[general]
   # Database for trust information. If a file already exists, it is treated as
   # initial trust information. If a file does not exist, it is created from the
   # initial information found under ConfigDir/certs.
-  TrustDB = "gen-cache/ps1-ff00_0_110-1.trust.db"
+  TrustDB = "/var/lib/scion/spki/ps-1.trust.db"
 
 [ps]
   # Path to the path database
-  PathDB = "gen-cache/ps1-ff00_0_110-1.path.db"
+  PathDB = "/var/lib/scion/pathdb/ps-1.path.db"
 
   # Enable the "old" replication of down segments between cores using SegSync
   # messages (default false)

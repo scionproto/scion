@@ -17,18 +17,19 @@ package env
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 )
 
 var (
-	config string
-	sample bool
+	config     string
+	helpConfig bool
 )
 
 // AddFlags adds the config and sample flags.
 func AddFlags() {
 	flag.StringVar(&config, "config", "", "Service TOML config file.")
-	flag.BoolVar(&sample, "help-config", false, "Write sample config file.")
+	flag.BoolVar(&helpConfig, "help-config", false, "Output sample commented config file.")
 }
 
 // ConfigFile returns the config file path passed through the flag.
@@ -36,28 +37,31 @@ func ConfigFile() string {
 	return config
 }
 
-// Usage returns a usage function based on the sample config.
-func Usage(sampleConfig string) func() {
+// Usage returns a usage function which writes to the provided writer.
+func Usage(out io.Writer) func() {
 	return func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s -config <FILE> \n   or: %s -help-config\n\nArguments:\n",
+		fmt.Fprintf(out, "Usage: %s -config <FILE> \n   or: %s -help-config\n\nArguments:\n",
 			os.Args[0], os.Args[0])
+		flag.CommandLine.SetOutput(out)
 		flag.PrintDefaults()
 	}
 }
 
-// CheckFlags checks whether the config flag has been provided. In case it
-// is not provided and the sample flag is not set, the usage message is printed.
-// If the sample flag is set, a sample config is written to the specified file.
+// CheckFlags checks whether the config or help-config flags have been set. In case the
+// help-config flag is set, the config flag is ignored and a commented sample config
+// is written to stdout. If help-config and config are not set, the usage message is
+// written to stderr.
+//
 // The first return value is the return code of the program. The second value
 // indicates whether the program can continue with its execution or should exit.
 func CheckFlags(sampleConfig string) (int, bool) {
+	if helpConfig {
+		fmt.Print(sampleConfig)
+		return 0, false
+	}
 	if config == "" {
-		if sample {
-			fmt.Fprint(os.Stdout, sampleConfig)
-			return 0, false
-		}
 		fmt.Fprint(os.Stderr, "Err: Missing config file\n\n")
-		flag.Usage()
+		Usage(os.Stderr)()
 		return 1, false
 	}
 	return 0, true

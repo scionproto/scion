@@ -43,19 +43,18 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("err", err, ShouldBeNil)
 
 		// Non-psconfig specific
-		SoMsg("ID correct", cfg.General.ID, ShouldEqual, "ps1-ff00_0_110-1")
-		SoMsg("ConfigDir correct", cfg.General.ConfigDir, ShouldEqual,
-			"gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1")
-		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "logs/ps1-ff00_0_110-1.log")
+		SoMsg("ID correct", cfg.General.ID, ShouldEqual, "ps-1")
+		SoMsg("ConfigDir correct", cfg.General.ConfigDir, ShouldEqual, "/etc/scion")
+		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "/var/log/scion/ps-1.log")
 		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
-		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 10)
-		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "warn")
+		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
+		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "crit")
 		SoMsg("Infra correct", cfg.Infra.Type, ShouldEqual, common.PS)
 		SoMsg("TrustDB correct", cfg.Trust.TrustDB, ShouldEqual,
-			"gen-cache/ps1-ff00_0_110-1.trust.db")
+			"/var/lib/scion/spki/ps-1.trust.db")
 
 		// psconfig specific
-		SoMsg("PathDB correct", cfg.PS.PathDB, ShouldEqual, "gen-cache/ps1-ff00_0_110-1.path.db")
+		SoMsg("PathDB correct", cfg.PS.PathDB, ShouldEqual, "/var/lib/scion/pathdb/ps-1.path.db")
 		SoMsg("SegSync set", cfg.PS.SegSync, ShouldBeFalse)
 		SoMsg("QueryInterval correct", cfg.PS.QueryInterval.Duration, ShouldEqual, 5*time.Minute)
 	})

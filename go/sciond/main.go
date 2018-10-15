@@ -63,7 +63,7 @@ var (
 )
 
 func init() {
-	flag.Usage = env.Usage(sdconfig.Sample)
+	flag.Usage = env.Usage(os.Stdout)
 }
 
 func main() {
@@ -78,7 +78,7 @@ func realMain() int {
 	}
 	if err := Init(env.ConfigFile()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		flag.Usage()
+		env.Usage(os.Stderr)()
 		return 1
 	}
 	defer log.LogPanicAndExit()

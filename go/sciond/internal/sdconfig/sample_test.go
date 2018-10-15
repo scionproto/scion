@@ -41,20 +41,18 @@ func TestSampleCorrect(t *testing.T) {
 		_, err := toml.Decode(Sample, &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
-		// Non-psconfig specific
-		SoMsg("ID correct", cfg.General.ID, ShouldEqual, "sd1-ff00_0_110")
-		SoMsg("ConfigDir correct", cfg.General.ConfigDir, ShouldEqual,
-			"gen/ISD1/ASff00_0_110/endhost")
-		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "logs/sd1-ff00_0_110.log")
+		// Non-sdconfig specific
+		SoMsg("ID correct", cfg.General.ID, ShouldEqual, "sd")
+		SoMsg("ConfigDir correct", cfg.General.ConfigDir, ShouldEqual, "/etc/scion")
+		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "/var/log/scion/sd.log")
 		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
-		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 10)
-		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "warn")
+		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
+		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "crit")
 		SoMsg("Infra correct", cfg.Infra.Type, ShouldEqual, "SD")
-		SoMsg("TrustDB correct", cfg.Trust.TrustDB, ShouldEqual,
-			"gen-cache/sd1-ff00_0_110.trust.db")
+		SoMsg("TrustDB correct", cfg.Trust.TrustDB, ShouldEqual, "/var/lib/scion/spki/sd.trust.db")
 
-		// psconfig specific
-		SoMsg("PathDB correct", cfg.SD.PathDB, ShouldEqual, "gen-cache/sd1-ff00_0_110.path.db")
+		// sdconfig specific
+		SoMsg("PathDB correct", cfg.SD.PathDB, ShouldEqual, "/var/lib/scion/sd.path.db")
 		SoMsg("Reliable correct", cfg.SD.Reliable, ShouldEqual, "/run/shm/sciond/default.sock")
 		SoMsg("Unix correct", cfg.SD.Unix, ShouldEqual, "/run/shm/sciond/default-unix.sock")
 		SoMsg("Public correct", cfg.SD.Public.String(), ShouldEqual,

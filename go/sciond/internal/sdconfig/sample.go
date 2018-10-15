@@ -16,14 +16,14 @@ package sdconfig
 
 const Sample = `[general]
   # The ID of the service.
-  ID = "sd1-ff00_0_110"
+  ID = "sd"
 
   # Directory for loading AS information, certs, keys, path policy, topology.
-  ConfigDir = "gen/ISD1/ASff00_0_110/endhost"
+  ConfigDir = "/etc/scion"
 
   # Topology file. If not specified, topology.json is loaded from the config
   # directory.
-  # Topology = "gen/ISD1/ASff00_0_110/endhost/topology.json"
+  # Topology = "/etc/scion/topology.json"
 
   # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
   # ReconnectToDispatcher = true
@@ -31,7 +31,7 @@ const Sample = `[general]
 [logging]
   [logging.file]
     # Location of the logging file.
-    Path = "logs/sd1-ff00_0_110.log"
+    Path = "/var/log/scion/sd.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
@@ -45,10 +45,10 @@ const Sample = `[general]
     # How frequently to flush to the log file, in seconds. If 0, all messages
     # are immediately flushed. If negative, messages are never flushed
     # automatically. (default 5)
-    FlushInterval = 10
+    FlushInterval = 5
   [logging.console]
     # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-    Level = "warn"
+    Level = "crit"
 
 [metrics]
   # The address to export prometheus metrics on. If not set, metrics are not
@@ -63,11 +63,11 @@ const Sample = `[general]
   # Database for trust information. If a file already exists, it is treated as
   # initial trust information. If a file does not exist, it is created from the
   # initial information found under ConfigDir/certs.
-  TrustDB = "gen-cache/sd1-ff00_0_110.trust.db"
+  TrustDB = "/var/lib/scion/spki/sd.trust.db"
 
 [sd]
   # Path to the path database.
-  PathDB = "gen-cache/sd1-ff00_0_110.path.db"
+  PathDB = "/var/lib/scion/sd.path.db"
 
   # Address to listen on via the reliable socket protocol. If empty,
   # a reliable socket server on the default socket is started.
