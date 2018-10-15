@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
-	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 )
@@ -48,8 +47,6 @@ type State struct {
 	verifier ctrl.SigVerifier
 	// verifierLock guards verifier.
 	verifierLock sync.RWMutex
-	// RequestID is used to generate unique request IDs for the messenger
-	RequestID messenger.Counter
 }
 
 func LoadState(confDir string, isCore bool) (*State, error) {
