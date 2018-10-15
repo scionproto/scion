@@ -50,7 +50,7 @@ const (
 	DefaultTopologyPath = "topology.json"
 
 	// SciondInitConnectPeriod is the default total amount of time spent
-	// attempting to connect to sciond.
+	// attempting to connect to sciond on start.
 	SciondInitConnectPeriod = 20 * time.Second
 )
 
