@@ -36,7 +36,7 @@ func ConfigFile() string {
 	return config
 }
 
-// Usage is the usage function which writes to stdout.
+// Usage outputs run-time help to stdout.
 func Usage() {
 	fmt.Printf("Usage: %s -config <FILE> \n   or: %s -help-config\n\nArguments:\n",
 		os.Args[0], os.Args[0])
