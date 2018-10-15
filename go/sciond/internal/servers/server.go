@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"os"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -96,9 +97,25 @@ func (srv *Server) listen() (net.Listener, error) {
 		if err != nil {
 			return nil, err
 		}
-		return net.ListenUnix("unixpacket", laddr)
+		listener, err := net.ListenUnix("unixpacket", laddr)
+		if err != nil {
+			return nil, err
+		}
+		err = os.Chmod(srv.address, os.FileMode(0666))
+		if err != nil {
+			return nil, err
+		}
+		return listener, nil
 	case "rsock":
-		return reliable.Listen(srv.address)
+		listener, err := reliable.Listen(srv.address)
+		if err != nil {
+			return nil, err
+		}
+		err = os.Chmod(srv.address, os.FileMode(0666))
+		if err != nil {
+			return nil, err
+		}
+		return listener, nil
 	default:
 		return nil, common.NewBasicError("unknown network", nil, "net", srv.network)
 	}
