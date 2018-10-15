@@ -120,7 +120,7 @@ cmd_start() {
 }
 
 cmd_exec() {
-    docker exec -it -u scion scion "$@"
+    docker exec -it -u scion scion bash -l -c "$*"
 }
 
 cmd_stop() {
