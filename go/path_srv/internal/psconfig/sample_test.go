@@ -47,7 +47,6 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("ConfigDir correct", cfg.General.ConfigDir, ShouldEqual,
 			"gen/ISD1/ASff00_0_110/ps1-ff00_0_110-1")
 		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "logs/ps1-ff00_0_110-1.log")
-		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "logs/ps1-ff00_0_110-1.log")
 		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
 		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 10)
 		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "warn")
