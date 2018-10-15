@@ -17,14 +17,14 @@ package csconfig
 const Sample = `[general]
   # The ID of the service. This is used to choose the relevant portion of the
   # topology file for some services.
-  ID = "cs1-ff00_0_110-1"
+  ID = "cs-1"
 
   # Directory for loading AS information, certs, keys, path policy, topology.
-  ConfigDir = "gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1"
+  ConfigDir = "/etc/scion"
 
   # Topology file. If not specified, topology.json is loaded from the config
   # directory.
-  Topology = "gen/ISD1/ASff00_0_110/cs1-ff00_0_110-1/topology.json"
+  # Topology = "/etc/scion/topology.json"
 
   # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
   # ReconnectToDispatcher = true
@@ -39,7 +39,7 @@ const Sample = `[general]
 [logging]
   [logging.file]
     # Location of the logging file.
-    Path = "logs/cs1-ff00_0_110-1.log"
+    Path = "/var/log/scion/cs-1.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
@@ -53,42 +53,35 @@ const Sample = `[general]
     # How frequently to flush to the log file, in seconds. If 0, all messages
     # are immediately flushed. If negative, messages are never flushed
     # automatically. (default 5)
-    FlushInterval = 10
+    FlushInterval = 5
   [logging.console]
     # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-    Level = "warn"
+    Level = "crit"
 
 [metrics]
   # The address to export prometheus metrics on. If not set, metrics are not
   # exported.
   # Prometheus = "127.0.0.1:8000"
 
-[infra]
-  # Node type.
-  Type = "CS"
-
 [trust]
   # Database for trust information. If a file already exists, it is treated as
   # initial trust information. If a file does not exist, it is created from the
   # initial information found under ConfigDir/certs.
-  TrustDB = "gen-cache/cs1-ff00_0_110-1.trust.db"
-
-[infra]
-  Type = "CS"
+  TrustDB = "/var/lib/scion/spki/cs-1.trust.db"
 
 [cs]
   # Time between starting reissue requests and leaf cert expiration. If not
   # specified, this is set to PathSegmentTTL.
-  # LeafReissueTime = "6h"
+  LeafReissueTime = "6h"
 
   # Time between self issuing core cert and core cert expiration. If not
-  # specified, this is set to the defualt leaf certificate validity time.
-  # IssuerReissueTime = "3d"
+  # specified, this is set to the default leaf certificate validity time.
+  IssuerReissueTime = "3d"
 
   # Interval between two consecutive reissue requests. Default is 10 seconds.
-  # ReissueRate = "10s"
+  ReissueRate = "10s"
 
   # Timeout for resissue request.  Default is 5 seconds.
-  # ReissueTimeout = "5s"
+  ReissueTimeout = "5s"
 
 `

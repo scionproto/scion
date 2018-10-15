@@ -18,7 +18,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	_ "net/http/pprof"
 	"os"
 
@@ -46,10 +45,6 @@ type Config struct {
 }
 
 var (
-	flagConfig = flag.String("config", "", "Service TOML config file (required)")
-	flagSample = flag.String("sample", "",
-		"Filename for creating a sample config. If set, the CS is not started.")
-
 	config      Config
 	environment *env.Env
 	reissRunner *periodic.Runner
@@ -57,12 +52,7 @@ var (
 )
 
 func init() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-		flag.PrintDefaults()
-		fmt.Fprintln(os.Stderr, "\nSample config file:")
-		fmt.Fprintln(os.Stderr, csconfig.Sample)
-	}
+	flag.Usage = env.Usage
 }
 
 // main initializes the certificate server and starts the dispatcher.
@@ -71,16 +61,12 @@ func main() {
 }
 
 func realMain() int {
+	env.AddFlags()
 	flag.Parse()
-	if *flagConfig == "" {
-		if *flagSample != "" {
-			return writeSample()
-		}
-		fmt.Fprintln(os.Stderr, "Missing config file")
-		flag.Usage()
-		return 1
+	if v, ok := env.CheckFlags(csconfig.Sample); !ok {
+		return v
 	}
-	if err := setup(*flagConfig); err != nil {
+	if err := setup(env.ConfigFile()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		flag.Usage()
 		return 1
@@ -143,14 +129,4 @@ func reload(configName string) error {
 func stop() {
 	reissRunner.Stop()
 	currMsgr.CloseServer()
-}
-
-func writeSample() int {
-	if err := ioutil.WriteFile(*flagSample, []byte(csconfig.Sample), 0666); err != nil {
-		fmt.Fprintln(os.Stderr, "Unable to write sample: "+err.Error())
-		flag.Usage()
-		return 1
-	}
-	fmt.Fprintln(os.Stdout, "Sample file written to: "+*flagSample)
-	return 0
 }
