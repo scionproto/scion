@@ -56,10 +56,6 @@ const Sample = `[general]
   # exported.
   # Prometheus = "127.0.0.1:8000"
 
-[infra]
-  # Node type.
-  Type = "PS"
-
 [trust]
   # Database for trust information. If a file already exists, it is treated as
   # initial trust information. If a file does not exist, it is created from the
