@@ -26,15 +26,18 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/sciond"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
@@ -45,6 +48,10 @@ const (
 	DefaultLoggingFileMaxAge = 7
 	// Default file name for topology file (only the last element of the path)
 	DefaultTopologyPath = "topology.json"
+
+	// SciondInitConnectPeriod is the default total amount of time spent
+	// attempting to connect to sciond on start.
+	SciondInitConnectPeriod = 20 * time.Second
 )
 
 var sighupC chan os.Signal
@@ -97,6 +104,24 @@ func InitGeneral(cfg *General) error {
 	}
 	cfg.Topology = topo
 	return nil
+}
+
+// SciondClient contains information to for running snet with sciond.
+type SciondClient struct {
+	// Path is the sciond path. It defaults to sciond.DefaultSCIONDPath.
+	Path string
+	// InitialConnectPeriod is the maximum amount of time spent attempting to
+	// connect to sciond on start.
+	InitialConnectPeriod util.DurWrap
+}
+
+func InitSciondClient(cfg *SciondClient) {
+	if cfg.Path == "" {
+		cfg.Path = sciond.DefaultSCIONDPath
+	}
+	if cfg.InitialConnectPeriod.Duration == 0 {
+		cfg.InitialConnectPeriod.Duration = SciondInitConnectPeriod
+	}
 }
 
 type Env struct {

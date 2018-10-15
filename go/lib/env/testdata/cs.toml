@@ -1,7 +1,7 @@
 [general]
   # The ID of the service. This is used to choose the relevant portion of the
   # topology file for some services.
-  ID = "ps1-ff00_0_110-1"
+  ID = "cs1-ff00_0_110-1"
 
   # Directory for loading AS information, certs, keys, path policy, topology
   ConfigDir = "testdata"
@@ -13,10 +13,17 @@
   # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
   ReconnectToDispatcher = true
 
+[sd_client]
+  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
+  Path = "/run/shm/sciond/1-ff00_0_110.sock"
+
+  # Timeout for trying to connect to sciond. (default 20s)
+  Timeout = "20s"
+
 [logging]
   [logging.file]
     # Location of the logging file.
-    Path = "logs/sciond.test.log"
+    Path = "logs/cert_srv.test.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
@@ -42,7 +49,7 @@
 
 [infra]
   # Node type. Must be one of BS, PS, CS, RS or DS.
-  Type = "PS"
+  Type = "CS"
 
 [trust]
   # Database for trust information. If a file already exists, it is treated as
