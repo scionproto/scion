@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,17 @@
 
 package messenger
 
-import "sync/atomic"
+import (
+	"sync/atomic"
 
-type Counter uint64
+	"github.com/scionproto/scion/go/lib/scrypto"
+)
 
-// Next is a concurrency-safe generator of unique request IDs for the
-// messenger.
-func (c *Counter) Next() uint64 {
-	return atomic.AddUint64((*uint64)(c), 1)
+var (
+	counter = scrypto.RandUint64()
+)
+
+// NextId is a concurrency-safe generator of unique request IDs for the messenger.
+func NextId() uint64 {
+	return atomic.AddUint64(&counter, 1)
 }

@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -274,7 +275,7 @@ func (r *ReissRequester) sendReq(ctx context.Context, cancelF context.CancelFunc
 	}
 	request := &cert_mgmt.ChainIssReq{RawCert: raw}
 	a := &snet.Addr{IA: c.Issuer, Host: &addr.AppAddr{L3: addr.SvcCS}}
-	rep, err := r.msger.RequestChainIssue(ctx, request, a, conf.Get().RequestID.Next())
+	rep, err := r.msger.RequestChainIssue(ctx, request, a, messenger.NextId())
 	if err != nil {
 		log.Warn("[ReissRequester] Unable to request chain issue", "err", err)
 		return nil

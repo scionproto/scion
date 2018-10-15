@@ -1,3 +1,5 @@
+// Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,12 +24,8 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/scrypto"
+	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 )
-
-func init() {
-	scrypto.MathRandSeed()
-}
 
 type SetupFunc func() interface{}
 type EndpointFunc func(*Conn, interface{})

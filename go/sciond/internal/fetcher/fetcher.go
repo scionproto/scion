@@ -49,9 +49,6 @@ const (
 	DefaultMinWorkerLifetime = 10 * time.Second
 )
 
-// requestID is used to generate unique request IDs for the messenger.
-var requestID messenger.Counter
-
 type Fetcher struct {
 	messenger       infra.Messenger
 	pathDB          pathdb.PathDB
@@ -474,7 +471,7 @@ func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
 		RawSrcIA: req.Src,
 		RawDstIA: req.Dst,
 	}
-	reply, err := f.messenger.GetSegs(ctx, msg, ps, requestID.Next())
+	reply, err := f.messenger.GetSegs(ctx, msg, ps, messenger.NextId())
 	if err != nil {
 		return nil, err
 	}
