@@ -573,6 +573,12 @@
 			"revisionTime": "2017-11-10T09:49:23Z"
 		},
 		{
+			"checksumSHA1": "WHc3uByvGaMcnSoI21fhzYgbOgg=",
+			"path": "golang.org/x/net/context/ctxhttp",
+			"revision": "9b4f9f5ad5197c79fd623a3638e70d8b26cef344",
+			"revisionTime": "2018-10-23T11:20:58Z"
+		},
+		{
 			"checksumSHA1": "YoSf+PgTWvHmFVaF3MrtZz3kX38=",
 			"path": "golang.org/x/net/internal/iana",
 			"revision": "c7086645de248775cbf2373cf5ca4d2fa664b8c1",
