@@ -21,10 +21,43 @@ import (
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/env"
 )
 
 type TestConfig struct {
-	CS *Conf
+	General env.General
+	Logging env.Logging
+	Metrics env.Metrics
+	Infra   env.Infra
+	Trust   env.Trust
+	CS      *Conf
+}
+
+func TestSampleCorrect(t *testing.T) {
+	Convey("Load", t, func() {
+		var cfg TestConfig
+		_, err := toml.Decode(Sample, &cfg)
+		SoMsg("err", err, ShouldBeNil)
+
+		// Non-csconfig specific
+		SoMsg("ID correct", cfg.General.ID, ShouldEqual, "cs-1")
+		SoMsg("ConfigDir correct", cfg.General.ConfigDir, ShouldEqual, "/etc/scion")
+		SoMsg("LogFile correct", cfg.Logging.File.Path, ShouldEqual, "/var/log/scion/cs-1.log")
+		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
+		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
+		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "crit")
+		SoMsg("TrustDB correct", cfg.Trust.TrustDB, ShouldEqual,
+			"/var/lib/scion/spki/cs-1.trust.db")
+
+		// csconfig specific
+		SoMsg("LeafReissTime correct", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 6*time.Hour)
+		SoMsg("ReissueRate correct", cfg.CS.ReissueRate.Duration, ShouldEqual, 10*time.Second)
+		SoMsg("ReissueTimeout correct", cfg.CS.ReissueTimeout.Duration, ShouldEqual,
+			5*time.Second)
+		SoMsg("IssuerReissTime correct", cfg.CS.IssuerReissueTime.Duration, ShouldEqual,
+			3*24*time.Hour)
+	})
 }
 
 func TestLoadConf(t *testing.T) {
