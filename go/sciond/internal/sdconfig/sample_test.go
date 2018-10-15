@@ -48,7 +48,6 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
 		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
 		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "crit")
-		SoMsg("Infra correct", cfg.Infra.Type, ShouldEqual, "SD")
 		SoMsg("TrustDB correct", cfg.Trust.TrustDB, ShouldEqual, "/var/lib/scion/spki/sd.trust.db")
 
 		// sdconfig specific
