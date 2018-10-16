@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trust
+package keyconf
 
 import (
 	"encoding/base64"
@@ -27,7 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
-type KeyConf struct {
+type Conf struct {
 	// IssSigKey is the AS issuer signing Key.
 	IssSigKey common.RawBytes
 	// DecryptKey is the AS decryption key.
@@ -38,6 +38,8 @@ type KeyConf struct {
 	OnRootKey common.RawBytes
 	// SignKey is the AS signing key.
 	SignKey common.RawBytes
+	// Master contains the AS master keys.
+	Master Master
 }
 
 const (
@@ -46,20 +48,20 @@ const (
 	OffKeyFile    = "offline-root.seed"
 	OnKeyFile     = "online-root.seed"
 	SigKeyFile    = "as-sig.seed"
-)
+	MasterKey0    = "master0.key"
+	MasterKey1    = "master1.key"
 
-const RawKey = "raw"
+	RawKey = "raw"
 
-const (
 	ErrorOpen    = "Unable to load key"
 	ErrorParse   = "Unable to parse key file"
 	ErrorUnknown = "Unknown algorithm"
 )
 
-// LoadKeyConf loads key configuration from specified path.
-// issSigKey, onKey, offKey can be set true, to load the respective keys.
-func LoadKeyConf(path string, issSigKey, onKey, offKey bool) (*KeyConf, error) {
-	conf := &KeyConf{}
+// Load loads key configuration from specified path.
+// issSigKey, onKey, offKey, master can be set true, to load the respective keys.
+func Load(path string, issSigKey, onKey, offKey, master bool) (*Conf, error) {
+	conf := &Conf{}
 	var err error
 	conf.DecryptKey, err = loadKeyCond(filepath.Join(path, DecKeyFile),
 		scrypto.Curve25519xSalsa20Poly1305, true)
@@ -83,6 +85,9 @@ func LoadKeyConf(path string, issSigKey, onKey, offKey bool) (*KeyConf, error) {
 	if err != nil {
 		return nil, err
 	}
+	if conf.Master, err = loadMasterCond(path, master); err != nil {
+		return nil, err
+	}
 	return conf, nil
 }
 
@@ -91,6 +96,13 @@ func loadKeyCond(file string, algo string, load bool) (common.RawBytes, error) {
 		return nil, nil
 	}
 	return LoadKey(file, algo)
+}
+
+func loadMasterCond(path string, load bool) (Master, error) {
+	if !load {
+		return Master{}, nil
+	}
+	return LoadMaster(path)
 }
 
 // LoadKey decodes a base64 encoded key stored in file and returns the raw bytes.
@@ -115,10 +127,34 @@ func LoadKey(file string, algo string) (common.RawBytes, error) {
 	}
 }
 
-func (a *KeyConf) String() string {
-	return fmt.Sprintf(
-		"DecryptKey:%s SigningKey:%s IssSigningKey: %s OfflineRootKey:%s OnlineRootKey:%s",
+func (c *Conf) String() string {
+	return fmt.Sprintf("DecryptKey:%s SigningKey:%s IssSigningKey: %s "+
+		"OfflineRootKey:%s OnlineRootKey:%s Master:%s",
 		//XXX(shitz): Uncomment for debugging.
-		//a.DecryptKey, a.SignKey, a.IssSigKey, a.OffRootKey, a.OnRootKey)
-		"<redacted>", "<redacted>", "<redacted>", "<redacted>", "<redacted>")
+		//c.DecryptKey, c.SignKey, c.IssSigKey, c.OffRootKey, c.OnRootKey, c.Master)
+		"<redacted>", "<redacted>", "<redacted>", "<redacted>", "<redacted>", "<redacted>")
+}
+
+type Master struct {
+	Key0 common.RawBytes
+	Key1 common.RawBytes
+}
+
+func LoadMaster(path string) (Master, error) {
+	var err error
+	m := Master{}
+	if m.Key0, err = LoadKey(filepath.Join(path, MasterKey0), RawKey); err != nil {
+		return m, err
+	}
+	if m.Key1, err = LoadKey(filepath.Join(path, MasterKey1), RawKey); err != nil {
+		return m, err
+	}
+	return m, nil
+}
+
+func (m *Master) String() string {
+	return fmt.Sprintf("Key0:%s Key1:%s",
+		//XXX(roosd): Uncomment for debugging.
+		//m.Key0, m.Key1
+		"<redacted>", "<redacted>")
 }
