@@ -24,9 +24,8 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/conf"
 	"github.com/scionproto/scion/go/tools/scion-pki/internal/pkicmn"
@@ -56,31 +55,31 @@ func runGenKey(args []string) {
 
 func genAll(outDir string, core bool) error {
 	// Generate AS sigining and decryption keys.
-	if err := genKey(trust.SigKeyFile, outDir, genSignKey); err != nil {
+	if err := genKey(keyconf.SigKeyFile, outDir, genSignKey); err != nil {
 		return err
 	}
-	if err := genKey(trust.DecKeyFile, outDir, genEncKey); err != nil {
+	if err := genKey(keyconf.DecKeyFile, outDir, genEncKey); err != nil {
 		return err
 	}
 	// Generate AS master keys.
-	if err := genKey(as_conf.MasterKey0, outDir, genMasterKey); err != nil {
+	if err := genKey(keyconf.MasterKey0, outDir, genMasterKey); err != nil {
 		return err
 	}
-	if err := genKey(as_conf.MasterKey1, outDir, genMasterKey); err != nil {
+	if err := genKey(keyconf.MasterKey1, outDir, genMasterKey); err != nil {
 		return err
 	}
 	if !core {
 		return nil
 	}
 	// Generate core signing key.
-	if err := genKey(trust.IssSigKeyFile, outDir, genSignKey); err != nil {
+	if err := genKey(keyconf.IssSigKeyFile, outDir, genSignKey); err != nil {
 		return err
 	}
 	// Generate offline and online root keys if core was specified.
-	if err := genKey(trust.OffKeyFile, outDir, genSignKey); err != nil {
+	if err := genKey(keyconf.OffKeyFile, outDir, genSignKey); err != nil {
 		return err
 	}
-	return genKey(trust.OnKeyFile, outDir, genSignKey)
+	return genKey(keyconf.OnKeyFile, outDir, genSignKey)
 }
 
 type keyGenFunc func(io.Reader) ([]byte, error)

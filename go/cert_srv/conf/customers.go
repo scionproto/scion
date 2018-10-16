@@ -27,7 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/keyconf"
 )
 
 const (
@@ -77,7 +77,7 @@ func (c *Conf) LoadCustomers() (*Customers, error) {
 	}
 	cust.custMap = make(map[addr.IA]common.RawBytes)
 	for ia, file := range activeKeys {
-		key, err := trust.LoadKey(file, trust.RawKey)
+		key, err := keyconf.LoadKey(file, keyconf.RawKey)
 		if err != nil {
 			return nil, common.NewBasicError("Unable to load key", err, "file", file)
 		}

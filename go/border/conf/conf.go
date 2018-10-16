@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/topology"
 )
@@ -43,7 +44,7 @@ type Conf struct {
 	// ASConf is the local AS configuration.
 	ASConf *as_conf.ASConf
 	// MasterKeys holds the local AS master keys.
-	MasterKeys *as_conf.MasterKeys
+	MasterKeys keyconf.Master
 	// HFMacPool is the pool of Hop Field MAC generation instances.
 	HFMacPool sync.Pool
 	// Net is the network configuration of this router.
@@ -78,7 +79,7 @@ func Load(id, confDir string) (*Conf, error) {
 	}
 	conf.ASConf = as_conf.CurrConf
 	// Load master keys
-	conf.MasterKeys, err = as_conf.LoadMasterKeys(filepath.Join(conf.Dir, "keys"))
+	conf.MasterKeys, err = keyconf.LoadMaster(filepath.Join(conf.Dir, "keys"))
 	if err != nil {
 		return nil, common.NewBasicError("Unable to load master keys", err)
 	}

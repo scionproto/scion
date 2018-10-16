@@ -24,7 +24,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/lib/util"
@@ -120,12 +120,13 @@ func newTrc(isd addr.ISD, iconf *conf.Isd, path string) (*trc.TRC, error) {
 			as.OfflineKeyAlg = a.KeyAlgorithms.Offline
 		}
 		keysPath := filepath.Join(pkicmn.GetAsPath(pkicmn.OutDir, cia), pkicmn.KeysDir)
-		as.OnlineKey, err = trust.LoadKey(filepath.Join(keysPath, trust.OnKeyFile), as.OnlineKeyAlg)
+		as.OnlineKey, err = keyconf.LoadKey(filepath.Join(keysPath, keyconf.OnKeyFile),
+			as.OnlineKeyAlg)
 		if err != nil {
 			return nil, common.NewBasicError("Error loading online key", err)
 		}
-		as.OfflineKey, err = trust.LoadKey(
-			filepath.Join(keysPath, trust.OffKeyFile), as.OfflineKeyAlg)
+		as.OfflineKey, err = keyconf.LoadKey(
+			filepath.Join(keysPath, keyconf.OffKeyFile), as.OfflineKeyAlg)
 		if err != nil {
 			return nil, common.NewBasicError("Error loading offline key", err)
 		}
