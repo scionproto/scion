@@ -84,10 +84,10 @@ common_args() {
     args+=" -v $SCION_MOUNT/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
     args+=" -v $SCION_MOUNT/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
     args+=" -v $SCION_MOUNT/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
+    args+=" -v $SCION_MOUNT/htmlcov:/home/scion/go/src/github.com/scionproto/scion/python/htmlcov"
     args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
     args+=" -v /run/shm/sciond:/run/shm/sciond"
-    args+=" -e SCION_MOUNT=$SCION_MOUNT"
-    args+=" -e PYTHONPATH=python/:."
+    args+=" -e SCION_OUTPUT_BASE=$SCION_MOUNT"
     args+=" -e SCION_UID=$(id -u)"
     args+=" -e SCION_GID=$(id -g)"
     args+=" -e DOCKER_GID=$(getent group docker | cut -f3 -d:)"
@@ -100,8 +100,7 @@ cmd_run() {
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local args=$(common_args)
-    args+=" -i -t"
-    args+=" --rm"
+    args+=" -i -t --rm"
     setup_volumes
     docker run $args scion "$@"
 }
@@ -111,7 +110,10 @@ cmd_start() {
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local cntr="scion"
-    docker container inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
+    if docker container inspect "$cntr" &>/dev/null; then 
+        echo "Removing stale container"
+        docker rm -f "$cntr"
+    fi
     local args=$(common_args)
     args+=" --name $cntr"
     setup_volumes
