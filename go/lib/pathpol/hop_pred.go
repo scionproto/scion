@@ -25,14 +25,21 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
+// A HopPredicate specifies a hop in the ACL or Sequence of the path policy,
+// see docs/PathPolicy.md.
 type HopPredicate struct {
-	ISD  addr.ISD
-	AS   addr.AS
-	IfID common.IFIDType
+	ISD   addr.ISD
+	AS    addr.AS
+	IfIDs []common.IFIDType
 }
 
-func NewHopPredicate(str string) (HopPredicate, error) {
+func NewHopPredicate() *HopPredicate {
+	return &HopPredicate{IfIDs: make([]common.IFIDType, 1)}
+}
+
+func HopPredicateFromString(str string) (HopPredicate, error) {
 	var err error
+	var ifIDs = make([]common.IFIDType, 1)
 	// Parse ISD
 	dashParts := strings.Split(str, "-")
 	isd, err := addr.ISDFromString(dashParts[0])
@@ -41,7 +48,7 @@ func NewHopPredicate(str string) (HopPredicate, error) {
 			common.NewBasicError("Failed to parse ISD", err, "value", str)
 	}
 	if len(dashParts) == 1 {
-		return HopPredicate{ISD: isd}, nil
+		return HopPredicate{ISD: isd, IfIDs: ifIDs}, nil
 	}
 	if len(dashParts) != 2 {
 		return HopPredicate{},
@@ -55,29 +62,47 @@ func NewHopPredicate(str string) (HopPredicate, error) {
 		return HopPredicate{}, common.NewBasicError("Failed to parse AS", err, "value", str)
 	}
 	if len(hashParts) == 1 {
-		return HopPredicate{ISD: isd, AS: as}, nil
+		return HopPredicate{ISD: isd, AS: as, IfIDs: ifIDs}, nil
 	}
 	if len(hashParts) != 2 {
 		return HopPredicate{},
 			common.NewBasicError("Failed to parse hop predicate, multiple hashes found", nil,
 				"value", str)
 	}
-	// Parse IfID if present
-	ifid, err := strconv.ParseUint(hashParts[1], 10, 64)
-	if err != nil {
-		return HopPredicate{}, common.NewBasicError("Failed to parse ifid", err, "value", str)
+	// Parse IfIDs if present
+	commaParts := strings.Split(hashParts[1], ",")
+	if ifIDs[0], err = parseIfID(commaParts[0]); err != nil {
+		return HopPredicate{}, common.NewBasicError("Failed to parse ifids", err, "value", str)
+	}
+	if len(commaParts) == 2 {
+		if as == 0 {
+			return HopPredicate{}, common.NewBasicError(
+				"Failed to parse hop predicate, there must be a single wildcard IF",
+				nil, "value", str)
+		}
+		ifID, err := parseIfID(commaParts[1])
+		if err != nil {
+			return HopPredicate{}, common.NewBasicError("Failed to parse ifids", err, "value", str)
+		}
+		ifIDs = append(ifIDs, ifID)
+	}
+	if len(commaParts) > 2 {
+		return HopPredicate{},
+			common.NewBasicError("Failed to parse hop predicate, too many interfaces found", nil,
+				"value", str)
 	}
 	// IfID cannot be set when the AS is a wildcard
-	if ifid != 0 && as == 0 {
+	if ifIDs[0] != 0 && as == 0 {
 		return HopPredicate{},
-			common.NewBasicError("Failed to parse hop predicate, IfID must be 0",
+			common.NewBasicError("Failed to parse hop predicate, IfIDs must be 0",
 				nil, "value", str)
 	}
-	return HopPredicate{ISD: isd, AS: as, IfID: common.IFIDType(ifid)}, nil
+	return HopPredicate{ISD: isd, AS: as, IfIDs: ifIDs}, nil
 }
 
 func (hp HopPredicate) String() string {
-	return fmt.Sprintf("%s#%d", addr.IA{I: hp.ISD, A: hp.AS}, hp.IfID)
+	ifids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(hp.IfIDs)), ","), "[]")
+	return fmt.Sprintf("%s#%s", addr.IA{I: hp.ISD, A: hp.AS}, ifids)
 }
 
 func (hp *HopPredicate) MarshalJSON() ([]byte, error) {
@@ -90,25 +115,42 @@ func (hp *HopPredicate) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	nhp, err := NewHopPredicate(str)
+	nhp, err := HopPredicateFromString(str)
 	if err != nil {
 		return err
 	}
 	hp.ISD = nhp.ISD
 	hp.AS = nhp.AS
-	hp.IfID = nhp.IfID
+	hp.IfIDs = nhp.IfIDs
 	return nil
 }
 
-func pathIFMatchHopPred(x sciond.PathInterface, y HopPredicate) bool {
-	xIA := x.ISD_AS()
-	if xIA.I != 0 && y.ISD != 0 && xIA.I != y.ISD {
+func parseIfID(str string) (common.IFIDType, error) {
+	ifid, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return common.IFIDType(ifid), nil
+}
+
+// pathIFMatchHopPred takes a PathInterface, a HopPredicate and a bool indicating if the ingress
+// interface needs to be matching. It returns true if the HopPredicate matches the PathInterface
+func pathIFMatchHopPred(pi sciond.PathInterface, hp HopPredicate, in bool) bool {
+	piIA := pi.ISD_AS()
+	if hp.ISD != 0 && piIA.I != hp.ISD {
 		return false
 	}
-	if xIA.A != 0 && y.AS != 0 && xIA.A != y.AS {
+	if hp.AS != 0 && piIA.A != hp.AS {
 		return false
 	}
-	if x.IfID != 0 && y.IfID != 0 && x.IfID != y.IfID {
+	ifInd := 0
+	// the IF index is set to 1 if
+	// - there are two IFIDs and
+	// - the ingress interface should not be matched
+	if len(hp.IfIDs) == 2 && !in {
+		ifInd = 1
+	}
+	if hp.IfIDs[ifInd] != 0 && hp.IfIDs[ifInd] != pi.IfID {
 		return false
 	}
 	return true

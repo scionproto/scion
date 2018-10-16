@@ -64,8 +64,8 @@ func TestQuery(t *testing.T) {
 	})
 }
 
-var allowEntry = &pathpol.ACLEntry{Action: pathpol.Allow, Rule: &pathpol.HopPredicate{}}
-var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: &pathpol.HopPredicate{}}
+var allowEntry = &pathpol.ACLEntry{Action: pathpol.Allow, Rule: pathpol.NewHopPredicate()}
+var denyEntry = &pathpol.ACLEntry{Action: pathpol.Deny, Rule: pathpol.NewHopPredicate()}
 
 func TestQueryFilter(t *testing.T) {
 	g := graph.NewDefaultGraph()
@@ -73,7 +73,7 @@ func TestQueryFilter(t *testing.T) {
 	srcIA := xtest.MustParseIA("1-ff00:0:133")
 	dstIA := xtest.MustParseIA("1-ff00:0:131")
 	Convey("Query with policy filter, only one path should remain, default deny", t, func() {
-		pp, err := pathpol.NewHopPredicate("0-0#0")
+		pp, err := pathpol.HopPredicateFromString("0-0#0")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{Action: pathpol.Allow, Rule: &pp},
@@ -87,7 +87,7 @@ func TestQueryFilter(t *testing.T) {
 	})
 
 	Convey("Query with policy filter, only one path should remain, default allow", t, func() {
-		pp, err := pathpol.NewHopPredicate("1-ff00:0:134#1910")
+		pp, err := pathpol.HopPredicateFromString("1-ff00:0:134#1910")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{Action: pathpol.Allow, Rule: &pp},
@@ -101,7 +101,7 @@ func TestQueryFilter(t *testing.T) {
 	})
 
 	Convey("Query with policy filter, no path should remain", t, func() {
-		pp, err := pathpol.NewHopPredicate("1-ff00:0:132#1910")
+		pp, err := pathpol.HopPredicateFromString("1-ff00:0:132#1910")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{Action: pathpol.Deny, Rule: &pp},
@@ -118,7 +118,7 @@ func TestACLPolicyFilter(t *testing.T) {
 		pm := NewPR(t, g, 0, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
-		pp, _ := pathpol.NewHopPredicate("1-ff00:0:121#0")
+		pp, _ := pathpol.HopPredicateFromString("1-ff00:0:121#0")
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{
 				Action: pathpol.Deny,
@@ -135,8 +135,8 @@ func TestACLPolicyFilter(t *testing.T) {
 		pm := NewPR(t, g, 0, 0, 0)
 		srcIA := xtest.MustParseIA("2-ff00:0:222")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
-		pp, _ := pathpol.NewHopPredicate("1-ff00:0:121#0")
-		pp2, _ := pathpol.NewHopPredicate("2-ff00:0:211#2327")
+		pp, _ := pathpol.HopPredicateFromString("1-ff00:0:121#0")
+		pp2, _ := pathpol.HopPredicateFromString("2-ff00:0:211#2327")
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{
 				Action: pathpol.Deny,

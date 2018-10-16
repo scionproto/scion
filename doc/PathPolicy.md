@@ -7,17 +7,14 @@ but overlapping purposes.
 
 A hop predicate is of the form **ISD-AS#IF**, where _0_ can be used as a wildcard for **ISD**,
 **AS** and **IF** indepedently. If the **AS** identifier is set to _0_, the **IF** identifier must
-also be set to _0_.
-
-[//]: # "To specify both interfaces of an AS, one must separate them by `,` ie.
-**ISD-AS#IF1,IF2**."
+also be set to _0_. To specify both interfaces of an AS, one must separate them by `,` ie.
+**ISD-AS#IF1,IF2**.
 
 If the tail elements in a HP are 0, they can be omitted. See the following examples for details.
 
 Examples:
 
-[//]: # "TODO: worxli -   Match interface _2_ and _3_ of AS _1-ff00:0:133_: `1-ff00:0:133#2,3`"
-
+-   Match interface _2_ and _3_ of AS _1-ff00:0:133_: `1-ff00:0:133#2,3`"
 -   Match interface _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
 -   Match any interface of AS _1-ff00:0:133_: `1-ff00:0:133#0` or `1-ff00:0:133`
 -   Match any interface in ISD _1_: `1-0#0`, `1-0` or `1`

@@ -22,7 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-func TestNewPathInterface(t *testing.T) {
+func TestNewHopPredicate(t *testing.T) {
 	testCases := []struct {
 		Name  string
 		In    string
@@ -66,8 +66,8 @@ func TestNewPathInterface(t *testing.T) {
 		},
 		{
 			Name:  "ISD wildcard, AS set, interface set",
-			In:    "0-1#1",
-			HP:    mustHopPredicate(t, "0-1#1"),
+			In:    "0-1#2",
+			HP:    mustHopPredicate(t, "0-1#2"),
 			Valid: true,
 		},
 		{
@@ -78,13 +78,29 @@ func TestNewPathInterface(t *testing.T) {
 		},
 		{
 			Name:  "IF wildcard omitted, AS set",
-			In:    "1-1",
-			HP:    mustHopPredicate(t, "1-1#0"),
+			In:    "1-2",
+			HP:    mustHopPredicate(t, "1-2#0"),
 			Valid: true,
+		},
+		{
+			Name:  "two IfIDs",
+			In:    "1-2#3,4",
+			HP:    mustHopPredicate(t, "1-2#3,4"),
+			Valid: true,
+		},
+		{
+			Name:  "three IfIDs",
+			In:    "1-2#3,4,5",
+			Valid: false,
 		},
 		{
 			Name:  "bad -",
 			In:    "1-1-0",
+			Valid: false,
+		},
+		{
+			Name:  "missing AS",
+			In:    "1#2",
 			Valid: false,
 		},
 		{
@@ -95,6 +111,16 @@ func TestNewPathInterface(t *testing.T) {
 		{
 			Name:  "bad IF",
 			In:    "1-1#e",
+			Valid: false,
+		},
+		{
+			Name:  "bad second IF",
+			In:    "1-2#1,3a",
+			Valid: false,
+		},
+		{
+			Name:  "AS wildcard, second IF defined",
+			In:    "1-0#1,3",
 			Valid: false,
 		},
 		{
@@ -112,10 +138,10 @@ func TestNewPathInterface(t *testing.T) {
 	Convey("TestNewHopPredicate", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				pi, err := NewHopPredicate(tc.In)
+				hp, err := HopPredicateFromString(tc.In)
 				if tc.Valid {
 					SoMsg("err", err, ShouldBeNil)
-					SoMsg("hp", &pi, ShouldResemble, tc.HP)
+					SoMsg("hp", &hp, ShouldResemble, tc.HP)
 				} else {
 					SoMsg("err", err, ShouldNotBeNil)
 				}
@@ -124,8 +150,15 @@ func TestNewPathInterface(t *testing.T) {
 	})
 }
 
+func TestHopPredicateString(t *testing.T) {
+	Convey("TestString", t, func() {
+		hp, _ := HopPredicateFromString("1-2#3,4")
+		SoMsg("hp", hp.String(), ShouldEqual, "1-2#3,4")
+	})
+}
+
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
-	hp, err := NewHopPredicate(str)
+	hp, err := HopPredicateFromString(str)
 	xtest.FailOnErr(t, err)
 	return &hp
 }

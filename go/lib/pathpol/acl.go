@@ -29,7 +29,7 @@ type ACL struct {
 // NewACL creates a new entry and checks for the presence of a default action
 func NewACL(entries ...*ACLEntry) (*ACL, error) {
 	lastRule := entries[len(entries)-1].Rule
-	if lastRule.IfID != 0 || lastRule.ISD != 0 || lastRule.AS != 0 {
+	if lastRule.IfIDs[0] != 0 || lastRule.ISD != 0 || lastRule.AS != 0 {
 		return nil, common.NewBasicError("ACL does not have a default", nil)
 	}
 	return &ACL{Entries: entries}, nil
@@ -55,27 +55,21 @@ func (a *ACL) MarshalJSON() ([]byte, error) {
 }
 
 func (a *ACL) UnmarshalJSON(b []byte) error {
-	var entries []*ACLEntry
-	err := json.Unmarshal(b, &entries)
-	if err != nil {
-		return err
-	}
-	a.Entries = entries
-	return nil
+	return json.Unmarshal(b, &a.Entries)
 }
 
 func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
-	for _, iface := range path.Entry.Path.Interfaces {
-		if a.evalInterface(iface) == Deny {
+	for i, iface := range path.Entry.Path.Interfaces {
+		if a.evalInterface(iface, i%2 != 0) == Deny {
 			return Deny
 		}
 	}
 	return Allow
 }
 
-func (a *ACL) evalInterface(iface sciond.PathInterface) ACLAction {
+func (a *ACL) evalInterface(iface sciond.PathInterface, ingress bool) ACLAction {
 	for _, aclEntry := range a.Entries {
-		if pathIFMatchHopPred(iface, *aclEntry.Rule) {
+		if pathIFMatchHopPred(iface, *aclEntry.Rule, ingress) {
 			return aclEntry.Action
 		}
 	}
