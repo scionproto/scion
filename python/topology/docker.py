@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 # Copyright 2018 ETH Zurich
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +14,8 @@
 
 # Stdlib
 import copy
-import errno
 import os
+from shutil import copyfile
 from string import Template
 # External packages
 import yaml
@@ -28,7 +27,6 @@ from lib.util import (
     read_file,
     write_file,
 )
-from shutil import copyfile
 from topology.common import _prom_addr_br, _prom_addr_infra
 
 DOCKER_CONF = 'scion-dc.yml'
@@ -42,17 +40,14 @@ class DockerGenerator(object):
         self.sd = sd
         self.ps = ps
         self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
-        if os.environ.get('SCION_MOUNT'):
-            self.home_dir = os.environ['SCION_MOUNT']
-        else:
-            self.home_dir = os.environ['PWD']
+        self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
 
     def generate(self):
         self._base_conf()
         self._zookeeper_conf()
         self._dispatcher_conf()
         for topo_id, topo in self.topo_dicts.items():
-            base = os.path.join(self.home_dir, topo_id.base_dir(self.out_dir))
+            base = os.path.join(self.output_base, topo_id.base_dir(self.out_dir))
             self._br_conf(topo, base)
             self._cs_conf(topo_id, topo, base)
             self._bs_conf(topo_id, topo, base)
@@ -76,7 +71,7 @@ class DockerGenerator(object):
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                self.home_dir + '/logs:/share/logs:rw'
+                self.output_base + '/logs:/share/logs:rw'
             ],
             'command': []
         }
@@ -105,8 +100,8 @@ class DockerGenerator(object):
                 '/etc/group:/etc/group:ro',
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 '/run/shm/sciond:/run/shm/sciond:rw',
-                self.home_dir + '/gen-cache:/share/cache:rw',
-                self.home_dir + '/logs:/share/logs:rw'
+                self.output_base + '/gen-cache:/share/cache:rw',
+                self.output_base + '/logs:/share/logs:rw'
             ],
             'command': [
                 '--spki_cache_dir=cache'
@@ -140,8 +135,8 @@ class DockerGenerator(object):
                 '/etc/group:/etc/group:ro',
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 '/run/shm/sciond:/run/shm/sciond:rw',
-                self.home_dir + '/gen-cache:/share/cache:rw',
-                self.home_dir + '/logs:/share/logs:rw'
+                self.output_base + '/gen-cache:/share/cache:rw',
+                self.output_base + '/logs:/share/logs:rw'
             ],
             'command': [
                 '--spki_cache_dir=cache'
@@ -176,8 +171,8 @@ class DockerGenerator(object):
                 '/etc/group:/etc/group:ro',
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 '/run/shm/sciond:/run/shm/sciond:rw',
-                self.home_dir + '/gen-cache:/share/cache:rw',
-                self.home_dir + '/logs:/share/logs:rw'
+                self.output_base + '/gen-cache:/share/cache:rw',
+                self.output_base + '/logs:/share/logs:rw'
             ],
             'command': [],
         }
@@ -195,7 +190,7 @@ class DockerGenerator(object):
             self.dc_conf['services'][k] = entry
 
     def _zookeeper_conf(self):
-        cfg_file = '/docker/zoo-container.cfg'
+        cfg_file = 'docker/zoo-container.cfg'
         entry = {
             'image': 'zookeeper:latest',
             'container_name': 'zookeeper',
@@ -208,7 +203,7 @@ class DockerGenerator(object):
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                os.path.join(self.home_dir, self.out_dir) + cfg_file + ':/conf/zoo.cfg:rw',
+                os.path.join(self.output_base, self.out_dir, cfg_file) + ':/conf/zoo.cfg:rw',
                 '/var/lib/docker-zk:/var/lib/zookeeper:rw',
                 '/run/shm/docker-zk:/dev/shm/zookeeper:rw'
             ],
@@ -217,14 +212,9 @@ class DockerGenerator(object):
             ]
         }
         self.dc_conf['services']['zookeeper'] = entry
-        cfg_path = self.out_dir + cfg_file
-        if not os.path.isfile(cfg_path):
-            try:
-                os.makedirs(os.path.dirname(cfg_path))
-            except OSError as exc:
-                if exc.errno != errno.EEXIST:
-                    raise
-            copyfile(os.path.join(os.environ['PWD'] + cfg_file), cfg_path)
+        cfg_path = os.path.join(self.out_dir, cfg_file)
+        os.makedirs(os.path.dirname(cfg_path))
+        copyfile(os.path.join(os.environ['PWD'], cfg_file), cfg_path)
 
     def _dispatcher_conf(self):
         entry = {
@@ -239,8 +229,8 @@ class DockerGenerator(object):
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                self.home_dir + '/gen/dispatcher:/share/conf:rw',
-                self.home_dir + '/logs:/share/logs:rw'
+                self.output_base + '/gen/dispatcher:/share/conf:rw',
+                self.output_base + '/logs:/share/logs:rw'
             ]
         }
         self.dc_conf['services']['dispatcher'] = entry
@@ -269,8 +259,8 @@ class DockerGenerator(object):
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 '/run/shm/sciond:/run/shm/sciond:rw',
                 '%s:/share/conf:ro' % os.path.join(base, 'endhost'),
-                self.home_dir + '/gen-cache:/share/cache:rw',
-                self.home_dir + '/logs:/share/logs:rw'
+                self.output_base + '/gen-cache:/share/cache:rw',
+                self.output_base + '/logs:/share/logs:rw'
             ],
         }
         if self.sd == 'py':

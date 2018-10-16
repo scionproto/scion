@@ -11,10 +11,8 @@ cmd_topology() {
     local zkclean
     echo "Shutting down: $(./scion.sh stop)"
     supervisor/supervisor.sh shutdown
-    mkdir -p logs traces
-    [ gen/* == 'gen/*' ] || rm -r gen/*
-    [ gen-cache/* == 'gen-cache/*' ] || rm -r gen-cache/*
-    mkdir -p gen-cache
+    mkdir -p logs traces gen gen-cache
+    find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
     if [ "$1" = "zkclean" ]; then
         shift
         zkclean="y"
