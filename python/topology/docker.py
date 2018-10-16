@@ -41,6 +41,7 @@ class DockerGenerator(object):
         self.ps = ps
         self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
+        self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
 
     def generate(self):
         self._base_conf()
@@ -66,7 +67,7 @@ class DockerGenerator(object):
             'restart': 'always',
             'network_mode': 'host',
             'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
+                'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
@@ -93,7 +94,7 @@ class DockerGenerator(object):
                 'zookeeper'
             ],
             'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
+                'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
@@ -128,7 +129,7 @@ class DockerGenerator(object):
                 'zookeeper'
             ],
             'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
+                'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
@@ -164,7 +165,7 @@ class DockerGenerator(object):
                 'zookeeper'
             ],
             'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
+                'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
@@ -196,7 +197,7 @@ class DockerGenerator(object):
             'container_name': 'zookeeper',
             'restart': 'always',
             'environment': {
-                'ZOO_USER': '$LOGNAME',
+                'ZOO_USER': self.user_spec,
                 'ZOO_DATA_DIR': '/var/lib/zookeeper',
                 'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
             },
@@ -223,7 +224,7 @@ class DockerGenerator(object):
             'restart': 'always',
             'network_mode': 'host',
             'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
+                'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
@@ -251,7 +252,7 @@ class DockerGenerator(object):
                 'dispatcher',
             ],
             'environment': {
-                'SU_EXEC_USERSPEC': '$LOGNAME',
+                'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',

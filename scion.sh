@@ -63,13 +63,17 @@ run_zk() {
 }
 
 host_zk_start() {
-    [ -e /var/run/dbus/system_bus_socket ] || return 0
-    systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
+    if is_running_in_docker; then
+        sudo service zookeeper start
+    else
+        systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
+    fi
 }
 
 host_zk_stop() {
-    [ -e /var/run/dbus/system_bus_socket ] || return 0
-    if systemctl is-active --quiet zookeeper; then
+    if is_running_in_docker; then
+        sudo service zookeeper stop
+    elif systemctl is-active --quiet zookeeper; then
         sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
     fi
 }
@@ -193,6 +197,10 @@ is_docker() {
 
 is_supervisor() {
    [ -f gen/dispatcher/supervisord.conf ]
+}
+
+is_running_in_docker() {
+    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
 }
 
 cmd_test(){
