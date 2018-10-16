@@ -76,7 +76,7 @@ const Sample = `[general]
 
   # Time between self issuing core cert and core cert expiration. If not
   # specified, this is set to the default leaf certificate validity time.
-  IssuerReissueTime = "3d"
+  IssuerReissueTime = "73h"
 
   # Interval between two consecutive reissue requests. Default is 10 seconds.
   ReissueRate = "10s"
