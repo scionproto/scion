@@ -39,6 +39,9 @@ func NewHopPredicate() *HopPredicate {
 
 func HopPredicateFromString(str string) (HopPredicate, error) {
 	var err error
+	if err = validate(str); err != nil {
+		return HopPredicate{}, err
+	}
 	var ifIDs = make([]common.IFIDType, 1)
 	// Parse ISD
 	dashParts := strings.Split(str, "-")
@@ -50,11 +53,6 @@ func HopPredicateFromString(str string) (HopPredicate, error) {
 	if len(dashParts) == 1 {
 		return HopPredicate{ISD: isd, IfIDs: ifIDs}, nil
 	}
-	if len(dashParts) != 2 {
-		return HopPredicate{},
-			common.NewBasicError("Failed to parse hop predicate, multiple dashes found", nil,
-				"value", str)
-	}
 	// Parse AS if present
 	hashParts := strings.Split(dashParts[1], "#")
 	as, err := addr.ASFromString(hashParts[0])
@@ -64,35 +62,20 @@ func HopPredicateFromString(str string) (HopPredicate, error) {
 	if len(hashParts) == 1 {
 		return HopPredicate{ISD: isd, AS: as, IfIDs: ifIDs}, nil
 	}
-	if len(hashParts) != 2 {
-		return HopPredicate{},
-			common.NewBasicError("Failed to parse hop predicate, multiple hashes found", nil,
-				"value", str)
-	}
 	// Parse IfIDs if present
 	commaParts := strings.Split(hashParts[1], ",")
 	if ifIDs[0], err = parseIfID(commaParts[0]); err != nil {
 		return HopPredicate{}, common.NewBasicError("Failed to parse ifids", err, "value", str)
 	}
 	if len(commaParts) == 2 {
-		if as == 0 {
-			return HopPredicate{}, common.NewBasicError(
-				"Failed to parse hop predicate, there must be a single wildcard IF",
-				nil, "value", str)
-		}
 		ifID, err := parseIfID(commaParts[1])
 		if err != nil {
 			return HopPredicate{}, common.NewBasicError("Failed to parse ifids", err, "value", str)
 		}
 		ifIDs = append(ifIDs, ifID)
 	}
-	if len(commaParts) > 2 {
-		return HopPredicate{},
-			common.NewBasicError("Failed to parse hop predicate, too many interfaces found", nil,
-				"value", str)
-	}
 	// IfID cannot be set when the AS is a wildcard
-	if ifIDs[0] != 0 && as == 0 {
+	if as == 0 && (ifIDs[0] != 0 || (len(ifIDs) > 1 && ifIDs[1] != 0)) {
 		return HopPredicate{},
 			common.NewBasicError("Failed to parse hop predicate, IfIDs must be 0",
 				nil, "value", str)
@@ -101,7 +84,7 @@ func HopPredicateFromString(str string) (HopPredicate, error) {
 }
 
 func (hp HopPredicate) String() string {
-	ifids := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(hp.IfIDs)), ","), "[]")
+	ifids := strings.Trim(strings.Replace(fmt.Sprint(hp.IfIDs), " ", ",", -1), "[]")
 	return fmt.Sprintf("%s#%s", addr.IA{I: hp.ISD, A: hp.AS}, ifids)
 }
 
@@ -131,6 +114,22 @@ func parseIfID(str string) (common.IFIDType, error) {
 		return 0, err
 	}
 	return common.IFIDType(ifid), nil
+}
+
+// validate checks if str has the correct amount of delimiters
+func validate(str string) error {
+	dashes := strings.Count(str, "-")
+	hashes := strings.Count(str, "#")
+	commas := strings.Count(str, ",")
+	if dashes > 1 || hashes > 1 || commas > 1 {
+		return common.NewBasicError(
+			"Failed to parse hop predicate, found delimiter too often", nil,
+			"dashes", dashes, "hashes", hashes, "commas", commas)
+	}
+	if dashes == 0 && (hashes > 0 || commas > 0) {
+		return common.NewBasicError("Can't specify IFIDs without AS", nil)
+	}
+	return nil
 }
 
 // pathIFMatchHopPred takes a PathInterface, a HopPredicate and a bool indicating if the ingress

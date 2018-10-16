@@ -174,41 +174,29 @@ func (s Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	return resultSet
 }
 
+// The pathInterfaces slice contains an entry for each interface on the path, while the
+// hopPredicate contains an entry per AS on the path. For the fist and last interface of a path
+// there is one pathInterface entry and one hopPredicate entry. For each interface in between there
+// are two pathInterface entries and one hopPredicate entry.
+// pathMatches tries to match every interface with its corresponding hopPredicate.
 func pathMatches(pathInterfaces []sciond.PathInterface, hopPredicates []HopPredicate) bool {
 	// TODO(worxli): implement *, ? and +
 	if badLength(len(pathInterfaces), len(hopPredicates)) {
 		return false
 	}
-	// Match the first egress interface
-	if !pathIFMatchHopPred(pathInterfaces[0], hopPredicates[0], false) {
-		return false
-	}
-	// Now always match AS-IfID pairs
-	for i := 1; i < len(pathInterfaces); i = i + 2 {
-		token := (i + 1) / 2
-		if !pathIFMatchHopPred(pathInterfaces[i], hopPredicates[token], true) {
-			return false
-		}
-		// if pathInterfaces[i] was the last ingress interface, we stop matching
-		if i+1 == len(pathInterfaces) {
-			continue
-		}
-		if !pathIFMatchHopPred(pathInterfaces[i+1], hopPredicates[token], false) {
+	for i := range pathInterfaces {
+		hopIdx := (i + 1) / 2
+		if !pathIFMatchHopPred(pathInterfaces[i], hopPredicates[hopIdx], i%2 != 0) {
 			return false
 		}
 	}
 	return true
 }
 
+// badLength checks if the interface slice can be matched with the predicate slice
 func badLength(lenInt, lenPred int) bool {
-	if lenInt == 0 {
-		return true
-	}
 	if lenInt == 2 && lenPred == 2 {
 		return false
 	}
-	if lenInt == 2*(lenPred-1) {
-		return false
-	}
-	return true
+	return lenInt == 0 || lenInt != 2*(lenPred-1)
 }
