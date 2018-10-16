@@ -175,7 +175,7 @@ func (s Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 }
 
 // The pathInterfaces slice contains an entry for each interface on the path, while the
-// hopPredicate contains an entry per AS on the path. For the fist and last interface of a path
+// hopPredicate contains an entry per AS on the path. For the first and last interface of a path
 // there is one pathInterface entry and one hopPredicate entry. For each interface in between there
 // are two pathInterface entries and one hopPredicate entry.
 // pathMatches tries to match every interface with its corresponding hopPredicate.
@@ -195,8 +195,5 @@ func pathMatches(pathInterfaces []sciond.PathInterface, hopPredicates []HopPredi
 
 // badLength checks if the interface slice can be matched with the predicate slice
 func badLength(lenInt, lenPred int) bool {
-	if lenInt == 2 && lenPred == 2 {
-		return false
-	}
 	return lenInt == 0 || lenInt != 2*(lenPred-1)
 }
