@@ -120,7 +120,7 @@ class TestPathPolicyParseDict(object):
         dict_['UpdateAfterNumber'] = "update_after_number"
         dict_['UpdateAfterTime'] = "update_after_time"
         dict_['UnwantedASes'] = "1-ff00:0:311,2-ff00:0:312"
-        dict_['PropertyRanges'] = {'key1': "1-11", 'key2': "2-12"}
+        dict_['PropertyRanges'] = {'key1': "1-11", 'key2': "2-12", 'DelayTime': "0-100"}
         dict_['PropertyWeights'] = "property_weights"
         pth_pol2 = PathPolicy()
         pth_pol2.parse_dict(dict_)
@@ -129,7 +129,9 @@ class TestPathPolicyParseDict(object):
         ntools.eq_(pth_pol2.history_limit, "history_limit")
         ntools.eq_(pth_pol2.update_after_number, "update_after_number")
         ntools.eq_(pth_pol2.update_after_time, "update_after_time")
-        ntools.eq_(pth_pol2.property_ranges, {'key1': (1, 11), 'key2': (2, 12)})
+        ntools.eq_(pth_pol2.property_ranges, {
+            'key1': (1, 11), 'key2': (2, 12), 'DelayTime': (-1, 101),
+        })
         ntools.eq_(pth_pol2.property_weights, "property_weights")
 
 
@@ -572,6 +574,7 @@ class TestPathStoreGetSegment(object):
         pth_str = PathStore(self.path_policy)
         pth_str.candidates = [MagicMock(spec_set=['id']) for i in range(5)]
         ntools.assert_is_none(pth_str.get_segment(2))
+
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
