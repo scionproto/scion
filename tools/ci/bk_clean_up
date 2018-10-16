@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -ex
+
+TARGET="${BUILDKITE_PULL_REQUEST:-$BUILDKITE_BRANCH}"
+TARGET="${TARGET//\//_}"
+BUILD=$(date +%s)
+[ -n "$BUILDKITE_BUILD_NUMBER" ] && BUILD="build${BUILDKITE_BUILD_NUMBER}"
+ARTIFACTS="buildkite.${BUILDKITE_ORGANIZATION_SLUG}.${TARGET}.${BUILD}"
+
+mkdir -p "$SCION_MOUNT.$ARTIFACTS" artifacts.out artifacts
+mv "$SCION_MOUNT" "artifacts/$ARTIFACTS"
+tar caf "artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
