@@ -19,15 +19,14 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/as_conf"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
 const (
-	// IssuerReissTime is the default value for Conf.IssuerReissTime. It is the same
-	// as the leaf certificate validity period in order to provide optimal coverage.
-	IssuerReissTime = cert.DefaultLeafCertValidity * time.Second
+	// IssuerReissTime is the default value for Conf.IssuerReissTime. It is larger
+	// than the leaf certificate validity period in order to provide optimal coverage.
+	IssuerReissTime = 1*time.Hour + cert.DefaultLeafCertValidity*time.Second
 	// ReissReqRate is the default interval between two consecutive reissue requests.
 	ReissReqRate = 10 * time.Second
 	// ReissueReqTimeout is the default timeout of a reissue request.
@@ -39,6 +38,9 @@ const (
 
 type Conf struct {
 	// LeafReissueTime is the time between starting reissue requests and leaf cert expiration.
+	// If the time difference between now and leaf cert expiration is smaller than
+	// LeafReissueTime, certificate reissuance is requested until a new certificate is
+	// received or the certificate has expired.
 	LeafReissueTime util.DurWrap
 	// IssuerReissueTime is the time between self issuing core cert and core cert expiration.
 	IssuerReissueTime util.DurWrap
@@ -51,10 +53,6 @@ type Conf struct {
 // Init sets the uninitialized fields.
 func (c *Conf) Init(confDir string) error {
 	c.initDefaults()
-	if c.ReissueRate.Duration <= c.ReissueTimeout.Duration {
-		return common.NewBasicError("Reissue rate must not be smaller than timeout", nil,
-			"rate", c.ReissueRate.Duration, "timeout", c.ReissueTimeout.Duration)
-	}
 	if c.LeafReissueTime.Duration == 0 {
 		if err := c.loadLeafReissTime(confDir); err != nil {
 			return err
