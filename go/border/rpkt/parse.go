@@ -98,6 +98,10 @@ func (rp *RtrPkt) parseBasic() error {
 		return common.NewBasicError("Header length indicated in common header is too small", nil,
 			"min", rp.idxs.path, "hdrLen", rp.CmnHdr.HdrLen, "byteSize", hdrLen)
 	}
+	if len(rp.Raw) != int(rp.CmnHdr.TotalLen) {
+		return common.NewBasicError("Invalid packet length", nil,
+			"expected", rp.CmnHdr.TotalLen, "actual", len(rp.Raw))
+	}
 	return nil
 }
 
