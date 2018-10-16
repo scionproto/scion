@@ -399,6 +399,10 @@ func testNextQuery(t *testing.T, pathDB pathdb.PathDB) {
 		SoMsg("Should return updated time", dbT.Unix(), ShouldEqual, newT.Unix())
 		dbT, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"))
 		SoMsg("Should be nil", dbT, ShouldBeNil)
+		ctx, cancelF = context.WithDeadline(context.Background(), time.Now().Add(-3*time.Second))
+		defer cancelF()
+		_, err = pathDB.GetNextQuery(ctx, xtest.MustParseIA("1-ff00:0:122"))
+		SoMsg("Should error", err, ShouldNotBeNil)
 	})
 }
 
