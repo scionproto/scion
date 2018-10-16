@@ -21,14 +21,9 @@ import (
 	_ "net/http/pprof"
 	"os"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
-	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
@@ -85,45 +80,6 @@ func realMain() int {
 		log.Crit("Unable to listen and serve", "err", err)
 		return 1
 	}
-}
-
-func setup(configName string) error {
-	if _, err := toml.DecodeFile(configName, &config); err != nil {
-		return err
-	}
-	if err := env.InitGeneral(&config.General); err != nil {
-		return err
-	}
-	itopo.SetCurrentTopology(config.General.Topology)
-	if err := env.InitLogging(&config.Logging); err != nil {
-		return err
-	}
-	if err := initConfig(&config); err != nil {
-		return err
-	}
-	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
-		if err := reload(configName); err != nil {
-			log.Error("Unable to reload", "err", err)
-		}
-	})
-	return nil
-}
-
-func reload(configName string) error {
-	// FIXME(roosd): KeyConf reloading is not yet supported.
-	config.General.Topology = itopo.GetCurrentTopology()
-	var newConf Config
-	// Load new config to get the CS parameters.
-	if _, err := toml.DecodeFile(configName, &newConf); err != nil {
-		return err
-	}
-	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
-		return common.NewBasicError("Unable to initialize CS config", err)
-	}
-	config.CS = newConf.CS
-	reissRunner.Stop()
-	reissRunner = startReissRunner(&config, currMsgr)
-	return nil
 }
 
 func stop() {

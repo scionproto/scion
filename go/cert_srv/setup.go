@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/BurntSushi/toml"
+
 	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -28,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
@@ -43,26 +46,40 @@ const (
 	ErrorSNET      = "Unable to create local SCION Network context"
 )
 
-// initConfig initialize the config. CurrMsgr and reissTask are set.
-func initConfig(config *Config) error {
+// setup loads the config, starts the messenger and periodic reissue task
+// and sets the environment.
+func setup(configName string) error {
 	var err error
+	// Load and initialize config.
+	if _, err = toml.DecodeFile(configName, &config); err != nil {
+		return err
+	}
+	if err = env.InitGeneral(&config.General); err != nil {
+		return err
+	}
+	itopo.SetCurrentTopology(config.General.Topology)
+	if err = env.InitLogging(&config.Logging); err != nil {
+		return err
+	}
 	if err = config.CS.Init(config.General.ConfigDir); err != nil {
 		return common.NewBasicError("Unable to initialize CS config", err)
 	}
-	if err = initState(config); err != nil {
-		return err
+	// Load CS state.
+	if err = initState(&config); err != nil {
+		return common.NewBasicError("Unable to initialize CS state", err)
 	}
-	var reissHandler *reiss.Handler
-	if config.General.Topology.Core {
-		reissHandler = &reiss.Handler{
-			State: config.state,
-			IA:    config.General.Topology.ISD_AS,
+	// Start the messenger.
+	if currMsgr, err = startMessenger(&config); err != nil {
+		return common.NewBasicError("Unable to start messenger", err)
+	}
+	// Starte the periodic reissuance task.
+	reissRunner = startReissRunner(&config, currMsgr)
+	// Set environment to listen for signals.
+	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
+		if err := reload(configName); err != nil {
+			log.Error("Unable to reload", "err", err)
 		}
-	}
-	if currMsgr, err = startMessenger(config, reissHandler); err != nil {
-		return err
-	}
-	reissRunner = startReissRunner(config, currMsgr)
+	})
 	return nil
 }
 
@@ -114,11 +131,14 @@ func setDefaultSignerVerifier(c *csconfig.State, pubIA addr.IA) error {
 
 // startMessenger starts the messenger and sets the internal messenger of the store in
 // config.CS. This function may only be called once per config.
-func startMessenger(config *Config, reissHandler *reiss.Handler) (*messenger.Messenger, error) {
-
-	if config.General.Topology.Core != (reissHandler != nil) {
-		return nil, common.NewBasicError("ReissHandler does not match topology", nil,
-			"core", config.General.Topology.Core, "reissHandler", reissHandler != nil)
+func startMessenger(config *Config) (*messenger.Messenger, error) {
+	var reissHandler *reiss.Handler
+	// Only core CS handles certificate reissuance requests.
+	if config.General.Topology.Core {
+		reissHandler = &reiss.Handler{
+			State: config.state,
+			IA:    config.General.Topology.ISD_AS,
+		}
 	}
 	topoAddress := config.General.Topology.CS.GetById(config.General.ID)
 	if topoAddress == nil {
@@ -159,6 +179,8 @@ func startMessenger(config *Config, reissHandler *reiss.Handler) (*messenger.Mes
 	return msgr, nil
 }
 
+// startReissRunner starts a periodic reissuance task. Core starts self-issuer.
+// Non-core starts a requester.
 func startReissRunner(config *Config, msgr *messenger.Messenger) *periodic.Runner {
 	if config.General.Topology.Core {
 		log.Info("Starting periodic reiss.Self task")
@@ -185,4 +207,23 @@ func startReissRunner(config *Config, msgr *messenger.Messenger) *periodic.Runne
 		time.NewTicker(config.CS.ReissueRate.Duration),
 		config.CS.ReissueTimeout.Duration,
 	)
+}
+
+// reload reloads the topology and CS config.
+func reload(configName string) error {
+	// FIXME(roosd): KeyConf reloading is not yet supported.
+	config.General.Topology = itopo.GetCurrentTopology()
+	var newConf Config
+	// Load new config to get the CS parameters.
+	if _, err := toml.DecodeFile(configName, &newConf); err != nil {
+		return err
+	}
+	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
+		return common.NewBasicError("Unable to initialize CS config", err)
+	}
+	config.CS = newConf.CS
+	// Restart the periodic reissue task to respect the fresh parameters.
+	reissRunner.Stop()
+	reissRunner = startReissRunner(&config, currMsgr)
+	return nil
 }
