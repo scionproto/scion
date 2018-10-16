@@ -52,11 +52,11 @@ func TestSampleCorrect(t *testing.T) {
 
 		// csconfig specific
 		SoMsg("LeafReissTime correct", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 6*time.Hour)
-		SoMsg("ReissueRate correct", cfg.CS.ReissueRate.Duration, ShouldEqual, 10*time.Second)
+		SoMsg("ReissueRate correct", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
 		SoMsg("ReissueTimeout correct", cfg.CS.ReissueTimeout.Duration, ShouldEqual,
-			5*time.Second)
+			ReissueReqTimeout)
 		SoMsg("IssuerReissTime correct", cfg.CS.IssuerReissueTime.Duration, ShouldEqual,
-			3*24*time.Hour)
+			IssuerReissTime)
 	})
 }
 
