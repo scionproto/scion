@@ -131,7 +131,7 @@ func (rp *RtrPkt) parseHopExtns() error {
 	if *offset > len(rp.Raw) {
 		// FIXME(kormat): Can't generate SCMP error in general as we can't
 		// parse anything after the hbh extensions (e.g. a layer 4 header).
-		return common.NewBasicError(ErrExtChainTooLong, nil, "curr", offset, "max", len(rp.Raw))
+		return common.NewBasicError(ErrExtChainTooLong, nil, "curr", *offset, "max", len(rp.Raw))
 	}
 	return nil
 }
