@@ -17,6 +17,7 @@ package echo
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -29,15 +30,20 @@ import (
 var (
 	id      uint64
 	recvSeq uint16
+	wg      sync.WaitGroup
 )
 
 func Run() {
 	cmn.SetupSignals(summary)
+	wg.Add(1)
 	go sendPkts()
 	recvPkts()
+	wg.Wait()
+	summary()
 }
 
 func sendPkts() {
+	defer wg.Done()
 	id = cmn.Rand()
 	info := &scmp.InfoEcho{Id: id, Seq: 0}
 	pkt := cmn.NewSCMPPkt(scmp.T_G_EchoRequest, info, nil)
@@ -135,13 +141,16 @@ func recvPkts() {
 		rtt := now.Sub(scmpHdr.Time()).Round(time.Microsecond)
 		prettyPrint(pkt, pktLen, info, rtt)
 	}
-	summary()
 }
 
 func summary() {
+	pktLoss := uint(0)
+	if cmn.Stats.Sent != 0 {
+		pktLoss = 100 - cmn.Stats.Recv*100/cmn.Stats.Sent
+	}
 	fmt.Printf("\n--- %s,[%s] statistics ---\n", cmn.Remote.IA, cmn.Remote.Host)
 	fmt.Printf("%d packets transmitted, %d received, %d%% packet loss, time %v\n",
-		cmn.Stats.Sent, cmn.Stats.Recv, 100-cmn.Stats.Recv*100/cmn.Stats.Sent,
+		cmn.Stats.Sent, cmn.Stats.Recv, pktLoss,
 		time.Since(cmn.Start).Round(time.Microsecond))
 }
 
