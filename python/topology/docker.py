@@ -66,12 +66,16 @@ class DockerGenerator(object):
             'image': 'scion_border',
             'restart': 'always',
             'network_mode': 'host',
+            'depends_on': [
+                'dispatcher',
+            ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
+                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 self.output_base + '/logs:/share/logs:rw'
             ],
             'command': []
