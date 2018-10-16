@@ -19,7 +19,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
 func TestNewHopPredicate(t *testing.T) {
@@ -32,25 +32,25 @@ func TestNewHopPredicate(t *testing.T) {
 		{
 			Name:  "ISD wildcard",
 			In:    "0",
-			HP:    mustHopPredicate(t, "0-0#0"),
+			HP:    &HopPredicate{ISD: 0, AS: 0, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "AS, IF wildcard omitted",
 			In:    "1",
-			HP:    mustHopPredicate(t, "1-0#0"),
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted",
 			In:    "1-0",
-			HP:    mustHopPredicate(t, "1-0#0"),
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "basic wildcard",
 			In:    "1-0#0",
-			HP:    mustHopPredicate(t, "1-0#0"),
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
@@ -61,31 +61,31 @@ func TestNewHopPredicate(t *testing.T) {
 		{
 			Name:  "ISD wildcard, AS set",
 			In:    "0-1#0",
-			HP:    mustHopPredicate(t, "0-1#0"),
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set, interface set",
 			In:    "0-1#2",
-			HP:    mustHopPredicate(t, "0-1#2"),
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{2}},
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set and interface omitted",
 			In:    "0-1",
-			HP:    mustHopPredicate(t, "0-1#0"),
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted, AS set",
 			In:    "1-2",
-			HP:    mustHopPredicate(t, "1-2#0"),
+			HP:    &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "two IfIDs",
 			In:    "1-2#3,4",
-			HP:    mustHopPredicate(t, "1-2#3,4"),
+			HP:    &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{3, 4}},
 			Valid: true,
 		},
 		{
@@ -155,10 +155,4 @@ func TestHopPredicateString(t *testing.T) {
 		hp, _ := HopPredicateFromString("1-2#3,4")
 		SoMsg("hp", hp.String(), ShouldEqual, "1-2#3,4")
 	})
-}
-
-func mustHopPredicate(t *testing.T, str string) *HopPredicate {
-	hp, err := HopPredicateFromString(str)
-	xtest.FailOnErr(t, err)
-	return &hp
 }
