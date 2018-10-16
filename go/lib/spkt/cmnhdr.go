@@ -51,6 +51,11 @@ func CmnHdrFromRaw(b common.RawBytes) (*CmnHdr, error) {
 }
 
 func (c *CmnHdr) Parse(b common.RawBytes) error {
+	// Check for minimum header length
+	if len(b) < CmnHdrLen {
+		return common.NewBasicError("Can't parse common header, buffer is too short", nil,
+			"len", len(b))
+	}
 	offset := 0
 	verDstSrc := common.Order.Uint16(b[offset:])
 	c.Ver = uint8(verDstSrc >> 12)
