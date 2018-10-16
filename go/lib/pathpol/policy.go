@@ -38,7 +38,7 @@ type ExtPolicy struct {
 // guaranteed to yield an object that is identical to the initial one.
 type PolicyMap map[string]*Policy
 
-// Policy is a compiled path policy object, all extended policies have been merged
+// Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
 	Name     string
 	ACL      *ACL     `json:",omitempty"`
@@ -150,7 +150,7 @@ type Sequence []HopPredicate
 func NewSequence(tokens []string) (Sequence, error) {
 	s := make(Sequence, 0)
 	for _, token := range tokens {
-		hp, err := NewHopPredicate(token)
+		hp, err := HopPredicateFromString(token)
 		if err != nil {
 			return nil, err
 		}
@@ -174,16 +174,41 @@ func (s Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	return resultSet
 }
 
-func pathMatches(pathInterfaces []sciond.PathInterface, matcherTokens []HopPredicate) bool {
-	// TODO(worxli): as long as *, ? and + are not implemented, these slices must have the
-	// same length
-	if len(pathInterfaces) != len(matcherTokens) {
+func pathMatches(pathInterfaces []sciond.PathInterface, hopPredicates []HopPredicate) bool {
+	// TODO(worxli): implement *, ? and +
+	if badLength(len(pathInterfaces), len(hopPredicates)) {
 		return false
 	}
-	for i := range pathInterfaces {
-		if !pathIFMatchHopPred(pathInterfaces[i], matcherTokens[i]) {
+	// Match the first egress interface
+	if !pathIFMatchHopPred(pathInterfaces[0], hopPredicates[0], false) {
+		return false
+	}
+	// Now always match AS-IfID pairs
+	for i := 1; i < len(pathInterfaces); i = i + 2 {
+		token := (i + 1) / 2
+		if !pathIFMatchHopPred(pathInterfaces[i], hopPredicates[token], true) {
 			return false
 		}
+		// if pathInterfaces[i] was the last ingress interface, we stop matching
+		if i+1 == len(pathInterfaces) {
+			continue
+		}
+		if !pathIFMatchHopPred(pathInterfaces[i+1], hopPredicates[token], false) {
+			return false
+		}
+	}
+	return true
+}
+
+func badLength(lenInt, lenPred int) bool {
+	if lenInt == 0 {
+		return true
+	}
+	if lenInt == 2 && lenPred == 2 {
+		return false
+	}
+	if lenInt == 2*(lenPred-1) {
+		return false
 	}
 	return true
 }

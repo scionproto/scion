@@ -68,6 +68,13 @@ func TestSequenceEval(t *testing.T) {
 		ExpPathNum int
 	}{
 		{
+			Name:       "Empty path",
+			List:       newSequence(t, []string{"0-0#0"}),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:212"),
+			ExpPathNum: 0,
+		},
+		{
 			Name:       "Length not matching",
 			List:       newSequence(t, []string{"0-0#0"}),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
@@ -82,9 +89,8 @@ func TestSequenceEval(t *testing.T) {
 			ExpPathNum: 2,
 		},
 		{
-			Name: "Longer Wildcard matching",
-			List: newSequence(t, []string{"0-0#0", "0-0#0", "0-0#0", "0-0#0", "0-0#0",
-				"0-0#0"}),
+			Name:       "Longer Wildcard matching",
+			List:       newSequence(t, []string{"0-0#0", "0-0#0", "0-0#0", "0-0#0"}),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 2,
@@ -97,43 +103,63 @@ func TestSequenceEval(t *testing.T) {
 			ExpPathNum: 1,
 		},
 		{
+			Name:       "AS double IF matching",
+			List:       newSequence(t, []string{"0", "1-ff00:0:132#1910,1916", "0"}),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "AS IF matching, first wildcard",
+			List:       newSequence(t, []string{"0", "1-ff00:0:132#0,1916", "0"}),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 1,
+		},
+		{
 			Name: "Longer Explicit matching",
-			List: newSequence(t, []string{"1-ff00:0:122#1815", "1-ff00:0:121#1518",
-				"1-ff00:0:121#1530", "1-ff00:0:120#3015", "1-ff00:0:120#3122", "2-ff00:0:220#2231",
-				"2-ff00:0:220#2224", "2-ff00:0:221#2422"}),
+			List: newSequence(t, []string{"1-ff00:0:122#1815", "1-ff00:0:121#1518,1530",
+				"1-ff00:0:120#3015,3122", "2-ff00:0:220#2231,2224", "2-ff00:0:221#2422"}),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
 			Dst:        xtest.MustParseIA("2-ff00:0:221"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching, single wildcard",
-			List: newSequence(t, []string{"1-ff00:0:133#1018", "1-ff00:0:122#1810",
-				"1-ff00:0:122#1815", "0-0#0", "1-ff00:0:121#1530", "1-ff00:0:120#3015",
-				"1-ff00:0:120#2911", "1-ff00:0:110#1129"}),
+			List: newSequence(t, []string{"1-ff00:0:133#1018", "1-ff00:0:122#1810,1815",
+				"1-ff00:0:121#0,1530", "1-ff00:0:120#3015,2911", "1-ff00:0:110#1129"}),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
 		{
+			Name: "Longer Explicit matching, reverse single wildcard",
+			List: newSequence(t, []string{"1-ff00:0:133#1018", "1-ff00:0:122#1810,1815",
+				"1-ff00:0:121#1530,0", "1-ff00:0:120#3015,2911", "1-ff00:0:110#1129"}),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:110"),
+			ExpPathNum: 0,
+		},
+		{
 			Name: "Longer Explicit matching, multiple wildcard",
-			List: newSequence(t, []string{"1-ff00:0:133#1018", "0-0#0", "1-ff00:0:122#1815",
-				"0-0#0", "1-ff00:0:121#1530", "1-ff00:0:120#3015", "0-0#0", "1-ff00:0:110#1129"}),
+			List: newSequence(t, []string{"1-ff00:0:133#1018", "1-ff00:0:122#0,1815",
+				"1-ff00:0:121#0,1530", "1-ff00:0:120#3015,0", "1-ff00:0:110#1129"}),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching, mixed wildcard types",
-			List: newSequence(t, []string{"1-ff00:0:133#0", "0-0#0", "1-0#0",
-				"0-0#0", "0-0#0", "1-ff00:0:120#0", "0-0#0", "1-ff00:0:110#1129"}),
+			List: newSequence(t, []string{"1-ff00:0:133#0", "1",
+				"0-0#0", "1-ff00:0:120#0", "1-ff00:0:110#1129"}),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching, mixed wildcard types, two paths",
-			List: newSequence(t, []string{"1-ff00:0:133#0", "0-0#0", "1-0#0",
-				"0-0#0", "0-0#0", "1-0#0", "0-0#0", "1-ff00:0:110#0"}),
+			List: newSequence(t, []string{"1-ff00:0:133#0", "1-0#0",
+				"0-0#0", "1-0#0", "1-ff00:0:110#0"}),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 2,
@@ -169,8 +195,8 @@ func TestSequenceEval(t *testing.T) {
 	})
 }
 
-var allowEntry = &ACLEntry{ACLAction(true), &HopPredicate{}}
-var denyEntry = &ACLEntry{ACLAction(false), &HopPredicate{}}
+var allowEntry = &ACLEntry{ACLAction(true), NewHopPredicate()}
+var denyEntry = &ACLEntry{ACLAction(false), NewHopPredicate()}
 
 func TestACLEval(t *testing.T) {
 	testCases := []struct {
