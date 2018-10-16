@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 )
 
 type Config struct {
