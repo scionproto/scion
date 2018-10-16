@@ -168,6 +168,12 @@ class PathPolicy(object):
             property_range = property_ranges[key].split('-')
             property_range = int(property_range[0]), int(property_range[1])
             self.property_ranges[key] = property_range
+        # XXX(kormat): as clock sync between ASes will never be _perfect_,
+        # allow a small tolerance in either direction of 1s for DelayTime.
+        # Otherwise PCBs that claim to be from 30ms in the future will be
+        # ignored.
+        raw_delay_time = self.property_ranges['DelayTime']
+        self.property_ranges['DelayTime'] = raw_delay_time[0]-1, raw_delay_time[1]+1
         self.property_weights = path_policy['PropertyWeights']
 
     def __str__(self):
