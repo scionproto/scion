@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -36,7 +37,8 @@ import (
 
 type segReqHandler struct {
 	*baseHandler
-	localIA addr.IA
+	localIA     addr.IA
+	segsDeduper *dedupe.Deduper
 }
 
 func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
@@ -118,7 +120,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 
 	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
-	segs, err := msger.GetSegs(ctx, r, cPSAddr, messenger.NextId())
+	segs, err := h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
 	if err != nil {
 		return err
 	}
