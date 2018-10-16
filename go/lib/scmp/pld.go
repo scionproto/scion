@@ -98,6 +98,10 @@ func (p *Payload) Copy() (common.Payload, error) {
 }
 
 func (p *Payload) WritePld(b common.RawBytes) (int, error) {
+	if p.Len() > len(b) {
+		return 0, common.NewBasicError("Not engough space in buffer", nil,
+			"actual", len(b), "expected", p.Len())
+	}
 	offset := 0
 	if err := p.Meta.Write(b[offset:]); err != nil {
 		return 0, err
