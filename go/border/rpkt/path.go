@@ -351,7 +351,7 @@ func (rp *RtrPkt) IncPath() (bool, error) {
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets(), nil))
 	}
 	// Check that the segment didn't change from a down-segment to an up-segment.
-	if origConsDir && !*rp.consDirFlag {
+	if origConsDir && !infoF.ConsDir {
 		return segChgd, common.NewBasicError("Switched from down-segment to up-segment",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
 	}
