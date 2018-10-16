@@ -5,7 +5,7 @@ set -eo pipefail
 
 cntr="${1:-scion_ci}"
 
-docker container exec $cntr bash -c "set -x; ./scion.sh topology ${DOCKER:+-d}"
+docker container exec $cntr bash -c "set -x; ./scion.sh topology -sd=go ${DOCKER:+-d}"
 
 if [ -n "$DOCKER" ]; then
     # Make sure stale configs/state on the host are removed.
