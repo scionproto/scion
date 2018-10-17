@@ -49,7 +49,6 @@ class HopOpaqueField(OpaqueField):
     def __init__(self, raw=None):  # pragma: no cover
         self.xover = False
         self.verify_only = False
-        self.recurse = False
         self.exp_time = 0
         self.ingress_if = 0
         self.egress_if = 0
@@ -68,16 +67,13 @@ class HopOpaqueField(OpaqueField):
     def _parse_flags(self, flags):  # pragma: no cover
         self.xover = bool(flags & HopOFFlags.XOVER)
         self.verify_only = bool(flags & HopOFFlags.VERIFY_ONLY)
-        self.recurse = bool(flags & HopOFFlags.RECURSE)
 
     @classmethod
     def from_values(cls, exp_time, ingress_if=0, egress_if=0,
-                    mac=None, xover=False, verify_only=False,
-                    recurse=False):  # pragma: no cover
+                    mac=None, xover=False, verify_only=False):  # pragma: no cover
         inst = cls()
         inst.xover = xover
         inst.verify_only = verify_only
-        inst.recurse = recurse
         inst.exp_time = exp_time
         inst.ingress_if = ingress_if
         inst.egress_if = egress_if
@@ -104,8 +100,6 @@ class HopOpaqueField(OpaqueField):
             flags |= HopOFFlags.XOVER
         if self.verify_only:
             flags |= HopOFFlags.VERIFY_ONLY
-        if self.recurse:
-            flags |= HopOFFlags.RECURSE
         return flags
 
     def calc_mac(self, key, ts, prev_hof=None):

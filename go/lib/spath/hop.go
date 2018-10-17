@@ -35,7 +35,6 @@ const (
 	ErrorHopFBadMac   = "Bad HopF MAC"
 	XoverMask         = 0x01
 	VerifyOnlyMask    = 0x02
-	RecurseMask       = 0x04
 	MaxTTL            = 24 * 60 * 60 // One day in seconds
 	ExpTimeUnit       = MaxTTL / 256 // ~5m38s
 	MaxTTLField       = ExpTimeType(math.MaxUint8)
@@ -47,7 +46,7 @@ const (
 //   0                   1                   2                   3
 //   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//  |r r r r r R V X|    ExpTime    |      ConsIngress      |  ...  |
+//  |r r r r r r V X|    ExpTime    |      ConsIngress      |  ...  |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //  | ...ConsEgress |                      MAC                      |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -59,7 +58,6 @@ const (
 type HopField struct {
 	Xover      bool
 	VerifyOnly bool
-	Recurse    bool
 	// ExpTime defines for how long this HopField is valid, expressed as the number
 	// of ExpTimeUnits relative to the PathSegments's InfoField.Timestamp().
 	// A 0 value means the minimum expiration time of ExpTimeUnit.
@@ -84,7 +82,6 @@ func HopFFromRaw(b []byte) (*HopField, error) {
 	flags := b[0]
 	h.Xover = flags&XoverMask != 0
 	h.VerifyOnly = flags&VerifyOnlyMask != 0
-	h.Recurse = flags&RecurseMask != 0
 	h.ExpTime = ExpTimeType(b[1])
 	// Interface IDs are 12b each, encoded into 3B
 	ifids := common.Order.Uint32(b[1:5])
@@ -102,9 +99,6 @@ func (h *HopField) Write(b common.RawBytes) {
 	}
 	if h.VerifyOnly {
 		flags |= VerifyOnlyMask
-	}
-	if h.Recurse {
-		flags |= RecurseMask
 	}
 	b[0] = flags
 	common.Order.PutUint32(b[1:5], h.expTimeIfIdsPack())

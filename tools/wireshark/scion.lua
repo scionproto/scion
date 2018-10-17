@@ -149,8 +149,6 @@ local scion_path_info_isd = ProtoField.uint16("scion.path.info.isd", "ISD", base
 local scion_path_info_hops = ProtoField.uint8("scion.path.info.hops", "Hops", base.DEC)
 
 local scion_path_hop_flags = ProtoField.uint8("scion.path.hop.flags", "Flags", base.HEX)
-local scion_path_hop_flags_recurse = ProtoField.bool("scion.path.hop.flags.recurse",
-    "Recurse", 8, nil, 0x4)
 local scion_path_hop_flags_verifyonly = ProtoField.bool("scion.path.hop.flags.verifyonly",
     "Verify-Only", 8, nil, 0x2)
 local scion_path_hop_flags_xover = ProtoField.bool("scion.path.hop.flags.xover",
@@ -241,7 +239,6 @@ scion_proto.fields={
     scion_path_info_isd,
     scion_path_info_hops,
     scion_path_hop_flags,
-    scion_path_hop_flags_recurse,
     scion_path_hop_flags_verifyonly,
     scion_path_hop_flags_xover,
     scion_path_hop_exp_raw,
@@ -532,7 +529,6 @@ function parse_hop_field(buffer, tree, hopNr, ts)
     local flags = buffer(0, 1)
     local flagsT = t:add(scion_path_hop_flags, flags)
     flagsT:append_text(", " .. hop_flag_desc(flags:uint()))
-    flagsT:add(scion_path_hop_flags_recurse, flags)
     flagsT:add(scion_path_hop_flags_verifyonly, flags)
     flagsT:add(scion_path_hop_flags_xover, flags)
     local rawExpTime = buffer(1, 1):uint()
@@ -556,9 +552,6 @@ function hop_flag_desc(flag)
     end
     if bit.band(flag, 0x2) > 0 then
         table.insert(desc, "VERIFY-ONLY")
-    end
-    if bit.band(flag, 0x4) > 0 then
-        table.insert(desc, "RECURSE")
     end
     if #desc == 0 then
         return ""
