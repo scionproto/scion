@@ -563,8 +563,8 @@ func (b *Backend) GetNextQuery(ctx context.Context, dst addr.IA) (*time.Time, er
 	if b.db == nil {
 		return nil, common.NewBasicError("No database open", nil)
 	}
-	rows, err := b.db.Query("SELECT NextQuery from NextQuery WHERE IsdID = ? AND AsID = ?",
-		dst.I, dst.A)
+	query := "SELECT NextQuery from NextQuery WHERE IsdID = ? AND AsID = ?"
+	rows, err := b.db.QueryContext(ctx, query, dst.I, dst.A)
 	if err != nil {
 		return nil, err
 	}
