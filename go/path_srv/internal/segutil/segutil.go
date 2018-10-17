@@ -15,32 +15,32 @@
 package segutil
 
 import (
+	"context"
+
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/revcache"
 )
 
 // NoRevokedHopIntf returns true if there is no on-segment revocation.
-func NoRevokedHopIntf(revCache revcache.RevCache, s *seg.PathSegment) bool {
+func NoRevokedHopIntf(ctx context.Context, revCache revcache.RevCache,
+	s *seg.PathSegment) (bool, error) {
+
 	revKeys := make(map[revcache.Key]struct{})
 	addRevKeys([]*seg.PathSegment{s}, revKeys, true)
-	for rk := range revKeys {
-		if _, ok := revCache.Get(&rk); ok {
-			return false
-		}
-	}
-	return true
+	revs, err := revCache.GetAll(ctx, revKeys)
+	return len(revs) == 0, err
 }
 
 // RelevantRevInfos finds all revocations for the given segments.
-func RelevantRevInfos(revCache revcache.RevCache,
-	allSegs ...[]*seg.PathSegment) []*path_mgmt.SignedRevInfo {
+func RelevantRevInfos(ctx context.Context, revCache revcache.RevCache,
+	allSegs ...[]*seg.PathSegment) ([]*path_mgmt.SignedRevInfo, error) {
 
 	revKeys := make(map[revcache.Key]struct{})
 	for _, segs := range allSegs {
 		addRevKeys(segs, revKeys, false)
 	}
-	return revcache.GetAll(revCache, revKeys)
+	return revCache.GetAll(ctx, revKeys)
 }
 
 // addRevKeys adds all revocations keys for the given segments to the keys set.

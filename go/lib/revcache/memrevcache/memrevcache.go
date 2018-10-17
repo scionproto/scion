@@ -15,6 +15,7 @@
 package memrevcache
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -39,10 +40,13 @@ func New(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
 	}
 }
 
-func (c *memRevCache) Get(k *revcache.Key) (*path_mgmt.SignedRevInfo, bool) {
+func (c *memRevCache) Get(ctx context.Context,
+	k *revcache.Key) (*path_mgmt.SignedRevInfo, bool, error) {
+
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	return c.get(k.String())
+	v, ok := c.get(k.String())
+	return v, ok, nil
 }
 
 func (c *memRevCache) get(key string) (*path_mgmt.SignedRevInfo, bool) {
@@ -53,7 +57,21 @@ func (c *memRevCache) get(key string) (*path_mgmt.SignedRevInfo, bool) {
 	return obj.(*path_mgmt.SignedRevInfo), true
 }
 
-func (c *memRevCache) Insert(rev *path_mgmt.SignedRevInfo) bool {
+func (c *memRevCache) GetAll(ctx context.Context,
+	keys map[revcache.Key]struct{}) ([]*path_mgmt.SignedRevInfo, error) {
+
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	revs := make([]*path_mgmt.SignedRevInfo, 0, len(keys))
+	for k := range keys {
+		if revInfo, ok := c.get(k.String()); ok {
+			revs = append(revs, revInfo)
+		}
+	}
+	return revs, nil
+}
+
+func (c *memRevCache) Insert(ctx context.Context, rev *path_mgmt.SignedRevInfo) (bool, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	newInfo, err := rev.RevInfo()
@@ -62,14 +80,14 @@ func (c *memRevCache) Insert(rev *path_mgmt.SignedRevInfo) bool {
 	}
 	ttl := newInfo.Expiration().Sub(time.Now())
 	if ttl <= 0 {
-		return false
+		return false, nil
 	}
 	k := revcache.NewKey(newInfo.IA(), newInfo.IfID)
 	key := k.String()
 	val, ok := c.get(key)
 	if !ok {
 		c.c.Set(key, rev, ttl)
-		return true
+		return true, nil
 	}
 	existingInfo, err := val.RevInfo()
 	if err != nil {
@@ -77,7 +95,7 @@ func (c *memRevCache) Insert(rev *path_mgmt.SignedRevInfo) bool {
 	}
 	if newInfo.Timestamp().After(existingInfo.Timestamp()) {
 		c.c.Set(key, rev, ttl)
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }

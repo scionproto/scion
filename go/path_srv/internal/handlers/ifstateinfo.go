@@ -61,5 +61,8 @@ func (h *ifStateInfoHandler) verifyAndStore(ctx context.Context, rev *path_mgmt.
 		h.logger.Error("[ifStateHandler] Failed to verify revInfo", "rev", rev, "err", err)
 		return
 	}
-	h.revCache.Insert(rev)
+	_, err = h.revCache.Insert(ctx, rev)
+	if err != nil {
+		h.logger.Error("[ifStateHandler] Failed to insert revInfo", "rev", rev, "err", err)
+	}
 }

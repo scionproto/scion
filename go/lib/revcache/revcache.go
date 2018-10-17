@@ -15,6 +15,7 @@
 package revcache
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -44,28 +45,19 @@ func (k Key) String() string {
 type RevCache interface {
 	// Get item with key k from the cache. Returns the item or nil,
 	// and a bool indicating whether the key was found.
-	Get(k *Key) (*path_mgmt.SignedRevInfo, bool)
+	Get(ctx context.Context, k *Key) (*path_mgmt.SignedRevInfo, bool, error)
+	// GetAll gets all revocations for the given keys.
+	GetAll(ctx context.Context, keys map[Key]struct{}) ([]*path_mgmt.SignedRevInfo, error)
 	// Insert inserts or updates the given revocation into the cache.
 	// Returns whether an insert was performed.
-	Insert(rev *path_mgmt.SignedRevInfo) bool
-}
-
-// GetAll gets all revocations for the given keys from the given revCache.
-func GetAll(revCache RevCache, keys map[Key]struct{}) []*path_mgmt.SignedRevInfo {
-	revs := make([]*path_mgmt.SignedRevInfo, 0, len(keys))
-	for k := range keys {
-		if revInfo, ok := revCache.Get(&k); ok {
-			revs = append(revs, revInfo)
-		}
-	}
-	return revs
+	Insert(ctx context.Context, rev *path_mgmt.SignedRevInfo) (bool, error)
 }
 
 // FilterNew filters the given revocations against the revCache, only the ones which are not in the
 // cache are returned.
 // Note: Modifies revocations slice.
-func FilterNew(revCache RevCache,
-	revocations []*path_mgmt.SignedRevInfo) []*path_mgmt.SignedRevInfo {
+func FilterNew(ctx context.Context, revCache RevCache,
+	revocations []*path_mgmt.SignedRevInfo) ([]*path_mgmt.SignedRevInfo, error) {
 
 	filtered := revocations[:0]
 	for _, r := range revocations {
@@ -73,7 +65,10 @@ func FilterNew(revCache RevCache,
 		if err != nil {
 			panic(fmt.Sprintf("Revocation should have been sanitized, err: %s", err))
 		}
-		existingRev, ok := revCache.Get(NewKey(info.IA(), info.IfID))
+		existingRev, ok, err := revCache.Get(ctx, NewKey(info.IA(), info.IfID))
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			filtered = append(filtered, r)
 			continue
@@ -86,7 +81,7 @@ func FilterNew(revCache RevCache,
 			filtered = append(filtered, r)
 		}
 	}
-	return filtered
+	return filtered, nil
 }
 
 // newerInfo returns whether the received info is newer than the existing.
