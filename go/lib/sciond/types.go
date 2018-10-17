@@ -315,49 +315,23 @@ type PathInterface struct {
 }
 
 func NewPathInterface(str string) (PathInterface, error) {
-	var err error
-	var ia addr.IA
-	// Parse ISD
-	dashParts := strings.Split(str, "-")
-	ia.I, err = addr.ISDFromString(dashParts[0])
+	tokens := strings.Split(str, "#")
+	if len(tokens) != 2 {
+		return PathInterface{},
+			common.NewBasicError("Failed to parse interface spec", nil, "value", str)
+	}
+	var iface PathInterface
+	ia, err := addr.IAFromString(tokens[0])
 	if err != nil {
-		return PathInterface{},
-			common.NewBasicError("Failed to parse ISD", err, "value", str)
+		return PathInterface{}, err
 	}
-	if len(dashParts) == 1 {
-		return PathInterface{RawIsdas: ia.IAInt()}, nil
-	}
-	if len(dashParts) != 2 {
-		return PathInterface{},
-			common.NewBasicError("Failed to parse path interface, multiple dashes found", nil,
-				"value", str)
-	}
-	// Parse AS if present
-	hashParts := strings.Split(dashParts[1], "#")
-	ia.A, err = addr.ASFromString(hashParts[0])
+	iface.RawIsdas = ia.IAInt()
+	ifid, err := strconv.ParseUint(tokens[1], 10, 64)
 	if err != nil {
-		return PathInterface{}, common.NewBasicError("Failed to parse AS", err, "value", str)
+		return PathInterface{}, err
 	}
-	if len(hashParts) == 1 {
-		return PathInterface{RawIsdas: ia.IAInt()}, nil
-	}
-	if len(hashParts) != 2 {
-		return PathInterface{},
-			common.NewBasicError("Failed to parse path interface, multiple hashes found", nil,
-				"value", str)
-	}
-	// Parse IfID if present
-	ifid, err := strconv.ParseUint(hashParts[1], 10, 64)
-	if err != nil {
-		return PathInterface{}, common.NewBasicError("Failed to parse ifid", err, "value", str)
-	}
-	// IfID cannot be set when the AS is a wildcard
-	if ifid != 0 && ia.A == 0 {
-		return PathInterface{},
-			common.NewBasicError("Failed to parse path interface, IfID must be 0",
-				nil, "value", str)
-	}
-	return PathInterface{RawIsdas: ia.IAInt(), IfID: common.IFIDType(ifid)}, nil
+	iface.IfID = common.IFIDType(ifid)
+	return iface, nil
 }
 
 func (iface *PathInterface) ISD_AS() addr.IA {

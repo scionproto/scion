@@ -15,6 +15,8 @@
 package pathpol
 
 import (
+	"encoding/json"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -27,7 +29,7 @@ type ACL struct {
 // NewACL creates a new entry and checks for the presence of a default action
 func NewACL(entries ...*ACLEntry) (*ACL, error) {
 	lastRule := entries[len(entries)-1].Rule
-	if lastRule.IfID != 0 || lastRule.RawIsdas != 0 {
+	if lastRule.IfIDs[0] != 0 || lastRule.ISD != 0 || lastRule.AS != 0 {
 		return nil, common.NewBasicError("ACL does not have a default", nil)
 	}
 	return &ACL{Entries: entries}, nil
@@ -48,18 +50,26 @@ func (a *ACL) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	return resultSet
 }
 
+func (a *ACL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(a.Entries)
+}
+
+func (a *ACL) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &a.Entries)
+}
+
 func (a *ACL) evalPath(path *spathmeta.AppPath) ACLAction {
-	for _, iface := range path.Entry.Path.Interfaces {
-		if a.evalInterface(iface) == Deny {
+	for i, iface := range path.Entry.Path.Interfaces {
+		if a.evalInterface(iface, i%2 != 0) == Deny {
 			return Deny
 		}
 	}
 	return Allow
 }
 
-func (a *ACL) evalInterface(iface sciond.PathInterface) ACLAction {
+func (a *ACL) evalInterface(iface sciond.PathInterface, ingress bool) ACLAction {
 	for _, aclEntry := range a.Entries {
-		if spathmeta.PPWildcardEquals(iface, *aclEntry.Rule) {
+		if aclEntry.Rule.pathIFMatch(iface, ingress) {
 			return aclEntry.Action
 		}
 	}
@@ -68,7 +78,7 @@ func (a *ACL) evalInterface(iface sciond.PathInterface) ACLAction {
 
 type ACLEntry struct {
 	Action ACLAction
-	Rule   *sciond.PathInterface
+	Rule   *HopPredicate
 }
 
 // ACLAction has two options: Deny and Allow

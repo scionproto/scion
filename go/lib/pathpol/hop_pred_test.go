@@ -11,70 +11,96 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package sciond
+
+package pathpol
 
 import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/xtest"
+	"github.com/scionproto/scion/go/lib/common"
 )
 
-func TestNewPathInterface(t *testing.T) {
+func TestNewHopPredicate(t *testing.T) {
 	testCases := []struct {
 		Name  string
 		In    string
-		PI    PathInterface
+		HP    *HopPredicate
 		Valid bool
 	}{
 		{
+			Name:  "ISD wildcard",
+			In:    "0",
+			HP:    &HopPredicate{ISD: 0, AS: 0, IfIDs: []common.IFIDType{0}},
+			Valid: true,
+		},
+		{
 			Name:  "AS, IF wildcard omitted",
 			In:    "1",
-			Valid: false,
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
+			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted",
 			In:    "1-0",
-			Valid: false,
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
+			Valid: true,
 		},
 		{
 			Name:  "basic wildcard",
 			In:    "1-0#0",
-			PI:    mustPathInterface(t, "1-0#0"),
+			HP:    &HopPredicate{ISD: 1, AS: 0, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "AS wildcard, interface set",
 			In:    "1-0#1",
-			PI:    mustPathInterface(t, "1-0#1"),
-			Valid: true,
+			Valid: false,
 		},
 		{
 			Name:  "ISD wildcard, AS set",
 			In:    "0-1#0",
-			PI:    mustPathInterface(t, "0-1#0"),
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{0}},
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set, interface set",
-			In:    "0-1#1",
-			PI:    mustPathInterface(t, "0-1#1"),
+			In:    "0-1#2",
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{2}},
 			Valid: true,
 		},
 		{
 			Name:  "ISD wildcard, AS set and interface omitted",
 			In:    "0-1",
-			Valid: false,
+			HP:    &HopPredicate{ISD: 0, AS: 1, IfIDs: []common.IFIDType{0}},
+			Valid: true,
 		},
 		{
 			Name:  "IF wildcard omitted, AS set",
-			In:    "1-1",
+			In:    "1-2",
+			HP:    &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{0}},
+			Valid: true,
+		},
+		{
+			Name:  "two IfIDs",
+			In:    "1-2#3,4",
+			HP:    &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{3, 4}},
+			Valid: true,
+		},
+		{
+			Name:  "three IfIDs",
+			In:    "1-2#3,4,5",
 			Valid: false,
 		},
 		{
 			Name:  "bad -",
 			In:    "1-1-0",
+			Valid: false,
+		},
+		{
+			Name:  "missing AS",
+			In:    "1#2",
 			Valid: false,
 		},
 		{
@@ -88,6 +114,16 @@ func TestNewPathInterface(t *testing.T) {
 			Valid: false,
 		},
 		{
+			Name:  "bad second IF",
+			In:    "1-2#1,3a",
+			Valid: false,
+		},
+		{
+			Name:  "AS wildcard, second IF defined",
+			In:    "1-0#1,3",
+			Valid: false,
+		},
+		{
 			Name:  "bad AS",
 			In:    "1-12323433243534#0",
 			Valid: false,
@@ -98,13 +134,14 @@ func TestNewPathInterface(t *testing.T) {
 			Valid: false,
 		},
 	}
-	Convey("TestNewPathInterface", t, func() {
+
+	Convey("TestNewHopPredicate", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				pi, err := NewPathInterface(tc.In)
+				hp, err := HopPredicateFromString(tc.In)
 				if tc.Valid {
 					SoMsg("err", err, ShouldBeNil)
-					SoMsg("pi", pi, ShouldResemble, tc.PI)
+					SoMsg("hp", hp, ShouldResemble, tc.HP)
 				} else {
 					SoMsg("err", err, ShouldNotBeNil)
 				}
@@ -112,9 +149,10 @@ func TestNewPathInterface(t *testing.T) {
 		}
 	})
 }
-func mustPathInterface(t *testing.T, str string) PathInterface {
-	t.Helper()
-	pi, err := NewPathInterface(str)
-	xtest.FailOnErr(t, err)
-	return pi
+
+func TestHopPredicateString(t *testing.T) {
+	Convey("TestString", t, func() {
+		hp, _ := HopPredicateFromString("1-2#3,4")
+		SoMsg("hp", hp.String(), ShouldEqual, "1-2#3,4")
+	})
 }
