@@ -144,7 +144,7 @@ type Option struct {
 }
 
 // Sequence is a list of path interfaces that a path should match
-type Sequence []HopPredicate
+type Sequence []*HopPredicate
 
 // NewSequence creates a new sequence from a list of string tokens
 func NewSequence(tokens []string) (Sequence, error) {
@@ -154,7 +154,7 @@ func NewSequence(tokens []string) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
-		s = append(s, *hp)
+		s = append(s, hp)
 	}
 	return s, nil
 }
@@ -179,7 +179,7 @@ func (s Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 // there is one pathInterface entry and one hopPredicate entry. For each interface in between there
 // are two pathInterface entries and one hopPredicate entry.
 // pathMatches tries to match every interface with its corresponding hopPredicate.
-func pathMatches(pathInterfaces []sciond.PathInterface, hopPredicates []HopPredicate) bool {
+func pathMatches(pathInterfaces []sciond.PathInterface, hopPredicates Sequence) bool {
 	// TODO(worxli): implement *, ? and +
 	if badLength(len(pathInterfaces), len(hopPredicates)) {
 		return false

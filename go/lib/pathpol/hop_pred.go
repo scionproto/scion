@@ -125,13 +125,7 @@ func (hp *HopPredicate) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	hp, err = HopPredicateFromString(str)
-	// if err != nil {
-	// 	return err
-	// }
-	// hp.ISD = nhp.ISD
-	// hp.AS = nhp.AS
-	// hp.IfIDs = nhp.IfIDs
-	return nil
+	return err
 }
 
 func parseIfID(str string) (common.IFIDType, error) {
