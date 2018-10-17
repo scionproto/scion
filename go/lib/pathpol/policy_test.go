@@ -723,5 +723,5 @@ func mustPolicyFromExtPolicy(t *testing.T, extPolicy *ExtPolicy, extended []*Ext
 func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)
 	xtest.FailOnErr(t, err)
-	return &hp
+	return hp
 }

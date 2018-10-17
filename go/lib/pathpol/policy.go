@@ -154,7 +154,7 @@ func NewSequence(tokens []string) (Sequence, error) {
 		if err != nil {
 			return nil, err
 		}
-		s = append(s, hp)
+		s = append(s, *hp)
 	}
 	return s, nil
 }
@@ -186,7 +186,7 @@ func pathMatches(pathInterfaces []sciond.PathInterface, hopPredicates []HopPredi
 	}
 	for i := range pathInterfaces {
 		hopIdx := (i + 1) / 2
-		if !pathIFMatchHopPred(pathInterfaces[i], hopPredicates[hopIdx], i%2 != 0) {
+		if !hopPredicates[hopIdx].pathIFMatch(pathInterfaces[i], i%2 != 0) {
 			return false
 		}
 	}

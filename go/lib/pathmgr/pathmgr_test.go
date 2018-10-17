@@ -76,7 +76,7 @@ func TestQueryFilter(t *testing.T) {
 		pp, err := pathpol.HopPredicateFromString("0-0#0")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
-			{Action: pathpol.Allow, Rule: &pp},
+			{Action: pathpol.Allow, Rule: pp},
 			denyEntry,
 		}}}
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
@@ -90,7 +90,7 @@ func TestQueryFilter(t *testing.T) {
 		pp, err := pathpol.HopPredicateFromString("1-ff00:0:134#1910")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
-			{Action: pathpol.Allow, Rule: &pp},
+			{Action: pathpol.Allow, Rule: pp},
 			allowEntry,
 		}}}
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
@@ -104,7 +104,7 @@ func TestQueryFilter(t *testing.T) {
 		pp, err := pathpol.HopPredicateFromString("1-ff00:0:132#1910")
 		xtest.FailOnErr(t, err)
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
-			{Action: pathpol.Deny, Rule: &pp},
+			{Action: pathpol.Deny, Rule: pp},
 			denyEntry,
 		}}}
 		aps := pm.QueryFilter(srcIA, dstIA, policy)
@@ -122,7 +122,7 @@ func TestACLPolicyFilter(t *testing.T) {
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{
 				Action: pathpol.Deny,
-				Rule:   &pp,
+				Rule:   pp,
 			},
 			allowEntry,
 		}}}
@@ -140,9 +140,9 @@ func TestACLPolicyFilter(t *testing.T) {
 		policy := &pathpol.Policy{ACL: &pathpol.ACL{Entries: []*pathpol.ACLEntry{
 			{
 				Action: pathpol.Deny,
-				Rule:   &pp,
+				Rule:   pp,
 			},
-			{Action: pathpol.Deny, Rule: &pp2},
+			{Action: pathpol.Deny, Rule: pp2},
 			allowEntry,
 		}}}
 		aps := pm.QueryFilter(srcIA, dstIA, policy)

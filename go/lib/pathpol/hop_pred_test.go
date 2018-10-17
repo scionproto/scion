@@ -141,7 +141,7 @@ func TestNewHopPredicate(t *testing.T) {
 				hp, err := HopPredicateFromString(tc.In)
 				if tc.Valid {
 					SoMsg("err", err, ShouldBeNil)
-					SoMsg("hp", &hp, ShouldResemble, tc.HP)
+					SoMsg("hp", hp, ShouldResemble, tc.HP)
 				} else {
 					SoMsg("err", err, ShouldNotBeNil)
 				}
