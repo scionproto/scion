@@ -44,9 +44,10 @@ var (
 func Test_Load(t *testing.T) {
 	Convey("Load keyconf", t, func() {
 
-		checkConf := func(c *Conf, asSig, decrypt, mstr0, mstr1, issSig, online,
+		checkConf := func(c *Conf, err error, asSig, decrypt, mstr0, mstr1, issSig, online,
 			offline common.RawBytes) {
 
+			SoMsg("err", err, ShouldBeNil)
 			SoMsg("mstr0", c.Master.Key0, ShouldResemble, mstr0)
 			SoMsg("mstr1", c.Master.Key1, ShouldResemble, mstr1)
 			SoMsg("decrypt", c.DecryptKey, ShouldResemble, decrypt)
@@ -58,28 +59,23 @@ func Test_Load(t *testing.T) {
 
 		Convey("Load all", func() {
 			c, err := Load("testdata", true, true, true, true)
-			SoMsg("err", err, ShouldBeNil)
-			checkConf(c, asSig, decrypt, mstr0, mstr1, issSig, online, offline)
+			checkConf(c, err, asSig, decrypt, mstr0, mstr1, issSig, online, offline)
 		})
 		Convey("Load master keys", func() {
 			c, err := Load("testdata", false, false, false, true)
-			SoMsg("err", err, ShouldBeNil)
-			checkConf(c, asSig, decrypt, mstr0, mstr1, nil, nil, nil)
+			checkConf(c, err, asSig, decrypt, mstr0, mstr1, nil, nil, nil)
 		})
 		Convey("Load issuer signing key", func() {
 			c, err := Load("testdata", true, false, false, false)
-			SoMsg("err", err, ShouldBeNil)
-			checkConf(c, asSig, decrypt, nil, nil, issSig, nil, nil)
+			checkConf(c, err, asSig, decrypt, nil, nil, issSig, nil, nil)
 		})
 		Convey("Load online root key", func() {
 			c, err := Load("testdata", false, true, false, false)
-			SoMsg("err", err, ShouldBeNil)
-			checkConf(c, asSig, decrypt, nil, nil, nil, online, nil)
+			checkConf(c, err, asSig, decrypt, nil, nil, nil, online, nil)
 		})
 		Convey("Load offline root key", func() {
 			c, err := Load("testdata", false, false, true, false)
-			SoMsg("err", err, ShouldBeNil)
-			checkConf(c, asSig, decrypt, nil, nil, nil, nil, offline)
+			checkConf(c, err, asSig, decrypt, nil, nil, nil, nil, offline)
 		})
 	})
 }
