@@ -360,13 +360,7 @@ func (rp *RtrPkt) IncPath() (bool, error) {
 	rp.infoF = infoF
 	rp.hopF = hopF
 	rp.IncrementedPath = true
-	if segChgd {
-		// Extract new ConsDir flag.
-		rp.consDirFlag = nil
-		if _, err = rp.ConsDirFlag(); err != nil {
-			return segChgd, err
-		}
-	}
+	rp.consDirFlag = &infoF.ConsDir
 	// Extract the next interface ID.
 	rp.ifNext = nil
 	if _, err = rp.IFNext(); err != nil {
