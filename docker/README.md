@@ -51,11 +51,6 @@ or
 Make sure you collect any relevant data from the container before running `./docker.sh stop` as
 this stops and removes the container. The temp directory will still be available.
 
-In general:
-
--   Make sure the host zookeeper instance is stopped
--   Make sure you do not create a topology in an already used tmp folder
-
 See `./docker.sh help` for further commands/usage.
 
 ## Notes:
@@ -64,3 +59,5 @@ See `./docker.sh help` for further commands/usage.
     review/etc, make sure your working directory is clean before building the image. Any new files
     must be at least added to git, even if you haven't committed them, otherwise docker.sh will
     skip them.
+-   When running `./scion.sh topology -d` in a container, make sure the zookeeper instance on your
+    host is stopped.

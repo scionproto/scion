@@ -111,7 +111,7 @@ cmd_start() {
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local cntr="scion"
-    if docker container inspect "$cntr" &>/dev/null; then 
+    if docker container inspect "$cntr" &>/dev/null; then
         echo "Removing stale container"
         docker rm -f "$cntr"
     fi
