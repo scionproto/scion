@@ -14,7 +14,9 @@ RUN set -ex; \
     ln -s /usr/bin/eatmydata /usr/local/bin/pip; \
     ln -s /usr/bin/eatmydata /usr/local/bin/pip3
 
-RUN useradd -s /bin/bash scion
+RUN useradd -u 30041 -s /bin/bash scion
+RUN groupadd -g 939 --system docker
+RUN usermod -aG docker scion
 RUN echo "scion ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/scion
 
 # Provide tmpfs at /run/shm while inside non-privileged docker
@@ -69,6 +71,17 @@ RUN set -ex; \
     cd ../../; \
     rm -r go ~/go/.cache ~/go/pkg/
 
+# Install docker and docker-compose
+COPY tools/install_docker install_docker
+RUN sudo ./install_docker && rm install_docker && sudo usermod -aG docker scion
+
+# Install su-exec
+ARG SU_EXEC_COMMIT=e9664105e1f0b48024e52f454c6b78d15b5daa57
+RUN set -e; mkdir su-exec; \
+    curl -SL https://github.com/anapaya/su-exec/archive/${SU_EXEC_COMMIT}.tar.gz | tar xz -C su-exec --strip-components=1; \
+    make -C su-exec; sudo mv su-exec/su-exec /sbin/; \
+    rm -r su-exec;
+
 #################################################################################
 ## Dependencies are now installed, carry on with the rest.
 #################################################################################
@@ -84,5 +97,7 @@ RUN sudo sh -c "echo 'JAVA_OPTS=-Xmx150m # Added by Dockerfile.base' >> /etc/zoo
 # Fix ownership one last time:
 RUN sudo chown -R scion: $HOME
 
+COPY docker/docker-entrypoint.sh /
+
 CMD []
-ENTRYPOINT ["/bin/bash", "-l"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

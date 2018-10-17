@@ -9,11 +9,16 @@ cmd_help() {
 	_EOF
 }
 
+cmd_scion() {
+    COMPOSE_FILE="gen/scion-dc.yml" docker-compose --no-ansi "$@"
+}
+
 PROGRAM="${0##*/}"
-DC_ENV="$1"
+COMMAND="$1"
 shift
 
-case "$DC_ENV" in
-    "scion") COMPOSE_FILE="gen/scion-dc.yml" docker-compose --no-ansi "$@" ;;
-    *)  cmd_help; exit 1 ;;
+case "$COMMAND" in
+	scion)
+	    "cmd_$COMMAND" "$@" ;;
+	*)  cmd_help; exit 1 ;;
 esac

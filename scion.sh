@@ -11,10 +11,8 @@ cmd_topology() {
     local zkclean
     echo "Shutting down: $(./scion.sh stop)"
     supervisor/supervisor.sh shutdown
-    mkdir -p logs traces
-    [ -e gen ] && rm -r gen
-    [ -e gen-cache ] && rm -r gen-cache
-    mkdir gen-cache
+    mkdir -p logs traces gen gen-cache
+    find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
     if [ "$1" = "zkclean" ]; then
         shift
         zkclean="y"
@@ -49,7 +47,7 @@ cmd_run() {
     echo "Running the network..."
     # Run with docker-compose or supervisor
     if is_docker; then
-        ./tools/quiet ./tools/dc.sh scion up -d
+        ./tools/quiet ./tools/dc scion up -d
     else
         ./tools/quiet ./supervisor/supervisor.sh start all
     fi
@@ -58,20 +56,24 @@ cmd_run() {
 run_zk() {
     if is_docker; then
         host_zk_stop
-        ./tools/dc.sh scion up -d zookeeper
+        ./tools/dc scion up -d zookeeper
     else
         host_zk_start
     fi
 }
 
 host_zk_start() {
-    [ -e /var/run/dbus/system_bus_socket ] || return 0
-    systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
+    if is_running_in_docker; then
+        sudo service zookeeper start
+    else
+        systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
+    fi
 }
 
 host_zk_stop() {
-    [ -e /var/run/dbus/system_bus_socket ] || return 0
-    if systemctl is-active --quiet zookeeper; then
+    if is_running_in_docker; then
+        sudo service zookeeper stop
+    elif systemctl is-active --quiet zookeeper; then
         sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
     fi
 }
@@ -83,7 +85,7 @@ cmd_mstart() {
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         host_zk_stop
-        ./tools/dc.sh scion up -d $services
+        ./tools/dc scion up -d $services
     else
         host_zk_start
         supervisor/supervisor.sh mstart "$@"
@@ -104,7 +106,7 @@ run_setup() {
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
     if is_docker; then
-        ./tools/quiet ./tools/dc.sh scion down
+        ./tools/quiet ./tools/dc scion down
     else
         ./tools/quiet ./supervisor/supervisor.sh stop all
     fi
@@ -120,7 +122,7 @@ cmd_mstop() {
     if is_docker; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        ./tools/dc.sh scion stop $services
+        ./tools/dc scion stop $services
     else
         supervisor/supervisor.sh mstop "$@"
     fi
@@ -134,7 +136,7 @@ cmd_mstatus() {
     if is_docker; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        out=$(./tools/dc.sh scion ps $services | tail -n +3)
+        out=$(./tools/dc scion ps $services | tail -n +3)
         rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
         tscount=$(echo "$services" | wc -w) # Number of all globed services
         echo "$out" | grep -v '\<Up\>'
@@ -170,7 +172,7 @@ glob_supervisor() {
 glob_docker() {
     [ $# -ge 1 ] || set -- '*'
     matches=
-    for proc in $(./tools/dc.sh scion config --services); do
+    for proc in $(./tools/dc scion config --services); do
         for spec in "$@"; do
             if glob_match $proc "$spec"; then
                 matches="$matches $proc"
@@ -195,6 +197,10 @@ is_docker() {
 
 is_supervisor() {
    [ -f gen/dispatcher/supervisord.conf ]
+}
+
+is_running_in_docker() {
+    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
 }
 
 cmd_test(){
