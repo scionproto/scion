@@ -149,9 +149,8 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 
 	revs, err := segutil.RelevantRevInfos(ctx, h.revCache, upSegs, coreSegs, downSegs)
 	if err != nil {
-		h.logger.Error("Failed to find relevant revocations", "err", err)
-		h.sendEmptySegReply(ctx, segReq, msger)
-		return
+		h.logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
+		// the client might still be able to use the segments so continue here.
 	}
 	recs := &path_mgmt.SegRecs{
 		Recs:      h.collectSegs(upSegs, coreSegs, downSegs),

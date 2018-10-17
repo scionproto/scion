@@ -398,7 +398,8 @@ func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
 			// so a cache hit implies revocation is still active.
 			_, ok, err := f.revocationCache.Get(ctx, revcache.NewKey(iface.ISD_AS(), iface.IfID))
 			if err != nil {
-				return nil, err
+				f.logger.Error("Failed to get revocation", "err", err)
+				// continue, the client might still get some usable paths like this.
 			}
 			revoked = revoked || ok
 		}
