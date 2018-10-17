@@ -128,8 +128,8 @@ func (s *SegSyncer) fetchCoreSegsFromDB(ctx context.Context) ([]*seg.PathSegment
 		return nil, err
 	}
 	segs := query.Results(res).Segs()
-	segs.FilterSegs(func(ps *seg.PathSegment) bool {
-		return segutil.NoRevokedHopIntf(s.revCache, ps)
+	segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
+		return segutil.NoRevokedHopIntf(ctx, s.revCache, ps)
 	})
 	// Sort by number of hops, i.e. AS entries.
 	sort.Slice(segs, func(i, j int) bool {
@@ -151,7 +151,10 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 	if len(queryResult) == 0 {
 		return 0, nil
 	}
-	msgs := s.createMessages(queryResult)
+	msgs, err := s.createMessages(ctx, queryResult)
+	if err != nil {
+		return 0, err
+	}
 	sent := 0
 	for _, msgT := range msgs {
 		err := s.msger.SendSegSync(ctx, msgT.msg, cPs, messenger.NextId())
@@ -167,13 +170,19 @@ func (s *SegSyncer) runInternal(ctx context.Context, cPs net.Addr) (int, error) 
 // FIXME(lukedirtwalker): Sending a message per segment is quite a big overhead.
 // Depending on the underlying transport we could send all segments in a single message.
 // We should detect the transport and then split messages depending on the transport layer.
-func (s *SegSyncer) createMessages(qrs []*query.Result) []*msgWithTimestamp {
+func (s *SegSyncer) createMessages(ctx context.Context,
+	qrs []*query.Result) ([]*msgWithTimestamp, error) {
+
 	msgs := make([]*msgWithTimestamp, 0, len(qrs))
 	for _, qr := range qrs {
+		revs, err := segutil.RelevantRevInfos(ctx, s.revCache, []*seg.PathSegment{qr.Seg})
+		if err != nil {
+			return nil, err
+		}
 		msg := &path_mgmt.SegSync{
 			SegRecs: &path_mgmt.SegRecs{
 				Recs:      []*seg.Meta{seg.NewMeta(qr.Seg, proto.PathSegType_down)},
-				SRevInfos: segutil.RelevantRevInfos(s.revCache, []*seg.PathSegment{qr.Seg}),
+				SRevInfos: revs,
 			},
 		}
 		msgs = append(msgs, &msgWithTimestamp{
@@ -181,7 +190,7 @@ func (s *SegSyncer) createMessages(qrs []*query.Result) []*msgWithTimestamp {
 			latestUpdate: qr.LastUpdate,
 		})
 	}
-	return msgs
+	return msgs, nil
 }
 
 // msgWithTimestamp is a SegSync message

@@ -282,7 +282,10 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	revReply := sciond.RevReply{}
 	revInfo, err := h.verifySRevInfo(workCtx, revNotification.SRevInfo)
 	if err == nil {
-		h.RevCache.Insert(revNotification.SRevInfo)
+		_, err = h.RevCache.Insert(workCtx, revNotification.SRevInfo)
+		if err != nil {
+			logger.Error("[SCIOND:RevNotificationHandler] Failed to insert revocations", "err", err)
+		}
 	}
 	switch {
 	case isValid(err):

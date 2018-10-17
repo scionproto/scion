@@ -363,8 +363,7 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		}
 	}
 	paths := buildPathsToAllDsts(req, ups, cores, downs)
-	paths = f.filterRevokedPaths(paths)
-	return paths, nil
+	return f.filterRevokedPaths(ctx, paths)
 }
 
 func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
@@ -388,22 +387,27 @@ func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
 // filterRevokedPaths returns a new slice containing only those paths that do
 // not have revoked interfaces in their forwarding path. Only the interfaces
 // that have traffic going through them are checked.
-func (f *fetcherHandler) filterRevokedPaths(paths []*combinator.Path) []*combinator.Path {
+func (f *fetcherHandler) filterRevokedPaths(ctx context.Context,
+	paths []*combinator.Path) ([]*combinator.Path, error) {
+
 	var newPaths []*combinator.Path
 	for _, path := range paths {
 		revoked := false
 		for _, iface := range path.Interfaces {
 			// cache automatically expires outdated revocations every second,
 			// so a cache hit implies revocation is still active.
-			if _, ok := f.revocationCache.Get(revcache.NewKey(iface.ISD_AS(), iface.IfID)); ok {
-				revoked = true
+			_, ok, err := f.revocationCache.Get(ctx, revcache.NewKey(iface.ISD_AS(), iface.IfID))
+			if err != nil {
+				f.logger.Error("Failed to get revocation", "err", err)
+				// continue, the client might still get some usable paths like this.
 			}
+			revoked = revoked || ok
 		}
 		if !revoked {
 			newPaths = append(newPaths, path)
 		}
 	}
-	return newPaths
+	return newPaths, nil
 }
 
 func (f *fetcherHandler) shouldRefetchSegs(ctx context.Context,
@@ -447,7 +451,9 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 		}
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
-		f.revocationCache.Insert(rev)
+		if _, err := f.revocationCache.Insert(ctx, rev); err != nil {
+			f.logger.Error("Unable to isnert revocation into revcache", "rev", rev, "err", err)
+		}
 	}
 	segErr := func(s *seg.Meta, err error) {
 		f.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
@@ -455,7 +461,12 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
 		f.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
-	revInfos := revcache.FilterNew(f.revocationCache, reply.Recs.SRevInfos)
+	revInfos, err := revcache.FilterNew(ctx, f.revocationCache, reply.Recs.SRevInfos)
+	if err != nil {
+		f.logger.Error("Failed to determine new revocations", "err", err)
+		// Assume all are new
+		revInfos = reply.Recs.SRevInfos
+	}
 	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, revInfos,
 		verifiedSeg, verifiedRev, segErr, revErr)
 	if len(insertedSegmentIDs) > 0 {

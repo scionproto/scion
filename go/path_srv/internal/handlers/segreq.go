@@ -128,7 +128,12 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 	if segs.Recs != nil {
 		logSegRecs(h.logger, "[segReqHandler]", cPSAddr, segs.Recs)
 		recs = segs.Recs.Recs
-		revInfos = revcache.FilterNew(h.revCache, segs.Recs.SRevInfos)
+		revInfos, err = revcache.FilterNew(ctx, h.revCache, segs.Recs.SRevInfos)
+		if err != nil {
+			h.logger.Error("[segReqHandler] Failed to filter new revocations", "err", err)
+			// in case of error we just assume all of them are new and continue.
+			revInfos = segs.Recs.SRevInfos
+		}
 		h.verifyAndStore(ctx, cPSAddr, recs, revInfos)
 		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
 		if _, err := h.pathDB.InsertNextQuery(ctx, dst,
@@ -142,15 +147,20 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
 
+	revs, err := segutil.RelevantRevInfos(ctx, h.revCache, upSegs, coreSegs, downSegs)
+	if err != nil {
+		h.logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
+		// the client might still be able to use the segments so continue here.
+	}
 	recs := &path_mgmt.SegRecs{
 		Recs:      h.collectSegs(upSegs, coreSegs, downSegs),
-		SRevInfos: segutil.RelevantRevInfos(h.revCache, upSegs, coreSegs, downSegs),
+		SRevInfos: revs,
 	}
 	reply := &path_mgmt.SegReply{
 		Req:  segReq,
 		Recs: recs,
 	}
-	err := msger.SendSegReply(ctx, reply, h.request.Peer, h.request.ID)
+	err = msger.SendSegReply(ctx, reply, h.request.Peer, h.request.ID)
 	if err != nil {
 		h.logger.Error("[segReqHandler] Failed to send reply!", "err", err)
 	}
