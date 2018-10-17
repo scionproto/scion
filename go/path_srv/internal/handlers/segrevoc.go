@@ -56,5 +56,8 @@ func (h *revocHandler) verifyAndStore(ctx context.Context, revocation *path_mgmt
 		h.logger.Warn("[revocHandler] couldn't verify revocation", "err", err)
 		return
 	}
-	h.revCache.Insert(revocation)
+	_, err = h.revCache.Insert(ctx, revocation)
+	if err != nil {
+		h.logger.Error("[revocHandler] Failed to insert revInfo", "rev", revocation, "err", err)
+	}
 }

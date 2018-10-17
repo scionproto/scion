@@ -82,11 +82,12 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	}
 	segs := query.Results(res).Segs()
 	// XXX(lukedirtwalker): Consider cases where segment with revoked interfaces should be returned.
-	segs.FilterSegs(func(s *seg.PathSegment) bool {
-		if !segutil.NoRevokedHopIntf(h.revCache, s) {
-			return false
+	segs.FilterSegsErr(func(s *seg.PathSegment) (bool, error) {
+		noRevoked, err := segutil.NoRevokedHopIntf(ctx, h.revCache, s)
+		if err != nil {
+			return false, err
 		}
-		return time.Now().Before(s.MaxExpiry())
+		return noRevoked && time.Now().Before(s.MaxExpiry()), nil
 	})
 	return segs, nil
 }
@@ -136,7 +137,9 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 		}
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
-		h.revCache.Insert(rev)
+		if _, err := h.revCache.Insert(ctx, rev); err != nil {
+			h.logger.Error("Unable to insert revocation into revcache", "rev", rev, "err", err)
+		}
 	}
 	segErr := func(s *seg.Meta, err error) {
 		h.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
