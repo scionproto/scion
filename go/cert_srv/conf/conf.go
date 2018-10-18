@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -58,8 +59,6 @@ type Conf struct {
 	Topo *topology.Topo
 	// ASConf is the local AS configuration.
 	ASConf *as_conf.ASConf
-	// MasterKeys holds the local AS master keys.
-	MasterKeys *as_conf.MasterKeys
 	// BindAddr is the local bind address.
 	BindAddr *snet.Addr
 	// PublicAddr is the public address.
@@ -68,8 +67,8 @@ type Conf struct {
 	Store *trust.Store
 	// TrustDB is the trust DB.
 	TrustDB *trustdb.DB
-	// keyConf contains the AS level keys used for signing and decrypting.
-	keyConf *trust.KeyConf
+	// keyConf contains the AS level keys.
+	keyConf *keyconf.Conf
 	// keyConfLock guards KeyConf, CertVer and TRCVer.
 	keyConfLock sync.RWMutex
 	// Customers is a mapping from non-core ASes assigned to this core AS to their public
@@ -111,9 +110,6 @@ func Load(id string, confDir string, stateDir string) (*Conf, error) {
 		return nil, err
 	}
 	if err := c.loadAsConf(); err != nil {
-		return nil, err
-	}
-	if err := c.loadMasterKeys(); err != nil {
 		return nil, err
 	}
 	if err := c.loadTrustDB(); err != nil {
@@ -162,9 +158,6 @@ func ReloadConf(oldConf *Conf) (*Conf, error) {
 	if err := c.loadAsConf(); err != nil {
 		return nil, err
 	}
-	if err := c.loadMasterKeys(); err != nil {
-		return nil, err
-	}
 	if err := c.loadStore(); err != nil {
 		return nil, err
 	}
@@ -209,16 +202,6 @@ func (c *Conf) loadAsConf() error {
 	return nil
 }
 
-// loadMasterKeys loads the local AS master keys.
-func (c *Conf) loadMasterKeys() error {
-	var err error
-	c.MasterKeys, err = as_conf.LoadMasterKeys(filepath.Join(c.ConfDir, "keys"))
-	if err != nil {
-		return common.NewBasicError("Unable to load master keys", err)
-	}
-	return nil
-}
-
 // loadStore loads the trust store.
 func (c *Conf) loadStore() error {
 	var err error
@@ -255,8 +238,8 @@ func (c *Conf) loadTrustDB() error {
 // loadKeyConf loads the key configuration.
 func (c *Conf) loadKeyConf() error {
 	var err error
-	c.keyConf, err = trust.LoadKeyConf(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
-		c.Topo.Core, false)
+	c.keyConf, err = keyconf.Load(filepath.Join(c.ConfDir, "keys"), c.Topo.Core,
+		c.Topo.Core, false, true)
 	if err != nil {
 		return common.NewBasicError(ErrorKeyConf, err)
 	}
