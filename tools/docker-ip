@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Small script to determine the IP of the docker interface. It will use the
+# $DOCKER_IF var if set, otherwise it defaults to docker0.
+
+set -e -o pipefail
+
+[ $# -eq 0 ] || { echo "ERROR: set \$DOCKER_IF if you want to specify an interface"; exit 1; }
+
+ip -o -4 addr ls dev ${DOCKER_IF:-docker0} 2> /dev/null | awk '{print $4}' | cut -f1 -d'/'
