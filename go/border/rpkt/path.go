@@ -134,9 +134,13 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 // mkInfoPathOffsets is a helper function to create an scmp.InfoPathOffsets
 // instance from the current packet.
 func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
+	var ifid uint16
+	if curr, err := rp.IFCurr(); curr != nil && err == nil {
+		ifid = uint16(*curr)
+	}
 	return &scmp.InfoPathOffsets{
 		InfoF: uint16(rp.CmnHdr.CurrInfoF), HopF: uint16(rp.CmnHdr.CurrHopF),
-		IfID: uint16(*rp.ifCurr), Ingress: rp.DirFrom == rcmn.DirExternal,
+		IfID: ifid, Ingress: rp.DirFrom == rcmn.DirExternal,
 	}
 }
 
