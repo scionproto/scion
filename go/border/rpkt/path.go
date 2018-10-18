@@ -344,33 +344,27 @@ func (rp *RtrPkt) IncPath() (bool, error) {
 		return false, common.NewBasicError("New HopF offset > header length", nil,
 			"max", hdrLen, "actual", hOff)
 	}
-	// Update common header, and packet's InfoF/HopF fields.
 	segChgd := iOff != rp.CmnHdr.InfoFOffBytes()
-	rp.CmnHdr.UpdatePathOffsets(rp.Raw, uint8(iOff/common.LineLen), uint8(hOff/common.LineLen))
-	rp.infoF = infoF
-	rp.hopF = hopF
-	rp.IncrementedPath = true
-	if segChgd {
-		// Extract new ConsDir flag.
-		rp.consDirFlag = nil
-		if _, err = rp.ConsDirFlag(); err != nil {
-			return segChgd, err
-		}
-	}
-	// Extract the next interface ID.
-	rp.ifNext = nil
-	if _, err = rp.IFNext(); err != nil {
-		return segChgd, err
-	}
 	// Check that there's no VERIFY_ONLY fields in the middle of a segment.
 	if vOnly > 0 && !segChgd {
 		return segChgd, common.NewBasicError("VERIFY_ONLY in middle of segment",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets(), nil))
 	}
 	// Check that the segment didn't change from a down-segment to an up-segment.
-	if origConsDir && !*rp.consDirFlag {
+	if origConsDir && !infoF.ConsDir {
 		return segChgd, common.NewBasicError("Switched from down-segment to up-segment",
 			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
+	}
+	// Update common header, and packet's InfoF/HopF fields.
+	rp.CmnHdr.UpdatePathOffsets(rp.Raw, uint8(iOff/common.LineLen), uint8(hOff/common.LineLen))
+	rp.infoF = infoF
+	rp.hopF = hopF
+	rp.IncrementedPath = true
+	rp.consDirFlag = &infoF.ConsDir
+	// Extract the next interface ID.
+	rp.ifNext = nil
+	if _, err = rp.IFNext(); err != nil {
+		return segChgd, err
 	}
 	return segChgd, nil
 }
