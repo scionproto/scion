@@ -18,11 +18,11 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/scionproto/scion/go/lib/as_conf"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/keyconf"
 )
 
 type State struct {
@@ -30,10 +30,8 @@ type State struct {
 	Store *trust.Store
 	// TrustDB is the trust DB.
 	TrustDB *trustdb.DB
-	// MasterKeys holds the local AS master keys.
-	MasterKeys *as_conf.MasterKeys
-	// keyConf contains the AS level keys used for signing and decrypting.
-	keyConf *trust.KeyConf
+	// keyConf contains the AS level keys.
+	keyConf *keyconf.Conf
 	// keyConfLock guards KeyConf, CertVer and TRCVer.
 	keyConfLock sync.RWMutex
 	// Customers is a mapping from non-core ASes assigned to this core AS to their public
@@ -51,9 +49,6 @@ type State struct {
 
 func LoadState(confDir string, isCore bool) (*State, error) {
 	s := &State{}
-	if err := s.loadMasterKeys(confDir); err != nil {
-		return nil, err
-	}
 	if err := s.loadKeyConf(confDir, isCore); err != nil {
 		return nil, err
 	}
@@ -66,20 +61,10 @@ func LoadState(confDir string, isCore bool) (*State, error) {
 	return s, nil
 }
 
-// loadMasterKeys loads the local AS master keys.
-func (s *State) loadMasterKeys(confDir string) error {
-	var err error
-	s.MasterKeys, err = as_conf.LoadMasterKeys(filepath.Join(confDir, "keys"))
-	if err != nil {
-		return common.NewBasicError("Unable to load master keys", err)
-	}
-	return nil
-}
-
 // loadKeyConf loads the key configuration.
 func (s *State) loadKeyConf(confDir string, isCore bool) error {
 	var err error
-	s.keyConf, err = trust.LoadKeyConf(filepath.Join(confDir, "keys"), isCore, isCore, false)
+	s.keyConf, err = keyconf.Load(filepath.Join(confDir, "keys"), isCore, isCore, false, true)
 	if err != nil {
 		return common.NewBasicError(ErrorKeyConf, err)
 	}
