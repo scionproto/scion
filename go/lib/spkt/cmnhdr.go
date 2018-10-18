@@ -121,7 +121,7 @@ func (c *CmnHdr) HopFOffBytes() int {
 
 func (c CmnHdr) String() string {
 	return fmt.Sprintf(
-		"Ver:%d Dst:%s Src:%s TotalLen:%dB HdrLen: %dB CurrInfoF:%dB CurrHopF:%dB NextHdr:%s",
+		"Ver:%d Dst:%s Src:%s TotalLen:%dB HdrLen: %d CurrInfoF:%d CurrHopF:%d NextHdr:%s",
 		c.Ver, c.DstType, c.SrcType, c.TotalLen, c.HdrLen, c.CurrInfoF, c.CurrHopF, c.NextHdr,
 	)
 }
