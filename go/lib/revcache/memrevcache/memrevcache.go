@@ -40,7 +40,7 @@ func New(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
 	}
 }
 
-func (c *memRevCache) Get(ctx context.Context,
+func (c *memRevCache) Get(_ context.Context,
 	k *revcache.Key) (*path_mgmt.SignedRevInfo, bool, error) {
 
 	c.lock.RLock()
@@ -57,7 +57,7 @@ func (c *memRevCache) get(key string) (*path_mgmt.SignedRevInfo, bool) {
 	return obj.(*path_mgmt.SignedRevInfo), true
 }
 
-func (c *memRevCache) GetAll(ctx context.Context,
+func (c *memRevCache) GetAll(_ context.Context,
 	keys map[revcache.Key]struct{}) ([]*path_mgmt.SignedRevInfo, error) {
 
 	c.lock.RLock()
@@ -71,7 +71,7 @@ func (c *memRevCache) GetAll(ctx context.Context,
 	return revs, nil
 }
 
-func (c *memRevCache) Insert(ctx context.Context, rev *path_mgmt.SignedRevInfo) (bool, error) {
+func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.SignedRevInfo) (bool, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	newInfo, err := rev.RevInfo()
