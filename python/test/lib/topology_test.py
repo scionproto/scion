@@ -107,6 +107,30 @@ class TestInterfaceElementInit(object):
         parse.assert_called_once_with("toaddr")
         ntools.eq_(inst.remote, (parse.return_value, 5))
 
+    @patch("lib.topology.haddr_parse_interface", autospec=True)
+    @patch("lib.topology.ISD_AS", autospec=True)
+    @patch("lib.topology.RouterAddrElement.__init__", autospec=True)
+    def test_stripped(self, super_init, isd_as, parse):
+        intf_dict = {
+            'Bandwidth': 1001,
+            'ISD_AS': '3-ff00:0:301',
+            'LinkTo': 'PARENT',
+            'MTU': 4242
+        }
+        if_id = 1
+        # Call
+        inst = InterfaceElement(if_id, intf_dict, 'name')
+        # Tests
+        super_init.assert_called_once_with(inst, None, 'name')
+        ntools.eq_(inst.if_id, 1)
+        ntools.eq_(inst.isd_as, isd_as.return_value)
+        ntools.eq_(inst.link_type, "parent")
+        ntools.eq_(inst.bandwidth, 1001)
+        ntools.eq_(inst.mtu, 4242)
+        ntools.eq_(inst.overlay, None)
+        assert parse.call_count == 0
+        ntools.eq_(inst.remote, None)
+
 
 class TestTopologyParseDict(object):
     """

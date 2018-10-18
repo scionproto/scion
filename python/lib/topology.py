@@ -144,13 +144,15 @@ class InterfaceElement(RouterAddrElement):
         self.link_type = interface_dict['LinkTo'].lower()
         self.bandwidth = interface_dict['Bandwidth']
         self.mtu = interface_dict['MTU']
-        self.overlay = interface_dict['Overlay']
+        self.overlay = interface_dict.get('Overlay')
         self.to_if_id = 0  # Filled in later by IFID packets
-        self.remote = self._parse_addrs(interface_dict['RemoteOverlay'])
+        self.remote = self._parse_addrs(interface_dict.get('RemoteOverlay'))
         super().__init__(self._new_addrs(interface_dict), name)
 
     def _new_addrs(self, interface_dict):
         addrs = {}
+        if not self.overlay:
+            return None
         if 'IPv4' in self.overlay:
             addrType = 'IPv4'
         else:  # Assume IPv6

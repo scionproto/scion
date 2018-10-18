@@ -17,6 +17,7 @@ package topology
 
 import (
 	// Stdlib
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -361,4 +362,35 @@ func Test_BRs_COREAS(t *testing.T) {
 	Convey("Checking if the number of BRs in the Topo is correct", t, func() {
 		So(len(c.BR), ShouldEqual, len(br_cases))
 	})
+}
+
+func Test_TopoFromStripped(t *testing.T) {
+	fn := "testdata/basic.json"
+	rt, err := LoadRawFromFile(fn)
+	if err != nil {
+		t.Fatalf("Error loading raw topo from '%s': %v", fn, err)
+	}
+	Convey("Check that stripped bind topology can be parsed", t, func() {
+		StripBind(rt)
+		b, err := json.Marshal(rt)
+		SoMsg("errPack", err, ShouldBeNil)
+		_, err = Load(b)
+		SoMsg("errParse", err, ShouldBeNil)
+	})
+	Convey("Check that stripped svc topology can be parsed", t, func() {
+		StripServices(rt)
+		b, err := json.Marshal(rt)
+		SoMsg("errPack", err, ShouldBeNil)
+		_, err = Load(b)
+		SoMsg("errParse", err, ShouldBeNil)
+	})
+	Convey("Check that stripped topology can be parsed", t, func() {
+		StripBind(rt)
+		StripServices(rt)
+		b, err := json.Marshal(rt)
+		SoMsg("errPack", err, ShouldBeNil)
+		_, err = Load(b)
+		SoMsg("errParse", err, ShouldBeNil)
+	})
+
 }

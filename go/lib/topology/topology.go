@@ -167,17 +167,13 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
-			ifinfo := IFInfo{BRName: name, InternalAddrs: intAddr, CtrlAddrs: ctrlAddr}
-			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
-				return err
+			ifinfo := IFInfo{
+				BRName:        name,
+				InternalAddrs: intAddr,
+				CtrlAddrs:     ctrlAddr,
+				Bandwidth:     rawIntf.Bandwidth,
+				MTU:           rawIntf.MTU,
 			}
-			if ifinfo.Local, err = rawIntf.localTopoBRAddr(ifinfo.Overlay); err != nil {
-				return err
-			}
-			if ifinfo.Remote, err = rawIntf.remoteBRAddr(ifinfo.Overlay); err != nil {
-				return err
-			}
-			ifinfo.Bandwidth = rawIntf.Bandwidth
 			if ifinfo.ISD_AS, err = addr.IAFromString(rawIntf.ISD_AS); err != nil {
 				return err
 			}
@@ -187,9 +183,22 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 			if err = ifinfo.Verify(t.Core, name); err != nil {
 				return err
 			}
-			ifinfo.MTU = rawIntf.MTU
+			// These fields are only necessary for the border router.
+			// Parsing should not fail if they are missing.
+			if rawIntf.Overlay == "" && rawIntf.BindOverlay == nil && rawIntf.RemoteOverlay == nil {
+				t.IFInfoMap[ifid] = ifinfo
+				continue
+			}
+			if ifinfo.Overlay, err = overlay.TypeFromString(rawIntf.Overlay); err != nil {
+				return err
+			}
+			if ifinfo.Local, err = rawIntf.localTopoBRAddr(ifinfo.Overlay); err != nil {
+				return err
+			}
+			if ifinfo.Remote, err = rawIntf.remoteBRAddr(ifinfo.Overlay); err != nil {
+				return err
+			}
 			t.IFInfoMap[ifid] = ifinfo
-
 		}
 		t.BR[name] = brInfo
 		t.BRNames = append(t.BRNames, name)
