@@ -19,27 +19,26 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
 var (
-	master0 = loadKey("testdata/keys/master0.key", trust.RawKey)
-	master1 = loadKey("testdata/keys/master1.key", trust.RawKey)
-	decrypt = loadKey("testdata/keys/as-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
-	asSig   = loadKey("testdata/keys/as-sig.seed", scrypto.Ed25519)
-	issSig  = loadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
-	online  = loadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
+	mstr0, _  = keyconf.LoadKey("testdata/keys/master0.key", keyconf.RawKey)
+	mstr1, _  = keyconf.LoadKey("testdata/keys/master1.key", keyconf.RawKey)
+	dcrpt, _  = keyconf.LoadKey("testdata/keys/as-decrypt.key", scrypto.Curve25519xSalsa20Poly1305)
+	asSig, _  = keyconf.LoadKey("testdata/keys/as-sig.seed", scrypto.Ed25519)
+	issSig, _ = keyconf.LoadKey("testdata/keys/core-sig.seed", scrypto.Ed25519)
+	online, _ = keyconf.LoadKey("testdata/keys/online-root.seed", scrypto.Ed25519)
 )
 
 func TestLoadState(t *testing.T) {
 	Convey("Load core state", t, func() {
 		state, err := LoadState("testdata", true)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("Master0", state.MasterKeys.Key0, ShouldResemble, master0)
-		SoMsg("Master1", state.MasterKeys.Key1, ShouldResemble, master1)
-		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, decrypt)
+		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
+		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
+		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, dcrpt)
 		SoMsg("AS-Sign", state.keyConf.SignKey, ShouldResemble, asSig)
 		SoMsg("Issuer-Sign", state.keyConf.IssSigKey, ShouldResemble, issSig)
 		SoMsg("Online", state.keyConf.OnRootKey, ShouldResemble, online)
@@ -49,20 +48,12 @@ func TestLoadState(t *testing.T) {
 	Convey("Load non-core state", t, func() {
 		state, err := LoadState("testdata", false)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("Master0", state.MasterKeys.Key0, ShouldResemble, master0)
-		SoMsg("Master1", state.MasterKeys.Key1, ShouldResemble, master1)
-		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, decrypt)
+		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
+		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)
+		SoMsg("Decrypt", state.keyConf.DecryptKey, ShouldResemble, dcrpt)
 		SoMsg("AS-Sign", state.keyConf.SignKey, ShouldResemble, asSig)
 		SoMsg("Issuer-Sign", state.keyConf.IssSigKey, ShouldBeZeroValue)
 		SoMsg("Online", state.keyConf.OnRootKey, ShouldBeZeroValue)
 		SoMsg("Offline", state.keyConf.OffRootKey, ShouldBeZeroValue)
 	})
-}
-
-func loadKey(file string, algo string) common.RawBytes {
-	key, err := trust.LoadKey(file, algo)
-	if err != nil {
-		panic(err)
-	}
-	return key
 }
