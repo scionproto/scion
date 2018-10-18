@@ -408,6 +408,10 @@ void reverse_packet(uint8_t *buf)
     tmp = spkt.dst;
     spkt.dst = spkt.src;
     spkt.src = tmp;
+    // Swap SRC and DST Types in the common header
+    uint16_t old_vds = ntohs(spkt.sch->ver_dst_src);
+    uint16_t vds = (old_vds & 0xf000) | ((old_vds & 0x3f) << 6) | ((old_vds >> 6) & 0x3f);
+    spkt.sch->ver_dst_src = htons(vds);
     pack_spkt_addr_hdr(&spkt, buf + DST_IA_OFFSET);
 
     /* Reverse path */
