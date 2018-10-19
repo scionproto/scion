@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -90,6 +91,10 @@ func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 	timer := time.NewTimer(sciond.InitialConnectPeriod.Duration)
 	defer ticker.Stop()
 	defer timer.Stop()
+	if assert.On {
+		assert.Must(sciond.InitialConnectPeriod.Duration > 0,
+			"sciond.InitialConnectPeriod must not be 0")
+	}
 	// XXX(roosd): Initial retrying is implemented here temporarily.
 	// In https://github.com/scionproto/scion/issues/1974 this will be
 	// done transparently and pushed to snet.NewNetwork.
