@@ -15,8 +15,6 @@ fi
 ./docker.sh build || exit 1
 [ -n "$DOCKER" ] && { make -sC docker/perapp || exit 1; }
 
-docker container inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
-
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 SCION_MOUNT="$tmpdir" ./docker.sh start || exit 1
 

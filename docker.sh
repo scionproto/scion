@@ -120,6 +120,7 @@ cmd_start() {
     setup_volumes
     docker container create $args scion -c "tail -f /dev/null"
     docker start "$cntr"
+    # Adjust ownership of mounted dirs
     docker exec scion /docker-entrypoint.sh
 }
 
@@ -130,7 +131,7 @@ cmd_exec() {
 cmd_stop() {
     local cntr="scion"
     echo "Stopping $cntr container"; docker stop "$cntr";
-    echo "Removing $cntr container"; docker rm "$cntr";
+    echo "Removing $cntr container"; docker rm -f "$cntr";
 }
 
 setup_volumes() {
@@ -192,6 +193,12 @@ cmd_help() {
 	    $PROGRAM build
 	    $PROGRAM run
 	        Run the Docker image.
+	    $PROGRAM start
+	        Start a Docker container.
+	    $PROGRAM exec
+	        Execute a command in a running container.
+	    $PROGRAM stop
+	        Stop the Docker container.
 	    $PROGRAM clean
 	        Remove all Docker containers and all generated images.
 	    $PROGRAM help

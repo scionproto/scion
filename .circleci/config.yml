@@ -40,8 +40,8 @@ jobs:
                 name: Create and start container
                 command: |
                     set +e -x
-                    mkdir -p "/tmp/artifacts"
-                    SCION_MOUNT="/tmp/artifacts" ./docker.sh start
+                    mkdir -p /tmp/artifacts/mount
+                    SCION_MOUNT=/tmp/artifacts/mount ./docker.sh start
                 when: always
             - run:
                 name: Build
@@ -75,7 +75,8 @@ jobs:
                     [ -n "$CIRCLE_BUILD_NUM" ] && BUILD="build${CIRCLE_BUILD_NUM}"
                     ARTIFACTS="circleci.${CIRCLE_PROJECT_USERNAME}.${CIRCLE_PROJECT_REPONAME}.${TARGET}.${BUILD}"
                     mkdir -p "/tmp/artifacts.out"
-                    tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp artifacts
+                    mv /tmp/artifacts/{mount,"$ARTIFACTS"}
+                    tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS"
                     ./docker.sh stop
                 when: always
             - store_artifacts:
