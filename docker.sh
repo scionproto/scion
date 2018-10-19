@@ -112,14 +112,14 @@ cmd_start() {
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local cntr="scion"
     if docker container inspect "$cntr" &>/dev/null; then
-        echo "Removing stale container"
-        docker rm -f "$cntr"
+        echo "Removing stale $cntr container"
+        ./tools/quiet docker rm -f "$cntr"
     fi
     local args=$(common_args)
     args+=" --name $cntr"
     setup_volumes
-    docker container create $args scion -c "tail -f /dev/null"
-    docker start "$cntr"
+    ./tools/quiet docker container create $args scion -c "tail -f /dev/null"
+    ./tools/quiet docker start "$cntr"
     # Adjust ownership of mounted dirs
     docker exec scion /docker-entrypoint.sh
 }
@@ -130,7 +130,8 @@ cmd_exec() {
 
 cmd_stop() {
     local cntr="scion"
-    echo "Stopping and removing $cntr container"; docker rm -f "$cntr";
+    echo "Stopping $cntr container"; ./tools/quiet docker stop "$cntr";
+    echo "Removing $cntr container"; ./tools/quiet docker rm "$cntr";
 }
 
 setup_volumes() {
