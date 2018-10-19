@@ -101,7 +101,7 @@ cmd_run() {
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local args=$(common_args)
-    args+=" -i -t --rm"
+    args+=" -i -t --rm --entrypoint=/docker-entrypoint.sh"
     setup_volumes
     docker run $args scion "$@"
 }
@@ -120,6 +120,7 @@ cmd_start() {
     setup_volumes
     docker container create $args scion -c "tail -f /dev/null"
     docker start "$cntr"
+    docker exec scion /docker-entrypoint.sh
 }
 
 cmd_exec() {
@@ -134,7 +135,7 @@ cmd_stop() {
 
 setup_volumes() {
     set -e
-    for i in gen logs gen-certs gen-cache; do
+    for i in gen logs gen-certs gen-cache htmlcov; do
         mkdir -p "$SCION_MOUNT/$i"
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to
