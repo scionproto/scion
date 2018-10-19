@@ -25,20 +25,20 @@ import (
 
 // Key denotes the key for the revocation cache.
 type Key struct {
-	ia   addr.IA
-	ifid common.IFIDType
+	IA   addr.IA
+	IfId common.IFIDType
 }
 
 // NewKey creates a new key for the revocation cache.
-func NewKey(ia addr.IA, ifid common.IFIDType) *Key {
+func NewKey(ia addr.IA, ifId common.IFIDType) *Key {
 	return &Key{
-		ia:   ia,
-		ifid: ifid,
+		IA:   ia,
+		IfId: ifId,
 	}
 }
 
 func (k Key) String() string {
-	return fmt.Sprintf("%s#%s", k.ia, k.ifid)
+	return fmt.Sprintf("%s#%s", k.IA, k.IfId)
 }
 
 // RevCache is a cache for revocations.
