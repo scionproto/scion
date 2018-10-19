@@ -130,8 +130,7 @@ cmd_exec() {
 
 cmd_stop() {
     local cntr="scion"
-    echo "Stopping $cntr container"; docker stop "$cntr";
-    echo "Removing $cntr container"; docker rm -f "$cntr";
+    echo "Stopping and removing $cntr container"; docker rm -f "$cntr";
 }
 
 setup_volumes() {
