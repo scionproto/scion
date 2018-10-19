@@ -61,9 +61,12 @@ func realMain() int {
 	if v, ok := env.CheckFlags(csconfig.Sample); !ok {
 		return v
 	}
-	if err := setup(env.ConfigFile()); err != nil {
+	if err := setupBasic(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		flag.Usage()
+		return 1
+	}
+	if err := setup(); err != nil {
+		log.Crit("Setup failed", "err", err)
 		return 1
 	}
 	defer log.LogPanicAndExit()
