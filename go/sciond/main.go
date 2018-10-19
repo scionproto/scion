@@ -76,13 +76,15 @@ func realMain() int {
 	if v, ok := env.CheckFlags(sdconfig.Sample); !ok {
 		return v
 	}
-	if err := Init(env.ConfigFile()); err != nil {
+	if err := setupBasic(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		flag.Usage()
 		return 1
 	}
 	defer log.LogPanicAndExit()
-
+	if err := setup(); err != nil {
+		log.Crit("Setup failed", "err", err)
+		return 1
+	}
 	pathDB, err := pathdbbe.New(config.SD.PathDB)
 	if err != nil {
 		log.Crit("Unable to initialize pathDB", "err", err)
@@ -165,18 +167,23 @@ func realMain() int {
 	}
 }
 
-func Init(configName string) error {
-	if _, err := toml.DecodeFile(configName, &config); err != nil {
+func setupBasic() error {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
 		return err
 	}
+	if err := env.InitLogging(&config.Logging); err != nil {
+		return err
+	}
+	env.LogSvcStarted("SD", config.General.ID)
+	return nil
+}
+
+func setup() error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
 	itopo.SetCurrentTopology(config.General.Topology)
 	environment = infraenv.InitInfraEnvironment(config.General.TopologyPath)
-	if err := env.InitLogging(&config.Logging); err != nil {
-		return err
-	}
 	config.SD.InitDefaults()
 	return config.SD.CreateSocketDirs()
 }
