@@ -46,21 +46,27 @@ const (
 	ErrorSNET      = "Unable to create local SCION Network context"
 )
 
-// setup loads the config, starts the messenger and periodic reissue task
-// and sets the environment.
-func setup(configName string) error {
-	var err error
+// setupBasic loads the config from file and initializes logging.
+func setupBasic() error {
 	// Load and initialize config.
-	if _, err = toml.DecodeFile(configName, &config); err != nil {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
 		return err
 	}
-	if err = env.InitGeneral(&config.General); err != nil {
+	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
+	}
+	return nil
+}
+
+// setup initializes the config, starts the messenger and periodic reissue task
+// and sets the environment.
+func setup() error {
+	var err error
+	if err = env.InitGeneral(&config.General); err != nil {
+		return common.NewBasicError("Unable to initialize General config", err)
 	}
 	itopo.SetCurrentTopology(config.General.Topology)
-	if err = env.InitLogging(&config.Logging); err != nil {
-		return err
-	}
+	env.InitSciondClient(&config.Sciond)
 	if err = config.CS.Init(config.General.ConfigDir); err != nil {
 		return common.NewBasicError("Unable to initialize CS config", err)
 	}
@@ -76,7 +82,7 @@ func setup(configName string) error {
 	reissRunner = startReissRunner(&config, currMsgr)
 	// Set environment to listen for signals.
 	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
-		if err := reload(configName); err != nil {
+		if err := reload(); err != nil {
 			log.Error("Unable to reload", "err", err)
 		}
 	})
@@ -210,12 +216,12 @@ func startReissRunner(config *Config, msgr *messenger.Messenger) *periodic.Runne
 }
 
 // reload reloads the topology and CS config.
-func reload(configName string) error {
+func reload() error {
 	// FIXME(roosd): KeyConf reloading is not yet supported.
 	config.General.Topology = itopo.GetCurrentTopology()
 	var newConf Config
 	// Load new config to get the CS parameters.
-	if _, err := toml.DecodeFile(configName, &newConf); err != nil {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
 		return err
 	}
 	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
