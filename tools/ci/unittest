@@ -2,4 +2,4 @@
 
 set -ex
 
-docker container exec ${1:-scion_ci} bash -c "set -eo pipefail; ./scion.sh test |& tee logs/unittests.run"
+./docker.sh exec "set -eo pipefail; ./scion.sh test |& tee logs/unittests.run"
