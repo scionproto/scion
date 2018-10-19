@@ -21,31 +21,24 @@ const (
 	// SchemaVersion is the version of the SQLite schema understood by this backend.
 	// Whenever changes to the schema are made, this version number should be increased
 	// to prevent data corruption between incompatible database schemas.
-	SchemaVersion = 5
+	SchemaVersion = 6
 	// Schema is the SQLite database layout.
 	Schema = `CREATE TABLE Segments(
 		RowID INTEGER PRIMARY KEY,
 		SegID DATA UNIQUE NOT NULL,
 		LastUpdated INTEGER NOT NULL,
+		InfoTs INTEGER NOT NULL,
 		Segment DATA NOT NULL,
-		Expiry INTEGER NOT NULL
+		MaxExpiry INTEGER NOT NULL,
+		StartIsdID INTEGER NOT NULL,
+		StartAsID INTEGER NOT NULL,
+		EndIsdID INTEGER NOT NULL,
+		EndAsID INTEGER NOT NULL
 	);
 	CREATE TABLE IntfToSeg(
 		IsdID INTEGER NOT NULL,
 		AsID INTEGER NOT NULL,
 		IntfID INTEGER NOT NULL,
-		SegRowID INTEGER NOT NULL,
-		FOREIGN KEY (SegRowID) REFERENCES Segments(RowID) ON DELETE CASCADE
-	);
-	CREATE TABLE StartsAt(
-		IsdID INTEGER NOT NULL,
-		AsID INTEGER NOT NULL,
-		SegRowID INTEGER NOT NULL,
-		FOREIGN KEY (SegRowID) REFERENCES Segments(RowID) ON DELETE CASCADE
-	);
-	CREATE TABLE EndsAt(
-		IsdID INTEGER NOT NULL,
-		AsID INTEGER NOT NULL,
 		SegRowID INTEGER NOT NULL,
 		FOREIGN KEY (SegRowID) REFERENCES Segments(RowID) ON DELETE CASCADE
 	);

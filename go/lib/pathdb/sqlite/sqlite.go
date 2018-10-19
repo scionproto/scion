@@ -207,9 +207,14 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 	if err != nil {
 		return err
 	}
+	info, err := meta.Seg.InfoF()
+	if err != nil {
+		return err
+	}
 	exp := meta.Seg.MaxExpiry().Unix()
-	stmtStr := `UPDATE Segments SET LastUpdated=?, Segment=?, Expiry=? WHERE RowID=?`
-	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.UnixNano(), packedSeg, exp, meta.RowID)
+	stmtStr := `UPDATE Segments SET LastUpdated=?, InfoTs=?, Segment=?, MaxExpiry=? WHERE RowID=?`
+	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.UnixNano(),
+		info.Timestamp().UnixNano(), packedSeg, exp, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
 	}
@@ -255,10 +260,19 @@ func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
 	if err != nil {
 		return err
 	}
+	info, err := pseg.InfoF()
+	if err != nil {
+		return err
+	}
+	st := pseg.FirstIA()
+	end := pseg.LastIA()
 	exp := pseg.MaxExpiry().Unix()
 	// Insert path segment.
-	inst := `INSERT INTO Segments (SegID, LastUpdated, Segment, Expiry) VALUES (?, ?, ?, ?)`
-	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().UnixNano(), packedSeg, exp)
+	inst := `INSERT INTO Segments
+		(SegID, LastUpdated, InfoTs, Segment, MaxExpiry, StartIsdID, StartAsID, EndIsdID, EndAsID)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().UnixNano(),
+		info.Timestamp().UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
 	if err != nil {
 		b.rollback()
 		return common.NewBasicError("Failed to insert path segment", err)
@@ -270,17 +284,6 @@ func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
 	}
 	// Insert all interfaces.
 	if err = b.insertInterfaces(ctx, pseg.ASEntries, segRowID); err != nil {
-		b.rollback()
-		return err
-	}
-	// Insert ISD-AS to StartsAt.
-	if err = b.insertStartOrEnd(ctx, pseg.ASEntries[0], segRowID, StartsAtTable); err != nil {
-		b.rollback()
-		return err
-	}
-	// Insert ISD-AS to EndsAt.
-	if err = b.insertStartOrEnd(ctx, pseg.ASEntries[pseg.MaxAEIdx()],
-		segRowID, EndsAtTable); err != nil {
 		b.rollback()
 		return err
 	}
@@ -337,18 +340,6 @@ func (b *Backend) insertInterfaces(ctx context.Context,
 	return nil
 }
 
-func (b *Backend) insertStartOrEnd(ctx context.Context, as *seg.ASEntry,
-	segRowID int64, tableName string) error {
-
-	ia := as.IA()
-	stmtStr := fmt.Sprintf("INSERT INTO %s (IsdID, AsID, SegRowID) VALUES (?, ?, ?)", tableName)
-	_, err := b.tx.ExecContext(ctx, stmtStr, ia.I, ia.A, segRowID)
-	if err != nil {
-		return common.NewBasicError(fmt.Sprintf("Failed to insert into %s", tableName), err)
-	}
-	return nil
-}
-
 func (b *Backend) Delete(ctx context.Context, params *query.Params) (int, error) {
 	return b.deleteInTrx(ctx, func() (sql.Result, error) {
 		q, args := b.buildQuery(params)
@@ -359,7 +350,7 @@ func (b *Backend) Delete(ctx context.Context, params *query.Params) (int, error)
 
 func (b *Backend) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	return b.deleteInTrx(ctx, func() (sql.Result, error) {
-		delStmt := `DELETE FROM Segments WHERE Expiry < ?`
+		delStmt := `DELETE FROM Segments WHERE MaxExpiry < ?`
 		return b.tx.ExecContext(ctx, delStmt, now.Unix())
 	})
 }
@@ -482,28 +473,26 @@ func (b *Backend) buildQuery(params *query.Params) (string, []interface{}) {
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.StartsAt) > 0 {
-		joins = append(joins, "JOIN StartsAt st ON st.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, as := range params.StartsAt {
 			if as.A == 0 {
-				subQ = append(subQ, "(st.IsdID=?)")
+				subQ = append(subQ, "(s.StartIsdID=?)")
 				args = append(args, as.I)
 			} else {
-				subQ = append(subQ, "(st.IsdID=? AND st.AsID=?)")
+				subQ = append(subQ, "(s.StartIsdID=? AND s.StartAsID=?)")
 				args = append(args, as.I, as.A)
 			}
 		}
 		where = append(where, fmt.Sprintf("(%s)", strings.Join(subQ, " OR ")))
 	}
 	if len(params.EndsAt) > 0 {
-		joins = append(joins, "JOIN EndsAt e ON e.SegRowID=s.RowID")
 		subQ := []string{}
 		for _, as := range params.EndsAt {
 			if as.A == 0 {
-				subQ = append(subQ, "(e.IsdID=?)")
+				subQ = append(subQ, "(s.EndIsdID=?)")
 				args = append(args, as.I)
 			} else {
-				subQ = append(subQ, "(e.IsdID=? AND e.AsID=?)")
+				subQ = append(subQ, "(s.EndIsdID=? AND s.EndAsID=?)")
 				args = append(args, as.I, as.A)
 			}
 		}
