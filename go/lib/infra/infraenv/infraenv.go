@@ -93,6 +93,7 @@ func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 	// XXX(roosd): Initial retrying is implemented here temporarily.
 	// In https://github.com/scionproto/scion/issues/1974 this will be
 	// done transparently and pushed to snet.NewNetwork.
+Top:
 	for {
 		if network, err = snet.NewNetwork(ia, sciond.Path, ""); err == nil || sciond.Path == "" {
 			break
@@ -100,7 +101,7 @@ func initNetwork(ia addr.IA, sciond env.SciondClient) (snet.Network, error) {
 		select {
 		case <-ticker.C:
 		case <-timer.C:
-			break
+			break Top
 		}
 	}
 	return network, err
