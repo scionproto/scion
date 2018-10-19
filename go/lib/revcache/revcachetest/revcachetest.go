@@ -96,17 +96,17 @@ func testGetAll(t *testing.T, revCache revcache.RevCache) {
 	xtest.FailOnErr(t, err)
 
 	revs, err := revCache.GetAll(ctx, map[revcache.Key]struct{}{
-		*revcache.NewKey(ia110, ifId15): struct{}{},
+		*revcache.NewKey(ia110, ifId15): {},
 	})
 	SoMsg("GetAll should not err", err, ShouldBeNil)
 	SoMsg("GetAll should return revs for the given keys", revs, ShouldResemble,
 		[]*path_mgmt.SignedRevInfo{sRi1})
 
 	revs, err = revCache.GetAll(ctx, map[revcache.Key]struct{}{
-		*revcache.NewKey(ia110, ifId15): struct{}{},
-		*revcache.NewKey(ia110, ifId19): struct{}{},
-		*revcache.NewKey(ia120, ifId15): struct{}{},
-		*revcache.NewKey(ia120, ifId19): struct{}{},
+		*revcache.NewKey(ia110, ifId15): {},
+		*revcache.NewKey(ia110, ifId19): {},
+		*revcache.NewKey(ia120, ifId15): {},
+		*revcache.NewKey(ia120, ifId19): {},
 	})
 	SoMsg("GetAll should not err", err, ShouldBeNil)
 	// we don't care about the order, so sort here to make sure the comparison always works.
