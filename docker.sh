@@ -78,8 +78,8 @@ cmd_clean() {
 }
 
 common_args() {
-    # Limit to 4G of ram, don't allow swapping.
-    local args="-h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
+    # Limit to 6G of ram, don't allow swapping.
+    local args="-h scion -m 6GB --memory-swap=6GB --shm-size=1024M $DOCKER_ARGS"
     args+=" -v /var/run/docker.sock:/var/run/docker.sock"
     args+=" -v $SCION_MOUNT/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
     args+=" -v $SCION_MOUNT/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
