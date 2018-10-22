@@ -79,7 +79,7 @@ func TestTickingReconnectorStop(t *testing.T) {
 				stopAfter(reconnecter, tickerMultiplier(1))
 				close(barrierCh)
 			}()
-			xtest.AssertReadReturnsBetween(t, barrierCh, tickerMultiplier(4), tickerMultiplier(8))
+			xtest.AssertReadReturnsBetween(t, barrierCh, tickerMultiplier(3), tickerMultiplier(8))
 		})
 	})
 }
