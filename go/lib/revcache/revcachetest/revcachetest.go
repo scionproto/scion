@@ -59,8 +59,7 @@ func TestRevCache(t *testing.T, setup func() revcache.RevCache, cleanup func()) 
 }
 
 func testInsertGet(t *testing.T, revCache revcache.RevCache) {
-	ri := defaultRevInfo(ia110, ifId15)
-	sRi := toSigned(t, ri)
+	sRi := toSigned(t, defaultRevInfo(ia110, ifId15))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
 	inserted, err := revCache.Insert(ctx, sRi)
@@ -68,7 +67,7 @@ func testInsertGet(t *testing.T, revCache revcache.RevCache) {
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
 	sRiCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
 	SoMsg("Get should return ok for existing entry", ok, ShouldBeTrue)
-	SoMsg("Get should not err for existing etnry", err, ShouldBeNil)
+	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
 	SoMsg("Get should return previously inserted value", sRiCache, ShouldResemble, sRi)
 	inserted, err = revCache.Insert(ctx, sRi)
 	SoMsg("Insert should return false for already existing entry", inserted, ShouldBeFalse)
@@ -141,9 +140,8 @@ func testInsertNewer(t *testing.T, revCache revcache.RevCache) {
 	sRi := toSigned(t, defaultRevInfo(ia110, ifId15))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	inserted, err := revCache.Insert(ctx, sRi)
-	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
-	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
+	_, err := revCache.Insert(ctx, sRi)
+	xtest.FailOnErr(t, err)
 	sRiNew := toSigned(t, &path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
@@ -151,12 +149,12 @@ func testInsertNewer(t *testing.T, revCache revcache.RevCache) {
 		RawTimestamp: util.TimeToSecs(time.Now().Add(10 * time.Second)),
 		RawTTL:       uint32((time.Duration(10) * time.Second).Seconds()),
 	})
-	inserted, err = revCache.Insert(ctx, sRiNew)
+	inserted, err := revCache.Insert(ctx, sRiNew)
 	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
 	sRiCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
 	SoMsg("Get should return ok for existing entry", ok, ShouldBeTrue)
-	SoMsg("Get should not err for existing etnry", err, ShouldBeNil)
+	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
 	SoMsg("Get should return previously inserted value", sRiCache, ShouldResemble, sRiNew)
 }
 

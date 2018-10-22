@@ -148,15 +148,15 @@ func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
 	return sr, proto.ParseFromRaw(sr, sr.ProtoId(), b)
 }
 
-func NewSignedRevInfo(ri *RevInfo, s *proto.SignS) (*SignedRevInfo, error) {
-	rawRi, err := ri.Pack()
+func NewSignedRevInfo(r *RevInfo, s *proto.SignS) (*SignedRevInfo, error) {
+	rawR, err := r.Pack()
 	if err != nil {
 		return nil, err
 	}
 	return &SignedRevInfo{
-		Blob:    rawRi,
+		Blob:    rawR,
 		Sign:    s,
-		revInfo: ri,
+		revInfo: r,
 	}, nil
 }
 
@@ -172,6 +172,6 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 	return sr.revInfo, err
 }
 
-func (sp *SignedRevInfo) String() string {
-	return fmt.Sprintf("SignedRevInfo: %s %s", sp.Blob, sp.Sign)
+func (sr *SignedRevInfo) String() string {
+	return fmt.Sprintf("SignedRevInfo: %s %s", sr.Blob, sr.Sign)
 }
