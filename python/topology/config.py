@@ -123,9 +123,6 @@ class ConfigGenerator(object):
         self.sd = sd
         self.ps = ps
         self.ds = ds
-        if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
-            logging.critical("Cannot use non-default CS with docker!")
-            sys.exit(1)
 
     def _read_defaults(self, network):
         """
@@ -219,7 +216,7 @@ class ConfigGenerator(object):
 
     def _generate_docker(self, topo_dicts):
         docker_gen = DockerGenerator(
-            self.out_dir, topo_dicts, self.sd, self.ps)
+            self.out_dir, topo_dicts, self.cs, self.sd, self.ps)
         docker_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):

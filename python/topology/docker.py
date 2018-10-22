@@ -34,9 +34,10 @@ DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 
 
 class DockerGenerator(object):
-    def __init__(self, out_dir, topo_dicts, sd, ps):
+    def __init__(self, out_dir, topo_dicts, cs, sd, ps):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
+        self.cs = cs
         self.sd = sd
         self.ps = ps
         self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
@@ -91,8 +92,9 @@ class DockerGenerator(object):
             self.dc_conf['services'][k] = entry
 
     def _cs_conf(self, topo_id, topo, base):
+        image = 'scion_cert_py' if self.cs == 'py' else 'scion_cert'
         raw_entry = {
-            'image': 'scion_cert_py',
+            'image': image,
             'depends_on': [
                 self._sciond_name(topo_id),
                 'dispatcher',
@@ -109,19 +111,19 @@ class DockerGenerator(object):
                 self.output_base + '/gen-cache:/share/cache:rw',
                 self.output_base + '/logs:/share/logs:rw'
             ],
-            'command': [
-                '--spki_cache_dir=cache'
-            ]
+            'command': []
         }
         for k, v in topo.get("CertificateService", {}).items():
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=%s' % _prom_addr_infra(v))
-            entry['command'].append('--sciond_path=%s' %
-                                    get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
-            entry['command'].append(k)
-            entry['command'].append('conf')
+            if self.cs == 'py':
+                sciond = get_default_sciond_path(ISD_AS(topo["ISD_AS"]))
+                entry['command'].append('--spki_cache_dir=cache')
+                entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+                entry['command'].append('--sciond_path=%s' % sciond)
+                entry['command'].append(k)
+                entry['command'].append('conf')
             self.dc_conf['services'][k] = entry
 
     def _bs_conf(self, topo_id, topo, base):

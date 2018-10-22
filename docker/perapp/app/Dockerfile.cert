@@ -1,0 +1,4 @@
+FROM scion_app_base:latest
+COPY --from=scion_app_builder:latest /home/scion/go/src/github.com/scionproto/scion/bin/cert_srv /app/
+
+ENTRYPOINT ["/sbin/su-exec", "/app/cert_srv", "-config", "/share/conf/csconfig.toml"]
