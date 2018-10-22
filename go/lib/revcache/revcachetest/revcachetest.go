@@ -59,39 +59,39 @@ func TestRevCache(t *testing.T, setup func() revcache.RevCache, cleanup func()) 
 }
 
 func testInsertGet(t *testing.T, revCache revcache.RevCache) {
-	sRi := toSigned(t, defaultRevInfo(ia110, ifId15))
+	sr := toSigned(t, defaultRevInfo(ia110, ifId15))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	inserted, err := revCache.Insert(ctx, sRi)
+	inserted, err := revCache.Insert(ctx, sr)
 	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
-	sRiCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
+	srCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
 	SoMsg("Get should return ok for existing entry", ok, ShouldBeTrue)
 	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
-	SoMsg("Get should return previously inserted value", sRiCache, ShouldResemble, sRi)
-	inserted, err = revCache.Insert(ctx, sRi)
+	SoMsg("Get should return previously inserted value", srCache, ShouldResemble, sr)
+	inserted, err = revCache.Insert(ctx, sr)
 	SoMsg("Insert should return false for already existing entry", inserted, ShouldBeFalse)
 	SoMsg("Insert should not err", err, ShouldBeNil)
-	sRiCache, ok, err = revCache.Get(ctx, revcache.NewKey(ia110, ifId19))
-	SoMsg("Get should return nil for not present value", sRiCache, ShouldBeNil)
+	srCache, ok, err = revCache.Get(ctx, revcache.NewKey(ia110, ifId19))
+	SoMsg("Get should return nil for not present value", srCache, ShouldBeNil)
 	SoMsg("Get should return false for not present value", ok, ShouldBeFalse)
 	SoMsg("Get should not err", err, ShouldBeNil)
 }
 
 func testGetAll(t *testing.T, revCache revcache.RevCache) {
-	sRi1 := toSigned(t, defaultRevInfo(ia110, ifId15))
-	sRi2 := toSigned(t, defaultRevInfo(ia110, ifId19))
-	sRi3 := toSigned(t, defaultRevInfo(ia120, ifId15))
-	sRi4 := toSigned(t, defaultRevInfo(ia120, common.IFIDType(10)))
+	sr1 := toSigned(t, defaultRevInfo(ia110, ifId15))
+	sr2 := toSigned(t, defaultRevInfo(ia110, ifId19))
+	sr3 := toSigned(t, defaultRevInfo(ia120, ifId15))
+	sr4 := toSigned(t, defaultRevInfo(ia120, common.IFIDType(10)))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	_, err := revCache.Insert(ctx, sRi1)
+	_, err := revCache.Insert(ctx, sr1)
 	xtest.FailOnErr(t, err)
-	_, err = revCache.Insert(ctx, sRi2)
+	_, err = revCache.Insert(ctx, sr2)
 	xtest.FailOnErr(t, err)
-	_, err = revCache.Insert(ctx, sRi3)
+	_, err = revCache.Insert(ctx, sr3)
 	xtest.FailOnErr(t, err)
-	_, err = revCache.Insert(ctx, sRi4)
+	_, err = revCache.Insert(ctx, sr4)
 	xtest.FailOnErr(t, err)
 
 	revs, err := revCache.GetAll(ctx, map[revcache.Key]struct{}{
@@ -99,7 +99,7 @@ func testGetAll(t *testing.T, revCache revcache.RevCache) {
 	})
 	SoMsg("GetAll should not err", err, ShouldBeNil)
 	SoMsg("GetAll should return revs for the given keys", revs, ShouldResemble,
-		[]*path_mgmt.SignedRevInfo{sRi1})
+		[]*path_mgmt.SignedRevInfo{sr1})
 
 	revs, err = revCache.GetAll(ctx, map[revcache.Key]struct{}{
 		*revcache.NewKey(ia110, ifId15): {},
@@ -118,11 +118,11 @@ func testGetAll(t *testing.T, revCache revcache.RevCache) {
 			(iInfo.IA().IAInt() == jInfo.IA().IAInt() && iInfo.IfID < jInfo.IfID)
 	})
 	SoMsg("GetAll should return the requested revocations", revs, ShouldResemble,
-		[]*path_mgmt.SignedRevInfo{sRi1, sRi2, sRi3})
+		[]*path_mgmt.SignedRevInfo{sr1, sr2, sr3})
 }
 
 func testInsertExpired(t *testing.T, revCache revcache.RevCache) {
-	ri := &path_mgmt.RevInfo{
+	r := &path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
 		LinkType:     proto.LinkType_core,
@@ -131,37 +131,37 @@ func testInsertExpired(t *testing.T, revCache revcache.RevCache) {
 	}
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	inserted, err := revCache.Insert(ctx, toSigned(t, ri))
+	inserted, err := revCache.Insert(ctx, toSigned(t, r))
 	SoMsg("Insert should return false for expired rev", inserted, ShouldBeFalse)
 	SoMsg("Insert should not err", err, ShouldBeNil)
 }
 
 func testInsertNewer(t *testing.T, revCache revcache.RevCache) {
-	sRi := toSigned(t, defaultRevInfo(ia110, ifId15))
+	sr := toSigned(t, defaultRevInfo(ia110, ifId15))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
-	_, err := revCache.Insert(ctx, sRi)
+	_, err := revCache.Insert(ctx, sr)
 	xtest.FailOnErr(t, err)
-	sRiNew := toSigned(t, &path_mgmt.RevInfo{
+	srNew := toSigned(t, &path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
 		LinkType:     proto.LinkType_core,
 		RawTimestamp: util.TimeToSecs(time.Now().Add(10 * time.Second)),
 		RawTTL:       uint32((time.Duration(10) * time.Second).Seconds()),
 	})
-	inserted, err := revCache.Insert(ctx, sRiNew)
+	inserted, err := revCache.Insert(ctx, srNew)
 	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
-	sRiCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
+	srCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
 	SoMsg("Get should return ok for existing entry", ok, ShouldBeTrue)
 	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
-	SoMsg("Get should return previously inserted value", sRiCache, ShouldResemble, sRiNew)
+	SoMsg("Get should return previously inserted value", srCache, ShouldResemble, srNew)
 }
 
-func toSigned(t *testing.T, ri *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
-	sRi, err := path_mgmt.NewSignedRevInfo(ri, nil)
+func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
+	sr, err := path_mgmt.NewSignedRevInfo(r, nil)
 	xtest.FailOnErr(t, err)
-	return sRi
+	return sr
 }
 
 func defaultRevInfo(ia addr.IA, ifId common.IFIDType) *path_mgmt.RevInfo {
