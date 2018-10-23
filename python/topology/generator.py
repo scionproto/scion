@@ -27,10 +27,12 @@ import logging
 import math
 import os
 import random
+import subprocess
 import sys
 import toml
 from collections import defaultdict
 from io import StringIO
+from shutil import copyfile
 from string import Template
 
 # External packages
@@ -100,19 +102,19 @@ from lib.util import (
     write_file,
 )
 from topology.common import _prom_addr_br, _prom_addr_infra
-from topology.docker import DockerGenerator
+from topology.docker import (
+    DockerGenerator,
+    DEFAULT_DOCKER0,
+    DEFAULT_DOCKER_ZK_PORT
+)
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
-DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
-DEFAULT_ZK_LOG4J = "topology/Zookeeper.log4j"
 
 HOSTS_FILE = 'hosts'
 SUPERVISOR_CONF = 'supervisord.conf'
 COMMON_DIR = 'endhost'
-
-ZOOKEEPER_HOST_TMPFS_DIR = "/run/shm/host-zk"
-ZOOKEEPER_TMPFS_DIR = "/run/shm/scion-zk"
+ZK_CONF = 'zk-dc.yml'
 
 DEFAULT_LINK_BW = 1000
 
@@ -124,6 +126,7 @@ DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
 DEFAULT_DISCOVERY_SERVERS = 1
+DEFAULT_ZK_PORT = 2181
 
 DEFAULT_TRC_VALIDITY = 365 * 24 * 60 * 60
 DEFAULT_CORE_CERT_VALIDITY = 364 * 24 * 60 * 60
@@ -139,8 +142,6 @@ THRESHOLD_EEPKI = 0
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
 DEFAULT_MININET_NETWORK = "100.64.0.0/10"
-
-ZOOKEEPER_ADDR = "172.18.0.1"
 
 SCION_SERVICE_NAMES = (
     "BeaconService",
@@ -160,18 +161,16 @@ class ConfigGenerator(object):
     Configuration and/or topology generator.
     """
     def __init__(self, ipv6=False, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
-                 path_policy_file=DEFAULT_PATH_POLICY_FILE,
-                 zk_config_file=DEFAULT_ZK_CONFIG, network=None,
+                 path_policy_file=DEFAULT_PATH_POLICY_FILE, network=None,
                  use_mininet=False, use_docker=False, bind_addr=GENERATE_BIND_ADDRESS,
                  pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER,
-                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER, ds=False):
+                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER, ds=False, in_docker=False):
         """
         Initialize an instance of the class ConfigGenerator.
 
         :param string out_dir: path to the topology folder.
         :param string topo_file: path to topology config
         :param string path_policy_file: path to PathPolicy.yml
-        :param string zk_config_file: path to Zookeeper.yml
         :param string network:
             Network to create subnets in, of the form x.x.x.x/y
         :param bool use_mininet: Use Mininet
@@ -181,11 +180,11 @@ class ConfigGenerator(object):
         :param string sd: Use go or python implementation of SCIOND
         :param string ps: Use go or python implementation of path server
         :param bool ds: Use discovery service
+        :param bool in_docker: Generator is run inside a docker container
         """
         self.ipv6 = ipv6
         self.out_dir = out_dir
         self.topo_config = load_yaml_file(topo_file)
-        self.zk_config = load_yaml_file(zk_config_file)
         self.path_policy_file = path_policy_file
         self.mininet = use_mininet
         self.docker = use_docker
@@ -200,6 +199,7 @@ class ConfigGenerator(object):
         self.sd = sd
         self.ps = ps
         self.ds = ds
+        self.in_docker = in_docker
         if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
             logging.critical("Cannot use non-default CS with docker!")
             sys.exit(1)
@@ -248,6 +248,7 @@ class ConfigGenerator(object):
             self._generate_docker(topo_dicts)
         else:
             self._generate_supervisor(topo_dicts)
+        self._generate_zk()
         self._generate_prom_conf(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
@@ -279,9 +280,9 @@ class ConfigGenerator(object):
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(
-            self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
+            self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen,
             self.default_mtu, self.gen_bind_addr, self.docker, self.ipv6, self.cs, self.ps,
-            self.ds)
+            self.ds, self.in_docker)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
@@ -293,6 +294,10 @@ class ConfigGenerator(object):
         docker_gen = DockerGenerator(
             self.out_dir, topo_dicts, self.sd, self.ps)
         docker_gen.generate()
+
+    def _generate_zk(self):
+        zk_gen = ZKGenerator(self.out_dir, self.topo_config, self.in_docker, self.docker)
+        zk_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
         prom_gen = PrometheusGenerator(self.out_dir, topo_dicts)
@@ -606,13 +611,12 @@ class CA_Generator(object):
 
 
 class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps, ds):
+    def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen,
+                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps, ds, in_docker):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
         self.prvnet_gen = prvnet_gen
-        self.zk_config = zk_config
         self.default_mtu = default_mtu
         self.gen_bind_addr = gen_bind_addr
         self.docker = docker
@@ -632,6 +636,7 @@ class TopoGenerator(object):
         self.cs = cs
         self.ps = ps
         self.ds = ds
+        self.in_docker = in_docker
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -812,18 +817,14 @@ class TopoGenerator(object):
         zk_conf = {}
         if "zookeepers" in self.topo_config.get("defaults", {}):
             zk_conf = self.topo_config["defaults"]["zookeepers"]
-        if self.docker:
-            zk_conf[1] = {'addr': ZOOKEEPER_ADDR}
+        if len(zk_conf) > 1:
+            logging.critical("Only one zk instance is allowed!")
+            sys.exit(1)
         for key, val in zk_conf.items():
-            self._gen_zk_entry(topo_id, key, val)
-
-    def _gen_zk_entry(self, topo_id, zk_id, zk_conf):
-        zk = ZKTopo(zk_conf, self.zk_config)
-        addr = str(zk.addr)
-        self.topo_dicts[topo_id]["ZookeeperService"][zk_id] = {
-            'Addr': addr,
-            'L4Port': zk.clientPort
-        }
+            addr = val.get("addr", None)
+            port = val.get("port", None)
+            zk_entry = _gen_zk_entry(addr, port, self.in_docker, self.docker)
+            self.topo_dicts[topo_id]["ZookeeperService"][key] = zk_entry
 
     def _generate_as_list(self, topo_id, as_conf):
         if as_conf.get('core', False):
@@ -1189,6 +1190,66 @@ class GoGenerator(object):
         return 'sd' + topo_id.file_fmt()
 
 
+class ZKGenerator(object):
+    def __init__(self, out_dir, topo_config, in_docker, docker):
+        self.out_dir = out_dir
+        self.topo_config = topo_config
+        self.in_docker = in_docker
+        self.docker = docker
+        self.zk_conf = {'version': '3', 'services': {}}
+        self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
+        self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
+
+    def generate(self):
+        if "zookeepers" not in self.topo_config.get("defaults", {}):
+            logging.critical("No zookeeper configured in the topology!")
+            sys.exit(1)
+
+        zk_conf = self.topo_config["defaults"]["zookeepers"]
+        addr = zk_conf[1].get("addr", None)
+        port = zk_conf[1].get("port", None)
+        zk_entry = _gen_zk_entry(addr, port, self.in_docker, self.docker)
+        name = 'zookeeper_docker' if self.in_docker else 'zookeeper'
+        entry = {
+            'image': 'zookeeper:latest',
+            'container_name': name,
+            'environment': {
+                'ZOO_USER': self.user_spec,
+            },
+            'volumes': [
+                '/etc/passwd:/etc/passwd:ro',
+                '/etc/group:/etc/group:ro',
+                self.output_base + '/logs:/logs:rw'
+            ],
+            'ports': [
+                zk_entry["Addr"] + ":" + str(zk_entry["L4Port"]) + ':2181'
+            ]
+        }
+
+        if self.in_docker:
+            entry['tmpfs'] = '/datalog'
+            entry['tmpfs'] = '/data'
+            cfg_dir = os.path.join(self.output_base, self.out_dir, "docker/zk")
+            entry['volumes'].append(cfg_dir + ":/conf")
+        else:
+            entry['volumes'].append('/run/shm/host-zk:/datalog:rw')
+            entry['volumes'].append('/var/lib/zookeeper:/data:rw')
+            entry['volumes'].append(self.output_base + '/docker/zk:/conf')
+
+        self.zk_conf['services'][name] = entry
+        write_file(os.path.join(self.out_dir, ZK_CONF),
+                   yaml.dump(self.zk_conf, default_flow_style=False))
+
+        if self.in_docker:
+            # Copy zookeeper config files
+            cfg_dir = "docker/zk"
+            cfg_path = os.path.join(self.out_dir, cfg_dir)
+            os.makedirs(cfg_path)
+            files = ["zoo.cfg", "log4j.properties"]
+            for f in files:
+                copyfile(os.path.join(os.environ['PWD'], cfg_dir, f), os.path.join(cfg_path, f))
+
+
 class TopoID(ISD_AS):
     def ISD(self):
         return "ISD%s" % self.isd_str()
@@ -1226,18 +1287,6 @@ class LinkEP(TopoID):
         if self._brid is not None:
             return "%s-%s" % (self.file_fmt(), self._brid)
         return None
-
-
-class ZKTopo(object):
-    def __init__(self, topo_config, zk_config):
-        self.addr = None
-        self.topo_config = topo_config
-        self.zk_config = zk_config
-        self.addr = ip_address(self.topo_config["addr"])
-        self.clientPort = self._get_def("clientPort")
-
-    def _get_def(self, key):
-        return self.topo_config.get(key, self.zk_config["Default"][key])
 
 
 class SubnetGenerator(object):
@@ -1370,6 +1419,31 @@ def _srv_iter(topo_dicts, out_dir, common=False):
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
 
 
+def _gen_zk_entry(addr, port, in_docker, docker):
+    if in_docker:
+        port = DEFAULT_DOCKER_ZK_PORT
+    if not port:
+        port = DEFAULT_ZK_PORT
+
+    if in_docker:
+        addr = os.getenv('DOCKER0', DEFAULT_DOCKER0)
+    elif docker:
+        addr = _docker_ip()
+    elif not addr:
+        addr = _docker_ip()
+    else:
+        addr = str(ip_address(addr))
+
+    return {
+        'Addr': addr,
+        'L4Port': port
+    }
+
+
+def _docker_ip():
+    return subprocess.check_output(['tools/docker-ip']).decode("utf-8").strip()
+
+
 def _json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
@@ -1395,8 +1469,6 @@ def main():
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
-    parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
-                        help='Zookeeper configuration file')
     parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
@@ -1409,11 +1481,13 @@ def main():
                         help='Path Server implementation to use ("go or "py")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
+    parser.add_argument('--in-docker', action='store_true',
+                        help='Set if running in a docker container')
     args = parser.parse_args()
     confgen = ConfigGenerator(
-        args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
+        args.ipv6, args.output_dir, args.topo_config, args.path_policy,
         args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
-        args.sciond, args.path_server, args.discovery)
+        args.sciond, args.path_server, args.discovery, args.in_docker)
     confgen.generate_all()
 
 

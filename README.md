@@ -64,13 +64,7 @@ Necessary steps in order to run SCION:
     ```
     This requires a go version >= 1.9.4 to be available on the system. If no sufficiently up-to-date version is available in the system repositories refer to [golang.org/dl](https://golang.org/dl) for installation instructions.
 
-1. Configure the host Zookeeper instance. At a minimum, add `maxClientCnxns=0`
-   to `/etc/zookeeper/conf/zoo.cfg`, but replacing it with `docker/zoo.cfg` is
-   recommended. This has the standard parameters set, as well as using a ram
-   disk for the data log, which greatly improves ZK performance (at the cost of
-   reliability, so it should only be done in a testing environment).
-
-1. Create the topology and configuration files (according to
+2. Create the topology and configuration files (according to
    `topology/Default.topo`):
 
     `./scion.sh topology`
@@ -91,11 +85,11 @@ Necessary steps in order to run SCION:
 
    The default topology looks like [this](doc/fig/default_topo.png).
 
-1. Run the infrastructure:
+3. Run the infrastructure:
 
     `./scion.sh run`
 
-1. Stop the infrastructure:
+4. Stop the infrastructure:
 
     `./scion.sh stop`
 

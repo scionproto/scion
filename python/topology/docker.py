@@ -15,7 +15,6 @@
 # Stdlib
 import copy
 import os
-from shutil import copyfile
 from string import Template
 # External packages
 import yaml
@@ -31,6 +30,8 @@ from topology.common import _prom_addr_br, _prom_addr_infra
 
 DOCKER_CONF = 'scion-dc.yml'
 DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
+DEFAULT_DOCKER0 = "172.18.0.1"
+DEFAULT_DOCKER_ZK_PORT = 2182
 
 
 class DockerGenerator(object):
@@ -45,7 +46,6 @@ class DockerGenerator(object):
 
     def generate(self):
         self._base_conf()
-        self._zookeeper_conf()
         self._dispatcher_conf()
         for topo_id, topo in self.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.out_dir))
@@ -93,7 +93,6 @@ class DockerGenerator(object):
             'depends_on': [
                 self._sciond_name(topo_id),
                 'dispatcher',
-                'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -127,7 +126,6 @@ class DockerGenerator(object):
             'depends_on': [
                 self._sciond_name(topo_id),
                 'dispatcher',
-                'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -162,7 +160,6 @@ class DockerGenerator(object):
             'depends_on': [
                 self._sciond_name(topo_id),
                 'dispatcher',
-                'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -189,32 +186,6 @@ class DockerGenerator(object):
                 entry['command'].append(k)
                 entry['command'].append('conf')
             self.dc_conf['services'][k] = entry
-
-    def _zookeeper_conf(self):
-        cfg_file = 'docker/zoo-container.cfg'
-        entry = {
-            'image': 'zookeeper:latest',
-            'container_name': 'zookeeper',
-            'environment': {
-                'ZOO_USER': self.user_spec,
-                'ZOO_DATA_DIR': '/var/lib/zookeeper',
-                'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
-            },
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro',
-                os.path.join(self.output_base, self.out_dir, cfg_file) + ':/conf/zoo.cfg:rw',
-                '/var/lib/docker-zk:/var/lib/zookeeper:rw',
-                '/run/shm/docker-zk:/dev/shm/zookeeper:rw'
-            ],
-            'ports': [
-                '2181:2181'
-            ]
-        }
-        self.dc_conf['services']['zookeeper'] = entry
-        cfg_path = os.path.join(self.out_dir, cfg_file)
-        os.makedirs(os.path.dirname(cfg_path))
-        copyfile(os.path.join(os.environ['PWD'], cfg_file), cfg_path)
 
     def _dispatcher_conf(self):
         entry = {

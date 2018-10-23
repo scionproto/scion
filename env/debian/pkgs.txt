@@ -48,4 +48,3 @@ sqlite3
 sudo
 uthash-dev
 vim-common
-zookeeperd
