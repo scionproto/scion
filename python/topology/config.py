@@ -62,10 +62,10 @@ from topology.net import SubnetGenerator
 from topology.prometheus import PrometheusGenerator
 from topology.supervisor import SupervisorGenerator
 from topology.topo import TopoGenerator
+from topology.zk import ZKGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
-DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
 
 DEFAULT_CERTIFICATE_SERVER = "py"
 DEFAULT_SCIOND = "go"
@@ -83,18 +83,16 @@ class ConfigGenerator(object):
     Configuration and/or topology generator.
     """
     def __init__(self, ipv6=False, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
-                 path_policy_file=DEFAULT_PATH_POLICY_FILE,
-                 zk_config_file=DEFAULT_ZK_CONFIG, network=None,
+                 path_policy_file=DEFAULT_PATH_POLICY_FILE, network=None,
                  use_mininet=False, use_docker=False, bind_addr=GENERATE_BIND_ADDRESS,
                  pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER,
-                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER, ds=False):
+                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER, ds=False, in_docker=False):
         """
         Initialize an instance of the class ConfigGenerator.
 
         :param string out_dir: path to the topology folder.
         :param string topo_file: path to topology config
         :param string path_policy_file: path to PathPolicy.yml
-        :param string zk_config_file: path to Zookeeper.yml
         :param string network:
             Network to create subnets in, of the form x.x.x.x/y
         :param bool use_mininet: Use Mininet
@@ -104,11 +102,11 @@ class ConfigGenerator(object):
         :param string sd: Use go or python implementation of SCIOND
         :param string ps: Use go or python implementation of path server
         :param bool ds: Use discovery service
+        :param bool in_docker: Generator is run inside a docker container
         """
         self.ipv6 = ipv6
         self.out_dir = out_dir
         self.topo_config = load_yaml_file(topo_file)
-        self.zk_config = load_yaml_file(zk_config_file)
         self.path_policy_file = path_policy_file
         self.mininet = use_mininet
         self.docker = use_docker
@@ -123,6 +121,7 @@ class ConfigGenerator(object):
         self.sd = sd
         self.ps = ps
         self.ds = ds
+        self.in_docker = in_docker
         if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
             logging.critical("Cannot use non-default CS with docker!")
             sys.exit(1)
@@ -167,6 +166,7 @@ class ConfigGenerator(object):
             self._generate_docker(topo_dicts)
         else:
             self._generate_supervisor(topo_dicts)
+        self._generate_zk()
         self._generate_prom_conf(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
@@ -207,9 +207,9 @@ class ConfigGenerator(object):
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(
-            self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
+            self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen,
             self.default_mtu, self.gen_bind_addr, self.docker, self.ipv6, self.cs, self.ps,
-            self.ds)
+            self.ds, self.in_docker)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
@@ -221,6 +221,10 @@ class ConfigGenerator(object):
         docker_gen = DockerGenerator(
             self.out_dir, topo_dicts, self.sd, self.ps)
         docker_gen.generate()
+
+    def _generate_zk(self):
+        zk_gen = ZKGenerator(self.out_dir, self.topo_config, self.in_docker, self.docker)
+        zk_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
         prom_gen = PrometheusGenerator(self.out_dir, topo_dicts)

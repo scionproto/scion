@@ -32,7 +32,6 @@ from topology.config import (
     DEFAULT_PATH_POLICY_FILE,
     DEFAULT_PATH_SERVER,
     DEFAULT_TOPOLOGY_FILE,
-    DEFAULT_ZK_CONFIG,
     GENERATE_BIND_ADDRESS,
 )
 
@@ -56,8 +55,6 @@ def main():
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
-    parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
-                        help='Zookeeper configuration file')
     parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
@@ -70,11 +67,13 @@ def main():
                         help='Path Server implementation to use ("go or "py")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
+    parser.add_argument('--in-docker', action='store_true',
+                        help='Set if running in a docker container')
     args = parser.parse_args()
     confgen = ConfigGenerator(
-        args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
+        args.ipv6, args.output_dir, args.topo_config, args.path_policy,
         args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
-        args.sciond, args.path_server, args.discovery)
+        args.sciond, args.path_server, args.discovery, args.in_docker)
     confgen.generate_all()
 
 

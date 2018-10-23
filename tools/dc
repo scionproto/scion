@@ -45,12 +45,16 @@ exec_tester() {
 	cmd_tester exec -u scion -T "$cntr" bash -l -c "$*"
 }
 
+cmd_zk() {
+    COMPOSE_FILE="gen/zk-dc.yml" docker-compose --no-ansi "$@"
+}
+
 PROGRAM="${0##*/}"
 COMMAND="$1"
 shift
 
 case "$COMMAND" in
-	scion|tester)
+	scion|tester|zk)
 	    "cmd_$COMMAND" "$@" ;;
 	exec_tester)
 		"exec_tester" "$@" ;;
