@@ -14,7 +14,6 @@
 
 # Stdlib
 import os
-
 # SCION
 from lib.packet.scion_addr import ISD_AS
 
@@ -82,17 +81,17 @@ class TopoID(ISD_AS):
 
 def prom_addr_br(br_id, br_ele, port_gen):
     """Get the prometheus address for a border router"""
-    pub = _get_pub(br_ele['InternalAddrs'])
+    pub = get_pub(br_ele['InternalAddrs'])
     return "[%s]:%s" % (pub['PublicOverlay']['Addr'].ip, port_gen.register(br_id + "prom"))
 
 
 def prom_addr_infra(infra_id, infra_ele, port_gen):
     """Get the prometheus address for an infrastructure element."""
-    pub = _get_pub(infra_ele['Addrs'])
+    pub = get_pub(infra_ele['Addrs'])
     return "[%s]:%s" % (pub['Public']['Addr'].ip, port_gen.register(infra_id + "prom"))
 
 
-def _get_pub(topo_addr):
+def get_pub(topo_addr):
     pub = topo_addr.get('IPv6')
     if pub is not None:
         return pub

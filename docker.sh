@@ -87,8 +87,6 @@ common_args() {
     args+=" -v $SCION_MOUNT/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
     args+=" -v $SCION_MOUNT/gen-cache:/home/scion/go/src/github.com/scionproto/scion/gen-cache"
     args+=" -v $SCION_MOUNT/htmlcov:/home/scion/go/src/github.com/scionproto/scion/python/htmlcov"
-    args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
-    args+=" -v /run/shm/sciond:/run/shm/sciond"
     args+=" -e SCION_OUTPUT_BASE=$SCION_MOUNT"
     args+=" -e SCION_UID=$(id -u)"
     args+=" -e SCION_GID=$(id -g)"
