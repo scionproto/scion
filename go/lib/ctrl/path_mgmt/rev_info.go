@@ -103,6 +103,10 @@ func (r *RevInfo) ProtoId() proto.ProtoIdType {
 	return proto.RevInfo_TypeID
 }
 
+func (r *RevInfo) Pack() (common.RawBytes, error) {
+	return proto.PackRoot(r)
+}
+
 func (r *RevInfo) String() string {
 	return fmt.Sprintf("IA: %s IfID: %d Link type: %s Timestamp: %s TTL: %s", r.IA(), r.IfID,
 		r.LinkType, util.TimeToString(r.Timestamp()), r.TTL())
@@ -144,6 +148,18 @@ func NewSignedRevInfoFromRaw(b common.RawBytes) (*SignedRevInfo, error) {
 	return sr, proto.ParseFromRaw(sr, sr.ProtoId(), b)
 }
 
+func NewSignedRevInfo(r *RevInfo, s *proto.SignS) (*SignedRevInfo, error) {
+	rawR, err := r.Pack()
+	if err != nil {
+		return nil, err
+	}
+	return &SignedRevInfo{
+		Blob:    rawR,
+		Sign:    s,
+		revInfo: r,
+	}, nil
+}
+
 func (sr *SignedRevInfo) ProtoId() proto.ProtoIdType {
 	return proto.SignedBlob_TypeID
 }
@@ -156,6 +172,6 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 	return sr.revInfo, err
 }
 
-func (sp *SignedRevInfo) String() string {
-	return fmt.Sprintf("SignedRevInfo: %s %s", sp.Blob, sp.Sign)
+func (sr *SignedRevInfo) String() string {
+	return fmt.Sprintf("SignedRevInfo: %s %s", sr.Blob, sr.Sign)
 }
