@@ -15,7 +15,6 @@
 # Stdlib
 import copy
 import os
-from shutil import copyfile
 from string import Template
 # External packages
 import yaml
@@ -31,7 +30,6 @@ from topology.common import ArgsTopoDicts, docker_image, prom_addr_br, prom_addr
 from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
-DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 
 
 class DockerGenArgs(ArgsTopoDicts):
@@ -61,7 +59,6 @@ class DockerGenerator(object):
 
     def generate(self):
         self._create_networks()
-        self._zookeeper_conf()
         for topo_id, topo in self.args.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
@@ -90,8 +87,6 @@ class DockerGenerator(object):
         self.dc_conf['volumes']['vol_%ssciond_%s' % (self.prefix, topo_id.file_fmt())] = None
 
     def _create_networks(self):
-        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
-        self.dc_conf['networks']['default'] = default_net
         for network in self.args.networks:
             for elem in self.args.networks[network]:
                 if elem not in self.elem_networks:
@@ -149,7 +144,6 @@ class DockerGenerator(object):
             'depends_on': [
                 self._sciond_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
-                'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -176,7 +170,6 @@ class DockerGenerator(object):
             'depends_on': [
                 self._sciond_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
-                'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -205,7 +198,6 @@ class DockerGenerator(object):
             'depends_on': [
                 self._sciond_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
-                'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -226,32 +218,6 @@ class DockerGenerator(object):
                 entry['command'].append(k)
                 entry['command'].append('conf')
             self.dc_conf['services']['scion_%s' % k] = entry
-
-    def _zookeeper_conf(self):
-        cfg_file = 'docker/zoo-container.cfg'
-        entry = {
-            'image': 'zookeeper:latest',
-            'container_name': 'zookeeper',
-            'environment': {
-                'ZOO_USER': self.user_spec,
-                'ZOO_DATA_DIR': '/var/lib/zookeeper',
-                'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
-            },
-            'volumes': [
-                *self._usr_vol(),
-                os.path.join(
-                    self.output_base, self.args.output_dir, cfg_file) + ':/conf/zoo.cfg:rw',
-                '/var/lib/docker-zk:/var/lib/zookeeper:rw',
-                '/run/shm/docker-zk:/dev/shm/zookeeper:rw'
-            ],
-            'ports': [
-                '2181:2181'
-            ]
-        }
-        self.dc_conf['services']['zookeeper'] = entry
-        cfg_path = os.path.join(self.args.output_dir, cfg_file)
-        os.makedirs(os.path.dirname(cfg_path))
-        copyfile(os.path.join(os.environ['PWD'], cfg_file), cfg_path)
 
     def _dispatcher_conf(self, topo_id, topo, base):
         # Create dispatcher config

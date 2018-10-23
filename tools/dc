@@ -59,7 +59,15 @@ cmd_run() {
 }
 
 cmd_dc() {
-    COMPOSE_FILE="gen/scion-dc.yml" docker-compose --no-ansi "$@"
+    local project="scion"
+    is_running_in_docker && project="scion_docker"
+    COMPOSE_FILE="gen/scion-dc.yml" docker-compose  -p "$project" --no-ansi "$@"
+}
+
+cmd_zk() {
+    local project="zk"
+    is_running_in_docker && project="zk_docker"
+    COMPOSE_FILE="gen/zk-dc.yml" docker-compose -p "$project" --no-ansi "$@"
 }
 
 exec_tester() {
@@ -96,12 +104,16 @@ service_running() {
     [ -n "$cntr" ] && [ -n "$(docker ps -q --no-trunc | grep $cntr)" ]
 }
 
+is_running_in_docker() {
+    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
+}
+
 PROGRAM="${0##*/}"
 COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    start|stop|down|run|dc)
+    start|stop|down|run|dc|zk)
         "cmd_$COMMAND" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;
