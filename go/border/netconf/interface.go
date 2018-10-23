@@ -65,7 +65,10 @@ func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFIn
 				"Cannot have multiple local control-plane addresses")
 		}
 		if ifinfo.Local == nil {
-			return nil, common.NewBasicError("Loacal address not initialized", nil, "ifid", ifid)
+			return nil, common.NewBasicError("Local address not initialized", nil, "ifid", ifid)
+		}
+		if ifinfo.Remote == nil {
+			return nil, common.NewBasicError("Remote address not initialized", nil, "ifid", ifid)
 		}
 		v, ok := n.IFs[ifid]
 		newIF := intfFromTopoIF(&ifinfo, ifid)
