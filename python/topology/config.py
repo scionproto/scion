@@ -66,10 +66,10 @@ from topology.net import (
 from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
 from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
 from topology.topo import TopoGenArgs, TopoGenerator
+from topology.zk import ZKGenArgs, ZKGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
-DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
 
 DEFAULT_CERTIFICATE_SERVER = "go"
 DEFAULT_SCIOND = "go"
@@ -94,7 +94,6 @@ class ConfigGenerator(object):
         """
         self.args = args
         self.topo_config = load_yaml_file(self.args.topo_config)
-        self.zk_config = load_yaml_file(self.args.zk_config)
         if self.args.docker and self.args.mininet:
             logging.critical("Cannot use mininet with docker!")
             sys.exit(1)
@@ -122,8 +121,8 @@ class ConfigGenerator(object):
             priv_net = DEFAULT6_PRIV_NETWORK
         else:
             priv_net = DEFAULT_PRIV_NETWORK
-        self.subnet_gen = SubnetGenerator(def_network, self.args.docker)
-        self.prvnet_gen = SubnetGenerator(priv_net, self.args.docker)
+        self.subnet_gen = SubnetGenerator(def_network, self.args.docker, self.args.in_docker)
+        self.prvnet_gen = SubnetGenerator(priv_net, self.args.docker, self.args.in_docker)
         for key, val in defaults.get("zookeepers", {}).items():
             if self.args.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
@@ -164,6 +163,7 @@ class ConfigGenerator(object):
             self._generate_docker(topo_dicts)
         else:
             self._generate_supervisor(topo_dicts)
+        self._generate_zk()
         self._generate_prom_conf(topo_dicts)
 
     def _generate_cas(self):
@@ -198,7 +198,7 @@ class ConfigGenerator(object):
         return topo_gen.generate()
 
     def _topo_args(self):
-        return TopoGenArgs(self.args, self.topo_config, self.zk_config, self.subnet_gen,
+        return TopoGenArgs(self.args, self.topo_config, self.subnet_gen,
                            self.prvnet_gen, self.default_mtu, self.port_gen)
 
     def _generate_supervisor(self, topo_dicts):
@@ -216,6 +216,10 @@ class ConfigGenerator(object):
 
     def _docker_args(self, topo_dicts):
         return DockerGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
+
+    def _generate_zk(self):
+        zk_gen = ZKGenerator(ZKGenArgs(self.args, self.topo_config))
+        zk_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
         args = self._prometheus_args(topo_dicts)

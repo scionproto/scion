@@ -3,28 +3,13 @@ defaults:
   zookeepers:
     1:
       addr: 127.0.0.1
+      port: 2181
 ASes:
   "1-ff00:0:110": # old 1-11
     core: true
     path_servers: 3
   "1-ff00:0:120": # old 1-12
     core: true
-    zookeepers:
-      1:
-        manage: true
-        clientPort: 4000
-        leaderPort: 4001
-        electionPort: 4002
-      2:
-        manage: true
-        clientPort: 4003
-        leaderPort: 4004
-        electionPort: 4005
-      3:
-        manage: true
-        clientPort: 4006
-        leaderPort: 4007
-        electionPort: 4008
   "1-ff00:0:130": # old 1-13
     core: true
     beacon_servers: 2
