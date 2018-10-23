@@ -119,6 +119,7 @@ func realMain() int {
 	)
 	if err != nil {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
+		return 1
 	}
 	revCache := memrevcache.New(cache.NoExpiration, time.Second)
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))

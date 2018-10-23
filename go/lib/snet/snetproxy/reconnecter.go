@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -80,6 +81,7 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (snet.Conn, error)
 			// time.Ticker will ensure that no more than one attempt is made
 			// per interval (even if the reconnection function takes longer
 			// than the interval).
+			log.Debug("Registering with dispatcher failed, retrying...")
 			select {
 			case <-t.C:
 			case <-timeoutExpired:

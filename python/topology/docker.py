@@ -64,7 +64,6 @@ class DockerGenerator(object):
     def _br_conf(self, topo, base):
         raw_entry = {
             'image': 'scion_border',
-            'restart': 'always',
             'network_mode': 'host',
             'depends_on': [
                 'dispatcher',
@@ -91,7 +90,6 @@ class DockerGenerator(object):
     def _cs_conf(self, topo_id, topo, base):
         raw_entry = {
             'image': 'scion_cert_py',
-            'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
                 'dispatcher',
@@ -126,7 +124,6 @@ class DockerGenerator(object):
     def _bs_conf(self, topo_id, topo, base):
         raw_entry = {
             'image': 'scion_beacon_py',
-            'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
                 'dispatcher',
@@ -162,7 +159,6 @@ class DockerGenerator(object):
         image = 'scion_path_py' if self.ps == 'py' else 'scion_path'
         raw_entry = {
             'image': image,
-            'restart': 'always',
             'depends_on': [
                 self._sciond_name(topo_id),
                 'dispatcher',
@@ -199,7 +195,6 @@ class DockerGenerator(object):
         entry = {
             'image': 'zookeeper:latest',
             'container_name': 'zookeeper',
-            'restart': 'always',
             'environment': {
                 'ZOO_USER': self.user_spec,
                 'ZOO_DATA_DIR': '/var/lib/zookeeper',
@@ -225,7 +220,6 @@ class DockerGenerator(object):
         entry = {
             'image': 'scion_dispatcher',
             'container_name': 'dispatcher',
-            'restart': 'always',
             'network_mode': 'host',
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -250,7 +244,6 @@ class DockerGenerator(object):
         image = 'scion_sciond_py' if self.sd == 'py' else 'scion_sciond'
         entry = {
             'image': image,
-            'restart': 'always',
             'container_name': name,
             'depends_on': [
                 'dispatcher',
