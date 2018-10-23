@@ -26,6 +26,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
@@ -71,12 +72,15 @@ func realMain() int {
 	if v, ok := env.CheckFlags(psconfig.Sample); !ok {
 		return v
 	}
-	if err := setup(env.ConfigFile()); err != nil {
+	if err := setupBasic(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		flag.Usage()
 		return 1
 	}
 	defer log.LogPanicAndExit()
+	if err := setup(); err != nil {
+		log.Crit("Setup failed", "err", err)
+		return 1
+	}
 	pathDB, err := pathdbbe.New(config.PS.PathDB)
 	if err != nil {
 		log.Crit("Unable to initialize pathDB", "err", err)
@@ -173,18 +177,23 @@ func realMain() int {
 	}
 }
 
-func setup(configName string) error {
-	if _, err := toml.DecodeFile(configName, &config); err != nil {
+func setupBasic() error {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
 		return err
 	}
+	if err := env.InitLogging(&config.Logging); err != nil {
+		return err
+	}
+	env.LogSvcStarted(common.PS, config.General.ID)
+	return nil
+}
+
+func setup() error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return err
 	}
 	itopo.SetCurrentTopology(config.General.Topology)
 	environment = infraenv.InitInfraEnvironment(config.General.TopologyPath)
-	if err := env.InitLogging(&config.Logging); err != nil {
-		return err
-	}
 	config.PS.InitDefaults()
 	return nil
 }
