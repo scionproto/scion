@@ -90,9 +90,6 @@ RUN set -e; mkdir su-exec; \
 COPY docker/profile $HOME/.profile
 # Install basic screen config
 COPY docker/screenrc $HOME/.screenrc
-# Install ZK config
-COPY docker/zoo.cfg /etc/zookeeper/conf/
-RUN sudo sh -c "echo 'JAVA_OPTS=-Xmx150m # Added by Dockerfile.base' >> /etc/zookeeper/conf/environment"
 
 # Fix ownership one last time:
 RUN sudo chown -R scion: $HOME
