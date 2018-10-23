@@ -78,8 +78,8 @@ cmd_clean() {
 }
 
 common_args() {
-    # Limit to 4G of ram, don't allow swapping.
-    local args="-h scion -m 4096M --memory-swap=4096M --shm-size=1024M $DOCKER_ARGS"
+    # Limit to 6G of ram, don't allow swapping.
+    local args="-h scion -m 6GB --memory-swap=6GB --shm-size=1024M $DOCKER_ARGS"
     args+=" -v /var/run/docker.sock:/var/run/docker.sock"
     args+=" -v $SCION_MOUNT/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
     args+=" -v $SCION_MOUNT/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
@@ -101,7 +101,7 @@ cmd_run() {
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local args=$(common_args)
-    args+=" -i -t --rm"
+    args+=" -i -t --rm --entrypoint=/docker-entrypoint.sh"
     setup_volumes
     docker run $args scion "$@"
 }
@@ -112,14 +112,16 @@ cmd_start() {
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local cntr="scion"
     if docker container inspect "$cntr" &>/dev/null; then
-        echo "Removing stale container"
-        docker rm -f "$cntr"
+        echo "Removing stale $cntr container"
+        ./tools/quiet docker rm -f "$cntr"
     fi
     local args=$(common_args)
     args+=" --name $cntr"
     setup_volumes
-    docker container create $args scion -c "tail -f /dev/null"
-    docker start "$cntr"
+    ./tools/quiet docker container create $args scion -c "tail -f /dev/null"
+    ./tools/quiet docker start "$cntr"
+    # Adjust ownership of mounted dirs
+    docker exec scion /docker-entrypoint.sh
 }
 
 cmd_exec() {
@@ -128,13 +130,13 @@ cmd_exec() {
 
 cmd_stop() {
     local cntr="scion"
-    echo "Stopping $cntr container"; docker stop "$cntr";
-    echo "Removing $cntr container"; docker rm "$cntr";
+    echo "Stopping $cntr container"; ./tools/quiet docker stop "$cntr";
+    echo "Removing $cntr container"; ./tools/quiet docker rm "$cntr";
 }
 
 setup_volumes() {
     set -e
-    for i in gen logs gen-certs gen-cache; do
+    for i in gen logs gen-certs gen-cache htmlcov; do
         mkdir -p "$SCION_MOUNT/$i"
         # Check dir exists, and is owned by the current (effective) user. If
         # it's owned by the wrong user, the docker environment won't be able to
@@ -191,6 +193,12 @@ cmd_help() {
 	    $PROGRAM build
 	    $PROGRAM run
 	        Run the Docker image.
+	    $PROGRAM start
+	        Start a Docker container.
+	    $PROGRAM exec
+	        Execute a command in a running container.
+	    $PROGRAM stop
+	        Stop the Docker container.
 	    $PROGRAM clean
 	        Remove all Docker containers and all generated images.
 	    $PROGRAM help

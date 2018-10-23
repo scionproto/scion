@@ -100,4 +100,4 @@ RUN sudo chown -R scion: $HOME
 COPY docker/docker-entrypoint.sh /
 
 CMD []
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "-l"]

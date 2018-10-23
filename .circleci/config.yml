@@ -25,7 +25,7 @@ jobs:
                 command: ./tools/ci/docker_update
             - run:
                 name: Pull and tag scion_base image
-                command: ./tools/ci/prepare_image 3e44fd367a50d6d46fc9208850fe0a2149c98fc0b54b5c77d94e9b6994783070
+                command: ./tools/ci/prepare_image 89ee7e0b01200680f8620439bba7df9b8e825a04b57258c5ee6758a274443430
                 when: always
             - run:
                 name: Build scion:latest image
@@ -38,7 +38,10 @@ jobs:
             # Build and run tests:
             - run:
                 name: Create and start container
-                command: ./tools/ci/setup_container
+                command: |
+                    set +e -x
+                    mkdir -p /tmp/artifacts/mount
+                    SCION_MOUNT=/tmp/artifacts/mount ./docker.sh start
                 when: always
             - run:
                 name: Build
@@ -71,9 +74,10 @@ jobs:
                     BUILD=$(date +%s)
                     [ -n "$CIRCLE_BUILD_NUM" ] && BUILD="build${CIRCLE_BUILD_NUM}"
                     ARTIFACTS="circleci.${CIRCLE_PROJECT_USERNAME}.${CIRCLE_PROJECT_REPONAME}.${TARGET}.${BUILD}"
-                    mkdir -p "/tmp/artifacts/$ARTIFACTS" "/tmp/artifacts.out"
-                    ./tools/ci/clean_up /tmp/artifacts/$ARTIFACTS
+                    mkdir -p "/tmp/artifacts.out"
+                    mv /tmp/artifacts/{mount,"$ARTIFACTS"}
                     tar caf "/tmp/artifacts.out/$ARTIFACTS.tar.gz" -C /tmp/artifacts "$ARTIFACTS"
+                    ./docker.sh stop
                 when: always
             - store_artifacts:
                 path: /tmp/artifacts.out

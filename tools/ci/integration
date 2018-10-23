@@ -3,23 +3,12 @@
 . tools/ci/common.sh
 set -eo pipefail
 
-cntr="${1:-scion_ci}"
-
-docker container exec $cntr bash -c "set -x; ./scion.sh topology ${DOCKER:+-d}"
+# FIXME(worxli): host zk should be properly isolated from dockerized zk
+./docker.sh exec "set -x; ./scion.sh topology ${DOCKER:+zkclean -d}"
 
 if [ -n "$DOCKER" ]; then
-    # Make sure stale configs/state on the host are removed.
-    for i in gen gen-certs; do
-        [ -e "$i" ] && rm -r "$i"
-    done
-    rm -f ./logs/* ./gen-cache/*
-    mkdir -p gen-cache
-    # Copy out new topology
-    docker cp "$cntr:/home/scion/go/src/github.com/scionproto/scion/gen" .
-    docker cp "$cntr:/home/scion/go/src/github.com/scionproto/scion/gen-certs" .
-    # Run tests from host.
-    ./integration/integration_test.sh -d "$cntr" |& tee logs/integration.run
+    ./docker.sh exec "set -eo pipefail; ./integration/integration_test.sh |& tee logs/integration.run"
 else
     # Run tests inside the CI container.
-    docker container exec "$cntr" bash -c "set -eo pipefail; sudo service zookeeper start; ./integration/integration_test.sh |& tee logs/integration.run"
+    ./docker.sh exec "set -eo pipefail; sudo service zookeeper start; ./integration/integration_test.sh |& tee logs/integration.run"
 fi

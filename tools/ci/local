@@ -2,10 +2,10 @@
 
 . tools/ci/common.sh
 
-cntr="${1:-scion_ci}"
+# Hardcoded in docker.sh
+cntr="scion"
 
 if [ -n "$DOCKER" ]; then
-    args="-d $cntr"
     # Stop a local scion run because we don't want to interfere
     ./scion.sh stop
     echo "Stop local zookeeper"
@@ -15,27 +15,25 @@ fi
 ./docker.sh build || exit 1
 [ -n "$DOCKER" ] && { make -sC docker/perapp || exit 1; }
 
-docker inspect "$cntr" &>/dev/null && { echo "Removing stale container"; docker rm -f "$cntr"; }
-./tools/ci/setup_container $args || exit 1
+tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
+SCION_MOUNT="$tmpdir" ./docker.sh start || exit 1
 
 result=0
-./tools/ci/build "$cntr"
+./tools/ci/build
 result=$((result+$?))
-./tools/ci/lint "$cntr"
+./tools/ci/lint
 result=$((result+$?))
-./tools/ci/unittest "$cntr"
+./tools/ci/unittest
 result=$((result+$?))
-./tools/ci/sphinx "$cntr"
-result=$((result+$?))
-
-./tools/ci/integration $args "$cntr"
+./tools/ci/sphinx
 result=$((result+$?))
 
-tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
-./tools/ci/clean_up "$tmpdir" "$cntr" || exit 1
+./tools/ci/integration
+result=$((result+$?))
+
 echo "Artifacts dir: $tmpdir"
 
-[ $result -eq 0 ] && docker rm -f "$cntr"
+[ $result -eq 0 ] && ./docker.sh stop
 ./scion.sh stop
 
 if [ $result -eq 0 ]; then
