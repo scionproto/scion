@@ -91,5 +91,5 @@ func setupFileLogging(cfg *Logging) error {
 
 // LogSvcStarted should be called by services as soon as logging is initialized.
 func LogSvcStarted(svcType, elemId string) {
-	log.Info("Service started", "svc", svcType, "id", elemId)
+	log.Info("=====================> Service started", "svc", svcType, "id", elemId)
 }
