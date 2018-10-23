@@ -4,7 +4,7 @@
 set -eo pipefail
 
 # FIXME(worxli): host zk should be properly isolated from dockerized zk
-./docker.sh exec "set -x; ./scion.sh topology ${DOCKER:+zkclean -d}"
+./docker.sh exec "set -x; ./scion.sh topology -sd=go -ps=go ${DOCKER:+zkclean -d}"
 
 if [ -n "$DOCKER" ]; then
     ./docker.sh exec "set -eo pipefail; ./integration/integration_test.sh |& tee logs/integration.run"
