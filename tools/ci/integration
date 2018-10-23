@@ -2,8 +2,7 @@
 
 . tools/ci/common.sh
 
-# FIXME(worxli): host zk should be properly isolated from dockerized zk
-./docker.sh exec "set -x; ./scion.sh topology ${DOCKER_BE:+zkclean -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
+./docker.sh exec "set -x; ./scion.sh topology ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
 ./docker.sh exec "set -eo pipefail; ./scion.sh run nobuild | grep -v "started" |& tee logs/integration.run"
 ./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee logs/integration.run"
 
@@ -47,5 +46,7 @@ fi
 if [ -n "$DOCKER_BE" ]; then
     ./docker.sh exec "set -eo pipefail; ./tools/dc down |& tee -a logs/integration.run"
 fi
+
+./docker.sh exec "./tools/dc zk logs zookeeper &> logs/zookeeper.log"
 
 exit $result

@@ -33,7 +33,6 @@ from topology.config import (
     DEFAULT_PATH_SERVER,
     DEFAULT_SCIOND,
     DEFAULT_TOPOLOGY_FILE,
-    DEFAULT_ZK_CONFIG,
     GENERATE_BIND_ADDRESS,
 )
 
@@ -51,8 +50,6 @@ def add_arguments(parser):
                         help='Network to create subnets in (E.g. "127.0.0.0/8"')
     parser.add_argument('-o', '--output-dir', default=GEN_PATH,
                         help='Output directory')
-    parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
-                        help='Zookeeper configuration file')
     parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
     parser.add_argument('-t', '--trace', action='store_true',
