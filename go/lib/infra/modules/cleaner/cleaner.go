@@ -43,5 +43,7 @@ func (c *Cleaner) Run(ctx context.Context) {
 		log.Error("Failed to delete expired segments", "err", err)
 		return
 	}
-	log.Info("Deleted expired segments", "count", count)
+	if count > 0 {
+		log.Info("Deleted expired segments", "count", count)
+	}
 }
