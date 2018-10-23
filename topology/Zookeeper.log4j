@@ -1,7 +1,0 @@
-log4j.rootLogger=INFO, ROLLINGFILE
-log4j.appender.ROLLINGFILE=org.apache.log4j.RollingFileAppender
-log4j.appender.ROLLINGFILE.File=${zookeeper.log.file}
-log4j.appender.ROLLINGFILE.MaxFileSize=1MB
-log4j.appender.ROLLINGFILE.MaxBackupIndex=0
-log4j.appender.ROLLINGFILE.layout=org.apache.log4j.PatternLayout
-log4j.appender.ROLLINGFILE.layout.ConversionPattern=%d{ISO8601} - %-5p [%t:%C{1}@%L] - %m%n
