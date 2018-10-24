@@ -44,7 +44,7 @@ func (h *revocHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	h.logger.Debug("[revocHandler] Received message", "revocation", revocation)
+	h.logger.Debug("[revocHandler] Received message")
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	h.verifyAndStore(subCtx, revocation)
@@ -53,11 +53,18 @@ func (h *revocHandler) Handle() {
 func (h *revocHandler) verifyAndStore(ctx context.Context, revocation *path_mgmt.SignedRevInfo) {
 	err := segverifier.VerifyRevInfo(ctx, h.trustStore, h.request.Peer, revocation)
 	if err != nil {
-		h.logger.Warn("[revocHandler] couldn't verify revocation", "err", err)
+		h.logger.Warn("Couldn't verify revocation", "err", err)
+		h.logger.Trace("Raw revocation data", "rev", revocation)
 		return
 	}
+	revInfo, err := revocation.RevInfo()
+	if err != nil {
+		h.logger.Warn("Couldn't parse revocation", "err", err)
+		return
+	}
+	h.logger.Debug("Revocation info", "info", revInfo)
 	_, err = h.revCache.Insert(ctx, revocation)
 	if err != nil {
-		h.logger.Error("[revocHandler] Failed to insert revInfo", "rev", revocation, "err", err)
+		h.logger.Error("Failed to insert revInfo", "err", err)
 	}
 }
