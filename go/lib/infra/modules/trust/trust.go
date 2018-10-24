@@ -68,8 +68,8 @@ var _ infra.TrustStore = (*Store)(nil)
 type Store struct {
 	mu           sync.Mutex
 	trustdb      *trustdb.DB
-	trcDeduper   *dedupe.Deduper
-	chainDeduper *dedupe.Deduper
+	trcDeduper   dedupe.Deduper
+	chainDeduper dedupe.Deduper
 	config       *Config
 	// local AS
 	ia  addr.IA
