@@ -32,7 +32,7 @@ type State struct {
 	TrustDB *trustdb.DB
 	// keyConf contains the AS level keys.
 	keyConf *keyconf.Conf
-	// keyConfLock guards KeyConf, CertVer and TRCVer.
+	// keyConfLock guards KeyConf.
 	keyConfLock sync.RWMutex
 	// Customers is a mapping from non-core ASes assigned to this core AS to their public
 	// verifying key.
@@ -54,7 +54,7 @@ func LoadState(confDir string, isCore bool) (*State, error) {
 	}
 	if isCore {
 		var err error
-		if s.Customers, err = s.LoadCustomers(confDir); err != nil {
+		if s.Customers, err = s.loadCustomers(confDir); err != nil {
 			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
 	}
