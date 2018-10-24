@@ -72,11 +72,11 @@ const Sample = `[general]
 [cs]
   # Time between starting reissue requests and leaf cert expiration. If not
   # specified, this is set to PathSegmentTTL.
-  LeafReissueTime = "6h"
+  LeafReissueLeadTime = "6h"
 
   # Time between self issuing core cert and core cert expiration. If not
   # specified, this is set to the default leaf certificate validity time.
-  IssuerReissueTime = "73h"
+  IssuerReissueLeadTime = "73h"
 
   # Interval between two consecutive reissue requests. Default is 10 seconds.
   ReissueRate = "10s"

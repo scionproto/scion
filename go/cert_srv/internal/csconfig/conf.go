@@ -37,13 +37,12 @@ const (
 )
 
 type Conf struct {
-	// LeafReissueTime is the time between starting reissue requests and leaf cert expiration.
-	// If the time difference between now and leaf cert expiration is smaller than
-	// LeafReissueTime, certificate reissuance is requested until a new certificate is
-	// received or the certificate has expired.
-	LeafReissueTime util.DurWrap
-	// IssuerReissueTime is the time between self issuing core cert and core cert expiration.
-	IssuerReissueTime util.DurWrap
+	// LeafReissueLeadTime indicates how long in advance of leaf cert expiration
+	// the reissuance process starts.
+	LeafReissueLeadTime util.DurWrap
+	// IssuerReissueLeadTime indicates how long in advance core cert expiration
+	// the self reissuance process starts.
+	IssuerReissueLeadTime util.DurWrap
 	// ReissueRate is the interval between two consecutive reissue requests.
 	ReissueRate util.DurWrap
 	// ReissueTimeout is the timeout for resissue request.
@@ -53,7 +52,7 @@ type Conf struct {
 // Init sets the uninitialized fields.
 func (c *Conf) Init(confDir string) error {
 	c.initDefaults()
-	if c.LeafReissueTime.Duration == 0 {
+	if c.LeafReissueLeadTime.Duration == 0 {
 		if err := c.loadLeafReissTime(confDir); err != nil {
 			return err
 		}
@@ -62,8 +61,8 @@ func (c *Conf) Init(confDir string) error {
 }
 
 func (c *Conf) initDefaults() {
-	if c.IssuerReissueTime.Duration == 0 {
-		c.IssuerReissueTime.Duration = IssuerReissTime
+	if c.IssuerReissueLeadTime.Duration == 0 {
+		c.IssuerReissueLeadTime.Duration = IssuerReissTime
 	}
 	if c.ReissueRate.Duration == 0 {
 		c.ReissueRate.Duration = ReissReqRate
@@ -79,6 +78,6 @@ func (c *Conf) loadLeafReissTime(confDir string) error {
 	if err := as_conf.Load(filepath.Join(confDir, as_conf.CfgName)); err != nil {
 		return err
 	}
-	c.LeafReissueTime.Duration = time.Duration(as_conf.CurrConf.PathSegmentTTL) * time.Second
+	c.LeafReissueLeadTime.Duration = time.Duration(as_conf.CurrConf.PathSegmentTTL) * time.Second
 	return nil
 }

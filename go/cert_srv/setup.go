@@ -55,6 +55,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
+	env.LogSvcStarted(common.CS, config.General.ID)
 	return nil
 }
 
@@ -78,7 +79,7 @@ func setup() error {
 	if currMsgr, err = startMessenger(&config); err != nil {
 		return common.NewBasicError("Unable to start messenger", err)
 	}
-	// Starte the periodic reissuance task.
+	// Start the periodic reissuance task.
 	reissRunner = startReissRunner(&config, currMsgr)
 	// Set environment to listen for signals.
 	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
@@ -159,15 +160,20 @@ func startMessenger(config *Config) (*messenger.Messenger, error) {
 		config.state.Store,
 		config.Sciond,
 	)
-	// XXX(roosd): Hack to make Store.ChooseServer not panic.
-	snet.Init(config.General.Topology.ISD_AS, config.Sciond.Path, "")
 	if err != nil {
 		return nil, common.NewBasicError("Unable to initialize SCION Messenger", err)
 	}
-	// We need the actual type to set the signer and verifier.
+	// FIXME(roosd): Hack to make Store.ChooseServer not panic.
+	// Remove when #2029 is resolved.
+	if err := snet.Init(config.General.Topology.ISD_AS, config.Sciond.Path, ""); err != nil {
+		return nil, common.NewBasicError("Unable to initialize snet", err)
+	}
+	// FIXME(roosd): We need the actual type to set the signer and verifier.
+	// Remove when #2030 is resolved.
 	msgr, ok := msgrI.(*messenger.Messenger)
 	if !ok {
-		return nil, common.NewBasicError("Unsupported messenger type", nil, "msgrI", msgrI)
+		return nil, common.NewBasicError("Unsupported messenger type", nil,
+			"msgrI", common.TypeOf(msgrI))
 	}
 	msgr.AddHandler(infra.ChainRequest, config.state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, config.state.Store.NewTRCReqHandler(true))
@@ -195,8 +201,8 @@ func startReissRunner(config *Config, msgr *messenger.Messenger) *periodic.Runne
 				Msgr:     msgr,
 				State:    config.state,
 				IA:       config.General.Topology.ISD_AS,
-				IssTime:  config.CS.IssuerReissueTime.Duration,
-				LeafTime: config.CS.LeafReissueTime.Duration,
+				IssTime:  config.CS.IssuerReissueLeadTime.Duration,
+				LeafTime: config.CS.LeafReissueLeadTime.Duration,
 			},
 			time.NewTicker(config.CS.ReissueRate.Duration),
 			config.CS.ReissueTimeout.Duration,
@@ -208,7 +214,7 @@ func startReissRunner(config *Config, msgr *messenger.Messenger) *periodic.Runne
 			Msgr:     msgr,
 			State:    config.state,
 			IA:       config.General.Topology.ISD_AS,
-			LeafTime: config.CS.LeafReissueTime.Duration,
+			LeafTime: config.CS.LeafReissueLeadTime.Duration,
 		},
 		time.NewTicker(config.CS.ReissueRate.Duration),
 		config.CS.ReissueTimeout.Duration,

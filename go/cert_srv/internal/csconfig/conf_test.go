@@ -51,11 +51,12 @@ func TestSampleCorrect(t *testing.T) {
 			"/var/lib/scion/spki/cs-1.trust.db")
 
 		// csconfig specific
-		SoMsg("LeafReissTime correct", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 6*time.Hour)
+		SoMsg("LeafReissueLeadTime correct", cfg.CS.LeafReissueLeadTime.Duration,
+			ShouldEqual, 6*time.Hour)
 		SoMsg("ReissueRate correct", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
 		SoMsg("ReissueTimeout correct", cfg.CS.ReissueTimeout.Duration, ShouldEqual,
 			ReissueReqTimeout)
-		SoMsg("IssuerReissTime correct", cfg.CS.IssuerReissueTime.Duration, ShouldEqual,
+		SoMsg("IssuerReissTime correct", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual,
 			IssuerReissTime)
 	})
 }
@@ -65,8 +66,8 @@ func TestLoadConf(t *testing.T) {
 		var cfg TestConfig
 		_, err := toml.DecodeFile("testdata/csconfig.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("leafTime", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 7*time.Hour)
-		SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, 2*24*time.Hour)
+		SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 7*time.Hour)
+		SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, 2*24*time.Hour)
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
 	})
@@ -75,8 +76,8 @@ func TestLoadConf(t *testing.T) {
 		var cfg TestConfig
 		_, err := toml.DecodeReader(strings.NewReader("[cs]"), &cfg)
 		SoMsg("err", err, ShouldBeNil)
-		SoMsg("leafTime", cfg.CS.LeafReissueTime.Duration, ShouldBeZeroValue)
-		SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldBeZeroValue)
+		SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldBeZeroValue)
+		SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldBeZeroValue)
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldBeZeroValue)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldBeZeroValue)
 	})
@@ -91,8 +92,8 @@ func TestConfig_Init(t *testing.T) {
 		Convey("Init does not override values", func() {
 			err := cfg.CS.Init("testdata")
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("leafTime", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 7*time.Hour)
-			SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, 48*time.Hour)
+			SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 7*time.Hour)
+			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, 48*time.Hour)
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
 		})
@@ -106,8 +107,8 @@ func TestConfig_Init(t *testing.T) {
 		Convey("Init loads default values", func() {
 			err := cfg.CS.Init("testdata")
 			SoMsg("err", err, ShouldBeNil)
-			SoMsg("leafTime", cfg.CS.LeafReissueTime.Duration, ShouldEqual, 6*time.Hour)
-			SoMsg("issuerTime", cfg.CS.IssuerReissueTime.Duration, ShouldEqual, IssuerReissTime)
+			SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 6*time.Hour)
+			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, IssuerReissTime)
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
 		})
