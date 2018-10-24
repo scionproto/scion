@@ -136,6 +136,11 @@ func (pathReq *PathReq) Copy() *PathReq {
 	}
 }
 
+func (pathReq *PathReq) String() string {
+	return fmt.Sprintf("%v -> %v, maxPaths=%d, flags=%v",
+		pathReq.Src, pathReq.Dst, pathReq.MaxPaths, pathReq.Flags)
+}
+
 type PathReqFlags struct {
 	Refresh bool
 }
@@ -145,9 +150,21 @@ type PathReply struct {
 	Entries   []PathReplyEntry
 }
 
+func (r *PathReply) String() string {
+	strEntries := make([]string, len(r.Entries))
+	for i := range r.Entries {
+		strEntries[i] = r.Entries[i].String()
+	}
+	return fmt.Sprintf("ErrorCode=%v\n  %v", r.ErrorCode, strings.Join(strEntries, "\n  "))
+}
+
 type PathReplyEntry struct {
 	Path     *FwdPathMeta
 	HostInfo HostInfo
+}
+
+func (e *PathReplyEntry) String() string {
+	return fmt.Sprintf("%v NextHop=%v", e.Path, &e.HostInfo)
 }
 
 type HostInfo struct {
@@ -346,6 +363,10 @@ type ASInfoReq struct {
 	Isdas addr.IAInt
 }
 
+func (r ASInfoReq) String() string {
+	return r.Isdas.String()
+}
+
 type ASInfoReply struct {
 	Entries []ASInfoReplyEntry
 }
@@ -400,6 +421,10 @@ type IFInfoRequest struct {
 	IfIDs []common.IFIDType
 }
 
+func (r IFInfoRequest) String() string {
+	return fmt.Sprintf("%v", r.IfIDs)
+}
+
 type IFInfoReply struct {
 	RawEntries []IFInfoReplyEntry `capnp:"entries"`
 }
@@ -422,6 +447,10 @@ type IFInfoReplyEntry struct {
 
 type ServiceInfoRequest struct {
 	ServiceTypes []proto.ServiceType
+}
+
+func (r ServiceInfoRequest) String() string {
+	return fmt.Sprintf("%v", r.ServiceTypes)
 }
 
 type ServiceInfoReply struct {

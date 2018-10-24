@@ -55,7 +55,6 @@ type Fetcher struct {
 	trustStore      infra.TrustStore
 	revocationCache revcache.RevCache
 	config          sdconfig.Config
-	logger          log.Logger
 }
 
 func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB,
@@ -68,14 +67,17 @@ func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB,
 		trustStore:      trustStore,
 		revocationCache: revCache,
 		config:          cfg,
-		logger:          logger,
 	}
 }
 
 func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
-	earlyReplyInterval time.Duration) (*sciond.PathReply, error) {
+	earlyReplyInterval time.Duration, logger log.Logger) (*sciond.PathReply, error) {
 
-	handler := &fetcherHandler{Fetcher: f, topology: itopo.GetCurrentTopology()}
+	handler := &fetcherHandler{
+		Fetcher:  f,
+		topology: itopo.GetCurrentTopology(),
+		logger:   logger,
+	}
 	return handler.GetPaths(ctx, req, earlyReplyInterval)
 }
 
@@ -84,6 +86,7 @@ func (f *Fetcher) GetPaths(ctx context.Context, req *sciond.PathReq,
 type fetcherHandler struct {
 	*Fetcher
 	topology *topology.Topo
+	logger   log.Logger
 }
 
 // GetPaths fulfills the path request described by req. GetPaths will attempt
@@ -429,7 +432,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	defer cancelF()
 	reply, err := f.getSegmentsFromNetwork(ctx, req, ps)
 	if err != nil {
-		log.Warn("Unable to retrieve paths from network", "err", err)
+		f.logger.Error("Unable to retrieve paths from network", "err", err)
 		return
 	}
 	timer := earlyTrigger.Arm()
@@ -452,7 +455,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
 		if _, err := f.revocationCache.Insert(ctx, rev); err != nil {
-			f.logger.Error("Unable to isnert revocation into revcache", "rev", rev, "err", err)
+			f.logger.Error("Unable to insert revocation into revcache", "rev", rev, "err", err)
 		}
 	}
 	segErr := func(s *seg.Meta, err error) {
@@ -470,7 +473,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, revInfos,
 		verifiedSeg, verifiedRev, segErr, revErr)
 	if len(insertedSegmentIDs) > 0 {
-		log.Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
+		f.logger.Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
 	}
 }
 
@@ -482,6 +485,7 @@ func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
 		RawSrcIA: req.Src,
 		RawDstIA: req.Dst,
 	}
+	f.logger.Debug("Requesting segments", "ps", ps)
 	reply, err := f.messenger.GetSegs(ctx, msg, ps, messenger.NextId())
 	if err != nil {
 		return nil, err

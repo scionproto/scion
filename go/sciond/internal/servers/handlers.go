@@ -59,13 +59,12 @@ type PathRequestHandler struct {
 func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("pathReq", &pld.PathReq)
-	logger.Debug("[SCIOND:PathRequestHandler] Received request")
+	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
-	getPathsReply, err := h.Fetcher.GetPaths(workCtx, &pld.PathReq, DefaultEarlyReply)
+	getPathsReply, err := h.Fetcher.GetPaths(workCtx, &pld.PathReq, DefaultEarlyReply, logger)
 	if err != nil {
-		logger.Warn("[SCIOND:PathRequestHandler] Unable to get paths", "err", err)
+		logger.Error("Unable to get paths", "err", err)
 	}
 	// Always reply, as the Fetcher will fill in the relevant error bits of the reply
 	reply := &sciond.Pld{
@@ -82,11 +81,11 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
 	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
-		logger.Warn("[SCIOND:PathRequestHandler] Unable to reply to client",
-			"client", src, "err", err)
+		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
-	logger.Debug("[SCIOND:PathRequestHandler] Replied to path request", "paths", getPathsReply)
+	logger.Debug("Replied with paths", "num_paths", len(getPathsReply.Entries))
+	logger.Trace("Full reply", "paths", getPathsReply)
 }
 
 // ASInfoRequestHandler represents the shared global state for the handling of all
@@ -99,8 +98,7 @@ type ASInfoRequestHandler struct {
 func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("asInfoReq", &pld.AsInfoReq)
-	logger.Debug("[SCIOND:ASInfoRequestHandler] Received request")
+	logger.Debug("[ASInfoRequestHandler] Received request", "request", &pld.AsInfoReq)
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
@@ -152,7 +150,7 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
-	logger.Debug("[SCIOND:ASInfoRequestHandler] Sent reply", "asInfo", asInfoReply)
+	logger.Trace("Sent reply", "asInfo", asInfoReply)
 }
 
 // IFInfoRequestHandler represents the shared global state for the handling of all
@@ -163,8 +161,7 @@ type IFInfoRequestHandler struct{}
 func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("ifInfoReq", &pld.IfInfoRequest)
-	logger.Debug("[SCIOND:IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
+	logger.Debug("[IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := sciond.IFInfoReply{}
 	topo := itopo.GetCurrentTopology()
@@ -205,7 +202,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
-	logger.Debug("[SCIOND:IFInfoRequestHandler] Sent reply", "ifInfo", ifInfoReply)
+	logger.Trace("Sent reply", "ifInfo", ifInfoReply)
 }
 
 // SVCInfoRequestHandler represents the shared global state for the handling of all
@@ -216,8 +213,8 @@ type SVCInfoRequestHandler struct{}
 func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("svcInfoReq", &pld.ServiceInfoRequest)
-	logger.Debug("[SCIOND:SVCInfoRequestHandler] Received request")
+	logger.Debug("[SVCInfoRequestHandler] Received request",
+		"request", &pld.ServiceInfoRequest)
 	svcInfoRequest := pld.ServiceInfoRequest
 	svcInfoReply := sciond.ServiceInfoReply{}
 	topo := itopo.GetCurrentTopology()
@@ -246,7 +243,7 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
-	logger.Debug("[SCIOND:SVCInfoRequestHandler] Sent reply", "svcInfo", svcInfoReply)
+	logger.Trace("Sent reply", "svcInfo", svcInfoReply)
 }
 
 func makeHostInfos(topo *topology.Topo, t proto.ServiceType) []sciond.HostInfo {
@@ -274,8 +271,8 @@ type RevNotificationHandler struct {
 func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
 	logger log.Logger) {
 
-	logger = logger.New("revNotification", &pld.RevNotification)
-	logger.Debug("[SCIOND:RevNotificationHandler] Received request")
+	logger.Debug("[RevNotificationHandler] Received revocation",
+		"notification", &pld.RevNotification)
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
 	revNotification := pld.RevNotification
@@ -284,7 +281,7 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	if err == nil {
 		_, err = h.RevCache.Insert(workCtx, revNotification.SRevInfo)
 		if err != nil {
-			logger.Error("[SCIOND:RevNotificationHandler] Failed to insert revocations", "err", err)
+			logger.Error("Failed to insert revocations", "err", err)
 		}
 	}
 	switch {
@@ -314,7 +311,7 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
 		return
 	}
-	logger.Debug("[SCIOND:RevNotificationHandler] Sent reply", "revInfo", revInfo)
+	logger.Trace("Sent reply", "revInfo", revInfo)
 }
 
 // verifySRevInfo first checks if the RevInfo can be extracted from sRevInfo,
