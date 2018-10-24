@@ -95,7 +95,7 @@ type Deduper interface {
 	Request(ctx context.Context, req Request) (<-chan Response, CancelFunc)
 }
 
-type deduperImpl struct {
+type deduper struct {
 	requestFunc      RequestFunc
 	dedupeLifetime   time.Duration
 	responseValidity time.Duration
@@ -124,7 +124,7 @@ func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) Deduper 
 	if responseValidity == 0 {
 		responseValidity = DefaultResponseValidity
 	}
-	return &deduperImpl{
+	return &deduper{
 		requestFunc:      f,
 		dedupeLifetime:   dedupeLifetime,
 		responseValidity: responseValidity,
@@ -132,7 +132,7 @@ func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) Deduper 
 	}
 }
 
-func (dd *deduperImpl) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
+func (dd *deduper) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
 	ch := make(chan Response, 1)
 	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime); ctx != nil {
 		go dd.handler(ctx, req)
@@ -147,7 +147,7 @@ func (dd *deduperImpl) Request(ctx context.Context, req Request) (<-chan Respons
 
 // handler calls RequestFunc with a freshly created channel, and then reads the
 // result from the channel and notifies the relevant waiters.
-func (dd *deduperImpl) handler(ctx context.Context, req Request) {
+func (dd *deduper) handler(ctx context.Context, req Request) {
 	ch := make(chan Response, 1)
 	go func() {
 		ch <- dd.requestFunc(ctx, req)
