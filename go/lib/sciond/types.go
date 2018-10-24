@@ -155,7 +155,7 @@ func (r *PathReply) String() string {
 	for i := range r.Entries {
 		strEntries[i] = r.Entries[i].String()
 	}
-	return fmt.Sprintf("ErrorCode=%v\n%v", r.ErrorCode, strings.Join(strEntries, "\n"))
+	return fmt.Sprintf("ErrorCode=%v\n  %v", r.ErrorCode, strings.Join(strEntries, "\n  "))
 }
 
 type PathReplyEntry struct {
