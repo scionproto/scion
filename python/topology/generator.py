@@ -118,8 +118,8 @@ DEFAULT_LINK_BW = 1000
 
 DEFAULT_BEACON_SERVERS = 1
 DEFAULT_CERTIFICATE_SERVER = "py"
-DEFAULT_SCIOND = "py"
-DEFAULT_PATH_SERVER = "py"
+DEFAULT_SCIOND = "go"
+DEFAULT_PATH_SERVER = "go"
 DEFAULT_GRACE_PERIOD = 18000
 DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
@@ -1123,6 +1123,7 @@ class GoGenerator(object):
             'general': {
                 'ID': name,
                 'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
             },
             'logging': {
                 'file': {
@@ -1161,6 +1162,7 @@ class GoGenerator(object):
             'general': {
                 'ID': name,
                 'ConfigDir': config_dir,
+                'ReconnectToDispatcher': True,
             },
             'logging': {
                 'file': {
