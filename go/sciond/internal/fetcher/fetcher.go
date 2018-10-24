@@ -432,7 +432,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 	defer cancelF()
 	reply, err := f.getSegmentsFromNetwork(ctx, req, ps)
 	if err != nil {
-		f.logger.Warn("Unable to retrieve paths from network", "err", err)
+		f.logger.Error("Unable to retrieve paths from network", "err", err)
 		return
 	}
 	timer := earlyTrigger.Arm()
@@ -485,7 +485,7 @@ func (f *fetcherHandler) getSegmentsFromNetwork(ctx context.Context,
 		RawSrcIA: req.Src,
 		RawDstIA: req.Dst,
 	}
-	f.logger.Debug("Requesting segments")
+	f.logger.Debug("Requesting segments", "ps", ps)
 	reply, err := f.messenger.GetSegs(ctx, msg, ps, messenger.NextId())
 	if err != nil {
 		return nil, err
