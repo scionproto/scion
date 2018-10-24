@@ -1,5 +1,6 @@
 env:
   SCION_MOUNT: /tmp/scion_out.$BUILDKITE_BUILD_NUMBER
+  SCION_CNTR: scion_ci_$BUILDKITE_AGENT_NAME
 
 steps:
   - label: Prepare scion_base and scion images
@@ -7,7 +8,7 @@ steps:
     - ./tools/ci/prepare_image 89ee7e0b01200680f8620439bba7df9b8e825a04b57258c5ee6758a274443430
     - ./docker.sh build
   - wait
-  - label: Create and start container
+  - label: Start container
     command:
     - mkdir $SCION_MOUNT
     - ./docker.sh start
@@ -42,5 +43,5 @@ steps:
     command: docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
     branches: "^v.*"
   - label: Push images
-    command: ./docker/perapp/publish "$CIRCLE_TAG"
+    command: ./docker/perapp/publish "$BUILDKITE_TAG"
     branches: "^v.*"
