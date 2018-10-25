@@ -34,6 +34,7 @@ var (
 	maxPaths     = flag.Int("maxpaths", 10, "Maximum number of paths")
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
+	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 )
 
 var (
@@ -52,9 +53,13 @@ func main() {
 	if err != nil {
 		LogFatal("Failed to connect to SCIOND: %v\n", err)
 	}
-	reply, err := sdConn.Paths(dstIA, srcIA, uint16(*maxPaths), sciond.PathReqFlags{})
+	reply, err := sdConn.Paths(dstIA, srcIA, uint16(*maxPaths),
+		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
 		LogFatal("Failed to retrieve paths from SCIOND: %v\n", err)
+	}
+	if reply.ErrorCode != sciond.ErrorOk {
+		LogFatal("SCIOND unable to retrieve paths: %s\n", reply.ErrorCode)
 	}
 	fmt.Println("Available paths to", dstIA)
 	i := 0
