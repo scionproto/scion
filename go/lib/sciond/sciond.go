@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -176,7 +177,7 @@ func (c *connector) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_pathReq,
-			PathReq: PathReq{
+			PathReq: &PathReq{
 				Dst:      dst.IAInt(),
 				Src:      src.IAInt(),
 				MaxPaths: max,
@@ -188,7 +189,7 @@ func (c *connector) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
 	if err != nil {
 		return nil, err
 	}
-	return &reply.(*Pld).PathReply, nil
+	return reply.(*Pld).PathReply, nil
 }
 
 func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
@@ -209,7 +210,7 @@ func (c *connector) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, er
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_asInfoReq,
-			AsInfoReq: ASInfoReq{
+			AsInfoReq: &ASInfoReq{
 				Isdas: ia.IAInt(),
 			},
 		},
@@ -219,8 +220,8 @@ func (c *connector) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, er
 		return nil, err
 	}
 	asInfoReply := pld.(*Pld).AsInfoReply
-	c.asInfos.SetDefault(key, &asInfoReply)
-	return &asInfoReply, nil
+	c.asInfos.SetDefault(key, asInfoReply)
+	return asInfoReply, nil
 }
 
 func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
@@ -241,7 +242,7 @@ func (c *connector) IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFIn
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_ifInfoRequest,
-			IfInfoRequest: IFInfoRequest{
+			IfInfoRequest: &IFInfoRequest{
 				IfIDs: remainingIfs,
 			},
 		},
@@ -259,7 +260,7 @@ func (c *connector) IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFIn
 	}
 	// Append old cached entries to our reply
 	ifInfoReply.RawEntries = append(ifInfoReply.RawEntries, foundEntries...)
-	return &ifInfoReply, nil
+	return ifInfoReply, nil
 }
 
 func (c *connector) getIFEntriesFromCache(
@@ -296,7 +297,7 @@ func (c *connector) SVCInfoCtx(ctx context.Context,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_serviceInfoRequest,
-			ServiceInfoRequest: ServiceInfoRequest{
+			ServiceInfoRequest: &ServiceInfoRequest{
 				ServiceTypes: remainingSVCs,
 			},
 		},
@@ -312,7 +313,7 @@ func (c *connector) SVCInfoCtx(ctx context.Context,
 		c.svcInfos.SetDefault(key, entry)
 	}
 	serviceInfoReply.Entries = append(serviceInfoReply.Entries, foundEntries...)
-	return &serviceInfoReply, nil
+	return serviceInfoReply, nil
 }
 
 func (c *connector) getSVCEntriesFromCache(
@@ -359,7 +360,7 @@ func (c *connector) RevNotificationCtx(ctx context.Context,
 		&Pld{
 			Id:    c.nextID(),
 			Which: proto.SCIONDMsg_Which_revNotification,
-			RevNotification: RevNotification{
+			RevNotification: &RevNotification{
 				SRevInfo: sRevInfo,
 			},
 		},
@@ -368,7 +369,7 @@ func (c *connector) RevNotificationCtx(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	return &reply.(*Pld).RevReply, nil
+	return reply.(*Pld).RevReply, nil
 }
 
 func (c *connector) Close() error {
