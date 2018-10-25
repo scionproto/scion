@@ -59,9 +59,9 @@ run_zk() {
         sleep 3
         local addr="127.0.0.1:2181"
         if is_running_in_docker; then
-            addr="172.17.0.1:2182"
+            addr="${DOCKER0:-172.17.0.1}:2182"
         elif is_docker; then
-            addr="172.17.0.1:2181"
+            addr="$(./tools/docker-ip):2181"
         fi
         tools/zkcleanslate --zk "$addr"
     fi

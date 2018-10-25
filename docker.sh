@@ -93,8 +93,9 @@ common_args() {
     args+=" -e DOCKER_GID=$(getent group docker | cut -f3 -d:)"
     args+=" -e SCION_USERSPEC=$(id -un):$(id -gn)"
     args+=" -u root"
-    args+=" --add-host=docker0:$(./tools/docker-ip)"
-    args+=" -e DOCKER0=$(./tools/docker-ip)"
+    local dockerIP=$(./tools/docker-ip)
+    args+=" --add-host=docker0:$dockerIP"
+    args+=" -e DOCKER0=$dockerIP"
     echo $args
 }
 
