@@ -63,14 +63,20 @@ const Sample = `[general]
   TrustDB = "/var/lib/scion/spki/ps-1.trust.db"
 
 [ps]
-  # Path to the path database
-  PathDB = "/var/lib/scion/pathdb/ps-1.path.db"
-
   # Enable the "old" replication of down segments between cores using SegSync
   # messages (default false)
   SegSync = false
 
   # The time after which segments for a destination are refetched. (default 5m)
   QueryInterval = "5m"
+
+  [ps.PathDB]
+    # The type of pathdb backend
+    Backend = "sqlite"
+    # Path to the path database.
+    Connection = "/var/lib/scion/pathdb/ps-1.path.db"
+
+  [ps.RevCache]
+    Backend = "mem"
 
 `

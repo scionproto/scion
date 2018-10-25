@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/util"
@@ -45,8 +46,10 @@ type Config struct {
 	// If set, Bind is the preferred local address to listen on for SCION
 	// messages.
 	Bind *snet.Addr
-	// PathDB contains the file location  of the path segment database.
-	PathDB string
+	// PathDB contains the configuration for the PathDB connection.
+	PathDB pathstorage.PathDBConf
+	// RevCache contains the configuration for the RevCache connection.
+	RevCache pathstorage.RevCacheConf
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap
@@ -62,6 +65,8 @@ func (c *Config) InitDefaults() {
 	if c.QueryInterval.Duration == 0 {
 		c.QueryInterval.Duration = DefaultQueryInterval
 	}
+	c.PathDB.InitDefaults()
+	c.RevCache.InitDefaults()
 }
 
 func (c *Config) CreateSocketDirs() error {

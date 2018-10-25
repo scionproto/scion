@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -35,9 +34,8 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
-	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
+	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
@@ -81,7 +79,7 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	pathDB, err := pathdbbe.New(config.PS.PathDB)
+	pathDB, err := pathstorage.NewPathDB(config.PS.PathDB)
 	if err != nil {
 		log.Crit("Unable to initialize pathDB", "err", err)
 		return 1
@@ -121,7 +119,11 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	revCache := memrevcache.New(cache.NoExpiration, time.Second)
+	revCache, err := pathstorage.NewRevCache(config.PS.RevCache)
+	if err != nil {
+		log.Crit("Unable to initialize revcache", "err", err)
+		return 1
+	}
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
 	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.

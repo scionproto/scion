@@ -51,7 +51,11 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("TrustDB correct", cfg.Trust.TrustDB, ShouldEqual, "/var/lib/scion/spki/sd.trust.db")
 
 		// sdconfig specific
-		SoMsg("PathDB correct", cfg.SD.PathDB, ShouldEqual, "/var/lib/scion/sd.path.db")
+		SoMsg("PathDB.Backend correct", cfg.SD.PathDB.Backend, ShouldEqual, "sqlite")
+		SoMsg("PathDB.Connection correct", cfg.SD.PathDB.Connection, ShouldEqual,
+			"/var/lib/scion/sd.path.db")
+		SoMsg("RevCache.Backend correct", cfg.SD.RevCache.Backend, ShouldEqual, "mem")
+		SoMsg("RevCache.Connection correct", cfg.SD.RevCache.Connection, ShouldEqual, "")
 		SoMsg("Reliable correct", cfg.SD.Reliable, ShouldEqual, "/run/shm/sciond/default.sock")
 		SoMsg("Unix correct", cfg.SD.Unix, ShouldEqual, "/run/shm/sciond/default-unix.sock")
 		SoMsg("Public correct", cfg.SD.Public.String(), ShouldEqual,
