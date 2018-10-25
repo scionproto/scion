@@ -76,7 +76,7 @@ func realMain() int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer env.CleanupLog()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
