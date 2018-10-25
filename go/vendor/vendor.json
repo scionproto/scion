@@ -136,16 +136,16 @@
 			"revisionTime": "2016-10-12T20:53:35Z"
 		},
 		{
-			"checksumSHA1": "zYWRs1ulJNrF3bmnRQAEA2WnPQs=",
+			"checksumSHA1": "bBQats+Oofu1ynsNBZcZEfldr8U=",
 			"path": "github.com/google/gopacket",
-			"revision": "e20408befa7dcef61c3c35f53df06d3f8a194e60",
-			"revisionTime": "2017-06-05T10:28:22Z"
+			"revision": "a35e09f9f224786863ce609de910bc82fc4d4faf",
+			"revisionTime": "2018-10-23T10:10:25Z"
 		},
 		{
-			"checksumSHA1": "GV4QgbWjIWIAIhOlNAJDt8+MtE4=",
+			"checksumSHA1": "um5piGuv1mDW1MSN2W2MOk9I+lc=",
 			"path": "github.com/google/gopacket/layers",
-			"revision": "e20408befa7dcef61c3c35f53df06d3f8a194e60",
-			"revisionTime": "2017-06-05T10:28:22Z"
+			"revision": "a35e09f9f224786863ce609de910bc82fc4d4faf",
+			"revisionTime": "2018-10-23T10:10:25Z"
 		},
 		{
 			"checksumSHA1": "P3zGmsNjW8m15a+nks4FdVpFKwE=",
