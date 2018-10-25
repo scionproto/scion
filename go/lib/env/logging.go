@@ -93,3 +93,10 @@ func setupFileLogging(cfg *Logging) error {
 func LogSvcStarted(svcType, elemId string) {
 	log.Info("=====================> Service started", "svc", svcType, "id", elemId)
 }
+
+// CleanupLog calls log.LogPanicAndExit and log.Flush
+// it is mainly a helper to have a single defer call in services.
+func CleanupLog() {
+	log.LogPanicAndExit()
+	log.Flush()
+}
