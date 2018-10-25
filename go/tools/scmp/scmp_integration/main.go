@@ -1,4 +1,4 @@
-// Copyright 2018 Anapaya Systems
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,53 +23,63 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-const (
-	serverPort = "40004"
-)
-
 func main() {
 	os.Exit(realMain())
 }
 
 func realMain() int {
-	if err := integration.Init("pp_integration"); err != nil {
+	if err := integration.Init("scmp_integration"); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	in := integration.NewBinaryIntegration("./bin/pingpong",
-		[]string{"-mode", "client", "-sciondFromIA", "-log.console", "debug", "-count", "1",
-			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
-			"-remote", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort},
-		[]string{"-mode", "server", "-sciondFromIA", "-log.console", "debug",
-			"-local", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort}, integration.StdLog)
-	if err := runTests(in, integration.IAPairs()); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
-		return 1
+
+	testCases := []struct {
+		Name string
+		Args []string
+	}{
+		{
+			"echo",
+			[]string{"echo", "-sciondFromIA", "-c", "1", "-timeout", "4s",
+				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
+				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+		},
+		{
+			"traceroute",
+			[]string{"tr", "-sciondFromIA", "-timeout", "4s",
+				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
+				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+		},
+		{
+			"recordpath",
+			[]string{"rp", "-sciondFromIA", "-timeout", "4s",
+				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
+				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+		},
+	}
+
+	for _, tc := range testCases {
+		log.Info(fmt.Sprintf("Run scmp-%s-tests:", tc.Name))
+		in := integration.NewBinaryIntegration("./bin/scmp", tc.Args, nil, integration.NonStdLog)
+		if err := runTests(in, integration.IAPairs()); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to run scmp-%s-tests: %s\n", tc.Name, err)
+			return 1
+		}
 	}
 	return 0
 }
 
-// RunTests runs the client and server for each IAPair.
+// RunTests runs the scmp tool for each IAPair.
 // In case of an error the function is terminated immediately.
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
-		// First run all servers
-		dsts := integration.ExtractUniqueDsts(pairs)
-		for _, dst := range dsts {
-			c, err := integration.StartServer(in, dst)
-			if err != nil {
-				return err
-			}
-			defer c.Close()
-		}
-		// Now start the clients for srcDest pair
+		// Run for all srcDest pair
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
 			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
-				log.Error("Error during client execution", "err", err)
+				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 				return err
 			}
 		}
