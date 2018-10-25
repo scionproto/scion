@@ -59,7 +59,7 @@ func main() {
 		LogFatal("Failed to retrieve paths from SCIOND: %v\n", err)
 	}
 	if reply.ErrorCode != sciond.ErrorOk {
-		LogFatal("SCIOND unable to retrive paths: %s\n", reply.ErrorCode)
+		LogFatal("SCIOND unable to retrieve paths: %s\n", reply.ErrorCode)
 	}
 	fmt.Println("Available paths to", dstIA)
 	i := 0
