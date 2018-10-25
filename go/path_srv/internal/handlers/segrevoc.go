@@ -38,26 +38,33 @@ func NewRevocHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *revocHandler) Handle() {
+	logger := h.logger.New("from", h.request.Peer)
 	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
-		h.logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",
+		logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	h.logger.Debug("[revocHandler] Received message", "revocation", revocation)
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
-	h.verifyAndStore(subCtx, revocation)
-}
+	logger = logger.New("signer", revocation.Sign.Src)
 
-func (h *revocHandler) verifyAndStore(ctx context.Context, revocation *path_mgmt.SignedRevInfo) {
-	err := segverifier.VerifyRevInfo(ctx, h.trustStore, h.request.Peer, revocation)
+	revInfo, err := revocation.RevInfo()
 	if err != nil {
-		h.logger.Warn("[revocHandler] couldn't verify revocation", "err", err)
+		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)
 		return
 	}
-	_, err = h.revCache.Insert(ctx, revocation)
+	logger = logger.New("revInfo", revInfo)
+	logger.Debug("[revocHandler] Received revocation")
+
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+	err = segverifier.VerifyRevInfo(subCtx, h.trustStore, h.request.Peer, revocation)
 	if err != nil {
-		h.logger.Error("[revocHandler] Failed to insert revInfo", "rev", revocation, "err", err)
+		logger.Warn("Couldn't verify revocation", "err", err)
+		return
+	}
+
+	_, err = h.revCache.Insert(subCtx, revocation)
+	if err != nil {
+		logger.Error("Failed to insert revInfo", "err", err)
 	}
 }
