@@ -34,7 +34,7 @@ var (
 	maxPaths     = flag.Int("maxpaths", 10, "Maximum number of paths")
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
-	refresh      = flag.Bool("refresh", true, "Set refresh flag for SCIOND path request")
+	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 )
 
 var (
