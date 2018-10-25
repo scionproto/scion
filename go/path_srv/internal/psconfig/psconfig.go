@@ -18,6 +18,7 @@ package psconfig
 import (
 	"time"
 
+	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -28,8 +29,9 @@ var (
 type Config struct {
 	// SegSync enables the "old" replication of down segments between cores,
 	// using SegSync messages.
-	SegSync bool
-	PathDB  string
+	SegSync  bool
+	PathDB   pathstorage.PathDBConf
+	RevCache pathstorage.RevCacheConf
 	// QueryInterval specifies after how much time segments
 	// for a destination should be refetched.
 	QueryInterval util.DurWrap
@@ -39,4 +41,6 @@ func (c *Config) InitDefaults() {
 	if c.QueryInterval.Duration == 0 {
 		c.QueryInterval.Duration = DefaultQueryInterval
 	}
+	c.PathDB.InitDefaults()
+	c.RevCache.InitDefaults()
 }
