@@ -94,9 +94,9 @@ func LogSvcStarted(svcType, elemId string) {
 	log.Info("=====================> Service started", "svc", svcType, "id", elemId)
 }
 
-// CleanupLog calls log.Flush and log.LogPanicAndExit
+// CleanupLog calls log.LogPanicAndExit and log.Flush
 // it is mainly a helper to have a single defer call in services.
 func CleanupLog() {
-	log.Flush()
 	log.LogPanicAndExit()
+	log.Flush()
 }
