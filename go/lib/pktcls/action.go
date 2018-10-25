@@ -15,8 +15,7 @@
 package pktcls
 
 import (
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
+	"encoding/json"
 )
 
 // Interface Action defines how paths and packets may be processed in a way
@@ -30,79 +29,43 @@ type Action interface {
 	Typer
 }
 
-var _ Action = (*ActionFilterPaths)(nil)
+// ActionMap is a container for Actions, keyed by their unique name. ActionMap
+// can be used to marshal Actions to JSON. Unmarshaling back to ActionMap is
+// guaranteed to yield an object that is identical to the initial one.
+type ActionMap map[string]Action
 
-// ActionFilterPaths filters paths according to the embedded Cond object.
-// CondAnyOf, CondAllOf, CondNot and CondPathPredicate conditions can be
-// combined to implement complex path selection policies.
-type ActionFilterPaths struct {
-	Cond Cond
-	Name string `json:"-"`
-}
-
-func NewActionFilterPaths(name string, cond Cond) *ActionFilterPaths {
-	return &ActionFilterPaths{
-		Name: name,
-		Cond: cond,
-	}
-}
-
-// Act takes an AppPathSet and returns a new AppPathSet containing only the
-// paths permitted by the conditional predicate.
-func (a *ActionFilterPaths) Act(values interface{}) interface{} {
-	inputSet := values.(spathmeta.AppPathSet)
-	resultSet := make(spathmeta.AppPathSet)
-	for key, path := range inputSet {
-		if a.Cond.Eval(path.Entry) {
-			resultSet[key] = path
+func (am ActionMap) MarshalJSON() ([]byte, error) {
+	m := make(map[string]*json.RawMessage)
+	for k, v := range am {
+		b, err := marshalInterface(v)
+		if err != nil {
+			return nil, err
 		}
+		m[k] = (*json.RawMessage)(&b)
 	}
-	return resultSet
-}
-
-func (a *ActionFilterPaths) GetName() string {
-	return a.Name
-}
-
-func (a *ActionFilterPaths) SetName(name string) {
-	a.Name = name
-}
-
-func (a *ActionFilterPaths) Type() string {
-	return TypeActionFilterPaths
-}
-
-func (a *ActionFilterPaths) MarshalJSON() ([]byte, error) {
-	return marshalInterface(a.Cond)
-}
-
-func (a *ActionFilterPaths) UnmarshalJSON(b []byte) error {
-	var err error
-	a.Cond, err = unmarshalCond(b)
-	return err
-}
-
-var _ Cond = (*CondPathPredicate)(nil)
-
-// CondPathPredicate implements interface Cond, and is designed for use in
-// conditions for ActionFilterPaths. CondPathPredicate returns true if the
-// argument to eval is a *sciond.PathReplyEntry that satisfies the embedded
-// predicate PP.
-type CondPathPredicate struct {
-	PP *spathmeta.PathPredicate
-}
-
-func NewCondPathPredicate(pp *spathmeta.PathPredicate) *CondPathPredicate {
-	return &CondPathPredicate{
-		PP: pp,
+	if len(m) == 0 {
+		m = nil
 	}
+	return json.Marshal(m)
 }
 
-func (c *CondPathPredicate) Eval(v interface{}) bool {
-	path := v.(*sciond.PathReplyEntry)
-	return c.PP.Eval(path)
-}
+func (am *ActionMap) UnmarshalJSON(b []byte) error {
+	var m map[string]*json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
+	}
 
-func (c *CondPathPredicate) Type() string {
-	return TypeCondPathPredicate
+	*am = make(map[string]Action)
+	for k, v := range m {
+		action, err := unmarshalAction(*v)
+		if err != nil {
+			return err
+		}
+		action.SetName(k)
+		(*am)[k] = action
+	}
+	if len(*am) == 0 {
+		*am = nil
+	}
+	return nil
 }

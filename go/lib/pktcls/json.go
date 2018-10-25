@@ -45,8 +45,6 @@ const (
 	TypeCondNot              = "CondNot"
 	TypeCondBool             = "CondBool"
 	TypeCondIPv4             = "CondIPv4"
-	TypeCondPathPredicate    = "CondPathPredicate"
-	TypeActionFilterPaths    = "ActionFilterPaths"
 	TypeIPv4MatchSource      = "MatchSource"
 	TypeIPv4MatchDestination = "MatchDestination"
 	TypeIPv4MatchToS         = "MatchToS"
@@ -97,14 +95,6 @@ func unmarshalInterface(b []byte) (Typer, error) {
 			var c CondIPv4
 			err := json.Unmarshal(*v, &c)
 			return &c, err
-		case TypeCondPathPredicate:
-			var c CondPathPredicate
-			err := json.Unmarshal(*v, &c)
-			return &c, err
-		case TypeActionFilterPaths:
-			var a ActionFilterPaths
-			err := json.Unmarshal(*v, &a)
-			return &a, err
 		case TypeIPv4MatchSource:
 			var p IPv4MatchSource
 			err := json.Unmarshal(*v, &p)

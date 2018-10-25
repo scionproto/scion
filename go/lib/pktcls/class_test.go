@@ -16,6 +16,7 @@ package pktcls
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -25,6 +26,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/xtest"
+)
+
+var (
+	update = flag.Bool("update", false, "set to true to update reference testdata files")
 )
 
 func TestClassMap(t *testing.T) {

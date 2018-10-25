@@ -56,3 +56,22 @@ func (c *Class) UnmarshalJSON(b []byte) error {
 	c.Cond, err = unmarshalCond(b)
 	return err
 }
+
+// ClassMap is a container for Classes, keyed by their unique name.  ClassMap
+// can be used to marshal Classes to JSON. Unmarshaling back to ClassMap is
+// guaranteed to yield an object that is identical to the initial one.
+type ClassMap map[string]*Class
+
+func (cm ClassMap) MarshalJSON() ([]byte, error) {
+	return json.MarshalIndent((map[string]*Class)(cm), "", "    ")
+}
+
+func (cm *ClassMap) UnmarshalJSON(b []byte) error {
+	if err := json.Unmarshal(b, (*map[string]*Class)(cm)); err != nil {
+		return err
+	}
+	for className, class := range *cm {
+		class.name = className
+	}
+	return nil
+}
