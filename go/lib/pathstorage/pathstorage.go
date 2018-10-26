@@ -26,18 +26,20 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 )
 
+type Backend string
+
 const (
-	BackendSqlite = "sqlite"
-	BackendMem    = "mem"
+	BackendSqlite Backend = "sqlite"
+	BackendMem    Backend = "mem"
 )
 
 // PathDBConf is the configuration for the connection to the path database.
 type PathDBConf struct {
-	Backend    string
+	Backend    Backend
 	Connection string
 }
 
-// InitDefaults initializes the Backend with sqlite if it is not set.
+// InitDefaults choses the sqlite backend if no backned is set.
 func (c *PathDBConf) InitDefaults() {
 	if c.Backend == "" {
 		c.Backend = BackendSqlite
@@ -50,17 +52,18 @@ func NewPathDB(conf PathDBConf) (pathdb.PathDB, error) {
 	switch conf.Backend {
 	case BackendSqlite:
 		return sqlitepathdb.New(conf.Connection)
+	default:
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
 	}
-	return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
 }
 
 // RevCacheConf is the configuration for the connection to the revocation cache.
 type RevCacheConf struct {
-	Backend    string
+	Backend    Backend
 	Connection string
 }
 
-// InitDefaults initializes the Backend with mem if it is not set.
+// InitDefaults chooses the in-memory backend if no backend is set.
 func (c *RevCacheConf) InitDefaults() {
 	if c.Backend == "" {
 		c.Backend = BackendMem
@@ -73,6 +76,7 @@ func NewRevCache(conf RevCacheConf) (revcache.RevCache, error) {
 	switch conf.Backend {
 	case BackendMem:
 		return memrevcache.New(cache.NoExpiration, time.Second), nil
+	default:
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
 	}
-	return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
 }
