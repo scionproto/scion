@@ -1,11 +1,16 @@
 #!/bin/bash
 
-# On a SCION topology where end to end connectivity is available, after
-# restarting the dispatcher and flushing SCIOND path databases, end to end
-# connectivity should still be available.
+# Whenever the PS addresses in the topology file of a SD server are changed, if
+# the SD process receives a SIGHUP it will reload the config and service future
+# client requests for paths by querying the new PS addresses.
 
 TEST_NAME="topo_reloading"
 TEST_TOPOLOGY="topology/Tiny.topo"
+
+SRC_IA=${SRC_IA:-1-ff00:0:112}
+SRC_IA_FILE=$(echo $SRC_IA | sed -e "s/:/_/g")
+SRC_AS_FILE=$(echo $SRC_IA_FILE | cut -d '-' -f 2)
+DST_IA=${DST_IA:-1-ff00:0:110}
 
 test_setup() {
     set -e
@@ -19,13 +24,17 @@ test_setup() {
 
 test_run() {
     set -e
-	bin/showpaths -srcIA "1-ff00:0:112" -dstIA "1-ff00:0:110" -sciondFromIA || true
-    go run acceptance/topo_reloading_acceptance/replace_svc.go -file gen/ISD1/ASff00_0_112/endhost/topology.json -op ps -ivalue 39999 -svalue "127.42.42.42"
-    docker kill --signal=HUP sd1-ff00_0_112
+    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
+    go run acceptance/topo_reloading_acceptance/replace_svc.go -file gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json -op ps -ivalue 39999 -svalue "127.42.42.42"
+    docker kill --signal=HUP sd$SRC_IA_FILE
     sleep 1
-	bin/showpaths -srcIA "1-ff00:0:112" -dstIA "1-ff00:0:110" -sciondFromIA -refresh || true
+    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
     sleep 3
-	grep "\[TRACE\] \[Messenger\] Sending request" logs/sd1-ff00_0_112.log | grep SegRequest | tail -1 | grep "1-ff00:0:112,\[127\.42\.42\.42\]:39999" >/dev/null || ( echo "Path segment request to 127.42.42.42:39999 not found in logs" && false )
+    grep "\[TRACE\] \[Messenger\] Sending request" "logs/sd$SRC_IA_FILE.log" | \
+        grep SegRequest | \
+        tail -1 | \
+        grep "$SRC_IA,\[127\.42\.42\.42\]:39999" >/dev/null || \
+            ( echo "Path segment request to 127.42.42.42:39999 not found in logs" && false )
 }
 
 test_teardown() {
