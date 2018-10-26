@@ -59,7 +59,7 @@ func realMain() int {
 		log.Info(fmt.Sprintf("Run scmp-%s-tests:", tc.Name))
 		in := integration.NewBinaryIntegration(tc.Name, "./bin/scmp", tc.Args, nil,
 			integration.NonStdLog)
-		if err := runTests(in, integration.IAPairs()); err != nil {
+		if err := runTests(in, integration.IAPairs(integration.DispAddr)); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to run scmp-%s-tests: %s\n", tc.Name, err)
 			return 1
 		}

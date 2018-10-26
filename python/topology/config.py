@@ -98,6 +98,9 @@ class ConfigGenerator(object):
         if self.args.docker and self.args.mininet:
             logging.critical("Cannot use mininet with docker!")
             sys.exit(1)
+        if self.args.sig and not self.args.docker:
+            logging.critical("Cannot use sig without docker!")
+            sys.exit(1)
         self.default_mtu = None
         self._read_defaults(self.args.network)
         self.port_gen = PortGenerator()
