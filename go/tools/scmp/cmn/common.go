@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -175,6 +176,51 @@ func NextHopAddr() net.Addr {
 	return nhAddr
 }
 
+func Validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.Payload, error) {
+	scmpHdr, ok := pkt.L4.(*scmp.Hdr)
+	if !ok {
+		return nil, nil,
+			common.NewBasicError("Not an SCMP header", nil, "type", common.TypeOf(pkt.L4))
+	}
+	scmpPld, ok := pkt.Pld.(*scmp.Payload)
+	if !ok {
+		return scmpHdr, nil,
+			common.NewBasicError("Not an SCMP payload", nil, "type", common.TypeOf(pkt.Pld))
+	}
+	// Check packet is not a revokation
+	if scmpHdr.Class == scmp.C_Path && scmpHdr.Type == scmp.T_P_RevokedIF {
+		infoRev, ok := scmpPld.Info.(*scmp.InfoRevocation)
+		if !ok {
+			return scmpHdr, scmpPld,
+				common.NewBasicError("Failed to parse SCMP revocation Info", nil)
+		}
+		signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(infoRev.RawSRev)
+		if err != nil {
+			return scmpHdr, scmpPld,
+				common.NewBasicError("Failed to decode SCMP signed revocation Info", nil)
+		}
+		ri, err := signedRevInfo.RevInfo()
+		if err != nil {
+			return scmpHdr, scmpPld,
+				common.NewBasicError("Failed to decode SCMP revocation Info", nil)
+		}
+		return scmpHdr, scmpPld, common.NewBasicError("", nil, "Revocation", ri)
+	}
+	return scmpHdr, scmpPld, nil
+}
+
+/*
+type RevInfo struct {
+	IfID     common.IFIDType
+	RawIsdas addr.IAInt `capnp:"isdas"`
+	// LinkType of revocation
+	LinkType proto.LinkType
+	// RawTimestamp the issuing timestamp in seconds.
+	RawTimestamp uint32 `capnp:"timestamp"`
+	// RawTTL validity period of the revocation in seconds
+	RawTTL uint32 `capnp:"ttl"`
+}
+*/
 func Rand() uint64 {
 	return rand.Uint64()
 }
