@@ -40,8 +40,7 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES
-from topology.net import AddressProxy
+from topology.common import srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES, json_default
 
 DEFAULT_LINK_BW = 1000
 
@@ -116,6 +115,8 @@ class TopoGenerator(object):
         self._read_links()
         self._iterate(self._generate_as_topo)
         self._iterate(self._generate_as_list)
+        if self.args.sig:
+            self._register_sigs()
         networks = self.args.subnet_gen.alloc_subnets()
         prv_networks = self.args.privnet_gen.alloc_subnets()
         self._write_as_topos()
@@ -123,6 +124,12 @@ class TopoGenerator(object):
         self._write_ifids()
         self._write_overlay()
         return self.topo_dicts, networks, prv_networks
+
+    def _register_sigs(self):
+        for isd_as, _ in self.args.topo_config_dict["ASes"].items():
+            topo_id = TopoID(isd_as)
+            self._reg_addr(topo_id, "sig_" + topo_id.file_fmt())
+            self._reg_addr(topo_id, "tester_" + topo_id.file_fmt())
 
     def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
         br_name = ep.br_name()
@@ -313,7 +320,7 @@ class TopoGenerator(object):
                 self.topo_dicts, self.args.output_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],
-                                       default=_json_default, indent=2)
+                                       default=json_default, indent=2)
             write_file(path, contents_json + '\n')
             # Test if topo file parses cleanly
             Topology.from_file(path)
@@ -386,9 +393,3 @@ class IFIDGenerator(object):
             logging.critical("IFID %d is invalid!" % ifid)
             exit(1)
         self._ifids.add(ifid)
-
-
-def _json_default(o):
-    if isinstance(o, AddressProxy):
-        return str(o.ip)
-    raise TypeError

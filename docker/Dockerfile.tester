@@ -1,0 +1,8 @@
+FROM scion_app_builder
+
+USER root
+RUN apt-get update && apt-get install libcap2-bin net-tools iputils-ping iproute2 -y
+
+RUN cp $BASE/docker/tester.sh $BASE
+RUN chmod +x tester.sh
+CMD tail -f /dev/null

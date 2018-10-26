@@ -59,7 +59,8 @@ func realMain() int {
 		log.Info(fmt.Sprintf("Run scmp-%s-tests:", tc.Name))
 		in := integration.NewBinaryIntegration(tc.Name, "./integration/bin_wrapper.sh",
 			append([]string{"./bin/scmp"}, tc.Args...), nil)
-		err := integration.RunUnaryTests(in, integration.IAPairs(), integration.DefaultRunTimeout)
+		err := integration.RunUnaryTests(in, integration.IAPairs(integration.DispAddr),
+			integration.DefaultRunTimeout)
 		if err != nil {
 			log.Error(fmt.Sprintf("Error during scmp-%s-tests", tc.Name), "err", err)
 			return 1

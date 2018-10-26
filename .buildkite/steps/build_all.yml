@@ -3,5 +3,6 @@
   - docker pull $SCION_IMG
   - mkdir docker/_build && touch docker/_build/scion.stamp
   - make -C docker/perapp apps
+  - ./docker.sh tester
   - $BASE/all_images push
 - wait
