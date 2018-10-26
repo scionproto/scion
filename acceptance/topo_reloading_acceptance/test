@@ -25,7 +25,7 @@ test_run() {
     sleep 1
 	bin/showpaths -srcIA "1-ff00:0:112" -dstIA "1-ff00:0:110" -sciondFromIA -refresh || true
     sleep 3
-	grep "\[TRACE\] \[Messenger\] Sending request" logs/sd1-ff00_0_112.log | tail -1 | grep "1-ff00:0:112,\[127\.42\.42\.42\]:39999" >/dev/null || ( echo "Path segment request to 127.42.42.42:39999 not found in logs" && false )
+	grep "\[TRACE\] \[Messenger\] Sending request" logs/sd1-ff00_0_112.log | grep SegRequest | tail -1 | grep "1-ff00:0:112,\[127\.42\.42\.42\]:39999" >/dev/null || ( echo "Path segment request to 127.42.42.42:39999 not found in logs" && false )
 }
 
 test_teardown() {
