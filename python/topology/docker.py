@@ -27,8 +27,16 @@ from lib.util import (
     read_file,
     write_file,
 )
-from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
+from topology.common import (
+    ArgsTopoDicts,
+    _prom_addr_br,
+    _prom_addr_infra,
+    _sciond_name,
+    _sciond_svc_name,
+    _usr_vol
+)
 from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
+from topology.sig import SIGGenArgs, SIGGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
 DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
@@ -65,7 +73,9 @@ class DockerGenerator(object):
         for topo_id, topo in self.args.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
-
+        if self.args.sig:
+            sig_gen = SIGGenerator(self._sig_args())
+            self.dc_conf = sig_gen.generate()
         docker_utils_gen = DockerUtilsGenerator(self._docker_utils_args())
         self.dc_conf = docker_utils_gen.generate()
 
@@ -73,7 +83,10 @@ class DockerGenerator(object):
                    yaml.dump(self.dc_conf, default_flow_style=False))
 
     def _docker_utils_args(self):
-        return DockerUtilsGenArgs(self.args, self.dc_conf)
+        return DockerUtilsGenArgs(self.args, self.dc_conf, self.bridges, self.elem_networks)
+
+    def _sig_args(self):
+        return SIGGenArgs(self.args,  self.dc_conf, self.bridges, self.elem_networks)
 
     def _gen_topo(self, topo_id, topo, base):
         self._dispatcher_conf(topo_id, topo, base)
@@ -123,7 +136,7 @@ class DockerGenerator(object):
             },
             'networks': {},
             'volumes': [
-                *self._usr_vol(),
+                *_usr_vol(),
                 'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt()),
                 self._logs_vol()
             ],
@@ -147,7 +160,7 @@ class DockerGenerator(object):
         raw_entry = {
             'image': image,
             'depends_on': [
-                self._sciond_name(topo_id),
+                _sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
@@ -174,7 +187,7 @@ class DockerGenerator(object):
         raw_entry = {
             'image': 'scion_beacon_py',
             'depends_on': [
-                self._sciond_name(topo_id),
+                _sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
@@ -203,7 +216,7 @@ class DockerGenerator(object):
         raw_entry = {
             'image': image,
             'depends_on': [
-                self._sciond_name(topo_id),
+                _sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
@@ -238,7 +251,7 @@ class DockerGenerator(object):
                 'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
             },
             'volumes': [
-                *self._usr_vol(),
+                *_usr_vol(),
                 os.path.join(
                     self.output_base, self.args.output_dir, cfg_file) + ':/conf/zoo.cfg:rw',
                 '/var/lib/docker-zk:/var/lib/zookeeper:rw',
@@ -262,7 +275,7 @@ class DockerGenerator(object):
             },
             'networks': {},
             'volumes': [
-                *self._usr_vol(),
+                *_usr_vol(),
                 '%s:/share/conf:rw' % os.path.join(base, 'dispatcher'),
                 self._logs_vol()
             ]
@@ -301,7 +314,7 @@ class DockerGenerator(object):
         write_file(cfg, tmpl.substitute(name="dispatcher", elem="disp_%s" % topo_id.file_fmt()))
 
     def _sciond_conf(self, topo_id, base):
-        name = self._sciond_name(topo_id)
+        name = _sciond_svc_name(topo_id)
         image = 'scion_sciond_py' if self.args.sciond == 'py' else 'scion_sciond'
         entry = {
             'image': image,
@@ -322,13 +335,10 @@ class DockerGenerator(object):
                 '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 '--log_dir=logs',
                 '--spki_cache_dir=cache',
-                name,
+                _sciond_name(topo_id),
                 'conf'
             ]
         self.dc_conf['services'][name] = entry
-
-    def _sciond_name(self, topo_id):
-        return 'scion_sd%s' % topo_id.file_fmt()
 
     def _disp_vol(self, topo_id):
         return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
@@ -342,12 +352,9 @@ class DockerGenerator(object):
     def _cache_vol(self):
         return self.output_base + '/gen-cache:/share/cache:rw'
 
-    def _usr_vol(self):
-        return ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
-
     def _std_vol(self, topo_id):
         return [
-            *self._usr_vol(),
+            *_usr_vol(),
             self._disp_vol(topo_id),
             self._sciond_vol(topo_id),
             self._cache_vol(),

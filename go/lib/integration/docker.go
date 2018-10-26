@@ -29,8 +29,8 @@ const (
 )
 
 var (
-	// docker indicates if the tests should be executed in a docker container
-	docker = flag.Bool("d", false, "Run tests in a docker container")
+	// Docker indicates if the tests should be executed in a Docker container
+	Docker = flag.Bool("d", false, "Run tests in a docker container")
 )
 
 var _ Integration = (*dockerIntegration)(nil)
@@ -40,7 +40,7 @@ type dockerIntegration struct {
 }
 
 func dockerize(bi *binaryIntegration) Integration {
-	if *docker {
+	if *Docker {
 		return &dockerIntegration{
 			binaryIntegration: bi,
 		}

@@ -17,6 +17,7 @@ import os
 
 # SCION
 from lib.packet.scion_addr import ISD_AS
+from topology.net import AddressProxy
 
 COMMON_DIR = 'endhost'
 
@@ -115,3 +116,29 @@ def _srv_iter(topo_dicts, out_dir, common=False):
                 yield topo_id, as_topo, os.path.join(base, elem)
         if common:
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
+
+
+def remote_nets(networks, topo_id):
+    rem_nets = []
+    for key in networks:
+        if 'sig' in key and topo_id.file_fmt() not in key:
+            rem_nets.append(str(networks[key][0]['net']))
+    return ','.join(rem_nets)
+
+
+def _sciond_name(topo_id):
+    return 'sd%s' % topo_id.file_fmt()
+
+
+def _sciond_svc_name(topo_id):
+    return 'scion_%s' % _sciond_name(topo_id)
+
+
+def _usr_vol():
+    return ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
+
+
+def _json_default(o):
+    if isinstance(o, AddressProxy):
+        return str(o.ip)
+    raise TypeError

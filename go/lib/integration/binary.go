@@ -198,7 +198,7 @@ var NonStdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCl
 	defer ep.Close()
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
-		log.Error(fmt.Sprintf("%s@%s: %s", name, local, scanner.Text()))
+		log.Debug(fmt.Sprintf("%s@%s: %s", name, local, scanner.Text()))
 	}
 }
 
