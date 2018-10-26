@@ -63,6 +63,10 @@ type InfoEcho struct {
 
 func InfoEchoFromRaw(b common.RawBytes) (*InfoEcho, error) {
 	e := &InfoEcho{}
+	if len(b) < e.Len() {
+		return nil, common.NewBasicError("Can't parse SCMP Info Echo, buffer is too short",
+			nil, "expected", e.Len(), "actual", len(b))
+	}
 	if err := restruct.Unpack(b, common.Order, e); err != nil {
 		return nil, common.NewBasicError("Failed to unpack SCMP ECHO info", err)
 	}
