@@ -13,9 +13,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Stdlib
+import argparse
+import logging
+import os
 # SCION
 from beacon_server.core import CoreBeaconServer
 from beacon_server.local import LocalBeaconServer
-from lib.main import main_default, main_wrapper
+from lib.app.sciond import get_default_sciond_path
+from lib.defines import TOPO_FILE
+from lib.log import init_logging, log_exception
+from lib.main import main_wrapper
+from lib.topology import Topology
+from lib.util import handle_signals, trace
 
-main_wrapper(main_default, CoreBeaconServer, LocalBeaconServer)
+
+def beacon_default():
+    handle_signals()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--log_dir', default="logs/", help='Log dir (Default: logs/)')
+    parser.add_argument('--spki_cache_dir', default="gen-cache/",
+                        help='Cache dir for SCION TRCs and cert chains (Default: gen-cache/)')
+    parser.add_argument('--prom', type=str, help='Address to export prometheus metrics on')
+    parser.add_argument('--sciond_path', type=str, help='Sciond socket path '
+                        '(Default: %s)' % get_default_sciond_path())
+    parser.add_argument('--filter_isd_loops', action='store_true',
+                        help='Filter ISD loops in Core Beacon Server (Default: False)')
+    parser.add_argument('server_id', help='Server identifier')
+    parser.add_argument('conf_dir', nargs='?', default='.',
+                        help='Configuration directory (Default: ./)')
+    args = parser.parse_args()
+    init_logging(os.path.join(args.log_dir, args.server_id))
+
+    # Load the topology to check if this is a core AD or not
+    topo = Topology.from_file(os.path.join(args.conf_dir, TOPO_FILE))
+    if topo.is_core_as:
+        inst = CoreBeaconServer(args.server_id, args.conf_dir, prom_export=args.prom,
+                        sciond_path=args.sciond_path,
+                        spki_cache_dir=args.spki_cache_dir, filter_isd_loops=args.filter_isd_loops)
+    else:
+        inst = LocalBeaconServer(args.server_id, args.conf_dir,
+                            prom_export=args.prom,
+                            sciond_path=args.sciond_path,
+                            spki_cache_dir=args.spki_cache_dir)
+    logging.info("Started %s", args.server_id)
+    inst.run()
+
+main_wrapper(beacon_default)
