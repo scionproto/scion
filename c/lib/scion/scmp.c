@@ -148,23 +148,25 @@ const char *scmp_ext_to_str(uint16_t index)
 const char *scmp_ct_to_str(char *buf, uint16_t class, uint16_t type)
 {
     const char *class_str = NULL, *type_str = NULL;
+    uint16_t c = ntohs(class);
+    uint16_t t = ntohs(type);
 
-    class_str = scmp_class_to_str(class);
-    switch (class) {
+    class_str = scmp_class_to_str(c);
+    switch (c) {
     case SCMP_CLASS_GENERAL:
-        type_str = scmp_general_to_str(type);
+        type_str = scmp_general_to_str(t);
         break;
     case SCMP_CLASS_ROUTING:
-        type_str = scmp_routing_to_str(type);
+        type_str = scmp_routing_to_str(t);
         break;
     case SCMP_CLASS_CMNHDR:
-        type_str = scmp_cmnhdr_to_str(type);
+        type_str = scmp_cmnhdr_to_str(t);
         break;
     case SCMP_CLASS_PATH:
-        type_str = scmp_path_to_str(type);
+        type_str = scmp_path_to_str(t);
         break;
     case SCMP_CLASS_EXT:
-        type_str = scmp_ext_to_str(type);
+        type_str = scmp_ext_to_str(t);
         break;
     default:
         class_str = "Unknown Class";
