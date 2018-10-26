@@ -37,7 +37,7 @@ def beacon_default():
     parser.add_argument('--prom', type=str, help='Address to export prometheus metrics on')
     parser.add_argument('--sciond_path', type=str, help='Sciond socket path '
                         '(Default: %s)' % get_default_sciond_path())
-    parser.add_argument('--filter_isd_loops', default=False,
+    parser.add_argument('--filter_isd_loops', default=False, action='store_true',
                         help='Filter ISD loops in Core Beacon Server (Default: False)')
     parser.add_argument('server_id', help='Server identifier')
     parser.add_argument('conf_dir', nargs='?', default='.',
