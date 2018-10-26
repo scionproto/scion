@@ -69,7 +69,7 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	defer log.LogPanicAndExit()
+	defer env.CleanupLog()
 	defer stop()
 	// Create a channel where prometheus can signal fatal errors
 	fatalC := make(chan error, 1)
