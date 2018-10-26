@@ -62,7 +62,7 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
-	getPathsReply, err := h.Fetcher.GetPaths(workCtx, &pld.PathReq, DefaultEarlyReply, logger)
+	getPathsReply, err := h.Fetcher.GetPaths(workCtx, pld.PathReq, DefaultEarlyReply, logger)
 	if err != nil {
 		logger.Error("Unable to get paths", "err", err)
 	}
@@ -70,7 +70,7 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 	reply := &sciond.Pld{
 		Id:        pld.Id,
 		Which:     proto.SCIONDMsg_Which_pathReply,
-		PathReply: *getPathsReply,
+		PathReply: getPathsReply,
 	}
 	b, err := proto.PackRoot(reply)
 	if err != nil {
@@ -108,7 +108,7 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	if reqIA.IsZero() {
 		reqIA = topo.ISD_AS
 	}
-	asInfoReply := sciond.ASInfoReply{}
+	asInfoReply := &sciond.ASInfoReply{}
 	trcObj, err := h.TrustStore.GetValidTRC(workCtx, reqIA.I, nil)
 	if err != nil {
 		// FIXME(scrye): return a zero AS because the protocol doesn't
@@ -163,7 +163,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 
 	logger.Debug("[IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
-	ifInfoReply := sciond.IFInfoReply{}
+	ifInfoReply := &sciond.IFInfoReply{}
 	topo := itopo.GetCurrentTopology()
 	if len(ifInfoRequest.IfIDs) == 0 {
 		// Reply with all the IFIDs we know
@@ -216,7 +216,7 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 	logger.Debug("[SVCInfoRequestHandler] Received request",
 		"request", &pld.ServiceInfoRequest)
 	svcInfoRequest := pld.ServiceInfoRequest
-	svcInfoReply := sciond.ServiceInfoReply{}
+	svcInfoReply := &sciond.ServiceInfoReply{}
 	topo := itopo.GetCurrentTopology()
 	for _, t := range svcInfoRequest.ServiceTypes {
 		var hostInfos []sciond.HostInfo
@@ -272,11 +272,11 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	logger log.Logger) {
 
 	logger.Debug("[RevNotificationHandler] Received revocation",
-		"notification", &pld.RevNotification)
+		"notification", pld.RevNotification)
 	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
 	defer workCancelF()
 	revNotification := pld.RevNotification
-	revReply := sciond.RevReply{}
+	revReply := &sciond.RevReply{}
 	revInfo, err := h.verifySRevInfo(workCtx, revNotification.SRevInfo)
 	if err == nil {
 		_, err = h.RevCache.Insert(workCtx, revNotification.SRevInfo)
