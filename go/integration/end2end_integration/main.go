@@ -48,7 +48,7 @@ func realMain() int {
 	serverArgs := []string{"-log.console", "debug", "-mode", "server",
 		"-local", integration.DstAddrPattern + ":0"}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
-	if err := runTests(in, integration.IAPairs()); err != nil {
+	if err := runTests(in, integration.IAPairs(integration.DispAddr)); err != nil {
 		log.Error("Error during tests", "err", err)
 		return 1
 	}

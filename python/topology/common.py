@@ -18,6 +18,7 @@ import subprocess
 import sys
 # SCION
 from lib.packet.scion_addr import ISD_AS
+from topology.net import AddressProxy
 
 COMMON_DIR = 'endhost'
 
@@ -28,6 +29,8 @@ SCION_SERVICE_NAMES = (
     "PathService",
     "DiscoveryService",
 )
+
+DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
 
 
 class ArgsBase:
@@ -136,3 +139,25 @@ def docker_host(in_docker, docker, addr=None):
 
 def docker_ip():
     return subprocess.check_output(['tools/docker-ip']).decode("utf-8").strip()
+
+
+def remote_nets(networks, topo_id):
+    rem_nets = []
+    for key in networks:
+        if 'sig' in key and topo_id.file_fmt() not in key:
+            rem_nets.append(str(networks[key][0]['net']))
+    return ','.join(rem_nets)
+
+
+def sciond_name(topo_id):
+    return 'sd%s' % topo_id.file_fmt()
+
+
+def sciond_svc_name(topo_id):
+    return 'scion_%s' % sciond_name(topo_id)
+
+
+def json_default(o):
+    if isinstance(o, AddressProxy):
+        return str(o.ip)
+    raise TypeError

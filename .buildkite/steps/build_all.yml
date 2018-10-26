@@ -5,5 +5,6 @@
   - docker tag $SCION_IMG scion:latest
   - mkdir docker/_build && touch docker/_build/scion.stamp
   - make -C docker/perapp apps
+  - ./docker.sh tester
   - $BASE/scripts/all_images push
 - wait
