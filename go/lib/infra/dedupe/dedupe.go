@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,7 +82,20 @@ type RequestFunc func(ctx context.Context, request Request) Response
 // The zero value is a valid Deduper object. Members variables should only be
 // set during initialization; setting them after the first Request is undefined
 // behavior.
-type Deduper struct {
+type Deduper interface {
+	// Request passes a request that is subject to deduplication. This function
+	// returns immediately, and callers should wait on the returned channel for the
+	// result. The second return value is a cancellation function that can be used
+	// to free up resources associated with the request. It is safe to call Request
+	// from multiple goroutines.
+	//
+	// Objects written to the channel might share the same address space, so
+	// callers should copy the value drained from the channel if they want to have
+	// exclusive ownership.
+	Request(ctx context.Context, req Request) (<-chan Response, CancelFunc)
+}
+
+type deduper struct {
 	requestFunc      RequestFunc
 	dedupeLifetime   time.Duration
 	responseValidity time.Duration
@@ -104,14 +117,14 @@ type Deduper struct {
 // network requests for the same broadcast key are sent out. The result is
 // immediately returned from an internal cache for this period. If 0,
 // responseValidity defaults to DefaultResponseValidity.
-func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) *Deduper {
+func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) Deduper {
 	if dedupeLifetime == 0 {
 		dedupeLifetime = DefaultDedupeLifetime
 	}
 	if responseValidity == 0 {
 		responseValidity = DefaultResponseValidity
 	}
-	return &Deduper{
+	return &deduper{
 		requestFunc:      f,
 		dedupeLifetime:   dedupeLifetime,
 		responseValidity: responseValidity,
@@ -119,16 +132,7 @@ func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) *Deduper
 	}
 }
 
-// Request passes a request that is subject to deduplication. This function
-// returns immediately, and callers should wait on the returned channel for the
-// result. The second return value is a cancellation function that can be used
-// to free up resources associated with the request. It is safe to call Request
-// from multiple goroutines.
-//
-// Objects written to the channel might share the same address space, so
-// callers should copy the value drained from the channel if they want to have
-// exclusive ownership.
-func (dd *Deduper) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
+func (dd *deduper) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
 	ch := make(chan Response, 1)
 	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime); ctx != nil {
 		go dd.handler(ctx, req)
@@ -143,7 +147,7 @@ func (dd *Deduper) Request(ctx context.Context, req Request) (<-chan Response, C
 
 // handler calls RequestFunc with a freshly created channel, and then reads the
 // result from the channel and notifies the relevant waiters.
-func (dd *Deduper) handler(ctx context.Context, req Request) {
+func (dd *deduper) handler(ctx context.Context, req Request) {
 	ch := make(chan Response, 1)
 	go func() {
 		ch <- dd.requestFunc(ctx, req)
