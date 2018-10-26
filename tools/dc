@@ -76,7 +76,7 @@ exec_tester() {
     local service="tester_$1"
     shift
     service_running "$service" || cmd_start "$service" &>/dev/null
-    cmd_dc exec -T "$service" bash -l -c "$*"
+    cmd_dc exec -T -u scion "$service" bash -l -c "$*"
 }
 
 glob_docker() {

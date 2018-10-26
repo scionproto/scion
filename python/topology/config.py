@@ -93,6 +93,9 @@ class ConfigGenerator(object):
         """
         self.args = args
         self.topo_config = load_yaml_file(self.args.topo_config)
+        if self.args.sig and not self.args.docker:
+            logging.critical("Cannot use sig without docker!")
+            sys.exit(1)
         self.default_mtu = None
         self._read_defaults(self.args.network)
         self.port_gen = PortGenerator()

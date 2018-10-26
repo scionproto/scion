@@ -34,8 +34,7 @@ test_run() {
 }
 
 test_teardown() {
-    set -e
-    ./scion.sh stop
+    ./tools/dc down
 }
 
 print_help() {

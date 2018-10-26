@@ -137,19 +137,19 @@ type IAPair struct {
 }
 
 // IAPairs returns all IAPairs that should be tested.
-func IAPairs() []IAPair {
-	return generateAllSrcDst(srcIAs, dstIAs)
+func IAPairs(hostAddr HostAddr) []IAPair {
+	return generateAllSrcDst(srcIAs, dstIAs, hostAddr)
 }
 
-// GenerateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
-func generateAllSrcDst(srcList, dstList []addr.IA) []IAPair {
+// generateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
+func generateAllSrcDst(srcList, dstList []addr.IA, hostAddr HostAddr) []IAPair {
 	srcASes := make([]snet.Addr, 0, len(srcList))
 	for _, src := range srcList {
-		srcASes = append(srcASes, dispAddr(src))
+		srcASes = append(srcASes, hostAddr(src))
 	}
 	dstASes := make([]snet.Addr, 0, len(dstList))
 	for _, dst := range dstList {
-		dstASes = append(dstASes, dispAddr(dst))
+		dstASes = append(dstASes, hostAddr(dst))
 	}
 	shuffle(len(srcASes), func(i, j int) {
 		srcASes[i], srcASes[j] = srcASes[j], srcASes[i]
@@ -166,12 +166,14 @@ func generateAllSrcDst(srcList, dstList []addr.IA) []IAPair {
 	return pairs
 }
 
-// dispAddr reads the BS host Addr from the topology for the specified IA. In general this
+type HostAddr func(ia addr.IA) snet.Addr
+
+// DispAddr reads the BS host Addr from the topology for the specified IA. In general this
 // could be the IP of any service (PS/BS/CS) in that IA because they share the same dispatcher in
 // the dockerized topology.
 // The host IP is used as client or server address in the tests because the testing container is
 // connecting to the dispatcher of the services.
-func dispAddr(ia addr.IA) snet.Addr {
+var DispAddr HostAddr = func(ia addr.IA) snet.Addr {
 	path := fmt.Sprintf("gen/ISD%d/AS%s/endhost/topology.json", ia.I, ia.A.FileFmt())
 	topo, err := topology.LoadFromFile(path)
 	if err != nil {
