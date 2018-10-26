@@ -41,20 +41,20 @@ class CoreBeaconServer(BeaconServer):
     towards other core beacon servers.
     """
     def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH,
-                 prom_export=None, sciond_path=None, filter_ISD=False):
+                 prom_export=None, sciond_path=None, filter_isd_loops=False):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
         :param str prom_export: prometheus export address.
         :param str sciond_path: path to sciond socket
-        :param str filter_ISD: filter ISD loops
+        :param str filter_isd_loops: filter ISD loops
         """
         super().__init__(server_id, conf_dir, spki_cache_dir=spki_cache_dir,
                          prom_export=prom_export, sciond_path=sciond_path)
         # Sanity check that we should indeed be a core beacon server.
         assert self.topology.is_core_as, "This shouldn't be a local BS!"
         self.core_beacons = defaultdict(self._ps_factory)
-        self.filter_ISD = filter_ISD
+        self.filter_isd_loops = filter_isd_loops
 
     def _ps_factory(self):
         """
@@ -157,7 +157,7 @@ class CoreBeaconServer(BeaconServer):
                 continue
             # Switched to a new ISD
             last_isd = curr_isd
-            if curr_isd in isds and self.filter_ISD:
+            if self.filter_isd_loops and curr_isd in isds:
                 # This ISD has been seen before
                 return False
             isds.add(curr_isd)

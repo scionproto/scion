@@ -130,7 +130,7 @@ class BeaconServer(SCIONElement, metaclass=ABCMeta):
     CERT_REQ_RATE = 10
 
     def __init__(self, server_id, conf_dir, spki_cache_dir=GEN_CACHE_PATH,
-                 prom_export=None, sciond_path=None, filter_ISD=False):
+                 prom_export=None, sciond_path=None):
         """
         :param str server_id: server identifier.
         :param str conf_dir: configuration directory.
