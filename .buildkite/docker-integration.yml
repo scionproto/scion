@@ -3,6 +3,7 @@
   command:
       - mkdir docker/_build && touch docker/_build/scion.stamp
       - make -C docker/perapp
+      - ./docker.sh tester
 - wait
 - label: Docker Integration Tests
   command:

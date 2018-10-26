@@ -45,7 +45,7 @@ func realMain() int {
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
 		"-local", integration.SrcAddrPattern, "-remoteIA", integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
-	if err := runTests(in, integration.IAPairs()); err != nil {
+	if err := runTests(in, integration.IAPairs(integration.DispAddr)); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}
@@ -57,9 +57,9 @@ func realMain() int {
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
 		// Start the clients for srcDest pair
-		for i, conn := range integration.IAPairs() {
+		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(integration.IAPairs())))
+				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
 			t := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
 			if err := integration.RunClient(in, conn, t); err != nil {
 				log.Error("Error during client execution", "err", err)
