@@ -79,9 +79,9 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	pathDB, err := pathstorage.NewPathDB(config.PS.PathDB)
+	pathDB, revCache, err := pathstorage.NewPathStorage(config.PS.PathDB, config.PS.RevCache)
 	if err != nil {
-		log.Crit("Unable to initialize pathDB", "err", err)
+		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
 	trustDB, err := trustdb.New(config.Trust.TrustDB)
@@ -117,11 +117,6 @@ func realMain() int {
 	)
 	if err != nil {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
-		return 1
-	}
-	revCache, err := pathstorage.NewRevCache(config.PS.RevCache)
-	if err != nil {
-		log.Crit("Unable to initialize revcache", "err", err)
 		return 1
 	}
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))

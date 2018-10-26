@@ -29,6 +29,7 @@ import (
 type Backend string
 
 const (
+	BackendNone   Backend = ""
 	BackendSqlite Backend = "sqlite"
 	BackendMem    Backend = "mem"
 )
@@ -46,17 +47,6 @@ func (c *PathDBConf) InitDefaults() {
 	}
 }
 
-// NewPathDB returns a PathDB for the given config.
-// In case an invalid backend is requested an error is returned.
-func NewPathDB(conf PathDBConf) (pathdb.PathDB, error) {
-	switch conf.Backend {
-	case BackendSqlite:
-		return sqlitepathdb.New(conf.Connection)
-	default:
-		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
-	}
-}
-
 // RevCacheConf is the configuration for the connection to the revocation cache.
 type RevCacheConf struct {
 	Backend    Backend
@@ -70,12 +60,58 @@ func (c *RevCacheConf) InitDefaults() {
 	}
 }
 
-// NewRevCache returns a RevCache for the given config.
-// In case an invalid backend is requested an error is returned.
-func NewRevCache(conf RevCacheConf) (revcache.RevCache, error) {
+// PathStorage contains a PathDB and a RevCache.
+type PathStorage struct {
+	PathDB   pathdb.PathDB
+	RevCache revcache.RevCache
+}
+
+// NewPathStorage creates a PathStorage from the given configs.
+func NewPathStorage(pdbConf PathDBConf,
+	rcConf RevCacheConf) (pathdb.PathDB, revcache.RevCache, error) {
+
+	if sameBackend(pdbConf, rcConf) {
+		return newCombinedBackend(pdbConf, rcConf)
+	}
+	pdb, err := newPathDB(pdbConf)
+	if err != nil {
+		return nil, nil, err
+	}
+	rc, err := newRevCache(rcConf)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pdb, rc, nil
+}
+
+func sameBackend(pdbConf PathDBConf, rcConf RevCacheConf) bool {
+	return pdbConf.Backend != BackendNone && rcConf.Backend != BackendNone &&
+		pdbConf.Backend == rcConf.Backend
+}
+
+func newCombinedBackend(pdbConf PathDBConf,
+	rcConf RevCacheConf) (pathdb.PathDB, revcache.RevCache, error) {
+
+	panic("Combined backend not supported")
+}
+
+func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
+	switch conf.Backend {
+	case BackendSqlite:
+		return sqlitepathdb.New(conf.Connection)
+	case BackendNone:
+		return nil, nil
+	default:
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
+	}
+}
+
+func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
 	switch conf.Backend {
 	case BackendMem:
 		return memrevcache.New(cache.NoExpiration, time.Second), nil
+	case BackendNone:
+		return nil, nil
 	default:
 		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
 	}
