@@ -100,7 +100,10 @@ func StartVerification(ctx context.Context, store infra.TrustStore, server net.A
 	units := BuildUnits(segMetas, sRevInfos)
 	unitResultsC := make(chan UnitResult, len(units))
 	for _, unit := range units {
-		go unit.Verify(ctx, store, server, unitResultsC)
+		go func() {
+			defer log.LogPanicAndExit()
+			unit.Verify(ctx, store, server, unitResultsC)
+		}()
 	}
 	return unitResultsC, len(units)
 }
@@ -143,9 +146,15 @@ func (u *Unit) Verify(ctx context.Context, store infra.TrustStore,
 	server net.Addr, unitResults chan UnitResult) {
 
 	responses := make(chan ElemResult, u.Len())
-	go verifySegment(ctx, store, server, u.SegMeta, responses)
+	go func() {
+		defer log.LogPanicAndExit()
+		verifySegment(ctx, store, server, u.SegMeta, responses)
+	}()
 	for index, sRevInfo := range u.SRevInfos {
-		go verifyRevInfo(ctx, store, server, index, sRevInfo, responses)
+		go func() {
+			defer log.LogPanicAndExit()
+			verifyRevInfo(ctx, store, server, index, sRevInfo, responses)
+		}()
 	}
 	// Response writers must guarantee that the for loop below returns before
 	// (or very close around) ctx.Done()
@@ -184,7 +193,6 @@ type ElemResult struct {
 func verifySegment(ctx context.Context, store infra.TrustStore, server net.Addr, segment *seg.Meta,
 	ch chan ElemResult) {
 
-	defer log.LogPanicAndExit()
 	err := VerifySegment(ctx, store, server, segment)
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
@@ -212,7 +220,6 @@ func VerifySegment(ctx context.Context, store infra.TrustStore, server net.Addr,
 func verifyRevInfo(ctx context.Context, store infra.TrustStore, server net.Addr, index int,
 	signedRevInfo *path_mgmt.SignedRevInfo, ch chan ElemResult) {
 
-	defer log.LogPanicAndExit()
 	err := VerifyRevInfo(ctx, store, server, signedRevInfo)
 	select {
 	case ch <- ElemResult{Index: index, Error: err}:
