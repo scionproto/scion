@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -39,7 +38,6 @@ const (
 // interface state changes, so this is only needed as a fail-safe after
 // startup.
 func ifStateUpdate() {
-	defer log.LogPanicAndExit()
 	genIFStateReq()
 	for range time.Tick(ifStateFreq) {
 		genIFStateReq()

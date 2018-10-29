@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,7 +49,6 @@ func (r *Router) handlePktError(rp *rpkt.RtrPkt, perr error, desc string) {
 
 // PackeError creates an SCMP error for the given packet and sends it to its source.
 func (r *Router) PacketError() {
-	defer log.LogPanicAndExit()
 	// Run forever.
 	for args := range r.pktErrorQ {
 		r.doPktError(args.rp, args.perr)

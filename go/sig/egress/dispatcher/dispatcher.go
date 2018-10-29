@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +47,6 @@ func NewDispatcher(ia addr.IA, ring *ringbuf.Ring, ss egress.SessionSelector) *e
 }
 
 func (ed *egressDispatcher) Run() {
-	defer log.LogPanicAndExit()
 	ed.Info("EgressDispatcher: starting")
 	bufs := make(ringbuf.EntryList, egress.EgressBufPkts)
 	for {

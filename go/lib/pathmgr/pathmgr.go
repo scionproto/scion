@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -129,7 +130,10 @@ func New(srvc sciond.Service, timers *Timers, logger log.Logger) (*PR, error) {
 		normalRefire:  timers.NormalRefire,
 		errorRefire:   timers.ErrorRefire,
 	}
-	go r.run()
+	go func() {
+		defer log.LogPanicAndExit()
+		r.run()
+	}()
 	return pr, nil
 }
 

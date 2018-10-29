@@ -105,7 +105,10 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 			}
 		}
 	}()
-	go bi.logRedirect("Server", "ServerErr", dst, ep)
+	go func() {
+		defer log.LogPanicAndExit()
+		bi.logRedirect("Server", "ServerErr", dst, ep)
+	}()
 	err = r.Start()
 	if err != nil {
 		return nil, err
@@ -129,7 +132,10 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) 
 	if err != nil {
 		return nil, err
 	}
-	go bi.logRedirect("Client", "ClientErr", src, ep)
+	go func() {
+		defer log.LogPanicAndExit()
+		bi.logRedirect("Client", "ClientErr", src, ep)
+	}()
 	return r, r.Start()
 }
 
@@ -149,7 +155,6 @@ type LogRedirect func(name, pName string, local addr.IA, ep io.ReadCloser)
 // StdLog tries to parse any log line from the standard format and logs it with the same log level
 // as the original log entry to the log file.
 var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
-	defer log.LogPanicAndExit()
 	defer ep.Close()
 	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
 		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
@@ -158,7 +163,6 @@ var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadClose
 
 // NonStdLog directly logs any lines as error to the log file
 var NonStdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
-	defer log.LogPanicAndExit()
 	defer ep.Close()
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {

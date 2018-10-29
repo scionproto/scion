@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -108,7 +109,10 @@ func Start() error {
 	http.HandleFunc("/configversion", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, atomic.LoadUint64(&ConfigVersion))
 	})
-	go http.Serve(ln, nil)
+	go func() {
+		defer log.LogPanicAndExit()
+		http.Serve(ln, nil)
+	}()
 	return nil
 }
 

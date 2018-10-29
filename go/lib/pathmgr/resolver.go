@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +42,6 @@ type resolver struct {
 // updates the path cache with the result. Periodic requests are readded to the
 // channel.
 func (r *resolver) run() {
-	defer log.LogPanicAndExit()
 	for request := range r.requestQueue {
 		aps := r.lookup(request.src, request.dst)
 		switch request.reqType {

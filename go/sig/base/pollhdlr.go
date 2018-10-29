@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +27,6 @@ import (
 )
 
 func PollReqHdlr() {
-	defer log.LogPanicAndExit()
 	log.Info("PollReqHdlr: starting")
 	for rpld := range disp.Dispatcher.PollReqC {
 		req, ok := rpld.P.(*mgmt.PollReq)

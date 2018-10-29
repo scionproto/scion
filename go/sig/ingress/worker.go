@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,12 +74,10 @@ func NewWorker(remote *snet.Addr, sessId mgmt.SessionType) *Worker {
 }
 
 func (w *Worker) Stop() {
-	defer log.LogPanicAndExit()
 	w.Ring.Close()
 }
 
 func (w *Worker) Run() {
-	defer log.LogPanicAndExit()
 	w.Info("IngressWorker starting")
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
@@ -143,7 +142,10 @@ func (w *Worker) cleanup() {
 			// Remove the reassembly list from the map and then release all frames
 			// back to the bufpool.
 			delete(w.rlists, epoch)
-			go rlist.removeAll()
+			go func() {
+				defer log.LogPanicAndExit()
+				rlist.removeAll()
+			}()
 		} else {
 			// Mark the reassembly list for deletion. If it is not accessed between now
 			// and the next cleanup interval, it will be removed.
