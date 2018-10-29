@@ -45,12 +45,12 @@ class SupervisorGenerator(object):
     def generate(self):
         self._write_dispatcher_conf()
         for topo_id, topo in self.topo_dicts.items():
-            entries = self._as_conf(topo_id, topo)
+            base = topo_id.base_dir(self.out_dir)
+            entries = self._as_conf(topo, base)
             self._write_as_conf(topo_id, entries)
 
-    def _as_conf(self, topo_id, topo):
+    def _as_conf(self, topo, base):
         entries = []
-        base = topo_id.base_dir(self.out_dir)
         entries.extend(self._br_entries(topo, "bin/border", base))
         entries.extend(self._bs_entries(topo, base))
         entries.extend(self._cs_entries(topo, base))
