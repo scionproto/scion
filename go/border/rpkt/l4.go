@@ -71,6 +71,10 @@ func (rp *RtrPkt) findL4() (bool, error) {
 	nextHdr := rp.idxs.nextHdrIdx.Type
 	offset := rp.idxs.nextHdrIdx.Index
 	for nextHdr == common.HopByHopClass || nextHdr == common.End2EndClass {
+		if len(rp.Raw[offset:]) < common.LineLen {
+			return false, common.NewBasicError("Bad header length", nil,
+				"min", common.LineLen, "actual", len(rp.Raw[offset:]))
+		}
 		currHdr := nextHdr
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[offset+2]}
 		if currHdr == common.HopByHopClass {
