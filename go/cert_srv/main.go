@@ -105,16 +105,19 @@ func setupSignals() {
 	signal.Notify(sig, os.Interrupt)
 	signal.Notify(sig, syscall.SIGTERM)
 	go func() {
+		defer log.LogPanicAndExit()
 		s := <-sig
 		log.Info("Received signal, exiting...", "signal", s)
 		log.Flush()
 		os.Exit(1)
 	}()
-	go configSig()
+	go func() {
+		defer log.LogPanicAndExit()
+		configSig()
+	}()
 }
 
 func configSig() {
-	defer log.LogPanicAndExit()
 	for range sighup {
 		log.Info("Reloading is not supported")
 	}

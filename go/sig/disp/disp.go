@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +29,10 @@ import (
 )
 
 func Init(conn snet.Conn) {
-	go pktdisp.PktDispatcher(conn, dispFunc)
+	go func() {
+		defer log.LogPanicAndExit()
+		pktdisp.PktDispatcher(conn, dispFunc)
+	}()
 }
 
 type RegType int

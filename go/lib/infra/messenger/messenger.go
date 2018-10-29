@@ -557,8 +557,8 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 		return
 	}
 	go func() {
-		defer cancelF()
 		defer log.LogPanicAndExit()
+		defer cancelF()
 		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId, logger))
 	}()
 }

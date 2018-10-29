@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,7 +115,10 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 	if !ok {
 		worker = NewWorker(src, frame.sessId)
 		d.workers[dispatchStr] = worker
-		go worker.Run()
+		go func() {
+			defer log.LogPanicAndExit()
+			worker.Run()
+		}()
 	}
 	worker.markedForCleanup = false
 	worker.Ring.Write(ringbuf.EntryList{frame}, true)
@@ -125,7 +129,10 @@ func (d *Dispatcher) cleanup() {
 	for key, worker := range d.workers {
 		if worker.markedForCleanup {
 			delete(d.workers, key)
-			go worker.Stop()
+			go func() {
+				defer log.LogPanicAndExit()
+				worker.Stop()
+			}()
 		} else {
 			worker.markedForCleanup = true
 		}

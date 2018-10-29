@@ -567,7 +567,10 @@ func TestTRCReqHandler(t *testing.T) {
 			Convey(tc.Name, func() {
 				handler := store.NewTRCReqHandler(tc.RecursionEnabled)
 				serverMessenger.AddHandler(infra.TRCRequest, handler)
-				go serverMessenger.ListenAndServe()
+				go func() {
+					defer log.LogPanicAndExit()
+					serverMessenger.ListenAndServe()
+				}()
 				defer serverMessenger.CloseServer()
 
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)
@@ -685,7 +688,10 @@ func TestChainReqHandler(t *testing.T) {
 			Convey(tc.Name, func() {
 				handler := store.NewChainReqHandler(tc.RecursionEnabled)
 				serverMessenger.AddHandler(infra.ChainRequest, handler)
-				go serverMessenger.ListenAndServe()
+				go func() {
+					defer log.LogPanicAndExit()
+					serverMessenger.ListenAndServe()
+				}()
 				defer serverMessenger.CloseServer()
 
 				ctx, cancelF := context.WithTimeout(context.Background(), testCtxTimeout)

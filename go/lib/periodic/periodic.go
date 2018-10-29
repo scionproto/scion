@@ -48,7 +48,10 @@ func StartPeriodicTask(task Task, ticker *time.Ticker, timeout time.Duration) *R
 		stop:    make(chan struct{}),
 		stopped: make(chan struct{}),
 	}
-	go runner.runLoop()
+	go func() {
+		defer log.LogPanicAndExit()
+		runner.runLoop()
+	}()
 	return runner
 }
 
@@ -61,7 +64,6 @@ func (r *Runner) Stop() {
 }
 
 func (r *Runner) runLoop() {
-	defer log.LogPanicAndExit()
 	defer close(r.stopped)
 	for {
 		select {

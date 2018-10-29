@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,10 +75,16 @@ func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir,
 func (s *Sock) Start() {
 	if !s.running {
 		if s.Reader != nil {
-			go s.Reader(s, s.stop, s.readerStopped)
+			go func() {
+				defer log.LogPanicAndExit()
+				s.Reader(s, s.stop, s.readerStopped)
+			}()
 		}
 		if s.Writer != nil {
-			go s.Writer(s, s.stop, s.writerStopped)
+			go func() {
+				defer log.LogPanicAndExit()
+				s.Writer(s, s.stop, s.writerStopped)
+			}()
 		}
 		s.running = true
 		log.Info("Sock routines started", "addr", s.Conn.LocalAddr())

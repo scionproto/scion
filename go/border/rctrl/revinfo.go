@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import (
 // RevInfoFwd takes RevInfos, and forwards them to the local Beacon Service
 // (BS) and Path Service (PS).
 func revInfoFwd(revInfoQ chan rpkt.RawSRevCallbackArgs) {
-	defer log.LogPanicAndExit()
 	// Run forever.
 	for args := range revInfoQ {
 		revInfo, err := args.SignedRevInfo.RevInfo()

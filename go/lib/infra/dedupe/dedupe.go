@@ -35,6 +35,8 @@ package dedupe
 import (
 	"context"
 	"time"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -135,7 +137,10 @@ func New(f RequestFunc, dedupeLifetime, responseValidity time.Duration) Deduper 
 func (dd *deduper) Request(ctx context.Context, req Request) (<-chan Response, CancelFunc) {
 	ch := make(chan Response, 1)
 	if ctx := dd.notifications.Add(req, ch, dd.dedupeLifetime); ctx != nil {
-		go dd.handler(ctx, req)
+		go func() {
+			defer log.LogPanicAndExit()
+			dd.handler(ctx, req)
+		}()
 	}
 
 	return ch, func() {
@@ -150,6 +155,7 @@ func (dd *deduper) Request(ctx context.Context, req Request) (<-chan Response, C
 func (dd *deduper) handler(ctx context.Context, req Request) {
 	ch := make(chan Response, 1)
 	go func() {
+		defer log.LogPanicAndExit()
 		ch <- dd.requestFunc(ctx, req)
 	}()
 

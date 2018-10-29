@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,6 @@ var (
 )
 
 func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
-	defer log.LogPanicAndExit()
 	var err error
 	logger = log.New("Part", "Control")
 	ctx := rctx.Get()
@@ -61,8 +60,14 @@ func Control(sRevInfoQ chan rpkt.RawSRevCallbackArgs) {
 		logger.Error("Listening on address", "addr", ctrlAddr, "err", err)
 		return
 	}
-	go ifStateUpdate()
-	go revInfoFwd(sRevInfoQ)
+	go func() {
+		defer log.LogPanicAndExit()
+		ifStateUpdate()
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		revInfoFwd(sRevInfoQ)
+	}()
 	processCtrl()
 }
 

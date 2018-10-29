@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -267,7 +268,6 @@ func (ae *ASEntry) DelSig(id siginfo.SigIdType) error {
 
 // manage the Sig map
 func (ae *ASEntry) sigMgr() {
-	defer log.LogPanicAndExit()
 	ticker := time.NewTicker(sigMgrTick)
 	defer ticker.Stop()
 	ae.Info("sigMgr starting")
@@ -289,7 +289,6 @@ Top:
 }
 
 func (ae *ASEntry) monitorHealth() {
-	defer log.LogPanicAndExit()
 	ticker := time.NewTicker(healthMonitorTick)
 	defer ticker.Stop()
 	ae.Info("Health monitor starting")
@@ -364,10 +363,19 @@ func (ae *ASEntry) cleanSessions() {
 func (ae *ASEntry) setupNet() {
 	ae.egressRing = ringbuf.New(64, nil, "egress",
 		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
-	go dispatcher.NewDispatcher(ae.IA, ae.egressRing,
-		&base.SingleSession{Session: ae.Session}).Run()
-	go ae.sigMgr()
-	go ae.monitorHealth()
+	go func() {
+		defer log.LogPanicAndExit()
+		dispatcher.NewDispatcher(ae.IA, ae.egressRing,
+			&base.SingleSession{Session: ae.Session}).Run()
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		ae.sigMgr()
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		ae.monitorHealth()
+	}()
 	ae.Session.Start()
 	ae.Info("Network setup done")
 }

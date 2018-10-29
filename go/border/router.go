@@ -71,9 +71,18 @@ func NewRouter(id, confDir string) (*Router, error) {
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
 func (r *Router) Run() error {
-	go r.PacketError()
-	go r.confSig()
-	go rctrl.Control(r.sRevInfoQ)
+	go func() {
+		defer log.LogPanicAndExit()
+		r.PacketError()
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		r.confSig()
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		rctrl.Control(r.sRevInfoQ)
+	}()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
 	var wait chan struct{}
@@ -83,7 +92,6 @@ func (r *Router) Run() error {
 
 // confSig handles reloading the configuration when SIGHUP is received.
 func (r *Router) confSig() {
-	defer log.LogPanicAndExit()
 	for range sighup {
 		var err error
 		var config *conf.Conf

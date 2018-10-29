@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -144,6 +145,9 @@ func Start() error {
 		return common.NewBasicError("Unable to bind prometheus metrics port", err)
 	}
 	log.Info("Exporting prometheus metrics", "addr", *promAddr)
-	go http.Serve(ln, nil)
+	go func() {
+		defer log.LogPanicAndExit()
+		http.Serve(ln, nil)
+	}()
 	return nil
 }

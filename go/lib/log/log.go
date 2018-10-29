@@ -86,6 +86,7 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 
 	if logFlush > 0 {
 		go func() {
+			defer LogPanicAndExit()
 			for range time.Tick(time.Duration(logFlush) * time.Second) {
 				Flush()
 			}

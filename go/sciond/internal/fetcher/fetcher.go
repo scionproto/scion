@@ -167,7 +167,10 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	// and revocation cache.
 	subCtx, cancelF := NewExtendedContext(ctx, DefaultMinWorkerLifetime)
 	earlyTrigger := util.NewTrigger(earlyReplyInterval)
-	go f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger, ps)
+	go func() {
+		defer log.LogPanicAndExit()
+		f.fetchAndVerify(subCtx, cancelF, req, earlyTrigger, ps)
+	}()
 	// Wait for deadlines while also waiting for the early reply.
 	select {
 	case <-earlyTrigger.Done():
