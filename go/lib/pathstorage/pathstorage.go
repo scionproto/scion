@@ -42,7 +42,7 @@ type PathDBConf struct {
 
 // InitDefaults choses the sqlite backend if no backned is set.
 func (c *PathDBConf) InitDefaults() {
-	if c.Backend == "" {
+	if c.Backend == BackendNone {
 		c.Backend = BackendSqlite
 	}
 }
@@ -55,15 +55,9 @@ type RevCacheConf struct {
 
 // InitDefaults chooses the in-memory backend if no backend is set.
 func (c *RevCacheConf) InitDefaults() {
-	if c.Backend == "" {
+	if c.Backend == BackendNone {
 		c.Backend = BackendMem
 	}
-}
-
-// PathStorage contains a PathDB and a RevCache.
-type PathStorage struct {
-	PathDB   pathdb.PathDB
-	RevCache revcache.RevCache
 }
 
 // NewPathStorage creates a PathStorage from the given configs.
@@ -85,8 +79,7 @@ func NewPathStorage(pdbConf PathDBConf,
 }
 
 func sameBackend(pdbConf PathDBConf, rcConf RevCacheConf) bool {
-	return pdbConf.Backend != BackendNone && rcConf.Backend != BackendNone &&
-		pdbConf.Backend == rcConf.Backend
+	return pdbConf.Backend == rcConf.Backend && pdbConf.Backend != BackendNone
 }
 
 func newCombinedBackend(pdbConf PathDBConf,
