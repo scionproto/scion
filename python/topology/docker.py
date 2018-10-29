@@ -1,4 +1,4 @@
-# Copyright 2018 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,17 +49,20 @@ class DockerGenerator(object):
         self._dispatcher_conf()
         for topo_id, topo in self.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.out_dir))
-            self._br_conf(topo, base)
-            self._cs_conf(topo_id, topo, base)
-            self._bs_conf(topo_id, topo, base)
-            self._ps_conf(topo_id, topo, base)
-            self._sciond_conf(topo_id, base)
+            self._gen_topo(topo_id, topo, base)
         write_file(os.path.join(self.out_dir, DOCKER_CONF),
                    yaml.dump(self.dc_conf, default_flow_style=False))
 
     def _base_conf(self):
         default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
         self.dc_conf['networks']['default'] = default_net
+
+    def _gen_topo(self, topo_id, topo, base):
+        self._br_conf(topo, base)
+        self._cs_conf(topo_id, topo, base)
+        self._bs_conf(topo_id, topo, base)
+        self._ps_conf(topo_id, topo, base)
+        self._sciond_conf(topo_id, base)
 
     def _br_conf(self, topo, base):
         raw_entry = {
