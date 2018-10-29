@@ -289,7 +289,11 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 	server net.Addr) (*cert.Chain, error) {
 
 	if server == nil {
-		server = &snet.Addr{IA: ia, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+		var err error
+		server, err = store.ChooseServer(ia)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return store.getValidChain(ctx, ia, true, nil, server)
 }
