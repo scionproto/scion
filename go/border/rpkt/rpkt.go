@@ -288,8 +288,19 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
 		sp.E2EExt = append(sp.E2EExt, se)
 	}
 	// Try to parse L4 and Payload, but we might fail to do so, ie. unsupported L4 protocol
-	sp.L4, _ = rp.L4Hdr(verify)
-	sp.Pld, _ = rp.Payload(verify)
+	if sp.L4, err = rp.L4Hdr(verify); err != nil {
+		if common.GetErrorMsg(err) != UnsupportedL4 {
+			return nil, err
+		}
+	}
+	if err == nil {
+		// L4 header was parsed without error, then parse payload
+		if sp.Pld, err = rp.Payload(verify); err != nil {
+			if common.GetErrorMsg(err) != UnsupportedL4 {
+				return nil, err
+			}
+		}
+	}
 	return sp, nil
 }
 
