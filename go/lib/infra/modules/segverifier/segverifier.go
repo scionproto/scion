@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -98,8 +99,12 @@ func StartVerification(ctx context.Context, store infra.TrustStore, server net.A
 
 	units := BuildUnits(segMetas, sRevInfos)
 	unitResultsC := make(chan UnitResult, len(units))
-	for _, unit := range units {
-		go unit.Verify(ctx, store, server, unitResultsC)
+	for i := range units {
+		unit := units[i]
+		go func() {
+			defer log.LogPanicAndExit()
+			unit.Verify(ctx, store, server, unitResultsC)
+		}()
 	}
 	return unitResultsC, len(units)
 }
@@ -142,9 +147,16 @@ func (u *Unit) Verify(ctx context.Context, store infra.TrustStore,
 	server net.Addr, unitResults chan UnitResult) {
 
 	responses := make(chan ElemResult, u.Len())
-	go verifySegment(ctx, store, server, u.SegMeta, responses)
-	for index, sRevInfo := range u.SRevInfos {
-		go verifyRevInfo(ctx, store, server, index, sRevInfo, responses)
+	go func() {
+		defer log.LogPanicAndExit()
+		verifySegment(ctx, store, server, u.SegMeta, responses)
+	}()
+	for i := range u.SRevInfos {
+		index := i
+		go func() {
+			defer log.LogPanicAndExit()
+			verifyRevInfo(ctx, store, server, index, u.SRevInfos[index], responses)
+		}()
 	}
 	// Response writers must guarantee that the for loop below returns before
 	// (or very close around) ctx.Done()
