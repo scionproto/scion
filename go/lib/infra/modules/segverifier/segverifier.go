@@ -99,7 +99,8 @@ func StartVerification(ctx context.Context, store infra.TrustStore, server net.A
 
 	units := BuildUnits(segMetas, sRevInfos)
 	unitResultsC := make(chan UnitResult, len(units))
-	for _, unit := range units {
+	for i := range units {
+		unit := units[i]
 		go func() {
 			defer log.LogPanicAndExit()
 			unit.Verify(ctx, store, server, unitResultsC)
@@ -150,10 +151,11 @@ func (u *Unit) Verify(ctx context.Context, store infra.TrustStore,
 		defer log.LogPanicAndExit()
 		verifySegment(ctx, store, server, u.SegMeta, responses)
 	}()
-	for index, sRevInfo := range u.SRevInfos {
+	for i := range u.SRevInfos {
+		index := i
 		go func() {
 			defer log.LogPanicAndExit()
-			verifyRevInfo(ctx, store, server, index, sRevInfo, responses)
+			verifyRevInfo(ctx, store, server, index, u.SRevInfos[index], responses)
 		}()
 	}
 	// Response writers must guarantee that the for loop below returns before
