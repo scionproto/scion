@@ -10,13 +10,6 @@ TEST_TOPOLOGY="topology/Tiny.topo"
 test_setup() {
     set -e
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    # Enable automatic dispatcher reconnects in SCIOND and PS
-    for sd in gen/ISD1/*/endhost/sciond.toml; do
-        sed -i '/\[general\]/a ReconnectToDispatcher = true' "$sd"
-    done
-    for ps in gen/ISD1/*/ps*/psconfig.toml; do
-        sed -i '/\[general\]/a ReconnectToDispatcher = true' "$ps"
-    done
     ./scion.sh run
 }
 
