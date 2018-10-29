@@ -5,7 +5,7 @@ env:
 steps:
   - label: Prepare scion_base and scion images
     command:
-    - ./tools/ci/prepare_image 9a3e4dc16519ff8b1bffb623474d695dcc1dd4f9c5232daa55ecee07490a0db7
+    - ./tools/ci/prepare_image cd291537ca49388d6c409701e18f23ff10d9231c2f9252be61a9a3ba6adbe9c6
     - ./docker.sh build
   - wait
   - label: Start container
