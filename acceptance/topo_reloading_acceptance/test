@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Whenever the PS addresses in the topology file of a SD server are changed, if
+# the SD process receives a SIGHUP it will reload the config and service future
+# client requests for paths by querying the new PS addresses.
+
+TEST_NAME="topo_reloading"
+TEST_TOPOLOGY="topology/Tiny.topo"
+
+SRC_IA=${SRC_IA:-1-ff00:0:112}
+SRC_IA_FILE=$(echo $SRC_IA | sed -e "s/:/_/g")
+SRC_AS_FILE=$(echo $SRC_IA_FILE | cut -d '-' -f 2)
+DST_IA=${DST_IA:-1-ff00:0:110}
+
+test_setup() {
+    set -e
+    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
+    # Enable automatic dispatcher reconnects in SCIOND and PS
+    for sd in gen/ISD1/*/endhost/sciond.toml; do
+        sed -i 's/Level = .*$/Level = "trace"/g' "$sd"
+        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
+    done
+    ./scion.sh run
+}
+
+test_run() {
+    set -e
+    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
+    local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
+    jq '.PathService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
+    docker kill --signal=HUP sd$SRC_IA_FILE
+    sleep 1
+    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
+    sleep 2
+    grep -q "\[TRACE\] \[Messenger\] Sending request.*req_type=SegRequest.*$SRC_IA,\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" || \
+        { echo "Path segment request to 127.42.42.42:39999 not found in logs"; return 1; }
+}
+
+test_teardown() {
+    set -e
+    ./scion.sh stop
+}
+
+print_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run
+	        execute only the run phase.
+	    $PROGRAM teardown
+	        execute only the teardown phase.
+	_EOF
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+
