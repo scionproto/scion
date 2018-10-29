@@ -37,6 +37,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 const (
@@ -183,6 +184,7 @@ type ElemResult struct {
 func verifySegment(ctx context.Context, store infra.TrustStore, server net.Addr, segment *seg.Meta,
 	ch chan ElemResult) {
 
+	defer log.LogPanicAndExit()
 	err := VerifySegment(ctx, store, server, segment)
 	select {
 	case ch <- ElemResult{Index: segErrIndex, Error: err}:
@@ -210,6 +212,7 @@ func VerifySegment(ctx context.Context, store infra.TrustStore, server net.Addr,
 func verifyRevInfo(ctx context.Context, store infra.TrustStore, server net.Addr, index int,
 	signedRevInfo *path_mgmt.SignedRevInfo, ch chan ElemResult) {
 
+	defer log.LogPanicAndExit()
 	err := VerifyRevInfo(ctx, store, server, signedRevInfo)
 	select {
 	case ch <- ElemResult{Index: index, Error: err}:
