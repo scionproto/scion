@@ -18,6 +18,7 @@
 package sqlite
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -39,6 +40,7 @@ import (
 type segMeta struct {
 	RowID       int64
 	SegID       common.RawBytes
+	FullID      common.RawBytes
 	LastUpdated time.Time
 	Seg         *seg.PathSegment
 }
@@ -119,19 +121,26 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 	if err != nil {
 		return 0, err
 	}
+	newFullId, err := pseg.FullId()
+	if err != nil {
+		return 0, err
+	}
+	newInfo, err := pseg.InfoF()
+	if err != nil {
+		return 0, err
+	}
 	meta, err := b.get(ctx, segID)
 	if err != nil {
 		return 0, err
 	}
 	if meta != nil {
 		// Check if the new segment is more recent.
-		newInfo, _ := pseg.InfoF()
 		curInfo, _ := meta.Seg.InfoF()
 		if newInfo.Timestamp().After(curInfo.Timestamp()) {
 			// Update existing path segment.
 			meta.Seg = pseg
 			meta.LastUpdated = time.Now()
-			if err := b.updateExisting(ctx, meta, segMeta.Type, hpCfgIDs); err != nil {
+			if err := b.updateExisting(ctx, meta, segMeta.Type, newFullId, hpCfgIDs); err != nil {
 				return 0, err
 			}
 			return 1, nil
@@ -146,7 +155,7 @@ func (b *Backend) InsertWithHPCfgIDs(ctx context.Context, segMeta *seg.Meta,
 }
 
 func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, error) {
-	query := "SELECT RowID, SegID, LastUpdated, Segment FROM Segments WHERE SegID=?"
+	query := "SELECT RowID, SegID, FullID, LastUpdated, Segment FROM Segments WHERE SegID=?"
 	rows, err := b.db.QueryContext(ctx, query, segID)
 	if err != nil {
 		return nil, common.NewBasicError("Failed to lookup segment", err)
@@ -156,7 +165,7 @@ func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, err
 		var meta segMeta
 		var lastUpdated int64
 		var rawSeg sql.RawBytes
-		err = rows.Scan(&meta.RowID, &meta.SegID, &lastUpdated, &rawSeg)
+		err = rows.Scan(&meta.RowID, &meta.SegID, &meta.FullID, &lastUpdated, &rawSeg)
 		if err != nil {
 			return nil, common.NewBasicError("Failed to extract data", err)
 		}
@@ -172,7 +181,7 @@ func (b *Backend) get(ctx context.Context, segID common.RawBytes) (*segMeta, err
 }
 
 func (b *Backend) updateExisting(ctx context.Context, meta *segMeta,
-	segType proto.PathSegType, hpCfgIDs []*query.HPCfgID) error {
+	segType proto.PathSegType, newFullId common.RawBytes, hpCfgIDs []*query.HPCfgID) error {
 
 	// Create new transaction
 	if err := b.begin(ctx); err != nil {
@@ -195,6 +204,20 @@ func (b *Backend) updateExisting(ctx context.Context, meta *segMeta,
 			return err
 		}
 	}
+	// Update the IntfToSeg table
+	if !bytes.Equal(newFullId, meta.FullID) {
+		// Delete all old interfaces and then insert the new ones.
+		// Calculating the actual diffset would be better, but this is way easier to implement.
+		_, err := b.tx.ExecContext(ctx, `DELETE FROM IntfToSeg WHERE SegRowID=?`, meta.RowID)
+		if err != nil {
+			b.rollback()
+			return err
+		}
+		if err := b.insertInterfaces(ctx, meta.Seg.ASEntries, meta.RowID); err != nil {
+			b.rollback()
+			return err
+		}
+	}
 	// Commit transaction
 	if err := b.commit(); err != nil {
 		return err
@@ -212,9 +235,14 @@ func (b *Backend) updateSeg(ctx context.Context, meta *segMeta) error {
 		return err
 	}
 	exp := meta.Seg.MaxExpiry().Unix()
-	stmtStr := `UPDATE Segments SET LastUpdated=?, InfoTs=?, Segment=?, MaxExpiry=? WHERE RowID=?`
-	_, err = b.tx.ExecContext(ctx, stmtStr, meta.LastUpdated.UnixNano(),
-		info.Timestamp().UnixNano(), packedSeg, exp, meta.RowID)
+	fullID, err := meta.Seg.FullId()
+	if err != nil {
+		return err
+	}
+	stmtStr := `UPDATE Segments SET FullID=?, LastUpdated=?, InfoTs=?, Segment=?, MaxExpiry=?
+				WHERE RowID=?`
+	_, err = b.tx.ExecContext(ctx, stmtStr,
+		fullID, meta.LastUpdated.UnixNano(), info.Timestamp(), packedSeg, exp, meta.RowID)
 	if err != nil {
 		return common.NewBasicError("Failed to update segment", err)
 	}
@@ -256,6 +284,10 @@ func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
 	if err != nil {
 		return err
 	}
+	fullID, err := pseg.FullId()
+	if err != nil {
+		return err
+	}
 	packedSeg, err := pseg.Pack()
 	if err != nil {
 		return err
@@ -268,10 +300,10 @@ func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
 	end := pseg.LastIA()
 	exp := pseg.MaxExpiry().Unix()
 	// Insert path segment.
-	inst := `INSERT INTO Segments
-		(SegID, LastUpdated, InfoTs, Segment, MaxExpiry, StartIsdID, StartAsID, EndIsdID, EndAsID)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	res, err := b.tx.ExecContext(ctx, inst, segID, time.Now().UnixNano(),
+	inst := `INSERT INTO Segments (SegID, FullID, LastUpdated, InfoTs, Segment, MaxExpiry,
+			StartIsdID, StartAsID, EndIsdID, EndAsID)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	res, err := b.tx.ExecContext(ctx, inst, segID, fullID, time.Now().UnixNano(),
 		info.Timestamp().UnixNano(), packedSeg, exp, st.I, st.A, end.I, end.A)
 	if err != nil {
 		b.rollback()
@@ -309,7 +341,7 @@ func (b *Backend) insertFull(ctx context.Context, segMeta *seg.Meta,
 func (b *Backend) insertInterfaces(ctx context.Context,
 	ases []*seg.ASEntry, segRowID int64) error {
 
-	stmtStr := `INSERT INTO IntfToSeg (IsdID, ASID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
+	stmtStr := `INSERT INTO IntfToSeg (IsdID, AsID, IntfID, SegRowID) VALUES (?, ?, ?, ?)`
 	stmt, err := b.tx.PrepareContext(ctx, stmtStr)
 	if err != nil {
 		return common.NewBasicError("Failed to prepare insert into IntfToSeg", err)

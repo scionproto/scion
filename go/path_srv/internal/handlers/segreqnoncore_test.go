@@ -140,6 +140,7 @@ func (r *replyMatcher) Matches(o interface{}) bool {
 		// Init the id field, so that deep equal works.
 		for _, sm := range segReply.Recs.Recs {
 			sm.Segment.ID()
+			sm.Segment.FullId()
 		}
 	}
 	return reflect.DeepEqual(r.reply, segReply)

@@ -17,6 +17,7 @@ package pathdbtest
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -76,6 +77,7 @@ func TestPathDB(t *testing.T, setup func() pathdb.PathDB, cleanup func()) {
 	Convey("InsertWithHpCfgIDsFull", testWrapper(testInsertWithHpCfgIDsFull))
 	Convey("UpdateExisting", testWrapper(testUpdateExisting))
 	Convey("UpdateOlderIgnored", testWrapper(testUpdateOlderIgnored))
+	Convey("UpdateIntfToSeg", testWrapper(testUpdateIntfToSeg))
 	Convey("DeleteExpired", testWrapper(testDeleteExpired))
 	Convey("GetMixed", testWrapper(testGetMixed))
 	Convey("GetAll", testWrapper(testGetAll))
@@ -194,6 +196,33 @@ func testUpdateOlderIgnored(t *testing.T, pathDB pathdb.PathDB) {
 		res, err := pathDB.Get(ctx, &query.Params{SegIDs: []common.RawBytes{newSegID}})
 		xtest.FailOnErr(t, err)
 		checkResult(t, res, newSeg, hpCfgIDs)
+	})
+}
+
+func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.PathDB) {
+	Convey("Updating a segment with new peer links should update interface to seg mapping", func() {
+		ctx, cancelF := context.WithTimeout(context.Background(), timeout)
+		defer cancelF()
+		ps, _ := AllocPathSegment(t, ifs1, uint32(20))
+		InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
+		checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
+		// Create a new segment with an additional peer entry.
+		newPs, _ := AllocPathSegment(t, ifs1, uint32(30))
+		hfr := make([]byte, 8)
+		hf := spath.HopField{
+			ConsIngress: common.IFIDType(common.IFIDType(23)),
+			ExpTime:     spath.DefaultHopFExpiry,
+		}
+		hf.Write(hfr)
+		he := allocHopEntry(ia331, ia332, hfr)
+		newPs.ASEntries[1].HopEntries = append(ps.ASEntries[1].HopEntries, he)
+		InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
+		checkInterfacesPresent(t, ctx, newPs.ASEntries, pathDB)
+		// Now check that the new interface is removed again.
+		ps, _ = AllocPathSegment(t, ifs1, uint32(40))
+		InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
+		checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
+		checkInterface(t, ctx, newPs.ASEntries[1].IA(), hf.ConsIngress, pathDB, false)
 	})
 }
 
@@ -477,6 +506,8 @@ func checkResult(t *testing.T, results []*query.Result, expectedSeg *seg.PathSeg
 	// Make sure the segment is properly initialized.
 	_, err := results[0].Seg.ID()
 	xtest.FailOnErr(t, err)
+	_, err = results[0].Seg.FullId()
+	xtest.FailOnErr(t, err)
 	SoMsg("Segment should match", results[0].Seg, ShouldResemble, expectedSeg)
 	checkSameHpCfgs("HiddenPath Ids should match", results[0].HpCfgIDs, hpCfgsIds)
 }
@@ -488,4 +519,41 @@ func checkSameHpCfgs(msg string, actual, expected []*query.HPCfgID) {
 			actual[i].IA.Eq(actual[j].IA) && actual[i].ID < actual[j].ID
 	})
 	SoMsg(msg, actual, ShouldResemble, expected)
+}
+
+func checkInterfacesPresent(t *testing.T, ctx context.Context,
+	expectedHopEntries []*seg.ASEntry, pathDB pathdb.PathDB) {
+
+	for _, asEntry := range expectedHopEntries {
+		for _, hopEntry := range asEntry.HopEntries {
+			hof, err := hopEntry.HopField()
+			xtest.FailOnErr(t, err)
+			if hof.ConsIngress != 0 {
+				checkInterface(t, ctx, asEntry.IA(), hof.ConsIngress, pathDB, true)
+			}
+			if hof.ConsEgress != 0 {
+				checkInterface(t, ctx, asEntry.IA(), hof.ConsEgress, pathDB, true)
+			}
+		}
+	}
+}
+
+func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.IFIDType,
+	pathDB pathdb.PathDB, present bool) {
+
+	r, err := pathDB.Get(ctx, &query.Params{
+		Intfs: []*query.IntfSpec{
+			{
+				IA:   ia,
+				IfID: ifId,
+			},
+		},
+	})
+	xtest.FailOnErr(t, err)
+	if present {
+		SoMsg(fmt.Sprintf("Interface should be present: %v#%d", ia, ifId), len(r), ShouldEqual, 1)
+	} else {
+		SoMsg(fmt.Sprintf("Interface should not be present: %v#%d", ia, ifId),
+			len(r), ShouldBeZeroValue)
+	}
 }
