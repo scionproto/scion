@@ -25,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -36,7 +37,8 @@ import (
 
 type segReqHandler struct {
 	*baseHandler
-	localIA addr.IA
+	localIA     addr.IA
+	segsDeduper dedupe.Deduper
 }
 
 func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
@@ -118,7 +120,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 
 	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
-	segs, err := msger.GetSegs(ctx, r, cPSAddr, messenger.NextId())
+	segs, err := h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
 	if err != nil {
 		return err
 	}
@@ -142,6 +144,26 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 		}
 	}
 	return nil
+}
+
+func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
+	req *path_mgmt.SegReq, server net.Addr, id uint64) (*path_mgmt.SegReply, error) {
+
+	responseC, cancelF := h.segsDeduper.Request(ctx, &segReq{
+		segReq: req,
+		server: server,
+		id:     id,
+	})
+	defer cancelF()
+	select {
+	case response := <-responseC:
+		if response.Error != nil {
+			return nil, response.Error
+		}
+		return response.Data.(*path_mgmt.SegReply), nil
+	case <-ctx.Done():
+		return nil, common.NewBasicError("Context done while waiting for Segs", ctx.Err())
+	}
 }
 
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
