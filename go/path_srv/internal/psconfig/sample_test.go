@@ -52,7 +52,11 @@ func TestSampleCorrect(t *testing.T) {
 			"/var/lib/scion/spki/ps-1.trust.db")
 
 		// psconfig specific
-		SoMsg("PathDB correct", cfg.PS.PathDB, ShouldEqual, "/var/lib/scion/pathdb/ps-1.path.db")
+		SoMsg("PathDB.Backend correct", cfg.PS.PathDB.Backend, ShouldEqual, "sqlite")
+		SoMsg("PathDB.Connection correct", cfg.PS.PathDB.Connection, ShouldEqual,
+			"/var/lib/scion/pathdb/ps-1.path.db")
+		SoMsg("RevCache.Backend correct", cfg.PS.RevCache.Backend, ShouldEqual, "mem")
+		SoMsg("RevCache.Connection correct", cfg.PS.RevCache.Connection, ShouldEqual, "")
 		SoMsg("SegSync set", cfg.PS.SegSync, ShouldBeFalse)
 		SoMsg("QueryInterval correct", cfg.PS.QueryInterval.Duration, ShouldEqual, 5*time.Minute)
 	})

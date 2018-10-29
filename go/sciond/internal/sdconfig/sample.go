@@ -62,9 +62,6 @@ const Sample = `[general]
   TrustDB = "/var/lib/scion/spki/sd.trust.db"
 
 [sd]
-  # Path to the path database.
-  PathDB = "/var/lib/scion/sd.path.db"
-
   # Address to listen on via the reliable socket protocol. If empty,
   # a reliable socket server on the default socket is started.
   Reliable = "/run/shm/sciond/default.sock"
@@ -86,5 +83,14 @@ const Sample = `[general]
 
   # The time after which segments for a destination are refetched. (default 5m)
   QueryInterval = "5m"
+
+  [sd.PathDB]
+    # The type of pathdb backend
+    Backend = "sqlite"
+    # Path to the path database.
+    Connection = "/var/lib/scion/sd.path.db"
+
+  [sd.RevCache]
+    Backend = "mem"
 
 `

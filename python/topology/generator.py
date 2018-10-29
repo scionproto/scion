@@ -1141,7 +1141,10 @@ class GoGenerator(object):
                 'Type': "PS"
             },
             'ps': {
-                'PathDB': os.path.join(db_dir, '%s.path.db' % name),
+                'PathDB': {
+                    'Backend': 'sqlite',
+                    'Connection': os.path.join(db_dir, '%s.path.db' % name),
+                },
                 'SegSync': True,
             },
         }
@@ -1180,7 +1183,9 @@ class GoGenerator(object):
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
                 'Public': '%s,[127.0.0.1]:0' % ia,
-                'PathDB': os.path.join(db_dir, '%s.path.db' % name),
+                'PathDB': {
+                    'Connection': os.path.join(db_dir, '%s.path.db' % name),
+                },
             },
         }
         return raw_entry

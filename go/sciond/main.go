@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -36,9 +35,8 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
-	pathdbbe "github.com/scionproto/scion/go/lib/pathdb/sqlite"
+	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/revcache/memrevcache"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
@@ -85,9 +83,9 @@ func realMain() int {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	pathDB, err := pathdbbe.New(config.SD.PathDB)
+	pathDB, revCache, err := pathstorage.NewPathStorage(config.SD.PathDB, config.SD.RevCache)
 	if err != nil {
-		log.Crit("Unable to initialize pathDB", "err", err)
+		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
 	trustDB, err := trustdb.New(config.Trust.TrustDB)
@@ -118,7 +116,6 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	revCache := memrevcache.New(cache.NoExpiration, time.Second)
 	// Route messages to their correct handlers
 	handlers := servers.HandlerMap{
 		proto.SCIONDMsg_Which_pathReq: &servers.PathRequestHandler{
