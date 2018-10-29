@@ -26,14 +26,14 @@ test_setup() {
 test_run() {
     set -e
     bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
-	local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
-	jq '.PathService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
+    local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
+    jq '.PathService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
     docker kill --signal=HUP sd$SRC_IA_FILE
     sleep 1
     bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
     sleep 2
     grep "\[TRACE\] \[Messenger\] Sending request.*req_type=SegRequest.*$SRC_IA,\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" >/dev/null || \
-		( echo "Path segment request to 127.42.42.42:39999 not found in logs" && false )
+        ( echo "Path segment request to 127.42.42.42:39999 not found in logs" && false )
 }
 
 test_teardown() {
