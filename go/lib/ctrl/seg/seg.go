@@ -40,6 +40,7 @@ type PathSegment struct {
 	RawASEntries []*proto.SignedBlobS   `capnp:"asEntries"`
 	ASEntries    []*ASEntry             `capnp:"-"`
 	id           common.RawBytes
+	fullID       common.RawBytes
 }
 
 func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
@@ -79,19 +80,43 @@ func (ps *PathSegment) ParseRaw() error {
 
 func (ps *PathSegment) ID() (common.RawBytes, error) {
 	if ps.id == nil {
-		h := sha256.New()
-		for _, ase := range ps.ASEntries {
-			binary.Write(h, common.Order, ase.RawIA)
-			hopf, err := ase.HopEntries[0].HopField()
+		id, err := ps.calculateHash(true)
+		if err != nil {
+			return nil, err
+		}
+		ps.id = id
+	}
+	return ps.id, nil
+}
+
+func (ps *PathSegment) FullId() (common.RawBytes, error) {
+	if ps.fullID == nil {
+		fullID, err := ps.calculateHash(false)
+		if err != nil {
+			return nil, err
+		}
+		ps.fullID = fullID
+	}
+	return ps.fullID, nil
+}
+
+func (ps *PathSegment) calculateHash(hopOnly bool) (common.RawBytes, error) {
+	h := sha256.New()
+	for _, ase := range ps.ASEntries {
+		binary.Write(h, common.Order, ase.RawIA)
+		for _, hopE := range ase.HopEntries {
+			hopf, err := hopE.HopField()
 			if err != nil {
 				return nil, err
 			}
 			binary.Write(h, common.Order, hopf.ConsIngress)
 			binary.Write(h, common.Order, hopf.ConsEgress)
+			if hopOnly {
+				break
+			}
 		}
-		ps.id = h.Sum(nil)
 	}
-	return ps.id, nil
+	return h.Sum(nil), nil
 }
 
 func (ps *PathSegment) InfoF() (*spath.InfoField, error) {
