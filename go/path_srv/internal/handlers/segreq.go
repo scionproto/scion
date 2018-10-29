@@ -38,7 +38,7 @@ import (
 type segReqHandler struct {
 	*baseHandler
 	localIA     addr.IA
-	segsDeduper *dedupe.Deduper
+	segsDeduper dedupe.Deduper
 }
 
 func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
@@ -144,6 +144,26 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 		}
 	}
 	return nil
+}
+
+func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
+	req *path_mgmt.SegReq, server net.Addr, id uint64) (*path_mgmt.SegReply, error) {
+
+	responseC, cancelF := h.segsDeduper.Request(ctx, &segReq{
+		segReq: req,
+		server: server,
+		id:     id,
+	})
+	defer cancelF()
+	select {
+	case response := <-responseC:
+		if response.Error != nil {
+			return nil, response.Error
+		}
+		return response.Data.(*path_mgmt.SegReply), nil
+	case <-ctx.Done():
+		return nil, common.NewBasicError("Context done while waiting for Segs", ctx.Err())
+	}
 }
 
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,

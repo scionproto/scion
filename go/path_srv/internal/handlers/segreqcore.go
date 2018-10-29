@@ -34,7 +34,7 @@ type segReqCoreHandler struct {
 	segReqHandler
 }
 
-func NewSegReqCoreHandler(args HandlerArgs, segsDeduper *dedupe.Deduper) infra.Handler {
+func NewSegReqCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &segReqCoreHandler{
 			segReqHandler: segReqHandler{

@@ -36,7 +36,7 @@ type segReqNonCoreHandler struct {
 	segReqHandler
 }
 
-func NewSegReqNonCoreHandler(args HandlerArgs, segsDeduper *dedupe.Deduper) infra.Handler {
+func NewSegReqNonCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Handler {
 	f := func(r *infra.Request) {
 		handler := &segReqNonCoreHandler{
 			segReqHandler: segReqHandler{

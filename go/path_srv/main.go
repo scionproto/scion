@@ -132,7 +132,7 @@ func realMain() int {
 	}
 	core := topo.Core
 	var segReqHandler infra.Handler
-	deduper := handlers.NewDeduper(msger)
+	deduper := handlers.NewGetSegsDeduper(msger)
 	if core {
 		segReqHandler = handlers.NewSegReqCoreHandler(args, deduper)
 	} else {
