@@ -10,6 +10,7 @@ flake8
 g++
 gcc
 git
+jq
 libcapnp-dev
 libcurl4-openssl-dev
 libffi-dev
@@ -18,11 +19,11 @@ libjs-jquery-isonscreen
 libjs-jquery-tablesorter
 libssl-dev
 make
+moreutils
 net-tools
 netcat-openbsd
 ntp
 openssh-client
-parallel
 python-flake8
 python-minimal
 python-pip
