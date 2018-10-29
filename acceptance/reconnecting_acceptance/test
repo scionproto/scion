@@ -10,7 +10,6 @@ TEST_TOPOLOGY="topology/Tiny.topo"
 test_setup() {
     set -e
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    # Enable automatic dispatcher reconnects in SCIOND and PS
     ./scion.sh run
 }
 
