@@ -184,6 +184,8 @@ class TopoGenerator(object):
         if ((conf_key == "path_servers" and self.ps == "go") or
            (conf_key == "certificate_servers" and self.cs == "go")):
             count = 1
+        if conf_key == "discovery_servers" and not self.ds:
+            count = 0
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             d = {
