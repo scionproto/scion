@@ -30,6 +30,9 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
+// StartServerTimeout is the timeout for starting a server.
+var StartServerTimeout = 1 * time.Second
+
 type iaArgs []addr.IA
 
 func (a iaArgs) String() string {

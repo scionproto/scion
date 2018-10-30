@@ -73,6 +73,8 @@ func (bi *binaryIntegration) Name() string {
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
+	startCtx, cancelF := context.WithTimeout(ctx, StartServerTimeout)
+	defer cancelF()
 	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.name, args...),
@@ -111,8 +113,8 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	select {
 	case <-ready:
 		return r, err
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	case <-startCtx.Done():
+		return nil, startCtx.Err()
 	}
 }
 
