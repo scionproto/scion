@@ -15,10 +15,10 @@ test_setup() {
 
 test_run() {
     set -e
-    python/integration/end2end_test.py 1-ff00:0:112 1-ff00:0:110
+    PYTHONPATH=python/:. python/integration/end2end_test.py 1-ff00:0:112 1-ff00:0:110
     docker restart dispatcher
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
-    python/integration/end2end_test.py 1-ff00:0:112 1-ff00:0:110
+    PYTHONPATH=python/:. python/integration/end2end_test.py 1-ff00:0:112 1-ff00:0:110
 }
 
 test_teardown() {
