@@ -55,7 +55,7 @@ class DockerGenerator(object):
         for topo_id, topo in self.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.out_dir))
             self._gen_topo(topo_id, topo, base)
-        write_file(os.path.join(self.out_dir, DOCKER_CONF),
+        write_file(os.path.join(self.out_dir, DOCKER_SCION_CONF),
                    yaml.dump(self.dc_conf, default_flow_style=False))
         write_file(os.path.join(self.out_dir, DOCKER_UTIL_CONF),
                    yaml.dump(self.dc_util_conf, default_flow_style=False))

@@ -42,27 +42,21 @@ if [ -n "$CIRCLECI" ]; then
 fi
 
 # Run python integration tests
-run End2End bin/end2end_pyintegration -log.console error
-result=$?
 run C2S_extn bin/cli_srv_ext_pyintegration -log.console error
-result=$((result+$?))
-run SCMP_echo bin/scmp_echo_pyintegration -log.console error
-result=$((result+$?))
+result=$?
 run SCMP_error bin/scmp_error_pyintegration -log.console error
 result=$((result+$?))
-run Cert/TRC_request bin/cert_req_pyintegration -log.console error
-result=$((result+$?))
+
+# Run go integration tests
+for i in ./bin/*_integration; do
+    run "Go Integration: $i" "$i"
+    result=$((result+$?))
+done
 
 # Run go infra test
 GO_INFRA_TEST="go test -tags infrarunning"
 for i in ./go/lib/{snet,pathmgr,infra/disp}; do
     run "Go Infra: $i" ${GO_INFRA_TEST} $i
-    result=$((result+$?))
-done
-
-# Run go integration tests
-for i in ./bin/*_integration; do
-    run "Go Integration: $i" "$i"
     result=$((result+$?))
 done
 
