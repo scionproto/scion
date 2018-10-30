@@ -122,7 +122,7 @@ func (c e2eClient) pong() (error, bool) {
 		if operror, ok := err.(*snet.OpError); ok && operror.SCMP().Type == scmp.T_P_RevokedIF {
 			return err, true
 		}
-		return err, false
+		return err, true
 	}
 	expected := pong + cmn.Remote.IA.String() + cmn.Local.IA.String()
 	if string(reply[:pktLen]) != expected {
