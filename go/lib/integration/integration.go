@@ -223,7 +223,7 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 		errors := make(chan error)
 		done := make(chan error, len(pairs))
 		// Run maximal 5 tests in parallel
-		tokens := make(chan struct{}, 2)
+		tokens := make(chan struct{}, 1)
 		for i := range pairs {
 			go func(i int, pair IAPair) {
 				tokens <- struct{}{}
