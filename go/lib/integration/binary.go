@@ -92,6 +92,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	startCtx, cancelF := context.WithTimeout(ctx, StartServerTimeout)
 	defer cancelF()
 	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
+	args = replacePattern(ServerPortReplace, serverPort, args)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
