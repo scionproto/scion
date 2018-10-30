@@ -31,7 +31,7 @@ import (
 )
 
 // StartServerTimeout is the timeout for starting a server.
-const StartServerTimeout = 1 * time.Second
+var StartServerTimeout = 1 * time.Second
 
 type iaArgs []addr.IA
 
