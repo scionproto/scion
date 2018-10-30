@@ -15,8 +15,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -24,8 +27,9 @@ import (
 
 var (
 	name       = "certreq"
-	cmd        = "python/integration/cert_req_test.py"
+	cmd        = "./bin/cert_req"
 	dockerArgs = []string{"tester", cmd}
+	retries    = flag.Int("retries", 0, "Number of retries before giving up.")
 )
 
 func main() {
@@ -39,15 +43,23 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	clientArgs := []string{integration.SrcIAReplace, integration.DstIAReplace}
+	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]"
+	serverAddr := integration.DstIAReplace + ",[CS]"
+	clientArgs := []string{"-log.console", "debug", "-retries", strconv.Itoa(*retries),
+		"-local", clientAddr, "-remote", serverAddr}
 	if *integration.Docker {
 		clientArgs = append(dockerArgs, clientArgs...)
 		cmd = integration.DockerCmd
 	}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
-	if err := integration.RunUnaryTests(in, integration.IAPairs()); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
-		return 1
+	// Now start the clients for srcDest pair
+	for i, conn := range integration.IAPairs() {
+		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
+			in.Name(), conn.Src, conn.Dst, i+1, len(integration.IAPairs())))
+		if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
+			log.Error("Error during client execution", "err", err)
+			return 1
+		}
 	}
 	return 0
 }

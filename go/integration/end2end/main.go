@@ -17,13 +17,13 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	cmn "github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/common"
 	integration "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -45,24 +45,7 @@ var (
 )
 
 func main() {
-	switch cmn.Mode {
-	case cmn.ModeClient:
-		if cmn.Remote.Host.L4 == nil {
-			cmn.LogFatal("Missing remote port")
-		}
-		if cmn.Remote.Host.L4.Port() == 0 {
-			cmn.LogFatal("Invalid remote port", "remote port", cmn.Remote.Host.L4.Port())
-		}
-		e2eClient{}.Run()
-	case cmn.ModeServer:
-		if cmn.Local.Host.L4 == nil {
-			cmn.LogFatal("Missing local port")
-		}
-		if cmn.Local.Host.L4.Port() == 0 {
-			cmn.LogFatal("Invalid local port", "local port", cmn.Local.Host.L4.Port())
-		}
-		e2eServer{}.Run()
-	}
+	cmn.RunClientServer(e2eClient{}, e2eServer{})
 }
 
 func (s e2eServer) Run() {
@@ -83,7 +66,7 @@ func (s e2eServer) Run() {
 			log.Error("Error reading packet", "err", err)
 			continue
 		}
-		if !strings.HasPrefix(string(b[:pktLen]), ping+cmn.Local.IA.String()) {
+		if string(b[:pktLen]) != ping+cmn.Local.IA.String() {
 			log.Error("Received unexpected data", "data", b[:pktLen])
 			break
 		}
@@ -111,15 +94,17 @@ func (c e2eClient) Run() {
 			log.Error("Could not send packet", "err", err)
 		}
 		// Receive pong
-		if err = c.pong(); err != nil {
+		if err, retry := c.pong(); err != nil {
+			if !retry {
+				cmn.LogFatal("End2end failed", "err", err)
+			}
 			log.Error("Error receiving pong", "err", err)
+			time.Sleep(time.Second / 2)
 		} else {
-			break
-		}
-		if cmn.Retries > i {
-			log.Debug("Retrying...")
+			return
 		}
 	}
+	cmn.LogFatal("End2end failed")
 }
 
 func (c e2eClient) ping() error {
@@ -129,18 +114,21 @@ func (c e2eClient) ping() error {
 	return err
 }
 
-func (c e2eClient) pong() error {
+func (c e2eClient) pong() (error, bool) {
 	c.conn.SetReadDeadline(time.Now().Add(1 * time.Second))
 	reply := make([]byte, 1024)
 	pktLen, err := c.conn.Read(reply)
 	if err != nil {
-		return err
+		if operror, ok := err.(*snet.OpError); ok && operror.SCMP().Type == scmp.T_P_RevokedIF {
+			return err, true
+		}
+		return err, false
 	}
 	expected := pong + cmn.Remote.IA.String() + cmn.Local.IA.String()
 	if string(reply[:pktLen]) != expected {
 		return common.NewBasicError("Received unexpected data", nil, "data",
-			string(reply[:pktLen]), "expected", expected)
+			string(reply[:pktLen]), "expected", expected), false
 	}
 	log.Debug(fmt.Sprintf("Received pong from %s", cmn.Remote.IA))
-	return nil
+	return nil, false
 }
