@@ -81,6 +81,31 @@ func initNetwork() {
 	log.Debug("SCION network successfully initialized")
 }
 
+func RunClientServer(client Client, server Server) {
+	switch Mode {
+	case ModeClient:
+		if Remote.Host.L4 == nil {
+			LogFatal("Missing remote port")
+		}
+		if Remote.Host.L4.Port() == 0 {
+			LogFatal("Invalid remote port", "remote port", Remote.Host.L4.Port())
+		}
+		client.Run()
+	case ModeServer:
+		if Local.Host.L4 == nil {
+			LogFatal("Missing local port")
+		}
+		if Local.Host.L4.Port() == 0 {
+			LogFatal("Invalid local port", "local port", Local.Host.L4.Port())
+		}
+		server.Run()
+	}
+}
+
+func RunClient(client Client) {
+	client.Run()
+}
+
 type Server interface {
 	Run()
 }

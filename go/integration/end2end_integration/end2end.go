@@ -27,8 +27,8 @@ import (
 
 var (
 	name       = "end2end"
-	dockerArgs = []string{"tester", cmd}
 	cmd        = "./bin/end2end"
+	dockerArgs = []string{"tester", cmd}
 	retries    = flag.Int("retries", 0, "Number of retries before giving up.")
 )
 
