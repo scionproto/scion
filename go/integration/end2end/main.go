@@ -19,43 +19,47 @@ import (
 	"os"
 	"time"
 
-	cmn "github.com/scionproto/scion/go/integration"
+	"github.com/scionproto/scion/go/integration"
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	integration "github.com/scionproto/scion/go/lib/integration"
+	libint "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
-var _ cmn.Server = (*e2eServer)(nil)
-
-type e2eServer struct {
-	conn snet.Conn
-}
-
-var _ cmn.Client = (*e2eClient)(nil)
-
-type e2eClient struct {
-	conn snet.Conn
-}
-
-var (
+const (
 	ping = "ping:"
 	pong = "pong:"
 )
 
 func main() {
-	cmn.RunClientServer(e2eClient{}, e2eServer{})
+	os.Exit(realMain())
 }
 
-func (s e2eServer) Run() {
-	conn, err := snet.ListenSCION("udp4", &cmn.Local)
-	if err != nil {
-		cmn.LogFatal("Error listening", "err", err)
+func realMain() int {
+	defer log.LogPanicAndExit()
+	defer log.Flush()
+	integration.Setup()
+	if integration.Mode == integration.ModeServer {
+		e2eServer{}.run()
+		return 0
+	} else {
+		return e2eClient{}.run()
 	}
-	if len(os.Getenv(integration.GoIntegrationEnv)) > 0 {
+}
+
+type e2eServer struct {
+	conn snet.Conn
+}
+
+func (s e2eServer) run() {
+	conn, err := snet.ListenSCION("udp4", &integration.Local)
+	if err != nil {
+		integration.LogFatal("Error listening", "err", err)
+	}
+	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
-		fmt.Printf("%s%s\n", integration.ReadySignal, cmn.Local.IA)
+		fmt.Printf("%s%s\n", libint.ReadySignal, integration.Local.IA)
 	}
 	log.Debug("Listening", "local", conn.LocalAddr())
 	// Receive ping message
@@ -66,69 +70,89 @@ func (s e2eServer) Run() {
 			log.Error("Error reading packet", "err", err)
 			continue
 		}
-		if string(b[:pktLen]) != ping+cmn.Local.IA.String() {
-			log.Error("Received unexpected data", "data", b[:pktLen])
-			break
+		if string(b[:pktLen]) != ping+integration.Local.IA.String() {
+			integration.LogFatal("Received unexpected data", "data", b[:pktLen])
 		}
-		log.Debug(fmt.Sprintf("Ping received from %s,%s, sending pong.", addr.IA, addr.Host))
+		log.Debug(fmt.Sprintf("Ping received from %s, sending pong.", addr))
 		// Send pong
-		reply := []byte(pong + cmn.Local.IA.String() + addr.IA.String())
+		reply := pongMessage(integration.Local.IA, addr.IA)
 		_, err = conn.WriteToSCION(reply, addr)
 		if err != nil {
-			cmn.LogFatal("Unable to send reply", "err", err)
+			integration.LogFatal("Unable to send reply", "err", err)
 		}
 		log.Debug(fmt.Sprintf("Sent pong to %s", addr.Desc()))
 	}
 }
 
-func (c e2eClient) Run() {
+type e2eClient struct {
+	conn snet.Conn
+}
+
+func (c e2eClient) run() int {
 	var err error
-	c.conn, err = snet.DialSCION("udp4", &cmn.Local, &cmn.Remote)
+	c.conn, err = snet.DialSCION("udp4", &integration.Local, &integration.Remote)
 	if err != nil {
-		cmn.LogFatal("Unable to dial", "err", err)
+		integration.LogFatal("Unable to dial", "err", err)
 	}
 	log.Debug("Send on", "local", c.conn.LocalAddr())
-	for i := 0; i <= cmn.Retries; i++ {
-		// Send ping
-		if err = c.ping(); err != nil {
-			log.Error("Could not send packet", "err", err)
+	ticker := time.NewTicker(integration.RetryTimeout)
+	defer ticker.Stop()
+	tries := 0
+	for range ticker.C {
+		tries++
+		if c.attemptPingPong() {
+			return 0
+		} else if tries < integration.Attempts {
+			log.Info("Retrying...")
+			continue
 		}
-		// Receive pong
-		if err, retry := c.pong(); err != nil {
-			if !retry {
-				cmn.LogFatal("End2end failed", "err", err)
-			}
-			log.Error("Error receiving pong", "err", err)
-			time.Sleep(time.Second / 2)
-		} else {
-			return
-		}
+		log.Error("End2end failed. No more attempts...")
+		break
 	}
-	cmn.LogFatal("End2end failed")
+	return 1
+}
+
+func (c e2eClient) attemptPingPong() bool {
+	// Send ping
+	if err := c.ping(); err != nil {
+		log.Error("Could not send packet", "err", err)
+		return false
+	}
+	// Receive pong
+	if err := c.pong(); err != nil {
+		log.Error("Error receiving pong", "err", err)
+		return false
+	}
+	return true
 }
 
 func (c e2eClient) ping() error {
-	c.conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
-	b := []byte(ping + cmn.Remote.IA.String())
+	c.conn.SetWriteDeadline(time.Now().Add(integration.DefaultIOTimeout))
+	b := pingMessage(integration.Remote.IA)
 	_, err := c.conn.Write(b)
 	return err
 }
 
-func (c e2eClient) pong() (error, bool) {
-	c.conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+func (c e2eClient) pong() error {
+	c.conn.SetReadDeadline(time.Now().Add(integration.DefaultIOTimeout))
 	reply := make([]byte, 1024)
 	pktLen, err := c.conn.Read(reply)
 	if err != nil {
-		if operror, ok := err.(*snet.OpError); ok && operror.SCMP().Type == scmp.T_P_RevokedIF {
-			return err, true
-		}
-		return err, true
+		return err
 	}
-	expected := pong + cmn.Remote.IA.String() + cmn.Local.IA.String()
+	expected := pong + integration.Remote.IA.String() + integration.Local.IA.String()
 	if string(reply[:pktLen]) != expected {
 		return common.NewBasicError("Received unexpected data", nil, "data",
-			string(reply[:pktLen]), "expected", expected), false
+			string(reply[:pktLen]), "expected", expected)
 	}
-	log.Debug(fmt.Sprintf("Received pong from %s", cmn.Remote.IA))
-	return nil, false
+	log.Debug(fmt.Sprintf("Received pong from %s", integration.Remote.IA))
+	return nil
+}
+
+func pingMessage(server addr.IA) []byte {
+	return []byte(ping + server.String())
+}
+
+func pongMessage(server, client addr.IA) []byte {
+	return []byte(pong + server.String() + client.String())
 }
