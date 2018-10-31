@@ -19,6 +19,7 @@ package rctx
 
 import (
 	"math/rand"
+	"sync"
 	"sync/atomic"
 
 	"github.com/scionproto/scion/go/border/conf"
@@ -44,6 +45,9 @@ type Ctx struct {
 	// keyed by the interface ID of the relevant link.
 	ExtSockOut map[common.IFIDType]*Sock
 }
+
+// SetLock serializes updating the router context.
+var SetLock sync.Mutex
 
 // ctx is the current router context object.
 var ctx atomic.Value

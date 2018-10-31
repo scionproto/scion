@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/border/rdiscovery"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/log"
@@ -71,27 +72,33 @@ func NewRouter(id, confDir string) (*Router, error) {
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
 func (r *Router) Run() error {
+	var discSig chan struct{}
+	if *fetchTopo {
+		discSig = make(chan struct{}, 1)
+		go func() {
+			defer log.LogPanicAndExit()
+			rdiscovery.FetchTopo(r.Id, r.setupContext, discSig)
+		}()
+	}
 	go func() {
 		defer log.LogPanicAndExit()
 		r.PacketError()
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		r.confSig()
+		r.confSig(discSig)
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
 		rctrl.Control(r.sRevInfoQ)
 	}()
-	// TODO(shitz): Here should be some code to periodically check the discovery
-	// service for updated info.
 	var wait chan struct{}
 	<-wait
 	return nil
 }
 
 // confSig handles reloading the configuration when SIGHUP is received.
-func (r *Router) confSig() {
+func (r *Router) confSig(discSig chan<- struct{}) {
 	for range sighup {
 		var err error
 		var config *conf.Conf
@@ -99,9 +106,12 @@ func (r *Router) confSig() {
 			log.Error("Error reloading config", "err", err)
 			continue
 		}
-		if err := r.setupNewContext(config); err != nil {
+		if err := r.setupCtxFromConfig(config); err != nil {
 			log.Error("Error setting up new context", "err", err)
 			continue
+		}
+		if discSig != nil {
+			discSig <- struct{}{}
 		}
 		log.Info("Config reloaded")
 	}
