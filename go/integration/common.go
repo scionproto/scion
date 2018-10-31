@@ -17,59 +17,78 @@ package integration
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
-	"os/signal"
-	"syscall"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
-	sd "github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
-	ModeServer = "server"
-	ModeClient = "client"
+	ModeServer       = "server"
+	ModeClient       = "client"
+	DefaultIOTimeout = 1 * time.Second
+	RetryTimeout     = time.Second / 2
 )
 
 var (
-	Local   snet.Addr
-	Remote  snet.Addr
-	Mode    string
-	Sciond  string
-	Retries int
+	Local    snet.Addr
+	Remote   snet.Addr
+	Mode     string
+	Sciond   string
+	Attempts int
 )
 
-func init() {
+func Setup() {
+	addFlags()
+	validateFlags()
+	defer log.LogPanicAndExit()
+	initNetwork()
+}
+
+func addFlags() {
 	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
 	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Sciond, "sciond", "", "Path to sciond socket")
-	flag.IntVar(&Retries, "retries", 0, "Number of retries before giving up")
+	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
 	log.AddLogConsFlags()
-	validateFlags()
+}
+
+func validateFlags() {
+	flag.Parse()
 	if err := log.SetupFromFlags(""); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
 		flag.Usage()
 		os.Exit(1)
 	}
-	defer log.LogPanicAndExit()
-	initNetwork()
-}
-
-func validateFlags() {
-	flag.Parse()
 	if Mode != ModeClient && Mode != ModeServer {
 		LogFatal("Unknown mode, must be either '" + ModeClient + "' or '" + ModeServer + "'")
 	}
 	if Sciond == "" {
-		Sciond = sd.GetDefaultSCIONDPath(&Local.IA)
+		Sciond = sciond.GetDefaultSCIONDPath(&Local.IA)
 	}
 	if Local.Host == nil {
 		LogFatal("Missing local address")
 	}
-	if Mode == ModeClient && Remote.Host == nil {
-		LogFatal("Missing remote address")
+	if Mode == ModeClient {
+		if Remote.Host == nil {
+			LogFatal("Missing remote address")
+		}
+		if Remote.Host.L4 == nil {
+			LogFatal("Missing remote port")
+		}
+		if Remote.Host.L4.Port() == 0 {
+			LogFatal("Invalid remote port", "remote port", Remote.Host.L4.Port())
+		}
+	} else {
+		if Local.Host.L4 == nil {
+			LogFatal("Missing local port")
+		}
+		if Local.Host.L4.Port() == 0 {
+			LogFatal("Invalid local port", "local port", Local.Host.L4.Port())
+		}
 	}
 }
 
@@ -81,50 +100,7 @@ func initNetwork() {
 	log.Debug("SCION network successfully initialized")
 }
 
-func RunClientServer(client Client, server Server) {
-	switch Mode {
-	case ModeClient:
-		if Remote.Host.L4 == nil {
-			LogFatal("Missing remote port")
-		}
-		if Remote.Host.L4.Port() == 0 {
-			LogFatal("Invalid remote port", "remote port", Remote.Host.L4.Port())
-		}
-		client.Run()
-	case ModeServer:
-		if Local.Host.L4 == nil {
-			LogFatal("Missing local port")
-		}
-		if Local.Host.L4.Port() == 0 {
-			LogFatal("Invalid local port", "local port", Local.Host.L4.Port())
-		}
-		server.Run()
-	}
-}
-
-func RunClient(client Client) {
-	client.Run()
-}
-
-type Server interface {
-	Run()
-}
-
-type Client interface {
-	Run()
-}
-
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
 	os.Exit(1)
-}
-
-func SetSignalHandler(closer io.Closer) {
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		closer.Close()
-		os.Exit(1)
-	}()
 }

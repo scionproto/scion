@@ -16,9 +16,10 @@ package main
 
 import (
 	"context"
+	"os"
 	"time"
 
-	cmn "github.com/scionproto/scion/go/integration"
+	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
@@ -33,65 +34,83 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var timeout = 2 * time.Second
+func main() {
+	os.Exit(realMain())
+}
 
-var _ cmn.Client = (*certClient)(nil)
+func realMain() int {
+	defer log.LogPanicAndExit()
+	defer log.Flush()
+	integration.Setup()
+	return certClient{}.Run()
+}
 
 type certClient struct {
 	conn snet.Conn
 	msgr *messenger.Messenger
 }
 
-func main() {
-	cmn.RunClient(certClient{})
-}
-
-func (c certClient) Run() {
+func (c certClient) Run() int {
 	var err error
-	c.conn, err = snet.ListenSCION("udp4", &cmn.Local)
+	c.conn, err = snet.ListenSCION("udp4", &integration.Local)
 	if err != nil {
-		cmn.LogFatal("Unable to listen", "err", err)
+		integration.LogFatal("Unable to listen", "err", err)
 	}
 	log.Debug("Send on", "local", c.conn.LocalAddr())
 	c.msgr = messenger.New(
-		cmn.Local.IA,
+		integration.Local.IA,
 		disp.New(
 			transport.NewPacketTransport(c.conn),
 			messenger.DefaultAdapter,
 			log.Root(),
 		), nil, log.Root(), nil,
 	)
-	if cmn.Remote, err = getRemote(); err != nil {
-		cmn.LogFatal("Error finding remote address", err)
+	if integration.Remote, err = getRemote(); err != nil {
+		integration.LogFatal("Error finding remote address", err)
 	}
-	for i := 0; i <= cmn.Retries; i++ {
-		// Send certchain request
-		var chain *cert.Chain
-		if chain, err = c.requestCert(); err != nil {
-			log.Error("Error requesting certificate chain", "err", err)
+	ticker := time.NewTicker(integration.RetryTimeout)
+	defer ticker.Stop()
+	tries := 0
+	for range ticker.C {
+		tries++
+		if c.attemptRequest() {
+			return 0
+		} else if tries < integration.Attempts {
+			log.Info("Retrying...")
 			continue
 		}
-		// Send TRC request
-		if err = c.requestTRC(chain); err != nil {
-			log.Error("Error requesting TRC", "err", err)
-			continue
-		} else {
-			return
-		}
+		log.Error("Cert request failed. No more attempts...")
+		break
 	}
-	cmn.LogFatal("Cert request failed")
+	return 1
+}
+
+func (c certClient) attemptRequest() bool {
+	// Send certchain request
+	var chain *cert.Chain
+	var err error
+	if chain, err = c.requestCert(); err != nil {
+		log.Error("Error requesting certificate chain", "err", err)
+		return false
+	}
+	// Send TRC request
+	if err = c.requestTRC(chain); err != nil {
+		log.Error("Error requesting TRC", "err", err)
+		return false
+	}
+	return true
 }
 
 func (c certClient) requestCert() (*cert.Chain, error) {
 	req := &cert_mgmt.ChainReq{
 		CacheOnly: true,
-		RawIA:     cmn.Remote.IA.IAInt(),
+		RawIA:     integration.Remote.IA.IAInt(),
 		Version:   scrypto.LatestVer,
 	}
-	log.Info("Request to SVC: Chain request", "req", req, "remote", cmn.Remote)
-	ctx, cancleF := context.WithTimeout(context.Background(), timeout)
-	defer cancleF()
-	rawChain, err := c.msgr.GetCertChain(ctx, req, &cmn.Remote, messenger.NextId())
+	log.Info("Request to SVC: Chain request", "req", req, "remote", integration.Remote)
+	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
+	defer cancelF()
+	rawChain, err := c.msgr.GetCertChain(ctx, req, &integration.Remote, messenger.NextId())
 	if err != nil {
 		return nil, common.NewBasicError("Unable to get chain", err)
 	}
@@ -99,9 +118,9 @@ func (c certClient) requestCert() (*cert.Chain, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse chain", err)
 	}
-	if !chain.Leaf.Subject.Eq(cmn.Remote.IA) {
+	if !chain.Leaf.Subject.Eq(integration.Remote.IA) {
 		return nil, common.NewBasicError("Invalid subject", nil,
-			"expected", cmn.Remote.IA, "actual", chain.Leaf.Subject)
+			"expected", integration.Remote.IA, "actual", chain.Leaf.Subject)
 	}
 	log.Info("Response from SVC: Correct chain", "chain", chain)
 	return chain, nil
@@ -110,13 +129,13 @@ func (c certClient) requestCert() (*cert.Chain, error) {
 func (c certClient) requestTRC(chain *cert.Chain) error {
 	req := &cert_mgmt.TRCReq{
 		CacheOnly: true,
-		ISD:       cmn.Remote.IA.I,
+		ISD:       integration.Remote.IA.I,
 		Version:   scrypto.LatestVer,
 	}
-	log.Info("Request to SVC: TRC request", "req", req, "remote", cmn.Remote)
-	ctx, cancleF := context.WithTimeout(context.Background(), timeout)
-	defer cancleF()
-	rawTrc, err := c.msgr.GetTRC(ctx, req, &cmn.Remote, messenger.NextId())
+	log.Info("Request to SVC: TRC request", "req", req, "remote", integration.Remote)
+	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
+	defer cancelF()
+	rawTrc, err := c.msgr.GetTRC(ctx, req, &integration.Remote, messenger.NextId())
 	if err != nil {
 		return common.NewBasicError("Unable to get trc", err)
 	}
@@ -124,11 +143,11 @@ func (c certClient) requestTRC(chain *cert.Chain) error {
 	if err != nil {
 		return common.NewBasicError("Unable to parse trc", err)
 	}
-	if trc.ISD != cmn.Remote.IA.I {
+	if trc.ISD != integration.Remote.IA.I {
 		return common.NewBasicError("Invalid ISD", nil,
-			"expected", cmn.Remote.IA.I, "actual", trc.ISD)
+			"expected", integration.Remote.IA.I, "actual", trc.ISD)
 	}
-	if err := chain.Verify(cmn.Remote.IA, trc); err != nil {
+	if err := chain.Verify(integration.Remote.IA, trc); err != nil {
 		return common.NewBasicError("Certificate verification failed", err)
 	}
 	log.Info("Response from SVC: Correct TRC", "TRC", trc)
@@ -136,21 +155,21 @@ func (c certClient) requestTRC(chain *cert.Chain) error {
 }
 
 func getRemote() (snet.Addr, error) {
-	if svc, ok := cmn.Remote.Host.L3.(addr.HostSVC); ok {
+	if svc, ok := integration.Remote.Host.L3.(addr.HostSVC); ok {
 		// Fetch address of service
-		if cmn.Remote.IA.Eq(cmn.Local.IA) {
+		if integration.Remote.IA.Eq(integration.Local.IA) {
 			var hostInfo *sciond.HostInfo
 			var err error
 			if hostInfo, err = getSVCAddress(); err != nil {
-				return cmn.Remote, err
+				return integration.Remote, err
 			}
 			appAddr := addr.AppAddr{L3: hostInfo.Host(), L4: addr.NewL4UDPInfo(hostInfo.Port)}
-			return snet.Addr{IA: cmn.Remote.IA, Host: &appAddr}, nil
+			return snet.Addr{IA: integration.Remote.IA, Host: &appAddr}, nil
 		}
-		return snet.Addr{IA: cmn.Remote.IA, Host: addr.NewSVCUDPAppAddr(svc)}, nil
+		return snet.Addr{IA: integration.Remote.IA, Host: addr.NewSVCUDPAppAddr(svc)}, nil
 	}
 	// Query a host directly
-	return cmn.Remote, nil
+	return integration.Remote, nil
 }
 
 func getSVCAddress() (*sciond.HostInfo, error) {

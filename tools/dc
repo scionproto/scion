@@ -35,7 +35,7 @@ cmd_utils() {
 }
 
 cmd_tester() {
-    docker exec -t -e PYTHONPATH=python/: tester "$@"
+    COMPOSE_FILE="gen/base-dc.yml:gen/utils-dc.yml" docker-compose exec tester "$@"
 }
 
 PROGRAM="${0##*/}"
@@ -43,7 +43,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-	scion|tester|utils)
-	    "cmd_$COMMAND" "$@" ;;
-	*)  cmd_help; exit 1 ;;
+    scion|tester|utils)
+        "cmd_$COMMAND" "$@" ;;
+    *)  cmd_help; exit 1 ;;
 esac

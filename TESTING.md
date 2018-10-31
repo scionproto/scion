@@ -31,9 +31,8 @@ It's possible to run the entire infrastructure in a docker container. For more i
 see `docker/README.md`.
 
 ### Per-app Docker
-It's possible to run every service instance in it's own docker container. When creating the
-topology, specify the `-d` flag. To run the integration tests in this setup,
-run `./integration/integration.sh -d tester`.
+It's possible to run every service instance in its own docker container. When creating the
+topology, specify the `-d` flag.
 
 If you want to use `docker-compose` commands, `./tools/dc` might be helpful.
 
