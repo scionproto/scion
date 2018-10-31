@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Whenever the PS addresses in the topology file of a SD server are changed, if
-# the SD process receives a SIGHUP it will reload the config and service future
-# client requests for paths by querying the new PS addresses.
+# Whenever the BR's internal address in the topology file of a SD server is
+# changed, if the SD process receives a SIGHUP it will reload the config and
+# use the new internal address as next-hop in the replies to path requests from
+# clients.
 
 TEST_NAME="topo_sd_reloads_br"
 TEST_TOPOLOGY="topology/Tiny.topo"
