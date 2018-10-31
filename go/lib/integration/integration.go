@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -30,8 +31,15 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// StartServerTimeout is the timeout for starting a server.
-var StartServerTimeout = 1 * time.Second
+const (
+	// StartServerTimeout is the timeout for starting a server.
+	StartServerTimeout = 1 * time.Second
+	// MaxParallelProcesses is the number of client processes that may be started in parallel when
+	// using RunBinaryTests or RunUnaryTests.
+	MaxParallelProcesses = 5
+	// DefaultRunTimeout is the timeout when running a server or a client.
+	DefaultRunTimeout = 5 * time.Second
+)
 
 type iaArgs []addr.IA
 
@@ -219,89 +227,82 @@ func ExtractUniqueDsts(pairs []IAPair) []addr.IA {
 // RunBinaryTests runs the client and server for each IAPair. A number of tests are run in parallel
 // In case of an error the function is terminated immediately.
 func RunBinaryTests(in Integration, pairs []IAPair) error {
-	return ExecuteTimed(in.Name(), func() error {
-		errors := make(chan error)
-		done := make(chan error, len(pairs))
-		// Run maximal 5 tests in parallel
-		tokens := make(chan struct{}, 1)
-		for i := range pairs {
-			go func(i int, pair IAPair) {
-				tokens <- struct{}{}
-				// Start server
-				s, err := StartServer(in, pair.Dst)
-				defer s.Close()
-				if err != nil {
-					<-tokens
-					errors <- err
-					return
-				}
-				// Start client
-				log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst,
-					i+1, len(pairs)))
-				if err := RunClient(in, pair, 5*time.Second); err != nil {
-					fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
-					<-tokens
-					errors <- err
-					return
-				}
-				<-tokens
-				done <- nil
-			}(i, pairs[i])
+	return runTests(in, pairs, func(idx int, pair IAPair) error {
+		// Start server
+		s, err := StartServer(in, pair.Dst)
+		defer s.Close()
+		if err != nil {
+			return err
 		}
-		// Wait for all goroutines to finish and abort if there was an error
-		ctr := 0
-		for {
-			select {
-			case err := <-errors:
-				close(done)
-				return err
-			case <-done:
-				ctr++
-				if ctr == len(pairs) {
-					return nil
-				}
-			}
+		// Start client
+		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst,
+			idx+1, len(pairs)))
+		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
+			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			return err
 		}
+		return nil
 	})
 }
 
 // RunUnaryTests runs the client for each IAPair.
 // In case of an error the function is terminated immediately.
 func RunUnaryTests(in Integration, pairs []IAPair) error {
+	return runTests(in, pairs, func(idx int, pair IAPair) error {
+		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
+			in.Name(), pair.Src, pair.Dst, idx+1, len(pairs)))
+		// Start client
+		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
+			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// runTests runs the testF for all the given IAPairs in parallel.
+func runTests(in Integration, pairs []IAPair, testF func(int, IAPair) error) error {
 	return ExecuteTimed(in.Name(), func() error {
 		errors := make(chan error, len(pairs))
-		done := make(chan error, len(pairs))
-		// Run maximal 5 tests in parallel
-		tokens := make(chan struct{}, 4)
+		workChan := make(chan workFunc, len(pairs))
 		for i := range pairs {
-			go func(i int, pair IAPair) {
-				tokens <- struct{}{}
-				log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-					in.Name(), pair.Src, pair.Dst, i+1, len(pairs)))
-				// Start client
-				if err := RunClient(in, pair, 5*time.Second); err != nil {
-					fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
-					<-tokens
-					errors <- err
-					return
-				}
-				<-tokens
-				done <- nil
-			}(i, pairs[i])
-		}
-		// Wait for all goroutines to finish and abort if there was an error
-		ctr := 0
-		for {
-			select {
-			case err := <-errors:
-				close(done)
-				return err
-			case <-done:
-				ctr++
-				if ctr == len(pairs) {
-					return nil
-				}
+			idx, pair := i, pairs[i]
+			workChan <- func() error {
+				return testF(idx, pair)
 			}
 		}
+		// Run tests in parallel
+		return workInParallel(workChan, errors, MaxParallelProcesses)
 	})
+}
+
+type workFunc func() error
+
+func workInParallel(workChan chan workFunc, errors chan error, maxGoRoutines int) error {
+	var wg sync.WaitGroup
+	for i := 1; i <= maxGoRoutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer log.LogPanicAndExit()
+			defer wg.Done()
+			for work := range workChan {
+				err := work()
+				if err != nil {
+					errors <- err
+				}
+			}
+		}()
+	}
+	close(workChan)
+	wg.Wait()
+	return errFromChan(errors)
+}
+
+func errFromChan(errors chan error) error {
+	select {
+	case err := <-errors:
+		return err
+	default:
+		return nil
+	}
 }

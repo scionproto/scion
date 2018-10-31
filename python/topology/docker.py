@@ -286,6 +286,9 @@ class DockerGenerator(object):
     def _test_conf(self):
         entry = {
             'image': 'scion_app_builder',
+            'environment': {
+                'PYTHONPATH': 'python/:'
+            },
             'volumes': [
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 '/run/shm/sciond:/run/shm/sciond:rw',
