@@ -15,6 +15,8 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -24,12 +26,18 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	libint "github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/spath"
 )
 
 const (
 	ping = "ping:"
 	pong = "pong:"
+)
+
+var (
+	remote snet.Addr
 )
 
 func main() {
@@ -39,20 +47,40 @@ func main() {
 func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
+	addFlags()
 	integration.Setup()
+	validateFlags()
 	if integration.Mode == integration.ModeServer {
-		e2eServer{}.run()
+		server{}.run()
 		return 0
 	} else {
-		return e2eClient{}.run()
+		return client{}.run()
 	}
 }
 
-type e2eServer struct {
+func addFlags() {
+	flag.Var((*snet.Addr)(&remote), "remote", "(Mandatory for clients) address to connect to")
+}
+
+func validateFlags() {
+	if integration.Mode == integration.ModeClient {
+		if remote.Host == nil {
+			integration.LogFatal("Missing remote address")
+		}
+		if remote.Host.L4 == nil {
+			integration.LogFatal("Missing remote port")
+		}
+		if remote.Host.L4.Port() == 0 {
+			integration.LogFatal("Invalid remote port", "remote port", remote.Host.L4.Port())
+		}
+	}
+}
+
+type server struct {
 	conn snet.Conn
 }
 
-func (s e2eServer) run() {
+func (s server) run() {
 	conn, err := snet.ListenSCION("udp4", &integration.Local)
 	if err != nil {
 		integration.LogFatal("Error listening", "err", err)
@@ -84,21 +112,25 @@ func (s e2eServer) run() {
 	}
 }
 
-type e2eClient struct {
-	conn snet.Conn
+type client struct {
+	conn   snet.Conn
+	sdConn sciond.Connector
 }
 
-func (c e2eClient) run() int {
+func (c client) run() int {
 	var err error
-	c.conn, err = snet.DialSCION("udp4", &integration.Local, &integration.Remote)
+	c.conn, err = snet.ListenSCION("udp4", &integration.Local)
 	if err != nil {
-		integration.LogFatal("Unable to dial", "err", err)
+		integration.LogFatal("Unable to listen", "err", err)
 	}
 	log.Debug("Send on", "local", c.conn.LocalAddr())
+	if c.sdConn, err = snet.DefNetwork.Sciond().Connect(); err != nil {
+		integration.LogFatal("Unable to connect to SCIOND", "err", err)
+	}
 	ticker := time.NewTicker(integration.RetryTimeout)
 	defer ticker.Stop()
 	tries := 0
-	for range ticker.C {
+	for ; true; <-ticker.C {
 		tries++
 		if c.attemptPingPong() {
 			return 0
@@ -112,7 +144,7 @@ func (c e2eClient) run() int {
 	return 1
 }
 
-func (c e2eClient) attemptPingPong() bool {
+func (c client) attemptPingPong() bool {
 	// Send ping
 	if err := c.ping(); err != nil {
 		log.Error("Could not send packet", "err", err)
@@ -120,32 +152,59 @@ func (c e2eClient) attemptPingPong() bool {
 	}
 	// Receive pong
 	if err := c.pong(); err != nil {
-		log.Error("Error receiving pong", "err", err)
+		log.Debug("Error receiving pong", "err", err)
 		return false
 	}
 	return true
 }
 
-func (c e2eClient) ping() error {
+func (c client) ping() error {
+	if err := c.getRemote(); err != nil {
+		return err
+	}
 	c.conn.SetWriteDeadline(time.Now().Add(integration.DefaultIOTimeout))
-	b := pingMessage(integration.Remote.IA)
-	_, err := c.conn.Write(b)
+	b := pingMessage(remote.IA)
+	_, err := c.conn.WriteTo(b, &remote)
 	return err
 }
 
-func (c e2eClient) pong() error {
+func (c client) getRemote() error {
+	if remote.IA.Eq(integration.Local.IA) {
+		return nil
+	}
+	// Get paths from sciond with refresh
+	paths, err := c.sdConn.PathsCtx(context.TODO(), remote.IA, integration.Local.IA, 1,
+		sciond.PathReqFlags{Refresh: true})
+	if err != nil {
+		return err
+	}
+	pathEntry := paths.Entries[0]
+	path := spath.New(pathEntry.Path.FwdPath)
+	if err = path.InitOffsets(); err != nil {
+		return common.NewBasicError("Unable to initialize path", err)
+	}
+	// Extract forwarding path from sciond response
+	remote.Path = path
+	remote.NextHop, err = pathEntry.HostInfo.Overlay()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c client) pong() error {
 	c.conn.SetReadDeadline(time.Now().Add(integration.DefaultIOTimeout))
 	reply := make([]byte, 1024)
 	pktLen, err := c.conn.Read(reply)
 	if err != nil {
 		return err
 	}
-	expected := pong + integration.Remote.IA.String() + integration.Local.IA.String()
+	expected := pong + remote.IA.String() + integration.Local.IA.String()
 	if string(reply[:pktLen]) != expected {
 		return common.NewBasicError("Received unexpected data", nil, "data",
 			string(reply[:pktLen]), "expected", expected)
 	}
-	log.Debug(fmt.Sprintf("Received pong from %s", integration.Remote.IA))
+	log.Debug(fmt.Sprintf("Received pong from %s", remote.IA))
 	return nil
 }
 

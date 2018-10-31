@@ -34,7 +34,6 @@ const (
 
 var (
 	Local    snet.Addr
-	Remote   snet.Addr
 	Mode     string
 	Sciond   string
 	Attempts int
@@ -43,13 +42,11 @@ var (
 func Setup() {
 	addFlags()
 	validateFlags()
-	defer log.LogPanicAndExit()
 	initNetwork()
 }
 
 func addFlags() {
 	flag.Var((*snet.Addr)(&Local), "local", "(Mandatory) address to listen on")
-	flag.Var((*snet.Addr)(&Remote), "remote", "(Mandatory for clients) address to connect to")
 	flag.StringVar(&Mode, "mode", ModeClient, "Run in "+ModeClient+" or "+ModeServer+" mode")
 	flag.StringVar(&Sciond, "sciond", "", "Path to sciond socket")
 	flag.IntVar(&Attempts, "attempts", 1, "Number of attempts before giving up")
@@ -72,17 +69,7 @@ func validateFlags() {
 	if Local.Host == nil {
 		LogFatal("Missing local address")
 	}
-	if Mode == ModeClient {
-		if Remote.Host == nil {
-			LogFatal("Missing remote address")
-		}
-		if Remote.Host.L4 == nil {
-			LogFatal("Missing remote port")
-		}
-		if Remote.Host.L4.Port() == 0 {
-			LogFatal("Invalid remote port", "remote port", Remote.Host.L4.Port())
-		}
-	} else {
+	if Mode == ModeServer {
 		if Local.Host.L4 == nil {
 			LogFatal("Missing local port")
 		}
@@ -100,6 +87,7 @@ func initNetwork() {
 	log.Debug("SCION network successfully initialized")
 }
 
+// LogFatal logs a critical error and exits with 1
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
 	os.Exit(1)

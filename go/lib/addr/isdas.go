@@ -255,6 +255,16 @@ func (ia IA) FileFmt(prefixes bool) string {
 	return fmt.Sprintf(fmts, ia.I, ia.A.FileFmt())
 }
 
+// This method implements flag.Value interface
+func (ia *IA) Set(s string) error {
+	pIA, err := IAFromString(s)
+	if err != nil {
+		return err
+	}
+	*ia = pIA
+	return nil
+}
+
 // IAInt is an integer representation of an ISD-AS.
 type IAInt uint64
 

@@ -34,24 +34,24 @@ log "Starting scion (without building)"
 log "Scion status:"
 ./scion.sh status || exit 1
 
-sleep 10
+sleep 15
 # Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
 if [ -n "$CIRCLECI" ]; then
     sleep 10
     [ -n "$CONTAINER"] && sleep 40
 fi
 
-# Run python integration tests
-run C2S_extn bin/cli_srv_ext_pyintegration -log.console error
-result=$?
-run SCMP_error bin/scmp_error_pyintegration -log.console error
-result=$((result+$?))
-
 # Run go integration tests
 for i in ./bin/*_integration; do
     run "Go Integration: $i" "$i"
     result=$((result+$?))
 done
+
+# Run python integration tests
+run C2S_extn bin/cli_srv_ext_pyintegration -log.console error
+result=$?
+run SCMP_error bin/scmp_error_pyintegration -log.console error
+result=$((result+$?))
 
 # Run go infra test
 GO_INFRA_TEST="go test -tags infrarunning"
