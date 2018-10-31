@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -79,7 +78,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
-			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
+			if err := integration.RunClient(in, conn, integration.DefaultRunTimeout); err != nil {
 				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 				return err
 			}

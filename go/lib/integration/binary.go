@@ -50,13 +50,13 @@ const (
 	DockerCmd = "./tools/dc"
 )
 
-var _ Integration = (*binaryIntegration)(nil)
-
 var (
 	serverPort = "40004"
 	// Docker indicates whether tests should be executed in docker.
 	Docker = flag.Bool("d", false, "Execute tests in dockerized environment")
 )
+
+var _ Integration = (*binaryIntegration)(nil)
 
 type binaryIntegration struct {
 	name        string

@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -29,7 +28,7 @@ var (
 	name       = "certreq"
 	cmd        = "./bin/cert_req"
 	dockerArgs = []string{"tester", cmd}
-	retries    = flag.Int("retries", 0, "Number of retries before giving up.")
+	attempts   = flag.Int("attempts", 1, "Number of attempts before giving up.")
 )
 
 func main() {
@@ -45,7 +44,7 @@ func realMain() int {
 	defer log.Flush()
 	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]"
 	serverAddr := integration.DstIAReplace + ",[CS]"
-	clientArgs := []string{"-log.console", "debug", "-retries", strconv.Itoa(*retries),
+	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
 		"-local", clientAddr, "-remote", serverAddr}
 	if *integration.Docker {
 		clientArgs = append(dockerArgs, clientArgs...)
@@ -56,7 +55,7 @@ func realMain() int {
 	for i, conn := range integration.IAPairs() {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 			in.Name(), conn.Src, conn.Dst, i+1, len(integration.IAPairs())))
-		if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
+		if err := integration.RunClient(in, conn, integration.DefaultRunTimeout); err != nil {
 			log.Error("Error during client execution", "err", err)
 			return 1
 		}
