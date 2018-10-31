@@ -238,11 +238,6 @@ func (c *SCIONConn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 			"type", common.TypeOf(scmpPayload.Info))
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
-	// If we have a path manager, extract RevInfo buffer and send it
-	//
-	// FIXME(scrye): this completely hides the revocation from the application.
-	// This is problematic for applications that manage their own paths, as
-	// they need to be informed that they should try to use a different one.
 	if c.scionNet.pathResolver != nil {
 		c.scionNet.pathResolver.Revoke(info.RawSRev)
 	}
