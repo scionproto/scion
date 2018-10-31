@@ -1,0 +1,10 @@
+- wait
+- label: Build app images
+  command: make -C docker/perapp
+  branches: "v*.*.*"
+- label: Docker login
+  command: docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
+  branches: "v*.*.*"
+- label: Push images
+  command: ./docker/perapp/publish "$BUILDKITE_TAG"
+  branches: "v*.*.*"

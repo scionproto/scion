@@ -1,0 +1,15 @@
+- label: Build per app images
+  command:
+      - mkdir docker/_build && touch docker/_build/scion.stamp
+      - make -C docker/perapp apps
+- wait
+- label: Docker Integration Tests
+  command:
+      - rm -f $SCION_MOUNT/logs/*
+      - ./tools/ci/integration -d
+      - ./tools/ci/pack_logs
+  artifact_paths:
+      - "artifacts.out/**/*"
+  concurrency: 1
+  concurrency_group: "integration-test"
+

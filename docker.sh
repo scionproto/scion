@@ -84,6 +84,7 @@ common_args() {
     args+=" -v $SCION_MOUNT/gen:/home/scion/go/src/github.com/scionproto/scion/gen"
     args+=" -v $SCION_MOUNT/logs:/home/scion/go/src/github.com/scionproto/scion/logs"
     args+=" -v $SCION_MOUNT/gen-certs:/home/scion/go/src/github.com/scionproto/scion/gen-certs"
+    args+=" -v $SCION_MOUNT/gen-cache:/home/scion/go/src/github.com/scionproto/scion/gen-cache"
     args+=" -v $SCION_MOUNT/htmlcov:/home/scion/go/src/github.com/scionproto/scion/python/htmlcov"
     args+=" -v /run/shm/dispatcher:/run/shm/dispatcher"
     args+=" -v /run/shm/sciond:/run/shm/sciond"
@@ -93,6 +94,7 @@ common_args() {
     args+=" -e DOCKER_GID=$(getent group docker | cut -f3 -d:)"
     args+=" -e SCION_USERSPEC=$(id -un):$(id -gn)"
     args+=" -u root"
+    args+=" -e DOCKER0=$(./tools/docker-ip)"
     echo $args
 }
 
