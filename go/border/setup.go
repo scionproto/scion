@@ -79,7 +79,7 @@ func (r *Router) setup() error {
 		return err
 	}
 	// Setup new context.
-	if err = r.setupNewContext(config); err != nil {
+	if err = r.setupCtxFromConfig(config); err != nil {
 		return err
 	}
 	// Clear capabilities after setting up the network. Capabilities are currently
@@ -120,10 +120,16 @@ func (r *Router) loadNewConfig() (*conf.Conf, error) {
 	return config, nil
 }
 
-// setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(config *conf.Conf) error {
+// setupCtxFromConfig sets up a new router context from the config.
+func (r *Router) setupCtxFromConfig(config *conf.Conf) error {
+	rctx.SetLock.Lock()
+	defer rctx.SetLock.Unlock()
+	return r.setupContext(rctx.New(config))
+}
+
+// setupContext sets up a new router context. The caller must hold rctx.SetLock.
+func (r *Router) setupContext(ctx *rctx.Ctx) error {
 	oldCtx := rctx.Get()
-	ctx := rctx.New(config)
 	if err := r.setupNet(ctx, oldCtx); err != nil {
 		return err
 	}

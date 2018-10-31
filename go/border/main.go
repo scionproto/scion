@@ -35,9 +35,10 @@ import (
 )
 
 var (
-	id       = flag.String("id", "", "Element ID (Required. E.g. 'br4-ff00:0:2f')")
-	confDir  = flag.String("confd", ".", "Configuration directory")
-	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
+	id        = flag.String("id", "", "Element ID (Required. E.g. 'br4-ff00:0:2f')")
+	confDir   = flag.String("confd", ".", "Configuration directory")
+	profFlag  = flag.Bool("profile", false, "Enable cpu and memory profiling")
+	fetchTopo = flag.Bool("discovery", false, "Enable fetching topology from discovery service")
 )
 
 func main() {
