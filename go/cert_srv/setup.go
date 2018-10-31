@@ -34,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/proto"
 )
 
 const (
@@ -89,7 +90,7 @@ func initState(config *Config) error {
 	}
 	trustConf := &trust.Config{
 		MustHaveLocalChain: true,
-		IsCS:               true,
+		ServiceType:        proto.ServiceType_cs,
 	}
 	config.state.Store, err = trust.NewStore(config.state.TrustDB, config.General.Topology.ISD_AS,
 		rand.Uint64(), trustConf, log.Root())

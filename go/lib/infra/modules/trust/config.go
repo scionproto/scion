@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,10 @@
 
 package trust
 
+import (
+	"github.com/scionproto/scion/go/proto"
+)
+
 // FIXME(scrye): When reloading support gets added again, Options should include
 // all the reloadable aspects of the trust store. Instead of direct access,
 // accessors should be preferred to ensure concurrency-safe reads.
@@ -23,6 +27,6 @@ type Config struct {
 	// IA must always return a valid chain. This is set to true on CSes and to
 	// false on others.
 	MustHaveLocalChain bool
-	// IsCS is set to true on CSes and false on others.
-	IsCS bool
+	// ServiceType is the type of the service that uses the store.
+	ServiceType proto.ServiceType
 }
