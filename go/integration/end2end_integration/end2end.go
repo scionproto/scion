@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -43,7 +44,7 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]:0"
-	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:" + integration.ServerPortReplace
+	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:40005"
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
 		"-local", clientAddr, "-remote", serverAddr}
 	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr}
@@ -64,18 +65,25 @@ func realMain() int {
 // RunTests runs the client and server for each IAPair.
 // In case of an error the function is terminated immediately.
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
-	// First run all servers
-	dsts := integration.ExtractUniqueDsts(pairs)
-	for _, dst := range dsts {
-		c, err := integration.StartServer(in, dst)
-		if err != nil {
-			return err
+	return integration.ExecuteTimed(in.Name(), func() error {
+		// First run all servers
+		dsts := integration.ExtractUniqueDsts(pairs)
+		for _, dst := range dsts {
+			c, err := integration.StartServer(in, dst)
+			if err != nil {
+				return err
+			}
+			defer c.Close()
 		}
-		defer c.Close()
-	}
-	if err := integration.RunUnaryTests(in, integration.IAPairs()); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
-		return err
-	}
-	return nil
+		// Now start the clients for srcDest pair
+		for i, conn := range pairs {
+			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
+				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
+			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
+				log.Error("Error during client execution", "err", err)
+				return err
+			}
+		}
+		return nil
+	})
 }

@@ -36,7 +36,7 @@ const (
 	StartServerTimeout = 1 * time.Second
 	// MaxParallelProcesses is the number of client processes that may be started in parallel when
 	// using RunBinaryTests or RunUnaryTests.
-	MaxParallelProcesses = 5
+	MaxParallelProcesses = 3
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 5 * time.Second
 )
@@ -230,10 +230,10 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 	return runTests(in, pairs, func(idx int, pair IAPair) error {
 		// Start server
 		s, err := StartServer(in, pair.Dst)
-		defer s.Close()
 		if err != nil {
 			return err
 		}
+		defer s.Close()
 		// Start client
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst,
 			idx+1, len(pairs)))

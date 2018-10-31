@@ -43,9 +43,9 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]"
-	serverAddr := integration.DstIAReplace + ",[CS]"
+	serverAddr := integration.DstIAReplace
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
-		"-local", clientAddr, "-remote", serverAddr}
+		"-local", clientAddr, "-remoteIA", serverAddr}
 	if *integration.Docker {
 		clientArgs = append(dockerArgs, clientArgs...)
 		cmd = integration.DockerCmd
