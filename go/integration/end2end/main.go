@@ -127,24 +127,10 @@ func (c client) run() int {
 	if c.sdConn, err = snet.DefNetwork.Sciond().Connect(); err != nil {
 		integration.LogFatal("Unable to connect to SCIOND", "err", err)
 	}
-	ticker := time.NewTicker(integration.RetryTimeout)
-	defer ticker.Stop()
-	tries := 0
-	for ; true; <-ticker.C {
-		tries++
-		if c.attemptPingPong() {
-			return 0
-		} else if tries < integration.Attempts {
-			log.Info("Retrying...")
-			continue
-		}
-		log.Error("End2end failed. No more attempts...")
-		break
-	}
-	return 1
+	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
 
-func (c client) attemptPingPong() bool {
+func (c client) attemptRequest() bool {
 	// Send ping
 	if err := c.ping(); err != nil {
 		log.Error("Could not send packet", "err", err)
