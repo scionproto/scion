@@ -261,7 +261,7 @@ func RunUnaryTests(in Integration, pairs []IAPair) error {
 func runTests(in Integration, pairs []IAPair, maxGoRoutines int,
 	testF func(int, IAPair) error) error {
 
-		return ExecuteTimed(in.Name(), func() error {
+	return ExecuteTimed(in.Name(), func() error {
 		errors := make(chan error, len(pairs))
 		workChan := make(chan workFunc, len(pairs))
 		for i := range pairs {
