@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -55,7 +56,8 @@ func realMain() int {
 	for i, conn := range integration.IAPairs() {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 			in.Name(), conn.Src, conn.Dst, i+1, len(integration.IAPairs())))
-		if err := integration.RunClient(in, conn, integration.DefaultRunTimeout); err != nil {
+		t := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
+		if err := integration.RunClient(in, conn, t); err != nil {
 			log.Error("Error during client execution", "err", err)
 			return 1
 		}

@@ -36,6 +36,8 @@ const (
 	StartServerTimeout = 2 * time.Second
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 8 * time.Second
+	// RetryTimeout is the timeout between different attempts
+	RetryTimeout = time.Second / 2
 )
 
 type iaArgs []addr.IA

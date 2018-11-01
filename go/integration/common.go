@@ -20,6 +20,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -29,7 +30,6 @@ const (
 	ModeServer       = "server"
 	ModeClient       = "client"
 	DefaultIOTimeout = 1 * time.Second
-	RetryTimeout     = time.Second / 2
 )
 
 var (
@@ -94,7 +94,7 @@ type AttemptFunc func(n int) bool
 // Between two attempts at least RetryTimeout time has to pass.
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {
-	ticker := time.NewTicker(RetryTimeout)
+	ticker := time.NewTicker(integration.RetryTimeout)
 	defer ticker.Stop()
 	attempts := 0
 	for ; true; <-ticker.C {
