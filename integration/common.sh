@@ -25,7 +25,7 @@ run() {
     local test="${1:?}"
     shift
     log "$test: starting"
-    time $@
+    time "$@"
     local result=$?
     if [ $result -eq 0 ]; then
         log "$test: success"

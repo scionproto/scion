@@ -6,8 +6,8 @@ else
     TARGET="$BUILDKITE_PULL_REQUEST"
 fi
 TARGET="${TARGET//\//_}"
-BUILD="build${BUILDKITE_BUILD_NUMBER}"
-[ -n "$NIGHTLY" ] && BUILD=nightly"$(date +%s)"
+BUILD="build-${BUILDKITE_BUILD_NUMBER}"
+[ -n "$NIGHTLY" ] && BUILD=nightly-"$(date +%s)"
 
 echo "env:"
 echo "  SCION_MOUNT: /tmp/scion_out.$BUILDKITE_BUILD_NUMBER"
