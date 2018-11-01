@@ -158,8 +158,10 @@ func (c client) getRemote(n int) error {
 	if remote.IA.Eq(integration.Local.IA) {
 		return nil
 	}
-	// Get paths from sciond with refresh
-	paths, err := c.sdConn.PathsCtx(context.TODO(), remote.IA, integration.Local.IA, 1,
+	// Get paths from sciond
+	ctx, cancelF := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelF()
+	paths, err := c.sdConn.PathsCtx(ctx, remote.IA, integration.Local.IA, 1,
 		sciond.PathReqFlags{Refresh: n != 0})
 	if err != nil {
 		return err

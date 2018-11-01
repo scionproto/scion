@@ -40,6 +40,7 @@ if [ -n "$CIRCLECI" ]; then
     sleep 10
 fi
 
+result=0
 # Run go infra test
 GO_INFRA_TEST="go test -tags infrarunning"
 for i in ./go/lib/{snet,pathmgr,infra/disp}; do
@@ -49,7 +50,7 @@ done
 
 # Run python integration tests
 run C2S_extn bin/cli_srv_ext_pyintegration -log.console error
-result=$?
+result=$((result+$?))
 run SCMP_error bin/scmp_error_pyintegration -log.console error
 result=$((result+$?))
 
