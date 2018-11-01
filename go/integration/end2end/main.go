@@ -164,6 +164,9 @@ func (c client) getRemote() error {
 	if err != nil {
 		return err
 	}
+	if len(paths.Entries) == 0 {
+		return common.NewBasicError("No path entries found", nil)
+	}
 	pathEntry := paths.Entries[0]
 	path := spath.New(pathEntry.Path.FwdPath)
 	if err = path.InitOffsets(); err != nil {

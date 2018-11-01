@@ -99,7 +99,7 @@ func (c client) attemptRequest() bool {
 
 func (c client) requestCert() (*cert.Chain, error) {
 	req := &cert_mgmt.ChainReq{
-		CacheOnly: false,
+		CacheOnly: true,
 		RawIA:     remoteIA.IAInt(),
 		Version:   scrypto.LatestVer,
 	}
@@ -124,7 +124,7 @@ func (c client) requestCert() (*cert.Chain, error) {
 
 func (c client) requestTRC(chain *cert.Chain) error {
 	req := &cert_mgmt.TRCReq{
-		CacheOnly: false,
+		CacheOnly: true,
 		ISD:       remoteIA.I,
 		Version:   scrypto.LatestVer,
 	}
@@ -157,8 +157,11 @@ func getRemote() error {
 	if hostInfo, err = getSVCAddress(); err != nil {
 		return err
 	}
-	appAddr := addr.AppAddr{L3: hostInfo.Host(), L4: addr.NewL4UDPInfo(hostInfo.Port)}
-	svc = snet.Addr{IA: integration.Local.IA, Host: &appAddr}
+	appAddr := &addr.AppAddr{
+		L3: hostInfo.Host(),
+		L4: addr.NewL4UDPInfo(hostInfo.Port),
+	}
+	svc = snet.Addr{IA: integration.Local.IA, Host: appAddr}
 	return nil
 }
 
@@ -167,7 +170,7 @@ func getSVCAddress() (*sciond.HostInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	reply, err := connector.SVCInfo([]proto.ServiceType{proto.ServiceTypeFromString("cs")})
+	reply, err := connector.SVCInfo([]proto.ServiceType{proto.ServiceType_cs})
 	if err != nil {
 		return nil, err
 	}
