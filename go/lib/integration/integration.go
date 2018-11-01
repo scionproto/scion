@@ -34,9 +34,6 @@ import (
 const (
 	// StartServerTimeout is the timeout for starting a server.
 	StartServerTimeout = 1 * time.Second
-	// MaxParallelProcesses is the number of client processes that may be started in parallel when
-	// using RunBinaryTests or RunUnaryTests.
-	MaxParallelProcesses = 3
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 5 * time.Second
 )
@@ -227,7 +224,7 @@ func ExtractUniqueDsts(pairs []IAPair) []addr.IA {
 // RunBinaryTests runs the client and server for each IAPair. A number of tests are run in parallel
 // In case of an error the function is terminated immediately.
 func RunBinaryTests(in Integration, pairs []IAPair) error {
-	return runTests(in, pairs, func(idx int, pair IAPair) error {
+	return runTests(in, pairs, 2, func(idx int, pair IAPair) error {
 		// Start server
 		s, err := StartServer(in, pair.Dst)
 		if err != nil {
@@ -248,7 +245,7 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 // RunUnaryTests runs the client for each IAPair.
 // In case of an error the function is terminated immediately.
 func RunUnaryTests(in Integration, pairs []IAPair) error {
-	return runTests(in, pairs, func(idx int, pair IAPair) error {
+	return runTests(in, pairs, 4, func(idx int, pair IAPair) error {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 			in.Name(), pair.Src, pair.Dst, idx+1, len(pairs)))
 		// Start client
@@ -261,8 +258,10 @@ func RunUnaryTests(in Integration, pairs []IAPair) error {
 }
 
 // runTests runs the testF for all the given IAPairs in parallel.
-func runTests(in Integration, pairs []IAPair, testF func(int, IAPair) error) error {
-	return ExecuteTimed(in.Name(), func() error {
+func runTests(in Integration, pairs []IAPair, maxGoRoutines int,
+	testF func(int, IAPair) error) error {
+
+		return ExecuteTimed(in.Name(), func() error {
 		errors := make(chan error, len(pairs))
 		workChan := make(chan workFunc, len(pairs))
 		for i := range pairs {
@@ -272,7 +271,7 @@ func runTests(in Integration, pairs []IAPair, testF func(int, IAPair) error) err
 			}
 		}
 		// Run tests in parallel
-		return workInParallel(workChan, errors, MaxParallelProcesses)
+		return workInParallel(workChan, errors, maxGoRoutines)
 	})
 }
 

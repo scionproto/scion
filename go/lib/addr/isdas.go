@@ -16,6 +16,7 @@ package addr
 
 import (
 	"encoding"
+	"flag"
 	"fmt"
 	"strconv"
 	"strings"
@@ -155,6 +156,7 @@ func (as AS) fmt(sep byte) string {
 
 var _ fmt.Stringer = IA{}
 var _ encoding.TextUnmarshaler = (*IA)(nil)
+var _ flag.Value = (*IA)(nil)
 
 // IA represents the ISD (ISolation Domain) and AS (Autonomous System) Id of a given SCION AS.
 type IA struct {
