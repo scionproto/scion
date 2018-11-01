@@ -2,7 +2,7 @@
 - label: Build per app images
   command:
       - mkdir docker/_build && touch docker/_build/scion.stamp
-      - make -C docker/perapp apps
+      - make -C docker/perapp
 - wait
 - label: Docker Integration Tests
   command:

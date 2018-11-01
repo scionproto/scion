@@ -23,9 +23,8 @@ import (
 )
 
 var (
-	name       = "cli_srv_ext"
-	dockerArgs = []string{"tester", cmd}
-	cmd        = "python/integration/cli_srv_ext_test.py"
+	name = "cli_srv_ext"
+	cmd  = "python/integration/cli_srv_ext_test.py"
 )
 
 func main() {
@@ -42,13 +41,14 @@ func realMain() int {
 	clientArgs := []string{"--port", integration.ServerPortReplace,
 		integration.SrcIAReplace, integration.DstIAReplace}
 	serverArgs := []string{"--run_server", integration.DstIAReplace}
-	// Redefine command and adjust args if run in docker
-	if *integration.Docker {
-		clientArgs = append(dockerArgs, clientArgs...)
-		serverArgs = append(dockerArgs, serverArgs...)
-		cmd = integration.DockerCmd
+	var in integration.Integration
+	if *integration.Container != "" {
+		in = integration.NewDockerIntegration(name, *integration.Container, cmd, clientArgs,
+			serverArgs, integration.StdLog)
+	} else {
+		in = integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs,
+			integration.StdLog)
 	}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := integration.RunBinaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

@@ -20,7 +20,7 @@ RUN set -e; mkdir /rootfs/LICENSES/go; \
     find . -iregex '.*\(LICENSE\|COPYING\).*' -exec cp --parents '{}' /rootfs/LICENSES/go ';'
 
 RUN mkdir -m 1777 /rootfs/tmp
-RUN mkdir -p /rootfs/usr/share/zoneinfo/; cp /usr/share/zoneinfo/UTC /rootfs/usr/share/zoneinfo/UTC
+RUN mkdir -p /rootfs/usr/share/zoneinfo/; cp -L /usr/share/zoneinfo/UTC /rootfs/usr/share/zoneinfo/UTC
 
 # Base image with minimal content
 FROM scratch
