@@ -73,9 +73,6 @@ func validateFlags() {
 		if Local.Host.L4 == nil {
 			LogFatal("Missing local port")
 		}
-		if Local.Host.L4.Port() == 0 {
-			LogFatal("Invalid local port", "local port", Local.Host.L4.Port())
-		}
 	}
 }
 

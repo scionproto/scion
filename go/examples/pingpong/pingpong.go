@@ -352,6 +352,7 @@ func (s server) run() {
 	}
 	if len(os.Getenv(integration.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
+		fmt.Printf("Port=%d\n", qsock.Addr().(*snet.Addr).Host.L4.Port())
 		fmt.Printf("%s%s\n", integration.ReadySignal, local.IA)
 	}
 	log.Info("Listening", "local", qsock.Addr())

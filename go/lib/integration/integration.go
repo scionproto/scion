@@ -33,7 +33,7 @@ import (
 
 const (
 	// StartServerTimeout is the timeout for starting a server.
-	StartServerTimeout = 2 * time.Second
+	StartServerTimeout = 10 * time.Second
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 8 * time.Second
 	// RetryTimeout is the timeout between different attempts

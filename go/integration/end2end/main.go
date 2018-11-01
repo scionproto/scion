@@ -87,6 +87,7 @@ func (s server) run() {
 	}
 	if len(os.Getenv(libint.GoIntegrationEnv)) > 0 {
 		// Needed for integration test ready signal.
+		fmt.Printf("Port=%d\n", conn.LocalAddr().(*snet.Addr).Host.L4.Port())
 		fmt.Printf("%s%s\n", libint.ReadySignal, integration.Local.IA)
 	}
 	log.Debug("Listening", "local", conn.LocalAddr())

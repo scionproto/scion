@@ -23,9 +23,8 @@ import (
 )
 
 var (
-	name       = "scmp_error"
-	dockerArgs = []string{"tester", cmd}
-	cmd        = "./python/integration/scmp_error_test.py"
+	name = "scmp_error"
+	cmd  = "./python/integration/scmp_error_test.py"
 )
 
 func main() {
@@ -40,12 +39,14 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	clientArgs := []string{integration.SrcIAReplace, integration.DstIAReplace}
-	// Redefine command and adjust args if run in docker
-	if *integration.Docker {
-		clientArgs = append(dockerArgs, clientArgs...)
-		cmd = integration.DockerCmd
+	var in integration.Integration
+	if *integration.Container != "" {
+		in = integration.NewDockerIntegration(name, *integration.Container, cmd, clientArgs,
+			[]string{}, integration.StdLog)
+	} else {
+		in = integration.NewBinaryIntegration(name, cmd, clientArgs, []string{},
+			integration.StdLog)
 	}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
 	if err := integration.RunUnaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

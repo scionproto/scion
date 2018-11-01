@@ -29,6 +29,7 @@ if [ "$BUILDKITE_BRANCH" == "master" ]; then
     cat "$BASE/docker-integration.yml"
     continue_on_failure
     cat "$BASE/logs.yml"
+    continue_on_failure
 
     # acceptance testing
     "$BASE/acceptance.sh"
