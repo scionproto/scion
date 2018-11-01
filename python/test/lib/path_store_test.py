@@ -383,7 +383,7 @@ class TestPathStoreUpdateAllDelayTime(object):
                               for i in range(5)]
         for i in range(5):
             pcb = MagicMock(spec_set=['get_timestamp'])
-            pcb.get_timestamp.return_value = 1
+            pcb.get_timestamp.return_value = 0
             pth_str.candidates[i].pcb = pcb
             pth_str.candidates[i].last_seen_time = 2 * i + 2
         pth_str._update_all_delay_time()
@@ -391,6 +391,23 @@ class TestPathStoreUpdateAllDelayTime(object):
             pth_str.candidates[i].pcb.get_timestamp.assert_called_once_with()
             ntools.assert_almost_equal(pth_str.candidates[i].delay_time,
                                        ((2 * i + 2) / 10))
+
+    def test_pcbs_from_future(self):
+        path_policy = MagicMock(spec_set=['history_limit'])
+        path_policy.history_limit = 3
+        pth_str = PathStore(path_policy)
+        pth_str.candidates = [MagicMock(spec_set=['pcb', 'delay_time',
+                                                  'last_seen_time'])
+                              for i in range(5)]
+        for i in range(5):
+            pcb = MagicMock(spec_set=['get_timestamp'])
+            pcb.get_timestamp.return_value = 2
+            pth_str.candidates[i].pcb = pcb
+            pth_str.candidates[i].last_seen_time = i
+        pth_str._update_all_delay_time()
+        for i in range(5):
+            pth_str.candidates[i].pcb.get_timestamp.assert_called_once_with()
+            ntools.assert_true(pth_str.candidates[i].delay_time > 0)
 
 
 class TestPathStoreUpdateAllFidelity(object):

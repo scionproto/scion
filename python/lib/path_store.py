@@ -403,8 +403,8 @@ class PathStore(object):
         """Update the delay time property of all path candidates."""
         max_delay_time = 0
         for candidate in self.candidates:
-            candidate.delay_time = (candidate.last_seen_time -
-                                    candidate.pcb.get_timestamp() + 1)
+            candidate.delay_time = max(1, (candidate.last_seen_time -
+                                           candidate.pcb.get_timestamp()))
             if candidate.delay_time > max_delay_time:
                 max_delay_time = candidate.delay_time
         for candidate in self.candidates:
