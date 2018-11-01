@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package conf
+package csconfig
 
 import (
 	"bytes"
@@ -50,9 +50,9 @@ type Customers struct {
 	path string
 }
 
-// LoadCustomers populates the mapping from assigned non-core ASes to their verifying key.
-func (c *Conf) LoadCustomers() (*Customers, error) {
-	cust := &Customers{path: filepath.Join(c.StateDir, CustomersDir)}
+// loadCustomers populates the mapping from assigned non-core ASes to their verifying key.
+func (s *State) loadCustomers(stateDir string) (*Customers, error) {
+	cust := &Customers{path: filepath.Join(stateDir, CustomersDir)}
 	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", cust.path))
 	if err != nil {
 		return nil, err

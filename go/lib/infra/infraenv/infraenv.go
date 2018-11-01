@@ -108,9 +108,18 @@ Top:
 }
 
 func InitInfraEnvironment(topologyPath string) *env.Env {
+	return InitInfraEnvironmentFunc(topologyPath, nil)
+}
+
+// InitInfraEnvironmentFunc sets up the environment by first calling
+// env.RealoadTopology and then the provided function.
+func InitInfraEnvironmentFunc(topologyPath string, f func()) *env.Env {
 	return env.SetupEnv(
 		func() {
 			env.ReloadTopology(topologyPath)
+			if f != nil {
+				f()
+			}
 		},
 	)
 }

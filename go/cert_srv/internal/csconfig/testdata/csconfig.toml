@@ -1,0 +1,5 @@
+[cs]
+  LeafReissueLeadTime = "7h"
+  IssuerReissueLeadTime = "2d"
+  ReissueRate = "12s"
+  ReissueTimeout = "6s"

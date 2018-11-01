@@ -20,111 +20,144 @@ import (
 	"fmt"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
+
+	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
-	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
+	"github.com/scionproto/scion/go/lib/periodic"
 )
 
-const (
-	initAttempts = 100
-	initInterval = time.Second
-)
+type Config struct {
+	General env.General
+	Sciond  env.SciondClient `toml:"sd_client"`
+	Logging env.Logging
+	Metrics env.Metrics
+	Trust   env.Trust
+	Infra   env.Infra
+	CS      csconfig.Conf
+	state   *csconfig.State
+}
 
 var (
-	id         = flag.String("id", "", "Element ID (Required. E.g. 'cs4-ff00:0:2f')")
-	sciondPath = flag.String("sciond", sciond.GetDefaultSCIONDPath(nil), "SCIOND socket path")
-	dispPath   = flag.String("dispatcher", "", "SCION Dispatcher path")
-	confDir    = flag.String("confd", "", "Configuration directory (Required)")
-	cacheDir   = flag.String("cached", "gen-cache", "Caching directory")
-	stateDir   = flag.String("stated", "", "State directory (Defaults to confd)")
-	prom       = flag.String("prom", "127.0.0.1:1282", "Address to export prometheus metrics on")
-	reissReq   *ReissRequester
-	sighup     chan os.Signal
+	config      Config
+	environment *env.Env
+	reissRunner *periodic.Runner
+	msgr        *messenger.Messenger
 )
 
 func init() {
-	// Add a SIGHUP handler as soon as possible on startup, to reduce the
-	// chance that a premature SIGHUP will kill the process. This channel is
-	// used by configSig below.
-	sighup = make(chan os.Signal, 1)
-	signal.Notify(sighup, syscall.SIGHUP)
+	flag.Usage = env.Usage
 }
 
 // main initializes the certificate server and starts the dispatcher.
 func main() {
-	var err error
-	os.Setenv("TZ", "UTC")
-	log.AddLogFileFlags()
-	log.AddLogConsFlags()
-	flag.Parse()
-	if *id == "" {
-		log.Crit("No element ID specified")
-		flag.Usage()
-		os.Exit(1)
-	}
-	if err = log.SetupFromFlags(*id); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
-		flag.Usage()
-		os.Exit(1)
-	}
-	defer log.LogPanicAndExit()
-	setupSignals()
-	if err = checkFlags(); err != nil {
-		fatal(err.Error())
-	}
-	if err = setup(); err != nil {
-		fatal("Setup failed", "err", err.Error())
-	}
-	select {}
+	os.Exit(realMain())
 }
 
-// checkFlags checks that all required flags are set.
-func checkFlags() error {
-	if *sciondPath == "" {
-		flag.Usage()
-		return common.NewBasicError("No SCIOND path specified", nil)
+func realMain() int {
+	env.AddFlags()
+	flag.Parse()
+	if v, ok := env.CheckFlags(csconfig.Sample); !ok {
+		return v
 	}
-	if *confDir == "" {
-		flag.Usage()
-		return common.NewBasicError("No configuration directory specified", nil)
+	if err := setupBasic(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	if *stateDir == "" {
-		*stateDir = *confDir
+	defer env.CleanupLog()
+	// Setup the state and the messenger
+	if err := setup(); err != nil {
+		log.Crit("Setup failed", "err", err)
+		return 1
 	}
+	// Start the periodic reissuance task.
+	reissRunner = startReissRunner()
+	// Start the messenger.
+	go func() {
+		defer log.LogPanicAndExit()
+		msgr.ListenAndServe()
+	}()
+	// Set environment to listen for signals.
+	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
+		if err := reload(); err != nil {
+			log.Error("Unable to reload", "err", err)
+		}
+	})
+	// Cleanup when the CS exits.
+	defer stop()
+	// Create a channel where prometheus can signal fatal errors
+	fatalC := make(chan error, 1)
+	config.Metrics.StartPrometheus(fatalC)
+	select {
+	case <-environment.AppShutdownSignal:
+		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
+		return 0
+	case err := <-fatalC:
+		// Prometheus encountered a fatal error, thus we exit.
+		log.Crit("Unable to listen and serve", "err", err)
+		return 1
+	}
+}
+
+// reload reloads the topology and CS config.
+func reload() error {
+	// FIXME(roosd): KeyConf reloading is not yet supported.
+	// https://github.com/scionproto/scion/issues/2077
+	config.General.Topology = itopo.GetCurrentTopology()
+	var newConf Config
+	// Load new config to get the CS parameters.
+	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
+		return err
+	}
+	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
+		return common.NewBasicError("Unable to initialize CS config", err)
+	}
+	config.CS = newConf.CS
+	// Restart the periodic reissue task to respect the fresh parameters.
+	reissRunner.Stop()
+	reissRunner = startReissRunner()
 	return nil
 }
 
-// setupSignals handle signals.
-func setupSignals() {
-	sig := make(chan os.Signal, 2)
-	signal.Notify(sig, os.Interrupt)
-	signal.Notify(sig, syscall.SIGTERM)
-	go func() {
-		defer log.LogPanicAndExit()
-		s := <-sig
-		log.Info("Received signal, exiting...", "signal", s)
-		log.Flush()
-		os.Exit(1)
-	}()
-	go func() {
-		defer log.LogPanicAndExit()
-		configSig()
-	}()
-}
-
-func configSig() {
-	for range sighup {
-		log.Info("Reloading is not supported")
+// startReissRunner starts a periodic reissuance task. Core starts self-issuer.
+// Non-core starts a requester.
+func startReissRunner() *periodic.Runner {
+	if config.General.Topology.Core {
+		log.Info("Starting periodic reiss.Self task")
+		return periodic.StartPeriodicTask(
+			&reiss.Self{
+				Msgr:     msgr,
+				State:    config.state,
+				IA:       config.General.Topology.ISD_AS,
+				IssTime:  config.CS.IssuerReissueLeadTime.Duration,
+				LeafTime: config.CS.LeafReissueLeadTime.Duration,
+			},
+			time.NewTicker(config.CS.ReissueRate.Duration),
+			config.CS.ReissueTimeout.Duration,
+		)
 	}
+	log.Info("Starting periodic reiss.Requester task")
+	return periodic.StartPeriodicTask(
+		&reiss.Requester{
+			Msgr:     msgr,
+			State:    config.state,
+			IA:       config.General.Topology.ISD_AS,
+			LeafTime: config.CS.LeafReissueLeadTime.Duration,
+		},
+		time.NewTicker(config.CS.ReissueRate.Duration),
+		config.CS.ReissueTimeout.Duration,
+	)
 }
 
-func fatal(msg string, args ...interface{}) {
-	log.Crit(msg, args...)
-	log.Flush()
-	os.Exit(1)
+func stop() {
+	reissRunner.Stop()
+	msgr.CloseServer()
 }
