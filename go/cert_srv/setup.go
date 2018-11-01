@@ -57,8 +57,7 @@ func setupBasic() error {
 	return nil
 }
 
-// setup initializes the config, starts the messenger and periodic reissue task
-// and sets the environment.
+// setup initializes the config and sets the messenger.
 func setup() error {
 	if err := env.InitGeneral(&config.General); err != nil {
 		return common.NewBasicError("Unable to initialize General config", err)
@@ -72,9 +71,8 @@ func setup() error {
 	if err := initState(&config); err != nil {
 		return common.NewBasicError("Unable to initialize CS state", err)
 	}
-	// Start the messenger.
 	if err := setMessenger(&config); err != nil {
-		return common.NewBasicError("Unable to start messenger", err)
+		return common.NewBasicError("Unable to set messenger", err)
 	}
 	return nil
 }
@@ -125,7 +123,7 @@ func setDefaultSignerVerifier(c *csconfig.State, pubIA addr.IA) error {
 	return nil
 }
 
-// setMessenger starts the messenger and sets the internal messenger of the store in
+// setMessenger sets the messenger and the internal messenger of the store in
 // config.CS. This function may only be called once per config.
 func setMessenger(config *Config) error {
 	topoAddress := config.General.Topology.CS.GetById(config.General.ID)
