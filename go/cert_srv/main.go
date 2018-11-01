@@ -20,10 +20,17 @@ import (
 	"fmt"
 	_ "net/http/pprof"
 	"os"
+	"time"
+
+	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
@@ -43,7 +50,7 @@ var (
 	config      Config
 	environment *env.Env
 	reissRunner *periodic.Runner
-	currMsgr    *messenger.Messenger
+	msgr        *messenger.Messenger
 )
 
 func init() {
@@ -65,11 +72,26 @@ func realMain() int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	defer env.CleanupLog()
+	// Setup the state and the messenger
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	defer env.CleanupLog()
+	// Start the periodic reissuance task.
+	reissRunner = startReissRunner()
+	// Start the messenger.
+	go func() {
+		defer log.LogPanicAndExit()
+		msgr.ListenAndServe()
+	}()
+	// Set environment to listen for signals.
+	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
+		if err := reload(); err != nil {
+			log.Error("Unable to reload", "err", err)
+		}
+	})
+	// Cleanup when the CS exits.
 	defer stop()
 	// Create a channel where prometheus can signal fatal errors
 	fatalC := make(chan error, 1)
@@ -85,7 +107,57 @@ func realMain() int {
 	}
 }
 
+// reload reloads the topology and CS config.
+func reload() error {
+	// FIXME(roosd): KeyConf reloading is not yet supported.
+	// https://github.com/scionproto/scion/issues/2077
+	config.General.Topology = itopo.GetCurrentTopology()
+	var newConf Config
+	// Load new config to get the CS parameters.
+	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
+		return err
+	}
+	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
+		return common.NewBasicError("Unable to initialize CS config", err)
+	}
+	config.CS = newConf.CS
+	// Restart the periodic reissue task to respect the fresh parameters.
+	reissRunner.Stop()
+	reissRunner = startReissRunner()
+	return nil
+}
+
+// startReissRunner starts a periodic reissuance task. Core starts self-issuer.
+// Non-core starts a requester.
+func startReissRunner() *periodic.Runner {
+	if config.General.Topology.Core {
+		log.Info("Starting periodic reiss.Self task")
+		return periodic.StartPeriodicTask(
+			&reiss.Self{
+				Msgr:     msgr,
+				State:    config.state,
+				IA:       config.General.Topology.ISD_AS,
+				IssTime:  config.CS.IssuerReissueLeadTime.Duration,
+				LeafTime: config.CS.LeafReissueLeadTime.Duration,
+			},
+			time.NewTicker(config.CS.ReissueRate.Duration),
+			config.CS.ReissueTimeout.Duration,
+		)
+	}
+	log.Info("Starting periodic reiss.Requester task")
+	return periodic.StartPeriodicTask(
+		&reiss.Requester{
+			Msgr:     msgr,
+			State:    config.state,
+			IA:       config.General.Topology.ISD_AS,
+			LeafTime: config.CS.LeafReissueLeadTime.Duration,
+		},
+		time.NewTicker(config.CS.ReissueRate.Duration),
+		config.CS.ReissueTimeout.Duration,
+	)
+}
+
 func stop() {
 	reissRunner.Stop()
-	currMsgr.CloseServer()
+	msgr.CloseServer()
 }

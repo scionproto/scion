@@ -82,7 +82,7 @@ func (r *Requester) sendReq(ctx context.Context, chain *cert.Chain) (bool, error
 	c := chain.Leaf.Copy()
 	c.IssuingTime = util.TimeToSecs(time.Now())
 	c.ExpirationTime = c.IssuingTime + (chain.Leaf.ExpirationTime - chain.Leaf.IssuingTime)
-	c.Version += 1
+	c.Version++
 	if err := c.Sign(r.State.GetSigningKey(), chain.Leaf.SignAlgorithm); err != nil {
 		return true, common.NewBasicError("Unable to sign certificate", err)
 	}
