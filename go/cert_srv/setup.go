@@ -17,7 +17,6 @@ package main
 import (
 	"math/rand"
 	"path/filepath"
-	"time"
 
 	"github.com/BurntSushi/toml"
 
@@ -34,7 +33,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -62,31 +60,22 @@ func setupBasic() error {
 // setup initializes the config, starts the messenger and periodic reissue task
 // and sets the environment.
 func setup() error {
-	var err error
-	if err = env.InitGeneral(&config.General); err != nil {
+	if err := env.InitGeneral(&config.General); err != nil {
 		return common.NewBasicError("Unable to initialize General config", err)
 	}
 	itopo.SetCurrentTopology(config.General.Topology)
 	env.InitSciondClient(&config.Sciond)
-	if err = config.CS.Init(config.General.ConfigDir); err != nil {
+	if err := config.CS.Init(config.General.ConfigDir); err != nil {
 		return common.NewBasicError("Unable to initialize CS config", err)
 	}
 	// Load CS state.
-	if err = initState(&config); err != nil {
+	if err := initState(&config); err != nil {
 		return common.NewBasicError("Unable to initialize CS state", err)
 	}
 	// Start the messenger.
-	if currMsgr, err = startMessenger(&config); err != nil {
+	if err := setMessenger(&config); err != nil {
 		return common.NewBasicError("Unable to start messenger", err)
 	}
-	// Start the periodic reissuance task.
-	reissRunner = startReissRunner(&config, currMsgr)
-	// Set environment to listen for signals.
-	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
-		if err := reload(); err != nil {
-			log.Error("Unable to reload", "err", err)
-		}
-	})
 	return nil
 }
 
@@ -136,20 +125,12 @@ func setDefaultSignerVerifier(c *csconfig.State, pubIA addr.IA) error {
 	return nil
 }
 
-// startMessenger starts the messenger and sets the internal messenger of the store in
+// setMessenger starts the messenger and sets the internal messenger of the store in
 // config.CS. This function may only be called once per config.
-func startMessenger(config *Config) (*messenger.Messenger, error) {
-	var reissHandler *reiss.Handler
-	// Only core CS handles certificate reissuance requests.
-	if config.General.Topology.Core {
-		reissHandler = &reiss.Handler{
-			State: config.state,
-			IA:    config.General.Topology.ISD_AS,
-		}
-	}
+func setMessenger(config *Config) error {
 	topoAddress := config.General.Topology.CS.GetById(config.General.ID)
 	if topoAddress == nil {
-		return nil, common.NewBasicError("Unable to find topo address", nil)
+		return common.NewBasicError("Unable to find topo address", nil)
 	}
 	msgrI, err := infraenv.InitMessengerWithSciond(
 		config.General.Topology.ISD_AS,
@@ -161,81 +142,32 @@ func startMessenger(config *Config) (*messenger.Messenger, error) {
 		config.Sciond,
 	)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to initialize SCION Messenger", err)
+		return common.NewBasicError("Unable to initialize SCION Messenger", err)
 	}
 	// FIXME(roosd): Hack to make Store.ChooseServer not panic.
-	// Remove when #2029 is resolved.
+	// Remove when https://github.com/scionproto/scion/issues/2029 is resolved.
 	if err := snet.Init(config.General.Topology.ISD_AS, config.Sciond.Path, ""); err != nil {
-		return nil, common.NewBasicError("Unable to initialize snet", err)
+		return common.NewBasicError("Unable to initialize snet", err)
 	}
 	// FIXME(roosd): We need the actual type to set the signer and verifier.
-	// Remove when #2030 is resolved.
-	msgr, ok := msgrI.(*messenger.Messenger)
-	if !ok {
-		return nil, common.NewBasicError("Unsupported messenger type", nil,
+	// Remove when https://github.com/scionproto/scion/issues/2030 is resolved.
+	var ok bool
+	if msgr, ok = msgrI.(*messenger.Messenger); !ok {
+		return common.NewBasicError("Unsupported messenger type", nil,
 			"msgrI", common.TypeOf(msgrI))
 	}
 	msgr.AddHandler(infra.ChainRequest, config.state.Store.NewChainReqHandler(true))
 	msgr.AddHandler(infra.TRCRequest, config.state.Store.NewTRCReqHandler(true))
 	msgr.AddHandler(infra.Chain, config.state.Store.NewChainPushHandler())
 	msgr.AddHandler(infra.TRC, config.state.Store.NewTRCPushHandler())
-	if config.General.Topology.Core {
-		msgr.AddHandler(infra.ChainIssueRequest, reissHandler)
-	}
 	msgr.UpdateSigner(config.state.GetSigner(), []infra.MessageType{infra.ChainIssueRequest})
 	msgr.UpdateVerifier(config.state.GetVerifier())
-	go func() {
-		defer log.LogPanicAndExit()
-		msgr.ListenAndServe()
-	}()
-	return msgr, nil
-}
-
-// startReissRunner starts a periodic reissuance task. Core starts self-issuer.
-// Non-core starts a requester.
-func startReissRunner(config *Config, msgr *messenger.Messenger) *periodic.Runner {
+	// Only core CS handles certificate reissuance requests.
 	if config.General.Topology.Core {
-		log.Info("Starting periodic reiss.Self task")
-		return periodic.StartPeriodicTask(
-			&reiss.Self{
-				Msgr:     msgr,
-				State:    config.state,
-				IA:       config.General.Topology.ISD_AS,
-				IssTime:  config.CS.IssuerReissueLeadTime.Duration,
-				LeafTime: config.CS.LeafReissueLeadTime.Duration,
-			},
-			time.NewTicker(config.CS.ReissueRate.Duration),
-			config.CS.ReissueTimeout.Duration,
-		)
+		msgr.AddHandler(infra.ChainIssueRequest, &reiss.Handler{
+			State: config.state,
+			IA:    config.General.Topology.ISD_AS,
+		})
 	}
-	log.Info("Starting periodic reiss.Requester task")
-	return periodic.StartPeriodicTask(
-		&reiss.Requester{
-			Msgr:     msgr,
-			State:    config.state,
-			IA:       config.General.Topology.ISD_AS,
-			LeafTime: config.CS.LeafReissueLeadTime.Duration,
-		},
-		time.NewTicker(config.CS.ReissueRate.Duration),
-		config.CS.ReissueTimeout.Duration,
-	)
-}
-
-// reload reloads the topology and CS config.
-func reload() error {
-	// FIXME(roosd): KeyConf reloading is not yet supported.
-	config.General.Topology = itopo.GetCurrentTopology()
-	var newConf Config
-	// Load new config to get the CS parameters.
-	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
-		return err
-	}
-	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
-		return common.NewBasicError("Unable to initialize CS config", err)
-	}
-	config.CS = newConf.CS
-	// Restart the periodic reissue task to respect the fresh parameters.
-	reissRunner.Stop()
-	reissRunner = startReissRunner(&config, currMsgr)
 	return nil
 }

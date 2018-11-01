@@ -89,7 +89,7 @@ func (s *Self) createLeafCert(leaf *cert.Certificate) error {
 		return common.NewBasicError("Unable to get issuer certificate", err)
 	}
 	chain := &cert.Chain{Leaf: leaf.Copy(), Issuer: issCrt}
-	chain.Leaf.Version += 1
+	chain.Leaf.Version++
 	chain.Leaf.IssuingTime = util.TimeToSecs(time.Now())
 	chain.Leaf.CanIssue = false
 	chain.Leaf.ExpirationTime = chain.Leaf.IssuingTime + cert.DefaultLeafCertValidity
