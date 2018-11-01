@@ -29,7 +29,7 @@ test_run() {
     local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
     jq '.BorderRouters[].InternalAddrs.IPv4.PublicOverlay = {Addr: "127.42.42.42", OverlayPort: 39999}' $topo_file | sponge $topo_file
     docker kill --signal=HUP sd$SRC_IA_FILE
-    sleep 1
+    sleep 6
     bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
     sleep 2
     grep -q "NextHop=\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" || \
