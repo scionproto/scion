@@ -130,9 +130,9 @@ func (c client) run() int {
 	return integration.AttemptRepeatedly("End2End", c.attemptRequest)
 }
 
-func (c client) attemptRequest() bool {
+func (c client) attemptRequest(n int) bool {
 	// Send ping
-	if err := c.ping(); err != nil {
+	if err := c.ping(n); err != nil {
 		log.Error("Could not send packet", "err", err)
 		return false
 	}
@@ -144,8 +144,8 @@ func (c client) attemptRequest() bool {
 	return true
 }
 
-func (c client) ping() error {
-	if err := c.getRemote(); err != nil {
+func (c client) ping(n int) error {
+	if err := c.getRemote(n); err != nil {
 		return err
 	}
 	c.conn.SetWriteDeadline(time.Now().Add(integration.DefaultIOTimeout))
@@ -154,13 +154,13 @@ func (c client) ping() error {
 	return err
 }
 
-func (c client) getRemote() error {
+func (c client) getRemote(n int) error {
 	if remote.IA.Eq(integration.Local.IA) {
 		return nil
 	}
 	// Get paths from sciond with refresh
 	paths, err := c.sdConn.PathsCtx(context.TODO(), remote.IA, integration.Local.IA, 1,
-		sciond.PathReqFlags{Refresh: true})
+		sciond.PathReqFlags{Refresh: n != 0})
 	if err != nil {
 		return err
 	}
