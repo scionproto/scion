@@ -87,7 +87,8 @@ func initNetwork() {
 	log.Debug("SCION network successfully initialized")
 }
 
-type AttemptFunc func() bool
+// AttemptFunc attempts a request repeatedly, receives the attempt number
+type AttemptFunc func(n int) bool
 
 // AttemptRepeatedly runs attempt until it returns true or more than Attempts were executed.
 // Between two attempts at least RetryTimeout time has to pass.
@@ -98,7 +99,7 @@ func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 	attempts := 0
 	for ; true; <-ticker.C {
 		attempts++
-		if attempt() {
+		if attempt(attempts) {
 			return 0
 		} else if attempts < Attempts {
 			log.Info("Retrying...")

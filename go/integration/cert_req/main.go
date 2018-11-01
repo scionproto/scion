@@ -81,7 +81,7 @@ func (c client) run() int {
 	return integration.AttemptRepeatedly("Cert request", c.attemptRequest)
 }
 
-func (c client) attemptRequest() bool {
+func (c client) attemptRequest(n int) bool {
 	// Send certchain request
 	var chain *cert.Chain
 	var err error
@@ -99,7 +99,7 @@ func (c client) attemptRequest() bool {
 
 func (c client) requestCert() (*cert.Chain, error) {
 	req := &cert_mgmt.ChainReq{
-		CacheOnly: true,
+		CacheOnly: false,
 		RawIA:     remoteIA.IAInt(),
 		Version:   scrypto.LatestVer,
 	}
@@ -124,7 +124,7 @@ func (c client) requestCert() (*cert.Chain, error) {
 
 func (c client) requestTRC(chain *cert.Chain) error {
 	req := &cert_mgmt.TRCReq{
-		CacheOnly: true,
+		CacheOnly: false,
 		ISD:       remoteIA.I,
 		Version:   scrypto.LatestVer,
 	}
