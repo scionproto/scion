@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -30,8 +31,14 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-// StartServerTimeout is the timeout for starting a server.
-var StartServerTimeout = 1 * time.Second
+const (
+	// StartServerTimeout is the timeout for starting a server.
+	StartServerTimeout = 2 * time.Second
+	// DefaultRunTimeout is the timeout when running a server or a client.
+	DefaultRunTimeout = 8 * time.Second
+	// RetryTimeout is the timeout between different attempts
+	RetryTimeout = time.Second / 2
+)
 
 type iaArgs []addr.IA
 
@@ -214,4 +221,89 @@ func ExtractUniqueDsts(pairs []IAPair) []addr.IA {
 		}
 	}
 	return res
+}
+
+// RunBinaryTests runs the client and server for each IAPair. A number of tests are run in parallel
+// In case of an error the function is terminated immediately.
+func RunBinaryTests(in Integration, pairs []IAPair) error {
+	return runTests(in, pairs, 1, func(idx int, pair IAPair) error {
+		// Start server
+		s, err := StartServer(in, pair.Dst)
+		if err != nil {
+			return err
+		}
+		defer s.Close()
+		// Start client
+		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst,
+			idx+1, len(pairs)))
+		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
+			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// RunUnaryTests runs the client for each IAPair.
+// In case of an error the function is terminated immediately.
+func RunUnaryTests(in Integration, pairs []IAPair) error {
+	return runTests(in, pairs, 2, func(idx int, pair IAPair) error {
+		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
+			in.Name(), pair.Src, pair.Dst, idx+1, len(pairs)))
+		// Start client
+		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
+			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			return err
+		}
+		return nil
+	})
+}
+
+// runTests runs the testF for all the given IAPairs in parallel.
+func runTests(in Integration, pairs []IAPair, maxGoRoutines int,
+	testF func(int, IAPair) error) error {
+
+	return ExecuteTimed(in.Name(), func() error {
+		errors := make(chan error, len(pairs))
+		workChan := make(chan workFunc, len(pairs))
+		for i := range pairs {
+			idx, pair := i, pairs[i]
+			workChan <- func() error {
+				return testF(idx, pair)
+			}
+		}
+		// Run tests in parallel
+		return workInParallel(workChan, errors, maxGoRoutines)
+	})
+}
+
+type workFunc func() error
+
+func workInParallel(workChan chan workFunc, errors chan error, maxGoRoutines int) error {
+	var wg sync.WaitGroup
+	for i := 1; i <= maxGoRoutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer log.LogPanicAndExit()
+			defer wg.Done()
+			for work := range workChan {
+				err := work()
+				if err != nil {
+					errors <- err
+				}
+			}
+		}()
+	}
+	close(workChan)
+	wg.Wait()
+	return errFromChan(errors)
+}
+
+func errFromChan(errors chan error) error {
+	select {
+	case err := <-errors:
+		return err
+	default:
+		return nil
+	}
 }

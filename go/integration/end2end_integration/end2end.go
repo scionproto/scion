@@ -1,4 +1,4 @@
-// Copyright 2018 Anapaya Systems
+// Copyright 2018 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,21 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-const (
-	serverPort = "40004"
+var (
+	name       = "end2end"
+	cmd        = "./bin/end2end"
+	dockerArgs = []string{"tester", cmd}
+	attempts   = flag.Int("attempts", 1, "Number of attempts before giving up.")
 )
 
 func main() {
@@ -32,18 +37,24 @@ func main() {
 }
 
 func realMain() int {
-	if err := integration.Init("pp_integration"); err != nil {
+	if err := integration.Init(name); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	in := integration.NewBinaryIntegration("pingpong", "./bin/pingpong",
-		[]string{"-mode", "client", "-sciondFromIA", "-log.console", "debug", "-count", "1",
-			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
-			"-remote", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort},
-		[]string{"-mode", "server", "-sciondFromIA", "-log.console", "debug",
-			"-local", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort}, integration.StdLog)
+	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]:0"
+	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:40005"
+	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
+		"-local", clientAddr, "-remote", serverAddr}
+	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr}
+	// Redefine command and adjust args if run in docker
+	if *integration.Docker {
+		clientArgs = append(dockerArgs, clientArgs...)
+		serverArgs = append(dockerArgs, serverArgs...)
+		cmd = integration.DockerCmd
+	}
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
@@ -68,7 +79,8 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
-			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
+			t := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
+			if err := integration.RunClient(in, conn, t); err != nil {
 				log.Error("Error during client execution", "err", err)
 				return err
 			}

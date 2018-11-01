@@ -29,7 +29,9 @@ from lib.util import (
 )
 from topology.common import _prom_addr_br, _prom_addr_infra
 
-DOCKER_CONF = 'scion-dc.yml'
+DOCKER_BASE_CONF = 'base-dc.yml'
+DOCKER_SCION_CONF = 'scion-dc.yml'
+DOCKER_UTIL_CONF = 'utils-dc.yml'
 DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 
 
@@ -39,7 +41,9 @@ class DockerGenerator(object):
         self.topo_dicts = topo_dicts
         self.sd = sd
         self.ps = ps
-        self.dc_conf = {'version': '3', 'services': {}, 'networks': {}}
+        self.dc_base_conf = {'version': '3', 'networks': {}}
+        self.dc_conf = {'version': '3', 'services': {}}
+        self.dc_util_conf = {'version': '3', 'services': {}}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
         self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
 
@@ -47,15 +51,20 @@ class DockerGenerator(object):
         self._base_conf()
         self._zookeeper_conf()
         self._dispatcher_conf()
+        self._test_conf()
         for topo_id, topo in self.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.out_dir))
             self._gen_topo(topo_id, topo, base)
-        write_file(os.path.join(self.out_dir, DOCKER_CONF),
+        write_file(os.path.join(self.out_dir, DOCKER_SCION_CONF),
                    yaml.dump(self.dc_conf, default_flow_style=False))
+        write_file(os.path.join(self.out_dir, DOCKER_UTIL_CONF),
+                   yaml.dump(self.dc_util_conf, default_flow_style=False))
+        write_file(os.path.join(self.out_dir, DOCKER_BASE_CONF),
+                   yaml.dump(self.dc_base_conf, default_flow_style=False))
 
     def _base_conf(self):
         default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
-        self.dc_conf['networks']['default'] = default_net
+        self.dc_base_conf['networks']['default'] = default_net
 
     def _gen_topo(self, topo_id, topo, base):
         self._br_conf(topo, base)
@@ -273,6 +282,27 @@ class DockerGenerator(object):
                     'conf'
             ]
         self.dc_conf['services'][name] = entry
+
+    def _test_conf(self):
+        entry = {
+            'image': 'scion_app_builder',
+            'environment': {
+                'PYTHONPATH': 'python/:'
+            },
+            'volumes': [
+                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
+                '/run/shm/sciond:/run/shm/sciond:rw',
+                self.output_base + '/logs:/home/scion/go/src/github.com/scionproto/scion/logs:rw'
+            ],
+            'entrypoint': [],
+            'command': [
+                'tail',
+                '-f',
+                '/dev/null'
+            ]
+        }
+        entry['container_name'] = 'tester'
+        self.dc_util_conf['services']['tester'] = entry
 
     def _sciond_name(self, topo_id):
         return 'sd' + topo_id.file_fmt()

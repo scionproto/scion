@@ -30,6 +30,12 @@ yet or made local changes then first run `make`.
 It's possible to run the entire infrastructure in a docker container. For more information
 see `docker/README.md`.
 
+### Per-app Docker
+It's possible to run every service instance in its own docker container. When creating the
+topology, specify the `-d` flag.
+
+If you want to use `docker-compose` commands, `./tools/dc` might be helpful.
+
 ### Circle-CI
 The SCION project uses Circle-CI as its continuous integration platform. To run a local version
 of Circle-CI first build a docker image as described in `docker/README.md` and then run

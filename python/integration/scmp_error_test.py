@@ -19,16 +19,17 @@
 # Stdlib
 import copy
 import logging
+import sys
 
 # SCION
 import lib.app.sciond as lib_sciond
 from lib.defines import MAX_HOPBYHOP_EXT
 from lib.main import main_wrapper
 from lib.packet.ctrl_pld import CtrlPayload
-from lib.packet.host_addr import HostAddrSVC
+from lib.packet.host_addr import haddr_parse_interface, HostAddrSVC
 from lib.packet.ifid import IFIDPayload
 from lib.packet.path import SCIONPath
-from lib.packet.scion_addr import ISD_AS
+from lib.packet.scion_addr import ISD_AS, SCIONAddr
 from lib.packet.scmp.ext import SCMPExt
 from lib.packet.ext.one_hop_path import OneHopPathExt
 from lib.packet.scmp.types import (
@@ -41,7 +42,6 @@ from lib.packet.scmp.types import (
 from lib.types import L4Proto
 from integration.base_cli_srv import (
     TestClientBase,
-    TestClientServerBase,
     setup_main,
 )
 
@@ -63,6 +63,7 @@ class ErrorGenBase(TestClientBase):
             logging.error("Test timed out")
             return False
         ret = self._handle_response(pkt)
+        self.success = ret
         self._shutdown()
         return ret
 
@@ -360,26 +361,20 @@ GEN_LIST = (
 )
 
 
-class SCMPErrorTest(TestClientServerBase):
-    NAME = "SCMPErr"
-
-    def _run_test(self, src, dst):
-        logging.info("=======================> Testing: %s -> %s",
-                     src.isd_as, dst.isd_as)
-        data = ("%s<->%s" % (src, dst)).encode("UTF-8")
-        for cls_ in GEN_LIST:
-            logging.info("===========> Testing: %s", cls_.DESC)
-            client = cls_(copy.deepcopy(data), None, copy.deepcopy(src),
-                          copy.deepcopy(dst), 0, api=True)
-            if not client.run():
-                return False
-        return True
-
-
 def main():
-    args, srcs, dsts = setup_main("scmp_error_test")
-    SCMPErrorTest(args.client, args.server, srcs, dsts, local=False,
-                  max_runs=args.runs).run()
+    args = setup_main("scmp_error_test")
+
+    src = SCIONAddr.from_values(ISD_AS(args.src_ia), haddr_parse_interface(args.client))
+    dst = SCIONAddr.from_values(ISD_AS(args.dst_ia), haddr_parse_interface(args.server))
+    data = ("%s<->%s" % (src, dst)).encode("UTF-8")
+    success = True
+    for cls_ in GEN_LIST:
+        logging.info("===========> Testing: %s", cls_.DESC)
+        client = cls_(copy.deepcopy(data), copy.deepcopy(src), copy.deepcopy(dst), 0, api=True)
+        if not client.run():
+            success = False
+    if not success:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

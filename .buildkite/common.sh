@@ -1,4 +1,4 @@
-set -u
+set -e
 
 if [ "$BUILDKITE_PULL_REQUEST" == "false" ]; then
     TARGET="$BUILDKITE_BRANCH"
