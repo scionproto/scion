@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"os"
-	"time"
 
 	"github.com/scionproto/scion/go/integration"
 	"github.com/scionproto/scion/go/lib/addr"
@@ -79,21 +78,7 @@ func (c client) run() int {
 	if err = getRemote(); err != nil {
 		integration.LogFatal("Error finding remote address", err)
 	}
-	ticker := time.NewTicker(integration.RetryTimeout)
-	defer ticker.Stop()
-	tries := 0
-	for ; true; <-ticker.C {
-		tries++
-		if c.attemptRequest() {
-			return 0
-		} else if tries < integration.Attempts {
-			log.Info("Retrying...")
-			continue
-		}
-		log.Error("Cert request failed. No more attempts...")
-		break
-	}
-	return 1
+	return integration.AttemptRepeatedly("Cert request", c.attemptRequest)
 }
 
 func (c client) attemptRequest() bool {

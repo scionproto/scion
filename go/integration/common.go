@@ -87,6 +87,29 @@ func initNetwork() {
 	log.Debug("SCION network successfully initialized")
 }
 
+type AttemptFunc func() bool
+
+// AttemptRepeatedly runs attempt until it returns true or more than Attempts were executed.
+// Between two attempts at least RetryTimeout time has to pass.
+// Returns 0 on success, 1 on failure.
+func AttemptRepeatedly(name string, attempt AttemptFunc) int {
+	ticker := time.NewTicker(RetryTimeout)
+	defer ticker.Stop()
+	attempts := 0
+	for ; true; <-ticker.C {
+		attempts++
+		if attempt() {
+			return 0
+		} else if attempts < Attempts {
+			log.Info("Retrying...")
+			continue
+		}
+		log.Error(fmt.Sprintf("%s failed. No more attempts...", name))
+		break
+	}
+	return 1
+}
+
 // LogFatal logs a critical error and exits with 1
 func LogFatal(msg string, a ...interface{}) {
 	log.Crit(msg, a...)
