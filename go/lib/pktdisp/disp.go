@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +32,6 @@ type DispatchFunc func(*DispPkt)
 // N.B. the DispPkt passed to f is reused, so applications should make a copy if
 // this is a problem.
 func PktDispatcher(c snet.Conn, f DispatchFunc) {
-	defer log.LogPanicAndExit()
 	var err error
 	var n int
 	dp := &DispPkt{Raw: make(common.RawBytes, common.MaxMTU)}

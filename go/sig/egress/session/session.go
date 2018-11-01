@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,7 +81,10 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, 
 	s.conn, err = snet.ListenSCION("udp4",
 		&snet.Addr{IA: sigcmn.IA, Host: &addr.AppAddr{L3: sigcmn.Host}})
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
-	go pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger)
+	go func() {
+		defer log.LogPanicAndExit()
+		pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger)
+	}()
 	s.sessMonStop = make(chan struct{})
 	s.sessMonStopped = make(chan struct{})
 	s.workerStopped = make(chan struct{})
@@ -88,8 +92,14 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, 
 }
 
 func (s *Session) Start() {
-	go newSessMonitor(s).run()
-	go s.factory(s, s.Logger).Run()
+	go func() {
+		defer log.LogPanicAndExit()
+		newSessMonitor(s).run()
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		s.factory(s, s.Logger).Run()
+	}()
 }
 
 func (s *Session) Cleanup() error {

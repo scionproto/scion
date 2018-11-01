@@ -250,7 +250,10 @@ func (r *ReissRequester) Run() {
 			}
 
 			ctx, cancelF := context.WithTimeout(context.Background(), DefaultReissTimeout)
-			go r.sendReq(ctx, cancelF, chain, config)
+			go func() {
+				defer log.LogPanicAndExit()
+				r.sendReq(ctx, cancelF, chain, config)
+			}()
 			time.Sleep(config.ReissRate)
 		}
 	}
