@@ -28,13 +28,12 @@ result=$((result+$?))
 ./tools/ci/sphinx
 result=$((result+$?))
 
-./tools/ci/integration
+./tools/ci/integration_setup && ./tools/ci/integration_run -a
 result=$((result+$?))
 
 echo "Artifacts dir: $tmpdir"
 
 [ $result -eq 0 ] && ./docker.sh stop
-./scion.sh stop
 
 if [ $result -eq 0 ]; then
     echo "All tests successful"

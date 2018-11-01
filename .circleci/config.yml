@@ -61,7 +61,9 @@ jobs:
                 when: always
             - run:
                 name: Integration tests
-                command: ./tools/ci/integration
+                command: |
+                    ./tools/ci/integration_setup
+                    ./tools/ci/integration_run
                 when: always
 
             # Clean up

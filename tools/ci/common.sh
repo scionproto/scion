@@ -3,10 +3,13 @@ usage() {
     exit 1
 }
 
-while getopts ":d" opt; do
+while getopts ":d:a" opt; do
     case "$opt" in
         d)
             DOCKER=true
+        ;;
+        a)
+            ALL=true
         ;;
         \?)
             echo "Invalid option: -$OPTARG" >&2

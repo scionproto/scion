@@ -1,0 +1,9 @@
+#!/bin/bash
+
+. tools/ci/common.sh
+set -e
+
+# FIXME(worxli): host zk should be properly isolated from dockerized zk
+./docker.sh exec "set -x; ./scion.sh topology ${DOCKER:+zkclean -d}"
+./docker.sh exec "set -eo pipefail; ./scion.sh run nobuild | grep -v "started" |& tee logs/integration.run"
+./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee logs/integration.run"

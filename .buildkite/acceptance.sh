@@ -5,8 +5,9 @@ for test in ./acceptance/*_acceptance; do
     echo "  - ./docker.sh exec ${test}/test setup"
     echo "  - ./docker.sh exec ${test}/test run"
     echo "  - ./docker.sh exec ${test}/test teardown"
-    echo "  - ./tools/ci/pack_logs"
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
+    continue_on_failure
+    cat "$BASE/logs.yml"
     continue_on_failure
 done
