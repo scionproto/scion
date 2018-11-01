@@ -31,6 +31,7 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
+	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -120,6 +121,9 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 
 	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
+	if snetAddr, ok := cPSAddr.(*snet.Addr); ok {
+		h.logger.Trace("[segReqHandler] Sending segment request", "NextHop", snetAddr.NextHop)
+	}
 	segs, err := h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
 	if err != nil {
 		return err
