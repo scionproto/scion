@@ -21,21 +21,11 @@ log() {
     echo "========> ($(date -u --rfc-3339=seconds)) $@"
 }
 
-run_docker() {
-    local cmd="$1"
-    shift
-    docker container exec $CONTAINER bash -lc "$cmd \"\$@\"" "/bin/bash" "$@"
-}
-
 run() {
     local test="${1:?}"
     shift
     log "$test: starting"
-    if [ -z "$CONTAINER" ]; then
-        time $@
-    else
-        time run_docker $@
-    fi
+    time "$@"
     local result=$?
     if [ $result -eq 0 ]; then
         log "$test: success"
@@ -51,13 +41,8 @@ usage() {
 }
 
 opts() {
-    while getopts ":b:d:" opt; do
+    while getopts ":b:" opt; do
         case "$opt" in
-            d)
-                CONTAINER="$OPTARG"
-                docker inspect "$CONTAINER" &>/dev/null || \
-                    { echo "Container $CONTAINER not found, aborting!"; exit 1; }
-                ;;
             b)
                 REV_BRS="$OPTARG"
                 ;;

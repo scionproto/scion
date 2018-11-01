@@ -24,8 +24,12 @@ cmd_topology() {
         echo "Deleting all Zookeeper state"
         # Wait some time, such that zookeeper accepts connections again after startup
         sleep 3
-        rm -rf /run/shm/scion-zk
-        tools/zkcleanslate --zk 127.0.0.1:2181
+        if is_running_in_docker; then
+            tools/zkcleanslate --zk "${DOCKER0:-172.17.0.1}:2181"
+        else
+            rm -rf /run/shm/scion-zk
+            tools/zkcleanslate --zk 127.0.0.1:2181
+        fi
     fi
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)

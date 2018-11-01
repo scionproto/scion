@@ -38,7 +38,6 @@ sleep 5
 # Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
 if [ -n "$CIRCLECI" ]; then
     sleep 10
-    [ -n "$CONTAINER"] && sleep 40
 fi
 
 # Run integration tests
@@ -64,8 +63,7 @@ for i in ./bin/*_integration; do
     result=$((result+$?))
 done
 
-[ -n "$CONTAINER" ] && rev_args="-d $CONTAINER"
-integration/revocation_test.sh -b "$REV_BRS" $rev_args
+integration/revocation_test.sh -b "$REV_BRS"
 result=$((result+$?))
 
 shutdown

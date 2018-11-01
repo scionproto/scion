@@ -1,0 +1,18 @@
+- label: Build
+  command: ./tools/ci/build
+- label: Lint
+  command: ./tools/ci/lint
+- wait: ~
+  continue_on_failure: true
+- label: Unit tests
+  command: ./tools/ci/unittest
+- label: Python documentation (sphinx)
+  command: ./tools/ci/sphinx
+- label: Integration Tests
+  command:
+  - ./tools/ci/integration
+  - ./tools/ci/pack_logs
+  artifact_paths:
+      - "artifacts.out/**/*"
+  concurrency: 1
+  concurrency_group: "integration-test"

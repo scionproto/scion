@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -eu
+
+mkdir -p artifacts.out artifacts
+cp -R "$SCION_MOUNT" "artifacts/$ARTIFACTS"
+tar caf "artifacts.out/$ARTIFACTS.tar.gz" -C artifacts "$ARTIFACTS"
