@@ -28,7 +28,7 @@ var (
 	name       = "certreq"
 	cmd        = "./bin/cert_req"
 	dockerArgs = []string{"tester", cmd}
-	attempts   = flag.Int("attempts", 1, "Number of attempts before giving up.")
+	attempts   = flag.Int("attempts", 2, "Number of attempts before giving up.")
 )
 
 func main() {
