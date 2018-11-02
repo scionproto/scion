@@ -1,0 +1,69 @@
+#!/bin/bash
+
+BRID=brA
+TEST_NAME="${BRID}_acceptance"
+DEVINFO_FN=acceptance/${BRID}_acceptance/devinfo.txt
+BRUTIL=acceptance/brutil
+
+. $BRUTIL/util.sh
+
+test_setup() {
+    set -e
+    # Bring up the dispatcher container and add new veth interfaces
+    # This appraoch currently  works because the dispatcher binds to 0.0.0.0 address.
+    docker-compose -f $BRUTIL/docker-compose.yml up --detach dispatcher
+
+    set_docker_ns_link
+
+    NS=$(get_docker_ns)
+    {
+        create_veth $NS veth0_root ifid_local 192.168.0.11/24 \
+            192.168.0.12 192.168.0.13 192.168.0.14 192.168.0.51 192.168.0.61 192.168.0.71
+        create_veth $NS veth1_root ifid_4101 192.168.41.2/31 192.168.41.3
+        create_veth $NS veth2_root ifid_4201 192.168.42.2/31 192.168.42.3
+        create_veth $NS veth3_root ifid_4801 192.168.48.4/31 192.168.48.5
+        create_veth $NS veth4_root ifid_4601 192.168.46.2/31 192.168.46.3
+        create_veth $NS veth5_root ifid_4701 192.168.47.2/31 192.168.47.3
+    } >> $DEVINFO_FN
+
+    docker-compose -f $BRUTIL/docker-compose.yml up --detach $BRID
+}
+
+test_run() {
+    set -e
+	bin/braccept -borderID "$BRID" -devInfoFilePath "$DEVINFO_FN" \
+        -keysDirPath "$BRUTIL/br-conf/keys" $@
+}
+
+test_teardown() {
+    set -e
+    delete_veth veth0_root veth1_root veth2_root veth3_root veth4_root veth5_root
+    rm -f $DEVINFO_FN
+    rm_docker_ns_link
+    docker-compose -f $BRUTIL/docker-compose.yml down
+}
+
+print_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run
+	        execute only the run phase.
+	    $PROGRAM teardown
+	        execute only the teardown phase.
+	_EOF
+}
+
+PROGRAM=$(basename "$0")
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ${@:2} ;;
+    *) print_help; exit 1 ;;
+esac

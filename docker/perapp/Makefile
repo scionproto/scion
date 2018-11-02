@@ -1,4 +1,4 @@
-DOCKER_ARGS += --no-cache
+#DOCKER_ARGS += --no-cache
 ifndef DEBUG
 DOCKER_ARGS += -q
 endif
