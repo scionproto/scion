@@ -17,7 +17,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -95,8 +94,7 @@ func realMain() int {
 	trustConf := &trust.Config{
 		ServiceType: proto.ServiceType_ps,
 	}
-	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS,
-		rand.Uint64(), trustConf, log.Root())
+	trustStore, err := trust.NewStore(trustDB, topo.ISD_AS, trustConf, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1

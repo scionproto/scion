@@ -21,7 +21,6 @@ import (
 	"context"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -73,21 +72,15 @@ type Store struct {
 	chainDeduper dedupe.Deduper
 	config       *Config
 	// local AS
-	ia  addr.IA
-	log log.Logger
-	// ID of the last infra message that was sent out by the Store
-	msgID uint64
+	ia    addr.IA
+	log   log.Logger
 	msger infra.Messenger
 }
 
 // NewStore initializes a TRC/Certificate Chain cache/resolver backed by db.
 // Parameter local must specify the AS in which the trust store resides (which
-// is used during request forwarding decisions). When sending infra messages,
-// the trust store will use IDs starting from startID, and increment by one for
-// each message.
-func NewStore(db *trustdb.DB, local addr.IA, startID uint64, options *Config,
-	logger log.Logger) (*Store, error) {
-
+// is used during request forwarding decisions).
+func NewStore(db *trustdb.DB, local addr.IA, options *Config, logger log.Logger) (*Store, error) {
 	if options == nil {
 		options = &Config{}
 	}
@@ -96,7 +89,6 @@ func NewStore(db *trustdb.DB, local addr.IA, startID uint64, options *Config,
 		ia:      local,
 		config:  options,
 		log:     logger,
-		msgID:   startID,
 	}
 	return store, nil
 }
@@ -228,7 +220,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 	return store.getTRCFromNetwork(ctx, &trcRequest{
 		isd:      isd,
 		version:  version,
-		id:       store.nextID(),
+		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.InsertTRCHook,
 	})
@@ -292,7 +284,7 @@ func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
 		version:  scrypto.LatestVer,
-		id:       store.nextID(),
+		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),
 	})
@@ -340,7 +332,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	return store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
 		version:  version,
-		id:       store.nextID(),
+		id:       messenger.NextId(),
 		server:   server,
 		postHook: nil,
 	})
@@ -430,10 +422,6 @@ func (store *Store) getChainFromNetwork(ctx context.Context,
 		return nil, common.NewBasicError("Context canceled while waiting for Chain",
 			nil, "ia", req.ia, "version", req.version)
 	}
-}
-
-func (store *Store) nextID() uint64 {
-	return atomic.AddUint64(&store.msgID, 1)
 }
 
 func (store *Store) LoadAuthoritativeTRC(dir string) error {

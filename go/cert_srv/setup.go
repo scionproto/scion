@@ -15,7 +15,6 @@
 package main
 
 import (
-	"math/rand"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
@@ -92,8 +91,8 @@ func initState(config *Config) error {
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_cs,
 	}
-	config.state.Store, err = trust.NewStore(config.state.TrustDB, config.General.Topology.ISD_AS,
-		rand.Uint64(), trustConf, log.Root())
+	config.state.Store, err = trust.NewStore(config.state.TrustDB,
+		config.General.Topology.ISD_AS, trustConf, log.Root())
 	if err != nil {
 		return common.NewBasicError("Unable to initialize trust store", err)
 	}
