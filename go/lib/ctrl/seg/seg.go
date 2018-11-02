@@ -40,7 +40,7 @@ type PathSegment struct {
 	RawASEntries []*proto.SignedBlobS   `capnp:"asEntries"`
 	ASEntries    []*ASEntry             `capnp:"-"`
 	id           common.RawBytes
-	fullID       common.RawBytes
+	fullId       common.RawBytes
 }
 
 func NewSeg(infoF *spath.InfoField) (*PathSegment, error) {
@@ -78,6 +78,7 @@ func (ps *PathSegment) ParseRaw() error {
 	return ps.Validate()
 }
 
+// ID returns a hash of the segment covering all hops, except for peerings.
 func (ps *PathSegment) ID() (common.RawBytes, error) {
 	if ps.id == nil {
 		id, err := ps.calculateHash(true)
@@ -89,15 +90,16 @@ func (ps *PathSegment) ID() (common.RawBytes, error) {
 	return ps.id, nil
 }
 
+// FullId returns a hash of the segment covering all hops including peerings.
 func (ps *PathSegment) FullId() (common.RawBytes, error) {
-	if ps.fullID == nil {
-		fullID, err := ps.calculateHash(false)
+	if ps.fullId == nil {
+		fullId, err := ps.calculateHash(false)
 		if err != nil {
 			return nil, err
 		}
-		ps.fullID = fullID
+		ps.fullId = fullId
 	}
-	return ps.fullID, nil
+	return ps.fullId, nil
 }
 
 func (ps *PathSegment) calculateHash(hopOnly bool) (common.RawBytes, error) {

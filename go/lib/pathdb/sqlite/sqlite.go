@@ -206,8 +206,8 @@ func (b *Backend) updateExisting(ctx context.Context, meta *segMeta,
 	}
 	// Update the IntfToSeg table
 	if !bytes.Equal(newFullId, meta.FullID) {
-		// Delete all old stuff and then insert the new ones.
-		// This is not be the optimal approach but the easiest to implement.
+		// Delete all old interfaces and then insert the new ones.
+		// Calculating the actual diffset would be better, but this is way easier to implement.
 		_, err := b.tx.ExecContext(ctx, `DELETE FROM IntfToSeg WHERE SegRowID=?`, meta.RowID)
 		if err != nil {
 			b.rollback()

@@ -222,7 +222,7 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.PathDB) {
 		ps, _ = AllocPathSegment(t, ifs1, uint32(40))
 		InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
 		checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
-		checkInterfacePresent(t, ctx, newPs.ASEntries[1].IA(), hf.ConsIngress, pathDB, false)
+		checkInterface(t, ctx, newPs.ASEntries[1].IA(), hf.ConsIngress, pathDB, false)
 	})
 }
 
@@ -507,6 +507,7 @@ func checkResult(t *testing.T, results []*query.Result, expectedSeg *seg.PathSeg
 	_, err := results[0].Seg.ID()
 	xtest.FailOnErr(t, err)
 	_, err = results[0].Seg.FullId()
+	xtest.FailOnErr(t, err)
 	SoMsg("Segment should match", results[0].Seg, ShouldResemble, expectedSeg)
 	checkSameHpCfgs("HiddenPath Ids should match", results[0].HpCfgIDs, hpCfgsIds)
 }
@@ -528,16 +529,16 @@ func checkInterfacesPresent(t *testing.T, ctx context.Context,
 			hof, err := hopEntry.HopField()
 			xtest.FailOnErr(t, err)
 			if hof.ConsIngress != 0 {
-				checkInterfacePresent(t, ctx, asEntry.IA(), hof.ConsIngress, pathDB, true)
+				checkInterface(t, ctx, asEntry.IA(), hof.ConsIngress, pathDB, true)
 			}
 			if hof.ConsEgress != 0 {
-				checkInterfacePresent(t, ctx, asEntry.IA(), hof.ConsEgress, pathDB, true)
+				checkInterface(t, ctx, asEntry.IA(), hof.ConsEgress, pathDB, true)
 			}
 		}
 	}
 }
 
-func checkInterfacePresent(t *testing.T, ctx context.Context, ia addr.IA, ifId common.IFIDType,
+func checkInterface(t *testing.T, ctx context.Context, ia addr.IA, ifId common.IFIDType,
 	pathDB pathdb.PathDB, present bool) {
 
 	r, err := pathDB.Get(ctx, &query.Params{
