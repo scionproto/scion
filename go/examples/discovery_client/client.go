@@ -48,32 +48,41 @@ func init() {
 }
 
 func main() {
+	os.Exit(realMain())
+}
+
+func realMain() int {
 	os.Setenv("TZ", "UTC")
 	log.AddLogConsFlags()
 	flag.Parse()
-	if *topoPath == "" && ds.Host == nil {
-		fmt.Fprintln(os.Stderr, "err: topo and host not specified")
+	if err := log.SetupFromFlags(""); err != nil {
+		fmt.Fprintf(os.Stderr, "err: Unable to setup logging err=%s\n", err)
 		flag.Usage()
-		os.Exit(1)
+		return 1
+
 	}
 	defer log.LogPanicAndExit()
+	if err := validateFlags(); err != nil {
+		log.Crit("Unable to validate flags", "err", err)
+		return 1
+	}
 	topo, err := getTopo()
 	if err != nil {
 		log.Crit("Unable to load topology", "err", err)
-		os.Exit(1)
+		return 1
 	}
 	pool, err := discovery.NewPool(topo)
 	if err != nil {
 		log.Crit("Unable to create discovery service pool", "err", err)
-		os.Exit(1)
+		return 1
 	}
 	log.Info("Discovery pool initialized", "size", len(pool))
 	var writeOnce sync.Once
 	fetcher := &discovery.Fetcher{
-		Pool:    pool,
-		Https:   *https,
-		Full:    *full,
-		Dynamic: *dynamic,
+		Pool:  pool,
+		Https: *https,
+		File:  file(),
+		Mode:  mode(),
 		ErrorF: func(err error) {
 			log.Error("Unable to fetch topology", "err", err)
 		},
@@ -93,24 +102,44 @@ func main() {
 			})
 		},
 	}
-	log.Info("Starting periodic task", "period", *period)
+	log.Info("Starting periodic fetching", "period", *period)
 	ticker := time.NewTicker(*period)
 	runner := periodic.StartPeriodicTask(fetcher, ticker, *timeout)
 	defer runner.Stop()
 	select {}
+}
 
+func validateFlags() error {
+	if *topoPath == "" && ds.Host == nil {
+		return common.NewBasicError("Topology and host not specified", nil)
+	}
+	if ds.Host != nil && *topoPath != "" {
+		return common.NewBasicError("Both topology and host are specified", nil)
+	}
+	return nil
 }
 
 func getTopo() (*topology.Topo, error) {
 	if ds.Host != nil {
-		if *topoPath != "" {
-			log.Info("Both topo and addr specified.")
-		}
 		log.Info("Fetch initial topology from discovery service", "addr", ds.Host)
 		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 		defer cancelF()
-		return discovery.Topo(ctx, nil, discovery.URL(ds.Host, *dynamic, *full, *https))
+		return discovery.Topo(ctx, nil, discovery.CreateURL(ds.Host, mode(), file(), *https))
 	}
-	log.Info("Load initial topology from disk")
+	log.Info("Load initial topology from disk", "topo", topoPath)
 	return topology.LoadFromFile(*topoPath)
+}
+
+func mode() discovery.Mode {
+	if *dynamic {
+		return discovery.Dynamic
+	}
+	return discovery.Static
+}
+
+func file() discovery.File {
+	if *full {
+		return discovery.Full
+	}
+	return discovery.Reduced
 }
