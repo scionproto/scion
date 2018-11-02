@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"time"
