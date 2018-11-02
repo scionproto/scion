@@ -35,6 +35,7 @@ log "Scion status:"
 ./scion.sh status || exit 1
 
 sleep 10
+result=0
 
 # Run go infra test
 integration/go_infra

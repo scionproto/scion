@@ -36,3 +36,6 @@ fi
 
 # deploy
 cat "$BASE/deploy.yml"
+
+# Stop docker.sh
+cat "$BASE/teardown.yml"
