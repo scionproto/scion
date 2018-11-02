@@ -760,7 +760,7 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",
 		topology.TestTopoAddr(nil, nil, nil, nil))
 	itopo.SetCurrentTopology(topo)
-	store, err := NewStore(db, ia, 0, &Config{}, log.Root())
+	store, err := NewStore(db, ia, &Config{}, log.Root())
 	xtest.FailOnErr(t, err)
 	// Enable fake network access for trust database
 	store.SetMessenger(msger)

@@ -74,7 +74,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 		log.Error("Unable to initialize trustdb", "err", err)
 		os.Exit(-1)
 	}
-	server.trustStore, err = trust.NewStore(db, xtest.MustParseIA("1-ff00:0:1"), 0, nil, log.Root())
+	server.trustStore, err = trust.NewStore(db, xtest.MustParseIA("1-ff00:0:1"), nil, log.Root())
 	if err != nil {
 		log.Error("Unable to create trust store", "err", err)
 		os.Exit(-1)
