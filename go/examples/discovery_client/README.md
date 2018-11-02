@@ -6,7 +6,7 @@ a server needs to be running. `server.sh` is a simple script
 to start an http server.
 
 ```
-./server.sh topology.json 30084
+./server.sh path/to/topology.json
 ```
 
 The client application periodically fetches the topology file from
@@ -34,7 +34,14 @@ The client fetches the topology from the address to get all
 discovery service instances. Then it periodically fetches the 
 topology.
 
-The sample topology contains two discovery service entries. One
-on port `30084` and one on port `30085`. Both can be started with
-`server.sh`. This allows to test that automatic switching is 
-supported by the library.
+To test automatic switching by the library, `./server.sh` can be
+supplied with a topology file that contains multiple discovery
+service entries. By default, the address and port of the first
+entry in the file are used. The script can be instructed to use
+a specific entry:
+```
+./server.sh path/to/topology.json 2
+```
+This will start an http server that listens on the address
+and port of the second entry in the topology file.
+
