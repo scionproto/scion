@@ -66,6 +66,7 @@ func testInsertGet(t *testing.T, revCache revcache.RevCache) {
 	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
 	srCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
+	MustParseRevInfo(t, srCache)
 	SoMsg("Get should return ok for existing entry", ok, ShouldBeTrue)
 	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
 	SoMsg("Get should return previously inserted value", srCache, ShouldResemble, sr)
@@ -98,6 +99,8 @@ func testGetAll(t *testing.T, revCache revcache.RevCache) {
 		*revcache.NewKey(ia110, ifId15): {},
 	})
 	SoMsg("GetAll should not err", err, ShouldBeNil)
+	SoMsg("Should contain one rev", 1, ShouldEqual, len(revs))
+	MustParseRevInfo(t, revs[0])
 	SoMsg("GetAll should return revs for the given keys", revs, ShouldResemble,
 		[]*path_mgmt.SignedRevInfo{sr1})
 
@@ -153,6 +156,7 @@ func testInsertNewer(t *testing.T, revCache revcache.RevCache) {
 	SoMsg("Insert should return true for a new entry", inserted, ShouldBeTrue)
 	SoMsg("Insert a new entry should not err", err, ShouldBeNil)
 	srCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
+	MustParseRevInfo(t, srCache)
 	SoMsg("Get should return ok for existing entry", ok, ShouldBeTrue)
 	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
 	SoMsg("Get should return previously inserted value", srCache, ShouldResemble, srNew)
@@ -172,4 +176,9 @@ func defaultRevInfo(ia addr.IA, ifId common.IFIDType) *path_mgmt.RevInfo {
 		RawTimestamp: util.TimeToSecs(time.Now()),
 		RawTTL:       uint32((time.Duration(10) * time.Second).Seconds()),
 	}
+}
+
+func MustParseRevInfo(t *testing.T, sr *path_mgmt.SignedRevInfo) {
+	_, err := sr.RevInfo()
+	xtest.FailOnErr(t, err)
 }
