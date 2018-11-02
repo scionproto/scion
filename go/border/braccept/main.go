@@ -1,7 +1,6 @@
 package main
 
 import (
-	//"syscall"
 	"bufio"
 	"crypto/sha256"
 	"flag"
@@ -13,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/gopacket/pcap"
-	"github.com/kormat/fmt15"
+	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -65,7 +64,6 @@ func parseInfo() {
 	devByName = make(map[string]*ifInfo)
 	for scanner.Scan() {
 		field := strings.Split(scanner.Text(), " ")
-		fmt.Printf("%v\n", field)
 		elem := &ifInfo{hostDev: field[0], contDev: field[1]}
 		elem.mac, err = net.ParseMAC(field[2])
 		if err != nil {
@@ -85,13 +83,7 @@ func genKeys() {
 	// Generate keys
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(masterKeys.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
-	fmt.Printf("hfGenKey: ")
-	for _, v := range hfGenKey {
-		fmt.Printf("%d,", uint8(v))
-	}
-	fmt.Println()
-
+	hfGenKey := pbkdf2.Key(masterKeys.Key0, common.RawBytes("Derive OF Key"), 1000, 16, sha256.New)
 	// First check for MAC creation errors.
 	if mac, err = scrypto.InitMac(hfGenKey); err != nil {
 		panic(err)
@@ -118,11 +110,11 @@ func main() {
 		flag.Usage()
 		os.Exit(-1)
 	}
-
+	// Parse device pair info
 	parseInfo()
-
+	// Generate keys
 	genKeys()
-
+	// Open devices
 	for _, ifi := range devList {
 		ifi.handle, err = pcap.OpenLive(ifi.hostDev, snapshot_len, promiscuous, pcap.BlockForever)
 		if err != nil {
@@ -130,60 +122,46 @@ func main() {
 		}
 		defer ifi.handle.Close()
 	}
-
-	// TODO Drop capabilities
-
-	// TODO choose between different tests, ie. core/non-core
+	// Now that everything is set up, drop CAP_NET_ADMIN
+	caps, err := capability.NewPid(0)
+	if err != nil {
+		panic(fmt.Errorf("Error retrieving capabilities: %s", err))
+	}
+	caps.Clear(capability.CAPS)
+	caps.Apply(capability.CAPS)
 
 	brTests, ok := Tests[borderID]
 	if !ok {
 		panic(fmt.Sprintf("Wrong Border Router ID %s\n", borderID))
 	}
 	fmt.Printf("Acceptance tests for %s:\n", borderID)
+	var failures int
+	if testIdx != -1 {
+		brTests = brTests[testIdx : testIdx+1]
+	}
 	for i, _ := range brTests {
-		curTest := brTests[i]
-		if testIdx != -1 {
-			curTest = brTests[testIdx]
-		}
-		curTest.In.genPktSent()
-		//fmt.Printf("Packet:\n%v\n", *curTest.In)
-		rawPkt := curTest.In.build()
-		err = devByName[curTest.In.Dev].handle.WritePacketData(rawPkt)
-		if err != nil {
-			panic(err)
-		}
-		var result string
-		if err := checkRecvPkts(curTest); err != nil {
-			fmt.Println(err)
-			result = fail()
-		} else {
-			result = pass()
-		}
-		a := curTest.In.AddrHdr
-		fmt.Printf("Test %d: %s,[%s] -> %s,[%s] %s\n%s\n", i,
-			a.SrcIA, a.SrcHost, a.DstIA, a.DstHost, result, printSegs(curTest.In.Path.Segs))
-		if testIdx != -1 {
-			break
+		if !doTest(brTests[i]) {
+			failures += 1
 		}
 	}
+	os.Exit(failures)
 }
 
-const (
-	//	defColorFmt = "\x1b[%dm%s\x1b[0m"
-	passUni = "\u2714"
-	failUni = "\u2715"
-	green   = 32
-	red     = 31
-)
-
-func pass() string {
-	//	return fmt.Sprintf(defColorFmt, green, passUni)
-	return fmt15.ColorStr(passUni, green)
-}
-
-func fail() string {
-	//	return fmt.Sprintf(defColorFmt, red, failUni)
-	return fmt15.ColorStr(failUni, red)
+func doTest(t *BRTest) bool {
+	t.In.Setup()
+	rawPkt := t.In.Pack()
+	err = devByName[t.In.GetDev()].handle.WritePacketData(rawPkt)
+	if err != nil {
+		panic(err)
+	}
+	var pass bool
+	if err := checkRecvPkts(t); err != nil {
+		fmt.Println(err)
+	} else {
+		pass = true
+	}
+	fmt.Println(t.Summary(pass))
+	return pass
 }
 
 var (
@@ -215,92 +193,92 @@ Path ConsDir ConsInress-HFas-ConsEgress
 var tsNow = uint32(time.Now().Unix())
 var (
 	// Core paths between ff00:0:1 <-> ff00:0:2
-	path_2A_1A = []*segDef{
+	path_2A_1A = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A}}},
 	}
-	path_2A_1A_rev = []*segDef{
+	path_2A_1A_rev = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1A_2A}, {ConsEgress: if_2A_1A}}},
 	}
-	path_1A_2A = []*segDef{
+	path_1A_2A = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1A_2A}, {ConsIngress: if_2A_1A}}},
 	}
-	path_1A_2A_rev = []*segDef{
+	path_1A_2A_rev = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_2A_1A}, {ConsEgress: if_1A_2A}}},
 	}
 	// Core paths between ff00:0:1 <-> ff00:0:3
-	path_3A_1B = []*segDef{
+	path_3A_1B = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_3A_1B}, {ConsIngress: if_1B_3A}}},
 	}
-	path_3A_1B_rev = []*segDef{
+	path_3A_1B_rev = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1B_3A}, {ConsEgress: if_3A_1B}}},
 	}
-	path_1B_3A = []*segDef{
+	path_1B_3A = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1B_3A}, {ConsIngress: if_3A_1B}}},
 	}
-	path_1B_3A_rev = []*segDef{
+	path_1B_3A_rev = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_3A_1B}, {ConsEgress: if_1B_3A}}},
 	}
 	// Paths between ff00:0:1 <-> ff00:0:5
-	path_5A_1C = []*segDef{
+	path_5A_1C = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_5A_1C}, {ConsEgress: if_1C_5A}}},
 	}
-	path_1C_5A = []*segDef{
+	path_1C_5A = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1C_5A}, {ConsIngress: if_5A_1C}}},
 	}
-	path_2A_1A_X_1C_5A = []*segDef{
+	path_2A_1A_X_1C_5A = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1C_5A}, {ConsIngress: if_5A_1C}}},
 	}
-	path_5A_1C_X_1A_2A = []*segDef{
+	path_5A_1C_X_1A_2A = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_5A_1C}, {ConsEgress: if_1C_5A, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1A_2A}, {ConsEgress: if_2A_1A}}},
 	}
 	// Bad paths - Xover CORE to CORE
-	path_rev_2A_1A_X_1B_3A = []*segDef{
+	path_rev_2A_1A_X_1B_3A = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_3A_1B}, {ConsEgress: if_1B_3A, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1A_2A, Xover: true}, {ConsEgress: if_2A_1A}}},
 	}
-	path_2A_1A_X_1B_3A = []*segDef{
+	path_2A_1A_X_1B_3A = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1B_3A, Xover: true}, {ConsIngress: if_3A_1B}}},
 	}
-	path_2A_1A_X_3A_1B_rev = []*segDef{
+	path_2A_1A_X_3A_1B_rev = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1B_3A, Xover: true}, {ConsEgress: if_3A_1B}}},
 	}
-	path_1A_2A_rev_X_1B_3A = []*segDef{
+	path_1A_2A_rev_X_1B_3A = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_2A_1A}, {ConsEgress: if_1A_2A, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1B_3A, Xover: true}, {ConsIngress: if_3A_1B}}},
 	}
-	path_1A_2A_rev_X_3A_1B_rev = []*segDef{
+	path_1A_2A_rev_X_3A_1B_rev = Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_2A_1A}, {ConsEgress: if_1A_2A, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1B_3A, Xover: true}, {ConsEgress: if_3A_1B}}},
 	} // Bad path - Xover DOWN to CORE
-	path_5A_1C_X_1B_3A = []*segDef{
+	path_5A_1C_X_1B_3A = Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_5A_1C}, {ConsIngress: if_1C_5A, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
@@ -314,73 +292,100 @@ var Tests map[string][]*BRTest = map[string][]*BRTest{
 	// ifid_1201:    192.168.12.2 50000 -> 192.168.12.3 40000, CORE, 1-ff00:0:2
 	"core-brA": []*BRTest{
 		{
-			In: &pktInfo{
+			Desc: "",
+			In: &PktGenCmn{PktInfo{
 				Dev:     "ifid_1201",
-				Overlay: gOverlay("192.168.12.3", 40000, "192.168.12.2", 50000),
+				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
 				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
 				Path:    gPath(1, 2, path_2A_1A),
 				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			},
-			Out: []*pktInfo{
-				{Dev: "ifid_local",
-					Overlay: gOverlay("192.168.0.11", 30087, "192.168.0.51", 30041),
-				},
+			}},
+			Out: []PktMatch{
+				&PktMerge{PktInfo{
+					Dev:     "ifid_local",
+					Overlay: &OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				}},
 			},
 		},
 		{
-			In: &pktInfo{
+			In: &PktGenCmn{PktInfo{
 				Dev:     "ifid_local",
-				Overlay: gOverlay("192.168.0.51", 30041, "192.168.0.11", 30087),
+				Overlay: &OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
 				AddrHdr: NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
 				Path:    gPath(1, 1, path_1A_2A),
 				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			},
-			Out: []*pktInfo{
-				{Dev: "ifid_1201",
-					Overlay: gOverlay("192.168.12.2", 50000, "192.168.12.3", 40000),
+			}},
+			Out: []PktMatch{
+				&PktMerge{PktInfo{
+					Dev:     "ifid_1201",
+					Overlay: &OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
 					Path:    gPath(1, 2, path_1A_2A),
-				},
+				}},
 			},
 		},
 		{
-			In: &pktInfo{
+			In: &PktGenCmn{PktInfo{
 				Dev:     "ifid_1201",
-				Overlay: gOverlay("192.168.12.3", 40000, "192.168.12.2", 50000),
+				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
 				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
 				Path:    gPath(1, 2, path_2A_1A_X_1C_5A),
 				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			},
-			Out: []*pktInfo{
-				{Dev: "ifid_local",
-					Overlay: gOverlay("192.168.0.11", 30087, "192.168.0.13", 30087),
+			}},
+			Out: []PktMatch{
+				&PktMerge{PktInfo{
+					Dev:     "ifid_local",
+					Overlay: &OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
 					Path:    gPath(2, 1, path_2A_1A_X_1C_5A),
-				},
+				}},
 			},
 		},
 		{
-			In: &pktInfo{
+			In: &PktGenCmn{PktInfo{
 				Dev:     "ifid_local",
-				Overlay: gOverlay("192.168.0.13", 30087, "192.168.0.11", 30087),
+				Overlay: &OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
 				AddrHdr: NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
 				Path:    gPath(2, 1, path_5A_1C_X_1A_2A),
 				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			},
-			Out: []*pktInfo{
-				{Dev: "ifid_1201",
-					Overlay: gOverlay("192.168.12.2", 50000, "192.168.12.3", 40000),
+			}},
+			Out: []PktMatch{
+				&PktMerge{PktInfo{
+					Dev:     "ifid_1201",
+					Overlay: &OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
 					Path:    gPath(2, 2, path_5A_1C_X_1A_2A),
-				},
+				}},
 			},
 		},
 		{ // Bad path - Xover CORE to CORE
-			In: &pktInfo{
+			In: &PktGenCmn{PktInfo{
 				Dev:     "ifid_1201",
-				Overlay: gOverlay("192.168.12.3", 40000, "192.168.12.2", 50000),
+				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
 				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1"),
 				Path:    gPath(1, 2, path_2A_1A_X_1B_3A),
 				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+			}},
+			Out: []PktMatch{},
+		},
+		{ // Using hpkt go build the packet
+			In: &HpktInfo{PktInfo{
+				Dev:     "ifid_1201",
+				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
+				Path:    gPath(1, 2, path_2A_1A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+			}},
+			Out: []PktMatch{
+				&HpktInfo{PktInfo{
+					Dev:     "ifid_local",
+					Overlay: &OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				}},
 			},
-			Out: []*pktInfo{},
+		},
+		{ // Bad packet - empty packet to overlay port
+			In: &PktRaw{PktInfo{
+				Dev:     "ifid_1201",
+				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+			}},
+			Out: []PktMatch{},
 		},
 	},
 	// CtrlAddr:     192.168.0.103 30087
@@ -388,17 +393,18 @@ var Tests map[string][]*BRTest = map[string][]*BRTest{
 	// ifid_1501:    192.168.15.2 50000 -> 192.168.15.3 40000, CORE, 1-ff00:0:5
 	"core-brC": []*BRTest{
 		{
-			In: &pktInfo{
+			In: &PktGenCmn{PktInfo{
 				Dev:     "ifid_1501",
-				Overlay: gOverlay("192.168.15.3", 40000, "192.168.15.2", 50000),
+				Overlay: &OverlayIP4UDP{"192.168.15.3", 40000, "192.168.15.2", 50000},
 				AddrHdr: NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:1", "192.168.0.51"),
 				Path:    gPath(1, 2, path_5A_1C),
 				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			},
-			Out: []*pktInfo{
-				{Dev: "ifid_local",
-					Overlay: gOverlay("192.168.0.13", 30087, "192.168.0.51", 30041),
-				},
+			}},
+			Out: []PktMatch{
+				&PktMerge{PktInfo{
+					Dev:     "ifid_local",
+					Overlay: &OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.51", 30041},
+				}},
 			},
 		},
 	},

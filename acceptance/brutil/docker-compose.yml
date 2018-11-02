@@ -8,7 +8,7 @@ x-core-br: &core-br
     - "/etc/passwd:/etc/passwd:ro"
     - "/etc/group:/etc/group:ro"
     - "/run/shm/dispatcher:/run/shm/dispatcher"
-    - "../../../logs:/share/logs"
+    - "../../logs:/share/logs"
     - "./br-core-conf:/share/conf"
 x-br: &br
   environment:
@@ -19,8 +19,8 @@ x-br: &br
     - "/etc/passwd:/etc/passwd:ro"
     - "/etc/group:/etc/group:ro"
     - "/run/shm/dispatcher:/run/shm/dispatcher"
-    - "../../../logs:/share/logs"
-    - "./br-non-core-conf:/share/conf"
+    - "../../logs:/share/logs"
+    - "./br-conf:/share/conf"
 services:
   dispatcher:
     image: scion_dispatcher
@@ -31,7 +31,7 @@ services:
       - "/etc/passwd:/etc/passwd:ro"
       - "/etc/group:/etc/group:ro"
       - "/run/shm/dispatcher:/run/shm/dispatcher"
-      - "../../../logs:/share/logs"
+      - "../../logs:/share/logs"
       - "./dispatcher-conf:/share/conf"
   core-brA:
     <<: *core-br
