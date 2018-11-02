@@ -32,15 +32,21 @@ const (
 	// as Base/<mode>/<file>. For example, the dynamic and full topology has the url
 	// "discovery/v1/dynamic/full.json"
 	Base = "discovery/v1"
+
 	// Dynamic indicates the dynamic mode.
-	Dynamic = "dynamic"
+	Dynamic Mode = "dynamic"
 	// Static indicates the static mode.
-	Static = "static"
+	Static Mode = "static"
+
 	// Full is the full topology file, including all service information.
-	Full = "full.json"
+	Full File = "full.json"
 	// Reduced is a stripped down topology file for non-privileged entities.
-	Reduced = "reduced.json"
+	Reduced File = "reduced.json"
 )
+
+type Mode string
+
+type File string
 
 // Topo fetches the topology from the specified url. If client is nil,
 // the default http client is used.
@@ -74,30 +80,16 @@ func TopoRaw(ctx context.Context, client *http.Client,
 	return topo, raw, nil
 }
 
-// URL builds the url to the topology file.
-func URL(addr *addr.AppAddr, dynamic, full, https bool) string {
-	url := fmt.Sprintf("%s:%d/%s", addr.L3.IP(), addr.L4.Port(), Route(dynamic, full))
+// CreateURL builds the url to the topology file.
+func CreateURL(addr *addr.AppAddr, mode Mode, file File, https bool) string {
+	protocol := "http"
 	if https {
-		return "https://" + url
+		protocol = "https"
 	}
-	return "http://" + url
+	return fmt.Sprintf("%s://%s:%d/%s", protocol, addr.L3.IP(), addr.L4.Port(), Path(mode, file))
 }
 
-// Route creates the route to the topology file based on the mode and file.
-func Route(dynamic, full bool) string {
-	return fmt.Sprintf("%s/%s/%s", Base, mode(dynamic), file(full))
-}
-
-func mode(dynamic bool) string {
-	if dynamic {
-		return Dynamic
-	}
-	return Static
-}
-
-func file(full bool) string {
-	if full {
-		return Full
-	}
-	return Reduced
+// Path creates the route to the topology file based on the mode and file.
+func Path(mode Mode, file File) string {
+	return fmt.Sprintf("%s/%s/%s", Base, mode, file)
 }
