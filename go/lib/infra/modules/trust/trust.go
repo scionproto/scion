@@ -399,7 +399,7 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 			defer log.LogPanicAndExit()
 			addr, err := store.ChooseServer(store.ia)
 			if err != nil {
-				log.Error("Failed to select server to forward cert cahin", "err", err)
+				log.Error("Failed to select server to forward cert chain", "err", err)
 			}
 			rawChain, err := chain.Compress()
 			if err != nil {
@@ -411,7 +411,9 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 				RawChain: rawChain,
 			}, addr, messenger.NextId())
 			if err != nil {
-				log.Error("Failed to forward cert chain", "err", err)
+				log.Error("Failed to forward cert chain", "err", err, "chain", chain)
+			} else {
+				log.Debug("Pushed cert chain to cs", "chain", chain, "cs", addr)
 			}
 		}()
 		return nil

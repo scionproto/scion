@@ -55,7 +55,7 @@ class GoGenerator(object):
             'logging': {
                 'file': {
                     'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Level': 'trace',
                 },
                 'console': {
                     'Level': 'crit',
@@ -97,7 +97,7 @@ class GoGenerator(object):
             'logging': {
                 'file': {
                     'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Level': 'trace',
                 },
                 'console': {
                     'Level': 'crit',
