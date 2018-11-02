@@ -1,0 +1,5 @@
+- wait: ~
+  continue_on_failure: true
+- label: Stop container
+  command:
+      - ./docker.sh stop

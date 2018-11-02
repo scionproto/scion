@@ -1,21 +1,20 @@
 #!/bin/bash
 
-set -e
-
 sleep 15
 
 if [ -n "$DOCKER" ]; then
-    ./docker.sh exec "set -eo pipefail; sudo service zookeeper start; |& tee logs/integration.run"
+    ./docker.sh exec "set -eo pipefail; sudo service zookeeper start |& tee logs/integration.run"
 fi
 
+result=0
 # Run go infra test
 ./docker.sh exec "set -eo pipefail; integration/go_infra |& tee logs/integration.run"
 result=$((result+$?))
 
 if [ -n "$ALL" ]; then
-# Run python integration tests
-./docker.sh exec "set -eo pipefail; integration/py_integration |& tee logs/integration.run"
-result=$((result+$?))
+    # Run python integration tests
+    ./docker.sh exec "set -eo pipefail; integration/py_integration |& tee logs/integration.run"
+    result=$((result+$?))
 fi
 
 # Run go integration tests
@@ -25,11 +24,12 @@ result=$((result+$?))
 ./docker.sh exec "set -eo pipefail; integration/revocation_test.sh |& tee logs/integration.run"
 result=$((result+$?))
 
+if [ $result -eq 0 ]; then
+    echo "========> ($(date -u --rfc-3339=seconds)) All integration tests successful"
+else
+    echo "========> ($(date -u --rfc-3339=seconds)) $result integration tests failed"
+fi
+
 ./docker.sh exec "set -eo pipefail; ./scion.sh status && scion.sh stop |& tee logs/integration.run"
 
-if [ $result -eq 0 ]; then
-    log "All integration tests successful"
-else
-    log "$result integration tests failed"
-fi
 exit $result
