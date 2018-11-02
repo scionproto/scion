@@ -22,7 +22,7 @@ To provide the topology file, run the following command:
 ```
 discovery_client -topo topology.json
 ```
-The discovery service addresses are fetched from the topology file, 
+The discovery service addresses are read from the topology file, 
 and the client will periodically request topologies.
 
 To initially fetch the topology file from the discovery service,
@@ -30,7 +30,7 @@ run the following command:
 ```
 discovery_client -addr 0-0,[127.0.0.1]:30084
 ```
-The client fetchers the topology from the address to get all 
+The client fetches the topology from the address to get all 
 discovery service instances. Then it periodically fetches the 
 topology.
 
