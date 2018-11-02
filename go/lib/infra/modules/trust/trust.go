@@ -353,6 +353,8 @@ func (store *Store) newChainValidator(validator *trc.TRC) ValidateChainFunc {
 	return store.newChainValidatorLocal(validator)
 }
 
+// XXX(lukedirtwalker): This is not the final solution. It has many issues, see:
+// https://github.com/scionproto/scion/issues/2083
 func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChainFunc {
 	return func(ctx context.Context, chain *cert.Chain) error {
 		if err := verifyChain(validator, chain); err != nil {
