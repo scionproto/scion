@@ -17,7 +17,7 @@ set -o pipefail
 
 . integration/common.sh
 
-# Get docker flag and container name
+# Get BRS
 opts "$@"
 shift $((OPTIND-1))
 
@@ -35,30 +35,19 @@ log "Scion status:"
 ./scion.sh status || exit 1
 
 sleep 10
-# Sleep for longer if running in circleci, to reduce flakiness due to slow startup:
-if [ -n "$CIRCLECI" ]; then
-    sleep 10
-fi
-
 result=0
+
 # Run go infra test
-GO_INFRA_TEST="go test -tags infrarunning"
-for i in ./go/lib/{snet,pathmgr,infra/disp}; do
-    run "Go Infra: $i" ${GO_INFRA_TEST} $i
-    result=$((result+$?))
-done
+integration/go_infra
+result=$((result+$?))
 
 # Run python integration tests
-run C2S_extn bin/cli_srv_ext_pyintegration -log.console error
-result=$((result+$?))
-run SCMP_error bin/scmp_error_pyintegration -log.console error
+integration/py_integration
 result=$((result+$?))
 
 # Run go integration tests
-for i in ./bin/*_integration; do
-    run "Go Integration: $i" "$i"
-    result=$((result+$?))
-done
+integration/go_integration
+result=$((result+$?))
 
 integration/revocation_test.sh -b "$REV_BRS"
 result=$((result+$?))

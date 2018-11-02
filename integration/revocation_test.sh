@@ -17,7 +17,7 @@ set -f
 
 . integration/common.sh
 
-# Get docker flag, container name and BRS
+# Get BRS
 opts "$@"
 shift $((OPTIND-1))
 

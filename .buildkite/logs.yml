@@ -1,0 +1,4 @@
+- label: Gather logs
+  command: ./tools/ci/pack_logs
+  artifact_paths:
+  - "artifacts.out/**/*"
