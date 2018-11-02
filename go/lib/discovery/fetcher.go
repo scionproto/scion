@@ -41,11 +41,11 @@ type Fetcher struct {
 	ErrorF func(error)
 	// Https indicates if https must be used.
 	Https bool
-	// Dynamic indicates if the dynamic topology is requested.
-	Dynamic bool
-	// Full indicates if the full topology is requested. This requires that this host
-	// is on the ACL of the contacted DS server.
-	Full bool
+	// Mode indicates whether the static or the dynamic topology is requested.
+	Mode Mode
+	// File indicates whether the full or the reduced topology is requested.
+	// The full topology requires that this host is on the ACL of the contacted DS server.
+	File File
 }
 
 // Run fetches a new topology file from the discovery service and calls the
@@ -54,7 +54,7 @@ type Fetcher struct {
 // Otherwise ErrorF is called.
 func (f *Fetcher) Run(ctx context.Context) {
 	if err := f.run(ctx); err != nil {
-		f.callErrorF(err)
+		f.errorF(err)
 	}
 }
 
@@ -64,7 +64,7 @@ func (f *Fetcher) run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	topo, raw, err := TopoRaw(ctx, f.Client, URL(ds.addr, f.Dynamic, f.Full, f.Https))
+	topo, raw, err := TopoRaw(ctx, f.Client, CreateURL(ds.addr, f.Mode, f.File, f.Https))
 	if err != nil {
 		ds.Fail()
 		return err
@@ -74,24 +74,24 @@ func (f *Fetcher) run(ctx context.Context) error {
 		return common.NewBasicError("Unable to update pool", err)
 	}
 	// Notify the client.
-	f.callRawF(raw)
-	f.callUpdateF(topo)
+	f.rawF(raw)
+	f.updateF(topo)
 	return nil
 }
 
-func (f *Fetcher) callRawF(raw common.RawBytes) {
+func (f *Fetcher) rawF(raw common.RawBytes) {
 	if f.RawF != nil {
 		f.RawF(raw)
 	}
 }
 
-func (f *Fetcher) callUpdateF(topo *topology.Topo) {
+func (f *Fetcher) updateF(topo *topology.Topo) {
 	if f.UpdateF != nil {
 		f.UpdateF(topo)
 	}
 }
 
-func (f *Fetcher) callErrorF(err error) {
+func (f *Fetcher) errorF(err error) {
 	if f.ErrorF != nil {
 		f.ErrorF(err)
 	}
