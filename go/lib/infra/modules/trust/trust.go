@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
@@ -229,7 +230,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 		version:  version,
 		id:       store.nextID(),
 		server:   server,
-		postHook: store.newInsertTRCHook(),
+		postHook: store.InsertTRCHook,
 	})
 }
 
@@ -248,15 +249,12 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 	}
 }
 
-// newInsertTRCHook returns a TRC validation callback which always inserts the
-// TRC into the database.
-func (store *Store) newInsertTRCHook() ValidateTRCF {
-	return func(ctx context.Context, trcObj *trc.TRC) error {
-		if _, err := store.trustdb.InsertTRCCtx(ctx, trcObj); err != nil {
-			return common.NewBasicError("Unable to store TRC in database", err)
-		}
-		return nil
+// InsertTRCHook always inserts the TRC into the database.
+func (store *Store) InsertTRCHook(ctx context.Context, trcObj *trc.TRC) error {
+	if _, err := store.trustdb.InsertTRCCtx(ctx, trcObj); err != nil {
+		return common.NewBasicError("Unable to store TRC in database", err)
 	}
+	return nil
 }
 
 // GetValidChain asks the trust store to return a valid certificate chain for ia.
@@ -348,17 +346,54 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	})
 }
 
+func (store *Store) newChainValidator(validator *trc.TRC) ValidateChainFunc {
+	if store.config.ServiceType == proto.ServiceType_ps {
+		return store.newChainValidatorForwarding(validator)
+	}
+	return store.newChainValidatorLocal(validator)
+}
+
+// XXX(lukedirtwalker): This is not the final solution. It has many issues, see:
+// https://github.com/scionproto/scion/issues/2083
+func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChainFunc {
+	return func(ctx context.Context, chain *cert.Chain) error {
+		if err := verifyChain(validator, chain); err != nil {
+			return err
+		}
+		_, err := store.trustdb.InsertChainCtx(ctx, chain)
+		if err != nil {
+			return common.NewBasicError("Unable to store CertChain in database", err)
+		}
+		// forward to local CS, async
+		go func() {
+			defer log.LogPanicAndExit()
+			addr, err := store.ChooseServer(store.ia)
+			if err != nil {
+				log.Error("Failed to select server to forward cert cahin", "err", err)
+			}
+			rawChain, err := chain.Compress()
+			if err != nil {
+				log.Error("Failed to compress chain for forwarding", "err", err)
+			}
+			// TODO(lukedirtwalker): use extended context?
+			err = store.msger.SendCertChain(ctx, &cert_mgmt.Chain{
+				RawChain: rawChain,
+			}, addr, messenger.NextId())
+			if err != nil {
+				log.Error("Failed to forward cert chain", "err", err)
+			}
+		}()
+		return nil
+	}
+}
+
 // newChainValidator returns a Chain validation callback with verifier as trust
 // anchor. If validation succeeds, the certificate chain is also inserted in
 // the trust database.
-func (store *Store) newChainValidator(validator *trc.TRC) ValidateChainF {
+func (store *Store) newChainValidatorLocal(validator *trc.TRC) ValidateChainFunc {
 	return func(ctx context.Context, chain *cert.Chain) error {
-		if validator == nil {
-			return common.NewBasicError("Chain verification failed, nil verifier", nil,
-				"target", chain)
-		}
-		if err := chain.Verify(chain.Leaf.Subject, validator); err != nil {
-			return common.NewBasicError("Chain verification failed", err)
+		if err := verifyChain(validator, chain); err != nil {
+			return err
 		}
 		_, err := store.trustdb.InsertChainCtx(ctx, chain)
 		if err != nil {
@@ -366,6 +401,17 @@ func (store *Store) newChainValidator(validator *trc.TRC) ValidateChainF {
 		}
 		return nil
 	}
+}
+
+func verifyChain(validator *trc.TRC, chain *cert.Chain) error {
+	if validator == nil {
+		return common.NewBasicError("Chain verification failed, nil verifier", nil,
+			"target", chain)
+	}
+	if err := chain.Verify(chain.Leaf.Subject, validator); err != nil {
+		return common.NewBasicError("Chain verification failed", err)
+	}
+	return nil
 }
 
 // issueChainRequest requests a Chain from the trust store backend.
@@ -570,7 +616,7 @@ func (store *Store) isLocal(address net.Addr) error {
 // destination AS.
 func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 	topo := itopo.GetCurrentTopology()
-	if !store.config.IsCS {
+	if store.config.ServiceType != proto.ServiceType_cs {
 		svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
 		if err != nil {
 			return nil, err

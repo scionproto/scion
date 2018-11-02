@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ type trcRequest struct {
 	// If postHook is set, run the callback to verify the downloaded object and insert into
 	// the database. Also, used to generate different DedupeKeys for requests
 	// for valid vs invalid crypto.
-	postHook ValidateTRCF
+	postHook ValidateTRCFunc
 }
 
 func (req *trcRequest) DedupeKey() string {
@@ -66,7 +66,7 @@ type chainRequest struct {
 	// If postHook is set, run the callback to verify the downloaded object and insert into
 	// the database. Also, used to generate different DedupeKeys for requests
 	// for valid vs invalid crypto.
-	postHook ValidateChainF
+	postHook ValidateChainFunc
 }
 
 func (req *chainRequest) DedupeKey() string {
@@ -81,6 +81,6 @@ func (req *chainRequest) BroadcastKey() string {
 	return fmt.Sprintf("%sv%d", req.ia, req.version)
 }
 
-type ValidateTRCF func(ctx context.Context, trcObj *trc.TRC) error
+type ValidateTRCFunc func(ctx context.Context, trcObj *trc.TRC) error
 
-type ValidateChainF func(ctx context.Context, chain *cert.Chain) error
+type ValidateChainFunc func(ctx context.Context, chain *cert.Chain) error
