@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discovery
+package info
 
 import (
 	"net"
@@ -41,9 +41,9 @@ var ds = []testInfo{
 	},
 }
 
-func contains(pool Pool, v testInfo) {
+func contains(pool *Pool, v testInfo) {
 	Convey("The pool contains "+v.key, func() {
-		info, ok := pool[v.key]
+		info, ok := pool.m[v.key]
 		SoMsg("Not found", ok, ShouldBeTrue)
 		SoMsg("Ip", info.addr.L3.IP(), ShouldResemble, v.addr.L3.IP())
 		SoMsg("Port", info.addr.L4.Port(), ShouldEqual, v.addr.L4.Port())
@@ -52,7 +52,7 @@ func contains(pool Pool, v testInfo) {
 
 func TestNewPool(t *testing.T) {
 	Convey("Given a topology", t, func() {
-		topo := loadTopo(t)
+		topo := mustLoadTopo(t)
 		Convey("When the topology contains a discovery service", func() {
 			pool, err := NewPool(topo)
 			Convey("The pool should initialize", func() {
@@ -76,8 +76,8 @@ func TestNewPool(t *testing.T) {
 
 func TestPoolUpdate(t *testing.T) {
 	Convey("Given a pool", t, func() {
-		pool := loadPool(t)
-		topo := loadTopo(t)
+		pool := mustLoadPool(t)
+		topo := mustLoadTopo(t)
 		Convey("And a topology containing an updated discovery service entry", func() {
 			topo.DS[ds[0].key].IPv4.PublicAddr().L3 = addr.HostFromIP(net.IPv4(127, 0, 0, 21))
 			pool.Update(topo)
@@ -114,7 +114,7 @@ func TestPoolUpdate(t *testing.T) {
 				}
 			})
 			Convey("The pool should not contain the removed discovery service", func() {
-				_, ok := pool[ds[1].key]
+				_, ok := pool.m[ds[1].key]
 				So(ok, ShouldBeFalse)
 			})
 		})
@@ -130,13 +130,13 @@ func TestPoolUpdate(t *testing.T) {
 	})
 }
 
-func loadPool(t *testing.T) Pool {
-	pool, err := NewPool(loadTopo(t))
+func mustLoadPool(t *testing.T) *Pool {
+	pool, err := NewPool(mustLoadTopo(t))
 	xtest.FailOnErr(t, err)
 	return pool
 }
 
-func loadTopo(t *testing.T) *topology.Topo {
+func mustLoadTopo(t *testing.T) *topology.Topo {
 	topo, err := topology.LoadFromFile("testdata/topology.json")
 	xtest.FailOnErr(t, err)
 	return topo

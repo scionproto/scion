@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
+	"github.com/scionproto/scion/go/lib/discovery/fetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -71,15 +72,8 @@ func realMain() int {
 		log.Crit("Unable to load topology", "err", err)
 		return 1
 	}
-	pool, err := discovery.NewPool(topo)
-	if err != nil {
-		log.Crit("Unable to create discovery service pool", "err", err)
-		return 1
-	}
-	log.Info("Discovery pool initialized", "size", len(pool))
 	var writeOnce sync.Once
-	fetcher := &discovery.Fetcher{
-		Pool:  pool,
+	fetcher := &fetcher.Fetcher{
 		Https: *https,
 		File:  file(),
 		Mode:  mode(),
@@ -101,6 +95,10 @@ func realMain() int {
 				log.Info("Topology file written", "file", out)
 			})
 		},
+	}
+	if err := fetcher.Init(topo); err != nil {
+		log.Crit("Unable to initialize fetcher", "err", err)
+		return 1
 	}
 	log.Info("Starting periodic fetching", "period", *period)
 	ticker := time.NewTicker(*period)
