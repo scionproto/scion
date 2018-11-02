@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discovery
+package info
 
 import (
 	"fmt"
@@ -21,8 +21,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/discovery"
 )
 
 const (
@@ -32,76 +31,7 @@ const (
 	failExpInterval = 10 * time.Second
 )
 
-// Pool maps discovery service to their info.
-type Pool map[string]*Info
-
-// NewPool populates the pool with discovery service entries from the topo.
-// At least one service must be present.
-func NewPool(topo *topology.Topo) (Pool, error) {
-	if len(topo.DS) <= 0 {
-		return nil, common.NewBasicError("Topo must contain DS address", nil)
-	}
-	pool := make(Pool)
-	for k, v := range topo.DS {
-		pool[k] = &Info{
-			key:      k,
-			addr:     v.PublicAddr(topo.Overlay),
-			lastFail: time.Now(),
-		}
-	}
-	return pool, nil
-}
-
-// Update adds missing services from the topo and removes services which
-// are no longer in the topo.
-func (p Pool) Update(topo *topology.Topo) error {
-	// Add missing DS servers.
-	for k, v := range topo.DS {
-		if info, ok := p[k]; !ok {
-			p[k] = &Info{
-				key:      k,
-				addr:     v.PublicAddr(topo.Overlay),
-				lastFail: time.Now(),
-				lastExp:  time.Now(),
-			}
-		} else {
-			info.Update(v.PublicAddr(topo.Overlay))
-		}
-	}
-	// Get list of outdated DS servers.
-	var del []string
-	for k := range p {
-		if _, ok := topo.DS[k]; !ok {
-			del = append(del, k)
-		}
-	}
-	// Check that more than one DS remain.
-	if len(del) == len(p) {
-		return common.NewBasicError("Unable to delete all DS servers", nil)
-	}
-	for _, k := range del {
-		delete(p, k)
-	}
-	return nil
-}
-
-// Choose returns the info for the discovery service with the
-// minimal fail count in the pool.
-func (p Pool) Choose() (*Info, error) {
-	var r *Info
-	var minFail uint16 = math.MaxUint16
-	for _, ds := range p {
-		failCount := ds.FailCount()
-		if failCount < minFail {
-			r = ds
-			minFail = failCount
-		}
-	}
-	if r == nil {
-		return nil, common.NewBasicError("Unable to find discovery service", nil)
-	}
-	return r, nil
-}
+var _ discovery.Info = (*Info)(nil)
 
 // Info keeps track of the discovery service and its health.
 type Info struct {
@@ -133,11 +63,11 @@ func (h *Info) Addr() *addr.AppAddr {
 }
 
 // FailCount returns the fail count.
-func (h *Info) FailCount() uint16 {
+func (h *Info) FailCount() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.expireFails(time.Now())
-	return h.failCount
+	return int(h.failCount)
 }
 
 // Fail adds to the fail count.
@@ -147,7 +77,7 @@ func (h *Info) Fail() {
 	h.expireFails(time.Now())
 	h.lastFail = time.Now()
 	if h.failCount < math.MaxInt16 {
-		h.failCount += 1
+		h.failCount++
 	}
 }
 
@@ -155,7 +85,9 @@ func (h *Info) Fail() {
 // The caller is assumed to hold the lock on h.
 func (h *Info) expireFails(now time.Time) {
 	if now.Sub(h.lastFail) > failExpStart && now.Sub(h.lastExp) > failExpInterval {
-		h.failCount /= 2
+		for i := 0; i < int(now.Sub(h.lastExp)/failExpInterval); i++ {
+			h.failCount /= 2
+		}
 		h.lastExp = now
 	}
 }
