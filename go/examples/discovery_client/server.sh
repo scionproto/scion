@@ -18,7 +18,7 @@ mkdir -p "$temp_dir/$BASE/$STATIC"
 mkdir -p "$temp_dir/$BASE/$DYNAMIC"
 cat $1 | tee $temp_dir/$BASE/{$STATIC,$DYNAMIC}/{$FULL,$REDUCED} > /dev/null
 
-count=$( jq -r '.DiscoveryService[].Addrs.IPv4.Public.Addr' $1 | wc -l )
+count=$( jq -r '.DiscoveryService | length' $1 )
 printf "Using entry $ds_entry out of $count\n"
 
 laddr=$( jq -r '.DiscoveryService[].Addrs.IPv4.Public.Addr' $1 | sed -n "${ds_entry}p" )
