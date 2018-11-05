@@ -222,7 +222,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 		version:  version,
 		id:       messenger.NextId(),
 		server:   server,
-		postHook: store.InsertTRCHook,
+		postHook: store.insertTRCHook(),
 	})
 }
 
@@ -241,11 +241,45 @@ func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*tr
 	}
 }
 
-// InsertTRCHook always inserts the TRC into the database.
-func (store *Store) InsertTRCHook(ctx context.Context, trcObj *trc.TRC) error {
+func (store *Store) insertTRCHook() ValidateTRCFunc {
+	if store.config.ServiceType == proto.ServiceType_ps {
+		return store.insertTRCHookForwarding
+	}
+	return store.insertTRCHookLocal
+}
+
+// insertTRCHookLocal always inserts the TRC into the database.
+func (store *Store) insertTRCHookLocal(ctx context.Context, trcObj *trc.TRC) error {
 	if _, err := store.trustdb.InsertTRCCtx(ctx, trcObj); err != nil {
 		return common.NewBasicError("Unable to store TRC in database", err)
 	}
+	return nil
+}
+
+// insertTRCHookForwarding always inserts the TRC into the database and forwards it to the CS.
+func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC) error {
+	if err := store.insertTRCHookLocal(ctx, trcObj); err != nil {
+		return err
+	}
+	go func() {
+		defer log.LogPanicAndExit()
+		addr, err := store.ChooseServer(store.ia)
+		if err != nil {
+			log.Error("Failed to select server to forward cert cahin", "err", err)
+		}
+		rawTRC, err := trcObj.Compress()
+		if err != nil {
+			log.Error("Failed to compress TRC for forwarding", "err", err)
+		}
+		forwardCtx, cancelF := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelF()
+		err = store.msger.SendTRC(forwardCtx, &cert_mgmt.TRC{
+			RawTRC: rawTRC,
+		}, addr, messenger.NextId())
+		if err != nil {
+			log.Error("Failed to forward cert chain", "err", err)
+		}
+	}()
 	return nil
 }
 
@@ -367,8 +401,9 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 			if err != nil {
 				log.Error("Failed to compress chain for forwarding", "err", err)
 			}
-			// TODO(lukedirtwalker): use extended context?
-			err = store.msger.SendCertChain(ctx, &cert_mgmt.Chain{
+			forwardCtx, cancelF := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancelF()
+			err = store.msger.SendCertChain(forwardCtx, &cert_mgmt.Chain{
 				RawChain: rawChain,
 			}, addr, messenger.NextId())
 			if err != nil {
