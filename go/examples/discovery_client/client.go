@@ -73,30 +73,28 @@ func realMain() int {
 		return 1
 	}
 	var writeOnce sync.Once
-	fetcher := &fetcher.Fetcher{
-		Https: *https,
-		File:  file(),
-		Mode:  mode(),
-		ErrorF: func(err error) {
-			log.Error("Unable to fetch topology", "err", err)
-		},
-		UpdateF: func(topo *topology.Topo) {
-			log.Info("Fetched new topology", "ia", topo.ISD_AS, "ts", topo.Timestamp)
-		},
-		RawF: func(raw common.RawBytes) {
-			writeOnce.Do(func() {
-				fmt.Println(string(raw))
-				if *out == "" {
-					return
-				}
-				if err := ioutil.WriteFile(*out, raw, 0666); err != nil {
-					log.Error("Unable to write topology file", "err", err)
-				}
-				log.Info("Topology file written", "file", out)
-			})
-		},
-	}
-	if err := fetcher.Init(topo); err != nil {
+	fetcher, err := fetcher.New(mode(), file(), *https, topo, nil,
+		fetcher.Callbacks{
+			Error: func(err error) {
+				log.Error("Unable to fetch topology", "err", err)
+			},
+			Update: func(topo *topology.Topo) {
+				log.Info("Fetched new topology", "ia", topo.ISD_AS, "ts", topo.Timestamp)
+			},
+			Raw: func(raw common.RawBytes) {
+				writeOnce.Do(func() {
+					fmt.Println(string(raw))
+					if *out == "" {
+						return
+					}
+					if err := ioutil.WriteFile(*out, raw, 0666); err != nil {
+						log.Error("Unable to write topology file", "err", err)
+					}
+					log.Info("Topology file written", "file", out)
+				})
+			},
+		})
+	if err != nil {
 		log.Crit("Unable to initialize fetcher", "err", err)
 		return 1
 	}
