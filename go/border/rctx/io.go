@@ -15,6 +15,8 @@
 package rctx
 
 import (
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/rcmn"
@@ -99,6 +101,9 @@ func (s *Sock) Stop() {
 		// The order of the sequence below is important:
 		// Close the Sock, which effectively only signals the Reader to finish.
 		close(s.stop)
+		// If there is no traffic, the Reader might be blocked reading from the socket, so
+		// unblock the reader with deadline
+		s.Conn.SetReadDeadline(time.Now())
 		if s.Reader != nil {
 			<-s.readerStopped
 		}

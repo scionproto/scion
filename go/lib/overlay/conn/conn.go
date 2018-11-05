@@ -49,6 +49,7 @@ type Conn interface {
 	WriteBatch([]ipv4.Message) (int, error)
 	LocalAddr() *overlay.OverlayAddr
 	RemoteAddr() *overlay.OverlayAddr
+	SetReadDeadline(time.Time) error
 	Close() error
 }
 
@@ -112,6 +113,11 @@ func (c *connUDPIPv4) WriteBatch(msgs []ipv4.Message) (int, error) {
 	return c.pconn.WriteBatch(msgs, 0)
 }
 
+// SetReadDeadline sets the read deadline associated with the endpoint.
+func (c *connUDPIPv4) SetReadDeadline(t time.Time) error {
+	return c.pconn.SetReadDeadline(t)
+}
+
 type connUDPIPv6 struct {
 	connUDPBase
 	pconn *ipv6.PacketConn
@@ -153,6 +159,11 @@ func (c *connUDPIPv6) ReadBatch(msgs []ipv4.Message, metas []ReadMeta) (int, err
 
 func (c *connUDPIPv6) WriteBatch(msgs []ipv4.Message) (int, error) {
 	return c.pconn.WriteBatch(msgs, 0)
+}
+
+// SetReadDeadline sets the read deadline associated with the endpoint.
+func (c *connUDPIPv6) SetReadDeadline(t time.Time) error {
+	return c.pconn.SetReadDeadline(t)
 }
 
 type connUDPBase struct {
