@@ -43,6 +43,16 @@ type Info struct {
 	failCount uint16
 }
 
+// New creates a new info with the specified key and address.
+func New(key string, addr *addr.AppAddr) *Info {
+	return &Info{
+		addr:     addr,
+		key:      key,
+		lastFail: time.Now(),
+		lastExp:  time.Now(),
+	}
+}
+
 // Update updates the address. If changed, the fail count is reset.
 func (h *Info) Update(a *addr.AppAddr) {
 	h.mu.Lock()
@@ -53,6 +63,11 @@ func (h *Info) Update(a *addr.AppAddr) {
 		h.lastFail = time.Now()
 		h.lastExp = time.Now()
 	}
+}
+
+// Key returns the info key.
+func (h *Info) Key() string {
+	return h.key
 }
 
 // Addr returns the address of the discovery service.
