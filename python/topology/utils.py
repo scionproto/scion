@@ -22,7 +22,7 @@ from lib.util import write_file
 DOCKER_TESTER_CONF = 'testers-dc.yml'
 
 
-class UtilsGenerator(object):
+class TesterGenerator(object):
     def __init__(self, out_dir):
         self.out_dir = out_dir
         self.dc_tester_conf = {'version': '3', 'services': {}}
@@ -34,6 +34,7 @@ class UtilsGenerator(object):
                    yaml.dump(self.dc_tester_conf, default_flow_style=False))
 
     def _test_conf(self):
+        cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
         entry = {
             'image': 'scion_app_builder',
             'container_name': 'tester',
@@ -46,10 +47,9 @@ class UtilsGenerator(object):
             'volumes': [
                 '/run/shm/dispatcher:/run/shm/dispatcher:rw',
                 '/run/shm/sciond:/run/shm/sciond:rw',
-                self.output_base + '/logs:/home/scion/go/src/github.com/scionproto/scion/logs:rw',
-                self.output_base + '/gen:/home/scion/go/src/github.com/scionproto/scion/gen:rw',
-                self.output_base + '/gen-certs:\
-                /home/scion/go/src/github.com/scionproto/scion/gen-certs:rw'
+                self.output_base + '/logs:' + cntr_base + '/logs:rw',
+                self.output_base + '/gen:' + cntr_base + '/gen:rw',
+                self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
             'user': 'root',
             'command': [

@@ -15,9 +15,38 @@
 package integration
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
+)
+
+const (
+	// ServerPortReplace is a placeholder for the server port in the arguments.
+	ServerPortReplace = "<ServerPort>"
+	// SrcIAReplace is a placeholder for the source IA in the arguments.
+	SrcIAReplace = "<SRCIA>"
+	// DstIAReplace is a placeholder for the destination IA in the arguments.
+	DstIAReplace = "<DSTIA>"
+	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
+	// The message should always be `Listening ia=<IA>`
+	// where <IA> is the IA the server is listening on.
+	ReadySignal = "Listening ia="
+	// GoIntegrationEnv is an environment variable that is set for the binary under test.
+	// It can be used to guard certain statements, like printing the ReadySignal,
+	// in a program under test.
+	GoIntegrationEnv = "SCION_GO_INTEGRATION"
+	// portString is the string a server prints to specify the port it's listening on.
+	portString = "Port="
+)
+
+var (
+	serverPorts = make(map[addr.IA]string)
 )
 
 var _ Integration = (*binaryIntegration)(nil)
@@ -54,12 +83,79 @@ func (bi *binaryIntegration) Name() string {
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
-	return startServer(ctx, bi.cmd, args, dst, bi.logRedirect)
+	startCtx, cancelF := context.WithTimeout(ctx, StartServerTimeout)
+	defer cancelF()
+	r := &binaryWaiter{
+		exec.CommandContext(ctx, bi.cmd, args...),
+	}
+	r.Env = os.Environ()
+	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
+	ep, err := r.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	sp, err := r.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	ready := make(chan struct{})
+	// parse until we have the ready signal.
+	// and then discard the output until the end (required by StdoutPipe).
+	go func() {
+		defer log.LogPanicAndExit()
+		defer sp.Close()
+		signal := fmt.Sprintf("%s%s", ReadySignal, dst)
+		init := true
+		scanner := bufio.NewScanner(sp)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, portString) {
+				serverPorts[dst] = strings.TrimPrefix(line, portString)
+			}
+			if init && signal == line {
+				close(ready)
+				init = false
+			}
+		}
+	}()
+	go func() {
+		defer log.LogPanicAndExit()
+		bi.logRedirect("Server", "ServerErr", dst, ep)
+	}()
+	err = r.Start()
+	if err != nil {
+		return nil, err
+	}
+	select {
+	case <-ready:
+		return r, err
+	case <-startCtx.Done():
+		return nil, startCtx.Err()
+	}
 }
 
 func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
 	args := replacePattern(SrcIAReplace, src.String(), bi.clientArgs)
 	args = replacePattern(DstIAReplace, dst.String(), args)
 	args = replacePattern(ServerPortReplace, serverPorts[dst], args)
-	return startClient(ctx, bi.cmd, args, src, bi.logRedirect)
+	r := &binaryWaiter{
+		exec.CommandContext(ctx, bi.cmd, args...),
+	}
+	r.Env = os.Environ()
+	r.Env = append(r.Env, fmt.Sprintf("%s=1", GoIntegrationEnv))
+	ep, err := r.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		defer log.LogPanicAndExit()
+		bi.logRedirect("Client", "ClientErr", src, ep)
+	}()
+	return r, r.Start()
+}
+
+var _ Waiter = (*binaryWaiter)(nil)
+
+type binaryWaiter struct {
+	*exec.Cmd
 }

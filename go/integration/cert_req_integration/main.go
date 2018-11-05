@@ -26,10 +26,9 @@ import (
 )
 
 var (
-	name       = "end2end_integration"
-	cmd        = "./bin/end2end"
-	dockerArgs = []string{"tester", cmd}
-	attempts   = flag.Int("attempts", 1, "Number of attempts before giving up.")
+	name     = "certreq_integration"
+	cmd      = "./bin/cert_req"
+	attempts = flag.Int("attempts", 2, "Number of attempts before giving up.")
 )
 
 func main() {
@@ -43,19 +42,13 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]:0"
-	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:"
+	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]"
+	serverAddr := integration.DstIAReplace
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
-		"-local", clientAddr, "-remote", serverAddr + integration.ServerPortReplace}
-	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr + "0"}
-	// Redefine command and adjust args if run in docker
-	var in integration.Integration
+		"-local", clientAddr, "-remoteIA", serverAddr}
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
 	if *integration.Container != "" {
-		in = integration.NewDockerIntegration(name, *integration.Container, cmd, clientArgs,
-			serverArgs, integration.StdLog)
-	} else {
-		in = integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs,
-			integration.StdLog)
+		in = integration.NewDockerIntegration(*integration.Container, in)
 	}
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
@@ -64,23 +57,14 @@ func realMain() int {
 	return 0
 }
 
-// RunTests runs the client and server for each IAPair.
+// RunTests runs the client for each IAPair.
 // In case of an error the function is terminated immediately.
 func runTests(in integration.Integration, pairs []integration.IAPair) error {
 	return integration.ExecuteTimed(in.Name(), func() error {
-		// First run all servers
-		dsts := integration.ExtractUniqueDsts(pairs)
-		for _, dst := range dsts {
-			c, err := integration.StartServer(in, dst)
-			if err != nil {
-				return err
-			}
-			defer c.Close()
-		}
-		// Now start the clients for srcDest pair
-		for i, conn := range pairs {
+		// Start the clients for srcDest pair
+		for i, conn := range integration.IAPairs() {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
+				in.Name(), conn.Src, conn.Dst, i+1, len(integration.IAPairs())))
 			t := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
 			if err := integration.RunClient(in, conn, t); err != nil {
 				log.Error("Error during client execution", "err", err)

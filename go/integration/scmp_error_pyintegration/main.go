@@ -39,13 +39,9 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	clientArgs := []string{integration.SrcIAReplace, integration.DstIAReplace}
-	var in integration.Integration
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
 	if *integration.Container != "" {
-		in = integration.NewDockerIntegration(name, *integration.Container, cmd, clientArgs,
-			[]string{}, integration.StdLog)
-	} else {
-		in = integration.NewBinaryIntegration(name, cmd, clientArgs, []string{},
-			integration.StdLog)
+		in = integration.NewDockerIntegration(*integration.Container, in)
 	}
 	if err := integration.RunUnaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)

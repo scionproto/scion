@@ -35,12 +35,8 @@ var (
 var _ Integration = (*dockerIntegration)(nil)
 
 type dockerIntegration struct {
-	name        string
-	cmd         string
-	cntr        string
-	clientArgs  []string
-	serverArgs  []string
-	logRedirect LogRedirect
+	cntr string
+	*binaryIntegration
 }
 
 // NewDockerIntegration returns an implementation of the Integration interface.
@@ -49,35 +45,30 @@ type dockerIntegration struct {
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
-func NewDockerIntegration(name, cntr, cmd string, clientArgs, serverArgs []string,
-	logRedirect LogRedirect) Integration {
+func NewDockerIntegration(cntr string, binary Integration) Integration {
 
 	return &dockerIntegration{
-		name:        name,
-		cmd:         cmd,
-		cntr:        cntr,
-		clientArgs:  clientArgs,
-		serverArgs:  serverArgs,
-		logRedirect: logRedirect,
+		cntr:              cntr,
+		binaryIntegration: binary.(*binaryIntegration),
 	}
 }
 
-func (bi *dockerIntegration) Name() string {
-	return bi.name
+func (di *dockerIntegration) Name() string {
+	return di.binaryIntegration.Name()
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (bi *dockerIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
-	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
+func (di *dockerIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
+	bi := *di.binaryIntegration
 	env := fmt.Sprintf("%s=1", GoIntegrationEnv)
-	args = append([]string{dockerArg, bi.cntr, env, bi.cmd}, args...)
-	return startServer(ctx, dockerCmd, args, dst, bi.logRedirect)
+	bi.serverArgs = append([]string{dockerArg, di.cntr, env, bi.cmd}, bi.serverArgs...)
+	bi.cmd = dockerCmd
+	return bi.StartServer(ctx, dst)
 }
 
-func (bi *dockerIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
-	args := replacePattern(SrcIAReplace, src.String(), bi.clientArgs)
-	args = replacePattern(DstIAReplace, dst.String(), args)
-	args = replacePattern(ServerPortReplace, serverPorts[dst], args)
-	args = append([]string{dockerArg, bi.cntr, bi.cmd}, args...)
-	return startClient(ctx, dockerCmd, args, src, bi.logRedirect)
+func (di *dockerIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
+	bi := *di.binaryIntegration
+	bi.clientArgs = append([]string{dockerArg, di.cntr, bi.cmd}, bi.clientArgs...)
+	bi.cmd = dockerCmd
+	return bi.StartClient(ctx, src, dst)
 }
