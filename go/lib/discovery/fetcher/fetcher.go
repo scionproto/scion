@@ -20,46 +20,63 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
-	"github.com/scionproto/scion/go/lib/discovery/info"
+	"github.com/scionproto/scion/go/lib/discovery/pool"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
 var _ discovery.Fetcher = (*Fetcher)(nil)
 
+// Callbacks are used to inform the client. The functions are called when
+// the an associated event occurs. If the function is nil, it is ignored.
+type Callbacks struct {
+	// Raw is called with the raw body from the discovery service response.
+	Raw func(common.RawBytes)
+	// Update is called with the parsed topology from the discovery service response.
+	Update func(*topology.Topo)
+	// Error is called with any error that occurs.
+	Error func(error)
+}
+
 // Fetcher is used to fetch a new topology file from the discovery service.
 type Fetcher struct {
-	// pool is a pool of discovery services
-	pool discovery.Pool
-	// Client is the http client. If nil, the default client is used.
+	// Pool is a Pool of discovery services
+	Pool discovery.Pool
+	// Callbacks contains the callbacks.
+	Callbacks Callbacks
+	// Client is the http Client. If nil, the default Client is used.
 	Client *http.Client
-	// RawF is the callback to get the raw body from the DS response. Can be nil.
-	RawF func(common.RawBytes)
-	// UpdateF is the callback to get the parsed topology from the DS response. Can be nil.
-	UpdateF func(*topology.Topo)
-	// ErrorF is the callback to get all errors that occure. Can be nil.
-	ErrorF func(error)
-	// Https indicates if https must be used.
-	Https bool
 	// Mode indicates whether the static or the dynamic topology is requested.
 	Mode discovery.Mode
 	// File indicates whether the full or the reduced topology is requested.
 	// The full topology requires that this host is on the ACL of the contacted DS server.
 	File discovery.File
+	// Https indicates if https must be used.
+	Https bool
 }
 
-// Init initializes the fetcher. It must be called at least once before Run.
-func (f *Fetcher) Init(topo *topology.Topo) error {
+// New initializes a fetcher with the given values. Topo is provided to
+// initialize the pool with discovery services.
+func New(mode discovery.Mode, file discovery.File, https bool, topo *topology.Topo,
+	client *http.Client, clbks Callbacks) (*Fetcher, error) {
+
 	var err error
-	if f.pool, err = info.NewPool(topo); err != nil {
-		return err
+	f := &Fetcher{
+		Callbacks: clbks,
+		Client:    client,
+		Mode:      mode,
+		File:      file,
+		Https:     https,
 	}
-	return nil
+	if f.Pool, err = pool.New(topo); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
 // UpdateTopo updates the topology for the fetcher. This allows changing
 // the discovery service pool.
 func (f *Fetcher) UpdateTopo(topo *topology.Topo) error {
-	return f.pool.Update(topo)
+	return f.Pool.Update(topo)
 }
 
 // Run fetches a new topology file from the discovery service and calls the
@@ -68,16 +85,16 @@ func (f *Fetcher) UpdateTopo(topo *topology.Topo) error {
 // Otherwise ErrorF is called.
 func (f *Fetcher) Run(ctx context.Context) {
 	if err := f.run(ctx); err != nil {
-		f.errorF(err)
+		f.error(err)
 	}
 }
 
 func (f *Fetcher) run(ctx context.Context) error {
-	if f.pool == nil {
+	if f.Pool == nil {
 		return common.NewBasicError("Fetcher not initialized", nil)
 	}
 	// Choose a DS server.
-	ds, err := f.pool.Choose()
+	ds, err := f.Pool.Choose()
 	if err != nil {
 		return err
 	}
@@ -88,29 +105,29 @@ func (f *Fetcher) run(ctx context.Context) error {
 		return err
 	}
 	// Update DS server entries based on new topo.
-	if err := f.pool.Update(topo); err != nil {
+	if err := f.Pool.Update(topo); err != nil {
 		return common.NewBasicError("Unable to update pool", err)
 	}
 	// Notify the client.
-	f.rawF(raw)
-	f.updateF(topo)
+	f.raw(raw)
+	f.update(topo)
 	return nil
 }
 
-func (f *Fetcher) rawF(raw common.RawBytes) {
-	if f.RawF != nil {
-		f.RawF(raw)
+func (f *Fetcher) raw(raw common.RawBytes) {
+	if f.Callbacks.Raw != nil {
+		f.Callbacks.Raw(raw)
 	}
 }
 
-func (f *Fetcher) updateF(topo *topology.Topo) {
-	if f.UpdateF != nil {
-		f.UpdateF(topo)
+func (f *Fetcher) update(topo *topology.Topo) {
+	if f.Callbacks.Update != nil {
+		f.Callbacks.Update(topo)
 	}
 }
 
-func (f *Fetcher) errorF(err error) {
-	if f.ErrorF != nil {
-		f.ErrorF(err)
+func (f *Fetcher) error(err error) {
+	if f.Callbacks.Error != nil {
+		f.Callbacks.Error(err)
 	}
 }

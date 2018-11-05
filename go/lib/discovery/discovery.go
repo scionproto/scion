@@ -27,26 +27,30 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-const (
-	// Base is the base route for the topology file url. It is supposed to be used
-	// as Base/<mode>/<file>. For example, the dynamic and full topology has the url
-	// "discovery/v1/dynamic/full.json"
-	Base = "discovery/v1"
+type Mode string
 
+const (
 	// Dynamic indicates the dynamic mode.
 	Dynamic Mode = "dynamic"
 	// Static indicates the static mode.
 	Static Mode = "static"
+)
 
+type File string
+
+const (
 	// Full is the full topology file, including all service information.
 	Full File = "full.json"
 	// Reduced is a stripped down topology file for non-privileged entities.
 	Reduced File = "reduced.json"
 )
 
-type Mode string
-
-type File string
+const (
+	// Base is the base route for the topology file url. It is supposed to be used
+	// as Base/<mode>/<file>. For example, the dynamic and full topology has the url
+	// "discovery/v1/dynamic/full.json"
+	Base = "discovery/v1"
+)
 
 // Topo fetches the topology from the specified url. If client is nil,
 // the default http client is used.
