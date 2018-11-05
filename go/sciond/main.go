@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"math/rand"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -93,8 +92,7 @@ func realMain() int {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
 	}
-	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS,
-		rand.Uint64(), nil, log.Root())
+	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS, nil, log.Root())
 	if err != nil {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
