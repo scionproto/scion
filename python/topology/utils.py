@@ -18,19 +18,27 @@ import os
 import yaml
 # SCION
 from lib.util import write_file
+from topology.common import ArgsBase
 
 DOCKER_TESTER_CONF = 'testers-dc.yml'
 
 
+class TesterGenArgs(ArgsBase):
+    pass
+
+
 class TesterGenerator(object):
-    def __init__(self, out_dir):
-        self.out_dir = out_dir
+    def __init__(self, args):
+        """
+        :param TesterGenArgs args: Contains the passed command line arguments.
+        """
+        self.args = args
         self.dc_tester_conf = {'version': '3', 'services': {}}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
 
     def generate(self):
         self._test_conf()
-        write_file(os.path.join(self.out_dir, DOCKER_TESTER_CONF),
+        write_file(os.path.join(self.args.output_dir, DOCKER_TESTER_CONF),
                    yaml.dump(self.dc_tester_conf, default_flow_style=False))
 
     def _test_conf(self):

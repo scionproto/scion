@@ -44,7 +44,7 @@ from lib.crypto.util import (
     get_online_key_file_path,
 )
 from lib.errors import SCIONParseError
-from topology.common import TopoID
+from topology.common import ArgsTopoConfig, TopoID
 
 INITIAL_CERT_VERSION = 1
 INITIAL_TRC_VERSION = 1
@@ -60,11 +60,18 @@ DEFAULT_LEAF_CERT_VALIDITY = 363 * 24 * 60 * 60
 DEFAULT_KEYGEN_ALG = 'ed25519'
 
 
+class CertGenArgs(ArgsTopoConfig):
+    pass
+
+
 class CertGenerator(object):
-    def __init__(self, topo_config, ca_certs):
-        self.topo_config = topo_config
+    def __init__(self, args):
+        """
+        :param CertGenArgs args: Contains the passed command line
+        arguments and the parsed topo config.
+        """
+        self.args = args
         self.core_count = defaultdict(int)
-        self.ca_certs = ca_certs
         self.sig_priv_keys = {}
         self.sig_pub_keys = {}
         self.enc_priv_keys = {}
@@ -99,7 +106,7 @@ class CertGenerator(object):
         self.enc_pub_keys[topo_id], self.enc_priv_keys[topo_id] = generate_enc_keypair()
 
     def _iterate(self, f):
-        for isd_as, as_conf in self.topo_config["ASes"].items():
+        for isd_as, as_conf in self.args.config["ASes"].items():
             f(TopoID(isd_as), as_conf)
 
     def _count_cores(self, topo_id, as_conf):

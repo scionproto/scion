@@ -29,6 +29,32 @@ SCION_SERVICE_NAMES = (
 )
 
 
+class ArgsBase:
+    def __init__(self, args):
+        for k, v in vars(args).items():
+            setattr(self, k, v)
+
+
+class ArgsTopoConfig(ArgsBase):
+    def __init__(self, args, topo_config):
+        """
+        :param ArgsBase args: Contains the passed command line arguments.
+        :param dict topo_config: The parsed topology config.
+        """
+        super().__init__(args)
+        self.config = topo_config
+
+
+class ArgsTopoDicts(ArgsBase):
+    def __init__(self, args, topo_dicts):
+        """
+        :param ArgsBase args: Contains the passed command line arguments.
+        :param dict topo_dicts: The generated topo dicts from TopoGenerator.
+        """
+        super().__init__(args)
+        self.topo_dicts = topo_dicts
+
+
 class TopoID(ISD_AS):
     def ISD(self):
         return "ISD%s" % self.isd_str()
