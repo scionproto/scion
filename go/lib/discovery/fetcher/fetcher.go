@@ -27,7 +27,7 @@ import (
 var _ discovery.Fetcher = (*Fetcher)(nil)
 
 // Callbacks are used to inform the client. The functions are called when
-// the an associated event occurs. If the function is nil, it is ignored.
+// an associated event occurs. If the function is nil, it is ignored.
 type Callbacks struct {
 	// Raw is called with the raw body from the discovery service response.
 	Raw func(common.RawBytes)
