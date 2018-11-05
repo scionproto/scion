@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package pool
 
 import (
 	"math"
 	"sync"
-	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
+	"github.com/scionproto/scion/go/lib/discovery/info"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -29,17 +29,17 @@ var _ discovery.Pool = (*Pool)(nil)
 // Pool maps discovery service to their info.
 type Pool struct {
 	mu sync.Mutex
-	m  map[string]*Info
+	m  map[string]discovery.Info
 }
 
-// NewPool populates the pool with discovery service entries from the topo.
+// New populates the pool with discovery service entries from the topo.
 // At least one service must be present.
-func NewPool(topo *topology.Topo) (*Pool, error) {
+func New(topo *topology.Topo) (*Pool, error) {
 	if len(topo.DS) <= 0 {
 		return nil, common.NewBasicError("Topo must contain DS address", nil)
 	}
 	p := &Pool{
-		m: make(map[string]*Info, len(topo.DS)),
+		m: make(map[string]discovery.Info, len(topo.DS)),
 	}
 	p.Update(topo)
 	return p, nil
@@ -52,15 +52,10 @@ func (p *Pool) Update(topo *topology.Topo) error {
 	defer p.mu.Unlock()
 	// Add missing DS servers.
 	for k, v := range topo.DS {
-		if info, ok := p.m[k]; !ok {
-			p.m[k] = &Info{
-				key:      k,
-				addr:     v.PublicAddr(topo.Overlay),
-				lastFail: time.Now(),
-				lastExp:  time.Now(),
-			}
+		if elem, ok := p.m[k]; !ok {
+			p.m[k] = info.New(k, v.PublicAddr(topo.Overlay))
 		} else {
-			info.Update(v.PublicAddr(topo.Overlay))
+			elem.Update(v.PublicAddr(topo.Overlay))
 		}
 	}
 	// Get list of outdated DS servers.
@@ -85,17 +80,17 @@ func (p *Pool) Update(topo *topology.Topo) error {
 func (p *Pool) Choose() (discovery.Info, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	var r *Info
+	var best discovery.Info
 	var minFail = math.MaxUint16
 	for _, ds := range p.m {
 		failCount := ds.FailCount()
 		if failCount < minFail {
-			r = ds
+			best = ds
 			minFail = failCount
 		}
 	}
-	if r == nil {
+	if best == nil {
 		return nil, common.NewBasicError("Unable to find discovery service", nil)
 	}
-	return r, nil
+	return best, nil
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package pool
 
 import (
 	"net"
@@ -45,16 +45,16 @@ func contains(pool *Pool, v testInfo) {
 	Convey("The pool contains "+v.key, func() {
 		info, ok := pool.m[v.key]
 		SoMsg("Not found", ok, ShouldBeTrue)
-		SoMsg("Ip", info.addr.L3.IP(), ShouldResemble, v.addr.L3.IP())
-		SoMsg("Port", info.addr.L4.Port(), ShouldEqual, v.addr.L4.Port())
+		SoMsg("Ip", info.Addr().L3.IP(), ShouldResemble, v.addr.L3.IP())
+		SoMsg("Port", info.Addr().L4.Port(), ShouldEqual, v.addr.L4.Port())
 	})
 }
 
-func TestNewPool(t *testing.T) {
+func TestNew(t *testing.T) {
 	Convey("Given a topology", t, func() {
 		topo := mustLoadTopo(t)
 		Convey("When the topology contains a discovery service", func() {
-			pool, err := NewPool(topo)
+			pool, err := New(topo)
 			Convey("The pool should initialize", func() {
 				So(err, ShouldBeNil)
 			})
@@ -67,7 +67,7 @@ func TestNewPool(t *testing.T) {
 		Convey("When the topology does not contain a discovery service", func() {
 			topo.DS = nil
 			Convey("The pool should not initialize", func() {
-				_, err := NewPool(topo)
+				_, err := New(topo)
 				So(err, ShouldNotBeNil)
 			})
 		})
@@ -131,7 +131,7 @@ func TestPoolUpdate(t *testing.T) {
 }
 
 func mustLoadPool(t *testing.T) *Pool {
-	pool, err := NewPool(mustLoadTopo(t))
+	pool, err := New(mustLoadTopo(t))
 	xtest.FailOnErr(t, err)
 	return pool
 }
