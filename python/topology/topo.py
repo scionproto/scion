@@ -54,16 +54,13 @@ ZOOKEEPER_ADDR = "172.18.0.1"
 
 
 class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps, ds):
+    def __init__(self, args, topo_config, subnet_gen, prvnet_gen, zk_config, default_mtu):
+        self.args = args
         self.topo_config = topo_config
-        self.out_dir = out_dir
         self.subnet_gen = subnet_gen
         self.prvnet_gen = prvnet_gen
         self.zk_config = zk_config
         self.default_mtu = default_mtu
-        self.gen_bind_addr = gen_bind_addr
-        self.docker = docker
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
@@ -71,15 +68,12 @@ class TopoGenerator(object):
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
         self.ifid_map = {}
-        if ipv6:
+        if args.ipv6:
             self.overlay = "UDP/IPv6"
             self.addr_type = "IPv6"
         else:
             self.overlay = "UDP/IPv4"
             self.addr_type = "IPv4"
-        self.cs = cs
-        self.ps = ps
-        self.ds = ds
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -181,10 +175,10 @@ class TopoGenerator(object):
                        topo_key):
         count = as_conf.get(conf_key, def_num)
         # only a single Go-PS/Go-CS per AS is currently supported
-        if ((conf_key == "path_servers" and self.ps == "go") or
-           (conf_key == "certificate_servers" and self.cs == "go")):
+        if ((conf_key == "path_servers" and self.args.path_server == "go") or
+           (conf_key == "certificate_servers" and self.args.cert_server == "go")):
             count = 1
-        if conf_key == "discovery_servers" and not self.ds:
+        if conf_key == "discovery_servers" and not self.args.discovery:
             count = 0
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
@@ -198,7 +192,7 @@ class TopoGenerator(object):
                     }
                 }
             }
-            if self.gen_bind_addr:
+            if self.args.bind_addr:
                 d['Addrs'][self.addr_type]['Bind'] = {
                     'Addr': self._reg_bind_addr(topo_id, elem_id),
                     'L4Port': random.randint(30050, 30100),
@@ -262,7 +256,7 @@ class TopoGenerator(object):
         zk_conf = {}
         if "zookeepers" in self.topo_config.get("defaults", {}):
             zk_conf = self.topo_config["defaults"]["zookeepers"]
-        if self.docker:
+        if self.args.docker:
             zk_conf[1] = {'addr': ZOOKEEPER_ADDR}
         for key, val in zk_conf.items():
             self._gen_zk_entry(topo_id, key, val)
@@ -284,7 +278,7 @@ class TopoGenerator(object):
 
     def _write_as_topos(self):
         for topo_id, as_topo, base in _srv_iter(
-                self.topo_dicts, self.out_dir, common=True):
+                self.topo_dicts, self.args.output_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],
                                        default=_json_default, indent=2)
@@ -293,16 +287,16 @@ class TopoGenerator(object):
             Topology.from_file(path)
 
     def _write_as_list(self):
-        list_path = os.path.join(self.out_dir, AS_LIST_FILE)
+        list_path = os.path.join(self.args.output_dir, AS_LIST_FILE)
         write_file(list_path, yaml.dump(dict(self.as_list)))
 
     def _write_ifids(self):
-        list_path = os.path.join(self.out_dir, IFIDS_FILE)
+        list_path = os.path.join(self.args.output_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
 
     def _write_overlay(self):
-        file_path = os.path.join(self.out_dir, OVERLAY_FILE)
+        file_path = os.path.join(self.args.output_dir, OVERLAY_FILE)
         write_file(file_path, self.overlay + '\n')
 
 
