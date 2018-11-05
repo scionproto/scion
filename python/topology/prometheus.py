@@ -44,8 +44,8 @@ class PrometheusGenerator(object):
         "PathService": "PS",
     }
 
-    def __init__(self, out_dir, topo_dicts):
-        self.out_dir = out_dir
+    def __init__(self, args, topo_dicts):
+        self.args = args
         self.topo_dicts = topo_dicts
 
     def generate(self):
@@ -63,7 +63,7 @@ class PrometheusGenerator(object):
     def _write_config_files(self, config_dict):
         targets_paths = defaultdict(list)
         for topo_id, ele_dict in config_dict.items():
-            base = topo_id.base_dir(self.out_dir)
+            base = topo_id.base_dir(self.args.output_dir)
             as_local_targets_path = {}
             for ele_type, target_list in ele_dict.items():
                 targets_path = os.path.join(base, self.PROM_DIR, self.TARGET_FILES[ele_type])
@@ -71,7 +71,7 @@ class PrometheusGenerator(object):
                 as_local_targets_path[self.JOB_NAMES[ele_type]] = [targets_path]
                 self._write_target_file(base, target_list, ele_type)
             self._write_config_file(os.path.join(base, PROM_FILE), as_local_targets_path)
-        self._write_config_file(os.path.join(self.out_dir, PROM_FILE), targets_paths)
+        self._write_config_file(os.path.join(self.args.output_dir, PROM_FILE), targets_paths)
 
     def _write_config_file(self, config_path, job_dict):
         scrape_configs = []

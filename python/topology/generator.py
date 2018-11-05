@@ -37,11 +37,7 @@ from topology.config import (
 )
 
 
-def main():
-    """
-    Main function.
-    """
-    parser = argparse.ArgumentParser()
+def add_arguments(parser):
     parser.add_argument('-6', '--ipv6', action='store_true',
                         help='Generate IPv6 addresses')
     parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
@@ -70,11 +66,15 @@ def main():
                         help='Path Server implementation to use ("go or "py")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
-    args = parser.parse_args()
-    confgen = ConfigGenerator(
-        args.ipv6, args.output_dir, args.topo_config, args.path_policy, args.zk_config,
-        args.network, args.mininet, args.docker, args.bind_addr, args.pseg_ttl, args.cert_server,
-        args.sciond, args.path_server, args.discovery)
+
+
+def main():
+    """
+    Main function.
+    """
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    confgen = ConfigGenerator(parser.parse_args())
     confgen.generate_all()
 
 

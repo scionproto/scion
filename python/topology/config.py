@@ -38,8 +38,6 @@ from lib.crypto.util import (
 from lib.defines import (
     AS_CONF_FILE,
     DEFAULT_MTU,
-    DEFAULT_SEGMENT_TTL,
-    GEN_PATH,
     DEFAULT6_NETWORK,
     DEFAULT6_PRIV_NETWORK,
     NETWORKS_FILE,
@@ -82,48 +80,21 @@ class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
     """
-    def __init__(self, ipv6=False, out_dir=GEN_PATH, topo_file=DEFAULT_TOPOLOGY_FILE,
-                 path_policy_file=DEFAULT_PATH_POLICY_FILE,
-                 zk_config_file=DEFAULT_ZK_CONFIG, network=None,
-                 use_mininet=False, use_docker=False, bind_addr=GENERATE_BIND_ADDRESS,
-                 pseg_ttl=DEFAULT_SEGMENT_TTL, cs=DEFAULT_CERTIFICATE_SERVER,
-                 sd=DEFAULT_SCIOND, ps=DEFAULT_PATH_SERVER, ds=False):
+    def __init__(self, args):
         """
         Initialize an instance of the class ConfigGenerator.
 
-        :param string out_dir: path to the topology folder.
-        :param string topo_file: path to topology config
-        :param string path_policy_file: path to PathPolicy.yml
-        :param string zk_config_file: path to Zookeeper.yml
-        :param string network:
-            Network to create subnets in, of the form x.x.x.x/y
-        :param bool use_mininet: Use Mininet
-        :param bool use_docker: Create a docker-compose config
-        :param int pseg_ttl: The TTL for path segments (in seconds)
-        :param string cs: Use go or python implementation of certificate server
-        :param string sd: Use go or python implementation of SCIOND
-        :param string ps: Use go or python implementation of path server
-        :param bool ds: Use discovery service
+        :param argparse.Namespace args: Contains the passed command line arguments.
         """
-        self.ipv6 = ipv6
-        self.out_dir = out_dir
-        self.topo_config = load_yaml_file(topo_file)
-        self.zk_config = load_yaml_file(zk_config_file)
-        self.path_policy_file = path_policy_file
-        self.mininet = use_mininet
-        self.docker = use_docker
-        if self.docker and self.mininet:
+        self.args = args
+        self.topo_config = load_yaml_file(args.topo_config)
+        self.zk_config = load_yaml_file(self.args.zk_config)
+        if self.args.docker and self.args.mininet:
             logging.critical("Cannot use mininet with docker!")
             sys.exit(1)
         self.default_mtu = None
-        self.gen_bind_addr = bind_addr
-        self.pseg_ttl = pseg_ttl
-        self._read_defaults(network)
-        self.cs = cs
-        self.sd = sd
-        self.ps = ps
-        self.ds = ds
-        if self.docker and self.cs is not DEFAULT_CERTIFICATE_SERVER:
+        self._read_defaults(args.network)
+        if self.args.docker and self.args.cert_server is not DEFAULT_CERTIFICATE_SERVER:
             logging.critical("Cannot use non-default CS with docker!")
             sys.exit(1)
 
@@ -136,21 +107,21 @@ class ConfigGenerator(object):
         if not def_network:
             def_network = defaults.get("subnet")
         if not def_network:
-            if self.ipv6:
+            if self.args.ipv6:
                 def_network = DEFAULT6_NETWORK
             else:
-                if self.mininet:
+                if self.args.mininet:
                     def_network = DEFAULT_MININET_NETWORK
                 else:
                     def_network = DEFAULT_NETWORK
-        if self.ipv6:
+        if self.args.ipv6:
             priv_net = DEFAULT6_PRIV_NETWORK
         else:
             priv_net = DEFAULT_PRIV_NETWORK
         self.subnet_gen = SubnetGenerator(def_network)
         self.prvnet_gen = SubnetGenerator(priv_net)
         for key, val in defaults.get("zookeepers", {}).items():
-            if self.mininet and val['addr'] == "127.0.0.1":
+            if self.args.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
         self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
 
@@ -162,12 +133,7 @@ class ConfigGenerator(object):
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
-        self._generate_go(topo_dicts)
-        if self.docker:
-            self._generate_docker(topo_dicts)
-        else:
-            self._generate_supervisor(topo_dicts)
-        self._generate_prom_conf(topo_dicts)
+        self._generate_with_topo(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
         self._write_trust_files(topo_dicts, cert_files)
@@ -176,7 +142,7 @@ class ConfigGenerator(object):
         self._write_conf_policies(topo_dicts)
         self._write_master_keys(topo_dicts)
         self._write_networks_conf(networks, NETWORKS_FILE)
-        if self.gen_bind_addr:
+        if self.args.bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
     def _ensure_uniq_ases(self):
@@ -188,6 +154,14 @@ class ConfigGenerator(object):
                 sys.exit(1)
             seen.add(ia[1])
 
+    def _generate_with_topo(self, topo_dicts):
+        self._generate_go(topo_dicts)
+        if self.args.docker:
+            self._generate_docker(topo_dicts)
+        else:
+            self._generate_supervisor(topo_dicts)
+        self._generate_prom_conf(topo_dicts)
+
     def _generate_cas(self):
         ca_gen = CAGenerator(self.topo_config)
         return ca_gen.generate()
@@ -197,33 +171,29 @@ class ConfigGenerator(object):
         return certgen.generate()
 
     def _generate_go(self, topo_dicts):
-        go_gen = GoGenerator(self.out_dir, topo_dicts, self.docker)
-        if self.cs == "go":
+        go_gen = GoGenerator(self.args, topo_dicts)
+        if self.args.cert_server == "go":
             go_gen.generate_cs()
-        if self.sd == "go":
+        if self.args.sciond == "go":
             go_gen.generate_sciond()
-        if self.ps == "go":
+        if self.args.path_server == "go":
             go_gen.generate_ps()
 
     def _generate_topology(self):
-        topo_gen = TopoGenerator(
-            self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
-            self.default_mtu, self.gen_bind_addr, self.docker, self.ipv6, self.cs, self.ps,
-            self.ds)
+        topo_gen = TopoGenerator(self.args, self.topo_config, self.subnet_gen, self.prvnet_gen,
+                                 self.zk_config, self.default_mtu)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
-        super_gen = SupervisorGenerator(
-            self.out_dir, topo_dicts, self.mininet, self.cs, self.sd, self.ps)
+        super_gen = SupervisorGenerator(self.args, topo_dicts)
         super_gen.generate()
 
     def _generate_docker(self, topo_dicts):
-        docker_gen = DockerGenerator(
-            self.out_dir, topo_dicts, self.sd, self.ps)
+        docker_gen = DockerGenerator(self.args, topo_dicts)
         docker_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
-        prom_gen = PrometheusGenerator(self.out_dir, topo_dicts)
+        prom_gen = PrometheusGenerator(self.args, topo_dicts)
         prom_gen.generate()
 
     def _write_ca_files(self, topo_dicts, ca_files):
@@ -231,19 +201,19 @@ class ConfigGenerator(object):
         for topo_id, as_topo in topo_dicts.items():
             isds.add(topo_id[0])
         for isd in isds:
-            base = os.path.join(self.out_dir, "CAS")
+            base = os.path.join(self.args.output_dir, "CAS")
             for path, value in ca_files[int(isd)].items():
                 write_file(os.path.join(base, path), value.decode())
 
     def _write_trust_files(self, topo_dicts, cert_files):
         for topo_id, as_topo, base in _srv_iter(
-                topo_dicts, self.out_dir, common=True):
+                topo_dicts, self.args.output_dir, common=True):
             for path, value in cert_files[topo_id].items():
                 write_file(os.path.join(base, path), value + '\n')
 
     def _write_cust_files(self, topo_dicts, cust_files):
         for topo_id, as_topo in topo_dicts.items():
-            base = topo_id.base_dir(self.out_dir)
+            base = topo_id.base_dir(self.args.output_dir)
             for elem in as_topo["CertificateService"]:
                 for path, value in cust_files[topo_id].items():
                     write_file(os.path.join(base, elem, path), value)
@@ -254,17 +224,17 @@ class ConfigGenerator(object):
         """
         as_confs = {}
         for topo_id, as_topo, base in _srv_iter(
-                topo_dicts, self.out_dir, common=True):
+                topo_dicts, self.args.output_dir, common=True):
             as_confs.setdefault(topo_id, yaml.dump(
                 self._gen_as_conf(as_topo), default_flow_style=False))
             conf_file = os.path.join(base, AS_CONF_FILE)
             write_file(conf_file, as_confs[topo_id])
             # Confirm that config parses cleanly.
             Config.from_file(conf_file)
-            copy_file(self.path_policy_file,
+            copy_file(self.args.path_policy,
                       os.path.join(base, PATH_POLICY_FILE))
         # Confirm that parser actually works on path policy file
-        PathPolicy.from_file(self.path_policy_file)
+        PathPolicy.from_file(self.args.path_policy)
 
     def _gen_as_conf(self, as_topo):
         return {
@@ -273,7 +243,7 @@ class ConfigGenerator(object):
             'CertChainVersion': 0,
             # FIXME(kormat): This seems to always be true..:
             'RegisterPath': True if as_topo["PathService"] else False,
-            'PathSegmentTTL': self.pseg_ttl,
+            'PathSegmentTTL': self.args.pseg_ttl,
         }
 
     def _write_master_keys(self, topo_dicts):
@@ -282,7 +252,7 @@ class ConfigGenerator(object):
         """
         master_keys = {}
         for topo_id, as_topo, base in _srv_iter(
-                topo_dicts, self.out_dir, common=True):
+                topo_dicts, self.args.output_dir, common=True):
 
             master_keys.setdefault(topo_id, self._gen_master_keys())
             write_file(get_master_key_file_path(base, MASTER_KEY_0),
@@ -305,4 +275,4 @@ class ConfigGenerator(object):
             config[net] = sub_conf
         text = StringIO()
         config.write(text)
-        write_file(os.path.join(self.out_dir, out_file), text.getvalue())
+        write_file(os.path.join(self.args.output_dir, out_file), text.getvalue())

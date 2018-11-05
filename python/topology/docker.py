@@ -36,11 +36,9 @@ DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 
 
 class DockerGenerator(object):
-    def __init__(self, out_dir, topo_dicts, sd, ps):
-        self.out_dir = out_dir
+    def __init__(self, args, topo_dicts):
+        self.args = args
         self.topo_dicts = topo_dicts
-        self.sd = sd
-        self.ps = ps
         self.dc_base_conf = {'version': '3', 'networks': {}}
         self.dc_conf = {'version': '3', 'services': {}}
         self.dc_util_conf = {'version': '3', 'services': {}}
@@ -53,13 +51,13 @@ class DockerGenerator(object):
         self._dispatcher_conf()
         self._test_conf()
         for topo_id, topo in self.topo_dicts.items():
-            base = os.path.join(self.output_base, topo_id.base_dir(self.out_dir))
+            base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
-        write_file(os.path.join(self.out_dir, DOCKER_SCION_CONF),
+        write_file(os.path.join(self.args.output_dir, DOCKER_SCION_CONF),
                    yaml.dump(self.dc_conf, default_flow_style=False))
-        write_file(os.path.join(self.out_dir, DOCKER_UTIL_CONF),
+        write_file(os.path.join(self.args.output_dir, DOCKER_UTIL_CONF),
                    yaml.dump(self.dc_util_conf, default_flow_style=False))
-        write_file(os.path.join(self.out_dir, DOCKER_BASE_CONF),
+        write_file(os.path.join(self.args.output_dir, DOCKER_BASE_CONF),
                    yaml.dump(self.dc_base_conf, default_flow_style=False))
 
     def _base_conf(self):
@@ -168,7 +166,7 @@ class DockerGenerator(object):
             self.dc_conf['services'][k] = entry
 
     def _ps_conf(self, topo_id, topo, base):
-        image = 'scion_path_py' if self.ps == 'py' else 'scion_path'
+        image = 'scion_path_py' if self.args.path_server == 'py' else 'scion_path'
         raw_entry = {
             'image': image,
             'depends_on': [
@@ -193,7 +191,7 @@ class DockerGenerator(object):
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            if self.ps == 'py':
+            if self.args.path_server == 'py':
                 entry['command'].append('--spki_cache_dir=cache')
                 entry['command'].append('--prom=%s' % _prom_addr_infra(v))
                 entry['command'].append('--sciond_path=%s' %
@@ -215,7 +213,8 @@ class DockerGenerator(object):
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                os.path.join(self.output_base, self.out_dir, cfg_file) + ':/conf/zoo.cfg:rw',
+                os.path.join(
+                    self.output_base, self.args.output_dir, cfg_file) + ':/conf/zoo.cfg:rw',
                 '/var/lib/docker-zk:/var/lib/zookeeper:rw',
                 '/run/shm/docker-zk:/dev/shm/zookeeper:rw'
             ],
@@ -224,7 +223,7 @@ class DockerGenerator(object):
             ]
         }
         self.dc_conf['services']['zookeeper'] = entry
-        cfg_path = os.path.join(self.out_dir, cfg_file)
+        cfg_path = os.path.join(self.args.output_dir, cfg_file)
         os.makedirs(os.path.dirname(cfg_path))
         copyfile(os.path.join(os.environ['PWD'], cfg_file), cfg_path)
 
@@ -248,12 +247,12 @@ class DockerGenerator(object):
 
         # Create dispatcher config
         tmpl = Template(read_file("topology/zlog.tmpl"))
-        cfg = self.out_dir + "/dispatcher/dispatcher.zlog.conf"
+        cfg = self.args.output_dir + "/dispatcher/dispatcher.zlog.conf"
         write_file(cfg, tmpl.substitute(name="dispatcher", elem="dispatcher"))
 
     def _sciond_conf(self, topo_id, base):
         name = self._sciond_name(topo_id)
-        image = 'scion_sciond_py' if self.sd == 'py' else 'scion_sciond'
+        image = 'scion_sciond_py' if self.args.sciond == 'py' else 'scion_sciond'
         entry = {
             'image': image,
             'container_name': name,
@@ -273,7 +272,7 @@ class DockerGenerator(object):
                 self.output_base + '/logs:/share/logs:rw'
             ],
         }
-        if self.sd == 'py':
+        if self.args.sciond == 'py':
             entry['command'] = [
                     '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                     '--log_dir=logs',
