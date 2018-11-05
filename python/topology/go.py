@@ -24,28 +24,33 @@ import toml
 from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.util import write_file
-from topology.common import COMMON_DIR
+from topology.common import ArgsTopoDicts, COMMON_DIR
+
+
+class GoGenArgs(ArgsTopoDicts):
+    pass
 
 
 class GoGenerator(object):
-    def __init__(self, out_dir, topo_dicts, docker):
-        self.out_dir = out_dir
-        self.topo_dicts = topo_dicts
-        self.docker = docker
+    def __init__(self, args):
+        """
+        :param GoGenArgs args: Contains the passed command line arguments and topo dicts.
+        """
+        self.args = args
 
     def generate_ps(self):
-        for topo_id, topo in self.topo_dicts.items():
+        for topo_id, topo in self.args.topo_dicts.items():
             for k, v in topo.get("PathService", {}).items():
                 # only a single Go-PS per AS is currently supported
                 if k.endswith("-1"):
-                    base = topo_id.base_dir(self.out_dir)
+                    base = topo_id.base_dir(self.args.output_dir)
                     ps_conf = self._build_ps_conf(topo_id, topo["ISD_AS"], base, k)
                     write_file(os.path.join(base, k, "psconfig.toml"), toml.dumps(ps_conf))
 
     def _build_ps_conf(self, topo_id, ia, base, name):
-        config_dir = '/share/conf' if self.docker else os.path.join(base, name)
-        log_dir = '/share/logs' if self.docker else 'logs'
-        db_dir = '/share/cache' if self.docker else 'gen-cache'
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        log_dir = '/share/logs' if self.args.docker else 'logs'
+        db_dir = '/share/cache' if self.args.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -78,16 +83,16 @@ class GoGenerator(object):
         return raw_entry
 
     def generate_sciond(self):
-        for topo_id, topo in self.topo_dicts.items():
-            base = topo_id.base_dir(self.out_dir)
+        for topo_id, topo in self.args.topo_dicts.items():
+            base = topo_id.base_dir(self.args.output_dir)
             sciond_conf = self._build_sciond_conf(topo_id, topo["ISD_AS"], base)
             write_file(os.path.join(base, COMMON_DIR, "sciond.toml"), toml.dumps(sciond_conf))
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = self._sciond_name(topo_id)
-        config_dir = '/share/conf' if self.docker else os.path.join(base, COMMON_DIR)
-        log_dir = '/share/logs' if self.docker else 'logs'
-        db_dir = '/share/cache' if self.docker else 'gen-cache'
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, COMMON_DIR)
+        log_dir = '/share/logs' if self.args.docker else 'logs'
+        db_dir = '/share/cache' if self.args.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -121,18 +126,18 @@ class GoGenerator(object):
         return 'sd' + topo_id.file_fmt()
 
     def generate_cs(self):
-        for topo_id, topo in self.topo_dicts.items():
+        for topo_id, topo in self.args.topo_dicts.items():
             for k, v in topo.get("CertificateService", {}).items():
                 # only a single Go-CS per AS is currently supported
                 if k.endswith("-1"):
-                    base = topo_id.base_dir(self.out_dir)
+                    base = topo_id.base_dir(self.args.output_dir)
                     cs_conf = self._build_cs_conf(topo_id, topo["ISD_AS"], base, k)
                     write_file(os.path.join(base, k, "csconfig.toml"), toml.dumps(cs_conf))
 
     def _build_cs_conf(self, topo_id, ia, base, name):
-        config_dir = '/share/conf' if self.docker else os.path.join(base, name)
-        log_dir = '/share/logs' if self.docker else 'logs'
-        db_dir = '/share/cache' if self.docker else 'gen-cache'
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        log_dir = '/share/logs' if self.args.docker else 'logs'
+        db_dir = '/share/cache' if self.args.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,

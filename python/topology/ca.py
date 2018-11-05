@@ -27,11 +27,20 @@ from lib.crypto.util import (
     get_ca_cert_file_path,
     get_ca_private_key_file_path,
 )
+from topology.common import ArgsTopoConfig
+
+
+class CAGenArgs(ArgsTopoConfig):
+    pass
 
 
 class CAGenerator(object):
-    def __init__(self, topo_config):
-        self.topo_config = topo_config
+    def __init__(self, args):
+        """
+        :param CAGenArgs args: Contains the passed command line
+        arguments and the topo config.
+        """
+        self.args = args
         self.ca_key_pairs = {}
         self.ca_certs = defaultdict(dict)
         self.ca_private_key_files = defaultdict(dict)
@@ -45,7 +54,7 @@ class CAGenerator(object):
         return self.ca_private_key_files, self.ca_cert_files, self.ca_certs
 
     def _iterate(self, f):
-        for ca_name, ca_config in self.topo_config["CAs"].items():
+        for ca_name, ca_config in self.args.config["CAs"].items():
             f(ca_name, ca_config)
 
     def _gen_ca_key(self, ca_name, ca_config):
