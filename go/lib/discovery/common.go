@@ -53,6 +53,6 @@ type Fetcher interface {
 	periodic.Task
 	// UpdateTopo updates the topology for the fetcher. It can be used to notify
 	// fetcher in case a new topology file has been received from sources other
-	// then the discovery service (e.g. through sigup reloading)
+	// than the discovery service (e.g. through sighup reloading)
 	UpdateTopo(*topology.Topo) error
 }
