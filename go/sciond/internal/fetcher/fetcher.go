@@ -374,11 +374,7 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		}
 	}
 	paths := buildPathsToAllDsts(req, ups, cores, downs)
-	filteredPaths, err := f.filterRevokedPaths(ctx, paths)
-	if err != nil {
-		return nil, err
-	}
-	return filteredPaths, nil
+	return f.filterRevokedPaths(ctx, paths)
 }
 
 func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
