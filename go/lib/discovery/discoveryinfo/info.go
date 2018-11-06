@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package info
+package discoveryinfo
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ const (
 	failExpInterval = 10 * time.Second
 )
 
-var _ discovery.Info = (*Info)(nil)
+var _ discovery.InstanceInfo = (*Info)(nil)
 
 // Info keeps track of the discovery service and its health.
 type Info struct {
@@ -70,7 +70,7 @@ func (h *Info) Key() string {
 	return h.key
 }
 
-// Addr returns the address of the discovery service.
+// Addr returns the address of the discovery service instance.
 func (h *Info) Addr() *addr.AppAddr {
 	h.mu.Lock()
 	defer h.mu.Unlock()
