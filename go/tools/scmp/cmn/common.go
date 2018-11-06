@@ -187,40 +187,28 @@ func Validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.Payload, error) {
 		return scmpHdr, nil,
 			common.NewBasicError("Not an SCMP payload", nil, "type", common.TypeOf(pkt.Pld))
 	}
-	// Check packet is not a revokation
-	if scmpHdr.Class == scmp.C_Path && scmpHdr.Type == scmp.T_P_RevokedIF {
-		infoRev, ok := scmpPld.Info.(*scmp.InfoRevocation)
-		if !ok {
-			return scmpHdr, scmpPld,
-				common.NewBasicError("Failed to parse SCMP revocation Info", nil)
-		}
-		signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(infoRev.RawSRev)
-		if err != nil {
-			return scmpHdr, scmpPld,
-				common.NewBasicError("Failed to decode SCMP signed revocation Info", nil)
-		}
-		ri, err := signedRevInfo.RevInfo()
-		if err != nil {
-			return scmpHdr, scmpPld,
-				common.NewBasicError("Failed to decode SCMP revocation Info", nil)
-		}
-		return scmpHdr, scmpPld, common.NewBasicError("", nil, "Revocation", ri)
+	if scmpHdr.Class != scmp.C_Path || scmpHdr.Type != scmp.T_P_RevokedIF {
+		return scmpHdr, scmpPld, nil
 	}
-	return scmpHdr, scmpPld, nil
+	// Handle recovation
+	infoRev, ok := scmpPld.Info.(*scmp.InfoRevocation)
+	if !ok {
+		return scmpHdr, scmpPld,
+			common.NewBasicError("Failed to parse SCMP revocation Info", nil)
+	}
+	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(infoRev.RawSRev)
+	if err != nil {
+		return scmpHdr, scmpPld,
+			common.NewBasicError("Failed to decode SCMP signed revocation Info", nil)
+	}
+	ri, err := signedRevInfo.RevInfo()
+	if err != nil {
+		return scmpHdr, scmpPld,
+			common.NewBasicError("Failed to decode SCMP revocation Info", nil)
+	}
+	return scmpHdr, scmpPld, common.NewBasicError("", nil, "Revocation", ri)
 }
 
-/*
-type RevInfo struct {
-	IfID     common.IFIDType
-	RawIsdas addr.IAInt `capnp:"isdas"`
-	// LinkType of revocation
-	LinkType proto.LinkType
-	// RawTimestamp the issuing timestamp in seconds.
-	RawTimestamp uint32 `capnp:"timestamp"`
-	// RawTTL validity period of the revocation in seconds
-	RawTTL uint32 `capnp:"ttl"`
-}
-*/
 func Rand() uint64 {
 	return rand.Uint64()
 }
