@@ -44,6 +44,7 @@ from lib.defines import (
 from lib.errors import (
     SCIONBaseError,
     SCIONChecksumFailed,
+    SCIONIOError,
     SCIONServiceLookupError,
 )
 from lib.log import log_exception
@@ -1033,9 +1034,13 @@ class SCIONElement(object):
 
     def handle_recv(self, sock):
         """
-        Callback to handle a ready recving socket
+        Callback to handle a ready receiving socket
         """
-        packet, addr = sock.recv()
+        try:
+            packet, addr = sock.recv()
+        except SCIONIOError as e:
+            logging.error("Socket IO error: %s", e)
+            return
         if packet is None:
             self._socks.remove(sock)
             sock.close()

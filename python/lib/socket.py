@@ -283,8 +283,7 @@ class ReliableSocket(Socket):
             return None, None
         cookie, addr_type, packet_len = struct.unpack("!8sBI", buf)
         if cookie != self.COOKIE:
-            logging.critical("Dispatcher socket out of sync")
-            raise SCIONIOError
+            raise SCIONIOError("Dispatcher socket out of sync")
         port_len = 0
         if addr_type != AddrType.NONE:
             port_len = 2
