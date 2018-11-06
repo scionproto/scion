@@ -39,6 +39,16 @@ type dockerIntegration struct {
 	*binaryIntegration
 }
 
+func dockerize(bi *binaryIntegration) Integration {
+	if *container != "" {
+		return &dockerIntegration{
+			cntr:              *container,
+			binaryIntegration: bi,
+		}
+	}
+	return bi
+}
+
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
 func (di *dockerIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
 	bi := *di.binaryIntegration

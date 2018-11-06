@@ -83,16 +83,6 @@ func (bi *binaryIntegration) Name() string {
 	return bi.name
 }
 
-func dockerize(bi *binaryIntegration) Integration {
-	if *container != "" {
-		return &dockerIntegration{
-			cntr:              *container,
-			binaryIntegration: bi,
-		}
-	}
-	return bi
-}
-
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
 	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
