@@ -106,7 +106,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		req.Src = f.topology.ISD_AS.IAInt()
 	}
 	if !req.Src.IA().Eq(f.topology.ISD_AS) {
-		return f.buildSCIONDReply(nil, sciond.ErrorBadSrcIA),
+		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
 	// Commit to a path server, and use it for path and crypto queries
@@ -123,11 +123,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	ps := &snet.Addr{IA: f.topology.ISD_AS, Host: psAddr, NextHop: psOverlayAddr}
 	// Check destination
 	if req.Dst.IA().I == 0 {
-		return f.buildSCIONDReply(nil, sciond.ErrorBadDstIA),
+		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadDstIA),
 			common.NewBasicError("Bad destination AS", nil, "ia", req.Dst.IA())
 	}
 	if req.Dst.IA().Eq(f.topology.ISD_AS) {
-		return f.buildSCIONDReply(nil, sciond.ErrorOk), nil
+		return f.buildSCIONDReply(nil, 0, sciond.ErrorOk), nil
 	}
 	// A ISD-0 destination should not require a TRC lookup in sciond, it could lead to a
 	// lookup loop: If sciond doesn't have the TRC, it would ask the CS, the CS would try to connect
@@ -146,12 +146,12 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
-			return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+			return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
 		case err != nil && common.GetErrorMsg(err) == trust.ErrNotFoundLocally:
 		case err != nil:
-			return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
+			return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
 		case err == nil && len(paths) > 0:
-			return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
+			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 		}
 	}
 	if req.Flags.Refresh {
@@ -187,11 +187,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 	paths, err := f.buildPathsFromDB(ctx, req)
 	switch {
 	case ctx.Err() != nil:
-		return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+		return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
 	case err != nil:
-		return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
+		return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
 	case err == nil && len(paths) > 0:
-		return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
+		return f.buildSCIONDReply(paths, 0, sciond.ErrorOk), nil
 	}
 	// If we reached this point because the early reply fired but we still
 	// weren't able to build and paths, wait as much as possible for new
@@ -204,15 +204,15 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		paths, err := f.buildPathsFromDB(ctx, req)
 		switch {
 		case ctx.Err() != nil:
-			return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+			return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
 		case err != nil:
-			return f.buildSCIONDReply(nil, sciond.ErrorInternal), err
+			return f.buildSCIONDReply(nil, 0, sciond.ErrorInternal), err
 		case err == nil && len(paths) > 0:
-			return f.buildSCIONDReply(paths, sciond.ErrorOk), nil
+			return f.buildSCIONDReply(paths, req.MaxPaths, sciond.ErrorOk), nil
 		}
 	}
 	// Your paths are in another castle
-	return f.buildSCIONDReply(nil, sciond.ErrorNoPaths), nil
+	return f.buildSCIONDReply(nil, 0, sciond.ErrorNoPaths), nil
 }
 
 // buildSCIONDReply constructs a fresh SCIOND PathReply from the information
@@ -226,11 +226,11 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 // in the topology is returned. If no such paths exist, a reply containing no
 // path and an internal error is returned.
 func (f *fetcherHandler) buildSCIONDReply(paths []*combinator.Path,
-	errCode sciond.PathErrorCode) *sciond.PathReply {
+	maxPaths uint16, errCode sciond.PathErrorCode) *sciond.PathReply {
 
 	var entries []sciond.PathReplyEntry
 	if errCode == sciond.ErrorOk {
-		entries = f.buildSCIONDReplyEntries(paths)
+		entries = f.buildSCIONDReplyEntries(paths, maxPaths)
 		if len(entries) == 0 {
 			// We dropped all the entries because we couldn't find the next hops
 			// from the IFIDs
@@ -255,7 +255,9 @@ func (f *fetcherHandler) buildSCIONDReply(paths []*combinator.Path,
 // paths, as some paths might contain invalid first IFIDs that are not
 // associated to any BR. Thus, it is possible for len(paths) to be non-zero
 // length and the returned slice be of zero length.
-func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sciond.PathReplyEntry {
+func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path,
+	maxPaths uint16) []sciond.PathReplyEntry {
+
 	var entries []sciond.PathReplyEntry
 	if len(paths) == 0 {
 		// Return a single entry with an empty path
@@ -291,6 +293,9 @@ func (f *fetcherHandler) buildSCIONDReplyEntries(paths []*combinator.Path) []sci
 			},
 			HostInfo: sciond.HostInfoFromTopoBRAddr(*ifInfo.InternalAddrs),
 		})
+		if maxPaths != 0 && len(entries) == int(maxPaths) {
+			break
+		}
 	}
 	return entries
 }
@@ -369,15 +374,7 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		}
 	}
 	paths := buildPathsToAllDsts(req, ups, cores, downs)
-	filteredPaths, err := f.filterRevokedPaths(ctx, paths)
-	if err != nil {
-		return nil, err
-	}
-	numpaths := len(filteredPaths)
-	if int(req.MaxPaths) < numpaths {
-		numpaths = int(req.MaxPaths)
-	}
-	return filteredPaths[0:numpaths], nil
+	return f.filterRevokedPaths(ctx, paths)
 }
 
 func (f *Fetcher) getSegmentsFromDB(ctx context.Context, startsAt,
