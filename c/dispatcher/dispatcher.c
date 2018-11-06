@@ -1016,7 +1016,7 @@ void send_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, HostAddr *from, uint16_t 
     reverse_packet(buf);
     scmp->type = htons(type);
     zlog_debug(zc, "send SCMP %s to %s:%d",
-            scmp_ct_to_str(strbuf, scmp->class_, scmp->type),
+            scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)),
             addr_to_str(from->addr, from->addr_type, NULL),
             ntohs(from->port));
     remove_hbh_scmp_extn(buf);
@@ -1034,11 +1034,11 @@ void deliver_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *fro
     HASH_FIND(hh, ping_list, &id, sizeof(id), e);
     if (e != NULL) {
         zlog_debug(zc, "SCMP %s reply (%" PRIx64 ") entry found",
-                scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
+                scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
         deliver_data(e->sock, from, buf, len);
     } else {
         zlog_warn(zc, "SCMP %s reply (%" PRIx64 ") entry not found",
-                scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
+                scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
     }
     free(pld);
 }
@@ -1090,11 +1090,11 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
         HASH_FIND(hh, ping_list, &id, sizeof(id), pe);
         if (!pe) {
             zlog_warn(zc, "SCMP %s reply (%" PRIx64 ") entry not found",
-                    scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
+                    scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
             goto cleanup;
         }
         zlog_debug(zc, "SCMP %s reply (%" PRIx64 ") entry found",
-                scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
+                scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
         sock = pe->sock;
         break;
     default:

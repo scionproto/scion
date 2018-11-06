@@ -190,7 +190,7 @@ func Validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.Payload, error) {
 	if scmpHdr.Class != scmp.C_Path || scmpHdr.Type != scmp.T_P_RevokedIF {
 		return scmpHdr, scmpPld, nil
 	}
-	// Handle recovation
+	// Handle revocation
 	infoRev, ok := scmpPld.Info.(*scmp.InfoRevocation)
 	if !ok {
 		return scmpHdr, scmpPld,
