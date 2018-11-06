@@ -17,6 +17,7 @@
 =============================================
 """
 # Stdlib
+import argparse
 import base64
 import configparser
 import logging
@@ -38,8 +39,10 @@ from lib.crypto.util import (
 from lib.defines import (
     AS_CONF_FILE,
     DEFAULT_MTU,
+    DEFAULT_SEGMENT_TTL,
     DEFAULT6_NETWORK,
     DEFAULT6_PRIV_NETWORK,
+    GEN_PATH,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
     PRV_NETWORKS_FILE,
@@ -51,15 +54,15 @@ from lib.util import (
     load_yaml_file,
     write_file,
 )
-from topology.ca import CAGenerator
-from topology.cert import CertGenerator
-from topology.common import _srv_iter
-from topology.docker import DockerGenerator
-from topology.go import GoGenerator
+from topology.ca import CAGenArgs, CAGenerator
+from topology.cert import CertGenArgs, CertGenerator
+from topology.common import _srv_iter, ArgsBase
+from topology.docker import DockerGenArgs, DockerGenerator
+from topology.go import GoGenArgs, GoGenerator
 from topology.net import SubnetGenerator
-from topology.prometheus import PrometheusGenerator
-from topology.supervisor import SupervisorGenerator
-from topology.topo import TopoGenerator
+from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
+from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
+from topology.topo import TopoGenArgs, TopoGenerator
 
 DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
@@ -76,6 +79,42 @@ DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 GENERATE_BIND_ADDRESS = False
 
 
+class ConfigGenArgs(ArgsBase):
+
+    @classmethod
+    def create_parser(cls):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-6', '--ipv6', action='store_true',
+                            help='Generate IPv6 addresses')
+        parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
+                            help='Default topology config')
+        parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
+                            help='Path policy file')
+        parser.add_argument('-m', '--mininet', action='store_true',
+                            help='Use Mininet to create a virtual network topology')
+        parser.add_argument('-d', '--docker', action='store_true',
+                            help='Create a docker-compose configuration')
+        parser.add_argument('-n', '--network',
+                            help='Network to create subnets in (E.g. "127.0.0.0/8"')
+        parser.add_argument('-o', '--output-dir', default=GEN_PATH,
+                            help='Output directory')
+        parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
+                            help='Zookeeper configuration file')
+        parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
+                            help='Generate bind addresses (E.g. "192.168.0.0/16"')
+        parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
+                            help='Path segment TTL (in seconds)')
+        parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
+                            help='Certificate Server implementation to use ("go" or "py")')
+        parser.add_argument('-sd', '--sciond', default=DEFAULT_SCIOND,
+                            help='SCIOND implementation to use ("go" or "py")')
+        parser.add_argument('-ps', '--path-server', default=DEFAULT_PATH_SERVER,
+                            help='Path Server implementation to use ("go or "py")')
+        parser.add_argument('-ds', '--discovery', action='store_true',
+                            help='Generate discovery service')
+        return parser
+
+
 class ConfigGenerator(object):
     """
     Configuration and/or topology generator.
@@ -84,7 +123,7 @@ class ConfigGenerator(object):
         """
         Initialize an instance of the class ConfigGenerator.
 
-        :param argparse.Namespace args: Contains the passed command line arguments.
+        :param ConfigGenArgs args: Contains the passed command line arguments.
         """
         self.args = args
         self.topo_config = load_yaml_file(args.topo_config)
@@ -131,7 +170,7 @@ class ConfigGenerator(object):
         """
         self._ensure_uniq_ases()
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
-        cert_files, trc_files, cust_files = self._generate_certs_trcs(ca_certs)
+        cert_files, trc_files, cust_files = self._generate_certs_trcs()
         topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
         self._generate_with_topo(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
@@ -163,15 +202,22 @@ class ConfigGenerator(object):
         self._generate_prom_conf(topo_dicts)
 
     def _generate_cas(self):
-        ca_gen = CAGenerator(self.topo_config)
+        ca_gen = CAGenerator(self._ca_args())
         return ca_gen.generate()
 
-    def _generate_certs_trcs(self, ca_certs):
-        certgen = CertGenerator(self.topo_config, ca_certs)
+    def _ca_args(self):
+        return CAGenArgs(self.args, self.topo_config)
+
+    def _generate_certs_trcs(self):
+        certgen = CertGenerator(self._cert_args())
         return certgen.generate()
 
+    def _cert_args(self):
+        return CertGenArgs(self.args, self.topo_config)
+
     def _generate_go(self, topo_dicts):
-        go_gen = GoGenerator(self.args, topo_dicts)
+        args = self._go_args(topo_dicts)
+        go_gen = GoGenerator(args)
         if self.args.cert_server == "go":
             go_gen.generate_cs()
         if self.args.sciond == "go":
@@ -179,22 +225,40 @@ class ConfigGenerator(object):
         if self.args.path_server == "go":
             go_gen.generate_ps()
 
+    def _go_args(self, topo_dicts):
+        return GoGenArgs(self.args, topo_dicts)
+
     def _generate_topology(self):
-        topo_gen = TopoGenerator(self.args, self.topo_config, self.subnet_gen, self.prvnet_gen,
-                                 self.zk_config, self.default_mtu)
+        topo_gen = TopoGenerator(self._topo_args())
         return topo_gen.generate()
 
+    def _topo_args(self):
+        return TopoGenArgs(self.args, self.topo_config, self.zk_config, self.subnet_gen,
+                           self.prvnet_gen, self.default_mtu)
+
     def _generate_supervisor(self, topo_dicts):
-        super_gen = SupervisorGenerator(self.args, topo_dicts)
+        args = self._supervisor_args(topo_dicts)
+        super_gen = SupervisorGenerator(args)
         super_gen.generate()
 
+    def _supervisor_args(self, topo_dicts):
+        return SupervisorGenArgs(self.args, topo_dicts)
+
     def _generate_docker(self, topo_dicts):
-        docker_gen = DockerGenerator(self.args, topo_dicts)
+        args = self._docker_args(topo_dicts)
+        docker_gen = DockerGenerator(args)
         docker_gen.generate()
 
+    def _docker_args(self, topo_dicts):
+        return DockerGenArgs(self.args, topo_dicts)
+
     def _generate_prom_conf(self, topo_dicts):
-        prom_gen = PrometheusGenerator(self.args, topo_dicts)
+        args = self._prometheus_args(topo_dicts)
+        prom_gen = PrometheusGenerator(args)
         prom_gen.generate()
+
+    def _prometheus_args(self, topo_dicts):
+        return PrometheusGenArgs(self.args, topo_dicts)
 
     def _write_ca_files(self, topo_dicts, ca_files):
         isds = set()

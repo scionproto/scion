@@ -28,19 +28,25 @@ from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
 from lib.util import read_file, write_file
-from topology.common import _prom_addr_br, _prom_addr_infra, COMMON_DIR
+from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts, COMMON_DIR
 
 SUPERVISOR_CONF = 'supervisord.conf'
 
 
+class SupervisorGenArgs(ArgsTopoDicts):
+    pass
+
+
 class SupervisorGenerator(object):
-    def __init__(self, args, topo_dicts):
+    def __init__(self, args):
+        """
+        :param SupervisorGenArgs args: Contains the passed command line arguments and topo dicts.
+        """
         self.args = args
-        self.topo_dicts = topo_dicts
 
     def generate(self):
         self._write_dispatcher_conf()
-        for topo_id, topo in self.topo_dicts.items():
+        for topo_id, topo in self.args.topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
             entries = self._as_conf(topo, base)
             self._write_as_conf(topo_id, entries)

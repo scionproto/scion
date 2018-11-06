@@ -27,7 +27,7 @@ from lib.util import (
     read_file,
     write_file,
 )
-from topology.common import _prom_addr_br, _prom_addr_infra
+from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
 from topology.utils import TesterGenerator
 
 DOCKER_BASE_CONF = 'base-dc.yml'
@@ -35,10 +35,16 @@ DOCKER_SCION_CONF = 'scion-dc.yml'
 DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 
 
+class DockerGenArgs(ArgsTopoDicts):
+    pass
+
+
 class DockerGenerator(object):
-    def __init__(self, args, topo_dicts):
+    def __init__(self, args):
+        """
+        :param DockerGenArgs args: Contains the passed command line arguments and topo dicts.
+        """
         self.args = args
-        self.topo_dicts = topo_dicts
         self.dc_base_conf = {'version': '3', 'networks': {}}
         self.dc_conf = {'version': '3', 'services': {}}
         self.dc_util_conf = {'version': '3', 'services': {}}
@@ -49,7 +55,7 @@ class DockerGenerator(object):
         self._base_conf()
         self._zookeeper_conf()
         self._dispatcher_conf()
-        for topo_id, topo in self.topo_dicts.items():
+        for topo_id, topo in self.args.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
         write_file(os.path.join(self.args.output_dir, DOCKER_SCION_CONF),

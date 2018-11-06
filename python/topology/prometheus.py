@@ -26,7 +26,11 @@ import yaml
 # SCION
 from lib.defines import PROM_FILE
 from lib.util import write_file
-from topology.common import _prom_addr_br, _prom_addr_infra
+from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
+
+
+class PrometheusGenArgs(ArgsTopoDicts):
+    pass
 
 
 class PrometheusGenerator(object):
@@ -44,13 +48,15 @@ class PrometheusGenerator(object):
         "PathService": "PS",
     }
 
-    def __init__(self, args, topo_dicts):
+    def __init__(self, args):
+        """
+        :param PrometheusGenArgs args: Contains the passed command line arguments and topo dicts.
+        """
         self.args = args
-        self.topo_dicts = topo_dicts
 
     def generate(self):
         config_dict = {}
-        for topo_id, as_topo in self.topo_dicts.items():
+        for topo_id, as_topo in self.args.topo_dicts.items():
             ele_dict = defaultdict(list)
             for br_id, br_ele in as_topo["BorderRouters"].items():
                 ele_dict["BorderRouters"].append(_prom_addr_br(br_ele))
