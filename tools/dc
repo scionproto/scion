@@ -41,7 +41,7 @@ start_tester() {
 exec_tester() {
 	local cntr="$1"
 	shift
-	./tools/quiet docker container inspect "$cntr" || start_tester "$cntr" &>/dev/null
+	docker container inspect "$cntr" &>/dev/null || start_tester "$cntr" &>/dev/null
 	cmd_tester exec -u scion -T "$cntr" bash -l -c "$*"
 }
 

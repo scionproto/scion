@@ -18,12 +18,14 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/log/logparse"
 )
 
 const (
@@ -67,17 +69,28 @@ type binaryIntegration struct {
 func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []string,
 	logRedirect LogRedirect) Integration {
 
-	return &binaryIntegration{
+	bi := &binaryIntegration{
 		name:        name,
 		cmd:         cmd,
 		clientArgs:  clientArgs,
 		serverArgs:  serverArgs,
 		logRedirect: logRedirect,
 	}
+	return dockerize(bi)
 }
 
 func (bi *binaryIntegration) Name() string {
 	return bi.name
+}
+
+func dockerize(bi *binaryIntegration) Integration {
+	if *container != "" {
+		return &dockerIntegration{
+			cntr:              *container,
+			binaryIntegration: bi,
+		}
+	}
+	return bi
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
@@ -152,6 +165,39 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) 
 		bi.logRedirect("Client", "ClientErr", src, ep)
 	}()
 	return r, r.Start()
+}
+
+func replacePattern(pattern string, replacement string, args []string) []string {
+	// first copy
+	argsCopy := append([]string(nil), args...)
+	for i, arg := range argsCopy {
+		if strings.Contains(arg, pattern) {
+			argsCopy[i] = strings.Replace(arg, pattern, replacement, -1)
+		}
+	}
+	return argsCopy
+}
+
+type LogRedirect func(name, pName string, local addr.IA, ep io.ReadCloser)
+
+// StdLog tries to parse any log line from the standard format and logs it with the same log level
+// as the original log entry to the log file.
+var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
+	defer ep.Close()
+	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
+		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
+	})
+}
+
+// NonStdLog directly logs any lines as error to the log file
+var NonStdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
+	defer ep.Close()
+	scanner := bufio.NewScanner(ep)
+	for scanner.Scan() {
+		log.Error(fmt.Sprintf("%s@%s: %s", name, local, scanner.Text()))
+	}
 }
 
 var _ Waiter = (*binaryWaiter)(nil)

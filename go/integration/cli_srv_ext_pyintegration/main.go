@@ -42,9 +42,6 @@ func realMain() int {
 		integration.SrcIAReplace, integration.DstIAReplace}
 	serverArgs := []string{"--run_server", integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
-	if *integration.Container != "" {
-		in = integration.NewDockerIntegration(*integration.Container, in)
-	}
 	if err := integration.RunBinaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

@@ -28,8 +28,8 @@ const (
 )
 
 var (
-	// Container indicates the container name where the test should be executed in
-	Container = flag.String("c", "", "Docker container name (e.g. tester)")
+	// container indicates the container name where the test should be executed in
+	container = flag.String("c", "", "Docker container name (e.g. tester)")
 )
 
 var _ Integration = (*dockerIntegration)(nil)
@@ -37,24 +37,6 @@ var _ Integration = (*dockerIntegration)(nil)
 type dockerIntegration struct {
 	cntr string
 	*binaryIntegration
-}
-
-// NewDockerIntegration returns an implementation of the Integration interface.
-// Start will execute the command in a running docker container and use the given arguments for
-// the client/server.
-// Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
-// When starting a client/server the placeholders will be replaced with the actual values.
-// The server should output the ReadySignal to Stdout once it is ready to accept clients.
-func NewDockerIntegration(cntr string, binary Integration) Integration {
-
-	return &dockerIntegration{
-		cntr:              cntr,
-		binaryIntegration: binary.(*binaryIntegration),
-	}
-}
-
-func (di *dockerIntegration) Name() string {
-	return di.binaryIntegration.Name()
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.

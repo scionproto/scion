@@ -39,19 +39,19 @@ func realMain() int {
 		Args []string
 	}{
 		{
-			"echo",
+			"echo_integration",
 			[]string{"echo", "-sciondFromIA", "-c", "1", "-timeout", "4s",
 				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
 				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
 		},
 		{
-			"traceroute",
+			"traceroute_integration",
 			[]string{"tr", "-sciondFromIA", "-timeout", "4s",
 				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
 				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
 		},
 		{
-			"recordpath",
+			"recordpath_integration",
 			[]string{"rp", "-sciondFromIA", "-timeout", "4s",
 				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
 				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},

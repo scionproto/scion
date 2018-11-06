@@ -47,11 +47,7 @@ func realMain() int {
 	clientArgs = append(clientArgs, cmnArgs...)
 	serverArgs := []string{"-mode", "server", "-local", serverAddr + "0"}
 	serverArgs = append(serverArgs, cmnArgs...)
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs,
-		integration.StdLog)
-	if *integration.Container != "" {
-		in = integration.NewDockerIntegration(*integration.Container, in)
-	}
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

@@ -49,9 +49,6 @@ func realMain() int {
 		"-local", clientAddr, "-remote", serverAddr + integration.ServerPortReplace}
 	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr + "0"}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
-	if *integration.Container != "" {
-		in = integration.NewDockerIntegration(*integration.Container, in)
-	}
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
