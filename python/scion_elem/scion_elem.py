@@ -1034,7 +1034,7 @@ class SCIONElement(object):
 
     def handle_recv(self, sock):
         """
-        Callback to handle a ready recving socket
+        Callback to handle a ready receiving socket
         """
         try:
             packet, addr = sock.recv()
