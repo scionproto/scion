@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -39,7 +38,6 @@ var (
 	dispatcher   = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
-	pathRes      *pathmgr.PR
 	sdConn       sciond.Connector
 )
 
@@ -58,19 +56,12 @@ func main() {
 	} else if *sciondPath == "" {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
-
 	// Connect to sciond
 	sd := sciond.NewService(*sciondPath)
 	sdConn, err = sd.ConnectTimeout(1 * time.Second)
 	if err != nil {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
 	}
-
-	pathRes, err = pathmgr.New(sciond.NewService(*sciondPath), &pathmgr.Timers{}, nil)
-	if err != nil {
-		cmn.Fatal("Unable to initialize pathmgr\nerr=%v", err)
-	}
-
 	// Connect to the dispatcher
 	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host, cmn.Bind.Host,
 		addr.SvcNone)
