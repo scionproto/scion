@@ -98,7 +98,6 @@ func recvPkts() {
 		pktLen, err := cmn.Conn.Read(b)
 		if err != nil {
 			if common.IsTimeoutErr(err) {
-				//fmt.Printf("Missed packet scmp_seq=%d\n", expectedSeq)
 				if expectedSeq > recvSeq {
 					expectedSeq += 1
 				} else {
@@ -158,7 +157,7 @@ func summary() {
 func validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.InfoEcho, error) {
 	scmpHdr, scmpPld, err := cmn.Validate(pkt)
 	if err != nil {
-		if len(scmpPld.L4Hdr) > 0 {
+		if scmpPld != nil && len(scmpPld.L4Hdr) > 0 {
 			// XXX Special case where the L4Hdr quote contains the Meta and Info fields
 			info, e := scmp.InfoEchoFromRaw(scmpPld.L4Hdr[scmp.HdrLen+scmp.MetaLen:])
 			if e == nil {
