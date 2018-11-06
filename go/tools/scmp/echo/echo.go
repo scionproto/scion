@@ -113,7 +113,7 @@ func recvPkts() {
 		now := time.Now()
 		err = hpkt.ParseScnPkt(pkt, b[:pktLen])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse: %v\n", err)
 			continue
 		}
 		// Validate packet
@@ -121,7 +121,7 @@ func recvPkts() {
 		var info *scmp.InfoEcho
 		scmpHdr, info, err = validate(pkt)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation: %v\n", err)
 			continue
 		}
 		cmn.Stats.Recv += 1
@@ -161,7 +161,7 @@ func validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.InfoEcho, error) {
 			// XXX Special case where the L4Hdr quote contains the Meta and Info fields
 			info, e := scmp.InfoEchoFromRaw(scmpPld.L4Hdr[scmp.HdrLen+scmp.MetaLen:])
 			if e == nil {
-				return nil, nil, common.NewBasicError("Error received", nil, "scmp_seq", info.Seq)
+				return nil, nil, common.NewBasicError("", err, "scmp_seq", info.Seq)
 			}
 		}
 		return nil, nil, err
