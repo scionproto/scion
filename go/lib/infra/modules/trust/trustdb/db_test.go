@@ -15,7 +15,9 @@
 package trustdb
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -68,6 +70,35 @@ func TestTRC(t *testing.T) {
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
 		})
+	})
+}
+
+func TestTRCGetAll(t *testing.T) {
+	Convey("Test get all TRCs", t, func() {
+		db := newDatabase(t)
+		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		// Test get from empty db
+		trcs, err := db.GetAllTRCs(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("trcs", trcs, ShouldBeNil)
+		// Test get with one entry
+		trcobj, err := trc.TRCFromFile("testdata/ISD1-V1.trc", false)
+		xtest.FailOnErr(t, err)
+		_, err = db.InsertTRC(trcobj)
+		xtest.FailOnErr(t, err)
+		trcs, err = db.GetAllTRCs(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("trcs", trcs, ShouldResemble, []*trc.TRC{trcobj})
+		// Test get with two entries
+		trcobj2, err := trc.TRCFromFile("testdata/ISD2-V1.trc", false)
+		xtest.FailOnErr(t, err)
+		_, err = db.InsertTRC(trcobj2)
+		xtest.FailOnErr(t, err)
+		trcs, err = db.GetAllTRCs(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("trcs", trcs, ShouldResemble, []*trc.TRC{trcobj, trcobj2})
 	})
 }
 
@@ -175,9 +206,7 @@ func TestChain(t *testing.T) {
 		defer db.Close()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
-		if err != nil {
-			t.Fatalf("Unable to load certificate chain")
-		}
+		xtest.FailOnErr(t, err)
 		ia := addr.IA{I: 1, A: 0xff0000000311}
 		Convey("Insert into database", func() {
 			rows, err := db.InsertChain(chain)
@@ -212,6 +241,35 @@ func TestChain(t *testing.T) {
 				SoMsg("chain", newChain, ShouldBeNil)
 			})
 		})
+	})
+}
+
+func TestChainGetAll(t *testing.T) {
+	Convey("Test get all chains", t, func() {
+		db := newDatabase(t)
+		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		// Test get from empty db
+		chains, err := db.GetAllChains(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("chains", chains, ShouldBeNil)
+		// Test get with one entry
+		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
+		xtest.FailOnErr(t, err)
+		_, err = db.InsertChain(chain)
+		xtest.FailOnErr(t, err)
+		chains, err = db.GetAllChains(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain})
+		// Test get with two entries
+		chain2, err := cert.ChainFromFile("testdata/ISD2-ASff00_0_212-V1.crt", false)
+		xtest.FailOnErr(t, err)
+		_, err = db.InsertChain(chain2)
+		xtest.FailOnErr(t, err)
+		chains, err = db.GetAllChains(ctx)
+		SoMsg("err", err, ShouldBeNil)
+		SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain, chain2})
 	})
 }
 
