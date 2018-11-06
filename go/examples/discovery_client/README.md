@@ -2,16 +2,16 @@
 
 This is a sample client that uses the library support for querying
 the discovery service. To successfully request topology files,
-a server needs to be running. `server.sh` is a simple script
-to start an http server.
+a discovery service needs to be running. `server.sh`starts a 
+simple HTTP server that serves a static topology file.
 
 ```
 ./server.sh path/to/topology.json
 ```
 
-The client application periodically fetches the topology file from
-one of the available discovery services. The first topology file
-that is received is written to stdout. All subsequent topology
+The client application periodically fetches the topology file 
+from the discovery service. The first topology file that is 
+received is written to stdout. All subsequent topology
 files are simply logged.
 
 The client application has two ways of getting the initial topology
@@ -28,11 +28,8 @@ and the client will periodically request topologies.
 To initially fetch the topology file from the discovery service,
 run the following command:
 ```
-discovery_client -addr 0-0,[127.0.0.1]:30084
+discovery_client -addr [127.0.0.1]:30084
 ```
-The client fetches the topology from the address to get all 
-discovery service instances. Then it periodically fetches the 
-topology.
 
 To test automatic switching by the library, `./server.sh` can be
 supplied with a topology file that contains multiple discovery

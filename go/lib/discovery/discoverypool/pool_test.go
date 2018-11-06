@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pool
+package discoverypool
 
 import (
 	"net"
@@ -21,6 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -52,9 +53,9 @@ func contains(pool *Pool, v testInfo) {
 
 func TestNew(t *testing.T) {
 	Convey("Given a topology", t, func() {
-		topo := mustLoadTopo(t)
+		svcInfo := mustLoadSvcInfo(t)
 		Convey("When the topology contains a discovery service", func() {
-			pool, err := New(topo)
+			pool, err := New(svcInfo)
 			Convey("The pool should initialize", func() {
 				So(err, ShouldBeNil)
 			})
@@ -65,9 +66,8 @@ func TestNew(t *testing.T) {
 			})
 		})
 		Convey("When the topology does not contain a discovery service", func() {
-			topo.DS = nil
 			Convey("The pool should not initialize", func() {
-				_, err := New(topo)
+				_, err := New(discovery.ServiceInfo{})
 				So(err, ShouldNotBeNil)
 			})
 		})
@@ -77,22 +77,25 @@ func TestNew(t *testing.T) {
 func TestPoolUpdate(t *testing.T) {
 	Convey("Given a pool", t, func() {
 		pool := mustLoadPool(t)
-		topo := mustLoadTopo(t)
+		svcInfo := mustLoadSvcInfo(t)
 		Convey("And a topology containing an updated discovery service entry", func() {
-			topo.DS[ds[0].key].IPv4.PublicAddr().L3 = addr.HostFromIP(net.IPv4(127, 0, 0, 21))
-			pool.Update(topo)
+			svcInfo.Instances[ds[0].key].IPv4.PublicAddr().L3 = addr.HostFromIP(
+				net.IPv4(127, 0, 0, 21))
+			pool.Update(svcInfo)
 			Convey("The pool should contain the updated info", func() {
 				contains(pool, testInfo{
 					key: ds[0].key,
 					addr: &addr.AppAddr{
 						L3: addr.HostFromIP(net.IPv4(127, 0, 0, 21)),
-						L4: addr.NewL4UDPInfo(topo.DS[ds[0].key].IPv4.PublicAddr().L4.Port())},
+						L4: addr.NewL4UDPInfo(
+							svcInfo.Instances[ds[0].key].IPv4.PublicAddr().L4.Port()),
+					},
 				})
 			})
 		})
 		Convey("And a topology containing new discovery service entries", func() {
-			topo.DS["ds-new"] = topo.DS[ds[0].key]
-			pool.Update(topo)
+			svcInfo.Instances["ds-new"] = svcInfo.Instances[ds[0].key]
+			pool.Update(svcInfo)
 			Convey("The pool should contain all discovery services", func() {
 				for _, v := range ds {
 					contains(pool, v)
@@ -106,8 +109,8 @@ func TestPoolUpdate(t *testing.T) {
 			})
 		})
 		Convey("And a topology with some removed discovery service", func() {
-			delete(topo.DS, ds[1].key)
-			pool.Update(topo)
+			delete(svcInfo.Instances, ds[1].key)
+			pool.Update(svcInfo)
 			Convey("The pool should contain all remaining discovery services", func() {
 				for _, v := range ds[:1] {
 					contains(pool, v)
@@ -119,8 +122,7 @@ func TestPoolUpdate(t *testing.T) {
 			})
 		})
 		Convey("And a topology with no discovery service", func() {
-			topo.DS = nil
-			pool.Update(topo)
+			pool.Update(discovery.ServiceInfo{})
 			Convey("The pool should still contain all services", func() {
 				for _, v := range ds[:1] {
 					contains(pool, v)
@@ -131,13 +133,16 @@ func TestPoolUpdate(t *testing.T) {
 }
 
 func mustLoadPool(t *testing.T) *Pool {
-	pool, err := New(mustLoadTopo(t))
+	pool, err := New(mustLoadSvcInfo(t))
 	xtest.FailOnErr(t, err)
 	return pool
 }
 
-func mustLoadTopo(t *testing.T) *topology.Topo {
+func mustLoadSvcInfo(t *testing.T) discovery.ServiceInfo {
 	topo, err := topology.LoadFromFile("testdata/topology.json")
 	xtest.FailOnErr(t, err)
-	return topo
+	return discovery.ServiceInfo{
+		Instances: topo.DS,
+		Overlay:   topo.Overlay,
+	}
 }

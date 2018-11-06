@@ -19,16 +19,18 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
-	"github.com/scionproto/scion/go/lib/discovery/fetcher"
+	"github.com/scionproto/scion/go/lib/discovery/topofetcher"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -40,13 +42,10 @@ var (
 	out      = flag.String("out", "", "Write topology to this file")
 	period   = flag.Duration("period", 2*time.Second, "Time between requests")
 	timeout  = flag.Duration("timeout", 2*time.Second, "Timeout for single request")
-
-	ds snet.Addr
+	ds       = flag.String("addr", "", "Discovery service to query for initial topology "+
+		"(form \"host:port\" or \"[host]:port\"")
+	dsAddr addr.AppAddr
 )
-
-func init() {
-	flag.Var((*snet.Addr)(&ds), "addr", "Discovery service to query for initial topology")
-}
 
 func main() {
 	os.Exit(realMain())
@@ -60,7 +59,6 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "err: Unable to setup logging err=%s\n", err)
 		flag.Usage()
 		return 1
-
 	}
 	defer log.LogPanicAndExit()
 	if err := validateFlags(); err != nil {
@@ -73,8 +71,17 @@ func realMain() int {
 		return 1
 	}
 	var writeOnce sync.Once
-	fetcher, err := fetcher.New(mode(), file(), *https, topo, nil,
-		fetcher.Callbacks{
+	fetcher, err := topofetcher.New(
+		discovery.ServiceInfo{
+			Instances: topo.DS,
+			Overlay:   topo.Overlay,
+		},
+		discovery.FetchParams{
+			File:  file(),
+			Mode:  mode(),
+			Https: *https,
+		},
+		topofetcher.Callbacks{
 			Error: func(err error) {
 				log.Error("Unable to fetch topology", "err", err)
 			},
@@ -93,7 +100,7 @@ func realMain() int {
 					log.Info("Topology file written", "file", out)
 				})
 			},
-		})
+		}, nil)
 	if err != nil {
 		log.Crit("Unable to initialize fetcher", "err", err)
 		return 1
@@ -106,21 +113,39 @@ func realMain() int {
 }
 
 func validateFlags() error {
-	if *topoPath == "" && ds.Host == nil {
-		return common.NewBasicError("Topology and host not specified", nil)
+	if *topoPath == "" && *ds == "" {
+		return common.NewBasicError("Topology and discovery service address not specified", nil)
 	}
-	if ds.Host != nil && *topoPath != "" {
-		return common.NewBasicError("Both topology and host are specified", nil)
+	if *ds != "" && *topoPath != "" {
+		return common.NewBasicError("Both topology and discovery service address specified", nil)
+	}
+	if *ds != "" {
+		host, port, err := net.SplitHostPort(*ds)
+		if err != nil {
+			return common.NewBasicError("Unable to parse discovery service address", err)
+		}
+		if dsAddr.L3 = addr.HostFromIPStr(host); dsAddr.L3 == nil {
+			return common.NewBasicError("Unable to parse host", nil, "host", host)
+		}
+		p, err := strconv.Atoi(port)
+		if err != nil {
+			return common.NewBasicError("Unable to parse port", nil, "port", port)
+		}
+		dsAddr.L4 = addr.NewL4TCPInfo(uint16(p))
 	}
 	return nil
 }
 
 func getTopo() (*topology.Topo, error) {
-	if ds.Host != nil {
-		log.Info("Fetch initial topology from discovery service", "addr", ds.Host)
+	if *ds != "" {
+		log.Info("Fetch initial topology from discovery service", "addr", ds)
 		ctx, cancelF := context.WithTimeout(context.Background(), *timeout)
 		defer cancelF()
-		return discovery.Topo(ctx, nil, discovery.CreateURL(ds.Host, mode(), file(), *https))
+		return discovery.FetchTopo(ctx, discovery.FetchParams{
+			File:  file(),
+			Mode:  mode(),
+			Https: *https,
+		}, &dsAddr, nil)
 	}
 	log.Info("Load initial topology from disk", "topo", topoPath)
 	return topology.LoadFromFile(*topoPath)
