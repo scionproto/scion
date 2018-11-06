@@ -160,7 +160,7 @@ func (c client) getRemote(n int) error {
 		return nil
 	}
 	// Get paths from sciond
-	ctx, cancelF := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancelF := context.WithTimeout(context.Background(), libint.CtxTimeout)
 	defer cancelF()
 	paths, err := c.sdConn.PathsCtx(ctx, remote.IA, integration.Local.IA, 1,
 		sciond.PathReqFlags{Refresh: n != 0})
