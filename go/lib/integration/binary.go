@@ -17,7 +17,6 @@ package integration
 import (
 	"bufio"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -46,14 +45,10 @@ const (
 	GoIntegrationEnv = "SCION_GO_INTEGRATION"
 	// portString is the string a server prints to specify the port it's listening on.
 	portString = "Port="
-	// DockerCmd is the script to run tests in docker
-	DockerCmd = "./tools/dc"
 )
 
 var (
-	serverPort = "40004"
-	// Docker indicates whether tests should be executed in docker.
-	Docker = flag.Bool("d", false, "Execute tests in dockerized environment")
+	serverPorts = make(map[addr.IA]string)
 )
 
 var _ Integration = (*binaryIntegration)(nil)
@@ -74,13 +69,14 @@ type binaryIntegration struct {
 func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []string,
 	logRedirect LogRedirect) Integration {
 
-	return &binaryIntegration{
+	bi := &binaryIntegration{
 		name:        name,
 		cmd:         cmd,
 		clientArgs:  clientArgs,
 		serverArgs:  serverArgs,
 		logRedirect: logRedirect,
 	}
+	return dockerize(bi)
 }
 
 func (bi *binaryIntegration) Name() string {
@@ -89,10 +85,9 @@ func (bi *binaryIntegration) Name() string {
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
 func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
+	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
 	startCtx, cancelF := context.WithTimeout(ctx, StartServerTimeout)
 	defer cancelF()
-	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
-	args = replacePattern(ServerPortReplace, serverPort, args)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
@@ -118,7 +113,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 		for scanner.Scan() {
 			line := scanner.Text()
 			if strings.HasPrefix(line, portString) {
-				serverPort = strings.TrimPrefix(line, portString)
+				serverPorts[dst] = strings.TrimPrefix(line, portString)
 			}
 			if init && signal == line {
 				close(ready)
@@ -145,7 +140,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
 	args := replacePattern(SrcIAReplace, src.String(), bi.clientArgs)
 	args = replacePattern(DstIAReplace, dst.String(), args)
-	args = replacePattern(ServerPortReplace, serverPort, args)
+	args = replacePattern(ServerPortReplace, serverPorts[dst], args)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
@@ -178,6 +173,7 @@ type LogRedirect func(name, pName string, local addr.IA, ep io.ReadCloser)
 // StdLog tries to parse any log line from the standard format and logs it with the same log level
 // as the original log entry to the log file.
 var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
 	defer ep.Close()
 	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
 		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
@@ -186,6 +182,7 @@ var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadClose
 
 // NonStdLog directly logs any lines as error to the log file
 var NonStdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
+	defer log.LogPanicAndExit()
 	defer ep.Close()
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {

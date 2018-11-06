@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	name       = "end2end"
+	name       = "end2end_integration"
 	cmd        = "./bin/end2end"
 	dockerArgs = []string{"tester", cmd}
 	attempts   = flag.Int("attempts", 1, "Number of attempts before giving up.")
@@ -44,16 +44,10 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]:0"
-	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:40005"
+	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:"
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
-		"-local", clientAddr, "-remote", serverAddr}
-	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr}
-	// Redefine command and adjust args if run in docker
-	if *integration.Docker {
-		clientArgs = append(dockerArgs, clientArgs...)
-		serverArgs = append(dockerArgs, serverArgs...)
-		cmd = integration.DockerCmd
-	}
+		"-local", clientAddr, "-remote", serverAddr + integration.ServerPortReplace}
+	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr + "0"}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)

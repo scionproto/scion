@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	serverPort = "40004"
+	name = "pingpong"
+	cmd  = "./bin/pingpong"
 )
 
 func main() {
@@ -38,12 +39,15 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	in := integration.NewBinaryIntegration("pingpong", "./bin/pingpong",
-		[]string{"-mode", "client", "-sciondFromIA", "-log.console", "debug", "-count", "1",
-			"-local", integration.SrcIAReplace + ",[127.0.0.1]:0",
-			"-remote", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort},
-		[]string{"-mode", "server", "-sciondFromIA", "-log.console", "debug",
-			"-local", integration.DstIAReplace + ",[127.0.0.1]:" + serverPort}, integration.StdLog)
+	cmnArgs := []string{"-sciondFromIA", "-log.console", "debug"}
+	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]:0"
+	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:"
+	clientArgs := []string{"-mode", "client", "-count", "1", "-local", clientAddr,
+		"-remote", serverAddr + integration.ServerPortReplace}
+	clientArgs = append(clientArgs, cmnArgs...)
+	serverArgs := []string{"-mode", "server", "-local", serverAddr + "0"}
+	serverArgs = append(serverArgs, cmnArgs...)
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

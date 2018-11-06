@@ -19,10 +19,8 @@ cmd_help() {
 	Usage:
 	    $PROGRAM scion [docker-compose command]
 	        Run docker-compose command for scion services.
-	    $PROGRAM utils [docker-compose command]
-	        Run docker-compose command for util services.
-	    $PROGRAM tester [command]
-	        Run a command in the `tester` container.
+	    $PROGRAM tester [docker-compose command]
+	        Run docker-compose command for tester services.
 	_EOF
 }
 
@@ -30,12 +28,21 @@ cmd_scion() {
     COMPOSE_FILE="gen/base-dc.yml:gen/scion-dc.yml" docker-compose --no-ansi "$@"
 }
 
-cmd_utils() {
-    COMPOSE_FILE="gen/base-dc.yml:gen/utils-dc.yml" docker-compose --no-ansi "$@"
+cmd_tester() {
+	COMPOSE_FILE="gen/base-dc.yml:gen/testers-dc.yml" docker-compose --no-ansi "$@"
 }
 
-cmd_tester() {
-    COMPOSE_FILE="gen/base-dc.yml:gen/utils-dc.yml" docker-compose exec tester "$@"
+start_tester() {
+	cntr="$1"
+	SCION_UID=$(id -u) SCION_GID=$(id -g) DOCKER_GID=$(getent group docker | cut -f3 -d:) cmd_tester up -d "$cntr"
+	cmd_tester exec -T "$cntr" /docker-entrypoint.sh -c exit
+}
+
+exec_tester() {
+	local cntr="$1"
+	shift
+	docker container inspect "$cntr" &>/dev/null || start_tester "$cntr" &>/dev/null
+	cmd_tester exec -u scion -T "$cntr" bash -l -c "$*"
 }
 
 PROGRAM="${0##*/}"
@@ -43,7 +50,9 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    scion|tester|utils)
-        "cmd_$COMMAND" "$@" ;;
-    *)  cmd_help; exit 1 ;;
+	scion|tester)
+	    "cmd_$COMMAND" "$@" ;;
+	exec_tester)
+		"exec_tester" "$@" ;;
+	*)  cmd_help; exit 1 ;;
 esac

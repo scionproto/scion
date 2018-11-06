@@ -26,10 +26,9 @@ import (
 )
 
 var (
-	name       = "certreq"
-	cmd        = "./bin/cert_req"
-	dockerArgs = []string{"tester", cmd}
-	attempts   = flag.Int("attempts", 2, "Number of attempts before giving up.")
+	name     = "certreq_integration"
+	cmd      = "./bin/cert_req"
+	attempts = flag.Int("attempts", 2, "Number of attempts before giving up.")
 )
 
 func main() {
@@ -47,20 +46,28 @@ func realMain() int {
 	serverAddr := integration.DstIAReplace
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
 		"-local", clientAddr, "-remoteIA", serverAddr}
-	if *integration.Docker {
-		clientArgs = append(dockerArgs, clientArgs...)
-		cmd = integration.DockerCmd
-	}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
-	// Now start the clients for srcDest pair
-	for i, conn := range integration.IAPairs() {
-		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-			in.Name(), conn.Src, conn.Dst, i+1, len(integration.IAPairs())))
-		t := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
-		if err := integration.RunClient(in, conn, t); err != nil {
-			log.Error("Error during client execution", "err", err)
-			return 1
-		}
+	if err := runTests(in, integration.IAPairs()); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
+		return 1
 	}
 	return 0
+}
+
+// RunTests runs the client for each IAPair.
+// In case of an error the function is terminated immediately.
+func runTests(in integration.Integration, pairs []integration.IAPair) error {
+	return integration.ExecuteTimed(in.Name(), func() error {
+		// Start the clients for srcDest pair
+		for i, conn := range integration.IAPairs() {
+			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
+				in.Name(), conn.Src, conn.Dst, i+1, len(integration.IAPairs())))
+			t := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
+			if err := integration.RunClient(in, conn, t); err != nil {
+				log.Error("Error during client execution", "err", err)
+				return err
+			}
+		}
+		return nil
+	})
 }
