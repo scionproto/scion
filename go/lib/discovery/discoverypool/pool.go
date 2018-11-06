@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pool
+package discoverypool
 
 import (
 	"math"
@@ -20,54 +20,53 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
-	"github.com/scionproto/scion/go/lib/discovery/info"
-	"github.com/scionproto/scion/go/lib/topology"
+	"github.com/scionproto/scion/go/lib/discovery/discoveryinfo"
 )
 
 var _ discovery.Pool = (*Pool)(nil)
 
-// Pool maps discovery service to their info.
+// Pool maps discovery service instances to their info.
 type Pool struct {
 	mu sync.Mutex
-	m  map[string]discovery.Info
+	m  map[string]discovery.InstanceInfo
 }
 
-// New populates the pool with discovery service entries from the topo.
-// At least one service must be present.
-func New(topo *topology.Topo) (*Pool, error) {
-	if len(topo.DS) <= 0 {
-		return nil, common.NewBasicError("Topo must contain DS address", nil)
+// New populates the pool with discovery service instances from the map
+// in svcInfo. At least one instance must be present.
+func New(svcInfo discovery.ServiceInfo) (*Pool, error) {
+	if len(svcInfo.Instances) <= 0 {
+		return nil, common.NewBasicError(
+			"SvcInfo must contain at least one discovery service instance", nil)
 	}
 	p := &Pool{
-		m: make(map[string]discovery.Info, len(topo.DS)),
+		m: make(map[string]discovery.InstanceInfo, len(svcInfo.Instances)),
 	}
-	p.Update(topo)
+	p.Update(svcInfo)
 	return p, nil
 }
 
-// Update adds missing services from the topo and removes services which
-// are no longer in the topo.
-func (p *Pool) Update(topo *topology.Topo) error {
+// Update adds missing instances and removes instances which are no longer in the topology.
+func (p *Pool) Update(svcInfo discovery.ServiceInfo) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	// Add missing DS servers.
-	for k, v := range topo.DS {
-		if elem, ok := p.m[k]; !ok {
-			p.m[k] = info.New(k, v.PublicAddr(topo.Overlay))
+	for k, v := range svcInfo.Instances {
+		if info, ok := p.m[k]; !ok {
+			p.m[k] = discoveryinfo.New(k, v.PublicAddr(svcInfo.Overlay))
 		} else {
-			elem.Update(v.PublicAddr(topo.Overlay))
+			info.Update(v.PublicAddr(svcInfo.Overlay))
 		}
 	}
 	// Get list of outdated DS servers.
 	var del []string
 	for k := range p.m {
-		if _, ok := topo.DS[k]; !ok {
+		if _, ok := svcInfo.Instances[k]; !ok {
 			del = append(del, k)
 		}
 	}
 	// Check that more than one DS remain.
 	if len(del) == len(p.m) {
-		return common.NewBasicError("Unable to delete all discovery services", nil)
+		return common.NewBasicError("Unable to delete all discovery service instances", nil)
 	}
 	for _, k := range del {
 		delete(p.m, k)
@@ -75,12 +74,12 @@ func (p *Pool) Update(topo *topology.Topo) error {
 	return nil
 }
 
-// Choose returns the info for the discovery service with the
+// Choose returns the info for the discovery service instance with the
 // minimal fail count in the pool.
-func (p *Pool) Choose() (discovery.Info, error) {
+func (p *Pool) Choose() (discovery.InstanceInfo, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	var best discovery.Info
+	var best discovery.InstanceInfo
 	var minFail = math.MaxUint16
 	for _, ds := range p.m {
 		failCount := ds.FailCount()
@@ -90,7 +89,7 @@ func (p *Pool) Choose() (discovery.Info, error) {
 		}
 	}
 	if best == nil {
-		return nil, common.NewBasicError("Unable to find discovery service", nil)
+		return nil, common.NewBasicError("Unable to find any discovery service instance", nil)
 	}
 	return best, nil
 }

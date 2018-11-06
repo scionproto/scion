@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fetcher
+package topofetcher
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
-	"github.com/scionproto/scion/go/lib/discovery/pool"
+	"github.com/scionproto/scion/go/lib/discovery/discoverypool"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
@@ -41,42 +41,34 @@ type Callbacks struct {
 type Fetcher struct {
 	// Pool is a Pool of discovery services
 	Pool discovery.Pool
+	// Params contains the parameters for fetching the topology.
+	Params discovery.FetchParams
 	// Callbacks contains the callbacks.
 	Callbacks Callbacks
 	// Client is the http Client. If nil, the default Client is used.
 	Client *http.Client
-	// Mode indicates whether the static or the dynamic topology is requested.
-	Mode discovery.Mode
-	// File indicates whether the full or the reduced topology is requested.
-	// The full topology requires that this host is on the ACL of the contacted DS server.
-	File discovery.File
-	// Https indicates if https must be used.
-	Https bool
 }
 
 // New initializes a fetcher with the given values. Topo is provided to
 // initialize the pool with discovery services.
-func New(mode discovery.Mode, file discovery.File, https bool, topo *topology.Topo,
-	client *http.Client, clbks Callbacks) (*Fetcher, error) {
+func New(svcInfo discovery.ServiceInfo, params discovery.FetchParams,
+	clbks Callbacks, client *http.Client) (*Fetcher, error) {
 
 	var err error
 	f := &Fetcher{
+		Params:    params,
 		Callbacks: clbks,
 		Client:    client,
-		Mode:      mode,
-		File:      file,
-		Https:     https,
 	}
-	if f.Pool, err = pool.New(topo); err != nil {
+	if f.Pool, err = discoverypool.New(svcInfo); err != nil {
 		return nil, err
 	}
 	return f, nil
 }
 
-// UpdateTopo updates the topology for the fetcher. This allows changing
-// the discovery service pool.
-func (f *Fetcher) UpdateTopo(topo *topology.Topo) error {
-	return f.Pool.Update(topo)
+// UpdateInstances updates the discovery service pool.
+func (f *Fetcher) UpdateInstances(svcInfo discovery.ServiceInfo) error {
+	return f.Pool.Update(svcInfo)
 }
 
 // Run fetches a new topology file from the discovery service and calls the
@@ -84,50 +76,39 @@ func (f *Fetcher) UpdateTopo(topo *topology.Topo) error {
 // only called if no error has occurred and the topology was parsed correctly.
 // Otherwise ErrorF is called.
 func (f *Fetcher) Run(ctx context.Context) {
-	if err := f.run(ctx); err != nil {
-		f.error(err)
+	if err := f.run(ctx); err != nil && f.Callbacks.Error != nil {
+		f.Callbacks.Error(err)
 	}
 }
 
 func (f *Fetcher) run(ctx context.Context) error {
 	if f.Pool == nil {
-		return common.NewBasicError("Fetcher not initialized", nil)
+		return common.NewBasicError("Pool not initialized", nil)
 	}
 	// Choose a DS server.
 	ds, err := f.Pool.Choose()
 	if err != nil {
 		return err
 	}
-	topo, raw, err := discovery.TopoRaw(ctx, f.Client,
-		discovery.CreateURL(ds.Addr(), f.Mode, f.File, f.Https))
+	topo, raw, err := discovery.FetchTopoRaw(ctx, f.Params, ds.Addr(), f.Client)
 	if err != nil {
 		ds.Fail()
 		return err
 	}
 	// Update DS server entries based on new topo.
-	if err := f.Pool.Update(topo); err != nil {
+	err = f.Pool.Update(discovery.ServiceInfo{
+		Instances: topo.DS,
+		Overlay:   topo.Overlay,
+	})
+	if err != nil {
 		return common.NewBasicError("Unable to update pool", err)
 	}
 	// Notify the client.
-	f.raw(raw)
-	f.update(topo)
-	return nil
-}
-
-func (f *Fetcher) raw(raw common.RawBytes) {
 	if f.Callbacks.Raw != nil {
 		f.Callbacks.Raw(raw)
 	}
-}
-
-func (f *Fetcher) update(topo *topology.Topo) {
 	if f.Callbacks.Update != nil {
 		f.Callbacks.Update(topo)
 	}
-}
-
-func (f *Fetcher) error(err error) {
-	if f.Callbacks.Error != nil {
-		f.Callbacks.Error(err)
-	}
+	return nil
 }

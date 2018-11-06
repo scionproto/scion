@@ -18,21 +18,28 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// Pool keeps a pool of known discovery services.
-type Pool interface {
-	// Update updates the pool based on a new topology.
-	Update(*topology.Topo) error
-	// Choose returns the info for the best discovery service
-	// according to the pool.
-	Choose() (Info, error)
+// ServiceInfo contains the info for multiple discovery service instances.
+type ServiceInfo struct {
+	Instances topology.IDAddrMap
+	Overlay   overlay.Type
 }
 
-// Info provides the information for a single discovery service instance.
-type Info interface {
+// Pool keeps a pool of known discovery service instances.
+type Pool interface {
+	// Update updates the pool based on a new discovery service map.
+	Update(ServiceInfo) error
+	// Choose returns the info for the best discovery service instance
+	// according to the pool.
+	Choose() (InstanceInfo, error)
+}
+
+// InstanceInfo provides the information for a single discovery service instance.
+type InstanceInfo interface {
 	fmt.Stringer
 	// Update updates the address.
 	Update(*addr.AppAddr)
@@ -51,8 +58,9 @@ type Info interface {
 // Fetcher is a periodic task that fetches topology form the discovery service.
 type Fetcher interface {
 	periodic.Task
-	// UpdateTopo updates the topology for the fetcher. It can be used to notify
-	// fetcher in case a new topology file has been received from sources other
-	// than the discovery service (e.g. through sighup reloading)
-	UpdateTopo(*topology.Topo) error
+	// UpdateInstances updates the discovery service instances for the fetcher.
+	// It can be used to notify fetcher in case a new topology file has been
+	// received from sources other than the discovery service
+	// (e.g. through sighup reloading)
+	UpdateInstances(ServiceInfo) error
 }
