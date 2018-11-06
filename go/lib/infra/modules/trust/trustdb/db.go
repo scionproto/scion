@@ -129,6 +129,13 @@ const (
 			INSERT OR IGNORE INTO Chains (IsdID, AsID, Version, OrderKey, IssCertsRowID)
 			VALUES (?, ?, ?, ?, ?)
 		`
+	getAllChainsStr = `
+			SELECT cic.OrderKey, cic.Data AS IData, lc.Data AS LData FROM (
+				SELECT * FROM Chains ch
+				LEFT JOIN IssuerCerts ic ON ch.IssCertsRowID = ic.RowID) as cic
+			INNER JOIN LeafCerts lc USING (IsdID, AsID, Version)
+			ORDER BY cic.IsdID, cic.AsID, cic.Version, cic.OrderKey
+	`
 	getTRCVersionStr = `
 			SELECT Data FROM TRCs WHERE IsdID=? AND Version=?
 		`
@@ -139,6 +146,9 @@ const (
 	insertTRCStr = `
 			INSERT OR IGNORE INTO TRCs (IsdID, Version, Data) VALUES (?, ?, ?)
 		`
+	getAllTRCsStr = `
+			SELECT Data FROM TRCs
+	`
 )
 
 // DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
@@ -158,10 +168,12 @@ type DB struct {
 	insertLeafCertStmt        *sql.Stmt
 	getChainVersionStmt       *sql.Stmt
 	getChainMaxVersionStmt    *sql.Stmt
+	getAllChainsStmt          *sql.Stmt
 	insertChainStmt           *sql.Stmt
 	getTRCVersionStmt         *sql.Stmt
 	getTRCMaxVersionStmt      *sql.Stmt
 	insertTRCStmt             *sql.Stmt
+	getAllTRCsStmt            *sql.Stmt
 }
 
 func New(path string) (*DB, error) {
@@ -203,6 +215,9 @@ func New(path string) (*DB, error) {
 	if db.getChainMaxVersionStmt, err = db.db.Prepare(getChainMaxVersionStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getChainMaxVersion", err)
 	}
+	if db.getAllChainsStmt, err = db.db.Prepare(getAllChainsStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getAllChains", err)
+	}
 	if db.insertChainStmt, err = db.db.Prepare(insertChainStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertChain", err)
 	}
@@ -214,6 +229,9 @@ func New(path string) (*DB, error) {
 	}
 	if db.insertTRCStmt, err = db.db.Prepare(insertTRCStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare insertTRC", err)
+	}
+	if db.getAllTRCsStmt, err = db.db.Prepare(getAllTRCsStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getAllTRCs", err)
 	}
 	return db, nil
 }
@@ -378,6 +396,60 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	return cert.ChainFromSlice(certs)
 }
 
+func (db *DB) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
+	db.RLock()
+	defer db.RUnlock()
+	rows, err := db.getAllChainsStmt.QueryContext(ctx)
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
+	}
+	defer rows.Close()
+	var chains []*cert.Chain
+	var leafRaw common.RawBytes
+	var issCertRaw common.RawBytes
+	var orderKey int64
+	var lastOrderKey int64 = 1
+	currentCerts := make([]*cert.Certificate, 0, 2)
+	for rows.Next() {
+		err = rows.Scan(&orderKey, &issCertRaw, &leafRaw)
+		if err != nil {
+			return nil, err
+		}
+		// Wrap around means we start processing a new chain entry.
+		if orderKey <= lastOrderKey {
+			if len(currentCerts) > 0 {
+				chain, err := cert.ChainFromSlice(currentCerts)
+				if err != nil {
+					return nil, err
+				}
+				chains = append(chains, chain)
+				currentCerts = currentCerts[:0]
+			}
+			// While the leaf entry is in every result row,
+			// it has to be the first entry in the chain we are building.
+			crt, err := cert.CertificateFromRaw(leafRaw)
+			if err != nil {
+				return nil, err
+			}
+			currentCerts = append(currentCerts, crt)
+		}
+		crt, err := cert.CertificateFromRaw(issCertRaw)
+		if err != nil {
+			return nil, err
+		}
+		currentCerts = append(currentCerts, crt)
+		lastOrderKey = orderKey
+	}
+	if len(currentCerts) > 0 {
+		chain, err := cert.ChainFromSlice(currentCerts)
+		if err != nil {
+			return nil, err
+		}
+		chains = append(chains, chain)
+	}
+	return chains, nil
+}
+
 // InsertChain inserts chain into the database. The first return value is the
 // number of rows affected.
 func (db *DB) InsertChain(ctx context.Context, chain *cert.Chain) (int64, error) {
@@ -473,4 +545,29 @@ func (db *DB) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error) {
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// GetAllTRCs fetches all TRCs from the database.
+func (db *DB) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
+	db.RLock()
+	defer db.RUnlock()
+	rows, err := db.getAllTRCsStmt.QueryContext(ctx)
+	if err != nil {
+		return nil, common.NewBasicError("Database access error", err)
+	}
+	defer rows.Close()
+	var trcs []*trc.TRC
+	var rawTRC common.RawBytes
+	for rows.Next() {
+		err = rows.Scan(&rawTRC)
+		if err != nil {
+			return nil, common.NewBasicError("Failed to scan rows", err)
+		}
+		trcobj, err := trc.TRCFromRaw(rawTRC, false)
+		if err != nil {
+			return nil, common.NewBasicError("TRC parse error", err)
+		}
+		trcs = append(trcs, trcobj)
+	}
+	return trcs, nil
 }
