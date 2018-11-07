@@ -171,8 +171,8 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, net.Addr
 func (d *Dispatcher) goBackgroundReceiver() {
 	go func() {
 		defer log.LogPanicAndExit()
-		d.log.Info("Started")
-		defer d.log.Info("Stopped")
+		d.log.Debug("Started")
+		defer d.log.Debug("Stopped")
 		defer close(d.stoppedChan)
 	Loop:
 		for {

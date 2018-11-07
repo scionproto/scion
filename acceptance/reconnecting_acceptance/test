@@ -15,11 +15,33 @@ test_setup() {
 
 test_run() {
     set -e
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
-    docker restart dispatcher
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -c tester
+    docker restart $(glob_docker disp_)
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
     sleep 5
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -c tester
+}
+
+glob_docker() {
+    [ $# -ge 1 ] || set -- '*'
+    matches=
+    for proc in $(./tools/dc scion config --services); do
+        for spec in "$@"; do
+            if glob_match $proc "$spec"; then
+                matches="$matches $proc"
+                break
+            fi
+        done
+    done
+    echo $matches
+}
+
+glob_match() {
+    # If $1 is matched by $2, return true
+    case "$1" in
+        $2) return 0;;
+    esac
+    return 1
 }
 
 test_teardown() {

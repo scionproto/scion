@@ -281,7 +281,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		// Update port
 		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
 	}
-	log.Info("Registered with dispatcher", "addr", conn.laddr)
+	log.Debug("Registered with dispatcher", "addr", conn.laddr)
 	conn.conn = rconn
 	return conn, nil
 }

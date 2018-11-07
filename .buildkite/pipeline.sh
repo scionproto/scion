@@ -35,8 +35,8 @@ if [ "$BUILDKITE_BRANCH" == "master" ]; then
     "$BASE/acceptance.sh"
 fi
 
-# deploy
-cat "$BASE/deploy.yml"
-
 # Stop docker.sh
 cat "$BASE/teardown.yml"
+
+# deploy
+cat "$BASE/deploy.yml"
