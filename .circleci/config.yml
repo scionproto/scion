@@ -52,18 +52,13 @@ jobs:
                 command: ./tools/ci/lint
                 when: always
             - run:
-                name: Unit tests
-                command: ./tools/ci/unittest
-                when: always
-            - run:
-                name: Python documentation (sphinx)
-                command: ./tools/ci/sphinx
+                name: Unit tests and Python documentation (sphinx)
+                command: ./tools/ci/test
                 when: always
             - run:
                 name: Integration tests
                 command: |
-                    ./tools/ci/integration_setup
-                    ./tools/ci/integration_run
+                    ./tools/ci/integration
                 when: always
 
             # Clean up

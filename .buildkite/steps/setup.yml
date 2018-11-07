@@ -3,13 +3,8 @@
       - $BASE/clean_env.sh
       - ./tools/ci/prepare_image 12897905098b25a493ecf876d0a3ab355521d0f2e8044eae3c0cfda8714b7339
       - ./docker.sh build
-  concurrency: 1
-  concurrency_group: "build-scion"
-# FIXME(worxli): we should commit the built code and push the image, then use that image for the
-# rest of the pipeline
 - wait
 - label: Start container
   command:
-      - mkdir $SCION_MOUNT
-      - ./docker.sh start
+      - SCION_IMG=scion ./docker.sh start
 - wait

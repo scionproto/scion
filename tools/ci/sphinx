@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -ex
-
-./docker.sh exec "set -eo pipefail; make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run"
