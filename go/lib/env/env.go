@@ -28,6 +28,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -202,6 +204,8 @@ type Metrics struct {
 
 func (cfg *Metrics) StartPrometheus(fatalC chan error) {
 	if cfg.Prometheus != "" {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Info("Exporting prometheus metrics", "addr", cfg.Prometheus)
 		go func() {
 			defer log.LogPanicAndExit()
 			if err := http.ListenAndServe(cfg.Prometheus, nil); err != nil {
