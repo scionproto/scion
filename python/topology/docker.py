@@ -28,15 +28,25 @@ from lib.util import (
     write_file,
 )
 from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
-from topology.utils import TesterGenArgs, TesterGenerator
+from topology.utils import TesterGenArgs, TesterGenerator, UtilsGenArgs, UtilsGenerator
 
-DOCKER_BASE_CONF = 'base-dc.yml'
+DOCKER_BRIDGE_CONF = 'dc-bridges.conf'
+DOCKER_NETWORK_CONF = 'networks-dc.yml'
+DOCKER_VOLUME_CONF = 'volumes-dc.yml'
 DOCKER_SCION_CONF = 'scion-dc.yml'
-DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
+DEFAULT_DC_NETWORK = "172.18.0.0/24"
 
 
 class DockerGenArgs(ArgsTopoDicts):
-    pass
+    def __init__(self, args, topo_dicts, networks, port_gen=None):
+        """
+        :param object args: Contains the passed command line arguments as named attributes.
+        :param dict topo_dicts: The generated topo dicts from TopoGenerator.
+        :param dict networks: The generated networks from SubnetGenerator.
+        :param PortGenerator port_gen: The port generator
+        """
+        super().__init__(args, topo_dicts, port_gen)
+        self.networks = networks
 
 
 class DockerGenerator(object):
@@ -45,55 +55,92 @@ class DockerGenerator(object):
         :param DockerGenArgs args: Contains the passed command line arguments and topo dicts.
         """
         self.args = args
-        self.dc_base_conf = {'version': '3', 'networks': {}}
+        self.dc_vol_conf = {'version': '3', 'volumes': {}}
+        self.dc_net_conf = {'version': '3', 'networks': {}}
         self.dc_conf = {'version': '3', 'services': {}}
-        self.dc_util_conf = {'version': '3', 'services': {}}
+        self.elem_networks = {}
+        self.bridges = {}
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
         self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
 
     def generate(self):
-        self._base_conf()
+        self._net_conf()
+        self._create_networks()
         self._zookeeper_conf()
-        self._dispatcher_conf()
         for topo_id, topo in self.args.topo_dicts.items():
             base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
-        write_file(os.path.join(self.args.output_dir, DOCKER_SCION_CONF),
-                   yaml.dump(self.dc_conf, default_flow_style=False))
-        write_file(os.path.join(self.args.output_dir, DOCKER_BASE_CONF),
-                   yaml.dump(self.dc_base_conf, default_flow_style=False))
+        self._write_files()
 
         tester_gen = TesterGenerator(self._tester_args())
         tester_gen.generate()
+        utils_gen = UtilsGenerator(self._utils_args())
+        utils_gen.generate()
 
     def _tester_args(self):
         return TesterGenArgs(self.args)
 
-    def _base_conf(self):
-        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
-        self.dc_base_conf['networks']['default'] = default_net
+    def _utils_args(self):
+        return UtilsGenArgs(self.args, self.dc_vol_conf['volumes'])
 
     def _gen_topo(self, topo_id, topo, base):
-        self._br_conf(topo, base)
+        self._dispatcher_conf(topo_id, topo, base)
+        self._br_conf(topo_id, topo, base)
         self._cs_conf(topo_id, topo, base)
         self._bs_conf(topo_id, topo, base)
         self._ps_conf(topo_id, topo, base)
         self._sciond_conf(topo_id, base)
+        self._vol_conf(topo_id)
 
-    def _br_conf(self, topo, base):
+    def _write_files(self):
+        write_file(os.path.join(self.args.output_dir, DOCKER_SCION_CONF),
+                   yaml.dump(self.dc_conf, default_flow_style=False))
+        write_file(os.path.join(self.args.output_dir, DOCKER_NETWORK_CONF),
+                   yaml.dump(self.dc_net_conf, default_flow_style=False))
+        write_file(os.path.join(self.args.output_dir, DOCKER_VOLUME_CONF),
+                   yaml.dump(self.dc_vol_conf, default_flow_style=False))
+        # Write bridge config file
+        text = ''
+        for br in self.bridges:
+            text += br + ' ' + self.bridges[br] + '\n'
+        conf_path = os.path.join(self.args.output_dir, DOCKER_BRIDGE_CONF)
+        write_file(conf_path, text)
+
+    def _net_conf(self):
+        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DC_NETWORK}]}}
+        self.dc_net_conf['networks']['default'] = default_net
+
+    def _vol_conf(self, topo_id):
+        self.dc_vol_conf['volumes']['vol_disp_%s' % topo_id.file_fmt()] = None
+        self.dc_vol_conf['volumes']['vol_sciond_%s' % topo_id.file_fmt()] = None
+
+    def _create_networks(self):
+        for network in self.args.networks:
+            for elem in self.args.networks[network]:
+                if elem not in self.elem_networks:
+                    self.elem_networks[elem] = []
+                self.elem_networks[elem].append(
+                    {'net': str(network), 'ipv4': self.args.networks[network][elem].ip})
+            # Create docker networks
+            net_pref = "scn_docker" if self.args.in_docker else "scn"
+            net_name = "%s_%03d" % (net_pref, len(self.bridges))
+            self.bridges[str(network)] = net_name
+            self.dc_net_conf['networks'][net_name] = {'external': True}
+
+    def _br_conf(self, topo_id, topo, base):
         raw_entry = {
             'image': 'scion_border',
-            'network_mode': 'host',
             'depends_on': [
-                'dispatcher',
+                'disp_%s' % topo_id.file_fmt(),
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'network_mode': 'service:disp_%s' % topo_id.file_fmt(),
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
+                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
                 self.output_base + '/logs:/share/logs:rw'
             ],
             'command': []
@@ -112,17 +159,18 @@ class DockerGenerator(object):
             'image': image,
             'depends_on': [
                 self._sciond_name(topo_id),
-                'dispatcher',
+                'disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'network_mode': 'service:disp_%s' % topo_id.file_fmt(),
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
+                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                'vol_sciond_%s:/run/shm/sciond:rw' % topo_id.file_fmt(),
                 self.output_base + '/gen-cache:/share/cache:rw',
                 self.output_base + '/logs:/share/logs:rw'
             ],
@@ -146,17 +194,18 @@ class DockerGenerator(object):
             'image': 'scion_beacon_py',
             'depends_on': [
                 self._sciond_name(topo_id),
-                'dispatcher',
+                'disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'network_mode': 'service:disp_%s' % topo_id.file_fmt(),
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
+                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                'vol_sciond_%s:/run/shm/sciond:rw' % topo_id.file_fmt(),
                 self.output_base + '/gen-cache:/share/cache:rw',
                 self.output_base + '/logs:/share/logs:rw'
             ],
@@ -181,17 +230,18 @@ class DockerGenerator(object):
             'image': image,
             'depends_on': [
                 self._sciond_name(topo_id),
-                'dispatcher',
+                'disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'network_mode': 'service:disp_%s' % topo_id.file_fmt(),
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
+                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                'vol_sciond_%s:/run/shm/sciond:rw' % topo_id.file_fmt(),
                 self.output_base + '/gen-cache:/share/cache:rw',
                 self.output_base + '/logs:/share/logs:rw'
             ],
@@ -237,28 +287,39 @@ class DockerGenerator(object):
         os.makedirs(os.path.dirname(cfg_path))
         copyfile(os.path.join(os.environ['PWD'], cfg_file), cfg_path)
 
-    def _dispatcher_conf(self):
+    def _dispatcher_conf(self, topo_id, topo, base):
+        name = 'disp_%s' % topo_id.file_fmt()
         entry = {
             'image': 'scion_dispatcher',
-            'container_name': 'dispatcher',
-            'network_mode': 'host',
+            'container_name': name,
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'networks': {},
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                self.output_base + '/gen/dispatcher:/share/conf:rw',
+                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                '%s:/share/conf:rw' % os.path.join(base, 'dispatcher'),
                 self.output_base + '/logs:/share/logs:rw'
             ]
         }
-        self.dc_conf['services']['dispatcher'] = entry
+        self.dc_conf['services'][name] = entry
+
+        # Attach dispatcher to external BR IPs
+        for k in topo.get("BorderRouters", {}):
+            for net in self.elem_networks[k]:
+                ip = str(net['ipv4'])
+                entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
+            # Attach dispatcher to internal BR, PS, CS, BS IP
+            for net in self.elem_networks[k[2:len(k)-2]]:
+                ip = str(net['ipv4'])
+                entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
 
         # Create dispatcher config
         tmpl = Template(read_file("topology/zlog.tmpl"))
-        cfg = self.args.output_dir + "/dispatcher/dispatcher.zlog.conf"
-        write_file(cfg, tmpl.substitute(name="dispatcher", elem="dispatcher"))
+        cfg = "%s/dispatcher/dispatcher.zlog.conf" % topo_id.base_dir(self.args.output_dir)
+        write_file(cfg, tmpl.substitute(name="dispatcher", elem=name))
 
     def _sciond_conf(self, topo_id, base):
         name = self._sciond_name(topo_id)
@@ -267,7 +328,7 @@ class DockerGenerator(object):
             'image': image,
             'container_name': name,
             'depends_on': [
-                'dispatcher',
+                'disp_%s' % topo_id.file_fmt()
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
@@ -275,8 +336,8 @@ class DockerGenerator(object):
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                '/run/shm/dispatcher:/run/shm/dispatcher:rw',
-                '/run/shm/sciond:/run/shm/sciond:rw',
+                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                'vol_sciond_%s:/run/shm/sciond:rw' % topo_id.file_fmt(),
                 '%s:/share/conf:ro' % os.path.join(base, 'endhost'),
                 self.output_base + '/gen-cache:/share/cache:rw',
                 self.output_base + '/logs:/share/logs:rw'

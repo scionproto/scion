@@ -10,6 +10,9 @@ cmd_topology() {
     set -e
     local zkclean
     echo "Shutting down: $(./scion.sh stop)"
+    if is_docker; then
+        ./tools/dc down
+    fi
     supervisor/supervisor.sh shutdown
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
@@ -18,7 +21,14 @@ cmd_topology() {
         zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
-    python/topology/generator.py "$@"
+    if is_running_in_docker; then
+        python/topology/generator.py "$@" --in-docker
+    else
+        python/topology/generator.py "$@"
+    fi
+    if is_docker; then
+        ./tools/quiet ./tools/dc init
+    fi
     run_zk
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
