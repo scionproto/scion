@@ -100,7 +100,9 @@ func (c *Syncer) sendChain(ctx context.Context, cs net.Addr, chain *cert.Chain) 
 		log.Error("[CryptoSync] Failed to compress Chain for forwarding", "err", err)
 		return
 	}
-	err = c.Msger.SendCertChain(ctx, &cert_mgmt.Chain{RawChain: rawChain}, cs, messenger.NextId())
+	err = c.Msger.SendCertChain(ctx, &cert_mgmt.Chain{
+		RawChain: rawChain,
+	}, cs, messenger.NextId())
 	if err != nil {
 		log.Error("[CryptoSync] Failed to send Chain", "err", err)
 	}

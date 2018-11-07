@@ -461,7 +461,8 @@ func (db *DB) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
 				chains = append(chains, chain)
 				currentCerts = currentCerts[:0]
 			}
-			// The first entry of the chain is always the leaf entry.
+			// While the leaf entry is in every result row,
+			// it has to be the first entry in the chain we are building.
 			crt, err := cert.CertificateFromRaw(leafRaw)
 			if err != nil {
 				return nil, err
