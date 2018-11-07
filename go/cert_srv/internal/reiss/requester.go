@@ -111,7 +111,7 @@ func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (
 	if err = r.validateRep(ctx, chain); err != nil {
 		return true, common.NewBasicError("Unable to validate chain", err, "chain", chain)
 	}
-	if _, err = r.State.TrustDB.InsertChain(chain); err != nil {
+	if _, err = r.State.TrustDB.InsertChain(ctx, chain); err != nil {
 		return true, common.NewBasicError("Unable to insert reissued certificate chain in TrustDB",
 			err, "chain", chain)
 	}

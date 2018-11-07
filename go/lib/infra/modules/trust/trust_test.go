@@ -200,7 +200,7 @@ func TestGetValidTRC(t *testing.T) {
 
 				// Post-check DB state to verify insertion
 				for _, trcObj := range tc.DBTRCInChecks {
-					get, err := store.trustdb.GetTRCVersion(trcObj.ISD, trcObj.Version)
+					get, err := store.trustdb.GetTRCVersion(ctx, trcObj.ISD, trcObj.Version)
 					SoMsg("db err", err, ShouldBeNil)
 					SoMsg("db trc", get, ShouldResemble, trcObj)
 				}
@@ -345,7 +345,7 @@ func TestGetValidChain(t *testing.T) {
 
 				// Post-check DB state to verify insertion
 				for _, chain := range tc.DBChainInChecks {
-					get, err := store.trustdb.GetChainVersion(chain.Leaf.Subject,
+					get, err := store.trustdb.GetChainVersion(ctx, chain.Leaf.Subject,
 						chain.Leaf.Version)
 					SoMsg("db err", err, ShouldBeNil)
 					SoMsg("db chain", get, ShouldResemble, chain)
@@ -441,7 +441,7 @@ func TestGetChain(t *testing.T) {
 
 				// Post-check DB state to verify that unverified objects were not inserted
 				for _, chain := range tc.DBChainNotInChecks {
-					get, err := store.trustdb.GetChainVersion(chain.Leaf.Subject,
+					get, err := store.trustdb.GetChainVersion(ctx, chain.Leaf.Subject,
 						chain.Leaf.Version)
 					SoMsg("db err", err, ShouldBeNil)
 					SoMsg("db chain", get, ShouldBeNil)
@@ -770,13 +770,13 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 func insertTRC(t *testing.T, store *Store, trcObj *trc.TRC) {
 	t.Helper()
 
-	_, err := store.trustdb.InsertTRC(trcObj)
+	_, err := store.trustdb.InsertTRC(context.Background(), trcObj)
 	xtest.FailOnErr(t, err)
 }
 
 func insertChain(t *testing.T, store *Store, chain *cert.Chain) {
 	t.Helper()
 
-	_, err := store.trustdb.InsertChain(chain)
+	_, err := store.trustdb.InsertChain(context.Background(), chain)
 	xtest.FailOnErr(t, err)
 }
