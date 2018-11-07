@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -x
+
+echo "Running acceptance: ${1:?}"
+
+./docker.sh start
+res=0
+./docker.sh exec "$1/test" setup
+res=$((res+$?))
+./docker.sh exec "$1/test" run
+res=$((res+$?))
+./docker.sh exec "$1/test" teardown
+res=$((res+$?))
+
+./tools/ci/pack_logs
+./docker.sh stop
+exit $res

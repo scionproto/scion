@@ -7,8 +7,9 @@
 - label: Docker Integration Tests
   command:
       - rm -f $SCION_MOUNT/logs/*
+      - docker pull "$SCION_IMG"
       - ./tools/ci/integration_setup -d -a
       - ./tools/ci/integration_run -d -a
+  timeout_in_minutes: 30
   concurrency: 1
   concurrency_group: "integration-test"
-

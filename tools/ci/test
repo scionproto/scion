@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -x
+
+./docker.sh start
+res=0
+./docker.sh exec "set -eo pipefail; ./scion.sh test |& tee logs/unittests.run"
+res=$((res+$?))
+./docker.sh exec "set -eo pipefail; make -f sphinx-doc/Makefile clean html |& tee logs/sphinx.run"
+res=$((res+$?))
+./tools/ci/pack_logs
+./docker.sh stop
+exit $res

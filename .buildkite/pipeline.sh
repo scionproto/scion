@@ -17,20 +17,22 @@ echo "steps:"
 # setup docker images and start
 cat "$BASE/setup.yml"
 
-# do build and testing
+# do build and linting
 cat "$BASE/build.yml"
+
+# Commit container and push to registry
+cat "$BASE/push_ci_cntr.yml"
+
+# Unit tests
+cat "$BASE/test.yml"
+
 # integration testing
 "$BASE/integration.sh"
-continue_on_failure
-cat "$BASE/logs.yml"
 
 # run some more tests on master
 if [ "$BUILDKITE_BRANCH" == "master" ]; then
+    # docker integration testing
     cat "$BASE/docker-integration.yml"
-    continue_on_failure
-    cat "$BASE/logs.yml"
-    continue_on_failure
-
     # acceptance testing
     "$BASE/acceptance.sh"
 fi

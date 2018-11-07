@@ -9,6 +9,5 @@
 - wait
 - label: Start container
   command:
-      - mkdir $SCION_MOUNT
-      - ./docker.sh start
+      - SCION_IMG=scion ./docker.sh start
 - wait
