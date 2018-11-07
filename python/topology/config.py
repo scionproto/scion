@@ -58,7 +58,7 @@ from topology.cert import CertGenerator
 from topology.common import _srv_iter
 from topology.docker import DockerGenerator
 from topology.go import GoGenerator
-from topology.net import SubnetGenerator
+from topology.net import PortGenerator, SubnetGenerator
 from topology.prometheus import PrometheusGenerator
 from topology.supervisor import SupervisorGenerator
 from topology.topo import TopoGenerator
@@ -119,6 +119,7 @@ class ConfigGenerator(object):
         self.gen_bind_addr = bind_addr
         self.pseg_ttl = pseg_ttl
         self._read_defaults(network)
+        self.port_gen = PortGenerator()
         self.cs = cs
         self.sd = sd
         self.ps = ps
@@ -209,21 +210,21 @@ class ConfigGenerator(object):
         topo_gen = TopoGenerator(
             self.topo_config, self.out_dir, self.subnet_gen, self.prvnet_gen, self.zk_config,
             self.default_mtu, self.gen_bind_addr, self.docker, self.ipv6, self.cs, self.ps,
-            self.ds)
+            self.ds, self.port_gen)
         return topo_gen.generate()
 
     def _generate_supervisor(self, topo_dicts):
         super_gen = SupervisorGenerator(
-            self.out_dir, topo_dicts, self.mininet, self.cs, self.sd, self.ps)
+            self.out_dir, topo_dicts, self.mininet, self.cs, self.sd, self.ps, self.port_gen)
         super_gen.generate()
 
     def _generate_docker(self, topo_dicts):
         docker_gen = DockerGenerator(
-            self.out_dir, topo_dicts, self.sd, self.ps)
+            self.out_dir, topo_dicts, self.sd, self.ps, self.port_gen)
         docker_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):
-        prom_gen = PrometheusGenerator(self.out_dir, topo_dicts)
+        prom_gen = PrometheusGenerator(self.out_dir, topo_dicts, self.port_gen)
         prom_gen.generate()
 
     def _write_ca_files(self, topo_dicts, ca_files):

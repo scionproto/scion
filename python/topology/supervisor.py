@@ -34,13 +34,14 @@ SUPERVISOR_CONF = 'supervisord.conf'
 
 
 class SupervisorGenerator(object):
-    def __init__(self, out_dir, topo_dicts, mininet, cs, sd, ps):
+    def __init__(self, out_dir, topo_dicts, mininet, cs, sd, ps, port_gen):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.mininet = mininet
         self.cs = cs
         self.sd = sd
         self.ps = ps
+        self.port_gen = port_gen
 
     def generate(self):
         self._write_dispatcher_conf()
@@ -61,8 +62,8 @@ class SupervisorGenerator(object):
         entries = []
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
-            entries.append((elem_id, [cmd, "--prom", _prom_addr_infra(elem),
-                                      "--sciond_path",
+            prom_addr = _prom_addr_infra(elem_id, elem, self.port_gen)
+            entries.append((elem_id, [cmd, "--prom", prom_addr, "--sciond_path",
                                       get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
                                       elem_id, conf_dir]))
         return entries
@@ -72,7 +73,7 @@ class SupervisorGenerator(object):
         for k, v in topo.get("BorderRouters", {}).items():
             conf_dir = os.path.join(base, k)
             entries.append((k, [cmd, "-id=%s" % k, "-confd=%s" % conf_dir,
-                                "-prom=%s" % _prom_addr_br(v)]))
+                                "-prom=%s" % _prom_addr_br(k, v, self.port_gen)]))
         return entries
 
     def _bs_entries(self, topo, base):

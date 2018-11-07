@@ -36,11 +36,12 @@ DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 
 
 class DockerGenerator(object):
-    def __init__(self, out_dir, topo_dicts, sd, ps):
+    def __init__(self, out_dir, topo_dicts, sd, ps, port_gen):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
         self.sd = sd
         self.ps = ps
+        self.port_gen = port_gen
         self.dc_base_conf = {'version': '3', 'networks': {}}
         self.dc_conf = {'version': '3', 'services': {}}
         self.dc_util_conf = {'version': '3', 'services': {}}
@@ -96,7 +97,7 @@ class DockerGenerator(object):
             entry['container_name'] = k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
             entry['command'].append('-id=%s' % k)
-            entry['command'].append('-prom=%s' % _prom_addr_br(v))
+            entry['command'].append('-prom=%s' % _prom_addr_br(k, v, self.port_gen))
             self.dc_conf['services'][k] = entry
 
     def _cs_conf(self, topo_id, topo, base):
@@ -126,7 +127,7 @@ class DockerGenerator(object):
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+            entry['command'].append('--prom=%s' % _prom_addr_infra(k, v, self.port_gen))
             entry['command'].append('--sciond_path=%s' %
                                     get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
             entry['command'].append(k)
@@ -160,7 +161,7 @@ class DockerGenerator(object):
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+            entry['command'].append('--prom=%s' % _prom_addr_infra(k, v, self.port_gen))
             entry['command'].append('--sciond_path=%s' %
                                     get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
             entry['command'].append(k)
@@ -195,7 +196,7 @@ class DockerGenerator(object):
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
             if self.ps == 'py':
                 entry['command'].append('--spki_cache_dir=cache')
-                entry['command'].append('--prom=%s' % _prom_addr_infra(v))
+                entry['command'].append('--prom=%s' % _prom_addr_infra(k, v, self.port_gen))
                 entry['command'].append('--sciond_path=%s' %
                                         get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
                 entry['command'].append(k)

@@ -134,3 +134,12 @@ class AddressProxy(yaml.YAMLObject):
     @classmethod
     def to_yaml(cls, dumper, inst):
         return dumper.represent_scalar('tag:yaml.org,2002:str', str(inst.ip))
+
+
+class PortGenerator(object):
+    def __init__(self):
+        self.iter = iter(range(31000, 35000))
+        self._ports = defaultdict(lambda: next(self.iter))
+
+    def register(self, id_):
+        return self._ports[id_]
