@@ -53,14 +53,16 @@ func dockerize(bi *binaryIntegration) Integration {
 func (di *dockerIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
 	bi := *di.binaryIntegration
 	env := fmt.Sprintf("%s=1", GoIntegrationEnv)
-	bi.serverArgs = append([]string{dockerArg, di.cntr, env, bi.cmd}, bi.serverArgs...)
+	bi.serverArgs = append([]string{dockerArg, di.cntr, dst.FileFmt(false), env, bi.cmd},
+		bi.serverArgs...)
 	bi.cmd = dockerCmd
 	return bi.StartServer(ctx, dst)
 }
 
 func (di *dockerIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
 	bi := *di.binaryIntegration
-	bi.clientArgs = append([]string{dockerArg, di.cntr, bi.cmd}, bi.clientArgs...)
+	bi.clientArgs = append([]string{dockerArg, di.cntr, src.FileFmt(false), bi.cmd},
+		bi.clientArgs...)
 	bi.cmd = dockerCmd
 	return bi.StartClient(ctx, src, dst)
 }

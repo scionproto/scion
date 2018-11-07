@@ -1,9 +1,9 @@
 usage() {
-    echo "Usage: $0: [-d]"
+    echo "Usage: $0: [-d] [-a]"
     exit 1
 }
 
-while getopts ":d:a" opt; do
+while getopts ":d :a" opt; do
     case "$opt" in
         d)
             DOCKER=true

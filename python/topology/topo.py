@@ -83,7 +83,6 @@ class TopoGenerator(object):
         self.args = args
         self.topo_dicts = {}
         self.hosts = []
-        self.zookeepers = defaultdict(dict)
         self.virt_addrs = set()
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
@@ -123,7 +122,7 @@ class TopoGenerator(object):
         self._write_as_list()
         self._write_ifids()
         self._write_overlay()
-        return self.topo_dicts, self.zookeepers, networks, prv_networks
+        return self.topo_dicts, networks, prv_networks
 
     def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
         br_name = ep.br_name()
@@ -200,11 +199,12 @@ class TopoGenerator(object):
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
+            reg_id = topo_id.file_fmt() if self.args.docker else elem_id
             d = {
                 'Addrs': {
                     self.addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(topo_id, elem_id),
+                            'Addr': self._reg_addr(topo_id, reg_id),
                             'L4Port': self.args.port_gen.register(elem_id),
                         }
                     }
@@ -212,7 +212,7 @@ class TopoGenerator(object):
             }
             if self.args.bind_addr:
                 d['Addrs'][self.addr_type]['Bind'] = {
-                    'Addr': self._reg_bind_addr(topo_id, elem_id),
+                    'Addr': self._reg_bind_addr(topo_id, reg_id),
                     'L4Port': self.args.port_gen.register(elem_id),
                 }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
@@ -234,7 +234,10 @@ class TopoGenerator(object):
     def _gen_br_entry(self, local, l_ifid, remote, r_ifid, remote_type, attrs,
                       local_br, remote_br):
         public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid)
-        int_addr = self._reg_addr(local, local_br)
+        if self.args.docker:
+            int_addr = self._reg_addr(local, local.file_fmt())
+        else:
+            int_addr = self._reg_addr(local, local_br)
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
