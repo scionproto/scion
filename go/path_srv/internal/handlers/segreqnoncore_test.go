@@ -308,12 +308,13 @@ func TestSegReqLocal(t *testing.T) {
 				}
 				msger := mock_infra.NewMockMessenger(ctrl)
 				req := infra.NewRequest(
-					infra.NewContextWithMessenger(context.Background(), msger),
+					log.AttachLogger(
+						infra.NewContextWithMessenger(context.Background(), msger), log.New(),
+					),
 					segReq,
 					nil,
 					&snet.Addr{IA: addr.IA{}},
 					scrypto.RandUint64(),
-					log.New(),
 				)
 				h := &segReqNonCoreHandler{
 					segReqHandler: segReqHandler{
@@ -323,7 +324,6 @@ func TestSegReqLocal(t *testing.T) {
 							revCache:   memrevcache.New(time.Minute, time.Minute),
 							trustStore: ts,
 							topology:   loadTopo(t, tc.SrcIA),
-							logger:     req.Logger,
 						},
 						localIA: tc.SrcIA,
 					},
