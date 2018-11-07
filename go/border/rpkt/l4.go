@@ -65,39 +65,43 @@ func (rp *RtrPkt) L4Hdr(verify bool) (l4.L4Header, error) {
 	return rp.l4, nil
 }
 
-// findL4 finds the layer 4 header, if any.
+// findL4 tries to find the layer 4 header, if any.
 func (rp *RtrPkt) findL4() (bool, error) {
 	// Start from the next unparsed header, if any.
 	nextHdr := rp.idxs.nextHdrIdx.Type
 	offset := rp.idxs.nextHdrIdx.Index
-	for offset < len(rp.Raw) {
-		currHdr := nextHdr
-		if _, ok := common.L4Protocols[currHdr]; ok {
-			// Reached L4 protocol
-			rp.L4Type = nextHdr
-			rp.idxs.l4 = offset
-			break
+	for nextHdr == common.HopByHopClass || nextHdr == common.End2EndClass {
+		if len(rp.Raw[offset:]) < common.LineLen {
+			return false, common.NewBasicError("Bad header length", nil,
+				"min", common.LineLen, "actual", len(rp.Raw[offset:]))
 		}
-		// TODO(kormat): handle detecting unknown L4 protocols.
+		currHdr := nextHdr
 		currExtn := common.ExtnType{Class: currHdr, Type: rp.Raw[offset+2]}
-		hdrLen := int(rp.Raw[offset+1]) * common.LineLen
-		rp.idxs.e2eExt = append(rp.idxs.e2eExt, extnIdx{currExtn, offset})
+		if currHdr == common.HopByHopClass {
+			rp.idxs.hbhExt = append(rp.idxs.hbhExt, extnIdx{currExtn, offset})
+		} else {
+			rp.idxs.e2eExt = append(rp.idxs.e2eExt, extnIdx{currExtn, offset})
+		}
 		nextHdr = common.L4ProtocolType(rp.Raw[offset])
-		offset += hdrLen
+		hdrLen := int(rp.Raw[offset+1]) * common.LineLen
 		if hdrLen == 0 {
 			// FIXME(kormat): Can't return an SCMP error as we can't parse the headers
 			return false, common.NewBasicError("0-length header", nil,
-				"nextHdr", nextHdr, "offset", offset)
+				"currHdr", currHdr, "nextHdr", nextHdr, "offset", offset)
 		}
+		offset += hdrLen
+		if offset > len(rp.Raw) {
+			// FIXME(kormat): Can't generally return an SCMP error as parsing the
+			// headers has failed.
+			return false, common.NewBasicError(ErrExtChainTooLong, nil,
+				"curr", offset, "max", len(rp.Raw))
+		}
+		rp.idxs.nextHdrIdx.Type = nextHdr
+		rp.idxs.nextHdrIdx.Index = offset
 	}
-	if offset > len(rp.Raw) {
-		// FIXME(kormat): Can't generally return an SCMP error as parsing the
-		// headers has failed.
-		return false, common.NewBasicError(ErrExtChainTooLong, nil,
-			"curr", offset, "max", len(rp.Raw))
-	}
-	rp.idxs.nextHdrIdx.Type = nextHdr
-	rp.idxs.nextHdrIdx.Index = offset
+	// Reached L4 Protocol
+	rp.L4Type = nextHdr
+	rp.idxs.l4 = offset
 	return true, nil
 }
 

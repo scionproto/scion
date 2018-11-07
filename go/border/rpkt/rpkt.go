@@ -287,11 +287,19 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
 		}
 		sp.E2EExt = append(sp.E2EExt, se)
 	}
+	// Try to parse L4 and Payload, but we might fail to do so, ie. unsupported L4 protocol
 	if sp.L4, err = rp.L4Hdr(verify); err != nil {
-		return nil, err
+		if common.GetErrorMsg(err) != UnsupportedL4 {
+			return nil, err
+		}
 	}
-	if sp.Pld, err = rp.Payload(verify); err != nil {
-		return nil, err
+	if err == nil {
+		// L4 header was parsed without error, then parse payload
+		if sp.Pld, err = rp.Payload(verify); err != nil {
+			if common.GetErrorMsg(err) != UnsupportedL4 {
+				return nil, err
+			}
+		}
 	}
 	return sp, nil
 }
@@ -300,6 +308,17 @@ func (rp *RtrPkt) ToScnPkt(verify bool) (*spkt.ScnPkt, error) {
 // packet identified by the blk argument. This is used, for example, by SCMP to
 // quote parts of the packet in an error response.
 func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
+	pldOff := rp.idxs.pld
+	if pldOff == 0 {
+		// Either we failed to find the L4 header or the L4 header is an unknown protocol.
+		pldOff = len(rp.Raw)
+	}
+	l4Off := rp.idxs.l4
+	if l4Off == 0 {
+		// L4 header not found, likely failed to parse extensions.
+		// Use the last parsed header as L4 offset
+		l4Off = rp.idxs.nextHdrIdx.Index
+	}
 	switch blk {
 	case scmp.RawCmnHdr:
 		return rp.Raw[:spkt.CmnHdrLen]
@@ -308,9 +327,9 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	case scmp.RawPathHdr:
 		return rp.Raw[rp.idxs.path:rp.CmnHdr.HdrLenBytes()]
 	case scmp.RawExtHdrs:
-		return rp.Raw[rp.CmnHdr.HdrLenBytes():rp.idxs.l4]
+		return rp.Raw[rp.CmnHdr.HdrLenBytes():l4Off]
 	case scmp.RawL4Hdr:
-		return rp.Raw[rp.idxs.l4:rp.idxs.pld]
+		return rp.Raw[l4Off:pldOff]
 	}
 	rp.Crit("Invalid raw block requested", "blk", blk)
 	return nil
