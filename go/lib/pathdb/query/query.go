@@ -68,3 +68,10 @@ func (r Results) Segs() seg.Segments {
 	}
 	return segs
 }
+
+// ByLastUpdate implements the sort.Interface to sort results by LastUpdate time stamp.
+type ByLastUpdate Results
+
+func (r ByLastUpdate) Len() int           { return len(r) }
+func (r ByLastUpdate) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r ByLastUpdate) Less(i, j int) bool { return r[i].LastUpdate.Before(r[j].LastUpdate) }
