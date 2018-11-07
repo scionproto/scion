@@ -470,9 +470,9 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 		return common.NewBasicError("Unable to load TRC from directory", err)
 	}
 
-	ctx, cancelF := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
 	dbTRC, err := store.getTRC(ctx, store.ia.I, scrypto.LatestVer, false, nil, nil)
-	cancelF()
 	switch {
 	case err != nil && common.GetErrorMsg(err) != ErrNotFoundLocally:
 		// Unexpected error in trust store
@@ -480,8 +480,10 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 	case common.GetErrorMsg(err) == ErrNotFoundLocally && fileTRC == nil:
 		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
 	case common.GetErrorMsg(err) == ErrNotFoundLocally && fileTRC != nil:
-		_, err := store.trustdb.InsertTRC(ctx, fileTRC)
-		return common.NewBasicError("Failed to insert TRC in trust db", err)
+		if _, err := store.trustdb.InsertTRC(ctx, fileTRC); err != nil {
+			return common.NewBasicError("Failed to insert TRC in trust db", err)
+		}
+		return nil
 	case err == nil && fileTRC == nil:
 		// Nothing to do, no TRC to load from file but we already have one in the DB
 		return nil
@@ -489,8 +491,10 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 		// Found a TRC file on disk, and found a TRC in the DB. Check versions.
 		switch {
 		case fileTRC.Version > dbTRC.Version:
-			_, err := store.trustdb.InsertTRC(ctx, fileTRC)
-			return common.NewBasicError("Failed to insert newer TRC in trust db", err)
+			if _, err := store.trustdb.InsertTRC(ctx, fileTRC); err != nil {
+				return common.NewBasicError("Failed to insert newer TRC in trust db", err)
+			}
+			return nil
 		case fileTRC.Version == dbTRC.Version:
 			// Because it is the same version, check if the TRCs match
 			eq, err := fileTRC.JSONEquals(dbTRC)

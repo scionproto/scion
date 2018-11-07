@@ -224,7 +224,7 @@ func (db *DB) Close() error {
 }
 
 // GetIssCertVersion returns the specified version of the issuer certificate for
-// ia. If version is scrypto.LatestVer, this is equivalent to GetCertMaxVersion.
+// ia. If version is scrypto.LatestVer, this is equivalent to GetIssCertMaxVersion.
 func (db *DB) GetIssCertVersion(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
@@ -263,8 +263,8 @@ func (db *DB) InsertIssCert(ctx context.Context, crt *cert.Certificate) (int64, 
 	return res.RowsAffected()
 }
 
-// GetLeafCertVersion returns the specified version of the issuer certificate for
-// ia. If version is scrypto.LatestVer, this is equivalent to GetCertMaxVersion.
+// GetLeafCertVersion returns the specified version of the leaf certificate for
+// ia. If version is scrypto.LatestVer, this is equivalent to GetLeafCertVersion.
 func (db *DB) GetLeafCertVersion(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
@@ -278,7 +278,7 @@ func (db *DB) GetLeafCertVersion(ctx context.Context, ia addr.IA,
 	return parseCert(raw, ia, version, err)
 }
 
-// GetLeafCertMaxVersion returns the max version of the issuer certificate for ia.
+// GetLeafCertMaxVersion returns the max version of the leaf certificate for ia.
 func (db *DB) GetLeafCertMaxVersion(ctx context.Context, ia addr.IA) (*cert.Certificate, error) {
 	db.RLock()
 	defer db.RUnlock()
@@ -305,7 +305,7 @@ func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Cert
 	return crt, nil
 }
 
-// InsertLeafCert inserts the issuer certificate.
+// InsertLeafCert inserts the leaf certificate.
 func (db *DB) InsertLeafCert(ctx context.Context, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
@@ -339,6 +339,7 @@ func (db *DB) GetChainVersion(ctx context.Context, ia addr.IA,
 	return parseChain(rows, err)
 }
 
+// GetChainMaxVersion returns the max version of the chain for ia.
 func (db *DB) GetChainMaxVersion(ctx context.Context, ia addr.IA) (*cert.Chain, error) {
 	db.RLock()
 	defer db.RUnlock()
@@ -439,6 +440,7 @@ func (db *DB) GetTRCVersion(ctx context.Context,
 	return trcobj, nil
 }
 
+// GetTRCMaxVersion returns the max version of the TRC for ia.
 func (db *DB) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
 	db.RLock()
 	defer db.RUnlock()
