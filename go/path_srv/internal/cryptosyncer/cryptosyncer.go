@@ -33,15 +33,15 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-var _ periodic.Task = (*CryptoSyncer)(nil)
+var _ periodic.Task = (*Syncer)(nil)
 
-type CryptoSyncer struct {
+type Syncer struct {
 	DB    *trustdb.DB
 	Msger infra.Messenger
 	IA    addr.IA
 }
 
-func (c *CryptoSyncer) Run(ctx context.Context) {
+func (c *Syncer) Run(ctx context.Context) {
 	cs, err := c.chooseServer()
 	if err != nil {
 		log.Error("[CryptoSync] Failed to select remote CS", "err", err)
@@ -65,7 +65,7 @@ func (c *CryptoSyncer) Run(ctx context.Context) {
 	log.Info("Sent crypto to CS", "cs", cs, "TRCs", len(trcs), "Chains", len(chains))
 }
 
-func (c *CryptoSyncer) chooseServer() (net.Addr, error) {
+func (c *Syncer) chooseServer() (net.Addr, error) {
 	topo := itopo.GetCurrentTopology()
 	svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
 	if err != nil {
@@ -80,7 +80,7 @@ func (c *CryptoSyncer) chooseServer() (net.Addr, error) {
 	return &snet.Addr{IA: c.IA, Host: csAddr, NextHop: csOverlayAddr}, nil
 }
 
-func (c *CryptoSyncer) sendTRC(ctx context.Context, cs net.Addr, trcObj *trc.TRC) {
+func (c *Syncer) sendTRC(ctx context.Context, cs net.Addr, trcObj *trc.TRC) {
 	rawTRC, err := trcObj.Compress()
 	if err != nil {
 		log.Error("[CryptoSync] Failed to compress TRC for forwarding", "err", err)
@@ -94,15 +94,13 @@ func (c *CryptoSyncer) sendTRC(ctx context.Context, cs net.Addr, trcObj *trc.TRC
 	}
 }
 
-func (c *CryptoSyncer) sendChain(ctx context.Context, cs net.Addr, chain *cert.Chain) {
+func (c *Syncer) sendChain(ctx context.Context, cs net.Addr, chain *cert.Chain) {
 	rawChain, err := chain.Compress()
 	if err != nil {
 		log.Error("[CryptoSync] Failed to compress Chain for forwarding", "err", err)
 		return
 	}
-	err = c.Msger.SendCertChain(ctx, &cert_mgmt.Chain{
-		RawChain: rawChain,
-	}, cs, messenger.NextId())
+	err = c.Msger.SendCertChain(ctx, &cert_mgmt.Chain{RawChain: rawChain}, cs, messenger.NextId())
 	if err != nil {
 		log.Error("[CryptoSync] Failed to send Chain", "err", err)
 	}

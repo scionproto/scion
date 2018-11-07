@@ -168,7 +168,7 @@ func realMain() int {
 	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
 		time.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
-	cryptosyncer := periodic.StartPeriodicTask(&cryptosyncer.CryptoSyncer{
+	cryptosyncer := periodic.StartPeriodicTask(&cryptosyncer.Syncer{
 		DB:    trustDB,
 		Msger: msger,
 		IA:    topo.ISD_AS,
