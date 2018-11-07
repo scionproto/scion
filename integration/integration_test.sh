@@ -37,19 +37,21 @@ log "Scion status:"
 sleep 10
 result=0
 
-# Run go infra test
-integration/go_infra
-result=$((result+$?))
+if [ -z "$DOCKER" ]; then
+    # Run go infra test
+    integration/go_infra
+    result=$((result+$?))
+fi
 
 # Run python integration tests
-integration/py_integration
+integration/py_integration $DOCKER
 result=$((result+$?))
 
 # Run go integration tests
-integration/go_integration
+integration/go_integration $DOCKER
 result=$((result+$?))
 
-integration/revocation_test.sh -b "$REV_BRS"
+integration/revocation_test.sh -b "$REV_BRS" $DOCKER
 result=$((result+$?))
 
 shutdown
