@@ -54,11 +54,11 @@ func (s *Self) Run(ctx context.Context) {
 }
 
 func (s *Self) run(ctx context.Context) error {
-	issCrt, err := s.getIssuerCert()
+	issCrt, err := s.getIssuerCert(ctx)
 	if err != nil {
 		return common.NewBasicError("Unable to get issuer certificate", err)
 	}
-	chain, err := s.State.Store.GetChain(context.Background(), s.IA, scrypto.LatestVer)
+	chain, err := s.State.Store.GetChain(ctx, s.IA, scrypto.LatestVer)
 	if err != nil {
 		return common.NewBasicError("Unable to get certificate chain", err)
 	}
@@ -70,12 +70,12 @@ func (s *Self) run(ctx context.Context) error {
 	}
 	if iSleep <= 0 {
 		// The issuer certificated needs to be updated.
-		if err = s.createIssuerCert(issCrt); err != nil {
+		if err = s.createIssuerCert(ctx, issCrt); err != nil {
 			return common.NewBasicError("Unable to create issuer certificate", err)
 		}
 	}
 	if lSleep <= 0 {
-		if err = s.createLeafCert(chain.Leaf); err != nil {
+		if err = s.createLeafCert(ctx, chain.Leaf); err != nil {
 			return common.NewBasicError("Unable to issue certificate chain", err)
 		}
 	}
@@ -83,8 +83,8 @@ func (s *Self) run(ctx context.Context) error {
 }
 
 // createLeafCert creates a leaf certificate.
-func (s *Self) createLeafCert(leaf *cert.Certificate) error {
-	issCrt, err := s.getIssuerCert()
+func (s *Self) createLeafCert(ctx context.Context, leaf *cert.Certificate) error {
+	issCrt, err := s.getIssuerCert(ctx)
 	if err != nil {
 		return common.NewBasicError("Unable to get issuer certificate", err)
 	}
@@ -102,7 +102,7 @@ func (s *Self) createLeafCert(leaf *cert.Certificate) error {
 	if err := trust.VerifyChain(s.IA, chain, s.State.Store); err != nil {
 		return common.NewBasicError("Unable to verify chain", err, "chain", chain)
 	}
-	if _, err := s.State.TrustDB.InsertChain(chain); err != nil {
+	if _, err := s.State.TrustDB.InsertChain(ctx, chain); err != nil {
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
 	}
 	log.Info("[reiss.Self] Created certificate chain", "chain", chain)
@@ -116,8 +116,8 @@ func (s *Self) createLeafCert(leaf *cert.Certificate) error {
 	return nil
 }
 
-func (s *Self) getIssuerCert() (*cert.Certificate, error) {
-	issCrt, err := s.State.TrustDB.GetIssCertMaxVersion(s.IA)
+func (s *Self) getIssuerCert(ctx context.Context) (*cert.Certificate, error) {
+	issCrt, err := s.State.TrustDB.GetIssCertMaxVersion(ctx, s.IA)
 	if err != nil {
 		return nil, err
 	}
@@ -128,13 +128,13 @@ func (s *Self) getIssuerCert() (*cert.Certificate, error) {
 }
 
 // createIssuerCert creates an issuer certificate.
-func (s *Self) createIssuerCert(crt *cert.Certificate) error {
+func (s *Self) createIssuerCert(ctx context.Context, crt *cert.Certificate) error {
 	crt = crt.Copy()
 	crt.Version += 1
 	crt.IssuingTime = util.TimeToSecs(time.Now())
 	crt.CanIssue = true
 	crt.ExpirationTime = crt.IssuingTime + cert.DefaultIssuerCertValidity
-	coreAS, err := s.getCoreASEntry()
+	coreAS, err := s.getCoreASEntry(ctx)
 	if err != nil {
 		return common.NewBasicError("Unable to get core AS entry", err, "cert", crt)
 	}
@@ -144,15 +144,15 @@ func (s *Self) createIssuerCert(crt *cert.Certificate) error {
 	if err = crt.Verify(crt.Issuer, coreAS.OnlineKey, coreAS.OnlineKeyAlg); err != nil {
 		return common.NewBasicError("Invalid issuer certificate signature", err, "cert", crt)
 	}
-	if err = s.setIssuerCert(crt); err != nil {
+	if err = s.setIssuerCert(ctx, crt); err != nil {
 		return common.NewBasicError("Unable to store issuer certificate", err, "cert", crt)
 	}
 	log.Info("[reiss.Self] Created issuer certificate", "cert", crt)
 	return nil
 }
 
-func (s *Self) getCoreASEntry() (*trc.CoreAS, error) {
-	maxTrc, err := s.State.Store.GetTRC(context.Background(), s.IA.I, scrypto.LatestVer)
+func (s *Self) getCoreASEntry(ctx context.Context) (*trc.CoreAS, error) {
+	maxTrc, err := s.State.Store.GetTRC(ctx, s.IA.I, scrypto.LatestVer)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local TRC", err)
 	}
@@ -164,8 +164,8 @@ func (s *Self) getCoreASEntry() (*trc.CoreAS, error) {
 	return coreAS, nil
 }
 
-func (s *Self) setIssuerCert(crt *cert.Certificate) error {
-	affected, err := s.State.TrustDB.InsertIssCert(crt)
+func (s *Self) setIssuerCert(ctx context.Context, crt *cert.Certificate) error {
+	affected, err := s.State.TrustDB.InsertIssCert(ctx, crt)
 	if err != nil {
 		return err
 	}
