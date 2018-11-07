@@ -15,10 +15,11 @@ test_setup() {
 
 test_run() {
     set -e
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
     docker restart dispatcher
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110
+    sleep 5
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
 }
 
 test_teardown() {
