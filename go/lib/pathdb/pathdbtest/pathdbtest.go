@@ -207,7 +207,13 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.PathDB) {
 		InsertSeg(t, ctx, pathDB, ps, hpCfgIDs)
 		checkInterfacesPresent(t, ctx, ps.ASEntries, pathDB)
 		// Create a new segment with an additional peer entry.
-		newPs, _ := AllocPathSegment(t, ifs1, uint32(30))
+		info := &spath.InfoField{
+			TsInt: uint32(30),
+			ISD:   1,
+			Hops:  3,
+		}
+		newPs, err := seg.NewSeg(info)
+		xtest.FailOnErr(t, err)
 		hfr := make([]byte, 8)
 		hf := spath.HopField{
 			ConsIngress: common.IFIDType(common.IFIDType(23)),
@@ -215,7 +221,12 @@ func testUpdateIntfToSeg(t *testing.T, pathDB pathdb.PathDB) {
 		}
 		hf.Write(hfr)
 		he := allocHopEntry(ia331, ia332, hfr)
-		newPs.ASEntries[1].HopEntries = append(ps.ASEntries[1].HopEntries, he)
+		asEntries := ps.ASEntries
+		asEntries[1].HopEntries = append(asEntries[1].HopEntries, he)
+		for _, asEntry := range asEntries {
+			err = newPs.AddASEntry(asEntry, proto.SignType_none, nil)
+			xtest.FailOnErr(t, err)
+		}
 		InsertSeg(t, ctx, pathDB, newPs, hpCfgIDs)
 		checkInterfacesPresent(t, ctx, newPs.ASEntries, pathDB)
 		// Now check that the new interface is removed again.
@@ -474,12 +485,16 @@ func AllocPathSegment(t *testing.T, ifs []uint64,
 		ISD:   1,
 		Hops:  3,
 	}
-	pseg, _ := seg.NewSeg(info)
+	pseg, err := seg.NewSeg(info)
+	xtest.FailOnErr(t, err)
 	for _, ase := range ases {
 		err := pseg.AddASEntry(ase, proto.SignType_none, nil)
 		xtest.FailOnErr(t, err)
 	}
-	segID, _ := pseg.ID()
+	segID, err := pseg.ID()
+	xtest.FailOnErr(t, err)
+	_, err = pseg.FullId()
+	xtest.FailOnErr(t, err)
 	return pseg, segID
 }
 
