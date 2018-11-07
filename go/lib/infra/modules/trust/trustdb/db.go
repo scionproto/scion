@@ -264,7 +264,7 @@ func (db *DB) InsertIssCert(ctx context.Context, crt *cert.Certificate) (int64, 
 }
 
 // GetLeafCertVersion returns the specified version of the leaf certificate for
-// ia. If version is scrypto.LatestVer, this is equivalent to GetLeafCertVersion.
+// ia. If version is scrypto.LatestVer, this is equivalent to GetLeafCertMaxVersion.
 func (db *DB) GetLeafCertVersion(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
