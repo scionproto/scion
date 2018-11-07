@@ -28,7 +28,7 @@ from lib.util import (
     write_file,
 )
 from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
-from topology.utils import TesterGenerator
+from topology.utils import TesterGenArgs, TesterGenerator
 
 DOCKER_BASE_CONF = 'base-dc.yml'
 DOCKER_SCION_CONF = 'scion-dc.yml'
@@ -63,8 +63,11 @@ class DockerGenerator(object):
         write_file(os.path.join(self.args.output_dir, DOCKER_BASE_CONF),
                    yaml.dump(self.dc_base_conf, default_flow_style=False))
 
-        tester_gen = TesterGenerator(self.args.output_dir)
+        tester_gen = TesterGenerator(self._tester_args())
         tester_gen.generate()
+
+    def _tester_args(self):
+        return TesterGenArgs(self.args)
 
     def _base_conf(self):
         default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
