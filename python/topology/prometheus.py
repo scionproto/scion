@@ -44,19 +44,20 @@ class PrometheusGenerator(object):
         "PathService": "PS",
     }
 
-    def __init__(self, out_dir, topo_dicts):
+    def __init__(self, out_dir, topo_dicts, port_gen):
         self.out_dir = out_dir
         self.topo_dicts = topo_dicts
+        self.port_gen = port_gen
 
     def generate(self):
         config_dict = {}
         for topo_id, as_topo in self.topo_dicts.items():
             ele_dict = defaultdict(list)
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                ele_dict["BorderRouters"].append(_prom_addr_br(br_ele))
+                ele_dict["BorderRouters"].append(_prom_addr_br(br_id, br_ele, self.port_gen))
             for svc_type in ["BeaconService", "PathService", "CertificateService"]:
                 for elem_id, elem in as_topo[svc_type].items():
-                    ele_dict[svc_type].append(_prom_addr_infra(elem))
+                    ele_dict[svc_type].append(_prom_addr_infra(elem_id, elem, self.port_gen))
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)
 

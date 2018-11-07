@@ -52,16 +52,16 @@ class TopoID(ISD_AS):
         return "<TopoID: %s>" % self
 
 
-def _prom_addr_br(br_ele):
+def _prom_addr_br(br_id, br_ele, port_gen):
     """Get the prometheus address for a border router"""
     pub = _get_pub(br_ele['CtrlAddr'])
-    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['L4Port'] + 1)
+    return "[%s]:%s" % (pub['Public']['Addr'].ip, port_gen.register(br_id + "prom"))
 
 
-def _prom_addr_infra(infra_ele):
+def _prom_addr_infra(infra_id, infra_ele, port_gen):
     """Get the prometheus address for an infrastructure element."""
     pub = _get_pub(infra_ele['Addrs'])
-    return "[%s]:%s" % (pub['Public']['Addr'].ip, pub['Public']['L4Port'] + 1)
+    return "[%s]:%s" % (pub['Public']['Addr'].ip, port_gen.register(infra_id + "prom"))
 
 
 def _get_pub(topo_addr):
@@ -72,7 +72,7 @@ def _get_pub(topo_addr):
 
 
 def _get_pub_ip(topo_addr):
-        return _get_pub(topo_addr)["Public"]["Addr"].ip
+    return _get_pub(topo_addr)["Public"]["Addr"].ip
 
 
 def _get_l4_port(topo_addr):

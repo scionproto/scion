@@ -55,7 +55,7 @@ ZOOKEEPER_ADDR = "172.18.0.1"
 
 class TopoGenerator(object):
     def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps, ds):
+                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps, ds, port_gen):
         self.topo_config = topo_config
         self.out_dir = out_dir
         self.subnet_gen = subnet_gen
@@ -80,6 +80,7 @@ class TopoGenerator(object):
         self.cs = cs
         self.ps = ps
         self.ds = ds
+        self.port_gen = port_gen
 
     def _reg_addr(self, topo_id, elem_id):
         subnet = self.subnet_gen.register(topo_id)
@@ -193,7 +194,7 @@ class TopoGenerator(object):
                     self.addr_type: {
                         'Public': {
                             'Addr': self._reg_addr(topo_id, elem_id),
-                            'L4Port': random.randint(30050, 30100),
+                            'L4Port': self.port_gen.register(elem_id),
                         }
                     }
                 }
@@ -201,7 +202,7 @@ class TopoGenerator(object):
             if self.gen_bind_addr:
                 d['Addrs'][self.addr_type]['Bind'] = {
                     'Addr': self._reg_bind_addr(topo_id, elem_id),
-                    'L4Port': random.randint(30050, 30100),
+                    'L4Port': self.port_gen.register(elem_id),
                 }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
@@ -220,7 +221,7 @@ class TopoGenerator(object):
                     self.addr_type: {
                         'Public': {
                             'Addr': int_addr,
-                            'L4Port': random.randint(30050, 30100),
+                            'L4Port': self.port_gen.register(local_br),
                         }
                     }
                 },
@@ -228,7 +229,7 @@ class TopoGenerator(object):
                     self.addr_type: {
                         'PublicOverlay': {
                             'Addr': int_addr,
-                            'OverlayPort': random.randint(30050, 30100),
+                            'OverlayPort': self.port_gen.register(local_br),
                         }
                     }
                 },
