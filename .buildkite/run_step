@@ -1,0 +1,18 @@
+#!/bin/bash
+
+echo "Running: ${1:?}"
+
+# Pull CI image and start it
+docker pull $SCION_IMG
+./docker.sh start
+
+# Run test
+./tools/ci/"$@"
+res=$?
+
+# Pack logs and stop everything
+$BASE/pack_logs
+./docker.sh stop
+find $SCION_MOUNT/logs -mindepth 1 -maxdepth 1 -not -path '*/\.*' -exec rm -r {} +
+$BASE/clean_env.sh
+exit $res
