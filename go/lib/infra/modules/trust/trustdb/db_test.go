@@ -15,7 +15,9 @@
 package trustdb
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 
@@ -26,44 +28,50 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
+var (
+	ctxTimeout = time.Second
+)
+
 func TestTRC(t *testing.T) {
 	Convey("Initialize DB and load TRC", t, func() {
 		db := newDatabase(t)
 		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), ctxTimeout)
+		defer cancelF()
 
 		trcobj, err := trc.TRCFromFile("testdata/ISD1-V1.trc", false)
 		SoMsg("err trc", err, ShouldBeNil)
 		SoMsg("trc", trcobj, ShouldNotBeNil)
 		Convey("Insert into database", func() {
-			rows, err := db.InsertTRC(trcobj)
+			rows, err := db.InsertTRC(ctx, trcobj)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldNotEqual, 0)
-			rows, err = db.InsertTRC(trcobj)
+			rows, err = db.InsertTRC(ctx, trcobj)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get TRC from database", func() {
-				newTRCobj, err := db.GetTRCVersion(1, 1)
+				newTRCobj, err := db.GetTRCVersion(ctx, 1, 1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get Max TRC from database", func() {
-				newTRCobj, err := db.GetTRCMaxVersion(1)
+				newTRCobj, err := db.GetTRCMaxVersion(ctx, 1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
-				newTRCobj, err = db.GetTRCVersion(1, scrypto.LatestVer)
+				newTRCobj, err = db.GetTRCVersion(ctx, 1, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldResemble, trcobj)
 			})
 			Convey("Get missing TRC from database", func() {
-				newTRCobj, err := db.GetTRCVersion(2, 10)
+				newTRCobj, err := db.GetTRCVersion(ctx, 2, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
 			Convey("Get missing Max TRC from database", func() {
-				newTRCobj, err := db.GetTRCVersion(2, scrypto.LatestVer)
+				newTRCobj, err := db.GetTRCVersion(ctx, 2, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
-				newTRCobj, err = db.GetTRCMaxVersion(2)
+				newTRCobj, err = db.GetTRCMaxVersion(ctx, 2)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("trc", newTRCobj, ShouldBeNil)
 			})
@@ -75,6 +83,8 @@ func TestIssCert(t *testing.T) {
 	Convey("Initialize DB and load issuer Cert", t, func() {
 		db := newDatabase(t)
 		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), ctxTimeout)
+		defer cancelF()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
 		if err != nil {
@@ -82,37 +92,37 @@ func TestIssCert(t *testing.T) {
 		}
 		ia := addr.IA{I: 1, A: 0xff0000000310}
 		Convey("Insert into database", func() {
-			rows, err := db.InsertIssCert(chain.Issuer)
+			rows, err := db.InsertIssCert(ctx, chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldNotEqual, 0)
-			rows, err = db.InsertIssCert(chain.Issuer)
+			rows, err = db.InsertIssCert(ctx, chain.Issuer)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get issuer certificate from database", func() {
-				crt, err := db.GetIssCertVersion(ia, 1)
+				crt, err := db.GetIssCertVersion(ctx, ia, 1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 			})
 			Convey("Get max version issuer certificate from database", func() {
-				crt, err := db.GetIssCertMaxVersion(ia)
+				crt, err := db.GetIssCertMaxVersion(ctx, ia)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
-				crt, err = db.GetIssCertVersion(ia, scrypto.LatestVer)
+				crt, err = db.GetIssCertVersion(ctx, ia, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Issuer)
 			})
 			Convey("Get missing issuer certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000320}
-				crt, err := db.GetIssCertVersion(otherIA, 10)
+				crt, err := db.GetIssCertVersion(ctx, otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
 			Convey("Get missing issuer max certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000320}
-				crt, err := db.GetIssCertVersion(otherIA, scrypto.LatestVer)
+				crt, err := db.GetIssCertVersion(ctx, otherIA, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
-				crt, err = db.GetIssCertMaxVersion(otherIA)
+				crt, err = db.GetIssCertMaxVersion(ctx, otherIA)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
@@ -124,6 +134,8 @@ func TestLeafCert(t *testing.T) {
 	Convey("Initialize DB and load leaf Cert", t, func() {
 		db := newDatabase(t)
 		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), ctxTimeout)
+		defer cancelF()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
 		if err != nil {
@@ -131,37 +143,37 @@ func TestLeafCert(t *testing.T) {
 		}
 		ia := addr.IA{I: 1, A: 0xff0000000311}
 		Convey("Insert into database", func() {
-			rows, err := db.InsertLeafCert(chain.Leaf)
+			rows, err := db.InsertLeafCert(ctx, chain.Leaf)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldNotEqual, 0)
-			rows, err = db.InsertLeafCert(chain.Leaf)
+			rows, err = db.InsertLeafCert(ctx, chain.Leaf)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldEqual, 0)
 			Convey("Get leaf certificate from database", func() {
-				crt, err := db.GetLeafCertVersion(ia, 1)
+				crt, err := db.GetLeafCertVersion(ctx, ia, 1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
 			})
 			Convey("Get max version leaf certificate from database", func() {
-				crt, err := db.GetLeafCertMaxVersion(ia)
+				crt, err := db.GetLeafCertMaxVersion(ctx, ia)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
-				crt, err = db.GetLeafCertVersion(ia, scrypto.LatestVer)
+				crt, err = db.GetLeafCertVersion(ctx, ia, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldResemble, chain.Leaf)
 			})
 			Convey("Get missing leaf certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000321}
-				crt, err := db.GetLeafCertVersion(otherIA, 10)
+				crt, err := db.GetLeafCertVersion(ctx, otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
 			Convey("Get missing leaf max certificate from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000321}
-				crt, err := db.GetLeafCertVersion(otherIA, scrypto.LatestVer)
+				crt, err := db.GetLeafCertVersion(ctx, otherIA, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
-				crt, err = db.GetLeafCertMaxVersion(otherIA)
+				crt, err = db.GetLeafCertMaxVersion(ctx, otherIA)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("cert", crt, ShouldBeNil)
 			})
@@ -173,6 +185,8 @@ func TestChain(t *testing.T) {
 	Convey("Initialize DB and load Chain", t, func() {
 		db := newDatabase(t)
 		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), ctxTimeout)
+		defer cancelF()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
 		if err != nil {
@@ -180,34 +194,34 @@ func TestChain(t *testing.T) {
 		}
 		ia := addr.IA{I: 1, A: 0xff0000000311}
 		Convey("Insert into database", func() {
-			rows, err := db.InsertChain(chain)
+			rows, err := db.InsertChain(ctx, chain)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("rows", rows, ShouldNotEqual, 0)
 			Convey("Get certificate chain from database", func() {
-				newChain, err := db.GetChainVersion(ia, 1)
+				newChain, err := db.GetChainVersion(ctx, ia, 1)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldResemble, chain)
 			})
 			Convey("Get max version certificate chain from database", func() {
-				newChain, err := db.GetChainMaxVersion(ia)
+				newChain, err := db.GetChainMaxVersion(ctx, ia)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldResemble, chain)
-				newChain, err = db.GetChainVersion(ia, scrypto.LatestVer)
+				newChain, err = db.GetChainVersion(ctx, ia, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldResemble, chain)
 			})
 			Convey("Get missing certificate chain from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000320}
-				newChain, err := db.GetChainVersion(otherIA, 10)
+				newChain, err := db.GetChainVersion(ctx, otherIA, 10)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldBeNil)
 			})
 			Convey("Get missing max certificate chain from database", func() {
 				otherIA := addr.IA{I: 1, A: 0xff0000000320}
-				newChain, err := db.GetChainVersion(otherIA, scrypto.LatestVer)
+				newChain, err := db.GetChainVersion(ctx, otherIA, scrypto.LatestVer)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldBeNil)
-				newChain, err = db.GetChainMaxVersion(otherIA)
+				newChain, err = db.GetChainMaxVersion(ctx, otherIA)
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("chain", newChain, ShouldBeNil)
 			})

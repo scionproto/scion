@@ -199,7 +199,7 @@ func (store *Store) GetTRC(ctx context.Context,
 func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 	recurse bool, client, server net.Addr) (*trc.TRC, error) {
 
-	trcObj, err := store.trustdb.GetTRCVersionCtx(ctx, isd, version)
+	trcObj, err := store.trustdb.GetTRCVersion(ctx, isd, version)
 	if err != nil || trcObj != nil {
 		return trcObj, err
 	}
@@ -250,7 +250,7 @@ func (store *Store) insertTRCHook() ValidateTRCFunc {
 
 // insertTRCHookLocal always inserts the TRC into the database.
 func (store *Store) insertTRCHookLocal(ctx context.Context, trcObj *trc.TRC) error {
-	if _, err := store.trustdb.InsertTRCCtx(ctx, trcObj); err != nil {
+	if _, err := store.trustdb.InsertTRC(ctx, trcObj); err != nil {
 		return common.NewBasicError("Unable to store TRC in database", err)
 	}
 	return nil
@@ -297,7 +297,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	client, server net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainMaxVersionCtx(ctx, ia)
+	chain, err := store.trustdb.GetChainMaxVersion(ctx, ia)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -342,7 +342,7 @@ func (store *Store) GetChain(ctx context.Context, ia addr.IA,
 func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	recurse bool, client net.Addr) (*cert.Chain, error) {
 
-	chain, err := store.trustdb.GetChainVersionCtx(ctx, ia, version)
+	chain, err := store.trustdb.GetChainVersion(ctx, ia, version)
 	if err != nil || chain != nil {
 		return chain, err
 	}
@@ -386,7 +386,7 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		if err := verifyChain(validator, chain); err != nil {
 			return err
 		}
-		_, err := store.trustdb.InsertChainCtx(ctx, chain)
+		_, err := store.trustdb.InsertChain(ctx, chain)
 		if err != nil {
 			return common.NewBasicError("Unable to store CertChain in database", err)
 		}
@@ -422,7 +422,7 @@ func (store *Store) newChainValidatorLocal(validator *trc.TRC) ValidateChainFunc
 		if err := verifyChain(validator, chain); err != nil {
 			return err
 		}
-		_, err := store.trustdb.InsertChainCtx(ctx, chain)
+		_, err := store.trustdb.InsertChain(ctx, chain)
 		if err != nil {
 			return common.NewBasicError("Unable to store CertChain in database", err)
 		}
@@ -480,7 +480,7 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 	case common.GetErrorMsg(err) == ErrNotFoundLocally && fileTRC == nil:
 		return common.NewBasicError("No TRC found on disk or in trustdb", nil)
 	case common.GetErrorMsg(err) == ErrNotFoundLocally && fileTRC != nil:
-		_, err := store.trustdb.InsertTRC(fileTRC)
+		_, err := store.trustdb.InsertTRC(ctx, fileTRC)
 		return err
 	case err == nil && fileTRC == nil:
 		// Nothing to do, no TRC to load from file but we already have one in the DB
@@ -489,7 +489,7 @@ func (store *Store) LoadAuthoritativeTRC(dir string) error {
 		// Found a TRC file on disk, and found a TRC in the DB. Check versions.
 		switch {
 		case fileTRC.Version > dbTRC.Version:
-			_, err := store.trustdb.InsertTRC(fileTRC)
+			_, err := store.trustdb.InsertTRC(ctx, fileTRC)
 			return err
 		case fileTRC.Version == dbTRC.Version:
 			// Because it is the same version, check if the TRCs match
@@ -530,7 +530,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 	case common.GetErrorMsg(err) == ErrMissingAuthoritative && fileChain == nil:
 		return common.NewBasicError("No chain found on disk or in trustdb", nil)
 	case common.GetErrorMsg(err) == ErrMissingAuthoritative && fileChain != nil:
-		_, err := store.trustdb.InsertChain(fileChain)
+		_, err := store.trustdb.InsertChain(ctx, fileChain)
 		return err
 	case err == nil && fileChain == nil:
 		// Nothing to do, no chain to load from file but we already have one in the DB
@@ -539,7 +539,7 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 		// Found a chain file on disk, and found a chain in the DB. Check versions.
 		switch {
 		case fileChain.Leaf.Version > dbChain.Leaf.Version:
-			_, err := store.trustdb.InsertChain(fileChain)
+			_, err := store.trustdb.InsertChain(ctx, fileChain)
 			return err
 		case fileChain.Leaf.Version == dbChain.Leaf.Version:
 			// Because it is the same version, check if the chains match
