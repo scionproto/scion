@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/sig/egress/router"
 	"github.com/scionproto/scion/go/sig/egress/session"
 	"github.com/scionproto/scion/go/sig/egress/worker"
+	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/siginfo"
 )
@@ -189,11 +190,11 @@ func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) bool {
 	for _, sig := range sigs {
 		ctrlPort := int(sig.CtrlPort)
 		if ctrlPort == 0 {
-			ctrlPort = sigcmn.DefaultCtrlPort
+			ctrlPort = sigconfig.DefaultCtrlPort
 		}
 		encapPort := int(sig.EncapPort)
 		if encapPort == 0 {
-			encapPort = sigcmn.DefaultEncapPort
+			encapPort = sigconfig.DefaultEncapPort
 		}
 		err := ae.AddSig(sig.Id, sig.Addr, ctrlPort, encapPort, true)
 		if err != nil {

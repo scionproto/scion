@@ -17,19 +17,18 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
-	"net"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
 	"os/user"
 	"sync/atomic"
-	"syscall"
 
+	"github.com/BurntSushi/toml"
 	"github.com/syndtr/gocapability/capability"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/base/core"
@@ -38,81 +37,61 @@ import (
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/egress/reader"
 	"github.com/scionproto/scion/go/sig/ingress"
+	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/xnet"
 )
 
-var sighup chan os.Signal
-
-func init() {
-	sighup = make(chan os.Signal, 1)
-	signal.Notify(sighup, syscall.SIGHUP)
+type Config struct {
+	Logging env.Logging
+	Metrics env.Metrics
+	Sig     sigconfig.Conf
 }
 
 var (
-	id      = flag.String("id", "", "Element ID (Required. E.g. 'sig4-ff00:0:300-9')")
-	cfgPath = flag.String("config", "", "Config file (Required)")
-	isdas   = flag.String("ia", "", "Local AS (Required, e.g., 4-ff00:0:300)")
-	ipStr   = flag.String("ip", "", "address to bind to (Required)")
+	cfg Config
 )
 
 func main() {
-	os.Setenv("TZ", "UTC")
-	log.AddLogFileFlags()
-	log.AddLogConsFlags()
-	flag.Parse()
-	if *id == "" {
-		log.Crit("No element ID specified")
-		flag.Usage()
-		os.Exit(1)
-	}
-	if err := log.SetupFromFlags(*id); err != nil {
-		log.Crit(err.Error())
-		flag.Usage()
-		os.Exit(1)
-	}
-	defer log.LogPanicAndExit()
-	setupSignals()
-	if err := checkPerms(); err != nil {
-		fatal("Permissions checks failed", "err", err)
-	}
+	os.Exit(realMain())
+}
 
-	// Export prometheus metrics.
-	metrics.Init(*id)
-	if err := metrics.Start(); err != nil {
-		fatal("Unable to export prometheus metrics", "err", err)
+func realMain() int {
+	env.AddFlags()
+	flag.Parse()
+	if v, ok := env.CheckFlags(sigconfig.Sample); !ok {
+		return v
 	}
-	// Parse basic flags
-	ia, err := addr.IAFromString(*isdas)
-	if err != nil {
-		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", err)
+	if err := setupBasic(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	ip := net.ParseIP(*ipStr)
-	if ip == nil {
-		fatal("unable to parse IP address", "addr", *ipStr)
+	defer env.CleanupLog()
+	if err := validateConfig(); err != nil {
+		log.Crit("Validation of config failed", "err", err)
+		return 1
 	}
-	if err = sigcmn.Init(ia, ip); err != nil {
-		fatal("Error during initialization", "err", err)
+	if err := setup(); err != nil {
+		log.Crit("Setup failed", "err", err)
+		return 1
 	}
-	tunIO, err := setupTun()
-	if err != nil {
-		fatal("Unable to create & configure TUN device", "err", err)
-	}
-	egress.Init()
-	disp.Init(sigcmn.CtrlConn)
 	go func() {
 		defer log.LogPanicAndExit()
 		base.PollReqHdlr()
 	}()
-	// Parse config
-	if loadConfig(*cfgPath) != true {
-		fatal("Unable to load config on startup")
+	environment := env.SetupEnv(
+		func() {
+			success := loadConfig(cfg.Sig.Config)
+			// Errors already logged in loadConfig
+			log.Info("reloadOnSIGHUP: reload done", "success", success)
+		},
+	)
+	tunIO, err := setupTun()
+	if err != nil {
+		log.Crit("Unable to create & configure TUN device", "err", err)
+		return 1
 	}
-	go func() {
-		defer log.LogPanicAndExit()
-		reloadOnSIGHUP(*cfgPath)
-	}()
 	// Spawn egress reader
 	go func() {
 		defer log.LogPanicAndExit()
@@ -120,20 +99,62 @@ func main() {
 	}()
 	// Spawn ingress Dispatcher.
 	if err := ingress.Init(tunIO); err != nil {
-		fatal("Ingress dispatcher error", "err", err)
+		log.Crit("Ingress dispatcher error", "err", err)
+		return 1
+	}
+	// Create a channel where prometheus can signal fatal errors
+	fatalC := make(chan error, 1)
+	cfg.Metrics.StartPrometheus(fatalC)
+	select {
+	case <-environment.AppShutdownSignal:
+		return 0
+	case err := <-fatalC:
+		// Prometheus encountered a fatal error, thus we exit.
+		log.Crit("Unable to listen and serve", "err", err)
+		return 1
 	}
 }
 
-func setupSignals() {
-	sig := make(chan os.Signal, 2)
-	signal.Notify(sig, os.Interrupt)
-	signal.Notify(sig, syscall.SIGTERM)
-	go func() {
-		s := <-sig
-		log.Info("Received signal, exiting...", "signal", s)
-		log.Flush()
-		os.Exit(1)
-	}()
+// setupBasic loads the config from file and initializes logging.
+func setupBasic() error {
+	// Load and initialize config.
+	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
+		return err
+	}
+	if err := env.InitLogging(&cfg.Logging); err != nil {
+		return err
+	}
+	env.LogSvcStarted("SIG", cfg.Sig.ID)
+	return nil
+}
+
+func validateConfig() error {
+	if err := cfg.Sig.Validate(); err != nil {
+		return err
+	}
+	cfg.Sig.InitDefaults()
+	if cfg.Metrics.Prometheus == "" {
+		cfg.Metrics.Prometheus = "127.0.0.1:1281"
+	}
+	return nil
+}
+
+func setup() error {
+	if err := checkPerms(); err != nil {
+		return common.NewBasicError("Permissions checks failed", nil)
+	}
+	// Export prometheus metrics.
+	metrics.Init(cfg.Sig.ID)
+	if err := sigcmn.Init(cfg.Sig); err != nil {
+		return common.NewBasicError("Error during initialization", err)
+	}
+	egress.Init()
+	disp.Init(sigcmn.CtrlConn)
+	// Parse sig config
+	if loadConfig(cfg.Sig.Config) != true {
+		return common.NewBasicError("Unable to load sig config on startup", nil)
+	}
+	return nil
 }
 
 func checkPerms() error {
@@ -156,7 +177,7 @@ func checkPerms() error {
 }
 
 func setupTun() (io.ReadWriteCloser, error) {
-	tunLink, tunIO, err := xnet.ConnectTun(*sigcmn.SigTun)
+	tunLink, tunIO, err := xnet.ConnectTun(cfg.Sig.Tun)
 	if err != nil {
 		return nil, err
 	}
@@ -178,17 +199,6 @@ func setupTun() (io.ReadWriteCloser, error) {
 	return tunIO, nil
 }
 
-func reloadOnSIGHUP(path string) {
-	log.Info("reloadOnSIGHUP: started")
-	for range sighup {
-		log.Info("reloadOnSIGHUP: reloading...")
-		success := loadConfig(path)
-		// Errors already logged in loadConfig
-		log.Info("reloadOnSIGHUP: reload done", "success", success)
-	}
-	log.Info("reloadOnSIGHUP: stopped")
-}
-
 func loadConfig(path string) bool {
 	cfg, err := config.LoadFromFile(path)
 	if err != nil {
@@ -201,10 +211,4 @@ func loadConfig(path string) bool {
 	}
 	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
 	return true
-}
-
-func fatal(msg string, args ...interface{}) {
-	log.Crit(msg, args...)
-	log.Flush()
-	os.Exit(1)
 }

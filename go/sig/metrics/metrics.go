@@ -18,25 +18,17 @@
 package metrics
 
 import (
-	"flag"
 	"fmt"
-	"io"
-	"net"
 	"net/http"
 	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/mgmt"
 )
-
-var promAddr = flag.String("prom", "127.0.0.1:1281", "Address to export prometheus metrics on")
 
 // Declare prometheus metrics to export.
 var (
@@ -86,30 +78,10 @@ func Init(elem string) {
 
 	// Initialize ringbuf metrics.
 	ringbuf.InitMetrics("sig", constLabels, []string{"ringId", "sessId"})
-}
-
-var servers map[string]io.Closer
-
-func init() {
-	servers = make(map[string]io.Closer)
-	http.Handle("/metrics", promhttp.Handler())
-}
-
-// Export handles exposing prometheus metrics.
-func Start() error {
-	ln, err := net.Listen("tcp", *promAddr)
-	if err != nil {
-		return common.NewBasicError("Unable to bind prometheus metrics port", err)
-	}
-	log.Info("Exporting prometheus metrics", "addr", *promAddr)
+	// Add handler for ConfigVersion
 	http.HandleFunc("/configversion", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, atomic.LoadUint64(&ConfigVersion))
 	})
-	go func() {
-		defer log.LogPanicAndExit()
-		http.Serve(ln, nil)
-	}()
-	return nil
 }
 
 // CtrPair is a pair of counters, one for packets and one for bytes.
