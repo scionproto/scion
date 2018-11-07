@@ -23,7 +23,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -77,16 +76,13 @@ type Request struct {
 	Peer net.Addr
 	// ID is the CtrlPld top-level ID.
 	ID uint64
-	// Logger can be used to write handler-scope messages in a way that can be
-	// easily correlated with server request/responses.
-	Logger log.Logger
 	// ctx is a server context, used in handlers when receiving messages from
 	// the network.
 	ctx context.Context
 }
 
 func NewRequest(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.Addr,
-	id uint64, logger log.Logger) *Request {
+	id uint64) *Request {
 
 	return &Request{
 		Message:     msg,
@@ -94,7 +90,6 @@ func NewRequest(ctx context.Context, msg, fullMsg proto.Cerealizable, peer net.A
 		Peer:        peer,
 		ctx:         ctx,
 		ID:          id,
-		Logger:      logger,
 	}
 }
 
