@@ -24,25 +24,64 @@ cmd_help() {
 	_EOF
 }
 
+cmd_init() {
+    FILE="gen/dc-bridges.conf"
+    while read line; do
+        vars=( $line )
+        local name="${vars[1]}"
+        docker network inspect "$name" &> /dev/null
+        if [[ $? -eq 0 ]]; then
+            echo "Network $name already exists, skip creating."
+        else
+            echo "Creating network $name: $(docker network create --driver=bridge --subnet="${vars[0]}" -o "com.docker.network.bridge.name=$name" "$name")"
+        fi
+    done < $FILE
+    cmd_utils run --rm chowner
+}
+
+cmd_utils() {
+    COMPOSE_FILE="gen/volumes-dc.yml:gen/utils-dc.yml" docker-compose --no-ansi "$@"
+}
+
 cmd_scion() {
-    COMPOSE_FILE="gen/base-dc.yml:gen/scion-dc.yml" docker-compose --no-ansi "$@"
+    COMPOSE_FILE="gen/volumes-dc.yml:gen/networks-dc.yml:gen/scion-dc.yml" docker-compose --no-ansi "$@"
 }
 
 cmd_tester() {
-	COMPOSE_FILE="gen/base-dc.yml:gen/testers-dc.yml" docker-compose --no-ansi "$@"
+    COMPOSE_FILE="gen/volumes-dc.yml:gen/testers-dc.yml" docker-compose --no-ansi "$@"
 }
 
 start_tester() {
-	cntr="$1"
-	SCION_UID=$(id -u) SCION_GID=$(id -g) DOCKER_GID=$(getent group docker | cut -f3 -d:) cmd_tester up -d "$cntr"
-	cmd_tester exec -T "$cntr" /docker-entrypoint.sh -c exit
+    cntr="$1"
+    SCION_UID=$(id -u) SCION_GID=$(id -g) DOCKER_GID=$(getent group docker | cut -f3 -d:) cmd_tester up -d "$cntr"
+    cmd_tester exec -T "$cntr" /docker-entrypoint.sh -c exit
 }
 
 exec_tester() {
-	local cntr="$1"
-	shift
-	docker container inspect "$cntr" &>/dev/null || start_tester "$cntr" &>/dev/null
-	cmd_tester exec -u scion -T "$cntr" bash -l -c "$*"
+    local pref="$1"
+    shift
+    local ia="$1"
+    shift
+    cntr="${pref}_$ia"
+    docker container inspect "$cntr" &>/dev/null || start_tester "$cntr" &>/dev/null
+    cmd_tester exec -u scion -T "$cntr" bash -l -c "$*"
+}
+
+cmd_down() {
+    cmd_tester down >/dev/null 2>&1
+    cmd_scion down >/dev/null 2>&1
+    cmd_utils run --rm cleaner 2>&1
+    FILE="gen/dc-bridges.conf"
+    while read line; do
+        vars=( $line )
+        local name="${vars[1]}"
+        docker network inspect "$name" &> /dev/null
+        if [[ $? -eq 0 ]]; then
+            echo "Removing network $(docker network rm "$name")"
+        else
+            echo "Network $name not found, skip removing."
+        fi
+    done < $FILE
 }
 
 PROGRAM="${0##*/}"
@@ -50,9 +89,9 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-	scion|tester)
-	    "cmd_$COMMAND" "$@" ;;
-	exec_tester)
-		"exec_tester" "$@" ;;
-	*)  cmd_help; exit 1 ;;
+    init|scion|tester|utils|down)
+        "cmd_$COMMAND" "$@" ;;
+    exec_tester)
+        "exec_tester" "$@" ;;
+    *)  cmd_help; exit 1 ;;
 esac
