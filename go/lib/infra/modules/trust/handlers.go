@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -161,7 +161,7 @@ func (h *trcPushHandler) Handle() {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
-	n, err := h.store.trustdb.InsertTRCCtx(subCtx, trcObj)
+	n, err := h.store.trustdb.InsertTRC(subCtx, trcObj)
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to insert TRC into DB", "err", err)
 		return
@@ -195,7 +195,7 @@ func (h *chainPushHandler) Handle() {
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
-	n, err := h.store.trustdb.InsertChainCtx(subCtx, chain)
+	n, err := h.store.trustdb.InsertChain(subCtx, chain)
 	if err != nil {
 		logger.Error("[TrustStore:chainPushHandler] Unable to insert chain into DB", "err", err)
 		return

@@ -164,7 +164,7 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	vKey common.RawBytes) (*cert.Chain, error) {
 
-	issCert, err := h.getIssuerCert()
+	issCert, err := h.getIssuerCert(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	if err != nil {
 		return nil, err
 	}
-	if _, err = h.State.TrustDB.InsertChain(chain); err != nil {
+	if _, err = h.State.TrustDB.InsertChain(ctx, chain); err != nil {
 		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
 		return nil, err
 	}
@@ -212,8 +212,8 @@ func (h *Handler) sendRep(ctx context.Context, addr net.Addr, chain *cert.Chain,
 	return msger.SendChainIssueReply(ctx, &cert_mgmt.ChainIssRep{RawChain: raw}, addr, id)
 }
 
-func (h *Handler) getIssuerCert() (*cert.Certificate, error) {
-	issCrt, err := h.State.TrustDB.GetIssCertMaxVersion(h.IA)
+func (h *Handler) getIssuerCert(ctx context.Context) (*cert.Certificate, error) {
+	issCrt, err := h.State.TrustDB.GetIssCertMaxVersion(ctx, h.IA)
 	if err != nil {
 		return nil, err
 	}
