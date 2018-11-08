@@ -44,6 +44,7 @@ var (
 	timeout  = flag.Duration("timeout", 2*time.Second, "Timeout for single request")
 	ds       = flag.String("addr", "", "Discovery service to query for initial topology "+
 		"(form \"host:port\" or \"[host]:port\"")
+	// FIXME(roosd): Use AppAddr parsing once code base does no longer assume L4 is UDP.
 	dsAddr addr.AppAddr
 )
 
