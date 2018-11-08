@@ -72,10 +72,7 @@ func realMain() int {
 	}
 	var writeOnce sync.Once
 	fetcher, err := topofetcher.New(
-		discovery.ServiceInfo{
-			Instances: topo.DS,
-			Overlay:   topo.Overlay,
-		},
+		topo.DS,
 		discovery.FetchParams{
 			File:  file(),
 			Mode:  mode(),

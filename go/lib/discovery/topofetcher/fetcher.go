@@ -40,7 +40,7 @@ type Callbacks struct {
 // Fetcher is used to fetch a new topology file from the discovery service.
 type Fetcher struct {
 	// Pool is a Pool of discovery services
-	Pool discovery.Pool
+	Pool discovery.InstancePool
 	// Params contains the parameters for fetching the topology.
 	Params discovery.FetchParams
 	// Callbacks contains the callbacks.
@@ -51,7 +51,7 @@ type Fetcher struct {
 
 // New initializes a fetcher with the given values. Topo is provided to
 // initialize the pool with discovery services.
-func New(svcInfo discovery.ServiceInfo, params discovery.FetchParams,
+func New(svcInfo topology.IDAddrMap, params discovery.FetchParams,
 	clbks Callbacks, client *http.Client) (*Fetcher, error) {
 
 	var err error
@@ -67,7 +67,7 @@ func New(svcInfo discovery.ServiceInfo, params discovery.FetchParams,
 }
 
 // UpdateInstances updates the discovery service pool.
-func (f *Fetcher) UpdateInstances(svcInfo discovery.ServiceInfo) error {
+func (f *Fetcher) UpdateInstances(svcInfo topology.IDAddrMap) error {
 	return f.Pool.Update(svcInfo)
 }
 
@@ -96,10 +96,7 @@ func (f *Fetcher) run(ctx context.Context) error {
 		return err
 	}
 	// Update DS server entries based on new topo.
-	err = f.Pool.Update(discovery.ServiceInfo{
-		Instances: topo.DS,
-		Overlay:   topo.Overlay,
-	})
+	err = f.Pool.Update(topo.DS)
 	if err != nil {
 		return common.NewBasicError("Unable to update pool", err)
 	}
