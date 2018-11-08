@@ -17,9 +17,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/spath"
 )
 
 type ifInfo struct {
@@ -39,12 +37,23 @@ var (
 	borderID        string
 	keysDirPath     string
 	devInfoFilePath string
-	err             error
-	devList         []*ifInfo
-	devByName       map[string]*ifInfo
-	masterKeys      keyconf.Master
-	mac             hash.Hash
 	testIdx         int
+	//Tests           map[string][]*BRTest = map[string][]*BRTest{
+
+	Tests = map[string][]*BRTest{
+		"core-brA": coreBrATests,
+		"core-brB": coreBrBTests,
+		"core-brC": coreBrCTests,
+		/* TODO
+		"brA":      BrATests,
+		"brB":      BrBTests,
+		"brC":      BrCTests,
+		"brD":      BrDTests,
+		*/
+	}
+	devByName map[string]*ifInfo
+	devList   []*ifInfo
+	hashMac   hash.Hash
 )
 
 func init() {
@@ -54,10 +63,25 @@ func init() {
 	flag.IntVar(&testIdx, "testIndex", -1, "Run specific test")
 }
 
-func parseInfo() {
-	f, err := os.Open(devInfoFilePath)
+func GenerateKeys(fn string) error {
+	// Load master keys
+	masterKeys, err := keyconf.LoadMaster(fn)
 	if err != nil {
-		panic(err)
+		return err
+	}
+	// Generate keys
+	// This uses 16B keys with 1000 hash iterations, which is the same as the
+	// defaults used by pycrypto.
+	hfGenKey := pbkdf2.Key(masterKeys.Key0, common.RawBytes("Derive OF Key"), 1000, 16, sha256.New)
+	// First check for MAC creation errors.
+	hashMac, err = scrypto.InitMac(hfGenKey)
+	return err
+}
+
+func ParseDevInfo(fn string) error {
+	f, err := os.Open(fn)
+	if err != nil {
+		return err
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
@@ -67,27 +91,12 @@ func parseInfo() {
 		elem := &ifInfo{hostDev: field[0], contDev: field[1]}
 		elem.mac, err = net.ParseMAC(field[2])
 		if err != nil {
-			panic(err)
+			return err
 		}
 		devList = append(devList, elem)
 		devByName[field[1]] = elem
 	}
-}
-
-func genKeys() {
-	// Load master keys
-	masterKeys, err = keyconf.LoadMaster(keysDirPath)
-	if err != nil {
-		panic(err)
-	}
-	// Generate keys
-	// This uses 16B keys with 1000 hash iterations, which is the same as the
-	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(masterKeys.Key0, common.RawBytes("Derive OF Key"), 1000, 16, sha256.New)
-	// First check for MAC creation errors.
-	if mac, err = scrypto.InitMac(hfGenKey); err != nil {
-		panic(err)
-	}
+	return nil
 }
 
 func checkFlags() error {
@@ -110,49 +119,63 @@ func main() {
 		flag.Usage()
 		os.Exit(-1)
 	}
-	// Parse device pair info
-	parseInfo()
-	// Generate keys
-	genKeys()
-	// Open devices
+	if err := ParseDevInfo(devInfoFilePath); err != nil {
+		fatal("%s\n", err)
+	}
+	if err := GenerateKeys(keysDirPath); err != nil {
+		fatal("%s\n", err)
+	}
 	for _, ifi := range devList {
+		var err error
 		ifi.handle, err = pcap.OpenLive(ifi.hostDev, snapshot_len, promiscuous, pcap.BlockForever)
 		if err != nil {
-			panic(err)
+			fatal("%s\n", err)
 		}
 		defer ifi.handle.Close()
 	}
 	// Now that everything is set up, drop CAP_NET_ADMIN
 	caps, err := capability.NewPid(0)
 	if err != nil {
-		panic(fmt.Errorf("Error retrieving capabilities: %s", err))
+		fatal("Error retrieving capabilities: %s", err)
 	}
 	caps.Clear(capability.CAPS)
 	caps.Apply(capability.CAPS)
 
 	brTests, ok := Tests[borderID]
 	if !ok {
-		panic(fmt.Sprintf("Wrong Border Router ID %s\n", borderID))
+		fatal("Wrong Border Router ID %s", borderID)
 	}
 	fmt.Printf("Acceptance tests for %s:\n", borderID)
 	var failures int
 	if testIdx != -1 {
 		brTests = brTests[testIdx : testIdx+1]
 	}
-	for i, _ := range brTests {
-		if !doTest(brTests[i]) {
+	for _, t := range brTests {
+		if !doTest(t) {
 			failures += 1
 		}
 	}
 	os.Exit(failures)
 }
 
+// doTest just runs a test, which involved generating the packet, sending it in the specified
+// interface, then comparing any packets coming from the border router against the expected
+// packets from the test.
+// It return true if the test was successful, ie. all expected packets and no others were received,
+// otherwise it returns false.
 func doTest(t *BRTest) bool {
 	t.In.Setup()
-	rawPkt := t.In.Pack()
-	err = devByName[t.In.GetDev()].handle.WritePacketData(rawPkt)
+	devInfo, ok := devByName[t.In.GetDev()]
+	if !ok {
+		fmt.Errorf("No device information for: %s", t.In.GetDev())
+	}
+	raw, err := t.In.Pack(devInfo.mac, hashMac)
 	if err != nil {
-		panic(err)
+		fatal("%s\n", err)
+	}
+	err = devInfo.handle.WritePacketData(raw)
+	if err != nil {
+		fatal("%s\n", err)
 	}
 	var pass bool
 	if err := checkRecvPkts(t); err != nil {
@@ -164,248 +187,7 @@ func doTest(t *BRTest) bool {
 	return pass
 }
 
-var (
-	if_1A_2A = common.IFIDType(1201)
-	if_1B_3A = common.IFIDType(1301)
-	if_1B_4A = common.IFIDType(1401)
-	if_1B_4B = common.IFIDType(1402)
-	if_1C_5A = common.IFIDType(1501)
-	if_2A_1A = common.IFIDType(2101)
-	if_3A_1B = common.IFIDType(3101)
-	if_4A_1B = common.IFIDType(4101)
-	if_4B_1B = common.IFIDType(4102)
-	if_5A_1C = common.IFIDType(5101)
-)
-
-/*
-                Ingress-HFas-Egress
-Path ConsDir ConsInress-HFas-ConsEgress
-2->1 True    0-HF2-2101  <>  1201-HF1-0  - Registered path in AS-1
-1->2 True    0-HF1-1201  <>  2101-HF2-0  - Registered path in AS-2
-
-Reversed paths:
-                 Egress-HFas-Ingress
-Path ConsDir ConsInress-HFas-ConsEgress
-1->2 False   1201-HF1-0  <>  0-HF2-2101
-2->1 False   2101-HF2-0  <>  0-HF1-1201
-*/
-
-var tsNow = uint32(time.Now().Unix())
-var (
-	// Core paths between ff00:0:1 <-> ff00:0:2
-	path_2A_1A = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A}}},
-	}
-	path_2A_1A_rev = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_1A_2A}, {ConsEgress: if_2A_1A}}},
-	}
-	path_1A_2A = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_1A_2A}, {ConsIngress: if_2A_1A}}},
-	}
-	path_1A_2A_rev = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_2A_1A}, {ConsEgress: if_1A_2A}}},
-	}
-	// Core paths between ff00:0:1 <-> ff00:0:3
-	path_3A_1B = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_3A_1B}, {ConsIngress: if_1B_3A}}},
-	}
-	path_3A_1B_rev = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_1B_3A}, {ConsEgress: if_3A_1B}}},
-	}
-	path_1B_3A = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_1B_3A}, {ConsIngress: if_3A_1B}}},
-	}
-	path_1B_3A_rev = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_3A_1B}, {ConsEgress: if_1B_3A}}},
-	}
-	// Paths between ff00:0:1 <-> ff00:0:5
-	path_5A_1C = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_5A_1C}, {ConsEgress: if_1C_5A}}},
-	}
-	path_1C_5A = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_1C_5A}, {ConsIngress: if_5A_1C}}},
-	}
-	path_2A_1A_X_1C_5A = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_1C_5A}, {ConsIngress: if_5A_1C}}},
-	}
-	path_5A_1C_X_1A_2A = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_5A_1C}, {ConsEgress: if_1C_5A, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_1A_2A}, {ConsEgress: if_2A_1A}}},
-	}
-	// Bad paths - Xover CORE to CORE
-	path_rev_2A_1A_X_1B_3A = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_3A_1B}, {ConsEgress: if_1B_3A, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_1A_2A, Xover: true}, {ConsEgress: if_2A_1A}}},
-	}
-	path_2A_1A_X_1B_3A = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_1B_3A, Xover: true}, {ConsIngress: if_3A_1B}}},
-	}
-	path_2A_1A_X_3A_1B_rev = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_2A_1A}, {ConsIngress: if_1A_2A, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_1B_3A, Xover: true}, {ConsEgress: if_3A_1B}}},
-	}
-	path_1A_2A_rev_X_1B_3A = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_2A_1A}, {ConsEgress: if_1A_2A, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_1B_3A, Xover: true}, {ConsIngress: if_3A_1B}}},
-	}
-	path_1A_2A_rev_X_3A_1B_rev = Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_2A_1A}, {ConsEgress: if_1A_2A, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_1B_3A, Xover: true}, {ConsEgress: if_3A_1B}}},
-	} // Bad path - Xover DOWN to CORE
-	path_5A_1C_X_1B_3A = Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_5A_1C}, {ConsIngress: if_1C_5A, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_1B_3A}, {ConsEgress: if_3A_1B}}},
-	}
-)
-
-var Tests map[string][]*BRTest = map[string][]*BRTest{
-	// CtrlAddr:     192.168.0.101 30087
-	// InternalAddr: 192.168.0.11 30087
-	// ifid_1201:    192.168.12.2 50000 -> 192.168.12.3 40000, CORE, 1-ff00:0:2
-	"core-brA": []*BRTest{
-		{
-			Desc: "",
-			In: &PktGenCmn{PktInfo{
-				Dev:     "ifid_1201",
-				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
-				Path:    gPath(1, 2, path_2A_1A),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			}},
-			Out: []PktMatch{
-				&PktMerge{PktInfo{
-					Dev:     "ifid_local",
-					Overlay: &OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
-				}},
-			},
-		},
-		{
-			In: &PktGenCmn{PktInfo{
-				Dev:     "ifid_local",
-				Overlay: &OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
-				AddrHdr: NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
-				Path:    gPath(1, 1, path_1A_2A),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			}},
-			Out: []PktMatch{
-				&PktMerge{PktInfo{
-					Dev:     "ifid_1201",
-					Overlay: &OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
-					Path:    gPath(1, 2, path_1A_2A),
-				}},
-			},
-		},
-		{
-			In: &PktGenCmn{PktInfo{
-				Dev:     "ifid_1201",
-				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
-				Path:    gPath(1, 2, path_2A_1A_X_1C_5A),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			}},
-			Out: []PktMatch{
-				&PktMerge{PktInfo{
-					Dev:     "ifid_local",
-					Overlay: &OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
-					Path:    gPath(2, 1, path_2A_1A_X_1C_5A),
-				}},
-			},
-		},
-		{
-			In: &PktGenCmn{PktInfo{
-				Dev:     "ifid_local",
-				Overlay: &OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
-				AddrHdr: NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
-				Path:    gPath(2, 1, path_5A_1C_X_1A_2A),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			}},
-			Out: []PktMatch{
-				&PktMerge{PktInfo{
-					Dev:     "ifid_1201",
-					Overlay: &OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
-					Path:    gPath(2, 2, path_5A_1C_X_1A_2A),
-				}},
-			},
-		},
-		{ // Bad path - Xover CORE to CORE
-			In: &PktGenCmn{PktInfo{
-				Dev:     "ifid_1201",
-				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1"),
-				Path:    gPath(1, 2, path_2A_1A_X_1B_3A),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			}},
-			Out: []PktMatch{},
-		},
-		{ // Using hpkt go build the packet
-			In: &HpktInfo{PktInfo{
-				Dev:     "ifid_1201",
-				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-				AddrHdr: NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
-				Path:    gPath(1, 2, path_2A_1A),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			}},
-			Out: []PktMatch{
-				&HpktInfo{PktInfo{
-					Dev:     "ifid_local",
-					Overlay: &OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
-				}},
-			},
-		},
-		{ // Bad packet - empty packet to overlay port
-			In: &PktRaw{PktInfo{
-				Dev:     "ifid_1201",
-				Overlay: &OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-			}},
-			Out: []PktMatch{},
-		},
-	},
-	// CtrlAddr:     192.168.0.103 30087
-	// InternalAddr: 192.168.0.13 30087
-	// ifid_1501:    192.168.15.2 50000 -> 192.168.15.3 40000, CORE, 1-ff00:0:5
-	"core-brC": []*BRTest{
-		{
-			In: &PktGenCmn{PktInfo{
-				Dev:     "ifid_1501",
-				Overlay: &OverlayIP4UDP{"192.168.15.3", 40000, "192.168.15.2", 50000},
-				AddrHdr: NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:1", "192.168.0.51"),
-				Path:    gPath(1, 2, path_5A_1C),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
-			}},
-			Out: []PktMatch{
-				&PktMerge{PktInfo{
-					Dev:     "ifid_local",
-					Overlay: &OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.51", 30041},
-				}},
-			},
-		},
-	},
+func fatal(msg string, a ...interface{}) {
+	fmt.Printf(msg+"\n", a...)
+	os.Exit(1)
 }
