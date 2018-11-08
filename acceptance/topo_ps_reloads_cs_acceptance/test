@@ -1,16 +1,15 @@
 #!/bin/bash
 
-# Whenever the CS addresses in the topology file of a SD server are changed, if
-# the SD process receives a SIGHUP it will reload the config and get future
-# certificate chains from the new address.
+# Whenever the CS addresses in the topology file of a PS server are changed, if
+# the SD process receives a SIGHUP it will reload the config and push future
+# crypto to the new address.
 
-TEST_NAME="topo_sd_reloads_cs"
+TEST_NAME="topo_ps_reloads_cs"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
-SRC_IA=${SRC_IA:-1-ff00:0:112}
-SRC_IA_FILE=$(echo $SRC_IA | sed -e "s/:/_/g")
-SRC_AS_FILE=$(echo $SRC_IA_FILE | cut -d '-' -f 2)
-DST_IA=${DST_IA:-1-ff00:0:110}
+IA=${IA:-1-ff00:0:112}
+IA_FILE=$(echo $IA | sed -e "s/:/_/g")
+AS_FILE=$(echo $IA_FILE | cut -d '-' -f 2)
 
 test_setup() {
     set -e
@@ -25,16 +24,15 @@ test_setup() {
 
 test_run() {
     set -e
-    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
-    local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
+    # Wait for the PS to be populated with crypto following beaconing
+    sleep 10
+    local topo_file="gen/ISD1/AS$AS_FILE/ps$IA_FILE-1/topology.json"
     jq '.CertificateService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
-    docker kill --signal=HUP sd$SRC_IA_FILE
-    sqlite3 gen-cache/sd$SRC_IA_FILE.trust.db "delete from chains"
-    sleep 1
-    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
-    sleep 2
-    grep -q "\[TRACE\] \[Messenger\] Sending request.*req_type=\"ChainRequest\".*$SRC_IA,\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" || \
-        { echo "Certificate chain request to 127.42.42.42:39999 not found in logs"; return 1; }
+    docker kill --signal=HUP ps$IA_FILE-1
+    # Wait for 30 (PS crypto push interval) + 1 (logging flush interval) seconds to guarantee a push is seen
+    sleep 31
+    grep -q "\[INFO\].*Sent crypto to CS.*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
+        { echo "Crypto material push to 127.42.42.42:39999 not found in logs"; return 1; }
 }
 
 test_teardown() {
