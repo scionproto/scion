@@ -34,7 +34,6 @@ DOCKER_BRIDGE_CONF = 'dc-bridges.conf'
 DOCKER_NETWORK_CONF = 'networks-dc.yml'
 DOCKER_VOLUME_CONF = 'volumes-dc.yml'
 DOCKER_SCION_CONF = 'scion-dc.yml'
-DEFAULT_DC_NETWORK = "172.18.0.0/24"
 
 
 class DockerGenArgs(ArgsTopoDicts):
@@ -64,7 +63,6 @@ class DockerGenerator(object):
         self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
 
     def generate(self):
-        self._net_conf()
         self._create_networks()
         self._zookeeper_conf()
         for topo_id, topo in self.args.topo_dicts.items():
@@ -105,10 +103,6 @@ class DockerGenerator(object):
             text += br + ' ' + self.bridges[br] + '\n'
         conf_path = os.path.join(self.args.output_dir, DOCKER_BRIDGE_CONF)
         write_file(conf_path, text)
-
-    def _net_conf(self):
-        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DC_NETWORK}]}}
-        self.dc_net_conf['networks']['default'] = default_net
 
     def _vol_conf(self, topo_id):
         self.dc_vol_conf['volumes']['vol_disp_%s' % topo_id.file_fmt()] = None

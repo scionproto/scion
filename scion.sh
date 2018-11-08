@@ -10,9 +10,6 @@ cmd_topology() {
     set -e
     local zkclean
     echo "Shutting down: $(./scion.sh stop)"
-    if is_docker; then
-        ./tools/dc down
-    fi
     supervisor/supervisor.sh shutdown
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
