@@ -478,7 +478,7 @@ func (f *fetcherHandler) fetchAndVerify(ctx context.Context, cancelF context.Can
 		// Assume all are new
 		revInfos = reply.Recs.SRevInfos
 	}
-	segverifier.Verify(ctx, f.trustStore, ps, reply.Recs.Recs, revInfos,
+	segverifier.Verify(ctx, f.trustStore, nil, reply.Recs.Recs, revInfos,
 		verifiedSeg, verifiedRev, segErr, revErr)
 	if len(insertedSegmentIDs) > 0 {
 		f.logger.Debug("Segments inserted in DB", "segments", insertedSegmentIDs)
