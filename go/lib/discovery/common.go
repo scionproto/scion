@@ -18,21 +18,14 @@ import (
 	"fmt"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/topology"
 )
 
-// ServiceInfo contains the info for multiple discovery service instances.
-type ServiceInfo struct {
-	Instances topology.IDAddrMap
-	Overlay   overlay.Type
-}
-
-// Pool keeps a pool of known discovery service instances.
-type Pool interface {
+// InstancePool keeps a pool of known discovery service instances.
+type InstancePool interface {
 	// Update updates the pool based on a new discovery service map.
-	Update(ServiceInfo) error
+	Update(topology.IDAddrMap) error
 	// Choose returns the info for the best discovery service instance
 	// according to the pool.
 	Choose() (InstanceInfo, error)
@@ -62,5 +55,5 @@ type Fetcher interface {
 	// It can be used to notify fetcher in case a new topology file has been
 	// received from sources other than the discovery service
 	// (e.g. through sighup reloading)
-	UpdateInstances(ServiceInfo) error
+	UpdateInstances(topology.IDAddrMap) error
 }

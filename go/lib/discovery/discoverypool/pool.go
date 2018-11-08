@@ -21,9 +21,10 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/discovery"
 	"github.com/scionproto/scion/go/lib/discovery/discoveryinfo"
+	"github.com/scionproto/scion/go/lib/topology"
 )
 
-var _ discovery.Pool = (*Pool)(nil)
+var _ discovery.InstancePool = (*Pool)(nil)
 
 // Pool maps discovery service instances to their info.
 type Pool struct {
@@ -33,34 +34,34 @@ type Pool struct {
 
 // New populates the pool with discovery service instances from the map
 // in svcInfo. At least one instance must be present.
-func New(svcInfo discovery.ServiceInfo) (*Pool, error) {
-	if len(svcInfo.Instances) <= 0 {
+func New(svcInfo topology.IDAddrMap) (*Pool, error) {
+	if len(svcInfo) <= 0 {
 		return nil, common.NewBasicError(
 			"SvcInfo must contain at least one discovery service instance", nil)
 	}
 	p := &Pool{
-		m: make(map[string]discovery.InstanceInfo, len(svcInfo.Instances)),
+		m: make(map[string]discovery.InstanceInfo, len(svcInfo)),
 	}
 	p.Update(svcInfo)
 	return p, nil
 }
 
 // Update adds missing instances and removes instances which are no longer in the topology.
-func (p *Pool) Update(svcInfo discovery.ServiceInfo) error {
+func (p *Pool) Update(svcInfo topology.IDAddrMap) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	// Add missing DS servers.
-	for k, v := range svcInfo.Instances {
+	for k, v := range svcInfo {
 		if info, ok := p.m[k]; !ok {
-			p.m[k] = discoveryinfo.New(k, v.PublicAddr(svcInfo.Overlay))
+			p.m[k] = discoveryinfo.New(k, v.PublicAddr(v.Overlay))
 		} else {
-			info.Update(v.PublicAddr(svcInfo.Overlay))
+			info.Update(v.PublicAddr(v.Overlay))
 		}
 	}
 	// Get list of outdated DS servers.
 	var del []string
 	for k := range p.m {
-		if _, ok := svcInfo.Instances[k]; !ok {
+		if _, ok := svcInfo[k]; !ok {
 			del = append(del, k)
 		}
 	}
