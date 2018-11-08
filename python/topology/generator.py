@@ -67,6 +67,8 @@ def add_arguments(parser):
                         help='Path Server implementation to use ("go or "py")')
     parser.add_argument('-ds', '--discovery', action='store_true',
                         help='Generate discovery service')
+    parser.add_argument('--random-ifids', action='store_true',
+                        help='Generate random IFIDs')
     return parser
 
 

@@ -18,6 +18,7 @@
 """
 # Stdlib
 import json
+import logging
 import os
 import random
 from collections import defaultdict
@@ -138,7 +139,11 @@ class TopoGenerator(object):
             br_ids[ep] += 1
             br_id = br_ids[ep]
         br = "br%s-%d" % (ep.file_fmt(), br_id)
-        ifid = if_ids[ep].new()
+        ifid = ep.ifid
+        if self.args.random_ifids or not ifid:
+            ifid = if_ids[ep].new()
+        else:
+            if_ids[ep].add(ifid)
         return br, ifid
 
     def _read_links(self):
@@ -322,8 +327,13 @@ class TopoGenerator(object):
 class LinkEP(TopoID):
     def __init__(self, raw):
         self._brid = None
+        self.ifid = None
         isd_as = raw
-        parts = raw.split("-")
+        parts = raw.split('#')
+        if len(parts) == 2:
+            self.ifid = int(parts[1])
+            isd_as = parts[0]
+        parts = isd_as.split("-")
         if len(parts) == 3:
             self._brid = parts[2]
             isd_as = "%s-%s" % (parts[0], parts[1])
@@ -354,11 +364,20 @@ class IFIDGenerator(object):
 
     def new(self):
         while True:
-            ifid = random.randrange(10, 100)
+            ifid = random.randrange(1, 4096)
             if ifid in self._ifids:
                 continue
-            self._ifids.add(ifid)
+            self.add(ifid)
             return ifid
+
+    def add(self, ifid):
+        if ifid in self._ifids:
+            logging.critical("IFID %d already exists!" % ifid)
+            exit(1)
+        if ifid < 1 or ifid > 4095:
+            logging.critical("IFID %d is invalid!" % ifid)
+            exit(1)
+        self._ifids.add(ifid)
 
 
 def _json_default(o):
