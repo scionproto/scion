@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type revocHandler struct {
@@ -38,7 +39,8 @@ func NewRevocHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *revocHandler) Handle() {
-	logger := h.logger.New("from", h.request.Peer)
+	logger := log.FromCtx(h.request.Context())
+	logger = logger.New("from", h.request.Peer)
 	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {
 		logger.Error("[revocHandler] wrong message type, expected path_mgmt.SignedRevInfo",

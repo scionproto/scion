@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type segRegHandler struct {
@@ -40,17 +41,18 @@ func NewSegRegHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *segRegHandler) Handle() {
+	logger := log.FromCtx(h.request.Context())
 	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
 	if !ok {
-		h.logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
+		logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
 	if err := segReg.ParseRaw(); err != nil {
-		h.logger.Error("[segRegHandler] Failed to parse message", "err", err)
+		logger.Error("[segRegHandler] Failed to parse message", "err", err)
 		return
 	}
-	logSegRecs(h.logger, "[segRegHandler]", h.request.Peer, segReg.SegRecs)
+	logSegRecs(logger, "[segRegHandler]", h.request.Peer, segReg.SegRecs)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	h.verifyAndStore(subCtx, h.request.Peer, segReg.Recs, segReg.SRevInfos)

@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type ifStateInfoHandler struct {
@@ -38,13 +39,14 @@ func NewIfStatInfoHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *ifStateInfoHandler) Handle() {
+	logger := log.FromCtx(h.request.Context())
 	ifStateInfo, ok := h.request.Message.(*path_mgmt.IFStateInfos)
 	if !ok {
-		h.logger.Error("[ifStateHandler] wrong message type, expected path_mgmt.IFStateInfos",
+		logger.Error("[ifStateHandler] wrong message type, expected path_mgmt.IFStateInfos",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
-	h.logger.Debug("[ifStateHandler] Received IfStateInfo", "ifStateInfo", ifStateInfo)
+	logger.Debug("[ifStateHandler] Received IfStateInfo", "ifStateInfo", ifStateInfo)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	for _, info := range ifStateInfo.Infos {
@@ -52,17 +54,18 @@ func (h *ifStateInfoHandler) Handle() {
 			h.verifyAndStore(subCtx, info.SRevInfo)
 		}
 	}
-	h.logger.Debug("[ifStateHandler] done processing ifStateInfo")
+	logger.Debug("[ifStateHandler] done processing ifStateInfo")
 }
 
 func (h *ifStateInfoHandler) verifyAndStore(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
+	logger := log.FromCtx(ctx)
 	err := segverifier.VerifyRevInfo(ctx, h.trustStore, h.request.Peer, rev)
 	if err != nil {
-		h.logger.Error("[ifStateHandler] Failed to verify revInfo", "rev", rev, "err", err)
+		logger.Error("[ifStateHandler] Failed to verify revInfo", "rev", rev, "err", err)
 		return
 	}
 	_, err = h.revCache.Insert(ctx, rev)
 	if err != nil {
-		h.logger.Error("[ifStateHandler] Failed to insert revInfo", "rev", rev, "err", err)
+		logger.Error("[ifStateHandler] Failed to insert revInfo", "rev", rev, "err", err)
 	}
 }

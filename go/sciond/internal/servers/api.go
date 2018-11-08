@@ -74,7 +74,8 @@ func (srv *TransportHandler) Handle(b common.RawBytes, address net.Addr) {
 		log.Error("handler not found for capnp message", "which", p.Which)
 		return
 	}
-	handler.Handle(srv.Transport, address, p, srv.Logger.New("debug_id", util.GetDebugID()))
+	ctx := log.CtxWith(context.Background(), srv.Logger.New("debug_id", util.GetDebugID()))
+	handler.Handle(ctx, srv.Transport, address, p)
 }
 
 func (srv *TransportHandler) Close() error {

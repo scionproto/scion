@@ -56,7 +56,6 @@ type baseHandler struct {
 	topology   *topology.Topo
 	retryInt   time.Duration
 	config     psconfig.Config
-	logger     log.Logger
 }
 
 func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
@@ -68,7 +67,6 @@ func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {
 		retryInt:   time.Second,
 		config:     args.Config,
 		topology:   itopo.GetCurrentTopology(),
-		logger:     request.Logger,
 	}
 }
 
@@ -123,12 +121,13 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) {
 	// TODO(lukedirtwalker): collect the verified segs/revoc and return them.
 
+	logger := log.FromCtx(ctx)
 	// verify and store the segments
 	var insertedSegmentIDs []string
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {
 		wasInserted, err := segsaver.StoreSeg(ctx, s, h.pathDB)
 		if err != nil {
-			h.logger.Error("Unable to insert segment into path database",
+			logger.Error("Unable to insert segment into path database",
 				"seg", s.Segment, "err", err)
 			return
 		}
@@ -138,19 +137,19 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	}
 	verifiedRev := func(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
 		if _, err := h.revCache.Insert(ctx, rev); err != nil {
-			h.logger.Error("Unable to insert revocation into revcache", "rev", rev, "err", err)
+			logger.Error("Unable to insert revocation into revcache", "rev", rev, "err", err)
 		}
 	}
 	segErr := func(s *seg.Meta, err error) {
-		h.logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
+		logger.Warn("Segment verification failed", "segment", s.Segment, "err", err)
 	}
 	revErr := func(revocation *path_mgmt.SignedRevInfo, err error) {
-		h.logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
+		logger.Warn("Revocation verification failed", "revocation", revocation, "err", err)
 	}
 	segverifier.Verify(ctx, h.trustStore, src, recs,
 		revInfos, verifiedSeg, verifiedRev, segErr, revErr)
 	if len(insertedSegmentIDs) > 0 {
-		log.Debug("Segments inserted in DB", "count", len(insertedSegmentIDs),
+		logger.Debug("Segments inserted in DB", "count", len(insertedSegmentIDs),
 			"segments", insertedSegmentIDs)
 	}
 }

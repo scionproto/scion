@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type syncHandler struct {
@@ -40,17 +41,18 @@ func NewSyncHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *syncHandler) Handle() {
+	logger := log.FromCtx(h.request.Context())
 	segSync, ok := h.request.Message.(*path_mgmt.SegSync)
 	if !ok {
-		h.logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",
+		logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
 	if err := segSync.ParseRaw(); err != nil {
-		h.logger.Error("[syncHandler] Failed to parse message", "err", err)
+		logger.Error("[syncHandler] Failed to parse message", "err", err)
 		return
 	}
-	logSegRecs(h.logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
+	logSegRecs(logger, "[syncHandler]", h.request.Peer, segSync.SegRecs)
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	h.verifyAndStore(subCtx, h.request.Peer, segSync.Recs, segSync.SRevInfos)

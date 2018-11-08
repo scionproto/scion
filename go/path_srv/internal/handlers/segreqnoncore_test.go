@@ -313,7 +313,6 @@ func TestSegReqLocal(t *testing.T) {
 					nil,
 					&snet.Addr{IA: addr.IA{}},
 					scrypto.RandUint64(),
-					log.New(),
 				)
 				h := &segReqNonCoreHandler{
 					segReqHandler: segReqHandler{
@@ -323,7 +322,6 @@ func TestSegReqLocal(t *testing.T) {
 							revCache:   memrevcache.New(time.Minute, time.Minute),
 							trustStore: ts,
 							topology:   loadTopo(t, tc.SrcIA),
-							logger:     req.Logger,
 						},
 						localIA: tc.SrcIA,
 					},

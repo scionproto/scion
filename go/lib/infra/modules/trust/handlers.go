@@ -20,6 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 // trcReqHandler contains the state of a handler for a specific TRC Request
@@ -33,7 +34,7 @@ type trcReqHandler struct {
 }
 
 func (h *trcReqHandler) Handle() {
-	logger := h.request.Logger
+	logger := log.FromCtx(h.request.Context())
 	trcReq, ok := h.request.Message.(*cert_mgmt.TRCReq)
 	if !ok {
 		logger.Error("[TrustStore:trcReqHandler] wrong message type, expected cert_mgmt.TRCReq",
@@ -88,7 +89,7 @@ type chainReqHandler struct {
 }
 
 func (h *chainReqHandler) Handle() {
-	logger := h.request.Logger
+	logger := log.FromCtx(h.request.Context())
 	chainReq, ok := h.request.Message.(*cert_mgmt.ChainReq)
 	if !ok {
 		logger.Error("[TrustStore:chainReqHandler] wrong message type, expected cert_mgmt.ChainReq",
@@ -139,7 +140,7 @@ type trcPushHandler struct {
 }
 
 func (h *trcPushHandler) Handle() {
-	logger := h.request.Logger
+	logger := log.FromCtx(h.request.Context())
 	// FIXME(scrye): In case a TRC update will invalidate the local certificate
 	// chain after the gracePeriod, CSes must use this gracePeriod to fetch a
 	// new chain from the issuer. If a chain is not obtained within the
@@ -177,7 +178,7 @@ type chainPushHandler struct {
 }
 
 func (h *chainPushHandler) Handle() {
-	logger := h.request.Logger
+	logger := log.FromCtx(h.request.Context())
 	chainPush, ok := h.request.Message.(*cert_mgmt.Chain)
 	if !ok {
 		logger.Error("[TrustStore:chainPushHandler] Wrong message type, expected cert_mgmt.Chain",

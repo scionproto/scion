@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -54,7 +55,8 @@ func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
 func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
 	// No validation on source here!
 	if segReq.DstIA().IsZero() || segReq.DstIA().I == 0 || segReq.DstIA().Eq(h.localIA) {
-		h.logger.Warn("[segReqHandler] Drop, invalid dstIA", "dstIA", segReq.DstIA())
+		logger := log.FromCtx(h.request.Context())
+		logger.Warn("[segReqHandler] Drop, invalid dstIA", "dstIA", segReq.DstIA())
 		return false
 	}
 	return true
@@ -98,7 +100,7 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger
 		if !dbOnly {
 			refetch, err = h.shouldRefetchSegsForDst(ctx, dst, time.Now())
 			if err != nil {
-				h.logger.Warn("[segReqHandler] failed to get last query", "err", err)
+				log.FromCtx(ctx).Warn("[segReqHandler] failed to get last query", "err", err)
 			}
 		}
 		if !refetch {
@@ -119,24 +121,25 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger
 func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messenger,
 	src, dst addr.IA, cPSAddr net.Addr) error {
 
+	logger := log.FromCtx(ctx)
 	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
 	if snetAddr, ok := cPSAddr.(*snet.Addr); ok {
-		h.logger.Trace("[segReqHandler] Sending segment request", "NextHop", snetAddr.NextHop)
+		logger.Trace("[segReqHandler] Sending segment request", "NextHop", snetAddr.NextHop)
 	}
 	segs, err := h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
 	if err != nil {
 		return err
 	}
-	segs = segs.Sanitize(h.logger)
+	segs = segs.Sanitize(logger)
 	var recs []*seg.Meta
 	var revInfos []*path_mgmt.SignedRevInfo
 	if segs.Recs != nil {
-		logSegRecs(h.logger, "[segReqHandler]", cPSAddr, segs.Recs)
+		logSegRecs(logger, "[segReqHandler]", cPSAddr, segs.Recs)
 		recs = segs.Recs.Recs
 		revInfos, err = revcache.FilterNew(ctx, h.revCache, segs.Recs.SRevInfos)
 		if err != nil {
-			h.logger.Error("[segReqHandler] Failed to filter new revocations", "err", err)
+			logger.Error("[segReqHandler] Failed to filter new revocations", "err", err)
 			// in case of error we just assume all of them are new and continue.
 			revInfos = segs.Recs.SRevInfos
 		}
@@ -144,7 +147,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
 		if _, err := h.pathDB.InsertNextQuery(ctx, dst,
 			queryTime.Add(h.config.QueryInterval.Duration)); err != nil {
-			h.logger.Warn("Failed to insert last queried", "err", err)
+			logger.Warn("Failed to insert last queried", "err", err)
 		}
 	}
 	return nil
@@ -173,9 +176,10 @@ func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
 
+	logger := log.FromCtx(ctx)
 	revs, err := segutil.RelevantRevInfos(ctx, h.revCache, upSegs, coreSegs, downSegs)
 	if err != nil {
-		h.logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
+		logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
 		// the client might still be able to use the segments so continue here.
 	}
 	recs := &path_mgmt.SegRecs{
@@ -188,28 +192,29 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	}
 	err = msger.SendSegReply(ctx, reply, h.request.Peer, h.request.ID)
 	if err != nil {
-		h.logger.Error("[segReqHandler] Failed to send reply!", "err", err)
+		logger.Error("[segReqHandler] Failed to send reply!", "err", err)
 	}
-	h.logger.Debug("[segReqHandler] reply sent", "id", h.request.ID)
+	logger.Debug("[segReqHandler] reply sent", "id", h.request.ID)
 }
 
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {
+	logger := log.FromCtx(h.request.Context())
 	recs := make([]*seg.Meta, 0, len(upSegs)+len(coreSegs)+len(downSegs))
 	for i := range upSegs {
 		s := upSegs[i]
-		h.logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
+		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] up %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_up))
 	}
 	for i := range coreSegs {
 		s := coreSegs[i]
-		h.logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
+		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] core %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_core))
 	}
 	for i := range downSegs {
 		s := downSegs[i]
-		h.logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
+		logger.Trace(fmt.Sprintf("[segReqHandler:collectSegs] down %v -> %v",
 			s.FirstIA(), s.LastIA()))
 		recs = append(recs, seg.NewMeta(s, proto.PathSegType_down))
 	}

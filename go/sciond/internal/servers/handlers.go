@@ -46,7 +46,7 @@ const (
 )
 
 type Handler interface {
-	Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld, logger log.Logger)
+	Handle(ctx context.Context, transport infra.Transport, src net.Addr, pld *sciond.Pld)
 }
 
 // PathRequestHandler represents the shared global state for the handling of all
@@ -56,11 +56,12 @@ type PathRequestHandler struct {
 	Fetcher *fetcher.Fetcher
 }
 
-func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
-	logger log.Logger) {
+func (h *PathRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+	pld *sciond.Pld) {
 
+	logger := log.FromCtx(ctx)
 	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
-	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
+	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
 	getPathsReply, err := h.Fetcher.GetPaths(workCtx, pld.PathReq, DefaultEarlyReply, logger)
 	if err != nil {
@@ -78,7 +79,7 @@ func (h *PathRequestHandler) Handle(transport infra.Transport, src net.Addr, pld
 		// it is a bug.
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
 	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
@@ -95,11 +96,12 @@ type ASInfoRequestHandler struct {
 	TrustStore infra.TrustStore
 }
 
-func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
-	logger log.Logger) {
+func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+	pld *sciond.Pld) {
 
+	logger := log.FromCtx(ctx)
 	logger.Debug("[ASInfoRequestHandler] Received request", "request", &pld.AsInfoReq)
-	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
+	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
 	// NOTE(scrye): Only support single-homed SCIONDs for now (returned slice
 	// will at most contain one element).
@@ -144,7 +146,7 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
 	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
@@ -158,9 +160,10 @@ func (h *ASInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 // for each IFInfoRequest it receives.
 type IFInfoRequestHandler struct{}
 
-func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
-	logger log.Logger) {
+func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
+	pld *sciond.Pld) {
 
+	logger := log.FromCtx(ctx)
 	logger.Debug("[IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := &sciond.IFInfoReply{}
@@ -196,7 +199,7 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
 	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
@@ -210,9 +213,10 @@ func (h *IFInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, p
 // for each SVCInfoRequest it receives.
 type SVCInfoRequestHandler struct{}
 
-func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
-	logger log.Logger) {
+func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport,
+	src net.Addr, pld *sciond.Pld) {
 
+	logger := log.FromCtx(ctx)
 	logger.Debug("[SVCInfoRequestHandler] Received request",
 		"request", &pld.ServiceInfoRequest)
 	svcInfoRequest := pld.ServiceInfoRequest
@@ -237,7 +241,7 @@ func (h *SVCInfoRequestHandler) Handle(transport infra.Transport, src net.Addr, 
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
 	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)
@@ -268,12 +272,13 @@ type RevNotificationHandler struct {
 	TrustStore infra.TrustStore
 }
 
-func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr, pld *sciond.Pld,
-	logger log.Logger) {
+func (h *RevNotificationHandler) Handle(ctx context.Context, transport infra.Transport,
+	src net.Addr, pld *sciond.Pld) {
 
+	logger := log.FromCtx(ctx)
 	logger.Debug("[RevNotificationHandler] Received revocation",
 		"notification", pld.RevNotification)
-	workCtx, workCancelF := context.WithTimeout(context.Background(), DefaultWorkTimeout)
+	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
 	revNotification := pld.RevNotification
 	revReply := &sciond.RevReply{}
@@ -305,7 +310,7 @@ func (h *RevNotificationHandler) Handle(transport infra.Transport, src net.Addr,
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancelF := context.WithTimeout(context.Background(), DefaultReplyTimeout)
+	ctx, cancelF := context.WithTimeout(ctx, DefaultReplyTimeout)
 	defer cancelF()
 	if err := transport.SendMsgTo(ctx, b, src); err != nil {
 		logger.Warn("Unable to reply to client", "client", src, "err", err)

@@ -179,8 +179,7 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -189,18 +188,16 @@ func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.TRCRequest, infra.TRC).Request(ctx, pld, a)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.TRC)
 	if !ok {
 		err := newTypeAssertErr("*cert_mgmt.TRC", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 	logger.Trace("[Messenger] Received reply", "reply", reply)
 	return reply, nil
@@ -212,7 +209,8 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	if err != nil {
 		return err
 	}
-	m.log.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
 	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
 }
 
@@ -221,8 +219,7 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
-	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -231,18 +228,16 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest, infra.Chain).Request(ctx, pld, a)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.Chain)
 	if !ok {
 		err := newTypeAssertErr("*cert_mgmt.Chain", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 	logger.Trace("[Messenger] Received reply", "reply", reply)
 	return reply, nil
@@ -256,7 +251,8 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	if err != nil {
 		return err
 	}
-	m.log.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
 	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
 }
 
@@ -265,8 +261,7 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
-	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -276,22 +271,19 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.SegRequest, infra.SegReply).Request(ctx, pld, a)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
 	reply, ok := replyMsg.(*path_mgmt.SegReply)
 	if !ok {
 		err := newTypeAssertErr("*path_mgmt.SegReply", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 	if err := reply.ParseRaw(); err != nil {
-		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
 	}
 	logger.Trace("[Messenger] Received reply")
 	return reply, nil
@@ -305,7 +297,8 @@ func (m *Messenger) SendSegReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
 	return m.getRequester(infra.SegReply, infra.None).Notify(ctx, pld, a)
 }
 
@@ -317,15 +310,15 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Trace("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
 	return m.getRequester(infra.SegSync, infra.None).Notify(ctx, pld, a)
 }
 
 func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
 
-	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -335,18 +328,16 @@ func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChan
 	replyCtrlPld, _, err := m.getRequester(infra.SegChangesIdReq,
 		infra.SegChangesIdReply).Request(ctx, pld, a)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
 	reply, ok := replyMsg.(*path_mgmt.SegChangesIdReply)
 	if !ok {
 		err := newTypeAssertErr("*path_mgmt.SegChangesIdReply", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 	logger.Trace("[Messenger] Received reply")
 	return reply, nil
@@ -359,7 +350,8 @@ func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Trace("[Messenger] Sending Notify",
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesIdReply, "to", a, "id", id)
 	return m.getRequester(infra.SegChangesIdReply, infra.None).Notify(ctx, pld, a)
 }
@@ -367,8 +359,7 @@ func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
 func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
 
-	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -378,22 +369,19 @@ func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChanges
 	replyCtrlPld, _, err := m.getRequester(infra.SegChangesReq,
 		infra.SegChangesIdReply).Request(ctx, pld, a)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
 	reply, ok := replyMsg.(*path_mgmt.SegChangesReply)
 	if !ok {
 		err := newTypeAssertErr("*path_mgmt.SegChangesReply", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 	if err := reply.ParseRaw(); err != nil {
-		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Failed to parse reply", err)
 	}
 	logger.Trace("[Messenger] Received reply")
 	return reply, nil
@@ -406,7 +394,8 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	m.log.Trace("[Messenger] Sending Notify",
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesReply, "to", a, "id", id)
 	return m.getRequester(infra.SegChangesReply, infra.None).Notify(ctx, pld, a)
 }
@@ -414,8 +403,7 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context,
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
-	debug_id := util.GetDebugID()
-	logger := m.log.New("debug_id", debug_id)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -425,18 +413,16 @@ func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainI
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.ChainIssueRequest, infra.ChainIssueReply).Request(ctx, pld, a)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Request error", err, "debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Request error", err)
 	}
 	_, replyMsg, err := m.validate(replyCtrlPld)
 	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
 	}
 	reply, ok := replyMsg.(*cert_mgmt.ChainIssRep)
 	if !ok {
 		err := newTypeAssertErr("*cert_mgmt.ChainIssRep", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err,
-			"debug_id", debug_id)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
 	}
 	logger.Trace("[Messenger] Received reply")
 	return reply, nil
@@ -449,7 +435,8 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	if err != nil {
 		return err
 	}
-	m.log.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
 	return m.getRequester(infra.ChainIssueReply, infra.None).Notify(ctx, pld, a)
 }
 
@@ -511,7 +498,7 @@ func (m *Messenger) ListenAndServe() {
 			serveCancelF()
 			continue
 		}
-		m.serve(serveCtx, serveCancelF, pld, signedPld, address, logger)
+		m.serve(log.CtxWith(serveCtx, logger), serveCancelF, pld, signedPld, address)
 	}
 }
 
@@ -536,8 +523,9 @@ func (m *Messenger) verifySignedPld(ctx context.Context, signedPld *ctrl.SignedP
 }
 
 func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
-	signedPld *ctrl.SignedPld, address net.Addr, logger log.Logger) {
+	signedPld *ctrl.SignedPld, address net.Addr) {
 
+	logger := log.FromCtx(ctx)
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
 	msgType, msg, err := m.validate(pld)
@@ -559,7 +547,8 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	go func() {
 		defer log.LogPanicAndExit()
 		defer cancelF()
-		handler.Handle(infra.NewRequest(ctx, msg, signedPld, address, pld.ReqId, logger))
+		handler.Handle(
+			infra.NewRequest(log.CtxWith(ctx, logger), msg, signedPld, address, pld.ReqId))
 	}()
 }
 
