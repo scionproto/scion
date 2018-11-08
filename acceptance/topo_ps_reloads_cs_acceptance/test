@@ -14,9 +14,7 @@ AS_FILE=$(echo $IA_FILE | cut -d '-' -f 2)
 test_setup() {
     set -e
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    # Enable automatic dispatcher reconnects in SCIOND and PS
     for sd in gen/ISD1/*/endhost/sciond.toml; do
-        sed -i 's/Level = .*$/Level = "trace"/g' "$sd"
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
     ./scion.sh run
