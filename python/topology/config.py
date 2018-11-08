@@ -99,9 +99,6 @@ class ConfigGenerator(object):
         self.default_mtu = None
         self._read_defaults(self.args.network)
         self.port_gen = PortGenerator()
-        if self.args.docker and (self.args.cert_server != DEFAULT_CERTIFICATE_SERVER):
-            logging.critical("Cannot use non-default CS with docker!")
-            sys.exit(1)
 
     def _read_defaults(self, network):
         """
