@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ func newNotificationTable() *notificationTable {
 }
 
 // Add registers ch with the dedupe and broadcast key maps. If a network
-// request needs to be issued, the returneed context is non-nil.
+// request needs to be issued, the returned context is non-nil.
 func (table *notificationTable) Add(req Request, ch ResponseChannel,
 	dedupeLifetime time.Duration) context.Context {
 
@@ -95,9 +95,8 @@ func (table *notificationTable) Add(req Request, ch ResponseChannel,
 		if expiry.After(time.Now()) {
 			ch <- response
 			return nil
-		} else {
-			table.cache.Delete(bkey)
 		}
+		table.cache.Delete(bkey)
 	}
 
 	// We need to chain ch to the notification lists, and start a handler

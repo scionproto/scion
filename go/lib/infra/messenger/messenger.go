@@ -553,7 +553,7 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	m.handlersLock.RUnlock()
 	if handler == nil {
 		logger.Error("Received message, but handler not found", "from", address,
-			"msgType", msgType)
+			"msgType", msgType, "id", pld.ReqId)
 		return
 	}
 	go func() {
