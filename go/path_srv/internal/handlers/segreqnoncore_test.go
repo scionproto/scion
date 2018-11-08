@@ -308,9 +308,7 @@ func TestSegReqLocal(t *testing.T) {
 				}
 				msger := mock_infra.NewMockMessenger(ctrl)
 				req := infra.NewRequest(
-					log.AttachLogger(
-						infra.NewContextWithMessenger(context.Background(), msger), log.New(),
-					),
+					infra.NewContextWithMessenger(context.Background(), msger),
 					segReq,
 					nil,
 					&snet.Addr{IA: addr.IA{}},

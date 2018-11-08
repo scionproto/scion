@@ -59,7 +59,7 @@ type PathRequestHandler struct {
 func (h *PathRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
 	pld *sciond.Pld) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Debug("[PathRequestHandler] Received request", "req", pld.PathReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
@@ -99,7 +99,7 @@ type ASInfoRequestHandler struct {
 func (h *ASInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
 	pld *sciond.Pld) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Debug("[ASInfoRequestHandler] Received request", "request", &pld.AsInfoReq)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)
 	defer workCancelF()
@@ -163,7 +163,7 @@ type IFInfoRequestHandler struct{}
 func (h *IFInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport, src net.Addr,
 	pld *sciond.Pld) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Debug("[IFInfoRequestHandler] Received request", "request", &pld.IfInfoRequest)
 	ifInfoRequest := pld.IfInfoRequest
 	ifInfoReply := &sciond.IFInfoReply{}
@@ -216,7 +216,7 @@ type SVCInfoRequestHandler struct{}
 func (h *SVCInfoRequestHandler) Handle(ctx context.Context, transport infra.Transport,
 	src net.Addr, pld *sciond.Pld) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Debug("[SVCInfoRequestHandler] Received request",
 		"request", &pld.ServiceInfoRequest)
 	svcInfoRequest := pld.ServiceInfoRequest
@@ -275,7 +275,7 @@ type RevNotificationHandler struct {
 func (h *RevNotificationHandler) Handle(ctx context.Context, transport infra.Transport,
 	src net.Addr, pld *sciond.Pld) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Debug("[RevNotificationHandler] Received revocation",
 		"notification", pld.RevNotification)
 	workCtx, workCancelF := context.WithTimeout(ctx, DefaultWorkTimeout)

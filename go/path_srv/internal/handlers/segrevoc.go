@@ -39,7 +39,7 @@ func NewRevocHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *revocHandler) Handle() {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	logger = logger.New("from", h.request.Peer)
 	revocation, ok := h.request.Message.(*path_mgmt.SignedRevInfo)
 	if !ok {

@@ -50,7 +50,7 @@ func NewSegReqCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Ha
 }
 
 func (h *segReqCoreHandler) Handle() {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	segReq, ok := h.request.Message.(*path_mgmt.SegReq)
 	if !ok {
 		logger.Error("[segReqCoreHandler] wrong message type, expected path_mgmt.SegReq",
@@ -75,7 +75,7 @@ func (h *segReqCoreHandler) Handle() {
 func (h *segReqCoreHandler) handleReq(ctx context.Context,
 	msger infra.Messenger, segReq *path_mgmt.SegReq) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	dstISDLocal := segReq.DstIA().I == h.localIA.I
 	if dstISDLocal && segReq.DstIA().A == 0 {
 		h.sendEmptySegReply(ctx, segReq, msger)
@@ -145,7 +145,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
 	msger infra.Messenger, segReq *path_mgmt.SegReq) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{segReq.DstIA()}, !segReq.Flags.CacheOnly)
 	if err != nil {
 		logger.Error("Failed to find core segs", "err", err)

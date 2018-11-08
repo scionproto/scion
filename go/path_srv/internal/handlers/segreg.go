@@ -41,7 +41,7 @@ func NewSegRegHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *segRegHandler) Handle() {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	segReg, ok := h.request.Message.(*path_mgmt.SegReg)
 	if !ok {
 		logger.Error("[segRegHandler] wrong message type, expected path_mgmt.SegReg",

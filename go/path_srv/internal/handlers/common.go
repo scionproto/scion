@@ -121,7 +121,7 @@ func (h *baseHandler) verifyAndStore(ctx context.Context, src net.Addr,
 	recs []*seg.Meta, revInfos []*path_mgmt.SignedRevInfo) {
 	// TODO(lukedirtwalker): collect the verified segs/revoc and return them.
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	// verify and store the segments
 	var insertedSegmentIDs []string
 	verifiedSeg := func(ctx context.Context, s *seg.Meta) {

@@ -22,16 +22,16 @@ type loggerContextKey string
 
 const loggerKey loggerContextKey = "logger"
 
-// AttachLogger returns a new context, based on ctx, that embeds argument
+// CtxWith returns a new context, based on ctx, that embeds argument
 // logger. The logger can be recovered using GetLogger. Attaching a logger to a
 // context which already contains one will overwrite the existing value.
-func AttachLogger(ctx context.Context, logger Logger) context.Context {
+func CtxWith(ctx context.Context, logger Logger) context.Context {
 	return context.WithValue(ctx, loggerKey, logger)
 }
 
-// GetLogger returns the logger embedded in ctx if one exists, or the root
-// logger otherwise. GetLogger is guaranteed to never return nil.
-func GetLogger(ctx context.Context) Logger {
+// FromCtx returns the logger embedded in ctx if one exists, or the root
+// logger otherwise. FromCtx is guaranteed to never return nil.
+func FromCtx(ctx context.Context) Logger {
 	if logger := ctx.Value(loggerKey); logger != nil {
 		return logger.(Logger)
 	}
