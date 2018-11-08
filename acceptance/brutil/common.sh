@@ -1,0 +1,55 @@
+# This is a base file included/sourced by each border router acceptance test
+
+# Following are the functions required by the acceptance framework
+
+# Each test should have its own set_veths function for specific setup
+test_setup() {
+    set -e
+    # Bring up the dispatcher container and add new veth interfaces
+    # This approach currently  works because the dispatcher binds to 0.0.0.0 address.
+    docker-compose -f $BRUTIL/docker-compose.yml up --detach dispatcher
+
+    set_docker_ns_link
+
+    NS=$(get_docker_ns)
+    set_veths >> $DEVINFO_FN
+
+    docker-compose -f $BRUTIL/docker-compose.yml up --detach $BRID
+}
+
+test_teardown() {
+    set -e
+    del_veths
+    rm -f $DEVINFO_FN
+    rm_docker_ns_link
+    docker-compose -f $BRUTIL/docker-compose.yml down
+}
+
+print_help() {
+    PROGRAM="$1"
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run <args>
+	    execute only the run phase (allows passing specific argumented to the test binary).
+	    $PROGRAM teardown
+	        execute only the teardown phase.
+	_EOF
+}
+
+do_command() {
+    PROGRAM="$1"
+    COMMAND="$2"
+    TEST_NAME="$3"
+    case "$COMMAND" in
+        name)
+            echo $TEST_NAME ;;
+        setup|run|teardown)
+            "test_$COMMAND" ${@:2} ;;
+        *) print_help $PROGRAM; exit 1 ;;
+    esac
+}
+

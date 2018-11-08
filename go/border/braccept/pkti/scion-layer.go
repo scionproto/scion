@@ -1,17 +1,14 @@
-package main
+package pkti
 
 import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-//
-// SCION gopacket layer
-//
+// ScionLayer is a basic (no extensions support) gopacket SCION layer implementation.
 type ScionLayer struct {
 	layers.BaseLayer
 	nextHdr common.L4ProtocolType
@@ -41,7 +38,9 @@ func (l *ScionLayer) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.Seria
 	l.CmnHdr.Write(buf)
 	addrLen := l.AddrHdr.Write(buf[spkt.CmnHdrLen:])
 	l.Path.Raw = buf[spkt.CmnHdrLen+addrLen:]
-	writeScnPath(l.Path.Segs, l.Path.Raw)
+	if _, err := l.Path.WriteRaw(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -81,39 +80,4 @@ func scionNextLayerType(t common.L4ProtocolType) gopacket.LayerType {
 		return layers.LayerTypeUDP
 	}
 	return gopacket.LayerTypePayload
-}
-
-func writeScnPath(segs []*SegDef, b []byte) int {
-	offset := 0
-	for i, _ := range segs {
-		offset += writeScnPathSeg(segs[i], b[offset:])
-	}
-	return offset
-}
-
-func writeScnPathSeg(seg *SegDef, b []byte) int {
-	// Write Info Field
-	seg.inf.Write(b)
-	// Write Hop Fields
-	prevHop := []byte{}
-	nHops := len(seg.hops)
-	for j, _ := range seg.hops {
-		hopIdx := j
-		if !seg.inf.ConsDir {
-			// For reverse ConsDir, start from last hop
-			hopIdx = nHops - 1 - j
-		}
-		hop := seg.hops[hopIdx]
-		if hop.Mac == nil {
-			mac.Reset()
-			hop.Mac, err = hop.CalcMac(mac, seg.inf.TsInt, prevHop)
-			if err != nil {
-				panic(err)
-			}
-		}
-		curOff := spath.InfoFieldLength + hopIdx*spath.HopFieldLength
-		hop.Write(b[curOff:])
-		prevHop = b[curOff+1 : curOff+spath.HopFieldLength]
-	}
-	return spath.InfoFieldLength + nHops*spath.HopFieldLength
 }
