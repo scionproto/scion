@@ -227,7 +227,7 @@ func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	if err != nil {
 		return nil, err
 	}
-	logger.Trace("[Messenger] Sending request", "req_xxtype", infra.ChainRequest,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.ChainRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err := m.getRequester(infra.ChainRequest, infra.Chain).Request(ctx, pld, a)
 	if err != nil {
@@ -271,7 +271,7 @@ func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	if err != nil {
 		return nil, err
 	}
-	logger.Trace("[Messenger] Sending request", "req_tttype", infra.SegRequest,
+	logger.Trace("[Messenger] Sending request", "req_type", infra.SegRequest,
 		"msg_id", id, "request", msg, "peer", a)
 	replyCtrlPld, _, err :=
 		m.getRequester(infra.SegRequest, infra.SegReply).Request(ctx, pld, a)

@@ -412,8 +412,6 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 			}, addr, messenger.NextId())
 			if err != nil {
 				log.Error("Failed to forward cert chain", "err", err, "chain", chain)
-			} else {
-				log.Debug("Pushed cert chain to cs", "chain", chain, "cs", addr)
 			}
 		}()
 		return nil
