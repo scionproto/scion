@@ -28,7 +28,7 @@ result=$((result+$?))
 ./tools/ci/sphinx
 result=$((result+$?))
 
-./tools/ci/integration_setup -d && ./tools/ci/integration_run -d
+./tools/ci/integration_setup && ./tools/ci/integration_run -a
 result=$((result+$?))
 
 echo "Artifacts dir: $tmpdir"
