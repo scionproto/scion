@@ -1,4 +1,4 @@
-package main
+package pkti
 
 import (
 	"fmt"
@@ -9,9 +9,6 @@ import (
 	"github.com/scionproto/scion/go/lib/util"
 )
 
-//
-// SCION AddrHdr
-//
 type AddrHdr struct {
 	DstIA, SrcIA     addr.IA
 	DstHost, SrcHost addr.HostAddr
@@ -47,7 +44,7 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 	}
 	addrLen := ceil(2*addr.IABytes+int(dstLen+srcLen), common.LineLen)
 	if addrLen > len(b) {
-		return 0, fmt.Errorf("Buffer too short, expected=%d, acutal=%d", addrLen, len(b))
+		return 0, fmt.Errorf("Buffer too short, expected=%d, actual=%d", addrLen, len(b))
 	}
 	a.DstIA = addr.IAFromRaw(b)
 	a.SrcIA = addr.IAFromRaw(b[addr.IABytes:])
@@ -64,17 +61,11 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 	return addrLen, nil
 }
 
-func ceil(len, mult int) int {
-	// mult must be base 2 value
-	return (len + mult - 1) &^ (mult - 1)
-}
-
 func (a *AddrHdr) Len() int {
 	return ceil(2*addr.IABytes+a.DstHost.Size()+a.SrcHost.Size(), common.LineLen)
 }
 
 func (a *AddrHdr) Write(b common.RawBytes) int {
-	// Address header
 	offset := 0
 	a.DstIA.Write(b[offset:])
 	offset += addr.IABytes
@@ -100,4 +91,9 @@ func (a *AddrHdr) Eq(o *AddrHdr) bool {
 func (a *AddrHdr) String() string {
 	return fmt.Sprintf("DstIA: %s, SrcIA: %s, DstHost: %s, SrcHost: %s",
 		a.DstIA, a.SrcIA, a.DstHost, a.SrcHost)
+}
+
+func ceil(l, mult int) int {
+	// mult must be base 2 value
+	return (l + mult - 1) &^ (mult - 1)
 }

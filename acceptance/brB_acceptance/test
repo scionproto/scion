@@ -2,64 +2,30 @@
 
 BRID=brB
 TEST_NAME="${BRID}_acceptance"
+PROGRAM=$(basename "$0")
+COMMAND="$1"
 DEVINFO_FN=acceptance/${BRID}_acceptance/devinfo.txt
 BRUTIL=acceptance/brutil
 
+. $BRUTIL/common.sh
 . $BRUTIL/util.sh
 
-test_setup() {
-    set -e
-    # Bring up the dispatcher container and add new veth interfaces
-    # This appraoch currently  works because the dispatcher binds to 0.0.0.0 address.
-    docker-compose -f $BRUTIL/docker-compose.yml up --detach dispatcher
-
-    set_docker_ns_link
-
-    NS=$(get_docker_ns)
-    {
-        create_veth $NS veth0_root ifid_local 192.168.0.12/24 \
-            192.168.0.11 192.168.0.13 192.168.0.14 192.168.0.51 192.168.0.61 192.168.0.71
-        create_veth $NS veth1_root ifid_4101 192.168.41.4/31 192.168.41.5
-    } >> $DEVINFO_FN
-
-    docker-compose -f $BRUTIL/docker-compose.yml up --detach $BRID
+# This function is called from test_setup
+set_veths() {
+    create_veth $NS veth0_root ifid_local 192.168.0.12/24 \
+        192.168.0.11 192.168.0.13 192.168.0.14 192.168.0.51 192.168.0.61 192.168.0.71
+    create_veth $NS veth1_root ifid_1401 192.168.14.2/31 192.168.14.3
 }
 
 test_run() {
     set -e
-	bin/braccept -borderID "$BRID" -devInfoFilePath "$DEVINFO_FN" \
+    bin/braccept -borderID "$BRID" -devInfoFilePath "$DEVINFO_FN" \
         -keysDirPath "$BRUTIL/br-conf/keys" $@
 }
 
-test_teardown() {
-    set -e
-    delete_veth veth0_root veth1_root veth2_root veth3_root
-    rm -f $DEVINFO_FN
-    rm_docker_ns_link
-    docker-compose -f $BRUTIL/docker-compose.yml down
+# This function is called from test_teardown
+del_veths() {
+    delete_veth veth0_root veth1_root
 }
 
-print_help() {
-    echo
-	cat <<-_EOF
-	    $PROGRAM name
-	        return the name of this test
-	    $PROGRAM setup
-	        execute only the setup phase.
-	    $PROGRAM run
-	        execute only the run phase.
-	    $PROGRAM teardown
-	        execute only the teardown phase.
-	_EOF
-}
-
-PROGRAM=$(basename "$0")
-COMMAND="$1"
-
-case "$COMMAND" in
-    name)
-        echo $TEST_NAME ;;
-    setup|run|teardown)
-        "test_$COMMAND" ${@:2} ;;
-    *) print_help; exit 1 ;;
-esac
+do_command $PROGRAM $COMMAND $TEST_NAME
