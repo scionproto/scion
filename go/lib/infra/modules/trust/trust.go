@@ -265,7 +265,7 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 		defer log.LogPanicAndExit()
 		addr, err := store.ChooseServer(store.ia)
 		if err != nil {
-			log.Error("Failed to select server to forward cert cahin", "err", err)
+			log.Error("Failed to select server to forward TRC", "err", err)
 		}
 		rawTRC, err := trcObj.Compress()
 		if err != nil {
@@ -277,7 +277,7 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 			RawTRC: rawTRC,
 		}, addr, messenger.NextId())
 		if err != nil {
-			log.Error("Failed to forward cert chain", "err", err)
+			log.Error("Failed to forward TRC", "err", err)
 		}
 	}()
 	return nil

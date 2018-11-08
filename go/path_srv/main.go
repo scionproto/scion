@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
@@ -167,6 +168,12 @@ func realMain() int {
 	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
 		time.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
+	cryptosyncer := periodic.StartPeriodicTask(&cryptosyncer.Syncer{
+		DB:    trustDB,
+		Msger: msger,
+		IA:    topo.ISD_AS,
+	}, time.NewTicker(30*time.Second), 30*time.Second)
+	defer cryptosyncer.Stop()
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.

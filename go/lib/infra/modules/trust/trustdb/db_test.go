@@ -79,6 +79,41 @@ func TestTRC(t *testing.T) {
 	})
 }
 
+func TestTRCGetAll(t *testing.T) {
+	Convey("Test get all TRCs", t, func() {
+		db := newDatabase(t)
+		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		Convey("GetAllTRCs on empty DB does not fail and returns nil", func() {
+			trcs, err := db.GetAllTRCs(ctx)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("trcs", trcs, ShouldBeNil)
+		})
+		Convey("GetAllTRCs on DB with 1 entry does not fail and returns entry", func() {
+			trcObj := insertTRCFromFile(t, ctx, "testdata/ISD1-V1.trc", db)
+			trcs, err := db.GetAllTRCs(ctx)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("trcs", trcs, ShouldResemble, []*trc.TRC{trcObj})
+		})
+		Convey("GetAllTRCs on DB with 2 entries does not fail and returns entries", func() {
+			trcObj := insertTRCFromFile(t, ctx, "testdata/ISD1-V1.trc", db)
+			trcObj2 := insertTRCFromFile(t, ctx, "testdata/ISD2-V1.trc", db)
+			trcs, err := db.GetAllTRCs(ctx)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("trcs", trcs, ShouldResemble, []*trc.TRC{trcObj, trcObj2})
+		})
+	})
+}
+
+func insertTRCFromFile(t *testing.T, ctx context.Context, fName string, db *DB) *trc.TRC {
+	trcobj, err := trc.TRCFromFile(fName, false)
+	xtest.FailOnErr(t, err)
+	_, err = db.InsertTRC(ctx, trcobj)
+	xtest.FailOnErr(t, err)
+	return trcobj
+}
+
 func TestIssCert(t *testing.T) {
 	Convey("Initialize DB and load issuer Cert", t, func() {
 		db := newDatabase(t)
@@ -189,9 +224,7 @@ func TestChain(t *testing.T) {
 		defer cancelF()
 
 		chain, err := cert.ChainFromFile("testdata/ISD1-ASff00_0_311-V1.crt", false)
-		if err != nil {
-			t.Fatalf("Unable to load certificate chain")
-		}
+		xtest.FailOnErr(t, err)
 		ia := addr.IA{I: 1, A: 0xff0000000311}
 		Convey("Insert into database", func() {
 			rows, err := db.InsertChain(ctx, chain)
@@ -227,6 +260,41 @@ func TestChain(t *testing.T) {
 			})
 		})
 	})
+}
+
+func TestChainGetAll(t *testing.T) {
+	Convey("Test get all chains", t, func() {
+		db := newDatabase(t)
+		defer db.Close()
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		Convey("GetAllChains on empty DB does not fails and return nil", func() {
+			chains, err := db.GetAllChains(ctx)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("chains", chains, ShouldBeNil)
+		})
+		Convey("GetAllChains on DB with 1 entry does not fails and returns entry", func() {
+			chain := insertChainFromFile(t, ctx, "testdata/ISD1-ASff00_0_311-V1.crt", db)
+			chains, err := db.GetAllChains(ctx)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain})
+		})
+		Convey("GetAllChains on DB with 2 entries does not fails and returns entries", func() {
+			chain := insertChainFromFile(t, ctx, "testdata/ISD1-ASff00_0_311-V1.crt", db)
+			chain2 := insertChainFromFile(t, ctx, "testdata/ISD2-ASff00_0_212-V1.crt", db)
+			chains, err := db.GetAllChains(ctx)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain, chain2})
+		})
+	})
+}
+
+func insertChainFromFile(t *testing.T, ctx context.Context, fName string, db *DB) *cert.Chain {
+	chain, err := cert.ChainFromFile(fName, false)
+	xtest.FailOnErr(t, err)
+	_, err = db.InsertChain(ctx, chain)
+	xtest.FailOnErr(t, err)
+	return chain
 }
 
 func newDatabase(t *testing.T) *DB {
