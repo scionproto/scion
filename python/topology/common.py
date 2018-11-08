@@ -38,7 +38,7 @@ class ArgsBase:
 class ArgsTopoConfig(ArgsBase):
     def __init__(self, args, topo_config):
         """
-        :param ArgsBase args: Contains the passed command line arguments.
+        :param object args: Contains the passed command line arguments as named attributes.
         :param dict topo_config: The parsed topology config.
         """
         super().__init__(args)
@@ -46,13 +46,15 @@ class ArgsTopoConfig(ArgsBase):
 
 
 class ArgsTopoDicts(ArgsBase):
-    def __init__(self, args, topo_dicts):
+    def __init__(self, args, topo_dicts, port_gen=None):
         """
-        :param ArgsBase args: Contains the passed command line arguments.
+        :param object args: Contains the passed command line arguments as named attributes.
         :param dict topo_dicts: The generated topo dicts from TopoGenerator.
+        :param PortGenerator port_gen: The port generator
         """
         super().__init__(args)
         self.topo_dicts = topo_dicts
+        self.port_gen = port_gen
 
 
 class TopoID(ISD_AS):
