@@ -84,4 +84,6 @@ const Sample = `[general]
   # Timeout for resissue request.  Default is 5 seconds.
   ReissueTimeout = "5s"
 
+  # Reissue whether reissuing is enabled. Default is false.
+  # Reissue = false
 `

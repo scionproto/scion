@@ -65,7 +65,7 @@ DEFAULT_TOPOLOGY_FILE = "topology/Default.topo"
 DEFAULT_PATH_POLICY_FILE = "topology/PathPolicy.yml"
 DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
 
-DEFAULT_CERTIFICATE_SERVER = "py"
+DEFAULT_CERTIFICATE_SERVER = "go"
 DEFAULT_SCIOND = "go"
 DEFAULT_PATH_SERVER = "go"
 

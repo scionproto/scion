@@ -529,8 +529,8 @@ func (store *Store) LoadAuthoritativeChain(dir string) error {
 	}
 
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
 	dbChain, err := store.getValidChain(ctx, store.ia, false, nil, nil)
-	cancelF()
 	switch {
 	case err != nil && common.GetErrorMsg(err) != ErrMissingAuthoritative:
 		// Unexpected error in trust store
