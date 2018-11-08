@@ -58,6 +58,7 @@ func TestSampleCorrect(t *testing.T) {
 			ReissueReqTimeout)
 		SoMsg("IssuerReissTime correct", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual,
 			IssuerReissTime)
+		SoMsg("Reissue correct", cfg.CS.Reissue, ShouldBeFalse)
 	})
 }
 
@@ -70,6 +71,7 @@ func TestLoadConf(t *testing.T) {
 		SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, 2*24*time.Hour)
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
+		SoMsg("reissue", cfg.CS.Reissue, ShouldBeTrue)
 	})
 
 	Convey("Load Default", t, func() {
@@ -80,6 +82,7 @@ func TestLoadConf(t *testing.T) {
 		SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldBeZeroValue)
 		SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldBeZeroValue)
 		SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldBeZeroValue)
+		SoMsg("reissue", cfg.CS.Reissue, ShouldBeFalse)
 	})
 }
 
@@ -96,6 +99,7 @@ func TestConfig_Init(t *testing.T) {
 			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, 48*time.Hour)
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, 12*time.Second)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, 6*time.Second)
+			SoMsg("reissue", cfg.CS.Reissue, ShouldBeTrue)
 		})
 	})
 
@@ -111,6 +115,7 @@ func TestConfig_Init(t *testing.T) {
 			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, IssuerReissTime)
 			SoMsg("reissRate", cfg.CS.ReissueRate.Duration, ShouldEqual, ReissReqRate)
 			SoMsg("reissTimeout", cfg.CS.ReissueTimeout.Duration, ShouldEqual, ReissueReqTimeout)
+			SoMsg("reissue", cfg.CS.Reissue, ShouldBeFalse)
 		})
 	})
 }
