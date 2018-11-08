@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Whenever the CS addresses in the topology file of a PS server are changed, if
+# the PS process receives a SIGHUP it will reload the config and push future
+# crypto to the new address.
+
+TEST_NAME="topo_ps_reloads_cs"
+TEST_TOPOLOGY="topology/Tiny.topo"
+
+IA=${IA:-1-ff00:0:112}
+IA_FILE=$(echo $IA | sed -e "s/:/_/g")
+AS_FILE=$(echo $IA_FILE | cut -d '-' -f 2)
+
+test_setup() {
+    set -e
+    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
+    for sd in gen/ISD1/*/endhost/sciond.toml; do
+        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
+    done
+    ./scion.sh run
+}
+
+test_run() {
+    set -e
+    # Wait for the PS to be populated with crypto following beaconing
+    sleep 10
+    local topo_file="gen/ISD1/AS$AS_FILE/ps$IA_FILE-1/topology.json"
+    jq '.CertificateService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
+    docker kill --signal=HUP ps$IA_FILE-1
+    # Wait for 30 (PS crypto push interval) + 1 (logging flush interval) seconds to guarantee a push is seen
+    sleep 31
+    grep -q "\[INFO\].*Sent crypto to CS.*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \
+        { echo "Crypto material push to 127.42.42.42:39999 not found in logs"; return 1; }
+}
+
+test_teardown() {
+    set -e
+    ./scion.sh stop
+}
+
+print_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run
+	        execute only the run phase.
+	    $PROGRAM teardown
+	        execute only the teardown phase.
+	_EOF
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+
