@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Whenever the CS addresses in the topology file of a PS server are changed, if
-# the SD process receives a SIGHUP it will reload the config and push future
+# the PS process receives a SIGHUP it will reload the config and push future
 # crypto to the new address.
 
 TEST_NAME="topo_ps_reloads_cs"
