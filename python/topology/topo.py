@@ -39,7 +39,7 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import _srv_iter, TopoID, SCION_SERVICE_NAMES
+from topology.common import _srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES
 from topology.net import AddressProxy
 
 DEFAULT_LINK_BW = 1000
@@ -53,17 +53,33 @@ DEFAULT_DISCOVERY_SERVERS = 1
 ZOOKEEPER_ADDR = "172.18.0.1"
 
 
-class TopoGenerator(object):
-    def __init__(self, topo_config, out_dir, subnet_gen, prvnet_gen, zk_config,
-                 default_mtu, gen_bind_addr, docker, ipv6, cs, ps, ds, port_gen):
-        self.topo_config = topo_config
-        self.out_dir = out_dir
+class TopoGenArgs(ArgsBase):
+    def __init__(self, args, topo_config, zk_config, subnet_gen,
+                 privnet_gen, default_mtu, port_gen):
+        """
+        :param ArgsBase args: Contains the passed command line arguments.
+        :param dict topo_config: The parsed topology config.
+        :param dict zk_config: The parsed zookeeper config.
+        :param SubnetGenerator subnet_gen: The default network generator.
+        :param SubnetGenerator privnet_gen: The private network generator.
+        :param dict default_mtu: The default mtu.
+        :param PortGenerator port_gen: The port generator
+        """
+        super().__init__(args)
+        self.topo_config_dict = topo_config
+        self.zk_config_dict = zk_config
         self.subnet_gen = subnet_gen
-        self.prvnet_gen = prvnet_gen
-        self.zk_config = zk_config
+        self.privnet_gen = privnet_gen
         self.default_mtu = default_mtu
-        self.gen_bind_addr = gen_bind_addr
-        self.docker = docker
+        self.port_gen = port_gen
+
+
+class TopoGenerator(object):
+    def __init__(self, args):
+        """
+        :param TopoGenArgs args: Contains the passed command line arguments.
+        """
+        self.args = args
         self.topo_dicts = {}
         self.hosts = []
         self.zookeepers = defaultdict(dict)
@@ -71,41 +87,37 @@ class TopoGenerator(object):
         self.as_list = defaultdict(list)
         self.links = defaultdict(list)
         self.ifid_map = {}
-        if ipv6:
+        if args.ipv6:
             self.overlay = "UDP/IPv6"
             self.addr_type = "IPv6"
         else:
             self.overlay = "UDP/IPv4"
             self.addr_type = "IPv4"
-        self.cs = cs
-        self.ps = ps
-        self.ds = ds
-        self.port_gen = port_gen
 
     def _reg_addr(self, topo_id, elem_id):
-        subnet = self.subnet_gen.register(topo_id)
+        subnet = self.args.subnet_gen.register(topo_id)
         return subnet.register(elem_id)
 
     def _reg_bind_addr(self, topo_id, elem_id):
-        prvnet = self.prvnet_gen.register(topo_id)
+        prvnet = self.args.privnet_gen.register(topo_id)
         return prvnet.register(elem_id)
 
     def _reg_link_addrs(self, local_br, remote_br, local_ifid, remote_ifid):
         link_name = str(sorted((local_br, remote_br)))
         link_name += str(sorted((local_ifid, remote_ifid)))
-        subnet = self.subnet_gen.register(link_name)
+        subnet = self.args.subnet_gen.register(link_name)
         return subnet.register(local_br), subnet.register(remote_br)
 
     def _iterate(self, f):
-        for isd_as, as_conf in self.topo_config["ASes"].items():
+        for isd_as, as_conf in self.args.topo_config_dict["ASes"].items():
             f(TopoID(isd_as), as_conf)
 
     def generate(self):
         self._read_links()
         self._iterate(self._generate_as_topo)
         self._iterate(self._generate_as_list)
-        networks = self.subnet_gen.alloc_subnets()
-        prv_networks = self.prvnet_gen.alloc_subnets()
+        networks = self.args.subnet_gen.alloc_subnets()
+        prv_networks = self.args.privnet_gen.alloc_subnets()
         self._write_as_topos()
         self._write_as_list()
         self._write_ifids()
@@ -133,9 +145,9 @@ class TopoGenerator(object):
         assigned_br_id = {}
         br_ids = defaultdict(int)
         if_ids = defaultdict(lambda: IFIDGenerator())
-        if not self.topo_config.get("links", None):
+        if not self.args.topo_config_dict.get("links", None):
             return
-        for attrs in self.topo_config["links"]:
+        for attrs in self.args.topo_config_dict["links"]:
             a = LinkEP(attrs.pop("a"))
             b = LinkEP(attrs.pop("b"))
             linkto = linkto_a = linkto_b = attrs.pop("linkAtoB")
@@ -154,7 +166,7 @@ class TopoGenerator(object):
             self.ifid_map[str(b)][b_desc] = a_desc
 
     def _generate_as_topo(self, topo_id, as_conf):
-        mtu = as_conf.get('mtu', self.default_mtu)
+        mtu = as_conf.get('mtu', self.args.default_mtu)
         assert mtu >= SCION_MIN_MTU, mtu
         self.topo_dicts[topo_id] = {
             'Core': as_conf.get('core', False), 'ISD_AS': str(topo_id),
@@ -182,10 +194,10 @@ class TopoGenerator(object):
                        topo_key):
         count = as_conf.get(conf_key, def_num)
         # only a single Go-PS/Go-CS per AS is currently supported
-        if ((conf_key == "path_servers" and self.ps == "go") or
-           (conf_key == "certificate_servers" and self.cs == "go")):
+        if ((conf_key == "path_servers" and self.args.path_server == "go") or
+           (conf_key == "certificate_servers" and self.args.cert_server == "go")):
             count = 1
-        if conf_key == "discovery_servers" and not self.ds:
+        if conf_key == "discovery_servers" and not self.args.discovery:
             count = 0
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
@@ -194,15 +206,15 @@ class TopoGenerator(object):
                     self.addr_type: {
                         'Public': {
                             'Addr': self._reg_addr(topo_id, elem_id),
-                            'L4Port': self.port_gen.register(elem_id),
+                            'L4Port': self.args.port_gen.register(elem_id),
                         }
                     }
                 }
             }
-            if self.gen_bind_addr:
+            if self.args.bind_addr:
                 d['Addrs'][self.addr_type]['Bind'] = {
                     'Addr': self._reg_bind_addr(topo_id, elem_id),
-                    'L4Port': self.port_gen.register(elem_id),
+                    'L4Port': self.args.port_gen.register(elem_id),
                 }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
 
@@ -221,7 +233,7 @@ class TopoGenerator(object):
                     self.addr_type: {
                         'Public': {
                             'Addr': int_addr,
-                            'L4Port': self.port_gen.register(local_br),
+                            'L4Port': self.args.port_gen.register(local_br),
                         }
                     }
                 },
@@ -229,7 +241,7 @@ class TopoGenerator(object):
                     self.addr_type: {
                         'PublicOverlay': {
                             'Addr': int_addr,
-                            'OverlayPort': self.port_gen.register(local_br),
+                            'OverlayPort': self.args.port_gen.register(local_br),
                         }
                     }
                 },
@@ -261,15 +273,15 @@ class TopoGenerator(object):
 
     def _gen_zk_entries(self, topo_id, as_conf):
         zk_conf = {}
-        if "zookeepers" in self.topo_config.get("defaults", {}):
-            zk_conf = self.topo_config["defaults"]["zookeepers"]
-        if self.docker:
+        if "zookeepers" in self.args.topo_config_dict.get("defaults", {}):
+            zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
+        if self.args.docker:
             zk_conf[1] = {'addr': ZOOKEEPER_ADDR}
         for key, val in zk_conf.items():
             self._gen_zk_entry(topo_id, key, val)
 
     def _gen_zk_entry(self, topo_id, zk_id, zk_conf):
-        zk = ZKTopo(zk_conf, self.zk_config)
+        zk = ZKTopo(zk_conf, self.args.zk_config_dict)
         addr = str(zk.addr)
         self.topo_dicts[topo_id]["ZookeeperService"][zk_id] = {
             'Addr': addr,
@@ -285,7 +297,7 @@ class TopoGenerator(object):
 
     def _write_as_topos(self):
         for topo_id, as_topo, base in _srv_iter(
-                self.topo_dicts, self.out_dir, common=True):
+                self.topo_dicts, self.args.output_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],
                                        default=_json_default, indent=2)
@@ -294,16 +306,16 @@ class TopoGenerator(object):
             Topology.from_file(path)
 
     def _write_as_list(self):
-        list_path = os.path.join(self.out_dir, AS_LIST_FILE)
+        list_path = os.path.join(self.args.output_dir, AS_LIST_FILE)
         write_file(list_path, yaml.dump(dict(self.as_list)))
 
     def _write_ifids(self):
-        list_path = os.path.join(self.out_dir, IFIDS_FILE)
+        list_path = os.path.join(self.args.output_dir, IFIDS_FILE)
         write_file(list_path, yaml.dump(self.ifid_map,
                                         default_flow_style=False))
 
     def _write_overlay(self):
-        file_path = os.path.join(self.out_dir, OVERLAY_FILE)
+        file_path = os.path.join(self.args.output_dir, OVERLAY_FILE)
         write_file(file_path, self.overlay + '\n')
 
 
