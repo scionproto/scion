@@ -55,7 +55,7 @@ func (h *segReqHandler) sendEmptySegReply(ctx context.Context,
 func (h *segReqHandler) isValidDst(segReq *path_mgmt.SegReq) bool {
 	// No validation on source here!
 	if segReq.DstIA().IsZero() || segReq.DstIA().I == 0 || segReq.DstIA().Eq(h.localIA) {
-		logger := log.GetLogger(h.request.Context())
+		logger := log.FromCtx(h.request.Context())
 		logger.Warn("[segReqHandler] Drop, invalid dstIA", "dstIA", segReq.DstIA())
 		return false
 	}
@@ -100,7 +100,7 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger
 		if !dbOnly {
 			refetch, err = h.shouldRefetchSegsForDst(ctx, dst, time.Now())
 			if err != nil {
-				log.GetLogger(ctx).Warn("[segReqHandler] failed to get last query", "err", err)
+				log.FromCtx(ctx).Warn("[segReqHandler] failed to get last query", "err", err)
 			}
 		}
 		if !refetch {
@@ -121,7 +121,7 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger
 func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messenger,
 	src, dst addr.IA, cPSAddr net.Addr) error {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
 	if snetAddr, ok := cPSAddr.(*snet.Addr); ok {
@@ -176,7 +176,7 @@ func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	revs, err := segutil.RelevantRevInfos(ctx, h.revCache, upSegs, coreSegs, downSegs)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find relevant revocations for reply", "err", err)
@@ -198,7 +198,7 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 }
 
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	recs := make([]*seg.Meta, 0, len(upSegs)+len(coreSegs)+len(downSegs))
 	for i := range upSegs {
 		s := upSegs[i]

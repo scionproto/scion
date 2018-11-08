@@ -52,7 +52,7 @@ func NewSegReqNonCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra
 }
 
 func (h *segReqNonCoreHandler) Handle() {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	segReq, ok := h.request.Message.(*path_mgmt.SegReq)
 	if !ok {
 		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
@@ -91,7 +91,7 @@ func (h *segReqNonCoreHandler) Handle() {
 }
 
 func (h *segReqNonCoreHandler) validSrcDst(segReq *path_mgmt.SegReq) bool {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	if !segReq.SrcIA().IsZero() && !segReq.SrcIA().Eq(h.localIA) {
 		logger.Warn("[segReqHandler] Drop, invalid srcIA",
 			"srcIA", segReq.SrcIA())
@@ -103,7 +103,7 @@ func (h *segReqNonCoreHandler) validSrcDst(segReq *path_mgmt.SegReq) bool {
 func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	msger infra.Messenger, dst addr.IA, coreASes []addr.IA) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	dstISDLocal := segReq.DstIA().I == h.localIA.I
 	logger.Debug("[segReqHandler] handleCoreDst", "remote", dstISDLocal)
 	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, !segReq.Flags.CacheOnly)
@@ -151,7 +151,7 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 func (h *segReqNonCoreHandler) handleNonCoreDst(ctx context.Context, segReq *path_mgmt.SegReq,
 	msger infra.Messenger, dstIA addr.IA, coreASes []addr.IA) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	cPSResolve := func() (net.Addr, error) {
 		return h.corePSAddr(ctx, coreASes)
 	}
@@ -231,7 +231,7 @@ func (h *segReqNonCoreHandler) fetchUpSegsFromDB(ctx context.Context,
 func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context,
 	msger infra.Messenger, src, dst addr.IA, dbOnly bool) ([]*seg.PathSegment, error) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Debug("[segReqHanlder:fetchCoreSegs]", "query", fmt.Sprintf("%v->%v", src, dst))
 	// try local cache first, inverse query since core segs are stored in inverse direction.
 	q := &query.Params{

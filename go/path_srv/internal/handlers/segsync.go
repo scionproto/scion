@@ -41,7 +41,7 @@ func NewSyncHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *syncHandler) Handle() {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	segSync, ok := h.request.Message.(*path_mgmt.SegSync)
 	if !ok {
 		logger.Error("[syncHandler] wrong message type, expected path_mgmt.SegSync",

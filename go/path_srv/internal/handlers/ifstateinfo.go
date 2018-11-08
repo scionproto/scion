@@ -39,7 +39,7 @@ func NewIfStatInfoHandler(args HandlerArgs) infra.Handler {
 }
 
 func (h *ifStateInfoHandler) Handle() {
-	logger := log.GetLogger(h.request.Context())
+	logger := log.FromCtx(h.request.Context())
 	ifStateInfo, ok := h.request.Message.(*path_mgmt.IFStateInfos)
 	if !ok {
 		logger.Error("[ifStateHandler] wrong message type, expected path_mgmt.IFStateInfos",
@@ -58,7 +58,7 @@ func (h *ifStateInfoHandler) Handle() {
 }
 
 func (h *ifStateInfoHandler) verifyAndStore(ctx context.Context, rev *path_mgmt.SignedRevInfo) {
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	err := segverifier.VerifyRevInfo(ctx, h.trustStore, h.request.Peer, rev)
 	if err != nil {
 		logger.Error("[ifStateHandler] Failed to verify revInfo", "rev", rev, "err", err)

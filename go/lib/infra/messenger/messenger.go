@@ -179,7 +179,7 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
 	a net.Addr, id uint64) (*cert_mgmt.TRC, error) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	if err != nil {
 		return err
 	}
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
 	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
 }
@@ -219,7 +219,7 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
 	a net.Addr, id uint64) (*cert_mgmt.Chain, error) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -251,7 +251,7 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	if err != nil {
 		return err
 	}
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
 	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
 }
@@ -261,7 +261,7 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 func (m *Messenger) GetSegs(ctx context.Context, msg *path_mgmt.SegReq,
 	a net.Addr, id uint64) (*path_mgmt.SegReply, error) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -297,7 +297,7 @@ func (m *Messenger) SendSegReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.SegReply, "to", a, "id", id)
 	return m.getRequester(infra.SegReply, infra.None).Notify(ctx, pld, a)
 }
@@ -310,7 +310,7 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.SegSync, "to", a, "id", id)
 	return m.getRequester(infra.SegSync, infra.None).Notify(ctx, pld, a)
 }
@@ -318,7 +318,7 @@ func (m *Messenger) SendSegSync(ctx context.Context,
 func (m *Messenger) GetSegChangesIds(ctx context.Context, msg *path_mgmt.SegChangesIdReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesIdReply, error) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -350,7 +350,7 @@ func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesIdReply, "to", a, "id", id)
 	return m.getRequester(infra.SegChangesIdReply, infra.None).Notify(ctx, pld, a)
@@ -359,7 +359,7 @@ func (m *Messenger) SendSegChangesIdReply(ctx context.Context,
 func (m *Messenger) GetSegChanges(ctx context.Context, msg *path_mgmt.SegChangesReq,
 	a net.Addr, id uint64) (*path_mgmt.SegChangesReply, error) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -394,7 +394,7 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify",
 		"type", infra.SegChangesReply, "to", a, "id", id)
 	return m.getRequester(infra.SegChangesReply, infra.None).Notify(ctx, pld, a)
@@ -403,7 +403,7 @@ func (m *Messenger) SendSegChangesReply(ctx context.Context,
 func (m *Messenger) RequestChainIssue(ctx context.Context, msg *cert_mgmt.ChainIssReq, a net.Addr,
 	id uint64) (*cert_mgmt.ChainIssRep, error) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
 	if err != nil {
 		return nil, err
@@ -435,7 +435,7 @@ func (m *Messenger) SendChainIssueReply(ctx context.Context, msg *cert_mgmt.Chai
 	if err != nil {
 		return err
 	}
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.ChainIssueReply, "to", a, "id", id)
 	return m.getRequester(infra.ChainIssueReply, infra.None).Notify(ctx, pld, a)
 }
@@ -498,7 +498,7 @@ func (m *Messenger) ListenAndServe() {
 			serveCancelF()
 			continue
 		}
-		m.serve(log.AttachLogger(serveCtx, logger), serveCancelF, pld, signedPld, address)
+		m.serve(log.CtxWith(serveCtx, logger), serveCancelF, pld, signedPld, address)
 	}
 }
 
@@ -525,7 +525,7 @@ func (m *Messenger) verifySignedPld(ctx context.Context, signedPld *ctrl.SignedP
 func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *ctrl.Pld,
 	signedPld *ctrl.SignedPld, address net.Addr) {
 
-	logger := log.GetLogger(ctx)
+	logger := log.FromCtx(ctx)
 	// Validate that the message is of acceptable type, and that its top-level
 	// signature is correct.
 	msgType, msg, err := m.validate(pld)
@@ -548,7 +548,7 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 		defer log.LogPanicAndExit()
 		defer cancelF()
 		handler.Handle(
-			infra.NewRequest(log.AttachLogger(ctx, logger), msg, signedPld, address, pld.ReqId))
+			infra.NewRequest(log.CtxWith(ctx, logger), msg, signedPld, address, pld.ReqId))
 	}()
 }
 
