@@ -109,7 +109,7 @@ func TestTRCGetAll(t *testing.T) {
 func insertTRCFromFile(t *testing.T, ctx context.Context, fName string, db *DB) *trc.TRC {
 	trcobj, err := trc.TRCFromFile(fName, false)
 	xtest.FailOnErr(t, err)
-	_, err = db.InsertTRC(trcobj)
+	_, err = db.InsertTRC(ctx, trcobj)
 	xtest.FailOnErr(t, err)
 	return trcobj
 }
@@ -292,7 +292,7 @@ func TestChainGetAll(t *testing.T) {
 func insertChainFromFile(t *testing.T, ctx context.Context, fName string, db *DB) *cert.Chain {
 	chain, err := cert.ChainFromFile(fName, false)
 	xtest.FailOnErr(t, err)
-	_, err = db.InsertChain(chain)
+	_, err = db.InsertChain(ctx, chain)
 	xtest.FailOnErr(t, err)
 	return chain
 }
