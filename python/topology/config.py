@@ -17,7 +17,6 @@
 =============================================
 """
 # Stdlib
-import argparse
 import base64
 import configparser
 import logging
@@ -39,10 +38,8 @@ from lib.crypto.util import (
 from lib.defines import (
     AS_CONF_FILE,
     DEFAULT_MTU,
-    DEFAULT_SEGMENT_TTL,
     DEFAULT6_NETWORK,
     DEFAULT6_PRIV_NETWORK,
-    GEN_PATH,
     NETWORKS_FILE,
     PATH_POLICY_FILE,
     PRV_NETWORKS_FILE,
@@ -80,39 +77,7 @@ GENERATE_BIND_ADDRESS = False
 
 
 class ConfigGenArgs(ArgsBase):
-
-    @classmethod
-    def create_parser(cls):
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-6', '--ipv6', action='store_true',
-                            help='Generate IPv6 addresses')
-        parser.add_argument('-c', '--topo-config', default=DEFAULT_TOPOLOGY_FILE,
-                            help='Default topology config')
-        parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
-                            help='Path policy file')
-        parser.add_argument('-m', '--mininet', action='store_true',
-                            help='Use Mininet to create a virtual network topology')
-        parser.add_argument('-d', '--docker', action='store_true',
-                            help='Create a docker-compose configuration')
-        parser.add_argument('-n', '--network',
-                            help='Network to create subnets in (E.g. "127.0.0.0/8"')
-        parser.add_argument('-o', '--output-dir', default=GEN_PATH,
-                            help='Output directory')
-        parser.add_argument('-z', '--zk-config', default=DEFAULT_ZK_CONFIG,
-                            help='Zookeeper configuration file')
-        parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
-                            help='Generate bind addresses (E.g. "192.168.0.0/16"')
-        parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
-                            help='Path segment TTL (in seconds)')
-        parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,
-                            help='Certificate Server implementation to use ("go" or "py")')
-        parser.add_argument('-sd', '--sciond', default=DEFAULT_SCIOND,
-                            help='SCIOND implementation to use ("go" or "py")')
-        parser.add_argument('-ps', '--path-server', default=DEFAULT_PATH_SERVER,
-                            help='Path Server implementation to use ("go or "py")')
-        parser.add_argument('-ds', '--discovery', action='store_true',
-                            help='Generate discovery service')
-        return parser
+    pass
 
 
 class ConfigGenerator(object):
@@ -126,15 +91,15 @@ class ConfigGenerator(object):
         :param ConfigGenArgs args: Contains the passed command line arguments.
         """
         self.args = args
-        self.topo_config = load_yaml_file(args.topo_config)
+        self.topo_config = load_yaml_file(self.args.topo_config)
         self.zk_config = load_yaml_file(self.args.zk_config)
         if self.args.docker and self.args.mininet:
             logging.critical("Cannot use mininet with docker!")
             sys.exit(1)
         self.default_mtu = None
-        self._read_defaults(args.network)
+        self._read_defaults(self.args.network)
         self.port_gen = PortGenerator()
-        if self.args.docker and self.args.cert_server is not DEFAULT_CERTIFICATE_SERVER:
+        if self.args.docker and (self.args.cert_server != DEFAULT_CERTIFICATE_SERVER):
             logging.critical("Cannot use non-default CS with docker!")
             sys.exit(1)
 
@@ -305,7 +270,7 @@ class ConfigGenerator(object):
         return {
             'RegisterTime': 5,
             'PropagateTime': 5,
-            'CertChainVersion': 0,
+            'CertChainVersion': 1,
             # FIXME(kormat): This seems to always be true..:
             'RegisterPath': True if as_topo["PathService"] else False,
             'PathSegmentTTL': self.args.pseg_ttl,

@@ -54,7 +54,8 @@ ZOOKEEPER_ADDR = "172.18.0.1"
 
 
 class TopoGenArgs(ArgsBase):
-    def __init__(self, args, topo_config, zk_config, subnet_gen, privnet_gen, default_mtu, port_gen):
+    def __init__(self, args, topo_config, zk_config, subnet_gen,
+                 privnet_gen, default_mtu, port_gen):
         """
         :param ArgsBase args: Contains the passed command line arguments.
         :param dict topo_config: The parsed topology config.
