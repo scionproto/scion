@@ -113,16 +113,16 @@ func recvPkts() {
 		now := time.Now()
 		err = hpkt.ParseScnPkt(pkt, b[:pktLen])
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse error: %v\n", err)
-			break
+			fmt.Fprintf(os.Stderr, "ERROR: SCION packet parse: %v\n", err)
+			continue
 		}
 		// Validate packet
 		var scmpHdr *scmp.Hdr
 		var info *scmp.InfoEcho
 		scmpHdr, info, err = validate(pkt)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation error: %v\n", err)
-			break
+			fmt.Fprintf(os.Stderr, "ERROR: SCMP validation: %v\n", err)
+			continue
 		}
 		cmn.Stats.Recv += 1
 		if info.Seq > recvSeq {
@@ -155,20 +155,21 @@ func summary() {
 }
 
 func validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.InfoEcho, error) {
-	scmpHdr, ok := pkt.L4.(*scmp.Hdr)
-	if !ok {
-		return nil, nil,
-			common.NewBasicError("Not an SCMP header", nil, "type", common.TypeOf(pkt.L4))
-	}
-	scmpPld, ok := pkt.Pld.(*scmp.Payload)
-	if !ok {
-		return nil, nil,
-			common.NewBasicError("Not an SCMP payload", nil, "type", common.TypeOf(pkt.Pld))
+	scmpHdr, scmpPld, err := cmn.Validate(pkt)
+	if err != nil {
+		if scmpPld != nil && len(scmpPld.L4Hdr) > 0 {
+			// XXX Special case where the L4Hdr quote contains the Meta and Info fields
+			info, e := scmp.InfoEchoFromRaw(scmpPld.L4Hdr[scmp.HdrLen+scmp.MetaLen:])
+			if e == nil {
+				return nil, nil, common.NewBasicError("", err, "scmp_seq", info.Seq)
+			}
+		}
+		return nil, nil, err
 	}
 	info, ok := scmpPld.Info.(*scmp.InfoEcho)
 	if !ok {
 		return nil, nil,
-			common.NewBasicError("Not an Info Echo", nil, "type", common.TypeOf(info))
+			common.NewBasicError("Not an Info Echo", nil, "type", common.TypeOf(scmpPld.Info))
 	}
 	if info.Id != id {
 		return nil, nil,

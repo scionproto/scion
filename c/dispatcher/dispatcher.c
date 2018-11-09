@@ -1034,11 +1034,11 @@ void deliver_scmp_reply(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *fro
     HASH_FIND(hh, ping_list, &id, sizeof(id), e);
     if (e != NULL) {
         zlog_debug(zc, "SCMP %s reply (%" PRIx64 ") entry found",
-                scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
+                scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
         deliver_data(e->sock, from, buf, len);
     } else {
         zlog_warn(zc, "SCMP %s reply (%" PRIx64 ") entry not found",
-                scmp_ct_to_str(strbuf, scmp->class_, scmp->type), be64toh(id));
+                scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
     }
     free(pld);
 }
@@ -1057,33 +1057,52 @@ void deliver_scmp(uint8_t *buf, SCMPL4Header *scmp, int len, HostAddr *from)
         goto cleanup;
     }
 
+    int sock;
     Entry *e;
-    L4Key key;
+    L4Key key = { 0 };
     char isd_as_str[MAX_ISD_AS_STR];
-    memset(&key, 0, sizeof(key));
-    key.isd_as = be64toh(*(isdas_t *)(pld->addr + ISD_AS_LEN));
-    memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr), get_src_len((uint8_t * )pld->cmnhdr));
+    PingEntry *pe;
+    uint64_t id;
+    char strbuf[MAX_SCMP_CLASS_TYPE_STR] = { 0 };
     switch (pld->meta->l4_proto) {
-        case L4_UDP:
-            /* Find src info in payload */
-            key.port = ntohs(*(uint16_t *)(pld->l4hdr));
-            HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
-            if (!e) {
-                format_isd_as(isd_as_str, MAX_ISD_AS_STR, key.isd_as);
-                zlog_info(zc, "SCMP entry for %s %s:%d not found", isd_as_str,
-                        addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
-                goto cleanup;
-            }
-            zlog_debug(zc, "SCMP entry for %s %s:%d found",
-                    format_isd_as(isd_as_str, MAX_ISD_AS_STR, key.isd_as),
+    case L4_UDP:
+        key.isd_as = be64toh(*(isdas_t *)(pld->addr + ISD_AS_LEN));
+        memcpy(key.host, get_src_addr((uint8_t * )pld->cmnhdr),
+                get_src_len((uint8_t * )pld->cmnhdr));
+        /* Find src info in payload */
+        key.port = ntohs(*(uint16_t *)(pld->l4hdr));
+        HASH_FIND(hh, udp_port_list, &key, sizeof(key), e);
+        if (!e) {
+            format_isd_as(isd_as_str, MAX_ISD_AS_STR, key.isd_as);
+            zlog_warn(zc, "SCMP entry for %s %s:%d not found", isd_as_str,
                     addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
-            break;
-        default:
-            zlog_error(zc, "SCMP not supported for protocol %d", pld->meta->l4_proto);
             goto cleanup;
+        }
+        zlog_debug(zc, "SCMP entry for %s %s:%d found",
+                format_isd_as(isd_as_str, MAX_ISD_AS_STR, key.isd_as),
+                addr_to_str(key.host, DST_TYPE((SCIONCommonHeader *)buf), NULL), key.port);
+        sock = e->sock;
+        break;
+    case L4_SCMP:
+        // XXX This is a special case where the L4 header quote also contains the Meta and Info
+        // fields of the original SCMP packet, where the ID is always the first 8B of the Info.
+        id = *((uint64_t *)(pld->l4hdr + sizeof(SCMPL4Header) + sizeof(SCMPMetaHeader)));
+        HASH_FIND(hh, ping_list, &id, sizeof(id), pe);
+        if (!pe) {
+            zlog_warn(zc, "SCMP %s reply (%" PRIx64 ") entry not found",
+                    scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
+            goto cleanup;
+        }
+        zlog_debug(zc, "SCMP %s reply (%" PRIx64 ") entry found",
+                scmp_ct_to_str(strbuf, ntohs(scmp->class_), ntohs(scmp->type)), be64toh(id));
+        sock = pe->sock;
+        break;
+    default:
+        zlog_error(zc, "SCMP not supported for protocol %d", pld->meta->l4_proto);
+        goto cleanup;
     }
 
-    deliver_data(e->sock, from, buf, len);
+    deliver_data(sock, from, buf, len);
 cleanup:
     free(pld);
 }
@@ -1111,7 +1130,7 @@ void add_scmp_entry(SCMPL4Header *scmp, int sock)
         e->id = id;
         e->sock = sock;
         HASH_ADD(hh, ping_list, id, sizeof(id), e);
-        zlog_debug(zc, "SCMP entry added: sock=%d, id=%" PRIx64, sock, id);
+        zlog_debug(zc, "SCMP entry added: sock=%d, id=%" PRIx64, sock, be64toh(id));
     } else if (e->sock != sock) {
         zlog_error(zc, "failed adding SCMP echo mapping. ID %" PRIx64 " already in use.", be64toh(id));
     }

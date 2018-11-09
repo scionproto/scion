@@ -329,7 +329,14 @@ func (rp *RtrPkt) GetRaw(blk scmp.RawBlock) common.RawBytes {
 	case scmp.RawExtHdrs:
 		return rp.Raw[rp.CmnHdr.HdrLenBytes():l4Off]
 	case scmp.RawL4Hdr:
-		return rp.Raw[l4Off:pldOff]
+		end := pldOff
+		if _, ok := rp.l4.(*scmp.Hdr); ok {
+			// XXX Special case, add SCMP info as part of the L4
+			if meta, err := scmp.MetaFromRaw(rp.Raw[rp.idxs.pld:]); err == nil {
+				end += int(scmp.MetaLen + (meta.InfoLen * common.LineLen))
+			}
+		}
+		return rp.Raw[rp.idxs.l4:end]
 	}
 	rp.Crit("Invalid raw block requested", "blk", blk)
 	return nil

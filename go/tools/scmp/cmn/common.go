@@ -27,6 +27,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -173,6 +174,39 @@ func NextHopAddr() net.Addr {
 		nhAddr = Remote.NextHop
 	}
 	return nhAddr
+}
+
+func Validate(pkt *spkt.ScnPkt) (*scmp.Hdr, *scmp.Payload, error) {
+	scmpHdr, ok := pkt.L4.(*scmp.Hdr)
+	if !ok {
+		return nil, nil,
+			common.NewBasicError("Not an SCMP header", nil, "type", common.TypeOf(pkt.L4))
+	}
+	scmpPld, ok := pkt.Pld.(*scmp.Payload)
+	if !ok {
+		return scmpHdr, nil,
+			common.NewBasicError("Not an SCMP payload", nil, "type", common.TypeOf(pkt.Pld))
+	}
+	if scmpHdr.Class != scmp.C_Path || scmpHdr.Type != scmp.T_P_RevokedIF {
+		return scmpHdr, scmpPld, nil
+	}
+	// Handle revocation
+	infoRev, ok := scmpPld.Info.(*scmp.InfoRevocation)
+	if !ok {
+		return scmpHdr, scmpPld,
+			common.NewBasicError("Failed to parse SCMP revocation Info", nil)
+	}
+	signedRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(infoRev.RawSRev)
+	if err != nil {
+		return scmpHdr, scmpPld,
+			common.NewBasicError("Failed to decode SCMP signed revocation Info", nil)
+	}
+	ri, err := signedRevInfo.RevInfo()
+	if err != nil {
+		return scmpHdr, scmpPld,
+			common.NewBasicError("Failed to decode SCMP revocation Info", nil)
+	}
+	return scmpHdr, scmpPld, common.NewBasicError("", nil, "Revocation", ri)
 }
 
 func Rand() uint64 {

@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -37,7 +37,8 @@ var (
 	sciondPath   = flag.String("sciond", "", "Path to sciond socket")
 	dispatcher   = flag.String("dispatcher", reliable.DefaultDispPath, "Path to dispatcher socket")
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
-	pathRes      *pathmgr.PR
+	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
+	sdConn       sciond.Connector
 )
 
 func main() {
@@ -55,11 +56,13 @@ func main() {
 	} else if *sciondPath == "" {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
-	pathRes, err = pathmgr.New(sciond.NewService(*sciondPath), &pathmgr.Timers{}, nil)
+	// Connect to sciond
+	sd := sciond.NewService(*sciondPath)
+	sdConn, err = sd.ConnectTimeout(1 * time.Second)
 	if err != nil {
-		cmn.Fatal("Unable to initialize pathmgr\nerr=%v", err)
+		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
 	}
-	// Connect directly to the dispatcher
+	// Connect to the dispatcher
 	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host, cmn.Bind.Host,
 		addr.SvcNone)
 	if err != nil {
@@ -101,17 +104,19 @@ func doCommand(cmd string) int {
 	return 0
 }
 
-func choosePath() *sciond.PathReplyEntry {
-	var paths []*sciond.PathReplyEntry
-	var pathIndex uint64
-
-	pathSet := pathRes.Query(cmn.Local.IA, cmn.Remote.IA)
-
-	if len(pathSet) == 0 {
-		return nil
+func choosePath() sciond.PathReplyEntry {
+	reply, err := sdConn.Paths(cmn.Remote.IA, cmn.Local.IA, 0,
+		sciond.PathReqFlags{Refresh: *refresh})
+	if err != nil {
+		cmn.Fatal("Failed to retrieve paths from SCIOND: %v\n", err)
 	}
-	for _, p := range pathSet {
-		paths = append(paths, p.Entry)
+	if reply.ErrorCode != sciond.ErrorOk {
+		cmn.Fatal("SCIOND unable to retrieve paths: %s\n", reply.ErrorCode)
+	}
+	var pathIndex uint64
+	paths := reply.Entries
+	if len(paths) == 0 {
+		cmn.Fatal("No paths available to remote destination")
 	}
 	if cmn.Interactive {
 		fmt.Printf("Available paths to %v\n", cmn.Remote.IA)
@@ -135,10 +140,8 @@ func choosePath() *sciond.PathReplyEntry {
 }
 
 func setPathAndMtu() uint16 {
-	cmn.PathEntry = choosePath()
-	if cmn.PathEntry == nil {
-		cmn.Fatal("No paths available to remote destination")
-	}
+	path := choosePath()
+	cmn.PathEntry = &path
 	cmn.Remote.Path = spath.New(cmn.PathEntry.Path.FwdPath)
 	cmn.Remote.Path.InitOffsets()
 	cmn.Remote.NextHop, _ = cmn.PathEntry.HostInfo.Overlay()
@@ -147,12 +150,7 @@ func setPathAndMtu() uint16 {
 
 func setLocalMtu() uint16 {
 	// Use local AS MTU when we have no path
-	sd := pathRes.Sciond()
-	c, err := sd.Connect()
-	if err != nil {
-		cmn.Fatal("Unable to connect to sciond")
-	}
-	reply, err := c.ASInfo(addr.IA{})
+	reply, err := sdConn.ASInfo(addr.IA{})
 	if err != nil {
 		cmn.Fatal("Unable to request AS info to sciond")
 	}
