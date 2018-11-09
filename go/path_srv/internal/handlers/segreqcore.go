@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/path_srv/internal/addrutil"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -44,52 +45,56 @@ func NewSegReqCoreHandler(args HandlerArgs, segsDeduper dedupe.Deduper) infra.Ha
 				segsDeduper: segsDeduper,
 			},
 		}
-		handler.Handle()
+		metrics.RunHandle(metrics.SegReq, handler.Handle)
 	}
 	return infra.HandlerFunc(f)
 }
 
-func (h *segReqCoreHandler) Handle() {
+func (h *segReqCoreHandler) Handle() metrics.Status {
 	logger := log.FromCtx(h.request.Context())
 	segReq, ok := h.request.Message.(*path_mgmt.SegReq)
 	if !ok {
-		logger.Error("[segReqCoreHandler] wrong message type, expected path_mgmt.SegReq",
+		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return
+		return metrics.Error
 	}
-	logger.Debug("[segReqCoreHandler] Received", "segReq", segReq)
+	logger.Debug("[segReqHandler] Received", "segReq", segReq)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
-		logger.Warn("[segReqCoreHandler] Unable to service request, no Messenger found")
-		return
+		logger.Warn("[segReqHandler] Unable to service request, no Messenger found")
+		return metrics.Error
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	if !h.isValidDst(segReq) {
-		h.sendEmptySegReply(subCtx, segReq, msger)
-		return
+		return metrics.Invalid
 	}
-	h.handleReq(subCtx, msger, segReq)
+	dstISDLocal := segReq.DstIA().I == h.localIA.I
+	if dstISDLocal && segReq.DstIA().A == 0 {
+		logger.Warn("[segReqHandler] Invalid dst (local AS 0)", "dst", segReq.DstIA())
+		h.sendEmptySegReply(subCtx, segReq, msger)
+		return metrics.Invalid
+	}
+	if err := h.handle(subCtx, segReq, msger); err != nil {
+		logger.Error("[segReqHandler] Failed to process request", "err", err)
+		h.sendEmptySegReply(subCtx, segReq, msger)
+		return metrics.Error
+	}
+	// TODO(lukedirtwalker): Find out whether we hit the cache or not.
+	return metrics.Ok
 }
 
-func (h *segReqCoreHandler) handleReq(ctx context.Context,
-	msger infra.Messenger, segReq *path_mgmt.SegReq) {
+func (h *segReqCoreHandler) handle(ctx context.Context,
+	segReq *path_mgmt.SegReq, msger infra.Messenger) error {
 
 	logger := log.FromCtx(ctx)
 	dstISDLocal := segReq.DstIA().I == h.localIA.I
-	if dstISDLocal && segReq.DstIA().A == 0 {
-		h.sendEmptySegReply(ctx, segReq, msger)
-		return
-	}
 	dstCore, err := h.isCoreDst(ctx, msger, segReq)
 	if err != nil {
-		logger.Error("[segReqCoreHandler] Failed to determine dest type", "err", err)
-		h.sendEmptySegReply(ctx, segReq, msger)
-		return
+		return common.NewBasicError("Failed to determine dest type", err)
 	}
 	if dstCore {
-		h.handleCoreDst(ctx, msger, segReq)
-		return
+		return h.handleCoreDst(ctx, msger, segReq)
 	}
 	var downSegs seg.Segments
 	if dstISDLocal || segReq.Flags.CacheOnly {
@@ -98,14 +103,10 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 		downSegs, err = h.fetchDownSegsFromRemoteCore(ctx, msger, segReq.DstIA())
 	}
 	if err != nil {
-		logger.Error("Failed to fetch down segments", "err", err)
-		h.sendEmptySegReply(ctx, segReq, msger)
-		return
+		return common.NewBasicError("Failed to fetch down segments", err)
 	}
 	if len(downSegs) == 0 {
-		logger.Debug("[segReqCoreHandler] no down segs found")
-		h.sendEmptySegReply(ctx, segReq, msger)
-		return
+		return common.NewBasicError("No down segs found", nil)
 	}
 	var coreSegs []*seg.PathSegment
 	// if request came from same AS also return core segs, to start of down segs.
@@ -123,9 +124,7 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 			retry := len(ias) == len(downIAs) && !segReq.Flags.CacheOnly
 			coreSegs, err = h.fetchCoreSegsFromDB(ctx, downIAs, retry)
 			if err != nil {
-				logger.Error("[segReqCoreHandler] Failed to find core segs", "err", err)
-				h.sendEmptySegReply(ctx, segReq, msger)
-				return
+				return common.NewBasicError("Failed to find core segs", err)
 			}
 		}
 		// Remove disconnected down segs.
@@ -138,21 +137,22 @@ func (h *segReqCoreHandler) handleReq(ctx context.Context,
 			return coreExists
 		})
 	}
-	logger.Debug("[segReqCoreHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
+	logger.Debug("[segReqHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, downSegs, segReq)
+	return nil
 }
 
 func (h *segReqCoreHandler) handleCoreDst(ctx context.Context,
-	msger infra.Messenger, segReq *path_mgmt.SegReq) {
+	msger infra.Messenger, segReq *path_mgmt.SegReq) error {
 
 	logger := log.FromCtx(ctx)
 	coreSegs, err := h.fetchCoreSegsFromDB(ctx, []addr.IA{segReq.DstIA()}, !segReq.Flags.CacheOnly)
 	if err != nil {
-		logger.Error("Failed to find core segs", "err", err)
-		return
+		return common.NewBasicError("Failed to find core segs", err)
 	}
 	logger.Debug("[segReqHandler:handleCoreDst] found segs", "core", len(coreSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, nil, segReq)
+	return nil
 }
 
 func (h *segReqCoreHandler) fetchCoreSegsFromDB(ctx context.Context,

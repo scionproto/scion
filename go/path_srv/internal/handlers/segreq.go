@@ -147,7 +147,7 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 		// TODO(lukedirtwalker): If we didn't receive anything we should retry earlier.
 		if _, err := h.pathDB.InsertNextQuery(ctx, dst,
 			queryTime.Add(h.config.QueryInterval.Duration)); err != nil {
-			logger.Warn("Failed to insert last queried", "err", err)
+			logger.Warn("[segReqHandler] Failed to insert last queried", "err", err)
 		}
 	}
 	return nil
@@ -174,7 +174,7 @@ func (h *segReqHandler) getSegsFromNetwork(ctx context.Context,
 }
 
 func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
-	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) {
+	upSegs, coreSegs, downSegs []*seg.PathSegment, segReq *path_mgmt.SegReq) error {
 
 	logger := log.FromCtx(ctx)
 	revs, err := segutil.RelevantRevInfos(ctx, h.revCache, upSegs, coreSegs, downSegs)
@@ -190,11 +190,7 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 		Req:  segReq,
 		Recs: recs,
 	}
-	err = msger.SendSegReply(ctx, reply, h.request.Peer, h.request.ID)
-	if err != nil {
-		logger.Error("[segReqHandler] Failed to send reply!", "err", err)
-	}
-	logger.Debug("[segReqHandler] reply sent", "id", h.request.ID)
+	return msger.SendSegReply(ctx, reply, h.request.Peer, h.request.ID)
 }
 
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {

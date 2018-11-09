@@ -13,7 +13,9 @@
 # limitations under the License.
 
 # Stdlib
+import logging
 import os
+import sys
 
 # SCION
 from lib.packet.scion_addr import ISD_AS
@@ -27,6 +29,13 @@ SCION_SERVICE_NAMES = (
     "PathService",
     "DiscoveryService",
 )
+
+# Ports according to https://github.com/scionproto/scion/wiki/Default-port-ranges
+MONITORING_PORTS = {
+    'BeaconService': 30452,
+    'PathService': 30453,
+    'CertificateService': 30454,
+}
 
 
 class ArgsBase:
@@ -90,6 +99,16 @@ def _prom_addr_infra(infra_id, infra_ele, port_gen):
     """Get the prometheus address for an infrastructure element."""
     pub = _get_pub(infra_ele['Addrs'])
     return "[%s]:%s" % (pub['Public']['Addr'].ip, port_gen.register(infra_id + "prom"))
+
+
+def _prom_addr_infra_std(infra_id, infra_ele, infra_type):
+    """Get the prometheus address for an infrastructure element."""
+    port = MONITORING_PORTS[infra_type]
+    if not port:
+        logging.critical('Invalid infra type: %s' % infra_type)
+        sys.exit(1)
+    pub = _get_pub(infra_ele['Addrs'])
+    return "[%s]:%s" % (pub['Public']['Addr'].ip, port)
 
 
 def _get_pub(topo_addr):

@@ -576,6 +576,7 @@ func (store *Store) NewTRCReqHandler(recurse bool) infra.Handler {
 			store:   store,
 			recurse: recurse,
 		}
+		IncCntr(TRCRequests)
 		handler.Handle()
 	}
 	return infra.HandlerFunc(f)
@@ -593,6 +594,7 @@ func (store *Store) NewChainReqHandler(recurse bool) infra.Handler {
 			store:   store,
 			recurse: recurse,
 		}
+		IncCntr(ChainRequests)
 		handler.Handle()
 	}
 	return infra.HandlerFunc(f)

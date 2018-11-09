@@ -46,10 +46,10 @@ var (
 	FramesDuplicated   prometheus.Counter
 )
 
-// Version number of loaded config, atomic
+// ConfigVersion is the version number of loaded config, atomic.
 var ConfigVersion uint64
 
-// Ensure all metrics are registered.
+// Init ensures all metrics are registered.
 func Init(elem string) {
 	namespace := "sig"
 	constLabels := prometheus.Labels{"elem": elem}

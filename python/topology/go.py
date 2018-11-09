@@ -24,7 +24,7 @@ import toml
 from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.util import write_file
-from topology.common import ArgsTopoDicts, COMMON_DIR
+from topology.common import _prom_addr_infra_std, ArgsTopoDicts, COMMON_DIR
 
 
 class GoGenArgs(ArgsTopoDicts):
@@ -43,15 +43,16 @@ class GoGenerator(object):
 
     def generate_ps(self):
         for topo_id, topo in self.args.topo_dicts.items():
-            for k, v in topo.get("PathService", {}).items():
+            for elem_id, elem in topo.get("PathService", {}).items():
                 # only a single Go-PS per AS is currently supported
-                if k.endswith("-1"):
+                if elem_id.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
-                    ps_conf = self._build_ps_conf(topo_id, topo["ISD_AS"], base, k)
-                    write_file(os.path.join(base, k, "psconfig.toml"), toml.dumps(ps_conf))
+                    ps_conf = self._build_ps_conf(topo_id, topo["ISD_AS"], base, elem_id, elem)
+                    write_file(os.path.join(base, elem_id, "psconfig.toml"), toml.dumps(ps_conf))
 
-    def _build_ps_conf(self, topo_id, ia, base, name):
+    def _build_ps_conf(self, topo_id, ia, base, name, elem):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        prom_addr = _prom_addr_infra_std(name, elem, 'PathService')
         raw_entry = {
             'general': {
                 'ID': name,
@@ -81,6 +82,9 @@ class GoGenerator(object):
                 },
                 'SegSync': True,
             },
+            'metrics': {
+                'Prometheus': prom_addr,
+            }
         }
         return raw_entry
 

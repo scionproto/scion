@@ -38,6 +38,7 @@ import (
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
 	"github.com/scionproto/scion/go/proto"
@@ -122,10 +123,14 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
-	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
-	// and cert requests.
-	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
+	setupMetrics()
+	core := topo.Core
+	if core {
+		msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
+		// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need
+		// to handle TRC and cert requests.
+		msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
+	}
 	args := handlers.HandlerArgs{
 		PathDB:     pathDB,
 		RevCache:   revCache,
@@ -133,7 +138,6 @@ func realMain() int {
 		Config:     config.PS,
 		IA:         topo.ISD_AS,
 	}
-	core := topo.Core
 	var segReqHandler infra.Handler
 	deduper := handlers.NewGetSegsDeduper(msger)
 	if core {
@@ -204,4 +208,9 @@ func setup() error {
 	environment = infraenv.InitInfraEnvironment(config.General.TopologyPath)
 	config.PS.InitDefaults()
 	return nil
+}
+
+func setupMetrics() {
+	trust.InitMetrics(metrics.Namespace, config.General.ID)
+	metrics.InitMetrics(config.General.ID)
 }
