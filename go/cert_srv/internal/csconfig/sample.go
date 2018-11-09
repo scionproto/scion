@@ -85,5 +85,5 @@ const Sample = `[general]
   ReissueTimeout = "5s"
 
   # Whether automatic reissuing is enabled. Default is false.
-  # AutomaticRenewal = false
+  AutomaticRenewal = false
 `

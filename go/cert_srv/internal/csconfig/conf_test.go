@@ -31,12 +31,14 @@ type TestConfig struct {
 	Metrics env.Metrics
 	Infra   env.Infra
 	Trust   env.Trust
-	CS      *Conf
+	CS      Conf
 }
 
 func TestSampleCorrect(t *testing.T) {
 	Convey("Load", t, func() {
 		var cfg TestConfig
+		// Make sure AutomaticRenweal is set during decoding.
+		cfg.CS.AutomaticRenewal = true
 		_, err := toml.Decode(Sample, &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
