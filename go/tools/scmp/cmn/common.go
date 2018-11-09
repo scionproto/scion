@@ -185,7 +185,7 @@ func UpdatePktTS(pkt *spkt.ScnPkt, ts time.Time) {
 }
 
 func Fatal(msg string, a ...interface{}) {
-	fmt.Printf("CRIT: "+msg+"\n", a...)
+	fmt.Fprintf(os.Stderr, "CRIT: "+msg+"\n", a...)
 	os.Exit(1)
 }
 
