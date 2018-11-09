@@ -1,8 +1,8 @@
 - wait
 - label: Build app images
   command:
-    - make -C docker/perapp
     - mkdir docker/_build && touch docker/_build/scion.stamp
+    - make -C docker/perapp
   branches: "v*.*.*"
 - wait
 - label: Docker login

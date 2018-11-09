@@ -26,10 +26,9 @@ import (
 )
 
 var (
-	name       = "end2end_integration"
-	cmd        = "./bin/end2end"
-	dockerArgs = []string{"tester", cmd}
-	attempts   = flag.Int("attempts", 1, "Number of attempts before giving up.")
+	name     = "end2end_integration"
+	cmd      = "./bin/end2end"
+	attempts = flag.Int("attempts", 1, "Number of attempts before giving up.")
 )
 
 func main() {
