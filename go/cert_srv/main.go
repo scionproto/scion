@@ -79,7 +79,7 @@ func realMain() int {
 		return 1
 	}
 	// Start the periodic reissuance task.
-	reissRunner = startReissRunner()
+	startReissRunner()
 	// Start the messenger.
 	go func() {
 		defer log.LogPanicAndExit()
@@ -122,17 +122,20 @@ func reload() error {
 	}
 	config.CS = newConf.CS
 	// Restart the periodic reissue task to respect the fresh parameters.
-	reissRunner.Stop()
-	reissRunner = startReissRunner()
+	stopReissRunner()
+	startReissRunner()
 	return nil
 }
 
 // startReissRunner starts a periodic reissuance task. Core starts self-issuer.
 // Non-core starts a requester.
-func startReissRunner() *periodic.Runner {
+func startReissRunner() {
+	if !config.CS.AutomaticRenewal {
+		log.Info("Reissue disabled, not starting reiss task.")
+	}
 	if config.General.Topology.Core {
 		log.Info("Starting periodic reiss.Self task")
-		return periodic.StartPeriodicTask(
+		reissRunner = periodic.StartPeriodicTask(
 			&reiss.Self{
 				Msgr:     msgr,
 				State:    config.state,
@@ -143,9 +146,10 @@ func startReissRunner() *periodic.Runner {
 			time.NewTicker(config.CS.ReissueRate.Duration),
 			config.CS.ReissueTimeout.Duration,
 		)
+		return
 	}
 	log.Info("Starting periodic reiss.Requester task")
-	return periodic.StartPeriodicTask(
+	reissRunner = periodic.StartPeriodicTask(
 		&reiss.Requester{
 			Msgr:     msgr,
 			State:    config.state,
@@ -157,7 +161,13 @@ func startReissRunner() *periodic.Runner {
 	)
 }
 
+func stopReissRunner() {
+	if reissRunner != nil {
+		reissRunner.Stop()
+	}
+}
+
 func stop() {
-	reissRunner.Stop()
+	stopReissRunner()
 	msgr.CloseServer()
 }

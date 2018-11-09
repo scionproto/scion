@@ -3,3 +3,4 @@
   IssuerReissueLeadTime = "2d"
   ReissueRate = "12s"
   ReissueTimeout = "6s"
+  AutomaticRenewal = true
