@@ -47,8 +47,8 @@ type Conf struct {
 	ReissueRate util.DurWrap
 	// ReissueTimeout is the timeout for resissue request.
 	ReissueTimeout util.DurWrap
-	// Reissue whether reissuing is enabled.
-	Reissue bool
+	// AutomaticRenewal whether automatic reissuing is enabled.
+	AutomaticRenewal bool
 }
 
 // Init sets the uninitialized fields.
