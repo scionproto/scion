@@ -130,7 +130,7 @@ func reload() error {
 // startReissRunner starts a periodic reissuance task. Core starts self-issuer.
 // Non-core starts a requester.
 func startReissRunner() {
-	if !config.CS.Reissue {
+	if !config.CS.AutomaticRenewal {
 		log.Info("Reissue disabled, not starting reiss task.")
 	}
 	if config.General.Topology.Core {
