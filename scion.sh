@@ -118,7 +118,9 @@ cmd_stop() {
         python/integration/set_ipv6_addr.py -d
     fi
     for i in /run/shm/{dispatcher,sciond}/; do
-        [ -e "$i" ] && find "$i" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
+        if [ -e "$i" ]; then
+            find "$i" -xdev -mindepth 1 -print0 | xargs -r0 rm -v
+        fi
     done
 }
 
