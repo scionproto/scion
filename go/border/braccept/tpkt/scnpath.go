@@ -11,7 +11,7 @@ import (
 )
 
 // ScnPath contains the scion path (which is raw) and the path definition.
-// It is used to defined hand-crafted paths.
+// It is used to define hand-crafted paths.
 type ScnPath struct {
 	spath.Path
 	Segs Segments
@@ -19,14 +19,21 @@ type ScnPath struct {
 }
 
 // GenPath converts info and hop field indexes to their proper offsets
-func GenPath(infoF, hopF int, segs []*SegDef) *ScnPath {
+func GenPath(infoF, hopF int, segs Segments, hashMac hash.Hash) *ScnPath {
 	p := &ScnPath{}
 	for i := 0; i < infoF-1; i++ {
 		// Each segments consists of one InfoField and N HopFields
 		p.InfOff += spath.InfoFieldLength + int(segs[i].Inf.Hops*spath.HopFieldLength)
 	}
 	p.HopOff = p.InfOff + (hopF * spath.HopFieldLength)
-	p.Segs = segs
+	// Write SCION path
+	p.Raw = make(common.RawBytes, segs.Len())
+	p.Mac = hashMac
+	if _, err := segs.WriteTo(p.Raw, p.Mac); err != nil {
+		return nil
+	}
+	// Parse the raw packet to retrieve hop fields mac
+	p.Parse(p.Raw)
 	return p
 }
 
@@ -34,7 +41,6 @@ func (p *ScnPath) Parse(b []byte) error {
 	if len(b) == 0 || len(b)%common.LineLen != 0 {
 		return fmt.Errorf("Bad path length, actual=%d", len(b))
 	}
-	//p.Raw = b
 	offset := 0
 	for offset < len(b) {
 		seg := &SegDef{}
@@ -74,7 +80,7 @@ func (p *ScnPath) Check(o *ScnPath) error {
 	}
 	for i, _ := range p.Segs {
 		if err := p.Segs[i].Equal(o.Segs[i]); err != nil {
-			return nil
+			return err
 		}
 	}
 	return nil
@@ -200,12 +206,12 @@ func (s *SegDef) segLen() int {
 
 func (s *SegDef) Equal(o *SegDef) error {
 	if s.Inf != o.Inf {
-		return fmt.Errorf("Info Field mismatch\nExpected: %s\nActual:   %s\n", s.Inf, o.Inf)
+		return fmt.Errorf("Info Field mismatch\nExpected: %s\nActual:   %s\n", &s.Inf, &o.Inf)
 	}
 	for i, _ := range s.Hops {
-		if compareHopF(s.Hops[i], o.Hops[i]) {
+		if !compareHopF(s.Hops[i], o.Hops[i]) {
 			return fmt.Errorf("Hop Field mismatch\nExpected: %s\nActual:   %s\n",
-				s.Hops[i], o.Hops[i])
+				&s.Hops[i], &o.Hops[i])
 		}
 	}
 	return nil

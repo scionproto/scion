@@ -1,3 +1,12 @@
+// Package tpkt contains interfaces, types, and methods that i) allow the creation of potentially malformed
+// SCION packets and ii) enable comparison between expected and received SCION packets.
+//
+// We cannot always use the hpkt package here, since it disallows some forms of malformed packets, e.g., by
+// autogenerating the common header from other input.
+//
+// We use the mergo package to easily merge different structs. It does so by setting any unset fields in a
+// struct with the corresponding fields in the struct to be merge in. This enables us to only specify packet
+// diffs between original and expected packets when defining test cases.
 package tpkt
 
 import (
