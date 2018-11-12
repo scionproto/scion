@@ -1,10 +1,11 @@
-package pkti
+package tpkt
 
 import (
 	"bytes"
 	"fmt"
 	"hash"
 	"net"
+	"strings"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -16,10 +17,10 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-// PktInfo is a base structure used to specify packets.
+// Pkt is a base structure used to specify packets.
 // It is not meant to be used stand-alone, but as the base for other types implementing
 // the required interfaces for a test.
-type PktInfo struct {
+type Pkt struct {
 	Dev     string
 	Overlay OverlayLayers
 	CmnHdr  *spkt.CmnHdr
@@ -30,45 +31,24 @@ type PktInfo struct {
 	Pld     common.Payload
 }
 
-func (pi *PktInfo) GetPktInfo() *PktInfo {
-	return pi
+func (pi *Pkt) String() string {
+	var str []string
+	if a := pi.AddrHdr; a != nil {
+		str = append(str, fmt.Sprintf("\t%s,[%s] -> %s,[%s]",
+			a.SrcIA, a.SrcHost, a.DstIA, a.DstHost))
+	}
+	if pi.Path != nil {
+		str = append(str, PrintSegments(pi.Path.Segs, "\t", "\n"))
+	}
+	return strings.Join(str, "\n")
 }
 
-func (pi *PktInfo) GetDev() string {
+func (pi *Pkt) GetDev() string {
 	return pi.Dev
 }
 
-// Merge will use any fields not set in the test by those provided by the passed argument, which
-// can be thought of as a default information.
-// For the common header, it uses the fields set in the packet info test and uses the values from
-// an auto generated common header for unset values.
-func (p *PktInfo) Merge(pi *PktInfo) {
-	if pi != nil {
-		// If not set, use headers from default packet, except the common header
-		if p.Overlay == nil {
-			p.Overlay = pi.Overlay
-		}
-		if p.AddrHdr == nil {
-			p.AddrHdr = pi.AddrHdr
-		}
-		if p.Path == nil {
-			p.Path = pi.Path
-		}
-		if p.Exts == nil {
-			p.Exts = pi.Exts
-		}
-		if p.L4 == nil {
-			p.L4 = pi.L4
-		}
-		if p.Pld == nil {
-			p.Pld = pi.Pld
-		}
-	}
-	p.mergeCmnHdr()
-}
-
 // mergeCmnHdr uses mego package to merge structures.
-func (pi *PktInfo) mergeCmnHdr() error {
+func (pi *Pkt) mergeCmnHdr() error {
 	// Replace all unset values with the values from auto generated common header from packet info
 	cmnHdr := pi.genCmnHdr()
 	if pi.CmnHdr != nil {
@@ -80,7 +60,7 @@ func (pi *PktInfo) mergeCmnHdr() error {
 
 // genCmnHdr generates a full common header section from the other fields.
 // It is mostly used as default values for fields not set in the packet info test description.
-func (pi *PktInfo) genCmnHdr() *spkt.CmnHdr {
+func (pi *Pkt) genCmnHdr() *spkt.CmnHdr {
 	// Generate Common Header
 	addrHdrLen := pi.AddrHdr.Len()
 	pathOff := spkt.CmnHdrLen + addrHdrLen
@@ -109,7 +89,7 @@ func (pi *PktInfo) genCmnHdr() *spkt.CmnHdr {
 	return cmnHdr
 }
 
-func (pi *PktInfo) GetOverlay(dstMac net.HardwareAddr) ([]gopacket.SerializableLayer, error) {
+func (pi *Pkt) GetOverlay(dstMac net.HardwareAddr) ([]gopacket.SerializableLayer, error) {
 	var ethType layers.EthernetType
 	switch pi.Overlay.(type) {
 	case *OverlayIP4UDP:
@@ -128,34 +108,7 @@ func (pi *PktInfo) GetOverlay(dstMac net.HardwareAddr) ([]gopacket.SerializableL
 	return l, nil
 }
 
-func (pi *PktInfo) Match(pkt gopacket.Packet) error {
-	var b common.RawBytes
-	var err error
-
-	// Skip first Layer, Ethernet
-	l := pkt.Layers()[1:]
-	if l, err = pi.Overlay.Check(l); err != nil {
-		return err
-	}
-	if b, err = pi.checkScnHdr(l[0].LayerContents()); err != nil {
-		return err
-	}
-	// TODO Check Extensions
-	// Check L4 and Payload
-	if b, err = pi.checkL4(b); err != nil {
-		return err
-	}
-	if b, err = pi.checkPld(b); err != nil {
-		return err
-	}
-	if len(b) > 0 {
-		return fmt.Errorf("Unexpected traling bytes: %v", b)
-	}
-	// Expected packet matched!
-	return nil
-}
-
-func (pi *PktInfo) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawBytes, error) {
+func (pi *Pkt) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawBytes, error) {
 	pkt := gopacket.NewSerializeBuffer()
 	options := gopacket.SerializeOptions{
 		FixLengths: true,
@@ -193,7 +146,7 @@ func (pi *PktInfo) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawBytes
 	return common.RawBytes(pkt.Bytes()), nil
 }
 
-func (pi *PktInfo) checkScnHdr(b common.RawBytes) (common.RawBytes, error) {
+func (pi *Pkt) checkScnHdr(b common.RawBytes) (common.RawBytes, error) {
 	scnPkt := gopacket.NewPacket(b, LayerTypeScion, gopacket.NoCopy)
 	scn := scnPkt.Layer(LayerTypeScion).(*ScionLayer)
 	if scn == nil {
@@ -212,7 +165,7 @@ func (pi *PktInfo) checkScnHdr(b common.RawBytes) (common.RawBytes, error) {
 	return b[scn.CmnHdr.HdrLenBytes():], nil
 }
 
-func (pi *PktInfo) checkL4(b common.RawBytes) (common.RawBytes, error) {
+func (pi *Pkt) checkL4(b common.RawBytes) (common.RawBytes, error) {
 	if pi.L4 == nil {
 		return b, nil
 	}
@@ -235,7 +188,7 @@ func (pi *PktInfo) checkL4(b common.RawBytes) (common.RawBytes, error) {
 	return b[pi.L4.L4Len():], nil
 }
 
-func (pi *PktInfo) checkPld(b common.RawBytes) (common.RawBytes, error) {
+func (pi *Pkt) checkPld(b common.RawBytes) (common.RawBytes, error) {
 	if pi.Pld == nil {
 		return b, nil
 	}

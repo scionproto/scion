@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"github.com/scionproto/scion/go/border/braccept/pkti"
+	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -32,86 +32,86 @@ var tsNow = uint32(time.Now().Unix())
 
 var (
 	// Core paths between ff00:0:1 <-> ff00:0:2
-	path_2A_1A = pkti.Segments{
+	path_2A_1A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2101}, {ConsIngress: if_1201}}},
 	}
-	path_2A_1A_rev = pkti.Segments{
+	path_2A_1A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1201}, {ConsEgress: if_2101}}},
 	}
-	path_1A_2A = pkti.Segments{
+	path_1A_2A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1201}, {ConsIngress: if_2101}}},
 	}
-	path_1A_2A_rev = pkti.Segments{
+	path_1A_2A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_2101}, {ConsEgress: if_1201}}},
 	}
 	// Core paths between ff00:0:1 <-> ff00:0:3
-	path_3A_1C = pkti.Segments{
+	path_3A_1C = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_3101}, {ConsIngress: if_1301}}},
 	}
-	path_3A_1C_rev = pkti.Segments{
+	path_3A_1C_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1301}, {ConsEgress: if_3101}}},
 	}
-	path_1C_3A = pkti.Segments{
+	path_1C_3A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1301}, {ConsIngress: if_3101}}},
 	}
-	path_1C_3A_rev = pkti.Segments{
+	path_1C_3A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_3101}, {ConsEgress: if_1301}}},
 	}
 	// Core paths between ff00:0:2 <-> ff00:0:3
-	path_2A_1A_1C_3A = pkti.Segments{
+	path_2A_1A_1C_3A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 3},
 			[]spath.HopField{{ConsEgress: if_2101},
 				{ConsIngress: if_1201, ConsEgress: if_1301}, {ConsIngress: if_3101}}},
 	}
-	path_2A_1A_1C_3A_rev = pkti.Segments{
+	path_2A_1A_1C_3A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
 			[]spath.HopField{{ConsIngress: if_3101},
 				{ConsIngress: if_1201, ConsEgress: if_1301}, {ConsEgress: if_2101}}},
 	}
-	path_3A_1C_1A_2A = pkti.Segments{
+	path_3A_1C_1A_2A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 3},
 			[]spath.HopField{{ConsEgress: if_3101},
 				{ConsIngress: if_1301, ConsEgress: if_1201}, {ConsIngress: if_2101}}},
 	}
-	path_3A_1C_1A_2A_rev = pkti.Segments{
+	path_3A_1C_1A_2A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
 			[]spath.HopField{{ConsIngress: if_2101},
 				{ConsIngress: if_1301, ConsEgress: if_1201}, {ConsEgress: if_3101}}},
 	}
 	// Paths between ff00:0:1 <-> ff00:0:4
-	path_1B_4A = pkti.Segments{
+	path_1B_4A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1401}, {ConsIngress: if_4101}}},
 	}
-	path_1B_4A_rev = pkti.Segments{
+	path_1B_4A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_4101}, {ConsEgress: if_1401}}},
 	}
 	// Paths between ff00:0:1 <-> ff00:0:5
-	path_1C_5A = pkti.Segments{
+	path_1C_5A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1501}, {ConsIngress: if_5101}}},
 	}
-	path_1C_5A_rev = pkti.Segments{
+	path_1C_5A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_5101}, {ConsEgress: if_1501}}},
 	}
 	// Paths between ff00:0:2 <-> ff00:0:4
-	path_2A_1A_X_1B_4A = pkti.Segments{
+	path_2A_1A_X_1B_4A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2101}, {ConsIngress: if_1201, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1401}, {ConsIngress: if_4101}}},
 	}
-	path_1B_4A_rev_X_2A_1A_rev = pkti.Segments{
+	path_1B_4A_rev_X_2A_1A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_4101}, {ConsEgress: if_1401, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
@@ -119,13 +119,13 @@ var (
 	}
 	// Paths between ff00:0:2 <-> ff00:0:5
 	// XXX Do we want all the possible paths between ff00:0:2 and ff00:0:5?
-	path_2A_1A_X_1C_5A = pkti.Segments{
+	path_2A_1A_X_1C_5A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2101}, {ConsIngress: if_1201, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1501}, {ConsIngress: if_5101}}},
 	}
-	path_2A_1A_X_1C_5A_rev = pkti.Segments{
+	path_2A_1A_X_1C_5A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_5101}, {ConsEgress: if_1501, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
@@ -133,13 +133,13 @@ var (
 	}
 	// Paths between ff00:0:4 <-> ff00:0:5
 	// XXX Do we want all the possible paths between ff00:0:4 and ff00:0:5?
-	path_1B_4A_rev_X_1C_5A = pkti.Segments{
+	path_1B_4A_rev_X_1C_5A = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_4101}, {ConsEgress: if_1401, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1501}, {ConsIngress: if_5101}}},
 	}
-	path_1C_5A_rev_X_1B_4A = pkti.Segments{
+	path_1C_5A_rev_X_1B_4A = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_5101}, {ConsEgress: if_1501, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
@@ -147,27 +147,27 @@ var (
 	}
 	// Bad paths - Xover CORE to CORE
 	// XXX Do we want all the possible bad paths between ff00:0:2 and ff00:0:3?
-	path_2A_1A_X_1C_3A = pkti.Segments{
+	path_2A_1A_X_1C_3A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2101}, {ConsIngress: if_1201, Xover: true}}},
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_1301, Xover: true}, {ConsIngress: if_3101}}},
 	}
-	path_2A_1A_X_1C_3A_rev = pkti.Segments{
+	path_2A_1A_X_1C_3A_rev = tpkt.Segments{
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_3101}, {ConsEgress: if_1301, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1201, Xover: true}, {ConsEgress: if_2101}}},
 	}
 	// Bad path - Xover DOWN to CORE
-	path_5A_1C_X_1A_2A = pkti.Segments{
+	path_5A_1C_X_1A_2A = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_5101}, {ConsIngress: if_1501, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsIngress: if_1201}, {ConsEgress: if_2101}}},
 	}
 	// Bad path - Xover CORE to UP
-	path_2A_1A_X_5A_1C = pkti.Segments{
+	path_2A_1A_X_5A_1C = tpkt.Segments{
 		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
 			[]spath.HopField{{ConsEgress: if_2101}, {ConsIngress: if_1201, Xover: true}}},
 		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
@@ -178,216 +178,241 @@ var (
 var coreBrATests []*BRTest = []*BRTest{
 	{
 		Desc: "Single IFID core - external - local destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1201",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
-			Path:    pkti.GenPath(1, 2, path_2A_1A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
+			Path:    tpkt.GenPath(1, 2, path_2A_1A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
+				Path:    tpkt.GenPath(1, 2, path_2A_1A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - internal - remote destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_local",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
-			Path:    pkti.GenPath(1, 1, path_1A_2A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
+			Path:    tpkt.GenPath(1, 1, path_1A_2A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_1201",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
-				Path:    pkti.GenPath(1, 2, path_1A_2A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
+				Path:    tpkt.GenPath(1, 2, path_1A_2A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - external - Xover core/child",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1201",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
-			Path:    pkti.GenPath(1, 2, path_2A_1A_X_1C_5A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
+			Path:    tpkt.GenPath(1, 2, path_2A_1A_X_1C_5A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
-				Path:    pkti.GenPath(2, 1, path_2A_1A_X_1C_5A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
+				Path:    tpkt.GenPath(2, 1, path_2A_1A_X_1C_5A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - internal - Xover child/core",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_local",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
-			Path:    pkti.GenPath(2, 1, path_5A_1C_X_1A_2A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
+			Path:    tpkt.GenPath(2, 1, path_5A_1C_X_1A_2A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_1201",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
-				Path:    pkti.GenPath(2, 2, path_5A_1C_X_1A_2A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
+				Path:    tpkt.GenPath(2, 2, path_5A_1C_X_1A_2A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID - external - local destination - hpkt",
-		In: &pkti.HpktInfo{pkti.PktInfo{
+		In: &tpkt.ValidPkt{tpkt.Pkt{
 			Dev:     "ifid_1201",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
-			Path:    pkti.GenPath(1, 2, path_2A_1A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
+			Path:    tpkt.GenPath(1, 2, path_2A_1A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.HpktInfo{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
+				Path:    tpkt.GenPath(1, 2, path_2A_1A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{ // XXX This test currently fail because we received an SCMP back
 		Desc: "Single IFID - external - bad path - Xover core-core",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1201",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1"),
-			Path:    pkti.GenPath(1, 2, path_2A_1A_X_1C_3A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1"),
+			Path:    tpkt.GenPath(1, 2, path_2A_1A_X_1C_3A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{},
+		Out: []tpkt.Matcher{},
 	},
 	{
 		Desc: "Single IFID - external - empty overlay packet",
-		In: &pkti.PktRaw{pkti.PktInfo{
+		In: &tpkt.Raw{tpkt.Pkt{
 			Dev:     "ifid_1201",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
 		}},
-		Out: []pkti.PktMatch{},
+		Out: []tpkt.Matcher{},
 	},
 	{
 		Desc: "Single IFID - external - Bad packet 7 Bytes",
-		In: &pkti.PktRaw{pkti.PktInfo{
+		In: &tpkt.Raw{tpkt.Pkt{
 			Dev:     "ifid_1201",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
 			Pld:     common.RawBytes{1, 2, 3, 4, 5, 6, 7},
 		}},
-		Out: []pkti.PktMatch{},
+		Out: []tpkt.Matcher{},
 	},
 }
 
 var coreBrBTests []*BRTest = []*BRTest{
 	{
 		Desc: "Single IFID core - external - local destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1401",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
-			Path:    pkti.GenPath(1, 2, path_1B_4A_rev),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
+			Path:    tpkt.GenPath(1, 2, path_1B_4A_rev),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.51", 30041},
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.51", 30041},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
+				Path:    tpkt.GenPath(1, 2, path_1B_4A_rev),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - internal - remote destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_local",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.12", 30087},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1"),
-			Path:    pkti.GenPath(1, 1, path_1B_4A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.12", 30087},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1"),
+			Path:    tpkt.GenPath(1, 1, path_1B_4A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_1401",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
-				Path:    pkti.GenPath(1, 2, path_1B_4A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1"),
+				Path:    tpkt.GenPath(1, 2, path_1B_4A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - external - Xover child/child",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1401",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1"),
-			Path:    pkti.GenPath(1, 2, path_1B_4A_rev_X_1C_5A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1"),
+			Path:    tpkt.GenPath(1, 2, path_1B_4A_rev_X_1C_5A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.13", 30087},
-				Path:    pkti.GenPath(2, 1, path_1B_4A_rev_X_1C_5A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.13", 30087},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1"),
+				Path:    tpkt.GenPath(2, 1, path_1B_4A_rev_X_1C_5A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - internal - Xover child/child",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_local",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1"),
-			Path:    pkti.GenPath(2, 1, path_1C_5A_rev_X_1B_4A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1"),
+			Path:    tpkt.GenPath(2, 1, path_1C_5A_rev_X_1B_4A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_1401",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
-				Path:    pkti.GenPath(2, 2, path_1C_5A_rev_X_1B_4A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1"),
+				Path:    tpkt.GenPath(2, 2, path_1C_5A_rev_X_1B_4A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - external - Xover child/core",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1401",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1"),
-			Path:    pkti.GenPath(1, 2, path_1B_4A_rev_X_2A_1A_rev),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1"),
+			Path:    tpkt.GenPath(1, 2, path_1B_4A_rev_X_2A_1A_rev),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.11", 30087},
-				Path:    pkti.GenPath(2, 1, path_1B_4A_rev_X_2A_1A_rev),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.11", 30087},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1"),
+				Path:    tpkt.GenPath(2, 1, path_1B_4A_rev_X_2A_1A_rev),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Single IFID core - internal - Xover core/child",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_local",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.12", 30087},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1"),
-			Path:    pkti.GenPath(2, 1, path_2A_1A_X_1B_4A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.12", 30087},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1"),
+			Path:    tpkt.GenPath(2, 1, path_2A_1A_X_1B_4A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_1401",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
-				Path:    pkti.GenPath(2, 2, path_2A_1A_X_1B_4A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1"),
+				Path:    tpkt.GenPath(2, 2, path_2A_1A_X_1B_4A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
@@ -396,68 +421,77 @@ var coreBrBTests []*BRTest = []*BRTest{
 var coreBrCTests []*BRTest = []*BRTest{
 	{
 		Desc: "Multiple IFIDs - external - local destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1301",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.13.3", 40000, "192.168.13.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:3", "172.16.3.1", "1-ff00:0:1", "192.168.0.51"),
-			Path:    pkti.GenPath(1, 2, path_2A_1A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.13.3", 40000, "192.168.13.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:3", "172.16.3.1", "1-ff00:0:1", "192.168.0.51"),
+			Path:    tpkt.GenPath(1, 2, path_2A_1A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:3", "172.16.3.1", "1-ff00:0:1", "192.168.0.51"),
+				Path:    tpkt.GenPath(1, 2, path_2A_1A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Multiple IFIDs - internal - remote destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_local",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
-			Path:    pkti.GenPath(1, 1, path_1A_2A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
+			Path:    tpkt.GenPath(1, 1, path_1A_2A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_1301",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.13.2", 50000, "192.168.13.3", 40000},
-				Path:    pkti.GenPath(1, 2, path_1A_2A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.13.2", 50000, "192.168.13.3", 40000},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
+				Path:    tpkt.GenPath(1, 2, path_1A_2A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Multiple IFIDs - external - Xover remote destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_1301",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.13.3", 40000, "192.168.13.2", 50000},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
-			Path:    pkti.GenPath(1, 2, path_2A_1A_X_1C_5A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.13.3", 40000, "192.168.13.2", 50000},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
+			Path:    tpkt.GenPath(1, 2, path_2A_1A_X_1C_5A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
-				Path:    pkti.GenPath(2, 1, path_2A_1A_X_1C_5A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
+				Path:    tpkt.GenPath(2, 1, path_2A_1A_X_1C_5A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},
 	{
 		Desc: "Multiple IFIDs - internal - Xover remote destination",
-		In: &pkti.PktGenCmn{pkti.PktInfo{
+		In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
 			Dev:     "ifid_local",
-			Overlay: &pkti.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
-			AddrHdr: pkti.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
-			Path:    pkti.GenPath(2, 1, path_5A_1C_X_1A_2A),
+			Overlay: &tpkt.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
+			AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
+			Path:    tpkt.GenPath(2, 1, path_5A_1C_X_1A_2A),
 			L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 		}},
-		Out: []pkti.PktMatch{
-			&pkti.PktMerge{pkti.PktInfo{
+		Out: []tpkt.Matcher{
+			&tpkt.ValidPkt{tpkt.Pkt{
 				Dev:     "ifid_1301",
-				Overlay: &pkti.OverlayIP4UDP{"192.168.13.2", 50000, "192.168.13.3", 40000},
-				Path:    pkti.GenPath(2, 2, path_5A_1C_X_1A_2A),
+				Overlay: &tpkt.OverlayIP4UDP{"192.168.13.2", 50000, "192.168.13.3", 40000},
+				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
+				Path:    tpkt.GenPath(2, 2, path_5A_1C_X_1A_2A),
+				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
 			}},
 		},
 	},

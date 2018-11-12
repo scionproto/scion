@@ -2,21 +2,20 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/kormat/fmt15"
 
-	"github.com/scionproto/scion/go/border/braccept/pkti"
+	"github.com/scionproto/scion/go/border/braccept/tpkt"
 )
 
 // BRTest defines a single test
 type BRTest struct {
 	Desc string
 	// In is the packet being sent to the border router
-	In pkti.PktGen
+	In tpkt.Packer
 	// Out is the list of expected packets. No expected packets means that the packet
 	// should be dropped by the border router, and nothing is expected.
-	Out []pkti.PktMatch
+	Out []tpkt.Matcher
 }
 
 func (t *BRTest) Summary(testPass bool) string {
@@ -26,17 +25,7 @@ func (t *BRTest) Summary(testPass bool) string {
 	} else {
 		result = fail()
 	}
-	var str []string
-	str = append(str, fmt.Sprintf("Test %s: %s", t.Desc, result))
-	pi := t.In.GetPktInfo()
-	if a := pi.AddrHdr; a != nil {
-		str = append(str, fmt.Sprintf("\t%s,[%s] -> %s,[%s]",
-			a.SrcIA, a.SrcHost, a.DstIA, a.DstHost))
-	}
-	if pi.Path != nil {
-		str = append(str, pkti.PrintSegments(pi.Path.Segs, "\t", "\n"))
-	}
-	return strings.Join(str, "\n")
+	return fmt.Sprintf("Test %s: %s\n%s", t.Desc, result, t.In)
 }
 
 const (

@@ -1,4 +1,4 @@
-package pkti
+package tpkt
 
 import (
 	"fmt"

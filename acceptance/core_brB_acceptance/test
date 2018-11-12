@@ -1,10 +1,10 @@
 #!/bin/bash
 
 BRID=core-brB
-TEST_NAME="${BRID}_acceptance"
+TEST_NAME="core_brB_acceptance"
 PROGRAM=$(basename "$0")
 COMMAND="$1"
-DEVINFO_FN=acceptance/${BRID}_acceptance/devinfo.txt
+DEVINFO_FN=acceptance/${TEST_NAME}/devinfo.txt
 BRUTIL=acceptance/brutil
 
 . $BRUTIL/common.sh
