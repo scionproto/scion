@@ -110,6 +110,8 @@ func (sm *sessMonitor) updateRemote() {
 		currSessPath = currRemote.SessPath
 	}
 	since := time.Since(sm.lastReply)
+
+	var isHealthy bool
 	if since > tout {
 		if currSig != nil {
 			currSig.Fail()
@@ -122,35 +124,54 @@ func (sm *sessMonitor) updateRemote() {
 		currSig = sm.getNewSig(currSig)
 		currSessPath = sm.getNewPath(currSessPath)
 		sm.needUpdate = true
+		isHealthy = false
 	} else {
 		if currSig == nil {
 			// No remote SIG
 			sm.Debug("No remote SIG", "remote", currRemote)
 			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
+			isHealthy = false
 		} else if _, ok := sm.sess.sigMap.Load(currSig.Id); !ok {
 			// Current SIG is no longer listed, need to switch to a new one.
 			sm.Debug("Current SIG invalid", "remote", currRemote)
 			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
+			isHealthy = false
 		}
 		if currSessPath == nil {
 			sm.Debug("No path", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
-		} else if _, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
+			isHealthy = false
+		} else if p, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
 			sm.Debug("Current path invalid", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
+			isHealthy = true
 			// Traffic must no longer be sent on the old path. This implies that the encap
 			// traffic is sent on a path that has not been tested by the session monitor yet.
 			// If the new path is unhealthy, it is changed quickly by the session monitor through
 			// the regular timeout mechanism above.
 			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: currSessPath})
+		} else if currSessPath.PathEntry().Path.Expiry().Before(time.Now().Add(60 * time.Second)) {
+			// TTL is about to expire soon.
+			if p.PathEntry().Path.Expiry().Before(time.Now().Add(60 * time.Second)) {
+				// Updated path is about to expire also, so let's switch to a different path.
+				currSessPath = sm.getNewPath(nil)
+				sm.needUpdate = true
+				isHealthy = false
+
+			} else {
+				// Updated version of the path is going to be valid for some time,
+				// so we'll just keep using it.
+				sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: p})
+				isHealthy = true
+			}
 		}
 	}
-	sm.sess.healthy.Store(!sm.needUpdate)
+	sm.sess.healthy.Store(isHealthy)
 	sm.smRemote = &egress.RemoteInfo{Sig: currSig, SessPath: currSessPath}
 }
 
