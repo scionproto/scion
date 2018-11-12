@@ -20,8 +20,8 @@ type ScionLayer struct {
 var LayerTypeScion = gopacket.RegisterLayerType(
 	1337,
 	gopacket.LayerTypeMetadata{
-		"ScionLayerType",
-		gopacket.DecodeFunc(decodeScionLayer),
+		Name:    "ScionLayerType",
+		Decoder: gopacket.DecodeFunc(decodeScionLayer),
 	},
 )
 
@@ -58,7 +58,7 @@ func (l *ScionLayer) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) er
 	l.Path.InfOff = int(l.CmnHdr.CurrInfoF) - (offset / common.LineLen)
 	l.Path.HopOff = int(l.CmnHdr.CurrHopF) - (offset / common.LineLen)
 	l.Path.Raw = data[offset:hdrLen]
-	l.BaseLayer = layers.BaseLayer{data[:hdrLen], data[hdrLen:]}
+	l.BaseLayer = layers.BaseLayer{Contents: data[:hdrLen], Payload: data[hdrLen:]}
 	l.nextHdr = l.CmnHdr.NextHdr
 	// TODO Extensions
 	return nil

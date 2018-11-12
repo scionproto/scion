@@ -78,7 +78,7 @@ func (p *ScnPath) Check(o *ScnPath) error {
 		return fmt.Errorf("Number of segments mismatch, expected=%d, actual=%d",
 			len(p.Segs), len(o.Segs))
 	}
-	for i, _ := range p.Segs {
+	for i := range p.Segs {
 		if err := p.Segs[i].Equal(o.Segs[i]); err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ type Segments []*SegDef
 
 func (segs Segments) Len() int {
 	len := 0
-	for i, _ := range segs {
+	for i := range segs {
 		len += segs[i].segLen()
 	}
 	return len
@@ -98,7 +98,7 @@ func (segs Segments) Len() int {
 
 func (segs Segments) WriteTo(b []byte, mac hash.Hash) (int, error) {
 	offset := 0
-	for i, _ := range segs {
+	for i := range segs {
 		n, err := segs[i].WriteTo(b[offset:], mac)
 		if err != nil {
 			return offset, nil
@@ -153,7 +153,7 @@ func (seg *SegDef) WriteTo(b []byte, mac hash.Hash) (int, error) {
 	// Write Hop Fields
 	prevHop := []byte{}
 	nHops := len(seg.Hops)
-	for j, _ := range seg.Hops {
+	for j := range seg.Hops {
 		hopIdx := j
 		if !seg.Inf.ConsDir {
 			// For reverse ConsDir, start from last hop
@@ -186,7 +186,7 @@ func (s *SegDef) String() string {
 	if s.Inf.Peer {
 		peer = "P"
 	}
-	for i, _ := range s.Hops {
+	for i := range s.Hops {
 		var xover, ver string
 		if s.Hops[i].Xover {
 			xover = "X"
@@ -208,7 +208,7 @@ func (s *SegDef) Equal(o *SegDef) error {
 	if s.Inf != o.Inf {
 		return fmt.Errorf("Info Field mismatch\nExpected: %s\nActual:   %s\n", &s.Inf, &o.Inf)
 	}
-	for i, _ := range s.Hops {
+	for i := range s.Hops {
 		if !compareHopF(s.Hops[i], o.Hops[i]) {
 			return fmt.Errorf("Hop Field mismatch\nExpected: %s\nActual:   %s\n",
 				&s.Hops[i], &o.Hops[i])
