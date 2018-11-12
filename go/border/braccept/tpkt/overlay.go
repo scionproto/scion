@@ -22,6 +22,12 @@ type OverlayIP4UDP struct {
 	DstPort uint16
 }
 
+func GenOverlayIP4UDP(SrcAddr string, SrcPort uint16, DstAddr string,
+	DstPort uint16) *OverlayIP4UDP {
+
+	return &OverlayIP4UDP{SrcAddr, SrcPort, DstAddr, DstPort}
+}
+
 func (o *OverlayIP4UDP) ToLayers() (l []gopacket.SerializableLayer) {
 	srcIP := net.ParseIP(o.SrcAddr)
 	dstIP := net.ParseIP(o.DstAddr)
