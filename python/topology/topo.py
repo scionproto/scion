@@ -199,7 +199,7 @@ class TopoGenerator(object):
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
-            reg_id = topo_id.file_fmt() if self.args.docker else elem_id
+            reg_id = "disp" + topo_id.file_fmt() if self.args.docker else elem_id
             d = {
                 'Addrs': {
                     self.addr_type: {
@@ -235,17 +235,18 @@ class TopoGenerator(object):
                       local_br, remote_br):
         public_addr, remote_addr = self._reg_link_addrs(local_br, remote_br, l_ifid, r_ifid)
         if self.args.docker:
-            int_addr = self._reg_addr(local, local.file_fmt())
+            ctrl_addr = self._reg_addr(local, local_br + "_ctrl")
+            int_addr = self._reg_addr(local, local_br + "_internal")
         else:
-            int_addr = self._reg_addr(local, local_br)
+            ctrl_addr = int_addr = self._reg_addr(local, local_br)
 
         if self.topo_dicts[local]["BorderRouters"].get(local_br) is None:
             self.topo_dicts[local]["BorderRouters"][local_br] = {
                 'CtrlAddr': {
                     self.addr_type: {
                         'Public': {
-                            'Addr': int_addr,
-                            'L4Port': self.args.port_gen.register(local_br),
+                            'Addr': ctrl_addr,
+                            'L4Port': self.args.port_gen.register(local_br + "_ctrl"),
                         }
                     }
                 },
@@ -253,7 +254,7 @@ class TopoGenerator(object):
                     self.addr_type: {
                         'PublicOverlay': {
                             'Addr': int_addr,
-                            'OverlayPort': self.args.port_gen.register(local_br),
+                            'OverlayPort': self.args.port_gen.register(local_br + "_internal"),
                         }
                     }
                 },
