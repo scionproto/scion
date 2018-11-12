@@ -12,7 +12,7 @@
         "IPv4": { "PublicOverlay": { "OverlayPort": 30087, "Addr": "192.168.0.11" } }
       },
       "Interfaces": {
-        "4101": {
+        "411": {
           "LinkTo": "PARENT",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
@@ -21,7 +21,7 @@
           "RemoteOverlay": { "OverlayPort": 50000, "Addr": "192.168.41.3" },
           "Bandwidth": 1000
         },
-        "4201": {
+        "421": {
           "LinkTo": "PARENT",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
@@ -30,7 +30,7 @@
           "RemoteOverlay": { "OverlayPort": 50000, "Addr": "192.168.42.3" },
           "Bandwidth": 1000
         },
-        "4801": {
+        "481": {
           "LinkTo": "PEER",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
@@ -39,7 +39,7 @@
           "RemoteOverlay": { "OverlayPort": 50000, "Addr": "192.168.48.3" },
           "Bandwidth": 1000
         },
-        "4601": {
+        "461": {
           "LinkTo": "CHILD",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
@@ -48,7 +48,7 @@
           "RemoteOverlay": { "OverlayPort": 50000, "Addr": "192.168.46.3" },
           "Bandwidth": 1000
         },
-        "4701": {
+        "471": {
           "LinkTo": "CHILD",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
@@ -67,7 +67,7 @@
         "IPv4": { "PublicOverlay": { "OverlayPort": 30087, "Addr": "192.168.0.12" } }
       },
       "Interfaces": {
-        "4102": {
+        "412": {
           "LinkTo": "PARENT",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
@@ -86,7 +86,7 @@
         "IPv4": { "PublicOverlay": { "OverlayPort": 30087, "Addr": "192.168.0.13" } }
       },
       "Interfaces": {
-        "4501": {
+        "451": {
           "LinkTo": "PEER",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
@@ -105,7 +105,7 @@
         "IPv4": { "PublicOverlay": { "OverlayPort": 30087, "Addr": "192.168.0.14" } }
       },
       "Interfaces": {
-        "4602": {
+        "462": {
           "LinkTo": "CHILD",
           "MTU": 1472,
           "Overlay": "UDP/IPv4",
