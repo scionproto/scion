@@ -412,13 +412,6 @@
 			"revisionTime": "2016-04-11T19:08:41Z"
 		},
 		{
-			"checksumSHA1": "egQy+ytQKjfBN1oRKQJ/pxIvjYc=",
-			"license": "3-BSD",
-			"path": "github.com/samuel/go-zookeeper/zk",
-			"revision": "87e1bca4477a3cc767ca71be023ced183d74e538",
-			"revisionTime": "2016-09-02T21:22:55Z"
-		},
-		{
 			"checksumSHA1": "6AYg4fjEvFuAVN3wHakGApjhZAM=",
 			"license": "MIT",
 			"path": "github.com/smartystreets/assertions",
