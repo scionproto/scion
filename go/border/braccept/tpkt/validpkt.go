@@ -70,7 +70,7 @@ func (pi *ValidPkt) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawByte
 		return nil, err
 	}
 	l := make([]gopacket.SerializableLayer, len(overlayLayers)+1)
-	for i, _ := range overlayLayers {
+	for i := range overlayLayers {
 		l[i] = overlayLayers[i]
 	}
 	l[len(overlayLayers)] = gopacket.Payload(buf)
