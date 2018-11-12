@@ -14,7 +14,7 @@ BRUTIL=acceptance/brutil
 set_veths() {
     create_veth $NS veth0_root ifid_local 192.168.0.11/24 \
         192.168.0.12 192.168.0.13 192.168.0.14 192.168.0.51 192.168.0.61 192.168.0.71
-    create_veth $NS veth1_root ifid_1201 192.168.12.2/31 192.168.12.3
+    create_veth $NS veth1_root ifid_121 192.168.12.2/31 192.168.12.3
 }
 
 test_run() {
@@ -28,4 +28,4 @@ del_veths() {
     delete_veth veth0_root veth1_root
 }
 
-do_command $PROGRAM $COMMAND $TEST_NAME
+do_command $PROGRAM $COMMAND $TEST_NAME ${@:3}

@@ -41,22 +41,9 @@ var (
 	keysDirPath     string
 	devInfoFilePath string
 	testIdx         int
-	//Tests           map[string][]*BRTest = map[string][]*BRTest{
-
-	Tests = map[string][]*BRTest{
-		"core-brA": coreBrATests,
-		"core-brB": coreBrBTests,
-		"core-brC": coreBrCTests,
-		/* TODO
-		"brA":      BrATests,
-		"brB":      BrBTests,
-		"brC":      BrCTests,
-		"brD":      BrDTests,
-		*/
-	}
-	devByName map[string]*ifInfo
-	devList   []*ifInfo
-	hashMac   hash.Hash
+	devByName       map[string]*ifInfo
+	devList         []*ifInfo
+	hashMac         hash.Hash
 )
 
 func init() {
@@ -83,9 +70,8 @@ func GenerateKeys(fn string) error {
 
 func main() {
 	if err := checkFlags(); err != nil {
-		fmt.Printf("%s\n", err)
 		flag.Usage()
-		os.Exit(-1)
+		fatal("%s\n", err)
 	}
 	if err := ParseDevInfo(devInfoFilePath); err != nil {
 		fatal("%s\n", err)
@@ -114,8 +100,15 @@ func main() {
 	caps.Clear(capability.CAPS)
 	caps.Apply(capability.CAPS)
 
-	brTests, ok := Tests[borderID]
-	if !ok {
+	var brTests []*BRTest
+	switch borderID {
+	case "core-brA":
+		brTests = genTestsCoreBrA(hashMac)
+	case "core-brB":
+		brTests = genTestsCoreBrB(hashMac)
+	case "core-brC":
+		brTests = genTestsCoreBrC(hashMac)
+	default:
 		fatal("Wrong Border Router ID %s", borderID)
 	}
 	fmt.Printf("Acceptance tests for %s:\n", borderID)
@@ -134,12 +127,12 @@ func main() {
 // doTest just runs a test, which involved generating the packet, sending it in the specified
 // interface, then comparing any packets coming from the border router against the expected
 // packets from the test.
-// It return true if the test was successful, ie. all expected packets and no others were received,
+// It returns true if the test was successful, ie. all expected packets and no others were received,
 // otherwise it returns false.
 func doTest(t *BRTest, cases []reflect.SelectCase) bool {
 	devInfo, ok := devByName[t.In.GetDev()]
 	if !ok {
-		fmt.Errorf("No device information for: %s", t.In.GetDev())
+		fatal("No device information for: %s", t.In.GetDev())
 	}
 	raw, err := t.In.Pack(devInfo.mac, hashMac)
 	if err != nil {
@@ -165,7 +158,6 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
 	timerCh := time.After(timeout)
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
-
 	expPkts := make([]tpkt.Matcher, len(t.Out))
 	for i, _ := range t.Out {
 		expPkts[i] = t.Out[i]
@@ -202,7 +194,7 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 }
 
 // checkPkt compare a given packet against all the possible expected packets,
-// It return the index of the expected packet matched or an error with a pretty-print
+// It returns the index of the expected packet matched or an error with a pretty-print
 // packet dump of the unmatched packet.
 func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, error) {
 	for i, _ := range expPkts {
@@ -259,6 +251,6 @@ func checkFlags() error {
 }
 
 func fatal(msg string, a ...interface{}) {
-	fmt.Printf(msg+"\n", a...)
+	fmt.Fprintf(os.Stderr, msg+"\n", a...)
 	os.Exit(1)
 }
