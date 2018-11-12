@@ -36,12 +36,14 @@ func (pi *ValidPkt) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawByte
 	if pi.L4 == nil {
 		return nil, fmt.Errorf("PktInfoHpkt requires L4 header")
 	}
-	// Write SCION path
-	pi.Path.Raw = make(common.RawBytes, pi.Path.Segs.Len())
-	pi.Path.Mac = mac
-	if _, err := pi.Path.WriteRaw(); err != nil {
-		return nil, err
-	}
+	/*
+		// Write SCION path
+		pi.Path.Raw = make(common.RawBytes, pi.Path.Segs.Len())
+		pi.Path.Mac = mac
+		if _, err := pi.Path.WriteRaw(); err != nil {
+			return nil, err
+		}
+	*/
 	// Create ScnPkt
 	scn := &spkt.ScnPkt{
 		DstIA:   pi.AddrHdr.DstIA,
@@ -98,6 +100,9 @@ func (p *ValidPkt) Match(dev string, pkt gopacket.Packet) error {
 	}
 	// Generate common header
 	p.CmnHdr = p.genCmnHdr()
+	if _, err := p.Path.WriteRaw(); err != nil {
+		return err
+	}
 	// Check Scion layers
 	if b, err = p.checkScnHdr(l[0].LayerContents()); err != nil {
 		return err

@@ -48,7 +48,7 @@ do_command() {
         name)
             echo $TEST_NAME ;;
         setup|run|teardown)
-            "test_$COMMAND" ${@:2} ;;
+            "test_$COMMAND" ${@:4} ;;
         *) print_help $PROGRAM; exit 1 ;;
     esac
 }
