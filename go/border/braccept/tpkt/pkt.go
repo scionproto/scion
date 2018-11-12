@@ -153,10 +153,12 @@ func (pi *Pkt) checkScnHdr(b common.RawBytes) (common.RawBytes, error) {
 		return nil, fmt.Errorf("Could not parse SCION headers")
 	}
 	if scn.CmnHdr != *pi.CmnHdr {
-		return nil, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v", pi.CmnHdr, scn.CmnHdr)
+		return nil, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v",
+			pi.CmnHdr, scn.CmnHdr)
 	}
 	if !pi.AddrHdr.Eq(&scn.AddrHdr) {
-		return nil, fmt.Errorf("Address header mismatch\nExpected %v\nActual   %v", pi.AddrHdr, scn.AddrHdr)
+		return nil, fmt.Errorf("Address header mismatch\nExpected %v\nActual   %v",
+			pi.AddrHdr, scn.AddrHdr)
 	}
 	if err := pi.Path.Check(&scn.Path); err != nil {
 		return nil, err
