@@ -159,7 +159,7 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerCh := time.After(timeout)
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
 	expPkts := make([]tpkt.Matcher, len(t.Out))
-	for i, _ := range t.Out {
+	for i := range t.Out {
 		expPkts[i] = t.Out[i]
 	}
 	for {
@@ -174,7 +174,7 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 			if len(expPkts) > 0 {
 				return fmt.Errorf("Timeout receiving packets\n")
 			}
-			return nil
+			break
 		}
 		// Packet received
 		pkt := pktV.Interface().(gopacket.Packet)
@@ -197,7 +197,7 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 // It returns the index of the expected packet matched or an error with a pretty-print
 // packet dump of the unmatched packet.
 func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, error) {
-	for i, _ := range expPkts {
+	for i := range expPkts {
 		if err := expPkts[i].Match(devList[devIdx].contDev, pkt); err != nil {
 			fmt.Println(err)
 			continue
