@@ -14,15 +14,15 @@ BRUTIL=acceptance/brutil
 set_veths() {
     create_veth $NS veth0_root ifid_local 192.168.0.14/24 \
         192.168.0.11 192.168.0.12 192.168.0.13 192.168.0.51 192.168.0.61 192.168.0.71
-    create_veth $NS veth1_root ifid_1202 192.168.12.4/31 192.168.12.5
-    create_veth $NS veth2_root ifid_1301 192.168.13.2/31 192.168.13.3
-    create_veth $NS veth3_root ifid_1302 192.168.13.4/31 192.168.13.5
-    create_veth $NS veth4_root ifid_1402 192.168.14.4/31 192.168.14.5
-    create_veth $NS veth5_root ifid_1501 192.168.15.2/31 192.168.15.3
-    create_veth $NS veth6_root ifid_1502 192.168.15.4/31 192.168.15.5
-    create_veth $NS veth7_root ifid_1602 192.168.16.4/31 192.168.16.5
-    create_veth $NS veth8_root ifid_1701 192.168.17.2/31 192.168.17.3
-    create_veth $NS veth9_root ifid_1702 192.168.17.4/31 192.168.17.5
+    create_veth $NS veth1_root ifid_122 192.168.12.4/31 192.168.12.5
+    create_veth $NS veth2_root ifid_131 192.168.13.2/31 192.168.13.3
+    create_veth $NS veth3_root ifid_132 192.168.13.4/31 192.168.13.5
+    create_veth $NS veth4_root ifid_142 192.168.14.4/31 192.168.14.5
+    create_veth $NS veth5_root ifid_151 192.168.15.2/31 192.168.15.3
+    create_veth $NS veth6_root ifid_152 192.168.15.4/31 192.168.15.5
+    create_veth $NS veth7_root ifid_162 192.168.16.4/31 192.168.16.5
+    create_veth $NS veth8_root ifid_171 192.168.17.2/31 192.168.17.3
+    create_veth $NS veth9_root ifid_172 192.168.17.4/31 192.168.17.5
 }
 
 test_run() {
@@ -37,4 +37,4 @@ del_veths() {
         veth6_root veth7_root veth8_root veth9_root
 }
 
-do_command $PROGRAM $COMMAND $TEST_NAME
+do_command $PROGRAM $COMMAND $TEST_NAME ${@:3}

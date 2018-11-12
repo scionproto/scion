@@ -14,12 +14,12 @@ BRUTIL=acceptance/brutil
 set_veths() {
     create_veth $NS veth0_root ifid_local 192.168.0.13/24 \
         192.168.0.11 192.168.0.12 192.168.0.51 192.168.0.61 192.168.0.71
-    create_veth $NS veth1_root ifid_1202 192.168.12.4/31 192.168.12.5
-    create_veth $NS veth2_root ifid_1301 192.168.13.2/31 192.168.13.3
-    create_veth $NS veth3_root ifid_1302 192.168.13.4/31 192.168.13.5
-    create_veth $NS veth4_root ifid_1402 192.168.14.4/31 192.168.14.5
-    create_veth $NS veth5_root ifid_1501 192.168.15.2/31 192.168.15.3
-    create_veth $NS veth6_root ifid_1502 192.168.15.4/31 192.168.15.5
+    create_veth $NS veth1_root ifid_122 192.168.12.4/31 192.168.12.5
+    create_veth $NS veth2_root ifid_131 192.168.13.2/31 192.168.13.3
+    create_veth $NS veth3_root ifid_132 192.168.13.4/31 192.168.13.5
+    create_veth $NS veth4_root ifid_142 192.168.14.4/31 192.168.14.5
+    create_veth $NS veth5_root ifid_151 192.168.15.2/31 192.168.15.3
+    create_veth $NS veth6_root ifid_152 192.168.15.4/31 192.168.15.5
 }
 
 test_run() {
@@ -33,4 +33,4 @@ del_veths() {
     delete_veth veth0_root veth1_root veth2_root veth3_root veth4_root veth5_root veth6_root
 }
 
-do_command $PROGRAM $COMMAND $TEST_NAME
+do_command $PROGRAM $COMMAND $TEST_NAME ${@:3}
