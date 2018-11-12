@@ -110,6 +110,7 @@ func (sm *sessMonitor) updateRemote() {
 		currSessPath = currRemote.SessPath
 	}
 	since := time.Since(sm.lastReply)
+
 	if since > tout {
 		if currSig != nil {
 			currSig.Fail()
@@ -138,7 +139,7 @@ func (sm *sessMonitor) updateRemote() {
 			sm.Debug("No path", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
-		} else if _, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
+		} else if p, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
 			sm.Debug("Current path invalid", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
@@ -148,6 +149,10 @@ func (sm *sessMonitor) updateRemote() {
 			// If the new path is unhealthy, it is changed quickly by the session monitor through
 			// the regular timeout mechanism above.
 			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: currSessPath})
+		} else if time.Unix(int64(currSessPath.PathEntry().Path.ExpTime), 0).Before(
+			time.Now().Add(60 * time.Second)) {
+			// TTL is about to expire soon. Let's use a different path, if possible.
+			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: p})
 		}
 	}
 	sm.sess.healthy.Store(!sm.needUpdate)
