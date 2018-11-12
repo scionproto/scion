@@ -6,7 +6,6 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -180,129 +179,129 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 	return []*BRTest{
 		{
 			Desc: "Single IFID core - external - local destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_121",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr(
 					"1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
 				Path: tpkt.GenPath(1, 2, path_2A_1A, hashMac),
-				L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:   tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.11", 30087, "192.168.0.51", 30041),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
 					Path: tpkt.GenPath(1, 2, path_2A_1A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - internal - remote destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.11", 30087),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
 				Path:    tpkt.GenPath(1, 1, path_1A_2A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_121",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
 					Path: tpkt.GenPath(1, 2, path_1A_2A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - external - Xover core/child",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_121",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
 				Path:    tpkt.GenPath(1, 2, path_2A_1A_X_1C_5A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.11", 30087, "192.168.0.13", 30087),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
 					Path: tpkt.GenPath(2, 1, path_2A_1A_X_1C_5A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - internal - Xover child/core",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.0.13", 30087, "192.168.0.11", 30087),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
 				Path:    tpkt.GenPath(2, 1, path_5A_1C_X_1A_2A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_121",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.12.2", 50000, "192.168.12.3", 40000},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
 					Path: tpkt.GenPath(2, 2, path_5A_1C_X_1A_2A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID - external - local destination - hpkt",
-			In: &tpkt.ValidPkt{tpkt.Pkt{
+			In: &tpkt.ValidPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_121",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
 				Path:    tpkt.GenPath(1, 2, path_2A_1A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.11", 30087, "192.168.0.51", 30041),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
 					Path: tpkt.GenPath(1, 2, path_2A_1A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{ // XXX This test currently fail because we received an SCMP back
 			Desc: "Single IFID - external - bad path - Xover core-core",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_121",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1"),
 				Path:    tpkt.GenPath(1, 2, path_2A_1A_X_1C_3A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{},
 		},
 		{
 			Desc: "Single IFID - external - empty overlay packet",
-			In: &tpkt.Raw{tpkt.Pkt{
+			In: &tpkt.Raw{Pkt: tpkt.Pkt{
 				Dev:     "ifid_121",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
 			}},
 			Out: []tpkt.Matcher{},
 		},
 		{
 			Desc: "Single IFID - external - Bad packet 7 Bytes",
-			In: &tpkt.Raw{tpkt.Pkt{
+			In: &tpkt.Raw{Pkt: tpkt.Pkt{
 				Dev:     "ifid_121",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.12.3", 40000, "192.168.12.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
 				Pld:     common.RawBytes{1, 2, 3, 4, 5, 6, 7},
 			}},
 			Out: []tpkt.Matcher{},
@@ -314,122 +313,122 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 	return []*BRTest{
 		{
 			Desc: "Single IFID core - external - local destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_141",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.14.3", 40000, "192.168.14.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr(
 					"1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
 				Path: tpkt.GenPath(1, 2, path_1B_4A_rev, hashMac),
-				L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:   tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.51", 30041},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.12", 30087, "192.168.0.51", 30041),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51"),
 					Path: tpkt.GenPath(1, 2, path_1B_4A_rev, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - internal - remote destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.12", 30087},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.12", 30087),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1"),
 				Path:    tpkt.GenPath(1, 1, path_1B_4A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_141",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 40000),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1"),
 					Path: tpkt.GenPath(1, 2, path_1B_4A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - external - Xover child/child",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_141",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.14.3", 40000, "192.168.14.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1"),
 				Path:    tpkt.GenPath(1, 2, path_1B_4A_rev_X_1C_5A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.13", 30087},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.12", 30087, "192.168.0.13", 30087),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1"),
 					Path: tpkt.GenPath(2, 1, path_1B_4A_rev_X_1C_5A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - internal - Xover child/child",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.0.13", 30087, "192.168.0.11", 30087),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1"),
 				Path:    tpkt.GenPath(2, 1, path_1C_5A_rev_X_1B_4A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_141",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 40000),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1"),
 					Path: tpkt.GenPath(2, 2, path_1C_5A_rev_X_1B_4A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - external - Xover child/core",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_141",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.14.3", 40000, "192.168.14.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.14.3", 40000, "192.168.14.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1"),
 				Path:    tpkt.GenPath(1, 2, path_1B_4A_rev_X_2A_1A_rev, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.12", 30087, "192.168.0.11", 30087},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.12", 30087, "192.168.0.11", 30087),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1"),
 					Path: tpkt.GenPath(2, 1, path_1B_4A_rev_X_2A_1A_rev, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Single IFID core - internal - Xover core/child",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.12", 30087},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.0.11", 30087, "192.168.0.12", 30087),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1"),
 				Path:    tpkt.GenPath(2, 1, path_2A_1A_X_1B_4A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_141",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.14.2", 50000, "192.168.14.3", 40000},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 40000),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1"),
 					Path: tpkt.GenPath(2, 2, path_2A_1A_X_1B_4A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
@@ -440,81 +439,81 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 	return []*BRTest{
 		{
 			Desc: "Multiple IFIDs - external - local destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_131",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.13.3", 40000, "192.168.13.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.13.3", 40000, "192.168.13.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:3", "172.16.3.1", "1-ff00:0:1", "192.168.0.51"),
 				Path:    tpkt.GenPath(1, 2, path_2A_1A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.51", 30041},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.11", 30087, "192.168.0.51", 30041),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:3", "172.16.3.1", "1-ff00:0:1", "192.168.0.51"),
 					Path: tpkt.GenPath(1, 2, path_2A_1A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Multiple IFIDs - internal - remote destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.51", 30041, "192.168.0.11", 30087},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.11", 30087),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
 				Path:    tpkt.GenPath(1, 1, path_1A_2A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_131",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.13.2", 50000, "192.168.13.3", 40000},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.13.2", 50000, "192.168.13.3", 40000),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1"),
 					Path: tpkt.GenPath(1, 2, path_1A_2A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Multiple IFIDs - external - Xover remote destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_131",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.13.3", 40000, "192.168.13.2", 50000},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.13.3", 40000, "192.168.13.2", 50000),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
 				Path:    tpkt.GenPath(1, 2, path_2A_1A_X_1C_5A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_local",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.0.11", 30087, "192.168.0.13", 30087},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.0.11", 30087, "192.168.0.13", 30087),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1"),
 					Path: tpkt.GenPath(2, 1, path_2A_1A_X_1C_5A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
 		{
 			Desc: "Multiple IFIDs - internal - Xover remote destination",
-			In: &tpkt.GenCmnHdrPkt{tpkt.Pkt{
+			In: &tpkt.GenCmnHdrPkt{Pkt: tpkt.Pkt{
 				Dev:     "ifid_local",
-				Overlay: &tpkt.OverlayIP4UDP{"192.168.0.13", 30087, "192.168.0.11", 30087},
+				Overlay: tpkt.GenOverlayIP4UDP("192.168.0.13", 30087, "192.168.0.11", 30087),
 				AddrHdr: tpkt.NewAddrHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
 				Path:    tpkt.GenPath(2, 1, path_5A_1C_X_1A_2A, hashMac),
-				L4:      &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+				L4:      tpkt.GenL4UDP(40111, 40222),
 			}},
 			Out: []tpkt.Matcher{
-				&tpkt.ValidPkt{tpkt.Pkt{
+				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_131",
-					Overlay: &tpkt.OverlayIP4UDP{"192.168.13.2", 50000, "192.168.13.3", 40000},
+					Overlay: tpkt.GenOverlayIP4UDP("192.168.13.2", 50000, "192.168.13.3", 40000),
 					AddrHdr: tpkt.NewAddrHdr(
 						"1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1"),
 					Path: tpkt.GenPath(2, 2, path_5A_1C_X_1A_2A, hashMac),
-					L4:   &l4.UDP{40111, 40222, 8, []byte{0, 0}},
+					L4:   tpkt.GenL4UDP(40111, 40222),
 				}},
 			},
 		},
