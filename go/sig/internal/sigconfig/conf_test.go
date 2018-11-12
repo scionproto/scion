@@ -18,12 +18,11 @@ import (
 	"net"
 	"testing"
 
-	"github.com/scionproto/scion/go/lib/xtest"
-
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 type TestConfig struct {
