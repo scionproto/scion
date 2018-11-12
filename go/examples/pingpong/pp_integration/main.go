@@ -40,8 +40,8 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	cmnArgs := []string{"-sciondFromIA", "-log.console", "debug"}
-	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]:0"
-	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:"
+	clientAddr := integration.SrcIAReplace + ",[" + integration.SrcHostReplace + "]:0"
+	serverAddr := integration.DstIAReplace + ",[" + integration.DstHostReplace + "]:"
 	clientArgs := []string{"-mode", "client", "-count", "1", "-local", clientAddr,
 		"-remote", serverAddr + integration.ServerPortReplace}
 	clientArgs = append(clientArgs, cmnArgs...)
@@ -71,7 +71,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
+				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
 			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
 				log.Error("Error during client execution", "err", err)
 				return err

@@ -106,6 +106,7 @@ class DockerGenerator(object):
 
     def _vol_conf(self, topo_id):
         self.dc_vol_conf['volumes']['vol_disp_%s' % topo_id.file_fmt()] = None
+        self.dc_vol_conf['volumes']['vol_disp_br_%s' % topo_id.file_fmt()] = None
         self.dc_vol_conf['volumes']['vol_sciond_%s' % topo_id.file_fmt()] = None
 
     def _create_networks(self):
@@ -125,16 +126,16 @@ class DockerGenerator(object):
         raw_entry = {
             'image': 'scion_border',
             'depends_on': [
-                'disp_%s' % topo_id.file_fmt(),
+                'disp_br_%s' % topo_id.file_fmt(),
             ],
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
-            'network_mode': 'service:disp_%s' % topo_id.file_fmt(),
+            'networks': {},
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
+                'vol_disp_br_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
                 self.output_base + '/logs:/share/logs:rw'
             ],
             'command': []
@@ -145,6 +146,11 @@ class DockerGenerator(object):
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
             entry['command'].append('-id=%s' % k)
             entry['command'].append('-prom=%s' % _prom_addr_br(k, v, self.args.port_gen))
+            # Set BR IPs
+            ex_net = self.elem_networks[k][0]
+            in_net = self.elem_networks[k + "_internal"][0]
+            entry['networks'][self.bridges[ex_net['net']]] = {'ipv4_address': str(ex_net['ipv4'])}
+            entry['networks'][self.bridges[in_net['net']]] = {'ipv4_address': str(in_net['ipv4'])}
             self.dc_conf['services'][k] = entry
 
     def _cs_conf(self, topo_id, topo, base):
@@ -282,10 +288,9 @@ class DockerGenerator(object):
         copyfile(os.path.join(os.environ['PWD'], cfg_file), cfg_path)
 
     def _dispatcher_conf(self, topo_id, topo, base):
-        name = 'disp_%s' % topo_id.file_fmt()
+        # Create dispatcher config
         entry = {
             'image': 'scion_dispatcher',
-            'container_name': name,
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
@@ -293,26 +298,42 @@ class DockerGenerator(object):
             'volumes': [
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro',
-                'vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt(),
                 '%s:/share/conf:rw' % os.path.join(base, 'dispatcher'),
                 self.output_base + '/logs:/share/logs:rw'
             ]
         }
-        self.dc_conf['services'][name] = entry
 
-        # Attach dispatcher to external BR IPs
+        self._br_dispatcher(copy.deepcopy(entry), topo_id, topo)
+        self._infra_dispatcher(copy.deepcopy(entry), topo_id)
+
+    def _br_dispatcher(self, entry, topo_id, topo):
+        # Create dispatcher for BR Ctrl Port
         for k in topo.get("BorderRouters", {}):
-            for net in self.elem_networks[k]:
-                ip = str(net['ipv4'])
-                entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
-            # Attach dispatcher to internal BR, PS, CS, BS IP
-            for net in self.elem_networks[k[2:len(k)-2]]:
-                ip = str(net['ipv4'])
-                entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
-
-        # Create dispatcher config
+            ctrl_net = self.elem_networks[k + "_ctrl"][0]
+            ctrl_ip = str(ctrl_net['ipv4'])
+            entry['networks'][self.bridges[ctrl_net['net']]] = {'ipv4_address': ctrl_ip}
+        name = 'disp_br_%s' % topo_id.file_fmt()
+        entry['container_name'] = name
+        entry['volumes'].append('vol_disp_br_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt())
+        entry['environment']['ZLOG_CFG'] = "/share/conf/disp_br.zlog.conf"
+        self.dc_conf['services'][name] = entry
+        # Write log config file
+        cfg = "%s/dispatcher/%s.zlog.conf" % (topo_id.base_dir(self.args.output_dir), "disp_br")
         tmpl = Template(read_file("topology/zlog.tmpl"))
-        cfg = "%s/dispatcher/dispatcher.zlog.conf" % topo_id.base_dir(self.args.output_dir)
+        write_file(cfg, tmpl.substitute(name="dispatcher", elem=name))
+
+    def _infra_dispatcher(self, entry, topo_id):
+        # Create dispatcher for Infra
+        net = self.elem_networks["disp" + topo_id.file_fmt()][0]
+        ip = str(net['ipv4'])
+        entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
+        name = 'disp_%s' % topo_id.file_fmt()
+        entry['container_name'] = name
+        entry['volumes'].append('vol_disp_%s:/run/shm/dispatcher:rw' % topo_id.file_fmt())
+        self.dc_conf['services'][name] = entry
+        # Write log config file
+        cfg = "%s/dispatcher/%s.zlog.conf" % (topo_id.base_dir(self.args.output_dir), "dispatcher")
+        tmpl = Template(read_file("topology/zlog.tmpl"))
         write_file(cfg, tmpl.substitute(name="dispatcher", elem=name))
 
     def _sciond_conf(self, topo_id, base):

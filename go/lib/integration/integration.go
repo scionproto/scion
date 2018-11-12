@@ -22,12 +22,15 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -77,11 +80,11 @@ type Integration interface {
 	// StartServer should start the server listening on the address dst.
 	// StartServer should return after it is ready to accept clients.
 	// The context should be used to make the server cancellable.
-	StartServer(ctx context.Context, dst addr.IA) (Waiter, error)
+	StartServer(ctx context.Context, dst snet.Addr) (Waiter, error)
 	// StartClient should start the client on the src address connecting to the dst address.
 	// StartClient should return immediately.
 	// The context should be used to make the client cancellable.
-	StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error)
+	StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error)
 }
 
 // Waiter is a descriptor of a process running in the integration test.
@@ -127,8 +130,8 @@ func validateFlags(name string) error {
 
 // IAPair is a source, destination pair. The client (Src) will dial the server (Dst).
 type IAPair struct {
-	Src addr.IA
-	Dst addr.IA
+	Src snet.Addr
+	Dst snet.Addr
 }
 
 // IAPairs returns all IAPairs that should be tested.
@@ -137,7 +140,16 @@ func IAPairs() []IAPair {
 }
 
 // GenerateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
-func generateAllSrcDst(srcASes, dstASes []addr.IA) []IAPair {
+func generateAllSrcDst(srcList, dstList []addr.IA) []IAPair {
+	srcASes := make([]snet.Addr, 0, len(srcList))
+	dstASes := make([]snet.Addr, 0, len(dstList))
+	for _, src := range srcList {
+		srcASes = append(srcASes, getAddr(src))
+	}
+	for _, dst := range dstList {
+		dstASes = append(dstASes, getAddr(dst))
+	}
+
 	shuffle(len(srcASes), func(i, j int) {
 		srcASes[i], srcASes[j] = srcASes[j], srcASes[i]
 	})
@@ -151,6 +163,20 @@ func generateAllSrcDst(srcASes, dstASes []addr.IA) []IAPair {
 		}
 	}
 	return pairs
+}
+
+// getAddr reads the BS host Addr from the topology for the specified IA.
+// The host IP is used as client or server address in the tests.
+func getAddr(ia addr.IA) snet.Addr {
+	path := fmt.Sprintf("gen/ISD%s/AS%s/endhost/topology.json", strconv.Itoa(int(ia.I)),
+		ia.A.FileFmt())
+	topo, err := topology.LoadFromFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+		os.Exit(1)
+	}
+	bs := topo.BS["bs"+ia.FileFmt(false)+"-1"]
+	return snet.Addr{Host: &addr.AppAddr{L3: bs.IPv4.PublicAddr().L3}, IA: ia}
 }
 
 // interface kept similar to go 1.10
@@ -174,7 +200,7 @@ func (s *serverStop) Close() error {
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
 // To start a server with a custom context use in.StartServer directly.
-func StartServer(in Integration, dst addr.IA) (io.Closer, error) {
+func StartServer(in Integration, dst snet.Addr) (io.Closer, error) {
 	serverCtx, serverCancel := context.WithCancel(context.Background())
 	s, err := in.StartServer(serverCtx, dst)
 	if err != nil {
@@ -213,9 +239,9 @@ func ExecuteTimed(name string, f func() error) error {
 }
 
 // ExtractUniqueDsts returns all unique destinations in pairs.
-func ExtractUniqueDsts(pairs []IAPair) []addr.IA {
-	uniqueDsts := make(map[addr.IA]bool)
-	var res []addr.IA
+func ExtractUniqueDsts(pairs []IAPair) []snet.Addr {
+	uniqueDsts := make(map[snet.Addr]bool)
+	var res []snet.Addr
 	for _, pair := range pairs {
 		if !uniqueDsts[pair.Dst] {
 			res = append(res, pair.Dst)
@@ -236,7 +262,7 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 		}
 		defer s.Close()
 		// Start client
-		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src, pair.Dst,
+		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src.IA, pair.Dst.IA,
 			idx+1, len(pairs)))
 		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
 			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
@@ -251,7 +277,7 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 func RunUnaryTests(in Integration, pairs []IAPair) error {
 	return runTests(in, pairs, 2, func(idx int, pair IAPair) error {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-			in.Name(), pair.Src, pair.Dst, idx+1, len(pairs)))
+			in.Name(), pair.Src.IA, pair.Dst.IA, idx+1, len(pairs)))
 		// Start client
 		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
 			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
