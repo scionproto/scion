@@ -30,9 +30,11 @@ import (
 )
 
 const (
-	tickLen   = 500 * time.Millisecond
-	tout      = 1 * time.Second
-	writeTout = 100 * time.Millisecond
+	// How long before path TTL expires we should already try to switch to a different path.
+	safetyInterval = 60 * time.Second
+	tickLen        = 500 * time.Millisecond
+	tout           = 1 * time.Second
+	writeTout      = 100 * time.Millisecond
 )
 
 // sessMonitor is responsible for monitoring a session, polling remote SIGs, and switching
@@ -110,6 +112,8 @@ func (sm *sessMonitor) updateRemote() {
 		currSessPath = currRemote.SessPath
 	}
 	since := time.Since(sm.lastReply)
+
+	isHealthy := true
 	if since > tout {
 		if currSig != nil {
 			currSig.Fail()
@@ -122,23 +126,27 @@ func (sm *sessMonitor) updateRemote() {
 		currSig = sm.getNewSig(currSig)
 		currSessPath = sm.getNewPath(currSessPath)
 		sm.needUpdate = true
+		isHealthy = false
 	} else {
 		if currSig == nil {
 			// No remote SIG
 			sm.Debug("No remote SIG", "remote", currRemote)
 			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
+			isHealthy = false
 		} else if _, ok := sm.sess.sigMap.Load(currSig.Id); !ok {
 			// Current SIG is no longer listed, need to switch to a new one.
 			sm.Debug("Current SIG invalid", "remote", currRemote)
 			currSig = sm.getNewSig(nil)
 			sm.needUpdate = true
+			isHealthy = false
 		}
 		if currSessPath == nil {
 			sm.Debug("No path", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
 			sm.needUpdate = true
-		} else if _, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
+			isHealthy = false
+		} else if p, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
 			// Current path is no longer in pool, need to switch to a new one.
 			sm.Debug("Current path invalid", "remote", currRemote)
 			currSessPath = sm.getNewPath(nil)
@@ -148,10 +156,22 @@ func (sm *sessMonitor) updateRemote() {
 			// If the new path is unhealthy, it is changed quickly by the session monitor through
 			// the regular timeout mechanism above.
 			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: currSessPath})
+		} else if isCloseToExpiry(currSessPath) {
+			// Path TTL is about to expire soon.
+			if isCloseToExpiry(p) {
+				// Updated path is about to expire also, so let's switch to a different path.
+				p = sm.getNewPath(currSessPath)
+			}
+			sm.needUpdate = true
+			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: p})
 		}
 	}
-	sm.sess.healthy.Store(!sm.needUpdate)
+	sm.sess.healthy.Store(isHealthy)
 	sm.smRemote = &egress.RemoteInfo{Sig: currSig, SessPath: currSessPath}
+}
+
+func isCloseToExpiry(path *egress.SessPath) bool {
+	return path.PathEntry().Path.Expiry().Before(time.Now().Add(safetyInterval))
 }
 
 func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
