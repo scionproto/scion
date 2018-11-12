@@ -9,7 +9,11 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 cmd_topology() {
     set -e
     local zkclean
-    echo "Shutting down: $(./scion.sh stop)"
+    if is_docker; then
+        echo "Shutting down: $(./tools/dc down)"
+    else
+        echo "Shutting down: $(./scion.sh stop)"
+    fi
     supervisor/supervisor.sh shutdown
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +

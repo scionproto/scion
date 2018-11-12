@@ -38,9 +38,11 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	clientArgs := []string{"--port", integration.ServerPortReplace,
-		integration.SrcIAReplace, integration.DstIAReplace}
-	serverArgs := []string{"--run_server", integration.DstIAReplace}
+	clientArgs := []string{"--port", integration.ServerPortReplace, "-c",
+		integration.SrcHostReplace, "-s", integration.DstHostReplace, integration.SrcIAReplace,
+		integration.DstIAReplace}
+	serverArgs := []string{"--run_server", "-s", integration.DstHostReplace,
+		integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := integration.RunBinaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
