@@ -19,7 +19,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -50,18 +50,18 @@ func dockerize(bi *binaryIntegration) Integration {
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (di *dockerIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
+func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Waiter, error) {
 	bi := *di.binaryIntegration
 	env := fmt.Sprintf("%s=1", GoIntegrationEnv)
-	bi.serverArgs = append([]string{dockerArg, di.cntr, dst.FileFmt(false), env, bi.cmd},
+	bi.serverArgs = append([]string{dockerArg, di.cntr, dst.IA.FileFmt(false), env, bi.cmd},
 		bi.serverArgs...)
 	bi.cmd = dockerCmd
 	return bi.StartServer(ctx, dst)
 }
 
-func (di *dockerIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
+func (di *dockerIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
 	bi := *di.binaryIntegration
-	bi.clientArgs = append([]string{dockerArg, di.cntr, src.FileFmt(false), bi.cmd},
+	bi.clientArgs = append([]string{dockerArg, di.cntr, src.IA.FileFmt(false), bi.cmd},
 		bi.clientArgs...)
 	bi.cmd = dockerCmd
 	return bi.StartClient(ctx, src, dst)
