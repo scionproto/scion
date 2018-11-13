@@ -19,12 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/lib/sciond"
-
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
