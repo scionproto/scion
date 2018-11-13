@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/syndtr/gocapability/capability"
 	"golang.org/x/crypto/pbkdf2"
@@ -85,6 +86,8 @@ func main() {
 	caps.Clear(capability.CAPS)
 	caps.Apply(capability.CAPS)
 
+	registerScionPorts()
+
 	var brTests []*BRTest
 	switch borderID {
 	case "core-brA":
@@ -104,11 +107,12 @@ func main() {
 		baseIdx = testIdx
 	}
 	for i, t := range brTests {
-		pass := doTest(t, cases)
-		if !pass {
+		if err := doTest(t, cases); err != nil {
+			fmt.Printf("%d. %s\n\n%s\n\n", baseIdx+i, t.Summary(false), err)
 			failures += 1
+		} else {
+			fmt.Printf("%d. %s\n", baseIdx+i, t.Summary(true))
 		}
-		fmt.Printf("%d. %s\n", baseIdx+i, t.Summary(pass))
 	}
 	os.Exit(failures)
 }
@@ -162,12 +166,23 @@ func generateKeys(fn string) error {
 	return err
 }
 
+func registerScionPorts() {
+	// Bind ports to SCION layer
+	layers.RegisterUDPPortLayerType(layers.UDPPort(30041), tpkt.LayerTypeScion)
+	for i := 30000; i < 30010; i += 1 {
+		layers.RegisterUDPPortLayerType(layers.UDPPort(i), tpkt.LayerTypeScion)
+	}
+	for i := 50000; i < 50010; i += 1 {
+		layers.RegisterUDPPortLayerType(layers.UDPPort(i), tpkt.LayerTypeScion)
+	}
+}
+
 // doTest just runs a test, which involved generating the packet, sending it in the specified
 // interface, then comparing any packets coming from the border router against the expected
 // packets from the test.
 // It returns true if the test was successful, ie. all expected packets and no others were received,
 // otherwise it returns false.
-func doTest(t *BRTest, cases []reflect.SelectCase) bool {
+func doTest(t *BRTest, cases []reflect.SelectCase) error {
 	devInfo, ok := devByName[t.In.GetDev()]
 	if !ok {
 		fatal("No device information for: %s", t.In.GetDev())
@@ -180,13 +195,7 @@ func doTest(t *BRTest, cases []reflect.SelectCase) bool {
 	if err != nil {
 		fatal("%s\n", err)
 	}
-	var pass bool
-	if err := checkRecvPkts(t, cases); err != nil {
-		fmt.Println(err)
-	} else {
-		pass = true
-	}
-	return pass
+	return checkRecvPkts(t, cases)
 }
 
 // checkRecvPkts compares packets received in any interface against the expected packets
@@ -199,33 +208,38 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	for i := range t.Out {
 		expPkts[i] = t.Out[i]
 	}
+	var errStr []string
 	for {
 		idx, pktV, ok := reflect.Select(cases)
 		if !ok {
 			cases[idx].Chan = reflect.ValueOf(nil)
-			return fmt.Errorf("Unexpected interface %s/%s closed:\n",
-				devList[idx].hostDev, devList[idx].contDev)
+			errStr = append(errStr, fmt.Sprintf("Unexpected interface %s/%s closed",
+				devList[idx].hostDev, devList[idx].contDev))
+			break
 		}
 		if idx == timerIdx {
 			// Timeout receiving packets
 			if len(expPkts) > 0 {
-				return fmt.Errorf("Timeout receiving packets\n")
+				errStr = append(errStr, fmt.Sprintf("Timeout receiving packets"))
 			}
 			break
 		}
 		// Packet received
 		pkt := pktV.Interface().(gopacket.Packet)
-		i, err := checkPkt(expPkts, idx, pkt)
-		if err != nil {
+		i, e := checkPkt(expPkts, idx, pkt)
+		if e != nil {
+			errStr = append(errStr, fmt.Sprintf("%s", e))
 			if len(expPkts) > 0 {
-				fmt.Println(err)
 				continue
 			}
 			// Packet received when no packet is expected
-			return err
+			break
 		}
 		expPkts[i] = expPkts[len(expPkts)-1]
 		expPkts = expPkts[:len(expPkts)-1]
+	}
+	if len(errStr) > 0 {
+		return fmt.Errorf(strings.Join(errStr, "\n"))
 	}
 	return nil
 }
@@ -234,22 +248,31 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 // It returns the index of the expected packet matched or an error with a pretty-print
 // packet dump of the unmatched packet.
 func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, error) {
+	var errStr []string
 	for i := range expPkts {
 		if err := expPkts[i].Match(devList[devIdx].contDev, pkt); err != nil {
-			fmt.Println(err)
+			errStr = append(errStr, fmt.Sprintf("%s\n", err))
 			continue
 		}
 		// Expected packet matched!
+		if len(errStr) > 0 {
+			return i, fmt.Errorf(strings.Join(errStr, "\n"))
+		}
 		return i, nil
 	}
-	payload := pkt.ApplicationLayer().LayerContents()
-	scnPkt := gopacket.NewPacket(payload, tpkt.LayerTypeScion, gopacket.NoCopy)
-	if scn := scnPkt.Layer(tpkt.LayerTypeScion).(*tpkt.ScionLayer); scn != nil {
-		scn.Path.Parse(scn.Path.Raw)
-		scn.Path.Raw = nil
-	}
-	return 0, fmt.Errorf("\nUnexpected pkt on interface %s\n%v\n%v",
-		devList[devIdx].contDev, pkt, scnPkt)
+	/*
+		payload := pkt.ApplicationLayer().LayerContents()
+		scnPkt := gopacket.NewPacket(payload, tpkt.LayerTypeScion, gopacket.NoCopy)
+		if scn := scnPkt.Layer(tpkt.LayerTypeScion).(*tpkt.ScionLayer); scn != nil {
+			scn.Path.Parse(scn.Path.Raw)
+			scn.Path.Raw = nil
+		}
+		return 0, fmt.Errorf("\nUnexpected pkt on interface %s\n%v\n%v",
+			devList[devIdx].contDev, pkt, scnPkt)
+	*/
+	errStr = append(errStr, fmt.Sprintf("Unexpected pkt on interface %s:\n\n%v",
+		devList[devIdx].contDev, pkt))
+	return 0, fmt.Errorf(strings.Join(errStr, "\n"))
 }
 
 func fatal(msg string, a ...interface{}) {
