@@ -171,11 +171,18 @@ func (p *Pkt) checkL4(b common.RawBytes) (common.RawBytes, error) {
 	if p.L4 == nil {
 		return b, nil
 	}
+	pldLen := 0
+	if p.Pld != nil {
+		pldLen = p.Pld.Len()
+	}
 	switch p.L4.L4Type() {
 	case common.L4None:
 	case common.L4SCMP:
 		pktL4, _ := scmp.HdrFromRaw(b)
 		scmp := p.L4.(*scmp.Hdr)
+		if scmp.TotalLen == 0 {
+			scmp.SetPldLen(pldLen)
+		}
 		if !scmpEqual(scmp, pktL4) {
 			return nil, fmt.Errorf("L4 SCMP header does not match\n Expected: %s\n Actual: %s",
 				scmp, pktL4)
@@ -184,6 +191,9 @@ func (p *Pkt) checkL4(b common.RawBytes) (common.RawBytes, error) {
 	case common.L4UDP:
 		pktL4, _ := l4.UDPFromRaw(b)
 		udp := p.L4.(*l4.UDP)
+		if udp.TotalLen == 0 {
+			udp.SetPldLen(pldLen)
+		}
 		if !udpEqual(udp, pktL4) {
 			return nil, fmt.Errorf("L4 UDP header does not match\n Expected: %s\n Actual: %s",
 				udp, pktL4)
@@ -232,12 +242,11 @@ func extnsLength(extns []common.Extension) int {
 
 func scmpEqual(a, b *scmp.Hdr) bool {
 	// Ignore Checksum and Timestamp
-	// TODO Total len and Pld/quotes
-	return a.Class == b.Class && a.Type == b.Type
+	// TODO Pld/quotes
+	return a.Class == b.Class && a.Type == b.Type && a.TotalLen == b.TotalLen
 }
 
 func udpEqual(a, b *l4.UDP) bool {
 	// Ignore Checksum
-	// TODO TotalLen
-	return a.SrcPort == b.SrcPort && a.DstPort == b.DstPort
+	return a.SrcPort == b.SrcPort && a.DstPort == b.DstPort && a.TotalLen == b.TotalLen
 }
