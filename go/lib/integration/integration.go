@@ -142,14 +142,13 @@ func IAPairs() []IAPair {
 // GenerateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
 func generateAllSrcDst(srcList, dstList []addr.IA) []IAPair {
 	srcASes := make([]snet.Addr, 0, len(srcList))
-	dstASes := make([]snet.Addr, 0, len(dstList))
 	for _, src := range srcList {
-		srcASes = append(srcASes, getAddr(src))
+		srcASes = append(srcASes, dispAddr(src))
 	}
+	dstASes := make([]snet.Addr, 0, len(dstList))
 	for _, dst := range dstList {
-		dstASes = append(dstASes, getAddr(dst))
+		dstASes = append(dstASes, dispAddr(dst))
 	}
-
 	shuffle(len(srcASes), func(i, j int) {
 		srcASes[i], srcASes[j] = srcASes[j], srcASes[i]
 	})
@@ -165,14 +164,17 @@ func generateAllSrcDst(srcList, dstList []addr.IA) []IAPair {
 	return pairs
 }
 
-// getAddr reads the BS host Addr from the topology for the specified IA.
-// The host IP is used as client or server address in the tests.
-func getAddr(ia addr.IA) snet.Addr {
+// dispAddr reads the BS host Addr from the topology for the specified IA. In general this
+// could be the IP of any service (PS/BS/CS) in that IA because they share the same dispatcher in
+// the dockerized topology.
+// The host IP is used as client or server address in the tests because the testing container is
+// connecting to the dispatcher of the services.
+func dispAddr(ia addr.IA) snet.Addr {
 	path := fmt.Sprintf("gen/ISD%s/AS%s/endhost/topology.json", strconv.Itoa(int(ia.I)),
 		ia.A.FileFmt())
 	topo, err := topology.LoadFromFile(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Error loading topology: %s\n", err)
 		os.Exit(1)
 	}
 	bs := topo.BS["bs"+ia.FileFmt(false)+"-1"]
