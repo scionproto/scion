@@ -33,19 +33,13 @@ var UsedEntries *prometheus.GaugeVec
 func InitMetrics(namespace string, constLabels prometheus.Labels, labelNames []string) {
 	lNames := append(labelNames, "desc")
 	newCVec := func(name, help string) *prometheus.CounterVec {
-		v := prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
 	}
 	newGVec := func(name, help string) *prometheus.GaugeVec {
-		v := prom.NewGaugeVec(namespace, "ringbuf", name, help, constLabels, lNames)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewGaugeVec(namespace, "ringbuf", name, help, constLabels, lNames)
 	}
 	newHVec := func(name, help string, buckets []float64) *prometheus.HistogramVec {
-		v := prom.NewHistogramVec(namespace, "ringbuf", name, help, constLabels, lNames, buckets)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewHistogramVec(namespace, "ringbuf", name, help, constLabels, lNames, buckets)
 	}
 	WriteCalls = newCVec("write_calls_total", "Number of calls to Write.")
 	ReadCalls = newCVec("read_calls_total", "Number of calls to Read.")

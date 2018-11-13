@@ -72,26 +72,18 @@ func Init(elem string) {
 
 	// Some closures to reduce boiler-plate.
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
-		v := prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
 	}
 	newG := func(name, help string) prometheus.Gauge {
-		v := prom.NewGauge(namespace, "", name, help, constLabels)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewGauge(namespace, "", name, help, constLabels)
 	}
 	newGVec := func(name, help string, lNames []string) *prometheus.GaugeVec {
-		v := prom.NewGaugeVec(namespace, "", name, help, constLabels, lNames)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewGaugeVec(namespace, "", name, help, constLabels, lNames)
 	}
 	newHVec := func(name, help string,
 		lNames []string, buckets []float64) *prometheus.HistogramVec {
 
-		v := prom.NewHistogramVec(namespace, "", name, help, constLabels, lNames, buckets)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewHistogramVec(namespace, "", name, help, constLabels, lNames, buckets)
 	}
 
 	InputPkts = newCVec("input_pkts_total", "Total number of input packets received.", sockLabels)

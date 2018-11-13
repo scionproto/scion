@@ -376,6 +376,12 @@
 			"revisionTime": "2018-11-03T14:23:28Z"
 		},
 		{
+			"checksumSHA1": "BFMAsj5z3cYaNKx9fwHrazQRFvI=",
+			"path": "github.com/prometheus/client_golang/prometheus/promauto",
+			"revision": "abad2d1bd44235a26707c172eab6bca5bf2dbad3",
+			"revisionTime": "2018-11-03T14:23:28Z"
+		},
+		{
 			"checksumSHA1": "wJzzub/0w2espYvar3lylwHXBAk=",
 			"license": "APL 2.0",
 			"path": "github.com/prometheus/client_golang/prometheus/promhttp",

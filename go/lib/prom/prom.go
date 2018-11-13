@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +19,7 @@ package prom
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 func CopyLabels(labels prometheus.Labels) prometheus.Labels {
@@ -28,9 +30,10 @@ func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 	return l
 }
 
+// NewCounter creates a new prometheus counter that is registered with the default registry.
 func NewCounter(namespace, subsystem, name, help string,
 	constLabels prometheus.Labels) prometheus.Counter {
-	return prometheus.NewCounter(
+	return promauto.NewCounter(
 		prometheus.CounterOpts{
 			Namespace:   namespace,
 			Subsystem:   subsystem,
@@ -41,9 +44,10 @@ func NewCounter(namespace, subsystem, name, help string,
 	)
 }
 
+// NewCounterVec creates a new prometheus counter vec that is registered with the default registry.
 func NewCounterVec(namespace, subsystem, name, help string,
 	constLabels prometheus.Labels, labelNames []string) *prometheus.CounterVec {
-	return prometheus.NewCounterVec(
+	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace:   namespace,
 			Subsystem:   subsystem,
@@ -55,9 +59,10 @@ func NewCounterVec(namespace, subsystem, name, help string,
 	)
 }
 
+// NewGauge creates a new prometheus gauge that is registered with the default registry.
 func NewGauge(namespace, subsystem, name, help string,
 	constLabels prometheus.Labels) prometheus.Gauge {
-	return prometheus.NewGauge(
+	return promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace:   namespace,
 			Subsystem:   subsystem,
@@ -67,9 +72,11 @@ func NewGauge(namespace, subsystem, name, help string,
 		},
 	)
 }
+
+// NewGaugeVec creates a new prometheus gauge vec that is registered with the default registry.
 func NewGaugeVec(namespace, subsystem, name, help string,
 	constLabels prometheus.Labels, labelNames []string) *prometheus.GaugeVec {
-	return prometheus.NewGaugeVec(
+	return promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace:   namespace,
 			Subsystem:   subsystem,
@@ -81,9 +88,11 @@ func NewGaugeVec(namespace, subsystem, name, help string,
 	)
 }
 
+// NewHistogramVec creates a new prometheus histogram vec
+// that is registered with the default registry.
 func NewHistogramVec(namespace, subsystem, name, help string, constLabels prometheus.Labels,
 	labelNames []string, buckets []float64) *prometheus.HistogramVec {
-	return prometheus.NewHistogramVec(
+	return promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace:   namespace,
 			Subsystem:   subsystem,
