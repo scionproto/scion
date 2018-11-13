@@ -68,11 +68,11 @@ func compareLayer(act gopacket.Layer, exp gopacket.SerializableLayer) error {
 	}
 	switch exp.LayerType() {
 	case layers.LayerTypeIPv4:
-		return compareIP4Layer(exp.(*layers.IPv4), act.(*layers.IPv4))
+		return compareIP4Layer(act.(*layers.IPv4), exp.(*layers.IPv4))
 	case layers.LayerTypeIPv6:
-		return compareIP6Layer(exp.(*layers.IPv6), act.(*layers.IPv6))
+		return compareIP6Layer(act.(*layers.IPv6), exp.(*layers.IPv6))
 	case layers.LayerTypeUDP:
-		return compareUDPLayer(exp.(*layers.UDP), act.(*layers.UDP))
+		return compareUDPLayer(act.(*layers.UDP), exp.(*layers.UDP))
 	}
 	return fmt.Errorf("Unknown layer %s", exp.LayerType())
 }
