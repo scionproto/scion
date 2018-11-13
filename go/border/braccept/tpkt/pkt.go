@@ -154,11 +154,11 @@ func (p *Pkt) checkScnHdr(b common.RawBytes) (common.RawBytes, error) {
 	}
 	if scn.CmnHdr != *p.CmnHdr {
 		return nil, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v",
-			p.CmnHdr, scn.CmnHdr)
+			p.CmnHdr, &scn.CmnHdr)
 	}
 	if !p.AddrHdr.Eq(&scn.AddrHdr) {
 		return nil, fmt.Errorf("Address header mismatch\nExpected %v\nActual   %v",
-			p.AddrHdr, scn.AddrHdr)
+			p.AddrHdr, &scn.AddrHdr)
 	}
 	if err := p.Path.Check(&scn.Path); err != nil {
 		return nil, err
@@ -177,14 +177,16 @@ func (p *Pkt) checkL4(b common.RawBytes) (common.RawBytes, error) {
 		pktL4, _ := scmp.HdrFromRaw(b)
 		scmp := p.L4.(*scmp.Hdr)
 		if !scmpEqual(scmp, pktL4) {
-			return nil, fmt.Errorf("L4 SCMP header does not match")
+			return nil, fmt.Errorf("L4 SCMP header does not match\n Expected: %s\n Actual: %s",
+				scmp, pktL4)
 		}
 		// TODO compare specific SCMP data and payload
 	case common.L4UDP:
 		pktL4, _ := l4.UDPFromRaw(b)
 		udp := p.L4.(*l4.UDP)
 		if !udpEqual(udp, pktL4) {
-			return nil, fmt.Errorf("L4 UDP header does not match")
+			return nil, fmt.Errorf("L4 UDP header does not match\n Expected: %s\n Actual: %s",
+				udp, pktL4)
 		}
 	}
 	return b[p.L4.L4Len():], nil
@@ -230,10 +232,12 @@ func extnsLength(extns []common.Extension) int {
 
 func scmpEqual(a, b *scmp.Hdr) bool {
 	// Ignore Checksum and Timestamp
-	return a.Class == b.Class && a.Type == b.Type && a.TotalLen == b.TotalLen
+	// TODO Total len and Pld/quotes
+	return a.Class == b.Class && a.Type == b.Type
 }
 
 func udpEqual(a, b *l4.UDP) bool {
 	// Ignore Checksum
-	return a.SrcPort == b.SrcPort && a.DstPort == b.DstPort && a.TotalLen == b.TotalLen
+	// TODO TotalLen
+	return a.SrcPort == b.SrcPort && a.DstPort == b.DstPort
 }
