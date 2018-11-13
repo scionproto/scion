@@ -50,6 +50,10 @@ func (u *UDP) Validate(plen int) error {
 }
 
 func (u *UDP) Parse(b common.RawBytes) error {
+	if len(b) < UDPLen {
+		return common.NewBasicError("Buffer is shorter than the UDP header", nil,
+			"expected", UDPLen, "actual", len(b))
+	}
 	offset := 0
 	u.SrcPort = common.Order.Uint16(b[offset:])
 	offset += 2
