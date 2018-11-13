@@ -61,7 +61,7 @@ func (m *MockService) Connect() (Connector, error) {
 }
 
 func (m *MockService) ConnectTimeout(timeout time.Duration) (Connector, error) {
-	panic("not implemented")
+	return &MockConn{g: m.g}, nil
 }
 
 var _ Connector = (*MockConn)(nil)

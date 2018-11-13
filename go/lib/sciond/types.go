@@ -356,6 +356,13 @@ func (iface *PathInterface) ISD_AS() addr.IA {
 	return iface.RawIsdas.IA()
 }
 
+func (iface *PathInterface) Eq(other *PathInterface) bool {
+	if iface == nil || other == nil {
+		return iface == other
+	}
+	return iface.RawIsdas == other.RawIsdas && iface.IfID == other.IfID
+}
+
 func (iface PathInterface) String() string {
 	return fmt.Sprintf("%s#%d", iface.ISD_AS(), iface.IfID)
 }

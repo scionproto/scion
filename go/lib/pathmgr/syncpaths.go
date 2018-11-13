@@ -35,6 +35,8 @@ type SyncPaths struct {
 	value atomic.Value
 	// Used to avoid races between multiple writers
 	mutex sync.Mutex
+	// Destructor is called to destroy the object
+	destructor func()
 }
 
 // SyncPathsData is the atomic value inside a SyncPaths object. It provides a
@@ -46,7 +48,7 @@ type SyncPathsData struct {
 }
 
 // NewSyncPaths creates a new SyncPaths object and sets the timestamp to
-// current time.  A newly created SyncPaths contains a nil spathmeta.AppPathSet.
+// current time. A newly created SyncPaths contains a nil spathmeta.AppPathSet.
 func NewSyncPaths() *SyncPaths {
 	sp := &SyncPaths{}
 	now := time.Now()
@@ -83,6 +85,20 @@ func (sp *SyncPaths) update(newAPS spathmeta.AppPathSet) {
 func (sp *SyncPaths) Load() *SyncPathsData {
 	val := *sp.value.Load().(*SyncPathsData)
 	return &val
+}
+
+func (sp *SyncPaths) setDestructor(f func()) {
+	sp.mutex.Lock()
+	sp.destructor = f
+	sp.mutex.Unlock()
+}
+
+func (sp *SyncPaths) Destroy() {
+	sp.mutex.Lock()
+	if sp.destructor != nil {
+		sp.destructor()
+	}
+	sp.mutex.Unlock()
 }
 
 func setSubtract(x, y spathmeta.AppPathSet) spathmeta.AppPathSet {

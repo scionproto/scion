@@ -166,10 +166,7 @@ func getRemote() error {
 }
 
 func getSVCAddress() (*sciond.HostInfo, error) {
-	connector, err := snet.DefNetwork.Sciond().Connect()
-	if err != nil {
-		return nil, err
-	}
+	connector := snet.DefNetwork.Sciond()
 	ctx, cancelF := context.WithTimeout(context.Background(), integration.DefaultIOTimeout)
 	defer cancelF()
 	reply, err := connector.SVCInfo(ctx, []proto.ServiceType{proto.ServiceType_cs})

@@ -211,7 +211,7 @@ func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 		return nil, err
 	}
 	if server == nil {
-		server, err = store.ChooseServer(addr.IA{I: isd})
+		server, err = store.ChooseServer(ctx, addr.IA{I: isd})
 		if err != nil {
 			return nil, common.NewBasicError("Error determining server to query", err,
 				"isd", isd, "version", version)
@@ -263,7 +263,7 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	}
 	go func() {
 		defer log.LogPanicAndExit()
-		addr, err := store.ChooseServer(store.ia)
+		addr, err := store.ChooseServer(ctx, store.ia)
 		if err != nil {
 			log.Error("Failed to select server to forward TRC", "err", err)
 		}
@@ -290,7 +290,7 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 
 	if server == nil {
 		var err error
-		server, err = store.ChooseServer(ia)
+		server, err = store.ChooseServer(ctx, ia)
 		if err != nil {
 			return nil, err
 		}
@@ -362,7 +362,7 @@ func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	if err := store.isLocal(client); err != nil {
 		return nil, err
 	}
-	server, err := store.ChooseServer(ia)
+	server, err := store.ChooseServer(ctx, ia)
 	if err != nil {
 		return nil, common.NewBasicError("Error determining server to query", err,
 			"requested_ia", ia, "requested_version", version)
@@ -397,7 +397,7 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		// forward to local CS, async
 		go func() {
 			defer log.LogPanicAndExit()
-			addr, err := store.ChooseServer(store.ia)
+			addr, err := store.ChooseServer(ctx, store.ia)
 			if err != nil {
 				log.Error("Failed to select server to forward cert chain", "err", err)
 			}
@@ -645,7 +645,7 @@ func (store *Store) isLocal(address net.Addr) error {
 
 // ChooseServer builds a CS address for crypto material regarding the
 // destination AS.
-func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
+func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.Addr, error) {
 	topo := itopo.GetCurrentTopology()
 	if store.config.ServiceType != proto.ServiceType_cs {
 		svcInfo, err := topo.GetSvcInfo(proto.ServiceType_cs)
@@ -661,7 +661,8 @@ func (store *Store) ChooseServer(destination addr.IA) (net.Addr, error) {
 		return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 	}
 	if destination.A == 0 {
-		pathSet := snet.DefNetwork.PathResolver().Query(store.ia, addr.IA{I: destination.I})
+		pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia,
+			addr.IA{I: destination.I})
 		path := pathSet.GetAppPath("")
 		if path == nil {
 			return nil, common.NewBasicError("Unable to find path to any core AS", nil,
