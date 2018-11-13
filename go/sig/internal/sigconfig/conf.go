@@ -19,7 +19,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
 )
 
 const (
@@ -30,23 +29,21 @@ const (
 
 // Conf contains the configuration specific to the SIG.
 type Conf struct {
-	// ID of the SIG (Required.)
+	// ID of the SIG (required)
 	ID string
-	// The SIG config json file. (Required.)
-	Config string
-	// IA the local IA (Required.)
+	// The SIG config json file. (required)
+	SIGConfig string
+	// IA the local IA (required)
 	IA addr.IA
-	// IP the bind IP address (Required.)
+	// IP the bind IP address (required)
 	IP net.IP
-	// Control data port, e.g. keepalives. (Default: DefaultCtrlPort)
+	// Control data port, e.g. keepalives. (default DefaultCtrlPort)
 	CtrlPort uint16
-	// Encapsulation data port. (Default: DefaultEncapPort)
+	// Encapsulation data port. (default DefaultEncapPort)
 	EncapPort uint16
-	// SCIOND socket path. (Default: default sciond path)
-	Sciond string
-	// SCION dispatcher path. (Default: "")
+	// SCION dispatcher path. (default "")
 	Dispatcher string
-	// Name of TUN device to create. (Default: DefaultTunName)
+	// Name of TUN device to create. (default DefaultTunName)
 	Tun string
 }
 
@@ -55,11 +52,14 @@ func (c Conf) Validate() error {
 	if c.ID == "" {
 		return common.NewBasicError("ID must be set!", nil)
 	}
-	if c.Config == "" {
+	if c.SIGConfig == "" {
 		return common.NewBasicError("Config must be set!", nil)
 	}
 	if c.IA.IsZero() {
 		return common.NewBasicError("IA must be set", nil)
+	}
+	if c.IA.I == 0 || c.IA.A == 0 {
+		return common.NewBasicError("Invalid IA", nil)
 	}
 	if c.IP.IsUnspecified() {
 		return common.NewBasicError("IP must be set", nil)
@@ -69,16 +69,11 @@ func (c Conf) Validate() error {
 
 // InitDefaults sets the default values to unset values.
 func (c *Conf) InitDefaults() {
-	// TODO(lukedirtwalker): We should differ between "zero-values" and not set.
-	// This could be done using the MetaData from the TOML parse.
 	if c.CtrlPort == 0 {
 		c.CtrlPort = DefaultCtrlPort
 	}
 	if c.EncapPort == 0 {
 		c.EncapPort = DefaultEncapPort
-	}
-	if c.Sciond == "" {
-		c.Sciond = sciond.GetDefaultSCIONDPath(nil)
 	}
 	if c.Tun == "" {
 		c.Tun = DefaultTunName

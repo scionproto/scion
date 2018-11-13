@@ -16,32 +16,36 @@ package sigconfig
 
 const Sample = `
 [sig]
-  # ID of the SIG (Required.)
+  # ID of the SIG (required)
   ID = "sig4"
 
-  # The SIG config json file. (Required.)
-  Config = "/etc/scion/sig/sig.json"
+  # The SIG config json file. (required)
+  SIGConfig = "/etc/scion/sig/sig.json"
 
-  # The local IA (Required.)
+  # The local IA (required)
   IA = "1-ff00:0:113"
 
-  # The bind IP address (Required.)
+  # The bind IP address (required)
   IP = "168.10.20.15"
 
-  # Control data port, e.g. keepalives. (Default: DefaultCtrlPort)
+  # Control data port, e.g. keepalives. (default 10081)
   CtrlPort = 10081
 
-  # Encapsulation data port. (Default: DefaultEncapPort)
+  # Encapsulation data port. (default 10080)
   EncapPort = 10080
 
-  # SCIOND socket path. (Default: default sciond path)
-  Sciond = ""
-
-  # SCION dispatcher path. (Default: "")
+  # SCION dispatcher path. (default "")
   Dispatcher = ""
 
-  # Name of TUN device to create. (Default: DefaultTunName)
+  # Name of TUN device to create. (default DefaultTunName)
   Tun = "sig"
+
+[sd_client]
+  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
+  Path = "/run/shm/sciond/default.sock"
+
+  # Maximum time spent attempting to connect to sciond on start. (default 20s)
+  InitialConnectPeriod = "20s"
 
 [logging]
 [logging.file]
@@ -66,8 +70,7 @@ const Sample = `
   Level = "crit"
 
 [metrics]
-# The address to export prometheus metrics on. If not set, metrics are not
-# exported.
-# Prometheus = "127.0.0.1:8000"
+# The address to export prometheus metrics on. (default 127.0.0.1:1281)
+  Prometheus = "127.0.0.1:8000"
 
 `

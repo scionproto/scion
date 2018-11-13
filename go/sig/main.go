@@ -46,12 +46,17 @@ import (
 type Config struct {
 	Logging env.Logging
 	Metrics env.Metrics
+	Sciond  env.SciondClient `toml:"sd_client"`
 	Sig     sigconfig.Conf
 }
 
 var (
 	cfg Config
 )
+
+func init() {
+	flag.Usage = env.Usage
+}
 
 func main() {
 	os.Exit(realMain())
@@ -132,6 +137,7 @@ func validateConfig() error {
 	if err := cfg.Sig.Validate(); err != nil {
 		return err
 	}
+	env.InitSciondClient(cfg.Sciond)
 	cfg.Sig.InitDefaults()
 	if cfg.Metrics.Prometheus == "" {
 		cfg.Metrics.Prometheus = "127.0.0.1:1281"
