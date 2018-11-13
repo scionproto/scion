@@ -206,11 +206,14 @@ func (s *SegDef) segLen() int {
 
 func (s *SegDef) Equal(o *SegDef) error {
 	if s.Inf != o.Inf {
-		return fmt.Errorf("Info Field mismatch\nExpected: %s\nActual:   %s\n", &s.Inf, &o.Inf)
+		return fmt.Errorf("Info Field mismatch\n  Expected: %s\n  Actual:   %s\n", &s.Inf, &o.Inf)
+	}
+	if len(s.Hops) != len(o.Hops) {
+		return fmt.Errorf("Different number of Hop Fields\n  Expected: %s\n  Actual:   %s\n", s, o)
 	}
 	for i := range s.Hops {
 		if !compareHopF(s.Hops[i], o.Hops[i]) {
-			return fmt.Errorf("Hop Field mismatch\nExpected: %s\nActual:   %s\n",
+			return fmt.Errorf("Hop Field mismatch\n  Expected: %s\n  Actual:   %s\n",
 				&s.Hops[i], &o.Hops[i])
 		}
 	}

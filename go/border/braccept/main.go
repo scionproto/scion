@@ -53,30 +53,15 @@ func init() {
 	flag.IntVar(&testIdx, "testIndex", -1, "Run specific test")
 }
 
-func GenerateKeys(fn string) error {
-	// Load master keys
-	masterKeys, err := keyconf.LoadMaster(fn)
-	if err != nil {
-		return err
-	}
-	// Generate keys
-	// This uses 16B keys with 1000 hash iterations, which is the same as the
-	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(masterKeys.Key0, common.RawBytes("Derive OF Key"), 1000, 16, sha256.New)
-	// First check for MAC creation errors.
-	hashMac, err = scrypto.InitMac(hfGenKey)
-	return err
-}
-
 func main() {
 	if err := checkFlags(); err != nil {
 		flag.Usage()
 		fatal("%s\n", err)
 	}
-	if err := ParseDevInfo(devInfoFilePath); err != nil {
+	if err := parseDevInfo(devInfoFilePath); err != nil {
 		fatal("%s\n", err)
 	}
-	if err := GenerateKeys(keysDirPath); err != nil {
+	if err := generateKeys(keysDirPath); err != nil {
 		fatal("%s\n", err)
 	}
 	timerIdx := len(devList)
@@ -122,6 +107,55 @@ func main() {
 		}
 	}
 	os.Exit(failures)
+}
+
+func checkFlags() error {
+	flag.Parse()
+	if borderID == "" {
+		return fmt.Errorf("ERROR: Missing borderID flag")
+	}
+	if keysDirPath == "" {
+		return fmt.Errorf("ERROR: Missing keysDirPath flag")
+	}
+	if devInfoFilePath == "" {
+		return fmt.Errorf("ERROR: Missing devInfoFilePath flag")
+	}
+	return nil
+}
+
+func parseDevInfo(fn string) error {
+	f, err := os.Open(fn)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	devByName = make(map[string]*ifInfo)
+	for scanner.Scan() {
+		field := strings.Split(scanner.Text(), " ")
+		elem := &ifInfo{hostDev: field[0], contDev: field[1]}
+		elem.mac, err = net.ParseMAC(field[2])
+		if err != nil {
+			return err
+		}
+		devList = append(devList, elem)
+		devByName[field[1]] = elem
+	}
+	return nil
+}
+
+func generateKeys(fn string) error {
+	// Load master keys
+	masterKeys, err := keyconf.LoadMaster(fn)
+	if err != nil {
+		return err
+	}
+	// This uses 16B keys with 1000 hash iterations, which is the same as the
+	// defaults used by pycrypto.
+	hfGenKey := pbkdf2.Key(masterKeys.Key0, common.RawBytes("Derive OF Key"), 1000, 16, sha256.New)
+	// First check for MAC creation errors.
+	hashMac, err = scrypto.InitMac(hfGenKey)
+	return err
 }
 
 // doTest just runs a test, which involved generating the packet, sending it in the specified
@@ -213,41 +247,6 @@ func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, err
 	}
 	return 0, fmt.Errorf("\nUnexpected pkt on interface %s\n%v\n%v",
 		devList[devIdx].contDev, pkt, scnPkt)
-}
-
-func ParseDevInfo(fn string) error {
-	f, err := os.Open(fn)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	devByName = make(map[string]*ifInfo)
-	for scanner.Scan() {
-		field := strings.Split(scanner.Text(), " ")
-		elem := &ifInfo{hostDev: field[0], contDev: field[1]}
-		elem.mac, err = net.ParseMAC(field[2])
-		if err != nil {
-			return err
-		}
-		devList = append(devList, elem)
-		devByName[field[1]] = elem
-	}
-	return nil
-}
-
-func checkFlags() error {
-	flag.Parse()
-	if borderID == "" {
-		return fmt.Errorf("ERROR: Missing borderID flag")
-	}
-	if keysDirPath == "" {
-		return fmt.Errorf("ERROR: Missing keysDirPath flag")
-	}
-	if devInfoFilePath == "" {
-		return fmt.Errorf("ERROR: Missing devInfoFilePath flag")
-	}
-	return nil
 }
 
 func fatal(msg string, a ...interface{}) {
