@@ -20,11 +20,7 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 )
 
-// In hpkt, the common header is auto generated, ie. length, nextHdr, etc.
-// The mergo package allows to merge structs, so any fields not set in the original struct
-// are set with the fields of the struct we are merging with.
-
-// PktGen is used for building the packet that will be sent to the border router.
+// Packer is used for building the packet that will be sent to the border router.
 type Packer interface {
 	GetDev() string
 	Pack(net.HardwareAddr, hash.Hash) (common.RawBytes, error)

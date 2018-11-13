@@ -28,32 +28,24 @@ type ValidPkt struct {
 }
 
 // Generate a ScnPkt when use hpkt to build it
-func (pi *ValidPkt) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawBytes, error) {
+func (p *ValidPkt) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawBytes, error) {
 	// Complain if CmnHdr has been specified
-	if pi.CmnHdr != nil {
+	if p.CmnHdr != nil {
 		return nil, fmt.Errorf("PktInfoHpkt does not support custom CmnHdr")
 	}
-	if pi.L4 == nil {
+	if p.L4 == nil {
 		return nil, fmt.Errorf("PktInfoHpkt requires L4 header")
 	}
-	/*
-		// Write SCION path
-		pi.Path.Raw = make(common.RawBytes, pi.Path.Segs.Len())
-		pi.Path.Mac = mac
-		if _, err := pi.Path.WriteRaw(); err != nil {
-			return nil, err
-		}
-	*/
 	// Create ScnPkt
 	scn := &spkt.ScnPkt{
-		DstIA:   pi.AddrHdr.DstIA,
-		SrcIA:   pi.AddrHdr.SrcIA,
-		DstHost: pi.AddrHdr.DstHost,
-		SrcHost: pi.AddrHdr.SrcHost,
-		Path:    &pi.Path.Path,
-		HBHExt:  pi.Exts, // XXX E2E are not supported yet
-		L4:      pi.L4,
-		Pld:     pi.Pld,
+		DstIA:   p.AddrHdr.DstIA,
+		SrcIA:   p.AddrHdr.SrcIA,
+		DstHost: p.AddrHdr.DstHost,
+		SrcHost: p.AddrHdr.SrcHost,
+		Path:    &p.Path.Path,
+		HBHExt:  p.Exts, // XXX E2E are not supported yet
+		L4:      p.L4,
+		Pld:     p.Pld,
 	}
 	if scn.Pld == nil {
 		scn.Pld = new(common.RawBytes)
@@ -65,14 +57,12 @@ func (pi *ValidPkt) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawByte
 	if err != nil {
 		return nil, err
 	}
-	overlayLayers, err := pi.GetOverlay(dstMac)
+	overlayLayers, err := p.GetOverlay(dstMac)
 	if err != nil {
 		return nil, err
 	}
 	l := make([]gopacket.SerializableLayer, len(overlayLayers)+1)
-	for i := range overlayLayers {
-		l[i] = overlayLayers[i]
-	}
+	copy(l, overlayLayers)
 	l[len(overlayLayers)] = gopacket.Payload(buf)
 	pkt := gopacket.NewSerializeBuffer()
 	options := gopacket.SerializeOptions{
