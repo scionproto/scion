@@ -18,6 +18,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/scmp"
 )
 
 // Packer is used for building the packet that will be sent to the border router.
@@ -57,4 +58,8 @@ func (p *Raw) GenCmnHdr() {
 
 func GenL4UDP(src, dst uint16) *l4.UDP {
 	return &l4.UDP{SrcPort: src, DstPort: dst}
+}
+
+func GenL4SCMP(c scmp.Class, t scmp.Type) *scmp.Hdr {
+	return &scmp.Hdr{Class: c, Type: t}
 }

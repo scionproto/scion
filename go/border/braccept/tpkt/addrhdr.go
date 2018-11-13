@@ -89,8 +89,8 @@ func (a *AddrHdr) Eq(o *AddrHdr) bool {
 }
 
 func (a *AddrHdr) String() string {
-	return fmt.Sprintf("DstIA: %s, SrcIA: %s, DstHost: %s, SrcHost: %s",
-		a.DstIA, a.SrcIA, a.DstHost, a.SrcHost)
+	return fmt.Sprintf("SrcIA: %s, SrcHost: %s, DstIA: %s, DstHost: %s",
+		a.SrcIA, a.SrcHost, a.DstIA, a.DstHost)
 }
 
 func ceil(l, mult int) int {
