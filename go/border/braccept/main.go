@@ -98,13 +98,17 @@ func main() {
 	}
 	fmt.Printf("Acceptance tests for %s:\n", borderID)
 	var failures int
+	baseIdx := 1
 	if testIdx != -1 {
-		brTests = brTests[testIdx : testIdx+1]
+		brTests = brTests[testIdx-1 : testIdx]
+		baseIdx = testIdx
 	}
-	for _, t := range brTests {
-		if !doTest(t, cases) {
+	for i, t := range brTests {
+		pass := doTest(t, cases)
+		if !pass {
 			failures += 1
 		}
+		fmt.Printf("%d. %s\n", baseIdx+i, t.Summary(pass))
 	}
 	os.Exit(failures)
 }
@@ -182,7 +186,6 @@ func doTest(t *BRTest, cases []reflect.SelectCase) bool {
 	} else {
 		pass = true
 	}
-	fmt.Println(t.Summary(pass))
 	return pass
 }
 
