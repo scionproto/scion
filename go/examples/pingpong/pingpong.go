@@ -19,6 +19,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/gob"
 	"flag"
 	"fmt"
@@ -417,7 +418,7 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	var pathIndex uint64
 
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
 
 	if len(pathSet) == 0 {
 		return nil

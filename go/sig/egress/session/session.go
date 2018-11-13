@@ -18,6 +18,7 @@
 package session
 
 import (
+	"context"
 	"sync/atomic"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -160,7 +161,7 @@ type PathPool struct {
 var _ egress.PathPool = (*PathPool)(nil)
 
 func NewPathPool(dst addr.IA) (*PathPool, error) {
-	pool, err := sigcmn.PathMgr.Watch(sigcmn.IA, dst)
+	pool, err := sigcmn.PathMgr.Watch(context.TODO(), sigcmn.IA, dst)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to register watch", err)
 	}
@@ -171,7 +172,8 @@ func NewPathPool(dst addr.IA) (*PathPool, error) {
 }
 
 func (pp *PathPool) Destroy() error {
-	return sigcmn.PathMgr.Unwatch(sigcmn.IA, pp.ia)
+	pp.pool.Destroy()
+	return nil
 }
 
 func (pp *PathPool) Paths() spathmeta.AppPathSet {

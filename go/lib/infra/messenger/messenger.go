@@ -735,11 +735,7 @@ func (pr *pathingRequester) getBlockingPath(ctx context.Context, a net.Addr) (ne
 	if snetAddress.IA == pr.local {
 		return snetAddress, nil
 	}
-	sdService := snet.DefNetwork.PathResolver().Sciond()
-	conn, err := sdService.Connect()
-	if err != nil {
-		return nil, err
-	}
+	conn := snet.DefNetwork.PathResolver().Sciond()
 	paths, err := conn.Paths(ctx, snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
 	if err != nil {
 		return nil, err
