@@ -331,9 +331,10 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 				&tpkt.ValidPkt{Pkt: tpkt.Pkt{
 					Dev:     "ifid_121",
 					Overlay: tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 50001),
-					AddrHdr: tpkt.NewAddrHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1"),
-					Path:    tpkt.GenPath(2, 2, path_2A_1A_X_1C_3A_rev, hashMac),
-					L4:      tpkt.GenL4SCMP(scmp.C_Path, scmp.T_C_BadHopFOffset),
+					AddrHdr: tpkt.NewAddrHdr(
+						"1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1"),
+					Path: tpkt.GenPath(2, 2, path_2A_1A_X_1C_3A_rev, hashMac),
+					L4:   tpkt.GenL4SCMP(scmp.C_Path, scmp.T_C_BadHopFOffset),
 				}},
 			},
 		},

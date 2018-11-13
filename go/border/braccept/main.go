@@ -260,16 +260,10 @@ func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, err
 		}
 		return i, nil
 	}
-	/*
-		payload := pkt.ApplicationLayer().LayerContents()
-		scnPkt := gopacket.NewPacket(payload, tpkt.LayerTypeScion, gopacket.NoCopy)
-		if scn := scnPkt.Layer(tpkt.LayerTypeScion).(*tpkt.ScionLayer); scn != nil {
-			scn.Path.Parse(scn.Path.Raw)
-			scn.Path.Raw = nil
-		}
-		return 0, fmt.Errorf("\nUnexpected pkt on interface %s\n%v\n%v",
-			devList[devIdx].contDev, pkt, scnPkt)
-	*/
+	if scn := pkt.Layer(tpkt.LayerTypeScion).(*tpkt.ScionLayer); scn != nil {
+		scn.Path.Parse(scn.Path.Raw)
+		scn.Path.Raw = nil
+	}
 	errStr = append(errStr, fmt.Sprintf("Unexpected pkt on interface %s:\n\n%v",
 		devList[devIdx].contDev, pkt))
 	return 0, fmt.Errorf(strings.Join(errStr, "\n"))
