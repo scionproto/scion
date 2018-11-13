@@ -87,7 +87,7 @@ func realMain() int {
 	}()
 	environment := env.SetupEnv(
 		func() {
-			success := loadConfig(cfg.Sig.Config)
+			success := loadConfig(cfg.Sig.SIGConfig)
 			// Errors already logged in loadConfig
 			log.Info("reloadOnSIGHUP: reload done", "success", success)
 		},
@@ -137,7 +137,7 @@ func validateConfig() error {
 	if err := cfg.Sig.Validate(); err != nil {
 		return err
 	}
-	env.InitSciondClient(cfg.Sciond)
+	env.InitSciondClient(&cfg.Sciond)
 	cfg.Sig.InitDefaults()
 	if cfg.Metrics.Prometheus == "" {
 		cfg.Metrics.Prometheus = "127.0.0.1:1281"
@@ -151,13 +151,13 @@ func setup() error {
 	}
 	// Export prometheus metrics.
 	metrics.Init(cfg.Sig.ID)
-	if err := sigcmn.Init(cfg.Sig); err != nil {
+	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
 		return common.NewBasicError("Error during initialization", err)
 	}
 	egress.Init()
 	disp.Init(sigcmn.CtrlConn)
 	// Parse sig config
-	if loadConfig(cfg.Sig.Config) != true {
+	if loadConfig(cfg.Sig.SIGConfig) != true {
 		return common.NewBasicError("Unable to load sig config on startup", nil)
 	}
 	return nil

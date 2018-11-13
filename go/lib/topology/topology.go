@@ -142,7 +142,7 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 	if t.ISD_AS, err = addr.IAFromString(raw.ISD_AS); err != nil {
 		return err
 	}
-	if t.ISD_AS.I == 0 || t.ISD_AS.A == 0 {
+	if t.ISD_AS.IsWildcard() {
 		return common.NewBasicError("IA contains wildcard", nil, "ia", t.ISD_AS)
 	}
 	if t.Overlay, err = overlay.TypeFromString(raw.Overlay); err != nil {

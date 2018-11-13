@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -105,9 +106,8 @@ func (am *ASMap) delOldIAs(cfg *config.Cfg) bool {
 
 // AddIA idempotently adds an entry for a remote IA.
 func (am *ASMap) AddIA(ia addr.IA) (*ASEntry, error) {
-	if ia.I == 0 || ia.A == 0 {
-		// A 0 for either ISD or AS indicates a wildcard, and not a specific ISD-AS.
-		return nil, common.NewBasicError("AddIA: ISD and AS must not be 0", nil, "ia", ia)
+	if ia.IsWildcard() {
+		return nil, common.NewBasicError("AddIA: Wildcard IA not allowed", nil, "ia", ia)
 	}
 	key := ia.IAInt()
 	ae, ok := am.Load(key)
