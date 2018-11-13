@@ -187,11 +187,11 @@ func setupTun() (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = xnet.AddRoute(tunLink, sigcmn.DefV4Net); err != nil {
+	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV4Net); err != nil {
 		return nil,
 			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
 	}
-	if err = xnet.AddRoute(tunLink, sigcmn.DefV6Net); err != nil {
+	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net); err != nil {
 		return nil,
 			common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
 	}
