@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ type Networks struct {
 }
 
 func (ns *Networks) Add(ipnet *net.IPNet, ia addr.IA, ring *ringbuf.Ring) error {
-	if ia.I == 0 || ia.A == 0 {
+	if ia.IsWildcard() {
 		return common.NewBasicError("Networks.Add(): Illegal wildcard remote AS", nil, "ia", ia)
 	}
 	if ring == nil {

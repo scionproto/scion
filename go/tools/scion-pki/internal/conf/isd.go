@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -133,7 +133,7 @@ func (t *Trc) validate() error {
 		return common.NewBasicError(ErrCoreIANotSet, nil)
 	} else {
 		for _, ia := range t.CoreIAs {
-			if ia.I == 0 || ia.A == 0 {
+			if ia.IsWildcard() {
 				return common.NewBasicError(ErrInvalidCoreIA, nil, "ia", ia)
 			}
 		}

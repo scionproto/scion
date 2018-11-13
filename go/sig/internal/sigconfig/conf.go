@@ -58,8 +58,8 @@ func (c Conf) Validate() error {
 	if c.IA.IsZero() {
 		return common.NewBasicError("IA must be set", nil)
 	}
-	if c.IA.I == 0 || c.IA.A == 0 {
-		return common.NewBasicError("Invalid IA", nil)
+	if c.IA.IsWildcard() {
+		return common.NewBasicError("Wildcard IA not allowed", nil)
 	}
 	if c.IP.IsUnspecified() {
 		return common.NewBasicError("IP must be set", nil)

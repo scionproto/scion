@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -240,6 +241,11 @@ func (ia IA) IsZero() bool {
 
 func (ia IA) Eq(other IA) bool {
 	return ia.I == other.I && ia.A == other.A
+}
+
+// IsWildcard returns whether the ia has a wildcard part (isd or as).
+func (ia IA) IsWildcard() bool {
+	return ia.I == 0 || ia.A == 0
 }
 
 func (ia IA) String() string {
