@@ -40,12 +40,11 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	cmnArgs := []string{"-sciondFromIA", "-log.console", "debug"}
-	clientAddr := integration.SrcIAReplace + ",[" + integration.SrcHostReplace + "]:0"
-	serverAddr := integration.DstIAReplace + ",[" + integration.DstHostReplace + "]:"
-	clientArgs := []string{"-mode", "client", "-count", "1", "-local", clientAddr,
-		"-remote", serverAddr + integration.ServerPortReplace}
+	clientArgs := []string{"-mode", "client", "-count", "1",
+		"-local", integration.SrcAddrReplace + ":0",
+		"-remote", integration.DstAddrReplace + ":" + integration.ServerPortReplace}
 	clientArgs = append(clientArgs, cmnArgs...)
-	serverArgs := []string{"-mode", "server", "-local", serverAddr + "0"}
+	serverArgs := []string{"-mode", "server", "-local", integration.DstAddrReplace + ":0"}
 	serverArgs = append(serverArgs, cmnArgs...)
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
