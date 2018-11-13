@@ -5,10 +5,10 @@ set -e
 [ $(id -u) -eq 0 ] || { echo "Error: this script should be run as root" && exit 1; }
 
 # Install prereqs
-DEBIAN_FRONTEND=noninteractive apt-get install apt-transport-https ca-certificates curl lsb-release software-properties-common -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https ca-certificates curl lsb-release software-properties-common
 
 chksum() {
-    echo "$sum $file" | sha256sum --status -c -
+    echo "${1:?} ${2:?}" | sha256sum --status -c -
 }
 
 # Install docker-compose 1.22.0
@@ -23,9 +23,9 @@ case "$(uname -m)" in
         exit 1
 esac
 # If the file doesn't exist, or the checksum fails, (re)download it.
-if  [ ! -e "$file" ] || ! chksum; then
+if  [ ! -e "$file" ] || ! chksum $sum $file; then
     curl -sSL "$src" -o "$file"
-    chksum || { echo "Error: $file doesn't match the expected checksum. ($sum)"; exit 1; }
+    chksum $sum $file || { echo "Error: $file doesn't match the expected checksum. ($sum)"; exit 1; }
 fi
 chmod +x "$file"
 
@@ -42,5 +42,5 @@ if ! grep -Rq "https://download.docker.com/linux/ubuntu" /etc/apt/sources.list.d
 fi
 
 # Install docker-ce
-DEBIAN_FRONTEND=noninteractive apt-get install docker-ce=18.06* -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce=18.06*
 echo 'docker-ce hold' | dpkg --set-selections
