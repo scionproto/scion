@@ -194,8 +194,8 @@ func (s *SegDef) String() string {
 		if s.Hops[i].VerifyOnly {
 			ver = "V"
 		}
-		str = append(str, fmt.Sprintf("%1s%1s %04d:%04d", xover, ver,
-			s.Hops[i].ConsIngress, s.Hops[i].ConsEgress))
+		str = append(str, fmt.Sprintf("%1s%1s %04d:%04d %s", xover, ver,
+			s.Hops[i].ConsIngress, s.Hops[i].ConsEgress, s.Hops[i].Mac))
 	}
 	return fmt.Sprintf("[%1s%1s%1s] %s", cons, short, peer, strings.Join(str, " <-> "))
 }
