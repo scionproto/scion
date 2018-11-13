@@ -40,6 +40,9 @@ const Sample = `
   # Name of TUN device to create. (default DefaultTunName)
   Tun = "sig"
 
+  # Id of the routing table (default 11)
+  TunRTableId = 11
+
 [sd_client]
   # Sciond path. It defaults to sciond.DefaultSCIONDPath.
   Path = "/run/shm/sciond/default.sock"

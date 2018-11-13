@@ -51,6 +51,7 @@ func TestSample(t *testing.T) {
 		SoMsg("EncapPort correct", cfg.Sig.EncapPort, ShouldEqual, DefaultEncapPort)
 		SoMsg("Dispatcher correct", cfg.Sig.Dispatcher, ShouldEqual, "")
 		SoMsg("Tun correct", cfg.Sig.Tun, ShouldEqual, "sig")
+		SoMsg("TunRTableId correct", cfg.Sig.TunRTableId, ShouldEqual, DefaultTunRTableId)
 
 		// Sciond values
 		SoMsg("SCIOND Path correct", cfg.Sciond.Path, ShouldEqual, sciond.DefaultSCIONDPath)

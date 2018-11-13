@@ -22,9 +22,10 @@ import (
 )
 
 const (
-	DefaultCtrlPort  = 10081
-	DefaultEncapPort = 10080
-	DefaultTunName   = "sig"
+	DefaultCtrlPort    = 10081
+	DefaultEncapPort   = 10080
+	DefaultTunName     = "sig"
+	DefaultTunRTableId = 11
 )
 
 // Conf contains the configuration specific to the SIG.
@@ -45,6 +46,8 @@ type Conf struct {
 	Dispatcher string
 	// Name of TUN device to create. (default DefaultTunName)
 	Tun string
+	// TunRTableId the id of the routing table used in the SIG.
+	TunRTableId int
 }
 
 // Validate validate the config and returns an error if a value is not valid.
@@ -77,5 +80,8 @@ func (c *Conf) InitDefaults() {
 	}
 	if c.Tun == "" {
 		c.Tun = DefaultTunName
+	}
+	if c.TunRTableId == 0 {
+		c.TunRTableId = DefaultTunRTableId
 	}
 }
