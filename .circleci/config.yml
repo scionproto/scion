@@ -91,7 +91,7 @@ jobs:
             - checkout
             - run:
                 name: Update docker
-                command: ./tools/ci/docker_update
+                command: ./tools/install_docker
             - run:
                 name: Build base
                 command: ./docker.sh base
