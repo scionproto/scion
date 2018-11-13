@@ -20,7 +20,7 @@ type ScionLayer struct {
 var LayerTypeScion = gopacket.RegisterLayerType(
 	1337,
 	gopacket.LayerTypeMetadata{
-		Name:    "ScionLayerType",
+		Name:    "SCION",
 		Decoder: gopacket.DecodeFunc(decodeScionLayer),
 	},
 )

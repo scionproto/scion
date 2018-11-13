@@ -82,6 +82,7 @@ func (p *ValidPkt) GenCmnHdr() {
 func (p *ValidPkt) Match(dev string, pkt gopacket.Packet) error {
 	var b common.RawBytes
 	var err error
+	var nl common.L4ProtocolType
 
 	// Skip first Layer, Ethernet
 	l := pkt.Layers()[1:]
@@ -93,13 +94,13 @@ func (p *ValidPkt) Match(dev string, pkt gopacket.Packet) error {
 	if _, err := p.Path.WriteRaw(); err != nil {
 		return err
 	}
-	// Check Scion layers
-	if b, err = p.checkScnHdr(l[0].LayerContents()); err != nil {
+	// Check Scion layer
+	if b, nl, err = p.checkScnHdr(l[0].LayerContents()); err != nil {
 		return err
 	}
 	// TODO Check Extensions
 	// Check L4 and Payload
-	if b, err = p.checkL4(b); err != nil {
+	if b, err = p.checkL4(l[0].LayerPayload(), nl); err != nil {
 		return err
 	}
 	if b, err = p.checkPld(b); err != nil {

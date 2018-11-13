@@ -146,39 +146,46 @@ func (p *Pkt) Pack(dstMac net.HardwareAddr, mac hash.Hash) (common.RawBytes, err
 	return common.RawBytes(pkt.Bytes()), nil
 }
 
-func (p *Pkt) checkScnHdr(b common.RawBytes) (common.RawBytes, error) {
+func (p *Pkt) checkScnHdr(b common.RawBytes) (common.RawBytes, common.L4ProtocolType, error) {
 	scnPkt := gopacket.NewPacket(b, LayerTypeScion, gopacket.NoCopy)
 	scn := scnPkt.Layer(LayerTypeScion).(*ScionLayer)
 	if scn == nil {
-		return nil, fmt.Errorf("Could not parse SCION headers")
+		return nil, common.L4None, fmt.Errorf("Could not parse SCION headers")
 	}
 	if scn.CmnHdr != *p.CmnHdr {
-		return nil, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v",
+		return nil, common.L4None, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v",
 			p.CmnHdr, &scn.CmnHdr)
 	}
 	if !p.AddrHdr.Eq(&scn.AddrHdr) {
-		return nil, fmt.Errorf("Address header mismatch\nExpected %v\nActual   %v",
+		return nil, common.L4None, fmt.Errorf("Address header mismatch\nExpected %v\nActual   %v",
 			p.AddrHdr, &scn.AddrHdr)
 	}
 	if err := p.Path.Check(&scn.Path); err != nil {
-		return nil, err
+		return nil, common.L4None, err
 	}
 	// As we already checked that we have a valid common header, we can use the HdrLen safely
-	return b[scn.CmnHdr.HdrLenBytes():], nil
+	return b[scn.CmnHdr.HdrLenBytes():], scn.CmnHdr.NextHdr, nil
 }
 
-func (p *Pkt) checkL4(b common.RawBytes) (common.RawBytes, error) {
+func (p *Pkt) checkL4(b common.RawBytes, l4Type common.L4ProtocolType) (common.RawBytes, error) {
 	if p.L4 == nil {
 		return b, nil
 	}
+	if p.L4.L4Type() != l4Type {
+		return nil, fmt.Errorf("L4 protocol mismatch\n Expected: %s\n Actual: %s",
+			p.L4.L4Type(), l4Type)
+	}
+	// Set the expected payload length if it was not set in the test and payload is expected
 	pldLen := 0
 	if p.Pld != nil {
 		pldLen = p.Pld.Len()
 	}
 	switch p.L4.L4Type() {
-	case common.L4None:
 	case common.L4SCMP:
-		pktL4, _ := scmp.HdrFromRaw(b)
+		pktL4, err := scmp.HdrFromRaw(b)
+		if err != nil {
+			return nil, err
+		}
 		scmp := p.L4.(*scmp.Hdr)
 		if scmp.TotalLen == 0 {
 			scmp.SetPldLen(pldLen)
@@ -189,7 +196,10 @@ func (p *Pkt) checkL4(b common.RawBytes) (common.RawBytes, error) {
 		}
 		// TODO compare specific SCMP data and payload
 	case common.L4UDP:
-		pktL4, _ := l4.UDPFromRaw(b)
+		pktL4, err := l4.UDPFromRaw(b)
+		if err != nil {
+			return nil, err
+		}
 		udp := p.L4.(*l4.UDP)
 		if udp.TotalLen == 0 {
 			udp.SetPldLen(pldLen)
