@@ -22,7 +22,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/sig/internal/sigconfig"
@@ -48,12 +48,7 @@ var (
 	encapPort uint16
 )
 
-const (
-	initAttempts = 100
-	initInterval = time.Second
-)
-
-func Init(cfg sigconfig.Conf) error {
+func Init(cfg sigconfig.Conf, sdCfg env.SciondClient) error {
 	var err error
 	IA = cfg.IA
 	Host = addr.HostFromIP(cfg.IP)
@@ -61,7 +56,7 @@ func Init(cfg sigconfig.Conf) error {
 	encapPort = cfg.EncapPort
 
 	// Initialize SCION local networking module
-	err = initSNET(cfg, initAttempts, initInterval)
+	err = initSNET(cfg, sdCfg)
 	if err != nil {
 		return common.NewBasicError("Error creating local SCION Network context", err)
 	}
@@ -88,16 +83,25 @@ func ValidatePort(desc string, port int) error {
 	return nil
 }
 
-// initSNET initializes snet. The number of attempts is specified, as well as the sleep duration.
-// This allows the service to wait for a limited time for sciond to become available
-func initSNET(cfg sigconfig.Conf, attempts int, sleep time.Duration) (err error) {
-	// Initialize SCION local networking module
-	for i := 0; i < attempts; i++ {
-		if err = snet.Init(cfg.IA, cfg.Sciond, cfg.Dispatcher); err == nil {
+// initSNET initializes snet. Tries in second interval until sdCfg.InitialConnectPeriod is up.
+// Copied from infraenv.initNetwork. Should be adapted once we have
+// https://github.com/scionproto/scion/issues/1974
+func initSNET(cfg sigconfig.Conf, sdCfg env.SciondClient) error {
+	var err error
+	ticker := time.NewTicker(time.Second)
+	timer := time.NewTimer(sdCfg.InitialConnectPeriod.Duration)
+	defer ticker.Stop()
+	defer timer.Stop()
+Top:
+	for {
+		if err = snet.Init(cfg.IA, sdCfg.Path, cfg.Dispatcher); err == nil {
 			break
 		}
-		log.Error("Unable to initialize snet", "Retry interval", sleep, "err", err)
-		time.Sleep(sleep)
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			break Top
+		}
 	}
 	return err
 }
