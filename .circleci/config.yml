@@ -22,7 +22,7 @@ jobs:
             - checkout
             - run:
                 name: Update docker
-                command: ./tools/ci/docker_update
+                command: sudo apt-get update && sudo ./tools/install_docker
             - run:
                 name: Pull and tag scion_base image
                 command: ./tools/ci/prepare_image d1706fb3c9c8eacdc9a91ddeac7c3ac1ad815fe43fc81bd50a280b3738ce7569
@@ -91,7 +91,7 @@ jobs:
             - checkout
             - run:
                 name: Update docker
-                command: ./tools/ci/docker_update
+                command: sudo apt-get update && sudo ./tools/install_docker
             - run:
                 name: Build base
                 command: ./docker.sh base

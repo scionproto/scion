@@ -1,8 +1,17 @@
 #!/bin/bash
 
-set -ex
+set -e
 
-# Update docker-compose to 1.22.0
+[ $(id -u) -eq 0 ] || { echo "Error: this script should be run as root" && exit 1; }
+
+# Install prereqs
+DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https ca-certificates curl lsb-release software-properties-common
+
+chksum() {
+    echo "${1:?} ${2:?}" | sha256sum --status -c -
+}
+
+# Install docker-compose 1.22.0
 case "$(uname -m)" in
     x86_64)
         src=https://github.com/docker/compose/releases/download/1.22.0/docker-compose-Linux-x86_64
@@ -13,19 +22,25 @@ case "$(uname -m)" in
         echo "ERROR: unsupported architecture '$(uname -m)'"
         exit 1
 esac
-curl -L "$src" -o "$file"
-echo "$sum $file" | sha256sum -c -
+# If the file doesn't exist, or the checksum fails, (re)download it.
+if  [ ! -e "$file" ] || ! chksum $sum $file; then
+    curl -sSL "$src" -o "$file"
+    chksum $sum $file || { echo "Error: $file doesn't match the expected checksum. ($sum)"; exit 1; }
+fi
 chmod +x "$file"
 
-# Install Docker dependencies
-apt-get update
-apt-get install apt-transport-https ca-certificates curl software-properties-common iproute2 -y
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-apt-key fingerprint 0EBFCD88
-add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"
+if [ "$(lsb_release -is)" == "LinuxMint" ]; then
+    release=$(grep UBUNTU_CODENAME /etc/os-release | cut -f2 -d=)
+fi
+release=${release:-$(lsb_release -cs)}
 
-# Install docker to 18.06
-apt-get update && apt-get install docker-ce=18.06* -y
+# Add docker apt repo.
+if ! grep -Rq "https://download.docker.com/linux/ubuntu" /etc/apt/sources.list.d/; then
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=$(dpkg --print-architecture)] https://download.docker.com/linux/ubuntu $release stable"
+    apt-get update
+fi
+
+# Install docker-ce
+DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce=18.06*
+echo 'docker-ce hold' | dpkg --set-selections
