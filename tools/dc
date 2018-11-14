@@ -24,21 +24,6 @@ cmd_help() {
 	_EOF
 }
 
-cmd_init() {
-    FILE="gen/dc-bridges.conf"
-    while read line; do
-        vars=( $line )
-        local name="${vars[1]}"
-        docker network inspect "$name" &> /dev/null
-        if [[ $? -eq 0 ]]; then
-            echo "Network $name already exists, skip creating."
-        else
-            echo "Creating network $name: $(docker network create --driver=bridge --subnet="${vars[0]}" -o "com.docker.network.bridge.name=$name" "$name")"
-        fi
-    done < $FILE
-    cmd_utils run --rm chowner
-}
-
 cmd_utils() {
     COMPOSE_FILE="gen/volumes-dc.yml:gen/utils-dc.yml" docker-compose --no-ansi "$@"
 }
@@ -71,17 +56,6 @@ cmd_down() {
     cmd_tester down >/dev/null 2>&1
     cmd_scion down >/dev/null 2>&1
     cmd_utils run --rm cleaner 2>&1
-    FILE="gen/dc-bridges.conf"
-    while read line; do
-        vars=( $line )
-        local name="${vars[1]}"
-        docker network inspect "$name" &> /dev/null
-        if [[ $? -eq 0 ]]; then
-            echo "Removing network $(docker network rm "$name")"
-        else
-            echo "Network $name not found, skip removing."
-        fi
-    done < $FILE
 }
 
 PROGRAM="${0##*/}"
@@ -89,7 +63,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    init|scion|tester|utils|down)
+    scion|tester|utils|down)
         "cmd_$COMMAND" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;

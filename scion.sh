@@ -10,7 +10,8 @@ cmd_topology() {
     set -e
     local zkclean
     if is_docker; then
-        echo "Shutting down: $(./tools/dc down)"
+        echo "Shutting down dockerized topology..."
+        ./tools/quiet ./tools/dc down || exit 1
     else
         echo "Shutting down: $(./scion.sh stop)"
     fi
@@ -28,7 +29,7 @@ cmd_topology() {
         python/topology/generator.py "$@"
     fi
     if is_docker; then
-        ./tools/quiet ./tools/dc init
+        ./tools/quiet ./tools/dc utils run --rm chowner
     fi
     run_zk
     if [ -n "$zkclean" ]; then
