@@ -11,7 +11,7 @@ cmd_topology() {
     local zkclean
     if is_docker; then
         echo "Shutting down dockerized topology..."
-        ./tools/quiet ./tools/dc down || exit 1
+        ./tools/quiet ./tools/dc down
     else
         echo "Shutting down: $(./scion.sh stop)"
     fi
