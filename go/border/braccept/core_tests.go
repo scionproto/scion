@@ -482,7 +482,8 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				}},
 			},
 		},
-		/* TODO once scion/1937 is done
+		/* TODO(sgmonroy) uncomment once BR drops Xover packets entering and leaving through
+		// the same ifid
 		{
 			Desc: "Single IFID core - external - Xover child/child - same ingress/egress ifid",
 			In: &tpkt.ValidPkt{Pkt: tpkt.Pkt{
@@ -494,6 +495,7 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 			}},
 			Out: []tpkt.Matcher{},
 		},
+		// TODO(sgmonroy) uncomment once BR drops packets coming from and destined to the same AS
 		{
 			Desc: "Single IFID core - external - Xover child/child - same ingress/egress AS",
 			In: &tpkt.ValidPkt{Pkt: tpkt.Pkt{
@@ -651,7 +653,7 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				}},
 			},
 		},
-		/* TODO once scion/1937 is done
+		/* TODO(sgmonroy) uncomment once BR drops packets entering/leaving through the same ifid
 		{
 			Desc: "Multiple IFIDs core - external - Xover child/child - same ingress/egress ifid",
 			In: &tpkt.ValidPkt{Pkt: tpkt.Pkt{
@@ -663,6 +665,7 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 			}},
 			Out: []tpkt.Matcher{},
 		},
+		// TODO(sgmonroy) uncomment once BR drops packets coming from and destined to the same AS
 		{
 			Desc: "Multiple IFIDs core - external - Xover child/child - same ingress/egress AS",
 			In: &tpkt.ValidPkt{Pkt: tpkt.Pkt{
