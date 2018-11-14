@@ -59,6 +59,7 @@ exec_tester() {
 }
 
 cmd_down() {
+    set -e
     cmd_tester down >/dev/null 2>&1
     cmd_scion down >/dev/null 2>&1
     cmd_utils run --rm cleaner 2>&1
