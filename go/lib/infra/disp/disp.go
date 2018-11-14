@@ -42,6 +42,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -171,8 +172,6 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, net.Addr
 func (d *Dispatcher) goBackgroundReceiver() {
 	go func() {
 		defer log.LogPanicAndExit()
-		d.log.Debug("Started")
-		defer d.log.Debug("Stopped")
 		defer close(d.stoppedChan)
 	Loop:
 		for {
@@ -196,10 +195,11 @@ func (d *Dispatcher) recvNext() bool {
 	// Once the transport is closed, RecvFrom returns immediately.
 	b, address, err := d.transport.RecvFrom(context.Background())
 	if err != nil {
-		d.log.Warn("error", "err",
-			common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom"))
-		if err == io.EOF {
+		if isCleanShutdownError(err) {
 			return true
+		} else {
+			d.log.Warn("error", "err",
+				common.NewBasicError(infra.StrTransportError, err, "op", "RecvFrom"))
 		}
 		return false
 	}
@@ -259,4 +259,14 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 type readEventDesc struct {
 	address net.Addr
 	msg     proto.Cerealizable
+}
+
+func isCleanShutdownError(err error) bool {
+	if err == io.EOF {
+		return true
+	}
+	if strings.Contains(err.Error(), "use of closed network connection") {
+		return true
+	}
+	return false
 }

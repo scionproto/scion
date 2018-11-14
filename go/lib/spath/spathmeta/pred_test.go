@@ -16,6 +16,7 @@
 package spathmeta
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -110,8 +111,8 @@ func TestPathPredicates(t *testing.T) {
 				SoMsg("err", err, ShouldBeNil)
 				SoMsg("pp", pp, ShouldNotBeNil)
 
-				reply, err := conn.Paths(MustParseIA(tc.dst), MustParseIA(tc.src),
-					5, sciond.PathReqFlags{})
+				reply, err := conn.Paths(context.Background(), MustParseIA(tc.dst),
+					MustParseIA(tc.src), 5, sciond.PathReqFlags{})
 				SoMsg("paths err", err, ShouldBeNil)
 				SoMsg("one path only", len(reply.Entries), ShouldEqual, 1)
 

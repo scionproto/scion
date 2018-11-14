@@ -740,7 +740,8 @@ func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-	paths, err := conn.Paths(snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
+	paths, err := conn.Paths(context.Background(), snetAddress.IA, pr.local, 5,
+		sciond.PathReqFlags{})
 	if err != nil {
 		return nil, err
 	}
