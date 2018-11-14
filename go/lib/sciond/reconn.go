@@ -31,6 +31,13 @@ var _ Connector = (*reconnector)(nil)
 //
 // It achieves the above property by establishing a connection for each API
 // call.
+//
+// XXX(scrye): The underlying one-shot SCIOND API connection has an infra
+// dispatcher layered on top of the unix transport communication with sciond.
+// This is not necessary for request-response matching, but is useful for
+// context.Context support. If performance becomes an issue, an improvement
+// might be to have a lightweight implementation that just ensures context
+// suport.
 type reconnector struct {
 	path string
 }
