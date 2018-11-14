@@ -45,7 +45,7 @@ func ExamplePR() {
 	}
 	// Initialize path resolver
 	sciondPath := sciond.GetDefaultSCIONDPath(&src)
-	sciondService := sciond.NewService(sciondPath)
+	sciondService := sciond.NewService(sciondPath, true)
 	pr, err := New(sciondService, nil, log.Root())
 	if err != nil {
 		fmt.Println("Failed to connect to SCIOND", "err", err)

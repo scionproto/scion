@@ -67,7 +67,7 @@ type Service interface {
 	Connect() (Connector, error)
 	// ConnectTimeout acts like Connect but takes a timeout.
 	//
-	// A negative timeout means infinite timeout.
+	// A timeout of 0 means infinite timeout.
 	//
 	// To check for timeout errors, type assert the returned error to
 	// *net.OpError and call method Timeout().
@@ -75,20 +75,32 @@ type Service interface {
 }
 
 type service struct {
-	path string
+	path       string
+	reconnects bool
 }
 
-func NewService(name string) Service {
+// NewService returns a SCIOND API connection factory.
+//
+// If reconnects is true, connections created from the factory will tolerate
+// SCIOND restarts.
+func NewService(name string, reconnects bool) Service {
 	return &service{
-		path: name,
+		path:       name,
+		reconnects: reconnects,
 	}
 }
 
 func (s *service) Connect() (Connector, error) {
+	if s.reconnects {
+		return newReconnector(s.path, 0)
+	}
 	return connect(s.path)
 }
 
 func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
+	if s.reconnects {
+		return newReconnector(s.path, timeout)
+	}
 	return connectTimeout(s.path, timeout)
 }
 
@@ -98,32 +110,25 @@ func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
 type Connector interface {
 	// Paths requests from SCIOND a set of end to end paths between src and
 	// dst. max specifices the maximum number of paths returned.
-	Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
-	PathsCtx(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
+	Paths(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
 	// ASInfo requests from SCIOND information about AS ia.
-	ASInfo(ia addr.IA) (*ASInfoReply, error)
-	ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
+	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)
 	// IFInfo requests from SCIOND addresses and ports of interfaces.  Slice
 	// ifs contains interface IDs of BRs. If empty, a fresh (i.e., uncached)
 	// answer containing all interfaces is returned.
-	IFInfo(ifs []common.IFIDType) (*IFInfoReply, error)
-	IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error)
+	IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error)
 	// SVCInfo requests from SCIOND information about addresses and ports of
 	// infrastructure services.  Slice svcTypes contains a list of desired
 	// service types. If unset, a fresh (i.e., uncached) answer containing all
 	// service types is returned.
-	SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error)
-	SVCInfoCtx(ctx context.Context, svcTypes []proto.ServiceType) (*ServiceInfoReply, error)
+	SVCInfo(ctx context.Context, svcTypes []proto.ServiceType) (*ServiceInfoReply, error)
 	// RevNotification sends a raw revocation to SCIOND, as contained in an
 	// SCMP message.
-	RevNotificationFromRaw(b []byte) (*RevReply, error)
-	RevNotificationFromRawCtx(ctx context.Context, b []byte) (*RevReply, error)
+	RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error)
 	// RevNotification sends a RevocationInfo message to SCIOND.
-	RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
-	RevNotificationCtx(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
+	RevNotification(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error)
 	// Close shuts down the connection to a SCIOND server.
-	Close() error
-	CloseCtx(ctx context.Context) error
+	Close(ctx context.Context) error
 }
 
 type connector struct {
@@ -163,11 +168,7 @@ func (c *connector) nextID() uint64 {
 	return atomic.AddUint64(&c.requestID, 1)
 }
 
-func (c *connector) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error) {
-	return c.PathsCtx(context.Background(), dst, src, max, f)
-}
-
-func (c *connector) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
+func (c *connector) Paths(ctx context.Context, dst, src addr.IA, max uint16,
 	f PathReqFlags) (*PathReply, error) {
 
 	c.Lock()
@@ -192,11 +193,7 @@ func (c *connector) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
 	return reply.(*Pld).PathReply, nil
 }
 
-func (c *connector) ASInfo(ia addr.IA) (*ASInfoReply, error) {
-	return c.ASInfoCtx(context.Background(), ia)
-}
-
-func (c *connector) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
+func (c *connector) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 	// Check if information for this ISD-AS is cached
@@ -224,11 +221,7 @@ func (c *connector) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, er
 	return asInfoReply, nil
 }
 
-func (c *connector) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
-	return c.IFInfoCtx(context.Background(), ifs)
-}
-
-func (c *connector) IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
+func (c *connector) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -278,11 +271,7 @@ func (c *connector) getIFEntriesFromCache(
 	return foundEntries, remainingIfs
 }
 
-func (c *connector) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
-	return c.SVCInfoCtx(context.Background(), svcTypes)
-}
-
-func (c *connector) SVCInfoCtx(ctx context.Context,
+func (c *connector) SVCInfo(ctx context.Context,
 	svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
 
 	c.Lock()
@@ -332,24 +321,16 @@ func (c *connector) getSVCEntriesFromCache(
 	return foundEntries, remainingSVCs
 }
 
-func (c *connector) RevNotificationFromRaw(b []byte) (*RevReply, error) {
-	return c.RevNotificationFromRawCtx(context.Background(), b)
-}
-
-func (c *connector) RevNotificationFromRawCtx(ctx context.Context, b []byte) (*RevReply, error) {
+func (c *connector) RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error) {
 	// Extract information from notification
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(b)
 	if err != nil {
 		return nil, err
 	}
-	return c.RevNotificationCtx(ctx, sRevInfo)
+	return c.RevNotification(ctx, sRevInfo)
 }
 
-func (c *connector) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
-	return c.RevNotificationCtx(context.Background(), sRevInfo)
-}
-
-func (c *connector) RevNotificationCtx(ctx context.Context,
+func (c *connector) RevNotification(ctx context.Context,
 	sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
 
 	c.Lock()
@@ -372,11 +353,7 @@ func (c *connector) RevNotificationCtx(ctx context.Context,
 	return reply.(*Pld).RevReply, nil
 }
 
-func (c *connector) Close() error {
-	return c.CloseCtx(context.Background())
-}
-
-func (c *connector) CloseCtx(ctx context.Context) error {
+func (c *connector) Close(ctx context.Context) error {
 	return c.dispatcher.Close(ctx)
 }
 

@@ -16,6 +16,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -58,12 +59,12 @@ func main() {
 	log.AddLogConsFlags()
 	validateFlags()
 
-	sd := sciond.NewService(*sciondPath)
+	sd := sciond.NewService(*sciondPath, false)
 	sdConn, err := sd.ConnectTimeout(*timeout)
 	if err != nil {
 		LogFatal("Failed to connect to SCIOND: %v\n", err)
 	}
-	reply, err := sdConn.Paths(dstIA, srcIA, uint16(*maxPaths),
+	reply, err := sdConn.Paths(context.Background(), dstIA, srcIA, uint16(*maxPaths),
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
 		LogFatal("Failed to retrieve paths from SCIOND: %v\n", err)

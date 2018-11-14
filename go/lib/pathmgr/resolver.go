@@ -16,6 +16,7 @@
 package pathmgr
 
 import (
+	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -79,7 +80,8 @@ func (r *resolver) run() {
 
 // lookup queries SCIOND, blocking while waiting for the response.
 func (r *resolver) lookup(src, dst addr.IA) spathmeta.AppPathSet {
-	reply, err := r.sciondConn.Paths(dst, src, numReqPaths, sciond.PathReqFlags{})
+	reply, err := r.sciondConn.Paths(context.Background(), dst, src, numReqPaths,
+		sciond.PathReqFlags{})
 	if err != nil {
 		log.Error("SCIOND network error", "err", err)
 		r.reconnect()

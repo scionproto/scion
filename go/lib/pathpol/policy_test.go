@@ -15,6 +15,7 @@
 package pathpol
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -48,7 +49,8 @@ func TestBasicPolicy(t *testing.T) {
 	Convey("TestPolicy", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				paths, err := conn.Paths(tc.Dst, tc.Src, 5, sciond.PathReqFlags{})
+				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
+					sciond.PathReqFlags{})
 				SoMsg("sciond err", err, ShouldBeNil)
 
 				inAPS := spathmeta.NewAppPathSet(paths)
@@ -184,7 +186,8 @@ func TestSequenceEval(t *testing.T) {
 	Convey("TestList", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				paths, err := conn.Paths(tc.Dst, tc.Src, 5, sciond.PathReqFlags{})
+				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
+					sciond.PathReqFlags{})
 				SoMsg("sciond err", err, ShouldBeNil)
 
 				inAPS := spathmeta.NewAppPathSet(paths)
@@ -292,7 +295,8 @@ func TestACLEval(t *testing.T) {
 	Convey("TestPolicy", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				paths, err := conn.Paths(tc.Dst, tc.Src, 5, sciond.PathReqFlags{})
+				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
+					sciond.PathReqFlags{})
 				SoMsg("sciond err", err, ShouldBeNil)
 
 				inAPS := spathmeta.NewAppPathSet(paths)
@@ -310,7 +314,7 @@ func TestACLPanic(t *testing.T) {
 
 	conn := testGetSCIONDConn(t)
 	Convey("TestACLPanic", t, func() {
-		paths, err := conn.Paths(xtest.MustParseIA("2-ff00:0:211"),
+		paths, err := conn.Paths(context.Background(), xtest.MustParseIA("2-ff00:0:211"),
 			xtest.MustParseIA("2-ff00:0:212"), 5, sciond.PathReqFlags{})
 		SoMsg("sciond err", err, ShouldBeNil)
 
@@ -455,7 +459,8 @@ func TestOptionsEval(t *testing.T) {
 	Convey("TestPolicy", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
-				paths, err := conn.Paths(tc.Dst, tc.Src, 5, sciond.PathReqFlags{})
+				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
+					sciond.PathReqFlags{})
 				SoMsg("sciond err", err, ShouldBeNil)
 
 				inAPS := spathmeta.NewAppPathSet(paths)

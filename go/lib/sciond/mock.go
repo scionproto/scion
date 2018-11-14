@@ -80,7 +80,9 @@ type MockConn struct {
 //
 // Paths does not guarantee to represent a consistent snapshot of the SCION
 // network if the backing multigraph is modified while Paths is running.
-func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error) {
+func (m *MockConn) Paths(ctx context.Context, dst, src addr.IA, max uint16,
+	f PathReqFlags) (*PathReply, error) {
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -120,58 +122,33 @@ func (m *MockConn) Paths(dst, src addr.IA, max uint16, f PathReqFlags) (*PathRep
 	}, nil
 }
 
-// PathsCtx is not implemented.
-func (m *MockConn) PathsCtx(ctx context.Context, dst, src addr.IA, max uint16,
-	f PathReqFlags) (*PathReply, error) {
-
-	panic("not implemented")
-}
-
 // ASInfo is not implemented.
-func (m *MockConn) ASInfo(ia addr.IA) (*ASInfoReply, error) {
-	panic("not implemented")
-}
-
-// ASInfoCtx is not implemented.
-func (m *MockConn) ASInfoCtx(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
+func (m *MockConn) ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error) {
 	panic("not implemented")
 }
 
 // IFInfo is not implemented.
-func (m *MockConn) IFInfo(ifs []common.IFIDType) (*IFInfoReply, error) {
-	panic("not implemented")
-}
-
-// IFInfoCtx is not implemented.
-func (m *MockConn) IFInfoCtx(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
+func (m *MockConn) IFInfo(ctx context.Context, ifs []common.IFIDType) (*IFInfoReply, error) {
 	panic("not implemented")
 }
 
 // SVCInfo is not implemented.
-func (m *MockConn) SVCInfo(svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
-	panic("not implemented")
-}
-
-// SVCInfoCtx is not implemented.
-func (m *MockConn) SVCInfoCtx(ctx context.Context,
+func (m *MockConn) SVCInfo(ctx context.Context,
 	svcTypes []proto.ServiceType) (*ServiceInfoReply, error) {
 
 	panic("not implemented")
 }
 
 // RevNotificationFromRaw is not implemented.
-func (m *MockConn) RevNotificationFromRaw(b []byte) (*RevReply, error) {
-	panic("not implemented")
-}
-
-// RevNotificationFromRawCtx is not implemented.
-func (m *MockConn) RevNotificationFromRawCtx(ctx context.Context, b []byte) (*RevReply, error) {
+func (m *MockConn) RevNotificationFromRaw(ctx context.Context, b []byte) (*RevReply, error) {
 	panic("not implemented")
 }
 
 // RevNotification deletes the edge containing revInfo.IfID from the
 // multigraph. RevNotification does not perform any validation of revInfo.
-func (m *MockConn) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
+func (m *MockConn) RevNotification(ctx context.Context,
+	sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -182,20 +159,8 @@ func (m *MockConn) RevNotification(sRevInfo *path_mgmt.SignedRevInfo) (*RevReply
 	}, nil
 }
 
-// RevNotificationCtx is not implemented.
-func (m *MockConn) RevNotificationCtx(ctx context.Context,
-	sRevInfo *path_mgmt.SignedRevInfo) (*RevReply, error) {
-
-	panic("not implemented")
-}
-
 // Close is a no-op.
-func (m *MockConn) Close() error {
-	return nil
-}
-
-// CloseCtx is a no-op.
-func (m *MockConn) CloseCtx(ctx context.Context) error {
+func (m *MockConn) Close(ctx context.Context) error {
 	return nil
 }
 

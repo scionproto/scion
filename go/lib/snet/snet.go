@@ -126,7 +126,7 @@ func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*SCIONNet
 	if sciondPath != "" {
 		var err error
 		pathResolver, err = pathmgr.New(
-			sciond.NewService(sciondPath),
+			sciond.NewService(sciondPath, true),
 			&pathmgr.Timers{
 				NormalRefire: time.Minute,
 				ErrorRefire:  3 * time.Second,

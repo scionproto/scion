@@ -703,7 +703,7 @@ func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Disp
 func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
 
-	newAddr, err := pr.getBlockingPath(a)
+	newAddr, err := pr.getBlockingPath(ctx, a)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -711,7 +711,7 @@ func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
 }
 
 func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(a)
+	newAddr, err := pr.getBlockingPath(ctx, a)
 	if err != nil {
 		return err
 	}
@@ -719,14 +719,14 @@ func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Add
 }
 
 func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(a)
+	newAddr, err := pr.getBlockingPath(ctx, a)
 	if err != nil {
 		return err
 	}
 	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
 }
 
-func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
+func (pr *pathingRequester) getBlockingPath(ctx context.Context, a net.Addr) (net.Addr, error) {
 	// for SCIOND-less operation do not try to resolve paths
 	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
 		return a, nil
@@ -740,7 +740,7 @@ func (pr *pathingRequester) getBlockingPath(a net.Addr) (net.Addr, error) {
 	if err != nil {
 		return nil, err
 	}
-	paths, err := conn.Paths(snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
+	paths, err := conn.Paths(ctx, snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
 	if err != nil {
 		return nil, err
 	}
