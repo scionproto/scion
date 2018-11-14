@@ -19,10 +19,10 @@ on loopback. There is one SCIOND per AS, the sockets can be found in
 
 ## Development with docker
 
-Docker-compose is used to run every service in its own container (including zookeeper). We run two
-dispatchers and one SCIOND per AS. There is one dispatcher sharing its socket to the infra services
-using docker volumes and another sharing its socket to the BR. Each AS has its own docker network.
-And every BR to BR link is a docker network.
+Docker-compose is used to run every service in its own container (including zookeeper). We run
+multiple dispatchers and one SCIOND per AS. One dispatcher and the SCIOND share their sockets with
+the infra services using docker volumes. And there is one dispatcher per BR, which it shares its
+socket with. Each AS has its own docker network and every BR to BR link is a docker network.
 
 ## Testing with supervisor and docker (CI and `./tools/ci/local`)
 
