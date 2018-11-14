@@ -66,6 +66,8 @@ class ServiceType(TypeBase):
     DS = "ds"
     #: Border router
     BR = "br"
+    #: SCION-IP gateway
+    SIG = "sig"
 
 
 class ExtensionClass(TypeBase):
