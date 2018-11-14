@@ -166,6 +166,8 @@ func generateKeys(fn string) error {
 	return err
 }
 
+// registerScionPorts basically register the following UDP ports in gopacket such as SCION is the
+// next layer. In other words, map the following ports to expect SCION as the payload.
 func registerScionPorts() {
 	// Bind ports to SCION layer
 	layers.RegisterUDPPortLayerType(layers.UDPPort(30041), tpkt.LayerTypeScion)
