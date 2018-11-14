@@ -28,6 +28,8 @@ const (
 	testConnectTimeout = time.Second
 )
 
+var _ Connector = (*reconnector)(nil)
+
 // reconnector is a SCIOND API implementation that is resilient to SCIOND going
 // down and up.
 //
@@ -37,11 +39,11 @@ type reconnector struct {
 	srvc Service
 }
 
-func newReconnector(srvc Service, initialCheckTimeout time.Duration) (*reconnector, error) {
+func newReconnector(path string, initialCheckTimeout time.Duration) (*reconnector, error) {
+	c := &reconnector{srvc: NewService(path, false)}
 	// Test during initialization that SCIOND is alive; this helps catch some
 	// unfixable issues (like bad socket name) while apps are still
 	// initializing their networking.
-	c := &reconnector{srvc: srvc}
 	if err := c.checkForSciond(initialCheckTimeout); err != nil {
 		return nil, err
 	}
@@ -146,9 +148,10 @@ func (c *reconnector) ctxAwareConnect(ctx context.Context) (Connector, error) {
 	case rValue := <-barrier:
 		return rValue.conn, rValue.err
 	case <-ctx.Done():
-		// This will leak a goroutine permanently, if ctx doesn't have a
-		// deadline, or for a long amount of time, if the deadline is very far
-		// into the future.
+		// In the situation where ConnectTimeout doesn't finish and ctx is Done
+		// via a cancellation function, this may (1) permanently leak a
+		// goroutine, if ctx doesn't have a deadline, or (2) for a long amount
+		// of time, if the deadline is very far into the future.
 		return nil, ctx.Err()
 	}
 }

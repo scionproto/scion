@@ -67,7 +67,7 @@ type Service interface {
 	Connect() (Connector, error)
 	// ConnectTimeout acts like Connect but takes a timeout.
 	//
-	// A negative timeout means infinite timeout.
+	// A timeout of 0 means infinite timeout.
 	//
 	// To check for timeout errors, type assert the returned error to
 	// *net.OpError and call method Timeout().
@@ -92,12 +92,15 @@ func NewService(name string, reconnects bool) Service {
 
 func (s *service) Connect() (Connector, error) {
 	if s.reconnects {
-		return newReconnector(s, testConnectTimeout)
+		return newReconnector(s.path, testConnectTimeout)
 	}
 	return connect(s.path)
 }
 
 func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
+	if s.reconnects {
+		return newReconnector(s.path, timeout)
+	}
 	return connectTimeout(s.path, timeout)
 }
 
