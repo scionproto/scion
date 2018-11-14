@@ -28,13 +28,14 @@ const (
 )
 
 const (
-	BR = "BR"
-	BS = "BS"
-	PS = "PS"
-	CS = "CS"
-	SB = "SB"
-	RS = "RS"
-	DS = "DS"
+	BR  = "BR"
+	BS  = "BS"
+	PS  = "PS"
+	CS  = "CS"
+	SB  = "SB"
+	RS  = "RS"
+	SIG = "SIG"
+	DS  = "DS"
 )
 
 // Interface ID

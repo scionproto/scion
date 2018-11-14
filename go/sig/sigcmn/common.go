@@ -83,6 +83,8 @@ func Init(ia addr.IA, ip net.IP) error {
 	l4 := addr.NewL4UDPInfo(uint16(*CtrlPort))
 	CtrlConn, err = snet.ListenSCION(
 		"udp4", &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}})
+	CtrlConn, err = snet.ListenSCIONWithBindSVC("udp4",
+		&snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}}, nil, addr.SvcSIG)
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
 	}

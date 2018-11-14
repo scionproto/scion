@@ -79,18 +79,20 @@ type Topo struct {
 	// if they want to use a given interface.
 	IFInfoMap map[common.IFIDType]IFInfo
 
-	BS      IDAddrMap
-	BSNames ServiceNames
-	CS      IDAddrMap
-	CSNames ServiceNames
-	PS      IDAddrMap
-	PSNames ServiceNames
-	SB      IDAddrMap
-	SBNames ServiceNames
-	RS      IDAddrMap
-	RSNames ServiceNames
-	DS      IDAddrMap
-	DSNames ServiceNames
+	BS       IDAddrMap
+	BSNames  ServiceNames
+	CS       IDAddrMap
+	CSNames  ServiceNames
+	PS       IDAddrMap
+	PSNames  ServiceNames
+	SB       IDAddrMap
+	SBNames  ServiceNames
+	RS       IDAddrMap
+	RSNames  ServiceNames
+	DS       IDAddrMap
+	DSNames  ServiceNames
+	SIG      IDAddrMap
+	SIGNames ServiceNames
 
 	ZK map[int]*addr.AppAddr
 }
@@ -104,6 +106,7 @@ func NewTopo() *Topo {
 		PS:        make(IDAddrMap),
 		SB:        make(IDAddrMap),
 		RS:        make(IDAddrMap),
+		SIG:       make(IDAddrMap),
 		DS:        make(IDAddrMap),
 		ZK:        make(map[int]*addr.AppAddr),
 		IFInfoMap: make(map[common.IFIDType]IFInfo),
@@ -211,7 +214,7 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 }
 
 func (t *Topo) populateServices(raw *RawTopo) error {
-	// Populate BS, CS, PS, SB, RS and DS maps
+	// Populate BS, CS, PS, SB, RS, SIG and DS maps
 	var err error
 	t.BSNames, err = svcMapFromRaw(raw.BeaconService, common.BS, t.BS, t.Overlay)
 	if err != nil {
@@ -230,6 +233,10 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 		return err
 	}
 	t.RSNames, err = svcMapFromRaw(raw.RainsService, common.RS, t.RS, t.Overlay)
+	if err != nil {
+		return err
+	}
+	t.SIGNames, err = svcMapFromRaw(raw.SIG, common.SIG, t.SIG, t.Overlay)
 	if err != nil {
 		return err
 	}
@@ -264,6 +271,8 @@ func (t *Topo) GetSvcInfo(svc proto.ServiceType) (*SVCInfo, error) {
 		return &SVCInfo{overlay: t.Overlay, names: t.CSNames, idTopoAddrMap: t.CS}, nil
 	case proto.ServiceType_sb:
 		return &SVCInfo{overlay: t.Overlay, names: t.SBNames, idTopoAddrMap: t.SB}, nil
+	case proto.ServiceType_sig:
+		return &SVCInfo{overlay: t.Overlay, names: t.SIGNames, idTopoAddrMap: t.SIG}, nil
 	case proto.ServiceType_ds:
 		return &SVCInfo{overlay: t.Overlay, names: t.DSNames, idTopoAddrMap: t.DS}, nil
 	default:

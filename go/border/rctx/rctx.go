@@ -123,6 +123,8 @@ func (ctx *Ctx) GetSVCNamesMap(svc addr.HostSVC) ([]string,
 		names, elemMap = t.CSNames, t.CS
 	case addr.SvcSB:
 		names, elemMap = t.SBNames, t.SB
+	case addr.SvcSIG:
+		names, elemMap = t.SIGNames, t.SIG
 	default:
 		return nil, nil, common.NewBasicError("Unsupported SVC address",
 			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)
