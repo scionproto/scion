@@ -24,10 +24,6 @@ import (
 	"github.com/scionproto/scion/go/proto"
 )
 
-const (
-	testConnectTimeout = time.Second
-)
-
 var _ Connector = (*reconnector)(nil)
 
 // reconnector is a SCIOND API implementation that is resilient to SCIOND going
@@ -36,11 +32,11 @@ var _ Connector = (*reconnector)(nil)
 // It achieves the above property by establishing a connection for each API
 // call.
 type reconnector struct {
-	srvc Service
+	path string
 }
 
 func newReconnector(path string, initialCheckTimeout time.Duration) (*reconnector, error) {
-	c := &reconnector{srvc: NewService(path, false)}
+	c := &reconnector{path: path}
 	// Test during initialization that SCIOND is alive; this helps catch some
 	// unfixable issues (like bad socket name) while apps are still
 	// initializing their networking.
@@ -51,7 +47,7 @@ func newReconnector(path string, initialCheckTimeout time.Duration) (*reconnecto
 }
 
 func (c *reconnector) checkForSciond(initialCheckTimeout time.Duration) error {
-	sciondConn, err := c.srvc.ConnectTimeout(initialCheckTimeout)
+	sciondConn, err := connectTimeout(c.path, initialCheckTimeout)
 	if err != nil {
 		return common.NewBasicError("Unable to connect to SCIOND", err)
 	}
@@ -140,7 +136,7 @@ func (c *reconnector) ctxAwareConnect(ctx context.Context) (Connector, error) {
 	}
 	barrier := make(chan returnValue, 1)
 	go func() {
-		conn, err := c.srvc.ConnectTimeout(timeout)
+		conn, err := connectTimeout(c.path, timeout)
 		barrier <- returnValue{conn: conn, err: err}
 	}()
 

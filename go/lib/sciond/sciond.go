@@ -92,7 +92,7 @@ func NewService(name string, reconnects bool) Service {
 
 func (s *service) Connect() (Connector, error) {
 	if s.reconnects {
-		return newReconnector(s.path, testConnectTimeout)
+		return newReconnector(s.path, 0)
 	}
 	return connect(s.path)
 }
