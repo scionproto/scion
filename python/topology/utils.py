@@ -109,15 +109,15 @@ class UtilsGenerator(object):
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro'
             ],
-            'command': 'chown -R ' + self.user_spec + ' /run/shm/volumes/.'
+            'command': 'chown -R ' + self.user_spec + ' /mnt/volumes/.'
         }
         entry_clean = {
             'image': 'busybox',
             'volumes': [],
-            'command': 'sh -c "find /run/shm/volumes -type s -print0 | xargs -r0 rm -v"'
+            'command': 'sh -c "find /mnt/volumes -type s -print0 | xargs -r0 rm -v"'
         }
         for volume in self.args.volumes:
-            entry_chown['volumes'].append('%s:/run/shm/volumes/%s' % (volume, volume))
-            entry_clean['volumes'].append('%s:/run/shm/volumes/%s' % (volume, volume))
+            entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
+            entry_clean['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
         self.dc_util_conf['services']['chowner'] = entry_chown
         self.dc_util_conf['services']['cleaner'] = entry_clean
