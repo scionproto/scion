@@ -199,6 +199,7 @@ class Topology(object):
     :ivar list beacon_servers: beacons servers in the AS.
     :ivar list certificate_servers: certificate servers in the AS.
     :ivar list path_servers: path servers in the AS.
+    :ivar list sigs: SIGs in the as.
     :ivar list discovery_servers: discovery servers in the AS.
     :ivar list border_routers: border routers in the AS.
     :ivar list parent_interfaces: BR interfaces linking to upstream ASes.
@@ -215,6 +216,7 @@ class Topology(object):
         self.certificate_servers = []
         self.path_servers = []
         self.sibra_servers = []
+        self.sigs = []
         self.discovery_servers = []
         self.border_routers = []
         self.parent_interfaces = []
@@ -265,6 +267,7 @@ class Topology(object):
             ("CertificateService", self.certificate_servers),
             ("PathService", self.path_servers),
             ("SibraService", self.sibra_servers),
+            ("SIG", self.sigs),
             ("DiscoveryService", self.discovery_servers),
         ):
             for k, v in topology.get(type_, {}).items():
@@ -309,6 +312,7 @@ class Topology(object):
             ServiceType.CS: self.certificate_servers,
             ServiceType.PS: self.path_servers,
             ServiceType.SIBRA: self.sibra_servers,
+            ServiceType.SIG: self.sigs,
             ServiceType.DS: self.discovery_servers,
         }
         try:

@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +65,7 @@ const (
 	SvcPS   HostSVC = 0x0001
 	SvcCS   HostSVC = 0x0002
 	SvcSB   HostSVC = 0x0003
+	SvcSIG  HostSVC = 0x0004
 	SvcNone HostSVC = 0xffff
 )
 
