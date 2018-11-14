@@ -253,7 +253,7 @@ func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, err
 	var errStr []string
 	for i := range expPkts {
 		if err := expPkts[i].Match(devList[devIdx].contDev, pkt); err != nil {
-			errStr = append(errStr, fmt.Sprintf("%s\n", err))
+			errStr = append(errStr, fmt.Sprintf("[ERROR] %s\n", err))
 			continue
 		}
 		// Expected packet matched!
@@ -261,6 +261,10 @@ func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, err
 			return i, fmt.Errorf(strings.Join(errStr, "\n"))
 		}
 		return i, nil
+	}
+	if len(expPkts) == 0 {
+		errStr = append(errStr,
+			fmt.Sprintf("[ERROR] Packet received when no packet was expected\n"))
 	}
 	if scn := pkt.Layer(tpkt.LayerTypeScion).(*tpkt.ScionLayer); scn != nil {
 		scn.Path.Parse(scn.Path.Raw)
