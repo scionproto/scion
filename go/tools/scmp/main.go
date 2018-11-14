@@ -17,6 +17,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -57,7 +58,7 @@ func main() {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
 	// Connect to sciond
-	sd := sciond.NewService(*sciondPath)
+	sd := sciond.NewService(*sciondPath, false)
 	sdConn, err = sd.ConnectTimeout(1 * time.Second)
 	if err != nil {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
@@ -105,7 +106,7 @@ func doCommand(cmd string) int {
 }
 
 func choosePath() sciond.PathReplyEntry {
-	reply, err := sdConn.Paths(cmn.Remote.IA, cmn.Local.IA, 0,
+	reply, err := sdConn.Paths(context.Background(), cmn.Remote.IA, cmn.Local.IA, 0,
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
 		cmn.Fatal("Failed to retrieve paths from SCIOND: %v\n", err)
@@ -150,7 +151,7 @@ func setPathAndMtu() uint16 {
 
 func setLocalMtu() uint16 {
 	// Use local AS MTU when we have no path
-	reply, err := sdConn.ASInfo(addr.IA{})
+	reply, err := sdConn.ASInfo(context.Background(), addr.IA{})
 	if err != nil {
 		cmn.Fatal("Unable to request AS info to sciond")
 	}

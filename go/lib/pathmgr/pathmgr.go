@@ -40,6 +40,7 @@ package pathmgr
 // resolver operate over a thread-safe cache which contains path information.
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -247,12 +248,12 @@ func (r *PR) revoke(b common.RawBytes) {
 		log.Error("Revocation failed, unable to connect to SCIOND", "err", err)
 		return
 	}
-	reply, err := conn.RevNotification(sRevInfo)
+	reply, err := conn.RevNotification(context.Background(), sRevInfo)
 	if err != nil {
 		log.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
 		return
 	}
-	err = conn.Close()
+	err = conn.Close(context.Background())
 	if err != nil {
 		log.Error("Revocation error, unable to close SCIOND connection", "err", err)
 		// Continue with revocation

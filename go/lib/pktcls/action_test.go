@@ -16,6 +16,7 @@
 package pktcls
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -330,7 +331,8 @@ func TestActionAct(t *testing.T) {
 			Convey(tc.Name, func() {
 				for _, stc := range tc.SubTestCases {
 					Convey(stc.Name, func() {
-						paths, err := conn.Paths(stc.Dst, stc.Src, 5, sciond.PathReqFlags{})
+						paths, err := conn.Paths(context.Background(), stc.Dst, stc.Src, 5,
+							sciond.PathReqFlags{})
 						SoMsg("sciond err", err, ShouldBeNil)
 
 						inAPS := spathmeta.NewAppPathSet(paths)

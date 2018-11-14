@@ -170,7 +170,8 @@ func getSVCAddress() (*sciond.HostInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	reply, err := connector.SVCInfo([]proto.ServiceType{proto.ServiceType_cs})
+	reply, err := connector.SVCInfo(context.Background(),
+		[]proto.ServiceType{proto.ServiceType_cs})
 	if err != nil {
 		return nil, err
 	}

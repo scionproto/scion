@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"html/template"
@@ -71,7 +72,8 @@ func TestPaths(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		Convey(tc.Name, t, func() {
-			reply, err := conn.Paths(tc.Dst, tc.Src, tc.MaxPaths, sciond.PathReqFlags{})
+			reply, err := conn.Paths(context.Background(), tc.Dst, tc.Src, tc.MaxPaths,
+				sciond.PathReqFlags{})
 			SoMsg("err", err, ShouldBeNil)
 			if testing.Verbose() {
 				fmt.Println(reply)
@@ -130,7 +132,7 @@ func TestASInfo(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		Convey(tc.Name, t, func() {
-			reply, err := conn.ASInfo(tc.IA)
+			reply, err := conn.ASInfo(context.Background(), tc.IA)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("reply", reply, ShouldResemble, tc.Expected)
 		})
@@ -191,7 +193,7 @@ func TestIFInfo(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		Convey(tc.Name, t, func() {
-			reply, err := conn.IFInfo(tc.IFIDs)
+			reply, err := conn.IFInfo(context.Background(), tc.IFIDs)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("len", len(reply.RawEntries), ShouldEqual, len(tc.Expected.RawEntries))
 			for i, v := range tc.Expected.RawEntries {
@@ -261,7 +263,7 @@ func TestSVCInfo(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		Convey(tc.Name, t, func() {
-			reply, err := conn.SVCInfo(tc.SVCTypes)
+			reply, err := conn.SVCInfo(context.Background(), tc.SVCTypes)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("reply", reply, ShouldResemble, tc.Expected)
 		})
@@ -300,12 +302,12 @@ func Setup(t *testing.T, configTmpl string) (sciond.Connector, *topology.Topo, f
 	trcobjA, err := trc.TRCFromFile(
 		"../../gen/ISD1/ASff00_0_110/endhost/certs/ISD1-V1.trc", false)
 	xtest.FailOnErr(t, err)
-	_, err = trustDB.InsertTRC(trcobjA)
+	_, err = trustDB.InsertTRC(context.Background(), trcobjA)
 	xtest.FailOnErr(t, err)
 	trcobjB, err := trc.TRCFromFile(
 		"../../gen/ISD2/ASff00_0_220/endhost/certs/ISD2-V1.trc", false)
 	xtest.FailOnErr(t, err)
-	_, err = trustDB.InsertTRC(trcobjB)
+	_, err = trustDB.InsertTRC(context.Background(), trcobjB)
 	err = trustDB.Close()
 	xtest.FailOnErr(t, err)
 	// Start SCIOND server under test
@@ -324,11 +326,11 @@ func Setup(t *testing.T, configTmpl string) (sciond.Connector, *topology.Topo, f
 	xtest.FailOnErr(t, err)
 
 	// Start client
-	sd := sciond.NewService(testParams.Reliable)
+	sd := sciond.NewService(testParams.Reliable, true)
 	conn, err := sd.Connect()
 	xtest.FailOnErr(t, err)
 	return conn, topo, func() {
-		conn.Close()
+		conn.Close(context.Background())
 		cmd.Process.Kill()
 		// Comment below to stop the test from cleaning itself up
 		dirCleanF()
