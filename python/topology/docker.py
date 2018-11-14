@@ -30,7 +30,6 @@ from lib.util import (
 from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
 from topology.utils import TesterGenArgs, TesterGenerator, UtilsGenArgs, UtilsGenerator
 
-DOCKER_BRIDGE_CONF = 'dc-bridges.conf'
 DOCKER_NETWORK_CONF = 'networks-dc.yml'
 DOCKER_VOLUME_CONF = 'volumes-dc.yml'
 DOCKER_SCION_CONF = 'scion-dc.yml'
@@ -97,12 +96,6 @@ class DockerGenerator(object):
                    yaml.dump(self.dc_net_conf, default_flow_style=False))
         write_file(os.path.join(self.args.output_dir, DOCKER_VOLUME_CONF),
                    yaml.dump(self.dc_vol_conf, default_flow_style=False))
-        # Write bridge config file
-        text = ''
-        for br in self.bridges:
-            text += br + ' ' + self.bridges[br] + '\n'
-        conf_path = os.path.join(self.args.output_dir, DOCKER_BRIDGE_CONF)
-        write_file(conf_path, text)
 
     def _vol_conf(self, topo_id):
         self.dc_vol_conf['volumes']['vol_disp_%s' % topo_id.file_fmt()] = None
@@ -120,7 +113,15 @@ class DockerGenerator(object):
             net_pref = "scn_docker" if self.args.in_docker else "scn"
             net_name = "%s_%03d" % (net_pref, len(self.bridges))
             self.bridges[str(network)] = net_name
-            self.dc_net_conf['networks'][net_name] = {'external': True}
+            self.dc_net_conf['networks'][net_name] = {
+                'ipam': {
+                    'config': [{'subnet': str(network)}]
+                },
+                'driver': 'bridge',
+                'driver_opts': {
+                    'com.docker.network.bridge.name': net_name
+                }
+            }
 
     def _br_conf(self, topo_id, topo, base):
         raw_entry = {
@@ -147,10 +148,10 @@ class DockerGenerator(object):
             entry['command'].append('-id=%s' % k)
             entry['command'].append('-prom=%s' % _prom_addr_br(k, v, self.args.port_gen))
             # Set BR IPs
-            ex_net = self.elem_networks[k][0]
             in_net = self.elem_networks[k + "_internal"][0]
-            entry['networks'][self.bridges[ex_net['net']]] = {'ipv4_address': str(ex_net['ipv4'])}
             entry['networks'][self.bridges[in_net['net']]] = {'ipv4_address': str(in_net['ipv4'])}
+            for net in self.elem_networks[k]:
+                entry['networks'][self.bridges[net['net']]] = {'ipv4_address': str(net['ipv4'])}
             self.dc_conf['services'][k] = entry
 
     def _cs_conf(self, topo_id, topo, base):
