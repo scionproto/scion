@@ -71,6 +71,7 @@ static const uint32_t ADDR_LENS[] = {
 #define SVC_PATH_MGMT 1
 #define SVC_CERT_MGMT 2
 #define SVC_SIBRA 3
+#define SVC_SIG 4
 
 #define SVC_MULTICAST 0x8000
 

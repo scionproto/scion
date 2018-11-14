@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -123,6 +124,8 @@ func (ctx *Ctx) GetSVCNamesMap(svc addr.HostSVC) ([]string,
 		names, elemMap = t.CSNames, t.CS
 	case addr.SvcSB:
 		names, elemMap = t.SBNames, t.SB
+	case addr.SvcSIG:
+		names, elemMap = t.SIGNames, t.SIG
 	default:
 		return nil, nil, common.NewBasicError("Unsupported SVC address",
 			scmp.NewError(scmp.C_Routing, scmp.T_R_BadHost, nil, nil), "svc", svc)

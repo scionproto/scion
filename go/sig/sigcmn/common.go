@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,8 +82,8 @@ func Init(ia addr.IA, ip net.IP) error {
 	}
 	PathMgr = snet.DefNetwork.PathResolver()
 	l4 := addr.NewL4UDPInfo(uint16(*CtrlPort))
-	CtrlConn, err = snet.ListenSCION(
-		"udp4", &snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}})
+	CtrlConn, err = snet.ListenSCIONWithBindSVC("udp4",
+		&snet.Addr{IA: IA, Host: &addr.AppAddr{L3: Host, L4: l4}}, nil, addr.SvcSIG)
 	if err != nil {
 		return common.NewBasicError("Error creating ctrl socket", err)
 	}

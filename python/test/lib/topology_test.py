@@ -1,4 +1,5 @@
 # Copyright 2015 ETH Zurich
+# Copyright 2018 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -165,6 +166,7 @@ class TestTopologyParseSrvDicts(object):
             'CertificateService': {"cs1": "cs1 val"},
             'PathService': {"ps1": "ps1 val", "ps2": "ps2 val"},
             'SibraService': {"sb1": "sb1 val"},
+            'SIG': {"sig1": "sig1 val"},
             'DiscoveryService': {"ds1": "ds1 val"},
         }
         inst = Topology()
@@ -173,9 +175,13 @@ class TestTopologyParseSrvDicts(object):
         inst._parse_srv_dicts(topo_dict)
         # Tests
         assert_these_calls(server, [
-            call("bs1 val", "bs1"), call("cs1 val", "cs1"),
-            call("ps1 val", "ps1"), call("ps2 val", "ps2"),
-            call("sb1 val", "sb1"), call("ds1 val", "ds1"),
+            call("bs1 val", "bs1"),
+            call("cs1 val", "cs1"),
+            call("ps1 val", "ps1"),
+            call("ps2 val", "ps2"),
+            call("sb1 val", "sb1"),
+            call("sig1 val", "sig1"),
+            call("ds1 val", "ds1"),
         ], any_order=True)
         ntools.eq_(inst.beacon_servers, ["bs1-bs1 val"])
         ntools.eq_(inst.certificate_servers, ["cs1-cs1 val"])

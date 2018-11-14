@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyrgiht 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,13 +29,14 @@ const (
 )
 
 const (
-	BR = "BR"
-	BS = "BS"
-	PS = "PS"
-	CS = "CS"
-	SB = "SB"
-	RS = "RS"
-	DS = "DS"
+	BR  = "BR"
+	BS  = "BS"
+	PS  = "PS"
+	CS  = "CS"
+	SB  = "SB"
+	RS  = "RS"
+	SIG = "SIG"
+	DS  = "DS"
 )
 
 // Interface ID

@@ -93,6 +93,12 @@
         "rs1-ff00:0:311-2": {"Addrs": {
             "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::78", "L4Port": 30098}}}}
     },
+    "SIG": {
+        "sig1-ff00:0:311-1": {"Addrs": {
+            "IPv4": {"Public": {"Addr": "127.0.0.82", "L4Port": 30100}}}},
+        "sig1-ff00:0:311-2": {"Addrs": {
+            "IPv6": {"Public": {"Addr": "2001:db8:f00:b43::82", "L4Port": 30100}}}}
+    },
     "DiscoveryService": {
         "ds1-ff00:0:311-1": {"Addrs": {
             "IPv4": {"Public": {"Addr": "127.0.0.99", "L4Port": 53535}}}},
