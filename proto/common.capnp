@@ -13,10 +13,11 @@ enum LinkType {
 
 enum ServiceType {
     unset @0; # Not set
-    bs @1;  # Beacon service
-    ps @2;  # Path service
-    cs @3;  # Certificate service
-    sb @4;  # SIBRA service
-    ds @5;  # Discovery service
-    br @6;  # Border router
+    bs  @1;  # Beacon service
+    ps  @2;  # Path service
+    cs  @3;  # Certificate service
+    sb  @4;  # SIBRA service
+    ds  @5;  # Discovery service
+    br  @6;  # Border router
+    sig @7;  # SCION-IP gateway
 }
