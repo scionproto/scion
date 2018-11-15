@@ -29,15 +29,7 @@
 //
 // An example of how this package can be used can be found in the associated
 // infra test file.
-//
-// If the connection to SCIOND fails, the resolver automatically attempts to
-// reestablish the connection. During this period, paths are not expired. Paths
-// will be transparently refreshed after reconnecting to SCIOND.
 package pathmgr
-
-// The manager is composed of the public PR struct, which is a proxy that
-// forward queries to the asynchronous resolver. Both the proxy and the
-// resolver operate over a thread-safe cache which contains path information.
 
 import (
 	"container/list"
@@ -63,6 +55,15 @@ type Timers struct {
 	ErrorRefire time.Duration
 }
 
+func (timers *Timers) initDefaults() {
+	if timers.NormalRefire == 0 {
+		timers.NormalRefire = DefaultNormalRefire
+	}
+	if timers.ErrorRefire == 0 {
+		timers.ErrorRefire = DefaultErrorRefire
+	}
+}
+
 const (
 	// DefaultNormalRefire is the wait time after a successful path lookup (for periodic lookups)
 	DefaultNormalRefire = time.Minute
@@ -72,10 +73,6 @@ const (
 	DefaultQueryTimeout = 5 * time.Second
 )
 
-const (
-	InitialCheckTimeout = time.Second
-)
-
 type PR interface {
 	// Query returns a set of paths between src and dst.
 	Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet
@@ -83,16 +80,21 @@ type PR interface {
 	// Watch returns an object that periodically polls for paths between src
 	// and dst.
 	//
-	// The function blocks until the first answer from SCIOND is received. Note
-	// that the resolver might asynchronously change the paths at any time.
-	// Calling Load on the returned object returns a reference to a structure
-	// containing the currently available paths.
+	// The function blocks until the first answer from SCIOND is received. The
+	// amount of time is dictated by ctx. Note that the resolver might
+	// asynchronously change the paths at any time. Calling Load on the
+	// returned object returns a reference to a structure containing the
+	// currently available paths.
 	//
-	// Call Destroy on the SyncPaths object to clean up any resources.
+	// The asynchronous worker is not subject to ctx; thus, it has infinite
+	// lifetime or until Destroy is called on the SyncPaths object to clean up
+	// any resources.
 	Watch(ctx context.Context, src, dst addr.IA) (*SyncPaths, error)
 	// WatchFilter returns a pointer to a SyncPaths object that contains paths from
 	// src to dst that adhere to the specified filter. On path changes the list is
 	// refreshed automatically.
+	//
+	// A nil filter will not delete any paths.
 	WatchFilter(ctx context.Context, src, dst addr.IA,
 		filter *pktcls.ActionFilterPaths) (*SyncPaths, error)
 	// WatchCount returns the number of active watchers.
@@ -106,7 +108,6 @@ type PR interface {
 }
 
 type pr struct {
-	sciondService    sciond.Service
 	sciondConn       sciond.Connector
 	timers           Timers
 	runningSyncPaths *runningSyncPathsList
@@ -119,43 +120,24 @@ type pr struct {
 // constants). When a query for a path older than maxAge reaches the resolver,
 // SCIOND is used to refresh the path. New returns with an error if a
 // connection to SCIOND could not be established.
-func New(conn sciond.Connector, timers *Timers, logger log.Logger) PR {
+func New(conn sciond.Connector, timers Timers, logger log.Logger) PR {
+	timers.initDefaults()
 	return &pr{
 		sciondConn:       conn,
 		runningSyncPaths: newRunningSyncPathsList(),
-		timers:           getTimers(timers),
+		timers:           timers,
 		logger:           getLogger(logger),
 	}
-}
-
-func getTimers(timers *Timers) Timers {
-	if timers == nil {
-		timers = &Timers{}
-	}
-	if timers.NormalRefire == 0 {
-		timers.NormalRefire = DefaultNormalRefire
-	}
-	if timers.ErrorRefire == 0 {
-		timers.ErrorRefire = DefaultErrorRefire
-	}
-	return *timers
-}
-
-func getLogger(logger log.Logger) log.Logger {
-	if logger != nil {
-		logger = logger.New("lib", "PathResolver")
-	}
-	return logger
 }
 
 func (r *pr) Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet {
 	reply, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, sciond.PathReqFlags{})
 	if err != nil {
-		log.Error("SCIOND network error", "err", err)
+		r.logger.Error("SCIOND network error", "err", err)
 		return make(spathmeta.AppPathSet)
 	}
 	if reply.ErrorCode != sciond.ErrorOk {
-		log.Error("Unable to find path", "src", src, "dst", dst, "code", reply.ErrorCode)
+		r.logger.Error("Unable to find path", "src", src, "dst", dst, "code", reply.ErrorCode)
 		return make(spathmeta.AppPathSet)
 	}
 	return spathmeta.NewAppPathSet(reply)
@@ -169,8 +151,13 @@ func (r *pr) QueryFilter(ctx context.Context, src, dst addr.IA,
 	return policy.Act(aps).(spathmeta.AppPathSet)
 }
 
-func (r *pr) Watch(ctx context.Context, src, dst addr.IA) (*SyncPaths, error) {
+func (r *pr) WatchFilter(ctx context.Context, src, dst addr.IA,
+	filter *pktcls.ActionFilterPaths) (*SyncPaths, error) {
+
 	aps := r.Query(ctx, src, dst)
+	if filter != nil {
+		aps = filter.Act(aps).(spathmeta.AppPathSet)
+	}
 	sp := NewSyncPaths()
 	sp.update(aps)
 
@@ -194,6 +181,9 @@ func (r *pr) Watch(ctx context.Context, src, dst addr.IA) (*SyncPaths, error) {
 			case <-time.After(waitDuration):
 				ctx, cancelF := context.WithTimeout(context.Background(), DefaultQueryTimeout)
 				aps := r.Query(ctx, src, dst)
+				if filter != nil {
+					aps = filter.Act(aps).(spathmeta.AppPathSet)
+				}
 				cancelF()
 				sp.update(aps)
 				waitDuration = r.getWaitDuration(len(aps) == 0)
@@ -210,21 +200,8 @@ func (r *pr) getWaitDuration(isError bool) time.Duration {
 	return r.timers.NormalRefire
 }
 
-func (r *pr) WatchFilter(ctx context.Context, src, dst addr.IA,
-	filter *pktcls.ActionFilterPaths) (*SyncPaths, error) {
-
-	aps := r.Query(ctx, src, dst)
-	sp := NewSyncPaths()
-	aps = filter.Act(aps).(spathmeta.AppPathSet)
-	sp.update(aps)
-	go func() {
-		for {
-			aps := r.Query(context.TODO(), src, dst)
-			aps = filter.Act(aps).(spathmeta.AppPathSet)
-			sp.update(aps)
-		}
-	}()
-	return sp, nil
+func (r *pr) Watch(ctx context.Context, src, dst addr.IA) (*SyncPaths, error) {
+	return r.WatchFilter(ctx, src, dst, nil)
 }
 
 func (r *pr) WatchCount() int {
@@ -234,7 +211,7 @@ func (r *pr) WatchCount() int {
 func (r *pr) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(rawSRevInfo)
 	if err != nil {
-		log.Error("Revocation failed, unable to parse signed revocation info",
+		r.logger.Error("Revocation failed, unable to parse signed revocation info",
 			"raw", rawSRevInfo, "err", err)
 		return
 	}
@@ -244,12 +221,12 @@ func (r *pr) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
 func (r *pr) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {
 	reply, err := r.sciondConn.RevNotification(context.Background(), sRevInfo)
 	if err != nil {
-		log.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
+		r.logger.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
 		return
 	}
 	revInfo, err := sRevInfo.RevInfo()
 	if err != nil {
-		log.Error("Revocation failed, unable to parse revocation info",
+		r.logger.Error("Revocation failed, unable to parse revocation info",
 			"sRevInfo", sRevInfo, "err", err)
 		return
 	}
@@ -262,14 +239,14 @@ func (r *pr) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {
 		f := func(e *list.Element) {
 			sp := e.Value.(*SyncPaths)
 			aps := sp.Load().APS
-			aps = revokeInternal(aps, pi)
+			aps = dropRevoked(aps, pi)
 			sp.update(aps)
 		}
 		r.runningSyncPaths.Apply(f)
 	case sciond.RevStale:
-		log.Warn("Found stale revocation notification", "revInfo", revInfo)
+		r.logger.Warn("Found stale revocation notification", "revInfo", revInfo)
 	case sciond.RevInvalid:
-		log.Warn("Found invalid revocation notification", "revInfo", revInfo)
+		r.logger.Warn("Found invalid revocation notification", "revInfo", revInfo)
 	}
 }
 
@@ -277,7 +254,7 @@ func (r *pr) Sciond() sciond.Connector {
 	return r.sciondConn
 }
 
-func revokeInternal(aps spathmeta.AppPathSet, pi sciond.PathInterface) spathmeta.AppPathSet {
+func dropRevoked(aps spathmeta.AppPathSet, pi sciond.PathInterface) spathmeta.AppPathSet {
 	other := make(spathmeta.AppPathSet)
 	for key, path := range aps {
 		if !matches(path, pi) {
@@ -329,4 +306,11 @@ func (spl *runningSyncPathsList) Len() int {
 	spl.mtx.Lock()
 	defer spl.mtx.Unlock()
 	return spl.list.Len()
+}
+
+func getLogger(logger log.Logger) log.Logger {
+	if logger != nil {
+		logger = logger.New("lib", "PathResolver")
+	}
+	return log.Root()
 }

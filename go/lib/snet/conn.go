@@ -240,7 +240,10 @@ func (c *SCIONConn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
 	if c.scionNet.pathResolver != nil {
-		go c.scionNet.pathResolver.RevokeRaw(context.Background(), info.RawSRev)
+		go func() {
+			defer log.LogPanicAndExit()
+			c.scionNet.pathResolver.RevokeRaw(context.Background(), info.RawSRev)
+		}()
 	}
 }
 
