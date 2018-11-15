@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
@@ -75,11 +76,10 @@ func (d *Dispatcher) Run() error {
 	if err != nil {
 		return common.NewBasicError("Unable to initialize extConn", err)
 	}
-	d.read()
-	return nil
+	return d.read()
 }
 
-func (d *Dispatcher) read() {
+func (d *Dispatcher) read() error {
 	frames := make(ringbuf.EntryList, 64)
 	lastCleanup := time.Now()
 	for {
@@ -89,6 +89,9 @@ func (d *Dispatcher) read() {
 			read, src, err := extConn.ReadFromSCION(frame.raw)
 			if err != nil {
 				log.Error("IngressDispatcher: Unable to read from external ingress", "err", err)
+				if reliable.IsDispatcherError(err) {
+					return common.NewBasicError("Problems speaking to dispatcher", err)
+				}
 				frame.Release()
 			} else {
 				frame.frameLen = read
