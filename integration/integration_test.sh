@@ -20,6 +20,7 @@ set -o pipefail
 # Get BRS
 opts "$@"
 shift $((OPTIND-1))
+is_docker_be && ./tools/dc start_testers
 
 shutdown() {
     log "Scion status:"
