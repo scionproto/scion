@@ -204,7 +204,7 @@ func TestWatchPolling(t *testing.T) {
 			xtest.FailOnErr(t, err)
 			Convey("there are 0 paths currently available", func() {
 				So(len(sp.Load().APS), ShouldEqual, 0)
-				Convey("and waiting for 200ms grabs new paths", func() {
+				Convey("and waiting for 10ms grabs new paths", func() {
 					time.Sleep(10 * time.Millisecond)
 					So(len(sp.Load().APS), ShouldEqual, 1)
 				})
@@ -233,7 +233,7 @@ func TestWatchFilter(t *testing.T) {
 				), nil,
 			).AnyTimes(),
 		)
-		pr := New(sd, Timers{ErrorRefire: 50 * time.Millisecond}, nil)
+		pr := New(sd, Timers{ErrorRefire: time.Millisecond}, nil)
 		Convey("and adding a watch that should retrieve 1 path", func() {
 			pp, err := spathmeta.NewPathPredicate("1-ff00:0:111#105")
 			xtest.FailOnErr(t, err)
@@ -244,8 +244,8 @@ func TestWatchFilter(t *testing.T) {
 			xtest.FailOnErr(t, err)
 			Convey("there are 0 paths due to filtering", func() {
 				So(len(sp.Load().APS), ShouldEqual, 0)
-				Convey("and waiting for 200ms grabs 1 path that is not filtered", func() {
-					time.Sleep(200 * time.Millisecond)
+				Convey("and waiting for 10ms grabs 1 path that is not filtered", func() {
+					time.Sleep(10 * time.Millisecond)
 					So(len(sp.Load().APS), ShouldEqual, 1)
 				})
 			})

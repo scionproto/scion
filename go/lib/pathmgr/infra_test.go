@@ -52,7 +52,7 @@ func ExamplePR() {
 		fmt.Println("Failed to connect to SCIOND", "err", err)
 		return
 	}
-	pr := New(sciondConn, nil, log.Root())
+	pr := New(sciondConn, Timers{}, log.Root())
 	// Register source and destination
 	sp, err := pr.Watch(context.Background(), src, dst)
 	if err != nil {
