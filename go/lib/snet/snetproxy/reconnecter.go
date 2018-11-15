@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 // Use a var here to allow tests to inject shorter intervals for fast testing.
@@ -75,7 +76,7 @@ func (r *TickingReconnecter) Reconnect(timeout time.Duration) (snet.Conn, error)
 		}
 		conn, err := r.reconnectF(newTimeout)
 		switch {
-		case isSysError(err):
+		case reliable.IsSysError(err):
 			// Wait until next tick to retry. If the overall timeout expires
 			// before the next tick, return immediately with an error.
 			// time.Ticker will ensure that no more than one attempt is made
