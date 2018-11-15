@@ -15,13 +15,13 @@ test_setup() {
 
 test_run() {
     set -e
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -c tester
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
     docker restart disp_1-ff00_0_112 disp_1-ff00_0_110
     # BS is on the network stack of the dispatcher, it cannot connect to ZK if not restarted.
     docker restart bs1-ff00_0_112-1 bs1-ff00_0_110-1
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
     sleep 5
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -c tester
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
 }
 
 test_teardown() {

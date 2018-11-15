@@ -36,15 +36,15 @@ run() {
 }
 
 usage() {
-    echo "Usage: $0: [-b brs] [-c cntr]"
+    echo "Usage: $0: [-b brs] [-d]"
     exit 1
 }
 
 opts() {
-    while getopts ":b:c:" opt; do
+    while getopts ":b:d" opt; do
         case "$opt" in
-            c)
-                DOCKER="-c $OPTARG"
+            d)
+                DOCKER="-d"
                 ;;
             b)
                 REV_BRS="$OPTARG"

@@ -33,6 +33,7 @@ from topology.utils import TesterGenArgs, TesterGenerator, UtilsGenArgs, UtilsGe
 DOCKER_NETWORK_CONF = 'networks-dc.yml'
 DOCKER_VOLUME_CONF = 'volumes-dc.yml'
 DOCKER_SCION_CONF = 'scion-dc.yml'
+DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
 
 
 class DockerGenArgs(ArgsTopoDicts):
@@ -103,6 +104,8 @@ class DockerGenerator(object):
         self.dc_vol_conf['volumes']['vol_sciond_%s' % topo_id.file_fmt()] = None
 
     def _create_networks(self):
+        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DOCKER_NETWORK}]}}
+        self.dc_net_conf['networks']['default'] = default_net
         for network in self.args.networks:
             for elem in self.args.networks[network]:
                 if elem not in self.elem_networks:
