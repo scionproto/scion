@@ -2,9 +2,6 @@
 
 . tools/ci/common.sh
 
-# Hardcoded in docker.sh
-cntr="scion"
-
 if [ -n "$DOCKER" ]; then
     # Stop a local scion run because we don't want to interfere
     ./scion.sh stop
@@ -28,7 +25,7 @@ result=$((result+$?))
 ./tools/ci/sphinx
 result=$((result+$?))
 
-./tools/ci/integration_setup && ./tools/ci/integration_run -a
+./tools/ci/integration_setup $DOCKER && ./tools/ci/integration_run -a $DOCKER
 result=$((result+$?))
 
 echo "Artifacts dir: $tmpdir"
