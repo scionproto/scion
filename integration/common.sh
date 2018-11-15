@@ -35,17 +35,18 @@ run() {
     return $result
 }
 
+is_docker_be() {
+    [ -f gen/scion-dc.yml ]
+}
+
 usage() {
-    echo "Usage: $0: [-b brs] [-d]"
+    echo "Usage: $0: [-b brs]"
     exit 1
 }
 
 opts() {
-    while getopts ":b:d" opt; do
+    while getopts ":b:" opt; do
         case "$opt" in
-            d)
-                DOCKER="-d"
-                ;;
             b)
                 REV_BRS="$OPTARG"
                 ;;
@@ -62,6 +63,8 @@ opts() {
                 ;;
         esac
     done
+    # Set if docker backend is used
+    is_docker_be && DOCKER="-d"
 }
 
 export PYTHONPATH=python/:.
