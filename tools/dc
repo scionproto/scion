@@ -23,8 +23,8 @@ cmd_help() {
 	        Run docker-compose command for utils services.
 	    $PROGRAM tester [docker-compose command]
 	        Run docker-compose command for tester services.
-	    $PROGRAM exec_tester [cntr-pref] [ia] [command]
-	        Exec a command in the `cntr-pref`_`ia` container.
+	    $PROGRAM exec_tester [cntr [command]
+	        Exec a command in the specified container.
 	    $PROGRAM down
 	        Shut down all services.
 	_EOF
@@ -43,23 +43,19 @@ cmd_tester() {
 }
 
 start_tester() {
-    cntr="$1"
+    local cntr="$1"
     SCION_UID=$(id -u) SCION_GID=$(id -g) DOCKER_GID=$(getent group docker | cut -f3 -d:) cmd_tester up -d "$cntr"
     cmd_tester exec -T "$cntr" /docker-entrypoint.sh -c exit
 }
 
 exec_tester() {
-    local pref="$1"
+    local cntr="$1"
     shift
-    local ia="$1"
-    shift
-    cntr="${pref}_$ia"
     docker container inspect "$cntr" &>/dev/null || start_tester "$cntr" &>/dev/null
     cmd_tester exec -u scion -T "$cntr" bash -l -c "$*"
 }
 
 cmd_down() {
-    set -e
     cmd_tester down >/dev/null 2>&1
     cmd_scion down >/dev/null 2>&1
     cmd_utils run --rm cleaner 2>&1

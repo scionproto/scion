@@ -2,10 +2,6 @@
 
 . tools/ci/common.sh
 
-if [ -n "$DOCKER" ]; then
-    CF="-c tester"
-fi
-
 sleep 15
 result=0
 
@@ -17,16 +13,16 @@ fi
 
 if [ -n "$ALL" ]; then
     # Python integration tests
-    ./docker.sh exec "set -eo pipefail; integration/py_integration $CF |& tee -a logs/integration.run"
+    ./docker.sh exec "set -eo pipefail; integration/py_integration $DOCKER |& tee -a logs/integration.run"
     result=$((result+$?))
 fi
 
 # Go integration tests
-./docker.sh exec "set -eo pipefail; integration/go_integration $CF |& tee -a logs/integration.run"
+./docker.sh exec "set -eo pipefail; integration/go_integration $DOCKER |& tee -a logs/integration.run"
 result=$((result+$?))
 
 # Revocation test
-./docker.sh exec "set -eo pipefail; integration/revocation_test.sh $CF |& tee -a logs/integration.run"
+./docker.sh exec "set -eo pipefail; integration/revocation_test.sh $DOCKER |& tee -a logs/integration.run"
 result=$((result+$?))
 
 if [ $result -eq 0 ]; then

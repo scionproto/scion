@@ -23,11 +23,8 @@ cmd_topology() {
         zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
-    if is_running_in_docker; then
-        python/topology/generator.py "$@" --in-docker
-    else
-        python/topology/generator.py "$@"
-    fi
+    is_running_in_docker && set -- "$@" --in-docker
+    python/topology/generator.py "$@"
     if is_docker; then
         ./tools/quiet ./tools/dc utils run --rm chowner
     fi
