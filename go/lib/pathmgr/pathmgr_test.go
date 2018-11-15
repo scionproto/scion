@@ -158,10 +158,13 @@ func TestWatchCount(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		sd := mock_sciond.NewMockConnector(ctrl)
-		pr := New(sd, &Timers{}, nil)
+		pr := New(sd, Timers{}, nil)
+		Convey("the count is initially 0", func() {
+			So(pr.WatchCount(), ShouldEqual, 0)
+		})
 		Convey("and adding a watch", func() {
 			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				BuildSDAnswer(), nil,
+				buildSDAnswer(), nil,
 			).AnyTimes()
 			sp, err := pr.Watch(context.Background(), src, dst)
 			xtest.FailOnErr(t, err)
@@ -187,22 +190,22 @@ func TestWatchPolling(t *testing.T) {
 		sd := mock_sciond.NewMockConnector(ctrl)
 		gomock.InOrder(
 			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				BuildSDAnswer(), nil,
+				buildSDAnswer(), nil,
 			),
 			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				BuildSDAnswer(
+				buildSDAnswer(
 					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
 				), nil,
 			).MinTimes(1),
 		)
-		pr := New(sd, &Timers{ErrorRefire: 50 * time.Millisecond}, nil)
+		pr := New(sd, Timers{ErrorRefire: time.Millisecond}, nil)
 		Convey("and adding a watch that retrieves zero paths", func() {
 			sp, err := pr.Watch(context.Background(), src, dst)
 			xtest.FailOnErr(t, err)
 			Convey("there are 0 paths currently available", func() {
 				So(len(sp.Load().APS), ShouldEqual, 0)
 				Convey("and waiting for 200ms grabs new paths", func() {
-					time.Sleep(200 * time.Millisecond)
+					time.Sleep(10 * time.Millisecond)
 					So(len(sp.Load().APS), ShouldEqual, 1)
 				})
 			})
@@ -211,23 +214,42 @@ func TestWatchPolling(t *testing.T) {
 }
 
 func TestWatchFilter(t *testing.T) {
-	Convey("Register filter 1-ff00:0:132#1910", t, func() {
-		g := graph.NewDefaultGraph()
-		pm := NewPR(t, g, 500, 500, 1000)
-		srcIA := xtest.MustParseIA("1-ff00:0:133")
-		dstIA := xtest.MustParseIA("1-ff00:0:131")
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:110")
+	Convey("Given a path manager", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		sd := mock_sciond.NewMockConnector(ctrl)
+		gomock.InOrder(
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(
+					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+				), nil,
+			),
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(
+					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+				), nil,
+			).AnyTimes(),
+		)
+		pr := New(sd, Timers{ErrorRefire: 50 * time.Millisecond}, nil)
+		Convey("and adding a watch that should retrieve 1 path", func() {
+			pp, err := spathmeta.NewPathPredicate("1-ff00:0:111#105")
+			xtest.FailOnErr(t, err)
+			filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#1619",
+				pktcls.NewCondPathPredicate(pp))
 
-		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#1910")
-		xtest.FailOnErr(t, err)
-
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#1619",
-			pktcls.NewCondPathPredicate(pp))
-
-		sp, err := pm.WatchFilter(context.Background(), srcIA, dstIA, filter)
-		SoMsg("len aps", len(sp.Load().APS), ShouldEqual, 1)
-		SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
-			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+			sp, err := pr.WatchFilter(context.Background(), src, dst, filter)
+			xtest.FailOnErr(t, err)
+			Convey("there are 0 paths due to filtering", func() {
+				So(len(sp.Load().APS), ShouldEqual, 0)
+				Convey("and waiting for 200ms grabs 1 path that is not filtered", func() {
+					time.Sleep(200 * time.Millisecond)
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
+		})
 	})
 }
 
@@ -238,10 +260,10 @@ func TestRevoke(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		sd := mock_sciond.NewMockConnector(ctrl)
-		pr := New(sd, &Timers{}, nil)
+		pr := New(sd, Timers{}, nil)
 		Convey("and a watch that retrieves one path", func() {
 			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				BuildSDAnswer(
+				buildSDAnswer(
 					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
 				), nil,
 			)
@@ -304,7 +326,7 @@ func TestRevoke(t *testing.T) {
 		})
 		Convey("and a watch that retrieves two paths", func() {
 			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
-				BuildSDAnswer(
+				buildSDAnswer(
 					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
 					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
 				), nil,
@@ -325,7 +347,7 @@ func TestRevoke(t *testing.T) {
 }
 
 func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
-	pi := MustParsePI(rev)
+	pi := mustParsePI(rev)
 	signedRevInfo, err := path_mgmt.NewSignedRevInfo(
 		&path_mgmt.RevInfo{
 			IfID:     pi.IfID,
@@ -343,7 +365,7 @@ func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) 
 
 	return New(
 		mockConn,
-		&Timers{
+		Timers{
 			NormalRefire: time.Duration(normalRefire) * time.Millisecond,
 			ErrorRefire:  time.Duration(errorRefire) * time.Millisecond,
 		},

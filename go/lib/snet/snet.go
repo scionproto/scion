@@ -131,7 +131,7 @@ func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*SCIONNet
 		}
 		pathResolver = pathmgr.New(
 			sciondConn,
-			&pathmgr.Timers{
+			pathmgr.Timers{
 				NormalRefire: time.Minute,
 				ErrorRefire:  3 * time.Second,
 			},

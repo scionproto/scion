@@ -20,33 +20,30 @@ import (
 	"github.com/scionproto/scion/go/lib/sciond"
 )
 
-func BuildSDAnswer(strss ...string) *sciond.PathReply {
+func buildSDAnswer(pathStrings ...string) *sciond.PathReply {
 	reply := &sciond.PathReply{
 		ErrorCode: sciond.ErrorOk,
+		Entries:   make([]sciond.PathReplyEntry, len(pathStrings)),
 	}
-
-	var entries []sciond.PathReplyEntry
-	for _, strs := range strss {
-		entry := sciond.PathReplyEntry{
+	for i, pathString := range pathStrings {
+		reply.Entries[i] = sciond.PathReplyEntry{
 			Path: &sciond.FwdPathMeta{
-				Interfaces: MustParseMultiplePI(strings.Split(strs, " ")...),
+				Interfaces: mustParseMultiplePI(strings.Split(pathString, " ")),
 			},
 		}
-		entries = append(entries, entry)
 	}
-	reply.Entries = entries
 	return reply
 }
 
-func MustParseMultiplePI(strs ...string) []sciond.PathInterface {
+func mustParseMultiplePI(strs []string) []sciond.PathInterface {
 	var pis []sciond.PathInterface
 	for _, str := range strs {
-		pis = append(pis, MustParsePI(str))
+		pis = append(pis, mustParsePI(str))
 	}
 	return pis
 }
 
-func MustParsePI(str string) sciond.PathInterface {
+func mustParsePI(str string) sciond.PathInterface {
 	pi, err := sciond.NewPathInterface(str)
 	if err != nil {
 		panic(err)
