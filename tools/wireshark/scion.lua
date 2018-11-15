@@ -409,7 +409,7 @@ end
 function format_as(as)
     local asDec = as:uint64()
     if asDec > 1 and asDec <= 0xffffffff then
-        asStr = string.format("%d", asDec)
+        asStr = string.format("%s", asDec)
     else
         asStr = string.format("%x:%x:%x", as:bitfield(0, 16), as:bitfield(16, 16), as:bitfield(32, 16))
     end
