@@ -32,7 +32,10 @@ const (
 	ErrClosed                    = "closed"
 )
 
-func isDispatcherError(err error) bool {
+// Returns true if this is a "dispatcher disconnection" error.
+// When SIG gets proper reconnect functionality this function should be made
+// private. Right now it's used by SIG to fail fast.
+func IsDispatcherError(err error) bool {
 	err = extractNestedError(err)
 	// On Linux, the following errors should prompt a reconnect:
 	//   - An EOF, when a Read happens to a connection that was closed at the

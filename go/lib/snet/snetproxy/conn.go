@@ -127,7 +127,7 @@ Loop:
 		case <-conn.dispatcherState.Up():
 			err = op.Do(conn.getConn())
 			if err != nil {
-				if isDispatcherError(err) && !conn.isClosing() {
+				if IsDispatcherError(err) && !conn.isClosing() {
 					conn.spawnAsyncReconnecterOnce()
 					continue
 				} else {

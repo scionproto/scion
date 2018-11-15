@@ -17,6 +17,7 @@
 package worker
 
 import (
+	"os"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
@@ -24,6 +25,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
@@ -194,6 +196,9 @@ func (w *worker) write(f *frame) error {
 	}
 	bytesWritten, err := w.sess.Conn().WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
+		if snetproxy.IsDispatcherError(err) {
+			os.Exit(1)
+		}
 		return common.NewBasicError("Egress write error", err)
 	}
 	w.frameSentCtrs.Pkts.Inc()

@@ -18,6 +18,7 @@ package ingress
 import (
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/snet/snetproxy"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
@@ -89,6 +91,9 @@ func (d *Dispatcher) read() {
 			read, src, err := extConn.ReadFromSCION(frame.raw)
 			if err != nil {
 				log.Error("IngressDispatcher: Unable to read from external ingress", "err", err)
+				if snetproxy.IsDispatcherError(err) {
+					os.Exit(1)
+				}
 				frame.Release()
 			} else {
 				frame.frameLen = read
