@@ -14,51 +14,60 @@
 
 # Stdlib
 import os
-# External packages
-import yaml
 # SCION
-from lib.util import write_file
 from topology.common import ArgsBase
-
-DOCKER_TESTER_CONF = 'testers-dc.yml'
-DOCKER_UTIL_CONF = 'utils-dc.yml'
-DEFAULT_DC_NETWORK = "172.18.0.0/24"
-
-
-class TesterGenArgs(ArgsBase):
-    pass
 
 
 class UtilsGenArgs(ArgsBase):
-    def __init__(self, args, volumes):
+    def __init__(self, args, dc_conf):
         """
         :param object args: Contains the passed command line arguments as named attributes.
-        :param list volumes: The compose volume config
+        :param dict dc_conf: The compose config
         """
         super().__init__(args)
-        self.volumes = volumes
+        self.dc_conf = dc_conf
 
 
-class TesterGenerator(object):
+class UtilsGenerator(object):
+    """
+    :param UtilsGenArgs args: Contains the passed command line arguments.
+    """
     def __init__(self, args):
-        """
-        :param TesterGenArgs args: Contains the passed command line arguments.
-        """
         self.args = args
-        self.dc_tester_conf = {'version': '3', 'services': {}}
+        self.dc_conf = args.dc_conf
+        self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
         self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
 
     def generate(self):
+        self._utils_conf()
         for topo_id in self.args.topo_dicts:
             self._test_conf(topo_id)
-        write_file(os.path.join(self.args.output_dir, DOCKER_TESTER_CONF),
-                   yaml.dump(self.dc_tester_conf, default_flow_style=False))
+        return self.dc_conf
+
+    def _utils_conf(self):
+        entry_chown = {
+            'image': 'busybox',
+            'volumes': [
+                '/etc/passwd:/etc/passwd:ro',
+                '/etc/group:/etc/group:ro'
+            ],
+            'command': 'chown -R ' + self.user_spec + ' /mnt/volumes/.'
+        }
+        entry_clean = {
+            'image': 'busybox',
+            'volumes': [],
+            'command': 'sh -c "find /mnt/volumes -type s -print0 | xargs -r0 rm -v"'
+        }
+        for volume in self.dc_conf['volumes']:
+            entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
+            entry_clean['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
+        self.dc_conf['services']['utils_chowner'] = entry_chown
+        self.dc_conf['services']['utils_cleaner'] = entry_clean
 
     def _test_conf(self, topo_id):
         cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
         entry = {
             'image': 'scion_app_builder',
-            'container_name': 'tester',
             'environment': [
                 'PYTHONPATH=python/:',
                 'SCION_UID',
@@ -80,44 +89,4 @@ class TesterGenerator(object):
         }
         name = 'tester_%s' % topo_id.file_fmt()
         entry['container_name'] = name
-        self.dc_tester_conf['services'][name] = entry
-
-
-class UtilsGenerator(object):
-    """
-    :param UtilsGenArgs args: Contains the passed command line arguments.
-    """
-    def __init__(self, args):
-        self.args = args
-        self.dc_util_conf = {'version': '3', 'services': {}, 'networks': {}}
-        self.user_spec = os.environ.get('SCION_USERSPEC', '$LOGNAME')
-
-    def generate(self):
-        self._utils_conf()
-        self._net_conf()
-        write_file(os.path.join(self.args.output_dir, DOCKER_UTIL_CONF),
-                   yaml.dump(self.dc_util_conf, default_flow_style=False))
-
-    def _net_conf(self):
-        default_net = {'ipam': {'config': [{'subnet': DEFAULT_DC_NETWORK}]}}
-        self.dc_util_conf['networks']['default'] = default_net
-
-    def _utils_conf(self):
-        entry_chown = {
-            'image': 'busybox',
-            'volumes': [
-                '/etc/passwd:/etc/passwd:ro',
-                '/etc/group:/etc/group:ro'
-            ],
-            'command': 'chown -R ' + self.user_spec + ' /mnt/volumes/.'
-        }
-        entry_clean = {
-            'image': 'busybox',
-            'volumes': [],
-            'command': 'sh -c "find /mnt/volumes -type s -print0 | xargs -r0 rm -v"'
-        }
-        for volume in self.args.volumes:
-            entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
-            entry_clean['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
-        self.dc_util_conf['services']['chowner'] = entry_chown
-        self.dc_util_conf['services']['cleaner'] = entry_clean
+        self.dc_conf['services'][name] = entry

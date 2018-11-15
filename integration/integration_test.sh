@@ -29,8 +29,8 @@ shutdown() {
     log "Scion stopped"
 }
 
-log "Starting scion (without building)"
-./scion.sh run nobuild | grep -v "started" || exit 1
+log "Starting scion"
+./scion.sh run | grep -v "started" || exit 1
 log "Scion status:"
 ./scion.sh status || exit 1
 
@@ -44,14 +44,14 @@ if [ -z "$DOCKER" ]; then
 fi
 
 # Run python integration tests
-integration/py_integration $DOCKER
+integration/py_integration
 result=$((result+$?))
 
 # Run go integration tests
-integration/go_integration $DOCKER
+integration/go_integration
 result=$((result+$?))
 
-integration/revocation_test.sh -b "$REV_BRS" $DOCKER
+integration/revocation_test.sh -b "$REV_BRS"
 result=$((result+$?))
 
 shutdown
