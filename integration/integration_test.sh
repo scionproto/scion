@@ -20,7 +20,6 @@ set -o pipefail
 # Get BRS
 opts "$@"
 shift $((OPTIND-1))
-is_docker_be && ./tools/dc start_testers
 
 shutdown() {
     log "Scion status:"
@@ -34,6 +33,10 @@ log "Starting scion"
 ./scion.sh run | grep -v "started" || exit 1
 log "Scion status:"
 ./scion.sh status || exit 1
+if is_docker_be; then
+    log "Starting tester containers"
+    ./tools/quiet ./tools/dc start_testers
+fi
 
 sleep 10
 result=0
