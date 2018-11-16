@@ -62,11 +62,11 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// First run all servers
 		dsts := integration.ExtractUniqueDsts(pairs)
 		for _, dst := range dsts {
-			c, err := integration.StartServer(in, dst)
+			s, err := integration.StartServer(in, dst)
 			if err != nil {
 				return err
 			}
-			defer c.Close()
+			defer s.Close()
 		}
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
