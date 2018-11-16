@@ -4,8 +4,18 @@ run_command() {
     local cmd="$1"
     local out="$2"
 
+    # Save the state of errexit
+    [[ $- =~ e ]] && local e_set=y
+    # Unset errexit, so that $cmd failing won't quit the script.
+    set +e
+
+    # Run cmd, save return value.
     $cmd &>> "${out:-/dev/stdout}"
     local ret=$?
+
+    # Re-set errexit if it was previously set.
+    [ -n "$e_set" ] && set -e
+
     if [[ -n "$out" && $ret -ne 0 ]]; then
         cat "$out"
     fi
