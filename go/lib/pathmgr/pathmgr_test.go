@@ -357,7 +357,7 @@ func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
 	return signedRevInfo
 }
 
-func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) PR {
+func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) Resolver {
 	t.Helper()
 
 	mockConn, err := sciond.NewMockService(g).Connect()

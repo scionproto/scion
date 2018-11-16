@@ -73,9 +73,11 @@ const (
 	DefaultQueryTimeout = 5 * time.Second
 )
 
-type PR interface {
+type Resolver interface {
 	// Query returns a set of paths between src and dst.
 	Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet
+	// QueryFilter returns a set of paths between src and dst that satisfy
+	// policy. A nil policy will not delete any paths.
 	QueryFilter(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) spathmeta.AppPathSet
 	// Watch returns an object that periodically polls for paths between src
 	// and dst.
@@ -107,7 +109,7 @@ type PR interface {
 	Sciond() sciond.Connector
 }
 
-type pr struct {
+type resolver struct {
 	sciondConn       sciond.Connector
 	timers           Timers
 	runningSyncPaths *runningSyncPathsList
@@ -120,9 +122,9 @@ type pr struct {
 // constants). When a query for a path older than maxAge reaches the resolver,
 // SCIOND is used to refresh the path. New returns with an error if a
 // connection to SCIOND could not be established.
-func New(conn sciond.Connector, timers Timers, logger log.Logger) PR {
+func New(conn sciond.Connector, timers Timers, logger log.Logger) Resolver {
 	timers.initDefaults()
-	return &pr{
+	return &resolver{
 		sciondConn:       conn,
 		runningSyncPaths: newRunningSyncPathsList(),
 		timers:           timers,
@@ -130,7 +132,7 @@ func New(conn sciond.Connector, timers Timers, logger log.Logger) PR {
 	}
 }
 
-func (r *pr) Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet {
+func (r *resolver) Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet {
 	reply, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, sciond.PathReqFlags{})
 	if err != nil {
 		r.logger.Error("SCIOND network error", "err", err)
@@ -143,15 +145,17 @@ func (r *pr) Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet {
 	return spathmeta.NewAppPathSet(reply)
 }
 
-func (r *pr) QueryFilter(ctx context.Context, src, dst addr.IA,
+func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
 	policy *pathpol.Policy) spathmeta.AppPathSet {
 
 	aps := r.Query(ctx, src, dst)
-	// Delete paths that do not match the path policy
+	if policy == nil {
+		return aps
+	}
 	return policy.Act(aps).(spathmeta.AppPathSet)
 }
 
-func (r *pr) WatchFilter(ctx context.Context, src, dst addr.IA,
+func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 	filter *pktcls.ActionFilterPaths) (*SyncPaths, error) {
 
 	aps := r.Query(ctx, src, dst)
@@ -193,22 +197,22 @@ func (r *pr) WatchFilter(ctx context.Context, src, dst addr.IA,
 	return sp, nil
 }
 
-func (r *pr) getWaitDuration(isError bool) time.Duration {
+func (r *resolver) getWaitDuration(isError bool) time.Duration {
 	if isError {
 		return r.timers.ErrorRefire
 	}
 	return r.timers.NormalRefire
 }
 
-func (r *pr) Watch(ctx context.Context, src, dst addr.IA) (*SyncPaths, error) {
+func (r *resolver) Watch(ctx context.Context, src, dst addr.IA) (*SyncPaths, error) {
 	return r.WatchFilter(ctx, src, dst, nil)
 }
 
-func (r *pr) WatchCount() int {
+func (r *resolver) WatchCount() int {
 	return r.runningSyncPaths.Len()
 }
 
-func (r *pr) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
+func (r *resolver) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
 	sRevInfo, err := path_mgmt.NewSignedRevInfoFromRaw(rawSRevInfo)
 	if err != nil {
 		r.logger.Error("Revocation failed, unable to parse signed revocation info",
@@ -218,7 +222,7 @@ func (r *pr) RevokeRaw(ctx context.Context, rawSRevInfo common.RawBytes) {
 	r.Revoke(ctx, sRevInfo)
 }
 
-func (r *pr) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {
+func (r *resolver) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {
 	reply, err := r.sciondConn.RevNotification(context.Background(), sRevInfo)
 	if err != nil {
 		r.logger.Error("Revocation failed, unable to inform SCIOND about revocation", "err", err)
@@ -250,7 +254,7 @@ func (r *pr) Revoke(ctx context.Context, sRevInfo *path_mgmt.SignedRevInfo) {
 	}
 }
 
-func (r *pr) Sciond() sciond.Connector {
+func (r *resolver) Sciond() sciond.Connector {
 	return r.sciondConn
 }
 

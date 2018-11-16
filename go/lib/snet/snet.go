@@ -98,13 +98,13 @@ type SCIONNetwork struct {
 	dispatcherPath string
 	// pathResolver references the default source of paths for a Network. This
 	// is set to nil when operating on a SCIOND-less Network.
-	pathResolver pathmgr.PR
+	pathResolver pathmgr.Resolver
 	localIA      addr.IA
 }
 
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr pathmgr.PR) *SCIONNetwork {
+func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr pathmgr.Resolver) *SCIONNetwork {
 	if dispatcherPath == "" {
 		dispatcherPath = reliable.DefaultDispPath
 	}
@@ -123,7 +123,7 @@ func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr pathmgr.PR) *SCIONNe
 // this mode of operation, the app is fully responsible with supplying paths
 // for sent traffic.
 func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*SCIONNetwork, error) {
-	var pathResolver pathmgr.PR
+	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
 		sciondConn, err := sciond.NewService(sciondPath, true).Connect()
 		if err != nil {
@@ -288,7 +288,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 }
 
 // PathResolver returns the pathmgr.PR that the network is using.
-func (n *SCIONNetwork) PathResolver() pathmgr.PR {
+func (n *SCIONNetwork) PathResolver() pathmgr.Resolver {
 	return n.pathResolver
 }
 
