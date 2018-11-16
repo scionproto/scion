@@ -47,6 +47,7 @@
 package snet
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -97,13 +98,13 @@ type SCIONNetwork struct {
 	dispatcherPath string
 	// pathResolver references the default source of paths for a Network. This
 	// is set to nil when operating on a SCIOND-less Network.
-	pathResolver *pathmgr.PR
+	pathResolver pathmgr.Resolver
 	localIA      addr.IA
 }
 
 // NewNetworkWithPR creates a new networking context with path resolver pr. A
 // nil path resolver means the Network will run without SCIOND.
-func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *SCIONNetwork {
+func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr pathmgr.Resolver) *SCIONNetwork {
 	if dispatcherPath == "" {
 		dispatcherPath = reliable.DefaultDispPath
 	}
@@ -122,21 +123,20 @@ func NewNetworkWithPR(ia addr.IA, dispatcherPath string, pr *pathmgr.PR) *SCIONN
 // this mode of operation, the app is fully responsible with supplying paths
 // for sent traffic.
 func NewNetwork(ia addr.IA, sciondPath string, dispatcherPath string) (*SCIONNetwork, error) {
-	var pathResolver *pathmgr.PR
+	var pathResolver pathmgr.Resolver
 	if sciondPath != "" {
-		var err error
-		pathResolver, err = pathmgr.New(
-			sciond.NewService(sciondPath, true),
-			&pathmgr.Timers{
+		sciondConn, err := sciond.NewService(sciondPath, true).Connect()
+		if err != nil {
+			return nil, common.NewBasicError("Unable to initialize SCIOND service", err)
+		}
+		pathResolver = pathmgr.New(
+			sciondConn,
+			pathmgr.Timers{
 				NormalRefire: time.Minute,
 				ErrorRefire:  3 * time.Second,
-				MaxAge:       time.Hour,
 			},
 			log.Root(),
 		)
-		if err != nil {
-			return nil, common.NewBasicError("Unable to initialize path resolver", err)
-		}
 	}
 	return NewNetworkWithPR(ia, dispatcherPath, pathResolver), nil
 }
@@ -170,7 +170,8 @@ func (n *SCIONNetwork) DialSCIONWithBindSVC(network string, laddr, raddr, baddr 
 	snetConn := conn.(*SCIONConn)
 	snetConn.raddr = raddr.Copy()
 	if n.pathResolver != nil {
-		snetConn.sp, err = n.pathResolver.Watch(snetConn.laddr.IA, snetConn.raddr.IA)
+		snetConn.sp, err = n.pathResolver.Watch(context.TODO(), snetConn.laddr.IA,
+			snetConn.raddr.IA)
 		if err != nil {
 			return nil, common.NewBasicError("Unable to establish path", err)
 		}
@@ -287,12 +288,12 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 }
 
 // PathResolver returns the pathmgr.PR that the network is using.
-func (n *SCIONNetwork) PathResolver() *pathmgr.PR {
+func (n *SCIONNetwork) PathResolver() pathmgr.Resolver {
 	return n.pathResolver
 }
 
-// Sciond returns the sciond.Service that the network is using.
-func (n *SCIONNetwork) Sciond() sciond.Service {
+// Sciond returns the sciond API endpoint that the network is using.
+func (n *SCIONNetwork) Sciond() sciond.Connector {
 	if n.pathResolver != nil {
 		return n.pathResolver.Sciond()
 	}

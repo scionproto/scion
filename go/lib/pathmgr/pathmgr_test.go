@@ -16,16 +16,20 @@
 package pathmgr
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
 	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
+	"github.com/scionproto/scion/go/lib/sciond/mock_sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/xtest"
 	"github.com/scionproto/scion/go/lib/xtest/graph"
@@ -38,10 +42,10 @@ func TestQuery(t *testing.T) {
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-		aps := pm.Query(srcIA, dstIA)
+		aps := pm.Query(context.Background(), srcIA, dstIA)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		Convey("Query immediately, same path is read from cache", func() {
-			aps := pm.Query(srcIA, dstIA)
+			aps := pm.Query(context.Background(), srcIA, dstIA)
 			SoMsg("aps len", len(aps), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(aps), ShouldContain,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
@@ -52,7 +56,7 @@ func TestQuery(t *testing.T) {
 			g.AddLink("1-ff00:0:133", 101902, "1-ff00:0:132", 191002, false)
 			// Wait for two seconds to guarantee that the pathmgr refreshes the paths
 			<-time.After(200 * time.Millisecond)
-			aps := pm.Query(srcIA, dstIA)
+			aps := pm.Query(context.Background(), srcIA, dstIA)
 			SoMsg("aps len", len(aps), ShouldEqual, 2)
 			SoMsg("path #1", getPathStrings(aps), ShouldContain,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
@@ -79,13 +83,12 @@ func TestQueryFilter(t *testing.T) {
 			{Action: pathpol.Allow, Rule: pp},
 			denyEntry,
 		}}}
-		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 	})
-
 	Convey("Query with policy filter, only one path should remain, default allow", t, func() {
 		pp, err := pathpol.HopPredicateFromString("1-ff00:0:134#1910")
 		xtest.FailOnErr(t, err)
@@ -93,13 +96,12 @@ func TestQueryFilter(t *testing.T) {
 			{Action: pathpol.Allow, Rule: pp},
 			allowEntry,
 		}}}
-		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		SoMsg("path", getPathStrings(aps), ShouldContain,
 			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
 				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
 	})
-
 	Convey("Query with policy filter, no path should remain", t, func() {
 		pp, err := pathpol.HopPredicateFromString("1-ff00:0:132#1910")
 		xtest.FailOnErr(t, err)
@@ -107,7 +109,7 @@ func TestQueryFilter(t *testing.T) {
 			{Action: pathpol.Deny, Rule: pp},
 			denyEntry,
 		}}}
-		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 0)
 	})
 }
@@ -126,10 +128,9 @@ func TestACLPolicyFilter(t *testing.T) {
 			},
 			allowEntry,
 		}}}
-		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 2)
 	})
-
 	Convey("Query with longer ACL policy filter", t, func() {
 		g := graph.NewDefaultGraph()
 		pm := NewPR(t, g, 0, 0, 0)
@@ -145,170 +146,231 @@ func TestACLPolicyFilter(t *testing.T) {
 			{Action: pathpol.Deny, Rule: pp2},
 			allowEntry,
 		}}}
-		aps := pm.QueryFilter(srcIA, dstIA, policy)
+		aps := pm.QueryFilter(context.Background(), srcIA, dstIA, policy)
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 	})
 }
 
-func TestRegister(t *testing.T) {
-	Convey("Register for path, receive 0 responses", t, func() {
-		g := graph.NewDefaultGraph()
-		// Remove link between 1-ff00:0:132 and 1-ff00:0:131 and the peering from 1-ff00:0:133 to
-		// 1-ff00:0:122 so that the initial path set is nil
-		g.RemoveLink(graph.If_133_X_132_X)
-		g.RemoveLink(graph.If_133_X_122_X)
-		pm := NewPR(t, g, 100, 100, 100)
-		srcIA := xtest.MustParseIA("1-ff00:0:133")
-		dstIA := xtest.MustParseIA("1-ff00:0:131")
-
-		sp, err := pm.Watch(srcIA, dstIA)
-		SoMsg("err", err, ShouldBeNil)
-		SoMsg("aps", len(sp.Load().APS), ShouldEqual, 0)
-
-		Convey("Wait 200ms, the APS should contain fresh paths", func() {
-			// Re-add the link between 1-ff00:0:132 and 1-ff00:0:131; the path manager will
-			// update APS behind the scenes (after a normal refire of one
-			// second), so it should contain the path after 4 seconds.
-			g.AddLink("1-ff00:0:133", graph.If_133_X_132_X,
-				"1-ff00:0:132", graph.If_132_X_133_X, false)
-			<-time.After(200 * time.Millisecond)
-			SoMsg("aps", len(sp.Load().APS), ShouldEqual, 1)
-			SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
-				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-					"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+func TestWatchCount(t *testing.T) {
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:110")
+	Convey("Given a path manager", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pr := New(sd, Timers{}, nil)
+		Convey("the count is initially 0", func() {
+			So(pr.WatchCount(), ShouldEqual, 0)
+		})
+		Convey("and adding a watch", func() {
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(), nil,
+			).AnyTimes()
+			sp, err := pr.Watch(context.Background(), src, dst)
+			xtest.FailOnErr(t, err)
+			Convey("the number of watches increases to 1", func() {
+				So(pr.WatchCount(), ShouldEqual, 1)
+			})
+			Convey("if the watch is destroyed", func() {
+				sp.Destroy()
+				Convey("the number of watches decreases to 0", func() {
+					So(pr.WatchCount(), ShouldEqual, 0)
+				})
+			})
 		})
 	})
 }
 
-func TestRegisterFilter(t *testing.T) {
-	Convey("Register filter 1-ff00:0:132#1910", t, func() {
-		g := graph.NewDefaultGraph()
-		pm := NewPR(t, g, 500, 500, 1000)
-		srcIA := xtest.MustParseIA("1-ff00:0:133")
-		dstIA := xtest.MustParseIA("1-ff00:0:131")
+func TestWatchPolling(t *testing.T) {
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:110")
+	Convey("Given a path manager", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		sd := mock_sciond.NewMockConnector(ctrl)
+		gomock.InOrder(
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(), nil,
+			),
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(
+					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+				), nil,
+			).MinTimes(1),
+		)
+		pr := New(sd, Timers{ErrorRefire: time.Millisecond}, nil)
+		Convey("and adding a watch that retrieves zero paths", func() {
+			sp, err := pr.Watch(context.Background(), src, dst)
+			xtest.FailOnErr(t, err)
+			Convey("there are 0 paths currently available", func() {
+				So(len(sp.Load().APS), ShouldEqual, 0)
+				Convey("and waiting for 10ms grabs new paths", func() {
+					time.Sleep(10 * time.Millisecond)
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
+		})
+	})
+}
 
-		pp, err := spathmeta.NewPathPredicate("1-ff00:0:132#1910")
-		xtest.FailOnErr(t, err)
+func TestWatchFilter(t *testing.T) {
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:110")
+	Convey("Given a path manager", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		sd := mock_sciond.NewMockConnector(ctrl)
+		gomock.InOrder(
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(
+					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+				), nil,
+			),
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(
+					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+				), nil,
+			).AnyTimes(),
+		)
+		pr := New(sd, Timers{ErrorRefire: time.Millisecond}, nil)
+		Convey("and adding a watch that should retrieve 1 path", func() {
+			pp, err := spathmeta.NewPathPredicate("1-ff00:0:111#105")
+			xtest.FailOnErr(t, err)
+			filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#1619",
+				pktcls.NewCondPathPredicate(pp))
 
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#1619",
-			pktcls.NewCondPathPredicate(pp))
-
-		sp, err := pm.WatchFilter(srcIA, dstIA, filter)
-		SoMsg("len aps", len(sp.Load().APS), ShouldEqual, 1)
-		SoMsg("path", getPathStrings(sp.Load().APS), ShouldContain,
-			"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
-				"1-ff00:0:132#1916 1-ff00:0:131#1619]")
+			sp, err := pr.WatchFilter(context.Background(), src, dst, filter)
+			xtest.FailOnErr(t, err)
+			Convey("there are 0 paths due to filtering", func() {
+				So(len(sp.Load().APS), ShouldEqual, 0)
+				Convey("and waiting for 10ms grabs 1 path that is not filtered", func() {
+					time.Sleep(10 * time.Millisecond)
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
+		})
 	})
 }
 
 func TestRevoke(t *testing.T) {
-	Convey("Populate cache via Query, Watch, WatchFilter for different destinations", t, func() {
-		g := graph.NewDefaultGraph()
-		// Remove peering 133 -> 122 to have a simple up path 133 -> 131
-		g.RemoveLink(graph.If_133_X_122_X)
-		pm := NewPR(t, g, 60, 60, 60)
-		// Query: 1-ff00:0:133 -> 1-ff00:0:131
-		querySrc := xtest.MustParseIA("1-ff00:0:133")
-		queryDst := xtest.MustParseIA("1-ff00:0:131")
-		// Watch/WatchFilter: 1-ff00:0:122 -> 2-ff00:0:220
-		watchSrc := xtest.MustParseIA("1-ff00:0:122")
-		watchDst := xtest.MustParseIA("2-ff00:0:220")
-
-		aps := pm.Query(querySrc, queryDst)
-		apsCheckPaths("path", aps,
-			"[1-ff00:0:133#1019 1-ff00:0:132#1910 1-ff00:0:132#1916 1-ff00:0:131#1619]")
-
-		sp, err := pm.Watch(watchSrc, watchDst)
-		SoMsg("watch: ee", err, ShouldBeNil)
-		apsCheckPaths("watch", sp.Load().APS,
-			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-				"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
-			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-				"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
-
-		pp, err := spathmeta.NewPathPredicate("1-ff00:0:121#1518")
-		xtest.FailOnErr(t, err)
-		filter := pktcls.NewActionFilterPaths("test-1-ff00:0:121#1518",
-			pktcls.NewCondPathPredicate(pp))
-		spf, err := pm.WatchFilter(watchSrc, watchDst, filter)
-		SoMsg("watch filter: err", err, ShouldBeNil)
-		apsCheckPaths("watch filter", spf.Load().APS,
-			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-				"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
-			"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-				"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
-
-		Convey("Revoke a path that's not part of any path set", func() {
-			g.RemoveLink(graph.If_130_A_110_X)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:130"),
-				graph.If_130_A_110_X))
-			aps := pm.Query(querySrc, queryDst)
-			apsCheckPaths("path", aps,
-				"[1-ff00:0:133#1019 1-ff00:0:132#1910 1-ff00:0:132#1916 1-ff00:0:131#1619]")
-			apsCheckPaths("watch", sp.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
-			apsCheckPaths("watch filter", spf.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
+	src := xtest.MustParseIA("1-ff00:0:111")
+	dst := xtest.MustParseIA("1-ff00:0:110")
+	Convey("Given a path manager", t, func() {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		sd := mock_sciond.NewMockConnector(ctrl)
+		pr := New(sd, Timers{}, nil)
+		Convey("and a watch that retrieves one path", func() {
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(
+					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+				), nil,
+			)
+			sp, err := pr.Watch(context.Background(), src, dst)
+			xtest.FailOnErr(t, err)
+			Convey("revoking an IFID that matches the path", func() {
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevValid}, nil,
+				)
+				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+				Convey("deletes the path", func() {
+					So(len(sp.Load().APS), ShouldEqual, 0)
+				})
+			})
+			Convey("revoking an IFID that does not match the path", func() {
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevValid}, nil,
+				)
+				pr.Revoke(context.Background(), newTestRev(t, "2-ff00:0:1#1"))
+				Convey("does not delete the path", func() {
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
+			Convey("trying to revoke an IFID, but SCIOND encounters an error", func() {
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					nil, fmt.Errorf("some error"),
+				)
+				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+				Convey("does not delete the path", func() {
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
+			Convey("trying to revoke an IFID, but the revocation is invalid", func() {
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevInvalid}, nil,
+				)
+				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+				Convey("does not delete the path", func() {
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
+			Convey("trying to revoke an IFID, but the revocation is stale", func() {
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevStale}, nil,
+				)
+				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+				Convey("does not delete the path", func() {
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
+			Convey("trying to revoke an IFID, but the revocation is unknown", func() {
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevUnknown}, nil,
+				)
+				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+				Convey("deletes the path", func() {
+					So(len(sp.Load().APS), ShouldEqual, 0)
+				})
+			})
 		})
-		Convey("Revoke a path that's in Query, but not in Watch/WatchFilter path sets", func() {
-			// Disconnect #1019
-			// Note that the revoke below only invalidates the cache and
-			// does not inform sciond. This means that the path manager
-			// reaches 0 paths after the revocation, thus forcing a requery
-			// to sciond behind the scenes, which gets back the same path.
-			g.RemoveLink(graph.If_133_X_132_X)
-			pm.cache.revoke(uifidFromValues(xtest.MustParseIA("1-ff00:0:133"),
-				graph.If_133_X_132_X))
-			aps := pm.Query(querySrc, queryDst)
-			apsCheckPaths("path", aps)
-			apsCheckPaths("watch", sp.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
-			apsCheckPaths("watch filter", spf.Load().APS,
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3022 2-ff00:0:220#2230]",
-				"[1-ff00:0:122#1815 1-ff00:0:121#1518 1-ff00:0:121#1530 "+
-					"1-ff00:0:120#3015 1-ff00:0:120#3122 2-ff00:0:220#2231]")
-		})
-		Convey("Revoke a path that's in Watch and WatchFilter, but not in Query", func() {
-			// Disconnect #1815
-			// The revoke below only invalidates the cache. Because watches
-			// do not requery sciond automatically (like the previous
-			// test), they will be left with 0 paths.
-			g.RemoveLink(graph.If_122_X_121_X)
-			pm.cache.revoke(uifidFromValues(watchSrc, graph.If_122_X_121_X))
-			apsCheckPaths("path", aps,
-				"[1-ff00:0:133#1019 1-ff00:0:132#1910 1-ff00:0:132#1916 1-ff00:0:131#1619]")
-			apsCheckPaths("watch", sp.Load().APS)
-			apsCheckPaths("watch filter", spf.Load().APS)
+		Convey("and a watch that retrieves two paths", func() {
+			sd.EXPECT().Paths(gomock.Any(), dst, src, gomock.Any(), gomock.Any()).Return(
+				buildSDAnswer(
+					"1-ff00:0:111#105 1-ff00:0:130#1002 1-ff00:0:130#1004 1-ff00:0:110#2",
+					"1-ff00:0:111#104 1-ff00:0:120#5 1-ff00:0:120#6 1-ff00:0:110#1",
+				), nil,
+			)
+			sp, err := pr.Watch(context.Background(), src, dst)
+			xtest.FailOnErr(t, err)
+			Convey("revoking an IFID that matches one path", func() {
+				sd.EXPECT().RevNotification(gomock.Any(), gomock.Any()).Return(
+					&sciond.RevReply{Result: sciond.RevValid}, nil,
+				)
+				pr.Revoke(context.Background(), newTestRev(t, "1-ff00:0:130#1002"))
+				Convey("leaves one path remaining", func() {
+					So(len(sp.Load().APS), ShouldEqual, 1)
+				})
+			})
 		})
 	})
 }
 
-func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) *PR {
+func newTestRev(t *testing.T, rev string) *path_mgmt.SignedRevInfo {
+	pi := mustParsePI(rev)
+	signedRevInfo, err := path_mgmt.NewSignedRevInfo(
+		&path_mgmt.RevInfo{
+			IfID:     pi.IfID,
+			RawIsdas: pi.RawIsdas,
+		}, nil)
+	xtest.FailOnErr(t, err)
+	return signedRevInfo
+}
+
+func NewPR(t *testing.T, g *graph.Graph, normalRefire, errorRefire, maxAge int) Resolver {
 	t.Helper()
 
-	pm, err := New(
-		sciond.NewMockService(g),
-		&Timers{
+	mockConn, err := sciond.NewMockService(g).Connect()
+	xtest.FailOnErr(t, err)
+
+	return New(
+		mockConn,
+		Timers{
 			NormalRefire: time.Duration(normalRefire) * time.Millisecond,
 			ErrorRefire:  time.Duration(errorRefire) * time.Millisecond,
-			MaxAge:       time.Duration(maxAge) * time.Millisecond,
 		},
 		log.Root(),
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return pm
 }
 
 func getPathStrings(aps spathmeta.AppPathSet) []string {

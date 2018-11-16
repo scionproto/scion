@@ -15,6 +15,7 @@
 package snet
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
@@ -239,7 +240,10 @@ func (c *SCIONConn) handleSCMPRev(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	}
 	log.Info("Received SCMP revocation", "header", hdr.String(), "payload", scmpPayload.String())
 	if c.scionNet.pathResolver != nil {
-		c.scionNet.pathResolver.Revoke(info.RawSRev)
+		go func() {
+			defer log.LogPanicAndExit()
+			c.scionNet.pathResolver.RevokeRaw(context.Background(), info.RawSRev)
+		}()
 	}
 }
 
@@ -351,7 +355,7 @@ func (c *SCIONConn) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error)
 	// If the remote address is fixed, register source and destination for
 	// continous path updates
 	if c.raddr == nil {
-		pathSet = c.scionNet.pathResolver.Query(c.laddr.IA, raddr.IA)
+		pathSet = c.scionNet.pathResolver.Query(context.TODO(), c.laddr.IA, raddr.IA)
 	} else {
 		pathSet = c.sp.Load().APS
 	}
