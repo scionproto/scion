@@ -29,11 +29,12 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	task    Task
-	ticker  *time.Ticker
-	timeout time.Duration
-	stop    chan struct{}
-	stopped chan struct{}
+	task       Task
+	ticker     *time.Ticker
+	timeout    time.Duration
+	stop       chan struct{}
+	stopped    chan struct{}
+	currCancel context.CancelFunc
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
@@ -63,14 +64,23 @@ func (r *Runner) Stop() {
 	<-r.stopped
 }
 
+// Kill is like stop but it will not wait until the current running method is done.
+func (r *Runner) Kill() {
+	r.ticker.Stop()
+	close(r.stop)
+	r.currCancel()
+	<-r.stopped
+}
+
 func (r *Runner) runLoop() {
 	defer close(r.stopped)
 	for {
 		select {
 		case <-r.ticker.C:
-			ctx, cancelF := context.WithTimeout(context.Background(), r.timeout)
+			var ctx context.Context
+			ctx, r.currCancel = context.WithTimeout(context.Background(), r.timeout)
 			r.task.Run(ctx)
-			cancelF()
+			r.currCancel()
 		case <-r.stop:
 			return
 		}

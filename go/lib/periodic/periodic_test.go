@@ -28,7 +28,7 @@ func (tf taskFunc) Run(ctx context.Context) {
 	tf(ctx)
 }
 
-func Test_PeriodicExecution(t *testing.T) {
+func TestPeriodicExecution(t *testing.T) {
 	Convey("Test periodic execution", t, func() {
 		cnt := 0
 		fn := taskFunc(func(ctx context.Context) {
@@ -44,5 +44,26 @@ func Test_PeriodicExecution(t *testing.T) {
 		tickC <- time.Now()
 		r.Stop()
 		SoMsg("Must have executed 3 times", cnt, ShouldEqual, 3)
+	})
+}
+
+func TestKill(t *testing.T) {
+	Convey("Test kill works", t, func() {
+		done := make(chan struct{})
+		var err error
+		fn := taskFunc(func(ctx context.Context) {
+			<-ctx.Done()
+			err = ctx.Err()
+			close(done)
+		})
+		tickC := make(chan time.Time)
+		ticker := &time.Ticker{
+			C: tickC,
+		}
+		r := StartPeriodicTask(fn, ticker, time.Second)
+		tickC <- time.Now()
+		r.Kill()
+		<-done
+		SoMsg("Context should have been canceled", err, ShouldEqual, context.Canceled)
 	})
 }
