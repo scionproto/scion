@@ -241,12 +241,11 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		return nil, common.NewBasicError("Supplied local address does not match network", nil,
 			"expected L4", l4Type, "actual L4", laddr.Host.L4.Type())
 	}
-	conn := &SCIONConn{
-		net:        network,
-		scionNet:   n,
-		recvBuffer: make(common.RawBytes, BufSize),
-		sendBuffer: make(common.RawBytes, BufSize),
-		svc:        svc}
+	conn := &scionConnBase{
+		net:      network,
+		scionNet: n,
+		svc:      svc,
+	}
 	// Initialize local bind address
 	// NOTE: keep nil address logic for now, even though we do not support it yet
 	if laddr != nil {
@@ -283,8 +282,7 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		conn.laddr.Host.L4 = addr.NewL4UDPInfo(port)
 	}
 	log.Debug("Registered with dispatcher", "addr", conn.laddr)
-	conn.conn = rconn
-	return conn, nil
+	return newSCIONConn(conn, n.pathResolver, rconn), nil
 }
 
 // PathResolver returns the pathmgr.PR that the network is using.
