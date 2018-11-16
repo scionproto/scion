@@ -31,7 +31,6 @@ result=$((result+$?))
 echo "Artifacts dir: $tmpdir"
 
 [ $result -eq 0 ] && ./docker.sh stop
-[ -n "$DOCKER" ] && ./tools/dc down
 
 if [ $result -eq 0 ]; then
     echo "All tests successful"

@@ -39,6 +39,10 @@ is_docker_be() {
     [ -f gen/scion-dc.yml ]
 }
 
+is_running_in_docker() {
+    cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'
+}
+
 usage() {
     echo "Usage: $0: [-b brs]"
     exit 1
@@ -64,7 +68,10 @@ opts() {
         esac
     done
     # Set if docker backend is used
-    is_docker_be && DOCKER="-d"
+    if is_docker_be; then
+        DOCKER="-d"
+        is_running_in_docker && DOCKER="$DOCKER -c tester_docker"
+    fi
 }
 
 export PYTHONPATH=python/:.

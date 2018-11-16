@@ -27,10 +27,14 @@ shutdown() {
     log "Stopping scion"
     ./scion.sh stop | grep -v "stopped"
     log "Scion stopped"
+    if is_docker_be; then
+        log "Stopping tester containers"
+        ./tools/quiet ./tools/dc stop tester\*
+    fi
 }
 
 log "Starting scion"
-./scion.sh run | grep -v "started" || exit 1
+./scion.sh run nobuild | grep -v "started" || exit 1
 log "Scion status:"
 ./scion.sh status || exit 1
 if is_docker_be; then

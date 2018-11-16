@@ -49,12 +49,13 @@ cmd_stop() {
 }
 
 cmd_run() {
-    cmd_dc run --rm "$@"
+    service="$(glob_docker "$@")"
+    [ -n "$service" ] && cmd_dc run --rm "$service"
 }
 
 cmd_down() {
     cmd_stop \*
-    cmd_dc run --rm utils_cleaner
+    cmd_run \*cleaner
     cmd_dc down
 }
 

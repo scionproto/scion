@@ -26,7 +26,7 @@ cmd_topology() {
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
     if is_docker_be; then
-        ./tools/quiet ./tools/dc run utils_chowner
+        ./tools/quiet ./tools/dc run \*chowner
     fi
     run_zk
     if [ -n "$zkclean" ]; then

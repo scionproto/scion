@@ -7,3 +7,6 @@ set -e
 ./docker.sh exec "set -x; ./scion.sh topology ${DOCKER:+zkclean -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
 ./docker.sh exec "set -eo pipefail; ./scion.sh run nobuild | grep -v "started" |& tee logs/integration.run"
 ./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee -a logs/integration.run"
+if [ -n "$DOCKER" ]; then
+    ./docker.sh exec "set -eo pipefail; ./tools/dc start_testers |& tee -a logs/integration.run"
+fi
