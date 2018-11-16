@@ -186,6 +186,16 @@ func (ae *ASEntry) delNet(ipnet *net.IPNet) error {
 // addNewSIGS adds the SIGs in sigs that are not currently configured.
 func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) bool {
 	s := true
+
+	// First, add SvcSIG address
+	err := ae.AddSig("auto", addr.SvcSIG,
+		sigcmn.DefaultCtrlPort, sigcmn.DefaultEncapPort, false)
+	if err != nil {
+		ae.Error("Unable to add SIG", "sig", "auto", "err", err)
+		s = false
+	}
+
+	// Add static SIG addresses from the config file.
 	for _, sig := range sigs {
 		ctrlPort := int(sig.CtrlPort)
 		if ctrlPort == 0 {
@@ -195,7 +205,7 @@ func (ae *ASEntry) addNewSIGS(sigs config.SIGSet) bool {
 		if encapPort == 0 {
 			encapPort = sigcmn.DefaultEncapPort
 		}
-		err := ae.AddSig(sig.Id, sig.Addr, ctrlPort, encapPort, true)
+		err := ae.AddSig(sig.Id, addr.HostFromIP(sig.Addr), ctrlPort, encapPort, true)
 		if err != nil {
 			ae.Error("Unable to add SIG", "sig", sig, "err", err)
 			s = false
@@ -224,14 +234,11 @@ func (ae *ASEntry) delOldSIGS(sigs config.SIGSet) bool {
 }
 
 // AddSig idempotently adds a SIG for the remote IA.
-func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP, ctrlPort, encapPort int,
+func (ae *ASEntry) AddSig(id siginfo.SigIdType, host addr.HostAddr, ctrlPort, encapPort int,
 	static bool) error {
 	// ae.Sigs is thread safe, no master lock needed
 	if len(id) == 0 {
 		return common.NewBasicError("AddSig: SIG id empty", nil, "ia", ae.IA)
-	}
-	if ip == nil {
-		return common.NewBasicError("AddSig: SIG address empty", nil, "ia", ae.IA)
 	}
 	if err := sigcmn.ValidatePort("remote ctrl", ctrlPort); err != nil {
 		return common.NewBasicError("Remote ctrl port validation failed", err,
@@ -242,12 +249,12 @@ func (ae *ASEntry) AddSig(id siginfo.SigIdType, ip net.IP, ctrlPort, encapPort i
 			"ia", ae.IA, "id", id)
 	}
 	if sig, ok := ae.Sigs.Load(id); ok {
-		sig.Host = addr.HostFromIP(ip)
+		sig.Host = host
 		sig.CtrlL4Port = ctrlPort
 		sig.EncapL4Port = encapPort
 		ae.Info("Updated SIG", "sig", sig)
 	} else {
-		sig := siginfo.NewSig(ae.IA, id, addr.HostFromIP(ip), ctrlPort, encapPort, static)
+		sig := siginfo.NewSig(ae.IA, id, host, ctrlPort, encapPort, static)
 		ae.Sigs.Store(id, sig)
 		ae.Info("Added SIG", "sig", sig)
 	}
