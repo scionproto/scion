@@ -63,11 +63,11 @@ var _ infra.TrustStore = (*Store)(nil)
 // objects from other infrastructure services, an infra.Messenger must be set
 // with SetMessenger.
 //
-// Store is backed by a sqlite3 database in package
+// Store is backed by a database in package
 // go/lib/infra/modules/trust/trustdb.
 type Store struct {
 	mu           sync.Mutex
-	trustdb      *trustdb.DB
+	trustdb      trustdb.TrustDB
 	trcDeduper   dedupe.Deduper
 	chainDeduper dedupe.Deduper
 	config       *Config
@@ -80,7 +80,9 @@ type Store struct {
 // NewStore initializes a TRC/Certificate Chain cache/resolver backed by db.
 // Parameter local must specify the AS in which the trust store resides (which
 // is used during request forwarding decisions).
-func NewStore(db *trustdb.DB, local addr.IA, options *Config, logger log.Logger) (*Store, error) {
+func NewStore(db trustdb.TrustDB, local addr.IA,
+	options *Config, logger log.Logger) (*Store, error) {
+
 	if options == nil {
 		options = &Config{}
 	}

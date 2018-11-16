@@ -36,7 +36,7 @@ import (
 var _ periodic.Task = (*Syncer)(nil)
 
 type Syncer struct {
-	DB    *trustdb.DB
+	DB    trustdb.TrustDB
 	Msger infra.Messenger
 	IA    addr.IA
 }

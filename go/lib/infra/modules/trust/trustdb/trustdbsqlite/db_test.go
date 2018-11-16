@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trustdb
+package trustdbsqlite
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -106,7 +107,9 @@ func TestTRCGetAll(t *testing.T) {
 	})
 }
 
-func insertTRCFromFile(t *testing.T, ctx context.Context, fName string, db *DB) *trc.TRC {
+func insertTRCFromFile(t *testing.T, ctx context.Context,
+	fName string, db trustdb.TrustDB) *trc.TRC {
+
 	trcobj, err := trc.TRCFromFile(fName, false)
 	xtest.FailOnErr(t, err)
 	_, err = db.InsertTRC(ctx, trcobj)
@@ -289,7 +292,9 @@ func TestChainGetAll(t *testing.T) {
 	})
 }
 
-func insertChainFromFile(t *testing.T, ctx context.Context, fName string, db *DB) *cert.Chain {
+func insertChainFromFile(t *testing.T, ctx context.Context,
+	fName string, db trustdb.TrustDB) *cert.Chain {
+
 	chain, err := cert.ChainFromFile(fName, false)
 	xtest.FailOnErr(t, err)
 	_, err = db.InsertChain(ctx, chain)
@@ -297,7 +302,7 @@ func insertChainFromFile(t *testing.T, ctx context.Context, fName string, db *DB
 	return chain
 }
 
-func newDatabase(t *testing.T) *DB {
+func newDatabase(t *testing.T) trustdb.TrustDB {
 	db, err := New(":memory:")
 	xtest.FailOnErr(t, err)
 	return db
