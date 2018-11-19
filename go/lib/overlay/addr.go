@@ -105,6 +105,9 @@ func (a *OverlayAddr) Network() string {
 }
 
 func (a *OverlayAddr) String() string {
+	if a == nil {
+		return "<nil>"
+	}
 	if a.l4 != nil {
 		return fmt.Sprintf("[%s]:%d", a.l3, a.l4.Port())
 	}
