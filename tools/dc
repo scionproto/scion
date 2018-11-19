@@ -40,39 +40,33 @@ cmd_dc() {
 
 cmd_start() {
     services="$(glob_docker "$@")"
-    [ -n "$services" ] && cmd_dc up -d $services < /dev/null
+    if [ -n "$services" ]; then
+        cmd_dc up -d $services < /dev/null
+    fi
 }
 
 cmd_stop() {
     services="$(glob_docker "$@")"
-    [ -n "$services" ] && cmd_dc stop $services
+    if [ -n "$services" ]; then
+        cmd_dc stop $services
+    fi
 }
 
 cmd_run() {
-    service="$(glob_docker "$@")"
-    [ -n "$service" ] && cmd_dc run --rm "$service"
+    cmd_dc run --rm "$@"
 }
 
 cmd_down() {
-    cmd_stop \*
-    cmd_run \*cleaner
+    cmd_stop "*"
+    cmd_run utils_cleaner
     cmd_dc down
-}
-
-start_testers() {
-    cntrs="$(glob_docker tester_${1:-\*})"
-    SCION_UID=$(id -u) SCION_GID=$(id -g) DOCKER_GID=$(getent group docker | cut -f3 -d:) cmd_dc up -d $cntrs < /dev/null
-    for cntr in $cntrs; do
-        cmd_dc exec -T "$cntr" /docker-entrypoint.sh -c exit &
-    done
-    wait
 }
 
 exec_tester() {
     local cntr="$1"
     shift
-    docker container inspect "$cntr" &>/dev/null || start_testers "$cntr" &>/dev/null
-    cmd_dc exec -u scion -T "$cntr" bash -l -c "$*"
+    docker container inspect "$cntr" &>/dev/null || cmd_start "$cntr" &>/dev/null
+    cmd_dc exec -T "$cntr" bash -l -c "$*"
 }
 
 glob_docker() {
@@ -104,8 +98,6 @@ shift
 case "$COMMAND" in
     start|stop|down|run|dc)
         "cmd_$COMMAND" "$@" ;;
-    start_testers)
-        "start_testers" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;
     *)  cmd_help; exit 1 ;;

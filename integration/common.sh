@@ -69,8 +69,8 @@ opts() {
     done
     # Set if docker backend is used
     if is_docker_be; then
-        DOCKER="-d"
-        is_running_in_docker && DOCKER="$DOCKER -c tester_docker"
+        DOCKER_ARGS="-d"
+        is_running_in_docker && DOCKER_ARGS="$DOCKER_ARGS -c tester_docker"
     fi
 }
 
