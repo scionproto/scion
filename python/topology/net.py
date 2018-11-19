@@ -38,7 +38,7 @@ DEFAULT_SCN_DC_NETWORK = "172.20.0.0/16"
 class SubnetGenerator(object):
     def __init__(self, network, docker):
         self.docker = docker
-        if docker and network == DEFAULT_NETWORK:
+        if self.docker and network == DEFAULT_NETWORK:
             network = DEFAULT_SCN_DC_NETWORK
         if "/" not in network:
             logging.critical("No prefix length specified for network '%s'",
@@ -74,16 +74,17 @@ class SubnetGenerator(object):
         max_prefix = self._net.max_prefixlen
         networks = {}
         for topo, subnet in sorted(self._subnets.items(), key=lambda x: str(x)):
-            # Figure out what size subnet we need. If it's a link, then we just
-            # need a /31 (or /127), otherwise add 2 to the subnet size to cover
-            # the network and broadcast addresses.
-            if len(subnet) == 2:
-                req_prefix = max_prefix - 1
+            if not self.docker:
+                # Figure out what size subnet we need. If it's a link, then we just
+                # need a /31 (or /127), otherwise add 2 to the subnet size to cover
+                # the network and broadcast addresses.
+                if len(subnet) == 2:
+                    req_prefix = max_prefix - 1
+                else:
+                    req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
             else:
-                req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
-            # Docker needs space for a network and broadcast address as well as an IP linking to
-            # the host
-            if self.docker:
+                # Docker needs space for a network and broadcast address as well as an IP linking
+                # to the host
                 req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 3))
 
             # Search all subnets from that size upwards
@@ -113,7 +114,7 @@ class SubnetGenerator(object):
 class AddressGenerator(object):
     def __init__(self, docker):
         self._addrs = defaultdict(lambda: AddressProxy())
-        # Docker cannot use the first IP of a network
+        # With the docker backend, docker itself claims the first ip of every network
         self.offset = 1 if docker else 0
 
     def register(self, id_):

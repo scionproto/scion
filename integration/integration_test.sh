@@ -33,19 +33,19 @@ shutdown() {
     fi
 }
 
-log "Starting scion"
+log "Starting scion (without building)"
 ./scion.sh run nobuild | grep -v "started" || exit 1
 log "Scion status:"
 ./scion.sh status || exit 1
 if is_docker_be; then
     log "Starting tester containers"
-    ./tools/quiet ./tools/dc start_testers
+    ./tools/quiet ./tools/dc start "tester*"
 fi
 
 sleep 10
 result=0
 
-if [ -z "$DOCKER" ]; then
+if [ -z "$DOCKER_ARGS" ]; then
     # Run go infra test
     integration/go_infra
     result=$((result+$?))
