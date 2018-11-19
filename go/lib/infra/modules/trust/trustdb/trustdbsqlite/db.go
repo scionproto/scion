@@ -17,7 +17,7 @@
 //
 // KNOWN ISSUE: DB methods serialize to/dezerialize from JSON on each call.
 // For performance penalty details, check the benchmarks in the test file.
-package trustdb
+package trustdbsqlite
 
 import (
 	"context"
@@ -28,6 +28,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -176,7 +177,7 @@ type DB struct {
 	getAllTRCsStmt            *sql.Stmt
 }
 
-func New(path string) (*DB, error) {
+func New(path string) (trustdb.TrustDB, error) {
 	var err error
 	db := &DB{}
 	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {

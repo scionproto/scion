@@ -29,7 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet/rpt"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -69,7 +69,7 @@ func InitDefaultNetworking(conn net.PacketConn) *ExampleServerApp {
 	// Initialize message dispatcher
 	dispatcherLayer := disp.New(transportLayer, messenger.DefaultAdapter, log.New("name", "server"))
 	// Initialize TrustStore
-	db, err := trustdb.New(randomFileName())
+	db, err := trustdbsqlite.New(randomFileName())
 	if err != nil {
 		log.Error("Unable to initialize trustdb", "err", err)
 		os.Exit(-1)

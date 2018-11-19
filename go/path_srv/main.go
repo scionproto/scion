@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -86,7 +86,7 @@ func realMain() int {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
-	trustDB, err := trustdb.New(config.Trust.TrustDB)
+	trustDB, err := trustdbsqlite.New(config.Trust.TrustDB)
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1

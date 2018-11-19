@@ -34,7 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/mock_infra"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -754,7 +754,7 @@ func initStore(t *testing.T, ctrl *gomock.Controller,
 	ia addr.IA, msger infra.Messenger) (*Store, func() error) {
 
 	t.Helper()
-	db, err := trustdb.New(":memory:")
+	db, err := trustdbsqlite.New(":memory:")
 	xtest.FailOnErr(t, err)
 	topo := topology.NewTopo()
 	topotestutil.AddServer(topo, proto.ServiceType_cs, "foo",

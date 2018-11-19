@@ -29,7 +29,7 @@ type State struct {
 	// Store is the trust store.
 	Store *trust.Store
 	// TrustDB is the trust DB.
-	TrustDB *trustdb.DB
+	TrustDB trustdb.TrustDB
 	// keyConf contains the AS level keys.
 	keyConf *keyconf.Conf
 	// keyConfLock guards KeyConf.
