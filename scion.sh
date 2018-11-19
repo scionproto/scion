@@ -26,7 +26,7 @@ cmd_topology() {
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
     if is_docker_be; then
-        ./tools/quiet ./tools/dc run \*chowner
+        ./tools/quiet ./tools/dc run utils_chowner
     fi
     run_zk
     if [ -n "$zkclean" ]; then
@@ -157,7 +157,7 @@ cmd_status() {
 
 cmd_mstatus() {
     if is_docker_be; then
-        services="$(glob_docker "scion_$@")"
+        services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         out=$(./tools/dc dc ps $services | tail -n +3)
         rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
@@ -197,7 +197,7 @@ glob_docker() {
     matches=
     for proc in $(./tools/dc dc config --services); do
         for spec in "$@"; do
-            if glob_match $proc "$spec"; then
+            if glob_match $proc "scion_$spec"; then
                 matches="$matches $proc"
                 break
             fi

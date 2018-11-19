@@ -45,7 +45,6 @@ class UtilsGenerator(object):
         return self.dc_conf
 
     def _utils_conf(self):
-        prefix = 'utils_docker_' if self.args.in_docker else 'utils_'
         entry_chown = {
             'image': 'busybox',
             'volumes': [
@@ -62,8 +61,8 @@ class UtilsGenerator(object):
         for volume in self.dc_conf['volumes']:
             entry_chown['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
             entry_clean['volumes'].append('%s:/mnt/volumes/%s' % (volume, volume))
-        self.dc_conf['services']['%schowner' % prefix] = entry_chown
-        self.dc_conf['services']['%scleaner' % prefix] = entry_clean
+        self.dc_conf['services']['utils_chowner'] = entry_chown
+        self.dc_conf['services']['utils_cleaner'] = entry_clean
 
     def _test_conf(self, topo_id):
         docker = 'docker_' if self.args.in_docker else ''
@@ -72,9 +71,6 @@ class UtilsGenerator(object):
             'image': 'scion_app_builder',
             'environment': [
                 'PYTHONPATH=python/:',
-                'SCION_UID',
-                'SCION_GID',
-                'DOCKER_GID'
             ],
             'volumes': [
                 'vol_scion_%sdisp_%s:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
@@ -83,12 +79,10 @@ class UtilsGenerator(object):
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
-            'user': 'root',
             'command': [
                 '-c',
                 'tail -f /dev/null'
             ]
         }
-        name = 'tester_%s%s' % (docker, topo_id.file_fmt())
-        entry['container_name'] = name
-        self.dc_conf['services'][name] = entry
+        entry['container_name'] = 'tester_%s%s' % (docker, topo_id.file_fmt())
+        self.dc_conf['services']['tester_%s' % topo_id.file_fmt()] = entry

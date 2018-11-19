@@ -6,7 +6,7 @@ usage() {
 while getopts ":d :a" opt; do
     case "$opt" in
         d)
-            DOCKER="-d"
+            DOCKER_BE="-d"
         ;;
         a)
             ALL=true

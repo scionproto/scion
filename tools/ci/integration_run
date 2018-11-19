@@ -5,7 +5,7 @@
 sleep 15
 result=0
 
-if [ -z "$DOCKER" ]; then
+if [ -z "$DOCKER_BE" ]; then
     # Go infra tests
     ./docker.sh exec "set -eo pipefail; integration/go_infra |& tee -a logs/integration.run"
     result=$((result+$?))
@@ -32,10 +32,10 @@ else
 fi
 
 # Stop scion
-./docker.sh exec "set -eo pipefail; ./scion.sh status && ./scion.sh stop |& tee -a logs/integration.run"
+./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee -a logs/integration.run && ./scion.sh stop |& tee -a logs/integration.run"
 
 # Make sure all compose controlled containers are stopped
-if [ -n "$DOCKER" ]; then
+if [ -n "$DOCKER_BE" ]; then
     ./docker.sh exec "set -eo pipefail; ./tools/dc down |& tee -a logs/integration.run"
 fi
 

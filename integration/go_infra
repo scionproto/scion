@@ -15,7 +15,7 @@
 
 . integration/common.sh
 
-is_docker_be && { echo "no"; exit 1; }
+is_docker_be && { echo "Go integration tests cannot be run with the docker topology."; exit 1; }
 
 GO_INFRA_TEST="go test -tags infrarunning"
 for i in ./go/lib/{snet,pathmgr,infra/disp}; do
