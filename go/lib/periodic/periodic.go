@@ -103,13 +103,15 @@ func (r *Runner) runLoop() {
 	defer close(r.stopped)
 	for {
 		select {
-		// Make sure that stop case is evaluated first,
-		// so that when we kill and both channels are ready we always go into stop first.
 		case <-r.stop:
 			return
-		default:
+		case <-r.ticker.Chan():
 			select {
-			case <-r.ticker.Chan():
+			// Make sure that stop case is evaluated first,
+			// so that when we kill and both channels are ready we always go into stop first.
+			case <-r.stop:
+				return
+			default:
 				var ctx context.Context
 				r.currCancelM.Lock()
 				ctx, r.currCancel = context.WithTimeout(context.Background(), r.timeout)
