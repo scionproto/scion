@@ -20,7 +20,6 @@ import (
 	"fmt"
 	_ "net/http/pprof"
 	"os"
-	"time"
 
 	"github.com/BurntSushi/toml"
 
@@ -143,7 +142,7 @@ func startReissRunner() {
 				IssTime:  config.CS.IssuerReissueLeadTime.Duration,
 				LeafTime: config.CS.LeafReissueLeadTime.Duration,
 			},
-			time.NewTicker(config.CS.ReissueRate.Duration),
+			periodic.NewTicker(config.CS.ReissueRate.Duration),
 			config.CS.ReissueTimeout.Duration,
 		)
 		return
@@ -156,7 +155,7 @@ func startReissRunner() {
 			IA:       config.General.Topology.ISD_AS,
 			LeafTime: config.CS.LeafReissueLeadTime.Duration,
 		},
-		time.NewTicker(config.CS.ReissueRate.Duration),
+		periodic.NewTicker(config.CS.ReissueRate.Duration),
 		config.CS.ReissueTimeout.Duration,
 	)
 }

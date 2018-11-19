@@ -73,7 +73,7 @@ func StartAll(args handlers.HandlerArgs, msger infra.Messenger) ([]*periodic.Run
 		// TODO(lukedirtwalker): either log or add metric to indicate
 		// if task takes longer than ticker often.
 		segSyncers = append(segSyncers, periodic.StartPeriodicTask(syncer,
-			time.NewTicker(time.Second), 3*time.Second))
+			periodic.NewTicker(time.Second), 3*time.Second))
 	}
 	return segSyncers, nil
 }

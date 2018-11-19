@@ -16,6 +16,7 @@ package periodic
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 
@@ -28,6 +29,18 @@ func (tf taskFunc) Run(ctx context.Context) {
 	tf(ctx)
 }
 
+var _ (Ticker) = (*testTicker)(nil)
+
+type testTicker struct {
+	C <-chan time.Time
+}
+
+func (t *testTicker) Chan() <-chan time.Time {
+	return t.C
+}
+
+func (t *testTicker) Stop() {}
+
 func TestPeriodicExecution(t *testing.T) {
 	Convey("Test periodic execution", t, func() {
 		cnt := 0
@@ -35,9 +48,7 @@ func TestPeriodicExecution(t *testing.T) {
 			cnt++
 		})
 		tickC := make(chan time.Time)
-		ticker := &time.Ticker{
-			C: tickC,
-		}
+		ticker := &testTicker{C: tickC}
 		r := StartPeriodicTask(fn, ticker, time.Microsecond)
 		tickC <- time.Now()
 		tickC <- time.Now()
@@ -56,12 +67,15 @@ func TestKill(t *testing.T) {
 			err = ctx.Err()
 			close(done)
 		})
-		tickC := make(chan time.Time)
-		ticker := &time.Ticker{
-			C: tickC,
-		}
+		tickC := make(chan time.Time, 2)
+		ticker := &testTicker{C: tickC}
 		r := StartPeriodicTask(fn, ticker, time.Second)
 		tickC <- time.Now()
+		// Fill the channel to check that stop is always selected
+		// and run is never called after kill.
+		tickC <- time.Now()
+		// Make sure the go routine can start
+		runtime.Gosched()
 		r.Kill()
 		<-done
 		SoMsg("Context should have been canceled", err, ShouldEqual, context.Canceled)

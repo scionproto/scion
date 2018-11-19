@@ -16,10 +16,32 @@ package periodic
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
 )
+
+// Ticker interface to improve testability of this periodic task code.
+type Ticker interface {
+	Chan() <-chan time.Time
+	Stop()
+}
+
+type defaultTicker struct {
+	*time.Ticker
+}
+
+func (t *defaultTicker) Chan() <-chan time.Time {
+	return t.C
+}
+
+// NewTicker returns a new Ticker with time.Ticker as implementation.
+func NewTicker(d time.Duration) Ticker {
+	return &defaultTicker{
+		Ticker: time.NewTicker(d),
+	}
+}
 
 // A Task that has to be periodically executed.
 type Task interface {
@@ -29,19 +51,20 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	task       Task
-	ticker     *time.Ticker
-	timeout    time.Duration
-	stop       chan struct{}
-	stopped    chan struct{}
-	currCancel context.CancelFunc
+	task        Task
+	ticker      Ticker
+	timeout     time.Duration
+	stop        chan struct{}
+	stopped     chan struct{}
+	currCancelM sync.RWMutex
+	currCancel  context.CancelFunc
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
 // The ticker regulates the periodicity. The timeout is used for the context timeout of the task.
 // The timeout can be larger than the periodicity of the ticker. That means if a tasks takes a long
 // time it will be immediately retriggered.
-func StartPeriodicTask(task Task, ticker *time.Ticker, timeout time.Duration) *Runner {
+func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner {
 	runner := &Runner{
 		task:    task,
 		ticker:  ticker,
@@ -64,11 +87,15 @@ func (r *Runner) Stop() {
 	<-r.stopped
 }
 
-// Kill is like stop but it will not wait until the current running method is done.
+// Kill is like stop but it also cancels the context of the current running method.
 func (r *Runner) Kill() {
 	r.ticker.Stop()
 	close(r.stop)
-	r.currCancel()
+	r.currCancelM.RLock()
+	if r.currCancel != nil {
+		r.currCancel()
+	}
+	r.currCancelM.RUnlock()
 	<-r.stopped
 }
 
@@ -76,13 +103,20 @@ func (r *Runner) runLoop() {
 	defer close(r.stopped)
 	for {
 		select {
-		case <-r.ticker.C:
-			var ctx context.Context
-			ctx, r.currCancel = context.WithTimeout(context.Background(), r.timeout)
-			r.task.Run(ctx)
-			r.currCancel()
+		// Make sure that stop case is evaluated first,
+		// so that when we kill and both channels are ready we always go into stop first.
 		case <-r.stop:
 			return
+		default:
+			select {
+			case <-r.ticker.Chan():
+				var ctx context.Context
+				r.currCancelM.Lock()
+				ctx, r.currCancel = context.WithTimeout(context.Background(), r.timeout)
+				r.currCancelM.Unlock()
+				r.task.Run(ctx)
+				r.currCancel()
+			}
 		}
 	}
 }

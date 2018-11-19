@@ -139,7 +139,7 @@ func realMain() int {
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
 	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
-		time.NewTicker(300*time.Second), 295*time.Second)
+		periodic.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, handlers, log.Root())
