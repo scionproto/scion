@@ -29,13 +29,9 @@ cmd_help() {
 	        Runs the service and removes its container afterwards
 	    $PROGRAM dc [COMMAND]
 	        Run a docker compose command
-	    $PROGRAM exec_tester <CNTR> <COMMAND>
-	        Exec a command in the specified container.
+	    $PROGRAM exec_tester <IA> <COMMAND>
+	        Exec a command in the specified service.
 	_EOF
-}
-
-cmd_dc() {
-    COMPOSE_FILE="gen/scion-dc.yml" docker-compose --no-ansi "$@"
 }
 
 cmd_start() {
@@ -52,21 +48,25 @@ cmd_stop() {
     fi
 }
 
-cmd_run() {
-    cmd_dc run --rm "$@"
-}
-
 cmd_down() {
     cmd_stop "*"
     cmd_run utils_cleaner
     cmd_dc down
 }
 
+cmd_run() {
+    cmd_dc run --rm "$@"
+}
+
+cmd_dc() {
+    COMPOSE_FILE="gen/scion-dc.yml" docker-compose --no-ansi "$@"
+}
+
 exec_tester() {
-    local cntr="$1"
+    local service="tester_$1"
     shift
-    docker container inspect "$cntr" &>/dev/null || cmd_start "$cntr" &>/dev/null
-    cmd_dc exec -T "$cntr" bash -l -c "$*"
+    service_running "$service" || cmd_start "$service" &>/dev/null
+    cmd_dc exec -T "$service" bash -l -c "$*"
 }
 
 glob_docker() {
@@ -89,6 +89,11 @@ glob_match() {
         $2) return 0;;
     esac
     return 1
+}
+
+service_running() {
+    cntr="$(cmd_dc ps -q $1)"
+    [ -n "$cntr" ] && [ -n "$(docker ps -q --no-trunc | grep $cntr)" ]
 }
 
 PROGRAM="${0##*/}"

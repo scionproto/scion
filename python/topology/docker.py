@@ -28,7 +28,7 @@ from lib.util import (
     write_file,
 )
 from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
-from topology.utils import UtilsGenArgs, UtilsGenerator
+from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
 DEFAULT_DOCKER_NETWORK = "172.18.0.0/24"
@@ -66,14 +66,14 @@ class DockerGenerator(object):
             base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
 
-        utils_gen = UtilsGenerator(self._utils_args())
-        self.dc_conf = utils_gen.generate()
+        docker_utils_gen = DockerUtilsGenerator(self._docker_utils_args())
+        self.dc_conf = docker_utils_gen.generate()
 
         write_file(os.path.join(self.args.output_dir, DOCKER_CONF),
                    yaml.dump(self.dc_conf, default_flow_style=False))
 
-    def _utils_args(self):
-        return UtilsGenArgs(self.args, self.dc_conf)
+    def _docker_utils_args(self):
+        return DockerUtilsGenArgs(self.args, self.dc_conf)
 
     def _gen_topo(self, topo_id, topo, base):
         self._dispatcher_conf(topo_id, topo, base)
