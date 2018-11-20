@@ -68,10 +68,7 @@ opts() {
         esac
     done
     # Set if docker backend is used
-    if is_docker_be; then
-        DOCKER_ARGS="-d"
-        is_running_in_docker && DOCKER_ARGS="$DOCKER_ARGS -c tester_docker"
-    fi
+    is_docker_be && DOCKER_ARGS="-d"
 }
 
 export PYTHONPATH=python/:.

@@ -18,7 +18,7 @@ import os
 from topology.common import ArgsBase
 
 
-class UtilsGenArgs(ArgsBase):
+class DockerUtilsGenArgs(ArgsBase):
     def __init__(self, args, dc_conf):
         """
         :param object args: Contains the passed command line arguments as named attributes.
@@ -28,7 +28,7 @@ class UtilsGenArgs(ArgsBase):
         self.dc_conf = dc_conf
 
 
-class UtilsGenerator(object):
+class DockerUtilsGenerator(object):
     """
     :param UtilsGenArgs args: Contains the passed command line arguments.
     """
@@ -51,7 +51,7 @@ class UtilsGenerator(object):
                 '/etc/passwd:/etc/passwd:ro',
                 '/etc/group:/etc/group:ro'
             ],
-            'command': 'chown -R ' + self.user_spec + ' /mnt/volumes/.'
+            'command': 'chown -R ' + self.user_spec + ' /mnt/volumes'
         }
         entry_clean = {
             'image': 'busybox',
@@ -69,9 +69,6 @@ class UtilsGenerator(object):
         cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
         entry = {
             'image': 'scion_app_builder',
-            'environment': [
-                'PYTHONPATH=python/:',
-            ],
             'volumes': [
                 'vol_scion_%sdisp_%s:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
                 'vol_scion_%ssciond_%s:/run/shm/sciond:rw' % (docker, topo_id.file_fmt()),

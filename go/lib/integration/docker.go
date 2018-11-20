@@ -30,20 +30,17 @@ const (
 var (
 	// docker indicates if the tests should be executed in a docker container
 	docker = flag.Bool("d", false, "Run tests in a docker container")
-	cntr   = flag.String("c", "tester", "Prefix fo the container where tests are run")
 )
 
 var _ Integration = (*dockerIntegration)(nil)
 
 type dockerIntegration struct {
-	cntr string
 	*binaryIntegration
 }
 
 func dockerize(bi *binaryIntegration) Integration {
 	if *docker {
 		return &dockerIntegration{
-			cntr:              *cntr,
 			binaryIntegration: bi,
 		}
 	}
@@ -54,16 +51,15 @@ func dockerize(bi *binaryIntegration) Integration {
 func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Waiter, error) {
 	bi := *di.binaryIntegration
 	env := fmt.Sprintf("%s=1", GoIntegrationEnv)
-	cntr := di.cntr + "_" + dst.IA.FileFmt(false)
-	bi.serverArgs = append([]string{dockerArg, cntr, env, bi.cmd}, bi.serverArgs...)
+	bi.serverArgs = append([]string{dockerArg, dst.IA.FileFmt(false), env, bi.cmd},
+		bi.serverArgs...)
 	bi.cmd = dockerCmd
 	return bi.StartServer(ctx, dst)
 }
 
 func (di *dockerIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
 	bi := *di.binaryIntegration
-	cntr := di.cntr + "_" + src.IA.FileFmt(false)
-	bi.clientArgs = append([]string{dockerArg, cntr, bi.cmd}, bi.clientArgs...)
+	bi.clientArgs = append([]string{dockerArg, src.IA.FileFmt(false), bi.cmd}, bi.clientArgs...)
 	bi.cmd = dockerCmd
 	return bi.StartClient(ctx, src, dst)
 }

@@ -32,7 +32,7 @@ else
 fi
 
 # Stop scion
-./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee -a logs/integration.run && ./scion.sh stop |& tee -a logs/integration.run"
+./docker.sh exec "set -eo pipefail; { ./scion.sh status && ./scion.sh stop; } |& tee -a logs/integration.run"
 
 # Make sure all compose controlled containers are stopped
 if [ -n "$DOCKER_BE" ]; then
