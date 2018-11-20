@@ -23,6 +23,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 var _ snet.Conn = (*ProxyConn)(nil)
@@ -127,7 +128,8 @@ Loop:
 		case <-conn.dispatcherState.Up():
 			err = op.Do(conn.getConn())
 			if err != nil {
-				if isDispatcherError(err) && !conn.isClosing() {
+				if reliable.IsDispatcherError(err) &&
+					!conn.isClosing() {
 					conn.spawnAsyncReconnecterOnce()
 					continue
 				} else {
