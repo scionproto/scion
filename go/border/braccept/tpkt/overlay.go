@@ -1,3 +1,17 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tpkt
 
 import (
@@ -8,11 +22,8 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-// OverlayLayers is the interface used to generate overlays.
-type OverlayLayers interface {
-	ToLayers() []gopacket.SerializableLayer
-	Check(l []gopacket.Layer) ([]gopacket.Layer, error)
-}
+var _ LayerBuilder = (*OverlayIP4UDP)(nil)
+var _ LayerMatcher = (*OverlayIP4UDP)(nil)
 
 // OverlayIP4UDP implementes the IPv4/UDP overlay
 type OverlayIP4UDP struct {
@@ -28,10 +39,9 @@ func GenOverlayIP4UDP(SrcAddr string, SrcPort uint16, DstAddr string,
 	return &OverlayIP4UDP{SrcAddr, SrcPort, DstAddr, DstPort}
 }
 
-func (o *OverlayIP4UDP) ToLayers() (l []gopacket.SerializableLayer) {
+func (o *OverlayIP4UDP) Build() ([]gopacket.SerializableLayer, error) {
 	srcIP := net.ParseIP(o.SrcAddr)
 	dstIP := net.ParseIP(o.DstAddr)
-	var nl gopacket.NetworkLayer
 	ip := &layers.IPv4{
 		Version:  4,
 		IHL:      5,
@@ -40,19 +50,22 @@ func (o *OverlayIP4UDP) ToLayers() (l []gopacket.SerializableLayer) {
 		SrcIP:    srcIP,
 		DstIP:    dstIP,
 	}
-	nl = ip
+	var l []gopacket.SerializableLayer
 	l = append(l, ip)
 	udp := &layers.UDP{
 		SrcPort: layers.UDPPort(o.SrcPort),
 		DstPort: layers.UDPPort(o.DstPort),
 	}
 	l = append(l, udp)
-	udp.SetNetworkLayerForChecksum(nl)
-	return l
+	udp.SetNetworkLayerForChecksum(ip)
+	return l, nil
 }
 
-func (o *OverlayIP4UDP) Check(l []gopacket.Layer) ([]gopacket.Layer, error) {
-	overlayLayers := o.ToLayers()
+func (o *OverlayIP4UDP) Match(l []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
+	overlayLayers, err := o.Build()
+	if err != nil {
+		return nil, err
+	}
 	for i := range overlayLayers {
 		if err := compareLayer(l[i], overlayLayers[i]); err != nil {
 			return l[i:], err

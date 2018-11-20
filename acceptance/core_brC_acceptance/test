@@ -33,4 +33,4 @@ del_veths() {
     delete_veth veth0_root veth1_root veth2_root veth3_root veth4_root veth5_root veth6_root
 }
 
-do_command $PROGRAM $COMMAND $TEST_NAME ${@:3}
+do_command $PROGRAM $COMMAND $TEST_NAME ${@:2}
