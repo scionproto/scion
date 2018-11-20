@@ -16,9 +16,8 @@ test_setup() {
 test_run() {
     set -e
     bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
-    docker restart scion_disp_1-ff00_0_112 scion_disp_1-ff00_0_110
-    # BS is on the network stack of the dispatcher, it cannot connect to ZK if not restarted.
-    docker restart scion_bs1-ff00_0_112-1 scion_bs1-ff00_0_110-1
+    ./tools/dc stop scion_disp_1-ff00_0_112 scion_disp_1-ff00_0_110
+    ./tools/dc start scion_disp_1-ff00_0_112 scion_disp_1-ff00_0_110
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
     sleep 5
     bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
@@ -26,7 +25,6 @@ test_run() {
 
 test_teardown() {
     set -e
-    ./scion.sh stop
     ./tools/dc down
 }
 

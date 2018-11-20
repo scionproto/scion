@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -54,6 +55,7 @@ func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	bi.serverArgs = append([]string{dockerArg, dst.IA.FileFmt(false), env, bi.cmd},
 		bi.serverArgs...)
 	bi.cmd = dockerCmd
+	log.Debug(fmt.Sprintf("Starting server for %s in a docker container", dst.IA.FileFmt(false)))
 	return bi.StartServer(ctx, dst)
 }
 
@@ -61,5 +63,6 @@ func (di *dockerIntegration) StartClient(ctx context.Context, src, dst snet.Addr
 	bi := *di.binaryIntegration
 	bi.clientArgs = append([]string{dockerArg, src.IA.FileFmt(false), bi.cmd}, bi.clientArgs...)
 	bi.cmd = dockerCmd
+	log.Debug(fmt.Sprintf("Starting client for %s in a docker container", dst.IA.FileFmt(false)))
 	return bi.StartClient(ctx, src, dst)
 }

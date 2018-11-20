@@ -154,7 +154,6 @@ class DockerGenerator(object):
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
-            'network_mode': 'service:scion_disp_%s' % topo_id.file_fmt(),
             'volumes': self._std_vol(topo_id),
             'command': []
         }
@@ -182,7 +181,6 @@ class DockerGenerator(object):
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
-            'network_mode': 'service:scion_disp_%s' % topo_id.file_fmt(),
             'volumes': self._std_vol(topo_id),
             'command': [
                 '--spki_cache_dir=cache'
@@ -212,7 +210,6 @@ class DockerGenerator(object):
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
-            'network_mode': 'service:scion_disp_%s' % topo_id.file_fmt(),
             'volumes': self._std_vol(topo_id),
             'command': [],
         }
