@@ -23,6 +23,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/truststorage"
 )
 
 type TestConfig struct {
@@ -30,7 +31,7 @@ type TestConfig struct {
 	Logging env.Logging
 	Metrics env.Metrics
 	Infra   env.Infra
-	Trust   env.Trust
+	TrustDB truststorage.TrustDBConf
 	CS      Conf
 }
 
@@ -49,7 +50,8 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("LogLvl correct", cfg.Logging.File.Level, ShouldEqual, "debug")
 		SoMsg("LogFlush correct", *cfg.Logging.File.FlushInterval, ShouldEqual, 5)
 		SoMsg("LogConsoleLvl correct", cfg.Logging.Console.Level, ShouldEqual, "crit")
-		SoMsg("TrustDB correct", cfg.Trust.TrustDB, ShouldEqual,
+		SoMsg("TrustDB.Backend correct", cfg.TrustDB.Backend, ShouldEqual, "sqlite")
+		SoMsg("TrustDB.Connection correct", cfg.TrustDB.Connection, ShouldEqual,
 			"/var/lib/scion/spki/cs-1.trust.db")
 
 		// csconfig specific
