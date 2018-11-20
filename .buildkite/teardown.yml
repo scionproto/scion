@@ -2,4 +2,5 @@
   continue_on_failure: true
 - label: Stop container
   command:
+      - ./docker.sh exec ./tools/dc down
       - ./docker.sh stop
