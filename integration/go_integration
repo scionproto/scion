@@ -15,10 +15,13 @@
 
 . integration/common.sh
 
+opts "$@"
+shift $((OPTIND-1))
+
 result=0
 
 for i in ./bin/*_integration; do
-    run "Go Integration: $i" "$i"
+    run "Go Integration: $i" "$i" $DOCKER_ARGS
     result=$((result+$?))
 done
 

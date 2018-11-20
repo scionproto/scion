@@ -19,13 +19,10 @@ on loopback. There is one SCIOND per AS, the sockets can be found in
 
 ## Development with docker
 
-Docker-compose is used to run every service in its own container (including zookeeper). There is
-one dispatcher for all ASes and one SCIOND per AS.
-
-[//]:
-    #
-    "We run one dispatcher and one SCIOND per AS, their sockets are shared to the infra
-services using docker volumes. Each AS has its own docker network."
+Docker-compose is used to run every service in its own container (including zookeeper). We run
+multiple dispatchers and one SCIOND per AS. One dispatcher and the SCIOND share their sockets with
+the infra services using docker volumes. And there is one dispatcher per BR, which it shares its
+socket with. Each AS has its own docker network and every BR to BR link is a docker network.
 
 ## Testing with supervisor and docker (CI and `./tools/ci/local`)
 
@@ -33,7 +30,7 @@ In this case the services are run by supervisor inside a testing container (scio
 has the same properties as "Development with supervisor" except it is run inside a container. A
 normal zookeeper instance is run in the container.
 
-## Testing with docker only (Currently not supported for the CI environment)
+## Testing with docker only
 
 For testing without effects on the usual `gen` directory, it is possible to create a temporary
 directory and generate the topology in there. See `docker/README.md` for more information.

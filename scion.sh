@@ -9,7 +9,12 @@ EXTRA_NOSE_ARGS="-w python/ --with-xunit --xunit-file=logs/nosetests.xml"
 cmd_topology() {
     set -e
     local zkclean
-    echo "Shutting down: $(./scion.sh stop)"
+    if is_docker_be; then
+        echo "Shutting down dockerized topology..."
+        ./tools/quiet ./tools/dc down
+    else
+        echo "Shutting down: $(./scion.sh stop)"
+    fi
     supervisor/supervisor.sh shutdown
     mkdir -p logs traces gen gen-cache
     find gen gen-cache -mindepth 1 -maxdepth 1 -exec rm -r {} +
@@ -18,7 +23,11 @@ cmd_topology() {
         zkclean="y"
     fi
     echo "Create topology, configuration, and execution files."
+    is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
+    if is_docker_be; then
+        ./tools/quiet ./tools/dc run utils_chowner
+    fi
     run_zk
     if [ -n "$zkclean" ]; then
         echo "Deleting all Zookeeper state"
@@ -43,24 +52,32 @@ cmd_topology() {
 }
 
 cmd_run() {
-    if [ "$1" != "nobuild" ] && is_supervisor; then
+    if [ "$1" != "nobuild" ]; then
         echo "Compiling..."
         cmd_build || exit 1
+        if is_docker_be; then
+            echo "Build scion_base image"
+            ./tools/quiet ./docker.sh base
+            echo "Build scion image"
+            ./tools/quiet ./docker.sh build
+            echo "Build perapp images"
+            ./tools/quiet make -C docker/perapp
+        fi
     fi
     run_setup
     echo "Running the network..."
     # Run with docker-compose or supervisor
-    if is_docker; then
-        ./tools/quiet ./tools/dc scion up -d
+    if is_docker_be; then
+        ./tools/quiet ./tools/dc start 'scion*'
     else
         ./tools/quiet ./supervisor/supervisor.sh start all
     fi
 }
 
 run_zk() {
-    if is_docker; then
+    if is_docker_be; then
         host_zk_stop
-        ./tools/dc scion up -d zookeeper
+        ./tools/dc start zookeeper
     else
         host_zk_start
     fi
@@ -85,11 +102,11 @@ host_zk_stop() {
 cmd_mstart() {
     run_setup
     # Run with docker-compose or supervisor
-    if is_docker; then
+    if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
         host_zk_stop
-        ./tools/dc scion up -d $services
+        ./tools/dc dc up -d $services
     else
         host_zk_start
         supervisor/supervisor.sh mstart "$@"
@@ -109,8 +126,8 @@ run_setup() {
 
 cmd_stop() {
     echo "Terminating this run of the SCION infrastructure"
-    if is_docker; then
-        ./tools/quiet ./tools/dc scion down
+    if is_docker_be; then
+        ./tools/quiet ./tools/dc stop 'scion*'
     else
         ./tools/quiet ./supervisor/supervisor.sh stop all
     fi
@@ -125,10 +142,10 @@ cmd_stop() {
 }
 
 cmd_mstop() {
-    if is_docker; then
+    if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        ./tools/dc scion stop $services
+        ./tools/dc dc stop $services
     else
         supervisor/supervisor.sh mstop "$@"
     fi
@@ -139,10 +156,10 @@ cmd_status() {
 }
 
 cmd_mstatus() {
-    if is_docker; then
+    if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        out=$(./tools/dc scion ps $services | tail -n +3)
+        out=$(./tools/dc dc ps $services | tail -n +3)
         rscount=$(echo "$out" | grep '\<Up\>' | wc -l) # Number of running services
         tscount=$(echo "$services" | wc -w) # Number of all globed services
         echo "$out" | grep -v '\<Up\>'
@@ -178,9 +195,9 @@ glob_supervisor() {
 glob_docker() {
     [ $# -ge 1 ] || set -- '*'
     matches=
-    for proc in $(./tools/dc scion config --services); do
+    for proc in $(./tools/dc dc config --services); do
         for spec in "$@"; do
-            if glob_match $proc "$spec"; then
+            if glob_match $proc "scion_$spec"; then
                 matches="$matches $proc"
                 break
             fi
@@ -197,7 +214,7 @@ glob_match() {
     return 1
 }
 
-is_docker() {
+is_docker_be() {
     [ -f gen/scion-dc.yml ]
 }
 

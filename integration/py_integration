@@ -15,11 +15,14 @@
 
 . integration/common.sh
 
+opts "$@"
+shift $((OPTIND-1))
+
 result=0
 
-run C2S_extn bin/cli_srv_ext_pyintegration -log.console error
+run C2S_extn bin/cli_srv_ext_pyintegration -log.console error $DOCKER_ARGS
 result=$((result+$?))
-run SCMP_error bin/scmp_error_pyintegration -log.console error
+run SCMP_error bin/scmp_error_pyintegration -log.console error $DOCKER_ARGS
 result=$((result+$?))
 
 exit $result

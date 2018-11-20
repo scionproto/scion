@@ -17,7 +17,7 @@ test_setup() {
     for sd in gen/ISD1/*/endhost/sciond.toml; do
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
-    ./scion.sh run
+    ./scion.sh run nobuild
 }
 
 test_run() {
@@ -26,7 +26,7 @@ test_run() {
     sleep 10
     local topo_file="gen/ISD1/AS$AS_FILE/ps$IA_FILE-1/topology.json"
     jq '.CertificateService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
-    docker kill --signal=HUP ps$IA_FILE-1
+    ./tools/dc dc kill -s HUP scion_ps$IA_FILE-1
     # Wait for 30 (PS crypto push interval) + 1 (logging flush interval) seconds to guarantee a push is seen
     sleep 31
     grep -q "\[INFO\].*Sent crypto to CS.*$IA,\[127\.42\.42\.42\]:39999" "logs/ps$IA_FILE-1.log" || \

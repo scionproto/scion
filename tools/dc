@@ -13,36 +13,87 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -e
+
 cmd_help() {
-	echo
+    echo
 	cat <<-_EOF
 	Usage:
-	    $PROGRAM scion [docker-compose command]
-	        Run docker-compose command for scion services.
-	    $PROGRAM tester [docker-compose command]
-	        Run docker-compose command for tester services.
+	    $PROGRAM start [SERVICE]
+	        Creates and starts containers
+	    $PROGRAM stop [SERVICE]
+	        Stops containers
+	    $PROGRAM down
+	        Stops and removes all containers, networks and volumes
+	    $PROGRAM run <SERVICE>
+	        Runs the service and removes its container afterwards
+	    $PROGRAM dc [COMMAND]
+	        Run a docker compose command
+	    $PROGRAM exec_tester <IA> <COMMAND>
+	        Exec a command in the specified service.
 	_EOF
 }
 
-cmd_scion() {
-    COMPOSE_FILE="gen/base-dc.yml:gen/scion-dc.yml" docker-compose --no-ansi "$@"
+cmd_start() {
+    services="$(glob_docker "$@")"
+    if [ -n "$services" ]; then
+        cmd_dc up -d $services < /dev/null
+    fi
 }
 
-cmd_tester() {
-	COMPOSE_FILE="gen/base-dc.yml:gen/testers-dc.yml" docker-compose --no-ansi "$@"
+cmd_stop() {
+    services="$(glob_docker "$@")"
+    if [ -n "$services" ]; then
+        cmd_dc stop $services
+    fi
 }
 
-start_tester() {
-	cntr="$1"
-	SCION_UID=$(id -u) SCION_GID=$(id -g) DOCKER_GID=$(getent group docker | cut -f3 -d:) cmd_tester up -d "$cntr"
-	cmd_tester exec -T "$cntr" /docker-entrypoint.sh -c exit
+cmd_down() {
+    cmd_stop "*"
+    cmd_run utils_cleaner
+    cmd_dc down
+}
+
+cmd_run() {
+    cmd_dc run --rm "$@"
+}
+
+cmd_dc() {
+    COMPOSE_FILE="gen/scion-dc.yml" docker-compose --no-ansi "$@"
 }
 
 exec_tester() {
-	local cntr="$1"
-	shift
-	docker container inspect "$cntr" &>/dev/null || start_tester "$cntr" &>/dev/null
-	cmd_tester exec -u scion -T "$cntr" bash -l -c "$*"
+    local service="tester_$1"
+    shift
+    service_running "$service" || cmd_start "$service" &>/dev/null
+    cmd_dc exec -T "$service" bash -l -c "$*"
+}
+
+glob_docker() {
+    [ $# -ge 1 ] || set -- '*'
+    matches=
+    for proc in $(cmd_dc config --services); do
+        for spec in "$@"; do
+            if glob_match $proc "$spec"; then
+                matches="$matches $proc"
+                break
+            fi
+        done
+    done
+    echo $matches
+}
+
+glob_match() {
+    # If $1 is matched by $2, return true
+    case "$1" in
+        $2) return 0;;
+    esac
+    return 1
+}
+
+service_running() {
+    cntr="$(cmd_dc ps -q $1)"
+    [ -n "$cntr" ] && [ -n "$(docker ps -q --no-trunc | grep $cntr)" ]
 }
 
 PROGRAM="${0##*/}"
@@ -50,9 +101,9 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-	scion|tester)
-	    "cmd_$COMMAND" "$@" ;;
-	exec_tester)
-		"exec_tester" "$@" ;;
-	*)  cmd_help; exit 1 ;;
+    start|stop|down|run|dc)
+        "cmd_$COMMAND" "$@" ;;
+    exec_tester)
+        "exec_tester" "$@" ;;
+    *)  cmd_help; exit 1 ;;
 esac

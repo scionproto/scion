@@ -29,9 +29,17 @@ from external.ipaddress import ip_interface, ip_network
 # SCION
 from lib.defines import DEFAULT6_NETWORK_ADDR
 
+DEFAULT_NETWORK = "127.0.0.0/8"
+DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
+DEFAULT_MININET_NETWORK = "100.64.0.0/10"
+DEFAULT_SCN_DC_NETWORK = "172.20.0.0/16"
+
 
 class SubnetGenerator(object):
-    def __init__(self, network):
+    def __init__(self, network, docker):
+        self.docker = docker
+        if self.docker and network == DEFAULT_NETWORK:
+            network = DEFAULT_SCN_DC_NETWORK
         if "/" not in network:
             logging.critical("No prefix length specified for network '%s'",
                              network)
@@ -40,7 +48,7 @@ class SubnetGenerator(object):
         except ValueError:
             logging.critical("Invalid network '%s'", network)
             sys.exit(1)
-        self._subnets = defaultdict(lambda: AddressGenerator())
+        self._subnets = defaultdict(lambda: AddressGenerator(self.docker))
         self._allocations = defaultdict(list)
         # Initialise the allocations with the supplied network, making sure to
         # exclude 127.0.0.0/30 (for v4) and DEFAULT6_NETWORK_ADDR/126 (for v6)
@@ -66,13 +74,19 @@ class SubnetGenerator(object):
         max_prefix = self._net.max_prefixlen
         networks = {}
         for topo, subnet in sorted(self._subnets.items(), key=lambda x: str(x)):
-            # Figure out what size subnet we need. If it's a link, then we just
-            # need a /31 (or /127), otherwise add 2 to the subnet size to cover
-            # the network and broadcast addresses.
-            if len(subnet) == 2:
-                req_prefix = max_prefix - 1
+            if not self.docker:
+                # Figure out what size subnet we need. If it's a link, then we just
+                # need a /31 (or /127), otherwise add 2 to the subnet size to cover
+                # the network and broadcast addresses.
+                if len(subnet) == 2:
+                    req_prefix = max_prefix - 1
+                else:
+                    req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
             else:
-                req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 2))
+                # Docker needs space for a network and broadcast address as well as an IP linking
+                # to the host
+                req_prefix = max_prefix - math.ceil(math.log2(len(subnet) + 3))
+
             # Search all subnets from that size upwards
             for prefix in range(req_prefix, -1, -1):
                 if not self._allocations[prefix]:
@@ -98,8 +112,9 @@ class SubnetGenerator(object):
 
 
 class AddressGenerator(object):
-    def __init__(self):
+    def __init__(self, docker):
         self._addrs = defaultdict(lambda: AddressProxy())
+        self.docker = docker
 
     def register(self, id_):
         return self._addrs[id_]
@@ -107,6 +122,9 @@ class AddressGenerator(object):
     def alloc_addrs(self, subnet):
         hosts = subnet.hosts()
         interfaces = {}
+        # With the docker backend, docker itself claims the first ip of every network
+        if self.docker:
+            next(hosts)
         for elem, proxy in sorted(self._addrs.items()):
             intf = ip_interface("%s/%s" % (next(hosts), subnet.prefixlen))
             interfaces[elem] = intf

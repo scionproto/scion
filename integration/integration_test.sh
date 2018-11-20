@@ -27,26 +27,41 @@ shutdown() {
     log "Stopping scion"
     ./scion.sh stop | grep -v "stopped"
     log "Scion stopped"
+    if is_docker_be; then
+        log "Stopping tester containers"
+        ./tools/quiet ./tools/dc stop tester\*
+    fi
 }
 
-log "Starting scion (without building)"
-./scion.sh run nobuild | grep -v "started" || exit 1
+if is_running_in_docker; then
+    log "Starting scion (without building)"
+    ./scion.sh run nobuild | grep -v "started" || exit 1
+else
+     log "Starting scion"
+    ./scion.sh run | grep -v "started" || exit 1
+fi
 log "Scion status:"
 ./scion.sh status || exit 1
+if is_docker_be; then
+    log "Starting tester containers"
+    ./tools/quiet ./tools/dc start "tester*"
+fi
 
 sleep 10
 result=0
 
-# Run go infra test
-integration/go_infra
+if [ -z "$DOCKER_ARGS" ]; then
+    # Run go infra test
+    integration/go_infra
+    result=$((result+$?))
+fi
+
+# Run go integration tests
+integration/go_integration
 result=$((result+$?))
 
 # Run python integration tests
 integration/py_integration
-result=$((result+$?))
-
-# Run go integration tests
-integration/go_integration
 result=$((result+$?))
 
 integration/revocation_test.sh -b "$REV_BRS"

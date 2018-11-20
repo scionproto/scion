@@ -19,7 +19,8 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -28,21 +29,19 @@ const (
 )
 
 var (
-	// container indicates the container name where the test should be executed in
-	container = flag.String("c", "", "Docker container name (e.g. tester)")
+	// docker indicates if the tests should be executed in a docker container
+	docker = flag.Bool("d", false, "Run tests in a docker container")
 )
 
 var _ Integration = (*dockerIntegration)(nil)
 
 type dockerIntegration struct {
-	cntr string
 	*binaryIntegration
 }
 
 func dockerize(bi *binaryIntegration) Integration {
-	if *container != "" {
+	if *docker {
 		return &dockerIntegration{
-			cntr:              *container,
 			binaryIntegration: bi,
 		}
 	}
@@ -50,17 +49,20 @@ func dockerize(bi *binaryIntegration) Integration {
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (di *dockerIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
+func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Waiter, error) {
 	bi := *di.binaryIntegration
 	env := fmt.Sprintf("%s=1", GoIntegrationEnv)
-	bi.serverArgs = append([]string{dockerArg, di.cntr, env, bi.cmd}, bi.serverArgs...)
+	bi.serverArgs = append([]string{dockerArg, dst.IA.FileFmt(false), env, bi.cmd},
+		bi.serverArgs...)
 	bi.cmd = dockerCmd
+	log.Debug(fmt.Sprintf("Starting server for %s in a docker container", dst.IA.FileFmt(false)))
 	return bi.StartServer(ctx, dst)
 }
 
-func (di *dockerIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
+func (di *dockerIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
 	bi := *di.binaryIntegration
-	bi.clientArgs = append([]string{dockerArg, di.cntr, bi.cmd}, bi.clientArgs...)
+	bi.clientArgs = append([]string{dockerArg, src.IA.FileFmt(false), bi.cmd}, bi.clientArgs...)
 	bi.cmd = dockerCmd
+	log.Debug(fmt.Sprintf("Starting client for %s in a docker container", dst.IA.FileFmt(false)))
 	return bi.StartClient(ctx, src, dst)
 }

@@ -10,21 +10,23 @@ TEST_TOPOLOGY="topology/Tiny.topo"
 test_setup() {
     set -e
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d -sd=go -ps=go
-    ./scion.sh run
+    ./scion.sh run nobuild
+    ./tools/dc start tester_1-ff00_0_112 tester_1-ff00_0_110
 }
 
 test_run() {
     set -e
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
-    docker restart dispatcher
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
+    ./tools/dc stop scion_disp_1-ff00_0_112 scion_disp_1-ff00_0_110
+    ./tools/dc start scion_disp_1-ff00_0_112 scion_disp_1-ff00_0_110
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
     sleep 5
-    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
 }
 
 test_teardown() {
     set -e
-    ./scion.sh stop
+    ./tools/dc down
 }
 
 print_help() {

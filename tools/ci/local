@@ -2,18 +2,15 @@
 
 . tools/ci/common.sh
 
-# Hardcoded in docker.sh
-cntr="scion"
-
-if [ -n "$DOCKER" ]; then
+if [ -n "$DOCKER_BE" ]; then
     # Stop a local scion run because we don't want to interfere
     ./scion.sh stop
     echo "Stop local zookeeper"
-    systemctl is-active --quiet zookeeper && { sudo service zookeeper stop || exit 1; }
+    systemctl is-active --quiet zookeeper && { sudo -p "Stopping local zookeeper: " service zookeeper stop || exit 1; }
 fi
 
 ./docker.sh build || exit 1
-[ -n "$DOCKER" ] && { make -sC docker/perapp || exit 1; }
+[ -n "$DOCKER_BE" ] && { make -sC docker/perapp || exit 1; }
 
 tmpdir=$(mktemp -d /tmp/artifacts.XXXXXXX)
 SCION_MOUNT="$tmpdir" ./docker.sh start || exit 1
@@ -28,7 +25,7 @@ result=$((result+$?))
 ./tools/ci/sphinx
 result=$((result+$?))
 
-./tools/ci/integration_setup && ./tools/ci/integration_run -a
+./tools/ci/integration_setup $DOCKER_BE && ./tools/ci/integration_run -a $DOCKER_BE
 result=$((result+$?))
 
 echo "Artifacts dir: $tmpdir"

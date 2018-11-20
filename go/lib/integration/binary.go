@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/log/logparse"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 const (
@@ -33,8 +34,16 @@ const (
 	ServerPortReplace = "<ServerPort>"
 	// SrcIAReplace is a placeholder for the source IA in the arguments.
 	SrcIAReplace = "<SRCIA>"
+	// SrcHostReplace is a placeholder for the source host in the arguments.
+	SrcHostReplace = "<SRCHost>"
+	// SrcAddrPattern is a placeholder for the source address in the arguments.
+	SrcAddrPattern = SrcIAReplace + ",[" + SrcHostReplace + "]"
 	// DstIAReplace is a placeholder for the destination IA in the arguments.
 	DstIAReplace = "<DSTIA>"
+	// DstHostReplace is a placeholder for the destination host in the arguments.
+	DstHostReplace = "<DSTHost>"
+	// DstAddrPattern is a placeholder for the destination address in the arguments.
+	DstAddrPattern = DstIAReplace + ",[" + DstHostReplace + "]"
 	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
 	// The message should always be `Listening ia=<IA>`
 	// where <IA> is the IA the server is listening on.
@@ -84,8 +93,9 @@ func (bi *binaryIntegration) Name() string {
 }
 
 // StartServer starts a server and blocks until the ReadySignal is received on Stdout.
-func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Waiter, error) {
-	args := replacePattern(DstIAReplace, dst.String(), bi.serverArgs)
+func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Waiter, error) {
+	args := replacePattern(DstIAReplace, dst.IA.String(), bi.serverArgs)
+	args = replacePattern(DstHostReplace, dst.Host.L3.String(), args)
 	startCtx, cancelF := context.WithTimeout(ctx, StartServerTimeout)
 	defer cancelF()
 	r := &binaryWaiter{
@@ -107,13 +117,13 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	go func() {
 		defer log.LogPanicAndExit()
 		defer sp.Close()
-		signal := fmt.Sprintf("%s%s", ReadySignal, dst)
+		signal := fmt.Sprintf("%s%s", ReadySignal, dst.IA)
 		init := true
 		scanner := bufio.NewScanner(sp)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if strings.HasPrefix(line, portString) {
-				serverPorts[dst] = strings.TrimPrefix(line, portString)
+				serverPorts[dst.IA] = strings.TrimPrefix(line, portString)
 			}
 			if init && signal == line {
 				close(ready)
@@ -123,7 +133,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.logRedirect("Server", "ServerErr", dst, ep)
+		bi.logRedirect("Server", "ServerErr", dst.IA, ep)
 	}()
 	err = r.Start()
 	if err != nil {
@@ -137,10 +147,12 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst addr.IA) (Wait
 	}
 }
 
-func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) (Waiter, error) {
-	args := replacePattern(SrcIAReplace, src.String(), bi.clientArgs)
-	args = replacePattern(DstIAReplace, dst.String(), args)
-	args = replacePattern(ServerPortReplace, serverPorts[dst], args)
+func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
+	args := replacePattern(SrcIAReplace, src.IA.String(), bi.clientArgs)
+	args = replacePattern(SrcHostReplace, src.Host.L3.String(), args)
+	args = replacePattern(DstIAReplace, dst.IA.String(), args)
+	args = replacePattern(DstHostReplace, dst.Host.L3.String(), args)
+	args = replacePattern(ServerPortReplace, serverPorts[dst.IA], args)
 	r := &binaryWaiter{
 		exec.CommandContext(ctx, bi.cmd, args...),
 	}
@@ -152,7 +164,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst addr.IA) 
 	}
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.logRedirect("Client", "ClientErr", src, ep)
+		bi.logRedirect("Client", "ClientErr", src.IA, ep)
 	}()
 	return r, r.Start()
 }

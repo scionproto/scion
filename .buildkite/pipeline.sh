@@ -25,7 +25,7 @@ continue_on_failure
 cat "$BASE/logs.yml"
 
 # run some more tests on master
-if [ "$BUILDKITE_BRANCH" == "master" ]; then
+if [ "$BUILDKITE_BRANCH" == "master" ] || [ -n "$RUN_ALL_TESTS" ]; then
     cat "$BASE/docker-integration.yml"
     continue_on_failure
     cat "$BASE/logs.yml"

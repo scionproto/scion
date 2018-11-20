@@ -34,27 +34,24 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 
+	cmnArgs := []string{"-sciondFromIA", "-timeout", "4s", "-local", integration.SrcAddrPattern,
+		"-remote", integration.DstAddrPattern}
+
 	testCases := []struct {
 		Name string
 		Args []string
 	}{
 		{
 			"echo_integration",
-			[]string{"echo", "-sciondFromIA", "-c", "1", "-timeout", "4s",
-				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
-				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+			append([]string{"echo", "-c", "1"}, cmnArgs...),
 		},
 		{
 			"traceroute_integration",
-			[]string{"tr", "-sciondFromIA", "-timeout", "4s",
-				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
-				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+			append([]string{"tr"}, cmnArgs...),
 		},
 		{
 			"recordpath_integration",
-			[]string{"rp", "-sciondFromIA", "-timeout", "4s",
-				"-local", integration.SrcIAReplace + ",[127.0.0.1]",
-				"-remote", integration.DstIAReplace + ",[127.0.0.1]"},
+			append([]string{"rp"}, cmnArgs...),
 		},
 	}
 
@@ -77,7 +74,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// Run for all srcDest pair
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
+				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
 			if err := integration.RunClient(in, conn, integration.DefaultRunTimeout); err != nil {
 				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 				return err

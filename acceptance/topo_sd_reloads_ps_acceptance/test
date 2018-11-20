@@ -19,17 +19,18 @@ test_setup() {
         sed -i 's/Level = .*$/Level = "trace"/g' "$sd"
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
-    ./scion.sh run
+    ./scion.sh run nobuild
+    ./tools/dc start tester_$SRC_IA_FILE
 }
 
 test_run() {
     set -e
-    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
+    ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA || true
     local topo_file="gen/ISD1/AS$SRC_AS_FILE/endhost/topology.json"
     jq '.PathService[].Addrs.IPv4.Public = {Addr: "127.42.42.42", L4Port: 39999}' $topo_file | sponge $topo_file
-    docker kill --signal=HUP sd$SRC_IA_FILE
+    ./tools/dc dc kill -s HUP scion_sd$SRC_IA_FILE
     sleep 1
-    bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
+    ./tools/dc exec_tester $SRC_IA_FILE bin/showpaths -srcIA $SRC_IA -dstIA $DST_IA -sciondFromIA -refresh || true
     sleep 2
     grep -q "\[TRACE\] \[Messenger\] Sending request.*req_type=SegRequest.*$SRC_IA,\[127\.42\.42\.42\]:39999" "logs/sd$SRC_IA_FILE.log" || \
         { echo "Path segment request to 127.42.42.42:39999 not found in logs"; return 1; }
@@ -37,7 +38,7 @@ test_run() {
 
 test_teardown() {
     set -e
-    ./scion.sh stop
+    ./tools/dc down
 }
 
 print_help() {

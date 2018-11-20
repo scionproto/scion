@@ -71,6 +71,8 @@ def add_arguments(parser):
                         help='Generate discovery service')
     parser.add_argument('--random-ifids', action='store_true',
                         help='Generate random IFIDs')
+    parser.add_argument('--in-docker', action='store_true',
+                        help='Set if running in a docker container')
     return parser
 
 

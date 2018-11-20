@@ -42,11 +42,11 @@ func realMain() int {
 	}
 	defer log.LogPanicAndExit()
 	defer log.Flush()
-	clientAddr := integration.SrcIAReplace + ",[127.0.0.1]:0"
-	serverAddr := integration.DstIAReplace + ",[127.0.0.1]:"
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
-		"-local", clientAddr, "-remote", serverAddr + integration.ServerPortReplace}
-	serverArgs := []string{"-log.console", "debug", "-mode", "server", "-local", serverAddr + "0"}
+		"-local", integration.SrcAddrPattern + ":0",
+		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace}
+	serverArgs := []string{"-log.console", "debug", "-mode", "server",
+		"-local", integration.DstAddrPattern + ":0"}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
@@ -62,16 +62,16 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		// First run all servers
 		dsts := integration.ExtractUniqueDsts(pairs)
 		for _, dst := range dsts {
-			c, err := integration.StartServer(in, dst)
+			s, err := integration.StartServer(in, dst)
 			if err != nil {
 				return err
 			}
-			defer c.Close()
+			defer s.Close()
 		}
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src, conn.Dst, i+1, len(pairs)))
+				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
 			t := integration.DefaultRunTimeout + integration.CtxTimeout*time.Duration(*attempts)
 			if err := integration.RunClient(in, conn, t); err != nil {
 				log.Error("Error during client execution", "err", err)

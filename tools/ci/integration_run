@@ -1,27 +1,28 @@
 #!/bin/bash
 
+. tools/ci/common.sh
+
 sleep 15
-
-if [ -n "$DOCKER" ]; then
-    ./docker.sh exec "set -eo pipefail; sudo service zookeeper start |& tee logs/integration.run"
-fi
-
 result=0
-# Run go infra test
-./docker.sh exec "set -eo pipefail; integration/go_infra |& tee logs/integration.run"
-result=$((result+$?))
 
-if [ -n "$ALL" ]; then
-    # Run python integration tests
-    ./docker.sh exec "set -eo pipefail; integration/py_integration |& tee logs/integration.run"
+if [ -z "$DOCKER_BE" ]; then
+    # Go infra tests
+    ./docker.sh exec "set -eo pipefail; integration/go_infra |& tee -a logs/integration.run"
     result=$((result+$?))
 fi
 
-# Run go integration tests
-./docker.sh exec "set -eo pipefail; integration/go_integration |& tee logs/integration.run"
+# Go integration tests
+./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
 result=$((result+$?))
 
-./docker.sh exec "set -eo pipefail; integration/revocation_test.sh |& tee logs/integration.run"
+if [ -n "$ALL" ]; then
+    # Python integration tests
+    ./docker.sh exec "set -eo pipefail; integration/py_integration |& tee -a logs/integration.run"
+    result=$((result+$?))
+fi
+
+# Revocation test
+./docker.sh exec "set -eo pipefail; integration/revocation_test.sh |& tee -a logs/integration.run"
 result=$((result+$?))
 
 if [ $result -eq 0 ]; then
@@ -30,6 +31,12 @@ else
     echo "========> ($(date -u --rfc-3339=seconds)) $result integration tests failed"
 fi
 
-./docker.sh exec "set -eo pipefail; ./scion.sh status && scion.sh stop |& tee logs/integration.run"
+# Stop scion
+./docker.sh exec "set -eo pipefail; { ./scion.sh status && ./scion.sh stop; } |& tee -a logs/integration.run"
+
+# Make sure all compose controlled containers are stopped
+if [ -n "$DOCKER_BE" ]; then
+    ./docker.sh exec "set -eo pipefail; ./tools/dc down |& tee -a logs/integration.run"
+fi
 
 exit $result

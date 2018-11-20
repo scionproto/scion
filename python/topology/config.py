@@ -56,7 +56,13 @@ from topology.cert import CertGenArgs, CertGenerator
 from topology.common import _srv_iter, ArgsBase
 from topology.docker import DockerGenArgs, DockerGenerator
 from topology.go import GoGenArgs, GoGenerator
-from topology.net import PortGenerator, SubnetGenerator
+from topology.net import (
+    PortGenerator,
+    SubnetGenerator,
+    DEFAULT_MININET_NETWORK,
+    DEFAULT_NETWORK,
+    DEFAULT_PRIV_NETWORK
+)
 from topology.prometheus import PrometheusGenArgs, PrometheusGenerator
 from topology.supervisor import SupervisorGenArgs, SupervisorGenerator
 from topology.topo import TopoGenArgs, TopoGenerator
@@ -68,10 +74,6 @@ DEFAULT_ZK_CONFIG = "topology/Zookeeper.yml"
 DEFAULT_CERTIFICATE_SERVER = "go"
 DEFAULT_SCIOND = "go"
 DEFAULT_PATH_SERVER = "go"
-
-DEFAULT_NETWORK = "127.0.0.0/8"
-DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
-DEFAULT_MININET_NETWORK = "100.64.0.0/10"
 
 GENERATE_BIND_ADDRESS = False
 
@@ -120,8 +122,8 @@ class ConfigGenerator(object):
             priv_net = DEFAULT6_PRIV_NETWORK
         else:
             priv_net = DEFAULT_PRIV_NETWORK
-        self.subnet_gen = SubnetGenerator(def_network)
-        self.prvnet_gen = SubnetGenerator(priv_net)
+        self.subnet_gen = SubnetGenerator(def_network, self.args.docker)
+        self.prvnet_gen = SubnetGenerator(priv_net, self.args.docker)
         for key, val in defaults.get("zookeepers", {}).items():
             if self.args.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
@@ -134,7 +136,7 @@ class ConfigGenerator(object):
         self._ensure_uniq_ases()
         ca_private_key_files, ca_cert_files, ca_certs = self._generate_cas()
         cert_files, trc_files, cust_files = self._generate_certs_trcs()
-        topo_dicts, zookeepers, networks, prv_networks = self._generate_topology()
+        topo_dicts, self.networks, prv_networks = self._generate_topology()
         self._generate_with_topo(topo_dicts)
         self._write_ca_files(topo_dicts, ca_private_key_files)
         self._write_ca_files(topo_dicts, ca_cert_files)
@@ -143,7 +145,7 @@ class ConfigGenerator(object):
         self._write_cust_files(topo_dicts, cust_files)
         self._write_conf_policies(topo_dicts)
         self._write_master_keys(topo_dicts)
-        self._write_networks_conf(networks, NETWORKS_FILE)
+        self._write_networks_conf(self.networks, NETWORKS_FILE)
         if self.args.bind_addr:
             self._write_networks_conf(prv_networks, PRV_NETWORKS_FILE)
 
@@ -213,7 +215,7 @@ class ConfigGenerator(object):
         docker_gen.generate()
 
     def _docker_args(self, topo_dicts):
-        return DockerGenArgs(self.args, topo_dicts, self.port_gen)
+        return DockerGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
 
     def _generate_prom_conf(self, topo_dicts):
         args = self._prometheus_args(topo_dicts)

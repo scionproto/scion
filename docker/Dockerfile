@@ -1,8 +1,19 @@
 FROM scion_base:latest
+ARG SCION_UID
+ARG SCION_GID
+ARG DOCKER_GID
 
+# Make sure the scion user has the same UID/GID as the user on the host
+USER root
+RUN usermod -u ${SCION_UID:?} scion
+RUN groupmod -g ${SCION_GID:?} scion
+# Make sure the docker group has the same GID as the group on the host
+RUN groupmod -g ${DOCKER_GID:?} docker
+RUN chown -R scion: ~scion
+
+USER scion
 # Now copy over the current branch
-COPY . $BASE/
-RUN sudo chown -R scion: $BASE
+COPY --chown=scion:scion . $BASE/
 
 # Restore the go dependency cache from scion_base
 RUN tar xf ~/go_vendor.tar.gz -C go/vendor/
