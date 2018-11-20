@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/truststorage"
 )
 
 type TestConfig struct {
@@ -26,7 +28,7 @@ type TestConfig struct {
 	Logging      Logging
 	Metrics      Metrics
 	Infra        Infra
-	Trust        Trust
+	TrustDB      truststorage.TrustDBConf
 	SciondClient SciondClient `toml:"sd_client"`
 }
 
