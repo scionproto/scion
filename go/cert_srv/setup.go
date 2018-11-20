@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -84,7 +83,7 @@ func initState(config *Config) error {
 	if err != nil {
 		return common.NewBasicError("Unable to load CS state", err)
 	}
-	if config.state.TrustDB, err = truststorage.New(config.TrustDB); err != nil {
+	if config.state.TrustDB, err = config.TrustDB.New(); err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}
 	trustConf := &trust.Config{

@@ -86,7 +86,7 @@ func realMain() int {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
-	trustDB, err := truststorage.New(config.TrustDB)
+	trustDB, err := config.TrustDB.New()
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
