@@ -1,3 +1,17 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tpkt
 
 import (
@@ -25,7 +39,7 @@ func NewAddrHdr(srcIA, srcHost, dstIA, dstHost string) *AddrHdr {
 	}
 }
 
-func ParseFromRaw(b common.RawBytes, srcT, dstT addr.HostAddrType) (*AddrHdr, error) {
+func ParseRawAddrHdr(b common.RawBytes, srcT, dstT addr.HostAddrType) (*AddrHdr, error) {
 	a := &AddrHdr{}
 	if _, err := a.Parse(b, srcT, dstT); err != nil {
 		return nil, err
@@ -42,7 +56,7 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 	if err != nil {
 		return 0, err
 	}
-	addrLen := ceil(2*addr.IABytes+int(dstLen+srcLen), common.LineLen)
+	addrLen := util.PaddedLen(2*addr.IABytes+int(dstLen+srcLen), common.LineLen)
 	if addrLen > len(b) {
 		return 0, fmt.Errorf("Buffer too short, expected=%d, actual=%d", addrLen, len(b))
 	}
@@ -62,7 +76,7 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 }
 
 func (a *AddrHdr) Len() int {
-	return ceil(2*addr.IABytes+a.DstHost.Size()+a.SrcHost.Size(), common.LineLen)
+	return util.PaddedLen(2*addr.IABytes+a.DstHost.Size()+a.SrcHost.Size(), common.LineLen)
 }
 
 func (a *AddrHdr) Write(b common.RawBytes) int {
@@ -91,9 +105,4 @@ func (a *AddrHdr) Eq(o *AddrHdr) bool {
 func (a *AddrHdr) String() string {
 	return fmt.Sprintf("SrcIA: %s, SrcHost: %s, DstIA: %s, DstHost: %s",
 		a.SrcIA, a.SrcHost, a.DstIA, a.DstHost)
-}
-
-func ceil(l, mult int) int {
-	// mult must be base 2 value
-	return (l + mult - 1) &^ (mult - 1)
 }

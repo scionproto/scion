@@ -37,4 +37,4 @@ del_veths() {
         veth6_root veth7_root veth8_root veth9_root
 }
 
-do_command $PROGRAM $COMMAND $TEST_NAME ${@:3}
+do_command $PROGRAM $COMMAND $TEST_NAME ${@:2}

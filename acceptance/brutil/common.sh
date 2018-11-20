@@ -5,6 +5,7 @@
 # Each test should have its own set_veths function for specific setup
 test_setup() {
     set -e
+    sudo -p "Setup docker containers and virtual interfaces - [sudo] password for %p: " true
     # Bring up the dispatcher container and add new veth interfaces
     # This approach currently  works because the dispatcher binds to 0.0.0.0 address.
     docker-compose -f $BRUTIL/docker-compose.yml up --detach dispatcher
@@ -19,6 +20,7 @@ test_setup() {
 
 test_teardown() {
     set -e
+    sudo -p "Teardown docker containers and virtual interfaces - [sudo] password for %p: " true
     del_veths
     rm -f $DEVINFO_FN
     rm_docker_ns_link
