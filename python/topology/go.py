@@ -37,6 +37,9 @@ class GoGenerator(object):
         :param GoGenArgs args: Contains the passed command line arguments and topo dicts.
         """
         self.args = args
+        self.log_dir = '/share/logs' if args.docker else 'logs'
+        self.db_dir = '/share/cache' if args.docker else 'gen-cache'
+        self.log_level = 'trace' if args.trace else 'debug'
 
     def generate_ps(self):
         for topo_id, topo in self.args.topo_dicts.items():
@@ -49,8 +52,6 @@ class GoGenerator(object):
 
     def _build_ps_conf(self, topo_id, ia, base, name):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
-        log_dir = '/share/logs' if self.args.docker else 'logs'
-        db_dir = '/share/cache' if self.args.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -59,15 +60,15 @@ class GoGenerator(object):
             },
             'logging': {
                 'file': {
-                    'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Path': os.path.join(self.log_dir, "%s.log" % name),
+                    'Level': self.log_level,
                 },
                 'console': {
                     'Level': 'crit',
                 },
             },
             'trust': {
-                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+                'TrustDB': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'infra': {
                 'Type': "PS"
@@ -75,7 +76,7 @@ class GoGenerator(object):
             'ps': {
                 'PathDB': {
                     'Backend': 'sqlite',
-                    'Connection': os.path.join(db_dir, '%s.path.db' % name),
+                    'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
                 'SegSync': True,
             },
@@ -91,8 +92,6 @@ class GoGenerator(object):
     def _build_sciond_conf(self, topo_id, ia, base):
         name = self._sciond_name(topo_id)
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, COMMON_DIR)
-        log_dir = '/share/logs' if self.args.docker else 'logs'
-        db_dir = '/share/cache' if self.args.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -101,22 +100,22 @@ class GoGenerator(object):
             },
             'logging': {
                 'file': {
-                    'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Path': os.path.join(self.log_dir, "%s.log" % name),
+                    'Level': self.log_level,
                 },
                 'console': {
                     'Level': 'crit',
                 },
             },
             'trust': {
-                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+                'TrustDB': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
                 'Public': '%s,[127.0.0.1]:0' % ia,
                 'PathDB': {
-                    'Connection': os.path.join(db_dir, '%s.path.db' % name),
+                    'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
             },
         }
@@ -136,8 +135,6 @@ class GoGenerator(object):
 
     def _build_cs_conf(self, topo_id, ia, base, name):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
-        log_dir = '/share/logs' if self.args.docker else 'logs'
-        db_dir = '/share/cache' if self.args.docker else 'gen-cache'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -148,15 +145,15 @@ class GoGenerator(object):
             },
             'logging': {
                 'file': {
-                    'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Path': os.path.join(self.log_dir, "%s.log" % name),
+                    'Level': self.log_level,
                 },
                 'console': {
                     'Level': 'crit',
                 },
             },
             'trust': {
-                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+                'TrustDB': os.path.join(self.db_dir, '%s.trust.db' % name),
             },
             'infra': {
                 'Type': "CS"
