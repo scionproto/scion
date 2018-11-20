@@ -1,3 +1,17 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -185,11 +199,11 @@ func registerScionPorts() {
 // It returns true if the test was successful, ie. all expected packets and no others were received,
 // otherwise it returns false.
 func doTest(t *BRTest, cases []reflect.SelectCase) error {
-	devInfo, ok := devByName[t.In.GetDev()]
+	devInfo, ok := devByName[t.In.Dev]
 	if !ok {
-		fatal("No device information for: %s", t.In.GetDev())
+		fatal("No device information for: %s", t.In.Dev)
 	}
-	raw, err := t.In.Pack(devInfo.mac, hashMac)
+	raw, err := t.In.Pack(devInfo.mac)
 	if err != nil {
 		fatal("%s\n", err)
 	}
@@ -206,10 +220,8 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
 	timerCh := time.After(timeout)
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
-	expPkts := make([]tpkt.Matcher, len(t.Out))
-	for i := range t.Out {
-		expPkts[i] = t.Out[i]
-	}
+	expPkts := make([]*tpkt.ExpPkt, len(t.Out))
+	copy(expPkts, t.Out)
 	var errStr []string
 	for {
 		idx, pktV, ok := reflect.Select(cases)
@@ -249,10 +261,13 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 // checkPkt compare a given packet against all the possible expected packets,
 // It returns the index of the expected packet matched or an error with a pretty-print
 // packet dump of the unmatched packet.
-func checkPkt(expPkts []tpkt.Matcher, devIdx int, pkt gopacket.Packet) (int, error) {
+func checkPkt(expPkts []*tpkt.ExpPkt, devIdx int, pkt gopacket.Packet) (int, error) {
 	var errStr []string
 	for i := range expPkts {
-		if err := expPkts[i].Match(devList[devIdx].contDev, pkt); err != nil {
+		if devList[devIdx].contDev != expPkts[i].Dev {
+			continue
+		}
+		if err := expPkts[i].Match(pkt); err != nil {
 			errStr = append(errStr, fmt.Sprintf("[ERROR] %s\n", err))
 			continue
 		}

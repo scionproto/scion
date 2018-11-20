@@ -28,6 +28,10 @@ func CalcPadding(length, blkSize int) int {
 	return 0
 }
 
+func PaddedLen(length, blkSize int) int {
+	return length + CalcPadding(length, blkSize)
+}
+
 func FillPadding(b common.RawBytes, length, blkSize int) int {
 	padding := CalcPadding(length, blkSize)
 	total := length + padding
