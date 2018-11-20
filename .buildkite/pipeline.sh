@@ -11,7 +11,7 @@ continue_on_failure() {
 export -f continue_on_failure
 
 # begin the pipeline.yml file
-"$BASE/common.sh"
+".buildkite/common.sh"
 echo "steps:"
 
 # setup docker images and start

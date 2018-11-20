@@ -3,3 +3,4 @@
 - label: Stop container
   command:
       - ./docker.sh stop
+      - ./.buildkite/clean_env.sh

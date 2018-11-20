@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 
 if [ "$BUILDKITE_PULL_REQUEST" == "false" ]; then
