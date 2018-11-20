@@ -57,6 +57,8 @@ def add_arguments(parser):
                         help='Zookeeper configuration file')
     parser.add_argument('-b', '--bind-addr', default=GENERATE_BIND_ADDRESS,
                         help='Generate bind addresses (E.g. "192.168.0.0/16"')
+    parser.add_argument('-t', '--trace', action='store_true',
+                        help='Enable TRACE level file logging in Go services')
     parser.add_argument('--pseg-ttl', type=int, default=DEFAULT_SEGMENT_TTL,
                         help='Path segment TTL (in seconds)')
     parser.add_argument('-cs', '--cert-server', default=DEFAULT_CERTIFICATE_SERVER,

@@ -51,6 +51,7 @@ class GoGenerator(object):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         log_dir = '/share/logs' if self.args.docker else 'logs'
         db_dir = '/share/cache' if self.args.docker else 'gen-cache'
+        log_level = 'trace' if self.args.trace else 'debug'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -60,7 +61,7 @@ class GoGenerator(object):
             'logging': {
                 'file': {
                     'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Level': log_level,
                 },
                 'console': {
                     'Level': 'crit',
@@ -93,6 +94,7 @@ class GoGenerator(object):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, COMMON_DIR)
         log_dir = '/share/logs' if self.args.docker else 'logs'
         db_dir = '/share/cache' if self.args.docker else 'gen-cache'
+        log_level = 'trace' if self.args.trace else 'debug'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -102,7 +104,7 @@ class GoGenerator(object):
             'logging': {
                 'file': {
                     'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Level': log_level,
                 },
                 'console': {
                     'Level': 'crit',
@@ -138,6 +140,7 @@ class GoGenerator(object):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         log_dir = '/share/logs' if self.args.docker else 'logs'
         db_dir = '/share/cache' if self.args.docker else 'gen-cache'
+        log_level = 'trace' if self.args.trace else 'debug'
         raw_entry = {
             'general': {
                 'ID': name,
@@ -149,7 +152,7 @@ class GoGenerator(object):
             'logging': {
                 'file': {
                     'Path': os.path.join(log_dir, "%s.log" % name),
-                    'Level': 'debug',
+                    'Level': log_level,
                 },
                 'console': {
                     'Level': 'crit',
