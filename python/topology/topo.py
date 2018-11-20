@@ -197,13 +197,7 @@ class TopoGenerator(object):
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
                        topo_key):
-        count = as_conf.get(conf_key, def_num)
-        # only a single Go-PS/Go-CS per AS is currently supported
-        if ((conf_key == "path_servers" and self.args.path_server == "go") or
-           (conf_key == "certificate_servers" and self.args.cert_server == "go")):
-            count = 1
-        if conf_key == "discovery_servers" and not self.args.discovery:
-            count = 0
+        count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
             d = {
@@ -222,6 +216,16 @@ class TopoGenerator(object):
                     'L4Port': self.args.port_gen.register(elem_id),
                 }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
+
+    def _srv_count(self, as_conf, conf_key, def_num):
+        count = as_conf.get(conf_key, def_num)
+        # only a single Go-PS/Go-CS per AS is currently supported
+        if ((conf_key == "path_servers" and self.args.path_server == "go") or
+           (conf_key == "certificate_servers" and self.args.cert_server == "go")):
+            count = 1
+        if conf_key == "discovery_servers" and not self.args.discovery:
+            count = 0
+        return count
 
     def _gen_br_entries(self, topo_id):
         for (linkto, remote, attrs, l_br, r_br, l_ifid, r_ifid) in self.links[topo_id]:

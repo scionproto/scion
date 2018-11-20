@@ -166,13 +166,13 @@ func realMain() int {
 		msger.ListenAndServe()
 	}()
 	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
-		time.NewTicker(300*time.Second), 295*time.Second)
+		periodic.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
 	cryptosyncer := periodic.StartPeriodicTask(&cryptosyncer.Syncer{
 		DB:    trustDB,
 		Msger: msger,
 		IA:    topo.ISD_AS,
-	}, time.NewTicker(30*time.Second), 30*time.Second)
+	}, periodic.NewTicker(30*time.Second), 30*time.Second)
 	defer cryptosyncer.Stop()
 	select {
 	case <-environment.AppShutdownSignal:

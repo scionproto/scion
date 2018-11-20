@@ -104,7 +104,7 @@ func realMain() int {
 		return 1
 	}
 	log.Info("Starting periodic fetching", "period", *period)
-	ticker := time.NewTicker(*period)
+	ticker := periodic.NewTicker(*period)
 	runner := periodic.StartPeriodicTask(fetcher, ticker, *timeout)
 	defer runner.Stop()
 	select {}
