@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/truststorage"
 )
 
 type Config struct {
@@ -39,7 +40,7 @@ type Config struct {
 	Sciond  env.SciondClient `toml:"sd_client"`
 	Logging env.Logging
 	Metrics env.Metrics
-	Trust   env.Trust
+	TrustDB truststorage.TrustDBConf
 	Infra   env.Infra
 	CS      csconfig.Conf
 	state   *csconfig.State

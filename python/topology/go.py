@@ -66,8 +66,9 @@ class GoGenerator(object):
                     'Level': 'crit',
                 },
             },
-            'trust': {
-                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+            'TrustDB': {
+                'Backend': 'sqlite',
+                'Connection': os.path.join(db_dir, '%s.trust.db' % name),
             },
             'infra': {
                 'Type': "PS"
@@ -108,8 +109,9 @@ class GoGenerator(object):
                     'Level': 'crit',
                 },
             },
-            'trust': {
-                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+            'TrustDB': {
+                'Backend': 'sqlite',
+                'Connection': os.path.join(db_dir, '%s.trust.db' % name),
             },
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
@@ -155,8 +157,9 @@ class GoGenerator(object):
                     'Level': 'crit',
                 },
             },
-            'trust': {
-                'TrustDB': os.path.join(db_dir, '%s.trust.db' % name),
+            'TrustDB': {
+                'Backend': 'sqlite',
+                'Connection': os.path.join(db_dir, '%s.trust.db' % name),
             },
             'infra': {
                 'Type': "CS"

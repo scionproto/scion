@@ -211,12 +211,6 @@ func (cfg *Metrics) StartPrometheus(fatalC chan error) {
 	}
 }
 
-// Trust contains information that is BS, CS, PS, SD specific.
-type Trust struct {
-	// TrustDB is the database for trust information.
-	TrustDB string
-}
-
 // Infra contains information that is BS, CS, PS specific.
 type Infra struct {
 	// Type must be one of BS, CS or PS.
