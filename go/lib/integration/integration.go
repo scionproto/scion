@@ -22,7 +22,6 @@ import (
 	"io"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -170,8 +169,7 @@ func generateAllSrcDst(srcList, dstList []addr.IA) []IAPair {
 // The host IP is used as client or server address in the tests because the testing container is
 // connecting to the dispatcher of the services.
 func dispAddr(ia addr.IA) snet.Addr {
-	path := fmt.Sprintf("gen/ISD%s/AS%s/endhost/topology.json", strconv.Itoa(int(ia.I)),
-		ia.A.FileFmt())
+	path := fmt.Sprintf("gen/ISD%d/AS%s/endhost/topology.json", ia.I, ia.A.FileFmt())
 	topo, err := topology.LoadFromFile(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading topology: %s\n", err)

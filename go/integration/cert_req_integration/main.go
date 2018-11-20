@@ -43,7 +43,7 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
-		"-local", integration.SrcAddrReplace, "-remoteIA", integration.DstIAReplace}
+		"-local", integration.SrcAddrPattern, "-remoteIA", integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)

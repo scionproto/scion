@@ -34,10 +34,8 @@ func realMain() int {
 	defer log.LogPanicAndExit()
 	defer log.Flush()
 
-	clientAddr := integration.SrcIAReplace + ",[" + integration.SrcHostReplace + "]"
-	serverAddr := integration.DstIAReplace + ",[" + integration.DstHostReplace + "]"
-	cmnArgs := []string{"-sciondFromIA", "-timeout", "4s", "-local", clientAddr, "-remote",
-		serverAddr}
+	cmnArgs := []string{"-sciondFromIA", "-timeout", "4s", "-local", integration.SrcAddrPattern,
+		"-remote", integration.DstAddrPattern}
 
 	testCases := []struct {
 		Name string

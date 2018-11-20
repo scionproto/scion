@@ -36,14 +36,14 @@ const (
 	SrcIAReplace = "<SRCIA>"
 	// SrcHostReplace is a placeholder for the source host in the arguments.
 	SrcHostReplace = "<SRCHost>"
-	// SrcAddrReplace is a placeholder for the source address in the arguments.
-	SrcAddrReplace = "<SRCIA>,[<SRCHost>]"
+	// SrcAddrPattern is a placeholder for the source address in the arguments.
+	SrcAddrPattern = SrcIAReplace + ",[" + SrcHostReplace + "]"
 	// DstIAReplace is a placeholder for the destination IA in the arguments.
 	DstIAReplace = "<DSTIA>"
 	// DstHostReplace is a placeholder for the destination host in the arguments.
 	DstHostReplace = "<DSTHost>"
-	// DstAddrReplace is a placeholder for the destination address in the arguments.
-	DstAddrReplace = "<DSTIA>,[<DSTHost>]"
+	// DstAddrPattern is a placeholder for the destination address in the arguments.
+	DstAddrPattern = DstIAReplace + ",[" + DstHostReplace + "]"
 	// ReadySignal should be written to Stdout by the server once it is read to accept clients.
 	// The message should always be `Listening ia=<IA>`
 	// where <IA> is the IA the server is listening on.

@@ -41,10 +41,10 @@ func realMain() int {
 	defer log.Flush()
 	cmnArgs := []string{"-sciondFromIA", "-log.console", "debug"}
 	clientArgs := []string{"-mode", "client", "-count", "1",
-		"-local", integration.SrcAddrReplace + ":0",
-		"-remote", integration.DstAddrReplace + ":" + integration.ServerPortReplace}
+		"-local", integration.SrcAddrPattern + ":0",
+		"-remote", integration.DstAddrPattern + ":" + integration.ServerPortReplace}
 	clientArgs = append(clientArgs, cmnArgs...)
-	serverArgs := []string{"-mode", "server", "-local", integration.DstAddrReplace + ":0"}
+	serverArgs := []string{"-mode", "server", "-local", integration.DstAddrPattern + ":0"}
 	serverArgs = append(serverArgs, cmnArgs...)
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
 	if err := runTests(in, integration.IAPairs()); err != nil {
