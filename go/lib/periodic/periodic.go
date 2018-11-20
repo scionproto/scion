@@ -16,7 +16,6 @@ package periodic
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
@@ -51,13 +50,13 @@ type Task interface {
 
 // Runner runs a task periodically.
 type Runner struct {
-	task        Task
-	ticker      Ticker
-	timeout     time.Duration
-	stop        chan struct{}
-	stopped     chan struct{}
-	currCancelM sync.RWMutex
-	currCancel  context.CancelFunc
+	task    Task
+	ticker  Ticker
+	timeout time.Duration
+	stop    chan struct{}
+	stopped chan struct{}
+	ctx     context.Context
+	cancelF context.CancelFunc
 }
 
 // StartPeriodicTask creates and starts a new Runner to run the given task peridiocally.
@@ -65,12 +64,15 @@ type Runner struct {
 // The timeout can be larger than the periodicity of the ticker. That means if a tasks takes a long
 // time it will be immediately retriggered.
 func StartPeriodicTask(task Task, ticker Ticker, timeout time.Duration) *Runner {
+	ctx, cancelF := context.WithCancel(context.Background())
 	runner := &Runner{
 		task:    task,
 		ticker:  ticker,
 		timeout: timeout,
 		stop:    make(chan struct{}),
 		stopped: make(chan struct{}),
+		ctx:     ctx,
+		cancelF: cancelF,
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -91,16 +93,13 @@ func (r *Runner) Stop() {
 func (r *Runner) Kill() {
 	r.ticker.Stop()
 	close(r.stop)
-	r.currCancelM.RLock()
-	if r.currCancel != nil {
-		r.currCancel()
-	}
-	r.currCancelM.RUnlock()
+	r.cancelF()
 	<-r.stopped
 }
 
 func (r *Runner) runLoop() {
 	defer close(r.stopped)
+	defer r.cancelF()
 	for {
 		select {
 		case <-r.stop:
@@ -112,12 +111,9 @@ func (r *Runner) runLoop() {
 			case <-r.stop:
 				return
 			default:
-				var ctx context.Context
-				r.currCancelM.Lock()
-				ctx, r.currCancel = context.WithTimeout(context.Background(), r.timeout)
-				r.currCancelM.Unlock()
+				ctx, cancelF := context.WithTimeout(r.ctx, r.timeout)
 				r.task.Run(ctx)
-				r.currCancel()
+				cancelF()
 			}
 		}
 	}
