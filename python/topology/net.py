@@ -114,8 +114,7 @@ class SubnetGenerator(object):
 class AddressGenerator(object):
     def __init__(self, docker):
         self._addrs = defaultdict(lambda: AddressProxy())
-        # With the docker backend, docker itself claims the first ip of every network
-        self.offset = 1 if docker else 0
+        self.docker = docker
 
     def register(self, id_):
         return self._addrs[id_]
@@ -123,8 +122,11 @@ class AddressGenerator(object):
     def alloc_addrs(self, subnet):
         hosts = subnet.hosts()
         interfaces = {}
+        # With the docker backend, docker itself claims the first ip of every network
+        if self.docker:
+            next(hosts)
         for elem, proxy in sorted(self._addrs.items()):
-            intf = ip_interface("%s/%s" % (next(hosts)+self.offset, subnet.prefixlen))
+            intf = ip_interface("%s/%s" % (next(hosts), subnet.prefixlen))
             interfaces[elem] = intf
             proxy.set_intf(intf)
         return interfaces

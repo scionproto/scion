@@ -20,6 +20,7 @@ test_setup() {
         sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
     done
     ./scion.sh run nobuild
+    ./tools/dc start tester_$SRC_IA_FILE
 }
 
 test_run() {
