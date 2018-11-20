@@ -55,11 +55,11 @@ const Sample = `[general]
   # exported.
   # Prometheus = "127.0.0.1:8000"
 
-[trust]
-  # Database for trust information. If a file already exists, it is treated as
-  # initial trust information. If a file does not exist, it is created from the
-  # initial information found under ConfigDir/certs.
-  TrustDB = "/var/lib/scion/spki/sd.trust.db"
+[TrustDB]
+  # The type of trustdb backend
+  Backend = "sqlite"
+  # Connection for the trust database
+  Connection = "/var/lib/scion/spki/sd.trust.db"
 
 [sd]
   # Address to listen on via the reliable socket protocol. If empty,

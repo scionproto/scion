@@ -32,10 +32,10 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
 	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
@@ -50,7 +50,7 @@ type Config struct {
 	General env.General
 	Logging env.Logging
 	Metrics env.Metrics
-	Trust   env.Trust
+	TrustDB truststorage.TrustDBConf
 	SD      sdconfig.Config
 }
 
@@ -87,7 +87,7 @@ func realMain() int {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
-	trustDB, err := trustdbsqlite.New(config.Trust.TrustDB)
+	trustDB, err := config.TrustDB.New()
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
