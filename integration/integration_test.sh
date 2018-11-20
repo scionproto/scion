@@ -56,12 +56,12 @@ if [ -z "$DOCKER_ARGS" ]; then
     result=$((result+$?))
 fi
 
-# Run python integration tests
-integration/py_integration
-result=$((result+$?))
-
 # Run go integration tests
 integration/go_integration
+result=$((result+$?))
+
+# Run python integration tests
+integration/py_integration
 result=$((result+$?))
 
 integration/revocation_test.sh -b "$REV_BRS"

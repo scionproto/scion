@@ -11,15 +11,15 @@ if [ -z "$DOCKER_BE" ]; then
     result=$((result+$?))
 fi
 
+# Go integration tests
+./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
+result=$((result+$?))
+
 if [ -n "$ALL" ]; then
     # Python integration tests
     ./docker.sh exec "set -eo pipefail; integration/py_integration |& tee -a logs/integration.run"
     result=$((result+$?))
 fi
-
-# Go integration tests
-./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
-result=$((result+$?))
 
 # Revocation test
 ./docker.sh exec "set -eo pipefail; integration/revocation_test.sh |& tee -a logs/integration.run"
