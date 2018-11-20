@@ -1,6 +1,22 @@
+// Copyright 2018 ETH Zurich
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tpkt
 
 import (
+	"fmt"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
@@ -16,6 +32,8 @@ type ScionLayer struct {
 	AddrHdr AddrHdr
 	Path    ScnPath
 }
+
+var _ LayerMatcher = (*ScionLayer)(nil)
 
 var LayerTypeScion = gopacket.RegisterLayerType(
 	1337,
@@ -62,6 +80,35 @@ func (l *ScionLayer) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) er
 	l.nextHdr = l.CmnHdr.NextHdr
 	// TODO Extensions
 	return nil
+}
+
+func (l *ScionLayer) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
+	scn := pktLayers[0].(*ScionLayer)
+	if scn == nil {
+		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
+			LayerTypeScion, pktLayers[0].LayerType())
+	}
+	if len(scn.LayerContents()) != int(l.CmnHdr.HdrLen*common.LineLen) {
+		return nil, fmt.Errorf("Bad SCION header len, expected %d, actual   %d",
+			l.CmnHdr.HdrLen, len(scn.LayerContents()))
+	}
+	if l.CmnHdr != scn.CmnHdr {
+		return nil, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v",
+			&l.CmnHdr, &scn.CmnHdr)
+	}
+	if !l.AddrHdr.Eq(&scn.AddrHdr) {
+		return nil, fmt.Errorf("Address header mismatch\nExpected %v\nActual   %v",
+			&l.AddrHdr, &scn.AddrHdr)
+	}
+	if err := l.Path.Check(&scn.Path); err != nil {
+		return nil, err
+	}
+	lc.scion = scn
+	// As we already checked that we have a valid common header, we can use the HdrLen safely
+	return pktLayers[1:], nil
+}
+func (l *ScionLayer) RawAddrHdr() common.RawBytes {
+	return l.Contents[spkt.CmnHdrLen : spkt.CmnHdrLen+l.AddrHdr.Len()]
 }
 
 func decodeScionLayer(data []byte, p gopacket.PacketBuilder) error {
