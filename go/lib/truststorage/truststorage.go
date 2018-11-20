@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package truststorage provides a "factory" for trust database.
+// A config containing the backend type and the connection string
+// are used to create a specific trust db.
 package truststorage
 
 import (
@@ -29,24 +32,23 @@ const (
 
 // TrustDBConf is the configuration for the connection to the trust database.
 type TrustDBConf struct {
+	// Backend is the type of backend for this db. If empty (BackendNone) the default is selected.
 	Backend    Backend
 	Connection string
 }
 
-// InitDefaults initializes the default values for the config.
-func (c *TrustDBConf) InitDefaults() {
-	if c.Backend == BackendNone {
-		c.Backend = BackendSqlite
+// New creates a TrustDB from the config.
+func (c TrustDBConf) New() (trustdb.TrustDB, error) {
+	switch c.Backend {
+	case BackendSqlite:
+		return trustdbsqlite.New(c.Connection)
+	case BackendNone:
+		return defaultBackend(c.Connection)
+	default:
+		return nil, common.NewBasicError("Unsupported backend", nil, "backend", c.Backend)
 	}
 }
 
-// New creates a TrustDB for the given config.
-func New(conf TrustDBConf) (trustdb.TrustDB, error) {
-
-	switch conf.Backend {
-	case BackendSqlite:
-		return trustdbsqlite.New(conf.Connection)
-	default:
-		return nil, common.NewBasicError("Unsupported backend", nil, "backend", conf.Backend)
-	}
+func defaultBackend(connection string) (trustdb.TrustDB, error) {
+	return trustdbsqlite.New(connection)
 }
