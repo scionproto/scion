@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 
 echo "- label: Integration Tests"

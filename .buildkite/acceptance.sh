@@ -1,3 +1,5 @@
+#!/bin/bash
+
 for test in ./acceptance/*_acceptance; do
     echo "- label: ${test}"
     echo "  command:"

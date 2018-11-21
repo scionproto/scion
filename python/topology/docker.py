@@ -305,7 +305,7 @@ class DockerGenerator(object):
         image = 'scion_sciond_py' if self.args.sciond == 'py' else 'scion_sciond'
         entry = {
             'image': image,
-            'container_name': name,
+            'container_name': '%ssd%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
                 'scion_disp_%s' % topo_id.file_fmt()
             ],
@@ -328,7 +328,7 @@ class DockerGenerator(object):
         self.dc_conf['services'][name] = entry
 
     def _sciond_name(self, topo_id):
-        return '%ssd%s' % (self.prefix, topo_id.file_fmt())
+        return 'scion_sd%s' % topo_id.file_fmt()
 
     def _disp_vol(self, topo_id):
         return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
