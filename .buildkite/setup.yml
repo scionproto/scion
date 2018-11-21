@@ -1,7 +1,6 @@
 - label: Prepare scion_base and scion images
   command:
-      - docker rm -f $(docker ps -aq)
-      - docker network prune -f
+      - ./.buildkite/clean_env.sh
       - ./tools/ci/prepare_image d1706fb3c9c8eacdc9a91ddeac7c3ac1ad815fe43fc81bd50a280b3738ce7569
       - ./docker.sh build
   concurrency: 1

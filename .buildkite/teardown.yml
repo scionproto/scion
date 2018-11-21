@@ -3,5 +3,4 @@
 - label: Stop container
   command:
       - ./docker.sh stop
-      - docker rm -f $(docker ps -aq)
-      - docker network prune -f
+      - ./.buildkite/clean_env.sh
