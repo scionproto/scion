@@ -146,40 +146,6 @@ func validateConfig() error {
 	return nil
 }
 
-func setup() error {
-	// Export prometheus metrics.
-	metrics.Init(cfg.Sig.ID)
-	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
-		return common.NewBasicError("Error during initialization", err)
-	}
-	egress.Init()
-	disp.Init(sigcmn.CtrlConn)
-	// Parse sig config
-	if loadConfig(cfg.Sig.SIGConfig) != true {
-		return common.NewBasicError("Unable to load sig config on startup", nil)
-	}
-	return nil
-}
-
-func checkPerms() error {
-	user, err := user.Current()
-	if err != nil {
-		return common.NewBasicError("Error retrieving user", err)
-	}
-	if user.Uid == "0" {
-		return common.NewBasicError("Running as root is not allowed for security reasons", nil)
-	}
-	caps, err := capability.NewPid(0)
-	if err != nil {
-		return common.NewBasicError("Error retrieving capabilities", err)
-	}
-	log.Debug("Startup capabilities", "caps", caps)
-	if !caps.Get(capability.EFFECTIVE, capability.CAP_NET_ADMIN) {
-		return common.NewBasicError("CAP_NET_ADMIN is required", nil, "caps", caps)
-	}
-	return nil
-}
-
 func setupTun() (io.ReadWriteCloser, error) {
 	if err := checkPerms(); err != nil {
 		return nil, common.NewBasicError("Permissions checks failed", nil)
@@ -204,6 +170,40 @@ func setupTun() (io.ReadWriteCloser, error) {
 	caps.Clear(capability.CAPS)
 	caps.Apply(capability.CAPS)
 	return tunIO, nil
+}
+
+func checkPerms() error {
+	user, err := user.Current()
+	if err != nil {
+		return common.NewBasicError("Error retrieving user", err)
+	}
+	if user.Uid == "0" {
+		return common.NewBasicError("Running as root is not allowed for security reasons", nil)
+	}
+	caps, err := capability.NewPid(0)
+	if err != nil {
+		return common.NewBasicError("Error retrieving capabilities", err)
+	}
+	log.Debug("Startup capabilities", "caps", caps)
+	if !caps.Get(capability.EFFECTIVE, capability.CAP_NET_ADMIN) {
+		return common.NewBasicError("CAP_NET_ADMIN is required", nil, "caps", caps)
+	}
+	return nil
+}
+
+func setup() error {
+	// Export prometheus metrics.
+	metrics.Init(cfg.Sig.ID)
+	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
+		return common.NewBasicError("Error during initialization", err)
+	}
+	egress.Init()
+	disp.Init(sigcmn.CtrlConn)
+	// Parse sig config
+	if loadConfig(cfg.Sig.SIGConfig) != true {
+		return common.NewBasicError("Unable to load sig config on startup", nil)
+	}
+	return nil
 }
 
 func loadConfig(path string) bool {
