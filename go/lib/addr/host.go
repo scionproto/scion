@@ -205,6 +205,8 @@ func HostSVCFromString(str string) HostSVC {
 		return SvcCS | m
 	case "SB":
 		return SvcSB | m
+	case "SIG":
+		return SvcSIG | m
 	default:
 		return SvcNone
 	}
@@ -260,6 +262,8 @@ func (h HostSVC) String() string {
 		name = "CS"
 	case SvcSB:
 		name = "SB"
+	case SvcSIG:
+		name = "SIG"
 	default:
 		name = "UNKNOWN"
 	}
