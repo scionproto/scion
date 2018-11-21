@@ -18,6 +18,7 @@ package session
 import (
 	"time"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/log"
@@ -26,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 const (
@@ -109,90 +109,73 @@ Top:
 }
 
 func (sm *sessMonitor) updateRemote() {
-	currRemote := sm.smRemote
-	var currSig *siginfo.Sig
-	var currSessPath *egress.SessPath
-	if currRemote == nil {
-		sm.needUpdate = true
-	} else {
-		currSig = currRemote.Sig
-		currSessPath = currRemote.SessPath
+	// Sanity checking.
+	if sm.smRemote.Sig == nil {
+		panic("Sig is nil.")
 	}
-	since := time.Since(sm.lastReply)
 
-	isHealthy := true
+	// There were no replies from the remote SIG for some time. We don't know whether
+	// the failure was caused by bad path or bad SIG. Therefore, we choose a different
+	// path but also ask for a new SIG address via anycast SvcSIG request.
+	since := time.Since(sm.lastReply)
 	if since > tout {
-		if currSig != nil {
-			currSig.Fail()
+		// FIXME(kormat): these debug statements should be converted to prom metrics.
+		sm.Debug("Remote SIG timeout", "remote", sm.smRemote, "duration", since)
+		sm.sess.healthy.Store(false)
+		if sm.smRemote.SessPath != nil {
+			// Update path statistics. This is a bit of a stretch. The path
+			// may be OK, but the remote SIG may be down. However, we accept
+			// the inaccuracy so that we don't have to do separate health
+			// checking for the path.
+			sm.smRemote.SessPath.Fail()
 		}
-		if currSessPath != nil {
-			// FIXME(kormat): these debug statements should be converted to prom metrics.
-			sm.Debug("Timeout", "remote", currRemote, "duration", since)
-			currSessPath.Fail()
-		}
-		currSig = sm.getNewSig(currSig)
-		currSessPath = sm.getNewPath(currSessPath)
-		sm.needUpdate = true
-		isHealthy = false
-	} else {
-		if currSig == nil {
-			// No remote SIG
-			sm.Debug("No remote SIG", "remote", currRemote)
-			currSig = sm.getNewSig(nil)
-			sm.needUpdate = true
-			isHealthy = false
-		} else if _, ok := sm.sess.sigMap.Load(currSig.Id); !ok {
-			// Current SIG is no longer listed, need to switch to a new one.
-			sm.Debug("Current SIG invalid", "remote", currRemote)
-			currSig = sm.getNewSig(nil)
-			sm.needUpdate = true
-			isHealthy = false
-		}
-		if currSessPath == nil {
-			sm.Debug("No path", "remote", currRemote)
-			currSessPath = sm.getNewPath(nil)
-			sm.needUpdate = true
-			isHealthy = false
-		} else if p, ok := sm.sessPathPool[currSessPath.Key()]; !ok {
-			// Current path is no longer in pool, need to switch to a new one.
-			sm.Debug("Current path invalid", "remote", currRemote)
-			currSessPath = sm.getNewPath(nil)
-			sm.needUpdate = true
-			// Traffic must no longer be sent on the old path. This implies that the encap
-			// traffic is sent on a path that has not been tested by the session monitor yet.
-			// If the new path is unhealthy, it is changed quickly by the session monitor through
-			// the regular timeout mechanism above.
-			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: currSessPath})
-		} else if isCloseToExpiry(currSessPath) {
-			// Path TTL is about to expire soon.
-			if isCloseToExpiry(p) {
-				// Updated path is about to expire also, so let's switch to a different path.
-				p = sm.getNewPath(currSessPath)
-			}
-			sm.needUpdate = true
-			sm.sess.currRemote.Store(&egress.RemoteInfo{Sig: currSig, SessPath: p})
-		}
+		sm.smRemote.Sig.Host = addr.SvcSIG
+		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		return
 	}
-	sm.sess.healthy.Store(isHealthy)
-	sm.smRemote = &egress.RemoteInfo{Sig: currSig, SessPath: currSessPath}
+
+	// There's no path selected yet. This happens at the beginning of the session,
+	// but also when the pool is empty. Try to get a new path.
+	if sm.smRemote.SessPath == nil {
+		sm.sess.healthy.Store(false)
+		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		return
+	}
+
+	// The current path was retired from the path pool. Traffic must no longer be sent on
+	// the old path. This implies that the encap traffic is sent on a path that has not been
+	// tested by the session monitor yet. If the new path is unhealthy, it is changed quickly
+	// by the session monitor through the regular timeout mechanism above.
+	updatedPath, ok := sm.sessPathPool[sm.smRemote.SessPath.Key()]
+	if !ok {
+		sm.Debug("Current path was invalidated", "remote", sm.smRemote)
+		sm.sess.healthy.Store(true)
+		sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		// Make session use the new path immediately even though we haven't yet checked
+		// whether it works.
+		sm.sess.currRemote.Store(sm.smRemote)
+		return
+	}
+
+	// If the current path is about to expire, make session use the updated version of the path.
+	// If the updated version is about to expire as well, let's switch to a different path.
+	if isCloseToExpiry(sm.smRemote.SessPath) {
+		sm.sess.healthy.Store(true)
+		sm.smRemote.SessPath = updatedPath
+		if isCloseToExpiry(sm.smRemote.SessPath) {
+			sm.smRemote.SessPath = sm.getNewPath(sm.smRemote.SessPath)
+		}
+		sm.sess.currRemote.Store(sm.smRemote)
+		return
+	}
 }
 
 func isCloseToExpiry(path *egress.SessPath) bool {
 	return path.PathEntry().Path.Expiry().Before(time.Now().Add(safetyInterval))
 }
 
-func (sm *sessMonitor) getNewSig(old *siginfo.Sig) *siginfo.Sig {
-	if old != nil {
-		// Try to get a different SIG, if possible.
-		if sig := sm.sess.sigMap.GetSig(old.Id); sig != nil {
-			return sig
-		}
-	}
-	// Get SIG with lowest failure count.
-	return sm.sess.sigMap.GetSig("")
-}
-
 func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
+	// TODO(sustrik): Don't pick paths that are about to expire.
 	if old != nil {
 		// Try to get a different path, if possible.
 		if sp := sm.sessPathPool.Get(old.Key()); sp != nil {
@@ -204,16 +187,11 @@ func (sm *sessMonitor) getNewPath(old *egress.SessPath) *egress.SessPath {
 }
 
 func (sm *sessMonitor) sendReq() {
-	if sm.smRemote == nil || sm.smRemote.Sig == nil || sm.smRemote.SessPath == nil {
+	if sm.smRemote == nil || sm.smRemote.SessPath == nil {
 		return
 	}
-	now := time.Now()
-	msgId := mgmt.MsgIdType(now.UnixNano())
-	if sm.needUpdate {
-		sm.updateMsgId = msgId
-		sm.Debug("sessMonitor: trying new remote", "msgId", msgId, "remote", sm.smRemote)
-	}
-	spld, err := mgmt.NewPld(msgId, mgmt.NewPollReq(sigcmn.MgmtAddr, sm.sess.SessId))
+	sm.updateMsgId = mgmt.MsgIdType(time.Now().UnixNano())
+	spld, err := mgmt.NewPld(sm.updateMsgId, mgmt.NewPollReq(sigcmn.MgmtAddr, sm.sess.SessId))
 	if err != nil {
 		sm.Error("sessMonitor: Error creating SIGCtrl payload", "err", err)
 		return
@@ -265,12 +243,15 @@ func (sm *sessMonitor) handleRep(rpld *disp.RegPld) {
 		return
 	}
 	sm.lastReply = time.Now()
-	if sm.needUpdate && sm.updateMsgId == rpld.Id {
-		// Only update the session's RemoteInfo if we get a response matching
-		// the last poll we sent.
-		sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
-		sm.sess.currRemote.Store(sm.smRemote)
-		sm.needUpdate = false
+	// Only update the session's RemoteInfo if we get a response matching
+	// the last poll we sent and if the SIG address has actually changed.
+	currSessRemote := sm.sess.Remote()
+	if sm.updateMsgId == rpld.Id {
+		if !currSessRemote.Sig.Host.Eq(rpld.Addr.Host.L3) {
+			sm.smRemote.Sig.Host = rpld.Addr.Host.L3
+			sm.Info("sessMonitor: updating remote Info", "msgId", rpld.Id, "remote", sm.smRemote)
+			sm.sess.currRemote.Store(sm.smRemote)
+		}
 		sm.sess.healthy.Store(true)
 	}
 }
