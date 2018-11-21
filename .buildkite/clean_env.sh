@@ -3,7 +3,7 @@
 cntrs="$(docker ps -aq)"
 [ -n "$cntrs" ] && { echo "Remove leftover containers: $cntrs"; docker rm -f "$cntrs"; }
 
-echo "Try to remove leftover networks"
+echo "Remove leftover networks"
 docker network prune -f
-echo "Try to remove leftover volumes"
+echo "Remove leftover volumes"
 docker volume prune -f
