@@ -35,6 +35,7 @@ const (
 	tickLen        = 500 * time.Millisecond
 	tout           = 1 * time.Second
 	writeTout      = 100 * time.Millisecond
+	pathExpiryLen  = 10 * time.Second
 )
 
 // sessMonitor is responsible for monitoring a session, polling remote SIGs, and switching
@@ -74,6 +75,8 @@ func (sm *sessMonitor) run() {
 	// Setup timers
 	reqTick := time.NewTicker(tickLen)
 	defer reqTick.Stop()
+	pathExpiryTick := time.NewTicker(pathExpiryLen)
+	defer pathExpiryTick.Stop()
 	// Register with SIG ctrl dispatcher
 	regc := make(disp.RegPldChan, 1)
 	disp.Dispatcher.Register(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(), sm.sess.SessId), regc)
@@ -91,6 +94,10 @@ Top:
 			sm.sendReq()
 		case rpld := <-regc:
 			sm.handleRep(rpld)
+		case <-pathExpiryTick.C:
+			for _, path := range sm.sessPathPool {
+				path.ExpireFails()
+			}
 		}
 	}
 	err := disp.Dispatcher.Unregister(disp.RegPollRep, disp.MkRegPollKey(sm.sess.IA(),
