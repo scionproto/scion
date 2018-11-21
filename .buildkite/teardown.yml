@@ -2,5 +2,6 @@
   continue_on_failure: true
 - label: Stop container
   command:
-      - ./docker.sh exec ./tools/dc down
       - ./docker.sh stop
+      - docker rm -f $(docker ps -aq)
+      - docker network prune -f
