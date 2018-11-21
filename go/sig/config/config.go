@@ -18,13 +18,11 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 // Cfg is a direct Go representation of the JSON file format.
@@ -43,32 +41,12 @@ func LoadFromFile(path string) (*Cfg, error) {
 	if err := json.Unmarshal(b, cfg); err != nil {
 		return nil, common.NewBasicError("Unable to parse SIG config", err)
 	}
-	for ia, asCfg := range cfg.ASes {
-		if asCfg == nil {
-			return nil, common.NewBasicError(
-				fmt.Sprintf("Remote AS config for %s is nil", ia), nil)
-		}
-	}
-	cfg.postprocess()
 	return cfg, nil
-}
-
-// postprocess sets the SIG IDs of the SIG objects in cfg according the keys in
-// SIGSet.
-func (cfg *Cfg) postprocess() {
-	// Populate IDs
-	for _, as := range cfg.ASes {
-		for id := range as.Sigs {
-			sig := as.Sigs[id]
-			sig.Id = id
-		}
-	}
 }
 
 type ASEntry struct {
 	Name string
 	Nets []*IPNet
-	Sigs SIGSet
 }
 
 // IPNet is custom type of net.IPNet, to allow custom unmarshalling.
@@ -102,13 +80,3 @@ func (in *IPNet) IPNet() *net.IPNet {
 func (in *IPNet) String() string {
 	return (*net.IPNet)(in).String()
 }
-
-// SIG represents a SIG in a remote IA.
-type SIG struct {
-	Id        siginfo.SigIdType `json:"-"`
-	Addr      net.IP
-	CtrlPort  uint16
-	EncapPort uint16
-}
-
-type SIGSet map[siginfo.SigIdType]*SIG
