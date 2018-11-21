@@ -34,7 +34,6 @@ import (
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/mgmt"
 	"github.com/scionproto/scion/go/sig/sigcmn"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 var _ egress.Session = (*Session)(nil)
@@ -48,8 +47,6 @@ type Session struct {
 
 	// pool of paths, managed by pathmgr
 	pool egress.PathPool
-	// remote SIGs
-	sigMap *siginfo.SigMap
 	// *egress.RemoteInfo
 	currRemote atomic.Value
 	// bool
@@ -62,7 +59,7 @@ type Session struct {
 	factory        egress.WorkerFactory
 }
 
-func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, logger log.Logger,
+func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
 	pool egress.PathPool, factory egress.WorkerFactory) (*Session, error) {
 
 	var err error
@@ -70,7 +67,6 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, 
 		Logger:  logger.New("sessId", sessId),
 		ia:      dstIA,
 		SessId:  sessId,
-		sigMap:  sigMap,
 		pool:    pool,
 		factory: factory,
 	}

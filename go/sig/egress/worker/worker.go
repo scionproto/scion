@@ -206,7 +206,7 @@ func (w *worker) resetFrame(f *frame) {
 	var addrLen, pathLen uint16
 	remote := w.sess.Remote()
 	if remote != nil {
-		w.currSig = remote.Sig
+		w.currSig = &remote.Sig
 		if w.currSig != nil {
 			addrLen = uint16(spkt.AddrHdrLen(w.currSig.Host, sigcmn.Host))
 		}

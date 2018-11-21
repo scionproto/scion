@@ -19,13 +19,11 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/sig/siginfo"
 )
 
 type (
 	NetworkChangedCb      func(NetworkChangedParams)
 	RemoteHealthChangedCb func(RemoteHealthChangedParams)
-	SigChangedCb          func(SigChangedParams)
 )
 
 // NetworkChangedParams contains the parameters that are passed along with a NetworkChanged event.
@@ -37,25 +35,6 @@ type NetworkChangedParams struct {
 	// Healthy is true if the remote IA can be reached.
 	Healthy bool
 	// Added is true if the prefix was added, false otherwise.
-	Added bool
-}
-
-// SigChangedParams contains the parameters that are passed along with a SigChanged event.
-type SigChangedParams struct {
-	// RemoteIA is the IA for which SIG information changed.
-	RemoteIA addr.IA
-	// Id is the id of the SIG.
-	Id siginfo.SigIdType
-	// Host is the host address of the SIG.
-	Host addr.HostAddr
-	// CtrlPort is the port on which the SIG accepts control traffic.
-	CtrlPort int
-	// EncapPort is the port on which the SIG accepts encapsulated SIG-SIG frames.
-	EncapPort int
-	// Static is true, if this SIG was statically configured and false if it was discovered
-	// dynamically.
-	Static bool
-	// Added is true if the SIG was added, false otherwise.
 	Added bool
 }
 
@@ -76,9 +55,6 @@ type RemoteHealthChangedParams struct {
 type EventCallbacks struct {
 	// NetworkChanged is called when a remote network was added or removed from the configuration.
 	NetworkChanged NetworkChangedCb
-	// SigChanged is called when a remote SIG is was added or removed from the configuration.
-	// TODO(shitz): This event does not get generated yet.
-	SigChanged SigChangedCb
 	// RemoteHealthChanged is called when the reachability status of a remote AS changed.
 	RemoteHealthChanged RemoteHealthChangedCb
 }
@@ -114,16 +90,6 @@ func RemoteHealthChanged(params RemoteHealthChangedParams) {
 	for _, cbs := range listeners {
 		if cbs.RemoteHealthChanged != nil {
 			cbs.RemoteHealthChanged(params)
-		}
-	}
-}
-
-func SigChanged(params SigChangedParams) {
-	lock.RLock()
-	defer lock.RUnlock()
-	for _, cbs := range listeners {
-		if cbs.SigChanged != nil {
-			cbs.SigChanged(params)
 		}
 	}
 }
