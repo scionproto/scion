@@ -17,19 +17,18 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
-	"net"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
 	"os/user"
 	"sync/atomic"
-	"syscall"
 
+	"github.com/BurntSushi/toml"
 	"github.com/syndtr/gocapability/capability"
 
-	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/base/core"
@@ -38,81 +37,67 @@ import (
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/egress/reader"
 	"github.com/scionproto/scion/go/sig/ingress"
+	"github.com/scionproto/scion/go/sig/internal/sigconfig"
 	"github.com/scionproto/scion/go/sig/metrics"
 	"github.com/scionproto/scion/go/sig/sigcmn"
 	"github.com/scionproto/scion/go/sig/xnet"
 )
 
-var sighup chan os.Signal
-
-func init() {
-	sighup = make(chan os.Signal, 1)
-	signal.Notify(sighup, syscall.SIGHUP)
+type Config struct {
+	Logging env.Logging
+	Metrics env.Metrics
+	Sciond  env.SciondClient `toml:"sd_client"`
+	Sig     sigconfig.Conf
 }
 
 var (
-	id      = flag.String("id", "", "Element ID (Required. E.g. 'sig4-ff00:0:300-9')")
-	cfgPath = flag.String("config", "", "Config file (Required)")
-	isdas   = flag.String("ia", "", "Local AS (Required, e.g., 4-ff00:0:300)")
-	ipStr   = flag.String("ip", "", "address to bind to (Required)")
+	cfg Config
 )
 
-func main() {
-	os.Setenv("TZ", "UTC")
-	log.AddLogFileFlags()
-	log.AddLogConsFlags()
-	flag.Parse()
-	if *id == "" {
-		log.Crit("No element ID specified")
-		flag.Usage()
-		os.Exit(1)
-	}
-	if err := log.SetupFromFlags(*id); err != nil {
-		log.Crit(err.Error())
-		flag.Usage()
-		os.Exit(1)
-	}
-	defer log.LogPanicAndExit()
-	setupSignals()
-	if err := checkPerms(); err != nil {
-		fatal("Permissions checks failed", "err", err)
-	}
+func init() {
+	flag.Usage = env.Usage
+}
 
-	// Export prometheus metrics.
-	metrics.Init(*id)
-	if err := metrics.Start(); err != nil {
-		fatal("Unable to export prometheus metrics", "err", err)
+func main() {
+	os.Exit(realMain())
+}
+
+func realMain() int {
+	env.AddFlags()
+	flag.Parse()
+	if v, ok := env.CheckFlags(sigconfig.Sample); !ok {
+		return v
 	}
-	// Parse basic flags
-	ia, err := addr.IAFromString(*isdas)
-	if err != nil {
-		fatal("Unable to parse local ISD-AS", "ia", *isdas, "err", err)
+	if err := setupBasic(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	ip := net.ParseIP(*ipStr)
-	if ip == nil {
-		fatal("unable to parse IP address", "addr", *ipStr)
+	defer env.CleanupLog()
+	if err := validateConfig(); err != nil {
+		log.Crit("Validation of config failed", "err", err)
+		return 1
 	}
-	if err = sigcmn.Init(ia, ip); err != nil {
-		fatal("Error during initialization", "err", err)
-	}
+	// Setup tun early so that we can drop capabilities before interacting with network etc.
 	tunIO, err := setupTun()
 	if err != nil {
-		fatal("Unable to create & configure TUN device", "err", err)
+		log.Crit("Unable to create & configure TUN device", "err", err)
+		return 1
 	}
-	egress.Init()
-	disp.Init(sigcmn.CtrlConn)
+	if err := setup(); err != nil {
+		log.Crit("Setup failed", "err", err)
+		return 1
+	}
 	go func() {
 		defer log.LogPanicAndExit()
 		base.PollReqHdlr()
 	}()
-	// Parse config
-	if loadConfig(*cfgPath) != true {
-		fatal("Unable to load config on startup")
-	}
-	go func() {
-		defer log.LogPanicAndExit()
-		reloadOnSIGHUP(*cfgPath)
-	}()
+	environment := env.SetupEnv(
+		func() {
+			success := loadConfig(cfg.Sig.SIGConfig)
+			// Errors already logged in loadConfig
+			log.Info("reloadOnSIGHUP: reload done", "success", success)
+		},
+	)
 	// Spawn egress reader
 	go func() {
 		defer log.LogPanicAndExit()
@@ -120,20 +105,71 @@ func main() {
 	}()
 	// Spawn ingress Dispatcher.
 	if err := ingress.Init(tunIO); err != nil {
-		fatal("Ingress dispatcher error", "err", err)
+		log.Crit("Ingress dispatcher error", "err", err)
+		return 1
+	}
+	// Create a channel where prometheus can signal fatal errors
+	fatalC := make(chan error, 1)
+	cfg.Metrics.StartPrometheus(fatalC)
+	select {
+	case <-environment.AppShutdownSignal:
+		return 0
+	case err := <-fatalC:
+		// Prometheus encountered a fatal error, thus we exit.
+		log.Crit("Unable to listen and serve", "err", err)
+		return 1
 	}
 }
 
-func setupSignals() {
-	sig := make(chan os.Signal, 2)
-	signal.Notify(sig, os.Interrupt)
-	signal.Notify(sig, syscall.SIGTERM)
-	go func() {
-		s := <-sig
-		log.Info("Received signal, exiting...", "signal", s)
-		log.Flush()
-		os.Exit(1)
-	}()
+// setupBasic loads the config from file and initializes logging.
+func setupBasic() error {
+	// Load and initialize config.
+	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
+		return err
+	}
+	if err := env.InitLogging(&cfg.Logging); err != nil {
+		return err
+	}
+	env.LogSvcStarted("SIG", cfg.Sig.ID)
+	return nil
+}
+
+func validateConfig() error {
+	if err := cfg.Sig.Validate(); err != nil {
+		return err
+	}
+	env.InitSciondClient(&cfg.Sciond)
+	cfg.Sig.InitDefaults()
+	if cfg.Metrics.Prometheus == "" {
+		cfg.Metrics.Prometheus = "127.0.0.1:1281"
+	}
+	return nil
+}
+
+func setupTun() (io.ReadWriteCloser, error) {
+	if err := checkPerms(); err != nil {
+		return nil, common.NewBasicError("Permissions checks failed", nil)
+	}
+	tunLink, tunIO, err := xnet.ConnectTun(cfg.Sig.Tun)
+	if err != nil {
+		return nil, err
+	}
+	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV4Net); err != nil {
+		return nil,
+			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
+	}
+	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net); err != nil {
+		return nil,
+			common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
+	}
+	// Now that everything is set up, drop CAP_NET_ADMIN
+	caps, err := capability.NewPid(0)
+	if err != nil {
+		return nil, common.NewBasicError("Error retrieving capabilities", err)
+	}
+	caps.Clear(capability.CAPS)
+	caps.Apply(capability.CAPS)
+	return tunIO, nil
 }
 
 func checkPerms() error {
@@ -155,38 +191,19 @@ func checkPerms() error {
 	return nil
 }
 
-func setupTun() (io.ReadWriteCloser, error) {
-	tunLink, tunIO, err := xnet.ConnectTun(*sigcmn.SigTun)
-	if err != nil {
-		return nil, err
+func setup() error {
+	// Export prometheus metrics.
+	metrics.Init(cfg.Sig.ID)
+	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
+		return common.NewBasicError("Error during initialization", err)
 	}
-	if err = xnet.AddRoute(tunLink, sigcmn.DefV4Net); err != nil {
-		return nil,
-			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
+	egress.Init()
+	disp.Init(sigcmn.CtrlConn)
+	// Parse sig config
+	if loadConfig(cfg.Sig.SIGConfig) != true {
+		return common.NewBasicError("Unable to load sig config on startup", nil)
 	}
-	if err = xnet.AddRoute(tunLink, sigcmn.DefV6Net); err != nil {
-		return nil,
-			common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
-	}
-	// Now that everything is set up, drop CAP_NET_ADMIN
-	caps, err := capability.NewPid(0)
-	if err != nil {
-		return nil, common.NewBasicError("Error retrieving capabilities", err)
-	}
-	caps.Clear(capability.CAPS)
-	caps.Apply(capability.CAPS)
-	return tunIO, nil
-}
-
-func reloadOnSIGHUP(path string) {
-	log.Info("reloadOnSIGHUP: started")
-	for range sighup {
-		log.Info("reloadOnSIGHUP: reloading...")
-		success := loadConfig(path)
-		// Errors already logged in loadConfig
-		log.Info("reloadOnSIGHUP: reload done", "success", success)
-	}
-	log.Info("reloadOnSIGHUP: stopped")
+	return nil
 }
 
 func loadConfig(path string) bool {
@@ -201,10 +218,4 @@ func loadConfig(path string) bool {
 	}
 	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
 	return true
-}
-
-func fatal(msg string, args ...interface{}) {
-	log.Crit(msg, args...)
-	log.Flush()
-	os.Exit(1)
 }
