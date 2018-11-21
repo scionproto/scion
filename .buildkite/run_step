@@ -4,6 +4,7 @@ echo "Running: ${1:?}"
 
 # Pull CI image and start it
 docker pull $SCION_IMG
+mkdir -p $SCION_MOUNT
 ./docker.sh start
 
 # Run test
@@ -12,7 +13,10 @@ res=$?
 
 # Pack logs and stop everything
 $BASE/pack_logs
+res=$((res+$?))
 ./docker.sh stop
-find $SCION_MOUNT/logs -mindepth 1 -maxdepth 1 -not -path '*/\.*' -exec rm -r {} +
+res=$((res+$?))
 $BASE/clean_env.sh
+res=$((res+$?))
+rm -rf $SCION_MOUNT
 exit $res

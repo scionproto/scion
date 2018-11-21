@@ -4,7 +4,7 @@ set -e
 
 echo "- label: Integration Tests"
 echo "  command:"
-if [ "$BUILDKITE_BRANCH" == "master" ] || [ -n "$RUN_ALL_TESTS" ]; then
+if [ -n "$RUN_ALL_TESTS" ]; then
     echo "  - $BASE/run_step integration -a"
 else
     echo "  - $BASE/run_step integration"
