@@ -5,11 +5,7 @@ set -e
 export BASE=".buildkite"
 STEPS="$BASE/steps"
 
-continue_on_failure() {
-    echo "- wait: ~"
-    echo "  continue_on_failure: true"
-}
-export -f continue_on_failure
+[ "$BUILDKITE_BRANCH" == "master" ] && RUN_ALL_TESTS=y
 
 # begin the pipeline.yml file
 "$BASE/common.sh"
@@ -31,7 +27,7 @@ cat "$STEPS/test.yml"
 "$STEPS/integration.sh"
 
 # run some more tests on master
-if [ "$BUILDKITE_BRANCH" == "master" ] || [ -n "$RUN_ALL_TESTS" ]; then
+if [ -n "$RUN_ALL_TESTS" ]; then
     # docker integration testing
     cat "$STEPS/docker-integration.yml"
     # acceptance testing
