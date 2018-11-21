@@ -26,7 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/snet/internal/util"
+	"github.com/scionproto/scion/go/lib/snet/internal/pathsource"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
@@ -48,7 +48,7 @@ type scionConnWriter struct {
 	conn       net.PacketConn
 	writeMutex sync.Mutex
 	sendBuffer common.RawBytes
-	resolver   *connRemoteAddressResolver
+	resolver   *remoteAddressResolver
 	// Pointer to slice of paths updated by continuous lookups; these are
 	// used by default when creating a connection via Dial on SCIOND-enabled
 	// networks. For SCIOND-less operation, this is set to nil.
@@ -64,11 +64,9 @@ func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
 		base:       base,
 		sendBuffer: make(common.RawBytes, BufSize),
 		conn:       conn,
-		resolver: &connRemoteAddressResolver{
-			remoteAddressResolver: &remoteAddressResolver{
-				localIA:      base.laddr.IA,
-				pathResolver: util.NewPathSource(pr),
-			},
+		resolver: &remoteAddressResolver{
+			localIA:      base.laddr.IA,
+			pathResolver: pathsource.NewPathSource(pr),
 		},
 	}
 }
@@ -99,7 +97,7 @@ func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
 	// parallel to multiple resolve calls already running (e.g., when changing
 	// the deadline to current time in order to get all blocked goroutines out
 	// of snet).
-	raddr, err := c.resolver.resolve(c.base.raddr, raddr)
+	raddr, err := c.resolver.resolveAddrPair(c.base.raddr, raddr)
 	if err != nil {
 		return 0, err
 	}
@@ -139,39 +137,34 @@ func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-// connRemoteAddressResolver validates the contents of a remote snet address,
+// remoteAddressResolver validates the contents of a remote snet address,
 // taking into account both the remote address that might be present on a conn
 // object, and the remote address passed in as argument to WriteTo or
 // WriteToSCION.
-type connRemoteAddressResolver struct {
-	remoteAddressResolver *remoteAddressResolver
-}
-
-func (r *connRemoteAddressResolver) resolve(connAddr, argAddr *Addr) (*Addr, error) {
-	switch {
-	case connAddr == nil && argAddr == nil:
-		return nil, common.NewBasicError(ErrNoAddr, nil)
-	case connAddr != nil && argAddr != nil:
-		return nil, common.NewBasicError(ErrDuplicateAddr, nil)
-	case connAddr != nil:
-		return r.remoteAddressResolver.resolve(connAddr)
-	default:
-		return r.remoteAddressResolver.resolve(argAddr)
-	}
-}
-
-// remoteAddressResolver validates the contents of a remote snet address, and
-// fills in the path and overlay (if needed).
 type remoteAddressResolver struct {
 	// localIA is the local AS. Path and overlay resolution differs between
 	// destinations residing in the local AS, and destinations residing in
 	// other ASes.
 	localIA addr.IA
 	// pathResolver is a source of paths and overlay addresses for snet.
-	pathResolver util.PathSource
+	pathResolver pathsource.PathSource
 }
 
-func (r *remoteAddressResolver) resolve(address *Addr) (*Addr, error) {
+func (r *remoteAddressResolver) resolveAddrPair(connAddr, argAddr *Addr) (*Addr, error) {
+	switch {
+	case connAddr == nil && argAddr == nil:
+		return nil, common.NewBasicError(ErrNoAddr, nil)
+	case connAddr != nil && argAddr != nil:
+		return nil, common.NewBasicError(ErrDuplicateAddr, nil)
+	case connAddr != nil:
+		return r.resolveAddr(connAddr)
+	default:
+		// argAddr != nil
+		return r.resolveAddr(argAddr)
+	}
+}
+
+func (r *remoteAddressResolver) resolveAddr(address *Addr) (*Addr, error) {
 	if address == nil {
 		return nil, common.NewBasicError(ErrAddressIsNil, nil)
 	}
