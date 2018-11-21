@@ -65,14 +65,10 @@ func Init(elem string) {
 
 	// Some closures to reduce boiler-plate.
 	newC := func(name, help string) prometheus.Counter {
-		v := prom.NewCounter(namespace, "", name, help, constLabels)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewCounter(namespace, "", name, help, constLabels)
 	}
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
-		v := prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
 	}
 	// FIXME(kormat): these metrics should probably have more informative labels
 	PktsRecv = newCVec("pkts_recv_total", "Number of packets received.", iaLabels)

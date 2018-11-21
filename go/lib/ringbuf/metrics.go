@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,19 +33,13 @@ var UsedEntries *prometheus.GaugeVec
 func InitMetrics(namespace string, constLabels prometheus.Labels, labelNames []string) {
 	lNames := append(labelNames, "desc")
 	newCVec := func(name, help string) *prometheus.CounterVec {
-		v := prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewCounterVec(namespace, "ringbuf", name, help, constLabels, lNames)
 	}
 	newGVec := func(name, help string) *prometheus.GaugeVec {
-		v := prom.NewGaugeVec(namespace, "ringbuf", name, help, constLabels, lNames)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewGaugeVec(namespace, "ringbuf", name, help, constLabels, lNames)
 	}
 	newHVec := func(name, help string, buckets []float64) *prometheus.HistogramVec {
-		v := prom.NewHistogramVec(namespace, "ringbuf", name, help, constLabels, lNames, buckets)
-		prometheus.MustRegister(v)
-		return v
+		return prom.NewHistogramVec(namespace, "ringbuf", name, help, constLabels, lNames, buckets)
 	}
 	WriteCalls = newCVec("write_calls_total", "Number of calls to Write.")
 	ReadCalls = newCVec("read_calls_total", "Number of calls to Read.")
@@ -63,8 +58,8 @@ type metrics struct {
 	readCalls     prometheus.Counter
 	writesBlocked prometheus.Counter
 	readsBlocked  prometheus.Counter
-	writeEntries  prometheus.Histogram
-	readEntries   prometheus.Histogram
+	writeEntries  prometheus.Observer
+	readEntries   prometheus.Observer
 	maxEntries    prometheus.Gauge
 	usedEntries   prometheus.Gauge
 }
