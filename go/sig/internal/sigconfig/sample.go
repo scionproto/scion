@@ -26,7 +26,7 @@ const Sample = `
   IA = "1-ff00:0:113"
 
   # The bind IP address (required)
-  IP = "168.10.20.15"
+  IP = "192.0.2.100"
 
   # Control data port, e.g. keepalives. (default 10081)
   CtrlPort = 10081

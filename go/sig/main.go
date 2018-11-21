@@ -77,6 +77,12 @@ func realMain() int {
 		log.Crit("Validation of config failed", "err", err)
 		return 1
 	}
+	// Setup tun early so that we can drop capabilities before interacting with network etc.
+	tunIO, err := setupTun()
+	if err != nil {
+		log.Crit("Unable to create & configure TUN device", "err", err)
+		return 1
+	}
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -92,11 +98,6 @@ func realMain() int {
 			log.Info("reloadOnSIGHUP: reload done", "success", success)
 		},
 	)
-	tunIO, err := setupTun()
-	if err != nil {
-		log.Crit("Unable to create & configure TUN device", "err", err)
-		return 1
-	}
 	// Spawn egress reader
 	go func() {
 		defer log.LogPanicAndExit()
@@ -146,9 +147,6 @@ func validateConfig() error {
 }
 
 func setup() error {
-	if err := checkPerms(); err != nil {
-		return common.NewBasicError("Permissions checks failed", nil)
-	}
 	// Export prometheus metrics.
 	metrics.Init(cfg.Sig.ID)
 	if err := sigcmn.Init(cfg.Sig, cfg.Sciond); err != nil {
@@ -183,6 +181,9 @@ func checkPerms() error {
 }
 
 func setupTun() (io.ReadWriteCloser, error) {
+	if err := checkPerms(); err != nil {
+		return nil, common.NewBasicError("Permissions checks failed", nil)
+	}
 	tunLink, tunIO, err := xnet.ConnectTun(cfg.Sig.Tun)
 	if err != nil {
 		return nil, err

@@ -46,7 +46,7 @@ func TestSample(t *testing.T) {
 		SoMsg("ID correct", cfg.Sig.ID, ShouldEqual, "sig4")
 		SoMsg("SIGConfig correct", cfg.Sig.SIGConfig, ShouldEqual, "/etc/scion/sig/sig.json")
 		SoMsg("IA correct", cfg.Sig.IA, ShouldResemble, xtest.MustParseIA("1-ff00:0:113"))
-		SoMsg("IP correct", cfg.Sig.IP, ShouldResemble, net.ParseIP("168.10.20.15"))
+		SoMsg("IP correct", cfg.Sig.IP, ShouldResemble, net.ParseIP("192.0.2.100"))
 		SoMsg("CtrlPort correct", cfg.Sig.CtrlPort, ShouldEqual, DefaultCtrlPort)
 		SoMsg("EncapPort correct", cfg.Sig.EncapPort, ShouldEqual, DefaultEncapPort)
 		SoMsg("Dispatcher correct", cfg.Sig.Dispatcher, ShouldEqual, "")

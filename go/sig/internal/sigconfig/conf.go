@@ -46,7 +46,7 @@ type Conf struct {
 	Dispatcher string
 	// Name of TUN device to create. (default DefaultTunName)
 	Tun string
-	// TunRTableId the id of the routing table used in the SIG.
+	// TunRTableId the id of the routing table used in the SIG. (default DefaultTunRTableId)
 	TunRTableId int
 }
 
