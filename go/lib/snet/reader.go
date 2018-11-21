@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/scmp"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -91,7 +90,6 @@ func (c *scionConnReader) read(b []byte, from bool) (int, *Addr, error) {
 	pkt := &spkt.ScnPkt{
 		DstIA: addr.IA{},
 		SrcIA: addr.IA{},
-		Path:  &spath.Path{},
 	}
 	err = hpkt.ParseScnPkt(pkt, c.recvBuffer[:n])
 	if err != nil {
@@ -110,8 +108,11 @@ func (c *scionConnReader) read(b []byte, from bool) (int, *Addr, error) {
 			Path: pkt.Path,
 		}
 		// Extract path
-		if err = remote.Path.Reverse(); err != nil {
-			return 0, nil, common.NewBasicError("Unable to reverse path on received packet", err)
+		if remote.Path != nil {
+			if err = remote.Path.Reverse(); err != nil {
+				return 0, nil,
+					common.NewBasicError("Unable to reverse path on received packet", err)
+			}
 		}
 		// Extract last hop
 		if lastHop != nil {

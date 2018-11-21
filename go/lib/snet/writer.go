@@ -21,25 +21,34 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
-	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
-	"github.com/scionproto/scion/go/lib/sciond"
-	"github.com/scionproto/scion/go/lib/spath"
+	"github.com/scionproto/scion/go/lib/snet/internal/pathsource"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-type scionConnWriter struct {
-	base *scionConnBase
+// Possible write errors
+const (
+	ErrNoAddr               = "remote address required, but none set"
+	ErrDuplicateAddr        = "remote address specified as argument, but address set in conn"
+	ErrAddressIsNil         = "address is nil"
+	ErrNoApplicationAddress = "SCION host address is missing"
+	ErrExtraPath            = "path set, but none required for local AS"
+	ErrBadOverlay           = "overlay address not set, and construction from SCION address failed"
+	ErrMustHavePath         = "overlay address set, but no path set"
+	ErrPath                 = "no path set, and error during path resolution"
+)
 
+type scionConnWriter struct {
+	base       *scionConnBase
 	conn       net.PacketConn
 	writeMutex sync.Mutex
 	sendBuffer common.RawBytes
-	pr         pathmgr.Resolver
+	resolver   *remoteAddressResolver
 	// Pointer to slice of paths updated by continuous lookups; these are
 	// used by default when creating a connection via Dial on SCIOND-enabled
 	// networks. For SCIOND-less operation, this is set to nil.
@@ -53,24 +62,21 @@ func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
 
 	return &scionConnWriter{
 		base:       base,
-		pr:         pr,
 		sendBuffer: make(common.RawBytes, BufSize),
 		conn:       conn,
+		resolver: &remoteAddressResolver{
+			localIA:      base.laddr.IA,
+			pathResolver: pathsource.NewPathSource(pr),
+		},
 	}
 }
 
 // WriteToSCION sends b to raddr.
 func (c *scionConnWriter) WriteToSCION(b []byte, raddr *Addr) (int, error) {
-	if c.conn == nil {
-		return 0, common.NewBasicError("Connection not initialized", nil)
-	}
 	return c.write(b, raddr)
 }
 
 func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
-	if c.base.raddr != nil {
-		return 0, common.NewBasicError("Unable to WriteTo, remote address already set", nil)
-	}
 	sraddr, ok := raddr.(*Addr)
 	if !ok {
 		return 0, common.NewBasicError("Unable to write to non-SCION address", nil, "addr", raddr)
@@ -81,111 +87,136 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 // Write sends b through a connection with fixed remote address. If the remote
 // address for the conenction is unknown, Write returns an error.
 func (c *scionConnWriter) Write(b []byte) (int, error) {
-	if c.base.raddr == nil {
-		return 0, common.NewBasicError("Unable to Write, remote address not set", nil)
-	}
-	return c.WriteToSCION(b, c.base.raddr)
+	return c.write(b, nil)
 }
 
 func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
+	// FIXME(scrye): This does not support deadlines correctly. As soon as the
+	// write deadline expires, all goroutines blocked in resolve should
+	// immediately exit. This must also support changing the deadline in
+	// parallel to multiple resolve calls already running (e.g., when changing
+	// the deadline to current time in order to get all blocked goroutines out
+	// of snet).
+	raddr, err := c.resolver.resolveAddrPair(c.base.raddr, raddr)
+	if err != nil {
+		return 0, err
+	}
+	return c.writeWithLock(b, raddr)
+}
+
+func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 	c.writeMutex.Lock()
 	defer c.writeMutex.Unlock()
-	var err error
-	path := raddr.Path
-	nextHop := raddr.NextHop
-	emptyPath := path == nil || len(path.Raw) == 0
-	if !emptyPath && nextHop == nil {
-		return 0, common.NewBasicError("NextHop required with Path", nil)
-	}
-	if !c.base.laddr.IA.Eq(raddr.IA) && emptyPath {
-		if c.base.scionNet.pathResolver == nil {
-			return 0, common.NewBasicError("Path required, but no path manager configured", nil)
-		}
-
-		pathEntry, err := c.selectPathEntry(raddr)
-		if err != nil {
-			return 0, err
-		}
-		path = spath.New(pathEntry.Path.FwdPath)
-		nextHop, err = pathEntry.HostInfo.Overlay()
-		if err != nil {
-			return 0, common.NewBasicError("Unsupported Overlay Addr", err,
-				"addr", pathEntry.HostInfo)
-		}
-		err = path.InitOffsets()
-		if err != nil {
-			return 0, common.NewBasicError("Unable to initialize path", err)
-		}
-	} else if c.base.laddr.IA.Eq(raddr.IA) && !emptyPath {
-		// If src and dst are in the same AS, the path should be empty
-		return 0, common.NewBasicError("Path should be nil when sending to local AS", err)
-	}
-	// Prepare packet fields
-	udpHdr := &l4.UDP{
-		SrcPort:  c.base.laddr.Host.L4.Port(),
-		DstPort:  raddr.Host.L4.Port(),
-		TotalLen: uint16(l4.UDPLen + len(b)),
-	}
 	pkt := &spkt.ScnPkt{
 		DstIA:   raddr.IA,
 		SrcIA:   c.base.laddr.IA,
 		DstHost: raddr.Host.L3,
 		SrcHost: c.base.laddr.Host.L3,
-		Path:    path,
-		L4:      udpHdr,
-		Pld:     common.RawBytes(b),
+		Path:    raddr.Path,
+		L4: &l4.UDP{
+			SrcPort:  c.base.laddr.Host.L4.Port(),
+			DstPort:  raddr.Host.L4.Port(),
+			TotalLen: uint16(l4.UDPLen + len(b)),
+		},
+		Pld: common.RawBytes(b),
 	}
 	// Serialize packet to internal buffer
 	n, err := hpkt.WriteScnPkt(pkt, c.sendBuffer)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to serialize SCION packet", err)
 	}
-	// Construct overlay next-hop
-	if nextHop == nil {
-		// Overlay next-hop is destination
-		nextHop, err = overlay.NewOverlayAddr(pkt.DstHost, addr.NewL4UDPInfo(overlay.EndhostPort))
-		if err != nil {
-			return 0, common.NewBasicError("Bad overlay address", err, "Host", pkt.DstHost)
-		}
-	}
 	// Send message
-	n, err = c.conn.WriteTo(c.sendBuffer[:n], nextHop)
+	n, err = c.conn.WriteTo(c.sendBuffer[:n], raddr.NextHop)
 	if err != nil {
 		return 0, common.NewBasicError("Dispatcher write error", err)
 	}
-
 	return pkt.Pld.Len(), nil
-}
-
-// selectPathEntry chooses a path to raddr. This must not be called if
-// running SCIOND-less.
-func (c *scionConnWriter) selectPathEntry(raddr *Addr) (*sciond.PathReplyEntry, error) {
-	var pathSet spathmeta.AppPathSet
-	if assert.On {
-		assert.Must(c.base.scionNet.pathResolver != nil, "must run with SCIOND for path selection")
-	}
-	// If the remote address is fixed, register source and destination for
-	// continous path updates
-	if c.base.raddr == nil {
-		pathSet = c.base.scionNet.pathResolver.Query(context.TODO(), c.base.laddr.IA, raddr.IA)
-	} else {
-		pathSet = c.sp.Load().APS
-	}
-
-	if len(pathSet) == 0 {
-		return nil, common.NewBasicError("Path not found", nil,
-			"srcIA", c.base.laddr.IA, "dstIA", raddr.IA)
-	}
-
-	// FIXME(scrye): A preferred path should be stored for each contacted
-	// destination. Currently the code below only supports one, which means
-	// that alternating sends between two remotes offers no guarantees on
-	// the path ever being the same.
-	path := pathSet.GetAppPath(c.prefPathKey)
-	c.prefPathKey = path.Key()
-	return path.Entry, nil
 }
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
+}
+
+// remoteAddressResolver validates the contents of a remote snet address,
+// taking into account both the remote address that might be present on a conn
+// object, and the remote address passed in as argument to WriteTo or
+// WriteToSCION.
+type remoteAddressResolver struct {
+	// localIA is the local AS. Path and overlay resolution differs between
+	// destinations residing in the local AS, and destinations residing in
+	// other ASes.
+	localIA addr.IA
+	// pathResolver is a source of paths and overlay addresses for snet.
+	pathResolver pathsource.PathSource
+}
+
+func (r *remoteAddressResolver) resolveAddrPair(connAddr, argAddr *Addr) (*Addr, error) {
+	switch {
+	case connAddr == nil && argAddr == nil:
+		return nil, common.NewBasicError(ErrNoAddr, nil)
+	case connAddr != nil && argAddr != nil:
+		return nil, common.NewBasicError(ErrDuplicateAddr, nil)
+	case connAddr != nil:
+		return r.resolveAddr(connAddr)
+	default:
+		// argAddr != nil
+		return r.resolveAddr(argAddr)
+	}
+}
+
+func (r *remoteAddressResolver) resolveAddr(address *Addr) (*Addr, error) {
+	if address == nil {
+		return nil, common.NewBasicError(ErrAddressIsNil, nil)
+	}
+	if address.Host == nil {
+		return nil, common.NewBasicError(ErrNoApplicationAddress, nil)
+	}
+	if r.localIA.Eq(address.IA) {
+		return r.resolveLocalDestination(address)
+	}
+	return r.resolveRemoteDestination(address)
+}
+
+func (r *remoteAddressResolver) resolveLocalDestination(address *Addr) (*Addr, error) {
+	if address.Path != nil {
+		return nil, common.NewBasicError(ErrExtraPath, nil)
+	}
+	if address.NextHop == nil {
+		return addOverlayFromScionAddress(address)
+	}
+	return address, nil
+}
+
+func (r *remoteAddressResolver) resolveRemoteDestination(address *Addr) (*Addr, error) {
+	switch {
+	case address.Path != nil && address.NextHop == nil:
+		return nil, common.NewBasicError(ErrBadOverlay, nil)
+	case address.Path == nil && address.NextHop != nil:
+		return nil, common.NewBasicError(ErrMustHavePath, nil)
+	case address.Path != nil:
+		return address, nil
+	default:
+		return r.addPath(address)
+	}
+}
+
+func (r *remoteAddressResolver) addPath(address *Addr) (*Addr, error) {
+	var err error
+	address = address.Copy()
+	address.NextHop, address.Path, err = r.pathResolver.Get(context.TODO(), r.localIA, address.IA)
+	if err != nil {
+		return nil, common.NewBasicError(ErrPath, nil)
+	}
+	return address, nil
+}
+
+func addOverlayFromScionAddress(address *Addr) (*Addr, error) {
+	var err error
+	address = address.Copy()
+	address.NextHop, err = overlay.NewOverlayAddr(address.Host.L3,
+		addr.NewL4UDPInfo(overlay.EndhostPort))
+	if err != nil {
+		return nil, common.NewBasicError(ErrBadOverlay, err)
+	}
+	return address, nil
 }

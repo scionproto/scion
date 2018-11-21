@@ -17,6 +17,7 @@ MOCK_SRC_IN =\
     lib/infra/common.go \
     lib/pathdb/pathdb.go \
     lib/snet/interface.go \
+    lib/snet/internal/pathsource/pathsource.go \
     lib/snet/snetproxy/reconnecter.go \
     lib/snet/snetproxy/io.go \
     lib/log/wrappers.go \
