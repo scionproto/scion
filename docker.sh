@@ -102,7 +102,6 @@ common_args() {
 cmd_run() {
     set -e
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
-    mkdir -p "$SCION_MOUNT"
     echo "SCION_MOUNT directory: $SCION_MOUNT"
     local img=${SCION_IMG:-scion}
     local args=$(common_args)
