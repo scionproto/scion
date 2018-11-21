@@ -48,8 +48,8 @@ type Session struct {
 
 	// pool of paths, managed by pathmgr
 	pool egress.PathPool
-	// remote SIGs
-	sigMap *siginfo.SigMap
+	// remote SIG
+	sig siginfo.Sig
 	// *egress.RemoteInfo
 	currRemote atomic.Value
 	// bool
@@ -62,7 +62,7 @@ type Session struct {
 	factory        egress.WorkerFactory
 }
 
-func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, logger log.Logger,
+func NewSession(dstIA addr.IA, sessId mgmt.SessionType, logger log.Logger,
 	pool egress.PathPool, factory egress.WorkerFactory) (*Session, error) {
 
 	var err error
@@ -70,7 +70,7 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, 
 		Logger:  logger.New("sessId", sessId),
 		ia:      dstIA,
 		SessId:  sessId,
-		sigMap:  sigMap,
+		sig:     siginfo.Sig{IA: dstIA, Host: addr.SvcSIG},
 		pool:    pool,
 		factory: factory,
 	}
@@ -140,17 +140,17 @@ func (s *Session) ID() mgmt.SessionType {
 	return s.SessId
 }
 
-func (s *Session) Healthy() bool {
-	// FIxME(kormat): export as metric.
-	return s.healthy.Load().(bool)
-}
-
 func (s *Session) PathPool() egress.PathPool {
 	return s.pool
 }
 
 func (s *Session) AnnounceWorkerStopped() {
 	close(s.workerStopped)
+}
+
+func (s *Session) Healthy() bool {
+	// FIxME(kormat): export as metric.
+	return s.healthy.Load().(bool)
 }
 
 type PathPool struct {

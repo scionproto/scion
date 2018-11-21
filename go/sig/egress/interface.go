@@ -80,12 +80,12 @@ type Runner interface {
 type WorkerFactory func(Session, log.Logger) Runner
 
 type RemoteInfo struct {
-	Sig      *siginfo.Sig
+	Sig      siginfo.Sig
 	SessPath *SessPath
 }
 
 func (r *RemoteInfo) String() string {
-	return fmt.Sprintf("Sig: %s Path: %s", r.Sig, r.SessPath)
+	return fmt.Sprintf("Sig: %s Path: %s", &r.Sig, r.SessPath)
 }
 
 // PathPool is implemented by objects that maintain sets of paths. PathPools
