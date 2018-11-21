@@ -21,6 +21,8 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 const (
@@ -54,10 +56,11 @@ func TestMonitor(t *testing.T) {
 			So(m.Count(), ShouldEqual, 0)
 		})
 		Convey("Add one context, wait for parent to expire, count is 0", func() {
-			parent, _ := context.WithTimeout(context.Background(), time.Microsecond)
+			parent, cancelF := context.WithTimeout(context.Background(), time.Microsecond)
 			m.WithTimeout(parent, time.Second)
 			time.Sleep(5 * time.Millisecond)
 			So(m.Count(), ShouldEqual, 0)
+			cancelF()
 		})
 		Convey("Add one context, cancel parent, count is 0", func() {
 			parent, parentCancelF := context.WithTimeout(context.Background(), time.Second)
@@ -65,29 +68,21 @@ func TestMonitor(t *testing.T) {
 			parentCancelF()
 			So(m.Count(), ShouldEqual, 0)
 		})
-		Convey("Add one context, set deadline in the past, count is 0", func() {
-			m.WithTimeout(context.Background(), time.Second)
+		Convey("Add one context, set deadline in the past, count is 0, ctx is Done", func() {
+			ctx, cancelF := m.WithTimeout(context.Background(), time.Second)
 			m.SetDeadline(time.Now().Add(-time.Second))
 			time.Sleep(sleepForCallback)
-			So(m.Count(), ShouldEqual, 0)
+			SoMsg("count", m.Count(), ShouldEqual, 0)
+			SoMsg("err", ctx.Err(), ShouldEqual, context.Canceled)
+			cancelF()
 		})
-		Convey("Add one context, set deadline in the past, context is Done", func() {
-			ctx, _ := m.WithTimeout(context.Background(), time.Second)
-			m.SetDeadline(time.Now().Add(-time.Second))
-			time.Sleep(sleepForCallback)
-			So(ctx.Err(), ShouldEqual, context.Canceled)
-		})
-		Convey("Add one context, set deadline in the future, count is 1", func() {
-			m.WithTimeout(context.Background(), time.Second)
+		Convey("Add one context, set deadline in the future, count is 1, ctx is not Done", func() {
+			ctx, cancelF := m.WithTimeout(context.Background(), time.Second)
 			m.SetDeadline(time.Now().Add(time.Second))
 			time.Sleep(sleepForCallback)
-			So(m.Count(), ShouldEqual, 1)
-		})
-		Convey("Add one context, set deadline in the future, context is not Done", func() {
-			ctx, _ := m.WithTimeout(context.Background(), time.Second)
-			m.SetDeadline(time.Now().Add(time.Second))
-			time.Sleep(sleepForCallback)
-			So(ctx.Err(), ShouldBeNil)
+			SoMsg("count", m.Count(), ShouldEqual, 1)
+			SoMsg("err", ctx.Err(), ShouldBeNil)
+			cancelF()
 		})
 	})
 }
@@ -95,14 +90,18 @@ func TestMonitor(t *testing.T) {
 func TestDeadlineRunner(t *testing.T) {
 	Convey("Given a deadline runner", t, func() {
 		var runCount int64
-		f := func() { atomic.AddInt64(&runCount, 1) }
-		r := NewDeadlineRunner(f)
+		done := make(chan struct{})
+		r := NewDeadlineRunner(
+			func() {
+				atomic.AddInt64(&runCount, 1)
+				close(done)
+			})
 		Convey("If no deadline, function is not executed", func() {
 			So(atomic.LoadInt64(&runCount), ShouldEqual, 0)
 		})
 		Convey("If deadline in the past, function is executed", func() {
 			r.SetDeadline(time.Now().Add(-time.Second))
-			time.Sleep(sleepForCallback)
+			xtest.AssertReadReturnsBefore(t, done, time.Second)
 			So(atomic.LoadInt64(&runCount), ShouldEqual, 1)
 		})
 		Convey("If deadline in the future, function is not executed", func() {
@@ -111,7 +110,7 @@ func TestDeadlineRunner(t *testing.T) {
 		})
 		Convey("If deadline in the future and we wait, function is executed", func() {
 			r.SetDeadline(time.Now().Add(10 * time.Millisecond))
-			time.Sleep(20 * time.Millisecond)
+			xtest.AssertReadReturnsBefore(t, done, time.Second)
 			So(atomic.LoadInt64(&runCount), ShouldEqual, 1)
 		})
 		Convey("If deadline in the future, and then extended, the first doesn't trigger", func() {
@@ -123,7 +122,7 @@ func TestDeadlineRunner(t *testing.T) {
 		Convey("If deadline in the future, and is then set in past, function is executed", func() {
 			r.SetDeadline(time.Now().Add(time.Second))
 			r.SetDeadline(time.Now().Add(-time.Second))
-			time.Sleep(sleepForCallback)
+			xtest.AssertReadReturnsBefore(t, done, time.Second)
 			So(atomic.LoadInt64(&runCount), ShouldEqual, 1)
 		})
 		Convey("Setting a deadline to 0 resets it, function is not executed", func() {

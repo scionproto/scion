@@ -84,20 +84,21 @@ func (m *monitor) WithDeadline(ctx context.Context,
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.ctxs[subCtx] = cancelF
-	// Save the map reference so the deletion closure below acts against the
-	// map that contains it, and not a new one placed by a possible cleanup
-	return subCtx, m.createDeletionLocked(m.ctxs, subCtx)
+	return subCtx, m.createDeletionLocked(subCtx, cancelF)
 }
 
 // createDeletionLocked returns a cancellation function that also deletes the
 // context information from the internal monitor map. This ensures proper
 // cleanup when contexts are canceled even if the monitor deadline is never
 // reached.
-func (m *monitor) createDeletionLocked(snapshot ctxMap, ctx context.Context) context.CancelFunc {
+func (m *monitor) createDeletionLocked(ctx context.Context,
+	cancelF context.CancelFunc) context.CancelFunc {
+
 	return func() {
 		m.mtx.Lock()
-		cancelF := snapshot[ctx]
-		delete(snapshot, ctx)
+		// If the map reference was changed, this is a no-op (and the entry in
+		// the old map will be GC'd together with the map)
+		delete(m.ctxs, ctx)
 		m.mtx.Unlock()
 		cancelF()
 	}
@@ -158,15 +159,8 @@ func (r *DeadlineRunner) SetDeadline(deadline time.Time) {
 	if deadline.Equal(time.Time{}) {
 		return
 	}
-	if deadline.Before(time.Now()) {
-		go func() {
-			defer log.LogPanicAndExit()
-			r.f()
-		}()
-	} else {
-		r.timer = time.AfterFunc(deadline.Sub(time.Now()), func() {
-			defer log.LogPanicAndExit()
-			r.f()
-		})
-	}
+	r.timer = time.AfterFunc(deadline.Sub(time.Now()), func() {
+		defer log.LogPanicAndExit()
+		r.f()
+	})
 }
