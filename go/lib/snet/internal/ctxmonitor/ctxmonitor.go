@@ -59,8 +59,9 @@ var _ Monitor = (*monitor)(nil)
 type monitor struct {
 	deadlineRunner *DeadlineRunner
 
-	mtx  sync.Mutex
-	ctxs ctxMap
+	mtx      sync.Mutex
+	ctxs     ctxMap
+	deadline time.Time
 }
 
 func NewMonitor() Monitor {
@@ -80,11 +81,21 @@ func (m *monitor) WithTimeout(ctx context.Context,
 func (m *monitor) WithDeadline(ctx context.Context,
 	deadline time.Time) (context.Context, context.CancelFunc) {
 
-	subCtx, cancelF := context.WithDeadline(ctx, deadline)
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
+
+	subCtx, cancelF := context.WithDeadline(ctx, deadline)
+	if m.deadlinePassed(deadline) {
+		// Deadline has already passed, all new contexts are already Done
+		cancelF()
+		return subCtx, cancelF
+	}
 	m.ctxs[subCtx] = cancelF
 	return subCtx, m.createDeletionLocked(subCtx, cancelF)
+}
+
+func (m *monitor) deadlinePassed(ctxDeadline time.Time) bool {
+	return !m.deadline.Equal(time.Time{}) && m.deadline.Before(ctxDeadline)
 }
 
 // createDeletionLocked returns a cancellation function that also deletes the
@@ -105,6 +116,9 @@ func (m *monitor) createDeletionLocked(ctx context.Context,
 }
 
 func (m *monitor) SetDeadline(deadline time.Time) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	m.deadline = deadline
 	m.deadlineRunner.SetDeadline(deadline)
 }
 

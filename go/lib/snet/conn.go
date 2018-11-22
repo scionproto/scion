@@ -106,7 +106,13 @@ func ListenSCIONWithBindSVC(network string, laddr, baddr *Addr, svc addr.HostSVC
 }
 
 func (c *SCIONConn) SetDeadline(t time.Time) error {
-	return c.conn.SetDeadline(t)
+	if err := c.scionConnReader.SetReadDeadline(t); err != nil {
+		return err
+	}
+	if err := c.scionConnWriter.SetWriteDeadline(t); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *SCIONConn) Close() error {

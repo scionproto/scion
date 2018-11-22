@@ -84,6 +84,13 @@ func TestMonitor(t *testing.T) {
 			SoMsg("err", ctx.Err(), ShouldBeNil)
 			cancelF()
 		})
+		Convey("Set deadline to now, add context, ctx is immediately Done", func() {
+			m.SetDeadline(time.Now())
+			ctx, cancelF := m.WithTimeout(context.Background(), time.Second)
+			SoMsg("count", m.Count(), ShouldEqual, 0)
+			SoMsg("err", ctx.Err(), ShouldNotBeNil)
+			cancelF()
+		})
 	})
 }
 
