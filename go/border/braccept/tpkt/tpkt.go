@@ -42,6 +42,7 @@ type ExpPkt struct {
 	Layers []LayerMatcher
 }
 
+// Match compares a received pkt versus an expected packet.
 func (p *ExpPkt) Match(pkt gopacket.Packet) error {
 	var err error
 	layerCache := &LayerCache{}
@@ -55,6 +56,9 @@ func (p *ExpPkt) Match(pkt gopacket.Packet) error {
 	return nil
 }
 
+// LayerCache contains references to already processes/parsed layers.
+// The main use case is upper layer needing to reference data from lower layers,
+// ie. UDP/TCP checksum, authentication of parts of the SCION header, etc.
 type LayerCache struct {
 	scion *ScionLayer
 }
@@ -65,6 +69,7 @@ type Pkt struct {
 	Layers []LayerBuilder
 }
 
+// Pack generates the raw bytes from all the layers that compose a packet.
 func (p *Pkt) Pack(dstMac net.HardwareAddr) (common.RawBytes, error) {
 	var pktLayers []gopacket.SerializableLayer
 	for _, l := range p.Layers {
@@ -178,6 +183,7 @@ func (l *GenCmnHdr) setCmnHdr() {
 var _ LayerBuilder = (*UDP)(nil)
 var _ LayerMatcher = (*UDP)(nil)
 
+// UDP is a wrapper over layres.UDP that implements LayerBuilder and LayerMatcher interfaces
 type UDP struct {
 	layers.UDP
 }
@@ -221,22 +227,23 @@ func (l *UDP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Laye
 	return pktLayers[1:], nil
 }
 
-var _ LayerBuilder = (*Pld)(nil)
-var _ LayerMatcher = (*Pld)(nil)
+var _ LayerBuilder = (*Payload)(nil)
+var _ LayerMatcher = (*Payload)(nil)
 
-type Pld struct {
+// Payload is a wrapper over layres.UDP that implements LayerBuilder and LayerMatcher interfaces
+type Payload struct {
 	gopacket.Payload
 }
 
-func (l *Pld) Build() ([]gopacket.SerializableLayer, error) {
+func (l *Payload) Build() ([]gopacket.SerializableLayer, error) {
 	return []gopacket.SerializableLayer{l}, nil
 }
 
-func NewPld(pld []byte) *Pld {
-	return &Pld{pld}
+func NewPld(pld []byte) *Payload {
+	return &Payload{pld}
 }
 
-func (l *Pld) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
+func (l *Payload) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
 	if len(pktLayers) != 1 {
 	}
 	pld := pktLayers[0].(*gopacket.Payload)

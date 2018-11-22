@@ -24,7 +24,8 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-// ScionLayer is a basic (no extensions support) gopacket SCION layer implementation.
+// ScionLayer represents the gopacket SCION network layer, which contains the common,
+// address and path "headers".
 type ScionLayer struct {
 	layers.BaseLayer
 	nextHdr common.L4ProtocolType
@@ -103,8 +104,8 @@ func (l *ScionLayer) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopack
 	if err := l.Path.Check(&scn.Path); err != nil {
 		return nil, err
 	}
+	// Add SCION to the layer cache in case that upper layers need to reference it
 	lc.scion = scn
-	// As we already checked that we have a valid common header, we can use the HdrLen safely
 	return pktLayers[1:], nil
 }
 func (l *ScionLayer) RawAddrHdr() common.RawBytes {
