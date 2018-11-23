@@ -53,7 +53,7 @@ from lib.util import (
 )
 from topology.ca import CAGenArgs, CAGenerator
 from topology.cert import CertGenArgs, CertGenerator
-from topology.common import _srv_iter, ArgsBase
+from topology.common import srv_iter, ArgsBase
 from topology.docker import DockerGenArgs, DockerGenerator
 from topology.go import GoGenArgs, GoGenerator
 from topology.net import (
@@ -235,7 +235,7 @@ class ConfigGenerator(object):
                 write_file(os.path.join(base, path), value.decode())
 
     def _write_trust_files(self, topo_dicts, cert_files):
-        for topo_id, as_topo, base in _srv_iter(
+        for topo_id, as_topo, base in srv_iter(
                 topo_dicts, self.args.output_dir, common=True):
             for path, value in cert_files[topo_id].items():
                 write_file(os.path.join(base, path), value + '\n')
@@ -252,7 +252,7 @@ class ConfigGenerator(object):
         Write AS configurations and path policies.
         """
         as_confs = {}
-        for topo_id, as_topo, base in _srv_iter(
+        for topo_id, as_topo, base in srv_iter(
                 topo_dicts, self.args.output_dir, common=True):
             as_confs.setdefault(topo_id, yaml.dump(
                 self._gen_as_conf(as_topo), default_flow_style=False))
@@ -280,7 +280,7 @@ class ConfigGenerator(object):
         Write AS master keys.
         """
         master_keys = {}
-        for topo_id, as_topo, base in _srv_iter(
+        for topo_id, as_topo, base in srv_iter(
                 topo_dicts, self.args.output_dir, common=True):
 
             master_keys.setdefault(topo_id, self._gen_master_keys())

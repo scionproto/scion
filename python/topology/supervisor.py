@@ -28,7 +28,7 @@ from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
 from lib.util import read_file, write_file
-from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts, COMMON_DIR
+from topology.common import prom_addr_br, prom_addr_infra, ArgsTopoDicts, COMMON_DIR
 
 SUPERVISOR_CONF = 'supervisord.conf'
 
@@ -63,7 +63,7 @@ class SupervisorGenerator(object):
         entries = []
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
-            prom_addr = _prom_addr_infra(elem_id, elem, self.args.port_gen)
+            prom_addr = prom_addr_infra(elem_id, elem, self.args.port_gen)
             entries.append((elem_id, [cmd, "--prom", prom_addr, "--sciond_path",
                                       get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
                                       elem_id, conf_dir]))
@@ -74,7 +74,7 @@ class SupervisorGenerator(object):
         for k, v in topo.get("BorderRouters", {}).items():
             conf_dir = os.path.join(base, k)
             entries.append((k, [cmd, "-id=%s" % k, "-confd=%s" % conf_dir,
-                                "-prom=%s" % _prom_addr_br(k, v, self.args.port_gen)]))
+                                "-prom=%s" % prom_addr_br(k, v, self.args.port_gen)]))
         return entries
 
     def _bs_entries(self, topo, base):
