@@ -84,7 +84,7 @@ hashes/sciond: app/Dockerfile.sciond hashes/app_base hashes/app_builder
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 # Debug images
-DEBUG_TARGETS = border_debug dispatcher_debug sig_debug path_debug_py path_debug beacon_py_debug cert_py_debug sciond_py_debug sciond_debug
+DEBUG_TARGETS = border_debug dispatcher_debug sig_debug path_py_debug path_debug beacon_py_debug cert_py_debug cert_debug sciond_py_debug sciond_debug
 .PHONY: $(DEBUG_TARGETS)
 debug: $(DEBUG_TARGETS)
 
@@ -100,12 +100,12 @@ sig_debug: hashes/sig_debug
 hashes/sig_debug: debug/Dockerfile.sig hashes/debug_base hashes/sig
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
-path_debug_py: hashes/path_debug_py
-hashes/path_debug_py: debug/Dockerfile.path_py hashes/debug_base hashes/path_py
+path_py_debug: hashes/path_py_debug
+hashes/path_py_debug: debug/Dockerfile.path_py hashes/debug_base hashes/path_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 path_debug: hashes/path_debug
-hashes/path_debug: app/Dockerfile.path hashes/debug_base hashes/path
+hashes/path_debug: debug/Dockerfile.path hashes/debug_base hashes/path
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 beacon_py_debug: hashes/beacon_py_debug
@@ -116,10 +116,14 @@ cert_py_debug: hashes/cert_py_debug
 hashes/cert_py_debug: debug/Dockerfile.cert_py hashes/debug_base hashes/cert_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
+cert_debug: hashes/cert_debug
+hashes/cert_debug: debug/Dockerfile.cert hashes/debug_base hashes/cert
+	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
+
 sciond_py_debug: hashes/sciond_py_debug
 hashes/sciond_py_debug: debug/Dockerfile.sciond_py hashes/debug_base hashes/sciond_py
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
 
 sciond_debug: hashes/sciond_debug
-hashes/sciond_debug: app/Dockerfile.sciond hashes/debug_base hashes/sciond
+hashes/sciond_debug: debug/Dockerfile.sciond hashes/debug_base hashes/sciond
 	DOCKER_ARGS="$(DOCKER_ARGS)" ./docker_build $@ $<
