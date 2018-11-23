@@ -22,6 +22,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/kormat/fmt15"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
@@ -136,7 +139,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.writeLog("Server", dst.IA.String(), ep)
+		bi.writeLog("Server", dst.IA.String(), "", ep)
 	}()
 	err = r.Start()
 	if err != nil {
@@ -169,7 +172,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, id int,
 	}
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.writeLog("Client", clientId(id, src.IA, dst.IA), ep)
+		bi.writeLog("Client", clientId(id), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
 	}()
 	return r, r.Start()
 }
@@ -185,29 +188,31 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	return argsCopy
 }
 
-func (bi *binaryIntegration) writeLog(name, id string, ep io.ReadCloser) {
+func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadCloser) {
 	defer ep.Close()
-	var w *bufio.Writer
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s_%s", bi.logDir, name, id),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
+	if err != nil {
+		log.Error("Failed to create log file for test run", "name", name, "id", id, "err", err)
+		return
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	defer w.Flush()
+	w.WriteString(fmt.Sprintf("%v Starting %s %s %s\n",
+		time.Now().Format(fmt15.TimeFmt), name, id, startInfo))
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
-		// Init the file lazily to not have a lot of empty files in the end.
-		if w == nil {
-			f, err := os.Create(fmt.Sprintf("%s/%s_%s", bi.logDir, name, id))
-			if err != nil {
-				log.Error("Failed to create log file for test run",
-					"name", name, "id", id, "err", err)
-				return
-			}
-			defer f.Close()
-			w = bufio.NewWriter(f)
-			defer w.Flush()
-		}
 		w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
 	}
 }
 
-func clientId(id int, src, dst addr.IA) string {
-	return fmt.Sprintf("%d_%s->%s", id, src, dst)
+func (bi *binaryIntegration) logFile(name, id string) string {
+	return fmt.Sprintf("%s/%s_%s", bi.logDir, name, id)
+}
+
+func clientId(id int) string {
+	return fmt.Sprintf("%d", id)
 }
 
 var _ Waiter = (*binaryWaiter)(nil)

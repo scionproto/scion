@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	name = "pingpong"
+	name = "pp_integration"
 	cmd  = "./bin/pingpong"
 )
 

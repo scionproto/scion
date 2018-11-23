@@ -41,7 +41,8 @@ func realMain() int {
 	clientArgs := []string{"-c", integration.SrcHostReplace, "-s", integration.DstHostReplace,
 		integration.SrcIAReplace, integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
-	if err := integration.RunUnaryTests(in, integration.IAPairs(), 0); err != nil {
+	err := integration.RunUnaryTests(in, integration.IAPairs(), integration.DefaultRunTimeout)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}
