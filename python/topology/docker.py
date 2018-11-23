@@ -29,11 +29,11 @@ from lib.util import (
 )
 from topology.common import (
     ArgsTopoDicts,
+    DOCKER_USR_VOL,
     _prom_addr_br,
     _prom_addr_infra,
-    _sciond_name,
-    _sciond_svc_name,
-    _usr_vol
+    sciond_name,
+    sciond_svc_name
 )
 from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
 from topology.sig import SIGGenArgs, SIGGenerator
@@ -136,7 +136,7 @@ class DockerGenerator(object):
             },
             'networks': {},
             'volumes': [
-                *_usr_vol(),
+                *DOCKER_USR_VOL,
                 'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt()),
                 self._logs_vol()
             ],
@@ -160,7 +160,7 @@ class DockerGenerator(object):
         raw_entry = {
             'image': image,
             'depends_on': [
-                _sciond_svc_name(topo_id),
+                sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
@@ -187,7 +187,7 @@ class DockerGenerator(object):
         raw_entry = {
             'image': 'scion_beacon_py',
             'depends_on': [
-                _sciond_svc_name(topo_id),
+                sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
@@ -216,7 +216,7 @@ class DockerGenerator(object):
         raw_entry = {
             'image': image,
             'depends_on': [
-                _sciond_svc_name(topo_id),
+                sciond_svc_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
                 'zookeeper'
             ],
@@ -251,7 +251,7 @@ class DockerGenerator(object):
                 'ZOO_DATA_LOG_DIR': '/dev/shm/zookeeper'
             },
             'volumes': [
-                *_usr_vol(),
+                *DOCKER_USR_VOL,
                 os.path.join(
                     self.output_base, self.args.output_dir, cfg_file) + ':/conf/zoo.cfg:rw',
                 '/var/lib/docker-zk:/var/lib/zookeeper:rw',
@@ -275,7 +275,7 @@ class DockerGenerator(object):
             },
             'networks': {},
             'volumes': [
-                *_usr_vol(),
+                *DOCKER_USR_VOL,
                 '%s:/share/conf:rw' % os.path.join(base, 'dispatcher'),
                 self._logs_vol()
             ]
@@ -314,7 +314,7 @@ class DockerGenerator(object):
         write_file(cfg, tmpl.substitute(name="dispatcher", elem="disp_%s" % topo_id.file_fmt()))
 
     def _sciond_conf(self, topo_id, base):
-        name = _sciond_svc_name(topo_id)
+        name = sciond_svc_name(topo_id)
         image = 'scion_sciond_py' if self.args.sciond == 'py' else 'scion_sciond'
         entry = {
             'image': image,
@@ -335,7 +335,7 @@ class DockerGenerator(object):
                 '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 '--log_dir=logs',
                 '--spki_cache_dir=cache',
-                _sciond_name(topo_id),
+                sciond_name(topo_id),
                 'conf'
             ]
         self.dc_conf['services'][name] = entry
@@ -354,7 +354,7 @@ class DockerGenerator(object):
 
     def _std_vol(self, topo_id):
         return [
-            *_usr_vol(),
+            *DOCKER_USR_VOL,
             self._disp_vol(topo_id),
             self._sciond_vol(topo_id),
             self._cache_vol(),

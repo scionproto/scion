@@ -47,12 +47,7 @@ class DockerUtilsGenerator(object):
         for topo_id in self.args.topo_dicts:
             self._test_conf(topo_id)
         if self.args.sig:
-            text = ''
-            for topo_id in self.args.topo_dicts:
-                ip = self.args.networks['sig_%s' % topo_id.file_fmt()][0]['ipv4']
-                text += str(topo_id) + ' ' + str(ip) + '\n'
-                conf_path = os.path.join(self.args.output_dir, 'sig-testing.conf')
-                write_file(conf_path, text)
+            self._sig_testing_conf()
         return self.dc_conf
 
     def _utils_conf(self):
@@ -102,3 +97,11 @@ class DockerUtilsGenerator(object):
             entry['environment']['SIG_IP'] = str(sig_net['ipv4'])
             entry['environment']['REMOTE_NETS'] = remote_nets(self.args.networks, topo_id)
         self.dc_conf['services'][name] = entry
+
+    def _sig_testing_conf(self):
+        text = ''
+        for topo_id in self.args.topo_dicts:
+            ip = self.args.networks['sig_%s' % topo_id.file_fmt()][0]['ipv4']
+            text += str(topo_id) + ' ' + str(ip) + '\n'
+            conf_path = os.path.join(self.args.output_dir, 'sig-testing.conf')
+            write_file(conf_path, text)

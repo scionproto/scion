@@ -24,10 +24,10 @@ from lib.packet.scion_addr import ISD_AS
 from lib.util import read_file, write_file
 from topology.common import (
     ArgsBase,
+    DOCKER_USR_VOL,
+    json_default,
     remote_nets,
-    _json_default,
-    _sciond_svc_name,
-    _usr_vol
+    sciond_svc_name
 )
 
 
@@ -74,7 +74,7 @@ class SIGGenerator(object):
             },
             'networks': {},
             'volumes': [
-                *_usr_vol(),
+                *DOCKER_USR_VOL,
                 self._disp_vol(topo_id),
                 '%s:/share/conf:rw' % os.path.join(base, 'dispatcher'),
                 self._logs_vol()
@@ -97,7 +97,7 @@ class SIGGenerator(object):
             'container_name': 'scion_%ssig_%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
                'scion_disp_sig_%s' % topo_id.file_fmt(),
-               _sciond_svc_name(topo_id)
+               sciond_svc_name(topo_id)
             ],
             'cap_add': ['NET_ADMIN'],
             'privileged': True,
@@ -105,7 +105,7 @@ class SIGGenerator(object):
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
             'volumes': [
-                *_usr_vol(),
+                *DOCKER_USR_VOL,
                 self._disp_vol(topo_id),
                 'vol_scion_%ssciond_%s:/run/shm/sciond:rw' % (self.prefix, topo_id.file_fmt()),
                 '/dev/net/tun:/dev/net/tun',
@@ -127,13 +127,14 @@ class SIGGenerator(object):
             sig_cfg['ASes'][str(t_id)]['Sigs']['sig'] = {"Addr": str(net['ipv4'])}
 
         cfg = "%s/sig/cfg.json" % topo_id.base_dir(self.args.output_dir)
-        contents_json = json.dumps(sig_cfg, default=_json_default, indent=2)
+        contents_json = json.dumps(sig_cfg, default=json_default, indent=2)
         write_file(cfg, contents_json + '\n')
 
     def _sig_toml(self, topo_id, topo, base):
         name = 'sig_%s' % topo_id.file_fmt()
         net = self.args.networks[name][0]
         base = topo_id.base_dir(self.args.output_dir)
+        log_level = 'trace' if self.args.trace else 'debug'
         sig_conf = {
             'sig': {
                 'ID': name,
@@ -145,7 +146,7 @@ class SIGGenerator(object):
                 'Path': get_default_sciond_path(ISD_AS(topo["ISD_AS"]))
             },
             'logging.file': {
-                'Level': 'debug',
+                'Level': log_level,
                 'Path': '%s.log' % name
             }
         }

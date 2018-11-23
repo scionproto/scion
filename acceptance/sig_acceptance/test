@@ -12,7 +12,7 @@ test_setup() {
 }
 
 test_run() {
-    ./bin/ping_sigintegration -d
+    ./bin/ping_sigintegration -d -log.console info
 }
 
 test_teardown() {
