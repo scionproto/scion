@@ -47,7 +47,6 @@
 package snet
 
 import (
-	"context"
 	"net"
 	"time"
 
@@ -169,13 +168,6 @@ func (n *SCIONNetwork) DialSCIONWithBindSVC(network string, laddr, raddr, baddr 
 	}
 	snetConn := conn.(*SCIONConn)
 	snetConn.raddr = raddr.Copy()
-	if n.pathResolver != nil {
-		snetConn.sp, err = n.pathResolver.Watch(context.TODO(), snetConn.laddr.IA,
-			snetConn.raddr.IA)
-		if err != nil {
-			return nil, common.NewBasicError("Unable to establish path", err)
-		}
-	}
 	return conn, nil
 }
 

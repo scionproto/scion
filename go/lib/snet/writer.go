@@ -26,8 +26,8 @@ import (
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/snet/internal/ctxmonitor"
 	"github.com/scionproto/scion/go/lib/snet/internal/pathsource"
-	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
@@ -43,30 +43,30 @@ const (
 	ErrPath                 = "no path set, and error during path resolution"
 )
 
+const (
+	DefaultPathQueryTimeout = 5 * time.Second
+)
+
 type scionConnWriter struct {
-	base       *scionConnBase
-	conn       net.PacketConn
-	writeMutex sync.Mutex
-	sendBuffer common.RawBytes
-	resolver   *remoteAddressResolver
-	// Pointer to slice of paths updated by continuous lookups; these are
-	// used by default when creating a connection via Dial on SCIOND-enabled
-	// networks. For SCIOND-less operation, this is set to nil.
-	sp *pathmgr.SyncPaths
-	// Key of last used path, used to select the same path for the next packet
-	prefPathKey spathmeta.PathKey
+	base *scionConnBase
+	conn net.PacketConn
+
+	mtx      sync.Mutex
+	buffer   common.RawBytes
+	resolver *remoteAddressResolver
 }
 
 func newScionConnWriter(base *scionConnBase, pr pathmgr.Resolver,
 	conn net.PacketConn) *scionConnWriter {
 
 	return &scionConnWriter{
-		base:       base,
-		sendBuffer: make(common.RawBytes, BufSize),
-		conn:       conn,
+		base:   base,
+		buffer: make(common.RawBytes, BufSize),
+		conn:   conn,
 		resolver: &remoteAddressResolver{
 			localIA:      base.laddr.IA,
 			pathResolver: pathsource.NewPathSource(pr),
+			monitor:      ctxmonitor.NewMonitor(),
 		},
 	}
 }
@@ -91,12 +91,6 @@ func (c *scionConnWriter) Write(b []byte) (int, error) {
 }
 
 func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
-	// FIXME(scrye): This does not support deadlines correctly. As soon as the
-	// write deadline expires, all goroutines blocked in resolve should
-	// immediately exit. This must also support changing the deadline in
-	// parallel to multiple resolve calls already running (e.g., when changing
-	// the deadline to current time in order to get all blocked goroutines out
-	// of snet).
 	raddr, err := c.resolver.resolveAddrPair(c.base.raddr, raddr)
 	if err != nil {
 		return 0, err
@@ -105,8 +99,8 @@ func (c *scionConnWriter) write(b []byte, raddr *Addr) (int, error) {
 }
 
 func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
-	c.writeMutex.Lock()
-	defer c.writeMutex.Unlock()
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	pkt := &spkt.ScnPkt{
 		DstIA:   raddr.IA,
 		SrcIA:   c.base.laddr.IA,
@@ -121,12 +115,12 @@ func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 		Pld: common.RawBytes(b),
 	}
 	// Serialize packet to internal buffer
-	n, err := hpkt.WriteScnPkt(pkt, c.sendBuffer)
+	n, err := hpkt.WriteScnPkt(pkt, c.buffer)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to serialize SCION packet", err)
 	}
 	// Send message
-	n, err = c.conn.WriteTo(c.sendBuffer[:n], raddr.NextHop)
+	n, err = c.conn.WriteTo(c.buffer[:n], raddr.NextHop)
 	if err != nil {
 		return 0, common.NewBasicError("Dispatcher write error", err)
 	}
@@ -134,7 +128,11 @@ func (c *scionConnWriter) writeWithLock(b []byte, raddr *Addr) (int, error) {
 }
 
 func (c *scionConnWriter) SetWriteDeadline(t time.Time) error {
-	return c.conn.SetWriteDeadline(t)
+	if err := c.conn.SetWriteDeadline(t); err != nil {
+		return err
+	}
+	c.resolver.monitor.SetDeadline(t)
+	return nil
 }
 
 // remoteAddressResolver validates the contents of a remote snet address,
@@ -148,6 +146,8 @@ type remoteAddressResolver struct {
 	localIA addr.IA
 	// pathResolver is a source of paths and overlay addresses for snet.
 	pathResolver pathsource.PathSource
+	// monitor tracks contexts created for sciond
+	monitor ctxmonitor.Monitor
 }
 
 func (r *remoteAddressResolver) resolveAddrPair(connAddr, argAddr *Addr) (*Addr, error) {
@@ -203,7 +203,9 @@ func (r *remoteAddressResolver) resolveRemoteDestination(address *Addr) (*Addr, 
 func (r *remoteAddressResolver) addPath(address *Addr) (*Addr, error) {
 	var err error
 	address = address.Copy()
-	address.NextHop, address.Path, err = r.pathResolver.Get(context.TODO(), r.localIA, address.IA)
+	ctx, cancelF := r.monitor.WithTimeout(context.Background(), DefaultPathQueryTimeout)
+	defer cancelF()
+	address.NextHop, address.Path, err = r.pathResolver.Get(ctx, r.localIA, address.IA)
 	if err != nil {
 		return nil, common.NewBasicError(ErrPath, nil)
 	}

@@ -18,13 +18,15 @@ MOCK_SRC_IN =\
     lib/pathdb/pathdb.go \
     lib/snet/interface.go \
     lib/snet/internal/pathsource/pathsource.go \
+    lib/snet/internal/ctxmonitor/ctxmonitor.go \
+    lib/pathmgr/pathmgr.go \
     lib/snet/snetproxy/reconnecter.go \
     lib/snet/snetproxy/io.go \
     lib/log/wrappers.go \
     lib/sciond/sciond.go
 MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))
 # This uses the format <stdlib package>/<interface>:
-MOCK_STD_IN = net/Addr
+MOCK_STD_IN = net/Addr net/PacketConn
 MOCK_STD_OUT = $(foreach in,$(MOCK_STD_IN),$(call mock_std_in_to_out,$(in)))
 
 all: deps_gen bin libs
