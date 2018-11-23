@@ -114,7 +114,7 @@ class DockerGenerator(object):
 
     def _br_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scion_border',
+            'image': self._docker_image('border'),
             'depends_on': [
                 'scion_disp_br_%s' % topo_id.file_fmt(),
             ],
@@ -143,9 +143,9 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _cs_conf(self, topo_id, topo, base):
-        image = 'scion_cert_py' if self.args.cert_server == 'py' else 'scion_cert'
+        image = 'cert_py' if self.args.cert_server == 'py' else 'cert'
         raw_entry = {
-            'image': image,
+            'image': self._docker_image(image),
             'depends_on': [
                 self._sciond_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
@@ -172,7 +172,7 @@ class DockerGenerator(object):
 
     def _bs_conf(self, topo_id, topo, base):
         raw_entry = {
-            'image': 'scion_beacon_py',
+            'image': self._docker_image('beacon_py'),
             'depends_on': [
                 self._sciond_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
@@ -199,9 +199,9 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _ps_conf(self, topo_id, topo, base):
-        image = 'scion_path_py' if self.args.path_server == 'py' else 'scion_path'
+        image = 'path_py' if self.args.path_server == 'py' else 'path'
         raw_entry = {
-            'image': image,
+            'image': self._docker_image(image),
             'depends_on': [
                 self._sciond_name(topo_id),
                 'scion_disp_%s' % topo_id.file_fmt(),
@@ -256,7 +256,7 @@ class DockerGenerator(object):
     def _dispatcher_conf(self, topo_id, topo, base):
         # Create dispatcher config
         entry = {
-            'image': 'scion_dispatcher',
+            'image': self._docker_image('dispatcher'),
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
@@ -302,9 +302,9 @@ class DockerGenerator(object):
 
     def _sciond_conf(self, topo_id, base):
         name = self._sciond_name(topo_id)
-        image = 'scion_sciond_py' if self.args.sciond == 'py' else 'scion_sciond'
+        image = 'sciond_py' if self.args.sciond == 'py' else 'sciond'
         entry = {
-            'image': image,
+            'image': self._docker_image(image),
             'container_name': '%ssd%s' % (self.prefix, topo_id.file_fmt()),
             'depends_on': [
                 'scion_disp_%s' % topo_id.file_fmt()
@@ -353,3 +353,12 @@ class DockerGenerator(object):
             self._cache_vol(),
             self._logs_vol()
         ]
+
+    def _docker_image(self, image):
+        if self.args.docker_registry:
+            image = '%s/%s' % (self.args.docker_registry, image)
+        else:
+            image = 'scion_%s' % image
+        if self.args.image_tag:
+            image = '%s:%s' % (image, self.args.image_tag)
+        return image

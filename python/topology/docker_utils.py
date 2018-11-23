@@ -65,10 +65,17 @@ class DockerUtilsGenerator(object):
         self.dc_conf['services']['utils_cleaner'] = entry_clean
 
     def _test_conf(self, topo_id):
+        image = 'app_builder'
+        if self.args.docker_registry:
+            image = '%s/%s' % (self.args.docker_registry, image)
+        else:
+            image = 'scion_%s' % image
+        if self.args.image_tag:
+            image = '%s:%s' % (image, self.args.image_tag)
         docker = 'docker_' if self.args.in_docker else ''
         cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
         entry = {
-            'image': 'scion_app_builder',
+            'image': image,
             'volumes': [
                 'vol_scion_%sdisp_%s:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
                 'vol_scion_%ssciond_%s:/run/shm/sciond:rw' % (docker, topo_id.file_fmt()),
