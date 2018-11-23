@@ -20,6 +20,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/scionproto/scion/go/lib/common"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -27,8 +29,9 @@ import (
 )
 
 var (
-	name = "ping_sig_integration"
-	cmd  = "ping"
+	name    = "ping_sig_integration"
+	cmd     = "ping"
+	iaIPMap = make(map[addr.IA]addr.HostIPv4)
 )
 
 func main() {
@@ -36,27 +39,7 @@ func main() {
 }
 
 var sigAddr integration.HostAddr = func(ia addr.IA) snet.Addr {
-	conf := "gen/sig-testing.conf"
-	file, err := os.Open(conf)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to read from %s: %s\n", conf, err)
-		os.Exit(1)
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	var ip addr.HostIPv4
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.Split(line, " ")
-		if len(parts) == 2 && parts[0] == ia.String() {
-			ip = addr.HostIPv4(net.ParseIP(parts[1]))
-		}
-	}
-	if ip == nil {
-		fmt.Fprintf(os.Stderr, "Unable to read IP for %s!\n", ia.String())
-		os.Exit(1)
-	}
-	return snet.Addr{Host: &addr.AppAddr{L3: ip}, IA: ia}
+	return snet.Addr{Host: &addr.AppAddr{L3: iaIPMap[ia]}, IA: ia}
 }
 
 func realMain() int {
@@ -64,12 +47,18 @@ func realMain() int {
 		fmt.Fprintf(os.Stderr, "Failed to init: %s\n", err)
 		return 1
 	}
+	defer log.LogPanicAndExit()
+	defer log.Flush()
 	if !*integration.Docker {
 		fmt.Fprintf(os.Stderr, "Can only run %s test with docker!\n", name)
 		return 1
 	}
-	defer log.LogPanicAndExit()
-	defer log.Flush()
+	if err := readTestingConf(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading testing conf: %s\n", err)
+		os.Exit(1)
+	}
+	// The integration runner only collects logs from stderr in general, so we add '1>&2' to
+	// redirect stdout to stderr so we get logs from ping. 
 	clientArgs := []string{"-c", "4", integration.DstHostReplace, "1>&2"}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{},
 		integration.NonStdLog)
@@ -88,7 +77,6 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v,%v -> %v,%v (%v/%v)", in.Name(), conn.Src.IA,
 				conn.Src.Host, conn.Dst.IA, conn.Dst.Host, i+1, len(pairs)))
-			// log.Debug(fmt.Sprintf("Ping %s from %s", conn.Dst.Host.L3, conn.Src.Host.L3))
 			if err := integration.RunClient(in, conn, integration.DefaultRunTimeout); err != nil {
 				log.Error("Error during client execution", "err", err)
 				return err
@@ -96,4 +84,28 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		}
 		return nil
 	})
+}
+
+func readTestingConf() error {
+	conf := "gen/sig-testing.conf"
+	file, err := os.Open(conf)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.Split(line, " ")
+		if len(parts) == 2 {
+			ia, err := addr.IAFromString(parts[0])
+			if err != nil {
+				return err
+			}
+			iaIPMap[ia] = addr.HostIPv4(net.ParseIP(parts[1]))
+		} else {
+			return common.NewBasicError("Bad line format", nil, "line", line)
+		}
+	}
+	return nil
 }

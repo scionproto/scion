@@ -40,7 +40,7 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import _srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES, _json_default
+from topology.common import _srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES, json_default
 
 DEFAULT_LINK_BW = 1000
 
@@ -320,7 +320,7 @@ class TopoGenerator(object):
                 self.topo_dicts, self.args.output_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],
-                                       default=_json_default, indent=2)
+                                       default=json_default, indent=2)
             write_file(path, contents_json + '\n')
             # Test if topo file parses cleanly
             Topology.from_file(path)

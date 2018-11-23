@@ -29,6 +29,8 @@ SCION_SERVICE_NAMES = (
     "DiscoveryService",
 )
 
+DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
+
 
 class ArgsBase:
     def __init__(self, args):
@@ -126,19 +128,15 @@ def remote_nets(networks, topo_id):
     return ','.join(rem_nets)
 
 
-def _sciond_name(topo_id):
+def sciond_name(topo_id):
     return 'sd%s' % topo_id.file_fmt()
 
 
-def _sciond_svc_name(topo_id):
-    return 'scion_%s' % _sciond_name(topo_id)
+def sciond_svc_name(topo_id):
+    return 'scion_%s' % sciond_name(topo_id)
 
 
-def _usr_vol():
-    return ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
-
-
-def _json_default(o):
+def json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
