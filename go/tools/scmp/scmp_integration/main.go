@@ -57,8 +57,10 @@ func realMain() int {
 
 	for _, tc := range testCases {
 		log.Info(fmt.Sprintf("Run scmp-%s-tests:", tc.Name))
-		in := integration.NewBinaryIntegration(tc.Name, "./bin/scmp", tc.Args, nil)
-		if err := integration.RunUnaryTests(in, integration.IAPairs(), 0); err != nil {
+		in := integration.NewBinaryIntegration(tc.Name, "./integration/bin_wrapper.sh",
+			append([]string{"./bin/scmp"}, tc.Args...), nil)
+		err := integration.RunUnaryTests(in, integration.IAPairs(), integration.DefaultRunTimeout)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to run scmp-%s-tests: %s\n", tc.Name, err)
 			return 1
 		}
