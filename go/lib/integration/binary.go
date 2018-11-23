@@ -194,7 +194,8 @@ func (bi *binaryIntegration) writeLog(name, id string, ep io.ReadCloser) {
 		if w == nil {
 			f, err := os.Create(fmt.Sprintf("%s/%s_%s", bi.logDir, name, id))
 			if err != nil {
-				log.Error("Failed to create log file for test run", "name", name, "id", id, "err", err)
+				log.Error("Failed to create log file for test run",
+					"name", name, "id", id, "err", err)
 				return
 			}
 			defer f.Close()

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/integration"
 	"github.com/scionproto/scion/go/lib/log"
@@ -44,7 +45,8 @@ func realMain() int {
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
 		"-local", integration.SrcAddrPattern, "-remoteIA", integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
-	if err := integration.RunUnaryTests(in, integration.IAPairs()); err != nil {
+	timeout := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
+	if err := integration.RunUnaryTests(in, integration.IAPairs(), timeout); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}
