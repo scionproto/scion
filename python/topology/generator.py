@@ -73,6 +73,8 @@ def add_arguments(parser):
                         help='Generate random IFIDs')
     parser.add_argument('--in-docker', action='store_true',
                         help='Set if running in a docker container')
+    parser.add_argument('--docker-registry', help='Specify docker registry to pull images from')
+    parser.add_argument('--image-tag', help='Docker image tag')
     return parser
 
 

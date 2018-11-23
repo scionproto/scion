@@ -15,7 +15,7 @@
 # Stdlib
 import os
 # SCION
-from topology.common import ArgsBase
+from topology.common import ArgsBase, docker_image
 
 
 class DockerUtilsGenArgs(ArgsBase):
@@ -68,7 +68,7 @@ class DockerUtilsGenerator(object):
         docker = 'docker_' if self.args.in_docker else ''
         cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
         entry = {
-            'image': 'scion_app_builder',
+            'image': docker_image(self.args, 'app_builder'),
             'volumes': [
                 'vol_scion_%sdisp_%s:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
                 'vol_scion_%ssciond_%s:/run/shm/sciond:rw' % (docker, topo_id.file_fmt()),

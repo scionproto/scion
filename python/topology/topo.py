@@ -40,7 +40,7 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import _srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES
+from topology.common import srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES
 from topology.net import AddressProxy
 
 DEFAULT_LINK_BW = 1000
@@ -309,7 +309,7 @@ class TopoGenerator(object):
         self.as_list[key].append(str(topo_id))
 
     def _write_as_topos(self):
-        for topo_id, as_topo, base in _srv_iter(
+        for topo_id, as_topo, base in srv_iter(
                 self.topo_dicts, self.args.output_dir, common=True):
             path = os.path.join(base, TOPO_FILE)
             contents_json = json.dumps(self.topo_dicts[topo_id],

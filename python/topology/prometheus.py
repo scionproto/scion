@@ -26,7 +26,7 @@ import yaml
 # SCION
 from lib.defines import PROM_FILE
 from lib.util import write_file
-from topology.common import _prom_addr_br, _prom_addr_infra, ArgsTopoDicts
+from topology.common import prom_addr_br, prom_addr_infra, ArgsTopoDicts
 
 
 class PrometheusGenArgs(ArgsTopoDicts):
@@ -59,10 +59,10 @@ class PrometheusGenerator(object):
         for topo_id, as_topo in self.args.topo_dicts.items():
             ele_dict = defaultdict(list)
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                ele_dict["BorderRouters"].append(_prom_addr_br(br_id, br_ele, self.args.port_gen))
+                ele_dict["BorderRouters"].append(prom_addr_br(br_id, br_ele, self.args.port_gen))
             for svc_type in ["BeaconService", "PathService", "CertificateService"]:
                 for elem_id, elem in as_topo[svc_type].items():
-                    ele_dict[svc_type].append(_prom_addr_infra(elem_id, elem, self.args.port_gen))
+                    ele_dict[svc_type].append(prom_addr_infra(elem_id, elem, self.args.port_gen))
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)
 

@@ -80,13 +80,13 @@ class TopoID(ISD_AS):
         return "<TopoID: %s>" % self
 
 
-def _prom_addr_br(br_id, br_ele, port_gen):
+def prom_addr_br(br_id, br_ele, port_gen):
     """Get the prometheus address for a border router"""
     pub = _get_pub(br_ele['InternalAddrs'])
     return "[%s]:%s" % (pub['PublicOverlay']['Addr'].ip, port_gen.register(br_id + "prom"))
 
 
-def _prom_addr_infra(infra_id, infra_ele, port_gen):
+def prom_addr_infra(infra_id, infra_ele, port_gen):
     """Get the prometheus address for an infrastructure element."""
     pub = _get_pub(infra_ele['Addrs'])
     return "[%s]:%s" % (pub['Public']['Addr'].ip, port_gen.register(infra_id + "prom"))
@@ -99,15 +99,7 @@ def _get_pub(topo_addr):
     return topo_addr['IPv4']
 
 
-def _get_pub_ip(topo_addr):
-    return _get_pub(topo_addr)["Public"]["Addr"].ip
-
-
-def _get_l4_port(topo_addr):
-    return _get_pub(topo_addr)["Public"]["L4Port"]
-
-
-def _srv_iter(topo_dicts, out_dir, common=False):
+def srv_iter(topo_dicts, out_dir, common=False):
     for topo_id, as_topo in topo_dicts.items():
         base = topo_id.base_dir(out_dir)
         for service in SCION_SERVICE_NAMES:
@@ -115,3 +107,13 @@ def _srv_iter(topo_dicts, out_dir, common=False):
                 yield topo_id, as_topo, os.path.join(base, elem)
         if common:
             yield topo_id, as_topo, os.path.join(base, COMMON_DIR)
+
+
+def docker_image(args, image):
+    if args.docker_registry:
+        image = '%s/%s' % (args.docker_registry, image)
+    else:
+        image = 'scion_%s' % image
+    if args.image_tag:
+        image = '%s:%s' % (image, args.image_tag)
+    return image
