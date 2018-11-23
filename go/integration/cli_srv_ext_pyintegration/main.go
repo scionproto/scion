@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ func realMain() int {
 		integration.DstIAReplace}
 	serverArgs := []string{"--run_server", "-s", integration.DstHostReplace,
 		integration.DstIAReplace}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	if err := integration.RunBinaryTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

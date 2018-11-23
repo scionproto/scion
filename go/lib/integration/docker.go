@@ -59,10 +59,12 @@ func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	return bi.StartServer(ctx, dst)
 }
 
-func (di *dockerIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
+func (di *dockerIntegration) StartClient(ctx context.Context, id int,
+	src, dst snet.Addr) (Waiter, error) {
+
 	bi := *di.binaryIntegration
 	bi.clientArgs = append([]string{dockerArg, src.IA.FileFmt(false), bi.cmd}, bi.clientArgs...)
 	bi.cmd = dockerCmd
 	log.Debug(fmt.Sprintf("Starting client for %s in a docker container", dst.IA.FileFmt(false)))
-	return bi.StartClient(ctx, src, dst)
+	return bi.StartClient(ctx, id, src, dst)
 }

@@ -46,7 +46,7 @@ func realMain() int {
 	clientArgs = append(clientArgs, cmnArgs...)
 	serverArgs := []string{"-mode", "server", "-local", integration.DstAddrPattern + ":0"}
 	serverArgs = append(serverArgs, cmnArgs...)
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
@@ -71,7 +71,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for i, conn := range pairs {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
-			if err := integration.RunClient(in, conn, 5*time.Second); err != nil {
+			if err := integration.RunClient(in, i+1, conn, 5*time.Second); err != nil {
 				log.Error("Error during client execution", "err", err)
 				return err
 			}
