@@ -81,9 +81,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
-	"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -662,94 +660,17 @@ func (m *Messenger) UpdateVerifier(verifier ctrl.SigVerifier) {
 //
 // If message type respT is to be verified, the key is initialized from
 // m.verifier. Otherwise, it is set to a null verifier.
-func (m *Messenger) getRequester(reqT, respT infra.MessageType) *pathingRequester {
+func (m *Messenger) getRequester(reqT, respT infra.MessageType) *ctrl_msg.Requester {
 	m.cryptoLock.RLock()
 	defer m.cryptoLock.RUnlock()
 	signer := ctrl.NullSigner
 	if _, ok := m.signMask[reqT]; ok {
 		signer = m.signer
 	}
-	return NewPathingRequester(signer, m.verifier, m.dispatcher, m.ia)
+	return ctrl_msg.NewRequester(signer, m.verifier, m.dispatcher)
 }
 
 func newTypeAssertErr(typeStr string, msg interface{}) error {
 	errStr := fmt.Sprintf("Unable to type assert disp.Message to %s", typeStr)
 	return common.NewBasicError(errStr, nil, "msg", msg)
-}
-
-// pathingRequester is a requester with an attached local IA. It resolves the
-// SCION path to construct complete snet addresses that rarely block on writes.
-//
-// FIXME(scrye): This is just a hack to improve performance in the default
-// topology, by allowing each goroutine to issue a request to SCIOND in
-// parallel (as opposed of one goroutine waiting for another if the Path
-// Resolver were to be used). This logic should be moved to snet internals
-// once the path resolver has support for concurrent queries and context
-// awareness.
-type pathingRequester struct {
-	requester *ctrl_msg.Requester
-	local     addr.IA
-}
-
-func NewPathingRequester(signer ctrl.Signer, sigv ctrl.SigVerifier, d *disp.Dispatcher,
-	local addr.IA) *pathingRequester {
-
-	return &pathingRequester{
-		requester: ctrl_msg.NewRequester(signer, sigv, d),
-		local:     local,
-	}
-}
-
-func (pr *pathingRequester) Request(ctx context.Context, pld *ctrl.Pld,
-	a net.Addr) (*ctrl.Pld, *proto.SignS, error) {
-
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return nil, nil, err
-	}
-	return pr.requester.Request(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) Notify(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return err
-	}
-	return pr.requester.Notify(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) NotifyUnreliable(ctx context.Context, pld *ctrl.Pld, a net.Addr) error {
-	newAddr, err := pr.getBlockingPath(ctx, a)
-	if err != nil {
-		return err
-	}
-	return pr.requester.NotifyUnreliable(ctx, pld, newAddr)
-}
-
-func (pr *pathingRequester) getBlockingPath(ctx context.Context, a net.Addr) (net.Addr, error) {
-	// for SCIOND-less operation do not try to resolve paths
-	if snet.DefNetwork == nil || snet.DefNetwork.PathResolver() == nil {
-		return a, nil
-	}
-	snetAddress := a.(*snet.Addr).Copy()
-	if snetAddress.IA == pr.local {
-		return snetAddress, nil
-	}
-	conn := snet.DefNetwork.PathResolver().Sciond()
-	paths, err := conn.Paths(ctx, snetAddress.IA, pr.local, 5, sciond.PathReqFlags{})
-	if err != nil {
-		return nil, err
-	}
-	if len(paths.Entries) == 0 {
-		return nil, common.NewBasicError("unable to find path", nil)
-	}
-	snetAddress.Path = spath.New(paths.Entries[0].Path.FwdPath)
-	if err := snetAddress.Path.InitOffsets(); err != nil {
-		return nil, common.NewBasicError("unable to initialize path", err)
-	}
-	snetAddress.NextHop, err = paths.Entries[0].HostInfo.Overlay()
-	if err != nil {
-		return nil, common.NewBasicError("unable to build next hop", err)
-	}
-	return snetAddress, nil
 }
