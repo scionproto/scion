@@ -136,7 +136,8 @@ func (w *Worker) getRlist(epoch int) *ReassemblyList {
 }
 
 func (w *Worker) cleanup() {
-	for epoch, rlist := range w.rlists {
+	for epoch := range w.rlists {
+		rlist := w.rlists[epoch]
 		if rlist.markedForDeletion {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
 			// Remove the reassembly list from the map and then release all frames
