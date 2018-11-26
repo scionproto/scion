@@ -13,19 +13,17 @@
 # limitations under the License.
 
 # Stdlib
-import logging
 import os
-import sys
 # External packages
 import yaml
 # SCION
 from lib.util import write_file
-from topology.common import gen_zk_entry, ArgsTopoConfig
+from topology.common import ArgsTopoDicts
 
 ZK_CONF = 'zk-dc.yml'
 
 
-class ZKGenArgs(ArgsTopoConfig):
+class ZKGenArgs(ArgsTopoDicts):
     pass
 
 
@@ -38,13 +36,9 @@ class ZKGenerator(object):
         self.zk_conf = {'version': '3', 'services': {}}
 
     def generate(self):
-        if "zookeepers" not in self.args.config.get("defaults", {}):
-            logging.critical("No zookeeper configured in the topology!")
-            sys.exit(1)
-        zk_conf = self.args.config["defaults"]["zookeepers"]
-        addr = zk_conf[1].get("addr", None)
-        port = zk_conf[1].get("port", None)
-        zk_entry = gen_zk_entry(addr, port, self.args.in_docker, self.args.docker)
+        # Take first topo_id as zookeeper is the same for all topos
+        topo_id = next(iter(self.args.topo_dicts))
+        zk_entry = self.args.topo_dicts[topo_id]["ZookeeperService"][1]
         name = 'zookeeper_docker' if self.args.in_docker else 'zookeeper'
         entry = {
             'image': 'zookeeper:latest',
@@ -59,7 +53,6 @@ class ZKGenerator(object):
                 zk_entry["Addr"] + ":" + str(zk_entry["L4Port"]) + ':2181'
             ]
         }
-
         self.zk_conf['services'][name] = entry
         write_file(os.path.join(self.args.output_dir, ZK_CONF),
                    yaml.dump(self.zk_conf, default_flow_style=False))
