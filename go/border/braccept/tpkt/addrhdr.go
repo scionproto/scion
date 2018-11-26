@@ -16,7 +16,6 @@ package tpkt
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -31,11 +30,17 @@ type AddrHdr struct {
 func NewAddrHdr(srcIA, srcHost, dstIA, dstHost string) *AddrHdr {
 	dIA, _ := addr.IAFromString(dstIA)
 	sIA, _ := addr.IAFromString(srcIA)
+	// SVC address
+	var dst addr.HostAddr
+	dst = addr.HostSVCFromString(dstHost)
+	if dst == addr.SvcNone {
+		dst = addr.HostFromIPStr(dstHost)
+	}
 	return &AddrHdr{
 		DstIA:   dIA,
 		SrcIA:   sIA,
-		DstHost: addr.HostFromIP(net.ParseIP(dstHost)),
-		SrcHost: addr.HostFromIP(net.ParseIP(srcHost)),
+		DstHost: dst,
+		SrcHost: addr.HostFromIPStr(srcHost),
 	}
 }
 
@@ -58,7 +63,8 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 	}
 	addrLen := util.PaddedLen(2*addr.IABytes+int(dstLen+srcLen), common.LineLen)
 	if addrLen > len(b) {
-		return 0, fmt.Errorf("Buffer too short, expected=%d, actual=%d", addrLen, len(b))
+		return 0, fmt.Errorf("AddrHdr: Buffer too short, expected=%d, actual=%d",
+			addrLen, len(b))
 	}
 	a.DstIA = addr.IAFromRaw(b)
 	a.SrcIA = addr.IAFromRaw(b[addr.IABytes:])
@@ -73,9 +79,9 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 		return 0, err
 	}
 	offset += srcLen
-	for i := range b[offset:addrLen] {
-		if b[i] != 0 {
-			return 0, fmt.Errorf("Padding is not zero, actual=%s", b[offset:addrLen])
+	for _, x := range b[offset:addrLen] {
+		if x != 0 {
+			return 0, fmt.Errorf("AddrHdr: Padding is not zero, actual=%s", b[offset:addrLen])
 		}
 	}
 	return addrLen, nil
