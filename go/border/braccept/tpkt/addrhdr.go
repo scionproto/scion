@@ -72,6 +72,12 @@ func (a *AddrHdr) Parse(b common.RawBytes, srcT, dstT addr.HostAddrType) (int, e
 	if err != nil {
 		return 0, err
 	}
+	offset += srcLen
+	for i := range b[offset:addrLen] {
+		if b[i] != 0 {
+			return 0, fmt.Errorf("Padding is not zero, actual=%s", b[offset:addrLen])
+		}
+	}
 	return addrLen, nil
 }
 

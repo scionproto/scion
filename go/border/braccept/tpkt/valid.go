@@ -41,14 +41,13 @@ type ValidScion struct {
 func NewValidScion(srcIA, srcHost, dstIA, dstHost string, path *ScnPath, exts []common.Extension,
 	l4Hdr l4.L4Header, pld common.Payload) *ValidScion {
 
-	p := &ValidScion{
+	return &ValidScion{
+		AddrHdr: NewAddrHdr(srcIA, srcHost, dstIA, dstHost),
 		Path:    path,
 		Exts:    exts,
-		AddrHdr: NewAddrHdr(srcIA, srcHost, dstIA, dstHost),
 		L4:      l4Hdr,
 		Pld:     pld,
 	}
-	return p
 }
 
 func (p *ValidScion) Build() ([]gopacket.SerializableLayer, error) {
@@ -64,7 +63,7 @@ func (p *ValidScion) Build() ([]gopacket.SerializableLayer, error) {
 		Pld:     p.Pld,
 	}
 	if scn.Pld == nil {
-		scn.Pld = new(common.RawBytes)
+		scn.Pld = &common.RawBytes{}
 	}
 	scnLen := scn.TotalLen()
 	buf := make(common.RawBytes, scnLen)

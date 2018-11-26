@@ -53,12 +53,9 @@ const (
 
 var (
 	borderID        string
-	keysDirPath     string
 	devInfoFilePath string
+	keysDirPath     string
 	testIdx         int
-	devByName       map[string]*ifInfo
-	devList         []*ifInfo
-	hashMac         hash.Hash
 )
 
 func init() {
@@ -68,16 +65,29 @@ func init() {
 	flag.IntVar(&testIdx, "testIndex", -1, "Run specific test")
 }
 
+var (
+	devByName map[string]*ifInfo
+	devList   []*ifInfo
+	hashMac   hash.Hash
+)
+
 func main() {
+	os.Exit(realMain())
+}
+
+func realMain() int {
 	if err := checkFlags(); err != nil {
 		flag.Usage()
-		fatal("%s\n", err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		return 1
 	}
 	if err := parseDevInfo(devInfoFilePath); err != nil {
-		fatal("%s\n", err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		return 1
 	}
 	if err := generateKeys(keysDirPath); err != nil {
-		fatal("%s\n", err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		return 1
 	}
 	timerIdx := len(devList)
 	cases := make([]reflect.SelectCase, timerIdx+1)
@@ -85,7 +95,8 @@ func main() {
 		var err error
 		ifi.handle, err = pcap.OpenLive(ifi.hostDev, snapshot_len, promiscuous, pcap.BlockForever)
 		if err != nil {
-			fatal("%s\n", err)
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			return 1
 		}
 		packetSource := gopacket.NewPacketSource(ifi.handle, ifi.handle.LinkType())
 		ch := packetSource.Packets()
@@ -95,7 +106,8 @@ func main() {
 	// Now that everything is set up, drop CAP_NET_ADMIN
 	caps, err := capability.NewPid(0)
 	if err != nil {
-		fatal("Error retrieving capabilities: %s", err)
+		fmt.Fprintf(os.Stderr, "Error retrieving capabilities: %s\n", err)
+		return 1
 	}
 	caps.Clear(capability.CAPS)
 	caps.Apply(capability.CAPS)
@@ -111,7 +123,8 @@ func main() {
 	case "core-brC":
 		brTests = genTestsCoreBrC(hashMac)
 	default:
-		fatal("Wrong Border Router ID %s", borderID)
+		fmt.Fprintf(os.Stderr, "Wrong Border Router ID %s\n", borderID)
+		return 1
 	}
 	fmt.Printf("Acceptance tests for %s:\n", borderID)
 	var failures int
@@ -128,7 +141,7 @@ func main() {
 			fmt.Printf("%d. %s\n", baseIdx+i, t.Summary(true))
 		}
 	}
-	os.Exit(failures)
+	return failures
 }
 
 func checkFlags() error {
@@ -161,7 +174,7 @@ func parseDevInfo(fn string) error {
 			return err
 		}
 		devList = append(devList, elem)
-		devByName[field[1]] = elem
+		devByName[elem.contDev] = elem
 	}
 	return nil
 }
@@ -193,7 +206,7 @@ func registerScionPorts() {
 	}
 }
 
-// doTest just runs a test, which involved generating the packet, sending it in the specified
+// doTest runs a test, which involves generating the packet, sending it in the specified
 // interface, then comparing any packets coming from the border router against the expected
 // packets from the test.
 // It returns true if the test was successful, ie. all expected packets and no others were received,
@@ -201,27 +214,29 @@ func registerScionPorts() {
 func doTest(t *BRTest, cases []reflect.SelectCase) error {
 	devInfo, ok := devByName[t.In.Dev]
 	if !ok {
-		fatal("No device information for: %s", t.In.Dev)
+		return fmt.Errorf("No device information for: %s\n", t.In.Dev)
 	}
 	raw, err := t.In.Pack(devInfo.mac)
 	if err != nil {
-		fatal("%s\n", err)
+		return err
 	}
 	err = devInfo.handle.WritePacketData(raw)
 	if err != nil {
-		fatal("%s\n", err)
+		return err
 	}
 	return checkRecvPkts(t, cases)
 }
 
 // checkRecvPkts compares packets received in any interface against the expected packets
 // from the test, checking that they have been received on the expected interface.
+// The logic here is to always wait for the timeout to finish receiving packets, thus we
+// can check that only the expected packets were received.
 func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 	timerIdx := len(devList)
 	timerCh := time.After(timeout)
+	// Add timeout channel as the last select case.
 	cases[timerIdx] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(timerCh)}
-	expPkts := make([]*tpkt.ExpPkt, len(t.Out))
-	copy(expPkts, t.Out)
+	expPkts := append([]*tpkt.ExpPkt(nil), t.Out...)
 	var errStr []string
 	for {
 		idx, pktV, ok := reflect.Select(cases)
@@ -243,14 +258,10 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 		i, e := checkPkt(expPkts, idx, pkt)
 		if e != nil {
 			errStr = append(errStr, fmt.Sprintf("%s", e))
-			if len(expPkts) > 0 {
-				continue
-			}
-			// Packet received when no packet is expected
-			break
+			continue
 		}
-		expPkts[i] = expPkts[len(expPkts)-1]
-		expPkts = expPkts[:len(expPkts)-1]
+		// Remove matched packet from expected packets
+		expPkts = append(expPkts[:i], expPkts[i+1:]...)
 	}
 	if len(errStr) > 0 {
 		return fmt.Errorf(strings.Join(errStr, "\n"))
@@ -272,9 +283,6 @@ func checkPkt(expPkts []*tpkt.ExpPkt, devIdx int, pkt gopacket.Packet) (int, err
 			continue
 		}
 		// Expected packet matched!
-		if len(errStr) > 0 {
-			return i, fmt.Errorf(strings.Join(errStr, "\n"))
-		}
 		return i, nil
 	}
 	if len(expPkts) == 0 {
@@ -285,12 +293,7 @@ func checkPkt(expPkts []*tpkt.ExpPkt, devIdx int, pkt gopacket.Packet) (int, err
 		scn.Path.Parse(scn.Path.Raw)
 		scn.Path.Raw = nil
 	}
-	errStr = append(errStr, fmt.Sprintf("Unexpected pkt on interface %s:\n\n%v",
+	errStr = append(errStr, fmt.Sprintf("Unexpected packet on interface %s:\n\n%v",
 		devList[devIdx].contDev, pkt))
 	return 0, fmt.Errorf(strings.Join(errStr, "\n"))
-}
-
-func fatal(msg string, a ...interface{}) {
-	fmt.Fprintf(os.Stderr, msg+"\n", a...)
-	os.Exit(1)
 }
