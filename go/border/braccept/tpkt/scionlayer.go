@@ -24,16 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-// ScionLayer represents the gopacket SCION network layer, which contains the common,
-// address and path "headers".
-type ScionLayer struct {
-	layers.BaseLayer
-	nextHdr common.L4ProtocolType
-	CmnHdr  spkt.CmnHdr
-	AddrHdr AddrHdr
-	Path    ScnPath
-}
-
 var _ LayerMatcher = (*ScionLayer)(nil)
 
 var LayerTypeScion = gopacket.RegisterLayerType(
@@ -43,6 +33,16 @@ var LayerTypeScion = gopacket.RegisterLayerType(
 		Decoder: gopacket.DecodeFunc(decodeScionLayer),
 	},
 )
+
+// ScionLayer represents the gopacket SCION network layer, which contains the common,
+// address and path "headers".
+type ScionLayer struct {
+	layers.BaseLayer
+	nextHdr common.L4ProtocolType
+	CmnHdr  spkt.CmnHdr
+	AddrHdr AddrHdr
+	Path    ScnPath
+}
 
 func (l *ScionLayer) LayerType() gopacket.LayerType {
 	return LayerTypeScion
@@ -74,9 +74,11 @@ func (l *ScionLayer) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) er
 	}
 	offset += addrLen
 	hdrLen := l.CmnHdr.HdrLenBytes()
-	l.Path.InfOff = int(l.CmnHdr.CurrInfoF) - (offset / common.LineLen)
-	l.Path.HopOff = int(l.CmnHdr.CurrHopF) - (offset / common.LineLen)
 	l.Path.Raw = data[offset:hdrLen]
+	if len(l.Path.Raw) > 0 {
+		l.Path.InfOff = int(l.CmnHdr.CurrInfoF*common.LineLen) - offset
+		l.Path.HopOff = int(l.CmnHdr.CurrHopF*common.LineLen) - offset
+	}
 	l.BaseLayer = layers.BaseLayer{Contents: data[:hdrLen], Payload: data[hdrLen:]}
 	l.nextHdr = l.CmnHdr.NextHdr
 	// TODO Extensions

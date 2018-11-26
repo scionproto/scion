@@ -173,12 +173,6 @@
 			"revisionTime": "2018-02-01T23:52:37Z"
 		},
 		{
-			"checksumSHA1": "3LWNcQT7yTaLpEmjhI/3fi8puv0=",
-			"path": "github.com/imdario/mergo",
-			"revision": "9f23e2d6bd2a77f959b2bf6acdbefd708a83a4a4",
-			"revisionTime": "2018-07-30T21:26:40Z"
-		},
-		{
 			"checksumSHA1": "S1lxMekj2Rxqp/lA47z9UGeNHjs=",
 			"license": "APL 2.0",
 			"path": "github.com/inconshreveable/log15",

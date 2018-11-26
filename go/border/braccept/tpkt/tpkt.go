@@ -17,10 +17,6 @@
 //
 // We cannot always use the hpkt package here, since it disallows some forms of malformed packets,
 // e.g., by autogenerating the common header from other input.
-//
-// We use the mergo package to easily merge different structs. It does so by setting any unset
-// fields in a struct with the corresponding fields in the struct to be merge in. This enables us
-// to only specify packet diffs between original and expected packets when defining test cases.
 package tpkt
 
 import (
@@ -32,9 +28,21 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 )
+
+// LayerBuilder is used to generate layers to build the packet that will be sent
+// to the border router.
+type LayerBuilder interface {
+	Build() ([]gopacket.SerializableLayer, error)
+}
+
+// LayerMatcher is used to compare layers of the received packet against the expected packet.
+type LayerMatcher interface {
+	Match([]gopacket.Layer, *LayerCache) ([]gopacket.Layer, error)
+}
 
 // ExpPkt defines the expected packet from the border router
 type ExpPkt struct {
@@ -73,11 +81,11 @@ type Pkt struct {
 func (p *Pkt) Pack(dstMac net.HardwareAddr) (common.RawBytes, error) {
 	var pktLayers []gopacket.SerializableLayer
 	for _, l := range p.Layers {
-		layers, err := l.Build()
+		ll, err := l.Build()
 		if err != nil {
 			return nil, err
 		}
-		pktLayers = append(pktLayers, layers...)
+		pktLayers = append(pktLayers, ll...)
 	}
 	eth, err := newEthLayer(dstMac, pktLayers[0])
 	if err != nil {
@@ -88,9 +96,7 @@ func (p *Pkt) Pack(dstMac net.HardwareAddr) (common.RawBytes, error) {
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	l := make([]gopacket.SerializableLayer, len(pktLayers)+1)
-	l[0] = eth
-	copy(l[1:], pktLayers)
+	l := append([]gopacket.SerializableLayer{eth}, pktLayers...)
 	if err := gopacket.SerializeLayers(pkt, options, l...); err != nil {
 		return nil, err
 	}
@@ -117,17 +123,6 @@ func newEthLayer(dstMac net.HardwareAddr,
 		SrcMAC:       srcMac,
 		EthernetType: ethType,
 	}, nil
-}
-
-// LayerBuilder is used to generate layers to build the packet that will be sent
-// to the border router.
-type LayerBuilder interface {
-	Build() ([]gopacket.SerializableLayer, error)
-}
-
-// LayerMatcher is used to compare layers of the received packet against the expected packet.
-type LayerMatcher interface {
-	Match([]gopacket.Layer, *LayerCache) ([]gopacket.Layer, error)
 }
 
 var _ LayerBuilder = (*GenCmnHdr)(nil)
@@ -168,7 +163,7 @@ func (l *GenCmnHdr) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacke
 
 func (l *GenCmnHdr) setCmnHdr() {
 	addrHdrLen := l.AddrHdr.Len()
-	hdrLen := spkt.CmnHdrLen + addrHdrLen + l.Path.Segs.Len()
+	hdrLen := spkt.CmnHdrLen + addrHdrLen + l.Path.Len()
 	pathOff := spkt.CmnHdrLen + addrHdrLen
 	// Auto generate common header values, NextHdr is already set
 	l.CmnHdr.Ver = spkt.SCIONVersion
@@ -176,14 +171,16 @@ func (l *GenCmnHdr) setCmnHdr() {
 	l.CmnHdr.SrcType = l.AddrHdr.SrcHost.Type()
 	l.CmnHdr.HdrLen = uint8(hdrLen / common.LineLen)
 	l.CmnHdr.TotalLen = uint16(hdrLen)
-	l.CmnHdr.CurrInfoF = uint8((pathOff + l.Path.InfOff) / common.LineLen)
-	l.CmnHdr.CurrHopF = uint8((pathOff + l.Path.HopOff) / common.LineLen)
+	if l.Path.Segs != nil {
+		l.CmnHdr.CurrInfoF = uint8((pathOff + l.Path.InfOff) / common.LineLen)
+		l.CmnHdr.CurrHopF = uint8((pathOff + l.Path.HopOff) / common.LineLen)
+	}
 }
 
 var _ LayerBuilder = (*UDP)(nil)
 var _ LayerMatcher = (*UDP)(nil)
 
-// UDP is a wrapper over layres.UDP that implements LayerBuilder and LayerMatcher interfaces
+// UDP is a wrapper that implements LayerBuilder and LayerMatcher interfaces
 type UDP struct {
 	layers.UDP
 }
@@ -193,7 +190,7 @@ func NewUDP(src, dst uint16, pld common.RawBytes) *UDP {
 	udp.UDP = layers.UDP{
 		SrcPort: layers.UDPPort(src),
 		DstPort: layers.UDPPort(dst),
-		Length:  uint16(8 + len(pld)),
+		Length:  uint16(l4.UDPLen + len(pld)),
 	}
 	udp.Payload = pld
 	return udp
@@ -230,22 +227,20 @@ func (l *UDP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Laye
 var _ LayerBuilder = (*Payload)(nil)
 var _ LayerMatcher = (*Payload)(nil)
 
-// Payload is a wrapper over layres.UDP that implements LayerBuilder and LayerMatcher interfaces
+// Payload is a wrapper that implements LayerBuilder and LayerMatcher interfaces
 type Payload struct {
 	gopacket.Payload
-}
-
-func (l *Payload) Build() ([]gopacket.SerializableLayer, error) {
-	return []gopacket.SerializableLayer{l}, nil
 }
 
 func NewPld(pld []byte) *Payload {
 	return &Payload{pld}
 }
 
+func (l *Payload) Build() ([]gopacket.SerializableLayer, error) {
+	return []gopacket.SerializableLayer{l}, nil
+}
+
 func (l *Payload) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
-	if len(pktLayers) != 1 {
-	}
 	pld := pktLayers[0].(*gopacket.Payload)
 	if !bytes.Equal(l.Payload, *pld) {
 		return nil, fmt.Errorf("Payload does not match")
