@@ -61,7 +61,7 @@ print_help() {
 do_command() {
     PROGRAM="$1"
     COMMAND="$2"
-    TEST_NAME="$3"
+    TEST_NAME="${3}_acceptance"
     shift 3
     case "$COMMAND" in
         name)

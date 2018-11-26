@@ -1,9 +1,9 @@
 #!/bin/bash
 
 BRID=core-brB
-TEST_NAME="core_brB_acceptance"
-PROGRAM=$(basename "$0")
-COMMAND="$1"
+TEST_NAME="${BRID}_acceptance"
+PROGRAM=$(basename "${0:?}")
+COMMAND="${1:?}"
 BRUTIL=acceptance/brutil
 BRCONF_DIR=br-core-conf
 

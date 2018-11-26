@@ -1,29 +1,33 @@
 #!/bin/bash
 
-BRID=core-brC
+BRID=brD
 TEST_NAME="${BRID}_acceptance"
 PROGRAM=$(basename "${0:?}")
 COMMAND="${1:?}"
 BRUTIL=acceptance/brutil
-BRCONF_DIR=br-core-conf
+BRCONF_DIR=br-conf
 
 . $BRUTIL/common.sh
 
 # This function is called from test_setup
 set_veths() {
-    create_veth veth0_root ifid_local 192.168.0.13/24 \
-        192.168.0.11 192.168.0.12 192.168.0.51 192.168.0.61 192.168.0.71
+    create_veth veth0_root ifid_local 192.168.0.14/24 \
+        192.168.0.11 192.168.0.12 192.168.0.13 192.168.0.51 192.168.0.61 192.168.0.71
     create_veth veth1_root ifid_122 192.168.12.4/31 192.168.12.5
     create_veth veth2_root ifid_131 192.168.13.2/31 192.168.13.3
     create_veth veth3_root ifid_132 192.168.13.4/31 192.168.13.5
     create_veth veth4_root ifid_142 192.168.14.4/31 192.168.14.5
     create_veth veth5_root ifid_151 192.168.15.2/31 192.168.15.3
     create_veth veth6_root ifid_152 192.168.15.4/31 192.168.15.5
+    create_veth veth7_root ifid_162 192.168.16.4/31 192.168.16.5
+    create_veth veth8_root ifid_171 192.168.17.2/31 192.168.17.3
+    create_veth veth9_root ifid_172 192.168.17.4/31 192.168.17.5
 }
 
 # This function is called from test_teardown
 del_veths() {
-    delete_veth veth0_root veth1_root veth2_root veth3_root veth4_root veth5_root veth6_root
+    delete_veth veth0_root veth1_root veth2_root veth3_root veth4_root veth5_root \
+        veth6_root veth7_root veth8_root veth9_root
 }
 
 shift
