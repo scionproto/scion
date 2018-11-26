@@ -114,7 +114,7 @@
   },
   "BeaconService": {
     "core-bsA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 30006, "Addr": "127.0.0.1" } }
+        "IPv4": { "Public": { "L4Port": 30006, "Addr": "192.168.0.61" } }
     } }
   },
   "CertificateService": {
