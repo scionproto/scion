@@ -21,10 +21,12 @@ import json
 import logging
 import os
 import random
+import subprocess
 import sys
 from collections import defaultdict
 
 # External packages
+from external.ipaddress import ip_address
 import yaml
 
 # SCION
@@ -40,7 +42,7 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES, gen_zk_entry
+from topology.common import srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES
 from topology.net import AddressProxy
 
 DEFAULT_LINK_BW = 1000
@@ -51,7 +53,8 @@ DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
 DEFAULT_DISCOVERY_SERVERS = 1
 
-ZOOKEEPER_ADDR = "172.18.0.1"
+DEFAULT_DOCKER_ZK_PORT = 2182
+DEFAULT_ZK_PORT = 2181
 
 
 class TopoGenArgs(ArgsBase):
@@ -282,17 +285,42 @@ class TopoGenerator(object):
             }
 
     def _gen_zk_entries(self, topo_id, as_conf):
-        zk_conf = {}
-        if "zookeepers" in self.args.topo_config_dict.get("defaults", {}):
-            zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
-        if len(zk_conf) > 1:
-            logging.critical("Only one zk instance is allowed!")
+        if "zookeepers" not in self.args.topo_config_dict.get("defaults", {}):
+            logging.critical("No zookeeper configured in the topology!")
             sys.exit(1)
-        for key, val in zk_conf.items():
-            addr = val.get("addr", None)
-            port = val.get("port", None)
-            zk_entry = gen_zk_entry(addr, port, self.args.in_docker, self.args.docker)
-            self.topo_dicts[topo_id]["ZookeeperService"][key] = zk_entry
+        zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
+        if len(zk_conf) > 1:
+            logging.critical("Only one zk instance is supported!")
+            sys.exit(1)
+        addr = zk_conf[1].get("addr", None)
+        port = zk_conf[1].get("port", None)
+        zk_entry = self._gen_zk_entry(addr, port, self.args.in_docker, self.args.docker)
+        self.topo_dicts[topo_id]["ZookeeperService"][1] = zk_entry
+
+    def _gen_zk_entry(self, addr, port, in_docker, docker):
+        # If we're in-docker, we need to set the port to not conflict with something on the host
+        if in_docker:
+            port = DEFAULT_DOCKER_ZK_PORT
+        if not port:
+            port = DEFAULT_ZK_PORT
+
+        # If in-docker, we need to know the DOCKER0 IP
+        if in_docker:
+            addr = os.getenv('DOCKER0', None)
+            if not addr:
+                print('DOCKER0 env variable required! Exiting!')
+                sys.exit(1)
+        # Using docker topology or there is no default addr,
+        # we directly get the DOCKER0 IP
+        elif docker or not addr:
+            addr = _docker_ip()
+        # Addr is specified in the topo file
+        else:
+            addr = str(ip_address(addr))
+        return {
+            'Addr': addr,
+            'L4Port': port
+        }
 
     def _generate_as_list(self, topo_id, as_conf):
         if as_conf.get('core', False):
@@ -373,3 +401,7 @@ def _json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
+
+
+def _docker_ip():
+    return subprocess.check_output(['tools/docker-ip']).decode("utf-8").strip()
