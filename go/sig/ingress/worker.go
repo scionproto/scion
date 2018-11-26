@@ -136,16 +136,17 @@ func (w *Worker) getRlist(epoch int) *ReassemblyList {
 }
 
 func (w *Worker) cleanup() {
-	for epoch, rlist := range w.rlists {
+	for epoch := range w.rlists {
+		rlist := w.rlists[epoch]
 		if rlist.markedForDeletion {
 			// Reassembly list has been marked for deletion in a previous cleanup run.
 			// Remove the reassembly list from the map and then release all frames
 			// back to the bufpool.
 			delete(w.rlists, epoch)
-			go func(rl *ReassemblyList) {
+			go func() {
 				defer log.LogPanicAndExit()
-				rl.removeAll()
-			}(rlist)
+				rlist.removeAll()
+			}()
 		} else {
 			// Mark the reassembly list for deletion. If it is not accessed between now
 			// and the next cleanup interval, it will be removed.

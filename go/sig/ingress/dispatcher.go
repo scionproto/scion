@@ -129,13 +129,14 @@ func (d *Dispatcher) dispatch(frame *FrameBuf, src *snet.Addr) {
 
 // cleanup periodically stops and releases idle workers.
 func (d *Dispatcher) cleanup() {
-	for key, worker := range d.workers {
+	for key := range d.workers {
+		worker := d.workers[key]
 		if worker.markedForCleanup {
 			delete(d.workers, key)
-			go func(w *Worker) {
+			go func() {
 				defer log.LogPanicAndExit()
-				w.Stop()
-			}(worker)
+				worker.Stop()
+			}()
 		} else {
 			worker.markedForCleanup = true
 		}
