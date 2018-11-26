@@ -91,15 +91,14 @@ type AttemptFunc func(n int) bool
 // Between two attempts at least RetryTimeout time has to pass.
 // Returns 0 on success, 1 on failure.
 func AttemptRepeatedly(name string, attempt AttemptFunc) int {
-	ticker := time.NewTicker(integration.RetryTimeout)
-	defer ticker.Stop()
 	attempts := 0
-	for ; true; <-ticker.C {
+	for {
 		attempts++
 		if attempt(attempts) {
 			return 0
 		} else if attempts < Attempts {
 			log.Info("Retrying...")
+			time.Sleep(integration.RetryTimeout)
 			continue
 		}
 		log.Error(fmt.Sprintf("%s failed. No more attempts...", name))

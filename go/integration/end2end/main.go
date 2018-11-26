@@ -163,7 +163,7 @@ func (c client) getRemote(n int) error {
 	paths, err := c.sdConn.Paths(ctx, remote.IA, integration.Local.IA, 1,
 		sciond.PathReqFlags{Refresh: n != 0})
 	if err != nil {
-		return err
+		return common.NewBasicError("Error requesting paths", err)
 	}
 	if len(paths.Entries) == 0 {
 		return common.NewBasicError("No path entries found", nil)
@@ -177,7 +177,7 @@ func (c client) getRemote(n int) error {
 	remote.Path = path
 	remote.NextHop, err = pathEntry.HostInfo.Overlay()
 	if err != nil {
-		return err
+		return common.NewBasicError("Error getting overlay", err)
 	}
 	return nil
 }
@@ -187,7 +187,7 @@ func (c client) pong() error {
 	reply := make([]byte, 1024)
 	pktLen, err := c.conn.Read(reply)
 	if err != nil {
-		return err
+		return common.NewBasicError("Error reading packet", err)
 	}
 	expected := pong + remote.IA.String() + integration.Local.IA.String()
 	if string(reply[:pktLen]) != expected {
