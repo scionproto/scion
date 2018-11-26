@@ -128,6 +128,8 @@ func (p *InfoPktSize) String() string {
 
 var _ Info = (*InfoPathOffsets)(nil)
 
+const infoPathOffsetsLen = 11
+
 type InfoPathOffsets struct {
 	InfoF   uint8
 	HopF    uint8
@@ -137,6 +139,17 @@ type InfoPathOffsets struct {
 
 func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, error) {
 	p := &InfoPathOffsets{}
+	if len(b) < p.Len() {
+		return nil, common.NewBasicError("Can't parse InfoPathOffsets, buffer is too small", nil,
+			"min", p.Len(), "actual", len(b))
+	}
+	// Check 0 padding
+	for _, pad := range b[infoPathOffsetsLen:p.Len()] {
+		if pad != 0 {
+			return nil, common.NewBasicError("InfoPathOffsets padding is not zeroed", nil,
+				"actual", b[infoPathOffsetsLen:p.Len()])
+		}
+	}
 	p.InfoF = b[0]
 	p.HopF = b[1]
 	p.IfID = common.IFIDType(common.Order.Uint64(b[2:]))
@@ -149,11 +162,14 @@ func (p *InfoPathOffsets) Copy() Info {
 }
 
 func (p *InfoPathOffsets) Len() int {
-	l := 11
-	return l + util.CalcPadding(l, common.LineLen)
+	return infoPathOffsetsLen + util.CalcPadding(infoPathOffsetsLen, common.LineLen)
 }
 
 func (p *InfoPathOffsets) Write(b common.RawBytes) (int, error) {
+	if len(b) < p.Len() {
+		return 0, common.NewBasicError("Can't write InfoPathOffsets, buffer is too small", nil,
+			"min", p.Len(), "actual", len(b))
+	}
 	b[0] = p.InfoF
 	b[1] = p.HopF
 	common.Order.PutUint64(b[2:], uint64(p.IfID))

@@ -115,7 +115,7 @@ func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) er
 	if mac, err := h.CalcMac(macH, tsInt, prev); err != nil {
 		return err
 	} else if !bytes.Equal(h.Mac, mac) {
-		return common.NewBasicError(ErrorHopFBadMac, nil, "expected", h.Mac, "actual", mac)
+		return common.NewBasicError(ErrorHopFBadMac, nil, "expected", mac, "actual", h.Mac)
 	}
 	return nil
 }

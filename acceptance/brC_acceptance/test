@@ -1,19 +1,19 @@
 #!/bin/bash
 
-BRID=core-brA
+BRID=brC
 TEST_NAME="${BRID}_acceptance"
 PROGRAM=$(basename "${0:?}")
 COMMAND="${1:?}"
 BRUTIL=acceptance/brutil
-BRCONF_DIR=br-core-conf
+BRCONF_DIR=br-conf
 
 . $BRUTIL/common.sh
 
 # This function is called from test_setup
 set_veths() {
-    create_veth veth0_root ifid_local 192.168.0.11/24 \
-        192.168.0.12 192.168.0.13 192.168.0.51 192.168.0.61 192.168.0.71
-    create_veth veth1_root ifid_121 192.168.12.2/31 192.168.12.3
+    create_veth veth0_root ifid_local 192.168.0.13/24 \
+        192.168.0.11 192.168.0.12 192.168.0.14 192.168.0.51 192.168.0.61 192.168.0.71
+    create_veth veth1_root ifid_161 192.168.16.2/31 192.168.16.3
 }
 
 # This function is called from test_teardown
