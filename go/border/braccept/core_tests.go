@@ -48,208 +48,208 @@ var tsNow = uint32(time.Now().Unix())
 var (
 	// Core paths between ff00:0:1 <-> ff00:0:2
 	path_2A_1A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121}}},
 	}
 	path_2A_1A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
 	}
 	path_1A_2A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_121}, {ConsIngress: if_211}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_121}, {ConsIngress: if_211}}},
 	}
 	path_1A_2A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_211}, {ConsEgress: if_121}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_211}, {ConsEgress: if_121}}},
 	}
 	// Core paths between ff00:0:1 <-> ff00:0:3
 	path_3A_1C = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_311}, {ConsIngress: if_131}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_311}, {ConsIngress: if_131}}},
 	}
 	path_3A_1C_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_131}, {ConsEgress: if_311}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_131}, {ConsEgress: if_311}}},
 	}
 	path_1C_3A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_131}, {ConsIngress: if_311}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_131}, {ConsIngress: if_311}}},
 	}
 	path_1C_3A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_311}, {ConsEgress: if_131}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_311}, {ConsEgress: if_131}}},
 	}
 	// Core paths between ff00:0:2 <-> ff00:0:3
 	path_2A_1A_1C_3A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 3},
-			[]spath.HopField{{ConsEgress: if_211},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 3},
+			Hops: []spath.HopField{{ConsEgress: if_211},
 				{ConsIngress: if_121, ConsEgress: if_131}, {ConsIngress: if_311}}},
 	}
 	path_2A_1A_1C_3A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
-			[]spath.HopField{{ConsIngress: if_311},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
+			Hops: []spath.HopField{{ConsIngress: if_311},
 				{ConsIngress: if_121, ConsEgress: if_131}, {ConsEgress: if_211}}},
 	}
 	path_3A_1C_1A_2A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 3},
-			[]spath.HopField{{ConsEgress: if_311},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 3},
+			Hops: []spath.HopField{{ConsEgress: if_311},
 				{ConsIngress: if_131, ConsEgress: if_121}, {ConsIngress: if_211}}},
 	}
 	path_3A_1C_1A_2A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
-			[]spath.HopField{{ConsIngress: if_211},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
+			Hops: []spath.HopField{{ConsIngress: if_211},
 				{ConsIngress: if_131, ConsEgress: if_121}, {ConsEgress: if_311}}},
 	}
 	path_3A_1C_1C_2B_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
-			[]spath.HopField{{ConsIngress: if_212},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 3},
+			Hops: []spath.HopField{{ConsIngress: if_212},
 				{ConsIngress: if_131, ConsEgress: if_122}, {ConsEgress: if_311}}},
 	}
 	// Paths between ff00:0:1 <-> ff00:0:4
 	path_1B_4A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
 	}
 	path_1B_4A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141}}},
 	}
 	// Paths between ff00:0:1 <-> ff00:0:5
 	path_1C_5A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
 	}
 	path_1C_5A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151}}},
 	}
 	// Paths between ff00:0:2 <-> ff00:0:4
 	path_2A_1A_X_1B_4A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
 	}
 	path_1B_4A_rev_X_2A_1A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
 	}
 	// Paths between ff00:0:2 <-> ff00:0:5
 	path_2A_1A_X_1C_5A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
 	}
 	path_2A_1A_X_1C_5A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
 	}
 	// Paths between ff00:0:3 <-> ff00:0:5
 	path_1C_3A_rev_X_1C_5A = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_311}, {ConsEgress: if_131, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_311}, {ConsEgress: if_131, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
 	}
 	path_1C_5A_rev_X_1C_3A = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_131}, {ConsIngress: if_311}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_131}, {ConsIngress: if_311}}},
 	}
 	path_1C_5A_rev_X_3A_1C_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_131}, {ConsEgress: if_311}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_131}, {ConsEgress: if_311}}},
 	}
 	// Paths between ff00:0:4 <-> ff00:0:5
 	path_1B_4A_rev_X_1C_5A = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
 	}
 	path_1C_5A_rev_X_1B_4A = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
 	}
 	path_1C_5A_rev_X_1C_4B = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_142}, {ConsIngress: if_412}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_142}, {ConsIngress: if_412}}},
 	}
 	path_1C_5A_rev_X_4B_1C_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_142}, {ConsEgress: if_412}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_142}, {ConsEgress: if_412}}},
 	}
 	// Bad paths - Xover CORE to CORE
 	path_2A_1A_X_1C_3A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_131, Xover: true}, {ConsIngress: if_311}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_131, Xover: true}, {ConsIngress: if_311}}},
 	}
 	path_2A_1A_X_1C_3A_rev = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_311}, {ConsEgress: if_131, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_121, Xover: true}, {ConsEgress: if_211}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_311}, {ConsEgress: if_131, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_121, Xover: true}, {ConsEgress: if_211}}},
 	}
 	// Bad path - Xover DOWN to CORE
 	path_5A_1C_X_1A_2A = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_511}, {ConsIngress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_511}, {ConsIngress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_121}, {ConsEgress: if_211}}},
 	}
 	// Bad path - Xover CORE to UP
 	path_2A_1A_X_5A_1C = tpkt.Segments{
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_211}, {ConsIngress: if_121, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151}}},
 	}
 	// Bad paths between ff00:0:4 <-> ff00:0:4
 	path_1B_4A_rev_X_1B_4A = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_141}, {ConsIngress: if_411}}},
 	}
 	path_1B_4A_rev_X_1C_4B = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_142}, {ConsIngress: if_412}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_411}, {ConsEgress: if_141, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_142}, {ConsIngress: if_412}}},
 	}
 	// Bad paths between ff00:0:5 <-> ff00:0:5
 	path_1C_5A_rev_X_1C_5A = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_151}, {ConsIngress: if_511}}},
 	}
 	path_1C_5A_rev_X_1C_5B = tpkt.Segments{
-		{spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
-		{spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
-			[]spath.HopField{{ConsEgress: if_152}, {ConsIngress: if_512}}},
+		{Inf: spath.InfoField{ConsDir: false, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsIngress: if_511}, {ConsEgress: if_151, Xover: true}}},
+		{Inf: spath.InfoField{ConsDir: true, ISD: 1, TsInt: tsNow, Hops: 2},
+			Hops: []spath.HopField{{ConsEgress: if_152}, {ConsIngress: if_512}}},
 	}
 )
 
-func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
+func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 	return []*BRTest{
 		{
 			Desc: "Single IFID core - external - local destination",
@@ -257,14 +257,14 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.12.3", 50001, "192.168.12.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 2, path_2A_1A, hashMac), nil,
+						tpkt.GenPath(1, 2, path_2A_1A.SetMac(1, 2, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.51", 30041),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 2, path_2A_1A, hashMac),
+						tpkt.GenPath(1, 2, path_2A_1A.SetMac(1, 2, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -275,14 +275,14 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.11", 30001),
 					tpkt.NewValidScion("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(1, 1, path_1A_2A, hashMac), nil,
+						tpkt.GenPath(1, 1, path_1A_2A.SetMac(1, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(1, 2, path_1A_2A, hashMac),
+						tpkt.GenPath(1, 2, path_1A_2A.SetMac(1, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -293,14 +293,16 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.12.3", 50001, "192.168.12.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(1, 2, path_2A_1A_X_1C_5A, hashMac), nil,
+						tpkt.GenPath(1, 2,
+							path_2A_1A_X_1C_5A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.13", 30003),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(2, 1, path_2A_1A_X_1C_5A, hashMac),
+						tpkt.GenPath(2, 1,
+							path_2A_1A_X_1C_5A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -311,14 +313,16 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.11", 30001),
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(2, 1, path_5A_1C_X_1A_2A, hashMac), nil,
+						tpkt.GenPath(2, 1,
+							path_5A_1C_X_1A_2A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(2, 2, path_5A_1C_X_1A_2A, hashMac),
+						tpkt.GenPath(2, 2,
+							path_5A_1C_X_1A_2A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -330,14 +334,14 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.12.3", 50001, "192.168.12.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 2, path_2A_1A_X_1C_3A, hashMac),
+						tpkt.GenPath(1, 2, path_2A_1A_X_1C_3A.SetMac(1, 1, hMac)),
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(2, 2, path_2A_1A_X_1C_3A_rev, hashMac),
+						tpkt.GenPath(2, 2, path_2A_1A_X_1C_3A_rev.SetMac(1, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(scmp.C_Path, scmp.T_C_BadHopFOffset, nil),
 				}}},
@@ -364,7 +368,7 @@ func genTestsCoreBrA(hashMac hash.Hash) []*BRTest {
 	}
 }
 
-func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
+func genTestsCoreBrB(hMac hash.Hash) []*BRTest {
 	return []*BRTest{
 		{
 			Desc: "Single IFID core - external - local destination",
@@ -372,14 +376,14 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_141", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 50001, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 2, path_1B_4A_rev, hashMac), nil,
+						tpkt.GenPath(1, 2, path_1B_4A_rev.SetMac(1, 2, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.51", 30041),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 2, path_1B_4A_rev, hashMac),
+						tpkt.GenPath(1, 2, path_1B_4A_rev.SetMac(1, 2, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -390,14 +394,14 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.12", 30002),
 					tpkt.NewValidScion("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(1, 1, path_1B_4A, hashMac), nil,
+						tpkt.GenPath(1, 1, path_1B_4A.SetMac(1, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_141", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(1, 2, path_1B_4A, hashMac),
+						tpkt.GenPath(1, 2, path_1B_4A.SetMac(1, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -408,14 +412,17 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_141", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 50001, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(1, 2, path_1B_4A_rev_X_1C_5A, hashMac), nil,
+						tpkt.GenPath(1, 2,
+							path_1B_4A_rev_X_1C_5A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
+						nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.13", 30003),
 					tpkt.NewGenCmnHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(2, 1, path_1B_4A_rev_X_1C_5A, hashMac),
+						tpkt.GenPath(2, 1,
+							path_1B_4A_rev_X_1C_5A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -426,14 +433,14 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.12", 30002),
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(2, 1, path_1C_5A_rev_X_1B_4A, hashMac), nil,
+						tpkt.GenPath(2, 1, path_1C_5A_rev_X_1B_4A.SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_141", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(2, 2, path_1C_5A_rev_X_1B_4A, hashMac),
+						tpkt.GenPath(2, 2, path_1C_5A_rev_X_1B_4A.SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -444,14 +451,17 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_141", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 50001, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(1, 2, path_1B_4A_rev_X_2A_1A_rev, hashMac), nil,
+						tpkt.GenPath(1, 2,
+							path_1B_4A_rev_X_2A_1A_rev.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
+						nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.11", 30001),
 					tpkt.NewGenCmnHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(2, 1, path_1B_4A_rev_X_2A_1A_rev, hashMac),
+						tpkt.GenPath(2, 1,
+							path_1B_4A_rev_X_2A_1A_rev.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -462,14 +472,14 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.12", 30002),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(2, 1, path_2A_1A_X_1B_4A, hashMac), nil,
+						tpkt.GenPath(2, 1, path_2A_1A_X_1B_4A.SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_141", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(2, 2, path_2A_1A_X_1B_4A, hashMac),
+						tpkt.GenPath(2, 2, path_2A_1A_X_1B_4A.SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -482,7 +492,7 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_141", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 50001, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:4", "172.16.4.2",
-						tpkt.GenPath(1, 2, path_1B_4A_rev_X_1B_4A, hashMac), nil,
+						tpkt.GenPath(1, 2, path_1B_4A_rev_X_1B_4A.SetMac(1, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{},
@@ -494,7 +504,7 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_141", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 50001, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:4", "172.16.4.2",
-						tpkt.GenPath(1, 2, path_1B_4A_rev_X_1C_4B, hashMac), nil,
+						tpkt.GenPath(1, 2, path_1B_4A_rev_X_1C_4B.SetMac(1, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{},
@@ -503,7 +513,7 @@ func genTestsCoreBrB(hashMac hash.Hash) []*BRTest {
 	}
 }
 
-func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
+func genTestsCoreBrC(hMac hash.Hash) []*BRTest {
 	return []*BRTest{
 		{
 			Desc: "Multiple IFIDs - external - core to local",
@@ -511,14 +521,14 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_131", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.13.3", 50001, "192.168.13.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:3", "172.16.3.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 2, path_1C_3A_rev, hashMac), nil,
+						tpkt.GenPath(1, 2, path_1C_3A_rev.SetMac(1, 2, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.51", 30041),
 					tpkt.NewGenCmnHdr("1-ff00:0:3", "172.16.3.1", "1-ff00:0:1", "192.168.0.51",
-						tpkt.GenPath(1, 2, path_1C_3A_rev, hashMac),
+						tpkt.GenPath(1, 2, path_1C_3A_rev.SetMac(1, 2, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -529,14 +539,14 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.13", 30003),
 					tpkt.NewValidScion("1-ff00:0:1", "192.168.0.51", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 1, path_3A_1C_rev, hashMac), nil,
+						tpkt.GenPath(1, 1, path_3A_1C_rev.SetMac(1, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_131", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.13.2", 50000, "192.168.13.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 2, path_3A_1C_rev, hashMac),
+						tpkt.GenPath(1, 2, path_3A_1C_rev.SetMac(1, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -547,14 +557,14 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.0.11", 30003, "192.168.0.13", 30003),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 2, path_3A_1C_1A_2A_rev, hashMac), nil,
+						tpkt.GenPath(1, 2, path_3A_1C_1A_2A_rev.SetMac(1, 2, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_131", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.13.2", 50000, "192.168.13.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 3, path_3A_1C_1A_2A_rev, hashMac),
+						tpkt.GenPath(1, 3, path_3A_1C_1A_2A_rev.SetMac(1, 2, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -565,14 +575,14 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_122", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.12.5", 50001, "192.168.12.4", 50000),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 2, path_3A_1C_1C_2B_rev, hashMac), nil,
+						tpkt.GenPath(1, 2, path_3A_1C_1C_2B_rev.SetMac(1, 2, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_131", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.13.2", 50000, "192.168.13.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 3, path_3A_1C_1C_2B_rev, hashMac),
+						tpkt.GenPath(1, 3, path_3A_1C_1C_2B_rev.SetMac(1, 2, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -583,14 +593,16 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_131", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.13.3", 50001, "192.168.13.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:3", "172.16.3.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(1, 2, path_1C_3A_rev_X_1C_5A, hashMac), nil,
+						tpkt.GenPath(1, 2,
+							path_1C_3A_rev_X_1C_5A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_151", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.15.2", 50000, "192.168.15.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:3", "172.16.3.1", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(2, 2, path_1C_3A_rev_X_1C_5A, hashMac),
+						tpkt.GenPath(2, 2,
+							path_1C_3A_rev_X_1C_5A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -601,14 +613,16 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_151", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.15.3", 50001, "192.168.15.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(1, 2, path_1C_5A_rev_X_3A_1C_rev, hashMac), nil,
+						tpkt.GenPath(1, 2,
+							path_1C_5A_rev_X_3A_1C_rev.SetMac(1, 2, hMac).SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_131", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.13.2", 50000, "192.168.13.3", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(2, 2, path_1C_5A_rev_X_3A_1C_rev, hashMac),
+						tpkt.GenPath(2, 2,
+							path_1C_5A_rev_X_3A_1C_rev.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -619,14 +633,16 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_151", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.15.3", 50001, "192.168.15.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(1, 2, path_1C_5A_rev_X_1C_4B, hashMac), nil,
+						tpkt.GenPath(1, 2,
+							path_1C_5A_rev_X_1C_4B.SetMac(1, 2, hMac).SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{
 				{Dev: "ifid_142", Layers: []tpkt.LayerMatcher{
 					tpkt.GenOverlayIP4UDP("192.168.14.4", 50000, "192.168.14.5", 50001),
 					tpkt.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1",
-						tpkt.GenPath(2, 2, path_1C_5A_rev_X_1C_4B, hashMac),
+						tpkt.GenPath(2, 2,
+							path_1C_5A_rev_X_1C_4B.SetMac(1, 2, hMac).SetMac(2, 1, hMac)),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil),
 				}}},
@@ -638,7 +654,8 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_151", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.15.3", 50001, "192.168.15.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:5", "172.16.5.2",
-						tpkt.GenPath(1, 2, path_1C_5A_rev_X_1C_5A, hashMac), nil,
+						tpkt.GenPath(1, 2,
+						path_1C_5A_rev_X_1C_5A.SetMac(1, 2, hMac).SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{},
@@ -650,7 +667,8 @@ func genTestsCoreBrC(hashMac hash.Hash) []*BRTest {
 				Dev: "ifid_151", Layers: []tpkt.LayerBuilder{
 					tpkt.GenOverlayIP4UDP("192.168.15.3", 50001, "192.168.15.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:5", "172.16.5.2",
-						tpkt.GenPath(1, 2, path_1C_5A_rev_X_1C_5B, hashMac), nil,
+						tpkt.GenPath(1, 2,
+						path_1C_5A_rev_X_1C_5B.SetMac(1, 2, hMac).SetMac(2, 1, hMac)), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
 			Out: []*tpkt.ExpPkt{},
