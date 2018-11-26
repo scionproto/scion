@@ -100,6 +100,7 @@ func AttemptRepeatedly(name string, attempt AttemptFunc) int {
 			return 0
 		} else if attempts < Attempts {
 			log.Info("Retrying...")
+			ticker = time.NewTicker(integration.RetryTimeout)
 			continue
 		}
 		log.Error(fmt.Sprintf("%s failed. No more attempts...", name))
