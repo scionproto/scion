@@ -75,7 +75,7 @@ class DockerUtilsGenerator(object):
         cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
         name = 'tester_%s' % topo_id.file_fmt()
         entry = {
-            'image': docker_image(self.args, 'scion_tester'),
+            'image': docker_image(self.args, 'tester'),
             'container_name': 'tester_%s%s' % (docker, topo_id.file_fmt()),
             'privileged': True,
             'entrypoint': './tester.sh',
