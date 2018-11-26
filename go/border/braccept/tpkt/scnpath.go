@@ -29,11 +29,14 @@ import (
 type ScnPath struct {
 	spath.Path
 	Segs Segments
-	Mac  hash.Hash
 }
 
-// GenPath converts info and hop field indexes to their proper offsets
-func GenPath(infoF, hopF int, segs Segments, hashMac hash.Hash) *ScnPath {
+// GenPath converts info and hop field indexes to their proper offsets.
+// Both infoF and hopF are relative indexes, where infoF index indicates the references segment
+// position and hopF index indicates the hop fields position within the segment.
+// Note that this function writes the raw path then parses it to calculate the expected
+// hop field macs.
+func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 	p := &ScnPath{}
 	for i := 0; i < infoF-1; i++ {
 		// Each segments consists of one InfoField and N HopFields
@@ -42,8 +45,8 @@ func GenPath(infoF, hopF int, segs Segments, hashMac hash.Hash) *ScnPath {
 	p.HopOff = p.InfOff + (hopF * spath.HopFieldLength)
 	// Write SCION path
 	p.Raw = make(common.RawBytes, segs.Len())
-	p.Mac = hashMac
-	if _, err := segs.WriteTo(p.Raw, p.Mac); err != nil {
+	segs.initMacs()
+	if _, err := segs.WriteTo(p.Raw); err != nil {
 		return nil
 	}
 	// Parse the raw packet to retrieve hop fields mac
@@ -69,10 +72,7 @@ func (p *ScnPath) Parse(b []byte) error {
 }
 
 func (p *ScnPath) WriteRaw() (int, error) {
-	if p.Mac == nil {
-		return 0, fmt.Errorf("Mac is required to write raw path\n")
-	}
-	return p.Segs.WriteTo(p.Raw, p.Mac)
+	return p.Segs.WriteTo(p.Raw)
 }
 
 func (p *ScnPath) String() string {
@@ -82,7 +82,6 @@ func (p *ScnPath) String() string {
 	if len(p.Segs) > 0 {
 		return p.Segs.String()
 	}
-
 	return fmt.Sprintf("%x", p.Raw)
 }
 
@@ -100,6 +99,13 @@ func (p *ScnPath) Check(o *ScnPath) error {
 	return nil
 }
 
+func (p *ScnPath) Len() int {
+	if p == nil {
+		return 0
+	}
+	return p.Segs.Len()
+}
+
 type Segments []*SegDef
 
 func (segs Segments) Len() int {
@@ -110,10 +116,10 @@ func (segs Segments) Len() int {
 	return len
 }
 
-func (segs Segments) WriteTo(b []byte, mac hash.Hash) (int, error) {
+func (segs Segments) WriteTo(b []byte) (int, error) {
 	offset := 0
 	for i := range segs {
-		n, err := segs[i].WriteTo(b[offset:], mac)
+		n, err := segs[i].WriteTo(b[offset:])
 		if err != nil {
 			return offset, nil
 		}
@@ -126,6 +132,18 @@ func (segs Segments) String() string {
 	return PrintSegments(segs, "", " ")
 }
 
+func (segs Segments) initMacs() {
+	for i := range segs {
+		segs[i].initMacs()
+	}
+}
+
+func (segs Segments) SetMac(infoF, hopF int, hashMac hash.Hash) Segments {
+	segs[infoF-1].initMacs()
+	segs[infoF-1].macs[hopF-1] = hashMac
+	return segs
+}
+
 func PrintSegments(segs Segments, indent, sep string) string {
 	var str []string
 	for _, s := range segs {
@@ -134,10 +152,19 @@ func PrintSegments(segs Segments, indent, sep string) string {
 	return strings.Join(str, sep)
 }
 
+var defaultMac = common.RawBytes{0xef, 0xef, 0xef}
+
 // SegDef defines a path segment
 type SegDef struct {
 	Inf  spath.InfoField
 	Hops []spath.HopField
+	macs []hash.Hash
+}
+
+func (s *SegDef) initMacs() {
+	if s.macs == nil {
+		s.macs = make([]hash.Hash, len(s.Hops))
+	}
 }
 
 func (s *SegDef) Parse(b []byte) (int, error) {
@@ -160,7 +187,7 @@ func (s *SegDef) Parse(b []byte) (int, error) {
 	return segLen, nil
 }
 
-func (seg *SegDef) WriteTo(b []byte, mac hash.Hash) (int, error) {
+func (seg *SegDef) WriteTo(b []byte) (int, error) {
 	var err error
 	// Write Info Field
 	seg.Inf.Write(b)
@@ -174,11 +201,17 @@ func (seg *SegDef) WriteTo(b []byte, mac hash.Hash) (int, error) {
 			hopIdx = nHops - 1 - j
 		}
 		hop := seg.Hops[hopIdx]
+		mac := seg.macs[hopIdx]
 		if hop.Mac == nil {
-			mac.Reset()
-			hop.Mac, err = hop.CalcMac(mac, seg.Inf.TsInt, prevHop)
-			if err != nil {
-				return 0, err
+			if mac != nil {
+				mac.Reset()
+				// TODO(sgmonroy) peer interface support
+				hop.Mac, err = hop.CalcMac(mac, seg.Inf.TsInt, prevHop)
+				if err != nil {
+					return 0, err
+				}
+			} else {
+				hop.Mac = defaultMac
 			}
 		}
 		curOff := spath.InfoFieldLength + hopIdx*spath.HopFieldLength

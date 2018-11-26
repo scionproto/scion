@@ -36,7 +36,7 @@ print_help() {
 	    $PROGRAM setup
 	        execute only the setup phase.
 	    $PROGRAM run <args>
-	    execute only the run phase (allows passing specific argumented to the test binary).
+	        execute only the run phase (allows passing specific argumented to the test binary).
 	    $PROGRAM teardown
 	        execute only the teardown phase.
 	_EOF
