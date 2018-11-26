@@ -6,7 +6,7 @@ PROG=$1
 shift
 
 log() {
-    echo "$(date -u --rfc-3339=ns) $@" 1>&2
+    echo "$(date -u +"%F %T.%6N%z") $@" 1>&2
 }
 
 set -o pipefail
