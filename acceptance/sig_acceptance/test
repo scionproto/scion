@@ -9,10 +9,10 @@ test_setup() {
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d --sig -n 242.0.0.0/16
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'
+    sleep 10
 }
 
 test_run() {
-    sleep 10
     ./bin/sig_ping_acceptance -d -log.console info
 }
 
