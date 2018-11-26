@@ -26,8 +26,9 @@ cat "$STEPS/test.yml"
 # integration testing
 "$STEPS/integration.sh"
 
-# run some more tests on master
+# conditionally run more tests
 if [ -n "$RUN_ALL_TESTS" ]; then
+    cat "$STEPS/build_all.yml"
     # docker integration testing
     cat "$STEPS/docker-integration.yml"
     # acceptance testing

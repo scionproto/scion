@@ -1,11 +1,7 @@
-- wait
-- label: Build per app images
-  command:
-      - mkdir docker/_build && touch docker/_build/scion.stamp
-      - make -C docker/perapp
-- wait
 - label: Docker Integration Tests
-  command: $BASE/run_step integration -d -a
+  command:
+  - $BASE/all_images pull
+  - $BASE/run_step integration -d -a
   timeout_in_minutes: 30
   artifact_paths:
   - "artifacts.out/**/*"

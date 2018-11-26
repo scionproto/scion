@@ -3,6 +3,6 @@
       - docker stop "$SCION_CNTR"
       - docker commit "$SCION_CNTR" "$SCION_IMG"
       - ./docker.sh stop
-      - echo \$DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USER --password-stdin
+      - echo \$REGISTRY_PASSWORD | docker login $REGISTRY -u $REGISTRY_USER --password-stdin
       - docker push $SCION_IMG
 - wait

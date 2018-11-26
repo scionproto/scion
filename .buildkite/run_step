@@ -18,5 +18,5 @@ res=$((res+$?))
 res=$((res+$?))
 $BASE/clean_env.sh
 res=$((res+$?))
-rm -rf $SCION_MOUNT
+rm -r $SCION_MOUNT
 exit $res
