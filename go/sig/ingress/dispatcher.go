@@ -132,10 +132,10 @@ func (d *Dispatcher) cleanup() {
 	for key, worker := range d.workers {
 		if worker.markedForCleanup {
 			delete(d.workers, key)
-			go func() {
+			go func(w *Worker) {
 				defer log.LogPanicAndExit()
-				worker.Stop()
-			}()
+				w.Stop()
+			}(worker)
 		} else {
 			worker.markedForCleanup = true
 		}
