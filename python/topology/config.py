@@ -163,7 +163,7 @@ class ConfigGenerator(object):
             self._generate_docker(topo_dicts)
         else:
             self._generate_supervisor(topo_dicts)
-        self._generate_zk()
+        self._generate_zk(topo_dicts)
         self._generate_prom_conf(topo_dicts)
 
     def _generate_cas(self):
@@ -217,8 +217,8 @@ class ConfigGenerator(object):
     def _docker_args(self, topo_dicts):
         return DockerGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
 
-    def _generate_zk(self):
-        zk_gen = ZKGenerator(ZKGenArgs(self.args, self.topo_config))
+    def _generate_zk(self, topo_dicts):
+        zk_gen = ZKGenerator(ZKGenArgs(self.args, topo_dicts))
         zk_gen.generate()
 
     def _generate_prom_conf(self, topo_dicts):

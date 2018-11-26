@@ -14,12 +14,6 @@
 
 # Stdlib
 import os
-import subprocess
-import sys
-
-# External packages
-from external.ipaddress import ip_address
-
 # SCION
 from lib.packet.scion_addr import ISD_AS
 
@@ -32,9 +26,6 @@ SCION_SERVICE_NAMES = (
     "PathService",
     "DiscoveryService",
 )
-
-DEFAULT_DOCKER_ZK_PORT = 2182
-DEFAULT_ZK_PORT = 2181
 
 
 class ArgsBase:
@@ -125,30 +116,3 @@ def docker_image(args, image):
     if args.image_tag:
         image = '%s:%s' % (image, args.image_tag)
     return image
-
-
-def gen_zk_entry(addr, port, in_docker, docker):
-    if in_docker:
-        port = DEFAULT_DOCKER_ZK_PORT
-    if not port:
-        port = DEFAULT_ZK_PORT
-
-    if in_docker:
-        addr = os.getenv('DOCKER0', None)
-        if not addr:
-            print('DOCKER0 env variable required! Exiting!')
-            sys.exit(1)
-    elif docker:
-        addr = _docker_ip()
-    elif not addr:
-        addr = _docker_ip()
-    else:
-        addr = str(ip_address(addr))
-    return {
-        'Addr': addr,
-        'L4Port': port
-    }
-
-
-def _docker_ip():
-    return subprocess.check_output(['tools/docker-ip']).decode("utf-8").strip()
