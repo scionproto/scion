@@ -139,7 +139,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.writeLog("Server", dst.IA.String(), "", ep)
+		bi.writeLog("server", dst.IA.FileFmt(false), "", ep)
 	}()
 	err = r.Start()
 	if err != nil {
@@ -172,7 +172,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, id int,
 	}
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.writeLog("Client", clientId(id), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
+		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
 	}()
 	return r, r.Start()
 }
@@ -190,16 +190,25 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 
 func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadCloser) {
 	defer ep.Close()
-	f, err := os.OpenFile(fmt.Sprintf("%s/%s_%s", bi.logDir, name, id),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s_%s.log", bi.logDir, name, id),
+		os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
 	if err != nil {
-		log.Error("Failed to create log file for test run", "name", name, "id", id, "err", err)
+		log.Error("Failed to create log file for test run (create)",
+			"name", name, "id", id, "err", err)
 		return
 	}
 	defer f.Close()
+	// seek to end of file.
+	if _, err := f.Seek(0, 2); err != nil {
+		log.Error("Failed to create log file for test run (seek)",
+			"name", name, "id", id, "err", err)
+		return
+	}
 	w := bufio.NewWriter(f)
 	defer w.Flush()
 	w.WriteString(fmt.Sprintf("%v Starting %s %s %s\n",
+		time.Now().Format(fmt15.TimeFmt), name, id, startInfo))
+	defer w.WriteString(fmt.Sprintf("%v Finished %s %s %s\n",
 		time.Now().Format(fmt15.TimeFmt), name, id, startInfo))
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
@@ -211,8 +220,8 @@ func (bi *binaryIntegration) logFile(name, id string) string {
 	return fmt.Sprintf("%s/%s_%s", bi.logDir, name, id)
 }
 
-func clientId(id int) string {
-	return fmt.Sprintf("%d", id)
+func clientId(src, dst snet.Addr) string {
+	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
 }
 
 var _ Waiter = (*binaryWaiter)(nil)
