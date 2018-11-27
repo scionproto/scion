@@ -45,8 +45,6 @@ def add_arguments(parser):
                         help='Default topology config')
     parser.add_argument('-p', '--path-policy', default=DEFAULT_PATH_POLICY_FILE,
                         help='Path policy file')
-    parser.add_argument('-m', '--mininet', action='store_true',
-                        help='Use Mininet to create a virtual network topology')
     parser.add_argument('-d', '--docker', action='store_true',
                         help='Create a docker-compose configuration')
     parser.add_argument('-n', '--network',

@@ -177,8 +177,6 @@ zlog_category_t *zc;
 #define IP_HDRLEN  0x05 /* default IP header length == five 32-bits words. */
 #define IP_VHL_DEF (IP_VERSION | IP_HDRLEN)
 
-//#define MININET // Comment out for physical deployment
-
 static inline void initialize_eth_header(struct ether_hdr *eth, struct ether_addr *src_mac,
         struct ether_addr *dst_mac, uint16_t ether_type,
         uint8_t vlan_enabled, uint16_t van_id);
@@ -619,16 +617,11 @@ int send_packet(RouterPacket *packet)
                 mac = &e->mac;
         }
     } else {
-#ifdef MININET
-        hop_addr = get_ss_addr(packet->dst);
-        zlog_debug(zc, "no LPM entry for %s", inet_ntoa(*(struct in_addr *)hop_addr));
-#else
         zlog_error(zc, "do not know how to reach %s (error %d)",
                 addr_to_str(get_ss_addr(packet->dst), family_to_type(packet->dst->ss_family), NULL),
                 ret);
         rte_pktmbuf_free(m);
         return -1;
-#endif
     }
 
     if (unlikely(!mac)) {
