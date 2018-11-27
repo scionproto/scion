@@ -123,6 +123,9 @@ class ConfigGenerator(object):
             priv_net = DEFAULT_PRIV_NETWORK
         self.subnet_gen = SubnetGenerator(def_network, self.args.docker, self.args.in_docker)
         self.prvnet_gen = SubnetGenerator(priv_net, self.args.docker, self.args.in_docker)
+        if "zookeepers" not in defaults:
+            logging.critical("No zookeeper configured in the topology!")
+            sys.exit(1)
         for key, val in defaults.get("zookeepers", {}).items():
             if self.args.mininet and val['addr'] == "127.0.0.1":
                 val['addr'] = "169.254.0.1"
