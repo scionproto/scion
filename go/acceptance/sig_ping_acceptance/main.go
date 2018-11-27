@@ -56,33 +56,15 @@ func realMain() int {
 		log.Crit(fmt.Sprintf("Error reading testing conf: %s", err))
 		return 1
 	}
-	// The integration runner only collects logs from stderr in general, so we add '1>&2' to
-	// redirect stdout to stderr so we get logs from ping.
-	clientArgs := []string{"-c", "4", "-O", integration.DstHostReplace, "1>&2"}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{},
-		integration.NonStdLog)
-	if err := runTests(in, integration.IAPairs(sigAddr)); err != nil {
+	args := []string{cmd, "-c", "4", "-O", integration.DstHostReplace}
+	in := integration.NewBinaryIntegration(name, "./integration/bin_wrapper.sh", args, nil)
+	err := integration.RunUnaryTests(in, integration.IAPairs(sigAddr),
+		integration.DefaultRunTimeout)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}
 	return 0
-}
-
-// RunTests runs the client for each IAPair.
-// In case of an error the function is terminated immediately.
-func runTests(in integration.Integration, pairs []integration.IAPair) error {
-	return integration.ExecuteTimed(in.Name(), func() error {
-		// Start the clients for srcDest pair
-		for i, conn := range pairs {
-			log.Info(fmt.Sprintf("Test %v: %v,%v -> %v,%v (%v/%v)", in.Name(), conn.Src.IA,
-				conn.Src.Host, conn.Dst.IA, conn.Dst.Host, i+1, len(pairs)))
-			if err := integration.RunClient(in, conn, integration.DefaultRunTimeout); err != nil {
-				log.Error("Error during client execution", "err", err)
-				return err
-			}
-		}
-		return nil
-	})
 }
 
 func readTestingConf() error {
