@@ -59,7 +59,6 @@ from topology.go import GoGenArgs, GoGenerator
 from topology.net import (
     PortGenerator,
     SubnetGenerator,
-    DEFAULT_MININET_NETWORK,
     DEFAULT_NETWORK,
     DEFAULT_PRIV_NETWORK
 )
@@ -95,9 +94,6 @@ class ConfigGenerator(object):
         self.args = args
         self.topo_config = load_yaml_file(self.args.topo_config)
         self.zk_config = load_yaml_file(self.args.zk_config)
-        if self.args.docker and self.args.mininet:
-            logging.critical("Cannot use mininet with docker!")
-            sys.exit(1)
         self.default_mtu = None
         self._read_defaults(self.args.network)
         self.port_gen = PortGenerator()
@@ -114,19 +110,13 @@ class ConfigGenerator(object):
             if self.args.ipv6:
                 def_network = DEFAULT6_NETWORK
             else:
-                if self.args.mininet:
-                    def_network = DEFAULT_MININET_NETWORK
-                else:
-                    def_network = DEFAULT_NETWORK
+                def_network = DEFAULT_NETWORK
         if self.args.ipv6:
             priv_net = DEFAULT6_PRIV_NETWORK
         else:
             priv_net = DEFAULT_PRIV_NETWORK
         self.subnet_gen = SubnetGenerator(def_network, self.args.docker)
         self.prvnet_gen = SubnetGenerator(priv_net, self.args.docker)
-        for key, val in defaults.get("zookeepers", {}).items():
-            if self.args.mininet and val['addr'] == "127.0.0.1":
-                val['addr'] = "169.254.0.1"
         self.default_mtu = defaults.get("mtu", DEFAULT_MTU)
 
     def generate_all(self):

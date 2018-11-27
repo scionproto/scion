@@ -1,5 +1,0 @@
-iproute
-iputils-ping
-mininet
-unzip
-wget

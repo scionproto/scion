@@ -281,8 +281,6 @@ def setup_main(name, parser=None):
                         help='Console logging level (Default: %(default)s)')
     parser.add_argument('-c', '--client', help='Client address')
     parser.add_argument('-s', '--server', help='Server address')
-    parser.add_argument('-m', '--mininet', action='store_true',
-                        help="Running under mininet")
     parser.add_argument("--retries", type=int, default=0,
                         help="Number of retries before giving up.")
     parser.add_argument('--run_server', action='store_true', default=False,
@@ -302,9 +300,9 @@ def setup_main(name, parser=None):
             args.server = DEFAULT6_SERVER
     else:
         if not args.client:
-            args.client = "169.254.0.2" if args.mininet else "127.0.0.2"
+            args.client = "127.0.0.2"
         if not args.server:
-            args.server = "169.254.0.3" if args.mininet else "127.0.0.3"
+            args.server = "127.0.0.3"
 
     if not args.data:
         args.data = 'data'

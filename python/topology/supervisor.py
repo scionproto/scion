@@ -18,7 +18,6 @@
 """
 # Stdlib
 import configparser
-import getpass
 import os
 from io import StringIO
 from string import Template
@@ -121,15 +120,10 @@ class SupervisorGenerator(object):
             names.append(elem)
             elem_dir = os.path.join(base, elem)
             self._write_elem_conf(elem, entry, elem_dir, topo_id)
-            if self.args.mininet:
-                self._write_elem_mininet_conf(elem, elem_dir)
-        # Mininet runs sciond per element, and not at an AS level.
-        if not self.args.mininet:
-            sd_name = "sd%s" % topo_id.file_fmt()
-            names.append(sd_name)
-            conf_dir = os.path.join(base, COMMON_DIR)
-            config["program:%s" % sd_name] = self._sciond_entry(
-                sd_name, conf_dir)
+        sd_name = "sd%s" % topo_id.file_fmt()
+        names.append(sd_name)
+        conf_dir = os.path.join(base, COMMON_DIR)
+        config["program:%s" % sd_name] = self._sciond_entry(sd_name, conf_dir)
         config["group:as%s" % topo_id.file_fmt()] = {"programs": ",".join(names)}
         text = StringIO()
         config.write(text)
@@ -140,37 +134,12 @@ class SupervisorGenerator(object):
         config = configparser.ConfigParser(interpolation=None)
         prog = self._common_entry(elem, entry, elem_dir)
         self._write_zlog_cfg(os.path.basename(entry[0]), elem, elem_dir)
-        if self.args.mininet and not elem.startswith("br"):
-            # Start a dispatcher for every non-BR element under mininet.
-            prog['environment'] += ',DISPATCHER_ID="%s"' % elem
-            dp_name = "dp-" + elem
-            dp = self._common_entry(dp_name, ["bin/dispatcher"], elem_dir)
-            dp['environment'] += ',DISPATCHER_ID="%s"' % elem
-            config["program:%s" % dp_name] = dp
-            self._write_zlog_cfg("dispatcher", dp_name, elem_dir)
-        if elem.startswith("cs"):
-            if self.args.mininet:
-                # Start a sciond for every CS element under mininet.
-                sd_name = "sd-" + elem
-                config["program:%s" % sd_name] = self._sciond_entry(
-                    sd_name, elem_dir)
         if elem.startswith("br"):
             prog['environment'] += ',GODEBUG="cgocheck=0"'
         config["program:%s" % elem] = prog
         text = StringIO()
         config.write(text)
         write_file(os.path.join(elem_dir, SUPERVISOR_CONF), text.getvalue())
-
-    def _write_elem_mininet_conf(self, elem, elem_dir):
-        tmpl = Template(read_file("python/mininet/supervisord.conf"))
-        mn_conf_path = os.path.join(self.args.output_dir, "mininet", "%s.conf" % elem)
-        rel_conf_path = os.path.relpath(
-            os.path.join(elem_dir, SUPERVISOR_CONF),
-            os.path.join(self.args.output_dir, "mininet")
-        )
-        write_file(mn_conf_path,
-                   tmpl.substitute(elem=elem, conf_path=rel_conf_path,
-                                   user=getpass.getuser()))
 
     def _write_zlog_cfg(self, name, elem, elem_dir):
         tmpl = Template(read_file("topology/zlog.tmpl"))
@@ -184,7 +153,7 @@ class SupervisorGenerator(object):
 
     def _common_entry(self, name, cmd_args, elem_dir=None):
         entry = {
-            'autostart': 'false' if self.args.mininet else 'false',
+            'autostart': 'false',
             'autorestart': 'false',
             'environment': 'PYTHONPATH=python/:.,TZ=UTC',
             'stdout_logfile': "NONE",
@@ -200,8 +169,6 @@ class SupervisorGenerator(object):
         if name == "dispatcher":
             entry['startsecs'] = 1
             entry['priority'] = 50
-        if self.args.mininet:
-            entry['autostart'] = 'true'
         return entry
 
     def _mk_cmd(self, name, cmd_args):
