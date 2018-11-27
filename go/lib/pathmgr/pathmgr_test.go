@@ -35,16 +35,6 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
-const (
-	// BaseDurationUnit is used to compute relative timeouts between events in
-	// tests. If tests are flaky, increase this.
-	BaseDurationUnit = 5 * time.Millisecond
-)
-
-func getDuration(multiplier time.Duration) time.Duration {
-	return multiplier * BaseDurationUnit
-}
-
 func TestQuery(t *testing.T) {
 	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
 		g := graph.NewDefaultGraph()
