@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	name = "pingpong"
+	name = "pp_integration"
 	cmd  = "./bin/pingpong"
 )
 
@@ -46,7 +46,7 @@ func realMain() int {
 	clientArgs = append(clientArgs, cmnArgs...)
 	serverArgs := []string{"-mode", "server", "-local", integration.DstAddrPattern + ":0"}
 	serverArgs = append(serverArgs, cmnArgs...)
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs, integration.StdLog)
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	if err := runTests(in, integration.IAPairs()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1

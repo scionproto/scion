@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,28 +44,11 @@ func realMain() int {
 	defer log.Flush()
 	clientArgs := []string{"-log.console", "debug", "-attempts", strconv.Itoa(*attempts),
 		"-local", integration.SrcAddrPattern, "-remoteIA", integration.DstIAReplace}
-	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{}, integration.StdLog)
-	if err := runTests(in, integration.IAPairs()); err != nil {
+	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
+	timeout := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
+	if err := integration.RunUnaryTests(in, integration.IAPairs(), timeout); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
 		return 1
 	}
 	return 0
-}
-
-// RunTests runs the client for each IAPair.
-// In case of an error the function is terminated immediately.
-func runTests(in integration.Integration, pairs []integration.IAPair) error {
-	return integration.ExecuteTimed(in.Name(), func() error {
-		// Start the clients for srcDest pair
-		for i, conn := range integration.IAPairs() {
-			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(integration.IAPairs())))
-			t := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
-			if err := integration.RunClient(in, conn, t); err != nil {
-				log.Error("Error during client execution", "err", err)
-				return err
-			}
-		}
-		return nil
-	})
 }

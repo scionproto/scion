@@ -22,10 +22,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/kormat/fmt15"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/log/logparse"
 	"github.com/scionproto/scion/go/lib/snet"
 )
 
@@ -63,11 +65,11 @@ var (
 var _ Integration = (*binaryIntegration)(nil)
 
 type binaryIntegration struct {
-	name        string
-	cmd         string
-	clientArgs  []string
-	serverArgs  []string
-	logRedirect LogRedirect
+	name       string
+	cmd        string
+	clientArgs []string
+	serverArgs []string
+	logDir     string
 }
 
 // NewBinaryIntegration returns an implementation of the Integration interface.
@@ -75,15 +77,19 @@ type binaryIntegration struct {
 // Use SrcIAReplace and DstIAReplace in arguments as placeholder for the source and destination IAs.
 // When starting a client/server the placeholders will be replaced with the actual values.
 // The server should output the ReadySignal to Stdout once it is ready to accept clients.
-func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []string,
-	logRedirect LogRedirect) Integration {
-
+func NewBinaryIntegration(name string, cmd string, clientArgs, serverArgs []string) Integration {
+	logDir := fmt.Sprintf("logs/%s", name)
+	err := os.Mkdir(logDir, os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		log.Error("Failed to create log folder for testrun", "dir", name, "err", err)
+		return nil
+	}
 	bi := &binaryIntegration{
-		name:        name,
-		cmd:         cmd,
-		clientArgs:  clientArgs,
-		serverArgs:  serverArgs,
-		logRedirect: logRedirect,
+		name:       name,
+		cmd:        cmd,
+		clientArgs: clientArgs,
+		serverArgs: serverArgs,
+		logDir:     logDir,
 	}
 	return dockerize(bi)
 }
@@ -133,7 +139,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.logRedirect("Server", "ServerErr", dst.IA, ep)
+		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
 	}()
 	err = r.Start()
 	if err != nil {
@@ -164,7 +170,7 @@ func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst snet.Addr
 	}
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.logRedirect("Client", "ClientErr", src.IA, ep)
+		bi.writeLog("client", clientId(src, dst), fmt.Sprintf("%s -> %s", src.IA, dst.IA), ep)
 	}()
 	return r, r.Start()
 }
@@ -180,26 +186,36 @@ func replacePattern(pattern string, replacement string, args []string) []string 
 	return argsCopy
 }
 
-type LogRedirect func(name, pName string, local addr.IA, ep io.ReadCloser)
-
-// StdLog tries to parse any log line from the standard format and logs it with the same log level
-// as the original log entry to the log file.
-var StdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
-	defer log.LogPanicAndExit()
+func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadCloser) {
 	defer ep.Close()
-	logparse.ParseFrom(ep, pName, pName, func(e logparse.LogEntry) {
-		log.Log(e.Level, fmt.Sprintf("%s@%s: %s", name, local, strings.Join(e.Lines, "\n")))
-	})
-}
-
-// NonStdLog directly logs any lines as error to the log file
-var NonStdLog LogRedirect = func(name, pName string, local addr.IA, ep io.ReadCloser) {
-	defer log.LogPanicAndExit()
-	defer ep.Close()
+	f, err := os.OpenFile(fmt.Sprintf("%s/%s_%s.log", bi.logDir, name, id),
+		os.O_CREATE|os.O_WRONLY, os.FileMode(0644))
+	if err != nil {
+		log.Error("Failed to create log file for test run (create)",
+			"name", name, "id", id, "err", err)
+		return
+	}
+	defer f.Close()
+	// seek to end of file.
+	if _, err := f.Seek(0, 2); err != nil {
+		log.Error("Failed to create log file for test run (seek)",
+			"name", name, "id", id, "err", err)
+		return
+	}
+	w := bufio.NewWriter(f)
+	defer w.Flush()
+	w.WriteString(fmt.Sprintf("%v Starting %s %s\n",
+		time.Now().Format(fmt15.TimeFmt), name, startInfo))
+	defer w.WriteString(fmt.Sprintf("%v Finished %s %s\n",
+		time.Now().Format(fmt15.TimeFmt), name, startInfo))
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
-		log.Error(fmt.Sprintf("%s@%s: %s", name, local, scanner.Text()))
+		w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
 	}
+}
+
+func clientId(src, dst snet.Addr) string {
+	return fmt.Sprintf("%s_%s", src.IA.FileFmt(false), dst.IA.FileFmt(false))
 }
 
 var _ Waiter = (*binaryWaiter)(nil)

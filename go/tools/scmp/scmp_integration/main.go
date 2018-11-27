@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,29 +57,13 @@ func realMain() int {
 
 	for _, tc := range testCases {
 		log.Info(fmt.Sprintf("Run scmp-%s-tests:", tc.Name))
-		in := integration.NewBinaryIntegration(tc.Name, "./bin/scmp", tc.Args, nil,
-			integration.NonStdLog)
-		if err := runTests(in, integration.IAPairs()); err != nil {
+		in := integration.NewBinaryIntegration(tc.Name, "./integration/bin_wrapper.sh",
+			append([]string{"./bin/scmp"}, tc.Args...), nil)
+		err := integration.RunUnaryTests(in, integration.IAPairs(), integration.DefaultRunTimeout)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to run scmp-%s-tests: %s\n", tc.Name, err)
 			return 1
 		}
 	}
 	return 0
-}
-
-// RunTests runs the scmp tool for each IAPair.
-// In case of an error the function is terminated immediately.
-func runTests(in integration.Integration, pairs []integration.IAPair) error {
-	return integration.ExecuteTimed(in.Name(), func() error {
-		// Run for all srcDest pair
-		for i, conn := range pairs {
-			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
-			if err := integration.RunClient(in, conn, integration.DefaultRunTimeout); err != nil {
-				fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
-				return err
-			}
-		}
-		return nil
-	})
 }

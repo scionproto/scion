@@ -274,12 +274,15 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 
 // RunUnaryTests runs the client for each IAPair.
 // In case of an error the function is terminated immediately.
-func RunUnaryTests(in Integration, pairs []IAPair) error {
+func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error {
+	if timeout == 0 {
+		timeout = DefaultRunTimeout
+	}
 	return runTests(in, pairs, 2, func(idx int, pair IAPair) error {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 			in.Name(), pair.Src.IA, pair.Dst.IA, idx+1, len(pairs)))
 		// Start client
-		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
+		if err := RunClient(in, pair, timeout); err != nil {
 			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 			return err
 		}
