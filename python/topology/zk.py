@@ -43,6 +43,7 @@ class ZKGenerator(object):
         entry = {
             'image': 'zookeeper:latest',
             'container_name': name,
+            'network_mode': 'bridge',
             'environment': {
                 'ZOO_MAX_CLIENT_CNXNS': 0,
             },
