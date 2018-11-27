@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -124,13 +125,10 @@ func realMain() int {
 		return 1
 	}
 	setupMetrics()
-	core := topo.Core
-	if core {
-		msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
-		// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need
-		// to handle TRC and cert requests.
-		msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
-	}
+	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
+	//  and cert requests.
+	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
+	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	args := handlers.HandlerArgs{
 		PathDB:     pathDB,
 		RevCache:   revCache,
@@ -138,6 +136,7 @@ func realMain() int {
 		Config:     config.PS,
 		IA:         topo.ISD_AS,
 	}
+	core := topo.Core
 	var segReqHandler infra.Handler
 	deduper := handlers.NewGetSegsDeduper(msger)
 	if core {
@@ -169,7 +168,7 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		msger.ListenAndServe()
 	}()
-	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
+	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB, "ps_pathdb_clean"),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
 	cryptosyncer := periodic.StartPeriodicTask(&cryptosyncer.Syncer{
@@ -213,4 +212,5 @@ func setup() error {
 func setupMetrics() {
 	trust.InitMetrics(metrics.Namespace, config.General.ID)
 	metrics.InitMetrics(config.General.ID)
+	cleaner.InitMetrics(metrics.Namespace, prometheus.Labels{"elem": config.General.ID})
 }

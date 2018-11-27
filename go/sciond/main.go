@@ -138,7 +138,7 @@ func realMain() int {
 	}
 	// Create a channel where server goroutines can signal fatal errors
 	fatalC := make(chan error, 3)
-	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
+	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB, "sd_pathdb_clean"),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
 	// Start servers

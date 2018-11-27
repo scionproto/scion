@@ -58,24 +58,31 @@ func (h *segReqNonCoreHandler) Handle() metrics.Status {
 	if !ok {
 		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return metrics.Error
+		return metrics.Err
 	}
 	logger.Debug("[segReqHandler] Received", "segReq", segReq)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
 		logger.Error("[segReqHandler] Unable to service request, no Messenger found")
-		return metrics.Error
+		return metrics.Err
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	if !h.validSrcDst(segReq) {
-		return metrics.Invalid
+		return metrics.ErrInvalid
 	}
 	if err := h.handle(subCtx, segReq, msger); err != nil {
 		logger.Error("[segReqHandler] Failed to process request", "err", err)
 		h.sendEmptySegReply(subCtx, segReq, msger)
-		return metrics.Error
+		if common.IsTimeoutErr(err) {
+			return metrics.ErrTimeout
+		}
+		return metrics.Err
 	}
+	if segReq.Flags.CacheOnly {
+		return metrics.OkCached
+	}
+	// TODO(lukedirtwalker): Find out whether we hit the cache or not.
 	return metrics.Ok
 }
 

@@ -26,13 +26,15 @@ import (
 var _ periodic.Task = (*Cleaner)(nil)
 
 type Cleaner struct {
-	pathDB pathdb.PathDB
+	pathDB  pathdb.PathDB
+	metrics *metrics
 }
 
 // New creates a new Cleaner Task for the given pathDB.
-func New(pathDB pathdb.PathDB) *Cleaner {
+func New(pathDB pathdb.PathDB, name string) *Cleaner {
 	cleaner := &Cleaner{
-		pathDB: pathDB,
+		pathDB:  pathDB,
+		metrics: newMetrics(name),
 	}
 	return cleaner
 }
@@ -41,9 +43,11 @@ func (c *Cleaner) Run(ctx context.Context) {
 	count, err := c.pathDB.DeleteExpired(ctx, time.Now())
 	if err != nil {
 		log.Error("Failed to delete expired segments", "err", err)
+		c.metrics.Error()
 		return
 	}
 	if count > 0 {
+		c.metrics.DelCount(count)
 		log.Info("Deleted expired segments", "count", count)
 	}
 }

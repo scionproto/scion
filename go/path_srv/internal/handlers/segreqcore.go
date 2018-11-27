@@ -54,31 +54,41 @@ func (h *segReqCoreHandler) Handle() metrics.Status {
 	logger := log.FromCtx(h.request.Context())
 	segReq, ok := h.request.Message.(*path_mgmt.SegReq)
 	if !ok {
-		logger.Error("[segReqHandler] wrong message type, expected path_mgmt.SegReq",
+		logger.Error("[segReqCoreHandler] wrong message type, expected path_mgmt.SegReq",
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
-		return metrics.Error
+		metrics.ErrInc(metrics.SegReq, metrics.ReqProgErr, 0)
+		return metrics.Err
 	}
-	logger.Debug("[segReqHandler] Received", "segReq", segReq)
+	logger.Debug("[segReqCoreHandler] Received", "segReq", segReq)
 	msger, ok := infra.MessengerFromContext(h.request.Context())
 	if !ok {
-		logger.Warn("[segReqHandler] Unable to service request, no Messenger found")
-		return metrics.Error
+		logger.Warn("[segReqCoreHandler] Unable to service request, no Messenger found")
+		metrics.ErrInc(metrics.SegReq, metrics.ReqProgErr, 0)
+		return metrics.Err
 	}
 	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
 	defer cancelF()
 	if !h.isValidDst(segReq) {
-		return metrics.Invalid
+		metrics.ErrInc(metrics.SegReq, metrics.ReqProgErr, segReq.DstIA().I)
+		return metrics.ErrInvalid
 	}
 	dstISDLocal := segReq.DstIA().I == h.localIA.I
 	if dstISDLocal && segReq.DstIA().A == 0 {
-		logger.Warn("[segReqHandler] Invalid dst (local AS 0)", "dst", segReq.DstIA())
+		metrics.ErrInc(metrics.SegReq, metrics.ReqInvalid, segReq.DstIA().I)
+		logger.Warn("[segReqCoreHandler] Invalid dst (local AS 0)", "dst", segReq.DstIA())
 		h.sendEmptySegReply(subCtx, segReq, msger)
-		return metrics.Invalid
+		return metrics.ErrInvalid
 	}
 	if err := h.handle(subCtx, segReq, msger); err != nil {
-		logger.Error("[segReqHandler] Failed to process request", "err", err)
+		logger.Error("[segReqCoreHandler] Failed to process request", "err", err)
 		h.sendEmptySegReply(subCtx, segReq, msger)
-		return metrics.Error
+		if common.IsTimeoutErr(err) {
+			return metrics.ErrTimeout
+		}
+		return metrics.Err
+	}
+	if segReq.Flags.CacheOnly {
+		return metrics.OkCached
 	}
 	// TODO(lukedirtwalker): Find out whether we hit the cache or not.
 	return metrics.Ok
@@ -91,6 +101,7 @@ func (h *segReqCoreHandler) handle(ctx context.Context,
 	dstISDLocal := segReq.DstIA().I == h.localIA.I
 	dstCore, err := h.isCoreDst(ctx, msger, segReq)
 	if err != nil {
+		metrics.ErrInc(metrics.SegReq, metrics.ReqTrustErr, segReq.DstIA().I)
 		return common.NewBasicError("Failed to determine dest type", err)
 	}
 	if dstCore {
@@ -137,7 +148,7 @@ func (h *segReqCoreHandler) handle(ctx context.Context,
 			return coreExists
 		})
 	}
-	logger.Debug("[segReqHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
+	logger.Debug("[segReqCoreHandler] found segs", "core", len(coreSegs), "down", len(downSegs))
 	h.sendReply(ctx, msger, nil, coreSegs, downSegs, segReq)
 	return nil
 }
