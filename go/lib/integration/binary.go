@@ -139,7 +139,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
-		bi.writeLog("server", dst.IA.FileFmt(false), "", ep)
+		bi.writeLog("server", dst.IA.FileFmt(false), dst.IA.FileFmt(false), ep)
 	}()
 	err = r.Start()
 	if err != nil {
@@ -153,8 +153,7 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 	}
 }
 
-func (bi *binaryIntegration) StartClient(ctx context.Context, id int,
-	src, dst snet.Addr) (Waiter, error) {
+func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
 
 	args := replacePattern(SrcIAReplace, src.IA.String(), bi.clientArgs)
 	args = replacePattern(SrcHostReplace, src.Host.L3.String(), args)
@@ -206,10 +205,10 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadClos
 	}
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-	w.WriteString(fmt.Sprintf("%v Starting %s %s %s\n",
-		time.Now().Format(fmt15.TimeFmt), name, id, startInfo))
-	defer w.WriteString(fmt.Sprintf("%v Finished %s %s %s\n",
-		time.Now().Format(fmt15.TimeFmt), name, id, startInfo))
+	w.WriteString(fmt.Sprintf("%v Starting %s %s\n",
+		time.Now().Format(fmt15.TimeFmt), name, startInfo))
+	defer w.WriteString(fmt.Sprintf("%v Finished %s %s\n",
+		time.Now().Format(fmt15.TimeFmt), name, startInfo))
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
 		w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))

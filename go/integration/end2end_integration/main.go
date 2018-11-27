@@ -73,7 +73,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
 			t := integration.DefaultRunTimeout + integration.CtxTimeout*time.Duration(*attempts)
-			if err := integration.RunClient(in, i+1, conn, t); err != nil {
+			if err := integration.RunClient(in, conn, t); err != nil {
 				log.Error("Error during client execution", "err", err)
 				return err
 			}
