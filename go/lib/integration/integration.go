@@ -83,7 +83,7 @@ type Integration interface {
 	// StartClient should start the client on the src address connecting to the dst address.
 	// StartClient should return immediately.
 	// The context should be used to make the client cancellable.
-	StartClient(ctx context.Context, id int, src, dst snet.Addr) (Waiter, error)
+	StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error)
 }
 
 // Waiter is a descriptor of a process running in the integration test.
@@ -212,10 +212,10 @@ func StartServer(in Integration, dst snet.Addr) (io.Closer, error) {
 
 // RunClient runs a client on the given IAPair.
 // If the client does not finish until timeout it is killed.
-func RunClient(in Integration, id int, pair IAPair, timeout time.Duration) error {
+func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	c, err := in.StartClient(ctx, id, pair.Src, pair.Dst)
+	c, err := in.StartClient(ctx, pair.Src, pair.Dst)
 	if err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 		// Start client
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src.IA, pair.Dst.IA,
 			idx+1, len(pairs)))
-		if err := RunClient(in, idx+1, pair, DefaultRunTimeout); err != nil {
+		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
 			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 			return err
 		}
@@ -282,7 +282,7 @@ func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error 
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
 			in.Name(), pair.Src.IA, pair.Dst.IA, idx+1, len(pairs)))
 		// Start client
-		if err := RunClient(in, idx+1, pair, timeout); err != nil {
+		if err := RunClient(in, pair, timeout); err != nil {
 			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
 			return err
 		}
