@@ -60,7 +60,6 @@ func (di *dockerIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 }
 
 func (di *dockerIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
-
 	bi := *di.binaryIntegration
 	bi.clientArgs = append([]string{dockerArg, src.IA.FileFmt(false), bi.cmd}, bi.clientArgs...)
 	bi.cmd = dockerCmd

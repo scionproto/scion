@@ -154,7 +154,6 @@ func (bi *binaryIntegration) StartServer(ctx context.Context, dst snet.Addr) (Wa
 }
 
 func (bi *binaryIntegration) StartClient(ctx context.Context, src, dst snet.Addr) (Waiter, error) {
-
 	args := replacePattern(SrcIAReplace, src.IA.String(), bi.clientArgs)
 	args = replacePattern(SrcHostReplace, src.Host.L3.String(), args)
 	args = replacePattern(DstIAReplace, dst.IA.String(), args)
@@ -213,10 +212,6 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadClos
 	for scanner.Scan() {
 		w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
 	}
-}
-
-func (bi *binaryIntegration) logFile(name, id string) string {
-	return fmt.Sprintf("%s/%s_%s", bi.logDir, name, id)
 }
 
 func clientId(src, dst snet.Addr) string {
