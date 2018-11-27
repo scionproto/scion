@@ -45,7 +45,7 @@ global_setup() {
     print_green "[>---------]" "Global test environment set-up"
     print_green "[->--------]" "Stopping infra"
     run_command stop_infra ${out_dir:+$out_dir/global_setup_pre_clean.out}
-    rm -f logs/*
+    find logs -mindepth 1 -maxdepth 1 -not -path '*/\.*' -exec rm -r {} +
     print_green "[-->-------]" "Building scion_base docker image"
     run_command build_docker_base ${out_dir:+$out_dir/global_setup_docker_base.out}
     print_green "[--->------]" "Building scion docker image"
