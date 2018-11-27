@@ -133,12 +133,7 @@ func (r *Router) createSCMPErrorReply(rp *rpkt.RtrPkt, ct scmp.ClassType,
 			sp.HBHExt = append(sp.HBHExt, e)
 		}
 	}
-	// Add SCMP l4 header and payload
-	var l4Type common.L4ProtocolType
-	if sp.L4 != nil {
-		l4Type = sp.L4.L4Type()
-	}
-	sp.Pld = scmp.PldFromQuotes(ct, info, l4Type, rp.GetRaw)
+	sp.Pld = scmp.PldFromQuotes(ct, info, rp.L4Type, rp.GetRaw)
 	sp.L4 = scmp.NewHdr(ct, sp.Pld.Len())
 	return rp.CreateReply(sp)
 }
