@@ -1,0 +1,40 @@
+#!/bin/bash
+
+. acceptance/common.sh
+. acceptance/sigutil/common.sh
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="sig_reload"
+
+SRC_IA=${SRC_IA:-1-ff00:0:113}
+SRC_IA_FILE="$(ia_file $SRC_IA)"
+SRC_AS_FILE="$(as_file $SRC_IA)"
+DST_IA=${DST_IA:-1-ff00:0:110}
+SIG_JSON="gen/ISD1/AS$SRC_AS_FILE/sig$SRC_IA_FILE/cfg.json"
+
+TEST_TOPOLOGY="acceptance/sigutil/SIG.topo"
+
+test_run() {
+    set -ex
+    ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
+    # Remove $DST_IA from sig.json
+    HOP_JSON=$(jq -c ".ASes.\"$DST_IA\"" $SIG_JSON)
+    jq "del(.ASes.\"$DST_IA\")" $SIG_JSON | sponge $SIG_JSON
+    reload_sig "$SRC_IA_FILE"
+    # Must fail
+    ./bin/sig_ping_acceptance -d -src $SRC_IA -dst $DST_IA || [ $? -eq 1 ]
+    # Add $DST_IA again to sig.json
+    jq ".ASes.\"$DST_IA\" = $HOP_JSON" $SIG_JSON | sponge $SIG_JSON
+    reload_sig "$SRC_IA_FILE"
+    # should work again
+    ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
+}
+
+reload_sig() {
+    id="$(./tools/dc dc exec -T scion_sig_$1 pgrep -x sig)"
+    ./tools/dc dc exec -T scion_sig_"$1" kill -SIGHUP "$id"
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

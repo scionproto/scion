@@ -7,7 +7,7 @@ STEPS="$BASE/steps"
 
 # if the pipeline is triggered from a PR, run a reduced pipeline
 if [ -z "$RUN_ALL_TESTS" ]; then
-    [ "$BUILDKITE_PULL_REQUEST" = "false" ] && RUN_ALL_TESTS=y
+    [ "$BUILDKITE_PULL_REQUEST" = "false" ] && export RUN_ALL_TESTS=y
 fi
 
 # begin the pipeline.yml file

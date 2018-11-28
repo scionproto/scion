@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "buildkite-agent ALL=(ALL)NOPASSWD:ALL" | sudo tee --append /etc/sudoers > /dev/null
+sudo ln -s /dev/shm/ /run/shm

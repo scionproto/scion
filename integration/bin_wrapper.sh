@@ -11,4 +11,6 @@ log() {
 
 set -o pipefail
 
+[ -n "$IA" ] && echo "Listening ia=$IA"
+
 "$PROG" "$@" |& while read line; do log $line; done
