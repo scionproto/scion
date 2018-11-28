@@ -30,6 +30,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/profile"
 )
@@ -55,7 +56,8 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	defer log.LogPanicAndExit()
+	defer env.CleanupLog()
+	env.LogSvcStarted(common.BR, *id)
 	if err := checkPerms(); err != nil {
 		log.Crit("Permissions checks failed", "err", err)
 		log.Flush()
@@ -92,7 +94,7 @@ func setupSignals() {
 	go func() {
 		defer log.LogPanicAndExit()
 		<-sig
-		log.Info("Exiting")
+		env.LogSvcStopped(common.BR, *id)
 		profile.Stop()
 		log.Flush()
 		os.Exit(1)
