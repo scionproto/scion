@@ -72,6 +72,10 @@ func open(path string) (*sql.DB, error) {
 			db.Close()
 		}
 	}()
+	// Make sure DB is reachable
+	if err = db.Ping(); err != nil {
+		return nil, common.NewBasicError("Initial DB ping failed, connection broken?", err)
+	}
 	// Ensure foreign keys are supported and enabled.
 	var enabled bool
 	err = db.QueryRow("PRAGMA foreign_keys;").Scan(&enabled)
