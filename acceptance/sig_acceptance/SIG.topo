@@ -1,0 +1,24 @@
+--- # SIG Topology
+defaults:
+  zookeepers:
+    1:
+      addr: 127.0.0.1
+ASes:
+  "1-ff00:0:110":
+    core: true
+    mtu: 1400
+  "1-ff00:0:111":
+    cert_issuer: 1-ff00:0:110
+  "1-ff00:0:112":
+    cert_issuer: 1-ff00:0:110
+  "1-ff00:0:113":
+    cert_issuer: 1-ff00:0:110
+links:
+  - {a: "1-ff00:0:110#1", b: "1-ff00:0:111#1", linkAtoB: CHILD}
+  - {a: "1-ff00:0:110#2", b: "1-ff00:0:112#1", linkAtoB: CHILD}
+  - {a: "1-ff00:0:111#2", b: "1-ff00:0:113#1", linkAtoB: CHILD}
+  - {a: "1-ff00:0:112#2", b: "1-ff00:0:113#2", linkAtoB: CHILD}
+CAs:
+  CA1-1:
+    ISD: 1
+    commonName: CA1-1

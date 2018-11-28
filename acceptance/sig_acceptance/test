@@ -1,7 +1,13 @@
 #!/bin/bash
 
 TEST_NAME="sig"
-TEST_TOPOLOGY="topology/Tiny.topo"
+TEST_TOPOLOGY="acceptance/sig_acceptance/SIG.topo"
+
+SRC_IA=${SRC_IA:-1-ff00:0:113}
+SRC_IA_FILE=$(echo $SRC_IA | sed -e "s/:/_/g")
+SRC_AS_FILE=$(echo $SRC_IA_FILE | cut -d '-' -f 2)
+DST_IA=${DST_IA:-1-ff00:0:110}
+SIG_JSON="gen/ISD1/AS$SRC_AS_FILE/sig/cfg.json"
 
 test_setup() {
     set -ex
@@ -12,7 +18,40 @@ test_setup() {
 }
 
 test_run() {
+    set -e
+    test_sig
+    test_iperf
+    test_reload
+}
+
+test_sig() {
     ./bin/sig_ping_acceptance -d -log.console info
+}
+
+test_iperf() {
+    ./bin/sig_iperf_acceptance -d -log.console info
+}
+
+test_reload() {
+    set -e
+    ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
+    # Remove $DST_IA from sig.json
+    HOP_JSON=$(jq -c ".ASes.\"$DST_IA\"" $SIG_JSON)
+    jq "del(.ASes.\"$DST_IA\")" $SIG_JSON | sponge $SIG_JSON
+    reload_sig "$SRC_IA_FILE"
+    # Must fail
+    ./bin/sig_ping_acceptance -d -stdout -src $SRC_IA -dst $DST_IA || [ $? -eq 1 ]
+    # Add $DST_IA again to sig.json
+    jq ".ASes.\"$DST_IA\" = $HOP_JSON" $SIG_JSON | sponge $SIG_JSON
+    reload_sig "$SRC_IA_FILE"
+    # should work again
+    ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
+}
+
+reload_sig() {
+    set -x
+    id="$(./tools/dc dc exec -T scion_sig_$1 pgrep -x sig)"
+    ./tools/dc dc exec -T scion_sig_"$1" kill -SIGHUP "$id"
 }
 
 test_teardown() {
@@ -28,6 +67,12 @@ print_help() {
 	        execute only the setup phase.
 	    $PROGRAM run
 	        execute only the run phase.
+	    $PROGRAM ping
+	        execute only the ping phase.
+	    $PROGRAM reload
+	        execute only the reload phase.
+	    $PROGRAM iperf
+	        execute only the iperf phase.
 	    $PROGRAM teardown 
 	        execute only the teardown phase.
 	_EOF
@@ -39,7 +84,7 @@ COMMAND="$1"
 case "$COMMAND" in
     name)
         echo $TEST_NAME ;;
-    setup|run|teardown)
+    setup|run|teardown|ping|iperf|reload)
         "test_$COMMAND" ;;
     *) print_help; exit 1 ;;
 esac
