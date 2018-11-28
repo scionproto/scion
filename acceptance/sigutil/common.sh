@@ -1,7 +1,8 @@
 #!/bin/bash
 
-TEST_NAME="sig"
 TEST_TOPOLOGY="topology/Tiny.topo"
+SRC_IA=${SRC_IA:-1-ff00:0:111}
+DST_IA=${DST_IA:-1-ff00:0:112}
 
 . acceptance/common.sh
 
@@ -13,16 +14,7 @@ test_setup() {
     sleep 10
 }
 
-test_run() {
-    ./bin/sig_ping_acceptance -d -log.console info
-}
-
 test_teardown() {
-    set -e
-    METRICS="${ACCEPTANCE_ARTIFACTS:?}/$TEST_NAME/metrics"
-    collect_metrics "gen/ISD1/ASff00_0_110/br1-ff00_0_110-1/topology.json" "$METRICS"
-    collect_metrics "gen/ISD1/ASff00_0_111/br1-ff00_0_111-1/topology.json" "$METRICS"
-    collect_metrics "gen/ISD1/ASff00_0_112/br1-ff00_0_112-1/topology.json" "$METRICS"
     ./tools/dc down
 }
 
@@ -43,10 +35,16 @@ print_help() {
 PROGRAM=`basename "$0"`
 COMMAND="$1"
 
-case "$COMMAND" in
-    name)
-        echo $TEST_NAME ;;
-    setup|run|teardown)
-        "test_$COMMAND" ;;
-    *) print_help; exit 1 ;;
-esac
+do_command() {
+    PROGRAM="$1"
+    COMMAND="$2"
+    TEST_NAME="$3"
+    shift 3
+    case "$COMMAND" in
+        name)
+            echo $TEST_NAME ;;
+        setup|run|teardown)
+            "test_$COMMAND" "$@" ;;
+        *) print_help; exit 1 ;;
+    esac
+}

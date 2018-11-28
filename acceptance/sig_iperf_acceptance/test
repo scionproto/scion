@@ -1,0 +1,20 @@
+#!/bin/bash
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="sig_iperf"
+
+. acceptance/common.sh
+. acceptance/sigutil/common.sh
+
+test_run() {
+    set -e
+    ./bin/sig_iperf_acceptance -d -log.console info -src $SRC_IA -dst $DST_IA
+    METRICS="${ACCEPTANCE_ARTIFACTS:?}/$TEST_NAME/metrics"
+
+    collect_metrics "gen/ISD1/ASff00_0_110/br1-ff00_0_110-1/topology.json" "$METRICS"
+    cat "$METRICS/sig$(ia_file $SRC_IA)" | grep "queue"
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

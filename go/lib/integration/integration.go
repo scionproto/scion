@@ -138,17 +138,21 @@ type IAPair struct {
 
 // IAPairs returns all IAPairs that should be tested.
 func IAPairs(hostAddr HostAddr) []IAPair {
-	return generateAllSrcDst(srcIAs, dstIAs, hostAddr)
+	return generateAllSrcDst(hostAddr, false)
 }
 
-// generateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
-func generateAllSrcDst(srcList, dstList []addr.IA, hostAddr HostAddr) []IAPair {
-	srcASes := make([]snet.Addr, 0, len(srcList))
-	for _, src := range srcList {
+// UniqueIAPairs returns all distinct IAPairs that should be tested.
+func UniqueIAPairs(hostAddr HostAddr) []IAPair {
+	return generateAllSrcDst(hostAddr, true)
+}
+
+func generateSrcDst(hostAddr HostAddr) ([]snet.Addr, []snet.Addr) {
+	srcASes := make([]snet.Addr, 0, len(srcIAs))
+	for _, src := range srcIAs {
 		srcASes = append(srcASes, hostAddr(src))
 	}
-	dstASes := make([]snet.Addr, 0, len(dstList))
-	for _, dst := range dstList {
+	dstASes := make([]snet.Addr, 0, len(dstIAs))
+	for _, dst := range dstIAs {
 		dstASes = append(dstASes, hostAddr(dst))
 	}
 	shuffle(len(srcASes), func(i, j int) {
@@ -157,10 +161,19 @@ func generateAllSrcDst(srcList, dstList []addr.IA, hostAddr HostAddr) []IAPair {
 	shuffle(len(dstASes), func(i, j int) {
 		dstASes[i], dstASes[j] = dstASes[j], dstASes[i]
 	})
+	return srcASes, dstASes
+}
+
+// generateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
+// It omits pairs where srcAS==dstAS, if unique is true.
+func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
+	srcASes, dstASes := generateSrcDst(hostAddr)
 	pairs := make([]IAPair, 0, len(srcASes)*len(dstASes))
 	for _, src := range srcASes {
 		for _, dst := range dstASes {
-			pairs = append(pairs, IAPair{src, dst})
+			if !unique || !src.IA.Eq(dst.IA) {
+				pairs = append(pairs, IAPair{src, dst})
+			}
 		}
 	}
 	return pairs
@@ -266,7 +279,10 @@ func ExtractUniqueDsts(pairs []IAPair) []snet.Addr {
 
 // RunBinaryTests runs the client and server for each IAPair. A number of tests are run in parallel
 // In case of an error the function is terminated immediately.
-func RunBinaryTests(in Integration, pairs []IAPair) error {
+func RunBinaryTests(in Integration, pairs []IAPair, timeout time.Duration) error {
+	if timeout == 0 {
+		timeout = DefaultRunTimeout
+	}
 	return runTests(in, pairs, 1, func(idx int, pair IAPair) error {
 		// Start server
 		s, err := StartServer(in, pair.Dst)
@@ -277,7 +293,7 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 		// Start client
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src.IA, pair.Dst.IA,
 			idx+1, len(pairs)))
-		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
+		if err := RunClient(in, pair, timeout); err != nil {
 			msg := fmt.Sprintf("Error in client: %v -> %v (%v/%v)",
 				pair.Src.IA, pair.Dst.IA, idx+1, len(pairs))
 			log.Error(msg, "err", err)
