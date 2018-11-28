@@ -15,9 +15,19 @@
 package env
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/scionproto/scion/go/lib/log"
+)
+
+// Startup* variables are set during link time.
+var (
+	StartupCommitId   string
+	StartupBuildDate  string
+	StartupVersion    string = "not-set"
+	StartupBuildChain string
 )
 
 type Logging struct {
@@ -91,7 +101,23 @@ func setupFileLogging(cfg *Logging) error {
 
 // LogSvcStarted should be called by services as soon as logging is initialized.
 func LogSvcStarted(svcType, elemId string) {
-	log.Info("=====================> Service started", "svc", svcType, "id", elemId)
+	info := fmt.Sprintf("=====================> Service started %s %s\n"+
+		"  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
+		svcType,
+		elemId,
+		fmt.Sprintf("Git commit:  %s", StartupCommitId),
+		fmt.Sprintf("Build date:  %s", StartupBuildDate),
+		fmt.Sprintf("Git version: %s", StartupVersion),
+		fmt.Sprintf("Buid chain:  %s", StartupBuildChain),
+		fmt.Sprintf("In docker:   %v", RunsInDocker()),
+		fmt.Sprintf("euid/egid:   %d %d", os.Geteuid(), os.Getegid()),
+		fmt.Sprintf("cmd line:    %v", os.Args),
+	)
+	log.Info(info)
+}
+
+func LogSvcStopped(svcType, elemId string) {
+	log.Info(fmt.Sprintf("=====================> Service stopped %s %s", svcType, elemId))
 }
 
 // CleanupLog calls log.LogPanicAndExit and log.Flush

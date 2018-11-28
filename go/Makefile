@@ -12,6 +12,17 @@ SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
+GIT_COMMIT = $(shell git rev-parse --short HEAD)
+GIT_TAG = $(shell git tag -l --points-at HEAD)
+BUILD_DATE = $(shell date)
+BUILD_CHAIN = $(shell go version)
+export GIT_TAG
+export BUILD_CHAIN
+export BUILD_DATE
+LINK_FLAGS = -X github.com/scionproto/scion/go/lib/env.StartupCommitId=$(GIT_COMMIT)\
+ -X \"github.com/scionproto/scion/go/lib/env.StartupBuildDate=$(BUILD_DATE)\"\
+ -X \"github.com/scionproto/scion/go/lib/env.StartupVersion=$(GIT_TAG)\"\
+ -X \"github.com/scionproto/scion/go/lib/env.StartupBuildChain=$(BUILD_CHAIN)\"
 GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \
@@ -115,7 +126,7 @@ endef
 $(foreach in,$(MOCK_STD_IN),$(eval $(call MOCK_STD_template,$(in))))
 
 bin: deps_gen
-	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
+	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -ldflags "$(LINK_FLAGS)" -v +local,program
 	@sudo -p "go:braccept [sudo] password for %p: " true
 	sudo setcap cap_net_admin,cap_net_raw+ep ../bin/braccept
 
