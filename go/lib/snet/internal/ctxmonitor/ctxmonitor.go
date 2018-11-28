@@ -85,7 +85,7 @@ func (m *monitor) WithDeadline(ctx context.Context,
 	defer m.mtx.Unlock()
 
 	subCtx, cancelF := context.WithDeadline(ctx, deadline)
-	if m.deadlinePassed(deadline) {
+	if m.deadlinePassed(time.Now()) {
 		// Deadline has already passed, all new contexts are already Done
 		cancelF()
 		return subCtx, cancelF
@@ -94,8 +94,8 @@ func (m *monitor) WithDeadline(ctx context.Context,
 	return subCtx, m.createDeletionLocked(subCtx, cancelF)
 }
 
-func (m *monitor) deadlinePassed(ctxDeadline time.Time) bool {
-	return !m.deadline.Equal(time.Time{}) && m.deadline.Before(ctxDeadline)
+func (m *monitor) deadlinePassed(reference time.Time) bool {
+	return !m.deadline.Equal(time.Time{}) && m.deadline.Before(reference)
 }
 
 // createDeletionLocked returns a cancellation function that also deletes the
