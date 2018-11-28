@@ -1,0 +1,14 @@
+#!/bin/bash
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="sig_ping"
+
+. acceptance/sigutil/common.sh
+
+test_run() {
+    ./bin/sig_ping_acceptance -d -log.console info
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

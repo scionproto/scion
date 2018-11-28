@@ -105,7 +105,7 @@ class DockerUtilsGenerator(object):
     def _sig_testing_conf(self):
         text = ''
         for topo_id in self.args.topo_dicts:
-            ip = self.args.networks['sig%s' % topo_id.file_fmt()][0]['ipv4']
+            ip = self.args.networks['tester_%s' % topo_id.file_fmt()][0]['ipv4']
             text += str(topo_id) + ' ' + str(ip) + '\n'
             conf_path = os.path.join(self.args.output_dir, 'sig-testing.conf')
             write_file(conf_path, text)
