@@ -12,9 +12,9 @@ SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
-GIT_COMMIT = $(shell git rev-parse --short HEAD)
+GIT_COMMIT = $(shell git rev-parse --short HEAD)-$(shell git diff --quiet || echo 'dirty')
 GIT_TAG = $(shell git tag -l --points-at HEAD)
-BUILD_DATE = $(shell date)
+BUILD_DATE = $(shell date -Is)
 BUILD_CHAIN = $(shell go version)
 export GIT_TAG
 export BUILD_CHAIN

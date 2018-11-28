@@ -101,6 +101,10 @@ func setupFileLogging(cfg *Logging) error {
 
 // LogSvcStarted should be called by services as soon as logging is initialized.
 func LogSvcStarted(svcType, elemId string) {
+	inDocker, err := RunsInDocker()
+	if err != nil {
+		log.Error("Unable to determine if running in docker", "err", err)
+	}
 	info := fmt.Sprintf("=====================> Service started %s %s\n"+
 		"  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n  %s\n",
 		svcType,
@@ -109,7 +113,7 @@ func LogSvcStarted(svcType, elemId string) {
 		fmt.Sprintf("Build date:  %s", StartupBuildDate),
 		fmt.Sprintf("Git version: %s", StartupVersion),
 		fmt.Sprintf("Buid chain:  %s", StartupBuildChain),
-		fmt.Sprintf("In docker:   %v", RunsInDocker()),
+		fmt.Sprintf("In docker:   %v", inDocker),
 		fmt.Sprintf("euid/egid:   %d %d", os.Geteuid(), os.Getegid()),
 		fmt.Sprintf("cmd line:    %v", os.Args),
 	)
