@@ -4,11 +4,10 @@ BRID=core-brC
 TEST_NAME="core_brC_acceptance"
 PROGRAM=$(basename "$0")
 COMMAND="$1"
-DEVINFO_FN=acceptance/${TEST_NAME}/devinfo.txt
 BRUTIL=acceptance/brutil
+BRCONF_DIR=br-core-conf
 
 . $BRUTIL/common.sh
-. $BRUTIL/util.sh
 
 # This function is called from test_setup
 set_veths() {
@@ -20,12 +19,6 @@ set_veths() {
     create_veth $NS veth4_root ifid_142 192.168.14.4/31 192.168.14.5
     create_veth $NS veth5_root ifid_151 192.168.15.2/31 192.168.15.3
     create_veth $NS veth6_root ifid_152 192.168.15.4/31 192.168.15.5
-}
-
-test_run() {
-    set -e
-    bin/braccept -borderID "$BRID" -devInfoFilePath "$DEVINFO_FN" \
-        -keysDirPath "$BRUTIL/br-core-conf/keys" $@
 }
 
 # This function is called from test_teardown

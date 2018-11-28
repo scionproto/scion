@@ -106,3 +106,7 @@ func (inf *InfoField) WriteTo(w io.Writer) (int64, error) {
 	n, err := w.Write(b)
 	return int64(n), err
 }
+
+func (h *InfoField) Eq(o *InfoField) bool {
+	return *h == *o
+}
