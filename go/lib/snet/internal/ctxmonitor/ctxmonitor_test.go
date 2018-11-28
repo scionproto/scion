@@ -93,6 +93,13 @@ func TestMonitor(t *testing.T) {
 			SoMsg("err", ctx.Err(), ShouldNotBeNil)
 			cancelF()
 		})
+		Convey("Set deadline in future, add context with deadline after, ctx is not Done", func() {
+			deadline := time.Now().Add(5 * time.Second)
+			m.SetDeadline(deadline)
+			ctx, cancelF := m.WithDeadline(context.Background(), deadline.Add(time.Second))
+			SoMsg("err", ctx.Err(), ShouldBeNil)
+			cancelF()
+		})
 	})
 }
 
