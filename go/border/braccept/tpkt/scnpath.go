@@ -15,7 +15,6 @@
 package tpkt
 
 import (
-	"bytes"
 	"fmt"
 	"hash"
 	"strings"
@@ -61,12 +60,12 @@ func (p *ScnPath) Parse(b []byte) error {
 	offset := 0
 	for offset < len(b) {
 		seg := &SegDef{}
-		len, err := seg.Parse(b[offset:])
+		l, err := seg.Parse(b[offset:])
 		if err != nil {
 			return err
 		}
 		p.Segs = append(p.Segs, seg)
-		offset += len
+		offset += l
 	}
 	return nil
 }
@@ -109,11 +108,11 @@ func (p *ScnPath) Len() int {
 type Segments []*SegDef
 
 func (segs Segments) Len() int {
-	len := 0
+	l := 0
 	for i := range segs {
-		len += segs[i].segLen()
+		l += segs[i].segLen()
 	}
-	return len
+	return l
 }
 
 func (segs Segments) WriteTo(b []byte) (int, error) {
@@ -156,8 +155,8 @@ var defaultMac = common.RawBytes{0xef, 0xef, 0xef}
 
 // SegDef defines a path segment
 type SegDef struct {
-	Inf  spath.InfoField
-	Hops []spath.HopField
+	Inf  *spath.InfoField
+	Hops []*spath.HopField
 	macs []hash.Hash
 }
 
@@ -168,12 +167,12 @@ func (s *SegDef) initMacs() {
 }
 
 func (s *SegDef) Parse(b []byte) (int, error) {
-	Inf, err := spath.InfoFFromRaw(b)
+	inf, err := spath.InfoFFromRaw(b)
 	if err != nil {
 		return 0, err
 	}
-	s.Inf = *Inf
-	segLen := int(spath.InfoFieldLength + Inf.Hops*common.LineLen)
+	s.Inf = inf
+	segLen := int(spath.InfoFieldLength + inf.Hops*common.LineLen)
 	if segLen > len(b) {
 		return 0, fmt.Errorf("Buffer is too short, expected=%d, actual=%d", segLen, len(b))
 	}
@@ -182,7 +181,7 @@ func (s *SegDef) Parse(b []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		s.Hops = append(s.Hops, *hop)
+		s.Hops = append(s.Hops, hop)
 	}
 	return segLen, nil
 }
@@ -252,22 +251,17 @@ func (s *SegDef) segLen() int {
 }
 
 func (s *SegDef) Equal(o *SegDef) error {
-	if s.Inf != o.Inf {
-		return fmt.Errorf("Info Field mismatch\n  Expected: %s\n  Actual:   %s\n", &s.Inf, &o.Inf)
+	if !s.Inf.Eq(o.Inf) {
+		return fmt.Errorf("Info Field mismatch\n  Expected: %s\n  Actual:   %s\n", s.Inf, o.Inf)
 	}
 	if len(s.Hops) != len(o.Hops) {
 		return fmt.Errorf("Different number of Hop Fields\n  Expected: %s\n  Actual:   %s\n", s, o)
 	}
 	for i := range s.Hops {
-		if !compareHopF(s.Hops[i], o.Hops[i]) {
+		if !s.Hops[i].Eq(o.Hops[i]) {
 			return fmt.Errorf("Hop Field mismatch\n  Expected: %s\n  Actual:   %s\n",
-				&s.Hops[i], &o.Hops[i])
+				s.Hops[i], o.Hops[i])
 		}
 	}
 	return nil
-}
-
-func compareHopF(a, o spath.HopField) bool {
-	return a.Xover == o.Xover && a.VerifyOnly == o.VerifyOnly && a.ExpTime == o.ExpTime &&
-		a.ConsIngress == o.ConsIngress && a.ConsEgress == o.ConsEgress && bytes.Equal(a.Mac, o.Mac)
 }

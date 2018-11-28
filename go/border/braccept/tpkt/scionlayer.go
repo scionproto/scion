@@ -24,8 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-var _ LayerMatcher = (*ScionLayer)(nil)
-
 var LayerTypeScion = gopacket.RegisterLayerType(
 	1337,
 	gopacket.LayerTypeMetadata{
@@ -33,6 +31,8 @@ var LayerTypeScion = gopacket.RegisterLayerType(
 		Decoder: gopacket.DecodeFunc(decodeScionLayer),
 	},
 )
+
+var _ LayerMatcher = (*ScionLayer)(nil)
 
 // ScionLayer represents the gopacket SCION network layer, which contains the common,
 // address and path "headers".
