@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -219,4 +220,11 @@ func (cfg *Metrics) StartPrometheus(fatalC chan error) {
 type Infra struct {
 	// Type must be one of BS, CS or PS.
 	Type string
+}
+
+// RunsInDocker returns whether the current binary is run in a docker container.
+func RunsInDocker() bool {
+	cmd := exec.Command("bash", "-c", "cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'")
+	err := cmd.Run()
+	return err == nil
 }
