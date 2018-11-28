@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ package version
 
 import (
 	"fmt"
+
+	"github.com/scionproto/scion/go/lib/env"
 )
 
 const (
@@ -24,5 +26,6 @@ const (
 )
 
 func runVersion() {
-	fmt.Printf("SCION Control Plane PKI tool v%d.%d\n", major, minor)
+	fmt.Print(env.VersionInfo())
+	fmt.Printf("  PKI version:   v%d.%d\n", major, minor)
 }

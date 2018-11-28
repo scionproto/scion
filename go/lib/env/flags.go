@@ -23,12 +23,14 @@ import (
 var (
 	config     string
 	helpConfig bool
+	version    bool
 )
 
 // AddFlags adds the config and sample flags.
 func AddFlags() {
 	flag.StringVar(&config, "config", "", "Service TOML config file.")
 	flag.BoolVar(&helpConfig, "help-config", false, "Output sample commented config file.")
+	flag.BoolVar(&version, "version", false, "Output version information and exit.")
 }
 
 // ConfigFile returns the config file path passed through the flag.
@@ -53,6 +55,10 @@ func Usage() {
 func CheckFlags(sampleConfig string) (int, bool) {
 	if helpConfig {
 		fmt.Print(sampleConfig)
+		return 0, false
+	}
+	if version {
+		fmt.Printf(VersionInfo())
 		return 0, false
 	}
 	if config == "" {

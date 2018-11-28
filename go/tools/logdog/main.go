@@ -43,12 +43,21 @@ import (
 	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log/logparse"
+)
+
+var (
+	version = flag.Bool("version", false, "Output version information and exit.")
 )
 
 func main() {
 	flag.Usage = printUsage
 	flag.Parse()
+	if *version {
+		fmt.Print(env.VersionInfo())
+		os.Exit(0)
+	}
 	maxENameLen := 0
 	// Read in all files
 	for _, fn := range flag.Args() {

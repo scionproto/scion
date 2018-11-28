@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -97,9 +98,13 @@ flags:
 	flag.PrintDefaults()
 }
 
-func ParseFlags() string {
+func ParseFlags(version *bool) string {
 	var args []string
 	flag.Parse()
+	if *version {
+		fmt.Print(env.VersionInfo())
+		os.Exit(0)
+	}
 	args = flag.Args()
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "ERROR: Missing command\n")

@@ -15,9 +15,19 @@
 package env
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+)
+
+// Startup* variables are set during link time.
+var (
+	StartupBuildDate  string = "local builds have no build time"
+	StartupVersion    string
+	StartupBuildChain string
 )
 
 type Logging struct {
@@ -90,8 +100,35 @@ func setupFileLogging(cfg *Logging) error {
 }
 
 // LogSvcStarted should be called by services as soon as logging is initialized.
-func LogSvcStarted(svcType, elemId string) {
-	log.Info("=====================> Service started", "svc", svcType, "id", elemId)
+func LogSvcStarted(svcType, elemId string) error {
+	inDocker, err := RunsInDocker()
+	if err != nil {
+		return common.NewBasicError("Unable to determine if running in docker", err)
+	}
+	info := fmt.Sprintf("=====================> Service started %s %s\n"+
+		"%s  %s\n  %s\n  %s\n",
+		svcType,
+		elemId,
+		VersionInfo(),
+		fmt.Sprintf("In docker:     %v", inDocker),
+		fmt.Sprintf("euid/egid:     %d %d", os.Geteuid(), os.Getegid()),
+		fmt.Sprintf("cmd line:      %q", os.Args),
+	)
+	log.Info(info)
+	return nil
+}
+
+// VersionInfo returns build version information (build date, build version, build chain).
+func VersionInfo() string {
+	return fmt.Sprintf("  %s\n  %s\n  %s\n",
+		fmt.Sprintf("Build date:    %s", StartupBuildDate),
+		fmt.Sprintf("Scion version: %s", StartupVersion),
+		fmt.Sprintf("Buid chain:    %s", StartupBuildChain),
+	)
+}
+
+func LogSvcStopped(svcType, elemId string) {
+	log.Info(fmt.Sprintf("=====================> Service stopped %s %s", svcType, elemId))
 }
 
 // CleanupLog calls log.LogPanicAndExit and log.Flush
