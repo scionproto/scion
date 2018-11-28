@@ -77,6 +77,7 @@ func realMain() int {
 		return 1
 	}
 	defer env.CleanupLog()
+	defer env.LogSvcStopped(common.PS, config.General.ID)
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
