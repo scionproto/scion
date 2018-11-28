@@ -35,22 +35,22 @@ services:
       - "./dispatcher-conf:/share/conf"
   core-brA:
     <<: *core-br
-    command: ["-id=core-brA", "-prom=[127.0.0.49]:30093"]
+    command: ["-id=core-brA"]
   core-brB:
     <<: *core-br
-    command: ["-id=core-brB", "-prom=[127.0.0.49]:30093"]
+    command: ["-id=core-brB"]
   core-brC:
     <<: *core-br
-    command: ["-id=core-brC", "-prom=[127.0.0.49]:30093"]
+    command: ["-id=core-brC"]
   brA:
     <<: *br
-    command: ["-id=brA", "-prom=[127.0.0.49]:30093"]
+    command: ["-id=brA"]
   brB:
     <<: *br
-    command: ["-id=brB", "-prom=[127.0.0.49]:30093"]
+    command: ["-id=brB"]
   brC:
     <<: *br
-    command: ["-id=brC", "-prom=[127.0.0.49]:30093"]
+    command: ["-id=brC"]
   brD:
     <<: *br
-    command: ["-id=brD", "-prom=[127.0.0.49]:30093"]
+    command: ["-id=brD"]

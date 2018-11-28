@@ -162,6 +162,11 @@ func (h *HopField) expTimeIfIdsPack() uint32 {
 	return uint32(h.ExpTime)<<24 | uint32(h.ConsIngress&0xFFF)<<12 | uint32(h.ConsEgress&0xFFF)
 }
 
+func (h *HopField) Eq(o *HopField) bool {
+	return h.Xover == o.Xover && h.VerifyOnly == o.VerifyOnly && h.ExpTime == o.ExpTime &&
+		h.ConsIngress == o.ConsIngress && h.ConsEgress == o.ConsEgress && bytes.Equal(h.Mac, o.Mac)
+}
+
 type ExpTimeType uint8
 
 // ToDuration calculates the relative expiration time in seconds.

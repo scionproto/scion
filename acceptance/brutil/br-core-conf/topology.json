@@ -18,7 +18,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.12.2" },
           "ISD_AS": "1-ff00:0:2",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.12.3" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.12.3" },
           "Bandwidth": 1000
         }
       }
@@ -37,7 +37,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.14.2" },
           "ISD_AS": "1-ff00:0:4",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.14.3" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.14.3" },
           "Bandwidth": 1000
         }
       }
@@ -56,7 +56,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.12.4" },
           "ISD_AS": "1-ff00:0:2",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.12.5" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.12.5" },
           "Bandwidth": 1000
         },
         "131": {
@@ -65,7 +65,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.13.2" },
           "ISD_AS": "2-ff00:0:3",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.13.3" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.13.3" },
           "Bandwidth": 1000
         },
         "132": {
@@ -74,7 +74,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.13.4" },
           "ISD_AS": "1-ff00:0:3",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.13.5" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.13.5" },
           "Bandwidth": 1000
         },
         "142": {
@@ -83,7 +83,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.14.4" },
           "ISD_AS": "1-ff00:0:4",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.14.5" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.14.5" },
           "Bandwidth": 1000
         },
         "151": {
@@ -92,7 +92,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.15.2" },
           "ISD_AS": "1-ff00:0:5",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.15.3" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.15.3" },
           "Bandwidth": 1000
         },
         "152": {
@@ -101,7 +101,7 @@
           "Overlay": "UDP/IPv4",
           "PublicOverlay": { "OverlayPort": 50000, "Addr": "192.168.15.4" },
           "ISD_AS": "1-ff00:0:5",
-          "RemoteOverlay": { "OverlayPort": 50001, "Addr": "192.168.15.5" },
+          "RemoteOverlay": { "OverlayPort": 40000, "Addr": "192.168.15.5" },
           "Bandwidth": 1000
         }
       }

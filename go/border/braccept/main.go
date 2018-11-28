@@ -133,7 +133,8 @@ func realMain() int {
 		brTests = brTests[testIdx-1 : testIdx]
 		baseIdx = testIdx
 	}
-	for i, t := range brTests {
+	for i := range brTests {
+		t := brTests[i]
 		if err := doTest(t, cases); err != nil {
 			fmt.Printf("%d. %s\n\n%s\n\n", baseIdx+i, t.Summary(false), err)
 			failures += 1
@@ -289,11 +290,12 @@ func checkPkt(expPkts []*tpkt.ExpPkt, devIdx int, pkt gopacket.Packet) (int, err
 		errStr = append(errStr,
 			fmt.Sprintf("[ERROR] Packet received when no packet was expected\n"))
 	}
-	if scn := pkt.Layer(tpkt.LayerTypeScion).(*tpkt.ScionLayer); scn != nil {
+	if scnLayer := pkt.Layer(tpkt.LayerTypeScion); scnLayer != nil {
+		scn := scnLayer.(*tpkt.ScionLayer)
 		scn.Path.Parse(scn.Path.Raw)
 		scn.Path.Raw = nil
 	}
 	errStr = append(errStr, fmt.Sprintf("Unexpected packet on interface %s:\n\n%v",
 		devList[devIdx].contDev, pkt))
-	return 0, fmt.Errorf(strings.Join(errStr, "\n"))
+	return -1, fmt.Errorf(strings.Join(errStr, "\n"))
 }
