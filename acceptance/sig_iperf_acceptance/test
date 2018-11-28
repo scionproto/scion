@@ -1,7 +1,7 @@
 #!/bin/bash
 
-TEST_NAME="sig"
-TEST_TOPOLOGY="topology/Tiny.topo"
+TEST_NAME="sig_iperf"
+TEST_TOPOLOGY="acceptance/sig_reload_acceptance/SIG.topo"
 
 test_setup() {
     set -ex
@@ -12,7 +12,7 @@ test_setup() {
 }
 
 test_run() {
-    ./bin/sig_ping_acceptance -d -log.console info
+    ./bin/sig_iperf_acceptance -d -log.console info
 }
 
 test_teardown() {

@@ -3,6 +3,11 @@ FROM scion_app_builder
 USER root
 RUN apt-get update && apt-get install libcap2-bin net-tools iputils-ping iproute2 -y
 
+RUN git clone https://github.com/esnet/iperf && cd iperf && git checkout 3.6 && \
+    ./configure  --enable-static --disable-shared && \
+    make -j $(nproc) && \
+    mv src/iperf3 /usr/bin/iperf3 && chmod +x /usr/bin/iperf3
+
 RUN cp $BASE/docker/tester.sh $BASE
 RUN chmod +x tester.sh
 CMD tail -f /dev/null

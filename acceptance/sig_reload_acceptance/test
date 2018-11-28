@@ -1,0 +1,69 @@
+#!/bin/bash
+
+TEST_NAME="sig_reload"
+TEST_TOPOLOGY="acceptance/sig_acceptance/SIG.topo"
+
+SRC_IA=${SRC_IA:-1-ff00:0:113}
+SRC_IA_FILE=$(echo $SRC_IA | sed -e "s/:/_/g")
+SRC_AS_FILE=$(echo $SRC_IA_FILE | cut -d '-' -f 2)
+DST_IA=${DST_IA:-1-ff00:0:110}
+SIG_JSON="gen/ISD1/AS$SRC_AS_FILE/sig/cfg.json"
+
+test_setup() {
+    set -ex
+    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d --sig -n 242.0.0.0/16
+    ./scion.sh run nobuild
+    ./tools/dc start 'tester*'
+    sleep 10
+}
+
+test_run() {
+    set -e
+    ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
+    # Remove $DST_IA from sig.json
+    HOP_JSON=$(jq -c ".ASes.\"$DST_IA\"" $SIG_JSON)
+    jq "del(.ASes.\"$DST_IA\")" $SIG_JSON | sponge $SIG_JSON
+    reload_sig "$SRC_IA_FILE"
+    # Must fail
+    ./bin/sig_ping_acceptance -d -stdout -src $SRC_IA -dst $DST_IA || [ $? -eq 1 ]
+    # Add $DST_IA again to sig.json
+    jq ".ASes.\"$DST_IA\" = $HOP_JSON" $SIG_JSON | sponge $SIG_JSON
+    reload_sig "$SRC_IA_FILE"
+    # should work again
+    ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
+}
+
+reload_sig() {
+    set -x
+    id="$(./tools/dc dc exec -T scion_sig_$1 pgrep -x sig)"
+    ./tools/dc dc exec -T scion_sig_"$1" kill -SIGHUP "$id"
+}
+
+test_teardown() {
+    ./tools/dc down
+}
+
+print_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run
+	        execute only the run phase.
+	    $PROGRAM teardown 
+	        execute only the teardown phase.
+	_EOF
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
