@@ -20,12 +20,13 @@
 package env
 
 import (
+	"bufio"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -223,8 +224,18 @@ type Infra struct {
 }
 
 // RunsInDocker returns whether the current binary is run in a docker container.
-func RunsInDocker() bool {
-	cmd := exec.Command("bash", "-c", "cut -d: -f 3 /proc/1/cgroup | grep -q '^/docker/'")
-	err := cmd.Run()
-	return err == nil
+func RunsInDocker() (bool, error) {
+	f, err := os.Open("/proc/self/cgroup")
+	if err != nil {
+		return false, common.NewBasicError("Failed to open /proc/self/cgroup", err)
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		parts := strings.Split(scanner.Text(), ":")
+		if len(parts) == 3 && strings.HasPrefix(parts[2], "/docker/") {
+			return true, nil
+		}
+	}
+	return false, nil
 }
