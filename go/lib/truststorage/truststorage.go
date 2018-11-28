@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/trustdbsqlite"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type Backend string
@@ -39,6 +40,7 @@ type TrustDBConf struct {
 
 // New creates a TrustDB from the config.
 func (c TrustDBConf) New() (trustdb.TrustDB, error) {
+	log.Info("Connecting TrustDB", "backend", c.Backend, "connection", c.Connection)
 	switch c.Backend {
 	case BackendSqlite:
 		return trustdbsqlite.New(c.Connection)
