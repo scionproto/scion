@@ -21,7 +21,6 @@ Thumbs.db
 #########################
 .mypy_cache/
 __pycache__
-topology/mininet/*.pyc
 
 # Go generated files #
 #########################
