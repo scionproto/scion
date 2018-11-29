@@ -128,6 +128,7 @@ func (p *InfoPktSize) String() string {
 
 var _ Info = (*InfoPathOffsets)(nil)
 
+// XXX(sgmonroy) Note that CurrInfoF and CurrHopF in the common header are uint8
 type InfoPathOffsets struct {
 	InfoF   uint16
 	HopF    uint16

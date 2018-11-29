@@ -166,7 +166,8 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	if infoF.Peer {
 		if segChgd {
 			return common.NewBasicError("Path inc on ingress caused illegal peer segment change",
-				scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
+				scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
+					rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil))
 		}
 		origIF := origIFNext
 		newIF := *rp.ifNext
@@ -182,7 +183,8 @@ func (rp *RtrPkt) xoverFromExternal() error {
 		if origIF != newIF {
 			return common.NewBasicError(
 				"Downstream interfaces don't match on peer XOVER hop fields",
-				scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets(), nil),
+				scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField,
+					rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil),
 				"orig", origIF, "new", newIF,
 			)
 		}
@@ -197,13 +199,15 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	// Never allowed to switch between core segments.
 	if prevLink == proto.LinkType_core && nextLink == proto.LinkType_core {
 		return common.NewBasicError("Segment change between CORE links",
-			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
+				rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil))
 	}
 	// Only allowed to switch from up- to up-segment if the next link is CORE.
 	if !infoF.ConsDir && !rp.infoF.ConsDir && nextLink != proto.LinkType_core {
 		return common.NewBasicError(
 			"Segment change from up segment to up segment with non-CORE next link",
-			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
+				rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil),
 			"prevLink", prevLink, "nextLink", nextLink,
 		)
 	}
@@ -211,7 +215,8 @@ func (rp *RtrPkt) xoverFromExternal() error {
 	if infoF.ConsDir && rp.infoF.ConsDir && prevLink != proto.LinkType_core {
 		return common.NewBasicError(
 			"Segment change from down segment to down segment with non-CORE previous link",
-			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil),
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
+				rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil),
 			"prevLink", prevLink, "nextLink", nextLink,
 		)
 	}
