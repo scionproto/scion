@@ -51,7 +51,8 @@ func Init(keyPath, pemPath string) error {
 	return nil
 }
 
-func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr, quicConfig *quic.Config) (quic.Session, error) {
+func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
+	quicConfig *quic.Config) (quic.Session, error) {
 	return DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone, quicConfig)
 }
 
@@ -65,7 +66,8 @@ func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.
 	return quic.Dial(sconn, raddr, "host:0", cliTlsCfg, quicConfig)
 }
 
-func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr, quicConfig *quic.Config) (quic.Listener, error) {
+func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr,
+	quicConfig *quic.Config) (quic.Listener, error) {
 	return ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone, quicConfig)
 }
 
