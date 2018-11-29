@@ -237,7 +237,7 @@ func (c *client) run() {
 	// IP address needs to be supplied explicitly. When supplied a local
 	// port of 0, DialSCION will assign a random free local port.
 	var err error
-	c.qsess, err = squic.DialSCION(nil, &local, &remote)
+	c.qsess, err = squic.DialSCION(nil, &local, &remote, nil)
 	if err != nil {
 		LogFatal("Unable to dial", "err", err)
 	}
@@ -347,7 +347,7 @@ type server struct {
 // On any error, the server exits.
 func (s server) run() {
 	// Listen on SCION address
-	qsock, err := squic.ListenSCION(nil, &local)
+	qsock, err := squic.ListenSCION(nil, &local, nil)
 	if err != nil {
 		LogFatal("Unable to listen", "err", err)
 	}
