@@ -20,7 +20,9 @@ fi
 if [ "$1" == "pull" ]; then
     # Pull images
     for app in $images; do
+        local_img="scion_$app"
         remote_img="$REGISTRY/$app"
         docker pull "$remote_img:$TAG"
+        docker tag "$remote_img:$TAG" "$local_img:latest"
     done
 fi
