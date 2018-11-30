@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "Login to $REGISTRY with user $REGISTRY_USER"
+echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin

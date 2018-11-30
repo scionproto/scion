@@ -23,12 +23,16 @@ cat "$STEPS/push_ci_cntr.yml"
 # Unit tests
 cat "$STEPS/test.yml"
 
+# build images together with
+if [ -n "$RUN_ALL_TESTS" ]; then
+    cat "$STEPS/build_all.yml"
+fi
+
 # integration testing
 "$STEPS/integration.sh"
 
 # conditionally run more tests
 if [ -n "$RUN_ALL_TESTS" ]; then
-    cat "$STEPS/build_all.yml"
     # docker integration testing
     cat "$STEPS/docker-integration.yml"
     # acceptance testing
