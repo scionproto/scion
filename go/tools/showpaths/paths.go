@@ -43,6 +43,7 @@ var (
 	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	status       = flag.Bool("p", false, "Probe the paths and print out the statuses")
+	version      = flag.Bool("version", false, "Output version information and exit.")
 )
 
 var (
