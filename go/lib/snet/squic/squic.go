@@ -53,11 +53,13 @@ func Init(keyPath, pemPath string) error {
 
 func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
 	quicConfig *quic.Config) (quic.Session, error) {
+
 	return DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone, quicConfig)
 }
 
 func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (quic.Session, error) {
+
 	sconn, err := sListen(network, laddr, baddr, svc)
 	if err != nil {
 		return nil, err
@@ -68,11 +70,13 @@ func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.
 
 func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr,
 	quicConfig *quic.Config) (quic.Listener, error) {
+
 	return ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone, quicConfig)
 }
 
 func ListenSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	svc addr.HostSVC, quicConfig *quic.Config) (quic.Listener, error) {
+
 	if len(srvTlsCfg.Certificates) == 0 {
 		return nil, common.NewBasicError("squic: No server TLS certificate configured", nil)
 	}
@@ -85,6 +89,7 @@ func ListenSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 
 func sListen(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	svc addr.HostSVC) (snet.Conn, error) {
+		
 	if network == nil {
 		network = snet.DefNetwork
 	}
