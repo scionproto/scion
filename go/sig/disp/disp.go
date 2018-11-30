@@ -31,7 +31,7 @@ import (
 func Init(conn snet.Conn) {
 	go func() {
 		defer log.LogPanicAndExit()
-		pktdisp.PktDispatcher(conn, dispFunc)
+		pktdisp.PktDispatcher(conn, dispFunc, nil)
 	}()
 }
 

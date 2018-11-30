@@ -18,6 +18,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 
@@ -41,6 +42,12 @@ func LoadFromFile(path string) (*Cfg, error) {
 	cfg := &Cfg{}
 	if err := json.Unmarshal(b, cfg); err != nil {
 		return nil, common.NewBasicError("Unable to parse SIG config", err)
+	}
+	for ia, asCfg := range cfg.ASes {
+		if asCfg == nil {
+			return nil, common.NewBasicError(
+				fmt.Sprintf("Remote AS config for %s is nil", ia), nil)
+		}
 	}
 	cfg.postprocess()
 	return cfg, nil
