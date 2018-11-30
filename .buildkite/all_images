@@ -2,7 +2,6 @@
 
 set -exu
 
-REMOTE="$REGISTRY"
 TAG="$BUILDKITE_BUILD_NUMBER"
 
 echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
@@ -13,7 +12,7 @@ if [ "${1:?}" == "push" ]; then
     # Tag local apps and push to remote
     for app in $images; do
         local_img="scion_$app"
-        remote_img="$REMOTE/$app"
+        remote_img="$REGISTRY/$app"
         docker tag "$local_img:latest" "$remote_img:$TAG"
         docker push "$remote_img:$TAG"
     done
@@ -21,7 +20,7 @@ fi
 if [ "$1" == "pull" ]; then
     # Pull images
     for app in $images; do
-        remote_img="$REMOTE/$app"
+        remote_img="$REGISTRY/$app"
         docker pull "$remote_img:$TAG"
     done
 fi
