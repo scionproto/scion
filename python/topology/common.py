@@ -15,6 +15,7 @@
 # Stdlib
 import os
 import subprocess
+import sys
 # SCION
 from lib.packet.scion_addr import ISD_AS
 
@@ -117,6 +118,20 @@ def docker_image(args, image):
     if args.image_tag:
         image = '%s:%s' % (image, args.image_tag)
     return image
+
+
+def docker_host(in_docker, docker, addr=None):
+    if in_docker:
+        # If in-docker we need to know the DOCKER0 IP
+        addr = os.getenv('DOCKER0', None)
+        if not addr:
+            print('DOCKER0 env variable required! Exiting!')
+            sys.exit(1)
+    elif docker or not addr:
+        # Using docker topology or there is no default addr,
+        # we directly get the DOCKER0 IP
+        addr = docker_ip()
+    return addr
 
 
 def docker_ip():
