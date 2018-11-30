@@ -51,26 +51,32 @@ func Init(keyPath, pemPath string) error {
 	return nil
 }
 
-func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr) (quic.Session, error) {
-	return DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone)
+func DialSCION(network *snet.SCIONNetwork, laddr, raddr *snet.Addr,
+	quicConfig *quic.Config) (quic.Session, error) {
+
+	return DialSCIONWithBindSVC(network, laddr, raddr, nil, addr.SvcNone, quicConfig)
 }
 
 func DialSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, raddr, baddr *snet.Addr,
-	svc addr.HostSVC) (quic.Session, error) {
+	svc addr.HostSVC, quicConfig *quic.Config) (quic.Session, error) {
+
 	sconn, err := sListen(network, laddr, baddr, svc)
 	if err != nil {
 		return nil, err
 	}
 	// Use dummy hostname, as it's used for SNI, and we're not doing cert verification.
-	return quic.Dial(sconn, raddr, "host:0", cliTlsCfg, nil)
+	return quic.Dial(sconn, raddr, "host:0", cliTlsCfg, quicConfig)
 }
 
-func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr) (quic.Listener, error) {
-	return ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone)
+func ListenSCION(network *snet.SCIONNetwork, laddr *snet.Addr,
+	quicConfig *quic.Config) (quic.Listener, error) {
+
+	return ListenSCIONWithBindSVC(network, laddr, nil, addr.SvcNone, quicConfig)
 }
 
 func ListenSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
-	svc addr.HostSVC) (quic.Listener, error) {
+	svc addr.HostSVC, quicConfig *quic.Config) (quic.Listener, error) {
+
 	if len(srvTlsCfg.Certificates) == 0 {
 		return nil, common.NewBasicError("squic: No server TLS certificate configured", nil)
 	}
@@ -78,11 +84,12 @@ func ListenSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	if err != nil {
 		return nil, err
 	}
-	return quic.Listen(sconn, srvTlsCfg, nil)
+	return quic.Listen(sconn, srvTlsCfg, quicConfig)
 }
 
 func sListen(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	svc addr.HostSVC) (snet.Conn, error) {
+
 	if network == nil {
 		network = snet.DefNetwork
 	}
