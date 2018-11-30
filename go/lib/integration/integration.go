@@ -26,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kormat/fmt15"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -198,6 +200,12 @@ func (s *serverStop) Close() error {
 	return nil
 }
 
+// WithTimestamp returns s with the now timestamp prefixed.
+// This is helpful for logging staments to stdout/stderr or in a file where the logger isn't used.
+func WithTimestamp(s string) string {
+	return fmt.Sprintf("%v %s", time.Now().Format(fmt15.TimeFmt), s)
+}
+
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
 // To start a server with a custom context use in.StartServer directly.
 func StartServer(in Integration, dst snet.Addr) (io.Closer, error) {
@@ -265,7 +273,9 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src.IA, pair.Dst.IA,
 			idx+1, len(pairs)))
 		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
-			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			msg := WithTimestamp(fmt.Sprintf("Error during client execution: %s\n", err))
+			fmt.Fprint(os.Stderr, msg)
+			log.Error("Error during client execution", "err", err)
 			return err
 		}
 		return nil
@@ -283,7 +293,9 @@ func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error 
 			in.Name(), pair.Src.IA, pair.Dst.IA, idx+1, len(pairs)))
 		// Start client
 		if err := RunClient(in, pair, timeout); err != nil {
-			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			msg := WithTimestamp(fmt.Sprintf("Error during client execution: %s\n", err))
+			fmt.Fprint(os.Stderr, msg)
+			log.Error("Error during client execution", "err", err)
 			return err
 		}
 		return nil
