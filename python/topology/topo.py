@@ -41,7 +41,13 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import srv_iter, ArgsBase, docker_ip, TopoID, SCION_SERVICE_NAMES
+from topology.common import (
+    ArgsBase,
+    docker_host,
+    SCION_SERVICE_NAMES,
+    srv_iter,
+    TopoID
+)
 from topology.net import AddressProxy
 
 DEFAULT_LINK_BW = 1000
@@ -299,19 +305,7 @@ class TopoGenerator(object):
             # If we're in-docker, we need to set the port to not conflict with the host port
             port = port + 1
 
-        if in_docker:
-            # If in-docker we need to know the DOCKER0 IP
-            addr = os.getenv('DOCKER0', None)
-            if not addr:
-                print('DOCKER0 env variable required! Exiting!')
-                sys.exit(1)
-        elif docker or not addr:
-            # Using docker topology or there is no default addr,
-            # we directly get the DOCKER0 IP
-            addr = docker_ip()
-        else:
-            # Addr is specified in the topo file
-            addr = str(ip_address(addr))
+        addr = docker_host(in_docker, docker, str(ip_address(addr)))
         return {
             'Addr': addr,
             'L4Port': port

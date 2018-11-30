@@ -13,9 +13,7 @@ result=0
 result=$((result+$?))
 ./tools/ci/lint
 result=$((result+$?))
-./tools/ci/unittest
-result=$((result+$?))
-./tools/ci/sphinx
+./tools/ci/test
 result=$((result+$?))
 
 ./tools/ci/integration -a $DOCKER_BE
