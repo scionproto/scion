@@ -1,8 +1,7 @@
 - label: Prepare scion_base and scion images
   command:
-      - $BASE/clean_env.sh
-      - ./tools/ci/prepare_image 1b1fef8952469b4895c9871314b0a92228426d9058132e8b5f3a8b89308f2fed
-      - ./docker.sh build
+      - $BASE/scripts/clean_env
+      - $BASE/scripts/build_scion
 - wait
 - label: Start container
   command:
