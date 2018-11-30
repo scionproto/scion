@@ -12,17 +12,19 @@ SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
-GIT_COMMIT = $(shell git rev-parse --short HEAD)-$(shell git diff --quiet || echo 'dirty')
-GIT_TAG = $(shell git describe --tags)-$(shell git diff --quiet || echo 'dirty')
-BUILD_DATE = $(shell date -Is)
 BUILD_CHAIN = $(shell go version)
-export GIT_TAG
-export BUILD_CHAIN
-export BUILD_DATE
-LINK_FLAGS = -X github.com/scionproto/scion/go/lib/env.StartupCommitId=$(GIT_COMMIT)\
- -X \"github.com/scionproto/scion/go/lib/env.StartupBuildDate=$(BUILD_DATE)\"\
- -X \"github.com/scionproto/scion/go/lib/env.StartupVersion=$(GIT_TAG)\"\
- -X \"github.com/scionproto/scion/go/lib/env.StartupBuildChain=$(BUILD_CHAIN)\"
+HEAD_TAG = $(shell git tag -l --points-at HEAD)
+GIT_TAG = $(shell git describe --tags)$(shell git diff --quiet || echo '-dirty')
+LINK_FLAGS =\
+	-X \"github.com/scionproto/scion/go/lib/env.StartupBuildChain=$(BUILD_CHAIN)\"
+ifeq ($(HEAD_TAG), $(GIT_TAG))
+	BUILD_DATE = $(shell date -u -Is)
+ 	LINK_FLAGS += -X \"github.com/scionproto/scion/go/lib/env.StartupBuildDate=$(BUILD_DATE)\"
+	# add commit, because on a clean tag `git describe --tags` doesn't contain the commit.
+	GIT_TAG += $(shell git rev-parse --short HEAD)
+endif
+LINK_FLAGS +=\
+ -X \"github.com/scionproto/scion/go/lib/env.StartupVersion=$(GIT_TAG)\"
 GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \

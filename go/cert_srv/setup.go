@@ -52,8 +52,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
-	env.LogSvcStarted(common.CS, config.General.ID)
-	return nil
+	return env.LogSvcStarted(common.CS, config.General.ID)
 }
 
 // setup initializes the config and sets the messenger.

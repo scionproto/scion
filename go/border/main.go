@@ -39,6 +39,7 @@ var (
 	id       = flag.String("id", "", "Element ID (Required. E.g. 'br4-ff00:0:2f')")
 	confDir  = flag.String("confd", ".", "Configuration directory")
 	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
+	version  = flag.Bool("version", false, "Output version information and exit.")
 )
 
 func main() {
@@ -47,6 +48,10 @@ func main() {
 	log.AddLogFileFlags()
 	log.AddLogConsFlags()
 	flag.Parse()
+	if *version {
+		fmt.Print(env.VersionInfo())
+		os.Exit(0)
+	}
 	if *id == "" {
 		log.Crit("No element ID specified")
 		os.Exit(1)
@@ -57,7 +62,11 @@ func main() {
 		os.Exit(1)
 	}
 	defer env.CleanupLog()
-	env.LogSvcStarted(common.BR, *id)
+	if err := env.LogSvcStarted(common.BR, *id); err != nil {
+		log.Crit("LogSvcStart failed", "err", err)
+		log.Flush()
+		os.Exit(1)
+	}
 	if err := checkPerms(); err != nil {
 		log.Crit("Permissions checks failed", "err", err)
 		log.Flush()

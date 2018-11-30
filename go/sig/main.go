@@ -126,8 +126,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	env.LogSvcStarted("SIG", cfg.Sig.ID)
-	return nil
+	return env.LogSvcStarted("SIG", cfg.Sig.ID)
 }
 
 func validateConfig() error {
