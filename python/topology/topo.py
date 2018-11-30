@@ -21,7 +21,6 @@ import json
 import logging
 import os
 import random
-import subprocess
 import sys
 from collections import defaultdict
 
@@ -42,7 +41,7 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES
+from topology.common import srv_iter, ArgsBase, docker_ip, TopoID, SCION_SERVICE_NAMES
 from topology.net import AddressProxy
 
 DEFAULT_LINK_BW = 1000
@@ -309,7 +308,7 @@ class TopoGenerator(object):
         elif docker or not addr:
             # Using docker topology or there is no default addr,
             # we directly get the DOCKER0 IP
-            addr = _docker_ip()
+            addr = docker_ip()
         else:
             # Addr is specified in the topo file
             addr = str(ip_address(addr))
@@ -397,7 +396,3 @@ def _json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
-
-
-def _docker_ip():
-    return subprocess.check_output(['tools/docker-ip']).decode("utf-8").strip()
