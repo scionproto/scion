@@ -1,7 +1,9 @@
 - label: Build and push perapp images
   command:
+  - $BASE/scripts/registry_login
   - docker pull $SCION_IMG
+  - docker tag $SCION_IMG scion:latest
   - mkdir docker/_build && touch docker/_build/scion.stamp
   - make -C docker/perapp apps
-  - $BASE/all_images push
+  - $BASE/scripts/all_images push
 - wait
