@@ -193,8 +193,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
-	env.LogSvcStarted(common.PS, config.General.ID)
-	return nil
+	return env.LogSvcStarted(common.PS, config.General.ID)
 }
 
 func setup() error {
