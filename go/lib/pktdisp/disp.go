@@ -33,26 +33,31 @@ type DispatchFunc func(*DispPkt)
 // PktDispatcher listens on c, and calls f for every packet read.
 // N.B. the DispPkt passed to f is reused, so applications should make a copy if
 // this is a problem.
-func PktDispatcher(c snet.Conn, f DispatchFunc) {
+func PktDispatcher(c snet.Conn, f DispatchFunc, pktDispStop chan struct{}) {
 	var err error
 	var n int
 	dp := &DispPkt{Raw: make(common.RawBytes, common.MaxMTU)}
 	for {
-		dp.Raw = dp.Raw[:cap(dp.Raw)]
-		n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
-		if err != nil {
-			if reliable.IsDispatcherError(err) {
-				fatal.Fatal(err)
-				return
+		select {
+		case <-pktDispStop:
+			return
+		default:
+			dp.Raw = dp.Raw[:cap(dp.Raw)]
+			n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
+			if err != nil {
+				if reliable.IsDispatcherError(err) {
+					fatal.Fatal(err)
+					return
+				}
+				log.Error("PktDispatcher: Error reading from connection", "err", err)
+				// FIXME(shitz): Continuing here is only a temporary solution. Different
+				// errors need to be handled different, for some it should break and others
+				// are recoverable.
+				continue
 			}
-			log.Error("PktDispatcher: Error reading from connection", "err", err)
-			// FIXME(shitz): Continuing here is only a temporary solution. Different
-			// errors need to be handled different, for some it should break and others
-			// are recoverable.
-			continue
+			dp.Raw = dp.Raw[:n]
+			f(dp)
 		}
-		dp.Raw = dp.Raw[:n]
-		f(dp)
 	}
 }
 
