@@ -76,7 +76,7 @@ destined for other ASes from this secret value. These derived keys form the
 first level of the key hierarchy and are called first-level keys. For example, a
 first-level key that is used between AS A and AS B, is derived as follows:
 
-     K_{A→B} = PRF_{SV_A} (B)  
+     K_{A→B} = PRF_{SV_A} (B)
 
 where SV\_A is the AS-specific secret value from the zeroth level of the key
 hierarchy.
@@ -129,7 +129,7 @@ To exchange a first-level key the certificate servers of corresponding ASes
 perform the key exchange protocol. The key exchange is initialized by CS\_B by
 sending the following request:
 
-    token = A | val_time | timestamp  
+    token = A | val_time | timestamp
     CS_B → CS A : A | B | token | {token}_PK_B^−1
 
 where `val_time` specifies a point in time at which the requested key is valid.
@@ -147,9 +147,9 @@ will reply with an encrypted and signed first-level key derived from the local
 secret value SV\_A. SV\_A is chosen according to the epoch identified by
 `val_time`.
 
-    K_{A→B} = PRF_{SV_A} (B)  
-    ciphertext = {A | K_{A→B}}_PK_B  
-    signature = {ciphertext | epoch_begin | epoch_end | timestamp}_PK_A^−1  
+    K_{A→B} = PRF_{SV_A} (B)
+    ciphertext = {A | K_{A→B}}_PK_B
+    signature = {ciphertext | epoch_begin | epoch_end | timestamp}_PK_A^−1
     CS_A → CS_B : ciphertext | epoch_begin | epoch_end | timestamp | signature
 
 Once the requesting certificate server CS\_B has received the key, it shares it
@@ -159,8 +159,8 @@ requesting second-level keys derived from K_{A→B}.
 
 The first-level key is accompanied by `epoch_begin` and `epoch_end` that denote
 the begin and end of the validity period of the corresponding key. These values
-are determined by the AS that issues the key. The beginning of an epoch should
-not overlap with with the end of the previous epoch, as otherwise multiple
+are determined by the AS that issues the key. The beginning of an epoch must
+not overlap with the end of the previous epoch, as otherwise multiple
 DRKeys need to be checked for verification.
 
 First-level keys of frequently contacted ASes are prefetched such that
@@ -170,7 +170,7 @@ second-level key, the certificate server initiates a first-level key exchange.
 The amount of cached first-level keys is configurable by each AS. We suggest a
 default policy of caching 10'000 first-level keys, where the least frequently
 used keys get replaced. This requires fetching on average one first-level key
-every 8 seconds.
+every 8 seconds (assuming a key lifetime of 24h).
 
 #### Second-Level Key Exchange
 
@@ -210,10 +210,10 @@ AS. The following second-level requests exist:
 
 The key derivation for second-level keys can be defined by each protocol. By
 default, the DRKey infrastructure offers two key derivation procedures. For
-these, we distinguish between protocol that perform key derivations only on
-trusted AS infrastructure (e.g., SCMP), and protocols can profit from "outsourcing"
-key derivation to non-AS infrastructure entities (e.g., PISKES). In the former
-case, key derivation can be performed as follows:
+these, we distinguish between protocols that perform key derivations only on
+trusted AS infrastructure (e.g., SCMP), and protocols that can profit from
+"outsourcing" key derivation to non-AS infrastructure entities (e.g., PISKES).
+In the former case, key derivation can be performed as follows:
 
     1. AS → AS:
     Key Derivation: K_{A→B}^prot = PRF_{K_{A→B}}( “prot” )
@@ -386,7 +386,7 @@ the time in seconds since the unix epoch.
 
     DRKeyLvl1Req {
         isdas       UInt64  # Src ISD-AS of the requested DRKey
-        valTime     UInt32  # Point in time where requested DRKey is valid. Used to identify the epoch.
+        valTime     UInt32  # Point in time where requested DRKey must be valid. Used to identify the epoch.
     }
 
     DRKeyLvl1Rep {
@@ -402,7 +402,7 @@ the time in seconds since the unix epoch.
 The second level key response will also be transmitted with SignedCtrlPld.
 
     DRKeyLvl2Req {
-        valTime     UInt32  # Point in time where requested DRKey is valid. Used to identify the epoch.
+        valTime     UInt32  # Point in time where requested DRKey must be valid. Used to identify the epoch.
         protocol    Data    # Protocol identifier
         keyType     UInt8   # Key type of requested DRKey
         srcIA       UInt64  # Src ISD-AS of the requested DRKey
