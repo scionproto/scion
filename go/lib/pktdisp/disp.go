@@ -16,6 +16,8 @@
 package pktdisp
 
 import (
+	"strings"
+
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -40,6 +42,10 @@ func PktDispatcher(c snet.Conn, f DispatchFunc) {
 		n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
 		if err != nil {
 			log.Error("PktDispatcher: Error reading from connection", "err", err)
+			if isClosedErr(err) {
+				log.Debug("Use of closed network connection, returning!")
+				return
+			}
 			// FIXME(shitz): Continuing here is only a temporary solution. Different
 			// errors need to be handled different, for some it should break and others
 			// are recoverable.
@@ -52,4 +58,12 @@ func PktDispatcher(c snet.Conn, f DispatchFunc) {
 
 func DispLogger(dp *DispPkt) {
 	log.Debug("DispLogger", "src", dp.Addr, "raw", dp.Raw)
+}
+
+// https://github.com/golang/go/issues/4373
+func isClosedErr(err error) bool {
+	if strings.Contains(err.Error(), "use of closed network connection") {
+		return true
+	}
+	return false
 }
