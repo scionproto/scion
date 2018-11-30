@@ -25,7 +25,7 @@ result=$((result+$?))
 ./tools/ci/sphinx
 result=$((result+$?))
 
-./tools/ci/integration_setup $DOCKER_BE && ./tools/ci/integration_run -a $DOCKER_BE
+./tools/ci/integration -a $DOCKER_BE
 result=$((result+$?))
 
 echo "Artifacts dir: $tmpdir"

@@ -103,16 +103,18 @@ cmd_run() {
     set -e
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
+    local img=${SCION_IMG:-scion}
     local args=$(common_args)
     args+=" -i -t --rm --entrypoint=/docker-entrypoint.sh"
     setup_volumes
-    docker run $args scion "$@"
+    docker run $args "$img" "$@"
 }
 
 cmd_start() {
     set -e
     SCION_MOUNT=${SCION_MOUNT:-$(mktemp -d /tmp/scion_out.XXXXXX)}
     echo "SCION_MOUNT directory: $SCION_MOUNT"
+    local img=${SCION_IMG:-scion}
     local cntr=${SCION_CNTR:-scion}
     if docker container inspect "$cntr" &>/dev/null; then
         echo "Removing stale $cntr container"
@@ -121,7 +123,7 @@ cmd_start() {
     local args=$(common_args)
     args+=" --name $cntr"
     setup_volumes
-    ./tools/quiet docker container create $args scion -c "tail -f /dev/null"
+    ./tools/quiet docker container create $args "$img" -c "tail -f /dev/null"
     ./tools/quiet docker start "$cntr"
     # Adjust ownership of mounted dirs
     docker exec "$cntr" /docker-entrypoint.sh
