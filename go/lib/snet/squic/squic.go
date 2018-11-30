@@ -89,7 +89,7 @@ func ListenSCIONWithBindSVC(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 
 func sListen(network *snet.SCIONNetwork, laddr, baddr *snet.Addr,
 	svc addr.HostSVC) (snet.Conn, error) {
-		
+
 	if network == nil {
 		network = snet.DefNetwork
 	}
