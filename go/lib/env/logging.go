@@ -110,9 +110,9 @@ func LogSvcStarted(svcType, elemId string) error {
 		svcType,
 		elemId,
 		VersionInfo(),
-		fmt.Sprintf("In docker:   %v", inDocker),
-		fmt.Sprintf("euid/egid:   %d %d", os.Geteuid(), os.Getegid()),
-		fmt.Sprintf("cmd line:    %v", os.Args),
+		fmt.Sprintf("In docker:     %v", inDocker),
+		fmt.Sprintf("euid/egid:     %d %d", os.Geteuid(), os.Getegid()),
+		fmt.Sprintf("cmd line:      %v", os.Args),
 	)
 	log.Info(info)
 	return nil
@@ -121,9 +121,9 @@ func LogSvcStarted(svcType, elemId string) error {
 // VersionInfo returns build version information (build date, build version, build chain).
 func VersionInfo() string {
 	return fmt.Sprintf("  %s\n  %s\n  %s\n",
-		fmt.Sprintf("Build date:  %s", StartupBuildDate),
-		fmt.Sprintf("Git version: %s", StartupVersion),
-		fmt.Sprintf("Buid chain:  %s", StartupBuildChain),
+		fmt.Sprintf("Build date:    %s", StartupBuildDate),
+		fmt.Sprintf("Scion version: %s", StartupVersion),
+		fmt.Sprintf("Buid chain:    %s", StartupBuildChain),
 	)
 }
 

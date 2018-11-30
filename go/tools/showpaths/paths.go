@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -44,6 +45,7 @@ var (
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	status       = flag.Bool("p", false, "Probe the paths and print out the statuses")
 	Local        snet.Addr
+	version      = flag.Bool("version", false, "Output version information and exit.")
 )
 
 var (
@@ -95,6 +97,10 @@ func validateFlags() {
 	var err error
 
 	flag.Parse()
+	if *version {
+		fmt.Print(env.VersionInfo())
+		os.Exit(0)
+	}
 	log.SetupFromFlags("")
 
 	dstIA, err = addr.IAFromString(*dstIAStr)
