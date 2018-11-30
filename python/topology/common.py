@@ -14,6 +14,7 @@
 
 # Stdlib
 import os
+import subprocess
 # SCION
 from lib.packet.scion_addr import ISD_AS
 
@@ -116,3 +117,7 @@ def docker_image(args, image):
     if args.image_tag:
         image = '%s:%s' % (image, args.image_tag)
     return image
+
+
+def docker_ip():
+    return subprocess.check_output(['tools/docker-ip']).decode("utf-8").strip()
