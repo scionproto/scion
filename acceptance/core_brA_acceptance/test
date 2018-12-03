@@ -21,4 +21,5 @@ del_veths() {
     delete_veth veth0_root veth1_root
 }
 
-do_command $PROGRAM $COMMAND $TEST_NAME ${@:2}
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

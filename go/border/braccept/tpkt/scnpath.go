@@ -37,11 +37,11 @@ type ScnPath struct {
 // hop field macs.
 func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 	p := &ScnPath{}
-	for i := 0; i < infoF-1; i++ {
+	for i := 0; i < infoF; i++ {
 		// Each segments consists of one InfoField and N HopFields
 		p.InfOff += spath.InfoFieldLength + int(segs[i].Inf.Hops*spath.HopFieldLength)
 	}
-	p.HopOff = p.InfOff + (hopF * spath.HopFieldLength)
+	p.HopOff = p.InfOff + ((hopF + 1) * spath.HopFieldLength)
 	// Write SCION path
 	p.Raw = make(common.RawBytes, segs.Len())
 	segs.initMacs()
@@ -70,22 +70,14 @@ func (p *ScnPath) Parse(b []byte) error {
 	return nil
 }
 
-func (p *ScnPath) WriteRaw() (int, error) {
-	return p.Segs.WriteTo(p.Raw)
-}
-
 func (p *ScnPath) String() string {
 	if p == nil {
 		return ""
 	}
-	if len(p.Segs) > 0 {
-		return p.Segs.String()
-	}
-	return fmt.Sprintf("%x", p.Raw)
+	return p.Segs.String()
 }
 
 func (p *ScnPath) Check(o *ScnPath) error {
-	o.Parse(o.Raw)
 	if len(o.Segs) != len(p.Segs) {
 		return fmt.Errorf("Number of segments mismatch, expected=%d, actual=%d",
 			len(p.Segs), len(o.Segs))
@@ -138,8 +130,8 @@ func (segs Segments) initMacs() {
 }
 
 func (segs Segments) SetMac(infoF, hopF int, hashMac hash.Hash) Segments {
-	segs[infoF-1].initMacs()
-	segs[infoF-1].macs[hopF-1] = hashMac
+	segs[infoF].initMacs()
+	segs[infoF].macs[hopF] = hashMac
 	return segs
 }
 

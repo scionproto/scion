@@ -11,9 +11,9 @@ BRCONF_DIR=br-core-conf
 
 # This function is called from test_setup
 set_veths() {
-    create_veth $NS veth0_root ifid_local 192.168.0.12/24 \
+    create_veth veth0_root ifid_local 192.168.0.12/24 \
         192.168.0.11 192.168.0.13 192.168.0.51 192.168.0.61 192.168.0.71
-    create_veth $NS veth1_root ifid_141 192.168.14.2/31 192.168.14.3
+    create_veth veth1_root ifid_141 192.168.14.2/31 192.168.14.3
 }
 
 # This function is called from test_teardown
@@ -21,4 +21,5 @@ del_veths() {
     delete_veth veth0_root veth1_root
 }
 
-do_command $PROGRAM $COMMAND $TEST_NAME ${@:2}
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

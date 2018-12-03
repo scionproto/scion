@@ -56,8 +56,7 @@ func (l *ScionLayer) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.Seria
 	}
 	l.CmnHdr.Write(buf)
 	addrLen := l.AddrHdr.Write(buf[spkt.CmnHdrLen:])
-	l.Path.Raw = buf[spkt.CmnHdrLen+addrLen:]
-	if _, err := l.Path.WriteRaw(); err != nil {
+	if _, err := l.Path.Segs.WriteTo(buf[spkt.CmnHdrLen+addrLen:]); err != nil {
 		return err
 	}
 	return nil
@@ -74,8 +73,11 @@ func (l *ScionLayer) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) er
 	}
 	offset += addrLen
 	hdrLen := l.CmnHdr.HdrLenBytes()
-	l.Path.Raw = data[offset:hdrLen]
-	if len(l.Path.Raw) > 0 {
+	rawPath := data[offset:hdrLen]
+	if len(rawPath) > 0 {
+		if err := l.Path.Parse(rawPath); err != nil {
+			return err
+		}
 		l.Path.InfOff = int(l.CmnHdr.CurrInfoF*common.LineLen) - offset
 		l.Path.HopOff = int(l.CmnHdr.CurrHopF*common.LineLen) - offset
 	}
