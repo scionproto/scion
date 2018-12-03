@@ -103,6 +103,7 @@ func Init(name string) error {
 }
 
 func addTestFlags() {
+	log.ConsoleLevel = "error"
 	log.AddLogConsFlags()
 	log.AddLogFileFlags()
 	flag.Var(&srcIAs, "src", "Source ISD-ASes (comma separated list)")
@@ -242,7 +243,7 @@ func ExecuteTimed(name string, f func() error) error {
 		result = "failed"
 	}
 	elapsed := time.Since(start)
-	fmt.Printf("Test %s %s, used %v\n", name, result, elapsed)
+	fmt.Print(WithTimestamp(fmt.Sprintf("Test %s %s, used %v\n", name, result, elapsed)))
 	return err
 }
 
@@ -273,8 +274,6 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src.IA, pair.Dst.IA,
 			idx+1, len(pairs)))
 		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
-			msg := WithTimestamp(fmt.Sprintf("Error during client execution: %s\n", err))
-			fmt.Fprint(os.Stderr, msg)
 			log.Error("Error during client execution", "err", err)
 			return err
 		}
@@ -293,8 +292,6 @@ func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error 
 			in.Name(), pair.Src.IA, pair.Dst.IA, idx+1, len(pairs)))
 		// Start client
 		if err := RunClient(in, pair, timeout); err != nil {
-			msg := WithTimestamp(fmt.Sprintf("Error during client execution: %s\n", err))
-			fmt.Fprint(os.Stderr, msg)
 			log.Error("Error during client execution", "err", err)
 			return err
 		}
