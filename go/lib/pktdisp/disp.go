@@ -16,8 +16,6 @@
 package pktdisp
 
 import (
-	"strings"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -33,37 +31,30 @@ type DispatchFunc func(*DispPkt)
 // PktDispatcher listens on c, and calls f for every packet read.
 // N.B. the DispPkt passed to f is reused, so applications should make a copy if
 // this is a problem.
-func PktDispatcher(c snet.Conn, f DispatchFunc) {
+func PktDispatcher(c snet.Conn, f DispatchFunc, pktDispStop chan struct{}) {
 	var err error
 	var n int
 	dp := &DispPkt{Raw: make(common.RawBytes, common.MaxMTU)}
 	for {
-		dp.Raw = dp.Raw[:cap(dp.Raw)]
-		n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
-		if err != nil {
-			log.Error("PktDispatcher: Error reading from connection", "err", err)
-			if isClosedErr(err) {
-				log.Debug("Use of closed network connection, returning!")
-				return
+		select {
+		default:
+			dp.Raw = dp.Raw[:cap(dp.Raw)]
+			n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
+			if err != nil {
+				log.Error("PktDispatcher: Error reading from connection", "err", err)
+				// FIXME(shitz): Continuing here is only a temporary solution. Different
+				// errors need to be handled different, for some it should break and others
+				// are recoverable.
+				continue
 			}
-			// FIXME(shitz): Continuing here is only a temporary solution. Different
-			// errors need to be handled different, for some it should break and others
-			// are recoverable.
-			continue
+			dp.Raw = dp.Raw[:n]
+			f(dp)
+		case <-pktDispStop:
+			return
 		}
-		dp.Raw = dp.Raw[:n]
-		f(dp)
 	}
 }
 
 func DispLogger(dp *DispPkt) {
 	log.Debug("DispLogger", "src", dp.Addr, "raw", dp.Raw)
-}
-
-// https://github.com/golang/go/issues/4373
-func isClosedErr(err error) bool {
-	if strings.Contains(err.Error(), "use of closed network connection") {
-		return true
-	}
-	return false
 }
