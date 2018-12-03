@@ -1,7 +1,7 @@
 - label: Prepare scion_base and scion images
   command:
       - $BASE/scripts/clean_env
-      - $BASE/scripts/build_scion
+      - $BASE/scripts/build_scion_img
 - wait
 - label: Start container
   command:

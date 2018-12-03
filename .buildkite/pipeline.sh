@@ -23,7 +23,7 @@ cat "$STEPS/push_ci_cntr.yml"
 # Unit tests
 cat "$STEPS/test.yml"
 
-# build images together with
+# build images together with unit tests
 if [ -n "$RUN_ALL_TESTS" ]; then
     cat "$STEPS/build_all.yml"
 fi
