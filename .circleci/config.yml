@@ -25,7 +25,7 @@ jobs:
                 command: sudo apt-get update && sudo ./tools/install_docker
             - run:
                 name: Pull and tag scion_base image
-                command: ./tools/ci/prepare_image 4957821f8f7147f7796f2c7f54d59b3a6487bf838a095aac72b3c6125c3c609f
+                command: ./tools/ci/prepare_image 1b1fef8952469b4895c9871314b0a92228426d9058132e8b5f3a8b89308f2fed
                 when: always
             - run:
                 name: Build scion:latest image
