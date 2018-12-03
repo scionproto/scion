@@ -20,9 +20,9 @@ shift $((OPTIND-1))
 
 result=0
 
-run C2S_extn bin/cli_srv_ext_pyintegration -log.console error $DOCKER_ARGS
+run C2S_extn bin/cli_srv_ext_pyintegration $DOCKER_ARGS
 result=$((result+$?))
-run SCMP_error bin/scmp_error_pyintegration -log.console error $DOCKER_ARGS
+run SCMP_error bin/scmp_error_pyintegration $DOCKER_ARGS
 result=$((result+$?))
 
 exit $result
