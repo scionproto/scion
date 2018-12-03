@@ -57,11 +57,12 @@ do_command() {
     PROGRAM="$1"
     COMMAND="$2"
     TEST_NAME="$3"
+    shift 3
     case "$COMMAND" in
         name)
             echo $TEST_NAME ;;
         setup|run|teardown)
-            "test_$COMMAND" ${@:4} ;;
+            "test_$COMMAND" "$@" ;;
         *) print_help $PROGRAM; exit 1 ;;
     esac
 }

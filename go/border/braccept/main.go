@@ -291,8 +291,9 @@ func checkPkt(expPkts []*tpkt.ExpPkt, devIdx int, pkt gopacket.Packet) (int, err
 			fmt.Sprintf("[ERROR] Packet received when no packet was expected\n"))
 	}
 	if scnLayer := pkt.Layer(tpkt.LayerTypeScion); scnLayer != nil {
+		// Set Raw to nil so it is not displayed on pretty printed packet format.
+		// At this point, the received packet is not used anymore
 		scn := scnLayer.(*tpkt.ScionLayer)
-		scn.Path.Parse(scn.Path.Raw)
 		scn.Path.Raw = nil
 	}
 	errStr = append(errStr, fmt.Sprintf("Unexpected packet on interface %s:\n\n%v",
