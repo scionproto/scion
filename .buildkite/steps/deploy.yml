@@ -1,7 +1,7 @@
 - wait
 - label: Build app images
   command:
-    - $BASE/scripts/build_scion
+    - $BASE/scripts/build_scion_img
     - make -C docker/perapp
   branches: "v*.*.*"
 - wait
