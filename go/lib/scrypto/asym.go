@@ -39,7 +39,7 @@ const (
 const (
 	InvalidPubKeySize       = "Invalid public key size"
 	InvalidPrivKeySize      = "Invalid private key size"
-	InvalidSignature        = "Invalid signature"
+	VerificationError       = "Signature verification failed"
 	UnableToGenerateKeyPair = "Unable to generate key pair"
 	UnableToDecrypt         = "Unable to decrypt message"
 	UnsupportedAlgo         = "Unsupported algorithm"
@@ -94,7 +94,7 @@ func Verify(sigInput, sig, verifyKey common.RawBytes, signAlgo string) error {
 				"expected", ed25519.PublicKeySize, "actual", len(verifyKey))
 		}
 		if !ed25519.Verify(ed25519.PublicKey(verifyKey), sigInput, sig) {
-			return common.NewBasicError(InvalidSignature, nil)
+			return common.NewBasicError(VerificationError, nil, "msg", sigInput)
 		}
 		return nil
 	default:

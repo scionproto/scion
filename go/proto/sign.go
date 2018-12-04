@@ -81,7 +81,11 @@ func (s *SignS) Verify(key, message common.RawBytes) error {
 	case SignType_none:
 		return nil
 	case SignType_ed25519:
-		return scrypto.Verify(s.sigPack(message, false), s.Signature, key, scrypto.Ed25519)
+		err := scrypto.Verify(s.sigPack(message, false), s.Signature, key, scrypto.Ed25519)
+		if err != nil {
+			return common.NewBasicError("SignS.Verify: Verification failed", err, "proto.Sign", s)
+		}
+		return nil
 	}
 	return common.NewBasicError("SignS.Verify: Unsupported SignType", nil, "type", s.Type)
 }
