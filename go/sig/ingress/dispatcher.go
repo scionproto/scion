@@ -57,17 +57,16 @@ type Dispatcher struct {
 	workers map[string]*Worker
 }
 
-func Init(tio io.ReadWriteCloser) error {
+func NewDispatcher(tio io.ReadWriteCloser) *Dispatcher {
 	tunIO = tio
 	freeFrames = ringbuf.New(freeFramesCap, func() interface{} {
 		return NewFrameBuf()
 	}, "ingress", prometheus.Labels{"ringId": "freeFrames", "sessId": ""})
 	framesRecvCounters = make(map[metrics.CtrPairKey]metrics.CtrPair)
-	d := &Dispatcher{
+	return &Dispatcher{
 		laddr:   sigcmn.EncapSnetAddr(),
 		workers: make(map[string]*Worker),
 	}
-	return d.Run()
 }
 
 func (d *Dispatcher) Run() error {
