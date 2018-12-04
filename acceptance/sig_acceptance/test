@@ -27,8 +27,8 @@ print_help() {
 	        return the name of this test
 	    $PROGRAM setup
 	        execute only the setup phase.
-	    $PROGRAM ping
-	        execute only the ping phase.
+	    $PROGRAM run
+	        execute only the run phase.
 	    $PROGRAM teardown 
 	        execute only the teardown phase.
 	_EOF

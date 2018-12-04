@@ -24,7 +24,8 @@ class DockerUtilsGenArgs(ArgsBase):
         """
         :param object args: Contains the passed command line arguments as named attributes.
         :param dict dc_conf: The compose config
-        :param dict networks: The generated networks from SubnetGenerator.
+        :param dict bridges: The generated bridges from DockerGenerator.
+        :param dict networks: The generated networks from DockerGenerator.
         """
         super().__init__(args)
         self.dc_conf = dc_conf
