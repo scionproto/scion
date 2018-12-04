@@ -150,11 +150,19 @@ func setupTun() (io.ReadWriteCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV4Net); err != nil {
+	src := cfg.Sig.SrcIP4
+	if len(src) == 0 && cfg.Sig.IP.To4() != nil {
+		src = cfg.Sig.IP
+	}
+	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV4Net, src); err != nil {
 		return nil,
 			common.NewBasicError("Unable to add default IPv4 route to SIG routing table", err)
 	}
-	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net); err != nil {
+	src = cfg.Sig.SrcIP6
+	if len(src) == 0 && cfg.Sig.IP.To16() != nil && cfg.Sig.IP.To4() == nil {
+		src = cfg.Sig.IP
+	}
+	if err = xnet.AddRoute(cfg.Sig.TunRTableId, tunLink, sigcmn.DefV6Net, src); err != nil {
 		return nil,
 			common.NewBasicError("Unable to add default IPv6 route to SIG routing table", err)
 	}
