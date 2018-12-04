@@ -43,7 +43,7 @@ func realMain() int {
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
 	err := integration.RunUnaryTests(in, integration.IAPairs(), integration.DefaultRunTimeout)
 	if err != nil {
-		log.Error("Error during test", "err", err)
+		log.Error("Error during tests", "err", err)
 		return 1
 	}
 	return 0
