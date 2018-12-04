@@ -65,12 +65,17 @@ Cleanup:
 	return nil, nil, err
 }
 
-func AddRoute(rTable int, link netlink.Link, dest *net.IPNet) error {
+func AddRoute(rTable int, link netlink.Link, dest *net.IPNet, src net.IP) error {
 	route := &netlink.Route{
 		LinkIndex: link.Attrs().Index,
 		Dst:       dest,
 		Priority:  SIGRPriority,
 		Table:     rTable,
+	}
+	// If the source hint has the correct IP family, add it to the route.
+	// TODO(sustrik): There should be both IPv4 and IPv6 hint, see issue #990.
+	if (dest.IP.To4() == nil) == (src.To4() == nil) {
+		route.Src = src
 	}
 	if err := netlink.RouteAdd(route); err != nil {
 		return common.NewBasicError("EgressReader: Unable to add SIG route", err,
