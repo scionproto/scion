@@ -35,6 +35,9 @@ class SIGGenArgs(ArgsBase):
     def __init__(self, args, dc_conf, bridges, networks):
         """
         :param object args: Contains the passed command line arguments as named attributes.
+        :param dict dc_conf: The compose config
+        :param dict bridges: The generated bridges from DockerGenerator.
+        :param dict networks: The generated networks from DockerGenerator.
         """
         super().__init__(args)
         self.dc_conf = dc_conf
@@ -67,7 +70,7 @@ class SIGGenerator(object):
         # Create dispatcher config
         entry = {
             'image': 'scion_dispatcher',
-            'container_name': '%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
+            'container_name': 'scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt()),
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
                 'ZLOG_CFG': '/share/conf/disp_sig.zlog.conf'
