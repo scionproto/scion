@@ -22,9 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
-
-	"github.com/kormat/fmt15"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
@@ -204,10 +201,8 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadClos
 	}
 	w := bufio.NewWriter(f)
 	defer w.Flush()
-	w.WriteString(fmt.Sprintf("%v Starting %s %s\n",
-		time.Now().Format(fmt15.TimeFmt), name, startInfo))
-	defer w.WriteString(fmt.Sprintf("%v Finished %s %s\n",
-		time.Now().Format(fmt15.TimeFmt), name, startInfo))
+	w.WriteString(WithTimestamp(fmt.Sprintf("Starting %s %s\n", name, startInfo)))
+	defer w.WriteString(WithTimestamp(fmt.Sprintf("Finished %s %s\n", name, startInfo)))
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
 		w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))

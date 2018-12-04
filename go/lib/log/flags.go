@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,10 @@ var (
 	logFlush   int
 )
 
+var (
+	ConsoleLevel = DefaultConsoleLevel
+)
+
 const (
 	DefaultConsoleLevel     = "crit"
 	DefaultFileLevel        = "debug"
@@ -38,7 +42,7 @@ const (
 )
 
 func AddLogConsFlags() {
-	flag.StringVar(&logConsole, "log.console", DefaultConsoleLevel,
+	flag.StringVar(&logConsole, "log.console", ConsoleLevel,
 		"Console logging level: trace|debug|info|warn|error|crit")
 }
 

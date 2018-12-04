@@ -26,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kormat/fmt15"
+
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
@@ -101,6 +103,7 @@ func Init(name string) error {
 }
 
 func addTestFlags() {
+	log.ConsoleLevel = "info"
 	log.AddLogConsFlags()
 	log.AddLogFileFlags()
 	flag.Var(&srcIAs, "src", "Source ISD-ASes (comma separated list)")
@@ -172,7 +175,7 @@ func dispAddr(ia addr.IA) snet.Addr {
 	path := fmt.Sprintf("gen/ISD%d/AS%s/endhost/topology.json", ia.I, ia.A.FileFmt())
 	topo, err := topology.LoadFromFile(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading topology: %s\n", err)
+		log.Error("Error loading topology", "err", err)
 		os.Exit(1)
 	}
 	bs := topo.BS["bs"+ia.FileFmt(false)+"-1"]
@@ -196,6 +199,12 @@ func (s *serverStop) Close() error {
 	s.cancel()
 	s.wait.Wait()
 	return nil
+}
+
+// WithTimestamp returns s with the now timestamp prefixed.
+// This is helpful for logging staments to stdout/stderr or in a file where the logger isn't used.
+func WithTimestamp(s string) string {
+	return fmt.Sprintf("%v %s", time.Now().Format(fmt15.TimeFmt), s)
 }
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.
@@ -229,12 +238,14 @@ func RunClient(in Integration, pair IAPair, timeout time.Duration) error {
 func ExecuteTimed(name string, f func() error) error {
 	start := time.Now()
 	err := f()
+	level := log.LvlInfo
 	result := "successful"
 	if err != nil {
 		result = "failed"
+		level = log.LvlError
 	}
 	elapsed := time.Since(start)
-	fmt.Printf("Test %s %s, used %v\n", name, result, elapsed)
+	log.Log(level, fmt.Sprintf("Test %s %s, used %v\n", name, result, elapsed))
 	return err
 }
 
@@ -265,7 +276,9 @@ func RunBinaryTests(in Integration, pairs []IAPair) error {
 		log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)", in.Name(), pair.Src.IA, pair.Dst.IA,
 			idx+1, len(pairs)))
 		if err := RunClient(in, pair, DefaultRunTimeout); err != nil {
-			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			msg := fmt.Sprintf("Error in client: %v -> %v (%v/%v)",
+				pair.Src.IA, pair.Dst.IA, idx+1, len(pairs))
+			log.Error(msg, "err", err)
 			return err
 		}
 		return nil
@@ -283,7 +296,9 @@ func RunUnaryTests(in Integration, pairs []IAPair, timeout time.Duration) error 
 			in.Name(), pair.Src.IA, pair.Dst.IA, idx+1, len(pairs)))
 		// Start client
 		if err := RunClient(in, pair, timeout); err != nil {
-			fmt.Fprintf(os.Stderr, "Error during client execution: %s\n", err)
+			msg := fmt.Sprintf("Error in client: %v -> %v (%v/%v)",
+				pair.Src.IA, pair.Dst.IA, idx+1, len(pairs))
+			log.Error(msg, "err", err)
 			return err
 		}
 		return nil

@@ -48,7 +48,7 @@ func realMain() int {
 	serverArgs = append(serverArgs, cmnArgs...)
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	if err := runTests(in, integration.IAPairs()); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
+		log.Error("Error during tests", "err", err)
 		return 1
 	}
 	return 0

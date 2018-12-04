@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	name     = "certreq_integration"
+	name     = "cert_req_integration"
 	cmd      = "./bin/cert_req"
 	attempts = flag.Int("attempts", 2, "Number of attempts before giving up.")
 )
@@ -47,7 +47,7 @@ func realMain() int {
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
 	timeout := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
 	if err := integration.RunUnaryTests(in, integration.IAPairs(), timeout); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
+		log.Error("Error during tests", "err", err)
 		return 1
 	}
 	return 0
