@@ -21,6 +21,8 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 type taskFunc func(context.Context)
@@ -43,41 +45,64 @@ func (t *testTicker) Stop() {}
 
 func TestPeriodicExecution(t *testing.T) {
 	Convey("Test periodic execution", t, func() {
+		done := make(chan struct{})
 		cnt := 0
 		fn := taskFunc(func(ctx context.Context) {
 			cnt++
+			done <- struct{}{}
 		})
 		tickC := make(chan time.Time)
 		ticker := &testTicker{C: tickC}
 		r := StartPeriodicTask(fn, ticker, time.Microsecond)
 		tickC <- time.Now()
+		xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
 		tickC <- time.Now()
+		xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
 		tickC <- time.Now()
+		xtest.AssertReadReturnsBefore(t, done, 50*time.Millisecond)
 		r.Stop()
 		SoMsg("Must have executed 3 times", cnt, ShouldEqual, 3)
 	})
 }
 
-func TestKill(t *testing.T) {
-	Convey("Test kill works", t, func() {
-		done := make(chan struct{})
-		var err error
+func TestKillExitsLongRunningFunc(t *testing.T) {
+	Convey("Test kill cancels the context of the run function", t, func() {
+		errChan := make(chan error, 1)
 		fn := taskFunc(func(ctx context.Context) {
-			<-ctx.Done()
-			err = ctx.Err()
-			close(done)
+			// Simulate long work by blocking on the done channel.
+			xtest.AssertReadReturnsBefore(t, ctx.Done(), time.Second)
+			errChan <- ctx.Err()
 		})
-		tickC := make(chan time.Time, 2)
+		tickC := make(chan time.Time)
 		ticker := &testTicker{C: tickC}
 		r := StartPeriodicTask(fn, ticker, time.Second)
+		// trigger the periodic method.
 		tickC <- time.Now()
-		// Fill the channel to check that stop is always selected
-		// and run is never called after kill.
-		tickC <- time.Now()
-		// Make sure the go routine can start
-		runtime.Gosched()
 		r.Kill()
-		<-done
+		var err error
+		select {
+		case err = <-errChan:
+		case <-time.After(time.Second):
+			t.Fatalf("time out while waiting on err")
+		}
 		SoMsg("Context should have been canceled", err, ShouldEqual, context.Canceled)
+	})
+}
+
+func TestTaskDoesntRunAfterKill(t *testing.T) {
+	Convey("Test task doesn't run after the periodic runner was killed.", t, func() {
+		fn := taskFunc(func(ctx context.Context) {
+			t.Fatalf("Should not have executed")
+		})
+		tickC := make(chan time.Time)
+		ticker := &testTicker{C: tickC}
+		// Try to make sure tick channel is full.
+		go func() {
+			tickC <- time.Now()
+		}()
+		runtime.Gosched()
+		// Now start the task and immediately kill it.
+		r := StartPeriodicTask(fn, ticker, time.Second)
+		r.Kill()
 	})
 }
