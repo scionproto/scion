@@ -21,7 +21,7 @@ shift $((OPTIND-1))
 result=0
 
 for i in ./bin/*_integration; do
-    run "Go Integration: $i" "$i" $DOCKER_ARGS
+    run "Go Integration: $i" "$i" $DOCKER_ARGS -log.console error
     result=$((result+$?))
 done
 

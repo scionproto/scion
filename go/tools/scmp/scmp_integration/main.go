@@ -61,9 +61,7 @@ func realMain() int {
 			append([]string{"./bin/scmp"}, tc.Args...), nil)
 		err := integration.RunUnaryTests(in, integration.IAPairs(), integration.DefaultRunTimeout)
 		if err != nil {
-			msg := integration.WithTimestamp(
-				fmt.Sprintf("Error during scmp-%s-tests: %s\n", tc.Name, err))
-			fmt.Fprint(os.Stderr, msg)
+			log.Error(fmt.Sprintf("Error during scmp-%s-tests", tc.Name), "err", err)
 			return 1
 		}
 	}

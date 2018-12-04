@@ -47,8 +47,7 @@ func realMain() int {
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
 	timeout := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
 	if err := integration.RunUnaryTests(in, integration.IAPairs(), timeout); err != nil {
-		msg := integration.WithTimestamp(fmt.Sprintf("Error during tests: %s\n", err))
-		fmt.Fprint(os.Stderr, msg)
+		log.Error("Error during tests", "err", err)
 		return 1
 	}
 	return 0
