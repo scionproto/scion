@@ -138,8 +138,9 @@ func flagUsage() {
 	fmt.Fprintf(os.Stderr, `
 Usage: showpaths [flags]
 
-Showpaths lists available paths between SCION ASes. Paths might be taken from a cache and therefore
-may be unhealthy. To check if paths are health, use -p to probe the paths and print its statuses.
+Lists available paths between SCION ASes. Paths might be retrieved from a local cache, and they
+might not forward traffic successfully (for example, if a network link went down). To probe if the
+paths are healthy, use -p.
 
 flags:
 `)
