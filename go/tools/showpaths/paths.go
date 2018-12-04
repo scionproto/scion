@@ -43,34 +43,42 @@ var (
 	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	status       = flag.Bool("p", false, "Probe the paths and print out the statuses")
-	Local        snet.Addr
 )
 
 var (
 	dstIA addr.IA
 	srcIA addr.IA
+	local snet.Addr
 )
 
+func init() {
+	flag.Var((*snet.Addr)(&local), "local", "Local address to use for health checks")
+	flag.Usage = flagUsage
+}
+
 func main() {
-	var err error
-
-	flag.Var((*snet.Addr)(&Local), "local", "Local address to use for health checks")
-
 	log.AddLogConsFlags()
 	validateFlags()
+	if err := log.SetupFromFlags(""); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
+		flag.Usage()
+		os.Exit(1)
+	}
+	defer log.LogPanicAndExit()
 
 	sd := sciond.NewService(*sciondPath, false)
+	var err error
 	sdConn, err := sd.ConnectTimeout(*timeout)
 	if err != nil {
-		LogFatal("Failed to connect to SCIOND: %v\n", err)
+		LogFatal("Failed to connect to SCIOND", "err", err)
 	}
 	reply, err := sdConn.Paths(context.Background(), dstIA, srcIA, uint16(*maxPaths),
 		sciond.PathReqFlags{Refresh: *refresh})
 	if err != nil {
-		LogFatal("Failed to retrieve paths from SCIOND: %v\n", err)
+		LogFatal("Failed to retrieve paths from SCIOND", "err", err)
 	}
 	if reply.ErrorCode != sciond.ErrorOk {
-		LogFatal("SCIOND unable to retrieve paths: %s\n", reply.ErrorCode)
+		LogFatal("SCIOND unable to retrieve paths", "ErrorCode", reply.ErrorCode)
 	}
 
 	fmt.Println("Available paths to", dstIA)
@@ -92,19 +100,20 @@ func main() {
 }
 
 func validateFlags() {
-	var err error
-
 	flag.Parse()
-	log.SetupFromFlags("")
-
-	dstIA, err = addr.IAFromString(*dstIAStr)
-	if err != nil {
-		LogFatal("Unable to parse destination IA: %v\n", err)
+	var err error
+	if *dstIAStr == "" {
+		LogFatal("Missing destination IA")
+	} else {
+		dstIA, err = addr.IAFromString(*dstIAStr)
+		if err != nil {
+			LogFatal("Unable to parse destination IA", "err", err)
+		}
 	}
 
 	if *srcIAStr != "" {
 		if srcIA, err = addr.IAFromString(*srcIAStr); err != nil {
-			LogFatal("Unable to parse source IA: %v\n", err)
+			LogFatal("Unable to parse source IA", "err", err)
 		}
 	}
 
@@ -119,10 +128,27 @@ func validateFlags() {
 	} else if *sciondPath == "" {
 		*sciondPath = sciond.GetDefaultSCIONDPath(nil)
 	}
+
+	if *status && (local.IA.IsZero() || local.Host == nil) {
+		LogFatal("Local address is required for health checks")
+	}
+}
+
+func flagUsage() {
+	fmt.Fprintf(os.Stderr, `
+Usage: showpaths [flags]
+
+Lists available paths between SCION ASes. Paths might be retrieved from a local cache, and they
+might not forward traffic successfully (for example, if a network link went down). To probe if the
+paths are healthy, use -p.
+
+flags:
+`)
+	flag.PrintDefaults()
 }
 
 func LogFatal(msg string, a ...interface{}) {
-	fmt.Fprintf(os.Stderr, msg, a...)
+	log.Crit(msg, a...)
 	os.Exit(1)
 }
 
@@ -132,16 +158,16 @@ func getStatuses(paths []sciond.PathReplyEntry) map[string]string {
 	// is going to reply with SCMP error. Receiving the error means that
 	// the path is alive.
 	if err := snet.Init(srcIA, "", reliable.DefaultDispPath); err != nil {
-		LogFatal("Initializing SNET: %v\n", err)
+		LogFatal("Initializing SNET", "err", err)
 	}
-	snetConn, err := snet.ListenSCION("udp4", &Local)
+	snetConn, err := snet.ListenSCION("udp4", &local)
 	if err != nil {
-		LogFatal("Listening failed: %v\n", err)
+		LogFatal("Listening failed", "err", err)
 	}
 	scionConn := snetConn.(*snet.SCIONConn)
 	err = scionConn.SetReadDeadline(time.Now().Add(*timeout))
 	if err != nil {
-		LogFatal("Cannot set deadline: %v\n", err)
+		LogFatal("Cannot set deadline", "err", err)
 	}
 	pathStatuses := make(map[string]string)
 	for _, path := range paths {
@@ -166,11 +192,11 @@ func getStatuses(paths []sciond.PathReplyEntry) map[string]string {
 func sendTestPacket(scionConn *snet.SCIONConn, path sciond.PathReplyEntry) {
 	sPath := spath.New(path.Path.FwdPath)
 	if err := sPath.InitOffsets(); err != nil {
-		LogFatal("Unable to initialize path: %v\n", err)
+		LogFatal("Unable to initialize path", "err", err)
 	}
 	nextHop, err := path.HostInfo.Overlay()
 	if err != nil {
-		LogFatal("Cannot get overlay info: %v\n", err)
+		LogFatal("Cannot get overlay info", "err", err)
 	}
 	addr := &snet.Addr{
 		IA: dstIA,
@@ -184,7 +210,7 @@ func sendTestPacket(scionConn *snet.SCIONConn, path sciond.PathReplyEntry) {
 	log.Debug("Sending test packet.", "path", path.Path.String())
 	_, err = scionConn.WriteTo([]byte{}, addr)
 	if err != nil {
-		LogFatal("Cannot send packet: %v\n", err)
+		LogFatal("Cannot send packet", "err", err)
 	}
 }
 
@@ -199,9 +225,9 @@ func receiveTestReply(scionConn *snet.SCIONConn) (*string, string) {
 			}
 		}
 		if err != nil {
-			LogFatal("Cannot read packet: %v\n", err)
+			LogFatal("Cannot read packet", "err", err)
 		}
-		LogFatal("Packet without an address received: %v\n", err)
+		LogFatal("Packet without an address received", "err", err)
 	}
 	path := string(addr.Path.Raw)
 	if err == nil {
