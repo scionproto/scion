@@ -105,21 +105,14 @@ func realMain() int {
 	}()
 	// Create error channel for ingress dispatcher and prometheus
 	fatalC := make(chan error, 2)
-	// Spawn ingress Dispatcher.
-	d := ingress.NewDispatcher(tunIO)
-	go func() {
-		if err := d.Run(); err != nil {
-			log.Crit("Ingress dispatcher error", "err", err)
-			fatalC <- err
-		}
-	}()
+	spawnIngressDispatcher(tunIO, fatalC)
 	cfg.Metrics.StartPrometheus(fatalC)
 	select {
 	case <-environment.AppShutdownSignal:
 		return 0
 	case err := <-fatalC:
 		// Prometheus or the ingress dispatcher encountered a fatal error, thus we exit.
-		log.Crit("Unable to listen and serve", "err", err)
+		log.Crit("Fatal error during execution", "err", err)
 		return 1
 	}
 }
@@ -221,4 +214,14 @@ func loadConfig(path string) bool {
 	}
 	atomic.StoreUint64(&metrics.ConfigVersion, cfg.ConfigVersion)
 	return true
+}
+
+func spawnIngressDispatcher(tunIO io.ReadWriteCloser, fatalC chan error) {
+	d := ingress.NewDispatcher(tunIO)
+	go func() {
+		if err := d.Run(); err != nil {
+			log.Crit("Ingress dispatcher error", "err", err)
+			fatalC <- err
+		}
+	}()
 }
