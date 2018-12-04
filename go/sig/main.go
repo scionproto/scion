@@ -103,19 +103,22 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		reader.NewReader(tunIO).Run()
 	}()
+	// Create error channel for ingress dispatcher and prometheus
+	fatalC := make(chan error, 2)
 	// Spawn ingress Dispatcher.
-	if err := ingress.Init(tunIO); err != nil {
-		log.Crit("Ingress dispatcher error", "err", err)
-		return 1
-	}
-	// Create a channel where prometheus can signal fatal errors
-	fatalC := make(chan error, 1)
+	d := ingress.NewDispatcher(tunIO)
+	go func() {
+		if err := d.Run(); err != nil {
+			log.Crit("Ingress dispatcher error", "err", err)
+			fatalC <- err
+		}
+	}()
 	cfg.Metrics.StartPrometheus(fatalC)
 	select {
 	case <-environment.AppShutdownSignal:
 		return 0
 	case err := <-fatalC:
-		// Prometheus encountered a fatal error, thus we exit.
+		// Prometheus or the ingress dispatcher encountered a fatal error, thus we exit.
 		log.Crit("Unable to listen and serve", "err", err)
 		return 1
 	}
