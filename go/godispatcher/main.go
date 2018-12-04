@@ -21,7 +21,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/scionproto/scion/go/dispatcher/internal/config"
+	"github.com/scionproto/scion/go/godispatcher/internal/config"
 	"github.com/scionproto/scion/go/lib/env"
 )
 
