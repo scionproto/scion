@@ -1,9 +1,12 @@
-- label: Prepare scion_base and scion images
+- label: Prepare CI image, lint and build code and push "$SCION_IMG"
   command:
       - $BASE/scripts/clean_env
       - $BASE/scripts/build_scion_img
-- wait
-- label: Start container
-  command:
       - SCION_IMG=scion ./docker.sh start
+      - ./tools/ci/lint
+      - ./tools/ci/build
+      - ./docker.sh stop
+      - docker commit "$SCION_CNTR" "$SCION_IMG"
+      - $BASE/scripts/registry_login
+      - docker push $SCION_IMG
 - wait
