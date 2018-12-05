@@ -40,12 +40,21 @@ var (
 	TimeOut = 5 * time.Second
 )
 
+// TestableRevCache extends the RevCache interface with methods that are needed for testing.
+type TestableRevCache interface {
+	revcache.RevCache
+	// InsertExpired should insert the given expired revocation.
+	// The testing parameter should be used to fail in case of an error.
+	// The method is used to test if expired revocations are not returned.
+	InsertExpired(t *testing.T, ctx context.Context, rev *path_mgmt.SignedRevInfo)
+}
+
 // TestRevCache should be used to test any implementation of the RevCache interface.
 //
 // setup should return a RevCache in a clean state, i.e. no entries in the cache.
 // cleanup can be used to release any resources that have been allocated during setup.
-func TestRevCache(t *testing.T, setup func() revcache.RevCache, cleanup func()) {
-	testWrapper := func(test func(*testing.T, revcache.RevCache)) func() {
+func TestRevCache(t *testing.T, setup func() TestableRevCache, cleanup func()) {
+	testWrapper := func(test func(*testing.T, TestableRevCache)) func() {
 		return func() {
 			test(t, setup())
 			cleanup()
@@ -56,9 +65,11 @@ func TestRevCache(t *testing.T, setup func() revcache.RevCache, cleanup func()) 
 	Convey("GetAll", testWrapper(testGetAll))
 	Convey("InsertExpired", testWrapper(testInsertExpired))
 	Convey("InsertNewer", testWrapper(testInsertNewer))
+	Convey("GetExpired", testWrapper(testGetExpired))
+	Convey("GetAllExpired", testWrapper(testGetAllExpired))
 }
 
-func testInsertGet(t *testing.T, revCache revcache.RevCache) {
+func testInsertGet(t *testing.T, revCache TestableRevCache) {
 	sr := toSigned(t, defaultRevInfo(ia110, ifId15))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
@@ -79,7 +90,7 @@ func testInsertGet(t *testing.T, revCache revcache.RevCache) {
 	SoMsg("Get should not err", err, ShouldBeNil)
 }
 
-func testGetAll(t *testing.T, revCache revcache.RevCache) {
+func testGetAll(t *testing.T, revCache TestableRevCache) {
 	sr1 := toSigned(t, defaultRevInfo(ia110, ifId15))
 	sr2 := toSigned(t, defaultRevInfo(ia110, ifId19))
 	sr3 := toSigned(t, defaultRevInfo(ia120, ifId15))
@@ -124,7 +135,7 @@ func testGetAll(t *testing.T, revCache revcache.RevCache) {
 		[]*path_mgmt.SignedRevInfo{sr1, sr2, sr3})
 }
 
-func testInsertExpired(t *testing.T, revCache revcache.RevCache) {
+func testInsertExpired(t *testing.T, revCache TestableRevCache) {
 	r := &path_mgmt.RevInfo{
 		IfID:         ifId15,
 		RawIsdas:     ia110.IAInt(),
@@ -139,7 +150,7 @@ func testInsertExpired(t *testing.T, revCache revcache.RevCache) {
 	SoMsg("Insert should not err", err, ShouldBeNil)
 }
 
-func testInsertNewer(t *testing.T, revCache revcache.RevCache) {
+func testInsertNewer(t *testing.T, revCache TestableRevCache) {
 	sr := toSigned(t, defaultRevInfo(ia110, ifId15))
 	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
 	defer cancelF()
@@ -160,6 +171,50 @@ func testInsertNewer(t *testing.T, revCache revcache.RevCache) {
 	SoMsg("Get should return ok for existing entry", ok, ShouldBeTrue)
 	SoMsg("Get should not err for existing entry", err, ShouldBeNil)
 	SoMsg("Get should return previously inserted value", srCache, ShouldResemble, srNew)
+}
+
+func testGetExpired(t *testing.T, revCache TestableRevCache) {
+	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
+	defer cancelF()
+	srNew := toSigned(t, &path_mgmt.RevInfo{
+		IfID:         ifId15,
+		RawIsdas:     ia110.IAInt(),
+		LinkType:     proto.LinkType_core,
+		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
+		RawTTL:       1,
+	})
+	revCache.InsertExpired(t, ctx, srNew)
+	srCache, ok, err := revCache.Get(ctx, revcache.NewKey(ia110, ifId15))
+	SoMsg("Expired entry should not be returned", ok, ShouldBeFalse)
+	SoMsg("Should not error for expired entry", err, ShouldBeNil)
+	SoMsg("Expired entry should not be returned", srCache, ShouldBeNil)
+}
+
+func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
+	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
+	defer cancelF()
+	srNew := toSigned(t, &path_mgmt.RevInfo{
+		IfID:         ifId15,
+		RawIsdas:     ia110.IAInt(),
+		LinkType:     proto.LinkType_core,
+		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
+		RawTTL:       1,
+	})
+	revCache.InsertExpired(t, ctx, srNew)
+	sr110_19 := toSigned(t, defaultRevInfo(ia110, ifId19))
+	revCache.Insert(ctx, sr110_19)
+	srCache, err := revCache.GetAll(ctx, map[revcache.Key]struct{}{
+		*revcache.NewKey(ia110, ifId15): {},
+		*revcache.NewKey(ia110, ifId19): {},
+	})
+	SoMsg("Should not error for expired entry", err, ShouldBeNil)
+	for i := range srCache {
+		// init revInfo so that comparison works.
+		_, err := srCache[i].RevInfo()
+		xtest.FailOnErr(t, err)
+	}
+	SoMsg("Expired entry should not be returned", srCache, ShouldResemble,
+		[]*path_mgmt.SignedRevInfo{sr110_19})
 }
 
 func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {
