@@ -31,6 +31,8 @@ cmd_help() {
 	        Run a docker compose command
 	    $PROGRAM exec_tester <IA> <COMMAND>
 	        Exec a command in the specified service.
+	    $PROGRAM zk [docker-compose command]
+	        Run docker-compose command for zookeeper services.
 	_EOF
 }
 
