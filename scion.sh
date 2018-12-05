@@ -101,6 +101,8 @@ run_setup() {
     local sciond_dir="/run/shm/sciond"
     [ -d "$sciond_dir" ] || mkdir "$sciond_dir"
     [ $(stat -c "%U" "$sciond_dir") == "$LOGNAME" ] || { sudo -p "Fixing ownership of $sciond_dir - [sudo] password for %p: " chown $LOGNAME: "$sciond_dir"; }
+    # Make sure zookeeper is running
+    run_zk
 }
 
 cmd_stop() {
