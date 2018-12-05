@@ -2,13 +2,6 @@
 
 . tools/ci/common.sh
 
-if [ -n "$DOCKER_BE" ]; then
-    # Stop a local scion run because we don't want to interfere
-    ./scion.sh stop
-    echo "Stop local zookeeper"
-    systemctl is-active --quiet zookeeper && { sudo -p "Stopping local zookeeper: " service zookeeper stop || exit 1; }
-fi
-
 ./docker.sh build || exit 1
 [ -n "$DOCKER_BE" ] && { make -sC docker/perapp || exit 1; }
 
@@ -20,9 +13,7 @@ result=0
 result=$((result+$?))
 ./tools/ci/lint
 result=$((result+$?))
-./tools/ci/unittest
-result=$((result+$?))
-./tools/ci/sphinx
+./tools/ci/test
 result=$((result+$?))
 
 ./tools/ci/integration -a $DOCKER_BE
@@ -30,7 +21,7 @@ result=$((result+$?))
 
 echo "Artifacts dir: $tmpdir"
 
-[ $result -eq 0 ] && ./docker.sh stop
+[ $result -eq 0 ] && { ./docker.sh exec ./tools/dc zk down; ./docker.sh stop; }
 
 if [ $result -eq 0 ]; then
     echo "All tests successful"

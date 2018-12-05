@@ -28,18 +28,7 @@ cmd_topology() {
     if is_docker_be; then
         ./tools/quiet ./tools/dc run utils_chowner
     fi
-    run_zk
-    if [ -n "$zkclean" ]; then
-        echo "Deleting all Zookeeper state"
-        # Wait some time, such that zookeeper accepts connections again after startup
-        sleep 3
-        if is_running_in_docker; then
-            tools/zkcleanslate --zk "${DOCKER0:-172.17.0.1}:2181"
-        else
-            rm -rf /run/shm/scion-zk
-            tools/zkcleanslate --zk 127.0.0.1:2181
-        fi
-    fi
+    run_zk "$zkclean"
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)
         echo "Generating TLS cert"
@@ -75,27 +64,19 @@ cmd_run() {
 }
 
 run_zk() {
-    if is_docker_be; then
-        host_zk_stop
-        ./tools/dc start zookeeper
-    else
-        host_zk_start
-    fi
-}
-
-host_zk_start() {
-    if is_running_in_docker; then
-        sudo service zookeeper start
-    else
-        systemctl is-active --quiet zookeeper || sudo -p "Starting local zk - [sudo] password for %p: " systemctl start zookeeper
-    fi
-}
-
-host_zk_stop() {
-    if is_running_in_docker; then
-        sudo service zookeeper stop
-    elif systemctl is-active --quiet zookeeper; then
-        sudo -p "Stopping local zk - [sudo] password for %p: " systemctl stop zookeeper
+    echo "Running zookeeper..."
+    ./tools/quiet ./tools/dc zk up -d
+    if [ -n "$1" ]; then
+        echo "Deleting all Zookeeper state"
+        # Wait some time, such that zookeeper accepts connections again after startup
+        sleep 3
+        local addr="127.0.0.1:2181"
+        if is_running_in_docker; then
+            addr="${DOCKER0:-172.17.0.1}:2182"
+        elif is_docker; then
+            addr="$(./tools/docker-ip):2181"
+        fi
+        tools/zkcleanslate --zk "$addr"
     fi
 }
 
@@ -105,10 +86,8 @@ cmd_mstart() {
     if is_docker_be; then
         services="$(glob_docker "$@")"
         [ -z "$services" ] && { echo "ERROR: No process matched for $@!"; exit 255; }
-        host_zk_stop
         ./tools/dc dc up -d $services
     else
-        host_zk_start
         supervisor/supervisor.sh mstart "$@"
     fi
 }

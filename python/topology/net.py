@@ -31,14 +31,19 @@ from lib.defines import DEFAULT6_NETWORK_ADDR
 
 DEFAULT_NETWORK = "127.0.0.0/8"
 DEFAULT_PRIV_NETWORK = "192.168.0.0/16"
-DEFAULT_SCN_DC_NETWORK = "172.20.0.0/16"
+DEFAULT_MININET_NETWORK = "100.64.0.0/10"
+DEFAULT_SCN_DC_NETWORK = "172.20.0.0/20"
+DEFAULT_SCN_IN_D_NETWORK = "172.20.16.0/20"
 
 
 class SubnetGenerator(object):
-    def __init__(self, network, docker):
+    def __init__(self, network, docker, in_docker):
         self.docker = docker
         if self.docker and network == DEFAULT_NETWORK:
-            network = DEFAULT_SCN_DC_NETWORK
+            if in_docker:
+                network = DEFAULT_SCN_IN_D_NETWORK
+            else:
+                network = DEFAULT_SCN_DC_NETWORK
         if "/" not in network:
             logging.critical("No prefix length specified for network '%s'",
                              network)

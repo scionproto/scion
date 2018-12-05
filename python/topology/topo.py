@@ -21,11 +21,12 @@ import json
 import logging
 import os
 import random
+import sys
 from collections import defaultdict
 
 # External packages
-import yaml
 from external.ipaddress import ip_address
+import yaml
 
 # SCION
 from lib.defines import (
@@ -40,7 +41,13 @@ from lib.defines import (
 from lib.topology import Topology
 from lib.types import LinkType
 from lib.util import write_file
-from topology.common import srv_iter, ArgsBase, TopoID, SCION_SERVICE_NAMES
+from topology.common import (
+    ArgsBase,
+    docker_host,
+    SCION_SERVICE_NAMES,
+    srv_iter,
+    TopoID
+)
 from topology.net import AddressProxy
 
 DEFAULT_LINK_BW = 1000
@@ -51,16 +58,14 @@ DEFAULT_CERTIFICATE_SERVERS = 1
 DEFAULT_PATH_SERVERS = 1
 DEFAULT_DISCOVERY_SERVERS = 1
 
-ZOOKEEPER_ADDR = "172.18.0.1"
+DEFAULT_ZK_PORT = 2181
 
 
 class TopoGenArgs(ArgsBase):
-    def __init__(self, args, topo_config, zk_config, subnet_gen,
-                 privnet_gen, default_mtu, port_gen):
+    def __init__(self, args, topo_config, subnet_gen, privnet_gen, default_mtu, port_gen):
         """
         :param ArgsBase args: Contains the passed command line arguments.
         :param dict topo_config: The parsed topology config.
-        :param dict zk_config: The parsed zookeeper config.
         :param SubnetGenerator subnet_gen: The default network generator.
         :param SubnetGenerator privnet_gen: The private network generator.
         :param dict default_mtu: The default mtu.
@@ -68,7 +73,6 @@ class TopoGenArgs(ArgsBase):
         """
         super().__init__(args)
         self.topo_config_dict = topo_config
-        self.zk_config_dict = zk_config
         self.subnet_gen = subnet_gen
         self.privnet_gen = privnet_gen
         self.default_mtu = default_mtu
@@ -285,20 +289,26 @@ class TopoGenerator(object):
             }
 
     def _gen_zk_entries(self, topo_id, as_conf):
-        zk_conf = {}
-        if "zookeepers" in self.args.topo_config_dict.get("defaults", {}):
-            zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
-        if self.args.docker:
-            zk_conf[1] = {'addr': ZOOKEEPER_ADDR}
-        for key, val in zk_conf.items():
-            self._gen_zk_entry(topo_id, key, val)
+        zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]
+        if len(zk_conf) > 1:
+            logging.critical("Only one zk instance is supported!")
+            sys.exit(1)
+        addr = zk_conf[1].get("addr", None)
+        port = zk_conf[1].get("port", None)
+        zk_entry = self._gen_zk_entry(addr, port, self.args.in_docker, self.args.docker)
+        self.topo_dicts[topo_id]["ZookeeperService"][1] = zk_entry
 
-    def _gen_zk_entry(self, topo_id, zk_id, zk_conf):
-        zk = ZKTopo(zk_conf, self.args.zk_config_dict)
-        addr = str(zk.addr)
-        self.topo_dicts[topo_id]["ZookeeperService"][zk_id] = {
+    def _gen_zk_entry(self, addr, port, in_docker, docker):
+        if not port:
+            port = DEFAULT_ZK_PORT
+        if in_docker:
+            # If we're in-docker, we need to set the port to not conflict with the host port
+            port = port + 1
+
+        addr = docker_host(in_docker, docker, str(ip_address(addr)))
+        return {
             'Addr': addr,
-            'L4Port': zk.clientPort
+            'L4Port': port
         }
 
     def _generate_as_list(self, topo_id, as_conf):
@@ -351,18 +361,6 @@ class LinkEP(TopoID):
         if self._brid is not None:
             return "%s-%s" % (self.file_fmt(), self._brid)
         return None
-
-
-class ZKTopo(object):
-    def __init__(self, topo_config, zk_config):
-        self.addr = None
-        self.topo_config = topo_config
-        self.zk_config = zk_config
-        self.addr = ip_address(self.topo_config["addr"])
-        self.clientPort = self._get_def("clientPort")
-
-    def _get_def(self, key):
-        return self.topo_config.get(key, self.zk_config["Default"][key])
 
 
 class IFIDGenerator(object):
