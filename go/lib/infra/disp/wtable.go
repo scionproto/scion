@@ -19,7 +19,6 @@ import (
 	"sync"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/proto"
 )
 
@@ -72,7 +71,7 @@ func (wt *waitTable) waitForReply(ctx context.Context,
 	case reply := <-replyChannel:
 		return reply, nil
 	case <-ctx.Done():
-		return nil, infra.NewCtxDoneError()
+		return nil, ctx.Err()
 	case <-wt.destroyChan:
 		return nil, common.NewBasicError("Table destroyed", nil)
 	}
