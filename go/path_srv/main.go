@@ -122,10 +122,13 @@ func realMain() int {
 		log.Crit(infraenv.ErrAppUnableToInitMessenger, "err", err)
 		return 1
 	}
-	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
-	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
-	// and cert requests.
-	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
+	core := topo.Core
+	if core {
+		// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle
+		// TRC and cert requests.
+		msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
+		msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
+	}
 	args := handlers.HandlerArgs{
 		PathDB:     pathDB,
 		RevCache:   revCache,
@@ -133,7 +136,6 @@ func realMain() int {
 		Config:     config.PS,
 		IA:         topo.ISD_AS,
 	}
-	core := topo.Core
 	var segReqHandler infra.Handler
 	deduper := handlers.NewGetSegsDeduper(msger)
 	if core {
