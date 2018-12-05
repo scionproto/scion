@@ -5,7 +5,8 @@ set -e
 export BASE=".buildkite"
 STEPS="$BASE/steps"
 
-[ "$BUILDKITE_BRANCH" == "master" ] && RUN_ALL_TESTS=y
+# if the pipeline is triggered from a PR, run a reduced pipeline
+[ "${BUILDKITE_PULL_REQUEST:-false}" != "false" ] && export RUN_PR=y
 
 # begin the pipeline.yml file
 "$BASE/common.sh"
@@ -24,7 +25,7 @@ cat "$STEPS/push_ci_cntr.yml"
 cat "$STEPS/test.yml"
 
 # build images together with unit tests
-if [ -n "$RUN_ALL_TESTS" ]; then
+if [ -z "$RUN_PR" ]; then
     cat "$STEPS/build_all.yml"
 fi
 
@@ -32,7 +33,7 @@ fi
 "$STEPS/integration.sh"
 
 # conditionally run more tests
-if [ -n "$RUN_ALL_TESTS" ]; then
+if [ -z "$RUN_PR" ]; then
     # docker integration testing
     cat "$STEPS/docker-integration.yml"
     # acceptance testing
