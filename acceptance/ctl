@@ -18,11 +18,13 @@ cmd_help() {
 
 PROGRAM=`basename "$0"`
 COMMAND="$1"
+shift 1
 
 case "$COMMAND" in
     setup|run|teardown)
-        TEST="$2"
-        "acceptance/${TEST}_acceptance/test" $COMMAND ;;
+        TEST="$1"
+        shift 1
+        "acceptance/${TEST}_acceptance/test" $COMMAND "$@";;
     gsetup)
         global_setup ;;
     *) cmd_help; exit 1 ;;

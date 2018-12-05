@@ -1,0 +1,56 @@
+version: "3.4"
+x-core-br: &core-br
+  environment:
+    SU_EXEC_USERSPEC: "$LOGNAME"
+  image: scion_border
+  network_mode: "service:dispatcher"
+  volumes:
+    - "/etc/passwd:/etc/passwd:ro"
+    - "/etc/group:/etc/group:ro"
+    - "/run/shm/dispatcher:/run/shm/dispatcher"
+    - "../../logs:/share/logs"
+    - "./br-core-conf:/share/conf"
+x-br: &br
+  environment:
+    SU_EXEC_USERSPEC: "$LOGNAME"
+  image: scion_border
+  network_mode: "service:dispatcher"
+  volumes:
+    - "/etc/passwd:/etc/passwd:ro"
+    - "/etc/group:/etc/group:ro"
+    - "/run/shm/dispatcher:/run/shm/dispatcher"
+    - "../../logs:/share/logs"
+    - "./br-conf:/share/conf"
+services:
+  dispatcher:
+    image: scion_dispatcher
+    network_mode: none
+    environment:
+      SU_EXEC_USERSPEC: "$LOGNAME"
+    volumes:
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/etc/group:/etc/group:ro"
+      - "/run/shm/dispatcher:/run/shm/dispatcher"
+      - "../../logs:/share/logs"
+      - "./dispatcher-conf:/share/conf"
+  core-brA:
+    <<: *core-br
+    command: ["-id=core-brA"]
+  core-brB:
+    <<: *core-br
+    command: ["-id=core-brB"]
+  core-brC:
+    <<: *core-br
+    command: ["-id=core-brC"]
+  brA:
+    <<: *br
+    command: ["-id=brA"]
+  brB:
+    <<: *br
+    command: ["-id=brB"]
+  brC:
+    <<: *br
+    command: ["-id=brC"]
+  brD:
+    <<: *br
+    command: ["-id=brD"]

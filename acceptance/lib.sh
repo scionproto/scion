@@ -46,11 +46,13 @@ global_setup() {
     print_green "[->--------]" "Stopping infra"
     run_command stop_infra ${out_dir:+$out_dir/global_setup_pre_clean.out}
     find logs -mindepth 1 -maxdepth 1 -not -path '*/\.*' -exec rm -r {} +
-    print_green "[-->-------]" "Building scion_base docker image"
+    print_green "[-->-------]" "Building local code"
+    run_command make ${out_dir:+$out_dir/global_setup_make.out}
+    print_green "[--->------]" "Building scion_base docker image"
     run_command build_docker_base ${out_dir:+$out_dir/global_setup_docker_base.out}
-    print_green "[--->------]" "Building scion docker image"
+    print_green "[---->-----]" "Building scion docker image"
     run_command build_docker_scion ${out_dir:+$out_dir/global_setup_docker_scion.out}
-    print_green "[---->-----]" "Building per-app docker images"
+    print_green "[----->----]" "Building per-app docker images"
     run_command build_docker_perapp ${out_dir:+$out_dir/global_setup_docker_perapp.out}
     print_green "[>>>>>>>>>>]" "Global test environment set-up finished"
     set +e
@@ -104,7 +106,7 @@ global_run() {
         TEST_PROGRAM="$i/test"
         TEST_NAME=$($TEST_PROGRAM name)
         print_green "[----------]" "Test found: $TEST_NAME"
-        if [[ "$TEST_NAME" =~ "$regex_matcher" ]]; then
+        if [[ "$TEST_NAME" =~ $regex_matcher ]]; then
             mkdir -p "$out/$TEST_NAME"
             SETUP_FILE="$out/$TEST_NAME/setup.out"
             RUN_FILE="$out/$TEST_NAME/run.out"

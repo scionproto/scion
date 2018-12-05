@@ -113,10 +113,10 @@ func (r *Router) loadNewConfig() (*conf.Conf, error) {
 	var config *conf.Conf
 	var err error
 	if config, err = conf.Load(r.Id, r.confDir); err != nil {
-		return nil, err
+		return nil, common.NewBasicError("Failed to load topology config", err, "dir", r.confDir)
 	}
-	log.Debug("Topology and AS config loaded",
-		"IA", config.IA, "IfIDs", config.BR, "dir", r.confDir)
+	log.Debug("Topology and AS config loaded", "IA", config.IA, "IfIDs", config.BR,
+		"dir", r.confDir)
 	return config, nil
 }
 

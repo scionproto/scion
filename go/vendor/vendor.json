@@ -148,6 +148,12 @@
 			"revisionTime": "2018-10-23T10:10:25Z"
 		},
 		{
+			"checksumSHA1": "K/ZCqnn9Y7FMc4c7aijBWt1bQoY=",
+			"path": "github.com/google/gopacket/pcap",
+			"revision": "a35e09f9f224786863ce609de910bc82fc4d4faf",
+			"revisionTime": "2018-10-23T10:10:25Z"
+		},
+		{
 			"checksumSHA1": "P3zGmsNjW8m15a+nks4FdVpFKwE=",
 			"license": "2-BSD",
 			"path": "github.com/gopherjs/gopherjs/js",
