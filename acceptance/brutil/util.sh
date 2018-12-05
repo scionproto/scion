@@ -2,11 +2,12 @@
 
 # Following are the specific setup functions for border acceptance tests
 
-# syntax: create_veth <netns> <host_if_name> <container_if_name> <container_ip_addr> <neigh_ips>
+# syntax: create_veth <host_if_name> <container_if_name> <container_ip_addr> <neigh_ips>
 create_veth() {
     VETH_HOST=${1:?}
     VETH_CONTAINER=${2:?}
     IP_CONTAINER=${3:?}
+    shift 3
     NS=$(get_docker_ns)
     # Set veth1 pair
     sudo ip link add $VETH_HOST type veth peer name $VETH_CONTAINER
@@ -15,7 +16,6 @@ create_veth() {
     sudo ip link set $VETH_CONTAINER netns $NS
     sudo ip netns exec $NS sysctl -qw net.ipv6.conf.$VETH_CONTAINER.disable_ipv6=1
     sudo ip netns exec $NS ip addr add $IP_CONTAINER dev $VETH_CONTAINER
-    shift 3
     for ip in "$@"; do
         sudo ip netns exec $NS ip neigh add $ip lladdr f0:0d:ca:fe:be:ef nud permanent dev $VETH_CONTAINER
     done

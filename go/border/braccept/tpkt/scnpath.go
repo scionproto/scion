@@ -41,7 +41,7 @@ func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 		// Each segments consists of one InfoField and N HopFields
 		p.InfOff += spath.InfoFieldLength + int(segs[i].Inf.Hops*spath.HopFieldLength)
 	}
-	p.HopOff = p.InfOff + ((hopF + 1) * spath.HopFieldLength)
+	p.HopOff = p.InfOff + spath.InfoFieldLength + hopF*spath.HopFieldLength
 	// Write SCION path
 	p.Raw = make(common.RawBytes, segs.Len())
 	segs.initMacs()
@@ -67,6 +67,7 @@ func (p *ScnPath) Parse(b []byte) error {
 		p.Segs = append(p.Segs, seg)
 		offset += l
 	}
+	p.Raw = b
 	return nil
 }
 
