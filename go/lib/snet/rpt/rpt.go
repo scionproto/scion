@@ -164,7 +164,7 @@ func (t *RPT) SendMsgTo(ctx context.Context, b common.RawBytes, a net.Addr) erro
 			return nil
 		case <-ctx.Done():
 			// Context was canceled or we are out of time, return with failure
-			return infra.NewCtxDoneError()
+			return ctx.Err()
 		case <-time.After(rptRetryTimeout):
 			// Did not get ACK and context is not canceled yet, so do nothing
 			// and try to send again
@@ -244,7 +244,7 @@ func (t *RPT) RecvFrom(ctx context.Context) (common.RawBytes, net.Addr, error) {
 		return b, event.address, nil
 	case <-ctx.Done():
 		// We timed out, return with failure
-		return nil, nil, infra.NewCtxDoneError()
+		return nil, nil, ctx.Err()
 	case <-t.closedChan:
 		// Some other goroutine closed the transport layer
 		return nil, nil, common.NewBasicError(infra.StrClosedError, nil)
@@ -343,7 +343,7 @@ func (t *RPT) Close(ctx context.Context) error {
 	// Wait for background goroutine to finish
 	select {
 	case <-ctx.Done():
-		return infra.NewCtxDoneError()
+		return ctx.Err()
 	case <-t.doneChan:
 		return nil
 	}

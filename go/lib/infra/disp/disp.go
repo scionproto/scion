@@ -162,7 +162,7 @@ func (d *Dispatcher) RecvFrom(ctx context.Context) (proto.Cerealizable, net.Addr
 		return event.msg, event.address, nil
 	case <-ctx.Done():
 		// We timed out, return with failure
-		return nil, nil, infra.NewCtxDoneError()
+		return nil, nil, ctx.Err()
 	case <-d.closedChan:
 		// Some other goroutine closed the dispatcher
 		return nil, nil, common.NewBasicError(infra.StrClosedError, nil)
@@ -250,7 +250,7 @@ func (d *Dispatcher) Close(ctx context.Context) error {
 	// Wait for background goroutine to finish
 	select {
 	case <-ctx.Done():
-		return infra.NewCtxDoneError()
+		return ctx.Err()
 	case <-d.stoppedChan:
 		return nil
 	}
