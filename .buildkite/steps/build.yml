@@ -1,7 +1,5 @@
 - label: Lint
-  env:
-    SCION_IMG: $SCION_BUILD_IMG
-  command: $BASE/run_step lint
+  command: SCION_IMG="$SCION_BUILD_IMG" $BASE/run_step lint
   artifact_paths:
     - "artifacts.out/**/*"
 - label: Build code and push "$SCION_IMG"
