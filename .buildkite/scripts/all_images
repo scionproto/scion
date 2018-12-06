@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -exu
+set -eu
 
 TAG="$BUILDKITE_BUILD_NUMBER"
 
