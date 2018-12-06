@@ -1,0 +1,6 @@
+- label: Lint
+  command: ./tools/ci/lint
+- wait
+- label: Build
+  command: ./tools/ci/build
+- wait

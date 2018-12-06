@@ -12,8 +12,14 @@ STEPS="$BASE/steps"
 "$BASE/common.sh"
 echo "steps:"
 
-# setup docker images, lint and build code
+# setup docker images and start
 cat "$STEPS/setup.yml"
+
+# do build and linting
+cat "$STEPS/build.yml"
+
+# Commit container and push to registry
+cat "$STEPS/push_ci_cntr.yml"
 
 # Unit tests
 cat "$STEPS/test.yml"
