@@ -12,14 +12,11 @@ STEPS="$BASE/steps"
 "$BASE/common.sh"
 echo "steps:"
 
-# setup docker images and start
+# build scion image and push
 cat "$STEPS/setup.yml"
 
-# do build and linting
+# do build and linting, then commit container and push
 cat "$STEPS/build.yml"
-
-# Commit container and push to registry
-cat "$STEPS/push_ci_cntr.yml"
 
 # Unit tests
 cat "$STEPS/test.yml"
