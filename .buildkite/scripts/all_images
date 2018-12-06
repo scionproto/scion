@@ -14,7 +14,7 @@ if [ "${1:?}" == "push" ]; then
         local_img="scion_$app"
         remote_img="$REGISTRY/$app"
         docker tag "$local_img:latest" "$remote_img:$TAG"
-        docker push "$remote_img:$TAG"
+        docker push "$remote_img:$TAG" &>/dev/null
     done
 fi
 if [ "$1" == "pull" ]; then
@@ -22,7 +22,7 @@ if [ "$1" == "pull" ]; then
     for app in $images; do
         local_img="scion_$app"
         remote_img="$REGISTRY/$app"
-        docker pull "$remote_img:$TAG"
+        docker pull "$remote_img:$TAG" &>/dev/null
         docker tag "$remote_img:$TAG" "$local_img:latest"
     done
 fi

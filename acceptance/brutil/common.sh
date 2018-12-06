@@ -1,6 +1,6 @@
 # This is a base file included/sourced by each border router acceptance test
 
-TEST_ARTIFACTS_DIR=${ARTIFACTS_FOLDER:?}/${TEST_NAME}
+TEST_ARTIFACTS_DIR=${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}
 DEVINFO_FN=${TEST_ARTIFACTS_DIR}/devinfo.txt
 
 . acceptance/brutil/util.sh
@@ -12,7 +12,7 @@ test_setup() {
     set -e
     sudo -p "Setup docker containers and virtual interfaces - [sudo] password for %p: " true
     # Bring up the dispatcher container and add new veth interfaces
-    # This approach currently  works because the dispatcher binds to 0.0.0.0 address.
+    # This approach currently works because the dispatcher binds to 0.0.0.0 address.
     docker-compose -f ${BRUTIL:?}/docker-compose.yml up --detach dispatcher
 
     set_docker_ns_link
