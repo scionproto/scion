@@ -2,6 +2,8 @@
 
 for test in ./acceptance/*_acceptance; do
     echo "- label: ${test}"
+    echo "  env:"
+    echo "    ARTIFACTS_FOLDER=$SCION_MOUNT/acceptance"
     echo "  command:"
     echo "  - $BASE/all_images pull"
     echo "  - $BASE/run_step run_acceptance $test"
