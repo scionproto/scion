@@ -17,8 +17,10 @@ package pktdisp
 
 import (
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
 )
 
 type DispPkt struct {
@@ -39,6 +41,10 @@ func PktDispatcher(c snet.Conn, f DispatchFunc) {
 		dp.Raw = dp.Raw[:cap(dp.Raw)]
 		n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
 		if err != nil {
+			if reliable.IsDispatcherError(err) {
+				fatal.Fatal(err)
+				return
+			}
 			log.Error("PktDispatcher: Error reading from connection", "err", err)
 			// FIXME(shitz): Continuing here is only a temporary solution. Different
 			// errors need to be handled different, for some it should break and others
