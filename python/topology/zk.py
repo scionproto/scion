@@ -54,6 +54,6 @@ class ZKGenerator(object):
                 zk_entry["Addr"] + ":" + str(zk_entry["L4Port"]) + ':2181'
             ]
         }
-        self.zk_conf['services'][name] = entry
+        self.zk_conf['services']['zookeeper'] = entry
         write_file(os.path.join(self.args.output_dir, ZK_CONF),
                    yaml.dump(self.zk_conf, default_flow_style=False))

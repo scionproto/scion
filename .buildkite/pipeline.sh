@@ -29,14 +29,14 @@ if [ "$RUN_ALL_TESTS" = "y" ]; then
 fi
 
 # integration testing
-"$STEPS/integration.sh"
+"$STEPS/integration"
 
 # conditionally run more tests
 if [ "$RUN_ALL_TESTS" = "y" ]; then
     # docker integration testing
     cat "$STEPS/docker-integration.yml"
     # acceptance testing
-    "$STEPS/acceptance.sh"
+    "$STEPS/acceptance"
 fi
 
 # deploy

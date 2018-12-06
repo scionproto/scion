@@ -48,5 +48,6 @@ if [ -n "$DOCKER_BE" ]; then
 fi
 
 ./docker.sh exec "./tools/dc zk logs zookeeper &> logs/zookeeper.log"
+./docker.sh exec "./tools/dc zk down"
 
 exit $result

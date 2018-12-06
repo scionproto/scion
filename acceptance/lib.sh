@@ -43,7 +43,7 @@ build_docker_perapp() {
 }
 
 global_setup() {
-    local out_dir="$ARTIFACTS_FOLDER"
+    local out_dir="$ACCEPTANCE_ARTIFACTS"
     set -e
     print_green "[==========]"
     print_green "[>---------]" "Global test environment set-up"
@@ -105,7 +105,7 @@ test_teardown_wrapper() {
 }
 
 global_run() {
-    local out="$ARTIFACTS_FOLDER"
+    local out="$ACCEPTANCE_ARTIFACTS"
     local regex_matcher="$1"
     for i in ./acceptance/*_acceptance; do
         stats_total=$((stats_total+1))
