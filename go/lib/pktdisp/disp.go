@@ -37,6 +37,8 @@ func PktDispatcher(c snet.Conn, f DispatchFunc, pktDispStop chan struct{}) {
 	dp := &DispPkt{Raw: make(common.RawBytes, common.MaxMTU)}
 	for {
 		select {
+		case <-pktDispStop:
+			return
 		default:
 			dp.Raw = dp.Raw[:cap(dp.Raw)]
 			n, dp.Addr, err = c.ReadFromSCION(dp.Raw)
@@ -49,8 +51,6 @@ func PktDispatcher(c snet.Conn, f DispatchFunc, pktDispStop chan struct{}) {
 			}
 			dp.Raw = dp.Raw[:n]
 			f(dp)
-		case <-pktDispStop:
-			return
 		}
 	}
 }
