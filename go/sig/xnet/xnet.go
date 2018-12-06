@@ -65,12 +65,15 @@ Cleanup:
 	return nil, nil, err
 }
 
-func AddRoute(rTable int, link netlink.Link, dest *net.IPNet) error {
+func AddRoute(rTable int, link netlink.Link, dest *net.IPNet, src net.IP) error {
 	route := &netlink.Route{
 		LinkIndex: link.Attrs().Index,
 		Dst:       dest,
 		Priority:  SIGRPriority,
 		Table:     rTable,
+	}
+	if len(src) > 0 {
+		route.Src = src
 	}
 	if err := netlink.RouteAdd(route); err != nil {
 		return common.NewBasicError("EgressReader: Unable to add SIG route", err,

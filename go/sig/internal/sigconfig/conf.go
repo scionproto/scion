@@ -48,6 +48,10 @@ type Conf struct {
 	Tun string
 	// TunRTableId the id of the routing table used in the SIG. (default DefaultTunRTableId)
 	TunRTableId int
+	// IPv4 source address hint to put into routing table.
+	SrcIP4 net.IP
+	// IPv6 source address hint to put into routing table.
+	SrcIP6 net.IP
 }
 
 // Validate validate the config and returns an error if a value is not valid.
