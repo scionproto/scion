@@ -146,8 +146,6 @@ func (c *scionConnReader) handleSCMP(hdr *scmp.Hdr, pkt *spkt.ScnPkt) {
 	// Only handle revocations for now
 	if hdr.Class == scmp.C_Path && hdr.Type == scmp.T_P_RevokedIF {
 		c.handleSCMPRev(hdr, pkt)
-	} else {
-		log.Warn("Received unsupported SCMP message", "class", hdr.Class, "type", hdr.Type)
 	}
 }
 
