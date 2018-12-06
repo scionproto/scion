@@ -1,6 +1,16 @@
 - label: Lint
-  command: ./tools/ci/lint
-- wait
-- label: Build
-  command: ./tools/ci/build
+  env:
+    SCION_IMG: $SCION_BUILD_IMG
+  command: $BASE/run_step lint
+  artifact_paths:
+    - "artifacts.out/**/*"
+- label: Build code and push "$SCION_IMG"
+  command:
+  - SCION_IMG="$SCION_BUILD_IMG" $BASE/run_step build
+  - docker stop "$SCION_CNTR"
+  - docker commit "$SCION_CNTR" "$SCION_IMG"
+  - ./docker.sh stop
+  - docker push $SCION_IMG
+  artifact_paths:
+    - "artifacts.out/**/*"
 - wait

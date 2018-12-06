@@ -1,9 +1,7 @@
-- label: Prepare scion_base and scion images
+- label: Build and push scion image
   command:
-      - $BASE/scripts/clean_env
       - $BASE/scripts/build_scion_img
-- wait
-- label: Start container
-  command:
-      - SCION_IMG=scion ./docker.sh start
+      - docker tag scion $SCION_BUILD_IMG
+      - $BASE/scripts/registry_login
+      - docker push $SCION_BUILD_IMG
 - wait
