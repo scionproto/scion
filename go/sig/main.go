@@ -29,6 +29,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/base/core"
@@ -103,14 +104,12 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		reader.NewReader(tunIO).Run()
 	}()
-	// Create error channel for ingress dispatcher and prometheus
-	fatalC := make(chan error, 2)
-	spawnIngressDispatcher(tunIO, fatalC)
-	cfg.Metrics.StartPrometheus(fatalC)
+	spawnIngressDispatcher(tunIO)
+	cfg.Metrics.StartPrometheus(fatal.Chan())
 	select {
 	case <-environment.AppShutdownSignal:
 		return 0
-	case err := <-fatalC:
+	case err := <-fatal.Chan():
 		// Prometheus or the ingress dispatcher encountered a fatal error, thus we exit.
 		log.Crit("Fatal error during execution", "err", err)
 		return 1
@@ -224,12 +223,12 @@ func loadConfig(path string) bool {
 	return true
 }
 
-func spawnIngressDispatcher(tunIO io.ReadWriteCloser, fatalC chan error) {
+func spawnIngressDispatcher(tunIO io.ReadWriteCloser) {
 	d := ingress.NewDispatcher(tunIO)
 	go func() {
 		if err := d.Run(); err != nil {
 			log.Crit("Ingress dispatcher error", "err", err)
-			fatalC <- err
+			fatal.Fatal(err)
 		}
 	}()
 }
