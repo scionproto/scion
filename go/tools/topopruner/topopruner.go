@@ -12,9 +12,9 @@ import (
 
 var (
 	infn   = flag.String("in", "", "Input file name. Required.")
-	outfnf = flag.String("out", "", "Ouput file name for the full topology. Required.")
+	outfnf = flag.String("out", "", "Output file name for the full topology. Required.")
 	outfnr = flag.String("reduced", "",
-		"Ouput file name for the reduced topology. Defaults to not generating this output.")
+		"Output file name for the reduced topology. Defaults to not generating this output.")
 	verbose = flag.Bool("verbose", false, "Be more verbose about what is going on")
 )
 

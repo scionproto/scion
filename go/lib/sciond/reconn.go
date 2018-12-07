@@ -37,7 +37,7 @@ var _ Connector = (*reconnector)(nil)
 // This is not necessary for request-response matching, but is useful for
 // context.Context support. If performance becomes an issue, an improvement
 // might be to have a lightweight implementation that just ensures context
-// suport.
+// support.
 type reconnector struct {
 	path string
 }

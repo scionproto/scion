@@ -83,7 +83,7 @@ func (ctx *Ctx) ResolveSVCAny(svc addr.HostSVC) (*overlay.OverlayAddr, error) {
 	return elem.OverlayAddr(ctx.Conf.Topo.Overlay), nil
 }
 
-// ResolveSVCMulti resovles a multicast SVC address (i.e. one packet per machine hosting
+// ResolveSVCMulti resolves a multicast SVC address (i.e. one packet per machine hosting
 // instances for a local infrastructure service).
 func (ctx *Ctx) ResolveSVCMulti(svc addr.HostSVC) ([]*overlay.OverlayAddr, error) {
 	_, elemMap, err := ctx.GetSVCNamesMap(svc)

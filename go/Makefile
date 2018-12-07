@@ -58,6 +58,8 @@ lint: vendor/.deps.stamp
 	out=$$(find . -type f -iname '*.go' -a '!' '(' -ipath './vendor/*' -o -ipath '*/*.capnp.go' -o -ipath '*/*.gen.go' -o -ipath '*/mock_*/*' ')' | lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:'); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
+	@echo "======> misspell"
+	misspell ${LOCAL_DIRS}
 
 deps_gen: deps proto
 

@@ -25,7 +25,7 @@ import (
 var _ LayerBuilder = (*OverlayIP4UDP)(nil)
 var _ LayerMatcher = (*OverlayIP4UDP)(nil)
 
-// OverlayIP4UDP implementes the IPv4/UDP overlay
+// OverlayIP4UDP implements the IPv4/UDP overlay
 type OverlayIP4UDP struct {
 	SrcAddr string
 	SrcPort uint16

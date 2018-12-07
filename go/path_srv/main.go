@@ -123,7 +123,7 @@ func realMain() int {
 		return 1
 	}
 	msger.AddHandler(infra.ChainRequest, trustStore.NewChainReqHandler(false))
-	// TOOD(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
+	// TODO(lukedirtwalker): with the new CP-PKI design the PS should no longer need to handle TRC
 	// and cert requests.
 	msger.AddHandler(infra.TRCRequest, trustStore.NewTRCReqHandler(false))
 	args := handlers.HandlerArgs{

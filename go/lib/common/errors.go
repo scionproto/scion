@@ -66,7 +66,7 @@ type Temporary interface {
 	Temporary() bool
 }
 
-// IsTemporaryErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNester,
+// IsTemporaryErr determines if e is a temporary Error. As a fall-back, if e implements ErrorNester,
 // IsTemporaryErr recurses on the nested error. Otherwise returns false.
 func IsTemporaryErr(e error) bool {
 	if t, _ := e.(Temporary); t != nil {
@@ -84,7 +84,7 @@ type Timeout interface {
 	Timeout() bool
 }
 
-// IsTimeoutErr determins if e is a temporary Error. As a fall-back, if e implements ErrorNester,
+// IsTimeoutErr determines if e is a temporary Error. As a fall-back, if e implements ErrorNester,
 // IsTimeoutErr recurses on the nested error. Otherwise returns false.
 func IsTimeoutErr(e error) bool {
 	if t, _ := e.(Timeout); t != nil {

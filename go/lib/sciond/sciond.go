@@ -109,7 +109,7 @@ func (s *service) ConnectTimeout(timeout time.Duration) (Connector, error) {
 // an error occurs, or the method successfully returns.
 type Connector interface {
 	// Paths requests from SCIOND a set of end to end paths between src and
-	// dst. max specifices the maximum number of paths returned.
+	// dst. max specifies the maximum number of paths returned.
 	Paths(ctx context.Context, dst, src addr.IA, max uint16, f PathReqFlags) (*PathReply, error)
 	// ASInfo requests from SCIOND information about AS ia.
 	ASInfo(ctx context.Context, ia addr.IA) (*ASInfoReply, error)

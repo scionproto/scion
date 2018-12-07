@@ -208,7 +208,7 @@ func Test_Certificate_Eq(t *testing.T) {
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (EncAlgorithm)", func() {
-			c1.EncAlgorithm = "Ceasar Cipher"
+			c1.EncAlgorithm = "Caesar Cipher"
 			SoMsg("Eq", c1.Eq(c2), ShouldBeFalse)
 		})
 		Convey("Certificates are unequal (ExpirationTime)", func() {

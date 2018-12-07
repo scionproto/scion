@@ -27,7 +27,7 @@ const (
 	ErrUnsupportedOverlay   = "Unsupported overlay"
 	ErrUnsupportedAddrType  = "Unsupported address type"
 	ErrInvalidPub           = "Invalid public address"
-	ErrInvalidBind          = "Invalid bind adress"
+	ErrInvalidBind          = "Invalid bind address"
 	ErrAtLeastOnePub        = "Overlay requires at least one public address"
 	ErrOverlayPort          = "Overlay port set for non-UDP overlay"
 	ErrBindAddrEqPubAddr    = "Bind address equal to Public address"
