@@ -49,7 +49,6 @@ from topology.common import (
     srv_iter,
     TopoID
 )
-from topology.net import AddressProxy
 
 DEFAULT_LINK_BW = 1000
 
