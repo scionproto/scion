@@ -20,6 +20,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
 	sqlitepathdb "github.com/scionproto/scion/go/lib/pathdb/sqlite"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -47,6 +48,17 @@ func (c *PathDBConf) InitDefaults() {
 	}
 }
 
+// Validate validates the configuration, should be called after InitDefaults.
+func (c *PathDBConf) validate() error {
+	if c.Backend == BackendNone {
+		return common.NewBasicError("No backend set", nil)
+	}
+	if c.Connection == "" {
+		return common.NewBasicError("Empty connection not allowed", nil)
+	}
+	return nil
+}
+
 // RevCacheConf is the configuration for the connection to the revocation cache.
 type RevCacheConf struct {
 	Backend    Backend
@@ -60,10 +72,27 @@ func (c *RevCacheConf) InitDefaults() {
 	}
 }
 
+// Validate validates the configuration, should be called after InitDefaults.
+func (c *RevCacheConf) validate() error {
+	if c.Backend == BackendNone {
+		return common.NewBasicError("No backend set", nil)
+	}
+	if c.Backend != BackendMem && c.Connection == "" {
+		return common.NewBasicError("Empty connection not allowed", nil)
+	}
+	return nil
+}
+
 // NewPathStorage creates a PathStorage from the given configs.
 func NewPathStorage(pdbConf PathDBConf,
 	rcConf RevCacheConf) (pathdb.PathDB, revcache.RevCache, error) {
 
+	if err := pdbConf.validate(); err != nil {
+		return nil, nil, common.NewBasicError("Invalid pathdb config", err)
+	}
+	if err := rcConf.validate(); err != nil {
+		return nil, nil, common.NewBasicError("Invalid revcache config", err)
+	}
 	if sameBackend(pdbConf, rcConf) {
 		return newCombinedBackend(pdbConf, rcConf)
 	}
@@ -89,6 +118,7 @@ func newCombinedBackend(pdbConf PathDBConf,
 }
 
 func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
+	log.Info("Connecting PathDB", "backend", conf.Backend, "connection", conf.Connection)
 	switch conf.Backend {
 	case BackendSqlite:
 		return sqlitepathdb.New(conf.Connection)
@@ -100,6 +130,7 @@ func newPathDB(conf PathDBConf) (pathdb.PathDB, error) {
 }
 
 func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
+	log.Info("Connecting RevCache", "backend", conf.Backend, "connection", conf.Connection)
 	switch conf.Backend {
 	case BackendMem:
 		return memrevcache.New(cache.NoExpiration, time.Second), nil
