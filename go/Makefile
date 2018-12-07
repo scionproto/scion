@@ -14,17 +14,18 @@ LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
 BUILD_CHAIN = $(shell go version)
 HEAD_TAG = $(shell git tag -l --points-at HEAD)
-GIT_TAG = $(shell git describe --tags)$(shell git diff --quiet || echo '-dirty')
-LINK_FLAGS =\
-	-X \"github.com/scionproto/scion/go/lib/env.StartupBuildChain=$(BUILD_CHAIN)\"
-ifeq ($(HEAD_TAG), $(GIT_TAG))
-	BUILD_DATE = $(shell date -u -Is)
- 	LINK_FLAGS += -X \"github.com/scionproto/scion/go/lib/env.StartupBuildDate=$(BUILD_DATE)\"
-	# add commit, because on a clean tag `git describe --tags` doesn't contain the commit.
-	GIT_TAG += $(shell git rev-parse --short HEAD)
+GIT_DESC = $(shell git describe --tags)
+DIRTY = $(shell git diff HEAD --quiet || echo '-dirty')
+LINK_FLAGS = -X \"github.com/scionproto/scion/go/lib/env.StartupBuildChain=$(BUILD_CHAIN)\"
+ifeq ($(HEAD_TAG), $(GIT_DESC))
+    BUILD_DATE = $(shell date -u -Is)
+    LINK_FLAGS += -X \"github.com/scionproto/scion/go/lib/env.StartupBuildDate=$(BUILD_DATE)\"
+    # add commit, because on a clean tag `git describe --tags` doesn't contain the commit.
+    GIT_TAG =$(GIT_DESC)-$(shell git rev-parse --short HEAD)$(DIRTY)
+else
+    GIT_TAG = $(GIT_DESC)$(DIRTY)
 endif
-LINK_FLAGS +=\
- -X \"github.com/scionproto/scion/go/lib/env.StartupVersion=$(GIT_TAG)\"
+LINK_FLAGS += -X \"github.com/scionproto/scion/go/lib/env.StartupVersion=$(GIT_TAG)\"
 GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \

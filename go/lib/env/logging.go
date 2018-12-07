@@ -112,7 +112,7 @@ func LogSvcStarted(svcType, elemId string) error {
 		VersionInfo(),
 		fmt.Sprintf("In docker:     %v", inDocker),
 		fmt.Sprintf("euid/egid:     %d %d", os.Geteuid(), os.Getegid()),
-		fmt.Sprintf("cmd line:      %v", os.Args),
+		fmt.Sprintf("cmd line:      %q", os.Args),
 	)
 	log.Info(info)
 	return nil
