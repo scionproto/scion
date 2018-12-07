@@ -27,6 +27,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
@@ -67,6 +68,7 @@ func main() {
 }
 
 func realMain() int {
+	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
 	if v, ok := env.CheckFlags(psconfig.Sample); !ok {
@@ -158,9 +160,7 @@ func realMain() int {
 		}
 	}
 	msger.AddHandler(infra.SegRev, handlers.NewRevocHandler(args))
-	// Create a channel where prometheus can signal fatal errors
-	fatalC := make(chan error, 1)
-	config.Metrics.StartPrometheus(fatalC)
+	config.Metrics.StartPrometheus()
 	// Start handling requests/messages
 	go func() {
 		defer log.LogPanicAndExit()
@@ -179,9 +179,7 @@ func realMain() int {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		return 0
-	case err := <-fatalC:
-		// Prometheus encountered a fatal error, thus we exit.
-		log.Crit("Unable to listen and serve", "err", err)
+	case <-fatal.Chan():
 		return 1
 	}
 }

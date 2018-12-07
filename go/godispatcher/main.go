@@ -23,7 +23,7 @@ import (
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
 	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/fatal"
 )
 
 type Config struct {
@@ -41,6 +41,7 @@ func main() {
 }
 
 func realMain() int {
+	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
 	if returnCode, ok := env.CheckFlags(config.Sample); !ok {
@@ -53,11 +54,8 @@ func realMain() int {
 	defer env.CleanupLog()
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 
-	fatalC := make(chan error, 1)
-	cfg.Metrics.StartPrometheus(fatalC)
-	err := <-fatalC
-	// Prometheus encountered a fatal error, thus we exit.
-	log.Crit("Unable to listen and serve", "err", err)
+	cfg.Metrics.StartPrometheus()
+	<-fatal.Chan()
 	return 1
 }
 
