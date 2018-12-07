@@ -1,12 +1,12 @@
 #!/bin/bash
 
-set -exu
+set -eu
 
 TAG="$BUILDKITE_BUILD_NUMBER"
 
-echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+$BASE/scripts/registry_login
 
-images="border dispatcher sig beacon_py cert cert_py path path_py sciond sciond_py"
+images="border dispatcher sig beacon_py cert cert_py path path_py sciond sciond_py app_builder"
 
 if [ "${1:?}" == "push" ]; then
     # Tag local apps and push to remote

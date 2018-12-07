@@ -1,6 +1,6 @@
 - label: Docker Integration Tests
   command:
-  - $BASE/all_images pull
+  - $BASE/scripts/all_images pull
   - $BASE/run_step integration -d -a
   timeout_in_minutes: 30
   artifact_paths:

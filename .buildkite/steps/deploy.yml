@@ -1,7 +1,7 @@
 - wait
 - label: Build app images
   command:
-    - mkdir docker/_build && touch docker/_build/scion.stamp
+    - $BASE/scripts/build_scion_img
     - make -C docker/perapp
   branches: "v*.*.*"
 - wait

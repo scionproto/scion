@@ -1,8 +1,0 @@
-- label: Commit container and push image "$SCION_IMG"
-  command:
-      - docker stop "$SCION_CNTR"
-      - docker commit "$SCION_CNTR" "$SCION_IMG"
-      - ./docker.sh stop
-      - echo \$REGISTRY_PASSWORD | docker login $REGISTRY -u $REGISTRY_USER --password-stdin
-      - docker push $SCION_IMG
-- wait
