@@ -20,6 +20,7 @@ import (
 	"fmt"
 	_ "net/http/pprof"
 	"os"
+	"time"
 
 	"github.com/BurntSushi/toml"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -93,16 +95,15 @@ func realMain() int {
 	})
 	// Cleanup when the CS exits.
 	defer stop()
-	// Create a channel where prometheus can signal fatal errors
-	fatalC := make(chan error, 1)
-	config.Metrics.StartPrometheus(fatalC)
+	config.Metrics.StartPrometheus()
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		return 0
-	case err := <-fatalC:
-		// Prometheus encountered a fatal error, thus we exit.
-		log.Crit("Unable to listen and serve", "err", err)
+	case <-fatal.Chan():
+		// Grace period to gather more logs in case that
+		// the first fatal error wasn't the most informative one.
+		time.Sleep(1 * time.Second)
 		return 1
 	}
 }

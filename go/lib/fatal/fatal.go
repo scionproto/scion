@@ -16,6 +16,10 @@
 // goroutine. The goroutine can then perform clean shutdown.
 package fatal
 
+import (
+	"github.com/scionproto/scion/go/lib/log"
+)
+
 var (
 	fatalC chan error
 )
@@ -27,10 +31,11 @@ func init() {
 
 // Signal that the application should shut down.
 func Fatal(err error) {
+	log.Crit("Fatal error. Requesting server shutdown.", "err", err)
 	fatalC <- err
 }
 
 // Get access to the underlying channel. This is used by main goroutine to wait for fatal errors.
-func Chan() chan error {
+func Chan() <-chan error {
 	return fatalC
 }

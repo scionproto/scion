@@ -32,6 +32,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -202,14 +203,14 @@ type Metrics struct {
 	Prometheus string
 }
 
-func (cfg *Metrics) StartPrometheus(fatalC chan error) {
+func (cfg *Metrics) StartPrometheus() {
 	if cfg.Prometheus != "" {
 		http.Handle("/metrics", promhttp.Handler())
 		log.Info("Exporting prometheus metrics", "addr", cfg.Prometheus)
 		go func() {
 			defer log.LogPanicAndExit()
 			if err := http.ListenAndServe(cfg.Prometheus, nil); err != nil {
-				fatalC <- common.NewBasicError("HTTP ListenAndServe error", err)
+				fatal.Fatal(common.NewBasicError("HTTP ListenAndServe error", err))
 			}
 		}()
 	}

@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/user"
 	"sync/atomic"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/syndtr/gocapability/capability"
@@ -105,13 +106,14 @@ func realMain() int {
 		reader.NewReader(tunIO).Run()
 	}()
 	spawnIngressDispatcher(tunIO)
-	cfg.Metrics.StartPrometheus(fatal.Chan())
+	cfg.Metrics.StartPrometheus()
 	select {
 	case <-environment.AppShutdownSignal:
 		return 0
-	case err := <-fatal.Chan():
-		// Prometheus or the ingress dispatcher encountered a fatal error, thus we exit.
-		log.Crit("Fatal error during execution", "err", err)
+	case <-fatal.Chan():
+		// Grace period to gather more logs in case that
+		// the first fatal error wasn't the most informative one.
+		time.Sleep(1 * time.Second)
 		return 1
 	}
 }
