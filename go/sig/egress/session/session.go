@@ -20,6 +20,7 @@ package session
 import (
 	"context"
 	"sync/atomic"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -58,6 +59,8 @@ type Session struct {
 	conn           snet.Conn
 	sessMonStop    chan struct{}
 	sessMonStopped chan struct{}
+	pktDispStop    chan struct{}
+	pktDispStopped chan struct{}
 	workerStopped  chan struct{}
 	factory        egress.WorkerFactory
 }
@@ -81,14 +84,17 @@ func NewSession(dstIA addr.IA, sessId mgmt.SessionType, sigMap *siginfo.SigMap, 
 	// Not using a fixed local port, as this is for outgoing data only.
 	s.conn, err = snet.ListenSCION("udp4",
 		&snet.Addr{IA: sigcmn.IA, Host: &addr.AppAddr{L3: sigcmn.Host}})
+	s.sessMonStop = make(chan struct{})
+	s.sessMonStopped = make(chan struct{})
+	s.pktDispStop = make(chan struct{})
+	s.pktDispStopped = make(chan struct{})
+	s.workerStopped = make(chan struct{})
 	// spawn a PktDispatcher to log any unexpected messages received on a write-only connection.
 	go func() {
 		defer log.LogPanicAndExit()
-		pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger)
+		defer close(s.pktDispStopped)
+		pktdisp.PktDispatcher(s.conn, pktdisp.DispLogger, s.pktDispStop)
 	}()
-	s.sessMonStop = make(chan struct{})
-	s.sessMonStopped = make(chan struct{})
-	s.workerStopped = make(chan struct{})
 	return s, err
 }
 
@@ -110,6 +116,10 @@ func (s *Session) Cleanup() error {
 	<-s.workerStopped
 	s.Debug("egress.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
+	close(s.pktDispStop)
+	s.Debug("egress.Session Cleanup: wait for pktDisp")
+	s.conn.SetReadDeadline(time.Now())
+	<-s.pktDispStopped
 	s.Debug("egress.Session Cleanup: closing conn")
 	if err := s.conn.Close(); err != nil {
 		return common.NewBasicError("Unable to close conn", err)
