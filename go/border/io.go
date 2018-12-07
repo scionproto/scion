@@ -115,7 +115,7 @@ Top:
 			rp.DirFrom = s.Dir
 			rp.Free = free // Set free callback.
 			if i == pktsRead-1 {
-				// Only bother setting the Guage once per ReadBatch. Use
+				// Only bother setting the Gauge once per ReadBatch. Use
 				// the last read as internally the kernel calls recvmsg
 				// multiple times, so it will have the latest value.
 				inputRcvOvfl.Set(float64(meta.RcvOvfl))

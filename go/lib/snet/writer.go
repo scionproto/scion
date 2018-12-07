@@ -85,7 +85,7 @@ func (c *scionConnWriter) WriteTo(b []byte, raddr net.Addr) (int, error) {
 }
 
 // Write sends b through a connection with fixed remote address. If the remote
-// address for the conenction is unknown, Write returns an error.
+// address for the connection is unknown, Write returns an error.
 func (c *scionConnWriter) Write(b []byte) (int, error) {
 	return c.write(b, nil)
 }

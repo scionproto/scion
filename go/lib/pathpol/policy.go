@@ -119,7 +119,7 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 }
 
 // evalOptions evaluates the options of a policy and returns the pathSet that matches the option
-// with the heighest weight
+// with the highest weight
 func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	subPolicySet := make(spathmeta.AppPathSet)
 	currWeight := p.Options[0].Weight

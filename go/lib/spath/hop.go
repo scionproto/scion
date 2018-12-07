@@ -120,7 +120,7 @@ func (h *HopField) Verify(macH hash.Hash, tsInt uint32, prev common.RawBytes) er
 	return nil
 }
 
-// CalcMac calculates the MAC of a HopField and its preceeding HopField, if any.
+// CalcMac calculates the MAC of a HopField and its preceding HopField, if any.
 // prev does not contain flags byte.
 //
 // MAC input block format:

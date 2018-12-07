@@ -46,7 +46,7 @@ import (
 //   | Sess Id|      Epoch      |    Sequence number       |     Index       |
 //   +--------+--------+--------+--------+--------+--------+--------+--------+
 //
-//   Inside the frame, all encapsulated packets are preceeded by a 2B length
+//   Inside the frame, all encapsulated packets are preceded by a 2B length
 //   field, and then padded to an 8B boundary
 
 const (

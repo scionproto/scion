@@ -54,7 +54,7 @@ func Init(rawSRevF func(RawSRevCallbackArgs)) {
 }
 
 // Router representation of SCION packet, including metadata.  The comments for the members have
-// tags to specifiy if the member is set during receiving (RECV), parsing (PARSE), processing
+// tags to specify if the member is set during receiving (RECV), parsing (PARSE), processing
 // (PROCESS) or routing (ROUTE). A number of the non-exported fields are pointers, as they are
 // either optional or computed only on demand.
 type RtrPkt struct {

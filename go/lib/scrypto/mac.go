@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	ErrorCipherFailure = "Unable to initalize AES cipher"
-	ErrorMacFailure    = "Unable to initalize Mac"
+	ErrorCipherFailure = "Unable to initialize AES cipher"
+	ErrorMacFailure    = "Unable to initialize Mac"
 )
 
 func InitMac(key common.RawBytes) (hash.Hash, error) {

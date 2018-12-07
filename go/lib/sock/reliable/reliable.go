@@ -408,7 +408,7 @@ func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 			return 0, err
 		}
 		if n > 0 {
-			// FIXME(scrye): if the message was succesfully written,
+			// FIXME(scrye): if the message was successfully written,
 			// we want to return from the function. If the message
 			// could not be written, repeatedly try to write until
 			// it works. This is far from optimal, but we will rarely

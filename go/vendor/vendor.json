@@ -92,6 +92,18 @@
 			"revisionTime": "2017-03-28T20:00:08Z"
 		},
 		{
+			"checksumSHA1": "rYc2bTNfDk0JL5Tb+B/snlzRkJE=",
+			"path": "github.com/client9/misspell",
+			"revision": "c0b55c8239520f6b5aa15a0207ca8b28027ba49e",
+			"revisionTime": "2018-03-09T02:03:25Z"
+		},
+		{
+			"checksumSHA1": "3Lbx+qNi8brwKa9dU41O6SEOW6c=",
+			"path": "github.com/client9/misspell/cmd/misspell",
+			"revision": "c0b55c8239520f6b5aa15a0207ca8b28027ba49e",
+			"revisionTime": "2018-03-09T02:03:25Z"
+		},
+		{
 			"checksumSHA1": "s8t6UaijV8WMK0RMdX00OPI5z0o=",
 			"path": "github.com/dchest/cmac",
 			"revision": "62ff55a1048c485e83f1882466f535da624e944a",
