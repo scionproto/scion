@@ -27,7 +27,7 @@ import (
 func New(path string, schema string, schemaVersion int) (*sql.DB, error) {
 	var err error
 	if path == "" {
-		return nil, common.NewBasicError("Empy path not allowed for sqlite", nil)
+		return nil, common.NewBasicError("Empty path not allowed for sqlite", nil)
 	}
 	db, err := open(path)
 	if err != nil {
