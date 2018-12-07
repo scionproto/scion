@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,11 +40,12 @@ var (
 	sciondFromIA = flag.Bool("sciondFromIA", false, "SCIOND socket path from IA address:ISD-AS")
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	sdConn       sciond.Connector
+	version      = flag.Bool("version", false, "Output version information and exit.")
 )
 
 func main() {
 	var err error
-	cmd := cmn.ParseFlags()
+	cmd := cmn.ParseFlags(version)
 	cmn.ValidateFlags()
 	if *sciondFromIA {
 		if *sciondPath != "" {

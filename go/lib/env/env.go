@@ -20,11 +20,13 @@
 package env
 
 import (
+	"bufio"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -219,4 +221,21 @@ func (cfg *Metrics) StartPrometheus(fatalC chan error) {
 type Infra struct {
 	// Type must be one of BS, CS or PS.
 	Type string
+}
+
+// RunsInDocker returns whether the current binary is run in a docker container.
+func RunsInDocker() (bool, error) {
+	f, err := os.Open("/proc/self/cgroup")
+	if err != nil {
+		return false, common.NewBasicError("Failed to open /proc/self/cgroup", err)
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		parts := strings.Split(scanner.Text(), ":")
+		if len(parts) == 3 && strings.HasPrefix(parts[2], "/docker/") {
+			return true, nil
+		}
+	}
+	return false, nil
 }

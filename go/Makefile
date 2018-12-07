@@ -12,6 +12,20 @@ SHELL=/bin/bash
 LOCAL_DIRS = $(shell find * -maxdepth 0 -type d | grep -v '^vendor$$')
 LOCAL_PKGS = $(patsubst %, ./%/..., $(LOCAL_DIRS))
 LOCAL_GOBIN = $(shell realpath -s $$PWD/../bin)
+BUILD_CHAIN = $(shell go version)
+HEAD_TAG = $(shell git tag -l --points-at HEAD)
+GIT_DESC = $(shell git describe --tags)
+DIRTY = $(shell git diff HEAD --quiet || echo '-dirty')
+LINK_FLAGS = -X \"github.com/scionproto/scion/go/lib/env.StartupBuildChain=$(BUILD_CHAIN)\"
+ifeq ($(HEAD_TAG), $(GIT_DESC))
+    BUILD_DATE = $(shell date -u -Is)
+    LINK_FLAGS += -X \"github.com/scionproto/scion/go/lib/env.StartupBuildDate=$(BUILD_DATE)\"
+    # add commit, because on a clean tag `git describe --tags` doesn't contain the commit.
+    GIT_TAG =$(GIT_DESC)-$(shell git rev-parse --short HEAD)$(DIRTY)
+else
+    GIT_TAG = $(GIT_DESC)$(DIRTY)
+endif
+LINK_FLAGS += -X \"github.com/scionproto/scion/go/lib/env.StartupVersion=$(GIT_TAG)\"
 GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \
@@ -115,7 +129,7 @@ endef
 $(foreach in,$(MOCK_STD_IN),$(eval $(call MOCK_STD_template,$(in))))
 
 bin: deps_gen
-	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -v +local,program
+	GOBIN=${LOCAL_GOBIN} govendor install --tags "$(GOTAGS)" -ldflags "$(LINK_FLAGS)" -v +local,program
 	@sudo -p "go:braccept [sudo] password for %p: " true
 	sudo setcap cap_net_admin,cap_net_raw+ep ../bin/braccept
 

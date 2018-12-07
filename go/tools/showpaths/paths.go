@@ -25,6 +25,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scmp"
@@ -43,6 +44,7 @@ var (
 	expiration   = flag.Bool("expiration", false, "Show path expiration timestamps")
 	refresh      = flag.Bool("refresh", false, "Set refresh flag for SCIOND path request")
 	status       = flag.Bool("p", false, "Probe the paths and print out the statuses")
+	version      = flag.Bool("version", false, "Output version information and exit.")
 )
 
 var (
@@ -102,6 +104,10 @@ func main() {
 func validateFlags() {
 	flag.Parse()
 	var err error
+	if *version {
+		fmt.Print(env.VersionInfo())
+		os.Exit(0)
+	}
 	if *dstIAStr == "" {
 		LogFatal("Missing destination IA")
 	} else {
