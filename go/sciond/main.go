@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
@@ -68,6 +69,7 @@ func main() {
 }
 
 func realMain() int {
+	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
 	if v, ok := env.CheckFlags(sdconfig.Sample); !ok {
@@ -137,28 +139,23 @@ func realMain() int {
 			TrustStore: trustStore,
 		},
 	}
-	// Create a channel where server goroutines can signal fatal errors
-	fatalC := make(chan error, 3)
 	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, handlers, log.Root())
 	defer shutdownF()
-	StartServer("ReliableSockServer", config.SD.Reliable, rsockServer, fatalC)
+	StartServer("ReliableSockServer", config.SD.Reliable, rsockServer)
 	unixpacketServer, shutdownF := NewServer("unixpacket", config.SD.Unix, handlers, log.Root())
 	defer shutdownF()
-	StartServer("UnixServer", config.SD.Unix, unixpacketServer, fatalC)
-	config.Metrics.StartPrometheus(fatalC)
+	StartServer("UnixServer", config.SD.Unix, unixpacketServer)
+	config.Metrics.StartPrometheus()
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
 		// Deferred shutdowns for all running servers run now.
 		return 0
-	case err := <-fatalC:
-		// At least one of the servers was unable to run or encountered a
-		// fatal error while running.
-		log.Crit("Unable to listen and serve", "err", err)
+	case <-fatal.Chan():
 		return 1
 	}
 }
@@ -195,16 +192,16 @@ func NewServer(network string, rsockPath string, handlers servers.HandlerMap,
 	return server, shutdownF
 }
 
-func StartServer(name, sockPath string, server *servers.Server, fatalC chan error) {
+func StartServer(name, sockPath string, server *servers.Server) {
 	go func() {
 		defer log.LogPanicAndExit()
 		if config.SD.DeleteSocket {
 			if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
-				fatalC <- common.NewBasicError(name+" SocketRemoval error", err)
+				fatal.Fatal(common.NewBasicError(name+" SocketRemoval error", err))
 			}
 		}
 		if err := server.ListenAndServe(); err != nil {
-			fatalC <- common.NewBasicError(name+" ListenAndServe error", err)
+			fatal.Fatal(common.NewBasicError(name+" ListenAndServe error", err))
 		}
 	}()
 }

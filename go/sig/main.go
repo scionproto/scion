@@ -64,6 +64,7 @@ func main() {
 }
 
 func realMain() int {
+	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
 	if v, ok := env.CheckFlags(sigconfig.Sample); !ok {
@@ -106,13 +107,11 @@ func realMain() int {
 		reader.NewReader(tunIO).Run()
 	}()
 	spawnIngressDispatcher(tunIO)
-	cfg.Metrics.StartPrometheus(fatal.Chan())
+	cfg.Metrics.StartPrometheus()
 	select {
 	case <-environment.AppShutdownSignal:
 		return 0
-	case err := <-fatal.Chan():
-		// Prometheus or the ingress dispatcher encountered a fatal error, thus we exit.
-		log.Crit("Fatal error during execution", "err", err)
+	case <-fatal.Chan():
 		return 1
 	}
 }
