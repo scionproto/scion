@@ -2,7 +2,7 @@
 
 set -e
 
-[ "$RUN_ALL_TESTS" == "y" ] && ARGS="-a"
+[ "$RUN_ALL_TESTS" = "y" ] && ARGS="-a"
 
 echo "- label: Integration Tests"
 echo "  command:"
