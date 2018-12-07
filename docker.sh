@@ -34,10 +34,8 @@ cmd_build() {
 
 cmd_tester() {
     set -eo pipefail
-    get_params
-    copy_tree
     make -C docker/perapp base
-    docker_build "tester" 
+    docker build -t "tester:latest" - < docker/Dockerfile.tester
 }
 
 copy_tree() {
