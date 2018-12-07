@@ -116,7 +116,6 @@ func (s *Session) Cleanup() error {
 	<-s.workerStopped
 	s.Debug("egress.Session Cleanup: wait for session monitor")
 	<-s.sessMonStopped
-	s.Debug("egress.Session Cleanup: stopping pktDisp")
 	close(s.pktDispStop)
 	s.Debug("egress.Session Cleanup: wait for pktDisp")
 	s.conn.SetReadDeadline(time.Now())
