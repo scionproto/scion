@@ -129,7 +129,7 @@ func VersionInfo() string {
 	return fmt.Sprintf("  %s\n  %s\n  %s\n",
 		fmt.Sprintf("Build date:    %s", StartupBuildDate),
 		fmt.Sprintf("Scion version: %s", StartupVersion),
-		fmt.Sprintf("Build chain:    %s", StartupBuildChain),
+		fmt.Sprintf("Build chain:   %s", StartupBuildChain),
 	)
 }
 
