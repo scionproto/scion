@@ -39,8 +39,10 @@ type Logging struct {
 		Level string
 		// Size is the max size of log file in MiB (defaults to lib/log default).
 		Size uint
-		// Max age of log file in days (defaults to lib/log default).
+		// MaxAge is the max age of log file in days (defaults to lib/log default).
 		MaxAge uint
+		// MaxBackups is the max number of log files to retain (defaults to lib/log default).
+		MaxBackups uint
 		// FlushInterval specifies how frequently to flush to the log file,
 		// in seconds (defaults to lib/log default).
 		FlushInterval *int
@@ -66,6 +68,9 @@ func (cfg *Logging) setDefaults() {
 	}
 	if cfg.File.MaxAge == 0 {
 		cfg.File.MaxAge = log.DefaultFileMaxAgeDays
+	}
+	if cfg.File.MaxBackups == 0 {
+		cfg.File.MaxBackups = log.DefaultFileMaxBackups
 	}
 	if cfg.File.FlushInterval == nil {
 		s := log.DefaultFileFlushSeconds
@@ -93,6 +98,7 @@ func setupFileLogging(cfg *Logging) error {
 			cfg.File.Level,
 			int(cfg.File.Size),
 			int(cfg.File.MaxAge),
+			int(cfg.File.MaxBackups),
 			*cfg.File.FlushInterval,
 		)
 	}
@@ -123,7 +129,7 @@ func VersionInfo() string {
 	return fmt.Sprintf("  %s\n  %s\n  %s\n",
 		fmt.Sprintf("Build date:    %s", StartupBuildDate),
 		fmt.Sprintf("Scion version: %s", StartupVersion),
-		fmt.Sprintf("Buid chain:    %s", StartupBuildChain),
+		fmt.Sprintf("Build chain:   %s", StartupBuildChain),
 	)
 }
 

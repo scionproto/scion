@@ -34,6 +34,9 @@
     # Max age of log file in days (default 7)
     # MaxAge = 7
 
+    # MaxBackups is the maximum number of log files to retain. (default 10)
+    # MaxBackups = 10
+
     # How frequently to flush to the log file, in seconds. If 0, all messages
     # are immediately flushed. If negative, messages are never flushed
     # automatically. (default 5)

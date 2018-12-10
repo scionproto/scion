@@ -26,6 +26,7 @@ var (
 	logConsole string
 	logSize    int
 	logAge     int
+	logBackups int
 	logFlush   int
 )
 
@@ -38,6 +39,7 @@ const (
 	DefaultFileLevel        = "debug"
 	DefaultFileSizeMiB      = 50
 	DefaultFileMaxAgeDays   = 7
+	DefaultFileMaxBackups   = 10
 	DefaultFileFlushSeconds = 5
 )
 
@@ -52,6 +54,8 @@ func AddLogFileFlags() {
 		"File logging level: trace|debug|info|warn|error|crit")
 	flag.IntVar(&logSize, "log.size", DefaultFileSizeMiB, "Max size of log file in MiB")
 	flag.IntVar(&logAge, "log.age", DefaultFileMaxAgeDays, "Max age of log file in days")
+	flag.IntVar(&logBackups, "log.backups", DefaultFileMaxBackups,
+		"Max number of log files to retain")
 	flag.IntVar(&logFlush, "log.flush", DefaultFileFlushSeconds,
 		"How frequently to flush to the log file, in seconds")
 }
@@ -69,7 +73,7 @@ func SetupFromFlags(name string) error {
 		if logDir == "" {
 			return common.NewBasicError("Log dir flag not set", nil)
 		}
-		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logFlush)
+		err = SetupLogFile(name, logDir, logLevel, logSize, logAge, logBackups, logFlush)
 	}
 	return err
 }
