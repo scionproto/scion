@@ -53,6 +53,10 @@ func (c PathErrorCode) String() string {
 		return "SCIOND timed out while requesting paths"
 	case ErrorInternal:
 		return "SCIOND experienced an internal error"
+	case ErrorBadSrcIA:
+		return "Bad source ISD/AS"
+	case ErrorBadDstIA:
+		return "Bad destination ISD/AS"
 	default:
 		return fmt.Sprintf("Unknown error (%v)", uint16(c))
 	}
