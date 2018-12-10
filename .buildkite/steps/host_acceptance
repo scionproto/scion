@@ -5,20 +5,26 @@ echo "Running: ${1:?}"
 
 # Pull CI image and start it
 docker pull $SCION_IMG &>/dev/null
+mkdir -p $SCION_MOUNT
+mkdir -p $ACCEPTANCE_ARTIFACTS
 ./docker.sh start
-# copy binaries from container
-docker cp $SCION_CNTR:home/scion/go/src/github.com/scionproto/scion/bin . || true
-./docker.sh stop
 
 # Run test
-$1/test setup
+$1/test setup &>> "$ACCEPTANCE_ARTIFACTS/setup.out"
 res=$?
-$1/test run
+./docker.sh exec "$1/test run &>> \$ACCEPTANCE_ARTIFACTS/run.out"
 res=$((res+$?))
-$1/test teardown
+$1/test teardown &>> "$ACCEPTANCE_ARTIFACTS/teardown.out"
 res=$((res+$?))
 
-# Clean
+# Pack logs and stop everything
+cp -r logs "$SCION_MOUNT"
+res=$((res+$?))
+$BASE/scripts/pack_logs
+res=$((res+$?))
+./docker.sh stop
+res=$((res+$?))
 $BASE/scripts/clean_env
 res=$((res+$?))
+rm -r $SCION_MOUNT
 exit $res

@@ -10,14 +10,11 @@ for test in ./acceptance/*_acceptance; do
             RUN_HOST=y
         fi
     done
-    if [ "$RUN_HOST" = "y" ]; then
-        # XXX(worxli) Running on the host is not yet supported
-        continue
-    fi
     echo "- label: ${test}"
     if [ "$RUN_HOST" = "y" ]; then
         echo "  env:"
-        echo "    ACCEPTANCE_ARTIFACTS: logs/acceptance"
+        echo "    ACCEPTANCE_ARTIFACTS: \$SCION_MOUNT/logs/acceptance"
+        echo "    DOCKER_ARGS: \"-e ACCEPTANCE_ARTIFACTS=logs/acceptance --privileged --network=host\""
         echo "  command:"
         echo "  - $BASE/scripts/all_images pull"
         echo "  - $BASE/steps/host_acceptance $test"

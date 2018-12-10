@@ -56,7 +56,7 @@ global_setup() {
     run_command build_docker_base ${out_dir:+$out_dir/global_setup_docker_base.out}
     print_green "[---->-----]" "Building scion docker image"
     run_command build_docker_scion ${out_dir:+$out_dir/global_setup_docker_scion.out}
-    print_green "[---->-----]" "Building tester docker image"
+    print_green "[---->-----]" "Building tester docker images"
     run_command build_docker_tester ${out_dir:+$out_dir/global_setup_docker_scion.out}
     print_green "[----->----]" "Building per-app docker images"
     run_command build_docker_perapp ${out_dir:+$out_dir/global_setup_docker_perapp.out}
@@ -105,7 +105,6 @@ test_teardown_wrapper() {
 }
 
 global_run() {
-    local out="$ACCEPTANCE_ARTIFACTS"
     local regex_matcher="$1"
     for i in ./acceptance/*_acceptance; do
         stats_total=$((stats_total+1))
@@ -113,13 +112,7 @@ global_run() {
         TEST_NAME=$($TEST_PROGRAM name)
         print_green "[----------]" "Test found: $TEST_NAME"
         if [[ "$TEST_NAME" =~ $regex_matcher ]]; then
-            mkdir -p "$out/$TEST_NAME"
-            SETUP_FILE="$out/$TEST_NAME/setup.out"
-            RUN_FILE="$out/$TEST_NAME/run.out"
-            TEARDOWN_FILE="$out/$TEST_NAME/teardown.out"
-            test_setup_wrapper "$SETUP_FILE" && \
-                test_run_wrapper "$RUN_FILE"
-            test_teardown_wrapper "$TEARDOWN_FILE"
+            global_run_single "$TEST_PROGRAM"
             local fatal_teardown=$?
             save_logs "$out"
             if [ $fatal_teardown -ne 0 ]; then
@@ -133,6 +126,18 @@ global_run() {
     done
 }
 
+global_run_single() {
+    local out="${ACCEPTANCE_ARTIFACTS:?}"
+    TEST_PROGRAM="${1:?}"
+    TEST_NAME=$($TEST_PROGRAM name)
+    mkdir -p "$out/$TEST_NAME"
+    SETUP_FILE="$out/$TEST_NAME/setup.out"
+    RUN_FILE="$out/$TEST_NAME/run.out"
+    TEARDOWN_FILE="$out/$TEST_NAME/teardown.out"
+    test_setup_wrapper "$SETUP_FILE" && \
+        test_run_wrapper "$RUN_FILE"
+    test_teardown_wrapper "$TEARDOWN_FILE"
+}
 
 print_results() {
     print_green  "[==========]" "$((stats_total-stats_skipped)) tests out of $stats_total tests ran."

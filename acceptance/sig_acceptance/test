@@ -5,7 +5,6 @@ TEST_TOPOLOGY="topology/Tiny.topo"
 
 test_setup() {
     set -ex
-    ./tools/quiet docker build -f acceptance/sig_acceptance/Dockerfile.sig -t scion_sig_acceptance acceptance/sig_acceptance
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d --sig -n 242.0.0.0/16
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'

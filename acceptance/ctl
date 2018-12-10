@@ -13,6 +13,10 @@ cmd_help() {
 	        only the teardown phase of test TESTNAME.
 	    $PROGRAM gsetup
 	        global set up of the acceptance testing framework.
+	    $PROGRAM grun TESTNAME
+	        global run of specific test.
+	    $PROGRAM gteardown
+	        global teardown of the acceptance testing framework.
 	_EOF
 }
 
@@ -27,5 +31,9 @@ case "$COMMAND" in
         "acceptance/${TEST}_acceptance/test" $COMMAND "$@";;
     gsetup)
         global_setup ;;
+    grun)
+        global_run_single "$1" ;;
+    gteardown)
+        global_teardown ;;
     *) cmd_help; exit 1 ;;
 esac
