@@ -4,21 +4,21 @@ $BASE/scripts/clean_env
 echo "Running: ${1:?}"
 
 # Pull CI image and start it
-$BASE/scripts/registry_login
 docker pull $SCION_IMG &>/dev/null
-mkdir -p $SCION_MOUNT
 ./docker.sh start
+# copy binaries from container
+docker cp $SCION_CNTR:home/scion/go/src/github.com/scionproto/scion/bin . || true
+./docker.sh stop
 
 # Run test
-./tools/ci/"$@"
+$1/test setup
 res=$?
+$1/test run
+res=$((res+$?))
+$1/test teardown
+res=$((res+$?))
 
-# Pack logs and stop everything
-$BASE/scripts/pack_logs
-res=$((res+$?))
-./docker.sh stop
-res=$((res+$?))
+# Clean
 $BASE/scripts/clean_env
 res=$((res+$?))
-rm -r $SCION_MOUNT
 exit $res

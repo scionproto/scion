@@ -1,0 +1,33 @@
+#!/bin/bash
+
+host_acceptance="core_brA core_brB core_brC"
+
+for test in ./acceptance/*_acceptance; do
+    name="$(basename ${test%_acceptance})"
+    RUN_HOST=n
+    for host in $host_acceptance; do
+        if [ "$host" = "$name" ]; then
+            RUN_HOST=y
+        fi
+    done
+    if [ "$RUN_HOST" = "y" ]; then
+        # XXX(worxli) Running on the host is not yet supported
+        continue
+    fi
+    echo "- label: ${test}"
+    if [ "$RUN_HOST" = "y" ]; then
+        echo "  env:"
+        echo "    ACCEPTANCE_ARTIFACTS: logs/acceptance"
+        echo "  command:"
+        echo "  - $BASE/scripts/all_images pull"
+        echo "  - $BASE/steps/host_acceptance $test"
+    else
+        echo "  env:"
+        echo "    DOCKER_ARGS: \"-e ACCEPTANCE_ARTIFACTS=logs/acceptance\""
+        echo "  command:"
+        echo "  - $BASE/scripts/all_images pull"
+        echo "  - $BASE/run_step run_acceptance $test"
+    fi
+    echo "  artifact_paths:"
+    echo "  - \"artifacts.out/**/*\""
+done

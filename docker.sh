@@ -35,7 +35,7 @@ cmd_build() {
 cmd_tester() {
     set -eo pipefail
     make -C docker/perapp base
-    docker build -t "tester:latest" - < docker/Dockerfile.tester
+    docker build -t "scion_tester:latest" - < docker/Dockerfile.tester
 }
 
 copy_tree() {
