@@ -91,8 +91,11 @@ class DockerUtilsGenerator(object):
             'networks': {}
         }
         if self.args.sig:
-            net = self.args.networks[name][0]
+            # If the tester container needs to communicate to the SIG, it needs the SIG_IP and
+            # REMOTE_NETS which are the remote subnets that need to be routed through the SIG.
+            # net information for the connected SIG
             sig_net = self.args.networks['sig_%s' % topo_id.file_fmt()][0]
+            net = self.args.networks[name][0]
             bridge = self.args.bridges[net['net']]
             entry['networks'][bridge] = {'ipv4_address': str(net['ipv4'])}
             entry['environment']['SIG_IP'] = str(sig_net['ipv4'])
