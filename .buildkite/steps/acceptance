@@ -10,14 +10,17 @@ for test in ./acceptance/*_acceptance; do
             RUN_HOST=y
         fi
     done
+    if [ "$RUN_HOST" = "y" ]; do
+        # XXX(worxli) Running on the host is not yet supported
+        continue
+    fi
     echo "- label: ${test}"
     if [ "$RUN_HOST" = "y" ]; then
         echo "  env:"
         echo "    ACCEPTANCE_ARTIFACTS: logs/acceptance"
         echo "  command:"
-        echo "    - echo \"BR acceptance tests are currently not supported\""
-        # echo "  - $BASE/scripts/all_images pull"
-        # echo "  - $BASE/steps/host_acceptance $test"
+        echo "  - $BASE/scripts/all_images pull"
+        echo "  - $BASE/steps/host_acceptance $test"
     else
         echo "  env:"
         echo "    DOCKER_ARGS: \"-e ACCEPTANCE_ARTIFACTS=logs/acceptance\""

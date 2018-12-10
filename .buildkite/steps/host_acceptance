@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -x
-
 $BASE/scripts/clean_env
 echo "Running: ${1:?}"
 
