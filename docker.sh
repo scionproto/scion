@@ -32,6 +32,12 @@ cmd_build() {
     docker_build
 }
 
+cmd_tester() {
+    set -eo pipefail
+    make -C docker/perapp base
+    docker build -t "tester:latest" - < docker/Dockerfile.tester
+}
+
 copy_tree() {
     set -e
     set -o pipefail
@@ -195,6 +201,7 @@ cmd_help() {
 	Usage:
 	    $PROGRAM base
 	    $PROGRAM build
+	    $PROGRAM tester
 	    $PROGRAM run
 	        Run the Docker image.
 	    $PROGRAM start
@@ -230,6 +237,7 @@ fi
 case $COMMAND in
     base)               cmd_base ;;
     build)              cmd_build ;;
+    tester)             cmd_tester ;;
     clean)              shift; cmd_clean "$@" ;;
     run)                shift; cmd_run "$@" ;;
     start)              cmd_start ;;

@@ -46,7 +46,8 @@ func realMain() int {
 		"-local", integration.SrcAddrPattern, "-remoteIA", integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, []string{})
 	timeout := integration.DefaultRunTimeout + integration.RetryTimeout*time.Duration(*attempts)
-	if err := integration.RunUnaryTests(in, integration.IAPairs(), timeout); err != nil {
+	if err := integration.RunUnaryTests(in, integration.IAPairs(integration.DispAddr),
+		timeout); err != nil {
 		log.Error("Error during tests", "err", err)
 		return 1
 	}

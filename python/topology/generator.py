@@ -70,6 +70,9 @@ def add_arguments(parser):
                         help='Set if running in a docker container')
     parser.add_argument('--docker-registry', help='Specify docker registry to pull images from')
     parser.add_argument('--image-tag', help='Docker image tag')
+    parser.add_argument('--sig', action='store_true',
+                        help='Generate a SIG per AS (only available with -d, the SIG image needs\
+                        to be built manually e.g. when running acceptance tests)')
     return parser
 
 

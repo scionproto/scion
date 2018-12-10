@@ -44,7 +44,8 @@ func realMain() int {
 	serverArgs := []string{"--run_server", "-s", integration.DstHostReplace,
 		integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
-	if err := integration.RunBinaryTests(in, integration.IAPairs()); err != nil {
+	if err := integration.RunBinaryTests(in,
+		integration.IAPairs(integration.DispAddr)); err != nil {
 		log.Error("Error during tests", "err", err)
 		return 1
 	}

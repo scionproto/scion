@@ -37,7 +37,6 @@ test_run() {
 }
 
 test_teardown() {
-    set -e
     ./tools/dc down
 }
 

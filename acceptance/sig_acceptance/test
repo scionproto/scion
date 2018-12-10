@@ -1,0 +1,46 @@
+#!/bin/bash
+
+TEST_NAME="sig"
+TEST_TOPOLOGY="topology/Tiny.topo"
+
+test_setup() {
+    set -ex
+    ./tools/quiet docker build -f acceptance/sig_acceptance/Dockerfile.sig -t scion_sig_acceptance acceptance/sig_acceptance
+    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d --sig -n 242.0.0.0/16
+    ./scion.sh run nobuild
+    ./tools/dc start 'tester*'
+    sleep 10
+}
+
+test_run() {
+    ./bin/sig_ping_acceptance -d -log.console info
+}
+
+test_teardown() {
+    ./tools/dc down
+}
+
+print_help() {
+    echo
+	cat <<-_EOF
+	    $PROGRAM name
+	        return the name of this test
+	    $PROGRAM setup
+	        execute only the setup phase.
+	    $PROGRAM run
+	        execute only the run phase.
+	    $PROGRAM teardown 
+	        execute only the teardown phase.
+	_EOF
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac

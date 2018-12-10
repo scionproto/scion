@@ -15,17 +15,22 @@
 # Stdlib
 import os
 # SCION
-from topology.common import ArgsBase, docker_image
+from lib.util import write_file
+from topology.common import ArgsBase, docker_image, remote_nets
 
 
 class DockerUtilsGenArgs(ArgsBase):
-    def __init__(self, args, dc_conf):
+    def __init__(self, args, dc_conf, bridges, networks):
         """
         :param object args: Contains the passed command line arguments as named attributes.
         :param dict dc_conf: The compose config
+        :param dict bridges: The generated bridges from DockerGenerator.
+        :param dict networks: The generated networks from DockerGenerator.
         """
         super().__init__(args)
         self.dc_conf = dc_conf
+        self.bridges = bridges
+        self.networks = networks
 
 
 class DockerUtilsGenerator(object):
@@ -42,6 +47,8 @@ class DockerUtilsGenerator(object):
         self._utils_conf()
         for topo_id in self.args.topo_dicts:
             self._test_conf(topo_id)
+        if self.args.sig:
+            self._sig_testing_conf()
         return self.dc_conf
 
     def _utils_conf(self):
@@ -67,8 +74,13 @@ class DockerUtilsGenerator(object):
     def _test_conf(self, topo_id):
         docker = 'docker_' if self.args.in_docker else ''
         cntr_base = '/home/scion/go/src/github.com/scionproto/scion'
+        name = 'tester_%s' % topo_id.file_fmt()
         entry = {
-            'image': docker_image(self.args, 'app_builder'),
+            'image': docker_image(self.args, 'tester'),
+            'container_name': 'tester_%s%s' % (docker, topo_id.file_fmt()),
+            'privileged': True,
+            'entrypoint': './tester.sh',
+            'environment': {},
             'volumes': [
                 'vol_scion_%sdisp_%s:/run/shm/dispatcher:rw' % (docker, topo_id.file_fmt()),
                 'vol_scion_%ssciond_%s:/run/shm/sciond:rw' % (docker, topo_id.file_fmt()),
@@ -76,10 +88,24 @@ class DockerUtilsGenerator(object):
                 self.output_base + '/gen:' + cntr_base + '/gen:rw',
                 self.output_base + '/gen-certs:' + cntr_base + '/gen-certs:rw'
             ],
-            'command': [
-                '-c',
-                'tail -f /dev/null'
-            ]
+            'networks': {}
         }
-        entry['container_name'] = 'tester_%s%s' % (docker, topo_id.file_fmt())
-        self.dc_conf['services']['tester_%s' % topo_id.file_fmt()] = entry
+        if self.args.sig:
+            # If the tester container needs to communicate to the SIG, it needs the SIG_IP and
+            # REMOTE_NETS which are the remote subnets that need to be routed through the SIG.
+            # net information for the connected SIG
+            sig_net = self.args.networks['sig_%s' % topo_id.file_fmt()][0]
+            net = self.args.networks[name][0]
+            bridge = self.args.bridges[net['net']]
+            entry['networks'][bridge] = {'ipv4_address': str(net['ipv4'])}
+            entry['environment']['SIG_IP'] = str(sig_net['ipv4'])
+            entry['environment']['REMOTE_NETS'] = remote_nets(self.args.networks, topo_id)
+        self.dc_conf['services'][name] = entry
+
+    def _sig_testing_conf(self):
+        text = ''
+        for topo_id in self.args.topo_dicts:
+            ip = self.args.networks['sig_%s' % topo_id.file_fmt()][0]['ipv4']
+            text += str(topo_id) + ' ' + str(ip) + '\n'
+            conf_path = os.path.join(self.args.output_dir, 'sig-testing.conf')
+            write_file(conf_path, text)
