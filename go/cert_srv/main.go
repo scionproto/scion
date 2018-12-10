@@ -133,6 +133,7 @@ func reload() error {
 func startReissRunner() {
 	if !config.CS.AutomaticRenewal {
 		log.Info("Reissue disabled, not starting reiss task.")
+		return
 	}
 	if config.General.Topology.Core {
 		log.Info("Starting periodic reiss.Self task")
