@@ -176,11 +176,7 @@ class SCMPInfoPathOffsets(SCMPInfoGeneric):
         return inst
 
     def _calc_offsets(self, pkt):
-        iof_idx, hof_idx = pkt.cmn_hdr.get_of_idxs()
-        base_offset = len(pkt.cmn_hdr) + len(pkt.addrs)
-        iof_offset = base_offset + iof_idx * OpaqueField.LEN
-        hof_offset = base_offset + hof_idx * OpaqueField.LEN
-        return iof_offset, hof_offset
+        return pkt.cmn_hdr.get_of_idxs()
 
     def __str__(self):
         return ("%s(%dB): IOF offset: %sB HOF offset: %sB "
