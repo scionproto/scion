@@ -48,12 +48,13 @@ var (
 // logLevel can be one of trace, debug, info, warn, error, and crit and states
 // the minimum level of logging events that get written to the file. logSize is
 // the maximum size, in MiB, until the log rotates. logAge is the maximum
-// number of days to retain old log files. If logFlush > 0, logging output is
+// number of days to retain old log files. logBackups is the maximum number of
+// old log files to retain. If logFlush > 0, logging output is
 // buffered, and flushed every logFlush seconds.  If logFlush < 0: logging
 // output is buffered, but must be manually flushed by calling Flush(). If
 // logFlush = 0 logging output is unbuffered and Flush() is a no-op.
 func SetupLogFile(name string, logDir string, logLevel string, logSize int, logAge int,
-	logFlush int) error {
+	logBackups int, logFlush int) error {
 
 	logLvl, err := log15.LvlFromString(changeTraceToDebug(logLevel))
 	if err != nil {
@@ -66,9 +67,10 @@ func SetupLogFile(name string, logDir string, logLevel string, logSize int, logA
 	name = strings.TrimSuffix(name, ".log")
 	var fileLogger io.WriteCloser
 	fileLogger = &lumberjack.Logger{
-		Filename: fmt.Sprintf("%s/%s.log", logDir, name),
-		MaxSize:  logSize, // MiB
-		MaxAge:   logAge,  // days
+		Filename:   fmt.Sprintf("%s/%s.log", logDir, name),
+		MaxSize:    logSize, // MiB
+		MaxAge:     logAge,  // days
+		MaxBackups: logBackups,
 	}
 
 	if logFlush != 0 {
