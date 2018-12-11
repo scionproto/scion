@@ -43,7 +43,7 @@ build_docker_perapp() {
 }
 
 global_setup() {
-    local out_dir="$ACCEPTANCE_ARTIFACTS"
+    local out_dir="${ACCEPTANCE_ARTIFACTS:?}"
     set -e
     print_green "[==========]"
     print_green "[>---------]" "Global test environment set-up"
@@ -89,7 +89,7 @@ test_run_wrapper() {
 }
 
 save_logs() {
-    local out="$1"
+    local out="${ACCEPTANCE_ARTIFACTS:?}"
     mkdir -p "$out/$TEST_NAME/logs"
     mv logs/* "$out/$TEST_NAME/logs"
 }
@@ -114,7 +114,7 @@ global_run() {
         if [[ "$TEST_NAME" =~ $regex_matcher ]]; then
             global_run_single "$TEST_PROGRAM"
             local fatal_teardown=$?
-            save_logs "$out"
+            save_logs
             if [ $fatal_teardown -ne 0 ]; then
                 print_red "[  FATAL   ]" "Teardown failed, stopping test suite"
                 exit 1

@@ -61,16 +61,16 @@ func realMain() int {
 			[]string{"-u", "-b", "100M"},
 		},
 		{
-			name + "_udp_500Mbps",
-			[]string{"-u", "-b", "500M"},
+			name + "_udp_150Mbps",
+			[]string{"-u", "-b", "150M"},
 		},
 		{
-			name + "_udp_700Mbps",
-			[]string{"-u", "-b", "700M"},
+			name + "_udp_200Mbps",
+			[]string{"-u", "-b", "200M"},
 		},
 		{
-			name + "_udp_800Mbps",
-			[]string{"-u", "-b", "800M"},
+			name + "_udp_250Mbps",
+			[]string{"-u", "-b", "250M"},
 		},
 	}
 	cmnArgs := []string{integration.WrapperCmd, cmd, "-p", "12000", "--verbose"}
