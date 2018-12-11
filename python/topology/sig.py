@@ -84,7 +84,7 @@ class SIGGenerator(object):
             ]
         }
 
-        net = self.args.networks['sig_%s' % topo_id.file_fmt()][0]
+        net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
         entry['networks'][self.args.bridges[net['net']]] = {'ipv4_address': str(net['ipv4'])}
         self.dc_conf['services']['scion_disp_sig_%s' % topo_id.file_fmt()] = entry
         vol_name = 'vol_scion_%sdisp_sig_%s' % (self.prefix, topo_id.file_fmt())
@@ -125,7 +125,7 @@ class SIGGenerator(object):
             if topo_id == t_id:
                 continue
             sig_cfg['ASes'][str(t_id)] = {"Nets": [], "Sigs": {}}
-            net = self.args.networks['sig_%s' % t_id.file_fmt()][0]
+            net = self.args.networks['sig%s' % t_id.file_fmt()][0]
             sig_cfg['ASes'][str(t_id)]['Nets'].append(net['net'])
             sig_cfg['ASes'][str(t_id)]['Sigs']['sig'] = {"Addr": str(net['ipv4'])}
 
@@ -134,7 +134,7 @@ class SIGGenerator(object):
         write_file(cfg, contents_json + '\n')
 
     def _sig_toml(self, topo_id, topo, base):
-        name = 'sig_%s' % topo_id.file_fmt()
+        name = 'sig%s' % topo_id.file_fmt()
         net = self.args.networks[name][0]
         base = topo_id.base_dir(self.args.output_dir)
         log_level = 'trace' if self.args.trace else 'debug'
