@@ -105,8 +105,9 @@ func setupFileLogging(cfg *Logging) error {
 	return nil
 }
 
-// LogSvcStarted should be called by services as soon as logging is initialized.
-func LogSvcStarted(svcType, elemId string) error {
+// LogAppStarted should be called by applications as soon as logging is
+// initialized.
+func LogAppStarted(svcType, elemId string) error {
 	inDocker, err := RunsInDocker()
 	if err != nil {
 		return common.NewBasicError("Unable to determine if running in docker", err)
@@ -133,7 +134,7 @@ func VersionInfo() string {
 	)
 }
 
-func LogSvcStopped(svcType, elemId string) {
+func LogAppStopped(svcType, elemId string) {
 	log.Info(fmt.Sprintf("=====================> Service stopped %s %s", svcType, elemId))
 }
 
