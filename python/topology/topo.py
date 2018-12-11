@@ -200,18 +200,19 @@ class TopoGenerator(object):
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
              "CertificateService"),
             ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
-            ("discovery_servers", DEFAULT_DISCOVERY_SERVERS, "ds",
-             "DiscoveryService"),
         ):
             self._gen_srv_entry(
                 topo_id, as_conf, conf_key, def_num, nick, topo_key)
+        # The discovery service does not run on top of the dispatcher.
+        self._gen_srv_entry(topo_id, as_conf, "discovery_servers", DEFAULT_DISCOVERY_SERVERS,
+                            "ds", "DiscoveryService", lambda elem_id: elem_id)
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
-                       topo_key):
+                       topo_key, reg_id_func=None):
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
-            reg_id = "disp" + topo_id.file_fmt() if self.args.docker else elem_id
+            reg_id = reg_id_func(elem_id) if reg_id_func else self._reg_id_disp(topo_id, elem_id)
             d = {
                 'Addrs': {
                     self.addr_type: {
@@ -228,6 +229,9 @@ class TopoGenerator(object):
                     'L4Port': self.args.port_gen.register(elem_id),
                 }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
+
+    def _reg_id_disp(self, topo_id, elem_id):
+        return "disp" + topo_id.file_fmt() if self.args.docker else elem_id
 
     def _srv_count(self, as_conf, conf_key, def_num):
         count = as_conf.get(conf_key, def_num)
