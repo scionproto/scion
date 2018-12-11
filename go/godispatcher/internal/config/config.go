@@ -15,30 +15,6 @@
 // Package config contains the configuration of the SCION dispatcher.
 package config
 
-const Sample = `
-[logging]
-  [logging.file]
-    # Location of the logging file.
-    Path = "/var/log/scion/dispatcher.log"
-
-    # File logging level (trace|debug|info|warn|error|crit) (default debug)
-    Level = "debug"
-
-    # Max size of log file in MiB (default 50)
-    # Size = 50
-
-    # Max age of log file in days (default 7)
-    # MaxAge = 7
-
-    # How frequently to flush to the log file, in seconds. If 0, all messages
-    # are immediately flushed. If negative, messages are never flushed
-    # automatically. (default 5)
-    FlushInterval = 5
-  [logging.console]
-    # Console logging level (trace|debug|info|warn|error|crit) (default crit)
-    Level = "crit"
-`
-
 type Config struct {
 	// TODO(scrye): add custom fields here when needed
 }
