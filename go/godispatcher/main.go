@@ -28,8 +28,8 @@ import (
 
 type Config struct {
 	Logging    env.Logging
-	Dispatcher config.Config
 	Metrics    env.Metrics
+	Dispatcher config.Config
 }
 
 var (
@@ -51,6 +51,7 @@ func realMain() int {
 		return 1
 	}
 	defer env.CleanupLog()
+	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 
 	fatalC := make(chan error, 1)
 	cfg.Metrics.StartPrometheus(fatalC)
@@ -67,6 +68,6 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	env.LogSvcStarted("Dispatcher", "disp")
+	env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
 	return nil
 }

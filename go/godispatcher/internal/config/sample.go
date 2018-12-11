@@ -15,6 +15,10 @@
 package config
 
 const Sample = `
+[dispatcher]
+  # ID of the Dispatcher (required)
+  ID = "disp"
+
 [logging]
   [logging.file]
     # Location of the logging file.
