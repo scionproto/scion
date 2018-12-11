@@ -105,7 +105,8 @@ func setupFileLogging(cfg *Logging) error {
 	return nil
 }
 
-// LogAppStarted should be called by services as soon as logging is initialized.
+// LogAppStarted should be called by applications as soon as logging is
+// initialized.
 func LogAppStarted(svcType, elemId string) error {
 	inDocker, err := RunsInDocker()
 	if err != nil {
