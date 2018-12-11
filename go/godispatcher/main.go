@@ -23,15 +23,17 @@ import (
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type Config struct {
 	Logging    env.Logging
 	Dispatcher config.Config
+	Metrics    env.Metrics
 }
 
 var (
-	MainConfig Config
+	cfg Config
 )
 
 func main() {
@@ -44,21 +46,27 @@ func realMain() int {
 	if returnCode, ok := env.CheckFlags(config.Sample); !ok {
 		return returnCode
 	}
-	if err := setup(); err != nil {
+	if err := setupBasic(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	defer env.CleanupLog()
 
-	return 0
+	fatalC := make(chan error, 1)
+	cfg.Metrics.StartPrometheus(fatalC)
+	err := <-fatalC
+	// Prometheus encountered a fatal error, thus we exit.
+	log.Crit("Unable to listen and serve", "err", err)
+	return 1
 }
 
-func setup() error {
-	if _, err := toml.DecodeFile(env.ConfigFile(), &MainConfig); err != nil {
+func setupBasic() error {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
-	if err := env.InitLogging(&MainConfig.Logging); err != nil {
+	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
+	env.LogSvcStarted("Dispatcher", "disp")
 	return nil
 }
