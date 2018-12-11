@@ -195,28 +195,29 @@ class TopoGenerator(object):
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
-        def reg_disp(elem_id): return "disp" + topo_id.file_fmt() if self.args.docker else elem_id
-        for conf_key, def_num, nick, topo_key, reg_id in (
-            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService", reg_disp),
+        for conf_key, def_num, nick, topo_key in (
+            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService"),
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
-             "CertificateService", reg_disp),
-            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService", reg_disp),
-            ("discovery_servers", DEFAULT_DISCOVERY_SERVERS, "ds",
-             "DiscoveryService", lambda elem_id: elem_id),
+             "CertificateService"),
+            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
         ):
             self._gen_srv_entry(
-                topo_id, as_conf, conf_key, def_num, nick, topo_key, reg_id)
+                topo_id, as_conf, conf_key, def_num, nick, topo_key)
+        # The discovery service does not run on top of the dispatcher.
+        self._gen_srv_entry(topo_id, as_conf, "discovery_servers", DEFAULT_DISCOVERY_SERVERS,
+                            "ds", "DiscoveryService", lambda elem_id: elem_id)
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
-                       topo_key, reg_id):
+                       topo_key, reg_id_func=None):
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
+            reg_id = reg_id_func(elem_id) if reg_id_func else self._reg_id_disp(topo_id, elem_id)
             d = {
                 'Addrs': {
                     self.addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(topo_id, reg_id(elem_id)),
+                            'Addr': self._reg_addr(topo_id, reg_id),
                             'L4Port': self.args.port_gen.register(elem_id),
                         }
                     }
@@ -224,10 +225,13 @@ class TopoGenerator(object):
             }
             if self.args.bind_addr:
                 d['Addrs'][self.addr_type]['Bind'] = {
-                    'Addr': self._reg_bind_addr(topo_id, reg_id(elem_id)),
+                    'Addr': self._reg_bind_addr(topo_id, reg_id),
                     'L4Port': self.args.port_gen.register(elem_id),
                 }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
+
+    def _reg_id_disp(self, topo_id, elem_id):
+        return "disp" + topo_id.file_fmt() if self.args.docker else elem_id
 
     def _srv_count(self, as_conf, conf_key, def_num):
         count = as_conf.get(conf_key, def_num)
