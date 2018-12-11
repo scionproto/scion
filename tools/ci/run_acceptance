@@ -4,6 +4,4 @@ set -e
 
 echo "Running acceptance: ${1:?}"
 
-./docker.sh exec "$1/test" setup
-./docker.sh exec "$1/test" run
-./docker.sh exec "$1/test" teardown
+./docker.sh exec ./acceptance/ctl grun "$1/test"
