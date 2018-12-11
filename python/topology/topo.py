@@ -195,28 +195,28 @@ class TopoGenerator(object):
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
-        for conf_key, def_num, nick, topo_key in (
-            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService"),
+        def reg_disp(elem_id): return "disp" + topo_id.file_fmt() if self.args.docker else elem_id
+        for conf_key, def_num, nick, topo_key, reg_id in (
+            ("beacon_servers", DEFAULT_BEACON_SERVERS, "bs", "BeaconService", reg_disp),
             ("certificate_servers", DEFAULT_CERTIFICATE_SERVERS, "cs",
-             "CertificateService"),
-            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService"),
+             "CertificateService", reg_disp),
+            ("path_servers", DEFAULT_PATH_SERVERS, "ps", "PathService", reg_disp),
             ("discovery_servers", DEFAULT_DISCOVERY_SERVERS, "ds",
-             "DiscoveryService"),
+             "DiscoveryService", lambda elem_id: elem_id),
         ):
             self._gen_srv_entry(
-                topo_id, as_conf, conf_key, def_num, nick, topo_key)
+                topo_id, as_conf, conf_key, def_num, nick, topo_key, reg_id)
 
     def _gen_srv_entry(self, topo_id, as_conf, conf_key, def_num, nick,
-                       topo_key):
+                       topo_key, reg_id):
         count = self._srv_count(as_conf, conf_key, def_num)
         for i in range(1, count + 1):
             elem_id = "%s%s-%s" % (nick, topo_id.file_fmt(), i)
-            reg_id = "disp" + topo_id.file_fmt() if self.args.docker else elem_id
             d = {
                 'Addrs': {
                     self.addr_type: {
                         'Public': {
-                            'Addr': self._reg_addr(topo_id, reg_id),
+                            'Addr': self._reg_addr(topo_id, reg_id(elem_id)),
                             'L4Port': self.args.port_gen.register(elem_id),
                         }
                     }
@@ -224,7 +224,7 @@ class TopoGenerator(object):
             }
             if self.args.bind_addr:
                 d['Addrs'][self.addr_type]['Bind'] = {
-                    'Addr': self._reg_bind_addr(topo_id, reg_id),
+                    'Addr': self._reg_bind_addr(topo_id, reg_id(elem_id)),
                     'L4Port': self.args.port_gen.register(elem_id),
                 }
             self.topo_dicts[topo_id][topo_key][elem_id] = d
