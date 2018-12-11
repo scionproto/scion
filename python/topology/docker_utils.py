@@ -94,7 +94,7 @@ class DockerUtilsGenerator(object):
             # If the tester container needs to communicate to the SIG, it needs the SIG_IP and
             # REMOTE_NETS which are the remote subnets that need to be routed through the SIG.
             # net information for the connected SIG
-            sig_net = self.args.networks['sig_%s' % topo_id.file_fmt()][0]
+            sig_net = self.args.networks['sig%s' % topo_id.file_fmt()][0]
             net = self.args.networks[name][0]
             bridge = self.args.bridges[net['net']]
             entry['networks'][bridge] = {'ipv4_address': str(net['ipv4'])}
@@ -105,7 +105,7 @@ class DockerUtilsGenerator(object):
     def _sig_testing_conf(self):
         text = ''
         for topo_id in self.args.topo_dicts:
-            ip = self.args.networks['sig_%s' % topo_id.file_fmt()][0]['ipv4']
+            ip = self.args.networks['sig%s' % topo_id.file_fmt()][0]['ipv4']
             text += str(topo_id) + ' ' + str(ip) + '\n'
             conf_path = os.path.join(self.args.output_dir, 'sig-testing.conf')
             write_file(conf_path, text)
