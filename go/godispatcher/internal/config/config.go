@@ -15,6 +15,16 @@
 // Package config contains the configuration of the SCION dispatcher.
 package config
 
+import "github.com/scionproto/scion/go/lib/common"
+
 type Config struct {
-	// TODO(scrye): add custom fields here when needed
+	// ID of the Dispatcher (required)
+	ID string
+}
+
+func (cfg Config) Validate() error {
+	if cfg.ID == "" {
+		return common.NewBasicError("ID must be set", nil)
+	}
+	return nil
 }

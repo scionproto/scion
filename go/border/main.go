@@ -62,7 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer env.CleanupLog()
-	if err := env.LogSvcStarted(common.BR, *id); err != nil {
+	if err := env.LogAppStarted(common.BR, *id); err != nil {
 		log.Crit("LogSvcStart failed", "err", err)
 		log.Flush()
 		os.Exit(1)
@@ -103,7 +103,7 @@ func setupSignals() {
 	go func() {
 		defer log.LogPanicAndExit()
 		<-sig
-		env.LogSvcStopped(common.BR, *id)
+		env.LogAppStopped(common.BR, *id)
 		profile.Stop()
 		log.Flush()
 		os.Exit(1)
