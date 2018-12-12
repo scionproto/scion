@@ -12,25 +12,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package fatal deals with delivering fatal error conditions to the main
-// goroutine. The goroutine can then perform clean shutdown.
+// Package fatal provides a way to handle fatal errors.
+// 1. It gives the main goroutine an opportunity to cleanly shut down in case of a fatal error.
+// 2. If main goroutine is non-responsive it terminates the process.
+// 3. To improve debugging, after the first fatal error the other goroutines
+//    are given a grace period so that we have more logs to investigate.
+//
+// The main program should call fatal.Init() when it's starting.
+//
+// Any library producing fatal errors should call fatal.Check() when it starts.
 package fatal
 
+import (
+	"time"
+
+	"github.com/scionproto/scion/go/lib/log"
+)
+
 var (
-	fatalC chan error
+	fatalC chan struct{}
 )
 
 // Initialize the package.
-func init() {
-	fatalC = make(chan error)
+// This MUST be called in the main coroutine when it starts.
+func Init() {
+	fatalC = make(chan struct{})
 }
 
-// Signal that the application should shut down.
+// Check whether the package was initialized.
+// This MUST be called when a library producing fatal errors starts is initialized.
+func Check() {
+	if fatalC == nil {
+		panic("A library producing fatal errors is being used " +
+			"but fatal package wasn't initialized.")
+	}
+}
+
+// Produce a fatal error. This function never exits.
 func Fatal(err error) {
-	fatalC <- err
+	log.Crit("Fatal error", "err", err)
+	// Grace period to gather more logs in case that
+	// the first fatal error wasn't the most informative one.
+	time.Sleep(1 * time.Second)
+	// Ask main goroutine to shut down the application.
+	select {
+	case fatalC <- struct{}{}:
+		// Block until the application shuts down.
+		select {}
+	case <-time.After(5 * time.Second):
+		panic("Main goroutine is not responding to the fatal error." +
+			"It's probably stuck. Shutting down anyway.")
+	}
 }
 
 // Get access to the underlying channel. This is used by main goroutine to wait for fatal errors.
-func Chan() chan error {
+func Chan() <-chan struct{} {
 	return fatalC
 }
