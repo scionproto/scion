@@ -179,6 +179,7 @@ class ConfigGenerator(object):
     def _generate_go(self, topo_dicts):
         args = self._go_args(topo_dicts)
         go_gen = GoGenerator(args)
+        go_gen.generate_br()
         if self.args.cert_server == "go":
             go_gen.generate_cs()
         if self.args.sciond == "go":
@@ -187,7 +188,7 @@ class ConfigGenerator(object):
             go_gen.generate_ps()
 
     def _go_args(self, topo_dicts):
-        return GoGenArgs(self.args, topo_dicts)
+        return GoGenArgs(self.args, topo_dicts, self.port_gen)
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(self._topo_args())

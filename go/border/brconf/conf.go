@@ -14,7 +14,7 @@
 
 // Package conf holds all of the global router state, for access by the
 // router's various packages.
-package conf
+package brconf
 
 import (
 	"crypto/sha256"

@@ -25,9 +25,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/syndtr/gocapability/capability"
 
-	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/ifstate"
-	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
@@ -74,12 +73,12 @@ func (r *Router) setup() error {
 
 	// Load config.
 	var err error
-	var config *conf.Conf
-	if config, err = r.loadNewConfig(); err != nil {
+	var conf *brconf.Conf
+	if conf, err = r.loadNewConfig(); err != nil {
 		return err
 	}
 	// Setup new context.
-	if err = r.setupNewContext(config); err != nil {
+	if err = r.setupNewContext(conf); err != nil {
 		return err
 	}
 	// Clear capabilities after setting up the network. Capabilities are currently
@@ -87,10 +86,7 @@ func (r *Router) setup() error {
 	if err = r.clearCapabilities(); err != nil {
 		return err
 	}
-	// Export prometheus metrics.
-	if err = metrics.Start(); err != nil {
-		return err
-	}
+	config.Metrics.StartPrometheus()
 	return nil
 }
 
@@ -108,11 +104,11 @@ func (r *Router) clearCapabilities() error {
 	return nil
 }
 
-// loadNewConfig loads a new conf.Conf object from the configuration file.
-func (r *Router) loadNewConfig() (*conf.Conf, error) {
-	var config *conf.Conf
+// loadNewConfig loads a new brconf.Conf object from the configuration file.
+func (r *Router) loadNewConfig() (*brconf.Conf, error) {
+	var config *brconf.Conf
 	var err error
-	if config, err = conf.Load(r.Id, r.confDir); err != nil {
+	if config, err = brconf.Load(r.Id, r.confDir); err != nil {
 		return nil, common.NewBasicError("Failed to load topology config", err, "dir", r.confDir)
 	}
 	log.Debug("Topology and AS config loaded", "IA", config.IA, "IfIDs", config.BR,
@@ -121,7 +117,7 @@ func (r *Router) loadNewConfig() (*conf.Conf, error) {
 }
 
 // setupNewContext sets up a new router context.
-func (r *Router) setupNewContext(config *conf.Conf) error {
+func (r *Router) setupNewContext(config *brconf.Conf) error {
 	oldCtx := rctx.Get()
 	ctx := rctx.New(config)
 	if err := r.setupNet(ctx, oldCtx); err != nil {
