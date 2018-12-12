@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"sync/atomic"
 
-	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -32,7 +32,7 @@ import (
 // Ctx is the main router context structure.
 type Ctx struct {
 	// Conf contains the router state for this context.
-	Conf *conf.Conf
+	Conf *brconf.Conf
 	// LockSockIn is a Sock for receiving packets from the local AS,
 	LocSockIn *Sock
 	// LocSockOut is a Sock for sending packets to the local AS,
@@ -49,7 +49,7 @@ type Ctx struct {
 var ctx atomic.Value
 
 // New returns a new Ctx instance.
-func New(conf *conf.Conf) *Ctx {
+func New(conf *brconf.Conf) *Ctx {
 	ctx := &Ctx{
 		Conf:       conf,
 		ExtSockOut: make(map[common.IFIDType]*Sock),

@@ -18,11 +18,7 @@
 package main
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctrl"
@@ -36,15 +32,7 @@ import (
 
 const processBufCnt = 128
 
-var sighup chan os.Signal
-
-func init() {
-	// Add a SIGHUP handler as soon as possible on startup, to reduce the
-	// chance that a premature SIGHUP will kill the process. This channel is
-	// used by confSig below.
-	sighup = make(chan os.Signal, 1)
-	signal.Notify(sighup, syscall.SIGHUP)
-}
+var sighup chan struct{} = make(chan struct{}, 1)
 
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-ff00:0:2f".
@@ -70,7 +58,7 @@ func NewRouter(id, confDir string) (*Router, error) {
 
 // Run sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
-func (r *Router) Run() error {
+func (r *Router) Run() {
 	go func() {
 		defer log.LogPanicAndExit()
 		r.PacketError()
@@ -85,16 +73,13 @@ func (r *Router) Run() error {
 	}()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
-	var wait chan struct{}
-	<-wait
-	return nil
 }
 
 // confSig handles reloading the configuration when SIGHUP is received.
 func (r *Router) confSig() {
 	for range sighup {
 		var err error
-		var config *conf.Conf
+		var config *brconf.Conf
 		if config, err = r.loadNewConfig(); err != nil {
 			log.Error("Error reloading config", "err", err)
 			continue
