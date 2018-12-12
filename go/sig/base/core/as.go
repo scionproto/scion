@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/base"
 	"github.com/scionproto/scion/go/sig/config"
+	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/egress/dispatcher"
 	"github.com/scionproto/scion/go/sig/egress/router"
 	"github.com/scionproto/scion/go/sig/egress/session"
@@ -362,7 +363,7 @@ func (ae *ASEntry) cleanSessions() {
 }
 
 func (ae *ASEntry) setupNet() {
-	ae.egressRing = ringbuf.New(64, nil, "egress",
+	ae.egressRing = ringbuf.New(egress.EgressRemotePkts, nil, "egress",
 		prometheus.Labels{"ringId": ae.IAString, "sessId": ""})
 	go func() {
 		defer log.LogPanicAndExit()
