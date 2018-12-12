@@ -87,7 +87,7 @@ func realMain() int {
 	serverArgs := append(cmnArgs, "-s", "--one-off")
 	for _, tc := range testCases {
 		log.Info(fmt.Sprintf("Run iperf-%s-tests:", tc.Name))
-		clientArgs := append(cmnArgs, []string{"-c", integration.DstHostReplace}...)
+		clientArgs := append(cmnArgs, []string{"-c", integration.DstHostReplace, "--time", "5"}...)
 		clientArgs = append(clientArgs, tc.ClientArgs...)
 		cmd := "IA=" + integration.DstIAReplace
 		in := integration.NewBinaryIntegration(tc.Name, cmd, clientArgs, serverArgs)
