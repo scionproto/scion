@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
@@ -65,6 +66,8 @@ type Read interface {
 	GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	// GetAllTRCs fetches all TRCs from the database.
 	GetAllTRCs(ctx context.Context) ([]*trc.TRC, error)
+	// GetCustKey gets the customer signing key for the given AS in the latest version.
+	GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, error)
 }
 
 // Write contains all write operations fo the trust DB.
@@ -79,6 +82,10 @@ type Write interface {
 	// InsertTRC inserts trcobj into the database. The first return value is the
 	// number of rows affected.
 	InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error)
+	// InsertCustKey inserts the given customer key.
+	// If a key with same ia and version is already stored this is a no-op,
+	// i.e. it does not change the contents.
+	InsertCustKey(ctx context.Context, ia addr.IA, version uint64, key common.RawBytes) error
 }
 
 // Transaction represents a trust DB transaction with an ongoing transaction.

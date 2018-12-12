@@ -77,22 +77,23 @@ func setup() error {
 
 // initState sets the state.
 func initState(config *Config) error {
-	var err error
-	config.state, err = csconfig.LoadState(config.General.ConfigDir, config.General.Topology.Core)
+	trustDB, err := config.TrustDB.New()
 	if err != nil {
-		return common.NewBasicError("Unable to load CS state", err)
-	}
-	if config.state.TrustDB, err = config.TrustDB.New(); err != nil {
 		return common.NewBasicError("Unable to initialize trustDB", err)
 	}
 	trustConf := &trust.Config{
 		MustHaveLocalChain: true,
 		ServiceType:        proto.ServiceType_cs,
 	}
-	config.state.Store, err = trust.NewStore(config.state.TrustDB,
-		config.General.Topology.ISD_AS, trustConf, log.Root())
+	trustStore, err := trust.NewStore(trustDB, config.General.Topology.ISD_AS,
+		trustConf, log.Root())
 	if err != nil {
 		return common.NewBasicError("Unable to initialize trust store", err)
+	}
+	config.state, err = csconfig.LoadState(config.General.ConfigDir, config.General.Topology.Core,
+		trustDB, trustStore)
+	if err != nil {
+		return common.NewBasicError("Unable to load CS state", err)
 	}
 	err = config.state.Store.LoadAuthoritativeTRC(filepath.Join(config.General.ConfigDir, "certs"))
 	if err != nil {

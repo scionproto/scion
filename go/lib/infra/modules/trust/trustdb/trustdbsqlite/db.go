@@ -36,7 +36,7 @@ import (
 
 const (
 	Path          = "trustDB.sqlite3"
-	SchemaVersion = 1
+	SchemaVersion = 2
 	Schema        = `
 	CREATE TABLE TRCs (
 		IsdID INTEGER NOT NULL,
@@ -71,12 +71,21 @@ const (
 		Data TEXT NOT NULL,
 		CONSTRAINT iav_unique UNIQUE (IsdID, AsID, Version)
 	);
+
+	CREATE TABLE CustKeys (
+		IsdID INTEGER NOT NULL,
+		AsID INTEGER NOT NULL,
+		Version INTEGER NOT NULL,
+		Key DATA NOT NULL,
+		PRIMARY KEY (IsdID, AsID, Version)
+	);
 	`
 
 	TRCsTable        = "TRCs"
 	ChainsTable      = "Chains"
 	IssuerCertsTable = "IssuerCerts"
 	LeafCertsTable   = "LeafCerts"
+	CustKeysTable    = "CustKeys"
 )
 
 const (
@@ -148,6 +157,12 @@ const (
 		`
 	getAllTRCsStr = `
 			SELECT Data FROM TRCs
+	`
+	getCustKeyStr = `
+			SELECT Key, MAX(Version) FROM CustKeys WHERE IsdID=? AND AsID=? GROUP BY IsdID, AsID
+	`
+	insertCustKeyStr = `
+			INSERT OR IGNORE INTO CustKeys (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
 	`
 )
 
@@ -458,6 +473,34 @@ func (db *executor) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
 		trcs = append(trcs, trcobj)
 	}
 	return trcs, nil
+}
+
+// GetCustKey gets the customer signing key for the given AS in the latest version.
+func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, error) {
+	db.RLock()
+	defer db.RUnlock()
+	var key common.RawBytes
+	var version uint64
+	err := db.db.QueryRowContext(ctx, getCustKeyStr, ia.I, ia.A).Scan(&key, &version)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Failed to look up cust key", err)
+	}
+	return key, nil
+}
+
+// InsertCustKey inserts the given customer key.
+func (db *executor) InsertCustKey(ctx context.Context, ia addr.IA,
+	version uint64, key common.RawBytes) error {
+
+	db.Lock()
+	defer db.Unlock()
+	if _, err := db.db.ExecContext(ctx, insertCustKeyStr, ia.I, ia.A, version, key); err != nil {
+		return common.NewBasicError("Failed to insert cust key", err, "ia", ia, "ver", version)
+	}
+	return nil
 }
 
 type transaction struct {
