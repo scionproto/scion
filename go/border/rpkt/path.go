@@ -122,7 +122,7 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		return nil
 	}
 	sinfo := scmp.NewInfoRevocation(
-		uint16(rp.CmnHdr.CurrInfoF), uint16(rp.CmnHdr.CurrHopF), uint16(*ifid),
+		rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF, uint16(*ifid),
 		rp.DirFrom == rcmn.DirExternal, state.RawSRev)
 	return common.NewBasicError(
 		errIntfRevoked,
@@ -139,7 +139,7 @@ func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
 		ifid = uint16(*curr)
 	}
 	return &scmp.InfoPathOffsets{
-		InfoF: uint16(rp.CmnHdr.CurrInfoF), HopF: uint16(rp.CmnHdr.CurrHopF),
+		InfoF: rp.CmnHdr.CurrInfoF, HopF: rp.CmnHdr.CurrHopF,
 		IfID: ifid, Ingress: rp.DirFrom == rcmn.DirExternal,
 	}
 }
