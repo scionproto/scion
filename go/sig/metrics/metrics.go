@@ -44,6 +44,8 @@ var (
 	FramesDiscarded    prometheus.Counter
 	FramesTooOld       prometheus.Counter
 	FramesDuplicated   prometheus.Counter
+
+	EgressRxQueueFull *prometheus.CounterVec
 )
 
 // Version number of loaded config, atomic
@@ -75,6 +77,9 @@ func Init(elem string) {
 	FramesDiscarded = newC("frames_discarded_total", "Number of frames discarded.")
 	FramesTooOld = newC("frames_too_old_total", "Number of frames that are too old.")
 	FramesDuplicated = newC("frames_duplicated_total", "Number of duplicate frames.")
+
+	EgressRxQueueFull = newCVec("egress_recv_queue_full_total",
+		"Egress packets dropped due to full queues.", []string{"IA"})
 
 	// Initialize ringbuf metrics.
 	ringbuf.InitMetrics("sig", constLabels, []string{"ringId", "sessId"})

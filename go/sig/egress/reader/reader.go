@@ -28,6 +28,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/sig/egress"
 	"github.com/scionproto/scion/go/sig/egress/router"
+	"github.com/scionproto/scion/go/sig/metrics"
 )
 
 const (
@@ -97,8 +98,7 @@ BatchLoop:
 			if n, _ := dstRing.Write(ringbuf.EntryList{buf}, false); n != 1 {
 				// Release buffer back to free buffer pool
 				egress.EgressFreePkts.Write(ringbuf.EntryList{buf}, true)
-				// FIXME(kormat): replace with metric.
-				r.log.Error("EgressReader: no space in egress worker queue", "ia", dstIA)
+				metrics.EgressRxQueueFull.WithLabelValues(dstIA.String()).Inc()
 			}
 		}
 	}

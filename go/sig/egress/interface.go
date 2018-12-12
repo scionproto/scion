@@ -40,7 +40,8 @@ func Init() {
 
 const (
 	// FIXME(kormat): these relative sizes will fail if there are lots of egress dispatchers.
-	EgressFreePktsCap = 1024
+	EgressFreePktsCap = 2048
+	EgressRemotePkts  = 512
 	EgressBufPkts     = 32
 )
 
