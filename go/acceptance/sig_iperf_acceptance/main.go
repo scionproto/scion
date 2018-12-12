@@ -11,6 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// The sig_iperf acceptance test checks whether the SIG sustains a certain load. It performs TCP
+// and UDP performance tests using a modern version of iperf3. For UDP different combinations of
+// bandwidths and packet sizes are used.
+// Note: This is not a general performance test, it only checks for minimal (acceptance)
+// performance.
 
 package main
 
@@ -57,20 +63,24 @@ func realMain() int {
 			[]string{},
 		},
 		{
-			name + "_udp_100Mbps",
-			[]string{"-u", "-b", "100M"},
+			name + "_tcp_P4",
+			[]string{"-P", "4"},
 		},
 		{
-			name + "_udp_150Mbps",
-			[]string{"-u", "-b", "150M"},
+			name + "_udp_200Mbps_80",
+			[]string{"-u", "--bandwidth", "200M", "--length", "80"},
 		},
 		{
-			name + "_udp_200Mbps",
-			[]string{"-u", "-b", "200M"},
+			name + "_udp_200Mbps_512",
+			[]string{"-u", "--bandwidth", "200M", "--length", "512"},
 		},
 		{
-			name + "_udp_250Mbps",
-			[]string{"-u", "-b", "250M"},
+			name + "_udp_200Mbps_1460",
+			[]string{"-u", "--bandwidth", "200M", "--length", "1460"},
+		},
+		{
+			name + "_udp_200Mbps_8000",
+			[]string{"-u", "--bandwidth", "200M", "--length", "8000"},
 		},
 	}
 	cmnArgs := []string{integration.WrapperCmd, cmd, "-p", "12000", "--verbose"}
@@ -80,36 +90,12 @@ func realMain() int {
 		clientArgs := append(cmnArgs, []string{"-c", integration.DstHostReplace}...)
 		clientArgs = append(clientArgs, tc.ClientArgs...)
 		cmd := "IA=" + integration.DstIAReplace
-		in := integration.NewBinaryIntegration(tc.Name, cmd, clientArgs,
-			serverArgs)
-		if err := runTests(in, integration.UniqueIAPairs(acceptance.SigAddr)); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to run iperf-%s-tests: %s\n", tc.Name, err)
+		in := integration.NewBinaryIntegration(tc.Name, cmd, clientArgs, serverArgs)
+		if err := integration.RunBinaryTests(in,
+			integration.UniqueIAPairs(acceptance.SigAddr), 30*time.Second); err != nil {
+			log.Error(fmt.Sprintf("Error during iperf-%s-tests", tc.Name), "err", err)
 			return 1
 		}
 	}
 	return 0
-}
-
-// RunTests runs the client and server for each IAPair.
-// In case of an error the function is terminated immediately.
-func runTests(in integration.Integration, pairs []integration.IAPair) error {
-	return integration.ExecuteTimed(in.Name(), func() error {
-		for i, conn := range pairs {
-			// Start the server for srcDest pair
-			s, err := integration.StartServer(in, conn.Dst)
-			if err != nil {
-				return err
-			}
-			defer s.Close()
-			// Now start the client
-			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
-			t := 30 * time.Second
-			if err := integration.RunClient(in, conn, t); err != nil {
-				log.Error("Error during client execution", "err", err)
-				return err
-			}
-		}
-		return nil
-	})
 }

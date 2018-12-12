@@ -138,12 +138,12 @@ type IAPair struct {
 
 // IAPairs returns all IAPairs that should be tested.
 func IAPairs(hostAddr HostAddr) []IAPair {
-	return generateAllSrcDst(hostAddr)
+	return generateAllSrcDst(hostAddr, false)
 }
 
 // UniqueIAPairs returns all distinct IAPairs that should be tested.
 func UniqueIAPairs(hostAddr HostAddr) []IAPair {
-	return generateUniqueSrcDst(hostAddr)
+	return generateAllSrcDst(hostAddr, true)
 }
 
 func generateSrcDst(hostAddr HostAddr) ([]snet.Addr, []snet.Addr) {
@@ -165,24 +165,13 @@ func generateSrcDst(hostAddr HostAddr) ([]snet.Addr, []snet.Addr) {
 }
 
 // generateAllSrcDst generates the cartesian product shuffle(srcASes) x shuffle(dstASes).
-func generateAllSrcDst(hostAddr HostAddr) []IAPair {
+// It omits pairs where srcAS==dstAS, if unique is true.
+func generateAllSrcDst(hostAddr HostAddr, unique bool) []IAPair {
 	srcASes, dstASes := generateSrcDst(hostAddr)
 	pairs := make([]IAPair, 0, len(srcASes)*len(dstASes))
 	for _, src := range srcASes {
 		for _, dst := range dstASes {
-			pairs = append(pairs, IAPair{src, dst})
-		}
-	}
-	return pairs
-}
-
-// generateUniqueSrcDst generates IA pairs where in a pair an IA is unique
-func generateUniqueSrcDst(hostAddr HostAddr) []IAPair {
-	srcASes, dstASes := generateSrcDst(hostAddr)
-	pairs := make([]IAPair, 0, len(srcASes)*len(dstASes))
-	for _, src := range srcASes {
-		for _, dst := range dstASes {
-			if !src.IA.Eq(dst.IA) {
+			if !unique || !src.IA.Eq(dst.IA) {
 				pairs = append(pairs, IAPair{src, dst})
 			}
 		}
