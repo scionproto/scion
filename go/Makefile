@@ -41,7 +41,7 @@ MOCK_SRC_IN =\
     lib/infra/modules/trust/trustdb/trustdb.go
 MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))
 # This uses the format <stdlib package>/<interface>:
-MOCK_STD_IN = net/Addr net/PacketConn
+MOCK_STD_IN = net/Addr net/PacketConn net/Conn
 MOCK_STD_OUT = $(foreach in,$(MOCK_STD_IN),$(call mock_std_in_to_out,$(in)))
 
 all: deps_gen bin libs
