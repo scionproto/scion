@@ -145,7 +145,7 @@ def main():
                                 haddr_parse_interface(args.src_addr))
     dst = SCIONAddr.from_values(ISD_AS(args.dst_ia),
                                 haddr_parse_interface(args.dst_addr))
-    gen = PktGen(b"data", "finished", src, dst, DST_PORT, size=args.size)
+    gen = PktGen(b"data", src, dst, DST_PORT, size=args.size)
 
     if args.random and (args.wait or args.size):
         logging.warning("Flags -w and -s are not used in random mode. See -h for help.")
