@@ -19,6 +19,7 @@ import (
 	"io"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
@@ -60,4 +61,10 @@ type TrustDB interface {
 	// GetAllTRCs fetches all TRCs from the database.
 	GetAllTRCs(ctx context.Context) ([]*trc.TRC, error)
 	io.Closer
+	// GetCustKey gets the customer signing key for the given AS in the latest version.
+	GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, error)
+	// InsertCustKey inserts the given customer key.
+	// If a key with same ia and version is already stored this is a no-op,
+	// i.e. it does not change the contents.
+	InsertCustKey(ctx context.Context, ia addr.IA, version uint64, key common.RawBytes) error
 }

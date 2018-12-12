@@ -76,6 +76,7 @@ func realMain() int {
 	}
 	defer env.CleanupLog()
 	defer env.LogAppStopped(common.CS, config.General.ID)
+	defer log.LogPanicAndExit()
 	// Setup the state and the messenger
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)

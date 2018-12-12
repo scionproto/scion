@@ -85,7 +85,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return h.sendRep(ctx, addr, maxChain, r.ID)
 	}
 	// Get the verifying key from the customer mapping
-	verKey, err := h.State.Customers.GetVerifyingKey(addr.IA)
+	verKey, err := h.State.Customers.GetVerifyingKey(ctx, addr.IA)
 	if err != nil {
 		return common.NewBasicError("Unable to get verifying key", err)
 	}
@@ -185,7 +185,7 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 		return nil, err
 	}
 	// Set verifying key.
-	err = h.State.Customers.SetVerifyingKey(c.Subject, c.Version, c.SubjectSignKey, vKey)
+	err = h.State.Customers.SetVerifyingKey(ctx, c.Subject, c.Version, c.SubjectSignKey, vKey)
 	if err != nil {
 		return nil, err
 	}

@@ -37,7 +37,7 @@ import (
 
 const (
 	Path          = "trustDB.sqlite3"
-	SchemaVersion = 1
+	SchemaVersion = 2
 	Schema        = `
 	CREATE TABLE TRCs (
 		IsdID INTEGER NOT NULL,
@@ -72,12 +72,21 @@ const (
 		Data TEXT NOT NULL,
 		CONSTRAINT iav_unique UNIQUE (IsdID, AsID, Version)
 	);
+
+	CREATE TABLE CustKeys (
+		IsdID INTEGER NOT NULL,
+		AsID INTEGER NOT NULL,
+		Version INTEGER NOT NULL,
+		Key DATA NOT NULL,
+		PRIMARY KEY (IsdID, AsID, Version)
+	);
 	`
 
 	TRCsTable        = "TRCs"
 	ChainsTable      = "Chains"
 	IssuerCertsTable = "IssuerCerts"
 	LeafCertsTable   = "LeafCerts"
+	CustKeysTable    = "CustKeys"
 )
 
 const (
@@ -150,6 +159,12 @@ const (
 	getAllTRCsStr = `
 			SELECT Data FROM TRCs
 	`
+	getCustKeyStr = `
+			SELECT Key, MAX(Version) FROM CustKeys WHERE IsdID=? AND AsID=? GROUP BY IsdID, AsID
+	`
+	insertCustKeyStr = `
+			INSERT OR IGNORE INTO CustKeys (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
+	`
 )
 
 // DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
@@ -175,6 +190,8 @@ type DB struct {
 	getTRCMaxVersionStmt      *sql.Stmt
 	insertTRCStmt             *sql.Stmt
 	getAllTRCsStmt            *sql.Stmt
+	getCustKeyStmt            *sql.Stmt
+	insertCustKeyStmt         *sql.Stmt
 }
 
 func New(path string) (trustdb.TrustDB, error) {
@@ -233,6 +250,12 @@ func New(path string) (trustdb.TrustDB, error) {
 	}
 	if db.getAllTRCsStmt, err = db.db.Prepare(getAllTRCsStr); err != nil {
 		return nil, common.NewBasicError("Unable to prepare getAllTRCs", err)
+	}
+	if db.getCustKeyStmt, err = db.db.Prepare(getCustKeyStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare getCustKey", err)
+	}
+	if db.insertCustKeyStmt, err = db.db.Prepare(insertCustKeyStr); err != nil {
+		return nil, common.NewBasicError("Unable to prepare insertCustKey", err)
 	}
 	return db, nil
 }
@@ -571,4 +594,32 @@ func (db *DB) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
 		trcs = append(trcs, trcobj)
 	}
 	return trcs, nil
+}
+
+// GetCustKey gets the customer signing key for the given AS in the latest version.
+func (db *DB) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, error) {
+	db.RLock()
+	defer db.RUnlock()
+	var key common.RawBytes
+	var version uint64
+	err := db.getCustKeyStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&key, &version)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, common.NewBasicError("Failed to look up cust key", err)
+	}
+	return key, nil
+}
+
+// InsertCustKey inserts the given customer key.
+func (db *DB) InsertCustKey(ctx context.Context, ia addr.IA,
+	version uint64, key common.RawBytes) error {
+
+	db.Lock()
+	defer db.Unlock()
+	if _, err := db.insertCustKeyStmt.ExecContext(ctx, ia.I, ia.A, version, key); err != nil {
+		return common.NewBasicError("Failed to insert cust key", err, "ia", ia, "ver", version)
+	}
+	return nil
 }

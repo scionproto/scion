@@ -47,14 +47,19 @@ type State struct {
 	verifierLock sync.RWMutex
 }
 
-func LoadState(confDir string, isCore bool) (*State, error) {
-	s := &State{}
+func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
+	trustStore *trust.Store) (*State, error) {
+
+	s := &State{
+		Store:   trustStore,
+		TrustDB: trustDB,
+	}
 	if err := s.loadKeyConf(confDir, isCore); err != nil {
 		return nil, err
 	}
 	if isCore {
-		var err error
-		if s.Customers, err = s.loadCustomers(confDir); err != nil {
+		s.Customers = NewCustomers(s.TrustDB)
+		if err := s.Customers.loadCustomers(confDir); err != nil {
 			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
 	}
