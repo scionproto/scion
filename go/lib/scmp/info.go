@@ -129,18 +129,18 @@ func (p *InfoPktSize) String() string {
 var _ Info = (*InfoPathOffsets)(nil)
 
 type InfoPathOffsets struct {
-	InfoF   uint16
-	HopF    uint16
-	IfID    uint16
+	InfoF   uint8
+	HopF    uint8
+	IfID    common.IFIDType
 	Ingress bool
 }
 
 func InfoPathOffsetsFromRaw(b common.RawBytes) (*InfoPathOffsets, error) {
 	p := &InfoPathOffsets{}
-	p.InfoF = common.Order.Uint16(b[0:])
-	p.HopF = common.Order.Uint16(b[2:])
-	p.IfID = common.Order.Uint16(b[4:])
-	p.Ingress = (b[6] & 0x01) == 0x01
+	p.InfoF = b[0]
+	p.HopF = b[1]
+	p.IfID = common.IFIDType(common.Order.Uint64(b[2:]))
+	p.Ingress = (b[10] & 0x01) == 0x01
 	return p, nil
 }
 
@@ -149,20 +149,20 @@ func (p *InfoPathOffsets) Copy() Info {
 }
 
 func (p *InfoPathOffsets) Len() int {
-	l := 7
+	l := 11
 	return l + util.CalcPadding(l, common.LineLen)
 }
 
 func (p *InfoPathOffsets) Write(b common.RawBytes) (int, error) {
-	common.Order.PutUint16(b[0:], p.InfoF)
-	common.Order.PutUint16(b[2:], p.HopF)
-	common.Order.PutUint16(b[4:], p.IfID)
+	b[0] = p.InfoF
+	b[1] = p.HopF
+	common.Order.PutUint64(b[2:], uint64(p.IfID))
 	if p.Ingress {
-		b[6] = 1
+		b[10] = 1
 	} else {
-		b[6] = 0
+		b[10] = 0
 	}
-	return util.FillPadding(b, 7, common.LineLen), nil
+	return util.FillPadding(b, 11, common.LineLen), nil
 }
 
 func (p *InfoPathOffsets) String() string {
@@ -176,7 +176,7 @@ type InfoRevocation struct {
 	RawSRev common.RawBytes
 }
 
-func NewInfoRevocation(infoF, hopF, ifID uint16, ingress bool,
+func NewInfoRevocation(infoF, hopF uint8, ifID common.IFIDType, ingress bool,
 	rawSRev common.RawBytes) *InfoRevocation {
 	return &InfoRevocation{
 		InfoPathOffsets: &InfoPathOffsets{InfoF: infoF, HopF: hopF, IfID: ifID, Ingress: ingress},
@@ -191,7 +191,7 @@ func InfoRevocationFromRaw(b common.RawBytes) (*InfoRevocation, error) {
 	if err != nil {
 		return nil, common.NewBasicError("Unable to parse path offsets", err)
 	}
-	p.RawSRev = b[8:]
+	p.RawSRev = b[p.InfoPathOffsets.Len():]
 	return p, nil
 }
 func (r *InfoRevocation) Copy() Info {

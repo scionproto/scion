@@ -22,7 +22,6 @@ from abc import ABCMeta, abstractmethod
 
 # SCION
 from lib.defines import LINE_LEN
-from lib.packet.opaque_field import OpaqueField
 from lib.packet.packet_base import Serializable
 from lib.packet.scmp.types import SCMPInfoType
 from lib.packet.scmp.util import scmp_get_info_type
@@ -164,7 +163,7 @@ class SCMPInfoPktSize(SCMPInfoGeneric):
 class SCMPInfoPathOffsets(SCMPInfoGeneric):
     """Store IOF offset, HOF offset, IF id and ingress flag."""
     NAME = "SCMPInfoPathOffsets"
-    STRUCT_FMT = "!HHH?x"
+    STRUCT_FMT = "!BBQ?5x"
     LEN = struct.calcsize(STRUCT_FMT)
     ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress"]
 
@@ -176,11 +175,7 @@ class SCMPInfoPathOffsets(SCMPInfoGeneric):
         return inst
 
     def _calc_offsets(self, pkt):
-        iof_idx, hof_idx = pkt.cmn_hdr.get_of_idxs()
-        base_offset = len(pkt.cmn_hdr) + len(pkt.addrs)
-        iof_offset = base_offset + iof_idx * OpaqueField.LEN
-        hof_offset = base_offset + hof_idx * OpaqueField.LEN
-        return iof_offset, hof_offset
+        return pkt.cmn_hdr.get_of_idxs()
 
     def __str__(self):
         return ("%s(%dB): IOF offset: %sB HOF offset: %sB "
@@ -192,7 +187,7 @@ class SCMPInfoPathOffsets(SCMPInfoGeneric):
 class SCMPInfoRevocation(SCMPInfoPathOffsets):
     """Store IOF offset, HOF offset, IF id, ingress flag and Rev_info."""
     NAME = "SCMPInfoPktSize"
-    STRUCT_FMT = "!HHH?x"
+    STRUCT_FMT = "!BBQ?5x"
     LEN = struct.calcsize(STRUCT_FMT)
     ATTRIBS = ["iof_off", "hof_off", "if_id", "ingress"]
 

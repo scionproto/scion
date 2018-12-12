@@ -179,13 +179,11 @@ class TestSCMPInfoPathOffsetsCalcOffsets(object):
     """
     def test(self):
         inst = SCMPInfoPathOffsets()
-        pkt = create_mock(["addrs", "cmn_hdr"])
-        pkt.addrs = "addrs"
+        pkt = create_mock(["cmn_hdr"])
         pkt.cmn_hdr = create_mock(["__len__", "get_of_idxs"])
-        pkt.cmn_hdr.__len__.return_value = 7
         pkt.cmn_hdr.get_of_idxs.return_value = 3, 5
         # Call
-        ntools.eq_(inst._calc_offsets(pkt), (12 + 24, 12 + 40))
+        ntools.eq_(inst._calc_offsets(pkt), (3, 5))
 
 if __name__ == "__main__":
     nose.run(defaultTest=__name__)
