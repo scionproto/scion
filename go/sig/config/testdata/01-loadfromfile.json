@@ -5,42 +5,21 @@
             "Nets": [
                 "192.0.2.0/24",
                 "2001:db8::/48"
-            ],
-            "Sigs": {
-                "remote-1": {
-                    "Addr": "192.0.2.1",
-                    "CtrlPort": 1234,
-                    "EncapPort": 5678
-                },
-                "remote-2": {
-                    "Addr": "192.0.2.2",
-                    "CtrlPort": 65535,
-                    "EncapPort": 0
-                }
-            }
+            ]
         },
         "1-ff00:0:2": {
             "Name": "",
             "Nets": [
                 "203.0.113.0/24"
-            ],
-            "Sigs": {}
+            ]
         },
         "1-ff00:0:3": {
             "Name": "",
-            "Nets": [],
-            "Sigs": {}
+            "Nets": []
         },
         "1-ff00:0:4": {
             "Name": "AS 4",
-            "Nets": [],
-            "Sigs": {
-                "remote-3": {
-                    "Addr": "2001:db8::4",
-                    "CtrlPort": 0,
-                    "EncapPort": 0
-                }
-            }
+            "Nets": []
         }
     },
     "ConfigVersion": 9001
