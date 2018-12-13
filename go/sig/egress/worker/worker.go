@@ -114,6 +114,7 @@ TopLoop:
 		// Process buffered packets.
 		for i := range w.pkts {
 			pkt := w.pkts[i].(common.RawBytes)
+			log.Debug("processing packet")
 			if err := w.processPkt(f, pkt); err != nil {
 				w.Error("Error sending frame", "err", err)
 			}
@@ -167,10 +168,12 @@ func (w *worker) write(f *frame) error {
 	defer w.resetFrame(f)
 	if w.currPathEntry == nil {
 		// FIXME(kormat): add some metrics to track this.
+		log.Debug("currPathEntry == nil")
 		return nil
 	}
 	if w.currSig == nil {
 		// FIXME(kormat): add some metrics to track this.
+		log.Debug("currSig == nil")
 		return nil
 	}
 	snetAddr := w.currSig.EncapSnetAddr()
@@ -195,6 +198,8 @@ func (w *worker) write(f *frame) error {
 	bytesWritten, err := w.sess.Conn().WriteToSCION(f.raw(), snetAddr)
 	if err != nil {
 		return common.NewBasicError("Egress write error", err)
+	} else {
+		log.Debug("Data sent", "addr", snetAddr)
 	}
 	w.frameSentCtrs.Pkts.Inc()
 	w.frameSentCtrs.Bytes.Add(float64(bytesWritten))
@@ -213,11 +218,14 @@ func (w *worker) resetFrame(f *frame) {
 		w.currPathEntry = nil
 		if remote.SessPath != nil {
 			w.currPathEntry = remote.SessPath.PathEntry()
+			log.Debug("currPathEntry updated", "path", w.currPathEntry)
 		}
 		if w.currPathEntry != nil {
 			mtu = w.currPathEntry.Path.Mtu
 			pathLen = uint16(len(w.currPathEntry.Path.FwdPath))
 		}
+	} else {
+		log.Debug("remote == nil")
 	}
 	// FIXME(kormat): to do this properly, need to account for any ext headers.
 	f.reset(mtu - spkt.CmnHdrLen - addrLen - pathLen - l4.UDPLen)

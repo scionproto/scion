@@ -192,6 +192,7 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, as_conf)
         self._gen_br_entries(topo_id)
+        self._gen_sig_entries(topo_id)
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
@@ -299,6 +300,21 @@ class TopoGenerator(object):
             'LinkTo': LinkType.to_str(remote_type.lower()),
             'MTU': attrs.get('mtu', DEFAULT_MTU)
             }
+
+    def _gen_sig_entries(self, topo_id):
+        elem_id = "sig" + topo_id.file_fmt()
+        reg_id = "sig" + topo_id.file_fmt()
+        d = {
+            'Addrs': {
+                self.addr_type: {
+                    'Public': {
+                        'Addr': self._reg_addr(topo_id, reg_id),
+                        'L4Port': self.args.port_gen.register(elem_id),
+                    }
+                }
+            }
+        }
+        self.topo_dicts[topo_id]['SIG'][elem_id] = d
 
     def _gen_zk_entries(self, topo_id, as_conf):
         zk_conf = self.args.topo_config_dict["defaults"]["zookeepers"]

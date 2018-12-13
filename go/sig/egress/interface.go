@@ -43,6 +43,7 @@ const (
 	EgressFreePktsCap = 2048
 	EgressRemotePkts  = 512
 	EgressBufPkts     = 32
+	SafetyInterval    = 60 * time.Second
 )
 
 var EgressFreePkts *ringbuf.Ring
@@ -104,21 +105,36 @@ const pathFailExpiration = 5 * time.Minute
 
 type SessPathPool map[spathmeta.PathKey]*SessPath
 
-// Return the path with the fewest failures, excluding the current path (if specified).
-func (spp SessPathPool) Get(currKey spathmeta.PathKey) *SessPath {
-	var sp *SessPath
+// Return the most suitable path. Exclude a specific path, if possible.
+func (spp SessPathPool) Get(exclude spathmeta.PathKey) *SessPath {
+	var bestSessPath *SessPath
 	var minFail uint16 = math.MaxUint16
+	var bestNonExpiringSessPath *SessPath
+	var minNonExpiringFail uint16 = math.MaxUint16
 	for k, v := range spp {
-		if k == currKey {
-			// Exclude the current path, if specified.
+		if k == exclude {
 			continue
 		}
 		if v.failCount < minFail {
-			sp = v
+			bestSessPath = v
 			minFail = v.failCount
 		}
+		if v.failCount < minNonExpiringFail && !v.IsCloseToExpiry() {
+			bestNonExpiringSessPath = v
+			minNonExpiringFail = v.failCount
+		}
 	}
-	return sp
+	// Return a non-expiring path with least failures.
+	if bestNonExpiringSessPath != nil {
+		return bestNonExpiringSessPath
+	}
+	// If not possible, return the best path that's close to expiry.
+	if bestSessPath != nil {
+		return bestSessPath
+	}
+	// In the worst case return the excluded path. Given that the caller asked to exclude it
+	// it's probably non-functional, but it's the only option we have.
+	return spp[exclude]
 }
 
 func (spp SessPathPool) Update(aps spathmeta.AppPathSet) {
@@ -158,6 +174,10 @@ func (sp *SessPath) Key() spathmeta.PathKey {
 
 func (sp *SessPath) PathEntry() *sciond.PathReplyEntry {
 	return sp.pathEntry
+}
+
+func (sp *SessPath) IsCloseToExpiry() bool {
+	return sp.PathEntry().Path.Expiry().Before(time.Now().Add(SafetyInterval))
 }
 
 func (sp *SessPath) Fail() {

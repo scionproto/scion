@@ -27,6 +27,7 @@ SCION_SERVICE_NAMES = (
     "CertificateService",
     "BorderRouters",
     "PathService",
+    "SIG",
     "DiscoveryService",
 )
 

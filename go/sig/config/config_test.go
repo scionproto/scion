@@ -53,20 +53,6 @@ func TestLoadFromFile(t *testing.T) {
 								Mask: net.CIDRMask(48, 8*net.IPv6len),
 							},
 						},
-						Sigs: SIGSet{
-							"remote-1": &SIG{
-								Id:        "remote-1",
-								Addr:      net.ParseIP("192.0.2.1"),
-								CtrlPort:  1234,
-								EncapPort: 5678,
-							},
-							"remote-2": &SIG{
-								Id:        "remote-2",
-								Addr:      net.ParseIP("192.0.2.2"),
-								CtrlPort:  65535,
-								EncapPort: 0,
-							},
-						},
 					},
 					xtest.MustParseIA("1-ff00:0:2"): {
 						Nets: []*IPNet{
@@ -75,21 +61,13 @@ func TestLoadFromFile(t *testing.T) {
 								Mask: net.CIDRMask(24, 8*net.IPv4len),
 							},
 						},
-						Sigs: SIGSet{},
 					},
 					xtest.MustParseIA("1-ff00:0:3"): {
 						Nets: []*IPNet{},
-						Sigs: SIGSet{},
 					},
 					xtest.MustParseIA("1-ff00:0:4"): {
 						Name: "AS 4",
 						Nets: []*IPNet{},
-						Sigs: SIGSet{
-							"remote-3": &SIG{
-								Id:   "remote-3",
-								Addr: net.ParseIP("2001:DB8::4"),
-							},
-						},
 					},
 				},
 				ConfigVersion: 9001,
