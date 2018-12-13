@@ -63,7 +63,7 @@ class SIGGenerator(object):
             self._dispatcher_conf(topo_id, base)
             self._sig_dc_conf(topo_id, base)
             self._sig_toml(topo_id, topo, base)
-            self._sig_json(topo_id)
+            self._sig_json(topo_id, base)
         return self.dc_conf
 
     def _dispatcher_conf(self, topo_id, base):
@@ -112,14 +112,14 @@ class SIGGenerator(object):
                 self._disp_vol(topo_id),
                 'vol_scion_%ssciond_%s:/run/shm/sciond:rw' % (self.prefix, topo_id.file_fmt()),
                 '/dev/net/tun:/dev/net/tun',
-                '%s/sig:/share/conf' % base,
+                '%s/sig%s:/share/conf' % (base, topo_id.file_fmt()),
                 self._logs_vol()
             ],
             'network_mode': 'service:scion_disp_sig_%s' % topo_id.file_fmt(),
             'command': [remote_nets(self.args.networks, topo_id)]
         }
 
-    def _sig_json(self, topo_id):
+    def _sig_json(self, topo_id, base):
         sig_cfg = {"ConfigVersion": 1, "ASes": {}}
         for t_id, topo in self.args.topo_dicts.items():
             if topo_id == t_id:
@@ -129,7 +129,7 @@ class SIGGenerator(object):
             sig_cfg['ASes'][str(t_id)]['Nets'].append(net['net'])
             sig_cfg['ASes'][str(t_id)]['Sigs']['sig'] = {"Addr": str(net['ipv4'])}
 
-        cfg = "%s/sig/cfg.json" % topo_id.base_dir(self.args.output_dir)
+        cfg = os.path.join(base, 'sig%s' % topo_id.file_fmt(), "cfg.json")
         contents_json = json.dumps(sig_cfg, default=json_default, indent=2)
         write_file(cfg, contents_json + '\n')
 
@@ -158,7 +158,7 @@ class SIGGenerator(object):
                 }
             }
         }
-        write_file(os.path.join(base, "sig/sig.toml"), toml.dumps(sig_conf))
+        write_file(os.path.join(base, name, "sig.toml"), toml.dumps(sig_conf))
 
     def _disp_vol(self, topo_id):
         return 'vol_scion_%sdisp_sig_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())

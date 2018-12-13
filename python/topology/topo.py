@@ -192,7 +192,9 @@ class TopoGenerator(object):
             self.topo_dicts[topo_id][i] = {}
         self._gen_srv_entries(topo_id, as_conf)
         self._gen_br_entries(topo_id)
-        self._gen_sig_entries(topo_id)
+        if self.args.sig:
+            self.topo_dicts[topo_id]['SIG'] = {}
+            self._gen_sig_entries(topo_id)
         self._gen_zk_entries(topo_id, as_conf)
 
     def _gen_srv_entries(self, topo_id, as_conf):
