@@ -20,10 +20,10 @@ test_setup() {
     mkdir -p $TEST_ARTIFACTS_DIR
     set_veths >> $DEVINFO_FN
 
-    cp -r ${BRUTIL:?}/${BRCONF_DIR:?} $TEST_ARTIFACTS_DIR/conf
+    cp -r "${BRUTIL:?}/${BRCONF_DIR:?}" "$TEST_ARTIFACTS_DIR/conf"
 
-    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" $TEST_ARTIFACTS_DIR/conf/brconfig.toml
-    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" $TEST_ARTIFACTS_DIR/conf/brconfig.toml
+    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
+    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
 
     docker-compose -f $BRUTIL/docker-compose.yml up --detach $BRID
 }
