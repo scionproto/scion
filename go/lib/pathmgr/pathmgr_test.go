@@ -35,6 +35,12 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest/graph"
 )
 
+const timeUnitDuration time.Duration = 10 * time.Millisecond
+
+func getDuration(units time.Duration) time.Duration {
+	return units * timeUnitDuration
+}
+
 func TestQuery(t *testing.T) {
 	Convey("Query, we have 0 paths and SCIOND is asked again, receive 1 path", t, func() {
 		g := graph.NewDefaultGraph()
@@ -196,14 +202,14 @@ func TestWatchPolling(t *testing.T) {
 				), nil,
 			).MinTimes(1),
 		)
-		pr := New(sd, Timers{ErrorRefire: time.Millisecond}, nil)
+		pr := New(sd, Timers{ErrorRefire: getDuration(1)}, nil)
 		Convey("and adding a watch that retrieves zero paths", func() {
 			sp, err := pr.Watch(context.Background(), src, dst)
 			xtest.FailOnErr(t, err)
 			Convey("there are 0 paths currently available", func() {
 				So(len(sp.Load().APS), ShouldEqual, 0)
 				Convey("and after waiting, we get new paths.", func() {
-					time.Sleep(20 * time.Millisecond)
+					time.Sleep(getDuration(4))
 					So(len(sp.Load().APS), ShouldEqual, 1)
 				})
 			})
@@ -231,7 +237,7 @@ func TestWatchFilter(t *testing.T) {
 				), nil,
 			).AnyTimes(),
 		)
-		pr := New(sd, Timers{ErrorRefire: time.Millisecond}, nil)
+		pr := New(sd, Timers{ErrorRefire: getDuration(1)}, nil)
 		Convey("and adding a watch that should retrieve 1 path", func() {
 			pp, err := spathmeta.NewPathPredicate("1-ff00:0:111#105")
 			xtest.FailOnErr(t, err)
@@ -243,7 +249,7 @@ func TestWatchFilter(t *testing.T) {
 			Convey("there are 0 paths due to filtering", func() {
 				So(len(sp.Load().APS), ShouldEqual, 0)
 				Convey("and after waiting, we get 1 path that is not filtered.", func() {
-					time.Sleep(20 * time.Millisecond)
+					time.Sleep(getDuration(4))
 					So(len(sp.Load().APS), ShouldEqual, 1)
 				})
 			})
