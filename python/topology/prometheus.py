@@ -28,6 +28,12 @@ from lib.defines import PROM_FILE
 from lib.util import write_file
 from topology.common import prom_addr_br, prom_addr_infra, ArgsTopoDicts
 
+PS_PROM_PORT = 30453
+BS_PROM_PORT = 30452
+CS_PROM_PORT = 30454
+SIG_PROM_PORT = 30456
+DEFAULT_BR_PROM_PORT = 30442
+
 
 class PrometheusGenArgs(ArgsTopoDicts):
     pass
@@ -59,10 +65,13 @@ class PrometheusGenerator(object):
         for topo_id, as_topo in self.args.topo_dicts.items():
             ele_dict = defaultdict(list)
             for br_id, br_ele in as_topo["BorderRouters"].items():
-                ele_dict["BorderRouters"].append(prom_addr_br(br_id, br_ele, self.args.port_gen))
-            for svc_type in ["BeaconService", "PathService", "CertificateService"]:
-                for elem_id, elem in as_topo[svc_type].items():
-                    ele_dict[svc_type].append(prom_addr_infra(elem_id, elem, self.args.port_gen))
+                ele_dict["BorderRouters"].append(prom_addr_br(br_id, br_ele, DEFAULT_BR_PROM_PORT))
+            for elem_id, elem in as_topo["BeaconService"].items():
+                ele_dict["BeaconService"].append(prom_addr_infra(elem_id, elem, BS_PROM_PORT))
+            for elem_id, elem in as_topo["PathService"].items():
+                ele_dict["PathService"].append(prom_addr_infra(elem_id, elem, PS_PROM_PORT))
+            for elem_id, elem in as_topo["CertificateService"].items():
+                ele_dict["CertificateService"].append(prom_addr_infra(elem_id, elem, CS_PROM_PORT))
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)
 

@@ -29,6 +29,7 @@ from topology.common import (
     remote_nets,
     sciond_svc_name
 )
+from topology.prometheus import SIG_PROM_PORT
 
 
 class SIGGenArgs(ArgsBase):
@@ -156,6 +157,9 @@ class SIGGenerator(object):
                 'console': {
                     'Level': 'error',
                 }
+            },
+            'metrics': {
+                'Prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             }
         }
         write_file(os.path.join(base, name, "sig.toml"), toml.dumps(sig_conf))

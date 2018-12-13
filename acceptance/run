@@ -2,9 +2,6 @@
 
 . acceptance/lib.sh
 
-export ACCEPTANCE_ARTIFACTS=$(mktemp -d /tmp/acceptance-artifacts-$(date +"%Y%m%d-%H%M%S").XXXXXXX)
-echo "Acceptance artifacts saved to $ACCEPTANCE_ARTIFACTS"
-
 stats_passed=0
 stats_failed=0
 stats_skipped=0
