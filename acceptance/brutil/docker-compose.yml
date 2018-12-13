@@ -9,7 +9,7 @@ x-core-br: &core-br
     - "/etc/group:/etc/group:ro"
     - "/run/shm/dispatcher:/run/shm/dispatcher"
     - "../../logs:/share/logs"
-    - "./br-core-conf:/share/conf"
+    - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
 x-br: &br
   environment:
     SU_EXEC_USERSPEC: "$LOGNAME"
@@ -20,7 +20,7 @@ x-br: &br
     - "/etc/group:/etc/group:ro"
     - "/run/shm/dispatcher:/run/shm/dispatcher"
     - "../../logs:/share/logs"
-    - "./br-conf:/share/conf"
+    - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
 services:
   dispatcher:
     image: scion_dispatcher
@@ -35,22 +35,15 @@ services:
       - "./dispatcher-conf:/share/conf"
   core-brA:
     <<: *core-br
-    command: ["-id=core-brA"]
   core-brB:
     <<: *core-br
-    command: ["-id=core-brB"]
   core-brC:
     <<: *core-br
-    command: ["-id=core-brC"]
   brA:
     <<: *br
-    command: ["-id=brA"]
   brB:
     <<: *br
-    command: ["-id=brB"]
   brC:
     <<: *br
-    command: ["-id=brC"]
   brD:
     <<: *br
-    command: ["-id=brD"]
