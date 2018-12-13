@@ -1,6 +1,6 @@
 # This is a base file included/sourced by each border router acceptance test
 
-TEST_ARTIFACTS_DIR=${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}
+export TEST_ARTIFACTS_DIR="${ACCEPTANCE_ARTIFACTS:?}/${TEST_NAME}"
 DEVINFO_FN=${TEST_ARTIFACTS_DIR}/devinfo.txt
 
 . acceptance/brutil/util.sh
@@ -19,6 +19,11 @@ test_setup() {
 
     mkdir -p $TEST_ARTIFACTS_DIR
     set_veths >> $DEVINFO_FN
+
+    cp -r "${BRUTIL:?}/${BRCONF_DIR:?}" "$TEST_ARTIFACTS_DIR/conf"
+
+    sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
+    sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
 
     docker-compose -f $BRUTIL/docker-compose.yml up --detach $BRID
 }

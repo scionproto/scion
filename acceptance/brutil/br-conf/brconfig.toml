@@ -1,0 +1,10 @@
+[general]
+ConfigDir = "/share/conf"
+ID = "elemId"
+
+[logging.console]
+Level = "crit"
+
+[logging.file]
+Level = "debug"
+Path = "logPath"
