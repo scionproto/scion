@@ -183,57 +183,6 @@ func New(path string) (trustdb.TrustDB, error) {
 	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
 		return nil, err
 	}
-	// On future errors, close the sql database before exiting
-	defer func() {
-		if err != nil {
-			db.db.Close()
-		}
-	}()
-	if db.getIssCertVersionStmt, err = db.db.Prepare(getIssCertVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getIssCertVersion", err)
-	}
-	if db.getIssCertMaxVersionStmt, err = db.db.Prepare(getIssCertMaxVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getIssCertMaxVersion", err)
-	}
-	if db.getIssCertRowIDStmt, err = db.db.Prepare(getIssCertRowIDStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getIssCertRowID", err)
-	}
-	if db.insertIssCertStmt, err = db.db.Prepare(insertIssCertStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare insertIssCert", err)
-	}
-	if db.getLeafCertVersionStmt, err = db.db.Prepare(getLeafCertVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getLeafCertVersion", err)
-	}
-	if db.getLeafCertMaxVersionStmt, err = db.db.Prepare(getLeafCertMaxVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getLeafCertMaxVersion", err)
-	}
-	if db.insertLeafCertStmt, err = db.db.Prepare(insertLeafCertStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare insertLeafCert", err)
-	}
-	if db.getChainVersionStmt, err = db.db.Prepare(getChainVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getChainVersion", err)
-	}
-	if db.getChainMaxVersionStmt, err = db.db.Prepare(getChainMaxVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getChainMaxVersion", err)
-	}
-	if db.getAllChainsStmt, err = db.db.Prepare(getAllChainsStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getAllChains", err)
-	}
-	if db.insertChainStmt, err = db.db.Prepare(insertChainStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare insertChain", err)
-	}
-	if db.getTRCVersionStmt, err = db.db.Prepare(getTRCVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getTRCVersion", err)
-	}
-	if db.getTRCMaxVersionStmt, err = db.db.Prepare(getTRCMaxVersionStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getTRCMaxVersion", err)
-	}
-	if db.insertTRCStmt, err = db.db.Prepare(insertTRCStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare insertTRC", err)
-	}
-	if db.getAllTRCsStmt, err = db.db.Prepare(getAllTRCsStr); err != nil {
-		return nil, common.NewBasicError("Unable to prepare getAllTRCs", err)
-	}
 	return db, nil
 }
 
@@ -247,39 +196,23 @@ func (db *DB) Close() error {
 func (db *DB) GetIssCertVersion(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
-	if version == scrypto.LatestVer {
-		return db.GetIssCertMaxVersion(ctx, ia)
-	}
 	db.RLock()
 	defer db.RUnlock()
-	var raw common.RawBytes
-	err := db.getIssCertVersionStmt.QueryRowContext(ctx, ia.I, ia.A, version).Scan(&raw)
-	return parseCert(raw, ia, version, err)
+	return getIssCertVersion(ctx, db.db, ia, version)
 }
 
 // GetIssCertMaxVersion returns the max version of the issuer certificate for ia.
 func (db *DB) GetIssCertMaxVersion(ctx context.Context, ia addr.IA) (*cert.Certificate, error) {
 	db.RLock()
 	defer db.RUnlock()
-	var raw common.RawBytes
-	err := db.getIssCertMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
-	return parseCert(raw, ia, scrypto.LatestVer, err)
+	return getIssCertMaxVersion(ctx, db.db, ia)
 }
 
 // InsertIssCert inserts the issuer certificate.
 func (db *DB) InsertIssCert(ctx context.Context, crt *cert.Certificate) (int64, error) {
-	raw, err := crt.JSON(false)
-	if err != nil {
-		return 0, common.NewBasicError("Unable to convert to JSON", err)
-	}
 	db.Lock()
 	defer db.Unlock()
-	res, err := db.insertIssCertStmt.ExecContext(ctx,
-		crt.Subject.I, crt.Subject.A, crt.Version, raw)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
+	return insertIssCert(ctx, db.db, crt)
 }
 
 // GetLeafCertVersion returns the specified version of the leaf certificate for
@@ -287,22 +220,301 @@ func (db *DB) InsertIssCert(ctx context.Context, crt *cert.Certificate) (int64, 
 func (db *DB) GetLeafCertVersion(ctx context.Context, ia addr.IA,
 	version uint64) (*cert.Certificate, error) {
 
-	if version == scrypto.LatestVer {
-		return db.GetLeafCertMaxVersion(ctx, ia)
-	}
 	db.RLock()
 	defer db.RUnlock()
-	var raw common.RawBytes
-	err := db.getLeafCertVersionStmt.QueryRowContext(ctx, ia.I, ia.A, version).Scan(&raw)
-	return parseCert(raw, ia, version, err)
+	return getLeafCertVersion(ctx, db.db, ia, version)
 }
 
 // GetLeafCertMaxVersion returns the max version of the leaf certificate for ia.
 func (db *DB) GetLeafCertMaxVersion(ctx context.Context, ia addr.IA) (*cert.Certificate, error) {
 	db.RLock()
 	defer db.RUnlock()
+	return getLeafCertMaxVersion(ctx, db.db, ia)
+}
+
+// InsertLeafCert inserts the leaf certificate.
+func (db *DB) InsertLeafCert(ctx context.Context, crt *cert.Certificate) (int64, error) {
+	db.Lock()
+	defer db.Unlock()
+	return insertLeafCert(ctx, db.db, crt)
+}
+
+// GetChainVersion returns the specified version of the certificate chain for
+// ia. If version is scrypto.LatestVer, this is equivalent to GetChainMaxVersion.
+func (db *DB) GetChainVersion(ctx context.Context, ia addr.IA,
+	version uint64) (*cert.Chain, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getChainVersion(ctx, db.db, ia, version)
+}
+
+// GetChainMaxVersion returns the max version of the chain for ia.
+func (db *DB) GetChainMaxVersion(ctx context.Context, ia addr.IA) (*cert.Chain, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getChainMaxVersion(ctx, db.db, ia)
+}
+
+func (db *DB) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getAllChains(ctx, db.db)
+}
+
+// InsertChain inserts chain into the database. The first return value is the
+// number of rows affected.
+func (db *DB) InsertChain(ctx context.Context, chain *cert.Chain) (int64, error) {
+	db.Lock()
+	defer db.Unlock()
+	return insertChain(ctx, db.db, chain)
+}
+
+// GetTRCVersion returns the specified version of the TRC for
+// isd. If version is scrypto.LatestVer, this is equivalent to GetTRCMaxVersion.
+func (db *DB) GetTRCVersion(ctx context.Context,
+	isd addr.ISD, version uint64) (*trc.TRC, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getTRCVersion(ctx, db.db, isd, version)
+}
+
+// GetTRCMaxVersion returns the max version of the TRC for ia.
+func (db *DB) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getTRCMaxVersion(ctx, db.db, isd)
+}
+
+// InsertTRC inserts trcobj into the database. The first return value is the
+// number of rows affected.
+func (db *DB) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error) {
+	db.Lock()
+	defer db.Unlock()
+	return insertTRC(ctx, db.db, trcobj)
+}
+
+// GetAllTRCs fetches all TRCs from the database.
+func (db *DB) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getAllTRCs(ctx, db.db)
+}
+
+// BeginTransaction starts a new transaction.
+func (db *DB) BeginTransaction(ctx context.Context,
+	opts *sql.TxOptions) (trustdb.Transaction, error) {
+
+	db.Lock()
+	defer db.Unlock()
+	tx, err := db.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, common.NewBasicError("Failed to create transaction", err)
+	}
+	return &transaction{
+		DB: db,
+		tx: tx,
+	}, nil
+}
+
+type DBOrTx interface {
+	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+}
+
+type transaction struct {
+	*DB
+	tx *sql.Tx
+}
+
+// GetIssCertVersion returns the specified version of the issuer certificate for
+// ia. If version is scrypto.LatestVer, this is equivalent to GetIssCertMaxVersion.
+func (db *transaction) GetIssCertVersion(ctx context.Context, ia addr.IA,
+	version uint64) (*cert.Certificate, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getIssCertVersion(ctx, db.tx, ia, version)
+}
+
+// GetIssCertMaxVersion returns the max version of the issuer certificate for ia.
+func (db *transaction) GetIssCertMaxVersion(ctx context.Context,
+	ia addr.IA) (*cert.Certificate, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getIssCertMaxVersion(ctx, db.tx, ia)
+}
+
+// InsertIssCert inserts the issuer certificate.
+func (db *transaction) InsertIssCert(ctx context.Context, crt *cert.Certificate) (int64, error) {
+	db.Lock()
+	defer db.Unlock()
+	return insertIssCert(ctx, db.tx, crt)
+}
+
+// GetLeafCertVersion returns the specified version of the leaf certificate for
+// ia. If version is scrypto.LatestVer, this is equivalent to GetLeafCertMaxVersion.
+func (db *transaction) GetLeafCertVersion(ctx context.Context, ia addr.IA,
+	version uint64) (*cert.Certificate, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getLeafCertVersion(ctx, db.tx, ia, version)
+}
+
+// GetLeafCertMaxVersion returns the max version of the leaf certificate for ia.
+func (db *transaction) GetLeafCertMaxVersion(ctx context.Context,
+	ia addr.IA) (*cert.Certificate, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getLeafCertMaxVersion(ctx, db.tx, ia)
+}
+
+// InsertLeafCert inserts the leaf certificate.
+func (db *transaction) InsertLeafCert(ctx context.Context, crt *cert.Certificate) (int64, error) {
+	db.Lock()
+	defer db.Unlock()
+	return insertLeafCert(ctx, db.tx, crt)
+}
+
+// GetChainVersion returns the specified version of the certificate chain for
+// ia. If version is scrypto.LatestVer, this is equivalent to GetChainMaxVersion.
+func (db *transaction) GetChainVersion(ctx context.Context, ia addr.IA,
+	version uint64) (*cert.Chain, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getChainVersion(ctx, db.tx, ia, version)
+}
+
+// GetChainMaxVersion returns the max version of the chain for ia.
+func (db *transaction) GetChainMaxVersion(ctx context.Context, ia addr.IA) (*cert.Chain, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getChainMaxVersion(ctx, db.tx, ia)
+}
+
+func (db *transaction) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getAllChains(ctx, db.tx)
+}
+
+// InsertChain inserts chain into the database. The first return value is the
+// number of rows affected.
+func (db *transaction) InsertChain(ctx context.Context, chain *cert.Chain) (int64, error) {
+	db.Lock()
+	defer db.Unlock()
+	return insertChain(ctx, db.tx, chain)
+}
+
+// GetTRCVersion returns the specified version of the TRC for
+// isd. If version is scrypto.LatestVer, this is equivalent to GetTRCMaxVersion.
+func (db *transaction) GetTRCVersion(ctx context.Context,
+	isd addr.ISD, version uint64) (*trc.TRC, error) {
+
+	db.RLock()
+	defer db.RUnlock()
+	return getTRCVersion(ctx, db.tx, isd, version)
+}
+
+// GetTRCMaxVersion returns the max version of the TRC for ia.
+func (db *transaction) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getTRCMaxVersion(ctx, db.tx, isd)
+}
+
+// InsertTRC inserts trcobj into the database. The first return value is the
+// number of rows affected.
+func (db *transaction) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error) {
+	db.Lock()
+	defer db.Unlock()
+	return insertTRC(ctx, db.tx, trcobj)
+}
+
+// GetAllTRCs fetches all TRCs from the database.
+func (db *transaction) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
+	db.RLock()
+	defer db.RUnlock()
+	return getAllTRCs(ctx, db.tx)
+}
+
+func (db *transaction) Commit() (trustdb.TrustDB, error) {
+	db.Lock()
+	defer db.Unlock()
+	if db.tx == nil {
+		return db.DB, common.NewBasicError("Transaction already done", nil)
+	}
+	err := db.tx.Commit()
+	if err != nil {
+		return db.DB, common.NewBasicError("Failed to commit transaction", err)
+	}
+	db.tx = nil
+	return db.DB, nil
+}
+
+func (db *transaction) Rollback() (trustdb.TrustDB, error) {
+	db.Lock()
+	defer db.Unlock()
+	if db.tx == nil {
+		return db.DB, common.NewBasicError("Transaction already done", nil)
+	}
+	err := db.tx.Rollback()
+	db.tx = nil
+	if err != nil {
+		return db.DB, common.NewBasicError("Failed to rollback transaction", err)
+	}
+	return db.DB, nil
+}
+
+func getIssCertVersion(ctx context.Context, db DBOrTx, ia addr.IA,
+	version uint64) (*cert.Certificate, error) {
+	if version == scrypto.LatestVer {
+		return getIssCertMaxVersion(ctx, db, ia)
+	}
 	var raw common.RawBytes
-	err := db.getLeafCertMaxVersionStmt.QueryRowContext(ctx, ia.I, ia.A).Scan(&raw)
+	err := db.QueryRowContext(ctx, getIssCertVersionStr, ia.I, ia.A, version).Scan(&raw)
+	return parseCert(raw, ia, version, err)
+}
+
+func getIssCertMaxVersion(ctx context.Context, db DBOrTx, ia addr.IA) (*cert.Certificate, error) {
+	var raw common.RawBytes
+	err := db.QueryRowContext(ctx, getIssCertMaxVersionStr, ia.I, ia.A).Scan(&raw)
+	return parseCert(raw, ia, scrypto.LatestVer, err)
+}
+
+func insertIssCert(ctx context.Context, db DBOrTx, crt *cert.Certificate) (int64, error) {
+	raw, err := crt.JSON(false)
+	if err != nil {
+		return 0, common.NewBasicError("Unable to convert to JSON", err)
+	}
+	res, err := db.ExecContext(ctx, insertIssCertStr,
+		crt.Subject.I, crt.Subject.A, crt.Version, raw)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+func getLeafCertVersion(ctx context.Context, db DBOrTx, ia addr.IA,
+	version uint64) (*cert.Certificate, error) {
+
+	if version == scrypto.LatestVer {
+		return getLeafCertMaxVersion(ctx, db, ia)
+	}
+	var raw common.RawBytes
+	err := db.QueryRowContext(ctx, getLeafCertVersionStr, ia.I, ia.A, version).Scan(&raw)
+	return parseCert(raw, ia, version, err)
+}
+
+func getLeafCertMaxVersion(ctx context.Context, db DBOrTx, ia addr.IA) (*cert.Certificate, error) {
+	var raw common.RawBytes
+	err := db.QueryRowContext(ctx, getLeafCertMaxVersionStr, ia.I, ia.A).Scan(&raw)
 	return parseCert(raw, ia, scrypto.LatestVer, err)
 }
 
@@ -324,15 +536,12 @@ func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Cert
 	return crt, nil
 }
 
-// InsertLeafCert inserts the leaf certificate.
-func (db *DB) InsertLeafCert(ctx context.Context, crt *cert.Certificate) (int64, error) {
+func insertLeafCert(ctx context.Context, db DBOrTx, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to convert to JSON", err)
 	}
-	db.Lock()
-	defer db.Unlock()
-	res, err := db.insertLeafCertStmt.ExecContext(ctx,
+	res, err := db.ExecContext(ctx, insertLeafCertStr,
 		crt.Subject.I, crt.Subject.A, crt.Version, raw)
 	if err != nil {
 		return 0, err
@@ -340,17 +549,13 @@ func (db *DB) InsertLeafCert(ctx context.Context, crt *cert.Certificate) (int64,
 	return res.RowsAffected()
 }
 
-// GetChainVersion returns the specified version of the certificate chain for
-// ia. If version is scrypto.LatestVer, this is equivalent to GetChainMaxVersion.
-func (db *DB) GetChainVersion(ctx context.Context, ia addr.IA,
+func getChainVersion(ctx context.Context, db DBOrTx, ia addr.IA,
 	version uint64) (*cert.Chain, error) {
 
 	if version == scrypto.LatestVer {
-		return db.GetChainMaxVersion(ctx, ia)
+		return getChainMaxVersion(ctx, db, ia)
 	}
-	db.RLock()
-	defer db.RUnlock()
-	rows, err := db.getChainVersionStmt.QueryContext(ctx, ia.I, ia.A, version, ia.I, ia.A, version)
+	rows, err := db.QueryContext(ctx, getChainVersionStr, ia.I, ia.A, version, ia.I, ia.A, version)
 	if err != nil {
 		return nil, err
 	}
@@ -358,11 +563,8 @@ func (db *DB) GetChainVersion(ctx context.Context, ia addr.IA,
 	return parseChain(rows, err)
 }
 
-// GetChainMaxVersion returns the max version of the chain for ia.
-func (db *DB) GetChainMaxVersion(ctx context.Context, ia addr.IA) (*cert.Chain, error) {
-	db.RLock()
-	defer db.RUnlock()
-	rows, err := db.getChainMaxVersionStmt.QueryContext(ctx, ia.I, ia.A, ia.I, ia.A, ia.I, ia.A,
+func getChainMaxVersion(ctx context.Context, db DBOrTx, ia addr.IA) (*cert.Chain, error) {
+	rows, err := db.QueryContext(ctx, getChainMaxVersionStr, ia.I, ia.A, ia.I, ia.A, ia.I, ia.A,
 		ia.I, ia.A)
 	if err != nil {
 		return nil, err
@@ -397,10 +599,8 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	return cert.ChainFromSlice(certs)
 }
 
-func (db *DB) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
-	db.RLock()
-	defer db.RUnlock()
-	rows, err := db.getAllChainsStmt.QueryContext(ctx)
+func getAllChains(ctx context.Context, db DBOrTx) ([]*cert.Chain, error) {
+	rows, err := db.QueryContext(ctx, getAllChainsStr)
 	if err != nil {
 		return nil, common.NewBasicError("Database access error", err)
 	}
@@ -451,33 +651,31 @@ func (db *DB) GetAllChains(ctx context.Context) ([]*cert.Chain, error) {
 	return chains, nil
 }
 
-// InsertChain inserts chain into the database. The first return value is the
-// number of rows affected.
-func (db *DB) InsertChain(ctx context.Context, chain *cert.Chain) (int64, error) {
-	if _, err := db.InsertLeafCert(ctx, chain.Leaf); err != nil {
+func insertChain(ctx context.Context, db DBOrTx, chain *cert.Chain) (int64, error) {
+	if _, err := insertLeafCert(ctx, db, chain.Leaf); err != nil {
 		return 0, err
 	}
-	if _, err := db.InsertIssCert(ctx, chain.Issuer); err != nil {
+	if _, err := insertIssCert(ctx, db, chain.Issuer); err != nil {
 		return 0, err
 	}
-	db.Lock()
-	defer db.Unlock()
 	ia, ver := chain.IAVer()
-	rowId, err := db.getIssCertRowIDCtx(ctx, chain.Issuer.Subject, chain.Issuer.Version)
+	rowId, err := getIssCertRowIDCtx(ctx, db, chain.Issuer.Subject, chain.Issuer.Version)
 	if err != nil {
 		return 0, err
 	}
 	// NOTE(roosd): Adding multiple rows to Chains table has to be done in a transaction.
-	res, err := db.insertChainStmt.ExecContext(ctx, ia.I, ia.A, ver, 1, rowId)
+	res, err := db.ExecContext(ctx, insertChainStr, ia.I, ia.A, ver, 1, rowId)
 	if err != nil {
 		return 0, err
 	}
 	return res.RowsAffected()
 }
 
-func (db *DB) getIssCertRowIDCtx(ctx context.Context, ia addr.IA, ver uint64) (int64, error) {
+func getIssCertRowIDCtx(ctx context.Context, db DBOrTx,
+	ia addr.IA, ver uint64) (int64, error) {
+
 	var rowId int64
-	err := db.getIssCertRowIDStmt.QueryRowContext(ctx, ia.I, ia.A, ver).Scan(&rowId)
+	err := db.QueryRowContext(ctx, getIssCertRowIDStr, ia.I, ia.A, ver).Scan(&rowId)
 	if err == sql.ErrNoRows {
 		return 0, common.NewBasicError("Unable to get RowID of issuer certificate", nil,
 			"ia", ia, "ver", ver)
@@ -488,18 +686,14 @@ func (db *DB) getIssCertRowIDCtx(ctx context.Context, ia addr.IA, ver uint64) (i
 	return rowId, nil
 }
 
-// GetTRCVersion returns the specified version of the TRC for
-// isd. If version is scrypto.LatestVer, this is equivalent to GetTRCMaxVersion.
-func (db *DB) GetTRCVersion(ctx context.Context,
+func getTRCVersion(ctx context.Context, db DBOrTx,
 	isd addr.ISD, version uint64) (*trc.TRC, error) {
 
 	if version == scrypto.LatestVer {
-		return db.GetTRCMaxVersion(ctx, isd)
+		return getTRCMaxVersion(ctx, db, isd)
 	}
-	db.RLock()
-	defer db.RUnlock()
 	var raw common.RawBytes
-	err := db.getTRCVersionStmt.QueryRowContext(ctx, isd, version).Scan(&raw)
+	err := db.QueryRowContext(ctx, getTRCVersionStr, isd, version).Scan(&raw)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -513,12 +707,9 @@ func (db *DB) GetTRCVersion(ctx context.Context,
 	return trcobj, nil
 }
 
-// GetTRCMaxVersion returns the max version of the TRC for ia.
-func (db *DB) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error) {
-	db.RLock()
-	defer db.RUnlock()
+func getTRCMaxVersion(ctx context.Context, db DBOrTx, isd addr.ISD) (*trc.TRC, error) {
 	var raw common.RawBytes
-	err := db.getTRCMaxVersionStmt.QueryRowContext(ctx, isd).Scan(&raw)
+	err := db.QueryRowContext(ctx, getTRCMaxVersionStr, isd).Scan(&raw)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -532,27 +723,20 @@ func (db *DB) GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, err
 	return trcobj, nil
 }
 
-// InsertTRC inserts trcobj into the database. The first return value is the
-// number of rows affected.
-func (db *DB) InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error) {
+func insertTRC(ctx context.Context, db DBOrTx, trcobj *trc.TRC) (int64, error) {
 	raw, err := trcobj.JSON(false)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to convert to JSON", err)
 	}
-	db.Lock()
-	defer db.Unlock()
-	res, err := db.insertTRCStmt.ExecContext(ctx, trcobj.ISD, trcobj.Version, raw)
+	res, err := db.ExecContext(ctx, insertTRCStr, trcobj.ISD, trcobj.Version, raw)
 	if err != nil {
 		return 0, err
 	}
 	return res.RowsAffected()
 }
 
-// GetAllTRCs fetches all TRCs from the database.
-func (db *DB) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
-	db.RLock()
-	defer db.RUnlock()
-	rows, err := db.getAllTRCsStmt.QueryContext(ctx)
+func getAllTRCs(ctx context.Context, db DBOrTx) ([]*trc.TRC, error) {
+	rows, err := db.QueryContext(ctx, getAllTRCsStr)
 	if err != nil {
 		return nil, common.NewBasicError("Database access error", err)
 	}
