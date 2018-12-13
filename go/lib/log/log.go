@@ -142,6 +142,7 @@ func setHandlers() {
 func LogPanicAndExit() {
 	if msg := recover(); msg != nil {
 		log15.Crit("Panic", "msg", msg, "stack", string(debug.Stack()))
+		log15.Crit("=====================> Service panicked!")
 		Flush()
 		os.Exit(255)
 	}

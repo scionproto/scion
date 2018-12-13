@@ -138,10 +138,3 @@ func VersionInfo() string {
 func LogAppStopped(svcType, elemId string) {
 	log.Info(fmt.Sprintf("=====================> Service stopped %s %s", svcType, elemId))
 }
-
-// CleanupLog calls log.LogPanicAndExit and log.Flush
-// it is mainly a helper to have a single defer call in services.
-func CleanupLog() {
-	log.LogPanicAndExit()
-	log.Flush()
-}
