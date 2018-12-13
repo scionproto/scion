@@ -85,8 +85,7 @@ func realMain() int {
 		profile.Start(config.General.ID)
 	}
 	var err error
-	r, err = NewRouter(config.General.ID, config.General.ConfigDir)
-	if err != nil {
+	if r, err = NewRouter(config.General.ID, config.General.ConfigDir); err != nil {
 		log.Crit("Startup failed", "err", err)
 		return 1
 	}
