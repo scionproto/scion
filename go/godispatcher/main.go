@@ -24,6 +24,7 @@ import (
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 type Config struct {
@@ -51,8 +52,9 @@ func realMain() int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	defer env.CleanupLog()
+	defer log.Flush()
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
+	defer log.LogPanicAndExit()
 
 	cfg.Metrics.StartPrometheus()
 	<-fatal.Chan()

@@ -74,8 +74,9 @@ func realMain() int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	defer env.CleanupLog()
+	defer log.Flush()
 	defer env.LogAppStopped("SIG", cfg.Sig.ID)
+	defer log.LogPanicAndExit()
 	if err := validateConfig(); err != nil {
 		log.Crit("Validation of config failed", "err", err)
 		return 1
