@@ -32,7 +32,9 @@ case "$COMMAND" in
     gsetup)
         global_setup ;;
     grun)
-        global_run_single "$1" ;;
+        artifacts_dir; stats_failed=0
+        global_run_single "$1"
+        [ $stats_failed -eq 0 ] ;;
     gteardown)
         global_teardown ;;
     *) cmd_help; exit 1 ;;

@@ -4,12 +4,14 @@
 # the SD process receives a SIGHUP it will reload the config and get future
 # certificate chains from the new address.
 
+. acceptance/common.sh
+
 TEST_NAME="topo_sd_reloads_cs"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
 SRC_IA=${SRC_IA:-1-ff00:0:112}
-SRC_IA_FILE=$(echo $SRC_IA | sed -e "s/:/_/g")
-SRC_AS_FILE=$(echo $SRC_IA_FILE | cut -d '-' -f 2)
+SRC_IA_FILE="$(ia_file $SRC_IA)"
+SRC_AS_FILE="$(as_file $SRC_IA)"
 DST_IA=${DST_IA:-1-ff00:0:110}
 
 test_setup() {

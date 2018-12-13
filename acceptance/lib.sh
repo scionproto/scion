@@ -42,7 +42,13 @@ build_docker_perapp() {
     make -C docker/perapp
 }
 
+artifacts_dir() {
+    export ACCEPTANCE_ARTIFACTS="${ACCEPTANCE_ARTIFACTS:-$(mktemp -d /tmp/acceptance-artifacts-$(date +"%Y%m%d-%H%M%S").XXXXXXX)}"
+    echo "Acceptance artifacts saved to $ACCEPTANCE_ARTIFACTS"
+}
+
 global_setup() {
+    artifacts_dir
     local out_dir="$ACCEPTANCE_ARTIFACTS"
     set -e
     print_green "[==========]"
@@ -89,9 +95,9 @@ test_run_wrapper() {
 }
 
 save_logs() {
-    local out="$1"
-    mkdir -p "$out/$TEST_NAME/logs"
-    mv logs/* "$out/$TEST_NAME/logs"
+    local out_dir="${ACCEPTANCE_ARTIFACTS:?}"
+    mkdir -p "$out_dir/$TEST_NAME/logs"
+    mv logs/* "$out_dir/$TEST_NAME/logs"
 }
 
 test_teardown_wrapper() {
@@ -114,7 +120,7 @@ global_run() {
         if [[ "$TEST_NAME" =~ $regex_matcher ]]; then
             global_run_single "$TEST_PROGRAM"
             local fatal_teardown=$?
-            save_logs "$out"
+            save_logs
             if [ $fatal_teardown -ne 0 ]; then
                 print_red "[  FATAL   ]" "Teardown failed, stopping test suite"
                 exit 1
@@ -127,13 +133,13 @@ global_run() {
 }
 
 global_run_single() {
-    local out="${ACCEPTANCE_ARTIFACTS:?}"
+    local out_dir="${ACCEPTANCE_ARTIFACTS:?}"
     TEST_PROGRAM="${1:?}"
     TEST_NAME=$($TEST_PROGRAM name)
-    mkdir -p "$out/$TEST_NAME"
-    SETUP_FILE="$out/$TEST_NAME/setup.out"
-    RUN_FILE="$out/$TEST_NAME/run.out"
-    TEARDOWN_FILE="$out/$TEST_NAME/teardown.out"
+    mkdir -p "$out_dir/$TEST_NAME"
+    SETUP_FILE="$out_dir/$TEST_NAME/setup.out"
+    RUN_FILE="$out_dir/$TEST_NAME/run.out"
+    TEARDOWN_FILE="$out_dir/$TEST_NAME/teardown.out"
     test_setup_wrapper "$SETUP_FILE" && \
         test_run_wrapper "$RUN_FILE"
     test_teardown_wrapper "$TEARDOWN_FILE"

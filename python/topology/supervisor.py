@@ -36,6 +36,11 @@ from topology.common import (
     prom_addr_infra,
     PS_CONFIG_NAME,
 )
+from topology.prometheus import (
+    BS_PROM_PORT,
+    CS_PROM_PORT,
+    PS_PROM_PORT
+)
 
 
 SUPERVISOR_CONF = 'supervisord.conf'
@@ -67,11 +72,11 @@ class SupervisorGenerator(object):
         entries.extend(self._ps_entries(topo, base))
         return entries
 
-    def _std_entries(self, topo, topo_key, cmd, base):
+    def _std_entries(self, topo, topo_key, cmd, base, port):
         entries = []
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
-            prom_addr = prom_addr_infra(elem_id, elem, self.args.port_gen)
+            prom_addr = prom_addr_infra(elem_id, elem, port)
             entries.append((elem_id, [cmd, "--prom", prom_addr, "--sciond_path",
                                       get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
                                       elem_id, conf_dir]))
@@ -85,11 +90,13 @@ class SupervisorGenerator(object):
         return entries
 
     def _bs_entries(self, topo, base):
-        return self._std_entries(topo, "BeaconService", "python/bin/beacon_server", base)
+        return self._std_entries(topo, "BeaconService", "python/bin/beacon_server", base,
+                                 BS_PROM_PORT)
 
     def _cs_entries(self, topo, base):
         if self.args.cert_server == "py":
-            return self._std_entries(topo, "CertificateService", "python/bin/cert_server", base)
+            return self._std_entries(topo, "CertificateService", "python/bin/cert_server", base,
+                                     CS_PROM_PORT)
         entries = []
         for k, v in topo.get("CertificateService", {}).items():
             # only a single Go-CS per AS is currently supported
@@ -100,7 +107,8 @@ class SupervisorGenerator(object):
 
     def _ps_entries(self, topo, base):
         if self.args.path_server == "py":
-            return self._std_entries(topo, "PathService", "python/bin/path_server", base)
+            return self._std_entries(topo, "PathService", "python/bin/path_server", base,
+                                     PS_PROM_PORT)
         entries = []
         for k, v in topo.get("PathService", {}).items():
             # only a single Go-PS per AS is currently supported
