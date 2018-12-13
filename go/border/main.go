@@ -24,90 +24,112 @@ import (
 	"fmt"
 	_ "net/http/pprof"
 	"os"
-	"os/signal"
 	"os/user"
-	"syscall"
 
+	"github.com/BurntSushi/toml"
+
+	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/profile"
 )
 
+type Config struct {
+	General env.General
+	Logging env.Logging
+	Metrics env.Metrics
+	BR      brconf.BR
+}
+
 var (
-	id       = flag.String("id", "", "Element ID (Required. E.g. 'br4-ff00:0:2f')")
-	confDir  = flag.String("confd", ".", "Configuration directory")
-	profFlag = flag.Bool("profile", false, "Enable cpu and memory profiling")
-	version  = flag.Bool("version", false, "Output version information and exit.")
+	config      Config
+	environment *env.Env
+	r           *Router
 )
 
+func init() {
+	flag.Usage = env.Usage
+}
+
 func main() {
-	os.Setenv("TZ", "UTC")
-	// Parse and check flags.
-	log.AddLogFileFlags()
-	log.AddLogConsFlags()
+	os.Exit(realMain())
+}
+
+func realMain() int {
+	fatal.Init()
+	env.AddFlags()
 	flag.Parse()
-	if *version {
-		fmt.Print(env.VersionInfo())
-		os.Exit(0)
+	if v, ok := env.CheckFlags(brconf.Sample); !ok {
+		return v
 	}
-	if *id == "" {
-		log.Crit("No element ID specified")
-		os.Exit(1)
+	if err := setupBasic(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	if err := log.SetupFromFlags(*id); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err)
-		flag.Usage()
-		os.Exit(1)
-	}
-	defer env.CleanupLog()
-	if err := env.LogAppStarted(common.BR, *id); err != nil {
-		log.Crit("LogSvcStart failed", "err", err)
-		log.Flush()
-		os.Exit(1)
+	defer log.Flush()
+	defer env.LogAppStopped(common.BR, config.General.ID)
+	defer log.LogPanicAndExit()
+	if err := setup(); err != nil {
+		log.Crit("Setup failed", "err", err)
+		return 1
 	}
 	if err := checkPerms(); err != nil {
 		log.Crit("Permissions checks failed", "err", err)
-		log.Flush()
-		os.Exit(1)
+		return 1
 	}
-	if *profFlag {
+	if config.BR.Profile {
 		// Start profiling if requested.
-		profile.Start(*id)
+		profile.Start(config.General.ID)
 	}
-	setupSignals()
-	r, err := NewRouter(*id, *confDir)
-	if err != nil {
+	var err error
+	if r, err = NewRouter(config.General.ID, config.General.ConfigDir); err != nil {
 		log.Crit("Startup failed", "err", err)
-		log.Flush()
-		os.Exit(1)
+		return 1
 	}
 	if assert.On {
 		log.Info("Router was built with assertions ON.")
 	} else {
 		log.Info("Router was built with assertions OFF.")
 	}
-	log.Info("Starting up", "id", *id, "pid", os.Getpid())
-	if err := r.Run(); err != nil {
-		log.Crit("Run failed", "err", err)
-		log.Flush()
-		os.Exit(1)
+	r.Start()
+	select {
+	case <-environment.AppShutdownSignal:
+		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
+		return 0
+	case <-fatal.Chan():
+		return 1
 	}
 }
 
-func setupSignals() {
-	sig := make(chan os.Signal, 2)
-	signal.Notify(sig, os.Interrupt)
-	signal.Notify(sig, syscall.SIGTERM)
-	go func() {
-		defer log.LogPanicAndExit()
-		<-sig
-		env.LogAppStopped(common.BR, *id)
-		profile.Stop()
-		log.Flush()
-		os.Exit(1)
-	}()
+func setupBasic() error {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
+		return err
+	}
+	if err := env.InitLogging(&config.Logging); err != nil {
+		return err
+	}
+	return env.LogAppStarted(common.BR, config.General.ID)
+}
+
+func setup() error {
+	if err := env.InitGeneral(&config.General); err != nil {
+		return err
+	}
+	environment = env.SetupEnv(func() {
+		if r == nil {
+			log.Error("Unable to reload config", "err", "router not set")
+			return
+		}
+		if err := r.ReloadConfig(); err != nil {
+			log.Error("Unable to reload config", "err", err)
+			return
+		}
+		log.Info("Config reloaded")
+	})
+	return nil
 }
 
 func checkPerms() error {

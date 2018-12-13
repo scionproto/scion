@@ -27,7 +27,16 @@ from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.packet.scion_addr import ISD_AS
 from lib.util import read_file, write_file
-from topology.common import prom_addr_br, prom_addr_infra, ArgsTopoDicts, COMMON_DIR
+from topology.common import (
+    ArgsTopoDicts,
+    BR_CONFIG_NAME,
+    COMMON_DIR,
+    CS_CONFIG_NAME,
+    SD_CONFIG_NAME,
+    prom_addr_infra,
+    PS_CONFIG_NAME,
+)
+
 
 SUPERVISOR_CONF = 'supervisord.conf'
 
@@ -71,9 +80,8 @@ class SupervisorGenerator(object):
     def _br_entries(self, topo, cmd, base):
         entries = []
         for k, v in topo.get("BorderRouters", {}).items():
-            conf_dir = os.path.join(base, k)
-            entries.append((k, [cmd, "-id=%s" % k, "-confd=%s" % conf_dir,
-                                "-prom=%s" % prom_addr_br(k, v, self.args.port_gen)]))
+            conf = os.path.join(base, k, BR_CONFIG_NAME)
+            entries.append((k, [cmd, "-config", conf]))
         return entries
 
     def _bs_entries(self, topo, base):
@@ -86,7 +94,7 @@ class SupervisorGenerator(object):
         for k, v in topo.get("CertificateService", {}).items():
             # only a single Go-CS per AS is currently supported
             if k.endswith("-1"):
-                conf = os.path.join(base, k, "csconfig.toml")
+                conf = os.path.join(base, k, CS_CONFIG_NAME)
                 entries.append((k, ["bin/cert_srv", "-config", conf]))
         return entries
 
@@ -97,7 +105,7 @@ class SupervisorGenerator(object):
         for k, v in topo.get("PathService", {}).items():
             # only a single Go-PS per AS is currently supported
             if k.endswith("-1"):
-                conf = os.path.join(base, k, "psconfig.toml")
+                conf = os.path.join(base, k, PS_CONFIG_NAME)
                 entries.append((k, ["bin/path_srv", "-config", conf]))
         return entries
 
@@ -107,7 +115,7 @@ class SupervisorGenerator(object):
             return self._common_entry(
                 name, ["python/bin/sciond", "--api-addr", path, name, conf_dir])
         return self._common_entry(
-                name, ["bin/sciond", "-config", os.path.join(conf_dir, "sciond.toml")])
+                name, ["bin/sciond", "-config", os.path.join(conf_dir, SD_CONFIG_NAME)])
 
     def _sciond_path(self, name):
         return os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name)

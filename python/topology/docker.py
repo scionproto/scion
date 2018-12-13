@@ -30,7 +30,6 @@ from topology.common import (
     ArgsTopoDicts,
     docker_image,
     DOCKER_USR_VOL,
-    prom_addr_br,
     prom_addr_infra,
     sciond_name,
     sciond_svc_name
@@ -142,8 +141,6 @@ class DockerGenerator(object):
             entry = copy.deepcopy(raw_entry)
             entry['container_name'] = self.prefix + k
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('-id=%s' % k)
-            entry['command'].append('-prom=%s' % prom_addr_br(k, v, self.args.port_gen))
             # Set BR IPs
             in_net = self.elem_networks[k + "_internal"][0]
             entry['networks'][self.bridges[in_net['net']]] = {'ipv4_address': str(in_net['ipv4'])}

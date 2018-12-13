@@ -24,7 +24,16 @@ import toml
 from lib.app.sciond import get_default_sciond_path
 from lib.defines import SCIOND_API_SOCKDIR
 from lib.util import write_file
-from topology.common import ArgsTopoDicts, COMMON_DIR, sciond_name
+from topology.common import (
+    ArgsTopoDicts,
+    BR_CONFIG_NAME,
+    COMMON_DIR,
+    CS_CONFIG_NAME,
+    sciond_name,
+    SD_CONFIG_NAME,
+    prom_addr_br,
+    PS_CONFIG_NAME,
+)
 
 
 class GoGenArgs(ArgsTopoDicts):
@@ -41,6 +50,30 @@ class GoGenerator(object):
         self.db_dir = '/share/cache' if args.docker else 'gen-cache'
         self.log_level = 'trace' if args.trace else 'debug'
 
+    def generate_br(self):
+        for topo_id, topo in self.args.topo_dicts.items():
+            for k, v in topo.get("BorderRouters", {}).items():
+                base = topo_id.base_dir(self.args.output_dir)
+                br_conf = self._build_br_conf(topo_id, topo["ISD_AS"], base, k, v)
+                write_file(os.path.join(base, k, BR_CONFIG_NAME), toml.dumps(br_conf))
+
+    def _build_br_conf(self, topo_id, ia, base, name, v):
+        config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
+        raw_entry = {
+            'general': {
+                'ID': name,
+                'ConfigDir': config_dir,
+            },
+            'logging': self._log_entry(name),
+            'metrics': {
+                'Prometheus': prom_addr_br(name, v, self.args.port_gen),
+            },
+            'br': {
+                'Profile': False,
+            },
+        }
+        return raw_entry
+
     def generate_ps(self):
         for topo_id, topo in self.args.topo_dicts.items():
             for k, v in topo.get("PathService", {}).items():
@@ -48,7 +81,7 @@ class GoGenerator(object):
                 if k.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
                     ps_conf = self._build_ps_conf(topo_id, topo["ISD_AS"], base, k)
-                    write_file(os.path.join(base, k, "psconfig.toml"), toml.dumps(ps_conf))
+                    write_file(os.path.join(base, k, PS_CONFIG_NAME), toml.dumps(ps_conf))
 
     def _build_ps_conf(self, topo_id, ia, base, name):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
@@ -58,15 +91,7 @@ class GoGenerator(object):
                 'ConfigDir': config_dir,
                 'ReconnectToDispatcher': True,
             },
-            'logging': {
-                'file': {
-                    'Path': os.path.join(self.log_dir, "%s.log" % name),
-                    'Level': self.log_level,
-                },
-                'console': {
-                    'Level': 'crit',
-                },
-            },
+            'logging': self._log_entry(name),
             'TrustDB': {
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
@@ -88,7 +113,7 @@ class GoGenerator(object):
         for topo_id, topo in self.args.topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
             sciond_conf = self._build_sciond_conf(topo_id, topo["ISD_AS"], base)
-            write_file(os.path.join(base, COMMON_DIR, "sciond.toml"), toml.dumps(sciond_conf))
+            write_file(os.path.join(base, COMMON_DIR, SD_CONFIG_NAME), toml.dumps(sciond_conf))
 
     def _build_sciond_conf(self, topo_id, ia, base):
         name = sciond_name(topo_id)
@@ -99,15 +124,7 @@ class GoGenerator(object):
                 'ConfigDir': config_dir,
                 'ReconnectToDispatcher': True,
             },
-            'logging': {
-                'file': {
-                    'Path': os.path.join(self.log_dir, "%s.log" % name),
-                    'Level': self.log_level,
-                },
-                'console': {
-                    'Level': 'crit',
-                },
-            },
+            'logging': self._log_entry(name),
             'TrustDB': {
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
@@ -130,7 +147,7 @@ class GoGenerator(object):
                 if k.endswith("-1"):
                     base = topo_id.base_dir(self.args.output_dir)
                     cs_conf = self._build_cs_conf(topo_id, topo["ISD_AS"], base, k)
-                    write_file(os.path.join(base, k, "csconfig.toml"), toml.dumps(cs_conf))
+                    write_file(os.path.join(base, k, CS_CONFIG_NAME), toml.dumps(cs_conf))
 
     def _build_cs_conf(self, topo_id, ia, base, name):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
@@ -142,15 +159,7 @@ class GoGenerator(object):
             'sd_client': {
                 'Path': get_default_sciond_path(topo_id),
             },
-            'logging': {
-                'file': {
-                    'Path': os.path.join(self.log_dir, "%s.log" % name),
-                    'Level': self.log_level,
-                },
-                'console': {
-                    'Level': 'crit',
-                },
-            },
+            'logging': self._log_entry(name),
             'TrustDB': {
                 'Backend': 'sqlite',
                 'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
@@ -166,3 +175,15 @@ class GoGenerator(object):
             },
         }
         return raw_entry
+
+    def _log_entry(self, name):
+        entry = {
+            'file': {
+                'Path': os.path.join(self.log_dir, "%s.log" % name),
+                'Level': self.log_level,
+            },
+            'console': {
+                'Level': 'crit',
+            },
+        }
+        return entry

@@ -18,33 +18,20 @@
 package main
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/scionproto/scion/go/border/conf"
+	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/metrics"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctrl"
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 )
 
 const processBufCnt = 128
-
-var sighup chan os.Signal
-
-func init() {
-	// Add a SIGHUP handler as soon as possible on startup, to reduce the
-	// chance that a premature SIGHUP will kill the process. This channel is
-	// used by confSig below.
-	sighup = make(chan os.Signal, 1)
-	signal.Notify(sighup, syscall.SIGHUP)
-}
 
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-ff00:0:2f".
@@ -68,16 +55,12 @@ func NewRouter(id, confDir string) (*Router, error) {
 	return r, nil
 }
 
-// Run sets up networking, and starts go routines for handling the main packet
+// Start sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
-func (r *Router) Run() error {
+func (r *Router) Start() {
 	go func() {
 		defer log.LogPanicAndExit()
 		r.PacketError()
-	}()
-	go func() {
-		defer log.LogPanicAndExit()
-		r.confSig()
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
@@ -85,26 +68,19 @@ func (r *Router) Run() error {
 	}()
 	// TODO(shitz): Here should be some code to periodically check the discovery
 	// service for updated info.
-	var wait chan struct{}
-	<-wait
-	return nil
 }
 
-// confSig handles reloading the configuration when SIGHUP is received.
-func (r *Router) confSig() {
-	for range sighup {
-		var err error
-		var config *conf.Conf
-		if config, err = r.loadNewConfig(); err != nil {
-			log.Error("Error reloading config", "err", err)
-			continue
-		}
-		if err := r.setupNewContext(config); err != nil {
-			log.Error("Error setting up new context", "err", err)
-			continue
-		}
-		log.Info("Config reloaded")
+// ReloadConfig handles reloading the configuration when SIGHUP is received.
+func (r *Router) ReloadConfig() error {
+	var err error
+	var config *brconf.Conf
+	if config, err = r.loadNewConfig(); err != nil {
+		return common.NewBasicError("Unable to load config", err)
 	}
+	if err := r.setupNewContext(config); err != nil {
+		return common.NewBasicError("Unable to set up new context", err)
+	}
+	return nil
 }
 
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {

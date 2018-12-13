@@ -21,6 +21,8 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+
+	"github.com/scionproto/scion/go/lib/log"
 )
 
 var cpuF, memF *os.File
@@ -40,7 +42,7 @@ func startCpu(name string) {
 	if err := pprof.StartCPUProfile(cpuF); err != nil {
 		panic(fmt.Sprintf("Could not start CPU profile: %v", err))
 	}
-	fmt.Printf("CPU profiling to %v\n", path)
+	log.Info("CPU profiling started", "path", path)
 }
 
 func startMem(name string) {
@@ -50,14 +52,14 @@ func startMem(name string) {
 	if err != nil {
 		panic(fmt.Sprintf("Could not create Mem profile: %v", err))
 	}
-	fmt.Printf("Mem profiling enabled (rate %d)\n", runtime.MemProfileRate)
+	log.Info("Mem profiling started", "rate", runtime.MemProfileRate)
 }
 
 func Stop() {
 	if cpuF != nil {
 		pprof.StopCPUProfile()
 		cpuF.Close()
-		fmt.Printf("CPU profiling stopped\n")
+		log.Info("CPU profiling stopped")
 	}
 	if memF != nil {
 		runtime.GC()
@@ -65,6 +67,6 @@ func Stop() {
 			panic(fmt.Sprintf("Could not write memory profile: %v", err))
 		}
 		memF.Close()
-		fmt.Printf("Mem profiling stopped\n")
+		log.Info("Mem profiling stopped")
 	}
 }

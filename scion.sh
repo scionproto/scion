@@ -51,6 +51,8 @@ cmd_run() {
             ./tools/quiet ./docker.sh build
             echo "Build perapp images"
             ./tools/quiet make -C docker/perapp
+            echo "Build scion tester"
+            ./tools/quiet ./docker.sh tester
         fi
     fi
     run_setup
