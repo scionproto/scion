@@ -339,7 +339,7 @@ class TRC(object):
                 self.isd, old_trc.isd))
         if old_trc.version + 1 != self.version:
             raise SCIONVerificationError("Invalid TRC version %s. Expected %s" % (
-                self.version, old_trc.isd + 1))
+                self.version, old_trc.version + 1))
         if self.create_time < old_trc.create_time + old_trc.grace_period:
             raise SCIONVerificationError("Invalid timestamp %s. Expected > %s " % (
                 self.create_time, old_trc.create_time + old_trc.grace_period))
