@@ -113,11 +113,12 @@ func LogAppStarted(svcType, elemId string) error {
 		return common.NewBasicError("Unable to determine if running in docker", err)
 	}
 	info := fmt.Sprintf("=====================> Service started %s %s\n"+
-		"%s  %s\n  %s\n  %s\n",
+		"%s  %s\n  %s\n  %s\n  %s\n",
 		svcType,
 		elemId,
 		VersionInfo(),
 		fmt.Sprintf("In docker:     %v", inDocker),
+		fmt.Sprintf("pid:           %d", os.Getpid()),
 		fmt.Sprintf("euid/egid:     %d %d", os.Geteuid(), os.Getegid()),
 		fmt.Sprintf("cmd line:      %q", os.Args),
 	)

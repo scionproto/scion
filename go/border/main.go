@@ -47,6 +47,7 @@ type Config struct {
 var (
 	config      Config
 	environment *env.Env
+	r           *Router
 )
 
 func init() {
@@ -68,8 +69,9 @@ func realMain() int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	defer env.CleanupLog()
+	defer log.Flush()
 	defer env.LogAppStopped(common.BR, config.General.ID)
+	defer log.LogPanicAndExit()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
@@ -82,7 +84,8 @@ func realMain() int {
 		// Start profiling if requested.
 		profile.Start(config.General.ID)
 	}
-	r, err := NewRouter(config.General.ID, config.General.ConfigDir)
+	var err error
+	r, err = NewRouter(config.General.ID, config.General.ConfigDir)
 	if err != nil {
 		log.Crit("Startup failed", "err", err)
 		return 1
@@ -92,8 +95,7 @@ func realMain() int {
 	} else {
 		log.Info("Router was built with assertions OFF.")
 	}
-	log.Info("Starting up", "id", config.General.ID, "pid", os.Getpid())
-	r.Run()
+	r.Start()
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -118,7 +120,15 @@ func setup() error {
 		return err
 	}
 	environment = env.SetupEnv(func() {
-		sighup <- struct{}{}
+		if r == nil {
+			log.Error("Unable to reload config", "err", "router not set")
+			return
+		}
+		if err := r.ReloadConfig(); err != nil {
+			log.Error("Unable to reload config", "err", err)
+			return
+		}
+		log.Info("Config reloaded")
 	})
 	return nil
 }

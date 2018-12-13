@@ -25,14 +25,13 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/assert"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	_ "github.com/scionproto/scion/go/lib/scrypto" // Make sure math/rand is seeded
 )
 
 const processBufCnt = 128
-
-var sighup chan struct{} = make(chan struct{}, 1)
 
 type Router struct {
 	// Id is the SCION element ID, e.g. "br4-ff00:0:2f".
@@ -56,16 +55,12 @@ func NewRouter(id, confDir string) (*Router, error) {
 	return r, nil
 }
 
-// Run sets up networking, and starts go routines for handling the main packet
+// Start sets up networking, and starts go routines for handling the main packet
 // processing as well as various other router functions.
-func (r *Router) Run() {
+func (r *Router) Start() {
 	go func() {
 		defer log.LogPanicAndExit()
 		r.PacketError()
-	}()
-	go func() {
-		defer log.LogPanicAndExit()
-		r.confSig()
 	}()
 	go func() {
 		defer log.LogPanicAndExit()
@@ -75,21 +70,17 @@ func (r *Router) Run() {
 	// service for updated info.
 }
 
-// confSig handles reloading the configuration when SIGHUP is received.
-func (r *Router) confSig() {
-	for range sighup {
-		var err error
-		var config *brconf.Conf
-		if config, err = r.loadNewConfig(); err != nil {
-			log.Error("Error reloading config", "err", err)
-			continue
-		}
-		if err := r.setupNewContext(config); err != nil {
-			log.Error("Error setting up new context", "err", err)
-			continue
-		}
-		log.Info("Config reloaded")
+// ReloadConfig handles reloading the configuration when SIGHUP is received.
+func (r *Router) ReloadConfig() error {
+	var err error
+	var config *brconf.Conf
+	if config, err = r.loadNewConfig(); err != nil {
+		return common.NewBasicError("Unable to load config", err)
 	}
+	if err := r.setupNewContext(config); err != nil {
+		return common.NewBasicError("Unable to set up new context", err)
+	}
+	return nil
 }
 
 func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
