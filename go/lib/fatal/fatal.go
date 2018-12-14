@@ -33,13 +33,13 @@ var (
 	fatalC chan struct{}
 )
 
-// Initialize the package.
+// Init Initializes the package.
 // This MUST be called in the main coroutine when it starts.
 func Init() {
 	fatalC = make(chan struct{})
 }
 
-// Check whether the package was initialized.
+// Check checks whether the package was initialized.
 // This MUST be called when a library producing fatal errors starts is initialized.
 func Check() {
 	if fatalC == nil {
@@ -48,7 +48,7 @@ func Check() {
 	}
 }
 
-// Produce a fatal error. This function never exits.
+// Fatal produces a fatal error. This function never exits.
 func Fatal(err error) {
 	log.Crit("Fatal error", "err", err)
 	// Grace period to gather more logs in case that
@@ -65,7 +65,8 @@ func Fatal(err error) {
 	}
 }
 
-// Get access to the underlying channel. This is used by main goroutine to wait for fatal errors.
+// Chan returns a read-only channel to be used by the main goroutine to get notified
+// about fatal conditions.
 func Chan() <-chan struct{} {
 	return fatalC
 }
