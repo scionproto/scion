@@ -15,7 +15,9 @@
 package registration_test
 
 import (
+	"math/rand"
 	"net"
+	"strconv"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -194,4 +196,24 @@ func runRandomRegistrations(count int, table registration.SVCTable) []registrati
 		}
 	}
 	return references
+}
+
+func getRandomUDPAddress() *net.UDPAddr {
+	return &net.UDPAddr{
+		IP:   getRandomIPv4(),
+		Port: getRandomPort(),
+	}
+}
+
+func getRandomIPv4() net.IP {
+	b := byte(rand.Intn(4))
+	return net.IP{10, 0, 0, b}
+}
+
+func getRandomPort() int {
+	return rand.Intn(16)
+}
+
+func getRandomValue() string {
+	return strconv.Itoa(rand.Intn(1 << 16))
 }

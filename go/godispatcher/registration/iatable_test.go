@@ -20,7 +20,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
+	"github.com/scionproto/scion/go/godispatcher/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
 )

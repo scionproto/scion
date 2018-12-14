@@ -17,8 +17,6 @@ package registration
 const (
 	ErrNoPublicAddress    = "no public address"
 	ErrBindWithoutSvc     = "bind address without svc address"
-	ErrBadISD             = "0 is not valid ISD"
-	ErrBadAS              = "0 is not valid AS"
 	ErrOverlappingAddress = "overlapping address"
 	ErrNoValue            = "nil value"
 	ErrZeroIP             = "zero address"

@@ -18,8 +18,14 @@ import (
 	"net"
 	"sync"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+)
+
+const (
+	ErrBadISD = "0 is not valid ISD"
+	ErrBadAS  = "0 is not valid AS"
 )
 
 // Reference tracks an object from a collection.
@@ -75,14 +81,14 @@ var _ IATable = (*iaTable)(nil)
 
 type iaTable struct {
 	mtx     sync.RWMutex
-	ia      map[addr.IA]*Table
+	ia      map[addr.IA]*registration.Table
 	minPort int
 	maxPort int
 }
 
 func newIATable(minPort, maxPort int) *iaTable {
 	return &iaTable{
-		ia:      make(map[addr.IA]*Table),
+		ia:      make(map[addr.IA]*registration.Table),
 		minPort: minPort,
 		maxPort: maxPort,
 	}
@@ -101,7 +107,7 @@ func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc add
 	}
 	table, ok := t.ia[ia]
 	if !ok {
-		table = NewTable(t.minPort, t.maxPort)
+		table = registration.NewTable(t.minPort, t.maxPort)
 		t.ia[ia] = table
 	}
 	reference, err := table.Register(public, bind, svc, value)

@@ -18,9 +18,12 @@ import (
 	"net"
 	"testing"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
+	"github.com/scionproto/scion/go/godispatcher/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 )
+
+var minPort = 1024
+var maxPort = 65535
 
 type registerArgs struct {
 	ia     addr.IA

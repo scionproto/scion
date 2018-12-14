@@ -87,6 +87,12 @@ func (t *Table) Size() int {
 	return t.size
 }
 
+// Reference tracks an object from a collection.
+type Reference interface {
+	// Free removes the object from its parent collection, cleaning up any allocations.
+	Free()
+}
+
 type tableReference struct {
 	table   *Table
 	freed   bool
