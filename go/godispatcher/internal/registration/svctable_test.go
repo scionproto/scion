@@ -204,9 +204,9 @@ func TestSVCTableFree(t *testing.T) {
 			Convey("if the second address is removed", func() {
 				refTwo.Free()
 				Convey("anycasting cycles between addresses one and three", func() {
-					retValueOne, _ := table.Anycast(addr.SvcCS, addressOne.IP)
+					retValueOne, _ := table.Anycast(addr.SvcCS, ip)
 					SoMsg("retValueOne", retValueOne, ShouldEqual, "1")
-					retValueThree, _ := table.Anycast(addr.SvcCS, addressThree.IP)
+					retValueThree, _ := table.Anycast(addr.SvcCS, ip)
 					SoMsg("retValueThree", retValueThree, ShouldEqual, "3")
 				})
 			})
