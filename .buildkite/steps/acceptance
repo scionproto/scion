@@ -20,7 +20,7 @@ for test in ./acceptance/*_acceptance; do
         echo "  - $BASE/steps/host_acceptance $test"
     else
         echo "  env:"
-        echo "    DOCKER_ARGS: \"-e ACCEPTANCE_ARTIFACTS=logs/acceptance\""
+        echo "    DOCKER_ARGS: \"-e ACCEPTANCE_ARTIFACTS=logs/acceptance --network=host\""
         echo "  command:"
         echo "  - $BASE/scripts/all_images pull"
         echo "  - $BASE/run_step run_acceptance $test"
