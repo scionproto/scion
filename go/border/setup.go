@@ -277,14 +277,14 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 	} else if interfaceChanged(intf, oldIntf) {
 		log.Debug("Existing interface changed.", "old", oldIntf, "new", intf)
-		// An existing interface has changed.
-		// Stop old input goroutine.
-		oldCtx.ExtSockIn[intf.Id].Stop()
-		oldCtx.ExtSockOut[intf.Id].Stop()
 		// Configure new Posix I/O.
 		if err := addPosixIntf(r, ctx, intf, labels); err != nil {
 			return rpkt.HookError, err
 		}
+		// An existing interface has changed.
+		// Stop old input goroutine.
+		oldCtx.ExtSockIn[intf.Id].Stop()
+		oldCtx.ExtSockOut[intf.Id].Stop()
 	} else {
 		log.Debug("No change detected for external socket.", "conn",
 			intf.IFAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
