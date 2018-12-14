@@ -69,7 +69,6 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 )
 
@@ -149,17 +148,8 @@ func Register(dispatcher string, ia addr.IA, public, bind *addr.AppAddr,
 func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *addr.AppAddr, svc addr.HostSVC,
 	timeout time.Duration) (*Conn, uint16, error) {
 
-	publicUDP := &net.UDPAddr{
-		IP:   public.L3.IP(),
-		Port: int(public.L4.Port()),
-	}
-	var bindUDP *net.UDPAddr
-	if bind != nil {
-		bindUDP = &net.UDPAddr{
-			IP:   bind.L3.IP(),
-			Port: int(bind.L4.Port()),
-		}
-	}
+	publicUDP := createUDPAddr(public)
+	bindUDP := createUDPAddr(bind)
 
 	reg := &Registration{
 		IA:            ia,
@@ -218,10 +208,8 @@ func (conn *Conn) ReadFrom(buf []byte) (int, net.Addr, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-
 	var p OverlayPacket
 	p.DecodeFromBytes(conn.readBuffer[:n])
-
 	var overlayAddr *overlay.OverlayAddr
 	if p.Address != nil {
 		var err error
@@ -233,12 +221,10 @@ func (conn *Conn) ReadFrom(buf []byte) (int, net.Addr, error) {
 			return 0, nil, common.NewBasicError("overlay error", err)
 		}
 	}
-
 	if len(buf) < len(p.Payload) {
 		return 0, nil, common.NewBasicError("buffer too small", nil)
 	}
 	copy(buf, p.Payload)
-
 	return len(p.Payload), overlayAddr, nil
 }
 
@@ -250,13 +236,10 @@ func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	conn.writeMutex.Lock()
 	defer conn.writeMutex.Unlock()
 
-	log.Info("ZZZ payload", "len", len(buf), "data", buf)
 	var publicAddress *net.UDPAddr
 	if dst != nil {
-		log.Info("YYY", "dst", dst)
 		overlayAddr := dst.(*overlay.OverlayAddr)
 		if overlayAddr != nil {
-			log.Info("ZZZ", "dst", dst)
 			publicAddress = &net.UDPAddr{
 				IP:   overlayAddr.L3().IP(),
 				Port: int(overlayAddr.L4().Port()),
@@ -271,7 +254,6 @@ func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	log.Info("ZZZ final", "len", n, "data", conn.writeBuffer[:n])
 	err = conn.writeStreamer.Write(conn.writeBuffer[:n])
 	if err != nil {
 		return 0, err
@@ -314,4 +296,18 @@ func (listener *Listener) Accept() (net.Conn, error) {
 
 func (listener *Listener) String() string {
 	return fmt.Sprintf("&{addr: %v}", listener.UnixListener.Addr())
+}
+
+func createUDPAddr(address *addr.AppAddr) *net.UDPAddr {
+	if address == nil {
+		return nil
+	}
+	port := 0
+	if address.L4 != nil {
+		port = int(address.L4.Port())
+	}
+	return &net.UDPAddr{
+		IP:   address.L3.IP(),
+		Port: port,
+	}
 }
