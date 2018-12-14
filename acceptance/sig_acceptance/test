@@ -3,6 +3,8 @@
 TEST_NAME="sig"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
+. acceptance/common.sh
+
 test_setup() {
     set -e
     ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
