@@ -21,6 +21,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+// Table manages the UDP/IP port registrations for a single AS.
+//
+// Table is not safe for concurrent use from multiple goroutines.
 type Table struct {
 	udpPortTable *UDPPortTable
 	svcTable     SVCTable
@@ -47,6 +50,9 @@ func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
 	if err != nil {
 		return nil, err
 	}
+	if bind == nil {
+		bind = public.IP
+	}
 	svcRef, err := t.insertSVCIfRequested(svc, bind, public.Port, value)
 	if err != nil {
 		t.udpPortTable.Remove(public)
@@ -60,21 +66,17 @@ func (t *Table) insertSVCIfRequested(svc addr.HostSVC, bind net.IP, port int,
 	value interface{}) (Reference, error) {
 
 	if svc != addr.SvcNone {
-		someUdpAddr := &net.UDPAddr{
+		bindUdpAddr := &net.UDPAddr{
 			IP:   bind,
 			Port: port,
 		}
-		return t.svcTable.Register(svc, someUdpAddr, value)
+		return t.svcTable.Register(svc, bindUdpAddr, value)
 	}
 	return nil, nil
 }
 
 func (t *Table) LookupPublic(address *net.UDPAddr) (interface{}, bool) {
-	value := t.udpPortTable.Lookup(address)
-	if value != nil {
-		return value, true
-	}
-	return nil, false
+	return t.udpPortTable.Lookup(address)
 }
 
 func (t *Table) LookupService(svc addr.HostSVC, bind net.IP) (interface{}, bool) {
@@ -83,12 +85,6 @@ func (t *Table) LookupService(svc addr.HostSVC, bind net.IP) (interface{}, bool)
 
 func (t *Table) Size() int {
 	return t.size
-}
-
-// Reference tracks an object from a collection.
-type Reference interface {
-	// Free removes the object from its parent collection, cleaning up any allocations.
-	Free()
 }
 
 type tableReference struct {

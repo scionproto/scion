@@ -21,6 +21,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+// UDPPortTable stores port allocations for UDP/IPv4 and UDP/IPv6 sockets.
+//
+// Additionally, it allocates ports dynamically if the requested port is 0.
 type UDPPortTable struct {
 	v4PortTable map[int]IPTable
 	v6PortTable map[int]IPTable
@@ -28,31 +31,27 @@ type UDPPortTable struct {
 }
 
 func NewUDPPortTable(minPort, maxPort int) *UDPPortTable {
+	return NewUDPPortTableFromMap(minPort, maxPort, make(map[int]IPTable), make(map[int]IPTable))
+}
+
+func NewUDPPortTableFromMap(minPort, maxPort int, v4, v6 map[int]IPTable) *UDPPortTable {
 	return &UDPPortTable{
-		v4PortTable: make(map[int]IPTable),
-		v6PortTable: make(map[int]IPTable),
+		v4PortTable: v4,
+		v6PortTable: v6,
 		allocator:   NewUDPPortAllocator(minPort, maxPort),
 	}
 }
 
-func NewUDPPortTableFromMap(minPort, maxPort int, v4, v6 map[int]IPTable) *UDPPortTable {
-	return &UDPPortTable{v4PortTable: v4, v6PortTable: v6}
-}
-
-func (t *UDPPortTable) Lookup(address *net.UDPAddr) interface{} {
+func (t *UDPPortTable) Lookup(address *net.UDPAddr) (interface{}, bool) {
 	if address.IP.IsUnspecified() {
-		return nil
+		return nil, false
 	}
 	portTable := t.getPortTableByIP(address.IP)
 	ipTable, ok := portTable[address.Port]
 	if !ok {
-		return nil
+		return nil, false
 	}
-	v, ok := ipTable.Route(address.IP)
-	if !ok {
-		return nil
-	}
-	return v
+	return ipTable.Route(address.IP)
 }
 
 func (t *UDPPortTable) getPortTableByIP(ip net.IP) map[int]IPTable {
@@ -80,17 +79,21 @@ func (t *UDPPortTable) Insert(address *net.UDPAddr, value interface{}) (*net.UDP
 	if value == nil {
 		return nil, common.NewBasicError(ErrNoValue, nil)
 	}
-	address = t.computeAddressWithPort(address)
-	t.insertUDPAddress(address, value)
-	return address, nil
+	newAddress, err := t.computeAddressWithPort(address)
+	if err != nil {
+		return nil, err
+	}
+	t.insertUDPAddress(newAddress, value)
+	return newAddress, nil
 }
 
-func (t *UDPPortTable) computeAddressWithPort(address *net.UDPAddr) *net.UDPAddr {
+func (t *UDPPortTable) computeAddressWithPort(address *net.UDPAddr) (*net.UDPAddr, error) {
+	var err error
 	address = copyUDPAddr(address)
 	if address.Port == 0 {
-		address.Port = t.allocator.Allocate(address.IP, t)
+		address.Port, err = t.allocator.Allocate(address.IP, t)
 	}
-	return address
+	return address, err
 }
 
 func (t *UDPPortTable) insertUDPAddress(address *net.UDPAddr, value interface{}) {
@@ -126,7 +129,7 @@ func (t *UDPPortTable) Remove(address *net.UDPAddr) {
 	}
 }
 
-// IPTable maps string representations of IP addresses to values.
+// IPTable maps string representations of IP addresses to arbitrary values.
 type IPTable map[string]interface{}
 
 // OverlapsWith returns true if ip overlaps with any entry in t. For example,
@@ -192,7 +195,7 @@ func NewUDPPortAllocator(min, max int) *UDPPortAllocator {
 
 // Allocate returns the next available port for the IP address. It will panic
 // if it runs out of ports.
-func (a *UDPPortAllocator) Allocate(ip net.IP, t *UDPPortTable) int {
+func (a *UDPPortAllocator) Allocate(ip net.IP, t *UDPPortTable) (int, error) {
 	for i := a.minPort; i < a.maxPort+1; i++ {
 		candidate := &net.UDPAddr{
 			IP:   ip,
@@ -202,9 +205,9 @@ func (a *UDPPortAllocator) Allocate(ip net.IP, t *UDPPortTable) int {
 		if a.nextPort == a.maxPort+1 {
 			a.nextPort = a.minPort
 		}
-		if t.overlapsWith(candidate) == false {
-			return candidate.Port
+		if !t.overlapsWith(candidate) {
+			return candidate.Port, nil
 		}
 	}
-	panic("available port not found")
+	return 0, common.NewBasicError(ErrNoPorts, nil)
 }

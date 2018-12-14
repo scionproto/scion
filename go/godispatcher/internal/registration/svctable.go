@@ -82,7 +82,6 @@ var _ SVCTable = (*svcTable)(nil)
 
 type svcTable struct {
 	m map[addr.HostSVC]unicastIpTable
-	v interface{}
 }
 
 func newSvcTable() *svcTable {
@@ -92,16 +91,10 @@ func newSvcTable() *svcTable {
 }
 
 func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
-	object interface{}) (Reference, error) {
+	value interface{}) (Reference, error) {
 
-	if address == nil {
-		return nil, common.NewBasicError(ErrNilAddress, nil)
-	}
-	if address.IP.IsUnspecified() {
-		return nil, common.NewBasicError(ErrZeroIP, nil)
-	}
-	if address.Port == 0 {
-		return nil, common.NewBasicError(ErrZeroPort, nil)
+	if err := validateUDPAddr(address); err != nil {
+		return nil, err
 	}
 	if svc == addr.SvcNone {
 		return nil, common.NewBasicError(ErrSvcNone, nil)
@@ -111,25 +104,13 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 		t.m[svc] = make(unicastIpTable)
 	}
 
-	ipTable := t.m[svc]
-
-	str := address.IP.String()
-	if portList, ok := ipTable[str]; ok {
-		if portList.Find(address.Port) {
-			return nil, common.NewBasicError(ErrOverlappingAddress, nil)
-		}
-		element := portList.Insert(address.Port, object)
-		return &svcTableReference{
-			cleanF: t.buildCleanupCallback(svc, address.IP, element),
-		}, nil
-	} else {
-		newList := newPortList()
-		element := newList.Insert(address.Port, object)
-		ipTable[str] = newList
-		return &svcTableReference{
-			cleanF: t.buildCleanupCallback(svc, address.IP, element),
-		}, nil
+	element, err := t.m[svc].insert(address, value)
+	if err != nil {
+		return nil, err
 	}
+	return &svcTableReference{
+		cleanF: t.buildCleanupCallback(svc, address.IP, element),
+	}, nil
 }
 
 func (t *svcTable) Anycast(svc addr.HostSVC, ip net.IP) (interface{}, bool) {
@@ -166,7 +147,37 @@ func (t *svcTable) doCleanup(svc addr.HostSVC, ip net.IP, port *ring.Ring) {
 	}
 }
 
+func validateUDPAddr(address *net.UDPAddr) error {
+	if address == nil {
+		return common.NewBasicError(ErrNilAddress, nil)
+	}
+	if address.IP.IsUnspecified() {
+		return common.NewBasicError(ErrZeroIP, nil)
+	}
+	if address.Port == 0 {
+		return common.NewBasicError(ErrZeroPort, nil)
+	}
+	return nil
+}
+
 type unicastIpTable map[string]*portList
+
+// insert adds an entry for address to the table, and returns a pointer to the
+// entry.
+func (t unicastIpTable) insert(address *net.UDPAddr, value interface{}) (*ring.Ring, error) {
+	var list *portList
+	str := address.IP.String()
+	list, ok := t[str]
+	if ok {
+		if list.Find(address.Port) {
+			return nil, common.NewBasicError(ErrOverlappingAddress, nil)
+		}
+	} else {
+		list = newPortList()
+		t[str] = list
+	}
+	return list.Insert(address.Port, value), nil
+}
 
 var _ Reference = (*svcTableReference)(nil)
 
@@ -181,64 +192,4 @@ func (r *svcTableReference) Free() {
 	}
 	r.freed = true
 	r.cleanF()
-}
-
-// portList is a linked list of ports with a round-robin getter.
-type portList struct {
-	list *ring.Ring
-}
-
-func newPortList() *portList {
-	return &portList{}
-}
-
-func (l *portList) Insert(port int, v interface{}) *ring.Ring {
-	element := ring.New(1)
-	element.Value = &listItem{port: port, value: v}
-	if l.list == nil {
-		l.list = element
-	} else {
-		l.list.Link(element)
-	}
-	return element
-}
-
-// Get returns an arbitrary object from the list.
-//
-// The objects are returned in round-robin fashion. Removing an element from
-// the list can make the round-robin selection to reset from the start.
-func (l *portList) Get() interface{} {
-	v := l.list.Value
-	l.list = l.list.Next()
-	return v.(*listItem).value
-}
-
-func (l *portList) Find(port int) bool {
-	var found bool
-	l.list.Do(
-		func(p interface{}) {
-			if port == p.(*listItem).port {
-				found = true
-			}
-		},
-	)
-	return found
-}
-
-func (l *portList) Remove(element *ring.Ring) {
-	if element.Len() == 1 {
-		l.list = nil
-	} else {
-		element = element.Prev()
-		element.Unlink(1)
-	}
-}
-
-func (l *portList) Len() int {
-	return l.list.Len()
-}
-
-type listItem struct {
-	port  int
-	value interface{}
 }

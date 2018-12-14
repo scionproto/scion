@@ -36,7 +36,7 @@ func TestSVCTableEmpty(t *testing.T) {
 			SoMsg("value", retValue, ShouldBeNil)
 		})
 		Convey("Anycast to some IPv4 address, not found", func() {
-			retValue, ok := table.Anycast(addr.SvcCS, nil)
+			retValue, ok := table.Anycast(addr.SvcCS, net.IP{10, 2, 3, 4})
 			SoMsg("ok", ok, ShouldBeFalse)
 			SoMsg("value", retValue, ShouldBeNil)
 		})
@@ -46,20 +46,20 @@ func TestSVCTableEmpty(t *testing.T) {
 			SoMsg("ref", reference, ShouldBeNil)
 		})
 		Convey("Registering IPv4 zero address fails", func() {
-			address := &net.UDPAddr{
+			zeroAddress := &net.UDPAddr{
 				IP:   net.IPv4zero,
 				Port: address.Port,
 			}
-			reference, err := table.Register(addr.SvcCS, address, value)
+			reference, err := table.Register(addr.SvcCS, zeroAddress, value)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("ref", reference, ShouldBeNil)
 		})
 		Convey("Registering IPv6 zero address fails", func() {
-			address := &net.UDPAddr{
+			zeroAddress := &net.UDPAddr{
 				IP:   net.IPv6zero,
 				Port: address.Port,
 			}
-			reference, err := table.Register(addr.SvcCS, address, value)
+			reference, err := table.Register(addr.SvcCS, zeroAddress, value)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("ref", reference, ShouldBeNil)
 		})

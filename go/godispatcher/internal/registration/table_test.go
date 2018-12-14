@@ -34,12 +34,12 @@ func TestRegister(t *testing.T) {
 		Convey("Initial size is 0", func() {
 			So(table.Size(), ShouldEqual, 0)
 		})
-		Convey("No public address, failure", func() {
+		Convey("Register with no public address -> failure", func() {
 			ref, err := table.Register(nil, nil, addr.SvcNone, value)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("ref", ref, ShouldBeNil)
 		})
-		Convey("Zero public IPv4 address, success", func() {
+		Convey("Register with zero public IPv4 address -> success", func() {
 			public := &net.UDPAddr{
 				IP:   net.IPv4zero,
 				Port: 80,
@@ -48,7 +48,7 @@ func TestRegister(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("ref", ref, ShouldNotBeNil)
 		})
-		Convey("Zero public IPv6 address, success", func() {
+		Convey("Register with zero public IPv6 address -> success", func() {
 			public := &net.UDPAddr{
 				IP:   net.IPv6zero,
 				Port: 80,
@@ -57,12 +57,12 @@ func TestRegister(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("ref", ref, ShouldNotBeNil)
 		})
-		Convey("Public address with port, no bind, no svc, successful reg", func() {
+		Convey("Register with public address with port, no bind, no svc -> success", func() {
 			ref, err := table.Register(public, nil, addr.SvcNone, value)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("ref", ref, ShouldNotBeNil)
 		})
-		Convey("Public address without port, no bind, no svc, successful reg", func() {
+		Convey("Register with public address without port, no bind, no svc -> success", func() {
 			public := &net.UDPAddr{
 				IP: public.IP,
 			}
@@ -70,22 +70,27 @@ func TestRegister(t *testing.T) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("ref", ref, ShouldNotBeNil)
 		})
-		Convey("Public address, bind, no svc, failure", func() {
+		Convey("Register with public address, bind, no svc -> failure", func() {
 			ref, err := table.Register(public, bind, addr.SvcNone, value)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("ref", ref, ShouldBeNil)
 		})
-		Convey("Zero bind IPv4 address, failure", func() {
+		Convey("Register with public address, no bind, svc -> success", func() {
+			ref, err := table.Register(public, nil, addr.SvcPS, value)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("ref", ref, ShouldNotBeNil)
+		})
+		Convey("Register with zero bind IPv4 address -> failure", func() {
 			ref, err := table.Register(public, net.IPv4zero, addr.SvcCS, value)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("ref", ref, ShouldBeNil)
 		})
-		Convey("Zero bind IPv6 address, failure", func() {
+		Convey("Register with zero bind IPv6 address -> failure", func() {
 			ref, err := table.Register(public, net.IPv6zero, addr.SvcCS, value)
 			SoMsg("err", err, ShouldNotBeNil)
 			SoMsg("ref", ref, ShouldBeNil)
 		})
-		Convey("Public address, bind, svc, successful reg", func() {
+		Convey("Register with public address, bind, svc -> success", func() {
 			ref, err := table.Register(public, bind, addr.SvcCS, value)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("ref", ref, ShouldNotBeNil)
@@ -140,6 +145,29 @@ func TestRegisterOnlyPublic(t *testing.T) {
 	})
 }
 
+func TestRegisterPublicAndSVC(t *testing.T) {
+	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+	value := "test value"
+	Convey("Given a table with a public address registration", t, func() {
+		table := registration.NewTable(minPort, maxPort)
+		_, err := table.Register(public, nil, addr.SvcCS, value)
+		xtest.FailOnErr(t, err)
+		Convey("Initial size is 1", func() {
+			So(table.Size(), ShouldEqual, 1)
+		})
+		Convey("Public lookup is successful", func() {
+			retValue, ok := table.LookupPublic(public)
+			SoMsg("ok", ok, ShouldBeTrue)
+			SoMsg("value", retValue, ShouldEqual, value)
+		})
+		Convey("SVC lookup is successful (bind inherits from public)", func() {
+			retValue, ok := table.LookupService(addr.SvcCS, public.IP)
+			SoMsg("ok", ok, ShouldBeTrue)
+			SoMsg("value", retValue, ShouldEqual, value)
+		})
+	})
+}
+
 func TestRegisterWithBind(t *testing.T) {
 	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
 	bind := net.IP{10, 2, 3, 4}
@@ -156,7 +184,7 @@ func TestRegisterWithBind(t *testing.T) {
 			SoMsg("ok", ok, ShouldBeTrue)
 			SoMsg("value", retValue, ShouldEqual, value)
 		})
-		Convey("Bind lookup is successful", func() {
+		Convey("SVC lookup is successful", func() {
 			retValue, ok := table.LookupService(addr.SvcCS, bind)
 			SoMsg("ok", ok, ShouldBeTrue)
 			SoMsg("value", retValue, ShouldEqual, value)

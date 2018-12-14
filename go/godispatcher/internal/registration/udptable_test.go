@@ -38,46 +38,52 @@ func v6Format(ip string, port int) string {
 	return "[" + ip + "]:" + strconv.Itoa(port)
 }
 
-func TestUDPPortTable(t *testing.T) {
+func TestUDPPortTableLookup(t *testing.T) {
 	value := "test value"
 	Convey("", t, func() {
 		Convey("Given a non-zero IPv4 address", func() {
 			address := &net.UDPAddr{IP: net.IP{10, 1, 2, 3}, Port: 10080}
 			Convey("Lookup on an empty table returns nil", func() {
 				table := registration.NewUDPPortTable(minPort, maxPort)
-				retValue := table.Lookup(address)
-				So(retValue, ShouldBeNil)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldBeNil)
+				SoMsg("ok", ok, ShouldBeFalse)
 			})
 			Convey("Lookup on table with non-matching entries returns nil", func() {
 				table := testUDPTableWithPorts(map[int]registration.IPTable{
 					10080: {"10.4.5.6": value}}, nil)
-				retValue := table.Lookup(address)
-				So(retValue, ShouldBeNil)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldBeNil)
+				SoMsg("ok", ok, ShouldBeFalse)
 			})
 			Convey("Lookup on table with exact match returns value", func() {
 				table := testUDPTableWithPorts(map[int]registration.IPTable{
 					10080: {"10.1.2.3": value}}, nil)
-				retValue := table.Lookup(address)
-				So(retValue, ShouldEqual, value)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldEqual, value)
+				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with matching 0.0.0.0 entry returns value", func() {
 				table := testUDPTableWithPorts(map[int]registration.IPTable{
 					10080: {"0.0.0.0": value}}, nil)
-				retValue := table.Lookup(address)
-				So(retValue, ShouldEqual, value)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldEqual, value)
+				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with non-matching 0.0.0.0 entry returns nil", func() {
 				table := testUDPTableWithPorts(map[int]registration.IPTable{
 					80: {"0.0.0.0": value}}, nil)
-				retValue := table.Lookup(address)
-				So(retValue, ShouldBeNil)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldBeNil)
+				SoMsg("ok", ok, ShouldBeFalse)
 			})
 		})
 		Convey("Lookup fails for zero IPv4 address", func() {
 			table := registration.NewUDPPortTable(minPort, maxPort)
 			address := &net.UDPAddr{IP: net.IPv4zero, Port: 10080}
-			retValue := table.Lookup(address)
-			So(retValue, ShouldBeNil)
+			retValue, ok := table.Lookup(address)
+			SoMsg("value", retValue, ShouldBeNil)
+			SoMsg("ok", ok, ShouldBeFalse)
 		})
 		Convey("Given an IPv6 address", func() {
 			address := &net.UDPAddr{IP: docIPv6Address, Port: 10080}
@@ -85,22 +91,25 @@ func TestUDPPortTable(t *testing.T) {
 				table := testUDPTableWithPorts(nil, map[int]registration.IPTable{
 					10080: {docIPv6AddressStr: value},
 				})
-				retValue := table.Lookup(address)
-				So(retValue, ShouldEqual, value)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldEqual, value)
+				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with matching :: entry returns value", func() {
 				table := testUDPTableWithPorts(nil, map[int]registration.IPTable{
 					10080: {"::": value},
 				})
-				retValue := table.Lookup(address)
-				So(retValue, ShouldEqual, value)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldEqual, value)
+				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with non-matching :: entry returns nil", func() {
 				table := testUDPTableWithPorts(nil, map[int]registration.IPTable{
 					80: {"::": value},
 				})
-				retValue := table.Lookup(address)
-				So(retValue, ShouldBeNil)
+				retValue, ok := table.Lookup(address)
+				SoMsg("value", retValue, ShouldBeNil)
+				SoMsg("ok", ok, ShouldBeFalse)
 			})
 		})
 	})
@@ -157,13 +166,13 @@ func TestUDPPortTableInsert(t *testing.T) {
 		Convey("Given a table with a non-zero address", func() {
 			table := testUDPTableWithPorts(map[int]registration.IPTable{
 				1024: {"10.0.0.0": value}}, nil)
-			Convey("Allocating zero IPv4 address on the same port fails", func() {
+			Convey("Inserting zero IPv4 address on the same port fails", func() {
 				address := &net.UDPAddr{IP: net.IPv4zero, Port: 1024}
 				retAddress, err := table.Insert(address, value)
 				SoMsg("err", err, ShouldNotBeNil)
 				SoMsg("address", retAddress, ShouldBeNil)
 			})
-			Convey("Allocating zero IPv6 address on the same port succeeds", func() {
+			Convey("Inserting zero IPv6 address on the same port succeeds", func() {
 				address := &net.UDPAddr{IP: net.IPv6zero, Port: 1024}
 				retAddress, err := table.Insert(address, value)
 				SoMsg("err", err, ShouldBeNil)
@@ -193,66 +202,74 @@ func TestUDPPortAllocator(t *testing.T) {
 			allocator := registration.NewUDPPortAllocator(1000, 1500)
 			table := registration.NewUDPPortTable(minPort, maxPort)
 			Convey("if table is empty, first allocation gives min port", func() {
-				port := allocator.Allocate(address, table)
-				So(port, ShouldEqual, 1000)
+				port, err := allocator.Allocate(address, table)
+				SoMsg("port", port, ShouldEqual, 1000)
+				SoMsg("err", err, ShouldBeNil)
 			})
 			Convey("if table contains used first port, first allocation gives next port", func() {
-				port := allocator.Allocate(address, testUDPTableWithPorts(
+				port, err := allocator.Allocate(address, testUDPTableWithPorts(
 					map[int]registration.IPTable{
 						1000: {"10.2.3.4": value},
 					}, nil,
 				))
-				So(port, ShouldEqual, 1001)
+				SoMsg("port", port, ShouldEqual, 1001)
+				SoMsg("err", err, ShouldBeNil)
 			})
 			Convey("if wildcard bind uses first port, first allocation gives next port", func() {
-				port := allocator.Allocate(address, testUDPTableWithPorts(
+				port, err := allocator.Allocate(address, testUDPTableWithPorts(
 					map[int]registration.IPTable{
 						1000: {"0.0.0.0": value},
 					}, nil,
 				))
-				So(port, ShouldEqual, 1001)
+				SoMsg("port", port, ShouldEqual, 1001)
+				SoMsg("err", err, ShouldBeNil)
 			})
 		})
 		Convey("Given an allocator with few ports", func() {
 			allocator := registration.NewUDPPortAllocator(1, 3)
 			Convey("if all ports are taken except max, max is chosen", func() {
-				port := allocator.Allocate(address, testUDPTableWithPorts(
+				port, err := allocator.Allocate(address, testUDPTableWithPorts(
 					map[int]registration.IPTable{
 						1: {"0.0.0.0": value},
 						2: {"0.0.0.0": value},
 					}, nil,
 				))
-				So(port, ShouldEqual, 3)
+				SoMsg("port", port, ShouldEqual, 3)
+				SoMsg("err", err, ShouldBeNil)
 				Convey("if first port is available, it is chosen after wrapping", func() {
-					port := allocator.Allocate(address, testUDPTableWithPorts(
+					port, err := allocator.Allocate(address, testUDPTableWithPorts(
 						map[int]registration.IPTable{
 							2: {"0.0.0.0": value},
 							3: {"0.0.0.0": value},
 						}, nil,
 					))
-					So(port, ShouldEqual, 1)
+					SoMsg("port", port, ShouldEqual, 1)
+					SoMsg("err", err, ShouldBeNil)
 				})
 			})
-			Convey("if all ports are taken, panic", func() {
+			Convey("if all ports are taken, error", func() {
 				table := testUDPTableWithPorts(
 					map[int]registration.IPTable{
 						1: {"0.0.0.0": value},
 						2: {"0.0.0.0": value},
 						3: {"0.0.0.0": value},
 					}, nil)
-				So(func() { allocator.Allocate(address, table) }, ShouldPanic)
+				port, err := allocator.Allocate(address, table)
+				SoMsg("port", port, ShouldEqual, 0)
+				SoMsg("err", err, ShouldNotBeNil)
 			})
 		})
 		Convey("Given an allocator with IPv6 data", func() {
-			v6address := net.ParseIP("2001:db8::1")
+			v6address := net.ParseIP(docIPv6AddressStr)
 			allocator := registration.NewUDPPortAllocator(1000, 1500)
 			table := testUDPTableWithPorts(nil,
 				map[int]registration.IPTable{
-					1000: {"2001:db8::1": value},
+					1000: {docIPv6AddressStr: value},
 				})
 			Convey("allocation skips ports correctly for IPv6", func() {
-				port := allocator.Allocate(v6address, table)
-				So(port, ShouldEqual, 1001)
+				port, err := allocator.Allocate(v6address, table)
+				SoMsg("port", port, ShouldEqual, 1001)
+				SoMsg("err", err, ShouldBeNil)
 			})
 		})
 	})

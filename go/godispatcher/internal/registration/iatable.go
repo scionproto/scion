@@ -22,6 +22,12 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+// Reference tracks an object from a collection.
+type Reference interface {
+	// Free removes the object from its parent collection, cleaning up any allocations.
+	Free()
+}
+
 // IATable manages the UDP/IP port registrations for a SCION Dispatcher.
 //
 // IATable is safe for concurrent use from multiple goroutines.
@@ -59,6 +65,8 @@ type IATable interface {
 //
 // If the public address in a registration contains the port 0, a free port is
 // allocated between minPort and maxPort.
+//
+// If minPort is <= 0 or maxPort is > 65535, the function panics.
 func NewIATable(minPort, maxPort int) IATable {
 	return newIATable(minPort, maxPort)
 }
@@ -135,9 +143,9 @@ type iaTableReference struct {
 
 func (r *iaTableReference) Free() {
 	r.table.mtx.Lock()
+	defer r.table.mtx.Unlock()
 	r.entryRef.Free()
 	if r.table.ia[r.ia].Size() == 0 {
 		delete(r.table.ia, r.ia)
 	}
-	r.table.mtx.Unlock()
 }
