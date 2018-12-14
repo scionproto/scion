@@ -49,5 +49,10 @@ acceptance/ctl gsetup
 ```
 This will also rebuild the docker images, taking new code into account.
 
+To run the `setup`, `run` and `teardown` phases of a single test (without gsetup):
+```
+acceptance/ctl grun TESTNAME
+```
+
 Note that `acceptance/ctl` will not save artifacts on its own, and all output
 is dumped on the console.

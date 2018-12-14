@@ -3,9 +3,11 @@
 TEST_NAME="sig"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
+. acceptance/common.sh
+
 test_setup() {
-    set -ex
-    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d --sig -n 242.0.0.0/16
+    set -e
+    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d --sig -n 242.254.0.0/16
     ./scion.sh run nobuild
     ./tools/dc start 'tester*'
     sleep 10
@@ -16,6 +18,11 @@ test_run() {
 }
 
 test_teardown() {
+    set -e
+    METRICS="${ACCEPTANCE_ARTIFACTS:?}/$TEST_NAME/metrics"
+    collect_metrics "gen/ISD1/ASff00_0_110/br1-ff00_0_110-1/topology.json" "$METRICS"
+    collect_metrics "gen/ISD1/ASff00_0_111/br1-ff00_0_111-1/topology.json" "$METRICS"
+    collect_metrics "gen/ISD1/ASff00_0_112/br1-ff00_0_112-1/topology.json" "$METRICS"
     ./tools/dc down
 }
 

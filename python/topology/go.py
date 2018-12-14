@@ -34,6 +34,7 @@ from topology.common import (
     prom_addr_br,
     PS_CONFIG_NAME,
 )
+from topology.prometheus import DEFAULT_BR_PROM_PORT
 
 
 class GoGenArgs(ArgsTopoDicts):
@@ -66,7 +67,7 @@ class GoGenerator(object):
             },
             'logging': self._log_entry(name),
             'metrics': {
-                'Prometheus': prom_addr_br(name, v, self.args.port_gen),
+                'Prometheus': prom_addr_br(name, v, DEFAULT_BR_PROM_PORT),
             },
             'br': {
                 'Profile': False,

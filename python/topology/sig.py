@@ -29,6 +29,7 @@ from topology.common import (
     remote_nets,
     sciond_svc_name
 )
+from topology.prometheus import SIG_PROM_PORT
 
 
 class SIGGenArgs(ArgsBase):
@@ -62,8 +63,8 @@ class SIGGenerator(object):
                 self.output_base, topo_id.base_dir(self.args.output_dir))
             self._dispatcher_conf(topo_id, base)
             self._sig_dc_conf(topo_id, base)
-            self._sig_toml(topo_id, topo, base)
-            self._sig_json(topo_id, base)
+            self._sig_toml(topo_id, topo)
+            self._sig_json(topo_id)
         return self.dc_conf
 
     def _dispatcher_conf(self, topo_id, base):
@@ -119,7 +120,7 @@ class SIGGenerator(object):
             'command': [remote_nets(self.args.networks, topo_id)]
         }
 
-    def _sig_json(self, topo_id, base):
+    def _sig_json(self, topo_id):
         sig_cfg = {"ConfigVersion": 1, "ASes": {}}
         for t_id, topo in self.args.topo_dicts.items():
             if topo_id == t_id:
@@ -129,14 +130,14 @@ class SIGGenerator(object):
             sig_cfg['ASes'][str(t_id)]['Nets'].append(net['net'])
             sig_cfg['ASes'][str(t_id)]['Sigs']['sig'] = {"Addr": str(net['ipv4'])}
 
-        cfg = os.path.join(base, 'sig%s' % topo_id.file_fmt(), "cfg.json")
+        cfg = os.path.join(topo_id.base_dir(self.args.output_dir), 'sig%s' % topo_id.file_fmt(),
+                           "cfg.json")
         contents_json = json.dumps(sig_cfg, default=json_default, indent=2)
         write_file(cfg, contents_json + '\n')
 
-    def _sig_toml(self, topo_id, topo, base):
+    def _sig_toml(self, topo_id, topo):
         name = 'sig%s' % topo_id.file_fmt()
         net = self.args.networks[name][0]
-        base = topo_id.base_dir(self.args.output_dir)
         log_level = 'trace' if self.args.trace else 'debug'
         sig_conf = {
             'sig': {
@@ -156,9 +157,13 @@ class SIGGenerator(object):
                 'console': {
                     'Level': 'error',
                 }
+            },
+            'metrics': {
+                'Prometheus': '0.0.0.0:%s' % SIG_PROM_PORT
             }
         }
-        write_file(os.path.join(base, name, "sig.toml"), toml.dumps(sig_conf))
+        path = os.path.join(topo_id.base_dir(self.args.output_dir), name, "sig.toml")
+        write_file(path, toml.dumps(sig_conf))
 
     def _disp_vol(self, topo_id):
         return 'vol_scion_%sdisp_sig_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())

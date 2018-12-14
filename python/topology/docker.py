@@ -30,11 +30,15 @@ from topology.common import (
     ArgsTopoDicts,
     docker_image,
     DOCKER_USR_VOL,
-    prom_addr_infra,
     sciond_name,
     sciond_svc_name
 )
 from topology.docker_utils import DockerUtilsGenArgs, DockerUtilsGenerator
+from topology.prometheus import (
+    BS_PROM_PORT,
+    CS_PROM_PORT,
+    PS_PROM_PORT
+)
 from topology.sig import SIGGenArgs, SIGGenerator
 
 DOCKER_CONF = 'scion-dc.yml'
@@ -159,6 +163,7 @@ class DockerGenerator(object):
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'network_mode': 'service:scion_disp_%s' % topo_id.file_fmt(),
             'volumes': self._std_vol(topo_id),
             'command': []
         }
@@ -169,7 +174,7 @@ class DockerGenerator(object):
             if self.args.cert_server == 'py':
                 sciond = get_default_sciond_path(ISD_AS(topo["ISD_AS"]))
                 entry['command'].append('--spki_cache_dir=cache')
-                entry['command'].append('--prom=%s' % prom_addr_infra(k, v, self.args.port_gen))
+                entry['command'].append('--prom=[0.0.0.0]:%s' % CS_PROM_PORT)
                 entry['command'].append('--sciond_path=%s' % sciond)
                 entry['command'].append(k)
                 entry['command'].append('conf')
@@ -185,6 +190,7 @@ class DockerGenerator(object):
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'network_mode': 'service:scion_disp_%s' % topo_id.file_fmt(),
             'volumes': self._std_vol(topo_id),
             'command': [
                 '--spki_cache_dir=cache'
@@ -195,7 +201,7 @@ class DockerGenerator(object):
             name = self.prefix + k
             entry['container_name'] = name
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=%s' % prom_addr_infra(k, v, self.args.port_gen))
+            entry['command'].append('--prom=[0.0.0.0]:%s' % BS_PROM_PORT)
             entry['command'].append('--sciond_path=%s' %
                                     get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
             entry['command'].append(k)
@@ -213,6 +219,7 @@ class DockerGenerator(object):
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
+            'network_mode': 'service:scion_disp_%s' % topo_id.file_fmt(),
             'volumes': self._std_vol(topo_id),
             'command': [],
         }
@@ -223,7 +230,7 @@ class DockerGenerator(object):
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
             if self.args.path_server == 'py':
                 entry['command'].append('--spki_cache_dir=cache')
-                entry['command'].append('--prom=%s' % prom_addr_infra(k, v, self.args.port_gen))
+                entry['command'].append('--prom=[0.0.0.0]:%s' % PS_PROM_PORT)
                 entry['command'].append('--sciond_path=%s' %
                                         get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
                 entry['command'].append(k)

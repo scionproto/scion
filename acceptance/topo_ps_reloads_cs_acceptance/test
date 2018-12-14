@@ -4,12 +4,14 @@
 # the PS process receives a SIGHUP it will reload the config and push future
 # crypto to the new address.
 
+. acceptance/common.sh
+
 TEST_NAME="topo_ps_reloads_cs"
 TEST_TOPOLOGY="topology/Tiny.topo"
 
 IA=${IA:-1-ff00:0:112}
-IA_FILE=$(echo $IA | sed -e "s/:/_/g")
-AS_FILE=$(echo $IA_FILE | cut -d '-' -f 2)
+IA_FILE="$(ia_file $IA)"
+AS_FILE="$(as_file $IA)"
 
 test_setup() {
     set -e
