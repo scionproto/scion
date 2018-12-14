@@ -104,7 +104,7 @@ func TestIATableRegister(t *testing.T) {
 		})
 		Convey("for a good AS number", func() {
 			ia := xtest.MustParseIA("1-ff00:0:1")
-			Convey("already registeredkk ports will cause error", func() {
+			Convey("already registered ports will cause error", func() {
 				_, err := table.Register(ia, public, nil, addr.SvcNone, value)
 				xtest.FailOnErr(t, err)
 				ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
