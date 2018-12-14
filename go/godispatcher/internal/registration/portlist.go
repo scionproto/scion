@@ -64,7 +64,7 @@ func (l *portList) Remove(element *ring.Ring) {
 	if element.Len() == 1 {
 		l.list = nil
 	} else {
-		element.Unlink(1)
+		element.Prev().Unlink(1)
 	}
 }
 

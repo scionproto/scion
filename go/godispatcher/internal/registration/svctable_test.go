@@ -187,6 +187,33 @@ func TestSVCTableStress(t *testing.T) {
 
 }
 
+func TestSVCTableFree(t *testing.T) {
+	Convey("", t, func() {
+		Convey("Given a table with three entries on the same IP", func() {
+			ip := net.IP{10, 2, 3, 4}
+			table := registration.NewSVCTable()
+			addressOne := &net.UDPAddr{IP: ip, Port: 10080}
+			_, err := table.Register(addr.SvcCS, addressOne, "1")
+			xtest.FailOnErr(t, err)
+			addressTwo := &net.UDPAddr{IP: ip, Port: 10081}
+			refTwo, err := table.Register(addr.SvcCS, addressTwo, "2")
+			xtest.FailOnErr(t, err)
+			addressThree := &net.UDPAddr{IP: ip, Port: 10082}
+			_, err = table.Register(addr.SvcCS, addressThree, "3")
+			xtest.FailOnErr(t, err)
+			Convey("if the second address is removed", func() {
+				refTwo.Free()
+				Convey("anycasting cycles between addresses one and three", func() {
+					retValueOne, _ := table.Anycast(addr.SvcCS, addressOne.IP)
+					SoMsg("retValueOne", retValueOne, ShouldEqual, "1")
+					retValueThree, _ := table.Anycast(addr.SvcCS, addressThree.IP)
+					SoMsg("retValueThree", retValueThree, ShouldEqual, "3")
+				})
+			})
+		})
+	})
+}
+
 func runRandomRegistrations(count int, table registration.SVCTable) []registration.Reference {
 	var references []registration.Reference
 	for i := 0; i < count; i++ {
