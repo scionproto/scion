@@ -15,6 +15,7 @@
 package snet
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -99,6 +100,20 @@ func (a *Addr) UnmarshalText(text []byte) error {
 		return err
 	}
 	*a = *other
+	return nil
+}
+
+// UnmarshalJSON impleemnts json.Unmarshaler.
+func (a *Addr) UnmarshalJSON(b []byte) error {
+	var astr string
+	if err := json.Unmarshal(b, &astr); err != nil {
+		return err
+	}
+	addr, err := AddrFromString(astr)
+	if err != nil {
+		return err
+	}
+	*a = *addr
 	return nil
 }
 
