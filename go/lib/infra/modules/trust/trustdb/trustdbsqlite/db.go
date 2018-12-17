@@ -151,7 +151,7 @@ const (
 	`
 )
 
-type DBOrTx interface {
+type sqler interface {
 	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
 	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
@@ -159,7 +159,7 @@ type DBOrTx interface {
 
 type executor struct {
 	sync.RWMutex
-	db DBOrTx
+	db sqler
 }
 
 // DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
@@ -497,7 +497,7 @@ func (db *transaction) Rollback() error {
 	return nil
 }
 
-func insertIssCert(ctx context.Context, db DBOrTx, crt *cert.Certificate) (int64, error) {
+func insertIssCert(ctx context.Context, db sqler, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to convert to JSON", err)
@@ -528,7 +528,7 @@ func parseCert(raw common.RawBytes, ia addr.IA, v uint64, err error) (*cert.Cert
 	return crt, nil
 }
 
-func insertLeafCert(ctx context.Context, db DBOrTx, crt *cert.Certificate) (int64, error) {
+func insertLeafCert(ctx context.Context, db sqler, crt *cert.Certificate) (int64, error) {
 	raw, err := crt.JSON(false)
 	if err != nil {
 		return 0, common.NewBasicError("Unable to convert to JSON", err)
@@ -567,7 +567,7 @@ func parseChain(rows *sql.Rows, err error) (*cert.Chain, error) {
 	return cert.ChainFromSlice(certs)
 }
 
-func getIssCertRowIDCtx(ctx context.Context, db DBOrTx,
+func getIssCertRowIDCtx(ctx context.Context, db sqler,
 	ia addr.IA, ver uint64) (int64, error) {
 
 	var rowId int64
