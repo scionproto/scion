@@ -11,7 +11,7 @@
 # 3. Change ports to original -> expect traffic to pass
 
 TEST_NAME="topo_br_reload_if_port"
-TEST_TOPOLOGY="acceptance/topo_br_reload_util/two_as.topo"
+TEST_TOPOLOGY="acceptance/topo_br_reload_util/tinier.topo"
 
 . acceptance/topo_br_reload_util/util.sh
 
@@ -32,6 +32,7 @@ test_run() {
     local pid_dst=$(docker inspect -f '{{.State.Pid}}' scion_br"$DST_IA_FILE"-1)
 
     # Change local port
+    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass" ; return 1; }
     jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $topo_src | sponge $topo_src
     ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
     sleep 2
