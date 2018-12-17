@@ -21,52 +21,59 @@ test_setup() {
 
 test_run() {
     set -e
-    local topo_src="gen/ISD1/AS$SRC_AS_FILE/br$SRC_IA_FILE-1/topology.json"
-    local orig_src=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $topo_src)
+    local orig_src=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $SRC_TOPO)
     local addr_src=$(jq -r '.Addr' <(echo $orig_src))
     local pid_src=$(docker inspect -f '{{.State.Pid}}' scion_br"$SRC_IA_FILE"-1)
 
-    local topo_dst="gen/ISD1/AS$DST_AS_FILE/br$DST_IA_FILE-1/topology.json"
-    local orig_dst=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $topo_dst)
+    local orig_dst=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $DST_TOPO)
     local addr_dst=$(jq -r '.Addr' <(echo $orig_dst))
     local pid_dst=$(docker inspect -f '{{.State.Pid}}' scion_br"$DST_IA_FILE"-1)
 
-    # Change local port
-    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass" ; return 1; }
-    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $topo_src | sponge $topo_src
+    check_change_local_port
+    check_change_remote_port
+    check_change_initial_port
+}
+
+check_change_local_port() {
+    check_connectivity "Start check_change_local_port"
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $SRC_TOPO | sponge $SRC_TOPO
     ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
     sleep 2
     check_logs "posixOutput starting addr=[$addr_src]:42424" $SRC_IA_FILE
     check_logs "posixInput starting addr=[$addr_src]:42424"  $SRC_IA_FILE
     bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 1 -d -log.console=crit || local failed=$?
     if [ -z ${failed+x} ]; then
-        echo "FAIL: Traffic still passes"
+        echo "FAIL: Traffic still passes. End check_change_local_port"
         return 1
     fi
+}
 
-    # Change remote port to match
-    unblock_sock
-    jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $topo_dst | sponge $topo_dst
+check_change_remote_port() {
+    # Connectivity is broken at this point
+    unblock_socket
+    jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $DST_TOPO | sponge $DST_TOPO
     ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
     sleep 2
     check_logs "RemoteAddr:[$addr_src]:42424" $DST_IA_FILE
-    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass" ; return 1; }
-
-    # Change ports back
-    unblock_sock
-    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_src" $topo_src | sponge $topo_src
-    jq ".BorderRouters[].Interfaces[].RemoteOverlay = $orig_src" $topo_dst | sponge $topo_dst
-    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
-    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
-    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass" ; return 1; }
+    check_connectivity "End check_change_remote_port"
 }
 
-unblock_sock() {
+check_change_initial_port() {
+    check_connectivity "Start check_change_initial_port"
+    unblock_socket
+    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_src" $SRC_TOPO | sponge $SRC_TOPO
+    jq ".BorderRouters[].Interfaces[].RemoteOverlay = $orig_src" $DST_TOPO | sponge $DST_TOPO
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
+    check_connectivity "End check_change_initial_port"
+}
+
+unblock_socket() {
     # FIXME(roosd): This is a work around to get the BR to reload the config.
     # When https://github.com/scionproto/scion/issues/2254 is fixed, this part shall be removed.
-    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42425' $topo_dst | sponge $topo_dst
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42425' $DST_TOPO | sponge $DST_TOPO
     ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
-    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_dst" $topo_dst | sponge $topo_dst
+    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_dst" $DST_TOPO | sponge $DST_TOPO
 }
 
 test_teardown() {
