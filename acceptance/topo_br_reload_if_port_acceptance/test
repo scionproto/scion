@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# Whenever a BR's interface local or remote port in the topology file is changed,
+# and the BR's process receives a SIGHUP, it will reload the topology and
+# use the new port for the interface.
+#
+# This test checks the following:
+# 1. Update the port on one side of the link without changing the remote
+#    on the other side -> expect traffic to be dropped
+# 2. Update the remote port on the other side -> expect traffic to pass
+# 3. Change ports to original -> expect traffic to pass
+
+TEST_NAME="topo_br_reload_if_port"
+TEST_TOPOLOGY="acceptance/topo_br_reload_util/two_as.topo"
+
+. acceptance/topo_br_reload_util/util.sh
+
+test_setup() {
+    base_setup
+}
+
+test_run() {
+    set -e
+    local topo_src="gen/ISD1/AS$SRC_AS_FILE/br$SRC_IA_FILE-1/topology.json"
+    local orig_src=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $topo_src)
+    local addr_src=$(jq -r '.Addr' <(echo $orig_src))
+    local pid_src=$(docker inspect -f '{{.State.Pid}}' scion_br"$SRC_IA_FILE"-1)
+
+    local topo_dst="gen/ISD1/AS$DST_AS_FILE/br$DST_IA_FILE-1/topology.json"
+    local orig_dst=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $topo_dst)
+    local addr_dst=$(jq -r '.Addr' <(echo $orig_dst))
+    local pid_dst=$(docker inspect -f '{{.State.Pid}}' scion_br"$DST_IA_FILE"-1)
+
+    # Change local port
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $topo_src | sponge $topo_src
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    sleep 2
+    check_logs "posixOutput starting addr=[$addr_src]:42424" $SRC_IA_FILE
+    check_logs "posixInput starting addr=[$addr_src]:42424"  $SRC_IA_FILE
+    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 1 -d -log.console=crit || local failed=$?
+    if [ -z ${failed+x} ]; then
+        echo "FAIL: Traffic still passes"
+        return 1
+    fi
+
+    # Change remote port to match
+    unblock_sock
+    jq '.BorderRouters[].Interfaces[].RemoteOverlay.OverlayPort = 42424' $topo_dst | sponge $topo_dst
+    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
+    sleep 2
+    check_logs "RemoteAddr:[$addr_src]:42424" $DST_IA_FILE
+    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass" ; return 1; }
+
+    # Change ports back
+    unblock_sock
+    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_src" $topo_src | sponge $topo_src
+    jq ".BorderRouters[].Interfaces[].RemoteOverlay = $orig_src" $topo_dst | sponge $topo_dst
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
+    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 5 -d || { echo "FAIL: Traffic does not pass" ; return 1; }
+}
+
+unblock_sock() {
+    # FIXME(roosd): This is a work around to get the BR to reload the config.
+    # When https://github.com/scionproto/scion/issues/2254 is fixed, this part shall be removed.
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42425' $topo_dst | sponge $topo_dst
+    ./tools/dc dc kill -s HUP scion_br"$DST_IA_FILE"-1
+    jq ".BorderRouters[].Interfaces[].PublicOverlay = $orig_dst" $topo_dst | sponge $topo_dst
+}
+
+test_teardown() {
+    base_teardown
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+
