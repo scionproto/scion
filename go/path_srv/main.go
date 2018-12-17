@@ -20,6 +20,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -33,6 +34,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
@@ -56,6 +58,8 @@ type Config struct {
 var (
 	config      Config
 	environment *env.Env
+
+	tasks *periodicTasks
 )
 
 func init() {
@@ -151,14 +155,6 @@ func realMain() int {
 	if config.PS.SegSync && core {
 		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
-		segSyncers, err := segsyncer.StartAll(args, msger)
-		if err != nil {
-			log.Crit("Unable to start seg syncer", "err", err)
-			return 1
-		}
-		for _, segsync := range segSyncers {
-			defer segsync.Stop()
-		}
 	}
 	msger.AddHandler(infra.SegRev, handlers.NewRevocHandler(args))
 	config.Metrics.StartPrometheus()
@@ -167,15 +163,13 @@ func realMain() int {
 		defer log.LogPanicAndExit()
 		msger.ListenAndServe()
 	}()
-	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
-		periodic.NewTicker(300*time.Second), 295*time.Second)
-	defer cleaner.Stop()
-	cryptosyncer := periodic.StartPeriodicTask(&cryptosyncer.Syncer{
-		DB:    trustDB,
-		Msger: msger,
-		IA:    topo.ISD_AS,
-	}, periodic.NewTicker(30*time.Second), 30*time.Second)
-	defer cryptosyncer.Stop()
+	tasks = &periodicTasks{
+		args:    args,
+		msger:   msger,
+		trustDB: trustDB,
+	}
+	tasks.Start()
+	defer tasks.Kill()
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -183,6 +177,58 @@ func realMain() int {
 	case <-fatal.Chan():
 		return 1
 	}
+}
+
+type periodicTasks struct {
+	args          handlers.HandlerArgs
+	msger         infra.Messenger
+	trustDB       trustdb.TrustDB
+	mtx           sync.Mutex
+	running       bool
+	segSyncers    []*periodic.Runner
+	pathDBCleaner *periodic.Runner
+	cryptosyncer  *periodic.Runner
+}
+
+func (t *periodicTasks) Start() {
+	fatal.Check()
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+	if t.running {
+		log.Warn("Trying to start task, but they are running! Ignored.")
+		return
+	}
+	var err error
+	if config.PS.SegSync && config.General.Topology.Core {
+		t.segSyncers, err = segsyncer.StartAll(t.args, t.msger)
+		if err != nil {
+			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
+		}
+	}
+	t.pathDBCleaner = periodic.StartPeriodicTask(cleaner.New(t.args.PathDB),
+		periodic.NewTicker(300*time.Second), 295*time.Second)
+	t.cryptosyncer = periodic.StartPeriodicTask(&cryptosyncer.Syncer{
+		DB:    t.trustDB,
+		Msger: t.msger,
+		IA:    t.args.IA,
+	}, periodic.NewTicker(30*time.Second), 30*time.Second)
+	t.running = true
+}
+
+func (t *periodicTasks) Kill() {
+	t.mtx.Lock()
+	defer t.mtx.Unlock()
+	if !t.running {
+		log.Warn("Trying to stop tasks, but they are not running! Ignored.")
+		return
+	}
+	for i := range t.segSyncers {
+		syncer := t.segSyncers[i]
+		syncer.Kill()
+	}
+	t.pathDBCleaner.Kill()
+	t.cryptosyncer.Kill()
+	t.running = false
 }
 
 func setupBasic() error {
