@@ -157,18 +157,14 @@ type sqler interface {
 	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
 }
 
-// DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
-//
-// On errors, GetXxx methods return nil and the error. If no error occurred,
-// but the database query yielded 0 results, the first returned value is nil.
-type DB struct {
+type tdb struct {
 	*executor
 	db *sql.DB
 }
 
 func New(path string) (trustdb.TrustDB, error) {
 	var err error
-	db := &DB{}
+	db := &tdb{}
 	db.executor = &executor{}
 	if db.db, err = sqlite.New(path, Schema, SchemaVersion); err != nil {
 		return nil, err
@@ -178,12 +174,12 @@ func New(path string) (trustdb.TrustDB, error) {
 }
 
 // Close closes the database connection.
-func (db *DB) Close() error {
+func (db *tdb) Close() error {
 	return db.db.Close()
 }
 
 // BeginTransaction starts a new transaction.
-func (db *DB) BeginTransaction(ctx context.Context,
+func (db *tdb) BeginTransaction(ctx context.Context,
 	opts *sql.TxOptions) (trustdb.Transaction, error) {
 
 	db.Lock()

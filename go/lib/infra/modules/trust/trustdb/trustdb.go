@@ -26,6 +26,7 @@ import (
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 )
 
+// TrustDB is a database containing Certificates, Chains and TRCs, stored in JSON format.
 // TrustDB is the interface that all trust databases have to implement.
 // Read and Write interactions with this interface have to happen in individual transactions
 // (either explicit or implicit).
@@ -37,6 +38,8 @@ type TrustDB interface {
 }
 
 // Read contains all read operation of the trust DB.
+// On errors, GetXxx methods return nil and the error. If no error occurred,
+// but the database query yielded 0 results, the first returned value is nil.
 type Read interface {
 	// GetIssCertVersion returns the specified version of the issuer certificate for
 	// ia. If version is scrypto.LatestVer, this is equivalent to GetIssCertMaxVersion.
