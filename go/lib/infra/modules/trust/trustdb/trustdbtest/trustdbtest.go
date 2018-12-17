@@ -58,7 +58,7 @@ func TestTrustDB(t *testing.T, setup func() trustdb.TrustDB, cleanup func(trustd
 	Convey("TestLeafCert", testWrapper(testLeafCert))
 	Convey("TestChain", testWrapper(testChain))
 	Convey("TestChainGetAll", testWrapper(testChainGetAll))
-	// Now test everything
+	// Now test everything with a transaction as well.
 	txTestWrapper := func(test func(*testing.T, rwTrustDB)) func() {
 		return func() {
 			ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
@@ -67,8 +67,15 @@ func TestTrustDB(t *testing.T, setup func() trustdb.TrustDB, cleanup func(trustd
 			tx, err := db.BeginTransaction(ctx, nil)
 			xtest.FailOnErr(t, err)
 			test(t, tx)
-			_, err = tx.Commit()
+			err = tx.Commit()
 			xtest.FailOnErr(t, err)
+			cleanup(db)
+		}
+	}
+	trustDbTestWrapper := func(test func(*testing.T, trustdb.TrustDB)) func() {
+		return func() {
+			db := setup()
+			test(t, db)
 			cleanup(db)
 		}
 	}
@@ -79,6 +86,7 @@ func TestTrustDB(t *testing.T, setup func() trustdb.TrustDB, cleanup func(trustd
 		Convey("TestLeafCert", txTestWrapper(testLeafCert))
 		Convey("TestChain", txTestWrapper(testChain))
 		Convey("TestChainGetAll", txTestWrapper(testChainGetAll))
+		Convey("TransactionRollback", trustDbTestWrapper(testRollback))
 	})
 }
 
@@ -326,6 +334,26 @@ func testChainGetAll(t *testing.T, db rwTrustDB) {
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain, chain2})
 		})
+	})
+}
+
+func testRollback(t *testing.T, db trustdb.TrustDB) {
+	Convey("Test transaction rollback", func() {
+		ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+		defer cancelF()
+		tx, err := db.BeginTransaction(ctx, nil)
+		SoMsg("Transaction begin should not fail", err, ShouldBeNil)
+		trcobj, err := trc.TRCFromFile("../trustdbtest/testdata/ISD1-V1.trc", false)
+		SoMsg("err trc", err, ShouldBeNil)
+		SoMsg("trc", trcobj, ShouldNotBeNil)
+		cnt, err := tx.InsertTRC(ctx, trcobj)
+		SoMsg("TRC insert should not fail", err, ShouldBeNil)
+		SoMsg("Insert count", cnt, ShouldEqual, 1)
+		err = tx.Rollback()
+		SoMsg("Rollback should not fail", err, ShouldBeNil)
+		trcs, err := db.GetAllTRCs(ctx)
+		SoMsg("GetAllTRCs should work", err, ShouldBeNil)
+		SoMsg("No TRCs expected", len(trcs), ShouldEqual, 0)
 	})
 }
 

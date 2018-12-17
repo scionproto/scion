@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package trustdb provides wrappers for SQL calls for managing a database
+// containing TRCs and Certificate Chains.
 package trustdb
 
 import (
@@ -84,8 +86,8 @@ type Transaction interface {
 	Write
 	// Commit commits the transaction.
 	// Returns the underlying TrustDB connection.
-	Commit() (TrustDB, error)
+	Commit() error
 	// Rollback rollbacks the transaction.
 	// Returns the underlying TrustDB connection.
-	Rollback() (TrustDB, error)
+	Rollback() error
 }
