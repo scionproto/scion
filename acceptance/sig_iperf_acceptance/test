@@ -12,7 +12,7 @@ test_run() {
     ./bin/sig_iperf_acceptance -d -log.console info -src $SRC_IA -dst $DST_IA
     METRICS="${ACCEPTANCE_ARTIFACTS:?}/$TEST_NAME/metrics"
 
-    collect_metrics "gen/ISD1/ASff00_0_110/br1-ff00_0_110-1/topology.json" "$METRICS"
+    collect_metrics "gen/ISD1/AS(as_file $SRC_IA)/br(ia_file $SRC_IA)-1/topology.json" "$METRICS"
     cat "$METRICS/sig$(ia_file $SRC_IA)" | grep "queue"
 }
 
