@@ -157,11 +157,6 @@ type sqler interface {
 	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
 }
 
-type executor struct {
-	sync.RWMutex
-	db sqler
-}
-
 // DB is a database containing Certificates, Chains and TRCs, stored in JSON format.
 //
 // On errors, GetXxx methods return nil and the error. If no error occurred,
@@ -185,6 +180,29 @@ func New(path string) (trustdb.TrustDB, error) {
 // Close closes the database connection.
 func (db *DB) Close() error {
 	return db.db.Close()
+}
+
+// BeginTransaction starts a new transaction.
+func (db *DB) BeginTransaction(ctx context.Context,
+	opts *sql.TxOptions) (trustdb.Transaction, error) {
+
+	db.Lock()
+	defer db.Unlock()
+	tx, err := db.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, common.NewBasicError("Failed to create transaction", err)
+	}
+	return &transaction{
+		executor: &executor{
+			db: tx,
+		},
+		tx: tx,
+	}, nil
+}
+
+type executor struct {
+	sync.RWMutex
+	db sqler
 }
 
 // GetIssCertVersion returns the specified version of the issuer certificate for
@@ -444,24 +462,6 @@ func (db *executor) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
 		trcs = append(trcs, trcobj)
 	}
 	return trcs, nil
-}
-
-// BeginTransaction starts a new transaction.
-func (db *DB) BeginTransaction(ctx context.Context,
-	opts *sql.TxOptions) (trustdb.Transaction, error) {
-
-	db.Lock()
-	defer db.Unlock()
-	tx, err := db.db.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, common.NewBasicError("Failed to create transaction", err)
-	}
-	return &transaction{
-		executor: &executor{
-			db: tx,
-		},
-		tx: tx,
-	}, nil
 }
 
 type transaction struct {
