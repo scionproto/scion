@@ -93,6 +93,12 @@ type Reference interface {
 	Free()
 }
 
+type UDPReference interface {
+	Reference
+	// UDPAddr returns the public address associated with this entry
+	UDPAddr()
+}
+
 type tableReference struct {
 	table   *Table
 	freed   bool
@@ -110,4 +116,8 @@ func (r *tableReference) Free() {
 		r.svcRef.Free()
 	}
 	r.table.size--
+}
+
+func (r *tableReference) UDPAddr() *net.UDPAddr {
+	return r.address
 }
