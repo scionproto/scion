@@ -33,7 +33,9 @@ MOCK_SRC_IN =\
     lib/snet/snetproxy/io.go \
     lib/log/wrappers.go \
     lib/sciond/sciond.go \
-    lib/infra/modules/trust/trustdb/trustdb.go
+    lib/infra/modules/trust/trustdb/trustdb.go \
+    lib/overlay/conn/conn.go \
+    godispatcher/registration/iatable.go
 MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))
 # This uses the format <stdlib package>/<interface>:
 MOCK_STD_IN = net/Addr net/PacketConn net/Conn

@@ -34,6 +34,12 @@ type Reference interface {
 	Free()
 }
 
+type UDPReference interface {
+	Reference
+	// UDPAddr returns the UDP address associated with this reference
+	UDPAddr() *net.UDPAddr
+}
+
 // IATable manages the UDP/IP port registrations for a SCION Dispatcher.
 //
 // IATable is safe for concurrent use from multiple goroutines.
@@ -154,4 +160,8 @@ func (r *iaTableReference) Free() {
 	if r.table.ia[r.ia].Size() == 0 {
 		delete(r.table.ia, r.ia)
 	}
+}
+
+func (r *iaTableReference) UDPAddr() *net.UDPAddr {
+	return r.entryRef.(UDPReference).UDPAddr()
 }
