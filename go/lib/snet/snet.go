@@ -53,6 +53,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
@@ -255,10 +256,14 @@ func (n *SCIONNetwork) ListenSCIONWithBindSVC(network string, laddr, baddr *Addr
 		return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 			"expected", conn.scionNet.localIA, "actual", conn.laddr.IA, "type", "public")
 	}
-	var bindAddr *addr.AppAddr
+	var bindAddr *overlay.OverlayAddr
 	if baddr != nil {
+		var err error
 		conn.baddr = baddr.Copy()
-		bindAddr = baddr.Host
+		bindAddr, err = overlay.NewOverlayAddr(baddr.Host.L3, baddr.Host.L4)
+		if err != nil {
+			return nil, common.NewBasicError("Unable to construct overlay bind address", err)
+		}
 		if !conn.baddr.IA.Eq(conn.scionNet.localIA) {
 			return nil, common.NewBasicError("Unable to listen on non-local IA", nil,
 				"expected", conn.scionNet.localIA, "actual", conn.baddr.IA, "type", "bind")
