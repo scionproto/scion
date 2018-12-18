@@ -35,6 +35,9 @@ import (
 
 const (
 	HandlerTimeout = 5 * time.Second
+
+	KeyChanged   = "Verifying key has changed in the meantime"
+	NotACustomer = "ISD-AS not in customer mapping"
 )
 
 // Handler handles certificate chain reissue requests.
@@ -85,7 +88,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return h.sendRep(ctx, addr, maxChain, r.ID)
 	}
 	// Get the verifying key from the customer mapping
-	verKey, verVersion, err := h.State.Customers.GetVerifyingKey(ctx, addr.IA)
+	verKey, verVersion, err := h.getVerifyingKey(ctx, addr.IA)
 	if err != nil {
 		return common.NewBasicError("Unable to get verifying key", err)
 	}
@@ -189,19 +192,22 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 		return nil, common.NewBasicError("Failed to create transaction", err)
 	}
 	// Set verifying key.
-	err = h.State.Customers.SetVerifyingKey(ctx, tx, c.Subject, c.Version, verVersion,
-		c.SubjectSignKey, vKey)
+	err = tx.InsertCustKey(ctx, c.Subject, c.Version, c.SubjectSignKey, verVersion)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
 	}
-	if _, err = tx.InsertChain(ctx, chain); err != nil {
+	var n int64
+	if n, err = tx.InsertChain(ctx, chain); err != nil {
 		tx.Rollback()
 		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
 		return nil, err
 	}
-	err = tx.Commit()
-	if err != nil {
+	if n == 0 {
+		tx.Rollback()
+		return nil, common.NewBasicError("Chain seems to already be in the DB", nil)
+	}
+	if err = tx.Commit(); err != nil {
 		return nil, common.NewBasicError("Failed to commit transaction", err)
 	}
 	return chain, nil
@@ -232,4 +238,19 @@ func (h *Handler) getIssuerCert(ctx context.Context) (*cert.Certificate, error) 
 		return nil, common.NewBasicError("Issuer certificate not found", nil, "ia", h.IA)
 	}
 	return issCrt, nil
+}
+
+// getVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
+// Otherwise, nil and an error.
+func (h *Handler) getVerifyingKey(ctx context.Context,
+	ia addr.IA) (common.RawBytes, uint64, error) {
+
+	k, v, err := h.State.TrustDB.GetCustKey(ctx, ia)
+	if err != nil {
+		return nil, 0, err
+	}
+	if k == nil {
+		return nil, 0, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
+	}
+	return k, v, nil
 }

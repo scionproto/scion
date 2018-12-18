@@ -29,30 +29,14 @@ import (
 )
 
 const (
-	KeyChanged   = "Verifying key has changed in the meantime"
-	NotACustomer = "ISD-AS not in customer mapping"
-
 	CustomersDir = "customers"
 )
 
 // reCustVerKey is used to parse the IA and version of a customer verifying key file.
 var reCustVerKey = regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
 
-// Customers is a mapping from non-core ASes assigned to this core AS to their public
-// verifying key.
-type Customers struct {
-	// trustDB is the trust database.
-	trustDB trustdb.TrustDB
-}
-
-func NewCustomers(trustDB trustdb.TrustDB) *Customers {
-	return &Customers{
-		trustDB: trustDB,
-	}
-}
-
-// loadCustomers populates the DB from assigned non-core ASes to their verifying key.
-func (c *Customers) loadCustomers(stateDir string) error {
+// LoadCustomers populates the DB from assigned non-core ASes to their verifying key.
+func LoadCustomers(stateDir string, trustDB trustdb.TrustDB) error {
 	path := filepath.Join(stateDir, CustomersDir)
 	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", path))
 	if err != nil {
@@ -83,7 +67,7 @@ func (c *Customers) loadCustomers(stateDir string) error {
 		if err != nil {
 			return common.NewBasicError("Unable to load key", err, "file", file)
 		}
-		_, dbV, err := c.trustDB.GetCustKey(ctx, ia)
+		_, dbV, err := trustDB.GetCustKey(ctx, ia)
 		if err != nil {
 			return common.NewBasicError("Failed to check DB cust key", err, "ia", ia)
 		}
@@ -91,32 +75,10 @@ func (c *Customers) loadCustomers(stateDir string) error {
 			// db already contains a newer key.
 			continue
 		}
-		err = c.trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
+		err = trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
 		if err != nil {
 			return common.NewBasicError("Failed to save customer key", err, "file", file)
 		}
 	}
 	return nil
-}
-
-// GetVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
-// Otherwise, nil and an error.
-func (c *Customers) GetVerifyingKey(ctx context.Context,
-	ia addr.IA) (common.RawBytes, uint64, error) {
-
-	k, v, err := c.trustDB.GetCustKey(ctx, ia)
-	if err != nil {
-		return nil, 0, err
-	}
-	if k == nil {
-		return nil, 0, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
-	}
-	return k, v, nil
-}
-
-// SetVerifyingKey sets the verifying key for a specified AS. The key is written to the file system.
-func (c *Customers) SetVerifyingKey(ctx context.Context, tx trustdb.Transaction,
-	ia addr.IA, newVer, oldVer uint64, newKey, oldKey common.RawBytes) error {
-
-	return tx.InsertCustKey(ctx, ia, newVer, newKey, oldVer)
 }

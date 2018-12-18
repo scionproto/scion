@@ -34,9 +34,6 @@ type State struct {
 	keyConf *keyconf.Conf
 	// keyConfLock guards KeyConf.
 	keyConfLock sync.RWMutex
-	// Customers is a mapping from non-core ASes assigned to this core AS to their public
-	// verifying key.
-	Customers *Customers
 	// signer is used to sign ctrl payloads.
 	signer ctrl.Signer
 	// signerLock guards signer.
@@ -58,8 +55,7 @@ func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
 		return nil, err
 	}
 	if isCore {
-		s.Customers = NewCustomers(s.TrustDB)
-		if err := s.Customers.loadCustomers(confDir); err != nil {
+		if err := LoadCustomers(confDir, s.TrustDB); err != nil {
 			return nil, common.NewBasicError(ErrorCustomers, err)
 		}
 	}

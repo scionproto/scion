@@ -94,6 +94,7 @@ const (
 	IssuerCertsTable = "IssuerCerts"
 	LeafCertsTable   = "LeafCerts"
 	CustKeysTable    = "CustKeys"
+	CustKeysLogTable = "CustKeysLog"
 )
 
 const (
@@ -491,7 +492,7 @@ func (db *executor) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
 	return trcs, nil
 }
 
-// GetCustKey gets the customer signing key for the given AS in the latest version.
+// GetCustKey gets the latest signing key and version for the specified customer AS.
 func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, uint64, error) {
 	db.RLock()
 	defer db.RUnlock()
@@ -507,7 +508,7 @@ func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes
 	return key, version, nil
 }
 
-// InsertCustKey inserts the given customer key.
+// InsertCustKey implements trustdb.InsertCustKey.
 func (db *executor) InsertCustKey(ctx context.Context, ia addr.IA,
 	version uint64, key common.RawBytes, oldVersion uint64) error {
 

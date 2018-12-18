@@ -66,8 +66,7 @@ type Read interface {
 	GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	// GetAllTRCs fetches all TRCs from the database.
 	GetAllTRCs(ctx context.Context) ([]*trc.TRC, error)
-	// GetCustKey gets the customer signing key and the version
-	// for the given AS in the latest version.
+	// GetCustKey gets the latest signing key and version for the specified customer AS.
 	GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, uint64, error)
 }
 
