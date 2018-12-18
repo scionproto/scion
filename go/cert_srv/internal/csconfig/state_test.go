@@ -43,7 +43,9 @@ func TestLoadState(t *testing.T) {
 		defer ctrl.Finish()
 		trustDB := mock_trustdb.NewMockTrustDB(ctrl)
 		ia := xtest.MustParseIA("1-ff00:0:110")
-		trustDB.EXPECT().InsertCustKey(gomock.Any(), gomock.Eq(ia), uint64(1), gomock.Eq(key))
+		trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(nil, uint64(0), nil)
+		trustDB.EXPECT().InsertCustKey(gomock.Any(), gomock.Eq(ia), uint64(1),
+			gomock.Eq(key), uint64(0))
 		state, err := LoadState("testdata", true, trustDB, nil)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
