@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -136,6 +137,7 @@ const (
 	SegSync
 	ChainIssueRequest
 	ChainIssueReply
+	Ack
 )
 
 func (mt MessageType) String() string {
@@ -174,18 +176,24 @@ func (mt MessageType) String() string {
 		return "ChainIssueRequest"
 	case ChainIssueReply:
 		return "ChainIssueReply"
+	case Ack:
+		return "Ack"
 	default:
 		return fmt.Sprintf("Unknown (%d)", mt)
 	}
 }
 
 type Messenger interface {
+	SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
 		id uint64) (*cert_mgmt.TRC, error)
 	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error
+	PushTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) (*ack.Ack, error)
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
 		id uint64) (*cert_mgmt.Chain, error)
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
+	PushCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
+		id uint64) (*ack.Ack, error)
 	GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error

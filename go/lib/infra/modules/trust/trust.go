@@ -264,19 +264,27 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	if err := store.insertTRCHookLocal(ctx, trcObj); err != nil {
 		return err
 	}
-	addr, err := store.ChooseServer(ctx, store.ia)
-	if err != nil {
-		return common.NewBasicError("Failed to select server to forward TRC", err)
-	}
 	rawTRC, err := trcObj.Compress()
 	if err != nil {
 		return common.NewBasicError("Failed to compress TRC for forwarding", err)
 	}
-	err = store.msger.SendTRC(ctx, &cert_mgmt.TRC{
+	sent := false
+	for !sent {
+		addr, err := store.ChooseServer(ctx, store.ia)
+	if err != nil {
+			return common.NewBasicError("Failed to select server to forward TRC", err)
+	}
+		forwardCtx, cancelF := context.WithTimeout(ctx, 2*time.Second)
+		a, err := store.msger.PushTRC(forwardCtx, &cert_mgmt.TRC{
 		RawTRC: rawTRC,
 	}, addr, messenger.NextId())
 	if err != nil {
-		return common.NewBasicError("Failed to forward TRC", err)
+			return common.NewBasicError("Failed to push TRC", err)
+		}
+		if a.Err == proto.Ack_ErrCode_reject {
+			return common.NewBasicError("Receiver rejected TRC push", nil, "desc", a.ErrDesc)
+		}
+		sent = a.Err == proto.Ack_ErrCode_ok
 	}
 	return nil
 }
@@ -392,19 +400,27 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		if err != nil {
 			return common.NewBasicError("Unable to store CertChain in database", err)
 		}
-		addr, err := store.ChooseServer(ctx, store.ia)
-		if err != nil {
-			return common.NewBasicError("Failed to select server to forward cert chain", err)
-		}
 		rawChain, err := chain.Compress()
 		if err != nil {
 			return common.NewBasicError("Failed to compress chain for forwarding", err)
 		}
-		err = store.msger.SendCertChain(ctx, &cert_mgmt.Chain{
+		sent := false
+		for !sent {
+			addr, err := store.ChooseServer(ctx, store.ia)
+		if err != nil {
+				return common.NewBasicError("Failed to select server to forward cert chain", err)
+		}
+			forwardCtx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
+			a, err := store.msger.PushCertChain(forwardCtx, &cert_mgmt.Chain{
 			RawChain: rawChain,
 		}, addr, messenger.NextId())
 		if err != nil {
-			return common.NewBasicError("Failed to forward cert chain", err, "chain", chain)
+				return common.NewBasicError("Failed to forward cert chain", err, "chain", chain)
+			}
+			if a.Err == proto.Ack_ErrCode_reject {
+				return common.NewBasicError("Receiver rejected TRC push", nil, "desc", a.ErrDesc)
+			}
+			sent = a.Err == proto.Ack_ErrCode_ok
 		}
 		return nil
 	}
