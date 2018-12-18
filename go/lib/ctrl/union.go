@@ -1,4 +1,5 @@
 // Copyright 2017 ETH Zurich
+// Copyright 2018 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +17,7 @@ package ctrl
 
 import (
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/extn"
 	"github.com/scionproto/scion/go/lib/ctrl/ifid"
@@ -36,6 +38,7 @@ type union struct {
 	DRKeyMgmt   []byte `capnp:"-"` // Omit for now
 	Sig         *sigmgmt.Pld
 	Extn        *extn.CtrlExtnDataList
+	Ack         *ack.Ack
 }
 
 func (u *union) set(c proto.Cerealizable) error {
@@ -58,6 +61,9 @@ func (u *union) set(c proto.Cerealizable) error {
 	case *extn.CtrlExtnDataList:
 		u.Which = proto.CtrlPld_Which_extn
 		u.Extn = p
+	case *ack.Ack:
+		u.Which = proto.CtrlPld_Which_ack
+		u.Ack = p
 	default:
 		return common.NewBasicError("Unsupported ctrl union type (set)", nil,
 			"type", common.TypeOf(c))
@@ -79,6 +85,8 @@ func (u *union) get() (proto.Cerealizable, error) {
 		return u.CertMgmt, nil
 	case proto.CtrlPld_Which_extn:
 		return u.Extn, nil
+	case proto.CtrlPld_Which_ack:
+		return u.Ack, nil
 	}
 	return nil, common.NewBasicError("Unsupported ctrl union type (get)", nil, "type", u.Which)
 }

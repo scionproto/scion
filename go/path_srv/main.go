@@ -40,7 +40,6 @@ import (
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/truststorage"
-	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
 	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
@@ -209,11 +208,6 @@ func (t *periodicTasks) Start() {
 	}
 	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
-	t.cryptosyncer = periodic.StartPeriodicTask(&cryptosyncer.Syncer{
-		DB:    t.trustDB,
-		Msger: t.msger,
-		IA:    t.args.IA,
-	}, periodic.NewTicker(30*time.Second), 30*time.Second)
 	t.rcCleaner = periodic.StartPeriodicTask(revcache.NewCleaner(t.args.RevCache),
 		periodic.NewTicker(10*time.Second), 10*time.Second)
 	t.running = true
@@ -231,7 +225,6 @@ func (t *periodicTasks) Kill() {
 		syncer.Kill()
 	}
 	t.pathDBCleaner.Kill()
-	t.cryptosyncer.Kill()
 	t.rcCleaner.Kill()
 	t.running = false
 }

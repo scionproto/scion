@@ -75,6 +75,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -174,6 +175,16 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 	}
 }
 
+func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
+	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.Ack, "to", a, "id", id)
+	return m.getRequester(infra.Ack, infra.None).Notify(ctx, pld, a)
+}
+
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
 // reply and returns the reply.
 func (m *Messenger) GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq,
@@ -212,6 +223,32 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.TRC, "to", a, "id", id)
 	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) PushTRC(ctx context.Context, msg *cert_mgmt.TRC,
+	a net.Addr, id uint64) (*ack.Ack, error) {
+
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return nil, err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Push", "type", infra.TRC, "to", a, "id", id)
+	replyCtrlPld, _, err := m.getRequester(infra.TRC, infra.Ack).Request(ctx, pld, a)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] PushTRC error", err)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	reply, ok := replyMsg.(*ack.Ack)
+	if !ok {
+		err := newTypeAssertErr("*ack.Ack", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
+	logger.Trace("[Messenger] Received reply", "reply", reply)
+	return reply, nil
 }
 
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
@@ -254,6 +291,32 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
 	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
+}
+
+func (m *Messenger) PushCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
+	id uint64) (*ack.Ack, error) {
+
+	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return nil, err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
+	replyCtrlPld, _, err := m.getRequester(infra.Chain, infra.Ack).Request(ctx, pld, a)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] PushCertChain error", err)
+	}
+	_, replyMsg, err := m.validate(replyCtrlPld)
+	if err != nil {
+		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
+	}
+	reply, ok := replyMsg.(*ack.Ack)
+	if !ok {
+		err := newTypeAssertErr("*ack.Ack", replyMsg)
+		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
+	}
+	logger.Trace("[Messenger] Received reply", "reply", reply)
+	return reply, nil
 }
 
 // GetSegs asks the server at the remote address for the path segments that
@@ -606,6 +669,8 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",
 					nil, "capnp_which", pld.PathMgmt.Which)
 		}
+	case proto.CtrlPld_Which_ack:
+		return infra.Ack, pld.Ack, nil
 	default:
 		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)
