@@ -13,7 +13,10 @@ test_run() {
     METRICS="${ACCEPTANCE_ARTIFACTS:?}/$TEST_NAME/metrics"
     collect_metrics "gen/ISD1/AS$(as_file $SRC_IA)/br$(ia_file $SRC_IA)-1/topology.json" "$METRICS"
     PACKETS=$(cat "$METRICS/sig$(ia_file $SRC_IA)" | grep "sig_egress_recv_queue_full_total{" | awk '{print $NF}')
-    [ -n "$PACKETS" ] && { echo "Error: $PACKETS egress packets dropped due to full queues." && exit 1; }
+    if [ -n "$PACKETS" ]; then
+        echo "Error: $PACKETS egress packets dropped due to full queues."
+        exit 1
+    fi
 }
 
 shift

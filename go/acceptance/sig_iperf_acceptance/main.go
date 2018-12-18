@@ -59,8 +59,8 @@ func realMain() int {
 		ClientArgs []string
 	}{
 		{
-			name + "_udp_10Mbps_80B",
-			[]string{"-u", "--bandwidth", "10M", "--length", "80"},
+			name + "_udp_20Mbps_80B",
+			[]string{"-u", "--bandwidth", "20M", "--length", "80"},
 		},
 		{
 			name + "_udp_50Mbps_512B",
