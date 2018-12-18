@@ -66,9 +66,12 @@ func main() {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
 	}
 	// Connect to the dispatcher
-	overlayBindAddr, err := overlay.NewOverlayAddr(cmn.Bind.Host.L3, cmn.Bind.Host.L4)
-	if err != nil {
-		cmn.Fatal("Failed to create bind address: %v\n", err)
+	var overlayBindAddr *overlay.OverlayAddr
+	if cmn.Bind.Host != nil {
+		overlayBindAddr, err = overlay.NewOverlayAddr(cmn.Bind.Host.L3, cmn.Bind.Host.L4)
+		if err != nil {
+			cmn.Fatal("Failed to create bind address: %v\n", err)
+		}
 	}
 	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host,
 		overlayBindAddr, addr.SvcNone)
