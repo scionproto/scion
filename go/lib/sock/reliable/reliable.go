@@ -312,17 +312,17 @@ func createUDPAddrFromAppAddr(address *addr.AppAddr) (*net.UDPAddr, error) {
 		return nil, common.NewBasicError("unsupported application address type", nil,
 			"type", address.L3.Type())
 	}
-	if address.L4 == nil {
-		return nil, common.NewBasicError("uninitialized L4", nil)
-	}
-	if address.L4.Type() != common.L4UDP {
-		return nil, common.NewBasicError("bad L4 type", nil, "type", address.L4.Type())
+	var port int
+	if address.L4 != nil {
+		if address.L4.Type() != common.L4UDP {
+			return nil, common.NewBasicError("bad L4 type", nil, "type", address.L4.Type())
+		}
+		port = int(address.L4.Port())
 	}
 	ip := address.L3.IP()
 	if ip == nil {
 		panic("inconsistent app address, ip should never be nil")
 	}
-	port := int(address.L4.Port())
 	return &net.UDPAddr{IP: ip, Port: port}, nil
 }
 
