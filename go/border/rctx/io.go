@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
@@ -54,6 +55,7 @@ type Sock struct {
 	readerStopped chan struct{}
 	writerStopped chan struct{}
 	running       bool
+	started       bool
 }
 
 func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir,
@@ -76,6 +78,10 @@ func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir,
 // have been started already.
 func (s *Sock) Start() {
 	if !s.running {
+		// Restarting is not permitted, since the stop/stopped channels are closed.
+		if assert.On {
+			assert.Must(!s.started, "Socket must not be restarted after being closed")
+		}
 		if s.Reader != nil {
 			go func() {
 				defer log.LogPanicAndExit()
@@ -89,12 +95,13 @@ func (s *Sock) Start() {
 			}()
 		}
 		s.running = true
+		s.started = true
 		log.Info("Sock routines started", "addr", s.Conn.LocalAddr())
 	}
 }
 
 // Stop stops the running reader/writer goroutines (if any) and waits until the
-// routines are stopped before returing to the caller.
+// routines are stopped before returning to the caller.
 func (s *Sock) Stop() {
 	if s.running {
 		log.Debug("Sock routines stopping", "addr", s.Conn.LocalAddr())
@@ -120,5 +127,11 @@ func (s *Sock) Stop() {
 		}
 		s.running = false
 		log.Info("Sock routines stopped", "addr", s.Conn.LocalAddr())
+	} else if !s.started {
+		s.Ring.Close()
+		if err := s.Conn.Close(); err != nil {
+			log.Error("Error stopping socket", "err", err)
+		}
+		log.Info("Unstarted sock stopped", "addr", s.Conn.LocalAddr())
 	}
 }
