@@ -263,25 +263,29 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	if err := store.insertTRCHookLocal(ctx, trcObj); err != nil {
 		return err
 	}
-	go func() {
-		defer log.LogPanicAndExit()
+	rawTRC, err := trcObj.Compress()
+	if err != nil {
+		return common.NewBasicError("Failed to compress TRC for forwarding", err)
+	}
+	sent := false
+	for !sent {
 		addr, err := store.ChooseServer(ctx, store.ia)
 		if err != nil {
-			log.Error("Failed to select server to forward TRC", "err", err)
+			return common.NewBasicError("Failed to select server to forward TRC", err)
 		}
-		rawTRC, err := trcObj.Compress()
-		if err != nil {
-			log.Error("Failed to compress TRC for forwarding", "err", err)
-		}
-		forwardCtx, cancelF := context.WithTimeout(context.Background(), 5*time.Second)
+		forwardCtx, cancelF := context.WithTimeout(ctx, 2*time.Second)
 		defer cancelF()
-		err = store.msger.SendTRC(forwardCtx, &cert_mgmt.TRC{
+		a, err := store.msger.PushTRC(forwardCtx, &cert_mgmt.TRC{
 			RawTRC: rawTRC,
 		}, addr, messenger.NextId())
 		if err != nil {
-			log.Error("Failed to forward TRC", "err", err)
+			return common.NewBasicError("Failed to push TRC", err)
 		}
-	}()
+		if a.Err == proto.Ack_ErrCode_reject {
+			return common.NewBasicError("Receiver rejected TRC push", nil, "desc", a.ErrDesc)
+		}
+		sent = a.Err == proto.Ack_ErrCode_ok
+	}
 	return nil
 }
 
@@ -396,26 +400,29 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		if err != nil {
 			return common.NewBasicError("Unable to store CertChain in database", err)
 		}
-		// forward to local CS, async
-		go func() {
-			defer log.LogPanicAndExit()
+		rawChain, err := chain.Compress()
+		if err != nil {
+			return common.NewBasicError("Failed to compress chain for forwarding", err)
+		}
+		sent := false
+		for !sent {
 			addr, err := store.ChooseServer(ctx, store.ia)
 			if err != nil {
-				log.Error("Failed to select server to forward cert chain", "err", err)
+				return common.NewBasicError("Failed to select server to forward cert chain", err)
 			}
-			rawChain, err := chain.Compress()
-			if err != nil {
-				log.Error("Failed to compress chain for forwarding", "err", err)
-			}
-			forwardCtx, cancelF := context.WithTimeout(context.Background(), 5*time.Second)
+			forwardCtx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancelF()
-			err = store.msger.SendCertChain(forwardCtx, &cert_mgmt.Chain{
+			a, err := store.msger.PushCertChain(forwardCtx, &cert_mgmt.Chain{
 				RawChain: rawChain,
 			}, addr, messenger.NextId())
 			if err != nil {
-				log.Error("Failed to forward cert chain", "err", err, "chain", chain)
+				return common.NewBasicError("Failed to forward cert chain", err, "chain", chain)
 			}
-		}()
+			if a.Err == proto.Ack_ErrCode_reject {
+				return common.NewBasicError("Receiver rejected TRC push", nil, "desc", a.ErrDesc)
+			}
+			sent = a.Err == proto.Ack_ErrCode_ok
+		}
 		return nil
 	}
 }

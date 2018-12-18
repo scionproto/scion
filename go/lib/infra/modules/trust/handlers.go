@@ -18,9 +18,11 @@ import (
 	"context"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/proto"
 )
 
 // trcReqHandler contains the state of a handler for a specific TRC Request
@@ -153,6 +155,11 @@ func (h *trcPushHandler) Handle() {
 	}
 	logger.Debug("[TrustStore:trcPushHandler] Received push", "trcPush", trcPush,
 		"peer", h.request.Peer)
+	messenger, ok := infra.MessengerFromContext(h.request.Context())
+	if !ok {
+		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
+		return
+	}
 	// FIXME(scrye): Verify that the TRC is valid by using the trust store and
 	// known trust topology. Use h.Request.Peer to retrieve missing TRCs.
 	trcObj, err := trcPush.TRC()
@@ -169,6 +176,12 @@ func (h *trcPushHandler) Handle() {
 	}
 	if n != 0 {
 		logger.Debug("[TrustStore:trcPushHandler] Inserted TRC into DB", "trc", trcObj)
+	}
+	a := &ack.Ack{
+		Err: proto.Ack_ErrCode_ok,
+	}
+	if err := messenger.SendAck(subCtx, a, h.request.Peer, h.request.ID); err != nil {
+		logger.Error("[TrustStore:chainPushHandler] Failed to send ack", "err", err)
 	}
 }
 
@@ -187,6 +200,11 @@ func (h *chainPushHandler) Handle() {
 	}
 	logger.Debug("[TrustStore:chainPushHandler] Received push", "chainPush", chainPush,
 		"peer", h.request.Peer)
+	messenger, ok := infra.MessengerFromContext(h.request.Context())
+	if !ok {
+		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
+		return
+	}
 	// FIXME(scrye): Verify that the chain is valid by using the trust store.
 	chain, err := chainPush.Chain()
 	if err != nil {
@@ -203,5 +221,11 @@ func (h *chainPushHandler) Handle() {
 	}
 	if n != 0 {
 		logger.Debug("[TrustStore:chainPushHandler] Inserted chain into DB", "chain", chain)
+	}
+	a := &ack.Ack{
+		Err: proto.Ack_ErrCode_ok,
+	}
+	if err := messenger.SendAck(subCtx, a, h.request.Peer, h.request.ID); err != nil {
+		logger.Error("[TrustStore:chainPushHandler] Failed to send ack", "err", err)
 	}
 }
