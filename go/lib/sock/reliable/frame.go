@@ -17,6 +17,7 @@ package reliable
 import (
 	"net"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
 
@@ -28,7 +29,7 @@ type OverlayPacket struct {
 }
 
 func (p *OverlayPacket) SerializeTo(b []byte) (int, error) {
-	var f Frame
+	var f frame
 	f.Cookie = expectedCookie
 	f.AddressType = byte(getAddressType(p.Address))
 	f.Length = uint32(len(p.Payload))
@@ -42,7 +43,7 @@ func (p *OverlayPacket) SerializeTo(b []byte) (int, error) {
 }
 
 func (p *OverlayPacket) DecodeFromBytes(b []byte) error {
-	var f Frame
+	var f frame
 	if err := f.DecodeFromBytes(b); err != nil {
 		return err
 	}
@@ -54,8 +55,8 @@ func (p *OverlayPacket) DecodeFromBytes(b []byte) error {
 	return nil
 }
 
-// Frame describes the wire format of the reliable socket framing protocol.
-type Frame struct {
+// frame describes the wire format of the reliable socket framing protocol.
+type frame struct {
 	Cookie      uint64
 	AddressType byte
 	Length      uint32
@@ -64,7 +65,7 @@ type Frame struct {
 	Payload     []byte
 }
 
-func (f *Frame) SerializeTo(b []byte) (int, error) {
+func (f *frame) SerializeTo(b []byte) (int, error) {
 	totalLength := f.length()
 	if totalLength > len(b) {
 		return 0, common.NewBasicError(ErrBufferTooSmall, nil, "have", len(b), "want", totalLength)
@@ -78,28 +79,31 @@ func (f *Frame) SerializeTo(b []byte) (int, error) {
 	return totalLength, nil
 }
 
-func (f *Frame) DecodeFromBytes(data []byte) error {
+func (f *frame) DecodeFromBytes(data []byte) error {
 	if len(data) < f.headerLength() {
 		return common.NewBasicError(ErrIncompleteFrameHeader, nil)
 	}
 	f.Cookie = common.Order.Uint64(data)
 	f.AddressType = data[8]
 	f.Length = common.Order.Uint32(data[9:])
-	addressType := AddressType(f.AddressType)
-	if !addressType.IsValid() {
+	offset := 13
+	addressType := addr.HostAddrType(f.AddressType)
+	if !isValidReliableSockDestination(addressType) {
 		return common.NewBasicError(ErrBadAddressType, nil, "type", addressType)
 	}
-	addrSize := addressType.AddressLength()
-	portSize := addressType.PortLength()
-	if len(data[13:]) < addrSize {
+	addrLen := getAddressLength(addressType)
+	portLen := getPortLength(addressType)
+	if len(data[offset:]) < addrLen {
 		return common.NewBasicError(ErrIncompleteAddress, nil)
 	}
-	f.Address = data[13 : 13+addrSize]
-	if len(data[13+addrSize:]) < portSize {
+	f.Address = data[offset : offset+addrLen]
+	offset += addrLen
+	if len(data[offset:]) < portLen {
 		return common.NewBasicError(ErrIncompletePort, nil)
 	}
-	f.Port = data[13+addrSize : 13+addrSize+portSize]
-	f.Payload = data[13+addrSize+portSize:]
+	f.Port = data[offset : offset+portLen]
+	offset += portLen
+	f.Payload = data[offset:]
 	if len(f.Payload) != int(f.Length) {
 		return common.NewBasicError(ErrBadLength, nil)
 	}
@@ -107,17 +111,17 @@ func (f *Frame) DecodeFromBytes(data []byte) error {
 }
 
 // length returns the total length of the frame (including payload).
-func (f *Frame) length() int {
+func (f *frame) length() int {
 	return f.headerLength() + len(f.Address) + len(f.Port) + len(f.Payload)
 }
 
 // header length returns the length of the fixed size start of the frame
 // (cookie, address type and payload length field).
-func (f *Frame) headerLength() int {
+func (f *frame) headerLength() int {
 	return 8 + 1 + 4
 }
 
-func (f *Frame) insertAddress(address *net.UDPAddr) error {
+func (f *frame) insertAddress(address *net.UDPAddr) error {
 	if address.IP == nil || address.IP.IsUnspecified() {
 		return common.NewBasicError(ErrNoAddress, nil)
 	}
@@ -130,9 +134,9 @@ func (f *Frame) insertAddress(address *net.UDPAddr) error {
 	return nil
 }
 
-func (f *Frame) extractAddress() *net.UDPAddr {
-	t := AddressType(f.AddressType)
-	if t == AddressTypeIPv4 || t == AddressTypeIPv6 {
+func (f *frame) extractAddress() *net.UDPAddr {
+	t := addr.HostAddrType(f.AddressType)
+	if t == addr.HostTypeIPv4 || t == addr.HostTypeIPv6 {
 		return &net.UDPAddr{
 			IP:   net.IP(f.Address),
 			Port: int(common.Order.Uint16(f.Port)),
