@@ -133,7 +133,7 @@ func DialTimeout(address string, timeout time.Duration) (*Conn, error) {
 // Register connects to a SCION Dispatcher's UNIX socket.
 // Future messages for address public or bind in AS ia which arrive at the dispatcher can be
 // read by calling Read on the returned Conn structure.
-func Register(dispatcher string, ia addr.IA, public, bind *addr.AppAddr,
+func Register(dispatcher string, ia addr.IA, public *addr.AppAddr, bind *overlay.OverlayAddr,
 	svc addr.HostSVC) (*Conn, uint16, error) {
 
 	return RegisterTimeout(dispatcher, ia, public, bind, svc, time.Duration(0))
@@ -145,11 +145,17 @@ func Register(dispatcher string, ia addr.IA, public, bind *addr.AppAddr,
 //
 // To check for timeout errors, type assert the returned error to *net.OpError and
 // call method Timeout().
-func RegisterTimeout(dispatcher string, ia addr.IA, public, bind *addr.AppAddr, svc addr.HostSVC,
-	timeout time.Duration) (*Conn, uint16, error) {
+func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
+	bind *overlay.OverlayAddr, svc addr.HostSVC, timeout time.Duration) (*Conn, uint16, error) {
 
-	publicUDP := createUDPAddr(public)
-	bindUDP := createUDPAddr(bind)
+	publicUDP, err := createUDPAddrFromAppAddr(public)
+	if err != nil {
+		return nil, 0, err
+	}
+	bindUDP, err := createUDPAddrFromOverlayAddr(bind)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	reg := &Registration{
 		IA:            ia,
@@ -298,16 +304,39 @@ func (listener *Listener) String() string {
 	return fmt.Sprintf("&{addr: %v}", listener.UnixListener.Addr())
 }
 
-func createUDPAddr(address *addr.AppAddr) *net.UDPAddr {
+func createUDPAddrFromAppAddr(address *addr.AppAddr) (*net.UDPAddr, error) {
+	if address == nil || address.L3 == nil {
+		return nil, common.NewBasicError("nil application address", nil)
+	}
+	if address.L3.Type() != addr.HostTypeIPv4 && address.L3.Type() != addr.HostTypeIPv6 {
+		return nil, common.NewBasicError("unsupported application address type", nil,
+			"type", address.L3.Type())
+	}
+	if address.L4 == nil {
+		return nil, common.NewBasicError("uninitialized L4", nil)
+	}
+	if address.L4.Type() != common.L4UDP {
+		return nil, common.NewBasicError("bad L4 type", nil, "type", address.L4.Type())
+	}
+	ip := address.L3.IP()
+	if ip == nil {
+		panic("inconsistent app address, ip should never be nil")
+	}
+	port := int(address.L4.Port())
+	return &net.UDPAddr{IP: ip, Port: port}, nil
+}
+
+func createUDPAddrFromOverlayAddr(address *overlay.OverlayAddr) (*net.UDPAddr, error) {
 	if address == nil {
-		return nil
+		return nil, nil
+	}
+	ip := address.L3().IP()
+	if ip == nil {
+		panic("invalid overlay (ip not found)")
 	}
 	port := 0
-	if address.L4 != nil {
-		port = int(address.L4.Port())
+	if address.L4() != nil {
+		port = int(address.L4().Port())
 	}
-	return &net.UDPAddr{
-		IP:   address.L3.IP(),
-		Port: port,
-	}
+	return &net.UDPAddr{IP: ip, Port: port}, nil
 }
