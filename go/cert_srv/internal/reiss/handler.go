@@ -205,7 +205,7 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	}
 	if n == 0 {
 		tx.Rollback()
-		return nil, common.NewBasicError("Chain seems to already be in the DB", nil)
+		return nil, common.NewBasicError("Chain already in DB", nil, "chain", chain)
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, common.NewBasicError("Failed to commit transaction", err)
