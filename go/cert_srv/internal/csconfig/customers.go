@@ -15,13 +15,11 @@
 package csconfig
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
@@ -43,7 +41,6 @@ var reCustVerKey = regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
 // Customers is a mapping from non-core ASes assigned to this core AS to their public
 // verifying key.
 type Customers struct {
-	m sync.RWMutex
 	// trustDB is the trust database.
 	trustDB trustdb.TrustDB
 }
@@ -86,7 +83,15 @@ func (c *Customers) loadCustomers(stateDir string) error {
 		if err != nil {
 			return common.NewBasicError("Unable to load key", err, "file", file)
 		}
-		err = c.trustDB.InsertCustKey(ctx, ia, activeVers[ia], key)
+		_, dbV, err := c.trustDB.GetCustKey(ctx, ia)
+		if err != nil {
+			return common.NewBasicError("Failed to check DB cust key", err, "ia", ia)
+		}
+		if dbV >= activeVers[ia] {
+			// db already contains a newer key.
+			continue
+		}
+		err = c.trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
 		if err != nil {
 			return common.NewBasicError("Failed to save customer key", err, "file", file)
 		}
@@ -96,36 +101,22 @@ func (c *Customers) loadCustomers(stateDir string) error {
 
 // GetVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
 // Otherwise, nil and an error.
-func (c *Customers) GetVerifyingKey(ctx context.Context, ia addr.IA) (common.RawBytes, error) {
-	c.m.RLock()
-	defer c.m.RUnlock()
-	return c.getVerifyingKey(ctx, ia)
-}
+func (c *Customers) GetVerifyingKey(ctx context.Context,
+	ia addr.IA) (common.RawBytes, uint64, error) {
 
-func (c *Customers) getVerifyingKey(ctx context.Context, ia addr.IA) (common.RawBytes, error) {
-	k, err := c.trustDB.GetCustKey(ctx, ia)
+	k, v, err := c.trustDB.GetCustKey(ctx, ia)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if k == nil {
-		return nil, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
+		return nil, 0, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
 	}
-	return k, nil
+	return k, v, nil
 }
 
 // SetVerifyingKey sets the verifying key for a specified AS. The key is written to the file system.
-func (c *Customers) SetVerifyingKey(ctx context.Context, ia addr.IA, ver uint64,
-	newKey, oldKey common.RawBytes) error {
+func (c *Customers) SetVerifyingKey(ctx context.Context, tx trustdb.Transaction,
+	ia addr.IA, newVer, oldVer uint64, newKey, oldKey common.RawBytes) error {
 
-	c.m.Lock()
-	defer c.m.Unlock()
-	currKey, err := c.getVerifyingKey(ctx, ia)
-	if err != nil {
-		return err
-	}
-	// Check that the key has not changed in the mean time
-	if !bytes.Equal(currKey, oldKey) {
-		return common.NewBasicError(KeyChanged, nil, "ISD-AS", ia)
-	}
-	return c.trustDB.InsertCustKey(ctx, ia, ver, newKey)
+	return tx.InsertCustKey(ctx, ia, newVer, newKey, oldVer)
 }

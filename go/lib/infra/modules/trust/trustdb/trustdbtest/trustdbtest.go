@@ -350,35 +350,46 @@ func testCustKey(t *testing.T, db rwTrustDB) {
 		key_110_2 := common.RawBytes("ddddddaa")
 
 		Convey("GetCustKey should return nil and no error", func() {
-			key, err := db.GetCustKey(ctx, ia1_110)
+			key, ver, err := db.GetCustKey(ctx, ia1_110)
 			SoMsg("No error expected", err, ShouldBeNil)
 			SoMsg("Empty result expected", key, ShouldBeNil)
+			SoMsg("0 version expected", ver, ShouldEqual, 0)
 		})
 		Convey("Insertion should work without error", func() {
-			err := db.InsertCustKey(ctx, ia1_110, 1, key_110_1)
+			var ver uint64 = 1
+			err := db.InsertCustKey(ctx, ia1_110, ver, key_110_1, 0)
 			SoMsg("No error expected", err, ShouldBeNil)
 			Convey("Inserted entry should be returned", func() {
-				key, err := db.GetCustKey(ctx, ia1_110)
+				key, dbVer, err := db.GetCustKey(ctx, ia1_110)
 				SoMsg("No error expected", err, ShouldBeNil)
 				SoMsg("Inserted key expected", key, ShouldResemble, key_110_1)
+				SoMsg("Inserted version expected", dbVer, ShouldEqual, ver)
 			})
 			Convey("Inserting a newer version should work", func() {
-				err := db.InsertCustKey(ctx, ia1_110, 2, key_110_2)
+				var newVer uint64 = 2
+				err := db.InsertCustKey(ctx, ia1_110, newVer, key_110_2, ver)
 				SoMsg("No error expected", err, ShouldBeNil)
 				Convey("New version should be returned", func() {
-					key, err := db.GetCustKey(ctx, ia1_110)
+					key, dbVer, err := db.GetCustKey(ctx, ia1_110)
 					SoMsg("No error expected", err, ShouldBeNil)
 					SoMsg("Inserted key expected", key, ShouldResemble, key_110_2)
+					SoMsg("Inserted version expected", dbVer, ShouldEqual, newVer)
 				})
 			})
-			Convey("Inserting the same version again should be ignored", func() {
-				err := db.InsertCustKey(ctx, ia1_110, 1, key_110_2)
+			Convey("Inserting the same version again should error", func() {
+				err := db.InsertCustKey(ctx, ia1_110, ver, key_110_2, ver)
+				SoMsg("Error expected", err, ShouldNotBeNil)
+			})
+			Convey("Inserting with 0 version should fail if there is an entry", func() {
+				err := db.InsertCustKey(ctx, ia1_110, ver, key_110_1, 0)
+				SoMsg("Error expected", err, ShouldNotBeNil)
+			})
+			Convey("Updating with outdated old version should fail", func() {
+				var newVer uint64 = 2
+				err := db.InsertCustKey(ctx, ia1_110, newVer, key_110_2, ver)
 				SoMsg("No error expected", err, ShouldBeNil)
-				Convey("The existing version should not be overridden", func() {
-					key, err := db.GetCustKey(ctx, ia1_110)
-					SoMsg("No error expected", err, ShouldBeNil)
-					SoMsg("Inserted key expected", key, ShouldResemble, key_110_1)
-				})
+				err = db.InsertCustKey(ctx, ia1_110, newVer, key_110_2, ver)
+				SoMsg("Error expected", err, ShouldNotBeNil)
 			})
 		})
 	})

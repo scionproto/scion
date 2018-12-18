@@ -85,7 +85,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return h.sendRep(ctx, addr, maxChain, r.ID)
 	}
 	// Get the verifying key from the customer mapping
-	verKey, err := h.State.Customers.GetVerifyingKey(ctx, addr.IA)
+	verKey, verVersion, err := h.State.Customers.GetVerifyingKey(ctx, addr.IA)
 	if err != nil {
 		return common.NewBasicError("Unable to get verifying key", err)
 	}
@@ -94,7 +94,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return common.NewBasicError("Unable to verify request", err)
 	}
 	// Issue certificate chain
-	newChain, err := h.issueChain(ctx, crt, verKey)
+	newChain, err := h.issueChain(ctx, crt, verKey, verVersion)
 	if err != nil {
 		return common.NewBasicError("Unable to reissue certificate chain", err)
 	}
@@ -143,7 +143,7 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 			vChain.Leaf.Subject, "sub", c.Subject)
 	}
 	if maxChain.Leaf.Version+1 != c.Version {
-		return common.NewBasicError("Invalid version", nil, "expected", maxChain.Leaf.Version,
+		return common.NewBasicError("Invalid version", nil, "expected", maxChain.Leaf.Version+1,
 			"actual", c.Version)
 	}
 	if !c.Issuer.Eq(h.IA) {
@@ -162,7 +162,7 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 // issueChain creates a certificate chain for the certificate and adds it to the
 // trust store.
 func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
-	vKey common.RawBytes) (*cert.Chain, error) {
+	vKey common.RawBytes, verVersion uint64) (*cert.Chain, error) {
 
 	issCert, err := h.getIssuerCert(ctx)
 	if err != nil {
@@ -184,14 +184,25 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	if err != nil {
 		return nil, err
 	}
-	// Set verifying key.
-	err = h.State.Customers.SetVerifyingKey(ctx, c.Subject, c.Version, c.SubjectSignKey, vKey)
+	tx, err := h.State.TrustDB.BeginTransaction(ctx, nil)
 	if err != nil {
+		return nil, common.NewBasicError("Failed to create transaction", err)
+	}
+	// Set verifying key.
+	err = h.State.Customers.SetVerifyingKey(ctx, tx, c.Subject, c.Version, verVersion,
+		c.SubjectSignKey, vKey)
+	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
-	if _, err = h.State.TrustDB.InsertChain(ctx, chain); err != nil {
+	if _, err = tx.InsertChain(ctx, chain); err != nil {
+		tx.Rollback()
 		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
 		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, common.NewBasicError("Failed to commit transaction", err)
 	}
 	return chain, nil
 }

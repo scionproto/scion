@@ -77,6 +77,14 @@ const (
 		AsID INTEGER NOT NULL,
 		Version INTEGER NOT NULL,
 		Key DATA NOT NULL,
+		PRIMARY KEY (IsdID, AsID)
+	);
+
+	CREATE TABLE CustKeysLog (
+		IsdID INTEGER NOT NULL,
+		AsID INTEGER NOT NULL,
+		Version INTEGER NOT NULL,
+		Key DATA NOT NULL,
 		PRIMARY KEY (IsdID, AsID, Version)
 	);
 	`
@@ -159,10 +167,18 @@ const (
 			SELECT Data FROM TRCs
 	`
 	getCustKeyStr = `
-			SELECT Key, MAX(Version) FROM CustKeys WHERE IsdID=? AND AsID=? GROUP BY IsdID, AsID
+			SELECT Key, Version FROM CustKeys WHERE IsdID=? AND AsID=?
 	`
 	insertCustKeyStr = `
-			INSERT OR IGNORE INTO CustKeys (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
+			INSERT INTO CustKeys (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
+	`
+
+	insertCustKeyLogStr = `
+			INSERT OR IGNORE INTO CustKeysLog (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
+	`
+
+	updateCustKeyStr = `
+			UPDATE CustKeys SET Version = ?, Key = ? WHERE IsdID = ? AND AsID = ? AND Version = ? 
 	`
 )
 
@@ -476,31 +492,53 @@ func (db *executor) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
 }
 
 // GetCustKey gets the customer signing key for the given AS in the latest version.
-func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, error) {
+func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, uint64, error) {
 	db.RLock()
 	defer db.RUnlock()
 	var key common.RawBytes
 	var version uint64
 	err := db.db.QueryRowContext(ctx, getCustKeyStr, ia.I, ia.A).Scan(&key, &version)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, 0, nil
 	}
 	if err != nil {
-		return nil, common.NewBasicError("Failed to look up cust key", err)
+		return nil, 0, common.NewBasicError("Failed to look up cust key", err)
 	}
-	return key, nil
+	return key, version, nil
 }
 
 // InsertCustKey inserts the given customer key.
 func (db *executor) InsertCustKey(ctx context.Context, ia addr.IA,
-	version uint64, key common.RawBytes) error {
+	version uint64, key common.RawBytes, oldVersion uint64) error {
 
+	if version == oldVersion {
+		return common.NewBasicError("Same version as oldVersion not allowed",
+			nil, "version", version)
+	}
 	db.Lock()
 	defer db.Unlock()
-	if _, err := db.db.ExecContext(ctx, insertCustKeyStr, ia.I, ia.A, version, key); err != nil {
-		return common.NewBasicError("Failed to insert cust key", err, "ia", ia, "ver", version)
+	if oldVersion == 0 {
+		_, err := db.db.ExecContext(ctx, insertCustKeyStr, ia.I, ia.A, version, key)
+		if err != nil {
+			return common.NewBasicError("Failed to insert cust key", err, "ia", ia, "ver", version)
+		}
+	} else {
+		res, err := db.db.ExecContext(ctx, updateCustKeyStr, version, key, ia.I, ia.A, oldVersion)
+		if err != nil {
+			return common.NewBasicError("Failed to update cust key", err, "ia", ia, "ver", version)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return common.NewBasicError("Unable to determine affected rows", err)
+		}
+		if n == 0 {
+			return common.NewBasicError("Cust keys has been modified", nil, "ia", ia,
+				"newVersion", version, "oldVersion", oldVersion)
+		}
 	}
-	return nil
+	// Insert in the log table.
+	_, err := db.db.ExecContext(ctx, insertCustKeyLogStr, ia.I, ia.A, version, key)
+	return err
 }
 
 type transaction struct {

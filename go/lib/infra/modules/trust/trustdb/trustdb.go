@@ -66,8 +66,9 @@ type Read interface {
 	GetTRCMaxVersion(ctx context.Context, isd addr.ISD) (*trc.TRC, error)
 	// GetAllTRCs fetches all TRCs from the database.
 	GetAllTRCs(ctx context.Context) ([]*trc.TRC, error)
-	// GetCustKey gets the customer signing key for the given AS in the latest version.
-	GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, error)
+	// GetCustKey gets the customer signing key and the version
+	// for the given AS in the latest version.
+	GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, uint64, error)
 }
 
 // Write contains all write operations fo the trust DB.
@@ -82,10 +83,13 @@ type Write interface {
 	// InsertTRC inserts trcobj into the database. The first return value is the
 	// number of rows affected.
 	InsertTRC(ctx context.Context, trcobj *trc.TRC) (int64, error)
-	// InsertCustKey inserts the given customer key.
-	// If a key with same ia and version is already stored this is a no-op,
-	// i.e. it does not change the contents.
-	InsertCustKey(ctx context.Context, ia addr.IA, version uint64, key common.RawBytes) error
+	// InsertCustKey inserts or updates the given customer key.
+	// If there has been a concurrent insert, i.e. the version in the DB is no longer oldVersion
+	// this operation should return an error.
+	// If there is no previous version 0 should be passed for the oldVersion argument.
+	// If oldVersion == version an error is returned.
+	InsertCustKey(ctx context.Context, ia addr.IA, version uint64,
+		key common.RawBytes, oldVersion uint64) error
 }
 
 // Transaction represents a trust DB transaction with an ongoing transaction.
