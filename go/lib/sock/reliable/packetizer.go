@@ -17,6 +17,7 @@ package reliable
 import (
 	"net"
 
+	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
 
@@ -39,8 +40,7 @@ func NewReadPacketizer(conn net.Conn) *ReadPacketizer {
 
 func (r *ReadPacketizer) Read(b []byte) (int, error) {
 	for {
-		packet := r.haveNextPacket(r.data)
-		if packet != nil {
+		if packet := r.haveNextPacket(r.data); packet != nil {
 			if len(packet) > len(b) {
 				return 0, common.NewBasicError(ErrBufferTooSmall, nil,
 					"have", len(b), "want", len(packet))
@@ -77,15 +77,14 @@ func (r *ReadPacketizer) updateSlices(availableData int) {
 
 // haveNextPacket returns a slice with the next packet in b, or nil, if a full
 // packet is not available.
-// is the case, the second return value contains the length of the packet.
 func (reader *ReadPacketizer) haveNextPacket(b []byte) []byte {
 	if len(b) < 13 {
 		return nil
 	}
 	rcvdAddrType := b[8]
 	payloadLength := common.Order.Uint32(b[9:13])
-	addressLength := AddressType(rcvdAddrType).AddressLength()
-	portLength := AddressType(rcvdAddrType).PortLength()
+	addressLength := getAddressLength(addr.HostAddrType(rcvdAddrType))
+	portLength := getPortLength(addr.HostAddrType(rcvdAddrType))
 	totalLength := 13 + addressLength + portLength + int(payloadLength)
 	if len(b) < totalLength {
 		return nil

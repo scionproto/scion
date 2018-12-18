@@ -42,21 +42,16 @@ func (r *Registration) SerializeTo(b []byte) (int, error) {
 		return 0, common.NewBasicError(ErrNoAddress, nil)
 	}
 
-	var msg RegistrationMessage
+	var msg registrationMessage
 	msg.Command = CmdAlwaysOn | CmdEnableSCMP
 	msg.L4Proto = 17
 	msg.IA = uint64(r.IA.IAInt())
-	msg.Port = uint16(r.PublicAddress.Port)
-	msg.AddressType = byte(getIPAddressType(r.PublicAddress.IP))
-	msg.Address = []byte(r.PublicAddress.IP)
-
+	msg.PublicData.SetFromUDPAddr(r.PublicAddress)
 	if r.BindAddress != nil {
 		msg.Command |= CmdBindAddress
-		var bindAddress BindAddressLayer
+		var bindAddress registrationAddressField
 		msg.BindData = &bindAddress
-		bindAddress.Port = uint16(r.BindAddress.Port)
-		bindAddress.AddressType = byte(getIPAddressType(r.BindAddress.IP))
-		bindAddress.Address = []byte(r.BindAddress.IP)
+		bindAddress.SetFromUDPAddr(r.BindAddress)
 	}
 	if r.SVCAddress != addr.SvcNone {
 		buffer := make([]byte, 2)
@@ -67,8 +62,7 @@ func (r *Registration) SerializeTo(b []byte) (int, error) {
 }
 
 func (r *Registration) DecodeFromBytes(b []byte) error {
-
-	var msg RegistrationMessage
+	var msg registrationMessage
 	err := msg.DecodeFromBytes(b)
 	if err != nil {
 		return err
@@ -76,8 +70,8 @@ func (r *Registration) DecodeFromBytes(b []byte) error {
 
 	r.IA = addr.IAInt(msg.IA).IA()
 	r.PublicAddress = &net.UDPAddr{
-		IP:   net.IP(msg.Address),
-		Port: int(msg.Port),
+		IP:   net.IP(msg.PublicData.Address),
+		Port: int(msg.PublicData.Port),
 	}
 
 	if len(msg.SVC) == 0 {
@@ -91,107 +85,99 @@ func (r *Registration) DecodeFromBytes(b []byte) error {
 			Port: int(msg.BindData.Port),
 		}
 	}
-
 	return nil
 }
 
-// RegistrationMessage is the wire format for a SCION Dispatcher registration
+// registrationMessage is the wire format for a SCION Dispatcher registration
 // message.
-type RegistrationMessage struct {
-	Command     CommandBitField
-	L4Proto     uint8
-	IA          uint64
-	Port        uint16
-	AddressType byte
-	Address     []byte
-	BindData    *BindAddressLayer
-	SVC         []byte
+type registrationMessage struct {
+	Command    CommandBitField
+	L4Proto    uint8
+	IA         uint64
+	PublicData registrationAddressField
+	BindData   *registrationAddressField
+	SVC        []byte
 }
 
-func (m *RegistrationMessage) SerializeTo(b []byte) (int, error) {
+func (m *registrationMessage) SerializeTo(b []byte) (int, error) {
 	if len(b) < 13 {
 		return 0, common.NewBasicError(ErrBufferTooSmall, nil)
 	}
 	b[0] = byte(m.Command)
 	b[1] = m.L4Proto
 	common.Order.PutUint64(b[2:], m.IA)
-	common.Order.PutUint16(b[10:], m.Port)
-	b[12] = m.AddressType
-	copy(b[13:], m.Address)
+	offset := 10
+	if _, err := m.PublicData.SerializeTo(b[offset:]); err != nil {
+		return 0, err
+	}
+	offset += m.PublicData.length()
 	if m.BindData != nil {
-		_, err := m.BindData.SerializeTo(b[13+len(m.Address):])
-		if err != nil {
+		if _, err := m.BindData.SerializeTo(b[offset:]); err != nil {
 			return 0, err
 		}
+		offset += m.BindData.length()
 	}
-	copy(b[13+len(m.Address)+m.BindData.length():], m.SVC)
-	return 13 + len(m.Address) + m.BindData.length() + len(m.SVC), nil
+	copy(b[offset:], m.SVC)
+	offset += len(m.SVC)
+	return offset, nil
 }
 
-func (l *RegistrationMessage) DecodeFromBytes(b []byte) error {
+func (l *registrationMessage) DecodeFromBytes(b []byte) error {
 	if len(b) < 13 {
 		return common.NewBasicError(ErrIncompleteMessage, nil)
 	}
 	l.Command = CommandBitField(b[0])
 	l.L4Proto = b[1]
 	l.IA = common.Order.Uint64(b[2:])
-	l.Port = common.Order.Uint16(b[10:])
-	l.AddressType = b[12]
-	if !AddressType(l.AddressType).IsValid() {
-		return common.NewBasicError(ErrBadAddressType, nil)
+	offset := 10
+	if err := l.PublicData.DecodeFromBytes(b[offset:]); err != nil {
+		return err
 	}
-	addressLength := AddressType(l.AddressType).AddressLength()
-	if len(b[13:]) < addressLength {
-		return common.NewBasicError(ErrIncompleteAddress, nil)
-	}
-	l.Address = b[13 : 13+addressLength]
+	offset += l.PublicData.length()
 	if (l.Command & CmdBindAddress) != 0 {
-		var bindData BindAddressLayer
-		err := bindData.DecodeFromBytes(b[13+addressLength:])
-		if err != nil {
+		l.BindData = &registrationAddressField{}
+		if err := l.BindData.DecodeFromBytes(b[offset:]); err != nil {
 			return err
 		}
-		l.BindData = &bindData
+		offset += l.BindData.length()
 	}
-	switch len(b[13+addressLength+l.BindData.length():]) {
+	switch len(b[offset:]) {
 	case 0:
 		return nil
-	case 1:
-		return common.NewBasicError(ErrPayloadTooLong, nil)
 	case 2:
-		l.SVC = b[13+addressLength+l.BindData.length():]
+		l.SVC = b[offset:]
 		return nil
 	default:
 		return common.NewBasicError(ErrPayloadTooLong, nil)
 	}
 }
 
-type BindAddressLayer struct {
+type registrationAddressField struct {
 	Port        uint16
 	AddressType byte
 	Address     []byte
 }
 
-func (l *BindAddressLayer) SerializeTo(b []byte) (int, error) {
-	if len(b) < 3 {
+func (l *registrationAddressField) SerializeTo(b []byte) (int, error) {
+	if len(b) < l.length() {
 		return 0, common.NewBasicError(ErrBufferTooSmall, nil)
 	}
 	common.Order.PutUint16(b, l.Port)
 	b[2] = l.AddressType
 	copy(b[3:], l.Address)
-	return len(l.Address) + 3, nil
+	return l.length(), nil
 }
 
-func (l *BindAddressLayer) DecodeFromBytes(b []byte) error {
+func (l *registrationAddressField) DecodeFromBytes(b []byte) error {
 	if len(b) < 3 {
 		return common.NewBasicError(ErrIncompleteMessage, nil)
 	}
 	l.Port = common.Order.Uint16(b[:2])
 	l.AddressType = b[2]
-	if !AddressType(l.AddressType).IsValid() {
+	if !isValidReliableSockDestination(addr.HostAddrType(l.AddressType)) {
 		return common.NewBasicError(ErrBadAddressType, nil)
 	}
-	addressLength := AddressType(l.AddressType).AddressLength()
+	addressLength := getAddressLength(addr.HostAddrType(l.AddressType))
 	if len(b[3:]) < addressLength {
 		return common.NewBasicError(ErrIncompleteAddress, nil)
 	}
@@ -199,7 +185,13 @@ func (l *BindAddressLayer) DecodeFromBytes(b []byte) error {
 	return nil
 }
 
-func (l *BindAddressLayer) length() int {
+func (l *registrationAddressField) SetFromUDPAddr(u *net.UDPAddr) {
+	l.Port = uint16(u.Port)
+	l.AddressType = byte(getIPAddressType(u.IP))
+	l.Address = []byte(u.IP)
+}
+
+func (l *registrationAddressField) length() int {
 	if l == nil {
 		return 0
 	}
