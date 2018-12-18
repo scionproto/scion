@@ -15,47 +15,32 @@
 package csconfig
 
 import (
-	"bytes"
-	"encoding/base64"
+	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"sync"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/keyconf"
 )
 
 const (
-	KeyChanged   = "Verifying key has changed in the meantime"
-	NotACustomer = "ISD-AS not in customer mapping"
-
 	CustomersDir = "customers"
 )
 
 // reCustVerKey is used to parse the IA and version of a customer verifying key file.
 var reCustVerKey = regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
 
-// Customers is a mapping from non-core ASes assigned to this core AS to their public
-// verifying key.
-type Customers struct {
-	m sync.RWMutex
-	// custMap is the customer mapping.
-	custMap map[addr.IA]common.RawBytes
-	// path is the path to the customers directory.
-	path string
-}
-
-// loadCustomers populates the mapping from assigned non-core ASes to their verifying key.
-func (s *State) loadCustomers(stateDir string) (*Customers, error) {
-	cust := &Customers{path: filepath.Join(stateDir, CustomersDir)}
-	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", cust.path))
+// LoadCustomers populates the DB from assigned non-core ASes to their verifying key.
+func LoadCustomers(stateDir string, trustDB trustdb.TrustDB) error {
+	path := filepath.Join(stateDir, CustomersDir)
+	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", path))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	activeKeys := make(map[addr.IA]string)
 	activeVers := make(map[addr.IA]uint64)
@@ -64,68 +49,36 @@ func (s *State) loadCustomers(stateDir string) (*Customers, error) {
 		s := reCustVerKey.FindStringSubmatch(name)
 		ia, err := addr.IAFromFileFmt(s[1], true)
 		if err != nil {
-			return nil, common.NewBasicError("Unable to parse IA", err, "file", file)
+			return common.NewBasicError("Unable to parse IA", err, "file", file)
 		}
 		ver, err := strconv.ParseUint(s[2], 10, 64)
 		if err != nil {
-			return nil, common.NewBasicError("Unable to parse Version", err, "file", file)
+			return common.NewBasicError("Unable to parse Version", err, "file", file)
 		}
 		if ver >= activeVers[ia] {
 			activeKeys[ia] = file
 			activeVers[ia] = ver
 		}
 	}
-	cust.custMap = make(map[addr.IA]common.RawBytes)
+	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
+	defer cancelF()
 	for ia, file := range activeKeys {
 		key, err := keyconf.LoadKey(file, keyconf.RawKey)
 		if err != nil {
-			return nil, common.NewBasicError("Unable to load key", err, "file", file)
+			return common.NewBasicError("Unable to load key", err, "file", file)
 		}
-		cust.custMap[ia] = key
-	}
-	return cust, nil
-}
-
-// GetVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
-// Otherwise, nil and an error.
-func (c *Customers) GetVerifyingKey(ia addr.IA) (common.RawBytes, error) {
-	c.m.RLock()
-	defer c.m.RUnlock()
-	b, ok := c.custMap[ia]
-	if !ok {
-		return nil, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
-	}
-	return b, nil
-}
-
-// SetVerifyingKey sets the verifying key for a specified AS. The key is written to the file system.
-func (c *Customers) SetVerifyingKey(ia addr.IA, ver uint64, newKey, oldKey common.RawBytes) error {
-	c.m.Lock()
-	defer c.m.Unlock()
-	currKey, ok := c.custMap[ia]
-	if !ok {
-		return common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
-	}
-	// Check that the key in the mapping has not changed in the mean time
-	if !bytes.Equal(currKey, oldKey) {
-		return common.NewBasicError(KeyChanged, nil, "ISD-AS", ia)
-	}
-	// Key has to be written to file system, only if it has changed
-	if !bytes.Equal(newKey, currKey) {
-		var err error
-		name := fmt.Sprintf("%s-V%d.key", ia.FileFmt(true), ver)
-		path := filepath.Join(c.path, name)
-		if _, err = os.Stat(path); !os.IsNotExist(err) {
-			return err
+		_, dbV, err := trustDB.GetCustKey(ctx, ia)
+		if err != nil {
+			return common.NewBasicError("Failed to check DB cust key", err, "ia", ia)
 		}
-		buf := make([]byte, base64.StdEncoding.EncodedLen(len(newKey)))
-		base64.StdEncoding.Encode(buf, newKey)
-		if err = ioutil.WriteFile(path, buf, 0644); err != nil {
-			return err
+		if dbV >= activeVers[ia] {
+			// db already contains a newer key.
+			continue
 		}
-		c.custMap[ia] = make(common.RawBytes, len(newKey))
-		copy(c.custMap[ia], newKey)
-		return nil
+		err = trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
+		if err != nil {
+			return common.NewBasicError("Failed to save customer key", err, "file", file)
+		}
 	}
 	return nil
 }

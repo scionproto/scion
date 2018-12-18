@@ -22,6 +22,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -58,6 +59,7 @@ func TestTrustDB(t *testing.T, setup func() trustdb.TrustDB, cleanup func(trustd
 	Convey("TestLeafCert", testWrapper(testLeafCert))
 	Convey("TestChain", testWrapper(testChain))
 	Convey("TestChainGetAll", testWrapper(testChainGetAll))
+	Convey("TestCustKey", testWrapper(testCustKey))
 	// Now test everything with a transaction as well.
 	txTestWrapper := func(test func(*testing.T, rwTrustDB)) func() {
 		return func() {
@@ -86,6 +88,7 @@ func TestTrustDB(t *testing.T, setup func() trustdb.TrustDB, cleanup func(trustd
 		Convey("TestLeafCert", txTestWrapper(testLeafCert))
 		Convey("TestChain", txTestWrapper(testChain))
 		Convey("TestChainGetAll", txTestWrapper(testChainGetAll))
+		Convey("TestCustKey", txTestWrapper(testCustKey))
 		Convey("TransactionRollback", trustDbTestWrapper(testRollback))
 	})
 }
@@ -333,6 +336,61 @@ func testChainGetAll(t *testing.T, db rwTrustDB) {
 			chains, err := db.GetAllChains(ctx)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("chains", chains, ShouldResemble, []*cert.Chain{chain, chain2})
+		})
+	})
+}
+
+func testCustKey(t *testing.T, db rwTrustDB) {
+	Convey("Cust Key tests on an emptry trust db", func() {
+		ctx, cancelF := context.WithTimeout(context.Background(), Timeout)
+		defer cancelF()
+
+		ia1_110 := xtest.MustParseIA("1-ff00:0:110")
+		key_110_1 := common.RawBytes("dddddddd")
+		key_110_2 := common.RawBytes("ddddddaa")
+
+		Convey("GetCustKey should return nil and no error", func() {
+			key, ver, err := db.GetCustKey(ctx, ia1_110)
+			SoMsg("No error expected", err, ShouldBeNil)
+			SoMsg("Empty result expected", key, ShouldBeNil)
+			SoMsg("0 version expected", ver, ShouldEqual, 0)
+		})
+		Convey("Insertion should work without error", func() {
+			var ver uint64 = 1
+			err := db.InsertCustKey(ctx, ia1_110, ver, key_110_1, 0)
+			SoMsg("No error expected", err, ShouldBeNil)
+			Convey("Inserted entry should be returned", func() {
+				key, dbVer, err := db.GetCustKey(ctx, ia1_110)
+				SoMsg("No error expected", err, ShouldBeNil)
+				SoMsg("Inserted key expected", key, ShouldResemble, key_110_1)
+				SoMsg("Inserted version expected", dbVer, ShouldEqual, ver)
+			})
+			Convey("Inserting a newer version should work", func() {
+				var newVer uint64 = 2
+				err := db.InsertCustKey(ctx, ia1_110, newVer, key_110_2, ver)
+				SoMsg("No error expected", err, ShouldBeNil)
+				Convey("New version should be returned", func() {
+					key, dbVer, err := db.GetCustKey(ctx, ia1_110)
+					SoMsg("No error expected", err, ShouldBeNil)
+					SoMsg("Inserted key expected", key, ShouldResemble, key_110_2)
+					SoMsg("Inserted version expected", dbVer, ShouldEqual, newVer)
+				})
+			})
+			Convey("Inserting the same version again should error", func() {
+				err := db.InsertCustKey(ctx, ia1_110, ver, key_110_2, ver)
+				SoMsg("Error expected", err, ShouldNotBeNil)
+			})
+			Convey("Inserting with 0 version should fail if there is an entry", func() {
+				err := db.InsertCustKey(ctx, ia1_110, ver, key_110_1, 0)
+				SoMsg("Error expected", err, ShouldNotBeNil)
+			})
+			Convey("Updating with outdated old version should fail", func() {
+				var newVer uint64 = 2
+				err := db.InsertCustKey(ctx, ia1_110, newVer, key_110_2, ver)
+				SoMsg("No error expected", err, ShouldBeNil)
+				err = db.InsertCustKey(ctx, ia1_110, newVer, key_110_2, ver)
+				SoMsg("Error expected", err, ShouldNotBeNil)
+			})
 		})
 	})
 }

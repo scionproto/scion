@@ -35,6 +35,9 @@ import (
 
 const (
 	HandlerTimeout = 5 * time.Second
+
+	KeyChanged   = "Verifying key has changed in the meantime"
+	NotACustomer = "ISD-AS not in customer mapping"
 )
 
 // Handler handles certificate chain reissue requests.
@@ -85,7 +88,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return h.sendRep(ctx, addr, maxChain, r.ID)
 	}
 	// Get the verifying key from the customer mapping
-	verKey, err := h.State.Customers.GetVerifyingKey(addr.IA)
+	verKey, verVersion, err := h.getVerifyingKey(ctx, addr.IA)
 	if err != nil {
 		return common.NewBasicError("Unable to get verifying key", err)
 	}
@@ -94,7 +97,7 @@ func (h *Handler) handle(r *infra.Request, addr *snet.Addr, req *cert_mgmt.Chain
 		return common.NewBasicError("Unable to verify request", err)
 	}
 	// Issue certificate chain
-	newChain, err := h.issueChain(ctx, crt, verKey)
+	newChain, err := h.issueChain(ctx, crt, verKey, verVersion)
 	if err != nil {
 		return common.NewBasicError("Unable to reissue certificate chain", err)
 	}
@@ -143,7 +146,7 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 			vChain.Leaf.Subject, "sub", c.Subject)
 	}
 	if maxChain.Leaf.Version+1 != c.Version {
-		return common.NewBasicError("Invalid version", nil, "expected", maxChain.Leaf.Version,
+		return common.NewBasicError("Invalid version", nil, "expected", maxChain.Leaf.Version+1,
 			"actual", c.Version)
 	}
 	if !c.Issuer.Eq(h.IA) {
@@ -162,7 +165,7 @@ func (h *Handler) validateReq(c *cert.Certificate, vKey common.RawBytes,
 // issueChain creates a certificate chain for the certificate and adds it to the
 // trust store.
 func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
-	vKey common.RawBytes) (*cert.Chain, error) {
+	vKey common.RawBytes, verVersion uint64) (*cert.Chain, error) {
 
 	issCert, err := h.getIssuerCert(ctx)
 	if err != nil {
@@ -184,14 +187,28 @@ func (h *Handler) issueChain(ctx context.Context, c *cert.Certificate,
 	if err != nil {
 		return nil, err
 	}
-	// Set verifying key.
-	err = h.State.Customers.SetVerifyingKey(c.Subject, c.Version, c.SubjectSignKey, vKey)
+	tx, err := h.State.TrustDB.BeginTransaction(ctx, nil)
 	if err != nil {
+		return nil, common.NewBasicError("Failed to create transaction", err)
+	}
+	// Set verifying key.
+	err = tx.InsertCustKey(ctx, c.Subject, c.Version, c.SubjectSignKey, verVersion)
+	if err != nil {
+		tx.Rollback()
 		return nil, err
 	}
-	if _, err = h.State.TrustDB.InsertChain(ctx, chain); err != nil {
+	var n int64
+	if n, err = tx.InsertChain(ctx, chain); err != nil {
+		tx.Rollback()
 		log.Error("[ReissHandler] Unable to write reissued certificate chain to disk", "err", err)
 		return nil, err
+	}
+	if n == 0 {
+		tx.Rollback()
+		return nil, common.NewBasicError("Chain already in DB", nil, "chain", chain)
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, common.NewBasicError("Failed to commit transaction", err)
 	}
 	return chain, nil
 }
@@ -221,4 +238,19 @@ func (h *Handler) getIssuerCert(ctx context.Context) (*cert.Certificate, error) 
 		return nil, common.NewBasicError("Issuer certificate not found", nil, "ia", h.IA)
 	}
 	return issCrt, nil
+}
+
+// getVerifyingKey returns the verifying key from the requested AS and nil if it is in the mapping.
+// Otherwise, nil and an error.
+func (h *Handler) getVerifyingKey(ctx context.Context,
+	ia addr.IA) (common.RawBytes, uint64, error) {
+
+	k, v, err := h.State.TrustDB.GetCustKey(ctx, ia)
+	if err != nil {
+		return nil, 0, err
+	}
+	if k == nil {
+		return nil, 0, common.NewBasicError(NotACustomer, nil, "ISD-AS", ia)
+	}
+	return k, v, nil
 }

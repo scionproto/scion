@@ -36,7 +36,7 @@ import (
 
 const (
 	Path          = "trustDB.sqlite3"
-	SchemaVersion = 1
+	SchemaVersion = 2
 	Schema        = `
 	CREATE TABLE TRCs (
 		IsdID INTEGER NOT NULL,
@@ -71,12 +71,30 @@ const (
 		Data TEXT NOT NULL,
 		CONSTRAINT iav_unique UNIQUE (IsdID, AsID, Version)
 	);
+
+	CREATE TABLE CustKeys (
+		IsdID INTEGER NOT NULL,
+		AsID INTEGER NOT NULL,
+		Version INTEGER NOT NULL,
+		Key DATA NOT NULL,
+		PRIMARY KEY (IsdID, AsID)
+	);
+
+	CREATE TABLE CustKeysLog (
+		IsdID INTEGER NOT NULL,
+		AsID INTEGER NOT NULL,
+		Version INTEGER NOT NULL,
+		Key DATA NOT NULL,
+		PRIMARY KEY (IsdID, AsID, Version)
+	);
 	`
 
 	TRCsTable        = "TRCs"
 	ChainsTable      = "Chains"
 	IssuerCertsTable = "IssuerCerts"
 	LeafCertsTable   = "LeafCerts"
+	CustKeysTable    = "CustKeys"
+	CustKeysLogTable = "CustKeysLog"
 )
 
 const (
@@ -148,6 +166,20 @@ const (
 		`
 	getAllTRCsStr = `
 			SELECT Data FROM TRCs
+	`
+	getCustKeyStr = `
+			SELECT Key, Version FROM CustKeys WHERE IsdID=? AND AsID=?
+	`
+	insertCustKeyStr = `
+			INSERT INTO CustKeys (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
+	`
+
+	insertCustKeyLogStr = `
+			INSERT OR IGNORE INTO CustKeysLog (IsdID, AsID, Version, Key) VALUES (?, ?, ?, ?)
+	`
+
+	updateCustKeyStr = `
+			UPDATE CustKeys SET Version = ?, Key = ? WHERE IsdID = ? AND AsID = ? AND Version = ? 
 	`
 )
 
@@ -458,6 +490,56 @@ func (db *executor) GetAllTRCs(ctx context.Context) ([]*trc.TRC, error) {
 		trcs = append(trcs, trcobj)
 	}
 	return trcs, nil
+}
+
+// GetCustKey gets the latest signing key and version for the specified customer AS.
+func (db *executor) GetCustKey(ctx context.Context, ia addr.IA) (common.RawBytes, uint64, error) {
+	db.RLock()
+	defer db.RUnlock()
+	var key common.RawBytes
+	var version uint64
+	err := db.db.QueryRowContext(ctx, getCustKeyStr, ia.I, ia.A).Scan(&key, &version)
+	if err == sql.ErrNoRows {
+		return nil, 0, nil
+	}
+	if err != nil {
+		return nil, 0, common.NewBasicError("Failed to look up cust key", err)
+	}
+	return key, version, nil
+}
+
+// InsertCustKey implements trustdb.InsertCustKey.
+func (db *executor) InsertCustKey(ctx context.Context, ia addr.IA,
+	version uint64, key common.RawBytes, oldVersion uint64) error {
+
+	if version == oldVersion {
+		return common.NewBasicError("Same version as oldVersion not allowed",
+			nil, "version", version)
+	}
+	db.Lock()
+	defer db.Unlock()
+	if oldVersion == 0 {
+		_, err := db.db.ExecContext(ctx, insertCustKeyStr, ia.I, ia.A, version, key)
+		if err != nil {
+			return common.NewBasicError("Failed to insert cust key", err, "ia", ia, "ver", version)
+		}
+	} else {
+		res, err := db.db.ExecContext(ctx, updateCustKeyStr, version, key, ia.I, ia.A, oldVersion)
+		if err != nil {
+			return common.NewBasicError("Failed to update cust key", err, "ia", ia, "ver", version)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return common.NewBasicError("Unable to determine affected rows", err)
+		}
+		if n == 0 {
+			return common.NewBasicError("Cust keys has been modified", nil, "ia", ia,
+				"newVersion", version, "oldVersion", oldVersion)
+		}
+	}
+	// Insert in the log table.
+	_, err := db.db.ExecContext(ctx, insertCustKeyLogStr, ia.I, ia.A, version, key)
+	return err
 }
 
 type transaction struct {
