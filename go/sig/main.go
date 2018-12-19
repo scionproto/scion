@@ -187,7 +187,7 @@ func checkPerms() error {
 	if err != nil {
 		return common.NewBasicError("Error retrieving capabilities", err)
 	}
-	log.Debug("Startup capabilities", "caps", caps)
+	log.Info("Startup capabilities", "caps", caps)
 	if !caps.Get(capability.EFFECTIVE, capability.CAP_NET_ADMIN) {
 		return common.NewBasicError("CAP_NET_ADMIN is required", nil, "caps", caps)
 	}
