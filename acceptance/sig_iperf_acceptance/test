@@ -1,0 +1,23 @@
+#!/bin/bash
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="sig_iperf"
+
+. acceptance/common.sh
+. acceptance/sigutil/common.sh
+
+test_run() {
+    set -e
+    ./bin/sig_iperf_acceptance -d -log.console info -src $SRC_IA -dst $DST_IA
+    METRICS="${ACCEPTANCE_ARTIFACTS:?}/$TEST_NAME/metrics"
+    collect_metrics "gen/ISD1/AS$(as_file $SRC_IA)/br$(ia_file $SRC_IA)-1/topology.json" "$METRICS"
+    PACKETS=$(cat "$METRICS/sig$(ia_file $SRC_IA)" | grep "sig_egress_recv_queue_full_total{" | awk '{print $NF}')
+    if [ -n "$PACKETS" ]; then
+        echo "Error: $PACKETS egress packets dropped due to full queues."
+        exit 1
+    fi
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"

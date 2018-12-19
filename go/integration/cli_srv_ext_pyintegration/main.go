@@ -45,7 +45,7 @@ func realMain() int {
 		integration.DstIAReplace}
 	in := integration.NewBinaryIntegration(name, cmd, clientArgs, serverArgs)
 	if err := integration.RunBinaryTests(in,
-		integration.IAPairs(integration.DispAddr)); err != nil {
+		integration.IAPairs(integration.DispAddr), integration.DefaultRunTimeout); err != nil {
 		log.Error("Error during tests", "err", err)
 		return 1
 	}

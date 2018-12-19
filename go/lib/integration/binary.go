@@ -53,6 +53,8 @@ const (
 	GoIntegrationEnv = "SCION_GO_INTEGRATION"
 	// portString is the string a server prints to specify the port it's listening on.
 	portString = "Port="
+	// WrapperCmd is the command used to run non-test binaries
+	WrapperCmd = "./integration/bin_wrapper.sh"
 )
 
 var (
