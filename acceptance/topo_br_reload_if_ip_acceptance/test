@@ -1,0 +1,135 @@
+#!/bin/bash
+
+# Whenever a BR's interface local or remote ip in the topology file is changed,
+# and the BR's process receives a SIGHUP, it will reload the topology and
+# use the new ip for the interface.
+#
+# This test checks the following:
+# 1. Update the ip on one side to an invalid one -> expect update to
+#    be rejected and traffic should still pass
+# 2. Update the ip on one side of the link without changing the remote
+#    on the other side -> expect traffic to be dropped
+# 3. Update the remote ip on the other side -> expect traffic to pass
+# 4. Change ip to original -> expect traffic to pass
+
+TEST_NAME="topo_br_reload_if_ip"
+TEST_TOPOLOGY="/tmp/tinier_with_two_links.topo"
+
+# The topology contains a dummy link in order for the BR
+# to have two valid IP addresses to switch between.
+IFID_SRC='"11"'
+DUMMY_IFID_SRC='"12"'
+IFID_DST='"1"'
+DUMMY_IFID_DST='"2"'
+FULL_TOPO="gen/full_topo.json"
+
+. acceptance/topo_br_reload_util/util.sh
+
+test_setup() {
+    cp acceptance/topo_br_reload_util/tinier.topo $TEST_TOPOLOGY
+    sed -i '/^links:/a \  - {a: "1-ff00:0:110-A#2", b: "1-ff00:0:111-A#12", linkAtoB: CHILD, mtu: 1280}' $TEST_TOPOLOGY
+    base_gen_topo
+
+    # Remove dummy link from the topology
+    cp $SRC_TOPO $FULL_TOPO
+    for topo in gen/ISD1/*/*/topology.json; do
+        jq "del(.BorderRouters[].Interfaces[$DUMMY_IFID_SRC]) | del(.BorderRouters[].Interfaces[$DUMMY_IFID_DST])" $topo | sponge $topo
+    done
+    base_run_topo
+}
+
+test_run() {
+    set -e
+    local orig_src=$(jq ".BorderRouters[].Interfaces[].PublicOverlay" $SRC_TOPO)
+    local pid_src=$(docker inspect -f '{{.State.Pid}}' scion_br"$SRC_IA_FILE"-1)
+    local dummy_src=$(jq ".BorderRouters[].Interfaces[$DUMMY_IFID_SRC].PublicOverlay.Addr" $FULL_TOPO)
+
+    local orig_dst=$(jq ".BorderRouters[].Interfaces[$IFID_DST].PublicOverlay" $DST_TOPO)
+    local pid_dst=$(docker inspect -f '{{.State.Pid}}' scion_br"$DST_IA_FILE"-1)
+    local dummy_dst=$(jq ".BorderRouters[].Interfaces[$DUMMY_IFID_SRC].RemoteOverlay.Addr" $FULL_TOPO)
+
+    check_change_invalid_local_ip
+    check_change_local_ip
+    check_change_remote_ip
+    check_change_initial_ip
+}
+
+check_change_invalid_local_ip() {
+    check_connectivity "Start check_change_invalid_local_ip"
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.Addr = "172.20.255.0"' $SRC_TOPO | sponge $SRC_TOPO
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    sleep 2
+    check_logs "Unable to reload config" $SRC_IA_FILE
+    check_connectivity "End check_change_invalid_local_ip"
+}
+
+check_change_local_ip() {
+    check_connectivity "Start check_change_local_ip"
+    change_local_ip  $SRC_TOPO $SRC_IA_FILE $dummy_src
+    change_local_ip  $DST_TOPO $DST_IA_FILE $dummy_dst
+    bin/end2end_integration -src $SRC_IA -dst $DST_IA -attempts 1 -d -log.console=crit || local failed=$?
+    if [ -z ${failed+x} ]; then
+        echo "FAIL: Traffic still passes. End check_change_local_ip"
+        return 1
+    fi
+}
+
+change_local_ip() {
+    jq ".BorderRouters[].Interfaces[].PublicOverlay.Addr = $3" $1 | sponge $1
+    ./tools/dc dc kill -s HUP scion_br"$2"-1
+    sleep 2
+    check_logs "posixOutput starting addr=[$(unqoute $3)]" $2
+    check_logs "posixInput starting addr=[$(unqoute $3)]"  $2
+}
+
+check_change_remote_ip() {
+    # Connectivity is broken at this point
+    change_remote_ip $SRC_TOPO $SRC_IA_FILE $dummy_dst
+    change_remote_ip $DST_TOPO $DST_IA_FILE $dummy_src
+    check_connectivity "End check_change_remote_ip"
+}
+
+change_remote_ip() {
+    # Connectivity is broken at this point
+    unblock_socket $1 $2
+    jq ".BorderRouters[].Interfaces[].RemoteOverlay.Addr = $3" $1 | sponge $1
+    ./tools/dc dc kill -s HUP scion_br"$2"-1
+    sleep 2
+    check_logs "RemoteAddr:[$(unqoute $3)]" $2
+}
+
+check_change_initial_ip() {
+    check_connectivity "Start check_change_initial_ip"
+    unblock_socket $SRC_TOPO $SRC_IA_FILE
+    unblock_socket $DST_TOPO $DST_IA_FILE
+    local pre=".BorderRouters[].Interfaces[]"
+    jq "$pre.PublicOverlay = $orig_src | $pre.RemoteOverlay = $orig_dst" $SRC_TOPO | sponge $SRC_TOPO
+    jq "$pre.PublicOverlay = $orig_dst | $pre.RemoteOverlay = $orig_src" $DST_TOPO | sponge $DST_TOPO
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1 scion_br"$DST_IA_FILE"-1
+    check_connectivity "End check_change_initial_ip"
+}
+
+unblock_socket() {
+    # FIXME(roosd): This is a work around to get the BR to reload the config.
+    # When https://github.com/scionproto/scion/issues/2254 is fixed, this part shall be removed.
+    local port=$(jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort' $1)
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42425' $1 | sponge $1
+    ./tools/dc dc kill -s HUP scion_br"$2"-1
+    jq ".BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = $port" $1 | sponge $1
+}
+
+test_teardown() {
+    base_teardown
+}
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+

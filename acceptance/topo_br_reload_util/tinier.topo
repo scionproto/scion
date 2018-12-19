@@ -1,0 +1,17 @@
+--- # Two AS Topology
+defaults:
+  zookeepers:
+    1:
+      addr: 127.0.0.1
+ASes:
+  "1-ff00:0:110":
+    core: true
+    mtu: 1400
+  "1-ff00:0:111":
+    cert_issuer: 1-ff00:0:110
+links:
+  - {a: "1-ff00:0:110-A#1", b: "1-ff00:0:111-A#11", linkAtoB: CHILD, mtu: 1280}
+CAs:
+  CA1-1:
+    ISD: 1
+    commonName: CA1-1
