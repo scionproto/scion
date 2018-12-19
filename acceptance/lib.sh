@@ -62,9 +62,9 @@ global_setup() {
     run_command build_docker_base ${out_dir:+$out_dir/global_setup_docker_base.out}
     print_green "[---->-----]" "Building scion docker image"
     run_command build_docker_scion ${out_dir:+$out_dir/global_setup_docker_scion.out}
-    print_green "[---->-----]" "Building tester docker images"
+    print_green "[----->----]" "Building tester docker images"
     run_command build_docker_tester ${out_dir:+$out_dir/global_setup_docker_scion.out}
-    print_green "[----->----]" "Building per-app docker images"
+    print_green "[------>---]" "Building per-app docker images"
     run_command build_docker_perapp ${out_dir:+$out_dir/global_setup_docker_perapp.out}
     print_green "[>>>>>>>>>>]" "Global test environment set-up finished"
     set +e
