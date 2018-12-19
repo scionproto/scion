@@ -67,6 +67,7 @@ func TestRevCache(t *testing.T, setup func() TestableRevCache, cleanup func()) {
 	Convey("InsertNewer", testWrapper(testInsertNewer))
 	Convey("GetExpired", testWrapper(testGetExpired))
 	Convey("GetAllExpired", testWrapper(testGetAllExpired))
+	Convey("DeleteExpired", testWrapper(testDeleteExpired))
 }
 
 func testInsertGet(t *testing.T, revCache TestableRevCache) {
@@ -215,6 +216,33 @@ func testGetAllExpired(t *testing.T, revCache TestableRevCache) {
 	}
 	SoMsg("Expired entry should not be returned", srCache, ShouldResemble,
 		[]*path_mgmt.SignedRevInfo{sr110_19})
+}
+
+func testDeleteExpired(t *testing.T, revCache TestableRevCache) {
+	ctx, cancelF := context.WithTimeout(context.Background(), TimeOut)
+	defer cancelF()
+	del, err := revCache.DeleteExpired(ctx)
+	SoMsg("DeleteExpired on empty should not error", err, ShouldBeNil)
+	SoMsg("DeleteExpired on empty should delete 0", del, ShouldEqual, 0)
+	sr110_19 := toSigned(t, defaultRevInfo(ia110, ifId19))
+	revCache.Insert(ctx, sr110_19)
+	del, err = revCache.DeleteExpired(ctx)
+	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
+	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
+	srNew := toSigned(t, &path_mgmt.RevInfo{
+		IfID:         ifId15,
+		RawIsdas:     ia110.IAInt(),
+		LinkType:     proto.LinkType_core,
+		RawTimestamp: util.TimeToSecs(time.Now().Add(-2 * time.Second)),
+		RawTTL:       1,
+	})
+	revCache.InsertExpired(t, ctx, srNew)
+	del, err = revCache.DeleteExpired(ctx)
+	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
+	SoMsg("DeleteExpired should delete 1 if entry is expired", del, ShouldEqual, 1)
+	del, err = revCache.DeleteExpired(ctx)
+	SoMsg("DeleteExpired should not error", err, ShouldBeNil)
+	SoMsg("DeleteExpired should delete 0 if entry is not expired", del, ShouldEqual, 0)
 }
 
 func toSigned(t *testing.T, r *path_mgmt.RevInfo) *path_mgmt.SignedRevInfo {

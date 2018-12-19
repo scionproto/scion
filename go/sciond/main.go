@@ -36,6 +36,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
+	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
@@ -143,6 +144,9 @@ func realMain() int {
 	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
+	rcCleaner := periodic.StartPeriodicTask(revcache.NewCleaner(revCache),
+		periodic.NewTicker(10*time.Second), 10*time.Second)
+	defer rcCleaner.Stop()
 	// Start servers
 	rsockServer, shutdownF := NewServer("rsock", config.SD.Reliable, handlers, log.Root())
 	defer shutdownF()

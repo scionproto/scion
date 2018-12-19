@@ -15,10 +15,6 @@
 package pathstorage
 
 import (
-	"time"
-
-	cache "github.com/patrickmn/go-cache"
-
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathdb"
@@ -84,17 +80,20 @@ func (c *RevCacheConf) validate() error {
 }
 
 // NewPathStorage creates a PathStorage from the given configs.
+// Periodic cleaners for the given databases have to be manually created and started:
+//  - cleaner.New (for PathDB)
+//  - revcache.NewCleaner (for RevCache)
 func NewPathStorage(pdbConf PathDBConf,
 	rcConf RevCacheConf) (pathdb.PathDB, revcache.RevCache, error) {
 
+	if sameBackend(pdbConf, rcConf) {
+		return newCombinedBackend(pdbConf, rcConf)
+	}
 	if err := pdbConf.validate(); err != nil {
 		return nil, nil, common.NewBasicError("Invalid pathdb config", err)
 	}
 	if err := rcConf.validate(); err != nil {
 		return nil, nil, common.NewBasicError("Invalid revcache config", err)
-	}
-	if sameBackend(pdbConf, rcConf) {
-		return newCombinedBackend(pdbConf, rcConf)
 	}
 	pdb, err := newPathDB(pdbConf)
 	if err != nil {
@@ -133,7 +132,7 @@ func newRevCache(conf RevCacheConf) (revcache.RevCache, error) {
 	log.Info("Connecting RevCache", "backend", conf.Backend, "connection", conf.Connection)
 	switch conf.Backend {
 	case BackendMem:
-		return memrevcache.New(cache.NoExpiration, time.Second), nil
+		return memrevcache.New(), nil
 	case BackendNone:
 		return nil, nil
 	default:
