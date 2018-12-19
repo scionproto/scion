@@ -19,6 +19,7 @@ test_run() {
     bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
     ./tools/dc stop scion_disp_1-ff00_0_112 scion_disp_1-ff00_0_110
     ./tools/dc start scion_disp_1-ff00_0_112 scion_disp_1-ff00_0_110
+    ./tools/dc dc restart scion_bs1-ff00_0_112-1 scion_bs1-ff00_0_110-1
     sqlite3 gen-cache/sd1-ff00_0_112.path.db "delete from segments;"
     sleep 5
     bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
