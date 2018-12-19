@@ -75,8 +75,7 @@ class DockerGenerator(object):
             base = os.path.join(self.output_base, topo_id.base_dir(self.args.output_dir))
             self._gen_topo(topo_id, topo, base)
         if self.args.sig:
-            sig_gen = SIGGenerator(self._sig_args())
-            self.dc_conf = sig_gen.generate()
+            self._gen_sig()
         docker_utils_gen = DockerUtilsGenerator(self._docker_utils_args())
         self.dc_conf = docker_utils_gen.generate()
 
@@ -97,6 +96,10 @@ class DockerGenerator(object):
         self._ps_conf(topo_id, topo, base)
         self._sciond_conf(topo_id, base)
         self._vol_conf(topo_id)
+
+    def _gen_sig(self):
+        sig_gen = SIGGenerator(self._sig_args())
+        self.dc_conf = sig_gen.generate()
 
     def _vol_conf(self, topo_id):
         self.dc_conf['volumes']['vol_%sdisp_%s' % (self.prefix, topo_id.file_fmt())] = None
