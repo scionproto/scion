@@ -152,11 +152,11 @@ func RegisterTimeout(dispatcher string, ia addr.IA, public *addr.AppAddr,
 	if err != nil {
 		return nil, 0, err
 	}
-	bindUDP, err := createUDPAddrFromOverlayAddr(bind)
-	if err != nil {
-		return nil, 0, err
-	}
 
+	var bindUDP *net.UDPAddr
+	if bind != nil {
+		bindUDP = bind.ToUDPAddr()
+	}
 	reg := &Registration{
 		IA:            ia,
 		PublicAddress: publicUDP,
@@ -246,10 +246,7 @@ func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	if dst != nil {
 		overlayAddr := dst.(*overlay.OverlayAddr)
 		if overlayAddr != nil {
-			publicAddress = &net.UDPAddr{
-				IP:   overlayAddr.L3().IP(),
-				Port: int(overlayAddr.L4().Port()),
-			}
+			publicAddress = overlayAddr.ToUDPAddr()
 		}
 	}
 	p := &OverlayPacket{
@@ -322,21 +319,6 @@ func createUDPAddrFromAppAddr(address *addr.AppAddr) (*net.UDPAddr, error) {
 	ip := address.L3.IP()
 	if ip == nil {
 		panic("inconsistent app address, ip should never be nil")
-	}
-	return &net.UDPAddr{IP: ip, Port: port}, nil
-}
-
-func createUDPAddrFromOverlayAddr(address *overlay.OverlayAddr) (*net.UDPAddr, error) {
-	if address == nil {
-		return nil, nil
-	}
-	ip := address.L3().IP()
-	if ip == nil {
-		panic("invalid overlay (ip not found)")
-	}
-	port := 0
-	if address.L4() != nil {
-		port = int(address.L4().Port())
 	}
 	return &net.UDPAddr{IP: ip, Port: port}, nil
 }
