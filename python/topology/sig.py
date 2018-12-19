@@ -125,10 +125,9 @@ class SIGGenerator(object):
         for t_id, topo in self.args.topo_dicts.items():
             if topo_id == t_id:
                 continue
-            sig_cfg['ASes'][str(t_id)] = {"Nets": [], "Sigs": {}}
+            sig_cfg['ASes'][str(t_id)] = {"Nets": []}
             net = self.args.networks['sig%s' % t_id.file_fmt()][0]
             sig_cfg['ASes'][str(t_id)]['Nets'].append(net['net'])
-            sig_cfg['ASes'][str(t_id)]['Sigs']['sig'] = {"Addr": str(net['ipv4'])}
 
         cfg = os.path.join(topo_id.base_dir(self.args.output_dir), 'sig%s' % topo_id.file_fmt(),
                            "cfg.json")
