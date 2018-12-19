@@ -86,14 +86,14 @@ func (c *RevCacheConf) validate() error {
 func NewPathStorage(pdbConf PathDBConf,
 	rcConf RevCacheConf) (pathdb.PathDB, revcache.RevCache, error) {
 
+	if sameBackend(pdbConf, rcConf) {
+		return newCombinedBackend(pdbConf, rcConf)
+	}
 	if err := pdbConf.validate(); err != nil {
 		return nil, nil, common.NewBasicError("Invalid pathdb config", err)
 	}
 	if err := rcConf.validate(); err != nil {
 		return nil, nil, common.NewBasicError("Invalid revcache config", err)
-	}
-	if sameBackend(pdbConf, rcConf) {
-		return newCombinedBackend(pdbConf, rcConf)
 	}
 	pdb, err := newPathDB(pdbConf)
 	if err != nil {
