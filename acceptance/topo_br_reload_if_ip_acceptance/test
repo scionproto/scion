@@ -16,7 +16,7 @@ TEST_NAME="topo_br_reload_if_ip"
 TEST_TOPOLOGY="/tmp/tinier_with_two_links.topo"
 
 # The topology contains a dummy link in order for the BR
-# two have two valid IP addresses to switch between.
+# to have two valid IP addresses to switch between.
 IFID_SRC='"11"'
 DUMMY_IFID_SRC='"12"'
 IFID_DST='"1"'
