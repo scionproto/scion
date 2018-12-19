@@ -61,7 +61,7 @@ func Test_FetchDBRetry(t *testing.T) {
 			h := baseHandler{
 				pathDB:   m,
 				retryInt: 100 * time.Microsecond,
-				revCache: memrevcache.New(time.Second, time.Second),
+				revCache: memrevcache.New(),
 			}
 			_, err := h.fetchSegsFromDBRetry(context.Background(), nil)
 			SoMsg("Expect no err", err, ShouldBeNil)

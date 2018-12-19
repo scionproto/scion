@@ -51,6 +51,11 @@ type RevCache interface {
 	// Insert inserts or updates the given revocation into the cache.
 	// Returns whether an insert was performed.
 	Insert(ctx context.Context, rev *path_mgmt.SignedRevInfo) (bool, error)
+	// DeleteExpired deletes expired entries from the cache.
+	// Users of the revcache should make sure to periodically call this method to prevent an
+	// ever growing cache.
+	// Returns the amount of deleted entries.
+	DeleteExpired(ctx context.Context) (int64, error)
 }
 
 // FilterNew filters the given revocations against the revCache, only the ones which are not in the

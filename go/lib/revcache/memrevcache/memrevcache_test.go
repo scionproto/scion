@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	cache "github.com/patrickmn/go-cache"
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -57,7 +56,7 @@ func TestRevCacheSuite(t *testing.T) {
 		revcachetest.TestRevCache(t,
 			func() revcachetest.TestableRevCache {
 				return &testRevCache{
-					memRevCache: New(cache.NoExpiration, time.Second).(*memRevCache),
+					memRevCache: New(),
 				}
 			},
 			func() {},

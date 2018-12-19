@@ -319,7 +319,7 @@ func TestSegReqLocal(t *testing.T) {
 						baseHandler: &baseHandler{
 							request:    req,
 							pathDB:     db,
-							revCache:   memrevcache.New(time.Minute, time.Minute),
+							revCache:   memrevcache.New(),
 							trustStore: ts,
 							topology:   loadTopo(t, tc.SrcIA),
 						},

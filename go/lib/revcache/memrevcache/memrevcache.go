@@ -34,9 +34,11 @@ type memRevCache struct {
 }
 
 // New creates a new RevCache, backed by an in memory cache.
-func New(defaultExpiration, cleanupInterval time.Duration) revcache.RevCache {
+func New() *memRevCache {
 	return &memRevCache{
-		c: cache.New(defaultExpiration, cleanupInterval),
+		// We insert all the items with expiration so no need to have a default expiration.
+		// The cleaning should happen manually using the DeleteExpired method.
+		c: cache.New(cache.NoExpiration, 0),
 	}
 }
 
@@ -98,4 +100,15 @@ func (c *memRevCache) Insert(_ context.Context, rev *path_mgmt.SignedRevInfo) (b
 		return true, nil
 	}
 	return false, nil
+}
+
+func (c *memRevCache) DeleteExpired(_ context.Context) (int64, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	var cnt int64
+	c.c.OnEvicted(func(string, interface{}) {
+		cnt++
+	})
+	c.c.DeleteExpired()
+	return cnt, nil
 }
