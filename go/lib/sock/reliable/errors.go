@@ -23,6 +23,21 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
+const (
+	ErrNoAddress             = "no address found"
+	ErrNoPort                = "missing port"
+	ErrPayloadTooLong        = "payload too long"
+	ErrIncompleteFrameHeader = "incomplete frame header"
+	ErrBadFrameLength        = "bad frame length"
+	ErrBadCookie             = "bad cookie"
+	ErrBadAddressType        = "bad address type"
+	ErrIncompleteAddress     = "incomplete IP address"
+	ErrIncompletePort        = "incomplete UDP port"
+	ErrIncompleteMessage     = "incomplete message"
+	ErrBadLength             = "bad length"
+	ErrBufferTooSmall        = "buffer too small"
+)
+
 func IsDispatcherError(err error) bool {
 	err = extractNestedError(err)
 	// On Linux, the following errors should prompt a reconnect:

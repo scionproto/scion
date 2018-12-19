@@ -1,2 +1,0 @@
-# Make tests panic if timeout exceeded
--timeout=10s

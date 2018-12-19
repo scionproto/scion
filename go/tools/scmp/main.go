@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 	"github.com/scionproto/scion/go/lib/spath"
@@ -65,8 +66,15 @@ func main() {
 		cmn.Fatal("Failed to connect to SCIOND: %v\n", err)
 	}
 	// Connect to the dispatcher
-	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host, cmn.Bind.Host,
-		addr.SvcNone)
+	var overlayBindAddr *overlay.OverlayAddr
+	if cmn.Bind.Host != nil {
+		overlayBindAddr, err = overlay.NewOverlayAddr(cmn.Bind.Host.L3, cmn.Bind.Host.L4)
+		if err != nil {
+			cmn.Fatal("Failed to create bind address: %v\n", err)
+		}
+	}
+	cmn.Conn, _, err = reliable.Register(*dispatcher, cmn.Local.IA, cmn.Local.Host,
+		overlayBindAddr, addr.SvcNone)
 	if err != nil {
 		cmn.Fatal("Unable to register with the dispatcher addr=%s\nerr=%v", cmn.Local, err)
 	}
