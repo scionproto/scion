@@ -271,9 +271,7 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	if err != nil {
 		return common.NewBasicError("Failed to compress TRC for forwarding", err)
 	}
-	forwardCtx, cancelF := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelF()
-	err = store.msger.SendTRC(forwardCtx, &cert_mgmt.TRC{
+	err = store.msger.SendTRC(ctx, &cert_mgmt.TRC{
 		RawTRC: rawTRC,
 	}, addr, messenger.NextId())
 	if err != nil {
@@ -401,9 +399,7 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		if err != nil {
 			return common.NewBasicError("Failed to compress chain for forwarding", err)
 		}
-		forwardCtx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancelF()
-		err = store.msger.SendCertChain(forwardCtx, &cert_mgmt.Chain{
+		err = store.msger.SendCertChain(ctx, &cert_mgmt.Chain{
 			RawChain: rawChain,
 		}, addr, messenger.NextId())
 		if err != nil {
