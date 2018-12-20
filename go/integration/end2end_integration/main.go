@@ -64,6 +64,7 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for _, dst := range dsts {
 			s, err := integration.StartServer(in, dst)
 			if err != nil {
+				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
 				return err
 			}
 			defer s.Close()
