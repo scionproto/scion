@@ -203,7 +203,7 @@ type UDP struct {
 	layers.UDP
 }
 
-func NewUDP(src, dst uint16, lb LayerBuilder) *UDP {
+func NewUDP(src, dst uint16, scn *ScionLayer, lb LayerBuilder) *UDP {
 	udp := &UDP{}
 	var pld common.RawBytes
 	if lb != nil {
@@ -214,7 +214,18 @@ func NewUDP(src, dst uint16, lb LayerBuilder) *UDP {
 		DstPort: layers.UDPPort(dst),
 		Length:  uint16(l4.UDPLen + len(pld)),
 	}
-	udp.Payload = pld
+	if scn != nil && pld != nil {
+		b := gopacket.NewSerializeBuffer()
+		opts := gopacket.SerializeOptions{}
+		if err := udp.UDP.SerializeTo(b, opts); err != nil {
+			panic(err)
+		}
+		pseudoHdr := make(common.RawBytes, scn.AddrHdr.Len()+2)
+		pseudoHdr[0] = 0
+		pseudoHdr[1] = uint8(common.L4UDP)
+		scn.AddrHdr.Write(pseudoHdr[2:])
+		udp.Checksum = util.Checksum(pseudoHdr, b.Bytes(), pld)
+	}
 	return udp
 }
 
