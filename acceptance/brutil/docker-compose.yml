@@ -1,15 +1,4 @@
 version: "3.4"
-x-core-br: &core-br
-  environment:
-    SU_EXEC_USERSPEC: "$LOGNAME"
-  image: scion_border
-  network_mode: "service:dispatcher"
-  volumes:
-    - "/etc/passwd:/etc/passwd:ro"
-    - "/etc/group:/etc/group:ro"
-    - "/run/shm/dispatcher:/run/shm/dispatcher"
-    - "../../logs:/share/logs"
-    - "${TEST_ARTIFACTS_DIR}/conf:/share/conf"
 x-br: &br
   environment:
     SU_EXEC_USERSPEC: "$LOGNAME"
@@ -34,11 +23,11 @@ services:
       - "../../logs:/share/logs"
       - "./dispatcher-conf:/share/conf"
   core-brA:
-    <<: *core-br
+    <<: *br
   core-brB:
-    <<: *core-br
+    <<: *br
   core-brC:
-    <<: *core-br
+    <<: *br
   brA:
     <<: *br
   brB:
