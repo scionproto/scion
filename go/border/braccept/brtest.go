@@ -27,11 +27,19 @@ import (
 // BRTest defines a single test
 type BRTest struct {
 	Desc string
+	// Pre is the packet to be sent before the actual test packets.
+	// An example of this packet would be an IFState to deactivate the interface when testing
+	// for a revoked interface.
+	Pre *tpkt.Pkt
 	// In is the packet being sent to the border router
 	In *tpkt.Pkt
 	// Out is the list of expected packets. No expected packets means that the packet
 	// should be dropped by the border router, and nothing is expected.
 	Out []*tpkt.ExpPkt
+	// Post is the packet to be sent to the border router once the test has been completed.
+	// An example for this post packet would be an IFStateInfo to activate the interface and keep
+	// the border router in a known state.
+	Post *tpkt.Pkt
 	// Ignore is the list of packets that should be ignored.
 	Ignore []*tpkt.ExpPkt
 }

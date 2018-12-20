@@ -68,7 +68,7 @@ func (p *ScnPath) Parse(b []byte) error {
 	}
 	offset := 0
 	for offset < len(b) {
-		seg := &SegDef{}
+		seg := &Segment{}
 		l, err := seg.Parse(b[offset:])
 		if err != nil {
 			return err
@@ -107,7 +107,7 @@ func (p *ScnPath) Len() int {
 	return p.Segs.Len()
 }
 
-type Segments []*SegDef
+type Segments []*Segment
 
 func (segs Segments) Len() int {
 	l := 0
@@ -151,22 +151,22 @@ func PrintSegments(segs Segments, indent, sep string) string {
 
 var defaultMac = common.RawBytes{0xef, 0xef, 0xef}
 
-// SegDef defines a path segment
-type SegDef struct {
+// Segment defines a path segment
+type Segment struct {
 	Inf  *spath.InfoField
 	Hops []*spath.HopField
 	macs []hash.Hash
 }
 
-func NewSegment(infoF *spath.InfoField, hops []*spath.HopField) *SegDef {
-	return &SegDef{
+func NewSegment(infoF *spath.InfoField, hops []*spath.HopField) *Segment {
+	return &Segment{
 		Inf:  infoF,
 		Hops: hops,
 		macs: make([]hash.Hash, len(hops)),
 	}
 }
 
-func (s *SegDef) Macs(hashMac hash.Hash, hopIdxs ...int) *SegDef {
+func (s *Segment) Macs(hashMac hash.Hash, hopIdxs ...int) *Segment {
 	newSeg := s.Copy()
 	for _, i := range hopIdxs {
 		newSeg.macs[i] = hashMac
@@ -174,8 +174,8 @@ func (s *SegDef) Macs(hashMac hash.Hash, hopIdxs ...int) *SegDef {
 	return newSeg
 }
 
-func (s *SegDef) Copy() *SegDef {
-	newSeg := &SegDef{
+func (s *Segment) Copy() *Segment {
+	newSeg := &Segment{
 		Inf:  &spath.InfoField{},
 		Hops: make([]*spath.HopField, len(s.Hops)),
 		macs: make([]hash.Hash, len(s.Hops)),
@@ -189,7 +189,7 @@ func (s *SegDef) Copy() *SegDef {
 	return newSeg
 }
 
-func (s *SegDef) Parse(b []byte) (int, error) {
+func (s *Segment) Parse(b []byte) (int, error) {
 	inf, err := spath.InfoFFromRaw(b)
 	if err != nil {
 		return 0, err
@@ -209,7 +209,7 @@ func (s *SegDef) Parse(b []byte) (int, error) {
 	return segLen, nil
 }
 
-func (seg *SegDef) WriteTo(b []byte) (int, error) {
+func (seg *Segment) WriteTo(b []byte) (int, error) {
 	var err error
 	// Write Info Field
 	seg.Inf.Write(b)
@@ -255,7 +255,7 @@ func (seg *SegDef) WriteTo(b []byte) (int, error) {
 	return spath.InfoFieldLength + nHops*spath.HopFieldLength, nil
 }
 
-func (s *SegDef) String() string {
+func (s *Segment) String() string {
 	var str []string
 	var cons, short, peer string
 	if s.Inf.ConsDir {
@@ -281,11 +281,11 @@ func (s *SegDef) String() string {
 	return fmt.Sprintf("[%1s%1s%1s] %s", cons, short, peer, strings.Join(str, " <-> "))
 }
 
-func (s *SegDef) Len() int {
+func (s *Segment) Len() int {
 	return spath.InfoFieldLength + spath.HopFieldLength*len(s.Hops)
 }
 
-func (s *SegDef) Equal(o *SegDef) error {
+func (s *Segment) Equal(o *Segment) error {
 	if !s.Inf.Equal(o.Inf) {
 		return fmt.Errorf("Info Field mismatch\n  Expected: %s\n  Actual:   %s\n", s.Inf, o.Inf)
 	}

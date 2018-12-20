@@ -24,18 +24,25 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
+var _ LayerBuilder = (*SCMP)(nil)
 var _ LayerMatcher = (*SCMP)(nil)
+
+// This type alias is to avoid name clash with Payload field in layers.BaseLayer
+type scmpPld = scmp.Payload
 
 type SCMP struct {
 	layers.BaseLayer
 	scmp.Hdr
-	scmp.Payload
+	*scmpPld
+	scn    *ScionLayer
 	layers []LayerBuilder
 	info   scmp.Info
 	l4Type common.L4ProtocolType
@@ -49,16 +56,28 @@ var LayerTypeSCMP = gopacket.RegisterLayerType(
 	},
 )
 
-func NewSCMP(c scmp.Class, t scmp.Type, lbs []LayerBuilder, info scmp.Info,
-	l4Type common.L4ProtocolType) *SCMP {
+// NewSCMP creates a new SCMP builder and matcher.
+// We need the scion layer to be able to calculate the checksum when serializing and we need
+// the pktQuotes to also precaculate the checksum and total length when matching the packet.
+func NewSCMP(c scmp.Class, t scmp.Type, ts time.Time, scn *ScionLayer, pktQuotes []LayerBuilder,
+	info scmp.Info, l4Type common.L4ProtocolType) *SCMP {
 
 	s := &SCMP{}
 	s.Class = c
 	s.Type = t
-	s.layers = lbs
+	s.Checksum = common.RawBytes{0, 0}
+	if !ts.IsZero() {
+		s.SetTime(ts)
+	}
+	s.scn = scn
+	s.layers = pktQuotes
 	s.info = info
 	s.l4Type = l4Type
 	return s
+}
+
+func (l *SCMP) Build() ([]gopacket.SerializableLayer, error) {
+	return []gopacket.SerializableLayer{l}, nil
 }
 
 func (s *SCMP) LayerType() gopacket.LayerType {
@@ -66,17 +85,26 @@ func (s *SCMP) LayerType() gopacket.LayerType {
 }
 
 func (s *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
+	if err := s.generatePayload(); err != nil {
+		return err
+	}
 	if opts.FixLengths {
-		s.TotalLen = uint16(s.Hdr.L4Len() + scmp.MetaLen + s.Payload.Len())
+		s.TotalLen = uint16(scmp.HdrLen + s.scmpPld.Len())
 	}
 	buf, err := b.PrependBytes(int(s.TotalLen))
 	if err != nil {
 		return err
 	}
-	if err := s.Hdr.Write(buf); err != nil {
+	if _, err := s.WritePld(buf[scmp.HdrLen:]); err != nil {
 		return err
 	}
-	if _, err := s.Payload.WritePld(buf[scmp.HdrLen:]); err != nil {
+	rawAddrHdr := make(common.RawBytes, s.scn.AddrHdr.Len())
+	s.scn.AddrHdr.Write(rawAddrHdr)
+	s.Checksum, err = l4.CalcCSum(&s.Hdr, rawAddrHdr, buf[scmp.HdrLen:])
+	if err != nil {
+		return err
+	}
+	if err := s.Hdr.Write(buf); err != nil {
 		return err
 	}
 	return nil
@@ -101,7 +129,7 @@ func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	if err != nil {
 		return err
 	}
-	s.Payload = *p
+	s.scmpPld = p
 	s.Contents = data[:s.TotalLen]
 	return nil
 }
@@ -172,9 +200,13 @@ func (s *SCMP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Lay
 	if err := s.generatePayload(); err != nil {
 		return nil, err
 	}
-	s.TotalLen = uint16(scmp.HdrLen + s.Payload.Len())
+	s.TotalLen = uint16(scmp.HdrLen + s.scmpPld.Len())
 	// Generate expected checksum with the received packet SCION/SCMP header, and the expected
 	// Payload as input
+	rawPld := make(common.RawBytes, s.scmpPld.Len())
+	if _, err := s.WritePld(rawPld); err != nil {
+		return nil, err
+	}
 	csum := util.Checksum(lc.scion.RawAddrHdr(), []uint8{0, uint8(common.L4SCMP)}, pktScmp.Contents)
 	if csum != 0 {
 		return nil, fmt.Errorf("SCMP checksum failure\nExpected %x\nActual   %s",
@@ -191,16 +223,22 @@ func (s *SCMP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Lay
 }
 
 func (s *SCMP) compareHdr(o *SCMP, lc *LayerCache) error {
-	ts := o.Time()
-	now := time.Now()
-	min := now.Add(-1 * time.Second)
-	if ts.After(now) || ts.Before(min) {
-		return fmt.Errorf("SCMP timestamp check failed\nExpected between (%s, %s)\nActual   %s",
-			min, now, ts)
+	timeFormat := "2006-01-02 15:04:05"
+	actTS := o.Time()
+	if s.Timestamp == 0 {
+		// The timestamp of the expected packet was not specified, likely because it is not know
+		// at the time of the test definition, ie. the BR generates this packet.
+		now := time.Now()
+		// XXX allow up to 2 seconds time difference
+		min := now.Add(-2 * time.Second)
+		if actTS.After(now) || actTS.Before(min) {
+			return fmt.Errorf("SCMP timestamp check failed\nExpected between (%s, %s)\nActual   %s",
+				min.Format(timeFormat), now.Format(timeFormat), actTS.Format(timeFormat))
+		}
+	} else if s.Timestamp != o.Timestamp {
+		return fmt.Errorf("SCMP timestamp check failed\nExpected %s\nActual   %s",
+			s.Time().Format(timeFormat), actTS.Format(timeFormat))
 	}
-	// If the received packet SCMP timestamp is within acceptable limits, we set the expected
-	// timestamp to the value of the received packet to do quick struct comparison
-	s.Timestamp = o.Timestamp
 	if s.Class != o.Class || s.Type != o.Type || s.TotalLen != o.TotalLen {
 		return fmt.Errorf("SCMP header mismatch\nExpected %s\nActual   %s",
 			&s.Hdr, &o.Hdr)
@@ -214,37 +252,42 @@ func (s *SCMP) comparePld(o *SCMP, lc *LayerCache) error {
 	}
 	start := scmp.HdrLen + scmp.MetaLen
 	end := start + int(s.Meta.InfoLen)*common.LineLen
-	infoRaw := make(common.RawBytes, s.Payload.Info.Len())
-	s.Payload.Info.Write(infoRaw)
+	infoRaw := make(common.RawBytes, s.scmpPld.Info.Len())
+	s.scmpPld.Info.Write(infoRaw)
 	if !bytes.Equal(infoRaw, o.Contents[start:end]) {
 		return fmt.Errorf("SCMP Info mismatch\nExpected %s\nActual   %s", s.Info, o.Info)
 	}
-	if !bytes.Equal(s.Payload.CmnHdr, o.Payload.CmnHdr) {
+	if !bytes.Equal(s.scmpPld.CmnHdr, o.scmpPld.CmnHdr) {
 		return fmt.Errorf("SCMP CmnHdr quote mismatch\nExpected %s\nActual   %s",
-			s.Payload.CmnHdr, o.Payload.CmnHdr)
+			s.scmpPld.CmnHdr, o.scmpPld.CmnHdr)
 	}
-	if !bytes.Equal(s.Payload.AddrHdr, o.Payload.AddrHdr) {
+	if !bytes.Equal(s.scmpPld.AddrHdr, o.scmpPld.AddrHdr) {
 		return fmt.Errorf("SCMP AddrHdr quote mismatch\nExpected %s\nActual   %s",
-			s.Payload.AddrHdr, o.Payload.AddrHdr)
+			s.scmpPld.AddrHdr, o.scmpPld.AddrHdr)
 	}
-	if !bytes.Equal(s.Payload.PathHdr, o.Payload.PathHdr) {
+	if !bytes.Equal(s.scmpPld.PathHdr, o.scmpPld.PathHdr) {
 		return fmt.Errorf("SCMP PathHdr quote mismatch\nExpected %s\nActual   %s",
-			s.Payload.PathHdr, o.Payload.PathHdr)
+			s.scmpPld.PathHdr, o.scmpPld.PathHdr)
 	}
-	if !bytes.Equal(s.Payload.ExtHdrs, o.Payload.ExtHdrs) {
+	if !bytes.Equal(s.scmpPld.ExtHdrs, o.scmpPld.ExtHdrs) {
 		return fmt.Errorf("SCMP ExtHdrs quote mismatch\nExpected %s\nActual   %s",
-			s.Payload.ExtHdrs, o.Payload.ExtHdrs)
+			s.scmpPld.ExtHdrs, o.scmpPld.ExtHdrs)
 	}
-	if !bytes.Equal(s.Payload.L4Hdr, o.Payload.L4Hdr) {
+	if !bytes.Equal(s.scmpPld.L4Hdr, o.scmpPld.L4Hdr) {
 		return fmt.Errorf("SCMP L4Hdr quote mismatch\nExpected %s\nActual   %s",
-			s.Payload.L4Hdr, o.Payload.L4Hdr)
+			s.scmpPld.L4Hdr, o.scmpPld.L4Hdr)
 	}
 	return nil
 }
 
 func (s *SCMP) generatePayload() error {
-	// It cannot fail, given that is the the packet that was previously sent without error
-	raw, _ := serializeLayers(s.layers)
+	if s.scmpPld != nil {
+		return nil
+	}
+	raw, err := serializeLayers(s.layers)
+	if err != nil {
+		return err
+	}
 	// Build and parse the packet sent, which will be used to generate the expected quotes
 	pkt := gopacket.NewPacket(raw, LayerTypeScion, gopacket.NoCopy)
 	scn := pkt.Layer(LayerTypeScion).(*ScionLayer)
@@ -264,16 +307,22 @@ func (s *SCMP) generatePayload() error {
 	}
 	// Convert from test relative offset to index offsets
 	// Cannot do it on the constructor because we need the segments for the conversion
-	if ipo, ok := s.info.(*scmp.InfoPathOffsets); ok {
-		infOff, hopOff := indexToOffsets(ipo.InfoF, ipo.HopF, scn.Path.Segs)
-		base := spkt.CmnHdrLen + scn.AddrHdr.Len()
-		ipo.InfoF = uint8((base + infOff) / common.LineLen)
-		ipo.HopF = uint8((base + hopOff) / common.LineLen)
+	pathOff := spkt.CmnHdrLen + scn.AddrHdr.Len()
+	switch ipo := s.info.(type) {
+	case *scmp.InfoPathOffsets:
+		ipo.InfoF, ipo.HopF = convertOffsets(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
+	case *scmp.InfoRevocation:
+		ipo.InfoF, ipo.HopF = convertOffsets(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
 	}
 	ct := scmp.ClassType{Class: s.Class, Type: s.Type}
 	pld := scmp.PldFromQuotes(ct, s.info, s.l4Type, qr.getRaw)
-	s.Payload = *pld
+	s.scmpPld = pld
 	return nil
+}
+
+func convertOffsets(infoF, hopF uint8, pathOff int, segs Segments) (uint8, uint8) {
+	infOff, hopOff := indexToOffsets(infoF, hopF, segs)
+	return uint8((pathOff + infOff) / common.LineLen), uint8((pathOff + hopOff) / common.LineLen)
 }
 
 func decodeSCMP(data []byte, p gopacket.PacketBuilder) error {
@@ -315,4 +364,19 @@ func (qr *quoteRaw) getRaw(blk scmp.RawBlock) common.RawBytes {
 		return qr.l4.LayerContents()
 	}
 	return nil
+}
+
+func NewRevocation(infoF, hopF uint8, ifid common.IFIDType, ingress bool,
+	sRevInfo *path_mgmt.SignedRevInfo) *scmp.InfoRevocation {
+
+	var rawSRev common.RawBytes
+	if sRevInfo != nil {
+		var err error
+		rawSRev, err = proto.PackRoot(sRevInfo)
+		if err != nil {
+			panic(err)
+		}
+	}
+	infoPathOffsets := &scmp.InfoPathOffsets{InfoF: infoF, HopF: hopF, IfID: ifid, Ingress: ingress}
+	return &scmp.InfoRevocation{InfoPathOffsets: infoPathOffsets, RawSRev: rawSRev}
 }
