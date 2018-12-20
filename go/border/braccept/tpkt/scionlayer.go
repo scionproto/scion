@@ -24,13 +24,13 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-var LayerTypeScion = gopacket.RegisterLayerType(
-	1337,
-	gopacket.LayerTypeMetadata{
-		Name:    "SCION",
-		Decoder: gopacket.DecodeFunc(decodeScionLayer),
-	},
-)
+var scnLayerID = 1350
+
+func newScnLayerID() int {
+	id := scnLayerID
+	scnLayerID += 1
+	return id
+}
 
 var _ LayerMatcher = (*ScionLayer)(nil)
 
@@ -44,6 +44,14 @@ type ScionLayer struct {
 	Path    ScnPath
 }
 
+var LayerTypeScion = gopacket.RegisterLayerType(
+	newScnLayerID(),
+	gopacket.LayerTypeMetadata{
+		Name:    "SCION",
+		Decoder: gopacket.DecodeFunc(decodeScionLayer),
+	},
+)
+
 func (l *ScionLayer) LayerType() gopacket.LayerType {
 	return LayerTypeScion
 }
@@ -56,9 +64,7 @@ func (l *ScionLayer) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.Seria
 	}
 	l.CmnHdr.Write(buf)
 	addrLen := l.AddrHdr.Write(buf[spkt.CmnHdrLen:])
-	if _, err := l.Path.Segs.WriteTo(buf[spkt.CmnHdrLen+addrLen:]); err != nil {
-		return err
-	}
+	copy(buf[spkt.CmnHdrLen+addrLen:], l.Path.Raw)
 	return nil
 }
 
@@ -78,24 +84,26 @@ func (l *ScionLayer) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) er
 		if err := l.Path.Parse(rawPath); err != nil {
 			return err
 		}
+		l.Path.Raw = rawPath
 		l.Path.InfOff = int(l.CmnHdr.CurrInfoF*common.LineLen) - offset
 		l.Path.HopOff = int(l.CmnHdr.CurrHopF*common.LineLen) - offset
 	}
-	l.BaseLayer = layers.BaseLayer{Contents: data[:hdrLen], Payload: data[hdrLen:]}
+	l.Contents = data[:hdrLen]
+	l.Payload = data[hdrLen:]
 	l.nextHdr = l.CmnHdr.NextHdr
-	// TODO Extensions
 	return nil
 }
 
 func (l *ScionLayer) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
-	scn := pktLayers[0].(*ScionLayer)
-	if scn == nil {
+	scn, ok := pktLayers[0].(*ScionLayer)
+	if !ok {
 		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
 			LayerTypeScion, pktLayers[0].LayerType())
 	}
-	if len(scn.LayerContents()) != int(l.CmnHdr.HdrLen*common.LineLen) {
+	hdrLenBytes := int(l.CmnHdr.HdrLen * common.LineLen)
+	if len(scn.LayerContents()) != hdrLenBytes {
 		return nil, fmt.Errorf("Bad SCION header len, expected %d, actual   %d",
-			l.CmnHdr.HdrLen, len(scn.LayerContents()))
+			hdrLenBytes, len(scn.LayerContents()))
 	}
 	if l.CmnHdr != scn.CmnHdr {
 		return nil, fmt.Errorf("Common header mismatch\nExpected %v\nActual   %v",
@@ -112,6 +120,7 @@ func (l *ScionLayer) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopack
 	lc.scion = scn
 	return pktLayers[1:], nil
 }
+
 func (l *ScionLayer) RawAddrHdr() common.RawBytes {
 	return l.Contents[spkt.CmnHdrLen : spkt.CmnHdrLen+l.AddrHdr.Len()]
 }
@@ -128,8 +137,12 @@ func decodeScionLayer(data []byte, p gopacket.PacketBuilder) error {
 
 func scionNextLayerType(t common.L4ProtocolType) gopacket.LayerType {
 	switch t {
+	case common.HopByHopClass:
+		return LayerTypeScionHBH
 	case common.L4UDP:
 		return layers.LayerTypeUDP
+	case common.L4SCMP:
+		return LayerTypeSCMP
 	}
 	return gopacket.LayerTypePayload
 }

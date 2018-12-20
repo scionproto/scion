@@ -61,6 +61,9 @@ func (p *ExpPkt) Match(pkt gopacket.Packet) error {
 			return err
 		}
 	}
+	if len(pktLayers) > 0 {
+		return fmt.Errorf("Received packet contains extra data")
+	}
 	return nil
 }
 
@@ -79,50 +82,57 @@ type Pkt struct {
 
 // Pack generates the raw bytes from all the layers that compose a packet.
 func (p *Pkt) Pack(dstMac net.HardwareAddr) (common.RawBytes, error) {
-	var pktLayers []gopacket.SerializableLayer
-	for _, l := range p.Layers {
-		ll, err := l.Build()
+	var ethType layers.EthernetType
+	switch p.Layers[0].(type) {
+	case *OverlayIP4UDP:
+		ethType = layers.EthernetTypeIPv4
+	default:
+		return nil, fmt.Errorf("Fail to build the packet, overlay missing.")
+	}
+	lbs := make([]LayerBuilder, len(p.Layers)+1)
+	lbs[0] = newEthernet(dstMac, ethType)
+	copy(lbs[1:], p.Layers)
+	return serializeLayers(lbs)
+}
+
+func serializeLayers(lbs []LayerBuilder) (common.RawBytes, error) {
+	var l []gopacket.SerializableLayer
+	for _, lb := range lbs {
+		layers, err := lb.Build()
 		if err != nil {
 			return nil, err
 		}
-		pktLayers = append(pktLayers, ll...)
-	}
-	eth, err := newEthLayer(dstMac, pktLayers[0])
-	if err != nil {
-		return nil, err
+		l = append(l, layers...)
 	}
 	pkt := gopacket.NewSerializeBuffer()
 	options := gopacket.SerializeOptions{
 		FixLengths:       true,
 		ComputeChecksums: true,
 	}
-	l := append([]gopacket.SerializableLayer{eth}, pktLayers...)
 	if err := gopacket.SerializeLayers(pkt, options, l...); err != nil {
 		return nil, err
 	}
 	return common.RawBytes(pkt.Bytes()), nil
 }
 
-func newEthLayer(dstMac net.HardwareAddr,
-	l gopacket.SerializableLayer) (gopacket.SerializableLayer, error) {
+var _ LayerBuilder = (*GenCmnHdr)(nil)
 
-	var ethType layers.EthernetType
-	switch l.LayerType() {
-	case layers.LayerTypeIPv4:
-		ethType = layers.EthernetTypeIPv4
-	case layers.LayerTypeIPv6:
-		ethType = layers.EthernetTypeIPv6
-	default:
-		return nil, fmt.Errorf("Failed to generate Ethernet header, unsupported layer type %v",
-			l.LayerType())
-	}
+type ethernet struct {
+	layers.Ethernet
+}
+
+func newEthernet(dstMac net.HardwareAddr, ethType layers.EthernetType) *ethernet {
 	// The src MAC does not need to be valid
 	srcMac, _ := net.ParseMAC("00:00:de:ad:be:ef")
-	return &layers.Ethernet{
+	return &ethernet{layers.Ethernet{
 		DstMAC:       dstMac,
 		SrcMAC:       srcMac,
 		EthernetType: ethType,
-	}, nil
+	}}
+}
+
+func (l *ethernet) Build() ([]gopacket.SerializableLayer, error) {
+	return []gopacket.SerializableLayer{l}, nil
 }
 
 var _ LayerBuilder = (*GenCmnHdr)(nil)
@@ -139,8 +149,12 @@ func NewGenCmnHdr(srcIA, srcHost, dstIA, dstHost string, path *ScnPath,
 	p := &GenCmnHdr{}
 	p.CmnHdr.NextHdr = nh
 	addrHdr := NewAddrHdr(srcIA, srcHost, dstIA, dstHost)
-	p.AddrHdr = *addrHdr
-	p.Path = *path
+	if addrHdr != nil {
+		p.AddrHdr = *addrHdr
+	}
+	if path != nil {
+		p.Path = *path
+	}
 	return p
 }
 
@@ -156,7 +170,11 @@ func (l *GenCmnHdr) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.Serial
 
 func (l *GenCmnHdr) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
 	l.setCmnHdr()
-	scn := pktLayers[0].(*ScionLayer)
+	scn, ok := pktLayers[0].(*ScionLayer)
+	if !ok {
+		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
+			LayerTypeScion, pktLayers[0].LayerType())
+	}
 	l.CmnHdr.TotalLen += uint16(len(scn.Payload))
 	return l.ScionLayer.Match(pktLayers, lc)
 }
@@ -185,8 +203,12 @@ type UDP struct {
 	layers.UDP
 }
 
-func NewUDP(src, dst uint16, pld common.RawBytes) *UDP {
+func NewUDP(src, dst uint16, lb LayerBuilder) *UDP {
 	udp := &UDP{}
+	var pld common.RawBytes
+	if lb != nil {
+		pld, _ = serializeLayers([]LayerBuilder{lb})
+	}
 	udp.UDP = layers.UDP{
 		SrcPort: layers.UDPPort(src),
 		DstPort: layers.UDPPort(dst),
@@ -216,6 +238,7 @@ func (l *UDP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Laye
 	// and the expected Payload
 	csum := util.Checksum(lc.scion.RawAddrHdr(), []uint8{0, uint8(common.L4UDP)},
 		udp.Contents, l.Payload)
+	l.Checksum = csum ^ udp.Checksum
 	if l.SrcPort != udp.SrcPort || l.DstPort != udp.DstPort || l.Length != udp.Length ||
 		csum != 0 {
 		return nil, fmt.Errorf("UDP layer mismatch\nExpected %s\nActual   %s",

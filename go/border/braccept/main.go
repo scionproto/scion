@@ -122,6 +122,14 @@ func realMain() int {
 		brTests = genTestsCoreBrB(hashMac)
 	case "core-brC":
 		brTests = genTestsCoreBrC(hashMac)
+	case "brA":
+		brTests = genTestsBrA(hashMac)
+	case "brB":
+		brTests = genTestsBrB(hashMac)
+	case "brC":
+		brTests = genTestsBrC(hashMac)
+	case "brD":
+		brTests = genTestsBrD(hashMac)
 	default:
 		fmt.Fprintf(os.Stderr, "Wrong Border Router ID %s\n", borderID)
 		return 1
@@ -136,7 +144,7 @@ func realMain() int {
 	for i := range brTests {
 		t := brTests[i]
 		if err := doTest(t, cases); err != nil {
-			fmt.Printf("%d. %s\n\n%s\n\n", baseIdx+i, t.Summary(false), err)
+			fmt.Printf("%d. %s\n%s\n\n", baseIdx+i, t.Summary(false), err)
 			failures += 1
 		} else {
 			fmt.Printf("%d. %s\n", baseIdx+i, t.Summary(true))
@@ -256,6 +264,10 @@ func checkRecvPkts(t *BRTest, cases []reflect.SelectCase) error {
 		}
 		// Packet received
 		pkt := pktV.Interface().(gopacket.Packet)
+		if _, e := checkPkt(t.Ignore, idx, pkt); e == nil {
+			// Packet is to be ignored
+			continue
+		}
 		i, e := checkPkt(expPkts, idx, pkt)
 		if e != nil {
 			errStr = append(errStr, fmt.Sprintf("%s", e))

@@ -30,21 +30,14 @@ type ScnPath struct {
 	Segs Segments
 }
 
-// GenPath converts info and hop field indexes to their proper offsets.
-// Both infoF and hopF are relative indexes, where infoF index indicates the references segment
-// position and hopF index indicates the hop fields position within the segment.
-// Note that this function writes the raw path then parses it to calculate the expected
-// hop field macs.
+// GenPath generates a ScnPath from Segments and Info/Hop Field indeces.
+// Note that this function writes the raw path then parses it to generate the
+// expected hop field macs.
 func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 	p := &ScnPath{}
-	for i := 0; i < infoF; i++ {
-		// Each segments consists of one InfoField and N HopFields
-		p.InfOff += spath.InfoFieldLength + int(segs[i].Inf.Hops*spath.HopFieldLength)
-	}
-	p.HopOff = p.InfOff + spath.InfoFieldLength + hopF*spath.HopFieldLength
+	p.InfOff, p.HopOff = indexToOffsets(uint8(infoF), uint8(hopF), segs)
 	// Write SCION path
 	p.Raw = make(common.RawBytes, segs.Len())
-	segs.initMacs()
 	if _, err := segs.WriteTo(p.Raw); err != nil {
 		return nil
 	}
@@ -53,7 +46,23 @@ func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 	return p
 }
 
+// indexToOffsets converts info and hop field indexes to their proper offsets.
+// Both infoF and hopF are relative indexes, where infoF index indicates the referenced segment
+// position and hopF index indicates the hop field position within the segment.
+func indexToOffsets(infoF, hopF uint8, segs Segments) (int, int) {
+	var infOff, hopOff int
+	for i := 0; i < int(infoF); i++ {
+		// Each segments consists of one InfoField and N HopFields
+		infOff += segs[i].Len()
+	}
+	hopOff = infOff + spath.InfoFieldLength + int(hopF)*spath.HopFieldLength
+	return infOff, hopOff
+}
+
 func (p *ScnPath) Parse(b []byte) error {
+	if p.Segs != nil {
+		return nil
+	}
 	if len(b) == 0 || len(b)%common.LineLen != 0 {
 		return fmt.Errorf("Bad path length, actual=%d", len(b))
 	}
@@ -103,7 +112,7 @@ type Segments []*SegDef
 func (segs Segments) Len() int {
 	l := 0
 	for i := range segs {
-		l += segs[i].segLen()
+		l += segs[i].Len()
 	}
 	return l
 }
@@ -124,16 +133,12 @@ func (segs Segments) String() string {
 	return PrintSegments(segs, "", " ")
 }
 
-func (segs Segments) initMacs() {
+func (segs Segments) Copy() Segments {
+	newSegs := make(Segments, len(segs))
 	for i := range segs {
-		segs[i].initMacs()
+		newSegs[i] = segs[i].Copy()
 	}
-}
-
-func (segs Segments) SetMac(infoF, hopF int, hashMac hash.Hash) Segments {
-	segs[infoF].initMacs()
-	segs[infoF].macs[hopF] = hashMac
-	return segs
+	return newSegs
 }
 
 func PrintSegments(segs Segments, indent, sep string) string {
@@ -153,10 +158,35 @@ type SegDef struct {
 	macs []hash.Hash
 }
 
-func (s *SegDef) initMacs() {
-	if s.macs == nil {
-		s.macs = make([]hash.Hash, len(s.Hops))
+func NewSegment(infoF *spath.InfoField, hops []*spath.HopField) *SegDef {
+	return &SegDef{
+		Inf:  infoF,
+		Hops: hops,
+		macs: make([]hash.Hash, len(hops)),
 	}
+}
+
+func (s *SegDef) Macs(hashMac hash.Hash, hopIdxs ...int) *SegDef {
+	newSeg := s.Copy()
+	for _, i := range hopIdxs {
+		newSeg.macs[i] = hashMac
+	}
+	return newSeg
+}
+
+func (s *SegDef) Copy() *SegDef {
+	newSeg := &SegDef{
+		Inf:  &spath.InfoField{},
+		Hops: make([]*spath.HopField, len(s.Hops)),
+		macs: make([]hash.Hash, len(s.Hops)),
+	}
+	*newSeg.Inf = *s.Inf
+	for i := range s.Hops {
+		newSeg.Hops[i] = &spath.HopField{}
+		*newSeg.Hops[i] = *s.Hops[i]
+		newSeg.macs[i] = s.macs[i]
+	}
+	return newSeg
 }
 
 func (s *SegDef) Parse(b []byte) (int, error) {
@@ -184,8 +214,9 @@ func (seg *SegDef) WriteTo(b []byte) (int, error) {
 	// Write Info Field
 	seg.Inf.Write(b)
 	// Write Hop Fields
-	prevHop := []byte{}
+	var prevHop common.RawBytes
 	nHops := len(seg.Hops)
+	prevXover := false
 	for j := range seg.Hops {
 		hopIdx := j
 		if !seg.Inf.ConsDir {
@@ -193,11 +224,21 @@ func (seg *SegDef) WriteTo(b []byte) (int, error) {
 			hopIdx = nHops - 1 - j
 		}
 		hop := seg.Hops[hopIdx]
+		if seg.Inf.Peer && hop.Xover {
+			// This logic basically skips the first Xover field on a Peer segment the first time,
+			// then goes back to it. For example, a normal index sequence 0,1,2,3 would end up
+			// as 0,2,1,3
+			if prevXover != seg.Inf.ConsDir {
+				hopIdx += 1
+			} else {
+				hopIdx -= 1
+			}
+			hop = seg.Hops[hopIdx]
+		}
 		mac := seg.macs[hopIdx]
 		if hop.Mac == nil {
 			if mac != nil {
 				mac.Reset()
-				// TODO(sgmonroy) peer interface support
 				hop.Mac, err = hop.CalcMac(mac, seg.Inf.TsInt, prevHop)
 				if err != nil {
 					return 0, err
@@ -209,6 +250,7 @@ func (seg *SegDef) WriteTo(b []byte) (int, error) {
 		curOff := spath.InfoFieldLength + hopIdx*spath.HopFieldLength
 		hop.Write(b[curOff:])
 		prevHop = b[curOff+1 : curOff+spath.HopFieldLength]
+		prevXover = hop.Xover
 	}
 	return spath.InfoFieldLength + nHops*spath.HopFieldLength, nil
 }
@@ -239,7 +281,7 @@ func (s *SegDef) String() string {
 	return fmt.Sprintf("[%1s%1s%1s] %s", cons, short, peer, strings.Join(str, " <-> "))
 }
 
-func (s *SegDef) segLen() int {
+func (s *SegDef) Len() int {
 	return spath.InfoFieldLength + spath.HopFieldLength*len(s.Hops)
 }
 
