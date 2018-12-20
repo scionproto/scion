@@ -44,11 +44,20 @@ type Router struct {
 	sRevInfoQ chan rpkt.RawSRevCallbackArgs
 	// pktErrorQ is a channel for handling packet errors
 	pktErrorQ chan pktErrorArgs
+	// posixInput handles the posix input.
+	posixInput rctx.SockFunc
+	// posixOutput handles the posix output.
+	posixOutput rctx.SockFunc
+	// handleSock handles the socket.
+	handleSock rctx.SockFunc
 }
 
 func NewRouter(id, confDir string) (*Router, error) {
 	metrics.Init(id)
 	r := &Router{Id: id, confDir: confDir}
+	r.posixInput = posixInput(r)
+	r.posixOutput = posixOutput(r)
+	r.handleSock = handleSock(r)
 	if err := r.setup(); err != nil {
 		return nil, err
 	}
@@ -83,22 +92,24 @@ func (r *Router) ReloadConfig() error {
 	return nil
 }
 
-func (r *Router) handleSock(s *rctx.Sock, stop, stopped chan struct{}) {
-	defer log.LogPanicAndExit()
-	defer close(stopped)
-	pkts := make(ringbuf.EntryList, processBufCnt)
-	log.Debug("handleSock starting", "sock", *s)
-	for {
-		n, _ := s.Ring.Read(pkts, true)
-		if n < 0 {
-			log.Debug("handleSock stopping", "sock", *s)
-			return
-		}
-		for i := 0; i < n; i++ {
-			rp := pkts[i].(*rpkt.RtrPkt)
-			r.processPacket(rp)
-			rp.Release()
-			pkts[i] = nil
+func handleSock(r *Router) rctx.SockFunc {
+	return func(s *rctx.Sock, stop, stopped chan struct{}) {
+		defer log.LogPanicAndExit()
+		defer close(stopped)
+		pkts := make(ringbuf.EntryList, processBufCnt)
+		log.Debug("handleSock starting", "sock", *s)
+		for {
+			n, _ := s.Ring.Read(pkts, true)
+			if n < 0 {
+				log.Debug("handleSock stopping", "sock", *s)
+				return
+			}
+			for i := 0; i < n; i++ {
+				rp := pkts[i].(*rpkt.RtrPkt)
+				r.processPacket(rp)
+				rp.Release()
+				pkts[i] = nil
+			}
 		}
 	}
 }

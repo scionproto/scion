@@ -135,3 +135,11 @@ func (s *Sock) Stop() {
 		log.Info("Unstarted sock stopped", "addr", s.Conn.LocalAddr())
 	}
 }
+
+func (s *Sock) Running() bool {
+	return s.running
+}
+
+func (s *Sock) Started() bool {
+	return s.started
+}
