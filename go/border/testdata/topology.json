@@ -6,11 +6,11 @@
         "11": {
           "Overlay": "UDP/IPv4",
           "RemoteOverlay": {
-            "OverlayPort": 50000,
+            "OverlayPort": 50110,
             "Addr": "127.0.0.110"
           },
           "PublicOverlay": {
-            "OverlayPort": 50000,
+            "OverlayPort": 50011,
             "Addr": "127.0.0.11"
           },
           "LinkTo": "PARENT",
@@ -21,11 +21,11 @@
         "12": {
           "Overlay": "UDP/IPv4",
           "RemoteOverlay": {
-            "OverlayPort": 50000,
+            "OverlayPort": 50120,
             "Addr": "127.0.0.120"
           },
           "PublicOverlay": {
-            "OverlayPort": 50000,
+            "OverlayPort": 50012,
             "Addr": "127.0.0.12"
           },
           "LinkTo": "PARENT",
@@ -37,7 +37,7 @@
       "InternalAddrs": {
         "IPv4": {
           "PublicOverlay": {
-            "OverlayPort": 31009,
+            "OverlayPort": 41009,
             "Addr": "127.0.0.1"
           }
         }
@@ -46,7 +46,7 @@
         "IPv4": {
           "Public": {
             "Addr": "127.0.0.2",
-            "L4Port": 31008
+            "L4Port": 41008
           }
         }
       }

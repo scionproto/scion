@@ -40,13 +40,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
-const (
-	ErrorNetStartHook  = "Error in setupNetStartHook"
-	ErrorAddLocalHook  = "Error in AddLocalHook"
-	ErrorAddExtHook    = "Error in AddExtHook"
-	ErrorNetFinishHook = "Error in NetFinishHook"
-)
-
 type setupNetHook func(r *Router, ctx *rctx.Ctx,
 	oldCtx *rctx.Ctx) (rpkt.HookResult, error)
 type setupAddLocalHook func(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
@@ -75,6 +68,7 @@ var teardownLocalHooks []teardownHook
 var teardownExtHooks []teardownHook
 
 func addPosixHooks() {
+	setupNetStartHooks = append(setupNetStartHooks, setupVerifyNoAddrTakeover)
 	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
 	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
 	rollbackLocalHooks = append(rollbackLocalHooks, rollbackPosixAddLocal)
@@ -151,8 +145,6 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 func (r *Router) setupNewContext(config *brconf.Conf) error {
 	log.Debug("====> Setting up new context")
 	defer log.Debug("====> Done setting up new context")
-	// TODO(roosd): make sure ip is not switched between interfaces.
-
 	oldCtx := rctx.Get()
 	ctx := rctx.New(config)
 	if err := r.setupNet(ctx, oldCtx); err != nil {
@@ -190,7 +182,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 		ret, err := f(r, ctx, oldCtx)
 		switch {
 		case err != nil:
-			return common.NewBasicError(ErrorNetStartHook, err)
+			return err
 		case ret == rpkt.HookContinue:
 			continue
 		case ret == rpkt.HookFinish:
@@ -203,7 +195,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 		ret, err := f(r, ctx, labels, oldCtx)
 		switch {
 		case err != nil:
-			return common.NewBasicError(ErrorAddLocalHook, err)
+			return err
 		case ret == rpkt.HookContinue:
 			continue
 		case ret == rpkt.HookFinish:
@@ -218,7 +210,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 			ret, err := f(r, ctx, intf, labels, oldCtx)
 			switch {
 			case err != nil:
-				return common.NewBasicError(ErrorAddExtHook, err)
+				return err
 			case ret == rpkt.HookContinue:
 				continue
 			case ret == rpkt.HookFinish:
@@ -232,7 +224,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 		ret, err := f(r, ctx, oldCtx)
 		switch {
 		case err != nil:
-			return common.NewBasicError(ErrorNetFinishHook, err)
+			return err
 		case ret == rpkt.HookContinue:
 			continue
 		case ret == rpkt.HookFinish:
@@ -242,35 +234,27 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 	return nil
 }
 
-// rollbackNet rolls back the changes of a failed call to setupNet. The hooks that
-// are iterated depend on what stage the error occurred in setupNet.
+// rollbackNet rolls back the changes of a failed call to setupNet.
 func (r *Router) rollbackNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, err error) {
-	switch {
-	case common.GetErrorMsg(err) == ErrorNetFinishHook:
-		fallthrough
-	case common.GetErrorMsg(err) == ErrorAddExtHook:
-		for _, intf := range ctx.Conf.Net.IFs {
-		InnerLoop:
-			for _, f := range rollbackExtHooks {
-				ret := f(r, ctx, intf, oldCtx)
-				switch {
-				case ret == rpkt.HookContinue:
-					continue
-				case ret == rpkt.HookFinish:
-					break InnerLoop
-				}
-			}
-		}
-		fallthrough
-	case common.GetErrorMsg(err) == ErrorAddLocalHook:
-		for _, f := range rollbackLocalHooks {
-			ret := f(r, ctx, oldCtx)
+	for _, intf := range ctx.Conf.Net.IFs {
+	InnerLoop:
+		for _, f := range rollbackExtHooks {
+			ret := f(r, ctx, intf, oldCtx)
 			switch {
 			case ret == rpkt.HookContinue:
 				continue
 			case ret == rpkt.HookFinish:
-				break
+				break InnerLoop
 			}
+		}
+	}
+	for _, f := range rollbackLocalHooks {
+		ret := f(r, ctx, oldCtx)
+		switch {
+		case ret == rpkt.HookContinue:
+			continue
+		case ret == rpkt.HookFinish:
+			break
 		}
 	}
 }
@@ -349,7 +333,7 @@ func rollbackPosixAddLocal(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.Hook
 	if ctx.LocSockIn != nil {
 		log.Debug("Rolling back local socket", "conn", ctx.LocSockIn.Conn.LocalAddr())
 	}
-	stopInSock(ctx.LocSockIn)
+	stopSock(ctx.LocSockIn)
 	return rpkt.HookFinish
 }
 
@@ -376,7 +360,7 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		// FIXME(roosd): After switching to go 1.11, this can be avoided using SO_REUSEPORT.
 		if intf.IFAddr.Equal(oldIntf.IFAddr) {
 			log.Debug("Closing existing external socket to free addr", "old", oldIntf, "new", intf)
-			stopInSock(oldCtx.ExtSockIn[intf.Id])
+			stopSock(oldCtx.ExtSockIn[intf.Id])
 		}
 		log.Debug("Existing interface changed", "old", oldIntf, "new", intf)
 	}
@@ -426,7 +410,7 @@ func rollbackPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 
 	log.Debug("Rolling back external socket", "intf", intf)
 	if oldCtx == nil {
-		stopInSock(ctx.ExtSockIn[intf.Id])
+		stopSock(ctx.ExtSockIn[intf.Id])
 		return rpkt.HookFinish
 	}
 	oldIntf, ok := oldCtx.Conf.Net.IFs[intf.Id]
@@ -434,8 +418,8 @@ func rollbackPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	if ok && !interfaceChanged(intf, oldIntf) {
 		return rpkt.HookContinue
 	}
-	stopInSock(ctx.ExtSockIn[intf.Id])
-	// Restore old socket that was closed in order to allow bind of new socket.
+	stopSock(ctx.ExtSockIn[intf.Id])
+	// In case the old socket was closed in order to allow bind of new socket, restore it.
 	if ok && intf.IFAddr.Equal(oldIntf.IFAddr) {
 		labels := mkSockFromRingLabels(oldCtx.ExtSockIn[oldIntf.Id].Labels)
 		if err := addPosixIntf(r, oldCtx, oldIntf, labels); err != nil {
@@ -466,7 +450,7 @@ func teardownPosixLocal(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookRes
 		if oldCtx.LocSockIn != nil {
 			log.Debug("Tearing down unused local socket", "conn", ctx.LocSockIn.Conn.LocalAddr())
 		}
-		stopInSock(oldCtx.LocSockIn)
+		stopSock(oldCtx.LocSockIn)
 	}
 	return rpkt.HookFinish
 }
@@ -476,18 +460,41 @@ func teardownPosixExt(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookResul
 	if oldCtx != nil {
 		for ifid, oldSock := range oldCtx.ExtSockIn {
 			if newSock, ok := ctx.ExtSockIn[ifid]; !ok || newSock != oldSock {
-				stopInSock(oldSock)
+				stopSock(oldSock)
 			}
 		}
 	}
 	return rpkt.HookFinish
 }
 
-// stopInSock stops the In socket. When closing the In socket, it closes the ringbuf
-// between SockIn and SockOut which in turn will trigger SockOut to exit once all the
-// packets in the ringbuf have been processed.
-func stopInSock(s *rctx.Sock) {
+// stopSock stops the socket or noop if it does not exist.
+func stopSock(s *rctx.Sock) {
 	if s != nil {
 		s.Stop()
 	}
+}
+
+// setupVerifyNoAddrTakeover ensures that an address is not take over by one interfaces
+// from another. In the current setup, this requires a two step process.
+func setupVerifyNoAddrTakeover(_ *Router, ctx, oldCtx *rctx.Ctx) (rpkt.HookResult, error) {
+	if oldCtx == nil {
+		return rpkt.HookFinish, nil
+	}
+	for ifid, intf := range ctx.Conf.Net.IFs {
+		for oldIfid, oldIntf := range oldCtx.Conf.Net.IFs {
+			if intf.IFAddr.Equal(oldIntf.IFAddr) && ifid != oldIfid {
+				return rpkt.HookError, common.NewBasicError("Address must not switch intf", nil,
+					"intf", intf, "oldIntf", oldIntf)
+			}
+			if ctx.Conf.Net.LocAddr.Equal(oldIntf.IFAddr) {
+				return rpkt.HookError, common.NewBasicError("Address must not switch to local", nil,
+					"oldIntf", intf, "locAddr", oldCtx.Conf.Net.LocAddr)
+			}
+		}
+		if intf.IFAddr.Equal(oldCtx.Conf.Net.LocAddr) {
+			return rpkt.HookError, common.NewBasicError("Address must not switch from local", nil,
+				"intf", intf, "oldLocAddr", oldCtx.Conf.Net.LocAddr)
+		}
+	}
+	return rpkt.HookFinish, nil
 }
