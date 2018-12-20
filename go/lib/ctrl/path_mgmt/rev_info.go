@@ -173,5 +173,6 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 }
 
 func (sr *SignedRevInfo) String() string {
-	return fmt.Sprintf("SignedRevInfo: %s %s", sr.Blob, sr.Sign)
+	revInfo, _ := sr.RevInfo()
+	return fmt.Sprintf("SignedRevInfo: %s %s", revInfo, sr.Sign)
 }
