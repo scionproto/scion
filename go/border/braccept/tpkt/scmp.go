@@ -24,10 +24,12 @@ import (
 	"github.com/google/gopacket/layers"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
+	"github.com/scionproto/scion/go/proto"
 )
 
 var _ LayerMatcher = (*SCMP)(nil)
@@ -264,16 +266,22 @@ func (s *SCMP) generatePayload() error {
 	}
 	// Convert from test relative offset to index offsets
 	// Cannot do it on the constructor because we need the segments for the conversion
-	if ipo, ok := s.info.(*scmp.InfoPathOffsets); ok {
-		infOff, hopOff := indexToOffsets(ipo.InfoF, ipo.HopF, scn.Path.Segs)
-		base := spkt.CmnHdrLen + scn.AddrHdr.Len()
-		ipo.InfoF = uint8((base + infOff) / common.LineLen)
-		ipo.HopF = uint8((base + hopOff) / common.LineLen)
+	pathOff := spkt.CmnHdrLen + scn.AddrHdr.Len()
+	switch ipo := s.info.(type) {
+	case *scmp.InfoPathOffsets:
+		ipo.InfoF, ipo.HopF = offsetConversion(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
+	case *scmp.InfoRevocation:
+		ipo.InfoF, ipo.HopF = offsetConversion(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
 	}
 	ct := scmp.ClassType{Class: s.Class, Type: s.Type}
 	pld := scmp.PldFromQuotes(ct, s.info, s.l4Type, qr.getRaw)
 	s.Payload = *pld
 	return nil
+}
+
+func offsetConversion(infoF, hopF uint8, pathOff int, segs Segments) (uint8, uint8) {
+	infOff, hopOff := indexToOffsets(infoF, hopF, segs)
+	return uint8((pathOff + infOff) / common.LineLen), uint8((pathOff + hopOff) / common.LineLen)
 }
 
 func decodeSCMP(data []byte, p gopacket.PacketBuilder) error {
@@ -315,4 +323,19 @@ func (qr *quoteRaw) getRaw(blk scmp.RawBlock) common.RawBytes {
 		return qr.l4.LayerContents()
 	}
 	return nil
+}
+
+func NewRevocation(infoF, hopF uint8, ifid common.IFIDType, ingress bool,
+	sRevInfo *path_mgmt.SignedRevInfo) *scmp.InfoRevocation {
+
+	var rawSRev common.RawBytes
+	if sRevInfo != nil {
+		var err error
+		rawSRev, err = proto.PackRoot(sRevInfo)
+		if err != nil {
+			panic(err)
+		}
+	}
+	infoPathOffsets := &scmp.InfoPathOffsets{InfoF: infoF, HopF: hopF, IfID: ifid, Ingress: ingress}
+	return &scmp.InfoRevocation{InfoPathOffsets: infoPathOffsets, RawSRev: rawSRev}
 }
