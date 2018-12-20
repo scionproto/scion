@@ -41,11 +41,9 @@ test_setup() {
 test_run() {
     set -e
     local orig_src=$(jq ".BorderRouters[].Interfaces[].PublicOverlay" $SRC_TOPO)
-    local pid_src=$(docker inspect -f '{{.State.Pid}}' scion_br"$SRC_IA_FILE"-1)
     local dummy_src=$(jq ".BorderRouters[].Interfaces[$DUMMY_IFID_SRC].PublicOverlay.Addr" $FULL_TOPO)
 
     local orig_dst=$(jq ".BorderRouters[].Interfaces[$IFID_DST].PublicOverlay" $DST_TOPO)
-    local pid_dst=$(docker inspect -f '{{.State.Pid}}' scion_br"$DST_IA_FILE"-1)
     local dummy_dst=$(jq ".BorderRouters[].Interfaces[$DUMMY_IFID_SRC].RemoteOverlay.Addr" $FULL_TOPO)
 
     check_change_invalid_local_ip

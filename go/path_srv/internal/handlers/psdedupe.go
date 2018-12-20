@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/dedupe"
+	"github.com/scionproto/scion/go/lib/snet"
 )
 
 type segReq struct {
@@ -31,6 +32,9 @@ type segReq struct {
 }
 
 func (req *segReq) DedupeKey() string {
+	if sAddr, ok := req.server.(*snet.Addr); ok {
+		return fmt.Sprintf("%s %s", req.segReq, sAddr.Desc())
+	}
 	return fmt.Sprintf("%s %s", req.segReq, req.server)
 }
 
