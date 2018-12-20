@@ -96,7 +96,9 @@ type ScionSCMPExtn struct {
 	scmp.Extn
 }
 
-func (l *ScionSCMPExtn) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
+func (l *ScionSCMPExtn) Match(pktLayers []gopacket.Layer,
+	lc *LayerCache) ([]gopacket.Layer, error) {
+
 	e, ok := pktLayers[0].(*ScionSCMPExtn)
 	if !ok {
 		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",

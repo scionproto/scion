@@ -193,8 +193,8 @@ func (s *SCMP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Lay
 func (s *SCMP) compareHdr(o *SCMP, lc *LayerCache) error {
 	ts := o.Time()
 	now := time.Now()
-	min := ts.Before(now.Add(-1 * time.Second))
-	if ts.After(now) || min {
+	min := now.Add(-1 * time.Second)
+	if ts.After(now) || ts.Before(min) {
 		return fmt.Errorf("SCMP timestamp check failed\nExpected between (%s, %s)\nActual   %s",
 			min, now, ts)
 	}
