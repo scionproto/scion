@@ -13,7 +13,7 @@
 # 4. Change ip to original -> expect traffic to pass
 
 TEST_NAME="topo_br_reload_if_ip"
-TEST_TOPOLOGY="/tmp/tinier_with_two_links.topo"
+TEST_TOPOLOGY="/tmp/Tinier_with_two_links.topo"
 
 # The topology contains a dummy link in order for the BR
 # to have two valid IP addresses to switch between.
@@ -26,7 +26,7 @@ FULL_TOPO="gen/full_topo.json"
 . acceptance/topo_br_reload_util/util.sh
 
 test_setup() {
-    cp acceptance/topo_br_reload_util/tinier.topo $TEST_TOPOLOGY
+    cp acceptance/topo_br_reload_util/Tinier.topo $TEST_TOPOLOGY
     sed -i '/^links:/a \  - {a: "1-ff00:0:110-A#2", b: "1-ff00:0:111-A#12", linkAtoB: CHILD, mtu: 1280}' $TEST_TOPOLOGY
     base_gen_topo
 

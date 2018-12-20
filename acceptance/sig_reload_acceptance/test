@@ -16,7 +16,7 @@ SIG_JSON="gen/ISD1/AS$SRC_AS_FILE/sig$SRC_IA_FILE/cfg.json"
 TEST_TOPOLOGY="acceptance/sigutil/SIG.topo"
 
 test_run() {
-    set -ex
+    set -e
     ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
     # Remove $DST_IA from sig.json
     HOP_JSON=$(jq -c ".ASes.\"$DST_IA\"" $SIG_JSON)
