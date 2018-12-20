@@ -207,11 +207,9 @@ func generateKeys(fn string) error {
 func registerScionPorts() {
 	// Bind ports to SCION layer
 	layers.RegisterUDPPortLayerType(layers.UDPPort(30041), tpkt.LayerTypeScion)
-	/*
-		for i := 30000; i < 30010; i += 1 {
-			layers.RegisterUDPPortLayerType(layers.UDPPort(i), tpkt.LayerTypeScion)
-		}
-	*/
+	for i := 30000; i < 30010; i += 1 {
+		layers.RegisterUDPPortLayerType(layers.UDPPort(i), tpkt.LayerTypeScion)
+	}
 	for i := 50000; i < 50010; i += 1 {
 		layers.RegisterUDPPortLayerType(layers.UDPPort(i), tpkt.LayerTypeScion)
 	}

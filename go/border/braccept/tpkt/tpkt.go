@@ -170,7 +170,11 @@ func (l *GenCmnHdr) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.Serial
 
 func (l *GenCmnHdr) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
 	l.setCmnHdr()
-	scn := pktLayers[0].(*ScionLayer)
+	scn, ok := pktLayers[0].(*ScionLayer)
+	if !ok {
+		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
+			LayerTypeScion, pktLayers[0].LayerType())
+	}
 	l.CmnHdr.TotalLen += uint16(len(scn.Payload))
 	return l.ScionLayer.Match(pktLayers, lc)
 }

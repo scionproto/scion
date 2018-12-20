@@ -27,7 +27,7 @@ var IgnoredPacketsCoreBrA = []*tpkt.ExpPkt{
 	{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 		tpkt.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.61", 30041),
 		tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "BS_M", nil, common.L4UDP),
-		tpkt.NewUDP(30001, 0, pathMgmtPld),
+		tpkt.NewUDP(20001, 0, pathMgmtPld),
 		pathMgmtPld,
 	}}}
 

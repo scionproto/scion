@@ -95,8 +95,8 @@ func (l *ScionLayer) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) er
 }
 
 func (l *ScionLayer) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
-	scn := pktLayers[0].(*ScionLayer)
-	if scn == nil {
+	scn, ok := pktLayers[0].(*ScionLayer)
+	if !ok {
 		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
 			LayerTypeScion, pktLayers[0].LayerType())
 	}
