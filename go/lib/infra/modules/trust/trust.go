@@ -268,25 +268,24 @@ func (store *Store) insertTRCHookForwarding(ctx context.Context, trcObj *trc.TRC
 	if err != nil {
 		return common.NewBasicError("Failed to compress TRC for forwarding", err)
 	}
-	sent := false
-	for !sent {
+	for {
 		addr, err := store.ChooseServer(ctx, store.ia)
-	if err != nil {
+		if err != nil {
 			return common.NewBasicError("Failed to select server to forward TRC", err)
-	}
-		forwardCtx, cancelF := context.WithTimeout(ctx, 2*time.Second)
-		a, err := store.msger.PushTRC(forwardCtx, &cert_mgmt.TRC{
-		RawTRC: rawTRC,
-	}, addr, messenger.NextId())
-	if err != nil {
+		}
+		a, err := store.msger.PushTRC(ctx, &cert_mgmt.TRC{
+			RawTRC: rawTRC,
+		}, addr, messenger.NextId())
+		if err != nil {
 			return common.NewBasicError("Failed to push TRC", err)
 		}
 		if a.Err == proto.Ack_ErrCode_reject {
 			return common.NewBasicError("Receiver rejected TRC push", nil, "desc", a.ErrDesc)
 		}
-		sent = a.Err == proto.Ack_ErrCode_ok
+		if a.Err == proto.Ack_ErrCode_ok {
+			return nil
+		}
 	}
-	return nil
 }
 
 // GetValidChain asks the trust store to return a valid certificate chain for ia.
@@ -404,25 +403,24 @@ func (store *Store) newChainValidatorForwarding(validator *trc.TRC) ValidateChai
 		if err != nil {
 			return common.NewBasicError("Failed to compress chain for forwarding", err)
 		}
-		sent := false
-		for !sent {
+		for {
 			addr, err := store.ChooseServer(ctx, store.ia)
-		if err != nil {
+			if err != nil {
 				return common.NewBasicError("Failed to select server to forward cert chain", err)
-		}
-			forwardCtx, cancelF := context.WithTimeout(context.Background(), 2*time.Second)
-			a, err := store.msger.PushCertChain(forwardCtx, &cert_mgmt.Chain{
-			RawChain: rawChain,
-		}, addr, messenger.NextId())
-		if err != nil {
+			}
+			a, err := store.msger.PushCertChain(ctx, &cert_mgmt.Chain{
+				RawChain: rawChain,
+			}, addr, messenger.NextId())
+			if err != nil {
 				return common.NewBasicError("Failed to forward cert chain", err, "chain", chain)
 			}
 			if a.Err == proto.Ack_ErrCode_reject {
 				return common.NewBasicError("Receiver rejected TRC push", nil, "desc", a.ErrDesc)
 			}
-			sent = a.Err == proto.Ack_ErrCode_ok
+			if a.Err == proto.Ack_ErrCode_ok {
+				return nil
+			}
 		}
-		return nil
 	}
 }
 
