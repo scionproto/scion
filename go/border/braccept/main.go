@@ -230,19 +230,43 @@ func registerScionPorts() {
 // It returns true if the test was successful, ie. all expected packets and no others were received,
 // otherwise it returns false.
 func doTest(t *BRTest, cases []reflect.SelectCase) error {
-	devInfo, ok := devByName[t.In.Dev]
+	var errStr []string
+	var err error
+	if err = sendPkt(t.Pre, true); err != nil {
+		errStr = append(errStr, err.Error())
+	}
+	if err = sendPkt(t.In, false); err == nil {
+		err = checkRecvPkts(t, cases)
+	}
+	if err != nil {
+		errStr = append(errStr, err.Error())
+	}
+	err = sendPkt(t.Post, true)
+	if err != nil {
+		errStr = append(errStr, err.Error())
+	}
+	if len(errStr) > 0 {
+		return fmt.Errorf(strings.Join(errStr, "\n"))
+	}
+	return nil
+}
+
+func sendPkt(pkt *tpkt.Pkt, to bool) error {
+	if pkt == nil {
+		return nil
+	}
+	devInfo, ok := devByName[pkt.Dev]
 	if !ok {
-		return fmt.Errorf("No device information for: %s\n", t.In.Dev)
+		return fmt.Errorf("No device information for: %s\n", pkt.Dev)
 	}
-	raw, err := t.In.Pack(devInfo.mac)
+	raw, err := pkt.Pack(devInfo.mac)
 	if err != nil {
 		return err
 	}
-	err = devInfo.handle.WritePacketData(raw)
-	if err != nil {
-		return err
+	if to {
+		defer time.Sleep(timeout)
 	}
-	return checkRecvPkts(t, cases)
+	return devInfo.handle.WritePacketData(raw)
 }
 
 // checkRecvPkts compares packets received in any interface against the expected packets
