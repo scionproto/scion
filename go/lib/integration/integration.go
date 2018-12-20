@@ -287,6 +287,7 @@ func RunBinaryTests(in Integration, pairs []IAPair, timeout time.Duration) error
 		// Start server
 		s, err := StartServer(in, pair.Dst)
 		if err != nil {
+			log.Error(fmt.Sprintf("Error in server: %s", pair.Dst.String()), "err", err)
 			return err
 		}
 		defer s.Close()

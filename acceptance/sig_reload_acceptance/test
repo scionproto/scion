@@ -7,16 +7,16 @@ PROGRAM=`basename "$0"`
 COMMAND="$1"
 TEST_NAME="sig_reload"
 
-SRC_IA=${SRC_IA:-1-ff00:0:113}
+SRC_IA=1-ff00:0:113
 SRC_IA_FILE="$(ia_file $SRC_IA)"
 SRC_AS_FILE="$(as_file $SRC_IA)"
-DST_IA=${DST_IA:-1-ff00:0:110}
+DST_IA=1-ff00:0:110
 SIG_JSON="gen/ISD1/AS$SRC_AS_FILE/sig$SRC_IA_FILE/cfg.json"
 
 TEST_TOPOLOGY="acceptance/sigutil/SIG.topo"
 
 test_run() {
-    set -ex
+    set -e
     ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
     # Remove $DST_IA from sig.json
     HOP_JSON=$(jq -c ".ASes.\"$DST_IA\"" $SIG_JSON)

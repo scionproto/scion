@@ -59,16 +59,16 @@ func realMain() int {
 		ClientArgs []string
 	}{
 		{
-			name + "_udp_20Mbps_80B",
-			[]string{"-u", "--bandwidth", "20M", "--length", "80"},
+			name + "_udp_10Mbps_80B",
+			[]string{"-u", "--bandwidth", "10M", "--length", "80"},
 		},
 		{
-			name + "_udp_50Mbps_512B",
-			[]string{"-u", "--bandwidth", "50M", "--length", "512"},
+			name + "_udp_25Mbps_512B",
+			[]string{"-u", "--bandwidth", "25M", "--length", "512"},
 		},
 		{
-			name + "_udp_100Mbps_1460B",
-			[]string{"-u", "--bandwidth", "100M", "--length", "1460"},
+			name + "_udp_50Mbps_1460B",
+			[]string{"-u", "--bandwidth", "50M", "--length", "1460"},
 		},
 	}
 	cmnArgs := []string{integration.WrapperCmd, cmd, "-p", "12000", "--verbose", "--forceflush"}

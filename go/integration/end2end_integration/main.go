@@ -64,17 +64,18 @@ func runTests(in integration.Integration, pairs []integration.IAPair) error {
 		for _, dst := range dsts {
 			s, err := integration.StartServer(in, dst)
 			if err != nil {
+				log.Error(fmt.Sprintf("Error in server: %s", dst.String()), "err", err)
 				return err
 			}
 			defer s.Close()
 		}
 		// Now start the clients for srcDest pair
 		for i, conn := range pairs {
-			log.Info(fmt.Sprintf("Test %v: %v -> %v (%v/%v)",
-				in.Name(), conn.Src.IA, conn.Dst.IA, i+1, len(pairs)))
+			testInfo := fmt.Sprintf("%v -> %v (%v/%v)", conn.Src.IA, conn.Dst.IA, i+1, len(pairs))
+			log.Info(fmt.Sprintf("Test %v: %s", in.Name(), testInfo))
 			t := integration.DefaultRunTimeout + integration.CtxTimeout*time.Duration(*attempts)
 			if err := integration.RunClient(in, conn, t); err != nil {
-				log.Error("Error during client execution", "err", err)
+				log.Error(fmt.Sprintf("Error in client: %s", testInfo), "err", err)
 				return err
 			}
 		}

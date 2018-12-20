@@ -37,8 +37,10 @@ base_gen_topo() {
 }
 
 base_run_topo() {
+    set -e
     ./scion.sh run nobuild
     ./tools/dc start tester_$SRC_IA_FILE
+    sleep 5
 }
 
 base_teardown() {

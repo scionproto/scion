@@ -11,7 +11,7 @@
 # 3. Change ports to original -> expect traffic to pass
 
 TEST_NAME="topo_br_reload_if_port"
-TEST_TOPOLOGY="acceptance/topo_br_reload_util/tinier.topo"
+TEST_TOPOLOGY="acceptance/topo_br_reload_util/Tinier.topo"
 
 . acceptance/topo_br_reload_util/util.sh
 
@@ -23,11 +23,9 @@ test_run() {
     set -e
     local orig_src=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $SRC_TOPO)
     local addr_src=$(jq -r '.Addr' <(echo $orig_src))
-    local pid_src=$(docker inspect -f '{{.State.Pid}}' scion_br"$SRC_IA_FILE"-1)
 
     local orig_dst=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $DST_TOPO)
     local addr_dst=$(jq -r '.Addr' <(echo $orig_dst))
-    local pid_dst=$(docker inspect -f '{{.State.Pid}}' scion_br"$DST_IA_FILE"-1)
 
     check_change_local_port
     check_change_remote_port
