@@ -5,7 +5,7 @@
   "BorderRouters": {
     "brA": {
       "CtrlAddr": {
-        "IPv4": { "Public": { "L4Port": 30001, "Addr": "192.168.0.101" } }
+        "IPv4": { "Public": { "L4Port": 20001, "Addr": "192.168.0.101" } }
       },
       "InternalAddrs": {
         "IPv4": { "PublicOverlay": { "OverlayPort": 30001, "Addr": "192.168.0.11" } }
@@ -24,7 +24,7 @@
     },
     "brB": {
       "CtrlAddr": {
-        "IPv4": { "Public": { "L4Port": 30002, "Addr": "192.168.0.102" } }
+        "IPv4": { "Public": { "L4Port": 20002, "Addr": "192.168.0.102" } }
       },
       "InternalAddrs": {
         "IPv4": { "PublicOverlay": { "OverlayPort": 30002, "Addr": "192.168.0.12" } }
@@ -43,7 +43,7 @@
     },
     "brC": {
       "CtrlAddr": {
-        "IPv4": { "Public": { "L4Port": 30003, "Addr": "192.168.0.103" } }
+        "IPv4": { "Public": { "L4Port": 20003, "Addr": "192.168.0.103" } }
       },
       "InternalAddrs": {
         "IPv4": { "PublicOverlay": { "OverlayPort": 30003, "Addr": "192.168.0.13" } }
@@ -62,7 +62,7 @@
     },
     "brD": {
       "CtrlAddr": {
-        "IPv4": { "Public": { "L4Port": 30004, "Addr": "192.168.0.104" } }
+        "IPv4": { "Public": { "L4Port": 20004, "Addr": "192.168.0.104" } }
       },
       "InternalAddrs": {
         "IPv4": { "PublicOverlay": { "OverlayPort": 30004, "Addr": "192.168.0.14" } }
@@ -154,17 +154,17 @@
   },
   "PathService": {
     "psA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 30005, "Addr": "192.168.0.51" } }
+        "IPv4": { "Public": { "L4Port": 20005, "Addr": "192.168.0.51" } }
     } }
   },
   "BeaconService": {
     "bsA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 30006, "Addr": "192.168.0.61" } }
+        "IPv4": { "Public": { "L4Port": 20006, "Addr": "192.168.0.61" } }
     } }
   },
   "CertificateService": {
     "csA": { "Addrs": {
-        "IPv4": { "Public": { "L4Port": 30007, "Addr": "192.168.0.71" } }
+        "IPv4": { "Public": { "L4Port": 20007, "Addr": "192.168.0.71" } }
     } }
   }
 }
