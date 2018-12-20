@@ -175,7 +175,7 @@ func (sr *SignedRevInfo) RevInfo() (*RevInfo, error) {
 func (sr *SignedRevInfo) String() string {
 	revInfo, err := sr.RevInfo()
 	if err != nil {
-		return fmt.Sprintf("SignedRevInfo: Error parsing RevInfo Blob: %s %s", err, sr.Sign)
+		return fmt.Sprintf("SignedRevInfo: Error parsing RevInfo, Blob: %s Sign: %s", err, sr.Sign)
 	}
-	return fmt.Sprintf("SignedRevInfo: %s %s", revInfo, sr.Sign)
+	return fmt.Sprintf("SignedRevInfo: RevInfo: %s Sign: %s", revInfo, sr.Sign)
 }
