@@ -2,6 +2,11 @@ FROM scion_base:latest
 ARG SCION_UID
 ARG SCION_GID
 ARG DOCKER_GID
+ARG GIT_VERSION
+ARG GIT_TAG
+
+ENV GIT_VERSION=${GIT_VERSION}
+ENV GIT_TAG=${GIT_TAG}
 
 # Make sure the scion user has the same UID/GID as the user on the host
 USER root

@@ -63,7 +63,7 @@ docker_build() {
     local conf="${build_dir:?}/scion.git/$conf_rel"
     local tag="$image_name:${image_tag:?}"
     local log="$build_dir/build${suffix:+_$suffix}.log"
-    [ -n "$suffix" ] || local build_args="--build-arg SCION_UID=$(id -u) --build-arg SCION_GID=$(id -g) --build-arg DOCKER_GID=$(getent group docker | cut -f3 -d:)"
+    [ -n "$suffix" ] || local build_args="--build-arg SCION_UID=$(id -u) --build-arg SCION_GID=$(id -g) --build-arg DOCKER_GID=$(getent group docker | cut -f3 -d:) --build-arg GIT_VERSION=$(./tools/git-version) --build-arg GIT_TAG=$(git tag -l --points-at HEAD)"
     echo "Building ${suffix:+$suffix }Docker image"
     echo "=========================="
     echo "Image: $tag"
