@@ -30,7 +30,7 @@ type ScnPath struct {
 	Segs Segments
 }
 
-// GenPath generates a ScnPath frmo Segments and Info/Hop Field indeces.
+// GenPath generates a ScnPath from Segments and Info/Hop Field indeces.
 // Note that this function writes the raw path then parses it to generate the
 // expected hop field macs.
 func GenPath(infoF, hopF int, segs Segments) *ScnPath {
