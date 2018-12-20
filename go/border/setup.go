@@ -74,6 +74,18 @@ type teardownHook func(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookResu
 var teardownLocalHooks []teardownHook
 var teardownExtHooks []teardownHook
 
+func addPosixHooks() {
+	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
+	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
+	rollbackLocalHooks = append(rollbackLocalHooks, rollbackPosixAddLocal)
+	rollbackExtHooks = append(rollbackExtHooks, rollbackPosixAddExt)
+	teardownLocalHooks = append(teardownLocalHooks, teardownPosixLocal)
+	teardownExtHooks = append(teardownExtHooks, teardownPosixExt)
+}
+
+// newConn is the function used to setup a connection. Per default, `conn.New` is used.
+var newConn = conn.New
+
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
 func (r *Router) setup() error {
@@ -88,12 +100,7 @@ func (r *Router) setup() error {
 
 	// Add default posix hooks. If there are other hooks, they should install
 	// themselves via init(), so they appear before the posix ones.
-	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
-	setupAddExtHooks = append(setupAddExtHooks, setupPosixAddExt)
-	rollbackLocalHooks = append(rollbackLocalHooks, rollbackPosixAddLocal)
-	rollbackExtHooks = append(rollbackExtHooks, rollbackPosixAddExt)
-	teardownLocalHooks = append(teardownLocalHooks, teardownPosixLocal)
-	teardownExtHooks = append(teardownExtHooks, teardownPosixExt)
+	addPosixHooks()
 
 	// Load config.
 	var err error
@@ -320,7 +327,7 @@ func addPosixLocal(r *Router, ctx *rctx.Ctx, bind *overlay.OverlayAddr,
 	labels prometheus.Labels) error {
 	log.Debug("Setting up new local socket.")
 	// Listen on the socket.
-	over, err := conn.New(bind, nil, labels)
+	over, err := newConn(bind, nil, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on local socket", err)
 	}
@@ -392,7 +399,7 @@ func addPosixIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	// Connect to remote address.
 	log.Debug("Setting up new external socket.", "intf", intf)
 	bind := intf.IFAddr.BindOrPublicOverlay(intf.IFAddr.Overlay)
-	c, err := conn.New(bind, intf.RemoteAddr, labels)
+	c, err := newConn(bind, intf.RemoteAddr, labels)
 	if err != nil {
 		return common.NewBasicError("Unable to listen on external socket", err)
 	}
