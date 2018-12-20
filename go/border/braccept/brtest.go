@@ -32,7 +32,7 @@ type BRTest struct {
 	// Out is the list of expected packets. No expected packets means that the packet
 	// should be dropped by the border router, and nothing is expected.
 	Out []*tpkt.ExpPkt
-	// Out is the list of packets that should be ignored.
+	// Ignore is the list of packets that should be ignored.
 	Ignore []*tpkt.ExpPkt
 }
 

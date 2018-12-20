@@ -408,23 +408,3 @@ var (
 			{ConsEgress: if_831, VerifyOnly: true},
 		})
 )
-
-/*
-func segment(str string) tpkt.Segment {
-	fields := strings.Split(str, "_")
-	// Parse and build Info Field
-	infoF := &spath.InfoField{ISD: 1, TsInt: tsNow}
-	infoStr := fields[0]
-	if strings.HasPrefix(infoStr, "seg") {
-		infoF.ConsDir = true
-		parseInfoFlags(infoF, infoStr[3:])
-	} else if strings.HasPrefix(infoStr, "revseg") {
-		infoF.ConsDir = false
-		parseInfoFlags(infoF, infoStr[6:])
-	} else {
-	}
-}
-
-func revseg(str string) tpkt.Segment {
-}
-*/

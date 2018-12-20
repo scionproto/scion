@@ -30,11 +30,9 @@ type ScnPath struct {
 	Segs Segments
 }
 
-// GenPath converts info and hop field indexes to their proper offsets.
-// Both infoF and hopF are relative indexes, where infoF index indicates the referenced segment
-// position and hopF index indicates the hop field position within the segment.
-// Note that this function writes the raw path then parses it to calculate the expected
-// hop field macs.
+// GenPath generates a ScnPath frmo Segments and Info/Hop Field indeces.
+// Note that this function writes the raw path then parses it to generate the
+// expected hop field macs.
 func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 	p := &ScnPath{}
 	p.InfOff, p.HopOff = indexToOffsets(uint8(infoF), uint8(hopF), segs)
@@ -48,6 +46,9 @@ func GenPath(infoF, hopF int, segs Segments) *ScnPath {
 	return p
 }
 
+// indexToOffsets converts info and hop field indexes to their proper offsets.
+// Both infoF and hopF are relative indexes, where infoF index indicates the referenced segment
+// position and hopF index indicates the hop field position within the segment.
 func indexToOffsets(infoF, hopF uint8, segs Segments) (int, int) {
 	var infOff, hopOff int
 	for i := 0; i < int(infoF); i++ {

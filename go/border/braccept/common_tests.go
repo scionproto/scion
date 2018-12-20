@@ -56,7 +56,7 @@ var (
 
 var tsNow = uint32(time.Now().Unix())
 
-var pathMgmtPld = &tpkt.PathMgmtPld{
+var ifStateReq = &tpkt.PathMgmtPld{
 	Signer:      ctrl.NullSigner,
 	SigVerifier: ctrl.NullSigVerifier,
 	Instance:    &path_mgmt.IFStateReq{},

@@ -26,7 +26,6 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
-	//"github.com/scionproto/scion/go/lib/spath"
 	"github.com/scionproto/scion/go/lib/spkt"
 	"github.com/scionproto/scion/go/lib/util"
 )
@@ -37,7 +36,7 @@ type SCMP struct {
 	layers.BaseLayer
 	scmp.Hdr
 	scmp.Payload
-	lbs    []LayerBuilder
+	layers []LayerBuilder
 	info   scmp.Info
 	l4Type common.L4ProtocolType
 }
@@ -56,34 +55,34 @@ func NewSCMP(c scmp.Class, t scmp.Type, lbs []LayerBuilder, info scmp.Info,
 	s := &SCMP{}
 	s.Class = c
 	s.Type = t
-	s.lbs = lbs
+	s.layers = lbs
 	s.info = info
 	s.l4Type = l4Type
 	return s
 }
 
-func (l *SCMP) LayerType() gopacket.LayerType {
+func (s *SCMP) LayerType() gopacket.LayerType {
 	return LayerTypeSCMP
 }
 
-func (l *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
+func (s *SCMP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
 	if opts.FixLengths {
-		l.TotalLen = uint16(l.Hdr.L4Len() + scmp.MetaLen + l.Payload.Len())
+		s.TotalLen = uint16(s.Hdr.L4Len() + scmp.MetaLen + s.Payload.Len())
 	}
-	buf, err := b.PrependBytes(int(l.TotalLen))
+	buf, err := b.PrependBytes(int(s.TotalLen))
 	if err != nil {
 		return err
 	}
-	if err := l.Hdr.Write(buf); err != nil {
+	if err := s.Hdr.Write(buf); err != nil {
 		return err
 	}
-	if _, err := l.Payload.WritePld(buf[scmp.HdrLen:]); err != nil {
+	if _, err := s.Payload.WritePld(buf[scmp.HdrLen:]); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (l *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+func (s *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	if len(data) < scmp.HdrLen {
 		df.SetTruncated()
 		return fmt.Errorf("Invalid SCMP header. Length %d less than %d",
@@ -97,153 +96,155 @@ func (l *SCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 		df.SetTruncated()
 		h.TotalLen = uint16(len(data))
 	}
-	l.Hdr = *h
-	p, err := scmp.PldFromRaw(data[scmp.HdrLen:], scmp.ClassType{Class: l.Class, Type: l.Type})
+	s.Hdr = *h
+	p, err := scmp.PldFromRaw(data[scmp.HdrLen:], scmp.ClassType{Class: s.Class, Type: s.Type})
 	if err != nil {
 		return err
 	}
-	l.Payload = *p
-	l.Contents = data[:l.TotalLen]
+	s.Payload = *p
+	s.Contents = data[:s.TotalLen]
 	return nil
 }
 
-func (l *SCMP) String() string {
+func (s *SCMP) String() string {
 	var str []string
-	str = append(str, fmt.Sprintf("%s", &l.Hdr))
-	if l.Meta != nil {
-		str = append(str, fmt.Sprintf("Meta={ %s }", l.Meta))
+	str = append(str, fmt.Sprintf("%s", &s.Hdr))
+	if s.Meta != nil {
+		str = append(str, fmt.Sprintf("Meta={ %s }", s.Meta))
 	}
-	if l.Info != nil {
-		str = append(str, fmt.Sprintf("Info={ %s }", l.Info))
+	if s.Info != nil {
+		str = append(str, fmt.Sprintf("Info={ %s }", s.Info))
 	}
 	var cmn *spkt.CmnHdr
-	if len(l.CmnHdr) > 0 {
+	if len(s.CmnHdr) > 0 {
 		var err error
-		if cmn, err = spkt.CmnHdrFromRaw(l.CmnHdr); err != nil {
-			str = append(str, fmt.Sprintf("CmnHdr=%s", l.CmnHdr))
+		if cmn, err = spkt.CmnHdrFromRaw(s.CmnHdr); err != nil {
+			str = append(str, fmt.Sprintf("CmnHdr=%s", s.CmnHdr))
 		} else {
 			str = append(str, fmt.Sprintf("CmnHdr={ %s }", cmn))
 		}
 	}
-	if len(l.AddrHdr) > 0 && cmn != nil {
-		if addr, err := ParseRawAddrHdr(l.AddrHdr, cmn.SrcType, cmn.DstType); err != nil {
-			str = append(str, fmt.Sprintf("AddrHdr=%s", l.AddrHdr))
+	if len(s.AddrHdr) > 0 && cmn != nil {
+		if addr, err := ParseRawAddrHdr(s.AddrHdr, cmn.SrcType, cmn.DstType); err != nil {
+			str = append(str, fmt.Sprintf("AddrHdr=%s", s.AddrHdr))
 		} else {
 			str = append(str, fmt.Sprintf("AddrHdr={ %s }", addr))
 		}
 	}
-	if len(l.PathHdr) > 0 {
+	if len(s.PathHdr) > 0 {
 		path := &ScnPath{}
-		if err := path.Parse(l.PathHdr); err != nil {
-			str = append(str, fmt.Sprintf("PathHdr=%s", l.PathHdr))
+		if err := path.Parse(s.PathHdr); err != nil {
+			str = append(str, fmt.Sprintf("PathHdr=%s", s.PathHdr))
 		} else {
 			str = append(str, fmt.Sprintf("PathHdr={ %s }", path))
 		}
 	}
-	if len(l.ExtHdrs) > 0 {
-		str = append(str, fmt.Sprintf("ExtHdrs=%s", l.ExtHdrs))
+	if len(s.ExtHdrs) > 0 {
+		str = append(str, fmt.Sprintf("ExtHdrs=%s", s.ExtHdrs))
 	}
-	if len(l.L4Hdr) > 0 {
-		switch l.Meta.L4Proto {
+	if len(s.L4Hdr) > 0 {
+		switch s.Meta.L4Proto {
 		case common.L4UDP:
-			if udp, err := l4.UDPFromRaw(l.L4Hdr); err != nil {
-				str = append(str, fmt.Sprintf("L4Hdr=%s", l.L4Hdr))
+			if udp, err := l4.UDPFromRaw(s.L4Hdr); err != nil {
+				str = append(str, fmt.Sprintf("L4Hdr=%s", s.L4Hdr))
 			} else {
 				str = append(str, fmt.Sprintf("L4Hdr={ %s }", udp))
 			}
 		case common.L4SCMP:
-			if hdr, err := scmp.HdrFromRaw(l.L4Hdr); err != nil {
-				str = append(str, fmt.Sprintf("L4Hdr=%s", l.L4Hdr))
+			if hdr, err := scmp.HdrFromRaw(s.L4Hdr); err != nil {
+				str = append(str, fmt.Sprintf("L4Hdr=%s", s.L4Hdr))
 			} else {
 				str = append(str, fmt.Sprintf("L4Hdr={ %s }", hdr))
 			}
 		default:
-			str = append(str, fmt.Sprintf("L4Hdr=%s", l.L4Hdr))
+			str = append(str, fmt.Sprintf("L4Hdr=%s", s.L4Hdr))
 		}
 	}
 	return strings.Join(str, " ")
 }
 
-func (l *SCMP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
-	s, ok := pktLayers[0].(*SCMP)
+func (s *SCMP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
+	pktScmp, ok := pktLayers[0].(*SCMP)
 	if !ok {
 		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
 			LayerTypeSCMP, pktLayers[0].LayerType())
 	}
-	if err := l.generatePayload(); err != nil {
+	if err := s.generatePayload(); err != nil {
 		return nil, err
 	}
-	l.TotalLen = uint16(scmp.HdrLen + l.Payload.Len())
+	s.TotalLen = uint16(scmp.HdrLen + s.Payload.Len())
 	// Generate expected checksum with the received packet SCION/SCMP header, and the expected
 	// Payload as input
-	csum := util.Checksum(lc.scion.RawAddrHdr(), []uint8{0, uint8(common.L4SCMP)}, s.Contents)
+	csum := util.Checksum(lc.scion.RawAddrHdr(), []uint8{0, uint8(common.L4SCMP)}, pktScmp.Contents)
 	if csum != 0 {
-		return nil, fmt.Errorf("SCMP checksum failure\nExpected %x\nActual   %s", csum, s.Checksum)
+		return nil, fmt.Errorf("SCMP checksum failure\nExpected %x\nActual   %s",
+			csum, pktScmp.Checksum)
 	}
-	l.Checksum = s.Checksum
-	if err := l.compareHdr(s, lc); err != nil {
+	s.Checksum = pktScmp.Checksum
+	if err := s.compareHdr(pktScmp, lc); err != nil {
 		return nil, err
 	}
-	if err := l.comparePld(s, lc); err != nil {
+	if err := s.comparePld(pktScmp, lc); err != nil {
 		return nil, err
 	}
 	return pktLayers[1:], nil
 }
 
-func (l *SCMP) compareHdr(s *SCMP, lc *LayerCache) error {
-	ts := s.Time()
+func (s *SCMP) compareHdr(o *SCMP, lc *LayerCache) error {
+	ts := o.Time()
 	now := time.Now()
-	if ts.After(now) || ts.Before(now.Add(-1*time.Second)) {
-		return fmt.Errorf("SCMP timestamp check failed\nExpected (now -1, now)\nActual   %s", ts)
+	min := ts.Before(now.Add(-1 * time.Second))
+	if ts.After(now) || min {
+		return fmt.Errorf("SCMP timestamp check failed\nExpected between (%s, %s)\nActual   %s",
+			min, now, ts)
 	}
 	// If the received packet SCMP timestamp is within acceptable limits, we set the expected
 	// timestamp to the value of the received packet to do quick struct comparison
-	l.Timestamp = s.Timestamp
-	if l.Class != s.Class || l.Type != s.Type || l.TotalLen != s.TotalLen {
+	s.Timestamp = o.Timestamp
+	if s.Class != o.Class || s.Type != o.Type || s.TotalLen != o.TotalLen {
 		return fmt.Errorf("SCMP header mismatch\nExpected %s\nActual   %s",
-			&l.Hdr, &s.Hdr)
+			&s.Hdr, &o.Hdr)
 	}
 	return nil
 }
 
-func (l *SCMP) comparePld(s *SCMP, lc *LayerCache) error {
-	if *l.Meta != *s.Meta {
-		return fmt.Errorf("SCMP Meta mismatch\nExpected %s\nActual   %s", l.Meta, s.Meta)
+func (s *SCMP) comparePld(o *SCMP, lc *LayerCache) error {
+	if *s.Meta != *o.Meta {
+		return fmt.Errorf("SCMP Meta mismatch\nExpected %s\nActual   %s", s.Meta, o.Meta)
 	}
 	start := scmp.HdrLen + scmp.MetaLen
-	end := start + int(l.Meta.InfoLen)*common.LineLen
-	infoRaw := make(common.RawBytes, l.Payload.Info.Len())
-	l.Payload.Info.Write(infoRaw)
-	//if !bytes.Equal(l.Contents[start:end], s.Contents[start:end]) {
-	if !bytes.Equal(infoRaw, s.Contents[start:end]) {
-		return fmt.Errorf("SCMP Info mismatch\nExpected %s\nActual   %s", l.Info, s.Info)
+	end := start + int(s.Meta.InfoLen)*common.LineLen
+	infoRaw := make(common.RawBytes, s.Payload.Info.Len())
+	s.Payload.Info.Write(infoRaw)
+	if !bytes.Equal(infoRaw, o.Contents[start:end]) {
+		return fmt.Errorf("SCMP Info mismatch\nExpected %s\nActual   %s", s.Info, o.Info)
 	}
-	if !bytes.Equal(l.Payload.CmnHdr, s.Payload.CmnHdr) {
+	if !bytes.Equal(s.Payload.CmnHdr, o.Payload.CmnHdr) {
 		return fmt.Errorf("SCMP CmnHdr quote mismatch\nExpected %s\nActual   %s",
-			l.Payload.CmnHdr, s.Payload.CmnHdr)
+			s.Payload.CmnHdr, o.Payload.CmnHdr)
 	}
-	if !bytes.Equal(l.Payload.AddrHdr, s.Payload.AddrHdr) {
+	if !bytes.Equal(s.Payload.AddrHdr, o.Payload.AddrHdr) {
 		return fmt.Errorf("SCMP AddrHdr quote mismatch\nExpected %s\nActual   %s",
-			l.Payload.AddrHdr, s.Payload.AddrHdr)
+			s.Payload.AddrHdr, o.Payload.AddrHdr)
 	}
-	if !bytes.Equal(l.Payload.PathHdr, s.Payload.PathHdr) {
+	if !bytes.Equal(s.Payload.PathHdr, o.Payload.PathHdr) {
 		return fmt.Errorf("SCMP PathHdr quote mismatch\nExpected %s\nActual   %s",
-			l.Payload.PathHdr, s.Payload.PathHdr)
+			s.Payload.PathHdr, o.Payload.PathHdr)
 	}
-	if !bytes.Equal(l.Payload.ExtHdrs, s.Payload.ExtHdrs) {
+	if !bytes.Equal(s.Payload.ExtHdrs, o.Payload.ExtHdrs) {
 		return fmt.Errorf("SCMP ExtHdrs quote mismatch\nExpected %s\nActual   %s",
-			l.Payload.ExtHdrs, s.Payload.ExtHdrs)
+			s.Payload.ExtHdrs, o.Payload.ExtHdrs)
 	}
-	if !bytes.Equal(l.Payload.L4Hdr, s.Payload.L4Hdr) {
+	if !bytes.Equal(s.Payload.L4Hdr, o.Payload.L4Hdr) {
 		return fmt.Errorf("SCMP L4Hdr quote mismatch\nExpected %s\nActual   %s",
-			l.Payload.L4Hdr, s.Payload.L4Hdr)
+			s.Payload.L4Hdr, o.Payload.L4Hdr)
 	}
 	return nil
 }
 
-func (l *SCMP) generatePayload() error {
+func (s *SCMP) generatePayload() error {
 	// It cannot fail, given that is the the packet that was previously sent without error
-	raw, _ := serializeLayers(l.lbs)
+	raw, _ := serializeLayers(s.layers)
 	// Build and parse the packet sent, which will be used to generate the expected quotes
 	pkt := gopacket.NewPacket(raw, LayerTypeScion, gopacket.NoCopy)
 	scn := pkt.Layer(LayerTypeScion).(*ScionLayer)
@@ -251,7 +252,7 @@ func (l *SCMP) generatePayload() error {
 		return fmt.Errorf("Failed to generate expected SCMP quotes (SCION layer parsing)")
 	}
 	qr := &quoteRaw{scion: scn}
-	switch l.l4Type {
+	switch s.l4Type {
 	case common.L4SCMP:
 		qr.l4 = pkt.Layer(LayerTypeSCMP).(*SCMP)
 	default:
@@ -263,15 +264,15 @@ func (l *SCMP) generatePayload() error {
 	}
 	// Convert from test relative offset to index offsets
 	// Cannot do it on the constructor because we need the segments for the conversion
-	if ipo, ok := l.info.(*scmp.InfoPathOffsets); ok {
+	if ipo, ok := s.info.(*scmp.InfoPathOffsets); ok {
 		infOff, hopOff := indexToOffsets(ipo.InfoF, ipo.HopF, scn.Path.Segs)
 		base := spkt.CmnHdrLen + scn.AddrHdr.Len()
 		ipo.InfoF = uint8((base + infOff) / common.LineLen)
 		ipo.HopF = uint8((base + hopOff) / common.LineLen)
 	}
-	ct := scmp.ClassType{Class: l.Class, Type: l.Type}
-	pld := scmp.PldFromQuotes(ct, l.info, l.l4Type, qr.getRaw)
-	l.Payload = *pld
+	ct := scmp.ClassType{Class: s.Class, Type: s.Type}
+	pld := scmp.PldFromQuotes(ct, s.info, s.l4Type, qr.getRaw)
+	s.Payload = *pld
 	return nil
 }
 
@@ -314,8 +315,4 @@ func (qr *quoteRaw) getRaw(blk scmp.RawBlock) common.RawBytes {
 		return qr.l4.LayerContents()
 	}
 	return nil
-}
-
-func NewInfoPathOffsets(infoF, hopF uint8, ifid common.IFIDType, in bool) *scmp.InfoPathOffsets {
-	return &scmp.InfoPathOffsets{InfoF: infoF, HopF: hopF, IfID: ifid, Ingress: in}
 }

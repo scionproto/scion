@@ -27,8 +27,8 @@ var IgnoredPacketsCoreBrA = []*tpkt.ExpPkt{
 	{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
 		tpkt.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.61", 30041),
 		tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "BS_M", nil, common.L4UDP),
-		tpkt.NewUDP(20001, 0, pathMgmtPld),
-		pathMgmtPld,
+		tpkt.NewUDP(20001, 0, ifStateReq),
+		ifStateReq,
 	}}}
 
 func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
@@ -150,7 +150,7 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 							revseg_1A0X_02A.Macs(hMac, 0)},
 						),
 						common.HopByHopClass),
-					&tpkt.ScionHBHSCMP{Extn: scmp.Extn{Error: true}},
+					&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true}},
 					tpkt.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, []tpkt.LayerBuilder{
 						tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
 							tpkt.GenPath(1, 0, tpkt.Segments{
@@ -158,7 +158,7 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 								seg_01C_3A0.Macs(hMac, 0)},
 							), nil,
 							&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
-						tpkt.NewInfoPathOffsets(1, 0, if_121, true),
+						&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
 						common.L4UDP),
 				}}},
 			Ignore: IgnoredPacketsCoreBrA,
@@ -185,7 +185,7 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 							revseg_1A0X_02A.Macs(hMac, 0)},
 						),
 						common.HopByHopClass),
-					&tpkt.ScionHBHSCMP{Extn: scmp.Extn{Error: true}},
+					&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true}},
 					tpkt.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, []tpkt.LayerBuilder{
 						tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
 							tpkt.GenPath(1, 0, tpkt.Segments{
@@ -194,7 +194,6 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 							),
 							common.L4TCP),
 						tpkt.NewPld([]byte{1, 2, 3, 4, 5, 6, 7, 8})},
-						//tpkt.NewInfoPathOffsets(1, 0, if_121, true),
 						&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
 						common.L4TCP),
 				}}},

@@ -32,13 +32,6 @@ func newExtnLayerID() int {
 	return id
 }
 
-// ScionHBH represents a SCION HopByHop extension.
-type ScionHBH struct{}
-
-func (l *ScionHBH) LayerType() gopacket.LayerType {
-	return LayerTypeScionHBH
-}
-
 var LayerTypeScionHBH gopacket.LayerType
 
 func init() {
@@ -61,8 +54,6 @@ func decodeScionHBH(data []byte, p gopacket.PacketBuilder) error {
 	switch data[2] {
 	case common.ExtnSCMPType.Type:
 		return decodeHBHSCMP(data, p)
-	case common.ExtnOneHopPathType.Type:
-		return decodeHBHOHP(data, p)
 	}
 	return fmt.Errorf("Unsupported SCION HopByHop extension. Type %d", data[2])
 }
@@ -89,7 +80,7 @@ func (l *baseExtension) LengthBytes() int {
 	return int(l.Length) * common.LineLen
 }
 
-var _ LayerMatcher = (*Payload)(nil)
+var _ LayerMatcher = (*ScionSCMPExtn)(nil)
 
 var LayerTypeScionHBHSCMP = gopacket.RegisterLayerType(
 	newExtnLayerID(),
@@ -99,14 +90,14 @@ var LayerTypeScionHBHSCMP = gopacket.RegisterLayerType(
 	},
 )
 
-type ScionHBHSCMP struct {
+type ScionSCMPExtn struct {
 	layers.BaseLayer
 	baseExtension
 	scmp.Extn
 }
 
-func (l *ScionHBHSCMP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
-	e, ok := pktLayers[0].(*ScionHBHSCMP)
+func (l *ScionSCMPExtn) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Layer, error) {
+	e, ok := pktLayers[0].(*ScionSCMPExtn)
 	if !ok {
 		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
 			LayerTypeScionHBHSCMP, pktLayers[0].LayerType())
@@ -119,11 +110,11 @@ func (l *ScionHBHSCMP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopa
 	return pktLayers[1:], nil
 }
 
-func (l *ScionHBHSCMP) LayerType() gopacket.LayerType {
+func (l *ScionSCMPExtn) LayerType() gopacket.LayerType {
 	return LayerTypeScionHBHSCMP
 }
 
-func (l *ScionHBHSCMP) SerializeTo(b gopacket.SerializeBuffer,
+func (l *ScionSCMPExtn) SerializeTo(b gopacket.SerializeBuffer,
 	opts gopacket.SerializeOptions) error {
 
 	buf, err := b.PrependBytes(l.LengthBytes())
@@ -137,7 +128,7 @@ func (l *ScionHBHSCMP) SerializeTo(b gopacket.SerializeBuffer,
 	return nil
 }
 
-func (l *ScionHBHSCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
+func (l *ScionSCMPExtn) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
 	// data length is at least common.LineLen
 	l.baseExtension.decodeFromBytes(data)
 	e, err := scmp.ExtnFromRaw(data[3:])
@@ -156,65 +147,13 @@ func (l *ScionHBHSCMP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) 
 }
 
 func decodeHBHSCMP(data []byte, p gopacket.PacketBuilder) error {
-	s := &ScionHBHSCMP{}
+	s := &ScionSCMPExtn{}
 	err := s.DecodeFromBytes(data, p)
 	p.AddLayer(s)
 	if err != nil {
 		return err
 	}
 	return p.NextDecoder(scionNextLayerType(s.NextHdr))
-}
-
-type ScionHBHOHP struct {
-	layers.BaseLayer
-	baseExtension
-}
-
-var LayerTypeScionHBHOHP = gopacket.RegisterLayerType(
-	newExtnLayerID(),
-	gopacket.LayerTypeMetadata{
-		Name:    "ScionHopByHopOHP",
-		Decoder: gopacket.DecodeFunc(decodeHBHOHP),
-	},
-)
-
-func (l *ScionHBHOHP) LayerType() gopacket.LayerType {
-	return LayerTypeScionHBHOHP
-}
-
-func (l *ScionHBHOHP) SerializeTo(b gopacket.SerializeBuffer,
-	opts gopacket.SerializeOptions) error {
-
-	len := l.LengthBytes()
-	buf, err := b.PrependBytes(len)
-	if err != nil {
-		return err
-	}
-	l.baseExtension.SerializeTo(buf)
-	return nil
-}
-
-func (l *ScionHBHOHP) DecodeFromBytes(data []byte, df gopacket.DecodeFeedback) error {
-	// data length is at least common.LineLen
-	l.baseExtension.decodeFromBytes(data)
-	len := l.LengthBytes()
-	padding := data[3:len]
-	if _, res := isZeroMemory(padding); !res {
-		return fmt.Errorf("OneHopPath extension padding is not zero.\nActual %s", padding)
-	}
-	l.Contents = data[:len]
-	l.Payload = data[len:]
-	return nil
-}
-
-func decodeHBHOHP(data []byte, p gopacket.PacketBuilder) error {
-	ohp := &ScionHBHOHP{}
-	err := ohp.DecodeFromBytes(data, p)
-	p.AddLayer(ohp)
-	if err != nil {
-		return err
-	}
-	return p.NextDecoder(scionNextLayerType(ohp.NextHdr))
 }
 
 func isZeroMemory(b common.RawBytes) (int, bool) {
