@@ -401,6 +401,10 @@ type RevNotification struct {
 	SRevInfo *path_mgmt.SignedRevInfo
 }
 
+func (rN *RevNotification) String() string {
+	return fmt.Sprintf("SRevInfo: %s", rN.SRevInfo)
+}
+
 type RevReply struct {
 	Result RevResult
 }
