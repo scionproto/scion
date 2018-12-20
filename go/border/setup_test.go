@@ -49,15 +49,6 @@ func testInitMetrics() {
 	})
 }
 
-// r := setupTestRouter(t)
-// oldCtx := copyContext(rctx.Get())
-// config := loadConfig(t)
-// config.Net.LocAddr.PublicOverlay(config.Net.LocAddr.Overlay).L3().IP()[0] = 255
-// SoMsg("err", r.setupNewContext(config), ShouldNotBeNil)
-// checkLocSocketsUnchanged(rctx.Get(), oldCtx)
-// checkExtSocketsUnchanged(rctx.Get(), oldCtx)
-// closeAllSocks()
-
 func TestSetupNet(t *testing.T) {
 	testInitMetrics()
 	defer func() {
@@ -95,19 +86,6 @@ func TestSetupNet(t *testing.T) {
 			checkLocSocketsUnchanged(ctx, oldCtx)
 			checkExtSocketsUnchanged(ctx, oldCtx)
 		})
-		Convey("Setting up a config with invalid local address should fail", func() {
-			newConn = func(_, _ *overlay.OverlayAddr, _ prometheus.Labels) (conn.Conn, error) {
-				return nil, common.NewBasicError("Connection refused", nil)
-			}
-			defer setNewDummyConn(c)
-			copyCtx := copyContext(oldCtx)
-			ctx := rctx.New(loadConfig(t))
-			ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[0] = 255
-			err := r.setupNet(ctx, copyCtx)
-			SoMsg("err", common.GetErrorMsg(err), ShouldEqual, ErrorAddLocalHook)
-			checkLocSocketsUnchanged(copyCtx, oldCtx)
-			checkExtSocketsUnchanged(copyCtx, oldCtx)
-		})
 		Convey("Setting up a config with changed local address should keep extSocks", func() {
 			copyCtx := copyContext(oldCtx)
 			ctx := rctx.New(loadConfig(t))
@@ -115,18 +93,36 @@ func TestSetupNet(t *testing.T) {
 			err := r.setupNet(ctx, copyCtx)
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("LocSockIn changed", ctx.LocSockIn, ShouldNotEqual, oldCtx.LocSockIn)
-			SoMsg("LocSockOut changed", ctx.LocSockOut, ShouldEqual, oldCtx.LocSockOut)
+			SoMsg("LocSockOut changed", ctx.LocSockOut, ShouldNotEqual, oldCtx.LocSockOut)
 			checkExtSocketsUnchanged(ctx, oldCtx)
 		})
-		Convey("Setting up a config with changed ext address should keep extSocks", func() {
+		Convey("Setting up a config with changed interface should keep unaffected sockets", func() {
 			copyCtx := copyContext(oldCtx)
 			ctx := rctx.New(loadConfig(t))
-			ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[0] = 255
-			err := r.setupNet(ctx, copyCtx)
-			SoMsg("err", err, ShouldBeNil)
-			SoMsg("LocSockIn changed", ctx.LocSockIn, ShouldNotEqual, oldCtx.LocSockIn)
-			SoMsg("LocSockOut changed", ctx.LocSockOut, ShouldEqual, oldCtx.LocSockOut)
-			checkExtSocketsUnchanged(ctx, oldCtx)
+			Convey("Changing local address does not affect old socket", func() {
+				ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[0] = 255
+				err := r.setupNet(ctx, copyCtx)
+				SoMsg("err", err, ShouldBeNil)
+				checkLocSocketsUnchanged(ctx, copyCtx)
+				SoMsg("IFID 11", ctx.ExtSockIn[11], ShouldEqual, oldCtx.ExtSockIn[11])
+				SoMsg("IFID 11", ctx.ExtSockOut[11], ShouldEqual, oldCtx.ExtSockOut[11])
+				SoMsg("IFID 12", ctx.ExtSockIn[12], ShouldNotEqual, oldCtx.ExtSockIn[12])
+				SoMsg("IFID 12", ctx.ExtSockOut[12], ShouldNotEqual, oldCtx.ExtSockOut[12])
+				SoMsg("Old 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeTrue)
+				SoMsg("Old 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeTrue)
+			})
+			Convey("Changing remote address closes old socket", func() {
+				ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[0] = 255
+				err := r.setupNet(ctx, copyCtx)
+				SoMsg("err", err, ShouldBeNil)
+				checkLocSocketsUnchanged(ctx, copyCtx)
+				SoMsg("IFID 11", ctx.ExtSockIn[11], ShouldEqual, oldCtx.ExtSockIn[11])
+				SoMsg("IFID 11", ctx.ExtSockOut[11], ShouldEqual, oldCtx.ExtSockOut[11])
+				SoMsg("IFID 12", ctx.ExtSockIn[12], ShouldNotEqual, oldCtx.ExtSockIn[12])
+				SoMsg("IFID 12", ctx.ExtSockOut[12], ShouldNotEqual, oldCtx.ExtSockOut[12])
+				SoMsg("Old 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+				SoMsg("Old 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+			})
 		})
 	})
 }
