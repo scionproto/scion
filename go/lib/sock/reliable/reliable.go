@@ -264,10 +264,6 @@ func (conn *Conn) WriteTo(buf []byte, dst net.Addr) (int, error) {
 	return len(buf), nil
 }
 
-func (conn *Conn) Write(buf []byte) (int, error) {
-	return conn.WriteTo(buf, nil)
-}
-
 // Read blocks until it reads the next framed message payload from conn and stores it in buf.
 // The first return value contains the number of payload bytes read.
 // buf must be large enough to fit the entire message. No addressing data is returned,

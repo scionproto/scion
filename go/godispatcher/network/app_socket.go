@@ -15,9 +15,10 @@
 package network
 
 import (
+	"io"
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/buffers"
+	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
 	"github.com/scionproto/scion/go/godispatcher/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -88,14 +89,14 @@ func (h *AppConnHandler) Handle() {
 		defer log.LogPanicAndExit()
 		RunRingToAppDataplane(tableEntry.appIngressRing, h.Conn)
 	}()
-	RunAppToNetDataplane(h.Conn, h.OverlayConn)
+	RunAppToNetDataplane(h.Conn, h.OverlayConn, ref.UDPAddr())
 }
 
-func (h *AppConnHandler) doRegExchange() (registration.Reference, *TableEntry, error) {
-	buffer := buffers.Get()
-	defer buffers.Put(buffer)
+func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry, error) {
+	b := bufpool.Get()
+	defer bufpool.Put(b)
 
-	regInfo, err := h.recvRegistration(buffer)
+	regInfo, err := h.recvRegistration(b)
 	if err != nil {
 		return nil, nil, common.NewBasicError("registration message error", nil, "err", err)
 	}
@@ -104,7 +105,7 @@ func (h *AppConnHandler) doRegExchange() (registration.Reference, *TableEntry, e
 	ref, err := h.RoutingTable.Register(
 		regInfo.IA,
 		regInfo.PublicAddress,
-		nil,
+		getBindIP(regInfo.BindAddress),
 		regInfo.SVCAddress,
 		tableEntry,
 	)
@@ -112,18 +113,17 @@ func (h *AppConnHandler) doRegExchange() (registration.Reference, *TableEntry, e
 		return nil, nil, common.NewBasicError("registration table error", nil, "err", err)
 	}
 
-	port := uint16(ref.(registration.UDPReference).UDPAddr().Port)
-	if err := h.sendConfirmation(buffer, &reliable.Confirmation{Port: port}); err != nil {
+	udpRef := ref.(registration.UDPReference)
+	port := uint16(udpRef.UDPAddr().Port)
+	if err := h.sendConfirmation(b, &reliable.Confirmation{Port: port}); err != nil {
 		// Need to release stale state from the table
 		ref.Free()
 		return nil, nil, common.NewBasicError("confirmation message error", nil, "err", err)
 	}
-	return ref, tableEntry, nil
+	return udpRef, tableEntry, nil
 }
 
-func (h *AppConnHandler) recvRegistration(buffer *buffers.Buffer) (*reliable.Registration, error) {
-	b := buffer.Reset()
-
+func (h *AppConnHandler) recvRegistration(b common.RawBytes) (*reliable.Registration, error) {
 	n, _, err := h.Conn.ReadFrom(b)
 	if err != nil {
 		return nil, err
@@ -131,15 +131,13 @@ func (h *AppConnHandler) recvRegistration(buffer *buffers.Buffer) (*reliable.Reg
 	b = b[:n]
 
 	var rm reliable.Registration
-	if err := rm.DecodeFromBytes(b[:n]); err != nil {
+	if err := rm.DecodeFromBytes(b); err != nil {
 		return nil, err
 	}
 	return &rm, nil
 }
 
-func (h *AppConnHandler) sendConfirmation(buffer *buffers.Buffer, c *reliable.Confirmation) error {
-	b := buffer.Reset()
-
+func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirmation) error {
 	n, err := c.SerializeTo(b)
 	if err != nil {
 		return err
@@ -154,13 +152,16 @@ func (h *AppConnHandler) sendConfirmation(buffer *buffers.Buffer, c *reliable.Co
 
 // RunAppToNetDataplane moves packets from the application's socket to the
 // overlay socket.
-func RunAppToNetDataplane(appConn, overlayConn net.PacketConn) {
+func RunAppToNetDataplane(appConn, overlayConn net.PacketConn, client *net.UDPAddr) {
 	for {
-		buffer := buffers.Get()
-		b := buffer.Reset()
+		b := bufpool.Get()
 		n, nextHop, err := appConn.ReadFrom(b)
 		if err != nil {
-			log.Error("app->network, app conn error", "err", err)
+			if err == io.EOF {
+				log.Info("app->network, EOF received from app", "app", client)
+			} else {
+				log.Error("app->network, app conn error", "err", err)
+			}
 			return
 		}
 		b = b[:n]
@@ -174,7 +175,7 @@ func RunAppToNetDataplane(appConn, overlayConn net.PacketConn) {
 		if err != nil {
 			log.Error("app->network, overlay conn error", "err", err)
 		}
-		buffers.Put(buffer)
+		bufpool.Put(b)
 	}
 }
 
@@ -199,8 +200,9 @@ func RunRingToAppDataplane(r *ringbuf.Ring, conn net.PacketConn) {
 			if err != nil {
 				log.Error("network->app, app conn error", "err", err)
 				conn.Close()
+				return
 			}
-			buffers.Put(pkt.buffer)
+			bufpool.Put(pkt.buffer)
 		}
 	}
 }
@@ -217,4 +219,11 @@ func newTableEntry(conn net.PacketConn) *TableEntry {
 		conn:           conn,
 		appIngressRing: appIngressRing,
 	}
+}
+
+func getBindIP(address *net.UDPAddr) net.IP {
+	if address == nil {
+		return nil
+	}
+	return address.IP
 }
