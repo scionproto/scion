@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file handles the router setup, from getting the config loaded, to
-// configuring the network interfaces, and starting the input goroutines.
-// Support for POSIX(/BSD) sockets is included here, with hooks to allow other
-// network stacks to be loaded instead/additionally.
-
 package main
 
 import (
