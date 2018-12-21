@@ -2,11 +2,21 @@
 
 set -e
 
-[ "$RUN_ALL_TESTS" = "y" ] && ARGS="-a"
+TESTS="revocation go_integration go_infra"
 
-echo "- label: Integration Tests"
-echo "  command:"
-echo "  - $BASE/run_step integration $ARGS"
-echo "  timeout_in_minutes: 30"
-echo "  artifact_paths:"
-echo "  - \"artifacts.out/**/*\""
+run_test() {
+    echo "- label: Integration - ${1:?}"
+    echo "  command:"
+    echo "  - $BASE/run_step integration $1"
+    echo "  timeout_in_minutes: 10"
+    echo "  artifact_paths:"
+    echo "  - \"artifacts.out/**/*\""
+}
+
+if [ "$RUN_ALL_TESTS" = "y" ]; then
+    run_test "py_integration"
+fi
+
+for test in $TESTS; do
+    run_test "$test"
+done

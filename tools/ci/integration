@@ -2,6 +2,50 @@
 
 . tools/ci/common.sh
 
+go_infra() {
+    if [ -z "$DOCKER_BE" ]; then
+        ./docker.sh exec "set -eo pipefail; integration/go_infra |& tee -a logs/integration.run"
+    else
+        echo "Error: Cannot run go_infra tests with docker backend!"
+        return 1
+    fi
+}
+
+go_integration() {
+    ./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
+}
+
+py_integration() {
+    ./docker.sh exec "set -eo pipefail; integration/py_integration |& tee -a logs/integration.run"
+}
+
+revocation() {
+    echo "========> ($(date -u --rfc-3339=seconds)) End2end: starting"
+    ./docker.sh exec "set -eo pipefail; time bin/end2end_integration -log.console error $DOCKER_BE |& tee -a logs/integration.run"
+    [ "$?" -eq 0 ] || return 1
+    echo "========> ($(date -u --rfc-3339=seconds)) End2end: success"
+    ./docker.sh exec "set -eo pipefail; integration/revocation_test.sh |& tee -a logs/integration.run"
+}
+
+run_tests() {
+    result=0
+    go_infra
+    result=$((result+$?))
+    go_integration
+    result=$((result+$?))
+    if [ -n "$ALL" ]; then
+        py_integration
+        result=$((result+$?))
+    fi
+    revocation
+    result=$((result+$?))
+    if [ $result -eq 0 ]; then
+        echo "========> ($(date -u --rfc-3339=seconds)) All integration tests successful"
+    else
+        echo "========> ($(date -u --rfc-3339=seconds)) $result integration tests failed"
+    fi
+}
+
 ./docker.sh exec "set -x; ./scion.sh topology ${DOCKER_BE:+ -d -n 172.21.0.0/16 -c topology/Tiny.topo}"
 ./docker.sh exec "set -eo pipefail; ./scion.sh run nobuild | grep -v "started" |& tee logs/integration.run"
 ./docker.sh exec "set -eo pipefail; ./scion.sh status |& tee logs/integration.run"
@@ -11,33 +55,14 @@ if [ -n "$DOCKER_BE" ]; then
 fi
 
 sleep 15
-result=0
 
-if [ -z "$DOCKER_BE" ]; then
-    # Go infra tests
-    ./docker.sh exec "set -eo pipefail; integration/go_infra |& tee -a logs/integration.run"
-    result=$((result+$?))
-fi
-
-# Run go integration tests
-./docker.sh exec "set -eo pipefail; integration/go_integration |& tee -a logs/integration.run"
-result=$((result+$?))
-
-if [ -n "$ALL" ]; then
-    # Python integration tests
-    ./docker.sh exec "set -eo pipefail; integration/py_integration |& tee -a logs/integration.run"
-    result=$((result+$?))
-fi
-
-# Revocation test
-./docker.sh exec "set -eo pipefail; integration/revocation_test.sh |& tee -a logs/integration.run"
-result=$((result+$?))
-
-if [ $result -eq 0 ]; then
-    echo "========> ($(date -u --rfc-3339=seconds)) All integration tests successful"
-else
-    echo "========> ($(date -u --rfc-3339=seconds)) $result integration tests failed"
-fi
+COMMAND="$1"
+shift
+case "$COMMAND" in
+    go_infra|go_integration|py_integration|revocation)
+        "$COMMAND"; result=$? ;;
+    *) run_tests; result=$? ;;
+esac
 
 # Stop scion
 ./docker.sh exec "set -eo pipefail; { ./scion.sh status && ./scion.sh stop; } |& tee -a logs/integration.run"
