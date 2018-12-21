@@ -41,7 +41,7 @@ const (
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 8 * time.Second
 	// CtxTimeout is the timeout a context waits before being killed
-	CtxTimeout = 5 * time.Second
+	CtxTimeout = 6 * time.Second
 	// RetryTimeout is the timeout between different attempts
 	RetryTimeout = time.Second / 2
 )
@@ -219,7 +219,7 @@ func (s *serverStop) Close() error {
 // WithTimestamp returns s with the now timestamp prefixed.
 // This is helpful for logging staments to stdout/stderr or in a file where the logger isn't used.
 func WithTimestamp(s string) string {
-	return fmt.Sprintf("%v %s", time.Now().Format(fmt15.TimeFmt), s)
+	return fmt.Sprintf("%v %s", time.Now().UTC().Format(fmt15.TimeFmt), s)
 }
 
 // StartServer runs a server. The server can be stopped by calling Close() on the returned Closer.

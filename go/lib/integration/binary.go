@@ -204,7 +204,9 @@ func (bi *binaryIntegration) writeLog(name, id, startInfo string, ep io.ReadClos
 	w := bufio.NewWriter(f)
 	defer w.Flush()
 	w.WriteString(WithTimestamp(fmt.Sprintf("Starting %s %s\n", name, startInfo)))
-	defer w.WriteString(WithTimestamp(fmt.Sprintf("Finished %s %s\n", name, startInfo)))
+	defer func() {
+		w.WriteString(WithTimestamp(fmt.Sprintf("Finished %s %s\n", name, startInfo)))
+	}()
 	scanner := bufio.NewScanner(ep)
 	for scanner.Scan() {
 		w.WriteString(fmt.Sprintf("%s\n", scanner.Text()))
