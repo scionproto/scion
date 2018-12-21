@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Small script to determine the git version.
+
+set -e -o pipefail
+
+HEAD_TAG=$(git tag -l --points-at HEAD)
+GIT_DESC=$(git describe --tags)
+DIRTY=$(git diff HEAD --quiet || echo '-dirty')
+if [ "$HEAD_TAG" = "$GIT_DESC" ]; then
+    echo "$GIT_DESC-$(git rev-parse --short HEAD)$DIRTY"
+else
+    echo "$GIT_DESC$DIRTY"
+fi
