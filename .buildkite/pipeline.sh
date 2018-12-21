@@ -2,8 +2,6 @@
 
 set -e
 
-RUN_ALL_TESTS=y
-
 export BASE=".buildkite"
 STEPS="$BASE/steps"
 
