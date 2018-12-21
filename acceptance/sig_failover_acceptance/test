@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# This test checks whether path failover in SIG works as expected.
+# It sets up two ASes connected by two paths. It disables one path
+# and checks whether IP traffic is still going through. Then it
+# enables the first path and disables the other one. It tries to pass
+# IP packets between the ASes again.
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+TEST_NAME="sig_failover"
+TEST_TOPOLOGY="acceptance/sig_failover_acceptance/Test.topo"
+
+. acceptance/sigutil/common.sh
+
+test_run() {
+    set -e
+    # Make sure that pings go through in a vanilla setup.
+    ./bin/sig_ping_acceptance -d -log.console info
+    # Disable one of the two paths between the ASes by stopping the corresponding BR.
+    ./tools/dc stop scion_br1-ff00_0_110-2
+    # Make sure that the pings still get through.
+    ./bin/sig_ping_acceptance -d -log.console info
+    # Enable the disabled path, disable the other path.
+    ./tools/dc start scion_br1-ff00_0_110-2
+    ./tools/dc stop scion_br1-ff00_0_110-1
+    # Make sure that the pings still get through.
+    ./bin/sig_ping_acceptance -d -log.console info
+    # Enable both paths again.
+    ./tools/dc start scion_br1-ff00_0_110-1
+    # Make sure that the pings still get through.
+    ./bin/sig_ping_acceptance -d -log.console info
+}
+
+shift
+do_command $PROGRAM $COMMAND $TEST_NAME "$@"
