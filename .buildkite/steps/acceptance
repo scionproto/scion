@@ -25,6 +25,9 @@ for test in ./acceptance/*_acceptance; do
         echo "  - $BASE/scripts/all_images pull"
         echo "  - $BASE/run_step run_acceptance $test"
     fi
+    echo "  retry:"
+    echo "    automatic:"
+    echo "      limit: 2"
     echo "  artifact_paths:"
     echo "  - \"artifacts.out/**/*\""
 done

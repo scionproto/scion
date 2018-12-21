@@ -13,4 +13,8 @@ set -o pipefail
 
 [ -n "$IA" ] && echo "Listening ia=$IA"
 
+log "bin_wrapper: Starting $PROG $@"
+
 "$PROG" "$@" |& while read line; do log $line; done
+
+log "bin_wrapper: Stopped"
