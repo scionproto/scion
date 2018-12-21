@@ -17,7 +17,7 @@ package network
 import (
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/buffers"
+	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
 	"github.com/scionproto/scion/go/godispatcher/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/hpkt"
@@ -39,9 +39,9 @@ type NetToRingDataplane struct {
 func (dp *NetToRingDataplane) Run() error {
 	for {
 		pkt := &Packet{
-			buffer: buffers.Get(),
+			buffer: bufpool.Get(),
 		}
-		pkt.Data = pkt.buffer.Reset()
+		pkt.Data = pkt.buffer
 
 		n, readExtra, err := dp.OverlayConn.ReadFrom(pkt.Data)
 		if err != nil {
@@ -80,7 +80,7 @@ func (dp *NetToRingDataplane) deliverNormalPkt(pkt *Packet) {
 	count, _ := entry.appIngressRing.Write(ringbuf.EntryList{pkt}, false)
 	if count <= 0 {
 		// Release buffer if we didn't read into it
-		buffers.Put(pkt.buffer)
+		bufpool.Put(pkt.buffer)
 	}
 }
 

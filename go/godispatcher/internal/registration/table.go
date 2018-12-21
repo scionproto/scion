@@ -96,7 +96,7 @@ type Reference interface {
 type UDPReference interface {
 	Reference
 	// UDPAddr returns the public address associated with this entry
-	UDPAddr()
+	UDPAddr() *net.UDPAddr
 }
 
 var _ UDPReference = (*tableReference)(nil)

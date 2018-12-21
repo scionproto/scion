@@ -16,7 +16,7 @@
 //
 // FIXME(scrye): Currently the pool is elastic, but this is not ideal for
 // traffic bursts. It should probably be replaced with a fixed-sized list.
-package buffers
+package bufpool
 
 import (
 	"sync"
@@ -24,33 +24,19 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 )
 
-type Buffer struct {
-	b common.RawBytes
-}
-
-// Reset returns a slice for the entire backing storage of the buffer.
-func (b *Buffer) Reset() common.RawBytes {
-	return b.b
-}
-
-// newBuffer constructs a fixed-size buffer on top of storage b. newBuffer
-// takes ownership of b, and calling code should no longer access it directly
-// as data can mutate.
-func newBuffer(b common.RawBytes) *Buffer {
-	buffer := &Buffer{b: b}
-	return buffer
-}
-
 var pool = sync.Pool{
 	New: func() interface{} {
-		return newBuffer(make(common.RawBytes, common.MaxMTU))
+		return make(common.RawBytes, common.MaxMTU)
 	},
 }
 
-func Get() *Buffer {
-	return pool.Get().(*Buffer)
+func Get() common.RawBytes {
+	b := pool.Get().(common.RawBytes)
+	return b[:cap(b)]
 }
 
-func Put(buffer *Buffer) {
-	pool.Put(buffer)
+func Put(b common.RawBytes) {
+	if cap(b) == common.MaxMTU {
+		pool.Put(b)
+	}
 }

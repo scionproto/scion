@@ -18,7 +18,6 @@ package network
 import (
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/buffers"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
@@ -32,5 +31,5 @@ type Packet struct {
 	OverlayRemote *net.UDPAddr
 
 	// buffer contains the raw slice that other fields reference
-	buffer *buffers.Buffer
+	buffer common.RawBytes
 }

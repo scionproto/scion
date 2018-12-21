@@ -324,9 +324,9 @@ func (c *connUDPBase) Close() error {
 }
 
 type ReadMeta struct {
-	// Remote address from which the datagram was received
+	// Src is the remote address from which the datagram was received
 	Src *overlay.OverlayAddr
-	// Local address on which the datagram was received
+	// Local is the address on which the datagram was received
 	Local     *overlay.OverlayAddr
 	RcvOvfl   int
 	Recvd     time.Time
