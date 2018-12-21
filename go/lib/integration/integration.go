@@ -41,7 +41,7 @@ const (
 	// DefaultRunTimeout is the timeout when running a server or a client.
 	DefaultRunTimeout = 8 * time.Second
 	// CtxTimeout is the timeout a context waits before being killed
-	CtxTimeout = 6 * time.Second
+	CtxTimeout = 2 * time.Second
 	// RetryTimeout is the timeout between different attempts
 	RetryTimeout = time.Second / 2
 )
