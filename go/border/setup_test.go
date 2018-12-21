@@ -219,7 +219,7 @@ func TestTeardownNet(t *testing.T) {
 		Convey("Tearing down a config with changed interface", func() {
 			copyCtx := copyContext(oldCtx)
 			ctx := rctx.New(loadConfig(t))
-			Convey("Old socket closed", func() {
+			Convey("The old socket is closed", func() {
 				ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[0] = 255
 				err := r.setupNet(ctx, copyCtx)
 				SoMsg("err", err, ShouldBeNil)
@@ -233,23 +233,6 @@ func TestTeardownNet(t *testing.T) {
 
 				SoMsg("Old Ifid 12 In running", copyCtx.ExtSockIn[12].Running(), ShouldBeFalse)
 				SoMsg("Old ifid 12 Out running", copyCtx.ExtSockOut[12].Running(), ShouldBeFalse)
-			})
-			Convey("Old socket closed", func() {
-				ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[0] = 255
-				err := r.setupNet(ctx, copyCtx)
-				SoMsg("err", err, ShouldBeNil)
-				startSocks(ctx)
-				cNewCtx := copyContext(ctx)
-				r.teardownOldNet(ctx, copyCtx)
-				checkLocSocketsUnchanged(ctx, cNewCtx)
-				checkExtSocketsUnchanged(ctx, cNewCtx)
-				checkExtSocksRunning(ctx, true)
-				checkLocSocketsRunning(ctx, true)
-
-				SoMsg("Old IFID 12 In running", copyCtx.ExtSockIn[12].Running(), ShouldBeFalse)
-				SoMsg("Old IFID 12 Out running", copyCtx.ExtSockOut[12].Running(), ShouldBeFalse)
-				SoMsg("Orig IFID 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeFalse)
-				SoMsg("Orig IFID 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeFalse)
 			})
 		})
 	})

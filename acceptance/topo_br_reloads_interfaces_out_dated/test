@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Whenever the BR's internal address in the topology file of a PS server is
+# changed, if the PS process receives a SIGHUP it will reload the config and
+# use the new internal address as next-hop when doing path segment
+# synchronization with other core PSes.
+
+TEST_NAME="topo_br_reloads_interfaces"
+TEST_TOPOLOGY="topology/Tiny.topo"
+
+SRC_IA=${SRC_IA:-1-ff00:0:112}
+SRC_IA_FILE=$(echo $SRC_IA | sed -e "s/:/_/g")
+SRC_AS_FILE=$(echo $SRC_IA_FILE | cut -d '-' -f 2)
+DST_IA=${DST_IA:-1-ff00:0:111}
+
+test_setup() {
+    set -e
+    ./scion.sh topology zkclean -c $TEST_TOPOLOGY -d
+    for sd in gen/ISD1/*/br*/brconfig.toml; do
+        sed -i '/\[logging\.file\]/a FlushInterval = 1' "$sd"
+    done
+    ./scion.sh run nobuild
+    ./tools/dc start tester_$SRC_IA_FILE
+}
+
+test_run() {
+    set -e
+    local topo_file="gen/ISD1/AS$SRC_AS_FILE/br$SRC_IA_FILE-1/topology.json"
+    local orig_val=$(jq '.BorderRouters[].Interfaces[].PublicOverlay' $topo_file)
+    local addr=$(jq -r '.Addr' <(echo $orig_val))
+    local pid=$(docker inspect -f '{{.State.Pid}}' scion_br"$SRC_IA_FILE"-1)
+
+    # Change port
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.OverlayPort = 42424' $topo_file | sponge $topo_file
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    echo "PORT CHANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >> "logs/br$SRC_IA_FILE-1.log"
+
+    # Check port change is enacted
+    #sudo nsenter -t "$pid" -n netstat | grep "$addr:42424"
+    check_logs "posixOutput starting addr=[$addr]:42424" 
+    check_logs "posixInput starting addr=[$addr]:42424" 
+
+    # Change address 
+    jq '.BorderRouters[].Interfaces[].PublicOverlay.Addr = "127.42.42.42"' $topo_file | sponge $topo_file
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    echo "IP CHANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >> "logs/br$SRC_IA_FILE-1.log"
+    
+    # Check address change is enacted
+    #check_logs "posixOutput stopping addr=[$addr]:42424" 
+    echo "ppp"
+    #check_logs "posixInput stopping addr=[$addr]:42424" 
+    echo "ppp"
+    # Try to setup with new ip
+    #check_logs "[127.42.42.42]:42424" 
+    echo "ppp"
+
+    # Change original state
+    jq ".BorderRouters[].Interfaces[].PublicOverlay.Addr = \"$addr\"" $topo_file | sponge $topo_file
+    cat $topo_file
+    ./tools/dc dc kill -s HUP scion_br"$SRC_IA_FILE"-1
+    echo "BACK CHANGE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >> "logs/br$SRC_IA_FILE-1.log"
+
+    # Check everything is working again
+    sleep 6
+    bin/end2end_integration -src 1-ff00:0:112 -dst 1-ff00:0:110 -attempts 5 -d
+}
+
+
+PROGRAM=`basename "$0"`
+COMMAND="$1"
+
+case "$COMMAND" in
+    name)
+        echo $TEST_NAME ;;
+    setup|run|teardown)
+        "test_$COMMAND" ;;
+    *) print_help; exit 1 ;;
+esac
+
