@@ -145,7 +145,7 @@ func (t *iaTable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) (inte
 	return nil, false
 }
 
-var _ Reference = (*iaTableReference)(nil)
+var _ UDPReference = (*iaTableReference)(nil)
 
 type iaTableReference struct {
 	table    *iaTable
@@ -163,5 +163,5 @@ func (r *iaTableReference) Free() {
 }
 
 func (r *iaTableReference) UDPAddr() *net.UDPAddr {
-	return r.entryRef.(UDPReference).UDPAddr()
+	return r.entryRef.(registration.UDPReference).UDPAddr()
 }

@@ -99,6 +99,8 @@ type UDPReference interface {
 	UDPAddr()
 }
 
+var _ UDPReference = (*tableReference)(nil)
+
 type tableReference struct {
 	table   *Table
 	freed   bool

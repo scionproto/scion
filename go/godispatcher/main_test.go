@@ -151,7 +151,7 @@ func RunServer(t *testing.T, settings *TestSettings) {
 	}
 }
 
-func TestIntegration(t *testing.T) {
+func TestDataplaneIntegration(t *testing.T) {
 	settings := InitTestSettings(t)
 	clients := buildClientConfigs(&settings)
 
