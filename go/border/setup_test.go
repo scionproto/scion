@@ -40,29 +40,32 @@ import (
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
-var testInitMetricsOnce sync.Once
+var testInitOnce sync.Once
 
-func testInitMetrics() {
-	testInitMetricsOnce.Do(func() {
-
+// setupTest sets up a test router.
+func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
+	// Init metrics and set hooks.
+	testInitOnce.Do(func() {
 		metrics.Init("br1-ff00_0_111-1")
+		addPosixHooks()
 	})
+	// Set newConn to return dummy connections.
+	newConn = func(_, _ *overlay.OverlayAddr, _ prometheus.Labels) (conn.Conn, error) {
+		return &dummyConn{}, nil
+	}
+	r := &Router{}
+	oldCtx := rctx.New(loadConfig(t))
+	xtest.FailOnErr(t, r.setupNet(oldCtx, nil))
+	startSocks(oldCtx)
+	return r, oldCtx
 }
 
 func TestSetupNet(t *testing.T) {
-	testInitMetrics()
 	defer func() {
 		newConn = conn.New
 	}()
 	Convey("Setting up a new context should only affect the appropriate parts", t, func() {
-		setNewDummyConn()
-		// Setup a dummy router with the initial config
-		r := &Router{}
-		addPosixHooks()
-		oldCtx := rctx.New(loadConfig(t))
-		err := r.setupNet(oldCtx, nil)
-		SoMsg("err", err, ShouldBeNil)
-		startSocks(oldCtx)
+		r, oldCtx := setupTestRouter(t)
 		Convey("Setting up the same config should be a noop", func() {
 			copyCtx := copyContext(oldCtx)
 			ctx := rctx.New(loadConfig(t))
@@ -113,19 +116,11 @@ func TestSetupNet(t *testing.T) {
 }
 
 func TestRollbackNet(t *testing.T) {
-	testInitMetrics()
 	defer func() {
 		newConn = conn.New
 	}()
 	Convey("Rolling back should only affect the appropriate parts", t, func() {
-		setNewDummyConn()
-		// Setup a dummy router with the initial config
-		r := &Router{}
-		addPosixHooks()
-		oldCtx := rctx.New(loadConfig(t))
-		err := r.setupNet(oldCtx, nil)
-		SoMsg("err", err, ShouldBeNil)
-		startSocks(oldCtx)
+		r, oldCtx := setupTestRouter(t)
 		Convey("Rolling back the same config should be a noop", func() {
 			copyCtx := copyContext(oldCtx)
 			ctx := rctx.New(loadConfig(t))
@@ -185,19 +180,11 @@ func TestRollbackNet(t *testing.T) {
 }
 
 func TestTeardownNet(t *testing.T) {
-	testInitMetrics()
 	defer func() {
 		newConn = conn.New
 	}()
 	Convey("Tearing down should only affect the appropriate parts", t, func() {
-		setNewDummyConn()
-		// Setup a dummy router with the initial config
-		r := &Router{}
-		addPosixHooks()
-		oldCtx := rctx.New(loadConfig(t))
-		err := r.setupNet(oldCtx, nil)
-		SoMsg("err", err, ShouldBeNil)
-		startSocks(oldCtx)
+		r, oldCtx := setupTestRouter(t)
 		Convey("Tearing down the same config should be a noop", func() {
 			copyCtx := copyContext(oldCtx)
 			ctx := rctx.New(loadConfig(t))
@@ -247,7 +234,7 @@ func TestTeardownNet(t *testing.T) {
 				SoMsg("Old Ifid 12 In running", copyCtx.ExtSockIn[12].Running(), ShouldBeFalse)
 				SoMsg("Old ifid 12 Out running", copyCtx.ExtSockOut[12].Running(), ShouldBeFalse)
 			})
-			Convey("Changing remote address closes old socket", func() {
+			Convey("Old socket closed", func() {
 				ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[0] = 255
 				err := r.setupNet(ctx, copyCtx)
 				SoMsg("err", err, ShouldBeNil)
@@ -334,12 +321,6 @@ func loadTopo(t *testing.T) *topology.Topo {
 	topo, err := topology.LoadFromFile("testdata/topology.json")
 	xtest.FailOnErr(t, err)
 	return topo
-}
-
-func setNewDummyConn() {
-	newConn = func(_, _ *overlay.OverlayAddr, _ prometheus.Labels) (conn.Conn, error) {
-		return &dummyConn{}, nil
-	}
 }
 
 type dummyConn struct{}

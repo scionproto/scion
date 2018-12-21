@@ -59,15 +59,13 @@ type rollbackLocalHook func(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.Hoo
 type rollbackExtHook func(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	oldCtx *rctx.Ctx) rpkt.HookResult
 
-// Rollback hooks are called to undo the changes that have happened during setupNet
-// with a new context.
+// Rollback hooks are called to undo the changes during setupNet.
 var rollbackLocalHooks []rollbackLocalHook
 var rollbackExtHooks []rollbackExtHook
 
 type teardownHook func(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookResult
 
-// Teardown hooks are called to teardown the net part of an old context after
-// the new context has been successfully loaded.
+// Teardown hooks are called to teardown a no longer used context.
 var teardownLocalHooks []teardownHook
 var teardownExtHooks []teardownHook
 
@@ -362,8 +360,9 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 			ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
 			return rpkt.HookFinish, nil
 		}
-		// Release the socket in order to successfully bind afterwards.
-		// FIXME(roosd): After switching to go 1.11+, this can be avoided using SO_REUSEPORT.
+		// FIXME(roosd): If the local address is the same, we need to release
+		// the socket in order to successfully bind afterwards.
+		// After switching to go 1.11+, this can be avoided by using SO_REUSEPORT.
 		if intf.IFAddr.Equal(oldIntf.IFAddr) {
 			log.Debug("Closing existing external socket to free addr", "old", oldIntf, "new", intf)
 			stopSock(oldCtx.ExtSockIn[intf.Id])
@@ -456,9 +455,7 @@ func mkSockFromRingLabels(labels prometheus.Labels) prometheus.Labels {
 // teardownPosixLocal stops the unused local sockets in the old context.
 func teardownPosixLocal(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookResult {
 	if oldCtx != nil && ctx.LocSockIn != oldCtx.LocSockIn {
-		if oldCtx.LocSockIn != nil {
-			log.Debug("Tearing down unused local socket", "conn", ctx.LocSockIn.Conn.LocalAddr())
-		}
+		log.Debug("Tearing down unused local socket", "conn", ctx.LocSockIn.Conn.LocalAddr())
 		stopSock(oldCtx.LocSockIn)
 		stopSock(oldCtx.LocSockOut)
 	}
@@ -470,6 +467,7 @@ func teardownPosixExt(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookResul
 	if oldCtx != nil {
 		for ifid, oldSock := range oldCtx.ExtSockIn {
 			if newSock, ok := ctx.ExtSockIn[ifid]; !ok || newSock != oldSock {
+				log.Debug("Tearing down unused external socket", "intf", oldCtx.Conf.Net.IFs[ifid])
 				stopSock(oldSock)
 				stopSock(oldCtx.ExtSockOut[ifid])
 			}

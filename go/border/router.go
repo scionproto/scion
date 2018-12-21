@@ -48,7 +48,7 @@ type Router struct {
 	posixInput rctx.SockFunc
 	// posixOutput handles the posix output.
 	posixOutput rctx.SockFunc
-	// handleSock handles the socket.
+	// handleSock handles received packets.
 	handleSock rctx.SockFunc
 }
 
