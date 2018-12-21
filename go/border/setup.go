@@ -59,14 +59,19 @@ type rollbackLocalHook func(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.Hoo
 type rollbackExtHook func(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	oldCtx *rctx.Ctx) rpkt.HookResult
 
+// Rollback hooks are called to undo the changes that have happened during setupNet
+// with a new context.
 var rollbackLocalHooks []rollbackLocalHook
 var rollbackExtHooks []rollbackExtHook
 
 type teardownHook func(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookResult
 
+// Teardown hooks are called to teardown the net part of an old context after
+// the new context has been successfully loaded.
 var teardownLocalHooks []teardownHook
 var teardownExtHooks []teardownHook
 
+// addPosixHooks adds the default posix hooks.
 func addPosixHooks() {
 	setupNetStartHooks = append(setupNetStartHooks, setupVerifyNoAddrTakeover)
 	setupAddLocalHooks = append(setupAddLocalHooks, setupPosixAddLocal)
@@ -148,7 +153,7 @@ func (r *Router) setupNewContext(config *brconf.Conf) error {
 	oldCtx := rctx.Get()
 	ctx := rctx.New(config)
 	if err := r.setupNet(ctx, oldCtx); err != nil {
-		r.rollbackNet(ctx, oldCtx, err)
+		r.rollbackNet(ctx, oldCtx)
 		return err
 	}
 	rctx.Set(ctx)
@@ -235,7 +240,7 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) error {
 }
 
 // rollbackNet rolls back the changes of a failed call to setupNet.
-func (r *Router) rollbackNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, err error) {
+func (r *Router) rollbackNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx) {
 	for _, intf := range ctx.Conf.Net.IFs {
 	InnerLoop:
 		for _, f := range rollbackExtHooks {
@@ -334,6 +339,7 @@ func rollbackPosixAddLocal(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.Hook
 		log.Debug("Rolling back local socket", "conn", ctx.LocSockIn.Conn.LocalAddr())
 	}
 	stopSock(ctx.LocSockIn)
+	stopSock(ctx.LocSockOut)
 	return rpkt.HookFinish
 }
 
@@ -357,10 +363,11 @@ func setupPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 			return rpkt.HookFinish, nil
 		}
 		// Release the socket in order to successfully bind afterwards.
-		// FIXME(roosd): After switching to go 1.11, this can be avoided using SO_REUSEPORT.
+		// FIXME(roosd): After switching to go 1.11+, this can be avoided using SO_REUSEPORT.
 		if intf.IFAddr.Equal(oldIntf.IFAddr) {
 			log.Debug("Closing existing external socket to free addr", "old", oldIntf, "new", intf)
 			stopSock(oldCtx.ExtSockIn[intf.Id])
+			stopSock(oldCtx.ExtSockOut[intf.Id])
 		}
 		log.Debug("Existing interface changed", "old", oldIntf, "new", intf)
 	}
@@ -411,6 +418,7 @@ func rollbackPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	log.Debug("Rolling back external socket", "intf", intf)
 	if oldCtx == nil {
 		stopSock(ctx.ExtSockIn[intf.Id])
+		stopSock(ctx.ExtSockOut[intf.Id])
 		return rpkt.HookFinish
 	}
 	oldIntf, ok := oldCtx.Conf.Net.IFs[intf.Id]
@@ -419,6 +427,7 @@ func rollbackPosixAddExt(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		return rpkt.HookContinue
 	}
 	stopSock(ctx.ExtSockIn[intf.Id])
+	stopSock(ctx.ExtSockOut[intf.Id])
 	// In case the old socket was closed in order to allow bind of new socket, restore it.
 	if ok && intf.IFAddr.Equal(oldIntf.IFAddr) {
 		labels := mkSockFromRingLabels(oldCtx.ExtSockIn[oldIntf.Id].Labels)
@@ -451,6 +460,7 @@ func teardownPosixLocal(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookRes
 			log.Debug("Tearing down unused local socket", "conn", ctx.LocSockIn.Conn.LocalAddr())
 		}
 		stopSock(oldCtx.LocSockIn)
+		stopSock(oldCtx.LocSockOut)
 	}
 	return rpkt.HookFinish
 }
@@ -461,6 +471,7 @@ func teardownPosixExt(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) rpkt.HookResul
 		for ifid, oldSock := range oldCtx.ExtSockIn {
 			if newSock, ok := ctx.ExtSockIn[ifid]; !ok || newSock != oldSock {
 				stopSock(oldSock)
+				stopSock(oldCtx.ExtSockOut[ifid])
 			}
 		}
 	}

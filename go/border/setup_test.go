@@ -54,34 +54,19 @@ func TestSetupNet(t *testing.T) {
 	defer func() {
 		newConn = conn.New
 	}()
-	Convey("Given an initial context", t, func() {
-		c := &closedConns{
-			m: make(map[*dummyConn]struct{}),
-		}
-		setNewDummyConn(c)
+	Convey("Setting up a new context should only affect the appropriate parts", t, func() {
+		setNewDummyConn()
 		// Setup a dummy router with the initial config
-		r := &Router{
-			posixOutput: func(s *rctx.Sock, _, stopped chan struct{}) {
-				for {
-					c.mu.Lock()
-					_, ok := c.m[s.Conn.(*dummyConn)]
-					c.mu.Unlock()
-					if ok {
-						return
-					}
-					time.Sleep(time.Millisecond)
-				}
-			},
-		}
+		r := &Router{}
 		addPosixHooks()
 		oldCtx := rctx.New(loadConfig(t))
 		err := r.setupNet(oldCtx, nil)
 		SoMsg("err", err, ShouldBeNil)
 		startSocks(oldCtx)
 		Convey("Setting up the same config should be a noop", func() {
-			cOldCtx := copyContext(oldCtx)
+			copyCtx := copyContext(oldCtx)
 			ctx := rctx.New(loadConfig(t))
-			err := r.setupNet(ctx, cOldCtx)
+			err := r.setupNet(ctx, copyCtx)
 			SoMsg("err", err, ShouldBeNil)
 			checkLocSocketsUnchanged(ctx, oldCtx)
 			checkExtSocketsUnchanged(ctx, oldCtx)
@@ -127,9 +112,170 @@ func TestSetupNet(t *testing.T) {
 	})
 }
 
+func TestRollbackNet(t *testing.T) {
+	testInitMetrics()
+	defer func() {
+		newConn = conn.New
+	}()
+	Convey("Rolling back should only affect the appropriate parts", t, func() {
+		setNewDummyConn()
+		// Setup a dummy router with the initial config
+		r := &Router{}
+		addPosixHooks()
+		oldCtx := rctx.New(loadConfig(t))
+		err := r.setupNet(oldCtx, nil)
+		SoMsg("err", err, ShouldBeNil)
+		startSocks(oldCtx)
+		Convey("Rolling back the same config should be a noop", func() {
+			copyCtx := copyContext(oldCtx)
+			ctx := rctx.New(loadConfig(t))
+			err := r.setupNet(ctx, copyCtx)
+			SoMsg("err", err, ShouldBeNil)
+			r.rollbackNet(ctx, copyCtx)
+			checkLocSocketsUnchanged(oldCtx, copyCtx)
+			checkExtSocketsUnchanged(oldCtx, copyCtx)
+		})
+		Convey("Rolling back a config with changed local address should keep extSocks", func() {
+			copyCtx := copyContext(oldCtx)
+			ctx := rctx.New(loadConfig(t))
+			ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[0] = 255
+			err := r.setupNet(ctx, copyCtx)
+			SoMsg("err", err, ShouldBeNil)
+			r.rollbackNet(ctx, copyCtx)
+			checkLocSocketsUnchanged(oldCtx, copyCtx)
+			checkExtSocketsUnchanged(oldCtx, copyCtx)
+			checkLocSocketsRunning(oldCtx, true)
+			checkLocSocketsRunning(ctx, false)
+		})
+		Convey("Rolling back a config with changed interface", func() {
+			copyCtx := copyContext(oldCtx)
+			ctx := rctx.New(loadConfig(t))
+			Convey("Changing local address does not affect old socket", func() {
+				ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[0] = 255
+				err := r.setupNet(ctx, copyCtx)
+				SoMsg("err", err, ShouldBeNil)
+				r.rollbackNet(ctx, copyCtx)
+				checkLocSocketsUnchanged(oldCtx, copyCtx)
+				checkExtSocketsUnchanged(oldCtx, copyCtx)
+				checkLocSocketsRunning(oldCtx, true)
+				checkExtSocksRunning(oldCtx, true)
+
+				SoMsg("New Ifid 12 In running", ctx.ExtSockIn[12].Running(), ShouldBeFalse)
+				SoMsg("New ifid 12 Out running", ctx.ExtSockOut[12].Running(), ShouldBeFalse)
+			})
+			Convey("Changing remote address closes old socket", func() {
+				ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[0] = 255
+				err := r.setupNet(ctx, copyCtx)
+				SoMsg("err", err, ShouldBeNil)
+				r.rollbackNet(ctx, copyCtx)
+				checkLocSocketsUnchanged(oldCtx, copyCtx)
+				checkLocSocketsRunning(oldCtx, true)
+
+				SoMsg("IFID 11 In running", copyCtx.ExtSockIn[11].Running(), ShouldBeTrue)
+				SoMsg("IFID 11 Out running", copyCtx.ExtSockOut[11].Running(), ShouldBeTrue)
+				SoMsg("New IFID 12 In running", ctx.ExtSockIn[12].Running(), ShouldBeFalse)
+				SoMsg("New IFID 12 Out running", ctx.ExtSockOut[12].Running(), ShouldBeFalse)
+				SoMsg("Old IFID 12 In running", copyCtx.ExtSockIn[12].Running(), ShouldBeTrue)
+				SoMsg("Old IFID 12 Out running", copyCtx.ExtSockOut[12].Running(), ShouldBeTrue)
+				SoMsg("Orig IFID 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+				SoMsg("Orig IFID 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+			})
+		})
+	})
+}
+
+func TestTeardownNet(t *testing.T) {
+	testInitMetrics()
+	defer func() {
+		newConn = conn.New
+	}()
+	Convey("Tearing down should only affect the appropriate parts", t, func() {
+		setNewDummyConn()
+		// Setup a dummy router with the initial config
+		r := &Router{}
+		addPosixHooks()
+		oldCtx := rctx.New(loadConfig(t))
+		err := r.setupNet(oldCtx, nil)
+		SoMsg("err", err, ShouldBeNil)
+		startSocks(oldCtx)
+		Convey("Tearing down the same config should be a noop", func() {
+			copyCtx := copyContext(oldCtx)
+			ctx := rctx.New(loadConfig(t))
+			err := r.setupNet(ctx, copyCtx)
+			SoMsg("err", err, ShouldBeNil)
+			startSocks(ctx)
+			cNewCtx := copyContext(ctx)
+			r.teardownOldNet(ctx, copyCtx)
+			checkLocSocketsUnchanged(ctx, cNewCtx)
+			checkExtSocketsUnchanged(ctx, cNewCtx)
+			checkExtSocksRunning(ctx, true)
+			checkLocSocketsRunning(ctx, true)
+		})
+		Convey("Tearing down a config with changed local address should close old sock", func() {
+			copyCtx := copyContext(oldCtx)
+			ctx := rctx.New(loadConfig(t))
+			ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[0] = 255
+			err := r.setupNet(ctx, copyCtx)
+			SoMsg("err", err, ShouldBeNil)
+			startSocks(ctx)
+			cNewCtx := copyContext(ctx)
+			r.teardownOldNet(ctx, copyCtx)
+			checkLocSocketsUnchanged(ctx, cNewCtx)
+			checkExtSocketsUnchanged(ctx, cNewCtx)
+			checkExtSocksRunning(ctx, true)
+			checkLocSocketsRunning(ctx, true)
+
+			SoMsg("Old LocSock In running", copyCtx.LocSockIn.Running(), ShouldBeFalse)
+			SoMsg("Old LocSock Out running", copyCtx.LocSockOut.Running(), ShouldBeFalse)
+
+		})
+		Convey("Tearing down a config with changed interface", func() {
+			copyCtx := copyContext(oldCtx)
+			ctx := rctx.New(loadConfig(t))
+			Convey("Old socket closed", func() {
+				ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[0] = 255
+				err := r.setupNet(ctx, copyCtx)
+				SoMsg("err", err, ShouldBeNil)
+				startSocks(ctx)
+				cNewCtx := copyContext(ctx)
+				r.teardownOldNet(ctx, copyCtx)
+				checkLocSocketsUnchanged(ctx, cNewCtx)
+				checkExtSocketsUnchanged(ctx, cNewCtx)
+				checkExtSocksRunning(ctx, true)
+				checkLocSocketsRunning(ctx, true)
+
+				SoMsg("Old Ifid 12 In running", copyCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+				SoMsg("Old ifid 12 Out running", copyCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+			})
+			Convey("Changing remote address closes old socket", func() {
+				ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[0] = 255
+				err := r.setupNet(ctx, copyCtx)
+				SoMsg("err", err, ShouldBeNil)
+				startSocks(ctx)
+				cNewCtx := copyContext(ctx)
+				r.teardownOldNet(ctx, copyCtx)
+				checkLocSocketsUnchanged(ctx, cNewCtx)
+				checkExtSocketsUnchanged(ctx, cNewCtx)
+				checkExtSocksRunning(ctx, true)
+				checkLocSocketsRunning(ctx, true)
+
+				SoMsg("Old IFID 12 In running", copyCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+				SoMsg("Old IFID 12 Out running", copyCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+				SoMsg("Orig IFID 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+				SoMsg("Orig IFID 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+			})
+		})
+	})
+}
+
 func checkLocSocketsUnchanged(ctx, oldCtx *rctx.Ctx) {
 	SoMsg("LocSockIn unchanged", ctx.LocSockIn, ShouldEqual, oldCtx.LocSockIn)
 	SoMsg("LocSockOut unchanged", ctx.LocSockOut, ShouldEqual, oldCtx.LocSockOut)
+}
+
+func checkLocSocketsRunning(ctx *rctx.Ctx, running bool) {
+	SoMsg("LocSockIn running", ctx.LocSockIn.Running(), ShouldEqual, running)
+	SoMsg("LocSockOut running", ctx.LocSockOut.Running(), ShouldEqual, running)
 }
 
 func checkExtSocketsUnchanged(ctx, oldCtx *rctx.Ctx) {
@@ -142,6 +288,15 @@ func checkExtSocketsUnchanged(ctx, oldCtx *rctx.Ctx) {
 func compareExtSocksEq(a, b map[common.IFIDType]*rctx.Sock, suffix string) {
 	for ifid, sock := range a {
 		SoMsg(fmt.Sprintf("IFID %d %s", ifid, suffix), sock, ShouldEqual, b[ifid])
+	}
+}
+
+func checkExtSocksRunning(ctx *rctx.Ctx, running bool) {
+	for ifid, sock := range ctx.ExtSockIn {
+		SoMsg(fmt.Sprintf("IFID %d In", ifid), sock.Running(), ShouldEqual, running)
+	}
+	for ifid, sock := range ctx.ExtSockOut {
+		SoMsg(fmt.Sprintf("IFID %d Out", ifid), sock.Running(), ShouldEqual, running)
 	}
 }
 
@@ -181,27 +336,13 @@ func loadTopo(t *testing.T) *topology.Topo {
 	return topo
 }
 
-type closedConns struct {
-	mu sync.Mutex
-	m  map[*dummyConn]struct{}
-}
-
-func setNewDummyConn(c *closedConns) {
+func setNewDummyConn() {
 	newConn = func(_, _ *overlay.OverlayAddr, _ prometheus.Labels) (conn.Conn, error) {
-		return &dummyConn{closed: c}, nil
+		return &dummyConn{}, nil
 	}
 }
 
-type dummyConn struct {
-	closed *closedConns
-}
-
-func (d *dummyConn) Close() error {
-	d.closed.mu.Lock()
-	defer d.closed.mu.Unlock()
-	d.closed.m[d] = struct{}{}
-	return nil
-}
+type dummyConn struct{}
 
 func (d *dummyConn) Read(common.RawBytes) (int, *conn.ReadMeta, error) { return 0, nil, nil }
 
@@ -218,3 +359,5 @@ func (d *dummyConn) LocalAddr() *overlay.OverlayAddr { return nil }
 func (d *dummyConn) RemoteAddr() *overlay.OverlayAddr { return nil }
 
 func (d *dummyConn) SetReadDeadline(time.Time) error { return nil }
+
+func (d *dummyConn) Close() error { return nil }
