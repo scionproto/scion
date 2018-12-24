@@ -1,16 +1,13 @@
 #!/bin/bash
 
-. acceptance/color.sh
-
 run_wrapper() {
-    set -x
     PHASE=${1:?}
     shift
-    if "$@"; then
-        print_green "[ $PHASE    ]"
+    if $@; then
+        echo "$PHASE successful"
         return 0
     else
-        print_red "[ $PHASE    ]"
+        echo "$PHASE failed"
         return 1
     fi
 }
@@ -27,7 +24,7 @@ mkdir -p $ACCEPTANCE_ARTIFACTS
 # Run test
 run_wrapper "SETUP" "$1/test setup &>> $ACCEPTANCE_ARTIFACTS/setup.out"
 res=$?
-run_wrapper "RUN" ./docker.sh exec "$1/test run &>> \$ACCEPTANCE_ARTIFACTS/run.out"
+run_wrapper "RUN" "./docker.sh exec $1/test run &>> \$ACCEPTANCE_ARTIFACTS/run.out"
 res=$((res+$?))
 run_wrapper "TEARDOWN" "$1/test teardown &>> $ACCEPTANCE_ARTIFACTS/teardown.out"
 res=$((res+$?))
