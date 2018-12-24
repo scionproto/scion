@@ -13,7 +13,7 @@ SIG_JSON="gen/ISD1/AS$SRC_AS_FILE/sig$SRC_IA_FILE/cfg.json"
 
 test_run() {
     set -e
-    ./bin/sig_ping_acceptance -attempts 1 -d -log.console info -src $SRC_IA -dst $DST_IA
+    ./bin/sig_ping_acceptance -d -log.console info -src $SRC_IA -dst $DST_IA
     # Remove $DST_IA from sig.json
     HOP_JSON=$(jq -c ".ASes.\"$DST_IA\"" $SIG_JSON)
     jq "del(.ASes.\"$DST_IA\")" $SIG_JSON | sponge $SIG_JSON
