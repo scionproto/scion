@@ -103,8 +103,6 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	msger infra.Messenger, dst addr.IA, coreASes []addr.IA) {
 
 	logger := log.FromCtx(ctx)
-	dstISDLocal := segReq.DstIA().I == h.localIA.I
-	logger.Debug("[segReqHandler] handleCoreDst", "remote", dstISDLocal)
 	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, !segReq.Flags.CacheOnly)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find up segments", "err", err)
@@ -114,6 +112,11 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	if len(upSegs) == 0 {
 		logger.Warn("[segReqHandler] No up segments found")
 		h.sendEmptySegReply(ctx, segReq, msger)
+		return
+	}
+	// For a local wildcard we return the upSegs.
+	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
+		h.sendReply(ctx, msger, upSegs, nil, nil, segReq)
 		return
 	}
 	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query,
