@@ -109,7 +109,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
-	// Commit to a path server, and use it for path and crypto queries
+	// Commit to a path server, and use it for path queries
 	svcInfo, err := f.topology.GetSvcInfo(proto.ServiceType_ps)
 	if err != nil {
 		return nil, err
@@ -351,6 +351,9 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
+		if req.Dst.IA().A == 0 && req.Dst.IA().I == f.topology.ISD_AS.I {
+			break
+		}
 		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASes.ASList(),
 			proto.PathSegType_core)
 		if err != nil {
@@ -373,7 +376,7 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	}
-	paths := buildPathsToAllDsts(req, ups, cores, downs)
+	paths := f.buildPathsToAllDsts(req, ups, cores, downs)
 	return f.filterRevokedPaths(ctx, paths)
 }
 
@@ -517,12 +520,16 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 	return err
 }
 
-func buildPathsToAllDsts(req *sciond.PathReq,
+func (f *fetcherHandler) buildPathsToAllDsts(req *sciond.PathReq,
 	ups, cores, downs seg.Segments) []*combinator.Path {
 
 	dsts := []addr.IA{req.Dst.IA()}
 	if req.Dst.IA().A == 0 {
-		dsts = cores.FirstIAs()
+		if req.Dst.IA().I == f.topology.ISD_AS.I {
+			dsts = ups.FirstIAs()
+		} else {
+			dsts = cores.FirstIAs()
+		}
 	}
 	var paths []*combinator.Path
 	for _, dst := range dsts {
