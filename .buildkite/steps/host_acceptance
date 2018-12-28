@@ -1,5 +1,17 @@
 #!/bin/bash
 
+run_wrapper() {
+    PHASE=${1:?}
+    shift
+    if $@; then
+        echo "$PHASE successful"
+        return 0
+    else
+        echo "$PHASE failed"
+        return 1
+    fi
+}
+
 $BASE/scripts/clean_env
 echo "Running: ${1:?}"
 
@@ -10,11 +22,11 @@ mkdir -p $ACCEPTANCE_ARTIFACTS
 ./docker.sh start
 
 # Run test
-$1/test setup &>> "$ACCEPTANCE_ARTIFACTS/setup.out"
+run_wrapper "SETUP" "$1/test setup &>> $ACCEPTANCE_ARTIFACTS/setup.out"
 res=$?
-./docker.sh exec "$1/test run &>> \$ACCEPTANCE_ARTIFACTS/run.out"
+run_wrapper "RUN" "./docker.sh exec $1/test run &>> \$ACCEPTANCE_ARTIFACTS/run.out"
 res=$((res+$?))
-$1/test teardown &>> "$ACCEPTANCE_ARTIFACTS/teardown.out"
+run_wrapper "TEARDOWN" "$1/test teardown &>> $ACCEPTANCE_ARTIFACTS/teardown.out"
 res=$((res+$?))
 
 # Pack logs and stop everything
