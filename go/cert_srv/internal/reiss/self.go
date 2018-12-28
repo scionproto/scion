@@ -22,7 +22,6 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/infra"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -99,14 +98,14 @@ func (s *Self) createLeafCert(ctx context.Context, leaf *cert.Certificate) error
 	if err := chain.Leaf.Sign(s.State.GetIssSigningKey(), issCrt.SignAlgorithm); err != nil {
 		return common.NewBasicError("Unable to sign leaf certificate", err, "chain", chain)
 	}
-	if err := trust.VerifyChain(s.IA, chain, s.State.Store); err != nil {
+	if err := VerifyChain(s.IA, chain, s.State.Store); err != nil {
 		return common.NewBasicError("Unable to verify chain", err, "chain", chain)
 	}
 	if _, err := s.State.TrustDB.InsertChain(ctx, chain); err != nil {
 		return common.NewBasicError("Unable to write certificate chain", err, "chain", chain)
 	}
 	log.Info("[reiss.Self] Created certificate chain", "chain", chain)
-	sign, err := trust.CreateSign(s.IA, s.State.Store)
+	sign, err := CreateSign(ctx, s.IA, s.State.TrustDB)
 	if err != nil {
 		log.Error("[reiss.Self] Unable to set create new sign", "err", err)
 	}
