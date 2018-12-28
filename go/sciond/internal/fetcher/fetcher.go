@@ -109,7 +109,7 @@ func (f *fetcherHandler) GetPaths(ctx context.Context, req *sciond.PathReq,
 		return f.buildSCIONDReply(nil, 0, sciond.ErrorBadSrcIA),
 			common.NewBasicError("Bad source AS", nil, "ia", req.Src.IA())
 	}
-	// Commit to a path server, and use it for path and crypto queries
+	// Commit to a path server, and use it for path queries
 	svcInfo, err := f.topology.GetSvcInfo(proto.ServiceType_ps)
 	if err != nil {
 		return nil, err
@@ -373,7 +373,7 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 			return nil, err
 		}
 	}
-	paths := buildPathsToAllDsts(req, ups, cores, downs)
+	paths := f.buildPathsToAllDsts(req, ups, cores, downs)
 	return f.filterRevokedPaths(ctx, paths)
 }
 
@@ -517,18 +517,39 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 	return err
 }
 
-func buildPathsToAllDsts(req *sciond.PathReq,
+func (f *fetcherHandler) buildPathsToAllDsts(req *sciond.PathReq,
 	ups, cores, downs seg.Segments) []*combinator.Path {
 
-	dsts := []addr.IA{req.Dst.IA()}
-	if req.Dst.IA().A == 0 {
-		dsts = cores.FirstIAs()
-	}
+	dsts := f.determineDsts(req, ups, cores)
 	var paths []*combinator.Path
-	for _, dst := range dsts {
+	for dst := range dsts {
 		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
 	}
 	return filterExpiredPaths(paths)
+}
+
+func (f *fetcherHandler) determineDsts(req *sciond.PathReq,
+	ups, cores seg.Segments) map[addr.IA]struct{} {
+
+	wildcardDst := req.Dst.IA().A == 0
+	if wildcardDst {
+		isdLocal := req.Dst.IA().I == f.topology.ISD_AS.I
+		return wildcardDsts(wildcardDst, isdLocal, ups, cores)
+	}
+	return map[addr.IA]struct{}{req.Dst.IA(): {}}
+}
+
+func wildcardDsts(wildcard, isdLocal bool, ups, cores seg.Segments) map[addr.IA]struct{} {
+	newDsts := cores.FirstIAs()
+	if isdLocal {
+		// for isd local wildcard we want to reach cores, they are at the end of the up segs.
+		newDsts = append(newDsts, ups.FirstIAs()...)
+	}
+	dsts := make(map[addr.IA]struct{})
+	for _, dst := range newDsts {
+		dsts[dst] = struct{}{}
+	}
+	return dsts
 }
 
 func filterExpiredPaths(paths []*combinator.Path) []*combinator.Path {
