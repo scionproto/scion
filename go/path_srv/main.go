@@ -31,11 +31,11 @@ import (
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -207,7 +207,7 @@ func (t *periodicTasks) Start() {
 			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
 		}
 	}
-	t.pathDBCleaner = periodic.StartPeriodicTask(cleaner.New(t.args.PathDB),
+	t.pathDBCleaner = periodic.StartPeriodicTask(pathdb.NewCleaner(t.args.PathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
 	t.cryptosyncer = periodic.StartPeriodicTask(&cryptosyncer.Syncer{
 		DB:    t.trustDB,
