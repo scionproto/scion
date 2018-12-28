@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
@@ -112,13 +113,13 @@ func initState(config *Config) error {
 
 // setDefaultSignerVerifier sets the signer and verifier. The newest certificate chain version
 // in the store is used.
-func setDefaultSignerVerifier(c *csconfig.State, pubIA addr.IA) error {
-	sign, err := trust.CreateSign(pubIA, c.Store)
+func setDefaultSignerVerifier(cs *csconfig.State, pubIA addr.IA) error {
+	sign, err := reiss.CreateSign(context.TODO(), pubIA, cs.TrustDB)
 	if err != nil {
 		return err
 	}
-	c.SetSigner(ctrl.NewBasicSigner(sign, c.GetSigningKey()))
-	c.SetVerifier(ctrl.NewBasicSigVerifier(c.Store))
+	cs.SetSigner(ctrl.NewBasicSigner(sign, cs.GetSigningKey()))
+	cs.SetVerifier(ctrl.NewBasicSigVerifier(cs.Store))
 	return nil
 }
 
