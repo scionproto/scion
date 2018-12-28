@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/messenger"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/scrypto"
@@ -115,7 +114,7 @@ func (r *Requester) handleRep(ctx context.Context, rep *cert_mgmt.ChainIssRep) (
 		return true, common.NewBasicError("Unable to insert reissued certificate chain in TrustDB",
 			err, "chain", chain)
 	}
-	sign, err := trust.CreateSign(r.IA, r.State.Store)
+	sign, err := CreateSign(ctx, r.IA, r.State.TrustDB)
 	if err != nil {
 		return true, common.NewBasicError("Unable to set new signer", err)
 	}
@@ -145,5 +144,5 @@ func (r *Requester) validateRep(ctx context.Context, chain *cert.Chain) error {
 		return common.NewBasicError("Invalid Issuer", nil, "expected",
 			issuer, "actual", chain.Leaf.Issuer)
 	}
-	return trust.VerifyChain(r.IA, chain, r.State.Store)
+	return VerifyChain(r.IA, chain, r.State.Store)
 }

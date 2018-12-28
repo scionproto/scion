@@ -664,18 +664,14 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 		csOverlayAddr := topoAddr.OverlayAddr(topo.Overlay)
 		return &snet.Addr{IA: store.ia, Host: csAddr, NextHop: csOverlayAddr}, nil
 	}
-	if destination.A == 0 {
-		pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia,
-			addr.IA{I: destination.I}, sciond.PathReqFlags{})
-		path := pathSet.GetAppPath("")
-		if path == nil {
-			return nil, common.NewBasicError("Unable to find path to any core AS", nil,
-				"isd", destination.I)
-		}
-		a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
-		return a, nil
+	pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia, addr.IA{I: destination.I},
+		sciond.PathReqFlags{})
+	path := pathSet.GetAppPath("")
+	if path == nil {
+		return nil, common.NewBasicError("Unable to find path to any core AS", nil,
+			"isd", destination.I)
 	}
-	a := &snet.Addr{IA: destination, Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
+	a := &snet.Addr{IA: path.Entry.Path.DstIA(), Host: addr.NewSVCUDPAppAddr(addr.SvcCS)}
 	return a, nil
 }
 

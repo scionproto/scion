@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trust
+package reiss
 
 import (
 	"context"
@@ -22,24 +22,19 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
 )
 
-// FIXME(scrye): Reconsider whether these functions should access the trust
-// store directly, as that means propagating the context all the way here.
-// Callers already know what crypto is needed, so they can pass it in.
-// Also, change context.TODO() to something that does not risk blocking
-// forever.
-
-func CreateSign(ia addr.IA, store infra.TrustStore) (*proto.SignS, error) {
-	c, err := store.GetValidChain(context.TODO(), ia, nil)
+func CreateSign(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB) (*proto.SignS, error) {
+	c, err := trustDB.GetChainMaxVersion(ctx, ia)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local certificate chain", err)
 	}
-	t, err := store.GetValidTRC(context.TODO(), ia.I, nil)
+	t, err := trustDB.GetTRCMaxVersion(ctx, ia.I)
 	if err != nil {
 		return nil, common.NewBasicError("Unable to find local TRC", err)
 	}
