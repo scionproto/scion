@@ -30,10 +30,10 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/infra/infraenv"
-	"github.com/scionproto/scion/go/lib/infra/modules/cleaner"
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
@@ -141,7 +141,7 @@ func realMain() int {
 			TrustStore: trustStore,
 		},
 	}
-	cleaner := periodic.StartPeriodicTask(cleaner.New(pathDB),
+	cleaner := periodic.StartPeriodicTask(pathdb.NewCleaner(pathDB),
 		periodic.NewTicker(300*time.Second), 295*time.Second)
 	defer cleaner.Stop()
 	rcCleaner := periodic.StartPeriodicTask(revcache.NewCleaner(revCache),

@@ -12,32 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cleaner
+package pathdb
 
 import (
 	"context"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/log"
-	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/periodic"
 )
 
-var _ periodic.Task = (*Cleaner)(nil)
-
-type Cleaner struct {
-	pathDB pathdb.PathDB
+type cleaner struct {
+	pathDB PathDB
 }
 
-// New creates a new Cleaner Task for the given pathDB.
-func New(pathDB pathdb.PathDB) *Cleaner {
-	cleaner := &Cleaner{
+// NewCleaner creates a periodic.Task that deletes expired segments from the given pathDB.
+func NewCleaner(pathDB PathDB) periodic.Task {
+	return &cleaner{
 		pathDB: pathDB,
 	}
-	return cleaner
 }
 
-func (c *Cleaner) Run(ctx context.Context) {
+// Run deletes expired segments from the pathdb of the cleaner.
+// Run implements periodic.Task.Run.
+func (c *cleaner) Run(ctx context.Context) {
 	count, err := c.pathDB.DeleteExpired(ctx, time.Now())
 	if err != nil {
 		log.Error("Failed to delete expired segments", "err", err)
