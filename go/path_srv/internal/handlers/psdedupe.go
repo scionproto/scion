@@ -52,5 +52,5 @@ func NewGetSegsDeduper(msger infra.Messenger) dedupe.Deduper {
 		}
 		return dedupe.Response{Data: segs}
 	}
-	return dedupe.New(requestFunc, 3*time.Second, 0)
+	return dedupe.New(requestFunc, time.Second, 0)
 }
