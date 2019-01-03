@@ -41,6 +41,7 @@ const (
 type RawTopo struct {
 	Timestamp          int64
 	TimestampHuman     string
+	TTL                uint32
 	ISD_AS             string
 	Overlay            string
 	MTU                int
