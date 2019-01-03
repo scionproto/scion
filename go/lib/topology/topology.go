@@ -51,7 +51,9 @@ func (s ServiceNames) GetRandom() (string, error) {
 
 // Topo is the main struct encompassing topology information for use in Go code.
 // The first section contains metadata about the topology. All of these fields
-// should be self-explanatory.
+// should be self-explanatory. The unit of TTL is seconds, with the zero value
+// indicating an infinite TTL.
+//
 // The second section concerns the Border routers. BRNames is just a sorted slice
 // of the names of the BRs in this topolgy. Its contents is exactly the same as
 // the keys in the BR map.
@@ -67,6 +69,7 @@ func (s ServiceNames) GetRandom() (string, error) {
 type Topo struct {
 	Timestamp      time.Time
 	TimestampHuman string // This can vary wildly in format and is only for informational purposes.
+	TTL            time.Duration
 	ISD_AS         addr.IA
 	Overlay        overlay.Type
 	MTU            int
@@ -138,6 +141,7 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 	var err error
 	t.Timestamp = time.Unix(raw.Timestamp, 0)
 	t.TimestampHuman = raw.TimestampHuman
+	t.TTL = time.Duration(raw.TTL) * time.Second
 
 	if t.ISD_AS, err = addr.IAFromString(raw.ISD_AS); err != nil {
 		return err
@@ -169,7 +173,10 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if err != nil {
 			return err
 		}
-		brInfo := BRInfo{}
+		brInfo := BRInfo{
+			CtrlAddrs:     ctrlAddr,
+			InternalAddrs: intAddr,
+		}
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
@@ -245,6 +252,11 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 		return err
 	}
 	return nil
+}
+
+func (t *Topo) Active(now time.Time) bool {
+	return !now.Before(t.Timestamp) && (t.TTL == 0 ||
+		now.Before(t.Timestamp.Add(t.TTL)))
 }
 
 func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
@@ -342,7 +354,9 @@ func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
 // to in order to use that interface, via the IFInfoMap member of the Topo
 // struct.
 type BRInfo struct {
-	IFIDs []common.IFIDType
+	CtrlAddrs     *TopoAddr
+	InternalAddrs *TopoBRAddr
+	IFIDs         []common.IFIDType
 }
 
 // IFInfo describes a border router link to another AS, including the internal address

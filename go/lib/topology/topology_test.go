@@ -103,11 +103,32 @@ func Test_Meta(t *testing.T) {
 		// Is testing this piece of data really useful?
 		SoMsg("Checking field 'TimestampHuman", c.TimestampHuman,
 			ShouldContainSubstring, "1975-05-06 01:02:03.000000+0000")
+		SoMsg("Checking field 'TTL'", c.TTL, ShouldEqual, time.Hour)
 		SoMsg("Checking field 'ISD_AS'", c.ISD_AS, ShouldResemble, addr.IA{I: 1, A: 0xff0000000311})
 		SoMsg("Checking field 'Overlay'", c.Overlay, ShouldEqual, overlay.IPv46)
 		SoMsg("Checking field 'MTU'", c.MTU, ShouldEqual, 1472)
 		SoMsg("Checking field 'Core'", c.Core, ShouldBeFalse)
 
+	})
+}
+
+func Test_Active(t *testing.T) {
+	fn := "testdata/basic.json"
+	Convey("Checking Active", t, func() {
+		loadTopo(fn, t)
+		c := testTopo
+		Convey("Given a positive TTL", func() {
+			SoMsg("Before TS inactive", c.Active(c.Timestamp.Add(-time.Second)), ShouldBeFalse)
+			SoMsg("TS in active range", c.Active(c.Timestamp), ShouldBeTrue)
+			SoMsg("End of active range", c.Active(c.Timestamp.Add(c.TTL-1)), ShouldBeTrue)
+			SoMsg("Expired inactive", c.Active(c.Timestamp.Add(time.Hour)), ShouldBeFalse)
+		})
+		Convey("Given a zero TTL", func() {
+			c.TTL = 0
+			SoMsg("Before TS inactive", c.Active(c.Timestamp.Add(-time.Second)), ShouldBeFalse)
+			SoMsg("TS in active range", c.Active(c.Timestamp), ShouldBeTrue)
+			SoMsg("Distant time active", c.Active(c.Timestamp.Add(100*time.Hour)), ShouldBeTrue)
+		})
 	})
 }
 
