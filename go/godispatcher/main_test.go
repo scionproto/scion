@@ -16,15 +16,12 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
-	"github.com/scionproto/scion/go/godispatcher/network"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
@@ -152,23 +149,16 @@ func (c *ClientConfig) DoReadOps(t *testing.T) {
 	c.conn.Close()
 }
 
-func RunServer(t *testing.T, settings *TestSettings) {
-	dispatcher := &network.Dispatcher{
-		RoutingTable:      registration.NewIATable(1024, 65535),
-		OverlaySocket:     fmt.Sprintf(":%d", settings.OverlayPort),
-		ApplicationSocket: settings.ApplicationSocket,
-	}
-	err := dispatcher.ListenAndServe()
-	if err != nil {
-		t.Fatalf("dispatcher error, err = %v", err)
-	}
-}
-
 func TestDataplaneIntegration(t *testing.T) {
 	settings := InitTestSettings(t)
 	clients := buildClientConfigs(&settings)
 
-	go RunServer(t, &settings)
+	go func() {
+		err := RunDispatcher(settings.ApplicationSocket, settings.OverlayPort)
+		if err != nil {
+			t.Fatalf("dispatcher error, err = %v", err)
+		}
+	}()
 	time.Sleep(time.Second)
 
 	InitAllClientConns(t, clients, &settings)
