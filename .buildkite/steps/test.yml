@@ -1,4 +1,8 @@
 - label: Unit tests and Sphinx
   command: $BASE/run_step test
+  retry:
+    automatic:
+      exit_status: 0
+      limit: 10
   artifact_paths:
       - "artifacts.out/**/*"

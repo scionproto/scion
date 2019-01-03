@@ -116,12 +116,18 @@ func (c *ClientConfig) Run(t *testing.T, f *TestSettings) {
 	network, err := snet.NewNetwork(c.PublicAddress.IA, "", f.ApplicationSocket)
 	if err != nil {
 		t.Errorf("client network init failed, err = %v", err)
+		return
 	}
 	clientConn, err := network.ListenSCION("udp4", c.PublicAddress, 3*time.Second)
+	if err != nil {
+		t.Errorf("client conn init failed, err = %v", err)
+		return
+	}
 	for _, entry := range c.WriteOps {
 		_, err := clientConn.WriteToSCION(entry.Message, entry.RemoteAddress)
 		if err != nil {
-			t.Errorf("client write error, err = %v", err)
+			t.Errorf("client write error, aborting future writes, err = %v", err)
+			return
 		}
 	}
 	// Kill clients if they don't get the messages quickly
@@ -130,7 +136,8 @@ func (c *ClientConfig) Run(t *testing.T, f *TestSettings) {
 		b := make([]byte, 1500)
 		n, _, err := clientConn.ReadFromSCION(b)
 		if err != nil {
-			t.Errorf("client read error, err = %v", err)
+			t.Errorf("client read error, aborting future reads, err = %v", err)
+			return
 		}
 		if bytes.Compare(b[:n], entry.Message) != 0 {
 			t.Errorf("bad message received, have %v, expect %v", b[:n], entry.Message)
