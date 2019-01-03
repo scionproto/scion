@@ -32,7 +32,6 @@ import (
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
-	"github.com/scionproto/scion/go/lib/snet"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 	"github.com/scionproto/scion/go/proto"
 )
@@ -111,6 +110,8 @@ func (h *segReqHandler) fetchDownSegs(ctx context.Context, msger infra.Messenger
 	if err != nil {
 		return nil, err
 	}
+	logger := log.FromCtx(ctx)
+	logger.Debug("[segReqHandler] Fetch down segments", "dst", dst, "remote", cAddr)
 	if err = h.fetchAndSaveSegs(ctx, msger, addr.IA{}, dst, cAddr); err != nil {
 		return nil, err
 	}
@@ -124,9 +125,6 @@ func (h *segReqHandler) fetchAndSaveSegs(ctx context.Context, msger infra.Messen
 	logger := log.FromCtx(ctx)
 	queryTime := time.Now()
 	r := &path_mgmt.SegReq{RawSrcIA: src.IAInt(), RawDstIA: dst.IAInt()}
-	if snetAddr, ok := cPSAddr.(*snet.Addr); ok {
-		logger.Trace("[segReqHandler] Sending segment request", "NextHop", snetAddr.NextHop)
-	}
 	segs, err := h.getSegsFromNetwork(ctx, r, cPSAddr, messenger.NextId())
 	if err != nil {
 		return err
@@ -194,7 +192,8 @@ func (h *segReqHandler) sendReply(ctx context.Context, msger infra.Messenger,
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to send reply!", "err", err)
 	}
-	logger.Debug("[segReqHandler] reply sent", "id", h.request.ID)
+	logger.Debug("[segReqHandler] reply sent", "id", h.request.ID,
+		"ups", len(upSegs), "cores", len(coreSegs), "downs", len(downSegs))
 }
 
 func (h *segReqHandler) collectSegs(upSegs, coreSegs, downSegs []*seg.PathSegment) []*seg.Meta {

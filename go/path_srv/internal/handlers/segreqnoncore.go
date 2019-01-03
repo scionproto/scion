@@ -16,7 +16,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"net"
 	"time"
@@ -232,7 +231,6 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context,
 	msger infra.Messenger, src, dst addr.IA, dbOnly bool) ([]*seg.PathSegment, error) {
 
 	logger := log.FromCtx(ctx)
-	logger.Debug("[segReqHanlder:fetchCoreSegs]", "query", fmt.Sprintf("%v->%v", src, dst))
 	// try local cache first, inverse query since core segs are stored in inverse direction.
 	q := &query.Params{
 		SegTypes: []proto.PathSegType{proto.PathSegType_core},
@@ -260,6 +258,7 @@ func (h *segReqNonCoreHandler) fetchCoreSegs(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	logger.Debug("[segReqHandler] Request core segments", "src", src, "dst", dst, "remote", cPS)
 	if err = h.fetchAndSaveSegs(ctx, msger, src, dst, cPS); err != nil {
 		return nil, err
 	}
