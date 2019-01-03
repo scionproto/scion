@@ -118,7 +118,7 @@ func (c *ClientConfig) Run(t *testing.T, f *TestSettings) {
 		t.Errorf("client network init failed, err = %v", err)
 		return
 	}
-	clientConn, err := network.ListenSCION("udp4", c.PublicAddress, 3*time.Second)
+	clientConn, err := network.ListenSCION("udp4", c.PublicAddress, 2*time.Second)
 	if err != nil {
 		t.Errorf("client conn init failed, err = %v", err)
 		return
@@ -163,7 +163,7 @@ func TestDataplaneIntegration(t *testing.T) {
 	clients := buildClientConfigs(&settings)
 
 	go RunServer(t, &settings)
-	time.Sleep(time.Second)
+	time.Sleep(2 * time.Second)
 
 	var wg sync.WaitGroup
 	for _, client := range clients {
