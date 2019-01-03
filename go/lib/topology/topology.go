@@ -49,6 +49,20 @@ func (s ServiceNames) GetRandom() (string, error) {
 	return s[rand.Intn(numServers)], nil
 }
 
+// IfInfoMap maps interface ids to the interface information.
+type IfInfoMap map[common.IFIDType]IFInfo
+
+// OfLinkType returns all interface info in the map that have the given link type.
+func (iim IfInfoMap) OfLinkType(lt proto.LinkType) IfInfoMap {
+	infos := make(IfInfoMap)
+	for id, info := range iim {
+		if info.LinkType == lt {
+			infos[id] = info
+		}
+	}
+	return infos
+}
+
 // Topo is the main struct encompassing topology information for use in Go code.
 // The first section contains metadata about the topology. All of these fields
 // should be self-explanatory. The unit of TTL is seconds, with the zero value
@@ -80,7 +94,7 @@ type Topo struct {
 	// This maps Interface IDs to internal addresses. Clients use this to
 	// figure out which internal BR address they have to send their traffic to
 	// if they want to use a given interface.
-	IFInfoMap map[common.IFIDType]IFInfo
+	IFInfoMap IfInfoMap
 
 	BS       IDAddrMap
 	BSNames  ServiceNames
