@@ -46,21 +46,20 @@ type NetConf struct {
 }
 
 // FromTopo creates a NetConf instance from the topology.
-func FromTopo(intfs []common.IFIDType, infomap map[common.IFIDType]topology.IFInfo) (
+func FromTopo(br *topology.BRInfo, infomap map[common.IFIDType]topology.IFInfo) (
 	*NetConf, error) {
-	n := &NetConf{}
+	n := &NetConf{
+		LocAddr:  br.InternalAddrs,
+		CtrlAddr: br.CtrlAddrs,
+	}
 	n.IFs = make(map[common.IFIDType]*Interface)
-	for _, ifid := range intfs {
+	for _, ifid := range br.IFIDs {
 		ifinfo := infomap[ifid]
-		if n.LocAddr == nil {
-			n.LocAddr = ifinfo.InternalAddrs
-		} else if assert.On {
+		if assert.On {
 			assert.Must(n.LocAddr == ifinfo.InternalAddrs,
 				"Cannot have multiple local data-plane addresses")
 		}
-		if n.CtrlAddr == nil {
-			n.CtrlAddr = ifinfo.CtrlAddrs
-		} else if assert.On {
+		if assert.On {
 			assert.Must(n.CtrlAddr == ifinfo.CtrlAddrs,
 				"Cannot have multiple local control-plane addresses")
 		}

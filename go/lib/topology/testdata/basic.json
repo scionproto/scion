@@ -1,6 +1,7 @@
 {
     "Timestamp": 168570123,
     "TimestampHuman": "1975-05-06 01:02:03.000000+0000",
+    "TTL": 3600,
     "ISD_AS": "1-ff00:0:311",
     "MTU": 1472,
     "Overlay": "IPv4+6",

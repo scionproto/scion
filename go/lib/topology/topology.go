@@ -67,6 +67,7 @@ func (s ServiceNames) GetRandom() (string, error) {
 type Topo struct {
 	Timestamp      time.Time
 	TimestampHuman string // This can vary wildly in format and is only for informational purposes.
+	TTL            uint32
 	ISD_AS         addr.IA
 	Overlay        overlay.Type
 	MTU            int
@@ -138,6 +139,7 @@ func (t *Topo) populateMeta(raw *RawTopo) error {
 	var err error
 	t.Timestamp = time.Unix(raw.Timestamp, 0)
 	t.TimestampHuman = raw.TimestampHuman
+	t.TTL = raw.TTL
 
 	if t.ISD_AS, err = addr.IAFromString(raw.ISD_AS); err != nil {
 		return err
@@ -169,7 +171,10 @@ func (t *Topo) populateBR(raw *RawTopo) error {
 		if err != nil {
 			return err
 		}
-		brInfo := BRInfo{}
+		brInfo := BRInfo{
+			CtrlAddrs:     ctrlAddr,
+			InternalAddrs: intAddr,
+		}
 		for ifid, rawIntf := range rawBr.Interfaces {
 			var err error
 			brInfo.IFIDs = append(brInfo.IFIDs, ifid)
@@ -245,6 +250,11 @@ func (t *Topo) populateServices(raw *RawTopo) error {
 		return err
 	}
 	return nil
+}
+
+func (t *Topo) Active(now time.Time) bool {
+	return !now.Before(t.Timestamp) && (t.TTL == 0 ||
+		now.Before(t.Timestamp.Add(time.Duration(t.TTL)*time.Second)))
 }
 
 func (t *Topo) GetAllTopoAddrs(svc proto.ServiceType) ([]TopoAddr, error) {
@@ -342,7 +352,9 @@ func (t *Topo) zkSvcFromRaw(zksvc map[int]*RawAddrPort) error {
 // to in order to use that interface, via the IFInfoMap member of the Topo
 // struct.
 type BRInfo struct {
-	IFIDs []common.IFIDType
+	CtrlAddrs     *TopoAddr
+	InternalAddrs *TopoBRAddr
+	IFIDs         []common.IFIDType
 }
 
 // IFInfo describes a border router link to another AS, including the internal address
