@@ -48,13 +48,17 @@ type NetConf struct {
 // FromTopo creates a NetConf instance from the topology.
 func FromTopo(br *topology.BRInfo, infomap map[common.IFIDType]topology.IFInfo) (
 	*NetConf, error) {
+
 	n := &NetConf{
 		LocAddr:  br.InternalAddrs,
 		CtrlAddr: br.CtrlAddrs,
 	}
 	n.IFs = make(map[common.IFIDType]*Interface)
 	for _, ifid := range br.IFIDs {
-		ifinfo := infomap[ifid]
+		ifinfo, ok := infomap[ifid]
+		if assert.On {
+			assert.Must(ok, "Interface must exist")
+		}
 		if assert.On {
 			assert.Must(n.LocAddr == ifinfo.InternalAddrs,
 				"Cannot have multiple local data-plane addresses")

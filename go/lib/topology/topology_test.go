@@ -117,18 +117,17 @@ func Test_Active(t *testing.T) {
 	Convey("Checking Active", t, func() {
 		loadTopo(fn, t)
 		c := testTopo
-		start := time.Unix(168570123, 0)
 		Convey("Given a positive TTL", func() {
-			SoMsg("Before TS inactive", c.Active(start.Add(-time.Second)), ShouldBeFalse)
-			SoMsg("TS in active range", c.Active(start), ShouldBeTrue)
-			SoMsg("End of active range", c.Active(start.Add(3599*time.Second)), ShouldBeTrue)
-			SoMsg("Expired inactive", c.Active(start.Add(time.Hour)), ShouldBeFalse)
+			SoMsg("Before TS inactive", c.Active(c.Timestamp.Add(-time.Second)), ShouldBeFalse)
+			SoMsg("TS in active range", c.Active(c.Timestamp), ShouldBeTrue)
+			SoMsg("End of active range", c.Active(c.Timestamp.Add(c.TTL-1)), ShouldBeTrue)
+			SoMsg("Expired inactive", c.Active(c.Timestamp.Add(time.Hour)), ShouldBeFalse)
 		})
 		Convey("Given a zero TTL", func() {
 			c.TTL = 0
-			SoMsg("Before TS inactive", c.Active(start.Add(-time.Second)), ShouldBeFalse)
-			SoMsg("TS in active range", c.Active(start), ShouldBeTrue)
-			SoMsg("Distant time active", c.Active(start.Add(100*time.Hour)), ShouldBeTrue)
+			SoMsg("Before TS inactive", c.Active(c.Timestamp.Add(-time.Second)), ShouldBeFalse)
+			SoMsg("TS in active range", c.Active(c.Timestamp), ShouldBeTrue)
+			SoMsg("Distant time active", c.Active(c.Timestamp.Add(100*time.Hour)), ShouldBeTrue)
 		})
 	})
 }
