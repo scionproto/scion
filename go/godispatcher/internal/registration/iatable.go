@@ -18,7 +18,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -87,14 +86,14 @@ var _ IATable = (*iaTable)(nil)
 
 type iaTable struct {
 	mtx     sync.RWMutex
-	ia      map[addr.IA]*registration.Table
+	ia      map[addr.IA]*Table
 	minPort int
 	maxPort int
 }
 
 func newIATable(minPort, maxPort int) *iaTable {
 	return &iaTable{
-		ia:      make(map[addr.IA]*registration.Table),
+		ia:      make(map[addr.IA]*Table),
 		minPort: minPort,
 		maxPort: maxPort,
 	}
@@ -113,7 +112,7 @@ func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc add
 	}
 	table, ok := t.ia[ia]
 	if !ok {
-		table = registration.NewTable(t.minPort, t.maxPort)
+		table = NewTable(t.minPort, t.maxPort)
 		t.ia[ia] = table
 	}
 	reference, err := table.Register(public, bind, svc, value)
@@ -163,5 +162,5 @@ func (r *iaTableReference) Free() {
 }
 
 func (r *iaTableReference) UDPAddr() *net.UDPAddr {
-	return r.entryRef.(registration.UDPReference).UDPAddr()
+	return r.entryRef.(UDPReference).UDPAddr()
 }

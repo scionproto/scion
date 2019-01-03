@@ -17,7 +17,7 @@ package network
 import (
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/registration"
+	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
 )

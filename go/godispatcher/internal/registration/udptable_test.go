@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration_test
+package registration
 
 import (
 	"net"
@@ -20,8 +20,6 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 )
 
 var docIPv6AddressStr = "2001:db8::1"
@@ -30,8 +28,8 @@ var docIPv6Address = net.ParseIP(docIPv6AddressStr)
 var minPort = 1024
 var maxPort = 65535
 
-func testUDPTableWithPorts(v4, v6 map[int]registration.IPTable) *registration.UDPPortTable {
-	return registration.NewUDPPortTableFromMap(minPort, maxPort, v4, v6)
+func testUDPTableWithPorts(v4, v6 map[int]IPTable) *UDPPortTable {
+	return NewUDPPortTableFromMap(minPort, maxPort, v4, v6)
 }
 
 func v6Format(ip string, port int) string {
@@ -44,34 +42,34 @@ func TestUDPPortTableLookup(t *testing.T) {
 		Convey("Given a non-zero IPv4 address", func() {
 			address := &net.UDPAddr{IP: net.IP{10, 1, 2, 3}, Port: 10080}
 			Convey("Lookup on an empty table returns nil", func() {
-				table := registration.NewUDPPortTable(minPort, maxPort)
+				table := NewUDPPortTable(minPort, maxPort)
 				retValue, ok := table.Lookup(address)
 				SoMsg("value", retValue, ShouldBeNil)
 				SoMsg("ok", ok, ShouldBeFalse)
 			})
 			Convey("Lookup on table with non-matching entries returns nil", func() {
-				table := testUDPTableWithPorts(map[int]registration.IPTable{
+				table := testUDPTableWithPorts(map[int]IPTable{
 					10080: {"10.4.5.6": value}}, nil)
 				retValue, ok := table.Lookup(address)
 				SoMsg("value", retValue, ShouldBeNil)
 				SoMsg("ok", ok, ShouldBeFalse)
 			})
 			Convey("Lookup on table with exact match returns value", func() {
-				table := testUDPTableWithPorts(map[int]registration.IPTable{
+				table := testUDPTableWithPorts(map[int]IPTable{
 					10080: {"10.1.2.3": value}}, nil)
 				retValue, ok := table.Lookup(address)
 				SoMsg("value", retValue, ShouldEqual, value)
 				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with matching 0.0.0.0 entry returns value", func() {
-				table := testUDPTableWithPorts(map[int]registration.IPTable{
+				table := testUDPTableWithPorts(map[int]IPTable{
 					10080: {"0.0.0.0": value}}, nil)
 				retValue, ok := table.Lookup(address)
 				SoMsg("value", retValue, ShouldEqual, value)
 				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with non-matching 0.0.0.0 entry returns nil", func() {
-				table := testUDPTableWithPorts(map[int]registration.IPTable{
+				table := testUDPTableWithPorts(map[int]IPTable{
 					80: {"0.0.0.0": value}}, nil)
 				retValue, ok := table.Lookup(address)
 				SoMsg("value", retValue, ShouldBeNil)
@@ -79,7 +77,7 @@ func TestUDPPortTableLookup(t *testing.T) {
 			})
 		})
 		Convey("Lookup fails for zero IPv4 address", func() {
-			table := registration.NewUDPPortTable(minPort, maxPort)
+			table := NewUDPPortTable(minPort, maxPort)
 			address := &net.UDPAddr{IP: net.IPv4zero, Port: 10080}
 			retValue, ok := table.Lookup(address)
 			SoMsg("value", retValue, ShouldBeNil)
@@ -88,7 +86,7 @@ func TestUDPPortTableLookup(t *testing.T) {
 		Convey("Given an IPv6 address", func() {
 			address := &net.UDPAddr{IP: docIPv6Address, Port: 10080}
 			Convey("Lookup on table with matching entry returns value", func() {
-				table := testUDPTableWithPorts(nil, map[int]registration.IPTable{
+				table := testUDPTableWithPorts(nil, map[int]IPTable{
 					10080: {docIPv6AddressStr: value},
 				})
 				retValue, ok := table.Lookup(address)
@@ -96,7 +94,7 @@ func TestUDPPortTableLookup(t *testing.T) {
 				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with matching :: entry returns value", func() {
-				table := testUDPTableWithPorts(nil, map[int]registration.IPTable{
+				table := testUDPTableWithPorts(nil, map[int]IPTable{
 					10080: {"::": value},
 				})
 				retValue, ok := table.Lookup(address)
@@ -104,7 +102,7 @@ func TestUDPPortTableLookup(t *testing.T) {
 				SoMsg("ok", ok, ShouldBeTrue)
 			})
 			Convey("Lookup on table with non-matching :: entry returns nil", func() {
-				table := testUDPTableWithPorts(nil, map[int]registration.IPTable{
+				table := testUDPTableWithPorts(nil, map[int]IPTable{
 					80: {"::": value},
 				})
 				retValue, ok := table.Lookup(address)
@@ -119,7 +117,7 @@ func TestUDPPortTableInsert(t *testing.T) {
 	value := "Test value"
 	Convey("", t, func() {
 		Convey("Given an empty table", func() {
-			table := registration.NewUDPPortTable(minPort, maxPort)
+			table := NewUDPPortTable(minPort, maxPort)
 			Convey("Inserting an address with a port returns a copy of the same address", func() {
 				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 				retAddress, err := table.Insert(address, value)
@@ -154,7 +152,7 @@ func TestUDPPortTableInsert(t *testing.T) {
 			})
 		})
 		Convey("Given a table with a zero address", func() {
-			table := testUDPTableWithPorts(map[int]registration.IPTable{
+			table := testUDPTableWithPorts(map[int]IPTable{
 				1024: {"0.0.0.0": value}}, nil)
 			Convey("A colliding allocation will return an error", func() {
 				address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 1024}
@@ -164,7 +162,7 @@ func TestUDPPortTableInsert(t *testing.T) {
 			})
 		})
 		Convey("Given a table with a non-zero address", func() {
-			table := testUDPTableWithPorts(map[int]registration.IPTable{
+			table := testUDPTableWithPorts(map[int]IPTable{
 				1024: {"10.0.0.0": value}}, nil)
 			Convey("Inserting zero IPv4 address on the same port fails", func() {
 				address := &net.UDPAddr{IP: net.IPv4zero, Port: 1024}
@@ -187,20 +185,20 @@ func TestUDPPortAllocator(t *testing.T) {
 	value := "test value"
 	Convey("", t, func() {
 		Convey("Constructing an allocator with minport > maxport will panic", func() {
-			So(func() { registration.NewUDPPortAllocator(10, 4) }, ShouldPanic)
+			So(func() { NewUDPPortAllocator(10, 4) }, ShouldPanic)
 		})
 		Convey("Constructing an allocator with a negative minport will panic", func() {
-			So(func() { registration.NewUDPPortAllocator(-4, 4) }, ShouldPanic)
+			So(func() { NewUDPPortAllocator(-4, 4) }, ShouldPanic)
 		})
 		Convey("Constructing an allocator with a minport of 0 will panic", func() {
-			So(func() { registration.NewUDPPortAllocator(0, 4) }, ShouldPanic)
+			So(func() { NewUDPPortAllocator(0, 4) }, ShouldPanic)
 		})
 		Convey("Constructing an allocator with maxport > 65535 wil panic", func() {
-			So(func() { registration.NewUDPPortAllocator(1, 65536) }, ShouldPanic)
+			So(func() { NewUDPPortAllocator(1, 65536) }, ShouldPanic)
 		})
 		Convey("Given an allocator", func() {
-			allocator := registration.NewUDPPortAllocator(1000, 1500)
-			table := registration.NewUDPPortTable(minPort, maxPort)
+			allocator := NewUDPPortAllocator(1000, 1500)
+			table := NewUDPPortTable(minPort, maxPort)
 			Convey("if table is empty, first allocation gives min port", func() {
 				port, err := allocator.Allocate(address, table)
 				SoMsg("port", port, ShouldEqual, 1000)
@@ -208,7 +206,7 @@ func TestUDPPortAllocator(t *testing.T) {
 			})
 			Convey("if table contains used first port, first allocation gives next port", func() {
 				port, err := allocator.Allocate(address, testUDPTableWithPorts(
-					map[int]registration.IPTable{
+					map[int]IPTable{
 						1000: {"10.2.3.4": value},
 					}, nil,
 				))
@@ -217,7 +215,7 @@ func TestUDPPortAllocator(t *testing.T) {
 			})
 			Convey("if wildcard bind uses first port, first allocation gives next port", func() {
 				port, err := allocator.Allocate(address, testUDPTableWithPorts(
-					map[int]registration.IPTable{
+					map[int]IPTable{
 						1000: {"0.0.0.0": value},
 					}, nil,
 				))
@@ -226,10 +224,10 @@ func TestUDPPortAllocator(t *testing.T) {
 			})
 		})
 		Convey("Given an allocator with few ports", func() {
-			allocator := registration.NewUDPPortAllocator(1, 3)
+			allocator := NewUDPPortAllocator(1, 3)
 			Convey("if all ports are taken except max, max is chosen", func() {
 				port, err := allocator.Allocate(address, testUDPTableWithPorts(
-					map[int]registration.IPTable{
+					map[int]IPTable{
 						1: {"0.0.0.0": value},
 						2: {"0.0.0.0": value},
 					}, nil,
@@ -238,7 +236,7 @@ func TestUDPPortAllocator(t *testing.T) {
 				SoMsg("err", err, ShouldBeNil)
 				Convey("if first port is available, it is chosen after wrapping", func() {
 					port, err := allocator.Allocate(address, testUDPTableWithPorts(
-						map[int]registration.IPTable{
+						map[int]IPTable{
 							2: {"0.0.0.0": value},
 							3: {"0.0.0.0": value},
 						}, nil,
@@ -249,7 +247,7 @@ func TestUDPPortAllocator(t *testing.T) {
 			})
 			Convey("if all ports are taken, error", func() {
 				table := testUDPTableWithPorts(
-					map[int]registration.IPTable{
+					map[int]IPTable{
 						1: {"0.0.0.0": value},
 						2: {"0.0.0.0": value},
 						3: {"0.0.0.0": value},
@@ -261,9 +259,9 @@ func TestUDPPortAllocator(t *testing.T) {
 		})
 		Convey("Given an allocator with IPv6 data", func() {
 			v6address := net.ParseIP(docIPv6AddressStr)
-			allocator := registration.NewUDPPortAllocator(1000, 1500)
+			allocator := NewUDPPortAllocator(1000, 1500)
 			table := testUDPTableWithPorts(nil,
-				map[int]registration.IPTable{
+				map[int]IPTable{
 					1000: {docIPv6AddressStr: value},
 				})
 			Convey("allocation skips ports correctly for IPv6", func() {

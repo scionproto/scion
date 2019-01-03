@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration_test
+package registration
 
 import (
 	"net"
@@ -20,14 +20,13 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/godispatcher/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestIATable(t *testing.T) {
 	Convey("Given a table with one entry", t, func() {
-		table := registration.NewIATable(minPort, maxPort)
+		table := NewIATable(minPort, maxPort)
 		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
 		value := "test value"
 		ia := xtest.MustParseIA("1-ff00:0:1")
@@ -89,17 +88,17 @@ func TestIATable(t *testing.T) {
 
 func TestIATableRegister(t *testing.T) {
 	Convey("Given an empty table", t, func() {
-		table := registration.NewIATable(minPort, maxPort)
+		table := NewIATable(minPort, maxPort)
 		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
 		value := "test value"
 		Convey("ISD zero is error", func() {
 			ref, err := table.Register(addr.IA{I: 0, A: 1}, public, nil, addr.SvcNone, value)
-			xtest.SoMsgErrorStr("err", err, registration.ErrBadISD)
+			xtest.SoMsgErrorStr("err", err, ErrBadISD)
 			SoMsg("ref", ref, ShouldBeNil)
 		})
 		Convey("AS zero is error", func() {
 			ref, err := table.Register(addr.IA{I: 1, A: 0}, public, nil, addr.SvcNone, value)
-			xtest.SoMsgErrorStr("err", err, registration.ErrBadAS)
+			xtest.SoMsgErrorStr("err", err, ErrBadAS)
 			SoMsg("ref", ref, ShouldBeNil)
 		})
 		Convey("for a good AS number", func() {

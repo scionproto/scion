@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration_test
+package registration
 
 import (
-	"math/rand"
 	"net"
-	"strconv"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -31,7 +28,7 @@ func TestSVCTableEmpty(t *testing.T) {
 	address := &net.UDPAddr{IP: net.IP{10, 2, 3, 4}, Port: 10080}
 	value := "test value"
 	Convey("Given an empty SVCTable", t, func() {
-		table := registration.NewSVCTable()
+		table := NewSVCTable()
 		Convey("Anycast to nil address, not found", func() {
 			retValue, ok := table.Anycast(addr.SvcCS, nil)
 			SoMsg("ok", ok, ShouldBeFalse)
@@ -93,7 +90,7 @@ func TestSVCTableOneItem(t *testing.T) {
 	value := "test value"
 	otherValue := "other test value"
 	Convey("Given a table with one address", t, func() {
-		table := registration.NewSVCTable()
+		table := NewSVCTable()
 		reference, err := table.Register(addr.SvcCS, address, value)
 		xtest.FailOnErr(t, err)
 		Convey("anycasting to a different IP does not find the entry", func() {
@@ -150,7 +147,7 @@ func TestSVCTableTwoItems(t *testing.T) {
 	value := "test value"
 	otherValue := "other test value"
 	Convey("Given a table with two ports for the same address and service", t, func() {
-		table := registration.NewSVCTable()
+		table := NewSVCTable()
 		_, err := table.Register(addr.SvcCS, address, value)
 		xtest.FailOnErr(t, err)
 		_, err = table.Register(addr.SvcCS, sameIpDiffPortAddress, otherValue)
@@ -169,7 +166,7 @@ func TestSVCTableTwoItems(t *testing.T) {
 func TestSVCTableStress(t *testing.T) {
 	registrationCount := 1000
 	Convey("Generate many random registrations, then free all", t, func() {
-		table := registration.NewSVCTable()
+		table := NewSVCTable()
 		references := runRandomRegistrations(registrationCount, table)
 		for _, ref := range references {
 			ref.Free()
@@ -191,7 +188,7 @@ func TestSVCTableFree(t *testing.T) {
 	Convey("", t, func() {
 		Convey("Given a table with three entries on the same IP", func() {
 			ip := net.IP{10, 2, 3, 4}
-			table := registration.NewSVCTable()
+			table := NewSVCTable()
 			addressOne := &net.UDPAddr{IP: ip, Port: 10080}
 			_, err := table.Register(addr.SvcCS, addressOne, "1")
 			xtest.FailOnErr(t, err)
@@ -214,8 +211,8 @@ func TestSVCTableFree(t *testing.T) {
 	})
 }
 
-func runRandomRegistrations(count int, table registration.SVCTable) []registration.Reference {
-	var references []registration.Reference
+func runRandomRegistrations(count int, table SVCTable) []Reference {
+	var references []Reference
 	for i := 0; i < count; i++ {
 		ref, err := table.Register(addr.SvcCS, getRandomUDPAddress(), getRandomValue())
 		if err == nil {
@@ -223,24 +220,4 @@ func runRandomRegistrations(count int, table registration.SVCTable) []registrati
 		}
 	}
 	return references
-}
-
-func getRandomUDPAddress() *net.UDPAddr {
-	return &net.UDPAddr{
-		IP:   getRandomIPv4(),
-		Port: getRandomPort(),
-	}
-}
-
-func getRandomIPv4() net.IP {
-	b := byte(rand.Intn(4))
-	return net.IP{10, 0, 0, b}
-}
-
-func getRandomPort() int {
-	return rand.Intn(16)
-}
-
-func getRandomValue() string {
-	return strconv.Itoa(rand.Intn(1 << 16))
 }

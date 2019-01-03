@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/godispatcher/network"
-	"github.com/scionproto/scion/go/godispatcher/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"

@@ -18,7 +18,7 @@ import (
 	"net"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
-	"github.com/scionproto/scion/go/godispatcher/registration"
+	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
