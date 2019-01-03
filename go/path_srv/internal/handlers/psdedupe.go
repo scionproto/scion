@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -51,5 +52,5 @@ func NewGetSegsDeduper(msger infra.Messenger) dedupe.Deduper {
 		}
 		return dedupe.Response{Data: segs}
 	}
-	return dedupe.New(requestFunc, 0, 0)
+	return dedupe.New(requestFunc, time.Second, 0)
 }
