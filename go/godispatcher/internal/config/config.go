@@ -15,16 +15,32 @@
 // Package config contains the configuration of the SCION dispatcher.
 package config
 
-import "github.com/scionproto/scion/go/lib/common"
+import (
+	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/overlay"
+	"github.com/scionproto/scion/go/lib/sock/reliable"
+)
 
 type Config struct {
 	// ID of the Dispatcher (required)
 	ID string
+
+	// ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
+	ApplicationSocket string
+
+	// OverlayPort is the native port opened by the dispatcher (default 30041)
+	OverlayPort int
 }
 
-func (cfg Config) Validate() error {
+func (cfg *Config) Validate() error {
 	if cfg.ID == "" {
 		return common.NewBasicError("ID must be set", nil)
+	}
+	if cfg.ApplicationSocket == "" {
+		cfg.ApplicationSocket = reliable.DefaultDispPath
+	}
+	if cfg.OverlayPort == 0 {
+		cfg.OverlayPort = overlay.EndhostPort
 	}
 	return nil
 }
