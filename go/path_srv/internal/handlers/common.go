@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
@@ -80,13 +81,16 @@ func (h *baseHandler) fetchSegsFromDB(ctx context.Context,
 	}
 	segs := query.Results(res).Segs()
 	// XXX(lukedirtwalker): Consider cases where segment with revoked interfaces should be returned.
-	segs.FilterSegsErr(func(s *seg.PathSegment) (bool, error) {
+	_, err = segs.FilterSegsErr(func(s *seg.PathSegment) (bool, error) {
 		noRevoked, err := segutil.NoRevokedHopIntf(ctx, h.revCache, s)
 		if err != nil {
 			return false, err
 		}
 		return noRevoked && time.Now().Before(s.MaxExpiry()), nil
 	})
+	if err != nil {
+		return nil, common.NewBasicError("Failed to filter segments", err)
+	}
 	return segs, nil
 }
 
