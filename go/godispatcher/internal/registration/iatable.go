@@ -18,7 +18,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 )
@@ -32,6 +31,12 @@ const (
 type Reference interface {
 	// Free removes the object from its parent collection, cleaning up any allocations.
 	Free()
+}
+
+type UDPReference interface {
+	Reference
+	// UDPAddr returns the UDP address associated with this reference
+	UDPAddr() *net.UDPAddr
 }
 
 // IATable manages the UDP/IP port registrations for a SCION Dispatcher.
@@ -81,14 +86,14 @@ var _ IATable = (*iaTable)(nil)
 
 type iaTable struct {
 	mtx     sync.RWMutex
-	ia      map[addr.IA]*registration.Table
+	ia      map[addr.IA]*Table
 	minPort int
 	maxPort int
 }
 
 func newIATable(minPort, maxPort int) *iaTable {
 	return &iaTable{
-		ia:      make(map[addr.IA]*registration.Table),
+		ia:      make(map[addr.IA]*Table),
 		minPort: minPort,
 		maxPort: maxPort,
 	}
@@ -107,7 +112,7 @@ func (t *iaTable) Register(ia addr.IA, public *net.UDPAddr, bind net.IP, svc add
 	}
 	table, ok := t.ia[ia]
 	if !ok {
-		table = registration.NewTable(t.minPort, t.maxPort)
+		table = NewTable(t.minPort, t.maxPort)
 		t.ia[ia] = table
 	}
 	reference, err := table.Register(public, bind, svc, value)
@@ -139,7 +144,7 @@ func (t *iaTable) LookupService(ia addr.IA, svc addr.HostSVC, bind net.IP) (inte
 	return nil, false
 }
 
-var _ Reference = (*iaTableReference)(nil)
+var _ UDPReference = (*iaTableReference)(nil)
 
 type iaTableReference struct {
 	table    *iaTable
@@ -154,4 +159,8 @@ func (r *iaTableReference) Free() {
 	if r.table.ia[r.ia].Size() == 0 {
 		delete(r.table.ia, r.ia)
 	}
+}
+
+func (r *iaTableReference) UDPAddr() *net.UDPAddr {
+	return r.entryRef.(UDPReference).UDPAddr()
 }

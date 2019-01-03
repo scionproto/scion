@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration_test
+package registration
 
 import (
 	"net"
 	"testing"
 
-	"github.com/scionproto/scion/go/godispatcher/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 )
-
-var minPort = 1024
-var maxPort = 65535
 
 type registerArgs struct {
 	ia     addr.IA
@@ -57,7 +53,7 @@ func generateLookupPublicArgs(n int) []*net.UDPAddr {
 }
 
 func BenchmarkRegister(b *testing.B) {
-	table := registration.NewIATable(minPort, maxPort)
+	table := NewIATable(minPort, maxPort)
 	regData := generateRegisterArgs(b.N)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -67,7 +63,7 @@ func BenchmarkRegister(b *testing.B) {
 
 func BenchmarkLookupPublicIPv4(b *testing.B) {
 	numEntries := 1000
-	table := registration.NewIATable(minPort, maxPort)
+	table := NewIATable(minPort, maxPort)
 	regData := generateRegisterArgs(numEntries)
 	for i := 0; i < numEntries; i++ {
 		table.Register(regData[i].ia, regData[i].public, nil, addr.SvcNone, regData[i].value)
@@ -97,7 +93,7 @@ func generateLookupServiceArgs(n int) []*lookupServiceArgs {
 
 func BenchmarkLookupServiceIPv4(b *testing.B) {
 	numEntries := 1000
-	table := registration.NewIATable(minPort, maxPort)
+	table := NewIATable(minPort, maxPort)
 	regData := generateRegisterArgs(numEntries)
 	for i := 0; i < numEntries; i++ {
 		table.Register(regData[i].ia, regData[i].public, regData[i].bind,

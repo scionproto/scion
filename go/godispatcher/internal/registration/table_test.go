@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package registration_test
+package registration
 
 import (
 	"net"
@@ -20,7 +20,6 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/xtest"
 )
@@ -30,7 +29,7 @@ func TestRegister(t *testing.T) {
 	bind := net.IP{10, 2, 3, 4}
 	value := "test value"
 	Convey("Given a table", t, func() {
-		table := registration.NewTable(minPort, maxPort)
+		table := NewTable(minPort, maxPort)
 		Convey("Initial size is 0", func() {
 			So(table.Size(), ShouldEqual, 0)
 		})
@@ -102,7 +101,7 @@ func TestRegisterOnlyPublic(t *testing.T) {
 	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
 	value := "test value"
 	Convey("Given a table with a public address registration", t, func() {
-		table := registration.NewTable(minPort, maxPort)
+		table := NewTable(minPort, maxPort)
 		ref, err := table.Register(public, nil, addr.SvcNone, value)
 		xtest.FailOnErr(t, err)
 		Convey("Initial size is 1", func() {
@@ -149,7 +148,7 @@ func TestRegisterPublicAndSVC(t *testing.T) {
 	public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
 	value := "test value"
 	Convey("Given a table with a public address registration", t, func() {
-		table := registration.NewTable(minPort, maxPort)
+		table := NewTable(minPort, maxPort)
 		_, err := table.Register(public, nil, addr.SvcCS, value)
 		xtest.FailOnErr(t, err)
 		Convey("Initial size is 1", func() {
@@ -173,7 +172,7 @@ func TestRegisterWithBind(t *testing.T) {
 	bind := net.IP{10, 2, 3, 4}
 	value := "test value"
 	Convey("Given a table with a bind address registration", t, func() {
-		table := registration.NewTable(minPort, maxPort)
+		table := NewTable(minPort, maxPort)
 		ref, err := table.Register(public, bind, addr.SvcCS, value)
 		xtest.FailOnErr(t, err)
 		Convey("Initial size is 1", func() {

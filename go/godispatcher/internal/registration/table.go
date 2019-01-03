@@ -87,11 +87,7 @@ func (t *Table) Size() int {
 	return t.size
 }
 
-// Reference tracks an object from a collection.
-type Reference interface {
-	// Free removes the object from its parent collection, cleaning up any allocations.
-	Free()
-}
+var _ UDPReference = (*tableReference)(nil)
 
 type tableReference struct {
 	table   *Table
@@ -110,4 +106,8 @@ func (r *tableReference) Free() {
 		r.svcRef.Free()
 	}
 	r.table.size--
+}
+
+func (r *tableReference) UDPAddr() *net.UDPAddr {
+	return r.address
 }
