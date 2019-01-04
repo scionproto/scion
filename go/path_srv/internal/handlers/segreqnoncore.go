@@ -114,16 +114,17 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 		h.sendEmptySegReply(ctx, segReq, msger)
 		return
 	}
-	// For a local wildcard we return the upSegs.
-	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
-		h.sendReply(ctx, msger, upSegs, nil, nil, segReq)
-		return
-	}
 	// TODO(lukedirtwalker): in case of CacheOnly we can use a single query,
 	// else we should start go routines for the core segs here.
 	var coreSegs []*seg.PathSegment
 	// All firstIAs of upSegs that are connected, used for filtering later.
 	connFirstIAs := make(map[addr.IA]struct{})
+	// For a local wildcard we return all the upSegs.
+	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
+		for _, ia := range coreASes {
+			connFirstIAs[ia] = struct{}{}
+		}
+	}
 	// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 	// Add a limit of cores we query.
 	for _, src := range upSegs.FirstIAs() {
