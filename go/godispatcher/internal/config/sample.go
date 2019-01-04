@@ -20,10 +20,10 @@ const Sample = `
   ID = "disp"
 
   # ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
-  ApplicationSocket = "run/shm/dispatcher/custom.sock"
+  ApplicationSocket = "/run/shm/dispatcher/default.sock"
 
   # OverlayPort is the native port opened by the dispatcher (default 30041)
-  OverlayPort = 30061
+  OverlayPort = 30041
 
 [logging]
   [logging.file]

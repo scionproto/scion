@@ -29,15 +29,7 @@ import (
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-type Config struct {
-	Logging    env.Logging
-	Metrics    env.Metrics
-	Dispatcher config.Config
-}
-
-var (
-	cfg Config
-)
+var cfg config.Config
 
 func main() {
 	os.Exit(realMain())
@@ -78,9 +70,10 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	if err := cfg.Dispatcher.Validate(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		return err
 	}
+	cfg.InitDefaults()
 	env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
 	return nil
 }
