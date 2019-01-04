@@ -418,7 +418,7 @@ func choosePath(interactive bool) *sd.PathReplyEntry {
 	var pathIndex uint64
 
 	pathMgr := snet.DefNetwork.PathResolver()
-	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA)
+	pathSet := pathMgr.Query(context.Background(), local.IA, remote.IA, sd.PathReqFlags{})
 
 	if len(pathSet) == 0 {
 		return nil

@@ -159,8 +159,10 @@ func TestSetDeadline(t *testing.T) {
 		done := make(chan struct{}, 3)
 
 		resolverMock := mock_pathmgr.NewMockResolver(ctrl)
-		resolverMock.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(ctx context.Context, _, _ interface{}) spathmeta.AppPathSet {
+		resolverMock.EXPECT().Query(gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any()).DoAndReturn(
+
+			func(ctx context.Context, _, _, _ interface{}) spathmeta.AppPathSet {
 				select {
 				case <-ctx.Done():
 					done <- struct{}{}

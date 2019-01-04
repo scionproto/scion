@@ -48,10 +48,10 @@ func TestQuery(t *testing.T) {
 		srcIA := xtest.MustParseIA("1-ff00:0:133")
 		dstIA := xtest.MustParseIA("1-ff00:0:131")
 
-		aps := pm.Query(context.Background(), srcIA, dstIA)
+		aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
 		SoMsg("aps len", len(aps), ShouldEqual, 1)
 		Convey("Query immediately, get paths", func() {
-			aps := pm.Query(context.Background(), srcIA, dstIA)
+			aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
 			SoMsg("aps len", len(aps), ShouldEqual, 1)
 			SoMsg("path", getPathStrings(aps), ShouldContain,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+
@@ -60,7 +60,7 @@ func TestQuery(t *testing.T) {
 		Convey("Then query again and get new paths", func() {
 			// Add new path between 1-ff00:0:133 and 1-ff00:0:131
 			g.AddLink("1-ff00:0:133", 101902, "1-ff00:0:132", 191002, false)
-			aps := pm.Query(context.Background(), srcIA, dstIA)
+			aps := pm.Query(context.Background(), srcIA, dstIA, sciond.PathReqFlags{})
 			SoMsg("aps len", len(aps), ShouldEqual, 2)
 			SoMsg("path #1", getPathStrings(aps), ShouldContain,
 				"[1-ff00:0:133#1019 1-ff00:0:132#1910 "+

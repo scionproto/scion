@@ -75,7 +75,7 @@ const (
 
 type Resolver interface {
 	// Query returns a set of paths between src and dst.
-	Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet
+	Query(ctx context.Context, src, dst addr.IA, flags sciond.PathReqFlags) spathmeta.AppPathSet
 	// QueryFilter returns a set of paths between src and dst that satisfy
 	// policy. A nil policy will not delete any paths.
 	QueryFilter(ctx context.Context, src, dst addr.IA, policy *pathpol.Policy) spathmeta.AppPathSet
@@ -132,8 +132,10 @@ func New(conn sciond.Connector, timers Timers, logger log.Logger) Resolver {
 	}
 }
 
-func (r *resolver) Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPathSet {
-	reply, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, sciond.PathReqFlags{})
+func (r *resolver) Query(ctx context.Context, src, dst addr.IA,
+	flags sciond.PathReqFlags) spathmeta.AppPathSet {
+
+	reply, err := r.sciondConn.Paths(ctx, dst, src, numReqPaths, flags)
 	if err != nil {
 		r.logger.Error("SCIOND network error", "err", err)
 		return make(spathmeta.AppPathSet)
@@ -148,7 +150,7 @@ func (r *resolver) Query(ctx context.Context, src, dst addr.IA) spathmeta.AppPat
 func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
 	policy *pathpol.Policy) spathmeta.AppPathSet {
 
-	aps := r.Query(ctx, src, dst)
+	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
 	if policy == nil {
 		return aps
 	}
@@ -158,7 +160,7 @@ func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
 func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 	filter *pktcls.ActionFilterPaths) (*SyncPaths, error) {
 
-	aps := r.Query(ctx, src, dst)
+	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
 	if filter != nil {
 		aps = filter.Act(aps).(spathmeta.AppPathSet)
 	}
@@ -175,7 +177,8 @@ func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 		})
 	})
 
-	waitDuration := r.getWaitDuration(len(aps) == 0)
+	noPaths := len(aps) == 0
+	waitDuration := r.getWaitDuration(noPaths)
 	go func() {
 		defer log.LogPanicAndExit()
 		for {
@@ -184,13 +187,20 @@ func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
 				return
 			case <-time.After(waitDuration):
 				ctx, cancelF := context.WithTimeout(context.Background(), DefaultQueryTimeout)
-				aps := r.Query(ctx, src, dst)
+				flags := sciond.PathReqFlags{}
+				// If there is a filter and there are no paths we set the refresh flag to get
+				// more possible paths
+				if noPaths && filter != nil {
+					flags.Refresh = true
+				}
+				aps := r.Query(ctx, src, dst, flags)
 				if filter != nil {
 					aps = filter.Act(aps).(spathmeta.AppPathSet)
 				}
 				cancelF()
 				sp.update(aps)
-				waitDuration = r.getWaitDuration(len(aps) == 0)
+				noPaths = len(aps) == 0
+				waitDuration = r.getWaitDuration(noPaths)
 			}
 		}
 	}()
