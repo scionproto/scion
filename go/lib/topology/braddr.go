@@ -111,6 +111,9 @@ func (t *TopoBRAddr) getAddr(ot overlay.Type) *overBindAddr {
 }
 
 func (t *TopoBRAddr) Equal(o *TopoBRAddr) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
 	if t.Overlay != o.Overlay {
 		return false
 	}

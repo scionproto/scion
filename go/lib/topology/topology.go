@@ -69,7 +69,7 @@ func (iim IfInfoMap) OfLinkType(lt proto.LinkType) IfInfoMap {
 // indicating an infinite TTL.
 //
 // The second section concerns the Border routers. BRNames is just a sorted slice
-// of the names of the BRs in this topolgy. Its contents is exactly the same as
+// of the names of the BRs in this topology. Its contents is exactly the same as
 // the keys in the BR map.
 //
 // The BR map points from border router names to BRInfo structs, which in turn
