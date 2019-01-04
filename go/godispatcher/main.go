@@ -22,20 +22,14 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
+	"github.com/scionproto/scion/go/godispatcher/internal/registration"
+	"github.com/scionproto/scion/go/godispatcher/network"
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 )
 
-type Config struct {
-	Logging    env.Logging
-	Metrics    env.Metrics
-	Dispatcher config.Config
-}
-
-var (
-	cfg Config
-)
+var cfg config.Config
 
 func main() {
 	os.Exit(realMain())
@@ -56,6 +50,14 @@ func realMain() int {
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.LogPanicAndExit()
 
+	go func() {
+		defer log.LogPanicAndExit()
+		err := RunDispatcher(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.OverlayPort)
+		if err != nil {
+			fatal.Fatal(err)
+		}
+	}()
+
 	cfg.Metrics.StartPrometheus()
 	<-fatal.Chan()
 	return 1
@@ -68,6 +70,20 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	cfg.InitDefaults()
 	env.LogAppStarted("Dispatcher", cfg.Dispatcher.ID)
 	return nil
+}
+
+func RunDispatcher(applicationSocket string, overlayPort int) error {
+	dispatcher := &network.Dispatcher{
+		RoutingTable:      registration.NewIATable(1024, 65535),
+		OverlaySocket:     fmt.Sprintf(":%d", overlayPort),
+		ApplicationSocket: applicationSocket,
+	}
+	log.Debug("Dispatcher starting", "appSocket", applicationSocket, "overlayPort", overlayPort)
+	return dispatcher.ListenAndServe()
 }

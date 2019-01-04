@@ -19,6 +19,12 @@ const Sample = `
   # ID of the Dispatcher (required)
   ID = "disp"
 
+  # ApplicationSocket is the local API socket (default /run/shm/dispatcher/default.sock)
+  ApplicationSocket = "/run/shm/dispatcher/default.sock"
+
+  # OverlayPort is the native port opened by the dispatcher (default 30041)
+  OverlayPort = 30041
+
 [logging]
   [logging.file]
     # Location of the logging file.
