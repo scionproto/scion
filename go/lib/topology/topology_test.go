@@ -372,26 +372,27 @@ func TestIfInfoMapOfLinkType(t *testing.T) {
 		})
 		Convey("Given a non empty map only ifids with the given linktype should be returned",
 			func() {
-				expectedChildMap := IfInfoMap{
+				inputMap := IfInfoMap{
 					12: IFInfo{LinkType: proto.LinkType_child},
 					13: IFInfo{LinkType: proto.LinkType_child},
-				}
-				expectedPeerMap := IfInfoMap{
 					14: IFInfo{LinkType: proto.LinkType_peer},
 				}
-				expectedMaps := map[proto.LinkType]IfInfoMap{
-					proto.LinkType_child: expectedChildMap,
-					proto.LinkType_peer:  expectedPeerMap,
+				expectedPeerMap := IfInfoMap{
+					14: inputMap[14],
 				}
-				for _, m := range expectedMaps {
-					for id, info := range m {
-						ifInfo[id] = info
-					}
+				expectedChildMap := IfInfoMap{
+					12: inputMap[12],
+					13: inputMap[13],
 				}
 				for _, lt := range linkTypes {
-					actual := ifInfo.OfLinkType(lt)
-					expected := expectedMaps[lt]
-					if expected == nil {
+					actual := inputMap.OfLinkType(lt)
+					var expected IfInfoMap
+					switch lt {
+					case proto.LinkType_child:
+						expected = expectedChildMap
+					case proto.LinkType_peer:
+						expected = expectedPeerMap
+					default:
 						expected = emptyMap
 					}
 					SoMsg("Expect ifIds", actual, ShouldResemble, expected)
