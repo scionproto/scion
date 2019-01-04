@@ -103,8 +103,6 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	msger infra.Messenger, dst addr.IA, coreASes []addr.IA) {
 
 	logger := log.FromCtx(ctx)
-	dstISDLocal := segReq.DstIA().I == h.localIA.I
-	logger.Debug("[segReqHandler] handleCoreDst", "remote", dstISDLocal)
 	upSegs, err := h.fetchUpSegsFromDB(ctx, coreASes, !segReq.Flags.CacheOnly)
 	if err != nil {
 		logger.Error("[segReqHandler] Failed to find up segments", "err", err)
@@ -121,6 +119,12 @@ func (h *segReqNonCoreHandler) handleCoreDst(ctx context.Context, segReq *path_m
 	var coreSegs []*seg.PathSegment
 	// All firstIAs of upSegs that are connected, used for filtering later.
 	connFirstIAs := make(map[addr.IA]struct{})
+	// For a local wildcard we return all the upSegs.
+	if segReq.DstIA().A == 0 && segReq.DstIA().I == h.localIA.I {
+		for _, ia := range coreASes {
+			connFirstIAs[ia] = struct{}{}
+		}
+	}
 	// TODO(lukedirtwalker): we shouldn't just query all cores, this could be a lot of overhead.
 	// Add a limit of cores we query.
 	for _, src := range upSegs.FirstIAs() {
