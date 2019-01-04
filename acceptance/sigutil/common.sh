@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TEST_TOPOLOGY="topology/Tiny.topo"
+TEST_TOPOLOGY=${TEST_TOPOLOGY:-topology/Tiny.topo}
 SRC_IA=${SRC_IA:-1-ff00:0:111}
 DST_IA=${DST_IA:-1-ff00:0:112}
 
