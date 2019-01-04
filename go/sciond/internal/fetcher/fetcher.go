@@ -520,22 +520,36 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 func (f *fetcherHandler) buildPathsToAllDsts(req *sciond.PathReq,
 	ups, cores, downs seg.Segments) []*combinator.Path {
 
-	dsts := map[addr.IA]struct{}{req.Dst.IA(): {}}
-	if req.Dst.IA().A == 0 {
-		newDsts := cores.FirstIAs()
-		if req.Dst.IA().I == f.topology.ISD_AS.I {
-			newDsts = append(newDsts, ups.FirstIAs()...)
-		}
-		dsts = make(map[addr.IA]struct{})
-		for _, dst := range newDsts {
-			dsts[dst] = struct{}{}
-		}
-	}
+	dsts := f.determineDsts(req, ups, cores)
 	var paths []*combinator.Path
 	for dst := range dsts {
 		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
 	}
 	return filterExpiredPaths(paths)
+}
+
+func (f *fetcherHandler) determineDsts(req *sciond.PathReq,
+	ups, cores seg.Segments) map[addr.IA]struct{} {
+
+	wildcardDst := req.Dst.IA().A == 0
+	if wildcardDst {
+		isdLocal := req.Dst.IA().I == f.topology.ISD_AS.I
+		return wildcardDsts(wildcardDst, isdLocal, ups, cores)
+	}
+	return map[addr.IA]struct{}{req.Dst.IA(): {}}
+}
+
+func wildcardDsts(wildcard, isdLocal bool, ups, cores seg.Segments) map[addr.IA]struct{} {
+	newDsts := cores.FirstIAs()
+	if isdLocal {
+		// for isd local wildcard we want to reach cores, they are at the end of the up segs.
+		newDsts = append(newDsts, ups.FirstIAs()...)
+	}
+	dsts := make(map[addr.IA]struct{})
+	for _, dst := range newDsts {
+		dsts[dst] = struct{}{}
+	}
+	return dsts
 }
 
 func filterExpiredPaths(paths []*combinator.Path) []*combinator.Path {
