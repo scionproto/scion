@@ -32,6 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/scrypto"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
@@ -653,7 +654,7 @@ func (store *Store) ChooseServer(ctx context.Context, destination addr.IA) (net.
 	}
 	if destination.A == 0 {
 		pathSet := snet.DefNetwork.PathResolver().Query(ctx, store.ia,
-			addr.IA{I: destination.I})
+			addr.IA{I: destination.I}, sciond.PathReqFlags{})
 		path := pathSet.GetAppPath("")
 		if path == nil {
 			return nil, common.NewBasicError("Unable to find path to any core AS", nil,

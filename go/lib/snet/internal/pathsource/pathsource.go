@@ -21,6 +21,7 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/pathmgr"
+	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
@@ -53,7 +54,7 @@ func (ps *pathSource) Get(ctx context.Context,
 	if ps.resolver == nil {
 		return nil, nil, common.NewBasicError(ErrNoResolver, nil)
 	}
-	paths := ps.resolver.Query(ctx, src, dst)
+	paths := ps.resolver.Query(ctx, src, dst, sciond.PathReqFlags{})
 	sciondPath := paths.GetAppPath("")
 	if sciondPath == nil {
 		return nil, nil, common.NewBasicError(ErrNoPath, nil)
