@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"net"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 
@@ -110,31 +109,38 @@ type ClientConfig struct {
 	WriteOps OpSequence
 	// ReadOps contains the messages (and remote address) each client expects.
 	ReadOps OpSequence
+	// conn is the cached connection after the client starts listening
+	conn snet.Conn
 }
 
-func (c *ClientConfig) Run(t *testing.T, f *TestSettings) {
-	network, err := snet.NewNetwork(c.PublicAddress.IA, "", f.ApplicationSocket)
+func (c *ClientConfig) Listen(t *testing.T, settings *TestSettings) {
+	network, err := snet.NewNetwork(c.PublicAddress.IA, "", settings.ApplicationSocket)
 	if err != nil {
-		t.Errorf("client network init failed, err = %v", err)
-		return
+		t.Fatalf("client network init failed, err = %v", err)
 	}
 	clientConn, err := network.ListenSCION("udp4", c.PublicAddress, 2*time.Second)
 	if err != nil {
-		t.Errorf("client conn init failed, err = %v", err)
-		return
+		t.Fatalf("client conn init failed, err = %v", err)
 	}
+	c.conn = clientConn
+}
+
+func (c *ClientConfig) DoWriteOps(t *testing.T) {
 	for _, entry := range c.WriteOps {
-		_, err := clientConn.WriteToSCION(entry.Message, entry.RemoteAddress)
+		_, err := c.conn.WriteToSCION(entry.Message, entry.RemoteAddress)
 		if err != nil {
 			t.Errorf("client write error, aborting future writes, err = %v", err)
 			return
 		}
 	}
+}
+
+func (c *ClientConfig) DoReadOps(t *testing.T) {
 	// Kill clients if they don't get the messages quickly
-	clientConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for _, entry := range c.ReadOps {
 		b := make([]byte, 1500)
-		n, _, err := clientConn.ReadFromSCION(b)
+		n, _, err := c.conn.ReadFromSCION(b)
 		if err != nil {
 			t.Errorf("client read error, aborting future reads, err = %v", err)
 			return
@@ -143,7 +149,7 @@ func (c *ClientConfig) Run(t *testing.T, f *TestSettings) {
 			t.Errorf("bad message received, have %v, expect %v", b[:n], entry.Message)
 		}
 	}
-	clientConn.Close()
+	c.conn.Close()
 }
 
 func RunServer(t *testing.T, settings *TestSettings) {
@@ -163,17 +169,29 @@ func TestDataplaneIntegration(t *testing.T) {
 	clients := buildClientConfigs(&settings)
 
 	go RunServer(t, &settings)
-	time.Sleep(2 * time.Second)
+	time.Sleep(time.Second)
 
-	var wg sync.WaitGroup
+	InitAllClientConns(t, clients, &settings)
+	DoAllWriteOps(t, clients)
+	DoAllReadOps(t, clients)
+}
+
+func InitAllClientConns(t *testing.T, clients []*ClientConfig, settings *TestSettings) {
 	for _, client := range clients {
-		wg.Add(1)
-		go func(c *ClientConfig) {
-			defer wg.Done()
-			c.Run(t, &settings)
-		}(client)
+		client.Listen(t, settings)
 	}
-	wg.Wait()
+}
+
+func DoAllWriteOps(t *testing.T, clients []*ClientConfig) {
+	for _, client := range clients {
+		client.DoWriteOps(t)
+	}
+}
+
+func DoAllReadOps(t *testing.T, clients []*ClientConfig) {
+	for _, client := range clients {
+		client.DoReadOps(t)
+	}
 }
 
 func getSocketName(dir string) (string, error) {
