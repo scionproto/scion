@@ -23,7 +23,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
 	"github.com/scionproto/scion/go/lib/scrypto/trc"
 	"github.com/scionproto/scion/go/proto"
@@ -125,7 +127,10 @@ const (
 	TRCRequest
 	Chain
 	ChainRequest
+	IfId
 	IfStateInfos
+	IfStateReq
+	Seg
 	SegChangesReq
 	SegChangesReply
 	SegChangesIdReq
@@ -152,8 +157,14 @@ func (mt MessageType) String() string {
 		return "TRCRequest"
 	case TRC:
 		return "TRC"
+	case IfId:
+		return "IfId"
 	case IfStateInfos:
-		return "IFStateInfos"
+		return "IfStateInfos"
+	case IfStateReq:
+		return "IfStateReq"
+	case Seg:
+		return "Seg"
 	case SegChangesReq:
 		return "SegChangesReq"
 	case SegChangesReply:
@@ -191,6 +202,9 @@ type Messenger interface {
 	GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq, a net.Addr,
 		id uint64) (*cert_mgmt.Chain, error)
 	SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr, id uint64) error
+	SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error
+	SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos, a net.Addr, id uint64) error
+	SendSeg(ctx context.Context, msg *seg.PathSegment, a net.Addr, id uint64) error
 	GetSegs(ctx context.Context, msg *path_mgmt.SegReq, a net.Addr,
 		id uint64) (*path_mgmt.SegReply, error)
 	SendSegReply(ctx context.Context, msg *path_mgmt.SegReply, a net.Addr, id uint64) error
