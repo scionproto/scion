@@ -29,18 +29,18 @@ import (
 
 // ExtPolicy is an extending policy, it may have a list of policies it extends
 type ExtPolicy struct {
-	Extends []string
+	Extends []string `json:",omitempty"`
 	*Policy
 }
 
 // PolicyMap is a container for Policies, keyed by their unique name. PolicyMap
 // can be used to marshal Policies to JSON. Unmarshaling back to PolicyMap is
 // guaranteed to yield an object that is identical to the initial one.
-type PolicyMap map[string]*Policy
+type PolicyMap map[string]*ExtPolicy
 
 // Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
-	Name     string
+	Name     string   `json:"-"`
 	ACL      *ACL     `json:",omitempty"`
 	Sequence Sequence `json:",omitempty"`
 	Options  []Option `json:",omitempty"`
