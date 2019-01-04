@@ -351,9 +351,6 @@ func (f *fetcherHandler) buildPathsFromDB(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		if req.Dst.IA().A == 0 && req.Dst.IA().I == f.topology.ISD_AS.I {
-			break
-		}
 		cores, err = f.getSegmentsFromDB(ctx, dstIASlice, localTrc.CoreASes.ASList(),
 			proto.PathSegType_core)
 		if err != nil {
@@ -523,16 +520,19 @@ func (f *fetcherHandler) flushSegmentsWithFirstHopInterfaces(ctx context.Context
 func (f *fetcherHandler) buildPathsToAllDsts(req *sciond.PathReq,
 	ups, cores, downs seg.Segments) []*combinator.Path {
 
-	dsts := []addr.IA{req.Dst.IA()}
+	dsts := map[addr.IA]struct{}{req.Dst.IA(): {}}
 	if req.Dst.IA().A == 0 {
+		newDsts := cores.FirstIAs()
 		if req.Dst.IA().I == f.topology.ISD_AS.I {
-			dsts = ups.FirstIAs()
-		} else {
-			dsts = cores.FirstIAs()
+			newDsts = append(newDsts, ups.FirstIAs()...)
+		}
+		dsts = make(map[addr.IA]struct{})
+		for _, dst := range newDsts {
+			dsts[dst] = struct{}{}
 		}
 	}
 	var paths []*combinator.Path
-	for _, dst := range dsts {
+	for dst := range dsts {
 		paths = append(paths, combinator.Combine(req.Src.IA(), dst, ups, cores, downs)...)
 	}
 	return filterExpiredPaths(paths)
