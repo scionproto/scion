@@ -356,6 +356,51 @@ func Test_IFInfoMap_COREAS(t *testing.T) {
 	}
 }
 
+func TestIfInfoMapOfLinkType(t *testing.T) {
+	Convey("Test OfLinkType function of IfInfoMap", t, func() {
+		ifInfo := make(IfInfoMap)
+		linkTypes := []proto.LinkType{
+			proto.LinkType_child,
+			proto.LinkType_core,
+			proto.LinkType_parent,
+			proto.LinkType_peer}
+		emptyMap := make(IfInfoMap)
+		Convey("Given an empty map all link types should return empty", func() {
+			for _, lt := range linkTypes {
+				SoMsg("No ifids expected", ifInfo.OfLinkType(lt), ShouldResemble, emptyMap)
+			}
+		})
+		Convey("Given a non empty map only ifids with the given linktype should be returned",
+			func() {
+				inputMap := IfInfoMap{
+					12: IFInfo{LinkType: proto.LinkType_child},
+					13: IFInfo{LinkType: proto.LinkType_child},
+					14: IFInfo{LinkType: proto.LinkType_peer},
+				}
+				expectedPeerMap := IfInfoMap{
+					14: inputMap[14],
+				}
+				expectedChildMap := IfInfoMap{
+					12: inputMap[12],
+					13: inputMap[13],
+				}
+				for _, lt := range linkTypes {
+					actual := inputMap.OfLinkType(lt)
+					var expected IfInfoMap
+					switch lt {
+					case proto.LinkType_child:
+						expected = expectedChildMap
+					case proto.LinkType_peer:
+						expected = expectedPeerMap
+					default:
+						expected = emptyMap
+					}
+					SoMsg("Expect ifIds", actual, ShouldResemble, expected)
+				}
+			})
+	})
+}
+
 var br_cases = []struct {
 	name    string
 	intfids []common.IFIDType
