@@ -15,6 +15,7 @@
 package pathpol
 
 import (
+	"encoding/json"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -154,5 +155,38 @@ func TestHopPredicateString(t *testing.T) {
 	Convey("TestString", t, func() {
 		hp, _ := HopPredicateFromString("1-2#3,4")
 		SoMsg("hp", hp.String(), ShouldEqual, "1-2#3,4")
+	})
+}
+
+func TestJsonConversion(t *testing.T) {
+	testCases := []struct {
+		Name string
+		HP   *HopPredicate
+	}{
+		{
+			Name: "Normal predicate",
+			HP:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{1, 2}},
+		},
+		{
+			Name: "wildcard predicate",
+			HP:   &HopPredicate{ISD: 1, AS: 2, IfIDs: []common.IFIDType{0}},
+		},
+		{
+			Name: "only ifids",
+			HP:   &HopPredicate{IfIDs: []common.IFIDType{0}},
+		},
+	}
+	Convey("TestJsonConversion", t, func() {
+		for _, tc := range testCases {
+			Convey(tc.Name, func() {
+				jsonHP, err := json.Marshal(tc.HP)
+				SoMsg("err", err, ShouldBeNil)
+
+				var hp HopPredicate
+				err = json.Unmarshal(jsonHP, &hp)
+				SoMsg("err", err, ShouldBeNil)
+				SoMsg("predicate", tc.HP, ShouldResemble, &hp)
+			})
+		}
 	})
 }
