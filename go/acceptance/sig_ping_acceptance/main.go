@@ -33,6 +33,7 @@ var (
 	name     = "sig_ping_acceptance"
 	cmd      = "ping"
 	attempts = flag.Int("attempts", 5, "Number of ping attempts.")
+	fail     = flag.Bool("fail", false, "Succeed if the pings don't make it through.")
 )
 
 func main() {
@@ -58,9 +59,12 @@ func realMain() int {
 	in := integration.NewBinaryIntegration(name, integration.WrapperCmd, args, nil)
 	err := integration.RunUnaryTests(in, integration.UniqueIAPairs(acceptance.SigAddr),
 		time.Duration(*attempts)*time.Second+integration.DefaultRunTimeout)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
-		return 1
+	if !*fail && err == nil {
+		return 0
 	}
-	return 0
+	if *fail && err != nil && err.Error() == "signal: killed" {
+		return 0
+	}
+	fmt.Fprintf(os.Stderr, "Failed to run tests: %s\n", err)
+	return 1
 }
