@@ -19,7 +19,7 @@ test_run() {
     jq "del(.ASes.\"$DST_IA\")" $SIG_JSON | sponge $SIG_JSON
     reload_sig "$SRC_IA_FILE"
     # Must fail
-    ./bin/sig_ping_acceptance -d -src $SRC_IA -dst $DST_IA || [ $? -eq 1 ]
+    ./bin/sig_ping_acceptance -d -fail -src $SRC_IA -dst $DST_IA
     # Add $DST_IA again to sig.json
     jq ".ASes.\"$DST_IA\" = $HOP_JSON" $SIG_JSON | sponge $SIG_JSON
     reload_sig "$SRC_IA_FILE"
