@@ -169,8 +169,8 @@ class GoGenerator(object):
                 'Type': "CS"
             },
             'cs': {
-                'LeafReissueTime': "6h",
-                'IssuerReissueTime': "3d",
+                'LeafReissueLeadTime': "6h",
+                'IssuerReissueLeadTime': "3d",
                 'ReissueRate': "10s",
                 'ReissueTimeout': "5s",
             },
