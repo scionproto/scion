@@ -114,6 +114,7 @@ class L4Proto(TypeBase):
 # Payload class/types
 ############################
 class PayloadClass(object):
+    ACK = "ack"
     PCB = "pcb"
     IFID = "ifid"
     CERT = "certMgmt"

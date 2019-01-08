@@ -1,4 +1,5 @@
 # Copyright 2017 ETH Zurich
+# Copyright 2019 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +27,7 @@ import capnp
 import proto.ctrl_pld_capnp as P
 from lib.drkey.drkey_mgmt import DRKeyMgmt
 from lib.errors import SCIONParseError
+from lib.packet.ack import Ack
 from lib.packet.cert_mgmt import CertMgmt
 from lib.packet.ifid import IFIDPayload
 from lib.packet.packet_base import CerealBox, Cerealizable
@@ -82,6 +84,7 @@ class CtrlPayload(CerealBox):
     NAME = "CtrlPayload"
     P_CLS = P.CtrlPld
     CLASS_FIELD_MAP = {
+        Ack: PayloadClass.ACK,
         PCB: PayloadClass.PCB,
         IFIDPayload: PayloadClass.IFID,
         CertMgmt: PayloadClass.CERT,
