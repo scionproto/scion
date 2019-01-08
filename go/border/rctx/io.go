@@ -19,7 +19,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/scionproto/scion/go/border/brconf"
 	"github.com/scionproto/scion/go/border/rcmn"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay/conn"
@@ -49,19 +51,23 @@ type Sock struct {
 	Reader SockFunc
 	// Writer is an optional function that writes to Sock.Ring. It is spawned
 	// in a go routine when Sock.Start() is called.
-	Writer        SockFunc
+	Writer SockFunc
+	// Type is the type of the socket.
+	Type          brconf.SockType
 	stop          chan struct{}
 	readerStopped chan struct{}
 	writerStopped chan struct{}
 	running       bool
+	started       bool
 }
 
-func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir,
-	ifid common.IFIDType, labels prometheus.Labels, reader, writer SockFunc) *Sock {
+func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir, ifid common.IFIDType,
+	labels prometheus.Labels, reader, writer SockFunc, sockType brconf.SockType) *Sock {
 
 	s := &Sock{
 		Ring: ring, Conn: conn, Dir: dir, Ifid: ifid, Labels: labels,
 		Reader: reader, Writer: writer, stop: make(chan struct{}),
+		Type: sockType,
 	}
 	if s.Reader != nil {
 		s.readerStopped = make(chan struct{}, 1)
@@ -76,6 +82,10 @@ func NewSock(ring *ringbuf.Ring, conn conn.Conn, dir rcmn.Dir,
 // have been started already.
 func (s *Sock) Start() {
 	if !s.running {
+		// Restarting is not permitted because the stop/stopped channels are closed.
+		if assert.On {
+			assert.Must(!s.started, "Socket must not be restarted after being closed")
+		}
 		if s.Reader != nil {
 			go func() {
 				defer log.LogPanicAndExit()
@@ -89,12 +99,13 @@ func (s *Sock) Start() {
 			}()
 		}
 		s.running = true
+		s.started = true
 		log.Info("Sock routines started", "addr", s.Conn.LocalAddr())
 	}
 }
 
 // Stop stops the running reader/writer goroutines (if any) and waits until the
-// routines are stopped before returing to the caller.
+// routines are stopped before returning to the caller.
 func (s *Sock) Stop() {
 	if s.running {
 		log.Debug("Sock routines stopping", "addr", s.Conn.LocalAddr())
@@ -120,5 +131,19 @@ func (s *Sock) Stop() {
 		}
 		s.running = false
 		log.Info("Sock routines stopped", "addr", s.Conn.LocalAddr())
+	} else if !s.started {
+		s.Ring.Close()
+		if err := s.Conn.Close(); err != nil {
+			log.Error("Error stopping socket", "err", err)
+		}
+		log.Info("Non-started sock stopped", "addr", s.Conn.LocalAddr())
 	}
+}
+
+func (s *Sock) Running() bool {
+	return s.running
+}
+
+func (s *Sock) Started() bool {
+	return s.started
 }
