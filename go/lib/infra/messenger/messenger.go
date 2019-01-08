@@ -225,32 +225,6 @@ func (m *Messenger) SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr,
 	return m.getRequester(infra.TRC, infra.None).Notify(ctx, pld, a)
 }
 
-func (m *Messenger) PushTRC(ctx context.Context, msg *cert_mgmt.TRC,
-	a net.Addr, id uint64) (*ack.Ack, error) {
-
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return nil, err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Push", "type", infra.TRC, "to", a, "id", id)
-	replyCtrlPld, _, err := m.getRequester(infra.TRC, infra.Ack).Request(ctx, pld, a)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] PushTRC error", err)
-	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	reply, ok := replyMsg.(*ack.Ack)
-	if !ok {
-		err := newTypeAssertErr("*ack.Ack", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-	logger.Trace("[Messenger] Received reply", "reply", reply)
-	return reply, nil
-}
-
 // GetCertChain sends a cert_mgmt.ChainReq to address a, blocks until it
 // receives a reply and returns the reply.
 func (m *Messenger) GetCertChain(ctx context.Context, msg *cert_mgmt.ChainReq,
@@ -291,32 +265,6 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
 	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
-}
-
-func (m *Messenger) PushCertChain(ctx context.Context, msg *cert_mgmt.Chain, a net.Addr,
-	id uint64) (*ack.Ack, error) {
-
-	pld, err := ctrl.NewCertMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
-	if err != nil {
-		return nil, err
-	}
-	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
-	replyCtrlPld, _, err := m.getRequester(infra.Chain, infra.Ack).Request(ctx, pld, a)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] PushCertChain error", err)
-	}
-	_, replyMsg, err := m.validate(replyCtrlPld)
-	if err != nil {
-		return nil, common.NewBasicError("[Messenger] Reply validation failed", err)
-	}
-	reply, ok := replyMsg.(*ack.Ack)
-	if !ok {
-		err := newTypeAssertErr("*ack.Ack", replyMsg)
-		return nil, common.NewBasicError("[Messenger] Type assertion failed", err)
-	}
-	logger.Trace("[Messenger] Received reply", "reply", reply)
-	return reply, nil
 }
 
 // GetSegs asks the server at the remote address for the path segments that
@@ -603,6 +551,9 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	handler := m.handlers[msgType]
 	m.handlersLock.RUnlock()
 	if handler == nil {
+		if msgType == infra.Ack {
+			return
+		}
 		logger.Error("Received message, but handler not found", "from", address,
 			"msgType", msgType, "id", pld.ReqId)
 		return
