@@ -98,7 +98,7 @@ func (s *Self) createLeafCert(ctx context.Context, leaf *cert.Certificate) error
 	if err := chain.Leaf.Sign(s.State.GetIssSigningKey(), issCrt.SignAlgorithm); err != nil {
 		return common.NewBasicError("Unable to sign leaf certificate", err, "chain", chain)
 	}
-	if err := VerifyChain(s.IA, chain, s.State.Store); err != nil {
+	if err := VerifyChain(ctx, s.IA, chain, s.State.Store); err != nil {
 		return common.NewBasicError("Unable to verify chain", err, "chain", chain)
 	}
 	if _, err := s.State.TrustDB.InsertChain(ctx, chain); err != nil {

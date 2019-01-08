@@ -54,8 +54,10 @@ func CreateSign(ctx context.Context, ia addr.IA, trustDB trustdb.TrustDB) (*prot
 }
 
 // VerifyChain verifies the chain based on the TRCs present in the store.
-func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) error {
-	maxTrc, err := store.GetValidTRC(context.TODO(), chain.Issuer.Issuer.I, nil)
+func VerifyChain(ctx context.Context, subject addr.IA, chain *cert.Chain,
+	store infra.TrustStore) error {
+
+	maxTrc, err := store.GetValidTRC(ctx, chain.Issuer.Issuer.I, nil)
 	if err != nil {
 		return common.NewBasicError("Unable to find TRC", nil, "isd", chain.Issuer.Issuer.I)
 	}
@@ -65,7 +67,7 @@ func VerifyChain(subject addr.IA, chain *cert.Chain, store infra.TrustStore) err
 	if err := chain.Verify(subject, maxTrc); err != nil {
 		var graceTrc *trc.TRC
 		if maxTrc.Version > 1 {
-			graceTrc, err = store.GetTRC(context.TODO(), maxTrc.ISD, maxTrc.Version-1)
+			graceTrc, err = store.GetTRC(ctx, maxTrc.ISD, maxTrc.Version-1)
 			if err != nil {
 				return err
 			}
