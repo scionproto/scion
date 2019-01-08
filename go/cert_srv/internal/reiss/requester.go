@@ -143,5 +143,5 @@ func (r *Requester) validateRep(ctx context.Context, chain *cert.Chain) error {
 		return common.NewBasicError("Invalid Issuer", nil, "expected",
 			issuer, "actual", chain.Leaf.Issuer)
 	}
-	return VerifyChain(r.IA, chain, r.State.Store)
+	return VerifyChain(ctx, r.IA, chain, r.State.Store)
 }
