@@ -533,7 +533,7 @@ func (db *executor) InsertCustKey(ctx context.Context, ia addr.IA,
 			return common.NewBasicError("Unable to determine affected rows", err)
 		}
 		if n == 0 {
-			return common.NewBasicError("Cust keys has been modified", nil, "ia", ia,
+			return common.NewBasicError(trustdb.ErrCustKeyModified, nil, "ia", ia,
 				"newVersion", version, "oldVersion", oldVersion)
 		}
 	}

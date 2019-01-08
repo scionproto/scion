@@ -312,6 +312,16 @@ func testChain(t *testing.T, db rwTrustDB) {
 				SoMsg("chain", newChain, ShouldBeNil)
 			})
 		})
+		Convey("Given a DB with 2 chains, Getting a chain works fine", func() {
+			chain := insertChainFromFile(t, ctx, "testdata/ISD1-ASff00_0_311-V1.crt", db)
+			insertChainFromFile(t, ctx, "testdata/ISD2-ASff00_0_212-V1.crt", db)
+			newChain, err := db.GetChainMaxVersion(ctx, ia)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("chain", newChain, ShouldResemble, chain)
+			newChain, err = db.GetChainVersion(ctx, ia, 1)
+			SoMsg("err", err, ShouldBeNil)
+			SoMsg("chain", newChain, ShouldResemble, chain)
+		})
 	})
 }
 
@@ -390,6 +400,8 @@ func testCustKey(t *testing.T, db rwTrustDB) {
 				SoMsg("No error expected", err, ShouldBeNil)
 				err = db.InsertCustKey(ctx, ia1_110, newVer, key_110_2, ver)
 				SoMsg("Error expected", err, ShouldNotBeNil)
+				SoMsg("IsCustKeyModifiedErr should return true",
+					trustdb.IsCustKeyModifiedErr(err), ShouldBeTrue)
 			})
 		})
 	})
