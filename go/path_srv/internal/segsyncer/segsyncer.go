@@ -128,9 +128,12 @@ func (s *SegSyncer) fetchCoreSegsFromDB(ctx context.Context) ([]*seg.PathSegment
 		return nil, err
 	}
 	segs := query.Results(res).Segs()
-	segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
+	_, err = segs.FilterSegsErr(func(ps *seg.PathSegment) (bool, error) {
 		return segutil.NoRevokedHopIntf(ctx, s.revCache, ps)
 	})
+	if err != nil {
+		return nil, common.NewBasicError("Failed to filter segments", err)
+	}
 	// Sort by number of hops, i.e. AS entries.
 	sort.Slice(segs, func(i, j int) bool {
 		return len(segs[i].ASEntries) < len(segs[j].ASEntries)
