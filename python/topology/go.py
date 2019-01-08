@@ -150,7 +150,6 @@ class GoGenerator(object):
                     cs_conf = self._build_cs_conf(topo_id, topo["ISD_AS"], base, k)
                     write_file(os.path.join(base, k, CS_CONFIG_NAME), toml.dumps(cs_conf))
 
-
     def _build_cs_conf(self, topo_id, ia, base, name):
         config_dir = '/share/conf' if self.args.docker else os.path.join(base, name)
         raw_entry = {
