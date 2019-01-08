@@ -63,21 +63,29 @@ func LoadCustomers(stateDir string, trustDB trustdb.TrustDB) error {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	for ia, file := range activeKeys {
-		key, err := keyconf.LoadKey(file, keyconf.RawKey)
-		if err != nil {
-			return common.NewBasicError("Unable to load key", err, "file", file)
-		}
-		_, dbV, err := trustDB.GetCustKey(ctx, ia)
-		if err != nil {
-			return common.NewBasicError("Failed to check DB cust key", err, "ia", ia)
-		}
-		if dbV >= activeVers[ia] {
-			// db already contains a newer key.
-			continue
-		}
-		err = trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
-		if err != nil {
-			return common.NewBasicError("Failed to save customer key", err, "file", file)
+		for attempts := 0; attempts < 3; attempts++ {
+			key, err := keyconf.LoadKey(file, keyconf.RawKey)
+			if err != nil {
+				return common.NewBasicError("Unable to load key", err, "file", file)
+			}
+			_, dbV, err := trustDB.GetCustKey(ctx, ia)
+			if err != nil {
+				return common.NewBasicError("Failed to check DB cust key", err, "ia", ia)
+			}
+			if dbV >= activeVers[ia] {
+				// db already contains a newer key.
+				break
+			}
+			err = trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
+			if err != nil {
+				if trustdb.IsCustKeyModifiedErr(err) {
+					// In case of a modification someone must have inserted at the same time,
+					// we just retry.
+					continue
+				}
+				return common.NewBasicError("Failed to save customer key", err, "file", file)
+			}
+			break
 		}
 	}
 	return nil
