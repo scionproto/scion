@@ -19,6 +19,7 @@
 # Stdlib
 import configparser
 import os
+import toml
 from io import StringIO
 from string import Template
 
@@ -165,7 +166,28 @@ class SupervisorGenerator(object):
     def _write_dispatcher_conf(self):
         elem = "dispatcher"
         elem_dir = os.path.join(self.args.output_dir, elem)
-        self._write_elem_conf(elem, ["bin/dispatcher"], elem_dir)
+        if self.args.dispatcher == "c":
+            self._write_elem_conf(elem, ["bin/dispatcher"], elem_dir)
+        elif self.args.dispatcher == "go":
+            config_file_path = os.path.join(elem_dir, "dispconfig.toml")
+            self._write_elem_conf(elem, ["bin/godispatcher", "-config", config_file_path], elem_dir)
+            conf = {
+                    'dispatcher': {
+                        'ID': 'disp',
+                    },
+                    'logging': {
+                        'file': {
+                            'Path': os.path.join("logs", "dispatcher.log"),
+                            'Level': 'debug',
+                        },
+                        'console': {
+                            'Level': 'crit',
+                        },
+                    },
+                }
+            write_file(config_file_path, toml.dumps(conf))
+        else:
+            raise ValueError("unsupported dispatcher implementation", self.args.dispatcher)
 
     def _common_entry(self, name, cmd_args, elem_dir=None):
         entry = {
