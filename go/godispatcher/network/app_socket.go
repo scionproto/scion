@@ -179,7 +179,7 @@ func (h *AppConnHandler) RunAppToNetDataplane() {
 		n, nextHop, err := h.Conn.ReadFrom(b)
 		if err != nil {
 			if err == io.EOF {
-				h.Logger.Info("[app->network] EOF received from app")
+				h.Logger.Info("[app->network] EOF received from client")
 			} else {
 				h.Logger.Error("[app->network] Client connection error", "err", err)
 			}
