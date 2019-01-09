@@ -53,7 +53,11 @@ from lib.util import (
 )
 from topology.ca import CAGenArgs, CAGenerator
 from topology.cert import CertGenArgs, CertGenerator
-from topology.common import srv_iter, ArgsBase
+from topology.common import (
+    srv_iter,
+    ArgsBase,
+    CS_CONFIG_NAME,
+)
 from topology.docker import DockerGenArgs, DockerGenerator
 from topology.go import GoGenArgs, GoGenerator
 from topology.net import (
@@ -246,11 +250,22 @@ class ConfigGenerator(object):
                 write_file(os.path.join(base, path), value + '\n')
 
     def _write_cust_files(self, topo_dicts, cust_files):
+        cust_pk = {}
         for topo_id, as_topo in topo_dicts.items():
             base = topo_id.base_dir(self.args.output_dir)
             for elem in as_topo["CertificateService"]:
                 for path, value in cust_files[topo_id].items():
                     write_file(os.path.join(base, elem, path), value)
+                    if self.args.cert_server == 'go':
+                        cust_dir_name = os.path.dirname(path)
+                        cust_dir = os.path.join(base, elem, cust_dir_name)
+                        cfg = os.path.join(base, elem, CS_CONFIG_NAME)
+                        cust_pk[cust_dir] = cfg
+        if cust_pk:
+            with open('gen/load_custs.sh', 'w') as script:
+                for cust_dir, config in cust_pk.items():
+                    script.write('scion-custpk-load -customers %s -config %s\n' % (cust_dir,
+                                                                                   config))
 
     def _write_conf_policies(self, topo_dicts):
         """

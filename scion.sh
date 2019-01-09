@@ -56,12 +56,20 @@ cmd_run() {
         fi
     fi
     run_setup
+    load_cust_keys
     echo "Running the network..."
     # Run with docker-compose or supervisor
     if is_docker_be; then
         ./tools/quiet ./tools/dc start 'scion*'
     else
         ./tools/quiet ./supervisor/supervisor.sh start all
+    fi
+}
+
+load_cust_keys() {
+    if [ -f 'gen/load_custs.sh' ]; then
+        echo "Loading customer keys..."
+        ./tools/quiet bash 'gen/load_custs.sh'
     fi
 }
 
