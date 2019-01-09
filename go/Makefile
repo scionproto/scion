@@ -24,16 +24,17 @@ LINK_FLAGS += -X \"github.com/scionproto/scion/go/lib/env.StartupVersion=$(GIT_V
 GOTAGS = assert
 MOCK_SRC_IN =\
     lib/infra/common.go \
-    lib/pathdb/pathdb.go \
-    lib/snet/interface.go \
-    lib/snet/internal/pathsource/pathsource.go \
-    lib/snet/internal/ctxmonitor/ctxmonitor.go \
-    lib/pathmgr/pathmgr.go \
-    lib/snet/snetproxy/reconnecter.go \
-    lib/snet/snetproxy/io.go \
-    lib/log/wrappers.go \
-    lib/sciond/sciond.go \
     lib/infra/modules/trust/trustdb/trustdb.go \
+    lib/l4/common.go \
+    lib/log/wrappers.go \
+    lib/pathdb/pathdb.go \
+    lib/pathmgr/pathmgr.go \
+    lib/sciond/sciond.go \
+    lib/snet/interface.go \
+    lib/snet/internal/ctxmonitor/ctxmonitor.go \
+    lib/snet/internal/pathsource/pathsource.go \
+    lib/snet/snetproxy/io.go \
+    lib/snet/snetproxy/reconnecter.go \
     lib/revcache/revcache.go
 MOCK_SRC_OUT = $(foreach in,$(MOCK_SRC_IN),$(call mock_src_in_to_out,$(in)))
 # This uses the format <stdlib package>/<interface>:
