@@ -17,7 +17,6 @@ package network
 import (
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/hpkt"
@@ -38,9 +37,7 @@ type NetToRingDataplane struct {
 
 func (dp *NetToRingDataplane) Run() error {
 	for {
-		pkt := &Packet{
-			buffer: bufpool.Get(),
-		}
+		pkt := NewPacket()
 		pkt.Data = pkt.buffer
 
 		n, readExtra, err := dp.OverlayConn.ReadFrom(pkt.Data)
@@ -67,9 +64,14 @@ func (dp *NetToRingDataplane) Run() error {
 }
 
 func (dp *NetToRingDataplane) deliverNormalPkt(pkt *Packet) {
+	udpHeader, ok := pkt.Info.L4.(*l4.UDP)
+	if !ok {
+		log.Warn("got non SCION/UDP packet")
+		return
+	}
 	udpAddr := &net.UDPAddr{
 		IP:   pkt.Info.DstHost.IP(),
-		Port: int(pkt.Info.L4.(*l4.UDP).DstPort),
+		Port: int(udpHeader.DstPort),
 	}
 	item, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, udpAddr)
 	if !ok {
@@ -77,13 +79,32 @@ func (dp *NetToRingDataplane) deliverNormalPkt(pkt *Packet) {
 		return
 	}
 	entry := item.(*TableEntry)
+	// Move packet reference to other goroutine.
 	count, _ := entry.appIngressRing.Write(ringbuf.EntryList{pkt}, false)
 	if count <= 0 {
-		// Release buffer if we didn't read into it
-		bufpool.Put(pkt.buffer)
+		// Release buffer if we couldn't transmit it to the other goroutine.
+		pkt.Free()
 	}
 }
 
-func (w *NetToRingDataplane) deliverServicePkt(pkt *Packet) {
-	// FIXME(scrye): not implemented
+func (dp *NetToRingDataplane) deliverServicePkt(pkt *Packet) {
+	svc := pkt.Info.DstHost.(addr.HostSVC)
+	// FIXME(scrye): This should deliver to the correct IP address, based on
+	// information found in the overlay IP header.
+	items := dp.RoutingTable.LookupService(pkt.Info.DstIA, svc, nil)
+	if len(items) == 0 {
+		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", svc)
+		return
+	}
+	for _, item := range items {
+		pkt.Dup()
+		entry := item.(*TableEntry)
+		count, _ := entry.appIngressRing.Write(ringbuf.EntryList{pkt}, false)
+		if count <= 0 {
+			// Release buffer if we didn't write it
+			pkt.Free()
+		}
+	}
+	// Free our own reference to the packet.
+	pkt.Free()
 }

@@ -212,6 +212,9 @@ func (p *parseCtx) DefaultHBHExtParser() error {
 				"type", extn.Class(), "position", p.hbhCounter-1)
 		}
 		p.s.HBHExt = append(p.s.HBHExt, extn)
+	case common.ExtnOneHopPathType.Type:
+		// XXX(scrye): This should be parsed correctly, but for now we just skip.
+		p.s.HBHExt = append(p.s.HBHExt, &spkt.OneHopPath{})
 	default:
 		return common.NewBasicError("Unsupported HBH extension type", nil,
 			"type", extnType, "position", p.hbhCounter-1)

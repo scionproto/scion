@@ -79,8 +79,8 @@ func (t *Table) LookupPublic(address *net.UDPAddr) (interface{}, bool) {
 	return t.udpPortTable.Lookup(address)
 }
 
-func (t *Table) LookupService(svc addr.HostSVC, bind net.IP) (interface{}, bool) {
-	return t.svcTable.Anycast(svc, bind)
+func (t *Table) LookupService(svc addr.HostSVC, bind net.IP) []interface{} {
+	return t.svcTable.Lookup(svc, bind)
 }
 
 func (t *Table) Size() int {

@@ -41,7 +41,7 @@ func (l *portList) Insert(port int, v interface{}) *ring.Ring {
 // Get returns an arbitrary object from the list.
 //
 // The objects are returned in round-robin fashion. Removing an element from
-// the list can make the round-robin selection to reset from the start.
+// the list can make the round-robin selection reset from the start.
 func (l *portList) Get() interface{} {
 	v := l.list.Value
 	l.list = l.list.Next()

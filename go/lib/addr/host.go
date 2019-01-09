@@ -54,8 +54,6 @@ const (
 	HostLenSVC  = 2
 )
 
-const SVCMcast = 0x8000
-
 const (
 	ErrorBadHostAddrType = "Unsupported host address type"
 )
@@ -67,6 +65,8 @@ const (
 	SvcSB   HostSVC = 0x0003
 	SvcSIG  HostSVC = 0x0004
 	SvcNone HostSVC = 0xffff
+
+	SVCMcast HostSVC = 0x8000
 )
 
 type HostAddr interface {
