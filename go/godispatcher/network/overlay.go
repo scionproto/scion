@@ -19,10 +19,21 @@ import (
 
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/scmp"
+	"github.com/scionproto/scion/go/lib/spkt"
+)
+
+const (
+	ErrUnsupportedL4              = "unsupported SCION L4 protocol"
+	ErrUnsupportedDestination     = "unsupported destination address type"
+	ErrUnsupportedSCMPDestination = "unsupported SCMP destination address type"
+	ErrUnsupportedQuotedL4Type    = "unsupported quoted L4 protocol type"
+	ErrMalformedL4Quote           = "malformed L4 quote"
 )
 
 // NetToRingDataplane reads SCION packets from the overlay socket, routes them
@@ -52,30 +63,92 @@ func (dp *NetToRingDataplane) Run() error {
 			continue
 		}
 
-		switch pkt.Info.DstHost.Type() {
-		case addr.HostTypeIPv4, addr.HostTypeIPv6:
-			dp.deliverNormalPkt(pkt)
-		case addr.HostTypeSVC:
-			dp.deliverServicePkt(pkt)
-		default:
-			log.Warn("bad SCION destination address", pkt.Info.DstHost)
+		d, err := ComputeDestination(&pkt.Info)
+		if err != nil {
+			log.Warn("unable to route packet", "err", err)
+			continue
 		}
+		d.Send(dp, pkt)
 	}
 }
 
-func (dp *NetToRingDataplane) deliverNormalPkt(pkt *Packet) {
-	udpHeader, ok := pkt.Info.L4.(*l4.UDP)
-	if !ok {
-		log.Warn("got non SCION/UDP packet")
-		return
+func ComputeDestination(packet *spkt.ScnPkt) (Destination, error) {
+	switch header := packet.L4.(type) {
+	case *l4.UDP:
+		return HandleUDP(packet, header)
+	case *scmp.Hdr:
+		return HandleSCMP(packet, header)
+	default:
+		return nil, common.NewBasicError(ErrUnsupportedL4, nil, "type", header.L4Type())
 	}
-	udpAddr := &net.UDPAddr{
-		IP:   pkt.Info.DstHost.IP(),
-		Port: int(udpHeader.DstPort),
+}
+
+func HandleUDP(packet *spkt.ScnPkt, header *l4.UDP) (Destination, error) {
+	switch packet.DstHost.Type() {
+	case addr.HostTypeIPv4, addr.HostTypeIPv6:
+		return &UDPDestination{IP: packet.DstHost.IP(), Port: int(header.DstPort)}, nil
+	case addr.HostTypeSVC:
+		return SVCDestination(packet.DstHost.(addr.HostSVC)), nil
+	default:
+		return nil, common.NewBasicError(ErrUnsupportedDestination, nil,
+			"type", packet.DstHost.Type())
 	}
-	item, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, udpAddr)
+}
+
+func HandleSCMP(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
+	if packet.DstHost.Type() != addr.HostTypeIPv4 && packet.DstHost.Type() != addr.HostTypeIPv6 {
+		return nil, common.NewBasicError(ErrUnsupportedSCMPDestination, nil,
+			"type", packet.DstHost.Type())
+	}
+	if header.Class == scmp.C_General {
+		return HandleSCMPGeneral(packet, header)
+	} else {
+		return HandleSCMPError(packet, header)
+	}
+}
+
+func HandleSCMPGeneral(s *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
+	info := s.Pld.(*scmp.Payload).Info
+	switch header.Type {
+	case scmp.T_G_EchoReply:
+		infoEcho := info.(*scmp.InfoEcho)
+		return &SCMPGeneralAppDestination{IP: s.DstHost.IP(), ID: infoEcho.Id}, nil
+	case scmp.T_G_RecordPathReply:
+		infoRecordPath := info.(*scmp.InfoRecordPath)
+		return &SCMPGeneralAppDestination{IP: s.DstHost.IP(), ID: infoRecordPath.Id}, nil
+	case scmp.T_G_TraceRouteReply:
+		infoTraceRoute := info.(*scmp.InfoTraceRoute)
+		return &SCMPGeneralAppDestination{IP: s.DstHost.IP(), ID: infoTraceRoute.Id}, nil
+	}
+	return SCMPGeneralHandlerDestination{}, nil
+}
+
+func HandleSCMPError(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
+	scmpPayload := packet.Pld.(*scmp.Payload)
+	if scmpPayload.Meta.L4Proto != common.L4UDP {
+		return nil, common.NewBasicError(ErrUnsupportedQuotedL4Type, nil,
+			"type", scmpPayload.Meta.L4Proto)
+	}
+	quotedUDPHeader, err := l4.UDPFromRaw(scmpPayload.L4Hdr)
+	if err != nil {
+		return nil, common.NewBasicError(ErrMalformedL4Quote, nil, "err", err)
+	}
+	return &UDPDestination{IP: packet.DstHost.IP(), Port: int(quotedUDPHeader.SrcPort)}, nil
+}
+
+type Destination interface {
+	Send(dp *NetToRingDataplane, pkt *Packet)
+}
+
+var _ Destination = (*UDPDestination)(nil)
+
+type UDPDestination net.UDPAddr
+
+func (d *UDPDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
+	item, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, (*net.UDPAddr)(d))
 	if !ok {
-		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "udpAddr", udpAddr)
+		log.Warn("destination address not found", "ia", pkt.Info.DstIA,
+			"udpAddr", (*net.UDPAddr)(d))
 		return
 	}
 	entry := item.(*TableEntry)
@@ -87,13 +160,16 @@ func (dp *NetToRingDataplane) deliverNormalPkt(pkt *Packet) {
 	}
 }
 
-func (dp *NetToRingDataplane) deliverServicePkt(pkt *Packet) {
-	svc := pkt.Info.DstHost.(addr.HostSVC)
+var _ Destination = SVCDestination(addr.SvcNone)
+
+type SVCDestination addr.HostSVC
+
+func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
 	// FIXME(scrye): This should deliver to the correct IP address, based on
 	// information found in the overlay IP header.
-	items := dp.RoutingTable.LookupService(pkt.Info.DstIA, svc, nil)
+	items := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)
 	if len(items) == 0 {
-		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", svc)
+		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", d)
 		return
 	}
 	for _, item := range items {
@@ -107,4 +183,25 @@ func (dp *NetToRingDataplane) deliverServicePkt(pkt *Packet) {
 	}
 	// Free our own reference to the packet.
 	pkt.Free()
+}
+
+var _ Destination = (*SCMPGeneralAppDestination)(nil)
+
+type SCMPGeneralAppDestination struct {
+	IP net.IP
+	ID uint64
+}
+
+func (d *SCMPGeneralAppDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
+	// FIXME(scrye): Implement this
+	panic("not implemented")
+}
+
+var _ Destination = (*SCMPGeneralHandlerDestination)(nil)
+
+type SCMPGeneralHandlerDestination struct{}
+
+func (h SCMPGeneralHandlerDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
+	// FIXME(scrye): Implement this
+	panic("not implemented")
 }
