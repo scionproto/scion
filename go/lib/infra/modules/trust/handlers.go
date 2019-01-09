@@ -160,29 +160,35 @@ func (h *trcPushHandler) Handle() {
 		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
 		return
 	}
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+	sendAck := func(errCode proto.Ack_ErrCode, errDesc string) {
+		a := &ack.Ack{
+			Err:     errCode,
+			ErrDesc: errDesc,
+		}
+		if err := messenger.SendAck(subCtx, a, h.request.Peer, h.request.ID); err != nil {
+			logger.Error("[TrustStore:trcPushHandler] Failed to send ack", "err", err)
+		}
+	}
 	// FIXME(scrye): Verify that the TRC is valid by using the trust store and
 	// known trust topology. Use h.Request.Peer to retrieve missing TRCs.
 	trcObj, err := trcPush.TRC()
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to extract TRC from TRC push", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, "Unable to extract TRC")
 		return
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
 	n, err := h.store.trustdb.InsertTRC(subCtx, trcObj)
 	if err != nil {
 		logger.Error("[TrustStore:trcPushHandler] Unable to insert TRC into DB", "err", err)
+		sendAck(proto.Ack_ErrCode_retry, "DB problem")
 		return
 	}
 	if n != 0 {
 		logger.Debug("[TrustStore:trcPushHandler] Inserted TRC into DB", "trc", trcObj)
 	}
-	a := &ack.Ack{
-		Err: proto.Ack_ErrCode_ok,
-	}
-	if err := messenger.SendAck(subCtx, a, h.request.Peer, h.request.ID); err != nil {
-		logger.Error("[TrustStore:chainPushHandler] Failed to send ack", "err", err)
-	}
+	sendAck(proto.Ack_ErrCode_ok, "")
 }
 
 type chainPushHandler struct {
@@ -205,27 +211,33 @@ func (h *chainPushHandler) Handle() {
 		logger.Warn("[TrustStore:chainPushHandler] Unable to service request, no Messenger found")
 		return
 	}
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+	sendAck := func(errCode proto.Ack_ErrCode, errDesc string) {
+		a := &ack.Ack{
+			Err:     errCode,
+			ErrDesc: errDesc,
+		}
+		if err := messenger.SendAck(subCtx, a, h.request.Peer, h.request.ID); err != nil {
+			logger.Error("[TrustStore:chainPushHandler] Failed to send ack", "err", err)
+		}
+	}
 	// FIXME(scrye): Verify that the chain is valid by using the trust store.
 	chain, err := chainPush.Chain()
 	if err != nil {
 		logger.Error("[TrustStore:chainPushHandler] Unable to extract chain from chain push",
 			"err", err)
+		sendAck(proto.Ack_ErrCode_reject, "Unable to extract chain")
 		return
 	}
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
 	n, err := h.store.trustdb.InsertChain(subCtx, chain)
 	if err != nil {
 		logger.Error("[TrustStore:chainPushHandler] Unable to insert chain into DB", "err", err)
+		sendAck(proto.Ack_ErrCode_retry, "DB problem")
 		return
 	}
 	if n != 0 {
 		logger.Debug("[TrustStore:chainPushHandler] Inserted chain into DB", "chain", chain)
 	}
-	a := &ack.Ack{
-		Err: proto.Ack_ErrCode_ok,
-	}
-	if err := messenger.SendAck(subCtx, a, h.request.Peer, h.request.ID); err != nil {
-		logger.Error("[TrustStore:chainPushHandler] Failed to send ack", "err", err)
-	}
+	sendAck(proto.Ack_ErrCode_ok, "")
 }

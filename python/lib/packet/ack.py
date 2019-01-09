@@ -30,6 +30,7 @@ class Ack(Cerealizable):
     @classmethod
     def from_values(cls, err_code, err_desc):
         return cls(cls.P_CLS.new_message(err=err_code, errDesc=err_desc))
-    
+
+
 def parse_ack(p):
     return Ack(p)
