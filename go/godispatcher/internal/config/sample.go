@@ -25,6 +25,9 @@ const Sample = `
   # OverlayPort is the native port opened by the dispatcher (default 30041)
   OverlayPort = 30041
 
+  # PerfData starts the pprof HTTP server if set to true (default false)
+  PerfData = false
+
 [logging]
   [logging.file]
     # Location of the logging file.

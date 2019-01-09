@@ -133,8 +133,7 @@ func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry
 func (h *AppConnHandler) logRegistration(ia addr.IA, public *net.UDPAddr, bind net.IP,
 	svc addr.HostSVC) {
 
-	var items []interface{}
-	items = append(items, "ia", ia, "public", public)
+	items := []interface{}{"ia", ia, "public", public}
 	if bind != nil {
 		items = append(items, "extra_bind", bind)
 	}

@@ -154,18 +154,12 @@ func (t *svcTable) anycast(svc addr.HostSVC, ip net.IP) (interface{}, bool) {
 	// into the app, searching for nil should not return an entry.
 	var ports *portList
 	if ip == nil {
-		for _, v := range ipTable {
-			ports = v
-		}
-		if ports == nil {
-			return nil, false
-		}
+		ports, ok = ipTable.any()
 	} else {
-		portList, ok := ipTable[ip.String()]
-		if !ok {
-			return nil, false
-		}
-		ports = portList
+		ports, ok = ipTable[ip.String()]
+	}
+	if !ok {
+		return nil, false
 	}
 	return ports.Get(), true
 }
@@ -222,6 +216,15 @@ func (t unicastIpTable) insert(address *net.UDPAddr, value interface{}) (*ring.R
 		t[str] = list
 	}
 	return list.Insert(address.Port, value), nil
+}
+
+// any returns an arbitrary item from the table. The boolean return value is
+// true if an entry was found, or false otherwise.
+func (t unicastIpTable) any() (*portList, bool) {
+	for _, v := range t {
+		return v, true
+	}
+	return nil, false
 }
 
 var _ Reference = (*svcTableReference)(nil)

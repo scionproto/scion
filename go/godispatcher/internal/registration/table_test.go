@@ -188,7 +188,7 @@ func TestRegisterWithBind(t *testing.T) {
 		})
 		Convey("Bind lookup on different svc fails", func() {
 			retValues := table.LookupService(addr.SvcBS, bind)
-			So(len(retValues), ShouldEqual, 0)
+			So(retValues, ShouldBeEmpty)
 		})
 		Convey("Colliding binds return error, and public port is released", func() {
 			otherPublic := &net.UDPAddr{IP: net.IP{192, 0, 2, 2}, Port: 80}

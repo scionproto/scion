@@ -42,7 +42,7 @@ type Packet struct {
 func NewPacket() *Packet {
 	refCount := 1
 	return &Packet{
-		buffer:   bufpool.Get(),
+		buffer:   make(common.RawBytes, common.MaxMTU),
 		refCount: &refCount,
 	}
 }

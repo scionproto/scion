@@ -69,8 +69,8 @@ type IATable interface {
 	// LookupService returns the entries associated with svc and bind.
 	//
 	// If SVC is an anycast address, at most one entry is returned. The bind
-	// address is used in case to narrow down the set of possible entries. If
-	// multiple entries exist, one is selected arbitrarily.
+	// address is used to narrow down the set of possible entries. If multiple
+	// entries exist, one is selected arbitrarily.
 	//
 	// Note that nil bind addresses are supported for anycasts (the address is
 	// in this case ignored), but support for this might be dropped in the
