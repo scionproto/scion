@@ -1,4 +1,5 @@
 # Copyright 2014 ETH Zurich
+# Copyright 2019 ETH Zurich, Anapaya Systems
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -276,6 +277,9 @@ class SCIONElement(object):
         else:
             handler = self._get_ctrl_handler(msg)
         if not handler:
+            # Currently we don't expect Acks in the python infra.
+            if msg.type() == PayloadClass.ACK:
+                return
             logging.error("handler not found: %s", msg)
             return
         try:
@@ -737,6 +741,9 @@ class SCIONElement(object):
         try:
             type_map = self.CTRL_PLD_CLASS_MAP[pclass]
         except KeyError:
+            # Currently we don't expect Acks in the python infra.
+            if pclass == PayloadClass.ACK:
+                return None
             logging.error("Control payload class not supported: %s\n%s", pclass, msg)
             return None
         ptype = msg.inner_type()

@@ -75,6 +75,7 @@ import (
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
+	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
@@ -172,6 +173,16 @@ func New(ia addr.IA, dispatcher *disp.Dispatcher, store infra.TrustStore, logger
 		cancelF:    cancelF,
 		log:        logger,
 	}
+}
+
+func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error {
+	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Ack", "to", a, "id", id)
+	return m.getRequester(infra.Ack, infra.None).Notify(ctx, pld, a)
 }
 
 // GetTRC sends a cert_mgmt.TRCReq request to address a, blocks until it receives a
@@ -540,6 +551,11 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	handler := m.handlers[msgType]
 	m.handlersLock.RUnlock()
 	if handler == nil {
+		// TODO(lukedirtwalker): Remove once we expect Acks everywhere.
+		// Until then silently drop Acks so that we don't fill the logs.
+		if msgType == infra.Ack {
+			return
+		}
 		logger.Error("Received message, but handler not found", "from", address,
 			"msgType", msgType, "id", pld.ReqId)
 		return
@@ -606,6 +622,8 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 				common.NewBasicError("Unsupported SignedPld.CtrlPld.PathMgmt.Xxx message type",
 					nil, "capnp_which", pld.PathMgmt.Which)
 		}
+	case proto.CtrlPld_Which_ack:
+		return infra.Ack, pld.Ack, nil
 	default:
 		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)

@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
@@ -136,6 +137,7 @@ const (
 	SegSync
 	ChainIssueRequest
 	ChainIssueReply
+	Ack
 )
 
 func (mt MessageType) String() string {
@@ -174,12 +176,15 @@ func (mt MessageType) String() string {
 		return "ChainIssueRequest"
 	case ChainIssueReply:
 		return "ChainIssueReply"
+	case Ack:
+		return "Ack"
 	default:
 		return fmt.Sprintf("Unknown (%d)", mt)
 	}
 }
 
 type Messenger interface {
+	SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id uint64) error
 	GetTRC(ctx context.Context, msg *cert_mgmt.TRCReq, a net.Addr,
 		id uint64) (*cert_mgmt.TRC, error)
 	SendTRC(ctx context.Context, msg *cert_mgmt.TRC, a net.Addr, id uint64) error
