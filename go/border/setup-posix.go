@@ -22,6 +22,7 @@ import (
 	"github.com/scionproto/scion/go/border/netconf"
 	"github.com/scionproto/scion/go/border/rcmn"
 	"github.com/scionproto/scion/go/border/rctx"
+	"github.com/scionproto/scion/go/lib/assert"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
@@ -82,6 +83,26 @@ func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, bind *overlay.OverlayAddr,
 	return nil
 }
 
+func (p posixLoc) Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) {
+	if oldCtx != nil && ctx.Conf.Net.LocAddr.Equal(oldCtx.Conf.Net.LocAddr) {
+		return
+	}
+	if ctx.LocSockIn != nil {
+		log.Debug("Rolling back local socket", "conn", ctx.LocSockIn.Conn.LocalAddr)
+		ctx.LocSockIn.Stop()
+		ctx.LocSockOut.Stop()
+	}
+}
+
+func (p posixLoc) Teardown(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx) {
+	if oldCtx == nil || ctx.LocSockIn == oldCtx.LocSockIn {
+		return
+	}
+	log.Debug("Tearing down unused local socket", "conn", ctx.LocSockIn.Conn.LocalAddr())
+	oldCtx.LocSockIn.Stop()
+	oldCtx.LocSockOut.Stop()
+}
+
 var _ extSockOps = posixExt{}
 
 type posixExt posixLoc
@@ -97,27 +118,27 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 		return nil
 	}
-	if oldIntf, ok := oldCtx.Conf.Net.IFs[intf.Id]; !ok {
-		// New interface got added. Configure Posix I/O.
-		if err := p.addIntf(r, ctx, intf, labels); err != nil {
-			return err
+	if oldIntf, ok := oldCtx.Conf.Net.IFs[intf.Id]; ok {
+		// Reuse socket if the interface has not changed.
+		if !interfaceChanged(intf, oldIntf) {
+			log.Debug("No change detected for external socket.", "conn",
+				intf.IFAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
+			ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
+			ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
+			return nil
 		}
-	} else if interfaceChanged(intf, oldIntf) {
-		log.Debug("Existing interface changed.", "old", oldIntf, "new", intf)
-		// Configure new Posix I/O.
-		if err := p.addIntf(r, ctx, intf, labels); err != nil {
-			return err
+		// FIXME(roosd): If the local address is the same, we need to release
+		// the socket in order to successfully bind afterwards.
+		// After switching to go 1.11+, this can be avoided by using SO_REUSEPORT.
+		if intf.IFAddr.Equal(oldIntf.IFAddr) {
+			log.Debug("Closing existing external socket to free addr", "old", oldIntf, "new", intf)
+			oldCtx.ExtSockIn[intf.Id].Stop()
+			oldCtx.ExtSockOut[intf.Id].Stop()
 		}
-		// An existing interface has changed.
-		// Stop old input goroutine.
-		oldCtx.ExtSockIn[intf.Id].Stop()
-		oldCtx.ExtSockOut[intf.Id].Stop()
-	} else {
-		log.Debug("No change detected for external socket.", "conn",
-			intf.IFAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
-		// Nothing changed. Copy I/O functions from old context.
-		ctx.ExtSockIn[intf.Id] = oldCtx.ExtSockIn[intf.Id]
-		ctx.ExtSockOut[intf.Id] = oldCtx.ExtSockOut[intf.Id]
+		log.Debug("Existing interface changed", "old", oldIntf, "new", intf)
+	}
+	if err := p.addIntf(r, ctx, intf, labels); err != nil {
+		return err
 	}
 	return nil
 }
@@ -141,6 +162,47 @@ func (p posixExt) addIntf(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 	return nil
 }
 
+func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, oldCtx *rctx.Ctx) {
+	var oldIntf *netconf.Interface
+	if oldCtx != nil {
+		var ok bool
+		// Do not rollback socket if it is reused by new context.
+		if oldIntf, ok = oldCtx.Conf.Net.IFs[intf.Id]; ok && !interfaceChanged(intf, oldIntf) {
+			return
+		}
+	}
+	log.Debug("Rolling back external socket", "intf", intf)
+	if _, ok := ctx.ExtSockIn[intf.Id]; ok {
+		ctx.ExtSockIn[intf.Id].Stop()
+		ctx.ExtSockOut[intf.Id].Stop()
+	}
+	// In case the old socket was closed in order to allow bind of new socket, restore it.
+	if oldIntf != nil && intf.IFAddr.Equal(oldIntf.IFAddr) {
+		labels := mkSockFromRingLabels(oldCtx.ExtSockIn[oldIntf.Id].Labels)
+		if err := p.addIntf(r, oldCtx, oldIntf, labels); err != nil {
+			log.Crit("Unable to rollback closed socket", err, "intf", oldIntf)
+			if assert.On {
+				assert.Must(false, "Must not fail to open socket in rollback")
+			}
+		} else {
+			log.Debug("Rolling back closed external sockets", "old", oldIntf, "new", intf)
+			oldCtx.ExtSockIn[intf.Id].Start()
+			oldCtx.ExtSockOut[intf.Id].Start()
+		}
+	}
+}
+
+func (p posixExt) Teardown(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, oldCtx *rctx.Ctx) {
+	if oldCtx == nil || oldCtx.ExtSockIn[intf.Id] == nil {
+		return
+	}
+	if newSock, ok := ctx.ExtSockIn[intf.Id]; !ok || newSock != oldCtx.ExtSockIn[intf.Id] {
+		log.Debug("Tearing down unused external socket", "intf", intf)
+		oldCtx.ExtSockIn[intf.Id].Stop()
+		oldCtx.ExtSockOut[intf.Id].Stop()
+	}
+}
+
 // interfaceChanged returns true if a new input goroutine is needed for the
 // corresponding interface.
 func interfaceChanged(newIntf *netconf.Interface, oldIntf *netconf.Interface) bool {
@@ -155,4 +217,12 @@ func mkRingLabels(labels prometheus.Labels) prometheus.Labels {
 	ringLabels["ringId"] = labels["sock"]
 	delete(ringLabels, "sock")
 	return ringLabels
+}
+
+// Create a set of labels from ringbuf labels with `ringId` renamed to `sock`.
+func mkSockFromRingLabels(labels prometheus.Labels) prometheus.Labels {
+	sockLabel := prom.CopyLabels(labels)
+	sockLabel["sock"] = labels["ringId"]
+	delete(sockLabel, "ringId")
+	return sockLabel
 }

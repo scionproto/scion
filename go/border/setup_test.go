@@ -29,6 +29,7 @@ import (
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/xtest"
@@ -66,8 +67,193 @@ func TestSetupNet(t *testing.T) {
 		checkExtSocksRunning("ctx", ctx, true)
 		// FIXME(roosd): Check state of the local socket when reload logic is improved.
 	})
-	// FIXME(roosd): Add more tests to test the correct behavior when reload logic is improved.
-	// Due to the currently faulty reload logic, the additional tests would fail.
+	Convey("Changing interface local address does not affect old socket", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		copyCtx := copyContext(oldCtx)
+		ctx := rctx.New(loadConfig(t))
+		ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Check that unaffected sockets have not changed.
+		checkLocSocksUnchanged("New vs copy", ctx, copyCtx)
+		checkLocSocksUnchanged("Copy vs old", copyCtx, oldCtx)
+		checkExtSocksUnchanged("Copy vs old", copyCtx, oldCtx)
+		// Keep socket for unchanged interface.
+		SoMsg("IFID 11", ctx.ExtSockIn[11], ShouldEqual, oldCtx.ExtSockIn[11])
+		SoMsg("IFID 11", ctx.ExtSockOut[11], ShouldEqual, oldCtx.ExtSockOut[11])
+		// Change socket for modified interface.
+		SoMsg("IFID 12", ctx.ExtSockIn[12], ShouldNotEqual, oldCtx.ExtSockIn[12])
+		SoMsg("IFID 12", ctx.ExtSockOut[12], ShouldNotEqual, oldCtx.ExtSockOut[12])
+		// Old socket should still be running.
+		checkExtSocksRunning("Old", oldCtx, true)
+	})
+	Convey("Changing interface remote address closes old socket", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		copyCtx := copyContext(oldCtx)
+		ctx := rctx.New(loadConfig(t))
+		ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[3] = 255
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Check that unaffected sockets have not changed.
+		checkLocSocksUnchanged("New vs copy", ctx, copyCtx)
+		checkLocSocksUnchanged("Copy vs old", copyCtx, oldCtx)
+		checkExtSocksUnchanged("Copy vs old", copyCtx, oldCtx)
+		// Keep socket for unchanged interface.
+		SoMsg("IFID 11", ctx.ExtSockIn[11], ShouldEqual, oldCtx.ExtSockIn[11])
+		SoMsg("IFID 11", ctx.ExtSockOut[11], ShouldEqual, oldCtx.ExtSockOut[11])
+		// Change socket for modified interface.
+		SoMsg("IFID 12", ctx.ExtSockIn[12], ShouldNotEqual, oldCtx.ExtSockIn[12])
+		SoMsg("IFID 12", ctx.ExtSockOut[12], ShouldNotEqual, oldCtx.ExtSockOut[12])
+		// Old socket must be closed.
+		SoMsg("Old 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+		SoMsg("Old 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+	})
+}
+
+func TestRollbackNet(t *testing.T) {
+	Convey("Rolling back the same config should be a noop", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		copyCtx := copyContext(oldCtx)
+		ctx := rctx.New(loadConfig(t))
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Rollback the changes.
+		r.rollbackNet(ctx, copyCtx, brconf.SockConf{Default: PosixSock})
+		// Check that the original context has not been modified.
+		checkLocSocksUnchanged("Old vs copy", oldCtx, copyCtx)
+		checkExtSocksUnchanged("Old vs copy", oldCtx, copyCtx)
+		// Check that all sockets are still running
+		checkLocSocksRunning("Old", oldCtx, true)
+		checkExtSocksRunning("Old", oldCtx, true)
+	})
+	Convey("Rolling back config with changed local address does not affect old sockets", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		copyCtx := copyContext(oldCtx)
+		ctx := rctx.New(loadConfig(t))
+		ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[3] = 255
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Rollback the changes.
+		r.rollbackNet(ctx, copyCtx, brconf.SockConf{Default: PosixSock})
+		// Check that the original context has not been modified.
+		checkLocSocksUnchanged("Old vs copy", oldCtx, copyCtx)
+		checkExtSocksUnchanged("Old vs copy", oldCtx, copyCtx)
+		// Check that all sockets are still running
+		checkLocSocksRunning("Old", oldCtx, true)
+		checkExtSocksRunning("Old", oldCtx, true)
+	})
+	Convey("Rolling back config with changed public address on "+
+		"interface does not affect old socket", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		copyCtx := copyContext(oldCtx)
+		ctx := rctx.New(loadConfig(t))
+		ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Rollback the changes.
+		r.rollbackNet(ctx, oldCtx, brconf.SockConf{Default: PosixSock})
+		// Check that the original context has not been modified.
+		checkLocSocksUnchanged("Old vs copy", oldCtx, copyCtx)
+		checkExtSocksUnchanged("Old vs copy", oldCtx, copyCtx)
+		// Check that all sockets are still running
+		checkLocSocksRunning("Old", oldCtx, true)
+		checkExtSocksRunning("Old", oldCtx, true)
+		// Check the freshly created sockets are stopped.
+		SoMsg("New Ifid 12 In running", ctx.ExtSockIn[12].Running(), ShouldBeFalse)
+		SoMsg("New ifid 12 Out running", ctx.ExtSockOut[12].Running(), ShouldBeFalse)
+	})
+	Convey("Rolling back config with changed remote address on "+
+		"interface does not affect old socket", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		copyCtx := copyContext(oldCtx)
+		ctx := rctx.New(loadConfig(t))
+		ctx.Conf.Net.IFs[12].RemoteAddr.L3().IP()[3] = 255
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Rollback the changes.
+		r.rollbackNet(ctx, oldCtx, brconf.SockConf{Default: PosixSock})
+		// Check that the local socket of the  original context has not been modified.
+		checkLocSocksUnchanged("Old vs copy", oldCtx, copyCtx)
+		// Check that all sockets are still running. The closed socket is reopened in
+		// the rollback.
+		checkLocSocksRunning("Old", oldCtx, true)
+		checkExtSocksRunning("Old", oldCtx, true)
+		// Unaffected socket still running.
+		SoMsg("IFID 11 In running", oldCtx.ExtSockIn[11].Running(), ShouldBeTrue)
+		SoMsg("IFID 11 Out running", oldCtx.ExtSockOut[11].Running(), ShouldBeTrue)
+		// Check created sockets are stopped.
+		SoMsg("New IFID 12 In running", ctx.ExtSockIn[12].Running(), ShouldBeFalse)
+		SoMsg("New IFID 12 Out running", ctx.ExtSockOut[12].Running(), ShouldBeFalse)
+		// Check original sockets are stopped (to free address).
+		SoMsg("Orig IFID 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeTrue)
+		SoMsg("Orig IFID 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeTrue)
+		// Check sockets were reopened for old context.
+		SoMsg("Old IFID 12 In running", copyCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+		SoMsg("Old IFID 12 Out running", copyCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+	})
+
+}
+
+func TestTeardownNet(t *testing.T) {
+	Convey("Tearing down the same config should be a noop", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		ctx := rctx.New(loadConfig(t))
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Start sockets on the new context.
+		startSocks(ctx)
+		// Create copy of the new context to catch changes.
+		copyCtx := copyContext(ctx)
+		r.teardownNet(ctx, oldCtx, brconf.SockConf{Default: PosixSock})
+		// Check that teardown does not modify the context
+		checkLocSocksUnchanged("New vs copy", ctx, copyCtx)
+		checkExtSocksUnchanged("New vs copy", ctx, copyCtx)
+		// Check that teardown does not close the needed sockets.
+		checkExtSocksRunning("New", ctx, true)
+		checkLocSocksRunning("New", ctx, true)
+	})
+	Convey("Tearing down config with changed local address should close unused socks", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		ctx := rctx.New(loadConfig(t))
+		ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[3] = 255
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Start sockets on the new context.
+		startSocks(ctx)
+		// Create copy of the new context to catch changes.
+		copyCtx := copyContext(ctx)
+		r.teardownNet(ctx, oldCtx, brconf.SockConf{Default: PosixSock})
+		// Check that teardown does not modify the context
+		checkLocSocksUnchanged("New vs copy", ctx, copyCtx)
+		checkExtSocksUnchanged("New vs copy", ctx, copyCtx)
+		// Check that teardown does not close the needed sockets.
+		checkExtSocksRunning("New", ctx, true)
+		checkLocSocksRunning("New", ctx, true)
+		// Check that the teardown closes the no longer needed socket.
+		checkLocSocksRunning("Old", oldCtx, false)
+	})
+	Convey("Tearing down config with changed interface should close unused socks", t, func() {
+		r, oldCtx := setupTestRouter(t)
+		ctx := rctx.New(loadConfig(t))
+		ctx.Conf.Net.IFs[12].IFAddr.PublicOverlay(overlay.IPv4).L3().IP()[3] = 255
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
+		// Start sockets on the new context.
+		startSocks(ctx)
+		// Create copy of the new context to catch changes.
+		copyCtx := copyContext(ctx)
+		r.teardownNet(ctx, oldCtx, brconf.SockConf{Default: PosixSock})
+		// Check that teardown does not modify the context
+		checkLocSocksUnchanged("New vs copy", ctx, copyCtx)
+		checkExtSocksUnchanged("New vs copy", ctx, copyCtx)
+		// Check that teardown does not close the needed sockets.
+		checkExtSocksRunning("New", ctx, true)
+		checkLocSocksRunning("New", ctx, true)
+		// The old socket for interface should be closed.
+		SoMsg("Old Ifid 12 In running", oldCtx.ExtSockIn[12].Running(), ShouldBeFalse)
+		SoMsg("Old ifid 12 Out running", oldCtx.ExtSockOut[12].Running(), ShouldBeFalse)
+	})
+
 }
 
 // checkLocSocksUnchanged compares that both contexts point to the same local socket.
@@ -139,10 +325,10 @@ func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
 // updateTestRouter calls setupNet on the provided router with new and old context.
 // The cleanup function shall be called to free the allocated sockets.
 func updateTestRouter(r *Router, newCtx, oldCtx *rctx.Ctx) func() {
-	// Call setupNet with provided new context. Copy context to catch
-	// map alterations.
+	// Copy the context to make sure all sockets are closed,
+	// even if socket pointers are modified in oldCtx.
 	copyCtx := copyContext(oldCtx)
-	err := r.setupNet(newCtx, copyCtx, brconf.SockConf{Default: PosixSock})
+	err := r.setupNet(newCtx, oldCtx, brconf.SockConf{Default: PosixSock})
 	SoMsg("err", err, ShouldBeNil)
 	// Close all sockets to allow binding in subsequent tests.
 	cleanUp := func() {
