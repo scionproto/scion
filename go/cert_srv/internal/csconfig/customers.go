@@ -63,6 +63,8 @@ func LoadCustomers(stateDir string, trustDB trustdb.TrustDB) error {
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
 	for ia, file := range activeKeys {
+		// If multiple servers start at the same time and try to insert at the same time
+		// we might have to retry in case of a CustKeyModifiedError.
 		for attempts := 0; attempts < 3; attempts++ {
 			key, err := keyconf.LoadKey(file, keyconf.RawKey)
 			if err != nil {
