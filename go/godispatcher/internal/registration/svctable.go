@@ -120,7 +120,7 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 func (t *svcTable) Lookup(svc addr.HostSVC, ip net.IP) []interface{} {
 	var values []interface{}
 	if svc.IsMulticast() {
-		values = t.multicast(svc, nil)
+		values = t.multicast(svc)
 	} else {
 		if v, ok := t.anycast(svc, ip); ok {
 			values = []interface{}{v}
@@ -129,7 +129,7 @@ func (t *svcTable) Lookup(svc addr.HostSVC, ip net.IP) []interface{} {
 	return values
 }
 
-func (t *svcTable) multicast(svc addr.HostSVC, ip net.IP) []interface{} {
+func (t *svcTable) multicast(svc addr.HostSVC) []interface{} {
 	var values []interface{}
 	ipTable, ok := t.m[svc.Base()]
 	if !ok {
