@@ -62,9 +62,9 @@ func realMain() int {
 			fatal.Fatal(err)
 		}
 	}()
-	if cfg.Dispatcher.PerfData {
+	if cfg.Dispatcher.PerfData != "" {
 		go func() {
-			err := http.ListenAndServe("localhost:6061", nil)
+			err := http.ListenAndServe(cfg.Dispatcher.PerfData, nil)
 			if err != nil {
 				fatal.Fatal(err)
 			}

@@ -194,7 +194,9 @@ func TestSVCTableMulticastTwoAddresses(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		Convey("A multicast will return both values", func() {
 			retValues := table.Lookup(addr.SvcCS.Multicast(), address.IP)
-			sortUntypedStrings(retValues)
+			sort.Slice(retValues, func(i, j int) bool {
+				return retValues[i].(string) < retValues[j].(string)
+			})
 			So(retValues, ShouldResemble, []interface{}{otherValue, value})
 		})
 	})
@@ -257,15 +259,4 @@ func runRandomRegistrations(count int, table SVCTable) []Reference {
 		}
 	}
 	return references
-}
-
-func sortUntypedStrings(objs []interface{}) {
-	var strs []string
-	for _, obj := range objs {
-		strs = append(strs, obj.(string))
-	}
-	sort.Strings(strs)
-	for i, str := range strs {
-		objs[i] = str
-	}
 }

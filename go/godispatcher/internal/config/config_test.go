@@ -40,6 +40,5 @@ func TestSampleCorrect(t *testing.T) {
 		SoMsg("ApplicationSocket", cfg.Dispatcher.ApplicationSocket, ShouldEqual,
 			reliable.DefaultDispPath)
 		SoMsg("OverlayPort", cfg.Dispatcher.OverlayPort, ShouldEqual, overlay.EndhostPort)
-		SoMsg("PerfData", cfg.Dispatcher.PerfData, ShouldBeFalse)
 	})
 }
