@@ -277,6 +277,7 @@ class SCIONElement(object):
         else:
             handler = self._get_ctrl_handler(msg)
         if not handler:
+            # Currently we don't expect Acks in the python infra.
             if msg.type() == PayloadClass.ACK:
                 return
             logging.error("handler not found: %s", msg)
@@ -740,6 +741,7 @@ class SCIONElement(object):
         try:
             type_map = self.CTRL_PLD_CLASS_MAP[pclass]
         except KeyError:
+            # Currently we don't expect Acks in the python infra.
             if pclass == PayloadClass.ACK:
                 return None
             logging.error("Control payload class not supported: %s\n%s", pclass, msg)

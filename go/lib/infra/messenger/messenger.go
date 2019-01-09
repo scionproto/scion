@@ -181,7 +181,7 @@ func (m *Messenger) SendAck(ctx context.Context, msg *ack.Ack, a net.Addr, id ui
 		return err
 	}
 	logger := log.FromCtx(ctx)
-	logger.Trace("[Messenger] Sending Notify", "type", infra.Ack, "to", a, "id", id)
+	logger.Trace("[Messenger] Sending Ack", "to", a, "id", id)
 	return m.getRequester(infra.Ack, infra.None).Notify(ctx, pld, a)
 }
 
@@ -551,6 +551,8 @@ func (m *Messenger) serve(ctx context.Context, cancelF context.CancelFunc, pld *
 	handler := m.handlers[msgType]
 	m.handlersLock.RUnlock()
 	if handler == nil {
+		// TODO(lukedirtwalker): Remove once we expect Acks everywhere.
+		// Until then silently drop Acks so that we don't fill the logs.
 		if msgType == infra.Ack {
 			return
 		}
