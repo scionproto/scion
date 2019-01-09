@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package conf holds all of the global router state, for access by the
+// Package brconf holds all of the global router state, for access by the
 // router's various packages.
 package brconf
 
@@ -46,7 +47,7 @@ type Conf struct {
 	// MasterKeys holds the local AS master keys.
 	MasterKeys keyconf.Master
 	// HFMacPool is the pool of Hop Field MAC generation instances.
-	HFMacPool sync.Pool
+	HFMacPool *sync.Pool
 	// Net is the network configuration of this router.
 	Net *netconf.NetConf
 	// Dir is the configuration directory.
@@ -55,55 +56,119 @@ type Conf struct {
 
 // Load sets up the configuration, loading it from the supplied config directory.
 func Load(id, confDir string) (*Conf, error) {
-	var err error
+	conf := &Conf{
+		Dir: confDir,
+	}
+	if err := conf.loadTopo(id); err != nil {
+		return nil, err
+	}
+	if err := conf.loadAsConf(); err != nil {
+		return nil, err
+	}
+	if err := conf.loadMasterKeys(); err != nil {
+		return nil, err
+	}
+	if err := conf.initMacPool(); err != nil {
+		return nil, err
+	}
+	if err := conf.initNet(); err != nil {
+		return nil, err
+	}
+	return conf, nil
+}
 
-	// Declare a new Conf instance, and load the topology config.
-	conf := &Conf{}
-	conf.Dir = confDir
-	topoPath := filepath.Join(conf.Dir, topology.CfgName)
-	if conf.Topo, err = topology.LoadFromFile(topoPath); err != nil {
-		return nil, err
+// WithNewTopo creates config that shares all content except fields related
+// to topology with the oldConf.
+func WithNewTopo(id string, topo *topology.Topo, oldConf *Conf) (*Conf, error) {
+	conf := &Conf{
+		Dir:        oldConf.Dir,
+		ASConf:     oldConf.ASConf,
+		MasterKeys: oldConf.MasterKeys,
+		HFMacPool:  oldConf.HFMacPool,
 	}
-	conf.IA = conf.Topo.ISD_AS
-	// Find the config for this router.
-	topoBR, ok := conf.Topo.BR[id]
-	if !ok {
-		return nil, common.NewBasicError("Unable to find element ID in topology", nil,
-			"id", id, "path", topoPath)
+	if err := conf.initTopo(id, topo); err != nil {
+		return nil, common.NewBasicError("Unable to initialize topo", err)
 	}
-	conf.BR = &topoBR
-	// Load AS configuration
-	asConfPath := filepath.Join(conf.Dir, as_conf.CfgName)
-	if err = as_conf.Load(asConfPath); err != nil {
-		return nil, err
+	if err := conf.initNet(); err != nil {
+		return nil, common.NewBasicError("Unable to initialize net", err)
 	}
-	conf.ASConf = as_conf.CurrConf
-	// Load master keys
-	conf.MasterKeys, err = keyconf.LoadMaster(filepath.Join(conf.Dir, "keys"))
+	return conf, nil
+}
+
+// loadTopo loads the topology from the config directory and initializes the
+// entries related to topo in the config.
+func (c *Conf) loadTopo(id string) error {
+	topoPath := filepath.Join(c.Dir, topology.CfgName)
+	topo, err := topology.LoadFromFile(topoPath)
 	if err != nil {
-		return nil, common.NewBasicError("Unable to load master keys", err)
+		return err
 	}
+	if err := c.initTopo(id, topo); err != nil {
+		return common.NewBasicError("Unable to initialize topo", err, "path", topoPath)
+	}
+	return nil
+}
+
+// initTopo initializesthe entries related to topo in the config.
+func (c *Conf) initTopo(id string, topo *topology.Topo) error {
+	c.Topo = topo
+	c.IA = c.Topo.ISD_AS
+	// Find the config for this router.
+	topoBR, ok := c.Topo.BR[id]
+	if !ok {
+		return common.NewBasicError("Unable to find element ID in topology", nil,
+			"id", id)
+	}
+	c.BR = &topoBR
+	return nil
+}
+
+// loadAsConf loads the as config from the config directory.
+func (c *Conf) loadAsConf() error {
+	asConfPath := filepath.Join(c.Dir, as_conf.CfgName)
+	if err := as_conf.Load(asConfPath); err != nil {
+		return err
+	}
+	c.ASConf = as_conf.CurrConf
+	return nil
+}
+
+// loadMasterKeys loads the master keys from the config directory.
+func (c *Conf) loadMasterKeys() error {
+	var err error
+	c.MasterKeys, err = keyconf.LoadMaster(filepath.Join(c.Dir, "keys"))
+	if err != nil {
+		return common.NewBasicError("Unable to load master keys", err)
+	}
+	return nil
+}
+
+// initMacPool initializes the hop field mac pool.
+func (c *Conf) initMacPool() error {
 	// Generate keys
 	// This uses 16B keys with 1000 hash iterations, which is the same as the
 	// defaults used by pycrypto.
-	hfGenKey := pbkdf2.Key(conf.MasterKeys.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
+	hfGenKey := pbkdf2.Key(c.MasterKeys.Key0, []byte("Derive OF Key"), 1000, 16, sha256.New)
 
 	// First check for MAC creation errors.
-	if _, err = scrypto.InitMac(hfGenKey); err != nil {
-		return nil, err
+	if _, err := scrypto.InitMac(hfGenKey); err != nil {
+		return err
 	}
 	// Create a pool of MAC instances.
-	conf.HFMacPool = sync.Pool{
+	c.HFMacPool = &sync.Pool{
 		New: func() interface{} {
 			mac, _ := scrypto.InitMac(hfGenKey)
 			return mac
 		},
 	}
+	return nil
+}
 
-	// Create network configuration
-	if conf.Net, err = netconf.FromTopo(conf.BR, conf.Topo.IFInfoMap); err != nil {
-		return nil, err
+// initNet initializes the network configuration.
+func (c *Conf) initNet() error {
+	var err error
+	if c.Net, err = netconf.FromTopo(c.BR, c.Topo.IFInfoMap); err != nil {
+		return err
 	}
-	// Save config
-	return conf, nil
+	return nil
 }
