@@ -30,6 +30,9 @@ type Config struct {
 		ApplicationSocket string
 		// OverlayPort is the native port opened by the dispatcher (default 30041)
 		OverlayPort int
+		// PerfData starts the pprof HTTP server on the specified address. If not set,
+		// the server is not started.
+		PerfData string
 	}
 	Logging env.Logging
 	Metrics env.Metrics

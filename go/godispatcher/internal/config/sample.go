@@ -25,6 +25,10 @@ const Sample = `
   # OverlayPort is the native port opened by the dispatcher (default 30041)
   OverlayPort = 30041
 
+  # PerfData starts the pprof HTTP server on the specified address. If not set,
+  # the server is not started.
+  # PerfData = "127.0.0.1:6060"
+
 [logging]
   [logging.file]
     # Location of the logging file.
@@ -46,4 +50,9 @@ const Sample = `
   [logging.console]
     # Console logging level (trace|debug|info|warn|error|crit) (default crit)
     Level = "crit"
+
+[metrics]
+  # Prometheus is the address to export prometheus metrics on. If not set,
+  # metrics are not exported.
+  # Prometheus = "127.0.0.1:8000"
 `

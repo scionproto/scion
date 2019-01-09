@@ -17,9 +17,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
@@ -27,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 var cfg config.Config
@@ -50,6 +54,7 @@ func realMain() int {
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.LogPanicAndExit()
 
+	ringbuf.InitMetrics("dispatcher", prometheus.Labels{"elem": cfg.Dispatcher.ID}, nil)
 	go func() {
 		defer log.LogPanicAndExit()
 		err := RunDispatcher(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.OverlayPort)
@@ -57,6 +62,14 @@ func realMain() int {
 			fatal.Fatal(err)
 		}
 	}()
+	if cfg.Dispatcher.PerfData != "" {
+		go func() {
+			err := http.ListenAndServe(cfg.Dispatcher.PerfData, nil)
+			if err != nil {
+				fatal.Fatal(err)
+			}
+		}()
+	}
 
 	cfg.Metrics.StartPrometheus()
 	<-fatal.Chan()

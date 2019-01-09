@@ -63,14 +63,18 @@ type SVCTable interface {
 	// To clean up resources, call Free on the returned Reference. Calling Free
 	// more than once will cause a panic.
 	Register(svc addr.HostSVC, address *net.UDPAddr, value interface{}) (Reference, error)
-	// Anycast returns the entry associated with svc and ip.
+	// Lookup returns the entries associated with svc and ip.
 	//
-	// If no entry is found, the second return value is false.
+	// If SVC is an anycast address, at most one entry is returned. The ip
+	// address is used in case to narrow down the set of possible entries. If
+	// multiple entries exist, one is selected arbitrarily.
 	//
-	// If multiple entries exist (this can happen with different port numbers),
-	// one of the entries is returned in round-robin fashion.
-	Anycast(svc addr.HostSVC, ip net.IP) (interface{}, bool)
-	// String returns the entire table in string form.
+	// Note that nil addresses are supported for anycasts (the address is then
+	// ignored), but support for this might be dropped in the future.
+	//
+	// If SVC is a multicast address, more than one entry can be returned. The
+	// ip address is ignored in this case.
+	Lookup(svc addr.HostSVC, ip net.IP) []interface{}
 	String() string
 }
 
@@ -113,16 +117,51 @@ func (t *svcTable) Register(svc addr.HostSVC, address *net.UDPAddr,
 	}, nil
 }
 
-func (t *svcTable) Anycast(svc addr.HostSVC, ip net.IP) (interface{}, bool) {
+func (t *svcTable) Lookup(svc addr.HostSVC, ip net.IP) []interface{} {
+	var values []interface{}
+	if svc.IsMulticast() {
+		values = t.multicast(svc)
+	} else {
+		if v, ok := t.anycast(svc, ip); ok {
+			values = []interface{}{v}
+		}
+	}
+	return values
+}
+
+func (t *svcTable) multicast(svc addr.HostSVC) []interface{} {
+	var values []interface{}
+	ipTable, ok := t.m[svc.Base()]
+	if !ok {
+		return values
+	}
+	for _, v := range ipTable {
+		for i := 0; i < v.Len(); i++ {
+			values = append(values, v.Get())
+		}
+	}
+	return values
+}
+
+func (t *svcTable) anycast(svc addr.HostSVC, ip net.IP) (interface{}, bool) {
 	ipTable, ok := t.m[svc]
 	if !ok {
 		return nil, false
 	}
-	portList, ok := ipTable[ip.String()]
+	// XXX(scrye): This is a workaround s.t. a simple overlay socket
+	// that does not return IP-header information can still be used to
+	// deliver to SVC addresses. Once IP-header information is passed
+	// into the app, searching for nil should not return an entry.
+	var ports *portList
+	if ip == nil {
+		ports, ok = ipTable.any()
+	} else {
+		ports, ok = ipTable[ip.String()]
+	}
 	if !ok {
 		return nil, false
 	}
-	return portList.Get(), true
+	return ports.Get(), true
 }
 
 func (t *svcTable) String() string {
@@ -177,6 +216,15 @@ func (t unicastIpTable) insert(address *net.UDPAddr, value interface{}) (*ring.R
 		t[str] = list
 	}
 	return list.Insert(address.Port, value), nil
+}
+
+// any returns an arbitrary item from the table. The boolean return value is
+// true if an entry was found, or false otherwise.
+func (t unicastIpTable) any() (*portList, bool) {
+	for _, v := range t {
+		return v, true
+	}
+	return nil, false
 }
 
 var _ Reference = (*svcTableReference)(nil)

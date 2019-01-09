@@ -15,6 +15,7 @@
 package network
 
 import (
+	"fmt"
 	"io"
 	"net"
 
@@ -59,6 +60,7 @@ func (h *AppConnManager) Handle(conn net.PacketConn) {
 		Conn:         conn,
 		RoutingTable: h.RoutingTable,
 		OverlayConn:  h.OverlayConn,
+		Logger:       log.Root().New("clientID", fmt.Sprintf("%p", conn)),
 	}
 	go func() {
 		defer log.LogPanicAndExit()
@@ -73,23 +75,26 @@ type AppConnHandler struct {
 	Conn net.PacketConn
 	// OverlayConn is the network connection to which egress traffic is sent.
 	OverlayConn net.PacketConn
+	Logger      log.Logger
 }
 
 func (h *AppConnHandler) Handle() {
+	h.Logger.Info("Accepted new client")
+	defer h.Logger.Info("Closed client socket")
 	defer h.Conn.Close()
 
 	ref, tableEntry, err := h.doRegExchange()
 	if err != nil {
-		log.Warn("registration error", "err", err)
+		h.Logger.Warn("registration error", "err", err)
 		return
 	}
 	defer ref.Free()
 
 	go func() {
 		defer log.LogPanicAndExit()
-		RunRingToAppDataplane(tableEntry.appIngressRing, h.Conn)
+		h.RunRingToAppDataplane(tableEntry.appIngressRing)
 	}()
-	RunAppToNetDataplane(h.Conn, h.OverlayConn, ref.UDPAddr())
+	h.RunAppToNetDataplane()
 }
 
 func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry, error) {
@@ -120,7 +125,22 @@ func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry
 		ref.Free()
 		return nil, nil, common.NewBasicError("confirmation message error", nil, "err", err)
 	}
+	h.logRegistration(regInfo.IA, udpRef.UDPAddr(), getBindIP(regInfo.BindAddress),
+		regInfo.SVCAddress)
 	return udpRef, tableEntry, nil
+}
+
+func (h *AppConnHandler) logRegistration(ia addr.IA, public *net.UDPAddr, bind net.IP,
+	svc addr.HostSVC) {
+
+	items := []interface{}{"ia", ia, "public", public}
+	if bind != nil {
+		items = append(items, "extra_bind", bind)
+	}
+	if svc != addr.SvcNone {
+		items = append(items, "svc", svc)
+	}
+	h.Logger.Info("Client registered address", items...)
 }
 
 func (h *AppConnHandler) recvRegistration(b common.RawBytes) (*reliable.Registration, error) {
@@ -152,28 +172,28 @@ func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirm
 
 // RunAppToNetDataplane moves packets from the application's socket to the
 // overlay socket.
-func RunAppToNetDataplane(appConn, overlayConn net.PacketConn, client *net.UDPAddr) {
+func (h *AppConnHandler) RunAppToNetDataplane() {
 	for {
 		b := bufpool.Get()
-		n, nextHop, err := appConn.ReadFrom(b)
+		n, nextHop, err := h.Conn.ReadFrom(b)
 		if err != nil {
 			if err == io.EOF {
-				log.Info("app->network, EOF received from app", "app", client)
+				h.Logger.Info("[app->network] EOF received from client")
 			} else {
-				log.Error("app->network, app conn error", "err", err)
+				h.Logger.Error("[app->network] Client connection error", "err", err)
 			}
 			return
 		}
 		b = b[:n]
 
 		if nextHop == nil {
-			log.Warn("app->network, missing next hop, dropping packet")
+			h.Logger.Warn("[app->network] Missing next hop, dropping packet")
 			continue
 		}
 
-		_, err = overlayConn.WriteTo(b, nextHop.(*overlay.OverlayAddr).ToUDPAddr())
+		n, err = h.OverlayConn.WriteTo(b, nextHop.(*overlay.OverlayAddr).ToUDPAddr())
 		if err != nil {
-			log.Error("app->network, overlay conn error", "err", err)
+			h.Logger.Error("[app->network] Overlay socket error", "err", err)
 		}
 		bufpool.Put(b)
 	}
@@ -181,28 +201,27 @@ func RunAppToNetDataplane(appConn, overlayConn net.PacketConn, client *net.UDPAd
 
 // RunRingToAppDataplane moves packets from the application's ingress ring to
 // the application's socket.
-func RunRingToAppDataplane(r *ringbuf.Ring, conn net.PacketConn) {
+func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 	entries := make(ringbuf.EntryList, 1)
 	for {
 		n, _ := r.Read(entries, true)
 		if n > 0 {
 			pkt := entries[0].(*Packet)
-
 			overlayAddr, err := overlay.NewOverlayAddr(
 				addr.HostFromIP(pkt.OverlayRemote.IP),
 				addr.NewL4UDPInfo(uint16(pkt.OverlayRemote.Port)),
 			)
 			if err != nil {
-				log.Warn("network->app, unable to encode overlay address", "err", err)
+				h.Logger.Warn("[network->app] Unable to encode overlay address.", "err", err)
 				continue
 			}
-			_, err = conn.WriteTo(pkt.Data, overlayAddr)
+			_, err = h.Conn.WriteTo(pkt.Data, overlayAddr)
 			if err != nil {
-				log.Error("network->app, app conn error", "err", err)
-				conn.Close()
+				h.Logger.Error("[network->app] App connection error.", "err", err)
+				h.Conn.Close()
 				return
 			}
-			bufpool.Put(pkt.buffer)
+			pkt.Free()
 		}
 	}
 }

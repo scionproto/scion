@@ -41,9 +41,8 @@ func TestIATable(t *testing.T) {
 					SoMsg("value", retValue, ShouldEqual, value)
 				})
 				Convey("work correctly for SVC", func() {
-					retValue, ok := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
-					SoMsg("ok", ok, ShouldBeFalse)
-					SoMsg("value", retValue, ShouldBeNil)
+					retValues := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
+					So(retValues, ShouldBeEmpty)
 				})
 			})
 			Convey("lookups for a different AS", func() {
@@ -54,9 +53,8 @@ func TestIATable(t *testing.T) {
 					SoMsg("value", retValue, ShouldBeNil)
 				})
 				Convey("work correctly for SVC", func() {
-					retValue, ok := table.LookupService(otherIA, addr.SvcCS, net.IP{192, 0, 2, 1})
-					SoMsg("ok", ok, ShouldBeFalse)
-					SoMsg("value", retValue, ShouldBeNil)
+					retValues := table.LookupService(otherIA, addr.SvcCS, net.IP{192, 0, 2, 1})
+					So(retValues, ShouldBeEmpty)
 				})
 			})
 			Convey("free", func() {
@@ -77,9 +75,8 @@ func TestIATable(t *testing.T) {
 					SoMsg("value", retValue, ShouldEqual, value)
 				})
 				Convey("work correctly for SVC", func() {
-					retValue, ok := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
-					SoMsg("ok", ok, ShouldBeTrue)
-					SoMsg("value", retValue, ShouldEqual, value)
+					retValues := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
+					So(retValues, ShouldResemble, []interface{}{value})
 				})
 			})
 		})

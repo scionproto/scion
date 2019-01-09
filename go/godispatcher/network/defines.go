@@ -17,7 +17,9 @@ package network
 
 import (
 	"net"
+	"sync"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
@@ -32,4 +34,50 @@ type Packet struct {
 
 	// buffer contains the raw slice that other fields reference
 	buffer common.RawBytes
+
+	mtx      sync.Mutex
+	refCount *int
+}
+
+func NewPacket() *Packet {
+	refCount := 1
+	return &Packet{
+		buffer:   bufpool.Get(),
+		refCount: &refCount,
+	}
+}
+
+// Dup increases pkt's reference count.
+//
+// Dup panics if it is called after the packet has been freed (i.e., it's
+// reference count reached 0).
+//
+// Modifying a packet after the first call to Dup is racy, and callers should
+// use external locking for it.
+func (pkt *Packet) Dup() {
+	pkt.mtx.Lock()
+	if *pkt.refCount <= 0 {
+		panic("cannot reference freed packet")
+	}
+	*pkt.refCount++
+	pkt.mtx.Unlock()
+}
+
+// Free releases a reference to the packet. Free is safe to use from concurrent
+// goroutines.
+func (pkt *Packet) Free() {
+	pkt.mtx.Lock()
+	if *pkt.refCount <= 0 {
+		panic("reference count underflow")
+	}
+	*pkt.refCount--
+	if *pkt.refCount == 0 {
+		bufpool.Put(pkt.buffer)
+		// Prevent use after free bugs
+		pkt.OverlayRemote = nil
+		pkt.buffer = nil
+		pkt.Data = nil
+		pkt.Info = spkt.ScnPkt{}
+	}
+	pkt.mtx.Unlock()
 }

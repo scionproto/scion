@@ -160,9 +160,8 @@ func TestRegisterPublicAndSVC(t *testing.T) {
 			SoMsg("value", retValue, ShouldEqual, value)
 		})
 		Convey("SVC lookup is successful (bind inherits from public)", func() {
-			retValue, ok := table.LookupService(addr.SvcCS, public.IP)
-			SoMsg("ok", ok, ShouldBeTrue)
-			SoMsg("value", retValue, ShouldEqual, value)
+			retValues := table.LookupService(addr.SvcCS, public.IP)
+			So(retValues, ShouldResemble, []interface{}{value})
 		})
 	})
 }
@@ -184,14 +183,12 @@ func TestRegisterWithBind(t *testing.T) {
 			SoMsg("value", retValue, ShouldEqual, value)
 		})
 		Convey("SVC lookup is successful", func() {
-			retValue, ok := table.LookupService(addr.SvcCS, bind)
-			SoMsg("ok", ok, ShouldBeTrue)
-			SoMsg("value", retValue, ShouldEqual, value)
+			retValues := table.LookupService(addr.SvcCS, bind)
+			So(retValues, ShouldResemble, []interface{}{value})
 		})
 		Convey("Bind lookup on different svc fails", func() {
-			retValue, ok := table.LookupService(addr.SvcBS, bind)
-			SoMsg("ok", ok, ShouldBeFalse)
-			SoMsg("value", retValue, ShouldBeNil)
+			retValues := table.LookupService(addr.SvcBS, bind)
+			So(retValues, ShouldBeEmpty)
 		})
 		Convey("Colliding binds return error, and public port is released", func() {
 			otherPublic := &net.UDPAddr{IP: net.IP{192, 0, 2, 2}, Port: 80}
