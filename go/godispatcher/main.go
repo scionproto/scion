@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
@@ -53,7 +54,7 @@ func realMain() int {
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.LogPanicAndExit()
 
-	ringbuf.InitMetrics("dispatcher", nil, nil)
+	ringbuf.InitMetrics("dispatcher", prometheus.Labels{"elem": cfg.Dispatcher.ID}, nil)
 	go func() {
 		defer log.LogPanicAndExit()
 		err := RunDispatcher(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.OverlayPort)
@@ -61,12 +62,14 @@ func realMain() int {
 			fatal.Fatal(err)
 		}
 	}()
-	go func() {
-		err := http.ListenAndServe("localhost:6061", nil)
-		if err != nil {
-			fatal.Fatal(err)
-		}
-	}()
+	if cfg.Dispatcher.PerfData {
+		go func() {
+			err := http.ListenAndServe("localhost:6061", nil)
+			if err != nil {
+				fatal.Fatal(err)
+			}
+		}()
+	}
 
 	cfg.Metrics.StartPrometheus()
 	<-fatal.Chan()

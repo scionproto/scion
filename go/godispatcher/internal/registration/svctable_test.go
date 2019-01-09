@@ -16,6 +16,7 @@ package registration
 
 import (
 	"net"
+	"sort"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -31,15 +32,15 @@ func TestSVCTableEmpty(t *testing.T) {
 		table := NewSVCTable()
 		Convey("Anycast to nil address, not found", func() {
 			retValues := table.Lookup(addr.SvcCS, nil)
-			SoMsg("len", len(retValues), ShouldEqual, 0)
+			So(retValues, ShouldBeEmpty)
 		})
 		Convey("Anycast to some IPv4 address, not found", func() {
 			retValues := table.Lookup(addr.SvcCS, net.IP{10, 2, 3, 4})
-			SoMsg("len", len(retValues), ShouldEqual, 0)
+			So(retValues, ShouldBeEmpty)
 		})
 		Convey("Multicast to some IPv4 address, not found", func() {
 			retValues := table.Lookup(addr.SvcCS.Multicast(), nil)
-			SoMsg("len", len(retValues), ShouldEqual, 0)
+			So(retValues, ShouldBeEmpty)
 		})
 		Convey("Registering nil address fails", func() {
 			reference, err := table.Register(addr.SvcCS, nil, value)
@@ -110,11 +111,11 @@ func TestSVCTableOneItem(t *testing.T) {
 		})
 		Convey("anycasting to a different IP does not find the entry", func() {
 			retValues := table.Lookup(addr.SvcCS, diffIpSamePortAddress.IP)
-			SoMsg("len", len(retValues), ShouldEqual, 0)
+			So(retValues, ShouldBeEmpty)
 		})
 		Convey("anycasting to a different SVC does not find the entry", func() {
 			retValues := table.Lookup(addr.SvcPS, address.IP)
-			SoMsg("len", len(retValues), ShouldEqual, 0)
+			So(retValues, ShouldBeEmpty)
 		})
 		Convey("anycasting to the same SVC and IP finds the entry", func() {
 			retValues := table.Lookup(addr.SvcCS, address.IP)
@@ -137,7 +138,7 @@ func TestSVCTableOneItem(t *testing.T) {
 		Convey("Freeing the reference yields nil on anycast", func() {
 			reference.Free()
 			retValues := table.Lookup(addr.SvcCS, nil)
-			So(len(retValues), ShouldEqual, 0)
+			So(retValues, ShouldBeEmpty)
 			Convey("And double free panics", func() {
 				So(reference.Free, ShouldPanic)
 			})
@@ -193,7 +194,8 @@ func TestSVCTableMulticastTwoAddresses(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		Convey("A multicast will return both values", func() {
 			retValues := table.Lookup(addr.SvcCS.Multicast(), address.IP)
-			SoMsg("len", len(retValues), ShouldEqual, 2)
+			sortUntypedStrings(retValues)
+			So(retValues, ShouldResemble, []interface{}{otherValue, value})
 		})
 	})
 }
@@ -255,4 +257,15 @@ func runRandomRegistrations(count int, table SVCTable) []Reference {
 		}
 	}
 	return references
+}
+
+func sortUntypedStrings(objs []interface{}) {
+	var strs []string
+	for _, obj := range objs {
+		strs = append(strs, obj.(string))
+	}
+	sort.Strings(strs)
+	for i, str := range strs {
+		objs[i] = str
+	}
 }

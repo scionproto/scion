@@ -42,7 +42,7 @@ func TestIATable(t *testing.T) {
 				})
 				Convey("work correctly for SVC", func() {
 					retValues := table.LookupService(ia, addr.SvcCS, net.IP{192, 0, 2, 1})
-					So(len(retValues), ShouldEqual, 0)
+					So(retValues, ShouldBeEmpty)
 				})
 			})
 			Convey("lookups for a different AS", func() {
@@ -54,7 +54,7 @@ func TestIATable(t *testing.T) {
 				})
 				Convey("work correctly for SVC", func() {
 					retValues := table.LookupService(otherIA, addr.SvcCS, net.IP{192, 0, 2, 1})
-					So(len(retValues), ShouldEqual, 0)
+					So(retValues, ShouldBeEmpty)
 				})
 			})
 			Convey("free", func() {
