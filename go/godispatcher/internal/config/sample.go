@@ -49,4 +49,9 @@ const Sample = `
   [logging.console]
     # Console logging level (trace|debug|info|warn|error|crit) (default crit)
     Level = "crit"
+
+[metrics]
+  # The address to export prometheus metrics on. If not set, metrics are not
+  # exported.
+  # Prometheus = "127.0.0.1:8000"
 `
