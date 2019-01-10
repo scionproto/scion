@@ -29,10 +29,11 @@ from topology.common import (
     BR_CONFIG_NAME,
     COMMON_DIR,
     CS_CONFIG_NAME,
-    sciond_name,
-    SD_CONFIG_NAME,
     prom_addr_br,
     PS_CONFIG_NAME,
+    sciond_name,
+    SD_CONFIG_NAME,
+    trust_db_conf_entry,
 )
 from topology.prometheus import DEFAULT_BR_PROM_PORT
 
@@ -93,10 +94,7 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': {
-                'Backend': 'sqlite',
-                'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
-            },
+            'TrustDB': trust_db_conf_entry(self.args, name),
             'infra': {
                 'Type': "PS"
             },
@@ -126,10 +124,7 @@ class GoGenerator(object):
                 'ReconnectToDispatcher': True,
             },
             'logging': self._log_entry(name),
-            'TrustDB': {
-                'Backend': 'sqlite',
-                'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
-            },
+            'TrustDB': trust_db_conf_entry(self.args, name),
             'sd': {
                 'Reliable': os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
                 'Unix': os.path.join(SCIOND_API_SOCKDIR, "%s.unix" % name),
@@ -161,10 +156,7 @@ class GoGenerator(object):
                 'Path': get_default_sciond_path(topo_id),
             },
             'logging': self._log_entry(name),
-            'TrustDB': {
-                'Backend': 'sqlite',
-                'Connection': os.path.join(self.db_dir, '%s.trust.db' % name),
-            },
+            'TrustDB': trust_db_conf_entry(self.args, name),
             'infra': {
                 'Type': "CS"
             },
