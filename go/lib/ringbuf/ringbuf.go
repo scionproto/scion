@@ -76,7 +76,7 @@ func (r *Ring) Write(entries EntryList, block bool) (int, bool) {
 	defer r.mutex.Unlock()
 	var blocked bool
 	r.metrics.writeCalls.Inc()
-	if r.writable == 0 && !r.closed {
+	if len(entries) > 0 && r.writable == 0 && !r.closed {
 		if !block {
 			return 0, blocked
 		}
@@ -110,7 +110,7 @@ func (r *Ring) Read(entries EntryList, block bool) (int, bool) {
 	defer r.mutex.Unlock()
 	var blocked bool
 	r.metrics.readCalls.Inc()
-	if r.readable == 0 && !r.closed {
+	if len(entries) > 0 && r.readable == 0 && !r.closed {
 		if !block {
 			return 0, blocked
 		}
