@@ -77,6 +77,7 @@ func main() {
 }
 
 func realMain() int {
+	log.ConsoleLevel = "info"
 	log.AddLogConsFlags()
 	if err := checkFlags(); err != nil {
 		flag.Usage()
