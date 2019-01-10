@@ -1,15 +1,18 @@
 #!/bin/bash
 
+. $BASE/steps/common.sh
+
 set -eu
 
 TAG="$BUILDKITE_BUILD_NUMBER"
 
-$BASE/scripts/registry_login
+$BASE/scripts/registry_login &>/dev/null
 
 images="border dispatcher sig beacon_py cert cert_py path path_py sciond sciond_py tester sig_acceptance"
 
 if [ "${1:?}" == "push" ]; then
     # Tag local apps and push to remote
+    log "Push images"
     for app in $images; do
         local_img="scion_$app"
         remote_img="$REGISTRY/$app"
@@ -19,6 +22,7 @@ if [ "${1:?}" == "push" ]; then
 fi
 if [ "$1" == "pull" ]; then
     # Pull images
+    log "Pull images"
     for app in $images; do
         local_img="scion_$app"
         remote_img="$REGISTRY/$app"

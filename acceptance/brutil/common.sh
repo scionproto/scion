@@ -13,7 +13,7 @@ test_setup() {
     sudo -p "Setup docker containers and virtual interfaces - [sudo] password for %p: " true
     # Bring up the dispatcher container and add new veth interfaces
     # This approach currently works because the dispatcher binds to 0.0.0.0 address.
-    docker-compose -f ${BRUTIL:?}/docker-compose.yml up --detach dispatcher
+    docker-compose -f ${BRUTIL:?}/docker-compose.yml --no-ansi up --detach dispatcher
 
     set_docker_ns_link
 
@@ -25,7 +25,7 @@ test_setup() {
     sed -i "s/ID = .*$/ID = \"${BRID}\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
     sed -i "s/Path = .*$/Path = \"\/share\/logs\/${BRID}.log\"/g" "$TEST_ARTIFACTS_DIR/conf/brconfig.toml"
 
-    docker-compose -f $BRUTIL/docker-compose.yml up --detach $BRID
+    docker-compose -f $BRUTIL/docker-compose.yml --no-ansi up --detach $BRID
 }
 
 test_run() {
@@ -40,7 +40,7 @@ test_teardown() {
     del_veths
     rm -f $DEVINFO_FN
     rm_docker_ns_link
-    docker-compose -f $BRUTIL/docker-compose.yml down
+    docker-compose -f $BRUTIL/docker-compose.yml --no-ansi down
 }
 
 print_help() {

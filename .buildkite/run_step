@@ -1,24 +1,21 @@
 #!/bin/bash
 
-$BASE/scripts/clean_env
-echo "Running: ${1:?}"
+. $BASE/steps/common.sh
 
-# Pull CI image and start it
-$BASE/scripts/registry_login
-docker pull $SCION_IMG &>/dev/null
-mkdir -p $SCION_MOUNT
-./docker.sh start
+log "Prepare environment: Start"
+prepare
+log "Prepare environment: Done"
+
+# Start runner container
+./docker.sh start &>> "$STEP_LOG"
 
 # Run test
+log "Running: ${1:?}"
 ./tools/ci/"$@"
 res=$?
 
-# Pack logs and stop everything
-$BASE/scripts/pack_logs
+log "Cleanup environment: Start"
+cleanup
 res=$((res+$?))
-./docker.sh stop
-res=$((res+$?))
-$BASE/scripts/clean_env
-res=$((res+$?))
-rm -r $SCION_MOUNT
+log "Cleanup environment: Done"
 exit $res
