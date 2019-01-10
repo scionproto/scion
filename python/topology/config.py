@@ -54,9 +54,9 @@ from lib.util import (
 from topology.ca import CAGenArgs, CAGenerator
 from topology.cert import CertGenArgs, CertGenerator
 from topology.common import (
-    srv_iter,
     ArgsBase,
     CS_CONFIG_NAME,
+    srv_iter,
 )
 from topology.docker import DockerGenArgs, DockerGenerator
 from topology.go import GoGenArgs, GoGenerator
@@ -264,8 +264,8 @@ class ConfigGenerator(object):
         if cust_pk:
             with open('gen/load_custs.sh', 'w') as script:
                 for cust_dir, config in cust_pk.items():
-                    script.write('scion-custpk-load -customers %s -config %s\n' % (cust_dir,
-                                                                                   config))
+                    script.write('bin/scion-custpk-load -customers %s -config %s\n' % (cust_dir,
+                                                                                       config))
 
     def _write_conf_policies(self, topo_dicts):
         """

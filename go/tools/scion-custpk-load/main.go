@@ -22,6 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb"
 	"github.com/scionproto/scion/go/lib/truststorage"
 )
@@ -30,25 +31,30 @@ type Config struct {
 	TrustDB truststorage.TrustDBConf
 }
 
+const SampleConf = `
+[TrustDB]
+  # The type of trustdb backend
+  Backend = "sqlite"
+  # Connection for the trust database
+  Connection = "/var/lib/scion/spki/cs-1.trust.db"
+`
+
 var (
 	custDir = flag.String("customers", "", "The folder containing the customer keys")
-	cfgFile = flag.String("config", "", "Configuration file containing the DB config.")
 
 	config  Config
 	trustDB trustdb.TrustDB
 )
 
-// TODO(lukedirtwalker): We probably need to initialize the logger here!
 func main() {
 	os.Exit(realMain())
 }
 
 func realMain() int {
+	env.AddFlags()
 	flag.Parse()
-	if err := checkFlags(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		flag.Usage()
-		return 1
+	if ret, ok := checkFlags(); !ok {
+		return ret
 	}
 	if err := loadConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -64,23 +70,27 @@ func realMain() int {
 	return 0
 }
 
-func checkFlags() error {
+// checkFlags checks the flags.
+// The first return value is the return code of the program. The second value
+// indicates whether the program can continue with its execution or should exit.
+func checkFlags() (int, bool) {
+	if ret, ok := env.CheckFlags(SampleConf); !ok {
+		return ret, ok
+	}
 	if *custDir == "" {
-		return common.NewBasicError("Missing custDir argument", nil)
+		fmt.Fprintln(os.Stderr, "Err: Missing customers argument")
+		flag.Usage()
+		return 1, false
 	}
-	if *cfgFile == "" {
-		return common.NewBasicError("Missing config argument", nil)
-	}
-	return nil
+	return 0, true
 }
 
 func loadConfig() error {
-	if _, err := toml.DecodeFile(*cfgFile, &config); err != nil {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
 		return common.NewBasicError("Failed to load config", err)
 	}
 	var err error
-	trustDB, err = config.TrustDB.New()
-	if err != nil {
+	if trustDB, err = config.TrustDB.New(); err != nil {
 		return common.NewBasicError("Failed to init the database", err)
 	}
 	return nil
