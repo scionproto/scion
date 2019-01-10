@@ -28,7 +28,7 @@ var (
 
 // AddFlags adds the config and sample flags.
 func AddFlags() {
-	flag.StringVar(&config, "config", "", "Service TOML config file.")
+	flag.StringVar(&config, "config", "", "TOML config file.")
 	flag.BoolVar(&helpConfig, "help-config", false, "Output sample commented config file.")
 	flag.BoolVar(&version, "version", false, "Output version information and exit.")
 }

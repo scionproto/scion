@@ -17,14 +17,10 @@ package csconfig
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/infra/modules/trust/trustdb/mock_trustdb"
 	"github.com/scionproto/scion/go/lib/keyconf"
 	"github.com/scionproto/scion/go/lib/scrypto"
-	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 var (
@@ -37,16 +33,8 @@ var (
 )
 
 func TestLoadState(t *testing.T) {
-	key := common.RawBytes([]byte("aaaaaaa"))
 	Convey("Load core state", t, func() {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		trustDB := mock_trustdb.NewMockTrustDB(ctrl)
-		ia := xtest.MustParseIA("1-ff00:0:110")
-		trustDB.EXPECT().GetCustKey(gomock.Any(), gomock.Eq(ia)).Return(nil, uint64(0), nil)
-		trustDB.EXPECT().InsertCustKey(gomock.Any(), gomock.Eq(ia), uint64(1),
-			gomock.Eq(key), uint64(0))
-		state, err := LoadState("testdata", true, trustDB, nil)
+		state, err := LoadState("testdata", true, nil, nil)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("Master0", state.keyConf.Master.Key0, ShouldResemble, mstr0)
 		SoMsg("Master1", state.keyConf.Master.Key1, ShouldResemble, mstr1)

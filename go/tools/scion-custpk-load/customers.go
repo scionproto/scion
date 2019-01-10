@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package csconfig
+package main
 
 import (
 	"context"
@@ -28,19 +28,20 @@ import (
 	"github.com/scionproto/scion/go/lib/keyconf"
 )
 
-const (
-	CustomersDir = "customers"
-)
-
 // reCustVerKey is used to parse the IA and version of a customer verifying key file.
 var reCustVerKey = regexp.MustCompile(`^(ISD\S+-AS\S+)-V(\d+)\.key$`)
 
+type CustKeyMeta struct {
+	IA      addr.IA
+	Version uint64
+}
+
 // LoadCustomers populates the DB from assigned non-core ASes to their verifying key.
-func LoadCustomers(stateDir string, trustDB trustdb.TrustDB) error {
-	path := filepath.Join(stateDir, CustomersDir)
+// Returns the processed files and the information about the keys that were inserted.
+func LoadCustomers(path string, trustDB trustdb.TrustDB) ([]string, []*CustKeyMeta, error) {
 	files, err := filepath.Glob(fmt.Sprintf("%s/ISD*-AS*-V*.key", path))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	activeKeys := make(map[addr.IA]string)
 	activeVers := make(map[addr.IA]uint64)
@@ -49,11 +50,11 @@ func LoadCustomers(stateDir string, trustDB trustdb.TrustDB) error {
 		s := reCustVerKey.FindStringSubmatch(name)
 		ia, err := addr.IAFromFileFmt(s[1], true)
 		if err != nil {
-			return common.NewBasicError("Unable to parse IA", err, "file", file)
+			return nil, nil, common.NewBasicError("Unable to parse IA", err, "file", file)
 		}
 		ver, err := strconv.ParseUint(s[2], 10, 64)
 		if err != nil {
-			return common.NewBasicError("Unable to parse Version", err, "file", file)
+			return nil, nil, common.NewBasicError("Unable to parse Version", err, "file", file)
 		}
 		if ver >= activeVers[ia] {
 			activeKeys[ia] = file
@@ -62,23 +63,34 @@ func LoadCustomers(stateDir string, trustDB trustdb.TrustDB) error {
 	}
 	ctx, cancelF := context.WithTimeout(context.Background(), time.Second)
 	defer cancelF()
+	var addedKeys []*CustKeyMeta
+	var procFiles []string
 	for ia, file := range activeKeys {
 		key, err := keyconf.LoadKey(file, keyconf.RawKey)
 		if err != nil {
-			return common.NewBasicError("Unable to load key", err, "file", file)
+			return procFiles, addedKeys, common.NewBasicError("Unable to load key", err,
+				"file", file)
 		}
 		_, dbV, err := trustDB.GetCustKey(ctx, ia)
 		if err != nil {
-			return common.NewBasicError("Failed to check DB cust key", err, "ia", ia)
+			return procFiles, addedKeys, common.NewBasicError("Failed to check DB cust key", err,
+				"ia", ia)
 		}
 		if dbV >= activeVers[ia] {
 			// db already contains a newer key.
+			procFiles = append(procFiles, file)
 			continue
 		}
 		err = trustDB.InsertCustKey(ctx, ia, activeVers[ia], key, dbV)
 		if err != nil {
-			return common.NewBasicError("Failed to save customer key", err, "file", file)
+			return procFiles, addedKeys, common.NewBasicError("Failed to save customer key", err,
+				"file", file)
 		}
+		addedKeys = append(addedKeys, &CustKeyMeta{
+			IA:      ia,
+			Version: activeVers[ia],
+		})
+		procFiles = append(procFiles, file)
 	}
-	return nil
+	return procFiles, addedKeys, nil
 }

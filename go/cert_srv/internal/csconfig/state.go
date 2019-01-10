@@ -54,11 +54,6 @@ func LoadState(confDir string, isCore bool, trustDB trustdb.TrustDB,
 	if err := s.loadKeyConf(confDir, isCore); err != nil {
 		return nil, err
 	}
-	if isCore {
-		if err := LoadCustomers(confDir, s.TrustDB); err != nil {
-			return nil, common.NewBasicError(ErrorCustomers, err)
-		}
-	}
 	return s, nil
 }
 

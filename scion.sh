@@ -22,6 +22,8 @@ cmd_topology() {
         shift
         zkclean="y"
     fi
+    echo "Compiling..."
+    cmd_build || exit 1
     echo "Create topology, configuration, and execution files."
     is_running_in_docker && set -- "$@" --in-docker
     python/topology/generator.py "$@"
@@ -29,6 +31,7 @@ cmd_topology() {
         ./tools/quiet ./tools/dc run utils_chowner
     fi
     run_zk "$zkclean"
+    load_cust_keys
     if [ ! -e "gen-certs/tls.pem" -o ! -e "gen-certs/tls.key" ]; then
         local old=$(umask)
         echo "Generating TLS cert"
@@ -62,6 +65,13 @@ cmd_run() {
         ./tools/quiet ./tools/dc start 'scion*'
     else
         ./tools/quiet ./supervisor/supervisor.sh start all
+    fi
+}
+
+load_cust_keys() {
+    if [ -f 'gen/load_custs.sh' ]; then
+        echo "Loading customer keys..."
+        ./tools/quiet ./gen/load_custs.sh
     fi
 }
 
