@@ -71,7 +71,7 @@ cmd_run() {
 load_cust_keys() {
     if [ -f 'gen/load_custs.sh' ]; then
         echo "Loading customer keys..."
-        ./tools/quiet bash 'gen/load_custs.sh'
+        ./tools/quiet ./gen/load_custs.sh
     fi
 }
 
