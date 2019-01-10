@@ -69,6 +69,7 @@ func New(count int, newf NewEntryF, desc string, labels prometheus.Labels) *Ring
 // Write will block until it is able to write at least one entry (or the Ring
 // is closed). Otherwise it will return immediately if there's on space left
 // for writing.
+// In case entries is of length zero, the call returns immediately.
 // Returns the number of entries written, or -1 if the RingBuf is closed, and a
 // bool indicating if the write blocked.
 func (r *Ring) Write(entries EntryList, block bool) (int, bool) {
@@ -76,7 +77,7 @@ func (r *Ring) Write(entries EntryList, block bool) (int, bool) {
 	defer r.mutex.Unlock()
 	var blocked bool
 	r.metrics.writeCalls.Inc()
-	if r.writable == 0 && !r.closed {
+	if len(entries) > 0 && r.writable == 0 && !r.closed {
 		if !block {
 			return 0, blocked
 		}
@@ -103,6 +104,7 @@ func (r *Ring) Write(entries EntryList, block bool) (int, bool) {
 // Read will block until it is able to read at least one entry (or the Ring
 // is closed). Otherwise it will return immediately if there's no entries
 // available for reading.
+// In case entries is of length zero, the call returns immediately.
 // Returns the number of entries read, or -1 if the RingBuf is closed, and a
 // bool indicating if the read blocked.
 func (r *Ring) Read(entries EntryList, block bool) (int, bool) {
@@ -110,7 +112,7 @@ func (r *Ring) Read(entries EntryList, block bool) (int, bool) {
 	defer r.mutex.Unlock()
 	var blocked bool
 	r.metrics.readCalls.Inc()
-	if r.readable == 0 && !r.closed {
+	if len(entries) > 0 && r.readable == 0 && !r.closed {
 		if !block {
 			return 0, blocked
 		}
