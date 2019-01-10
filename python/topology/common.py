@@ -172,3 +172,11 @@ def json_default(o):
     if isinstance(o, AddressProxy):
         return str(o.ip)
     raise TypeError
+
+
+def trust_db_conf_entry(args, name):
+    db_dir = '/share/cache' if args.docker else 'gen-cache'
+    return {
+        'Backend': 'sqlite',
+        'Connection': os.path.join(db_dir, '%s.trust.db' % name),
+    }
