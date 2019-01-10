@@ -193,6 +193,8 @@ class ConfigGenerator(object):
             go_gen.generate_sciond()
         if self.args.path_server == "go":
             go_gen.generate_ps()
+        if self.args.dispatcher == "go":
+            go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, topo_dicts, self.port_gen)
