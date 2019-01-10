@@ -169,6 +169,19 @@ class GoGenerator(object):
         }
         return raw_entry
 
+    def generate_disp(self):
+        elem_dir = os.path.join(self.args.output_dir, "dispatcher")
+        config_file_path = os.path.join(elem_dir, "dispconfig.toml")
+        write_file(config_file_path, toml.dumps(self._build_disp_conf()))
+
+    def _build_disp_conf(self):
+        return {
+            'dispatcher': {
+                'ID': 'disp',
+            },
+            'logging': self._log_entry("dispatcher"),
+        }
+
     def _log_entry(self, name):
         entry = {
             'file': {
