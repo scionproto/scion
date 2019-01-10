@@ -15,6 +15,18 @@
 			"revisionTime": "2017-06-26T11:06:00Z"
 		},
 		{
+			"checksumSHA1": "/4iFrb02l84MDqy3dZTaW/XAifE=",
+			"path": "github.com/JeanMertz/lll",
+			"revision": "c7683829ec0c1f892b2d0468356597573afafb03",
+			"revisionTime": "2018-06-22T11:05:46Z"
+		},
+		{
+			"checksumSHA1": "89AhNIvQAcPHl8DbExOoG1W4Q1A=",
+			"path": "github.com/JeanMertz/lll/cmd/lll",
+			"revision": "c7683829ec0c1f892b2d0468356597573afafb03",
+			"revisionTime": "2018-06-22T11:05:46Z"
+		},
+		{
 			"checksumSHA1": "CRskBANKJfxFhfOCiYbR0aRhw18=",
 			"path": "github.com/aead/chacha20",
 			"revision": "e2538746bfea853aaa589feb8ec46bd46ee78f86",
@@ -532,18 +544,6 @@
 			"path": "github.com/vishvananda/netns",
 			"revision": "54f0e4339ce73702a0607f49922aaa1e749b418d",
 			"revisionTime": "2017-02-14T06:09:35Z"
-		},
-		{
-			"checksumSHA1": "g27xFm/EIghjjcT3DuGt976CgNo=",
-			"path": "github.com/walle/lll",
-			"revision": "8b13b3fbf7312913fcfdbfa78997b9bd1dbb11af",
-			"revisionTime": "2016-07-02T15:04:58Z"
-		},
-		{
-			"checksumSHA1": "V74uq4M+82grbD85c6TQ3JyMCL4=",
-			"path": "github.com/walle/lll/cmd/lll",
-			"revision": "8b13b3fbf7312913fcfdbfa78997b9bd1dbb11af",
-			"revisionTime": "2016-07-02T15:04:58Z"
 		},
 		{
 			"checksumSHA1": "IQkUIOnvlf0tYloFx9mLaXSvXWQ=",
