@@ -213,7 +213,8 @@ func VerifySegment(ctx context.Context, store infra.TrustStore, server net.Addr,
 		}
 		err = segment.Segment.VerifyASEntry(chain.Leaf.SubjectSignKey, i)
 		if err != nil {
-			return err
+			return common.NewBasicError("segverifier.VerifySegment", err, "segment", segment,
+				"asEntry", asEntry)
 		}
 	}
 	return nil
