@@ -174,6 +174,13 @@ func TestSequenceEval(t *testing.T) {
 			ExpPathNum: 2,
 		},
 		{
+			Name:       "Empty sequence does not filter",
+			List:       newSequence(t, []string{""}),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 2,
+		},
+		{
 			Name:       "Nil sequence does not filter",
 			List:       nil,
 			Src:        xtest.MustParseIA("2-ff00:0:212"),

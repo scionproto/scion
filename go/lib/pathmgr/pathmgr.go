@@ -42,7 +42,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
@@ -97,8 +96,7 @@ type Resolver interface {
 	// refreshed automatically.
 	//
 	// A nil filter will not delete any paths.
-	WatchFilter(ctx context.Context, src, dst addr.IA,
-		filter *pktcls.ActionFilterPaths) (*SyncPaths, error)
+	WatchFilter(ctx context.Context, src, dst addr.IA, filter *pathpol.Policy) (*SyncPaths, error)
 	// WatchCount returns the number of active watchers.
 	WatchCount() int
 	// RevokeRaw informs SCIOND of a revocation.
@@ -158,7 +156,7 @@ func (r *resolver) QueryFilter(ctx context.Context, src, dst addr.IA,
 }
 
 func (r *resolver) WatchFilter(ctx context.Context, src, dst addr.IA,
-	filter *pktcls.ActionFilterPaths) (*SyncPaths, error) {
+	filter *pathpol.Policy) (*SyncPaths, error) {
 
 	aps := r.Query(ctx, src, dst, sciond.PathReqFlags{})
 	if filter != nil {
