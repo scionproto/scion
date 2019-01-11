@@ -38,7 +38,7 @@ func NewTable(minPort, maxPort int) *Table {
 }
 
 func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
-	value interface{}) (Reference, error) {
+	value interface{}) (*TableReference, error) {
 
 	if public == nil {
 		return nil, common.NewBasicError(ErrNoPublicAddress, nil)
@@ -59,7 +59,7 @@ func (t *Table) Register(public *net.UDPAddr, bind net.IP, svc addr.HostSVC,
 		return nil, err
 	}
 	t.size++
-	return &tableReference{table: t, address: address, svcRef: svcRef}, nil
+	return &TableReference{table: t, address: address, svcRef: svcRef}, nil
 }
 
 func (t *Table) insertSVCIfRequested(svc addr.HostSVC, bind net.IP, port int,
@@ -87,16 +87,14 @@ func (t *Table) Size() int {
 	return t.size
 }
 
-var _ UDPReference = (*tableReference)(nil)
-
-type tableReference struct {
+type TableReference struct {
 	table   *Table
 	freed   bool
 	address *net.UDPAddr
 	svcRef  Reference
 }
 
-func (r *tableReference) Free() {
+func (r *TableReference) Free() {
 	if r.freed {
 		panic("double free")
 	}
@@ -108,6 +106,6 @@ func (r *tableReference) Free() {
 	r.table.size--
 }
 
-func (r *tableReference) UDPAddr() *net.UDPAddr {
+func (r *TableReference) UDPAddr() *net.UDPAddr {
 	return r.address
 }
