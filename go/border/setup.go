@@ -36,15 +36,16 @@ import (
 )
 
 type locSockOps interface {
-	Setup(*Router, *rctx.Ctx, prometheus.Labels, *rctx.Ctx) error
-	// Rollback(*Router, *rctx.Ctx, *rctx.Ctx)
-	// Teardown(*Router, *rctx.Ctx, *rctx.Ctx)
+	Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels, oldCtx *rctx.Ctx) error
+	// Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx)
+	// Teardown(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx)
 }
 
 type extSockOps interface {
-	Setup(*Router, *rctx.Ctx, *netconf.Interface, prometheus.Labels, *rctx.Ctx) error
-	// Rollback(*Router, *rctx.Ctx, *netconf.Interface, *rctx.Ctx)
-	// Teardown(*Router, *rctx.Ctx, *netconf.Interface, *rctx.Ctx)
+	Setup(r *Router, ctx *rctx.Ctx, intfs *netconf.Interface,
+		labels prometheus.Labels, oldCtx *rctx.Ctx) error
+	// Rollback(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, oldCtx *rctx.Ctx)
+	// Teardown(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, oldCtx *rctx.Ctx)
 }
 
 // SockOps enable the network stack to be modular. Any network stack that wants
@@ -122,7 +123,9 @@ func (r *Router) loadNewConfig() (*brconf.Conf, error) {
 func (r *Router) setupNewContext(config *brconf.Conf) error {
 	oldCtx := rctx.Get()
 	ctx := rctx.New(config)
-	if err := r.setupNet(ctx, oldCtx, brconf.SockConf{Default: PosixSock}); err != nil {
+	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
+	sockConf := brconf.SockConf{Default: PosixSock}
+	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
 		return err
 	}
 	rctx.Set(ctx)
@@ -202,13 +205,13 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 	// Stop input functions that are no longer needed.
 	if oldCtx != nil {
 		if ctx.LocSockIn != oldCtx.LocSockIn {
-			stopSock(oldCtx.LocSockIn)
-			stopSock(oldCtx.LocSockOut)
+			oldCtx.LocSockIn.Stop()
+			oldCtx.LocSockOut.Stop()
 		}
-		for ifid, sock := range oldCtx.ExtSockIn {
+		for ifid := range oldCtx.ExtSockIn {
 			if _, ok := ctx.ExtSockIn[ifid]; !ok {
-				stopSock(sock)
-				stopSock(oldCtx.ExtSockOut[ifid])
+				oldCtx.ExtSockIn[ifid].Stop()
+				oldCtx.ExtSockOut[ifid].Stop()
 			}
 		}
 	}
@@ -226,7 +229,7 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 		return common.NewBasicError("No LocSockOps found", nil, "sockType", sockType)
 	}
 	// Validate local sock of same type.
-	if oldCtx.LocSockIn != nil && oldCtx.LocSockIn.Type != sockType {
+	if oldCtx.LocSockIn.Type != sockType {
 		return common.NewBasicError("Unable to switch local socket type", nil,
 			"expected", oldCtx.LocSockIn.Type, "actual", sockType)
 	}
@@ -245,10 +248,4 @@ func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 		}
 	}
 	return nil
-}
-
-func stopSock(s *rctx.Sock) {
-	if s != nil {
-		s.Stop()
-	}
 }

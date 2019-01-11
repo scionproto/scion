@@ -137,11 +137,11 @@ func copyContext(ctx *rctx.Ctx) *rctx.Ctx {
 
 func closeAllSocks(ctx *rctx.Ctx) {
 	if ctx != nil {
-		stopSock(ctx.LocSockIn)
-		stopSock(ctx.LocSockOut)
+		ctx.LocSockIn.Stop()
+		ctx.LocSockOut.Stop()
 		for ifid := range ctx.ExtSockIn {
-			stopSock(ctx.ExtSockIn[ifid])
-			stopSock(ctx.ExtSockOut[ifid])
+			ctx.ExtSockIn[ifid].Stop()
+			ctx.ExtSockOut[ifid].Stop()
 		}
 	}
 }
