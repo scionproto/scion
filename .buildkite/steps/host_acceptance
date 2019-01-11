@@ -1,42 +1,43 @@
 #!/bin/bash
 
+. $BASE/steps/common.sh
+
 run_wrapper() {
     PHASE=${1:?}
     shift
-    if $@; then
-        echo "$PHASE successful"
+    log "Start $PHASE"
+    "$@" &>> "$STEP_LOG"
+    if [ $? -eq 0 ]; then
+        log "$PHASE successful"
         return 0
     else
-        echo "$PHASE failed"
+        log "$PHASE failed"
         return 1
     fi
 }
 
-$BASE/scripts/clean_env
-echo "Running: ${1:?}"
+log "Prepare environment: Start"
+prepare
+log "Prepare environment: Done"
 
-# Pull CI image and start it
-docker pull $SCION_IMG &>/dev/null
-mkdir -p $SCION_MOUNT
+# Start runner container
 mkdir -p $ACCEPTANCE_ARTIFACTS
-./docker.sh start
+./docker.sh start &>> "$STEP_LOG"
 
 # Run test
-run_wrapper "SETUP" "$1/test setup &>> $ACCEPTANCE_ARTIFACTS/setup.out"
+log "Starting ${1:?}"
+run_wrapper SETUP $1/test setup
 res=$?
-run_wrapper "RUN" "./docker.sh exec $1/test run &>> \$ACCEPTANCE_ARTIFACTS/run.out"
+run_wrapper RUN ./docker.sh exec $1/test run '&>>' \$ACCEPTANCE_ARTIFACTS/run.out
 res=$((res+$?))
-run_wrapper "TEARDOWN" "$1/test teardown &>> $ACCEPTANCE_ARTIFACTS/teardown.out"
+run_wrapper TEARDOWN $1/test teardown
 res=$((res+$?))
+log "Finished: $1"
 
-# Pack logs and stop everything
+log "Cleanup environment: Start"
 cp -r logs "$SCION_MOUNT"
 res=$((res+$?))
-$BASE/scripts/pack_logs
+cleanup
 res=$((res+$?))
-./docker.sh stop
-res=$((res+$?))
-$BASE/scripts/clean_env
-res=$((res+$?))
-rm -r $SCION_MOUNT
+log "Cleanup environment: Done"
 exit $res

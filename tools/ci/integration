@@ -54,7 +54,7 @@ if [ -n "$DOCKER_BE" ]; then
     ./docker.sh exec "set -eo pipefail; ./tools/dc start tester* |& tee -a logs/integration.run"
 fi
 
-sleep 15
+sleep 20
 
 COMMAND="$1"
 shift
