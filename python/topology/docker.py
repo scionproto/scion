@@ -17,7 +17,6 @@ import copy
 import os
 from string import Template
 # External packages
-import toml
 import yaml
 # SCION
 from lib.app.sciond import get_default_sciond_path
@@ -270,12 +269,8 @@ class DockerGenerator(object):
         entry['volumes'].append(conf)
         self.dc_conf['services']['scion_disp_br_%s' % topo_id.file_fmt()] = entry
         # Dispatcher config
-        elem = "disp_br_%s" % topo_id.file_fmt()
-        elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
-        if self.args.dispatcher == 'go':
-            self._generate_godisp_cfg(elem, elem_dir)
-        else:
-            self._generate_disp_cfg(elem, elem_dir)
+        if not self.args.dispatcher == 'go':
+            self._generate_disp_cfg("disp_br_%s" % topo_id.file_fmt(), topo_id)
 
     def _infra_dispatcher(self, entry, topo_id, base):
         # Create dispatcher for Infra
@@ -288,12 +283,8 @@ class DockerGenerator(object):
         entry['volumes'].append(conf)
         self.dc_conf['services']['scion_disp_%s' % topo_id.file_fmt()] = entry
         # Dispatcher config
-        elem = "disp_%s" % topo_id.file_fmt()
-        elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
-        if self.args.dispatcher == 'go':
-            self._generate_godisp_cfg(elem, elem_dir)
-        else:
-            self._generate_disp_cfg(elem, elem_dir)
+        if not self.args.dispatcher == 'go':
+            self._generate_disp_cfg("disp_%s" % topo_id.file_fmt(), topo_id)
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
@@ -322,31 +313,11 @@ class DockerGenerator(object):
             ]
         self.dc_conf['services'][name] = entry
 
-    def _generate_disp_cfg(self, elem, elem_dir):
+    def _generate_disp_cfg(self, elem, topo_id):
+        elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
         cfg = "%s/dispatcher.zlog.conf" % elem_dir
         tmpl = Template(read_file("topology/zlog.tmpl"))
         write_file(cfg, tmpl.substitute(name="dispatcher", elem=elem))
-
-    def _generate_godisp_cfg(self, elem, elem_dir):
-        disp_conf = self._build_disp_conf(elem)
-        write_file(os.path.join(elem_dir, "dispconfig.toml"), toml.dumps(disp_conf))
-
-    def _build_disp_conf(self, name):
-        conf = {
-            'dispatcher': {
-                'ID': name,
-            },
-            'logging': {
-                'file': {
-                    'Path': '/share/logs/%s.log' % name,
-                    'Level': 'trace' if self.args.trace else 'debug',
-                },
-                'console': {
-                    'Level': 'crit',
-                },
-            },
-        }
-        return conf
 
     def _disp_vol(self, topo_id):
         return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
