@@ -241,24 +241,22 @@ class DockerGenerator(object):
             self.dc_conf['services']['scion_%s' % k] = entry
 
     def _dispatcher_conf(self, topo_id, topo, base):
-        # Create dispatcher config
+        image = 'dispatcher_go' if self.args.dispatcher == 'go' else 'dispatcher'
         entry = {
-            'image': docker_image(self.args, 'dispatcher'),
+            'image': docker_image(self.args, image),
             'environment': {
                 'SU_EXEC_USERSPEC': self.user_spec,
             },
             'networks': {},
             'volumes': [
                 *DOCKER_USR_VOL,
-                '%s:/share/conf:rw' % os.path.join(base, 'dispatcher'),
                 self._logs_vol()
             ]
         }
+        self._br_dispatcher(copy.deepcopy(entry), topo_id, topo, base)
+        self._infra_dispatcher(copy.deepcopy(entry), topo_id, base)
 
-        self._br_dispatcher(copy.deepcopy(entry), topo_id, topo)
-        self._infra_dispatcher(copy.deepcopy(entry), topo_id)
-
-    def _br_dispatcher(self, entry, topo_id, topo):
+    def _br_dispatcher(self, entry, topo_id, topo, base):
         # Create dispatcher for BR Ctrl Port
         for k in topo.get("BorderRouters", {}):
             ctrl_net = self.elem_networks[k + "_ctrl"][0]
@@ -267,25 +265,26 @@ class DockerGenerator(object):
         entry['container_name'] = '%sdisp_br_%s' % (self.prefix, topo_id.file_fmt())
         vol = 'vol_%sdisp_br_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())
         entry['volumes'].append(vol)
-        entry['environment']['ZLOG_CFG'] = "/share/conf/disp_br.zlog.conf"
+        conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_br_%s' % topo_id.file_fmt())
+        entry['volumes'].append(conf)
         self.dc_conf['services']['scion_disp_br_%s' % topo_id.file_fmt()] = entry
-        # Write log config file
-        cfg = "%s/dispatcher/%s.zlog.conf" % (topo_id.base_dir(self.args.output_dir), "disp_br")
-        tmpl = Template(read_file("topology/zlog.tmpl"))
-        write_file(cfg, tmpl.substitute(name="dispatcher", elem="disp_br_%s" % topo_id.file_fmt()))
+        # Dispatcher config
+        if not self.args.dispatcher == 'go':
+            self._generate_disp_cfg("disp_br_%s" % topo_id.file_fmt(), topo_id)
 
-    def _infra_dispatcher(self, entry, topo_id):
+    def _infra_dispatcher(self, entry, topo_id, base):
         # Create dispatcher for Infra
         net = self.elem_networks["disp" + topo_id.file_fmt()][0]
         ip = str(net['ipv4'])
         entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
         entry['container_name'] = '%sdisp_%s' % (self.prefix, topo_id.file_fmt())
         entry['volumes'].append(self._disp_vol(topo_id))
+        conf = '%s:/share/conf:rw' % os.path.join(base, 'disp_%s' % topo_id.file_fmt())
+        entry['volumes'].append(conf)
         self.dc_conf['services']['scion_disp_%s' % topo_id.file_fmt()] = entry
-        # Write log config file
-        cfg = "%s/dispatcher/%s.zlog.conf" % (topo_id.base_dir(self.args.output_dir), "dispatcher")
-        tmpl = Template(read_file("topology/zlog.tmpl"))
-        write_file(cfg, tmpl.substitute(name="dispatcher", elem="disp_%s" % topo_id.file_fmt()))
+        # Dispatcher config
+        if not self.args.dispatcher == 'go':
+            self._generate_disp_cfg("disp_%s" % topo_id.file_fmt(), topo_id)
 
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
@@ -313,6 +312,12 @@ class DockerGenerator(object):
                 'conf'
             ]
         self.dc_conf['services'][name] = entry
+
+    def _generate_disp_cfg(self, elem, topo_id):
+        elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
+        cfg = "%s/dispatcher.zlog.conf" % elem_dir
+        tmpl = Template(read_file("topology/zlog.tmpl"))
+        write_file(cfg, tmpl.substitute(name="dispatcher", elem=elem))
 
     def _disp_vol(self, topo_id):
         return 'vol_%sdisp_%s:/run/shm/dispatcher:rw' % (self.prefix, topo_id.file_fmt())

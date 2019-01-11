@@ -34,6 +34,7 @@ BR_CONFIG_NAME = 'brconfig.toml'
 CS_CONFIG_NAME = 'csconfig.toml'
 PS_CONFIG_NAME = 'psconfig.toml'
 SD_CONFIG_NAME = 'sciond.toml'
+DISP_CONFIG_NAME = 'dispconfig.toml'
 
 DOCKER_USR_VOL = ['/etc/passwd:/etc/passwd:ro', '/etc/group:/etc/group:ro']
 

@@ -103,9 +103,6 @@ class ConfigGenerator(object):
         if self.args.sig and not self.args.docker:
             logging.critical("Cannot use sig without docker!")
             sys.exit(1)
-        if self.args.dispatcher != DEFAULT_DISPATCHER and self.args.docker:
-            logging.critical("Cannot use non-C dispatcher with docker!")
-            sys.exit(1)
         self.default_mtu = None
         self._read_defaults(self.args.network)
         self.port_gen = PortGenerator()
@@ -196,6 +193,8 @@ class ConfigGenerator(object):
             go_gen.generate_sciond()
         if self.args.path_server == "go":
             go_gen.generate_ps()
+        if self.args.dispatcher == "go":
+            go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
         return GoGenArgs(self.args, topo_dicts, self.port_gen)

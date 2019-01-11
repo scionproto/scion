@@ -19,7 +19,6 @@
 # Stdlib
 import configparser
 import os
-import toml
 from io import StringIO
 from string import Template
 
@@ -33,6 +32,7 @@ from topology.common import (
     BR_CONFIG_NAME,
     COMMON_DIR,
     CS_CONFIG_NAME,
+    DISP_CONFIG_NAME,
     SD_CONFIG_NAME,
     prom_addr_infra,
     PS_CONFIG_NAME,
@@ -169,23 +169,8 @@ class SupervisorGenerator(object):
         if self.args.dispatcher == "c":
             self._write_elem_conf(elem, ["bin/dispatcher"], elem_dir)
         elif self.args.dispatcher == "go":
-            config_file_path = os.path.join(elem_dir, "dispconfig.toml")
+            config_file_path = os.path.join(elem_dir, DISP_CONFIG_NAME)
             self._write_elem_conf(elem, ["bin/godispatcher", "-config", config_file_path], elem_dir)
-            conf = {
-                    'dispatcher': {
-                        'ID': 'disp',
-                    },
-                    'logging': {
-                        'file': {
-                            'Path': os.path.join("logs", "dispatcher.log"),
-                            'Level': 'debug',
-                        },
-                        'console': {
-                            'Level': 'crit',
-                        },
-                    },
-                }
-            write_file(config_file_path, toml.dumps(conf))
         else:
             raise ValueError("unsupported dispatcher implementation", self.args.dispatcher)
 
