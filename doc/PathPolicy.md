@@ -82,11 +82,11 @@ but denying all other ASes in ISD _1_. The last entry makes sure that any other 
 
 ```
 - acl_policy_example:
-  acl:
-  - '+ 1-ff00:0:133'
-  - '+ 1-ff00:0:120'
-  - '- 1'
-  - '+'
+    acl:
+    - '+ 1-ff00:0:133'
+    - '+ 1-ff00:0:120'
+    - '- 1'
+    - '+'
 ```
 
 ### Sequence
@@ -100,7 +100,7 @@ are two wildcards that each match any AS. The path must end with any interface i
 
 ```
 - sequence_example_2:
-  sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
+    sequence: "1-ff00:0:133#0 1-ff00:0:120#2,1 0 0 1-ff00:0:110#0"
 ```
 
 Any path that is matched by the above policy must traverse three transit ASes. In many cases the
@@ -112,7 +112,7 @@ _2-ff00:0:233#1_.
 
 ```
 - sequence_more_complex:
-  sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
+    sequence: "1-ff00:0:133#1 1+ 2-ff00:0:1? 2-ff00:0:233#1"
 ```
 
 ### Extends
@@ -127,26 +127,26 @@ The following example uses three sub-policies to create the top-level policy. As
 
 ```
 - extends_example:
-  extends:
-  - sub_pol_1
-  - sub_pol_2
-  - sub_pol_3
+    extends:
+    - sub_pol_1
+    - sub_pol_2
+    - sub_pol_3
 
 - sub_pol_1:
-  acl:
-  - "- 1-ff00:0:133#0"
-  - "+"
+    acl:
+    - "- 1-ff00:0:133#0"
+    - "+"
 
 - sub_pol_2:
-  sequence: "0+ 1-ff00:0:110#0 1-ff00:0:110#0 0+"
+    sequence: "0+ 1-ff00:0:110#0 1-ff00:0:110#0 0+"
 
 - sub_pol_3:
-  acl:
-   - "- 1-ff00:0:131#0"
-   - "- 1-ff00:0:132#0"
-   - "- 1-ff00:0:133#0"
-   - "+"
-  mtu: ">=1000"
+    acl:
+    - "- 1-ff00:0:131#0"
+    - "- 1-ff00:0:132#0"
+    - "- 1-ff00:0:133#0"
+    - "+"
+    mtu: ">=1000"
 ```
 
 ### Options
@@ -165,23 +165,23 @@ third option which denies only hops in AS _1-ff00:0:133_, is used.
 
 ```
 - policy_with_options:
-  options:
-    - weight: 3
-      extends: option_3
-    - weight: 2
-      acl:
-      - "- 1-ff00:0:130#0"
-      - "- 1-ff00:0:131#0"
-      - "- 1-ff00:0:132#0"
-      - "+"
-    - extends: option_1
+    options:
+      - weight: 3
+        extends: option_3
+      - weight: 2
+        acl:
+        - "- 1-ff00:0:130#0"
+        - "- 1-ff00:0:131#0"
+        - "- 1-ff00:0:132#0"
+        - "+"
+      - extends: option_1
 
 - option_3:
-  acl:
-  - "- 1"
-  - "+"
+    acl:
+    - "- 1"
+    - "+"
 - option_1:
-  acl:
-  - "- 1-ff00:0:133#0"
-  - "+"
+    acl:
+    - "- 1-ff00:0:133#0"
+    - "+"
 ```
