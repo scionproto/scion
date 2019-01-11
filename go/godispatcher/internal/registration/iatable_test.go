@@ -115,3 +115,57 @@ func TestIATableRegister(t *testing.T) {
 		})
 	})
 }
+
+func TestIATableSCMPRegistration(t *testing.T) {
+	Convey("Given a reference to an IATable registration", t, func() {
+		table := NewIATable(minPort, maxPort)
+		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+		value := "test value"
+		ia := xtest.MustParseIA("1-ff00:0:1")
+		ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
+		xtest.FailOnErr(t, err)
+		Convey("Performing SCMP lookup fails", func() {
+			value, ok := table.LookupID(42)
+			SoMsg("ok", ok, ShouldBeFalse)
+			SoMsg("value", value, ShouldBeNil)
+		})
+		Convey("Registering an SCMP ID on the reference succeeds", func() {
+			err := ref.RegisterID(42)
+			So(err, ShouldBeNil)
+		})
+	})
+}
+
+func TestIATableSCMPExistingRegistration(t *testing.T) {
+	Convey("Given an existing SCMP General ID registration", t, func() {
+		table := NewIATable(minPort, maxPort)
+		public := &net.UDPAddr{IP: net.IP{192, 0, 2, 1}, Port: 80}
+		value := "test value"
+		ia := xtest.MustParseIA("1-ff00:0:1")
+		ref, err := table.Register(ia, public, nil, addr.SvcNone, value)
+		xtest.FailOnErr(t, err)
+		err = ref.RegisterID(42)
+		xtest.FailOnErr(t, err)
+		Convey("Performing SCMP lookup succeeds", func() {
+			retValue, ok := table.LookupID(42)
+			SoMsg("ok", ok, ShouldBeTrue)
+			SoMsg("value", retValue, ShouldEqual, value)
+		})
+		Convey("Freeing the reference makes lookup fail", func() {
+			ref.Free()
+			value, ok := table.LookupID(42)
+			SoMsg("ok", ok, ShouldBeFalse)
+			SoMsg("value", value, ShouldBeNil)
+		})
+		Convey("Registering a second SCMP ID on the same reference succeeds", func() {
+			err := ref.RegisterID(43)
+			So(err, ShouldBeNil)
+			Convey("Freeing the reference makes lookup on first registered id fail", func() {
+				ref.Free()
+				value, ok := table.LookupID(42)
+				SoMsg("ok", ok, ShouldBeFalse)
+				SoMsg("value", value, ShouldBeNil)
+			})
+		})
+	})
+}
