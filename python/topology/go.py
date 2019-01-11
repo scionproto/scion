@@ -170,14 +170,25 @@ class GoGenerator(object):
         return raw_entry
 
     def generate_disp(self):
-        elem_dir = os.path.join(self.args.output_dir, "dispatcher")
-        config_file_path = os.path.join(elem_dir, "dispconfig.toml")
-        write_file(config_file_path, toml.dumps(self._build_disp_conf()))
+        if self.args.docker:
+            self._gen_disp_docker()
+        else:
+            elem_dir = os.path.join(self.args.output_dir, "dispatcher")
+            config_file_path = os.path.join(elem_dir, "dispconfig.toml")
+            write_file(config_file_path, toml.dumps(self._build_disp_conf("dispatcher")))
 
-    def _build_disp_conf(self):
+    def _gen_disp_docker(self):
+        for topo_id, _ in self.args.topo_dicts.items():
+            for elem in ["disp", "disp_br"]:
+                elem = "%s_%s" % (elem, topo_id.file_fmt())
+                elem_dir = os.path.join(topo_id.base_dir(self.args.output_dir), elem)
+                disp_conf = self._build_disp_conf(elem)
+                write_file(os.path.join(elem_dir, "dispconfig.toml"), toml.dumps(disp_conf))
+
+    def _build_disp_conf(self, name):
         return {
             'dispatcher': {
-                'ID': 'disp',
+                'ID': name,
             },
             'logging': self._log_entry("dispatcher"),
         }
