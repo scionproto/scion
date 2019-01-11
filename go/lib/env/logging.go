@@ -21,6 +21,7 @@ import (
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/util"
 )
 
 // Startup* variables are set during link time.
@@ -108,7 +109,7 @@ func setupFileLogging(cfg *Logging) error {
 // LogAppStarted should be called by applications as soon as logging is
 // initialized.
 func LogAppStarted(svcType, elemId string) error {
-	inDocker, err := RunsInDocker()
+	inDocker, err := util.RunsInDocker()
 	if err != nil {
 		return common.NewBasicError("Unable to determine if running in docker", err)
 	}
