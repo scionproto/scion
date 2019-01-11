@@ -4,7 +4,7 @@ This document presents the design for the Dynamically Recreatable Key (DRKey)
 infrastructure.
 
 - Author: Benjamin Rothenberger
-- Last updated: 2018-09-06
+- Last updated: 2019-02-21
 - Status: draft
 
 ## Overview
@@ -15,7 +15,7 @@ cryptographic keys on-the-fly from a single local secret.
 DRKey is used for:
 
 - SCMP
-- SIBRA
+- SIBRA / COLIBRI
 - Security Extension
 - PISKES
 - OPT
@@ -39,6 +39,11 @@ DRKey is used for:
     K_{A:H_A→B:H_B}^{p}   symmetric key between host H_A in AS A and host H_B in AS B for protocol 'p'
     DS_{A→B}^{p}          delegation secret between AS A and AS B for protocol 'p'
 
+Note that the arrow notation does *not* refer to the directionality of the key, but
+rather states for which entity the key derivation must be efficient. For example,
+`K_{A→B:H_B}` is directly derivable by AS A, whereas host `H_B` might be required
+to fetch a key from its local CS.
+
 ## Design
 
 In the DRKey protocol, key establishment is offloaded to the certificate server
@@ -48,7 +53,8 @@ secret value will serve as the root of a symmetric key hierarchy, where keys of
 a level are derived from keys of the preceding level using an efficient
 Pseudo-Random Function (PRF). Thanks to the one-way property of the PRF, the
 derived key can be shared with another entity without disclosing the higher level
-symmetric key.
+symmetric key. This system ensures rapid key derivation on the service side,
+whereas a slower key fetch is required by a client to a local certificate server.
 
 ### Key Hierarchy
 
@@ -113,13 +119,15 @@ exceeds the epoch end time by a small extent. By default, we assume a epoch leng
 of 24 hours and the following key validity periods:
 
 - Secret value: 24 hours
-- First-level keys: 24 hours (inherited)
-- Second-level keys: 24 (inherited) + 0.1 hours
+- First-level keys: 24 hours (inherited) + maximum offset
+- Second-level keys: 24 (inherited) + maximum offset + 0.1 hours
 
 First- and second-level keys are valid during the same time frame as the
 corresponding secret value. If a specific protocol requires shorter key expiration
 times, this will be implemented as an extension to the basic protocol. The 'misc'
 part in the key exchange is used to supply such additional information.
+
+![Validity Periods figure](fig/validity_period.png)
 
 ### Key Establishment
 
@@ -212,7 +220,7 @@ The key derivation for second-level keys can be defined by each protocol. By
 default, the DRKey infrastructure offers two key derivation procedures. For
 these, we distinguish between protocols that perform key derivations only on
 trusted AS infrastructure (e.g., SCMP), and protocols that can profit from
-"outsourcing" key derivation to non-AS infrastructure entities (e.g., PISKES).
+"outsourcing" key derivation to AS-owned infrastructure entities (e.g., PISKES).
 In the former case, key derivation can be performed as follows:
 
     1. AS → AS:
@@ -224,8 +232,8 @@ In the former case, key derivation can be performed as follows:
     3. end host → end host:
     Key Derivation: K_{A:H_A→B:H_B}^prot = PRF_{K_{A→B}} ( “prot” | H_A | H_B )
 
-In the latter case, where key derivation should be performed by non-AS entities,
-we introduce an intermediate step:
+In the latter case, where key derivation should be performed by AS-owned
+entities, we introduce an intermediate step:
 
     SV_A
      |
@@ -238,8 +246,9 @@ we introduce an intermediate step:
 The delegation secret `DS_{A→B}^{prot}` can be shared with services to enable
 them to locally derive second-level keys in a single derivation step. On the
 client-side, the CS is required to perform an additional derivation step to
-get a second-level key. The secret of the intermediate step is derived as
-follows:
+get a second-level key. This is particularly useful for AS-controlled services
+that require authentication of the first packet. The secret of the intermediate
+step is derived as follows:
 
     DS_{A→B}^{prot} = PRF_{K_{A→B}} ( “prot” )
 
@@ -274,6 +283,8 @@ used to determine the validity period of a key by determining the secret value
 SV\_A^j that is used to derive K_{A→B} at the current sequence j such that:
 
     [ start(SV_A^j) + offset(A, B), start(SV_A^j+1) + offset(A, B) )
+
+![Offset figure](fig/offset.png)
 
 The offset function is AS-specific. By default, we suggest to use a function
 that uniformely distributes the offset values in the following interval:
@@ -439,3 +450,29 @@ unkeyed cryptographic hash function. However, as this function is local to an AS
 it can be replaced to receive a different key expiration spread. Remote ASes don't
 need to be aware of the offset function that is used, as the key lifetime is
 included in the exchange.
+
+## DRKey Use Cases
+
+Key selection in DRKey is based on which entity requires fast key derivation
+(without querying the required key at the certificate server). In the following,
+we discuss an example usages of DRKey where key derivation is performed on border
+routers (BR).
+
+### Key derivation by AS infrastructure
+
+In the case where key derivation is performed by BRs (e.g., SCMP), the BR must be
+able to directly derive the key without requiring to fetch an additional key.
+
+For example, a host in AS A sends a data packet to a host in AS C, but forwarding
+fails (e.g., due to an expired hop field) at the ingress interface of AS B’s border
+router `BR_B`. The router creates an SCMP message, which describes the problem. When
+the packet is created, then `BR_B` derives a key for authenticating packets destined
+for the source based on the key shared with AS A and calculates a MAC over the
+packet. Theoretically either `K_{B→A:Source}` or `K_{A:Source→B}` could be used to
+authenticate the packet. However, as AS B shares its secret value `SV_B` with
+`BR_B`, `BR_B` can directly derive all first- and second-level keys `K_{B→*}`. Thus,
+`K_{B→A:Source}` must be used for authenticating the SCMP message. On the source
+side, the host either has the same key already cached, or it contacts its CS and
+queries the missing key.
+
+![Offset figure](fig/scmp_auth.png)
