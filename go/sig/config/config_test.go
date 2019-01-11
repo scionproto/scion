@@ -42,7 +42,6 @@ func TestLoadFromFile(t *testing.T) {
 			Config: Cfg{
 				ASes: map[addr.IA]*ASEntry{
 					xtest.MustParseIA("1-ff00:0:1"): {
-						Name: "AS 1",
 						Nets: []*IPNet{
 							{
 								IP:   net.IP{192, 0, 2, 0},
@@ -66,7 +65,6 @@ func TestLoadFromFile(t *testing.T) {
 						Nets: []*IPNet{},
 					},
 					xtest.MustParseIA("1-ff00:0:4"): {
-						Name: "AS 4",
 						Nets: []*IPNet{},
 					},
 				},

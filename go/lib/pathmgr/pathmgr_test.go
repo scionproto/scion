@@ -27,7 +27,6 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/pathpol"
-	"github.com/scionproto/scion/go/lib/pktcls"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/sciond/mock_sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
@@ -239,10 +238,9 @@ func TestWatchFilter(t *testing.T) {
 		)
 		pr := New(sd, Timers{ErrorRefire: getDuration(1)}, nil)
 		Convey("and adding a watch that should retrieve 1 path", func() {
-			pp, err := spathmeta.NewPathPredicate("1-ff00:0:111#105")
+			seq, err := pathpol.NewSequence([]string{"1-ff00:0:111#105", "0", "0"})
 			xtest.FailOnErr(t, err)
-			filter := pktcls.NewActionFilterPaths("test-1-ff00:0:131#1619",
-				pktcls.NewCondPathPredicate(pp))
+			filter := pathpol.NewPolicy("test-1-ff00:0:111#105", nil, seq, nil)
 
 			sp, err := pr.WatchFilter(context.Background(), src, dst, filter)
 			xtest.FailOnErr(t, err)
