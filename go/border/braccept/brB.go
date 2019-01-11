@@ -42,7 +42,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 40000, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:1", "192.168.0.51",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("___ 411.0 0.141", hMac, 1)},
+							segment("(___)[411.0 0.141", hMac, 1)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -51,7 +51,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.51", 30041),
 					tpkt.NewGenCmnHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:1", "192.168.0.51",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("___ 411.0 0.141", hMac, 1)},
+							segment("(___)[411.0 0.141", hMac, 1)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
@@ -65,7 +65,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.51", 30041, "192.168.0.12", 30002),
 					tpkt.NewValidScion("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(0, 0, tpkt.Segments{
-							segment("C__ 0.141 411.0", hMac, 0)},
+							segment("(C__)[0.141 411.0", hMac, 0)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -74,7 +74,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 40000),
 					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.51", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("C__ 0.141 411.0", hMac, 0)},
+							segment("(C__)[0.141 411.0", hMac, 0)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
@@ -88,7 +88,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 40000, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:6", "172.16.6.1",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("___ 411.0 162.141 0.612", hMac, 1)},
+							segment("(___)[411.0 162.141 0.612", hMac, 1)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -97,7 +97,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.14", 30004),
 					tpkt.NewGenCmnHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:6", "172.16.6.1",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("___ 411.0 162.141 0.612", hMac, 1)},
+							segment("(___)[411.0 162.141 0.612", hMac, 1)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
@@ -111,7 +111,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.14", 30004, "192.168.0.12", 30002),
 					tpkt.NewValidScion("1-ff00:0:6", "172.16.6.1", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("C__ 0.612 162.141 411.0", hMac, 1)},
+							segment("(C__)[0.612 162.141 411.0", hMac, 1)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -120,7 +120,7 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 40000),
 					tpkt.NewGenCmnHdr("1-ff00:0:6", "172.16.6.1", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(0, 2, tpkt.Segments{
-							segment("C__ 0.612 162.141 411.0", hMac, 1)},
+							segment("(C__)[0.612 162.141 411.0", hMac, 1)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
@@ -134,8 +134,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 40000, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("_SP 411.0 X.161.141 X.121.141 V.0.611", hMac, 1, 2),
-							segment("C__ V.0.621 X.211.0 X.261.0", nil)},
+							segment("(_SP)[411.0 X.161.141 X.121.141 V.0.611", hMac, 1, 2),
+							segment("(C__)[V.0.621 X.211.0 X.261.0", nil)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -144,8 +144,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.11", 30001),
 					tpkt.NewGenCmnHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:2", "172.16.2.1",
 						tpkt.GenPath(0, 2, tpkt.Segments{
-							segment("_SP 411.0 X.161.141 X.121.141 V.0.611", hMac, 1, 2),
-							segment("C__ V.0.621 X.211.0 X.261.0", nil)},
+							segment("(_SP)[411.0 X.161.141 X.121.141 V.0.611", hMac, 1, 2),
+							segment("(C__)[V.0.621 X.211.0 X.261.0", nil)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
@@ -159,8 +159,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.12", 30002),
 					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(1, 2, tpkt.Segments{
-							segment("__P X.261.0 X.211.0 0.621", nil),
-							segment("CSP 0.611 X.121.141 X.161.141 411.0", hMac, 1, 2)},
+							segment("(__P)[X.261.0 X.211.0 0.621", nil),
+							segment("(CSP)[0.611 X.121.141 X.161.141 411.0", hMac, 1, 2)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -169,8 +169,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 40000),
 					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(1, 3, tpkt.Segments{
-							segment("__P X.261.0 X.211.0 0.621", nil),
-							segment("CSP 0.611 X.121.141 X.161.141 411.0", hMac, 1, 2)},
+							segment("(__P)[X.261.0 X.211.0 0.621", nil),
+							segment("(CSP)[0.611 X.121.141 X.161.141 411.0", hMac, 1, 2)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
@@ -184,8 +184,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.3", 40000, "192.168.14.2", 50000),
 					tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1",
 						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("_S_ 411.0 X.162.141 V.0.612", hMac, 1),
-							segment("CS_ V.0.612 X.162.151 511.0", hMac, 1)},
+							segment("(_S_)[411.0 X.162.141 V.0.612", hMac, 1),
+							segment("(CS_)[V.0.612 X.162.151 511.0", hMac, 1)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -194,8 +194,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.12", 30002, "192.168.0.14", 30004),
 					tpkt.NewGenCmnHdr("1-ff00:0:4", "172.16.4.1", "1-ff00:0:5", "172.16.5.1",
 						tpkt.GenPath(1, 1, tpkt.Segments{
-							segment("_S_ 411.0 X.162.141 V.0.612", hMac, 1),
-							segment("CS_ V.0.612 X.162.151 511.0", hMac, 1)},
+							segment("(_S_)[411.0 X.162.141 V.0.612", hMac, 1),
+							segment("(CS_)[V.0.612 X.162.151 511.0", hMac, 1)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
@@ -209,8 +209,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.14", 30004, "192.168.0.12", 30002),
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(1, 1, tpkt.Segments{
-							segment("_S_ 511.0 X.162.151 V.0.612", hMac, 1),
-							segment("CS_ V.0.612 X.162.141 411.0", hMac, 1)},
+							segment("(_S_)[511.0 X.162.151 V.0.612", hMac, 1),
+							segment("(CS_)[V.0.612 X.162.141 411.0", hMac, 1)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -219,8 +219,8 @@ func genTestsBrB(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.14.2", 50000, "192.168.14.3", 40000),
 					tpkt.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:4", "172.16.4.1",
 						tpkt.GenPath(1, 2, tpkt.Segments{
-							segment("_S_ 511.0 X.162.151 V.0.612", hMac, 1),
-							segment("CS_ V.0.612 X.162.141 411.0", hMac, 1)},
+							segment("(_S_)[511.0 X.162.151 V.0.612", hMac, 1),
+							segment("(CS_)[V.0.612 X.162.141 411.0", hMac, 1)},
 						),
 						common.L4UDP),
 					tpkt.NewUDP(40111, 40222, nil, nil),
