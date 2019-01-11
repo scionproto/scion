@@ -223,16 +223,16 @@ func registerScionPorts() {
 func doTest(t *BRTest, cases []reflect.SelectCase) error {
 	var errStr []string
 	var err error
-	if err = sendPkt(t.Pre); err != nil {
+	if err = sendPkt(t.Pre, true); err != nil {
 		errStr = append(errStr, err.Error())
 	}
-	if err = sendPkt(t.In); err == nil {
+	if err = sendPkt(t.In, false); err == nil {
 		err = checkRecvPkts(t, cases)
 	}
 	if err != nil {
 		errStr = append(errStr, err.Error())
 	}
-	err = sendPkt(t.Post)
+	err = sendPkt(t.Post, true)
 	if err != nil {
 		errStr = append(errStr, err.Error())
 	}
@@ -242,8 +242,7 @@ func doTest(t *BRTest, cases []reflect.SelectCase) error {
 	return nil
 }
 
-func sendPkt(pkt *tpkt.Pkt) error {
-	defer time.Sleep(timeout)
+func sendPkt(pkt *tpkt.Pkt, to bool) error {
 	if pkt == nil {
 		return nil
 	}
@@ -254,6 +253,9 @@ func sendPkt(pkt *tpkt.Pkt) error {
 	raw, err := pkt.Pack(devInfo.mac)
 	if err != nil {
 		return err
+	}
+	if to {
+		defer time.Sleep(timeout)
 	}
 	return devInfo.handle.WritePacketData(raw)
 }

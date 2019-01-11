@@ -154,7 +154,7 @@ func genTestsBrA(hMac hash.Hash) []*BRTest {
 					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
 						tpkt.GenPath(0, 2, tpkt.Segments{
 							segment("(_SP)[511.0][X.162.151][X.121.151][V.0.612]", hMac, 1, 2),
-							segment("(C__)[ V.0.621][X.211.0][X.261.0]", nil)},
+							segment("(C__)[V.0.621][X.211.0][X.261.0]", nil)},
 						), nil,
 						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
 				}},
@@ -163,8 +163,8 @@ func genTestsBrA(hMac hash.Hash) []*BRTest {
 					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.13", 30003),
 					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:5", "172.16.5.1",
 						tpkt.GenPath(1, 2, tpkt.Segments{
-							segment("(___)[ X.261.0][X.211.0][V.0.621]", nil),
-							segment("(CSP)[ V.0.612][X.121.151][X.162.151][511.0]", hMac, 1, 2)},
+							segment("(___)[X.261.0][X.211.0][V.0.621]", nil),
+							segment("(CSP)[V.0.612][X.121.151][X.162.151][511.0]", hMac, 1, 2)},
 						),
 						common.HopByHopClass),
 					&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},

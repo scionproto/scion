@@ -25,18 +25,28 @@ import (
 	"github.com/scionproto/scion/go/lib/spath"
 )
 
+// segment parses a string that defines a SCION path segment.
+// The info field should always be the first in the segment, then as many hop fields as needed.
+// The info fields syntax matches the following regex:
+//   ^([C_][S_][P_]) with C (ConsDir), S (Shortcut), P (Peer)
+// The hop fields syntax matches the following regex:
+//   [X|V|XV\.(0|[1-9]{3,3})\.(0|[1-9]{3,3})] with X (Xover), V (VerifyOnly), and the interfaces
+// are either 0 or a 3 digit int.
 func segment(input string, hashMac hash.Hash, hopIdxs ...int) *tpkt.Segment {
-	str := regexp.MustCompile(` +`).ReplaceAllString(input, " ")
-	fields := regexp.MustCompile(` `).Split(str, -1)
-	infoF, err := decodeInfoF(fields[0])
+	infoStr := regexp.MustCompile(`^\(...\)`).FindString(input)
+	if infoStr == "" {
+		panic(fmt.Sprintf("Bad segment syntax: %s", input))
+	}
+	infoF, err := decodeInfoF(infoStr)
 	if err != nil {
-		panic(fmt.Sprintf("%s\n%s", str, err))
+		panic(fmt.Sprintf("%s\n%s", infoStr, err))
 	}
 	var hops []*spath.HopField
-	for _, hf := range fields[1:] {
+	fields := regexp.MustCompile(`\[.*?\]`).FindAllString(input, -1)
+	for _, hf := range fields {
 		hop, err := decodeHopF(hf)
 		if err != nil {
-			panic(fmt.Sprintf("%s\n%s", str, err))
+			panic(fmt.Sprintf("%s\n%s", input, err))
 		}
 		hops = append(hops, hop)
 	}
@@ -47,9 +57,25 @@ func segment(input string, hashMac hash.Hash, hopIdxs ...int) *tpkt.Segment {
 	return tpkt.NewSegment(infoF, hops)
 }
 
+func decodeInfoF(str string) (*spath.InfoField, error) {
+	// Validate InfoField flags syntax
+	match, _ := regexp.MatchString(`^\([C_][S_][P_]\)$`, str)
+	if !match {
+		return nil, fmt.Errorf("Bad Info Field flags syntax: %s", str)
+	}
+	// Decode and build Info Field
+	return &spath.InfoField{
+		ConsDir:  str[1] == 'C',
+		Shortcut: str[2] == 'S',
+		Peer:     str[3] == 'P',
+		TsInt:    tsNow,
+		ISD:      1,
+	}, nil
+}
+
 func decodeHopF(str string) (*spath.HopField, error) {
 	// Validate InfoField flags syntax
-	match, _ := regexp.MatchString(`^((X|V|XV)\.)?(0|[1-9]{3,3})\.(0|[1-9]{3,3})$`, str)
+	match, _ := regexp.MatchString(`^\[((X|V|XV)\.)?(0|[1-9]{3,3})\.(0|[1-9]{3,3})\]$`, str)
 	if !match {
 		return nil, fmt.Errorf("Bad Hop Field syntax: %s", str)
 	}
@@ -64,25 +90,9 @@ func decodeHopF(str string) (*spath.HopField, error) {
 		return nil, err
 	}
 	return &spath.HopField{
-		Xover:       str[0] == 'X',
-		VerifyOnly:  str[0] == 'V' || str[1] == 'V',
+		Xover:       str[1] == 'X',
+		VerifyOnly:  str[1] == 'V' || str[2] == 'V',
 		ConsIngress: common.IFIDType(ingress),
 		ConsEgress:  common.IFIDType(egress),
-	}, nil
-}
-
-func decodeInfoF(str string) (*spath.InfoField, error) {
-	// Validate InfoField flags syntax
-	match, _ := regexp.MatchString("^[C_][S_][P_]$", str)
-	if !match {
-		return nil, fmt.Errorf("Bad Info Field flags syntax: %s", str)
-	}
-	// Decode and build Info Field
-	return &spath.InfoField{
-		ConsDir:  str[0] == 'C',
-		Shortcut: str[1] == 'S',
-		Peer:     str[2] == 'P',
-		TsInt:    tsNow,
-		ISD:      1,
 	}, nil
 }
