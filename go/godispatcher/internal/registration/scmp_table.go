@@ -45,10 +45,6 @@ func (t *SCMPTable) Register(id uint64, value interface{}) error {
 	return nil
 }
 
-func (t *SCMPTable) Remove(id uint64) error {
-	if _, ok := t.m[id]; !ok {
-		return common.NewBasicError("element not found", nil, "id", id)
-	}
+func (t *SCMPTable) Remove(id uint64) {
 	delete(t.m, id)
-	return nil
 }

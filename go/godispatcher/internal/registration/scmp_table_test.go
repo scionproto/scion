@@ -40,10 +40,6 @@ func TestSCMPEmptyTable(t *testing.T) {
 			err := table.Register(42, nil)
 			So(err, ShouldNotBeNil)
 		})
-		Convey("Removing an id fails", func() {
-			err := table.Remove(42)
-			So(err, ShouldNotBeNil)
-		})
 	})
 }
 
@@ -62,18 +58,11 @@ func TestSCMPTableWithOneItem(t *testing.T) {
 			err := table.Register(42, "some other value")
 			So(err, ShouldNotBeNil)
 		})
-		Convey("Removing the id succeeds", func() {
-			err := table.Remove(42)
-			So(err, ShouldBeNil)
-			Convey("Lookup now fails", func() {
-				value, ok := table.Lookup(42)
-				SoMsg("ok", ok, ShouldBeFalse)
-				SoMsg("value", value, ShouldBeNil)
-			})
-			Convey("Removing again fails", func() {
-				err := table.Remove(42)
-				So(err, ShouldNotBeNil)
-			})
+		Convey("After removing the ID, lookup fails", func() {
+			table.Remove(42)
+			value, ok := table.Lookup(42)
+			SoMsg("ok", ok, ShouldBeFalse)
+			SoMsg("value", value, ShouldBeNil)
 		})
 	})
 }

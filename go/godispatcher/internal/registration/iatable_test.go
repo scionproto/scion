@@ -146,7 +146,7 @@ func TestIATableSCMPExistingRegistration(t *testing.T) {
 		xtest.FailOnErr(t, err)
 		err = ref.RegisterID(42)
 		xtest.FailOnErr(t, err)
-		Convey("Performing SCMP lookup now succeeds", func() {
+		Convey("Performing SCMP lookup succeeds", func() {
 			retValue, ok := table.LookupID(42)
 			SoMsg("ok", ok, ShouldBeTrue)
 			SoMsg("value", retValue, ShouldEqual, value)

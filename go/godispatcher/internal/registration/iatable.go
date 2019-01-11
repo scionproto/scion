@@ -188,10 +188,10 @@ func (t *iaTable) registerID(id uint64, value interface{}) error {
 	return t.scmpTable.Register(id, value)
 }
 
-func (t *iaTable) removeID(id uint64) error {
+func (t *iaTable) removeID(id uint64) {
 	t.scmpLock.Lock()
 	defer t.scmpLock.Unlock()
-	return t.scmpTable.Remove(id)
+	t.scmpTable.Remove(id)
 }
 
 var _ UDPReference = (*iaTableReference)(nil)
@@ -213,10 +213,7 @@ func (r *iaTableReference) Free() {
 		delete(r.table.ia, r.ia)
 	}
 	for _, id := range r.ids {
-		if err := r.table.removeID(id); err != nil {
-			// This should never happen
-			panic(err)
-		}
+		r.table.removeID(id)
 	}
 }
 
