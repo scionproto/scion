@@ -19,7 +19,10 @@
 //  infra.Chain               -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.Chain
 //  infra.TRCRequest          -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRCReq
 //  infra.TRC                 -> ctrl.SignedPld/ctrl.Pld/cert_mgmt.TRC
+//  infra.IfId                -> ctrl.SignedPld/ctrl.Pld/ifid.IFID
 //  infra.IfStateInfos        -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateInfos
+//  infra.IfStateReq          -> ctrl.SignedPld/ctrl.Pld/path_mgmt.IFStateReq
+//  infra.Seg                 -> ctrl.SignedPld/ctrl.Pld/seg.PathSegment
 //  infra.SegChangesReq       -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesReq
 //  infra.SegChangesReply     -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesReply
 //  infra.SegChangesIdReq     -> ctrl.SignedPld/ctrl.Pld/path_mgmt.SegChangesIdReq
@@ -78,7 +81,9 @@ import (
 	"github.com/scionproto/scion/go/lib/ctrl/ack"
 	"github.com/scionproto/scion/go/lib/ctrl/cert_mgmt"
 	"github.com/scionproto/scion/go/lib/ctrl/ctrl_msg"
+	"github.com/scionproto/scion/go/lib/ctrl/ifid"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
+	"github.com/scionproto/scion/go/lib/ctrl/seg"
 	"github.com/scionproto/scion/go/lib/infra"
 	"github.com/scionproto/scion/go/lib/infra/disp"
 	"github.com/scionproto/scion/go/lib/log"
@@ -265,6 +270,31 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 	logger := log.FromCtx(ctx)
 	logger.Trace("[Messenger] Sending Notify", "type", infra.Chain, "to", a, "id", id)
 	return m.getRequester(infra.Chain, infra.None).Notify(ctx, pld, a)
+}
+
+// SendIfId sends a reliable ifid.IFID to address a.
+func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
+	return m.sendBasePld(ctx, msg, a, id, infra.IfId)
+}
+
+// SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
+func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFStateInfos,
+	a net.Addr, id uint64) error {
+
+	pld, err := ctrl.NewPathMgmtPld(msg, nil, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", infra.IfStateInfos, "to", a, "id", id)
+	return m.getRequester(infra.IfStateInfos, infra.None).Notify(ctx, pld, a)
+}
+
+// SendSeg sends a reliable seg.Pathsegment to a.
+func (m *Messenger) SendSeg(ctx context.Context, msg *seg.PathSegment,
+	a net.Addr, id uint64) error {
+
+	return m.sendBasePld(ctx, msg, a, id, infra.Seg)
 }
 
 // GetSegs asks the server at the remote address for the path segments that
@@ -576,6 +606,10 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 	// XXX(scrye): For now, only the messages in the top comment of this
 	// package are supported.
 	switch pld.Which {
+	case proto.CtrlPld_Which_pcb:
+		return infra.Seg, pld.PathSegment, nil
+	case proto.CtrlPld_Which_ifid:
+		return infra.IfId, pld.IfID, nil
 	case proto.CtrlPld_Which_certMgmt:
 		switch pld.CertMgmt.Which {
 		case proto.CertMgmt_Which_certChainReq:
@@ -607,6 +641,8 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 			return infra.SegSync, pld.PathMgmt.SegSync, nil
 		case proto.PathMgmt_Which_sRevInfo:
 			return infra.SegRev, pld.PathMgmt.SRevInfo, nil
+		case proto.PathMgmt_Which_ifStateReq:
+			return infra.IfStateReq, pld.PathMgmt.IFStateReq, nil
 		case proto.PathMgmt_Which_ifStateInfos:
 			return infra.IfStateInfos, pld.PathMgmt.IFStateInfos, nil
 		case proto.PathMgmt_Which_segChangesIdReq:
@@ -628,6 +664,18 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 		return infra.None, nil, common.NewBasicError("Unsupported SignedPld.Pld.Xxx message type",
 			nil, "capnp_which", pld.Which)
 	}
+}
+
+func (m *Messenger) sendBasePld(ctx context.Context, msg proto.Cerealizable,
+	a net.Addr, id uint64, mt infra.MessageType) error {
+
+	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
+	if err != nil {
+		return err
+	}
+	logger := log.FromCtx(ctx)
+	logger.Trace("[Messenger] Sending Notify", "type", mt, "to", a, "id", id)
+	return m.getRequester(mt, infra.None).Notify(ctx, pld, a)
 }
 
 // CloseServer stops any running ListenAndServe functions, and cancels all running
