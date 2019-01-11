@@ -269,9 +269,9 @@ func (s *SCMP) generatePayload() error {
 	pathOff := spkt.CmnHdrLen + scn.AddrHdr.Len()
 	switch ipo := s.info.(type) {
 	case *scmp.InfoPathOffsets:
-		ipo.InfoF, ipo.HopF = offsetConversion(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
+		ipo.InfoF, ipo.HopF = convertOffsets(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
 	case *scmp.InfoRevocation:
-		ipo.InfoF, ipo.HopF = offsetConversion(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
+		ipo.InfoF, ipo.HopF = convertOffsets(ipo.InfoF, ipo.HopF, pathOff, scn.Path.Segs)
 	}
 	ct := scmp.ClassType{Class: s.Class, Type: s.Type}
 	pld := scmp.PldFromQuotes(ct, s.info, s.l4Type, qr.getRaw)
@@ -279,7 +279,7 @@ func (s *SCMP) generatePayload() error {
 	return nil
 }
 
-func offsetConversion(infoF, hopF uint8, pathOff int, segs Segments) (uint8, uint8) {
+func convertOffsets(infoF, hopF uint8, pathOff int, segs Segments) (uint8, uint8) {
 	infOff, hopOff := indexToOffsets(infoF, hopF, segs)
 	return uint8((pathOff + infOff) / common.LineLen), uint8((pathOff + hopOff) / common.LineLen)
 }
