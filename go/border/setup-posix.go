@@ -67,11 +67,11 @@ func (p posixLoc) Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels,
 func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, bind *overlay.OverlayAddr,
 	labels prometheus.Labels) error {
 
-	log.Debug("Setting up new local socket.")
+	log.Debug("Setting up new local socket.", "bind", bind)
 	// Listen on the socket.
 	over, err := conn.New(bind, nil, labels)
 	if err != nil {
-		return common.NewBasicError("Unable to listen on local socket", err)
+		return common.NewBasicError("Unable to listen on local socket", err, "bind", bind)
 	}
 	// Setup input goroutine.
 	ctx.LocSockIn = rctx.NewSock(ringbuf.New(64, nil, "locIn", mkRingLabels(labels)),
@@ -110,8 +110,8 @@ func (p posixExt) Setup(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		}
 		// An existing interface has changed.
 		// Stop old input goroutine.
-		stopSock(oldCtx.ExtSockIn[intf.Id])
-		stopSock(oldCtx.ExtSockOut[intf.Id])
+		oldCtx.ExtSockIn[intf.Id].Stop()
+		oldCtx.ExtSockOut[intf.Id].Stop()
 	} else {
 		log.Debug("No change detected for external socket.", "conn",
 			intf.IFAddr.BindOrPublicOverlay(ctx.Conf.Topo.Overlay))
