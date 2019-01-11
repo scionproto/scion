@@ -274,7 +274,7 @@ func (m *Messenger) SendCertChain(ctx context.Context, msg *cert_mgmt.Chain, a n
 
 // SendIfId sends a reliable ifid.IFID to address a.
 func (m *Messenger) SendIfId(ctx context.Context, msg *ifid.IFID, a net.Addr, id uint64) error {
-	return m.sendPld(ctx, msg, a, id, infra.IfId)
+	return m.sendBasePld(ctx, msg, a, id, infra.IfId)
 }
 
 // SendIfStateInfos sends a reliable path_mgmt.IfStateInfos to address a.
@@ -294,7 +294,7 @@ func (m *Messenger) SendIfStateInfos(ctx context.Context, msg *path_mgmt.IFState
 func (m *Messenger) SendSeg(ctx context.Context, msg *seg.PathSegment,
 	a net.Addr, id uint64) error {
 
-	return m.sendPld(ctx, msg, a, id, infra.Seg)
+	return m.sendBasePld(ctx, msg, a, id, infra.Seg)
 }
 
 // GetSegs asks the server at the remote address for the path segments that
@@ -666,7 +666,7 @@ func (m *Messenger) validate(pld *ctrl.Pld) (infra.MessageType, proto.Cerealizab
 	}
 }
 
-func (m *Messenger) sendPld(ctx context.Context, msg proto.Cerealizable,
+func (m *Messenger) sendBasePld(ctx context.Context, msg proto.Cerealizable,
 	a net.Addr, id uint64, mt infra.MessageType) error {
 
 	pld, err := ctrl.NewPld(msg, &ctrl.Data{ReqId: id})
