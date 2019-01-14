@@ -81,9 +81,13 @@ func TestComputeDestination(t *testing.T) {
 			Packet: &spkt.ScnPkt{
 				DstHost: addr.HostFromIP(net.IP{192, 168, 0, 1}),
 				L4:      &scmp.Hdr{Class: scmp.C_General, Type: scmp.T_G_EchoRequest},
-				Pld:     &scmp.Payload{},
+				Pld: &scmp.Payload{
+					Info: &scmp.InfoEcho{
+						Id: 0xdeadbeef,
+					},
+				},
 			},
-			ExpectedDst: SCMPGeneralHandlerDestination{},
+			ExpectedDst: SCMPHandlerDestination{},
 		},
 		{
 			Description: "SCION/SCMP, General::EchoReply, is delivered by IP and ID",
@@ -96,16 +100,20 @@ func TestComputeDestination(t *testing.T) {
 					},
 				},
 			},
-			ExpectedDst: &SCMPGeneralAppDestination{IP: net.IP{192, 168, 0, 1}, ID: 0xdeadbeef},
+			ExpectedDst: &SCMPAppDestination{ID: 0xdeadbeef},
 		},
 		{
 			Description: "SCION/SCMP with General::RecordPathRequest, is sent to SCMP handler",
 			Packet: &spkt.ScnPkt{
 				DstHost: addr.HostFromIP(net.IP{192, 168, 0, 1}),
 				L4:      &scmp.Hdr{Class: scmp.C_General, Type: scmp.T_G_RecordPathRequest},
-				Pld:     &scmp.Payload{},
+				Pld: &scmp.Payload{
+					Info: &scmp.InfoRecordPath{
+						Id: 0xdeadbeef,
+					},
+				},
 			},
-			ExpectedDst: SCMPGeneralHandlerDestination{},
+			ExpectedDst: SCMPHandlerDestination{},
 		},
 		{
 			Description: "SCION/SCMP with General::RecordPathReply, is delivered by IP and ID",
@@ -118,16 +126,20 @@ func TestComputeDestination(t *testing.T) {
 					},
 				},
 			},
-			ExpectedDst: &SCMPGeneralAppDestination{IP: net.IP{192, 168, 0, 1}, ID: 0xdeadbeef},
+			ExpectedDst: &SCMPAppDestination{ID: 0xdeadbeef},
 		},
 		{
 			Description: "SCION/SCMP with General::TraceRouteRequest, is sent to SCMP handler",
 			Packet: &spkt.ScnPkt{
 				DstHost: addr.HostFromIP(net.IP{192, 168, 0, 1}),
 				L4:      &scmp.Hdr{Class: scmp.C_General, Type: scmp.T_G_TraceRouteRequest},
-				Pld:     &scmp.Payload{},
+				Pld: &scmp.Payload{
+					Info: &scmp.InfoTraceRoute{
+						Id: 0xdeadbeef,
+					},
+				},
 			},
-			ExpectedDst: SCMPGeneralHandlerDestination{},
+			ExpectedDst: SCMPHandlerDestination{},
 		},
 		{
 			Description: "SCION/SCMP with General::TraceRouteReply, is delivered by IP and ID",
@@ -140,7 +152,7 @@ func TestComputeDestination(t *testing.T) {
 					},
 				},
 			},
-			ExpectedDst: &SCMPGeneralAppDestination{IP: net.IP{192, 168, 0, 1}, ID: 0xdeadbeef},
+			ExpectedDst: &SCMPAppDestination{ID: 0xdeadbeef},
 		},
 		{
 			Description: "SCION/SCMP with non-IP destination returns error",

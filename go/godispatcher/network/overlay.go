@@ -17,6 +17,7 @@ package network
 import (
 	"net"
 
+	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -48,18 +49,13 @@ type NetToRingDataplane struct {
 
 func (dp *NetToRingDataplane) Run() error {
 	for {
-		pkt := NewPacket()
-		pkt.Data = pkt.buffer
+		pkt := bufpool.GetPacket()
+		// XXX(scrye): we don't release the reference on error conditions, and
+		// let the GC take care of this situation as they should be fairly
+		// rare.
 
-		n, readExtra, err := dp.OverlayConn.ReadFrom(pkt.Data)
-		if err != nil {
-			return err
-		}
-		pkt.Data = pkt.Data[:n]
-		pkt.OverlayRemote = readExtra.(*net.UDPAddr)
-
-		if err := hpkt.ParseScnPkt(&pkt.Info, pkt.Data); err != nil {
-			log.Warn("error parsing incoming SCION packet", "err", err)
+		if err := pkt.DecodeFromConn(dp.OverlayConn); err != nil {
+			log.Warn("error receiving next packet from overlay conn", "err", err)
 			continue
 		}
 
@@ -108,19 +104,19 @@ func HandleSCMP(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
 }
 
 func HandleSCMPGeneral(s *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
-	info := s.Pld.(*scmp.Payload).Info
-	switch header.Type {
-	case scmp.T_G_EchoReply:
-		infoEcho := info.(*scmp.InfoEcho)
-		return &SCMPGeneralAppDestination{IP: s.DstHost.IP(), ID: infoEcho.Id}, nil
-	case scmp.T_G_RecordPathReply:
-		infoRecordPath := info.(*scmp.InfoRecordPath)
-		return &SCMPGeneralAppDestination{IP: s.DstHost.IP(), ID: infoRecordPath.Id}, nil
-	case scmp.T_G_TraceRouteReply:
-		infoTraceRoute := info.(*scmp.InfoTraceRoute)
-		return &SCMPGeneralAppDestination{IP: s.DstHost.IP(), ID: infoTraceRoute.Id}, nil
+	id := getSCMPGeneralID(s)
+	if id == 0 {
+		return nil, common.NewBasicError("Invalid SCMP ID", nil, "id", id)
 	}
-	return SCMPGeneralHandlerDestination{}, nil
+	switch {
+	case isSCMPGeneralRequest(header):
+		invertSCMPGeneralType(header)
+		return SCMPHandlerDestination{}, nil
+	case isSCMPGeneralReply(header):
+		return &SCMPAppDestination{ID: id}, nil
+	default:
+		return nil, common.NewBasicError("Unsupported SCMP General type", nil, "type", header.Type)
+	}
 }
 
 func HandleSCMPError(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error) {
@@ -137,71 +133,94 @@ func HandleSCMPError(packet *spkt.ScnPkt, header *scmp.Hdr) (Destination, error)
 }
 
 type Destination interface {
-	Send(dp *NetToRingDataplane, pkt *Packet)
+	// Send takes ownership of pkt, and then sends it to the location described
+	// by this destination.
+	Send(dp *NetToRingDataplane, pkt *bufpool.Packet)
 }
 
 var _ Destination = (*UDPDestination)(nil)
 
 type UDPDestination net.UDPAddr
 
-func (d *UDPDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
-	item, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, (*net.UDPAddr)(d))
+func (d *UDPDestination) Send(dp *NetToRingDataplane, pkt *bufpool.Packet) {
+	routingEntry, ok := dp.RoutingTable.LookupPublic(pkt.Info.DstIA, (*net.UDPAddr)(d))
 	if !ok {
 		log.Warn("destination address not found", "ia", pkt.Info.DstIA,
 			"udpAddr", (*net.UDPAddr)(d))
 		return
 	}
-	entry := item.(*TableEntry)
-	// Move packet reference to other goroutine.
-	count, _ := entry.appIngressRing.Write(ringbuf.EntryList{pkt}, false)
-	if count <= 0 {
-		// Release buffer if we couldn't transmit it to the other goroutine.
-		pkt.Free()
-	}
+	sendPacket(routingEntry, pkt)
 }
 
 var _ Destination = SVCDestination(addr.SvcNone)
 
 type SVCDestination addr.HostSVC
 
-func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
+func (d SVCDestination) Send(dp *NetToRingDataplane, pkt *bufpool.Packet) {
 	// FIXME(scrye): This should deliver to the correct IP address, based on
 	// information found in the overlay IP header.
-	items := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)
-	if len(items) == 0 {
+	routingEntries := dp.RoutingTable.LookupService(pkt.Info.DstIA, addr.HostSVC(d), nil)
+	if len(routingEntries) == 0 {
 		log.Warn("destination address not found", "ia", pkt.Info.DstIA, "svc", d)
 		return
 	}
-	for _, item := range items {
+	// Increase reference count for all extra copies
+	for i := 0; i < len(routingEntries)-1; i++ {
 		pkt.Dup()
-		entry := item.(*TableEntry)
-		count, _ := entry.appIngressRing.Write(ringbuf.EntryList{pkt}, false)
-		if count <= 0 {
-			// Release buffer if we didn't write it
-			pkt.Free()
-		}
 	}
-	// Free our own reference to the packet.
-	pkt.Free()
+	for _, routingEntry := range routingEntries {
+		sendPacket(routingEntry, pkt)
+	}
 }
 
-var _ Destination = (*SCMPGeneralAppDestination)(nil)
+var _ Destination = (*SCMPAppDestination)(nil)
 
-type SCMPGeneralAppDestination struct {
-	IP net.IP
+type SCMPAppDestination struct {
 	ID uint64
 }
 
-func (d *SCMPGeneralAppDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
-	// FIXME(scrye): Implement this
-	panic("not implemented")
+func (d *SCMPAppDestination) Send(dp *NetToRingDataplane, pkt *bufpool.Packet) {
+	routingEntry, ok := dp.RoutingTable.LookupID(d.ID)
+	if !ok {
+		log.Warn("destination address not found", "SCMP", d.ID)
+		return
+	}
+	sendPacket(routingEntry, pkt)
 }
 
-var _ Destination = (*SCMPGeneralHandlerDestination)(nil)
+// sendPacket puts pkt on the routing entry's ring buffer, and releases the
+// reference to pkt.
+func sendPacket(routingEntry interface{}, pkt *bufpool.Packet) {
+	e := routingEntry.(*TableEntry)
+	// Move packet reference to other goroutine.
+	count, _ := e.appIngressRing.Write(ringbuf.EntryList{pkt}, false)
+	if count <= 0 {
+		// Release buffer if we couldn't transmit it to the other goroutine.
+		pkt.Free()
+	}
+}
 
-type SCMPGeneralHandlerDestination struct{}
+var _ Destination = (*SCMPHandlerDestination)(nil)
 
-func (h SCMPGeneralHandlerDestination) Send(dp *NetToRingDataplane, pkt *Packet) {
-	// FIXME(scrye): Implement this
-	panic("not implemented")
+type SCMPHandlerDestination struct{}
+
+func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *bufpool.Packet) {
+	if err := pkt.Info.Reverse(); err != nil {
+		log.Warn("Unable to reverse SCMP packet.", "err", err)
+		return
+	}
+
+	b := bufpool.GetBuffer()
+	n, err := hpkt.WriteScnPkt(&pkt.Info, b)
+	if err != nil {
+		log.Warn("Unable to create reply SCMP packet", "err", err)
+		return
+	}
+
+	_, err = dp.OverlayConn.WriteTo(b[:n], pkt.OverlayRemote)
+	if err != nil {
+		log.Warn("Unable to write to overlay socket.", "err", err)
+		return
+	}
+	pkt.Free()
 }
