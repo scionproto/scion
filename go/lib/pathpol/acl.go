@@ -16,6 +16,7 @@ package pathpol
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/sciond"
@@ -81,10 +82,63 @@ type ACLEntry struct {
 	Rule   *HopPredicate
 }
 
+func (ae *ACLEntry) LoadFromString(str string) error {
+	var err error
+	parts := strings.Split(str, " ")
+	if len(parts) == 1 {
+		ae.Action, err = getAction(parts[0])
+		return err
+	} else if len(parts) == 2 {
+		ae.Action, err = getAction(parts[0])
+		if err != nil {
+			return err
+		}
+		ae.Rule, err = HopPredicateFromString(parts[1])
+		return err
+	}
+	return common.NewBasicError("ACLEntry has too many parts", nil, "str", str)
+}
+
+func (ae *ACLEntry) String() string {
+	str := denySymbol
+	if ae.Action == Allow {
+		str = allowSymbol
+	}
+	if ae.Rule != nil {
+		str = str + " " + ae.Rule.String()
+	}
+	return str
+}
+
+func (ae *ACLEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ae.String())
+}
+
+func (ae *ACLEntry) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	return ae.LoadFromString(str)
+}
+
+func getAction(symbol string) (ACLAction, error) {
+	if symbol == allowSymbol {
+		return true, nil
+	} else if symbol == denySymbol {
+		return false, nil
+	} else {
+		return false, common.NewBasicError("Bad action symbol", nil, "action", symbol)
+	}
+}
+
 // ACLAction has two options: Deny and Allow
 type ACLAction bool
 
 const (
-	Deny  ACLAction = false
-	Allow ACLAction = true
+	Deny        ACLAction = false
+	Allow       ACLAction = true
+	denySymbol  string    = "-"
+	allowSymbol string    = "+"
 )

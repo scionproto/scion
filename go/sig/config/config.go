@@ -45,7 +45,6 @@ func LoadFromFile(path string) (*Cfg, error) {
 }
 
 type ASEntry struct {
-	Name string
 	Nets []*IPNet
 }
 

@@ -29,18 +29,18 @@ import (
 
 // ExtPolicy is an extending policy, it may have a list of policies it extends
 type ExtPolicy struct {
-	Extends []string
+	Extends []string `json:",omitempty"`
 	*Policy
 }
 
 // PolicyMap is a container for Policies, keyed by their unique name. PolicyMap
 // can be used to marshal Policies to JSON. Unmarshaling back to PolicyMap is
 // guaranteed to yield an object that is identical to the initial one.
-type PolicyMap map[string]*Policy
+type PolicyMap map[string]*ExtPolicy
 
 // Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
-	Name     string
+	Name     string   `json:"-"`
 	ACL      *ACL     `json:",omitempty"`
 	Sequence Sequence `json:",omitempty"`
 	Options  []Option `json:",omitempty"`
@@ -86,6 +86,7 @@ func PolicyFromExtPolicy(extPolicy *ExtPolicy, extended []*ExtPolicy) (*Policy, 
 // applyExtended adds attributes of extended policies to the extending policy if they are not
 // already set
 func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error {
+	// TODO(worxli): Prevent circular policies.
 	// traverse in reverse s.t. last entry of the list has precedence
 	for i := len(extends) - 1; i >= 0; i-- {
 		var policy *Policy
@@ -141,37 +142,6 @@ func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet
 type Option struct {
 	Weight int
 	Policy *Policy
-}
-
-// Sequence is a list of path interfaces that a path should match
-type Sequence []*HopPredicate
-
-// NewSequence creates a new sequence from a list of string tokens
-func NewSequence(tokens []string) (Sequence, error) {
-	s := make(Sequence, 0)
-	for _, token := range tokens {
-		hp, err := HopPredicateFromString(token)
-		if err != nil {
-			return nil, err
-		}
-		s = append(s, hp)
-	}
-	return s, nil
-}
-
-// Eval evaluates the interface sequence list and returns the set of paths that match the list
-func (s Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
-	if len(s) == 0 {
-		return inputSet
-	}
-
-	resultSet := make(spathmeta.AppPathSet)
-	for key, path := range inputSet {
-		if pathMatches(path.Entry.Path.Interfaces, s) {
-			resultSet[key] = path
-		}
-	}
-	return resultSet
 }
 
 // The pathInterfaces slice contains an entry for each interface on the path, while the
