@@ -48,7 +48,7 @@ func (dp *NetToRingDataplane) Run() error {
 		pkt.OverlayRemote = readExtra.(*net.UDPAddr)
 
 		if err := hpkt.ParseScnPkt(&pkt.Info, pkt.Data); err != nil {
-			log.Warn("error parsing SCION packet", "err", err)
+			log.Warn("error parsing incoming SCION packet", "err", err)
 			continue
 		}
 
