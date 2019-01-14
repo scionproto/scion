@@ -30,6 +30,7 @@ from topology.common import (
     ArgsTopoDicts,
     docker_image,
     DOCKER_USR_VOL,
+    prom_addr_infra,
     sciond_name,
     sciond_svc_name
 )
@@ -177,7 +178,8 @@ class DockerGenerator(object):
             if self.args.cert_server == 'py':
                 sciond = get_default_sciond_path(ISD_AS(topo["ISD_AS"]))
                 entry['command'].append('--spki_cache_dir=cache')
-                entry['command'].append('--prom=[0.0.0.0]:%s' % CS_PROM_PORT)
+                prom_addr = prom_addr_infra(self.args.docker, k, v, CS_PROM_PORT)
+                entry['command'].append('--prom=%s' % prom_addr)
                 entry['command'].append('--sciond_path=%s' % sciond)
                 entry['command'].append(k)
                 entry['command'].append('conf')
@@ -204,7 +206,8 @@ class DockerGenerator(object):
             name = self.prefix + k
             entry['container_name'] = name
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
-            entry['command'].append('--prom=[0.0.0.0]:%s' % BS_PROM_PORT)
+            prom_addr = prom_addr_infra(self.args.docker, k, v, BS_PROM_PORT)
+            entry['command'].append('--prom=%s' % prom_addr)
             entry['command'].append('--sciond_path=%s' %
                                     get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
             entry['command'].append(k)
@@ -233,7 +236,8 @@ class DockerGenerator(object):
             entry['volumes'].append('%s:/share/conf:ro' % os.path.join(base, k))
             if self.args.path_server == 'py':
                 entry['command'].append('--spki_cache_dir=cache')
-                entry['command'].append('--prom=[0.0.0.0]:%s' % PS_PROM_PORT)
+                prom_addr = prom_addr_infra(self.args.docker, k, v, PS_PROM_PORT)
+                entry['command'].append('--prom=%s' % prom_addr)
                 entry['command'].append('--sciond_path=%s' %
                                         get_default_sciond_path(ISD_AS(topo["ISD_AS"])))
                 entry['command'].append(k)
