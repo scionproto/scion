@@ -82,21 +82,8 @@ type ACLEntry struct {
 	Rule   *HopPredicate
 }
 
-func (ae *ACLEntry) MarshalJSON() ([]byte, error) {
-	str := denySymbol
-	if ae.Action {
-		str = allowSymbol
-	}
-	if ae.Rule != nil {
-		str = str + " " + ae.Rule.String()
-	}
-	return json.Marshal(str)
-}
-
-func (ae *ACLEntry) UnmarshalJSON(b []byte) error {
+func (ae *ACLEntry) LoadFromString(str string) error {
 	var err error
-	var str string
-	json.Unmarshal(b, &str)
 	parts := strings.Split(str, " ")
 	if len(parts) == 1 {
 		ae.Action, err = getAction(parts[0])
@@ -110,6 +97,30 @@ func (ae *ACLEntry) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	return common.NewBasicError("ACLEntry has too many parts", nil, "str", str)
+}
+
+func (ae *ACLEntry) String() string {
+	str := denySymbol
+	if ae.Action == Allow {
+		str = allowSymbol
+	}
+	if ae.Rule != nil {
+		str = str + " " + ae.Rule.String()
+	}
+	return str
+}
+
+func (ae *ACLEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ae.String())
+}
+
+func (ae *ACLEntry) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	return ae.LoadFromString(str)
 }
 
 func getAction(symbol string) (ACLAction, error) {
