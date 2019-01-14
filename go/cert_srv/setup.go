@@ -20,6 +20,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/cert_srv/internal/metrics"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
@@ -53,7 +54,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
-	prom.UseDefaultRegWithElem(config.General.ID)
+	metrics.Init(config.General.ID)
 	return env.LogAppStarted(common.CS, config.General.ID)
 }
 

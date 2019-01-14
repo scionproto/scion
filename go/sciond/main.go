@@ -36,11 +36,11 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/proto"
 	"github.com/scionproto/scion/go/sciond/internal/fetcher"
+	"github.com/scionproto/scion/go/sciond/internal/metrics"
 	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
 	"github.com/scionproto/scion/go/sciond/internal/servers"
 )
@@ -173,7 +173,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
-	prom.UseDefaultRegWithElem(config.General.ID)
+	metrics.Init(config.General.ID)
 	return env.LogAppStarted("SD", config.General.ID)
 }
 

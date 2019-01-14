@@ -38,11 +38,11 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
+	"github.com/scionproto/scion/go/path_srv/internal/metrics"
 	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
 	"github.com/scionproto/scion/go/proto"
@@ -244,7 +244,7 @@ func setupBasic() error {
 	if err := env.InitLogging(&config.Logging); err != nil {
 		return err
 	}
-	prom.UseDefaultRegWithElem(config.General.ID)
+	metrics.Init(config.General.ID)
 	return env.LogAppStarted(common.PS, config.General.ID)
 }
 
