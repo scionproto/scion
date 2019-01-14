@@ -38,34 +38,51 @@ var testInitOnce sync.Once
 
 func TestSetupNet(t *testing.T) {
 	Convey("Setting up the same config should be a noop", t, func() {
+		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		oldCtx, cleanUp := setupTestRouter(t, ctx)
-		defer cleanUp()
+		defer updateTestRouter(r, ctx, oldCtx)()
+		// Check that the sockets are reused if nothing changes.
 		checkLocSocksUnchanged("", ctx, oldCtx)
 		checkExtSocksUnchanged("", ctx, oldCtx)
+		// Check that all sockets are still running
+		checkLocSocksRunning("ctx", ctx, true)
+		checkExtSocksRunning("ctx", ctx, true)
 	})
 	Convey("Setting up a config with changed local address should keep extSocks", t, func() {
+		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
+		// Modify local socket address. A new socket should be opened when
+		// setting up the context.
 		ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[3] = 255
-		oldCtx, cleanUp := setupTestRouter(t, ctx)
-		defer cleanUp()
+		defer updateTestRouter(r, ctx, oldCtx)()
+		// Check that the local socket changed
 		SoMsg("LocSockIn changed", ctx.LocSockIn, ShouldNotEqual, oldCtx.LocSockIn)
 		SoMsg("LocSockOut changed", ctx.LocSockOut, ShouldNotEqual, oldCtx.LocSockOut)
+		// Check that the external sockets are unchanged.
 		checkExtSocksUnchanged("New vs Old", ctx, oldCtx)
+		// Check that external sockets are still running.
+		checkExtSocksRunning("ctx", ctx, true)
+		// FIXME(roosd): Check state of the local socket when reload logic is improved.
 	})
+	// FIXME(roosd): Add more tests to test the correct behavior when reload logic is improved.
+	// Due to the currently faulty reload logic, the additional tests would fail.
 }
 
+// checkLocSocksUnchanged compares that both contexts point to the same local socket.
 func checkLocSocksUnchanged(key string, ctx, oldCtx *rctx.Ctx) {
 	SoMsg(fmt.Sprintf("%s: LocSockIn unchanged", key), ctx.LocSockIn, ShouldEqual, oldCtx.LocSockIn)
 	SoMsg(fmt.Sprintf("%s: LocSockOut unchanged", key),
 		ctx.LocSockOut, ShouldEqual, oldCtx.LocSockOut)
 }
 
+// checkExtSocksUnchaged compares that both contexts point to the same external sockets.
 func checkExtSocksUnchanged(key string, ctx, oldCtx *rctx.Ctx) {
-	compareExtSocksEq(key, oldCtx.ExtSockIn, ctx.ExtSockIn, "aIn vs bIn")
-	compareExtSocksEq(key, oldCtx.ExtSockOut, ctx.ExtSockOut, "aOut vs bOut")
-	compareExtSocksEq(key, ctx.ExtSockIn, oldCtx.ExtSockIn, "bIn vs aIn")
-	compareExtSocksEq(key, ctx.ExtSockOut, oldCtx.ExtSockOut, "bOut vs aOut")
+	// Check that all sockets that are in oldCtx are in ctx.
+	compareExtSocksEq(key, oldCtx.ExtSockIn, ctx.ExtSockIn, "oldCtxIn vs ctxIn")
+	compareExtSocksEq(key, oldCtx.ExtSockOut, ctx.ExtSockOut, "oldCtxOut vs ctxOut")
+	// Check that all sockets that are in ctx are in oldCtx
+	compareExtSocksEq(key, ctx.ExtSockIn, oldCtx.ExtSockIn, "ctxIn vs oldCtxIn")
+	compareExtSocksEq(key, ctx.ExtSockOut, oldCtx.ExtSockOut, "ctxOut vs oldCtxOut")
 }
 
 func compareExtSocksEq(key string, a, b map[common.IFIDType]*rctx.Sock, suffix string) {
@@ -89,8 +106,9 @@ func checkExtSocksRunning(key string, ctx *rctx.Ctx, running bool) {
 	}
 }
 
-// setupTest sets up a test router.
-func setupTestRouter(t *testing.T, newCtx *rctx.Ctx) (*rctx.Ctx, func()) {
+// setupTest sets up a test router. The test router is initially set up with the
+// topology loaded from testdata.
+func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
 	// Init metrics.
 	testInitOnce.Do(func() {
 		metrics.Init("br1-ff00_0_111-1")
@@ -104,13 +122,20 @@ func setupTestRouter(t *testing.T, newCtx *rctx.Ctx) (*rctx.Ctx, func()) {
 		}, "free", prometheus.Labels{"ringId": "freePkts"}),
 	}
 	sockConf := brconf.SockConf{Default: PosixSock}
+	// oldCtx contains the testdata topology.
 	oldCtx := rctx.New(loadConfig(t))
 	xtest.FailOnErr(t, r.setupNet(oldCtx, nil, sockConf))
 	startSocks(oldCtx)
+	return r, oldCtx
+}
+
+// updateTestRouter calls setupNet on the provided router with new and old context.
+// The cleanup function shall be called to free the allocated sockets.
+func updateTestRouter(r *Router, newCtx, oldCtx *rctx.Ctx) func() {
 	// Call setupNet with provided new context. Copy context to catch
 	// map alterations.
 	copyCtx := copyContext(oldCtx)
-	err := r.setupNet(newCtx, copyCtx, sockConf)
+	err := r.setupNet(newCtx, copyCtx, brconf.SockConf{Default: PosixSock})
 	SoMsg("err", err, ShouldBeNil)
 	// Close all sockets to allow binding in subsequent tests.
 	cleanUp := func() {
@@ -118,7 +143,7 @@ func setupTestRouter(t *testing.T, newCtx *rctx.Ctx) (*rctx.Ctx, func()) {
 		closeAllSocks(oldCtx)
 		closeAllSocks(copyCtx)
 	}
-	return oldCtx, cleanUp
+	return cleanUp
 }
 
 func copyContext(ctx *rctx.Ctx) *rctx.Ctx {
