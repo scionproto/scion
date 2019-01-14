@@ -238,7 +238,7 @@ func TestWatchFilter(t *testing.T) {
 		)
 		pr := New(sd, Timers{ErrorRefire: getDuration(1)}, nil)
 		Convey("and adding a watch that should retrieve 1 path", func() {
-			seq, err := pathpol.NewSequence([]string{"1-ff00:0:111#105", "0", "0"})
+			seq, err := pathpol.NewSequence("1-ff00:0:111#105 0 0")
 			xtest.FailOnErr(t, err)
 			filter := pathpol.NewPolicy("test-1-ff00:0:111#105", nil, seq, nil)
 
