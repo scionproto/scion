@@ -202,7 +202,7 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.UDPReference) {
 
 		if id, isScmpRequest := getSCMPGeneralID(&pktInfo); isScmpRequest {
 			if err := ref.RegisterID(id); err != nil {
-				log.Warn("duplicate SCMP General ID, packet not sent", "id", id)
+				log.Warn("SCMP Request ID error, packet not sent", "err", err)
 				continue
 			}
 		}
