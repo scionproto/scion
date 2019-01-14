@@ -55,7 +55,7 @@ func (s Sequence) Eval(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet {
 	return resultSet
 }
 
-func (s *Sequence) MarshalJSON() ([]byte, error) {
+func (s *Sequence) String() string {
 	str := ""
 	for i, hp := range *s {
 		if i != 0 {
@@ -63,15 +63,10 @@ func (s *Sequence) MarshalJSON() ([]byte, error) {
 		}
 		str += hp.String()
 	}
-	return json.Marshal(str)
+	return str
 }
 
-func (s *Sequence) UnmarshalJSON(b []byte) error {
-	var str string
-	err := json.Unmarshal(b, &str)
-	if err != nil {
-		return err
-	}
+func (s *Sequence) LoadFromString(str string) error {
 	parts := strings.Split(str, " ")
 	sn := Sequence{}
 	for _, hpStr := range parts {
@@ -86,4 +81,17 @@ func (s *Sequence) UnmarshalJSON(b []byte) error {
 	}
 	*s = sn
 	return nil
+}
+
+func (s *Sequence) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *Sequence) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
+	return s.LoadFromString(str)
 }
