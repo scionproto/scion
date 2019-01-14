@@ -21,7 +21,9 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type segRegHandler struct {
@@ -48,12 +50,21 @@ func (h *segRegHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
+	msger, ok := infra.MessengerFromContext(h.request.Context())
+	if !ok {
+		logger.Error("[segRegHandler] Unable to service request, no Messenger found")
+		return
+	}
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
+	sendAck := messenger.SendAckHelper(subCtx, msger, h.request.Peer, h.request.ID)
 	if err := segReg.ParseRaw(); err != nil {
 		logger.Error("[segRegHandler] Failed to parse message", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return
 	}
 	logSegRecs(logger, "[segRegHandler]", h.request.Peer, segReg.SegRecs)
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
 	h.verifyAndStore(subCtx, h.request.Peer, segReg.Recs, segReg.SRevInfos)
+	// TODO(lukedirtwalker): If all segments failed to verify the ack should also be negative here.
+	sendAck(proto.Ack_ErrCode_ok, "")
 }
