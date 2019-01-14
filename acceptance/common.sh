@@ -34,9 +34,9 @@ collect_metrics() {
 
     collect_elem_metrics 'BorderRouters' '30442' 'InternalAddrs.IPv4.PublicOverlay.Addr'
     collect_elem_metrics 'SIG' '30456'
-    collect_elem_metrics 'BeaconService' '30452'
-    collect_elem_metrics 'CertificateService' '30454'
-    collect_elem_metrics 'PathService' '30453'
+    collect_elem_metrics 'BeaconService'
+    collect_elem_metrics 'CertificateService'
+    collect_elem_metrics 'PathService'
 }
 
 #######################################
@@ -51,7 +51,8 @@ collect_elem_metrics() {
     local addr_key=${3:-Addrs.IPv4.Public.Addr}
     for elem in $elems; do
         local ip="$(jq -r .$1[\"$elem\"].$addr_key $TOPOLOGY)"
-        echo "Collect $elem metrics from $ip:$2"
-        curl "$ip:${2:?}/metrics" -o "$METRICS_DIR/$elem" -s -S --connect-timeout 2 || true
+        local topo_port="$(jq -r .$1[\"$elem\"].Addrs.IPv4.Public.L4Port $TOPOLOGY)"
+        echo "Collect $elem metrics from $ip:${2:-$topo_port}"
+        curl "$ip:${2:-$topo_port}/metrics" -o "$METRICS_DIR/$elem" -s -S --connect-timeout 2 || true
     done
 }
