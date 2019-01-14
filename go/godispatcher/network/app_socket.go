@@ -23,10 +23,13 @@ import (
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/hpkt"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/overlay"
 	"github.com/scionproto/scion/go/lib/ringbuf"
+	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/sock/reliable"
+	"github.com/scionproto/scion/go/lib/spkt"
 )
 
 // AppSocketServer accepts new connections coming from SCION apps, and
@@ -94,7 +97,7 @@ func (h *AppConnHandler) Handle() {
 		defer log.LogPanicAndExit()
 		h.RunRingToAppDataplane(tableEntry.appIngressRing)
 	}()
-	h.RunAppToNetDataplane()
+	h.RunAppToNetDataplane(ref)
 }
 
 func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry, error) {
@@ -172,7 +175,7 @@ func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirm
 
 // RunAppToNetDataplane moves packets from the application's socket to the
 // overlay socket.
-func (h *AppConnHandler) RunAppToNetDataplane() {
+func (h *AppConnHandler) RunAppToNetDataplane(ref registration.UDPReference) {
 	for {
 		b := bufpool.Get()
 		n, nextHop, err := h.Conn.ReadFrom(b)
@@ -189,6 +192,19 @@ func (h *AppConnHandler) RunAppToNetDataplane() {
 		if nextHop == nil {
 			h.Logger.Warn("[app->network] Missing next hop, dropping packet")
 			continue
+		}
+
+		var pktInfo spkt.ScnPkt
+		if err := hpkt.ParseScnPkt(&pktInfo, b); err != nil {
+			log.Warn("error parsing outgoing SCION packet", "err", err)
+			continue
+		}
+
+		if id, isScmpRequest := getSCMPGeneralID(&pktInfo); isScmpRequest {
+			if err := ref.RegisterID(id); err != nil {
+				log.Warn("SCMP Request ID error, packet not sent", "err", err)
+				continue
+			}
 		}
 
 		n, err = h.OverlayConn.WriteTo(b, nextHop.(*overlay.OverlayAddr).ToUDPAddr())
@@ -224,6 +240,26 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 			pkt.Free()
 		}
 	}
+}
+
+func getSCMPGeneralID(pktInfo *spkt.ScnPkt) (uint64, bool) {
+	if scmpHdr, ok := pktInfo.L4.(*scmp.Hdr); ok {
+		if scmpHdr.Class == scmp.C_General {
+			info := pktInfo.Pld.(*scmp.Payload).Info
+			switch scmpHdr.Type {
+			case scmp.T_G_EchoRequest:
+				infoEcho := info.(*scmp.InfoEcho)
+				return infoEcho.Id, true
+			case scmp.T_G_RecordPathRequest:
+				infoRecordPath := info.(*scmp.InfoRecordPath)
+				return infoRecordPath.Id, true
+			case scmp.T_G_TraceRouteRequest:
+				infoTraceRoute := info.(*scmp.InfoTraceRoute)
+				return infoTraceRoute.Id, true
+			}
+		}
+	}
+	return 0, false
 }
 
 type TableEntry struct {
