@@ -40,7 +40,8 @@ func TestSetupNet(t *testing.T) {
 	Convey("Setting up the same config should be a noop", t, func() {
 		r, oldCtx := setupTestRouter(t)
 		ctx := rctx.New(loadConfig(t))
-		defer updateTestRouter(r, ctx, oldCtx)()
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
 		// Check that the sockets are reused if nothing changes.
 		checkLocSocksUnchanged("", ctx, oldCtx)
 		checkExtSocksUnchanged("", ctx, oldCtx)
@@ -54,7 +55,8 @@ func TestSetupNet(t *testing.T) {
 		// Modify local socket address. A new socket should be opened when
 		// setting up the context.
 		ctx.Conf.Net.LocAddr.PublicOverlay(ctx.Conf.Net.LocAddr.Overlay).L3().IP()[3] = 255
-		defer updateTestRouter(r, ctx, oldCtx)()
+		clean := updateTestRouter(r, ctx, oldCtx)
+		defer clean()
 		// Check that the local socket changed
 		SoMsg("LocSockIn changed", ctx.LocSockIn, ShouldNotEqual, oldCtx.LocSockIn)
 		SoMsg("LocSockOut changed", ctx.LocSockOut, ShouldNotEqual, oldCtx.LocSockOut)
