@@ -20,8 +20,10 @@ import (
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl/path_mgmt"
 	"github.com/scionproto/scion/go/lib/infra"
+	"github.com/scionproto/scion/go/lib/infra/messenger"
 	"github.com/scionproto/scion/go/lib/infra/modules/segverifier"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/proto"
 )
 
 type revocHandler struct {
@@ -47,26 +49,37 @@ func (h *revocHandler) Handle() {
 			"msg", h.request.Message, "type", common.TypeOf(h.request.Message))
 		return
 	}
+	msger, ok := infra.MessengerFromContext(h.request.Context())
+	if !ok {
+		logger.Error("[revocHandler] Unable to service request, no Messenger found")
+		return
+	}
+	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
+	defer cancelF()
 	logger = logger.New("signer", revocation.Sign.Src)
 
+	sendAck := messenger.SendAckHelper(subCtx, msger, h.request.Peer, h.request.ID)
 	revInfo, err := revocation.RevInfo()
 	if err != nil {
 		logger.Warn("[revocHandler] Couldn't parse revocation", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToParse)
 		return
 	}
 	logger = logger.New("revInfo", revInfo)
 	logger.Debug("[revocHandler] Received revocation")
 
-	subCtx, cancelF := context.WithTimeout(h.request.Context(), HandlerTimeout)
-	defer cancelF()
 	err = segverifier.VerifyRevInfo(subCtx, h.trustStore, h.request.Peer, revocation)
 	if err != nil {
 		logger.Warn("Couldn't verify revocation", "err", err)
+		sendAck(proto.Ack_ErrCode_reject, messenger.AckRejectFailedToVerify)
 		return
 	}
 
 	_, err = h.revCache.Insert(subCtx, revocation)
 	if err != nil {
 		logger.Error("Failed to insert revInfo", "err", err)
+		sendAck(proto.Ack_ErrCode_retry, messenger.AckRetryDBError)
+		return
 	}
+	sendAck(proto.Ack_ErrCode_ok, "")
 }
