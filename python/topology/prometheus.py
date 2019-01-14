@@ -67,11 +67,14 @@ class PrometheusGenerator(object):
             for br_id, br_ele in as_topo["BorderRouters"].items():
                 ele_dict["BorderRouters"].append(prom_addr_br(br_id, br_ele, DEFAULT_BR_PROM_PORT))
             for elem_id, elem in as_topo["BeaconService"].items():
-                ele_dict["BeaconService"].append(prom_addr_infra(elem_id, elem, BS_PROM_PORT))
+                prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, BS_PROM_PORT)
+                ele_dict["BeaconService"].append(prom_addr)
             for elem_id, elem in as_topo["PathService"].items():
-                ele_dict["PathService"].append(prom_addr_infra(elem_id, elem, PS_PROM_PORT))
+                prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, PS_PROM_PORT)
+                ele_dict["PathService"].append(prom_addr)
             for elem_id, elem in as_topo["CertificateService"].items():
-                ele_dict["CertificateService"].append(prom_addr_infra(elem_id, elem, CS_PROM_PORT))
+                prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, CS_PROM_PORT)
+                ele_dict["CertificateService"].append(prom_addr)
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)
 

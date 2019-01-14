@@ -77,7 +77,7 @@ class SupervisorGenerator(object):
         entries = []
         for elem_id, elem in topo.get(topo_key, {}).items():
             conf_dir = os.path.join(base, elem_id)
-            prom_addr = prom_addr_infra(elem_id, elem, port)
+            prom_addr = prom_addr_infra(self.args.docker, elem_id, elem, port)
             entries.append((elem_id, [cmd, "--prom", prom_addr, "--sciond_path",
                                       get_default_sciond_path(ISD_AS(topo["ISD_AS"])),
                                       elem_id, conf_dir]))
