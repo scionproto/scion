@@ -558,14 +558,14 @@ void register_udp(uint8_t *buf, int len, int sock)
 {
     zlog_info(zc, "UDP registration request");
     Entry *e = parse_request(buf, len, L4_UDP, sock);
+    if (!e)
+        return;
     if (memcmp(&e->l4_key, &e->bind_key, sizeof(L4Key)) == 0) {
         zlog_error(zc, "Not supported same public and bind address");
         reply(sock, 0);
         cleanup_socket(sock, num_sockets - 1, EINVAL);
         return;
     }
-    if (!e)
-        return;
     if (find_available_udp_port(&e->l4_key) < 0) {
         reply(sock, 0);
         cleanup_socket(sock, num_sockets - 1, EINVAL);
