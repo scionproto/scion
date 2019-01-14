@@ -15,6 +15,7 @@
 package metrics
 
 import (
+	"github.com/scionproto/scion/go/lib/pathdb"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -25,4 +26,5 @@ const (
 // Init initializes the metrics for the PS.
 func Init(elem string) {
 	prom.UseDefaultRegWithElem(elem)
+	pathdb.InitMetrics(namespace)
 }
