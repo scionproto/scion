@@ -43,8 +43,8 @@ func TestSetupNet(t *testing.T) {
 		clean := updateTestRouter(r, ctx, oldCtx)
 		defer clean()
 		// Check that the sockets are reused if nothing changes.
-		checkLocSocksUnchanged("", ctx, oldCtx)
-		checkExtSocksUnchanged("", ctx, oldCtx)
+		checkLocSocksUnchanged("New vs Old", ctx, oldCtx)
+		checkExtSocksUnchanged("New vs Old", ctx, oldCtx)
 		// Check that all sockets are still running
 		checkLocSocksRunning("ctx", ctx, true)
 		checkExtSocksRunning("ctx", ctx, true)
@@ -119,7 +119,7 @@ func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
 	})
 	// Initialize router with the topology.
 	r := &Router{
-		freePkts: ringbuf.New(1024, func() interface{} {
+		freePkts: ringbuf.New(1, func() interface{} {
 			return rpkt.NewRtrPkt()
 		}, "free", prometheus.Labels{"ringId": "freePkts"}),
 	}
