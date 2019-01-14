@@ -51,6 +51,12 @@
 			"revisionTime": "2017-02-16T02:04:25Z"
 		},
 		{
+			"checksumSHA1": "L/rKBjOshWG/yXpolY0LRzaX8hk=",
+			"path": "github.com/antlr/antlr4/runtime/Go/antlr",
+			"revision": "d4d7e3d3bc3b65bb00579fe826834a9263fa45e6",
+			"revisionTime": "2017-03-30T21:11:49Z"
+		},
+		{
 			"checksumSHA1": "YNhwvoScUezhDwq58QMY8vUwuqg=",
 			"license": "MIT,3-BSD",
 			"path": "github.com/axw/gocov",

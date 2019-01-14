@@ -5,19 +5,26 @@ but overlapping purposes.
 
 ## Hop Predicate (HP)
 
-A hop predicate is of the form **ISD-AS#IF**, where _0_ can be used as a wildcard for **ISD**,
-**AS** and **IF** indepedently. If the **AS** identifier is set to _0_, the **IF** identifier must
-also be set to _0_. To specify both interfaces of an AS, one must separate them by `,` ie.
-**ISD-AS#IF1,IF2**.
+A hop predicate is of the form **ISD-AS#IF,IF**. The first **IF** means the inbound interface
+(the interface where packet enters the AS) and the second **IF** means the outbound interface
+(the interface where packet leaves the AS).
+
+_0_ can be used as a wildcard for **ISD**, **AS** and both **IF** elements indepedently.
+
+It is possible to specify only a single interface for a hop (**ISD-AS#IF**). In that case the packet
+must pass through the specified interface either when it's entering or leaving the AS. This syntax
+is handy for the first and last hops of the path where the packet goes only through a single
+interface anyway.
 
 If the tail elements in a HP are 0, they can be omitted. See the following examples for details.
 
 Examples:
 
--   Match interface _2_ and _3_ of AS _1-ff00:0:133_: `1-ff00:0:133#2,3`"
--   Match interface _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
--   Match any interface of AS _1-ff00:0:133_: `1-ff00:0:133#0` or `1-ff00:0:133`
--   Match any interface in ISD _1_: `1-0#0`, `1-0` or `1`
+-   Match ISD _1_: `1` or `1-0` or `1-0#0` or `1-0#0,0`
+-   Match AS _1-ff00:0:133_: `1-ff00:0:133` or `1-ff00:0:133#0` or `1-ff00:0:133#0,0`
+-   Match inbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2,0`
+-   Match outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#0,2`
+-   Match inbound or outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
 
 ## Operators
 
@@ -33,8 +40,11 @@ Sequence:
 -   `?` (the preceding HP may appear at most once)
 -   `+` (the preceding **ISD-level** HP must appear at least once)
 -   `*` (the preceding **ISD-level** HP may appear zero or more times)
--   `!` (logical NOT)
 -   `|` (logical OR)
+
+Planned:
+
+-   `!` (logical NOT)
 -   `&` (logical AND)
 
 ## Policy
