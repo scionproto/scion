@@ -201,30 +201,20 @@ var _ LayerMatcher = (*UDP)(nil)
 // UDP is a wrapper that implements LayerBuilder and LayerMatcher interfaces
 type UDP struct {
 	layers.UDP
+	scn *ScionLayer
+	pld common.RawBytes
 }
 
 func NewUDP(src, dst uint16, scn *ScionLayer, lb LayerBuilder) *UDP {
 	udp := &UDP{}
-	var pld common.RawBytes
 	if lb != nil {
-		pld, _ = serializeLayers([]LayerBuilder{lb})
+		udp.pld, _ = serializeLayers([]LayerBuilder{lb})
 	}
+	udp.scn = scn
 	udp.UDP = layers.UDP{
 		SrcPort: layers.UDPPort(src),
 		DstPort: layers.UDPPort(dst),
-		Length:  uint16(l4.UDPLen + len(pld)),
-	}
-	if scn != nil && pld != nil {
-		b := gopacket.NewSerializeBuffer()
-		opts := gopacket.SerializeOptions{}
-		if err := udp.UDP.SerializeTo(b, opts); err != nil {
-			panic(err)
-		}
-		pseudoHdr := make(common.RawBytes, scn.AddrHdr.Len()+2)
-		pseudoHdr[0] = 0
-		pseudoHdr[1] = uint8(common.L4UDP)
-		scn.AddrHdr.Write(pseudoHdr[2:])
-		udp.Checksum = util.Checksum(pseudoHdr, b.Bytes(), pld)
+		Length:  uint16(l4.UDPLen + len(udp.pld)),
 	}
 	return udp
 }
@@ -236,6 +226,9 @@ func (l *UDP) Build() ([]gopacket.SerializableLayer, error) {
 func (l *UDP) SerializeTo(b gopacket.SerializeBuffer, opts gopacket.SerializeOptions) error {
 	// Disable checksum generation, requires IPv4/IPv6 pseudo-header
 	opts.ComputeChecksums = false
+	if l.scn != nil {
+		l.Checksum = udpCSum(&l.scn.AddrHdr, l, b.Bytes())
+	}
 	return l.UDP.SerializeTo(b, opts)
 }
 
@@ -245,17 +238,36 @@ func (l *UDP) Match(pktLayers []gopacket.Layer, lc *LayerCache) ([]gopacket.Laye
 		return nil, fmt.Errorf("Wrong layer\nExpected %v\nActual   %v",
 			layers.LayerTypeUDP, pktLayers[0].LayerType())
 	}
-	// Verify that the checksum is valid using the received packet SCION and UDP header,
-	// and the expected Payload
-	csum := util.Checksum(lc.scion.RawAddrHdr(), []uint8{0, uint8(common.L4UDP)},
-		udp.Contents, l.Payload)
-	l.Checksum = csum ^ udp.Checksum
+	var addrHdr *AddrHdr
+	if l.scn != nil {
+		addrHdr = &l.scn.AddrHdr
+	} else {
+		addrHdr = &lc.scion.AddrHdr
+	}
+	var pld common.RawBytes
+	if l.pld != nil {
+		pld = l.pld
+	} else {
+		pld = udp.Payload
+	}
+	l.Checksum = udpCSum(addrHdr, l, pld)
 	if l.SrcPort != udp.SrcPort || l.DstPort != udp.DstPort || l.Length != udp.Length ||
-		csum != 0 {
+		l.Checksum != udp.Checksum {
 		return nil, fmt.Errorf("UDP layer mismatch\nExpected %s\nActual   %s",
 			gopacket.LayerString(&l.UDP), gopacket.LayerString(udp))
 	}
 	return pktLayers[1:], nil
+}
+
+func udpCSum(addrHdr *AddrHdr, udp *UDP, pld common.RawBytes) uint16 {
+	b := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{}
+	udp.UDP.SerializeTo(b, opts)
+	pseudoHdr := make(common.RawBytes, addrHdr.Len()+2)
+	pseudoHdr[0] = 0
+	pseudoHdr[1] = uint8(common.L4UDP)
+	addrHdr.Write(pseudoHdr[2:])
+	return util.Checksum(pseudoHdr, b.Bytes(), pld)
 }
 
 var _ LayerBuilder = (*Payload)(nil)

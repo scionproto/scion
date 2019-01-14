@@ -19,7 +19,9 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/l4"
+	"github.com/scionproto/scion/go/lib/scmp"
 )
 
 var brDCtrlScionHdr = tpkt.NewGenCmnHdr(
@@ -34,7 +36,7 @@ var IgnoredPacketsBrD = []*tpkt.ExpPkt{
 	}}}
 
 func genTestsBrD(hMac hash.Hash) []*BRTest {
-	return []*BRTest{
+	tests := []*BRTest{
 		{
 			Desc: "Multiple IFIDs - child/local",
 			In: &tpkt.Pkt{
@@ -203,4 +205,58 @@ func genTestsBrD(hMac hash.Hash) []*BRTest {
 			Ignore: IgnoredPacketsBrD,
 		},
 	}
+	// We use a known IP ie. CS, so we already have ARP entry for it
+	revScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:5", "172.16.5.1", "1-ff00:0:1", "192.168.0.71",
+		tpkt.GenPath(0, 2, tpkt.Segments{
+			segment("(___)[999.0][511.512][0.151]", hMac, 2)},
+		),
+		common.HopByHopClass)
+
+	sRevInfo := tpkt.MustSRevInfo(512, "1-ff00:0:5", "child", tsNow32, 60)
+	rev := tpkt.NewRevocation(0, 1, 512, false, sRevInfo)
+
+	revScmpHdrPld := tpkt.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, now,
+		&revScionHdr.ScionLayer, []tpkt.LayerBuilder{
+			tpkt.NewValidScion("1-ff00:0:1", "192.168.0.71", "1-ff00:0:9", "172.16.9.1",
+				tpkt.GenPath(0, 1, tpkt.Segments{
+					segment("(C__)[0.151][511.512][999.0]", hMac, 0)},
+				), nil,
+				&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
+		rev,
+		common.L4UDP)
+
+	revPsScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.104", "1-ff00:0:1", "PS",
+		nil, common.L4UDP)
+	revPsPld := &tpkt.PathMgmtPld{
+		Signer:      ctrl.NullSigner,
+		SigVerifier: ctrl.NullSigVerifier,
+		Instance:    sRevInfo,
+	}
+
+	revLocalFork := &BRTest{
+		Desc: "Multiple IFIDs - Revocation to local destination, fork to PS",
+		In: &tpkt.Pkt{
+			Dev: "ifid_151", Layers: []tpkt.LayerBuilder{
+				tpkt.GenOverlayIP4UDP("192.168.15.3", 40000, "192.168.15.2", 50000),
+				revScionHdr,
+				tpkt.NewSCMPExtn(common.L4SCMP, scmp.Extn{Error: true, HopByHop: true}),
+				revScmpHdrPld,
+			}},
+		Out: []*tpkt.ExpPkt{
+			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.0.14", 30004, "192.168.0.71", 30041),
+				revScionHdr,
+				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				revScmpHdrPld,
+			}},
+			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.0.14", 30041, "192.168.0.51", 30041),
+				revPsScionHdr,
+				tpkt.NewUDP(20004, 0, &revPsScionHdr.ScionLayer, revPsPld),
+				revPsPld,
+			}}},
+		Ignore: IgnoredPacketsBrD,
+	}
+	tests = append(tests, revLocalFork)
+	return tests
 }

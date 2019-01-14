@@ -37,7 +37,7 @@ var IgnoredPacketsBrA = []*tpkt.ExpPkt{
 	}}}
 
 func genTestsBrA(hMac hash.Hash) []*BRTest {
-	return []*BRTest{
+	tests := []*BRTest{
 		{
 			Desc: "Single IFID peer - Xover peer/local",
 			In: &tpkt.Pkt{
@@ -139,75 +139,77 @@ func genTestsBrA(hMac hash.Hash) []*BRTest {
 				}}},
 			Ignore: IgnoredPacketsBrA,
 		},
-		{
-			Desc: "Single IFID peer - Revocation",
-			Pre: &tpkt.Pkt{
-				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.0.61", 20006, "192.168.0.11", 30041),
-					brCtrlScionHdr,
-					tpkt.NewUDP(20006, 20001, &brCtrlScionHdr.ScionLayer, ifStateInfoDown),
-					ifStateInfoDown,
-				}},
-			In: &tpkt.Pkt{
-				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.11", 30001),
-					tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(0, 2, tpkt.Segments{
-							segment("(_SP)[511.0][X.162.151][X.121.151][V.0.612]", hMac, 1, 2),
-							segment("(C__)[V.0.621][X.211.0][X.261.0]", nil)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*tpkt.ExpPkt{
-				{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
-					tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.13", 30003),
-					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:5", "172.16.5.1",
-						tpkt.GenPath(1, 2, tpkt.Segments{
-							segment("(___)[X.261.0][X.211.0][V.0.621]", nil),
-							segment("(CSP)[V.0.612][X.121.151][X.162.151][511.0]", hMac, 1, 2)},
-						),
-						common.HopByHopClass),
-					&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
-					tpkt.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, []tpkt.LayerBuilder{
-						tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
-							tpkt.GenPath(0, 2, tpkt.Segments{
-								segment("(_SP)[511.0][X.162.151][X.121.151][V.0.612]", hMac, 1, 2),
-								segment("(C__)[V.0.621][X.211.0][X.261.0]", nil)},
-							), nil,
-							&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
-						tpkt.NewRevocation(0, 2, 121, false, signedRevInfo),
-						common.L4UDP),
-				}}},
-			Post: &tpkt.Pkt{
-				Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.0.61", 20006, "192.168.0.11", 30041),
-					brCtrlScionHdr,
-					tpkt.NewUDP(20006, 20001, &brCtrlScionHdr.ScionLayer, ifStateInfoUp),
-					ifStateInfoUp,
-				}},
-			Ignore: IgnoredPacketsBrA,
-		},
 	}
-}
 
-var (
-	brCtrlScionHdr = tpkt.NewGenCmnHdr(
+	pktTriggerRev := tpkt.NewValidScion("1-ff00:0:5", "172.16.5.1", "1-ff00:0:2", "172.16.2.1",
+		tpkt.GenPath(0, 2, tpkt.Segments{
+			segment("(_SP)[511.0][X.162.151][X.121.151][V.0.612]", hMac, 1, 2),
+			segment("(C__)[V.0.621][X.211.0][X.261.0]", nil)},
+		), nil,
+		&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)
+
+	revScmpScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:5", "172.16.5.1",
+		tpkt.GenPath(1, 2, tpkt.Segments{
+			segment("(___)[X.261.0][X.211.0][V.0.621]", nil),
+			segment("(CSP)[V.0.612][X.121.151][X.162.151][511.0]", hMac, 1, 2)},
+		),
+		common.HopByHopClass)
+
+	brCtrlScionHdr := tpkt.NewGenCmnHdr(
 		"1-ff00:0:1", "192.168.0.61", "1-ff00:0:1", "192.168.0.101", nil, common.L4UDP)
 
-	signedRevInfo = tpkt.MustSRevInfo(121, "1-ff00:0:1", "peer", tsNow, 60)
+	signedRevInfo := tpkt.MustSRevInfo(121, "1-ff00:0:1", "peer", tsNow32, 60)
 
-	ifStateInfoDown = &tpkt.PathMgmtPld{
+	ifStateInfoDown := &tpkt.PathMgmtPld{
 		Signer:      ctrl.NullSigner,
 		SigVerifier: ctrl.NullSigVerifier,
 		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
 			{IfID: 121, Active: false, SRevInfo: signedRevInfo},
 		}},
 	}
-	ifStateInfoUp = &tpkt.PathMgmtPld{
+	ifStateInfoUp := &tpkt.PathMgmtPld{
 		Signer:      ctrl.NullSigner,
 		SigVerifier: ctrl.NullSigVerifier,
 		Instance: &path_mgmt.IFStateInfos{Infos: []*path_mgmt.IFStateInfo{
 			{IfID: 121, Active: true, SRevInfo: nil},
 		}},
 	}
-)
+	revTest := &BRTest{
+		Desc: "Single IFID peer - Revocation",
+		Pre: &tpkt.Pkt{
+			Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
+				tpkt.GenOverlayIP4UDP("192.168.0.61", 20006, "192.168.0.11", 30041),
+				brCtrlScionHdr,
+				tpkt.NewUDP(20006, 20001, &brCtrlScionHdr.ScionLayer, ifStateInfoDown),
+				ifStateInfoDown,
+			}},
+		In: &tpkt.Pkt{
+			Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
+				tpkt.GenOverlayIP4UDP("192.168.0.13", 30003, "192.168.0.11", 30001),
+				pktTriggerRev,
+			}},
+		Out: []*tpkt.ExpPkt{
+			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.13", 30003),
+				revScmpScionHdr,
+				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				tpkt.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, now,
+					&revScmpScionHdr.ScionLayer,
+					[]tpkt.LayerBuilder{
+						pktTriggerRev,
+					},
+					tpkt.NewRevocation(0, 2, 121, false, signedRevInfo),
+					common.L4UDP),
+			}}},
+		Post: &tpkt.Pkt{
+			Dev: "ifid_local", Layers: []tpkt.LayerBuilder{
+				tpkt.GenOverlayIP4UDP("192.168.0.61", 20006, "192.168.0.11", 30041),
+				brCtrlScionHdr,
+				tpkt.NewUDP(20006, 20001, &brCtrlScionHdr.ScionLayer, ifStateInfoUp),
+				ifStateInfoUp,
+			}},
+		Ignore: IgnoredPacketsBrA,
+	}
+	tests = append(tests, revTest)
+	return tests
+}

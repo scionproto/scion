@@ -19,6 +19,7 @@ import (
 
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/ctrl"
 	"github.com/scionproto/scion/go/lib/l4"
 	"github.com/scionproto/scion/go/lib/scmp"
 )
@@ -35,7 +36,7 @@ var IgnoredPacketsCoreBrA = []*tpkt.ExpPkt{
 	}}}
 
 func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
-	return []*BRTest{
+	tests := []*BRTest{
 		{
 			Desc: "Single IFID core - external - local destination",
 			In: &tpkt.Pkt{
@@ -133,76 +134,6 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 			Ignore: IgnoredPacketsCoreBrA,
 		},
 		{
-			Desc: "Single IFID core - Xover core-core - Bad Path",
-			In: &tpkt.Pkt{
-				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-					tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("(C__)[0.211][X.121.0]", hMac, 1),
-							segment("(C__)[0.131][311.0]", hMac, 0)},
-						), nil,
-						&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
-				}},
-			Out: []*tpkt.ExpPkt{
-				{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
-					tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(1, 0, tpkt.Segments{
-							segment("(___)[311.0][0.131]", hMac, 1),
-							segment("(___)[X.121.0][0.211]", hMac, 0)},
-						),
-						common.HopByHopClass),
-					&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true}},
-					tpkt.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, []tpkt.LayerBuilder{
-						tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-							tpkt.GenPath(1, 0, tpkt.Segments{
-								segment("(C__)[0.211][X.121.0]", hMac, 1),
-								segment("(C__)[0.131][311.0]", hMac, 0)},
-							), nil,
-							&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
-						&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
-						common.L4UDP),
-				}}},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-		{
-			Desc: "Single IFID core - Xover core-core - Bad Path Unsupported L4",
-			In: &tpkt.Pkt{
-				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
-					tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
-					tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-						tpkt.GenPath(0, 1, tpkt.Segments{
-							segment("(C__)[0.211][X.121.0]", hMac, 1),
-							segment("(C__)[0.131][311.0]", hMac, 0)},
-						),
-						common.L4TCP),
-					tpkt.NewPld([]byte{1, 2, 3, 4, 5, 6, 7, 8}),
-				}},
-			Out: []*tpkt.ExpPkt{
-				{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
-					tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
-					tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:2", "172.16.2.1",
-						tpkt.GenPath(1, 0, tpkt.Segments{
-							segment("(___)[311.0][0.131]", hMac, 1),
-							segment("(___)[X.121.0][0.211]", hMac, 0)},
-						),
-						common.HopByHopClass),
-					&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true}},
-					tpkt.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, []tpkt.LayerBuilder{
-						tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
-							tpkt.GenPath(1, 0, tpkt.Segments{
-								segment("(C__)[0.211][X.121.0]", hMac, 1),
-								segment("(C__)[0.131][311.0]", hMac, 0)},
-							),
-							common.L4TCP),
-						tpkt.NewPld([]byte{1, 2, 3, 4, 5, 6, 7, 8})},
-						&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
-						common.L4TCP),
-				}}},
-			Ignore: IgnoredPacketsCoreBrA,
-		},
-		{
 			Desc: "Single IFID core - Empty overlay packet",
 			In: &tpkt.Pkt{
 				Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
@@ -222,4 +153,156 @@ func genTestsCoreBrA(hMac hash.Hash) []*BRTest {
 			Ignore: IgnoredPacketsCoreBrA,
 		},
 	}
+	expScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:2", "172.16.2.1",
+		tpkt.GenPath(1, 0, tpkt.Segments{
+			segment("(___)[311.0][0.131]", hMac, 1),
+			segment("(___)[X.121.0][0.211]", hMac, 0)},
+		),
+		common.HopByHopClass)
+
+	expScmpHdrPld := tpkt.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, now,
+		&expScionHdr.ScionLayer, []tpkt.LayerBuilder{
+			tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
+				tpkt.GenPath(1, 0, tpkt.Segments{
+					segment("(C__)[0.211][X.121.0]", hMac, 1),
+					segment("(C__)[0.131][311.0]", hMac, 0)},
+				), nil,
+				&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
+		&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
+		common.L4UDP)
+
+	test := &BRTest{
+		Desc: "Single IFID core - Xover core-core - Bad Path",
+		In: &tpkt.Pkt{
+			Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
+				tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
+				tpkt.NewValidScion("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
+					tpkt.GenPath(0, 1, tpkt.Segments{
+						segment("(C__)[0.211][X.121.0]", hMac, 1),
+						segment("(C__)[0.131][311.0]", hMac, 0)},
+					), nil,
+					&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil),
+			}},
+		Out: []*tpkt.ExpPkt{
+			{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
+				expScionHdr,
+				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true}},
+				expScmpHdrPld,
+			}}},
+		Ignore: IgnoredPacketsCoreBrA,
+	}
+	tests = append(tests, test)
+
+	expScionHdr = tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.11", "1-ff00:0:2", "172.16.2.1",
+		tpkt.GenPath(1, 0, tpkt.Segments{
+			segment("(___)[311.0][0.131]", hMac, 1),
+			segment("(___)[X.121.0][0.211]", hMac, 0)},
+		),
+		common.HopByHopClass)
+
+	expScmpHdrPld = tpkt.NewSCMP(scmp.C_Path, scmp.T_P_BadSegment, now,
+		&expScionHdr.ScionLayer, []tpkt.LayerBuilder{
+			tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
+				tpkt.GenPath(1, 0, tpkt.Segments{
+					segment("(C__)[0.211][X.121.0]", hMac, 1),
+					segment("(C__)[0.131][311.0]", hMac, 0)},
+				),
+				common.L4TCP),
+			tpkt.NewPld([]byte{1, 2, 3, 4, 5, 6, 7, 8})},
+		&scmp.InfoPathOffsets{InfoF: 1, HopF: 0, IfID: if_121, Ingress: true},
+		common.L4TCP)
+
+	test = &BRTest{
+		Desc: "Single IFID core - Xover core-core - Bad Path Unsupported L4",
+		In: &tpkt.Pkt{
+			Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
+				tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
+				tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:3", "172.16.3.1",
+					tpkt.GenPath(0, 1, tpkt.Segments{
+						segment("(C__)[0.211][X.121.0]", hMac, 1),
+						segment("(C__)[0.131][311.0]", hMac, 0)},
+					),
+					common.L4TCP),
+				tpkt.NewPld([]byte{1, 2, 3, 4, 5, 6, 7, 8}),
+			}},
+		Out: []*tpkt.ExpPkt{
+			{Dev: "ifid_121", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.12.2", 50000, "192.168.12.3", 40000),
+				expScionHdr,
+				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true}},
+				expScmpHdrPld,
+			}}},
+		Ignore: IgnoredPacketsCoreBrA,
+	}
+	tests = append(tests, test)
+	// We use a known IP ie. CS, so we already have ARP entry for it
+	revScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
+		tpkt.GenPath(0, 1, tpkt.Segments{
+			segment("(___)[211.0][X.0.121]", hMac, 1),
+			segment("(C__)[X.0.141][411.0]", hMac, 0)},
+		),
+		common.HopByHopClass)
+
+	sRevInfo := tpkt.MustSRevInfo(222, "1-ff00:0:2", "child", tsNow32, 60)
+	rev := tpkt.NewRevocation(0, 1, 222, false, sRevInfo)
+
+	revScmpHdrPld := tpkt.NewSCMP(scmp.C_Path, scmp.T_P_RevokedIF, now,
+		&revScionHdr.ScionLayer, []tpkt.LayerBuilder{
+			tpkt.NewValidScion("1-ff00:0:4", "172.16.4.1", "1-ff00:0:9", "172.16.9.1",
+				tpkt.GenPath(1, 1, tpkt.Segments{
+					segment("(___)[411.0][X.0.141]", hMac, 1),
+					segment("(C__)[X.0.121][211.0]", hMac, 0)},
+				), nil,
+				&l4.UDP{SrcPort: 40111, DstPort: 40222}, nil)},
+		rev,
+		common.L4UDP)
+
+	revPsScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "PS",
+		nil, common.L4UDP)
+	revBsScionHdr := tpkt.NewGenCmnHdr("1-ff00:0:1", "192.168.0.101", "1-ff00:0:1", "BS",
+		nil, common.L4UDP)
+	revPld := &tpkt.PathMgmtPld{
+		Signer:      ctrl.NullSigner,
+		SigVerifier: ctrl.NullSigVerifier,
+		Instance:    sRevInfo,
+	}
+
+	revLocalFork := &BRTest{
+		Desc: "Singel IFID core - Revocation to local destination, fork to PS and BS",
+		In: &tpkt.Pkt{
+			Dev: "ifid_121", Layers: []tpkt.LayerBuilder{
+				tpkt.GenOverlayIP4UDP("192.168.12.3", 40000, "192.168.12.2", 50000),
+				revScionHdr,
+				tpkt.NewSCMPExtn(common.L4SCMP, scmp.Extn{Error: true, HopByHop: true}),
+				revScmpHdrPld,
+			}},
+		Out: []*tpkt.ExpPkt{
+			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.0.11", 30001, "192.168.0.12", 30002),
+				tpkt.NewGenCmnHdr("1-ff00:0:2", "172.16.2.1", "1-ff00:0:4", "172.16.4.1",
+					tpkt.GenPath(1, 0, tpkt.Segments{
+						segment("(___)[211.0][X.0.121]", hMac, 1),
+						segment("(C__)[X.0.141][411.0]", hMac, 0)},
+					),
+					common.HopByHopClass),
+				&tpkt.ScionSCMPExtn{Extn: scmp.Extn{Error: true, HopByHop: true}},
+				revScmpHdrPld,
+			}},
+			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.51", 30041),
+				revPsScionHdr,
+				tpkt.NewUDP(20001, 0, &revPsScionHdr.ScionLayer, revPld),
+				revPld,
+			}},
+			{Dev: "ifid_local", Layers: []tpkt.LayerMatcher{
+				tpkt.GenOverlayIP4UDP("192.168.0.11", 30041, "192.168.0.61", 30041),
+				revBsScionHdr,
+				tpkt.NewUDP(20001, 0, &revBsScionHdr.ScionLayer, revPld),
+				revPld,
+			}}},
+		Ignore: IgnoredPacketsCoreBrA,
+	}
+	tests = append(tests, revLocalFork)
+	return tests
 }

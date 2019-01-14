@@ -68,7 +68,7 @@ func decodeInfoF(str string) (*spath.InfoField, error) {
 		ConsDir:  str[1] == 'C',
 		Shortcut: str[2] == 'S',
 		Peer:     str[3] == 'P',
-		TsInt:    tsNow,
+		TsInt:    tsNow32,
 		ISD:      1,
 	}, nil
 }
