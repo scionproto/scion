@@ -66,7 +66,7 @@ lint: vendor/.deps.stamp
 	@echo "======> gofmt"
 	out=$$(gofmt -d -s ${LOCAL_DIRS}); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> linelen (lll)"
-	out=$$(find . -type f -iname '*.go' -a '!' '(' -ipath './vendor/*' -o -ipath '*/*.capnp.go' -o -ipath '*/*.gen.go' -o -ipath '*/mock_*/*' ')' | lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:'); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
+	out=$$(find . -type f -iname '*.go' -a '!' '(' -ipath './vendor/*' -o -ipath '*/*.capnp.go' -o -ipath '*/*.gen.go' -o -ipath '*/mock_*/*' -o -ipath './lib/pathpol/sequence/*' ')' | lll -w 4 -l 100 --files -e '`comment:"|`ini:"|https?:'); if [ -n "$$out" ]; then echo "$$out"; exit 1; fi
 	@echo "======> go vet"
 	go vet ${LOCAL_PKGS}
 	@echo "======> misspell"
