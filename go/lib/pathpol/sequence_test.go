@@ -26,38 +26,33 @@ func TestSequenceLoadFromString(t *testing.T) {
 	testCases := []struct {
 		Name     string
 		String   string
-		Sequence Sequence
+		Sequence *Sequence
 		Error    bool
 	}{
 		{
 			Name:     "Empty sequence",
 			String:   "",
-			Sequence: newSequence(t, []string{""}),
-		},
-		{
-			Name:     "Empty sequence second",
-			String:   "",
-			Sequence: newSequence(t, []string{}),
+			Sequence: newSequence(t, ""),
 		},
 		{
 			Name:     "Single ISD",
 			String:   "0",
-			Sequence: newSequence(t, []string{"0"}),
+			Sequence: newSequence(t, "0"),
 		},
 		{
 			Name:     "Full Predicate",
 			String:   "1-2#3,2",
-			Sequence: newSequence(t, []string{"1-2#3,2"}),
+			Sequence: newSequence(t, "1-2#3,2"),
 		},
 		{
 			Name:     "Two predicates",
 			String:   "1-2 1-4#0",
-			Sequence: newSequence(t, []string{"1-2", "1-4#0"}),
+			Sequence: newSequence(t, "1-2 1-4#0"),
 		},
 		{
 			Name:     "Bad predicates",
 			String:   "1-2 1-4#1,2,0",
-			Sequence: nil,
+			Sequence: &Sequence{},
 			Error:    true,
 		},
 	}
@@ -68,7 +63,7 @@ func TestSequenceLoadFromString(t *testing.T) {
 				var sequence Sequence
 				err := sequence.LoadFromString(tc.String)
 				xtest.SoMsgError("err", err, tc.Error)
-				SoMsg("sequence", sequence, ShouldResemble, tc.Sequence)
+				SoMsg("sequence", &sequence, ShouldResemble, tc.Sequence)
 			})
 		}
 	})
@@ -77,7 +72,7 @@ func TestSequenceLoadFromString(t *testing.T) {
 func TestSequenceString(t *testing.T) {
 	Convey("TestSequenceString", t, func() {
 		sequenceStr := "0-0#0 1-2#0 1-2#3 0-0#0"
-		sequence, err := NewSequence([]string{"0", "1-2", "1-2#3", "0"})
+		sequence, err := NewSequence(sequenceStr)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("sequence", sequenceStr, ShouldResemble, sequence.String())
 	})

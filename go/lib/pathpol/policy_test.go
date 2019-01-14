@@ -64,133 +64,273 @@ func TestBasicPolicy(t *testing.T) {
 func TestSequenceEval(t *testing.T) {
 	testCases := []struct {
 		Name       string
-		List       Sequence
+		Seq        *Sequence
 		Src        addr.IA
 		Dst        addr.IA
 		ExpPathNum int
 	}{
 		{
 			Name:       "Empty path",
-			List:       newSequence(t, []string{"0-0#0"}),
+			Seq:        newSequence(t, "0-0#0"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:212"),
 			ExpPathNum: 0,
 		},
 		{
 			Name:       "Length not matching",
-			List:       newSequence(t, []string{"0-0#0"}),
+			Seq:        newSequence(t, "0-0#0"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 0,
 		},
 		{
 			Name:       "Two Wildcard matching",
-			List:       newSequence(t, []string{"0-0#0", "0-0#0"}),
+			Seq:        newSequence(t, "0-0#0 0-0#0"),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
 		},
 		{
 			Name:       "Longer Wildcard matching",
-			List:       newSequence(t, []string{"0-0#0", "0-0#0", "0-0#0", "0-0#0"}),
+			Seq:        newSequence(t, "0-0#0 0-0#0 0-0#0 0-0#0"),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
 			Dst:        xtest.MustParseIA("2-ff00:0:220"),
 			ExpPathNum: 2,
 		},
 		{
 			Name:       "Two Explicit matching",
-			List:       newSequence(t, []string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"}),
+			Seq:        newSequence(t, "1-ff00:0:133#1019 1-ff00:0:132#1910"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:132"),
 			ExpPathNum: 1,
 		},
 		{
 			Name:       "AS double IF matching",
-			List:       newSequence(t, []string{"0", "1-ff00:0:132#1910,1916", "0"}),
+			Seq:        newSequence(t, "0 1-ff00:0:132#1910,1916 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
 		{
 			Name:       "AS IF matching, first wildcard",
-			List:       newSequence(t, []string{"0", "1-ff00:0:132#0,1916", "0"}),
+			Seq:        newSequence(t, "0 1-ff00:0:132#0,1916 0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:131"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching",
-			List: newSequence(t, []string{"1-ff00:0:122#1815", "1-ff00:0:121#1518,1530",
-				"1-ff00:0:120#3015,3122", "2-ff00:0:220#2231,2224", "2-ff00:0:221#2422"}),
+			Seq: newSequence(t, "1-ff00:0:122#1815 1-ff00:0:121#1518,1530 "+
+				"1-ff00:0:120#3015,3122 2-ff00:0:220#2231,2224 2-ff00:0:221#2422"),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
 			Dst:        xtest.MustParseIA("2-ff00:0:221"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching, single wildcard",
-			List: newSequence(t, []string{"1-ff00:0:133#1018", "1-ff00:0:122#1810,1815",
-				"1-ff00:0:121#0,1530", "1-ff00:0:120#3015,2911", "1-ff00:0:110#1129"}),
+			Seq: newSequence(t, "1-ff00:0:133#1018 1-ff00:0:122#1810,1815 "+
+				"1-ff00:0:121#0,1530 1-ff00:0:120#3015,2911 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching, reverse single wildcard",
-			List: newSequence(t, []string{"1-ff00:0:133#1018", "1-ff00:0:122#1810,1815",
-				"1-ff00:0:121#1530,0", "1-ff00:0:120#3015,2911", "1-ff00:0:110#1129"}),
+			Seq: newSequence(t, "1-ff00:0:133#1018 1-ff00:0:122#1810,1815 "+
+				"1-ff00:0:121#1530,0 1-ff00:0:120#3015,2911 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 0,
 		},
 		{
 			Name: "Longer Explicit matching, multiple wildcard",
-			List: newSequence(t, []string{"1-ff00:0:133#1018", "1-ff00:0:122#0,1815",
-				"1-ff00:0:121#0,1530", "1-ff00:0:120#3015,0", "1-ff00:0:110#1129"}),
+			Seq: newSequence(t, "1-ff00:0:133#1018 1-ff00:0:122#0,1815 "+
+				"1-ff00:0:121#0,1530 1-ff00:0:120#3015,0 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching, mixed wildcard types",
-			List: newSequence(t, []string{"1-ff00:0:133#0", "1",
-				"0-0#0", "1-ff00:0:120#0", "1-ff00:0:110#1129"}),
+			Seq: newSequence(t, "1-ff00:0:133#0 1 "+
+				"0-0#0 1-ff00:0:120#0 1-ff00:0:110#1129"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 1,
 		},
 		{
 			Name: "Longer Explicit matching, mixed wildcard types, two paths",
-			List: newSequence(t, []string{"1-ff00:0:133#0", "1-0#0",
-				"0-0#0", "1-0#0", "1-ff00:0:110#0"}),
+			Seq: newSequence(t, "1-ff00:0:133#0 1-0#0 "+
+				"0-0#0 1-0#0 1-ff00:0:110#0"),
 			Src:        xtest.MustParseIA("1-ff00:0:133"),
 			Dst:        xtest.MustParseIA("1-ff00:0:110"),
 			ExpPathNum: 2,
 		},
 		{
-			Name:       "Zero length sequence does not filter",
-			List:       newSequence(t, []string{}),
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
-			ExpPathNum: 2,
-		},
-		{
-			Name:       "Empty sequence does not filter",
-			List:       newSequence(t, []string{""}),
-			Src:        xtest.MustParseIA("2-ff00:0:212"),
-			Dst:        xtest.MustParseIA("2-ff00:0:211"),
-			ExpPathNum: 2,
-		},
-		{
 			Name:       "Nil sequence does not filter",
-			List:       nil,
+			Seq:        nil,
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
 			Dst:        xtest.MustParseIA("2-ff00:0:211"),
 			ExpPathNum: 2,
+		},
+		{
+			Name:       "Asterisk matches multiple hops",
+			Seq:        newSequence(t, "0*"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 2,
+		},
+		{
+			Name:       "Asterisk matches zero hops",
+			Seq:        newSequence(t, "0 0 0*"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 2,
+		},
+		{
+			Name:       "Plus matches multiple hops",
+			Seq:        newSequence(t, "0+"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 2,
+		},
+		{
+			Name:       "Plus doesn't match zero hops",
+			Seq:        newSequence(t, "0 0 0+"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 0,
+		},
+		{
+			Name:       "Question mark matches zero hops",
+			Seq:        newSequence(t, "0 0 0?"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 2,
+		},
+		{
+			Name:       "Question mark matches one hop",
+			Seq:        newSequence(t, "0 0?"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 2,
+		},
+		{
+			Name:       "Question mark doesn't match two hops",
+			Seq:        newSequence(t, "0?"),
+			Src:        xtest.MustParseIA("2-ff00:0:212"),
+			Dst:        xtest.MustParseIA("2-ff00:0:211"),
+			ExpPathNum: 0,
+		},
+		{
+			Name:       "Successful match on hop count",
+			Seq:        newSequence(t, "0 0 0"),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 3,
+		},
+		{
+			Name:       "Failed match on hop count",
+			Seq:        newSequence(t, "0 0"),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 0,
+		},
+		{
+			Name:       "Select one of the intermediate ASes",
+			Seq:        newSequence(t, "0 2-ff00:0:221 0"),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "Select two alternative intermediate ASes",
+			Seq:        newSequence(t, "0 (2-ff00:0:221 | 2-ff00:0:210) 0"),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 3,
+		},
+		{
+			Name:       "Alternative intermediate ASes, but one doesn't exist",
+			Seq:        newSequence(t, "0 (2-ff00:0:221 |64-12345) 0"),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "Or has higher priority than concatenation",
+			Seq:        newSequence(t, "0 2-ff00:0:221|64-12345 0"),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "Question mark has higher priority than concatenation",
+			Seq:        newSequence(t, "0 0 0 ?  "),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 3,
+		},
+		{
+			Name:       "Parentheses change priority",
+			Seq:        newSequence(t, "(0 0)?"),
+			Src:        xtest.MustParseIA("2-ff00:0:211"),
+			Dst:        xtest.MustParseIA("2-ff00:0:220"),
+			ExpPathNum: 0,
+		},
+		{
+			Name:       "Single interface matches inbound interface",
+			Seq:        newSequence(t, "0 1-ff00:0:132#1910 0"),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "Single interface matches outbound interface",
+			Seq:        newSequence(t, "0 1-ff00:0:132#1916 0"),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "Single non-matching interface",
+			Seq:        newSequence(t, "0 1-ff00:0:132#1917 0"),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 0,
+		},
+		{
+			Name:       "Left interface matches inbound",
+			Seq:        newSequence(t, "0 1-ff00:0:132#1910,0 0"),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "Left interface doesn't match outbound",
+			Seq:        newSequence(t, "0 1-ff00:0:132#1916,0 0"),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 0,
+		},
+		{
+			Name:       "Right interface matches outbound",
+			Seq:        newSequence(t, "0 1-ff00:0:132#0,1916 0"),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 1,
+		},
+		{
+			Name:       "Right interface doesn't match inbound",
+			Seq:        newSequence(t, "0 1-ff00:0:132#0,1910 0"),
+			Src:        xtest.MustParseIA("1-ff00:0:133"),
+			Dst:        xtest.MustParseIA("1-ff00:0:131"),
+			ExpPathNum: 0,
 		},
 	}
 
 	conn := testGetSCIONDConn(t)
-	Convey("TestList", t, func() {
+	Convey("TestSeq", t, func() {
 		for _, tc := range testCases {
 			Convey(tc.Name, func() {
 				paths, err := conn.Paths(context.Background(), tc.Dst, tc.Src, 5,
@@ -198,7 +338,7 @@ func TestSequenceEval(t *testing.T) {
 				SoMsg("sciond err", err, ShouldBeNil)
 
 				inAPS := spathmeta.NewAppPathSet(paths)
-				outAPS := tc.List.Eval(inAPS)
+				outAPS := tc.Seq.Eval(inAPS)
 				SoMsg("paths", len(outAPS), ShouldEqual, tc.ExpPathNum)
 			})
 		}
@@ -542,19 +682,19 @@ func TestExtends(t *testing.T) {
 							Rule:   mustHopPredicate(t, "0-0#0")},
 							denyEntry}},
 						Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})}},
+							"1-ff00:0:133#1019 1-ff00:0:132#1910")}},
 			},
 			ExtendedPolicy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
 				Action: Allow,
 				Rule:   mustHopPredicate(t, "0-0#0")},
 				denyEntry}},
-				Sequence: newSequence(t, []string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
+				Sequence: newSequence(t, "1-ff00:0:133#1019 1-ff00:0:132#1910")},
 		},
 		{
 			Name: "two extends, only use acl",
 			Policy: &ExtPolicy{
 				Policy: &Policy{
-					Sequence: newSequence(t, []string{"1-ff00:0:133#0", "1-ff00:0:132#0"})},
+					Sequence: newSequence(t, "1-ff00:0:133#0 1-ff00:0:132#0")},
 				Extends: []string{"policy2"}},
 			Extended: []*ExtPolicy{
 				{Policy: &Policy{Name: "policy2", ACL: &ACL{Entries: []*ACLEntry{{
@@ -563,13 +703,13 @@ func TestExtends(t *testing.T) {
 					denyEntry}}}},
 				{Policy: &Policy{Name: "policy1",
 					Sequence: newSequence(t,
-						[]string{"1-ff00:0:133#1019", "1-ff00:0:132#1910"})},
+						"1-ff00:0:133#1019 1-ff00:0:132#1910")},
 				}},
 			ExtendedPolicy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
 				Action: Allow,
 				Rule:   mustHopPredicate(t, "0-0#0")},
 				denyEntry}},
-				Sequence: newSequence(t, []string{"1-ff00:0:133#0", "1-ff00:0:132#0"})},
+				Sequence: newSequence(t, "1-ff00:0:133#0 1-ff00:0:132#0")},
 		},
 		{
 			Name: "three extends, use last list",
@@ -579,18 +719,18 @@ func TestExtends(t *testing.T) {
 				{
 					Policy: &Policy{Name: "p1",
 						Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})}},
+							"1-ff00:0:133#1011 1-ff00:0:132#1911")}},
 				{
 					Policy: &Policy{Name: "p2",
 						Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1012", "1-ff00:0:132#1912"})}},
+							"1-ff00:0:133#1012 1-ff00:0:132#1912")}},
 				{
 					Policy: &Policy{Name: "p3",
 						Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})}},
+							"1-ff00:0:133#1013 1-ff00:0:132#1913")}},
 			},
 			ExtendedPolicy: &Policy{
-				Sequence: newSequence(t, []string{"1-ff00:0:133#1013", "1-ff00:0:132#1913"})},
+				Sequence: newSequence(t, "1-ff00:0:133#1013 1-ff00:0:132#1913")},
 		},
 		{
 			Name: "nested extends",
@@ -606,11 +746,11 @@ func TestExtends(t *testing.T) {
 				{
 					Policy: &Policy{Name: "policy3",
 						Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"}),
+							"1-ff00:0:133#1011 1-ff00:0:132#1911"),
 					}},
 			},
 			ExtendedPolicy: &Policy{
-				Sequence: newSequence(t, []string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+				Sequence: newSequence(t, "1-ff00:0:133#1011 1-ff00:0:132#1911")},
 		},
 		{
 			Name: "nested extends, evaluating order",
@@ -619,7 +759,7 @@ func TestExtends(t *testing.T) {
 			Extended: []*ExtPolicy{
 				{
 					Policy: &Policy{Name: "policy3", Sequence: newSequence(t,
-						[]string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+						"1-ff00:0:133#1010 1-ff00:0:132#1910")},
 					Extends: []string{"policy2"}},
 				{
 					Policy:  &Policy{Name: "policy2"},
@@ -627,11 +767,11 @@ func TestExtends(t *testing.T) {
 				{
 					Policy: &Policy{
 						Name: "policy1", Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+							"1-ff00:0:133#1011 1-ff00:0:132#1911")},
 				},
 			},
 			ExtendedPolicy: &Policy{
-				Sequence: newSequence(t, []string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+				Sequence: newSequence(t, "1-ff00:0:133#1010 1-ff00:0:132#1910")},
 		},
 		{
 			Name: "different nested extends, evaluating order",
@@ -641,7 +781,7 @@ func TestExtends(t *testing.T) {
 				{
 					Policy: &Policy{Name: "policy3",
 						Sequence: newSequence(t,
-							[]string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+							"1-ff00:0:133#1010 1-ff00:0:132#1910")},
 					Extends: []string{"policy2"}},
 				{
 					Policy:  &Policy{Name: "policy2"},
@@ -651,11 +791,11 @@ func TestExtends(t *testing.T) {
 					Extends: []string{"policy3"}},
 				{
 					Policy: &Policy{Name: "policy1", Sequence: newSequence(t,
-						[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+						"1-ff00:0:133#1011 1-ff00:0:132#1911")},
 				},
 			},
 			ExtendedPolicy: &Policy{
-				Sequence: newSequence(t, []string{"1-ff00:0:133#1010", "1-ff00:0:132#1910"})},
+				Sequence: newSequence(t, "1-ff00:0:133#1010 1-ff00:0:132#1910")},
 		},
 	}
 
@@ -681,7 +821,7 @@ func TestExtends(t *testing.T) {
 			{
 				Policy: &Policy{Name: "policy3",
 					Sequence: newSequence(t,
-						[]string{"1-ff00:0:133#1011", "1-ff00:0:132#1911"})},
+						"1-ff00:0:133#1011 1-ff00:0:132#1911")},
 			},
 		}
 		_, err := PolicyFromExtPolicy(extPolicy, extended)
@@ -691,24 +831,24 @@ func TestExtends(t *testing.T) {
 
 func TestSequenceConstructor(t *testing.T) {
 	Convey("TestSequenceConstructor", t, func() {
-		_, err := NewSequence([]string{"0-0-0#0"})
+		_, err := NewSequence("0-0-0#0")
 		SoMsg("err1", err, ShouldNotBeNil)
 
-		_, err = NewSequence([]string{"0#0#0"})
+		_, err = NewSequence("0#0#0")
 		SoMsg("err2", err, ShouldNotBeNil)
 
-		_, err = NewSequence([]string{"0"})
+		_, err = NewSequence("0")
 		SoMsg("err3", err, ShouldBeNil)
 
-		_, err = NewSequence([]string{"1#0"})
+		_, err = NewSequence("1#0")
 		SoMsg("err4", err, ShouldNotBeNil)
 
-		_, err = NewSequence([]string{"1-0"})
+		_, err = NewSequence("1-0")
 		SoMsg("err5", err, ShouldBeNil)
 	})
 }
 
-func newSequence(t *testing.T, str []string) Sequence {
+func newSequence(t *testing.T, str string) *Sequence {
 	seq, err := NewSequence(str)
 	xtest.FailOnErr(t, err)
 	return seq

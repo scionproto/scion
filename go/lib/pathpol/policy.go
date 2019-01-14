@@ -23,7 +23,6 @@ import (
 	"sort"
 
 	"github.com/scionproto/scion/go/lib/common"
-	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/spath/spathmeta"
 )
 
@@ -40,14 +39,14 @@ type PolicyMap map[string]*ExtPolicy
 
 // Policy is a compiled path policy object, all extended policies have been merged.
 type Policy struct {
-	Name     string   `json:"-"`
-	ACL      *ACL     `json:",omitempty"`
-	Sequence Sequence `json:",omitempty"`
-	Options  []Option `json:",omitempty"`
+	Name     string    `json:"-"`
+	ACL      *ACL      `json:",omitempty"`
+	Sequence *Sequence `json:",omitempty"`
+	Options  []Option  `json:",omitempty"`
 }
 
 // NewPolicy creates a Policy and sorts its Options
-func NewPolicy(name string, acl *ACL, sequence Sequence, options []Option) *Policy {
+func NewPolicy(name string, acl *ACL, sequence *Sequence, options []Option) *Policy {
 	policy := &Policy{Name: name, ACL: acl, Sequence: sequence, Options: options}
 	// Sort Options by weight, descending
 	sort.Slice(policy.Options, func(i, j int) bool {
@@ -62,7 +61,9 @@ func (p *Policy) Act(values interface{}) interface{} {
 	// Filter on ACL
 	resultSet := p.ACL.Eval(inputSet)
 	// Filter on Sequence
-	resultSet = p.Sequence.Eval(resultSet)
+	if p.Sequence != nil {
+		resultSet = p.Sequence.Eval(resultSet)
+	}
 	// Filter on sub policies
 	if len(p.Options) > 0 {
 		resultSet = p.evalOptions(resultSet)
@@ -112,7 +113,7 @@ func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error 
 			p.Options = policy.Options
 		}
 		// Replace Sequence
-		if len(p.Sequence) == 0 {
+		if p.Sequence == nil {
 			p.Sequence = policy.Sequence
 		}
 	}
@@ -142,28 +143,4 @@ func (p *Policy) evalOptions(inputSet spathmeta.AppPathSet) spathmeta.AppPathSet
 type Option struct {
 	Weight int
 	Policy *Policy
-}
-
-// The pathInterfaces slice contains an entry for each interface on the path, while the
-// hopPredicate contains an entry per AS on the path. For the first and last interface of a path
-// there is one pathInterface entry and one hopPredicate entry. For each interface in between there
-// are two pathInterface entries and one hopPredicate entry.
-// pathMatches tries to match every interface with its corresponding hopPredicate.
-func pathMatches(pathInterfaces []sciond.PathInterface, hopPredicates Sequence) bool {
-	// TODO(worxli): implement *, ? and +
-	if badLength(len(pathInterfaces), len(hopPredicates)) {
-		return false
-	}
-	for i := range pathInterfaces {
-		hopIdx := (i + 1) / 2
-		if !hopPredicates[hopIdx].pathIFMatch(pathInterfaces[i], i%2 != 0) {
-			return false
-		}
-	}
-	return true
-}
-
-// badLength checks if the interface slice can be matched with the predicate slice
-func badLength(lenInt, lenPred int) bool {
-	return lenInt == 0 || lenInt != 2*(lenPred-1)
 }
