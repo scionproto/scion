@@ -86,7 +86,7 @@ func PolicyFromExtPolicy(extPolicy *ExtPolicy, extended []*ExtPolicy) (*Policy, 
 // applyExtended adds attributes of extended policies to the extending policy if they are not
 // already set
 func (p *Policy) applyExtended(extends []string, exPolicies []*ExtPolicy) error {
-	// TODO(worxli): prevent circles
+	// TODO(worxli): Prevent circular policies.
 	// traverse in reverse s.t. last entry of the list has precedence
 	for i := len(extends) - 1; i >= 0; i-- {
 		var policy *Policy
