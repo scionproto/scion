@@ -20,6 +20,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestACLEntryLoadFromString(t *testing.T) {
@@ -27,42 +28,44 @@ func TestACLEntryLoadFromString(t *testing.T) {
 		Name     string
 		String   string
 		ACLEntry ACLEntry
-		Valid    bool
+		Error    bool
 	}{
 		{
 			Name:     "Allow all",
 			String:   "+ 0",
-			ACLEntry: ACLEntry{Action: true, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
-			Valid:    true,
+			ACLEntry: ACLEntry{Action: Allow, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
+			Error:    false,
 		},
 		{
 			Name:   "Allow 1-2#3",
 			String: "+ 1-2#3",
-			ACLEntry: ACLEntry{Action: true, Rule: &HopPredicate{ISD: 1, AS: 2,
+			ACLEntry: ACLEntry{Action: Allow, Rule: &HopPredicate{ISD: 1, AS: 2,
 				IfIDs: []common.IFIDType{3}}},
-			Valid: true,
+			Error: false,
 		},
 		{
 			Name:     "Allow all short",
 			String:   "+",
-			ACLEntry: ACLEntry{Action: true},
-			Valid:    true,
+			ACLEntry: ACLEntry{Action: Allow},
+			Error:    false,
 		},
 		{
 			Name:     "Allow none",
 			String:   "- 0",
-			ACLEntry: ACLEntry{Action: false, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
-			Valid:    true,
+			ACLEntry: ACLEntry{Action: Deny, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
+			Error:    false,
 		},
 		{
-			Name:   "Bad action symbol",
-			String: "* 0",
-			Valid:  false,
+			Name:     "Bad action symbol",
+			String:   "* 0",
+			ACLEntry: ACLEntry{},
+			Error:    true,
 		},
 		{
-			Name:   "Bad aclEntry string",
-			String: "+ 0 0",
-			Valid:  false,
+			Name:     "Bad aclEntry string",
+			String:   "+ 0 0",
+			ACLEntry: ACLEntry{},
+			Error:    true,
 		},
 	}
 
@@ -71,12 +74,8 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			Convey(tc.Name, func() {
 				var aclEntry ACLEntry
 				err := aclEntry.LoadFromString(tc.String)
-				if tc.Valid {
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("aclEntry", aclEntry, ShouldResemble, tc.ACLEntry)
-				} else {
-					SoMsg("err", err, ShouldNotBeNil)
-				}
+				xtest.SoMsgError("err", err, tc.Error)
+				SoMsg("aclEntry", aclEntry, ShouldResemble, tc.ACLEntry)
 			})
 		}
 	})

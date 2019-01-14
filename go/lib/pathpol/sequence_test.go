@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/scionproto/scion/go/lib/xtest"
 )
 
 func TestSequenceLoadFromString(t *testing.T) {
@@ -25,42 +27,43 @@ func TestSequenceLoadFromString(t *testing.T) {
 		Name     string
 		String   string
 		Sequence Sequence
-		Valid    bool
+		Error    bool
 	}{
 		{
 			Name:     "Empty sequence",
 			String:   "",
 			Sequence: newSequence(t, []string{""}),
-			Valid:    true,
+			Error:    false,
 		},
 		{
 			Name:     "Empty sequence second",
 			String:   "",
 			Sequence: newSequence(t, []string{}),
-			Valid:    true,
+			Error:    false,
 		},
 		{
 			Name:     "Single ISD",
 			String:   "0",
 			Sequence: newSequence(t, []string{"0"}),
-			Valid:    true,
+			Error:    false,
 		},
 		{
 			Name:     "Full Predicate",
 			String:   "1-2#3,2",
 			Sequence: newSequence(t, []string{"1-2#3,2"}),
-			Valid:    true,
+			Error:    false,
 		},
 		{
 			Name:     "Two predicates",
 			String:   "1-2 1-4#0",
 			Sequence: newSequence(t, []string{"1-2", "1-4#0"}),
-			Valid:    true,
+			Error:    false,
 		},
 		{
-			Name:   "Bad predicates",
-			String: "1-2 1-4#1,2,0",
-			Valid:  false,
+			Name:     "Bad predicates",
+			String:   "1-2 1-4#1,2,0",
+			Sequence: nil,
+			Error:    true,
 		},
 	}
 
@@ -69,12 +72,8 @@ func TestSequenceLoadFromString(t *testing.T) {
 			Convey(tc.Name, func() {
 				var sequence Sequence
 				err := sequence.LoadFromString(tc.String)
-				if tc.Valid {
-					SoMsg("err", err, ShouldBeNil)
-					SoMsg("sequence", sequence, ShouldResemble, tc.Sequence)
-				} else {
-					SoMsg("err", err, ShouldNotBeNil)
-				}
+				xtest.SoMsgError("err", err, tc.Error)
+				SoMsg("sequence", sequence, ShouldResemble, tc.Sequence)
 			})
 		}
 	})
