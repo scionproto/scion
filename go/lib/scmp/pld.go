@@ -24,7 +24,6 @@ import (
 var _ common.Payload = (*Payload)(nil)
 
 type Payload struct {
-	ct      ClassType
 	Meta    *Meta
 	Info    Info
 	CmnHdr  common.RawBytes
@@ -36,12 +35,12 @@ type Payload struct {
 
 func PldFromRaw(b common.RawBytes, ct ClassType) (*Payload, error) {
 	var err error
-	p := &Payload{ct: ct}
+	p := &Payload{}
 	buf := bytes.NewBuffer(b)
 	if p.Meta, err = MetaFromRaw(buf.Next(MetaLen)); err != nil {
 		return nil, err
 	}
-	if p.Info, err = ParseInfo(buf.Next(int(p.Meta.InfoLen)*common.LineLen), p.ct); err != nil {
+	if p.Info, err = ParseInfo(buf.Next(int(p.Meta.InfoLen)*common.LineLen), ct); err != nil {
 		return nil, err
 	}
 	p.CmnHdr = buf.Next(int(p.Meta.CmnHdrLen) * common.LineLen)
@@ -55,8 +54,8 @@ func PldFromRaw(b common.RawBytes, ct ClassType) (*Payload, error) {
 type QuoteFunc func(RawBlock) common.RawBytes
 
 func PldFromQuotes(ct ClassType, info Info, l4 common.L4ProtocolType, f QuoteFunc) *Payload {
-	p := &Payload{ct: ct, Info: info}
-	for _, blk := range classTypeQuotes(p.ct) {
+	p := &Payload{Info: info}
+	for _, blk := range classTypeQuotes(ct) {
 		q := f(blk)
 		switch blk {
 		case RawCmnHdr:
@@ -86,7 +85,7 @@ func PldFromQuotes(ct ClassType, info Info, l4 common.L4ProtocolType, f QuoteFun
 }
 
 func (p *Payload) Copy() (common.Payload, error) {
-	c := &Payload{ct: p.ct}
+	c := &Payload{}
 	c.Meta = p.Meta.Copy()
 	c.Info = p.Info
 	c.CmnHdr = append(common.RawBytes(nil), p.CmnHdr...)
