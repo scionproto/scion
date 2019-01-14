@@ -33,31 +33,26 @@ func TestSequenceLoadFromString(t *testing.T) {
 			Name:     "Empty sequence",
 			String:   "",
 			Sequence: newSequence(t, []string{""}),
-			Error:    false,
 		},
 		{
 			Name:     "Empty sequence second",
 			String:   "",
 			Sequence: newSequence(t, []string{}),
-			Error:    false,
 		},
 		{
 			Name:     "Single ISD",
 			String:   "0",
 			Sequence: newSequence(t, []string{"0"}),
-			Error:    false,
 		},
 		{
 			Name:     "Full Predicate",
 			String:   "1-2#3,2",
 			Sequence: newSequence(t, []string{"1-2#3,2"}),
-			Error:    false,
 		},
 		{
 			Name:     "Two predicates",
 			String:   "1-2 1-4#0",
 			Sequence: newSequence(t, []string{"1-2", "1-4#0"}),
-			Error:    false,
 		},
 		{
 			Name:     "Bad predicates",

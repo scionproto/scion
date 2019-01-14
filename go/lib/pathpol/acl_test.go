@@ -34,26 +34,22 @@ func TestACLEntryLoadFromString(t *testing.T) {
 			Name:     "Allow all",
 			String:   "+ 0",
 			ACLEntry: ACLEntry{Action: Allow, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
-			Error:    false,
 		},
 		{
 			Name:   "Allow 1-2#3",
 			String: "+ 1-2#3",
 			ACLEntry: ACLEntry{Action: Allow, Rule: &HopPredicate{ISD: 1, AS: 2,
 				IfIDs: []common.IFIDType{3}}},
-			Error: false,
 		},
 		{
 			Name:     "Allow all short",
 			String:   "+",
 			ACLEntry: ACLEntry{Action: Allow},
-			Error:    false,
 		},
 		{
 			Name:     "Allow none",
 			String:   "- 0",
 			ACLEntry: ACLEntry{Action: Deny, Rule: &HopPredicate{IfIDs: []common.IFIDType{0}}},
-			Error:    false,
 		},
 		{
 			Name:     "Bad action symbol",
