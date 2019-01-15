@@ -15,6 +15,7 @@
 package network
 
 import (
+	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/scmp"
 	"github.com/scionproto/scion/go/lib/spkt"
 )
@@ -80,4 +81,20 @@ func invertSCMPGeneralType(header *scmp.Hdr) {
 	case scmp.T_G_TraceRouteRequest:
 		header.Type = scmp.T_G_TraceRouteReply
 	}
+}
+
+// removeSCMPHBH removes the first HBH extension if is an SCMP extension, and
+// returns the updated slice.
+//
+// If the first extension is not SCMP, or if the SCMP HBH is in another place
+// (incorrect as defined by SCION, as SCMP HBH needs to be first), the list of
+// extensions is unchanged.
+func removeSCMPHBH(extns []common.Extension) []common.Extension {
+	if len(extns) == 0 {
+		return extns
+	}
+	if extns[0].Class() == common.HopByHopClass && extns[0].Type() == common.ExtnSCMPType {
+		return extns[1:]
+	}
+	return extns
 }

@@ -191,8 +191,7 @@ func (h *AppConnHandler) RunAppToNetDataplane(ref registration.UDPReference) {
 		}
 
 		if err := registerIfSCMPRequest(ref, &pkt.Info); err != nil {
-			log.Warn("SCMP Request ID error, packet not sent", "err", err)
-			continue
+			log.Warn("SCMP Request ID error, packet still sent", "err", err)
 		}
 
 		if err := pkt.SendOnConn(h.OverlayConn, pkt.OverlayRemote); err != nil {
