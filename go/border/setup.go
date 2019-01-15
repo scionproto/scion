@@ -53,15 +53,6 @@ type extSockOps interface {
 var registeredLocSockOps = map[brconf.SockType]locSockOps{}
 var registeredExtSockOps = map[brconf.SockType]extSockOps{}
 
-type setupNetHook func(r *Router, ctx *rctx.Ctx,
-	oldCtx *rctx.Ctx) (rpkt.HookResult, error)
-
-// Setup hooks enables the network stack to be modular. Any network stack that
-// wants to be included defines its own init function which adds hooks to these
-// hook slices. See setup-hsr.go for an example.
-var setupNetStartHooks []setupNetHook
-var setupNetFinishHooks []setupNetHook
-
 // setup creates the router's channels and map, sets up the rpkt package, and
 // sets up a new router context. This function can only be called once during startup.
 func (r *Router) setup() error {
@@ -84,8 +75,7 @@ func (r *Router) setup() error {
 	if err = r.setupNewContext(conf); err != nil {
 		return err
 	}
-	// Clear capabilities after setting up the network. Capabilities are currently
-	// only needed by the HSR for which the router never reconfigures the network.
+	// Clear capabilities after setting up the network.
 	if err = r.clearCapabilities(); err != nil {
 		return err
 	}
@@ -165,18 +155,6 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 	if err := validateCtx(ctx, oldCtx, sockConf); err != nil {
 		return err
 	}
-	// Run startup hooks, if any.
-	for _, f := range setupNetStartHooks {
-		ret, err := f(r, ctx, oldCtx)
-		switch {
-		case err != nil:
-			return err
-		case ret == rpkt.HookContinue:
-			continue
-		case ret == rpkt.HookFinish:
-			break
-		}
-	}
 	// Setup local interface.
 	labels := prometheus.Labels{"sock": "loc"}
 	if err := registeredLocSockOps[sockConf.Loc()].Setup(r, ctx, labels, oldCtx); err != nil {
@@ -188,18 +166,6 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Setup(r, ctx, intf, labels, oldCtx)
 		if err != nil {
 			return err
-		}
-	}
-	// Run finish hooks, if any.
-	for _, f := range setupNetFinishHooks {
-		ret, err := f(r, ctx, oldCtx)
-		switch {
-		case err != nil:
-			return err
-		case ret == rpkt.HookContinue:
-			continue
-		case ret == rpkt.HookFinish:
-			break
 		}
 	}
 	// Stop input functions that are no longer needed.
