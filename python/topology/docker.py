@@ -293,6 +293,8 @@ class DockerGenerator(object):
     def _sciond_conf(self, topo_id, base):
         name = sciond_svc_name(topo_id)
         image = 'sciond_py' if self.args.sciond == 'py' else 'sciond'
+        net = self.elem_networks["sd" + topo_id.file_fmt()][0]
+        ip = str(net['ipv4'])
         entry = {
             'image': docker_image(self.args, image),
             'container_name': '%ssd%s' % (self.prefix, topo_id.file_fmt()),
@@ -306,6 +308,9 @@ class DockerGenerator(object):
                 *self._std_vol(topo_id),
                 '%s:/share/conf:ro' % os.path.join(base, 'endhost'),
             ],
+            'networks': {
+                self.bridges[net['net']]: {'ipv4_address': ip}
+            }
         }
         if self.args.sciond == 'py':
             entry['command'] = [
