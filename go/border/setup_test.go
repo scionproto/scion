@@ -117,9 +117,16 @@ func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
 		// Reduce output displayed in goconvey.
 		log.Root().SetHandler(log.DiscardHandler())
 	})
+	// The number of free packets has to be at least the number of posix
+	// input routines times inputBufCnt. Otherwise they might get stuck
+	// trying to prepare for reading from the connection.
+	// See: https://github.com/scionproto/scion/issues/1981
+	maxNumPosixInput := 4
 	// Initialize router with the topology.
 	r := &Router{
-		freePkts: ringbuf.New(1, func() interface{} {
+		// The number of free packets has to be at least the number of
+		// posixInput routines times
+		freePkts: ringbuf.New(maxNumPosixInput*inputBufCnt, func() interface{} {
 			return rpkt.NewRtrPkt()
 		}, "free", prometheus.Labels{"ringId": "freePkts"}),
 	}
