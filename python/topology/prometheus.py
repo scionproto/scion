@@ -136,19 +136,18 @@ class PrometheusGenerator(object):
     def _write_dc_file(self):
         name_prefix = 'prometheus'
         name = '%s_docker' % name_prefix if self.args.in_docker else name_prefix
-        entry = {
-            'image': 'prom/prometheus:v2.6.0',
-            'container_name': name,
-            'network_mode': 'host',
-            'volumes': [
-                self.output_base + '/gen:/prom-config:ro'
-            ],
-            'command': ['--config.file', '/prom-config/prometheus.yml'],
-        }
         prom_dc = {
             'version': '3',
             'services': {
-                name_prefix: entry,
+                name_prefix: {
+                    'image': 'prom/prometheus:v2.6.0',
+                    'container_name': name,
+                    'network_mode': 'host',
+                    'volumes': [
+                        self.output_base + '/gen:/prom-config:ro'
+                    ],
+                    'command': ['--config.file', '/prom-config/prometheus.yml'],
+                }
             }
         }
         write_file(os.path.join(self.args.output_dir, PROM_DC_FILE),
