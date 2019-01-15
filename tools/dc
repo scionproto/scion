@@ -72,6 +72,12 @@ cmd_zk() {
     COMPOSE_FILE="gen/zk-dc.yml" docker-compose -p "$project" --no-ansi "$@"
 }
 
+cmd_prom() {
+    local project="prom"
+    is_running_in_docker && project="prom_docker"
+    COMPOSE_FILE="gen/prom-dc.yml" docker-compose -p "$project" --no-ansi "$@"
+}
+
 exec_tester() {
     local service="tester_$1"
     shift
@@ -115,7 +121,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-    start|stop|down|run|dc|zk)
+    start|stop|down|run|dc|zk|prom)
         "cmd_$COMMAND" "$@" ;;
     exec_tester)
         "exec_tester" "$@" ;;
