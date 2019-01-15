@@ -52,10 +52,12 @@ var packetPool = sync.Pool{
 }
 
 func GetPacket() *Packet {
-	return packetPool.Get().(*Packet)
+	pkt := packetPool.Get().(*Packet)
+	*pkt.refCount = 1
+	return pkt
 }
 
-func PutPacket(pkt *Packet) {
+func putPacket(pkt *Packet) {
 	pkt.reset()
 	packetPool.Put(pkt)
 }
@@ -108,19 +110,18 @@ func (pkt *Packet) Free() {
 	}
 	*pkt.refCount--
 	if *pkt.refCount == 0 {
-		PutBuffer(pkt.buffer)
-		// Prevent use after free bugs
-		pkt.OverlayRemote = nil
-		pkt.buffer = nil
-		pkt.Info = spkt.ScnPkt{}
+		pkt.reset()
+		pkt.mtx.Unlock()
+		packetPool.Put(pkt)
+	} else {
+		pkt.mtx.Unlock()
 	}
-	pkt.mtx.Unlock()
 }
 
 func (pkt *Packet) DecodeFromConn(conn net.PacketConn) error {
 	n, readExtra, err := conn.ReadFrom(pkt.buffer)
 	if err != nil {
-		return common.NewBasicError("read error", err)
+		return err
 	}
 	pkt.buffer = pkt.buffer[:n]
 
@@ -151,5 +152,4 @@ func (pkt *Packet) reset() {
 	pkt.buffer = pkt.buffer[:cap(pkt.buffer)]
 	pkt.Info = spkt.ScnPkt{}
 	pkt.OverlayRemote = nil
-	*pkt.refCount = 0
 }

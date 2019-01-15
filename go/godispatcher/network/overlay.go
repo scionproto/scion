@@ -211,6 +211,7 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *bufpool.Packet
 	}
 
 	b := bufpool.GetBuffer()
+	pkt.Info.HBHExt = removeSCMPHBH(pkt.Info.HBHExt)
 	n, err := hpkt.WriteScnPkt(&pkt.Info, b)
 	if err != nil {
 		log.Warn("Unable to create reply SCMP packet", "err", err)
@@ -222,5 +223,6 @@ func (h SCMPHandlerDestination) Send(dp *NetToRingDataplane, pkt *bufpool.Packet
 		log.Warn("Unable to write to overlay socket.", "err", err)
 		return
 	}
+	bufpool.PutBuffer(b)
 	pkt.Free()
 }
