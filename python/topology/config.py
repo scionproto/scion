@@ -197,7 +197,7 @@ class ConfigGenerator(object):
             go_gen.generate_disp()
 
     def _go_args(self, topo_dicts):
-        return GoGenArgs(self.args, topo_dicts, self.port_gen)
+        return GoGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
 
     def _generate_topology(self):
         topo_gen = TopoGenerator(self._topo_args())
@@ -233,7 +233,7 @@ class ConfigGenerator(object):
         prom_gen.generate()
 
     def _prometheus_args(self, topo_dicts):
-        return PrometheusGenArgs(self.args, topo_dicts, self.port_gen)
+        return PrometheusGenArgs(self.args, topo_dicts, self.networks, self.port_gen)
 
     def _write_ca_files(self, topo_dicts, ca_files):
         isds = set()

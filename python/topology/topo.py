@@ -122,6 +122,7 @@ class TopoGenerator(object):
         self._iterate(self._generate_as_list)
         if self.args.sig:
             self._register_sigs()
+        self._register_scionds()
         networks = self.args.subnet_gen.alloc_subnets()
         prv_networks = self.args.privnet_gen.alloc_subnets()
         self._write_as_topos()
@@ -135,6 +136,11 @@ class TopoGenerator(object):
             topo_id = TopoID(isd_as)
             self._reg_addr(topo_id, "sig" + topo_id.file_fmt())
             self._reg_addr(topo_id, "tester_" + topo_id.file_fmt())
+
+    def _register_scionds(self):
+        for isd_as, _ in self.args.topo_config_dict["ASes"].items():
+            topo_id = TopoID(isd_as)
+            self._reg_addr(topo_id, "sd_" + topo_id.file_fmt())
 
     def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
         br_name = ep.br_name()
