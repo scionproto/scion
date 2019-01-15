@@ -32,6 +32,7 @@ from topology.common import (
     DISP_CONFIG_NAME,
     prom_addr_br,
     prom_addr_infra,
+    prom_addr_sciond,
     PS_CONFIG_NAME,
     sciond_name,
     SD_CONFIG_NAME,
@@ -41,11 +42,14 @@ from topology.prometheus import (
     CS_PROM_PORT,
     DEFAULT_BR_PROM_PORT,
     PS_PROM_PORT,
+    SCIOND_PROM_PORT,
 )
 
 
 class GoGenArgs(ArgsTopoDicts):
-    pass
+    def __init__(self, args, topo_dicts, networks, port_gen=None):
+        super().__init__(args, topo_dicts, port_gen)
+        self.networks = networks
 
 
 class GoGenerator(object):
@@ -140,6 +144,10 @@ class GoGenerator(object):
                     'Connection': os.path.join(self.db_dir, '%s.path.db' % name),
                 },
             },
+            'metrics': {
+                'Prometheus': prom_addr_sciond(self.args.docker, topo_id,
+                                               self.args.networks, SCIOND_PROM_PORT)
+            }
         }
         return raw_entry
 

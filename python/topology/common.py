@@ -105,6 +105,14 @@ def prom_addr_infra(docker, infra_id, infra_ele, port):
     return "[%s]:%s" % (pub['Public']['Addr'].ip, port)
 
 
+def prom_addr_sciond(docker, topo_id, networks, port):
+    for i, net in enumerate(networks):
+        for prog, ip_net in networks[net].items():
+            if prog == 'sd_%s' % topo_id.file_fmt():
+                return '[%s]:%s' % (ip_net.ip, port)
+    return None
+
+
 def get_pub(topo_addr):
     pub = topo_addr.get('IPv6')
     if pub is not None:
