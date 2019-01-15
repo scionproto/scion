@@ -51,14 +51,16 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	// A verify-only Hop Field cannot be used for routing.
 	if rp.hopF.VerifyOnly {
 		return common.NewBasicError("Hop field is VERIFY_ONLY",
-			scmp.NewError(scmp.C_Path, scmp.T_P_NonRoutingHopF, rp.mkInfoPathOffsets(), nil))
+			scmp.NewError(scmp.C_Path, scmp.T_P_NonRoutingHopF,
+				rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil))
 	}
 	// Check if Hop Field has expired.
 	hopfExpiry := rp.infoF.Timestamp().Add(rp.hopF.ExpTime.ToDuration())
 	if time.Now().After(hopfExpiry) {
 		return common.NewBasicError(
 			"Hop field expired",
-			scmp.NewError(scmp.C_Path, scmp.T_P_ExpiredHopF, rp.mkInfoPathOffsets(), nil),
+			scmp.NewError(scmp.C_Path, scmp.T_P_ExpiredHopF,
+				rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil),
 			"expiry", hopfExpiry,
 		)
 	}
@@ -67,7 +69,8 @@ func (rp *RtrPkt) validatePath(dirFrom rcmn.Dir) error {
 	err := rp.hopF.Verify(hfmac, rp.infoF.TsInt, rp.getHopFVer(dirFrom))
 	rp.Ctx.Conf.HFMacPool.Put(hfmac)
 	if err != nil && common.GetErrorMsg(err) == spath.ErrorHopFBadMac {
-		err = scmp.NewError(scmp.C_Path, scmp.T_P_BadMac, rp.mkInfoPathOffsets(), err)
+		err = scmp.NewError(scmp.C_Path, scmp.T_P_BadMac,
+			rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), err)
 	}
 	return err
 }
@@ -83,7 +86,8 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 		// No such interface.
 		return common.NewBasicError(
 			"Unknown IF",
-			scmp.NewError(scmp.C_Path, scmp.T_P_BadIF, rp.mkInfoPathOffsets(), nil),
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadIF,
+				rp.mkInfoPathOffsets(rp.CmnHdr.CurrInfoF, rp.CmnHdr.CurrHopF), nil),
 			"ifid", *ifid,
 		)
 	}
@@ -133,14 +137,13 @@ func (rp *RtrPkt) validateLocalIF(ifid *common.IFIDType) error {
 
 // mkInfoPathOffsets is a helper function to create an scmp.InfoPathOffsets
 // instance from the current packet.
-func (rp *RtrPkt) mkInfoPathOffsets() scmp.Info {
+func (rp *RtrPkt) mkInfoPathOffsets(infoF, hopF uint8) scmp.Info {
 	var ifid common.IFIDType
 	if curr, err := rp.IFCurr(); curr != nil && err == nil {
 		ifid = *curr
 	}
 	return &scmp.InfoPathOffsets{
-		InfoF: rp.CmnHdr.CurrInfoF, HopF: rp.CmnHdr.CurrHopF,
-		IfID: ifid, Ingress: rp.DirFrom == rcmn.DirExternal,
+		InfoF: infoF, HopF: hopF, IfID: ifid, Ingress: rp.DirFrom == rcmn.DirExternal,
 	}
 }
 
@@ -349,18 +352,22 @@ func (rp *RtrPkt) IncPath() (bool, error) {
 			"max", hdrLen, "actual", hOff)
 	}
 	segChgd := iOff != rp.CmnHdr.InfoFOffBytes()
+	currInfoF := uint8(iOff / common.LineLen)
+	currHopF := uint8(hOff / common.LineLen)
 	// Check that there's no VERIFY_ONLY fields in the middle of a segment.
 	if vOnly > 0 && !segChgd {
 		return segChgd, common.NewBasicError("VERIFY_ONLY in middle of segment",
-			scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField, rp.mkInfoPathOffsets(), nil))
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadHopField,
+				rp.mkInfoPathOffsets(currInfoF, currHopF), nil))
 	}
 	// Check that the segment didn't change from a down-segment to an up-segment.
 	if origConsDir && !infoF.ConsDir {
 		return segChgd, common.NewBasicError("Switched from down-segment to up-segment",
-			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment, rp.mkInfoPathOffsets(), nil))
+			scmp.NewError(scmp.C_Path, scmp.T_P_BadSegment,
+				rp.mkInfoPathOffsets(currInfoF, currHopF), nil))
 	}
 	// Update common header, and packet's InfoF/HopF fields.
-	rp.CmnHdr.UpdatePathOffsets(rp.Raw, uint8(iOff/common.LineLen), uint8(hOff/common.LineLen))
+	rp.CmnHdr.UpdatePathOffsets(rp.Raw, currInfoF, currHopF)
 	rp.infoF = infoF
 	rp.hopF = hopF
 	rp.IncrementedPath = true
