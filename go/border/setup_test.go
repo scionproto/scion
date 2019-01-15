@@ -124,8 +124,6 @@ func setupTestRouter(t *testing.T) (*Router, *rctx.Ctx) {
 	maxNumPosixInput := 4
 	// Initialize router with the topology.
 	r := &Router{
-		// The number of free packets has to be at least the number of
-		// posixInput routines times
 		freePkts: ringbuf.New(maxNumPosixInput*inputBufCnt, func() interface{} {
 			return rpkt.NewRtrPkt()
 		}, "free", prometheus.Labels{"ringId": "freePkts"}),
