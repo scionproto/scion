@@ -1,4 +1,4 @@
-.PHONY: all clean test coverage lint deps_gen deps depspurge proto mocks mocks_clean bin libs hsr
+.PHONY: all clean test coverage lint deps_gen deps depspurge proto mocks mocks_clean bin libs
 
 ## Functions to simplify rules.
 # Get parent directory of $(1), stripping trailing /
@@ -132,8 +132,3 @@ bin: deps_gen
 
 libs: deps_gen
 	govendor install --tags "$(GOTAGS)" -v +local,^program
-
-hsr: libs
-	GOBIN=${LOCAL_GOBIN} go install -v -tags "$(GOTAGS) hsr" ./border/...
-	@sudo -p "go:hsr [sudo] password for %p: " true
-	sudo setcap cap_dac_read_search,cap_dac_override,cap_sys_admin,cap_net_raw+ep ../bin/border
