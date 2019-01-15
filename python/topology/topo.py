@@ -140,7 +140,7 @@ class TopoGenerator(object):
     def _register_scionds(self):
         for isd_as, _ in self.args.topo_config_dict["ASes"].items():
             topo_id = TopoID(isd_as)
-            self._reg_addr(topo_id, "sd_" + topo_id.file_fmt())
+            self._reg_addr(topo_id, "sd" + topo_id.file_fmt())
 
     def _br_name(self, ep, assigned_br_id, br_ids, if_ids):
         br_name = ep.br_name()

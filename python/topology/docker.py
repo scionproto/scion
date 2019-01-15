@@ -306,7 +306,11 @@ class DockerGenerator(object):
                 *self._std_vol(topo_id),
                 '%s:/share/conf:ro' % os.path.join(base, 'endhost'),
             ],
+            'networks': {}
         }
+        net = self.elem_networks["sd" + topo_id.file_fmt()][0]
+        ip = str(net['ipv4'])
+        entry['networks'][self.bridges[net['net']]] = {'ipv4_address': ip}
         if self.args.sciond == 'py':
             entry['command'] = [
                 '--api-addr=%s' % os.path.join(SCIOND_API_SOCKDIR, "%s.sock" % name),
