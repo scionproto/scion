@@ -40,6 +40,8 @@ SCIOND_PROM_PORT = 30455
 SIG_PROM_PORT = 30456
 DEFAULT_BR_PROM_PORT = 30442
 
+PROM_DC_FILE = "prom-dc.yml"
+
 
 class PrometheusGenArgs(ArgsTopoDicts):
     def __init__(self, args, topo_dicts, networks, port_gen=None):
@@ -69,6 +71,7 @@ class PrometheusGenerator(object):
         :param PrometheusGenArgs args: Contains the passed command line arguments and topo dicts.
         """
         self.args = args
+        self.output_base = os.environ.get('SCION_OUTPUT_BASE', os.getcwd())
 
     def generate(self):
         config_dict = {}
@@ -90,6 +93,7 @@ class PrometheusGenerator(object):
             ele_dict["Sciond"].append(sd_prom_addr)
             config_dict[topo_id] = ele_dict
         self._write_config_files(config_dict)
+        self._write_dc_file()
 
     def _write_config_files(self, config_dict):
         targets_paths = defaultdict(list)
@@ -97,9 +101,10 @@ class PrometheusGenerator(object):
             base = topo_id.base_dir(self.args.output_dir)
             as_local_targets_path = {}
             for ele_type, target_list in ele_dict.items():
-                targets_path = os.path.join(base, self.PROM_DIR, self.TARGET_FILES[ele_type])
+                local_path = os.path.join(self.PROM_DIR, self.TARGET_FILES[ele_type])
+                targets_path = os.path.join(topo_id.base_dir(''), local_path)
                 targets_paths[self.JOB_NAMES[ele_type]].append(targets_path)
-                as_local_targets_path[self.JOB_NAMES[ele_type]] = [targets_path]
+                as_local_targets_path[self.JOB_NAMES[ele_type]] = [local_path]
                 self._write_target_file(base, target_list, ele_type)
             self._write_config_file(os.path.join(base, PROM_FILE), as_local_targets_path)
         self._write_config_file(os.path.join(self.args.output_dir, PROM_FILE), targets_paths)
@@ -127,3 +132,23 @@ class PrometheusGenerator(object):
         targets_path = os.path.join(base_path, self.PROM_DIR, self.TARGET_FILES[ele_type])
         target_config = [{'targets': target_addrs}]
         write_file(targets_path, yaml.dump(target_config, default_flow_style=False))
+
+    def _write_dc_file(self):
+        name_prefix = 'prometheus'
+        name = '%s_docker' % name_prefix if self.args.in_docker else name_prefix
+        prom_dc = {
+            'version': '3',
+            'services': {
+                name_prefix: {
+                    'image': 'prom/prometheus:v2.6.0',
+                    'container_name': name,
+                    'network_mode': 'host',
+                    'volumes': [
+                        self.output_base + '/gen:/prom-config:ro'
+                    ],
+                    'command': ['--config.file', '/prom-config/prometheus.yml'],
+                }
+            }
+        }
+        write_file(os.path.join(self.args.output_dir, PROM_DC_FILE),
+                   yaml.dump(prom_dc, default_flow_style=False))
