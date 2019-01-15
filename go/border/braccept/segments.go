@@ -30,8 +30,8 @@ import (
 // The info fields syntax matches the following regex:
 //   ^\([C_][S_][P_]\) with C (ConsDir), S (Shortcut), P (Peer)
 // The hop fields syntax matches the following regex:
-//   \[X|V|XV\.(0|[0-9]{3})\.(0|[0-9]{3})\] with X (Xover), V (VerifyOnly), and the interfaces
-// are either 0 or a 3 digit int.
+//   \[([X_][V_]\)?.(0|[0-9]{3})\.(0|[0-9]{3})\] with X (Xover), V (VerifyOnly),
+// and the interfaces are either 0 or a 3 digit int.
 // Examples:
 //   (_S_)[211.0][X.151.121][V.511.0]
 //   (C__)[X.0.141][411.0]
@@ -78,7 +78,7 @@ func decodeInfoF(str string) (*spath.InfoField, error) {
 
 func decodeHopF(str string) (*spath.HopField, error) {
 	// Validate InfoField flags syntax
-	match, _ := regexp.MatchString(`^\[((X|V|XV)\.)?(0|[1-9]{3,3})\.(0|[1-9]{3,3})\]$`, str)
+	match, _ := regexp.MatchString(`^\[([X_][V_]\.)?(0|[0-9]{3})\.(0|[0-9]{3})\]$`, str)
 	if !match {
 		return nil, fmt.Errorf("Bad Hop Field syntax: %s", str)
 	}
