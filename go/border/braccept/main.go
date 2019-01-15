@@ -35,6 +35,7 @@ import (
 	"github.com/scionproto/scion/go/border/braccept/tpkt"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/keyconf"
+	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/scrypto"
 )
 
@@ -76,17 +77,25 @@ func main() {
 }
 
 func realMain() int {
+	log.ConsoleLevel = "info"
+	log.AddLogConsFlags()
 	if err := checkFlags(); err != nil {
 		flag.Usage()
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
-	if err := parseDevInfo(devInfoFilePath); err != nil {
+	if err := log.SetupFromFlags(""); err != nil {
+		flag.Usage()
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
+	defer log.LogPanicAndExit()
+	if err := parseDevInfo(devInfoFilePath); err != nil {
+		log.Crit("", "err", err)
+		return 1
+	}
 	if err := generateKeys(keysDirPath); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		log.Crit("", "err", err)
 		return 1
 	}
 	timerIdx := len(devList)
@@ -95,7 +104,7 @@ func realMain() int {
 		var err error
 		ifi.handle, err = pcap.OpenLive(ifi.hostDev, snapshot_len, promiscuous, pcap.BlockForever)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
+			log.Crit("", "err", err)
 			return 1
 		}
 		packetSource := gopacket.NewPacketSource(ifi.handle, ifi.handle.LinkType())
@@ -106,7 +115,7 @@ func realMain() int {
 	// Now that everything is set up, drop CAP_NET_ADMIN
 	caps, err := capability.NewPid(0)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error retrieving capabilities: %s\n", err)
+		log.Crit("Error retrieving capabilities", "err", err)
 		return 1
 	}
 	caps.Clear(capability.CAPS)
@@ -131,10 +140,10 @@ func realMain() int {
 	case "brD":
 		brTests = genTestsBrD(hashMac)
 	default:
-		fmt.Fprintf(os.Stderr, "Wrong Border Router ID %s\n", borderID)
+		log.Crit("Wrong Border Router ID", "brID", borderID)
 		return 1
 	}
-	fmt.Printf("Acceptance tests for %s:\n", borderID)
+	log.Info("Acceptance tests:", "brID", borderID)
 	var failures int
 	baseIdx := 1
 	if testIdx != -1 {
@@ -144,10 +153,10 @@ func realMain() int {
 	for i := range brTests {
 		t := brTests[i]
 		if err := doTest(t, cases); err != nil {
-			fmt.Printf("%d. %s\n%s\n\n", baseIdx+i, t.Summary(false), err)
+			log.Error(fmt.Sprintf("%d. %s\n%s\n\n", baseIdx+i, t.Summary(false), err))
 			failures += 1
 		} else {
-			fmt.Printf("%d. %s\n", baseIdx+i, t.Summary(true))
+			log.Info(fmt.Sprintf("%d. %s\n", baseIdx+i, t.Summary(true)))
 		}
 	}
 	return failures
