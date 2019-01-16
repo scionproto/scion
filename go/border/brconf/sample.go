@@ -59,4 +59,8 @@ const Sample = `[general]
 [br]
   # Enable cpu and memory profiling. (default false)
   Profile = false
+
+  # Action that should be taken when an error occurres during a context rollback.
+  # (Fatal | Continue) (default Fatal) 
+  RollbackFailAction = "Fatal"
 `

@@ -14,7 +14,39 @@
 
 package brconf
 
+import "github.com/scionproto/scion/go/lib/common"
+
 type BR struct {
 	// Profile enables cpu and memory profiling.
 	Profile bool
+	// RollbackFailAction indicates the action that should be taken
+	// if the rollback fails.
+	RollbackFailAction FailAction
+}
+
+func (b *BR) InitDefaults() {
+	if b.RollbackFailAction != FailActionContinue {
+		b.RollbackFailAction = FailActionFatal
+	}
+}
+
+type FailAction string
+
+const (
+	// FailActionFatal indicates that the process exits on error.
+	FailActionFatal FailAction = "Fatal"
+	// FailActionContinue indicates that the process continues on error.
+	FailActionContinue FailAction = "Continue"
+)
+
+func (f *FailAction) UnmarshalText(text []byte) error {
+	switch FailAction(text) {
+	case FailActionFatal:
+		*f = FailActionFatal
+	case FailActionContinue:
+		*f = FailActionContinue
+	default:
+		return common.NewBasicError("Unknown FailAction", nil, "input", string(text))
+	}
+	return nil
 }
