@@ -36,6 +36,8 @@ func init() {
 	registeredExtSockOps[PosixSock] = posixExt{}
 }
 
+var _ locSockOps = posixLoc{}
+
 type posixLoc struct{}
 
 // Setup configures a local POSIX(/BSD) socket.
@@ -98,6 +100,8 @@ func (p posixLoc) addSock(r *Router, ctx *rctx.Ctx, labels prometheus.Labels) er
 	log.Debug("Done setting up new local socket.", "conn", over.LocalAddr())
 	return nil
 }
+
+var _ extSockOps = posixExt{}
 
 type posixExt posixLoc
 
