@@ -128,29 +128,6 @@ func (r *Router) setupNewContext(config *brconf.Conf) error {
 	return nil
 }
 
-func handleRollbackErr(err error) {
-	if config.BR.RollbackFailAction != brconf.FailActionContinue {
-		fatal.Fatal(err)
-	}
-	log.Error("Error in rollback", "err", err)
-}
-
-// startSocks starts all sockets for the given context.
-func startSocks(ctx *rctx.Ctx) {
-	// Start local input functions.
-	ctx.LocSockIn.Start()
-	// Start local output functions.
-	ctx.LocSockOut.Start()
-	// Start external input functions.
-	for _, s := range ctx.ExtSockIn {
-		s.Start()
-	}
-	// Start external output functions.
-	for _, s := range ctx.ExtSockOut {
-		s.Start()
-	}
-}
-
 // setupNet configures networking for the router, using any setup hooks that
 // have been registered. If an old context is provided, setupNet reconfigures
 // networking, e.g., starting/stopping new/old input routines if necessary.
@@ -207,6 +184,29 @@ func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
 	}
 }
 
+// startSocks starts all sockets for the given context.
+func startSocks(ctx *rctx.Ctx) {
+	// Start local input functions.
+	ctx.LocSockIn.Start()
+	// Start local output functions.
+	ctx.LocSockOut.Start()
+	// Start external input functions.
+	for _, s := range ctx.ExtSockIn {
+		s.Start()
+	}
+	// Start external output functions.
+	for _, s := range ctx.ExtSockOut {
+		s.Start()
+	}
+}
+
+func handleRollbackErr(err error) {
+	if config.BR.RollbackFailAction != brconf.FailActionContinue {
+		fatal.Fatal(err)
+	}
+	log.Crit("Error in rollback", "err", err)
+}
+
 func locLabels() prometheus.Labels {
 	return prometheus.Labels{"sock": "loc"}
 }
@@ -216,8 +216,7 @@ func extLabels(id common.IFIDType) prometheus.Labels {
 }
 
 // validateCtx ensures that the socket type of existing sockets does not change
-// and that an address is not take over by one interfaces from another. In the
-// current setup, this requires a two step process.
+// and that an address is not take over by one interfaces from another.
 func validateCtx(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) error {
 	if oldCtx == nil {
 		return nil

@@ -143,6 +143,7 @@ func (p posixExt) Rollback(r *Router, ctx *rctx.Ctx, intf *netconf.Interface,
 		ctx.ExtSockOut[intf.Id].Stop()
 	}
 	// No need to start socket if it is not present in old context or still running.
+	// The socket is still running if setupNet failed before iterating over this socket.
 	if oldIntf == nil || oldCtx.ExtSockIn[oldIntf.Id].Running() {
 		return nil
 	}
