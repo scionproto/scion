@@ -70,6 +70,10 @@ func ISDFromFileFmt(s string, prefix bool) (ISD, error) {
 	return ISDFromString(s)
 }
 
+func (isd ISD) String() string {
+	return strconv.Itoa(int(isd))
+}
+
 // AS is the Autonomous System idenifier. See formatting and allocations here:
 // https://github.com/scionproto/scion/wiki/ISD-and-AS-numbering#as-numbers
 type AS uint64

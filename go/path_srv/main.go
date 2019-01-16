@@ -234,7 +234,6 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	metrics.Init(cfg.General.ID)
 	return env.LogAppStarted(common.PS, cfg.General.ID)
 }
 
@@ -242,6 +241,7 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return err
 	}
+	metrics.Init(cfg.General.ID, cfg.General.Topology.ISD_AS)
 	itopo.SetCurrentTopology(cfg.General.Topology)
 	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
 	cfg.InitDefaults()

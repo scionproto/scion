@@ -202,31 +202,41 @@ func (store *Store) GetTRC(ctx context.Context,
 func (store *Store) getTRC(ctx context.Context, isd addr.ISD, version uint64,
 	recurse bool, client, server net.Addr) (*trc.TRC, error) {
 
+	trcObj, local, err := store.getTRCInt(ctx, isd, version, recurse, client, server)
+	metrics.incTRCGet(isd, client, local, err)
+	return trcObj, err
+}
+
+// getTRCInt is the actual implementation of getTRC. getTRC wraps this function and exports metrics.
+func (store *Store) getTRCInt(ctx context.Context, isd addr.ISD, version uint64,
+	recurse bool, client, server net.Addr) (*trc.TRC, bool, error) {
+
 	trcObj, err := store.trustdb.GetTRCVersion(ctx, isd, version)
 	if err != nil || trcObj != nil {
-		return trcObj, err
+		return trcObj, true, err
 	}
 	if recurse == false {
-		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "isd", isd, "version", version,
-			"client", client)
+		return nil, false, common.NewBasicError(ErrNotFoundLocally, nil,
+			"isd", isd, "version", version, "client", client)
 	}
 	if err := store.isLocal(client); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if server == nil {
 		server, err = store.ChooseServer(ctx, addr.IA{I: isd})
 		if err != nil {
-			return nil, common.NewBasicError("Error determining server to query", err,
+			return nil, false, common.NewBasicError("Error determining server to query", err,
 				"isd", isd, "version", version)
 		}
 	}
-	return store.getTRCFromNetwork(ctx, &trcRequest{
+	trc, err := store.getTRCFromNetwork(ctx, &trcRequest{
 		isd:      isd,
 		version:  version,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.insertTRCHook(),
 	})
+	return trc, false, err
 }
 
 func (store *Store) getTRCFromNetwork(ctx context.Context, req *trcRequest) (*trc.TRC, error) {
@@ -299,31 +309,42 @@ func (store *Store) GetValidChain(ctx context.Context, ia addr.IA,
 func (store *Store) getValidChain(ctx context.Context, ia addr.IA, recurse bool,
 	client, server net.Addr) (*cert.Chain, error) {
 
+	chain, local, err := store.getValidChainInt(ctx, ia, recurse, client, server)
+	metrics.incChainGet(true, client, local, err)
+	return chain, err
+}
+
+// getValidChainInt implements the logic of getValidChain,
+// getValidChain wraps this method and exports metrics.
+func (store *Store) getValidChainInt(ctx context.Context, ia addr.IA, recurse bool,
+	client, server net.Addr) (*cert.Chain, bool, error) {
+
 	chain, err := store.trustdb.GetChainMaxVersion(ctx, ia)
 	if err != nil || chain != nil {
-		return chain, err
+		return chain, true, err
 	}
 	if store.config.MustHaveLocalChain && store.ia.Eq(ia) {
-		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
+		return nil, true, common.NewBasicError(ErrMissingAuthoritative, nil,
 			"requested_ia", ia)
 	}
 	// Chain not found, so we'll need to fetch one. First, fetch the TRC we'll
 	// need during certificate chain validation.
 	trcObj, err := store.getTRC(ctx, ia.I, scrypto.LatestVer, recurse, client, server)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if recurse == false {
-		return nil, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
+		return nil, false, common.NewBasicError(ErrNotFoundLocally, nil, "ia", ia)
 	}
-	return store.getChainFromNetwork(ctx, &chainRequest{
+	chain, err = store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
 		version:  scrypto.LatestVer,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: store.newChainValidator(trcObj),
 	})
+	return chain, false, err
 }
 
 // GetChain asks the trust store to return a certificate chain of
@@ -344,34 +365,44 @@ func (store *Store) GetChain(ctx context.Context, ia addr.IA,
 func (store *Store) getChain(ctx context.Context, ia addr.IA, version uint64,
 	recurse bool, client net.Addr) (*cert.Chain, error) {
 
+	chain, local, err := store.getChainInt(ctx, ia, version, recurse, client)
+	metrics.incChainGet(false, client, local, err)
+	return chain, err
+}
+
+// getChainInt implements the logic of getChain. getChain wraps this method and exports metrics.
+func (store *Store) getChainInt(ctx context.Context, ia addr.IA, version uint64,
+	recurse bool, client net.Addr) (*cert.Chain, bool, error) {
+
 	chain, err := store.trustdb.GetChainVersion(ctx, ia, version)
 	if err != nil || chain != nil {
-		return chain, err
+		return chain, true, err
 	}
 	// If we're authoritative for the requested IA, error out now.
 	if store.config.MustHaveLocalChain && store.ia.Eq(ia) {
-		return nil, common.NewBasicError(ErrMissingAuthoritative, nil,
+		return nil, true, common.NewBasicError(ErrMissingAuthoritative, nil,
 			"requested ia", ia)
 	}
 	if recurse == false {
-		return nil, common.NewBasicError("Chain not found in DB, and recursion disabled", nil,
-			"ia", ia, "version", version, "client", client)
+		return nil, false, common.NewBasicError("Chain not found in DB, and recursion disabled",
+			nil, "ia", ia, "version", version, "client", client)
 	}
 	if err := store.isLocal(client); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	server, err := store.ChooseServer(ctx, ia)
 	if err != nil {
-		return nil, common.NewBasicError("Error determining server to query", err,
+		return nil, false, common.NewBasicError("Error determining server to query", err,
 			"requested_ia", ia, "requested_version", version)
 	}
-	return store.getChainFromNetwork(ctx, &chainRequest{
+	chain, err = store.getChainFromNetwork(ctx, &chainRequest{
 		ia:       ia,
 		version:  version,
 		id:       messenger.NextId(),
 		server:   server,
 		postHook: nil,
 	})
+	return chain, false, err
 }
 
 func (store *Store) newChainValidator(validator *trc.TRC) ValidateChainFunc {

@@ -53,7 +53,6 @@ func setupBasic() error {
 	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	metrics.Init(cfg.General.ID)
 	return env.LogAppStarted(common.CS, cfg.General.ID)
 }
 
@@ -62,6 +61,7 @@ func setup() error {
 	if err := env.InitGeneral(&cfg.General); err != nil {
 		return common.NewBasicError("Unable to initialize General config", err)
 	}
+	metrics.Init(cfg.General.ID, cfg.General.Topology.ISD_AS)
 	itopo.SetCurrentTopology(cfg.General.Topology)
 	env.InitSciondClient(&cfg.Sciond)
 	if err := cfg.Init(cfg.General.ConfigDir); err != nil {

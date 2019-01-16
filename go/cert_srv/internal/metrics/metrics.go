@@ -15,6 +15,8 @@
 package metrics
 
 import (
+	"github.com/scionproto/scion/go/lib/addr"
+	"github.com/scionproto/scion/go/lib/infra/modules/trust"
 	"github.com/scionproto/scion/go/lib/prom"
 )
 
@@ -23,6 +25,7 @@ const (
 )
 
 // Init initializes the metrics for the CS.
-func Init(elem string) {
+func Init(elem string, localIA addr.IA) {
 	prom.UseDefaultRegWithElem(elem)
+	trust.InitMetrics(elem, namespace, localIA)
 }
