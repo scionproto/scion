@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package psconfig
+package config
 
 const Sample = `[general]
   # The ID of the service. This is used to choose the relevant portion of the
