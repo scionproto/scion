@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package sdconfig contains the configuration of sciond.
-package sdconfig
+// Package config contains the configuration of sciond.
+package config
 
 import (
 	"os"
@@ -21,9 +21,11 @@ import (
 	"time"
 
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/sciond"
 	"github.com/scionproto/scion/go/lib/snet"
+	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -32,6 +34,18 @@ var (
 )
 
 type Config struct {
+	General env.General
+	Logging env.Logging
+	Metrics env.Metrics
+	TrustDB truststorage.TrustDBConf
+	SD      SDConfig
+}
+
+func (c *Config) InitDefaults() {
+	c.SD.initDefaults()
+}
+
+type SDConfig struct {
 	// Address to listen on via the reliable socket protocol. If empty,
 	// a reliable socket server on the default socket is started.
 	Reliable string
@@ -55,7 +69,7 @@ type Config struct {
 	QueryInterval util.DurWrap
 }
 
-func (c *Config) InitDefaults() {
+func (c *SDConfig) initDefaults() {
 	if c.Reliable == "" {
 		c.Reliable = sciond.DefaultSCIONDPath
 	}
@@ -69,7 +83,7 @@ func (c *Config) InitDefaults() {
 	c.RevCache.InitDefaults()
 }
 
-func (c *Config) CreateSocketDirs() error {
+func (c *SDConfig) CreateSocketDirs() error {
 	reliableDir := filepath.Dir(c.Reliable)
 	if _, err := os.Stat(reliableDir); os.IsNotExist(err) {
 		if err = os.MkdirAll(reliableDir, 0755); err != nil {

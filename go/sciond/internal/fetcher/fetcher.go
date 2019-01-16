@@ -42,7 +42,7 @@ import (
 	"github.com/scionproto/scion/go/lib/topology"
 	"github.com/scionproto/scion/go/lib/util"
 	"github.com/scionproto/scion/go/proto"
-	"github.com/scionproto/scion/go/sciond/internal/sdconfig"
+	"github.com/scionproto/scion/go/sciond/internal/config"
 )
 
 const (
@@ -54,12 +54,11 @@ type Fetcher struct {
 	pathDB          pathdb.PathDB
 	trustStore      infra.TrustStore
 	revocationCache revcache.RevCache
-	config          sdconfig.Config
+	config          config.SDConfig
 }
 
-func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB,
-	trustStore infra.TrustStore, revCache revcache.RevCache, cfg sdconfig.Config,
-	logger log.Logger) *Fetcher {
+func NewFetcher(messenger infra.Messenger, pathDB pathdb.PathDB, trustStore infra.TrustStore,
+	revCache revcache.RevCache, cfg config.SDConfig, logger log.Logger) *Fetcher {
 
 	return &Fetcher{
 		messenger:       messenger,
