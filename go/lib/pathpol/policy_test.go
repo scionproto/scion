@@ -16,6 +16,7 @@
 package pathpol
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -441,12 +442,13 @@ func TestOptionsEval(t *testing.T) {
 		"one option, allow everything": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{
-					Policy: &Policy{
-						ACL: &ACL{Entries: []*ACLEntry{
-							{
-								Action: Allow,
-								Rule:   mustHopPredicate(t, "0-0#0")},
-							denyEntry}}},
+					Policy: &ExtPolicy{
+						Policy: &Policy{
+							ACL: &ACL{Entries: []*ACLEntry{
+								{
+									Action: Allow,
+									Rule:   mustHopPredicate(t, "0-0#0")},
+								denyEntry}}}},
 					Weight: 0},
 			}),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
@@ -456,18 +458,20 @@ func TestOptionsEval(t *testing.T) {
 		"two options, deny everything": {
 			Policy: NewPolicy("", nil, nil, []Option{
 				{
-					Policy: &Policy{
-						ACL: &ACL{Entries: []*ACLEntry{{
-							Action: Allow,
-							Rule:   mustHopPredicate(t, "0-0#0")},
-							denyEntry}}},
+					Policy: &ExtPolicy{
+						Policy: &Policy{
+							ACL: &ACL{Entries: []*ACLEntry{{
+								Action: Allow,
+								Rule:   mustHopPredicate(t, "0-0#0")},
+								denyEntry}}}},
 					Weight: 0},
 				{
-					Policy: &Policy{
-						ACL: &ACL{Entries: []*ACLEntry{{
-							Action: Deny,
-							Rule:   mustHopPredicate(t, "0-0#0")},
-							denyEntry}}},
+					Policy: &ExtPolicy{
+						Policy: &Policy{
+							ACL: &ACL{Entries: []*ACLEntry{{
+								Action: Deny,
+								Rule:   mustHopPredicate(t, "0-0#0")},
+								denyEntry}}}},
 					Weight: 1},
 			}),
 			Src:        xtest.MustParseIA("2-ff00:0:212"),
@@ -476,15 +480,17 @@ func TestOptionsEval(t *testing.T) {
 		},
 		"two options, first: allow everything, second: allow one path": {
 			Policy: NewPolicy("", nil, nil, []Option{
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
-					denyEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Allow, Rule: mustHopPredicate(t, "0-0#0")},
+						denyEntry}}}},
 					Weight: 0},
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:110#0")},
-					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
-					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:111#2823")},
-					allowEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:110#0")},
+						{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
+						{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:111#2823")},
+						allowEntry}}}},
 					Weight: 1},
 			}),
 			Src:        xtest.MustParseIA("1-ff00:0:122"),
@@ -493,13 +499,15 @@ func TestOptionsEval(t *testing.T) {
 		},
 		"two options, combined": {
 			Policy: NewPolicy("", nil, nil, []Option{
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
-					allowEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
+						allowEntry}}}},
 					Weight: 0},
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
-					allowEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
+						allowEntry}}}},
 					Weight: 0},
 			}),
 			Src:        xtest.MustParseIA("1-ff00:0:110"),
@@ -508,13 +516,15 @@ func TestOptionsEval(t *testing.T) {
 		},
 		"two options, take first": {
 			Policy: NewPolicy("", nil, nil, []Option{
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
-					allowEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
+						allowEntry}}}},
 					Weight: 1},
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
-					allowEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
+						allowEntry}}}},
 					Weight: 0},
 			}),
 			Src:        xtest.MustParseIA("1-ff00:0:110"),
@@ -523,13 +533,15 @@ func TestOptionsEval(t *testing.T) {
 		},
 		"two options, take second": {
 			Policy: NewPolicy("", nil, nil, []Option{
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
-					allowEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Deny, Rule: mustHopPredicate(t, "1-ff00:0:120#0")},
+						allowEntry}}}},
 					Weight: 1},
-				{Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
-					{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
-					allowEntry}}},
+				{Policy: &ExtPolicy{
+					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{
+						{Action: Deny, Rule: mustHopPredicate(t, "2-ff00:0:210#0")},
+						allowEntry}}}},
 					Weight: 10},
 			}),
 			Src:        xtest.MustParseIA("1-ff00:0:110"),
@@ -580,20 +592,22 @@ func TestExtends(t *testing.T) {
 					Policy: &Policy{Name: "policy1", Options: []Option{
 						{
 							Weight: 1,
-							Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
-								Action: Allow,
-								Rule:   mustHopPredicate(t, "0-0#0")},
-								denyEntry}}},
+							Policy: &ExtPolicy{
+								Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
+									Action: Allow,
+									Rule:   mustHopPredicate(t, "0-0#0")},
+									denyEntry}}}},
 						},
 					}}},
 			},
 			ExtendedPolicy: &Policy{Options: []Option{
 				{
 					Weight: 1,
-					Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
-						Action: Allow,
-						Rule:   mustHopPredicate(t, "0-0#0")},
-						denyEntry}},
+					Policy: &ExtPolicy{
+						Policy: &Policy{ACL: &ACL{Entries: []*ACLEntry{{
+							Action: Allow,
+							Rule:   mustHopPredicate(t, "0-0#0")},
+							denyEntry}}},
 					},
 				},
 			},
@@ -823,4 +837,25 @@ func mustHopPredicate(t *testing.T, str string) *HopPredicate {
 	hp, err := HopPredicateFromString(str)
 	xtest.FailOnErr(t, err)
 	return hp
+}
+
+func TestPolicyJsonConversion(t *testing.T) {
+	policy := NewPolicy("", nil, nil, []Option{
+		{
+			Policy: &ExtPolicy{
+				Policy: &Policy{
+					ACL: &ACL{Entries: []*ACLEntry{
+						{
+							Action: Allow,
+							Rule:   mustHopPredicate(t, "0-0#0")},
+						denyEntry}}}},
+			Weight: 0},
+	})
+	jsonPol, err := json.Marshal(policy)
+	if assert.NoError(t, err) {
+		var pol Policy
+		err = json.Unmarshal(jsonPol, &pol)
+		assert.NoError(t, err)
+		assert.Equal(t, policy, &pol)
+	}
 }
