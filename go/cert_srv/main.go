@@ -23,7 +23,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/cert_srv/internal/reiss"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/env"
@@ -33,22 +33,11 @@ import (
 	"github.com/scionproto/scion/go/lib/infra/modules/itopo"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/periodic"
-	"github.com/scionproto/scion/go/lib/truststorage"
 )
 
-type Config struct {
-	General env.General
-	Sciond  env.SciondClient `toml:"sd_client"`
-	Logging env.Logging
-	Metrics env.Metrics
-	TrustDB truststorage.TrustDBConf
-	Infra   env.Infra
-	CS      csconfig.Conf
-	state   *csconfig.State
-}
-
 var (
-	config      Config
+	cfg         config.Config
+	state       *config.State
 	environment *env.Env
 	reissRunner *periodic.Runner
 	msgr        *messenger.Messenger
@@ -67,7 +56,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(csconfig.Sample); !ok {
+	if v, ok := env.CheckFlags(config.Sample); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -75,7 +64,7 @@ func realMain() int {
 		return 1
 	}
 	defer log.Flush()
-	defer env.LogAppStopped(common.CS, config.General.ID)
+	defer env.LogAppStopped(common.CS, cfg.General.ID)
 	defer log.LogPanicAndExit()
 	// Setup the state and the messenger
 	if err := setup(); err != nil {
@@ -90,14 +79,14 @@ func realMain() int {
 		msgr.ListenAndServe()
 	}()
 	// Set environment to listen for signals.
-	environment = infraenv.InitInfraEnvironmentFunc(config.General.TopologyPath, func() {
+	environment = infraenv.InitInfraEnvironmentFunc(cfg.General.TopologyPath, func() {
 		if err := reload(); err != nil {
 			log.Error("Unable to reload", "err", err)
 		}
 	})
 	// Cleanup when the CS exits.
 	defer stop()
-	config.Metrics.StartPrometheus()
+	cfg.Metrics.StartPrometheus()
 	select {
 	case <-environment.AppShutdownSignal:
 		// Whenever we receive a SIGINT or SIGTERM we exit without an error.
@@ -111,16 +100,16 @@ func realMain() int {
 func reload() error {
 	// FIXME(roosd): KeyConf reloading is not yet supported.
 	// https://github.com/scionproto/scion/issues/2077
-	config.General.Topology = itopo.GetCurrentTopology()
-	var newConf Config
+	cfg.General.Topology = itopo.GetCurrentTopology()
+	var newConf config.Config
 	// Load new config to get the CS parameters.
 	if _, err := toml.DecodeFile(env.ConfigFile(), &newConf); err != nil {
 		return err
 	}
-	if err := newConf.CS.Init(config.General.ConfigDir); err != nil {
+	if err := newConf.CS.Init(cfg.General.ConfigDir); err != nil {
 		return common.NewBasicError("Unable to initialize CS config", err)
 	}
-	config.CS = newConf.CS
+	cfg.CS = newConf.CS
 	// Restart the periodic reissue task to respect the fresh parameters.
 	stopReissRunner()
 	startReissRunner()
@@ -130,22 +119,22 @@ func reload() error {
 // startReissRunner starts a periodic reissuance task. Core starts self-issuer.
 // Non-core starts a requester.
 func startReissRunner() {
-	if !config.CS.AutomaticRenewal {
+	if !cfg.CS.AutomaticRenewal {
 		log.Info("Reissue disabled, not starting reiss task.")
 		return
 	}
-	if config.General.Topology.Core {
+	if cfg.General.Topology.Core {
 		log.Info("Starting periodic reiss.Self task")
 		reissRunner = periodic.StartPeriodicTask(
 			&reiss.Self{
 				Msgr:     msgr,
-				State:    config.state,
-				IA:       config.General.Topology.ISD_AS,
-				IssTime:  config.CS.IssuerReissueLeadTime.Duration,
-				LeafTime: config.CS.LeafReissueLeadTime.Duration,
+				State:    state,
+				IA:       cfg.General.Topology.ISD_AS,
+				IssTime:  cfg.CS.IssuerReissueLeadTime.Duration,
+				LeafTime: cfg.CS.LeafReissueLeadTime.Duration,
 			},
-			periodic.NewTicker(config.CS.ReissueRate.Duration),
-			config.CS.ReissueTimeout.Duration,
+			periodic.NewTicker(cfg.CS.ReissueRate.Duration),
+			cfg.CS.ReissueTimeout.Duration,
 		)
 		return
 	}
@@ -153,12 +142,12 @@ func startReissRunner() {
 	reissRunner = periodic.StartPeriodicTask(
 		&reiss.Requester{
 			Msgr:     msgr,
-			State:    config.state,
-			IA:       config.General.Topology.ISD_AS,
-			LeafTime: config.CS.LeafReissueLeadTime.Duration,
+			State:    state,
+			IA:       cfg.General.Topology.ISD_AS,
+			LeafTime: cfg.CS.LeafReissueLeadTime.Duration,
 		},
-		periodic.NewTicker(config.CS.ReissueRate.Duration),
-		config.CS.ReissueTimeout.Duration,
+		periodic.NewTicker(cfg.CS.ReissueRate.Duration),
+		cfg.CS.ReissueTimeout.Duration,
 	)
 }
 

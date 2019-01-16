@@ -21,7 +21,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -43,7 +43,7 @@ var _ periodic.Task = (*Requester)(nil)
 // expiration of the currently active certificate chain.
 type Requester struct {
 	Msgr     *messenger.Messenger
-	State    *csconfig.State
+	State    *config.State
 	IA       addr.IA
 	LeafTime time.Duration
 }

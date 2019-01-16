@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package csconfig
+package config
 
 import (
 	"path/filepath"
 	"time"
 
 	"github.com/scionproto/scion/go/lib/as_conf"
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/scrypto/cert"
+	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -36,7 +38,21 @@ const (
 	ErrorCustomers = "Unable to load Customers"
 )
 
-type Conf struct {
+type Config struct {
+	General env.General
+	Sciond  env.SciondClient `toml:"sd_client"`
+	Logging env.Logging
+	Metrics env.Metrics
+	TrustDB truststorage.TrustDBConf
+	Infra   env.Infra
+	CS      CSConfig
+}
+
+func (c *Config) Init(confDir string) error {
+	return c.CS.Init(confDir)
+}
+
+type CSConfig struct {
 	// LeafReissueLeadTime indicates how long in advance of leaf cert expiration
 	// the reissuance process starts.
 	LeafReissueLeadTime util.DurWrap
@@ -52,7 +68,7 @@ type Conf struct {
 }
 
 // Init sets the uninitialized fields.
-func (c *Conf) Init(confDir string) error {
+func (c *CSConfig) Init(confDir string) error {
 	c.initDefaults()
 	if c.LeafReissueLeadTime.Duration == 0 {
 		if err := c.loadLeafReissTime(confDir); err != nil {
@@ -62,7 +78,7 @@ func (c *Conf) Init(confDir string) error {
 	return nil
 }
 
-func (c *Conf) initDefaults() {
+func (c *CSConfig) initDefaults() {
 	if c.IssuerReissueLeadTime.Duration == 0 {
 		c.IssuerReissueLeadTime.Duration = IssuerReissTime
 	}
@@ -76,7 +92,7 @@ func (c *Conf) initDefaults() {
 
 // loadLeafReissTime loads the as conf and sets the LeafReissTime to the PathSegmentTTL
 // to provide optimal coverage.
-func (c *Conf) loadLeafReissTime(confDir string) error {
+func (c *CSConfig) loadLeafReissTime(confDir string) error {
 	if err := as_conf.Load(filepath.Join(confDir, as_conf.CfgName)); err != nil {
 		return err
 	}
