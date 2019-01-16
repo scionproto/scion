@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,11 +78,11 @@ func MustTempDir(dir, prefix string) (string, func()) {
 }
 
 // FailOnErr causes t to exit with a fatal error if err is non-nil.
-func FailOnErr(t *testing.T, err error) {
+func FailOnErr(t *testing.T, err error, desc ...string) {
 	t.Helper()
 
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(strings.Join(desc, " "), err)
 	}
 }
 

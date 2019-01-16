@@ -19,8 +19,8 @@ import (
 	"io"
 	"net"
 
-	"github.com/scionproto/scion/go/godispatcher/internal/bufpool"
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
+	"github.com/scionproto/scion/go/godispatcher/internal/respool"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/log"
@@ -51,7 +51,7 @@ func (s *AppSocketServer) Serve() error {
 
 // AppConnManager handles new connections coming from SCION applications.
 type AppConnManager struct {
-	RoutingTable registration.IATable
+	RoutingTable *IATable
 	// OverlayConn is the network connection to which egress traffic is sent.
 	OverlayConn net.PacketConn
 }
@@ -72,7 +72,7 @@ func (h *AppConnManager) Handle(conn net.PacketConn) {
 
 // AppConnHandler handles a single SCION application connection.
 type AppConnHandler struct {
-	RoutingTable registration.IATable
+	RoutingTable *IATable
 	// Conn is the local socket to which the application is connected.
 	Conn net.PacketConn
 	// OverlayConn is the network connection to which egress traffic is sent.
@@ -100,8 +100,8 @@ func (h *AppConnHandler) Handle() {
 }
 
 func (h *AppConnHandler) doRegExchange() (registration.UDPReference, *TableEntry, error) {
-	b := bufpool.GetBuffer()
-	defer bufpool.PutBuffer(b)
+	b := respool.GetBuffer()
+	defer respool.PutBuffer(b)
 
 	regInfo, err := h.recvRegistration(b)
 	if err != nil {
@@ -176,7 +176,7 @@ func (h *AppConnHandler) sendConfirmation(b common.RawBytes, c *reliable.Confirm
 // overlay socket.
 func (h *AppConnHandler) RunAppToNetDataplane(ref registration.UDPReference) {
 	for {
-		pkt := bufpool.GetPacket()
+		pkt := respool.GetPacket()
 		// XXX(scrye): we don't release the reference on error conditions, and
 		// let the GC take care of this situation as they should be fairly
 		// rare.
@@ -206,11 +206,9 @@ func registerIfSCMPRequest(ref registration.UDPReference, packet *spkt.ScnPkt) e
 		if !isSCMPGeneralRequest(scmpHdr) {
 			return nil
 		}
-		id := getSCMPGeneralID(packet)
-		if id == 0 {
-			return nil
+		if id := getSCMPGeneralID(packet); id != 0 {
+			return ref.RegisterID(id)
 		}
-		return ref.RegisterID(id)
 	}
 	return nil
 }
@@ -222,7 +220,7 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 	for {
 		n, _ := r.Read(entries, true)
 		if n > 0 {
-			pkt := entries[0].(*bufpool.Packet)
+			pkt := entries[0].(*respool.Packet)
 			overlayAddr, err := overlay.NewOverlayAddr(
 				addr.HostFromIP(pkt.OverlayRemote.IP),
 				addr.NewL4UDPInfo(uint16(pkt.OverlayRemote.Port)),
@@ -239,25 +237,4 @@ func (h *AppConnHandler) RunRingToAppDataplane(r *ringbuf.Ring) {
 			pkt.Free()
 		}
 	}
-}
-
-type TableEntry struct {
-	conn           net.PacketConn
-	appIngressRing *ringbuf.Ring
-}
-
-func newTableEntry(conn net.PacketConn) *TableEntry {
-	// Construct application ingress ring buffer
-	appIngressRing := ringbuf.New(128, nil, "", nil)
-	return &TableEntry{
-		conn:           conn,
-		appIngressRing: appIngressRing,
-	}
-}
-
-func getBindIP(address *net.UDPAddr) net.IP {
-	if address == nil {
-		return nil
-	}
-	return address.IP
 }

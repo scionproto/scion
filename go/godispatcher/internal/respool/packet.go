@@ -1,4 +1,4 @@
-// Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package buffers contains the Dispatcher's pool of free buffers.
-//
-// FIXME(scrye): Currently the pool is elastic, but this is not ideal for
-// traffic bursts. It should probably be replaced with a fixed-sized list.
-package bufpool
+package respool
 
 import (
 	"net"
@@ -28,23 +24,6 @@ import (
 	"github.com/scionproto/scion/go/lib/spkt"
 )
 
-var bufferPool = sync.Pool{
-	New: func() interface{} {
-		return make(common.RawBytes, common.MaxMTU)
-	},
-}
-
-func GetBuffer() common.RawBytes {
-	b := bufferPool.Get().(common.RawBytes)
-	return b[:cap(b)]
-}
-
-func PutBuffer(b common.RawBytes) {
-	if cap(b) == common.MaxMTU {
-		bufferPool.Put(b)
-	}
-}
-
 var packetPool = sync.Pool{
 	New: func() interface{} {
 		return newPacket()
@@ -55,11 +34,6 @@ func GetPacket() *Packet {
 	pkt := packetPool.Get().(*Packet)
 	*pkt.refCount = 1
 	return pkt
-}
-
-func putPacket(pkt *Packet) {
-	pkt.reset()
-	packetPool.Put(pkt)
 }
 
 // Packet describes a SCION packet. Fields might reference each other
