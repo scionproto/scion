@@ -30,21 +30,22 @@ import (
 	"github.com/scionproto/scion/go/border/rctx"
 	"github.com/scionproto/scion/go/border/rpkt"
 	"github.com/scionproto/scion/go/lib/common"
+	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
 type locSockOps interface {
 	Setup(r *Router, ctx *rctx.Ctx, labels prometheus.Labels, oldCtx *rctx.Ctx) error
-	Rollback(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx)
-	Teardown(r *Router, ctx *rctx.Ctx, oldCtx *rctx.Ctx)
+	Rollback(r *Router, ctx *rctx.Ctx, labels prometheus.Labels, oldCtx *rctx.Ctx) error
 }
 
 type extSockOps interface {
 	Setup(r *Router, ctx *rctx.Ctx, intfs *netconf.Interface,
 		labels prometheus.Labels, oldCtx *rctx.Ctx) error
-	Rollback(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, oldCtx *rctx.Ctx)
-	Teardown(r *Router, ctx *rctx.Ctx, intf *netconf.Interface, oldCtx *rctx.Ctx)
+	Rollback(r *Router, ctx *rctx.Ctx, intfs *netconf.Interface,
+		labels prometheus.Labels, oldCtx *rctx.Ctx) error
+	Teardown(r *Router, ctx *rctx.Ctx, intfs *netconf.Interface, oldCtx *rctx.Ctx)
 }
 
 // SockOps enable the network stack to be modular. Any network stack that wants
@@ -117,13 +118,21 @@ func (r *Router) setupNewContext(config *brconf.Conf) error {
 	// TODO(roosd): Eventually, this will be configurable through brconfig.toml.
 	sockConf := brconf.SockConf{Default: PosixSock}
 	if err := r.setupNet(ctx, oldCtx, sockConf); err != nil {
-		r.rollbackNet(ctx, oldCtx, sockConf)
+		r.rollbackNet(ctx, oldCtx, sockConf, handleRollbackErr)
 		return err
 	}
 	rctx.Set(ctx)
 	startSocks(ctx)
+	// Tear down sockets for removed interfaces
 	r.teardownNet(ctx, oldCtx, sockConf)
 	return nil
+}
+
+func handleRollbackErr(err error) {
+	if config.BR.RollbackFailAction != brconf.FailActionContinue {
+		fatal.Fatal(err)
+	}
+	log.Error("Error in rollback", "err", err)
 }
 
 // startSocks starts all sockets for the given context.
@@ -151,13 +160,12 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 		return err
 	}
 	// Setup local interface.
-	labels := prometheus.Labels{"sock": "loc"}
-	if err := registeredLocSockOps[sockConf.Loc()].Setup(r, ctx, labels, oldCtx); err != nil {
+	if err := registeredLocSockOps[sockConf.Loc()].Setup(r, ctx, locLabels(), oldCtx); err != nil {
 		return err
 	}
 	// Iterate over interfaces, configuring them via provided setup function.
 	for _, intf := range ctx.Conf.Net.IFs {
-		labels := prometheus.Labels{"sock": fmt.Sprintf("intf:%d", intf.Id)}
+		labels := extLabels(intf.Id)
 		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Setup(r, ctx, intf, labels, oldCtx)
 		if err != nil {
 			return err
@@ -167,23 +175,41 @@ func (r *Router) setupNet(ctx *rctx.Ctx, oldCtx *rctx.Ctx, sockConf brconf.SockC
 }
 
 // rollbackNet rolls back the changes of a failed call to setupNet.
-func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
+func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
+	sockConf brconf.SockConf, handleErr func(err error)) {
+
 	// Rollback of external interfaces.
 	for _, intf := range ctx.Conf.Net.IFs {
-		registeredExtSockOps[sockConf.Ext(intf.Id)].Rollback(r, ctx, intf, oldCtx)
+		labels := extLabels(intf.Id)
+		err := registeredExtSockOps[sockConf.Ext(intf.Id)].Rollback(r, ctx, intf, labels, oldCtx)
+		if err != nil {
+			handleErr(common.NewBasicError("Unable to rollback external interface",
+				err, "intf", intf))
+		}
 	}
 	// Rollback of local interface.
-	registeredLocSockOps[sockConf.Loc()].Rollback(r, ctx, oldCtx)
+	err := registeredLocSockOps[sockConf.Loc()].Rollback(r, ctx, locLabels(), oldCtx)
+	if err != nil {
+		handleErr(common.NewBasicError("Unable to rollback local interface", err))
+	}
+	// Start sockets that are possible created in rollback.
+	startSocks(oldCtx)
 }
 
-// teardownOldNet tears down the no longer used parts of the old context.
+// teardownOldNet tears down the sockets of removed external interfaces.
 func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
-	// Teardown of external interfaces.
-	for _, intf := range ctx.Conf.Net.IFs {
+	// Iterate on oldCtx to catch removed interfaces.
+	for _, intf := range oldCtx.Conf.Net.IFs {
 		registeredExtSockOps[sockConf.Ext(intf.Id)].Teardown(r, ctx, intf, oldCtx)
 	}
-	// Teardown of local interface.
-	registeredLocSockOps[sockConf.Loc()].Teardown(r, ctx, oldCtx)
+}
+
+func locLabels() prometheus.Labels {
+	return prometheus.Labels{"sock": "loc"}
+}
+
+func extLabels(id common.IFIDType) prometheus.Labels {
+	return prometheus.Labels{"sock": fmt.Sprintf("intf:%d", id)}
 }
 
 // validateCtx ensures that the socket type of existing sockets does not change
