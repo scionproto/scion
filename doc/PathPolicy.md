@@ -26,27 +26,6 @@ Examples:
 - Match outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#0,2`
 - Match inbound or outbound IF _2_ of AS _1-ff00:0:133_: `1-ff00:0:133#2`
 
-## Operators
-
-The path policy language has the following operators:
-
-ACL:
-
-- `+` (allow predicate)
-- `-` (deny predicate)
-
-Sequence:
-
-- `?` (the preceding HP may appear at most once)
-- `+` (the preceding **ISD-level** HP must appear at least once)
-- `*` (the preceding **ISD-level** HP may appear zero or more times)
-- `|` (logical OR)
-
-Planned:
-
-- `!` (logical NOT)
-- `&` (logical AND)
-
 ## Policy
 
 A policy is defined by a policy object. It can have the following attributes:
@@ -56,6 +35,7 @@ A policy is defined by a policy object. It can have the following attributes:
 - [`sequence`](#Sequence) (space separated list of HPs, may contain operators)
 - [`options`](#Options) (list of option policies)
     - `weight` (importance level, only valid under `options`)
+    - `policy` (a policy object)
 
 Planned:
 
@@ -73,6 +53,11 @@ Planned:
 ## Specification
 
 ### ACL
+
+#### Operators
+
+- `+` (allow predicate)
+- `-` (deny predicate)
 
 The ACL can be used to deny (blacklist) or allow (whitelist) ISDs, ASes and IFs. A deny entry is of
 the following form `- ISD-AS#IF`, where the second part is a [HP](#HP). If a deny entry matches any
@@ -100,6 +85,18 @@ but denying all other ASes in ISD _1_. The last entry makes sure that any other 
 ```
 
 ### Sequence
+
+#### Operators
+
+- `?` (the preceding HP may appear at most once)
+- `+` (the preceding **ISD-level** HP must appear at least once)
+- `*` (the preceding **ISD-level** HP may appear zero or more times)
+- `|` (logical OR)
+
+Planned:
+
+- `!` (logical NOT)
+- `&` (logical AND)
 
 The sequence is a string of space separated HPs. The [operators](#Operators) can be used for
 advanced interface sequences.
@@ -177,14 +174,19 @@ third option which denies only hops in AS _1-ff00:0:133_, is used.
 - policy_with_options:
     options:
       - weight: 3
-        extends: option_3
+        policy:
+          extends:
+          - option_3
       - weight: 2
-        acl:
-        - "- 1-ff00:0:130#0"
-        - "- 1-ff00:0:131#0"
-        - "- 1-ff00:0:132#0"
-        - "+"
-      - extends: option_1
+        policy:
+          acl:
+          - "- 1-ff00:0:130#0"
+          - "- 1-ff00:0:131#0"
+          - "- 1-ff00:0:132#0"
+          - "+"
+      - policy:
+          extends:
+          - option_1
 
 - option_3:
     acl:

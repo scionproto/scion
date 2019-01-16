@@ -139,5 +139,5 @@ func (p *Policy) evalOptions(inputSet PathSet) PathSet {
 // Option contains a weight and a policy and is used as a list item in Policy.Options
 type Option struct {
 	Weight int
-	Policy *Policy
+	Policy *ExtPolicy
 }
