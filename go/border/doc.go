@@ -1,4 +1,5 @@
 // Copyright 2016 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +14,5 @@
 // limitations under the License.
 
 // Border is a Go implementation of the SCION border router. It is designed to
-// work with the linux network stack (the default), and/or with DPDK (via
-// libhsr and the "hsr" build flag).
+// work with the linux network stack.
 package main
