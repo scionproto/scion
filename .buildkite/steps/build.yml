@@ -2,6 +2,9 @@
   command: SCION_IMG="$SCION_BUILD_IMG" $BASE/run_step lint
   artifact_paths:
     - "artifacts.out/**/*"
+  retry:
+    automatic:
+      exit_status: -1
 - label: Build code and push "$SCION_IMG"
   command:
   - $BASE/scripts/registry_login
@@ -14,4 +17,7 @@
   - docker push $SCION_IMG
   artifact_paths:
     - "artifacts.out/**/*"
+  retry:
+    automatic:
+      exit_status: -1
 - wait

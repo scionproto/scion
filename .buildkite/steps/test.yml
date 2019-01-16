@@ -2,3 +2,6 @@
   command: $BASE/run_step test
   artifact_paths:
       - "artifacts.out/**/*"
+  retry:
+    automatic:
+      exit_status: -1
