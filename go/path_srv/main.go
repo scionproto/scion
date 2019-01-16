@@ -39,25 +39,15 @@ import (
 	"github.com/scionproto/scion/go/lib/pathstorage"
 	"github.com/scionproto/scion/go/lib/periodic"
 	"github.com/scionproto/scion/go/lib/revcache"
-	"github.com/scionproto/scion/go/lib/truststorage"
+	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/cryptosyncer"
 	"github.com/scionproto/scion/go/path_srv/internal/handlers"
-	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
 	"github.com/scionproto/scion/go/path_srv/internal/segsyncer"
 	"github.com/scionproto/scion/go/proto"
 )
 
-type Config struct {
-	General env.General
-	Logging env.Logging
-	Metrics env.Metrics
-	TrustDB truststorage.TrustDBConf
-	Infra   env.Infra
-	PS      psconfig.Config
-}
-
 var (
-	config      Config
+	cfg         config.Config
 	environment *env.Env
 
 	tasks *periodicTasks
@@ -76,7 +66,7 @@ func realMain() int {
 	fatal.Init()
 	env.AddFlags()
 	flag.Parse()
-	if v, ok := env.CheckFlags(psconfig.Sample); !ok {
+	if v, ok := env.CheckFlags(config.Sample); !ok {
 		return v
 	}
 	if err := setupBasic(); err != nil {
@@ -84,18 +74,18 @@ func realMain() int {
 		return 1
 	}
 	defer log.Flush()
-	defer env.LogAppStopped(common.PS, config.General.ID)
+	defer env.LogAppStopped(common.PS, cfg.General.ID)
 	defer log.LogPanicAndExit()
 	if err := setup(); err != nil {
 		log.Crit("Setup failed", "err", err)
 		return 1
 	}
-	pathDB, revCache, err := pathstorage.NewPathStorage(config.PS.PathDB, config.PS.RevCache)
+	pathDB, revCache, err := pathstorage.NewPathStorage(cfg.PS.PathDB, cfg.PS.RevCache)
 	if err != nil {
 		log.Crit("Unable to initialize path storage", "err", err)
 		return 1
 	}
-	trustDB, err := config.TrustDB.New()
+	trustDB, err := cfg.TrustDB.New()
 	if err != nil {
 		log.Crit("Unable to initialize trustDB", "err", err)
 		return 1
@@ -109,12 +99,12 @@ func realMain() int {
 		log.Crit("Unable to initialize trust store", "err", err)
 		return 1
 	}
-	err = trustStore.LoadAuthoritativeTRC(filepath.Join(config.General.ConfigDir, "certs"))
+	err = trustStore.LoadAuthoritativeTRC(filepath.Join(cfg.General.ConfigDir, "certs"))
 	if err != nil {
 		log.Crit("TRC error", "err", err)
 		return 1
 	}
-	topoAddress := topo.PS.GetById(config.General.ID)
+	topoAddress := topo.PS.GetById(cfg.General.ID)
 	if topoAddress == nil {
 		log.Crit("Unable to find topo address")
 		return 1
@@ -124,7 +114,7 @@ func realMain() int {
 		env.GetPublicSnetAddress(topo.ISD_AS, topoAddress),
 		env.GetBindSnetAddress(topo.ISD_AS, topoAddress),
 		addr.SvcPS,
-		config.General.ReconnectToDispatcher,
+		cfg.General.ReconnectToDispatcher,
 		trustStore,
 	)
 	if err != nil {
@@ -139,7 +129,7 @@ func realMain() int {
 		PathDB:     pathDB,
 		RevCache:   revCache,
 		TrustStore: trustStore,
-		Config:     config.PS,
+		Config:     cfg.PS,
 		IA:         topo.ISD_AS,
 	}
 	core := topo.Core
@@ -153,12 +143,12 @@ func realMain() int {
 	msger.AddHandler(infra.SegRequest, segReqHandler)
 	msger.AddHandler(infra.SegReg, handlers.NewSegRegHandler(args))
 	msger.AddHandler(infra.IfStateInfos, handlers.NewIfStatInfoHandler(args))
-	if config.PS.SegSync && core {
+	if cfg.PS.SegSync && core {
 		// Old down segment sync mechanism
 		msger.AddHandler(infra.SegSync, handlers.NewSyncHandler(args))
 	}
 	msger.AddHandler(infra.SegRev, handlers.NewRevocHandler(args))
-	config.Metrics.StartPrometheus()
+	cfg.Metrics.StartPrometheus()
 	// Start handling requests/messages
 	go func() {
 		defer log.LogPanicAndExit()
@@ -201,7 +191,7 @@ func (t *periodicTasks) Start() {
 		return
 	}
 	var err error
-	if config.PS.SegSync && config.General.Topology.Core {
+	if cfg.PS.SegSync && cfg.General.Topology.Core {
 		t.segSyncers, err = segsyncer.StartAll(t.args, t.msger)
 		if err != nil {
 			fatal.Fatal(common.NewBasicError("Unable to start seg syncer", err))
@@ -237,21 +227,21 @@ func (t *periodicTasks) Kill() {
 }
 
 func setupBasic() error {
-	if _, err := toml.DecodeFile(env.ConfigFile(), &config); err != nil {
+	if _, err := toml.DecodeFile(env.ConfigFile(), &cfg); err != nil {
 		return err
 	}
-	if err := env.InitLogging(&config.Logging); err != nil {
+	if err := env.InitLogging(&cfg.Logging); err != nil {
 		return err
 	}
-	return env.LogAppStarted(common.PS, config.General.ID)
+	return env.LogAppStarted(common.PS, cfg.General.ID)
 }
 
 func setup() error {
-	if err := env.InitGeneral(&config.General); err != nil {
+	if err := env.InitGeneral(&cfg.General); err != nil {
 		return err
 	}
-	itopo.SetCurrentTopology(config.General.Topology)
-	environment = infraenv.InitInfraEnvironment(config.General.TopologyPath)
-	config.PS.InitDefaults()
+	itopo.SetCurrentTopology(cfg.General.Topology)
+	environment = infraenv.InitInfraEnvironment(cfg.General.TopologyPath)
+	cfg.InitDefaults()
 	return nil
 }

@@ -32,7 +32,7 @@ import (
 	"github.com/scionproto/scion/go/lib/pathdb/query"
 	"github.com/scionproto/scion/go/lib/revcache"
 	"github.com/scionproto/scion/go/lib/topology"
-	"github.com/scionproto/scion/go/path_srv/internal/psconfig"
+	"github.com/scionproto/scion/go/path_srv/internal/config"
 	"github.com/scionproto/scion/go/path_srv/internal/segutil"
 )
 
@@ -45,7 +45,7 @@ type HandlerArgs struct {
 	PathDB     pathdb.PathDB
 	RevCache   revcache.RevCache
 	TrustStore infra.TrustStore
-	Config     psconfig.Config
+	Config     config.PSConfig
 	IA         addr.IA
 }
 
@@ -56,7 +56,7 @@ type baseHandler struct {
 	trustStore infra.TrustStore
 	topology   *topology.Topo
 	retryInt   time.Duration
-	config     psconfig.Config
+	config     config.PSConfig
 }
 
 func newBaseHandler(request *infra.Request, args HandlerArgs) *baseHandler {

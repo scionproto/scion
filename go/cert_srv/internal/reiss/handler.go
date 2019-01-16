@@ -20,7 +20,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -47,7 +47,7 @@ const (
 // key in the customer mapping. Certificate chains are issued automatically by
 // the issuer ASes.
 type Handler struct {
-	State *csconfig.State
+	State *config.State
 	IA    addr.IA
 }
 

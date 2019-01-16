@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sdconfig
+package config
 
 const Sample = `[general]
-  # The ID of the service.
-  ID = "sd"
+  # The ID of the service. This is used to choose the relevant portion of the
+  # topology file for some services.
+  ID = "cs-1"
 
   # Directory for loading AS information, certs, keys, path policy, topology.
   ConfigDir = "/etc/scion"
@@ -28,10 +29,17 @@ const Sample = `[general]
   # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
   # ReconnectToDispatcher = true
 
+[sd_client]
+  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
+  # Path = "/run/shm/sciond/default.sock"
+
+  # Maximum time spent attempting to connect to sciond on start. (default 20s)
+  # InitialConnectPeriod = "20s"
+
 [logging]
   [logging.file]
     # Location of the logging file.
-    Path = "/var/log/scion/sd.log"
+    Path = "/var/log/scion/cs-1.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
@@ -62,38 +70,23 @@ const Sample = `[general]
   # The type of trustdb backend
   Backend = "sqlite"
   # Connection for the trust database
-  Connection = "/var/lib/scion/spki/sd.trust.db"
+  Connection = "/var/lib/scion/spki/cs-1.trust.db"
 
-[sd]
-  # Address to listen on via the reliable socket protocol. If empty,
-  # a reliable socket server on the default socket is started.
-  Reliable = "/run/shm/sciond/default.sock"
+[cs]
+  # Time between starting reissue requests and leaf cert expiration. If not
+  # specified, this is set to PathSegmentTTL.
+  LeafReissueLeadTime = "6h"
 
-  # Address to listen on for normal unixgram messages. If empty, a
-  # unixgram server on the default socket is started.
-  Unix = "/run/shm/sciond/default-unix.sock"
+  # Time between self issuing core cert and core cert expiration. If not
+  # specified, this is set to the default leaf certificate validity time.
+  IssuerReissueLeadTime = "73h"
 
-  # If set to True, the socket is removed before being created. (default false)
-  DeleteSocket = false
+  # Interval between two consecutive reissue requests. Default is 10 seconds.
+  ReissueRate = "10s"
 
-  # Local address to listen on for SCION messages (if Bind is not set),
-  # and to send out messages to other nodes.
-  Public = "1-ff00:0:110,[127.0.0.1]:0"
+  # Timeout for resissue request.  Default is 5 seconds.
+  ReissueTimeout = "5s"
 
-  # If set, Bind is the preferred local address to listen on for SCION
-  # messages.
-  # Bind = "1-ff00:0:110,[127.0.0.1]:0"
-
-  # The time after which segments for a destination are refetched. (default 5m)
-  QueryInterval = "5m"
-
-  [sd.PathDB]
-    # The type of pathdb backend
-    Backend = "sqlite"
-    # Path to the path database.
-    Connection = "/var/lib/scion/sd.path.db"
-
-  [sd.RevCache]
-    Backend = "mem"
-
+  # Whether automatic reissuing is enabled. Default is false.
+  AutomaticRenewal = false
 `

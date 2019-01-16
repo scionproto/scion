@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package psconfig contains the configuration of the path server.
-package psconfig
+// Package config contains the configuration of the path server.
+package config
 
 import (
 	"time"
 
+	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/pathstorage"
+	"github.com/scionproto/scion/go/lib/truststorage"
 	"github.com/scionproto/scion/go/lib/util"
 )
 
@@ -27,6 +29,19 @@ var (
 )
 
 type Config struct {
+	General env.General
+	Logging env.Logging
+	Metrics env.Metrics
+	TrustDB truststorage.TrustDBConf
+	Infra   env.Infra
+	PS      PSConfig
+}
+
+func (c *Config) InitDefaults() {
+	c.PS.initDefaults()
+}
+
+type PSConfig struct {
 	// SegSync enables the "old" replication of down segments between cores,
 	// using SegSync messages.
 	SegSync  bool
@@ -37,7 +52,7 @@ type Config struct {
 	QueryInterval util.DurWrap
 }
 
-func (c *Config) InitDefaults() {
+func (c *PSConfig) initDefaults() {
 	if c.QueryInterval.Duration == 0 {
 		c.QueryInterval.Duration = DefaultQueryInterval
 	}

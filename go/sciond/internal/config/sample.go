@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package psconfig
+package config
 
 const Sample = `[general]
-  # The ID of the service. This is used to choose the relevant portion of the
-  # topology file for some services.
-  ID = "ps-1"
+  # The ID of the service.
+  ID = "sd"
 
   # Directory for loading AS information, certs, keys, path policy, topology.
   ConfigDir = "/etc/scion"
@@ -32,7 +31,7 @@ const Sample = `[general]
 [logging]
   [logging.file]
     # Location of the logging file.
-    Path = "/var/log/scion/ps-1.log"
+    Path = "/var/log/scion/sd.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
@@ -63,23 +62,38 @@ const Sample = `[general]
   # The type of trustdb backend
   Backend = "sqlite"
   # Connection for the trust database
-  Connection = "/var/lib/scion/spki/ps-1.trust.db"
+  Connection = "/var/lib/scion/spki/sd.trust.db"
 
-[ps]
-  # Enable the "old" replication of down segments between cores using SegSync
-  # messages (default false)
-  SegSync = false
+[sd]
+  # Address to listen on via the reliable socket protocol. If empty,
+  # a reliable socket server on the default socket is started.
+  Reliable = "/run/shm/sciond/default.sock"
+
+  # Address to listen on for normal unixgram messages. If empty, a
+  # unixgram server on the default socket is started.
+  Unix = "/run/shm/sciond/default-unix.sock"
+
+  # If set to True, the socket is removed before being created. (default false)
+  DeleteSocket = false
+
+  # Local address to listen on for SCION messages (if Bind is not set),
+  # and to send out messages to other nodes.
+  Public = "1-ff00:0:110,[127.0.0.1]:0"
+
+  # If set, Bind is the preferred local address to listen on for SCION
+  # messages.
+  # Bind = "1-ff00:0:110,[127.0.0.1]:0"
 
   # The time after which segments for a destination are refetched. (default 5m)
   QueryInterval = "5m"
 
-  [ps.PathDB]
+  [sd.PathDB]
     # The type of pathdb backend
     Backend = "sqlite"
     # Path to the path database.
-    Connection = "/var/lib/scion/pathdb/ps-1.path.db"
+    Connection = "/var/lib/scion/sd.path.db"
 
-  [ps.RevCache]
+  [sd.RevCache]
     Backend = "mem"
 
 `

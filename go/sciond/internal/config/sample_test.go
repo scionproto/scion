@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sdconfig
+package config
 
 import (
 	"testing"
@@ -20,23 +20,11 @@ import (
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/truststorage"
 )
-
-type TestConfig struct {
-	General env.General
-	Logging env.Logging
-	Metrics env.Metrics
-	Infra   env.Infra
-	TrustDB truststorage.TrustDBConf
-	SD      Config
-}
 
 func TestSampleCorrect(t *testing.T) {
 	Convey("Load", t, func() {
-		var cfg TestConfig
+		var cfg Config
 		// Make sure DeleteSocket is set.
 		cfg.SD.DeleteSocket = true
 		_, err := toml.Decode(Sample, &cfg)

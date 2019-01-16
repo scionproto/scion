@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/scionproto/scion/go/cert_srv/internal/csconfig"
+	"github.com/scionproto/scion/go/cert_srv/internal/config"
 	"github.com/scionproto/scion/go/lib/addr"
 	"github.com/scionproto/scion/go/lib/common"
 	"github.com/scionproto/scion/go/lib/ctrl"
@@ -40,7 +40,7 @@ var _ periodic.Task = (*Self)(nil)
 type Self struct {
 	// Msgr is used to propagate key updates to the messenger, and not for network traffic
 	Msgr     *messenger.Messenger
-	State    *csconfig.State
+	State    *config.State
 	IA       addr.IA
 	IssTime  time.Duration
 	LeafTime time.Duration

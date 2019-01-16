@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package csconfig
+package config
 
 const Sample = `[general]
   # The ID of the service. This is used to choose the relevant portion of the
   # topology file for some services.
-  ID = "cs-1"
+  ID = "ps-1"
 
   # Directory for loading AS information, certs, keys, path policy, topology.
   ConfigDir = "/etc/scion"
@@ -29,17 +29,10 @@ const Sample = `[general]
   # ReconnectToDispatcher can be set to true to enable the snetproxy reconnecter.
   # ReconnectToDispatcher = true
 
-[sd_client]
-  # Sciond path. It defaults to sciond.DefaultSCIONDPath.
-  # Path = "/run/shm/sciond/default.sock"
-
-  # Maximum time spent attempting to connect to sciond on start. (default 20s)
-  # InitialConnectPeriod = "20s"
-
 [logging]
   [logging.file]
     # Location of the logging file.
-    Path = "/var/log/scion/cs-1.log"
+    Path = "/var/log/scion/ps-1.log"
 
     # File logging level (trace|debug|info|warn|error|crit) (default debug)
     Level = "debug"
@@ -70,23 +63,23 @@ const Sample = `[general]
   # The type of trustdb backend
   Backend = "sqlite"
   # Connection for the trust database
-  Connection = "/var/lib/scion/spki/cs-1.trust.db"
+  Connection = "/var/lib/scion/spki/ps-1.trust.db"
 
-[cs]
-  # Time between starting reissue requests and leaf cert expiration. If not
-  # specified, this is set to PathSegmentTTL.
-  LeafReissueLeadTime = "6h"
+[ps]
+  # Enable the "old" replication of down segments between cores using SegSync
+  # messages (default false)
+  SegSync = false
 
-  # Time between self issuing core cert and core cert expiration. If not
-  # specified, this is set to the default leaf certificate validity time.
-  IssuerReissueLeadTime = "73h"
+  # The time after which segments for a destination are refetched. (default 5m)
+  QueryInterval = "5m"
 
-  # Interval between two consecutive reissue requests. Default is 10 seconds.
-  ReissueRate = "10s"
+  [ps.PathDB]
+    # The type of pathdb backend
+    Backend = "sqlite"
+    # Path to the path database.
+    Connection = "/var/lib/scion/pathdb/ps-1.path.db"
 
-  # Timeout for resissue request.  Default is 5 seconds.
-  ReissueTimeout = "5s"
+  [ps.RevCache]
+    Backend = "mem"
 
-  # Whether automatic reissuing is enabled. Default is false.
-  AutomaticRenewal = false
 `

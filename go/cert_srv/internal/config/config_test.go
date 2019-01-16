@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package csconfig
+package config
 
 import (
 	"strings"
@@ -21,23 +21,11 @@ import (
 
 	"github.com/BurntSushi/toml"
 	. "github.com/smartystreets/goconvey/convey"
-
-	"github.com/scionproto/scion/go/lib/env"
-	"github.com/scionproto/scion/go/lib/truststorage"
 )
-
-type TestConfig struct {
-	General env.General
-	Logging env.Logging
-	Metrics env.Metrics
-	Infra   env.Infra
-	TrustDB truststorage.TrustDBConf
-	CS      Conf
-}
 
 func TestSampleCorrect(t *testing.T) {
 	Convey("Load", t, func() {
-		var cfg TestConfig
+		var cfg Config
 		// Make sure AutomaticRenweal is set during decoding.
 		cfg.CS.AutomaticRenewal = true
 		_, err := toml.Decode(Sample, &cfg)
@@ -68,7 +56,7 @@ func TestSampleCorrect(t *testing.T) {
 
 func TestLoadConf(t *testing.T) {
 	Convey("Load Conf", t, func() {
-		var cfg TestConfig
+		var cfg Config
 		_, err := toml.DecodeFile("testdata/csconfig.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 7*time.Hour)
@@ -79,7 +67,7 @@ func TestLoadConf(t *testing.T) {
 	})
 
 	Convey("Load Default", t, func() {
-		var cfg TestConfig
+		var cfg Config
 		_, err := toml.DecodeReader(strings.NewReader("[cs]"), &cfg)
 		SoMsg("err", err, ShouldBeNil)
 		SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldBeZeroValue)
@@ -92,12 +80,12 @@ func TestLoadConf(t *testing.T) {
 
 func TestConfig_Init(t *testing.T) {
 	Convey("Load Conf", t, func() {
-		var cfg TestConfig
+		var cfg Config
 		_, err := toml.DecodeFile("testdata/csconfig.toml", &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
 		Convey("Init does not override values", func() {
-			err := cfg.CS.Init("testdata")
+			err := cfg.Init("testdata")
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 7*time.Hour)
 			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, 48*time.Hour)
@@ -108,12 +96,12 @@ func TestConfig_Init(t *testing.T) {
 	})
 
 	Convey("Load Default", t, func() {
-		var cfg TestConfig
+		var cfg Config
 		_, err := toml.DecodeReader(strings.NewReader("[cs]"), &cfg)
 		SoMsg("err", err, ShouldBeNil)
 
 		Convey("Init loads default values", func() {
-			err := cfg.CS.Init("testdata")
+			err := cfg.Init("testdata")
 			SoMsg("err", err, ShouldBeNil)
 			SoMsg("leafTime", cfg.CS.LeafReissueLeadTime.Duration, ShouldEqual, 6*time.Hour)
 			SoMsg("issuerTime", cfg.CS.IssuerReissueLeadTime.Duration, ShouldEqual, IssuerReissTime)
