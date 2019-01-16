@@ -30,59 +30,68 @@ func CopyLabels(labels prometheus.Labels) prometheus.Labels {
 	return l
 }
 
+// UseDefaultRegWithElem changes the default prometheus registry
+// to one that always adds the element id label.
+// Note this should be called before any other interaction with prometheus.
+// See also: https://github.com/prometheus/client_golang/issues/515
+func UseDefaultRegWithElem(elemId string) {
+	labels := prometheus.Labels{"elem": elemId}
+	reg := prometheus.NewRegistry()
+	prometheus.DefaultRegisterer = prometheus.WrapRegistererWith(labels, reg)
+	prometheus.DefaultGatherer = reg
+	prometheus.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	prometheus.MustRegister(prometheus.NewGoCollector())
+}
+
 // NewCounter creates a new prometheus counter that is registered with the default registry.
-func NewCounter(namespace, subsystem, name, help string,
-	constLabels prometheus.Labels) prometheus.Counter {
+func NewCounter(namespace, subsystem, name, help string) prometheus.Counter {
 	return promauto.NewCounter(
 		prometheus.CounterOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: constLabels,
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      name,
+			Help:      help,
 		},
 	)
 }
 
 // NewCounterVec creates a new prometheus counter vec that is registered with the default registry.
 func NewCounterVec(namespace, subsystem, name, help string,
-	constLabels prometheus.Labels, labelNames []string) *prometheus.CounterVec {
+	labelNames []string) *prometheus.CounterVec {
+
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: constLabels,
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      name,
+			Help:      help,
 		},
 		labelNames,
 	)
 }
 
 // NewGauge creates a new prometheus gauge that is registered with the default registry.
-func NewGauge(namespace, subsystem, name, help string,
-	constLabels prometheus.Labels) prometheus.Gauge {
+func NewGauge(namespace, subsystem, name, help string) prometheus.Gauge {
 	return promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: constLabels,
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      name,
+			Help:      help,
 		},
 	)
 }
 
 // NewGaugeVec creates a new prometheus gauge vec that is registered with the default registry.
 func NewGaugeVec(namespace, subsystem, name, help string,
-	constLabels prometheus.Labels, labelNames []string) *prometheus.GaugeVec {
+	labelNames []string) *prometheus.GaugeVec {
+
 	return promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: constLabels,
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      name,
+			Help:      help,
 		},
 		labelNames,
 	)
@@ -90,16 +99,16 @@ func NewGaugeVec(namespace, subsystem, name, help string,
 
 // NewHistogramVec creates a new prometheus histogram vec
 // that is registered with the default registry.
-func NewHistogramVec(namespace, subsystem, name, help string, constLabels prometheus.Labels,
+func NewHistogramVec(namespace, subsystem, name, help string,
 	labelNames []string, buckets []float64) *prometheus.HistogramVec {
+
 	return promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Namespace:   namespace,
-			Subsystem:   subsystem,
-			Name:        name,
-			Help:        help,
-			ConstLabels: constLabels,
-			Buckets:     buckets,
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      name,
+			Help:      help,
+			Buckets:   buckets,
 		},
 		labelNames,
 	)

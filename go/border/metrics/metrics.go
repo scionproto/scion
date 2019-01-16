@@ -55,26 +55,26 @@ var (
 	IFState *prometheus.GaugeVec
 )
 
-// Ensure all metrics are registered.
+// Init ensures all metrics are registered.
 func Init(elem string) {
 	namespace := "border"
-	constLabels := prometheus.Labels{"elem": elem}
 	sockLabels := []string{"sock"}
 
+	prom.UseDefaultRegWithElem(elem)
 	// Some closures to reduce boiler-plate.
 	newCVec := func(name, help string, lNames []string) *prometheus.CounterVec {
-		return prom.NewCounterVec(namespace, "", name, help, constLabels, lNames)
+		return prom.NewCounterVec(namespace, "", name, help, lNames)
 	}
 	newG := func(name, help string) prometheus.Gauge {
-		return prom.NewGauge(namespace, "", name, help, constLabels)
+		return prom.NewGauge(namespace, "", name, help)
 	}
 	newGVec := func(name, help string, lNames []string) *prometheus.GaugeVec {
-		return prom.NewGaugeVec(namespace, "", name, help, constLabels, lNames)
+		return prom.NewGaugeVec(namespace, "", name, help, lNames)
 	}
 	newHVec := func(name, help string,
 		lNames []string, buckets []float64) *prometheus.HistogramVec {
 
-		return prom.NewHistogramVec(namespace, "", name, help, constLabels, lNames, buckets)
+		return prom.NewHistogramVec(namespace, "", name, help, lNames, buckets)
 	}
 
 	InputPkts = newCVec("input_pkts_total", "Total number of input packets received.", sockLabels)
@@ -116,5 +116,5 @@ func Init(elem string) {
 	IFState = newGVec("interface_active", "Interface is active.", sockLabels)
 
 	// Initialize ringbuf metrics.
-	ringbuf.InitMetrics("border", constLabels, []string{"ringId"})
+	ringbuf.InitMetrics("border", []string{"ringId"})
 }

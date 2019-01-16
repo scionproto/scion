@@ -1,4 +1,5 @@
 // Copyright 2018 ETH Zurich
+// Copyright 2019 ETH Zurich, Anapaya Systems
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +23,6 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/scionproto/scion/go/godispatcher/internal/config"
 	"github.com/scionproto/scion/go/godispatcher/internal/registration"
@@ -30,6 +30,7 @@ import (
 	"github.com/scionproto/scion/go/lib/env"
 	"github.com/scionproto/scion/go/lib/fatal"
 	"github.com/scionproto/scion/go/lib/log"
+	"github.com/scionproto/scion/go/lib/prom"
 	"github.com/scionproto/scion/go/lib/ringbuf"
 )
 
@@ -54,7 +55,8 @@ func realMain() int {
 	defer env.LogAppStopped("Dispatcher", cfg.Dispatcher.ID)
 	defer log.LogPanicAndExit()
 
-	ringbuf.InitMetrics("dispatcher", prometheus.Labels{"elem": cfg.Dispatcher.ID}, nil)
+	prom.UseDefaultRegWithElem(cfg.Dispatcher.ID)
+	ringbuf.InitMetrics("dispatcher", nil)
 	go func() {
 		defer log.LogPanicAndExit()
 		err := RunDispatcher(cfg.Dispatcher.ApplicationSocket, cfg.Dispatcher.OverlayPort)
