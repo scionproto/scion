@@ -198,6 +198,9 @@ func (r *Router) rollbackNet(ctx, oldCtx *rctx.Ctx,
 
 // teardownOldNet tears down the sockets of removed external interfaces.
 func (r *Router) teardownNet(ctx, oldCtx *rctx.Ctx, sockConf brconf.SockConf) {
+	if oldCtx == nil {
+		return
+	}
 	// Iterate on oldCtx to catch removed interfaces.
 	for _, intf := range oldCtx.Conf.Net.IFs {
 		registeredExtSockOps[sockConf.Ext(intf.Id)].Teardown(r, ctx, intf, oldCtx)
